@@ -162,7 +162,10 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                                       inst->inst_name);
             }
             slapi_mtn_be_disable(inst->inst_be);
-            cache_clear(&inst->inst_cache);
+            cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
+            if (entryrdn_get_switch()) {
+                cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
+            }
         }
         /* now we know nobody's using any of the backend instances, so we
          * can shutdown the dblayer -- this closes all instances too.

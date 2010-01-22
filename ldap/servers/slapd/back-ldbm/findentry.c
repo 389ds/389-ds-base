@@ -117,7 +117,7 @@ find_entry_internal_dn(
 			/* see if the entry is a referral */
 			if(check_entry_for_referral(pb, e->ep_entry, NULL, "find_entry_internal_dn"))
 			{
-				cache_return( &inst->inst_cache, &e );
+				CACHE_RETURN( &inst->inst_cache, &e );
 				return( NULL );
 			}
 		}
@@ -139,7 +139,7 @@ find_entry_internal_dn(
 		 */
 		LDAPDebug( LDAP_DEBUG_ARGS,
 		    "   find_entry_internal_dn retrying (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
-		cache_return( &inst->inst_cache, &e );
+		CACHE_RETURN( &inst->inst_cache, &e );
 		tries++;
 	}
 	if (tries >= LDBM_CACHE_RETRY_COUNT) {
@@ -160,7 +160,7 @@ find_entry_internal_dn(
 			/* if the entry is a referral send the referral */
 			if(check_entry_for_referral(pb, me->ep_entry, (char*)slapi_sdn_get_dn(&ancestordn), "find_entry_internal_dn"))
 			{
-				cache_return( &inst->inst_cache, &me );
+				CACHE_RETURN( &inst->inst_cache, &me );
 				slapi_sdn_done(&ancestordn);
 				return( NULL );
 			}
@@ -169,10 +169,11 @@ find_entry_internal_dn(
 
 		/* entry not found */
 		slapi_send_ldap_result( pb, ( 0 == err || DB_NOTFOUND == err ) ?
-			LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, (char*)slapi_sdn_get_dn(&ancestordn), NULL,
-			0, NULL );
+			LDAP_NO_SUCH_OBJECT : ( LDAP_INVALID_DN_SYNTAX == err ) ?
+			LDAP_INVALID_DN_SYNTAX : LDAP_OPERATIONS_ERROR,
+			(char*)slapi_sdn_get_dn(&ancestordn), NULL, 0, NULL );
 		slapi_sdn_done(&ancestordn);
-		cache_return( &inst->inst_cache, &me );
+		CACHE_RETURN( &inst->inst_cache, &me );
 	}
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= find_entry_internal_dn not found (%s)\n",
@@ -221,7 +222,7 @@ find_entry_internal_uniqueid(
 		LDAPDebug( LDAP_DEBUG_ARGS,
 			"   find_entry_internal_uniqueid retrying; uniqueid = (%s)\n", 
 			uniqueid, 0, 0 );
-		cache_return( &inst->inst_cache, &e );
+		CACHE_RETURN( &inst->inst_cache, &e );
 		tries++;
 	}
 	if (tries >= LDBM_CACHE_RETRY_COUNT) {

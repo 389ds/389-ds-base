@@ -251,13 +251,14 @@ static int import_attr_callback(void *node, void *param)
      * don't need to worry about protecting the data in the job structure.
      */
 
-    /* We need to specifically exclude the entrydn & parentid indexes because
-     * we build those in the foreman thread.
+    /* We need to specifically exclude the (entrydn, entryrdn) & parentid &
+     * ancestorid indexes because we build those in the foreman thread.
      */
     if (IS_INDEXED(a->ai_indexmask) &&
-    (strcasecmp(a->ai_type, "entrydn") != 0) &&
-    (strcasecmp(a->ai_type, "parentid") != 0) &&
-    (strcasecmp(a->ai_type, "ancestorid") != 0) &&
+    (strcasecmp(a->ai_type, LDBM_ENTRYDN_STR) != 0) &&
+    (strcasecmp(a->ai_type, LDBM_ENTRYRDN_STR) != 0) &&
+    (strcasecmp(a->ai_type, LDBM_PARENTID_STR) != 0) &&
+    (strcasecmp(a->ai_type, LDBM_ANCESTORID_STR) != 0) &&
     (strcasecmp(a->ai_type, numsubordinates) != 0)) {
     /* Make an import_index_info structure, fill it in and insert into the
      * job's list */
@@ -927,11 +928,11 @@ int import_make_merge_filenames(char *directory, char *indexname, int pass,
     *oldname = slapi_ch_smprintf("%s/%s%s", directory, indexname, LDBM_FILENAME_SUFFIX);
     *newname = slapi_ch_smprintf("%s/%s.%d%s", directory, indexname, pass,
         LDBM_FILENAME_SUFFIX);
-	if (!*oldname || !*newname) {
-		slapi_ch_free_string(oldname);
-		slapi_ch_free_string(newname);
-		return -1;
-	}
+    if (!*oldname || !*newname) {
+        slapi_ch_free_string(oldname);
+        slapi_ch_free_string(newname);
+        return -1;
+    }
     return 0;
 }
 
@@ -966,7 +967,7 @@ static int import_sweep_after_pass(ImportJob *job)
          * pass number */
         if ((current_worker->work_type != FOREMAN) && 
         (current_worker->work_type != PRODUCER) && 
-        (strcasecmp(current_worker->index_info->name, "parentid") != 0)) {
+        (strcasecmp(current_worker->index_info->name, LDBM_PARENTID_STR) != 0)) {
         char *newname = NULL;
         char *oldname = NULL;
 
@@ -1267,15 +1268,18 @@ int import_main_offline(void *arg)
     import_log_notice(job, "Indexing complete.  Post-processing...");
     /* [610066] reindexed db cannot be used in the following backup/restore */
     if ( !(job->flags & FLAG_REINDEXING) &&
-            (ret = update_subordinatecounts(be, job->mothers, NULL)) != 0) {
+         (ret = update_subordinatecounts(be, job->mothers, job->encrypt, NULL))
+         != 0 ) {
         import_log_notice(job, "Failed to update numsubordinates attributes");
         goto error;
     }
 
-    /* And the ancestorid index */
-    if ((ret = ldbm_ancestorid_create_index(be)) != 0) {
-        import_log_notice(job, "Failed to create ancestorid index");
-        goto error;
+    if (!entryrdn_get_noancestorid()) {
+        /* And the ancestorid index */
+        if ((ret = ldbm_ancestorid_create_index(be)) != 0) {
+            import_log_notice(job, "Failed to create ancestorid index");
+            goto error;
+        }
     }
 
     import_log_notice(job, "Flushing caches...");
@@ -1293,7 +1297,10 @@ int import_main_offline(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it */
     import_log_notice(job, "Closing files...");
-    cache_clear(&job->inst->inst_cache);
+    cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
+    if (entryrdn_get_switch()) {
+        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
+    }
     if (0 != ret) {
         dblayer_delete_instance_dir(be);
         dblayer_instance_close(job->inst->inst_be);
@@ -1310,39 +1317,39 @@ error:
         int seconds_to_import = end - beginning;
         size_t entries_processed = job->lead_ID - (job->starting_ID - 1);
         double entries_per_second = (double) entries_processed / 
-            (double) seconds_to_import;
+                                    (double) seconds_to_import;
 
         if (job->not_here_skipped)
         {
-                if (job->skipped)
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
-                              "(%d bad entries were skipped, "
-                              "%d entries were skipped because they don't "
-                                                          "belong to this database) in %d seconds. "
-                              "(%.2f entries/sec)", entries_processed,
-                              job->skipped, job->not_here_skipped,
-                                                          seconds_to_import, entries_per_second);
+            if (job->skipped)
+                import_log_notice(job, "Import complete.  Processed %lu entries "
+                    "(%d bad entries were skipped, "
+                    "%d entries were skipped because they don't "
+                    "belong to this database) in %d seconds. "
+                    "(%.2f entries/sec)", entries_processed,
+                    job->skipped, job->not_here_skipped,
+                    seconds_to_import, entries_per_second);
                 else
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
-                              "(%d entries were skipped because they don't "
-                                                          "belong to this database) "
-                              "in %d seconds. (%.2f entries/sec)",
-                              entries_processed, job->not_here_skipped,
-                                                          seconds_to_import, entries_per_second);
+                    import_log_notice(job, "Import complete.  Processed %lu entries "
+                        "(%d entries were skipped because they don't "
+                        "belong to this database) "
+                        "in %d seconds. (%.2f entries/sec)",
+                        entries_processed, job->not_here_skipped,
+                        seconds_to_import, entries_per_second);
         }
         else
         {
-                if (job->skipped)
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
-                              "(%d were skipped) in %d seconds. "
-                              "(%.2f entries/sec)", entries_processed,
-                              job->skipped, seconds_to_import,
-                              entries_per_second);
-                else
-                        import_log_notice(job, "Import complete.  Processed %lu entries "
-                              "in %d seconds. (%.2f entries/sec)",
-                              entries_processed, seconds_to_import,
-                              entries_per_second);
+            if (job->skipped)
+                import_log_notice(job, "Import complete.  Processed %lu entries "
+                    "(%d were skipped) in %d seconds. "
+                    "(%.2f entries/sec)", entries_processed,
+                    job->skipped, seconds_to_import,
+                    entries_per_second);
+            else
+                import_log_notice(job, "Import complete.  Processed %lu entries "
+                    "in %d seconds. (%.2f entries/sec)",
+                    entries_processed, seconds_to_import,
+                    entries_per_second);
         }
     }
 
@@ -1386,6 +1393,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
     ImportJob *job = NULL;
     char **name_array = NULL;
     int total_files, i;
+    int up_flags = 0;
     PRThread *thread = NULL;
 
     job = CALLOC(ImportJob);
@@ -1424,9 +1432,23 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
         job->uuid_namespace = slapi_ch_strdup(namespaceid);
     }
 
+    slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &up_flags);
     job->flags = FLAG_USE_FILES;
-    if (NULL == name_array)    /* no ldif file is given -> reindexing */
-        job->flags |= FLAG_REINDEXING;
+    if (NULL == name_array) {    /* no ldif file is given */
+        job->flags |= FLAG_REINDEXING; /* call index_producer */
+        if (up_flags & SLAPI_UPGRADEDB_DN2RDN) {
+            if (entryrdn_get_switch()) {
+                job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
+            } else {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, "DN to RDN option is specified, "
+                                              "but %s is not enabled\n",
+                                              CONFIG_ENTRYRDN_SWITCH);
+                import_free_job(job);
+                FREE(job);
+                return -1;
+            }
+        }
+    }
     if (!noattrindexes)
     job->flags |= FLAG_INDEX_ATTRS;
     for (i = 0; name_array && name_array[i] != NULL; i++)

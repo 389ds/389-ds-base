@@ -587,8 +587,8 @@ static int compare_entries(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *bc,
 		} 
 		/* If so, proceed to the next attribute for comparison */
 	}
-	cache_return(&inst->inst_cache,&a);
-	cache_return(&inst->inst_cache,&b);
+	CACHE_RETURN(&inst->inst_cache,&a);
+	CACHE_RETURN(&inst->inst_cache,&b);
 	*error = 0;
 	return result;
 }
@@ -714,8 +714,8 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 		} 
 		/* If so, proceed to the next attribute for comparison */
 	}
-	cache_return(&inst->inst_cache,&a);
-	cache_return(&inst->inst_cache,&b);
+	CACHE_RETURN(&inst->inst_cache,&a);
+	CACHE_RETURN(&inst->inst_cache,&b);
 	*error = 0;
 	return result;
 }

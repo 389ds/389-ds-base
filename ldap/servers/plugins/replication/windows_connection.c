@@ -276,6 +276,15 @@ windows_conn_get_error(Repl_Connection *conn, int *operation, int *error)
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_get_error\n", 0, 0, 0 );
 }
 
+void
+windows_conn_set_error(Repl_Connection *conn, int error)
+{
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_conn_set_error\n", 0, 0, 0 );
+	PR_Lock(conn->lock);
+	conn->last_ldap_error = error;
+	PR_Unlock(conn->lock);
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_set_error\n", 0, 0, 0 );
+}
 
 /*
  * Common code to send an LDAPv3 operation and collect the result.
@@ -297,7 +306,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	const char *extop_oid, struct berval *extop_payload, char **retoidp,
 	struct berval **retdatap, LDAPControl ***returned_controls)
 {
-	int rc;
+	int rc = LDAP_SUCCESS;
 	ConnResult return_value;
 	LDAPControl **loc_returned_controls;
 	const char *op_string = NULL;
@@ -658,7 +667,7 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 				nummessages = ldap_count_messages(conn->ld, res);
 				numentries = ldap_count_entries(conn->ld, res);
 				numreferences = ldap_count_references(conn->ld, res);
-				LDAPDebug( LDAP_DEBUG_REPL, "windows_search_entry: recieved %d messages, %d entries, %d references\n",
+				LDAPDebug( LDAP_DEBUG_REPL, "windows_search_entry: received %d messages, %d entries, %d references\n",
                                    nummessages, numentries, numreferences );
 			}
 

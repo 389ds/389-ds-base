@@ -1,0 +1,24 @@
+#!/bin/sh
+
+prefix="{{DS-ROOT}}"
+if [ "$prefix" = "/" ] ; then
+    prefix=""
+fi
+LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@
+if [ -n "$prefix" ] ; then
+    LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:@nss_libdir@"
+fi
+export LD_LIBRARY_PATH
+SHLIB_PATH=$LD_LIBRARY_PATH
+export SHLIB_PATH
+
+cd {{SERVERBIN-DIR}}
+if [ $# -eq 0 ]
+then
+	bak_dir={{BAK-DIR}}/reindex_`date +%Y_%m_%d_%H_%M_%S`
+	./ns-slapd upgradedb -D {{CONFIG-DIR}} -f -r -a "$bak_dir"
+else
+	echo "Usage: dn2rdn"
+	exit 1
+fi
+

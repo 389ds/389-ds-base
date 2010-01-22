@@ -286,7 +286,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 		    {
 				nentries++;
 		    }
-		    cache_return( &inst->inst_cache, &e );
+		    CACHE_RETURN( &inst->inst_cache, &e );
 		}
 		idl_free( idl );
 	}

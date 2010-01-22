@@ -1483,3 +1483,12 @@ sdn_dump( const Slapi_DN *sdn, const char *text)
     LDAPDebug( LDAP_DEBUG_ANY, "SDN %s ptr=%lx dn=%s\n", text, sdn, (sdn->dn==NULL?"NULL":sdn->dn));
 }
 #endif
+
+size_t
+slapi_sdn_get_size(const Slapi_DN *sdn)
+{
+    size_t sz = sizeof(Slapi_DN);
+    sz += slapi_sdn_get_ndn_len(sdn);
+    sz += strlen(sdn->dn) + 1;
+    return sz;
+}

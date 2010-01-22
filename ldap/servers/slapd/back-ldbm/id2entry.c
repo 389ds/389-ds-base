@@ -44,6 +44,8 @@
 
 #include "back-ldbm.h"
 
+#define ID2ENTRY "id2entry"
+
 /* 
  * The caller MUST check for DB_LOCK_DEADLOCK and DB_RUNRECOVERY returned
  */
@@ -57,10 +59,10 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     DBT    key;
     int    len, rc;
     char   temp_id[sizeof(ID)];
-	struct backentry *encrypted_entry = NULL;
+    struct backentry *encrypted_entry = NULL;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> id2entry_add( %lu, \"%s\" )\n",
-        (u_long)e->ep_id, backentry_get_ndn(e), 0 );
+                                 (u_long)e->ep_id, backentry_get_ndn(e), 0 );
 
     if ( (rc = dblayer_get_id2entry( be, &db )) != 0 ) {
         LDAPDebug( LDAP_DEBUG_ANY, "Could not open/create id2entry\n",
@@ -74,26 +76,46 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     key.dptr = temp_id;
     key.dsize = sizeof(temp_id);
 
-	/* Encrypt attributes in this entry if necessary */
-	if (encrypt) {
-		rc = attrcrypt_encrypt_entry(be, e, &encrypted_entry);
-		if (rc) {
-			LDAPDebug( LDAP_DEBUG_ANY, "attrcrypt_encrypt_entry failed in id2entry_add\n",
-				0, 0, 0 );
-			return ( -1 );
-		}
-	}
+    /* Encrypt attributes in this entry if necessary */
+    if (encrypt) {
+        rc = attrcrypt_encrypt_entry(be, e, &encrypted_entry);
+        if (rc) {
+            LDAPDebug( LDAP_DEBUG_ANY, "attrcrypt_encrypt_entry failed in id2entry_add\n",
+                0, 0, 0 );
+            return ( -1 );
+        }
+    }
 
-	{
-		Slapi_Entry *entry_to_use = encrypted_entry ? encrypted_entry->ep_entry : e->ep_entry;
-		memset(&data, 0, sizeof(data));
-		data.dptr = slapi_entry2str_with_options( entry_to_use, &len, SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID);
-		data.dsize = len + 1;
-		/* If we had an encrypted entry, we no longer need it */
-		if (encrypted_entry) {
-			backentry_free(&encrypted_entry);
-		}
-	}
+    {
+        int options = SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID;
+        Slapi_Entry *entry_to_use = encrypted_entry ? encrypted_entry->ep_entry : e->ep_entry;
+        memset(&data, 0, sizeof(data));
+        if (entryrdn_get_switch())
+        {
+            struct backdn *oldbdn = NULL;
+            Slapi_DN *sdn =
+                          slapi_sdn_dup(slapi_entry_get_sdn_const(e->ep_entry));
+            struct backdn *bdn = backdn_init(sdn, e->ep_id, 0);
+            options |= SLAPI_DUMP_RDN_ENTRY;
+
+            /* If the ID already exists in the DN cache, replace it. */
+            if (CACHE_ADD( &inst->inst_dncache, bdn, &oldbdn ) == 1) {
+                cache_replace( &inst->inst_dncache, oldbdn, bdn );
+                CACHE_RETURN(&inst->inst_dncache, &oldbdn); /* to free oldbdn */
+            }
+
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
+            LDAPDebug( LDAP_DEBUG_TRACE,
+                   "=> id2entry_add (dncache) ( %lu, \"%s\" )\n",
+                   (u_long)e->ep_id, slapi_entry_get_dn_const(e->ep_entry), 0 );
+        }
+        data.dptr = slapi_entry2str_with_options(entry_to_use, &len, options);
+        data.dsize = len + 1;
+        /* If we had an encrypted entry, we no longer need it */
+        if (encrypted_entry) {
+            backentry_free(&encrypted_entry);
+        }
+    }
 
     if (NULL != txn) {
         db_txn = txn->back_txn_txn;
@@ -122,7 +144,7 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
          * should be in the cache.  Thus, this entry e won't be put into the
          * entry cache.  It'll be added by cache_replace.
          */
-        (void) cache_add( &inst->inst_cache, e, NULL );
+        (void) CACHE_ADD( &inst->inst_cache, e, NULL );
     }
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= id2entry_add %d\n", rc, 0, 0 );
@@ -165,6 +187,15 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
         db_txn = txn->back_txn_txn;
     }
 
+    if (entryrdn_get_switch())
+    {
+        ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+        Slapi_DN *sdn = slapi_sdn_dup(slapi_entry_get_sdn_const(e->ep_entry));
+        struct backdn *bdn = backdn_init(sdn, e->ep_id, 1);
+        CACHE_REMOVE(&inst->inst_dncache, bdn);
+		backdn_free(&bdn);
+    }
+
     rc = db->del( db,db_txn,&key,0 );
     dblayer_release_id2entry( be, db );
 
@@ -180,21 +211,23 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
     DB_TXN           *db_txn = NULL;
     DBT              key = {0};
     DBT              data = {0};
-    struct backentry *e;
+    struct backentry *e = NULL;
     Slapi_Entry      *ee;
     char             temp_id[sizeof(ID)];
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "=> id2entry( %lu )\n", (u_long)id, 0, 0 );
+    slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
+                    "=> id2entry(%lu)\n", (u_long)id);
 
     if ( (e = cache_find_id( &inst->inst_cache, id )) != NULL ) {
-        LDAPDebug( LDAP_DEBUG_TRACE, "<= id2entry %p (cache)\n", e, 0,
-            0 );
+        slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
+                        "<= id2entry %p, dn \"%s\" (cache)\n",
+						e, backentry_get_ndn(e));
         return( e );
     }
 
     if ( (*err = dblayer_get_id2entry( be, &db )) != 0 ) {
-        LDAPDebug( LDAP_DEBUG_ANY, "Could not open id2entry err %d\n",
-            *err, 0, 0 );
+        slapi_log_error(SLAPI_LOG_FATAL, ID2ENTRY,
+                        "Could not open id2entry err %d\n", *err);
         return( NULL );
     }
 
@@ -215,25 +248,25 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         if ( (0 != *err) && 
              (DB_NOTFOUND != *err) && (DB_LOCK_DEADLOCK != *err) )
         {
-            LDAPDebug( LDAP_DEBUG_ANY, 
-                "id2entry: libdb returned error %d (%s)\n",
-                *err, dblayer_strerror( *err ), 0 );
+            slapi_log_error(SLAPI_LOG_FATAL, ID2ENTRY, "db error %d (%s)\n",
+                            *err, dblayer_strerror( *err ));
         }
     }
     while ( (DB_LOCK_DEADLOCK == *err) && (txn == NULL) );
 
     if ( (0 != *err) && (DB_NOTFOUND != *err) && (DB_LOCK_DEADLOCK != *err) )
     {
-        if ( (ENOMEM == *err) && (data.dptr == NULL) )
+        if ( (DB_BUFFER_SMALL == *err) && (data.dptr == NULL) )
         {
             /* 
              * Now we are setting slapi_ch_malloc and its friends to libdb
              * by ENV->set_alloc in dblayer.c.  As long as the functions are 
              * used by libdb, it won't reach here.
              */
-            LDAPDebug( LDAP_DEBUG_ANY,
-                "malloc failed in libdb; terminating the server; OS error %d (%s)\n",
-                *err, slapd_system_strerror( *err ), 0 );
+            slapi_log_error(SLAPI_LOG_FATAL, ID2ENTRY, 
+                            "malloc failed in libdb; "
+                            "terminating the server; OS error %d (%s)\n",
+                            *err, slapd_system_strerror( *err ));
             exit (1);
         }
         dblayer_release_id2entry( be, db );
@@ -241,31 +274,79 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
     }
 
     if ( data.dptr == NULL ) {
-        LDAPDebug( LDAP_DEBUG_TRACE, "<= id2entry( %lu ) not found\n",
-            (u_long)id, 0, 0 );
-        dblayer_release_id2entry( be, db );
-        return( NULL );
+        slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
+                        "<= id2entry( %lu ) not found\n", (u_long)id);
+        goto bail;
     }
 
     /* call post-entry plugin */
     plugin_call_entryfetch_plugins( (char **) &data.dptr, &data.dsize );
 
-    if ( (ee = slapi_str2entry( data.dptr, 0 )) != NULL ) {
+    if (entryrdn_get_switch()) {
+        char *rdn = NULL;
+        int rc = 0;
+
+        /* rdn is allocated in get_value_from_string */
+        rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+        if (rc) {
+            /* data.dptr may not include rdn: ..., try "dn: ..." */
+            ee = slapi_str2entry( data.dptr, 0 );
+        } else {
+            char *dn = NULL;
+            struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
+            if (bdn) {
+                dn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+                slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
+                                "dncache_find_id returned: %s\n", dn);
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+            } else {
+                Slapi_DN *sdn = NULL;
+                rc = entryrdn_lookup_dn(be, rdn, id, &dn, txn);
+                if (rc) {
+                    slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
+                                    "id2entry: entryrdn look up failed "
+                                    "(rdn=%s, ID=%d)\n", rdn, id);
+                    /* Try rdn as dn. Could be RUV. */
+                    dn = slapi_ch_strdup(rdn);
+                }
+                sdn = slapi_sdn_new_dn_byval((const char *)dn);
+                bdn = backdn_init(sdn, id, 0);
+                CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
+                                "entryrdn_lookup_dn returned: %s, "
+                                "and set to dn cache (id %d)\n", dn, id);
+            }
+            ee = slapi_str2entry_ext( (const char *)dn, data.dptr, 0 );
+            slapi_ch_free_string(&rdn);
+            slapi_ch_free_string(&dn);
+        }
+    } else {
+        ee = slapi_str2entry( data.dptr, 0 );
+    }
+
+    if ( ee != NULL ) {
         int retval = 0;
         struct backentry *imposter = NULL;
 
-        PR_ASSERT(slapi_entry_get_uniqueid(ee) != NULL); /* All entries should have uniqueids */
-        e = backentry_init( ee ); /* ownership of the entry is passed into the backentry */
+        /* All entries should have uniqueids */
+        PR_ASSERT(slapi_entry_get_uniqueid(ee) != NULL);
+        /* ownership of the entry is passed into the backentry */
+        e = backentry_init( ee );
         e->ep_id = id;
+        slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
+                        "id2entry id: %d, dn \"%s\" -- adding it to cache\n",
+						id, backentry_get_ndn(e));
 
-		/* Decrypt any encrypted attributes in this entry, before adding it to the cache */
-		retval = attrcrypt_decrypt_entry(be, e);
-		if (retval) {
-			LDAPDebug( LDAP_DEBUG_ANY, "attrcrypt_decrypt_entry failed in id2entry\n",
-            0, 0, 0 );
-		}
-		
-		retval = cache_add( &inst->inst_cache, e, &imposter );
+        /* Decrypt any encrypted attributes in this entry, 
+         * before adding it to the cache */
+        retval = attrcrypt_decrypt_entry(be, e);
+        if (retval) {
+            slapi_log_error(SLAPI_LOG_FATAL, ID2ENTRY,
+                            "attrcrypt_decrypt_entry failed in id2entry\n");
+        }
+        
+        retval = CACHE_ADD( &inst->inst_cache, e, &imposter );
         if (1 == retval) {
             /* This means that someone else put the entry in the cache
             while we weren't looking ! So, we need to use the pointer
@@ -278,21 +359,25 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         } else if (-1 == retval) {
             /* the entry is in idtable but not in dntable, i.e., the entry
              * could have been renamed */
-            LDAPDebug( LDAP_DEBUG_TRACE, 
-                "id2entry: failed to put entry (id %lu, dn %s) into entry cache\n",
-                (u_long)id, backentry_get_ndn(e), 0 );
+            slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
+                            "id2entry: failed to put entry (id %lu, dn %s) "
+                            "into entry cache\n", (u_long)id,
+                            backentry_get_ndn(e));
         }
     } else {
-        LDAPDebug( LDAP_DEBUG_ANY, "str2entry returned NULL for id %lu, string=\"%s\"\n", (u_long)id, (char*)data.data, 0);
+        slapi_log_error(SLAPI_LOG_FATAL, ID2ENTRY,
+                        "str2entry returned NULL for id %lu, string=\"%s\"\n",
+                        (u_long)id, (char*)data.data);
         e = NULL;
     }
 
+bail:
     slapi_ch_free( &(data.data) );
 
     dblayer_release_id2entry( be, db );
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "<= id2entry( %lu ) %p (disk)\n", (u_long)id, e,
-        0 );
+    slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
+                    "<= id2entry( %lu ) %p (disk)\n", (u_long)id, e);
     return( e );
 }
 

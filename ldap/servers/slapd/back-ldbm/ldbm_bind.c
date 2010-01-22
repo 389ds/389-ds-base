@@ -245,7 +245,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 #endif
 			slapi_send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
 			    NULL, 0, NULL );
-			cache_return( &inst->inst_cache, &e );
+			CACHE_RETURN( &inst->inst_cache, &e );
 			return( SLAPI_BIND_FAIL );
 		}
 		bvals= attr_get_present_values(attr);
@@ -260,7 +260,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 #endif
 			slapi_send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
 			    NULL, 0, NULL );
-			cache_return( &inst->inst_cache, &e );
+			CACHE_RETURN( &inst->inst_cache, &e );
 			value_done(&cv);
 			return( SLAPI_BIND_FAIL );
 		}
@@ -271,11 +271,11 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	default:
 		slapi_send_ldap_result( pb, LDAP_STRONG_AUTH_NOT_SUPPORTED, NULL,
 		    "auth method not supported", 0, NULL );
-		cache_return( &inst->inst_cache, &e );
+		CACHE_RETURN( &inst->inst_cache, &e );
 		return( SLAPI_BIND_FAIL );
 	}
 
-	cache_return( &inst->inst_cache, &e );
+	CACHE_RETURN( &inst->inst_cache, &e );
 
 	/* success:  front end will send result */
 	return( SLAPI_BIND_SUCCESS );

@@ -754,7 +754,7 @@ entry_apply_mods_wsi(Slapi_Entry *e, Slapi_Mods *smods, const CSN *csn, int urp)
 
 /*
  * This code implements a computed attribute called 'nscpEntryWSI'.
- * By specifically asking for this attribute the client will recieve
+ * By specifically asking for this attribute the client will receive
  * an LDIF dump of the entry with all its state information.
  *
  * JCM - Security... Only for the Directory Manager.

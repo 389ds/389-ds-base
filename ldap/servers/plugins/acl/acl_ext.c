@@ -653,7 +653,7 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *dn, int copy_
 	char				*authType;
 	void				*conn;
 	int					op_type;
-	int			ssf = 0;
+	intptr_t			ssf = 0;
 	
 
 	if ( NULL == aclpb ) {
@@ -695,7 +695,7 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *dn, int copy_
 		return;
 	}
 	slapi_pblock_get ( pb, SLAPI_OPERATION_SSF, &ssf);
-	if (PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_SSF, ssf, 0) < 0) {
+	if (PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_SSF, (const void *)ssf, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 				"Unable to set the SSF in the Plist\n");
 		return;

@@ -577,13 +577,19 @@ struct slapi_dn
 /* 
  * Represents a Relative Distinguished Name.
  */
+#define FLAG_RDNS 0
+#define FLAG_ALL_RDNS 1
+#define FLAG_ALL_NRDNS 2
 
 struct slapi_rdn
 {
     unsigned char flag;
 	char *rdn;
-	char **rdns; /* Valid when FLAG_RDNS is set. */
+	char **rdns;       /* Valid when FLAG_RDNS is set. */
 	int butcheredupto; /* How far through rdns we've gone converting '=' to '\0' */
+	char *nrdn;        /* normalized rdn */
+	char **all_rdns;   /* Valid when FLAG_ALL_RDNS is set. */
+	char **all_nrdns;  /* Valid when FLAG_ALL_NRDNS is set. */
 };
 
 /* 
@@ -603,17 +609,19 @@ struct slapi_rdn
  * function
  */
 struct slapi_entry {
-    struct slapi_dn e_sdn;		/* DN of this entry */
-    char *e_uniqueid;   /* uniqueID of this entry */
-    CSNSet *e_dncsnset;      /* The set of DN CSNs for this entry */
-	CSN *e_maxcsn;			/* maximum CSN of the entry */
-    Slapi_Attr *e_attrs;	/* list of attributes and values   */
+    struct slapi_dn e_sdn;       /* DN of this entry */
+    struct slapi_rdn e_srdn;     /* RDN of this entry */
+    char *e_uniqueid;            /* uniqueID of this entry */
+    CSNSet *e_dncsnset;          /* The set of DN CSNs for this entry */
+    CSN *e_maxcsn;               /* maximum CSN of the entry */
+    Slapi_Attr *e_attrs;         /* list of attributes and values   */
     Slapi_Attr *e_deleted_attrs; /* deleted list of attributes and values */
-	Slapi_Attr *e_virtual_attrs; /* list of virtual attributes */
-    time_t e_virtual_watermark; /* indicates cache consistency when compared to global watermark */ 
-    PRRWLock *e_virtual_lock; /* for access to cached vattrs */
-	void *e_extension;          /* A list of entry object extensions */
-	unsigned char e_flags;
+    Slapi_Attr *e_virtual_attrs; /* list of virtual attributes */
+    time_t e_virtual_watermark;  /* indicates cache consistency when compared
+                                    to global watermark */ 
+    PRRWLock *e_virtual_lock;    /* for access to cached vattrs */
+    void *e_extension;           /* A list of entry object extensions */
+    unsigned char e_flags;
 };
 
 /*
@@ -2014,6 +2022,7 @@ typedef struct _slapdFrontendConfig {
   char *workingdir;	/* full path of directory before detach */
   char *configdir;  /* full path name of directory containing configuration files */
   char *schemadir;  /* full path name of directory containing schema files */
+  char *instancedir;/* full path name of instance directory */
   char *lockdir;    /* full path name of directory containing lock files */
   char *tmpdir;     /* full path name of directory containing tmp files */
   char *certdir;    /* full path name of directory containing cert files */

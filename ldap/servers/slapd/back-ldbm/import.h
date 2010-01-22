@@ -164,6 +164,7 @@ typedef struct {
 #define FLAG_ABORT              0x08    /* import has been aborted */
 #define FLAG_ONLINE             0x10    /* bring backend online when done */
 #define FLAG_REINDEXING         0x20    /* read from id2entry and do indexing */
+#define FLAG_DN2RDN             0x40    /* modify backend to the rdn format */
 
 
 /* Structure holding stuff about a worker thread and what it's up to */

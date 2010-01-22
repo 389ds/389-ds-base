@@ -139,9 +139,14 @@ struct config_info {
 #define CONFIG_USE_VLV_INDEX            "nsslapd-search-use-vlv-index"
 #define CONFIG_SERIAL_LOCK              "nsslapd-serial-lock"
 
+#define CONFIG_ENTRYRDN_SWITCH          "nsslapd-subtree-rename-switch"
+/* nsslapd-noancestorid is ignored unless nsslapd-subtree-rename-switch is on */
+#define CONFIG_ENTRYRDN_NOANCESTORID    "nsslapd-noancestorid"
+
 /* instance config options */
 #define CONFIG_INSTANCE_CACHESIZE       "nsslapd-cachesize"
 #define CONFIG_INSTANCE_CACHEMEMSIZE    "nsslapd-cachememsize"
+#define CONFIG_INSTANCE_DNCACHEMEMSIZE  "nsslapd-dncachememsize"
 #define CONFIG_INSTANCE_SUFFIX          "nsslapd-suffix"
 #define CONFIG_INSTANCE_READONLY        "nsslapd-readonly"
 #define CONFIG_INSTANCE_DIR      		"nsslapd-directory"

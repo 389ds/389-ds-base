@@ -1186,6 +1186,8 @@ void    DS_Sleep(PRIntervalTime ticks);
 /* macro to specify the behavior of upgradedb */
 #define SLAPI_UPGRADEDB_FORCE    0x1 /* reindex all (no check w/ idl switch) */
 #define SLAPI_UPGRADEDB_SKIPINIT 0x2 /* call upgradedb as part of other op */
+#define SLAPI_UPGRADEDB_DN2RDN   0x4 /* modify id2entry from dn format to rdn;
+                                        generate entryrdn index */
 
 /*
  * Macro to set port to the 'port' field of a NSPR PRNetAddr union.

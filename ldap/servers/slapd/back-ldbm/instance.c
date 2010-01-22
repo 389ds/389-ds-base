@@ -58,18 +58,30 @@ int ldbm_instance_create(backend *be, char *name)
     /* Allocate storage for the ldbm_instance structure.  Information specific
      * to this instance of the ldbm backend will be held here. */
     inst = (ldbm_instance *) slapi_ch_calloc(1, sizeof(ldbm_instance));
-		
+
     /* Record the name of this instance. */
     inst->inst_name = slapi_ch_strdup(name);
 
     /* initialize the entry cache */
     if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
-                     DEFAULT_CACHE_ENTRIES)) {
+                     DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: cache_init failed\n",
                   0, 0, 0);
         return -1;
     }
-	
+
+    /*
+     * initialize the dn cache 
+     * We do so, regardless of the subtree-rename value.
+     * It is needed when converting the db from DN to RDN format.
+     */
+    if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
+                     DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_create: dn cache_init failed\n");
+        return -1;
+    }
+
     /* Lock for the list of open db handles */
     inst->inst_handle_list_mutex = PR_NewLock();
     if (NULL == inst->inst_handle_list_mutex) {
@@ -134,18 +146,24 @@ int ldbm_instance_create_default_indexes(backend *be)
     int flags = LDBM_INSTANCE_CONFIG_DONT_WRITE;
 
     /*
-     * Always index entrydn, parentid, objectclass, subordinatecount
-     * copiedFrom,  and aci,
+     * Always index (entrydn or entryrdn), parentid, objectclass, 
+     * subordinatecount, copiedFrom, and aci,
      * since they are used by some searches, replication and the
      * ACL routines.
      */
+    if (entryrdn_get_switch()) { /* subtree-rename: on */
+        argv[ 0 ] = LDBM_ENTRYRDN_STR;
+        argv[ 1 ] = "subtree";
+        argv[ 2 ] = NULL;
+        ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
+    } else {
+        argv[ 0 ] = LDBM_ENTRYDN_STR;
+        argv[ 1 ] = "eq";
+        argv[ 2 ] = NULL;
+        ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
+    }
 
-    argv[ 0 ] = "entrydn";
-    argv[ 1 ] = "eq";
-    argv[ 2 ] = NULL;
-    ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
-
-    argv[ 0 ] = "parentid";
+    argv[ 0 ] = LDBM_PARENTID_STR;
     argv[ 1 ] = "eq";
     argv[ 2 ] = NULL;
     ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
@@ -167,7 +185,7 @@ int ldbm_instance_create_default_indexes(backend *be)
     ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
 #endif
 
-    argv[ 0 ] = "numsubordinates";
+    argv[ 0 ] = LDBM_NUMSUBORDINATES_STR;
     argv[ 1 ] = "pres";
     argv[ 2 ] = NULL;
     ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
@@ -177,7 +195,7 @@ int ldbm_instance_create_default_indexes(backend *be)
     argv[ 2 ] = NULL;
     ldbm_instance_config_add_index_entry(inst, 2, argv, flags);
 
-	/* For MMR, we need this attribute (to replace use of dncomp in delete). */
+    /* For MMR, we need this attribute (to replace use of dncomp in delete). */
     argv[ 0 ] = ATTR_NSDS5_REPLCONFLICT;
     argv[ 1 ] = "eq,pres";
     argv[ 2 ] = NULL;
@@ -195,14 +213,16 @@ int ldbm_instance_create_default_indexes(backend *be)
     /* ldbm_instance_config_add_index_entry(inst, 2, argv); */
     attr_index_config( be, "ldbm index init", 0, 2, argv, 1 );
 
-    /* 
-     * ancestorid is special, there is actually no such attr type
-     * but we still want to use the attr index file APIs.
-     */
-    argv[ 0 ] = "ancestorid";
-    argv[ 1 ] = "eq";
-    argv[ 2 ] = NULL;
-    attr_index_config( be, "ldbm index init", 0, 2, argv, 1 );
+    if (!entryrdn_get_noancestorid()) {
+        /* 
+         * ancestorid is special, there is actually no such attr type
+         * but we still want to use the attr index file APIs.
+         */
+        argv[ 0 ] = LDBM_ANCESTORID_STR;
+        argv[ 1 ] = "eq";
+        argv[ 2 ] = NULL;
+        attr_index_config( be, "ldbm index init", 0, 2, argv, 1 );
+    }
 
     return 0;
 }
@@ -255,7 +275,10 @@ ldbm_instance_stop(backend *be)
     be->be_state = BE_STATE_STOPPED;
     PR_Unlock (be->be_state_lock);
 
-    cache_destroy_please(&inst->inst_cache);
+    cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
+    if (entryrdn_get_switch()) { /* subtree-rename: on */
+        cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
+    }
 
     return rc;
 }
@@ -274,12 +297,12 @@ ldbm_instance_startall(struct ldbminfo *li)
         int rc1;
         inst = (ldbm_instance *) object_get_data(inst_obj);
         rc1 = ldbm_instance_start(inst->inst_be);
-	if (rc1 != 0) {
-	    rc = rc1;
-	} else {
-	    vlv_init(inst);
-	    slapi_mtn_be_started(inst->inst_be);
-	}
+    if (rc1 != 0) {
+        rc = rc1;
+    } else {
+        vlv_init(inst);
+        slapi_mtn_be_started(inst->inst_be);
+    }
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
     }
 
@@ -290,17 +313,17 @@ ldbm_instance_startall(struct ldbminfo *li)
 /* Walks down the set of instances, stopping each one. */
 int ldbm_instance_stopall(struct ldbminfo *li)
 {
-	Object *inst_obj;
-	ldbm_instance *inst;
-	
-	inst_obj = objset_first_obj(li->li_instance_set);
-	while (inst_obj != NULL)  {
-		inst = (ldbm_instance *) object_get_data(inst_obj);
-		ldbm_instance_stop(inst->inst_be);
-		inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
-	}
-	
-	return 0;
+    Object *inst_obj;
+    ldbm_instance *inst;
+    
+    inst_obj = objset_first_obj(li->li_instance_set);
+    while (inst_obj != NULL)  {
+        inst = (ldbm_instance *) object_get_data(inst_obj);
+        ldbm_instance_stop(inst->inst_be);
+        inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
+    }
+    
+    return 0;
 }
 
 
@@ -334,7 +357,6 @@ ldbm_instance_find_by_name(struct ldbminfo *li, char *name)
     }
     return NULL;
 }
-	
 
 /* Called when all references to the instance are gone. */
 /* (ie, only when an instance is being deleted) */

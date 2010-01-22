@@ -916,7 +916,7 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 
 /* 
  * Encrypt an index key. There is never any need to decrypt index keys since
- * we only ever look them up using plain text.
+ * we only ever look them up using plain text (except entryrdn).
  */
 int
 attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berval *in, struct berval **out)
@@ -947,3 +947,48 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
 	return ret;
 }
 	
+/*
+ * Decrypt index key
+ * needed by entryrdn (subtree-rename)
+ */ 
+int
+attrcrypt_decrypt_index_key(backend *be, 
+							struct attrinfo *ai, 
+							const struct berval *in,
+							struct berval **out)
+{
+	int rc = 0; /* success */
+
+	if (ai->ai_attrcrypt) {
+		Slapi_Value *value = NULL;
+		rc = -1;
+		if (NULL == in || NULL == out) {
+			LDAPDebug1Arg(LDAP_DEBUG_ANY,
+						  "attrcrypt_decrypt_index_key: Empty %s\n",
+						  NULL==in?"in":NULL==out?"out":"unknown");
+			return rc;
+		}
+		value = slapi_value_new_berval(in);
+		LDAPDebug0Args(LDAP_DEBUG_TRACE,"-> attrcrypt_decrypt_index_key\n");
+		/* Decrypt the input values in place on the original entry */
+		rc = attrcrypt_crypto_op_value_replace(ai->ai_attrcrypt, be, ai,
+												value, 0 /* decrypt */);
+		if (0 == rc) {
+			const struct berval *out_bv =
+							slapi_value_get_berval((const Slapi_Value *)value);
+			if (NULL == out_bv) {
+				rc = -1;
+				goto bail;
+			}
+			(*out) = ber_bvdup(out_bv);
+			if (NULL == *out) {
+				rc = -1;
+			}
+		}
+bail:
+		LDAPDebug0Args(LDAP_DEBUG_TRACE,"<- attrcrypt_decrypt_index_key\n");
+		slapi_value_free(&value);
+	}
+
+	return rc;
+}

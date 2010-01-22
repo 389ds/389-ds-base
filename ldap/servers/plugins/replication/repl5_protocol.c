@@ -202,6 +202,7 @@ prot_free(Repl_Protocol **rpp)
     }
     rp->prp_active_protocol = NULL;
     PR_Unlock(rp->lock);
+    PR_DestroyLock(rp->lock);
     slapi_ch_free((void **)rpp);
 }
 

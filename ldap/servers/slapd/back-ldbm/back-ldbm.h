@@ -119,6 +119,10 @@ typedef unsigned short u_int16_t;
 #endif
 #include "db.h"
 
+#ifndef DB_BUFFER_SMALL
+#define DB_BUFFER_SMALL ENOMEM
+#endif
+
 #define dptr data
 #define dsize size
 
@@ -163,6 +167,7 @@ typedef unsigned short u_int16_t;
  */
 #define BDB_IMPL        "bdb"
 #define BDB_BACKEND     "libback-ldbm" /* This backend plugin */
+#define BDB_RDNFORMAT   "rdn-format"   /* Subtree rename enabled */
 
 /*
  * While we support both new and old idl index,
@@ -170,30 +175,32 @@ typedef unsigned short u_int16_t;
  * When we drop the old idl code, we eliminate LDBM_VERSION_OLD.
  * bug #604922
  */
-#define LDBM_VERSION_BASE       "Netscape-ldbm/"
-#define LDBM_VERSION            "Netscape-ldbm/7.0" /* db42: new idl -> old */
-#define LDBM_VERSION_NEW        "Netscape-ldbm/7.0_NEW"     /* db42: new idl */
-#define LDBM_VERSION_OLD        "Netscape-ldbm/7.0_CLASSIC" /* db42: old idl */
-#define LDBM_VERSION_62         "Netscape-ldbm/6.2" /* db42: old idl */
-#define LDBM_VERSION_61         "Netscape-ldbm/6.1" /* db33: old idl */
-#define LDBM_VERSION_60         "Netscape-ldbm/6.0" /* db33: old idl */
+#define LDBM_VERSION_BASE        "Netscape-ldbm/"
+#define LDBM_VERSION             "Netscape-ldbm/7.0" /* db42: new idl -> old */
+#define LDBM_VERSION_NEW         "Netscape-ldbm/7.0_NEW"     /* db42: new idl */
+#define LDBM_VERSION_OLD         "Netscape-ldbm/7.0_CLASSIC" /* db42: old idl */
+#define LDBM_VERSION_62          "Netscape-ldbm/6.2" /* db42: old idl */
+#define LDBM_VERSION_61          "Netscape-ldbm/6.1" /* db33: old idl */
+#define LDBM_VERSION_60          "Netscape-ldbm/6.0" /* db33: old idl */
 
-#define LDBM_VERSION_50			"Netscape-ldbm/5.0"
-#define LDBM_VERSION_40			"Netscape-ldbm/4.0"
-#define LDBM_VERSION_30			"Netscape-ldbm/3.0"
-#define LDBM_VERSION_31			"Netscape-ldbm/3.1"
-#define LDBM_FILENAME_SUFFIX		".db4"
-#define	DBVERSION_FILENAME		"DBVERSION"
-#define DEFAULT_CACHE_SIZE		(size_t)10485760
-#define DEFAULT_CACHE_ENTRIES		-1		/* no limit */
-#define DEFAULT_DBCACHE_SIZE		1000000
-#define DEFAULT_MODE			0600
-#define DEFAULT_ALLIDSTHRESHOLD		4000
-#define DEFAULT_LOOKTHROUGHLIMIT	5000
-#define DEFAULT_IDL_TUNE		1
-#define DEFAULT_SEARCH_TUNE		0
+#define LDBM_VERSION_50          "Netscape-ldbm/5.0"
+#define LDBM_VERSION_40          "Netscape-ldbm/4.0"
+#define LDBM_VERSION_30          "Netscape-ldbm/3.0"
+#define LDBM_VERSION_31          "Netscape-ldbm/3.1"
+#define LDBM_FILENAME_SUFFIX     ".db4"
+#define    DBVERSION_FILENAME    "DBVERSION"
+#define DEFAULT_CACHE_SIZE       (size_t)10485760
+#define DEFAULT_CACHE_ENTRIES    -1        /* no limit */
+#define DEFAULT_DNCACHE_SIZE     (size_t)10485760
+#define DEFAULT_DNCACHE_MAXCOUNT -1        /* no limit */
+#define DEFAULT_DBCACHE_SIZE     1000000
+#define DEFAULT_MODE             0600
+#define DEFAULT_ALLIDSTHRESHOLD  4000
+#define DEFAULT_LOOKTHROUGHLIMIT 5000
+#define DEFAULT_IDL_TUNE         1
+#define DEFAULT_SEARCH_TUNE      0
 #define DEFAULT_IMPORT_INDEX_BUFFER_SIZE  0
-#define SUBLEN			3
+#define SUBLEN                   3
 #define LDBM_CACHE_RETRY_COUNT 1000 /* Number of times we re-try a cache operation */
 #define IDL_FETCH_RETRY_COUNT 5 /* Number of times we re-try idl_fetch if it returns deadlock */
 #define IMPORT_SUBCOUNT_HASHTABLE_SIZE 500 /* Number of buckets in hash used to accumulate subcount for broody parents */
@@ -318,22 +325,51 @@ typedef struct {
  */
 #define HASHLOC(mem, node)      (u_long)&(((mem *)0L)->node)
 
-struct backentry {
-    Slapi_Entry			*ep_entry;	/* real entry		*/
-    Slapi_Entry			*ep_vlventry;
-    ID				ep_id;		/* entry id		*/
-    char			ep_state;	/* state in the cache	*/
+/* type to set ep_type */
+#define CACHE_TYPE_ENTRY 0
+#define CACHE_TYPE_DN    1
+
+struct backcommon {
+    int               ep_type;      /* to distinguish backdn from backentry */
+    struct backcommon *ep_lrunext;  /* for the cache */
+    struct backcommon *ep_lruprev;  /* for the cache */
+    ID                ep_id;        /* entry id */
+    char              ep_state;     /* state in the cache */
 #define ENTRY_STATE_DELETED     0x1 /* entry is marked as deleted */
 #define ENTRY_STATE_CREATING    0x2 /* entry is being created; don't touch it */
 #define ENTRY_STATE_NOTINCACHE  0x4 /* cache_add failed; not in the cache */
-    int				ep_refcnt;	/* entry reference cnt	*/
-    void *			ep_dn_link;	/* linkage for the 3 hash */
-    void *			ep_id_link;	/*     tables used for */
-    void *			ep_uuid_link;	/*     looking up entries */
-    struct backentry		*ep_lrunext;	/* for the cache	*/
-    struct backentry		*ep_lruprev;	/* for the cache	*/
-    PRLock			*ep_mutexp;	/* protection for mods 	*/
-    size_t			size;		/* for cache tracking */
+    int               ep_refcnt;    /* entry reference cnt */
+    size_t            ep_size;      /* for cache tracking */
+};
+
+/* From ep_type through ep_size MUST be identical to backcommon */
+struct backentry {
+    int               ep_type;       /* to distinguish backdn from backentry */
+    struct backcommon *ep_lrunext;   /* for the cache */
+    struct backcommon *ep_lruprev;   /* for the cache */
+    ID                ep_id;         /* entry id */
+    char              ep_state;      /* state in the cache */
+    int               ep_refcnt;     /* entry reference cnt */
+    size_t            ep_size;      /* for cache tracking */
+    Slapi_Entry       *ep_entry;     /* real entry */
+    Slapi_Entry       *ep_vlventry;
+    void *            ep_dn_link;    /* linkage for the 3 hash */
+    void *            ep_id_link;    /*     tables used for */
+    void *            ep_uuid_link;  /*     looking up entries */
+    PRLock            *ep_mutexp;    /* protection for mods */
+};
+
+/* From ep_type through ep_size MUST be identical to backcommon */
+struct backdn {
+    int               ep_type;     /* to distinguish backdn from backentry */
+    struct backcommon *ep_lrunext; /* for the cache */
+    struct backcommon *ep_lruprev; /* for the cache */
+    ID                ep_id;       /* entry id */
+    char              ep_state;    /* state in the cache; share ENTRY_STATE_* */
+    int               ep_refcnt;   /* entry reference cnt */
+    size_t            ep_size;      /* for cache tracking */
+    Slapi_DN          *dn_sdn;
+    void              *dn_id_link; /* for hash table */
 };
 
 /* for the in-core cache of entries */
@@ -349,11 +385,15 @@ struct cache {
 #endif
     Slapi_Counter *c_hits;		/* for analysis of hits/misses */
     Slapi_Counter *c_tries;
-    struct backentry *c_lruhead;	/* add entries here */
-    struct backentry *c_lrutail;	/* remove entries here */
+    struct backcommon *c_lruhead;	/* add entries here */
+    struct backcommon *c_lrutail;	/* remove entries here */
     PRLock *c_mutex;			/* lock for cache operations */
     PRLock *c_emutexalloc_mutex;
 };
+
+#define CACHE_ADD(cache, p, a) cache_add((cache), (void *)(p), (void **)(a))
+#define CACHE_RETURN(cache, p) cache_return((cache), (void **)(p))
+#define CACHE_REMOVE(cache, p) cache_remove((cache),  (void *)(p))
 
 /* various modules keep private data inside the attrinfo structure */
 typedef struct dblayer_private dblayer_private;
@@ -401,6 +441,11 @@ typedef struct attrcrypt_private attrcrypt_private;
 #define INDEX_SUBSTRMIDDLE	1
 #define INDEX_SUBSTREND		2
 
+typedef int (*dup_compare_fn_type)(
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
+				DB *db,
+#endif
+				const DBT *,const DBT *);
 
 /* for the cache of attribute information (which are indexed, etc.) */
 struct attrinfo {
@@ -414,7 +459,8 @@ struct attrinfo {
 #define INDEX_FROMINIT	0x20
 #define INDEX_RULES	0x40
 #define INDEX_VLV	0x80
-#define	INDEX_ANY	(INDEX_PRESENCE | INDEX_EQUALITY | INDEX_APPROX | INDEX_SUB | INDEX_RULES | INDEX_VLV)
+#define INDEX_SUBTREE	0x100
+#define	INDEX_ANY	(INDEX_PRESENCE | INDEX_EQUALITY | INDEX_APPROX | INDEX_SUB | INDEX_RULES | INDEX_VLV | INDEX_SUBTREE)
 
 #define INDEX_OFFLINE   0x1000          /* index is being generated, or
                                          * has been created but not indexed
@@ -437,6 +483,13 @@ struct attrinfo {
 											specify an ORDERING matching rule, or the index
 											configuration must define an ORDERING matching rule.
 										 */
+	dup_compare_fn_type ai_dup_cmp_fn; /* function used to compare dups -
+										  used to order duplicates belonging
+										  to the same index key.  By default,
+										  idl_new_compare_dups is set.
+										  If some special ordering is needed,
+										  special compare fn is set here.
+										  (e.g., for entryrdn) */
 	int	*ai_substr_lens;	/* if the attribute nsSubStrXxx is specivied in
 							 * an index instance (dse.ldif), the substr key 
 							 * len value(s) are stored here.  If not specified, 
@@ -465,9 +518,10 @@ typedef struct _db_upgrade_info db_upgrade_info;
 /* Values for dbversion_stuff->type */
 #define DBVERSION_COMPATIBLE 0x10
 #define DBVERSION_UPGRADABLE 0x20
-#define DBVERSION_SOL 0x40
-#define DBVERSION_OLD_IDL 0x1
-#define DBVERSION_NEW_IDL 0x2
+#define DBVERSION_SOL        0x40
+#define DBVERSION_OLD_IDL    0x1
+#define DBVERSION_NEW_IDL    0x2
+#define DBVERSION_RDN_FORMAT 0x4
 
 /* Values for dbversion_stuff->action + return value */
 #define DBVERSION_NO_UPGRADE       0x0
@@ -483,6 +537,8 @@ typedef struct _db_upgrade_info db_upgrade_info;
                                           * No database formats changed;
                                           * no db extention change
                                           */
+#define DBVERSION_NEED_DN2RDN      0x1000/* DN to RDN (subtree-rename) format */
+#define DBVERSION_NEED_RDN2DN      0x2000/* RDN to DN (original) format */
 #define DBVERSION_NOT_SUPPORTED    0x10000000
 
 #define DBVERSION_TYPE   0x1
@@ -600,10 +656,11 @@ typedef struct _import_subcount_stuff import_subcount_stuff;
 /* Handy structures for modify operations */
 
 struct _modify_context {
-        int new_entry_in_cache;
+	int new_entry_in_cache;
 	struct backentry *old_entry;
 	struct backentry *new_entry;
 	Slapi_Mods *smods;
+	int attr_encrypt;
 };
 typedef struct _modify_context modify_context;
 
@@ -699,6 +756,7 @@ typedef struct ldbm_instance {
     dblayer_private_env *import_env;  /* use a different DB_ENV for imports */
     int require_index;                /* set to 1 to require an index be used
                                        * in search */
+    struct cache inst_dncache;        /* The dn cache for this instance. */
 } ldbm_instance;
 
 /*
@@ -741,6 +799,13 @@ typedef struct _back_search_result_set
 #define LDBM_PARENTID_OID			"2.16.840.1.113730.3.1.604"
 #define LDBM_ENTRYID_OID			"2.16.840.1.113730.3.1.605"
 #define LDBM_ENTRYUSN_OID			"2.16.840.1.113730.3.1.606"
+#define LDBM_ENTRYRDN_OID			"2.16.840.1.113730.3.1.607"
+
+#define LDBM_ANCESTORID_STR         "ancestorid"
+#define LDBM_ENTRYDN_STR            "entrydn"
+#define LDBM_ENTRYRDN_STR           "entryrdn"
+#define LDBM_NUMSUBORDINATES_STR    "numsubordinates"
+#define LDBM_PARENTID_STR           "parentid"
 
 /* Name of psuedo attribute used to track default indexes */
 #define LDBM_PSEUDO_ATTR_DEFAULT	".default"

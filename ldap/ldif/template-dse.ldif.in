@@ -730,6 +730,7 @@ objectclass: extensibleObject
 cn: config
 nsslapd-mode: 600
 nsslapd-directory: %db_dir%
+nsslapd-subtree-rename-switch: on
 
 dn: cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
@@ -751,13 +752,6 @@ nssystemindex: false
 nsindextype: pres
 nsindextype: eq
 nsindextype: sub
-
-dn: cn=entrydn,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
-objectclass: top
-objectclass: nsIndex
-cn: entrydn
-nssystemindex: true
-nsindextype: eq
 
 dn: cn=entryusn,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top

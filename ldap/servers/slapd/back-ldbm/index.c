@@ -52,8 +52,6 @@
 static const char *errmsg = "database index operation failed";
 
 static int   is_indexed (const char* indextype, int indexmask, char** index_rules);
-static char* index2prefix (const char* indextype);
-static void  free_prefix (char*);
 static Slapi_Value **
 valuearray_minus_valuearray(
     void *plugin, 
@@ -390,7 +388,8 @@ index_addordel_entry(
         slapi_sdn_get_parent(sdn, &parent);
         /*
          * Just index the "nstombstone" attribute value from the objectclass
-         * attribute, and the nsuniqueid attribute value, and the entrydn value of the deleted entry.
+         * attribute, and the nsuniqueid attribute value, and the 
+         * nscpEntryDN value of the deleted entry.
          */
         result = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE, e->ep_id, flags, txn);
         if ( result != 0 ) {
@@ -408,17 +407,31 @@ index_addordel_entry(
             return( result );
         }
         slapi_sdn_done(&parent);
+        if (entryrdn_get_switch()) { /* subtree-rename: on */
+            /* Even if this is a tombstone, we have to add it to entryrdn;
+             * This is needed for RUV.
+             */ 
+            result = entryrdn_index_entry(be, e, flags, txn);
+            if ( result != 0 ) {
+                return( result );
+            }
+        }
     }
     else
-    {
+    {   /* NOT a tombstone or delete a tombstone */
         /* add each attribute to the indexes */
         rc = 0, result = 0;
         for ( rc = slapi_entry_first_attr( e->ep_entry, &attr ); rc == 0;
               rc = slapi_entry_next_attr( e->ep_entry, attr, &attr ) ) {
             slapi_attr_get_type( attr, &type );
             svals = attr_get_present_values(attr);
-            if ( 0 == strcmp( type, "entrydn" )) {
-                slapi_values_set_flags(svals, SLAPI_ATTR_FLAG_NORMALIZED);
+            if ( 0 == strcmp( type, LDBM_ENTRYDN_STR )) {
+                if (entryrdn_get_switch()) { /* subtree-rename: on */
+                    /* skip "entrydn" */
+                    continue;
+                } else {
+                    slapi_values_set_flags(svals, SLAPI_ATTR_FLAG_NORMALIZED);
+                }
             }
             result = index_addordel_values_sv( be, type, svals, NULL,
                                                e->ep_id, flags, txn );
@@ -428,10 +441,21 @@ index_addordel_entry(
             }
         }
 
-        /* update ancestorid index . . . */
-        /* . . . only if we are not deleting a tombstone entry - tombstone entries are not in the ancestor id index - see bug 603279 */
-        if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
+        if (!entryrdn_get_noancestorid()) {
+            /* update ancestorid index . . . */
+            /* . . . only if we are not deleting a tombstone entry -
+             * tombstone entries are not in the ancestor id index -
+             * see bug 603279
+             */
+            if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
                 result = ldbm_ancestorid_index_entry(be, e, flags, txn);
+                if ( result != 0 ) {
+                    return( result );
+                }
+            }
+        }
+        if (entryrdn_get_switch()) { /* subtree-rename: on */
+            result = entryrdn_index_entry(be, e, flags, txn);
             if ( result != 0 ) {
                 return( result );
             }
@@ -806,7 +830,7 @@ index_read_ext(
 	*err = 0;
 
 	if (unindexed != NULL) *unindexed = 0;
-	prefix = index2prefix( indextype );
+	prefix = index_index2prefix( indextype );
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> index_read( \"%s\" %s \"%s\" )\n",
 		   type, prefix, encode (val, buf));
 
@@ -818,7 +842,7 @@ index_read_ext(
 
 	ainfo_get( be, basetype, &ai );
 	if (ai == NULL) {
-		free_prefix( prefix );
+		index_free_prefix( prefix );
 		slapi_ch_free_string( &basetmp );
 		return NULL;
 	}
@@ -831,7 +855,7 @@ index_read_ext(
                 if (unindexed != NULL) *unindexed = 1;
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= index_read %lu candidates "
 		    "(allids - not indexed)\n", (u_long)IDL_NIDS(idl), 0, 0 );
-		free_prefix( prefix );
+		index_free_prefix( prefix );
 		slapi_ch_free_string( &basetmp );
 		return( idl );
 	}
@@ -839,7 +863,7 @@ index_read_ext(
 		LDAPDebug( LDAP_DEBUG_TRACE,
 		    "<= index_read NULL (index file open for attr %s)\n",
 		    basetype, 0, 0 );
-		free_prefix (prefix);
+		index_free_prefix (prefix);
 		slapi_ch_free_string( &basetmp );
 		return( NULL );
 	}
@@ -897,7 +921,7 @@ index_read_ext(
 
 	dblayer_release_index_file( be, ai, db );
 
-	free_prefix (prefix);
+	index_free_prefix (prefix);
 
 	if (encrypted_val) {
 		ber_bvfree(encrypted_val);
@@ -975,7 +999,8 @@ retry:
 	}
 	/* Seek to the last key */
 	data.flags = DB_DBT_MALLOC;
-	ret = cursor->c_get(cursor,key,&data,DB_SET); /* data allocated here, we don't need it */
+	ret = cursor->c_get(cursor,key,&data,DB_SET); /* both key and data could be allocated */
+	/* data allocated here, we don't need it */
 	DBT_FREE_PAYLOAD(data);
 	if (DB_NOTFOUND == ret) {
 		void *old_key_buffer = key->data;
@@ -1000,6 +1025,10 @@ retry:
 		{
 			goto error;
 		}
+	}
+	if (saved_key != key->data) {
+		/* key could be allocated in the above c_get */
+		DBT_FREE_PAYLOAD(*key);
 	}
 	/* Seek to the next one 
 	 * [612498] NODUP is needed for new idl to get the next non-duplicated key
@@ -1066,7 +1095,7 @@ index_range_read(
     int timelimit = -1;
 
     *err = 0;
-    plen = strlen( prefix = index2prefix( indextype ));
+    plen = strlen( prefix = index_index2prefix( indextype ));
     slapi_pblock_get(pb, SLAPI_SEARCH_IS_AND, &is_and);
     if (!is_and)
     {
@@ -1110,12 +1139,12 @@ index_range_read(
         LDAPDebug( LDAP_DEBUG_ANY,
               "<= index_range_read(%s,%s) NULL (operator %i)\n",
               type, prefix, operator );
-        free_prefix(prefix);
+        index_free_prefix(prefix);
         return( NULL );
     }
     ainfo_get( be, type, &ai );
     if (ai == NULL) {
-        free_prefix(prefix);
+        index_free_prefix(prefix);
         return NULL;
     }
     LDAPDebug( LDAP_DEBUG_ARGS, "   indextype: \"%s\" indexmask: 0x%x\n",
@@ -1125,14 +1154,14 @@ index_range_read(
         LDAPDebug( LDAP_DEBUG_TRACE,
             "<= index_range_read(%s,%s) %lu candidates (allids)\n",
             type, prefix, (u_long)IDL_NIDS(idl) );
-        free_prefix(prefix);
+        index_free_prefix(prefix);
         return( idl );
     }
     if ( (*err = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
         LDAPDebug( LDAP_DEBUG_ANY,
             "<= index_range_read(%s,%s) NULL (could not open index file)\n",
             type, prefix, 0 );
-        free_prefix(prefix);
+        index_free_prefix(prefix);
         return( NULL ); /* why not allids? */
     }
     if (NULL != txn) {
@@ -1146,7 +1175,7 @@ index_range_read(
             "<= index_range_read(%s,%s) NULL: db->cursor() == %i\n",
             type, prefix, *err );
         dblayer_release_index_file( be, ai, db );
-        free_prefix(prefix);
+        index_free_prefix(prefix);
         return( NULL ); /* why not allids? */
     }
 
@@ -1402,7 +1431,7 @@ index_range_read(
         }
 #endif
 error:
-    free_prefix(prefix);
+    index_free_prefix(prefix);
     DBT_FREE_PAYLOAD(cur_key);
     DBT_FREE_PAYLOAD(upperkey);
 
@@ -1443,7 +1472,7 @@ addordel_values(
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> %s_values\n",
 		   (flags & BE_INDEX_ADD) ? "add" : "del", 0, 0);
 
-	prefix = index2prefix( indextype );
+	prefix = index_index2prefix( indextype );
 	if ( vals == NULL ) {
 		key.dptr  = prefix;
 		key.dsize = strlen( prefix ) + 1; /* include null terminator */
@@ -1466,7 +1495,7 @@ addordel_values(
 		{
                         ldbm_nasty(errmsg, 1090, rc);
 		}
-		free_prefix (prefix);
+		index_free_prefix (prefix);
 		if (NULL != key.dptr && prefix != key.dptr)
 			slapi_ch_free( (void**)&key.dptr );
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= %s_values %d\n",
@@ -1538,7 +1567,7 @@ addordel_values(
 			tmpbuflen = key.size;
 		}
 	}
-	free_prefix (prefix);
+	index_free_prefix (prefix);
 	if ( tmpbuf != NULL ) {
 		slapi_ch_free( (void**)&tmpbuf );
 	}
@@ -1576,18 +1605,20 @@ addordel_values_sv(
     char	*tmpbuf = NULL;
     size_t	tmpbuflen = 0;
     char	*realbuf;
-    char	*prefix;
+    char	*prefix = NULL;
     const struct berval *bvp;
     struct berval *encrypted_bvp = NULL;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> %s_values\n",
                (flags & BE_INDEX_ADD) ? "add" : "del", 0, 0);
 
-    prefix = index2prefix( indextype );
+    prefix = index_index2prefix( indextype );
     if ( vals == NULL ) {
         key.dptr  = prefix;
         key.dsize = strlen( prefix ) + 1; /* include null terminator */
-        key.flags = DB_DBT_MALLOC;	
+        /* key could be read in idl_{insert,delete}_key. 
+         * It must be DB_DBT_MALLOC. It's freed if key.dptr != prefix. */
+        key.flags = DB_DBT_MALLOC;
         if (NULL != txn) {
             db_txn = txn->back_txn_txn;
         }
@@ -1602,13 +1633,13 @@ addordel_values_sv(
             }
         }
 
-        if ( rc != 0 )
-        {
+        if ( rc != 0 ) {
             ldbm_nasty(errmsg, 1120, rc);
         }
-        free_prefix (prefix);
-        if (NULL != key.dptr && prefix != key.dptr)
+        if (NULL != key.dptr && prefix != key.dptr) {
             slapi_ch_free( (void**)&key.dptr );
+        }
+        index_free_prefix (prefix);
         LDAPDebug( LDAP_DEBUG_TRACE, "<= %s_values %d\n",
                    (flags & BE_INDEX_ADD) ? "add" : "del", rc, 0 );
         return( rc );
@@ -1700,7 +1731,7 @@ addordel_values_sv(
             tmpbuflen = key.size;
         }
     }
-    free_prefix (prefix);
+    index_free_prefix (prefix);
     if ( tmpbuf != NULL ) {
         slapi_ch_free( (void**)&tmpbuf );
     }
@@ -1981,8 +2012,8 @@ is_indexed (const char* indextype, int indexmask, char** index_rules)
     return indexed;
 }
 
-static char*
-index2prefix (const char* indextype)
+char*
+index_index2prefix (const char* indextype)
 {
     char* prefix;
     if      ( indextype == indextype_PRESENCE ) prefix = prefix_PRESENCE;
@@ -2001,8 +2032,8 @@ index2prefix (const char* indextype)
     return( prefix );
 }
 
-static void
-free_prefix (char* prefix)
+void
+index_free_prefix (char* prefix)
 {
     if (prefix == NULL ||
 	prefix == prefix_PRESENCE ||

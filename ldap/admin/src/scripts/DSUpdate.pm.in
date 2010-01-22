@@ -449,7 +449,7 @@ sub initInfFromInst {
         $inf->{slapd}->{bak_dir} = $entry->getValue('nsslapd-bakdir');
     }
     if (!$inf->{slapd}->{config_dir}) {
-        $inf->{slapd}->{config_dir} = $configdir;
+        $inf->{slapd}->{config_dir} = $configdir."/".$inst;
     }
     if (!$inf->{slapd}->{inst_dir}) {
         $inf->{slapd}->{inst_dir} = $entry->getValue('nsslapd-instancedir');

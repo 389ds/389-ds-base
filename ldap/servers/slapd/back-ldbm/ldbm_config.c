@@ -1036,6 +1036,34 @@ static int ldbm_config_serial_lock_set(void *arg, void *value, char *errorbuf,
     return LDAP_SUCCESS;
 }
 
+static void *ldbm_config_entryrdn_switch_get(void *arg)
+{
+    return (void *)((uintptr_t)entryrdn_get_switch());
+}
+
+static int ldbm_config_entryrdn_switch_set(void *arg, void *value,
+                                           char *errorbuf, int phase, int apply)
+{
+    if (apply) {
+        entryrdn_set_switch((int)((uintptr_t)value));
+    }
+	return LDAP_SUCCESS;
+}
+
+static void *ldbm_config_entryrdn_noancestorid_get(void *arg)
+{
+    return (void *)((uintptr_t)entryrdn_get_noancestorid());
+}
+
+static int ldbm_config_entryrdn_noancestorid_set(void *arg, void *value,
+                                           char *errorbuf, int phase, int apply)
+{
+    if (apply) {
+        entryrdn_set_noancestorid((int)((uintptr_t)value));
+    }
+	return LDAP_SUCCESS;
+}
+
 static void *ldbm_config_legacy_errcode_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
@@ -1249,6 +1277,8 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_TX_MAX, CONFIG_TYPE_INT, "200", &ldbm_config_db_tx_max_get, &ldbm_config_db_tx_max_set, 0},
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &ldbm_config_serial_lock_get, &ldbm_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_legacy_errcode_get, &ldbm_config_legacy_errcode_set, 0},
+    {CONFIG_ENTRYRDN_SWITCH, CONFIG_TYPE_ONOFF, "on", &ldbm_config_entryrdn_switch_get, &ldbm_config_entryrdn_switch_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_ENTRYRDN_NOANCESTORID, CONFIG_TYPE_ONOFF, "off", &ldbm_config_entryrdn_noancestorid_get, &ldbm_config_entryrdn_noancestorid_set, 0 /* no show */},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
@@ -1489,7 +1519,7 @@ int ldbm_config_ignored_attr(char *attr_name)
         !strcasecmp("creatorsname", attr_name) ||
         !strcasecmp("modifiersname", attr_name) ||
         !strcasecmp("createtimestamp", attr_name) ||
-        !strcasecmp("numsubordinates", attr_name) ||
+        !strcasecmp(LDBM_NUMSUBORDINATES_STR, attr_name) ||
         !strcasecmp("modifytimestamp", attr_name)) {
         return 1;
     } else {

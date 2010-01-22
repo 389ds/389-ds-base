@@ -2651,7 +2651,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                     generate = 1;
                 }
 
-		slapi_ch_free_string(&value);
+                slapi_ch_free_string(&value);
             } else {
                 /* check mods for magic value */
                 Slapi_Mod *next_mod = slapi_mod_new();

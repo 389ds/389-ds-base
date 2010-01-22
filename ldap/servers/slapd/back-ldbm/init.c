@@ -68,7 +68,8 @@ plugin_init_debug_level(int *level_ptr)
 int
 ldbm_back_add_schema( Slapi_PBlock *pb )
 {
-	int rc = add_ldbm_internal_attr_syntax( "entrydn",
+	int rc = 0;
+	rc = add_ldbm_internal_attr_syntax( LDBM_ENTRYDN_STR,
 			LDBM_ENTRYDN_OID, DN_SYNTAX_OID, DNMATCH_NAME,
 			SLAPI_ATTR_FLAG_SINGLE );
 
@@ -76,7 +77,7 @@ ldbm_back_add_schema( Slapi_PBlock *pb )
 			LDBM_DNCOMP_OID, DN_SYNTAX_OID, DNMATCH_NAME,
 			0 );
 
-	rc |= add_ldbm_internal_attr_syntax( "parentid",
+	rc |= add_ldbm_internal_attr_syntax( LDBM_PARENTID_STR,
 			LDBM_PARENTID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
 			SLAPI_ATTR_FLAG_SINGLE );
 
@@ -84,7 +85,7 @@ ldbm_back_add_schema( Slapi_PBlock *pb )
 			LDBM_ENTRYID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
 			SLAPI_ATTR_FLAG_SINGLE );
 
-	rc |= add_ldbm_internal_attr_syntax( "entryusn",
+	rc |= add_ldbm_internal_attr_syntax( SLAPI_ATTR_ENTRYUSN,
 			LDBM_ENTRYUSN_OID, INTEGER_SYNTAX_OID, INTFIRSTCOMPMATCH_NAME,
 			SLAPI_ATTR_FLAG_SINGLE|SLAPI_ATTR_FLAG_NOUSERMOD );
 

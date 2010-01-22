@@ -109,6 +109,6 @@ ldbm_back_compare( Slapi_PBlock *pb )
 		value_done(&compare_value);
 	}
 
-	cache_return( &inst->inst_cache, &e );
+	CACHE_RETURN( &inst->inst_cache, &e );
 	return( ret );
 }

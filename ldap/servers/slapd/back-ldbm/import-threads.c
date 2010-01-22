@@ -57,14 +57,15 @@
 #endif
 
 static void import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
+static int import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
 
 static struct backentry *import_make_backentry(Slapi_Entry *e, ID id)
 {
     struct backentry *ep = backentry_alloc();
 
     if (NULL != ep) {
-	ep->ep_entry = e;
-	ep->ep_id = id;
+        ep->ep_entry = e;
+        ep->ep_id = id;
     }
     return ep;
 }
@@ -118,9 +119,9 @@ static void import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 #define LDIF_BUFFER_SIZE 8192
 
 typedef struct {
-    char *b;		/* buffer */
-    size_t size;	/* how full the buffer is */
-    size_t offset;	/* where the current entry starts */
+    char *b;        /* buffer */
+    size_t size;    /* how full the buffer is */
+    size_t offset;  /* where the current entry starts */
 } ldif_context;
 
 static void import_init_ldif(ldif_context *c)
@@ -132,7 +133,7 @@ static void import_init_ldif(ldif_context *c)
 static void import_free_ldif(ldif_context *c)
 {
     if (c->b)
-	FREE(c->b);
+        FREE(c->b);
     import_init_ldif(c);
 }
 
@@ -145,32 +146,32 @@ static char *import_get_entry(ldif_context *c, int fd, int *lineno)
 
     while (!done) {
 
-	/* If there's no data in the buffer, get some */
-	if ((c->size == 0) || (c->offset == c->size)) {
-	    /* Do we even have a buffer ? */
-	    if (! c->b) {
-		c->b = slapi_ch_malloc(LDIF_BUFFER_SIZE);
-		if (! c->b)
-		    return NULL;
-	    }
-	    ret = read(fd, c->b, LDIF_BUFFER_SIZE);
-	    if (ret < 0) {
-		/* Must be error */
-		goto error;
-	    } else if (ret == 0) {
-		/* eof */
-		if (buf) {
-		    /* last entry */
-		    buf[bufOffset] = 0;
-		    return buf;
-		}
-		return NULL;
-	    } else {
-		/* read completed OK */
-		c->size = ret;
-		c->offset = 0;
-	    }
-	}
+        /* If there's no data in the buffer, get some */
+        if ((c->size == 0) || (c->offset == c->size)) {
+            /* Do we even have a buffer ? */
+            if (! c->b) {
+                c->b = slapi_ch_malloc(LDIF_BUFFER_SIZE);
+                if (! c->b)
+                    return NULL;
+            }
+            ret = read(fd, c->b, LDIF_BUFFER_SIZE);
+            if (ret < 0) {
+                /* Must be error */
+                goto error;
+            } else if (ret == 0) {
+                /* eof */
+                if (buf) {
+                    /* last entry */
+                    buf[bufOffset] = 0;
+                    return buf;
+                }
+                return NULL;
+            } else {
+                /* read completed OK */
+                c->size = ret;
+                c->offset = 0;
+            }
+        }
 
         /* skip blank lines at start of entry */
         if (bufOffset == 0) {
@@ -185,66 +186,66 @@ static char *import_get_entry(ldif_context *c, int fd, int *lineno)
             if (c->offset == c->size) continue;
         }
 
-	i = c->offset;
-	while (!done && (i < c->size)) {
-	    /* scan forward in the buffer, looking for the end of the entry */
-	    while ((i < c->size) && (c->b[i] != '\n'))
-		i++;
+        i = c->offset;
+        while (!done && (i < c->size)) {
+            /* scan forward in the buffer, looking for the end of the entry */
+            while ((i < c->size) && (c->b[i] != '\n'))
+                i++;
 
-	    if ((i < c->size) && (c->b[i] == '\n')) {
-		if (got_lf && ((i == 0) || ((i == 1) && (c->b[0] == '\r')))) {
-		    /* saw an lf at the end of the last buffer */
-		    i++, (*lineno)++;
-		    done = 1;
-		    got_lf = 0;
-		    break;
-		}
-		got_lf = 0;
-		(*lineno)++;
-		/* is this the end?  (need another linefeed) */
-		if (++i < c->size) {
-		    if (c->b[i] == '\n') {
-			/* gotcha! */
-			i++, (*lineno)++;
-			done = 1;
-		    } else if (c->b[i] == '\r') {
-			if (++i < c->size) {
-			    if (c->b[i] == '\n') {
-				/* gotcha! (nt) */
-				i++, (*lineno)++;
-				done = 1;
-			    }
-			} else {
-			    got_lf = 1;
-			}
-		    }
-		} else {
-		    /* lf at the very end of the buffer */
-		    got_lf = 1;
-		}
-	    }
-	}
+            if ((i < c->size) && (c->b[i] == '\n')) {
+                if (got_lf && ((i == 0) || ((i == 1) && (c->b[0] == '\r')))) {
+                    /* saw an lf at the end of the last buffer */
+                    i++, (*lineno)++;
+                    done = 1;
+                    got_lf = 0;
+                    break;
+                }
+                got_lf = 0;
+                (*lineno)++;
+                /* is this the end?  (need another linefeed) */
+                if (++i < c->size) {
+                    if (c->b[i] == '\n') {
+                        /* gotcha! */
+                        i++, (*lineno)++;
+                        done = 1;
+                    } else if (c->b[i] == '\r') {
+                        if (++i < c->size) {
+                            if (c->b[i] == '\n') {
+                                /* gotcha! (nt) */
+                                i++, (*lineno)++;
+                                done = 1;
+                            }
+                        } else {
+                            got_lf = 1;
+                        }
+                    }
+                } else {
+                    /* lf at the very end of the buffer */
+                    got_lf = 1;
+                }
+            }
+        }
 
-	/* copy what we did so far into the output buffer */
-	/* (first, make sure the output buffer is large enough) */
-	if (bufSize - bufOffset < i - c->offset + 1) {
-	    char *newbuf = NULL;
-	    size_t newsize = (buf ? bufSize*2 : LDIF_BUFFER_SIZE);
+        /* copy what we did so far into the output buffer */
+        /* (first, make sure the output buffer is large enough) */
+        if (bufSize - bufOffset < i - c->offset + 1) {
+            char *newbuf = NULL;
+            size_t newsize = (buf ? bufSize*2 : LDIF_BUFFER_SIZE);
 
-	    newbuf = slapi_ch_malloc(newsize);
-	    if (! newbuf)
-		goto error;
-	    /* copy over the old data (if there was any) */
-	    if (buf) {
-		memmove(newbuf, buf, bufOffset);
-		slapi_ch_free((void **)&buf);
-	    }
-	    buf = newbuf;
-	    bufSize = newsize;
-	}
-	memmove(buf + bufOffset, c->b + c->offset, i - c->offset);
-	bufOffset += (i - c->offset);
-	c->offset = i;
+            newbuf = slapi_ch_malloc(newsize);
+            if (! newbuf)
+                goto error;
+            /* copy over the old data (if there was any) */
+            if (buf) {
+                memmove(newbuf, buf, bufOffset);
+                slapi_ch_free((void **)&buf);
+            }
+            buf = newbuf;
+            bufSize = newsize;
+        }
+        memmove(buf + bufOffset, c->b + c->offset, i - c->offset);
+        bufOffset += (i - c->offset);
+        c->offset = i;
     }
 
     /* add terminating NUL char */
@@ -253,7 +254,7 @@ static char *import_get_entry(ldif_context *c, int fd, int *lineno)
 
 error:
     if (buf)
-	slapi_ch_free((void **)&buf);
+        slapi_ch_free((void **)&buf);
     return NULL;
 }
 
@@ -277,28 +278,28 @@ import_get_version(char *str)
 #if defined(USE_OPENLDAP)
     ber_len_t valuelen;
 #else
-    int	valuelen;
+    int valuelen;
 #endif
     int my_version = 0;
     int retmalloc = 0;
 
     if ((s = strstr(str, "version:")) == NULL)
-	return 0;
+        return 0;
 
     offset = s - str;
     mystr = ms = slapi_ch_strdup(str);
     while ( (s = ldif_getline( &ms )) != NULL ) {
-	if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) >= 0 ) {
-	    if (!strcasecmp(type, "version")) {
-		my_version = atoi(valuecharptr);
-		*(str + offset) = '#';
-		/* the memory below was not allocated by the slapi_ch_ functions */
-		if (retmalloc) slapi_ch_free((void **) &valuecharptr);
-		break;
-	    } 
-	}
-	/* the memory below was not allocated by the slapi_ch_ functions */
-	if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+        if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) >= 0 ) {
+            if (!strcasecmp(type, "version")) {
+                my_version = atoi(valuecharptr);
+                *(str + offset) = '#';
+                /* the memory below was not allocated by the slapi_ch_ functions */
+                if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+                break;
+            } 
+        }
+        /* the memory below was not allocated by the slapi_ch_ functions */
+        if (retmalloc) slapi_ch_free((void **) &valuecharptr);
     }
 
     slapi_ch_free((void **)&mystr);
@@ -356,7 +357,8 @@ import_add_created_attrs(Slapi_Entry *e)
  * them IDs and queueing them on the entry FIFO.  other threads will do
  * the indexing.
  */
-void import_producer(void *param)
+void
+import_producer(void *param)
 {
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
@@ -367,12 +369,7 @@ void import_producer(void *param)
     backend *be = inst->inst_be;
     PRIntervalTime sleeptime;
     char *estr = NULL;
-    int str2entry_flags =
-    SLAPI_STR2ENTRY_TOMBSTONE_CHECK |
-    SLAPI_STR2ENTRY_REMOVEDUPVALS |
-    SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES |
-    SLAPI_STR2ENTRY_ADDRDNVALS |
-    SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF;
+    int str2entry_flags = 0;
     int finished = 0;
     int detected_eof = 0;
     int fd, curr_file, curr_lineno;
@@ -404,7 +401,7 @@ void import_producer(void *param)
     fd = -1;
     detected_eof = finished = 0;
 
-    /* we loop around reading the input files and processing each entry
+    /* we loop around reading the input files and processing each ntry
      * as we read it.
      */
     while (! finished) {
@@ -482,10 +479,15 @@ void import_producer(void *param)
                 import_log_notice(job, "Processing file \"%s\"", curr_filename);
             }
         }
-         if (job->flags & FLAG_ABORT) {   
-             goto error;
-         }
+        if (job->flags & FLAG_ABORT) {   
+            goto error;
+        }
 
+        str2entry_flags = SLAPI_STR2ENTRY_TOMBSTONE_CHECK |
+                          SLAPI_STR2ENTRY_REMOVEDUPVALS |
+                          SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES |
+                          SLAPI_STR2ENTRY_ADDRDNVALS |
+                          SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF;
 
         while ((info->command == PAUSE)  && !(job->flags & FLAG_ABORT)){
             info->state = WAITING;
@@ -503,9 +505,9 @@ void import_producer(void *param)
             continue;
         }
 
-        if (0 == my_version && strstr(estr, "version:")) {
+        if (0 == my_version && 0 == strncmp(estr, "version:", 8)) {
             my_version = import_get_version(estr);
-                str2entry_flags |= SLAPI_STR2ENTRY_INCLUDE_VERSION_STR;
+            str2entry_flags |= SLAPI_STR2ENTRY_INCLUDE_VERSION_STR;
         }
 
         /* If there are more than so many lines in the entry, we tell
@@ -516,13 +518,38 @@ void import_producer(void *param)
         } else {
             flags = str2entry_flags;
         }
-        e = slapi_str2entry(estr, flags);
+        if (!(str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR) &&
+            entryrdn_get_switch()) { /* subtree-rename: on */
+            char *dn = NULL;
+            int rc = 0; /* estr should start with "dn: " */
+            if (strncmp(estr, "dn: ", 4) &&
+                NULL == strstr(estr, "\ndn: ")) { /* in case comments precedes
+                                                     the entry */
+                import_log_notice(job, "WARNING: skipping bad LDIF entry (not "
+                        "starting with \"dn: \") ending line %d of file \"%s\"",
+                        curr_lineno, curr_filename);
+                FREE(estr);
+                continue;
+            }
+            rc = get_value_from_string((const char *)estr, "dn", &dn);
+            if (rc) {
+                import_log_notice(job, "WARNING: skipping bad LDIF entry (dn "
+                                        "has no value\n");
+                FREE(estr);
+                continue;
+            }
+            e = slapi_str2entry_ext(dn, estr, flags);
+            slapi_ch_free_string(&dn);
+        } else {
+            e = slapi_str2entry(estr, flags);
+        }
         FREE(estr);
         if (! e) {
-                if (!(str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR))
-                        import_log_notice(job, "WARNING: skipping bad LDIF entry "
-                              "ending line %d of file \"%s\"", curr_lineno,
-                              curr_filename);
+            if (!(str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR)) {
+                import_log_notice(job, "WARNING: skipping bad LDIF entry "
+                                  "ending line %d of file \"%s\"", curr_lineno,
+                                  curr_filename);
+            }
             continue;
         }
         if (0 == my_version) {
@@ -532,10 +559,6 @@ void import_producer(void *param)
 
         if (! import_entry_belongs_here(e, inst->inst_be)) {
             /* silently skip */
-            if (e) {
-                job->not_here_skipped++;
-                slapi_entry_free(e);
-            }
             continue;
         }
 
@@ -547,7 +570,7 @@ void import_producer(void *param)
                               curr_lineno, curr_filename);
             if (e) {
                 slapi_entry_free(e);
-	    }
+            }
 
             job->skipped++;
             continue;
@@ -735,22 +758,134 @@ error:
     info->state = ABORTED;
 }
 
+static int
+index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
+                        ID id, ID *total_id, int curr_entry)
+{
+    int rc = -1;
+    ImportJob *job = info->job;
+    int idx;
+    struct backentry *ep = NULL, *old_ep = NULL;
+    size_t newesize = 0;
+    Slapi_Attr *attr = NULL;
+    PRIntervalTime sleeptime = PR_MillisecondsToInterval(import_sleep_time);
+
+    /* generate uniqueid if necessary */
+    import_generate_uniqueid(job, e);
+
+    ep = import_make_backentry(e, id);
+    if (NULL == ep) {
+        goto bail;
+    }
+
+    /* not sure what this does, but it looked like it could be
+     * simplified.  if it's broken, it's my fault.  -robey 
+     */
+    if (slapi_entry_attr_find(ep->ep_entry, "userpassword", &attr) == 0) {
+        Slapi_Value **va = attr_get_present_values(attr);
+
+        pw_encodevals( (Slapi_Value **)va ); /* jcm - cast away const */
+    }
+
+    if (job->flags & FLAG_ABORT) {
+        goto bail;
+    }
+
+    /* Now we have this new entry, all decoded
+     * Next thing we need to do is:
+     * (1) see if the appropriate fifo location contains an
+     *     entry which had been processed by the indexers.
+     *     If so, proceed.
+     *     If not, spin waiting for it to become free.
+     * (2) free the old entry and store the new one there.
+     * (3) Update the job progress indicators so the indexers
+     *     can use the new entry.
+     */
+    idx = (*total_id) % job->fifo.size;
+    old_ep = job->fifo.item[idx].entry;
+    if (old_ep) {
+        /* for the slot to be recycled, it needs to be already absorbed
+         * by the foreman ((*total_id) >= ready_EID), and all the workers 
+         * need to be finished with it (refcount = 0).
+         */
+        while (((old_ep->ep_refcnt > 0) || (old_ep->ep_id >= job->ready_EID))
+               && (info->command != ABORT) && !(job->flags & FLAG_ABORT)) {
+            info->state = WAITING;
+            DS_Sleep(sleeptime);
+        }
+        if (job->flags & FLAG_ABORT) {
+            goto bail;
+        }
+
+        info->state = RUNNING;
+        PR_ASSERT(old_ep == job->fifo.item[idx].entry);
+        job->fifo.item[idx].entry = NULL;
+        if (job->fifo.c_bsize > job->fifo.item[idx].esize) {
+            job->fifo.c_bsize -= job->fifo.item[idx].esize;
+        } else {
+            job->fifo.c_bsize = 0;
+        }
+        backentry_free(&old_ep);
+    }
+
+    newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
+    if (newesize > job->fifo.bsize) {    /* entry too big */
+        char ebuf[BUFSIZ];
+        import_log_notice(job, "WARNING: skipping entry \"%s\"",
+                    escape_string(slapi_entry_get_dn(e), ebuf));
+        import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+        backentry_free(&ep);
+        job->skipped++;
+        rc = 0; /* go to the next loop */
+    }
+    /* Now check if fifo has enough space for the new entry */
+    if ((job->fifo.c_bsize + newesize) > job->fifo.bsize) {
+        import_wait_for_space_in_fifo( job, newesize );
+    }
+
+    /* We have enough space */
+    job->fifo.item[idx].filename = ID2ENTRY LDBM_FILENAME_SUFFIX;
+    job->fifo.item[idx].line = curr_entry;
+    job->fifo.item[idx].entry = ep;
+    job->fifo.item[idx].bad = 0;
+    job->fifo.item[idx].esize = newesize;
+
+    /* Add the entry size to total fifo size */
+    job->fifo.c_bsize += ep->ep_entry? job->fifo.item[idx].esize : 0;
+
+    /* Update the job to show our progress */
+    job->lead_ID = *total_id;
+    if ((*total_id - info->first_ID) <= job->fifo.size) {
+        job->trailing_ID = info->first_ID;
+    } else {
+        job->trailing_ID = *total_id - job->fifo.size;
+    }
+
+    /* Update our progress meter too */
+    info->last_ID_processed = *total_id;
+    (*total_id)++;
+    rc = 0; /* done */
+bail:
+    return rc;
+}
+
 /* producer thread for re-indexing:
  * read id2entry, parsing entries (str2entry) (needed???), assigning
  * them IDs (again, needed???) and queueing them on the entry FIFO. 
  * other threads will do the indexing -- same as in import.
  */
-void index_producer(void *param)
+void
+index_producer(void *param)
 {
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ID id = job->first_ID;
     Slapi_Entry *e = NULL;
-    struct backentry *ep = NULL, *old_ep = NULL;
     ldbm_instance *inst = job->inst;
     PRIntervalTime sleeptime;
     int finished = 0;
-    int idx;
+    int rc = 0;
 
     /* vars for Berkeley DB */
     DB_ENV *env = NULL;
@@ -762,7 +897,6 @@ void index_producer(void *param)
     backend *be = inst->inst_be;
     int isfirst = 1;
     int curr_entry = 0;
-    size_t newesize = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -801,7 +935,6 @@ void index_producer(void *param)
      */
     finished = 0;
     while (!finished) {
-        Slapi_Attr *attr = NULL;
         ID temp_id;
 
         if (job->flags & FLAG_ABORT) {   
@@ -841,120 +974,131 @@ void index_producer(void *param)
         }
         curr_entry++;
         temp_id = id_stored_to_internal((char *)key.data);
-        slapi_ch_free(&(key.data));
 
         /* call post-entry plugin */
         plugin_call_entryfetch_plugins((char **) &data.dptr, &data.dsize);
-        e = slapi_str2entry(data.data, 0);
-        if ( NULL == e ) {
-            if (job->task) {
-                slapi_task_log_notice(job->task,
-                    "%s: WARNING: skipping badly formatted entry (id %lu)",
-                    inst->inst_name, (u_long)temp_id);
+        if (entryrdn_get_switch()) {
+            char *rdn = NULL;
+    
+            /* rdn is allocated in get_value_from_string */
+            rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+            if (rc) {
+                /* data.dptr may not include rdn: ..., try "dn: ..." */
+                e = slapi_str2entry( data.dptr, 0 );
+                if (job->flags & FLAG_DN2RDN) {
+                    int len = 0;
+                    int options = SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID |
+                                  SLAPI_DUMP_RDN_ENTRY;
+                    slapi_ch_free(&(data.data));
+                    data.dptr = slapi_entry2str_with_options(e, &len, options);
+                    data.dsize = len + 1;
+
+                    /* store it  */
+                    rc = db->put( db, NULL, &key, &data, 0);
+                    if (rc) {
+                        LDAPDebug2Args( LDAP_DEBUG_TRACE,
+                                   "index_producer: converting an entry "
+                                   "from dn format to rdn format failed " 
+                                   "(dn: %s, ID: %d)\n", 
+                                   slapi_entry_get_dn_const(e), temp_id);
+                        slapi_ch_free(&(data.data));
+                        goto error;
+                    }
+                }
+            } else {
+                char *dn = NULL;
+                struct backdn *bdn = 
+                                  dncache_find_id(&inst->inst_dncache, temp_id);
+                if (bdn) {
+                    /* don't free dn */
+                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                } else {
+                    Slapi_DN *sdn = NULL;
+                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL);
+                    if (rc) {
+                        /* We cannot use the entryrdn index;
+                         * Compose dn from the entries in id2entry */
+                        Slapi_RDN psrdn = {0};
+                        char *pid_str = NULL;
+                        char *pdn = NULL;
+
+                        LDAPDebug2Args( LDAP_DEBUG_TRACE,
+                                   "index_producer: entryrdn is not available; "
+                                   "composing dn (rdn: %s, ID: %d)\n", 
+                                   rdn, temp_id);
+                        rc = get_value_from_string((const char *)data.dptr,
+                                                   LDBM_PARENTID_STR, &pid_str);
+                        if (rc) {
+                            rc = 0; /* assume this is a suffix */
+                        } else {
+                            ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
+                            /* if pid is larger than the current pid temp_id,
+                             * the parent entry hasn't */
+                            rc = import_get_and_add_parent_rdns(info, inst, db,
+                                                 pid, &id, &psrdn, &curr_entry);
+                            if (rc) {
+                                LDAPDebug2Args( LDAP_DEBUG_ANY,
+                                   "ldbm2index: Failed to compose dn for "
+                                   "(rdn: %s, ID: %d)\n", rdn, temp_id);
+                                slapi_ch_free_string(&rdn);
+                                slapi_rdn_done(&psrdn);
+                                continue;
+                            }
+                            /* Generate DN string from Slapi_RDN */
+                            rc = slapi_rdn_get_dn(&psrdn, &pdn);
+                            slapi_rdn_done(&psrdn);
+                            if (rc) {
+                                LDAPDebug2Args( LDAP_DEBUG_ANY,
+                                       "ldbm2index: Failed to compose dn for "
+                                       "(rdn: %s, ID: %d) from Slapi_RDN\n",
+                                       rdn, temp_id);
+                                slapi_ch_free_string(&rdn);
+                                continue;
+                            }
+                        }
+                        dn = slapi_ch_smprintf("%s%s%s",
+                                               rdn, pdn?",":"", pdn?pdn:"");
+                        slapi_ch_free_string(&pdn);
+                    }
+                    /* dn is not dup'ed in slapi_sdn_new_dn_byref.
+                     * It's set to bdn and put in the dn cache. */
+                    sdn = slapi_sdn_new_dn_byref(dn);
+                    bdn = backdn_init(sdn, temp_id, 0);
+                    CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    slapi_log_error(SLAPI_LOG_CACHE, "ldbm2index",
+                                    "entryrdn_lookup_dn returned: %s, "
+                                    "and set to dn cache\n", dn);
+                }
+                e = slapi_str2entry_ext( dn, data.dptr, 0 );
+                slapi_ch_free_string(&rdn);
             }
-            LDAPDebug(LDAP_DEBUG_ANY,
-                "%s: WARNING: skipping badly formatted entry (id %lu)\n",
-                inst->inst_name, (u_long)temp_id, 0);
-            continue;
-        } 
+        } else {
+            e = slapi_str2entry(data.data, 0);
+            if ( NULL == e ) {
+                if (job->task) {
+                    slapi_task_log_notice(job->task,
+                        "%s: WARNING: skipping badly formatted entry (id %lu)",
+                        inst->inst_name, (u_long)temp_id);
+                }
+                LDAPDebug(LDAP_DEBUG_ANY,
+                    "%s: WARNING: skipping badly formatted entry (id %lu)\n",
+                    inst->inst_name, (u_long)temp_id, 0);
+                continue;
+            } 
+        }
+        slapi_ch_free(&(key.data));
         slapi_ch_free(&(data.data));
 
-        /* generate uniqueid if necessary */
-        import_generate_uniqueid(job, e);
-
-        ep = import_make_backentry(e, temp_id);
-        if (!ep)
+        rc = index_set_entry_to_fifo(info, e, temp_id, &id, curr_entry);
+        if (rc) {
             goto error;
-
-        /* not sure what this does, but it looked like it could be
-         * simplified.  if it's broken, it's my fault.  -robey 
-         */
-        if (slapi_entry_attr_find(ep->ep_entry, "userpassword", &attr) == 0) {
-            Slapi_Value **va = attr_get_present_values(attr);
-
-            pw_encodevals( (Slapi_Value **)va ); /* jcm - cast away const */
         }
-
-        if (job->flags & FLAG_ABORT)
-             goto error;
-
-        /* Now we have this new entry, all decoded
-         * Next thing we need to do is:
-         * (1) see if the appropriate fifo location contains an
-         *     entry which had been processed by the indexers.
-         *     If so, proceed.
-         *     If not, spin waiting for it to become free.
-         * (2) free the old entry and store the new one there.
-         * (3) Update the job progress indicators so the indexers
-         *     can use the new entry.
-         */
-        idx = id % job->fifo.size;
-        old_ep = job->fifo.item[idx].entry;
-        if (old_ep) {
-            /* for the slot to be recycled, it needs to be already absorbed
-             * by the foreman (id >= ready_EID), and all the workers need to
-             * be finished with it (refcount = 0).
-             */
-            while (((old_ep->ep_refcnt > 0) ||
-                    (old_ep->ep_id >= job->ready_EID))
-                   && (info->command != ABORT) && !(job->flags & FLAG_ABORT)) {
-                info->state = WAITING;
-                DS_Sleep(sleeptime);
-            }
-            if (job->flags & FLAG_ABORT)
-                goto error;
-
-            info->state = RUNNING;
-            PR_ASSERT(old_ep == job->fifo.item[idx].entry);
-            job->fifo.item[idx].entry = NULL;
-            if (job->fifo.c_bsize > job->fifo.item[idx].esize)
-                job->fifo.c_bsize -= job->fifo.item[idx].esize;
-            else
-                job->fifo.c_bsize = 0;
-            backentry_free(&old_ep);
-        }
-
-        newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-        if (newesize > job->fifo.bsize) {    /* entry too big */
-            char ebuf[BUFSIZ];
-            import_log_notice(job, "WARNING: skipping entry \"%s\"",
-                    escape_string(slapi_entry_get_dn(e), ebuf));
-            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
-            backentry_free(&ep);
-            job->skipped++;
-            continue;
-        }
-        /* Now check if fifo has enough space for the new entry */
-        if ((job->fifo.c_bsize + newesize) > job->fifo.bsize) {
-            import_wait_for_space_in_fifo( job, newesize );
-        }
-
-        /* We have enough space */
-        job->fifo.item[idx].filename = ID2ENTRY LDBM_FILENAME_SUFFIX;
-        job->fifo.item[idx].line = curr_entry;
-        job->fifo.item[idx].entry = ep;
-        job->fifo.item[idx].bad = 0;
-        job->fifo.item[idx].esize = newesize;
-
-        /* Add the entry size to total fifo size */
-        job->fifo.c_bsize += ep->ep_entry? job->fifo.item[idx].esize : 0;
-
-        /* Update the job to show our progress */
-        job->lead_ID = id;
-        if ((id - info->first_ID) <= job->fifo.size) {
-            job->trailing_ID = info->first_ID;
-        } else {
-            job->trailing_ID = id - job->fifo.size;
-        }
-
-        /* Update our progress meter too */
-        info->last_ID_processed = id;
-        id++;
-        if (job->flags & FLAG_ABORT)
+        if (job->flags & FLAG_ABORT) {
             goto error;
-        if (info->command == STOP)
-        {
+        }
+        if (info->command == STOP) {
             finished = 1;
         }
     }
@@ -1011,9 +1155,9 @@ static int foreman_do_parentid(ImportJob *job, struct backentry *entry,
     int idl_disposition = 0;
     int ret = 0;
 
-    if (slapi_entry_attr_find(entry->ep_entry, "parentid", &attr) == 0) {
+    if (slapi_entry_attr_find(entry->ep_entry, LDBM_PARENTID_STR, &attr) == 0) {
         svals = attr_get_present_values(attr);
-        ret = index_addordel_values_ext_sv(be, "parentid", svals, NULL, entry->ep_id,
+        ret = index_addordel_values_ext_sv(be, LDBM_PARENTID_STR, svals, NULL, entry->ep_id,
             BE_INDEX_ADD, NULL, &idl_disposition, NULL);
         if (idl_disposition != IDL_INSERT_NORMAL) {
             char *attr_value = slapi_value_get_berval(svals[0])->bv_val;
@@ -1037,7 +1181,8 @@ static int foreman_do_parentid(ImportJob *job, struct backentry *entry,
 }
 
 /* helper function for the foreman: */
-static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
+static int
+foreman_do_entrydn(ImportJob *job, FifoItem *fi)
 {
     backend *be = job->inst->inst_be;
     struct berval bv;
@@ -1055,7 +1200,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
      * tendency for customers to want to import dirty data */
     /* So, we do an index read first */
     err = 0;
-    IDL = index_read(be, "entrydn", indextype_EQUALITY, &bv, NULL, &err);
+    IDL = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &bv, NULL, &err);
 
     /* Did this work ? */
     if (NULL != IDL) {
@@ -1070,7 +1215,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
         job->skipped++;
         return -1;      /* skip to next entry */
     }
-    if ((ret = index_addordel_string(be, "entrydn", 
+    if ((ret = index_addordel_string(be, LDBM_ENTRYDN_STR, 
                                      bv.bv_val,
                                      fi->entry->ep_id,
                                      BE_INDEX_ADD|BE_INDEX_NORMALIZED, NULL)) != 0) {
@@ -1082,12 +1227,29 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     return 0;
 }
 
+/* helper function for the foreman: */
+static int
+foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
+{
+    backend *be = job->inst->inst_be;
+    int ret = 0;
+
+    if ((ret = entryrdn_index_entry(be, fi->entry, BE_INDEX_ADD, NULL)) != 0) {
+        import_log_notice(job, "Error writing entryrdn index "
+                          "(error %d: %s)",
+                          ret, dblayer_strerror(ret));
+        return ret;
+    }
+    return 0;
+}
+
 /* foreman thread:
  * i go through the FIFO just like the other worker threads, but i'm 
- * responsible for the interrelated indexes: entrydn, id2entry, and the
- * operational attributes (plus the parentid index).
+ * responsible for the interrelated indexes: entrydn, entryrdn, id2entry, 
+ * and the operational attributes (plus the parentid index).
  */
-void import_foreman(void *param)
+void
+import_foreman(void *param)
 {
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
@@ -1112,12 +1274,11 @@ void import_foreman(void *param)
     sleeptime = PR_MillisecondsToInterval(import_sleep_time);
     info->state = RUNNING;
 
-    ainfo_get(be, "parentid", &parentid_ai);
+    ainfo_get(be, LDBM_PARENTID_STR, &parentid_ai);
 
     while (! finished) {
         FifoItem *fi = NULL;
         int parent_status = 0;
-         
 
         if (job->flags & FLAG_ABORT) { 
             goto error;
@@ -1188,17 +1349,22 @@ void import_foreman(void *param)
                     goto cont;      /* below */
                 }
             }
-             if (job->flags & FLAG_ABORT) {
-                 goto error;
-             }
+            if (job->flags & FLAG_ABORT) {
+                goto error;
+            } 
 
-
-            /* insert into the entrydn index */
-            ret = foreman_do_entrydn(job, fi);
-            if (ret == -1)
-                goto cont;      /* skip entry */
-            if (ret != 0)
+            if (entryrdn_get_switch()) { /* subtree-rename: on */
+                /* insert into the entryrdn index */
+                ret = foreman_do_entryrdn(job, fi);
+            } else {
+                /* insert into the entrydn index */
+                ret = foreman_do_entrydn(job, fi);
+                if (ret == -1)
+                    goto cont;      /* skip entry */
+            }
+            if (ret != 0) {
                 goto error; 
+            }
         }
 
         if (job->flags & FLAG_ABORT) {
@@ -1211,7 +1377,8 @@ void import_foreman(void *param)
              * (that isn't really an index -- it's the storehouse of the entries
              * themselves.)
              */
-            if ((ret = id2entry_add_ext(be, fi->entry, NULL, job->encrypt)) != 0) {
+            ret = id2entry_add_ext(be, fi->entry, NULL, job->encrypt);
+            if (ret) {
                 /* DB_RUNRECOVERY usually occurs if disk fills */
                 if (LDBM_OS_ERR_IS_DISKFULL(ret)) {
                 import_log_notice(job, "ERROR: OUT OF SPACE ON DISK or FILE TOO LARGE -- "
@@ -1240,7 +1407,7 @@ void import_foreman(void *param)
                                       SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* parentid index
              * (we have to do this here, because the parentID is dependent on
-             * looking up by entrydn.)
+             * looking up by entrydn/entryrdn.)
              * Only add to the parent index if the entry is not a tombstone.
              */
             ret = foreman_do_parentid(job, fi->entry, parentid_ai);
@@ -1259,7 +1426,7 @@ void import_foreman(void *param)
         /* Remove the entry from the cache (Put in the cache in id2entry_add) */
         if (!(job->flags & FLAG_REINDEXING)) {
             /* reindex reads data from id2entry */
-            cache_remove(&inst->inst_cache, fi->entry);
+            CACHE_REMOVE(&inst->inst_cache, fi->entry);
         }
         fi->entry->ep_refcnt = job->number_indexers;
 
@@ -1292,7 +1459,8 @@ error:
  * given an attribute, this worker plows through the entry FIFO, building
  * up the attribute index.
  */
-void import_worker(void *param)
+void
+import_worker(void *param)
 {
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
@@ -1594,9 +1762,9 @@ static int bulk_import_start(Slapi_PBlock *pb)
     /* how much space should we allocate to index buffering? */
     job->job_index_buffer_size = import_get_index_buffer_size();
     if (job->job_index_buffer_size == 0) {
-	/* 10% of the allocated cache size + one meg */
-	job->job_index_buffer_size = (job->inst->inst_li->li_dbcachesize/10) +
-            (1024*1024);
+        /* 10% of the allocated cache size + one meg */
+        job->job_index_buffer_size = (job->inst->inst_li->li_dbcachesize/10) +
+                                     (1024*1024);
     }
     import_subcount_stuff_init(job->mothers);
     job->wire_lock = PR_NewLock();
@@ -1605,7 +1773,10 @@ static int bulk_import_start(Slapi_PBlock *pb)
     /* COPIED from ldif2ldbm.c : */
 
     /* shutdown this instance of the db */
-    cache_clear(&job->inst->inst_cache);
+    cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
+    if (entryrdn_get_switch()) {
+        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
+    }
     dblayer_instance_close(be);
 
     /* Delete old database files */
@@ -1629,10 +1800,10 @@ static int bulk_import_start(Slapi_PBlock *pb)
                              PR_JOINABLE_THREAD,
                              SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-	PRErrorCode prerr = PR_GetError();
+        PRErrorCode prerr = PR_GetError();
         LDAPDebug(LDAP_DEBUG_ANY, "unable to spawn import thread, "
-				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-				prerr, slapd_pr_strerror(prerr), 0);
+                                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                                  prerr, slapd_pr_strerror(prerr), 0);
         PR_Unlock(job->wire_lock);
         ret = -2;
         goto fail;
@@ -1676,7 +1847,7 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     size_t newesize = 0;
 
     PR_Lock(job->wire_lock);
-	/* Let's do this inside the lock !*/
+    /* Let's do this inside the lock !*/
     id = job->lead_ID + 1;
     /* generate uniqueid if necessary */
     import_generate_uniqueid(job, entry);
@@ -1962,7 +2133,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
 
             slapi_attr_get_type(attr, &attr_name);
             /* numsubordinates should not be backed up */
-            if (!strcasecmp("numsubordinates", attr_name))
+            if (!strcasecmp(LDBM_NUMSUBORDINATES_STR, attr_name))
                 continue;
             attr_name_len = strlen(attr_name);
             for (i = slapi_attr_first_value(attr, &sval); i != -1;
@@ -2059,7 +2230,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     int curr_lineno = 0;
     int finished = 0;
     int backup_entry_len = 256;
-	char *search_scope = NULL;
+    char *search_scope = NULL;
     Slapi_Entry **backup_entries = NULL;
     Slapi_Entry **bep = NULL;
     Slapi_Entry **curr_entries = NULL;
@@ -2097,12 +2268,12 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
         if (!estr)
             break;
-		
-		if (entry_filter != NULL) /* Single instance restoration */
-		{
-			if (NULL == strstr(estr, entry_filter))
-				continue;
-		}
+
+        if (entry_filter != NULL) /* Single instance restoration */
+        {
+            if (NULL == strstr(estr, entry_filter))
+                continue;
+        }
 
         e = slapi_str2entry(estr, 0);
         slapi_ch_free_string(&estr);
@@ -2127,12 +2298,12 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
     pblock_init(&srch_pb);
 
-	if (entry_filter != NULL)
-	{ /* Single instance restoration */
+    if (entry_filter != NULL)
+    { /* Single instance restoration */
         search_scope = slapi_ch_smprintf("%s,%s", entry_filter, li->li_plugin->plg_dn);
-	} else { /* Normal restoration */
+    } else { /* Normal restoration */
         search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
-	}
+    }
 
     slapi_search_internal_set_pb(&srch_pb, search_scope,
         LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL, li->li_identity, 0);
@@ -2158,7 +2329,7 @@ out:
 
     slapi_ch_free_string(&filename);
 
-	slapi_ch_free_string(&search_scope);
+    slapi_ch_free_string(&search_scope);
 
 
     if (fd > 0)
@@ -2171,28 +2342,176 @@ int
 dse_conf_verify(struct ldbminfo *li, char *src_dir, char *bename)
 {
     int rval;
-	char *entry_filter = NULL;
-	char *instance_entry_filter = NULL;
-	
-	if (bename != NULL) /* This was a restore of a single backend */
-	{
-		/* Entry filter string */
+    char *entry_filter = NULL;
+    char *instance_entry_filter = NULL;
+    
+    if (bename != NULL) /* This was a restore of a single backend */
+    {
+        /* Entry filter string */
         entry_filter = slapi_ch_smprintf("cn=%s", bename);
 
-		/* Instance search filter */
+        /* Instance search filter */
         instance_entry_filter = slapi_ch_smprintf("(&%s(cn=%s))", DSE_INSTANCE_FILTER, bename);
-	} else {
-	    instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
-	}
+    } else {
+        instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
+    }
 
-	rval  = dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
+    rval  = dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
                 "Instance Config", entry_filter);
     rval += dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
                 "Index Config", entry_filter);
 
-	slapi_ch_free_string(&entry_filter);
-	slapi_ch_free_string(&instance_entry_filter);
+    slapi_ch_free_string(&entry_filter);
+    slapi_ch_free_string(&instance_entry_filter);
 
     return rval;
 }
 
+static int 
+import_get_and_add_parent_rdns(ImportWorkerInfo *info,
+                               ldbm_instance *inst,
+                               DB *db,
+                               ID id,
+                               ID *total_id,
+                               Slapi_RDN *srdn,
+                               int *curr_entry)
+{
+    int rc = -1;
+    struct backdn *bdn = NULL;
+    struct ldbminfo  *li = NULL;
+    Slapi_Entry *e = NULL;
+    char *dn = NULL;
+
+    if (!entryrdn_get_switch()) { /* entryrdn specific function */
+        return rc;
+    }
+    if (NULL == inst || NULL == srdn) {
+        slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                        "import_get_and_add_parent_rdns: Empty %s\n",
+                        NULL==inst?"inst":NULL==srdn?"srdn":"unknown");
+        return rc;
+    }
+    li = inst->inst_li;
+
+    /* first, try the dn cache */
+    bdn = dncache_find_id(&inst->inst_dncache, id);
+    if (bdn) {
+        Slapi_RDN mysrdn = {0};
+        /* Luckily, found the parent in the dn cache! */
+        if (slapi_rdn_get_rdn(srdn)) { /* srdn is already in use */
+            rc = slapi_rdn_init_all_dn(&mysrdn, slapi_sdn_get_dn(bdn->dn_sdn));
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                                "import_get_and_add_parent_rdns: "
+                                "Failed to convert DN %s to RDN\n", 
+                                slapi_sdn_get_dn(bdn->dn_sdn));
+                slapi_rdn_done(&mysrdn);
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                return rc;
+            }
+            rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                                "import_get_and_add_parent_rdns: "
+                                "Failed to merge Slapi_RDN %s to RDN\n",
+                                slapi_sdn_get_dn(bdn->dn_sdn));
+            }
+            slapi_rdn_done(&mysrdn);
+        } else { /* srdn is empty */
+            rc = slapi_rdn_init_all_dn(srdn, slapi_sdn_get_dn(bdn->dn_sdn));
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                                "import_get_and_add_parent_rdns: "
+                                "Failed to convert DN %s to RDN\n", 
+                                slapi_sdn_get_dn(bdn->dn_sdn));
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                return rc;
+            }
+        }
+        CACHE_RETURN(&inst->inst_dncache, &bdn);
+        return rc;
+    } else {
+        DBT key, data;
+        char *rdn = NULL;
+        char *pid_str = NULL;
+        ID storedid;
+        Slapi_RDN mysrdn = {0};
+
+        /* not in the dn cache; read id2entry */
+        if (NULL == db) {
+            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                            "import_get_and_add_parent_rdns: Empty db\n");
+            return rc;
+        }
+        id_internal_to_stored(id, (char *)&storedid);
+        key.size = key.ulen = sizeof(ID);
+        key.data = &storedid;
+        key.flags = DB_DBT_USERMEM;
+
+        memset(&data, 0, sizeof(data));
+        data.flags = DB_DBT_MALLOC;
+        rc = db->get(db, NULL, &key, &data, 0);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                            "import_get_and_add_parent_rdns: Failed to "
+                            "position at ID %lu\n", id);
+            return rc;
+        }
+        /* rdn is allocated in get_value_from_string */
+        rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                            "import_get_and_add_parent_rdns: "
+                            "Failed to get rdn of entry %lu\n", id);
+            goto bail;
+        }
+        /* rdn is set to srdn */
+        rc = slapi_rdn_init_all_dn(&mysrdn, rdn);
+        if (rc < 0) { /* expect rc == 1 since we are setting "rdn" not "dn" */
+            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                            "import_get_and_add_parent_rdns: "
+                            "Failed to add rdn %s of entry %lu\n", rdn, id);
+            goto bail;
+        }
+        rc = get_value_from_string((const char *)data.dptr,
+                                                   LDBM_PARENTID_STR, &pid_str);
+        if (rc) {
+            rc = 0; /* assume this is a suffix */
+        } else {
+            ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
+            rc = import_get_and_add_parent_rdns(info, inst, db, pid, total_id,
+                                                &mysrdn, curr_entry);
+            if (rc) {
+                slapi_ch_free_string(&rdn);
+                goto bail;
+            }
+        }
+
+        dn = NULL;
+        rc = slapi_rdn_get_dn(&mysrdn, &dn);
+        if (rc) {
+            LDAPDebug2Args( LDAP_DEBUG_ANY,
+                                "import_get_and_add_parent_rdns: "
+                                "Failed to compose dn for (rdn: %s, ID: %d) "
+                                "from Slapi_RDN\n", rdn, id);
+            goto bail;
+        }
+        e = slapi_str2entry_ext( dn, data.dptr, 0 );
+        (*curr_entry)++;
+        rc = index_set_entry_to_fifo(info, e, id, total_id, *curr_entry);
+        if (rc) {
+            goto bail;
+        }
+        rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                            "import_get_and_add_parent_rdns: "
+                            "Failed to merge Slapi_RDN %s to RDN\n",
+                            slapi_sdn_get_dn(bdn->dn_sdn));
+        }
+bail:
+        slapi_ch_free(&data.data);
+        slapi_ch_free_string(&rdn);
+        return rc;
+    }
+}

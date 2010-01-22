@@ -48,7 +48,7 @@
 extern char *numsubordinates;
 extern char *hassubordinates;
 
-static void delete_update_entry_dn_operational_attributes(struct backentry *ep);
+static void delete_update_entrydn_operational_attributes(struct backentry *ep);
 
 /* in order to find the parent, we must have either the parent dn or uniqueid
    This function will return true if either are set, or false otherwise */
@@ -73,7 +73,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	struct ldbminfo *li;
 	ldbm_instance *inst;
 	char *dn = NULL;
-	Slapi_Entry	*e;
+	Slapi_Entry	*e = NULL;
 	struct backentry *tombstoneentry = NULL;
 	struct backentry *addingentry = NULL;
 	struct backentry *parententry = NULL;
@@ -189,6 +189,17 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
 		{
 			slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn );
+			if (NULL == dn)
+			{
+				goto error_return;
+			}
+			ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
+			if (ldap_result_code)
+			{
+				ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+				goto error_return;
+			}
 			slapi_sdn_set_dn_byref(&sdn, dn);
 			slapi_sdn_get_backend_parent(&sdn,&parentsdn,pb->pb_backend);
 			/* Check if an entry with the intended DN already exists. */
@@ -196,6 +207,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 			addr.dn = dn;
 			addr.uniqueid = NULL;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_DN_ENTRY, !is_replicated_operation);
+            if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+               ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+            {
+                goto error_return;
+            }
 		}
 		/* if we can find the parent by dn or uniqueid, and the operation has requested the parent
 		   then get it */
@@ -286,7 +302,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				if ( ancestorentry != NULL )
 				{
 					int sentreferral= check_entry_for_referral(pb, ancestorentry->ep_entry, backentry_get_ndn(ancestorentry), "ldbm_back_add");
-					cache_return( &inst->inst_cache, &ancestorentry );
+					CACHE_RETURN( &inst->inst_cache, &ancestorentry );
 					if(sentreferral)
 					{
 						ldap_result_code= -1; /* The result was sent by check_entry_for_referral */
@@ -455,19 +471,44 @@ ldbm_back_add( Slapi_PBlock *pb )
 			 *	attribute to be the unique id of that parent.
 			 */
 			char *untombstoned_dn = slapi_entry_get_dn(e);
+			char *tombstoned_dn = NULL;
 			if (NULL == untombstoned_dn)
 			{
 				untombstoned_dn = "";
 			}
-			slapi_entry_set_dn(addingentry->ep_entry, compute_entry_tombstone_dn(untombstoned_dn, addr.uniqueid));
-			/* Work around pb with slapi_entry_add_string (defect 522327) doesn't check duplicate values */
-			if (!slapi_entry_attr_hasvalue(addingentry->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE)) {
-				slapi_entry_add_string(addingentry->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE);
-				slapi_entry_set_flag(addingentry->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
+			tombstoned_dn = compute_entry_tombstone_dn(untombstoned_dn, addr.uniqueid);
+			/*
+			 * This needs to be done before slapi_entry_set_dn call,
+			 * because untombstoned_dn is released in slapi_entry_set_dn.
+			 */
+			if (entryrdn_get_switch())
+			{
+				Slapi_RDN srdn = {0};
+				rc = slapi_rdn_init_all_dn(&srdn, tombstoned_dn);
+				if (rc) {
+					LDAPDebug1Arg( LDAP_DEBUG_TRACE,
+						"ldbm_back_add (tombstone_operation): failed to "
+						"decompose %s to Slapi_RDN\n", tombstoned_dn);
+				} else {
+					slapi_entry_set_srdn(e, &srdn);
+					slapi_rdn_done(&srdn);
+				}
+			}
+			slapi_entry_set_dn(addingentry->ep_entry, tombstoned_dn);
+			/* Work around pb with slapi_entry_add_string (defect 522327) 
+			 * doesn't check duplicate values */
+			if (!slapi_entry_attr_hasvalue(addingentry->ep_entry, 
+						SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE)) {
+				slapi_entry_add_string(addingentry->ep_entry, 
+							SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE);
+				slapi_entry_set_flag(addingentry->ep_entry,
+							SLAPI_ENTRY_FLAG_TOMBSTONE);
 			}
 			if (NULL != operation->o_params.p.p_add.parentuniqueid)
 			{
-				slapi_entry_add_string(addingentry->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID, operation->o_params.p.p_add.parentuniqueid);
+				slapi_entry_add_string(addingentry->ep_entry,
+									SLAPI_ATTR_VALUE_PARENT_UNIQUEID,
+									operation->o_params.p.p_add.parentuniqueid);
 			}
 		}
 	}
@@ -492,7 +533,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				slapi_sdn_get_dn(&parentsdn), 0, 0 );
 
 			ancestorentry = dn2ancestor(be, &parentsdn, &ancestordn, &txn, &err );
-			cache_return( &inst->inst_cache, &ancestorentry );
+			CACHE_RETURN( &inst->inst_cache, &ancestorentry );
 
 			ldap_result_code= LDAP_NO_SUCH_OBJECT;
 			ldap_result_matcheddn= slapi_ch_strdup((char *)slapi_sdn_get_dn(&ancestordn)); /* jcm - cast away const. */
@@ -524,15 +565,17 @@ ldbm_back_add( Slapi_PBlock *pb )
 	
 	if(is_resurect_operation)
 	{
-		/*
-		 * add the entrydn operational attributes
-		 */
-		add_update_entrydn_operational_attributes(addingentry);
+		if (!entryrdn_get_switch()) { /* subtree-rename: off */
+			/* add the entrydn operational attributes to the addingentry */
+			add_update_entrydn_operational_attributes(addingentry);
+		}
 	}
 	else if (is_tombstone_operation)
 	{
-		/* Remove the entrydn operational attributes */
-		delete_update_entry_dn_operational_attributes(addingentry);
+		if (!entryrdn_get_switch()) { /* subtree-rename: off */
+			/* Remove the entrydn operational attributes from the addingentry */
+			delete_update_entrydn_operational_attributes(addingentry);
+		}
 	}
 	else
 	{
@@ -622,6 +665,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 				goto diskfull_return;
 			}
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			retry_count = RETRY_TIMES; /* otherwise, the transaction may not 
+										  be aborted */
 			goto error_return; 
 		}
 		if(is_resurect_operation)
@@ -641,6 +686,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 			retval = index_addordel_string(be,SLAPI_ATTR_UNIQUEID,slapi_entry_get_uniqueid(addingentry->ep_entry),addingentry->ep_id,BE_INDEX_DEL,&txn);
@@ -658,6 +705,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 			retval = index_addordel_string(be,SLAPI_ATTR_NSCP_ENTRYDN,slapi_sdn_get_ndn(&sdn),addingentry->ep_id,BE_INDEX_DEL,&txn);
@@ -675,6 +724,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 		} 
@@ -701,6 +752,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 				goto diskfull_return;
 			}
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			retry_count = RETRY_TIMES; /* otherwise, the transaction may not 
+										  be aborted */
 			goto error_return; 
 		}
 		if (parent_found) {
@@ -708,7 +761,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			retval = modify_update_all(be,pb,&parent_modify_c,&txn);
 			if (DB_LOCK_DEADLOCK == retval)
 			{
-				LDAPDebug( LDAP_DEBUG_ARGS, "add 4 DEADLOCK\n", 0, 0, 0 );
+				LDAPDebug( LDAP_DEBUG_ARGS, "add 6 DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
@@ -721,6 +774,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 		}
@@ -746,6 +801,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 		}
@@ -784,7 +841,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		 * get rid of the entry in the cache now.
 		 */
 		cache_unlock_entry( &inst->inst_cache, tombstoneentry );
-		cache_return( &inst->inst_cache, &tombstoneentry );
+		CACHE_RETURN( &inst->inst_cache, &tombstoneentry );
 		tombstone_in_cache = 0; /* deleted */
 	}
 	if (parent_found)
@@ -817,14 +874,15 @@ error_return:
 	{
 		if ( addingentry_in_cache )
 		{
-			cache_remove(&inst->inst_cache, addingentry);
+			CACHE_REMOVE(&inst->inst_cache, addingentry);
+			addingentry_in_cache = 0;
 		}
 		backentry_clear_entry(addingentry); /* e is released in the frontend */
 		backentry_free( &addingentry ); /* release the backend wrapper, here */
 	}
 	if(tombstone_in_cache)
 	{
-		cache_return(&inst->inst_cache, &tombstoneentry);
+		CACHE_RETURN(&inst->inst_cache, &tombstoneentry);
 	}
 
 	if (rc == DB_RUNRECOVERY) {
@@ -833,8 +891,10 @@ error_return:
 		disk_full = 1;
 	}
 
-	/* It is specifically OK to make this call even when no transaction was in progress */
-	dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+	/* It is safer not to abort when the transaction is not started. */
+	if (retry_count > 0) {
+		dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+	}
 diskfull_return:
 
 	if (disk_full)
@@ -843,11 +903,31 @@ diskfull_return:
 		rc= SLAPI_FAIL_GENERAL;
 	
 common_return:
-	
-	if (addingentry_in_cache)
-	{
-		cache_return( &inst->inst_cache, &addingentry );
-	}
+    if (addingentry_in_cache && addingentry)
+    {
+        if (entryrdn_get_switch()) { /* subtree-rename: on */
+            /* since adding the entry to the entry cache was successful,
+             * let's add the dn to dncache, if not yet done. */
+            struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
+                                                 addingentry->ep_id);
+            if (bdn) { /* already in the dncache */
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+            } else { /* not in the dncache yet */
+                Slapi_DN *addingsdn = 
+                      slapi_sdn_dup(slapi_entry_get_sdn(addingentry->ep_entry));
+                if (addingsdn) {
+                    bdn = backdn_init(addingsdn, addingentry->ep_id, 0);
+                    if (bdn) {
+                        CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+                        CACHE_RETURN(&inst->inst_dncache, &bdn);
+                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_add",
+                                                    "set %s to dn cache\n", dn);
+                    }
+                }
+            }
+        }
+        CACHE_RETURN( &inst->inst_cache, &addingentry );
+    }
 	/* bepost op needs to know this result */
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/* JCMREPL - The bepostop is called even if the operation fails. */
@@ -896,7 +976,7 @@ add_update_entry_operational_attributes(struct backentry *ep, ID pid)
 		sprintf( buf, "%lu", (u_long)pid );
 		bv.bv_val = buf;
 		bv.bv_len = strlen( buf );
-		entry_replace_values( ep->ep_entry, "parentid", bvp );
+		entry_replace_values( ep->ep_entry, LDBM_PARENTID_STR, bvp );
 	}
 
 	/* entryid */
@@ -905,12 +985,14 @@ add_update_entry_operational_attributes(struct backentry *ep, ID pid)
 	bv.bv_len = strlen( buf );
 	entry_replace_values( ep->ep_entry, "entryid", bvp );
 
-	/* entrydn */
-	add_update_entrydn_operational_attributes(ep);
+    if (!entryrdn_get_switch()) { /* subtree-rename: off */
+		/* add the entrydn operational attribute to the entry. */
+		add_update_entrydn_operational_attributes(ep);
+	}
 }
 
 /*
- * add the entrydn operational attribute.
+ * add the entrydn operational attribute to the entry.
  */
 void
 add_update_entrydn_operational_attributes(struct backentry *ep)
@@ -923,15 +1005,17 @@ add_update_entrydn_operational_attributes(struct backentry *ep)
     bvp[1] = NULL;
     bv.bv_val = (void*)backentry_get_ndn(ep);
     bv.bv_len = strlen( bv.bv_val );
-    entry_replace_values_with_flags( ep->ep_entry, "entrydn", bvp, SLAPI_ATTR_FLAG_NORMALIZED );
+    entry_replace_values_with_flags( ep->ep_entry, LDBM_ENTRYDN_STR, bvp,
+                                     SLAPI_ATTR_FLAG_NORMALIZED );
 }
 
 /*
- * delete the entrydn operational attributes
+ * delete the entrydn operational attributes from the entry.
  */
 static void
-delete_update_entry_dn_operational_attributes(struct backentry *ep)
+delete_update_entrydn_operational_attributes(struct backentry *ep)
 {
-	slapi_entry_attr_delete( ep->ep_entry, "entrydn");
-}	
+    /* entrydn */
+    slapi_entry_attr_delete( ep->ep_entry, LDBM_ENTRYDN_STR);
+}
 

@@ -124,6 +124,47 @@ idl_append( IDList *idl, ID id)
 	return( 0 );
 }
 
+/* Append an ID to an IDL, realloc-ing the space if needs be */
+/* ID presented is not to be already in the IDL. */
+/* moved from idl_new.c */
+int
+idl_append_extend(IDList **orig_idl, ID id)
+{
+	IDList *idl = *orig_idl;
+
+	if (idl == NULL) {
+		idl = idl_alloc(1);
+		idl_append(idl, id);
+
+		*orig_idl = idl;
+		return 0;
+	}
+
+	if ( idl->b_nids == idl->b_nmax ) {
+		size_t x = 0;
+		/* No more room, need to extend */
+		/* Allocate new IDL with twice the space of this one */
+		IDList *idl_new = NULL;
+		idl_new = idl_alloc(idl->b_nmax * 2);
+		if (NULL == idl_new) {
+			return ENOMEM;
+		}
+		/* copy over the existing contents */
+		idl_new->b_nids = idl->b_nids;
+		for (x = 0; x < idl->b_nids;x++) {
+			idl_new->b_ids[x] = idl->b_ids[x];
+		}
+		idl_free(idl);
+		idl = idl_new;
+	}
+
+	idl->b_ids[idl->b_nids] = id;
+	idl->b_nids++;
+	*orig_idl = idl;
+
+	return 0;
+}
+
 static IDList *
 idl_dup( IDList *idl )
 {
@@ -146,10 +187,27 @@ idl_min( IDList *a, IDList *b )
 	return( a->b_nids > b->b_nids ? b : a );
 }
 
+int
+idl_id_is_in_idlist(IDList *idl, ID id)
+{
+    NIDS i;
+    if (NULL == idl || NOID == id) {
+        return 0; /* not in the list */
+    }
+    if (ALLIDS(idl)) {
+        return 1; /* in the list */
+    }
+    for (i = 0; i < idl->b_nids; i++) {
+        if (id == idl->b_ids[i]) {
+            return 1; /* in the list */
+        }
+    }
+    return 0; /* not in the list */
+}
+
 /*
  * idl_intersection - return a intersection b
  */
-
 IDList *
 idl_intersection(
     backend *be,

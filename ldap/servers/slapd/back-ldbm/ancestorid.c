@@ -43,7 +43,7 @@
 
 #include "back-ldbm.h"
 
-static char *sourcefile = "ancestorid";
+static char *sourcefile = LDBM_ANCESTORID_STR;
 
 /* Start of definitions for a simple cache using a hash table */
 
@@ -85,7 +85,7 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
     ID id;
 
     /* Open the parentid index */
-    ainfo_get( be, "parentid", &ai );
+    ainfo_get( be, LDBM_PARENTID_STR, &ai );
 
     /* Open the parentid index file */
     ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
@@ -206,7 +206,7 @@ static int ldbm_ancestorid_default_create_index(backend *be)
     if (ret != 0) return ret;
 
     /* Get the ancestorid index */
-    ainfo_get(be, "ancestorid", &ai_aid);
+    ainfo_get(be, LDBM_ANCESTORID_STR, &ai_aid);
 
     /* Prevent any other use of the index */
     ai_aid->ai_indexmask |= INDEX_OFFLINE;
@@ -229,7 +229,7 @@ static int ldbm_ancestorid_default_create_index(backend *be)
     ht = id2idl_new_hash(nodes->b_nids);
 
     /* Get the parentid index */
-    ainfo_get( be, "parentid", &ai_pid );
+    ainfo_get( be, LDBM_PARENTID_STR, &ai_pid );
 
     /* Open the parentid index file */
     ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
@@ -391,7 +391,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
     if (ret != 0) return ret;
 
     /* Get the ancestorid index */
-    ainfo_get(be, "ancestorid", &ai_aid);
+    ainfo_get(be, LDBM_ANCESTORID_STR, &ai_aid);
 
     /* Prevent any other use of the index */
     ai_aid->ai_indexmask |= INDEX_OFFLINE;
@@ -411,7 +411,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
     }
 
     /* Get the parentid index */
-    ainfo_get( be, "parentid", &ai_pid );
+    ainfo_get( be, LDBM_PARENTID_STR, &ai_pid );
 
     /* Open the parentid index file */
     ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
@@ -714,15 +714,13 @@ static int ldbm_ancestorid_index_update(
     Slapi_DN dn = {0};
     Slapi_DN nextdn = {0};
     struct attrinfo *ai = NULL;
-    struct berval ndnv;
     ID node_id, sub_id;
-    IDList *idl;
     idl_iterator iter;
     int err = 0, ret = 0;
     DB_TXN *db_txn = txn != NULL ? txn->back_txn_txn : NULL;
 
     /* Open the ancestorid index */
-    ainfo_get(be, "ancestorid", &ai);
+    ainfo_get(be, LDBM_ANCESTORID_STR, &ai);
     ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty(sourcefile,13130,ret);
@@ -752,19 +750,34 @@ static int ldbm_ancestorid_index_update(
         }
 
         /* Get the id for that DN */
-	ndnv.bv_val = (void*)slapi_sdn_get_ndn(&dn);
-	ndnv.bv_len = slapi_sdn_get_ndn_len(&dn);
-        err = 0;
-        idl = index_read(be, "entrydn", indextype_EQUALITY, &ndnv, txn, &err);
-        if (idl == NULL) {
-            if (err != 0 && err != DB_NOTFOUND) {
-                ldbm_nasty(sourcefile,13140,ret);
-                ret = err;
+        if (entryrdn_get_switch()) { /* subtree-rename: on */
+            node_id = 0;
+            err = entryrdn_index_read(be, &dn, &node_id, txn);
+            if (err) {
+                if (DB_NOTFOUND != err) {
+                    ldbm_nasty(sourcefile,13141,err);
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY, "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&dn));
+                    ret = err;
+                }
+                break;
             }
-            break;
+        } else {
+            IDList *idl = NULL;
+            struct berval ndnv;
+            ndnv.bv_val = (void*)slapi_sdn_get_ndn(&dn);
+            ndnv.bv_len = slapi_sdn_get_ndn_len(&dn);
+            err = 0;
+            idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &ndnv, txn, &err);
+            if (idl == NULL) {
+                if (err != 0 && err != DB_NOTFOUND) {
+                    ldbm_nasty(sourcefile,13140,err);
+                    ret = err;
+                }
+                break;
+            }
+            node_id = idl_firstid(idl);
+            idl_free(idl);
         }
-        node_id = idl_firstid(idl);
-        idl_free(idl);
 
         /* Update ancestorid for the base entry */
         ret = ancestorid_addordel(be, db, node_id, id, db_txn, ai, flags, &allids);
@@ -970,7 +983,7 @@ int ldbm_ancestorid_read(
     bv.bv_val = keybuf;
     bv.bv_len = PR_snprintf(keybuf, sizeof(keybuf), "%lu", (u_long)id);
 
-    *idl = index_read(be, "ancestorid", indextype_EQUALITY, &bv, txn, &ret);
+    *idl = index_read(be, LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret);
 
     return ret;
 }

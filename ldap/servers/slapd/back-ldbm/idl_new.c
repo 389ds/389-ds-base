@@ -102,46 +102,6 @@ int idl_new_get_tune() {
   return idl_tune;
 }
 
-/* Append an ID to an IDL, realloc-ing the space if needs be */
-/* ID presented is not to be already in the IDL. */
-static int
-idl_append_extend( IDList **orig_idl, ID id)
-{
-	IDList *idl = *orig_idl;
-
-        if (idl == NULL) {
-            idl = idl_alloc(1);
-            idl_append(idl, id);
-
-            *orig_idl = idl;
-            return 0;
-        }
-
-	if ( idl->b_nids == idl->b_nmax ) {
-		size_t x = 0;
-		/* No more room, need to extend */
-		/* Allocate new IDL with twice the space of this one */
-		IDList *idl_new = NULL;
-		idl_new = idl_alloc(idl->b_nmax * 2);
-		if (NULL == idl_new) {
-			return ENOMEM;
-		}
-		/* copy over the existing contents */
-		idl_new->b_nids = idl->b_nids;
-		for (x = 0; x < idl->b_nids;x++) {
-			idl_new->b_ids[x] = idl->b_ids[x];
-		}
-		idl_free(idl);
-		idl = idl_new;
-	}
-
-	idl->b_ids[idl->b_nids] = id;
-	idl->b_nids++;
-	*orig_idl = idl;
-
-	return 0;
-}
-
 size_t idl_new_get_allidslimit(struct attrinfo *a)
 {
     idl_private *priv = NULL;
@@ -254,7 +214,7 @@ IDList * idl_new_fetch(
     if (0 != ret) {
         if (DB_NOTFOUND != ret) {
 #ifdef DB_USE_BULK_FETCH
-            if (ret == ENOMEM) {
+            if (ret == DB_BUFFER_SMALL) {
                 LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
                           "data item for key %s is too large for our buffer "
                           "(need=%d actual=%d)\n",
@@ -489,25 +449,18 @@ int idl_new_delete_key(
     data.ulen = sizeof(id);
     data.size = sizeof(id);
     data.flags = DB_DBT_USERMEM;
-    data.data = &tmpid;
-    ret = cursor->c_get(cursor,key,&data,DB_SET);
+    data.data = &id;
+    /* Position cursor at the key, value pair */
+    ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
     if (0 == ret) {
         if (tmpid == ALLID) {
             goto error;	/* allid: never delete it */
         }
-    } else if (DB_NOTFOUND != ret) {
-        ldbm_nasty(filename,22,ret);
-        goto error;
-    }
-
-    /* Position cursor at the key, value pair */
-    data.data = &id;
-    ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
-    if (0 != ret) {
+    } else {
         if (DB_NOTFOUND == ret) {
             ret = 0; /* Not Found is OK, return immediately */
         } else {
-            ldbm_nasty(filename,23,ret);
+            ldbm_nasty(filename,22,ret);
         }
         goto error; 
     }

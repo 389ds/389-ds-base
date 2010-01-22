@@ -341,7 +341,6 @@ pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals )
 {
 	int	i;
 	passwdPolicy *pwpolicy=NULL;
-	char *dn;
 	char *(*pws_enc) ( char *pwd ) = NULL;
 
 	if ( vals == NULL ) {

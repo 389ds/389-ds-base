@@ -261,6 +261,76 @@ plugin_call_syntax_filter_sub_sv(
 	return( rc );
 }
 
+/* Checks if the DN string is valid according to the Distinguished Name
+ * syntax.  Setting override to 1 will force syntax checking to be performed,
+ * even if syntax checking is disabled in the config.  Setting override to 0
+ * will obey the config settings.
+ *
+ * Returns 1 if there is a syntax violation and sets the error message
+ * appropriately.  Returns 0 if everything checks out fine.
+ */
+int
+slapi_dn_syntax_check(
+	Slapi_PBlock *pb, char *dn, int override
+)
+{
+	int ret = 0;
+	int is_replicated_operation = 0;
+	int syntaxcheck = config_get_syntaxcheck();
+	int syntaxlogging = config_get_syntaxlogging();
+	char errtext[ BUFSIZ ];
+	char *errp = &errtext[0];
+	struct slapdplugin *dn_plugin = NULL;
+	struct berval dn_bval = {0};
+
+	if (pb != NULL) {
+		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+	}
+
+	/* If syntax checking and logging are off, or if this is a
+	 * replicated operation, just return that the syntax is OK. */
+	if (((syntaxcheck == 0) && (syntaxlogging == 0) && (override == 0)) ||
+	    is_replicated_operation) {
+		goto exit;
+	}
+
+	/* Locate the dn syntax plugin. */
+	slapi_attr_type2plugin("dn", (void **)&dn_plugin);
+
+	/* Assume the value is valid if we don't find a dn validate function */
+	if (dn_plugin && dn_plugin->plg_syntax_validate != NULL) {
+		/* Create a berval to pass to the validate function. */
+		if (dn) {
+			dn_bval.bv_val = dn;
+			dn_bval.bv_len = strlen(dn);
+
+			/* Validate the value. */
+			if (dn_plugin->plg_syntax_validate(dn_bval) != 0) {
+				if (syntaxlogging) {
+					slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check",
+						"DN value (%s) invalid per syntax\n", dn ? dn : "");
+				}
+
+				if (syntaxcheck || override) {
+					if (pb) {
+						errp += PR_snprintf( errp, sizeof(errtext),
+								"DN value invalid per syntax\n" );
+					}
+					ret = 1;
+				}
+			}
+		}
+	}
+
+	/* See if we need to set the error text in the pblock. */
+	if (errp != &errtext[0]) {
+		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
+	}
+
+exit:
+	return( ret );
+}
+
 /* Checks if the values of all attributes in an entry are valid for the
  * syntax specified for the attribute in question.  Setting override to
  * 1 will force syntax checking to be performed, even if syntax checking

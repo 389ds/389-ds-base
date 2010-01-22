@@ -150,9 +150,9 @@ str2entry_state_information_from_type(char *s,CSNSet **csnset,CSN **attributedel
 	}
 }
 
-
+/* dn is not consumed.  Caller needs to free it. */
 static Slapi_Entry *
-str2entry_fast( char *s, int flags, int read_stateinfo )
+str2entry_fast( const char *dn, char *s, int flags, int read_stateinfo )
 {
 	Slapi_Entry	*e;
 	char		*next, *ptype=NULL;
@@ -165,9 +165,14 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 	CSN *maxcsn = NULL;
 
 	/*
-	 * In string format, an entry looks like this:
+	 * In string format, an entry looks like either of these:
 	 *
 	 *	dn: <dn>\n
+	 *	[<attr>:[:] <value>\n]
+	 *	[<tab><continuedvalue>\n]*
+	 *	...
+	 *
+	 *	rdn: <rdn>\n
 	 *	[<attr>:[:] <value>\n]
 	 *	[<tab><continuedvalue>\n]*
 	 *	...
@@ -176,6 +181,8 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 	 * following value is encoded as a base 64 string.  This
 	 * happens if the value contains a non-printing character
 	 * or newline.
+	 *
+	 * In case an entry starts with rdn:, dn must be provided.
 	 */
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> str2entry_fast\n", 0, 0, 0 );
@@ -183,7 +190,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 	e = slapi_entry_alloc();
 	slapi_entry_init(e,NULL,NULL);
 
-	/* dn + attributes */
+	/* dn|rdn + attributes */
 	next = s;
 
 	/* get the read lock of name2asi for performance purpose.
@@ -260,17 +267,24 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 			a = NULL;
 		}
 
-		if ( strcasecmp( type, "dn" ) == 0 )
-		{
-			if ( slapi_entry_get_dn_const(e)!=NULL )
-			{
+		if ( dn ) {
+		    if ( NULL == slapi_entry_get_dn_const( e )) {
+				slapi_entry_set_dn( e, slapi_ch_strdup( dn ));
+			}
+		    if ( NULL == slapi_entry_get_rdn_const( e )) {
+				slapi_entry_set_rdn( e,  (char *)dn );
+			}
+		}
+		if ( strcasecmp( type, "dn" ) == 0 ) {
+			if ( slapi_entry_get_dn_const(e)!=NULL ) {
 				char ebuf[ BUFSIZ ];
-				LDAPDebug( LDAP_DEBUG_ANY,
-				    "str2entry_fast: entry has multiple dns \"%s\" and \"%s\" (second ignored)\n",
-				    escape_string( slapi_entry_get_dn_const(e), ebuf ),
-				    escape_string( valuecharptr, ebuf ), 0 );
-				    /* the memory below was not allocated by the slapi_ch_ functions */
-				if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+				LDAPDebug( LDAP_DEBUG_TRACE,
+					"str2entry_fast: entry has multiple dns \"%s\" and "
+					"\"%s\" (second ignored)\n",
+					escape_string( slapi_entry_get_dn_const(e), ebuf ),
+					escape_string( valuecharptr, ebuf ), 0 );
+				/* the memory below was not allocated by the slapi_ch_ functions */
+				if (retmalloc) slapi_ch_free_string(&valuecharptr);
 				if (freetype) slapi_ch_free_string(&type);
 				continue;
 			}
@@ -278,8 +292,19 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (retmalloc) slapi_ch_free_string(&valuecharptr);
 			if (freetype) slapi_ch_free_string(&type);
-			continue;
+		    continue;
 		}
+
+		if ( strcasecmp( type, "rdn" ) == 0 ) {
+			if ( NULL == slapi_entry_get_rdn_const( e )) {
+				slapi_entry_set_rdn( e, valuecharptr );
+			}
+			/* the memory below was not allocated by the slapi_ch_ functions */
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
+			if (freetype) slapi_ch_free_string(&type);
+		    continue;
+		}
+
 
 		/* retrieve uniqueid */
 		if ( strcasecmp (type, SLAPI_ATTR_UNIQUEID) == 0 ){
@@ -574,8 +599,9 @@ entry_attrs_find(entry_attrs *ea,char *type)
    if flags contains SLAPI_STR2ENTRY_REMOVEDUPVALS.
  */
 
+/* dn is not consumed.  Caller needs to free it. */
 static Slapi_Entry *
-str2entry_dupcheck( char *s, int flags, int read_stateinfo )
+str2entry_dupcheck( const char *dn, char *s, int flags, int read_stateinfo )
 {
     Slapi_Entry	*e;
     str2entry_attr stack_attrs[STR2ENTRY_SMALL_BUFFER_SIZE];
@@ -630,7 +656,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 
 		if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) < 0 ) {
 		    LDAPDebug( LDAP_DEBUG_TRACE,
-			    "<= slapi_str2entry NULL (parse_line)\n", 0, 0, 0 );
+			    "<= str2entry_dupcheck NULL (parse_line)\n", 0, 0, 0 );
 		    continue;
 		}
 #if defined(USE_OPENLDAP)
@@ -662,11 +688,20 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 			csnset_free(&valuecsnset);
 		}
 
+		if ( dn ) {
+		    if ( NULL == slapi_entry_get_dn_const(e) ) {
+				slapi_entry_set_dn( e, slapi_ch_strdup( dn ));
+			}
+		    if ( NULL == slapi_entry_get_rdn_const(e) ) {
+				slapi_entry_set_rdn( e, (char *)dn );
+			}
+		}
 		if ( strcasecmp( type, "dn" ) == 0 ) {
 		    if ( slapi_entry_get_dn_const(e)!=NULL ) {
 				char ebuf[ BUFSIZ ];
-				LDAPDebug( LDAP_DEBUG_ANY,
-					"slapi_str2entry: entry has multiple dns \"%s\" and \"%s\" (second ignored)\n",
+				LDAPDebug( LDAP_DEBUG_TRACE,
+					"str2entry_dupcheck: entry has multiple dns \"%s\" "
+					"and \"%s\" (second ignored)\n",
 					escape_string( slapi_entry_get_dn_const(e), ebuf ),
 					escape_string( valuecharptr, ebuf ), 0 );
 				/* the memory below was not allocated by the slapi_ch_ functions */
@@ -681,11 +716,21 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		    continue;
 		}
 
+		if ( strcasecmp( type, "rdn" ) == 0 ) {
+			if ( NULL == slapi_entry_get_rdn_const( e )) {
+				slapi_entry_set_rdn( e, valuecharptr );
+			}
+			/* the memory below was not allocated by the slapi_ch_ functions */
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
+			if (freetype) slapi_ch_free_string(&type);
+		    continue;
+		}
+
 		/* retrieve uniqueid */
 		if ( strcasecmp (type, SLAPI_ATTR_UNIQUEID) == 0 ){
 
 			if (e->e_uniqueid != NULL){
-				LDAPDebug (LDAP_DEBUG_ANY, "slapi_str2entry: entry has multiple "
+				LDAPDebug (LDAP_DEBUG_ANY, "str2entry_dupcheck: entry has multiple "
 						   "uniqueids %s and %s (second ignored)\n", 
 						   e->e_uniqueid, valuecharptr, 0);
 			}else{
@@ -787,7 +832,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 				if ( slapi_attr_type2plugin( type,(void **)&(attrs[nattrs].sa_pi) ) != 0 )
 				{
 					LDAPDebug( LDAP_DEBUG_ANY,
-						"<= slapi_str2entry NULL (slapi_attr_type2plugin)\n",
+						"<= str2entry_dupcheck NULL (slapi_attr_type2plugin)\n",
 						0, 0, 0 );
 					slapi_entry_free( e ); e = NULL;
 					if (retmalloc) slapi_ch_free_string(&valuecharptr);
@@ -911,7 +956,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		else
 		{
 		    /* Failure adding to value tree */
-		    LDAPDebug( LDAP_DEBUG_ANY, "slapi_str2entry: unexpected failure %d constructing value tree\n", rc, 0, 0 );
+		    LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: unexpected failure %d constructing value tree\n", rc, 0, 0 );
 		    slapi_entry_free( e ); e = NULL;
 		    goto free_and_return;
 		}
@@ -924,7 +969,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
     if ( slapi_entry_get_dn_const(e)==NULL )
     {
 		if (!(SLAPI_STR2ENTRY_INCLUDE_VERSION_STR & flags))
-	    	LDAPDebug( LDAP_DEBUG_ANY, "slapi_str2entry: entry has no dn\n",
+	    	LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: entry has no dn\n",
 									   0, 0, 0 );
 	    slapi_entry_free( e ); e = NULL;
 	    goto free_and_return;
@@ -945,11 +990,11 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		if ( sa->sa_numdups > 0 )
 		{
 		    if ( sa->sa_numdups > 1 ) {
-				LDAPDebug( LDAP_DEBUG_ANY, "%d duplicate values for attribute "
+				LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: %d duplicate values for attribute "
 					"type %s detected in entry %s. Extra values ignored.\n",
 					sa->sa_numdups, sa->sa_type, slapi_entry_get_dn_const(e) );
 		    } else {
-				LDAPDebug( LDAP_DEBUG_ANY, "Duplicate value for attribute "
+				LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: Duplicate value for attribute "
 					"type %s detected in entry %s. Extra value ignored.\n",
 					sa->sa_type, slapi_entry_get_dn_const(e), 0 );
 		    }
@@ -1014,7 +1059,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
     if ( flags & SLAPI_STR2ENTRY_ADDRDNVALS ) {
         if ( slapi_entry_add_rdn_values( e ) != LDAP_SUCCESS ) {
             LDAPDebug( LDAP_DEBUG_TRACE,
-                       "slapi_str2entry: entry has badly formatted dn\n",
+                       "str2entry_dupcheck: entry has badly formatted dn\n",
                        0, 0, 0 );
             slapi_entry_free( e ); e = NULL;
             goto free_and_return;
@@ -1094,11 +1139,72 @@ slapi_str2entry( char *s, int flags )
 	if ( 0 != ( flags & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ) ||
 			0 != ( flags & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST ))
     {
-	    e= str2entry_dupcheck( s, flags, read_stateinfo );
+	    e= str2entry_dupcheck( NULL/*dn*/, s, flags, read_stateinfo );
     }
     else
     {
-	    e= str2entry_fast( s, flags, read_stateinfo );
+	    e= str2entry_fast( NULL/*dn*/, s, flags, read_stateinfo );
+    }
+    if (!e)
+       return e;	/* e == NULL */
+
+	if ( flags & SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES )
+	{
+		if ( flags & SLAPI_STR2ENTRY_NO_SCHEMA_LOCK )
+		{
+			schema_expand_objectclasses_nolock( e );
+		}
+		else
+		{
+			slapi_schema_expand_objectclasses( e );
+		}
+	}
+
+    if ( flags & SLAPI_STR2ENTRY_TOMBSTONE_CHECK )
+	{
+		/*
+		 * Check if the entry is a tombstone.
+		 */
+		if(slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE))
+		{
+			e->e_flags |= SLAPI_ENTRY_FLAG_TOMBSTONE;
+		}
+	}
+	return e;
+}
+
+/*
+ * string s does not include dn.
+ */
+Slapi_Entry *
+slapi_str2entry_ext( const char *dn, char *s, int flags )
+{
+	Slapi_Entry *e;
+	int read_stateinfo= ~( flags & SLAPI_STR2ENTRY_IGNORE_STATE );
+
+	if (NULL == dn)
+	{
+		return slapi_str2entry( s, flags );
+	}
+
+	LDAPDebug( LDAP_DEBUG_ARGS,
+			"slapi_str2entry_ext: flags=0x%x, dn=\"%s\", entry=\"%.50s...\"\n",
+			flags, dn, s );
+
+
+	/*
+	 * If well-formed LDIF has not been provided OR if a flag that is
+	 * not handled by str2entry_fast() has been passed in, call the
+	 * slower but more forgiving str2entry_dupcheck() function.
+	 */
+	if ( 0 != ( flags & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ) ||
+			0 != ( flags & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST ))
+    {
+	    e= str2entry_dupcheck( dn, s, flags, read_stateinfo );
+    }
+    else
+    {
+	    e= str2entry_fast( dn, s, flags, read_stateinfo );
     }
     if (!e)
        return e;	/* e == NULL */
@@ -1412,28 +1518,142 @@ entry2str_internal( Slapi_Entry *e, int *len, int entry2str_ctrl )
     return ebuf;
 }
 
+static char *
+entry2str_internal_ext( Slapi_Entry *e, int *len, int entry2str_ctrl)
+{
+    if (entry2str_ctrl & SLAPI_DUMP_RDN_ENTRY) /* dump rdn: ... */
+    {
+        char *ebuf;
+        char *ecur;
+        size_t elen = 0;
+        size_t typebuf_len = 64;
+        char *typebuf = (char *)slapi_ch_malloc(typebuf_len);
+        Slapi_Value rdnvalue;
+        /*
+         * In string format, an entry looks like this:
+         *    rdn: <normalized rdn>\n
+         *    [<attr>: <value>\n]*
+         */
+    
+        ecur = ebuf = NULL;
+    
+        value_init(&rdnvalue, NULL, CSN_TYPE_NONE, NULL);
+    
+        /* find length of buffer needed to hold this entry */
+        if (NULL == slapi_entry_get_rdn_const(e) &&
+            NULL != slapi_entry_get_dn_const(e))
+        {
+            /* e_srdn is not filled in, use e_sdn */
+            slapi_rdn_init_all_sdn(&e->e_srdn, slapi_entry_get_sdn_const(e));
+        }
+        if (NULL != slapi_entry_get_rdn_const(e))
+        {
+            slapi_value_set_string(&rdnvalue, slapi_entry_get_rdn_const(e));
+            elen += entry2str_internal_size_value("rdn", &rdnvalue,
+                                                  entry2str_ctrl,
+                                                  ATTRIBUTE_PRESENT,
+                                                  VALUE_PRESENT);
+        }
+    
+        /* Count the space required for the present attributes */
+        elen += entry2str_internal_size_attrlist(e->e_attrs, entry2str_ctrl,
+                                                 ATTRIBUTE_PRESENT);
+    
+        /* Count the space required for the deleted attributes */
+        if(entry2str_ctrl & SLAPI_DUMP_STATEINFO)
+        {
+            elen += entry2str_internal_size_attrlist(e->e_deleted_attrs,
+                                                     entry2str_ctrl,
+                                                     ATTRIBUTE_DELETED);
+        }
+    
+        elen += 1;
+        ecur = ebuf = (char *)slapi_ch_malloc(elen);
+    
+        /* put the rdn */
+        if (slapi_entry_get_rdn_const(e) != NULL)
+        {
+            /* put "rdn: <normalized rdn>" */
+            entry2str_internal_put_value("rdn", NULL, CSN_TYPE_NONE,
+                                         ATTRIBUTE_PRESENT, &rdnvalue,
+                                         VALUE_PRESENT, &ecur, &typebuf,
+                                         &typebuf_len, entry2str_ctrl);
+        }
+    
+        /* Put the present attributes */
+        entry2str_internal_put_attrlist(e->e_attrs, ATTRIBUTE_PRESENT,
+                                        entry2str_ctrl, &ecur,
+                                        &typebuf, &typebuf_len );
+    
+        /* Put the deleted attributes */
+        if(entry2str_ctrl & SLAPI_DUMP_STATEINFO)
+        {
+            entry2str_internal_put_attrlist(e->e_deleted_attrs,
+                                            ATTRIBUTE_DELETED, entry2str_ctrl,
+                                            &ecur, &typebuf, &typebuf_len );
+        }
+        
+        *ecur = '\0';
+        if ((size_t)(ecur - ebuf + 1) > elen)
+        {
+            /* this should not happen */
+            slapi_log_error (SLAPI_LOG_FATAL, NULL,
+                "entry2str_internal_ext: array boundary wrote: "
+                "bufsize=%ld wrote=%ld\n",
+                elen, (ecur - ebuf + 1));
+        }
+    
+        if ( NULL != len ) {
+            *len = ecur - ebuf;
+        }
+    
+        slapi_ch_free((void**)&typebuf);
+        value_done(&rdnvalue);
+        
+        return ebuf;
+    }
+    else /* dump "dn: ..." */
+    {
+        return entry2str_internal( e, len, entry2str_ctrl );
+    }
+}
+
+/*
+ * This function converts an entry to the entry string starting with "dn: ..."
+ */
 char *
 slapi_entry2str( Slapi_Entry *e, int *len )
 {
 	return entry2str_internal(e, len, 0);
 }
 
+/*
+ * This function converts an entry to the entry string starting with "dn: ..."
+ */
 char *
 slapi_entry2str_dump_uniqueid( Slapi_Entry *e, int *len )
 {
 	return entry2str_internal(e, len, SLAPI_DUMP_UNIQUEID);
 }
 
+/*
+ * This function converts an entry to the entry string starting with "dn: ..."
+ */
 char *
 slapi_entry2str_no_opattrs( Slapi_Entry *e, int *len )
 {
 	return entry2str_internal(e, len, SLAPI_DUMP_NOOPATTRS);
 }
 
+/*
+ * This function converts an entry to the entry string starting with "dn: ..."
+ * by default.  If option includes SLAPI_DUMP_RDN_ENTRY bit, it does the entry
+ * to "rdn: ..."
+ */
 char *
 slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options )
 {
-	return entry2str_internal(e, len, options);
+    return entry2str_internal_ext(e, len, options);
 }
 
 static int entry_type = -1; /* The type number assigned by the Factory for 'Entry' */
@@ -1474,6 +1694,8 @@ slapi_entry_alloc()
 {
 	Slapi_Entry *e= (Slapi_Entry *) slapi_ch_calloc( 1, sizeof(struct slapi_entry) );
 	slapi_sdn_init(&e->e_sdn);
+	slapi_rdn_init(&e->e_srdn);
+
 	e->e_extension = factory_create_extension(get_entry_object_type(),e,NULL);
 	if(!counters_created)
 	{
@@ -1514,6 +1736,8 @@ slapi_entry_free( Slapi_Entry *e ) /* JCM - Should be ** so that we can NULL the
 		ENTRY_DUMP(e,"slapi_entry_free");
 	    factory_destroy_extension(get_entry_object_type(),e,NULL/*Parent*/,&(e->e_extension));
 	    slapi_sdn_done(&e->e_sdn);
+		slapi_rdn_done(&e->e_srdn);
+
 	    csnset_free(&e->e_dncsnset);
 	    csn_free(&e->e_maxcsn);
 		slapi_ch_free((void **)&e->e_uniqueid);
@@ -1574,7 +1798,8 @@ slapi_entry_size(Slapi_Entry *e)
     if (e->e_uniqueid) size += strlen(e->e_uniqueid) + 1;
     if (e->e_dncsnset) size += csnset_size(e->e_dncsnset);
     if (e->e_maxcsn) size += sizeof( CSN );
-    size += slapi_dn_size(&e->e_sdn);
+    size += slapi_dn_size(&e->e_sdn); /* covers rdn format,
+                                         since (rdn length < dn length) */
     size += slapi_attrlist_size(e->e_attrs);
     if (e->e_deleted_attrs) size += slapi_attrlist_size(e->e_deleted_attrs);
     if (e->e_virtual_attrs) size += slapi_attrlist_size(e->e_virtual_attrs);
@@ -1605,6 +1830,7 @@ slapi_entry_dup( const Slapi_Entry *e )
 	slapi_entry_init(ec,NULL,NULL);
 
     slapi_sdn_copy(slapi_entry_get_sdn_const(e),&ec->e_sdn);
+    slapi_srdn_copy(slapi_entry_get_srdn_const(e),&ec->e_srdn);
 
 	/* duplicate the dncsn also */
 	ec->e_dncsnset= csnset_dup(e->e_dncsnset);
@@ -1688,10 +1914,35 @@ slapi_entry_get_sdn( Slapi_Entry *e )
     return &e->e_sdn;
 }
 
+const Slapi_RDN *
+slapi_entry_get_srdn_const( const Slapi_Entry *e )
+{
+    return &e->e_srdn;
+}
+
+Slapi_RDN *
+slapi_entry_get_srdn( Slapi_Entry *e )
+{
+    return &e->e_srdn;
+}
+
 const char *
 slapi_entry_get_dn_const( const Slapi_Entry *e )
 {
 	return (slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
+}
+
+const char *
+slapi_entry_get_rdn_const( const Slapi_Entry *e )
+{
+	return (slapi_rdn_get_rdn(slapi_entry_get_srdn_const(e)));
+}
+
+/* slapi_rdn_get_nrdn could modify srdn in it. So, it cannot take const. */
+const char *
+slapi_entry_get_nrdn_const( const Slapi_Entry *e )
+{
+	return (slapi_rdn_get_nrdn(slapi_entry_get_srdn((Slapi_Entry *)e)));
 }
 
 /*
@@ -1703,10 +1954,26 @@ slapi_entry_set_dn( Slapi_Entry *e, char *dn )
     slapi_sdn_set_dn_passin(slapi_entry_get_sdn(e),dn);
 }
 
+/*
+ * WARNING - The DN is copied.
+ *           The DN could be dn or RDN.
+ */
+void
+slapi_entry_set_rdn( Slapi_Entry *e, char *dn )
+{
+    slapi_rdn_set_all_dn(slapi_entry_get_srdn(e),dn);
+}
+
 void
 slapi_entry_set_sdn( Slapi_Entry *e, const Slapi_DN *sdn )
 {
     slapi_sdn_copy(sdn,slapi_entry_get_sdn(e));
+}
+
+void
+slapi_entry_set_srdn( Slapi_Entry *e, const Slapi_RDN *srdn )
+{
+    slapi_srdn_copy(srdn, slapi_entry_get_srdn(e));
 }
 
 const char *
@@ -2625,13 +2892,14 @@ int
 entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 {
 	int	err, j;
+	LDAPMod **mp = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> entry_apply_mods\n", 0, 0, 0 );
 
 	err = LDAP_SUCCESS;
-	for ( j = 0; mods[j] != NULL; j++ )
+	for ( mp = mods; mp && *mp; mp++ )
 	{
-		err= entry_apply_mod( e, mods[j] );
+		err = entry_apply_mod( e, *mp );
 		if ( err != LDAP_SUCCESS ) {
 			break;
 		}

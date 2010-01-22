@@ -60,6 +60,7 @@ dn2entry(
 	ldbm_instance *inst;
 	struct berval		ndnv;
 	struct backentry	*e = NULL;
+	char *indexname = "";
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> dn2entry \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
 
@@ -72,43 +73,65 @@ dn2entry(
 	e = cache_find_dn(&inst->inst_cache, ndnv.bv_val, ndnv.bv_len);
 	if (e == NULL)
 	{
+		ID id = 0;
 		/* convert dn to entry id */
-		IDList	*idl = NULL;
-		if ( (idl = index_read( be, "entrydn", indextype_EQUALITY, &ndnv, txn, err )) == NULL )
-		{
-			/* There's no entry with this DN. */
+		if (entryrdn_get_switch())
+		{ /* subtree-rename: on */
+			*err = entryrdn_index_read(be, sdn, &id, txn);
+			if (*err)
+			{
+				if (DB_NOTFOUND != *err)
+				{
+					LDAPDebug2Args( LDAP_DEBUG_ANY,
+									"dn2entry: Failed to get id for %s "
+									"from entryrdn index (%d)\n",
+									slapi_sdn_get_dn(sdn), *err);
+				}
+				/* There's no entry with this DN. */
+				goto bail;
+			}
+			indexname = LDBM_ENTRYRDN_STR;
 		}
 		else
 		{
-			/* convert entry id to entry */
-			if ( (e = id2entry( be, idl_firstid( idl ), txn, err )) != NULL )
+			IDList	*idl = NULL;
+			if ( (idl = index_read( be, LDBM_ENTRYDN_STR, indextype_EQUALITY, 
+											&ndnv, txn, err )) == NULL )
 			{
-				/* Means that we found the entry OK */
+				/* There's no entry with this DN. */
+				goto bail;
+			}
+			id = idl_firstid( idl );
+			slapi_ch_free((void**)&idl);
+			indexname = LDBM_ENTRYDN_STR;
+		}
+		/* convert entry id to entry */
+		if ( (e = id2entry( be, id, txn, err )) != NULL )
+		{
+			/* Means that we found the entry OK */
+		}
+		else
+		{
+			/* Hmm. The DN mapped onto an EntryID, but that didn't map onto an Entry. */
+			if ( *err != 0 && *err != DB_NOTFOUND )
+			{
+				/* JCM - Not sure if this is ever OK or not. */
 			}
 			else
 			{
-				/* Hmm. The DN mapped onto an EntryID, but that didn't map onto an Entry. */
-				if ( *err != 0 && *err != DB_NOTFOUND )
-				{
-					/* JCM - Not sure if this is ever OK or not. */
-				}
-				else
-				{
-					/*
-					 * this is pretty bad anyway. the dn was in the
-					 * entrydn index, but we could not read the entry
-					 * from the id2entry index. what should we do?
-					 */
-					LDAPDebug( LDAP_DEBUG_ANY,
-					    "dn2entry: the dn was in the entrydn index (id %lu), "
-					    "but it did not exist in id2entry.\n",
-					    (u_long)idl_firstid( idl ), 0, 0 );
-				}
+				/*
+				 * this is pretty bad anyway. the dn was in the
+				 * entrydn index, but we could not read the entry
+				 * from the id2entry index. what should we do?
+				 */
+				LDAPDebug( LDAP_DEBUG_ANY,
+					    "dn2entry: the dn \"%s\" was in the %s index, "
+					    "but it did not exist in id2entry of instance %s.\n",
+					    slapi_sdn_get_dn(sdn), indexname, inst->inst_name);
 			}
-			slapi_ch_free((void**)&idl);
 		}
 	}
-
+bail:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= dn2entry %p\n", e, 0, 0 );
 	return( e );
 }
@@ -235,7 +258,11 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
 			LDAPDebug( LDAP_DEBUG_ANY, "Operation error fetching %s (%s), error %d.\n", 
 				       addr->dn, (addr->uniqueid==NULL?"null":addr->uniqueid), err );
 		}
-		rc= LDAP_OPERATIONS_ERROR;
+		if ( LDAP_INVALID_DN_SYNTAX == err ) {
+			rc = LDAP_INVALID_DN_SYNTAX; /* respect the error */
+		} else {
+			rc= LDAP_OPERATIONS_ERROR;
+		}
 	}
 	else
 	{
@@ -245,7 +272,7 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
 			ldbm_instance *inst;
 	    	slapi_pblock_set( pb, plock_parameter, slapi_entry_dup(entry->ep_entry));
 			inst = (ldbm_instance *) be->be_instance_info;
-		    cache_return( &inst->inst_cache, &entry );
+		    CACHE_RETURN( &inst->inst_cache, &entry );
 		}
 	}
 	/* JCMREPL - Free the backentry? */

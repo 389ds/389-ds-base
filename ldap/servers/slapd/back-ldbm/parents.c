@@ -44,7 +44,7 @@
 
 #include "back-ldbm.h"
 
-char *numsubordinates = "numsubordinates";
+char *numsubordinates = LDBM_NUMSUBORDINATES_STR;
 char *hassubordinates = "hassubordinates";
 
 /* Routine where any in-memory modification of a parent entry happens on some state-change in

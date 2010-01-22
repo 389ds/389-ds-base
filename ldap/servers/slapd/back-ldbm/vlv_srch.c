@@ -211,7 +211,7 @@ vlvSearch_init(struct vlvSearch* p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
             Slapi_Filter *forr= NULL;
         p->vlv_slapifilter= create_onelevel_filter(p->vlv_slapifilter, e, 0 /* managedsait */, &fid2kids, &focref, &fand, &forr);
         /* jcm: fid2kids, focref, fand, and forr get freed when we free p->vlv_slapifilter */
-            cache_return(&inst->inst_cache,&e);
+            CACHE_RETURN(&inst->inst_cache,&e);
         }
         }
 		break;

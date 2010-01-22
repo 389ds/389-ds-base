@@ -125,7 +125,31 @@ ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, in
     /* Do whatever we can to make sure the data is ok. */
 
     if (apply) {
-        cache_set_max_size(&(inst->inst_cache), val);
+        cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
+    }
+
+    return retval;
+}
+
+static void * 
+ldbm_instance_config_dncachememsize_get(void *arg) 
+{
+    ldbm_instance *inst = (ldbm_instance *) arg;
+    
+    return (void *) cache_get_max_size(&(inst->inst_dncache));
+}
+
+static int 
+ldbm_instance_config_dncachememsize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    ldbm_instance *inst = (ldbm_instance *) arg;
+    int retval = LDAP_SUCCESS;
+    size_t val = (size_t) value;
+
+    /* Do whatever we can to make sure the data is ok. */
+
+    if (apply) {
+        cache_set_max_size(&(inst->inst_dncache), val, CACHE_TYPE_DN);
     }
 
     return retval;
@@ -265,9 +289,10 @@ ldbm_instance_config_require_index_set(void *arg, void *value, char *errorbuf, i
 static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_CACHESIZE, CONFIG_TYPE_LONG, "-1", &ldbm_instance_config_cachesize_get, &ldbm_instance_config_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_CACHEMEMSIZE, CONFIG_TYPE_SIZE_T, "10485760", &ldbm_instance_config_cachememsize_get, &ldbm_instance_config_cachememsize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-        {CONFIG_INSTANCE_READONLY, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_readonly_get, &ldbm_instance_config_readonly_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-        {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-        {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &ldbm_instance_config_instance_dir_get, &ldbm_instance_config_instance_dir_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_INSTANCE_READONLY, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_readonly_get, &ldbm_instance_config_readonly_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &ldbm_instance_config_instance_dir_get, &ldbm_instance_config_instance_dir_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_SIZE_T, "10485760", &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
@@ -1048,7 +1073,10 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
               instance_name, 0, 0);
     slapi_mtn_be_stopping(inst->inst_be);
     dblayer_instance_close(inst->inst_be);
-    cache_destroy_please(&inst->inst_cache);
+    cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
+    if (entryrdn_get_switch()) { /* subtree-rename: on */
+        cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
+    }
     slapi_ch_free((void **)&instance_name);
 
     return SLAPI_DSE_CALLBACK_OK;

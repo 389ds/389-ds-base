@@ -68,6 +68,7 @@ backentry_alloc()
 	struct backentry	*ec;
 	ec = (struct backentry *) slapi_ch_calloc( 1, sizeof(struct backentry) ) ;
 	ec->ep_state = ENTRY_STATE_NOTINCACHE;
+	ec->ep_type = CACHE_TYPE_ENTRY;
 #ifdef LDAP_CACHE_DEBUG
 	ec->debug_sig = 0x45454545;
 #endif
@@ -90,6 +91,7 @@ backentry_init( Slapi_Entry *e )
 	ep = (struct backentry *) slapi_ch_calloc( 1, sizeof(struct backentry) );
 	ep->ep_entry= e;
 	ep->ep_state = ENTRY_STATE_NOTINCACHE;
+	ep->ep_type = CACHE_TYPE_ENTRY;
 #ifdef LDAP_CACHE_DEBUG
 	ep->debug_sig = 0x23232323;
 #endif
@@ -106,6 +108,7 @@ backentry_dup( struct backentry *e )
 	ec->ep_id = e->ep_id;
 	ec->ep_entry = slapi_entry_dup( e->ep_entry );
 	ec->ep_state = ENTRY_STATE_NOTINCACHE;
+	ec->ep_type = CACHE_TYPE_ENTRY;
 #ifdef LDAP_CACHE_DEBUG
 	ec->debug_sig = 0x12121212;
 #endif
@@ -124,3 +127,32 @@ backentry_get_sdn(const struct backentry *e)
 {
     return slapi_entry_get_sdn_const(e->ep_entry);
 }
+
+void
+backdn_free( struct backdn **bdn )
+{
+	if ( NULL == bdn || NULL == *bdn ) {
+		return;
+	}
+	slapi_sdn_free(&((*bdn)->dn_sdn));
+	slapi_ch_free( (void **)bdn );
+	*bdn = NULL;
+}
+
+struct backdn *
+backdn_init( Slapi_DN *sdn, ID id, int to_remove_from_hash )
+{
+	struct backdn	*bdn;
+
+	bdn = (struct backdn *) slapi_ch_calloc( 1, sizeof(struct backdn) );
+	bdn->dn_sdn = sdn;
+	bdn->ep_id = id;
+	bdn->ep_size = slapi_sdn_get_size(sdn);
+	bdn->ep_type = CACHE_TYPE_DN;
+	if (!to_remove_from_hash) {
+		bdn->ep_state = ENTRY_STATE_NOTINCACHE;
+	}
+
+	return( bdn );
+}
+

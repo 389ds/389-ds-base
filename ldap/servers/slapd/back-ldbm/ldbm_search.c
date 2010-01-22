@@ -639,7 +639,7 @@ ldbm_back_search( Slapi_PBlock *pb )
         }
     }
 
-    cache_return( &inst->inst_cache, &e );
+    CACHE_RETURN( &inst->inst_cache, &e );
 
     /*
      * if the candidate list is an allids list, arrange for access log
@@ -934,16 +934,25 @@ subtree_candidates(
      * Apply the DN components if the candidate list is greater than
      * our threshold, and if the filter is not "(objectclass=nstombstone)",
      * since tombstone entries are not indexed in the ancestorid index.
+     * Note: they are indexed in the entryrdn index.
      */
-    if(candidates!=NULL && ( idl_length(candidates)>FILTER_TEST_THRESHOLD) && !has_tombstone_filter)
-    {
+    if(candidates!=NULL && (idl_length(candidates)>FILTER_TEST_THRESHOLD)) {
         IDList *tmp = candidates, *descendants = NULL;
 
-        *err = ldbm_ancestorid_read(be, NULL, e->ep_id, &descendants);
-        idl_insert(&descendants, e->ep_id);
-        candidates = idl_intersection(be, candidates, descendants);
-        idl_free(tmp);
-        idl_free(descendants);
+        if (entryrdn_get_noancestorid()) {
+            /* subtree-rename: on && no ancestorid */
+            *err = entryrdn_get_subordinates(be,
+                                         slapi_entry_get_sdn_const(e->ep_entry),
+                                         e->ep_id, &descendants, NULL);
+        } else if (!has_tombstone_filter) {
+            *err = ldbm_ancestorid_read(be, NULL, e->ep_id, &descendants);
+        }
+        if (descendants) {
+            idl_insert(&descendants, e->ep_id);
+            candidates = idl_intersection(be, candidates, descendants);
+            idl_free(tmp);
+            idl_free(descendants);
+        }
     }
 
     return( candidates );
@@ -1029,8 +1038,8 @@ can_skip_filter_test(
     if ( scope == LDAP_SCOPE_BASE ) {
         /*
          * If so, then we can't optimize.  Why not?  Because we only consult
-         * the entrydn index in producing our 1 candidate, and that means
-         * we have not used the filter to produce the candidate list.
+         * the entrydn/entryrdn index in producing our 1 candidate, and that 
+         * means we have not used the filter to produce the candidate list.
          */
         return rc;
     }
@@ -1143,7 +1152,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
      * us when to do this so we don't do it now */
     if ( !use_extension )
     {
-        cache_return( &inst->inst_cache, &(sr->sr_entry) );
+        CACHE_RETURN( &inst->inst_cache, &(sr->sr_entry) );
     }
 
     if(sr->sr_vlventry != NULL && !use_extension )
@@ -1356,7 +1365,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                  if ( slimit >= 0 )
                  {
                      if ( --slimit < 0 ) {
-                         cache_return( &inst->inst_cache, &e );
+                         CACHE_RETURN( &inst->inst_cache, &e );
                          /* in case paged results, clean up the conn */
                          pagedresults_set_search_result(pb->pb_conn, NULL);
                          slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
@@ -1392,13 +1401,13 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
              } 
              else 
              {
-                 cache_return ( &inst->inst_cache, &(sr->sr_entry) );
+                 CACHE_RETURN ( &inst->inst_cache, &(sr->sr_entry) );
              }
           }
           else
           {
               /* Failed the filter test, and this isn't a VLV Search */
-              cache_return( &inst->inst_cache, &(sr->sr_entry) );
+              CACHE_RETURN( &inst->inst_cache, &(sr->sr_entry) );
               if (LDAP_UNWILLING_TO_PERFORM == filter_test) {
                   /* Need to catch this error to detect the vattr loop */
                   slapi_send_ldap_result( pb, filter_test, NULL,
@@ -1478,7 +1487,7 @@ ldbm_back_entry_release( Slapi_PBlock *pb, void *backend_info_ptr ) {
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
         inst = (ldbm_instance *) be->be_instance_info;
 
-    cache_return( &inst->inst_cache, (struct backentry **)&backend_info_ptr );
+    CACHE_RETURN( &inst->inst_cache, (struct backentry **)&backend_info_ptr );
 
     if( ((struct backentry *) backend_info_ptr)->ep_vlventry != NULL )
     {

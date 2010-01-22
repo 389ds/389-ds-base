@@ -439,7 +439,7 @@ usage( char *name, char *extraname )
 	usagestr = "usage: %s %s%s -D configdir {-s suffix}*\n";
 	break;
     case SLAPD_EXEMODE_UPGRADEDB:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-f] -a archivedir\n";
+	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-f] [-r] -a archivedir\n";
 	break;
     case SLAPD_EXEMODE_DBVERIFY:
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-n backend-instance-name]\n";
@@ -483,7 +483,7 @@ static int ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
 static int dbverify_verbose = 0;
 static char *ldif2db_namespaceid = NULL;
 int importexport_encrypt = 0;
-static int upgradedb_force = 0;
+static int upgradedb_flags = 0;
 
 /* taken from idsktune */
 #if defined(__sun)
@@ -1398,11 +1398,12 @@ process_command_line(int argc, char **argv, char *myname,
 		{"exclude",ArgRequired,'x'},
 		{0,0,0}};
 
-	char *opts_upgradedb = "vfd:a:D:"; 
+	char *opts_upgradedb = "vfrd:a:D:"; 
 	struct opt_ext long_options_upgradedb[] = {
 		{"version",ArgNone,'v'},
 		{"debug",ArgRequired,'d'},
 		{"force",ArgNone,'f'},
+		{"dn2rdn",ArgNone,'r'},
 		{"archive",ArgRequired,'a'},
 		{"configDir",ArgRequired,'D'},
 		{0,0,0}};
@@ -1639,17 +1640,18 @@ process_command_line(int argc, char **argv, char *myname,
 			break;
 		case 'r':       /* db2ldif for replication */
 			if (slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
-			    if (config_set_referral_mode( "referral (-r)", optarg_ext,
+				if (config_set_referral_mode( "referral (-r)", optarg_ext,
 						errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
-				fprintf(stderr, "%s: aborting now\n",
-					errorbuf);
-				usage(myname, *extraname);
-				exit(1);
-			    }
-			    break;
-			}
-		        if (slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
-			        usage( myname, *extraname );
+					fprintf(stderr, "%s: aborting now\n", errorbuf);
+					usage(myname, *extraname);
+					exit(1);
+				}
+				break;
+			} else if ( slapd_exemode == SLAPD_EXEMODE_UPGRADEDB ) {
+				upgradedb_flags |= SLAPI_UPGRADEDB_DN2RDN;
+				break;
+			} else if (slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
+				usage( myname, *extraname );
 				exit( 1 );
 			}
 			db2ldif_dump_replica = 1;
@@ -1842,7 +1844,7 @@ process_command_line(int argc, char **argv, char *myname,
 				usage( myname, *extraname );
 				exit( 1 );
 			}
-			upgradedb_force = SLAPI_UPGRADEDB_FORCE;
+			upgradedb_flags |= SLAPI_UPGRADEDB_FORCE;
 			break;			
 		case '1':	/* db2ldif only */
 			if ( slapd_exemode != SLAPD_EXEMODE_DB2LDIF ) {
@@ -2651,7 +2653,7 @@ slapd_exemode_upgradedb()
     pb.pb_backend = NULL;
     pb.pb_plugin = backend_plugin;
     pb.pb_seq_val = archive_name;
-    pb.pb_seq_type = upgradedb_force;
+    pb.pb_seq_type = upgradedb_flags;
     pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     /* borrowing import code, so need to set up the import variables */
     pb.pb_ldif_generate_uniqueid = ldif2db_generate_uniqueid;

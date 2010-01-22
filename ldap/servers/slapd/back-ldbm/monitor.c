@@ -69,7 +69,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     struct berval val;
     struct berval *vals[2];
     char buf[BUFSIZ];
-    u_long hits, tries;
+    PRUint64 hits, tries;
     long nentries,maxentries;
     size_t size,maxsize;
 /* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
@@ -125,6 +125,26 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     MSET("currentEntryCacheCount");
     sprintf(buf, "%ld", maxentries);
     MSET("maxEntryCacheCount");
+
+    if(entryrdn_get_switch()) {
+        /* fetch cache statistics */
+        cache_get_stats(&(inst->inst_dncache), &hits, &tries, 
+                        &nentries, &maxentries, &size, &maxsize);
+        sprintf(buf, "%" NSPRIu64, hits);
+        MSET("dnEntryCacheHits");
+        sprintf(buf, "%" NSPRIu64, tries);
+        MSET("dnEntryCacheTries");
+        sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
+        MSET("dnEntryCacheHitRatio");
+        sprintf(buf, "%lu", size);
+        MSET("dnCurrentEntryCacheSize");
+        sprintf(buf, "%lu", maxsize);
+        MSET("dnMaxEntryCacheSize");
+        sprintf(buf, "%ld", nentries);
+        MSET("dnCurrentEntryCacheCount");
+        sprintf(buf, "%ld", maxentries);
+        MSET("dnMaxEntryCacheCount");
+    }
 
 #ifdef DEBUG
     {

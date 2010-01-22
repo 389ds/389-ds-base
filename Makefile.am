@@ -321,21 +321,22 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-db2bak \
 	ldap/admin/src/scripts/template-db2index \
 	ldap/admin/src/scripts/template-db2ldif \
+	ldap/admin/src/scripts/template-dn2rdn \
 	ldap/admin/src/scripts/template-ldif2db \
 	ldap/admin/src/scripts/template-ldif2ldap \
 	ldap/admin/src/scripts/template-monitor \
+	ldap/admin/src/scripts/template-restart-slapd \
 	ldap/admin/src/scripts/template-restoreconfig \
 	ldap/admin/src/scripts/template-saveconfig \
 	ldap/admin/src/scripts/template-start-slapd \
 	ldap/admin/src/scripts/template-stop-slapd \
-	ldap/admin/src/scripts/template-restart-slapd \
 	ldap/admin/src/scripts/template-suffix2instance \
 	ldap/admin/src/scripts/template-vlvindex \
 	ldap/admin/src/scripts/template-bak2db.pl \
 	ldap/admin/src/scripts/template-db2bak.pl \
 	ldap/admin/src/scripts/template-db2index.pl \
 	ldap/admin/src/scripts/template-db2ldif.pl \
-        ldap/admin/src/scripts/template-fixup-linkedattrs.pl \
+	ldap/admin/src/scripts/template-fixup-linkedattrs.pl \
 	ldap/admin/src/scripts/template-fixup-memberof.pl \
 	ldap/admin/src/scripts/template-ldif2db.pl \
 	ldap/admin/src/scripts/template-ns-accountstatus.pl \
@@ -427,6 +428,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/50retroclprecedence.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
+	ldap/admin/src/scripts/90subtreerename.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 
 update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
@@ -687,6 +689,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/ldbm_compare.c \
 	ldap/servers/slapd/back-ldbm/ldbm_config.c \
 	ldap/servers/slapd/back-ldbm/ldbm_delete.c \
+	ldap/servers/slapd/back-ldbm/ldbm_entryrdn.c \
 	ldap/servers/slapd/back-ldbm/ldbm_index_config.c \
 	ldap/servers/slapd/back-ldbm/ldbm_instance_config.c \
 	ldap/servers/slapd/back-ldbm/ldbm_modify.c \
@@ -1082,7 +1085,7 @@ libviews_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 dbscan_bin_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
-dbscan_bin_CPPFLAGS = @db_inc@ $(AM_CPPFLAGS)
+dbscan_bin_CPPFLAGS = @db_inc@ @nspr_inc@ $(AM_CPPFLAGS)
 dbscan_bin_LDADD = $(NSPR_LINK) $(DB_LINK)
 
 #------------------------

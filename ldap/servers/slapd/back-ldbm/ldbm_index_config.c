@@ -91,6 +91,14 @@ static char *attrinfo2ConfIndexes (struct attrinfo *pai)
 	} 
 	strcat (buffer, "sub"); 
     }
+    if (entryrdn_get_switch()) { /* subtree-rename: on */
+        if (pai->ai_indexmask & INDEX_SUBTREE) { 
+            if (strlen (buffer)) { 
+                strcat (buffer, ",");
+            } 
+            strcat (buffer, "subtree"); 
+        }
+    }
 
     return (slapi_ch_strdup (buffer) );
 }

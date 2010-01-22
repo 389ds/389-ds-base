@@ -60,6 +60,7 @@ attrinfo_delete(struct attrinfo **pp)
         (*pp)->ai_key_cmp_fn = NULL;
         slapi_ch_free((void**)&((*pp)->ai_type));
         slapi_ch_free((void**)(*pp)->ai_index_rules);
+        slapi_ch_free((void**)&((*pp)->ai_attrcrypt));
         slapi_ch_free((void**)pp);
         *pp= NULL;
     }
@@ -210,6 +211,10 @@ attr_index_config(
 					a->ai_indexmask |= INDEX_EQUALITY;
 				} else if ( strncasecmp( indexes[j], "approx", 6 ) == 0 ) {
 					a->ai_indexmask |= INDEX_APPROX;
+				} else if ( strncasecmp( indexes[j], "subtree", 7 ) == 0 ) {
+					/* subtree should be located before "sub" */
+					a->ai_indexmask |= INDEX_SUBTREE;
+					a->ai_dup_cmp_fn = entryrdn_compare_dups;
 				} else if ( strncasecmp( indexes[j], "sub", 3 ) == 0 ) {
 					a->ai_indexmask |= INDEX_SUB;
 				} else if ( strncasecmp( indexes[j], "none", 4 ) == 0 ) {
@@ -500,7 +505,7 @@ static void find_our_friends(char *s, int *has, int *num)
 {
 		*has = (0 == strcasecmp(s,"hassubordinates"));
 		if (!(*has)) {
-			*num = (0 == strcasecmp(s,"numsubordinates"));
+			*num = (0 == strcasecmp(s,LDBM_NUMSUBORDINATES_STR));
 		}
 }
 

@@ -66,9 +66,9 @@ static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **ori
 static int is_subject_of_agreement_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
-static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
+static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry, int is_global);
 static int windows_get_local_tombstone_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
-static int windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity);
+static int windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity, int is_global);
 static int map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid);
 static char* extract_ntuserdomainid_from_entry(Slapi_Entry *e);
 static char* extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn);
@@ -83,7 +83,7 @@ static int is_guid_dn(Slapi_DN *remote_dn);
 static int map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *exists);
 static int windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original_mods, 
 		Slapi_Entry *local_entry, Slapi_DN *remote_dn, char **newrdn);
-
+static int windows_get_superior_change(Private_Repl_Protocol *prp, Slapi_DN *local_dn, Slapi_DN *remote_dn, char **newsuperior, int to_windows);
 
 /* Controls the direction of flow for mapped attributes */
 typedef enum mapping_types {
@@ -261,7 +261,7 @@ static windows_attribute_map group_attribute_map[] =
 PRBool
 windows_ignore_error_and_keep_going(int error)
 {
-	int return_value;
+	int return_value = PR_FALSE;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_ignore_error_and_keep_going\n", 0, 0, 0 );
 
@@ -1140,7 +1140,7 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 				if (NULL == entryattrs)
 				{
 					slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-						"%s: windows_replay_update: Cannot convert entry to LDAPMods.\n",
+						"%s: windows_replay_add: Cannot convert entry to LDAPMods.\n",
 						agmt_get_long_name(prp->agmt));
 					return_value = CONN_LOCAL_ERROR;
 				}
@@ -1157,7 +1157,7 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 					if (return_value)
 					{
 						slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-							"%s: windows_replay_update: Cannot replay add operation.\n",
+							"%s: windows_replay_add: Cannot replay add operation.\n",
 							agmt_get_long_name(prp->agmt));
 					}
 					ldap_mods_free(entryattrs, 1);
@@ -1189,6 +1189,136 @@ modify_fallback:
 	return return_value;
 }
 
+/* 
+ * If the local entry is a user, this function is called for moving a node.
+ * This is because the leaf RDN of the user on AD corresponds to the value of
+ * ntUniqueId in the entry on DS.
+ *
+ * If the local entry is a group, it is called both for moving and renaming.
+ * Group does not have the mapping.  The leaf RDNs are shared between AD
+ * and DS.
+ */
+static ConnResult
+process_replay_rename(Private_Repl_Protocol *prp,
+					  Slapi_Entry *local_newentry,
+					  Slapi_DN *local_origsdn,
+					  const char *newrdn,
+					  const char *newparent,
+					  int deleteoldrdn,
+					  int is_user,
+					  int is_group)
+{
+	ConnResult rval = CONN_OPERATION_FAILED;
+	char *newsuperior = NULL;
+	const Repl_Agmt *winrepl_agmt;
+	const char *remote_subtree = NULL; /* Normalized subtree of the remote entry */
+	const char *local_subtree = NULL;  /* Normalized subtree of the local entry */
+	char *norm_newparent = NULL;
+	char *p = NULL;
+	char *remote_rdn_val = NULL;
+	char *remote_rdn = NULL;
+	char *remote_dn = NULL;
+	char *local_pndn = NULL;
+	
+	if (NULL == newparent || NULL == local_origsdn || NULL == local_newentry) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"process_replay_rename: %s is empty\n",
+					NULL==newparent?"newparent":NULL==local_origsdn?"local sdn":
+					NULL==local_newentry?"local entry":"unknown");
+		goto bail;
+	}
+	if (0 == is_user && 0 == is_group) {
+		goto bail; /* nothing to do */
+	}
+
+	/* Generate newsuperior for AD */
+	winrepl_agmt = prp->agmt;
+	remote_subtree =
+		slapi_sdn_get_ndn(windows_private_get_windows_subtree(winrepl_agmt));
+	local_subtree =
+		slapi_sdn_get_ndn(windows_private_get_directory_subtree(winrepl_agmt));
+	if (NULL == remote_subtree || NULL == local_subtree ||
+		'\0' == *remote_subtree || '\0' == *local_subtree) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"process_replay_rename: local subtree \"%s\" or "
+					"remote subtree \"%s\" is empty\n",
+					local_subtree?local_subtree:"empty",
+					remote_subtree?remote_subtree:"empty");
+		goto bail;
+	}
+	norm_newparent = slapi_ch_strdup(newparent);
+	slapi_dn_normalize_case(norm_newparent);
+	p = strstr(norm_newparent, local_subtree);
+	if (NULL == p) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"process_replay_rename: new superior \"%s\" is not "
+					"in the local subtree \"%s\"\n",
+					norm_newparent, local_subtree);
+		goto bail; /* not in the subtree */
+	}
+	*p = '\0';
+	if (p == norm_newparent) {
+		newsuperior = PR_smprintf("%s", remote_subtree);
+	} else {
+		newsuperior = PR_smprintf("%s%s", norm_newparent, remote_subtree);
+	}
+
+	if (is_user) {
+		/* Newrdn remains the same when this function is called,
+		 * as RDN on AD is CN type. If CN in RDN is modified remotely,
+		 * is taken care in modify not in modrdn locally. */
+		remote_rdn_val = slapi_entry_attr_get_charptr(local_newentry, "cn");
+		if (NULL == remote_rdn_val) {
+			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"process_replay_rename: local entry \"%s\" has no "
+					"ntUserDomainId\n",
+					slapi_entry_get_dn_const(local_newentry));
+			goto bail;
+		}
+		remote_rdn = PR_smprintf("cn=%s", remote_rdn_val);
+	} else if (is_group) {
+		Slapi_RDN rdn = {0};
+		const char *dn = slapi_sdn_get_dn(local_origsdn);
+		slapi_rdn_set_dn(&rdn, dn);
+		remote_rdn = slapi_ch_strdup(slapi_rdn_get_rdn(&rdn));
+		slapi_rdn_done(&rdn);
+	}
+
+	/* local parent normalized dn */
+	local_pndn = /* strdup'ed */
+			slapi_dn_parent((const char *)slapi_sdn_get_ndn(local_origsdn));
+	p = strstr(local_pndn, local_subtree);
+	if (NULL == p) {
+		/* Original entry is not in the subtree.
+		 * To add the entry after returning from this function,
+		 * we set LDAP_NO_SUCH_OBJECT to the ldap error */
+		windows_conn_set_error(prp->conn, LDAP_NO_SUCH_OBJECT);
+		goto bail;
+	}
+	*p = '\0';
+
+	/* generate a remote dn */
+	remote_dn = PR_smprintf("%s,%s%s", remote_rdn, local_pndn, remote_subtree);
+
+	if (is_user) {
+		rval = windows_conn_send_rename(prp->conn, remote_dn,
+							remote_rdn, (const char *)newsuperior,
+							deleteoldrdn, NULL, NULL /* returned controls */);
+	} else {
+		rval = windows_conn_send_rename(prp->conn, remote_dn,
+							newrdn, (const char *)newsuperior,
+							deleteoldrdn, NULL, NULL /* returned controls */);
+	}
+bail:
+	slapi_ch_free_string(&norm_newparent);
+	slapi_ch_free_string(&remote_rdn_val);
+	slapi_ch_free_string(&remote_rdn);
+	slapi_ch_free_string(&remote_dn);
+	slapi_ch_free_string(&local_pndn);
+	slapi_ch_free_string(&newsuperior);
+	return rval;
+}
+
 /*
  * Given a changelog entry, construct the appropriate LDAP operations to sync
  * the operation to AD.
@@ -1200,6 +1330,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	int rc = 0;
 	char *password = NULL;
 	int is_ours = 0;
+	int is_ours_force = 0; /* force to operate for RENAME/MODRDN */
 	int is_user = 0;
 	int is_group = 0;
 	Slapi_DN *remote_dn = NULL;
@@ -1217,21 +1348,42 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	 * inefficient as the tombstones build up.
 	 */
 	if (op->operation_type != SLAPI_OPERATION_DELETE) {
-		rc = windows_get_local_entry_by_uniqueid(prp, op->target_address.uniqueid, &local_entry);
+		rc = windows_get_local_entry_by_uniqueid(prp, op->target_address.uniqueid, &local_entry, 0);
 	} else {
 		rc = windows_get_local_tombstone_by_uniqueid(prp, op->target_address.uniqueid, &local_entry);
 	}
 
 	if (rc) 
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: windows_replay_update: failed to fetch local entry for %s operation dn=\"%s\"\n",
-			agmt_get_long_name(prp->agmt),
-			op2string(op->operation_type), op->target_address.dn);
-		goto error;
+		if (SLAPI_OPERATION_MODRDN == op->operation_type) {
+			/* Local entry was moved out of the subtree */
+			/* We need to remove the entry on AD. */
+			rc = windows_get_local_entry_by_uniqueid(prp,
+				  op->target_address.uniqueid, &local_entry, 1 /* is_global */);
+			if (rc) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"%s: windows_replay_update: failed to fetch local entry "
+					"for %s operation dn=\"%s\"\n",
+					agmt_get_long_name(prp->agmt),
+					op2string(op->operation_type), op->target_address.dn);
+				goto error;
+			}
+			op->operation_type = SLAPI_OPERATION_DELETE;
+			is_ours_force = 1;
+		} else {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				"%s: windows_replay_update: failed to fetch local entry for %s operation dn=\"%s\"\n",
+				agmt_get_long_name(prp->agmt),
+				op2string(op->operation_type), op->target_address.dn);
+			goto error;
+		}
 	}
 
-	is_ours = is_subject_of_agreement_local(local_entry, prp->agmt);
+	if (is_ours_force) {
+		is_ours = is_ours_force;
+	} else {
+		is_ours = is_subject_of_agreement_local(local_entry, prp->agmt);
+	}
 	windows_is_local_entry_user_or_group(local_entry,&is_user,&is_group);
 
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1359,12 +1511,28 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			}
 			break;
 		case SLAPI_OPERATION_MODRDN:
-			return_value = windows_conn_send_rename(prp->conn, op->target_address.dn,
-				op->p.p_modrdn.modrdn_newrdn,
-				op->p.p_modrdn.modrdn_newsuperior_address.dn,
-				op->p.p_modrdn.modrdn_deloldrdn,
-				NULL, NULL /* returned controls */);
+		/* only move case (newsuperior: ...) comse here since local leaf RDN is
+		 * not identical to the remote leaf RDN. */
+			{
+			return_value = process_replay_rename(prp, local_entry, local_dn,
+								op->p.p_modrdn.modrdn_newrdn,
+								op->p.p_modrdn.modrdn_newsuperior_address.dn,
+								op->p.p_modrdn.modrdn_deloldrdn,
+								is_user, is_group);
+			if (CONN_OPERATION_FAILED == return_value) {
+				int operation = 0;
+				int error = 0;
+				conn_get_error(prp->conn, &operation, &error);
+				/* The remote entry is missing. Let's add the renamed entry. */
+				if (LDAP_NO_SUCH_OBJECT == error) {
+					return_value = process_replay_add(prp,
+									local_entry /* target_entry */,
+									local_entry, local_dn, remote_dn,
+									is_user, missing_entry, &password);
+				}
+			}
 			break;
+			}
 		default:
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "%s: replay_update: Unknown "
 				"operation type %lu found in changelog - skipping change.\n",
@@ -1895,6 +2063,106 @@ mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod)
 	}
 
 	return retval;
+}
+
+/*
+ * Comparing the local_dn and the remote_dn, return the newsuperior.
+ * If to_windows is non-zero, the newsuperior is for the entry on AD.
+ * If to_windows is 0, the newsuperior is on DS.
+ *
+ * Caller must be responsible to free newsuperior.
+ *
+ * Return value: 0 if successful
+ *               non zero (and *newsuperior is NULL) if failed
+ */
+static int
+windows_get_superior_change(Private_Repl_Protocol *prp,
+							Slapi_DN *local_dn, Slapi_DN *remote_dn,
+							char **newsuperior, int to_windows)
+{
+	const Repl_Agmt *winrepl_agmt;
+	const char *remote_ndn = NULL;     /* Normalized dn of the remote entry */
+	const char *local_ndn = NULL;      /* Normalized dn of the local entry */
+	char *remote_pndn = NULL;    /* Normalized parent dn of the remote entry */
+	char *local_pndn = NULL;     /* Normalized parent dn of the local entry */
+	const char *remote_subtree = NULL; /* Normalized subtree of the remote entry */
+	const char *local_subtree = NULL;  /* Normalized subtree of the local entry */
+	char *ptr = NULL;
+	int rc = -1;
+
+	if (NULL == newsuperior) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"windows_get_superior_change: newsuperior is NULL\n");
+		goto bail;
+	}
+	/* Check if modrdn with superior has happened on AD */
+	winrepl_agmt = prp->agmt;
+	remote_subtree =
+		slapi_sdn_get_ndn(windows_private_get_windows_subtree(winrepl_agmt));
+	local_subtree =
+		slapi_sdn_get_ndn(windows_private_get_directory_subtree(winrepl_agmt));
+	if (NULL == remote_subtree || NULL == local_subtree ||
+		'\0' == *remote_subtree || '\0' == *local_subtree) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"windows_get_superior_change: local subtree \"%s\" or "
+					"remote subtree \"%s\" is empty\n",
+					local_subtree?local_subtree:"empty",
+					remote_subtree?remote_subtree:"empty");
+		goto bail;
+	}
+	remote_ndn = slapi_sdn_get_ndn(remote_dn);
+	local_ndn = slapi_sdn_get_ndn(local_dn);
+	if (NULL == remote_ndn || NULL == local_ndn ||
+		'\0' == *remote_ndn || '\0' == *local_ndn) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"windows_get_superior_change: local dn \"%s\" or "
+					"remote dn \"%s\" is empty\n",
+					local_ndn?local_ndn:"empty", remote_ndn?remote_ndn:"empty");
+		goto bail;
+	}
+	remote_pndn = slapi_dn_parent((const char *)remote_ndn); /* strdup'ed */
+	local_pndn = slapi_dn_parent((const char *)local_ndn);   /* strdup'ed */
+	if (NULL == remote_pndn || NULL == local_pndn ||
+		'\0' == *remote_pndn || '\0' == *local_pndn) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					"windows_get_superior_change: local parent dn \"%s\" or "
+					"remote parent dn \"%s\" is empty\n",
+					local_pndn?local_pndn:"empty",
+					remote_pndn?remote_pndn:"empty");
+		goto bail;
+	}
+	ptr = strstr(remote_pndn, remote_subtree);
+	if (ptr) {
+		*ptr = '\0'; /* if ptr != remote_pndn, remote_pndn ends with ',' */
+		ptr = strstr(local_pndn, local_subtree);
+		if (ptr) {
+			*ptr = '\0'; /* if ptr != local_pndn, local_pndn ends with ',' */
+			if (0 != strcmp(remote_pndn, local_pndn)) {
+				/* the remote parent is different from the local parent */
+				if (to_windows) {
+					*newsuperior = 
+								PR_smprintf("%s%s", local_pndn, remote_subtree);
+				} else {
+					*newsuperior =
+								PR_smprintf("%s%s", remote_pndn, local_subtree);
+				}
+				rc = 0;
+			}
+		} else {
+			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+				"windows_get_superior_change: local parent \"%s\" is not in "
+				"DirectoryReplicaSubtree \"%s\"\n", local_pndn, local_subtree);
+		}
+	} else {
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			"windows_get_superior_change: remote parent \"%s\" is not in "
+			"WindowsReplicaSubtree \"%s\"\n", remote_pndn, remote_subtree);
+	}
+bail:
+	slapi_ch_free_string(&remote_pndn);
+	slapi_ch_free_string(&local_pndn);
+
+	return rc;
 }
 
 static int
@@ -2615,7 +2883,7 @@ extract_guid_from_tombstone_dn(const char *dn)
 		"CN=WDel Userdb1\\\nDEL:551706bc-ecf2-4b38-9284-9a8554171d69,CN=Deleted Objects,DC=magpie,DC=com" */
 
 	/* First find the 'DEL:' */
-	if (colon_offset = strchr(dn,':')) {
+	if ((colon_offset = strchr(dn,':'))) {
 		/* Then scan forward to the next ',' */
 		comma_offset = strchr(colon_offset,',');
 	}
@@ -2906,6 +3174,13 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 				slapi_sdn_get_dn(new_dn),
 				remote_entry ? slapi_entry_get_dn_const(remote_entry) : "(null)");
 		if (0 == rc && remote_entry) {
+			if (!is_subject_of_agreement_remote(remote_entry,prp->agmt)) {
+				/* The remote entry is our of scope of the agreement.
+				 * Thus, we don't map the entry_dn.
+				 * This occurs when the remote entry is moved out. */
+				slapi_sdn_free(&new_dn);
+				retval = -1;
+			}
 			slapi_entry_free(remote_entry);
 		} else {
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -2943,7 +3218,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 
 					slapi_ch_free_string(&cn_string);
 					slapi_ch_free_string(&container_str);
-                                 }
+				}
 			}
 		}
 	} else 
@@ -3945,6 +4220,56 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	int retval = 0;
 	Slapi_PBlock *pb = NULL;
 	int do_modify = 0;
+	char *newsuperior = NULL;
+	const char *newrdn = NULL;
+	int is_user = 0, is_group = 0;
+	const char *newdn = NULL;
+	Slapi_RDN rdn = {0};
+
+	windows_is_local_entry_user_or_group(local_entry, &is_user, &is_group);
+	/* Compare the local and remote RDNs if it is a group */
+	/* If they don't match, set it to newrdn. */
+	if (is_group && strcmp(slapi_sdn_get_ndn(slapi_entry_get_sdn(local_entry)),
+					slapi_sdn_get_ndn(slapi_entry_get_sdn(remote_entry)))) {
+		newdn = slapi_sdn_get_dn(slapi_entry_get_sdn(remote_entry));
+		slapi_rdn_set_dn(&rdn, newdn);
+		newrdn = slapi_rdn_get_rdn(&rdn);
+	}
+
+	/* compare the parents */
+	retval = windows_get_superior_change(prp,
+										 slapi_entry_get_sdn(local_entry),
+										 slapi_entry_get_sdn(remote_entry),
+										 &newsuperior, 0 /* to_windows */);
+
+	if (newsuperior || newrdn) {
+		/* remote parent is different from the local parent */
+		Slapi_PBlock *pb = slapi_pblock_new ();
+
+		if (NULL == newrdn) {
+			newdn = slapi_entry_get_dn_const(local_entry);
+			slapi_rdn_set_dn(&rdn, newdn);
+			newrdn = slapi_rdn_get_rdn(&rdn);
+		}
+
+    	/* rename entry */
+		slapi_rename_internal_set_pb (pb,
+				   slapi_sdn_get_dn(slapi_entry_get_sdn(local_entry)),
+				   newrdn, newsuperior, 1 /* delete old RDNS */,
+				   NULL /* controls */, NULL /* uniqueid */,
+				   repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+		slapi_modrdn_internal_pb (pb);
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &retval);
+		slapi_pblock_destroy (pb);
+		slapi_ch_free_string(&newsuperior);
+		slapi_rdn_done(&rdn);
+		if (LDAP_SUCCESS != retval) {
+			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+							"failed to rename entry (%s); "
+							"LDAP error - %d\n", newdn, retval);
+			return retval;
+		}
+	}
 
     slapi_mods_init (&smods, 0);
 
@@ -4097,7 +4422,7 @@ error:
 }
 
 static int
-windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity)
+windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity, int is_global)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *int_search_pb = NULL;
@@ -4106,7 +4431,11 @@ windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *u
 	const Slapi_DN *local_subtree = NULL;
     
     *ret_entry = NULL;
-	local_subtree = windows_private_get_directory_subtree(prp->agmt);
+	if (is_global) { /* Search from the suffix (rename case) */
+		local_subtree = agmt_get_replarea(prp->agmt); 
+	} else {
+		local_subtree = windows_private_get_directory_subtree(prp->agmt);
+	}
 
 	/* Searching for tombstones can be expensive, so the caller needs to specify if
 	 * we should search for a tombstone entry, or a normal entry. */
@@ -4146,12 +4475,12 @@ windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *u
 }
 
 static int
-windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry)
+windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry, int is_global)
 {
 	int retval = ENTRY_NOTFOUND;
 	Slapi_Entry *new_entry = NULL;
 	windows_search_local_entry_by_uniqueid( prp, uniqueid, NULL, &new_entry, 0, /* Don't search tombstones */
-			repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION));
+		repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), is_global);
 	if (new_entry) 
 	{
 		*local_entry = new_entry;
@@ -4166,7 +4495,7 @@ windows_get_local_tombstone_by_uniqueid(Private_Repl_Protocol *prp,const char* u
 	int retval = ENTRY_NOTFOUND;
 	Slapi_Entry *new_entry = NULL;
 	windows_search_local_entry_by_uniqueid( prp, uniqueid, NULL, &new_entry, 1, /* Search for tombstones */
-			repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION));
+			repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
 	if (new_entry)
 	{
 		*local_entry = new_entry;
@@ -4195,6 +4524,8 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 {
 	Slapi_DN* local_sdn = NULL;
 	int rc = 0;
+	int retried = 0;
+	Slapi_Entry *found_entry = NULL;
 
 	/* deleted users are outside the 'correct container'. 
 	They live in cn=deleted objects, windows_private_get_directory_subtree( prp->agmt) */
@@ -4216,6 +4547,7 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 		/* Is this entry one we should be interested in ? */
 		if (is_subject_of_agreement_remote(e,prp->agmt)) 
 		{
+retry:
 			/* First make its local DN */
 			rc = map_entry_dn_inbound(e, &local_sdn, prp->agmt);
 			if ((0 == rc) && local_sdn) 
@@ -4275,8 +4607,32 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 					}
 				}
 				slapi_sdn_free(&local_sdn);
-			} else 
-			{
+			} else if (0 == retried) {
+				/* We should try one more thing. */
+				/* In case a remote entry is moved from the outside of scope of
+			 	 * the agreement into the inside, the entry e only has
+				 * attributes: parentguid, objectguid, instancetype, name.
+			 	 * We search Windows with the dn and retry using the found 
+				 * entry.
+			 	 */
+				ConnResult cres = 0;
+				const char *searchbase = slapi_entry_get_dn_const(e);
+				char *filter = "(objectclass=*)";
+
+				retried = 1;
+				cres = windows_search_entry(prp->conn, (char*)searchbase, 
+											filter, &found_entry);
+				if (0 == cres && found_entry) {
+					/* 
+					 * Entry e originally allocated in windows_dirsync_inc_run
+					 * is freed in windows_dirsync_inc_run.  Assigning 
+					 * found_entry to e does not break the logic.
+					 * "found_entry" is freed at the end of this function.
+					 */
+					e = found_entry;
+					goto retry;
+				}
+			} else {
 				/* We should have been able to map the DN, so this is an error */
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 								"%s: windows_process_dirsync_entry: failed to map "
@@ -4287,7 +4643,28 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 								local_sdn ? slapi_sdn_get_dn(local_sdn) : "null");
 			}
 		} /* subject of agreement */
+		else { /* The remote entry might be moved out of scope of agreement. */
+			/* First make its local DN */
+			rc = map_entry_dn_inbound(e, &local_sdn, prp->agmt);
+			if ((0 == rc) && local_sdn) 
+			{
+				Slapi_Entry *local_entry = NULL;
+				/* Get the local entry if it exists */
+				rc = windows_get_local_entry(local_sdn, &local_entry);
+				if ((0 == rc) && local_entry) 
+				{
+					/* Need to delete the local entry since the remote counter
+					 * part is now moved out of scope of the agreement. */
+					/* Since map_Entry_dn_oubound returned local_sdn,
+					 * the entry is either user or group. */
+					rc = windows_delete_local_entry(local_sdn);
+					slapi_entry_free(local_entry);
+				}
+				slapi_sdn_free(&local_sdn);
+			}
+		}
 	} /* is tombstone */
+	slapi_entry_free(found_entry);
 	return rc;
 }
 

@@ -105,13 +105,27 @@ dbversion_write(struct ldbminfo *li, const char *directory,
          * (406922) */
         if (idl_get_idl_new())
         {
-            sprintf(buf, "%s/%d.%d/%s\n", 
-                    BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_BACKEND);
+            if (entryrdn_get_switch()) {
+                sprintf(buf, "%s/%d.%d/%s/%s\n", 
+                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
+                        BDB_BACKEND, BDB_RDNFORMAT);
+            } else {
+                sprintf(buf, "%s/%d.%d/%s\n", 
+                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
+                        BDB_BACKEND);
+            }
         }
         else
         {
-            sprintf(buf, "%s/%d.%d/%s\n", 
-                    BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_BACKEND);
+            if (entryrdn_get_switch()) {
+                sprintf(buf, "%s/%d.%d/%s/%s\n", 
+                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
+                        BDB_BACKEND, BDB_RDNFORMAT);
+            } else {
+                sprintf(buf, "%s/%d.%d/%s\n", 
+                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
+                        BDB_BACKEND);
+            }
         }
         len = strlen( buf );
         if ( slapi_write_buffer( prfd, buf, len ) != len )

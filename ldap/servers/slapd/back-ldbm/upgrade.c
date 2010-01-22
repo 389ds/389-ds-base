@@ -53,15 +53,22 @@
  */
 
 db_upgrade_info ldbm_version_suss[] = {
+    /*
+     * char *old_version_string;
+     * int   old_dbversion_major;
+     * int   old_dbversion_minor;
+     * int   type;
+     * int   action;
+     */
     /* for bdb/#.#/..., we don't have to put the version number in the 2nd col
        since DBVERSION keeps it */
-    {BDB_IMPL, 0, 0, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
-    {LDBM_VERSION, 4, 2, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
+    {BDB_IMPL,         0, 0, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
+    {LDBM_VERSION,     4, 2, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
     {LDBM_VERSION_OLD, 4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
-    {LDBM_VERSION_62, 4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
-    {LDBM_VERSION_61, 3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
-    {LDBM_VERSION_60, 3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
-    {NULL,0,0}
+    {LDBM_VERSION_62,  4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
+    {LDBM_VERSION_61,  3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
+    {LDBM_VERSION_60,  3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
+    {NULL,             0, 0, 0,                 0                    }
 };
 
 
@@ -74,7 +81,7 @@ int
 lookup_dbversion(char *dbversion, int flag)
 {
     int i, matched = 0;
-    int rval = DBVERSION_NO_UPGRADE;
+    int rval = 0; /* == DBVERSION_NO_UPGRADE */
 
     for ( i = 0; ldbm_version_suss[i].old_version_string != NULL; ++i )
     {
@@ -87,11 +94,15 @@ lookup_dbversion(char *dbversion, int flag)
     }
     if ( matched )
     {
-        if ( flag & DBVERSION_TYPE )
+        if ( flag & DBVERSION_TYPE ) /* lookup request for type */
         {
             rval |= ldbm_version_suss[i].type;
+            if (strstr(dbversion, BDB_RDNFORMAT)) {
+                /* dbversion contains rdn-format == subtree-rename format */
+                rval |= DBVERSION_RDN_FORMAT;
+            }
         }
-        if ( flag & DBVERSION_ACTION )
+        if ( flag & DBVERSION_ACTION ) /* lookup request for action */
         {
             int dbmajor = 0, dbminor = 0;
             if (0 == ldbm_version_suss[i].old_dbversion_major)
@@ -179,10 +190,23 @@ check_db_version( struct ldbminfo *li, int *action )
         dblayer_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_3_4;
     }
-	else if ( value & DBVERSION_UPGRADE_4_4 )
+    else if ( value & DBVERSION_UPGRADE_4_4 )
     {
         dblayer_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_4_4;
+    }
+    if (value & DBVERSION_RDN_FORMAT) {
+        if (entryrdn_get_switch()) {
+            /* nothing to do */
+        } else {
+            *action |= DBVERSION_NEED_RDN2DN;
+        }
+    } else {
+        if (entryrdn_get_switch()) {
+            *action |= DBVERSION_NEED_DN2RDN;
+        } else {
+            /* nothing to do */
+        }
     }
     slapi_ch_free_string(&ldbmversion);
     slapi_ch_free_string(&dataversion);
@@ -252,9 +276,22 @@ check_db_inst_version( ldbm_instance *inst )
     {
         rval |= DBVERSION_UPGRADE_3_4;
     }
-	else if ( value & DBVERSION_UPGRADE_4_4 )
+    else if ( value & DBVERSION_UPGRADE_4_4 )
     {
         rval |= DBVERSION_UPGRADE_4_4;
+    }
+    if (value & DBVERSION_RDN_FORMAT) {
+        if (entryrdn_get_switch()) {
+            /* nothing to do */
+        } else {
+            rval |= DBVERSION_NEED_RDN2DN;
+        }
+    } else {
+        if (entryrdn_get_switch()) {
+            rval |= DBVERSION_NEED_DN2RDN;
+        } else {
+            /* nothing to do */
+        }
     }
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
@@ -274,8 +311,8 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
     int rval = 0;
 
     li->li_flags |= LI_FORCE_MOD_CONFIG;
-	if ((0 == PL_strncasecmp(ldbmversion, BDB_IMPL, strlen(BDB_IMPL))) ||
-	    (0 == PL_strcmp(ldbmversion, LDBM_VERSION)))    /* db: new idl */
+    if ((0 == PL_strncasecmp(ldbmversion, BDB_IMPL, strlen(BDB_IMPL))) ||
+        (0 == PL_strcmp(ldbmversion, LDBM_VERSION)))    /* db: new idl */
     {
         if (!idl_get_idl_new())   /* config: old idl */
         {

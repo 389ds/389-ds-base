@@ -107,7 +107,7 @@ ldbm_back_start( Slapi_PBlock *pb )
       dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
       if (pagesize) {
           char s[32];    /* big enough to hold %ld */
-		  unsigned long cache_size_to_configure = 0;
+          unsigned long cache_size_to_configure = 0;
           int zone_pages, db_pages, entry_pages, import_pages;
           Object *inst_obj;
           ldbm_instance *inst;   
@@ -127,28 +127,29 @@ ldbm_back_start( Slapi_PBlock *pb )
                 entry_pages*(pagesize/1024));
     
               /* libdb allocates 1.25x the amount we tell it to, but only for values < 500Meg */
-			  if (cache_size_to_configure < (500 * MEGABYTE)) {
-					cache_size_to_configure = (unsigned long)((db_pages * pagesize) / 1.25);
-			  } else {
-					cache_size_to_configure = (unsigned long)(db_pages * pagesize);
-			  }
+              if (cache_size_to_configure < (500 * MEGABYTE)) {
+                  cache_size_to_configure = (unsigned long)((db_pages * pagesize) / 1.25);
+              } else {
+                  cache_size_to_configure = (unsigned long)(db_pages * pagesize);
+              }
               sprintf(s, "%lu", cache_size_to_configure);
               ldbm_config_internal_set(li, CONFIG_DBCACHESIZE, s);
               li->li_cache_autosize_ec = (unsigned long)entry_pages * pagesize;
     
               for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-                       inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-                      inst = (ldbm_instance *)object_get_data(inst_obj);
-                      cache_set_max_entries(&(inst->inst_cache), -1);
-                      cache_set_max_size(&(inst->inst_cache), li->li_cache_autosize_ec);
+                  inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+                  inst = (ldbm_instance *)object_get_data(inst_obj);
+                  cache_set_max_entries(&(inst->inst_cache), -1);
+                  cache_set_max_size(&(inst->inst_cache),
+                                    li->li_cache_autosize_ec, CACHE_TYPE_ENTRY);
               }
           }    
           /* autosizing importCache */
           if (li->li_import_cache_autosize > 0) {
-			  /* For some reason, -1 means 50 ... */
-			  if (li->li_import_cache_autosize == -1) {
-					li->li_import_cache_autosize = 50;
-			  }
+              /* For some reason, -1 means 50 ... */
+              if (li->li_import_cache_autosize == -1) {
+                    li->li_import_cache_autosize = 50;
+              }
               import_pages = (li->li_import_cache_autosize * pages) / 100;
               LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing: import cache: %dk \n",
                 import_pages*(pagesize/1024), NULL, NULL);
@@ -195,13 +196,9 @@ ldbm_back_start( Slapi_PBlock *pb )
           LDAPDebug( LDAP_DEBUG_ANY, "Failed to allocate %d byte dbcache.  "
                    "Please reduce the value of %s and restart the server.\n",
                    li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE, 0);
-		} else {
-          LDAPDebug( LDAP_DEBUG_ANY, "Failed to allocate %d byte dbcache.  "
-                   "Please reduce %s and Restart the server.\n",
-                   li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE, 0);
         }
         return SLAPI_FAIL_GENERAL;
-	  }
+      }
   }
 
   /* write DBVERSION file if one does not exist */

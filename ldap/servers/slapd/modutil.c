@@ -159,7 +159,7 @@ slapi_mods_done(Slapi_Mods *smods)
 			ldap_mods_free (smods->mods, 1 /* Free the Array and the Elements */);
 		}
 	}
-	memset (smods, 0, sizeof(smods));
+	memset(smods, 0, sizeof(*smods));
 }
 
 static void
@@ -629,7 +629,7 @@ slapi_mod_done(Slapi_Mod *smod)
 		slapi_ch_free((void**)&(smod->mod->mod_type));
 		slapi_ch_free((void**)&(smod->mod));
 	}
-	memset (smod, 0, sizeof(smod));
+	memset (smod, 0, sizeof(*smod));
 }
 
 /*

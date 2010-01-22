@@ -649,7 +649,7 @@ log_update_auditlogdir(char *pathname, int apply)
 		loginfo.log_numof_audit_logs = 1;
 	}
 
-	/* Now open the new errorlog */
+	/* Now open the new auditlog */
 	if ( audit_log_openf (pathname, 1 /* locked */)) {
 		rv = LDAP_LOCAL_ERROR; /* error: Unable to use the new dir */
 	}

@@ -1288,7 +1288,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
                             idl_append(resultIdl,id);
                 		}
                     }
-					cache_return(&(((ldbm_instance *) be->be_instance_info)->inst_cache), &e);
+					CACHE_RETURN(&(((ldbm_instance *) be->be_instance_info)->inst_cache), &e);
             	}
     	    }
 
@@ -1984,7 +1984,11 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	struct vlvSearch* p=NULL;
 	char *buf, *buf2, *tag1, *tag2; 
 	const char *dn= slapi_sdn_get_dn(&e->e_sdn);
-	backend *be= inst->inst_be;
+	backend *be= NULL;
+	if (NULL == inst) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+	be= inst->inst_be;
 
 	if (instance_set_busy(inst) != 0)
 	{

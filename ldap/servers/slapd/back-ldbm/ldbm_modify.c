@@ -58,7 +58,8 @@ void modify_init(modify_context *mc,struct backentry *old_entry)
 	PR_ASSERT(NULL == mc->new_entry);
 
 	mc->old_entry = old_entry;
-        mc->new_entry_in_cache = 0;
+	mc->new_entry_in_cache = 0;
+	mc->attr_encrypt = 1;
 }
 
 int modify_apply_mods(modify_context *mc, Slapi_Mods *smods)
@@ -85,11 +86,11 @@ int modify_term(modify_context *mc,struct backend *be)
     /* Unlock and return entries */
     if (NULL != mc->old_entry)  {
         cache_unlock_entry(&inst->inst_cache, mc->old_entry);
-        cache_return( &(inst->inst_cache), &(mc->old_entry) );
+        CACHE_RETURN( &(inst->inst_cache), &(mc->old_entry) );
         mc->old_entry= NULL;
     }
     if (mc->new_entry_in_cache) {
-        cache_return( &(inst->inst_cache), &(mc->new_entry) );
+        CACHE_RETURN( &(inst->inst_cache), &(mc->new_entry) );
     } else {
         backentry_free(&(mc->new_entry));
     }
@@ -143,7 +144,7 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 	 * Update the ID to Entry index. 
 	 * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
 	 */
-	retval = id2entry_add( be, mc->new_entry, txn );
+	retval = id2entry_add_ext( be, mc->new_entry, txn, mc->attr_encrypt );
 	if ( 0 != retval ) {
 		if (DB_LOCK_DEADLOCK != retval)
 		{
@@ -185,7 +186,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	backend *be;
 	ldbm_instance *inst;
 	struct ldbminfo		*li;
-	struct backentry	*e, *ec = NULL;
+	struct backentry	*e = NULL, *ec = NULL;
 	Slapi_Entry		*postentry = NULL;
 	LDAPMod			**mods;
 	Slapi_Mods smods = {0};
@@ -219,6 +220,17 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
 
+	if (NULL == addr)
+	{
+		goto error_return;
+	}
+	ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
+	if (ldap_result_code)
+	{
+		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+		goto error_return;
+	}
 	dblayer_txn_init(li,&txn);
 
 	/* The dblock serializes writes to the database,
@@ -456,7 +468,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	/* we must return both e (which has been deleted) and new entry ec */
 	cache_unlock_entry( &inst->inst_cache, e );
-	cache_return( &inst->inst_cache, &e );
+	CACHE_RETURN( &inst->inst_cache, &e );
 	/* 
 	 * LP Fix of crash when the commit will fail:
 	 * If the commit fail, the common error path will
@@ -480,7 +492,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 error_return:
 	if (ec_in_cache)
 	{
-		cache_remove( &inst->inst_cache, ec );
+		CACHE_REMOVE( &inst->inst_cache, ec );
 	}
 	else
 	{
@@ -495,7 +507,7 @@ error_return:
 	
 	if (e!=NULL) {
 	    cache_unlock_entry( &inst->inst_cache, e);
-	    cache_return( &inst->inst_cache, &e);
+	    CACHE_RETURN( &inst->inst_cache, &e);
 	}
 
 	if (retval == DB_RUNRECOVERY) {
@@ -507,8 +519,10 @@ error_return:
 	if (disk_full)
 	    rc= return_on_disk_full(li);
 	else if (ldap_result_code != LDAP_SUCCESS) {
-	    /* It is specifically OK to make this call even when no transaction was in progress */
-	    dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		if (retry_count > 0) {
+			/* It is safer not to abort when the transaction is not started. */
+			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		}
 	    rc= SLAPI_FAIL_GENERAL;
 	}
 
@@ -518,7 +532,7 @@ common_return:
 	
 	if (ec_in_cache)
 	{
-		cache_return( &inst->inst_cache, &ec );
+		CACHE_RETURN( &inst->inst_cache, &ec );
 	}
 	/* JCMREPL - The bepostop is called even if the operation fails. */
 	if (!disk_full)

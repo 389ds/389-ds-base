@@ -164,7 +164,13 @@ dbverify_ext( ldbm_instance *inst, int verbose )
                     return rval;
                 }
     
-                rval = dbp->set_dup_compare(dbp, idl_new_compare_dups);
+				if (ai->ai_dup_cmp_fn) {
+					/* If set, use the special dup compare callback */
+					rval = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
+				} else {
+					rval = dbp->set_dup_compare(dbp, idl_new_compare_dups);
+				}
+
                 if (0 != rval)
                 {
                     slapi_log_error(SLAPI_LOG_FATAL, "DB verify",

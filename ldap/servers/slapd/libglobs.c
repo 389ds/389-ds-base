@@ -564,7 +564,8 @@ static struct config_get_and_set {
 		NULL, 0, NULL, CONFIG_ON_OFF, (ConfigGetFunc)config_get_hash_filters},
 	/* instance dir; used by admin tasks */
 	{CONFIG_INSTDIR_ATTRIBUTE, config_set_instancedir,
-		NULL, 0, NULL, CONFIG_STRING, NULL},
+		NULL, 0, 
+		(void**)&global_slapdFrontendConfig.instancedir, CONFIG_STRING, NULL},
 	/* parameterizing schema dir */
 	{CONFIG_SCHEMADIR_ATTRIBUTE, config_set_schemadir,
 		NULL, 0,
@@ -4860,11 +4861,40 @@ config_set_configdir(const char *attrname, char *value, char *errorbuf, int appl
 	return retVal;
 }
 
-/* W/o the setter, "config_set: the attribute nsslapd-instancedir is read only" is printed out. */
-int
+char *
+config_get_instancedir()
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	char *retVal;
+
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = config_copy_strval(slapdFrontendConfig->instancedir);
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal; 
+}
+
 config_set_instancedir(const char *attrname, char *value, char *errorbuf, int apply)
 {
-	return LDAP_SUCCESS;
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+  
+	if (!apply) {
+		return retVal;
+	}
+
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+	/* We don't want to allow users to modify instance dir.
+ 	 * Set it once when the server starts. */
+	if (NULL == slapdFrontendConfig->instancedir) {
+		slapdFrontendConfig->instancedir = slapi_ch_strdup(value);
+	}
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	return retVal;
 }
 
 char *

@@ -115,7 +115,7 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     *last_usn = -1; /* to start from 0 */
 
     /* Open the entryusn index */
-    ainfo_get(be, "entryusn", &ai);
+    ainfo_get(be, SLAPI_ATTR_ENTRYUSN, &ai);
 
     /* Open the entryusn index file */
     rc = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
@@ -184,7 +184,7 @@ ldbm_set_last_usn(Slapi_Backend *be)
     int rc = usn_get_last_usn(be, &last_usn);
 
     if (0 == rc) { /* only when the last usn is available */
-		/* destroy old counter, if any */
+        /* destroy old counter, if any */
         slapi_counter_destroy(&(be->be_usn_counter));
         be->be_usn_counter = slapi_counter_new();
         slapi_counter_set_value(be->be_usn_counter, last_usn);

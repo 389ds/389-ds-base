@@ -803,6 +803,11 @@ void slapi_pblock_destroy( Slapi_PBlock *pb );
  */
 Slapi_Entry *slapi_str2entry( char *s, int flags );
 
+/*
+ * Same as slapi_str2entry except passing dn as an argument
+ */
+Slapi_Entry *slapi_str2entry_ext( const char *dn, char *s, int flags );
+
 
 /*-----------------------------
  * Flags for slapi_str2entry()
@@ -977,6 +982,13 @@ char *slapi_entry2str_with_options( Slapi_Entry *e, int *len, int options );
  * \see slapi_entry2str_with_options()
  */
 #define SLAPI_DUMP_MINIMAL_ENCODING	16	/* use less base64 encoding */
+
+/**
+ * Output rdn based entry instead of dn based.  Introduced for subtree rename.
+ *
+ * \see slapi_entry2str_with_options()
+ */
+#define SLAPI_DUMP_RDN_ENTRY	32	/* rdn based entry */
 
 /**
  * Generates an LDIF string description of an LDAP entry.
@@ -1157,6 +1169,32 @@ const Slapi_DN *slapi_entry_get_sdn_const( const Slapi_Entry *e );
 Slapi_DN *slapi_entry_get_sdn( Slapi_Entry *e );
 
 /**
+ * Returns as a \c const the value of the #Slapi_RDN from the entry
+ * that you specify.
+ *
+ * \param e Entry from which you want to get the #Slapi_RDN object.
+ * \return Returns as a \c const the #Slapi_RDN object from the entry that you
+ *         specify. 
+ * \warning Never free the returned value.  If you need a copy, use
+ *          slapi_sdn_dup().
+ * \see slapi_sdn_dup()
+ * \see slapi_entry_get_sdn()
+ */
+const Slapi_RDN *slapi_entry_get_srdn_const( const Slapi_Entry *e );
+
+/**
+ * Returns the #Slapi_RDN object from the entry that you specify.
+ *
+ * \param e Entry from which you want to get the #Slapi_RDN object.
+ * \return Returns the #Slapi_RDN object from the entry that you specify.
+ * \warning Never free the returned value.  If you need a copy, use
+ *          slapi_sdn_dup().
+ * \see slapi_entry_get_srdn_const()
+ * \see slapi_sdn_dup()
+ */
+Slapi_RDN * slapi_entry_get_srdn( Slapi_Entry *e );
+
+/**
  * Returns as a \c const the DN value of the entry that you specify.
  *
  * \param e Entry from which you want to get the DN as a constant.
@@ -1168,6 +1206,31 @@ Slapi_DN *slapi_entry_get_sdn( Slapi_Entry *e );
  * \see slapi_entry_set_sdn()
  */
 const char *slapi_entry_get_dn_const( const Slapi_Entry *e );
+
+/**
+ * Returns as a \c const the RDN value of the entry that you specify.
+ *
+ * \param e Entry from which you want to get the RDN as a constant.
+ * \return This function returns one of the following values:
+ *         \arg The RDN of the entry that you specify. The RDN is returned
+ *              as a const; you are not able to modify the RDN value.
+ * \warning Never free the returned value.
+ * \see slapi_entry_set_srdn()
+ */
+const char *slapi_entry_get_rdn_const( const Slapi_Entry *e );
+
+/**
+ * Returns as a \c const the Normalized RDN value of the entry that you specify.
+ *
+ * \param e Entry from which you want to get the Normalized RDN as a constant.
+ * \return This function returns one of the following values:
+ *         \arg The Normalized RDN of the entry that you specify. 
+ *              The Normalized RDN is returned as a const; 
+ *              you are not able to modify the Normalized RDN value.
+ * \warning Never free the returned value.
+ * \see slapi_entry_set_srdn()
+ */
+const char *slapi_entry_get_nrdn_const( const Slapi_Entry *e );
 
 /**
  * Sets the distinguished name (DN) of an entry.
@@ -1191,6 +1254,19 @@ const char *slapi_entry_get_dn_const( const Slapi_Entry *e );
 void slapi_entry_set_dn( Slapi_Entry *e, char *dn );
 
 /**
+ * Sets the relative distinguished name (RDN) of an entry.
+ *
+ * This function sets the RDN pointer in the specified entry to the RDN that 
+ * you supply.
+ *
+ * \param e Entry to which you want to assign the RDN.
+ * \param rdn Relatie distinguished name you want assigned to the entry.
+ *            If dn is given here, the first rdn part is set to the RDN.
+ * \warning The rdn will be copied in slapi_entry_set_rdn.
+ */
+void slapi_entry_set_rdn( Slapi_Entry *e, char *rdn );
+
+/**
  * Sets the Slapi_DN value in an entry.
  *
  * This function sets the value for the #Slapi_DN object in the entry you specify.
@@ -1201,6 +1277,19 @@ void slapi_entry_set_dn( Slapi_Entry *e, char *dn );
  * \see slapi_entry_get_sdn()
  */
 void slapi_entry_set_sdn( Slapi_Entry *e, const Slapi_DN *sdn );
+
+/**
+ * Sets the Slapi_DN value containing RDN in an entry.
+ *
+ * This function sets the value for the #Slapi_DN object containing RDN in the entry you specify.
+ *
+ * \param e Entry to which you want to set the value of the #Slapi_DN.
+ * \param srdn The specified #Slapi_DN value that you want to set.
+ * \warning This function makes a copy of the \c srdn parameter.
+ * \see slapi_entry_get_srdn()
+ */
+void slapi_entry_set_srdn( Slapi_Entry *e, const Slapi_RDN *srdn );
+
 
 /**
  * Determines if an entry contains the specified attribute.
@@ -1335,6 +1424,25 @@ int slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e );
  *         set.   If that flag is present, no syntax checking is performed.
  */
 int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
+
+/**
+ * Determines if the DN violates the Distinguished Name syntax rules.
+ *
+ * \param pb Parameter block.
+ * \param dn The dn string you want to check.
+ * \param override Flag to override the server configuration and force syntax checking
+ *        to be performed.
+ * \return \c 0 if the DN complies with the Distinguished Name syntax rules or if
+ *         syntax checking is disabled.
+ * \return \c 1 if the DN violates the Distinguished Name syntax rules.  If the \c pb
+ *         parameter was passed in, an error message will be set in the
+ *         #SLAPI_PB_RESULT_TEXT parameter.
+ * \warning The \c pb parameter can be \c NULL.  It is used to store an error
+ *         message with details of any syntax violations.  The \c pb paramter
+ *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
+ *         set.   If that flag is present, no syntax checking is performed.
+ */
+int slapi_dn_syntax_check( Slapi_PBlock *pb, char *dn, int override );
 
 /**
  * Determines if any values being added to an entry violate the syntax rules
@@ -2203,6 +2311,13 @@ void slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent);
 void slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend);
 
 /**
+ * Return the size of a \c Slapi_DN structure.
+ *
+ * \param sdn Pointer to the \c Slapi_DN structure to get the size.
+ */
+size_t slapi_sdn_get_size(const Slapi_DN *sdn);
+
+/**
  * Duplicates a \c Slapi_DN structure.
  *
  * \param sdn Pointer to the \c Slapi_DN structure to duplicate.
@@ -2374,6 +2489,7 @@ Slapi_DN *slapi_sdn_set_parent(Slapi_DN *sdn, const Slapi_DN *parentdn);
  * \return The new DN for the entry whose previous DN was \c dn_olddn.
  */
 char * slapi_moddn_get_newdn(Slapi_DN *dn_olddn, char *newrdn, char *newsuperiordn);
+Slapi_DN *slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
 
 
 /*
@@ -2502,6 +2618,9 @@ void slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
  * \see slapi_rdn_set_rdn()
  */
 void slapi_rdn_set_dn(Slapi_RDN *rdn,const char *dn);
+Slapi_RDN *slapi_rdn_new_all_dn(const char *dn);
+int slapi_rdn_init_all_dn(Slapi_RDN *rdn, const char *dn);
+int slapi_rdn_init_all_sdn(Slapi_RDN *rdn, const Slapi_DN *sdn);
 
 /**
  * Sets the RDN value in a \c Slapi_RDN structure from a \c Slapi_DN.
@@ -2756,15 +2875,6 @@ int slapi_rdn_compare(Slapi_RDN *rdn1, Slapi_RDN *rdn2);
 const char *slapi_rdn_get_rdn(const Slapi_RDN *rdn);
 
 /**
- * Gets the normalized RDN from a \c Slapi_RDN structure
- *
- * \param rdn The \c Slapi_RDN structure holding the RDN value.
- * \return The normalized RDN value.
- * \deprecated This function is not inmplemented.  Do not use it.
- */
-const char *slapi_rdn_get_nrdn(const Slapi_RDN *rdn); 
-
-/**
  * Adds a RDN from a \c Slapi_RDN structure to a DN in a \c Slapi_DN structure.
  *
  * The RDN in the \c Slapi_RDN structure will be appended to the DN
@@ -2778,6 +2888,137 @@ const char *slapi_rdn_get_nrdn(const Slapi_RDN *rdn);
  * \see slapi_sdn_set_rdn()
  */
 Slapi_DN *slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
+
+/* Function:	slapi_rdn_set_all_dn
+   Description: this function sets exploded RDNs of DN to Slapi_RDN
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               dn - distinguished name which is to be exploded into RDNs and
+			        set to Slapi_RDN
+   Return: none
+*/
+void slapi_rdn_set_all_dn(Slapi_RDN *rdn,const char *dn);
+
+/**
+ * Gets the normalized RDN from a \c Slapi_RDN structure
+ *
+ * \param rdn The \c Slapi_RDN structure holding the RDN value.
+ * \return The normalized RDN value.
+ */
+const char *slapi_rdn_get_nrdn(Slapi_RDN *srdn);
+
+/* Function:	slapi_rdn_get_first_ext
+   Description: this function returns the first RDN in RDN array.  The RDN 
+                array is supposed to store all the RDNs of DN.
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               firstrdn - a container to store the address of the first RDN.
+			             The caller should not free the returned address.
+               flag - type of the returned RDN.  one of the followings:
+                      FLAG_ALL_RDNS -- raw (not normalized)
+                      FLAG_ALL_NRDNS -- normalized
+   Return: the index of the first rdn 0, if function succeeds.
+           -1, if it fails.
+*/
+int slapi_rdn_get_first_ext(Slapi_RDN *srdn, const char **firstrdn, int flag);
+
+/* Function:	slapi_rdn_get_last_ext
+   Description: this function returns the last RDN in RDN array.  The RDN 
+                array is supposed to store all the RDNs of DN.
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               lastrdn - a container to store the address of the last RDN.
+			             The caller should not free the returned address.
+               flag - type of the returned RDN.  one of the followings:
+                      FLAG_ALL_RDNS -- raw (not normalized)
+                      FLAG_ALL_NRDNS -- normalized
+   Return: the index of the last rdn, if function succeeds.
+           -1, if it fails.
+*/
+int slapi_rdn_get_last_ext(Slapi_RDN *srdn, const char **lastrdn, int flag);
+/* Function:	slapi_rdn_get_prev_ext
+   Description: this function returns the previous RDN of the given index (idx)
+                in RDN array.
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               idx - a return value of the previous slapi_rdn_get_last_ext
+                     or slapi_rdn_get_prev_ext or slapi_rdn_get_next_ext call.
+               prevrdn - a container to store the address of the previous RDN.
+			             The caller should not free the returned address.
+               flag - type of the returned RDN.  one of the followings:
+                      FLAG_ALL_RDNS -- raw (not normalized)
+                      FLAG_ALL_NRDNS -- normalized
+   Return: the index of the returned rdn, if function succeeds.
+           -1, if it fails.
+*/
+int slapi_rdn_get_prev_ext(Slapi_RDN *srdn, int idx, const char **prevrdn, int flag);
+/* Function:	slapi_rdn_get_next_ext
+   Description: this function returns the next RDN of the given index (idx)
+                in RDN array.
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               idx - a return value of the previous slapi_rdn_get_prev_ext 
+                     or slapi_rdn_get_next_ext call.
+               nextrdn - a container to store the address of the next RDN.
+			             The caller should not free the returned address.
+               flag - type of the returned RDN.  one of the followings:
+                      FLAG_ALL_RDNS -- raw (not normalized)
+                      FLAG_ALL_NRDNS -- normalized
+   Return: the index of the returned rdn, if function succeeds.
+           -1, if it fails.
+*/
+int slapi_rdn_get_next_ext(Slapi_RDN *srdn, int idx, const char **nextrdn, int flag);
+/* Function:	slapi_rdn_add_rdn_to_all_rdns
+   Description: this function appends the given RDN to the RDN array in 
+                Slapi_RDN.
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               addrdn - an RDN string to append.
+               byref - non 0, then the passed addrdn is put in the RDN array.
+                       0, then the duplicated addrdn is put in the RDN array.
+   Return: 0, if the function succeeds.
+           -1, if it fails.
+*/
+int slapi_rdn_add_rdn_to_all_rdns(Slapi_RDN *srdn, char *addrdn, int byref);
+/* Function:	slapi_rdn_add_srdn_to_all_rdns
+   Description: this function appends the given Slapi_RDN to the RDN array in 
+                Slapi_RDN.
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               addsrdn - Slapi_RDN to append.
+   Return: 0, if the function succeeds.
+           -1, if it fails.
+*/
+int slapi_rdn_add_srdn_to_all_rdns(Slapi_RDN *srdn, Slapi_RDN *addsrdn);
+/* Function:	slapi_rdn_get_dn
+   Description: this function generates DN string if it stores RDNs in its
+                all_rdns field.
+   Parameters: srdn - a pointer to Slapi_RDN which stores RDN array
+               dn -- a container to store the address of DN; dn is allocated
+			         in this function.
+   Return: 0, if the function succeeds.
+           -1, if it fails (e.g., srdn is NULL, dn is NULL, or srdn does not
+               have RDN array in it.
+*/
+int slapi_rdn_get_dn(Slapi_RDN *srdn, char **dn);
+/* Function:	slapi_srdn_copy
+   Description: this function copies "from" Slapi_RDN structure to "to"
+   Parameters: from - a pointer to source Slapi_RDN 
+               to -- an address to store the copied Slapi_RDN.
+   Return: 0, if the function succeeds.
+           -1, if it fails
+*/
+int slapi_srdn_copy(const Slapi_RDN *from, Slapi_RDN *to);
+/* Function:	slapi_srdn_copy
+   Description: this function replaces the rdn in Slapi_RDN with new_rdn
+   Parameters: srdn - a pointer to Slapi_RDN 
+               new_rdn -- new rdn set to Slapi_RDN
+   Return: 0, if the function succeeds.
+           -1, if it fails
+*/
+int slapi_rdn_replace_rdn(Slapi_RDN *srdn, char *new_rdn);
+/* Function:	slapi_rdn_partial_dup
+   Description: this function partially duplicates "from" Slapi_RDN structure and set it to "to"
+   Parameters: from - a pointer to source Slapi_RDN 
+               to -- an address to store the partially copied Slapi_RDN.
+			   idx -- index from which the duplicate begins
+   Return: 0, if the function succeeds.
+           -1, if it fails
+*/
+int slapi_rdn_partial_dup(Slapi_RDN *from, Slapi_RDN **to, int idx);
 
 
 /*
@@ -4724,6 +4965,7 @@ void  slapi_be_set_instance_info(Slapi_Backend * be, void * data);
 Slapi_DN * slapi_get_first_suffix(void ** node, int show_private);
 Slapi_DN * slapi_get_next_suffix(void ** node, int show_private);
 int slapi_is_root_suffix(Slapi_DN * dn);
+const Slapi_DN *slapi_get_suffix_by_dn(const Slapi_DN *dn);
 const char * slapi_be_gettype(Slapi_Backend *be);
 
 int slapi_be_is_flag_set(Slapi_Backend * be, int flag);

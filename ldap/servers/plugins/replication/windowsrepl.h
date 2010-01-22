@@ -88,6 +88,7 @@ ConnResult windows_conn_connect(Repl_Connection *conn);
 void windows_conn_disconnect(Repl_Connection *conn);
 void windows_conn_delete(Repl_Connection *conn);
 void windows_conn_get_error(Repl_Connection *conn, int *operation, int *error);
+void windows_conn_set_error(Repl_Connection *conn, int error);
 ConnResult windows_conn_send_add(Repl_Connection *conn, const char *dn, LDAPMod **attrs,
 	LDAPControl **server_controls, LDAPControl ***returned_controls);
 ConnResult windows_conn_send_delete(Repl_Connection *conn, const char *dn,

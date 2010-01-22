@@ -1917,7 +1917,7 @@ done:
 static int sdn_is_nulldn(const Slapi_DN *sdn){
 
     if(sdn){
-                const char *dn= slapi_sdn_get_ndn(sdn); 
+        const char *dn= slapi_sdn_get_ndn(sdn); 
         if(dn && ( '\0' == *dn)){
                 return 1;    
         }
@@ -2921,6 +2921,19 @@ int slapi_is_root_suffix(Slapi_DN * dn)
         suffix = slapi_get_next_suffix(&node, 1);
     }
     return 0 ;
+}
+
+/* Return value is a part mapping tree; Don't free it. */
+const Slapi_DN *
+slapi_get_suffix_by_dn(const Slapi_DN *dn)
+{
+    mapping_tree_node *node = slapi_get_mapping_tree_node_by_dn(dn);
+    const Slapi_DN *suffix = NULL;
+    if (node)
+    {
+        suffix = (const Slapi_DN *)slapi_mtn_get_dn(node);
+    }
+    return suffix;
 }
 
 /*

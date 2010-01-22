@@ -52,15 +52,16 @@ void ldbm_nasty(const char* str, int c, int err)
     char buffer[200];
     if (err == DB_LOCK_DEADLOCK) {
         PR_snprintf(buffer,200,"%s WARNING %d",str,c);
-    LDAPDebug(LDAP_DEBUG_TRACE,"%s, err=%d %s\n",
-          buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
+        LDAPDebug(LDAP_DEBUG_TRACE,"%s, err=%d %s\n",
+                  buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
    } else if (err == DB_RUNRECOVERY) {
-        LDAPDebug(LDAP_DEBUG_ANY,"FATAL ERROR at %s (%d); server stopping as database recovery needed.\n", str,c,0);
-    exit(1);
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "FATAL ERROR at %s (%d); "
+                  "server stopping as database recovery needed.\n", str, c);
+        exit(1);
     } else {
         PR_snprintf(buffer,200,"%s BAD %d",str,c);
-    LDAPDebug(LDAP_DEBUG_ANY,"%s, err=%d %s\n",
-          buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
+        LDAPDebug(LDAP_DEBUG_ANY, "%s, err=%d %s\n",
+                  buffer, err, (msg = dblayer_strerror( err )) ? msg : "");
     }
 }
 
@@ -95,9 +96,10 @@ int return_on_disk_full(struct ldbminfo  *li)
 
 static const char *systemIndexes[] = {
     "aci",
-    "entrydn",
-    "numsubordinates",
-    "parentid",
+    LDBM_ENTRYDN_STR,
+    LDBM_ENTRYRDN_STR,
+    LDBM_NUMSUBORDINATES_STR,
+    LDBM_PARENTID_STR,
     SLAPI_ATTR_OBJECTCLASS,
     SLAPI_ATTR_UNIQUEID,
     SLAPI_ATTR_NSCP_ENTRYDN,
@@ -146,6 +148,21 @@ compute_entry_tombstone_dn(const char *entrydn, const char *uniqueid)
         uniqueid,
         entrydn);
     return tombstone_dn;
+}
+
+char *
+compute_entry_tombstone_rdn(const char *entryrdn, const char *uniqueid)
+{
+    char *tombstone_rdn;
+
+    PR_ASSERT(NULL != entrydn);
+    PR_ASSERT(NULL != uniqueid);
+
+    tombstone_rdn = slapi_ch_smprintf("%s=%s, %s",
+        SLAPI_ATTR_UNIQUEID,
+        uniqueid,
+        entryrdn);
+    return tombstone_rdn;
 }
 
 
@@ -387,4 +404,81 @@ is_fullpath(char *path)
             return 1;
     }
     return 0;
+}
+
+/* 
+ * Get value of type from string.
+ * Note: this function is very primitive.  It does not support multi values.
+ * This could be used to retrieve a single value as a string from raw data
+ * read from db.
+ */
+/* caller is responsible to release "value" */
+int
+get_value_from_string(const char *string, char *type, char **value)
+{
+    int rc = -1;
+    size_t typelen = 0;
+    char *ptr = NULL;
+    char *copy = NULL;
+    char *tmpptr = NULL;
+    char *tmptype = NULL;
+    char *valueptr = NULL;
+#if defined (USE_OPENLDAP)
+    ber_len_t valuelen;
+#else
+    int valuelen;
+#endif
+
+    if (NULL == string || NULL == type || NULL == value) {
+        return rc;
+    }
+    *value = NULL;
+    tmpptr = (char *)string;
+    ptr = PL_strcasestr(tmpptr, type);
+    if (NULL == ptr) {
+        return rc;
+    }
+
+    typelen = strlen(type);
+    while (NULL != (ptr = ldif_getline(&tmpptr))) {
+        if ((0 != PL_strncasecmp(ptr, type, typelen)) ||
+            (*(ptr + typelen) != ';' && *(ptr + typelen) != ':')) {
+            /* did not match */
+            /* ldif_getline replaces '\n' and '\r' with '\0' */
+            if ('\0' == *(tmpptr - 1)) {
+                *(tmpptr - 1) = '\n';
+            }
+            if ('\0' == *(tmpptr - 2)) {
+                *(tmpptr - 2) = '\r';
+            }
+            continue;
+        }
+        /* matched */
+        copy = slapi_ch_strdup(ptr);
+        /* ldif_getline replaces '\n' and '\r' with '\0' */
+        if ('\0' == *(tmpptr - 1)) {
+            *(tmpptr - 1) = '\n';
+        }
+        if ('\0' == *(tmpptr - 2)) {
+            *(tmpptr - 2) = '\r';
+        }
+        rc = ldif_parse_line(copy, &tmptype, &valueptr, &valuelen);
+        if (0 > rc || NULL == valueptr || 0 >= valuelen) {
+            slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", "parse "
+                                             "failed: %d\n", rc);
+            goto bail;
+        }
+        if (0 != strcasecmp(type, tmptype)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", "type "
+                                             "does not match: %s != %s\n", 
+                                             type, tmptype);
+            goto bail;
+        }
+        *value = (char *)slapi_ch_malloc(valuelen + 1);
+        memcpy(*value, valueptr, valuelen);
+        *(*value + valuelen) = '\0';
+    }
+bail:
+    slapi_ch_free_string(&copy);
+    return rc;
 }
