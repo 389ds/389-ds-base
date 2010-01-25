@@ -1743,7 +1743,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 				{
 					/* Bind is successfull but password has expired */
 					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-						"%s: Succesfully bound %s to consumer, "
+						"%s: Successfully bound %s to consumer, "
 						"but password has expired on consumer.\n",
 						agmt_get_long_name(conn->agmt), binddn);
 				}					
@@ -1755,7 +1755,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 					{
 						int password_expiring = atoi( ctrls[ i ]->ldctl_value.bv_val );
 						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-							"%s: Succesfully bound %s to consumer, "
+							"%s: Successfully bound %s to consumer, "
 							"but password is expiring on consumer in %d seconds.\n",
 							agmt_get_long_name(conn->agmt), binddn, password_expiring);
 					}

@@ -119,7 +119,7 @@ int slapi_uniqueIDGenerate (Slapi_UniqueID *uId){
     if (uId == NULL)
 	{
 		slapi_log_error (SLAPI_LOG_FATAL, MODULE, "uniqueIDGenerate: "
-						 "NULL paramter is passed to the function.\n");
+						 "NULL parameter is passed to the function.\n");
         return UID_BADDATA;
 	}
 
@@ -179,7 +179,7 @@ int slapi_uniqueIDGenerateFromName (Slapi_UniqueID *uId, const Slapi_UniqueID *u
 	if (uId == NULL || uIdBase == NULL || name == NULL || namelen <= 0)
 	{
 		slapi_log_error (SLAPI_LOG_FATAL, MODULE, "uniqueIDGenerateMT: "
-						 "invalid paramter is passed to the function.\n");
+						 "invalid parameter is passed to the function.\n");
 		return UID_BADDATA;
 	}
 
