@@ -416,7 +416,7 @@ str2entry_fast( const char *dn, char *s, int flags, int read_stateinfo )
 	{
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "str2entry_fast: entry %s exceeded max attribute value cound %ld\n",
-			slapi_entry_get_dn_const(e)?slapi_entry_get_dn_const(e):"unkown",
+			slapi_entry_get_dn_const(e)?slapi_entry_get_dn_const(e):"unknown",
 			attr_val_cnt, 0 );
 	}
 	if (read_stateinfo && maxcsn)

@@ -631,7 +631,7 @@ int connection_release_nolock (Connection *conn)
     if (conn->c_refcnt <= 0)
     {
         slapi_log_error(SLAPI_LOG_FATAL, "connection",
-		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not aquired\n",
+		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
 			            conn->c_connid, conn->c_sd);
         PR_ASSERT (PR_FALSE);
         return -1;

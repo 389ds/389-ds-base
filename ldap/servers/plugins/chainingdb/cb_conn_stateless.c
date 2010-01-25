@@ -412,7 +412,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 						{
 						    /* Bind is successful but password has expired */
 						    slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, 
-								    "Succesfully bound as %s to remote server %s:%d, "
+								    "Successfully bound as %s to remote server %s:%d, "
 								    "but password has expired.\n",
 								    binddn, hostname, port);
 						}					
@@ -424,7 +424,7 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 						    {
 							int password_expiring = atoi( serverctrls[ i ]->ldctl_value.bv_val );
 							slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, 
-									"Succesfully bound as %s to remote server %s:%d, "
+									"Successfully bound as %s to remote server %s:%d, "
 									"but password is expiring in %d seconds.\n",
 									binddn, hostname, port, password_expiring);
 						    }
