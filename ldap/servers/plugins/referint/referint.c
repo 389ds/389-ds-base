@@ -317,6 +317,7 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
   Slapi_Entry		**search_entries = NULL;
   int search_result;
   Slapi_DN *sdn = NULL;
+  Slapi_Value *oldDNslv = NULL;
   void *node = NULL;
   LDAPMod attribute1, attribute2;
   const LDAPMod *list_of_mods[3];
@@ -338,6 +339,7 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
       goto free_and_return;
   } 
 
+  oldDNslv = slapi_value_new_string(origDN);
   /* for now, just putting attributes to keep integrity on in conf file,
      until resolve the other timing mode issue */
   
@@ -355,9 +357,9 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
 	  if (( search_result = ldap_create_filter( filter, filtlen, "(%a=%e)",
                   NULL, NULL, argv[i], origDN, NULL )) == LDAP_SUCCESS ) {
 
-		/* Don't need any attribute */
+		/* Need only the current attribute and its subtypes */
 		char * attrs[2];
-		attrs[0]="1.1";
+		attrs[0]=argv[i];
 		attrs[1]=NULL;
 
 		/* Use new search API */
@@ -378,76 +380,88 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
 
 	       for(j=0; search_entries[j] != NULL; j++)
 	       {
-	           /* no matter what mode in always going to delete old dn so set that up */
-	           values_del[0]= origDN;
-	           values_del[1]= NULL;
-	           attribute1.mod_type = argv[i];
-	           attribute1.mod_op = LDAP_MOD_DELETE;
-	           attribute1.mod_values = values_del;
-	           list_of_mods[0] = &attribute1;
+	           Slapi_Attr *attr = NULL;
+	           char *attrName = NULL;
 
-	           if(newrDN == NULL){
-	               /* in delete mode so terminate list of mods cause this is the only one */
-	               list_of_mods[1] = NULL;
-         	   }else if(newrDN != NULL){
-	               /* in modrdn mode */
-
-		       /* need to put together rdn into a dn */
-		       dnParts = ldap_explode_dn( origDN, 0 );
-	     
-		       /* skip original rdn so start at 1*/  
-		       dnsize = 0;
-		       for(x=1; dnParts[x] != NULL; x++)
-		       { 
-			   /* +1 for comma adding later */
-			   dnsize += strlen(dnParts[x]) + 1;    
-		       }
-		       /* add the newrDN length */
-		       dnsize += strlen(newrDN) + 1;
-
-		       newDN = slapi_ch_calloc(dnsize, sizeof(char));
-		       strcat(newDN, newrDN);
-		       for(x=1; dnParts[x] != NULL; x++)
-		       { 
-			   strcat(newDN, ",");
-			   strcat(newDN, dnParts[x]);
-		       }
-	     
-		       values_add[0]=newDN;
-		       values_add[1]=NULL;
-		       attribute2.mod_type = argv[i];
-		       attribute2.mod_op = LDAP_MOD_ADD;
-		       attribute2.mod_values = values_add;
-
-		       /* add the new dn to list of mods and terminate list of mods */
-		       list_of_mods[1] = &attribute2;
-		       list_of_mods[2] = NULL;
-
-		   }
-
-		   /* try to cleanup entry */
-
-		   /* Use new internal operation API */
-		   mod_result_pb=slapi_pblock_new();
-		   slapi_modify_internal_set_pb(mod_result_pb,slapi_entry_get_dn(search_entries[j]),
-			(LDAPMod **)list_of_mods,NULL,NULL,referint_plugin_identity,0);
-		   slapi_modify_internal_pb(mod_result_pb);
-
-		   /* could check the result code here if want to log it or something later 
-		      for now, continue no matter what result is */
-
-	       slapi_pblock_destroy(mod_result_pb);
-
-		   /* cleanup memory allocated for dnParts and newDN */
-		   if(dnParts != NULL){
-		       for(x=0; dnParts[x] != NULL; x++)
+		   /* Loop over all the attributes of the entry and search for the integrity attribute and its subtypes */
+	           for (slapi_entry_first_attr(search_entries[j], &attr); attr; slapi_entry_next_attr(search_entries[j], attr, &attr))
+		   {
+		       /* Take into account only the subtypes of the attribute in argv[i] having the necessary value  - origDN */
+		       slapi_attr_get_type(attr, &attrName);
+		       if ((slapi_attr_type_cmp(argv[i], attrName, SLAPI_TYPE_CMP_SUBTYPE) == 0) &&
+		           (slapi_attr_value_find(attr, slapi_value_get_berval(oldDNslv)) == 0))
 		       {
-		           slapi_ch_free_string(&dnParts[x]);
-		       }
-	           slapi_ch_free((void **)&dnParts);
-		   }
-		   slapi_ch_free_string(&newDN);
+		           /* no matter what mode in always going to delete old dn so set that up */
+		           values_del[0]= origDN;
+		           values_del[1]= NULL;
+		           attribute1.mod_type = attrName;
+		           attribute1.mod_op = LDAP_MOD_DELETE;
+		           attribute1.mod_values = values_del;
+		           list_of_mods[0] = &attribute1;
 
+		           if(newrDN == NULL){
+		               /* in delete mode so terminate list of mods cause this is the only one */
+		               list_of_mods[1] = NULL;
+        		   }else if(newrDN != NULL){
+		               /* in modrdn mode */
+
+			       /* need to put together rdn into a dn */
+			       dnParts = ldap_explode_dn( origDN, 0 );
+	     
+			       /* skip original rdn so start at 1*/  
+			       dnsize = 0;
+			       for(x=1; dnParts[x] != NULL; x++)
+			       { 
+				   /* +1 for comma adding later */
+				   dnsize += strlen(dnParts[x]) + 1;    
+			       }
+			       /* add the newrDN length */
+			       dnsize += strlen(newrDN) + 1;
+
+			       newDN = slapi_ch_calloc(dnsize, sizeof(char));
+			       strcat(newDN, newrDN);
+			       for(x=1; dnParts[x] != NULL; x++)
+			       { 
+				   strcat(newDN, ",");
+				   strcat(newDN, dnParts[x]);
+			       }
+	     
+			       values_add[0]=newDN;
+			       values_add[1]=NULL;
+			       attribute2.mod_type = attrName;
+			       attribute2.mod_op = LDAP_MOD_ADD;
+			       attribute2.mod_values = values_add;
+
+			       /* add the new dn to list of mods and terminate list of mods */
+			       list_of_mods[1] = &attribute2;
+			       list_of_mods[2] = NULL;
+
+			   }
+
+			   /* try to cleanup entry */
+
+			   /* Use new internal operation API */
+			   mod_result_pb=slapi_pblock_new();
+			   slapi_modify_internal_set_pb(mod_result_pb,slapi_entry_get_dn(search_entries[j]),
+				(LDAPMod **)list_of_mods,NULL,NULL,referint_plugin_identity,0);
+			   slapi_modify_internal_pb(mod_result_pb);
+
+			   /* could check the result code here if want to log it or something later 
+			      for now, continue no matter what result is */
+
+			   slapi_pblock_destroy(mod_result_pb);
+
+			   /* cleanup memory allocated for dnParts and newDN */
+			   if(dnParts != NULL){
+			       for(x=0; dnParts[x] != NULL; x++)
+			       {
+			           slapi_ch_free_string(&dnParts[x]);
+			       }
+			           slapi_ch_free((void **)&dnParts);
+			   }
+			   slapi_ch_free_string(&newDN);
+		       }
+		   }
 	       }
 
 
@@ -479,6 +493,8 @@ int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
   rc = 0;
 
 free_and_return:
+
+  slapi_value_free(&oldDNslv);
 
   /* free filter and search_results_pb */
   slapi_ch_free_string(&filter);
