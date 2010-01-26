@@ -291,6 +291,7 @@ send_ldap_result_ext(
 	int             flush_ber_element = 1;
   	Slapi_Operation *operation;
 	char *dn;
+	int internal_op;
 	passwdPolicy *pwpolicy = NULL;
 	
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
@@ -354,7 +355,8 @@ send_ldap_result_ext(
 		break;
 	}
 
-	if ( conn == NULL ) {
+	internal_op = operation_is_flag_set( operation, OP_FLAG_INTERNAL );
+	if ( ( conn == NULL ) || ( internal_op ) ) {
 		if ( operation->o_result_handler != NULL ) {
 			operation->o_result_handler( conn, operation, err,
 			    matched, text, nentries, urls );
