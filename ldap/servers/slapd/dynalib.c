@@ -174,18 +174,31 @@ symload_report_error( const char *libpath, char *symbol, char *plugin, int libop
 
 /* PR_GetLibraryName does almost everything we need, and unfortunately
    a little bit more - it adds "lib" to be beginning of the library
-   name.  So we have to strip that part off.
+   name if the library name does not end with the current platform
+   DLL suffix - so
+   foo.so -> /path/foo.so
+   libfoo.so -> /path/libfoo.so
+   BUT
+   foo -> /path/libfoo.so
+   libfoo -> /path/liblibfoo.so
 */
 static char *
 get_plugin_name(const char *path, const char *lib)
 {
+    const char *libstr = "/lib";
+    size_t libstrlen = 4;
 	char *fullname = PR_GetLibraryName(path, lib);
-	char *ptr = PL_strrstr(fullname, "/lib");
+	char *ptr = PL_strrstr(fullname, lib);
 
-	if (ptr) {
-		++ptr; /* now points at the "l" */
-		/* just copy the remainder of the string on top of here */
-		memmove(ptr, ptr+3, strlen(ptr+3)+1);
+    /* see if /lib was added */
+	if (ptr && ((ptr - fullname) >= libstrlen)) {
+        /* ptr is at the libname in fullname, and there is something before it */
+        ptr -= libstrlen; /* ptr now points at the "/" in "/lib" if it is there */
+        if (0 == PL_strncmp(ptr, libstr, libstrlen)) {
+            /* just copy the remainder of the string on top of here */
+            ptr++; /* ptr now points at the "l" in "/lib" - keep the "/" */
+            memmove(ptr, ptr+3, strlen(ptr+3)+1);
+        }
 	}
 
 	return fullname;
