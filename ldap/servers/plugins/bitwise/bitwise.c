@@ -124,10 +124,24 @@ internal_bitwise_filter_match(void* obj, Slapi_Entry* entry, Slapi_Attr* attr, i
 		rc = LDAP_CONSTRAINT_VIOLATION;
 	    } else {
 		int result;
+		/* The Microsoft Windows AD bitwise operators do not work exactly
+		   as the plain old C bitwise operators work.  For the AND case
+		   the matching rule is true only if all bits from the given value
+		   match the value from the entry.  For the OR case, the matching
+		   rule is true if any bits from the given value match the value
+		   from the entry.
+		   For the AND case, this means that even though (a & b) is True,
+		   if (a & b) != b, the matching rule will return False.
+		   For the OR case, this means that even though (a | b) is True,
+		   this may be because there are bits in a.  But we only care
+		   about bits in a that are also in b.  So we do (a & b) - this
+		   will return what we want, which is to return True if any of
+		   the bits in b are also in a.
+		*/
 		if (op == BITWISE_OP_AND) {
-		    result = (a & b);
+		    result = ((a & b) == b); /* all the bits in the given value are found in the value from the entry */
 		} else if (op == BITWISE_OP_OR) {
-		    result = (a | b);
+		    result = (a & b); /* any of the bits in b are also in a */
 		}
 		if (result) {
 		    rc = 0;
