@@ -180,6 +180,30 @@ static char* windows_group_matching_attributes[] =
 	NULL
 };
 
+/* List of attributes that are single-valued in AD, but multi-valued in DS */
+static char * windows_single_valued_attributes[] =
+{
+	"facsimileTelephoneNumber",
+	"givenName",
+	"homePhone",
+	"homePostalAddress",
+	"initials",
+	"l",
+	"mail",
+	"mobile",
+	"pager",
+	"physicalDeliveryOfficeName",
+	"postalCode",
+	"sn",
+	"st",
+	"street",
+	FAKE_STREET_ATTR_NAME,
+	"streetAddress",
+	"telephoneNumber",
+	"title",
+	NULL
+};
+
 /* List of attributes that are common to AD and LDAP, so we simply copy them over in both directions */
 static char* nt4_user_matching_attributes[] = 
 {
@@ -1612,6 +1636,26 @@ is_straight_mapped_attr(const char *type, int is_user /* or group */, int is_nt4
 	}
 	return found;
 }
+
+static int
+is_single_valued_attr(const char *type)
+{
+	int found;
+	size_t offset = 0;
+	char *this_attr = NULL;
+
+	/* Look for the type in the list of single-valued AD attributes */
+	while ((this_attr = windows_single_valued_attributes[offset]))
+	{
+		if (0 == slapi_attr_type_cmp(this_attr, type, SLAPI_TYPE_CMP_SUBTYPE))
+		{
+			found = 1;
+			break;
+		}
+		offset++;
+	}
+	return found;
+}
 		
 static void 
 windows_map_attr_name(const char *original_type , int to_windows, int is_user, int is_create, char **mapped_type, int *map_dn)
@@ -1740,18 +1784,38 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 
 		if ( is_straight_mapped_attr(type,is_user,is_nt4) )
 		{
+			/* If this attribute is single-valued in AD,
+			 * we only want to send the first value. */
+			if (is_single_valued_attr(type))
+			{
+				if (slapi_valueset_count(vs) > 1) {
+					int i = 0;
+					Slapi_Value *value = NULL;
+					Slapi_Value *new_value = NULL;
+
+					i = slapi_valueset_first_value(vs,&value);
+					if (i >= 0) {
+						/* Dup the first value, trash the valueset, then copy in the dup'd value. */
+						new_value = slapi_value_dup(value);
+						slapi_valueset_done(vs);
+						/* The below hands off the memory to the valueset */
+						slapi_valueset_add_value_ext(vs, new_value, SLAPI_VALUE_FLAG_PASSIN);
+					}
+				}
+			}
+
 			/* The initials attribute is a special case.  AD has a constraint
-                         * that limits the value length.  If we're sending a change to
-                         * the initials attribute to AD, we trim if neccessary.
-                         */
-                         if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
+			 * that limits the value length.  If we're sending a change to
+			 * the initials attribute to AD, we trim if neccessary.
+			 */
+			if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
 				int i = 0;
 				const char *initials_value = NULL;
-                                Slapi_Value *value = NULL;
+				Slapi_Value *value = NULL;
 
-                                i = slapi_valueset_first_value(vs,&value);
+				i = slapi_valueset_first_value(vs,&value);
 				while (i >= 0) {
-                                	initials_value = slapi_value_get_string(value);
+					initials_value = slapi_value_get_string(value);
 
 					/* If > AD_INITIALS_LENGTH, trim the value */
 					if (strlen(initials_value) > AD_INITIALS_LENGTH) {
@@ -1767,6 +1831,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 					i = slapi_valueset_next_value(vs, i, &value);
 				}
 			}
+
 			/* copy over the attr values */
 			slapi_entry_add_valueset(new_entry,type,vs);
 		} else 
@@ -2360,6 +2425,26 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 
 		/* Check to see if this attribute is passed through */
 		if (is_straight_mapped_attr(attr_type,is_user,is_nt4)) {
+			/* If this attribute is single-valued in AD,
+			 * we only want to send the first value. */
+			if (is_single_valued_attr(attr_type)) {
+				Slapi_Mod smod;
+
+				slapi_mod_init_byref(&smod,mod);
+
+				/* Check if there is more than one value */
+				if (slapi_mod_get_num_values(&smod) > 1) {
+					slapi_mod_get_first_value(&smod);
+					/* Remove all values except for the first */
+					while (slapi_mod_get_next_value(&smod)) {
+						/* This modifies the bvalues in the mod itself */
+						slapi_mod_remove_value(&smod);
+					}
+				}
+
+				slapi_mod_done(&smod);
+			}
+
 			/* The initials attribute is a special case.  AD has a constraint
 			 * that limits the value length.  If we're sending a change to
 			 * the initials attribute to AD, we trim if neccessary.
@@ -2421,11 +2506,9 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 					slapi_valueset_free(vs);
 				} else 
 				{
-					/* AD treats streetAddress as a single-valued attribute, while we define it
-					 * as a multi-valued attribute as it's defined in rfc 4519.  We only
-					 * sync the first value to AD to avoid a constraint violation.
-					 */
-					if (0 == slapi_attr_type_cmp(mapped_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) {
+					/* If this attribute is single-valued in AD,
+					 * we only want to send the first value. */
+					if (is_single_valued_attr(mapped_type)) {
 						Slapi_Mod smod;
 
 						slapi_mod_init_byref(&smod,mod);
@@ -2533,7 +2616,7 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b, int n)
 		 * If n is 0, then just compare the entire attribute. */
 		if ((va->bv.bv_len < n) || (vb->bv.bv_len < n) || (n == 0)) {
 			if (va->bv.bv_len == vb->bv.bv_len) {
-				if (0 != memcmp(va->bv.bv_val, vb->bv.bv_val, va->bv.bv_len)) {
+				if (slapi_attr_value_find(b, slapi_value_get_berval(va)) != 0) {
 					match = 0;
 				}
 			} else {
@@ -2548,24 +2631,55 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b, int n)
 	return match;
 }
 
-/* Returns non-zero if all of the values of attribute a are contained in attribute b. */
+/* Returns non-zero if all of the values of attribute a are contained in attribute b.
+ * You can compare only the first n characters of the values by passing in the length
+ * as n.  If you want to compare the entire attribute value, set n to 0. */
 static int
-attr_compare_present(Slapi_Attr *a, Slapi_Attr *b)
+attr_compare_present(Slapi_Attr *a, Slapi_Attr *b, int n)
 {
 	int match = 1;
 	int i = 0;
+	int j = 0;
 	Slapi_Value *va = NULL;
+	Slapi_Value *vb = NULL;
 
 	/* Iterate through values in attr a and search for each in attr b */
 	for (i = slapi_attr_first_value(a, &va); va && (i != -1);
 	     i = slapi_attr_next_value(a, i, &va)) {
-		if (slapi_attr_value_find(b, slapi_value_get_berval(va)) != 0) {
-			/* This value wasn't found, so stop checking for values */
-			match = 0;
-			break;
+		if (n == 0) {
+			/* Compare the entire attribute value */
+			if (slapi_attr_value_find(b, slapi_value_get_berval(va)) != 0) {
+				match = 0;
+				goto bail;
+			}
+		} else {
+			/* Only compare up the values up to the specified length. */
+			int found = 0;
+
+			for (j = slapi_attr_first_value(b, &vb); vb && (j != -1);
+				j = slapi_attr_next_value(b, j, &vb)) {
+				/* If either val is less than n, then check if the length, then values are
+				 * equal.  If both are n or greater, then only compare the first n chars. */
+				if ((va->bv.bv_len < n) || (vb->bv.bv_len < n)) {
+					if (va->bv.bv_len == vb->bv.bv_len) {
+						if (0 == memcmp(va->bv.bv_val, vb->bv.bv_val, va->bv.bv_len)) {
+							found = 1;
+						}
+					}
+				} else if (0 == memcmp(va->bv.bv_val, vb->bv.bv_val, n)) {
+					found = 1;
+				}
+			}
+
+			/* If we didn't find this value from attr a in attr b, we're done. */
+			if (!found) {
+				match = 0;
+				goto bail;
+			}
 		}
 	}
 
+bail:
 	return match;
 }
 
@@ -3901,23 +4015,22 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				 * to_windows case has the create only flag set.  We
 				 * just need to check if the value from the AD entry
 				 * is already present in the DS entry. */
-				if (0 == slapi_attr_type_cmp(type, "name", SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
-					values_equal = attr_compare_present(attr, local_attr);
-				/* AD has a legth contraint on the initials attribute,
-				 * so treat is as a special case. */
+				if (!to_windows && (0 == slapi_attr_type_cmp(type, "name", SLAPI_TYPE_CMP_SUBTYPE))) {
+					values_equal = attr_compare_present(attr, local_attr, 0);
+				/* AD has a length contraint on the initials attribute (in addition
+				 * to defining it as single-valued), so treat is as a special case. */
 				} else if (0 == slapi_attr_type_cmp(type, "initials", SLAPI_TYPE_CMP_SUBTYPE)) {
-					values_equal = attr_compare_equal(attr, local_attr, AD_INITIALS_LENGTH);
-				/* If we're getting a streetAddress (a fake attr name is used) from AD, then
-				 * we just check if the value in AD is present in our entry in DS.  In this
-				 * case, attr is from the AD entry, and local_attr is from the DS entry. */
-				} else if (0 == slapi_attr_type_cmp(type, FAKE_STREET_ATTR_NAME, SLAPI_TYPE_CMP_SUBTYPE) && !to_windows) {
-					values_equal = attr_compare_present(attr, local_attr);
-				/* If we are checking if we should send a street attribute to AD, then
-				 * we want to first see if the AD entry already contains any street value
-				 * that is present in the DS entry.  In this case, attr is from the DS
-				 * entry, and local_attr is from the AD entry. */ 
-				} else if ((0 == slapi_attr_type_cmp(type, "street", SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
-					values_equal = attr_compare_present(local_attr, attr);
+					values_equal = attr_compare_present(attr, local_attr, AD_INITIALS_LENGTH);
+				/* If this is a single valued type in AD, then we just check if the value
+				 * in AD is present in our entry in DS.  In this case, attr is from the AD
+				 * entry, and local_attr is from the DS entry. */
+				} else if (!to_windows && is_single_valued_attr(type)) {
+					values_equal = attr_compare_present(attr, local_attr, 0);
+				/* If this is a single valued type in AD, then we just check if the AD
+				 * entry already contains any value that is present in the DS entry.  In
+				 * this case, attr is from the DS entry, and local_attr is from the AD entry. */
+				} else if (to_windows && is_single_valued_attr(type)) {
+					values_equal = attr_compare_present(local_attr, attr, 0);
 				} else {
 					/* Compare the entire attribute values */
 					values_equal = attr_compare_equal(attr, local_attr, 0);
@@ -3930,9 +4043,10 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 					"windows_generate_update_mods: %s, %s : values are different\n",
 					slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
 
-					if ((0 == slapi_attr_type_cmp(local_type, "streetAddress",
-						SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
-						/* streetAddress is single-valued in AD, so make
+					if (to_windows && ((0 == slapi_attr_type_cmp(local_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) ||
+						(0 == slapi_attr_type_cmp(local_type, "telephoneNumber", SLAPI_TYPE_CMP_SUBTYPE)) ||
+						(0 == slapi_attr_type_cmp(local_type, "physicalDeliveryOfficeName", SLAPI_TYPE_CMP_SUBTYPE)))) {
+						/* These attributes are single-valued in AD, so make
 						 * sure we don't try to send more than one value. */
 						if (slapi_valueset_count(vs) > 1) {
 							int i = 0;
@@ -4044,10 +4158,9 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 						}
 					} else
 					{
-						if ((0 == slapi_attr_type_cmp(local_type, "streetAddress",
-							SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
-							/* streetAddress is single-valued in AD, so make
-							 * sure we don't try to send more than one value. */
+					/* If this attribute is single-valued in AD,
+					 * we only want to send the first value. */
+						if (to_windows && is_single_valued_attr(local_type)) {
 							if (slapi_valueset_count(vs) > 1) {
 								int i = 0;
 								Slapi_Value *value = NULL;
@@ -4063,8 +4176,10 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 									slapi_valueset_add_value_ext(vs, new_value, SLAPI_VALUE_FLAG_PASSIN);
 								}
 							}
-						} else if ((0 == slapi_attr_type_cmp(local_type, "initials",
-							SLAPI_TYPE_CMP_SUBTYPE) && to_windows)) {
+						}
+
+						if (to_windows && (0 == slapi_attr_type_cmp(local_type, "initials",
+							SLAPI_TYPE_CMP_SUBTYPE))) {
 							/* initials is constratined to a max length of
 							 * 6 characters in AD, so trim the value if
 							 * needed before sending. */
