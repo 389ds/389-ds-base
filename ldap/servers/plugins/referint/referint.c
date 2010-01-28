@@ -77,10 +77,10 @@ int referint_postop_del( Slapi_PBlock *pb );
 int referint_postop_modrdn( Slapi_PBlock *pb ); 
 int referint_postop_start( Slapi_PBlock *pb);
 int referint_postop_close( Slapi_PBlock *pb);
-int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges);
+int update_integrity(char **argv, char *origDN, char *newrDN, char *newsuperior, int logChanges);
 void referint_thread_func(void *arg);
 int  GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
-void writeintegritylog(char *logfilename, char *dn, char *newrdn);
+void writeintegritylog(char *logfilename, char *dn, char *newrdn, char *newsuperior);
 int my_fgetc(PRFileDesc *stream);
 
 /* global thread control stuff */
@@ -199,10 +199,10 @@ referint_postop_del( Slapi_PBlock *pb )
 		}else if(delay == 0){
 		  /* no delay */
  		  /* call function to update references to entry */
-		  rc = update_integrity(argv, dn, NULL, logChanges);
+		  rc = update_integrity(argv, dn, NULL, NULL, logChanges);
 		}else{
 		  /* write the entry to integrity log */
-		  writeintegritylog(argv[1],dn, NULL);
+		  writeintegritylog(argv[1],dn, NULL, NULL);
 		  rc = 0;
 		}
 	} else {
@@ -220,6 +220,7 @@ referint_postop_modrdn( Slapi_PBlock *pb )
 {
 	char	*dn;
 	char	*newrdn;
+	char	*newsuperior;
 	int oprc;
 	int rc;
 	char **argv;
@@ -230,9 +231,10 @@ referint_postop_modrdn( Slapi_PBlock *pb )
 
 	if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
 		 slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &dn ) != 0 ||
-	     slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn ) != 0 ||
-     	     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0 ){
-	   
+		 slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn ) != 0 ||
+		 slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR, &newsuperior ) != 0 ||
+		 slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0 ){
+
 		slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
 		    "referint_postop_modrdn: could not get parameters\n" );
 		return( -1 );
@@ -280,10 +282,10 @@ referint_postop_modrdn( Slapi_PBlock *pb )
 	}else if(delay == 0){
 	  /* no delay */
  	  /* call function to update references to entry */
-	  rc = update_integrity(argv, dn, newrdn, logChanges);
+	  rc = update_integrity(argv, dn, newrdn, newsuperior, logChanges);
 	}else{
 	  /* write the entry to integrity log */
-	  writeintegritylog(argv[1],dn, newrdn);
+	  writeintegritylog(argv[1],dn, newrdn, newsuperior);
 	  rc = 0;
 	}
 
@@ -310,202 +312,466 @@ int isFatalSearchError(int search_result)
 
 }
 
-int update_integrity(char **argv, char *origDN, char *newrDN, int logChanges){
+static int
+_do_modify(Slapi_PBlock *mod_pb, const char *entryDN, LDAPMod **mods)
+{
+    int rc = 0;
 
-  Slapi_PBlock *search_result_pb = NULL;
-  Slapi_PBlock *mod_result_pb = NULL;
-  Slapi_Entry		**search_entries = NULL;
-  int search_result;
-  Slapi_DN *sdn = NULL;
-  Slapi_Value *oldDNslv = NULL;
-  void *node = NULL;
-  LDAPMod attribute1, attribute2;
-  const LDAPMod *list_of_mods[3];
-  char *values_del[2];
-  char *values_add[2];
-  char *filter = NULL;
-  int i, j;
-  const char *search_base = NULL;
-  char *newDN=NULL;
-  char **dnParts=NULL;
-  int dnsize;
-  int x;
-  int rc;
- 
-  if ( argv == NULL ) { 
-      slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-          "referint_postop required config file arguments missing\n" );
-      rc = -1;
-      goto free_and_return;
-  } 
+    slapi_pblock_init(mod_pb);
 
-  oldDNslv = slapi_value_new_string(origDN);
-  /* for now, just putting attributes to keep integrity on in conf file,
-     until resolve the other timing mode issue */
+    /* Use internal operation API */
+    slapi_modify_internal_set_pb(mod_pb, entryDN, mods, NULL, NULL,
+                                 referint_plugin_identity, 0);
+    slapi_modify_internal_pb(mod_pb);
+    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    
+    return rc;
+}
+
+/*
+ * update one attribute value per _do_modify
+ */
+static int
+_update_one_per_mod(const char *entryDN, /* DN of the searched entry */
+                    Slapi_Attr *attr,    /* referred attribute */
+                    char *attrName,
+                    char *origDN,        /* original DN that was modified */
+                    char *norm_origDN,   /* normalized original DN */
+                    char *newRDN,        /* new RDN from modrdn */
+                    char *newsuperior,   /* new superior from modrdn */
+                    Slapi_PBlock *mod_pb)
+{
+    LDAPMod *list_of_mods[3];
+    char *values_del[2];
+    char *values_add[2];
+    char *newDN = NULL;
+    char **dnParts = NULL;
+    char *sval = NULL;
+    char *newvalue = NULL;
+    LDAPMod attribute1, attribute2;
+    int rc = 0;
+
+    if (NULL == newRDN && NULL == newsuperior) {
+        /* in delete mode */
+        /* delete old dn so set that up */
+        values_del[0] = origDN;
+        values_del[1] = NULL;
+        attribute1.mod_type = attrName;
+        attribute1.mod_op = LDAP_MOD_DELETE;
+        attribute1.mod_values = values_del;
+        list_of_mods[0] = &attribute1;
+        /* terminate list of mods. */
+        list_of_mods[1] = NULL;
+        rc = _do_modify(mod_pb, entryDN, list_of_mods);
+        if (rc) {
+            slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                "_update_one_value: entry %s: deleting \"%s: %s\" failed (%d)"
+                "\n", entryDN, attrName, origDN, rc);
+        }
+    } else {
+        /* in modrdn mode */
+        const char *superior = NULL;
+        int nval = 0;
+        Slapi_Value *v = NULL;
+
+        /* need to put together rdn into a dn */
+        dnParts = ldap_explode_dn( origDN, 0 );
+        if (NULL == newRDN) {
+            newRDN = dnParts[0];
+        }
+        if (newsuperior) {
+            superior = (const char *)newsuperior;
+        } else {
+            /* no need to free superior */
+            superior = slapi_dn_find_parent(origDN);
+        }
+        newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
+        /* 
+         * Compare the modified dn with the value of 
+         * the target attribute of referint to find out
+         * the modified dn is the ancestor (case 2) or
+         * the value itself (case 1).
+         *
+         * E.g., 
+         * (case 1) 
+         * modrdn: uid=A,ou=B,o=C --> uid=A',ou=B',o=C
+         *            (origDN)             (newDN)
+         * member: uid=A,ou=B,ou=C --> uid=A',ou=B',ou=C
+         *            (sval)               (newDN)
+         *
+         * (case 2) 
+         * modrdn: ou=B,o=C --> ou=B',o=C
+         *         (origDN)      (newDN)
+         * member: uid=A,ou=B,ou=C --> uid=A,ou=B',ou=C
+         *         (sval)              (sval' + newDN)
+         */
+        for (nval = slapi_attr_first_value(attr, &v);
+             nval != -1;
+             nval = slapi_attr_next_value(attr, nval, &v)) {
+            char *p = NULL;
+            /* DN syntax, which should be a string */
+            sval = slapi_ch_strdup(slapi_value_get_string(v));
+            slapi_dn_normalize_case(sval);
+            p = PL_strstr(sval, norm_origDN);
+            if (p == sval) {
+                /* (case 1) */
+                values_del[0] = sval;
+                values_del[1] = NULL;
+                attribute1.mod_type = attrName;
+                attribute1.mod_op = LDAP_MOD_DELETE;
+                attribute1.mod_values = values_del;
+                list_of_mods[0] = &attribute1;
+
+                values_add[0] = newDN;
+                values_add[1] = NULL;
+                attribute2.mod_type = attrName;
+                attribute2.mod_op = LDAP_MOD_ADD;
+                attribute2.mod_values = values_add;
+                list_of_mods[1] = &attribute2;
+                list_of_mods[2] = NULL;
+                rc = _do_modify(mod_pb, entryDN, list_of_mods);
+                if (rc) {
+                    slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                        "_update_one_value: entry %s: replacing \"%s: %s\" "
+                        "with \"%s: %s\" failed (%d)\n",
+                        entryDN, attrName, origDN, attrName, newDN, rc);
+                }
+            } else if (p) {
+                char bak;
+                /* (case 2) */
+                values_del[0] = sval;
+                values_del[1] = NULL;
+                attribute1.mod_type = attrName;
+                attribute1.mod_op = LDAP_MOD_DELETE;
+                attribute1.mod_values = values_del;
+                list_of_mods[0] = &attribute1;
+
+                bak = *p;
+                *p = '\0';
+                newvalue = slapi_ch_smprintf("%s%s", sval, newDN);
+                *p = bak;
+                values_add[0]=newvalue;
+                values_add[1]=NULL;
+                attribute2.mod_type = attrName;
+                attribute2.mod_op = LDAP_MOD_ADD;
+                attribute2.mod_values = values_add;
+                list_of_mods[1] = &attribute2;
+                list_of_mods[2] = NULL;
+                rc = _do_modify(mod_pb, entryDN, list_of_mods);
+                if (rc) {
+                    slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                        "_update_one_value: entry %s: replacing \"%s: %s\" "
+                        "with \"%s: %s\" failed (%d)\n",
+                        entryDN, attrName, sval, attrName, newvalue, rc);
+                }
+                slapi_ch_free_string(&newvalue);
+            } 
+            /* else: value does not include the modified DN.  Ignore it. */
+            slapi_ch_free_string(&sval);
+        }
+
+        /* cleanup memory allocated for dnParts and newDN */
+        if (dnParts){
+            slapi_ldap_value_free(dnParts);
+            dnParts = NULL;
+        }
+        slapi_ch_free_string(&newDN);
+    }
+bail:
+    /* in case these memories have not freed */
+    slapi_ch_free_string(&newvalue);
+    slapi_ch_free_string(&sval);
+    if (dnParts){
+        slapi_ldap_value_free(dnParts);
+        dnParts = NULL;
+    }
+    slapi_ch_free_string(&newDN);
+
+    return rc;
+}
+
+/*
+ * update multiple attribute values per _do_modify
+ */
+static int
+_update_all_per_mod(const char *entryDN, /* DN of the searched entry */
+                    Slapi_Attr *attr,    /* referred attribute */
+                    char *attrName,
+                    char *origDN,        /* original DN that was modified */
+                    char *norm_origDN,   /* normalized original DN */
+                    char *newRDN,        /* new RDN from modrdn */
+                    char *newsuperior,   /* new superior from modrdn */
+                    Slapi_PBlock *mod_pb)
+{
+    Slapi_Mods *smods = NULL;
+    char *newDN = NULL;
+    char **dnParts = NULL;
+    char *sval = NULL;
+    char *newvalue = NULL;
+    int rc = 0;
+    int nval = 0;
+
+    slapi_attr_get_numvalues(attr, &nval);
+
+    if (NULL == newRDN && NULL == newsuperior) {
+        /* in delete mode */
+        LDAPMod *mods[2];
+        char *values_del[2];
+        LDAPMod attribute1;
+
+        /* delete old dn so set that up */
+        values_del[0] = origDN;
+        values_del[1] = NULL;
+        attribute1.mod_type = attrName;
+        attribute1.mod_op = LDAP_MOD_DELETE;
+        attribute1.mod_values = values_del;
+        mods[0] = &attribute1;
+        /* terminate list of mods. */
+        mods[1] = NULL;
+        rc = _do_modify(mod_pb, entryDN, mods);
+        if (rc) {
+            slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                "_update_one_value: entry %s: deleting \"%s: %s\" failed (%d)"
+                "\n", entryDN, attrName, origDN, rc);
+        }
+    } else {
+        /* in modrdn mode */
+        const char *superior = NULL;
+        int nval = 0;
+        Slapi_Value *v = NULL;
+
+        /* need to put together rdn into a dn */
+        dnParts = ldap_explode_dn( origDN, 0 );
+        if (NULL == newRDN) {
+            newRDN = dnParts[0];
+        }
+        if (newsuperior) {
+            superior = (const char *)newsuperior;
+        } else {
+            /* no need to free superior */
+            superior = slapi_dn_find_parent(origDN);
+        }
+        newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
+        /* 
+         * Compare the modified dn with the value of 
+         * the target attribute of referint to find out
+         * the modified dn is the ancestor (case 2) or
+         * the value itself (case 1).
+         *
+         * E.g., 
+         * (case 1) 
+         * modrdn: uid=A,ou=B,o=C --> uid=A',ou=B',o=C
+         *            (origDN)             (newDN)
+         * member: uid=A,ou=B,ou=C --> uid=A',ou=B',ou=C
+         *            (sval)               (newDN)
+         *
+         * (case 2) 
+         * modrdn: ou=B,o=C --> ou=B',o=C
+         *         (origDN)      (newDN)
+         * member: uid=A,ou=B,ou=C --> uid=A,ou=B',ou=C
+         *         (sval)              (sval' + newDN)
+         */
+        slapi_attr_get_numvalues(attr, &nval);
+        smods = slapi_mods_new();
+        slapi_mods_init(smods, 2 * nval + 1);
+
+        for (nval = slapi_attr_first_value(attr, &v);
+             nval != -1;
+             nval = slapi_attr_next_value(attr, nval, &v)) {
+            char *p = NULL;
+            /* DN syntax, which should be a string */
+            sval = slapi_ch_strdup(slapi_value_get_string(v));
+            slapi_dn_normalize_case(sval);
+            p = PL_strstr(sval, norm_origDN);
+            if (p == sval) {
+                /* (case 1) */
+                slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
+                slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newDN);
+
+            } else if (p) {
+                /* (case 2) */
+                slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
+                *p = '\0';
+                newvalue = slapi_ch_smprintf("%s%s", sval, newDN);
+                slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newvalue);
+                slapi_ch_free_string(&newvalue);
+            } 
+            /* else: value does not include the modified DN.  Ignore it. */
+            slapi_ch_free_string(&sval);
+        }
+        rc = _do_modify(mod_pb, entryDN, slapi_mods_get_ldapmods_byref(smods));
+        if (rc) {
+            slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                        "_update_all_value: entry %s failed (%d)\n",
+                        entryDN, rc);
+        }
+
+        /* cleanup memory allocated for dnParts and newDN */
+        if (dnParts){
+            slapi_ldap_value_free(dnParts);
+            dnParts = NULL;
+        }
+        slapi_ch_free_string(&newDN);
+        slapi_mods_free(&smods);
+    }
+
+    return rc;
+}
+
+int
+update_integrity(char **argv, char *origDN,
+                 char *newrDN, char *newsuperior, int logChanges)
+{
+    Slapi_PBlock *search_result_pb = NULL;
+    Slapi_PBlock *mod_pb = slapi_pblock_new();
+    Slapi_Entry  **search_entries = NULL;
+    int search_result;
+    Slapi_DN *sdn = NULL;
+    void *node = NULL;
+    char *filter = NULL;
+    int i, j;
+    const char *search_base = NULL;
+    char *norm_origDN = NULL;
+    int rc;
+   
+    if ( argv == NULL ) {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop required config file arguments missing\n" );
+        rc = -1;
+        goto free_and_return;
+    } 
   
-  /* Search each namingContext in turn */
+    /* for now, just putting attributes to keep integrity on in conf file,
+       until resolve the other timing mode issue */
+  
+    norm_origDN = slapi_ch_strdup(origDN);
+    slapi_dn_normalize_case(norm_origDN);
+
+    search_result_pb = slapi_pblock_new();
+
+    /* Search each namingContext in turn */
     for ( sdn = slapi_get_first_suffix( &node, 0 ); sdn != NULL;
-		sdn = slapi_get_next_suffix( &node, 0 ))
+          sdn = slapi_get_next_suffix( &node, 0 ))
     {
-	  search_base = slapi_sdn_get_dn( sdn );
+        search_base = slapi_sdn_get_dn( sdn );
+
+        for(i = 3; argv[i] != NULL; i++)
+        {
+            unsigned long filtlen = strlen(argv[i]) + (strlen(origDN) * 3 ) + 5;
+            filter = (char *)slapi_ch_calloc( filtlen, sizeof(char ));  
+            if (( search_result = ldap_create_filter( filter, filtlen, 
+                            "(%a=*%e)", NULL, NULL, argv[i], origDN, NULL ))
+                    == LDAP_SUCCESS ) {
+
+                /* Need only the current attribute and its subtypes */
+                char *attrs[2];
+                attrs[0] = argv[i];
+                attrs[1] = NULL;
+
+                /* Use new search API */
+                slapi_pblock_init(search_result_pb);
+                slapi_search_internal_set_pb(search_result_pb, search_base, 
+                    LDAP_SCOPE_SUBTREE, filter, attrs, 0 /* attrs only */,
+                    NULL, NULL, referint_plugin_identity, 0);
+                slapi_search_internal_pb(search_result_pb);
   
-			
-      for(i=3; argv[i] != NULL; i++)
-      {
-          unsigned long filtlen = strlen(argv[i]) + (strlen(origDN) * 3 ) + 4;
-          filter = (char *)slapi_ch_calloc( filtlen, sizeof(char ));  
-	  if (( search_result = ldap_create_filter( filter, filtlen, "(%a=%e)",
-                  NULL, NULL, argv[i], origDN, NULL )) == LDAP_SUCCESS ) {
+                slapi_pblock_get( search_result_pb, SLAPI_PLUGIN_INTOP_RESULT, 
+                                  &search_result);
+            }
 
-		/* Need only the current attribute and its subtypes */
-		char * attrs[2];
-		attrs[0]=argv[i];
-		attrs[1]=NULL;
+            /* if search successfull then do integrity update */
+            if(search_result == LDAP_SUCCESS)
+            {
+                slapi_pblock_get(search_result_pb,
+                                 SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
+                                 &search_entries);
 
-		/* Use new search API */
-      		search_result_pb = slapi_pblock_new();
-      		slapi_search_internal_set_pb(search_result_pb, search_base, LDAP_SCOPE_SUBTREE,
-        		filter, attrs, 0 /* attrs only */, NULL,NULL,referint_plugin_identity,0);
-      		slapi_search_internal_pb(search_result_pb);
+                for(j=0; search_entries[j] != NULL; j++)
+                {
+                    Slapi_Attr *attr = NULL;
+                    char *attrName = NULL;
 
-                slapi_pblock_get( search_result_pb, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
-	  }
+                    /* Loop over all the attributes of the entry and search
+                     * for the integrity attribute and its subtypes */
+                    for (slapi_entry_first_attr(search_entries[j], &attr); attr; 
+                         slapi_entry_next_attr(search_entries[j], attr, &attr))
+                    {
+                        /* Take into account only the subtypes of the attribute 
+                         * in argv[i] having the necessary value  - origDN */
+                        slapi_attr_get_type(attr, &attrName);
+                        if (slapi_attr_type_cmp(argv[i], attrName,
+                                                SLAPI_TYPE_CMP_SUBTYPE) == 0)
+                        {
+                            int nval = 0;
+                            slapi_attr_get_numvalues(attr, &nval);
 
+                            /* 
+                             * We want to reduce the "modify" call as much as
+                             * possible. But if an entry contains 1000s of 
+                             * attributes which need to be updated by the 
+                             * referint plugin (e.g., a group containing 1000s 
+                             * of members), we want to avoid to allocate too 
+                             * many mods * in one "modify" call.
+                             * This is a compromise: If an attribute type has
+                             * more than 128 values, we update the attribute 
+                             * value one by one. Otherwise, update all values
+                             * in one "modify" call.
+                             */
+                            if (nval > 128) {
+                                rc = _update_one_per_mod(
+                                          slapi_entry_get_dn(search_entries[j]),
+                                          attr, attrName,
+                                          origDN, norm_origDN,
+                                          newrDN, newsuperior,
+                                          mod_pb);
+                            } else {
+                                rc = _update_all_per_mod(
+                                          slapi_entry_get_dn(search_entries[j]),
+                                          attr, attrName,
+                                          origDN, norm_origDN,
+                                          newrDN, newsuperior,
+                                          mod_pb);
+                            }
+                            /* Should we stop if one modify returns an error? */
+                        }
+                    }
+                }
+            } else {
+                if (isFatalSearchError(search_result))
+                {
+                    /* NPCTE fix for bugid 531225, esc 0. <P.R> <30-May-2001> */
+                    slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                        "update_integrity search (base=%s filter=%s) returned "
+                        "error %d\n", search_base, filter, search_result);
+                    /* end of NPCTE fix for bugid 531225 */
+                    rc = -1;
+                    goto free_and_return;
+                }
+            }
 
-          /* if search successfull then do integrity update */
-          if(search_result == 0)
-	  {
-	      slapi_pblock_get( search_result_pb,SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
-			 &search_entries);
-
-	       for(j=0; search_entries[j] != NULL; j++)
-	       {
-	           Slapi_Attr *attr = NULL;
-	           char *attrName = NULL;
-
-		   /* Loop over all the attributes of the entry and search for the integrity attribute and its subtypes */
-	           for (slapi_entry_first_attr(search_entries[j], &attr); attr; slapi_entry_next_attr(search_entries[j], attr, &attr))
-		   {
-		       /* Take into account only the subtypes of the attribute in argv[i] having the necessary value  - origDN */
-		       slapi_attr_get_type(attr, &attrName);
-		       if ((slapi_attr_type_cmp(argv[i], attrName, SLAPI_TYPE_CMP_SUBTYPE) == 0) &&
-		           (slapi_attr_value_find(attr, slapi_value_get_berval(oldDNslv)) == 0))
-		       {
-		           /* no matter what mode in always going to delete old dn so set that up */
-		           values_del[0]= origDN;
-		           values_del[1]= NULL;
-		           attribute1.mod_type = attrName;
-		           attribute1.mod_op = LDAP_MOD_DELETE;
-		           attribute1.mod_values = values_del;
-		           list_of_mods[0] = &attribute1;
-
-		           if(newrDN == NULL){
-		               /* in delete mode so terminate list of mods cause this is the only one */
-		               list_of_mods[1] = NULL;
-        		   }else if(newrDN != NULL){
-		               /* in modrdn mode */
-
-			       /* need to put together rdn into a dn */
-			       dnParts = ldap_explode_dn( origDN, 0 );
-	     
-			       /* skip original rdn so start at 1*/  
-			       dnsize = 0;
-			       for(x=1; dnParts[x] != NULL; x++)
-			       { 
-				   /* +1 for comma adding later */
-				   dnsize += strlen(dnParts[x]) + 1;    
-			       }
-			       /* add the newrDN length */
-			       dnsize += strlen(newrDN) + 1;
-
-			       newDN = slapi_ch_calloc(dnsize, sizeof(char));
-			       strcat(newDN, newrDN);
-			       for(x=1; dnParts[x] != NULL; x++)
-			       { 
-				   strcat(newDN, ",");
-				   strcat(newDN, dnParts[x]);
-			       }
-	     
-			       values_add[0]=newDN;
-			       values_add[1]=NULL;
-			       attribute2.mod_type = attrName;
-			       attribute2.mod_op = LDAP_MOD_ADD;
-			       attribute2.mod_values = values_add;
-
-			       /* add the new dn to list of mods and terminate list of mods */
-			       list_of_mods[1] = &attribute2;
-			       list_of_mods[2] = NULL;
-
-			   }
-
-			   /* try to cleanup entry */
-
-			   /* Use new internal operation API */
-			   mod_result_pb=slapi_pblock_new();
-			   slapi_modify_internal_set_pb(mod_result_pb,slapi_entry_get_dn(search_entries[j]),
-				(LDAPMod **)list_of_mods,NULL,NULL,referint_plugin_identity,0);
-			   slapi_modify_internal_pb(mod_result_pb);
-
-			   /* could check the result code here if want to log it or something later 
-			      for now, continue no matter what result is */
-
-			   slapi_pblock_destroy(mod_result_pb);
-
-			   /* cleanup memory allocated for dnParts and newDN */
-			   if(dnParts != NULL){
-			       for(x=0; dnParts[x] != NULL; x++)
-			       {
-			           slapi_ch_free_string(&dnParts[x]);
-			       }
-			           slapi_ch_free((void **)&dnParts);
-			   }
-			   slapi_ch_free_string(&newDN);
-		       }
-		   }
-	       }
-
-
-
-          }else{
-              if(isFatalSearchError(search_result))
-              {
-		      /* NPCTE fix for bugid 531225, esc 0. <P.R> <30-May-2001> */
-                  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                      "referint_postop search (base=%s filter=%s) returned error %d\n", search_base,filter,search_result );
-		       /* end of NPCTE fix for bugid 531225 */
-                  rc = -1;
-                  goto free_and_return;
-              }
-   	      
-          }
-      
-	      slapi_ch_free((void**)&filter);
-
-		  if(search_result_pb != NULL){
-		      slapi_free_search_results_internal(search_result_pb);
-		      slapi_pblock_destroy(search_result_pb);
-			  search_result_pb= NULL;
-		  }
-
-      }
-  }
-  /* if got here, then everything good rc = 0 */
-  rc = 0;
+            slapi_ch_free((void**)&filter);
+  
+            if (search_result_pb) {
+                slapi_free_search_results_internal(search_result_pb);
+            }
+        }
+    }
+    /* if got here, then everything good rc = 0 */
+    rc = 0;
 
 free_and_return:
+    slapi_ch_free_string(&norm_origDN);
+ 
+    /* free filter and search_results_pb */
+    slapi_ch_free_string(&filter);
 
-  slapi_value_free(&oldDNslv);
-
-  /* free filter and search_results_pb */
-  slapi_ch_free_string(&filter);
-
-  if(search_result_pb != NULL)
-  {
-      slapi_free_search_results_internal(search_result_pb);
-	  slapi_pblock_destroy(search_result_pb);
-  }
-
-  return(rc);
+    slapi_pblock_destroy(mod_pb);
+    if (search_result_pb) {
+        slapi_free_search_results_internal(search_result_pb);
+        slapi_pblock_destroy(search_result_pb);
+    }
+ 
+    return(rc);
 }
 
 int referint_postop_start( Slapi_PBlock *pb)
@@ -585,8 +851,9 @@ int referint_postop_close( Slapi_PBlock *pb)
 	return(0);
 }
 
-void referint_thread_func(void *arg){
-
+void
+referint_thread_func(void *arg)
+{
     char **plugin_argv = (char **)arg;
     PRFileDesc *prfd;
     char *logfilename;
@@ -595,7 +862,7 @@ void referint_thread_func(void *arg){
     int no_changes;
     char delimiter[]="\t\n";
     char *ptoken;
-    char *tmpdn, *tmprdn;
+    char *tmpdn, *tmprdn, *tmpsuperior;
     int logChanges=0;
 	char * iter = NULL;
 
@@ -659,18 +926,24 @@ void referint_thread_func(void *arg){
 	    strcpy(tmpdn, ptoken);
 
 	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
-	    if(!strcasecmp(ptoken, "NULL")){
+	    if(!strcasecmp(ptoken, "NULL")) {
 	        tmprdn = NULL;
-	    }else{
-	        tmprdn = slapi_ch_calloc(strlen(ptoken) + 1, sizeof(char));
-		strcpy(tmprdn, ptoken);
+	    } else {
+	        tmprdn = slapi_ch_smprintf("%s", ptoken);
 	    }
 
+	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
+	    if (!strcasecmp(ptoken, "NULL")) {
+	        tmpsuperior = NULL;
+	    } else {
+	        tmpsuperior = slapi_ch_smprintf("%s", ptoken);
+	    }
       
-	    update_integrity(plugin_argv, tmpdn, tmprdn, logChanges);
+	    update_integrity(plugin_argv, tmpdn, tmprdn, tmpsuperior, logChanges);
       
-	    slapi_ch_free((void **) &tmpdn);
-	    slapi_ch_free((void **) &tmprdn);	
+	    slapi_ch_free_string(&tmpdn);
+	    slapi_ch_free_string(&tmprdn);
+	    slapi_ch_free_string(&tmpsuperior);
 	}
 
 	PR_Close(prfd);
@@ -782,7 +1055,9 @@ GetNextLine(char *dest, int size_dest, PRFileDesc *stream) {
     return i;
 }
 
-void writeintegritylog(char *logfilename, char *dn, char *newrdn){
+void
+writeintegritylog(char *logfilename, char *dn, char *newrdn, char *newsuperior)
+{
     PRFileDesc *prfd;
     char buffer[MAX_LINE];
     int len_to_write = 0;
@@ -820,6 +1095,14 @@ void writeintegritylog(char *logfilename, char *dn, char *newrdn){
         /* add the length of the newrdn */
         len_to_write += strlen(newrdn);
     }
+    if(NULL == newsuperior)
+    {
+        /* add the length of "NULL" */
+        len_to_write += 4;
+    }else{
+        /* add the length of the newsuperior */
+        len_to_write += strlen(newsuperior);
+    }
 
     if(len_to_write > MAX_LINE )
     {
@@ -828,9 +1111,10 @@ void writeintegritylog(char *logfilename, char *dn, char *newrdn){
                          " line length exceeded. It will not be able"
                          " to update references to this entry.\n");
     }else{
-       PR_snprintf(buffer, MAX_LINE, "%s\t%s\t\n", 
+       PR_snprintf(buffer, MAX_LINE, "%s\t%s\t%s\t\n", 
 				   dn,
-				   (newrdn != NULL) ? newrdn : "NULL");
+				   (newrdn != NULL) ? newrdn : "NULL",
+				   (newsuperior != NULL) ? newsuperior : "NULL");
         if (PR_Write(prfd,buffer,strlen(buffer)) < 0){
            slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
 	       " writeintegritylog: PR_Write failed : The disk"
