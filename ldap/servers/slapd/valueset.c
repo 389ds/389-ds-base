@@ -1358,7 +1358,9 @@ valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **valstoreplace)
         Avlnode *vtree = NULL;
         rc = valuetree_add_valuearray( a->a_type, a->a_plugin, valstoreplace, &vtree, NULL );
         valuetree_free(&vtree);
-        if ( LDAP_SUCCESS != rc )
+        if ( LDAP_SUCCESS != rc &&
+             /* bz 247413: don't override LDAP_TYPE_OR_VALUE_EXISTS */
+             LDAP_TYPE_OR_VALUE_EXISTS != rc )
         {
             /* There were already duplicate values in the value set */
             rc = LDAP_OPERATIONS_ERROR;
