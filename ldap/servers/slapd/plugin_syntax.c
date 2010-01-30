@@ -295,7 +295,7 @@ slapi_dn_syntax_check(
 	}
 
 	/* Locate the dn syntax plugin. */
-	slapi_attr_type2plugin("dn", (void **)&dn_plugin);
+	slapi_attr_type2plugin("distinguishedName", (void **)&dn_plugin);
 
 	/* Assume the value is valid if we don't find a dn validate function */
 	if (dn_plugin && dn_plugin->plg_syntax_validate != NULL) {
@@ -305,7 +305,7 @@ slapi_dn_syntax_check(
 			dn_bval.bv_len = strlen(dn);
 
 			/* Validate the value. */
-			if (dn_plugin->plg_syntax_validate(dn_bval) != 0) {
+			if (dn_plugin->plg_syntax_validate(&dn_bval) != 0) {
 				if (syntaxlogging) {
 					slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check",
 						"DN value (%s) invalid per syntax\n", dn ? dn : "");

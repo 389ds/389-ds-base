@@ -2262,11 +2262,54 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
     if (ret)
         goto unlock_and_return;
 
-    if ((*be) && ((*be != new_be) || mtn_sdn_has_child(target_sdn)))
+    if (*be)
     {
-        ret = LDAP_UNWILLING_TO_PERFORM;
-        PR_snprintf(errorbuf, BUFSIZ, "Cannot move entries accross backends\n");
-        goto unlock_and_return;
+        /* suffix is a part of mapping tree. We should not free it */
+        const Slapi_DN *suffix = slapi_get_suffix_by_dn(target_sdn);
+        if (NULL == suffix)
+        {
+            ret = LDAP_NO_SUCH_OBJECT;
+            PR_snprintf(errorbuf, BUFSIZ,
+                        "Target entry \"%s\" does not exist\n", 
+                        slapi_sdn_get_dn(target_sdn));
+            goto unlock_and_return;
+        }
+        if (0 == slapi_sdn_compare(target_sdn, suffix))
+        {
+            /* target_sdn is a suffix */
+            const Slapi_DN *new_suffix = NULL;
+            /* new_suffix is a part of mapping tree. We should not free it */
+            new_suffix = slapi_get_suffix_by_dn(&dn_newdn);
+            if (!slapi_be_exist((const Slapi_DN *)&dn_newdn))
+            {
+                /* new_be is an empty backend */
+                ret = LDAP_NO_SUCH_OBJECT;
+                PR_snprintf(errorbuf, BUFSIZ,
+                           "Backend for suffix \"%s\" does not exist\n", newdn);
+                goto unlock_and_return;
+            }
+            if (0 == slapi_sdn_compare(&dn_newdn, new_suffix))
+            {
+                ret = LDAP_ALREADY_EXISTS;
+                PR_snprintf(errorbuf, BUFSIZ,
+                            "Suffix \"%s\" already exists\n", newdn);
+                goto unlock_and_return;
+            }
+            ret = LDAP_NAMING_VIOLATION;
+            PR_snprintf(errorbuf, BUFSIZ, "Cannot rename suffix \"%s\"\n",
+                        slapi_sdn_get_dn(target_sdn));
+            goto unlock_and_return;
+        }
+        else
+        {
+            if ((*be != new_be) || mtn_sdn_has_child(target_sdn))
+            {
+                ret = LDAP_AFFECTS_MULTIPLE_DSAS;
+                PR_snprintf(errorbuf, BUFSIZ,
+                                "Cannot move entries accross backends\n");
+                goto unlock_and_return;
+            }
+        }
     }
 
 unlock_and_return:

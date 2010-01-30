@@ -352,7 +352,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	{
 		if ( !internal_op )
 		{
-			slapi_log_access(LDAP_DEBUG_STATS,
+			slapi_log_access(SLAPI_LOG_ARGS,
 					 "conn=%" NSPRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
 					 pb->pb_conn->c_connid, 
 					 pb->pb_op->o_opid,
@@ -362,7 +362,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		}
 		else
 		{
-			slapi_log_access(LDAP_DEBUG_ARGS,
+			slapi_log_access(SLAPI_LOG_ARGS,
 					 "conn=%s op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
 					 LOG_INTERNAL_OP_CON_ID,
 					 LOG_INTERNAL_OP_OP_ID,
@@ -376,13 +376,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	if ((rdns = ldap_explode_rdn(newrdn, 0)) == NULL) 
 	{
 		if ( !internal_op ) {
-			slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+			slapi_log_error(SLAPI_LOG_ARGS, NULL, 
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 (NULL == newrdn) ? "(null)" : newrdn);
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+			slapi_log_error(SLAPI_LOG_ARGS, NULL, 
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
@@ -403,30 +403,27 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	}
 
 	/* check that the dn is formatted correctly */
-	if ((rdns = ldap_explode_dn(newsuperior, 0)) == NULL) 
+	err = slapi_dn_syntax_check(pb, newsuperior, 1);
+	if (err)
 	{
-		LDAPDebug(LDAP_DEBUG_ARGS, "ldap_explode_dn of newSuperior failed\n", 0, 0, 0);
+		LDAPDebug0Args(LDAP_DEBUG_ARGS, "Syntax check of newSuperior failed\n");
 		if (!internal_op) {
-			slapi_log_error(SLAPI_LOG_FATAL, NULL,
+			slapi_log_error(SLAPI_LOG_ARGS, NULL,
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 (NULL == newsuperior) ? "(null)" : newsuperiorbuf);
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, NULL,
+			slapi_log_error(SLAPI_LOG_ARGS, NULL,
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
 				 (NULL == newsuperior) ? "(null)" : newsuperiorbuf);
 		}
-		send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL,
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
 						 "newSuperior does not look like a DN", 0, NULL);
 		goto free_and_return_nolock;
 	} 
-	else 
-	{
-		slapi_ldap_value_free(rdns);
-	}
 
 	if (newsuperior != NULL) 
 	{
@@ -448,7 +445,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	 * if we don't hold it.
 	 */
 	if ((err = slapi_mapping_tree_select_and_check(pb, newdn, &be, &referral, errorbuf)) != LDAP_SUCCESS)
-	 {
+	{
 		send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
 		goto free_and_return_nolock;
 	}
