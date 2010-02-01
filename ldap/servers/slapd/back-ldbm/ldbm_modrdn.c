@@ -204,15 +204,12 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             slapi_sdn_set_dn_passin(&dn_newdn,newdn);
             new_addr.dn = (char*)slapi_sdn_get_ndn (&dn_newdn);
             /* check dn syntax on newdn */
-            if (config_get_dn_validate_strict())
+            ldap_result_code = slapi_dn_syntax_check(pb, new_addr.dn, 1);
+            if (ldap_result_code)
             {
-                ldap_result_code = slapi_dn_syntax_check(pb, new_addr.dn, 1);
-                if (ldap_result_code)
-                {
-                    ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-                    slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-                    goto error_return;
-                }
+                ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                goto error_return;
             }
             new_addr.uniqueid = NULL;
             ldap_result_code= get_copy_of_entry(pb, &new_addr, &txn, SLAPI_MODRDN_EXISTING_ENTRY, 0);
@@ -272,15 +269,12 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             /* find and lock the entry we are about to modify */
             done_with_pblock_entry(pb,SLAPI_MODRDN_TARGET_ENTRY); /* Could be through this multiple times */
             slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
-            if (config_get_dn_validate_strict())
+            ldap_result_code = slapi_dn_syntax_check(pb, old_addr->dn, 1);
+            if (ldap_result_code)
             {
-                ldap_result_code = slapi_dn_syntax_check(pb, old_addr->dn, 1);
-                if (ldap_result_code)
-                {
-                    ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-                    slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-                    goto error_return;
-                }
+                ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                goto error_return;
             }
             ldap_result_code= get_copy_of_entry(pb, old_addr, &txn, SLAPI_MODRDN_TARGET_ENTRY, !is_replicated_operation);
             if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
