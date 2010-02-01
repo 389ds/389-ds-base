@@ -103,12 +103,15 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	{
 		goto error_return;
 	}
-	ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
-	if (ldap_result_code)
+	if (config_get_dn_validate_strict())
 	{
-		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-		goto error_return;
+		ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
+		if (ldap_result_code)
+		{
+			ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+			goto error_return;
+		}
 	}
 
 	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);

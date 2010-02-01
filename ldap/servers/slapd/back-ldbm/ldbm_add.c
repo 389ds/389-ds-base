@@ -193,12 +193,15 @@ ldbm_back_add( Slapi_PBlock *pb )
 			{
 				goto error_return;
 			}
-			ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
-			if (ldap_result_code)
+			if (config_get_dn_validate_strict())
 			{
-				ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-				goto error_return;
+				ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
+				if (ldap_result_code)
+				{
+					ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+					slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+					goto error_return;
+				}
 			}
 			slapi_sdn_set_dn_byref(&sdn, dn);
 			slapi_sdn_get_backend_parent(&sdn,&parentsdn,pb->pb_backend);
