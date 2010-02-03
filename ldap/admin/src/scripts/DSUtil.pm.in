@@ -693,6 +693,37 @@ sub shellEscape {
     return $val;
 }
 
+# given a string, escape the special characters in the string.
+# the characters are defined in RFC 4514.
+# special = escaped / SPACE / SHARP / EQUALS
+# escaped = DQUOTE / PLUS / COMMA / SEMI / LANGLE / RANGLE
+# hex string "# HEX HEX" is unlikely appearing in the installation.
+# thus, it won't be supported for now.
+my %dnspecial = (
+    '"'  => '\\"',  # '\\22'
+    '\+' => '\\+',  # '\\2B'
+    ','  => '\\,',  # '\\2C'
+    ';'  => '\\;',  # '\\3B'
+    '<'  => '\\<',  # '\\3C'
+    '>'  => '\\>',  # '\\3E'
+    '='  => '\\='   # '\\3D'
+);
+
+sub dnEscape {
+    my $val = shift;
+    # first, remove spaces surrounding ',' and leading/trailing spaces
+    $val =~ s/^\s*//;
+    $val =~ s/\s*$//;
+    $val =~ s/\s*,\s*/,/g;
+    # next, replace the special characters
+    foreach my $idx (keys %dnspecial) {
+        $val =~ s/$idx/$dnspecial{$idx}/g;
+    }
+    $val =~ s/\s*,\s*/,/g;
+
+    return $val;
+}
+
 sub getHashedPassword {
     my $pwd = shift;
     my $alg = shift;
