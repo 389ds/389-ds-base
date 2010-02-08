@@ -254,7 +254,7 @@ IDList * idl_new_fetch(
     if (0 != ret) {
         if (DB_NOTFOUND != ret) {
 #ifdef DB_USE_BULK_FETCH
-            if (ret == ENOMEM) {
+            if (ret == DB_BUFFER_SMALL) {
                 LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
                           "data item for key %s is too large for our buffer "
                           "(need=%d actual=%d)\n",
@@ -489,25 +489,18 @@ int idl_new_delete_key(
     data.ulen = sizeof(id);
     data.size = sizeof(id);
     data.flags = DB_DBT_USERMEM;
-    data.data = &tmpid;
-    ret = cursor->c_get(cursor,key,&data,DB_SET);
+    data.data = &id;
+    /* Position cursor at the key, value pair */
+    ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
     if (0 == ret) {
         if (tmpid == ALLID) {
             goto error;	/* allid: never delete it */
         }
-    } else if (DB_NOTFOUND != ret) {
-        ldbm_nasty(filename,22,ret);
-        goto error;
-    }
-
-    /* Position cursor at the key, value pair */
-    data.data = &id;
-    ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
-    if (0 != ret) {
+    } else {
         if (DB_NOTFOUND == ret) {
             ret = 0; /* Not Found is OK, return immediately */
         } else {
-            ldbm_nasty(filename,23,ret);
+            ldbm_nasty(filename,22,ret);
         }
         goto error; 
     }

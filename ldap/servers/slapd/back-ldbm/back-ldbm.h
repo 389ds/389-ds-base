@@ -119,6 +119,10 @@ typedef unsigned short u_int16_t;
 #endif
 #include "db.h"
 
+#ifndef DB_BUFFER_SMALL
+#define DB_BUFFER_SMALL ENOMEM
+#endif
+
 #define dptr data
 #define dsize size
 
