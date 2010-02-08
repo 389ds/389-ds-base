@@ -1,0 +1,30 @@
+# The agentx-master setting defines how to communicate
+# with the SNMP master agent using the AgentX protocol.
+# The default is to use a UNIX domain socket.  If your
+# master agent is listening on a tcp port for AgentX
+# subagents, use a line like the following:
+#
+# agentx-master localhost:705
+agentx-master /var/agentx/master
+
+# The agent-logdir settings defines where the subagent
+# will write it's logfile.
+agent-logdir @localstatedir@/log/@package_name@
+
+# The server setting specifies a Directory Server
+# instance that you want to monitor. You must use one
+# server setting for each Directory Server instance. The
+# subagent requires at least one server setting to be
+# specified. The server setting
+# should be set to the name of the Directory Server
+# instance you would like to monitor. For example:
+# 
+# server slapd-phonebook
+# 
+# To monitor multiple Directory Server instances,  add
+# an additional server parameter for each instance:
+# 
+# server slapd-phonebook
+# server slapd-example
+# server slapd-directory
+

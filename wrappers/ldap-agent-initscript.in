@@ -1,0 +1,221 @@
+#!/bin/sh
+#
+# @package_name@-snmp    This starts and stops @package_name@-snmp
+#
+# chkconfig:   - 22 78
+# description: @capbrand@ Directory Server SNMP Subagent
+# processname: ldap-agent-bin
+# config:   @sysconfdir@/@package_name@/config/ldap-agent.conf
+# pidfile:     @localstatedir@/run/ldap-agent.pid
+#
+
+# Source function library.
+if [ -f /etc/rc.d/init.d/functions ] ; then
+. /etc/rc.d/init.d/functions
+fi
+# Source networking configuration.
+if [ -f /etc/sysconfig/network ] ; then
+. /etc/sysconfig/network
+fi
+
+# Check that networking is up.
+if [ "${NETWORKING}" = "no" ]
+then
+    echo "Networking is down"
+    exit 0
+fi
+
+# figure out which echo we're using
+ECHO_N=`echo -n`
+
+# some shells echo cannot use -n - linux echo by default cannot use \c
+echo_n()
+{
+    if [ "$ECHO_N" = '-n' ] ; then
+        echo "$*\c"
+    else
+        echo -n "$*"
+    fi
+}
+
+# failure and success are not defined on some platforms
+type failure > /dev/null 2>&1 || {
+failure()
+{
+    echo_n " FAILED"
+}
+}
+
+type success > /dev/null 2>&1 || {
+success()
+{
+    echo_n " SUCCESS"
+}
+}
+
+baseexec="ldap-agent"
+exec="@sbindir@/$baseexec"
+processname="ldap-agent-bin"
+prog="@package_name@-snmp"
+pidfile="@localstatedir@/run/ldap-agent.pid"
+configfile="@sysconfdir@/@package_name@/config/ldap-agent.conf"
+
+
+
+[ -f $exec ] || exit 0
+
+
+umask 077
+
+start() {
+    echo_n "Starting $prog: "
+    ret=0
+    subagent_running=0
+    subagent_started=0
+
+    # the subagent creates a pidfile and writes
+    # the pid to it when it is fully started.
+    if [ -f $pidfile ]; then
+        pid=`cat $pidfile`
+        name=`ps -p $pid | tail -1 | awk '{ print $4 }'`
+        if kill -0 $pid && [ $name = "$processname" ]; then
+            echo_n " already running"
+            success; echo
+            subagent_running=1
+        else
+            echo " not running, but pid file exists"
+            echo_n "    ... attempting to start anyway"
+        fi
+    fi
+
+    if [ $subagent_running -eq 0 ] ; then
+        rm -f $pidfile
+        $exec $configfile > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            subagent_started=1 # well, perhaps not running, but started ok
+        else
+            failure; echo
+            ret=1
+        fi
+    fi
+    # ok, if we started the subagent successfully, let's see
+    # if it is really running and ready to serve requests.
+    if [ $subagent_started -eq 1 ] ; then
+        loop_counter=1
+        # wait for 10 seconds
+        max_count=10
+        while test $loop_counter -le $max_count ; do
+            loop_counter=`expr $loop_counter + 1`
+            if test ! -f $pidfile ; then
+                if kill -0 $pid > /dev/null 2>&1 ; then
+                    sleep 1
+                else
+                    break
+                fi
+            else
+                pid=`cat $pidfile`
+                break
+            fi
+        done
+        if kill -0 $pid > /dev/null 2>&1 && test -f $pidfile ; then
+            success; echo
+        else
+            failure; echo
+            ret=1
+        fi
+    fi
+
+    exit $ret
+}
+
+stop() {
+    echo_n "Shutting down $prog: "
+    if [ -f $pidfile ]; then
+        pid=`cat $pidfile`
+        subagent_stopped=0
+        if kill -0 $pid > /dev/null 2>&1 ; then
+            kill $pid
+            if [ $? -eq 0 ]; then
+                subagent_stopped=1
+            else
+                failure; echo
+            fi
+        else
+            echo_n " subagent not running"
+            failure; echo
+        fi
+        if [ $subagent_stopped -eq 1 ] ; then
+            loop_counter=1
+            # wait for 10 seconds
+            max_count=10
+            while test $loop_counter -le $max_count; do
+                loop_counter=`expr $loop_counter + 1`
+                if kill -0 $pid > /dev/null 2>&1 ; then
+                    sleep 1
+                else
+                    if test -f $pidfile ; then
+                        rm -f $pidfile
+                    fi
+                    break
+                fi
+            done
+            if test -f $pidfile ; then
+                failure; echo
+            else
+                success; echo
+                rm -f $pidfile
+            fi
+        fi
+    else
+        echo_n " subagent already stopped"
+        failure; echo
+    fi
+}
+
+reload() {
+    stop
+    start
+}
+
+restart() {
+    stop
+    start
+}
+
+condrestart() {
+    if [ -f $pidfile ]; then
+        pid=`cat $pidfile`
+        name=`ps -p $pid | tail -1 | awk '{ print $4 }'`
+        if kill -0 $pid && [ $name = "$processname" ]; then
+            restart
+        fi
+    fi
+}
+
+status() {
+     ret=0
+     if [ -f $pidfile ]; then
+         pid=`cat $pidfile`
+         if kill -0 $pid > /dev/null 2>&1 ; then
+             echo "$prog (pid $pid) is running..."
+         else
+            echo "$prog dead but pid file exists"
+            ret=1
+         fi
+     else
+         echo "$prog is stopped"
+         ret=3
+     fi
+     exit $ret
+}
+
+
+case "$1" in
+    start|stop|restart|reload|condrestart|status)
+        $1
+        ;;
+    *)
+        echo Unknown command $1
+        echo "Usage: $0 {start|stop|restart|reload|condrestart|status}"
+        exit 2
+esac

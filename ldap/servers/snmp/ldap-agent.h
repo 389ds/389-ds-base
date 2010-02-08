@@ -90,7 +90,7 @@ extern          "C" {
 #define CACHE_REFRESH_INTERVAL 15
 #define UPDATE_THRESHOLD 20
 #define SNMP_NUM_SEM_WAITS 10
-#define LDAP_AGENT_PIDFILE ".ldap-agent.pid"
+#define LDAP_AGENT_PIDFILE "ldap-agent.pid"
 #define LDAP_AGENT_LOGFILE "ldap-agent.log"
 
 /*************************************************************

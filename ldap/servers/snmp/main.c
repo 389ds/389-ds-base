@@ -191,7 +191,7 @@ main (int argc, char *argv[]) {
         fscanf(pid_fp, "%d", &child_pid);
         fclose(pid_fp);
         printf("ldap-agent: Started as pid %d\n", child_pid);
-        exit(1);
+        exit(0);
     }
 
     /* initialize the agent */
@@ -205,7 +205,7 @@ main (int argc, char *argv[]) {
     signal(SIGTERM, stop_server);
     signal(SIGINT, stop_server);
 
-    /* create pidfile in config file dir */
+    /* create pidfile */
     child_pid = getpid();
     if ((pid_fp = fopen(pidfile, "w")) == NULL) {
         snmp_log(LOG_ERR, "Error creating pid file: %s\n", pidfile);
@@ -272,25 +272,24 @@ load_config(char *conf_path)
     } 
 
     /* set pidfile path */
+    if ((pidfile = malloc(strlen(LOCALSTATEDIR) + strlen("/run/") +
+        strlen(LDAP_AGENT_PIDFILE) + 1)) != NULL) {
+        strncpy(pidfile, LOCALSTATEDIR, strlen(LOCALSTATEDIR));
+        /* The above will likely not be NULL terminated, but we need to
+         * be sure that we're properly NULL terminated for the below
+         * strcat() to work properly. */
+        pidfile[strlen(LOCALSTATEDIR)] = (char)0;
+        strcat(pidfile, "/run/");
+        strcat(pidfile, LDAP_AGENT_PIDFILE);
+    } else {
+        printf("ldap-agent: malloc error processing config file\n");
+        error = 1;
+        goto close_and_exit;
+    }
+
+    /* set default logdir to location of config file */
     for (p = (conf_path + strlen(conf_path) - 1); p >= conf_path; p--) {
         if (*p == '/') {
-            /* set pidfile path */
-            if ((pidfile = malloc((p - conf_path) +
-                                   strlen(LDAP_AGENT_PIDFILE) + 2)) != NULL) {
-                strncpy(pidfile, conf_path, (p - conf_path + 1));
-                /* The above will likely not be NULL terminated, but we need to
-                 * be sure that we're properly NULL terminated for the below
-                 * strcat() to work properly. */
-                pidfile[(p - conf_path + 2)] = (char)0;
-                strcat(pidfile, LDAP_AGENT_PIDFILE);
-                pidfile[((p - conf_path) + strlen(LDAP_AGENT_PIDFILE) + 1)] = (char)0;
-            } else {
-                printf("ldap-agent: malloc error processing config file\n");
-                error = 1;
-                goto close_and_exit;
-            }
-
-            /* set default logdir to location of config file */
             if ((agent_logdir = malloc((p - conf_path) + 1)) != NULL) {
                 strncpy(agent_logdir, conf_path, (p - conf_path));
                 agent_logdir[(p - conf_path)] = (char)0;
