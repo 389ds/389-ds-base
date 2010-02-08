@@ -1001,6 +1001,10 @@ retry:
 			goto error;
 		}
 	}
+	if (saved_key != key->data) {
+		/* key could be allocated in the above c_get */
+		DBT_FREE_PAYLOAD(*key);
+	}
 	/* Seek to the next one 
 	 * [612498] NODUP is needed for new idl to get the next non-duplicated key
 	 * No effect on old idl since there's no dup there (i.e., DB_NEXT == DB_NEXT_NODUP)
