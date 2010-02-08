@@ -1776,7 +1776,7 @@ autosize_import_cache(struct ldbminfo *li)
         size_t pagesize, pages, procpages, availpages;
 
         dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
-        LDAPDebug(LDAP_DEBUG_ANY, "dblayer_instance_start: "
+        LDAPDebug(LDAP_DEBUG_ANY, "autosize_import_cache: "
                   "pagesize: %d, pages: %d, procpages: %d\n",
                   pagesize, pages, procpages);
         if (pagesize) {
@@ -2438,6 +2438,12 @@ int dblayer_instance_close(backend *be)
 
     if (NULL == inst)
         return -1;
+
+    if (attrcrypt_cleanup_private(inst)) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "Error: failed to clean up attrcrypt system for %s\n",
+                  inst->inst_name, 0, 0);
+    }
 
     return_value = dblayer_close_indexes(be);
 

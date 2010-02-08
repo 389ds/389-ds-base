@@ -461,7 +461,10 @@ attrcrypt_init(ldbm_instance *li)
 	SECKEYPublicKey *public_key = NULL;
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_init\n", 0, 0, 0);
 	if (slapd_security_library_is_initialized()) {
-		li->inst_attrcrypt_state_private = NULL;
+		/* In case the backend instance is restarted, 
+		 * inst_attrcrypt_state_private in li could have memory containing
+		 * private keys.  The private data should be cleaned up first. */
+		attrcrypt_cleanup_private(li);
 		/* Get the server's private key, which is used to unwrap the stored symmetric keys */
 		ret = attrcrypt_fetch_private_key(&private_key);
 		if (!ret) { 
@@ -513,6 +516,29 @@ int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace)
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_check_enable_cipher\n", 0, 0, 0);
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_check_enable_cipher\n", 0, 0, 0);
 	return ret;
+}
+
+/*
+ * This function cleans up the inst_attrcrypt_state_private in each backend
+ * instance.
+ */
+int
+attrcrypt_cleanup_private(ldbm_instance *li)
+{
+	int i = 0;
+	attrcrypt_cipher_state **current = NULL;
+
+	LDAPDebug(LDAP_DEBUG_TRACE, "-> attrcrypt_cleanup_private\n", 0, 0, 0);
+	if (li && li->inst_attrcrypt_state_private) {
+		for (current = &(li->inst_attrcrypt_state_private->acs_array[0]);
+			 *current; current++) {
+			attrcrypt_cleanup(*current);
+			slapi_ch_free((void **)current);
+		}
+		slapi_ch_free((void **)&li->inst_attrcrypt_state_private);
+	}
+	LDAPDebug(LDAP_DEBUG_TRACE, "<- attrcrypt_cleanup_private\n", 0, 0, 0);
+	return 0;
 }
 
 int
