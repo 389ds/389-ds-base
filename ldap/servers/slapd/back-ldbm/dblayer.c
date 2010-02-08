@@ -650,10 +650,6 @@ int dblayer_terminate(struct ldbminfo *li)
     }
     
     slapi_ch_free_string(&priv->dblayer_log_directory);
-    /* no need to release dblayer_home_directory,
-     * which is one of dblayer_data_directories */
-    charray_free(priv->dblayer_data_directories); 
-    priv->dblayer_data_directories = NULL;
     PR_DestroyCondVar(priv->thread_count_cv);
     priv->thread_count_cv = NULL;
     PR_DestroyLock(priv->thread_count_lock);
@@ -1191,8 +1187,8 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     Object *inst_obj;
     ldbm_instance *inst = NULL;
 
-    pEnv =
-      (struct dblayer_private_env *) PR_Calloc(1, sizeof(dblayer_private_env));
+    pEnv = (struct dblayer_private_env *)slapi_ch_calloc(1,
+                                                   sizeof(dblayer_private_env));
 
     if ((ret = db_env_create(&pEnv->dblayer_DB_ENV, 0)) != 0) {
         LDAPDebug(LDAP_DEBUG_ANY,
@@ -1214,7 +1210,6 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     dblayer_dump_config_tracing(priv);
 
     /* set data dir to avoid having absolute paths in the transaction log */
-    priv->dblayer_data_directories = NULL;
     for (inst_obj = objset_first_obj(li->li_instance_set);
          inst_obj;
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
@@ -1226,7 +1221,7 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
                                      inst->inst_parent_dir_name))
             {
                 charray_add(&(priv->dblayer_data_directories),
-                            inst->inst_parent_dir_name);
+                            slapi_ch_strdup(inst->inst_parent_dir_name));
             }
         }
     }
@@ -1260,28 +1255,35 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     return ret;
 }
 
+static void
+dblayer_free_env(struct dblayer_private_env **env)
+{
+    if (NULL == env || NULL == *env) {
+        return;
+    }
+    if ((*env)->dblayer_env_lock) {
+        PR_DestroyRWLock((*env)->dblayer_env_lock);
+        (*env)->dblayer_env_lock = NULL;
+    }
+    slapi_ch_free((void **)env);
+    return;
+}
+
 /* generate an absolute path if the given instance dir is not.  */
 char *
 dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst,
                           char *buf, int buflen)
 {
-    char *parent_dir;
-    int mylen;
+    char *parent_dir = NULL;
+    int mylen = 0;
 
     if (!inst)
         return NULL;
 
-    if (inst->inst_parent_dir_name)
+    if (inst->inst_parent_dir_name) /* e.g., /var/lib/dirsrv/slapd-ID/db */
     {
         parent_dir = inst->inst_parent_dir_name;
-        if (inst->inst_parent_dir_name)
-        {
-            mylen = strlen(parent_dir) + strlen(inst->inst_dir_name) + 2;
-        }
-        else
-        {
-            mylen = strlen(parent_dir) + 1;
-        }
+        mylen = strlen(parent_dir) + 1;
     }
     else
     {
@@ -1295,7 +1297,7 @@ dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst,
     }
 
 
-    if (inst->inst_dir_name)
+    if (inst->inst_dir_name) /* e.g., userRoot */
     {
         mylen += strlen(inst->inst_dir_name) + 2;
         if (!buf || mylen > buflen)
@@ -1443,7 +1445,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
         LDAPDebug(LDAP_DEBUG_ANY,
             "Error: DB directory is not specified.\n", 0, 0, 0);
         return -1;
-	}
+    }
     PR_Lock(li->li_config_mutex);
     priv->dblayer_home_directory = li->li_directory; /* nsslapd-directory */
     priv->dblayer_cachesize = li->li_dbcachesize;
@@ -1513,6 +1515,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
         }
     }
 
+    dblayer_free_env(&priv->dblayer_env);
     priv->dblayer_env = pEnv;
 
     open_flags = DB_CREATE | DB_INIT_MPOOL | DB_THREAD;
@@ -1583,6 +1586,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
                       "ERROR -- Failed to create DBENV (returned: %d).\n",
                       return_value, 0, 0);
         }
+        dblayer_free_env(&priv->dblayer_env);
         priv->dblayer_env = pEnv;
     }
 
@@ -1647,6 +1651,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
                           "mmap in opening database environment (recovery mode) "
                           "failed trying to allocate %lu bytes. (OS err %d - %s)\n",
                           li->li_dbcachesize, return_value, dblayer_strerror(return_value));
+                dblayer_free_env(&priv->dblayer_env);
                 priv->dblayer_env = CATASTROPHIC;
             } else {
                 LDAPDebug(LDAP_DEBUG_ANY, "Database Recovery Process FAILED. "
@@ -1667,6 +1672,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
                           return_value, 0, 0);
                 return return_value;
             }
+            dblayer_free_env(&priv->dblayer_env);
             priv->dblayer_env = pEnv;
             dblayer_set_data_dir(priv, pEnv, priv->dblayer_data_directories);
         }
@@ -1738,6 +1744,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
                       "mmap in opening database environment "
                       "failed trying to allocate %d bytes. (OS err %lu - %s)\n",
                       li->li_dbcachesize, return_value, dblayer_strerror(return_value));
+                dblayer_free_env(&priv->dblayer_env);
                 priv->dblayer_env = CATASTROPHIC;
             } else {
                 LDAPDebug(LDAP_DEBUG_ANY,
@@ -2478,8 +2485,7 @@ int dblayer_instance_close(backend *be)
            slapi_ch_free_string(&inst_dirp);
        }
        PR_DestroyRWLock(inst->import_env->dblayer_env_lock);
-       PR_Free((void *)inst->import_env);
-       inst->import_env = NULL;
+       slapi_ch_free((void **)&inst->import_env);
      } else {
        be->be_state = BE_STATE_STOPPED;
      }
@@ -2570,14 +2576,11 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
             perfctrs_terminate(&priv->perf_private, priv->dblayer_env->dblayer_DB_ENV);
         }
     }
-        
+
     /* Now release the db environment */
     pEnv = priv->dblayer_env;
     return_value = pEnv->dblayer_DB_ENV->close(pEnv->dblayer_DB_ENV, 0);
-    PR_DestroyRWLock(priv->dblayer_env->dblayer_env_lock);
-    PR_Free((void *) priv->dblayer_env);
-    
-    priv->dblayer_env = NULL;    /* pEnv is now garbage */
+    dblayer_free_env(&priv->dblayer_env); /* pEnv is now garbage */
 
 #if 0    /* DBDB do NOT remove the environment: bad, bad idea */
     if (return_value == 0) {
@@ -2612,6 +2615,14 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         && !((DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE) & dbmode)
         && !priv->dblayer_bad_stuff_happened) {
         commit_good_database(priv);
+    }
+    if (priv->dblayer_data_directories) {
+        /* dblayer_data_directories are set in dblayer_make_env via
+         * dblayer_start, which is paired with dblayer_close. */
+        /* no need to release dblayer_home_directory,
+         * which is one of dblayer_data_directories */
+        charray_free(priv->dblayer_data_directories);
+        priv->dblayer_data_directories = NULL;
     }
     return return_value;
 }
@@ -4037,13 +4048,13 @@ static int commit_good_database(dblayer_private *priv)
     int return_value = 0;
     int num_bytes;
 
-    PR_snprintf(filename,sizeof(filename), "%s/guardian",priv->dblayer_home_directory);
+    PR_snprintf(filename,sizeof(filename), "%s/guardian", priv->dblayer_home_directory);
 
     prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
         priv->dblayer_file_mode );
     if (NULL == prfd)
     {
-        LDAPDebug( LDAP_DEBUG_ANY,"Fatal Error---Failed to write guardian file, database corruption possible" SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
+        LDAPDebug( LDAP_DEBUG_ANY,"Fatal Error---Failed to write guardian file %s, database corruption possible" SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
             filename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
         return -1;
     } 
@@ -5447,7 +5458,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
     PRFileInfo info;
-    ldbm_instance *inst;
+    ldbm_instance *inst = NULL;
     int seen_logfiles = 0;      /* Tells us if we restored any logfiles */
     int is_a_logfile = 0;
     int dbmode;
