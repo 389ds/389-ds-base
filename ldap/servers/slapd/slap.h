@@ -453,11 +453,14 @@ struct slapi_attr {
 	char					*a_type;
 	struct slapi_value_set  a_present_values;
 	unsigned long		    a_flags;		/* SLAPI_ATTR_FLAG_... */
-	struct slapdplugin	    *a_plugin;
+	struct slapdplugin	    *a_plugin; /* for the attribute syntax */
 	struct slapi_value_set  a_deleted_values;
 	struct bervals2free     *a_listtofree; /* JCM: EVIL... For DS4 Slapi compatibility. */
 	struct slapi_attr		*a_next;
 	CSN                     *a_deletioncsn; /* The point in time at which this attribute was last deleted */
+	struct slapdplugin	    *a_mr_eq_plugin; /* for the attribute EQUALITY matching rule, if any */
+	struct slapdplugin	    *a_mr_ord_plugin; /* for the attribute ORDERING matching rule, if any */
+	struct slapdplugin	    *a_mr_sub_plugin; /* for the attribute SUBSTRING matching rule, if any */
 };
 
 typedef struct oid_item {
@@ -482,6 +485,9 @@ typedef struct asyntaxinfo {
 	int					asi_syntaxlength;	/* length associated w/syntax */
 	int					asi_refcnt;			/* outstanding references */
 	PRBool				asi_marked_for_delete;	/* delete at next opportunity */
+	struct slapdplugin	*asi_mr_eq_plugin;	/* EQUALITY matching rule plugin */
+	struct slapdplugin	*asi_mr_sub_plugin;	/* SUBSTR matching rule plugin */
+	struct slapdplugin	*asi_mr_ord_plugin;	/* ORDERING matching rule plugin */
 } asyntaxinfo;
 
 /*
@@ -982,9 +988,28 @@ struct slapdplugin {
 		struct plg_un_matching_rule {
 			IFP	plg_un_mr_filter_create; /* factory function */
 			IFP	plg_un_mr_indexer_create; /* factory function */
+			/* new style syntax plugin functions */
+			/* not all functions will apply to all matching rule types */
+			/* e.g. a SUBSTR rule will not have a filter_ava func */
+			IFP	plg_un_mr_filter_ava;
+			IFP	plg_un_mr_filter_sub;
+			IFP	plg_un_mr_values2keys;
+			IFP	plg_un_mr_assertion2keys_ava;
+			IFP	plg_un_mr_assertion2keys_sub;
+			int	plg_un_mr_flags;
+			char	**plg_un_mr_names;
+			IFP	plg_un_mr_compare; /* only for ORDERING */
 		} plg_un_mr;
 #define plg_mr_filter_create	plg_un.plg_un_mr.plg_un_mr_filter_create
 #define plg_mr_indexer_create	plg_un.plg_un_mr.plg_un_mr_indexer_create
+#define plg_mr_filter_ava		plg_un.plg_un_mr.plg_un_mr_filter_ava
+#define plg_mr_filter_sub		plg_un.plg_un_mr.plg_un_mr_filter_sub
+#define plg_mr_values2keys		plg_un.plg_un_mr.plg_un_mr_values2keys
+#define plg_mr_assertion2keys_ava	plg_un.plg_un_mr.plg_un_mr_assertion2keys_ava
+#define plg_mr_assertion2keys_sub	plg_un.plg_un_mr.plg_un_mr_assertion2keys_sub
+#define plg_mr_flags		plg_un.plg_un_mr.plg_un_mr_flags
+#define plg_mr_names		plg_un.plg_un_mr.plg_un_mr_names
+#define plg_mr_compare		plg_un.plg_un_mr.plg_un_mr_compare
 
 		/* syntax plugin structure */
 		struct plg_un_syntax_struct {

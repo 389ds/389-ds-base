@@ -534,7 +534,6 @@ vlvIndex_new()
         p->vlv_sortkey= NULL;
         p->vlv_filename= NULL;
 	    p->vlv_mrpb= NULL;
-        p->vlv_syntax_plugin= NULL;
         p->vlv_indexlength_lock= PR_NewLock();
         p->vlv_indexlength_cached= 0;
         p->vlv_indexlength= 0;
@@ -572,7 +571,6 @@ vlvIndex_delete(struct vlvIndex** ppvs)
         slapi_ch_free((void**)&((*ppvs)->vlv_name));
         slapi_ch_free((void**)&((*ppvs)->vlv_filename));
         slapi_ch_free((void**)&((*ppvs)->vlv_mrpb));
-        slapi_ch_free((void**)&((*ppvs)->vlv_syntax_plugin));
         PR_DestroyLock((*ppvs)->vlv_indexlength_lock);
         slapi_ch_free((void**)ppvs);
         *ppvs= NULL;
@@ -611,10 +609,8 @@ vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const 
         int n;
         for(n=0;p->vlv_sortkey[n]!=NULL;n++);
         p->vlv_mrpb= (Slapi_PBlock**)slapi_ch_calloc(n+1,sizeof(Slapi_PBlock*));
-        p->vlv_syntax_plugin= (void **)(Slapi_PBlock**)slapi_ch_calloc(n+1,sizeof(Slapi_PBlock*));
         for(n=0;p->vlv_sortkey[n]!=NULL;n++)
         {
-       		slapi_attr_type2plugin( p->vlv_sortkey[n]->sk_attrtype, &p->vlv_syntax_plugin[n] );
             if(p->vlv_sortkey[n]->sk_matchruleoid!=NULL)
             {
 				create_matchrule_indexer(&p->vlv_mrpb[n],p->vlv_sortkey[n]->sk_matchruleoid,p->vlv_sortkey[n]->sk_attrtype);

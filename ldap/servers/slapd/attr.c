@@ -290,11 +290,17 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 		{
 			a->a_plugin = asi->asi_plugin;
 			a->a_flags = asi->asi_flags;
+			a->a_mr_eq_plugin = asi->asi_mr_eq_plugin;
+			a->a_mr_ord_plugin = asi->asi_mr_ord_plugin;
+			a->a_mr_sub_plugin = asi->asi_mr_sub_plugin;
 		}
 		else
 		{
 			a->a_plugin = NULL;    /* XXX - should be rare */
 			a->a_flags = 0;        /* XXX - should be rare */
+			a->a_mr_eq_plugin = NULL;
+			a->a_mr_ord_plugin = NULL;
+			a->a_mr_sub_plugin = NULL;
 		}
 
 		attr_syntax_return_locking_optional( asi, use_lock );
@@ -779,7 +785,7 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
              * input vals array for duplicates
              */
             Avlnode *vtree = NULL;
-            rc= valuetree_add_valuearray(a->a_type, a->a_plugin, vals, &vtree, &duplicate_index);
+            rc= valuetree_add_valuearray(a, vals, &vtree, &duplicate_index);
             valuetree_free(&vtree);
             was_present_null = 1;
         } else {
@@ -891,4 +897,72 @@ attr_check_minmax ( const char *attr_name, char *value, long minval, long maxval
 	}
 
 	return retVal;
+}
+
+/**
+   Returns the function which can be used to compare (like memcmp/strcmp)
+   two values of this type of attribute.  The comparison function will use
+   the ORDERING matching rule if available, or the default comparison
+   function from the syntax plugin.
+   Note: if there is no ORDERING matching rule, and the syntax does not
+   provide an ordered compare function, this function will return
+   LDAP_PROTOCOL_ERROR and compare_fn will be NULL.
+   Returns LDAP_SUCCESS if successful and sets *compare_fn to the function.
+ */
+int
+attr_get_value_cmp_fn(const Slapi_Attr *attr, value_compare_fn_type *compare_fn)
+{
+	int rc = LDAP_PROTOCOL_ERROR;
+
+	LDAPDebug0Args(LDAP_DEBUG_TRACE,
+					"=> slapi_attr_get_value_cmp_fn\n");
+
+	*compare_fn = NULL;
+
+	if (attr == NULL) {
+		LDAPDebug0Args(LDAP_DEBUG_TRACE,
+						"<= slapi_attr_get_value_cmp_fn no attribute given\n");
+		rc = LDAP_PARAM_ERROR; /* unkonwn */
+		goto done;
+	}
+
+	if (attr->a_mr_ord_plugin && attr->a_mr_ord_plugin->plg_mr_compare) {
+		*compare_fn = (value_compare_fn_type) attr->a_mr_ord_plugin->plg_mr_compare;
+		rc = LDAP_SUCCESS;
+		goto done;
+	}
+
+	if ((attr->a_plugin->plg_syntax_flags & SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING) == 0) {
+		LDAPDebug2Args(LDAP_DEBUG_TRACE,
+					   "<= slapi_attr_get_value_cmp_fn syntax [%s] for attribute [%s] does not support ordering\n",
+					   attr->a_plugin->plg_syntax_oid, attr->a_type);
+		goto done;
+	}
+
+	if (attr->a_plugin->plg_syntax_filter_ava == NULL) {
+		LDAPDebug2Args(LDAP_DEBUG_TRACE,
+					   "<= slapi_attr_get_value_cmp_fn syntax [%s] for attribute [%s] does not support equality matching\n",
+					   attr->a_plugin->plg_syntax_oid, attr->a_type);
+		goto done;
+	}
+
+	if (attr->a_plugin->plg_syntax_compare == NULL) {
+		LDAPDebug2Args(LDAP_DEBUG_TRACE,
+					   "<= slapi_attr_get_value_cmp_fn syntax [%s] for attribute [%s] does not have a compare function\n",
+					   attr->a_plugin->plg_syntax_oid, attr->a_type);
+		goto done;
+	}
+
+	*compare_fn = (value_compare_fn_type)attr->a_plugin->plg_syntax_compare;
+	rc = LDAP_SUCCESS;
+
+done:
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= slapi_attr_get_value_cmp_fn \n");
+	return rc;
+}
+
+const char *
+attr_get_syntax_oid(const Slapi_Attr *attr)
+{
+	return attr->a_plugin->plg_syntax_oid;
 }

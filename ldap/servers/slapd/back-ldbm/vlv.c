@@ -564,9 +564,9 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
                     int totalattrs;
             		if (p->vlv_sortkey[sortattr]->sk_matchruleoid==NULL)
             		{
-            			/* No matching rule. Syntax Plugin mangles value. */
+            			/* No matching rule. mangle values according to matching rule or syntax */
 						Slapi_Value **va= valueset_get_valuearray(&attr->a_present_values);
-                		slapi_call_syntax_values2keys_sv( p->vlv_syntax_plugin[sortattr], va, &cvalue, LDAP_FILTER_EQUALITY );
+                		slapi_attr_values2keys_sv( attr, va, &cvalue, LDAP_FILTER_EQUALITY );
 						valuearray_get_bervalarray(cvalue,&value);
 
 				/* XXXSD need to free some more stuff */
@@ -933,7 +933,10 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
     invalue[1]= NULL;
 	if (p->vlv_sortkey[0]->sk_matchruleoid==NULL)
 	{
-		slapi_call_syntax_values2keys(p->vlv_syntax_plugin[0],invalue,&typedown_value,LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
+		Slapi_Attr sattr;
+		slapi_attr_init(&sattr, p->vlv_sortkey[0]->sk_attrtype);
+		slapi_attr_values2keys(&sattr,invalue,&typedown_value,LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
+		attr_done(&sattr);
     }
     else
     {
@@ -1484,14 +1487,19 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
      */
     if (sort_control->matchrule==NULL)
     {
-        void *pi= NULL;
-        if(slapi_attr_type2plugin(sort_control->type, &pi)==0)
+        attr_get_value_cmp_fn(&sort_control->sattr, &compare_fn);
+        if (compare_fn == NULL) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: "
+                          "attempt to compare an unordered attribute [%s]\n",
+                          sort_control->type);
+            compare_fn = slapi_berval_cmp;
+        }
+
         {
             struct berval *invalue[2];
             invalue[0]= (struct berval *)&vlv_request_control->value; /* jcm: cast away const */
             invalue[1]= NULL;
-            slapi_call_syntax_values2keys(pi,invalue,&typedown_value,LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
-            plugin_call_syntax_get_compare_fn( pi, &compare_fn );
+            slapi_attr_values2keys(&sort_control->sattr,invalue,&typedown_value,LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
             if (compare_fn == NULL) {
                 LDAPDebug(LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: "
                           "attempt to compare an unordered attribute",

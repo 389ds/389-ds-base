@@ -61,6 +61,7 @@ attrinfo_delete(struct attrinfo **pp)
         slapi_ch_free((void**)&((*pp)->ai_type));
         slapi_ch_free((void**)(*pp)->ai_index_rules);
         slapi_ch_free((void**)&((*pp)->ai_attrcrypt));
+        attr_done(&((*pp)->ai_sattr));
         slapi_ch_free((void**)pp);
         *pp= NULL;
     }
@@ -194,11 +195,15 @@ attr_index_config(
 	}
 	for ( i = 0; attrs[i] != NULL; i++ ) {
 		int need_compare_fn = 0;
-		char *attrsyntax_oid = NULL;
+		const char *attrsyntax_oid = NULL;
 		a = attrinfo_new();
+		slapi_attr_init(&a->ai_sattr, attrs[i]);
+		/* we can't just set a->ai_type to the type from a->ai_sattr
+		   if the type has attroptions or subtypes, ai_sattr.a_type will
+		   contain them - but for the purposes of indexing, we don't want
+		   them */
 		a->ai_type = slapi_attr_basetype( attrs[i], NULL, 0 );
-		slapi_attr_type2plugin( a->ai_type, &a->ai_plugin );
-		attrsyntax_oid = slapi_ch_strdup(plugin_syntax2oid(a->ai_plugin));
+		attrsyntax_oid = attr_get_syntax_oid(&a->ai_sattr);
 		if ( argc == 1 ) {
 			a->ai_indexmask = (INDEX_PRESENCE | INDEX_EQUALITY |
 				INDEX_APPROX | INDEX_SUB);
@@ -301,7 +306,6 @@ attr_index_config(
 			}
 		}
 
-		slapi_ch_free_string(&attrsyntax_oid);
 		/* initialize the IDL code's private data */
 		return_value = idl_init_private(be, a);
 		if (0 != return_value) {
@@ -322,11 +326,11 @@ attr_index_config(
 		}
 
 		if (need_compare_fn) {
-			int rc = plugin_call_syntax_get_compare_fn( a->ai_plugin, &a->ai_key_cmp_fn );
+			int rc = attr_get_value_cmp_fn( &a->ai_sattr, &a->ai_key_cmp_fn );
 			if (rc != LDAP_SUCCESS) {
 				LDAPDebug(LDAP_DEBUG_ANY,
-					  "The attribute [%s] does not have a valid ORDERING matching rule\n",
-					  a->ai_type, 0, 0);
+						  "The attribute [%s] does not have a valid ORDERING matching rule - error %d:s\n",
+						  a->ai_type, rc, ldap_err2string(rc));
 				a->ai_key_cmp_fn = NULL;
 			}
 		}
@@ -358,6 +362,7 @@ attr_create_empty(backend *be,char *type,struct attrinfo **ai)
 {
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	struct attrinfo	*a = attrinfo_new();
+	slapi_attr_init(&a->ai_sattr, type);
 	a->ai_type = slapi_ch_strdup(type);
 	if ( avl_insert( &inst->inst_attrs, a, ainfo_cmp, ainfo_dup ) != 0 ) {
 		/* duplicate - existing version updated */

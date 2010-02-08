@@ -71,6 +71,7 @@ static void sort_spec_thing_free(sort_spec_thing *s)
 		destroy_matchrule_indexer(s->mr_pb);
 	    slapi_pblock_destroy (s->mr_pb);
 	}
+	attr_done(&s->sattr);
 	slapi_ch_free( (void**)&s);
 }
 
@@ -100,6 +101,7 @@ static sort_spec_thing * sort_spec_thing_new(char *type, char* matchrule, int re
 	s->type = type;
 	s->matchrule = matchrule;
 	s->order = reverse;
+    slapi_attr_init(&s->sattr, type);
 	return s;
 }
 
@@ -188,12 +190,8 @@ int sort_candidates(backend *be,int lookthrough_limit,time_t time_up, Slapi_PBlo
 	/* Iterate over the sort types */
 	for (this_s = s; this_s; this_s=this_s->next) {
 		if (NULL == this_s->matchrule) {
-			void		*pi;
 			int return_value = 0;
-			return_value = slapi_attr_type2plugin( this_s->type, &pi );
-			if (0 == return_value) {
-				return_value = plugin_call_syntax_get_compare_fn( pi, &(this_s->compare_fn) );
-			}
+			return_value = attr_get_value_cmp_fn( &this_s->sattr, &(this_s->compare_fn) );
 			if (return_value  != 0 ) {
 				LDAPDebug( LDAP_DEBUG_TRACE, "Attempting to sort a non-ordered attribute (%s)\n",this_s->type, 0, 0 );
 				/* DBDB we should set the error type here */

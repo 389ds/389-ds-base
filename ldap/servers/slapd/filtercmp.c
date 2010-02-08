@@ -85,17 +85,15 @@ static PRUint32 stir(PRUint32 hash, PRUint32 x)
 }
 #define STIR(h) (h) = stir((h), 0x2EC6DEAD);
 
-static Slapi_Value **get_normalized_value(struct ava *ava)
+static Slapi_Value **get_normalized_value(const Slapi_Attr *sattr, struct ava *ava)
 {
-    void *plugin;
     Slapi_Value *svlist[2], **keylist, sv;
 
-    slapi_attr_type2plugin(ava->ava_type, &plugin);
     sv.bv = ava->ava_value;
     sv.v_csnset = NULL;
     svlist[0] = &sv;
     svlist[1] = NULL;
-    if ((slapi_call_syntax_values2keys_sv(plugin, svlist, &keylist,
+    if ((slapi_attr_values2keys_sv(sattr, svlist, &keylist,
 					  LDAP_FILTER_EQUALITY) != 0) ||
 	!keylist || !keylist[0])
 	return NULL;
@@ -168,6 +166,7 @@ void filter_compute_hash(struct slapi_filter *f)
     Slapi_Value **keylist;
     Slapi_PBlock *pb;
     struct berval *inval[2], **outval;
+    Slapi_Attr sattr;
 
     if (! hash_filters)
 	return;
@@ -178,7 +177,9 @@ void filter_compute_hash(struct slapi_filter *f)
     case LDAP_FILTER_GE:
     case LDAP_FILTER_LE:
     case LDAP_FILTER_APPROX:
-	keylist = get_normalized_value(&f->f_ava);
+	slapi_attr_init(&sattr, f->f_ava.ava_type);
+	keylist = get_normalized_value(&sattr, &f->f_ava);
+	attr_done(&sattr);
 	if (keylist) {
 	    h = addhash_str(h, f->f_avtype);
 	    STIR(h);
@@ -349,6 +350,7 @@ int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
     Slapi_PBlock *pb1, *pb2;
     struct berval *inval1[2], *inval2[2], **outval1, **outval2;
     int ret;
+    Slapi_Attr sattr;
 
     LDAPDebug(LDAP_DEBUG_TRACE, "=> filter compare\n", 0, 0, 0);
 
@@ -376,19 +378,22 @@ int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
 	    ret = 1;
 	    break;
 	}
-	key1 = get_normalized_value(&f1->f_ava);
+	slapi_attr_init(&sattr, f1->f_ava.ava_type);
+	key1 = get_normalized_value(&sattr, &f1->f_ava);
 	if (key1) {
-	    key2 = get_normalized_value(&f2->f_ava);
+	    key2 = get_normalized_value(&sattr, &f2->f_ava);
 	    if (key2) {
 		ret = memcmp(slapi_value_get_string(key1[0]), 
                              slapi_value_get_string(key2[0]),
 			     slapi_value_get_length(key1[0]));
 		valuearray_free(&key1);
 		valuearray_free(&key2);
+		attr_done(&sattr);
 		break;
 	    }
 	    valuearray_free(&key1);
 	}
+	attr_done(&sattr);
 	ret = 1;
 	break;
     case LDAP_FILTER_PRESENT:

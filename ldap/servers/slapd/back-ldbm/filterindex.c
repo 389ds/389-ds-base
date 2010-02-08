@@ -61,7 +61,8 @@ static IDList * range_candidates(
     char *type,
     struct berval *low_val,
     struct berval *high_val,
-    int *err
+    int *err,
+    const Slapi_Attr *sattr
 );
 static IDList *
 keys2idl(
@@ -194,8 +195,8 @@ ava_candidates(
     struct berval *bval;
     Slapi_Value   **ivals;
     IDList        *idl;
-    void          *pi;
     int           unindexed = 0;
+    Slapi_Attr    sattr;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ava_candidates\n", 0, 0, 0 );
 
@@ -204,6 +205,8 @@ ava_candidates(
             0, 0, 0 );
         return( NULL );
     }
+
+    slapi_attr_init(&sattr, type);
 
 #ifdef LDAP_DEBUG
     if ( LDAPDebugLevelIsSet( LDAP_DEBUG_TRACE )) {
@@ -231,30 +234,23 @@ ava_candidates(
 
     switch ( ftype ) {
         case LDAP_FILTER_GE:
-            idl = range_candidates(pb, be, type, bval, NULL, err);
+            idl = range_candidates(pb, be, type, bval, NULL, err, &sattr);
             LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
                        (u_long)IDL_NIDS(idl), 0, 0 );
-            return( idl );
+            goto done;
+            break;
         case LDAP_FILTER_LE:
-            idl = range_candidates(pb, be, type, NULL, bval, err);
+            idl = range_candidates(pb, be, type, NULL, bval, err, &sattr);
             LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
                        (u_long)IDL_NIDS(idl), 0, 0 );
-            return( idl );
+            goto done;
+            break;
         case LDAP_FILTER_EQUALITY:
             indextype = (char*)indextype_EQUALITY;
             break;
         case LDAP_FILTER_APPROX:
             indextype = (char*)indextype_APPROX;
             break;
-    }
-
-    /*
-     * get the keys corresponding to this assertion value
-     */
-    if ( slapi_attr_type2plugin( type, &pi ) != 0 ) {
-        LDAPDebug( LDAP_DEBUG_TRACE, "  slapi_filter_get_ava no plugin\n",
-            0, 0, 0 );
-        return( NULL );
     }
 
     /* This code is result of performance anlysis; we are trying to
@@ -282,7 +278,7 @@ ava_candidates(
         ptr[1]=NULL;
         ivals=ptr;
 
-        slapi_call_syntax_assertion2keys_ava_sv( pi, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
+        slapi_attr_assertion2keys_ava_sv( &sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
         idl = keys2idl( be, type, indextype, ivals, err, &unindexed );
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
@@ -306,12 +302,13 @@ ava_candidates(
     } else {
         slapi_value_init_berval(&sv, bval);
         ivals=NULL;
-        slapi_call_syntax_assertion2keys_ava_sv( pi, &sv, &ivals, ftype );
+        slapi_attr_assertion2keys_ava_sv( &sattr, &sv, &ivals, ftype );
         value_done(&sv);
         if ( ivals == NULL || *ivals == NULL ) {
             LDAPDebug( LDAP_DEBUG_TRACE,
                 "<= ava_candidates ALLIDS (no keys)\n", 0, 0, 0 );
-            return( idl_allids( be ) );
+            idl = idl_allids( be );
+            goto done;
         }
         idl = keys2idl( be, type, indextype, ivals, err, &unindexed );
         if ( unindexed ) {
@@ -322,6 +319,8 @@ ava_candidates(
          LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
     }
+done:
+    attr_done(&sattr);
     return( idl );
 }
 
@@ -520,28 +519,18 @@ range_candidates(
     char *type,
     struct berval *low_val,
     struct berval *high_val,
-    int *err
+    int *err,
+    const Slapi_Attr *sattr
 )
 {
     IDList *idl;
     struct berval *low = NULL, *high = NULL;
     struct berval **lows = NULL, **highs = NULL;
-    void *pi;
 
     LDAPDebug(LDAP_DEBUG_TRACE, "=> range_candidates attr=%s\n", type, 0, 0);
 
-    /*
-     * get the keys corresponding to the assertion values
-     */
-
-    if ( slapi_attr_type2plugin( type, &pi ) != 0 ) {
-        LDAPDebug( LDAP_DEBUG_TRACE, "  slapi_filter_get_ava no plugin\n",
-                   0, 0, 0 );
-        return( NULL );
-    }
-
     if (low_val != NULL) {
-        slapi_call_syntax_assertion2keys_ava(pi, low_val, &lows, LDAP_FILTER_EQUALITY);
+        slapi_attr_assertion2keys_ava(sattr, low_val, &lows, LDAP_FILTER_EQUALITY);
         if (lows == NULL || *lows == NULL) {
             LDAPDebug( LDAP_DEBUG_TRACE,
                        "<= range_candidates ALLIDS (no keys)\n", 0, 0, 0 );
@@ -551,7 +540,7 @@ range_candidates(
     }
 
     if (high_val != NULL) {
-        slapi_call_syntax_assertion2keys_ava(pi, high_val, &highs, LDAP_FILTER_EQUALITY);
+        slapi_attr_assertion2keys_ava(sattr, high_val, &highs, LDAP_FILTER_EQUALITY);
         if (highs == NULL || *highs == NULL) {
             LDAPDebug( LDAP_DEBUG_TRACE,
                        "<= range_candidates ALLIDS (no keys)\n", 0, 0, 0 );
@@ -698,7 +687,11 @@ list_candidates(
         is_bounded_range = 0;
     }
     if (is_bounded_range) {
-        idl = range_candidates(pb, be, tpairs[0], vpairs[0], vpairs[1], err);
+        Slapi_Attr sattr;
+
+        slapi_attr_init(&sattr, tpairs[0]);
+        idl = range_candidates(pb, be, tpairs[0], vpairs[0], vpairs[1], err, &sattr);
+        attr_done(&sattr);
         LDAPDebug( LDAP_DEBUG_TRACE, "<= list_candidates %lu\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
         goto out;
@@ -734,8 +727,12 @@ list_candidates(
             }
             else if (fpairs[1] == f)
             {
+                Slapi_Attr sattr;
+
+                slapi_attr_init(&sattr, tpairs[0]);
                 tmp = range_candidates(pb, be, tpairs[0],
-                                       vpairs[0], vpairs[1], err);
+                                       vpairs[0], vpairs[1], err, &sattr);
+                attr_done(&sattr);
                 if (tmp == NULL && ftype == LDAP_FILTER_AND)
                 {
                     LDAPDebug( LDAP_DEBUG_TRACE,
@@ -839,10 +836,10 @@ substring_candidates(
     char         *type, *initial, *final;
     char         **any;
     IDList       *idl;
-    void         *pi;
     Slapi_Value  **ivals;
     int          unindexed = 0;
     unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+    Slapi_Attr   sattr;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> sub_candidates\n", 0, 0, 0 );
 
@@ -856,12 +853,9 @@ substring_candidates(
      * get the index keys corresponding to the substring
      * assertion values
      */
-    if ( slapi_attr_type2plugin( type, &pi ) != 0 ) {
-        LDAPDebug( LDAP_DEBUG_TRACE, "  sub_candidates no plugin\n",
-            0, 0, 0 );
-        return( NULL );
-    }
-    slapi_call_syntax_assertion2keys_sub_sv( pi, initial, any, final, &ivals );
+    slapi_attr_init(&sattr, type);
+    slapi_attr_assertion2keys_sub_sv( &sattr, initial, any, final, &ivals );
+    attr_done(&sattr);
     if ( ivals == NULL || *ivals == NULL ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         LDAPDebug( LDAP_DEBUG_TRACE,

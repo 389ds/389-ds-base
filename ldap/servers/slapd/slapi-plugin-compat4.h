@@ -106,6 +106,12 @@ SLAPI_DEPRECATED int slapi_call_syntax_assertion2keys_ava( void *vpi,
 		struct berval *val, struct berval ***ivals, int ftype );
 SLAPI_DEPRECATED int slapi_call_syntax_assertion2keys_sub( void *vpi,
 		char *initial, char **any, char *final, struct berval ***ivals );
+SLAPI_DEPRECATED int slapi_attr_values2keys( const Slapi_Attr *sattr,
+		struct berval **vals, struct berval ***ivals, int ftype );
+SLAPI_DEPRECATED int slapi_attr_assertion2keys_ava( const Slapi_Attr *sattr,
+		struct berval *val, struct berval ***ivals, int ftype );
+SLAPI_DEPRECATED int slapi_attr_assertion2keys_sub( const Slapi_Attr *sattr,
+		char *initial, char **any, char *final, struct berval ***ivals );
 
 /*
  * slapi_entry_attr_hasvalue() has been deprecated in favor of

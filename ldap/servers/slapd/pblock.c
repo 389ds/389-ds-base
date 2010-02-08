@@ -1094,7 +1094,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_syntax_compare;
 		break;
-	case SLAPI_SYNTAX_SUBSTRLENS:
+	case SLAPI_SYNTAX_SUBSTRLENS: /* aka SLAPI_MR_SUBSTRLENS */
 		(*(int **)value) = pblock->pb_substrlens;
 		break;
 	case SLAPI_PLUGIN_SYNTAX_VALIDATE:
@@ -1374,6 +1374,56 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_PLUGIN_MR_USAGE:
 		(*(unsigned int *) value) = pblock->pb_mr_usage;
+		break;
+
+	/* new style matching rule syntax plugin functions */
+	case SLAPI_PLUGIN_MR_FILTER_AVA:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_mr_filter_ava;
+		break;
+	case SLAPI_PLUGIN_MR_FILTER_SUB:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_mr_filter_sub;
+		break;
+	case SLAPI_PLUGIN_MR_VALUES2KEYS:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_mr_values2keys;
+		break;
+	case SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_mr_assertion2keys_ava;
+		break;
+	case SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_mr_assertion2keys_sub;
+		break;
+	case SLAPI_PLUGIN_MR_FLAGS:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(int *)value) = pblock->pb_plugin->plg_mr_flags;
+		break;
+	case SLAPI_PLUGIN_MR_NAMES:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(char ***)value) = pblock->pb_plugin->plg_mr_names;
+		break;
+	case SLAPI_PLUGIN_MR_COMPARE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_mr_compare;
 		break;
 
 	/* seq arguments */
@@ -2371,7 +2421,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_plugin->plg_syntax_compare = (IFP) value;
 		break;
-	case SLAPI_SYNTAX_SUBSTRLENS:
+	case SLAPI_SYNTAX_SUBSTRLENS: /* aka SLAPI_MR_SUBSTRLENS */
 		pblock->pb_substrlens = (int *) value;
 		break;
 	case SLAPI_PLUGIN_SYNTAX_VALIDATE:
@@ -2697,6 +2747,56 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_PLUGIN_MR_USAGE:
 		pblock->pb_mr_usage = *(unsigned int *) value;
+		break;
+
+	/* new style matching rule syntax plugin functions */
+	case SLAPI_PLUGIN_MR_FILTER_AVA:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_filter_ava = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_MR_FILTER_SUB:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_filter_sub = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_MR_VALUES2KEYS:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_values2keys = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_assertion2keys_ava = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_assertion2keys_sub = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_MR_FLAGS:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_flags = *((int *) value);
+		break;
+	case SLAPI_PLUGIN_MR_NAMES:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_names = (char **) value;
+		break;
+	case SLAPI_PLUGIN_MR_COMPARE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_compare = (IFP) value;
 		break;
 
 	/* seq arguments */

@@ -1408,7 +1408,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                                       &psrdn, NULL, 0,
                                                       run_from_cmdline, NULL);
                                 if (rc) {
-                                    LDAPDebugArg(LDAP_DEBUG_ANY,
+                                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
                                           "ldbm2ldif: Failed to get dn of ID "
                                           "%d\n", pid);
                                     slapi_ch_free_string(&rdn);

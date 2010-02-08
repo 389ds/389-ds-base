@@ -1180,7 +1180,7 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 		}
 	}
 
-	syntaxoid = plugin_syntax2oid(asip->asi_plugin);
+	syntaxoid = asip->asi_plugin->plg_syntax_oid;
 
 	if ( !aew->schema_ds4x_compat &&
 				asip->asi_syntaxlength != SLAPI_SYNTAXLENGTH_NONE ) {
@@ -3410,7 +3410,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         /* We only want to use the parent syntax if a SYNTAX
          * wasn't explicitly specified for this attribute. */
         } else if (NULL == pSyntax) {
-            char *pso = plugin_syntax2oid(asi_parent->asi_plugin);
+            char *pso = asi_parent->asi_plugin->plg_syntax_oid;
             
             if (pso) {
                 slapi_ch_free ((void **)&pSyntax);

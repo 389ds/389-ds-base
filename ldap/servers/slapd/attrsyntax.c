@@ -674,6 +674,9 @@ attr_syntax_create(
 	a.asi_origin = (char **)attr_origins;
 	a.asi_plugin = plugin_syntax_find( attr_syntax );
 	a.asi_syntaxlength = syntaxlength;
+	a.asi_mr_eq_plugin = plugin_mr_find( mr_equality );
+	a.asi_mr_ord_plugin = plugin_mr_find( mr_ordering );
+	a.asi_mr_sub_plugin = plugin_mr_find( mr_substring );
 	a.asi_flags = flags;
 
 	/*
@@ -760,10 +763,9 @@ slapi_attr_get_oid_copy( const Slapi_Attr *a, char **oidp )
 int
 slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp )
 {
-	void *pi = NULL;
-
-	if (a && (slapi_attr_type2plugin(a->a_type, &pi) == 0)) {
-		*oidp = slapi_ch_strdup(plugin_syntax2oid(pi));
+	const char *oid;
+	if (a && ((oid = attr_get_syntax_oid(a)))) {
+		*oidp = slapi_ch_strdup(oid);
 		return( 0 );
 	} else {
 		*oidp = NULL;

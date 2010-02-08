@@ -3263,6 +3263,11 @@ int slapi_attr_add_value(Slapi_Attr *a, const Slapi_Value *v);
  * \param pi Address to receive a pointer to the plugin structure.
  * \return \c 0 if successful.
  * \return \c -1 if the plugin is not found.
+ * \deprecated This function was necessary in order to call syntax plugin
+ *             filter and indexing functions - there are new functions
+ *             to use instead, such as slapi_attr_values2keys, etc.
+ *             This function is still used by internal APIs, but new
+ *             code should not use this function
  * \see slapi_attr_get_type()
  * \see slapi_attr_type_cmp()
  * \see slapi_attr_types_equivalent()
@@ -3585,7 +3590,6 @@ int slapi_attr_get_bervals_copy( Slapi_Attr *a, struct berval ***vals );
  * \see slapi_ch_free_string()
  */
 char * slapi_attr_syntax_normalize( const char *s );
-
 
 /*
  * value routines
@@ -4726,6 +4730,9 @@ char * slapi_ch_smprintf(const char *fmt, ...)
 
 /*
  * syntax plugin routines
+ * THESE ARE DEPRECATED - the first argument is the syntax plugin
+ * we do not support that style of call anymore - use the slapi_attr_
+ * versions below instead
  */
 int slapi_call_syntax_values2keys_sv( void *vpi, Slapi_Value **vals,
 	Slapi_Value ***ivals, int ftype );
@@ -4734,6 +4741,15 @@ int slapi_call_syntax_values2keys_sv_pb( void *vpi, Slapi_Value **vals,
 int slapi_call_syntax_assertion2keys_ava_sv( void *vpi, Slapi_Value *val,
 	Slapi_Value ***ivals, int ftype );
 int slapi_call_syntax_assertion2keys_sub_sv( void *vpi, char *initial,
+	char **any, char *final, Slapi_Value ***ivals );
+
+int slapi_attr_values2keys_sv( const Slapi_Attr *sattr, Slapi_Value **vals,
+	Slapi_Value ***ivals, int ftype );
+int slapi_attr_values2keys_sv_pb( const Slapi_Attr *sattr, Slapi_Value **vals,
+	Slapi_Value ***ivals, int ftype, Slapi_PBlock *pb );
+int slapi_attr_assertion2keys_ava_sv( const Slapi_Attr *sattr, Slapi_Value *val,
+	Slapi_Value ***ivals, int ftype );
+int slapi_attr_assertion2keys_sub_sv( const Slapi_Attr *sattr, char *initial,
 	char **any, char *final, Slapi_Value ***ivals );
 
 
@@ -5450,7 +5466,15 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_MR_FILTER_REUSABLE		615
 #define SLAPI_PLUGIN_MR_QUERY_OPERATOR		616
 #define SLAPI_PLUGIN_MR_USAGE			617
-
+/* new style matching rule syntax plugin functions */
+#define SLAPI_PLUGIN_MR_FILTER_AVA		618
+#define SLAPI_PLUGIN_MR_FILTER_SUB		619
+#define SLAPI_PLUGIN_MR_VALUES2KEYS		620
+#define SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA	621
+#define SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB	622
+#define SLAPI_PLUGIN_MR_FLAGS		623
+#define SLAPI_PLUGIN_MR_NAMES		624
+#define SLAPI_PLUGIN_MR_COMPARE		625
 
 /* Defined values of SLAPI_PLUGIN_MR_QUERY_OPERATOR: */
 #define SLAPI_OP_LESS					1
@@ -5484,6 +5508,7 @@ typedef struct slapi_plugindesc {
 
 /* user defined substrlen; not stored in slapdplugin, but pblock itself */
 #define SLAPI_SYNTAX_SUBSTRLENS			709
+#define SLAPI_MR_SUBSTRLENS			SLAPI_SYNTAX_SUBSTRLENS /* alias */
 #define SLAPI_PLUGIN_SYNTAX_VALIDATE		710
 
 /* ACL plugin functions and arguments */

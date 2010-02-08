@@ -65,8 +65,21 @@ slapi_get_global_mr_plugins()
 	return get_plugin_list(PLUGIN_LIST_MATCHINGRULE);
 }
 
+struct slapdplugin *
+plugin_mr_find( const char *nameoroid )
+{
+	struct slapdplugin	*pi;
+
+	for ( pi = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); pi != NULL; pi = pi->plg_next ) {
+		if ( charray_inlist( pi->plg_mr_names, (char *)nameoroid ) ) {
+			break;
+		}
+	}
+	return ( pi );
+}
+
 static struct slapdplugin*
-plugin_mr_find (char* oid)
+plugin_mr_find_registered (char* oid)
 {
 	oid_item_t* i;
 	init_global_mr_lock();
@@ -77,11 +90,11 @@ plugin_mr_find (char* oid)
 	{
 	    if (!strcasecmp (oid, i->oi_oid))
 	    {
-			LDAPDebug (LDAP_DEBUG_FILTER, "plugin_mr_find(%s) != NULL\n", oid, 0, 0);
+			LDAPDebug (LDAP_DEBUG_FILTER, "plugin_mr_find_registered(%s) != NULL\n", oid, 0, 0);
 			return i->oi_plugin;
 	    }
 	}
-    LDAPDebug (LDAP_DEBUG_FILTER, "plugin_mr_find(%s) == NULL\n", oid, 0, 0);
+    LDAPDebug (LDAP_DEBUG_FILTER, "plugin_mr_find_registered(%s) == NULL\n", oid, 0, 0);
     return NULL;
 }
 
@@ -108,7 +121,7 @@ slapi_mr_indexer_create (Slapi_PBlock* opb)
     if (!(rc = slapi_pblock_get (opb, SLAPI_PLUGIN_MR_OID, &oid)))
     {
 		IFP createFn = NULL;
-		struct slapdplugin* mrp = plugin_mr_find (oid);
+		struct slapdplugin* mrp = plugin_mr_find_registered (oid);
 		if (mrp != NULL)
 		{
 		    if (!(rc = slapi_pblock_set (opb, SLAPI_PLUGIN, mrp)) &&
@@ -172,7 +185,7 @@ int /* an LDAP error code, hopefully LDAP_SUCCESS */
 plugin_mr_filter_create (mr_filter_t* f)
 {
     int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
-    struct slapdplugin* mrp = plugin_mr_find (f->mrf_oid);
+    struct slapdplugin* mrp = plugin_mr_find_registered (f->mrf_oid);
     Slapi_PBlock pb;
 
     if (mrp != NULL)

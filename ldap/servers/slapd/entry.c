@@ -465,10 +465,10 @@ typedef struct _str2entry_attr {
  	struct valuearrayfast sa_present_values;
  	struct valuearrayfast sa_deleted_values;
 	int sa_numdups;
-	struct slapdplugin *sa_pi;
 	value_compare_fn_type sa_comparefn;
 	Avlnode *sa_vtree;
 	CSN *sa_attributedeletioncsn;
+	Slapi_Attr sa_attr;
 } str2entry_attr;
 
 static void
@@ -479,10 +479,10 @@ entry_attr_init(str2entry_attr *sa, const char *type, int state)
 	valuearrayfast_init(&sa->sa_present_values,NULL);
 	valuearrayfast_init(&sa->sa_deleted_values,NULL);
     sa->sa_numdups= 0;
-	sa->sa_pi= NULL;
 	sa->sa_comparefn = NULL;
     sa->sa_vtree= NULL;
 	sa->sa_attributedeletioncsn= NULL;
+	slapi_attr_init(&sa->sa_attr, type);
 }
 
 /*
@@ -829,18 +829,8 @@ str2entry_dupcheck( const char *dn, char *s, int flags, int read_stateinfo )
 
 			if ( check_for_duplicate_values )
 			{
-				if ( slapi_attr_type2plugin( type,(void **)&(attrs[nattrs].sa_pi) ) != 0 )
-				{
-					LDAPDebug( LDAP_DEBUG_ANY,
-						"<= str2entry_dupcheck NULL (slapi_attr_type2plugin)\n",
-						0, 0, 0 );
-					slapi_entry_free( e ); e = NULL;
-					if (retmalloc) slapi_ch_free_string(&valuecharptr);
-					if (freetype) slapi_ch_free_string(&type);
-					goto free_and_return;
-				}
 				/* Get the comparison function for later use */
-				plugin_call_syntax_get_compare_fn( attrs[nattrs].sa_pi, &(attrs[nattrs].sa_comparefn));
+				attr_get_value_cmp_fn( &attrs[nattrs].sa_attr, &(attrs[nattrs].sa_comparefn));
 				/*
 				 * If the compare function wasn't available,
 				 * we have to revert to AVL-tree-based dup checking,
@@ -904,9 +894,9 @@ str2entry_dupcheck( const char *dn, char *s, int flags, int read_stateinfo )
 				if (sa->sa_present_values.num > STR2ENTRY_VALUE_DUPCHECK_THRESHOLD)
 				{
 					/* Make the tree from the existing attr values */
-					rc= valuetree_add_valuearray( sa->sa_type, sa->sa_pi, sa->sa_present_values.va, &sa->sa_vtree, NULL);
+					rc= valuetree_add_valuearray( &sa->sa_attr, sa->sa_present_values.va, &sa->sa_vtree, NULL);
 					/* Check if the value already exists, in the tree. */
-					rc= valuetree_add_value( sa->sa_type, sa->sa_pi, value, &sa->sa_vtree);
+					rc= valuetree_add_value( &sa->sa_attr, value, &sa->sa_vtree);
 					fast_dup_check = 0;
 				}
 				else
@@ -927,7 +917,7 @@ str2entry_dupcheck( const char *dn, char *s, int flags, int read_stateinfo )
 			else
 			{
 				/* Check if the value already exists, in the tree. */
-				rc = valuetree_add_value( sa->sa_type, sa->sa_pi, value, &sa->sa_vtree);
+				rc = valuetree_add_value( &sa->sa_attr, value, &sa->sa_vtree);
 			}
 		}
 
@@ -1078,6 +1068,7 @@ free_and_return:
 		valuearrayfast_done(&attrs[ i ].sa_present_values);
 		valuearrayfast_done(&attrs[ i ].sa_deleted_values);
 		valuetree_free( &attrs[ i ].sa_vtree );
+		attr_done( &attrs[ i ].sa_attr );
     }
 	if (tree_attr_checking)
 	{

@@ -106,9 +106,6 @@ struct vlvIndex
     /* Attribute Structure maps filename onto index */
     struct attrinfo *vlv_attrinfo;
 
-    /* Syntax Plugin.  One for each LDAPsortkey */
-    void **vlv_syntax_plugin;
-
     /* Matching Rule PBlock. One for each LDAPsortkey */
 	Slapi_PBlock **vlv_mrpb;
 

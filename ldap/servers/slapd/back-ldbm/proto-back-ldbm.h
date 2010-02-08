@@ -418,12 +418,13 @@ int ldbm_back_rmdb( Slapi_PBlock *pb );
  */
 struct sort_spec_thing
 {
-    char *type;
+    char *type; /* attribute type */
     char *matchrule; /* Matching rule string */
     int order; /* 0 == ascending, 1 == decending */
     struct sort_spec_thing *next;    /* Link to the next one */
     Slapi_PBlock *mr_pb; /* For matchrule indexing */
     value_compare_fn_type compare_fn; /* For non-matchrule indexing */
+    Slapi_Attr sattr;
 };
 typedef struct sort_spec_thing sort_spec_thing;
 typedef struct sort_spec_thing sort_spec;

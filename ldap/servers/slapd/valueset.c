@@ -616,12 +616,11 @@ typedef struct valuetree_node
  *  and *valuetreep is set to NULL.
  */
 int
-valuetree_add_valuearray( const char *type, struct slapdplugin *pi, Slapi_Value **va, Avlnode **valuetreep, int *duplicate_index )
+valuetree_add_valuearray( const Slapi_Attr *sattr, Slapi_Value **va, Avlnode **valuetreep, int *duplicate_index )
 {
 	int rc= LDAP_SUCCESS;
 
-	PR_ASSERT(type!=NULL);
-	PR_ASSERT(pi!=NULL);
+	PR_ASSERT(sattr!=NULL);
 	PR_ASSERT(valuetreep!=NULL);
 
 	if ( duplicate_index ) {
@@ -632,9 +631,9 @@ valuetree_add_valuearray( const char *type, struct slapdplugin *pi, Slapi_Value 
 	{
 		Slapi_Value	**keyvals;
 		/* Convert the value array into key values */
-		if ( slapi_call_syntax_values2keys_sv( pi, (Slapi_Value**)va, &keyvals, LDAP_FILTER_EQUALITY ) != 0 ) /* jcm cast */
+		if ( slapi_attr_values2keys_sv( sattr, (Slapi_Value**)va, &keyvals, LDAP_FILTER_EQUALITY ) != 0 ) /* jcm cast */
 		{
-			LDAPDebug( LDAP_DEBUG_ANY,"slapi_call_syntax_values2keys for attribute %s failed\n", type, 0, 0 );
+			LDAPDebug( LDAP_DEBUG_ANY,"slapi_attr_values2keys_sv for attribute %s failed\n", sattr->a_type, 0, 0 );
 			rc= LDAP_OPERATIONS_ERROR;
 		}
 		else
@@ -645,7 +644,7 @@ valuetree_add_valuearray( const char *type, struct slapdplugin *pi, Slapi_Value 
 			{
 				if ( keyvals[i] == NULL )
 				{
-					LDAPDebug( LDAP_DEBUG_ANY,"slapi_call_syntax_values2keys for attribute %s did not return enough key values\n", type, 0, 0 );
+					LDAPDebug( LDAP_DEBUG_ANY,"slapi_attr_values2keys_sv for attribute %s did not return enough key values\n", sattr->a_type, 0, 0 );
 					rc= LDAP_OPERATIONS_ERROR;
 				}
 				else
@@ -685,12 +684,12 @@ valuetree_add_valuearray( const char *type, struct slapdplugin *pi, Slapi_Value 
 }
 
 int
-valuetree_add_value( const char *type, struct slapdplugin *pi, const Slapi_Value *v, Avlnode **valuetreep)
+valuetree_add_value( const Slapi_Attr *sattr, const Slapi_Value *v, Avlnode **valuetreep)
 {
     Slapi_Value *va[2];
     va[0]= (Slapi_Value*)v;
     va[1]= NULL;
-	return valuetree_add_valuearray( type, pi, va, valuetreep, NULL);
+	return valuetree_add_valuearray( sattr, va, valuetreep, NULL);
 }
 
 
@@ -714,7 +713,7 @@ valuetree_find( const struct slapi_attr *a, const Slapi_Value *v, Avlnode *value
 	PR_ASSERT(valuetree!=NULL);
 	PR_ASSERT(index!=NULL);
 
-	if ( a == NULL || a->a_plugin == NULL || v == NULL || valuetree == NULL )
+	if ( a == NULL || v == NULL || valuetree == NULL )
 	{
 		return( LDAP_OPERATIONS_ERROR );
 	}
@@ -722,12 +721,12 @@ valuetree_find( const struct slapi_attr *a, const Slapi_Value *v, Avlnode *value
 	keyvals = NULL;
 	oneval[0] = v;
 	oneval[1] = NULL;
-	if ( slapi_call_syntax_values2keys_sv( a->a_plugin, (Slapi_Value**)oneval, &keyvals, LDAP_FILTER_EQUALITY ) != 0 /* jcm cast */
+	if ( slapi_attr_values2keys_sv( a, (Slapi_Value**)oneval, &keyvals, LDAP_FILTER_EQUALITY ) != 0 /* jcm cast */
 	    || keyvals == NULL
 	    || keyvals[0] == NULL )
 	{
 		LDAPDebug( LDAP_DEBUG_ANY, "valuetree_find_and_replace: "
-		    "slapi_call_syntax_values2keys failed for type %s\n",
+		    "slapi_attr_values2keys_sv failed for type %s\n",
 		    a->a_type, 0, 0 );
 		return( LDAP_OPERATIONS_ERROR );
 	}
@@ -1104,7 +1103,7 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 			 */
 			Avlnode	*vtree = NULL;
 			int numberofexistingvalues= slapi_valueset_count(vs);
-			rc= valuetree_add_valuearray( a->a_type, a->a_plugin, vs->va, &vtree, NULL );
+			rc= valuetree_add_valuearray( a, vs->va, &vtree, NULL );
 			if ( rc!=LDAP_SUCCESS )
 			{
 				/*
@@ -1286,14 +1285,14 @@ valueset_intersectswith_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 			 * Several values to add: use an AVL tree to detect duplicates.
 			 */
 			Avlnode	*vtree = NULL;
-			rc= valuetree_add_valuearray( a->a_type, a->a_plugin, vs->va, &vtree, duplicate_index );
+			rc= valuetree_add_valuearray( a, vs->va, &vtree, duplicate_index );
 			if(rc==LDAP_OPERATIONS_ERROR)
 			{
 				/* There were already duplicate values in the value set */
 			}
 			else
 			{
-				rc= valuetree_add_valuearray( a->a_type, a->a_plugin, values, &vtree, duplicate_index );
+				rc= valuetree_add_valuearray( a, values, &vtree, duplicate_index );
 				/*
 				 * Returns LDAP_OPERATIONS_ERROR if something very bad happens.
 				 * Or LDAP_TYPE_OR_VALUE_EXISTS if a value already exists.
@@ -1356,7 +1355,7 @@ valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **valstoreplace)
     if (numberofvalstoreplace > 1)
     {
         Avlnode *vtree = NULL;
-        rc = valuetree_add_valuearray( a->a_type, a->a_plugin, valstoreplace, &vtree, NULL );
+        rc = valuetree_add_valuearray( a, valstoreplace, &vtree, NULL );
         valuetree_free(&vtree);
         if ( LDAP_SUCCESS != rc &&
              /* bz 247413: don't override LDAP_TYPE_OR_VALUE_EXISTS */
@@ -1396,7 +1395,7 @@ valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 		{
 			int i;
 			Avlnode	*vtree = NULL;
-			int rc= valuetree_add_valuearray( a->a_type, a->a_plugin, vs->va, &vtree, NULL );
+			int rc= valuetree_add_valuearray( a, vs->va, &vtree, NULL );
 			PR_ASSERT(rc==LDAP_SUCCESS);
 			for (i=0;valuestoupdate[i]!=NULL;++i)
 			{

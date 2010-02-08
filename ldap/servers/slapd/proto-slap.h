@@ -69,6 +69,27 @@ int attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn);
 int attr_replace(Slapi_Attr *a, Slapi_Value **vals);
 int attr_check_onoff ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
 int attr_check_minmax ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
+/**
+ * Returns the function which can be used to compare (like memcmp/strcmp)
+ * two values of this type of attribute.  The comparison function will use
+ * the ORDERING matching rule if available, or the default comparison
+ * function from the syntax plugin.
+ * Note: if there is no ORDERING matching rule, and the syntax does not
+ * provide an ordered compare function, this function will return
+ * LDAP_PROTOCOL_ERROR and compare_fn will be NULL.
+ * Returns LDAP_SUCCESS if successful and sets *compare_fn to the function.
+ *
+ * \param attr The attribute to use
+ * \param compare_fn address of function pointer to set to the function to use
+ * \return LDAP_SUCCESS - success
+ *         LDAP_PARAM_ERROR - attr is NULL
+ *         LDAP_PROTOCOL_ERROR - attr does not support an ordering compare function
+ * \see value_compare_fn_type
+ */
+int attr_get_value_cmp_fn(const Slapi_Attr *attr, value_compare_fn_type *compare_fn);
+/* return the OID of the syntax for this attribute */
+const char *attr_get_syntax_oid(const Slapi_Attr *attr);
+
 
 /*
  * attrlist.c
@@ -145,8 +166,8 @@ void valuearrayfast_add_value(struct valuearrayfast *vaf,const Slapi_Value *v);
 void valuearrayfast_add_value_passin(struct valuearrayfast *vaf,Slapi_Value *v);
 void valuearrayfast_add_valuearrayfast(struct valuearrayfast *vaf,const struct valuearrayfast *vaf_add);
 
-int valuetree_add_value( const char *type, struct slapdplugin *pi, const Slapi_Value *va, Avlnode **valuetreep);
-int valuetree_add_valuearray( const char *type, struct slapdplugin *pi, Slapi_Value **va, Avlnode **valuetreep, int *duplicate_index);
+int valuetree_add_value( const Slapi_Attr *sattr, const Slapi_Value *va, Avlnode **valuetreep);
+int valuetree_add_valuearray( const Slapi_Attr *sattr, Slapi_Value **va, Avlnode **valuetreep, int *duplicate_index);
 void valuetree_free( Avlnode **valuetreep );
 
 /* Valueset functions */
@@ -779,6 +800,7 @@ void plugin_print_lists(void);
  */
 struct slapdplugin *slapi_get_global_mr_plugins();
 int plugin_mr_filter_create (mr_filter_t* f);
+struct slapdplugin *plugin_mr_find( const char *nameoroid );
 
 /*
  * plugin_syntax.c

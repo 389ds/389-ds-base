@@ -467,7 +467,6 @@ struct attrinfo {
                                          * yet. */
 
 #define	IS_INDEXED( a )	( a & INDEX_ANY )
-	void	*ai_plugin; /* the syntax plugin for this attribute */
 	char	**ai_index_rules; /* matching rule OIDs */
 	void	*ai_dblayer;	  /* private data used by the dblayer code */
 	PRInt32 ai_dblayer_count; /* used by the dblayer code */
@@ -475,7 +474,7 @@ struct attrinfo {
 	attrcrypt_private	*ai_attrcrypt;  /* private data used by the attribute encryption code (eg is it enabled or not) */
 	value_compare_fn_type ai_key_cmp_fn; /* function used to compare two index keys -
 											The function is the compare function provided by
-											ai_plugin - this function is used to order
+											attr_get_value_cmp_fn - this function is used to order
 											the keys in the index so that we can use ORDERING
 											searches.  In order for this function to be used,
 											the syntax plugin must define a compare function,
@@ -495,6 +494,7 @@ struct attrinfo {
 							 * len value(s) are stored here.  If not specified, 
 							 * the default length triplet is 2, 3, 2.
                              */
+	Slapi_Attr ai_sattr;	/* interface to syntax and matching rule plugins */
 };
 
 #define MAXDBCACHE	20

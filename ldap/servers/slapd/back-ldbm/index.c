@@ -54,7 +54,7 @@ static const char *errmsg = "database index operation failed";
 static int   is_indexed (const char* indextype, int indexmask, char** index_rules);
 static Slapi_Value **
 valuearray_minus_valuearray(
-    void *plugin, 
+    const Slapi_Attr *sattr, 
     Slapi_Value **a, 
     Slapi_Value **b
 );
@@ -1848,8 +1848,7 @@ index_addordel_values_ext_sv(
         /* on delete, only remove the equality index if the
          * BE_INDEX_EQUALITY flag is set.
          */
-        slapi_call_syntax_values2keys_sv( ai->ai_plugin, vals, &ivals, 
-                                          LDAP_FILTER_EQUALITY );
+        slapi_attr_values2keys_sv( &ai->ai_sattr, vals, &ivals, LDAP_FILTER_EQUALITY );
 
         err = addordel_values_sv( be, db, basetype, indextype_EQUALITY,
                                   ivals != NULL ? ivals : vals, id, flags, txn, ai, idl_disposition, NULL );
@@ -1866,8 +1865,7 @@ index_addordel_values_ext_sv(
      * approximate index entry
      */
     if ( ai->ai_indexmask & INDEX_APPROX ) {
-        slapi_call_syntax_values2keys_sv( ai->ai_plugin, vals, &ivals, 
-                                          LDAP_FILTER_APPROX );
+        slapi_attr_values2keys_sv( &ai->ai_sattr, vals, &ivals, LDAP_FILTER_APPROX );
 
         if ( ivals != NULL ) {
             err = addordel_values_sv( be, db, basetype,
@@ -1892,19 +1890,19 @@ index_addordel_values_ext_sv(
 		/* prepare pblock to pass ai_substr_lens */
 		pblock_init( &pipb );
 		slapi_pblock_set( &pipb, SLAPI_SYNTAX_SUBSTRLENS, ai->ai_substr_lens );
-        slapi_call_syntax_values2keys_sv_pb( ai->ai_plugin, vals, &ivals, 
+        slapi_attr_values2keys_sv_pb( &ai->ai_sattr, vals, &ivals, 
                                           LDAP_FILTER_SUBSTRINGS, &pipb );
 
         origvals = ivals;
         /* delete only: if the attribute has multiple values,
          * figure out the substrings that should remain
-         * by slapi_call_syntax_values2keys,
+         * by slapi_attr_values2keys,
          * then get rid of them from the being deleted values
          */
         if ( evals != NULL ) {
-            slapi_call_syntax_values2keys_sv_pb( ai->ai_plugin, evals,
+            slapi_attr_values2keys_sv_pb( &ai->ai_sattr, evals,
 							&esubvals, LDAP_FILTER_SUBSTRINGS, &pipb );
-            substresult = valuearray_minus_valuearray( ai->ai_plugin, ivals, esubvals );
+            substresult = valuearray_minus_valuearray( &ai->ai_sattr, ivals, esubvals );
             ivals = substresult;
             valuearray_free( &esubvals );
         }
@@ -2070,7 +2068,7 @@ bvals_strcasecmp(const struct berval *a, const struct berval *b)
 /* the returned array of Slapi_Value needs to be freed. */
 static Slapi_Value **
 valuearray_minus_valuearray(
-    void *plugin, 
+    const Slapi_Attr *sattr, 
     Slapi_Value **a, 
     Slapi_Value **b
 )
@@ -2081,7 +2079,7 @@ valuearray_minus_valuearray(
     value_compare_fn_type cmp_fn;
 
     /* get berval comparison function */
-    plugin_call_syntax_get_compare_fn(plugin, &cmp_fn);
+    attr_get_value_cmp_fn(sattr, &cmp_fn);
     if (cmp_fn == NULL) {
         cmp_fn = (value_compare_fn_type)bvals_strcasecmp;
     }
