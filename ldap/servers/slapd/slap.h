@@ -2014,6 +2014,7 @@ typedef struct _slapdFrontendConfig {
   char *workingdir;	/* full path of directory before detach */
   char *configdir;  /* full path name of directory containing configuration files */
   char *schemadir;  /* full path name of directory containing schema files */
+  char *instancedir;/* full path name of instance directory */
   char *lockdir;    /* full path name of directory containing lock files */
   char *tmpdir;     /* full path name of directory containing tmp files */
   char *certdir;    /* full path name of directory containing cert files */
