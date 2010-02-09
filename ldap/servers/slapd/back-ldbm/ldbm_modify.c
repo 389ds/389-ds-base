@@ -185,7 +185,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	backend *be;
 	ldbm_instance *inst;
 	struct ldbminfo		*li;
-	struct backentry	*e, *ec = NULL;
+	struct backentry	*e = NULL, *ec = NULL;
 	Slapi_Entry		*postentry = NULL;
 	LDAPMod			**mods;
 	Slapi_Mods smods = {0};
@@ -219,6 +219,17 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
 
+	if (NULL == addr)
+	{
+		goto error_return;
+	}
+	ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
+	if (ldap_result_code)
+	{
+		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+		goto error_return;
+	}
 	dblayer_txn_init(li,&txn);
 
 	/* The dblock serializes writes to the database,
@@ -507,8 +518,10 @@ error_return:
 	if (disk_full)
 	    rc= return_on_disk_full(li);
 	else if (ldap_result_code != LDAP_SUCCESS) {
-	    /* It is specifically OK to make this call even when no transaction was in progress */
-	    dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		if (retry_count > 0) {
+			/* It is safer not to abort when the transaction is not started. */
+			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		}
 	    rc= SLAPI_FAIL_GENERAL;
 	}
 

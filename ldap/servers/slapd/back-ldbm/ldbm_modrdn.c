@@ -80,11 +80,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	IDList *children= NULL;
 	struct backentry **child_entries= NULL;
 	struct backentry **child_entry_copies= NULL;
-	Slapi_DN dn_olddn;
-	Slapi_DN dn_newdn;
-	Slapi_DN dn_newrdn;
-	Slapi_DN dn_newsuperiordn;
-    Slapi_DN dn_parentdn;
+	Slapi_DN dn_olddn = {0};
+	Slapi_DN dn_newdn = {0};
+	Slapi_DN dn_newrdn = {0};
+	Slapi_DN dn_newsuperiordn = {0};
+    Slapi_DN dn_parentdn = {0};
 	int rc;
 	int isroot;
     LDAPMod **mods;
@@ -202,8 +202,21 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 			newdn= moddn_get_newdn(pb,&dn_olddn,&dn_newrdn,&dn_newsuperiordn);
 			slapi_sdn_set_dn_passin(&dn_newdn,newdn);
 			new_addr.dn = (char*)slapi_sdn_get_ndn (&dn_newdn);
+			/* check dn syntax on newdn */
+			ldap_result_code = slapi_dn_syntax_check(pb, new_addr.dn, 1);
+			if (ldap_result_code)
+			{
+				ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+				goto error_return;
+			}
 			new_addr.uniqueid = NULL;
 			ldap_result_code= get_copy_of_entry(pb, &new_addr, &txn, SLAPI_MODRDN_EXISTING_ENTRY, 0);
+			if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+			   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+			{
+				goto error_return;
+			}
 		}
 	    if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY))
 		{
@@ -819,8 +832,10 @@ error_return:
 	}
 	else 
 	{
-	    /* It is specifically OK to make this call even when no transaction was in progress */
-	    dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		/* It is safer not to abort when the transaction is not started. */
+		if (retry_count > 0) {
+	    	dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		}
 		retval= SLAPI_FAIL_GENERAL;
 	}
 

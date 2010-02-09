@@ -49,7 +49,7 @@ int
 ldbm_back_delete( Slapi_PBlock *pb )
 {
 	backend *be;
-	ldbm_instance *inst;
+	ldbm_instance *inst = NULL;
 	struct ldbminfo	*li = NULL;
 	struct backentry *e = NULL;
 	struct backentry *tombstone = NULL;
@@ -63,7 +63,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int disk_full = 0;
 	int parent_found = 0;
 	modify_context parent_modify_c = {0};
-	int rc;
+	int rc = 0;
 	int ldap_result_code= LDAP_SUCCESS;
 	char *ldap_result_message= NULL;
 	Slapi_DN sdn;
@@ -97,6 +97,18 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	if (pb->pb_conn)
 	{
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "enter conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
+	}
+
+	if (NULL == addr)
+	{
+		goto error_return;
+	}
+	ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
+	if (ldap_result_code)
+	{
+		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+		goto error_return;
 	}
 
 	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
@@ -163,6 +175,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		 */
 		ldap_result_code= get_copy_of_entry(pb, addr, &txn,
 						SLAPI_DELETE_EXISTING_ENTRY, !is_replicated_operation);
+		if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+		   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+		{
+			goto error_return;
+		}
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 		if(plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN)==-1)
 		{

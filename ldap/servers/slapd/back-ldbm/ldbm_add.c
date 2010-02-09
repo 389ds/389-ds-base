@@ -73,7 +73,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	struct ldbminfo *li;
 	ldbm_instance *inst;
 	char *dn = NULL;
-	Slapi_Entry	*e;
+	Slapi_Entry	*e = NULL;
 	struct backentry *tombstoneentry = NULL;
 	struct backentry *addingentry = NULL;
 	struct backentry *parententry = NULL;
@@ -189,6 +189,17 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
 		{
 			slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn );
+			if (NULL == dn)
+			{
+				goto error_return;
+			}
+			ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
+			if (ldap_result_code)
+			{
+				ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+				goto error_return;
+			}
 			slapi_sdn_set_dn_byref(&sdn, dn);
 			slapi_sdn_get_backend_parent(&sdn,&parentsdn,pb->pb_backend);
 			/* Check if an entry with the intended DN already exists. */
@@ -196,6 +207,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 			addr.dn = dn;
 			addr.uniqueid = NULL;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_DN_ENTRY, !is_replicated_operation);
+			if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+			   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+			{
+				goto error_return;
+			}
 		}
 		/* if we can find the parent by dn or uniqueid, and the operation has requested the parent
 		   then get it */
@@ -622,6 +638,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 				goto diskfull_return;
 			}
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			retry_count = RETRY_TIMES; /* otherwise, the transaction may not 
+										  be aborted */
 			goto error_return; 
 		}
 		if(is_resurect_operation)
@@ -641,6 +659,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 			retval = index_addordel_string(be,SLAPI_ATTR_UNIQUEID,slapi_entry_get_uniqueid(addingentry->ep_entry),addingentry->ep_id,BE_INDEX_DEL,&txn);
@@ -658,6 +678,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 			retval = index_addordel_string(be,SLAPI_ATTR_NSCP_ENTRYDN,slapi_sdn_get_ndn(&sdn),addingentry->ep_id,BE_INDEX_DEL,&txn);
@@ -675,6 +697,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 		} 
@@ -701,6 +725,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 				goto diskfull_return;
 			}
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+										  be aborted */
 			goto error_return; 
 		}
 		if (parent_found) {
@@ -721,6 +747,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 		}
@@ -746,6 +774,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
+											  be aborted */
 				goto error_return; 
 			}
 		}
@@ -833,8 +863,10 @@ error_return:
 		disk_full = 1;
 	}
 
-	/* It is specifically OK to make this call even when no transaction was in progress */
-	dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+	/* It is safer not to abort when the transaction is not started. */
+	if (retry_count > 0) {
+		dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+	}
 diskfull_return:
 
 	if (disk_full)
