@@ -27,7 +27,12 @@ AC_ARG_WITH(pcre, [  --with-pcre=PATH   Perl Compatible Regular Expression direc
   if test "$withval" = "yes"; then
     AC_MSG_RESULT(yes)
     dnl - check in system locations
-    if test -f "/usr/include/pcre.h"; then
+    if test -f "/usr/include/pcre/pcre.h"; then
+      pcre_incdir="/usr/include/pcre"
+      pcre_inc="-I/usr/include/pcre"
+      pcre_lib='-L$(libdir)'
+      pcre_libdir='$(libdir)'
+    elif test -f "/usr/include/pcre.h"; then
       pcre_incdir="/usr/include"
       pcre_inc="-I/usr/include"
       pcre_lib='-L$(libdir)'

@@ -27061,7 +27061,12 @@ if test "${with_pcre+set}" = set; then
   if test "$withval" = "yes"; then
     echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
-        if test -f "/usr/include/pcre.h"; then
+        if test -f "/usr/include/pcre/pcre.h"; then
+      pcre_incdir="/usr/include/pcre"
+      pcre_inc="-I/usr/include/pcre"
+      pcre_lib='-L$(libdir)'
+      pcre_libdir='$(libdir)'
+    elif test -f "/usr/include/pcre.h"; then
       pcre_incdir="/usr/include"
       pcre_inc="-I/usr/include"
       pcre_lib='-L$(libdir)'
