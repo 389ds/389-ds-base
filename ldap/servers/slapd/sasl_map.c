@@ -543,8 +543,8 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 				"regex: %s, subject: %s (%d)\n",
 				dp->regular_expression, sasl_user_and_realm, matched);
 		}
-		slapi_re_free(re);
 	}
+	slapi_re_free(re);
 	LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_check\n", 0, 0, 0 );
 	return ret;
 }
