@@ -94,6 +94,7 @@ be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, i
     be->be_state_lock = PR_NewLock();
     be->be_name = slapi_ch_strdup(name);
     be->be_mapped = 0;
+    be->be_usn_counter = 0;
 }
 
 void 
