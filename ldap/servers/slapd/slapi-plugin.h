@@ -1337,6 +1337,25 @@ int slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e );
 int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
 
 /**
+ * Determines if the DN violates the Distinguished Name syntax rules.
+ *
+ * \param pb Parameter block.
+ * \param dn The dn string you want to check.
+ * \param override Flag to override the server configuration and force syntax checking
+ *        to be performed.
+ * \return \c 0 if the DN complies with the Distinguished Name syntax rules or if
+ *         syntax checking is disabled.
+ * \return \c 1 if the DN violates the Distinguished Name syntax rules.  If the \c pb
+ *         parameter was passed in, an error message will be set in the
+ *         #SLAPI_PB_RESULT_TEXT parameter.
+ * \warning The \c pb parameter can be \c NULL.  It is used to store an error
+ *         message with details of any syntax violations.  The \c pb paramter
+ *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
+ *         set.   If that flag is present, no syntax checking is performed.
+ */
+int slapi_dn_syntax_check( Slapi_PBlock *pb, char *dn, int override );
+
+/**
  * Determines if any values being added to an entry violate the syntax rules
  * imposed by the associated attribute type.
  *
