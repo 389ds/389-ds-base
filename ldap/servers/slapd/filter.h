@@ -58,7 +58,6 @@ typedef struct mr_filter_t {
     char*         mrf_type;
     struct berval mrf_value;
     char          mrf_dnAttrs;
-    struct slapdplugin* mrf_plugin;
     mrFilterMatchFn mrf_match;
     mrf_plugin_fn mrf_index;
     unsigned int  mrf_reusable; /* MRF_ANY_xxx */
