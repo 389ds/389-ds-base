@@ -47,8 +47,15 @@
 
 #include "slap.h"
 
+struct mr_indexer_private {
+	Slapi_Value **sva; /* if using index_sv_fn */
+	struct berval **bva; /* if using index_fn */
+};
+
 static oid_item_t* global_mr_oids = NULL;
 static PRLock* global_mr_oids_lock = NULL;
+
+static int default_mr_indexer_create(Slapi_PBlock* pb);
 
 static void
 init_global_mr_lock()
@@ -76,6 +83,27 @@ plugin_mr_find( const char *nameoroid )
 		}
 	}
 	return ( pi );
+}
+
+static int
+plugin_mr_get_type(struct slapdplugin *pi)
+{
+	int rc = LDAP_FILTER_EQUALITY;
+	if (pi) {
+		char **str = pi->plg_mr_names;
+		for (; str && *str; ++str) {
+			if (PL_strcasestr(*str, "substr")) {
+				rc = LDAP_FILTER_SUBSTRINGS;
+				break;
+			}
+			if (PL_strcasestr(*str, "approx")) {
+				rc = LDAP_FILTER_APPROX;
+				break;
+			}
+		}
+	}
+
+	return rc;
 }
 
 static struct slapdplugin*
@@ -144,15 +172,32 @@ slapi_mr_indexer_create (Slapi_PBlock* opb)
 				    !(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) &&
 				    createFn != NULL &&
 				    !(rc = createFn (&pb)) &&
-				    !(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn)) &&
-				    indexFn != NULL)
+					((!(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn)) &&
+					 indexFn != NULL) ||
+					 (!(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexFn)) &&
+					  indexFn != NULL)))
 				{
 				    /* Success: this plugin can handle it. */
 				    memcpy (opb, &pb, sizeof(Slapi_PBlock));
 				    plugin_mr_bind (oid, mrp); /* for future reference */
+					rc = 0; /* success */
 				    break;
 				}
 		    }
+			if (rc != 0) {
+				/* look for a new syntax-style mr plugin */
+				struct slapdplugin *pi = plugin_mr_find(oid);
+				if (pi) {
+					Slapi_PBlock pb;
+					memcpy (&pb, opb, sizeof(Slapi_PBlock));
+					slapi_pblock_set(&pb, SLAPI_PLUGIN, pi);
+					rc = default_mr_indexer_create(&pb);
+					if (!rc) {
+						memcpy (opb, &pb, sizeof(Slapi_PBlock));
+						plugin_mr_bind (oid, pi); /* for future reference */
+					}
+				}
+			}
 		}
     }
     return rc;
@@ -227,5 +272,138 @@ slapi_mr_filter_index (Slapi_Filter* f, Slapi_PBlock* pb)
 		rc = f->f_mr.mrf_index (pb);
     }
     return rc;
+}
+
+static struct mr_indexer_private *
+mr_indexer_private_new()
+{
+	return (struct mr_indexer_private *)slapi_ch_calloc(1, sizeof(struct mr_indexer_private));
+}
+
+static void
+mr_indexer_private_done(struct mr_indexer_private *mrip)
+{
+	if (mrip && mrip->sva) {
+		valuearray_free(&mrip->sva);
+	} else if (mrip && mrip->bva) {
+		ber_bvecfree(mrip->bva);
+		mrip->bva = NULL;
+	}
+}
+
+static void
+mr_indexer_private_free(struct mr_indexer_private **mrip)
+{
+	if (mrip) {
+		mr_indexer_private_done(*mrip);
+		slapi_ch_free((void **)mrip);
+	}
+}
+
+/* this function takes SLAPI_PLUGIN_MR_VALUES as Slapi_Value ** and
+   returns SLAPI_PLUGIN_MR_KEYS as Slapi_Value **
+*/
+static int
+mr_wrap_mr_index_sv_fn(Slapi_PBlock* pb)
+{
+	int rc = -1;
+	Slapi_Value **in_vals = NULL;
+	Slapi_Value **out_vals = NULL;
+	struct slapdplugin *pi = NULL;
+	
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals); /* make sure output is cleared */
+	slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
+	if (!pi) {
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "mr_wrap_mr_index_sv_fn: error - no plugin specified\n");
+	} else if (!pi->plg_mr_values2keys) {
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "mr_wrap_mr_index_sv_fn: error - plugin has no plg_mr_values2keys function\n");
+	} else {
+		struct mr_indexer_private *mrip = NULL;
+		int ftype = plugin_mr_get_type(pi);
+		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &in_vals);
+		(*pi->plg_mr_values2keys)(pb, in_vals, &out_vals, ftype);
+		slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals);
+		/* we have to save out_vals to free next time or during destroy */
+		slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrip);
+		mr_indexer_private_done(mrip); /* free old vals, if any */
+		mrip->sva = out_vals; /* save pointer for later */
+		rc = 0;
+	}
+	return rc;
+}
+
+/* this function takes SLAPI_PLUGIN_MR_VALUES as struct berval ** and
+   returns SLAPI_PLUGIN_MR_KEYS as struct berval **
+*/
+static int
+mr_wrap_mr_index_fn(Slapi_PBlock* pb)
+{
+	int rc = -1;
+	struct berval **in_vals = NULL;
+	struct berval **out_vals = NULL;
+	struct mr_indexer_private *mrip = NULL;
+	Slapi_Value **in_vals_sv = NULL;
+	Slapi_Value **out_vals_sv = NULL;
+
+	slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &in_vals); /* get bervals */
+	/* convert bervals to sv ary */
+	valuearray_init_bervalarray(in_vals, &in_vals_sv);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals_sv); /* use sv */
+	rc = mr_wrap_mr_index_sv_fn(pb);
+	/* get result sv keys */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &out_vals_sv);
+	/* convert to bvec */
+	valuearray_get_bervalarray(out_vals_sv, &out_vals);
+	valuearray_free(&out_vals_sv); /* don't need svals */
+	/* we have to save out_vals to free next time or during destroy */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrip);
+	mr_indexer_private_done(mrip); /* free old vals, if any */
+	mrip->bva = out_vals; /* save pointer for later */
+
+	return rc;
+}
+
+static int
+default_mr_indexer_destroy(Slapi_PBlock* pb)
+{
+	struct mr_indexer_private *mrip = NULL;
+
+	slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrip);
+	mr_indexer_private_free(&mrip);
+	mrip = NULL;
+	slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrip);
+
+	return 0;
+}
+
+/* this is the default mr indexer create func
+   for new syntax-style mr plugins */
+static int
+default_mr_indexer_create(Slapi_PBlock* pb)
+{
+	int rc = -1;
+	struct slapdplugin *pi = NULL;
+	
+	slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
+	if (NULL == pi) {
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "default_mr_indexer_create: error - no plugin specified\n");
+		goto done;
+	}
+
+	if (NULL == pi->plg_mr_values2keys) {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, "default_mr_indexer_create: error - plugin [%s] has no plg_mr_values2keys function\n",
+					  pi->plg_name);
+		goto done;
+	}
+
+	slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mr_indexer_private_new());
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_FN, mr_wrap_mr_index_fn);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, mr_wrap_mr_index_sv_fn);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_DESTROY_FN, default_mr_indexer_destroy);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, default_mr_indexer_create);
+	rc = 0;
+
+done:
+	return rc;
 }
 

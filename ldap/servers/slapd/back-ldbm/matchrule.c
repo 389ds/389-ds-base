@@ -96,7 +96,17 @@ create_matchrule_indexer(Slapi_PBlock **pb,char* matchrule,char* type)
 
 	if ( (0 != return_value) || (mrINDEX == NULL) )
 	{
-		return LDAP_OPERATIONS_ERROR;
+		/* doesn't have an old MR_INDEX_FN - look for MR_INDEX_SV_FN */
+		return_value = slapi_pblock_get (*pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &mrINDEX);
+		
+		if ( (0 != return_value) || (mrINDEX == NULL) )
+		{
+			return LDAP_OPERATIONS_ERROR;
+		}
+		else
+		{
+			return LDAP_SUCCESS;
+		}
 	}
 	else
 	{
@@ -146,18 +156,10 @@ int
 matchrule_values_to_keys_sv(Slapi_PBlock *pb,Slapi_Value **input_values,Slapi_Value ***output_values)
 {
 	IFP mrINDEX = NULL;
-        struct berval **bvi, **bvo;
 
-        valuearray_get_bervalarray(input_values, &bvi);
-
-	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX);
-	slapi_pblock_set (pb, SLAPI_PLUGIN_MR_VALUES, bvi);
+	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &mrINDEX);
+	slapi_pblock_set (pb, SLAPI_PLUGIN_MR_VALUES, input_values);
 	mrINDEX (pb);
-	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_KEYS, &bvo);
-
-        slapi_pblock_set (pb, SLAPI_PLUGIN_MR_VALUES, NULL);
-        ber_bvecfree(bvi);
-
-        valuearray_init_bervalarray(bvo, output_values);
+	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_KEYS, output_values);
 	return 0;
 }

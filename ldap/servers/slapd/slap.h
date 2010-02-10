@@ -1440,7 +1440,7 @@ typedef struct slapi_pblock {
 	mrFilterMatchFn	pb_mr_filter_match_fn;
 	IFP		pb_mr_filter_index_fn;
 	IFP		pb_mr_filter_reset_fn;
-	IFP		pb_mr_index_fn;
+	IFP		pb_mr_index_fn; /* values and keys are struct berval ** */
 	char*		pb_mr_oid;
 	char*		pb_mr_type;
 	struct berval*	pb_mr_value;
@@ -1540,6 +1540,7 @@ typedef struct slapi_pblock {
 							   /* used in plugin init; pb_plugin is not ready, then */
 	LDAPControl	**pb_search_ctrls; /* for search operations, allows plugins to provide
 									  controls to pass for each entry or referral returned */
+	IFP		pb_mr_index_sv_fn; /* values and keys are Slapi_Value ** */
 } slapi_pblock;
 
 /* index if substrlens */

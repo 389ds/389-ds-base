@@ -1349,6 +1349,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_MR_INDEX_FN:
 		(*(IFP *)value) = pblock->pb_mr_index_fn;
 		break;
+	case SLAPI_PLUGIN_MR_INDEX_SV_FN:
+		(*(IFP *)value) = pblock->pb_mr_index_sv_fn;
+		break;
 
 	/* matching rule plugin arguments */
 	case SLAPI_PLUGIN_MR_OID:
@@ -2721,6 +2724,9 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_PLUGIN_MR_INDEX_FN:
 		pblock->pb_mr_index_fn = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_MR_INDEX_SV_FN:
+		pblock->pb_mr_index_sv_fn = (IFP) value;
 		break;
 
 	/* matching rule plugin arguments */

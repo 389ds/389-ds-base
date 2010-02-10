@@ -240,6 +240,25 @@ attr_index_config(
 			}
 
 			/* compute a->ai_index_rules: */
+			/* for index rules there are two uses:
+			 * 1) a simple way to define an ordered index to support <= and >= searches
+			 * for those attributes which do not have an ORDERING matching rule defined
+			 * for them in their schema definition.  The index generated is not a :RULE:
+			 * index, it is a normal = EQUALITY index, with the keys ordered using the
+			 * comparison function provided by the syntax plugin for the attribute.  For
+			 * example - the uidNumber attribute has INTEGER syntax, but the standard
+			 * definition of the attribute does not specify an ORDERING matching rule.
+			 * By default, this means that you cannot perform searches like
+			 * (uidNumber>=501) - but many users expect to be able to perform this type of
+			 * search.  By specifying that you want an ordered index, using an integer
+			 * matching rule, you can support indexed seaches of this type.
+			 * 2) a RULE index - the index key prefix is :NAMEOROID: - this is used
+			 * to support extensible match searches like (cn:fr-CA.3:=gilles), which would
+			 * find the index key :fr-CA.3:gilles in the cn index.
+			 * We check first to see if this is a simple ordered index - user specified an
+			 * ordering matching rule compatible with the attribute syntax, and there is
+			 * a compare function.  If not, we assume it is a RULE index definition.
+			 */
 			j = 0;
 			if (index_rules != NULL) for (; index_rules[j] != NULL; ++j);
 			if (j > 0) { /* there are some candidates */
@@ -250,47 +269,66 @@ attr_index_config(
 					/* Check that index_rules[j] is an official OID */
 					char* officialOID = NULL;
 					IFP mrINDEX = NULL;
-					Slapi_PBlock* pb = slapi_pblock_new();
+					Slapi_PBlock* pb = NULL;
+					int do_continue = 0; /* can we skip the RULE parsing stuff? */
+
+					if ((p = strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN))) {
+						_set_attr_substrlen(INDEX_SUBSTRBEGIN, index_rules[j],
+											&substrlens);
+						do_continue = 1; /* done with j - next j */
+					} else if ((p = strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE))) {
+						_set_attr_substrlen(INDEX_SUBSTRMIDDLE, index_rules[j],
+											&substrlens);
+						do_continue = 1; /* done with j - next j */
+					} else if ((p = strstr(index_rules[j], INDEX_ATTR_SUBSTREND))) {
+						_set_attr_substrlen(INDEX_SUBSTREND, index_rules[j],
+											&substrlens);
+						do_continue = 1; /* done with j - next j */
+					/* check if this is a simple ordering specification
+					   for an attribute that has no ordering matching rule */
+					} else if (slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid) &&
+							   !a->ai_sattr.a_mr_ord_plugin) { /* no ordering for this attribute */
+						need_compare_fn = 1; /* get compare func for this attr */
+						do_continue = 1; /* done with j - next j */
+					}
+
+					if (do_continue) {
+						continue; /* done with index_rules[j] */
+					}
+
+					/* must be a RULE specification */
+					pb = slapi_pblock_new();
+					/* next check if this is a RULE type index
+					   try to actually create an indexer and see if the indexer
+					   actually has a regular INDEX_FN or an INDEX_SV_FN */
 					if (!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, index_rules[j]) &&
 						!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_TYPE, a->ai_type) &&
 						!slapi_mr_indexer_create (pb) &&
-						!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX) &&
-						mrINDEX != NULL &&
+						((!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX) &&
+						  mrINDEX != NULL) ||
+						 (!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &mrINDEX) &&
+						  mrINDEX != NULL)) &&
 						!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &officialOID) &&
 						officialOID != NULL) {
 						if (!strcasecmp (index_rules[j], officialOID)) {
-						official_rules[k++] = slapi_ch_strdup (officialOID);
+							official_rules[k++] = slapi_ch_strdup (officialOID);
 						} else {
-						char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
-						LDAPDebug (LDAP_DEBUG_ANY, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
-							   preamble, officialOID, index_rules[j] );
-						slapi_ch_free((void**)&preamble);
+							char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
+							LDAPDebug (LDAP_DEBUG_ANY, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
+									   preamble, officialOID, index_rules[j] );
+							slapi_ch_free((void**)&preamble);
 						}
-					} else if ((p =
-                                strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN))) {
-						_set_attr_substrlen(INDEX_SUBSTRBEGIN, index_rules[j],
-											&substrlens);
-					} else if ((p =
-                                strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE))) {
-						_set_attr_substrlen(INDEX_SUBSTRMIDDLE, index_rules[j],
-											&substrlens);
-					} else if ((p =
-                                strstr(index_rules[j], INDEX_ATTR_SUBSTREND))) {
-						_set_attr_substrlen(INDEX_SUBSTREND, index_rules[j],
-											&substrlens);
-					} else if (!slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid)) {
+					} else { /* we don't know what this is */
 						LDAPDebug (LDAP_DEBUG_ANY, "%s: line %d: "
 							   "unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
 							   fname, lineno, index_rules[j] );
-					} else { /* assume builtin and use compare fn provided by syntax plugin */
-						need_compare_fn = 1;
 					}
 					{/* It would improve speed to save the indexer, for future use.
 						But, for simplicity, we destroy it now: */
 						IFP mrDESTROY = NULL;
 						if (!slapi_pblock_get (pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
-						mrDESTROY != NULL) {
-						mrDESTROY (pb);
+							mrDESTROY != NULL) {
+							mrDESTROY (pb);
 						}
 					}
 					slapi_pblock_destroy (pb);
@@ -317,12 +355,8 @@ attr_index_config(
 
 		/* if user didn't specify an ordering rule in the index config,
 		   see if the schema def for the attr defines one */
-		if (!need_compare_fn) {
-			asyntaxinfo *asi = attr_syntax_get_by_name( a->ai_type );
-			if (asi && asi->asi_mr_ordering) {
-			 	need_compare_fn = 1;
-			}
-			attr_syntax_return( asi );
+		if (!need_compare_fn && a->ai_sattr.a_mr_ord_plugin) {
+			need_compare_fn = 1;
 		}
 
 		if (need_compare_fn) {

@@ -5456,6 +5456,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_MR_FILTER_INDEX_FN		603
 #define SLAPI_PLUGIN_MR_FILTER_RESET_FN		604
 #define SLAPI_PLUGIN_MR_INDEX_FN		605
+#define SLAPI_PLUGIN_MR_INDEX_SV_FN		606
 
 /* matching rule plugin arguments */
 #define SLAPI_PLUGIN_MR_OID			610
