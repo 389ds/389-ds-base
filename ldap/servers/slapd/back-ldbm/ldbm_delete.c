@@ -45,6 +45,12 @@
 
 #include "back-ldbm.h"
 
+#define DEL_SET_ERROR(rc, error, count)                                        \
+{                                                                              \
+    (rc) = (error);                                                            \
+    (count) = RETRY_TIMES; /* otherwise, the transaction may not be aborted */ \
+}
+
 int
 ldbm_back_delete( Slapi_PBlock *pb )
 {
@@ -430,7 +436,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add failed, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-	        	ldap_result_code= LDAP_OPERATIONS_ERROR;
+	        	DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 			tombstone_in_cache = 1;
@@ -450,7 +457,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				    LDBM_OS_ERR_IS_DISKFULL(retval)) {
 				    disk_full = 1;
 				}
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 		}
@@ -469,7 +477,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		}
 		if (retval != 0) {
 			LDAPDebug( LDAP_DEBUG_TRACE, "index_del_entry failed\n", 0, 0, 0 );
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
 		}
 		if(create_tombstone_entry)
@@ -495,7 +503,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							SLAPI_ATTR_VALUE_TOMBSTONE, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 			retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
@@ -514,7 +523,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							SLAPI_ATTR_UNIQUEID, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 			retval = index_addordel_string(be, SLAPI_ATTR_NSCP_ENTRYDN,
@@ -533,7 +543,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							SLAPI_ATTR_NSCP_ENTRYDN, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 			/* add a new usn to the entryusn index */
@@ -556,7 +567,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 								SLAPI_ATTR_ENTRYUSN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
 					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					DEL_SET_ERROR(ldap_result_code,
+								  LDAP_OPERATIONS_ERROR, retry_count);
 					goto error_return;
 				}
 			}
@@ -579,7 +591,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 								SLAPI_ATTR_ENTRYUSN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
 					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					DEL_SET_ERROR(ldap_result_code,
+								  LDAP_OPERATIONS_ERROR, retry_count);
 					goto error_return;
 				}
 			}
@@ -608,7 +621,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							SLAPI_ATTR_VALUE_TOMBSTONE, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 			retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
@@ -627,7 +641,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							SLAPI_ATTR_UNIQUEID, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 
@@ -650,7 +665,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 								SLAPI_ATTR_NSCP_ENTRYDN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
 					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					DEL_SET_ERROR(ldap_result_code,
+								  LDAP_OPERATIONS_ERROR, retry_count);
 					goto error_return;
 				}
 			}
@@ -675,7 +691,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 								SLAPI_ATTR_ENTRYUSN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
 					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					DEL_SET_ERROR(ldap_result_code,
+								  LDAP_OPERATIONS_ERROR, retry_count);
 					goto error_return;
 				}
 			}
@@ -694,7 +711,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				LDAPDebug( LDAP_DEBUG_TRACE, "delete 3 BAD, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 		}
@@ -714,7 +732,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			if (retval  != 0 ) {
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				DEL_SET_ERROR(ldap_result_code,
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 		}
