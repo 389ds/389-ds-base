@@ -50,6 +50,12 @@ extern char *hassubordinates;
 
 static void delete_update_entrydn_operational_attributes(struct backentry *ep);
 
+#define ADD_SET_ERROR(rc, error, count)                                        \
+{                                                                              \
+    (rc) = (error);                                                            \
+    (count) = RETRY_TIMES; /* otherwise, the transaction may not be aborted */ \
+}
+
 /* in order to find the parent, we must have either the parent dn or uniqueid
    This function will return true if either are set, or false otherwise */
 static int
@@ -659,14 +665,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (retval != 0) {
 			LDAPDebug( LDAP_DEBUG_TRACE, "id2entry_add failed, err=%d %s\n",
 				   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+			ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 				disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto diskfull_return;
 			}
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			retry_count = RETRY_TIMES; /* otherwise, the transaction may not 
-										  be aborted */
 			goto error_return; 
 		}
 		if(is_resurect_operation)
@@ -680,14 +683,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 			if (0 != retval) {
 				LDAPDebug( LDAP_DEBUG_TRACE, "add 1 BAD, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				ADD_SET_ERROR(ldap_result_code, 
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 					disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto diskfull_return;
 				}
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
-											  be aborted */
 				goto error_return; 
 			}
 			retval = index_addordel_string(be,SLAPI_ATTR_UNIQUEID,slapi_entry_get_uniqueid(addingentry->ep_entry),addingentry->ep_id,BE_INDEX_DEL,&txn);
@@ -699,14 +700,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 			if (0 != retval) {
 				LDAPDebug( LDAP_DEBUG_TRACE, "add 2 BAD, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				ADD_SET_ERROR(ldap_result_code, 
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 					disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto diskfull_return;
 				}
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
-											  be aborted */
 				goto error_return; 
 			}
 			retval = index_addordel_string(be,SLAPI_ATTR_NSCP_ENTRYDN,slapi_sdn_get_ndn(&sdn),addingentry->ep_id,BE_INDEX_DEL,&txn);
@@ -718,14 +717,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 			if (0 != retval) {
 				LDAPDebug( LDAP_DEBUG_TRACE, "add 3 BAD, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				ADD_SET_ERROR(ldap_result_code, 
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 					disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto diskfull_return;
 				}
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
-											  be aborted */
 				goto error_return; 
 			}
 		} 
@@ -746,14 +743,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (retval != 0) {
 			LDAPDebug( LDAP_DEBUG_ANY, "add: attempt to index %lu failed\n",
 								   (u_long)addingentry->ep_id, 0, 0 );
+			ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 				disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto diskfull_return;
 			}
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			retry_count = RETRY_TIMES; /* otherwise, the transaction may not 
-										  be aborted */
 			goto error_return; 
 		}
 		if (parent_found) {
@@ -768,14 +762,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 			if (0 != retval) {
 				LDAPDebug( LDAP_DEBUG_TRACE, "add 1 BAD, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				ADD_SET_ERROR(ldap_result_code, 
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 					disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto diskfull_return;
 				}
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
-											  be aborted */
 				goto error_return; 
 			}
 		}
@@ -795,14 +787,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 				LDAPDebug( LDAP_DEBUG_TRACE,
 					"vlv_update_index failed, err=%d %s\n",
 				   	retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				ADD_SET_ERROR(ldap_result_code, 
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 					disk_full = 1;
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto diskfull_return;
 				}
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				retry_count = RETRY_TIMES; /* otherwise, the transaction may not
-											  be aborted */
 				goto error_return; 
 			}
 		}
@@ -832,8 +822,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (cache_replace( &inst->inst_cache, tombstoneentry, addingentry ) != 0 )
 		{
 			/* This happens if the dn of addingentry already exists */
-			ldap_result_code= LDAP_ALREADY_EXISTS;
 			cache_unlock_entry( &inst->inst_cache, tombstoneentry );
+			ADD_SET_ERROR(ldap_result_code, LDAP_ALREADY_EXISTS, retry_count);
 			goto error_return;
 		}
 		/*
@@ -846,19 +836,18 @@ ldbm_back_add( Slapi_PBlock *pb )
 	}
 	if (parent_found)
 	{
-		 /* switch the parent entry copy into play */
+		/* switch the parent entry copy into play */
 		modify_switch_entries( &parent_modify_c,be);
 	}
 
 	retval = dblayer_txn_commit(li,&txn);
 	if (0 != retval)
 	{
+		ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 		if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 			disk_full = 1;
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto diskfull_return;
 		}
-		ldap_result_code= LDAP_OPERATIONS_ERROR;
 		goto error_return; 
 	}
 
@@ -891,16 +880,16 @@ error_return:
 		disk_full = 1;
 	}
 
-	/* It is safer not to abort when the transaction is not started. */
-	if (retry_count > 0) {
-		dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
-	}
 diskfull_return:
-
-	if (disk_full)
+	if (disk_full) {
 		rc= return_on_disk_full(li);
-	else
+	} else {
+		/* It is safer not to abort when the transaction is not started. */
+		if (retry_count > 0) {
+			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		}
 		rc= SLAPI_FAIL_GENERAL;
+	}
 	
 common_return:
     if (addingentry_in_cache && addingentry)

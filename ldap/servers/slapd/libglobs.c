@@ -4874,6 +4874,7 @@ config_get_instancedir()
 	return retVal; 
 }
 
+int
 config_set_instancedir(const char *attrname, char *value, char *errorbuf, int apply)
 {
 	int retVal = LDAP_SUCCESS;

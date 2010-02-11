@@ -52,21 +52,27 @@ static int moddn_rename_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, 
 static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry *ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3);
 static void mods_remove_nsuniqueid(Slapi_Mods *smods);
 
+#define MOD_SET_ERROR(rc, error, count)                                        \
+{                                                                              \
+    (rc) = (error);                                                            \
+    (count) = RETRY_TIMES; /* otherwise, the transaction may not be aborted */ \
+}
+
 int
 ldbm_back_modrdn( Slapi_PBlock *pb )
 {
     backend *be;
     ldbm_instance *inst;
-    struct ldbminfo        *li;
+    struct ldbminfo  *li;
     struct backentry *e= NULL;
     struct backentry *ec= NULL;
     int ec_in_cache= 0;
-    back_txn        txn;
-    back_txnid        parent_txn;
-    int            retval = -1;
-    char            *msg;
-    Slapi_Entry        *postentry = NULL;
-    char            *errbuf = NULL;
+    back_txn txn;
+    back_txnid parent_txn;
+    int retval = -1;
+    char *msg;
+    Slapi_Entry *postentry = NULL;
+    char *errbuf = NULL;
     int disk_full = 0;
     int retry_count = 0;
     int ldap_result_code= LDAP_SUCCESS;
@@ -697,7 +703,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             LDAPDebug( LDAP_DEBUG_TRACE, "modrdn_rename_entry_update_indexes failed, err=%d %s\n",
                        retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
             if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-            ldap_result_code= LDAP_OPERATIONS_ERROR;
+            MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+            goto error_return;
         }
         
         /*
@@ -719,6 +726,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                         char ebuf[ BUFSIZ ];
                         LDAPDebug( LDAP_DEBUG_ANY, "modrdn: rdn2typeval (%s) failed\n",
                                    escape_string( rdns[i], ebuf ), 0, 0 );
+                        if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+                        MOD_SET_ERROR(ldap_result_code, 
+                                      LDAP_OPERATIONS_ERROR, retry_count);
                         goto error_return;
                     }
                     svp[0] = &sv;
@@ -726,21 +736,24 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     retval = index_addordel_values_sv( be, type, svp, NULL, ec->ep_id, BE_INDEX_ADD, &txn );
                     if (DB_LOCK_DEADLOCK == retval)
                     {
-                        /* Retry txn */
-                        continue;
+                        /* To retry txn, once break "for loop" */
+                        break;
                     }
-                    if (retval != 0 )
+                    else if (retval != 0 )
                     {
                         LDAPDebug( LDAP_DEBUG_ANY, "modrdn: could not add new value to index, err=%d %s\n",
                                    retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
                         if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+                        MOD_SET_ERROR(ldap_result_code, 
+                                      LDAP_OPERATIONS_ERROR, retry_count);
+                        goto error_return;
                     }
                 }
                 slapi_ldap_value_free( rdns );
                 if (DB_LOCK_DEADLOCK == retval)
                 {
                     /* Retry txn */
-                    goto error_return;
+                    continue;
                 }
             }
         }
@@ -753,13 +766,18 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 /* Retry txn */
                 continue;
             }
-            if (0 != retval)
+            else if (0 != retval)
             {
-                LDAPDebug( LDAP_DEBUG_TRACE, "moddn: could not update parent, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+                LDAPDebug( LDAP_DEBUG_ANY, "modrdn: "
+                           "could not update parent, err=%d %s\n", retval,
+                           (msg = dblayer_strerror( retval )) ? msg : "", 0 );
                 if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+                MOD_SET_ERROR(ldap_result_code, 
+                              LDAP_OPERATIONS_ERROR, retry_count);
+                goto error_return;
             }
             /* Push out the db modifications from the new parent entry */
-            if(retval==0)
+            else /* retval == 0 */
             {
                 retval = modify_update_all(be, pb, &newparent_modify_context, &txn);
                 if (DB_LOCK_DEADLOCK == retval)
@@ -769,8 +787,14 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 }
                 if (0 != retval)
                 {
-                    LDAPDebug( LDAP_DEBUG_TRACE, "moddn: could not update parent, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+                    LDAPDebug( LDAP_DEBUG_ANY, "modrdn: "
+                               "could not update parent, err=%d %s\n", retval,
+                               (msg = dblayer_strerror( retval )) ? msg : "",
+                               0 );
                     if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+                    MOD_SET_ERROR(ldap_result_code, 
+                                  LDAP_OPERATIONS_ERROR, retry_count);
+                    goto error_return;
                 }
             }
         }
@@ -784,6 +808,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 if (retval == DB_LOCK_DEADLOCK) continue;
                 if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
                     disk_full = 1;
+                MOD_SET_ERROR(ldap_result_code, 
+                              LDAP_OPERATIONS_ERROR, retry_count);
                 goto error_return;
             }
         }
@@ -800,6 +826,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                                          e->ep_id, &txn);
             slapi_rdn_done(&newsrdn);
             if (rc) {
+                MOD_SET_ERROR(ldap_result_code, 
+                              LDAP_OPERATIONS_ERROR, retry_count);
                 goto error_return;
             }
         }
@@ -821,6 +849,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
                 disk_full = 1;
+            MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
             goto error_return;
         }
 
@@ -849,7 +878,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     if (0 != retval)
     {
         if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-        ldap_result_code= LDAP_OPERATIONS_ERROR;
+        MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
         goto error_return;
     }
 
@@ -903,6 +932,12 @@ error_return:
     {
         slapi_entry_free( postentry );
         postentry= NULL;
+    }
+    if (entryrdn_get_switch())
+    {
+        struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
+        CACHE_REMOVE(&inst->inst_dncache, bdn);
+        CACHE_RETURN(&inst->inst_dncache, &bdn);
     }
     if( ec!=NULL ) {
         if (ec_in_cache) {

@@ -50,6 +50,12 @@ extern char *hassubordinates;
 static void remove_illegal_mods(LDAPMod **mods);
 static int mods_have_effect (Slapi_Entry *entry, Slapi_Mods *smods);
 
+#define MOD_SET_ERROR(rc, error, count)                                        \
+{                                                                              \
+    (rc) = (error);                                                            \
+    (count) = RETRY_TIMES; /* otherwise, the transaction may not be aborted */ \
+}
+
 /* Modify context structure constructor, sans allocation */
 void modify_init(modify_context *mc,struct backentry *old_entry)
 {
@@ -406,7 +412,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add failed, err=%d %s\n",
 				   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
 		}
 		ec_in_cache = 1;
@@ -420,7 +426,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			LDAPDebug( LDAP_DEBUG_ANY, "index_add_mods failed, err=%d %s\n",
 				  retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
 		}
 		/*
@@ -440,7 +446,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 					"vlv_update_index failed, err=%d %s\n",
 					retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				MOD_SET_ERROR(ldap_result_code, 
+							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
 
@@ -456,7 +463,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	}
 	
 	if (cache_replace( &inst->inst_cache, e, ec ) != 0 ) {
-		ldap_result_code= LDAP_OPERATIONS_ERROR;
+		MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 		goto error_return;
 	}
 
@@ -516,9 +523,9 @@ error_return:
 	  disk_full = 1;
 	}
 
-	if (disk_full)
+	if (disk_full) {
 	    rc= return_on_disk_full(li);
-	else if (ldap_result_code != LDAP_SUCCESS) {
+	} else if (ldap_result_code != LDAP_SUCCESS) {
 		if (retry_count > 0) {
 			/* It is safer not to abort when the transaction is not started. */
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
