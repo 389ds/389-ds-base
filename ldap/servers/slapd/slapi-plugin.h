@@ -4466,12 +4466,13 @@ int slapi_berval_cmp(const struct berval* L, const struct berval* R);
         ! memcmp ((L)->bv_val, (R)->bv_val, (L)->bv_len))
 
 typedef struct slapi_matchingRuleEntry {
-    char *mr_oid;
-    char *mr_oidalias;
-    char *mr_name;
-    char *mr_desc;
-    char *mr_syntax;
-    int mr_obsolete;
+    char *mr_oid; /* the official oid */
+    char *mr_oidalias; /* not currently used */
+    char *mr_name; /* the official name */
+    char *mr_desc; /* a description */
+    char *mr_syntax; /* the assertion syntax OID */
+    int mr_obsolete; /* is mr obsolete? */
+    char **mr_compat_syntax; /* list of OIDs of other syntaxes that can use this matching rule */
 } slapi_matchingRuleEntry;
 typedef struct slapi_matchingRuleEntry	Slapi_MatchingRuleEntry;
 
@@ -4482,7 +4483,29 @@ int slapi_matchingrule_get(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 int slapi_matchingrule_set(Slapi_MatchingRuleEntry *mr, int arg, void *value);
 int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrEntry);
 int slapi_matchingrule_unregister(char *oid);
+
+/**
+ * Is the given matching rule an ordering matching rule and is it
+ * compatible with the given syntax?
+ * 
+ * \param name_or_oid Name or OID of a matching rule
+ * \param syntax_oid OID of a syntax
+ * \return \c TRUE if the matching rule is an ordering rule and can be used by the given syntax
+ * \return \c FALSE otherwise 
+ */
 int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_oid);
+
+/**
+ * Can the given syntax OID use the given matching rule name/OID? A
+ * matching rule can apply to more than one syntax.  Use this function
+ * to determine if the given syntax can use the given matching rule.
+ * 
+ * \param mr_name_or_oid Name or OID of a matching rule
+ * \param syntax_oid OID of a syntax
+ * \return \c TRUE if the syntax can be used with the matching rule
+ * \return \c FALSE otherwise 
+ */
+int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_oid);
 
 /*
  * access control

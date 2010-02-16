@@ -49,10 +49,14 @@
 
 static int numstr_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 		Slapi_Value **bvals, int ftype, Slapi_Value **retVal );
+static int numstr_filter_sub( Slapi_PBlock *pb, char *initial, char **any,
+		char *final, Slapi_Value **bvals );
 static int numstr_values2keys( Slapi_PBlock *pb, Slapi_Value **val,
 		Slapi_Value ***ivals, int ftype );
 static int numstr_assertion2keys( Slapi_PBlock *pb, Slapi_Value *val,
 		Slapi_Value ***ivals, int ftype );
+static int numstr_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
+		char *final, Slapi_Value ***ivals );
 static int numstr_compare(struct berval	*v1, struct berval	*v2);
 static int numstr_validate(struct berval *val);
 
@@ -61,36 +65,65 @@ static char *names[] = { "Numeric String", "numstr", NUMERICSTRING_SYNTAX_OID, 0
 
 #define NUMERICSTRINGMATCH_OID		"2.5.13.8"
 #define NUMERICSTRINGORDERINGMATCH_OID	"2.5.13.9"
-#define NUMERICSTRINGSUBSTRINGMATCH_OID	"2.5.13.10"
+#define NUMERICSTRINGSUBSTRINGSMATCH_OID	"2.5.13.10"
 
 static Slapi_PluginDesc pdesc = { "numstr-syntax", VENDOR,
 	DS_PACKAGE_VERSION, "numeric string attribute syntax plugin" };
 
-static Slapi_MatchingRuleEntry
-numericStringMatch = { NUMERICSTRINGMATCH_OID, NULL /* no alias? */,
-                 "numericStringMatch", "The rule evaluates to TRUE if and only if the prepared "
-                 "attribute value character string and the prepared assertion value character "
-                 "string have the same number of characters and corresponding characters have "
-                 "the same code point.",
-                 NUMERICSTRING_SYNTAX_OID, 0 /* not obsolete */ };
+static const char *numericStringMatch_names[] = {"numericStringMatch", NUMERICSTRINGMATCH_OID, NULL};
+static const char *numericStringOrderingMatch_names[] = {"numericStringOrderingMatch", NUMERICSTRINGORDERINGMATCH_OID, NULL};
+static const char *numericStringSubstringsMatch_names[] = {"numericStringSubstringsMatch", NUMERICSTRINGSUBSTRINGSMATCH_OID, NULL};
 
-static Slapi_MatchingRuleEntry
-numericStringOrderingMatch = { NUMERICSTRINGORDERINGMATCH_OID, NULL /* no alias? */,
-                 "numericStringOrderingMatch", "The rule evaluates to TRUE if and only if, "
-                 "in the code point collation order, the prepared attribute value character "
-                 "string appears earlier than the prepared assertion value character string; "
-                 "i.e., the attribute value is less than the assertion value.",
-                 NUMERICSTRING_SYNTAX_OID, 0 /* not obsolete */ };
+static char *numericStringSubstringsMatch_syntaxes[] = {NUMERICSTRING_SYNTAX_OID,NULL};
 
-static Slapi_MatchingRuleEntry
-numericStringSubstringMatch = { NUMERICSTRINGSUBSTRINGMATCH_OID, NULL /* no alias? */,
-                 "numericStringSubstringMatch", "The rule evaluates to TRUE if and only if (1) "
-                 "the prepared substrings of the assertion value match disjoint portions of "
-                 "the prepared attribute value, (2) an initial substring, if present, matches "
-                 "the beginning of the prepared attribute value character string, and (3) a "
-                 "final substring, if present, matches the end of the prepared attribute value "
-                 "character string.",
-                 NUMERICSTRING_SYNTAX_OID, 0 /* not obsolete */ };
+static struct mr_plugin_def mr_plugin_table[] = {
+{{NUMERICSTRINGMATCH_OID, NULL /* no alias? */,
+  "numericStringMatch", "The rule evaluates to TRUE if and only if the prepared "
+  "attribute value character string and the prepared assertion value character "
+  "string have the same number of characters and corresponding characters have "
+  "the same code point.",
+  NUMERICSTRING_SYNTAX_OID, 0 /* not obsolete */, NULL /* numstr syntax only for now */ },
+ {"numericStringMatch-mr", VENDOR, DS_PACKAGE_VERSION, "numericStringMatch matching rule plugin"}, /* plugin desc */
+ numericStringMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, numstr_filter_ava, NULL, numstr_values2keys,
+ numstr_assertion2keys, NULL, numstr_compare},
+{{NUMERICSTRINGORDERINGMATCH_OID, NULL /* no alias? */,
+  "numericStringOrderingMatch", "The rule evaluates to TRUE if and only if, "
+  "in the code point collation order, the prepared attribute value character "
+  "string appears earlier than the prepared assertion value character string; "
+  "i.e., the attribute value is less than the assertion value.",
+  NUMERICSTRING_SYNTAX_OID, 0 /* not obsolete */, NULL /* numstr syntax only for now */ },
+ {"numericStringOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "numericStringOrderingMatch matching rule plugin"}, /* plugin desc */
+ numericStringOrderingMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, numstr_filter_ava, NULL, numstr_values2keys,
+ numstr_assertion2keys, NULL, numstr_compare},
+{{NUMERICSTRINGSUBSTRINGSMATCH_OID, NULL /* no alias? */,
+  "numericStringSubstringsMatch", "The rule evaluates to TRUE if and only if (1) "
+  "the prepared substrings of the assertion value match disjoint portions of "
+  "the prepared attribute value, (2) an initial substring, if present, matches "
+  "the beginning of the prepared attribute value character string, and (3) a "
+  "final substring, if present, matches the end of the prepared attribute value "
+  "character string.",
+  "1.3.6.1.4.1.1466.115.121.1.58", 0 /* not obsolete */, numericStringSubstringsMatch_syntaxes}, /* matching rule desc */
+ {"numericStringSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "numericStringSubstringsMatch matching rule plugin"}, /* plugin desc */
+ numericStringSubstringsMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, NULL, numstr_filter_sub, numstr_values2keys,
+ NULL, numstr_assertion2keys_sub, numstr_compare},
+};
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
 
 int
 numstr_init( Slapi_PBlock *pb )
@@ -121,11 +154,7 @@ numstr_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) numstr_validate );
 
-	/* also register this plugin for matching rules */
-	rc |= slapi_matchingrule_register(&numericStringMatch);
-	rc |= slapi_matchingrule_register(&numericStringOrderingMatch);
-	rc |= slapi_matchingrule_register(&numericStringSubstringMatch);
-
+	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= numstr_init %d\n", rc, 0, 0 );
 	return( rc );
 }
@@ -136,6 +165,18 @@ numstr_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 {
 	return( string_filter_ava( bvfilter, bvals, SYNTAX_SI | SYNTAX_CES,
                                ftype, retVal ) );
+}
+
+static int
+numstr_filter_sub(
+    Slapi_PBlock		*pb,
+    char		*initial,
+    char		**any,
+    char		*final,
+    Slapi_Value	**bvals
+)
+{
+	return( string_filter_sub( pb, initial, any, final, bvals, SYNTAX_SI | SYNTAX_CES ) );
 }
 
 static int
@@ -150,6 +191,19 @@ numstr_assertion2keys( Slapi_PBlock *pb, Slapi_Value *val, Slapi_Value ***ivals,
 {
 	return(string_assertion2keys_ava( pb, val, ivals,
                                       SYNTAX_SI | SYNTAX_CES, ftype ));
+}
+
+static int
+numstr_assertion2keys_sub(
+    Slapi_PBlock		*pb,
+    char		*initial,
+    char		**any,
+    char		*final,
+    Slapi_Value	***ivals
+)
+{
+	return( string_assertion2keys_sub( pb, initial, any, final, ivals,
+	    SYNTAX_SI | SYNTAX_CES ) );
 }
 
 static int numstr_compare(    

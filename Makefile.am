@@ -1047,6 +1047,7 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 	ldap/servers/plugins/syntaxes/phonetic.c \
 	ldap/servers/plugins/syntaxes/sicis.c \
 	ldap/servers/plugins/syntaxes/string.c \
+	ldap/servers/plugins/syntaxes/syntax_common.c \
 	ldap/servers/plugins/syntaxes/tel.c \
 	ldap/servers/plugins/syntaxes/telex.c \
 	ldap/servers/plugins/syntaxes/teletex.c \

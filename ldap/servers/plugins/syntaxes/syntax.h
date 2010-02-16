@@ -61,10 +61,6 @@
 #define SUBMIDDLE	3
 #define SUBEND		3
 
-#ifndef MIN
-#define MIN( a, b )	(a < b ? a : b )
-#endif
-
 #define SYNTAX_PLUGIN_SUBSYSTEM "syntax-plugin"
 
 /* The following are derived from RFC 4512, section 1.4. */
@@ -131,4 +127,56 @@ int distinguishedname_validate( const char *begin, const char *end );
 int rdn_validate( const char *begin, const char *end, const char **last );
 int bitstring_validate_internal(const char *begin, const char *end);
 
+struct mr_plugin_def {
+    Slapi_MatchingRuleEntry mr_def_entry; /* for slapi_matchingrule_register */
+    Slapi_PluginDesc mr_plg_desc; /* for SLAPI_PLUGIN_DESCRIPTION */
+    const char **mr_names; /* list of oid and names, NULL terminated SLAPI_PLUGIN_MR_NAMES */
+    /* these are optional for new style mr plugins */
+    IFP	mr_filter_create; /* old style factory function SLAPI_PLUGIN_MR_FILTER_CREATE_FN */
+    IFP	mr_indexer_create; /* old style factory function SLAPI_PLUGIN_MR_INDEXER_CREATE_FN */
+    /* new style syntax plugin functions */
+    /* not all functions will apply to all matching rule types */
+    /* e.g. a SUBSTR rule will not have a filter_ava func */
+    IFP	mr_filter_ava; /* SLAPI_PLUGIN_MR_FILTER_AVA */
+    IFP	mr_filter_sub; /* SLAPI_PLUGIN_MR_FILTER_SUB */
+    IFP	mr_values2keys; /* SLAPI_PLUGIN_MR_VALUES2KEYS */
+    IFP	mr_assertion2keys_ava; /* SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA */
+    IFP	mr_assertion2keys_sub; /* SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB */
+    IFP	mr_compare; /* SLAPI_PLUGIN_MR_COMPARE - only for ORDERING */
+};
+
+int syntax_register_matching_rule_plugins(struct mr_plugin_def mr_plugin_table[], size_t mr_plugin_table_size, IFP matching_rule_plugin_init);
+int syntax_matching_rule_plugin_init(Slapi_PBlock *pb, struct mr_plugin_def mr_plugin_table[], size_t mr_plugin_table_size);
+
 #endif
+
+#ifdef UNSUPPORTED_MATCHING_RULES
+/* list of names/oids/aliases for each matching rule */
+static const char *keywordMatch_names[] = {"keywordMatch", "2.5.13.33", NULL};
+static const char *wordMatch_names[] = {"wordMatch", "2.5.13.32", NULL};
+/* table of matching rule plugin defs for mr register and plugin register */
+static struct mr_plugin_def mr_plugin_table[] = {
+{{"2.5.13.33", NULL, "keywordMatch", "The keywordMatch rule compares an assertion value of the Directory"
+"String syntax to an attribute value of a syntax (e.g., the Directory"
+"String syntax) whose corresponding ASN.1 type is DirectoryString."
+"The rule evaluates to TRUE if and only if the assertion value"
+"character string matches any keyword in the attribute value.  The"
+"identification of keywords in the attribute value and the exactness"
+"of the match are both implementation specific.", "1.3.6.1.4.1.1466.115.121.1.15", 0}, /* matching rule desc */
+ {"keywordMatch-mr", VENDOR, DS_PACKAGE_VERSION, "keywordMatch matching rule plugin"}, /* plugin desc */
+   keywordMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, mr_filter_ava, mr_filter_sub, mr_values2keys,
+   mr_assertion2keys_ava, mr_assertion2keys_sub, mr_compare, keywordMatch_syntaxes},,
+{{"2.5.13.32", NULL, "wordMatch", "The wordMatch rule compares an assertion value of the Directory"
+"String syntax to an attribute value of a syntax (e.g., the Directory"
+"String syntax) whose corresponding ASN.1 type is DirectoryString."
+"The rule evaluates to TRUE if and only if the assertion value word"
+"matches, according to the semantics of caseIgnoreMatch, any word in"
+"the attribute value.  The precise definition of a word is"
+"implementation specific.", "1.3.6.1.4.1.1466.115.121.1.15", 0}, /* matching rule desc */
+ {"wordMatch-mr", VENDOR, DS_PACKAGE_VERSION, "wordMatch matching rule plugin"}, /* plugin desc */
+   wordMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, mr_filter_ava, mr_filter_sub, mr_values2keys,
+   mr_assertion2keys_ava, mr_assertion2keys_sub, mr_compare, wordMatch_syntaxes},
+};
+#endif /* UNSUPPORTED_MATCHING_RULES */

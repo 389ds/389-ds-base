@@ -626,6 +626,7 @@ am_libsyntax_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-phonetic.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-sicis.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo \
+	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-telex.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.lo \
@@ -2036,6 +2037,7 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 	ldap/servers/plugins/syntaxes/phonetic.c \
 	ldap/servers/plugins/syntaxes/sicis.c \
 	ldap/servers/plugins/syntaxes/string.c \
+	ldap/servers/plugins/syntaxes/syntax_common.c \
 	ldap/servers/plugins/syntaxes/tel.c \
 	ldap/servers/plugins/syntaxes/telex.c \
 	ldap/servers/plugins/syntaxes/teletex.c \
@@ -3808,6 +3810,9 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-sicis.lo:  \
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo:  \
+	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
+	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo:  \
 	ldap/servers/plugins/syntaxes/$(am__dirstamp) \
 	ldap/servers/plugins/syntaxes/$(DEPDIR)/$(am__dirstamp)
@@ -4585,6 +4590,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-sicis.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.$(OBJEXT)
+	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.$(OBJEXT)
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo
 	-rm -f ldap/servers/plugins/syntaxes/libsyntax_plugin_la-teletex.$(OBJEXT)
@@ -5263,6 +5270,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-phonetic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-sicis.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-string.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-syntax_common.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-tel.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-teletex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-telex.Plo@am__quote@
@@ -8011,6 +8019,13 @@ ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo: ldap/servers/plugin
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/string.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-string.lo `test -f 'ldap/servers/plugins/syntaxes/string.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/string.c
+
+ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo: ldap/servers/plugins/syntaxes/syntax_common.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo -MD -MP -MF "ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-syntax_common.Tpo" -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo `test -f 'ldap/servers/plugins/syntaxes/syntax_common.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/syntax_common.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-syntax_common.Tpo" "ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-syntax_common.Plo"; else rm -f "ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-syntax_common.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/syntaxes/syntax_common.c' object='ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-syntax_common.lo `test -f 'ldap/servers/plugins/syntaxes/syntax_common.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/syntax_common.c
 
 ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo: ldap/servers/plugins/syntaxes/tel.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsyntax_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo -MD -MP -MF "ldap/servers/plugins/syntaxes/$(DEPDIR)/libsyntax_plugin_la-tel.Tpo" -c -o ldap/servers/plugins/syntaxes/libsyntax_plugin_la-tel.lo `test -f 'ldap/servers/plugins/syntaxes/tel.c' || echo '$(srcdir)/'`ldap/servers/plugins/syntaxes/tel.c; \

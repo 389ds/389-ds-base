@@ -11,7 +11,7 @@ dn: cn=schema
 #  SYNTAX 1.3.6.1.4.1.1466.115.121.1.8 )
 attributeTypes: ( 2.5.4.36 NAME 'userCertificate'
   DESC 'X.509 user certificate'
-  EQUALITY certificateExactMatch
+  EQUALITY octetStringMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
   X-ORIGIN 'RFC 4523' )
 #
@@ -23,7 +23,7 @@ attributeTypes: ( 2.5.4.36 NAME 'userCertificate'
 #  SYNTAX 1.3.6.1.4.1.1466.115.121.1.8 )
 attributeTypes: ( 2.5.4.37 NAME 'cACertificate'
   DESC 'X.509 CA certificate'
-  EQUALITY certificateExactMatch
+  EQUALITY octetStringMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
   X-ORIGIN 'RFC 4523' )
 #
@@ -36,7 +36,7 @@ attributeTypes: ( 2.5.4.37 NAME 'cACertificate'
 #  X-ORIGIN 'RFC 4523' )
 attributeTypes: ( 2.5.4.40 NAME 'crossCertificatePair'
   DESC 'X.509 cross certificate pair'
-  EQUALITY certificatePairExactMatch
+  EQUALITY octetStringMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
   X-ORIGIN 'RFC 4523' )
 #
@@ -49,7 +49,7 @@ attributeTypes: ( 2.5.4.40 NAME 'crossCertificatePair'
 #  X-ORIGIN 'RFC 4523' )
 attributeTypes: ( 2.5.4.39 NAME 'certificateRevocationList'
   DESC 'X.509 certificate revocation list'
-  EQUALITY certificateListExactMatch
+  EQUALITY octetStringMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
   X-ORIGIN 'RFC 4523' )
 #
@@ -62,7 +62,7 @@ attributeTypes: ( 2.5.4.39 NAME 'certificateRevocationList'
 #  X-ORIGIN 'RFC 4523' )
 attributeTypes: ( 2.5.4.38 NAME 'authorityRevocationList'
   DESC 'X.509 authority revocation list'
-  EQUALITY certificateListExactMatch
+  EQUALITY octetStringMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
   X-ORIGIN 'RFC 4523' )
 #
@@ -75,7 +75,7 @@ attributeTypes: ( 2.5.4.38 NAME 'authorityRevocationList'
 #  X-ORIGIN 'RFC 4523' )
 attributeTypes: ( 2.5.4.53 NAME 'deltaRevocationList'
   DESC 'X.509 delta revocation list'
-  EQUALITY certificateListExactMatch
+  EQUALITY octetStringMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
   X-ORIGIN 'RFC 4523' )
 #
@@ -88,7 +88,7 @@ attributeTypes: ( 2.5.4.53 NAME 'deltaRevocationList'
 #  X-ORIGIN 'RFC 4523' )
 attributeTypes: ( 2.5.4.52 NAME 'supportedAlgorithms'
   DESC 'X.509 supported algorithms'
-  EQUALITY algorithmIdentifierMatch
+  EQUALITY octetStringMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
   X-ORIGIN 'RFC 4523' )
 #

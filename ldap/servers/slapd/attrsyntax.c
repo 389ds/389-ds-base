@@ -546,6 +546,9 @@ attr_syntax_dup( struct asyntaxinfo *a )
 	newas->asi_flags = a->asi_flags;
 	newas->asi_oid = slapi_ch_strdup( a->asi_oid);
 	newas->asi_syntaxlength = a->asi_syntaxlength;
+	newas->asi_mr_eq_plugin = a->asi_mr_eq_plugin;
+	newas->asi_mr_ord_plugin = a->asi_mr_ord_plugin;
+	newas->asi_mr_sub_plugin = a->asi_mr_sub_plugin;
 
 	return( newas );
 }
@@ -658,9 +661,11 @@ attr_syntax_create(
 {
 	char					*s;
 	struct asyntaxinfo		a;
+	int rc = LDAP_SUCCESS;
 
 	/* XXXmcs: had to cast away const in many places below */
 	memset(&a, 0, sizeof(a));
+	*asip = NULL;
 	a.asi_name = slapi_ch_strdup(attr_names[0]);
 	if ( NULL != attr_names[1] ) {
 		a.asi_aliases = (char **)&attr_names[1]; /* all but the zero'th element */
@@ -674,8 +679,45 @@ attr_syntax_create(
 	a.asi_origin = (char **)attr_origins;
 	a.asi_plugin = plugin_syntax_find( attr_syntax );
 	a.asi_syntaxlength = syntaxlength;
+	/* ideally, we would report an error and fail to start if there was some problem
+	   with the matching rule - but since this functionality is new, and we might
+	   cause havoc if lots of servers failed to start because of bogus schema, we
+	   just report an error here - at some point in the future, we should actually
+	   report an error and exit, or allow the user to control the behavior - for
+	   now, just log an error, and address each case
+	*/
+	if (mr_equality && !slapi_matchingrule_is_compat(mr_equality, attr_syntax)) {
+		slapi_log_error(SLAPI_LOG_FATAL, "attr_syntax_create",
+						"Error: the EQUALITY matching rule [%s] is not compatible "
+						"with the syntax [%s] for the attribute [%s]\n",
+						mr_equality, attr_syntax, attr_names[0]);
+/*
+		rc = LDAP_INAPPROPRIATE_MATCHING;
+		goto done;
+*/
+	}
 	a.asi_mr_eq_plugin = plugin_mr_find( mr_equality );
+	if (mr_ordering && !slapi_matchingrule_is_compat(mr_ordering, attr_syntax)) {
+		slapi_log_error(SLAPI_LOG_FATAL, "attr_syntax_create",
+						"Error: the ORDERING matching rule [%s] is not compatible "
+						"with the syntax [%s] for the attribute [%s]\n",
+						mr_ordering, attr_syntax, attr_names[0]);
+/*
+		rc = LDAP_INAPPROPRIATE_MATCHING;
+		goto done;
+*/
+	}
 	a.asi_mr_ord_plugin = plugin_mr_find( mr_ordering );
+	if (mr_substring && !slapi_matchingrule_is_compat(mr_substring, attr_syntax)) {
+		slapi_log_error(SLAPI_LOG_FATAL, "attr_syntax_create",
+						"Error: the SUBSTR matching rule [%s] is not compatible "
+						"with the syntax [%s] for the attribute [%s]\n",
+						mr_substring, attr_syntax, attr_names[0]);
+/*
+		rc = LDAP_INAPPROPRIATE_MATCHING;
+		goto done;
+*/
+	}
 	a.asi_mr_sub_plugin = plugin_mr_find( mr_substring );
 	a.asi_flags = flags;
 
@@ -694,9 +736,10 @@ attr_syntax_create(
 	}
 
 	*asip = attr_syntax_dup(&a);
+done:
 	slapi_ch_free((void **)&a.asi_name);
 
-	return LDAP_SUCCESS;
+	return rc;
 }
 
 

@@ -52,12 +52,18 @@
 #include <sys/types.h>
 #include "syntax.h"
 
+#define CERTIFICATE_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.8"
+#define CERTIFICATELIST_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.9"
+#define CERTIFICATEPAIR_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.10"
+#define SUPPORTEDALGORITHM_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.49"
+
 static int bin_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 			Slapi_Value **bvals, int ftype, Slapi_Value **retVal );
 static int bin_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 	Slapi_Value ***ivals, int ftype );
 static int bin_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *bval,
 	Slapi_Value ***ivals, int ftype );
+static int bin_compare(struct berval *v1, struct berval *v2);
 
 /*
  * Attribute syntaxes. We treat all of these the same since the
@@ -98,6 +104,66 @@ static Slapi_PluginDesc fax_pdesc = {
 	"Fax attribute syntax plugin"
 };
 
+static const char *octetStringMatch_names[] = {"octetStringMatch", "2.5.13.17", NULL};
+static const char *octetStringOrderingMatch_names[] = {"octetStringOrderingMatch", "2.5.13.18", NULL};
+
+static char *octetStringCompat_syntaxes[] = {BINARY_SYNTAX_OID, JPEG_SYNTAX_OID, FAX_SYNTAX_OID, CERTIFICATE_SYNTAX_OID, CERTIFICATELIST_SYNTAX_OID, CERTIFICATEPAIR_SYNTAX_OID, SUPPORTEDALGORITHM_SYNTAX_OID, NULL};
+
+static struct mr_plugin_def mr_plugin_table[] = {
+{{"2.5.13.17", NULL, "octetStringMatch", "The octetStringMatch rule compares an assertion value of the Octet "
+"String syntax to an attribute value of a syntax (e.g., the Octet "
+"String or JPEG syntax) whose corresponding ASN.1 type is the OCTET "
+"STRING ASN.1 type.  "
+"The rule evaluates to TRUE if and only if the attribute value and the "
+"assertion value are the same length and corresponding octets (by "
+"position) are the same.", OCTETSTRING_SYNTAX_OID, 0, octetStringCompat_syntaxes}, /* matching rule desc */
+ {"octetStringMatch-mr", VENDOR, DS_PACKAGE_VERSION, "octetStringMatch matching rule plugin"}, /* plugin desc */
+   octetStringMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, bin_filter_ava, NULL, bin_values2keys,
+   bin_assertion2keys_ava, NULL, bin_compare},
+{{"2.5.13.18", NULL, "octetStringOrderingMatch", "The octetStringOrderingMatch rule compares an assertion value of the "
+"Octet String syntax to an attribute value of a syntax (e.g., the "
+"Octet String or JPEG syntax) whose corresponding ASN.1 type is the "
+"OCTET STRING ASN.1 type.  "
+"The rule evaluates to TRUE if and only if the attribute value appears "
+"earlier in the collation order than the assertion value.  The rule "
+"compares octet strings from the first octet to the last octet, and "
+"from the most significant bit to the least significant bit within the "
+"octet.  The first occurrence of a different bit determines the "
+"ordering of the strings.  A zero bit precedes a one bit.  If the "
+"strings contain different numbers of octets but the longer string is "
+"identical to the shorter string up to the length of the shorter "
+"string, then the shorter string precedes the longer string.",
+OCTETSTRING_SYNTAX_OID, 0, octetStringCompat_syntaxes}, /* matching rule desc */
+ {"octetStringOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "octetStringOrderingMatch matching rule plugin"}, /* plugin desc */
+ octetStringOrderingMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, bin_filter_ava, NULL, bin_values2keys,
+ bin_assertion2keys_ava, NULL, bin_compare}
+};
+/*
+certificateExactMatch
+certificateListExactMatch
+certificatePairExactMatch
+algorithmIdentifierMatch
+certificateMatch
+certificatePairMatch
+certificateListMatch
+*/
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
+
 /*
  * register_bin_like_plugin():  register all items for a bin-like plugin.
  */
@@ -134,6 +200,7 @@ bin_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> bin_init\n", 0, 0, 0 );
 	rc = register_bin_like_plugin( pb, &bin_pdesc, bin_names,
 		 	BINARY_SYNTAX_OID );
+	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= bin_init %d\n", rc, 0, 0 );
 	return( rc );
 }
@@ -267,4 +334,27 @@ bin_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *bval,
 	    (*ivals)[1] = NULL;
     }
 	return( 0 );
+}
+
+#define BV_EMPTY(bv) ((!bv || !bv->bv_len || !bv->bv_val))
+
+static int
+bin_compare(    
+	struct berval	*v1,
+    struct berval	*v2
+)
+{
+    int rc = 0;
+
+    if (BV_EMPTY(v1) && BV_EMPTY(v2)) {
+        rc = 0; /* empty == empty */
+    } else if (BV_EMPTY(v1) && !BV_EMPTY(v2)) {
+        rc = 1; /* something in v2 always greater than empty v1 */
+    } else if (!BV_EMPTY(v1) && BV_EMPTY(v2)) {
+        rc = -1; /* something in v1 always greater than empty v2 */
+    } else { /* both have actual data */
+        rc = slapi_berval_cmp(v1, v2);
+    }
+
+    return rc;
 }

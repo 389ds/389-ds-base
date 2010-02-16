@@ -182,6 +182,7 @@ slapi_matchingrule_free(Slapi_MatchingRuleEntry **mrEntry,
 	slapi_ch_free((void **)&((*mrEntry)->mr_desc));
 	slapi_ch_free((void **)&((*mrEntry)->mr_syntax));
 	slapi_ch_free((void **)&((*mrEntry)->mr_oidalias));
+	slapi_ch_array_free((*mrEntry)->mr_compat_syntax);
     }
     slapi_ch_free((void **)mrEntry);
     return;
@@ -244,6 +245,7 @@ int slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrule)
 	    slapi_ch_strdup((char *) mrule->mr_syntax);
     }
     newmrl->mr_entry->mr_obsolete = mrule->mr_obsolete;
+    newmrl->mr_entry->mr_compat_syntax = charray_dup(mrule->mr_compat_syntax);
 
     for(mrl = g_get_global_mrl();
         ((NULL != mrl) && (NULL != mrl->mrl_next));
@@ -277,18 +279,57 @@ int slapi_matchingrule_unregister(char *oid)
 int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_oid)
 {
     struct matchingRuleList *mrl=NULL;
-    for (mrl = g_get_global_mrl(); mrl != NULL; mrl = mrl->mrl_next) {
-        if (mrl->mr_entry->mr_name && !strcasecmp(oid_or_name, mrl->mr_entry->mr_name)) {
-            return (mrl->mr_entry->mr_name &&
-                    PL_strcasestr(mrl->mr_entry->mr_name, "ordering") &&
-                    !strcmp(mrl->mr_entry->mr_syntax, syntax_oid));
-        }
-        if (mrl->mr_entry->mr_oid && !strcmp(oid_or_name, mrl->mr_entry->mr_oid)) {
-            return (mrl->mr_entry->mr_name &&
-                    PL_strcasestr(mrl->mr_entry->mr_name, "ordering") &&
-                    !strcmp(mrl->mr_entry->mr_syntax, syntax_oid));
+
+    if (slapi_matchingrule_is_compat(oid_or_name, syntax_oid)) {
+        for (mrl = g_get_global_mrl(); mrl != NULL; mrl = mrl->mrl_next) {
+            if (mrl->mr_entry->mr_name && !strcasecmp(oid_or_name, mrl->mr_entry->mr_name)) {
+                return (mrl->mr_entry->mr_name &&
+                        PL_strcasestr(mrl->mr_entry->mr_name, "ordering"));
+            }
+            if (mrl->mr_entry->mr_oid && !strcmp(oid_or_name, mrl->mr_entry->mr_oid)) {
+                return (mrl->mr_entry->mr_name &&
+                        PL_strcasestr(mrl->mr_entry->mr_name, "ordering"));
+            }
         }
     }
+
+    return 0;
+}
+
+/*
+  See if a matching rule for this name or OID
+  is compatible with the given syntax.
+*/
+int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_oid)
+{
+    struct matchingRuleList *mrl=NULL;
+    int found = 0;
+
+    for (mrl = g_get_global_mrl(); mrl != NULL; mrl = mrl->mrl_next) {
+        if (mrl->mr_entry->mr_name && !strcasecmp(mr_oid_or_name, mrl->mr_entry->mr_name)) {
+            found = 1;
+            break;
+        }
+        if (mrl->mr_entry->mr_oid && !strcmp(mr_oid_or_name, mrl->mr_entry->mr_oid)) {
+            found = 1;
+            break;
+        }
+    }
+
+    if (found && mrl) {
+        char **mr_syntax;
+        if (!strcmp(mrl->mr_entry->mr_syntax, syntax_oid)) {
+            return 1;
+        }
+        for (mr_syntax = mrl->mr_entry->mr_compat_syntax;
+             mr_syntax;
+             mr_syntax++) {
+            if (!strcmp(*mr_syntax, syntax_oid)) {
+                return 1;
+            }
+        }
+    }
+            
 
     return 0;
 }

@@ -66,6 +66,41 @@ static char *names[] = { "Bit String", "bitstring", BITSTRING_SYNTAX_OID, 0 };
 static Slapi_PluginDesc pdesc = { "bitstring-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"Bit String attribute syntax plugin" };
 
+static const char *bitStringMatch_names[] = {"bitStringMatch", "2.5.13.16", NULL};
+
+static struct mr_plugin_def mr_plugin_table[] = {
+    {{"2.5.13.16", NULL, "bitStringMatch", "The bitStringMatch rule compares an assertion value of the Bit String "
+      "syntax to an attribute value of a syntax (e.g., the Bit String "
+      "syntax) whose corresponding ASN.1 type is BIT STRING.  "
+      "If the corresponding ASN.1 type of the attribute syntax does not have "
+      "a named bit list [ASN.1] (which is the case for the Bit String "
+      "syntax), then the rule evaluates to TRUE if and only if the attribute "
+      "value has the same number of bits as the assertion value and the bits "
+      "match on a bitwise basis.  "
+      "If the corresponding ASN.1 type does have a named bit list, then "
+      "bitStringMatch operates as above, except that trailing zero bits in "
+      "the attribute and assertion values are treated as absent.",
+      BITSTRING_SYNTAX_OID, 0, NULL /* only the specified syntax is supported */}, /* matching rule desc */
+     {"bitStringMatch-mr", VENDOR, DS_PACKAGE_VERSION, "bitStringMatch matching rule plugin"}, /* plugin desc */
+     bitStringMatch_names, /* matching rule name/oid/aliases */
+     NULL, NULL, bitstring_filter_ava, NULL, bitstring_values2keys,
+     bitstring_assertion2keys_ava, NULL, bitstring_compare}
+};
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
+
 int
 bitstring_init( Slapi_PBlock *pb )
 {
@@ -99,6 +134,7 @@ bitstring_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) bitstring_validate );
 
+	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= bitstring_init %d\n", rc, 0, 0 );
 	return( rc );
 }

@@ -95,16 +95,6 @@ static char *time_names[] = { "GeneralizedTime", "time",
 
 #define GENERALIZEDTIMEMATCH_OID "2.5.13.27"
 #define GENERALIZEDTIMEORDERINGMATCH_OID "2.5.13.28"
-static Slapi_MatchingRuleEntry
-generalizedTimeMatch = { GENERALIZEDTIMEMATCH_OID, NULL /* no alias? */,
-                         "generalizedTimeMatch", "The rule evaluates to TRUE if and only if the attribute value represents the same universal coordinated time as the assertion value.",
-                         GENERALIZEDTIME_SYNTAX_OID, 0 /* not obsolete */ };
-
-static Slapi_MatchingRuleEntry
-generalizedTimeOrderingMatch = { GENERALIZEDTIMEORDERINGMATCH_OID, NULL /* no alias? */,
-                                 "generalizedTimeOrderingMatch", "The rule evaluates to TRUE if and only if the attribute value represents a universal coordinated time that is earlier than the universal coordinated time represented by the assertion value.",
-                                 GENERALIZEDTIME_SYNTAX_OID, 0 /* not obsolete */ };
-
 
 static char *country_names[] = { "Country String",
 		COUNTRYSTRING_SYNTAX_OID, 0};
@@ -180,6 +170,248 @@ static Slapi_PluginDesc printable_pdesc = { "printablestring-syntax",
 		VENDOR, DS_PACKAGE_VERSION,
 		"Printable String attribtue syntax plugin" };
 
+static const char *generalizedTimeMatch_names[] = {"generalizedTimeMatch", GENERALIZEDTIMEMATCH_OID, NULL};
+static const char *generalizedTimeOrderingMatch_names[] = {"generalizedTimeOrderingMatch", GENERALIZEDTIMEORDERINGMATCH_OID, NULL};
+static const char *booleanMatch_names[] = {"booleanMatch", "2.5.13.13", NULL};
+static const char *caseIgnoreIA5Match_names[] = {"caseIgnoreIA5Match", "1.3.6.1.4.1.1466.109.114.2", NULL};
+static const char *caseIgnoreIA5SubstringsMatch_names[] = {"caseIgnoreIA5SubstringsMatch", "1.3.6.1.4.1.1466.109.114.3", NULL};
+static const char *caseIgnoreListMatch_names[] = {"caseIgnoreListMatch", "2.5.13.11", NULL};
+static const char *caseIgnoreListSubstringsMatch_names[] = {"caseIgnoreListSubstringsMatch", "2.5.13.12", NULL};
+static const char *caseIgnoreMatch_names[] = {"caseIgnoreMatch", "2.5.13.2", NULL};
+static const char *caseIgnoreOrderingMatch_names[] = {"caseIgnoreOrderingMatch", "2.5.13.3", NULL};
+static const char *caseIgnoreSubstringsMatch_names[] = {"caseIgnoreSubstringsMatch", "2.5.13.4", NULL};
+static const char *directoryStringFirstComponentMatch_names[] = {"directoryStringFirstComponentMatch", "2.5.13.31", NULL};
+static const char *objectIdentifierMatch_names[] = {"objectIdentifierMatch", "2.5.13.0", NULL};
+static const char *objectIdentifierFirstComponentMatch_names[] = {"objectIdentifierFirstComponentMatch", "2.5.13.30", NULL};
+
+static char *dirString_syntaxes[] = {COUNTRYSTRING_SYNTAX_OID,
+                                           DIRSTRING_SYNTAX_OID,
+                                           PRINTABLESTRING_SYNTAX_OID,NULL};
+static char *dirStringCompat_syntaxes[] = {COUNTRYSTRING_SYNTAX_OID,
+                                                 PRINTABLESTRING_SYNTAX_OID,NULL};
+static char *caseIgnoreIA5SubstringsMatch_syntaxes[] = {IA5STRING_SYNTAX_OID,NULL};
+static char *caseIgnoreListSubstringsMatch_syntaxes[] = {POSTALADDRESS_SYNTAX_OID,NULL};
+static char *objectIdentifierFirstComponentMatch_syntaxes[] = {DIRSTRING_SYNTAX_OID, NULL};
+
+static struct mr_plugin_def mr_plugin_table[] = {
+{{GENERALIZEDTIMEMATCH_OID, NULL /* no alias? */,
+  "generalizedTimeMatch", "The rule evaluates to TRUE if and only if the attribute value represents the same universal coordinated time as the assertion value.",
+  GENERALIZEDTIME_SYNTAX_OID, 0 /* not obsolete */, NULL /* no other syntaxes supported */ },
+ {"generalizedTimeMatch-mr", VENDOR, DS_PACKAGE_VERSION, "generalizedTimeMatch matching rule plugin"}, /* plugin desc */
+ generalizedTimeMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+ cis_assertion2keys_ava, NULL, cis_compare},
+{{GENERALIZEDTIMEORDERINGMATCH_OID, NULL /* no alias? */,
+  "generalizedTimeOrderingMatch", "The rule evaluates to TRUE if and only if the attribute value represents a universal coordinated time that is earlier than the universal coordinated time represented by the assertion value.",
+  GENERALIZEDTIME_SYNTAX_OID, 0 /* not obsolete */, NULL /* no other syntaxes supported */ },
+ {"generalizedTimeOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "generalizedTimeOrderingMatch matching rule plugin"}, /* plugin desc */
+ generalizedTimeOrderingMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+ cis_assertion2keys_ava, NULL, cis_compare},
+/* strictly speaking, boolean is case sensitive */
+{{"2.5.13.13", NULL, "booleanMatch", "The booleanMatch rule compares an assertion value of the Boolean "
+"syntax to an attribute value of a syntax (e.g., the Boolean syntax) "
+"whose corresponding ASN.1 type is BOOLEAN.  "
+"The rule evaluates to TRUE if and only if the attribute value and the "
+"assertion value are both TRUE or both FALSE.", BOOLEAN_SYNTAX_OID, 0, NULL /* no other syntaxes supported */}, /* matching rule desc */
+ {"booleanMatch-mr", VENDOR, DS_PACKAGE_VERSION, "booleanMatch matching rule plugin"}, /* plugin desc */
+   booleanMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+   cis_assertion2keys_ava, NULL, cis_compare},
+{{"1.3.6.1.4.1.1466.109.114.2", NULL, "caseIgnoreIA5Match", "The caseIgnoreIA5Match rule compares an assertion value of the IA5 "
+"String syntax to an attribute value of a syntax (e.g., the IA5 String "
+"syntax) whose corresponding ASN.1 type is IA5String.  "
+"The rule evaluates to TRUE if and only if the prepared attribute "
+"value character string and the prepared assertion value character "
+"string have the same number of characters and corresponding "
+"characters have the same code point.  "
+"In preparing the attribute value and assertion value for comparison, "
+"characters are case folded in the Map preparation step, and only "
+"Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.", IA5STRING_SYNTAX_OID, 0, NULL /* no other syntaxes supported */}, /* matching rule desc */
+ {"caseIgnoreIA5Match-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreIA5Match matching rule plugin"}, /* plugin desc */
+   caseIgnoreIA5Match_names, /* matching rule name/oid/aliases */
+   NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+   cis_assertion2keys_ava, NULL, cis_compare},
+{{"1.3.6.1.4.1.1466.109.114.3", NULL, "caseIgnoreIA5SubstringsMatch", "The caseIgnoreIA5SubstringsMatch rule compares an assertion value of "
+"the Substring Assertion syntax to an attribute value of a syntax "
+"(e.g., the IA5 String syntax) whose corresponding ASN.1 type is "
+"IA5String.  "
+"The rule evaluates to TRUE if and only if (1) the prepared substrings "
+"of the assertion value match disjoint portions of the prepared "
+"attribute value character string in the order of the substrings in "
+"the assertion value, (2) an <initial> substring, if present, matches "
+"the beginning of the prepared attribute value character string, and "
+"(3) a <final> substring, if present, matches the end of the prepared "
+"attribute value character string.  A prepared substring matches a "
+"portion of the prepared attribute value character string if "
+"corresponding characters have the same code point.  "
+"In preparing the attribute value and assertion value substrings for "
+"comparison, characters are case folded in the Map preparation step, "
+"and only Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.", "1.3.6.1.4.1.1466.115.121.1.58", 0, caseIgnoreIA5SubstringsMatch_syntaxes}, /* matching rule desc */
+ {"caseIgnoreIA5SubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreIA5SubstringsMatch matching rule plugin"}, /* plugin desc */
+   caseIgnoreIA5SubstringsMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, NULL, cis_filter_sub, cis_values2keys,
+   NULL, cis_assertion2keys_sub, NULL},
+{{"2.5.13.2", NULL, "caseIgnoreMatch", "The caseIgnoreMatch rule compares an assertion value of the Directory "
+"String syntax to an attribute value of a syntax (e.g., the Directory "
+"String, Printable String, Country String, or Telephone Number syntax) "
+"whose corresponding ASN.1 type is DirectoryString or one of its "
+"alternative string types.  "
+"The rule evaluates to TRUE if and only if the prepared attribute "
+"value character string and the prepared assertion value character "
+"string have the same number of characters and corresponding "
+"characters have the same code point. "
+"In preparing the attribute value and assertion value for comparison, "
+"characters are case folded in the Map preparation step, and only "
+"Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.", DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
+ {"caseIgnoreMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreMatch matching rule plugin"}, /* plugin desc */
+   caseIgnoreMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+   cis_assertion2keys_ava, NULL, cis_compare},
+{{"2.5.13.3", NULL, "caseIgnoreOrderingMatch", "The caseIgnoreOrderingMatch rule compares an assertion value of the "
+"Directory String syntax to an attribute value of a syntax (e.g., the "
+"Directory String, Printable String, Country String, or Telephone "
+"Number syntax) whose corresponding ASN.1 type is DirectoryString or "
+"one of its alternative string types. "
+"The rule evaluates to TRUE if and only if, in the code point "
+"collation order, the prepared attribute value character string "
+"appears earlier than the prepared assertion value character string; "
+"i.e., the attribute value is \"less than\" the assertion value. "
+"In preparing the attribute value and assertion value for comparison, "
+"characters are case folded in the Map preparation step, and only "
+"Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.", DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
+ {"caseIgnoreOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreOrderingMatch matching rule plugin"}, /* plugin desc */
+   caseIgnoreOrderingMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+   cis_assertion2keys_ava, NULL, cis_compare},
+{{"2.5.13.4", NULL, "caseIgnoreSubstringsMatch", "The caseIgnoreSubstringsMatch rule compares an assertion value of the "
+"Substring Assertion syntax to an attribute value of a syntax (e.g., "
+"the Directory String, Printable String, Country String, or Telephone "
+"Number syntax) whose corresponding ASN.1 type is DirectoryString or "
+"one of its alternative string types. "
+"The rule evaluates to TRUE if and only if (1) the prepared substrings "
+"of the assertion value match disjoint portions of the prepared "
+"attribute value character string in the order of the substrings in "
+"the assertion value, (2) an <initial> substring, if present, matches "
+"the beginning of the prepared attribute value character string, and "
+"(3) a <final> substring, if present, matches the end of the prepared "
+"attribute value character string.  A prepared substring matches a "
+"portion of the prepared attribute value character string if "
+"corresponding characters have the same code point. "
+"In preparing the attribute value and assertion value substrings for "
+"comparison, characters are case folded in the Map preparation step, "
+"and only Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.", "1.3.6.1.4.1.1466.115.121.1.58", 0, dirString_syntaxes}, /* matching rule desc */
+ {"caseIgnoreSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreSubstringsMatch matching rule plugin"}, /* plugin desc */
+   caseIgnoreSubstringsMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, NULL, cis_filter_sub, cis_values2keys,
+   NULL, cis_assertion2keys_sub, cis_compare},
+{{"2.5.13.11", NULL, "caseIgnoreListMatch", "The caseIgnoreListMatch rule compares an assertion value that is a "
+"sequence of strings to an attribute value of a syntax (e.g., the "
+"Postal Address syntax) whose corresponding ASN.1 type is a SEQUENCE "
+"OF the DirectoryString ASN.1 type. "
+"The rule evaluates to TRUE if and only if the attribute value and the "
+"assertion value have the same number of strings and corresponding "
+"strings (by position) match according to the caseIgnoreMatch matching "
+"rule. "
+"In [X.520], the assertion syntax for this matching rule is defined to "
+"be: "
+"      SEQUENCE OF DirectoryString {ub-match} "
+"That is, it is different from the corresponding type for the Postal "
+"Address syntax.  The choice of the Postal Address syntax for the "
+"assertion syntax of the caseIgnoreListMatch in LDAP should not be "
+"seen as limiting the matching rule to apply only to attributes with "
+"the Postal Address syntax.", POSTALADDRESS_SYNTAX_OID, 0, NULL /* postal syntax only */}, /* matching rule desc */
+ {"caseIgnoreListMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreListMatch matching rule plugin"}, /* plugin desc */
+   caseIgnoreListMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+   cis_assertion2keys_ava, NULL, cis_compare},
+{{"2.5.13.12", NULL, "caseIgnoreListSubstringsMatch", "The caseIgnoreListSubstringsMatch rule compares an assertion value of "
+"the Substring Assertion syntax to an attribute value of a syntax "
+"(e.g., the Postal Address syntax) whose corresponding ASN.1 type is a "
+"SEQUENCE OF the DirectoryString ASN.1 type. "
+"The rule evaluates to TRUE if and only if the assertion value "
+"matches, per the caseIgnoreSubstringsMatch rule, the character string "
+"formed by concatenating the strings of the attribute value, except "
+"that none of the <initial>, <any>, or <final> substrings of the "
+"assertion value are considered to match a substring of the "
+"concatenated string which spans more than one of the original strings "
+"of the attribute value. "
+"Note that, in terms of the LDAP-specific encoding of the Postal "
+"Address syntax, the concatenated string omits the <DOLLAR> line "
+"separator and the escaping of \"\\\" and \"$\" characters.",
+"1.3.6.1.4.1.1466.115.121.1.58", 0, caseIgnoreListSubstringsMatch_syntaxes}, /* matching rule desc */
+ {"caseIgnoreListSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreListSubstringsMatch matching rule plugin"}, /* plugin desc */
+   caseIgnoreListSubstringsMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, NULL, cis_filter_sub, cis_values2keys,
+   NULL, cis_assertion2keys_sub, cis_compare},
+{{"2.5.13.0", NULL, "objectIdentifierMatch", "The objectIdentifierMatch rule compares an assertion value of the OID "
+"syntax to an attribute value of a syntax (e.g., the OID syntax) whose "
+"corresponding ASN.1 type is OBJECT IDENTIFIER. "
+"The rule evaluates to TRUE if and only if the assertion value and the "
+"attribute value represent the same object identifier; that is, the "
+"same sequence of integers, whether represented explicitly in the "
+"<numericoid> form of <oid> or implicitly in the <descr> form (see "
+"[RFC4512]). "
+"If an LDAP client supplies an assertion value in the <descr> form and "
+"the chosen descriptor is not recognized by the server, then the "
+"objectIdentifierMatch rule evaluates to Undefined.",
+OID_SYNTAX_OID, 0, NULL /* OID syntax only for now */}, /* matching rule desc */
+ {"objectIdentifierMatch-mr", VENDOR, DS_PACKAGE_VERSION, "objectIdentifierMatch matching rule plugin"}, /* plugin desc */
+ objectIdentifierMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+ cis_assertion2keys_ava, NULL, cis_compare},
+{{"2.5.13.31", NULL, "directoryStringFirstComponentMatch", "The directoryStringFirstComponentMatch rule compares an assertion "
+"value of the Directory String syntax to an attribute value of a "
+"syntax whose corresponding ASN.1 type is a SEQUENCE with a mandatory "
+"first component of the DirectoryString ASN.1 type. "
+"Note that the assertion syntax of this matching rule differs from the "
+"attribute syntax of attributes for which this is the equality "
+"matching rule. "
+"The rule evaluates to TRUE if and only if the assertion value matches "
+"the first component of the attribute value using the rules of "
+"caseIgnoreMatch.", DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
+ {"directoryStringFirstComponentMatch-mr", VENDOR, DS_PACKAGE_VERSION, "directoryStringFirstComponentMatch matching rule plugin"}, /* plugin desc */
+   directoryStringFirstComponentMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+   cis_assertion2keys_ava, NULL, NULL},
+{{"2.5.13.30", NULL, "objectIdentifierFirstComponentMatch",
+"The objectIdentifierFirstComponentMatch rule compares an assertion "
+"value of the OID syntax to an attribute value of a syntax (e.g., the "
+"Attribute Type Description, DIT Content Rule Description, LDAP Syntax "
+"Description, Matching Rule Description, Matching Rule Use "
+"Description, Name Form Description, or Object Class Description "
+"syntax) whose corresponding ASN.1 type is a SEQUENCE with a mandatory "
+"first component of the OBJECT IDENTIFIER ASN.1 type. "
+"Note that the assertion syntax of this matching rule differs from the "
+"attribute syntax of attributes for which this is the equality "
+"matching rule. "
+"The rule evaluates to TRUE if and only if the assertion value matches "
+"the first component of the attribute value using the rules of "
+"objectIdentifierMatch.", OID_SYNTAX_OID, 0, objectIdentifierFirstComponentMatch_syntaxes}, /* matching rule desc */
+ {"objectIdentifierFirstComponentMatch-mr", VENDOR, DS_PACKAGE_VERSION, "objectIdentifierFirstComponentMatch matching rule plugin"}, /* plugin desc */
+   objectIdentifierFirstComponentMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
+   cis_assertion2keys_ava, NULL, NULL}
+};
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
 
 /*
  * register_cis_like_plugin():  register all items for a cis-like plugin.
@@ -229,6 +461,7 @@ cis_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> cis_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &dirstring_pdesc, dirstring_names,
 		 	DIRSTRING_SYNTAX_OID, dirstring_validate );
+	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= cis_init %d\n", rc, 0, 0 );
 	return( rc );
 }
@@ -254,9 +487,6 @@ time_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> time_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &time_pdesc, time_names,
 			GENERALIZEDTIME_SYNTAX_OID, time_validate );
-	/* also register this plugin for matching rules */
-	rc |= slapi_matchingrule_register(&generalizedTimeMatch);
-	rc |= slapi_matchingrule_register(&generalizedTimeOrderingMatch);
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= time_init %d\n", rc, 0, 0 );
 	return( rc );
 }

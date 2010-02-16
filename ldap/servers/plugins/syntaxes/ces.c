@@ -49,6 +49,10 @@
 #include <sys/types.h>
 #include "syntax.h"
 
+/* this is used in proposed schema, but there is no official
+   OID yet - so for now, use our private MR OID namespace */
+#define CASEEXACTIA5SUBSTRINGSMATCH_OID "2.16.840.1.113730.3.3.1"
+
 static int ces_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 		Slapi_Value **bvals, int ftype, Slapi_Value **retVal );
 static int ces_filter_sub( Slapi_PBlock *pb, char *initial, char **any,
@@ -75,6 +79,140 @@ static Slapi_PluginDesc ia5_pdesc = { "ces-syntax", VENDOR,
 static Slapi_PluginDesc uri_pdesc = { "uri-syntax", VENDOR,
 	DS_PACKAGE_VERSION, "uri attribute syntax plugin" };
 
+static const char *caseExactIA5Match_names[] = {"caseExactIA5Match", "1.3.6.1.4.1.1466.109.114.1", NULL};
+static const char *caseExactMatch_names[] = {"caseExactMatch", "2.5.13.5", NULL};
+static const char *caseExactOrderingMatch_names[] = {"caseExactOrderingMatch", "2.5.13.6", NULL};
+static const char *caseExactSubstringsMatch_names[] = {"caseExactSubstringsMatch", "2.5.13.7", NULL};
+static const char *caseExactIA5SubstringsMatch_names[] = {"caseExactIA5SubstringsMatch", CASEEXACTIA5SUBSTRINGSMATCH_OID, NULL};
+
+static char *dirString_syntaxes[] = {COUNTRYSTRING_SYNTAX_OID,
+                                           DIRSTRING_SYNTAX_OID,
+                                           PRINTABLESTRING_SYNTAX_OID,NULL};
+static char *dirStringCompat_syntaxes[] = {COUNTRYSTRING_SYNTAX_OID,
+                                                 PRINTABLESTRING_SYNTAX_OID,NULL};
+static char *ia5String_syntaxes[] = {IA5STRING_SYNTAX_OID,NULL};
+
+/* for some reason vendorName and vendorVersion are dirstring but want
+   to use EQUALITY caseExactIA5Match ???? RFC 3045
+   also the old definition of automountInformation from 60autofs.ldif
+   does the same thing */
+static char *caseExactIA5Match_syntaxes[] = {DIRSTRING_SYNTAX_OID, NULL};
+
+static struct mr_plugin_def mr_plugin_table[] = {
+{{"1.3.6.1.4.1.1466.109.114.1", NULL, "caseExactIA5Match", "The caseExactIA5Match rule compares an assertion value of the IA5 "
+"String syntax to an attribute value of a syntax (e.g., the IA5 String "
+"syntax) whose corresponding ASN.1 type is IA5String. "
+"The rule evaluates to TRUE if and only if the prepared attribute "
+"value character string and the prepared assertion value character "
+"string have the same number of characters and corresponding "
+"characters have the same code point. "
+"In preparing the attribute value and assertion value for comparison, "
+"characters are not case folded in the Map preparation step, and only "
+"Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.",
+IA5STRING_SYNTAX_OID, 0, caseExactIA5Match_syntaxes}, /* matching rule desc */
+ {"caseExactIA5Match-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactIA5Match matching rule plugin"}, /* plugin desc */
+   caseExactIA5Match_names, /* matching rule name/oid/aliases */
+   NULL, NULL, ces_filter_ava, NULL, ces_values2keys,
+   ces_assertion2keys_ava, NULL, ces_compare},
+{{"2.5.13.5", NULL, "caseExactMatch", "The caseExactMatch rule compares an assertion value of the Directory "
+"String syntax to an attribute value of a syntax (e.g., the Directory "
+"String, Printable String, Country String, or Telephone Number syntax) "
+"whose corresponding ASN.1 type is DirectoryString or one of the "
+"alternative string types of DirectoryString, such as PrintableString "
+"(the other alternatives do not correspond to any syntax defined in "
+"this document). "
+"The rule evaluates to TRUE if and only if the prepared attribute "
+"value character string and the prepared assertion value character "
+"string have the same number of characters and corresponding "
+"characters have the same code point. "
+"In preparing the attribute value and assertion value for comparison, "
+"characters are not case folded in the Map preparation step, and only "
+"Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.",
+DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
+ {"caseExactMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactMatch matching rule plugin"}, /* plugin desc */
+   caseExactMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, ces_filter_ava, NULL, ces_values2keys,
+   ces_assertion2keys_ava, NULL, ces_compare},
+{{"2.5.13.6", NULL, "caseExactOrderingMatch", "The caseExactOrderingMatch rule compares an assertion value of the "
+"Directory String syntax to an attribute value of a syntax (e.g., the "
+"Directory String, Printable String, Country String, or Telephone "
+"Number syntax) whose corresponding ASN.1 type is DirectoryString or "
+"one of its alternative string types. "
+"The rule evaluates to TRUE if and only if, in the code point "
+"collation order, the prepared attribute value character string "
+"appears earlier than the prepared assertion value character string; "
+"i.e., the attribute value is \"less than\" the assertion value. "
+"In preparing the attribute value and assertion value for comparison, "
+"characters are not case folded in the Map preparation step, and only "
+"Insignificant Space Handling is applied in the Insignificant "
+"Character Handling step.",
+DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
+ {"caseExactOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactOrderingMatch matching rule plugin"}, /* plugin desc */
+   caseExactOrderingMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, ces_filter_ava, NULL, ces_values2keys,
+   ces_assertion2keys_ava, NULL, ces_compare},
+{{"2.5.13.7", NULL, "caseExactSubstringsMatch", "The caseExactSubstringsMatch rule compares an assertion value of the "
+"Substring Assertion syntax to an attribute value of a syntax (e.g., "
+"the Directory String, Printable String, Country String, or Telephone "
+"Number syntax) whose corresponding ASN.1 type is DirectoryString or "
+"one of its alternative string types. "
+"The rule evaluates to TRUE if and only if (1) the prepared substrings "
+"of the assertion value match disjoint portions of the prepared "
+"attribute value character string in the order of the substrings in "
+"the assertion value, (2) an <initial> substring, if present, matches "
+"the beginning of the prepared attribute value character string, and "
+"(3) a <final> substring, if present, matches the end of the prepared "
+"attribute value character string.  A prepared substring matches a "
+"portion of the prepared attribute value character string if "
+"corresponding characters have the same code point. "
+"In preparing the attribute value and assertion value substrings for "
+"comparison, characters are not case folded in the Map preparation "
+"step, and only Insignificant Space Handling is applied in the "
+"Insignificant Character Handling step.",
+"1.3.6.1.4.1.1466.115.121.1.58", 0, dirString_syntaxes}, /* matching rule desc */
+ {"caseExactSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactSubstringsMatch matching rule plugin"}, /* plugin desc */
+ caseExactSubstringsMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, NULL, ces_filter_sub, ces_values2keys,
+ NULL, ces_assertion2keys_sub, ces_compare},
+{{CASEEXACTIA5SUBSTRINGSMATCH_OID, NULL, "caseExactIA5SubstringsMatch", "The caseExactIA5SubstringsMatch rule compares an assertion value of the "
+"Substring Assertion syntax to an attribute value of a syntax (e.g., "
+"the IA5 syntax) whose corresponding ASN.1 type is IA5 String or "
+"one of its alternative string types. "
+"The rule evaluates to TRUE if and only if (1) the prepared substrings "
+"of the assertion value match disjoint portions of the prepared "
+"attribute value character string in the order of the substrings in "
+"the assertion value, (2) an <initial> substring, if present, matches "
+"the beginning of the prepared attribute value character string, and "
+"(3) a <final> substring, if present, matches the end of the prepared "
+"attribute value character string.  A prepared substring matches a "
+"portion of the prepared attribute value character string if "
+"corresponding characters have the same code point. "
+"In preparing the attribute value and assertion value substrings for "
+"comparison, characters are not case folded in the Map preparation "
+"step, and only Insignificant Space Handling is applied in the "
+"Insignificant Character Handling step.",
+"1.3.6.1.4.1.1466.115.121.1.58", 0, ia5String_syntaxes}, /* matching rule desc */
+ {"caseExactIA5SubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactIA5SubstringsMatch matching rule plugin"}, /* plugin desc */
+   caseExactIA5SubstringsMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, NULL, ces_filter_sub, ces_values2keys,
+   NULL, ces_assertion2keys_sub, ces_compare}
+};
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
 
 /*
  * register_ces_like_plugin():  register all items for a cis-like plugin.
@@ -124,6 +262,7 @@ ces_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> ces_init\n", 0, 0, 0 );
 
 	rc = register_ces_like_plugin(pb,&ia5_pdesc,ia5_names,IA5STRING_SYNTAX_OID, ia5_validate);
+	rc |= register_matching_rule_plugins();
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= ces_init %d\n", rc, 0, 0 );
 	return( rc );

@@ -65,16 +65,59 @@ static char *names[] = { "INTEGER", "int", INTEGER_SYNTAX_OID, 0 };
 static Slapi_PluginDesc pdesc = { "int-syntax", VENDOR,
 	DS_PACKAGE_VERSION, "integer attribute syntax plugin" };
 
-static Slapi_MatchingRuleEntry
-integerMatch = { INTEGERMATCH_OID, NULL /* no alias? */,
-                 "integerMatch", "The rule evaluates to TRUE if and only if the attribute value and the assertion value are the same integer value.",
-                 INTEGER_SYNTAX_OID, 0 /* not obsolete */ };
+static const char *integerMatch_names[] = {"integerMatch", INTEGERMATCH_OID, NULL};
+static const char *integerOrderingMatch_names[] = {"integerOrderingMatch", INTEGERORDERINGMATCH_OID, NULL};
+static const char *integerFirstComponentMatch_names[] = {"integerFirstComponentMatch", "2.5.13.29", NULL};
 
-static Slapi_MatchingRuleEntry
-integerOrderingMatch = { INTEGERORDERINGMATCH_OID, NULL /* no alias? */,
-                         "integerOrderingMatch", "The rule evaluates to TRUE if and only if the integer value of the attribute value is less than the integer value of the assertion value.",
-                         INTEGER_SYNTAX_OID, 0 /* not obsolete */ };
+/* hack for now until we can support all of the rfc4517 syntaxes */
+static char *integerFirstComponentMatch_syntaxes[] = {DIRSTRING_SYNTAX_OID, NULL};
 
+static struct mr_plugin_def mr_plugin_table[] = {
+{{INTEGERMATCH_OID, NULL /* no alias? */,
+  "integerMatch", "The rule evaluates to TRUE if and only if the attribute value and the assertion value are the same integer value.",
+  INTEGER_SYNTAX_OID, 0 /* not obsolete */, NULL /* no other compatible syntaxes */ },
+ {"integerMatch-mr", VENDOR, DS_PACKAGE_VERSION, "integerMatch matching rule plugin" },
+ integerMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, int_filter_ava, NULL, int_values2keys,
+ int_assertion2keys, NULL, int_compare},
+{{INTEGERORDERINGMATCH_OID, NULL /* no alias? */,
+  "integerOrderingMatch", "The rule evaluates to TRUE if and only if the integer value of the attribute value is less than the integer value of the assertion value.",
+  INTEGER_SYNTAX_OID, 0 /* not obsolete */, NULL /* no other compatible syntaxes */ },
+ {"integerOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "integerOrderingMatch matching rule plugin" },
+ integerOrderingMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, int_filter_ava, NULL, int_values2keys,
+ int_assertion2keys, NULL, int_compare},
+/* NOTE: THIS IS BROKEN - WE DON'T SUPPORT THE FIRSTCOMPONENT match */
+{{"2.5.13.29", NULL, "integerFirstComponentMatch", "The integerFirstComponentMatch rule compares an assertion value of "
+"the Integer syntax to an attribute value of a syntax (e.g., the DIT "
+"Structure Rule Description syntax) whose corresponding ASN.1 type is "
+"a SEQUENCE with a mandatory first component of the INTEGER ASN.1 "
+"type.  "
+"Note that the assertion syntax of this matching rule differs from the "
+"attribute syntax of attributes for which this is the equality "
+"matching rule.  "
+"The rule evaluates to TRUE if and only if the assertion value and the "
+"first component of the attribute value are the same integer value.",
+INTEGER_SYNTAX_OID, 0, integerFirstComponentMatch_syntaxes}, /* matching rule desc */
+ {"integerFirstComponentMatch-mr", VENDOR, DS_PACKAGE_VERSION, "integerFirstComponentMatch matching rule plugin"}, /* plugin desc */
+   integerFirstComponentMatch_names, /* matching rule name/oid/aliases */
+   NULL, NULL, int_filter_ava, NULL, int_values2keys,
+   int_assertion2keys, NULL, int_compare},
+};
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
 
 int
 int_init( Slapi_PBlock *pb )
@@ -105,10 +148,7 @@ int_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) int_validate );
 
-	/* also register this plugin for matching rules */
-	rc |= slapi_matchingrule_register(&integerMatch);
-	rc |= slapi_matchingrule_register(&integerOrderingMatch);
-
+	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= int_init %d\n", rc, 0, 0 );
 	return( rc );
 }

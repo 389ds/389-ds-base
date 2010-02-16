@@ -66,6 +66,67 @@ static char *names[] = { "TelephoneNumber", "tel", TELEPHONE_SYNTAX_OID, 0 };
 static Slapi_PluginDesc pdesc = { "tele-syntax", VENDOR, DS_PACKAGE_VERSION,
 	"telephoneNumber attribute syntax plugin" };
 
+static const char *telephoneNumberMatch_names[] = {"telephoneNumberMatch", "2.5.13.20", NULL};
+static const char *telephoneNumberSubstringsMatch_names[] = {"telephoneNumberSubstringsMatch", "2.5.13.21", NULL};
+
+static char *telephoneNumberSubstringsMatch_syntaxes[] = {TELEPHONE_SYNTAX_OID, NULL};
+
+static struct mr_plugin_def mr_plugin_table[] = {
+{{"2.5.13.20", NULL, "telephoneNumberMatch", "The telephoneNumberMatch rule compares an assertion value of the "
+"Telephone Number syntax to an attribute value of a syntax (e.g., the "
+"Telephone Number syntax) whose corresponding ASN.1 type is a "
+"PrintableString representing a telephone number. "
+"The rule evaluates to TRUE if and only if the prepared attribute "
+"value character string and the prepared assertion value character "
+"string have the same number of characters and corresponding "
+"characters have the same code point. "
+"In preparing the attribute value and assertion value for comparison, "
+"characters are case folded in the Map preparation step, and only "
+"telephoneNumber Insignificant Character Handling is applied in the "
+"Insignificant Character Handling step.",
+TELEPHONE_SYNTAX_OID, 0, NULL /* tel syntax only */}, /* matching rule desc */
+ {"telephoneNumberMatch-mr", VENDOR, DS_PACKAGE_VERSION, "telephoneNumberMatch matching rule plugin"}, /* plugin desc */
+ telephoneNumberMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, tel_filter_ava, NULL, tel_values2keys,
+ tel_assertion2keys_ava, NULL, tel_compare},
+{{"2.5.13.21", NULL, "telephoneNumberSubstringsMatch", "The telephoneNumberSubstringsMatch rule compares an assertion value "
+"of the Substring Assertion syntax to an attribute value of a syntax "
+"(e.g., the Telephone Number syntax) whose corresponding ASN.1 type is "
+"a PrintableString representing a telephone number. "
+"The rule evaluates to TRUE if and only if (1) the prepared substrings "
+"of the assertion value match disjoint portions of the prepared "
+"attribute value character string in the order of the substrings in "
+"the assertion value, (2) an <initial> substring, if present, matches "
+"the beginning of the prepared attribute value character string, and "
+"(3) a <final> substring, if present, matches the end of the prepared "
+"attribute value character string.  A prepared substring matches a "
+"portion of the prepared attribute value character string if "
+"corresponding characters have the same code point. "
+"In preparing the attribute value and assertion value substrings for "
+"comparison, characters are case folded in the Map preparation step, "
+"and only telephoneNumber Insignificant Character Handling is applied "
+"in the Insignificant Character Handling step.",
+"1.3.6.1.4.1.1466.115.121.1.58", 0, telephoneNumberSubstringsMatch_syntaxes}, /* matching rule desc */
+ {"telephoneNumberSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "telephoneNumberSubstringsMatch matching rule plugin"}, /* plugin desc */
+ telephoneNumberSubstringsMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, NULL, tel_filter_sub, tel_values2keys,
+ NULL, tel_assertion2keys_sub, tel_compare},
+};
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
+
 int
 tel_init( Slapi_PBlock *pb )
 {
@@ -99,6 +160,7 @@ tel_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) tel_validate );
 
+	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= tel_init %d\n", rc, 0, 0 );
 	return( rc );
 }

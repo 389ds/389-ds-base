@@ -65,6 +65,47 @@ static char *names[] = { "DN", DN_SYNTAX_OID, 0 };
 static Slapi_PluginDesc pdesc = { "dn-syntax", VENDOR,
 	DS_PACKAGE_VERSION, "distinguished name attribute syntax plugin" };
 
+static const char *distinguishedNameMatch_names[] = {"distinguishedNameMatch", "2.5.13.1", NULL};
+
+static struct mr_plugin_def mr_plugin_table[] = {
+{{"2.5.13.1", NULL, "distinguishedNameMatch", "The distinguishedNameMatch rule compares an assertion value of the DN "
+"syntax to an attribute value of a syntax (e.g., the DN syntax) whose "
+"corresponding ASN.1 type is DistinguishedName. "
+"The rule evaluates to TRUE if and only if the attribute value and the "
+"assertion value have the same number of relative distinguished names "
+"and corresponding relative distinguished names (by position) are the "
+"same.  A relative distinguished name (RDN) of the assertion value is "
+"the same as an RDN of the attribute value if and only if they have "
+"the same number of attribute value assertions and each attribute "
+"value assertion (AVA) of the first RDN is the same as the AVA of the "
+"second RDN with the same attribute type.  The order of the AVAs is "
+"not significant.  Also note that a particular attribute type may "
+"appear in at most one AVA in an RDN.  Two AVAs with the same "
+"attribute type are the same if their values are equal according to "
+"the equality matching rule of the attribute type.  If one or more of "
+"the AVA comparisons evaluate to Undefined and the remaining AVA "
+"comparisons return TRUE then the distinguishedNameMatch rule "
+"evaluates to Undefined.", DN_SYNTAX_OID, 0, NULL /* dn only for now */}, /* matching rule desc */
+ {"distinguishedNameMatch-mr", VENDOR, DS_PACKAGE_VERSION, "distinguishedNameMatch matching rule plugin"}, /* plugin desc */
+ distinguishedNameMatch_names, /* matching rule name/oid/aliases */
+ NULL, NULL, dn_filter_ava, NULL, dn_values2keys,
+ dn_assertion2keys_ava, NULL, NULL},
+};
+
+static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
+
+static int
+matching_rule_plugin_init(Slapi_PBlock *pb)
+{
+	return syntax_matching_rule_plugin_init(pb, mr_plugin_table, mr_plugin_table_size);
+}
+
+static int
+register_matching_rule_plugins()
+{
+	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
+}
+
 int
 dn_init( Slapi_PBlock *pb )
 {
@@ -93,6 +134,7 @@ dn_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) dn_validate );
 
+	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= dn_init %d\n", rc, 0, 0 );
 	return( rc );
 }

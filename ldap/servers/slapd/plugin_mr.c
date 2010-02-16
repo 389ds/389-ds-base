@@ -94,21 +94,30 @@ slapi_get_global_mr_plugins()
 struct slapdplugin *
 plugin_mr_find( const char *nameoroid )
 {
-	struct slapdplugin	*pi;
+	struct slapdplugin	*pi = NULL;
 
-	for ( pi = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); pi != NULL; pi = pi->plg_next ) {
+	for ( pi = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); (nameoroid != NULL) && (pi != NULL); pi = pi->plg_next ) {
 		if ( charray_inlist( pi->plg_mr_names, (char *)nameoroid ) ) {
 			break;
 		}
 	}
+
+	if (!nameoroid) {
+		pi = NULL;
+	}
+
+	if (nameoroid && !pi) {
+		slapi_log_error(SLAPI_LOG_CONFIG, "plugin_mr_find",
+						"Error: matching rule plugin for [%s] not found\n", nameoroid);
+	}
+
 	return ( pi );
 }
 
 static int
-plugin_mr_get_type(struct slapdplugin *pi, int *ordering)
+plugin_mr_get_type(struct slapdplugin *pi)
 {
 	int rc = LDAP_FILTER_EQUALITY;
-	*ordering = 0;
 	if (pi) {
 		char **str = pi->plg_mr_names;
 		for (; str && *str; ++str) {
@@ -121,7 +130,7 @@ plugin_mr_get_type(struct slapdplugin *pi, int *ordering)
 				break;
 			}
 			if (PL_strcasestr(*str, "ordering")) {
-				*ordering = 1;
+				rc = LDAP_FILTER_GE;
 				break;
 			}
 		}
@@ -249,7 +258,8 @@ mr_private_indexer_done(struct mr_private *mrpriv)
 {
 	if (mrpriv && mrpriv->sva) {
 		valuearray_free(&mrpriv->sva);
-	} else if (mrpriv && mrpriv->bva) {
+	}
+	if (mrpriv && mrpriv->bva) {
 		ber_bvecfree(mrpriv->bva);
 		mrpriv->bva = NULL;
 	}
@@ -301,9 +311,8 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock* pb)
 	} else if (!pi->plg_mr_values2keys) {
 		LDAPDebug0Args(LDAP_DEBUG_ANY, "mr_wrap_mr_index_sv_fn: error - plugin has no plg_mr_values2keys function\n");
 	} else {
-		int ordering = 0;
 		struct mr_private *mrpriv = NULL;
-		int ftype = plugin_mr_get_type(pi, &ordering);
+		int ftype = plugin_mr_get_type(pi);
 		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &in_vals);
 		(*pi->plg_mr_values2keys)(pb, in_vals, &out_vals, ftype);
 		slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals);
@@ -334,15 +343,22 @@ mr_wrap_mr_index_fn(Slapi_PBlock* pb)
 	valuearray_init_bervalarray(in_vals, &in_vals_sv);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals_sv); /* use sv */
 	rc = mr_wrap_mr_index_sv_fn(pb);
+	/* clean up in_vals_sv */
+	valuearray_free(&in_vals_sv);
+	/* restore old in_vals */
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals);
 	/* get result sv keys */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &out_vals_sv);
 	/* convert to bvec */
 	valuearray_get_bervalarray(out_vals_sv, &out_vals);
-	valuearray_free(&out_vals_sv); /* don't need svals */
+	/* NOTE: mrpriv owns out_vals_sv (mpriv->sva) - will
+	   get freed by mr_private_indexer_done() */
 	/* we have to save out_vals to free next time or during destroy */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
 	mr_private_indexer_done(mrpriv); /* free old vals, if any */
 	mrpriv->bva = out_vals; /* save pointer for later */
+	/* set return value berval array for caller */
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals);
 
 	return rc;
 }
@@ -396,8 +412,8 @@ default_mr_filter_index(Slapi_PBlock *pb)
 
 	slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
 
-	slapi_pblock_set(pb, SLAPI_PLUGIN, mrpriv->pi);
-	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_TYPE, mrpriv->type);
+	slapi_pblock_set(pb, SLAPI_PLUGIN, (void *)mrpriv->pi);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_TYPE, (void *)mrpriv->type);
 	/* extensible_candidates uses struct berval ** indexer */
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_FN, mr_wrap_mr_index_fn);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, mrpriv->values);
@@ -405,7 +421,7 @@ default_mr_filter_index(Slapi_PBlock *pb)
 	   is the indextype value passed to index_index2prefix - it must be the
 	   same OID as used in the index configuration for the index matching
 	   rule */
-	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_OID, mrpriv->oid);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_OID, (void *)mrpriv->oid);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_QUERY_OPERATOR, &mrpriv->op);
 
 	return rc;
@@ -427,23 +443,27 @@ default_mr_filter_create(Slapi_PBlock *pb)
 		!slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUE, &mrVALUE) && mrVALUE != NULL &&
 		!slapi_pblock_get(pb, SLAPI_PLUGIN, &pi) && pi != NULL) {
 		int op = SLAPI_OP_EQUAL;
-		int ordering = 0;
 		struct mr_private *mrpriv = NULL;
+		int ftype = 0;
 
 		LDAPDebug2Args(LDAP_DEBUG_FILTER, "=> default_mr_filter_create(oid %s; type %s)\n",
 					   mrOID, mrTYPE);
 
-		int ftype = plugin_mr_get_type(pi, &ordering);
+		ftype = plugin_mr_get_type(pi);
 		/* map the ftype to the op type */
-		if (ftype == LDAP_FILTER_EQUALITY) {
-			if (ordering) { /* not sure what to do here - default to GE */
-				op = SLAPI_OP_GREATER_OR_EQUAL;
-			}
+		if (ftype == LDAP_FILTER_GE) {
+			/*
+			 * The rule evaluates to TRUE if and only if, in the code point
+			 * collation order, the prepared attribute value character string
+			 * appears earlier than the prepared assertion value character string;
+			 * i.e., the attribute value is "less than" the assertion value.
+			 */
+			op = SLAPI_OP_LESS;
 /*
 		} else if (ftype == LDAP_FILTER_SUBSTRINGS) {
 			op = SLAPI_OP_SUBSTRING;
 */
-		} else { /* unsupported */
+		} else if (ftype != LDAP_FILTER_EQUALITY) { /* unsupported */
 			/* NOTE: we cannot currently support substring matching rules - the
 			   reason is that the API provides no way to pass in the search time limit
 			   required by the syntax filter substring match functions
@@ -498,7 +518,7 @@ default_mr_filter_create(Slapi_PBlock *pb)
 				  mrOID ? "" : " oid",
 				  mrTYPE ? "" : " attribute type",
 				  mrVALUE ? "" : " filter value");
-    }
+	}
 
 done:
 	LDAPDebug1Arg(LDAP_DEBUG_FILTER, "=> default_mr_filter_create: %d\n", rc);
@@ -526,6 +546,10 @@ attempt_mr_filter_create (mr_filter_t* f, struct slapdplugin* mrp, Slapi_PBlock*
 		    rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
 		}
     }
+    if (NULL == mrf_create) {
+	/* no create func - unavailable */
+	rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+    }
     return rc;
 }
 
@@ -552,22 +576,22 @@ plugin_mr_filter_create (mr_filter_t* f)
 		    }
 		}
     }
-	if (rc)
-	{
+    if (rc)
+    {
 		/* look for a new syntax-style mr plugin */
 		mrp = plugin_mr_find(f->mrf_oid);
 		if (mrp)
 		{
-			/* set the default index create fn */
-			pblock_init(&pb);
-			slapi_pblock_set(&pb, SLAPI_PLUGIN, mrp);
-			slapi_pblock_set(&pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, default_mr_filter_create);
+		    /* set the default index create fn */
+		    pblock_init(&pb);
+		    slapi_pblock_set(&pb, SLAPI_PLUGIN, mrp);
+		    slapi_pblock_set(&pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, default_mr_filter_create);
 		    if (!(rc = attempt_mr_filter_create (f, mrp, &pb)))
 		    {
 				plugin_mr_bind (f->mrf_oid, mrp); /* for future reference */
-			}
+		    }
 		}
-	}
+    }
     if (!rc)
     {
 		/* This plugin has created the desired filter. */
@@ -586,7 +610,7 @@ slapi_mr_filter_index (Slapi_Filter* f, Slapi_PBlock* pb)
     int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
     if (f->f_choice == LDAP_FILTER_EXTENDED && f->f_mr.mrf_index != NULL &&
 		!(rc = slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, f->f_mr.mrf_object)))
-	{
+    {
 		rc = f->f_mr.mrf_index (pb);
     }
     return rc;
