@@ -397,6 +397,7 @@ static int ids_sasl_canon_user(
     Slapi_DN *sdn = NULL;
     char *pw = NULL;
     char *user = NULL;
+    char *mech = NULL;
     const char *dn;
     int isroot = 0;
     char *clear = NULL;
@@ -410,6 +411,13 @@ static int ids_sasl_canon_user(
               "ids_sasl_canon_user(user=%s, realm=%s)\n", 
               user, user_realm ? user_realm : "", 0);
 
+    sasl_getprop(conn, SASL_MECHNAME, (const void**)&mech);
+    if (mech == NULL) {
+        LDAPDebug0Args(LDAP_DEBUG_TRACE, "Unable to read SASL mechanism while "
+              "canonifying user.\n")
+        goto fail;
+    }
+
     if (strncasecmp(user, "dn:", 3) == 0) {
         sdn = slapi_sdn_new();
         slapi_sdn_set_dn_byval(sdn, user+3);
@@ -420,6 +428,10 @@ static int ids_sasl_canon_user(
         /* special case directory manager */
         dn = slapi_sdn_get_ndn(sdn);
         pw = config_get_rootpw();
+    } else if (strcasecmp(mech, "ANONYMOUS") == 0) {
+        /* SASL doesn't allow us to set the username to an empty string,
+	 * so we just set it to anonymous. */
+        dn = "anonymous";
     } else {
         /* map the sasl username into an entry */
         entry = ids_sasl_user_to_entry(conn, context, user, user_realm);
@@ -433,7 +445,14 @@ static int ids_sasl_canon_user(
         pw = slapi_entry_attr_get_charptr(entry, "userpassword");
     }
 
-    if (prop_set(propctx, "dn", dn, -1) != 0) {
+    /* Need to set dn property to an empty string for the ANONYMOUS mechanism.  This
+     * property determines what the bind identity will be if authentication succeeds. */
+    if (strcasecmp(mech, "ANONYMOUS") == 0) {
+        if (prop_set(propctx, "dn", "", -1) != 0) {
+            LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(dn) failed\n", 0, 0, 0);
+            goto fail;
+        }
+    } else if (prop_set(propctx, "dn", dn, -1) != 0) {
         LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(dn) failed\n", 0, 0, 0);
         goto fail;
     }
@@ -643,7 +662,13 @@ void ids_sasl_server_new(Connection *conn)
     secprops.maxbufsize = 2048; /* DBDB: hack */
     secprops.max_ssf = 0xffffffff;
     secprops.min_ssf = config_get_minssf();
+    /* If anonymous access is disabled, set the appropriate flag */
+    if (!config_get_anon_access_switch()) {
+        secprops.security_flags = SASL_SEC_NOANONYMOUS;
+    }
+
     rc = sasl_setprop(sasl_conn, SASL_SEC_PROPS, &secprops);
+
     if (rc != SASL_OK) {
         LDAPDebug(LDAP_DEBUG_ANY, "sasl_setprop: %s\n",
                   sasl_errstring(rc, NULL, NULL), 0, 0);
