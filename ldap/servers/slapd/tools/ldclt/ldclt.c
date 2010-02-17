@@ -300,7 +300,8 @@ dd/mm/yy | Author	| Comments
 #include "utils.h"		/* Utilities functions */	/*JLS 16-11-00*/
 #include "scalab01.h"		/* Scalab01 specific */		/*JLS 12-01-01*/
 
-
+#include <sys/types.h>
+#include <sys/stat.h>
 
 /*
  * Global variables
@@ -1480,7 +1481,7 @@ basicInit (void)
   /*
    * Parse deref subvalue
    */
-  if (mctx.mod2 & M2_DEREF)
+  if ((mctx.mod2 & M2_DEREF) && mctx.attrpl)
   {
      /*
      * Find the reference attribute name
@@ -1508,7 +1509,7 @@ basicInit (void)
   /*
    * Parse attreplacefile subvalue
    */
-  if (mctx.mod2 & M2_ATTR_REPLACE_FILE)
+  if ((mctx.mod2 & M2_ATTR_REPLACE_FILE) && mctx.attrpl)
   {
     /*
      * Find the attribute name
@@ -2534,12 +2535,12 @@ decodeExecParams (
 	break;
       case EP_DEREF:
 	mctx.mod2 |= M2_DEREF;
-        if (subvalue == NULL)
-        {
-          fprintf (stderr, "Error: missing arg deref argument pair (deref:attr)\n");
-          return (-1);
-        }
-        mctx.attrpl = strdup (subvalue);
+	if (subvalue) {
+		/* if -e deref=deref:attr is given, "deref:attr" is set to attrpl */
+		mctx.attrpl = strdup (subvalue);
+	} else {
+		mctx.attrpl = NULL;
+	}
 	break;
       default:
 	fprintf (stderr, "Error: illegal option -e %s\n", subvalue);

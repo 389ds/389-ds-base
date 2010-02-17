@@ -265,6 +265,11 @@ dd/mm/yy | Author	| Comments
 #define LDCLT_DEREF_ATTR "secretary"
 int ldclt_create_deref_control( LDAP *ld, char *derefAttr, char **attrs, LDAPControl **ctrlp );
 
+#if !defined(USE_OPENLDAP)
+int ldclt_build_control( char *oid, BerElement *ber, int freeber, char iscritical, LDAPControl **ctrlp );
+int ldclt_alloc_ber( LDAP *ld, BerElement **berp );
+#endif
+
 /* ****************************************************************************
 	FUNCTION :	my_ldap_err2string
 	PURPOSE :	This function is targetted to encapsulate the standard
@@ -3688,7 +3693,6 @@ doExactSearch (
   LDAPControl **ctrlsp = NULL, *ctrls[2], *dctrl = NULL; /* derefence control */
 
   /* the following variables are used for response parsing */
-  int             i;        /* for counting purpose */
   int             msgtype, parse_rc , rc ; /* for search result parsing */
   char            *matcheddn, *errmsg, *dn ;
   LDAPControl     **resctrls; 
@@ -4220,7 +4224,11 @@ ldclt_create_deref_control(
     }
 
     /* create a ber package to hold the controlValue */
-    if ( LDAP_SUCCESS != nsldapi_alloc_ber_with_options( ld, &ber )  ) 
+#if defined(USE_OPENLDAP)
+    if ( NULL == ( ber = ldap_alloc_ber_with_options( ld ) ) )
+#else
+    if ( LDAP_SUCCESS != ldclt_alloc_ber( ld, &ber )  ) 
+#endif
     {
         return( LDAP_NO_MEMORY );
     }
@@ -4231,9 +4239,91 @@ ldclt_create_deref_control(
         return( LDAP_ENCODING_ERROR );
     }
 
-    rc = nsldapi_build_control( LDAP_CONTROL_X_DEREF, ber, 1, 1, ctrlp );
+#if defined(USE_OPENLDAP)
+    rc = ldap_create_control( LDAP_CONTROL_X_DEREF, ber, 1, ctrlp );
+#else
+    rc = ldclt_build_control( LDAP_CONTROL_X_DEREF, ber, 1, 1, ctrlp );
+#endif
 
     return( rc );
 }
+
+#if !defined(USE_OPENLDAP)
+/*
+ * Duplicated nsldapi_build_control from 
+ * mozilla/directory/c-sdk/ldap/libraries/libldap/control.c
+ *
+ * build an allocated LDAPv3 control.  Returns an LDAP error code.
+ */
+int
+ldclt_build_control( char *oid, BerElement *ber, int freeber, char iscritical,
+    LDAPControl **ctrlp )
+{
+    int        rc;
+    struct berval    *bvp;
+
+    if ( ber == NULL ) {
+        bvp = NULL;
+    } else {
+        /* allocate struct berval with contents of the BER encoding */
+        rc = ber_flatten( ber, &bvp );
+        if ( freeber ) {
+            ber_free( ber, 1 );
+        }
+        if ( rc == -1 ) {
+            return( LDAP_NO_MEMORY );
+        }
+    }
+
+    /* allocate the new control structure */
+    if (( *ctrlp = (LDAPControl *)malloc( sizeof(LDAPControl))) == NULL ) {
+        if ( bvp != NULL ) {
+            ber_bvfree( bvp );
+        }
+        return( LDAP_NO_MEMORY );
+    }
+
+    /* fill in the fields of this new control */
+    (*ctrlp)->ldctl_iscritical = iscritical;  
+    if (( (*ctrlp)->ldctl_oid = strdup( oid )) == NULL ) {
+        free( *ctrlp ); 
+        if ( bvp != NULL ) {
+            ber_bvfree( bvp );
+        }
+        return( LDAP_NO_MEMORY );
+    }                
+
+    if ( bvp == NULL ) {
+        (*ctrlp)->ldctl_value.bv_len = 0;
+        (*ctrlp)->ldctl_value.bv_val = NULL;
+    } else {
+        (*ctrlp)->ldctl_value = *bvp;    /* struct copy */
+        free( bvp );    /* free container, not contents! */
+    }
+
+    return( LDAP_SUCCESS );
+}
+
+/*
+ * Duplicated nsldapi_build_control from 
+ * mozilla/directory/c-sdk/ldap/libraries/libldap/request.c
+ *
+ * returns an LDAP error code and also sets error inside LDAP 
+ */ 
+int
+ldclt_alloc_ber( LDAP *ld, BerElement **berp )
+{
+    int    err;
+
+    /* We use default lberoptions since the value is not public in mozldap. */
+     if (( *berp = ber_alloc_t( LBER_OPT_USE_DER )) == (BerElement *)NULL ) {
+        err = LDAP_NO_MEMORY;
+    } else {
+        err = LDAP_SUCCESS;
+    }
+
+    return( err );
+}
+#endif
 
 /* End of file */
