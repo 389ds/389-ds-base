@@ -79,8 +79,16 @@
  * 		commoncounter    : all threads share the same counter.
  * 		counteach   : count each operation not only successful ones.
  * 		delete                : ldap_delete() entries.
- * 		deref                 : adds dereference control to "esearch"
- * 		                      : adds "secretary" attr to the entries for "add"
+ * 		deref[=deref:attr]    : This option works with -e add and -e esearch.
+ * 		                      : With -e esearch:
+ * 		                      : adds dereference control.
+ * 		                      : if =deref:attr is given, the deref and attr
+ * 		                      : pair is set to the control request.
+ * 		                      : if not given, "secretary:cn" is set.
+ * 		                      : With -e add:
+ * 		                      : adds "secretary" attr to the netOrgPerson 
+ * 		                      : entries to prepare for the search with the
+ * 		                      : default "secretary:cn" dereference control.
  * 		dontsleeponserverdown : will loop very fast if server down.
  * 		emailPerson           : objectclass=emailPerson (-e add only).
  * 		esearch	              : exact search.
@@ -174,8 +182,16 @@ void usage ()
   (void) printf ("		commoncounter     : all threads share the same counter.\n");
   (void) printf ("		counteach         : count each operation not only successful ones.\n");
   (void) printf ("		delete            : ldap_delete() entries.\n");
-  (void) printf ("		deref             : adds dereference control to \"esearch\"\n");
-  (void) printf ("		                  : adds \"secretary\" attr to the entries for \"add\"\n");
+  (void) printf ("		deref[=deref:attr]: This option works with -e add and esearch.\n");
+  (void) printf ("		                  : With -e esearch:\n");
+  (void) printf ("		                  : adds dereference control.\n");
+  (void) printf ("		                  : if =deref:attr is given, the deref and attr\n");
+  (void) printf ("		                  : pair is set to the control request.\n");
+  (void) printf ("		                  : if not given, \"secretary:cn\" is set.\n");
+  (void) printf ("		                  : With -e add:\n");
+  (void) printf ("		                  : adds \"secretary\" attr to the inetOrgPerson\n");
+  (void) printf ("		                  : entries to prepare for -e esearch using\n");
+  (void) printf ("		                  : the default deref attr pair.\n");
   (void) printf ("		dontsleeponserverdown : will loop very fast if server down.\n");
   (void) printf ("		emailPerson       : objectclass=emailPerson (-e add only).\n");
   (void) printf ("		esearch           : exact search.\n");
