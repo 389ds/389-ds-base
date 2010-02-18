@@ -2485,10 +2485,11 @@ int dblayer_instance_close(backend *be)
     }
     inst->inst_id2entry = NULL;
 
-     if (inst->import_env) {
-       /* ignore the value of env, close, because at this point, work is done with import env
-      by calling env.close, env and all the associated db handles will be closed, ignore,
-          if sleepycat complains, that db handles are open at env close time */
+    if (inst->import_env) {
+       /* ignore the value of env, close, because at this point, 
+        * work is done with import env by calling env.close, 
+        * env and all the associated db handles will be closed, ignore,
+        * if sleepycat complains, that db handles are open at env close time */
        return_value |= inst->import_env->dblayer_DB_ENV->close(inst->import_env->dblayer_DB_ENV, 0);
        return_value = db_env_create(&env, 0);
        if (return_value == 0) {
@@ -2510,9 +2511,9 @@ int dblayer_instance_close(backend *be)
        }
        PR_DestroyRWLock(inst->import_env->dblayer_env_lock);
        slapi_ch_free((void **)&inst->import_env);
-     } else {
+    } else {
        be->be_state = BE_STATE_STOPPED;
-     }
+    }
 
     return return_value;
 }
@@ -3496,7 +3497,7 @@ dblayer_start_deadlock_thread(struct ldbminfo *li)
     return return_value;
 }
 
-/* checkpoint thread main function */
+/* deadlock thread main function */
 
 static int deadlock_threadmain(void *param)
 {
@@ -3643,6 +3644,9 @@ static int checkpoint_threadmain(void *param)
     int debug_checkpointing = 0;
     int checkpoint_interval;
     char *home_dir = NULL;
+    char **list = NULL;
+    char **listp = NULL;
+    struct dblayer_private_env *penv = NULL;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo*)param;
@@ -3665,6 +3669,7 @@ static int checkpoint_threadmain(void *param)
     /* work around a problem with newly created environments */
     dblayer_force_checkpoint(li);
 
+    penv = priv->dblayer_env;
     debug_checkpointing = priv->db_debug_checkpointing;
     /* assumes dblayer_force_checkpoint worked */
     time_of_last_checkpoint_completion = current_time();
@@ -3745,59 +3750,41 @@ static int checkpoint_threadmain(void *param)
                 time_of_last_checkpoint_completion = current_time();
             }
         }
-        {
-            char **list = NULL;
-            char **listp = NULL;
-            int return_value  = -1;
-            char filename[MAXPATHLEN];
-            char *prefix = NULL;
-            struct dblayer_private_env *penv = priv->dblayer_env;
-            if ((NULL != priv->dblayer_log_directory) &&
-                (0 != strlen(priv->dblayer_log_directory))) 
-            {
-                prefix = priv->dblayer_log_directory;
-            } 
-            else 
-            {
-                prefix = home_dir;
-            }
-            /* find out which log files don't contain active txns */
-            DB_CHECKPOINT_LOCK(PR_TRUE, penv->dblayer_env_lock);
-            return_value = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
-                                       0, (void *)slapi_ch_malloc);
-            DB_CHECKPOINT_UNLOCK(PR_TRUE, penv->dblayer_env_lock);
-            checkpoint_debug_message(debug_checkpointing,
-                "Got list of logfiles not needed %d %p\n",
-                return_value,list, 0);
-            if (0 == return_value && NULL != list)
-            {
-                /* zap 'em ! */
-                for (listp = list; *listp != NULL; ++listp)
-                {    
-                    PR_snprintf(filename,sizeof(filename),"%s/%s",prefix,*listp);
-                    if (priv->dblayer_circular_logging) {
-                        checkpoint_debug_message(debug_checkpointing,
-                            "Deleting %s\n",filename, 0, 0);
-                        unlink(filename);    
-                    } else {
-                        char new_filename[MAXPATHLEN];
-                        PR_snprintf(new_filename,sizeof(new_filename),"%s/old.%s",
-                                prefix,*listp);
-                        checkpoint_debug_message(debug_checkpointing,
-                            "Renaming %s\n",filename,0, 0);
-                        rename(filename,new_filename);    
-                    }
+        /* find out which log files don't contain active txns */
+        DB_CHECKPOINT_LOCK(PR_TRUE, penv->dblayer_env_lock);
+        rval = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
+                           DB_ARCH_ABS, (void *)slapi_ch_malloc);
+        DB_CHECKPOINT_UNLOCK(PR_TRUE, penv->dblayer_env_lock);
+        if (rval) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY, "checkpoint_threadmain: "
+                           "log archive failed - %s (%d)\n", 
+                           dblayer_strerror(rval), rval);
+        } else {
+            for (listp = list; listp && *listp != NULL; ++listp) {
+                if (priv->dblayer_circular_logging) {
+                    checkpoint_debug_message(debug_checkpointing,
+                                             "Deleting %s\n", *listp, 0, 0);
+                    unlink(*listp);
+                } else {
+                    char new_filename[MAXPATHLEN];
+                    PR_snprintf(new_filename, sizeof(new_filename),
+                                "%s.old", *listp);
+                    checkpoint_debug_message(debug_checkpointing,
+                                "Renaming %s -> %s\n",*listp, new_filename, 0);
+                    rename(*listp, new_filename);    
                 }
-                slapi_ch_free((void**)&list);
             }
+            slapi_ch_free((void**)&list);
+            /* Note: references inside the returned memory need not be 
+             * individually freed. */
         }
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving checkpoint_threadmain before checkpoint\n", 0, 0, 0);
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "Check point before leaving\n");
     rval = dblayer_force_checkpoint(li);
 error_return:
 
     DECR_THREAD_COUNT(priv);
-    LDAPDebug(LDAP_DEBUG_TRACE, "Leaving checkpoint_threadmain\n", 0, 0, 0);
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "Leaving checkpoint_threadmain\n");
     return rval;
 }
 

@@ -2396,7 +2396,6 @@ static int _cl5AppInit (PRBool *didRecovery)
 		if (CL5_OPEN_CLEAN_RECOVER == s_cl5Desc.dbOpenMode)
 		{
 			_cl5RemoveEnv();
-			_cl5RemoveLogs();
 		}
 
 		rc = _cl5Recover (flags, dbEnv);
@@ -3267,7 +3266,7 @@ static int  _cl5CheckpointMain (void *param)
 			}
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
 			else if (rc != DB_INCOMPLETE) /* real error happened */
-			{			
+			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 					"_cl5CheckpointMain: checkpoint failed, db error - %d %s\n",
 					rc, db_strerror(rc));
@@ -3278,22 +3277,25 @@ static int  _cl5CheckpointMain (void *param)
 			if (s_cl5Desc.dbConfig.circularLogging)
 			{
 				char **list = NULL;
-				char **listp = NULL;
-				int rc  = -1;
-				char filename[MAXPATHLEN + 1];
-
 				/* find out which log files don't contain active txns */
-				rc = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list, 0, (void *)slapi_ch_malloc);
-				if (0 == rc && NULL != list)
+				/* DB_ARCH_REMOVE: Remove log files that are no longer needed; 
+				 * no filenames are returned. */
+				int rc  = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list,
+									  DB_ARCH_REMOVE, (void *)slapi_ch_malloc);
+				if (rc)
 				{
-					/* zap 'em ! */
-					for (listp = list; *listp != NULL; ++listp)
-					{	
-						PR_snprintf(filename, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir,*listp);
-                        PR_Delete (filename);
-					}
-					slapi_ch_free((void **)&list);
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+									"_cl5CheckpointMain: log archive failed, "
+									"db error - %d %s\n", rc, db_strerror(rc));
 				}
+				slapi_ch_free((void **)&list); /* just in case */
+			}
+			else
+			{
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
+								"_cl5CheckpointMain: %s is off; "
+								"transaction logs won't be removed.\n", 
+								CONFIG_CHANGELOG_DB_CIRCULAR_LOGGING);
 			}
 		}
 
@@ -3302,6 +3304,8 @@ static int  _cl5CheckpointMain (void *param)
 		/* answer---because the interval might be changed after the server starts up */
 		DS_Sleep(interval);
 	}
+	/* Check point and archive before shutting down */
+	rc = TXN_CHECKPOINT(s_cl5Desc.dbEnv, 0, 0, 0);
 
 	PR_AtomicDecrement (&s_cl5Desc.threadCount);
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckpointMain: exiting\n");
@@ -3536,7 +3540,7 @@ static int _cl5CheckDBVersion ()
 		{
 			*dotp = '\0';
 			dbmajor = strtol(versionp, (char **)NULL, 10);
-			dbminor = strtol(++dotp, (char **)NULL, 10);
+			dbminor = strtol(dotp+1, (char **)NULL, 10);
 			*dotp = '.';
 		}
 		else
@@ -3991,6 +3995,8 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 			continue;
 		}
 		PR_snprintf(filename, MAXPATHLEN, "%s/%s", clDir, entry->name);
+		/* _cl5Delete deletes the whole changelog directory with all the files 
+		 * underneath.  Thus, we can just remove them physically. */
 		rc = PR_Delete(filename);
 		if (rc != PR_SUCCESS)
 		{
