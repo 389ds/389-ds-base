@@ -148,7 +148,7 @@ numstr_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NAMES,
 	    (void *) names );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_OID,
-	    (void *) INTEGER_SYNTAX_OID );
+	    (void *) NUMERICSTRING_SYNTAX_OID );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
 	    (void *) numstr_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,

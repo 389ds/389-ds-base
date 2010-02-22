@@ -322,7 +322,7 @@ int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_
             return 1;
         }
         for (mr_syntax = mrl->mr_entry->mr_compat_syntax;
-             mr_syntax;
+             mr_syntax && *mr_syntax;
              mr_syntax++) {
             if (!strcmp(*mr_syntax, syntax_oid)) {
                 return 1;

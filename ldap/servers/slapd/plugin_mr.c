@@ -170,7 +170,7 @@ plugin_mr_bind (char* oid, struct slapdplugin* plugin)
 	PR_Lock (global_mr_oids_lock);
 	i->oi_next = global_mr_oids;
 	global_mr_oids = i;
-	PR_Unlock (global_mr_oids_lock);
+	PR_Unlock (global_mr_oids_lock);        
 	LDAPDebug (LDAP_DEBUG_FILTER, "<= plugin_mr_bind\n", 0, 0, 0);
 }
 
@@ -448,6 +448,15 @@ default_mr_filter_create(Slapi_PBlock *pb)
 
 		LDAPDebug2Args(LDAP_DEBUG_FILTER, "=> default_mr_filter_create(oid %s; type %s)\n",
 					   mrOID, mrTYPE);
+
+		/* check to make sure this create function is supposed to be used with the
+		   given oid */
+		if (!charray_inlist(pi->plg_mr_names, mrOID)) {
+			LDAPDebug2Args(LDAP_DEBUG_FILTER,
+						   "=> default_mr_filter_create: cannot use matching rule %s with plugin %s\n",
+						   mrOID, pi->plg_name);
+			goto done;
+		}
 
 		ftype = plugin_mr_get_type(pi);
 		/* map the ftype to the op type */
