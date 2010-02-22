@@ -77,6 +77,7 @@ typedef struct repl_protocol
 
 /* States */
 #define STATE_FINISHED 503
+#define STATE_DONE 504
 #define STATE_BAD_STATE_SHOULD_NEVER_HAPPEN 599
 
 /* Forward declarations */
@@ -173,15 +174,41 @@ prot_get_agreement(Repl_Protocol *rp)
 
 
 
-
+/* 
+ */
 void
-prot_free(Repl_Protocol **rpp)
+prot_free(Repl_Protocol **rpp, int wait_for_done)
 {
     Repl_Protocol *rp = NULL;
+    PRIntervalTime interval;
 
     if (rpp == NULL || *rpp == NULL) return;
 
     rp = *rpp;
+    /* 
+     * This function has to wait until prot_thread_main exits if 
+     * prot_start is successfully called and  prot_thread_main is 
+     * running.  Otherwise, we may free Repl_Protocol while it's 
+     * being used.
+     *
+     * This function is supposed to be called when the protocol is 
+     * stopped either after prot_stop is called or when protocol 
+     * hasn't been started.  
+     *
+     * The latter case: prot_free is called with wait_for_done = 0.
+     * The former case: prot_free is called with wait_for_done = 1.
+     * prot_stop had set STATE_FINISHED to next_state and stopped 
+     * the current activity.  But depending upon the threads' 
+     * scheduling, prot_thread_main may not have gotten out of the 
+     * while loop at this moment.  To make sure prot_thread_main 
+     * finished referring Repl_Protocol, we wait for the state set
+     * to STATE_DONE.
+     */
+    interval = PR_MillisecondsToInterval(1000);
+    while (wait_for_done && STATE_DONE != rp->state) 
+    {
+        DS_Sleep(interval);
+    }
 
     PR_Lock(rp->lock);
     if (NULL != rp->prp_incremental)
@@ -220,7 +247,7 @@ prot_delete(Repl_Protocol **rpp)
 	if (NULL != rp)
 	{
 		prot_stop(rp);
-                prot_free(rpp);
+		prot_free(rpp, 1);
 	}
 }
 
@@ -338,6 +365,7 @@ prot_thread_main(void *arg)
 	      }
 	    rp->state = rp->next_state;
 	  }
+	rp->state = STATE_DONE;
 }
 
 

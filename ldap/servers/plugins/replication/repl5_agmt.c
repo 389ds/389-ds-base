@@ -558,7 +558,7 @@ agmt_start(Repl_Agmt *ra)
     if (ra->protocol != NULL) {
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
         PR_Unlock(ra->lock);
-        prot_free(&prot);
+        prot_free(&prot, 0);
         return 0;
     }
 
@@ -606,7 +606,7 @@ windows_agmt_start(Repl_Agmt *ra)
     if (ra->protocol != NULL) {
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
         PR_Unlock(ra->lock);
-        prot_free(&prot);
+        prot_free(&prot, 0);
         return 0;
     }
 
@@ -644,8 +644,8 @@ agmt_stop(Repl_Agmt *ra)
 	}
 	PR_Lock(ra->lock);
 	ra->stop_in_progress = PR_FALSE;
-        /* we do not reuse the protocol object so free it */
-        prot_free(&ra->protocol);
+	/* we do not reuse the protocol object so free it */
+	prot_free(&ra->protocol, 1);
 	PR_Unlock(ra->lock);
 	return return_value;
 }

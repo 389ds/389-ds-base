@@ -933,7 +933,7 @@ error_return:
         slapi_entry_free( postentry );
         postentry= NULL;
     }
-    if (entryrdn_get_switch())
+    if (e && entryrdn_get_switch())
     {
         struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
         CACHE_REMOVE(&inst->inst_dncache, bdn);
