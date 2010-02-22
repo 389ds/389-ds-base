@@ -410,7 +410,7 @@ void prot_initialize_replica(Repl_Protocol *rp);
 /* stop protocol session in progress */
 void prot_stop(Repl_Protocol *rp);
 void prot_delete(Repl_Protocol **rpp);
-void prot_free(Repl_Protocol **rpp);
+void prot_free(Repl_Protocol **rpp, int wait_for_done);
 PRBool prot_set_active_protocol (Repl_Protocol *rp, PRBool total);
 void prot_clear_active_protocol (Repl_Protocol *rp);
 Repl_Connection *prot_get_connection(Repl_Protocol *rp);
