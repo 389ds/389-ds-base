@@ -190,10 +190,14 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
     if (entryrdn_get_switch())
     {
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-        Slapi_DN *sdn = slapi_sdn_dup(slapi_entry_get_sdn_const(e->ep_entry));
-        struct backdn *bdn = backdn_init(sdn, e->ep_id, 1);
-        CACHE_REMOVE(&inst->inst_dncache, bdn);
-		CACHE_RETURN(&inst->inst_dncache, &bdn);
+        struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
+        if (bdn) {
+            slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
+                            "dncache_find_id returned: %s\n", 
+                            slapi_sdn_get_dn(bdn->dn_sdn));
+            CACHE_REMOVE(&inst->inst_dncache, bdn);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
+        }
     }
 
     rc = db->del( db,db_txn,&key,0 );
