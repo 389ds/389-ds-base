@@ -669,7 +669,7 @@ ldap_agent_bin_OBJECTS = $(am_ldap_agent_bin_OBJECTS)
 ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am__ldclt_bin_SOURCES_DIST = ldap/servers/slapd/tools/ldaptool-sasl.c \
 	ldap/servers/slapd/tools/ldclt/data.c \
 	ldap/servers/slapd/tools/ldclt/ldapfct.c \
@@ -702,7 +702,7 @@ ldclt_bin_OBJECTS = $(am_ldclt_bin_OBJECTS)
 ldclt_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_ldif_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/ldif_bin-ldif.$(OBJEXT)
 ldif_bin_OBJECTS = $(am_ldif_bin_OBJECTS)
@@ -779,7 +779,7 @@ ns_slapd_DEPENDENCIES = libslapd.la libldaputil.a \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_pwdhash_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/pwdhash_bin-pwenc.$(OBJEXT)
 pwdhash_bin_OBJECTS = $(am_pwdhash_bin_OBJECTS)
@@ -988,6 +988,7 @@ SHELL = @SHELL@
 SOLARIS_FALSE = @SOLARIS_FALSE@
 SOLARIS_TRUE = @SOLARIS_TRUE@
 STRIP = @STRIP@
+THREADLIB = @THREADLIB@
 VERSION = @VERSION@
 WINNT_FALSE = @WINNT_FALSE@
 WINNT_TRUE = @WINNT_TRUE@
@@ -2102,7 +2103,7 @@ ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
 
 ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 ldap_agent_bin_LDADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) \
-	$(NSPR_LINK) $(NETSNMP_LINK) $(am__append_2)
+	$(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB) $(am__append_2)
 
 #------------------------
 # ldclt
@@ -2120,7 +2121,7 @@ ldclt_bin_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
 	ldap/servers/slapd/tools/ldclt/version.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c $(am__append_3)
 ldclt_bin_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools @openldap_inc@ @ldapsdk_inc@ @sasl_inc@ @nss_inc@ @nspr_inc@
-ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL)
+ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL) $(THREADLIB)
 
 #------------------------
 # ldif
@@ -2188,7 +2189,7 @@ ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_
 	@nspr_inc@ @svrcore_inc@
 
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET)
+	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB)
 
 @HPUX_FALSE@ns_slapd_LINK = $(LINK)
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load

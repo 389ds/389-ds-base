@@ -347,6 +347,9 @@ case $host in
         AC_CHECK_DECLS([__sync_add_and_fetch])
         ;;
     esac
+    # some programs use the native thread library directly
+    THREADLIB=-lpthread
+    AC_SUBST([THREADLIB], [$THREADLIB])
     ;;
   ia64-hp-hpux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
