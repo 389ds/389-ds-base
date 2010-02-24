@@ -1345,10 +1345,6 @@ valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **valstoreplace)
 {
     int rc = LDAP_SUCCESS;
     int numberofvalstoreplace= valuearray_count(valstoreplace);
-    if(!valuearray_isempty(vs->va))
-    {
-        slapi_valueset_done(vs);
-    }
     /* verify the given values are not duplicated.
        if replacing with one value, no need to check.  just replace it.
      */
@@ -1368,7 +1364,20 @@ valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **valstoreplace)
 
     if ( rc == LDAP_SUCCESS )
     {
+        /* values look good - replace the values in the attribute */
+        if(!valuearray_isempty(vs->va))
+        {
+            /* remove old values */
+            slapi_valueset_done(vs);
+        }
+        /* we now own valstoreplace */
         vs->va = valstoreplace;
+    }
+    else
+    {
+        /* caller expects us to own valstoreplace - since we cannot
+           use them, just delete them */
+        valuearray_free(&valstoreplace);
     }
     return rc;
 }
