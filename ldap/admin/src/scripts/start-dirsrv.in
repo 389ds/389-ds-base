@@ -22,9 +22,9 @@ start_instance() {
     fi
 
     prefix="$DS_ROOT"
-    LD_LIBRARY_PATH=$prefix$SERVER_DIR:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
+    LD_LIBRARY_PATH=$prefix$SERVER_DIR:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@:@pcre_libdir@
     export LD_LIBRARY_PATH
-    SHLIB_PATH=$prefix$SERVER_DIR:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
+    SHLIB_PATH=$prefix$SERVER_DIR:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@:@pcre_libdir@
     export SHLIB_PATH
 
     DS_CONFIG_DIR=$CONFIG_DIR
