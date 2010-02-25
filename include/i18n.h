@@ -166,15 +166,6 @@ extern "C"
 {
 #endif
 
-/***************************/
-/* XP_InitStringDatabase() */
-/***************************/
-
-NSAPI_PUBLIC
-void
-XP_InitStringDatabase(char* pathCWD, char* databaseName);
-
-/* Initialize the resource string database */
 
 /******************************/
 /* XP_GetStringFromDatabase() */
@@ -185,107 +176,6 @@ extern char*
 XP_GetStringFromDatabase(char* strLibraryName,
                          char* strLanguage,
                          int iToken);
-
-/* Given the LibraryName, Language and Token, extracts the string corresponding
-   to that library and token from the database in the language requested and
-   returns a pointer to the string.  Note: Use the macros XP_GetClientStr() and
-   XP_GetAdminStr() defined below to simplify source code. */
-
-/*****************/
-/* SetLanguage() */
-/*****************/
-enum
-{
-	CLIENT_LANGUAGE,
-	ADMIN_LANGUAGE,
-	DEFAULT_LANGUAGE
-};
-
-NSAPI_PUBLIC
-extern void
-SetLanguage(int type, char *language);
-
-/* Set language for Client, Admin and Default, XP_GetStringFromDatabase will
-   base on the setting to retrieve correct string for specific language */
- 
-/***********************/
-/* GetClientLanguage() */
-/***********************/
-
-NSAPI_PUBLIC
-extern char*
-GetClientLanguage(void);
-
-/* Returns a pointer to a string with the name of the language requested by
-   the current client; intended to be passed to XP_GetStringFromDatabase()
-   and used by the front end macro XP_GetClientStr(). */
-
-/**********************/
-/* GetAdminLanguage() */
-/**********************/
-
-NSAPI_PUBLIC
-extern char*
-GetAdminLanguage(void);
-
-/* Returns a pointer to a string with the name of the language requested by
-   the administrator; intended to be passed to XP_GetStringFromDatabase()
-   and used by the front end macro XP_GetAdminStr(). */
-
-/************************/
-/* GetDefaultLanguage() */
-/************************/
-
-NSAPI_PUBLIC
-extern char*
-GetDefaultLanguage(void);
-
-/* Returns a pointer to a string with the name of the default language
-   for the installation from the configuration file. */
-
-/************************/
-/* GetFileForLanguage() */
-/************************/
-
-NSAPI_PUBLIC
-int
-GetFileForLanguage(char* filepath,char* language,char* existingFilepath);
-
-/* Looks for a file in the appropriate language.
-
-   Input: filePath,language
-   filePath is of the form "/xxx/xxx/$$LANGDIR/xxx/xxx/filename"
-            or of the form "/xxx/xxx/xxx/xxx/filename".
-   filename may or may not have an extension.
-   language is an Accept-Language list; each language-range will be
-     tried as a subdirectory name and possibly as a filename modifier.
-     "*" is ignored - default always provided if needed.
-     "-" is replaced by "_".
-   $$LANGDIR is a special string replaced by language. It is optional.
-     For the default case, $$LANGDIR/ is replaced by nothing
-     (so // is not created).
-   
-   Returned: existingPath
-   existingFilePath is the path of a satisfactory, existing file.
-   if no file is found, an empty string "" is returned.
-   
-   int returned: -1 if no file found (existingFilePath = "")
-                  0 if default file is returned
-                  1 if language file is returned (any in list) */
-
-/********************/
-/* XP_AccLangList() */
-/********************/
-
-#define MAX_ACCEPT_LANGUAGE 16
-#define MAX_ACCEPT_LENGTH 18
-
-typedef char ACCEPT_LANGUAGE_LIST[MAX_ACCEPT_LANGUAGE][MAX_ACCEPT_LENGTH];
-
-NSAPI_PUBLIC
-int
-XP_AccLangList(char* AcceptLanguage,
-               ACCEPT_LANGUAGE_LIST AcceptLanguageList);
 
 #ifdef __cplusplus
 }
@@ -313,11 +203,6 @@ extern void XP_PrintStringDatabase(void);
  * Macros to simplify calls to XP_GetStringFromDatabase
  * (need one argument instead of three)
  */
-
-#define XP_GetClientStr(DBTTokenName)                  \
-        XP_GetStringFromDatabase(LIBRARY_NAME,         \
-                                 GetClientLanguage(),  \
-                                 DBTTokenName)
 
 #define XP_GetAdminStr(DBTTokenName)                   \
         XP_GetStringFromDatabase(LIBRARY_NAME,         \

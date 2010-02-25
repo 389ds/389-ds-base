@@ -350,6 +350,8 @@ case $host in
     # some programs use the native thread library directly
     THREADLIB=-lpthread
     AC_SUBST([THREADLIB], [$THREADLIB])
+    LIBCRYPT=-lcrypt
+    AC_SUBST([LIBCRYPT], [$LIBCRYPT])
     ;;
   ia64-hp-hpux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])

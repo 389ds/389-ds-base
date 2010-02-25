@@ -108,8 +108,9 @@ serverLTLIBRARIES_INSTALL = $(INSTALL)
 serverpluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
-libacl_plugin_la_DEPENDENCIES = libns-dshttpd.la $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+libacl_plugin_la_DEPENDENCIES = libslapd.la libns-dshttpd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libacl_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/acl/libacl_plugin_la-acl.lo \
 	ldap/servers/plugins/acl/libacl_plugin_la-acl_ext.lo \
@@ -124,14 +125,16 @@ am_libacl_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/acl/libacl_plugin_la-aclproxy.lo \
 	ldap/servers/plugins/acl/libacl_plugin_la-aclutil.lo
 libacl_plugin_la_OBJECTS = $(am_libacl_plugin_la_OBJECTS)
-libattr_unique_plugin_la_LIBADD =
+libattr_unique_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1)
 am_libattr_unique_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/uiduniq/libattr_unique_plugin_la-7bit.lo \
 	ldap/servers/plugins/uiduniq/libattr_unique_plugin_la-uid.lo \
 	ldap/servers/plugins/shared/libattr_unique_plugin_la-utils.lo
 libattr_unique_plugin_la_OBJECTS =  \
 	$(am_libattr_unique_plugin_la_OBJECTS)
-libback_ldbm_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1)
+libback_ldbm_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libback_ldbm_la_OBJECTS =  \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-ancestorid.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-archive.lo \
@@ -195,13 +198,14 @@ am_libback_ldbm_la_OBJECTS =  \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-vlv_key.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-vlv_srch.lo
 libback_ldbm_la_OBJECTS = $(am_libback_ldbm_la_OBJECTS)
-libbitwise_plugin_la_LIBADD =
+libbitwise_plugin_la_DEPENDENCIES = libslapd.la
 am_libbitwise_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/bitwise/libbitwise_plugin_la-bitwise.lo
 libbitwise_plugin_la_OBJECTS = $(am_libbitwise_plugin_la_OBJECTS)
 @enable_bitwise_TRUE@am_libbitwise_plugin_la_rpath = -rpath \
 @enable_bitwise_TRUE@	$(serverplugindir)
-libchainingdb_plugin_la_LIBADD =
+libchainingdb_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libchainingdb_plugin_la_OBJECTS = ldap/servers/plugins/chainingdb/libchainingdb_plugin_la-cb_abandon.lo \
 	ldap/servers/plugins/chainingdb/libchainingdb_plugin_la-cb_acl.lo \
 	ldap/servers/plugins/chainingdb/libchainingdb_plugin_la-cb_add.lo \
@@ -229,50 +233,58 @@ am_libchainingdb_plugin_la_OBJECTS = ldap/servers/plugins/chainingdb/libchaining
 	ldap/servers/plugins/chainingdb/libchainingdb_plugin_la-cb_utils.lo
 libchainingdb_plugin_la_OBJECTS =  \
 	$(am_libchainingdb_plugin_la_OBJECTS)
-libcollation_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+libcollation_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libcollation_plugin_la_OBJECTS = ldap/servers/plugins/collation/libcollation_plugin_la-collate.lo \
 	ldap/servers/plugins/collation/libcollation_plugin_la-config.lo \
 	ldap/servers/plugins/collation/libcollation_plugin_la-orfilter.lo
 libcollation_plugin_la_OBJECTS = $(am_libcollation_plugin_la_OBJECTS)
-libcos_plugin_la_LIBADD =
+libcos_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libcos_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/cos/libcos_plugin_la-cos.lo \
 	ldap/servers/plugins/cos/libcos_plugin_la-cos_cache.lo
 libcos_plugin_la_OBJECTS = $(am_libcos_plugin_la_OBJECTS)
-libderef_plugin_la_LIBADD =
+libderef_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libderef_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/deref/libderef_plugin_la-deref.lo
 libderef_plugin_la_OBJECTS = $(am_libderef_plugin_la_OBJECTS)
-libdes_plugin_la_LIBADD =
+libdes_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1)
 am_libdes_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/rever/libdes_plugin_la-des.lo \
 	ldap/servers/plugins/rever/libdes_plugin_la-rever.lo
 libdes_plugin_la_OBJECTS = $(am_libdes_plugin_la_OBJECTS)
-libdistrib_plugin_la_LIBADD =
+libdistrib_plugin_la_DEPENDENCIES = libslapd.la
 am_libdistrib_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/distrib/libdistrib_plugin_la-distrib.lo
 libdistrib_plugin_la_OBJECTS = $(am_libdistrib_plugin_la_OBJECTS)
-libdna_plugin_la_LIBADD =
+libdna_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libdna_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/dna/libdna_plugin_la-dna.lo
 libdna_plugin_la_OBJECTS = $(am_libdna_plugin_la_OBJECTS)
 @enable_dna_TRUE@am_libdna_plugin_la_rpath = -rpath $(serverplugindir)
-libhttp_client_plugin_la_LIBADD =
+libhttp_client_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libhttp_client_plugin_la_OBJECTS = ldap/servers/plugins/http/libhttp_client_plugin_la-http_client.lo \
 	ldap/servers/plugins/http/libhttp_client_plugin_la-http_impl.lo
 libhttp_client_plugin_la_OBJECTS =  \
 	$(am_libhttp_client_plugin_la_OBJECTS)
-liblinkedattrs_plugin_la_LIBADD =
+liblinkedattrs_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1)
 am_liblinkedattrs_plugin_la_OBJECTS = ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-fixup_task.lo \
 	ldap/servers/plugins/linkedattrs/liblinkedattrs_plugin_la-linked_attrs.lo
 liblinkedattrs_plugin_la_OBJECTS =  \
 	$(am_liblinkedattrs_plugin_la_OBJECTS)
-libmemberof_plugin_la_LIBADD =
+libmemberof_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libmemberof_plugin_la_OBJECTS = ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof.lo \
 	ldap/servers/plugins/memberof/libmemberof_plugin_la-memberof_config.lo
 libmemberof_plugin_la_OBJECTS = $(am_libmemberof_plugin_la_OBJECTS)
-libns_dshttpd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+libns_dshttpd_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 am__objects_1 = lib/ldaputil/libns_dshttpd_la-cert.lo \
@@ -327,14 +339,13 @@ am_libns_dshttpd_la_OBJECTS =  \
 	lib/base/libns_dshttpd_la-system.lo \
 	lib/base/libns_dshttpd_la-systhr.lo \
 	lib/base/libns_dshttpd_la-util.lo \
-	lib/libsi18n/libns_dshttpd_la-coreres.lo \
 	lib/libsi18n/libns_dshttpd_la-getstrprop.lo \
-	lib/libsi18n/libns_dshttpd_la-getlang.lo \
-	lib/libsi18n/libns_dshttpd_la-propset.lo \
 	lib/libsi18n/libns_dshttpd_la-reshash.lo \
 	lib/libsi18n/libns_dshttpd_la-txtfile.lo $(am__objects_1)
 libns_dshttpd_la_OBJECTS = $(am_libns_dshttpd_la_OBJECTS)
-libpam_passthru_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
+libpam_passthru_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libpam_passthru_plugin_la_OBJECTS = ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptconfig.lo \
 	ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptdebug.lo \
 	ldap/servers/plugins/pam_passthru/libpam_passthru_plugin_la-pam_ptimpl.lo \
@@ -343,7 +354,8 @@ libpam_passthru_plugin_la_OBJECTS =  \
 	$(am_libpam_passthru_plugin_la_OBJECTS)
 @enable_pam_passthru_TRUE@am_libpam_passthru_plugin_la_rpath = -rpath \
 @enable_pam_passthru_TRUE@	$(serverplugindir)
-libpassthru_plugin_la_LIBADD =
+libpassthru_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libpassthru_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/passthru/libpassthru_plugin_la-ptbind.lo \
 	ldap/servers/plugins/passthru/libpassthru_plugin_la-ptconfig.lo \
@@ -352,12 +364,14 @@ am_libpassthru_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/passthru/libpassthru_plugin_la-ptpreop.lo \
 	ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo
 libpassthru_plugin_la_OBJECTS = $(am_libpassthru_plugin_la_OBJECTS)
-libpresence_plugin_la_LIBADD =
+libpresence_plugin_la_DEPENDENCIES = libslapd.la
 am_libpresence_plugin_la_OBJECTS = ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo
 libpresence_plugin_la_OBJECTS = $(am_libpresence_plugin_la_OBJECTS)
 @enable_presence_TRUE@am_libpresence_plugin_la_rpath = -rpath \
 @enable_presence_TRUE@	$(serverplugindir)
-libpwdstorage_plugin_la_LIBADD =
+libpwdstorage_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libpwdstorage_plugin_la_OBJECTS = ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.lo \
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-crypt_pwd.lo \
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-md5_pwd.lo \
@@ -370,10 +384,13 @@ am_libpwdstorage_plugin_la_OBJECTS = ldap/servers/plugins/pwdstorage/libpwdstora
 	ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-ssha_pwd.lo
 libpwdstorage_plugin_la_OBJECTS =  \
 	$(am_libpwdstorage_plugin_la_OBJECTS)
-libreferint_plugin_la_LIBADD =
+libreferint_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libreferint_plugin_la_OBJECTS = ldap/servers/plugins/referint/libreferint_plugin_la-referint.lo
 libreferint_plugin_la_OBJECTS = $(am_libreferint_plugin_la_OBJECTS)
-libreplication_plugin_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+libreplication_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplication_plugin_la-cl5_api.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-cl5_clcache.lo \
@@ -431,7 +448,8 @@ am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplic
 	ldap/servers/plugins/replication/libreplication_plugin_la-windows_tot_protocol.lo
 libreplication_plugin_la_OBJECTS =  \
 	$(am_libreplication_plugin_la_OBJECTS)
-libretrocl_plugin_la_LIBADD =
+libretrocl_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libretrocl_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl.lo \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_cn.lo \
@@ -440,12 +458,13 @@ am_libretrocl_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_rootdse.lo \
 	ldap/servers/plugins/retrocl/libretrocl_plugin_la-retrocl_trim.lo
 libretrocl_plugin_la_OBJECTS = $(am_libretrocl_plugin_la_OBJECTS)
-libroles_plugin_la_LIBADD =
+libroles_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1)
 am_libroles_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/roles/libroles_plugin_la-roles_cache.lo \
 	ldap/servers/plugins/roles/libroles_plugin_la-roles_plugin.lo
 libroles_plugin_la_OBJECTS = $(am_libroles_plugin_la_OBJECTS)
-libschemareload_plugin_la_LIBADD =
+libschemareload_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1)
 am_libschemareload_plugin_la_OBJECTS = ldap/servers/plugins/schema_reload/libschemareload_plugin_la-schema_reload.lo
 libschemareload_plugin_la_OBJECTS =  \
 	$(am_libschemareload_plugin_la_OBJECTS)
@@ -453,7 +472,7 @@ am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 libslapd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/agtmmap.c ldap/servers/slapd/apibroker.c \
 	ldap/servers/slapd/attr.c ldap/servers/slapd/attrlist.c \
@@ -605,11 +624,12 @@ am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-vattr.lo $(am__objects_2) \
 	$(am__objects_3)
 libslapd_la_OBJECTS = $(am_libslapd_la_OBJECTS)
-libstatechange_plugin_la_LIBADD =
+libstatechange_plugin_la_DEPENDENCIES = libslapd.la
 am_libstatechange_plugin_la_OBJECTS = ldap/servers/plugins/statechange/libstatechange_plugin_la-statechange.lo
 libstatechange_plugin_la_OBJECTS =  \
 	$(am_libstatechange_plugin_la_OBJECTS)
-libsyntax_plugin_la_LIBADD =
+libsyntax_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libsyntax_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bin.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-bitstring.lo \
@@ -634,12 +654,14 @@ am_libsyntax_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-validate_task.lo \
 	ldap/servers/plugins/syntaxes/libsyntax_plugin_la-value.lo
 libsyntax_plugin_la_OBJECTS = $(am_libsyntax_plugin_la_OBJECTS)
-libusn_plugin_la_LIBADD =
+libusn_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libusn_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/usn/libusn_plugin_la-usn.lo \
 	ldap/servers/plugins/usn/libusn_plugin_la-usn_cleanup.lo
 libusn_plugin_la_OBJECTS = $(am_libusn_plugin_la_OBJECTS)
-libviews_plugin_la_LIBADD =
+libviews_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_libviews_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/views/libviews_plugin_la-views.lo
 libviews_plugin_la_OBJECTS = $(am_libviews_plugin_la_OBJECTS)
@@ -953,6 +975,7 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 KRB5_CONFIG_BIN = @KRB5_CONFIG_BIN@
 LDFLAGS = @LDFLAGS@
 LIBCRUN = @LIBCRUN@
+LIBCRYPT = @LIBCRYPT@
 LIBCSTD = @LIBCSTD@
 LIBDL = @LIBDL@
 LIBNSL = @LIBNSL@
@@ -1154,6 +1177,8 @@ AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 # We need to make sure that libpthread is linked before libc on HP-UX.
 @HPUX_TRUE@AM_LDFLAGS = -lpthread
+#else
+#AM_LDFLAGS = -Wl,-z,defs
 
 #------------------------
 # Linker Flags
@@ -1573,16 +1598,13 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/base/system.cpp \
 	lib/base/systhr.cpp \
 	lib/base/util.cpp \
-	lib/libsi18n/coreres.c \
 	lib/libsi18n/getstrprop.c \
-	lib/libsi18n/getlang.c \
-	lib/libsi18n/propset.c \
 	lib/libsi18n/reshash.c \
 	lib/libsi18n/txtfile.c \
 	$(libldaputil_a_SOURCES)
 
 libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) -I$(srcdir)/lib/ldaputil @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-libns_dshttpd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
+libns_dshttpd_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libslapd
@@ -1642,7 +1664,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
 	$(libavl_a_SOURCES) $(am__append_1)
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@ @pcre_inc@
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB)
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1715,7 +1737,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/vlv_srch.c
 
 libback_ldbm_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@
-libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK)
+libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
 libback_ldbm_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1735,7 +1757,7 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 	ldap/servers/plugins/acl/aclutil.c
 
 libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
-libacl_plugin_la_LIBADD = libns-dshttpd.la $(LIBCSTD) $(LIBCRUN)
+libacl_plugin_la_LIBADD = libslapd.la libns-dshttpd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
 libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
 
@@ -1747,6 +1769,7 @@ libattr_unique_plugin_la_SOURCES = ldap/servers/plugins/uiduniq/7bit.c \
 	ldap/servers/plugins/shared/utils.c
 
 libattr_unique_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/shared $(PLUGIN_CPPFLAGS)
+libattr_unique_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
 libattr_unique_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1754,6 +1777,7 @@ libattr_unique_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libbitwise_plugin_la_SOURCES = ldap/servers/plugins/bitwise/bitwise.c
 libbitwise_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libbitwise_plugin_la_LIBADD = libslapd.la
 libbitwise_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1786,6 +1810,7 @@ libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
 	ldap/servers/plugins/chainingdb/cb_utils.c 
 
 libchainingdb_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libchainingdb_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libchainingdb_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1796,7 +1821,7 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
         ldap/servers/plugins/collation/orfilter.c
 
 libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
-libcollation_plugin_la_LIBADD = $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
+libcollation_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_LDFLAGS = -avoid-version
 libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
 
@@ -1807,6 +1832,7 @@ libcos_plugin_la_SOURCES = ldap/servers/plugins/cos/cos.c \
 	ldap/servers/plugins/cos/cos_cache.c
 
 libcos_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libcos_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libcos_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1814,6 +1840,7 @@ libcos_plugin_la_LDFLAGS = -avoid-version
 #-----------------------
 libderef_plugin_la_SOURCES = ldap/servers/plugins/deref/deref.c
 libderef_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libderef_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1823,6 +1850,7 @@ libdes_plugin_la_SOURCES = ldap/servers/plugins/rever/des.c \
 	ldap/servers/plugins/rever/rever.c
 
 libdes_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
+libdes_plugin_la_LIBADD = libslapd.la $(NSS_LINK)
 libdes_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1830,6 +1858,7 @@ libdes_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libdistrib_plugin_la_SOURCES = ldap/servers/plugins/distrib/distrib.c
 libdistrib_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libdistrib_plugin_la_LIBADD = libslapd.la
 libdistrib_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1837,6 +1866,7 @@ libdistrib_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libdna_plugin_la_SOURCES = ldap/servers/plugins/dna/dna.c
 libdna_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libdna_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libdna_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1846,6 +1876,7 @@ libhttp_client_plugin_la_SOURCES = ldap/servers/plugins/http/http_client.c \
 	ldap/servers/plugins/http/http_impl.c
 
 libhttp_client_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libhttp_client_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK)
 libhttp_client_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1855,6 +1886,7 @@ liblinkedattrs_plugin_la_SOURCES = ldap/servers/plugins/linkedattrs/fixup_task.c
 	ldap/servers/plugins/linkedattrs/linked_attrs.c
 
 liblinkedattrs_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+liblinkedattrs_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
 liblinkedattrs_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1864,6 +1896,7 @@ libmemberof_plugin_la_SOURCES = ldap/servers/plugins/memberof/memberof.c \
 	ldap/servers/plugins/memberof/memberof_config.c
 
 libmemberof_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libmemberof_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libmemberof_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1875,7 +1908,7 @@ libpam_passthru_plugin_la_SOURCES = ldap/servers/plugins/pam_passthru/pam_ptconf
 	ldap/servers/plugins/pam_passthru/pam_ptpreop.c
 
 libpam_passthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
-libpam_passthru_plugin_la_LIBADD = $(PAM_LINK)
+libpam_passthru_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(PAM_LINK)
 libpam_passthru_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1889,6 +1922,7 @@ libpassthru_plugin_la_SOURCES = ldap/servers/plugins/passthru/ptbind.c \
 	ldap/servers/plugins/passthru/ptutil.c
 
 libpassthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libpassthru_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libpassthru_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1896,6 +1930,7 @@ libpassthru_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libpresence_plugin_la_SOURCES = ldap/servers/plugins/presence/presence.c
 libpresence_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/http $(PLUGIN_CPPFLAGS)
+libpresence_plugin_la_LIBADD = libslapd.la
 libpresence_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1913,6 +1948,7 @@ libpwdstorage_plugin_la_SOURCES = ldap/servers/plugins/pwdstorage/clear_pwd.c \
 	ldap/servers/plugins/pwdstorage/ssha_pwd.c
 
 libpwdstorage_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libpwdstorage_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK) $(LIBCRYPT)
 libpwdstorage_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1920,6 +1956,7 @@ libpwdstorage_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libreferint_plugin_la_SOURCES = ldap/servers/plugins/referint/referint.c
 libreferint_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libreferint_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libreferint_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1981,7 +2018,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
 libreplication_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@ @db_inc@
-libreplication_plugin_la_LIBADD = $(ICU_LINK) $(DB_LINK)
+libreplication_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK) $(ICU_LINK) $(DB_LINK)
 libreplication_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1995,6 +2032,7 @@ libretrocl_plugin_la_SOURCES = ldap/servers/plugins/retrocl/retrocl.c \
 	ldap/servers/plugins/retrocl/retrocl_trim.c
 
 libretrocl_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libretrocl_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libretrocl_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -2004,6 +2042,7 @@ libroles_plugin_la_SOURCES = ldap/servers/plugins/roles/roles_cache.c \
 	ldap/servers/plugins/roles/roles_plugin.c
 
 libroles_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libroles_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
 libroles_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -2011,6 +2050,7 @@ libroles_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libschemareload_plugin_la_SOURCES = ldap/servers/plugins/schema_reload/schema_reload.c
 libschemareload_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libschemareload_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
 libschemareload_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -2018,6 +2058,7 @@ libschemareload_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libstatechange_plugin_la_SOURCES = ldap/servers/plugins/statechange/statechange.c
 libstatechange_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libstatechange_plugin_la_LIBADD = libslapd.la
 libstatechange_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -2047,6 +2088,7 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 	ldap/servers/plugins/syntaxes/value.c
 
 libsyntax_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libsyntax_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libsyntax_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -2056,6 +2098,7 @@ libusn_plugin_la_SOURCES = ldap/servers/plugins/usn/usn.c \
                            ldap/servers/plugins/usn/usn_cleanup.c
 
 libusn_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libusn_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libusn_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -2063,6 +2106,7 @@ libusn_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 libviews_plugin_la_SOURCES = ldap/servers/plugins/views/views.c
 libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libviews_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libviews_plugin_la_LDFLAGS = -avoid-version
 
 #////////////////////////////////////////////////////////////////
@@ -3094,16 +3138,7 @@ lib/libsi18n/$(am__dirstamp):
 lib/libsi18n/$(DEPDIR)/$(am__dirstamp):
 	@$(mkdir_p) lib/libsi18n/$(DEPDIR)
 	@: > lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
-lib/libsi18n/libns_dshttpd_la-coreres.lo:  \
-	lib/libsi18n/$(am__dirstamp) \
-	lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
 lib/libsi18n/libns_dshttpd_la-getstrprop.lo:  \
-	lib/libsi18n/$(am__dirstamp) \
-	lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
-lib/libsi18n/libns_dshttpd_la-getlang.lo:  \
-	lib/libsi18n/$(am__dirstamp) \
-	lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
-lib/libsi18n/libns_dshttpd_la-propset.lo:  \
 	lib/libsi18n/$(am__dirstamp) \
 	lib/libsi18n/$(DEPDIR)/$(am__dirstamp)
 lib/libsi18n/libns_dshttpd_la-reshash.lo:  \
@@ -5096,14 +5131,8 @@ mostlyclean-compile:
 	-rm -f lib/libadmin/libns_dshttpd_la-template.lo
 	-rm -f lib/libadmin/libns_dshttpd_la-util.$(OBJEXT)
 	-rm -f lib/libadmin/libns_dshttpd_la-util.lo
-	-rm -f lib/libsi18n/libns_dshttpd_la-coreres.$(OBJEXT)
-	-rm -f lib/libsi18n/libns_dshttpd_la-coreres.lo
-	-rm -f lib/libsi18n/libns_dshttpd_la-getlang.$(OBJEXT)
-	-rm -f lib/libsi18n/libns_dshttpd_la-getlang.lo
 	-rm -f lib/libsi18n/libns_dshttpd_la-getstrprop.$(OBJEXT)
 	-rm -f lib/libsi18n/libns_dshttpd_la-getstrprop.lo
-	-rm -f lib/libsi18n/libns_dshttpd_la-propset.$(OBJEXT)
-	-rm -f lib/libsi18n/libns_dshttpd_la-propset.lo
 	-rm -f lib/libsi18n/libns_dshttpd_la-reshash.$(OBJEXT)
 	-rm -f lib/libsi18n/libns_dshttpd_la-reshash.lo
 	-rm -f lib/libsi18n/libns_dshttpd_la-txtfile.$(OBJEXT)
@@ -5558,10 +5587,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-error.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-template.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libadmin/$(DEPDIR)/libns_dshttpd_la-util.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-coreres.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getlang.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getstrprop.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-propset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-reshash.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-txtfile.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/libsi18n/$(DEPDIR)/makstrdb-makstrdb.Po@am__quote@
@@ -6565,33 +6591,12 @@ lib/base/libns_dshttpd_la-nscperror.lo: lib/base/nscperror.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/base/libns_dshttpd_la-nscperror.lo `test -f 'lib/base/nscperror.c' || echo '$(srcdir)/'`lib/base/nscperror.c
 
-lib/libsi18n/libns_dshttpd_la-coreres.lo: lib/libsi18n/coreres.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libsi18n/libns_dshttpd_la-coreres.lo -MD -MP -MF "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-coreres.Tpo" -c -o lib/libsi18n/libns_dshttpd_la-coreres.lo `test -f 'lib/libsi18n/coreres.c' || echo '$(srcdir)/'`lib/libsi18n/coreres.c; \
-@am__fastdepCC_TRUE@	then mv -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-coreres.Tpo" "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-coreres.Plo"; else rm -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-coreres.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/libsi18n/coreres.c' object='lib/libsi18n/libns_dshttpd_la-coreres.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/libsi18n/libns_dshttpd_la-coreres.lo `test -f 'lib/libsi18n/coreres.c' || echo '$(srcdir)/'`lib/libsi18n/coreres.c
-
 lib/libsi18n/libns_dshttpd_la-getstrprop.lo: lib/libsi18n/getstrprop.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libsi18n/libns_dshttpd_la-getstrprop.lo -MD -MP -MF "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getstrprop.Tpo" -c -o lib/libsi18n/libns_dshttpd_la-getstrprop.lo `test -f 'lib/libsi18n/getstrprop.c' || echo '$(srcdir)/'`lib/libsi18n/getstrprop.c; \
 @am__fastdepCC_TRUE@	then mv -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getstrprop.Tpo" "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getstrprop.Plo"; else rm -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getstrprop.Tpo"; exit 1; fi
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/libsi18n/getstrprop.c' object='lib/libsi18n/libns_dshttpd_la-getstrprop.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/libsi18n/libns_dshttpd_la-getstrprop.lo `test -f 'lib/libsi18n/getstrprop.c' || echo '$(srcdir)/'`lib/libsi18n/getstrprop.c
-
-lib/libsi18n/libns_dshttpd_la-getlang.lo: lib/libsi18n/getlang.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libsi18n/libns_dshttpd_la-getlang.lo -MD -MP -MF "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getlang.Tpo" -c -o lib/libsi18n/libns_dshttpd_la-getlang.lo `test -f 'lib/libsi18n/getlang.c' || echo '$(srcdir)/'`lib/libsi18n/getlang.c; \
-@am__fastdepCC_TRUE@	then mv -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getlang.Tpo" "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getlang.Plo"; else rm -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-getlang.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/libsi18n/getlang.c' object='lib/libsi18n/libns_dshttpd_la-getlang.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/libsi18n/libns_dshttpd_la-getlang.lo `test -f 'lib/libsi18n/getlang.c' || echo '$(srcdir)/'`lib/libsi18n/getlang.c
-
-lib/libsi18n/libns_dshttpd_la-propset.lo: lib/libsi18n/propset.c
-@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libsi18n/libns_dshttpd_la-propset.lo -MD -MP -MF "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-propset.Tpo" -c -o lib/libsi18n/libns_dshttpd_la-propset.lo `test -f 'lib/libsi18n/propset.c' || echo '$(srcdir)/'`lib/libsi18n/propset.c; \
-@am__fastdepCC_TRUE@	then mv -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-propset.Tpo" "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-propset.Plo"; else rm -f "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-propset.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='lib/libsi18n/propset.c' object='lib/libsi18n/libns_dshttpd_la-propset.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/libsi18n/libns_dshttpd_la-propset.lo `test -f 'lib/libsi18n/propset.c' || echo '$(srcdir)/'`lib/libsi18n/propset.c
 
 lib/libsi18n/libns_dshttpd_la-reshash.lo: lib/libsi18n/reshash.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libsi18n/libns_dshttpd_la-reshash.lo -MD -MP -MF "lib/libsi18n/$(DEPDIR)/libns_dshttpd_la-reshash.Tpo" -c -o lib/libsi18n/libns_dshttpd_la-reshash.lo `test -f 'lib/libsi18n/reshash.c' || echo '$(srcdir)/'`lib/libsi18n/reshash.c; \

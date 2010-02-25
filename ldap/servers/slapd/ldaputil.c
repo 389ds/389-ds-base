@@ -768,6 +768,81 @@ done:
     return rc;
 }
 
+void
+slapi_add_auth_response_control( Slapi_PBlock *pb, const char *binddn )
+{
+    LDAPControl		arctrl;
+	char			dnbuf_fixedsize[ 512 ], *dnbuf, *dnbuf_dynamic = NULL;
+	size_t			dnlen;
+
+	if ( NULL == binddn ) {
+		binddn = "";
+	}
+	dnlen = strlen( binddn );
+
+	/*
+	 * According to draft-weltman-ldapv3-auth-response-03.txt section
+	 * 4 (Authentication Response Control):
+	 *
+	 *   The controlType is "2.16.840.1.113730.3.4.15". If the bind request   
+	 *   succeeded and resulted in an identity (not anonymous), the 
+	 *   controlValue contains the authorization identity [AUTH] granted to 
+	 *   the requestor. If the bind request resulted in anonymous 
+	 *   authentication, the controlValue field is a string of zero length. 
+	 *
+	 * [AUTH] is a reference to RFC 2829, which in section 9 defines
+	 * authorization identity as:
+	 *
+	 *
+	 *   The authorization identity is a string in the UTF-8 character set,
+	 *   corresponding to the following ABNF [7]:
+	 *
+	 *   ; Specific predefined authorization (authz) id schemes are
+	 *   ; defined below -- new schemes may be defined in the future.
+	 *
+	 *   authzId    = dnAuthzId / uAuthzId
+	 *
+	 *   ; distinguished-name-based authz id.
+	 *   dnAuthzId  = "dn:" dn
+	 *   dn         = utf8string    ; with syntax defined in RFC 2253
+	 *
+	 *   ; unspecified userid, UTF-8 encoded.
+	 *   uAuthzId   = "u:" userid
+	 *   userid     = utf8string    ; syntax unspecified
+	 *
+	 *   A utf8string is defined to be the UTF-8 encoding of one or more ISO
+	 *   10646 characters.
+	 *
+	 * We always map identities to DNs, so we always use the dnAuthzId form.
+	 */
+	arctrl.ldctl_oid = LDAP_CONTROL_AUTH_RESPONSE;
+	arctrl.ldctl_iscritical = 0;
+
+	if ( dnlen == 0 ) {		/* anonymous -- return zero length value */
+		arctrl.ldctl_value.bv_val = "";
+		arctrl.ldctl_value.bv_len = 0;
+	} else {				/* mapped to a DN -- return "dn:<DN>" */
+		if ( 3 + dnlen < sizeof( dnbuf_fixedsize )) {
+			dnbuf = dnbuf_fixedsize;
+		} else {
+			dnbuf = dnbuf_dynamic = slapi_ch_malloc( 4 + dnlen );
+		}
+		strcpy( dnbuf, "dn:" );
+		strcpy( dnbuf + 3, binddn );
+		arctrl.ldctl_value.bv_val = dnbuf;
+		arctrl.ldctl_value.bv_len = 3 + dnlen;
+	}
+	
+	if ( slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, &arctrl ) != 0 ) {
+		slapi_log_error( SLAPI_LOG_FATAL, "bind",
+				"unable to add authentication response control" );
+	}
+
+	if ( NULL != dnbuf_dynamic ) {
+		slapi_ch_free_string( &dnbuf_dynamic );
+	}
+}
+
 /* the following implements the client side of sasl bind, for LDAP server
    -> LDAP server SASL */
 
