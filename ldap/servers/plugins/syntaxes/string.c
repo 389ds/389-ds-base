@@ -77,7 +77,7 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 	value_normalize( bvfilter_norm.bv_val, syntax, 1 /* trim leading blanks */ );
 	bvfilter_norm.bv_len = strlen(bvfilter_norm.bv_val);
 
-	for ( i = 0; bvals[i] != NULL; i++ ) {
+	for ( i = 0; (bvals != NULL) && (bvals[i] != NULL); i++ ) {
 		rc = value_cmp( (struct berval*)slapi_value_get_berval(bvals[i]), &bvfilter_norm, syntax, 1/* Normalise the first value only */ );
                 switch ( ftype ) {
                 case LDAP_FILTER_GE:
@@ -135,7 +135,7 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 	if(retVal) {
 		*retVal = NULL;
 	}
-	for ( i = 0; bvals[i] != NULL; i++ ) {
+	for ( i = 0; (bvals != NULL) && (bvals[i] != NULL); i++ ) {
 		w2 = (char*)slapi_value_get_string(bvals[i]); /* JCM cast */
 		ava_wordcount = 0;
 		/* for each word in the filter value */
@@ -310,7 +310,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	rc = -1;
 	tmpbuf = NULL;
 	tmpbufsize = 0;
-	for ( j = 0; bvals[j] != NULL; j++ ) {
+	for ( j = 0; (bvals != NULL) && (bvals[j] != NULL); j++ ) {
 		int	tmprc;
 		size_t	len;
 		const struct berval *bvp = slapi_value_get_berval(bvals[j]);
