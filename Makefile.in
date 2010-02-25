@@ -2270,6 +2270,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@sasl_libdir\@,$(sasl_libdir),g' \
 @BUNDLE_FALSE@	-e 's,@sasl_path\@,@sasl_path@,g' \
 @BUNDLE_FALSE@	-e 's,@netsnmp_libdir\@,$(netsnmp_libdir),g' \
+@BUNDLE_FALSE@	-e 's,@pcre_libdir\@,$(pcre_libdir),g' \
 @BUNDLE_FALSE@	-e 's,@propertydir\@,$(propertydir),g' \
 @BUNDLE_FALSE@	-e 's,@datadir\@,$(datadir),g' \
 @BUNDLE_FALSE@	-e 's,@schemadir\@,$(schemadir),g' \
@@ -2333,6 +2334,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@sasl_libdir\@,$(libdir),g' \
 @BUNDLE_TRUE@	-e 's,@sasl_path\@,$(libdir)/sasl2,g' \
 @BUNDLE_TRUE@	-e 's,@netsnmp_libdir\@,$(libdir),g' \
+@BUNDLE_TRUE@	-e 's,@pcre_libdir\@,$(libdir),g' \
 @BUNDLE_TRUE@	-e 's,@propertydir\@,$(propertydir),g' \
 @BUNDLE_TRUE@	-e 's,@datadir\@,$(datadir),g' \
 @BUNDLE_TRUE@	-e 's,@schemadir\@,$(schemadir),g' \
