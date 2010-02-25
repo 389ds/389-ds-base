@@ -2824,7 +2824,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   /* look for the NAME */
   if ( (pstart = (*keyword_strstr_fn)(nextinput, "NAME '")) != NULL ) {
 	pstart += 6;
-	sizedbuffer_allocate(psbOcName,strlen(pstart));
+	sizedbuffer_allocate(psbOcName,strlen(pstart)+1);
 	if ( sscanf ( pstart, "%s", psbOcName->buffer ) > 0 ) {
 		/* strip the trailing single quote */
 		if ( psbOcName->buffer[strlen(psbOcName->buffer)-1] == '\'' ) {
@@ -3294,7 +3294,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     /* look for the optional DESCription */
     if ( (pStart = (*keyword_strstr_fn) ( nextinput, "DESC '")) != NULL ) {
         pStart += 6;
-        sizedbuffer_allocate(psbAttrDesc,strlen(pStart));
+        sizedbuffer_allocate(psbAttrDesc,strlen(pStart)+1);
         strcpy ( psbAttrDesc->buffer, pStart);
         if ( (pEnd = strchr (psbAttrDesc->buffer, '\'' )) != NULL ){
             *pEnd ='\0';
@@ -4069,6 +4069,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		return 0;	/* cannot proceed; return failure */
 	}
 
+	*local_pschemadse = NULL;
 	slapi_sdn_init_dn_byref(&schema,"cn=schema");
 
 	/* get schemadir if not given */
@@ -4893,8 +4894,9 @@ slapi_validate_schema_files(char *schemadir)
 	struct dse *my_pschemadse = NULL;
 	int rc = init_schema_dse_ext(schemadir, NULL, &my_pschemadse,
 			DSE_SCHEMA_NO_LOAD | DSE_SCHEMA_NO_BACKEND);
+	dse_destroy(my_pschemadse); /* my_pschemadse was created just to 
+								   validate the schema */
 	if (rc) {
-		dse_destroy(my_pschemadse);
 		return LDAP_SUCCESS;
 	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
