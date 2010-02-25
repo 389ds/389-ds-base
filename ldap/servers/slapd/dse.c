@@ -447,6 +447,10 @@ int
 dse_destroy(struct dse *pdse)
 {
     int nentries = 0;
+
+    if (NULL == pdse) {
+        return 0; /* no one checks this return value */
+    }
     if (pdse->dse_rwlock)
         PR_RWLock_Wlock(pdse->dse_rwlock);
     slapi_ch_free((void **)&(pdse->dse_filename));
@@ -1144,11 +1148,10 @@ dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 		slapi_entry_free(schemacheckentry);
 	}
 
-	/* Callers expect e (SLAPI_ADD_ENTRY) to be freed or otherwise
-	 * consumed if the add was successful. */
-	if (rc == 0) {
-		slapi_entry_free(e);
-	}
+	/* Callers expect e (SLAPI_ADD_ENTRY) to be freed */
+	/* This function duplicates 'e' for dse_node 'n' and schemacheckentry.
+	 * 'e' should not have been consumed */
+	slapi_entry_free(e);
 
 	return rc;
 }
