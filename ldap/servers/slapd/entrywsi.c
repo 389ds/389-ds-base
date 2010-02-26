@@ -646,7 +646,9 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			LDAPDebug( LDAP_DEBUG_ARGS, "could not find attribute %s\n", type, 0, 0 );
 		}
 		retVal= LDAP_NO_SUCH_ATTRIBUTE;
-		if (LDAP_MOD_REPLACE == mod_op)
+		/* NOTE: LDAP says that a MOD REPLACE with no vals of a non-existent
+		   attribute is a no-op - MOD REPLACE with some vals will add the attribute */
+		if ((LDAP_MOD_REPLACE == mod_op) && vals && vals[0])
 		{
 			/* Create a new attribute and set the adcsn */
 			Slapi_Attr *a = slapi_attr_new();
