@@ -251,7 +251,7 @@ bin_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 {
     int	i;
 
-    for ( i = 0; bvals[i] != NULL; i++ ) {
+    for ( i = 0; (bvals != NULL) && (bvals[i] != NULL); i++ ) {
         const struct berval *bv = slapi_value_get_berval(bvals[i]);
         int rc = slapi_berval_cmp(bv, bvfilter);
 
