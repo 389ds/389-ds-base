@@ -4,7 +4,7 @@ prefix="{{DS-ROOT}}"
 if [ "$prefix" = "/" ] ; then
     prefix=""
 fi
-LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@
+LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@:$prefix@pcre_libdir@
 if [ -n "$prefix" ] ; then
     LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:@nss_libdir@"
 fi
