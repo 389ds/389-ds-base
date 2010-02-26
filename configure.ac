@@ -312,8 +312,22 @@ AC_SUBST(instconfigdir)
 AM_CONDITIONAL([WINNT], false)
 
 # Deal with platform dependent defines
-# relative to sysconfdir
-initdir=/rc.d
+# initdir is the location for the SysV init scripts - very heavily platform
+# dependent and not specified in fhs or lsb
+initdir='$(sysconfdir)/rc.d'
+AC_MSG_CHECKING(for --with-initddir)
+AC_ARG_WITH(initddir,
+        AS_HELP_STRING([--with-initddir=/path],
+                       [Absolute path (not relative like some of the other options) that should contain the SysV init scripts (default '$(sysconfdir)/rc.d')]),
+[
+  if test "$withval" = yes -o "$withval" = no  ; then
+     AC_ERROR([Please specify a full path with --with-initddir])
+  fi
+  AC_MSG_RESULT($withval)
+],
+[
+  AC_MSG_RESULT(no)
+])
 # on most platforms, we will just use perl from PATH
 # On some platforms, we cannot.  Why not just use any old
 # perl?  Because of perldap.  We use a perldap that is
@@ -332,8 +346,7 @@ case $host in
     AC_DEFINE([LINUX2_4], [1], [Linux 2.4])
     AC_DEFINE([_GNU_SOURCE], [1], [GNU Source])
     platform="linux"
-    # relative to sysconfdir
-    initdir=/rc.d/init.d
+    initdir='$(sysconfdir)/rc.d/init.d'
     # do arch specific linux stuff here
     case $host in
       i*86-*-linux*)
@@ -369,6 +382,8 @@ case $host in
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     initconfigdir="/$PACKAGE_NAME/config"
+    # HPUX doesn't use /etc for this
+    initdir=/init.d
     ;;
   hppa*-hp-hpux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
@@ -386,6 +401,8 @@ case $host in
     initconfigdir="/$PACKAGE_NAME/config"
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
+    # HPUX doesn't use /etc for this
+    initdir=/init.d
     ;;
   sparc-sun-solaris*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
@@ -416,13 +433,17 @@ dnl Cstd and Crun are required to link any C++ related code
     platform="solaris"
     # assume 64 bit
     perlexec='/usr/lib/sparcv9/dirsec/perl5x/bin/perl'
-    # relative to sysconfdir
-    initdir=/init.d
+    initdir='$(sysconfdir)/init.d'
     ;;
   *)
     platform=""
     ;;
 esac
+
+# cmd line overrides default setting above
+if test -n "$with_initddir" ; then
+   initdir="$with_initddir"
+fi
 AC_SUBST(initdir)
 AC_SUBST(perlexec)
 

@@ -1076,6 +1076,9 @@ Optional Packages:
                           Base directory for instance specific writable
                           configuration directories (default
                           $sysconfdir/$PACKAGE_NAME)
+  --with-initddir=/path   Absolute path (not relative like some of the other
+                          options) that should contain the SysV init scripts
+                          (default '$(sysconfdir)/rc.d')
   --with-nspr=PATH        Netscape Portable Runtime (NSPR) directory
   --with-nspr-inc=PATH        Netscape Portable Runtime (NSPR) include file directory
   --with-nspr-lib=PATH        Netscape Portable Runtime (NSPR) library directory
@@ -4389,7 +4392,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4392 "configure"' > conftest.$ac_ext
+  echo '#line 4395 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -5524,7 +5527,7 @@ fi
 
 
 # Provide some information about the compiler.
-echo "$as_me:5527:" \
+echo "$as_me:5530:" \
      "checking for Fortran 77 compiler version" >&5
 ac_compiler=`set X $ac_compile; echo $2`
 { (eval echo "$as_me:$LINENO: \"$ac_compiler --version </dev/null >&5\"") >&5
@@ -6587,11 +6590,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6590: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6593: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6594: \$? = $ac_status" >&5
+   echo "$as_me:6597: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6855,11 +6858,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6858: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6861: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6862: \$? = $ac_status" >&5
+   echo "$as_me:6865: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6959,11 +6962,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6962: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6965: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:6966: \$? = $ac_status" >&5
+   echo "$as_me:6969: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8428,7 +8431,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 8431 "configure"' > conftest.$ac_ext
+    echo '#line 8434 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -9325,7 +9328,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9328 "configure"
+#line 9331 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9425,7 +9428,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9428 "configure"
+#line 9431 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11768,11 +11771,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11771: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11774: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11775: \$? = $ac_status" >&5
+   echo "$as_me:11778: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -11872,11 +11875,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11875: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11878: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:11879: \$? = $ac_status" >&5
+   echo "$as_me:11882: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -12408,7 +12411,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 12411 "configure"' > conftest.$ac_ext
+    echo '#line 12414 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -13466,11 +13469,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13469: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13472: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13473: \$? = $ac_status" >&5
+   echo "$as_me:13476: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13570,11 +13573,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13573: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13576: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13577: \$? = $ac_status" >&5
+   echo "$as_me:13580: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -15019,7 +15022,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 15022 "configure"' > conftest.$ac_ext
+    echo '#line 15025 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -15797,11 +15800,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15800: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15803: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15804: \$? = $ac_status" >&5
+   echo "$as_me:15807: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16065,11 +16068,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16068: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16071: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16072: \$? = $ac_status" >&5
+   echo "$as_me:16075: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16169,11 +16172,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16172: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16175: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16176: \$? = $ac_status" >&5
+   echo "$as_me:16179: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -17638,7 +17641,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 17641 "configure"' > conftest.$ac_ext
+    echo '#line 17644 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -23441,8 +23444,30 @@ fi
 
 
 # Deal with platform dependent defines
-# relative to sysconfdir
-initdir=/rc.d
+# initdir is the location for the SysV init scripts - very heavily platform
+# dependent and not specified in fhs or lsb
+initdir='$(sysconfdir)/rc.d'
+echo "$as_me:$LINENO: checking for --with-initddir" >&5
+echo $ECHO_N "checking for --with-initddir... $ECHO_C" >&6
+
+# Check whether --with-initddir or --without-initddir was given.
+if test "${with_initddir+set}" = set; then
+  withval="$with_initddir"
+
+  if test "$withval" = yes -o "$withval" = no  ; then
+     { { echo "$as_me:$LINENO: error: Please specify a full path with --with-initddir" >&5
+echo "$as_me: error: Please specify a full path with --with-initddir" >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+  echo "$as_me:$LINENO: result: $withval" >&5
+echo "${ECHO_T}$withval" >&6
+
+else
+
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+
+fi;
 # on most platforms, we will just use perl from PATH
 # On some platforms, we cannot.  Why not just use any old
 # perl?  Because of perldap.  We use a perldap that is
@@ -23489,8 +23514,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
     platform="linux"
-    # relative to sysconfdir
-    initdir=/rc.d/init.d
+    initdir='$(sysconfdir)/rc.d/init.d'
     # do arch specific linux stuff here
     case $host in
       i*86-*-linux*)
@@ -23730,6 +23754,8 @@ _ACEOF
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     initconfigdir="/$PACKAGE_NAME/config"
+    # HPUX doesn't use /etc for this
+    initdir=/init.d
     ;;
   hppa*-hp-hpux*)
 
@@ -23791,6 +23817,8 @@ _ACEOF
     initconfigdir="/$PACKAGE_NAME/config"
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
+    # HPUX doesn't use /etc for this
+    initdir=/init.d
     ;;
   sparc-sun-solaris*)
 
@@ -23876,13 +23904,17 @@ _ACEOF
     platform="solaris"
     # assume 64 bit
     perlexec='/usr/lib/sparcv9/dirsec/perl5x/bin/perl'
-    # relative to sysconfdir
-    initdir=/init.d
+    initdir='$(sysconfdir)/init.d'
     ;;
   *)
     platform=""
     ;;
 esac
+
+# cmd line overrides default setting above
+if test -n "$with_initddir" ; then
+   initdir="$with_initddir"
+fi
 
 
 
