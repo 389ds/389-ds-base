@@ -306,6 +306,9 @@ static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *
 	 * view filter - either match will do
 	 */
 
+	/* Read lock the cache */
+	views_read_lock();
+
 	/* find the view */
 	view = views_cache_find_view(view_dn);
 	if(0==view)
@@ -348,6 +351,7 @@ static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *
 	}
 
 bail:
+	views_unlock();
 	return ret;
 }
 
