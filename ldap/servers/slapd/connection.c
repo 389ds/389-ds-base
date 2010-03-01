@@ -242,7 +242,22 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
      * get peer address (IP address of this client)
      */
     slapi_ch_free( (void**)&conn->cin_addr ); /* just to be conservative */
-    if ( ((from->ipv6.ip.pr_s6_addr32[0] != 0) || /* from contains non zeros */
+    if ( from->raw.family == PR_AF_LOCAL ) { /* ldapi */
+	conn->cin_addr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
+	PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
+	memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
+	if (!buf_ip[0]) {
+	    PR_GetPeerName( conn->c_prfd, from );
+	    PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
+	    memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
+	}
+	if (!buf_ip[0]) {
+	    /* cannot derive local address */
+	    /* need something for logging */
+	    PL_strncpyz(buf_ip, "local", sizeof(buf_ip));
+	}
+	str_ip = buf_ip;
+    } else if ( ((from->ipv6.ip.pr_s6_addr32[0] != 0) || /* from contains non zeros */
 	  (from->ipv6.ip.pr_s6_addr32[1] != 0) || 
 	  (from->ipv6.ip.pr_s6_addr32[2] != 0) || 
 	  (from->ipv6.ip.pr_s6_addr32[3] != 0)) || 
@@ -261,7 +276,6 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
 	}
 	buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
 	str_ip = buf_ip;		        
-		
     } else {
 	/* try syscall since "from" was not given and PR_GetPeerName failed */
 	/* a corner case */
@@ -307,7 +321,13 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
 	conn->cin_destaddr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
 	memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
 	if (PR_GetSockName( conn->c_prfd, conn->cin_destaddr ) == 0) {
-	    if ( PR_IsNetAddrType( conn->cin_destaddr, PR_IpAddrV4Mapped ) ) {
+	    if ( conn->cin_destaddr->raw.family == PR_AF_LOCAL ) { /* ldapi */
+		PL_strncpyz(buf_destip, conn->cin_destaddr->local.path,
+			    sizeof(conn->cin_destaddr->local.path));
+		if (!buf_destip[0]) {
+		    PL_strncpyz(buf_destip, "unknown local file", sizeof(buf_destip));
+		}
+	    } else if ( PR_IsNetAddrType( conn->cin_destaddr, PR_IpAddrV4Mapped ) ) {
 		PRNetAddr v4destaddr;
 		memset( &v4destaddr, 0, sizeof( v4destaddr ) );
 		v4destaddr.inet.family = PR_AF_INET;
