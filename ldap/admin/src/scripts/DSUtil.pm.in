@@ -736,7 +736,7 @@ sub getHashedPassword {
     if ($alg) {
         $cmd .= " -s $alg";
     }
-    $cmd .= " " . shellEscape($pwd);
+    $cmd .= " -- " . shellEscape($pwd);
     my $hashedpwd = `$cmd`;
     chomp($hashedpwd);
 
