@@ -2075,6 +2075,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	PRNetAddr from;
 	PRFileDesc *pr_clonefd = NULL;
 
+	memset(&from, 0, sizeof(from)); /* reset to nulls so we can see what was set */
 	if ( (ns = accept_and_configure( tcps, pr_acceptfd, &from,
 		sizeof(from), secure, local, &pr_clonefd)) == SLAPD_INVALID_SOCKET ) {
 		return -1;
