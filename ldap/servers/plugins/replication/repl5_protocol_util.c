@@ -470,6 +470,7 @@ release_replica(Private_Repl_Protocol *prp)
 	slapi_sdn_free(&replarea_sdn);
 	rc = conn_send_extended_operation(prp->conn,
 		REPL_END_NSDS50_REPLICATION_REQUEST_OID, payload, NULL /* update control */, &sent_message_id /* Message ID */);
+	ber_bvfree(payload); /* done with this - free it now */
 	if (0 != rc)
 	{
 		int operation, error;
@@ -538,8 +539,6 @@ release_replica(Private_Repl_Protocol *prp)
 			ber_bvecfree(ruv_bervals);
 		/* XXXggood free ruv_bervals if we got them for some reason */
 	}
-	if (NULL != payload)
-		ber_bvfree(payload);
 	if (NULL != retoid)
 		ldap_memfree(retoid);
 	if (NULL != retdata)

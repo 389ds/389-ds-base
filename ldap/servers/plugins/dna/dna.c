@@ -833,6 +833,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                             "dna_parse_config_entry: Unable to locate "
                             "shared configuration entry (%s)\n", value);
             ret = DNA_FAILURE;
+            slapi_ch_free_string(&value);
             goto bail;
         } else {
             slapi_entry_free(shared_e);
@@ -845,6 +846,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
          * multi-part RDN for the shared config entry. */
         entry->shared_cfg_dn = slapi_ch_smprintf("%s=%s+%s=%s,%s", DNA_HOSTNAME,
                                           hostname, DNA_PORTNUM, portnum, value);
+        slapi_ch_free_string(&value);
         slapi_dn_normalize(entry->shared_cfg_dn);
 
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,

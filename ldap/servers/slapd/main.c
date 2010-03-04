@@ -870,19 +870,26 @@ main( int argc, char **argv)
 
 	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
 		(slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
+		char *listenhost = config_get_listenhost();
+		char *securelistenhost = config_get_securelistenhost();
 		ports_info.n_port = (unsigned short)n_port;
-		if ( slapd_listenhost2addr( config_get_listenhost(),
+		if ( slapd_listenhost2addr( listenhost,
 				&ports_info.n_listenaddr ) != 0 || 
 		     ports_info.n_listenaddr == NULL ) {
+			slapi_ch_free_string(&listenhost);
+			slapi_ch_free_string(&securelistenhost);
 			return(1);
 		}
+		slapi_ch_free_string(&listenhost);
 
 		ports_info.s_port = (unsigned short)s_port;
-		if ( slapd_listenhost2addr( config_get_securelistenhost(),
+		if ( slapd_listenhost2addr( securelistenhost,
 				&ports_info.s_listenaddr ) != 0 ||
 			ports_info.s_listenaddr == NULL ) {
+			slapi_ch_free_string(&securelistenhost);
 			return(1);
 		}
+		slapi_ch_free_string(&securelistenhost);
 
 #if defined(ENABLE_LDAPI)
 		if(	config_get_ldapi_switch() &&

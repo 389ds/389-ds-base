@@ -135,6 +135,7 @@ do_bind( Slapi_PBlock *pb )
     Slapi_Entry *bind_target_entry = NULL;
     int auto_bind = 0;
     int minssf = 0;
+    char *test_bind_dn = NULL;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "do_bind\n", 0, 0, 0 );
 
@@ -745,6 +746,11 @@ do_bind( Slapi_PBlock *pb )
  free_and_return:;
     if (be)
         slapi_be_Unlock(be);
+    slapi_pblock_get(pb, SLAPI_BIND_TARGET, &test_bind_dn);
+    if (test_bind_dn != slapi_sdn_get_ndn(&sdn)) {
+        /* set in sasl bind or some other bind plugin */
+        slapi_ch_free_string(&test_bind_dn);
+    }
     slapi_sdn_done(&sdn);
     slapi_ch_free_string( &saslmech );
     slapi_ch_free( (void **)&cred.bv_val );

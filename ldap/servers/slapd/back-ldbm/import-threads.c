@@ -559,6 +559,10 @@ import_producer(void *param)
 
         if (! import_entry_belongs_here(e, inst->inst_be)) {
             /* silently skip */
+            if (e) {
+                slapi_entry_free(e);
+            }
+
             continue;
         }
 
@@ -661,6 +665,7 @@ import_producer(void *param)
         }
 
          if (job->flags & FLAG_ABORT) { 
+             backentry_free(&ep);
              goto error;
          }
 
@@ -689,6 +694,7 @@ import_producer(void *param)
                 DS_Sleep(sleeptime);
             }
             if (job->flags & FLAG_ABORT){
+                backentry_free(&ep);
                 goto error;
             }
             info->state = RUNNING;
