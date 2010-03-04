@@ -638,6 +638,7 @@ void import_producer(void *param)
         }
 
          if (job->flags & FLAG_ABORT) { 
+             backentry_free(&ep);
              goto error;
          }
 
@@ -666,6 +667,7 @@ void import_producer(void *param)
                 DS_Sleep(sleeptime);
             }
             if (job->flags & FLAG_ABORT){
+                backentry_free(&ep);
                 goto error;
             }
             info->state = RUNNING;
