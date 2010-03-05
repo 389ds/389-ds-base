@@ -383,7 +383,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 				 (NULL == newrdn) ? "(null)" : newrdn);
 		} else {
 			slapi_log_error(SLAPI_LOG_ARGS, NULL, 
-				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
+				 "conn=%s op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
 				 (NULL == newrdn) ? "(null)" : newrdn);
@@ -415,7 +415,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 				 (NULL == newsuperior) ? "(null)" : newsuperiorbuf);
 		} else {
 			slapi_log_error(SLAPI_LOG_ARGS, NULL,
-				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
+				 "conn=%s op=%d MODRDN invalid new superior (\"%s\")",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
 				 (NULL == newsuperior) ? "(null)" : newsuperiorbuf);

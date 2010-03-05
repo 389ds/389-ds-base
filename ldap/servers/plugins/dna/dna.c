@@ -859,7 +859,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         entry->threshold = strtoull(value, 0, 0);
 
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%" NSPRIu64 "]\n", DNA_THRESHOLD, value);
+                        "----------> %s [%s]\n", DNA_THRESHOLD, value);
 
         slapi_ch_free_string(&value);
     } else {

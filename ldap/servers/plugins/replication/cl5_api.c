@@ -2276,6 +2276,7 @@ static int _cl5RemoveEnv ()
 	return CL5_SUCCESS;
 }
 
+#ifdef NEED_CL5_REMOVE_LOGS
 static int _cl5RemoveLogs ()
 {
 	int rc = CL5_DB_ERROR;
@@ -2321,6 +2322,7 @@ static int _cl5RemoveLogs ()
 	}
 	return rc;
 }
+#endif /* NEED_CL5_REMOVE_LOGS */
 
 static int _cl5AppInit (PRBool *didRecovery)
 {

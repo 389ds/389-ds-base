@@ -477,7 +477,7 @@ _update_one_per_mod(const char *entryDN, /* DN of the searched entry */
         }
         slapi_ch_free_string(&newDN);
     }
-bail:
+
     /* in case these memories have not freed */
     slapi_ch_free_string(&newvalue);
     slapi_ch_free_string(&sval);

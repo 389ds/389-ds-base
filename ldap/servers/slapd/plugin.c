@@ -2888,7 +2888,7 @@ void plugin_print_lists(void)
 	struct slapdplugin *tmp = NULL;
 
 	for (i = 0; i < PLUGIN_LIST_GLOBAL_MAX; i++) {
-		if (list = get_plugin_list(i))
+		if ((list = get_plugin_list(i)))
 		{
 			slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
 				"---- Plugin List (type %d) ----\n", i);

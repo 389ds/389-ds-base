@@ -691,10 +691,10 @@ attr_syntax_create(
 						"Error: the EQUALITY matching rule [%s] is not compatible "
 						"with the syntax [%s] for the attribute [%s]\n",
 						mr_equality, attr_syntax, attr_names[0]);
-/*
+#ifdef ENFORCE_MR_SYNTAX_COMPAT
 		rc = LDAP_INAPPROPRIATE_MATCHING;
 		goto done;
-*/
+#endif /* ENFORCE_MR_SYNTAX_COMPAT */
 	}
 	a.asi_mr_eq_plugin = plugin_mr_find( mr_equality );
 	if (mr_ordering && !slapi_matchingrule_is_compat(mr_ordering, attr_syntax)) {
@@ -702,10 +702,10 @@ attr_syntax_create(
 						"Error: the ORDERING matching rule [%s] is not compatible "
 						"with the syntax [%s] for the attribute [%s]\n",
 						mr_ordering, attr_syntax, attr_names[0]);
-/*
+#ifdef ENFORCE_MR_SYNTAX_COMPAT
 		rc = LDAP_INAPPROPRIATE_MATCHING;
 		goto done;
-*/
+#endif /* ENFORCE_MR_SYNTAX_COMPAT */
 	}
 	a.asi_mr_ord_plugin = plugin_mr_find( mr_ordering );
 	if (mr_substring && !slapi_matchingrule_is_compat(mr_substring, attr_syntax)) {
@@ -713,10 +713,10 @@ attr_syntax_create(
 						"Error: the SUBSTR matching rule [%s] is not compatible "
 						"with the syntax [%s] for the attribute [%s]\n",
 						mr_substring, attr_syntax, attr_names[0]);
-/*
+#ifdef ENFORCE_MR_SYNTAX_COMPAT
 		rc = LDAP_INAPPROPRIATE_MATCHING;
 		goto done;
-*/
+#endif /* ENFORCE_MR_SYNTAX_COMPAT */
 	}
 	a.asi_mr_sub_plugin = plugin_mr_find( mr_substring );
 	a.asi_flags = flags;
@@ -736,7 +736,10 @@ attr_syntax_create(
 	}
 
 	*asip = attr_syntax_dup(&a);
+
+#ifdef ENFORCE_MR_SYNTAX_COMPAT
 done:
+#endif /* ENFORCE_MR_SYNTAX_COMPAT */
 	slapi_ch_free((void **)&a.asi_name);
 
 	return rc;

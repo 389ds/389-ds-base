@@ -518,6 +518,20 @@ int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace)
 	return ret;
 }
 
+int
+attrcrypt_cleanup(attrcrypt_cipher_state *acs)
+{
+    LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_cleanup\n", 0, 0, 0);
+    if (acs->key) {
+		slapd_pk11_FreeSymKey(acs->key);
+	}
+    if (acs->slot) {
+		slapd_pk11_FreeSlot(acs->slot);
+	}
+    LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_cleanup\n", 0, 0, 0);
+	return 0;
+}
+
 /*
  * This function cleans up the inst_attrcrypt_state_private in each backend
  * instance.
@@ -525,7 +539,6 @@ int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace)
 int
 attrcrypt_cleanup_private(ldbm_instance *li)
 {
-	int i = 0;
 	attrcrypt_cipher_state **current = NULL;
 
 	LDAPDebug(LDAP_DEBUG_TRACE, "-> attrcrypt_cleanup_private\n", 0, 0, 0);
@@ -538,20 +551,6 @@ attrcrypt_cleanup_private(ldbm_instance *li)
 		slapi_ch_free((void **)&li->inst_attrcrypt_state_private);
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE, "<- attrcrypt_cleanup_private\n", 0, 0, 0);
-	return 0;
-}
-
-int
-attrcrypt_cleanup(attrcrypt_cipher_state *acs)
-{
-    LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_cleanup\n", 0, 0, 0);
-    if (acs->key) {
-		slapd_pk11_FreeSymKey(acs->key);
-	}
-    if (acs->slot) {
-		slapd_pk11_FreeSlot(acs->slot);
-	}
-    LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_cleanup\n", 0, 0, 0);
 	return 0;
 }
 

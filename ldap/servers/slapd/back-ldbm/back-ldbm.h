@@ -258,6 +258,7 @@ typedef u_int32_t	ID;
 #define MAXID   ((ID)-3)
 #define NOID	((ID)-2)
 #define ALLID	((ID)-1)
+#define ID_FMT "%u" /* used in printf-like statements */
 
 /*
  * effective only on idl_new_fetch

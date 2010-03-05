@@ -2460,7 +2460,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                             "import_get_and_add_parent_rdns: Failed to "
-                            "position at ID %lu\n", id);
+                            "position at ID " ID_FMT "\n", id);
             return rc;
         }
         /* rdn is allocated in get_value_from_string */
@@ -2468,7 +2468,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                             "import_get_and_add_parent_rdns: "
-                            "Failed to get rdn of entry %lu\n", id);
+                            "Failed to get rdn of entry " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is set to srdn */
@@ -2476,7 +2476,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         if (rc < 0) { /* expect rc == 1 since we are setting "rdn" not "dn" */
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                             "import_get_and_add_parent_rdns: "
-                            "Failed to add rdn %s of entry %lu\n", rdn, id);
+                            "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
             goto bail;
         }
         rc = get_value_from_string((const char *)data.dptr,

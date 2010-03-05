@@ -3080,7 +3080,7 @@ _get_and_add_parent_rdns(backend *be,
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                             "_get_and_add_parent_rdns: Failed to position "
-                            "at ID %lu\n", id);
+                            "at ID " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is allocated in get_value_from_string */
@@ -3088,7 +3088,7 @@ _get_and_add_parent_rdns(backend *be,
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                             "_get_and_add_parent_rdns: "
-                            "Failed to get rdn of entry %lu\n", id);
+                            "Failed to get rdn of entry " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is going to be set to srdn */
@@ -3096,7 +3096,7 @@ _get_and_add_parent_rdns(backend *be,
         if (rc < 0) { /* expect rc == 1 since we are setting "rdn" not "dn" */
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                             "_get_and_add_parent_rdns: "
-                            "Failed to add rdn %s of entry %lu\n", rdn, id);
+                            "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
             goto bail;
         }
         /* pid */

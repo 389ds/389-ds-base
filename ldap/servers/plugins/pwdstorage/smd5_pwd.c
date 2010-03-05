@@ -70,7 +70,6 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
    unsigned char *dbhash = quick_dbhash;
    struct berval salt;
    char *hashresult = NULL;
-   SECItem binary_item;
 
    ctx = PK11_CreateDigestContext(SEC_OID_MD5);
    if (ctx == NULL) {
@@ -84,13 +83,13 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
     */
    hash_len = pwdstorage_base64_decode_len(dbpwd, 0);
    if ( hash_len >= sizeof(quick_dbhash) ) { /* get more space: */
-      dbhash = (char*) slapi_ch_calloc( hash_len + 1, sizeof(char) );
+      dbhash = (unsigned char*) slapi_ch_calloc( hash_len + 1, sizeof(char) );
       if ( dbhash == NULL ) goto loser;
    } else {
       memset( quick_dbhash, 0, sizeof(quick_dbhash) );
    }
 
-   hashresult = PL_Base64Decode( dbpwd, 0, dbhash );
+   hashresult = PL_Base64Decode( dbpwd, 0, (char *)dbhash );
    if (NULL == hashresult) {
       slapi_log_error( SLAPI_LOG_PLUGIN, SALTED_MD5_SUBSYSTEM_NAME,
             "smd5_pw_cmp: userPassword \"%s\" is the wrong length "
@@ -125,7 +124,7 @@ smd5_pw_enc( const char *pwd )
    unsigned int outLen;
    unsigned char hash_out[MD5_LENGTH + MD5_DEFAULT_SALT_LENGTH];
    unsigned char b2a_out[(MD5_LENGTH*2) + (MD5_MAX_SALT_LENGTH*2)]; /* conservative */
-   char *salt = hash_out + MD5_LENGTH;
+   unsigned char *salt = hash_out + MD5_LENGTH;
    struct berval saltval;
    SECItem binary_item;
 

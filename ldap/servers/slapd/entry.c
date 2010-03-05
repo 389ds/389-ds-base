@@ -2882,7 +2882,7 @@ slapi_entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 int
 entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 {
-	int	err, j;
+	int	err;
 	LDAPMod **mp = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> entry_apply_mods\n", 0, 0, 0 );

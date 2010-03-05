@@ -219,7 +219,7 @@ write_replog_db(
 
         if ( strcasecmp( attributeName, attr_nsuniqueid ) == 0 ) {
             Slapi_Entry *entry = NULL;
-            char *uniqueId = NULL;
+            const char *uniqueId = NULL;
 
             slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &entry );
             if ( entry == NULL ) {
@@ -231,7 +231,7 @@ write_replog_db(
             slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
 	        "write_replog_db: add %s: \"%s\"\n", attributeAlias, uniqueId );
 
-            val.bv_val = uniqueId;
+            val.bv_val = (char *)uniqueId;
             val.bv_len = strlen( uniqueId );
 
             slapi_entry_add_values( e, attributeAlias, vals );

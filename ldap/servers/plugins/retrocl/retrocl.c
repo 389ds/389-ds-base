@@ -358,7 +358,7 @@ static int retrocl_start (Slapi_PBlock *pb)
             } else {
                 retrocl_attributes[i] = slapi_ch_malloc(pos-value+1);
                 strncpy(retrocl_attributes[i], value, pos-value);
-                retrocl_attributes[i][pos-value] = NULL;
+                retrocl_attributes[i][pos-value] = '\0';
 
                 retrocl_aliases[i] = slapi_ch_malloc(value+length-pos);
                 strcpy(retrocl_aliases[i], pos+1);

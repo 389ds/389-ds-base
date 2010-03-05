@@ -1711,7 +1711,6 @@ DS_LASSSFEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	char            *ptr;
 	int             len;
 	int             rc;
-	char            *s = NULL;
 	lasInfo         lasinfo;
 	int		aclssf;
 
