@@ -620,7 +620,11 @@ static struct config_get_and_set {
 		(ConfigGetFunc)config_get_anon_access_switch},
 	{CONFIG_MINSSF_ATTRIBUTE, config_set_minssf,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.minssf, CONFIG_INT, NULL}
+		(void**)&global_slapdFrontendConfig.minssf, CONFIG_INT, NULL},
+	{CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE, config_set_force_sasl_external,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.force_sasl_external, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_force_sasl_external}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -921,6 +925,7 @@ FrontendConfig_init () {
   cfg->rewrite_rfc1274 = LDAP_OFF;
   cfg->schemareplace = slapi_ch_strdup( CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY );
   cfg->schema_ignore_trailing_spaces = SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES;
+  cfg->force_sasl_external = LDAP_OFF; /* do not force sasl external by default - let clients abide by the LDAP standards and send us a SASL/EXTERNAL bind if that's what they want to do */
 
   cfg->pwpolicy_local = LDAP_OFF;
   cfg->pw_policy.pw_change = LDAP_ON;
@@ -5485,6 +5490,34 @@ config_set_anon_access_switch( const char *attrname, char *value,
 	retVal = config_set_onoff(attrname,
 		value,
 		&(slapdFrontendConfig->allow_anon_access),
+		errorbuf,
+		apply);
+
+	return retVal;
+}
+
+int
+config_get_force_sasl_external(void)
+{
+	int retVal;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = slapdFrontendConfig->force_sasl_external;
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+
+	return retVal;
+}
+
+int
+config_set_force_sasl_external( const char *attrname, char *value,
+		char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	retVal = config_set_onoff(attrname,
+		value,
+		&(slapdFrontendConfig->force_sasl_external),
 		errorbuf,
 		apply);
 

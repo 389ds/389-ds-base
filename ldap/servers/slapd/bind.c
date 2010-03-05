@@ -305,7 +305,8 @@ do_bind( Slapi_PBlock *pb )
     switch ( version ) {
     case LDAP_VERSION2:
         if (method == LDAP_AUTH_SIMPLE
-            && (dn == NULL || *dn == '\0') && cred.bv_len == 0
+            && (config_get_force_sasl_external() ||
+                ((dn == NULL || *dn == '\0') && cred.bv_len == 0))
             && pb->pb_conn->c_external_dn != NULL) {
             /* Treat this like a SASL EXTERNAL Bind: */
             method = LDAP_AUTH_SASL;
@@ -317,6 +318,17 @@ do_bind( Slapi_PBlock *pb )
         }
         break;
     case LDAP_VERSION3:
+        if ((method == LDAP_AUTH_SIMPLE) &&
+            config_get_force_sasl_external() &&
+            (pb->pb_conn->c_external_dn != NULL)) {
+            /* Treat this like a SASL EXTERNAL Bind: */
+            method = LDAP_AUTH_SASL;
+            saslmech = slapi_ch_strdup (LDAP_SASL_EXTERNAL);
+            /* This enables a client to establish an identity by sending
+             * a certificate in the SSL handshake, and also use LDAPv2
+             * (by sending this type of Bind request).
+             */
+        }
         break;
     default:
         LDAPDebug( LDAP_DEBUG_TRACE, "bind: unknown LDAP protocol version %d\n",
