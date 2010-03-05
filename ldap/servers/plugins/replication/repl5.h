@@ -521,6 +521,12 @@ void replica_write_ruv (Replica *r);
 #define REPLICA_INCREMENTAL_IN_PROGRESS 2 /* Set only between start and stop inc */
 #define REPLICA_TOTAL_IN_PROGRESS 4 /* Set only between start and stop total */
 #define REPLICA_AGREEMENTS_DISABLED 8 /* Replica is offline */
+#define REPLICA_TOTAL_EXCL_SEND 16 /* The server is either sending or receiving
+                                      the total update.  Introducing it if SEND
+                                      is active, RECV should back off. And
+                                      vice versa.  But SEND can coexist. */
+#define REPLICA_TOTAL_EXCL_RECV 32 /* ditto */
+
 PRBool replica_is_state_flag_set(Replica *r, PRInt32 flag);
 void replica_set_state_flag (Replica *r, PRUint32 flag, PRBool clear); 
 void replica_set_tombstone_reap_stop(Replica *r, PRBool val);
