@@ -678,6 +678,25 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		goto send_response;
 	}
 
+	if (REPL_PROTOCOL_50_TOTALUPDATE == connext->repl_protocol_version)
+	{
+		/* If total update has been initiated against other replicas or
+		 * this replica is already being initialized, we should return
+		 * an error immediately. */
+		if (replica_is_state_flag_set(replica,
+							REPLICA_TOTAL_EXCL_SEND|REPLICA_TOTAL_EXCL_RECV))
+		{
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				"%s: total update on is initiated on the replica.  Cannot execute the total update from other master.\n", repl_root);
+			response = NSDS50_REPL_REPLICA_BUSY;
+			goto send_response;
+		}
+		else
+		{
+			replica_set_state_flag (replica, REPLICA_TOTAL_EXCL_RECV, 0);
+		}
+	}
+
     /* check that this replica is not a 4.0 consumer */
     if (replica_is_legacy_consumer (replica))
     {
@@ -861,6 +880,11 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	slapi_pblock_get(pb, SLAPI_CONNECTION, &connext->connection);
 
 send_response:
+	if (connext && replica &&
+		(REPL_PROTOCOL_50_TOTALUPDATE == connext->repl_protocol_version))
+	{
+		replica_set_state_flag (replica, REPLICA_TOTAL_EXCL_RECV, 1);
+	}
     if (response != NSDS50_REPL_REPLICA_READY)
     {
 		int resp_log_level = SLAPI_LOG_FATAL;

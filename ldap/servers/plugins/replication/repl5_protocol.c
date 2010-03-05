@@ -317,6 +317,28 @@ prot_thread_main(void *arg)
 		dev_debug("prot_thread_main(STATE_PERFORMING_INCREMENTAL_UPDATE): end");
 		break;
 	      case STATE_PERFORMING_TOTAL_UPDATE:
+		{
+		Slapi_DN *dn = agmt_get_replarea(agmt);
+		Replica *replica = NULL;
+		Object *replica_obj = replica_get_replica_from_dn(dn);
+		if (replica_obj)
+		{
+		    replica = (Replica*) object_get_data (replica_obj);
+		    /* If total update against this replica is in progress,
+		     * we should not initiate the total update to other replicas. */
+		    if (replica_is_state_flag_set(replica, REPLICA_TOTAL_EXCL_RECV))
+		    {
+		        object_release(replica_obj);
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                    "%s: total update on the replica is in progress.  Cannot initiate the total update.\n", agmt_get_long_name(rp->agmt));
+		        break;
+		    }
+		    else
+		    {
+		        replica_set_state_flag (replica, REPLICA_TOTAL_EXCL_SEND, 0);
+		    }
+		}
+
 		PR_Lock(rp->lock);
     
 		/* stop incremental protocol if running */
@@ -332,7 +354,13 @@ prot_thread_main(void *arg)
 		   replica initialization is completed. */
 		agmt_replica_init_done (agmt);
     
+		if (replica_obj)
+		{
+		    replica_set_state_flag (replica, REPLICA_TOTAL_EXCL_SEND, 1);
+		    object_release(replica_obj);
+		}
 		break;
+		}
 	      case STATE_FINISHED:
 		dev_debug("prot_thread_main(STATE_FINISHED): exiting prot_thread_main");
 		done = 1;
