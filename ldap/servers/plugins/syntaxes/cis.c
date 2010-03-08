@@ -79,6 +79,15 @@ static int oid_validate(struct berval *val);
 static int printable_validate(struct berval *val);
 
 /*
+  Even though the official RFC 4517 says that the postal syntax
+  line values must contain at least 1 character (i.e. no $$), it
+  seems that most, if not all, address book and other applications that
+  use postal address syntax values expect to be able to store empty
+  lines/values - so for now, allow it
+*/
+static const int postal_allow_empty_lines = 1;
+
+/*
  * Attribute syntaxes. We treat all of these the same for now, even though
  * the specifications (e.g., RFC 2252) impose various constraints on the
  * the format for each of these.
@@ -989,19 +998,14 @@ static int postal_validate(
 			} else if (*p == '$') {
 				/* This signifies the end of a line.  We need
 				 * to ensure that the line is not empty. */
-				if (p == start) {
-					rc = 1;
-					goto exit;
-				}
-
 				/* make sure the value doesn't end with a '$' */
-				if (p == end) {
-					rc = 1;
-					goto exit;
-				}
-
-				/* Make sure the line (start to p) is valid UTF-8. */
-				if ((rc = utf8string_validate(start, p, NULL)) != 0) {
+				if ((p == start) || (p == end)) {
+					if (!postal_allow_empty_lines) {
+						rc = 1;
+						goto exit;
+					} /* else allow it */
+				} else if ((rc = utf8string_validate(start, p, NULL)) != 0) {
+					/* Make sure the line (start to p) is valid UTF-8. */
 					goto exit;
 				}
 
