@@ -124,7 +124,7 @@ sub sanityCheckParams {
         return ('dialog_dsrootdn_error', $inf->{slapd}->{RootDN});
     }
 
-    if ($inf->{slapd}->{RootDNPwd} =~ /\{\w+\}.+/) {
+    if ($inf->{slapd}->{RootDNPwd} =~ /^\{\w+\}.+/) {
         debug(1, "The root password is already hashed - no checking will be performed\n");
     } elsif (length($inf->{slapd}->{RootDNPwd}) < 8) {
         debug(0, "WARNING: The root password is less than 8 characters long.  You should choose a longer one.\n");

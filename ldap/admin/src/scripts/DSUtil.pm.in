@@ -728,7 +728,7 @@ sub getHashedPassword {
     my $pwd = shift;
     my $alg = shift;
 
-    if ($pwd =~ /\{\w+\}.+/) {
+    if ($pwd =~ /^\{\w+\}.+/) {
         return $pwd; # already hashed
     }
 
