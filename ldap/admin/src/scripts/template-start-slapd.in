@@ -6,5 +6,5 @@
 #       1: Server could not be started
 #       2: Server already running
 
-@sbindir@/start-dirsrv {{SERV-ID}} "$@"
+@sbindir@/start-dirsrv -d {{INITCONFIG-DIR}} {{SERV-ID}} "$@"
 exit $?

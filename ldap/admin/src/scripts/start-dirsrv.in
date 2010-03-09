@@ -14,8 +14,8 @@ start_instance() {
     shift
 
     # source env. for this instance
-    if [ -f @initconfigdir@/@package_name@-$SERV_ID ] ; then
-        . @initconfigdir@/@package_name@-$SERV_ID
+    if [ -f $initconfig_dir/@package_name@-$SERV_ID ] ; then
+        . $initconfig_dir/@package_name@-$SERV_ID
     else
         echo Instance $SERV_ID not found.
         return 1
@@ -93,11 +93,28 @@ start_instance() {
 # source env. for all instances
 [ -f @initconfigdir@/@package_name@ ] && . @initconfigdir@/@package_name@
 
+while getopts "d:" flag
+do
+    case "$flag" in
+        d) initconfig_dir="$OPTARG";;
+    esac
+done
+shift $(($OPTIND-1))
+
+if [ "$initconfig_dir" = "" ]; then
+    if [ $USER = root ] ; then
+        initconfig_dir=@initconfigdir@
+    else
+        initconfig_dir=$HOME/.@package_name@
+    fi
+fi
+
 if [ "$#" -eq 0 ]; then
     # We're starting all instances.
     ret=0
-    for i in @initconfigdir@/@package_name@-*; do
-        inst=`echo $i | sed -e 's,@initconfigdir@/@package_name@-,,g'`
+    for i in $initconfig_dir/@package_name@-*; do
+        regex=s,$initconfig_dir/@package_name@-,,g
+        inst=`echo $i | sed -e $regex`
         echo Starting instance \"$inst\"
         start_instance $inst
         if [ "$?" -ne 0 ]; then
@@ -107,6 +124,6 @@ if [ "$#" -eq 0 ]; then
     exit $ret
 else
     # We're starting a single instance.
-    start_instance $*
+    start_instance $@
     exit $?
 fi

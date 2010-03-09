@@ -23,9 +23,13 @@ use strict;
 
 use File::Basename;
 use File::Path;
+use Getopt::Long;
 use DSUtil;
 use Resource;
 use DSCreate qw(removeDSInstance);
+
+# process command line options
+Getopt::Long::Configure(qw(bundling)); # bundling allows -ddddd
 
 my $res = new Resource("@propertydir@/setup-ds.res");
 
@@ -36,24 +40,16 @@ sub usage {
         print(STDERR "       -d            - turn on debugging output\n");
 }
 
-my $i = 0;
 my $force = "";
 my $instname = "";
+my $initconfig_dir = "";
 
-# load args from the command line
-while ($i <= $#ARGV) {
-    if ( "$ARGV[$i]" eq "-f" ) { 
-        $force = 1;
-    } elsif ("$ARGV[$i]" eq "-i") {
-        $i++;
-        $instname = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-d") {
-        $DSUtil::debuglevel++;
-    } else {
-        &usage; exit(1);
-    }
-    $i++;
-}
+GetOptions('help|h|?' => sub { &usage; exit(1); },
+           'debug|d+' => \$DSUtil::debuglevel,
+           'instance|i=s' => \$instname,
+           'initconfig_dir|c=s' => \$initconfig_dir,
+           'force|f' => \$force
+           );
 
 # Make sure the instance name option was provided.
 unless ($instname) {
@@ -67,7 +63,7 @@ unless ($inst) {
     exit 1;
 }
 
-my @errs = removeDSInstance($inst, $force);
+my @errs = removeDSInstance($inst, $force, $initconfig_dir);
 if (@errs) {
     print STDERR "The following errors occurred during removal:\n";
     for (@errs) {

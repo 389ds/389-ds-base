@@ -260,6 +260,17 @@ sub createInstanceScripts {
     my $perlexec = "@perlexec@" || "/usr/bin/env perl";
     my $myperl = "!$perlexec";
     my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
+
+    # determine initconfig_dir
+    my $initconfig_dir = $inf->{slapd}->{initconfig_dir};
+    if (!$initconfig_dir) {
+        if ($ENV{USER} eq 'root') {
+            $initconfig_dir = "$inf->{General}->{prefix}@initconfigdir@";
+        } else {
+            $initconfig_dir = "$ENV{HOME}/.@package_name@";
+        }
+    }
+
     my %maptable = (
         "DS-ROOT" => $inf->{General}->{prefix},
         "SEP" => "/", # works on all platforms
@@ -273,6 +284,7 @@ sub createInstanceScripts {
         "BAK-DIR" => $inf->{slapd}->{bak_dir},
         "SERVER-DIR" => $inf->{General}->{ServerRoot},
         "CONFIG-DIR" => $inf->{slapd}->{config_dir},
+        "INITCONFIG-DIR" => $initconfig_dir,
         "INST-DIR" => $inf->{slapd}->{inst_dir},
         "RUN-DIR" => $inf->{slapd}->{run_dir},
         "PRODUCT-NAME" => "slapd",
@@ -458,9 +470,21 @@ sub makeOtherConfigFiles {
         return @errs;
     }
 
+    # determine initconfig_dir
+    my $initconfig_dir = $inf->{slapd}->{initconfig_dir};
+    if (!$initconfig_dir) {
+        if ($ENV{USER} eq 'root') {
+            $initconfig_dir = "$inf->{General}->{prefix}@initconfigdir@";
+        } else {
+            $initconfig_dir = "$ENV{HOME}/.@package_name@";
+            mkpath $initconfig_dir unless -d $initconfig_dir;
+        }
+    }
+
     # install instance specific initconfig script
     $src = "$inf->{General}->{prefix}@configdir@/template-initconfig";
-    $dest = "$inf->{General}->{prefix}@initconfigdir@/@package_name@-$inf->{slapd}->{ServerIdentifier}";
+    $dest = "$initconfig_dir/@package_name@-$inf->{slapd}->{ServerIdentifier}";
+
     $! = 0; # clear errno
 
     if (!open(SRC, "< $src")) {
@@ -1026,10 +1050,42 @@ sub stopServer {
 sub removeDSInstance {
     my $inst = shift;
     my $force = shift;
+    my $initconfig_dir = shift;
     my $baseconfigdir = $ENV{DS_CONFIG_DIR} || "@instconfigdir@";
     my $instname = "slapd-$inst";
-    my $configdir = "$baseconfigdir/$instname";
+    my $configdir;
+    my $rundir;
+    my $product_name;
     my @errs;
+
+    # determine initconfig_dir
+    if (!$initconfig_dir) {
+        if ($ENV{USER} eq 'root') {
+            $initconfig_dir = "@initconfigdir@";
+        } else {
+            $initconfig_dir = "$ENV{HOME}/.@package_name@";
+        }
+    }
+
+    my $initconfig = "$initconfig_dir/@package_name@-$inst";
+
+    # Get the configdir, rundir and product_name from the instance initconfig script.
+    unless(open(INFILE, $initconfig)) {
+        return ( [ 'error_no_such_instance', $instname, $! ] );
+    }
+
+    my $line;
+    while($line = <INFILE>) {
+        if ($line =~ /CONFIG_DIR=(.*) ; export CONFIG_DIR/) {
+            $configdir = $1;
+        } elsif ($line =~ /RUN_DIR=(.*) ; export INST_DIR/) {
+            $rundir = $1;
+        } elsif ($line =~ /PRODUCT_NAME=(.*) ; export PRODUCT_NAME/) {
+            $product_name = $1;
+        }
+    }
+    close(INFILE);
+
     if ( ! -d $configdir )
     {
         debug(1, "Error: $configdir does not exist: $!\n");
@@ -1097,8 +1153,8 @@ sub removeDSInstance {
     if ( -d $instdir && $instdir =~ /$instname/ )
     {
         # clean up pid files (if any)
-        remove_pidfile("STARTPIDFILE", $instdir, $instname);
-        remove_pidfile("PIDFILE", $instdir, $instname);
+        remove_pidfile("STARTPIDFILE", $inst, $instdir, $instname, $rundir, $product_name);
+        remove_pidfile("PIDFILE", $inst, $instdir, $instname, $rundir, $product_name);
 
         my $rc = rmtree($instdir);
         if ( 0 == $rc )
@@ -1111,12 +1167,12 @@ sub removeDSInstance {
     push @errs, remove_tree($entry, "nsslapd-schemadir", $instname, 1, "\.db\$");
 
     # Remove the instance specific initconfig script
-    if ( -f "@initconfigdir@/@package_name@-$inst" ) {
-        my $rc = unlink("@initconfigdir@/@package_name@-$inst");
+    if ( -f $initconfig ) {
+        my $rc = unlink($initconfig);
         if ( 0 == $rc )
         {
-            push @errs, [ 'error_removing_path', "@initconfigdir@/@package_name@-$inst", $! ];
-            debug(1, "Warning: @initconfigdir@/@package_name@-$inst was not removed. Error: $!\n");
+            push @errs, [ 'error_removing_path', $initconfig, $! ];
+            debug(1, "Warning: $initconfig was not removed. Error: $!\n");
         }
     }
 

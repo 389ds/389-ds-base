@@ -11,7 +11,7 @@ restart_instance() {
     SERV_ID=$1
 
     server_already_stopped=0
-    @sbindir@/stop-dirsrv $SERV_ID
+    @sbindir@/stop-dirsrv -d $initconfig_dir $SERV_ID
     status=$?
     if [ $status -eq 1 ] ; then
         return 3;
@@ -20,7 +20,7 @@ restart_instance() {
             server_already_stopped=1
        fi
     fi
-    @sbindir@/start-dirsrv $SERV_ID
+    @sbindir@/start-dirsrv -d $initconfig_dir $SERV_ID
     status=$?
     if [ $server_already_stopped -eq 1 ] && [ $status -eq 0 ] ; then
         return 2;
@@ -28,11 +28,28 @@ restart_instance() {
     return $status
 }
 
+while getopts "d:" flag
+do
+    case "$flag" in
+        d) initconfig_dir="$OPTARG";;
+    esac
+done
+shift $(($OPTIND-1))
+
+if [ "$initconfig_dir" = "" ]; then
+    if [ $USER = root ] ; then
+        initconfig_dir=@initconfigdir@
+    else
+        initconfig_dir=$HOME/.@package_name@
+    fi
+fi
+
 if [ "$#" -eq 0 ]; then
     # We're restarting all instances.
     ret=0
-    for i in @initconfigdir@/@package_name@-*; do
-        inst=`echo $i | sed -e 's,@initconfigdir@/@package_name@-,,g'`
+    for i in $initconfig_dir/@package_name@-*; do
+        regex=s,$initconfig_dir/@package_name@-,,g
+        inst=`echo $i | sed -e $regex`
         echo Restarting instance \"$inst\"
         restart_instance $inst
         if [ "$?" -ne 0 ]; then

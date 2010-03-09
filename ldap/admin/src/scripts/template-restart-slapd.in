@@ -7,5 +7,5 @@
 #       2: Server started successfully (was not running)
 #       3: Server could not be stopped
 
-@sbindir@/restart-dirsrv {{SERV-ID}} "$@"
+@sbindir@/restart-dirsrv -d {{INITCONFIG-DIR}} {{SERV-ID}} "$@"
 exit $?
