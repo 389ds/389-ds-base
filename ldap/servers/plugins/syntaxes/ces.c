@@ -85,12 +85,13 @@ static const char *caseExactOrderingMatch_names[] = {"caseExactOrderingMatch", "
 static const char *caseExactSubstringsMatch_names[] = {"caseExactSubstringsMatch", "2.5.13.7", NULL};
 static const char *caseExactIA5SubstringsMatch_names[] = {"caseExactIA5SubstringsMatch", CASEEXACTIA5SUBSTRINGSMATCH_OID, NULL};
 
-static char *dirString_syntaxes[] = {COUNTRYSTRING_SYNTAX_OID,
-                                           DIRSTRING_SYNTAX_OID,
-                                           PRINTABLESTRING_SYNTAX_OID,NULL};
 static char *dirStringCompat_syntaxes[] = {COUNTRYSTRING_SYNTAX_OID,
                                                  PRINTABLESTRING_SYNTAX_OID,NULL};
 static char *ia5String_syntaxes[] = {IA5STRING_SYNTAX_OID,NULL};
+static char *caseExactSubstrings_syntaxes[] = {IA5STRING_SYNTAX_OID, /* allow IA5 to use cesubstrs e.g. krbPrincipalName */
+                                              COUNTRYSTRING_SYNTAX_OID,
+                                              DIRSTRING_SYNTAX_OID,
+                                              PRINTABLESTRING_SYNTAX_OID,NULL};
 
 /* for some reason vendorName and vendorVersion are dirstring but want
    to use EQUALITY caseExactIA5Match ???? RFC 3045
@@ -171,7 +172,7 @@ DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
 "comparison, characters are not case folded in the Map preparation "
 "step, and only Insignificant Space Handling is applied in the "
 "Insignificant Character Handling step.",
-"1.3.6.1.4.1.1466.115.121.1.58", 0, dirString_syntaxes}, /* matching rule desc */
+"1.3.6.1.4.1.1466.115.121.1.58", 0, caseExactSubstrings_syntaxes}, /* matching rule desc */
  {"caseExactSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactSubstringsMatch matching rule plugin"}, /* plugin desc */
  caseExactSubstringsMatch_names, /* matching rule name/oid/aliases */
  NULL, NULL, NULL, ces_filter_sub, ces_values2keys,
