@@ -1944,11 +1944,12 @@ slapd_bind_local_user(Connection *conn)
 				if(entries[0] && 0 == entries[1])
 				{
 					/* observe account locking */
-					ret = check_account_lock(
+					ret = slapi_check_account_lock(
 						0,  /* pb not req */
 						entries[0],
 						0, /* no response control */
-						1  /* inactivation only */
+						0, /* don't check password policy */
+						0  /* don't send ldap result */
 						);
 
 					if(0 == ret)
@@ -2003,11 +2004,12 @@ entry_map_free:
 
 				if(0 == ret && e)
 				{
-					ret = check_account_lock(
+					ret = slapi_check_account_lock(
 						0, /* pb not req */
 						e,
 						0, /* no response control */
-						1  /* inactivation only */
+						0, /* don't check password policy */
+						0  /* don't send ldap result */
 						);
 
 					if(1 == ret)

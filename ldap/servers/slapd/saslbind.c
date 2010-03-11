@@ -968,7 +968,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             {
                 break;
             } 
-            if ( check_account_lock(pb, bind_target_entry, pwresponse_requested, 0) == 1) {
+            if ( slapi_check_account_lock(pb, bind_target_entry, pwresponse_requested, 1, 1) == 1) {
                 slapi_entry_free(bind_target_entry);
                 break;
             }
