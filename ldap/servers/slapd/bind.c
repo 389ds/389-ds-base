@@ -441,8 +441,8 @@ do_bind( Slapi_PBlock *pb )
             if (!isroot ) {
             /* check if the account is locked */
                 bind_target_entry = get_entry(pb, pb->pb_conn->c_external_dn);
-                if ( bind_target_entry != NULL && check_account_lock(pb, bind_target_entry,
-                     pw_response_requested, 0 /*not account_inactivation_only*/ ) == 1) {
+                if ( bind_target_entry != NULL && slapi_check_account_lock(pb, bind_target_entry,
+                     pw_response_requested, 1 /*check password policy*/, 1 /*send ldap result*/) == 1) {
                     /* call postop plugins */
                     plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
                     goto free_and_return;
@@ -642,10 +642,10 @@ do_bind( Slapi_PBlock *pb )
              *
              */
 			
-			/* get the entry now, so that we can give it to check_account_lock and reslimit_update_from_dn */
+			/* get the entry now, so that we can give it to slapi_check_account_lock and reslimit_update_from_dn */
             if (! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
 				bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(&sdn));
-				rc = check_account_lock ( pb, bind_target_entry, pw_response_requested,0);
+				rc = slapi_check_account_lock ( pb, bind_target_entry, pw_response_requested, 1, 1);
             }
 
             slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );

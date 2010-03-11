@@ -106,7 +106,7 @@ derive_from_bind_dn(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id)
 }
 
 static char *
-derive_from_bind_entry(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id, char *map_ident_attr)
+derive_from_bind_entry(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id, char *map_ident_attr, int *locked)
 {
 	char buf[BUFSIZ];
 	Slapi_Entry *entry = NULL;
@@ -128,6 +128,12 @@ derive_from_bind_entry(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id, char *m
 						"Could not find entry for BIND dn %s\n",
 						escape_string(binddn, buf));
 		init_my_str_buf(pam_id, NULL);
+	} else if (slapi_check_account_lock( pb, entry, 0, 0, 0 ) == 1) {
+		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						"Account %s inactivated.\n",
+						escape_string(binddn, buf));
+		init_my_str_buf(pam_id, NULL);
+		*locked = 1;
 	} else {
 		char *val = slapi_entry_attr_get_charptr(entry, map_ident_attr);
 		init_my_str_buf(pam_id, val);
@@ -266,15 +272,22 @@ do_one_pam_auth(
 	struct pam_conv my_pam_conv = {pam_conv_func, NULL};
 	char buf[BUFSIZ]; /* for error messages */
 	char *errmsg = NULL; /* free with PR_smprintf_free */
+	int locked = 0;
 
 	slapi_pblock_get( pb, SLAPI_BIND_TARGET, &binddn );
 
 	if (method == PAMPT_MAP_METHOD_RDN) {
 		derive_from_bind_dn(pb, binddn, &pam_id);
 	} else if (method == PAMPT_MAP_METHOD_ENTRY) {
-		derive_from_bind_entry(pb, binddn, &pam_id, map_ident_attr);
+		derive_from_bind_entry(pb, binddn, &pam_id, map_ident_attr, &locked);
 	} else {
 		init_my_str_buf(&pam_id, binddn);
+	}
+
+	if (locked) {
+		errmsg = PR_smprintf("Account inactivated. Contact system administrator.");
+		retcode = LDAP_UNWILLING_TO_PERFORM; /* user inactivated */
+		goto done; /* skip the pam stuff */
 	}
 
 	if (!pam_id.str) {
