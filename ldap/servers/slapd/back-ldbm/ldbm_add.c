@@ -112,7 +112,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int is_fixup_operation= 0;
 	int is_ruv = 0;				 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
-	entry_address addr;
+	entry_address addr = {0};
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
@@ -188,7 +188,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		{
 			/* Check if an entry with the intended uniqueid already exists. */
 			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY); /* Could be through this multiple times */
-			addr.dn = NULL;
+			addr.dn = addr.udn = NULL;
 			addr.uniqueid = (char*)slapi_entry_get_uniqueid(e); /* jcm -  cast away const */
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_UNIQUEID_ENTRY, !is_replicated_operation);
 		}
@@ -211,6 +211,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			/* Check if an entry with the intended DN already exists. */
 			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY); /* Could be through this multiple times */
 			addr.dn = dn;
+			addr.udn = NULL;
 			addr.uniqueid = NULL;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_DN_ENTRY, !is_replicated_operation);
 			if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
@@ -226,6 +227,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		{
 			done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY); /* Could be through this multiple times */
 			addr.dn = (char*)slapi_sdn_get_dn (&parentsdn); /* get_copy_of_entry assumes the DN is not normalized */
+			addr.udn = NULL;
 			addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_PARENT_ENTRY, !is_replicated_operation);
 			/* need to set parentsdn or parentuniqueid if either is not set? */
@@ -265,6 +267,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	if(have_parent_address(&parentsdn, operation->o_params.p.p_add.parentuniqueid))
 	{
 		addr.dn = (char*)slapi_sdn_get_dn (&parentsdn);
+		addr.udn = NULL;
 		addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
 		parententry = find_entry2modify_only(pb,be,&addr,&txn);
 		if (parententry && parententry->ep_entry) {
@@ -345,7 +348,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		 * When we resurect a tombstone we must use its UniqueID
 		 * to find the tombstone entry and lock it down in the cache.
 		 */
-		addr.dn = NULL;
+		addr.dn = addr.udn = NULL;
 		addr.uniqueid = (char *)slapi_entry_get_uniqueid(e); /* jcm - cast away const */
 		tombstoneentry = find_entry2modify( pb, be, &addr, NULL );
 		if ( tombstoneentry==NULL )
