@@ -535,7 +535,6 @@ int rdn_validate( const char *begin, const char *end, const char **last )
 						}
 						p++;
 					}
-					p++;
 				/* Only allow 'SUTF1' chars now. */
 				} else if (!IS_SUTF1(*p)) {
 					rc = 1;

@@ -77,10 +77,16 @@ hexchar2int( char c )
     return( -1 );
 }
 
-#define DNSEPARATOR(c)	(c == ',' || c == ';')
-#define SEPARATOR(c)	(c == ',' || c == ';' || c == '+')
-#define SPACE(c)	(c == ' ' || c == '\n')   /* XXX 518524 */
-#define NEEDSESCAPE(c)	(c == '\\' || c == '"')
+#define DNSEPARATOR(c)	(((c) == ',') || ((c) == ';'))
+#define SEPARATOR(c)	(((c) == ',') || ((c) == ';') || ((c) == '+'))
+#define SPACE(c)	(((c) == ' ') || ((c) == '\n'))   /* XXX 518524 */
+#define NEEDSESCAPE(c)	(((c) == '\\') || ((c) == '"') || ((c) == '+') || \
+  ((c) == ',') || ((c) == ';') || ((c) == '<') || ((c) == '>') || ((c) == '='))
+#define LEADNEEDSESCAPE(c)	(((c) == ' ') || ((c) == '#') || NEEDSESCAPE(c))
+#if 0 /* not used */
+#define ONLYTRAILNEEDSESCAPE(c)	((c) == ' ') 
+#define TRAILNEEDSESCAPE(c)	(ONLYTRAILNEEDSESCAPE(c) || NEEDSESCAPE(c))
+#endif
 #define B4TYPE		0
 #define INTYPE		1
 #define B4EQUAL		2
@@ -88,6 +94,7 @@ hexchar2int( char c )
 #define INVALUE		4
 #define INQUOTEDVALUE	5
 #define B4SEPARATOR	6
+#define INVALUE1ST	7
 
 #define SLAPI_DNNORM_INITIAL_RDN_AVS	10
 #define SLAPI_DNNORM_SMALL_RDN_AV	512
@@ -148,6 +155,8 @@ substr_dn_normalize( char *dn, char *end )
 	char		*d = NULL;
 	char 		*s = NULL;
 	char		*typestart = NULL;
+	char		*rdnbegin = NULL;
+	char		*lastesc = NULL;
 	int		gotesc = 0;
 	int		state = B4TYPE;
 	int		rdn_av_count = 0;
@@ -186,75 +195,104 @@ substr_dn_normalize( char *dn, char *end )
 			if ( *s == '"' || ! SPACE( *s ) ) {
 				value_separator = NULL;
 				value = d;
-				state = ( *s == '"' ) ? INQUOTEDVALUE : INVALUE;
+				state = ( *s == '"' ) ? INQUOTEDVALUE : INVALUE1ST;
+				rdnbegin = d;
+				lastesc = NULL;
 				*d++ = *s;
 			}
 			break;
+		case INVALUE1ST:
 		case INVALUE:
 			if ( gotesc ) {
 				if ( SEPARATOR( *s ) ) {
 					value_separator = d;
-				} else if ( ! NEEDSESCAPE( *s ) ) {
+				}
+				if ( INVALUE1ST == state ) {
+					if ( !LEADNEEDSESCAPE( *s )) {
+						/* checking the leading char + special chars */
+						--d; /* eliminate the \ */
+					}
+				} else if ( !NEEDSESCAPE( *s ) ) {
 					--d; /* eliminate the \ */
+					lastesc = d;
 				}
 			} else if ( SEPARATOR( *s ) ) {
-				while ( SPACE( *(d - 1) ) )
-					d--;
-				if ( value_separator == dn ) { /* 2 or more separators */
-				/* convert to quoted value: */
-				char *L = NULL; /* char after last seperator */
-				char *R; /* value character iterator */
-				int escape_skips = 0; /* number of escapes we have seen after the first */
-
-				for ( R = value; (R = strchr( R, '\\' )) && (R < d); L = ++R ) {
-					if ( SEPARATOR( R[1] )) {
-						if ( L == NULL ) {
-							/* executes once, at first escape, adds opening quote */
-							const size_t len = R - value;
-							
-							/* make room for quote by covering escape */
-							if ( len > 0 ) {
-								memmove( value+1, value, len );
-							}
-
-							*value = '"'; /* opening quote */
-							value = R + 1; /* move passed what has been parsed */
-						} else {
-							const size_t len = R - L;
-							if ( len > 0 ) {
-								/* remove the seperator */
-								memmove( value, L, len );
-								value += len; /* move passed what has been parsed */
-							}
-							--d;
-							++escape_skips;
-						}
+				/* handling a trailing escaped space */
+				/* assuming a space is the only an extra character which
+				 * is not escaped if it appears in the middle, but should
+				 * be if it does at the end of the RDN value */
+				/* e.g., ou=ABC  \   ,o=XYZ --> ou=ABC  \ ,o=XYZ */
+				if ( lastesc ) {
+					while ( SPACE( *(d - 1) ) && d > lastesc ) {
+						d--;
+					}
+					if ( d == lastesc ) {
+						*d++ = '\\';
+						*d++ = ' '; /* escaped trailing space */
+					}
+				} else {
+					while ( SPACE( *(d - 1) ) ) {
+						d--;
 					}
 				}
-				memmove( value, L, d - L + escape_skips );
-				*d++ = '"'; /* closing quote */
-			}
-			state = B4TYPE;
+				if ( value_separator == dn ) { /* 2 or more separators */
+					/* convert to quoted value: */
+					char *L = NULL; /* char after last seperator */
+					char *R; /* value character iterator */
+					int escape_skips = 0; /* number of escapes we have seen after the first */
 
-			/*
-			 * Track and sort attribute values within
-			 * multivalued RDNs.
-			 */
-			if ( *s == '+' || rdn_av_count > 0 ) {
-				add_rdn_av( typestart, d, &rdn_av_count,
-					&rdn_avs, initial_rdn_av_stack );
-			}
-			if ( *s != '+' ) {	/* at end of this RDN */
-				if ( rdn_av_count > 1 ) {
-					sort_rdn_avs( rdn_avs, rdn_av_count );
-				}
-				if ( rdn_av_count > 0 ) {
-					reset_rdn_avs( &rdn_avs, &rdn_av_count );
-				}
-			}
+					for ( R = value; (R = strchr( R, '\\' )) && (R < d); L = ++R ) {
+						if ( SEPARATOR( R[1] )) {
+							if ( L == NULL ) {
+								/* executes once, at first escape, adds opening quote */
+								const size_t len = R - value;
+							
+								/* make room for quote by covering escape */
+								if ( len > 0 ) {
+									memmove( value+1, value, len );
+								}
 
-			*d++ = (*s == '+') ? '+' : ',';
-			break;
+								*value = '"'; /* opening quote */
+								value = R + 1; /* move passed what has been parsed */
+							} else {
+								const size_t len = R - L;
+								if ( len > 0 ) {
+									/* remove the seperator */
+									memmove( value, L, len );
+									value += len; /* move passed what has been parsed */
+								}
+								--d;
+								++escape_skips;
+							}
+						} /* if ( SEPARATOR( R[1] )) */
+					} /* for */
+					memmove( value, L, d - L + escape_skips );
+					*d++ = '"'; /* closing quote */
+				} /* if (value_separator == dn) */
+				state = B4TYPE;
+
+				/*
+				 * Track and sort attribute values within
+				 * multivalued RDNs.
+				 */
+				if ( *s == '+' || rdn_av_count > 0 ) {
+					add_rdn_av( typestart, d, &rdn_av_count,
+								&rdn_avs, initial_rdn_av_stack );
+				}
+				if ( *s != '+' ) {	/* at end of this RDN */
+					if ( rdn_av_count > 1 ) {
+						sort_rdn_avs( rdn_avs, rdn_av_count );
+					}
+					if ( rdn_av_count > 0 ) {
+						reset_rdn_avs( &rdn_avs, &rdn_av_count );
+					}
+				}
+
+				*d++ = (*s == '+') ? '+' : ',';
+				break;
+			} /* else if ( SEPARATOR( *s ) ) */
+			if ( INVALUE1ST == state ) {
+				state = INVALUE;
 			}
 			*d++ = *s;
 			break;
@@ -355,7 +393,8 @@ substr_dn_normalize( char *dn, char *end )
 	 * rdn to our list to sort.  We should only be in the INVALUE
 	 * or B4SEPARATOR state if we have a valid rdn component to 
 	 * be added. */
-	if ((rdn_av_count > 0) && ((state == INVALUE) || (state == B4SEPARATOR))) {
+	if ((rdn_av_count > 0) && ((state == INVALUE1ST) || 
+		(state == INVALUE) || (state == B4SEPARATOR))) {
 		add_rdn_av( typestart, d, &rdn_av_count,
 			&rdn_avs, initial_rdn_av_stack );
 	}
