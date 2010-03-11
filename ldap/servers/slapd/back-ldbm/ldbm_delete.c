@@ -100,6 +100,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	
+	/* sdn & parentsdn need to be initialized before "goto *_return */
+	slapi_sdn_init(&sdn);
+
+	/* dblayer_txn_init needs to be called before "goto error_return" */
+	dblayer_txn_init(li,&txn);
+
 	if (pb->pb_conn)
 	{
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "enter conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
@@ -124,8 +130,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	inst = (ldbm_instance *) be->be_instance_info;
 
 	slapi_sdn_init_dn_byref(&sdn,dn);
-
-	dblayer_txn_init(li,&txn);
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,

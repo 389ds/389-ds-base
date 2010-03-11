@@ -109,7 +109,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	char ebuf[BUFSIZ];
 	CSN *opcsn = NULL;
 
-    slapi_sdn_init(&dn_newdn);
+	/* sdn & parentsdn need to be initialized before "goto *_return" */
+	slapi_sdn_init(&dn_newdn);
 	slapi_sdn_init(&dn_parentdn);
 	
     slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &dn );
@@ -120,6 +121,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
+
+	/* dblayer_txn_init needs to be called before "goto error_return" */
+	dblayer_txn_init(li,&txn);
 
 	if (pb->pb_conn)
 	{
@@ -154,8 +158,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 	                  "server does not support moving of entries", 0, NULL );
 		return( -1 );
 	} 
-
-	dblayer_txn_init(li,&txn);
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,

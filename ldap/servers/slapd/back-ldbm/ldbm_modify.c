@@ -225,6 +225,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
 
+	/* dblayer_txn_init needs to be called before "goto error_return" */
+	dblayer_txn_init(li,&txn);
 	if (NULL == addr)
 	{
 		goto error_return;
@@ -236,7 +238,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 		goto error_return;
 	}
-	dblayer_txn_init(li,&txn);
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,

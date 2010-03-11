@@ -130,6 +130,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 	inst = (ldbm_instance *) be->be_instance_info;
 		
+	/* sdn & parentsdn need to be initialized before "goto *_return" */
 	slapi_sdn_init(&sdn);
 	slapi_sdn_init(&parentsdn);
 	
@@ -137,6 +138,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	slapi_entry_delete_values( e, hassubordinates, NULL );
 	slapi_entry_delete_values( e, numsubordinates, NULL );
 
+	/* dblayer_txn_init needs to be called before "goto error_return" */
 	dblayer_txn_init(li,&txn);
 
 	/* The dblock serializes writes to the database,

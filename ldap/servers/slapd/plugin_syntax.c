@@ -324,6 +324,7 @@ slapi_dn_syntax_check(
 
 	/* See if we need to set the error text in the pblock. */
 	if (errp != &errtext[0]) {
+		/* SLAPI_PB_RESULT_TEXT duplicates the text in slapi_pblock_set */
 		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
 	}
 
@@ -413,6 +414,7 @@ slapi_entry_syntax_check(
 
 	/* See if we need to set the error text in the pblock. */
 	if (errp != &errtext[0]) {
+		/* SLAPI_PB_RESULT_TEXT duplicates the text in slapi_pblock_set */
 		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
 	}
 
@@ -499,6 +501,7 @@ slapi_mods_syntax_check(
 
 	/* See if we need to set the error text in the pblock. */
 	if (errp != &errtext[0]) {
+		/* SLAPI_PB_RESULT_TEXT duplicates the text in slapi_pblock_set */
 		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
 	}
 
