@@ -130,6 +130,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 	inst = (ldbm_instance *) be->be_instance_info;
 		
+	/* sdn & parentsdn need to be initialized before "goto *_return" */
 	slapi_sdn_init(&sdn);
 	slapi_sdn_init(&parentsdn);
 	
