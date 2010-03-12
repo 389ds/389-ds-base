@@ -521,10 +521,12 @@ import_producer(void *param)
         if (!(str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR) &&
             entryrdn_get_switch()) { /* subtree-rename: on */
             char *dn = NULL;
-            int rc = 0; /* estr should start with "dn: " */
+            int rc = 0; /* estr should start with "dn: " or "dn:: " */
             if (strncmp(estr, "dn: ", 4) &&
-                NULL == strstr(estr, "\ndn: ")) { /* in case comments precedes
+                NULL == strstr(estr, "\ndn: ") && /* in case comments precedes
                                                      the entry */
+                strncmp(estr, "dn:: ", 5) &&
+                NULL == strstr(estr, "\ndn:: ")) { /* ditto */
                 import_log_notice(job, "WARNING: skipping bad LDIF entry (not "
                         "starting with \"dn: \") ending line %d of file \"%s\"",
                         curr_lineno, curr_filename);
