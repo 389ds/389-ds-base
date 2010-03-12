@@ -280,8 +280,6 @@ _ger_release_gerpb (
 {
 	if ( *gerpb )
 	{
-		/* Return conn to pb */
-		slapi_pblock_set ( *gerpb, SLAPI_CONNECTION, NULL );
 		slapi_pblock_destroy ( *gerpb );
 		*gerpb = NULL;
 	}
