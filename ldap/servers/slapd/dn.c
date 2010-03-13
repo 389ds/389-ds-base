@@ -361,9 +361,7 @@ substr_dn_normalize( char *dn, char *end )
 				gotesc = 1;
 				if ( s+2 < end ) {
 					int n = hexchar2int( s[1] );
-					/* If 8th bit is on, the char is not ASCII (not UTF-8).  
-					 * Thus, not UTF-8 */
-					if ( n >= 0 && n < 8 ) {
+					if ( n >= 0 && n < 16 ) {
 						int n2 = hexchar2int( s[2] );
 						if ( n2 >= 0 ) {
 							n = (n << 4) + n2;
