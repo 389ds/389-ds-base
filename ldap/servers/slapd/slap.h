@@ -1392,6 +1392,8 @@ struct slapi_task {
     TaskCallbackFn cancel;      /* task has been cancelled by user */
     TaskCallbackFn destructor;  /* task entry is being destroyed */
     int task_refcount;
+    PRLock *task_log_lock;      /* To protect task_log to be realloced if 
+                                   it's in use */
 } slapi_task;
 /* End of interface to support online tasks **********************************/
 

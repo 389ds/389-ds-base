@@ -228,6 +228,9 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
     PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
     va_end(ap);
 
+    if (task->task_log_lock) {
+        PR_Lock(task->task_log_lock);
+    }
     len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
     if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
         size_t i;
@@ -241,8 +244,6 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
             i++;
         len = strlen(task->task_log) - i + 2 + strlen(buffer);
         newbuf = (char *)slapi_ch_malloc(len);
-        if (! newbuf)
-            return;    /* out of memory? */
         strcpy(newbuf, task->task_log + i);
         slapi_ch_free((void **)&task->task_log);
         task->task_log = newbuf;
@@ -253,13 +254,14 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
         } else {
             task->task_log = (char *)slapi_ch_realloc(task->task_log, len);
         }
-        if (! task->task_log)
-            return;    /* out of memory? */
     }
 
     if (task->task_log[0])
         strcat(task->task_log, "\n");
     strcat(task->task_log, buffer);
+    if (task->task_log_lock) {
+        PR_Unlock(task->task_log_lock);
+    }
 
     slapi_task_status_changed(task);
 }
@@ -278,7 +280,13 @@ void slapi_task_status_changed(Slapi_Task *task)
         return;
     }
 
+    if (task->task_log_lock) {
+        PR_Lock(task->task_log_lock);
+    }
     NEXTMOD(TASK_LOG_NAME, task->task_log);
+    if (task->task_log_lock) {
+        PR_Unlock(task->task_log_lock);
+    }
     NEXTMOD(TASK_STATUS_NAME, task->task_status);
     sprintf(s1, "%d", task->task_exitcode);
     sprintf(s2, "%d", task->task_progress);
@@ -505,6 +513,8 @@ new_task(const char *dn)
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_SUBTREE, "(objectclass=*)", task_deny, NULL);
 #endif
+    /* To protect task_log to be realloced if it's in use */
+    task->task_log_lock = PR_NewLock();
 
     return task;
 }
@@ -651,6 +661,9 @@ static void task_generic_destructor(Slapi_Task *task)
     }
     if (task->task_status) {
         slapi_ch_free((void **)&task->task_status);
+    }
+    if (task->task_log_lock) {
+        PR_DestroyLock(task->task_log_lock);
     }
     task->task_log = task->task_status = NULL;
 }
