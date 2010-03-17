@@ -352,7 +352,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	{
 		if ( !internal_op )
 		{
-			slapi_log_access(SLAPI_LOG_ARGS,
+			slapi_log_access(LDAP_DEBUG_STATS,
 					 "conn=%" NSPRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
 					 pb->pb_conn->c_connid, 
 					 pb->pb_op->o_opid,
@@ -362,7 +362,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 		}
 		else
 		{
-			slapi_log_access(SLAPI_LOG_ARGS,
+			slapi_log_access(LDAP_DEBUG_ARGS,
 					 "conn=%s op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
 					 LOG_INTERNAL_OP_CON_ID,
 					 LOG_INTERNAL_OP_OP_ID,
