@@ -1076,6 +1076,7 @@ int import_main_offline(void *arg)
     int finished = 0;
     int status = 0;
     int verbose = 1;
+    int aborted = 0;
     ImportWorkerInfo *producer = NULL;
 
     if (job->task)
@@ -1194,6 +1195,7 @@ int import_main_offline(void *arg)
              */
             import_set_abort_flag_all(job, 1); 
             import_log_notice(job, "Import threads aborted.");
+            aborted = 1;
             goto error;
         }
 
@@ -1300,6 +1302,26 @@ error:
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) {
         cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
+    }
+    if (aborted) {
+        /* If aborted, it's safer to rebuild the caches. */
+        cache_destroy_please(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
+        if (entryrdn_get_switch()) { /* subtree-rename: on */
+            cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
+        }
+        /* initialize the entry cache */
+        if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
+                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "import_main_offline: "
+                        "cache_init failed.  Server should be restarted.\n");
+        }
+
+        /* initialize the dn cache */
+        if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
+                     DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "import_main_offline: "
+                        "dn cache_init failed.  Server should be restarted.\n");
+        }
     }
     if (0 != ret) {
         dblayer_delete_instance_dir(be);
