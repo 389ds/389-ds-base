@@ -309,8 +309,11 @@ void slapi_task_status_changed(Slapi_Task *task)
     for (i = 0; i < cur; i++)
         slapi_ch_free((void **)&modlist[i].mod_values);
 
-    if (((task->task_state == SLAPI_TASK_FINISHED) ||
-         (task->task_state == SLAPI_TASK_CANCELLED)) &&
+    /*
+     * Removed (task->task_state == SLAPI_TASK_CANCELLED) from 
+     * task_state checking to fix bz 515805.
+     */
+    if ((task->task_state == SLAPI_TASK_FINISHED) &&
         !(task->task_flags & SLAPI_TASK_DESTROYING)) {
         Slapi_PBlock *pb = slapi_pblock_new();
         Slapi_Entry *e;
@@ -664,6 +667,7 @@ static void task_generic_destructor(Slapi_Task *task)
     }
     if (task->task_log_lock) {
         PR_DestroyLock(task->task_log_lock);
+        task->task_log_lock = NULL;
     }
     task->task_log = task->task_status = NULL;
 }

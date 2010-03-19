@@ -1075,6 +1075,7 @@ int import_main_offline(void *arg)
     int finished = 0;
     int status = 0;
     int verbose = 1;
+    int aborted = 0;
     ImportWorkerInfo *producer = NULL;
 
     if (job->task)
@@ -1193,6 +1194,7 @@ int import_main_offline(void *arg)
              */
             import_set_abort_flag_all(job, 1); 
             import_log_notice(job, "Import threads aborted.");
+            aborted = 1;
             goto error;
         }
 
@@ -1294,6 +1296,16 @@ error:
     /* If we fail, the database is now in a mess, so we delete it */
     import_log_notice(job, "Closing files...");
     cache_clear(&job->inst->inst_cache);
+    if (aborted) {
+        /* If aborted, it's safer to rebuild the cache. */
+        cache_destroy_please(&job->inst->inst_cache);
+        /* initialize the entry cache */
+        if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
+                         DEFAULT_CACHE_ENTRIES)) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "import_main_offline: "
+                        "cache_init failed.  Server should be restarted.\n");
+        }
+    }
     if (0 != ret) {
         dblayer_delete_instance_dir(be);
         dblayer_instance_close(job->inst->inst_be);
