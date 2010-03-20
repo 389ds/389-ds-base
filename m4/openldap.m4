@@ -22,11 +22,14 @@ AC_CHECKING(for OpenLDAP)
 
 # check for --with-openldap
 AC_MSG_CHECKING(for --with-openldap)
-AC_ARG_WITH(openldap, AS_HELP_STRING([--with-openldap[=PATH]],[Use OpenLDAP - optional PATH is path to OpenLDAP SDK]),
+AC_ARG_WITH(openldap, AS_HELP_STRING([--with-openldap@<:@=PATH@:>@],[Use OpenLDAP - optional PATH is path to OpenLDAP SDK]),
 [
   if test "$withval" = yes
   then
     AC_MSG_RESULT([using system OpenLDAP])
+  elif test "$withval" = no
+  then
+    AC_MSG_RESULT(no)
   elif test -e "$withval"/include/ldap.h -a -d "$withval"/lib
   then
     AC_MSG_RESULT([using $withval])
@@ -46,7 +49,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-openldap-inc
 AC_MSG_CHECKING(for --with-openldap-inc)
-AC_ARG_WITH(openldap-inc, [  --with-openldap-inc=PATH     OpenLDAP SDK include directory],
+AC_ARG_WITH(openldap-inc, AS_HELP_STRING([--with-openldap-inc=PATH],[OpenLDAP SDK include directory]),
 [
   if test -e "$withval"/ldap.h
   then
@@ -63,7 +66,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-openldap-lib
 AC_MSG_CHECKING(for --with-openldap-lib)
-AC_ARG_WITH(openldap-lib, [  --with-openldap-lib=PATH     OpenLDAP SDK library directory],
+AC_ARG_WITH(openldap-lib, AS_HELP_STRING([--with-openldap-lib=PATH],[OpenLDAP SDK library directory]),
 [
   if test -d "$withval"
   then
@@ -80,7 +83,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-openldap-bin
 AC_MSG_CHECKING(for --with-openldap-bin)
-AC_ARG_WITH(openldap-bin, [  --with-openldap-bin=PATH     OpenLDAP SDK binary directory],
+AC_ARG_WITH(openldap-bin, AS_HELP_STRING([--with-openldap-bin=PATH],[OpenLDAP SDK binary directory]),
 [
   if test -d "$withval"
   then
@@ -96,8 +99,8 @@ AC_MSG_RESULT(no))
 
 # if OPENLDAP is not found yet, try pkg-config
 
-if test -z "$openldap_inc" -o -z "$openldap_lib" -o -z "$openldap_libdir" -o -z "$openldap_bindir"; then
-  if test "$with_openldap" = yes ; then # user wants to use openldap, but didn't specify paths
+if test "$with_openldap" = yes ; then # user wants to use openldap, but didn't specify paths
+  if test -z "$openldap_inc" -o -z "$openldap_lib" -o -z "$openldap_libdir" -o -z "$openldap_bindir"; then
     AC_PATH_PROG(PKG_CONFIG, pkg-config)
     AC_MSG_CHECKING(for OpenLDAP with pkg-config)
     if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists openldap; then
@@ -143,5 +146,4 @@ if test "$with_openldap" = yes ; then
   CPPFLAGS="$save_cppflags"
 
   AC_DEFINE([USE_OPENLDAP], [1], [If defined, using OpenLDAP for LDAP SDK])
-  with_ldapsdk=no # using openldap not mozldap
 fi

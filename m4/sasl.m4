@@ -27,24 +27,19 @@ dnl ========================================================
 dnl ========================================================
 dnl = Use the sasl libraries on the system (assuming it exists)
 dnl ========================================================
-AC_CHECKING(for sasl)
+AC_CHECKING(for SASL)
 
 AC_MSG_CHECKING(for --with-sasl)
 AC_ARG_WITH(sasl,
-    [[  --with-sasl=PATH   Use sasl from supplied path]],
+    AS_HELP_STRING([--with-sasl@<:@=PATH@:>@],[Use SASL from supplied path]),
     dnl = Look in the standard system locations
     [
       if test "$withval" = "yes"; then
         AC_MSG_RESULT(yes)
 
-        dnl = Check for sasl.h in the normal locations
-        if test -f /usr/include/sasl/sasl.h; then
-          sasl_inc="-I/usr/include/sasl"
-        elif test -f /usr/include/sasl.h; then
-          sasl_inc="-I/usr/include"
-        else
-          AC_MSG_ERROR(sasl.h not found)
-        fi
+      elif test "$withval" = "no"; then
+        AC_MSG_RESULT(no)
+        AC_MSG_ERROR([SASL is required.])
 
       dnl = Check the user provided location
       elif test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include" ; then
@@ -62,14 +57,14 @@ AC_ARG_WITH(sasl,
         sasl_libdir="$withval/lib"
       else
           AC_MSG_RESULT(yes)
-          AC_MSG_ERROR([sasl not found in $withval])
+          AC_MSG_ERROR([SASL not found in $withval])
       fi
     ],
-    AC_MSG_RESULT(no))
+    AC_MSG_RESULT(yes))
 
 AC_MSG_CHECKING(for --with-sasl-inc)
 AC_ARG_WITH(sasl-inc,
-    [[  --with-sasl-inc=PATH   SASL include file directory]],
+    AS_HELP_STRING([--with-sasl-inc=PATH],[SASL include file directory]),
     [
       if test -f "$withval"/sasl.h; then
         AC_MSG_RESULT([using $withval])
@@ -83,7 +78,7 @@ AC_ARG_WITH(sasl-inc,
 
 AC_MSG_CHECKING(for --with-sasl-lib)
 AC_ARG_WITH(sasl-lib,
-    [[  --with-sasl-lib=PATH   SASL library directory]],
+    AS_HELP_STRING([--with-sasl-lib=PATH],[SASL library directory]),
     [
       if test -d "$withval"; then
         AC_MSG_RESULT([using $withval])
@@ -107,6 +102,6 @@ if test -z "$sasl_inc"; then
     sasl_inc="-I/usr/include"
   else
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR([sasl not found, specify with --with-sasl.])
+    AC_MSG_ERROR([SASL not found, specify with --with-sasl.])
   fi
 fi

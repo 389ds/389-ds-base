@@ -26,7 +26,7 @@ dnl = authentication (replication, chaining, etc.)
 dnl = This allows us to authenticate using a keytab without
 dnl = having to call kinit outside the process
 dnl ========================================================
-AC_CHECKING(for kerberos)
+AC_CHECKING(for Kerberos)
 
 if test -z "$with_kerberos" ; then
    with_kerberos=yes # if not set on cmdline, set default
@@ -34,7 +34,7 @@ fi
 
 AC_MSG_CHECKING(for --with-kerberos)
 AC_ARG_WITH(kerberos,
-    AS_HELP_STRING([--with-kerberos[=PATH]], [Use the kerberos API in the server directly - allows the server to authenticate directly with a keytab - otherwise, SASL/GSSAPI auth depends on underlying SASL libraries and external kinit with a keytab - if PATH is not specified, look for kerberos in the system locations.  This will attempt to use krb5-config from the PATH to find the libs and include dirs - you can specify KRB5_CONFIG_BIN to specify a different filename or absolute path.  If krb5-config does not work, this will attempt to look in various system directories]),
+    AS_HELP_STRING([--with-kerberos@<:@=PATH@:>@], [Use the kerberos API in the server directly - allows the server to authenticate directly with a keytab - otherwise, SASL/GSSAPI auth depends on underlying SASL libraries and external kinit with a keytab - if PATH is not specified, look for kerberos in the system locations.  This will attempt to use krb5-config from the PATH to find the libs and include dirs - you can specify KRB5_CONFIG_BIN to specify a different filename or absolute path.  If krb5-config does not work, this will attempt to look in various system directories]),
     [
         if test "x$withval" = "xyes"; then
             AC_MSG_RESULT(yes)

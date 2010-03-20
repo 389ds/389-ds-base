@@ -1070,8 +1070,8 @@ Optional Packages:
                           both]
   --with-tags[=TAGS]
                           include additional configurations [automatic]
-  --with-fhs   Use FHS layout
-  --with-fhs-opt   Use FHS optional layout
+  --with-fhs              Use FHS layout
+  --with-fhs-opt          Use FHS optional layout
   --with-instconfigdir=/path
                           Base directory for instance specific writable
                           configuration directories (default
@@ -1079,37 +1079,48 @@ Optional Packages:
   --with-initddir=/path   Absolute path (not relative like some of the other
                           options) that should contain the SysV init scripts
                           (default '$(sysconfdir)/rc.d')
-  --with-nspr=PATH        Netscape Portable Runtime (NSPR) directory
-  --with-nspr-inc=PATH        Netscape Portable Runtime (NSPR) include file directory
-  --with-nspr-lib=PATH        Netscape Portable Runtime (NSPR) library directory
-  --with-nss=PATH         Network Security Services (NSS) directory
-  --with-nss-inc=PATH         Network Security Services (NSS) include directory
-  --with-nss-lib=PATH         Network Security Services (NSS) library directory
-  --with-openldap=PATH  Use OpenLDAP - optional PATH is path to OpenLDAP SDK
-  --with-openldap-inc=PATH     OpenLDAP SDK include directory
-  --with-openldap-lib=PATH     OpenLDAP SDK library directory
-  --with-openldap-bin=PATH     OpenLDAP SDK binary directory
-  --with-ldapsdk=PATH     Mozilla LDAP SDK directory
-  --with-ldapsdk-inc=PATH     Mozilla LDAP SDK include directory
-  --with-ldapsdk-lib=PATH     Mozilla LDAP SDK library directory
-  --with-ldapsdk-bin=PATH     Mozilla LDAP SDK binary directory
-  --with-db=PATH   Berkeley DB directory
-  --with-db-inc=PATH        Berkeley DB include file directory
-  --with-db-lib=PATH        Berkeley DB library directory
-  --with-sasl=PATH   Use sasl from supplied path
-  --with-sasl-inc=PATH   SASL include file directory
-  --with-sasl-lib=PATH   SASL library directory
-  --with-svrcore[=PATH]   Use system installed svrcore - optional path for svrcore
-  --with-svrcore-inc=PATH   SVRCORE include file directory
-  --with-svrcore-lib=PATH   SVRCORE library directory
-  --with-icu=PATH   ICU directory
+  --with-nspr[=PATH]
+                          Netscape Portable Runtime (NSPR) directory
+  --with-nspr-inc=PATH    Netscape Portable Runtime (NSPR) include directory
+  --with-nspr-lib=PATH    Netscape Portable Runtime (NSPR) library directory
+  --with-nss[=PATH] Network Security Services (NSS) directory
+  --with-nss-inc=PATH     Network Security Services (NSS) include directory
+  --with-nss-lib=PATH     Network Security Services (NSS) library directory
+  --with-openldap[=PATH]
+                          Use OpenLDAP - optional PATH is path to OpenLDAP SDK
+  --with-openldap-inc=PATH
+                          OpenLDAP SDK include directory
+  --with-openldap-lib=PATH
+                          OpenLDAP SDK library directory
+  --with-openldap-bin=PATH
+                          OpenLDAP SDK binary directory
+  --with-ldapsdk[=PATH]
+                          Mozilla LDAP SDK directory
+  --with-ldapsdk-inc=PATH Mozilla LDAP SDK include directory
+  --with-ldapsdk-lib=PATH Mozilla LDAP SDK library directory
+  --with-ldapsdk-bin=PATH Mozilla LDAP SDK binary directory
+  --with-db[=PATH]  Berkeley DB directory
+  --with-db-inc=PATH      Berkeley DB include file directory
+  --with-db-lib=PATH      Berkeley DB library directory
+  --with-sasl[=PATH]
+                          Use SASL from supplied path
+  --with-sasl-inc=PATH    SASL include file directory
+  --with-sasl-lib=PATH    SASL library directory
+  --with-svrcore[=PATH]
+                          Use system installed SVRCORE - optional path for
+                          SVRCORE
+  --with-svrcore-inc=PATH SVRCORE include file directory
+  --with-svrcore-lib=PATH SVRCORE library directory
+  --with-icu[=PATH] ICU directory
   --with-icu-inc=PATH     ICU include directory
   --with-icu-lib=PATH     ICU library directory
   --with-icu-bin=PATH     ICU binary directory
-  --with-netsnmp=PATH   Net-SNMP directory
-  --with-netsnmp-inc=PATH     Net-SNMP include directory
-  --with-netsnmp-lib=PATH     Net-SNMP library directory
-  --with-kerberos=PATH  Use the kerberos API in the server directly - allows
+  --with-netsnmp[=PATH]
+                          Net-SNMP directory
+  --with-netsnmp-inc=PATH Net-SNMP include directory
+  --with-netsnmp-lib=PATH Net-SNMP library directory
+  --with-kerberos[=PATH]
+                          Use the kerberos API in the server directly - allows
                           the server to authenticate directly with a keytab -
                           otherwise, SASL/GSSAPI auth depends on underlying
                           SASL libraries and external kinit with a keytab - if
@@ -1128,8 +1139,9 @@ Optional Packages:
                           Allows you to explicitly set the directory
                           containing the kerberos libraries - implies use of
                           kerberos
-  --with-pcre=PATH   Perl Compatible Regular Expression directory
-  --with-selinux   Build SELinux policy
+  --with-pcre[=PATH]
+                          Perl Compatible Regular Expression directory
+  --with-selinux          Build SELinux policy
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -4392,7 +4404,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4395 "configure"' > conftest.$ac_ext
+  echo '#line 4407 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -5527,7 +5539,7 @@ fi
 
 
 # Provide some information about the compiler.
-echo "$as_me:5530:" \
+echo "$as_me:5542:" \
      "checking for Fortran 77 compiler version" >&5
 ac_compiler=`set X $ac_compile; echo $2`
 { (eval echo "$as_me:$LINENO: \"$ac_compiler --version </dev/null >&5\"") >&5
@@ -6590,11 +6602,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6593: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6605: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6597: \$? = $ac_status" >&5
+   echo "$as_me:6609: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6858,11 +6870,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6861: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6873: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6865: \$? = $ac_status" >&5
+   echo "$as_me:6877: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6962,11 +6974,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6965: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6977: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:6969: \$? = $ac_status" >&5
+   echo "$as_me:6981: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8431,7 +8443,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 8434 "configure"' > conftest.$ac_ext
+    echo '#line 8446 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -9328,7 +9340,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9331 "configure"
+#line 9343 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9428,7 +9440,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9431 "configure"
+#line 9443 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11771,11 +11783,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11774: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11786: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11778: \$? = $ac_status" >&5
+   echo "$as_me:11790: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -11875,11 +11887,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11878: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11890: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:11882: \$? = $ac_status" >&5
+   echo "$as_me:11894: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -12411,7 +12423,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 12414 "configure"' > conftest.$ac_ext
+    echo '#line 12426 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -13469,11 +13481,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13472: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13484: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13476: \$? = $ac_status" >&5
+   echo "$as_me:13488: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13573,11 +13585,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13576: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13588: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13580: \$? = $ac_status" >&5
+   echo "$as_me:13592: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -15022,7 +15034,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 15025 "configure"' > conftest.$ac_ext
+    echo '#line 15037 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -15800,11 +15812,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15803: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15815: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15807: \$? = $ac_status" >&5
+   echo "$as_me:15819: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16068,11 +16080,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16071: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16083: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16075: \$? = $ac_status" >&5
+   echo "$as_me:16087: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16172,11 +16184,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16175: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16187: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16179: \$? = $ac_status" >&5
+   echo "$as_me:16191: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -17641,7 +17653,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 17644 "configure"' > conftest.$ac_ext
+    echo '#line 17656 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -23984,7 +23996,18 @@ echo $ECHO_N "checking for --with-nspr... $ECHO_C" >&6
 if test "${with_nspr+set}" = set; then
   withval="$with_nspr"
 
-  if test -e "$withval"/include/nspr.h -a -d "$withval"/lib
+  if test "$withval" = "yes"
+  then
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+  elif test "$withval" = "no"
+  then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    { { echo "$as_me:$LINENO: error: NSPR is required." >&5
+echo "$as_me: error: NSPR is required." >&2;}
+   { (exit 1); exit 1; }; }
+  elif test -e "$withval"/include/nspr.h -a -d "$withval"/lib
   then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
@@ -24000,8 +24023,8 @@ echo "$as_me: error: $withval not found" >&2;}
   fi
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 # check for --with-nspr-inc
@@ -24152,7 +24175,18 @@ echo $ECHO_N "checking for --with-nss... $ECHO_C" >&6
 if test "${with_nss+set}" = set; then
   withval="$with_nss"
 
-  if test -e "$withval"/include/nss.h -a -d "$withval"/lib
+  if test "$withval" = "yes"
+  then
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+  elif test "$withval" = "no"
+  then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    { { echo "$as_me:$LINENO: error: NSS is required." >&5
+echo "$as_me: error: NSS is required." >&2;}
+   { (exit 1); exit 1; }; }
+  elif test -e "$withval"/include/nss.h -a -d "$withval"/lib
   then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
@@ -24168,8 +24202,8 @@ echo "$as_me: error: $withval not found" >&2;}
   fi
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 # check for --with-nss-inc
@@ -24289,8 +24323,6 @@ echo "$as_me: error: NSS not found, specify with --with-nss." >&2;}
   fi
 fi
 
-# default to Mozilla LDAP C SDK - override with --with-openldap
-with_ldapsdk=yes
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2009 Red Hat, Inc.
 # All rights reserved.
@@ -24326,6 +24358,10 @@ if test "${with_openldap+set}" = set; then
   then
     echo "$as_me:$LINENO: result: using system OpenLDAP" >&5
 echo "${ECHO_T}using system OpenLDAP" >&6
+  elif test "$withval" = no
+  then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
   elif test -e "$withval"/include/ldap.h -a -d "$withval"/lib
   then
     echo "$as_me:$LINENO: result: using $withval" >&5
@@ -24431,8 +24467,8 @@ fi;
 
 # if OPENLDAP is not found yet, try pkg-config
 
-if test -z "$openldap_inc" -o -z "$openldap_lib" -o -z "$openldap_libdir" -o -z "$openldap_bindir"; then
-  if test "$with_openldap" = yes ; then # user wants to use openldap, but didn't specify paths
+if test "$with_openldap" = yes ; then # user wants to use openldap, but didn't specify paths
+  if test -z "$openldap_inc" -o -z "$openldap_lib" -o -z "$openldap_libdir" -o -z "$openldap_bindir"; then
     # Extract the first word of "pkg-config", so it can be a program name with args.
 set dummy pkg-config; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -24871,7 +24907,6 @@ cat >>confdefs.h <<\_ACEOF
 #define USE_OPENLDAP 1
 _ACEOF
 
-  with_ldapsdk=no # using openldap not mozldap
 fi
 
 # BEGIN COPYRIGHT BLOCK
@@ -24907,8 +24942,12 @@ if test "${with_ldapsdk+set}" = set; then
 
   if test "$withval" = yes
   then
-    echo "$as_me:$LINENO: result: using system MozLDAP" >&5
-echo "${ECHO_T}using system MozLDAP" >&6
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+  elif test "$withval" = no
+  then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
   elif test -e "$withval"/include/ldap.h -a -d "$withval"/lib
   then
     echo "$as_me:$LINENO: result: using $withval" >&5
@@ -24926,9 +24965,31 @@ echo "$as_me: error: $withval not found" >&2;}
    { (exit 1); exit 1; }; }
   fi
 
+  if test "$with_ldapsdk" = yes -a "$with_openldap" = yes
+  then
+    { { echo "$as_me:$LINENO: error: Cannot use both LDAPSDK and OpenLDAP." >&5
+echo "$as_me: error: Cannot use both LDAPSDK and OpenLDAP." >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+  if test "$with_ldapsdk" != yes -a "$with_openldap" != yes
+  then
+    { { echo "$as_me:$LINENO: error: Either LDAPSDK or OpenLDAP must be used." >&5
+echo "$as_me: error: Either LDAPSDK or OpenLDAP must be used." >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+
 else
-  echo "$as_me:$LINENO: result: no" >&5
+
+  if test "$with_openldap" = yes
+  then
+    echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6
+  else
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+    with_ldapsdk=yes
+  fi
+
 fi;
 
 # check for --with-ldapsdk-inc
@@ -25203,16 +25264,12 @@ if test "${with_db+set}" = set; then
   if test "$withval" = "yes"; then
     echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
-        if test -f "/usr/include/db.h"; then
-      db_incdir="/usr/include"
-      db_inc="-I/usr/include"
-      db_lib='-L$(libdir)'
-      db_libdir='$(libdir)'
-    else
-      { { echo "$as_me:$LINENO: error: db.h not found" >&5
-echo "$as_me: error: db.h not found" >&2;}
+  elif test "$withval" = "no"; then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    { { echo "$as_me:$LINENO: error: db is required." >&5
+echo "$as_me: error: db is required." >&2;}
    { (exit 1); exit 1; }; }
-    fi
   elif test -d "$withval"/include -a -d "$withval"/lib; then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
@@ -25234,8 +25291,8 @@ echo "$as_me: error: $withval not found" >&2;}
   fi
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 # check for --with-db-inc
@@ -25315,6 +25372,7 @@ echo "$as_me: error: db not found, specify with --with-db." >&2;}
    { (exit 1); exit 1; }; }
   fi
 fi
+
 db_ver_maj=`grep DB_VERSION_MAJOR $db_incdir/db.h | awk '{print $3}'`
 db_ver_min=`grep DB_VERSION_MINOR $db_incdir/db.h | awk '{print $3}'`
 db_ver_pat=`grep DB_VERSION_PATCH $db_incdir/db.h | awk '{print $3}'`
@@ -25433,8 +25491,8 @@ fi
 # -*- tab-width: 4; -*-
 # Configure paths for SASL
 
-{ echo "$as_me:$LINENO: checking for sasl..." >&5
-echo "$as_me: checking for sasl..." >&6;}
+{ echo "$as_me:$LINENO: checking for SASL..." >&5
+echo "$as_me: checking for SASL..." >&6;}
 
 echo "$as_me:$LINENO: checking for --with-sasl" >&5
 echo $ECHO_N "checking for --with-sasl... $ECHO_C" >&6
@@ -25447,15 +25505,12 @@ if test "${with_sasl+set}" = set; then
         echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
 
-                if test -f /usr/include/sasl/sasl.h; then
-          sasl_inc="-I/usr/include/sasl"
-        elif test -f /usr/include/sasl.h; then
-          sasl_inc="-I/usr/include"
-        else
-          { { echo "$as_me:$LINENO: error: sasl.h not found" >&5
-echo "$as_me: error: sasl.h not found" >&2;}
+      elif test "$withval" = "no"; then
+        echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+        { { echo "$as_me:$LINENO: error: SASL is required." >&5
+echo "$as_me: error: SASL is required." >&2;}
    { (exit 1); exit 1; }; }
-        fi
 
             elif test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include" ; then
         echo "$as_me:$LINENO: result: using $withval" >&5
@@ -25476,14 +25531,14 @@ echo "$as_me: error: sasl.h not found" >&2;}
       else
           echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
-          { { echo "$as_me:$LINENO: error: sasl not found in $withval" >&5
-echo "$as_me: error: sasl not found in $withval" >&2;}
+          { { echo "$as_me:$LINENO: error: SASL not found in $withval" >&5
+echo "$as_me: error: SASL not found in $withval" >&2;}
    { (exit 1); exit 1; }; }
       fi
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 echo "$as_me:$LINENO: checking for --with-sasl-inc" >&5
@@ -25547,8 +25602,8 @@ echo "${ECHO_T}using /usr/include/sasl.h" >&6
   else
     echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6
-    { { echo "$as_me:$LINENO: error: sasl not found, specify with --with-sasl." >&5
-echo "$as_me: error: sasl not found, specify with --with-sasl." >&2;}
+    { { echo "$as_me:$LINENO: error: SASL not found, specify with --with-sasl." >&5
+echo "$as_me: error: SASL not found, specify with --with-sasl." >&2;}
    { (exit 1); exit 1; }; }
   fi
 fi
@@ -25575,8 +25630,8 @@ fi
 #
 # Configure paths for SVRCORE
 
-{ echo "$as_me:$LINENO: checking for svrcore..." >&5
-echo "$as_me: checking for svrcore..." >&6;}
+{ echo "$as_me:$LINENO: checking for SVRCORE..." >&5
+echo "$as_me: checking for SVRCORE..." >&6;}
 
 echo "$as_me:$LINENO: checking for --with-svrcore" >&5
 echo $ECHO_N "checking for --with-svrcore... $ECHO_C" >&6
@@ -25589,13 +25644,12 @@ if test "${with_svrcore+set}" = set; then
         echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
 
-                if test -f /usr/include/svrcore.h; then
-          svrcore_inc="-I/usr/include"
-        else
-          { { echo "$as_me:$LINENO: error: svrcore.h not found" >&5
-echo "$as_me: error: svrcore.h not found" >&2;}
+      elif test "$withval" = "no"; then
+        echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+        { { echo "$as_me:$LINENO: error: SVRCORE is required." >&5
+echo "$as_me: error: SVRCORE is required." >&2;}
    { (exit 1); exit 1; }; }
-        fi
 
             elif test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include" ; then
         echo "$as_me:$LINENO: result: using $withval" >&5
@@ -25613,14 +25667,14 @@ echo "$as_me: error: svrcore.h not found" >&2;}
       else
         echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
-        { { echo "$as_me:$LINENO: error: svrcore not found in $withval" >&5
-echo "$as_me: error: svrcore not found in $withval" >&2;}
+        { { echo "$as_me:$LINENO: error: SVRCORE not found in $withval" >&5
+echo "$as_me: error: SVRCORE not found in $withval" >&2;}
    { (exit 1); exit 1; }; }
       fi
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 echo "$as_me:$LINENO: checking for --with-svrcore-inc" >&5
@@ -25709,8 +25763,8 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
-  echo "$as_me:$LINENO: checking for svrcore with pkg-config" >&5
-echo $ECHO_N "checking for svrcore with pkg-config... $ECHO_C" >&6
+  echo "$as_me:$LINENO: checking for SVRCORE with pkg-config" >&5
+echo $ECHO_N "checking for SVRCORE with pkg-config... $ECHO_C" >&6
   if test -n "$PKG_CONFIG"; then
     if $PKG_CONFIG --exists svrcore; then
       svrcore_inc=`$PKG_CONFIG --cflags-only-I svrcore`
@@ -25940,8 +25994,19 @@ fi
     CPPFLAGS="$save_cppflags"
   fi
   if test -z "$havesvrcore" ; then
-    { { echo "$as_me:$LINENO: error: svrcore not found, specify with --with-svrcore." >&5
-echo "$as_me: error: svrcore not found, specify with --with-svrcore." >&2;}
+    { { echo "$as_me:$LINENO: error: SVRCORE not found, specify with --with-svrcore." >&5
+echo "$as_me: error: SVRCORE not found, specify with --with-svrcore." >&2;}
+   { (exit 1); exit 1; }; }
+  fi
+fi
+
+if test -z "$svrcore_inc" -o -z "$svrcore_lib"; then
+  if test -f /usr/include/svrcore.h; then
+    svrcore_inc="-I/usr/include"
+    svrcore_lib="-L/usr/lib"
+  else
+    { { echo "$as_me:$LINENO: error: SVRCORE not found, specify with --with-svrcore." >&5
+echo "$as_me: error: SVRCORE not found, specify with --with-svrcore." >&2;}
    { (exit 1); exit 1; }; }
   fi
 fi
@@ -25977,24 +26042,35 @@ echo $ECHO_N "checking for --with-icu... $ECHO_C" >&6
 if test "${with_icu+set}" = set; then
   withval="$with_icu"
 
-  if test -d "$withval"/lib
+  if test "$withval" = "yes"
+  then
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+  elif test "$withval" = "no"
+  then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    { { echo "$as_me:$LINENO: error: ICU is required." >&5
+echo "$as_me: error: ICU is required." >&2;}
+   { (exit 1); exit 1; }; }
+  elif test -d "$withval"/lib
   then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
     ICUDIR=$withval
     icu_lib="-L$ICUDIR/lib"
+    icu_inc="-I$withval/include"
+    icu_bin="$withval/bin"
   else
     echo
     { { echo "$as_me:$LINENO: error: $withval not found" >&5
 echo "$as_me: error: $withval not found" >&2;}
    { (exit 1); exit 1; }; }
   fi
-  icu_inc="-I$withval/include"
-  icu_bin="$withval/bin"
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 # check for --with-icu-inc
@@ -26075,8 +26151,6 @@ fi;
 
 # last resort
 if test -z "$icu_lib"; then
-  echo "$as_me:$LINENO: checking for icu with icu-config" >&5
-echo $ECHO_N "checking for icu with icu-config... $ECHO_C" >&6
   # Extract the first word of "icu-config", so it can be a program name with args.
 set dummy icu-config; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -26116,6 +26190,8 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
+  echo "$as_me:$LINENO: checking for icu with icu-config" >&5
+echo $ECHO_N "checking for icu with icu-config... $ECHO_C" >&6
   if test -n "$ICU_CONFIG"; then
     icu_lib=`$ICU_CONFIG --ldflags-searchpath`
     icu_inc=`$ICU_CONFIG --cppflags-searchpath`
@@ -26159,7 +26235,16 @@ echo $ECHO_N "checking for --with-netsnmp... $ECHO_C" >&6
 if test "${with_netsnmp+set}" = set; then
   withval="$with_netsnmp"
 
-  if test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include"; then
+  if test "$withval" = "yes"; then
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+  elif test "$withval" = "no"; then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    { { echo "$as_me:$LINENO: error: Net-SNMP is required." >&5
+echo "$as_me: error: Net-SNMP is required." >&2;}
+   { (exit 1); exit 1; }; }
+  elif test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include"; then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
     NETSNMPDIR=$withval
@@ -26183,8 +26268,8 @@ echo "$as_me: error: $withval not found" >&2;}
   fi
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 echo "$as_me:$LINENO: checking for --with-netsnmp-inc" >&5
@@ -26331,8 +26416,8 @@ fi
 # -*- tab-width: 4; -*-
 # Configure paths for Kerberos
 
-{ echo "$as_me:$LINENO: checking for kerberos..." >&5
-echo "$as_me: checking for kerberos..." >&6;}
+{ echo "$as_me:$LINENO: checking for Kerberos..." >&5
+echo "$as_me: checking for Kerberos..." >&6;}
 
 if test -z "$with_kerberos" ; then
    with_kerberos=yes # if not set on cmdline, set default
@@ -27087,8 +27172,8 @@ fi
 #
 # END COPYRIGHT BLOCK
 
-{ echo "$as_me:$LINENO: checking for pcre..." >&5
-echo "$as_me: checking for pcre..." >&6;}
+{ echo "$as_me:$LINENO: checking for PCRE..." >&5
+echo "$as_me: checking for PCRE..." >&6;}
 
 echo "$as_me:$LINENO: checking for --with-pcre" >&5
 echo $ECHO_N "checking for --with-pcre... $ECHO_C" >&6
@@ -27100,21 +27185,12 @@ if test "${with_pcre+set}" = set; then
   if test "$withval" = "yes"; then
     echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
-        if test -f "/usr/include/pcre/pcre.h"; then
-      pcre_incdir="/usr/include/pcre"
-      pcre_inc="-I/usr/include/pcre"
-      pcre_lib='-L$(libdir)'
-      pcre_libdir='$(libdir)'
-    elif test -f "/usr/include/pcre.h"; then
-      pcre_incdir="/usr/include"
-      pcre_inc="-I/usr/include"
-      pcre_lib='-L$(libdir)'
-      pcre_libdir='$(libdir)'
-    else
-      { { echo "$as_me:$LINENO: error: pcre.h not found" >&5
-echo "$as_me: error: pcre.h not found" >&2;}
+  elif test "$withval" = "no"; then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    { { echo "$as_me:$LINENO: error: PCRE is required." >&5
+echo "$as_me: error: PCRE is required." >&2;}
    { (exit 1); exit 1; }; }
-    fi
   elif test -d "$withval"/include -a -d "$withval"/lib; then
     echo "$as_me:$LINENO: result: using $withval" >&5
 echo "${ECHO_T}using $withval" >&6
@@ -27136,8 +27212,8 @@ echo "$as_me: error: $withval not found" >&2;}
   fi
 
 else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
 fi;
 
 #
@@ -27208,7 +27284,14 @@ fi
 if test -z "$pcre_inc"; then
   echo "$as_me:$LINENO: checking for pcre.h" >&5
 echo $ECHO_N "checking for pcre.h... $ECHO_C" >&6
-  if test -f "/usr/include/pcre.h"; then
+  if test -f "/usr/include/pcre/pcre.h"; then
+    echo "$as_me:$LINENO: result: using /usr/include/pcre/pcre.h" >&5
+echo "${ECHO_T}using /usr/include/pcre/pcre.h" >&6
+    pcre_incdir="/usr/include/pcre"
+    pcre_inc="-I/usr/include/pcre"
+    pcre_lib='-L$(libdir)'
+    pcre_libdir='$(libdir)'
+  elif test -f "/usr/include/pcre.h"; then
     echo "$as_me:$LINENO: result: using /usr/include/pcre.h" >&5
 echo "${ECHO_T}using /usr/include/pcre.h" >&6
     pcre_incdir="/usr/include"
@@ -27218,8 +27301,8 @@ echo "${ECHO_T}using /usr/include/pcre.h" >&6
   else
     echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6
-    { { echo "$as_me:$LINENO: error: pcre not found, specify with --with-pcre." >&5
-echo "$as_me: error: pcre not found, specify with --with-pcre." >&2;}
+    { { echo "$as_me:$LINENO: error: PCRE not found, specify with --with-pcre." >&5
+echo "$as_me: error: PCRE not found, specify with --with-pcre." >&2;}
    { (exit 1); exit 1; }; }
   fi
 fi
@@ -27255,14 +27338,19 @@ echo $ECHO_N "checking for --with-selinux... $ECHO_C" >&6
 if test "${with_selinux+set}" = set; then
   withval="$with_selinux"
 
-  with_selinux=yes
-  echo "$as_me:$LINENO: result: yes" >&5
+  if test "$withval" = "no"; then
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+  else
+    with_selinux=yes
+    echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
 
-  if test ! -f "/usr/share/selinux/devel/Makefile"; then
-    { { echo "$as_me:$LINENO: error: SELinux development tools (selinux-policy) not found" >&5
+    if test ! -f "/usr/share/selinux/devel/Makefile"; then
+      { { echo "$as_me:$LINENO: error: SELinux development tools (selinux-policy) not found" >&5
 echo "$as_me: error: SELinux development tools (selinux-policy) not found" >&2;}
    { (exit 1); exit 1; }; }
+    fi
   fi
 
 else

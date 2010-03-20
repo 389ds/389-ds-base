@@ -22,7 +22,7 @@ AC_CHECKING(for FHS)
 
 # check for --with-fhs
 AC_MSG_CHECKING(for --with-fhs)
-AC_ARG_WITH(fhs, [  --with-fhs   Use FHS layout],
+AC_ARG_WITH(fhs, AS_HELP_STRING([--with-fhs],[Use FHS layout]),
 [
   with_fhs=yes
   AC_MSG_RESULT(yes)
@@ -35,7 +35,7 @@ fi
 
 # check for --with-fhs-opt
 AC_MSG_CHECKING(for --with-fhs-opt)
-AC_ARG_WITH(fhs-opt, [  --with-fhs-opt   Use FHS optional layout],
+AC_ARG_WITH(fhs-opt, AS_HELP_STRING([--with-fhs-opt],[Use FHS optional layout]),
 [
   with_fhs_opt=yes
   AC_MSG_RESULT(yes)

@@ -22,19 +22,13 @@ AC_CHECKING(for db)
 
 dnl  - check for --with-db
 AC_MSG_CHECKING(for --with-db)
-AC_ARG_WITH(db, [  --with-db=PATH   Berkeley DB directory],
+AC_ARG_WITH(db, AS_HELP_STRING([--with-db@<:@=PATH@:>@],[Berkeley DB directory]),
 [
   if test "$withval" = "yes"; then
     AC_MSG_RESULT(yes)
-    dnl - check in system locations
-    if test -f "/usr/include/db.h"; then
-      db_incdir="/usr/include"
-      db_inc="-I/usr/include"
-      db_lib='-L$(libdir)'
-      db_libdir='$(libdir)'
-    else
-      AC_MSG_ERROR([db.h not found])
-    fi
+  elif test "$withval" = "no"; then
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR([db is required.])
   elif test -d "$withval"/include -a -d "$withval"/lib; then
     AC_MSG_RESULT([using $withval])
     dnl - check the user provided location
@@ -51,12 +45,12 @@ AC_ARG_WITH(db, [  --with-db=PATH   Berkeley DB directory],
     AC_MSG_ERROR([$withval not found])
   fi
 ],
-AC_MSG_RESULT(no))
+AC_MSG_RESULT(yes))
 dnl default path for the db tools (see [210947] for more details)
 
 # check for --with-db-inc
 AC_MSG_CHECKING(for --with-db-inc)
-AC_ARG_WITH(db-inc, [  --with-db-inc=PATH        Berkeley DB include file directory],
+AC_ARG_WITH(db-inc, AS_HELP_STRING([--with-db-inc=PATH],[Berkeley DB include file directory]),
 [
   if test -e "$withval"/db.h
   then
@@ -72,7 +66,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-db-lib
 AC_MSG_CHECKING(for --with-db-lib)
-AC_ARG_WITH(db-lib, [  --with-db-lib=PATH        Berkeley DB library directory],
+AC_ARG_WITH(db-lib, AS_HELP_STRING([--with-db-lib=PATH],[Berkeley DB library directory]),
 [
   if test -d "$withval"
   then
@@ -106,6 +100,7 @@ if test -z "$db_inc"; then
     AC_MSG_ERROR([db not found, specify with --with-db.])
   fi
 fi
+
 dnl figure out which version of db we're using from the header file
 db_ver_maj=`grep DB_VERSION_MAJOR $db_incdir/db.h | awk '{print $3}'`
 db_ver_min=`grep DB_VERSION_MINOR $db_incdir/db.h | awk '{print $3}'`

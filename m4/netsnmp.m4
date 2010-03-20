@@ -22,9 +22,14 @@ AC_CHECKING(for Net-SNMP)
 
 dnl - check for --with-netsnmp
 AC_MSG_CHECKING(for --with-netsnmp)
-AC_ARG_WITH(netsnmp, [  --with-netsnmp=PATH   Net-SNMP directory],
+AC_ARG_WITH(netsnmp, AS_HELP_STRING([--with-netsnmp@<:@=PATH@:>@],[Net-SNMP directory]),
 [
-  if test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include"; then
+  if test "$withval" = "yes"; then
+    AC_MSG_RESULT(yes)
+  elif test "$withval" = "no"; then
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR([Net-SNMP is required.])
+  elif test -d "$withval" -a -d "$withval/lib" -a -d "$withval/include"; then
     AC_MSG_RESULT([using $withval])
     NETSNMPDIR=$withval
 
@@ -41,11 +46,11 @@ AC_ARG_WITH(netsnmp, [  --with-netsnmp=PATH   Net-SNMP directory],
     AC_MSG_ERROR([$withval not found])
   fi
 ],
-AC_MSG_RESULT(no))
+AC_MSG_RESULT(yes))
 
 dnl - check for --with-netsnmp-inc
 AC_MSG_CHECKING(for --with-netsnmp-inc)
-AC_ARG_WITH(netsnmp-inc, [  --with-netsnmp-inc=PATH     Net-SNMP include directory],
+AC_ARG_WITH(netsnmp-inc, AS_HELP_STRING([--with-netsnmp-inc=PATH],[Net-SNMP include directory]),
 [
   if test -f "$withval/net-snmp/net-snmp-includes.h"; then
     AC_MSG_RESULT([using $withval])
@@ -59,7 +64,7 @@ AC_MSG_RESULT(no))
 
 dnl -  check for --with-netsnmp-lib
 AC_MSG_CHECKING(for --with-netsnmp-lib)
-AC_ARG_WITH(netsnmp-lib, [  --with-netsnmp-lib=PATH     Net-SNMP library directory],
+AC_ARG_WITH(netsnmp-lib, AS_HELP_STRING([--with-netsnmp-lib=PATH],[Net-SNMP library directory]),
 [
   if test -d "$withval"
   then

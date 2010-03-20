@@ -22,9 +22,16 @@ AC_CHECKING(for NSS)
 
 # check for --with-nss
 AC_MSG_CHECKING(for --with-nss)
-AC_ARG_WITH(nss, [  --with-nss=PATH         Network Security Services (NSS) directory],
+AC_ARG_WITH(nss, AS_HELP_STRING([--with-nss@<:@=PATH@:>@],[Network Security Services (NSS) directory]),
 [
-  if test -e "$withval"/include/nss.h -a -d "$withval"/lib
+  if test "$withval" = "yes"
+  then
+    AC_MSG_RESULT(yes)
+  elif test "$withval" = "no"
+  then
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR([NSS is required.])
+  elif test -e "$withval"/include/nss.h -a -d "$withval"/lib
   then
     AC_MSG_RESULT([using $withval])
     NSSDIR=$withval
@@ -36,11 +43,11 @@ AC_ARG_WITH(nss, [  --with-nss=PATH         Network Security Services (NSS) dire
     AC_MSG_ERROR([$withval not found])
   fi
 ],
-AC_MSG_RESULT(no))
+AC_MSG_RESULT(yes))
 
 # check for --with-nss-inc
 AC_MSG_CHECKING(for --with-nss-inc)
-AC_ARG_WITH(nss-inc, [  --with-nss-inc=PATH         Network Security Services (NSS) include directory],
+AC_ARG_WITH(nss-inc, AS_HELP_STRING([--with-nss-inc=PATH],[Network Security Services (NSS) include directory]),
 [
   if test -e "$withval"/nss.h
   then
@@ -55,7 +62,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-nss-lib
 AC_MSG_CHECKING(for --with-nss-lib)
-AC_ARG_WITH(nss-lib, [  --with-nss-lib=PATH         Network Security Services (NSS) library directory],
+AC_ARG_WITH(nss-lib, AS_HELP_STRING([--with-nss-lib=PATH],[Network Security Services (NSS) library directory]),
 [
   if test -d "$withval"
   then

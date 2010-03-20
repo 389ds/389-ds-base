@@ -18,28 +18,17 @@
 #
 # END COPYRIGHT BLOCK
 
-AC_CHECKING(for pcre)
+AC_CHECKING(for PCRE)
 
 dnl  - check for --with-pcre
 AC_MSG_CHECKING(for --with-pcre)
-AC_ARG_WITH(pcre, [  --with-pcre=PATH   Perl Compatible Regular Expression directory],
+AC_ARG_WITH(pcre, AS_HELP_STRING([--with-pcre@<:@=PATH@:>@],[Perl Compatible Regular Expression directory]),
 [
   if test "$withval" = "yes"; then
     AC_MSG_RESULT(yes)
-    dnl - check in system locations
-    if test -f "/usr/include/pcre/pcre.h"; then
-      pcre_incdir="/usr/include/pcre"
-      pcre_inc="-I/usr/include/pcre"
-      pcre_lib='-L$(libdir)'
-      pcre_libdir='$(libdir)'
-    elif test -f "/usr/include/pcre.h"; then
-      pcre_incdir="/usr/include"
-      pcre_inc="-I/usr/include"
-      pcre_lib='-L$(libdir)'
-      pcre_libdir='$(libdir)'
-    else
-      AC_MSG_ERROR([pcre.h not found])
-    fi
+  elif test "$withval" = "no"; then
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR([PCRE is required.])
   elif test -d "$withval"/include -a -d "$withval"/lib; then
     AC_MSG_RESULT([using $withval])
     dnl - check the user provided location
@@ -56,7 +45,7 @@ AC_ARG_WITH(pcre, [  --with-pcre=PATH   Perl Compatible Regular Expression direc
     AC_MSG_ERROR([$withval not found])
   fi
 ],
-AC_MSG_RESULT(no))
+AC_MSG_RESULT(yes))
 
 #
 # if PCRE is not found yet, try pkg-config
@@ -84,7 +73,13 @@ dnl last resort
 dnl - check in system locations
 if test -z "$pcre_inc"; then
   AC_MSG_CHECKING(for pcre.h)
-  if test -f "/usr/include/pcre.h"; then
+  if test -f "/usr/include/pcre/pcre.h"; then
+    AC_MSG_RESULT([using /usr/include/pcre/pcre.h])
+    pcre_incdir="/usr/include/pcre"
+    pcre_inc="-I/usr/include/pcre"
+    pcre_lib='-L$(libdir)'
+    pcre_libdir='$(libdir)'
+  elif test -f "/usr/include/pcre.h"; then
     AC_MSG_RESULT([using /usr/include/pcre.h])
     pcre_incdir="/usr/include"
     pcre_inc="-I/usr/include"
@@ -92,6 +87,6 @@ if test -z "$pcre_inc"; then
     pcre_libdir='$(libdir)'
   else
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR([pcre not found, specify with --with-pcre.])
+    AC_MSG_ERROR([PCRE not found, specify with --with-pcre.])
   fi
 fi

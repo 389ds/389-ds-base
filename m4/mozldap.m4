@@ -22,11 +22,14 @@ AC_CHECKING(for Mozilla LDAPSDK)
 
 # check for --with-ldapsdk
 AC_MSG_CHECKING(for --with-ldapsdk)
-AC_ARG_WITH(ldapsdk, [  --with-ldapsdk=PATH     Mozilla LDAP SDK directory],
+AC_ARG_WITH(ldapsdk, AS_HELP_STRING([--with-ldapsdk@<:@=PATH@:>@],[Mozilla LDAP SDK directory]),
 [
   if test "$withval" = yes
   then
-    AC_MSG_RESULT([using system MozLDAP])
+    AC_MSG_RESULT(yes)
+  elif test "$withval" = no
+  then
+    AC_MSG_RESULT(no)
   elif test -e "$withval"/include/ldap.h -a -d "$withval"/lib
   then
     AC_MSG_RESULT([using $withval])
@@ -40,12 +43,29 @@ AC_ARG_WITH(ldapsdk, [  --with-ldapsdk=PATH     Mozilla LDAP SDK directory],
     echo
     AC_MSG_ERROR([$withval not found])
   fi
+
+  if test "$with_ldapsdk" = yes -a "$with_openldap" = yes
+  then
+    AC_MSG_ERROR([Cannot use both LDAPSDK and OpenLDAP.])
+  fi
+  if test "$with_ldapsdk" != yes -a "$with_openldap" != yes
+  then
+    AC_MSG_ERROR([Either LDAPSDK or OpenLDAP must be used.])
+  fi
 ],
-AC_MSG_RESULT(no))
+[
+  if test "$with_openldap" = yes
+  then
+    AC_MSG_RESULT(no)
+  else
+    AC_MSG_RESULT(yes)
+    with_ldapsdk=yes
+  fi
+])
 
 # check for --with-ldapsdk-inc
 AC_MSG_CHECKING(for --with-ldapsdk-inc)
-AC_ARG_WITH(ldapsdk-inc, [  --with-ldapsdk-inc=PATH     Mozilla LDAP SDK include directory],
+AC_ARG_WITH(ldapsdk-inc, AS_HELP_STRING([--with-ldapsdk-inc=PATH],[Mozilla LDAP SDK include directory]),
 [
   if test -e "$withval"/ldap.h
   then
@@ -61,7 +81,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-ldapsdk-lib
 AC_MSG_CHECKING(for --with-ldapsdk-lib)
-AC_ARG_WITH(ldapsdk-lib, [  --with-ldapsdk-lib=PATH     Mozilla LDAP SDK library directory],
+AC_ARG_WITH(ldapsdk-lib, AS_HELP_STRING([--with-ldapsdk-lib=PATH],[Mozilla LDAP SDK library directory]),
 [
   if test -d "$withval"
   then
@@ -78,7 +98,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-ldapsdk-bin
 AC_MSG_CHECKING(for --with-ldapsdk-bin)
-AC_ARG_WITH(ldapsdk-bin, [  --with-ldapsdk-bin=PATH     Mozilla LDAP SDK binary directory],
+AC_ARG_WITH(ldapsdk-bin, AS_HELP_STRING([--with-ldapsdk-bin=PATH],[Mozilla LDAP SDK binary directory]),
 [
   if test -d "$withval"
   then

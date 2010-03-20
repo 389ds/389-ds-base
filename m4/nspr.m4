@@ -22,9 +22,16 @@ AC_CHECKING(for NSPR)
 
 # check for --with-nspr
 AC_MSG_CHECKING(for --with-nspr)
-AC_ARG_WITH(nspr, [  --with-nspr=PATH        Netscape Portable Runtime (NSPR) directory],
+AC_ARG_WITH(nspr, AS_HELP_STRING([--with-nspr@<:@=PATH@:>@],[Netscape Portable Runtime (NSPR) directory]),
 [
-  if test -e "$withval"/include/nspr.h -a -d "$withval"/lib
+  if test "$withval" = "yes"
+  then
+    AC_MSG_RESULT(yes)
+  elif test "$withval" = "no"
+  then
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR([NSPR is required.])
+  elif test -e "$withval"/include/nspr.h -a -d "$withval"/lib
   then
     AC_MSG_RESULT([using $withval])
     NSPRDIR=$withval
@@ -36,11 +43,11 @@ AC_ARG_WITH(nspr, [  --with-nspr=PATH        Netscape Portable Runtime (NSPR) di
     AC_MSG_ERROR([$withval not found])
   fi
 ],
-AC_MSG_RESULT(no))
+AC_MSG_RESULT(yes))
 
 # check for --with-nspr-inc
 AC_MSG_CHECKING(for --with-nspr-inc)
-AC_ARG_WITH(nspr-inc, [  --with-nspr-inc=PATH        Netscape Portable Runtime (NSPR) include file directory],
+AC_ARG_WITH(nspr-inc, AS_HELP_STRING([--with-nspr-inc=PATH],[Netscape Portable Runtime (NSPR) include directory]),
 [
   if test -e "$withval"/nspr.h
   then
@@ -55,7 +62,7 @@ AC_MSG_RESULT(no))
 
 # check for --with-nspr-lib
 AC_MSG_CHECKING(for --with-nspr-lib)
-AC_ARG_WITH(nspr-lib, [  --with-nspr-lib=PATH        Netscape Portable Runtime (NSPR) library directory],
+AC_ARG_WITH(nspr-lib, AS_HELP_STRING([--with-nspr-lib=PATH],[Netscape Portable Runtime (NSPR) library directory]),
 [
   if test -d "$withval"
   then
