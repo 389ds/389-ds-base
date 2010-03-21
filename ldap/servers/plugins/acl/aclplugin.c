@@ -54,7 +54,7 @@ char *plugin_name = ACL_PLUGIN_NAME;
 
 static int aclplugin_preop_search ( Slapi_PBlock *pb );
 static int aclplugin_preop_modify ( Slapi_PBlock *pb );
-static int aclplugin_preop_common ( Slapi_PBlock *pb );
+int aclplugin_preop_common ( Slapi_PBlock *pb );
 
 /*******************************************************************************
  *  ACL PLUGIN Architecture
@@ -192,7 +192,7 @@ aclplugin_preop_modify ( Slapi_PBlock *pb )
  *	0 - all is well; proceed.
  *  1 - fatal error; result has been sent to client.
  */ 
-static int
+int
 aclplugin_preop_common( Slapi_PBlock *pb )
 {
 	char		*proxy_dn;	/* id being assumed */
@@ -204,6 +204,9 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 	TNF_PROBE_0_DEBUG(aclplugin_preop_common_start ,"ACL","");
 
 	aclpb = acl_get_aclpb ( pb, ACLPB_BINDDN_PBLOCK );
+
+        /* See if we have initialized already */
+        if ( aclpb->aclpb_state & ACLPB_INITIALIZED ) goto done;
 
 	/*
 	 * The following mallocs memory for proxy_dn, but not the dn.
@@ -248,6 +251,7 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 
 	}
 
+done:
 	TNF_PROBE_0_DEBUG(aclplugin_preop_common_end ,"ACL","");
 
 	return 0;

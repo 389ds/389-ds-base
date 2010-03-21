@@ -932,4 +932,6 @@ acl_get_effective_rights ( Slapi_PBlock *pb, Slapi_Entry *e,
 
 char* aclutil__access_str (int type , char str[]);
 
+int aclplugin_preop_common( Slapi_PBlock *pb );
+
 #endif /* _ACL_H_ */
