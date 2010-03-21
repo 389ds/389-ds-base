@@ -323,6 +323,9 @@ acl_access_allowed(
 	/* Get the bindDN */
 	slapi_pblock_get ( pb, SLAPI_REQUESTOR_DN, &clientDn );
 
+	/* Initialize aclpb */
+	aclplugin_preop_common( pb );
+
 	/* get the right acl pblock  to	work with */
 	if ( access & SLAPI_ACL_PROXY )
 		aclpb =	acl_get_aclpb (	pb, ACLPB_PROXYDN_PBLOCK );
