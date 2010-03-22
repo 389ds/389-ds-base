@@ -391,17 +391,17 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 	for ( apply_mods = 0; apply_mods <= 1; apply_mods++ ) {
 		int i = 0;
 		for (i = 0; (mods[i] && (LDAP_SUCCESS == rc)); i++) {
+			/* send all aci modifications to the backend */
+			config_attr = (char *)mods[i]->mod_type;
+			if (ignore_attr_type(config_attr))
+				continue;
+
 			if ((mods[i]->mod_op & LDAP_MOD_DELETE) ||
 				(mods[i]->mod_op & LDAP_MOD_ADD)) {
 				rc= LDAP_UNWILLING_TO_PERFORM;
 				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
 						(mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
 			} else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
-				/* send all aci modifications to the backend */
-				config_attr = (char *)mods[i]->mod_type;
-				if (ignore_attr_type(config_attr))
-					continue;
-
 				if (  (checked_all_maxdiskspace_and_mlogsize == 0 ) && 
 					((strcasecmp( mods[i]->mod_type, CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE) == 0) ||
 					(strcasecmp( mods[i]->mod_type, CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE) == 0) ||
