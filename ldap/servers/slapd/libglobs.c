@@ -5796,9 +5796,9 @@ config_set_entry(Slapi_Entry *e)
 
         if (needs_free && value) { /* assumes memory allocated by slapi_ch_Xalloc */
             if (CONFIG_CHARRAY == cgas->config_var_type) {
-                charray_free(*((char ***)value));
+                charray_free((char **)*value);
             } else if (CONFIG_SPECIAL_REFERRALLIST == cgas->config_var_type) {
-                ber_bvecfree(*((struct berval ***)value));
+                ber_bvecfree((struct berval **)*value);
             } else if ((CONFIG_CONSTANT_INT != cgas->config_var_type) && /* do not free constants */
                        (CONFIG_CONSTANT_STRING != cgas->config_var_type)) {
                 slapi_ch_free(value);

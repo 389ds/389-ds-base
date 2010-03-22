@@ -4548,6 +4548,7 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 	char csnStr [CSN_STRSIZE];
 	struct berval **vals;
 	DB_TXN *txnid = NULL;
+	char *buff;
 
 	if ((purge && file->purgeRUV == NULL) || (!purge && file->maxRUV == NULL))
 		return CL5_SUCCESS;
@@ -4565,7 +4566,8 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 
 	key.size = CSN_STRSIZE;
     
-	rc = _cl5WriteBervals (vals, (char**)&data.data, &data.size);
+	rc = _cl5WriteBervals (vals, &buff, &data.size);
+	data.data = buff;
 	ber_bvecfree(vals);
 	if (rc != CL5_SUCCESS)
 	{
