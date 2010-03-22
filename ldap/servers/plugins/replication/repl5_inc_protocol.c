@@ -511,7 +511,21 @@ static void
 repl5_inc_delete(Private_Repl_Protocol **prpp)
 {
 	/* First, stop the protocol if it isn't already stopped */
+	if (!(*prpp)->stopped) {
+		(*prpp)->stopped = 1;
+		(*prpp)->stop(*prpp);
+	}
 	/* Then, delete all resources used by the protocol */
+	if ((*prpp)->lock) {
+		PR_DestroyLock((*prpp)->lock);
+		(*prpp)->lock = NULL;
+	}
+	if ((*prpp)->cvar) {
+		PR_DestroyCondVar((*prpp)->cvar);
+		(*prpp)->cvar = NULL;
+	}
+	slapi_ch_free((void **)&(*prpp)->private);
+	slapi_ch_free((void **)prpp);
 }
 
 /* helper function */

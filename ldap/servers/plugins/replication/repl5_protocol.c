@@ -109,11 +109,7 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 		goto loser;
 	}
 	rp->agmt = agmt;
-	/* now done in private_protocol_factory
-	if ((rp->conn = conn_new(agmt)) == NULL)
-	{
-		goto loser;
-	} */
+	rp->conn = NULL;
 	/* Acquire the local replica object */
 	replarea_sdn = agmt_get_replarea(agmt);
 	rp->replica_object = replica_get_replica_from_dn(replarea_sdn);
@@ -585,20 +581,36 @@ private_protocol_factory(Repl_Protocol *rp, int type)
 	switch (type)
 	{
 		case PROTOCOL_5_INCREMENTAL:
-			if ((rp->conn = conn_new(rp->agmt)) != NULL)
-			prp = Repl_5_Inc_Protocol_new(rp);
+			if (NULL == rp->conn) {
+				rp->conn = conn_new(rp->agmt);
+			}
+			if (NULL != rp->conn) {
+				prp = Repl_5_Inc_Protocol_new(rp);
+			}
 			break;
 		case PROTOCOL_5_TOTAL:
-			if ((rp->conn = conn_new(rp->agmt)) != NULL)
-			prp = Repl_5_Tot_Protocol_new(rp);
+			if (NULL == rp->conn) {
+				rp->conn = conn_new(rp->agmt);
+			}
+			if (NULL != rp->conn) {
+				prp = Repl_5_Tot_Protocol_new(rp);
+			}
 			break;
 		case PROTOCOL_WINDOWS_INCREMENTAL: 
-			if ((rp->conn = windows_conn_new(rp->agmt)) != NULL)
-			prp = Windows_Inc_Protocol_new(rp);
+			if (NULL == rp->conn) {
+				rp->conn = windows_conn_new(rp->agmt);
+			}
+			if (NULL != rp->conn) {
+				prp = Windows_Inc_Protocol_new(rp);
+			}
 			break;
 		case PROTOCOL_WINDOWS_TOTAL: 
-			if ((rp->conn = windows_conn_new(rp->agmt)) != NULL)
-			prp = Windows_Tot_Protocol_new(rp);
+			if (NULL == rp->conn) {
+				rp->conn = windows_conn_new(rp->agmt);
+			}
+			if (NULL != rp->conn) {
+				prp = Windows_Tot_Protocol_new(rp);
+			}
 			break;
 	}
 	return prp;
