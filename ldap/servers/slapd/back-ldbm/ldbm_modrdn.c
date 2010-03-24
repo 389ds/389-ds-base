@@ -1008,6 +1008,7 @@ common_return:
         CACHE_RETURN( &inst->inst_cache, &ec );
     }
 
+    moddn_unlock_and_return_entries(be,&e,&existingentry);
     /*
      * The bepostop is called even if the operation fails.
      */
@@ -1021,7 +1022,6 @@ common_return:
     slapi_mods_done(&smods_operation_wsi);
     slapi_mods_done(&smods_generated);
     slapi_mods_done(&smods_generated_wsi);
-    moddn_unlock_and_return_entries(be,&e,&existingentry);
     slapi_ch_free((void**)&child_entries);
     slapi_ch_free((void**)&child_dns);
     if (ldap_result_matcheddn && 0 != strcmp(ldap_result_matcheddn, "NULL"))

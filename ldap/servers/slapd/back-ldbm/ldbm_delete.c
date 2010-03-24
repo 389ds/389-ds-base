@@ -178,6 +178,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	/* Don't call pre-op for Tombstone entries */
 	if (!delete_tombstone_entry)
 	{
+		int rc = 0;
 		/* 
 		 * Some present state information is passed through the PBlock to the
 		 * backend pre-op plugin. To ensure a consistent snapshot of this state
@@ -191,7 +192,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			goto error_return;
 		}
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-		if(plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN)==-1)
+		/* have to unlock the entry here, in case the bepreop attempts
+		   to modify the same entry == deadlock */
+		cache_unlock_entry( &inst->inst_cache, e );
+		rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
+		cache_lock_entry( &inst->inst_cache, e );
+		if (rc == -1)
 		{
 			/* 
 			 * Plugin indicated some kind of failure,
