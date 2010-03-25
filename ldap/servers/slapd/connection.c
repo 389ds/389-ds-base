@@ -991,6 +991,13 @@ done:
 		}
 	    PR_Unlock( conn->c_mutex );
 
+	} else { /* ps code acquires ref to conn - we need to release ours here */
+	    PR_Lock( conn->c_mutex );
+        if (connection_release_nolock (conn) != 0)
+	    {
+			return_value = -1;
+		}
+	    PR_Unlock( conn->c_mutex );
 	}
 	return return_value;
 }
@@ -2313,6 +2320,10 @@ done:
 		    if (!thread_turbo_flag && !more_data) {
 				connection_release_nolock (conn);
 			}
+		    PR_Unlock( conn->c_mutex );
+		} else { /* the ps code acquires a ref to the conn - we need to release ours here */
+		    PR_Lock( conn->c_mutex );
+			connection_release_nolock (conn);
 		    PR_Unlock( conn->c_mutex );
 		}
 		/* Since we didn't do so earlier, we need to make a replication connection readable again here */
