@@ -262,7 +262,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	if ( initial != NULL ) {
 		value_normalize( initial, syntax, 1 /* trim leading blanks */ );
 		*p++ = '^';
-		filter_strcpy_special( p, initial );
+		filter_strcpy_special_ext( p, initial, FILTER_STRCPY_ESCAPE_PARENS );
 		p = strchr( p, '\0' );
 	}
 	if ( any != NULL ) {
@@ -271,7 +271,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 			/* ".*" + value */
 			*p++ = '.';
 			*p++ = '*';
-			filter_strcpy_special( p, any[i] );
+			filter_strcpy_special_ext( p, any[i], FILTER_STRCPY_ESCAPE_PARENS );
 			p = strchr( p, '\0' );
 		}
 	}
@@ -280,7 +280,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		/* ".*" + value */
 		*p++ = '.';
 		*p++ = '*';
-		filter_strcpy_special( p, final );
+		filter_strcpy_special_ext( p, final, FILTER_STRCPY_ESCAPE_PARENS );
 		strcat( p, "$" );
 	}
 

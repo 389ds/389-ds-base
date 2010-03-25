@@ -647,7 +647,7 @@ test_filter_list(
 }
 
 void
-filter_strcpy_special( char *d, char *s )
+filter_strcpy_special_ext( char *d, char *s, int flags )
 {
 	for ( ; *s; s++ ) {
 		switch ( *s ) {
@@ -660,12 +660,25 @@ filter_strcpy_special( char *d, char *s )
 		case '^':
 		case '$':
 			*d++ = '\\';
-			/* FALL */
+			break;
+		case '(':
+		case ')':
+			if (flags & FILTER_STRCPY_ESCAPE_PARENS) {
+				*d++ = '\\';
+			}
+			break;
 		default:
-			*d++ = *s;
+			break;
 		}
+		*d++ = *s;
 	}
 	*d = '\0';
+}
+
+void
+filter_strcpy_special( char *d, char *s )
+{
+	return filter_strcpy_special_ext(d, s, 0);
 }
 
 int test_substring_filter(
