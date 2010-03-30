@@ -532,7 +532,7 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
  * returning an LDAP result code.
  */
 static int
-entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op)
+entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals)
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
@@ -648,18 +648,25 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 		retVal= LDAP_NO_SUCH_ATTRIBUTE;
 		/* NOTE: LDAP says that a MOD REPLACE with no vals of a non-existent
 		   attribute is a no-op - MOD REPLACE with some vals will add the attribute */
-		if ((LDAP_MOD_REPLACE == mod_op) && vals && vals[0])
+		/* if we are doing a replace with actual values, meaning the result
+		   of the mod is that the attribute will have some values, we need to create
+		   a dummy attribute for entry_add_present_values_wsi to use, and set
+		   the deletion csn to the csn of the current operation */
+		/* note that if LDAP_MOD_REPLACE == mod_op then vals is NULL - 
+		   see entry_replace_present_values_wsi */
+		if ((LDAP_MOD_REPLACE == mod_op) && replacevals && replacevals[0])
 		{
 			/* Create a new attribute and set the adcsn */
 			Slapi_Attr *a = slapi_attr_new();
 			slapi_attr_init(a, type);
-			/* According to URP there should be an adcsn.
-			 * According to Tests, there should not
-			 * since the attribute never existed 
-			 * Tests 26 and 27 of MMRepl state. */
-			if (urp)
-				attr_set_deletion_csn(a,csn); 
-			attrlist_add(&e->e_attrs, a);
+			attr_set_deletion_csn(a,csn); 
+			/* mark the attribute as deleted - it does not really
+			   exist yet - the code in entry_add_present_values_wsi
+			   will add it back to the present list in the non urp case,
+			   or determine if the attribute needs to be added
+			   or not in the urp case
+			*/
+			entry_add_deleted_attribute_wsi(e, a);
 		}
 	}
 	return( retVal );
@@ -677,7 +684,7 @@ entry_replace_present_values_wsi(Slapi_Entry *e, const char *type, struct berval
 	/*
 	 * Remove all existing values.
 	 */
-	entry_delete_present_values_wsi(e, type, NULL /* Delete all values */, csn, urp, LDAP_MOD_REPLACE);
+	entry_delete_present_values_wsi(e, type, NULL /* Delete all values */, csn, urp, LDAP_MOD_REPLACE, vals);
 
 	/*
 	 * Add the new values. If there are no new values,
@@ -706,7 +713,7 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 
 	case LDAP_MOD_DELETE:
 		LDAPDebug( LDAP_DEBUG_ARGS, "   delete: %s\n", mod->mod_type, 0, 0 );
-		retVal = entry_delete_present_values_wsi( e, mod->mod_type, mod->mod_bvalues, csn, urp, mod->mod_op );
+		retVal = entry_delete_present_values_wsi( e, mod->mod_type, mod->mod_bvalues, csn, urp, mod->mod_op, NULL );
 		break;
 
 	case LDAP_MOD_REPLACE:
@@ -1014,7 +1021,21 @@ resolve_attribute_state_multi_valued(Slapi_Entry *e, Slapi_Attr *a, int attribut
 		deletedcsn= csn_max(vdcsn, adcsn);
 
 		/* check if the attribute or value was deleted after the value was last updated */
+		/* When a replace operation happens, the entry_replace_present_values_wsi() function
+		 * first calls entry_delete_present_values_wsi with vals == NULL to essentially delete
+		 * the attribute and set the deletion csn.  If the urp flag is set (urp in this case
+		 * meaning the operation is a replicated op), entry_delete_present_values_wsi will
+		 * call this function which will move the present values to the deleted values
+		 * (see above - delete_priority will be 1) then the below code will move the
+		 * attribute to the deleted list.
+		 * next, entry_replace_present_values_wsi will call entry_add_present_values_wsi
+		 * to add the values provided in the replace operation.  We need to be able to
+		 * "resurrect" these deleted values and resurrect the deleted attribute.  In the
+		 * replace case, the deletedcsn will be the same as the vucsn of the values that
+		 * should be present values.
+		 */
 		if((csn_compare(vucsn,deletedcsn)>0) ||
+		   ((delete_priority == 0) && (csn_compare(vucsn,deletedcsn)==0)) ||
 	        value_distinguished_at_csn(e, a, v, deletedcsn))
 		{
 			entry_deleted_value_to_present_value(a,v);
