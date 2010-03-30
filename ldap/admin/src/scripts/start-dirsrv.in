@@ -83,6 +83,7 @@ start_instance() {
         fi
         else
             PID=`cat $PIDFILE`
+            rm -f $STARTPIDFILE
             return 0;
         fi
     done
