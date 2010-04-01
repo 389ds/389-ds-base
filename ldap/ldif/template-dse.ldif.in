@@ -690,6 +690,18 @@ nsslapd-plugintype: preoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
+dn: cn=Managed Entries,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+objectclass: nsContainer
+cn: Managed Entries
+nsslapd-pluginpath: libmanagedentries-plugin
+nsslapd-plugininitfunc: mep_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+
 dn: cn=Pass Through Authentication,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

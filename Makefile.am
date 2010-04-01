@@ -176,7 +176,7 @@ endif
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
 	libcos-plugin.la libderef-plugin.la libdes-plugin.la libdistrib-plugin.la \
-	libhttp-client-plugin.la liblinkedattrs-plugin.la \
+	libhttp-client-plugin.la liblinkedattrs-plugin.la libmanagedentries-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
@@ -251,6 +251,7 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/05rfc4523.ldif \
 	$(srcdir)/ldap/schema/05rfc4524.ldif \
 	$(srcdir)/ldap/schema/06inetorgperson.ldif \
+	$(srcdir)/ldap/schema/10mep-plugin.ldif \
 	$(srcdir)/ldap/schema/10rfc2307.ldif \
 	$(srcdir)/ldap/schema/20subscriber.ldif \
 	$(srcdir)/ldap/schema/25java-object.ldif \
@@ -872,6 +873,15 @@ liblinkedattrs_plugin_la_SOURCES = ldap/servers/plugins/linkedattrs/fixup_task.c
 liblinkedattrs_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 liblinkedattrs_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
 liblinkedattrs_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libmanagedentries-plugin
+#------------------------
+libmanagedentries_plugin_la_SOURCES = ldap/servers/plugins/mep/mep.c
+
+libmanagedentries_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libmanagedentries_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libmanagedentries_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libmemberof-plugin

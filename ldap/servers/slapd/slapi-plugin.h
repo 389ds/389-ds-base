@@ -3384,7 +3384,7 @@ int slapi_attr_value_cmp( const Slapi_Attr *attr, const struct berval *v1, const
  * \param v Pointer to the \c berval structure containing the value for
  *          which you want to search.
  * \return \c 0 if the attribute contains the specified value.
- * \return \c 01 if the attribute does not contain the specified value.
+ * \return \c -1 if the attribute does not contain the specified value.
  * \see slapi_attr_add_value()
  * \see slapi_attr_first_value()
  * \see slapi_attr_next_value()
