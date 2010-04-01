@@ -47,7 +47,7 @@ package DSUpdate;
 use DSUtil;
 use Inf;
 use FileConn;
-use DSCreate qw(setDefaults createInstanceScripts);
+use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles);
 
 use File::Basename qw(basename dirname);
 
@@ -315,7 +315,12 @@ sub updateDSInstance {
     }
 
     # upgrade instance scripts
-    if (@errs = createInstanceScripts($inf, 1)) {
+    if (@errs = createInstanceScripts($inf, 0)) {
+        return @errs;
+    }
+
+    # add new or missing config files
+    if (@errs = makeOtherConfigFiles($inf, 1)) {
         return @errs;
     }
 
