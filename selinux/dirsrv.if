@@ -115,8 +115,24 @@ interface(`dirsrv_manage_var_run',`
 	allow $1 dirsrv_var_run_t:dir manage_dir_perms;
 	allow $1 dirsrv_var_run_t:file manage_file_perms;
 	allow $1 dirsrv_var_run_t:sock_file manage_file_perms;
-	# Allow creating a dir in /var/run with this type
-	files_pid_filetrans($1, dirsrv_var_run_t, dir)
+')
+
+#####################################
+# <summary>
+#      Allow a domain to create dirsrv pid directories.
+# </summary>
+# <param name="domain">
+# <summary>
+#      Domain allowed access.
+# </summary>
+# </param>
+#
+interface(`dirsrv_pid_filetrans',`
+        gen_require(`
+                type dirsrv_var_run_t;
+        ')
+        # Allow creating a dir in /var/run with this type
+        files_pid_filetrans($1, dirsrv_var_run_t, dir)
 ')
 
 #######################################
