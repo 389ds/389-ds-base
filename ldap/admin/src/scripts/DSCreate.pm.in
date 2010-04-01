@@ -64,8 +64,8 @@ use Mozilla::LDAP::LDIF;
 
 use Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts installSchema);
-@EXPORT_OK = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts installSchema);
+@EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts makeOtherConfigFiles installSchema);
+@EXPORT_OK = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts makeOtherConfigFiles installSchema);
 
 use strict;
 
@@ -424,6 +424,7 @@ sub createConfigFile {
 
 sub makeOtherConfigFiles {
     my $inf = shift;
+    my $skip = shift;
     my @errs;
     my %maptable = (
         "DS-ROOT" => $inf->{General}->{prefix},
@@ -449,13 +450,18 @@ sub makeOtherConfigFiles {
 
     $src = "$inf->{General}->{prefix}@configdir@/slapd-collations.conf";
     $dest = "$inf->{slapd}->{config_dir}/slapd-collations.conf";
+
     $! = 0; # clear errno
-    copy($src, $dest);
-    if ($!) {
-        return ('error_copying_file', $src, $dest, $!);
-    }
-    if (@errs = changeOwnerMode($inf, 4, $dest)) {
-        return @errs;
+
+    #in skip mode, skip files that already exist
+    unless ($skip and -f $dest) {
+        copy($src, $dest);
+        if ($!) {
+            return ('error_copying_file', $src, $dest, $!);
+        }
+        if (@errs = changeOwnerMode($inf, 4, $dest)) {
+            return @errs;
+        }
     }
 
     # install instance specific initconfig script
@@ -463,22 +469,25 @@ sub makeOtherConfigFiles {
     $dest = "$inf->{General}->{prefix}@initconfigdir@/@package_name@-$inf->{slapd}->{ServerIdentifier}";
     $! = 0; # clear errno
 
-    if (!open(SRC, "< $src")) {
-        return ("error_opening_scripttmpl", $src, $!);
-    }
-    if (!open(DEST, "> $dest")) {
-        return ("error_opening_scripttmpl", $dest, $!);
-    }
-    my $contents; # slurp entire file into memory
-    read SRC, $contents, int(-s $src);
-    close(SRC);
-    while (my ($key, $val) = each %maptable) {
-        $contents =~ s/\{\{$key\}\}/$val/g;
-    }
-    print DEST $contents;
-    close(DEST);
-    if (@errs = changeOwnerMode($inf, 4, $dest)) {
-        return @errs;
+    # in skip mode, skip files that already exist
+    unless ($skip and -f $dest) {
+        if (!open(SRC, "< $src")) {
+            return ("error_opening_scripttmpl", $src, $!);
+        }
+        if (!open(DEST, "> $dest")) {
+            return ("error_opening_scripttmpl", $dest, $!);
+        }
+        my $contents; # slurp entire file into memory
+        read SRC, $contents, int(-s $src);
+        close(SRC);
+        while (my ($key, $val) = each %maptable) {
+            $contents =~ s/\{\{$key\}\}/$val/g;
+        }
+        print DEST $contents;
+        close(DEST);
+        if (@errs = changeOwnerMode($inf, 4, $dest)) {
+            return @errs;
+        }
     }
 
     return ();

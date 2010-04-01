@@ -5,6 +5,7 @@
 #       0: Server started successfully
 #       1: Server could not be started
 #       2: Server already running
+INSTANCE={{SERV-ID}}
 
-@sbindir@/start-dirsrv {{SERV-ID}} "$@"
+@sbindir@/start-dirsrv $INSTANCE "$@"
 exit $?
