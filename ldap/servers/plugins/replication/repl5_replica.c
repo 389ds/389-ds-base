@@ -2104,6 +2104,9 @@ _replica_update_state (time_t when, void *arg)
 	LDAPMod *mods[3];
 	Slapi_PBlock *pb = NULL;
 	char *dn = NULL;
+	struct berval *vals[2];
+	struct berval val;
+	LDAPMod mod;
 
 	if (NULL == replica_name) 
 		return;
@@ -2173,13 +2176,9 @@ _replica_update_state (time_t when, void *arg)
 	/* write replica name if it has not been written before */
 	if (r->new_name)
 	{
-		struct berval *vals[2];
-		struct berval val;
-		LDAPMod mod;
-
 		mods[1] = &mod;
 
-		mod.mod_op   = LDAP_MOD_REPLACE;
+		mod.mod_op   = LDAP_MOD_REPLACE|LDAP_MOD_BVALUES;
 		mod.mod_type = (char*)attr_replicaName;
 		mod.mod_bvalues = vals;
 		vals [0] = &val;
