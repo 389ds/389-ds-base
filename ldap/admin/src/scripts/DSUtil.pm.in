@@ -995,7 +995,7 @@ sub remove_pidfile
         $pidfile = $run_dir . "/" . $product_name . "-" . $serv_id . ".startpid";
     }
 
-    my $pattern = "^" . $type . ".*=";
+    my $pattern = "\\^" . $type . ".\\*=";
     my $pidline = `grep $pattern $instdir/start-slapd`;
     chomp($pidline);
     my ($key, $pidfile) = split(/=/, $pidline);
