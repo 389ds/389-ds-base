@@ -47,7 +47,7 @@ package DSUpdate;
 use DSUtil;
 use Inf;
 use FileConn;
-use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles);
+use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles updateSelinuxPolicy);
 
 use File::Basename qw(basename dirname);
 
@@ -405,6 +405,9 @@ sub updateDSInstance {
     }
 
     $conn->close();
+
+    updateSelinuxPolicy($inf);
+
     return @errs;
 }
 
