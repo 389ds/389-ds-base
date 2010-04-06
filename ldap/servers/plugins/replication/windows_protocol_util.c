@@ -362,6 +362,31 @@ windows_ignore_error_and_keep_going(int error)
 	return return_value;
 }
 
+static PRBool
+allow_windows_rename_error(int error)
+{
+	int return_value = PR_FALSE;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> allow_windows_rename_error\n" );
+
+	switch (error)
+	{
+	/* Cases where we keep going */
+	case LDAP_REFERRAL: /* because of the different naming structure at top level */
+	case LDAP_NO_SUCH_OBJECT: /* because of the different naming structure */
+	case LDAP_NAMING_VIOLATION: /* because of the different naming structure */
+	case LDAP_NOT_ALLOWED_ON_NONLEAF: /* because of the different naming structure */
+	case LDAP_NOT_ALLOWED_ON_RDN: /* because of the different naming structure */
+	case LDAP_AFFECTS_MULTIPLE_DSAS: /* because of the different naming structure */
+		return_value = PR_TRUE;
+		break;
+
+	}
+
+	LDAPDebug1Arg( LDAP_DEBUG_TRACE, "=> allow_windows_rename_error: %d\n", return_value );
+	return return_value;
+}
+
 static const char*
 op2string(int op)
 {
@@ -1388,6 +1413,20 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				op->p.p_modrdn.modrdn_newsuperior_address.dn,
 				op->p.p_modrdn.modrdn_deloldrdn,
 				NULL, NULL /* returned controls */);
+			if (CONN_OPERATION_FAILED == return_value) {
+				int opnum, err;
+				windows_conn_get_error(prp->conn, &opnum, &err);
+				if (allow_windows_rename_error(err)) {
+					const char *newsup = op->p.p_modrdn.modrdn_newsuperior_address.dn;
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: replay_update: "
+									"rename [%s] to [%s%s%s] returned error [%d] but since windows "
+									"naming is different, this error will be ignored\n",
+									agmt_get_long_name(prp->agmt),
+									op->target_address.dn, op->p.p_modrdn.modrdn_newrdn,
+									newsup ? "," : "", newsup ? newsup : "", err);
+					return_value = CONN_OPERATION_SUCCESS;
+				}
+			}
 			break;
 		default:
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "%s: replay_update: Unknown "
