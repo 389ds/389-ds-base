@@ -574,7 +574,7 @@ void set_hash_filters(int i);
  * filterentry.c
  */
 void filter_strcpy_special( char *d, char *s );
-#define FILTER_STRCPY_ESCAPE_PARENS 0x01
+#define FILTER_STRCPY_ESCAPE_RECHARS 0x01
 void filter_strcpy_special_ext( char *d, char *s, int flags );
 
 
