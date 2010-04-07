@@ -663,7 +663,11 @@ filter_strcpy_special_ext( char *d, char *s, int flags )
 			break;
 		case '(':
 		case ')':
-			if (flags & FILTER_STRCPY_ESCAPE_PARENS) {
+		case '}':
+		case '{':
+		case '|':
+		case '?':
+			if (flags & FILTER_STRCPY_ESCAPE_RECHARS) {
 				*d++ = '\\';
 			}
 			break;
