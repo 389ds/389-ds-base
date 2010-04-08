@@ -167,7 +167,7 @@ static int passwd_apply_mods(Slapi_PBlock *pb_orig, const char *dn, Slapi_Mods *
 		slapi_modify_internal_set_pb (&pb, dn, 
 			slapi_mods_get_ldapmods_byref(mods),
 			req_controls_copy, NULL, /* UniqueID */
-			pw_get_componentID(), /* PluginID */
+			plugin_get_default_component_id(), /* PluginID */
 			0); /* Flags */ 
 
 		/* We copy the connection from the original pblock into the
@@ -472,6 +472,8 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	LDAPControl	**req_controls = NULL;
 	LDAPControl	**resp_controls = NULL;
 	passwdPolicy	*pwpolicy = NULL;
+	Slapi_DN	*target_sdn = NULL;
+	Slapi_Entry	*referrals = NULL;
 	/* Slapi_DN sdn; */
 
     	LDAPDebug( LDAP_DEBUG_TRACE, "=> passwd_modify_extop\n", 0, 0, 0 );
@@ -607,19 +609,33 @@ parse_req_done:
 	/* LDAPDebug( LDAP_DEBUG_ARGS, "passwd: dn (%s), oldPasswd (%s) ,newPasswd (%s)\n",
 					 dn, oldPasswd, newPasswd); */
 
-	 
-	 /* Get Bind DN */
-	 slapi_pblock_get( pb, SLAPI_CONN_DN, &bindDN );
+	/* Get Bind DN */
+	slapi_pblock_get( pb, SLAPI_CONN_DN, &bindDN );
 
-	 /* If the connection is bound anonymously, we must refuse to process this operation. */
-	 if (bindDN == NULL || *bindDN == '\0') {
+	/* Find and set the target DN. */
+	if (dn && *dn != '\0') {
+		target_sdn = slapi_sdn_new_dn_byref(dn);
+		slapi_pblock_set(pb, SLAPI_TARGET_DN, dn);
+	} else if (bindDN && *bindDN != '\0') {
+		target_sdn = slapi_sdn_new_dn_byref(bindDN);
+		slapi_pblock_set(pb, SLAPI_TARGET_DN, bindDN);
+	}
+
+	/* Check if we need to send any referrals. */
+	if (slapi_dn_write_needs_referral(target_sdn, &referrals)) {
+		rc = LDAP_REFERRAL;
+		goto free_and_return;
+	}
+
+	/* If the connection is bound anonymously, we must refuse to process this operation. */
+	if (bindDN == NULL || *bindDN == '\0') {
 	 	/* Refuse the operation because they're bound anonymously */
 		errMesg = "Anonymous Binds are not allowed.\n";
 		rc = LDAP_INSUFFICIENT_ACCESS;
 		goto free_and_return;
-	 }
+	}
 
-	 if (oldPasswd == NULL || *oldPasswd == '\0') {
+	if (oldPasswd == NULL || *oldPasswd == '\0') {
 		/* If user is authenticated, they already gave their password during
 		 * the bind operation (or used sasl or client cert auth or OS creds) */
 		slapi_pblock_get(pb, SLAPI_CONN_AUTHMETHOD, &authmethod);
@@ -628,7 +644,7 @@ parse_req_done:
 			rc = LDAP_INSUFFICIENT_ACCESS;
 			goto free_and_return;
 		}
-	 }
+	}
 
 	/* Fetch the password policy.  We need this in case we need to
 	 * generate a password as well as for some policy checks. */
@@ -694,7 +710,7 @@ parse_req_done:
     		    "Missing userIdentity in request, using the bind DN instead.\n",
 		     0, 0, 0 );
 	 }
-	 
+
 	 slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, dn ); 
 
 	 /* Now we have the DN, look for the entry */
@@ -807,6 +823,16 @@ parse_req_done:
 	
 	/* Free anything that we allocated above */
 free_and_return:
+	slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+		errMesg ? errMesg : "success" );
+
+	if ((rc == LDAP_REFERRAL) && (referrals)) {
+		send_referrals_from_entry(pb, referrals);
+	} else {
+		send_ldap_result( pb, rc, NULL, errMesg, 0, NULL );
+	}
+
+	slapi_sdn_free(&target_sdn);
 	slapi_ch_free_string(&bindDN); /* slapi_pblock_get SLAPI_CONN_DN does strdup */
 	slapi_ch_free_string(&oldPasswd);
 	slapi_ch_free_string(&newPasswd);
@@ -821,6 +847,7 @@ free_and_return:
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
 	slapi_ch_free_string(&authmethod);
 	delete_passwdPolicy(&pwpolicy);
+	slapi_entry_free(referrals);
 
 	if ( targetEntry != NULL ){
 		slapi_entry_free (targetEntry); 
@@ -831,11 +858,6 @@ free_and_return:
 		ber = NULL;
 	}
 	
-	slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
-                     errMesg ? errMesg : "success" );
-	send_ldap_result( pb, rc, NULL, errMesg, 0, NULL );
-	
-
 	/* We can free the generated password bval now */
 	ber_bvfree(gen_passwd);
 

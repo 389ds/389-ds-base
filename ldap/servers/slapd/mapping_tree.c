@@ -1925,6 +1925,48 @@ static int sdn_is_nulldn(const Slapi_DN *sdn){
     return 0;
 }
 
+/* Checks if a write operation for a particular DN would
+ * require a referral to be sent. */
+int slapi_dn_write_needs_referral(Slapi_DN *target_sdn, Slapi_Entry **referral)
+{
+    mapping_tree_node *target_node = NULL;
+    int ret = 0;
+
+    if(mapping_tree_freed){
+        /* shutdown detected */
+        goto done;
+    }
+
+    if(!mapping_tree_inited) {
+        mapping_tree_init();
+    }
+
+    if (target_sdn) {
+        mtn_lock();
+
+        /* Get the mapping tree node that is the best match for the target dn. */
+        target_node = slapi_get_mapping_tree_node_by_dn(target_sdn);
+        if (target_node == NULL) {
+            target_node = mapping_tree_root;
+        }
+
+        /* See if we need to return a referral. */
+        if ((target_node->mtn_state == MTN_REFERRAL) ||
+            (target_node->mtn_state == MTN_REFERRAL_ON_UPDATE)) {
+            *referral = (target_node->mtn_referral_entry ?
+                         slapi_entry_dup(target_node->mtn_referral_entry) :
+                         NULL);
+            if (*referral) {
+                ret = 1;
+            }
+        }
+
+        mtn_unlock();
+    }
+
+  done:
+    return ret;
+}
 /* 
  * Description:
  * The reason we have a mapping tree.  This function selects a backend or
