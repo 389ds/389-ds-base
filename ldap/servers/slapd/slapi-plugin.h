@@ -2918,6 +2918,19 @@ int slapi_dn_isroot( const char *dn );
 int slapi_dn_isbesuffix( Slapi_PBlock *pb, const char *dn );
 
 /**
+ * Checks if writes to a particular DN need to send a referral.
+ *
+ * \param target_sdn The target DN that you want to check.
+ * \param referral The address of a pointer to receive a referral
+ *        if one is needed.
+ * \return \c 1 if a referral needs to be sent.
+ * \return \c 0 if no referral is needed.
+ * \warning The referral entry must be freed when it is no longer
+ *          being used.
+ */
+int slapi_dn_write_needs_referral(Slapi_DN *target_sdn, Slapi_Entry **referral);
+
+/**
  * Converts the second RDN type value to the berval value.
  *
  * Returns the new RDN value as a berval value in \c bv.  This function
