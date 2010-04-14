@@ -189,6 +189,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
 		   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
 		{
+			/* restore original entry so the front-end delete code can free it */
+			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 			goto error_return;
 		}
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -204,6 +206,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * or that this Operation became a No-Op.
 			 */
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			/* restore original entry so the front-end delete code can free it */
+			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 			goto error_return;
 		}
 		/* the flag could be set in a preop plugin (e.g., USN) */
