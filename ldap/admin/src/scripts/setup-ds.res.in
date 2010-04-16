@@ -55,6 +55,7 @@ dialog_ssgroup_no_user = The system user '%s' does not belong to the group '%s'.
 dialog_dsport_text = The standard directory server network port number is 389.  However, if\nyou are not logged as the superuser, or port 389 is in use, the\ndefault value will be a random unused port number greater than 1024.\nIf you want to use port 389, make sure that you are logged in as the\nsuperuser, that port 389 is not in use.\n\n
 dialog_dsport_prompt = Directory server network port
 dialog_dsport_error = The port %s is in use or not available.  Please choose another port.\n\n
+dialog_dsport_invalid = The port %s is not a valid port. Please choose a valid port.\n\n
 
 # ----------- DS server ID Dialog Resource  ----------------
 dialog_dsserverid_text = Each instance of a directory server requires a unique identifier.\nThis identifier is used to name the various\ninstance specific files and directories in the file system,\nas well as for other uses as a server instance identifier.\n\n
@@ -103,6 +104,7 @@ error_adding_entry = Error adding entry '%s'.  Error: %s\n
 error_updating_entry = Error updating entry '%s'.  Error: %s\n
 
 error_invalid_param = The parameter '%s' has an invalid value '%s'.\n
+error_port_invalid = The port %s is not a valid port. Please choose a valid port.\n
 error_port_available = The port number '%s' is not available for use.  This may be due to an\
 invalid port number, or the port already being in use by another\
 program, or low port restriction.  Please choose another value for\

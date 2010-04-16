@@ -82,6 +82,9 @@ sub checkPort {
         }
     }
 
+    if ($inf->{slapd}->{ServerPort} !~ /^\d+$/) {
+        return ('error_port_invalid', $inf->{slapd}->{ServerPort});
+    }
     if (!portAvailable($inf->{slapd}->{ServerPort})) {
         return ('error_port_available', $inf->{slapd}->{ServerPort}, $!);
     }
