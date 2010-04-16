@@ -959,10 +959,15 @@ sub remove_pidfile
     }
     my $line;
     while($line = <INFILE>) {
+        if ($line =~ /^INSTANCE=\s*(\S+)$/) {
+            $serv_id=$1;
+            last;
+        }
         if ($line =~ /start-dirsrv /g) {
             my @servline=split(/start-dirsrv /, $line);
             @servline=split(/\s+/, $servline[1]);
             $serv_id=$servline[0];
+            last;
         }
     }
     close(INFILE);
