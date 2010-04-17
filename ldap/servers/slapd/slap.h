@@ -707,7 +707,9 @@ struct matchingRuleList {
 #define ATTR_PLUGIN_LOG_ACCESS			"nsslapd-logAccess"
 #define ATTR_PLUGIN_LOG_AUDIT			"nsslapd-logAudit"
 #define ATTR_PLUGIN_TARGET_SUBTREE		"nsslapd-targetSubtree"
+#define ATTR_PLUGIN_EXCLUDE_TARGET_SUBTREE	"nsslapd-exclude-targetSubtree"
 #define ATTR_PLUGIN_BIND_SUBTREE		"nsslapd-bindSubtree"
+#define ATTR_PLUGIN_EXCLUDE_BIND_SUBTREE	"nsslapd-exclude-bindSubtree"
 #define ATTR_PLUGIN_INVOKE_FOR_REPLOP	"nsslapd-invokeForReplOp"
 #define ATTR_PLUGIN_LOAD_NOW            "nsslapd-pluginLoadNow"
 #define ATTR_PLUGIN_LOAD_GLOBAL         "nsslapd-pluginLoadGlobal"
@@ -752,8 +754,10 @@ typedef struct target_data
 }PluginTargetData;
 
 struct pluginconfig{
-	PluginTargetData plgc_target_subtrees;	/* list of subtrees accessible by the plugin */
-	PluginTargetData plgc_bind_subtrees;	/* the list of subtrees for which plugin in invoked during bind operation */
+	PluginTargetData plgc_target_subtrees;		/* list of subtrees accessible by the plugin */
+	PluginTargetData plgc_excluded_target_subtrees;	/* list of subtrees inaccessible by the plugin */
+	PluginTargetData plgc_bind_subtrees;		/* the list of subtrees for which plugin is invoked during bind operation */
+	PluginTargetData plgc_excluded_bind_subtrees;	/* the list of subtrees for which plugin is not invoked during bind operation */
 	PRBool		     plgc_schema_check;		/* inidcates whether schema check is performed during internal op */
 	PRBool		     plgc_log_change;		/* indicates whether changes are logged during internal op */
 	PRBool		     plgc_log_access;		/* indicates whether internal op is recorded in access log */

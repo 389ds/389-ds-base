@@ -1726,6 +1726,8 @@ set_plugin_config_from_entry(
 {
 	struct pluginconfig *config = &plugin->plg_conf;
 	char *value = 0;
+	char **values = 0;
+	int i = 0;
 	int status = 0;
 	PRBool target_seen = PR_FALSE;
 	PRBool bind_seen = PR_FALSE;
@@ -1782,39 +1784,73 @@ set_plugin_config_from_entry(
 		slapi_ch_free((void**)&value);
 	}
 
-	if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-											 ATTR_PLUGIN_TARGET_SUBTREE)) != NULL)
+	values = slapi_entry_attr_get_charray(plugin_entry,
+											 ATTR_PLUGIN_TARGET_SUBTREE);
+	for (i=0; values && values[i]; i++)
 	{
-		if (plugin_set_subtree_config(&(config->plgc_target_subtrees), value))
+		if (plugin_set_subtree_config(&(config->plgc_target_subtrees), values[i]))
 		{
 			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
-					  "from entry %s\n", value, ATTR_PLUGIN_TARGET_SUBTREE,
+					  "from entry %s\n", values[i], ATTR_PLUGIN_TARGET_SUBTREE,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
+			break;
 		}
 		else
 		{
 			target_seen = PR_TRUE;
 		}
-		slapi_ch_free((void**)&value);
 	}
+	slapi_ch_array_free(values);
 
-	if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-											 ATTR_PLUGIN_BIND_SUBTREE)) != NULL)
+	values = slapi_entry_attr_get_charray(plugin_entry,
+											 ATTR_PLUGIN_EXCLUDE_TARGET_SUBTREE);
+	for (i=0; values && values[i]; i++)
 	{
-		if (plugin_set_subtree_config(&(config->plgc_bind_subtrees), value))
+		if (plugin_set_subtree_config(&(config->plgc_excluded_target_subtrees), values[i]))
 		{
 			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
-					  "from entry %s\n", value, ATTR_PLUGIN_BIND_SUBTREE,
+					  "from entry %s\n", values[i], ATTR_PLUGIN_EXCLUDE_TARGET_SUBTREE,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
+			break;
+		}
+	}
+	slapi_ch_array_free(values);
+
+	values = slapi_entry_attr_get_charray(plugin_entry,
+											 ATTR_PLUGIN_BIND_SUBTREE);
+	for (i=0; values && values[i]; i++)
+	{
+		if (plugin_set_subtree_config(&(config->plgc_bind_subtrees), values[i]))
+		{
+			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+					  "from entry %s\n", values[i], ATTR_PLUGIN_BIND_SUBTREE,
+					  slapi_entry_get_dn_const(plugin_entry));
+			status = 1;
+			break;
 		}
 		else
 		{
 			bind_seen = PR_TRUE;
 		}
-		slapi_ch_free((void**)&value);
 	}
+	slapi_ch_array_free(values);
+
+	values = slapi_entry_attr_get_charray(plugin_entry,
+											 ATTR_PLUGIN_EXCLUDE_BIND_SUBTREE);
+	for (i=0; values && values[i]; i++)
+	{
+		if (plugin_set_subtree_config(&(config->plgc_excluded_bind_subtrees), values[i]))
+		{
+			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+					  "from entry %s\n", values[i], ATTR_PLUGIN_EXCLUDE_BIND_SUBTREE,
+					  slapi_entry_get_dn_const(plugin_entry));
+			status = 1;
+			break;
+		}
+	}
+	slapi_ch_array_free(values);
 
 	/* set target subtree default - allow access to all data */
 	if (!target_seen)
@@ -2274,7 +2310,9 @@ plugin_config_init (struct pluginconfig *config)
 	PR_ASSERT (config);
 
 	ptd_init (&config->plgc_target_subtrees);
+	ptd_init (&config->plgc_excluded_target_subtrees);
 	ptd_init (&config->plgc_bind_subtrees);
+	ptd_init (&config->plgc_excluded_bind_subtrees);
 	config->plgc_schema_check = PLGC_ON;
 	config->plgc_invoke_for_replop = PLGC_ON;
 	/* currently, we leave it up to plugin, but don't actually tell plugins that they can choose.
@@ -2319,7 +2357,9 @@ plugin_config_cleanup (struct pluginconfig *config)
 	PR_ASSERT (config);
 
 	ptd_cleanup (&config->plgc_target_subtrees);
+	ptd_cleanup (&config->plgc_excluded_target_subtrees);
 	ptd_cleanup (&config->plgc_bind_subtrees);
+	ptd_cleanup (&config->plgc_excluded_bind_subtrees);
 }
 
 #if 0
@@ -2380,13 +2420,13 @@ PRBool
 plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBlock *pb, Slapi_DN *target_spec)
 {
 	PluginTargetData *ptd;
+	PluginTargetData *excludedPtd;
 	struct pluginconfig *config;
 	Slapi_Backend *be;
 	int isroot;
 	PRBool islocal;
 	PRBool bindop;
 	unsigned long op;
-	PRBool rc;
 	int method = -1;
 
 	PR_ASSERT (plugin);
@@ -2453,15 +2493,19 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBloc
 	if (bindop)
 	{
 		ptd = &(config->plgc_bind_subtrees); 
+		excludedPtd = &(config->plgc_excluded_bind_subtrees); 
 	}
 	else
 	{
 		ptd = &(config->plgc_target_subtrees);
+		excludedPtd = &(config->plgc_excluded_target_subtrees);
 	}
 
-	rc = plugin_matches_operation (target_spec, ptd, bindop, isroot, islocal, method);
+	if (plugin_matches_operation (target_spec, excludedPtd, bindop, isroot, islocal, method) == PR_TRUE) {
+		return PR_FALSE;
+	}
 
-	return rc;
+	return plugin_matches_operation (target_spec, ptd, bindop, isroot, islocal, method);
 }
 
 /* this interface is exposed to be used by internal operations. 
@@ -2528,6 +2572,9 @@ PRBool plugin_allow_internal_op (Slapi_DN *target_spec, struct slapdplugin *plug
 	Slapi_Backend *be;
 	int islocal;
 	
+	if (plugin_is_global (&config->plgc_excluded_target_subtrees))
+		return PR_FALSE;
+
 	if (plugin_is_global (&config->plgc_target_subtrees))
 		return PR_TRUE;
 
@@ -2545,7 +2592,14 @@ PRBool plugin_allow_internal_op (Slapi_DN *target_spec, struct slapdplugin *plug
         } else { 
                 islocal = be != defbackend_get_backend();
         } 
-    /* SIMPLE auth method sends us through original code path in plugin_mathches_operation */
+
+	/* SIMPLE auth method sends us through original code path in plugin_mathches_operation */
+
+	if (plugin_matches_operation (target_spec, &config->plgc_excluded_target_subtrees,
+									  PR_FALSE, PR_FALSE, islocal, LDAP_AUTH_SIMPLE) == PR_TRUE) {
+		return PR_FALSE;
+	}
+
 	return plugin_matches_operation (target_spec, &config->plgc_target_subtrees,
 									  PR_FALSE, PR_FALSE, islocal, LDAP_AUTH_SIMPLE);
 }
