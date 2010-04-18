@@ -840,7 +840,8 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
             shared_e = NULL;
         }
 
-        entry->shared_cfg_base = slapi_dn_normalize(value);
+        entry->shared_cfg_base = slapi_ch_strdup(value);
+        slapi_dn_normalize(entry->shared_cfg_base);
 
         /* We prepend the host & port of this instance as a
          * multi-part RDN for the shared config entry. */
