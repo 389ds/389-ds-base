@@ -682,7 +682,7 @@ filter_strcpy_special_ext( char *d, char *s, int flags )
 void
 filter_strcpy_special( char *d, char *s )
 {
-	return filter_strcpy_special_ext(d, s, 0);
+	filter_strcpy_special_ext(d, s, 0);
 }
 
 int test_substring_filter(
