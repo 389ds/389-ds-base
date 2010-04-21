@@ -407,6 +407,7 @@ dist_man_MANS = man/man1/dbscan.1 \
 #------------------------
 update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/exampleupdate.ldif \
+	ldap/admin/src/scripts/10cleanupldapi.pl \
 	ldap/admin/src/scripts/10delautodnsuffix.pl \
 	ldap/admin/src/scripts/10fixrundir.pl \
 	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
