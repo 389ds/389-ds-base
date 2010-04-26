@@ -70,7 +70,6 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
    unsigned char *dbhash = quick_dbhash;
    struct berval salt;
    char *hashresult = NULL;
-   SECItem binary_item;
 
    ctx = PK11_CreateDigestContext(SEC_OID_MD5);
    if (ctx == NULL) {
@@ -84,7 +83,7 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
     */
    hash_len = pwdstorage_base64_decode_len(dbpwd, 0);
    if ( hash_len >= sizeof(quick_dbhash) ) { /* get more space: */
-      dbhash = (char*) slapi_ch_calloc( hash_len + 1, sizeof(char) );
+      dbhash = (unsigned char*) slapi_ch_calloc( hash_len + 1, sizeof(char) );
       if ( dbhash == NULL ) goto loser;
    } else {
       memset( quick_dbhash, 0, sizeof(quick_dbhash) );
@@ -125,7 +124,7 @@ smd5_pw_enc( const char *pwd )
    unsigned int outLen;
    unsigned char hash_out[MD5_LENGTH + MD5_DEFAULT_SALT_LENGTH];
    unsigned char b2a_out[(MD5_LENGTH*2) + (MD5_MAX_SALT_LENGTH*2)]; /* conservative */
-   char *salt = hash_out + MD5_LENGTH;
+   unsigned char *salt = hash_out + MD5_LENGTH;
    struct berval saltval;
    SECItem binary_item;
 
@@ -140,7 +139,7 @@ smd5_pw_enc( const char *pwd )
    memset( hash_out, 0, sizeof(hash_out) );
 
    /* generate a new random salt */
-   slapi_rand_array( salt, MD5_DEFAULT_SALT_LENGTH );
+   slapi_rand_array( (void *)salt, MD5_DEFAULT_SALT_LENGTH );
    saltval.bv_val = (void*)salt;
    saltval.bv_len = MD5_DEFAULT_SALT_LENGTH;
 

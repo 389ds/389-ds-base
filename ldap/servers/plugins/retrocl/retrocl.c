@@ -263,6 +263,7 @@ char *retrocl_get_config_str(const char *attrt)
     int rc = 0;
     char *dn;
     
+    /* RETROCL_PLUGIN_DN is no need to be normalized. */
     dn = RETROCL_PLUGIN_DN;
     
     pb = slapi_pblock_new();

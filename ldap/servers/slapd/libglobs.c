@@ -870,7 +870,8 @@ FrontendConfig_init () {
   cfg->ldapi_map_entries = LDAP_OFF;
   cfg->ldapi_uidnumber_type = slapi_ch_strdup("uidNumber");
   cfg->ldapi_gidnumber_type = slapi_ch_strdup("gidNumber");
-  cfg->ldapi_search_base_dn = slapi_ch_strdup("dc=example, dc=com");
+  /* These DNs are no need to be normalized. */
+  cfg->ldapi_search_base_dn = slapi_ch_strdup("dc=example,dc=com");
 #if defined(ENABLE_AUTO_DN_SUFFIX)
   cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
 #endif
@@ -5796,9 +5797,9 @@ config_set_entry(Slapi_Entry *e)
 
         if (needs_free && value) { /* assumes memory allocated by slapi_ch_Xalloc */
             if (CONFIG_CHARRAY == cgas->config_var_type) {
-                charray_free(*((char ***)value));
+                charray_free((char **)*value);
             } else if (CONFIG_SPECIAL_REFERRALLIST == cgas->config_var_type) {
-                ber_bvecfree(*((struct berval ***)value));
+                ber_bvecfree((struct berval **)*value);
             } else if ((CONFIG_CONSTANT_INT != cgas->config_var_type) && /* do not free constants */
                        (CONFIG_CONSTANT_STRING != cgas->config_var_type)) {
                 slapi_ch_free(value);

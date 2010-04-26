@@ -96,7 +96,7 @@ typedef struct _cnumRet {
 #define CONFIG_CHANGELOG_DIRECTORY_ATTRIBUTE  "nsslapd-changelogdir"
 
 #define RETROCL_CHANGELOG_DN "cn=changelog"
-#define RETROCL_MAPPINGTREE_DN "cn=\"cn=changelog\",cn=mapping tree,cn=config"
+#define RETROCL_MAPPINGTREE_DN "cn=cn\3Dchangelog,cn=mapping tree,cn=config"
 #define RETROCL_PLUGIN_DN "cn=Retro Changelog Plugin,cn=plugins,cn=config"
 #define RETROCL_LDBM_DN "cn=changelog,cn=ldbm database,cn=plugins,cn=config"
 #define RETROCL_INDEX_DN "cn=changenumber,cn=index,cn=changelog,cn=ldbm database,cn=plugins,cn=config"

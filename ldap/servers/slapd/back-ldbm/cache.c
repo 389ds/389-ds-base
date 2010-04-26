@@ -649,8 +649,8 @@ void cache_debug_hash(struct cache *cache, char **out)
     u_long slots;
     int total_entries, max_entries_per_slot, *slot_stats;
     int i, j;
-    Hashtable *ht;
-    char *name;
+    Hashtable *ht = NULL;
+    char *name = "";
 
     PR_Lock(cache->c_mutex);
     *out = (char *)slapi_ch_malloc(1024);

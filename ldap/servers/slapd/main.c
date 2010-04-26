@@ -1107,6 +1107,7 @@ main( int argc, char **argv)
 
 		/* initialize UniqueID generator - must be done once backends are started
 		   and event queue is initialized but before plugins are started */
+		/* Note: This DN is no need to be normalized. */
 		sdn = slapi_sdn_new_dn_byval ("cn=uniqueid generator,cn=config");
 		rc = uniqueIDGenInit (NULL, sdn, slapd_exemode == SLAPD_EXEMODE_SLAPD);
 		slapi_sdn_free (&sdn);
@@ -1906,6 +1907,7 @@ lookup_instance_name_by_suffix(char *suffix,
         if (query == NULL)
             goto done;
     
+        /* Note: This DN is no need to be normalized. */
         slapi_search_internal_set_pb(pb, "cn=mapping tree,cn=config",
             LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
             (void *)plugin_get_default_component_id(), 0);
@@ -1926,6 +1928,7 @@ lookup_instance_name_by_suffix(char *suffix,
             query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=*%s\")(cn=*%s)))", suffixp, suffixp);
             if (query == NULL)
                 goto done;
+            /* Note: This DN is no need to be normalized. */
             slapi_search_internal_set_pb(pb, "cn=mapping tree,cn=config",
                 LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
                 (void *)plugin_get_default_component_id(), 0);
@@ -2013,6 +2016,7 @@ static struct slapdplugin *lookup_plugin_by_instance_name(const char *name)
         return NULL;
     }
 
+    /* Note: This DN is no need to be normalized. */
     slapi_search_internal_set_pb(pb, "cn=plugins,cn=config",
         LDAP_SCOPE_SUBTREE, query, NULL, 0, NULL, NULL,
         (void *)plugin_get_default_component_id(), 0);

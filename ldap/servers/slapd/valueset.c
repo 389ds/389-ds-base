@@ -1438,3 +1438,17 @@ valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 		*valuesupdated= vaf_valuesupdated.va;
 	}
 }
+
+int
+valuearray_normalize_value(Slapi_Value **vals)
+{
+	int rc = 0;
+	Slapi_Value **vp = NULL;
+
+	for (vp = vals; vp && *vp; vp++) {
+		rc |= value_normalize_value(*vp);
+	}
+
+	return rc;
+}
+

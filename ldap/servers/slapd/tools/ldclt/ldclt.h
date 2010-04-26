@@ -740,6 +740,8 @@ extern int	 connectToServer (thread_context *tttctx);	/*JLS 14-03-01*/
 extern char	*dnFromMessage (thread_context *tttctx, LDAPMessage *res);
 extern int	 doAddEntry    (thread_context *tttctx);
 extern int	 doAttrReplace (thread_context *tttctx);	/*JLS 21-11-00*/
+extern int	 doAttrFileReplace (thread_context	*tttctx);
+
 extern int	 doBindOnly    (thread_context *tttctx);	/*JLS 04-05-01*/
 extern int	 doDeleteEntry (thread_context *tttctx);
 extern int	 doExactSearch (thread_context *tttctx);

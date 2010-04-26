@@ -50,7 +50,8 @@
 #include "repl5.h"
 #include <plstr.h>
 
-#define AGMT_CONFIG_BASE "cn=mapping tree, cn=config"
+/* normalized DN */
+#define AGMT_CONFIG_BASE "cn=mapping tree,cn=config"
 #define CONFIG_FILTER "(objectclass=nsds5replicationagreement)"
 #define WINDOWS_CONFIG_FILTER "(objectclass=nsdsWindowsreplicationagreement)"
 #define GLOBAL_CONFIG_FILTER "(|" CONFIG_FILTER WINDOWS_CONFIG_FILTER " )"

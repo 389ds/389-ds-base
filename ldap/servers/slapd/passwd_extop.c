@@ -455,7 +455,9 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	char		*oid = NULL;
 	char 		*bindDN = NULL;
 	char		*authmethod = NULL;
+	char		*rawdn = NULL;
 	char		*dn = NULL;
+	size_t		dnlen = 0;
 	char		*otdn = NULL;
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
@@ -561,16 +563,43 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	/* identify userID field by tags */
 	if (tag == LDAP_EXTOP_PASSMOD_TAG_USERID )
 	{
-		if ( ber_scanf( ber, "a", &dn) == LBER_ERROR )
+		int rc = 0;
+		if ( ber_scanf( ber, "a", &rawdn) == LBER_ERROR )
     		{
-    		slapi_ch_free_string(&dn);
+    		slapi_ch_free_string(&rawdn);
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed :{\n", 0, 0, 0 );
     		errMesg = "ber_scanf failed at userID parse.\n";
 		rc = LDAP_PROTOCOL_ERROR;
 		goto free_and_return;
     		}
-		
+
+		/* Check if we should be performing strict validation. */
+		if (config_get_dn_validate_strict()) {
+			/* check that the dn is formatted correctly */
+			rc = slapi_dn_syntax_check(pb, rawdn, 1);
+			if (rc) { /* syntax check failed */
+				op_shared_log_error_access(pb, "EXT", rawdn?rawdn:"",
+								"strict: invalid target dn");
+				errMesg = "invalid target dn.\n";
+				slapi_ch_free_string(&rawdn);
+				rc = LDAP_INVALID_SYNTAX;
+				goto free_and_return;
+			}
+		}
+		rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
+		if (rc < 0) {
+			op_shared_log_error_access(pb, "EXT", rawdn?rawdn:"",
+								"invalid target dn");
+			slapi_ch_free_string(&rawdn);
+			errMesg = "invalid target dn.\n";
+			rc = LDAP_INVALID_SYNTAX;
+			goto free_and_return;
+		} else if (rc == 0) { /* rawdn is passed in, not terminated */
+			*(dn + dnlen) = '\0';
+		} else {
+			slapi_ch_free_string(&rawdn);
+		}
 		tag = ber_peek_tag( ber, &len);
 	} 
 	

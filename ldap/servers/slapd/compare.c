@@ -65,7 +65,9 @@ void
 do_compare( Slapi_PBlock *pb )
 {
 	BerElement	*ber = pb->pb_op->o_ber;
+	char		*rawdn = NULL;
 	char		*dn = NULL;
+	size_t		 len = 0;
 	struct ava	ava = {0};
 	Slapi_Backend		*be = NULL;
 	int		err;
@@ -94,14 +96,39 @@ do_compare( Slapi_PBlock *pb )
 	 *	}
 	 */
 
-	if ( ber_scanf( ber, "{a{ao}}", &dn, &ava.ava_type,
+	if ( ber_scanf( ber, "{a{ao}}", &rawdn, &ava.ava_type,
 	    &ava.ava_value ) == LBER_ERROR ) {
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "ber_scanf failed (op=Compare; params=DN,Type,Value)\n",
 		    0, 0, 0 );
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
-		    NULL );
+			NULL );
 		goto free_and_return;
+	}
+	/* Check if we should be performing strict validation. */
+	if (config_get_dn_validate_strict()) {
+		/* check that the dn is formatted correctly */
+		err = slapi_dn_syntax_check(pb, rawdn, 1);
+		if (err) { /* syntax check failed */
+			op_shared_log_error_access(pb, "CMP",
+							rawdn?rawdn:"", "strict: invalid dn");
+			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+							 NULL, "invalid dn", 0, NULL);
+			slapi_ch_free((void **) &rawdn);
+			return;
+		}
+	}
+	err = slapi_dn_normalize_ext(rawdn, 0, &dn, &len);
+	if (err < 0) {
+		op_shared_log_error_access(pb, "CMP", rawdn?rawdn:"", "invalid dn");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+						 NULL, "invalid dn", 0, NULL);
+		slapi_ch_free((void **) &rawdn);
+		return;
+	} else if (err > 0) { /* if rc == 0, rawdn is passed in */
+		slapi_ch_free((void **) &rawdn);
+	} else { /* rc == 0; rawdn is passed in; not null terminated */
+		*(dn + len) = '\0';
 	}
 	/*
 	 * in LDAPv3 there can be optional control extensions on

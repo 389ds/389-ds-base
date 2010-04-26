@@ -110,7 +110,7 @@ You can supply default .inf data in this format:
 e.g.
     General.FullMachineName=foo.example.com
 or
-    "slapd.Suffix=dc=example, dc=com"
+    "slapd.Suffix=dc=example,dc=com"
 Values passed in this manner will override values in an .inf file given with the -f argument.
 EOF
 }

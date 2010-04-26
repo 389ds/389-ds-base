@@ -170,7 +170,7 @@ _ger_g_permission_granted (
 		goto bailout;
 	}
 
-	aclutil_str_appened ( errbuf, "get-effective-rights: requestor has no g permission on the entry" );
+	aclutil_str_append ( errbuf, "get-effective-rights: requestor has no g permission on the entry" );
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 				"_ger_g_permission_granted: %s\n", *errbuf);
 	rc = LDAP_INSUFFICIENT_ACCESS;
@@ -195,7 +195,10 @@ _ger_parse_control (
 	LDAPControl **requestcontrols;
 	struct berval *subjectber;
 	BerElement *ber;
-	int subjectndnlen = 0;
+	size_t subjectndnlen = 0;
+	char *orig = NULL;
+	char *normed = NULL;
+	int rc = 0;
 
 	if (NULL == subjectndn)
 	{
@@ -215,7 +218,7 @@ _ger_parse_control (
 	if ( subjectber == NULL || subjectber->bv_val == NULL ||
 		 subjectber->bv_len == 0 )
 	{
-		aclutil_str_appened ( errbuf, "get-effective-rights: missing subject" );
+		aclutil_str_append ( errbuf, "get-effective-rights: missing subject" );
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
 		return LDAP_INVALID_SYNTAX;
 	}
@@ -227,23 +230,23 @@ _ger_parse_control (
 		 * or base64 encoding string. Hence users using -J option in
 		 * ldapsearch don't have to do BER encoding for the subject.
 		 */
-		*subjectndn = slapi_ch_malloc ( subjectber->bv_len + 1 );
-		strncpy ( *subjectndn, subjectber->bv_val, subjectber->bv_len );
-		*(*subjectndn + subjectber->bv_len) = '\0';
+		orig = slapi_ch_malloc ( subjectber->bv_len + 1 );
+		strncpy ( orig, subjectber->bv_val, subjectber->bv_len );
+		*(orig + subjectber->bv_len) = '\0';
 	}
 	else
 	{
 		ber = ber_init (subjectber);
 		if ( ber == NULL )
 		{
-			aclutil_str_appened ( errbuf, "get-effective-rights: ber_init failed for the subject" );
+			aclutil_str_append ( errbuf, "get-effective-rights: ber_init failed for the subject" );
 			slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
 			return LDAP_OPERATIONS_ERROR;
 		}
 		/* "a" means to allocate storage as needed for octet string */
-		if ( ber_scanf (ber, "a", subjectndn) == LBER_ERROR )
+		if ( ber_scanf (ber, "a", orig) == LBER_ERROR )
 		{
-			aclutil_str_appened ( errbuf, "get-effective-rights: invalid ber tag in the subject" );
+			aclutil_str_append ( errbuf, "get-effective-rights: invalid ber tag in the subject" );
 			slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
 			ber_free ( ber, 1 );
 			return LDAP_INVALID_SYNTAX;
@@ -256,18 +259,32 @@ _ger_parse_control (
 	 * (see section 9 of RFC 2829) only. It also only supports the "dnAuthzId"
 	 * flavor, which looks like "dn:<DN>" where null <DN> is for anonymous.
 	 */
-	subjectndnlen = strlen(*subjectndn);
-	if ( NULL == *subjectndn || subjectndnlen < 3 ||
-		 strncasecmp ( "dn:", *subjectndn, 3 ) != 0 )
+	subjectndnlen = strlen(orig);
+	if ( NULL == orig || subjectndnlen < 3 || strncasecmp ( "dn:", orig, 3 ) != 0 )
 	{
-		aclutil_str_appened ( errbuf, "get-effective-rights: subject is not dnAuthzId" );
+		aclutil_str_append ( errbuf, "get-effective-rights: subject is not dnAuthzId" );
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
+		slapi_ch_free_string(&orig);
 		return LDAP_INVALID_SYNTAX;
 	}
 
 	/* memmove is safe for overlapping copy */
-	memmove ( *subjectndn, *subjectndn + 3, subjectndnlen - 2);/* 1 for '\0' */
-	slapi_dn_normalize ( *subjectndn );
+	rc = slapi_dn_normalize_ext(orig + 3, 0, &normed, &subjectndnlen);
+	if (rc < 0) {
+		aclutil_str_append ( errbuf, "get-effective-rights: failed to normalize dn: ");
+		aclutil_str_append ( errbuf, orig);
+		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
+		slapi_ch_free_string(&orig);
+		return LDAP_INVALID_SYNTAX;
+	}
+	if (rc == 0) { /* orig+3 is passed in; not terminated */
+		*(normed + subjectndnlen) = '\0';
+		*subjectndn = slapi_ch_strdup(normed);
+		slapi_ch_free_string(&orig);
+	} else {
+		slapi_ch_free_string(&orig);
+		*subjectndn = normed;
+	}
 	return LDAP_SUCCESS;
 }
 

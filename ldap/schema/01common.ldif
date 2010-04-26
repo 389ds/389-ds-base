@@ -188,7 +188,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.241 NAME 'displayName' DESC 'inetOrgPers
 attributeTypes: ( 2.16.840.1.113730.3.1.550 NAME 'cosAttribute' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.551 NAME 'cosspecifier' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.552 NAME 'costargettree' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.553 NAME 'costemplatedn' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.553 NAME 'costemplatedn' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.35 NAME 'changeLog' DESC 'the distinguished name of the entry which contains the set of entries comprising this servers changelog' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Changelog Internet Draft' )
 attributeTypes: ( 2.16.840.1.113730.3.1.200 NAME 'changeLogMaximumAge' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.201 NAME 'changeLogMaximumSize' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
@@ -226,6 +226,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2063 NAME 'nsEncryptionAlgorithm' DESC '
 attributeTypes: ( 2.16.840.1.113730.3.1.2064 NAME 'nsSaslMapRegexString' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2065 NAME 'nsSaslMapBaseDNTemplate' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2066 NAME 'nsSaslMapFilterTemplate' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2093 NAME 'nsslapd-changelogsuffix' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape' )
 #
 # objectclasses:
 #

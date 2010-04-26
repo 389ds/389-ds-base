@@ -142,13 +142,25 @@ attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEY
 {
 	int ret = 0;
 	Slapi_Entry *entry = NULL;
-	char *dn_template = "cn=%s,cn=encrypted attribute keys,cn=%s,cn=ldbm database,cn=plugins,cn=config";
+	char *dn_template = "cn=%s,cn=encrypted attribute keys,cn=%s,cn=%s,cn=plugins,cn=config";
 	char *instance_name =  li->inst_name;
-	char *dn_string = NULL;
 	Slapi_Attr *keyattr = NULL;
+	char *dn_string = NULL;
 	
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_keymgmt_get_key\n", 0, 0, 0);
-	dn_string = slapi_ch_smprintf(dn_template, acs->ace->cipher_display_name, instance_name);
+	dn_string = slapi_create_dn_string(dn_template,
+								acs->ace->cipher_display_name, instance_name,
+								li->inst_li->li_plugin->plg_name);
+	if (NULL == dn_string) {
+		LDAPDebug(LDAP_DEBUG_ANY,
+				  "attrcrypt_keymgmt_get_key: "
+				  "failed create attrcrypt key dn for plugin %s, "
+				  "instance %s, cypher %s\n", 
+				  li->inst_li->li_plugin->plg_name,
+				  li->inst_name, acs->ace->cipher_display_name);
+		ret = -1;
+		goto bail;
+	}
 	/* Fetch the entry */
 	getConfigEntry(dn_string, &entry);
 	/* Did we find the entry ? */
@@ -170,6 +182,7 @@ attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEY
 	} else {
 		ret = -2; /* Means: we didn't find the entry (which happens if the key has never been generated) */	
 	}
+bail:
 	slapi_ch_free_string(&dn_string);
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_keymgmt_get_key\n", 0, 0, 0);
 	return ret;
@@ -518,6 +531,20 @@ int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace)
 	return ret;
 }
 
+int
+attrcrypt_cleanup(attrcrypt_cipher_state *acs)
+{
+    LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_cleanup\n", 0, 0, 0);
+    if (acs->key) {
+		slapd_pk11_FreeSymKey(acs->key);
+	}
+    if (acs->slot) {
+		slapd_pk11_FreeSlot(acs->slot);
+	}
+    LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_cleanup\n", 0, 0, 0);
+	return 0;
+}
+
 /*
  * This function cleans up the inst_attrcrypt_state_private in each backend
  * instance.
@@ -525,7 +552,6 @@ int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace)
 int
 attrcrypt_cleanup_private(ldbm_instance *li)
 {
-	int i = 0;
 	attrcrypt_cipher_state **current = NULL;
 
 	LDAPDebug(LDAP_DEBUG_TRACE, "-> attrcrypt_cleanup_private\n", 0, 0, 0);
@@ -538,20 +564,6 @@ attrcrypt_cleanup_private(ldbm_instance *li)
 		slapi_ch_free((void **)&li->inst_attrcrypt_state_private);
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE, "<- attrcrypt_cleanup_private\n", 0, 0, 0);
-	return 0;
-}
-
-int
-attrcrypt_cleanup(attrcrypt_cipher_state *acs)
-{
-    LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_cleanup\n", 0, 0, 0);
-    if (acs->key) {
-		slapd_pk11_FreeSymKey(acs->key);
-	}
-    if (acs->slot) {
-		slapd_pk11_FreeSlot(acs->slot);
-	}
-    LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_cleanup\n", 0, 0, 0);
 	return 0;
 }
 

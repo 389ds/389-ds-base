@@ -205,7 +205,8 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 
 			/* see if this is a monitor acl */
 			if (( strcasecmp ( dn, "cn=monitor") == 0 )  ||
-			    ( strcasecmp ( dn, "cn=monitor,cn=ldbm") == 0 )) {
+			    ( strncasecmp ( dn, "cn=monitor,cn=ldbm", 
+								strlen("cn=monitor,cn=ldbm")) == 0 )) {
 				aci =  acllist_get_next_aci ( NULL, aci, &cookie);
 				continue;
 			} else {

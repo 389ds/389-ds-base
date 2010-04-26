@@ -571,6 +571,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
     if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* initialize UniqueID generator - must be done once backends are started
            and event queue is initialized but before plugins are started */
+        /* This dn is no need to be normalized. */
         Slapi_DN *sdn = slapi_sdn_new_dn_byval ("cn=uniqueid generator,cn=config");
         int rc = uniqueIDGenInit (NULL, sdn, 0 /* use single thread mode */);
         slapi_sdn_free (&sdn);

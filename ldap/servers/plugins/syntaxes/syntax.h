@@ -117,6 +117,7 @@ int string_assertion2keys_ava(Slapi_PBlock *pb,Slapi_Value *val,Slapi_Value ***i
 int string_assertion2keys_sub(Slapi_PBlock *pb,char *initial,char **any,char *final,Slapi_Value ***ivals,int syntax);
 int value_cmp(struct berval	*v1,struct berval *v2,int syntax,int normalize);
 void value_normalize(char *s,int syntax,int trim_leading_blanks);
+void value_normalize_ext(char *s,int syntax,int trim_leading_blanks, char **alt);
 
 char *first_word( char *s );
 char *next_word( char *s );

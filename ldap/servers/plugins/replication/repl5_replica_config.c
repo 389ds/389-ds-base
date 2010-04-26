@@ -47,6 +47,7 @@
 #include "repl5.h"
 #include "cl5_api.h"
 
+/* CONFIG_BASE: no need to normalize */
 #define CONFIG_BASE		    "cn=mapping tree,cn=config"
 #define CONFIG_FILTER	    "(objectclass=nsDS5Replica)"
 #define TASK_ATTR           "nsds5Task"

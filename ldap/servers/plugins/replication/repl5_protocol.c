@@ -173,7 +173,6 @@ void
 prot_free(Repl_Protocol **rpp)
 {
     Repl_Protocol *rp = NULL;
-    PRIntervalTime interval;
 
     if (rpp == NULL || *rpp == NULL) return;
 

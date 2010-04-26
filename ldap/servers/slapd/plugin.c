@@ -268,8 +268,15 @@ slapi_register_plugin_ext(
 {
 	int ii = 0;
     int rc = 0;
-	Slapi_Entry *e = slapi_entry_alloc();
-	char *dn = slapi_ch_smprintf("cn=%s, %s", name, PLUGIN_BASE_DN);
+	Slapi_Entry *e = NULL;
+	char *dn = slapi_create_dn_string("cn=%s,%s", name, PLUGIN_BASE_DN);
+	if (NULL == dn) {
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+					"slapi_register_plugin_ext: "
+					"failed to create plugin dn (plugin name: %s)\n", name);
+		return 1;
+	}
+	e = slapi_entry_alloc();
 	/* this function consumes dn */
 	slapi_entry_init(e, dn, NULL);
 
@@ -2461,7 +2468,7 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBloc
  */
 char* plugin_get_dn (const struct slapdplugin *plugin)
 {
-	char *plugindn;
+	char *plugindn = NULL;
 	char *pattern = "cn=%s," PLUGIN_BASE_DN;
 
 	if (plugin == NULL)	/* old plugin that does not pass identity - use default */
@@ -2470,8 +2477,13 @@ char* plugin_get_dn (const struct slapdplugin *plugin)
 	if (plugin->plg_name == NULL)
 		return NULL;
 
-	plugindn = slapi_ch_smprintf(pattern, plugin->plg_name);
-
+	plugindn = slapi_create_dn_string(pattern, plugin->plg_name);
+	if (NULL == plugindn) {
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+					"plugin_get_dn: failed to create plugin dn "
+					"(plugin name: %s)\n", plugin->plg_name);
+		return NULL;
+	}
 	return plugindn;
 }
 
@@ -2888,7 +2900,7 @@ void plugin_print_lists(void)
 	struct slapdplugin *tmp = NULL;
 
 	for (i = 0; i < PLUGIN_LIST_GLOBAL_MAX; i++) {
-		if (list = get_plugin_list(i))
+		if ((list = get_plugin_list(i)))
 		{
 			slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
 				"---- Plugin List (type %d) ----\n", i);
@@ -2965,7 +2977,7 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
     /* cn=plugin default config,cn=config */
     pblock_init(&pb);
     slapi_search_internal_set_pb(&pb,
-                    SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN */
+                    SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN (normalized) */
                     LDAP_SCOPE_BASE,
                     "(objectclass=*)",
                     search_attrs, /* Attrs */
@@ -3069,7 +3081,7 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
     /* cn=plugin default config,cn=config */
     pblock_init(&pb);
     slapi_search_internal_set_pb(&pb,
-                    SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN */
+                    SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN (normalized) */
                     LDAP_SCOPE_BASE,
                     "(objectclass=*)",
                     search_attrs, /* Attrs */

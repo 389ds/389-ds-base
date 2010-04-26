@@ -194,8 +194,15 @@ _usn_cleanup_is_mmr_enabled(const char *suffix)
     char *base_dn = NULL;
     int rc = 0; /* disabled, by default */
 
-    base_dn = slapi_ch_smprintf("cn=replica,cn=\"%s\",%s",
-                                suffix, MAPPING_TREE_BASE_DN);
+    /* This function converts the old style DN to the new one */
+    base_dn = slapi_create_dn_string("cn=replica,cn=\"%s\",%s",
+                                     suffix, MAPPING_TREE_BASE_DN);
+    if (NULL == base_dn) {
+        slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
+                        "_usn_cleanup_is_mmr_enabled: failed to normalize "
+                        "mappingtree dn for %s\n", suffix);
+        return 1;
+    }
     search_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(search_pb, base_dn, LDAP_SCOPE_ONELEVEL,
                                  "objectclass=nsDS5ReplicationAgreement",

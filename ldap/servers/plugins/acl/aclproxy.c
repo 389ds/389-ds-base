@@ -87,7 +87,9 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
   LDAPProxyAuth *spec = NULL;
   BerElement *ber = NULL;
   char *errstring = "unable to parse proxied authorization control";
-
+  int rc = 0;
+  char *normed = NULL;
+  size_t dnlen = 0;
 
   BEGIN
     ber_tag_t tag;
@@ -132,11 +134,20 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 			errstring = "proxied authorization id must be a DN (dn:...)";
 			break;
 		}
-		strcpy( spec->auth_dn, spec->auth_dn + 3 );
+		/* memmove is safe for overlapping copy */
+		memmove ( spec->auth_dn, spec->auth_dn + 3, strlen(spec->auth_dn) - 2);/* 1 for '\0' */
 	}
 
-	slapi_dn_normalize(spec->auth_dn);
 	lderr = LDAP_SUCCESS;	/* got it! */
+	rc = slapi_dn_normalize_ext(spec->auth_dn, 0, &normed, &dnlen);
+	if (rc < 0) {
+		lderr = LDAP_INVALID_SYNTAX;
+	} else if (rc == 0) { /* spec->auth_dn is passed in; not terminated */
+		*(normed + dnlen) = '\0';
+	} else {
+		slapi_ch_free_string(&spec->auth_dn);
+		spec->auth_dn = normed;
+	}
   END
 
   /* Cleanup */

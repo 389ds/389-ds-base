@@ -163,6 +163,11 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 	CSN *attributedeletioncsn= NULL; /* Moved to this level so that the JCM csn_free call below gets useful */
 	CSNSet *valuecsnset= NULL; /* Moved to this level so that the JCM csn_free call below gets useful */
 	CSN *maxcsn = NULL;
+	char *normdn = NULL;
+	int strict = 0;
+
+    /* Check if we should be performing strict validation. */
+    strict = config_get_dn_validate_strict();
 
 	/*
 	 * In string format, an entry looks like this:
@@ -265,16 +270,27 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 			if ( slapi_entry_get_dn_const(e)!=NULL )
 			{
 				char ebuf[ BUFSIZ ];
-				LDAPDebug( LDAP_DEBUG_ANY,
+				LDAPDebug( LDAP_DEBUG_TRACE,
 				    "str2entry_fast: entry has multiple dns \"%s\" and \"%s\" (second ignored)\n",
 				    escape_string( slapi_entry_get_dn_const(e), ebuf ),
 				    escape_string( valuecharptr, ebuf ), 0 );
 				    /* the memory below was not allocated by the slapi_ch_ functions */
-				if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+				if (retmalloc) slapi_ch_free_string(&valuecharptr);
 				if (freetype) slapi_ch_free_string(&type);
 				continue;
 			}
-			slapi_entry_set_dn(e,slapi_ch_strdup( valuecharptr ));
+			normdn = slapi_create_dn_string("%s", valuecharptr);
+			if (NULL == normdn) {
+				LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+							  "str2entry_fast: Invalid DN: %s\n", valuecharptr);
+				slapi_entry_free( e );
+				if (retmalloc) slapi_ch_free_string(&valuecharptr);
+				if (freetype) slapi_ch_free_string(&type);
+				return NULL;
+			}
+			/* normdn is consumed in e */
+			slapi_entry_set_dn(e, normdn);
+
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (retmalloc) slapi_ch_free_string(&valuecharptr);
 			if (freetype) slapi_ch_free_string(&type);
@@ -285,7 +301,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 		if ( strcasecmp (type, SLAPI_ATTR_UNIQUEID) == 0 ){
 
 			if (e->e_uniqueid != NULL){
-				LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: entry has multiple "
+				LDAPDebug (LDAP_DEBUG_TRACE, "str2entry_fast: entry has multiple "
 						   "uniqueids %s and %s (second ignored)\n",
 						   e->e_uniqueid, valuecharptr, 0);
 			}else{
@@ -308,12 +324,7 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 		}
 		
 		{
-			Slapi_Value	*value= value_new(NULL,CSN_TYPE_NONE,NULL);
-			slapi_value_set( value, valuecharptr, valuelen );
-			/* the memory below was not allocated by the slapi_ch_ functions */	
-			if (retmalloc) slapi_ch_free_string(&valuecharptr);
-			value->v_csnset= valuecsnset;
-			valuecsnset= NULL;
+			Slapi_Value	*value = NULL;
 			if(a==NULL)
 			{
 				switch(attr_state)
@@ -343,9 +354,51 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 					continue;
 					/* break; ??? */
 				}
-
+			}
+			/* moved the value setting code here to check Slapi_Attr 'a'
+			 * to retrieve the attribute syntax info */
+			value = value_new(NULL, CSN_TYPE_NONE, NULL);
+			if (slapi_attr_is_dn_syntax_attr(*a)) {
+				int rc = 0;
+				char *dn_aval = NULL;
+				size_t dnlen = 0;
+				if (strict) {
+					/* check that the dn is formatted correctly */
+					rc = slapi_dn_syntax_check(NULL, valuecharptr, 1);
+					if (rc) { /* syntax check failed */
+						LDAPDebug2Args(LDAP_DEBUG_TRACE, 
+							"str2entry_fast: strict: Invalid DN value: %s: %s\n",
+							type, valuecharptr);
+						slapi_entry_free( e );
+						if (retmalloc) slapi_ch_free_string(&valuecharptr);
+						if (freetype) slapi_ch_free_string(&type);
+						return NULL;
+					}
+				}
+				rc = slapi_dn_normalize_ext(valuecharptr, 0, &dn_aval, &dnlen);
+				if (rc < 0) {
+					/* Give up normalizing the attribute value */
+					LDAPDebug2Args(LDAP_DEBUG_TRACE,
+							       "str2entry_fast: Invalid DN value: %s: %s\n",
+							       type, valuecharptr);
+					dn_aval = valuecharptr;
+					dnlen = valuelen;
+				}
+				slapi_value_set(value, dn_aval, dnlen);
+				if (rc > 0) { /* if rc == 0, valuecharptr is passed in */
+					slapi_ch_free_string(&dn_aval);
+				} else if (rc == 0) { /* rc == 0; valuecharptr is passed in; 
+										 not null terminated */
+					*(dn_aval + dnlen) = '\0';
+				}
+			} else {
+				slapi_value_set(value, valuecharptr, valuelen);
 			}
 			if (freetype) slapi_ch_free_string(&type); /* don't need type anymore */
+			/* the memory below was not allocated by the slapi_ch_ functions */	
+			if (retmalloc) slapi_ch_free_string(&valuecharptr);
+			value->v_csnset = valuecsnset;
+			valuecsnset = NULL;
 			{
 				const CSN *distinguishedcsn= csnset_get_csn_of_type(value->v_csnset,CSN_TYPE_VALUE_DISTINGUISHED);
 				if(distinguishedcsn!=NULL)
@@ -444,6 +497,7 @@ typedef struct _str2entry_attr {
 	value_compare_fn_type sa_comparefn;
 	Avlnode *sa_vtree;
 	CSN *sa_attributedeletioncsn;
+	Slapi_Attr sa_attr;
 } str2entry_attr;
 
 static void
@@ -458,6 +512,7 @@ entry_attr_init(str2entry_attr *sa, const char *type, int state)
 	sa->sa_comparefn = NULL;
     sa->sa_vtree= NULL;
 	sa->sa_attributedeletioncsn= NULL;
+	slapi_attr_init(&sa->sa_attr, type);
 }
 
 /*
@@ -599,6 +654,10 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 			( 0 != ( flags & SLAPI_STR2ENTRY_REMOVEDUPVALS ));
 	Slapi_Value *value = 0;
 	CSN *maxcsn= NULL;
+	int strict = 0;
+
+    /* Check if we should be performing strict validation. */
+    strict = config_get_dn_validate_strict();
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> str2entry_dupcheck\n", 0, 0, 0 );
 
@@ -630,7 +689,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 
 		if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) < 0 ) {
 		    LDAPDebug( LDAP_DEBUG_TRACE,
-			    "<= slapi_str2entry NULL (parse_line)\n", 0, 0, 0 );
+			    "<= str2entry_dupcheck NULL (parse_line)\n", 0, 0, 0 );
 		    continue;
 		}
 #if defined(USE_OPENLDAP)
@@ -663,10 +722,11 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		}
 
 		if ( strcasecmp( type, "dn" ) == 0 ) {
+			char *normdn = NULL;
 		    if ( slapi_entry_get_dn_const(e)!=NULL ) {
 				char ebuf[ BUFSIZ ];
-				LDAPDebug( LDAP_DEBUG_ANY,
-					"slapi_str2entry: entry has multiple dns \"%s\" and \"%s\" (second ignored)\n",
+				LDAPDebug( LDAP_DEBUG_TRACE,
+					"str2entry_dupcheck: entry has multiple dns \"%s\" and \"%s\" (second ignored)\n",
 					escape_string( slapi_entry_get_dn_const(e), ebuf ),
 					escape_string( valuecharptr, ebuf ), 0 );
 				/* the memory below was not allocated by the slapi_ch_ functions */
@@ -674,7 +734,17 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 				if (freetype) slapi_ch_free_string(&type);
 				continue;
 		    }
-			slapi_entry_set_dn(e,slapi_ch_strdup( valuecharptr ));
+			normdn = slapi_create_dn_string("%s", valuecharptr);
+			if (NULL == normdn) {
+				LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+						"str2entry_dupcheck: Invalid DN: %s\n", valuecharptr);
+				slapi_entry_free( e ); e = NULL;
+				if (retmalloc) slapi_ch_free_string(&valuecharptr);
+				if (freetype) slapi_ch_free_string(&type);
+				goto free_and_return;
+			}
+			/* normdn is consumed in e */
+			slapi_entry_set_dn(e, normdn);
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (retmalloc) slapi_ch_free_string(&valuecharptr);
 			if (freetype) slapi_ch_free_string(&type);
@@ -685,7 +755,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		if ( strcasecmp (type, SLAPI_ATTR_UNIQUEID) == 0 ){
 
 			if (e->e_uniqueid != NULL){
-				LDAPDebug (LDAP_DEBUG_ANY, "slapi_str2entry: entry has multiple "
+				LDAPDebug (LDAP_DEBUG_TRACE, "str2entry_dupcheck: entry has multiple "
 						   "uniqueids %s and %s (second ignored)\n", 
 						   e->e_uniqueid, valuecharptr, 0);
 			}else{
@@ -787,7 +857,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 				if ( slapi_attr_type2plugin( type,(void **)&(attrs[nattrs].sa_pi) ) != 0 )
 				{
 					LDAPDebug( LDAP_DEBUG_ANY,
-						"<= slapi_str2entry NULL (slapi_attr_type2plugin)\n",
+						"<= str2entry_dupcheck NULL (slapi_attr_type2plugin)\n",
 						0, 0, 0 );
 					slapi_entry_free( e ); e = NULL;
 					if (retmalloc) slapi_ch_free_string(&valuecharptr);
@@ -818,10 +888,44 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 			nattrs++;
 		}
 
-		if (freetype) slapi_ch_free_string(&type);
 		sa = prev_attr;	/* For readability */
-		value= value_new(NULL,CSN_TYPE_NONE,NULL);
-		slapi_value_set( value, valuecharptr, valuelen );
+		value= value_new(NULL, CSN_TYPE_NONE, NULL);
+		if (slapi_attr_is_dn_syntax_attr(&(sa->sa_attr))) {
+			char *dn_aval = NULL;
+			size_t dnlen = 0;
+			if (strict) {
+				/* check that the dn is formatted correctly */
+				rc = slapi_dn_syntax_check(NULL, valuecharptr, 1);
+				if (rc) { /* syntax check failed */
+					LDAPDebug2Args(LDAP_DEBUG_ANY, 
+						"str2entry_dupcheck: strict: Invalid DN value: %s: %s\n",
+						type, valuecharptr);
+					slapi_entry_free( e ); e = NULL;
+					if (retmalloc) slapi_ch_free_string(&valuecharptr);
+					if (freetype) slapi_ch_free_string(&type);
+					goto free_and_return;
+				}
+			}
+			rc = slapi_dn_normalize_ext(valuecharptr, 0, &dn_aval, &dnlen);
+			if (rc < 0) {
+				/* Give up normalizing the attribute value */
+				LDAPDebug2Args(LDAP_DEBUG_TRACE,
+							   "str2entry_dupcheck: Invalid DN value: %s: %s\n",
+							   type, valuecharptr);
+				dn_aval = valuecharptr;
+				dnlen = valuelen;
+			}
+			slapi_value_set(value, dn_aval, dnlen);
+			if (rc > 0) { /* if rc == 0, valuecharptr is passed in */
+				slapi_ch_free_string(&dn_aval);
+			} else if (rc == 0) { /* rc == 0; valuecharptr is passed in; 
+									 not null terminated */
+				*(dn_aval + dnlen) = '\0';
+			}
+		} else {
+			slapi_value_set(value, valuecharptr, valuelen);
+		}
+		if (freetype) slapi_ch_free_string(&type);
 		/* the memory below was not allocated by the slapi_ch_ functions */
 		if (retmalloc) slapi_ch_free_string(&valuecharptr);
 		value->v_csnset= valuecsnset;
@@ -911,7 +1015,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		else
 		{
 		    /* Failure adding to value tree */
-		    LDAPDebug( LDAP_DEBUG_ANY, "slapi_str2entry: unexpected failure %d constructing value tree\n", rc, 0, 0 );
+		    LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: unexpected failure %d constructing value tree\n", rc, 0, 0 );
 		    slapi_entry_free( e ); e = NULL;
 		    goto free_and_return;
 		}
@@ -924,7 +1028,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
     if ( slapi_entry_get_dn_const(e)==NULL )
     {
 		if (!(SLAPI_STR2ENTRY_INCLUDE_VERSION_STR & flags))
-	    	LDAPDebug( LDAP_DEBUG_ANY, "slapi_str2entry: entry has no dn\n",
+	    	LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: entry has no dn\n",
 									   0, 0, 0 );
 	    slapi_entry_free( e ); e = NULL;
 	    goto free_and_return;
@@ -945,11 +1049,11 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
 		if ( sa->sa_numdups > 0 )
 		{
 		    if ( sa->sa_numdups > 1 ) {
-				LDAPDebug( LDAP_DEBUG_ANY, "%d duplicate values for attribute "
+				LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: %d duplicate values for attribute "
 					"type %s detected in entry %s. Extra values ignored.\n",
 					sa->sa_numdups, sa->sa_type, slapi_entry_get_dn_const(e) );
 		    } else {
-				LDAPDebug( LDAP_DEBUG_ANY, "Duplicate value for attribute "
+				LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: Duplicate value for attribute "
 					"type %s detected in entry %s. Extra value ignored.\n",
 					sa->sa_type, slapi_entry_get_dn_const(e), 0 );
 		    }
@@ -1014,7 +1118,7 @@ str2entry_dupcheck( char *s, int flags, int read_stateinfo )
     if ( flags & SLAPI_STR2ENTRY_ADDRDNVALS ) {
         if ( slapi_entry_add_rdn_values( e ) != LDAP_SUCCESS ) {
             LDAPDebug( LDAP_DEBUG_TRACE,
-                       "slapi_str2entry: entry has badly formatted dn\n",
+                       "str2entry_dupcheck: entry has badly formatted dn\n",
                        0, 0, 0 );
             slapi_entry_free( e ); e = NULL;
             goto free_and_return;
@@ -1033,6 +1137,7 @@ free_and_return:
 		valuearrayfast_done(&attrs[ i ].sa_present_values);
 		valuearrayfast_done(&attrs[ i ].sa_deleted_values);
 		valuetree_free( &attrs[ i ].sa_vtree );
+		attr_done( &attrs[ i ].sa_attr );
     }
 	if (tree_attr_checking)
 	{
@@ -1555,8 +1660,12 @@ static size_t slapi_dn_size(Slapi_DN *sdn)
 
     if (sdn == NULL) return 0;
 
-    if (sdn->dn) size += strlen(sdn->dn) + 1;
-    if (sdn->ndn) size *= 2;
+    if (slapi_sdn_get_dn(sdn)) {
+        size += strlen(slapi_sdn_get_dn(sdn)) + 1;
+    }
+    if (slapi_sdn_get_ndn(sdn)) {
+        size += strlen(slapi_sdn_get_ndn(sdn)) + 1;
+    }
 
     return size;
 }
@@ -2624,14 +2733,15 @@ slapi_entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 int
 entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 {
-	int	err, j;
+	int	err;
+	LDAPMod **mp = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> entry_apply_mods\n", 0, 0, 0 );
 
 	err = LDAP_SUCCESS;
-	for ( j = 0; mods[j] != NULL; j++ )
+	for ( mp = mods; mp && *mp; mp++ )
 	{
-		err= entry_apply_mod( e, mods[j] );
+		err= entry_apply_mod( e, *mp );
 		if ( err != LDAP_SUCCESS ) {
 			break;
 		}
@@ -2663,7 +2773,7 @@ entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod )
 	case LDAP_MOD_ADD:
 		LDAPDebug( LDAP_DEBUG_ARGS, "   add: %s\n", mod->mod_type, 0, 0 );
 		if(sawsubentry) e->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
-		err =  slapi_entry_add_values( e, mod->mod_type, mod->mod_bvalues );
+		err = slapi_entry_add_values( e, mod->mod_type, mod->mod_bvalues );
 		break;
 
 	case LDAP_MOD_DELETE:
@@ -2721,6 +2831,9 @@ slapi_entry_add_values_sv(Slapi_Entry *e,
 		Slapi_Attr **a= NULL;
 		Slapi_Attr **alist= &e->e_attrs;
 		attrlist_find_or_create(alist, type, &a);
+		if (slapi_attr_is_dn_syntax_attr(*a)) {
+			valuearray_normalize_value(vals);
+		}
 		rc= attr_add_valuearray(*a,vals,slapi_entry_get_dn_const(e));
     }
     return( rc );

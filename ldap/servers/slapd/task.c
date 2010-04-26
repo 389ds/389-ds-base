@@ -60,13 +60,13 @@ static int shutting_down = 0;
 /***********************************
  * Private Defines
  ***********************************/
-#define TASK_BASE_DN      "cn=tasks, cn=config"
-#define TASK_IMPORT_DN    "cn=import, cn=tasks, cn=config"
-#define TASK_EXPORT_DN    "cn=export, cn=tasks, cn=config"
-#define TASK_BACKUP_DN    "cn=backup, cn=tasks, cn=config"
-#define TASK_RESTORE_DN   "cn=restore, cn=tasks, cn=config"
-#define TASK_INDEX_DN     "cn=index, cn=tasks, cn=config"
-#define TASK_UPGRADEDB_DN "cn=upgradedb, cn=tasks, cn=config"
+#define TASK_BASE_DN      "cn=tasks,cn=config"
+#define TASK_IMPORT_DN    "cn=import,cn=tasks,cn=config"
+#define TASK_EXPORT_DN    "cn=export,cn=tasks,cn=config"
+#define TASK_BACKUP_DN    "cn=backup,cn=tasks,cn=config"
+#define TASK_RESTORE_DN   "cn=restore,cn=tasks,cn=config"
+#define TASK_INDEX_DN     "cn=index,cn=tasks,cn=config"
+#define TASK_UPGRADEDB_DN "cn=upgradedb,cn=tasks,cn=config"
 
 #define TASK_LOG_NAME           "nsTaskLog"
 #define TASK_STATUS_NAME        "nsTaskStatus"
@@ -403,9 +403,12 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
     int ret = -1;
     int x;
 
-    dn = slapi_ch_smprintf("cn=%s, %s", name, TASK_BASE_DN);
-    if (dn == NULL) {
-        goto out;
+    dn = slapi_create_dn_string("cn=%s,%s", name, TASK_BASE_DN);
+    if (NULL == dn) {
+        LDAPDebug1Arg( LDAP_DEBUG_ANY,
+                       "slapi_task_register_handler: "
+                       "failed to create task dn for %s\n", name);
+        return ret;
     }
 
     pb = slapi_pblock_new();
@@ -458,9 +461,7 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
     ret = 0;
 
 out:
-    if (dn) {
-        slapi_ch_free((void **)&dn);
-    }
+    slapi_ch_free_string(&dn);
     if (pb) {
         slapi_pblock_destroy(pb);
     }
@@ -487,18 +488,27 @@ void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func)
  ***********************************/
 /* create a new task, fill in DN, and setup modify callback */
 static Slapi_Task *
-new_task(const char *dn)
+new_task(const char *rawdn)
 {
-    Slapi_Task *task = (Slapi_Task *)slapi_ch_calloc(1, sizeof(Slapi_Task));
+    Slapi_Task *task = NULL;
+    char *dn = NULL;
 
-    if (task == NULL)
+    if (rawdn == NULL) {
         return NULL;
+    }
+
+    dn = slapi_create_dn_string("%s", rawdn);
+    if (NULL == dn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "new_task failed: invalid task dn: %s\n", rawdn);
+        return NULL;
+    }
+    task = (Slapi_Task *)slapi_ch_calloc(1, sizeof(Slapi_Task));
     PR_Lock(global_task_lock);
     task->next = global_task_list;
     global_task_list = task;
     PR_Unlock(global_task_lock);
-
-    task->task_dn = slapi_ch_strdup(dn);
+    task->task_dn = dn;
     task->task_state = SLAPI_TASK_SETUP;
     task->task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     task->destructor = NULL;
@@ -511,8 +521,8 @@ new_task(const char *dn)
     /* don't add entries under this one */
 #if 0
     /* don't know why, but this doesn't work.  it makes the current add
- *      * operation fail. :(
- *           */
+     * operation fail. :(
+     */
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_SUBTREE, "(objectclass=*)", task_deny, NULL);
 #endif

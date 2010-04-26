@@ -569,9 +569,9 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc,
 struct slapi_dn
 {
     unsigned char flag;
-    const char *dn; /* DN */
+    const char *dn; /* DN [normalized] */
     const char *ndn; /* Case Normalised DN */
-    int ndn_len; /* normalize dn len */
+    int ndn_len; /* normalized dn length */
 };
 
 /* 

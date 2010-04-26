@@ -680,7 +680,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     entry = (struct configEntry *)
-	slapi_ch_calloc(1, sizeof(struct configEntry));
+    slapi_ch_calloc(1, sizeof(struct configEntry));
     if (NULL == entry) {
         ret = DNA_FAILURE;
         goto bail;
@@ -787,7 +787,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     if (value) {
         /* TODO - Allow multiple scope settings for a single range.  This may
          * make ordering the scopes tough when we put them in the clist. */
-        entry->scope = slapi_dn_normalize(value);
+        entry->scope = value;
     } else {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_parse_config_entry: The %s config "
@@ -817,6 +817,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     if (value) {
         Slapi_Entry *shared_e = NULL;
         Slapi_DN *sdn = NULL;
+        char *normdn = NULL;
 
         sdn = slapi_sdn_new_dn_byref(value);
 
@@ -840,15 +841,29 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
             shared_e = NULL;
         }
 
-        entry->shared_cfg_base = slapi_ch_strdup(value);
-        slapi_dn_normalize(entry->shared_cfg_base);
+        normdn = slapi_create_dn_string("%s", value);
+        if (NULL == normdn) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry: failed to normalize dn: "
+                            "%s\n", value);
+            ret = DNA_FAILURE;
+            goto bail;
+        }
+        entry->shared_cfg_base = normdn;
 
         /* We prepend the host & port of this instance as a
          * multi-part RDN for the shared config entry. */
-        entry->shared_cfg_dn = slapi_ch_smprintf("%s=%s+%s=%s,%s", DNA_HOSTNAME,
-                                          hostname, DNA_PORTNUM, portnum, value);
-        slapi_ch_free_string(&value);
-        slapi_dn_normalize(entry->shared_cfg_dn);
+        normdn = slapi_create_dn_string("%s=%s+%s=%s,%s", DNA_HOSTNAME,
+                                        hostname, DNA_PORTNUM, portnum, normdn);
+        if (NULL == normdn) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry: failed to create dn: "
+                            "%s=%s+%s=%s,%s", DNA_HOSTNAME,
+                            hostname, DNA_PORTNUM, portnum, value);
+            ret = DNA_FAILURE;
+            goto bail;
+        }
+        entry->shared_cfg_dn = normdn;
 
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                         "----------> %s [%s]\n", DNA_SHARED_CFG_DN,
@@ -860,7 +875,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         entry->threshold = strtoull(value, 0, 0);
 
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%" NSPRIu64 "]\n", DNA_THRESHOLD, value);
+                        "----------> %s [%s]\n", DNA_THRESHOLD, value);
 
         slapi_ch_free_string(&value);
     } else {
@@ -1680,8 +1695,6 @@ static char *dna_get_dn(Slapi_PBlock * pb)
         goto bail;
     }
 
-/*        slapi_dn_normalize( dn );
-*/
   bail:
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_get_dn\n");
@@ -2310,7 +2323,14 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
      * the shared config.  We need to see what the configured
      * replica bind DN is. */
     if (be_suffix) {
-        replica_dn = slapi_ch_smprintf("cn=replica,cn=\"%s\",cn=mapping tree,cn=config", be_suffix);
+        /* This function converts the old DN style to the new one. */
+        replica_dn = slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config", be_suffix);
+        if (NULL == replica_dn) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_is_replica_bind_dn: failed to create "
+                            "replica dn for %s\n", be_suffix);
+            return 1;
+        }
         replica_sdn = slapi_sdn_new_dn_passin(replica_dn);
 
         attrs[0] = DNA_REPL_BIND_DN;
@@ -2370,8 +2390,15 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
 
     /* Fetch the replication agreement entry */
     if (be_suffix) {
-        replica_dn = slapi_ch_smprintf("cn=replica,cn=\"%s\",cn=mapping tree,cn=config",
-                                       be_suffix);
+        /* This function converts the old DN style to the new one. */
+        replica_dn = slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config", be_suffix);
+        if (NULL == replica_dn) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_replica_bind_creds: failed to create "
+                            "replica dn for %s\n", be_suffix);
+            ret = LDAP_PARAM_ERROR;
+            goto bail;
+        }
 
         filter = slapi_ch_smprintf("(&(nsds5ReplicaHost=%s)(|(" DNA_REPL_PORT "=%u)"
                                    "(" DNA_REPL_PORT "=%u)))",
@@ -2654,7 +2681,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                     generate = 1;
                 }
 
-		slapi_ch_free_string(&value);
+                slapi_ch_free_string(&value);
             } else {
                 /* check mods for magic value */
                 Slapi_Mod *next_mod = slapi_mod_new();

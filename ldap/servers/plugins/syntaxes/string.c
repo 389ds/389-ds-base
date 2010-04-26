@@ -63,6 +63,7 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 {
 	int	i, rc;
 	struct berval bvfilter_norm;
+	char *alt = NULL;
 
 	if(retVal) {
 		*retVal = NULL;
@@ -74,7 +75,12 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 	bvfilter_norm.bv_val = slapi_ch_malloc( bvfilter->bv_len + 1 );
 	SAFEMEMCPY( bvfilter_norm.bv_val, bvfilter->bv_val, bvfilter->bv_len );
 	bvfilter_norm.bv_val[bvfilter->bv_len] = '\0';
-	value_normalize( bvfilter_norm.bv_val, syntax, 1 /* trim leading blanks */ );
+	/* 3rd arg: 1 - trim leading blanks */
+	value_normalize_ext( bvfilter_norm.bv_val, syntax, 1, &alt );
+	if (alt) {
+		slapi_ch_free_string(&bvfilter_norm.bv_val);
+		bvfilter_norm.bv_val = alt;
+	}
 	bvfilter_norm.bv_len = strlen(bvfilter_norm.bv_val);
 
 	for ( i = 0; (bvals != NULL) && (bvals[i] != NULL); i++ ) {
@@ -211,6 +217,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	Operation	*op = NULL;
 	Slapi_Regex	*re = NULL;
 	const char  *re_result = NULL;
+	char *alt = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
 	    0, 0, 0 );
@@ -260,27 +267,45 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	}
 
 	if ( initial != NULL ) {
-		value_normalize( initial, syntax, 1 /* trim leading blanks */ );
+		/* 3rd arg: 1 - trim leading blanks */
+		value_normalize_ext( initial, syntax, 1, &alt );
 		*p++ = '^';
-		filter_strcpy_special_ext( p, initial, FILTER_STRCPY_ESCAPE_RECHARS );
+		if (alt) {
+			filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
+			slapi_ch_free_string(&alt);
+		} else {
+			filter_strcpy_special_ext( p, initial, FILTER_STRCPY_ESCAPE_RECHARS );
+		}
 		p = strchr( p, '\0' );
 	}
 	if ( any != NULL ) {
 		for ( i = 0; any[i] != NULL; i++ ) {
-			value_normalize( any[i], syntax, 0 /* DO NOT trim leading blanks */ );
+			/* 3rd arg: 0 - DO NOT trim leading blanks */
+			value_normalize_ext( any[i], syntax, 0, &alt );
 			/* ".*" + value */
 			*p++ = '.';
 			*p++ = '*';
-			filter_strcpy_special_ext( p, any[i], FILTER_STRCPY_ESCAPE_RECHARS );
+			if (alt) {
+				filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
+				slapi_ch_free_string(&alt);
+			} else {
+				filter_strcpy_special_ext( p, any[i], FILTER_STRCPY_ESCAPE_RECHARS );
+			}
 			p = strchr( p, '\0' );
 		}
 	}
 	if ( final != NULL ) {
-		value_normalize( final, syntax, 0 /* DO NOT trim leading blanks */ );
+		/* 3rd arg: 0 - DO NOT trim leading blanks */
+		value_normalize_ext( final, syntax, 0, &alt );
 		/* ".*" + value */
 		*p++ = '.';
 		*p++ = '*';
-		filter_strcpy_special_ext( p, final, FILTER_STRCPY_ESCAPE_RECHARS );
+		if (alt) {
+			filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
+			slapi_ch_free_string(&alt);
+		} else {
+			filter_strcpy_special_ext( p, final, FILTER_STRCPY_ESCAPE_RECHARS );
+		}
 		strcat( p, "$" );
 	}
 
@@ -327,9 +352,15 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 			strcpy( tmpbuf, bvp->bv_val );
 			realval = tmpbuf;
 		}
-		value_normalize( realval, syntax, 1 /* trim leading blanks */ );
+		/* 3rd arg: 1 - trim leading blanks */
+		value_normalize_ext( realval, syntax, 1, &alt );
 
-		tmprc = slapi_re_exec( re, realval, time_up );
+		if (alt) {
+			tmprc = slapi_re_exec( re, alt, time_up );
+			slapi_ch_free_string(&alt);
+		} else {
+			tmprc = slapi_re_exec( re, realval, time_up );
+		}
 
 		LDAPDebug( LDAP_DEBUG_TRACE, "re_exec (%s) %i\n",
 				   escape_string( realval, ebuf ), tmprc, 0 );
@@ -359,6 +390,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 	Slapi_Value	**nbvals, **nbvlp;
 	Slapi_Value **bvlp;
 	char		*w, *c, *p;
+	char *alt = NULL;
 
 	if (NULL == ivals) {
 		return 1;
@@ -380,9 +412,16 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 		{
 			c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
 			/* if the NORMALIZED flag is set, skip normalizing */
-			if (!(slapi_value_get_flags(*bvlp) & SLAPI_ATTR_FLAG_NORMALIZED))
-				value_normalize( c, syntax, 1 /* trim leading blanks */ );
-		    *nbvlp = slapi_value_new_string_passin(c);
+			if (!(slapi_value_get_flags(*bvlp) & SLAPI_ATTR_FLAG_NORMALIZED)) {
+				/* 3rd arg: 1 - trim leading blanks */
+				value_normalize_ext( c, syntax, 1, &alt );
+			}
+			if (alt) {
+				slapi_ch_free_string(&c);
+		    	*nbvlp = slapi_value_new_string_passin(alt);
+			} else {
+		    	*nbvlp = slapi_value_new_string_passin(c);
+			}
 		}
 		*ivals = nbvals;
 		break;
@@ -470,14 +509,16 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
 			/*
 			 * Note: this calculation may err on the high side,
-			 * because value_normalize(), which is called below
+			 * because value_normalize_ext(), which is called below
 			 * before we actually create the substring keys, may
-			 * reduce the length of the value in some cases. For
-			 * example, spaces are removed when space insensitive
-			 * strings are normalized. But it's okay for nsubs to
-			 * be too big. Since the ivals array is NULL terminated,
-			 * the only downside is that we allocate more space than
-			 * we really need.
+			 * reduce the length of the value in some cases or 
+			 * increase the length in other cases. For example,
+			 * spaces are removed when space insensitive strings 
+			 * are normalized. Or if the value includes '\"' (2 bytes),
+			 * it's normalized to '\22' (3 bytes). But it's okay 
+			 * for nsubs to be too big. Since the ivals array is 
+			 * NULL terminated, the only downside is that we 
+			 * allocate more space than we really need.
 			 */
 			nsubs += slapi_value_get_length(*bvlp) - substrlens[INDEX_SUBSTRMIDDLE] + 3;
 		}
@@ -489,8 +530,14 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 		bvdup= slapi_value_new(); 
 		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
 			c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
-			value_normalize( c, syntax, 1 /* trim leading blanks */ );
-			slapi_value_set_string_passin(bvdup, c);
+			/* 3rd arg: 1 - trim leading blanks */
+			value_normalize_ext( c, syntax, 1, &alt );
+			if (alt) {
+				slapi_ch_free_string(&c);
+				slapi_value_set_string_passin(bvdup, alt);
+			} else {
+				slapi_value_set_string_passin(bvdup, c);
+			}
 
 			bvp = slapi_value_get_berval(bvdup);
 
@@ -554,6 +601,7 @@ string_assertion2keys_ava(
     size_t len;
 	char		*w, *c;
     Slapi_Value *tmpval=NULL;
+    char *alt = NULL;
 
     switch ( ftype ) {
     case LDAP_FILTER_EQUALITY_FAST: 
@@ -565,13 +613,23 @@ string_assertion2keys_ava(
         }
         memcpy(tmpval->bv.bv_val,slapi_value_get_string(val),len);
         tmpval->bv.bv_val[len]='\0';
-        value_normalize(tmpval->bv.bv_val, syntax, 1 /* trim leading blanks */ );
+        /* 3rd arg: 1 - trim leading blanks */
+        value_normalize_ext(tmpval->bv.bv_val, syntax, 1, &alt );
+        if (alt) {
+            slapi_ch_free_string(&tmpval->bv.bv_val);
+            tmpval->bv.bv_val = alt;
+        }
         tmpval->bv.bv_len=strlen(tmpval->bv.bv_val);
         break;
 	case LDAP_FILTER_EQUALITY:
 		(*ivals) = (Slapi_Value **) slapi_ch_malloc( 2 * sizeof(Slapi_Value *) );
 		(*ivals)[0] = slapi_value_dup( val );
-		value_normalize( (*ivals)[0]->bv.bv_val, syntax, 1 /* trim leading blanks */ );
+		/* 3rd arg: 1 - trim leading blanks */
+		value_normalize_ext( (*ivals)[0]->bv.bv_val, syntax, 1, &alt );
+		if (alt) {
+			slapi_ch_free_string(&(*ivals)[0]->bv.bv_val);
+			(*ivals)[0]->bv.bv_val = alt;
+		}
 		(*ivals)[0]->bv.bv_len = strlen( (*ivals)[0]->bv.bv_val );
 		(*ivals)[1] = NULL;
 		break;
@@ -628,6 +686,10 @@ string_assertion2keys_sub(
 	int localsublens[3] = {SUBBEGIN, SUBMIDDLE, SUBEND};/* default values */
 	int maxsublen;
 	char	*comp_buf = NULL;
+	char *altinit = NULL;
+	char **altany = NULL;
+	char *altfinal = NULL;
+	int anysize = 0;
 
 	slapi_pblock_get(pb, SLAPI_SYNTAX_SUBSTRLENS, &substrlens);
 
@@ -650,13 +712,17 @@ string_assertion2keys_sub(
 	 * First figure out how many keys we will return. The answer is based
 	 * on the length of each assertion value. Since normalization may
 	 * reduce the length (such as when spaces are removed from space
-	 * insensitive strings), we call value_normalize() before checking
+	 * insensitive strings), we call value_normalize_ext() before checking
 	 * the length.
 	 */
 	nsubs = 0;
 	if ( initial != NULL ) {
-		value_normalize( initial, syntax, 0 /* do not trim leading blanks */ );
-		initiallen = strlen( initial );
+		/* 3rd arg: 0 - DO NOT trim leading blanks */
+		value_normalize_ext( initial, syntax, 0, &altinit );
+		if (NULL == altinit) {
+			altinit = initial;
+		}
+		initiallen = strlen( altinit );
 		if ( initiallen > substrlens[INDEX_SUBSTRBEGIN] - 2 ) {
 			nsubs += 1; /* for the initial begin string key */
 			/* the rest of the sub keys are "any" keys for this case */
@@ -664,19 +730,31 @@ string_assertion2keys_sub(
 				nsubs += initiallen - substrlens[INDEX_SUBSTRMIDDLE] + 1;
 			}
 		} else {
-			initial = NULL;	/* save some work later */
+			altinit = NULL;	/* save some work later */
 		}
 	}
 	for ( i = 0; any != NULL && any[i] != NULL; i++ ) {
-		value_normalize( any[i], syntax, 0 /* do not trim leading blanks */ );
-		len = strlen( any[i] );
+		anysize++;
+	}
+	altany = (char **)slapi_ch_calloc(anysize + 1, sizeof(char *));
+	for ( i = 0; any != NULL && any[i] != NULL; i++ ) {
+		/* 3rd arg: 0 - DO NOT trim leading blanks */
+		value_normalize_ext( any[i], syntax, 0, &altany[i] );
+		if (NULL == altany[i]) {
+			altany[i] = any[i];
+		}
+		len = strlen( altany[i] );
 		if ( len >= substrlens[INDEX_SUBSTRMIDDLE] ) {
 			nsubs += len - substrlens[INDEX_SUBSTRMIDDLE] + 1;
 		}
 	}
 	if ( final != NULL ) {
-		value_normalize( final, syntax, 0 /* do not trim leading blanks */ );
-		finallen = strlen( final );
+		/* 3rd arg: 0 - DO NOT trim leading blanks */
+		value_normalize_ext( final, syntax, 0, &altfinal );
+		if (NULL == altfinal) {
+			altfinal = final;
+		}
+		finallen = strlen( altfinal );
 		if ( finallen > substrlens[INDEX_SUBSTREND] - 2 ) {
 			nsubs += 1; /* for the final end string key */
 			/* the rest of the sub keys are "any" keys for this case */
@@ -684,7 +762,7 @@ string_assertion2keys_sub(
 				nsubs += finallen - substrlens[INDEX_SUBSTRMIDDLE] + 1;
 			}
 		} else {
-			final = NULL; /* save some work later */
+			altfinal = NULL; /* save some work later */
 		}
 	}
 	if ( nsubs == 0 ) {	/* no keys to return */
@@ -703,21 +781,31 @@ string_assertion2keys_sub(
 
 	nsubs = 0;
 	comp_buf = (char *)slapi_ch_malloc(maxsublen + 1);
-	if ( initial != NULL ) {
-		substring_comp_keys( ivals, &nsubs, initial, initiallen, '^', syntax,
+	if ( altinit != NULL ) {
+		substring_comp_keys( ivals, &nsubs, altinit, initiallen, '^', syntax,
 							 comp_buf, substrlens );
+		if (altinit != initial) {
+			slapi_ch_free_string(&altinit);
+		}
 	}
-	for ( i = 0; any != NULL && any[i] != NULL; i++ ) {
-		len = strlen( any[i] );
+	for ( i = 0; altany != NULL && altany[i] != NULL; i++ ) {
+		len = strlen( altany[i] );
 		if ( len < substrlens[INDEX_SUBSTRMIDDLE] ) {
 			continue;
 		}
-		substring_comp_keys( ivals, &nsubs, any[i], len, 0, syntax,
+		substring_comp_keys( ivals, &nsubs, altany[i], len, 0, syntax,
 							 comp_buf, substrlens );
+		if (altany[i] != any[i]) {
+			slapi_ch_free_string(&altany[i]);
+		}
 	}
-	if ( final != NULL ) {
-		substring_comp_keys( ivals, &nsubs, final, finallen, '$', syntax,
+	slapi_ch_free((void **)&altany);
+	if ( altfinal != NULL ) {
+		substring_comp_keys( ivals, &nsubs, altfinal, finallen, '$', syntax,
 							 comp_buf, substrlens );
+		if (altfinal != final) {
+			slapi_ch_free_string(&final);
+		}
 	}
 	(*ivals)[nsubs] = NULL;
 	slapi_ch_free_string(&comp_buf);

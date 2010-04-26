@@ -153,10 +153,10 @@ cb_dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
 static char *cb_skeleton_entries[] =
 {
 
-    "dn:cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config\n"
-    "objectclass:top\n"
-    "objectclass:extensibleObject\n"
-    "cn:monitor\n",
+    "dn: cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config\n"
+    "objectclass: top\n"
+    "objectclass: extensibleObject\n"
+    "cn: monitor\n",
 
         ""
 };

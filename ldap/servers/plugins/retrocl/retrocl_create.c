@@ -77,6 +77,7 @@ static int retrocl_create_be(const char *bedir)
     vals[1] = NULL; 
 
     e = slapi_entry_alloc();
+    /* RETROCL_LDBM_DN is no need to be normalized. */
     slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_LDBM_DN));
 
     /* Set the objectclass attribute */
@@ -142,6 +143,7 @@ static int retrocl_create_be(const char *bedir)
 
     /* we need the changenumber indexed */
     e = slapi_entry_alloc();
+    /* RETROCL_INDEX_DN is no need to be normalized. */
     slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_INDEX_DN));
 
     /* Set the objectclass attribute */
@@ -219,6 +221,7 @@ int retrocl_create_config(void)
      * in the errors file when the referenced backend does not exist.
      */
     e = slapi_entry_alloc();
+    /* RETROCL_MAPPINGTREE_DN is no need to be normalized. */
     slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_MAPPINGTREE_DN));
     
     /* Set the objectclass attribute */

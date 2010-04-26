@@ -47,18 +47,32 @@
 void
 be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, int logchanges, int sizelimit, int timelimit )
 {
-    char text[128];
     slapdFrontendConfig_t *fecfg;
     be->be_suffix = NULL;
     be->be_suffixlock= PR_NewLock();
     be->be_suffixcount= 0;
     /* e.g. dn: cn=config,cn=NetscapeRoot,cn=ldbm database,cn=plugins,cn=config */
-    PR_snprintf(text, sizeof(text),"cn=%s,cn=%s,cn=plugins,cn=config", name, type);
-    be->be_basedn= slapi_ch_strdup(slapi_dn_normalize(text));
-    PR_snprintf(text, sizeof(text), "cn=config,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
-    be->be_configdn= slapi_ch_strdup(slapi_dn_normalize(text));
-    PR_snprintf(text, sizeof(text), "cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config", name, type);
-    be->be_monitordn= slapi_ch_strdup(slapi_dn_normalize(text));
+    be->be_basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
+                                           name, type);
+    if (NULL == be->be_basedn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "be_init: failed create instance dn for plugin %s, "
+                       "instance %s\n", type, name);
+    }
+    be->be_configdn = slapi_create_dn_string("cn=config,cn=%s,cn=%s,cn=plugins,cn=config",
+                                             name, type);
+    if (NULL == be->be_configdn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "be_init: failed create instance config dn for "
+                       "plugin %s, instance %s\n", type, name);
+    }
+    be->be_monitordn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
+                                             name, type);
+    if (NULL == be->be_configdn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "be_init: failed create instance monitor dn for "
+                       "plugin %s, instance %s\n", type, name);
+    }
     be->be_sizelimit = sizelimit;
     be->be_timelimit = timelimit;
     /* maximum group nesting level before giving up */

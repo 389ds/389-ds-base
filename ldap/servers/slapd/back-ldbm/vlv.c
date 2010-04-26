@@ -339,7 +339,7 @@ vlv_init(ldbm_instance *inst)
     /* The FE DSE *must* be initialised before we get here */
     int return_value= LDAP_SUCCESS;
     int scope= LDAP_SCOPE_SUBTREE;
-    char *basedn, buf[512];
+    char *basedn = NULL;
     const char *searchfilter = "(objectclass=vlvsearch)";
     const char *indexfilter = "(objectclass=vlvindex)";
     backend *be= inst->inst_be;
@@ -368,9 +368,15 @@ vlv_init(ldbm_instance *inst)
     if (inst == NULL) {
         basedn = NULL;
     } else {
-        PR_snprintf(buf, sizeof(buf), "cn=%s,cn=%s,cn=plugins,cn=config",
-                inst->inst_name, inst->inst_li->li_plugin->plg_name);
-        basedn = buf;
+        basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
+                           inst->inst_name, inst->inst_li->li_plugin->plg_name);
+        if (NULL == basedn) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+               "vlv_init: failed to create vlv dn for plugin %s, instance %s\n",
+               inst->inst_name, inst->inst_li->li_plugin->plg_name);
+            return_value = LDAP_PARAM_ERROR;
+            return return_value;
+        }
     }
 
     /* Find the VLV Search Entries */
@@ -405,6 +411,7 @@ vlv_init(ldbm_instance *inst)
         slapi_config_register_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_DeleteIndexEntry,(void*)inst);
         slapi_config_register_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifyRDNSearchEntry,(void*)inst);
         slapi_config_register_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyRDNIndexEntry,(void*)inst);
+		slapi_ch_free_string(&basedn);
     }
 
     return return_value;
@@ -417,16 +424,22 @@ vlv_remove_callbacks(ldbm_instance *inst) {
 
     int return_value= LDAP_SUCCESS;
     int scope= LDAP_SCOPE_SUBTREE;
-    char *basedn, buf[512];
+    char *basedn = NULL;
     const char *searchfilter = "(objectclass=vlvsearch)";
     const char *indexfilter = "(objectclass=vlvindex)";
 
     if (inst == NULL) {
         basedn = NULL;
     } else {
-        PR_snprintf(buf, sizeof(buf), "cn=%s,cn=%s,cn=plugins,cn=config",
-                inst->inst_name, inst->inst_li->li_plugin->plg_name);
-        basedn = buf;
+        basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
+                           inst->inst_name, inst->inst_li->li_plugin->plg_name);
+        if (NULL == basedn) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                 "vlv_remove_callbacks: failed to create vlv dn for plugin %s, "
+                 "instance %s\n",
+                 inst->inst_name, inst->inst_li->li_plugin->plg_name);
+            return_value = LDAP_PARAM_ERROR;
+        }
     }
     if(basedn!=NULL)
     {
@@ -439,8 +452,9 @@ vlv_remove_callbacks(ldbm_instance *inst) {
         slapi_config_remove_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_DeleteIndexEntry);
         slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifyRDNSearchEntry);
         slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyRDNIndexEntry);
+        slapi_ch_free_string(&basedn);
     }
-	return return_value;
+    return return_value;
 }
 
 /* Find an enabled index which matches this description. */
@@ -1972,17 +1986,13 @@ char *create_vlv_search_tag(const char* dn) {
 /* Builds strings from Slapi_DN similar console GUI. Uses those dns to
    delete vlvsearch's if they match. New write lock.
  */
-
-#define LDBM_PLUGIN_ROOT ", cn=ldbm database, cn=plugins, cn=config"
-#define TAG "cn=by MCC "
-
 int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *inst)
 {
 	int rc=0;
 	Slapi_PBlock *tmppb;
 	Slapi_DN *newdn;
 	struct vlvSearch* p=NULL;
-	char *buf, *buf2, *tag1, *tag2; 
+	char *base1 = NULL, *base2 = NULL, *tag1 = NULL, *tag2 = NULL; 
 	const char *dn= slapi_sdn_get_dn(&e->e_sdn);
 	backend *be= inst->inst_be;
 
@@ -1995,8 +2005,18 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 		return LDAP_OPERATIONS_ERROR;
 	}
 	tag1=create_vlv_search_tag(dn);
-	buf=slapi_ch_smprintf("%s%s%s%s%s","cn=MCC ",tag1,", cn=",inst->inst_name,LDBM_PLUGIN_ROOT);
-	newdn=slapi_sdn_new_dn_byval(buf);
+	base1 = slapi_create_dn_string("cn=MCC %s,cn=%s,cn=%s,cn=plugins,cn=config",
+					tag1, inst->inst_name, inst->inst_li->li_plugin->plg_name);
+	if (NULL == base1) {
+		LDAPDebug(LDAP_DEBUG_ANY,
+				  "vlv_delete_search_entry: "
+				  "failed to craete vlv search entry dn (rdn: cn=MCC %s) for "
+				  "plugin %s, instance %s\n",
+				  tag1, inst->inst_li->li_plugin->plg_name, inst->inst_name); 
+		rc = LDAP_PARAM_ERROR;
+		goto bail;
+	}
+	newdn = slapi_sdn_new_dn_byval(base1);
 	/* vlvSearchList is modified; need Wlock */
 	PR_RWLock_Wlock(be->vlvSearchList_lock);
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
@@ -2004,37 +2024,49 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	{
 		LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
 		tag2=create_vlv_search_tag(dn);
-		buf2=slapi_ch_smprintf("%s%s,%s",TAG,tag2,buf);
+		base2 = slapi_create_dn_string("cn=by MCC %s,%s", tag2, base1);
+		if (NULL == base2) {
+			LDAPDebug(LDAP_DEBUG_ANY,
+					  "vlv_delete_search_entry: failed to create "
+					  "vlv search entry dn (rdn: cn=by MCC %s) for "
+					  "plugin %s, instance %s\n",
+					  tag2, inst->inst_li->li_plugin->plg_name, inst->inst_name); 
+			rc = LDAP_PARAM_ERROR;
+			slapi_ch_free((void **)&tag2);
+			PR_RWLock_Unlock(be->vlvSearchList_lock);
+			goto bail;
+		}
 		vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
 		/* This line release lock to prevent recursive deadlock caused by slapi_internal_delete calling vlvDeleteSearchEntry */
 		PR_RWLock_Unlock(be->vlvSearchList_lock); 
 		vlvSearch_delete(&p);	
 		tmppb = slapi_pblock_new();
-		slapi_delete_internal_set_pb(tmppb, buf2, NULL, NULL,
+		slapi_delete_internal_set_pb(tmppb, base2, NULL, NULL,
 								 (void *)plugin_get_default_component_id(), 0);
 		slapi_delete_internal_pb(tmppb);
 		slapi_pblock_get (tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc); 
 		if(rc != LDAP_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_ANY, "vlv_delete_search_entry:can't delete dse entry '%s'\n", buf2, 0, 0);			
+			LDAPDebug(LDAP_DEBUG_ANY, "vlv_delete_search_entry:can't delete dse entry '%s'\n", base2, 0, 0);			
 		}
 		pblock_done(tmppb);
 		pblock_init(tmppb);
-		slapi_delete_internal_set_pb(tmppb, buf, NULL, NULL,
+		slapi_delete_internal_set_pb(tmppb, base1, NULL, NULL,
 								 (void *)plugin_get_default_component_id(), 0);
 		slapi_delete_internal_pb(tmppb);
 		slapi_pblock_get (tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc); 
 		if(rc != LDAP_SUCCESS) {
-			  LDAPDebug(LDAP_DEBUG_ANY, "vlv_delete_search_entry:can't delete dse entry '%s'\n", buf, 0, 0);
+			  LDAPDebug(LDAP_DEBUG_ANY, "vlv_delete_search_entry:can't delete dse entry '%s'\n", base1, 0, 0);
 		}
 		slapi_pblock_destroy(tmppb);
 		slapi_ch_free((void **)&tag2);
-		slapi_ch_free((void **)&buf2);
+		slapi_ch_free((void **)&base2);
     } else {
 		PR_RWLock_Unlock(be->vlvSearchList_lock);
 	}
+bail:
 	instance_set_not_busy(inst);
 	slapi_ch_free((void **)&tag1);
-	slapi_ch_free((void **)&buf);
+	slapi_ch_free((void **)&base1);
 	slapi_sdn_free(&newdn);
 	return rc;
 }

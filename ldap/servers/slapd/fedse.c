@@ -76,6 +76,7 @@
 
 extern char ** getSupportedCiphers();
 
+/* Note: These DNs are no need to be normalized */
 static const char *internal_entries[] =
 {
     "dn:\n"

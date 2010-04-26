@@ -362,7 +362,6 @@ int distinguishedname_validate(
 {
 	int rc = 0; /* Assume value is valid */
 	char *val_copy = NULL;
-	int strict = 0;
 	const char *p = begin;
 	const char *last = NULL;
 
@@ -376,17 +375,6 @@ int distinguishedname_validate(
 	 * attributeType = descr / numericoid
 	 * attributeValue = string / hexstring
 	 */
-
-	/* Check if we should be performing strict validation. */
-	strict = config_get_dn_validate_strict();
-	if (!strict) {
-		/* Create a normalized copy of the value to use
-		 * for validation.  The original value will be
-		 * stored in the backend unmodified. */
-		val_copy = PL_strndup(begin, end - begin + 1);
-		p = val_copy;
-		end = slapi_dn_normalize_to_end(val_copy, NULL) - 1;
-	}
 
 	/* Validate one RDN at a time in a loop. */
 	while (p <= end) {

@@ -141,7 +141,7 @@ compute_entry_tombstone_dn(const char *entrydn, const char *uniqueid)
     PR_ASSERT(NULL != entrydn);
     PR_ASSERT(NULL != uniqueid);
 
-    tombstone_dn = slapi_ch_smprintf("%s=%s, %s",
+    tombstone_dn = slapi_ch_smprintf("%s=%s,%s",
         SLAPI_ATTR_UNIQUEID,
         uniqueid,
         entrydn);

@@ -68,6 +68,7 @@ do_search( Slapi_PBlock *pb )
 	BerElement	*ber;
 	int			i, err, attrsonly;
 	ber_int_t		scope, deref, sizelimit, timelimit;
+	char		*rawbase = NULL;
 	char		*base = NULL, *fstr = NULL;
 	struct slapi_filter	*filter = NULL;
 	char		**attrs = NULL;
@@ -80,6 +81,7 @@ do_search( Slapi_PBlock *pb )
 	int			rc = -1;
 	char		*original_base = 0;
 	char		*new_base = 0;
+	size_t		baselen = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_search\n", 0, 0, 0 );
 
@@ -114,11 +116,38 @@ do_search( Slapi_PBlock *pb )
 	 */
 
 	/* baseObject, scope, derefAliases, sizelimit, timelimit, attrsOnly */
-	if ( ber_scanf( ber, "{aiiiib", &base, &scope, &deref, &sizelimit, &timelimit, &attrsonly ) == LBER_ERROR ){
-		slapi_ch_free((void**)&base );
+	if ( ber_scanf( ber, "{aiiiib", &rawbase, &scope, &deref, &sizelimit, &timelimit, &attrsonly ) == LBER_ERROR ){
+		slapi_ch_free((void**)&rawbase );
 		log_search_access (pb, "???", -1, "???", "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL );
 		return;
+	}
+
+	/* Check if we should be performing strict validation. */
+	if (config_get_dn_validate_strict()) {
+		/* check that the dn is formatted correctly */
+		rc = slapi_dn_syntax_check(pb, rawbase, 1);
+		if (rc) { /* syntax check failed */
+			op_shared_log_error_access(pb, "SRCH", 
+							rawbase?rawbase:"", "strict: invalid dn");
+			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+							 NULL, "invalid dn", 0, NULL);
+			slapi_ch_free((void **) &rawbase);
+			return;
+		}
+	}
+	rc = slapi_dn_normalize_ext(rawbase, 0, &base, &baselen);
+	if (rc < 0) {
+		op_shared_log_error_access(pb, "SRCH", 
+							rawbase?rawbase:"", "invalid dn");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+							 NULL, "invalid dn", 0, NULL);
+		slapi_ch_free((void **) &rawbase);
+		return;
+	} else if (rc > 0) { /* if rc == 0, rawbase is passed in */
+		slapi_ch_free((void **) &rawbase);
+	} else { /* rc == 0; rawbase is passed in; not null terminated */
+		*(base + baselen) = '\0';
 	}
 
 	/*

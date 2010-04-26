@@ -480,6 +480,7 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	int			rc;
 	short		len;
 	const size_t 	LDAP_URL_prefix_len = strlen(LDAP_URL_prefix);
+	const size_t 	LDAPS_URL_prefix_len = strlen(LDAPS_URL_prefix);
 	lasInfo			lasinfo;
 	int			got_undefined = 0;
 
@@ -530,15 +531,15 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		** userdn = "ldap:///DN1 || ldap:///DN2" 
 		*/
 	
-
 		/* The DN is now "ldap:///DN" 
 		** remove the "ldap:///" part
 		*/
-		if (strncasecmp (user, LDAP_URL_prefix, 
-				LDAP_URL_prefix_len) == 0) {
+		if (strncasecmp (user, LDAP_URL_prefix, LDAP_URL_prefix_len) == 0) {
 			s_user = user;
 			user += LDAP_URL_prefix_len;
-
+		} else if (strncasecmp (user, LDAPS_URL_prefix, LDAPS_URL_prefix_len) == 0) {
+			s_user = user;
+			user += LDAPS_URL_prefix_len;
 		} else {
 			char ebuf[ BUFSIZ ];
 			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
@@ -677,8 +678,19 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				slapi_filter_free(f,1);
 			} else {
 				/* Must be a simple dn then */
-				if (slapi_utf8casecmp((ACLUCHP)lasinfo.clientDn, 
-						(ACLUCHP)slapi_dn_normalize(user)) == 0) {
+				char *normed = NULL;
+				size_t dnlen = 0;
+				rc = slapi_dn_normalize_ext(user, 0, &normed, &dnlen);
+				if (rc == 0) { /* user passed in; not terminated */
+					*(normed + dnlen) = '\0';
+				} else if (rc < 0) { /* normalization failed, user the original */
+					normed = user;
+				}
+				rc = slapi_utf8casecmp((ACLUCHP)lasinfo.clientDn, (ACLUCHP)normed);
+				if (normed != user) {
+					slapi_ch_free_string(&normed);
+				}
+				if (0 == rc) {
 					matched = ACL_TRUE;
 					break;
 				}
@@ -1274,8 +1286,14 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			while ( j != -1 ) {
 				attrVal = slapi_value_get_berval ( sval );
 				/* Here if atleast 1 value matches then we are done.*/
-				val = slapi_dn_normalize (
-					slapi_ch_strdup( attrVal->bv_val));
+				val = slapi_create_dn_string("%s", attrVal->bv_val);
+				if (NULL == val) {
+					slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+							"DS_LASUserDnAttrEval: Invalid syntax: %s\n",
+							attrVal->bv_val );
+					slapi_ch_free ( (void**) &s_attrName);
+					return LAS_EVAL_FAIL;
+				}
 
 				if (slapi_utf8casecmp((ACLUCHP)val, (ACLUCHP)lasinfo.clientDn ) == 0) {
 					char	ebuf [ BUFSIZ ];
@@ -1711,7 +1729,6 @@ DS_LASSSFEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	char            *ptr;
 	int             len;
 	int             rc;
-	char            *s = NULL;
 	lasInfo         lasinfo;
 	int		aclssf;
 
@@ -2381,7 +2398,13 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 			while ( i != -1 ) {
 				struct member_info	*groupMember = NULL;
 				attrVal = slapi_value_get_berval ( sval );
-				n_dn = slapi_dn_normalize ( slapi_ch_strdup( attrVal->bv_val ));
+				n_dn = slapi_create_dn_string( attrVal->bv_val );
+				if (NULL == n_dn) {
+					slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+						"acllas__handle_group_entry: Invalid syntax: %s\n",
+						attrVal->bv_val );
+					return 0;
+				}
 				n = ++info->lu_idx;
 				if (n < 0) {
 					slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
@@ -2434,7 +2457,14 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 				 */
 				if (strncasecmp( attrVal->bv_val, "ldap://",7) == 0 ||
 					strncasecmp( attrVal->bv_val, "ldaps://",8) == 0) {
-					savURL = memberURL = slapi_ch_strdup ( attrVal->bv_val);
+					savURL = memberURL = 
+							slapi_create_dn_string("%s", attrVal->bv_val);
+					if (NULL == savURL) {
+						slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+							"acllas__handle_group_entry: Invalid syntax: %s\n",
+							attrVal->bv_val );
+						return 0;
+					}
 					slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 						  "ACL Group Eval:MemberURL:%s\n", memberURL);
 					info->result = acllas__client_match_URL (
@@ -2657,8 +2687,13 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				attr_i= slapi_attr_first_value ( attr,&sval );
 				while ( attr_i != -1 ) {
 			        attrVal = slapi_value_get_berval ( sval );
-					n_groupdn = slapi_dn_normalize(
-								slapi_ch_strdup( attrVal->bv_val));
+					n_groupdn = slapi_create_dn_string("%s", attrVal->bv_val);
+					if (NULL == n_groupdn) {
+						slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+							"DS_LASGroupDnAttrEval: Invalid syntax: %s\n",
+							attrVal->bv_val );
+						return 0;
+					}
 					matched =  acllas__user_ismember_of_group (
 										lasinfo.aclpb, n_groupdn, lasinfo.clientDn,
 										ACLLAS_CACHE_MEMBER_GROUPS, 
@@ -2856,6 +2891,7 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 		char			*curMemberDn;
 		int			Done = 0;
 		int			ngr, tt;
+		char		*normed = NULL;
 
 		/* Add the scope to the list of scopes */
 		if (aclpb->aclpb_numof_bases >= (aclpb->aclpb_grpsearchbase_size-1)) {
@@ -2867,9 +2903,15 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 					    sizeof (char *));
 			aclpb->aclpb_grpsearchbase_size += ACLPB_INCR_BASES;
 		}
-		aclpb->aclpb_grpsearchbase[aclpb->aclpb_numof_bases++] = 
-				slapi_dn_normalize(slapi_ch_strdup(base));
-
+		normed = slapi_create_dn_string("%s", base);
+		if (NULL == normed) {
+			slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+						"acllas__eval_memberGroupDnAttr: Invalid syntax: %s\n",
+						base );
+			slapi_ch_free ( (void **)&s_str );
+			return ACL_FALSE;
+		}
+		aclpb->aclpb_grpsearchbase[aclpb->aclpb_numof_bases++] = normed;
 		/* Set up info to do a search */
 		attrs[0] = type_member;
 		attrs[1] = type_uniquemember;
@@ -2992,8 +3034,14 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	while ( k != -1 ) {
         char *n_attrval;
 		attrVal = slapi_value_get_berval ( sval );
-		n_attrval = slapi_ch_strdup( attrVal->bv_val);
-		n_attrval = slapi_dn_normalize (n_attrval);
+		n_attrval = slapi_create_dn_string("%s", attrVal->bv_val);
+		if (NULL == n_attrval) {
+			slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+						"acllas__eval_memberGroupDnAttr: Invalid syntax: %s\n",
+						attrVal->bv_val );
+			slapi_ch_free ( (void **)&s_str );
+			return ACL_FALSE;
+		}
 
 		/*  We support: The attribute value can be a USER or a GROUP.
 		** Let's compare with the client, thi might be just an user. If it is not
@@ -3148,7 +3196,13 @@ acllas__verify_client (Slapi_Entry* e, void *callback_data)
 	i = slapi_attr_first_value ( attr,&sval );
 	while ( i != -1 ) {
 		attrVal = slapi_value_get_berval ( sval );
-		val = slapi_dn_normalize(slapi_ch_strdup(attrVal->bv_val));
+		val = slapi_create_dn_string("%s", attrVal->bv_val);
+		if (NULL == val) {
+			slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+							"acllas__verify_client: Invalid syntax: %s\n",
+							attrVal->bv_val );
+			return 0;
+		}
 
 		if (slapi_utf8casecmp((ACLUCHP)val, (ACLUCHP)info->clientdn ) == 0) {
 			info->result = 1;
@@ -3236,7 +3290,12 @@ acllas__get_members (Slapi_Entry* e, void *callback_data)
 	i = slapi_attr_first_value ( attr,&sval );
 	while ( i != -1 ) {
 	    attrVal =slapi_value_get_berval ( sval );
-	    info->member[i] = slapi_dn_normalize ( slapi_ch_strdup(attrVal->bv_val));
+	    info->member[i] = slapi_create_dn_string ("%s", attrVal->bv_val);
+		if (NULL == info->member[i]) {
+			slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+							"acllas__get_members: Invalid syntax: %s\n",
+							attrVal->bv_val );
+		}
 	    i = slapi_attr_next_value ( attr, i, &sval );
 	}
 	return 0;	
@@ -3427,7 +3486,17 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	LDAPURLDesc	*ludp;
 	int		rc;
 	Slapi_Filter	*f = NULL;
-
+	char *rawdn = NULL;
+	char *dn = NULL;
+	size_t dnlen = 0;
+	char *p = NULL;
+	char *normed = NULL;
+	/* ldap(s)://host:port/suffix?attrs?scope?filter */
+	const size_t 	LDAP_URL_prefix_len = strlen(LDAP_URL_prefix_core);
+	const size_t 	LDAPS_URL_prefix_len = strlen(LDAPS_URL_prefix_core);
+	size_t 	prefix_len = 0;
+	char Q = '?';
+	char *hostport = NULL;
 
 	/* Get the client's entry if we don't have already */
 	if ( aclpb && ( NULL == aclpb->aclpb_client_entry )) {
@@ -3460,22 +3529,82 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	}
 
 	if ( NULL == aclpb->aclpb_client_entry ) {
-		slapi_log_error (  SLAPI_LOG_ACL, plugin_name, 
-			"DS_LASUserAttrEval: Unable to get client's entry\n");
+		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
+			"acllas__client_match_URL: Unable to get client's entry\n");
 		return ACL_FALSE;
 	}
 
-	if (( rc = ldap_url_parse( url, &ludp)) != 0 ) {
+	/* DN potion of URL must be normalized before calling ldap_url_parse.
+	 * lud_dn is pointing at the middle of lud_string.
+	 * lud_dn won't be freed in ldap_free_urldesc.
+	 */
+	/* remove the "ldap{s}:///" part */
+	if (strncasecmp (url, LDAP_URL_prefix, LDAP_URL_prefix_len) == 0) {
+		prefix_len = LDAP_URL_prefix_len;
+	} else if (strncasecmp (url, LDAPS_URL_prefix, LDAPS_URL_prefix_len) == 0) {
+		prefix_len = LDAPS_URL_prefix_len;
+	} else {
+		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
+			"acllas__client_match_URL: url %s does not include ldap prefix: %s\n", url);
 		return ACL_FALSE;
-
+	}
+	rawdn = url + prefix_len; /* ldap(s)://host:port/... or ldap(s):///... */
+	                          /* rawdn at  ^             or           ^    */
+	/* let rawdn point the suffix */
+	if ('/' == *(rawdn+1)) { /* ldap(s):/// */
+		rawdn += 2;
+		hostport = "/";
+	} else {
+		char *tmpp = rawdn;
+		rawdn = strchr(tmpp, '/');
+		size_t hostport_len = 0;
+		if (NULL == rawdn) {
+			slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
+				"acllas__client_match_URL: url %s does not include correct ldap prefix: %s\n", url);
+			return ACL_FALSE;
+		}
+		hostport_len = ++rawdn - tmpp; /* ldap(s)://host:port/... */
+		                               /*           <-------->    */
+		hostport = (char *)slapi_ch_malloc(hostport_len + 1);
+		memcpy(hostport, tmpp, hostport_len);
+		*(hostport+hostport_len) = '\0';
+	}
+	p = strchr(rawdn, Q);
+	if (p) { 
+		/* url has scope and/or filter: ldap(s):///suffix?attr?scope?filter */
+		*p = '\0';
+	}
+	rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
+	if (rc < 0) {
+		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+						"acllas__client_match_URL: Invalid syntax: %s\n", url);
+		return ACL_FALSE;
+	} else if (rc == 0) { /* url is passed in and not terminated with NULL*/
+		*(dn + dnlen) = '\0';
+	}
+	if (p) {
+		*p = Q;
+	}
+	normed = slapi_ch_smprintf("%s%s%s%s", 
+			 (prefix_len==LDAP_URL_prefix_len)?
+			  LDAP_URL_prefix_core:LDAPS_URL_prefix_core,
+			 hostport, dn, p?p:"");
+	if (rc > 0) {
+		/* dn was allocated in slapi_dn_normalize_ext */
+		slapi_ch_free_string(&dn);
+	}
+	if ('/' != *hostport) {
+		slapi_ch_free_string(&hostport);
+	}
+	rc = ldap_url_parse(normed, &ludp);
+	slapi_ch_free_string(&normed);
+	if (rc) {
+		return ACL_FALSE;
 	}
 	if ( ( NULL == ludp->lud_dn) || ( NULL == ludp->lud_filter) ) {
 		ldap_free_urldesc( ludp );
 		return ACL_FALSE;
 	}
-
-	/* Normalize in place the dn */
-	slapi_dn_normalize ( ludp->lud_dn ); 
 
 	/* Check the scope */
 	if ( ludp->lud_scope == LDAP_SCOPE_SUBTREE ) {
@@ -3778,8 +3907,13 @@ DS_LASRoleDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			Slapi_DN *roleDN;
 
 			attrVal = slapi_value_get_berval ( sval );
-			n_attrval = slapi_ch_strdup( attrVal->bv_val);
-			n_attrval = slapi_dn_normalize (n_attrval);
+			n_attrval = slapi_create_dn_string("%s", attrVal->bv_val);
+			if (NULL == n_attrval) {
+				slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+							"DS_LASRoleDnAttrEval: Invalid syntax: %s\n",
+							attrVal->bv_val );
+				return LAS_EVAL_FAIL;
+			}
 			roleDN = slapi_sdn_new_dn_byval(n_attrval);
 
 			/*  We support: The attribute value can be a USER or a GROUP.
@@ -3832,14 +3966,12 @@ DS_LASRoleDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
  * returns: ACL_TRUE for matched,
  * 			ACL_FALSE for matched.
  *			ACL_DONT_KNOW otherwise.
- *
- *
-*/
+ */
 
 int
 aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
-						acl_eval_types evalType ) {
-						
+						acl_eval_types evalType )
+{
 	int matched = 0;
 	aci_t *aci;
 	char *matched_val = NULL;
