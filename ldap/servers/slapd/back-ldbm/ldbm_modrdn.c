@@ -277,13 +277,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             /* find and lock the entry we are about to modify */
             done_with_pblock_entry(pb,SLAPI_MODRDN_TARGET_ENTRY); /* Could be through this multiple times */
             slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
-            ldap_result_code = slapi_dn_syntax_check(pb, old_addr->dn, 1);
-            if (ldap_result_code)
-            {
-                ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-                goto error_return;
-            }
             ldap_result_code= get_copy_of_entry(pb, old_addr, &txn, SLAPI_MODRDN_TARGET_ENTRY, !is_replicated_operation);
             if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
                ldap_result_code==LDAP_INVALID_DN_SYNTAX)

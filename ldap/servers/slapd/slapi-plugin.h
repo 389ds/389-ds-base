@@ -3025,26 +3025,72 @@ int slapi_rdn_partial_dup(Slapi_RDN *from, Slapi_RDN **to, int idx);
  * utility routines for dealing with DNs
  */
 /**
- * Normalizes a DN.
+ * Does nothing. (DEPRECATED)
  *
  * \param dn The DN to normalize.
  * \return The normalized DN.
- * \deprecated Use slapi_sdn_get_ndn() instead.
+ * \deprecated Use slapi_dn_normalized_ext.
  */
 char *slapi_dn_normalize( char *dn );
 
 /**
- * Normalizes a portion of a DN value.
+ * Does nothing. (DEPRECATED)
  *
  * \param dn The DN value to normalize.
  * \param end Pointer to the end of what will be normalized from the DN
  *        value in \c dn.  If this parameter is \c NULL, the DN value
  *        will be wholly normalized.
- * \return A pointer to the end of the DN that has been normalized.
- * \warning This function does not null-terminate the string.  Use this
- *          function only if you know what you are doing.
+ * \return The normalized DN.
+ * \deprecated Use slapi_dn_normalized_ext.
  */
 char *slapi_dn_normalize_to_end( char *dn, char *end );
+
+/**
+ * Normalizes a DN.
+ *
+ * \param src The DN to normalize.
+ * \param src_len The length of src DN to normalize. If 0 is given, strlen(src) is used.
+ * \param dest The normalized DN.
+ * \param dest The length of the normalized DN dest.
+ * \return \c 0 if successful. The dest DN is normalized in line. Caller must not free dest.
+ * \return \c 1 if successful. The dest DN is allocated.  Caller must free dest.
+ * \return \c -1 if an error occurs (for example, if the src DN cannot be normalized)
+ */
+int slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len);
+
+/**
+ * Normalizes a DN (in lower-case characters).
+ *
+ * \param src The DN to normalize.
+ * \param src_len The length of src DN to normalize. If 0 is given, strlen(src) is used internally.
+ * \param dest The normalized DN with the cases lowered.
+ * \param dest_len The length of the normalized DN dest.
+ * \return \c 0 if successful. The dest DN is normalized in line. Caller must not free dest.  The string is NOT NULL terminated.
+ * \return \c 1 if successful. The dest DN is allocated.  Caller must free dest.
+ * \return \c -1 if an error occurs (for example, if src DN cannot be normalized)
+ */
+int slapi_dn_normalize_case_ext(char *src, size_t src_len, char **dest, size_t *dest_len);
+
+/**
+ * Generate a valid DN string.
+ *
+ * \param fmt The format used to generate a DN string.
+ * \param ... The arguments to generate a DN string.
+ * \return A pointer to the generated DN.  The 
+ * \return NULL if failed.
+ * \note When a DN needs to be internally created, this function is supposed to be called.  This function allocates the enough memory for the normalized DN and returns it filled with the normalized DN.
+ */
+char *slapi_create_dn_string(const char *fmt, ...);
+
+/**
+ * Generates a valid DN string (in lower-case characters).
+ *
+ * \param fmt The format used to generate a DN string.
+ * \param ... The arguments to generate a DN string.
+ * \return A pointer to the generated DN.
+ * \return NULL if failed.
+ */
+char *slapi_create_dn_string_case(const char *fmt, ...);
 
 /**
  * Converts a DN to lowercase.
@@ -3330,6 +3376,15 @@ int slapi_attr_get_oid_copy( const Slapi_Attr *attr, char **oidp );
  * \see slapi_attr_get_oid_copy()
  */
 int slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp );
+
+/**
+ * Checks if the attribute uses a DN syntax or not.
+ *
+ * \param attr The attribute to be checked.
+ * \return \c non 0 if the attribute uses a DN syntax.
+ * \return \c 0 if the attribute does not use a DN syntax.
+ */
+int slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr);
 
 /**
  * Get the flags associated with a particular attribute.

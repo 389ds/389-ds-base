@@ -1528,6 +1528,12 @@ _replica_get_config_entry (const Slapi_DN *root)
 	Slapi_PBlock *pb = NULL;
 
 	dn = _replica_get_config_dn (root);
+	if (NULL == dn) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			"_replica_get_config_entry: failed to get the config dn for %s\n",
+			slapi_sdn_get_dn (root));
+		return NULL;
+	}
 	pb = slapi_pblock_new ();
 
 	slapi_search_internal_set_pb (pb, dn, LDAP_SCOPE_BASE, "objectclass=*", NULL, 0, NULL,
@@ -1839,8 +1845,9 @@ _replica_get_config_dn (const Slapi_DN *root)
 
     PR_ASSERT (root);
 
-    dn = slapi_ch_smprintf("%s,cn=\"%s\",%s", REPLICA_RDN, slapi_sdn_get_dn (root), mp_base);
-
+    /* This function converts the old style DN to the new style. */
+    dn = slapi_create_dn_string("%s,cn=\"%s\",%s", 
+                                REPLICA_RDN, slapi_sdn_get_dn (root), mp_base);
     return dn;
 }
 
@@ -2162,6 +2169,13 @@ _replica_update_state (time_t when, void *arg)
 	r->repl_csn_assigned = PR_FALSE;
 
 	dn = _replica_get_config_dn (r->repl_root);
+	if (NULL == dn) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			"_replica_update_state: failed to get the config dn for %s\n",
+			slapi_sdn_get_dn (r->repl_root));
+		PR_Unlock(r->repl_lock);
+		goto done;
+	}
 	pb = slapi_pblock_new();
 	mods[0] = (LDAPMod*)slapi_mod_get_ldapmod_byref(&smod);
 
@@ -3057,6 +3071,14 @@ replica_replace_ruv_tombstone(Replica *r)
     ruv_last_modified_to_smod ((RUV*)object_get_data(r->repl_ruv), &smod_last_modified);
 
     dn = _replica_get_config_dn (r->repl_root);
+	if (NULL == dn) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			"replica_replace_ruv_tombstone: "
+			"failed to get the config dn for %s\n",
+			slapi_sdn_get_dn (r->repl_root));
+		PR_Unlock(r->repl_lock);
+		goto bail;
+	}
     mods[0] = (LDAPMod*)slapi_mod_get_ldapmod_byref(&smod);
     mods[1] = (LDAPMod*)slapi_mod_get_ldapmod_byref(&smod_last_modified);
 
@@ -3090,6 +3112,7 @@ replica_replace_ruv_tombstone(Replica *r)
 
     slapi_ch_free ((void**)&dn);
     slapi_pblock_destroy (pb);
+bail:
     slapi_mod_done (&smod);
     slapi_mod_done (&smod_last_modified);
 }

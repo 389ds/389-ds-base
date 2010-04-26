@@ -115,20 +115,47 @@ do_add( Slapi_PBlock *pb )
 	 */
 	/* get the name */
 	{
-    	char *dn = NULL;
-    	if ( ber_scanf( ber, "{a", &dn ) == LBER_ERROR ) {
-            slapi_ch_free_string(&dn);
-    		LDAPDebug( LDAP_DEBUG_ANY,
-    		    "ber_scanf failed (op=Add; params=DN)\n", 0, 0, 0 );
+		char *rawdn = NULL;
+		char *dn = NULL;
+		size_t dnlen = 0;
+		if ( ber_scanf( ber, "{a", &rawdn ) == LBER_ERROR ) {
+			slapi_ch_free_string(&rawdn);
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"ber_scanf failed (op=Add; params=DN)\n", 0, 0, 0 );
 			op_shared_log_error_access (pb, "ADD", "???", "decoding error");
-    		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
-    		    "decoding error", 0, NULL );
-    		return;
-    	}
-    	e = slapi_entry_alloc();
-        slapi_entry_init(e,dn,NULL); /* Responsibility for DN is passed to the Entry. */
-    }
-	LDAPDebug( LDAP_DEBUG_ARGS, "    do_add: dn (%s)\n", slapi_entry_get_dn_const(e), 0, 0 );
+			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
+				"decoding error", 0, NULL );
+			return;
+		}
+		/* Check if we should be performing strict validation. */
+		if (config_get_dn_validate_strict()) {
+			/* check that the dn is formatted correctly */
+			rc = slapi_dn_syntax_check(pb, rawdn, 1);
+			if (rc) { /* syntax check failed */
+				op_shared_log_error_access(pb, "ADD", rawdn?rawdn:"",
+										   "strict: invalid dn");
+				send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+								 NULL, "invalid dn", 0, NULL);
+				slapi_ch_free_string(&rawdn);
+				return;
+			}
+		}
+		rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
+		if (rc < 0) {
+			op_shared_log_error_access(pb, "ADD", rawdn?rawdn:"", "invalid dn");
+			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+							 NULL, "invalid dn", 0, NULL);
+			slapi_ch_free_string(&rawdn);
+			return;
+		} else if (rc > 0) {
+			slapi_ch_free_string(&rawdn);
+		} else { /* rc == 0; rawdn is passed in; not null terminated */
+			*(dn + dnlen) = '\0';
+		}
+		e = slapi_entry_alloc();
+		slapi_entry_init(e,dn,NULL); /* Responsibility for DN is passed to the Entry. */
+	}
+	LDAPDebug( LDAP_DEBUG_ARGS, "	do_add: dn (%s)\n", slapi_entry_get_dn_const(e), 0, 0 );
 
 	/* get the attrs */
 	for ( tag = ber_first_element( ber, &len, &last );

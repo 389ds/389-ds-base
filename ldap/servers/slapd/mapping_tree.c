@@ -133,6 +133,7 @@ static int extension_type = -1;    /* type returned from the factory */
 
 /* Need to add a modifier flag to the state - such as round robin */
 
+/* Note: This DN is no need to be normalized. */
 #define MAPPING_TREE_BASE_DN "cn=mapping tree,cn=config"
 #define MAPPING_TREE_PARENT_ATTRIBUTE "nsslapd-parent-suffix"
 
@@ -365,24 +366,30 @@ static Slapi_DN *
 get_parent_from_entry(Slapi_Entry * entry)
 {
     Slapi_Attr *attr = NULL;
-    char * parent;
+    char *origparent = NULL;
+    char *parent = NULL;
     Slapi_Value *val = NULL;
-    Slapi_DN *parent_sdn;
+    Slapi_DN *parent_sdn = NULL;
 
     if (slapi_entry_attr_find(entry, MAPPING_TREE_PARENT_ATTRIBUTE, &attr))
         return NULL;
 
     slapi_attr_first_value(attr, &val);
 
-    parent = slapi_ch_strdup(slapi_value_get_string(val));
-    if(parent[0]=='\"')
-    {
-        parent[strlen(parent) - 1] = '\0';
-        parent_sdn = slapi_sdn_new_dn_byval(parent+1);
+    origparent = parent = slapi_ch_strdup(slapi_value_get_string(val));
+    if (parent) {
+        if(*parent == '"') {
+            char *ptr = NULL;
+            parent++; /* skipping the starting '"' */
+            ptr = PL_strnrchr(parent, '"', strlen(parent));
+            if (ptr) {
+                *ptr = '\0';
+            }
+        }
+        parent_sdn = 
+                slapi_sdn_new_dn_passin(slapi_create_dn_string("%s", parent));
+        slapi_ch_free_string(&origparent);
     }
-    else
-        parent_sdn = slapi_sdn_new_dn_byval(parent);
-    slapi_ch_free((void **) &parent);
     
     return parent_sdn;
 }
@@ -393,9 +400,10 @@ static Slapi_DN *
 get_subtree_from_entry(Slapi_Entry * entry)
 {
     Slapi_Attr *attr = NULL;
-    char * cn;
+    char *origcn = NULL;
+    char *cn = NULL;
     Slapi_Value *val = NULL;
-    Slapi_DN *subtree;
+    Slapi_DN *subtree = NULL;
 
     if (slapi_entry_attr_find(entry, "cn", &attr))
         return NULL;
@@ -415,15 +423,19 @@ get_subtree_from_entry(Slapi_Entry * entry)
     /* GB : I think removing the first and last " in the cn value
      * is the right stuff to do
      */
-    cn = slapi_ch_strdup(slapi_value_get_string(val));
-    if(cn[0]=='\"')
-    {
-        cn[strlen(cn) - 1] = '\0';
-        subtree = slapi_sdn_new_dn_byval(cn+1);
+    origcn = cn = slapi_ch_strdup(slapi_value_get_string(val));
+    if (cn) {
+        if(*cn == '"') {
+            char *ptr = NULL;
+            cn++; /* skipping the starting '"' */
+            ptr = PL_strnrchr(cn, '"', strlen(cn));
+            if (ptr) {
+                *ptr = '\0';
+            }
+        }
+        subtree = slapi_sdn_new_dn_passin(slapi_create_dn_string("%s", cn));
+        slapi_ch_free_string(&origcn);
     }
-    else
-        subtree = slapi_sdn_new_dn_byval(cn);
-    slapi_ch_free((void **) &cn);
     
     return subtree;
 }
@@ -2790,7 +2802,7 @@ get_mapping_tree_node_by_name(mapping_tree_node * node, char * be_name)
 char* 
 slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
 {
-    char *dn;
+    char *dn = NULL;
 
     if(mapping_tree_freed){
         /* shutdown detected */
@@ -2799,7 +2811,16 @@ slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
     if (root == NULL)
         return NULL;
 
-    dn = slapi_ch_smprintf("cn=\"%s\",%s", slapi_sdn_get_dn(root), MAPPING_TREE_BASE_DN);
+    /* This function converts the old DN style to the new one. */
+    dn = slapi_create_dn_string("cn=\"%s\",%s", 
+                                slapi_sdn_get_dn(root), MAPPING_TREE_BASE_DN);
+    if (NULL == dn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "slapi_get_mapping_tree_node_configdn: "
+                      "failed to crate mapping tree dn for %s\n", 
+                      slapi_sdn_get_dn(root));
+        return NULL;
+    }
 
     return dn;
 }
@@ -3114,7 +3135,7 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
     }
 
     slapi_mods_done(&smods);
-    slapi_ch_free((void **) &node_dn);
+    slapi_ch_free_string(&node_dn);
 
     return rc;
 } 
@@ -3135,13 +3156,13 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
     char * node_dn;
     char * value;
 
-    node_dn = slapi_get_mapping_tree_node_configdn(sdn);
-    if(!node_dn){
-     /* shutdown has been detected */
+    if (NULL == state) {
         return LDAP_OPERATIONS_ERROR;
     }
 
-    if (NULL == state) {
+    node_dn = slapi_get_mapping_tree_node_configdn(sdn);
+    if(!node_dn){
+     /* shutdown has been detected */
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -3150,9 +3171,7 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
         if ( strcasecmp(value, state) == 0 )
         {
             /* Same state, don't change anything */
-            slapi_ch_free((void **) &value);
-            slapi_ch_free((void **) &node_dn);
-            return rc;
+            goto bail;
         }
     }
     
@@ -3168,10 +3187,10 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
     slapi_pblock_get (&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
     slapi_mods_done(&smods);
-    slapi_ch_free((void **) &node_dn);
     pblock_done(&pb);
-    slapi_ch_free((void **) &value);
-
+bail:
+    slapi_ch_free_string(&value);
+    slapi_ch_free_string(&node_dn);
     return rc;
 }
 
@@ -3265,7 +3284,7 @@ slapi_mtn_get_referral(const Slapi_DN *sdn)
         slapi_attr_free(&attr);
     }
 
-    slapi_ch_free((void **) &node_dn);
+    slapi_ch_free_string(&node_dn);
     return referral;
 }
 
@@ -3301,7 +3320,7 @@ slapi_mtn_get_state(const Slapi_DN *sdn)
         slapi_attr_free(&attr);
     }
 
-    slapi_ch_free((void **) &node_dn);
+    slapi_ch_free_string(&node_dn);
     return state;
 }
 

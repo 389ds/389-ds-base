@@ -83,6 +83,7 @@ static void legacy_consumer_encode_pw (Slapi_Entry *e);
 static void set_legacy_purl (Slapi_PBlock *pb, const char *purl);
 static int get_legacy_referral (Slapi_Entry *e, char **referral, char **state);
 
+/* LEGACY_CONSUMER_CONFIG_DN is no need to be normalized. */
 #define LEGACY_CONSUMER_CONFIG_DN "cn=legacy consumer," REPL_CONFIG_TOP
 #define LEGACY_CONSUMER_FILTER "(objectclass=*)"
 

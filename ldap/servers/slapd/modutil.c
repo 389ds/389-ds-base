@@ -188,11 +188,37 @@ void
 slapi_mods_insert_at(Slapi_Mods *smods, LDAPMod *mod, int pos)
 {
 	int	i;
-    slapi_mods_add_one_element(smods);
-    for( i=smods->num_mods-1; i>=pos; i--)
+	Slapi_Attr a = {0};
+
+	if (NULL == mod) {
+		return;
+	}
+	slapi_mods_add_one_element(smods);
+	for( i=smods->num_mods-1; i>=pos; i--)
 	{
 	    smods->mods[i+1]= smods->mods[i];
 	}
+	slapi_attr_init(&a, mod->mod_type);
+	/* Check if the type of the to-be-added values has DN syntax or not. */
+	if (slapi_attr_is_dn_syntax_attr(&a)) {
+		int rc = 0;
+		struct berval **mbvp = NULL;
+		char *normed = NULL;
+		size_t len = 0;
+		for (mbvp = mod->mod_bvalues; mbvp && *mbvp; mbvp++) {
+			rc = slapi_dn_normalize_ext((*mbvp)->bv_val, (*mbvp)->bv_len,
+										&normed, &len);
+			if (rc > 0) {
+				slapi_ch_free((void **)&((*mbvp)->bv_val));
+			} else if (rc == 0) { 
+				/* original is passed in; not null terminated */
+				*(normed + len) = '\0';
+			}
+			(*mbvp)->bv_val = normed;
+			(*mbvp)->bv_len = len;
+		}
+	}
+	attr_done(&a);
 	smods->mods[pos]= mod;
 	smods->num_mods++;
 	smods->mods[smods->num_mods]= NULL;

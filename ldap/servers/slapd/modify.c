@@ -166,16 +166,43 @@ do_modify( Slapi_PBlock *pb )
 	 */
 
     {
-    	if ( ber_scanf( ber, "{a", &dn ) == LBER_ERROR )
+		char *rawdn = NULL;
+		size_t dnlen = 0;
+		int rc = 0;
+    	if ( ber_scanf( ber, "{a", &rawdn ) == LBER_ERROR )
     	{
     		LDAPDebug( LDAP_DEBUG_ANY,
     		    "ber_scanf failed (op=Modify; params=DN)\n", 0, 0, 0 );
 			op_shared_log_error_access (pb, "MOD", "???", "decoding error");
-    		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
-    		    NULL );
-    		slapi_ch_free_string(&dn);
+    		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL );
+    		slapi_ch_free_string(&rawdn);
     		return;
     	}
+		/* Check if we should be performing strict validation. */
+		if (config_get_dn_validate_strict()) {
+			/* check that the dn is formatted correctly */
+			rc = slapi_dn_syntax_check(pb, rawdn, 1);
+			if (rc) { /* syntax check failed */
+				op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"",
+								"strict: invalid dn");
+				send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+								 NULL, "invalid dn", 0, NULL);
+				slapi_ch_free((void **) &rawdn);
+				return;
+			}
+		}
+		rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
+		if (rc < 0) {
+			op_shared_log_error_access(pb, "MOD", "???", "invalid dn");
+			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+								 NULL, "invalid dn", 0, NULL);
+			slapi_ch_free((void **) &rawdn);
+			return;
+		} else if (rc > 0) { /* if rc == 0, rawdn is passed in */
+			slapi_ch_free_string(&rawdn);
+		} else { /* rc == 0; rawdn is passed in; not null terminated */
+			*(dn + dnlen) = '\0';
+		}
 	}
 
 	LDAPDebug( LDAP_DEBUG_ARGS, "do_modify: dn (%s)\n", dn, 0, 0 );

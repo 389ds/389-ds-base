@@ -123,6 +123,7 @@ do_bind( Slapi_PBlock *pb )
     ber_int_t	version = -1;
     int		auth_response_requested = 0;
     int		pw_response_requested = 0;
+    char		*rawdn = NULL;
     char		*dn = NULL, *saslmech = NULL;
     struct berval	cred = {0};
     Slapi_Backend		*be = NULL;
@@ -136,6 +137,7 @@ do_bind( Slapi_PBlock *pb )
     int auto_bind = 0;
     int minssf = 0;
     char *test_bind_dn = NULL;
+    size_t dnlen = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "do_bind\n", 0, 0, 0 );
 
@@ -159,7 +161,7 @@ do_bind( Slapi_PBlock *pb )
      *	}
      */
 
-    rc = ber_scanf( ber, "{iat", &version, &dn, &method );
+    rc = ber_scanf( ber, "{iat", &version, &rawdn, &method );
     if ( rc == LBER_ERROR ) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "ber_scanf failed (op=Bind; params=Version,DN,Method)\n",
@@ -167,11 +169,37 @@ do_bind( Slapi_PBlock *pb )
         log_bind_access (pb, "???", method, version, saslmech, "decoding error");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                           "decoding error", 0, NULL );
-        slapi_ch_free_string(&dn);
+        slapi_ch_free_string(&rawdn);
         return;
     }
+    /* Check if we should be performing strict validation. */
+    if (config_get_dn_validate_strict()) { 
+        /* check that the dn is formatted correctly */
+        rc = slapi_dn_syntax_check(pb, rawdn, 1);
+        if (rc) { /* syntax check failed */
+            op_shared_log_error_access(pb, "BIND", rawdn?rawdn:"",
+                                       "strict: invalid bind dn");
+            send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+                             NULL, "invalid bind dn", 0, NULL);
+            slapi_ch_free_string(&rawdn);
+            return;
+        }
+    }
+    rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
+    if (rc < 0) {
+        op_shared_log_error_access(pb, "BIND", rawdn?rawdn:"",
+                                   "invalid bind dn");
+        send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+                         NULL, "invalid bind dn", 0, NULL);
+        slapi_ch_free_string(&rawdn);
+        return;
+    } else if (rc > 0) { /* if rc == 0, rawdn is passed in */
+        slapi_ch_free_string(&rawdn);
+    } else { /* rc == 0; rawdn is passed in; not null terminated */
+        *(dn + dnlen) = '\0';
+    }
 
-    slapi_sdn_init_dn_passin(&sdn,dn);
+    slapi_sdn_init_dn_passin(&sdn, dn);
 
     LDAPDebug( LDAP_DEBUG_TRACE, "BIND dn=\"%s\" method=%d version=%d\n",
                dn, method, version );

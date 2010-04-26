@@ -358,8 +358,8 @@ acl_access_allowed(
 		if (oid && ((strcasecmp(oid, DN_SYNTAX_OID) == 0) ||
 		            (strcasecmp(oid, NAMEANDOPTIONALUID_SYNTAX_OID) == 0))) { 
 			/* should use slapi_sdn_compare() but that'a an extra malloc/free */
-			char *dn_val_to_write = slapi_dn_normalize(slapi_ch_strdup(val->bv_val));
-			if ( aclpb->aclpb_authorization_sdn && 
+			char *dn_val_to_write = slapi_create_dn_string("%s", val->bv_val);
+			if ( dn_val_to_write && aclpb->aclpb_authorization_sdn && 
 					slapi_utf8casecmp((ACLUCHP)dn_val_to_write, (ACLUCHP)
 					slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn)) == 0) { 
 				access |= SLAPI_ACL_SELF;
@@ -754,9 +754,10 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 
 		if ( aclpb->aclpb_authorization_sdn != NULL ) {
 
-				proxy_user = (char *)(aclpb->aclpb_authorization_sdn->ndn ?
-										aclpb->aclpb_authorization_sdn->ndn:
-										null_user);
+				proxy_user = 
+					(char *)(slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn)?
+					slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn):
+					null_user);
 
 				slapi_log_error(loglevel, plugin_name, 
 		"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
@@ -1764,8 +1765,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		if (parent_DN == NULL) {
 			new_DN = new_RDN;
 		} else {
-			new_DN = slapi_ch_smprintf("%s,%s", new_RDN, parent_DN);
-			slapi_dn_normalize (new_DN);
+			new_DN = slapi_create_dn_string("%s,%s", new_RDN, parent_DN);
 		}
 
 		/* Change the acls */
@@ -2028,8 +2028,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 	** We have a single ACI which we need to find if it applies to
 	** the resource or not.
 	*/
-	if ((aci->aci_type & ACI_TARGET_DN) && 
-			(aclpb->aclpb_curr_entry_sdn)) {
+	if ((aci->aci_type & ACI_TARGET_DN) && (aclpb->aclpb_curr_entry_sdn)) {
 		char		*avaType;
 		struct berval	*avaValue;		
 
@@ -2246,10 +2245,10 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 	 *
 	*/
 
-	if ((aclpb->aclpb_access & SLAPI_ACL_ADD &&
-		aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS )||
-		(aclpb->aclpb_access & SLAPI_ACL_DELETE && 
-		aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS ) ) {
+	if (((aclpb->aclpb_access & SLAPI_ACL_ADD) &&
+		 (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS) )||
+		((aclpb->aclpb_access & SLAPI_ACL_DELETE) && 
+		 (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS) ) ) {
 		
 			Targetattrfilter **attrFilterArray;
 
@@ -2367,10 +2366,10 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			goto acl__resource_match_aci_EXIT;	
 		}
 
-	} else  if ( (aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD &&
-                   aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS) ||
-                 (aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL &&
-                   aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS ) ) {
+	} else  if ( ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD) &&
+                  (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) ||
+                 ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL) &&
+                  (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)) ) {
 
             
 		/*     
@@ -2381,28 +2380,28 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		 * match that filter.
 		 *
 		 *
-		*/
+		 */
 
 		Targetattrfilter **attrFilterArray = NULL;
 		Targetattrfilter	*attrFilter;
 		int found = 0;
 
-		if (aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD &&
-				aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS) {
+		if ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD) &&
+			(aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) {
 
-				attrFilterArray = aci->targetAttrAddFilters;
+			attrFilterArray = aci->targetAttrAddFilters;
 
-		} else if (aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL && 
-						aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS) {
+		} else if ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL) && 
+				   (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)) {
 				
-				attrFilterArray = aci->targetAttrDelFilters;
+			attrFilterArray = aci->targetAttrDelFilters;
 
 		}
 		
 
 		/*
 		 * Scan this filter list for an applicable filter.
-		*/
+		 */
 
 		found = 0;
 		num_attrs = 0;
@@ -2435,7 +2434,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 				attr_matched= acl__test_filter(aclpb->aclpb_filter_test_entry,
 										attrFilter->filter,
 										1 /* Do filter sense evaluation below */
-							 			);                            
+										);                            
 				slapi_entry_free( aclpb->aclpb_filter_test_entry );			
 			}           
 
@@ -2452,8 +2451,6 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			*/
 		
 			attr_matched_in_targetattrfilters = 1;
-
-
 		}                                
 	} /* targetvaluefilters */ 
 	
@@ -3232,9 +3229,6 @@ acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 		strcpy (tmp, str);
 		realval = tmp;
 	}
-
-	slapi_dn_normalize (realval);
-
 
 	/* What we have built is a regular pattaren expression.
 	** Now we will compile the pattern and compare wth the string to

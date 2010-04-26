@@ -42,8 +42,8 @@
 #
 dn: cn=schema
 attributeTypes: ( nsServerID-oid NAME 'nsServerID' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )
-attributeTypes: ( nsBaseDN-oid NAME 'nsBaseDN' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )
-attributeTypes: ( nsBindDN-oid NAME 'nsBindDN' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )
+attributeTypes: ( nsBaseDN-oid NAME 'nsBaseDN' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape' )
+attributeTypes: ( nsBindDN-oid NAME 'nsBindDN' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape' )
 attributeTypes: ( nsBindPassword-oid NAME 'nsBindPassword' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )
 attributeTypes: ( nsServerPort-oid NAME 'nsServerPort' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )
 attributeTypes: ( nsServerAddress-oid NAME 'nsServerAddress' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape' )

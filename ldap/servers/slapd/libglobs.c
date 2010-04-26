@@ -870,7 +870,8 @@ FrontendConfig_init () {
   cfg->ldapi_map_entries = LDAP_OFF;
   cfg->ldapi_uidnumber_type = slapi_ch_strdup("uidNumber");
   cfg->ldapi_gidnumber_type = slapi_ch_strdup("gidNumber");
-  cfg->ldapi_search_base_dn = slapi_ch_strdup("dc=example, dc=com");
+  /* These DNs are no need to be normalized. */
+  cfg->ldapi_search_base_dn = slapi_ch_strdup("dc=example,dc=com");
 #if defined(ENABLE_AUTO_DN_SUFFIX)
   cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
 #endif
@@ -4884,18 +4885,18 @@ config_set_instancedir(const char *attrname, char *value, char *errorbuf, int ap
 {
 	int retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  
+   
 	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 		return LDAP_OPERATIONS_ERROR;
 	}
-  
+   
 	if (!apply) {
 		return retVal;
 	}
-
+ 
 	CFG_LOCK_WRITE(slapdFrontendConfig);
 	/* We don't want to allow users to modify instance dir.
- 	 * Set it once when the server starts. */
+	 * Set it once when the server starts. */
 	if (NULL == slapdFrontendConfig->instancedir) {
 		slapdFrontendConfig->instancedir = slapi_ch_strdup(value);
 	}

@@ -88,7 +88,6 @@ static int mep_modrdn_pre_op(Slapi_PBlock *pb);
 static int mep_load_config();
 static void mep_delete_config();
 static int mep_parse_config_entry(Slapi_Entry * e, int apply);
-static void mep_insert_config_index(struct configEntry *entry);
 static void mep_free_config_entry(struct configEntry ** entry);
 
 /*
@@ -949,7 +948,6 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
     Slapi_Entry *template = NULL;
     char *rdn_type = NULL;
     char **vals = NULL;
-    char *p = NULL;
     char *type = NULL;
     char *value = NULL;
     int vlen = 0;
@@ -1055,7 +1053,7 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
 
         /* Create the DN using the mapped RDN value
          * and the base specified in the config. */
-        dn = slapi_ch_smprintf("%s=%s,%s", rdn_type, rdn_val, config->managed_base);
+        dn = slapi_create_dn_string("%s=%s,%s", rdn_type, rdn_val, config->managed_base);
 
         slapi_ch_free_string(&rdn_val);
 

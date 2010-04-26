@@ -65,7 +65,7 @@ static PRIntn	acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg);
 /*	UTILITY FUNCTIONS						   */
 /***************************************************************************/
 int
-aclutil_str_appened(char **str1, const char *str2)
+aclutil_str_append(char **str1, const char *str2)
 {
 	int new_len;
  
@@ -87,6 +87,43 @@ aclutil_str_appened(char **str1, const char *str2)
     return(0);
 }
 
+/* 
+ * dlen: the length of the buffer *dest (not the string length in *dest)
+ */ 
+int
+aclutil_str_append_ext(char **dest, size_t *dlen, const char *src, size_t slen)
+{
+    char *ptr = NULL;
+    int rc = 0;
+
+    if ( dest == NULL || src == NULL ) {
+        return rc;    
+    }
+
+    if (0 == slen) {
+        slen = strlen(src);
+    }
+    if (*dest && dlen > 0) {
+        size_t dest_strlen = strlen(*dest);
+        size_t new_len = dest_strlen + slen + 1;
+        if (new_len > *dlen) {
+            *dest = (char *)slapi_ch_realloc(*dest, new_len);
+            *dlen = new_len;
+            ptr = *dest + dest_strlen;
+        } else {
+            ptr = *dest + dest_strlen;
+        }
+    } else {
+        *dlen = slen + 1;
+        *dest = (char *)slapi_ch_malloc(*dlen);
+        ptr = *dest;
+    }
+    memcpy(ptr, src, slen);
+    *(ptr + slen) = '\0';
+
+    return rc;
+}
+
 /***************************************************************************/
 /*	Print routines     						   */
 /***************************************************************************/
@@ -104,9 +141,14 @@ acl_print_acllib_err (NSErr_t *errp , char * str)
 	aclErrorFmt(errp, msgbuf, ACLUTIL_ACLLIB_MSGBUF_LEN, 1);      
 	msgbuf[ACLUTIL_ACLLIB_MSGBUF_LEN-1] = '\0';
 
-	if (msgbuf)
-		slapi_log_error(SLAPI_LOG_ACL, plugin_name,"ACL LIB ERR:(%s)(%s)\n", 
-				msgbuf, str ? str: "NULL"); 
+	if (strlen(msgbuf) > 0) {
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,"ACL LIB ERR:(%s)(%s)\n",
+				msgbuf, str ? str: "NULL");
+	} else {
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,"ACL LIB ERR:(%s)\n", 
+				str ? str: "NULL"); 
+	}
+
 }
 void
 aclutil_print_aci (aci_t *aci_item, char *type)
@@ -240,7 +282,7 @@ aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 
 	if (errbuf) {
 		/* If a buffer is provided, then copy the error */
-		aclutil_str_appened(errbuf, lineptr );	
+		aclutil_str_append(errbuf, lineptr );	
 	}
 
 	slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "%s", lineptr);
@@ -436,7 +478,7 @@ acl_gen_err_msg(int access, char *edn, char *attr, char **errbuf)
 		line = PR_smprintf(
 			"Insufficient 'delete' privilege to delete the entry '%s'.\n",edn);
 	}
-	aclutil_str_appened(errbuf, line );
+	aclutil_str_append(errbuf, line );
 
 	if (line) {
 		PR_smprintf_free(line);
@@ -540,7 +582,7 @@ aclutil_expand_paramString ( char *str, Slapi_Entry *e )
 				goto cleanup;
 			}
 			*p = '\0';
-			aclutil_str_appened ( &buf,a_dns[i]);
+			aclutil_str_append ( &buf,a_dns[i]);
 
 			if ( type == 1 ) {
 				/* xyz = $dn.o */
@@ -573,15 +615,15 @@ aclutil_expand_paramString ( char *str, Slapi_Entry *e )
 					kk= slapi_attr_next_value( attr, kk, &sval );
 					if ( kk != -1 )  /* can't handle multiple --error */
 						goto cleanup;
+					attrValue = slapi_value_get_berval ( t_sval );
+					attrVal = attrValue->bv_val;
 				}
-				attrValue = slapi_value_get_berval ( t_sval );
-				attrVal = attrValue->bv_val;
 			}
 		} else {
 			attrVal = a_dns[i];
 		}
-		aclutil_str_appened ( &buf, attrVal);
-		aclutil_str_appened ( &buf, ",");
+		aclutil_str_append ( &buf, attrVal);
+		aclutil_str_append ( &buf, ",");
 	}
 	rc = 0;		/* everything is okay*/
 	/* remove the last comma */
@@ -607,7 +649,7 @@ __aclutil_extract_dn_component ( char **e_dns,  int position, char *attrName )
 
 	int			i, matched, len;
 	char		*s;
-	int			matchedPosition;
+	int			matchedPosition = 0;
 
 	len = strlen ( attrName );
 

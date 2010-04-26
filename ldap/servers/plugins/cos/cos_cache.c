@@ -69,6 +69,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
+
 #include "portable.h"
 #include "slapi-plugin.h"
 
@@ -323,6 +325,8 @@ static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_
 static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int* result, int flags, void *hint);
 static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags);
 static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Slapi_Entry *e, char *type, Slapi_ValueSet **out_attr, Slapi_Value *test_this, int *result, int *ops);
+
+static int hexchar2int( char c );
 
 /* 
 	compares s2 to s1 starting from end of string until the beginning of either
@@ -904,14 +908,29 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data) {
 										{
 											/* get the parent of the definition */
 											
-											char *parent = slapi_dn_parent(pDn->val);
-											slapi_dn_normalize( parent );
+											char *parent = NULL;
+											size_t plen = 0;
+											int rc = 0;
+											char *orig = slapi_dn_parent(pDn->val);
+											rc = slapi_dn_normalize_ext(orig,
+															0, &parent, &plen);
+											if (rc < 0) {
+												LDAPDebug(LDAP_DEBUG_ANY, 
+													"cos_cache_build_definition_list: failed to normalize parent dn %s. Adding the pre normalized dn.\n", orig, 0, 0);
+												parent = orig;
+											} else if (rc == 0) {
+												/* passed in. not terminated */
+												*(parent + plen) = '\0';
+											}
 											
 											cos_cache_add_attrval(&pCosTargetTree, parent);
 											if(!pCosTemplateDn)
 												cos_cache_add_attrval(&pCosTemplateDn, parent);
 											
-											slapi_ch_free((void**)&parent);
+											if (orig != parent) {
+												slapi_ch_free_string(&orig);
+											}
+											slapi_ch_free_string(&parent);
 										}
 										
 										slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle, dnVals[valIndex]->bv_val, NULL, NULL);			
@@ -1916,16 +1935,33 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 	theTemp = (cosTemplates*) slapi_ch_malloc(sizeof(cosTemplates));
 	if(theTemp)
 	{
-		char *grade = (char*)slapi_ch_malloc(strlen(dn->val)+1);
+		char *grade = NULL;
 		int grade_index = 0;
 		int index = 0;
+		int lastindex = 0;
 		int template_default = 0;
+		char *dnval = NULL;
+		size_t dnlen = 0;
+		int rc = 0;
 
-		slapi_dn_normalize(dn->val);
+		rc = slapi_dn_normalize_ext(dn->val, 0, &dnval, &dnlen);
+		if (rc < 0) {
+			LDAPDebug(LDAP_DEBUG_ANY, 
+				"cos_cache_add_tmpl: failed to normalize dn %s. "
+				"Processing the pre normalized dn.\n", dn->val, 0, 0);
+		} else if (rc == 0) {
+			/* passed in. not terminated */
+			*(dnval + dnlen) = '\0';
+		} else {
+			slapi_ch_free_string(&dn->val);
+			dn->val = dnval;
+		}
+		grade = (char*)slapi_ch_malloc(strlen(dn->val)+1);
 
 		/* extract the cos grade */
 		while(dn->val[index] != '=' && dn->val[index] != '\0')
 			index++;
+		lastindex = strlen(dn->val) - 1;
 		
 		if(dn->val[index] == '=')
 		{
@@ -1945,7 +1981,29 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 				}
 				else
 				{
-					if(dn->val[index] != '\\') /* skip escape chars */
+					if(dn->val[index] == '\\')
+					{ 
+						if ((index+2 <= lastindex) && isxdigit(dn->val[index+1]) && 
+							isxdigit(dn->val[index+2])) {
+							/* Convert ESC HEX HEX to a real char */
+							int n = hexchar2int(dn->val[index+1]);
+							int n2 = hexchar2int(dn->val[index+2]);
+							n = (n << 4) + n2;
+							if (n == 0) { /* don't change \00 */
+								grade[grade_index] = dn->val[index++]; /* '\\' */
+								grade_index++;
+								grade[grade_index] = dn->val[index++]; /* 0 */
+								grade_index++;
+								grade[grade_index] = dn->val[index]; /* 0 */
+								grade_index++;
+							} else {
+								grade[grade_index] = n;
+								index += 2;
+								grade_index++;
+							}
+						} /* else: skip escape chars */
+					}
+					else
 					{
 						grade[grade_index] = dn->val[index];
 						grade_index++;
@@ -2329,8 +2387,24 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 		/* is this entry a child of the target tree(s)? */
 		do
 		{
-			if(pTargetTree)
-				slapi_dn_normalize( pTargetTree->val );
+			if(pTargetTree) {
+				int rc = 0;
+				char *tval = NULL;
+				size_t tlen = 0;
+				rc = slapi_dn_normalize_ext(pTargetTree->val, 0, &tval, &tlen);
+				if (rc < 0) {
+					LDAPDebug(LDAP_DEBUG_ANY, 
+						"cos_cache_query_attr: failed to normalize dn %s. "
+						"Processing the pre normalized dn.\n",
+						pTargetTree->val, 0, 0);
+				} else if (rc == 0) {
+					/* passed in. not terminated */
+					*(tval + tlen) = '\0';
+				} else {
+					slapi_ch_free_string(&pTargetTree->val);
+					pTargetTree->val = tval;
+				}
+			}
 
     		if(	pTargetTree->val == 0 || 
 				slapi_dn_issuffix(pDn, pTargetTree->val) != 0 || 
@@ -2800,7 +2874,23 @@ static int cos_cache_index_all(cosCache *pCache)
 
 				while(pAttrVal)
 				{
-					slapi_dn_normalize(pAttrVal->val);
+					int rc = 0;
+					char *dnval = NULL;
+					size_t dnlen = 0;
+					rc = slapi_dn_normalize_ext(pAttrVal->val, 0,
+												&dnval, &dnlen);
+					if (rc < 0) {
+						LDAPDebug(LDAP_DEBUG_ANY, 
+							"cos_cache_index_all: failed to normalize dn %s. "
+							"Processing the pre normalized dn.\n", 
+							pAttrVal->val, 0, 0);
+					} else if (rc == 0) {
+						/* passed in. not terminated */
+						*(dnval + dnlen) = '\0';
+					} else {
+						slapi_ch_free_string(&pAttrVal->val);
+						pAttrVal->val = dnval;
+					}
 					pCache->ppTemplateList[tmpindex] = pAttrVal->val;
 
 					tmpindex++;
@@ -3519,3 +3609,20 @@ static int cos_cache_entry_is_cos_related( Slapi_Entry *e) {
 	}
 	return(rc);
 }
+
+/* copied from dn.c */
+static int
+hexchar2int( char c )
+{
+    if ( '0' <= c && c <= '9' ) {
+        return( c - '0' );
+    }
+    if ( 'a' <= c && c <= 'f' ) {
+        return( c - 'a' + 10 );
+    }
+    if ( 'A' <= c && c <= 'F' ) {
+        return( c - 'A' + 10 );
+    }
+    return( -1 );
+}
+

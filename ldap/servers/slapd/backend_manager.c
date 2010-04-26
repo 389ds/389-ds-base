@@ -423,12 +423,6 @@ be_nbackends_public()
 }
 
 /* backend instance management */
-/* JCM - These are hardcoded for the LDBM database */
-#define LDBM_CLASS_PREFIX	"cn=ldbm database,cn=plugins,cn=config"
-#define LDBM_CONFIG_ENTRY	"cn=config,cn=ldbm database,cn=plugins,cn=config"	
-#define INSTANCE_ATTR		"nsslapd-instance"
-#define	SUFFIX_ATTR			"nsslapd-suffix"
-#define CACHE_ATTR			"nsslapd-cachememsize"
 
 void 
 slapi_be_Rlock(Slapi_Backend * be)

@@ -1047,7 +1047,7 @@ static int ldbm_config_entryrdn_switch_set(void *arg, void *value,
     if (apply) {
         entryrdn_set_switch((int)((uintptr_t)value));
     }
-	return LDAP_SUCCESS;
+    return LDAP_SUCCESS;
 }
 
 static void *ldbm_config_entryrdn_noancestorid_get(void *arg)
@@ -1061,7 +1061,7 @@ static int ldbm_config_entryrdn_noancestorid_set(void *arg, void *value,
     if (apply) {
         entryrdn_set_noancestorid((int)((uintptr_t)value));
     }
-	return LDAP_SUCCESS;
+    return LDAP_SUCCESS;
 }
 
 static void *ldbm_config_legacy_errcode_get(void *arg)
@@ -1296,11 +1296,17 @@ void
 ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
 {
     Slapi_PBlock *tmp_pb;
-    char basedn[BUFSIZ];
     Slapi_Entry **entries = NULL;
+    char *basedn = NULL;
 
     /* Construct the base dn of the subtree that holds the instance entries. */
-    PR_snprintf(basedn, BUFSIZ, "cn=%s, cn=plugins, cn=config", backend_type);
+    basedn = slapi_create_dn_string("cn=%s,cn=plugins,cn=config", backend_type);
+    if (NULL == basedn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ldbm_config_read_instance_entries: "
+                      "failed create backend dn for %s\n", backend_type);
+        return;
+    }
 
     /* Do a search of the subtree containing the instance entries */
     tmp_pb = slapi_pblock_new();
@@ -1327,29 +1333,38 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
 {
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
-    int res;
-    char dn[BUFSIZ];
+    char *dn = NULL;
+    int rval = 0;
 
     /* We try to read the entry 
      * cn=config, cn=ldbm database, cn=plugins, cn=config.  If the entry is
      * there, then we process the config information it stores.
      */
-    PR_snprintf(dn, BUFSIZ, "cn=config, cn=%s, cn=plugins, cn=config", 
-                li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=config,cn=%s,cn=plugins,cn=config", 
+                                li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ldbm_config_load_dse_info: "
+                      "failed create config dn for %s\n",
+                      li->li_plugin->plg_name); 
+        rval = 1;
+        goto bail;
+    }
     search_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE, 
         "objectclass=*", NULL, 0, NULL, NULL, li->li_identity, 0);
     slapi_search_internal_pb (search_pb);
-    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
 
-    if (LDAP_NO_SUCH_OBJECT == res) {
+    if (LDAP_NO_SUCH_OBJECT == rval) {
         /* Add skeleten dse entries for the ldbm plugin */
         ldbm_config_add_dse_entries(li, ldbm_skeleton_entries,
                                     li->li_plugin->plg_name, NULL, NULL, 0);
-    } else if (res != LDAP_SUCCESS) {
+    } else if (rval != LDAP_SUCCESS) {
         LDAPDebug(LDAP_DEBUG_ANY, "Error accessing the ldbm config DSE\n",
                   0, 0, 0);
-        return 1;
+        rval = 1;
+        goto bail;
     } else {
         /* Need to parse the configuration information for the ldbm
          * plugin that is held in the DSE. */
@@ -1358,12 +1373,14 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         if (NULL == entries || entries[0] == NULL) {
             LDAPDebug(LDAP_DEBUG_ANY, "Error accessing the ldbm config DSE\n",
                       0, 0, 0);
-            return 1;
+            rval = 1;
+            goto bail;
         }
         if (0 != parse_ldbm_config_entry(li, entries[0], ldbm_config)) {
             LDAPDebug(LDAP_DEBUG_ANY, "Error parsing the ldbm config DSE\n",
                       0, 0, 0);
-            return 1;
+            rval = 1;
+            goto bail;
         }
     }
 
@@ -1377,8 +1394,6 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     ldbm_config_read_instance_entries(li, li->li_plugin->plg_name);
 
     /* setup the dse callback functions for the ldbm backend config entry */
-    PR_snprintf(dn, BUFSIZ, "cn=config, cn=%s, cn=plugins, cn=config",
-            li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_search_entry_callback,
         (void *) li);
@@ -1388,24 +1403,52 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     slapi_config_register_callback(DSE_OPERATION_WRITE, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_config_search_entry_callback,
         (void *) li);
+    slapi_ch_free_string(&dn);
 
     /* setup the dse callback functions for the ldbm backend monitor entry */
-    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=plugins, cn=config",
-            li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=plugins,cn=config",
+                                li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ldbm_config_load_dse_info: "
+                      "failed create monitor dn for %s\n",
+                      li->li_plugin->plg_name); 
+        rval = 1;
+        goto bail;
+    }
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_search,
         (void *)li);
+    slapi_ch_free_string(&dn);
 
     /* And the ldbm backend database monitor entry */
-    PR_snprintf(dn, BUFSIZ, "cn=database, cn=monitor, cn=%s, cn=plugins, cn=config",
-        li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=database,cn=monitor,cn=%s,cn=plugins,cn=config",
+                                li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ldbm_config_load_dse_info: "
+                      "failed create monitor database dn for %s\n",
+                      li->li_plugin->plg_name); 
+        rval = 1;
+        goto bail;
+    }
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_dbmonitor_search,
         (void *)li);
+    slapi_ch_free_string(&dn);
 
     /* setup the dse callback functions for the ldbm backend instance
      * entries */
-    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=plugins, cn=config", li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=%s,cn=plugins,cn=config", 
+                                li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ldbm_config_load_dse_info: "
+                      "failed create plugin dn for %s\n",
+                      li->li_plugin->plg_name); 
+        rval = 1;
+        goto bail;
+    }
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
         ldbm_instance_add_instance_entry_callback, (void *) li);
@@ -1418,8 +1461,9 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsBackendInstance)",
         ldbm_instance_post_delete_instance_entry_callback, (void *) li);
-
-    return 0;
+bail:
+    slapi_ch_free_string(&dn);
+    return rval;
 }
 
 

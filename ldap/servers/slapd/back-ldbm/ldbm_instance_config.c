@@ -336,13 +336,20 @@ read_instance_index_entries(ldbm_instance *inst)
 {
     Slapi_PBlock *tmp_pb;
     int scope = LDAP_SCOPE_SUBTREE;
-    char basedn[BUFSIZ];
     const char *searchfilter = "(objectclass=nsIndex)";
+    char *basedn = NULL;
 
     /* Construct the base dn of the subtree that holds the index entries 
      * for this instance. */
-    PR_snprintf(basedn, BUFSIZ, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, inst->inst_li->li_plugin->plg_name); 
+    basedn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
+                          inst->inst_name, inst->inst_li->li_plugin->plg_name); 
+    if (NULL == basedn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "read_instance_index_entries: "
+                       "failed create index dn for plugin %s, instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name); 
+        return 1;
+    }
 
     /* Set up a tmp callback that will handle the init for each index entry */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP,
@@ -361,6 +368,7 @@ read_instance_index_entries(ldbm_instance *inst)
     slapi_free_search_results_internal(tmp_pb);
     slapi_pblock_destroy(tmp_pb);
 
+    slapi_ch_free_string(&basedn);
     return 0;
 }
 
@@ -372,13 +380,21 @@ read_instance_attrcrypt_entries(ldbm_instance *inst)
 {
     Slapi_PBlock *tmp_pb;
     int scope = LDAP_SCOPE_SUBTREE;
-    char basedn[BUFSIZ];
     const char *searchfilter = ldbm_instance_attrcrypt_filter;
+    char *basedn = NULL;
 
     /* Construct the base dn of the subtree that holds the index entries 
      * for this instance. */
-    PR_snprintf(basedn, BUFSIZ, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, inst->inst_li->li_plugin->plg_name); 
+    basedn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
+                          inst->inst_name, inst->inst_li->li_plugin->plg_name); 
+    if (NULL == basedn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "read_instance_attrcrypt_entries: "
+                       "failed create encrypted attributes dn for plugin %s, "
+                       "instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        return 1;
+    }
 
     /* Set up a tmp callback that will handle the init for each index entry */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP,
@@ -397,6 +413,7 @@ read_instance_attrcrypt_entries(ldbm_instance *inst)
     slapi_free_search_results_internal(tmp_pb);
     slapi_pblock_destroy(tmp_pb);
 
+    slapi_ch_free_string(&basedn);
     return 0;
 }
 
@@ -427,10 +444,11 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
             Slapi_DN suffix;
 
             slapi_attr_first_value(attr, &sval);
+            
             bval = (struct berval *) slapi_value_get_berval(sval);
             slapi_sdn_init_dn_byref(&suffix, bval->bv_val);
             if (!slapi_be_issuffix(inst->inst_be, &suffix)) {
-            be_addsuffix(inst->inst_be, &suffix);
+                be_addsuffix(inst->inst_be, &suffix);
             }
             slapi_sdn_done(&suffix);
             continue;
@@ -477,25 +495,34 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     struct ldbminfo *li = inst->inst_li;
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
-    int res;
-    char dn[BUFSIZ];
+    char *dn = NULL;
+    int rval = 0;
 
     /* We try to read the entry 
      * cn=instance_name, cn=ldbm database, cn=plugins, cn=config.  If the
      * entry is there, then we process the config information it stores.
      */
-    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_config_load_dse_info: "
+                       "failed create instance dn %s for plugin %s\n",
+                       inst->inst_name, inst->inst_li->li_plugin->plg_name);
+        rval = 1;
+        goto bail;
+    }
     search_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE, 
                                  "objectclass=*", NULL, 0, NULL, NULL,
                                  li->li_identity, 0);
     slapi_search_internal_pb (search_pb);
-    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
 
-    if (res != LDAP_SUCCESS) {
+    if (rval != LDAP_SUCCESS) {
         LDAPDebug(LDAP_DEBUG_ANY, "Error accessing the config DSE\n", 0, 0, 0);
-        return 1;
+        rval = 1;
+        goto bail;
     } else {
         /* Need to parse the configuration information for the ldbm
          * plugin that is held in the DSE. */
@@ -504,13 +531,15 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
         if ((!entries) || (!entries[0])) {
             LDAPDebug(LDAP_DEBUG_ANY, "Error accessing the config DSE\n",
                       0, 0, 0);
-            return 1;
+            rval = 1;
+            goto bail;
         }
         if (0 != parse_ldbm_instance_config_entry(inst, entries[0],
                                          ldbm_instance_config)) {
             LDAPDebug(LDAP_DEBUG_ANY, "Error parsing the config DSE\n",
                       0, 0, 0);
-            return 1;
+            rval = 1;
+            goto bail;
         }
     }
 
@@ -527,8 +556,6 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
                                 inst->inst_name, 0);
 
     /* setup the dse callback functions for the ldbm instance config entry */
-    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)",
         ldbm_instance_search_config_entry_callback, (void *) inst);
@@ -543,9 +570,20 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
         ldbm_instance_deny_config, (void *)inst);
     /* delete is handled by a callback set in ldbm_config.c */
 
+    slapi_ch_free_string(&dn);
+
     /* don't forget the monitor! */
-    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_config_load_dse_info: "
+                       "failed create monitor instance dn for plugin %s, "
+                       "instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        rval = 1;
+        goto bail;
+    }
     /* make callback on search; deny add/modify/delete */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_instance_search,
@@ -557,10 +595,20 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_instance_deny_config,
         (void *)inst);
     /* delete is okay */
+    slapi_ch_free_string(&dn);
 
     /* Callbacks to handle indexes */
-    PR_snprintf(dn, BUFSIZ, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_config_load_dse_info: "
+                       "failed create index instance dn for plugin %s, "
+                       "instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        rval = 1;
+        goto bail;
+    }
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsIndex)",
         ldbm_instance_index_config_add_callback, (void *) inst);
@@ -570,10 +618,20 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsIndex)",
         ldbm_instance_index_config_modify_callback, (void *) inst);
+    slapi_ch_free_string(&dn);
 
     /* Callbacks to handle attribute encryption */
-    PR_snprintf(dn, BUFSIZ, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_config_load_dse_info: "
+                       "failed create encrypted attribute instance dn "
+                       "for plugin %s, instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        rval = 1;
+        goto bail;
+    }
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, ldbm_instance_attrcrypt_filter,
         ldbm_instance_attrcrypt_config_add_callback, (void *) inst);
@@ -583,8 +641,10 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, ldbm_instance_attrcrypt_filter,
         ldbm_instance_attrcrypt_config_modify_callback, (void *) inst);
-
-    return 0;
+    rval = 0;
+bail:
+    slapi_ch_free_string(&dn);
+    return rval;
 }
 
 /*
@@ -880,11 +940,19 @@ ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBe
 static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
 {
     struct ldbminfo *li = inst->inst_li;
-    char dn[BUFSIZ];
+    char *dn = NULL;
 
     /* tear down callbacks for the instance config entry */
-    PR_snprintf(dn, BUFSIZ, "cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_unregister_callbacks: "
+                       "failed create instance dn for plugin %s, "
+                       "instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        goto bail;
+    }
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)",
         ldbm_instance_search_config_entry_callback);
@@ -897,20 +965,38 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)",
         ldbm_instance_deny_config);
+    slapi_ch_free_string(&dn);
 
     /* now the cn=monitor entry */
-    PR_snprintf(dn, BUFSIZ, "cn=monitor, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_unregister_callbacks: "
+                       "failed create monitor instance dn for plugin %s, "
+                       "instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        goto bail;
+    }
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_instance_search);
     slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=*)", ldbm_instance_deny_config);
     slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_instance_deny_config);
+    slapi_ch_free_string(&dn);
 
     /* now the cn=index entries */
-    PR_snprintf(dn, BUFSIZ, "cn=index, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_unregister_callbacks: "
+                       "failed create index dn for plugin %s, "
+                       "instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        goto bail;
+    }
     slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsIndex)",
         ldbm_instance_index_config_add_callback);
@@ -920,10 +1006,19 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, "(objectclass=nsIndex)",
         ldbm_instance_index_config_modify_callback);
+    slapi_ch_free_string(&dn);
 
     /* now the cn=encrypted attributes entries */
-    PR_snprintf(dn, BUFSIZ, "cn=encrypted attributes, cn=%s, cn=%s, cn=plugins, cn=config",
-            inst->inst_name, li->li_plugin->plg_name);
+    dn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ldbm_instance_unregister_callbacks: "
+                       "failed create encrypted attributes dn for plugin %s, "
+                       "instance %s\n",
+                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        goto bail;
+    }
     slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
         LDAP_SCOPE_SUBTREE, ldbm_instance_attrcrypt_filter,
         ldbm_instance_attrcrypt_config_add_callback);
@@ -935,6 +1030,8 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
         ldbm_instance_attrcrypt_config_modify_callback);
 
     vlv_remove_callbacks(inst);
+bail:
+    slapi_ch_free_string(&dn);
 }
 
 

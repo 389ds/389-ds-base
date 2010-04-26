@@ -622,6 +622,7 @@ int ldbm_instance_config_add_index_entry(
     char tmpIndexesStr[256];
     char tmpMatchingRulesStr[1024];
     struct ldbminfo *li = inst->inst_li;
+    char *dn = NULL;
 
     if ((argc < 2) || (NULL == argv) || (NULL == argv[0]) || 
         (NULL == argv[1])) {
@@ -642,31 +643,42 @@ int ldbm_instance_config_add_index_entry(
     {
         if('\0' == attrs[i][0]) continue;
         basetype = slapi_attr_basetype(attrs[i], NULL, 0);
+        dn = slapi_create_dn_string("cn=%s,cn=index,cn=%s,cn=%s,cn=plugins,cn=config", 
+                            basetype, inst->inst_name, li->li_plugin->plg_name);
+        if (NULL == dn) {
+            LDAPDebug(LDAP_DEBUG_ANY,
+                      "ldbm_instance_config_add_index_entry: "
+                      "failed create index dn with type %s for plugin %s, "
+                      "instance %s\n",
+                      basetype, inst->inst_li->li_plugin->plg_name,
+                      inst->inst_name);
+            return -1;
+        }
         eBuf = PR_smprintf(
-                "dn: cn=%s, cn=index, cn=%s, cn=%s, cn=plugins, cn=config\n"
-                "objectclass:top\n"
-                "objectclass:nsIndex\n"
-                "cn:%s\n"
-                "nsSystemIndex:%s\n",
-                basetype, inst->inst_name, li->li_plugin->plg_name,
-                basetype,
+                "dn: %s\n"
+                "objectclass: top\n"
+                "objectclass: nsIndex\n"
+                "cn: %s\n"
+                "nsSystemIndex: %s\n",
+                dn, basetype,
                 (ldbm_attribute_always_indexed(basetype)?"true":"false"));
+        slapi_ch_free_string(&dn);
         for(j=0; indexes[j] != NULL; j++)
         {
-			eBuf = PR_sprintf_append(eBuf, "nsIndexType:%s\n", indexes[j]);
+            eBuf = PR_sprintf_append(eBuf, "nsIndexType:%s\n", indexes[j]);
         }
         if((argc>2)&&(argv[2]))
         {
             for(j=0; matchingRules[j] != NULL; j++)
             { 
-				eBuf = PR_sprintf_append(eBuf, "nsMatchingRule:%s\n", matchingRules[j]);
+                eBuf = PR_sprintf_append(eBuf, "nsMatchingRule:%s\n", matchingRules[j]);
             }
         }
 
         ldbm_config_add_dse_entry(li, eBuf, flags);
-		if (eBuf) {
-			PR_smprintf_free(eBuf);
-		}
+        if (eBuf) {
+            PR_smprintf_free(eBuf);
+        }
 
         slapi_ch_free((void**)&basetype);
     }
@@ -722,10 +734,10 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
     Slapi_Value *sval = NULL;
     const struct berval *attrValue;
     char *argv[ 8 ];
-    char basedn[BUFSIZ];
     char tmpBuf[MAX_TMPBUF];
     char tmpBuf2[MAX_TMPBUF];
     int argc;
+    char *basedn = NULL;
 
     struct ldbminfo *li;
 
@@ -742,8 +754,15 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
     strcpy(tmpBuf,"");
 
     /* Construct the base dn of the subtree that holds the default user indexes. */
-    PR_snprintf(basedn, BUFSIZ, "cn=default indexes, cn=config, cn=%s, cn=plugins, cn=config", 
-	li->li_plugin->plg_name);
+	basedn = slapi_create_dn_string("cn=default indexes,cn=config,cn=%s,cn=plugins,cn=config", 
+										li->li_plugin->plg_name);
+	if (NULL == basedn) {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+				      "ldbm_instance_create_default_user_indexes: "
+				      "failed create default index dn for plugin %s\n",
+				      inst->inst_li->li_plugin->plg_name);
+        return -1;
+	}
 
     /* Do a search of the subtree containing the index entries */
     aPb = slapi_pblock_new();
@@ -821,5 +840,6 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
 
     slapi_free_search_results_internal(aPb);
     slapi_pblock_destroy(aPb);
+    slapi_ch_free_string(&basedn);
     return 0;
 }

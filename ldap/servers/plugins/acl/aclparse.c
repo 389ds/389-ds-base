@@ -50,7 +50,6 @@ static int		__aclp__sanity_check_acltxt(aci_t *aci_item, char *str);
 static char *	__aclp__normalize_acltxt (aci_t *aci_item, char *str);
 static char *	__aclp__getNextLASRule(aci_t *aci_item, char *str,
         								 char **endOfCurrRule);
-static char *	__aclp__dn_normalize( char *dn , char *end);
 static int	__aclp__get_aci_right ( char *str);
 static int 	__aclp__init_targetattr (aci_t *aci, char *attr_val);
 static int			__acl__init_targetattrfilters( aci_t *aci_item, char *str);
@@ -239,10 +238,10 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 
 		
 			/* 
-          * The targetattrfilters bit looks like this:
-          *  (targetattrfilters="add= attr1:F1 && attr2:F2 ... && attrn:Fn,
-          *                      del= attr1:F1 && attr2:F2... && attrn:Fn")
-			*/
+			 * The targetattrfilters bit looks like this:
+			 *  (targetattrfilters="add= attr1:F1 && attr2:F2 ... && attrn:Fn,
+			 *                      del= attr1:F1 && attr2:F2... && attrn:Fn")
+			 */
 			if ( 0 != (rv= __acl__init_targetattrfilters(
 					aci_item, str))) {
 				return  rv;
@@ -256,15 +255,14 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 			}
 			/* Get individual components of the targetattr.
 			 * (targetattr = "cn || u* || phone ||tel:add:(tel=1234) 
-             *  || sn:del:(gn=5678)")
-             * If it contains a value filter, the type will also be
-             *	ACI_TARGET_VALUE_ATTR.
-			*/
-			if ( 0 != (rv= __aclp__init_targetattr(
-					aci_item, str))) {
+			 *  || sn:del:(gn=5678)")
+			 * If it contains a value filter, the type will also be
+			 *	ACI_TARGET_VALUE_ATTR.
+			 */
+			if (0 != (rv =  __aclp__init_targetattr(aci_item, str))) {
 				return  rv;
 			}
-		} else if (strncmp(str, aci_targetfilter,tfilterlen ) == 0) {	
+		} else if (strncmp(str, aci_targetfilter,tfilterlen ) == 0) {
 			if ( aci_item->targetFilter)
 				return ACL_SYNTAX_ERR;
 
@@ -311,8 +309,8 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 
 		} else if (strncmp(str, aci_targetdn, targetdnlen) == 0) {
 			char		*tstr = NULL;
-			const size_t    LDAP_URL_prefix_len = strlen (LDAP_URL_prefix);
-			char	*tt;
+			size_t    LDAP_URL_prefix_len = 0;
+			size_t	tmplen = 0;
 			type = ACI_TARGET_DN;
 			/* Keep a copy of the target attr */
 			if (aci_item->target) {
@@ -322,30 +320,40 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 				type |= ACI_TARGET_NOT;
 				strncpy(s, " ", 1);
 			}			
-				
-			/* Convert it to lower as slapi_dn_normalize() does not */
-			for (tt = str; *tt; tt++) *tt = TOLOWER ( *tt );
-			
 			if ( (s = strchr( str, '=' )) != NULL ) {
 				value = s + 1;
-				slapi_dn_normalize(value);
+				__acl_strip_leading_space(&value);
 				len =  strlen ( value );
-				if (*value == '"' &&  value[len-1] == '"'){
+				/* strip double quotes */
+				if (*value == '"' &&  value[len-1] == '"') {
 					value[len-1] = '\0';
 					value++;
 				}	
 				__acl_strip_leading_space(&value);
-			} else { 
+			} else {
+				return ( ACL_SYNTAX_ERR );
+			}
+			if (0 ==
+				strncasecmp(value, LDAP_URL_prefix, strlen(LDAP_URL_prefix))) {
+				LDAP_URL_prefix_len = strlen(LDAP_URL_prefix);
+			} else if (0 == strncasecmp(value, LDAPS_URL_prefix,
+										strlen(LDAPS_URL_prefix))) {
+				LDAP_URL_prefix_len = strlen(LDAPS_URL_prefix);
+			} else {
 				return ( ACL_SYNTAX_ERR );
 			}
 
-			if ( strncasecmp ( value, LDAP_URL_prefix , LDAP_URL_prefix_len) )
-				return ( ACL_SYNTAX_ERR );
-
 			value += LDAP_URL_prefix_len;
-			len = strlen ( value );
-			tstr =  (char *) slapi_ch_malloc ( targetdnlen + len + 4 );
-			sprintf ( tstr, "(target=%s)", value);
+			rv = slapi_dn_normalize_case_ext(value, 0, &tmpstr, &tmplen);
+			if (rv < 0) {
+				return ACL_SYNTAX_ERR;
+			} else if (rv == 0) { /* value passed in; not null terminated */
+				*(tmpstr + tmplen) = '\0';
+			}
+			tstr = slapi_ch_smprintf("(target=%s)", tmpstr);
+			if (rv > 0) {
+				slapi_ch_free_string(&tmpstr);
+			}
 			if ( (rv = acl_check_for_target_macro( aci_item, value)) == -1) {
 				slapi_ch_free ( (void **) &tstr );				
 				return(ACL_SYNTAX_ERR);
@@ -356,7 +364,7 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 				/* it's a normal target with no macros inside */	
 				f = slapi_str2filter ( tstr );				
 			}
-			slapi_ch_free ( (void **) &tstr );
+			slapi_ch_free_string ( &tstr );
 		} else {
 			/* did start with a 't' but was not a recognsied keyword */
 			return(ACL_SYNTAX_ERR);
@@ -492,20 +500,86 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Normalized String:%s\n", newstr);
 
 	/* check for acl syntax error */ 
-	if ((handle = (ACLListHandle_t *) ACL_ParseString(&errp, 
-							   newstr)) == NULL) {
+	if ((handle = (ACLListHandle_t *) ACL_ParseString(&errp, newstr)) == NULL) {
 		acl_print_acllib_err(&errp, str);
-		slapi_ch_free ( (void **) &newstr );
+		slapi_ch_free_string(&newstr);
 		return ACL_SYNTAX_ERR;
 	} else {
 		/* get the rights and the aci type */
 		aci_item->aci_handle = handle;
 		nserrDispose(&errp);
-		slapi_ch_free ( (void **) &newstr );
+		slapi_ch_free_string(&newstr);
 
 		return  0;
 	}
 }
+
+/*
+ * If the src includes "ldap(s):///<dn>", normalize <dn> and copy
+ * the string starting from start to *dest.
+ * If isstrict is non-zero, if ldap(s):/// is not included in the src
+ * string, it returns an error (-1).  
+ * If isstrict is zero, the string is copied as is.
+ *
+ * return value: 0 or positive: success
+ *                    negative: failure
+ */
+int
+__aclp__copy_normalized_str (char *src, char *endsrc, char *start,
+							 char **dest, size_t *destlen, int isstrict)
+{
+	char *p = NULL;
+	int rc = -1; 
+	char *dn = NULL;
+	size_t dnlen = 0;
+
+	p = PL_strnstr(src, LDAP_URL_prefix, endsrc - src);
+	if (p) {
+		p += strlen(LDAP_URL_prefix);
+	} else {
+		p = PL_strnstr(src, LDAPS_URL_prefix, endsrc - src);
+		if (p) {
+			p += strlen(LDAPS_URL_prefix);
+		}
+	}
+
+	if (isstrict && ((NULL == p) || 0 == strlen(p))) {
+		return rc; /* error */
+	}
+	
+	rc = 0;
+	if (p && strlen(p) > 0) {
+		size_t len = 0;
+		/* strip the string starting from ? */
+		char *q = PL_strnchr(p, '?', endsrc - p);
+		if (q) {
+			len = q - p;
+		} else {
+			len = endsrc - p;
+		}
+		/* Normalize the value of userdn and append it to ret_str */
+		rc = slapi_dn_normalize_ext(p, len, &dn, &dnlen);
+		if (rc < 0) {
+			return rc;
+		}
+		/* append up to ldap(s):/// */
+		aclutil_str_append_ext(dest, destlen, start, p - start);
+		/* append the DN part */
+		aclutil_str_append_ext(dest, destlen, dn, dnlen);
+		if (rc > 0) { /* if rc == 0, p is passed in */
+			slapi_ch_free_string(&dn);
+		}
+		if (q) {
+			/* append the rest from '?' */
+			aclutil_str_append_ext(dest, destlen, q, endsrc - q);
+		}
+	} else {
+		aclutil_str_append_ext(dest, destlen, start, endsrc - start);
+	}
+
+	return rc;
+}
+
 /******************************************************************************
 *
 * acl__normalize_acltxt
@@ -534,23 +608,25 @@ __aclp__normalize_acltxt ( aci_t * aci_item, char * str )
 	char		*s, *p;
 	char		*end;
 	char		*aclstr, *s_aclstr;
+	char		*prevend = NULL;
 	char		*ret_str = NULL;
+	size_t		retstr_len = 0;
 	int			len;
-	char		*ptr, *aclName;
+	char		*aclName;
 	char		*nextACE;
 	char		*tmp_str = NULL;
 	char		*acestr = NULL;
 	char		*s_acestr = NULL;
 	int 		aci_rights_val 	= 0; /* bug 389975 */ 
+	int			rc = 0;
 
 	/* make a copy first */
 	s_aclstr = aclstr = slapi_ch_strdup ( str );
 
 	/* The rules are like this version 3.0; acl "xyz"; rule1; rule2; */
 	s = strchr (aclstr, ';');
-	if ( NULL == s) {
-		slapi_ch_free ( (void **) &s_aclstr );
-		return NULL;
+	if (NULL == s) {
+		goto error;
 	}
 	aclstr = ++s;
 
@@ -564,9 +640,8 @@ __aclp__normalize_acltxt ( aci_t * aci_item, char * str )
 	aclName = s+3;
 
 	s = strchr (aclstr, ';');
-	if ( NULL == s) {
-		slapi_ch_free ( (void **) &s_aclstr );
-		return NULL;
+	if (NULL == s) {
+		goto error;
 	}
 
 	aclstr = s;
@@ -576,8 +651,10 @@ __aclp__normalize_acltxt ( aci_t * aci_item, char * str )
 	/* Here aclName is the acl description string */
 	aci_item->aclName = slapi_ch_strdup ( aclName );
 
-	aclutil_str_appened (&ret_str, s_aclstr);
-	aclutil_str_appened (&ret_str, ";");
+	retstr_len = strlen(str) * 3;
+	ret_str = (char *)slapi_ch_calloc(sizeof(char), retstr_len);
+	aclutil_str_append_ext (&ret_str, &retstr_len, s_aclstr, strlen(s_aclstr));
+	aclutil_str_append_ext (&ret_str, &retstr_len, ";", 1);
 
 	/* start with the string */
 	acestr = aclstr;
@@ -586,37 +663,34 @@ __aclp__normalize_acltxt ( aci_t * aci_item, char * str )
 	 * Here acestr is something like:
 	 *
 	 * " allow (all) groupdn = "ldap:///cn=Domain Administrators, o=$dn.o, o=ISP";)"
-	 *
-	 *
-	*/
+	 */
 
 normalize_nextACERule:
 
 	/* now we are in the rule part */
 	tmp_str = acestr;
 	s = strchr (tmp_str, ';');
-	if ( s == NULL) {
-		if (ret_str) slapi_ch_free ( (void **) &ret_str );
-		slapi_ch_free ( (void **) &s_aclstr );
-		return NULL;
+	if (s == NULL) {
+		goto error;
 	}
+
 	nextACE = s;
 	LDAP_UTF8INC(nextACE);
 	*s = '\0';
 
-	/* acestr now will hold  copy of the ACE. Also add
+	/* acestr now will hold copy of the ACE. Also add
 	** some more space in case we need to add "absolute"
-	** for deny rule. We will never need more 2 times 
-	** the len.
+	** for deny rule. We will never need more 3 times 
+	** the len (even if all the chars are escaped).
 	*/
 	__acl_strip_leading_space(&tmp_str);
 	len = strlen (tmp_str);
-	s_acestr = acestr = slapi_ch_calloc ( 1, 2 * len);
+	s_acestr = acestr = slapi_ch_calloc (1, 3 * len);
 
 	/*
 	 * Now it's something like:
 	 * allow (all) groupdn = "ldap:///cn=Domain Administrators, o=$dn.o, o=ISP";
-	*/
+	 */
 	if (strncasecmp(tmp_str, "allow", 5) == 0) {
 		memcpy(acestr, tmp_str, len);
 		tmp_str += 5;
@@ -624,6 +698,14 @@ normalize_nextACERule:
 		aci_rights_val =  __aclp__get_aci_right (tmp_str);/* bug 389975 */
 		aci_item->aci_type |= ACI_HAS_ALLOW_RULE;
 
+		s = strchr(acestr, ')');
+		if (NULL == s) {
+			/* wrong syntax */
+			goto error;
+		}
+		/* add "allow(rights...)" */
+		aclutil_str_append_ext(&ret_str, &retstr_len, acestr, s - acestr + 1);
+		prevend = s + 1;
 	} else if (strncasecmp(tmp_str, "deny", 4) == 0) {
 		char 		*d_rule ="deny absolute";
 		/* Then we have to  add "absolute" to the deny rule
@@ -652,6 +734,15 @@ normalize_nextACERule:
 		len = strlen ( d_rule );
 		memcpy (acestr, d_rule, len );
 		memcpy (acestr+len, tmp_str, strlen (tmp_str) );
+
+		s = strchr(acestr, ')');
+		if (NULL == s) {
+			/* wrong syntax */
+			goto error;
+		}
+		/* add "deny(rights...)" */
+		aclutil_str_append_ext(&ret_str, &retstr_len, acestr, s - acestr + 1);
+		prevend = s + 1;
 	} else {
 		/* wrong syntax */
 		aci_rights_val = -1 ;
@@ -659,32 +750,32 @@ normalize_nextACERule:
 	if (aci_rights_val == -1 )
 	{
 		/* wrong syntax */
-		slapi_ch_free ( (void **) &ret_str );
-		slapi_ch_free ( (void **) &s_acestr );
-		slapi_ch_free ( (void **) &s_aclstr );
-		return NULL;
+		goto error;
 	} else
-        	aci_item->aci_access |= aci_rights_val;
+		aci_item->aci_access |= aci_rights_val;
  
-
-	/* Normalize all the DNs in the userdn rule */
-
+	/* Normalize all the DNs in the userdn, groupdn, roledn rules */
 	/*
 	 *
 	 * Here acestr starts like this:
-	 * " allow (all) groupdn = "ldap:///cn=Domain Administrators, o=$dn.o, o=ISP"
-	*/
-
+	 * " allow (all) groupdn = "ldap:///cn=Domain Administrators,o=$dn.o,o=ISP"
+	 */
 	s =  __aclp__getNextLASRule(aci_item, acestr, &end);
 	while ( s ) {
-		if ( 0 == strncmp ( s, DS_LAS_USERDNATTR, 10) ||
-			( 0 == strncmp ( s, DS_LAS_USERATTR, 8))) {
+		if ( (0 == strncmp(s, DS_LAS_USERDNATTR, 10)) ||
+			 (0 == strncmp(s, DS_LAS_USERATTR, 8)) ) {
 			/* 
 			** For userdnattr/userattr rule, the resources changes and hence
 			** we cannot cache the result. See above for more comments.
 			*/
 			aci_item->aci_elevel = ACI_ELEVEL_USERDNATTR;
-		} else if ( 0== strncmp ( s, DS_LAS_USERDN, 6)) {
+
+			rc = __aclp__copy_normalized_str(s, end, prevend,
+											 &ret_str, &retstr_len, 0);
+			if (rc < 0) {
+				goto error;
+			}
+		} else if ( 0 == strncmp ( s, DS_LAS_USERDN, 6)) {
 			p = strstr ( s, "=");
 			p--;
 			if ( strncmp (p, "!=", 2) == 0)
@@ -699,22 +790,12 @@ normalize_nextACERule:
 			 * which would ensure that acl info is not cached from
 			 * one resource entry to the next. (bug 558519)
 			*/
-			p = strstr ( p, "ldap");
-			if (p == NULL) {   
-				/* must start with ldap */
-				if (s_acestr) slapi_ch_free ( (void **) &s_acestr );
-				if (ret_str) slapi_ch_free ( (void **) &ret_str );
-				slapi_ch_free ( (void **) &s_aclstr );
-				return (NULL);
+			rc = __aclp__copy_normalized_str(s, end, prevend,
+											 &ret_str, &retstr_len, 1);
+			if (rc < 0) {
+				goto error;
 			}
-			p += 8; /* for ldap:/// */
-			if( __aclp__dn_normalize (p, end) == NULL) {
-				if (s_acestr) slapi_ch_free ( (void **) &s_acestr );
-				if (ret_str) slapi_ch_free ( (void **) &ret_str );
-				slapi_ch_free ( (void **) &s_aclstr );
-				return (NULL);
-			}
-		
+
 			/* we have a rule like userdn = "ldap:///blah". s points to blah now.
 			** let's find if we have a SELF rule like userdn = "ldap:///self".
 			** Since the resource changes on entry basis, we can't cache the 
@@ -750,6 +831,12 @@ normalize_nextACERule:
 				aci_item->aci_elevel = ACI_ELEVEL_GROUPDNATTR;
 			}
 			aci_item->aci_ruleType |= ACI_GROUPDNATTR_RULE;
+
+			rc = __aclp__copy_normalized_str(s, end, prevend,
+											 &ret_str, &retstr_len, 0);
+			if (rc < 0) {
+				goto error;
+			}
 		} else if ( 0 == strncmp ( s, DS_LAS_GROUPDN, 7)) {
 
 			p = strstr ( s, "=");
@@ -757,21 +844,12 @@ normalize_nextACERule:
 			if ( strncmp (p, "!=", 2) == 0)
 				aci_item->aci_type |= ACI_CONTAIN_NOT_GROUPDN;
 
-			p = strstr ( s, "ldap");
-			if (p == NULL) {   
-				/* must start with ldap */
-				if (s_acestr) slapi_ch_free ( (void **) &s_acestr );
-				if (ret_str) slapi_ch_free ( (void **) &ret_str );
-				slapi_ch_free ( (void **) &s_aclstr );
-				return (NULL);
+			rc = __aclp__copy_normalized_str(s, end, prevend,
+											 &ret_str, &retstr_len, 1);
+			if (rc < 0) {
+				goto error;
 			}
-			p += 8;
-			if (__aclp__dn_normalize (p, end) == NULL) {
-				if (s_acestr) slapi_ch_free ( (void **) &s_acestr );
-				if (ret_str) slapi_ch_free ( (void **) &ret_str );
-				slapi_ch_free ( (void **) &s_aclstr );
-				return (NULL);
-			}
+
 			/* check for param rules */
 			__aclp_chk_paramRules ( aci_item, p, end );
 
@@ -786,21 +864,12 @@ normalize_nextACERule:
 			if ( strncmp (p, "!=", 2) == 0)
 				aci_item->aci_type |= ACI_CONTAIN_NOT_ROLEDN;
 
-			p = strstr ( s, "ldap");
-			if (p == NULL) {   
-				/* must start with ldap */
-				if (s_acestr) slapi_ch_free ( (void **) &s_acestr );
-				if (ret_str) slapi_ch_free ( (void **) &ret_str );
-				slapi_ch_free ( (void **) &s_aclstr );
-				return (NULL);
+			rc = __aclp__copy_normalized_str(s, end, prevend,
+											 &ret_str, &retstr_len, 1);
+			if (rc < 0) {
+				goto error;
 			}
-			p += 8;
-			if (__aclp__dn_normalize (p, end) == NULL) {
-				if (s_acestr) slapi_ch_free ( (void **) &s_acestr );
-				if (ret_str) slapi_ch_free ( (void **) &ret_str );
-				slapi_ch_free ( (void **) &s_aclstr );
-				return (NULL);
-			}
+
 			/* check for param rules */
 			__aclp_chk_paramRules ( aci_item, p, end );
 
@@ -808,40 +877,47 @@ normalize_nextACERule:
 			if ( aci_item->aci_elevel > ACI_ELEVEL_GROUPDN )
 				aci_item->aci_elevel = ACI_ELEVEL_GROUPDN;*/
 			aci_item->aci_ruleType |= ACI_ROLEDN_RULE;
+		} else {
+			/* adding the string no need to be processed
+			 * (e.g., dns="lab.example.com)" */
+			aclutil_str_append_ext(&ret_str, &retstr_len, 
+									prevend, end - prevend);
 		}
+		prevend = end;
 		s = ++end;
 		s =  __aclp__getNextLASRule(aci_item, s, &end);
-	}/* while */
+		if (NULL == s) {
+			/* adding the rest of the string, e.g. '\"' */
+			aclutil_str_append_ext(&ret_str, &retstr_len, 
+									prevend, strlen(prevend));
+		}
+	} /* while */
 
-	/* get the head of the string */
-	acestr = s_acestr;
-	len = strlen( acestr);
-	ptr =  acestr +len-1;
-	while (*ptr && *ptr != '\"'  && *ptr != ')' ) *ptr-- = ' ';
-	ptr++;
-	*ptr = ';';
-
-	aclutil_str_appened (&ret_str, acestr);
-	if (s_acestr)  {
-		slapi_ch_free ( (void **) &s_acestr );
-	}
-	s_acestr = NULL;
+	slapi_ch_free_string (&s_acestr);
+    __acl_strip_trailing_space(ret_str);
+	aclutil_str_append_ext(&ret_str, &retstr_len, ";", 1);
 
 	if (nextACE) {
 		s = strstr (nextACE, "allow");
 		if (s == NULL) s = strstr (nextACE, "deny");
 		if (s == NULL)  {
 			if (nextACE && *nextACE != '\0')
-				aclutil_str_appened (&ret_str, nextACE);
-			slapi_ch_free ( (void **) &s_aclstr );
+				aclutil_str_append (&ret_str, nextACE);
+			slapi_ch_free_string (&s_aclstr);
 			return (ret_str);
 		}
 		acestr = nextACE;
 		goto normalize_nextACERule;
 	}
 
-	slapi_ch_free ( (void **) &s_aclstr );
+	slapi_ch_free_string (&s_aclstr);
 	return (ret_str);
+
+error:
+	slapi_ch_free_string (&ret_str);
+	slapi_ch_free_string (&s_aclstr);
+	slapi_ch_free_string (&s_acestr);
+	return NULL;
 }
 /*
  * 
@@ -857,7 +933,7 @@ __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRu
 {
 	char	*newstr, *word, *next, *start, *end;
 	char	*ruleStart = NULL;
-	int		len, ruleLen;
+	int		len, ruleLen = 0;
 	int in_dn_expr = 0;
 
 	*endOfCurrRule = NULL;	
@@ -1029,43 +1105,7 @@ __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRu
 
 	return ( ruleStart );
 }
-/******************************************************************************
-*
-* __aclp__dn_normalize
-*
-*	Normalize the DN INPLACE. This routine is similar to slapi_dn_normalize()
-*	except various small stuff at the end.
-*	Normalize until the "end" and not to the end of string.
-*
-******************************************************************************/
-static char *
-__aclp__dn_normalize( char *dn , char *end)
-{
-	char *d;
 
-	if ((end - dn) < 0) {
-		return(NULL);
-	}
-
-	d = slapi_dn_normalize_to_end ( dn, end );
-
-	/* Do I have the quotes already */
-	if (*d != '\"' ) {
-		/* 
-		** We are taking care of this situation
-		**  "   ") ". We need to remove the space
-		** infront and tack it after the quote like this.
-		**  ""   ) ". 
-		*/
-
-		*d = '\"';
-		d++;	
-		while (*d && *d != '\"') *d++ = ' ';
-		*d = ' ';
-	}
-
-	return( dn );
-}
 /***************************************************************************
 * acl__get_aci_right
 *
@@ -1263,6 +1303,7 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 	}
 
 	while (str != 0 && *str != 0) {
+		int lenstr = 0;
 
 		__acl_strip_leading_space(&str);
 
@@ -1292,23 +1333,28 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 		attr = (Targetattr *) slapi_ch_malloc (sizeof (Targetattr));
 		memset (attr, 0, sizeof(Targetattr));
                                 
-            if (strchr(str, '*')) { 
-
+		/* strip double quotes */
+		lenstr = strlen(str);
+		if (*str == '"' && *(str + lenstr - 1) == '"') {
+			*(str + lenstr - 1) = '\0';
+			str++;
+		}
+		if (strchr(str, '*')) {
+             		
 			/* It contains a * so it's something like * or cn* */
 			if (strcmp(str, "*" ) != 0) {
 				char			line[100];
 				char *lineptr = &line[0];
 				char *newline = NULL;
-				int lenstr = 0;
 				struct  slapi_filter	*f = NULL;
 
-				if ((lenstr = strlen(str)) > 91) { /* 100 - 8 for "(attr =%s)" */
-					newline = slapi_ch_malloc(lenstr + 9);
+				if (lenstr > 92) { /* 100 - 8 for "(attr=%s)\0" */
+					newline = slapi_ch_malloc(lenstr + 8);
 					lineptr = newline;
 				}
 
 				attr->attr_type = ACL_ATTR_FILTER;
-				sprintf (lineptr, "(attr =%s)", str);
+				sprintf (lineptr, "(attr=%s)", str);
 				f = slapi_str2filter (lineptr);
 	
 				if (f == NULL)  {
@@ -1320,7 +1366,7 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 
 				if (newline) slapi_ch_free((void **) &newline);
 			} else {
-             		attr->attr_type = ACL_ATTR_STAR;
+				attr->attr_type = ACL_ATTR_STAR;
 				attr->u.attr_str = slapi_ch_strdup (str);
 			}
 

@@ -80,9 +80,9 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		goto out;
 	}
 
-        if (linkdn) {
+	if (linkdn) {
 	    mytaskdata->linkdn = slapi_dn_normalize(slapi_ch_strdup(linkdn));
-        }
+	}
 
 	/* allocate new task now */
 	task = slapi_new_task(slapi_entry_get_ndn(e));

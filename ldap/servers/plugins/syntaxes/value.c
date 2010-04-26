@@ -86,23 +86,40 @@ utf8isspace_fast( char* s )
 ** Also note that this deviates from rfc 4517 INTEGER syntax, but we must
 ** support legacy clients for the time being
 */
+/*
+ * alt stores the normalized value in case the normalized value is longer
+ * than the original value.  It may happen the value is DN.
+ */
 void
-value_normalize(
+value_normalize_ext(
     char    *s,
     int     syntax,
-    int     trim_spaces
+    int     trim_spaces,
+    char    **alt
 )
 {
 	char *head = s;
 	char *d;
 	int  prevspace, curspace;
 
+	if (NULL == alt) {
+		return;
+	}
+	*alt = NULL;
+
 	if ( ! (syntax & SYNTAX_CIS) && ! (syntax & SYNTAX_CES) ) {
 		return;
 	}
 
 	if ( syntax & SYNTAX_DN ) {
-		(void) slapi_dn_normalize_case( s );
+		char *dest = NULL;
+		size_t dlen = 0;
+		int rc = slapi_dn_normalize_case_ext(s, 0, &dest, &dlen);
+		if (rc > 0) {
+			*alt = dest;
+		} else if (rc == 0) { /* normalized in line; not terminated */
+			*(dest + dlen) = '\0';
+		}
 		return;
 	}
 
@@ -203,6 +220,16 @@ value_normalize(
 	}
 }
 
+void
+value_normalize(
+    char    *s,
+    int     syntax,
+    int     trim_spaces
+)
+{
+	/* deprecated */
+}
+
 int
 value_cmp(
     struct berval	*v1,
@@ -220,6 +247,7 @@ value_cmp(
 	int free_v1 = 0;
 	int free_v2 = 0;
 	int v1sign = 1, v2sign = 1; /* default to positive */
+	char *alt = NULL;
 
 	/* This code used to call malloc up to four times in the copying
 	 * of attributes to be normalized. Now we attempt to keep everything
@@ -233,13 +261,35 @@ value_cmp(
 			bvcopy1.bv_val = &little_buffer[buffer_offset];
 			bvcopy1.bv_val[v1->bv_len] = '\0';
 			v1 = &bvcopy1;
-			buffer_space-= v1->bv_len+1;
-			buffer_offset+= v1->bv_len+1;
 		} else {
 			v1 = ber_bvdup( v1 );
 			free_v1 = 1;
 		}
-		value_normalize( v1->bv_val, syntax, 1 /* trim leading blanks */ );
+		value_normalize_ext( v1->bv_val, syntax, 
+							 1 /* trim leading blanks */, &alt );
+		if (alt) {
+			if (free_v1) {
+				slapi_ch_free_string(&v1->bv_val);
+				v1->bv_val = alt;
+				v1->bv_len = strlen(alt);
+			} else {
+				if (strlen(alt) < buffer_space) {
+					v1->bv_len = strlen(alt);
+					/* Copying to little_buffer */
+					SAFEMEMCPY(v1->bv_val, alt, v1->bv_len);
+					*(v1->bv_val + v1->bv_len) = '\0';
+				} else {
+					free_v1 = 1;
+					v1 = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+					v1->bv_val = alt;
+					v1->bv_len = strlen(alt);
+				}
+			}
+		}
+		if (!free_v1) {
+			buffer_space -= v1->bv_len + 1;
+			buffer_offset += v1->bv_len + 1;
+		}
 	}
 	if ( normalize & 2 ) {
 		/* Do we have space in the little buffer ? */
@@ -249,13 +299,35 @@ value_cmp(
 			bvcopy2.bv_val = &little_buffer[buffer_offset];
 			bvcopy2.bv_val[v2->bv_len] = '\0';
 			v2 = &bvcopy2;
-			buffer_space-= v2->bv_len+1;
-			buffer_offset+= v2->bv_len+1;
 		} else {
 			v2 = ber_bvdup( v2 );
 			free_v2 = 1;
 		}
-		value_normalize( v2->bv_val, syntax, 1 /* trim leading blanks */ );
+		value_normalize_ext( v2->bv_val, syntax, 
+							 1 /* trim leading blanks */, &alt );
+		if (alt) {
+			if (free_v2) {
+				slapi_ch_free_string(&v2->bv_val);
+				v2->bv_val = alt;
+				v2->bv_len = strlen(alt);
+			} else {
+				if (strlen(alt) < buffer_space) {
+					v2->bv_len = strlen(alt);
+					/* Copying to little_buffer */
+					SAFEMEMCPY(v2->bv_val, alt, v2->bv_len);
+					*(v2->bv_val + v2->bv_len) = '\0';
+				} else {
+					free_v2 = 1;
+					v2 = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+					v2->bv_val = alt;
+					v2->bv_len = strlen(alt);
+				}
+			}
+		}
+		if (!free_v2) {
+			buffer_space -= v2->bv_len + 1;
+			buffer_offset += v2->bv_len + 1;
+		}
 	}
 
 	if (syntax & SYNTAX_INT) {

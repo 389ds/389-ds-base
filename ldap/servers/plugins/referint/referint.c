@@ -385,6 +385,7 @@ _update_one_per_mod(const char *entryDN, /* DN of the searched entry */
             /* no need to free superior */
             superior = slapi_dn_find_parent(origDN);
         }
+        /* newRDN and superior are already normalized. */
         newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
         /* 
          * Compare the modified dn with the value of 
@@ -409,9 +410,19 @@ _update_one_per_mod(const char *entryDN, /* DN of the searched entry */
              nval != -1;
              nval = slapi_attr_next_value(attr, nval, &v)) {
             char *p = NULL;
+            size_t dnlen = 0;
             /* DN syntax, which should be a string */
             sval = slapi_ch_strdup(slapi_value_get_string(v));
-            slapi_dn_normalize_case(sval);
+            rc = slapi_dn_normalize_case_ext(sval, 0,  &p, &dnlen);
+            if (rc == 0) { /* sval is passed in; not terminated */
+                *(p + dnlen) = '\0';
+                sval = p;
+            } else if (rc > 0) {
+                slapi_ch_free_string(&sval);
+                sval = p;
+            }
+            /* else: (rc < 0) Ignore the DN normalization error for now. */
+
             p = PL_strstr(sval, norm_origDN);
             if (p == sval) {
                 /* (case 1) */
@@ -448,6 +459,7 @@ _update_one_per_mod(const char *entryDN, /* DN of the searched entry */
 
                 bak = *p;
                 *p = '\0';
+                /* newRDN and superior are already normalized. */
                 newvalue = slapi_ch_smprintf("%s%s", sval, newDN);
                 *p = bak;
                 values_add[0]=newvalue;
@@ -579,9 +591,19 @@ _update_all_per_mod(const char *entryDN, /* DN of the searched entry */
              nval != -1;
              nval = slapi_attr_next_value(attr, nval, &v)) {
             char *p = NULL;
+            size_t dnlen = 0;
             /* DN syntax, which should be a string */
             sval = slapi_ch_strdup(slapi_value_get_string(v));
-            slapi_dn_normalize_case(sval);
+            rc = slapi_dn_normalize_case_ext(sval, 0,  &p, &dnlen);
+            if (rc == 0) { /* sval is passed in; not terminated */
+                *(p + dnlen) = '\0';
+                sval = p;
+            } else if (rc > 0) {
+                slapi_ch_free_string(&sval);
+                sval = p;
+            }
+            /* else: (rc < 0) Ignore the DN normalization error for now. */
+
             p = PL_strstr(sval, norm_origDN);
             if (p == sval) {
                 /* (case 1) */
@@ -632,6 +654,7 @@ update_integrity(char **argv, char *origDN,
     int i, j;
     const char *search_base = NULL;
     char *norm_origDN = NULL;
+    size_t dnlen = 0;
     int rc;
    
     if ( argv == NULL ) {
@@ -644,8 +667,14 @@ update_integrity(char **argv, char *origDN,
     /* for now, just putting attributes to keep integrity on in conf file,
        until resolve the other timing mode issue */
   
-    norm_origDN = slapi_ch_strdup(origDN);
-    slapi_dn_normalize_case(norm_origDN);
+    rc = slapi_dn_normalize_case_ext(origDN, 0,  &norm_origDN, &dnlen);
+    if (rc == 0) { /* origDN is passed in; not terminated */
+        *(norm_origDN + dnlen) = '\0';
+        norm_origDN = slapi_ch_strdup(norm_origDN);
+    } else if (rc < 0) {
+        /* Ignore the DN normalization error for now. */
+        norm_origDN = slapi_ch_strdup(origDN);
+    }
 
     search_result_pb = slapi_pblock_new();
 

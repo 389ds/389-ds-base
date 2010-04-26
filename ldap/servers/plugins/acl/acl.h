@@ -119,7 +119,11 @@ static char* const aci_targetattr 			= "targetattr";
 static char* const aci_targetattrfilters 	= "targattrfilters";
 static char* const aci_targetfilter 		= "targetfilter";
 
+static char* const LDAP_URL_prefix_core 	= "ldap://";
+static char* const LDAPS_URL_prefix_core 	= "ldaps://";
+
 static char* const LDAP_URL_prefix 	= "ldap:///";
+static char* const LDAPS_URL_prefix 	= "ldaps:///";
 
 static char* const access_str_compare 	= "compare";
 static char* const access_str_search  	= "search";
@@ -827,7 +831,7 @@ int			acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e );
 
 int			aclext_alloc_lockarray ();
 
-int			aclutil_str_appened(char **str1, const char *str2);
+int			aclutil_str_append(char **str1, const char *str2);
 void		aclutil_print_err (int rv , const Slapi_DN *sdn,
 			const struct berval* val, char **errbuf);
 void		aclutil_print_aci (aci_t *aci_item, char *type);
@@ -911,6 +915,7 @@ acl_replace_str(char * s, char *substr, char* replace_with);
 int		acl_strstr(char * s, char *substr);
 int		aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 								acl_eval_types evalType );
+int aclutil_str_append_ext(char **dest, size_t *dlen, const char *src, size_t slen);
 
 /* acl hash table functions */
 void acl_ht_add_and_freeOld(acl_ht_t * acl_ht, PLHashNumber key,char *value);

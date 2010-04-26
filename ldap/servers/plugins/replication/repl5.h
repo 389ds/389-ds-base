@@ -319,8 +319,8 @@ char **agmt_validate_replicated_attributes(Repl_Agmt *ra);
 void* agmt_get_priv (const Repl_Agmt *agmt);
 void agmt_set_priv (Repl_Agmt *agmt, void* priv);
 
-
 int get_agmt_agreement_type ( Repl_Agmt *agmt);
+int agmt_has_protocol(Repl_Agmt *agmt);
 
 typedef struct replica Replica;
 

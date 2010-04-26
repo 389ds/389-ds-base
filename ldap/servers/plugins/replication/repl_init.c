@@ -207,6 +207,7 @@ legacy_entry_init( Slapi_PBlock *pb )
 static int
 create_config_top()
 {
+	/* DN part of this entry_string: no need to be optimized. */
 	char *entry_string = slapi_ch_strdup("dn: cn=replication,cn=config\nobjectclass: top\nobjectclass: extensibleobject\ncn: replication\n");
 	Slapi_PBlock *pb = slapi_pblock_new();
 	Slapi_Entry *e = slapi_str2entry(entry_string, 0);

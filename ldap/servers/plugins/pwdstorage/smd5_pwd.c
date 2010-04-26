@@ -89,7 +89,7 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
       memset( quick_dbhash, 0, sizeof(quick_dbhash) );
    }
 
-   hashresult = PL_Base64Decode( dbpwd, 0, (char *)dbhash );
+   hashresult = PL_Base64Decode( dbpwd, 0, dbhash );
    if (NULL == hashresult) {
       slapi_log_error( SLAPI_LOG_PLUGIN, SALTED_MD5_SUBSYSTEM_NAME,
             "smd5_pw_cmp: userPassword \"%s\" is the wrong length "
@@ -139,7 +139,7 @@ smd5_pw_enc( const char *pwd )
    memset( hash_out, 0, sizeof(hash_out) );
 
    /* generate a new random salt */
-   slapi_rand_array( salt, MD5_DEFAULT_SALT_LENGTH );
+   slapi_rand_array( (void *)salt, MD5_DEFAULT_SALT_LENGTH );
    saltval.bv_val = (void*)salt;
    saltval.bv_len = MD5_DEFAULT_SALT_LENGTH;
 

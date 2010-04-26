@@ -791,7 +791,7 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 	*/		
 
 	/* Nothing needs to be cleaned up in this case */
-	if ( !aclpb->aclpb_state & ACLPB_INITIALIZED)
+	if (!(aclpb->aclpb_state & ACLPB_INITIALIZED))
 		return;
 
 	/* Check the state */

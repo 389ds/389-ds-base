@@ -533,6 +533,7 @@ import_producer(void *param)
                 FREE(estr);
                 continue;
             }
+            /* get_value_from_string decodes base64 if it is encoded. */
             rc = get_value_from_string((const char *)estr, "dn", &dn);
             if (rc) {
                 import_log_notice(job, "WARNING: skipping bad LDIF entry (dn "

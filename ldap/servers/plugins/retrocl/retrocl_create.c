@@ -77,6 +77,7 @@ static int retrocl_create_be(const char *bedir)
     vals[1] = NULL; 
 
     e = slapi_entry_alloc();
+    /* RETROCL_LDBM_DN is no need to be normalized. */
     slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_LDBM_DN));
 
     /* Set the objectclass attribute */
@@ -142,6 +143,7 @@ static int retrocl_create_be(const char *bedir)
 
     /* we need the changenumber indexed */
     e = slapi_entry_alloc();
+    /* RETROCL_INDEX_DN is no need to be normalized. */
     slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_INDEX_DN));
 
     /* Set the objectclass attribute */
@@ -210,6 +212,7 @@ int retrocl_create_config(void)
     struct berval *vals[2];
     struct berval val;
     int rc;
+    char *mappingtree_dn = NULL;
 
     vals[0] = &val;
     vals[1] = NULL; 
@@ -219,7 +222,15 @@ int retrocl_create_config(void)
      * in the errors file when the referenced backend does not exist.
      */
     e = slapi_entry_alloc();
-    slapi_entry_set_dn(e,slapi_ch_strdup(RETROCL_MAPPINGTREE_DN));
+    /* This function converts the old DN style to the new one. */
+    mappingtree_dn = slapi_create_dn_string("%s", RETROCL_MAPPINGTREE_DN);
+    if (NULL == mappingtree_dn) {
+        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                         "retrocl_create_config: failed to normalize "
+                         "mappingtree dn %s\n", RETROCL_MAPPINGTREE_DN);
+        return LDAP_PARAM_ERROR;
+    }
+    slapi_entry_set_dn(e, mappingtree_dn); /* mappingtree_dn is consumed */
     
     /* Set the objectclass attribute */
     val.bv_val = "top";

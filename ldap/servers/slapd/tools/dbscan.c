@@ -434,7 +434,7 @@ static ID id_stored_to_internal(char* b)
 static void id_internal_to_stored(ID i,char *b)
 {
     if ( sizeof(ID) > 4 ) {
-        memset (b+4, 0, sizeof(ID)-4);
+        (void)memset (b+4, 0, sizeof(ID)-4);
     }
 
     b[0] = (char)(i >> 24);

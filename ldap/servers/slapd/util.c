@@ -335,8 +335,9 @@ int slapi_entry2mods (const Slapi_Entry *e, char **dn, LDAPMod ***attrs)
 *
 *  normalize_mods2bvals
 *
-*     
-*  
+*  Return value: normalized mods
+*  The values/bvals are all duplicated in this function since
+*  the normalized mods are freed with ldap_mods_free by the caller.
 *
 *******************************************************************************/
 
@@ -360,6 +361,18 @@ normalize_mods2bvals(const LDAPMod **mods)
 
     for (w = 0; mods[w] != NULL; w++) 
     {
+        Slapi_Attr a = {0};
+        slapi_attr_init(&a, mods[w]->mod_type);
+        int is_dn_syntax = 0;
+        struct berval **normmbvp = NULL;
+
+        /* Check if the type of the to-be-added values has DN syntax 
+         * or not. */
+        if (slapi_attr_is_dn_syntax_attr(&a)) {
+            is_dn_syntax = 1;
+        }
+        attr_done(&a);
+
         /* copy each mod into a normalized modbvalue */
         normalized_mods[w] = (LDAPMod *) slapi_ch_calloc(1, sizeof(LDAPMod));
         normalized_mods[w]->mod_op = mods[w]->mod_op | LDAP_MOD_BVALUES;
@@ -397,32 +410,79 @@ normalize_mods2bvals(const LDAPMod **mods)
        
         if (mods[w]->mod_op & LDAP_MOD_BVALUES) 
         {
-            for (x = 0; mods[w]->mod_bvalues != NULL &&
-                    mods[w]->mod_bvalues[x] != NULL; x++) 
+            struct berval **mbvp = NULL;
+
+            for (mbvp = mods[w]->mod_bvalues,
+                 normmbvp = normalized_mods[w]->mod_bvalues; 
+                 mbvp && *mbvp; mbvp++, normmbvp++)
             {
-                normalized_mods[w]->mod_bvalues[x] = ber_bvdup(mods[w]->mod_bvalues[x]);
+                if (is_dn_syntax) {
+                    int rc = 0;
+                    char *normed = NULL;
+                    size_t dnlen = 0;
+
+                    rc = slapi_dn_normalize_ext((*mbvp)->bv_val, 
+                                                (*mbvp)->bv_len,
+                                                &normed, &dnlen);
+                    if (rc < 0) { /* normalization failed; use the original */
+                        *normmbvp = ber_bvdup(*mbvp);
+                    } else if (rc == 0) { /* if rc == 0, value is passed in */
+                        *(normed + dnlen) = '\0';
+                        *normmbvp = ber_bvdup(*mbvp);
+                    } else {
+                        (*normmbvp)->bv_val = normed;
+                        (*normmbvp)->bv_len = dnlen;
+                    }
+                } else {
+                    *normmbvp = ber_bvdup(*mbvp);
+                }
             }
         } else {
-            for (x = 0; mods[w]->mod_values != NULL &&
-                    mods[w]->mod_values[x] != NULL; x++) 
+            char **mvp = NULL;
+
+            for (mvp = mods[w]->mod_values, 
+                 normmbvp = normalized_mods[w]->mod_bvalues; 
+                 mvp && *mvp; mvp++, normmbvp++)
             {
-                normalized_mods[w]->mod_bvalues[ x ] = (struct berval *)
-                    slapi_ch_calloc(1, sizeof(struct berval));
-		
-                vlen = strlen(mods[w]->mod_values[x]);
-                normalized_mods[w]->mod_bvalues[ x ]->bv_val =
-                    slapi_ch_calloc(vlen + 1, sizeof(char));
-                memcpy(normalized_mods[w]->mod_bvalues[ x ]->bv_val,
-                         mods[w]->mod_values[x], vlen);
-                normalized_mods[w]->mod_bvalues[ x ]->bv_val[vlen] = '\0';
-                normalized_mods[w]->mod_bvalues[ x ]->bv_len = vlen;
+                *normmbvp = 
+                    (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+        
+                vlen = strlen(*mvp);
+
+                if (is_dn_syntax) {
+                    int rc = 0;
+                    char *normed = NULL;
+                    size_t dnlen = 0;
+                    rc = slapi_dn_normalize_ext(*mvp, vlen,
+                                                &normed, &dnlen);
+                    if (rc < 0) { /* normalization failed; use the original */
+                        (*normmbvp)->bv_val = slapi_ch_malloc(vlen + 1);
+                        memcpy((*normmbvp)->bv_val, *mvp, vlen);
+                        (*normmbvp)->bv_val[vlen] = '\0';
+                        (*normmbvp)->bv_len = vlen;
+                    } else if (rc == 0) { /* if rc == 0, value is passed in */
+                        *(normed + dnlen) = '\0';
+                        (*normmbvp)->bv_val = slapi_ch_strdup(normed);
+                        (*normmbvp)->bv_len = dnlen;
+                    } else {
+                        (*normmbvp)->bv_val = normed;
+                        (*normmbvp)->bv_len = dnlen;
+                    }
+                } else {
+                    (*normmbvp)->bv_val = slapi_ch_malloc(vlen + 1);
+                    memcpy((*normmbvp)->bv_val, *mvp, vlen);
+                    (*normmbvp)->bv_val[vlen] = '\0';
+                    (*normmbvp)->bv_len = vlen;
+                }
             }
         }
 
+        PR_ASSERT(normmbvp - normalized_mods[w]->mod_bvalues <= num_values);
+
         /* don't forget to null terminate it */
-        if (num_values > 0) 
+        if (num_values > 0)
         {
-            normalized_mods[w]->mod_bvalues[ x ] = NULL;
+            *normmbvp = NULL;
         }
     }
     

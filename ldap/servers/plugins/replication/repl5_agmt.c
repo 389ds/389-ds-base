@@ -2216,13 +2216,21 @@ agmt_get_consumer_rid ( Repl_Agmt *agmt, void *conn )
 {
 	if ( agmt->consumerRID <= 0 ) {
 
-		char mapping_tree_node[512];
+		char *mapping_tree_node = NULL;
 		struct berval **bvals = NULL;
 
-		PR_snprintf ( mapping_tree_node,
-					  sizeof (mapping_tree_node), 
-					 "cn=replica,cn=\"%s\",cn=mapping tree,cn=config",
-					  slapi_sdn_get_dn (agmt->replarea) );
+
+		/* This function converts the old style DN to the new one. */
+		mapping_tree_node = 
+		slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config",
+							   slapi_sdn_get_dn (agmt->replarea) );
+		if (NULL == mapping_tree_node) {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+							"agmt_get_consumer_rid: failed to normalize "
+							"replica dn for %s\n", 
+							slapi_sdn_get_dn (agmt->replarea));
+			agmt->consumerRID = 0;
+		}
 		conn_read_entry_attribute ( conn, mapping_tree_node, "nsDS5ReplicaID", &bvals );
 		if ( NULL != bvals && NULL != bvals[0] ) {
 			char *ridstr = slapi_ch_malloc( bvals[0]->bv_len + 1 );
@@ -2232,6 +2240,7 @@ agmt_get_consumer_rid ( Repl_Agmt *agmt, void *conn )
 			slapi_ch_free ( (void**) &ridstr );
 			ber_bvecfree ( bvals );
 		}
+		slapi_ch_free_string(&mapping_tree_node);
 	}
 
 	return agmt->consumerRID;

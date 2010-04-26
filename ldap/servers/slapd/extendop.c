@@ -53,7 +53,9 @@ static const char *extended_op_oid2string( const char *oid );
 static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
                                       struct berval *extval)
 {
-    char *suffix;
+    char *orig = NULL;
+    char *suffix = NULL;
+    size_t dnlen = 0;
     Slapi_DN *sdn = NULL;
     Slapi_Backend *be = NULL;
     struct berval bv;
@@ -66,10 +68,34 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
                          "no data supplied", 0, NULL);
         return;
     }
-    suffix = slapi_ch_malloc(extval->bv_len+1);
-    strncpy(suffix, extval->bv_val, extval->bv_len);
-    suffix[extval->bv_len] = 0;
-
+    orig = slapi_ch_malloc(extval->bv_len+1);
+    strncpy(orig, extval->bv_val, extval->bv_len);
+    orig[extval->bv_len] = 0;
+    /* Check if we should be performing strict validation. */
+    if (config_get_dn_validate_strict()) {
+        /* check that the dn is formatted correctly */
+        ret = slapi_dn_syntax_check(pb, orig, 1);
+        if (ret) { /* syntax check failed */
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "extop_handle_import_start: strict: invalid suffix\n",
+                          orig);
+            send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+                             "invalid suffix", 0, NULL);
+            return;
+        }
+    }
+    ret = slapi_dn_normalize_ext(orig, 0, &suffix, &dnlen);
+    if (ret < 0) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "extop_handle_import_start: invalid suffix\n", orig);
+        send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+                         "invalid suffix", 0, NULL);
+        return;
+    } else if (ret > 0) {
+        slapi_ch_free_string(&orig);
+    } else { /* ret == 0; orig is passed in; not null terminated */
+        *(suffix + dnlen) = '\0';
+    }
     sdn = slapi_sdn_new_dn_byval(suffix);
     if (!sdn) {
         LDAPDebug(LDAP_DEBUG_ANY,
@@ -109,6 +135,7 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
 		/* slapi_str2entry modify its dn parameter so we must copy
 		 * this string each time we call it !
 		 */
+		/* This dn is no need to be normalized. */
 		PR_snprintf(dn, sizeof(dn), "dn: oid=%s,cn=features,cn=config",
 			EXTOP_BULK_IMPORT_START_OID);
 

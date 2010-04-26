@@ -551,3 +551,29 @@ value_dump( const Slapi_Value *value, const char *text)
 }
 #endif
 
+int
+value_normalize_value(Slapi_Value *value)
+{
+	char *normval = NULL;
+	size_t len = 0;
+	int rc = 0;
+
+	if (NULL == value) {
+		return 0;
+	}
+
+	rc = slapi_dn_normalize_ext(value->bv.bv_val, value->bv.bv_len,
+								&normval, &len);
+	if (rc < 0) {
+		return 1;
+	} else if (rc > 0) {	/* if rc == 0, the original value is passed in */
+		slapi_ch_free_string(&value->bv.bv_val);
+	} else { /* rc == 0; original is passed in; not null terminated */
+		/* since bvalue, no need to terminate with null, tho */
+		*(normval + len) = '\0';
+	}
+	value->bv.bv_val = normval;
+	value->bv.bv_len = len;
+
+	return 0;
+}
