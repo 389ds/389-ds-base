@@ -291,6 +291,9 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 			}
 
 			tmpstr = strchr(str, '=');
+			if (NULL == tmpstr) {
+				return ACL_SYNTAX_ERR;
+			}
 			tmpstr++;
 			__acl_strip_leading_space(&tmpstr);
 
@@ -777,6 +780,9 @@ normalize_nextACERule:
 			}
 		} else if ( 0 == strncmp ( s, DS_LAS_USERDN, 6)) {
 			p = strstr ( s, "=");
+			if (NULL == p) {
+				goto error;
+			}
 			p--;
 			if ( strncmp (p, "!=", 2) == 0)
 				aci_item->aci_type |= ACI_CONTAIN_NOT_USERDN;
@@ -840,6 +846,9 @@ normalize_nextACERule:
 		} else if ( 0 == strncmp ( s, DS_LAS_GROUPDN, 7)) {
 
 			p = strstr ( s, "=");
+			if (NULL == p) {
+				goto error;
+			}
 			p--;
 			if ( strncmp (p, "!=", 2) == 0)
 				aci_item->aci_type |= ACI_CONTAIN_NOT_GROUPDN;
@@ -860,6 +869,9 @@ normalize_nextACERule:
 		} else if ( 0 == strncmp ( s, DS_LAS_ROLEDN, 6)) {
 
 			p = strstr ( s, "=");
+			if (NULL == p) {
+				goto error;
+			}
 			p--;
 			if ( strncmp (p, "!=", 2) == 0)
 				aci_item->aci_type |= ACI_CONTAIN_NOT_ROLEDN;
@@ -1270,6 +1282,9 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 	Targetattr	*attr = NULL;
 
 	s = strchr (attr_val, '=');
+	if (NULL == s) {
+		return ACL_SYNTAX_ERR;
+	}
 	s++;
 	__acl_strip_leading_space(&s);
 	__acl_strip_trailing_space(s);
@@ -1695,6 +1710,9 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
     /* First, skip the "targetattrfilters"  */
     
     s = strchr (input_str, '=');
+    if (NULL == s) {
+        return ACL_SYNTAX_ERR;
+    }
     s++;							/* skip the = */
     __acl_strip_leading_space(&s);	/* skip to next significant character */
     __acl_strip_trailing_space(s);
@@ -1720,6 +1738,9 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
     */
     
     s = strchr (str, '=');
+    if (NULL == s) {
+        return ACL_SYNTAX_ERR;
+    }
     *s = '\0';
     s++;							/* skip the = */
     __acl_strip_leading_space(&s);	/* start of the first filter list */
@@ -1769,7 +1790,10 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
 	if (str != NULL ){
 
 		__acl_strip_leading_space(&str);
-    	s = strchr (str, '=');
+		s = strchr (str, '=');
+		if (NULL == s) {
+			return ACL_SYNTAX_ERR;
+		}
 		*s = '\0';
 		s++;
 		__acl_strip_trailing_space(str);
