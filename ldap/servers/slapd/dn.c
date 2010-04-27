@@ -78,6 +78,7 @@ hexchar2int( char c )
 }
 
 #define ISBLANK(c)	((c) == ' ')
+#define ISBLANKSTR(s)	(((*(s)) == '2') && (*((s)+1) == '0'))
 #define ISSPACE(c)	(ISBLANK(c) || ((c) == '\n') || ((c) == '\r'))   /* XXX 518524 */
 
 #define ISEQUAL(c) ((c) == '=')
@@ -444,6 +445,21 @@ substr_dn_normalize( char *dn, char *end )
 	return end;
 }
 
+static int
+ISEOV(char *s, char *ends)
+{
+    char *p;
+    int rc = 1;
+    for (p = s; p && *p && p < ends; p++) {
+        if (SEPARATOR(*p)) {
+            return 1;
+        } else if (!ISBLANK(*p)) {
+            return 0; /* not the end of the value */
+        }
+    }
+    return 1;
+}
+
 /*
  * 1) Escaped NEEDSESCAPE chars (e.g., ',', '<', '=', etc.) are converted to 
  * ESC HEX HEX (e.g., \2C, \3C, \3D, etc.)
@@ -664,10 +680,13 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             s++;
                         }
                     }
-                } else if (((state == INVALUE1ST) && (s+2 < ends) &&
-                            LEADNEEDSESCAPESTR(s+1)) ||
-                           ((state == INVALUE) && (s+2 < ends) &&
-                            NEEDSESCAPESTR(s+1))) {
+                } else if (((state == INVALUE1ST) &&
+                            (s+2 < ends) && LEADNEEDSESCAPESTR(s+1)) ||
+				           ((state == INVALUE) && 
+                            (((s+2 < ends) && NEEDSESCAPESTR(s+1)) ||
+                             (ISEOV(s+3, ends) && ISBLANKSTR(s+1))))) {
+                             /* e.g., cn=abc\20 ,... */
+                             /*             ^        */
                     if (ISEQUALSTR(s+1)) {
                         if (NULL == subtypestart) {
                             /* e.g., cn=a\3Db\2Cc\3Dd */
@@ -933,7 +952,7 @@ bail:
         if (*dest != src) {
             slapi_ch_free_string(dest);
         } else {
-			*dest = NULL;
+            *dest = NULL;
         }
         *dest_len = 0;
     } else if (rc > 0) {

@@ -21,6 +21,7 @@ dn: cn="%ds_suffix%",cn=mapping tree,cn=config
 objectclass: top
 objectclass: extensibleObject
 objectclass: nsMappingTree
+cn: %ds_suffix%
 cn: "%ds_suffix%"
 nsslapd-state: backend
 nsslapd-backend: %ds_bename%
