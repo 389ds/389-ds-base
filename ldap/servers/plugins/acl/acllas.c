@@ -3545,7 +3545,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		prefix_len = LDAPS_URL_prefix_len;
 	} else {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-			"acllas__client_match_URL: url %s does not include ldap prefix: %s\n", url);
+			"acllas__client_match_URL: url %s does not have a recognized ldap protocol prefix\n", url);
 		return ACL_FALSE;
 	}
 	rawdn = url + prefix_len; /* ldap(s)://host:port/... or ldap(s):///... */
@@ -3560,7 +3560,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		size_t hostport_len = 0;
 		if (NULL == rawdn) {
 			slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-				"acllas__client_match_URL: url %s does not include correct ldap prefix: %s\n", url);
+				"acllas__client_match_URL: url %s does not have a valid ldap protocol prefix\n", url);
 			return ACL_FALSE;
 		}
 		hostport_len = ++rawdn - tmpp; /* ldap(s)://host:port/... */
