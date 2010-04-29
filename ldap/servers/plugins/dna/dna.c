@@ -139,7 +139,7 @@ static Slapi_PluginDesc exop_pdesc = { DNA_EXOP_FEATURE_DESC,
 struct configEntry {
     PRCList list;
     char *dn;
-    char *type;
+    char **types;
     char *prefix;
     char *filter;
     Slapi_Filter *slapi_filter;
@@ -252,6 +252,11 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn);
 static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
                                       char **bind_dn, char **bind_passwd,
                                       char **bind_method, int *is_ssl, int *port);
+static int dna_list_contains_type(char **list, char *type);
+static int dna_list_contains_types(char **list, char **types);
+static void dna_list_remove_type(char **list, char *type);
+static int dna_is_multitype_range(struct configEntry *config_entry);
+static void dna_create_valcheck_filter(struct configEntry *config_entry, PRUint64 value, char **filter);
 
 /**
  *
@@ -667,6 +672,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     struct configEntry *config_entry;
     PRCList *list;
     int entry_added = 0;
+    int i = 0;
     int ret = DNA_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
@@ -694,10 +700,8 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> dn [%s]\n", entry->dn);
 
-    value = slapi_entry_attr_get_charptr(e, DNA_TYPE);
-    if (value) {
-        entry->type = value;
-    } else {
+    entry->types = slapi_entry_attr_get_charray(e, DNA_TYPE);
+    if (entry->types == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_parse_config_entry: The %s config "
                         "setting is required for range %s.\n",
@@ -706,8 +710,10 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         goto bail;
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_TYPE, entry->type);
+    for (i = 0; entry->types && entry->types[i]; i++) {
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                        "----------> %s [%s]\n", DNA_TYPE, entry->types[i]);
+    }
 
     value = slapi_entry_attr_get_charptr(e, DNA_NEXTVAL);
     if (value) {
@@ -976,24 +982,16 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     /**
-     * Finally add the entry to the list
-     * we group by type then by filter
-     * and finally sort by dn length with longer dn's
-     * first - this allows the scope checking
-     * code to be simple and quick and
-     * cunningly linear
+     * Finally add the entry to the list.
+     * We sort by scope dn length with longer
+     * dn's first - this allows the scope
+     * checking code to be simple and quick and
+     * cunningly linear.
      */
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
         while (list != dna_global_config) {
             config_entry = (struct configEntry *) list;
-
-            if (slapi_attr_type_cmp(config_entry->type, entry->type, 1))
-                goto next;
-
-            if (slapi_filter_compare(config_entry->slapi_filter,
-                                     entry->slapi_filter))
-                goto next;
 
             if (slapi_dn_issuffix(entry->scope, config_entry->scope)) {
                 PR_INSERT_BEFORE(&(entry->list), list);
@@ -1058,8 +1056,8 @@ dna_free_config_entry(struct configEntry ** entry)
         slapi_ch_free_string(&e->dn);
     }
 
-    if (e->type)
-        slapi_ch_free_string(&e->type);
+    if (e->types)
+        slapi_ch_array_free(e->types);
 
     if (e->prefix)
         slapi_ch_free_string(&e->prefix);
@@ -1770,10 +1768,9 @@ dna_first_free_value(struct configEntry *config_entry,
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *pb = NULL;
     LDAPControl **ctrls = NULL;
-    char *attrs[2];
-    char *filter;
+    char *filter = NULL;
     char *prefix;
-    char *type;
+    int multitype;
     int result, status, filterlen;
     PRUint64 tmpval, sval, i;
     char *strval = NULL;
@@ -1785,31 +1782,26 @@ dna_first_free_value(struct configEntry *config_entry,
     }
 
     prefix = config_entry->prefix;
-    type = config_entry->type;
     tmpval = config_entry->nextval;
 
-    attrs[0] = type;
-    attrs[1] = NULL;
+    if (dna_is_multitype_range(config_entry)) {
+        multitype = 1;
+    }
 
-    /* We don't sort if we're using a prefix (non integer type).  Instead,
-     * we just search to see if the next value is free, and keep incrementing
-     * until we find the next free value. */
-    if (prefix) {
-        /* The 7 below is for all of the filter characters "(&(=))"
-         * plus the trailing \0.  The 20 is for the maximum string
-         * representation of a " NSPRIu64 ". */
-        filterlen = strlen(config_entry->filter) +
-                                 strlen(prefix) + strlen(type)
-                                 + 7 + 20;
-        filter = slapi_ch_malloc(filterlen);
-        snprintf(filter, filterlen, "(&%s(%s=%s%" PRIu64 "))",
-                          config_entry->filter, type, prefix, tmpval);
+    /* We don't sort if we're using a prefix (non integer type) or if this
+     * is a multi-type range.  Instead, we just search to see if the next
+     * value is free, and keep incrementing until we find the next free value. */
+    if (prefix || multitype) {
+        /* This will allocate the filter string for us. */
+        dna_create_valcheck_filter(config_entry, tmpval, &filter);
     } else {
+        /* This is a single-type range, so just use the first (only)
+         * type from the list. */
         ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl));
         if (NULL == ctrls)
             return LDAP_OPERATIONS_ERROR;
 
-        ctrls[0] = dna_build_sort_control(config_entry->type);
+        ctrls[0] = dna_build_sort_control(config_entry->types[0]);
         if (NULL == ctrls[0]) {
             slapi_ch_free((void **)&ctrls);
             return LDAP_OPERATIONS_ERROR;
@@ -1817,8 +1809,8 @@ dna_first_free_value(struct configEntry *config_entry,
 
         filter = slapi_ch_smprintf("(&%s(&(%s>=%" NSPRIu64 ")(%s<=%" NSPRIu64 ")))",
                                    config_entry->filter,
-                                   type, tmpval,
-                                   type, config_entry->maxval);
+                                   config_entry->types[0], tmpval,
+                                   config_entry->types[0], config_entry->maxval);
     }
 
     if (NULL == filter) {
@@ -1837,7 +1829,7 @@ dna_first_free_value(struct configEntry *config_entry,
 
     slapi_search_internal_set_pb(pb, config_entry->scope,
                                  LDAP_SCOPE_SUBTREE, filter,
-                                 attrs, 0, ctrls,
+                                 config_entry->types, 0, ctrls,
                                  NULL, getPluginID(), 0);
     slapi_search_internal_pb(pb);
 
@@ -1857,17 +1849,17 @@ dna_first_free_value(struct configEntry *config_entry,
         goto cleanup;
     }
 
-    if (prefix) {
+    if (prefix || multitype) {
         /* The next value identified in the config entry has already
          * been taken.  We just iterate through the values until we
          * (hopefully) find a free one. */
         for (tmpval += config_entry->interval; tmpval <= config_entry->maxval;
              tmpval += config_entry->interval) {
-            /* filter is guaranteed to be big enough since we allocated
-             * enough space to fit a string representation of any unsigned
-             * 64-bit integer */
-            snprintf(filter, filterlen, "(&%s(%s=%s%" PRIu64 "))",
-                              config_entry->filter, type, prefix, tmpval);
+            /* This will reuse the old memory for the previous filter.  It is
+             * guaranteed to have enough space since the filter is the same
+             * aside from the assertion value (we allocated enough for the
+             * largest supported integer). */
+            dna_create_valcheck_filter(config_entry, tmpval, &filter);
 
             /* clear out the pblock so we can re-use it */
             slapi_free_search_results_internal(pb);
@@ -1875,7 +1867,7 @@ dna_first_free_value(struct configEntry *config_entry,
 
             slapi_search_internal_set_pb(pb, config_entry->scope,
                                  LDAP_SCOPE_SUBTREE, filter,
-                                 attrs, 0, 0,
+                                 config_entry->types, 0, 0,
                                  NULL, getPluginID(), 0);
 
             slapi_search_internal_pb(pb);
@@ -1897,13 +1889,15 @@ dna_first_free_value(struct configEntry *config_entry,
             }
         }
     } else {
-        /* entries are sorted and filtered for value >= tval therefore if the
+        /* Entries are sorted and filtered for value >= tval therefore if the
          * first one does not match tval it means that the value is free,
          * otherwise we need to cycle through values until we find a mismatch,
-         * the first mismatch is the first free pit */
+         * the first mismatch is the first free pit.  This is guaranteed to
+         * be a single-type range, so we can just use the first (only)
+         * type from the list of types directly. */
         sval = 0;
         for (i = 0; NULL != entries[i]; i++) {
-            strval = slapi_entry_attr_get_charptr(entries[i], type);
+            strval = slapi_entry_attr_get_charptr(entries[i], config_entry->types[0]);
             errno = 0;
             sval = strtoull(strval, 0, 0);
             if (errno) {
@@ -2524,10 +2518,203 @@ bail:
     return ret;
 }
 
+/*
+ * dna_list_contains_type()
+ *
+ * Checks if a type is contained in a list of types.
+ * Returns 1 if the type is found, 0 otherwise.
+ */
+static int
+dna_list_contains_type(char **list, char *type)
+{
+    int ret = 0;
+    int i = 0;
+
+    if (list && type) {
+        for (i = 0; list[i]; i++) {
+            if (slapi_attr_types_equivalent(type, list[i])) {
+                ret = 1;
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+/*
+ * dna_list_contains_types()
+ *
+ * Checks if all types in one list (types) are contained
+ * in another list of types (list).  Returns 1 if all
+ * types are found, 0 otherwise.
+ */
+static int
+dna_list_contains_types(char **list, char **types)
+{
+    int ret = 1;
+    int i = 0;
+    int j = 0;
+
+    if (list && types) {
+        for (i = 0; types[i]; i++) {
+            int found = 0;
+
+            for (j = 0; list[j]; j++) {
+                if (slapi_attr_types_equivalent(types[i], list[i])) {
+                    found = 1;
+                    break;
+                }
+            }
+
+            if (!found) {
+                ret = 0;
+                break;
+            }
+        }
+    } else {
+        ret = 0;
+    }
+
+    return ret;
+}
+
+/*
+ * dna_list_remove_type()
+ *
+ * Removes a type from a list of types.
+ */
+static void 
+dna_list_remove_type(char **list, char *type)
+{
+    int i = 0;
+    int found_type = 0;
+
+    if (list && type) {
+        /* Go through the list until we find the type that
+         * we want to remove.  We simply free the type we
+         * want to remove and shift the remaining array
+         * elements down by one index.  This will leave us
+         * with two NULL elements at the end of the list,
+         * but this should not cause any problems. */
+        for (i = 0; list[i]; i++) {
+            if (found_type) {
+                list[i] = list[i + 1];
+            } else if (slapi_attr_types_equivalent(type, list[i])) {
+                slapi_ch_free_string(&list[i]);
+                list[i] = list[i + 1];
+                found_type = 1;
+            }
+        }
+    }
+}
+
+/*
+ * dna_is_multitype_range()
+ *
+ * Returns 1 if the range has multiple types configured.
+ * Returns 0 otherwise.
+ */
+static int dna_is_multitype_range(struct configEntry *config_entry)
+{
+    int ret = 0;
+
+    if (config_entry && config_entry->types && config_entry->types[1]) {
+        ret = 1;
+    }
+
+    return ret;
+}
+
+/*
+ * dna_create_valcheck_filter()
+ *
+ * Creates a filter string used to check if a value is free.  If
+ * filter already holds a valid pointer, it is assumed to have enough
+ * space to hold the filter.  This allows the same memory to be used
+ * over and over when you only want to change the assertion value.
+ * If filter contains a NULL pointer, a new string of the appropriate
+ * size will be allocated.  The caller must free this when finished.
+ */
+static void
+dna_create_valcheck_filter(struct configEntry *config_entry, PRUint64 value, char **filter)
+{
+    int filterlen = 0;
+    int typeslen = 0;
+    int i = 0;
+    int bytes_out = 0;
+    int multitype = 0;
+
+    /* Just return if we didn't get an address for the filter. */
+    if (filter == NULL) {
+        return;
+    }
+
+    /* To determine the filter length, we add together the following:
+     *
+     * - the string length of the filter in the config
+     * - the string length sum of all configured types
+     * - 23 bytes for each type (20 for the max string
+     *   representation of a NSPRIu64, 3 for "(=)"
+     * - 3 bytes for the beginning and end of the filter - "(&" and ")"
+     * - 3 bytes to OR together multiple types (if present) - "(|" and ")"
+     * - the string length of the prefix (if one is configured) for each type
+     * - 1 byte for the trailing \0
+     *
+     *   The filter length should be the same every time if the config struct
+     *   has not been changed.  We need to calculate the filter length even
+     *   if we are reusing memory since we have no other way of knowing the
+     *   length used when it was originally allocated.  We trust the caller
+     *   to only reuse the pointer with the same config struct.
+     */
+    for (i = 0; config_entry->types && config_entry->types[i]; i++) {
+        typeslen += strlen(config_entry->types[i]);
+    }
+
+    if (i > 1) {
+        multitype = 1;
+    }
+
+    filterlen = strlen(config_entry->filter) + typeslen +
+                (i * 23) + 3 + 1 +
+                (config_entry->prefix ? (i * strlen(config_entry->prefix)) : 0) +
+                (multitype ? 3 : 0);
+
+    /* Allocate space for the filter if it hasn't been allocated yet. */
+    if (*filter == NULL) {
+        *filter = slapi_ch_malloc(filterlen);
+    }
+
+    /* Write out the beginning of the filter.  If multiple types
+     * are configured, we need to OR together the search clauses
+     * for the types. */
+    if (multitype) {
+        bytes_out = snprintf(*filter, filterlen, "(&%s(|", config_entry->filter);
+    } else {
+        bytes_out = snprintf(*filter, filterlen, "(&%s", config_entry->filter);
+    }
+
+    /* Loop through the types and append each filter clause. */
+    for (i = 0; config_entry->types && config_entry->types[i]; i++) {
+        bytes_out += snprintf(*filter + bytes_out, filterlen - bytes_out,
+                      "(%s=%s%" PRIu64 ")", config_entry->types[i],
+                      config_entry->prefix ? config_entry->prefix : "",
+                      value);
+    }
+
+    /* Append the end of the filter.  We need an extra paren
+     * to close out the OR if we have multiple types. */
+    if (multitype) {
+        strncat(*filter, "))", filterlen - bytes_out);
+    } else {
+        strncat(*filter, ")", filterlen - bytes_out);
+    }
+}
+
 /* for mods and adds:
 	where dn's are supplied, the closest in scope
-	is used as long as the type and filter
-	are identical - otherwise all matches count
+	is used as long as the type filter matches
+        and the type has not been generated yet.
 */
 
 static int dna_pre_op(Slapi_PBlock * pb, int modtype)
@@ -2537,14 +2724,15 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
     struct configEntry *config_entry = 0;
     struct slapi_entry *e = 0;
     Slapi_Entry *resulting_e = 0;
-    char *last_type = 0;
     char *value = 0;
-    int generate = 0;
+    char **types_to_generate = NULL;
+    char **generated_types = NULL;
     Slapi_Mods *smods = 0;
     Slapi_Mod *smod = 0;
     LDAPMod **mods;
     int free_entry = 0;
     char *errstr = NULL;
+    int i = 0;
     int ret = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
@@ -2637,9 +2825,8 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
         while (list != dna_global_config && LDAP_SUCCESS == ret) {
             config_entry = (struct configEntry *) list;
 
-            /* did we already service this type? */
-            if (last_type) {
-                if (!slapi_attr_type_cmp(config_entry->type, last_type, 1))
+            /* Did we already service all of these configured types? */
+            if (dna_list_contains_types(generated_types, config_entry->types)) {
                     goto next;
             }
 
@@ -2670,18 +2857,33 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
 
 
             if (LDAP_CHANGETYPE_ADD == modtype) {
-                /* does attribute contain the magic value
-                   or is the type not there?
-                 */
-                value =
-                    slapi_entry_attr_get_charptr(e, config_entry->type);
-                if ((value
-                     && !slapi_UTF8CASECMP(config_entry->generate, value))
-                    || 0 == value) {
-                    generate = 1;
-                }
+                if (config_entry->types && dna_is_multitype_range(config_entry)) {
+                    /* For a multi-type range, we only generate a value
+                     * for types where the magic value is set.  We do not
+                     * generate a value for missing types. */
+                    for (i = 0; config_entry->types && config_entry->types[i]; i++) {
+                        value = slapi_entry_attr_get_charptr(e, config_entry->types[i]);
 
-                slapi_ch_free_string(&value);
+                        if (value && !slapi_UTF8CASECMP(config_entry->generate, value)) {
+                            slapi_ch_array_add(&types_to_generate,
+                                               slapi_ch_strdup(config_entry->types[i]));
+                        }
+
+                        slapi_ch_free_string(&value);
+                    }
+                } else {
+                    /* For a single type range, we generate the value if
+                     * the magic value is set or if the type is missing. */
+                    value = slapi_entry_attr_get_charptr(e, config_entry->types[0]);
+
+                    if ((value && !slapi_UTF8CASECMP(config_entry->generate, value))
+                        || 0 == value) {
+                        slapi_ch_array_add(&types_to_generate,
+                                           slapi_ch_strdup(config_entry->types[0]));
+                    }
+
+                    slapi_ch_free_string(&value);
+                }
             } else {
                 /* check mods for magic value */
                 Slapi_Mod *next_mod = slapi_mod_new();
@@ -2690,15 +2892,19 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                     char *type = (char *)
                         slapi_mod_get_type(smod);
 
-                    if (slapi_attr_types_equivalent(type,
-                                                    config_entry->type)) {
+                    /* See if the type matches any configured type. */
+                    if (dna_list_contains_type(config_entry->types, type)) {
                         /* If all values are being deleted, we need to
-                         * generate a new value. */
-                        if (SLAPI_IS_MOD_DELETE(slapi_mod_get_operation(smod))) {
+                         * generate a new value.  We don't do this for
+                         * multi-type ranges since they require the magic
+                         * value to be specified to trigger generation. */
+                        if (SLAPI_IS_MOD_DELETE(slapi_mod_get_operation(smod)) &&
+                            !dna_is_multitype_range(config_entry)) {
                             int numvals = slapi_mod_get_num_values(smod);
 
                             if (numvals == 0) {
-                                generate = 1;
+                                slapi_ch_array_add(&types_to_generate,
+                                               slapi_ch_strdup(type));
                             } else {
                                 Slapi_Attr *attr = NULL;
                                 int e_numvals = 0;
@@ -2707,7 +2913,8 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                                 if (attr) {
                                     slapi_attr_get_numvalues(attr, &e_numvals);
                                     if (numvals >= e_numvals) {
-                                        generate = 1;
+                                        slapi_ch_array_add(&types_to_generate,
+                                                       slapi_ch_strdup(type));
                                     }
                                 }
                             }
@@ -2715,14 +2922,17 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                             /* This is either adding or replacing a value */
                             struct berval *bv = slapi_mod_get_first_value(smod);
 
-                            /* If generate is already set, a previous mod in
-                             * this same modify operation either removed all
-                             * values or set the magic value.  It's possible
-                             * that this mod is adding a valid value, which
-                             * means we would not want to generate a new value.
-                             * It is safe to unset generate since it will be
-                             * reset here if necessary. */
-                            generate = 0;
+                            /* If this type is already in the to be generated
+                             * list, a previous mod in this same modify operation
+                             * either removed all values or set the magic value.
+                             * It's possible that this mod is adding a valid value,
+                             * which means we would not want to generate a new value.
+                             * It is safe to remove this type from the to be
+                             * generated list since it will be re-added here if
+                             * necessary. */
+                            if (dna_list_contains_type(types_to_generate, type)) {
+                                dna_list_remove_type(types_to_generate, type);
+                            }
 
                             /* If we have a value, see if it's the magic value. */
                             if (bv) {
@@ -2731,13 +2941,16 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                                     if (!slapi_UTF8NCASECMP(bv->bv_val,
                                                             config_entry->generate,
                                                             len)) {
-                                        generate = 1;
+                                        slapi_ch_array_add(&types_to_generate,
+                                                       slapi_ch_strdup(type));
                                     }
                                 }
-                            } else {
+                            } else if (!dna_is_multitype_range(config_entry)) {
                                 /* This is a replace with no new values, so we need
-                                 * to generate a new value. */
-                                generate = 1;
+                                 * to generate a new value if this is not a multi-type
+                                 * range. */
+                                slapi_ch_array_add(&types_to_generate,
+                                               slapi_ch_strdup(type));
                             }
                         }
                     }
@@ -2754,25 +2967,27 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
              * to see if a value exists for the managed type in the resulting
              * entry.  This will catch a modify operation that brings an entry
              * into scope for a managed range, but doesn't supply a value for
-             * the managed type.
-             */
-            if ((LDAP_CHANGETYPE_MODIFY == modtype) && !generate) {
+             * the managed type.  We don't do this for multi-type ranges. */
+            if ((LDAP_CHANGETYPE_MODIFY == modtype) && (!types_to_generate ||
+                (types_to_generate && !types_to_generate[0])) &&
+                !dna_is_multitype_range(config_entry)) {
                 Slapi_Attr *attr = NULL;
-                if (slapi_entry_attr_find(resulting_e, config_entry->type, &attr) != 0) {
-                    generate = 1;
+                if (slapi_entry_attr_find(resulting_e, config_entry->types[0], &attr) != 0) {
+                    slapi_ch_array_add(&types_to_generate,
+                                               slapi_ch_strdup(config_entry->types[0]));
                 }
             }
 
-            if (generate) {
+            if (types_to_generate && types_to_generate[0]) {
                 char *new_value;
                 int len;
 
                 /* create the value to add */
                 ret = dna_get_next_value(config_entry, &value);
                 if (DNA_SUCCESS != ret) {
-                    errstr = slapi_ch_smprintf("Allocation of a new value for"
+                    errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
-                                               config_entry->type);
+                                               config_entry->dn);
                     break;
                 }
 
@@ -2792,28 +3007,45 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                 /* do the mod */
                 if (LDAP_CHANGETYPE_ADD == modtype) {
                     /* add - add to entry */
-                    slapi_entry_attr_set_charptr(e,
-                                                 config_entry->type,
-                                                 new_value);
+                    for (i = 0; types_to_generate && types_to_generate[i]; i++) {
+                        slapi_entry_attr_set_charptr(e,
+                                                     types_to_generate[i],
+                                                     new_value);
+                    }
                 } else {
                     /* mod - add to mods */
-                    slapi_mods_add_string(smods,
-                                          LDAP_MOD_REPLACE,
-                                          config_entry->type, new_value);
+                    for (i = 0; types_to_generate && types_to_generate[i]; i++) {
+                        slapi_mods_add_string(smods,
+                                              LDAP_MOD_REPLACE,
+                                              types_to_generate[i], new_value);
+                    }
+                }
+
+                /* Make sure we don't generate for this
+                 * type again by keeping a list of types
+                 * we have generated for already.
+                 */
+                if (LDAP_SUCCESS == ret) {
+                    if (generated_types == NULL) {
+                        /* If we don't have a list of generated types yet,
+                         * we can just use the types_to_generate list so
+                         * we don't have to allocate anything. */
+                        generated_types = types_to_generate;
+                        types_to_generate = NULL;
+                    } else {
+                        /* Just reuse the elements out of types_to_generate for the
+                         * generated types list to avoid allocating them again. */
+                        for (i = 0; types_to_generate && types_to_generate[i]; ++i) {
+                            slapi_ch_array_add(&generated_types, types_to_generate[i]);
+                            types_to_generate[i] = NULL;
+                        }
+                    }
                 }
 
                 /* free up */
                 slapi_ch_free_string(&value);
                 slapi_ch_free_string(&new_value);
-
-                /* make sure we don't generate for this
-                 * type again
-                 */
-                if (LDAP_SUCCESS == ret) {
-                    last_type = config_entry->type;
-                }
-
-                generate = 0;
+                slapi_ch_array_free(types_to_generate);
             }
           next:
             list = PR_NEXT_LINK(list);
@@ -2831,6 +3063,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
     }
 
   bail:
+    slapi_ch_array_free(generated_types);
 
     if (free_entry && e)
         slapi_entry_free(e);
@@ -3229,7 +3462,11 @@ void dna_dump_config()
 
 void dna_dump_config_entry(struct configEntry * entry)
 {
-    printf("<---- type -----------> %s\n", entry->type);
+    int i = 0;
+
+    for (i = 0; entry->types && entry->types[i]; i++) {
+        printf("<---- type -----------> %s\n", entry->types[i]);
+    }
     printf("<---- filter ---------> %s\n", entry->filter);
     printf("<---- prefix ---------> %s\n", entry->prefix);
     printf("<---- scope ----------> %s\n", entry->scope);
