@@ -1332,6 +1332,7 @@ fixupcmd = sed \
 	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
+	-e 's,@CONSOLE_VERSION\@,$(CONSOLE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perlpath\@,$(perldir) $(libdir)/perl/arch $(libdir)/perl,g' \
@@ -1386,6 +1387,7 @@ fixupcmd = sed \
 	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
+	-e 's,@CONSOLE_VERSION\@,$(CONSOLE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
 	-e 's,@NQBUILD_NUM\@,$(NQBUILDNUM),g' \
 	-e 's,@perlpath\@,$(perldir),g' \

@@ -48,3 +48,6 @@ PACKAGE_TARNAME=${brand}-ds-base
 # url for bug reports
 PACKAGE_BUGREPORT="${PACKAGE_BUGREPORT}enter_bug.cgi?product=$brand"
 PACKAGE_STRING="$PACKAGE_TARNAME $PACKAGE_VERSION"
+# the version of the ds console package that this directory server
+# is compatible with
+CONSOLE_VERSION=$VERSION_MAJOR.$VERSION_MINOR.2

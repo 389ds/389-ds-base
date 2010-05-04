@@ -465,7 +465,7 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/opt/$PACKAGE_NAME
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CCAS CCASFLAGS SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_autobind_TRUE enable_autobind_FALSE enable_auto_dn_suffix_TRUE enable_auto_dn_suffix_FALSE enable_bitwise_TRUE enable_bitwise_FALSE enable_presence_TRUE enable_presence_FALSE with_fhs_opt configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir infdir mibdir updatedir defaultuser defaultgroup instconfigdir WINNT_TRUE WINNT_FALSE THREADLIB LIBCRYPT LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir perlexec initconfigdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG KRB5_CONFIG_BIN kerberos_inc kerberos_lib kerberos_libdir with_selinux PACKAGE_BASE_VERSION SELINUX_TRUE SELINUX_FALSE OPENLDAP_TRUE OPENLDAP_FALSE nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir openldap_inc openldap_lib openldap_libdir openldap_bindir ol_libver db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir sasl_path svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link pcre_inc pcre_lib pcre_libdir brand capbrand vendor LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar CONSOLE_VERSION MAINTAINER_MODE_TRUE MAINTAINER_MODE_FALSE MAINT build build_cpu build_vendor build_os host host_cpu host_vendor host_os CXX CXXFLAGS LDFLAGS CPPFLAGS ac_ct_CXX EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE CC CFLAGS ac_ct_CC CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CCAS CCASFLAGS SED EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB CPP CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL LIBOBJS debug_defs BUNDLE_TRUE BUNDLE_FALSE enable_pam_passthru_TRUE enable_pam_passthru_FALSE enable_dna_TRUE enable_dna_FALSE enable_ldapi_TRUE enable_ldapi_FALSE enable_autobind_TRUE enable_autobind_FALSE enable_auto_dn_suffix_TRUE enable_auto_dn_suffix_FALSE enable_bitwise_TRUE enable_bitwise_FALSE enable_presence_TRUE enable_presence_FALSE with_fhs_opt configdir sampledatadir propertydir schemadir serverdir serverplugindir scripttemplatedir perldir infdir mibdir updatedir defaultuser defaultgroup instconfigdir WINNT_TRUE WINNT_FALSE THREADLIB LIBCRYPT LIBSOCKET LIBNSL LIBDL LIBCSTD LIBCRUN initdir perlexec initconfigdir HPUX_TRUE HPUX_FALSE SOLARIS_TRUE SOLARIS_FALSE PKG_CONFIG ICU_CONFIG NETSNMP_CONFIG KRB5_CONFIG_BIN kerberos_inc kerberos_lib kerberos_libdir with_selinux PACKAGE_BASE_VERSION SELINUX_TRUE SELINUX_FALSE OPENLDAP_TRUE OPENLDAP_FALSE nspr_inc nspr_lib nspr_libdir nss_inc nss_lib nss_libdir ldapsdk_inc ldapsdk_lib ldapsdk_libdir ldapsdk_bindir openldap_inc openldap_lib openldap_libdir openldap_bindir ol_libver db_inc db_incdir db_lib db_libdir db_bindir db_libver sasl_inc sasl_lib sasl_libdir sasl_path svrcore_inc svrcore_lib icu_lib icu_inc icu_bin netsnmp_inc netsnmp_lib netsnmp_libdir netsnmp_link pcre_inc pcre_lib pcre_libdir brand capbrand vendor LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -2075,6 +2075,7 @@ _ACEOF
 cat >>confdefs.h <<_ACEOF
 #define PACKAGE "$PACKAGE"
 _ACEOF
+
 
 echo "$as_me:$LINENO: checking whether to enable maintainer-specific portions of Makefiles" >&5
 echo $ECHO_N "checking whether to enable maintainer-specific portions of Makefiles... $ECHO_C" >&6
@@ -4404,7 +4405,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4407 "configure"' > conftest.$ac_ext
+  echo '#line 4408 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -5539,7 +5540,7 @@ fi
 
 
 # Provide some information about the compiler.
-echo "$as_me:5542:" \
+echo "$as_me:5543:" \
      "checking for Fortran 77 compiler version" >&5
 ac_compiler=`set X $ac_compile; echo $2`
 { (eval echo "$as_me:$LINENO: \"$ac_compiler --version </dev/null >&5\"") >&5
@@ -6602,11 +6603,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6605: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6606: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6609: \$? = $ac_status" >&5
+   echo "$as_me:6610: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6870,11 +6871,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6873: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6874: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:6877: \$? = $ac_status" >&5
+   echo "$as_me:6878: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6974,11 +6975,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:6977: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:6978: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:6981: \$? = $ac_status" >&5
+   echo "$as_me:6982: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8443,7 +8444,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 8446 "configure"' > conftest.$ac_ext
+    echo '#line 8447 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -9340,7 +9341,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9343 "configure"
+#line 9344 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9440,7 +9441,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9443 "configure"
+#line 9444 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11783,11 +11784,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11786: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11787: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11790: \$? = $ac_status" >&5
+   echo "$as_me:11791: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -11887,11 +11888,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11890: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11891: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:11894: \$? = $ac_status" >&5
+   echo "$as_me:11895: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -12423,7 +12424,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 12426 "configure"' > conftest.$ac_ext
+    echo '#line 12427 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -13481,11 +13482,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13484: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13485: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13488: \$? = $ac_status" >&5
+   echo "$as_me:13489: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13585,11 +13586,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13588: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13589: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13592: \$? = $ac_status" >&5
+   echo "$as_me:13593: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -15034,7 +15035,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 15037 "configure"' > conftest.$ac_ext
+    echo '#line 15038 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -15812,11 +15813,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:15815: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:15816: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:15819: \$? = $ac_status" >&5
+   echo "$as_me:15820: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16080,11 +16081,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16083: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16084: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16087: \$? = $ac_status" >&5
+   echo "$as_me:16088: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16184,11 +16185,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16187: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16188: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16191: \$? = $ac_status" >&5
+   echo "$as_me:16192: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -17653,7 +17654,7 @@ linux*)
   libsuff=
   case "$host_cpu" in
   x86_64*|s390x*|powerpc64*)
-    echo '#line 17656 "configure"' > conftest.$ac_ext
+    echo '#line 17657 "configure"' > conftest.$ac_ext
     if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -28233,6 +28234,7 @@ s,@am__leading_dot@,$am__leading_dot,;t t
 s,@AMTAR@,$AMTAR,;t t
 s,@am__tar@,$am__tar,;t t
 s,@am__untar@,$am__untar,;t t
+s,@CONSOLE_VERSION@,$CONSOLE_VERSION,;t t
 s,@MAINTAINER_MODE_TRUE@,$MAINTAINER_MODE_TRUE,;t t
 s,@MAINTAINER_MODE_FALSE@,$MAINTAINER_MODE_FALSE,;t t
 s,@MAINT@,$MAINT,;t t
