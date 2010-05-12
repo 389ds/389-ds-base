@@ -388,3 +388,185 @@ is_fullpath(char *path)
     }
     return 0;
 }
+
+/* 
+ * Get value of type from string.
+ * Note: this function does not support multi values.
+ * This could be used to retrieve a single value as a string from raw data
+ * read from db.
+ */
+/* caller is responsible to release "value" */
+int
+get_value_from_string(const char *string, char *type, char **value)
+{
+    int rc = -1;
+    size_t typelen = 0;
+    char *ptr = NULL;
+    char *copy = NULL;
+    char *tmpptr = NULL;
+    char *tmptype = NULL;
+    char *valueptr = NULL;
+#if defined (USE_OPENLDAP)
+    ber_len_t valuelen;
+#else
+    int valuelen;
+#endif
+
+    if (NULL == string || NULL == type || NULL == value) {
+        return rc;
+    }
+    *value = NULL;
+    tmpptr = (char *)string;
+    ptr = PL_strcasestr(tmpptr, type);
+    if (NULL == ptr) {
+        return rc;
+    }
+
+    typelen = strlen(type);
+    while (NULL != (ptr = ldif_getline(&tmpptr))) {
+        if ((0 != PL_strncasecmp(ptr, type, typelen)) ||
+            (*(ptr + typelen) != ';' && *(ptr + typelen) != ':')) {
+            /* did not match */
+            /* ldif_getline replaces '\n' and '\r' with '\0' */
+            if ('\0' == *(tmpptr - 1)) {
+                *(tmpptr - 1) = '\n';
+            }
+            if ('\0' == *(tmpptr - 2)) {
+                *(tmpptr - 2) = '\r';
+            }
+            continue;
+        }
+        /* matched */
+        copy = slapi_ch_strdup(ptr);
+        /* ldif_getline replaces '\n' and '\r' with '\0' */
+        if ('\0' == *(tmpptr - 1)) {
+            *(tmpptr - 1) = '\n';
+        }
+        if ('\0' == *(tmpptr - 2)) {
+            *(tmpptr - 2) = '\r';
+        }
+        rc = ldif_parse_line(copy, &tmptype, &valueptr, &valuelen);
+        if (0 > rc || NULL == valueptr || 0 >= valuelen) {
+            continue;
+        }
+        if (0 != strcasecmp(type, tmptype)) {
+            char *p = PL_strchr(tmptype, ';'); /* subtype ? */
+            if (p) {
+                if (0 != strncasecmp(type, tmptype, p - tmptype)) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", 
+                                    "type does not match: %s != %s\n", 
+                                    type, tmptype);
+                    goto bail;
+                }
+            } else {
+                slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", 
+                                "type does not match: %s != %s\n", 
+                                type, tmptype);
+                goto bail;
+            }
+        }
+        *value = (char *)slapi_ch_malloc(valuelen + 1);
+        memcpy(*value, valueptr, valuelen);
+        *(*value + valuelen) = '\0';
+        break;
+    }
+bail:
+    slapi_ch_free_string(&copy);
+    return rc;
+}
+
+/* 
+ * Get value array of type from string.
+ * multi-value support for get_value_from_string
+ */
+/* caller is responsible to release "valuearray" */
+int
+get_values_from_string(const char *string, char *type, char ***valuearray)
+{
+    int rc = -1;
+    size_t typelen = 0;
+    char *ptr = NULL;
+    char *copy = NULL;
+    char *tmpptr = NULL;
+    char *tmptype = NULL;
+    char *valueptr = NULL;
+#if defined (USE_OPENLDAP)
+    ber_len_t valuelen;
+#else
+    int valuelen;
+#endif
+    char *value = NULL;
+    int idx = 0;
+#define get_values_INITIALMAXCNT 1
+    int maxcnt = get_values_INITIALMAXCNT;
+
+    if (NULL == string || NULL == type || NULL == valuearray) {
+        return rc;
+    }
+    *valuearray = NULL;
+    tmpptr = (char *)string;
+    ptr = PL_strcasestr(tmpptr, type);
+    if (NULL == ptr) {
+        return rc;
+    }
+
+    typelen = strlen(type);
+    while (NULL != (ptr = ldif_getline(&tmpptr))) {
+        if ((0 != PL_strncasecmp(ptr, type, typelen)) ||
+            (*(ptr + typelen) != ';' && *(ptr + typelen) != ':')) {
+            /* did not match */
+            /* ldif_getline replaces '\n' and '\r' with '\0' */
+            if ('\0' == *(tmpptr - 1)) {
+                *(tmpptr - 1) = '\n';
+            }
+            if ('\0' == *(tmpptr - 2)) {
+                *(tmpptr - 2) = '\r';
+            }
+            continue;
+        }
+        /* matched */
+        copy = slapi_ch_strdup(ptr);
+        /* ldif_getline replaces '\n' and '\r' with '\0' */
+        if ('\0' == *(tmpptr - 1)) {
+            *(tmpptr - 1) = '\n';
+        }
+        if ('\0' == *(tmpptr - 2)) {
+            *(tmpptr - 2) = '\r';
+        }
+        rc = ldif_parse_line(copy, &tmptype, &valueptr, &valuelen);
+        if (0 > rc || NULL == valueptr || 0 >= valuelen) {
+            continue;
+        }
+        if (0 != strcasecmp(type, tmptype)) {
+            char *p = PL_strchr(tmptype, ';'); /* subtype ? */
+            if (p) {
+                if (0 != strncasecmp(type, tmptype, p - tmptype)) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "get_values_from_string", 
+                                    "type does not match: %s != %s\n", 
+                                    type, tmptype);
+                    goto bail;
+                }
+            } else {
+                slapi_log_error(SLAPI_LOG_FATAL, "get_values_from_string", 
+                                "type does not match: %s != %s\n", 
+                                type, tmptype);
+                goto bail;
+            }
+        }
+        value = (char *)slapi_ch_malloc(valuelen + 1);
+        memcpy(value, valueptr, valuelen);
+        *(value + valuelen) = '\0';
+        if ((get_values_INITIALMAXCNT == maxcnt) || !valuearray || 
+            (idx + 1 >= maxcnt)) {
+            maxcnt *= 2;
+            *valuearray = (char **)slapi_ch_realloc((char *)*valuearray, 
+                                                    sizeof(char *) * maxcnt);
+        }
+        (*valuearray)[idx++] = value;
+        (*valuearray)[idx] = NULL;
+        slapi_ch_free_string(&copy);
+    }
+bail:
+    slapi_ch_free_string(&copy);
+    return rc;
+}

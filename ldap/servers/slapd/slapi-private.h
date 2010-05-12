@@ -375,6 +375,7 @@ Slapi_DN *slapi_sdn_init_dn_passin(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byref(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byval(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_dn_ndn_byref(Slapi_DN *sdn,const char *dn);
+char * slapi_dn_normalize_case_original( char *dn );
 
 /* filter.c */
 int filter_flag_is_set(const Slapi_Filter *f,unsigned char flag);
@@ -872,6 +873,7 @@ int valuearray_normalize_value(Slapi_Value **vals);
 #define SLAPI_PLUGIN_DB_ADD_SCHEMA_FN		237
 #define SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN	238
 #define SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN	239
+#define SLAPI_PLUGIN_DB_UPGRADEDNFORMAT_FN	240
 /* database plugin-specific parameters */
 #define SLAPI_PLUGIN_DB_NO_ACL        		250
 #define SLAPI_PLUGIN_DB_RMDB_FN         	280
@@ -1185,9 +1187,11 @@ void bervalarray_add_berval_fast(struct berval ***vals, const struct berval *add
 
 void    DS_Sleep(PRIntervalTime ticks);
 
-/* macro to specify the behavior of upgradedb */
+/* macro to specify the behavior of upgradedb & upgradednformat */
 #define SLAPI_UPGRADEDB_FORCE    0x1 /* reindex all (no check w/ idl switch) */
 #define SLAPI_UPGRADEDB_SKIPINIT 0x2 /* call upgradedb as part of other op */
+#define SLAPI_UPGRADEDNFORMAT    0x4 /* specify this op is upgradednformat */
+#define SLAPI_DRYRUN             0x8 /* dryrun mode for upgradednformat */
 
 /*
  * Macro to set port to the 'port' field of a NSPR PRNetAddr union.

@@ -113,7 +113,7 @@ do_delete( Slapi_PBlock *pb )
 	}
 	err = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
 	if (err < 0) {
-		op_shared_log_error_access(pb, "DEL", "???", "invalid dn");
+		op_shared_log_error_access(pb, "DEL", rawdn?rawdn:"", "invalid dn");
 		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
 						 NULL, "invalid dn", 0, NULL);
 		slapi_ch_free_string(&rawdn);

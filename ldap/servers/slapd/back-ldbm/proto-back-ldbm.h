@@ -171,7 +171,7 @@ int dblayer_db_uses_transactions(DB_ENV *db_env);
 int dblayer_db_uses_mpool(DB_ENV *db_env);
 int dblayer_db_uses_logging(DB_ENV *db_env);
 int dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
-
+int dblayer_remove_env(struct ldbminfo *li);
 
 /*
  * dn2entry.c
@@ -352,6 +352,9 @@ int ldbm_delete_dirs(char *path);
 int mkdir_p(char *dir, unsigned int mode);
 int is_fullpath(char *path);
 char get_sep(char *path);
+int get_value_from_string(const char *string, char *type, char **value);
+int get_values_from_string(const char *string, char *type, char ***valuearray);
+
 
 /*
  * nextid.c
@@ -451,6 +454,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb );
 int ldbm_back_ldbm2ldif( Slapi_PBlock *pb );
 int ldbm_back_ldbm2ldifalt( Slapi_PBlock *pb );
 int ldbm_back_ldbm2index( Slapi_PBlock *pb );
+int ldbm_back_upgradednformat( Slapi_PBlock *pb );
 int ldbm_back_archive2ldbm( Slapi_PBlock *pb );
 int ldbm_back_ldbm2archive( Slapi_PBlock *pb );
 int ldbm_back_upgradedb( Slapi_PBlock *pb );
@@ -601,6 +605,7 @@ int ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry
 int ldbm_instance_attrcrypt_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 
 void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li);
+
 
 /*
  * ancestorid.c

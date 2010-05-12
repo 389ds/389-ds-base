@@ -102,6 +102,8 @@ void remove_slapd_process();
 
 #define NO_UPGRADEDB_DUE_TO_USE "Unable to recreate index files because the database is being used by another slapd process.\n"
 
+#define NO_UPGRADEDNFORMAT_DUE_TO_USE "Unable to upgrade dn format because the database is being used by another slapd process.\n"
+
 #define CREATE_MUTEX_ERROR "Error - CreateMutex failed: %s\n"
   /* reason for failure */
 

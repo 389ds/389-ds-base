@@ -6,3 +6,8 @@ nsslapd-pluginpath: libpwdstorage-plugin
 nsslapd-plugininitfunc: smd5_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

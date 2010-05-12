@@ -490,6 +490,15 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
             result = 0;
         }
         break;
+    case SLAPD_EXEMODE_UPGRADEDNFORMAT:
+        if (running || importing || exporting) {
+            LDAPDebug(LDAP_DEBUG_ANY, NO_UPGRADEDNFORMAT_DUE_TO_USE, 0, 0, 0);
+            result = -1;
+        } else {
+            add_this_process_to(import_dir);
+            result = 0;
+        }
+        break;
     case SLAPD_EXEMODE_DBTEST:
         if (running || importing || exporting) {
             LDAPDebug(LDAP_DEBUG_ANY, NO_DBTEST_DUE_TO_USE, 0, 0, 0);

@@ -408,7 +408,6 @@ void import_producer(void *param)
      * as we read it.
      */
     while (! finished) {
-        Slapi_Attr *attr = NULL;
         int flags = 0;
         int prev_lineno = 0;
         int lines_in_entry = 0;
@@ -610,8 +609,6 @@ void import_producer(void *param)
             continue;
         }
 
-        /* generate uniqueid if necessary */
-        import_generate_uniqueid(job, e);
         if (g_get_global_lastmod()) {
             import_add_created_attrs(e);
         }
@@ -628,19 +625,10 @@ void import_producer(void *param)
             continue;
         }
 
-        /* not sure what this does, but it looked like it could be
-         * simplified.  if it's broken, it's my fault.  -robey 
-         */
-        if (slapi_entry_attr_find(ep->ep_entry, "userpassword", &attr) == 0) {
-            Slapi_Value **va = attr_get_present_values(attr);
-
-            pw_encodevals( (Slapi_Value **)va ); /* jcm - cast away const */
+        if (job->flags & FLAG_ABORT) { 
+            backentry_free(&ep);
+            goto error;
         }
-
-         if (job->flags & FLAG_ABORT) { 
-             backentry_free(&ep);
-             goto error;
-         }
 
 
         /* Now we have this new entry, all decoded
@@ -972,6 +960,491 @@ error:
     info->state = ABORTED;
 }
 
+struct upgradedn_attr {
+    char *ud_type;
+    char *ud_value;
+    struct upgradedn_attr *ud_next;
+    int ud_flags;
+#define OLD_DN_NORMALIZE 0x1
+};
+
+static void
+upgradedn_free_list(struct upgradedn_attr **ud_list)
+{
+    struct upgradedn_attr *ptr = *ud_list;
+
+    while (ptr) {
+        struct upgradedn_attr *next = ptr->ud_next;
+        slapi_ch_free_string(&ptr->ud_type);
+        slapi_ch_free_string(&ptr->ud_value);
+        slapi_ch_free((void **)&ptr);
+        ptr = next;
+    }
+	*ud_list = NULL;
+    return;
+}
+
+static void
+upgradedn_add_to_list(struct upgradedn_attr **ud_list, 
+                      char *type, char *value, int flag)
+{
+    struct upgradedn_attr *elem =
+       (struct upgradedn_attr *) slapi_ch_malloc(sizeof(struct upgradedn_attr));
+    elem->ud_type = type;
+    elem->ud_value = value;
+    elem->ud_flags = flag;
+    elem->ud_next = *ud_list;
+    *ud_list = elem;
+    return;
+}
+
+/* 
+ * Producer thread for upgrading dn format 
+ * FLAG_UPGRADEDNFORMAT | FLAG_DRYRUN -- check the necessity of dn upgrade
+ * FLAG_UPGRADEDNFORMAT -- execute dn upgrade
+ *
+ * Read id2entry, 
+ * Check the DN syntax attributes if it contains '\' or not AND
+ * Check the RDNs of the attributes if the value is surrounded by 
+ * double-quotes or not.
+ * If both are false, skip the entry and go to next
+ * If either is true, create an entry which contains a correctly normalized
+ *     DN attribute values in e_attr list and the original entrydn in the 
+ *     deleted attribute list e_deleted_attrs.
+ *
+ * If FLAG_UPGRADEDNFORMAT is set, worker_threads for indexing DN syntax
+ * attributes are brought up.  Foreman thread updates entrydn index
+ * as well as the entry itself in the id2entry.db#.
+ *
+ * Note: QUIT state for info->state is introduced for DRYRUN mode to
+ *       distinguish the intentional QUIT (found the dn upgrade candidate)
+ *       from ABORTED (aborted or error) and FINISHED (scan all the entries
+ *       and found no candidate to upgrade)
+ */
+void 
+upgradedn_producer(void *param)
+{
+    ImportWorkerInfo *info = (ImportWorkerInfo *)param;
+    ImportJob *job = info->job;
+    ID id = job->first_ID;
+    Slapi_Entry *e = NULL;
+    struct backentry *ep = NULL, *old_ep = NULL;
+    ldbm_instance *inst = job->inst;
+    PRIntervalTime sleeptime;
+    int finished = 0;
+    int idx;
+    int rc = 0;
+    Slapi_Attr *a = NULL;
+    Slapi_DN *sdn = NULL;
+    char *workdn = NULL;
+    int doit = 0;
+    int skipit = 0;
+    int isentrydn = 0;
+    Slapi_Value *value = NULL;
+    struct upgradedn_attr *ud_list = NULL;
+    char **ud_vals = NULL;
+    char **ud_valp = NULL;
+    struct upgradedn_attr *ud_ptr = NULL;
+    Slapi_Attr *ud_attr = NULL;
+    char *ecopy = NULL;
+
+    /* vars for Berkeley DB */
+    DB_ENV *env = NULL;
+    DB *db = NULL;
+    DBC *dbc = NULL;
+    DBT key = {0};
+    DBT data = {0};
+    int db_rval = -1;
+    backend *be = inst->inst_be;
+    int isfirst = 1;
+    int curr_entry = 0;
+    size_t newesize = 0;
+
+    PR_ASSERT(info != NULL);
+    PR_ASSERT(inst != NULL);
+    PR_ASSERT(be != NULL);
+    
+    if ( job->flags & FLAG_ABORT )
+        goto error;
+
+    sleeptime = PR_MillisecondsToInterval(import_sleep_time);
+
+    /* pause until we're told to run */
+    while ((info->command == PAUSE) && !(job->flags & FLAG_ABORT)) {
+        info->state = WAITING;
+        DS_Sleep(sleeptime);
+    }
+    info->state = RUNNING;
+
+    /* open id2entry with dedicated db env and db handler */
+    if ( dblayer_get_aux_id2entry( be, &db, &env ) != 0  || db == NULL ||
+         env == NULL) {
+        LDAPDebug( LDAP_DEBUG_ANY, "Could not open id2entry\n", 0, 0, 0 );
+        goto error;
+    }
+
+    /* get a cursor to we can walk over the table */
+    db_rval = db->cursor(db, NULL, &dbc, 0);
+    if ( 0 != db_rval ) {
+        LDAPDebug( LDAP_DEBUG_ANY,
+                   "Failed to get cursor for reindexing\n", 0, 0, 0 );
+        dblayer_release_id2entry(be, db);
+        goto error;
+    }
+
+    /* we loop around reading the input files and processing each entry
+     * as we read it.
+     */
+    finished = 0;
+    while (!finished) {
+        ID temp_id;
+
+        if (job->flags & FLAG_ABORT) {   
+            goto error;
+        }
+        while ((info->command == PAUSE)  && !(job->flags & FLAG_ABORT)){
+            info->state = WAITING;
+            DS_Sleep(sleeptime);
+        }
+        info->state = RUNNING;
+
+        key.flags = DB_DBT_MALLOC;
+        data.flags = DB_DBT_MALLOC;
+        if (isfirst)
+        {
+            db_rval = dbc->c_get(dbc, &key, &data, DB_FIRST);
+            isfirst = 0;
+        }
+        else
+        {
+            db_rval = dbc->c_get(dbc, &key, &data, DB_NEXT);
+        }
+        
+        if (0 != db_rval) {
+            if (DB_NOTFOUND != db_rval) {
+                LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to read database, "
+                    "errno=%d (%s)\n", inst->inst_name, db_rval,
+                    dblayer_strerror(db_rval));
+                if (job->task) {
+                    slapi_task_log_notice(job->task,
+                        "%s: Failed to read database, err %d (%s)",
+                        inst->inst_name, db_rval,
+                        dblayer_strerror(db_rval));
+                }
+            }
+            finished = 1;
+            break; /* error or done */
+        }
+        curr_entry++;
+        temp_id = id_stored_to_internal((char *)key.data);
+        slapi_ch_free(&(key.data));
+
+        /* call post-entry plugin */
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+        ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
+        memcpy(ecopy, data.dptr, data.dsize);
+        *(ecopy + data.dsize) = '\0';
+        e = slapi_str2entry(data.data, 0);
+        if ( NULL == e ) {
+            if (job->task) {
+                slapi_task_log_notice(job->task,
+                    "%s: WARNING: skipping badly formatted entry (id %lu)",
+                    inst->inst_name, (u_long)temp_id);
+            }
+            LDAPDebug(LDAP_DEBUG_ANY,
+                "%s: WARNING: skipping badly formatted entry (id %lu)\n",
+                inst->inst_name, (u_long)temp_id, 0);
+            continue;
+        } 
+        slapi_ch_free(&(data.data));
+
+        /* Check DN syntax attr values if it contains '\\' or not */
+        for (a = e->e_attrs; a; a = a->a_next) {
+            if (slapi_attr_is_dn_syntax_attr(a)) { /* is dn syntax attr? */
+                rc = get_values_from_string((const char *)ecopy,
+                                             a->a_type, &ud_vals);
+                if (rc || (NULL == ud_vals)) {
+                    continue; /* empty; ignore it */
+                }
+
+                for (ud_valp = ud_vals; ud_valp && *ud_valp; ud_valp++) {
+                    char **rdns = NULL;
+                    char **rdnsp = NULL;
+                    char *valueptr = NULL;
+                    int valuelen;
+
+                    /* ud_valp contains '\\'.  We have to update the value */
+                    if (PL_strchr(*ud_valp, '\\')) {
+                        upgradedn_add_to_list(&ud_list, 
+                                              slapi_ch_strdup(a->a_type),
+                                              slapi_ch_strdup(*ud_valp),
+                                              0);
+                        LDAPDebug(LDAP_DEBUG_TRACE,
+                              "%s: Found upgradedn candidate: %s (id %lu)\n", 
+                              inst->inst_name, *ud_valp, (u_long)temp_id);
+                        doit = 1;
+                        continue;
+                    }
+                    /* Also check RDN contains double quoted values */
+                    if (strcasecmp(a->a_type, "entrydn")) {
+                        /* except entrydn */
+                        workdn = slapi_ch_strdup(*ud_valp);
+                        isentrydn = 0;
+                    } else {
+                        /* entrydn: Get Slapi DN */
+                        sdn = slapi_entry_get_sdn(e);
+                        workdn = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+                        isentrydn = 1;
+                    }
+                    rdns = ldap_explode_dn(workdn, 0);
+                    skipit = 0;
+                    for (rdnsp = rdns; rdnsp && *rdnsp; rdnsp++) {
+                        valueptr = PL_strchr(*rdnsp, '=');
+                        if (NULL == valueptr) {
+                            skipit = 1;
+                            break;
+                        }
+                        valueptr++;
+                        while ((' ' == *valueptr) || ('\t' == *valueptr)) {
+                            valueptr++;
+                        }
+                        valuelen = strlen(valueptr);
+                        if (0 == valuelen) {
+                            skipit = 1;
+                            break;
+                        }
+                        /* DN contains an RDN <type>="<value>" ? */
+                        if (('"' == *valueptr) && 
+                            ('"' == *(valueptr + valuelen - 1))) {
+                            upgradedn_add_to_list(&ud_list, 
+                                                  slapi_ch_strdup(a->a_type),
+                                                  slapi_ch_strdup(*ud_valp),
+                                                  isentrydn?0:OLD_DN_NORMALIZE);
+                            LDAPDebug(LDAP_DEBUG_TRACE,
+                                "%s: Found upgradedn candidate: %s (id %lu)\n", 
+                                inst->inst_name, valueptr, (u_long)temp_id);
+                            doit = 1;
+                            break;
+                        }
+                    }
+                    if (rdns) {
+                        slapi_ldap_value_free(rdns);
+                    } else {
+                        skipit = 1;
+                    }
+                    if (skipit) {
+                        break;
+                    }
+                    slapi_ch_free_string(&workdn);
+                } /* for (ud_valp = ud_vals; ud_valp && *ud_valp; ud_valp++) */
+                charray_free(ud_vals);
+                ud_vals = NULL;
+                if (skipit) {
+                    LDAPDebug(LDAP_DEBUG_ANY, "%s: WARNING: skipping an entry "
+                              "with a corrupted dn (syntax value): %s "
+                              "(id %lu)\n",
+                              inst->inst_name, 
+                              workdn?workdn:"unknown", (u_long)temp_id);
+                    slapi_ch_free_string(&workdn);
+                    upgradedn_free_list(&ud_list);
+                    break;
+                }
+            } /* if (slapi_attr_is_dn_syntax_attr(a)) */
+        } /* for (a = e->e_attrs; a; a = a->a_next)  */
+        slapi_ch_free_string(&ecopy);
+        if (skipit) {
+            upgradedn_free_list(&ud_list);
+            slapi_entry_free(e); e = NULL;
+            continue;
+        }
+
+        if (!doit) {
+            /* We don't have to update dn syntax values. */
+            upgradedn_free_list(&ud_list);
+            slapi_entry_free(e); e = NULL;
+            continue;
+        }
+        
+        /* doit */
+        if (job->flags & FLAG_DRYRUN) {
+            /* We can return SUCCESS (== found upgrade dn candidates) */
+            finished = 0; /* make it sure ... */
+            upgradedn_free_list(&ud_list);
+            slapi_entry_free(e); e = NULL;
+            goto bail;
+        }
+
+        skipit = 0;
+        for (ud_ptr = ud_list; ud_ptr; ud_ptr = ud_ptr->ud_next) {
+            /* Move the current value to e_deleted_attrs. */
+            ud_attr = attrlist_find(e->e_attrs, ud_ptr->ud_type);
+            if (ud_attr) {
+                if (0 == strcmp(ud_ptr->ud_type, "entrydn")) {
+                    /* entrydn contains half normalized value in id2entry,
+                       thus we have to replace it in id2entry.  
+                       The other DN syntax attribute values store 
+                       the originals.  They are taken care by the normalizer.
+                     */
+                    attrlist_remove(&e->e_attrs, ud_ptr->ud_type);
+                    rc = slapi_attr_first_value(ud_attr, &value);
+                    if (rc < 0) {
+                        LDAPDebug(LDAP_DEBUG_ANY,
+                            "%s: WARNING: skipping an entry with no entrydn: "
+                            "%s (id %lu)\n",
+                            inst->inst_name, ud_ptr->ud_value, (u_long)temp_id);
+                        skipit = 1;
+                        break;
+                    } else {
+                        rc = slapi_value_set_string(value, ud_ptr->ud_value);
+                        if (rc) {
+                            LDAPDebug(LDAP_DEBUG_ANY,
+                                  "%s: WARNING: skipping an entry; "
+                                  "failed to replace entrydn: %s "
+                                  "(id %lu)\n", inst->inst_name, 
+                                ud_ptr->ud_value, (u_long)temp_id);
+                            skipit = 1;
+                            break;
+                        }
+                    }
+                    attrlist_add(&e->e_deleted_attrs, ud_attr);
+                } else {
+                    /* We have to normalize the orignal string to generate
+                       the key in the index.
+                     */
+                    a = attrlist_find(e->e_deleted_attrs, ud_ptr->ud_type);
+                    if (!a) {
+                        a = slapi_attr_new();
+                        slapi_attr_init(a, ud_ptr->ud_type);
+                    } else {
+                        a = attrlist_remove(&e->e_deleted_attrs,
+                                            ud_ptr->ud_type);
+                    }
+                    slapi_dn_normalize_case_original(ud_ptr->ud_value);
+                    value = slapi_value_new_string(ud_ptr->ud_value);
+                    slapi_attr_add_value(a, value);
+                    slapi_value_free(&value);
+                    attrlist_add(&e->e_deleted_attrs, a);
+                }
+            }
+        }
+        upgradedn_free_list(&ud_list);
+        if (skipit) {
+            slapi_entry_free(e); e = NULL;
+            continue;
+        }
+
+        ep = import_make_backentry(e, temp_id);
+        if (!ep) {
+            slapi_entry_free(e); e = NULL;
+            goto error;
+        }
+
+        /* Add the newly case-normalized dn to entrydn in the e_attrs list. */
+        add_update_entrydn_operational_attributes(ep);
+
+        if (job->flags & FLAG_ABORT)
+             goto error;
+
+        /* Now we have this new entry, all decoded
+         * Next thing we need to do is:
+         * (1) see if the appropriate fifo location contains an
+         *     entry which had been processed by the indexers.
+         *     If so, proceed.
+         *     If not, spin waiting for it to become free.
+         * (2) free the old entry and store the new one there.
+         * (3) Update the job progress indicators so the indexers
+         *     can use the new entry.
+         */
+        idx = id % job->fifo.size;
+        old_ep = job->fifo.item[idx].entry;
+        if (old_ep) {
+            /* for the slot to be recycled, it needs to be already absorbed
+             * by the foreman (id >= ready_EID), and all the workers need to
+             * be finished with it (refcount = 0).
+             */
+            while (((old_ep->ep_refcnt > 0) ||
+                    (old_ep->ep_id >= job->ready_EID))
+                   && (info->command != ABORT) && !(job->flags & FLAG_ABORT)) {
+                info->state = WAITING;
+                DS_Sleep(sleeptime);
+            }
+            if (job->flags & FLAG_ABORT)
+                goto error;
+
+            info->state = RUNNING;
+            PR_ASSERT(old_ep == job->fifo.item[idx].entry);
+            job->fifo.item[idx].entry = NULL;
+            if (job->fifo.c_bsize > job->fifo.item[idx].esize)
+                job->fifo.c_bsize -= job->fifo.item[idx].esize;
+            else
+                job->fifo.c_bsize = 0;
+            backentry_free(&old_ep);
+        }
+
+        newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
+        if (newesize > job->fifo.bsize) {    /* entry too big */
+            char ebuf[BUFSIZ];
+            import_log_notice(job, "WARNING: skipping entry \"%s\"",
+                    escape_string(slapi_entry_get_dn(e), ebuf));
+            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+            backentry_free(&ep);
+            job->skipped++;
+            continue;
+        }
+        /* Now check if fifo has enough space for the new entry */
+        if ((job->fifo.c_bsize + newesize) > job->fifo.bsize) {
+            import_wait_for_space_in_fifo( job, newesize );
+        }
+
+        /* We have enough space */
+        job->fifo.item[idx].filename = ID2ENTRY LDBM_FILENAME_SUFFIX;
+        job->fifo.item[idx].line = curr_entry;
+        job->fifo.item[idx].entry = ep;
+        job->fifo.item[idx].bad = 0;
+        job->fifo.item[idx].esize = newesize;
+
+        /* Add the entry size to total fifo size */
+        job->fifo.c_bsize += ep->ep_entry? job->fifo.item[idx].esize : 0;
+
+        /* Update the job to show our progress */
+        job->lead_ID = id;
+        if ((id - info->first_ID) <= job->fifo.size) {
+            job->trailing_ID = info->first_ID;
+        } else {
+            job->trailing_ID = id - job->fifo.size;
+        }
+
+        /* Update our progress meter too */
+        info->last_ID_processed = id;
+        id++;
+        if (job->flags & FLAG_ABORT)
+            goto error;
+        if (info->command == STOP)
+        {
+            finished = 1;
+        }
+    }
+bail:
+    dbc->c_close(dbc);
+    dblayer_release_aux_id2entry( be, db, env );
+    if (job->flags & FLAG_DRYRUN) {
+        if (finished) { /* Set if dn upgrade candidates are not found */
+            info->state = FINISHED;
+        } else { /* At least one dn upgrade candidate is found */
+            info->state = QUIT;
+        }
+    } else {
+        info->state = FINISHED;
+    }
+    return;
+
+error:
+    dbc->c_close(dbc);
+    dblayer_release_aux_id2entry( be, db, env );
+    info->state = ABORTED;
+}
+
 static void
 import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
 {
@@ -1046,6 +1519,39 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     int err = 0, ret = 0;
     IDList *IDL;
 
+    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+        /* Get the entrydn attribute value from deleted attr list */
+        Slapi_Value *value = NULL;
+        Slapi_Attr *entrydn_to_del =
+              attrlist_remove(&fi->entry->ep_entry->e_deleted_attrs, "entrydn");
+
+        if (entrydn_to_del) {
+            /* Delete it. */
+            ret = slapi_attr_first_value(entrydn_to_del, &value);
+            if (ret < 0) {
+                import_log_notice(job, 
+                                  "Error: retrieving entrydn value (error %d)",
+                                  ret);
+            } else {
+                const struct berval *bval = 
+                             slapi_value_get_berval((const Slapi_Value *)value);
+                ret = index_addordel_string(be, "entrydn", 
+                             bval->bv_val,
+                             fi->entry->ep_id,
+                             BE_INDEX_DEL|BE_INDEX_EQUALITY|BE_INDEX_NORMALIZED,
+                             NULL);
+                if (ret) {
+                    import_log_notice(job, 
+                                      "Error: deleting %s from  entrydn index "
+                                      "(error %d: %s)",
+                                      bval->bv_val, ret, dblayer_strerror(ret));
+                    return ret;
+                }
+            }
+            slapi_attr_free(&entrydn_to_del);
+        }
+    }
+
     /* insert into the entrydn index */
     bv.bv_val = (void*)backentry_get_ndn(fi->entry);   /* jcm - Had to cast away const */
     bv.bv_len = strlen(bv.bv_val);
@@ -1058,29 +1564,49 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     /* So, we do an index read first */
     err = 0;
     IDL = index_read(be, "entrydn", indextype_EQUALITY, &bv, NULL, &err);
+    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+        /*
+         * In the UPGRADEDNFORMAT case, if entrydn value exists, 
+         * that means entrydn is not upgraded. And it is normal.
+         * We could add entrydn only when the value is not found in the db.
+         */
+        if (IDL) {
+            idl_free(IDL);
+        } else {
+            ret = index_addordel_string(be, "entrydn", 
+                                        bv.bv_val, fi->entry->ep_id,
+                                        BE_INDEX_ADD|BE_INDEX_NORMALIZED, NULL);
+            if (ret) {
+                import_log_notice(job, "Error writing entrydn index "
+                                       "(error %d: %s)",
+                                       ret, dblayer_strerror(ret));
+                return ret;
+            }
+        }
+    } else {
+        /* Did this work ? */
+        if (IDL) {
+            /* IMPOSTER ! Get thee hence... */
+            import_log_notice(job, "WARNING: Skipping duplicate entry "
+                              "\"%s\" found at line %d of file \"%s\"",
+                              slapi_entry_get_dn(fi->entry->ep_entry),
+                              fi->line, fi->filename);
+            idl_free(IDL);
+            /* skip this one */
+            fi->bad = 1;
+            job->skipped++;
+            return -1;      /* skip to next entry */
+        }
+        ret = index_addordel_string(be, "entrydn", bv.bv_val, fi->entry->ep_id,
+                                    BE_INDEX_ADD|BE_INDEX_NORMALIZED, NULL);
+        if (ret) {
+            import_log_notice(job, "Error writing entrydn index "
+                                   "(error %d: %s)",
+                                   ret, dblayer_strerror(ret));
+            return ret;
+        }
+    }
 
-    /* Did this work ? */
-    if (NULL != IDL) {
-        /* IMPOSTER ! Get thee hence... */
-        import_log_notice(job, "WARNING: Skipping duplicate entry "
-                          "\"%s\" found at line %d of file \"%s\"",
-                          slapi_entry_get_dn(fi->entry->ep_entry),
-                          fi->line, fi->filename);
-        idl_free(IDL);
-        /* skip this one */
-        fi->bad = 1;
-        job->skipped++;
-        return -1;      /* skip to next entry */
-    }
-    if ((ret = index_addordel_string(be, "entrydn", 
-                                     bv.bv_val,
-                                     fi->entry->ep_id,
-                                     BE_INDEX_ADD|BE_INDEX_NORMALIZED, NULL)) != 0) {
-        import_log_notice(job, "Error writing entrydn index "
-                          "(error %d: %s)",
-                          ret, dblayer_strerror(ret));
-        return ret;
-    }
     return 0;
 }
 
@@ -1120,13 +1646,13 @@ void import_foreman(void *param)
         FifoItem *fi = NULL;
         int parent_status = 0;
          
-
         if (job->flags & FLAG_ABORT) { 
             goto error;
         }
 
         while ( ((info->command == PAUSE) || (id > job->lead_ID)) &&
-                (info->command != STOP) && (info->command != ABORT)  && !(job->flags & FLAG_ABORT)) {
+                (info->command != STOP) && (info->command != ABORT) &&
+                !(job->flags & FLAG_ABORT) ) {
             /* Check to see if we've been told to stop */
             info->state = WAITING;
             DS_Sleep(sleeptime);
@@ -1167,9 +1693,9 @@ void import_foreman(void *param)
              * Only check for a parent and add to the entry2dn index if
              * the entry is not a tombstone.
              */
-             if (job->flags & FLAG_ABORT) {       
-                 goto error;
-             }
+            if (job->flags & FLAG_ABORT) {       
+                goto error;
+            }
 
             if (parent_status == IMPORT_ADD_OP_ATTRS_NO_PARENT) {
                 /* If this entry is a suffix entry, this is not a problem */
@@ -1190,10 +1716,9 @@ void import_foreman(void *param)
                     goto cont;      /* below */
                 }
             }
-             if (job->flags & FLAG_ABORT) {
-                 goto error;
-             }
-
+            if (job->flags & FLAG_ABORT) {
+                goto error;
+            }
 
             /* insert into the entrydn index */
             ret = foreman_do_entrydn(job, fi);
@@ -1212,6 +1737,9 @@ void import_foreman(void *param)
             /* insert into the id2entry index
              * (that isn't really an index -- it's the storehouse of the entries
              * themselves.)
+             */
+            /* id2entry_add_ext replaces an entry if it already exists. 
+             * therefore, the Entry ID stays the same.
              */
             if ((ret = id2entry_add_ext(be, fi->entry, NULL, job->encrypt)) != 0) {
                 /* DB_RUNRECOVERY usually occurs if disk fills */
@@ -1238,7 +1766,10 @@ void import_foreman(void *param)
             goto error;
         }
 
-        if (! slapi_entry_flag_is_set(fi->entry->ep_entry,
+        if (!(job->flags & FLAG_UPGRADEDNFORMAT) && /* Upgrade dn format mode
+                                                       does not need to update
+                                                       parentid index */
+            !slapi_entry_flag_is_set(fi->entry->ep_entry,
                                       SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* parentid index
              * (we have to do this here, because the parentID is dependent on
@@ -1253,9 +1784,9 @@ void import_foreman(void *param)
                vlv code to see whether it's within the scope a VLV index. */
             vlv_grok_new_import_entry(fi->entry, be);
         }
-         if (job->flags & FLAG_ABORT) { 
-             goto error;
-         }
+        if (job->flags & FLAG_ABORT) { 
+            goto error;
+        }
 
 
         /* Remove the entry from the cache (Put in the cache in id2entry_add) */
@@ -1372,7 +1903,8 @@ void import_worker(void *param)
                  * thread, and the state is neither STOP nor ABORT
                  */
             while (((info->command == PAUSE) || (id > job->ready_ID)) &&
-                   (info->command != STOP) && (info->command != ABORT) && !(job->flags & FLAG_ABORT)) {
+                   (info->command != STOP) && (info->command != ABORT) && 
+                   !(job->flags & FLAG_ABORT)) {
                 /* Check to see if we've been told to stop */
                 info->state = WAITING;
                 DS_Sleep(sleeptime);                
@@ -1419,6 +1951,43 @@ void import_worker(void *param)
                 slapi_pblock_destroy(pb);
             } else {
                 /* No, process regular index */
+                if (job->flags & FLAG_UPGRADEDNFORMAT) {
+                    /* Get the attribute value from deleted attr list */
+                    Slapi_Value *value = NULL;
+                    const struct berval *bval = NULL;
+                    Slapi_Attr *key_to_del =
+                          attrlist_remove(&fi->entry->ep_entry->e_deleted_attrs,
+                                          info->index_info->name);
+            
+                    if (key_to_del) {
+                        int idx = 0;
+                        /* Delete it. */
+                        for (idx = slapi_attr_first_value(key_to_del, &value);
+                             idx >= 0;
+                             idx = slapi_attr_next_value(key_to_del, idx, 
+                                                                     &value)) {
+                            bval = 
+                             slapi_value_get_berval((const Slapi_Value *)value);
+                            ret = index_addordel_string(be, 
+                                         info->index_info->name, 
+                                         bval->bv_val,
+                                         fi->entry->ep_id,
+                                         BE_INDEX_DEL|BE_INDEX_EQUALITY|
+                                         BE_INDEX_NORMALIZED,
+                                         NULL);
+                            if (ret) {
+                                import_log_notice(job, 
+                                    "Error deleting %s from %s index "
+                                    "(error %d: %s)",
+                                     bval->bv_val, info->index_info->name,
+                                     ret, dblayer_strerror(ret));
+                                goto error;
+                            }
+                        }
+                        slapi_attr_free(&key_to_del);
+                    }
+                }
+
                 /* Look for the attribute we're indexing and its subtypes */
                 /* For each attr write to the index */
                 attrlist_cursor = NULL;

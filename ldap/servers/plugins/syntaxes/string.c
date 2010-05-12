@@ -616,7 +616,9 @@ string_assertion2keys_ava(
         /* 3rd arg: 1 - trim leading blanks */
         value_normalize_ext(tmpval->bv.bv_val, syntax, 1, &alt );
         if (alt) {
-            slapi_ch_free_string(&tmpval->bv.bv_val);
+            if (len >=  tmpval->bv.bv_len) {
+                slapi_ch_free_string(&tmpval->bv.bv_val);
+            }
             tmpval->bv.bv_val = alt;
         }
         tmpval->bv.bv_len=strlen(tmpval->bv.bv_val);
@@ -687,8 +689,11 @@ string_assertion2keys_sub(
 	int maxsublen;
 	char	*comp_buf = NULL;
 	char *altinit = NULL;
+	char *oaltinit = NULL;
 	char **altany = NULL;
+	char **oaltany = NULL;
 	char *altfinal = NULL;
+	char *oaltfinal = NULL;
 	int anysize = 0;
 
 	slapi_pblock_get(pb, SLAPI_SYNTAX_SUBSTRLENS, &substrlens);
@@ -719,6 +724,7 @@ string_assertion2keys_sub(
 	if ( initial != NULL ) {
 		/* 3rd arg: 0 - DO NOT trim leading blanks */
 		value_normalize_ext( initial, syntax, 0, &altinit );
+		oaltinit = altinit;
 		if (NULL == altinit) {
 			altinit = initial;
 		}
@@ -737,11 +743,14 @@ string_assertion2keys_sub(
 		anysize++;
 	}
 	altany = (char **)slapi_ch_calloc(anysize + 1, sizeof(char *));
+	oaltany = (char **)slapi_ch_calloc(anysize + 1, sizeof(char *));
 	for ( i = 0; any != NULL && any[i] != NULL; i++ ) {
 		/* 3rd arg: 0 - DO NOT trim leading blanks */
 		value_normalize_ext( any[i], syntax, 0, &altany[i] );
 		if (NULL == altany[i]) {
 			altany[i] = any[i];
+		} else {
+			oaltany[i] = altany[i];
 		}
 		len = strlen( altany[i] );
 		if ( len >= substrlens[INDEX_SUBSTRMIDDLE] ) {
@@ -751,6 +760,7 @@ string_assertion2keys_sub(
 	if ( final != NULL ) {
 		/* 3rd arg: 0 - DO NOT trim leading blanks */
 		value_normalize_ext( final, syntax, 0, &altfinal );
+		oaltfinal = altfinal;
 		if (NULL == altfinal) {
 			altfinal = final;
 		}
@@ -784,10 +794,8 @@ string_assertion2keys_sub(
 	if ( altinit != NULL ) {
 		substring_comp_keys( ivals, &nsubs, altinit, initiallen, '^', syntax,
 							 comp_buf, substrlens );
-		if (altinit != initial) {
-			slapi_ch_free_string(&altinit);
-		}
 	}
+	slapi_ch_free_string(&oaltinit);
 	for ( i = 0; altany != NULL && altany[i] != NULL; i++ ) {
 		len = strlen( altany[i] );
 		if ( len < substrlens[INDEX_SUBSTRMIDDLE] ) {
@@ -795,18 +803,15 @@ string_assertion2keys_sub(
 		}
 		substring_comp_keys( ivals, &nsubs, altany[i], len, 0, syntax,
 							 comp_buf, substrlens );
-		if (altany[i] != any[i]) {
-			slapi_ch_free_string(&altany[i]);
-		}
+		slapi_ch_free_string(&oaltany[i]);
 	}
+	slapi_ch_free((void **)&oaltany);
 	slapi_ch_free((void **)&altany);
 	if ( altfinal != NULL ) {
 		substring_comp_keys( ivals, &nsubs, altfinal, finallen, '$', syntax,
 							 comp_buf, substrlens );
-		if (altfinal != final) {
-			slapi_ch_free_string(&final);
-		}
 	}
+	slapi_ch_free_string(&oaltfinal);
 	(*ivals)[nsubs] = NULL;
 	slapi_ch_free_string(&comp_buf);
 

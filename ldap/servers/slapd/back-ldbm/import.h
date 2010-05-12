@@ -159,11 +159,13 @@ typedef struct {
 
 #define FLAG_INDEX_ATTRS	0x01	/* should we index the attributes? */
 #define FLAG_USE_FILES		0x02	/* import from files */
-#define FLAG_PRODUCER_DONE      0x04    /* frontend is done sending entries
-                                         * for replica initialization */
-#define FLAG_ABORT              0x08    /* import has been aborted */
-#define FLAG_ONLINE             0x10    /* bring backend online when done */
-#define FLAG_REINDEXING         0x20    /* read from id2entry and do indexing */
+#define FLAG_PRODUCER_DONE      0x04 /* frontend is done sending entries
+                                      * for replica initialization */
+#define FLAG_ABORT              0x08 /* import has been aborted */
+#define FLAG_ONLINE             0x10 /* bring backend online when done */
+#define FLAG_REINDEXING         0x20 /* read from id2entry and do indexing */
+#define FLAG_UPGRADEDNFORMAT    0x40 /* read from id2entry and do upgrade dn */
+#define FLAG_DRYRUN             0x80 /* dryrun for upgrade dn */
 
 
 /* Structure holding stuff about a worker thread and what it's up to */
@@ -197,7 +199,8 @@ struct _import_worker_info {
 #define WAITING 1
 #define RUNNING 2
 #define FINISHED 3
-#define ABORTED 4 
+#define ABORTED 4
+#define QUIT 5 /* quit intentionally. to distinguish from ABORTED & FINISHED */
 
 /* this is just a convenience, because the slapi_ch_* calls are annoying */
 #define CALLOC(name)	(name *)slapi_ch_calloc(1, sizeof(name))
@@ -234,5 +237,6 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
 /* import-threads.c */
 void import_producer(void *param);
 void index_producer(void *param);
+void upgradedn_producer(void *param);
 void import_foreman(void *param);
 void import_worker(void *param);

@@ -1,0 +1,56 @@
+#!/bin/sh
+
+# upgradednformat -- upgrade DN format to the new style (RFC 4514)
+# Usgae: upgradednformat [-N] -n backend_instance -a db_instance_directory
+#        -N: dryrun
+#            exit code: 0 -- needs upgrade; 1 -- no need to upgrade; -1 -- error
+#        -n backend_instance -- instance name to be examined or upgraded
+#        -a db_instance_directory -- full path to the db instance dir
+#                                    e.g., /var/lib/dirsrv/slapd-ID/db/userRoot
+prefix="{{DS-ROOT}}"
+if [ "$prefix" = "/" ] ; then
+    prefix=""
+fi
+LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@:$prefix@pcre_libdir@
+if [ -n "$prefix" ] ; then
+    LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:@nss_libdir@"
+fi
+export LD_LIBRARY_PATH
+SHLIB_PATH=$LD_LIBRARY_PATH
+export SHLIB_PATH
+
+cd {{SERVERBIN-DIR}}
+
+dir=""
+be=""
+dryrun=0
+while [ "$1" != "" ]
+do
+    if [ "$1" = "-a" ]; then
+        shift
+        dir="$1"
+    elif [ "$1" = "-n" ]; then
+        shift
+        be="$1"
+    elif [ "$1" = "-N" ]; then
+        dryrun=1
+    fi
+    if [ "$1" != "" ]; then
+        shift
+    fi
+done
+
+if [ "$be" = "" ] || [ "$dir" = "" ]; then
+        echo "be: $be"
+        echo "dir: $dir"
+    echo "Usage: $0 [-N] -n backend_instance -a db_instance_directory"
+    exit 1
+fi
+
+if [ $dryrun -eq 0 ]; then
+    ./ns-slapd upgradednformat -D {{CONFIG-DIR}} -a $dir -n $be
+else
+    ./ns-slapd upgradednformat -D {{CONFIG-DIR}} -a $dir -n $be -N
+fi
+rc=$?
+exit $rc

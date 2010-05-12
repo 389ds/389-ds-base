@@ -7,4 +7,9 @@ nsslapd-pluginPath: libbitwise-plugin
 nsslapd-pluginInitfunc: bitwise_init
 nsslapd-pluginType: matchingRule
 nsslapd-pluginEnabled: on
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC
 

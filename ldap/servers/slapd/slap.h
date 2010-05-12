@@ -74,6 +74,7 @@ static char ptokDes[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_PRINTVERSION  10
 #define SLAPD_EXEMODE_UPGRADEDB     11
 #define SLAPD_EXEMODE_DBVERIFY      12
+#define SLAPD_EXEMODE_UPGRADEDNFORMAT     13
 
 #ifdef _WIN32
 #ifndef DONT_DECLARE_SLAPD_LDAP_DEBUG
@@ -806,6 +807,7 @@ struct slapdplugin {
 			IFP	plg_un_db_archive2db; /* ldif 2 database */
 			IFP	plg_un_db_db2archive; /* database 2 ldif */
 			IFP	plg_un_db_upgradedb;  /* convert old idl to new */
+			IFP	plg_un_db_upgradednformat;  /* convert old dn format to new */
 			IFP	plg_un_db_begin;	  /* dbase txn begin */
 			IFP	plg_un_db_commit;	  /* dbase txn commit */
 			IFP	plg_un_db_abort;	  /* dbase txn abort */
@@ -845,6 +847,7 @@ struct slapdplugin {
 #define plg_archive2db		plg_un.plg_un_db.plg_un_db_archive2db
 #define plg_db2archive		plg_un.plg_un_db.plg_un_db_db2archive
 #define plg_upgradedb		plg_un.plg_un_db.plg_un_db_upgradedb
+#define plg_upgradednformat	plg_un.plg_un_db.plg_un_db_upgradednformat
 #define plg_dbverify		plg_un.plg_un_db.plg_un_db_verify
 #define plg_dbsize		plg_un.plg_un_db.plg_un_db_dbsize
 #define plg_dbtest		plg_un.plg_un_db.plg_un_db_dbtest
@@ -1095,6 +1098,7 @@ typedef struct backend {
 #define be_seq			be_database->plg_seq
 #define be_ldif2db		be_database->plg_ldif2db
 #define be_upgradedb		be_database->plg_upgradedb
+#define be_upgradednformat		be_database->plg_upgradednformat
 #define be_db2ldif		be_database->plg_db2ldif
 #define be_db2index		be_database->plg_db2index
 #define be_archive2db	be_database->plg_archive2db
