@@ -164,7 +164,7 @@ void dblayer_set_recovery_required(struct ldbminfo *li);
 char *dblayer_get_home_dir(struct ldbminfo *li, int *dbhome);
 char *dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst,
                                 char *buf, int buflen);
-void autosize_import_cache(struct ldbminfo *li);
+int check_and_set_import_cache(struct ldbminfo *li);
 
 int dblayer_db_uses_locking(DB_ENV *db_env);
 int dblayer_db_uses_transactions(DB_ENV *db_env);

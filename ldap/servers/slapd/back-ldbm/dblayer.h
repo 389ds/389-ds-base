@@ -97,6 +97,14 @@
 #define	DB_REGION_NAME	25		/* DB: named regions, no backing file. */
 #endif
 
+/* Used in check_and_set_import_cache */
+/* After allocating the import cache, free memory must be left more than
+ * the hard limit to run import. */
+/* If the free memory size left is greater than hard limit and less than
+ * soft limit, the import utility issues a warning, but it runs */
+#define DBLAYER_IMPORTCACHESIZE_HL 100  /* import cache hard limit 100MB */
+#define DBLAYER_IMPORTCACHESIZE_SL 1024 /* import cache soft limit 1GB */
+
 struct dblayer_private_env {
 	DB_ENV	*dblayer_DB_ENV;
 	PRRWLock * dblayer_env_lock;
