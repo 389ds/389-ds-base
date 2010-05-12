@@ -869,7 +869,7 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
 #ifdef OS_solaris
     *pagesize = (int)sysconf(_SC_PAGESIZE);
     *pages = (int)sysconf(_SC_PHYS_PAGES);
-        *availpages = dblayer_getvirtualmemsize() / *pagesize;
+    *availpages = dblayer_getvirtualmemsize() / *pagesize;
     /* solaris has THE most annoying way to get this info */
     if (procpages) {
         struct prpsinfo psi;
@@ -1757,59 +1757,105 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
     return 0;
 }
 
-void
-autosize_import_cache(struct ldbminfo *li)
+/*
+ * If import cache autosize is enabled:
+ *    nsslapd-import-cache-autosize: -1 or 1 ~ 99
+ * calculate the import cache size.
+ * If import cache is disabled:
+ *    nsslapd-import-cache-autosize: 0
+ * get the nsslapd-import-cachesize.
+ * Calculate the memory size left after allocating the import cache size.
+ * If the size is less than the hard limit, it issues an error and quit.
+ * If the size is greater than the hard limit and less than the soft limit,
+ * it issues a warning, but continues the import task.
+ *
+ * Note: this function is called only if the import is executed as a stand
+ * alone command line (ldif2db).
+ */
+int
+check_and_set_import_cache(struct ldbminfo *li)
 {
+    size_t import_pages = 0;
+    size_t pagesize, pages, procpages, availpages;
+    size_t soft_limit = 0;
+    size_t hard_limit = 0;
+    size_t page_delta = 0;
+    char s[64];   /* big enough to hold %ld */
+
+    dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
+    if (0 == pagesize || 0 == pages) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "check_and_set_import_cache: "
+                       "Failed to get pagesize: %ld or pages: %ld\n",
+                       pagesize, pages);
+        return ENOENT;
+    }
+    LDAPDebug(LDAP_DEBUG_ANY, "check_and_set_import_cache: "
+                  "pagesize: %ld, pages: %ld, procpages: %ld\n",
+                  pagesize, pages, procpages);
+
+    /* Soft limit: pages equivalent to 1GB (defined in dblayer.h) */
+    soft_limit = (DBLAYER_IMPORTCACHESIZE_SL*1024) / (pagesize/1024);
+    /* Hard limit: pages equivalent to 100MB (defined in dblayer.h) */
+    hard_limit = (DBLAYER_IMPORTCACHESIZE_HL*1024) / (pagesize/1024);
     /*
      * default behavior for ldif2db import cache,
      * nsslapd-import-cache-autosize==-1,
      * autosize 50% mem to import cache
      */
-    if (li->li_import_cache_autosize == -1) {
+    if (li->li_import_cache_autosize < 0) {
         li->li_import_cache_autosize = 50;
     }
 
     /* sanity check */
-    if (li->li_import_cache_autosize > 100) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-            "cache autosizing: bad setting, "
-            "import cache autosizing value should not be larger than 100(%).\n"
-            "set: 100(%).\n", NULL, NULL, NULL);
-        li->li_import_cache_autosize = 100;
+    if (li->li_import_cache_autosize >= 100) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+            "check_and_set_import_cache: "
+            "import cache autosizing value "
+            "(nsslapd-import-cache-autosize) should not be "
+            "greater than or equal to 100(%). Reset to 50(%).\n");
+        li->li_import_cache_autosize = 50;
     }
 
-    /* autosizing importCache */
-    if (li->li_import_cache_autosize > 0) {
-        size_t pagesize, pages, procpages, availpages;
+    if (li->li_import_cache_autosize == 0) {
+        /* user specified importCache */
+        import_pages = li->li_import_cachesize / pagesize;
 
-        dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
-        LDAPDebug(LDAP_DEBUG_ANY, "autosize_import_cache: "
-                  "pagesize: %d, pages: %d, procpages: %d\n",
-                  pagesize, pages, procpages);
-        if (pagesize) {
-            char s[32];   /* big enough to hold %ld */
-            int import_pages;
-            int pages_limit = (200 * 1024) / (pagesize/1024);
-            import_pages = (li->li_import_cache_autosize * pages) / 125;
-            /* We don't want to go wild with memory when auto-sizing, cap the 
-             * cache size at 200 Megs to try to avoid situations where we 
-             * attempt to allocate more memory than there is free page pool for, or 
-             * where there's some system limit on the size of process memory
-             */
-            if (import_pages > pages_limit) {
-                import_pages = pages_limit;
-            }
-            LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing: import cache: %dk \n",
-                import_pages*(pagesize/1024), NULL, NULL);
-            LDAPDebug(LDAP_DEBUG_ANY,
-                          "li_import_cache_autosize: %d, import_pages: %d, pagesize: %d\n", 
-                          li->li_import_cache_autosize, import_pages,
-                          pagesize);
-
-            sprintf(s, "%lu", (unsigned long)(import_pages * pagesize));
-            ldbm_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, s);
-        }
+    } else {
+        /* autosizing importCache */
+        /* ./125 instead of ./100 is for adjusting the BDB overhead. */
+        import_pages = (li->li_import_cache_autosize * pages) / 125;
     }
+
+    page_delta = pages - import_pages;
+    if (page_delta < hard_limit) {
+        LDAPDebug(LDAP_DEBUG_ANY, 
+            "After allocating import cache %ldKB, "
+            "the available memory is %ldKB, "
+            "which is less than the hard limit %ldKB. "
+            "Please decrease the import cache size and rerun import.\n",
+            import_pages*(pagesize/1024), page_delta*(pagesize/1024),
+            hard_limit*(pagesize/1024));
+        return ENOMEM;
+    }
+    if (page_delta < soft_limit) {
+        LDAPDebug(LDAP_DEBUG_ANY, 
+            "WARNING: After allocating import cache %ldKB, "
+            "the available memory is %ldKB, "
+            "which is less than the soft limit %ldKB. "
+            "You may want to decrease the import cache size and "
+            "rerun import.\n",
+            import_pages*(pagesize/1024), page_delta*(pagesize/1024),
+            soft_limit*(pagesize/1024));
+    }
+
+    LDAPDebug1Arg(LDAP_DEBUG_ANY, "Import allocates %ldKB import cache.\n", 
+                  import_pages*(pagesize/1024));
+    if (li->li_import_cache_autosize > 0) { /* import cache autosizing */
+        /* set the calculated import cache size to the config */
+        sprintf(s, "%lu", (unsigned long)(import_pages * pagesize));
+        ldbm_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, s);
+    }
+    return 0;
 }
 
 /* mode is one of
@@ -1987,15 +2033,13 @@ int dblayer_instance_start(backend *be, int mode)
                 oflags |= DB_PRIVATE;
             }
             PR_Lock(li->li_config_mutex);
-            if ((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) &&
-                (li->li_import_cache_autosize)) /* Autosizing importCache
-                                                 * Need to re-eval every time
-                                                 * to guarantee the memory is
-                                                 * really available 
-                                                 * (just for command line I/F)
-                                                 */
-            {
-                autosize_import_cache(li);
+            /* import cache checking and autosizing is available only
+             * for the command line */
+            if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+                return_value = check_and_set_import_cache(li);
+                if (return_value) {
+                    goto out;
+                }
             }
             cachesize = li->li_import_cachesize;
             PR_Unlock(li->li_config_mutex);

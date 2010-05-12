@@ -584,7 +584,6 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
 
         li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         ldbm_config_load_dse_info(li);
-        autosize_import_cache(li);
     }
 
     /* Find the instance that the ldif2db will be done on. */
@@ -2058,7 +2057,9 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         {
             ldbm_config_load_dse_info(li);
         }
-        autosize_import_cache(li);
+        if (check_and_set_import_cache(li) < 0) {
+            return -1;
+        }
     }
     else
     {
