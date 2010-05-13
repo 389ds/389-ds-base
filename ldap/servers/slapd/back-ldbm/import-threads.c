@@ -609,6 +609,8 @@ void import_producer(void *param)
             continue;
         }
 
+        /* generate uniqueid if necessary */
+        import_generate_uniqueid(job, e);
         if (g_get_global_lastmod()) {
             import_add_created_attrs(e);
         }
@@ -848,9 +850,6 @@ void index_producer(void *param)
             continue;
         } 
         slapi_ch_free(&(data.data));
-
-        /* generate uniqueid if necessary */
-        import_generate_uniqueid(job, e);
 
         ep = import_make_backentry(e, temp_id);
         if (!ep)
