@@ -120,7 +120,7 @@ fi
 
 start() {
     if [ -n "$INSTANCES" ]; then
-        LD_LIBRARY_PATH=@libdir@/@package_name@:@nss_libdir@
+        LD_LIBRARY_PATH=@libdir@/@package_name@:@nss_libdir@:@pcre_libdir@
         export LD_LIBRARY_PATH
         echo  "Starting $prog: "
         # Start every slapd instance that isn't already running
