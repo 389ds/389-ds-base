@@ -627,6 +627,15 @@ void import_producer(void *param)
             continue;
         }
 
+        /* not sure what this does, but it looked like it could be
+         * simplified.  if it's broken, it's my fault.  -robey 
+         */
+        if (slapi_entry_attr_find(ep->ep_entry, "userpassword", &attr) == 0) {
+            Slapi_Value **va = attr_get_present_values(attr);
+
+            pw_encodevals( (Slapi_Value **)va ); /* jcm - cast away const */
+        }
+
         if (job->flags & FLAG_ABORT) { 
             backentry_free(&ep);
             goto error;
@@ -854,15 +863,6 @@ void index_producer(void *param)
         ep = import_make_backentry(e, temp_id);
         if (!ep)
             goto error;
-
-        /* not sure what this does, but it looked like it could be
-         * simplified.  if it's broken, it's my fault.  -robey 
-         */
-        if (slapi_entry_attr_find(ep->ep_entry, "userpassword", &attr) == 0) {
-            Slapi_Value **va = attr_get_present_values(attr);
-
-            pw_encodevals( (Slapi_Value **)va ); /* jcm - cast away const */
-        }
 
         if (job->flags & FLAG_ABORT)
              goto error;
