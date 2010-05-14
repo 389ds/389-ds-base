@@ -2617,7 +2617,9 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     if (run_from_cmdline) {
         ldbm_config_load_dse_info(li);
-        autosize_import_cache(li);
+        if (check_and_set_import_cache(li) < 0) {
+            return -1;
+        }
     } else {
         slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
                         " Online mode is not supported. "
