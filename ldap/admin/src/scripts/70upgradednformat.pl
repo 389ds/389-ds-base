@@ -136,8 +136,6 @@ sub runinst {
                     return ("error_cant_convert_db", $backend, $rc);
                 }
             }
-        } else {
-            return ("error_missing_entrydn", $backend);
         }
 
         $backend_entry = $conn->nextEntry();
