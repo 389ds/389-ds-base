@@ -381,6 +381,7 @@ void import_producer(void *param)
     ldif_context c;
     int my_version = 0;
     size_t newesize = 0;
+    Slapi_Attr *attr = NULL;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -555,7 +556,6 @@ void import_producer(void *param)
         /* If we are importing pre-encrypted attributes, we need
          * to skip syntax checks for the encrypted values. */
         if (!(job->encrypt) && inst->attrcrypt_configured) {
-            Slapi_Attr *attr = NULL;
             Slapi_Entry *e_copy = NULL;
 
             /* Scan through the entry to see if any present
@@ -802,7 +802,6 @@ void index_producer(void *param)
      */
     finished = 0;
     while (!finished) {
-        Slapi_Attr *attr = NULL;
         ID temp_id;
 
         if (job->flags & FLAG_ABORT) {   
