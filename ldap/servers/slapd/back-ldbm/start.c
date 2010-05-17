@@ -205,7 +205,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   home_dir = dblayer_get_home_dir(li, NULL);
   if (!dbversion_exists(li, home_dir))
   {
-      dbversion_write (li, home_dir, NULL);
+      dbversion_write (li, home_dir, NULL, DBVERSION_ALL);
   }
 
 

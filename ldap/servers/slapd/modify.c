@@ -193,7 +193,7 @@ do_modify( Slapi_PBlock *pb )
 		}
 		rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
 		if (rc < 0) {
-			op_shared_log_error_access(pb, "MOD", "???", "invalid dn");
+			op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"", "invalid dn");
 			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
 								 NULL, "invalid dn", 0, NULL);
 			slapi_ch_free((void **) &rawdn);

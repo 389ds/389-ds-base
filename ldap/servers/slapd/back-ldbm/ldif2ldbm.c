@@ -2438,7 +2438,7 @@ ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
 void upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
 int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore, int *cnt);
 int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
-void normalize_dir(char *dir);
+static void normalize_dir(char *dir);
 
 /*
  * ldbm_back_upgradedb - 
@@ -2467,6 +2467,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     char *inst_dirp = NULL;
     int cnt = 0;
     PRFileInfo info = {0};
+    PRUint32 dbversion_flags = DBVERSION_ALL;
                                                                          
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &up_flags);
     slapi_log_error(SLAPI_LOG_TRACE, "upgrade DB", "Reindexing all...\n");
@@ -2685,15 +2686,19 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     home_dir = dblayer_get_home_dir(li, NULL);
 
     /* write db version files */
-    dbversion_write(li, home_dir, NULL);
+    dbversion_write(li, home_dir, NULL, DBVERSION_ALL);
 
+    if ((up_flags & SLAPI_UPGRADEDB_DN2RDN) && entryrdn_get_switch()) {
+        /* exclude dnformat to allow upgradednformat later */
+        dbversion_flags = DBVERSION_ALL ^ DBVERSION_DNFORMAT;;
+    }
     inst_obj = objset_first_obj(li->li_instance_set);
     while (NULL != inst_obj)
     {
         char *inst_dirp = NULL;
         inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
         inst = (ldbm_instance *)object_get_data(inst_obj);
-        dbversion_write(li, inst_dirp, NULL);
+        dbversion_write(li, inst_dirp, NULL, dbversion_flags);
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
@@ -2781,14 +2786,25 @@ fail0:
     return rval;
 }
 
-void normalize_dir(char *dir)
+static void
+normalize_dir(char *dir)
 {
-    int l = strlen(dir);
-    if ('/' == dir[l-1] || '\\' == dir[l-1])
-    {
-        dir[l-1] = '\0';
+    char *p = NULL;
+    int l = 0;
+
+    if (NULL == dir) {
+        return;
     }
+    l = strlen(dir);
+
+    for (p = dir + l - 1; p && *p; p--) {
+        if (' ' != *p && '\t' != *p && '/' != *p && '\\' != *p) {
+            break;
+        }
+    }
+    *(p+1) = '\0';
 }
+
 
 #define LOG    "log."
 #define LOGLEN    4
@@ -3328,5 +3344,210 @@ _export_or_index_parents(ldbm_instance *inst,
     }
 bail:
     slapi_ch_free_string(&prdn);
+    return rc;
+}
+
+/*
+ * ldbm_back_upgradednformat 
+ *
+ * Update old DN format in entrydn and the leaf attr value to the new one
+ *
+ * The implementation would be similar to the upgradedb for new idl.
+ * Scan each entry, checking the entrydn value with the result of 
+ * slapi_dn_normalize_ext_case(dn).
+ * If they don't match,
+ *   replace the old entrydn value with the new one in the entry 
+ *   in id2entry.db4.
+ *   also get the leaf RDN attribute value, unescape it, and check 
+ *   if it is in the entry.  If not, add it.
+ * Then, update the key in the entrydn index and the leaf RDN attribute
+ * (if need it).
+ *
+ * Return value:  0: success (the backend instance includes update 
+ *                   candidates for DRYRUN mode)
+ *                1: the backend instance is up-to-date (DRYRUN mode only)
+ *               -1: error
+ *
+ * standalone only -- not allowed to run while DS is up.
+ */
+int ldbm_back_upgradednformat(Slapi_PBlock *pb)
+{
+    int rc = -1;
+    struct ldbminfo *li = NULL;
+    int run_from_cmdline = 0;
+    int task_flags = 0;
+    int server_running = 0;
+    Slapi_Task *task;
+    ldbm_instance *inst = NULL;
+    char *instance_name = NULL;
+    backend *be = NULL;
+    PRStatus prst = 0;
+    PRFileInfo prfinfo = {0};
+    PRDir *dirhandle = NULL;
+    PRDirEntry *direntry = NULL;
+    size_t id2entrylen = 0;
+    int found = 0;
+    char *rawworkdbdir = NULL;
+    char *workdbdir = NULL;
+    char *origdbdir = NULL;
+    char *origlogdir = NULL;
+    char *originstparentdir = NULL;
+    char *sep = NULL;
+    char *ldbmversion = NULL;
+    char *dataversion = NULL;
+    int ud_flags = 0;
+                                                                         
+    slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
+    slapi_pblock_get( pb, SLAPI_SEQ_TYPE, &ud_flags ); 
+
+    run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    if (run_from_cmdline) {
+        ldbm_config_load_dse_info(li);
+        if (check_and_set_import_cache(li) < 0) {
+            return -1;
+        }
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                        " Online mode is not supported. "
+                        "Shutdown the server and run the tool\n");
+        goto bail;
+    }
+
+    /* Find the instance that the ldif2db will be done on. */
+    inst = ldbm_instance_find_by_name(li, instance_name);
+    if (NULL == inst) {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                        "Unknown ldbm instance %s\n", instance_name);
+        goto bail;
+    }
+    slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                    "%s: Start upgrade dn format.\n", inst->inst_name);
+
+    slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
+    slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawworkdbdir);
+    normalize_dir(rawworkdbdir); /* remove trailing spaces and slashes */
+
+    prst = PR_GetFileInfo(rawworkdbdir, &prfinfo);
+    if (PR_FAILURE == prst || PR_FILE_DIRECTORY != prfinfo.type) {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                        "Working DB instance dir %s is not a directory\n",
+                        rawworkdbdir);
+        goto bail;
+    }
+    dirhandle = PR_OpenDir(rawworkdbdir);
+    if (!dirhandle)
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                        "Failed to open working DB instance dir %s\n",
+                        rawworkdbdir);
+        goto bail;
+    }
+    id2entrylen = strlen(ID2ENTRY);
+    while ((direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+        if (!direntry->name)
+            break;
+        if (0 == strncasecmp(ID2ENTRY, direntry->name, id2entrylen)) {
+            found = 1;
+            break;
+        }
+    }
+    PR_CloseDir(dirhandle);
+
+    if (!found) {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                        "Working DB instance dir %s does not include %s file\n",
+                        rawworkdbdir, ID2ENTRY);
+        goto bail;
+    }
+
+    if (run_from_cmdline) {
+        ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
+    }
+
+    /* We have to work on the copied db.  So, the path should be set here. */
+    origdbdir = li->li_directory;
+    origlogdir = li->li_dblayer_private->dblayer_log_directory;
+    originstparentdir = inst->inst_parent_dir_name;
+
+    workdbdir = rel2abspath(rawworkdbdir);
+
+    dbversion_read(li, workdbdir, &ldbmversion, &dataversion);
+    if (ldbmversion && PL_strstr(ldbmversion, BDB_DNFORMAT)) {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                        "Instance %s in %s is up-to-date\n", 
+                        instance_name, workdbdir);
+        rc = 1; /* 1: up-to-date; 0: need upgrade; otherwise: error */
+        goto bail;
+    }
+
+    sep = PL_strrchr(workdbdir, '/');
+    if (!sep) {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                        "Working DB instance dir %s does not include %s file\n",
+                        workdbdir, ID2ENTRY);
+        goto bail;
+    }
+    *sep = '\0';
+    li->li_directory = workdbdir;
+    li->li_dblayer_private->dblayer_log_directory = workdbdir;
+    inst->inst_parent_dir_name = workdbdir;
+    
+    if (run_from_cmdline) {
+        if (0 != dblayer_start(li, DBLAYER_IMPORT_MODE)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                            "Failed to init database\n");
+            goto bail;
+        }
+    }
+
+    /* dblayer_instance_start will init the id2entry index. */
+    be = inst->inst_be;
+    if (0 != dblayer_instance_start(be, DBLAYER_IMPORT_MODE))
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DB Format",
+                    "Failed to init instance %s\n", inst->inst_name);
+        goto bail;
+    }
+
+    if (run_from_cmdline) {
+        vlv_init(inst);    /* Initialise the Virtual List View code */
+    }
+
+    rc = ldbm_back_ldif2ldbm_deluxe(pb);
+
+    /* close the database */
+    if (run_from_cmdline) {
+        if (0 != dblayer_flush(li)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                            "Failed to flush database\n");
+        }
+        if (0 != dblayer_close(li,DBLAYER_IMPORT_MODE)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                            "Failed to close database\n");
+            goto bail;
+        }
+    }
+    *sep = '/';
+    if (((0 == rc) && !(ud_flags & SLAPI_DRYRUN)) ||
+        ((rc > 0) && (ud_flags & SLAPI_DRYRUN))) {
+        /* modify the DBVERSION files if the DN upgrade was successful OR
+         * if DRYRUN, the backend instance is up-to-date. */
+        dbversion_write(li, workdbdir, NULL, DBVERSION_ALL); /* inst db dir */
+    }
+    /* Remove the DB env files */
+    dblayer_remove_env(li);
+
+    li->li_directory = origdbdir;
+    li->li_dblayer_private->dblayer_log_directory = origlogdir;
+    inst->inst_parent_dir_name = originstparentdir;
+
+bail:
+    slapi_ch_free_string(&workdbdir);
+    slapi_ch_free_string(&ldbmversion);
+    slapi_ch_free_string(&dataversion);
     return rc;
 }

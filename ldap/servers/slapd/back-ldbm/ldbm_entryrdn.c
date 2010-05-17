@@ -999,7 +999,9 @@ entryrdn_lookup_dn(backend *be,
     static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
     char *keybuf = NULL;
     Slapi_RDN *srdn = NULL;
+    char *orignrdn = NULL;
     char *nrdn = NULL;
+    size_t nrdn_len = 0;
     ID workid = id; /* starting from the given id */
     ID previd = id;
     rdn_elem *elem = NULL;
@@ -1037,8 +1039,18 @@ entryrdn_lookup_dn(backend *be,
         goto bail;
     }
     srdn = slapi_rdn_new_all_dn(rdn);
-    nrdn = slapi_ch_strdup(rdn);
-    slapi_dn_normalize_case(nrdn); /* normalize in place */
+    orignrdn = slapi_ch_strdup(rdn);
+    rc = slapi_dn_normalize_case_ext(orignrdn, 0, &nrdn, &nrdn_len);
+    if (rc < 0) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                "entryrdn_get_parent: Failed to normalize %s\n", rdn);
+        goto bail;
+    }
+    if (rc == 0) { /* orignrdn is passed in */
+        *(nrdn + nrdn_len) = '\0';
+    } else {
+        slapi_ch_free_string(&orignrdn);
+    }
 
     /* Setting the bulk fetch buffer */
     memset(&data, 0, sizeof(data));
@@ -1159,7 +1171,9 @@ entryrdn_get_parent(backend *be,
     DB_TXN *db_txn = (txn != NULL) ? txn->back_txn_txn : NULL;
     DBT key, data;
     char *keybuf = NULL;
+    char *orignrdn = NULL;
     char *nrdn = NULL;
+    size_t nrdn_len = 0;
     rdn_elem *elem = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
@@ -1195,8 +1209,18 @@ entryrdn_get_parent(backend *be,
         cursor = NULL;
         goto bail;
     }
-    nrdn = slapi_ch_strdup(rdn);
-    slapi_dn_normalize_case(nrdn); /* normalize in place */
+    orignrdn = slapi_ch_strdup(rdn);
+    rc = slapi_dn_normalize_case_ext(orignrdn, 0, &nrdn, &nrdn_len);
+    if (rc < 0) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                "entryrdn_get_parent: Failed to normalize %s\n", rdn);
+        goto bail;
+    }
+    if (rc == 0) { /* orignrdn is passed in */
+        *(nrdn + nrdn_len) = '\0';
+    } else {
+        slapi_ch_free_string(&orignrdn);
+    }
 
     /* Setting the bulk fetch buffer */
     memset(&data, 0, sizeof(data));

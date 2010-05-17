@@ -1080,6 +1080,15 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             {
                 parent_node = mapping_tree_root;
             }
+            else if ((strcasecmp(mods[i]->mod_type, "cn") == 0) &&
+                      SLAPI_IS_MOD_ADD(mods[i]->mod_op))
+            {
+                /* Allow to add an additional cn.
+                 * e.g., cn: "<suffix>" for the backward compatibility.
+                 * No need to update the mapping tree node itself.
+                 */
+                continue;
+            }
             else
             {
                 /* we have to find the new parent node */
@@ -2681,6 +2690,11 @@ mtn_get_mapping_tree_node_by_entry(mapping_tree_node* node, const Slapi_DN *dn)
 
     if(mapping_tree_freed){
         /* shutdown detected */
+        return NULL;
+    }
+
+    if(NULL == dn){
+        /* bad mapping tree entry operation */
         return NULL;
     }
 

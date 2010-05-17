@@ -185,3 +185,10 @@ error_online_update = Could not open a connection to the server at %s port %s as
 Please make sure the server is up and running before using online mode,\
 or use offline mode.\n\n
 error_offline_update = Could not read the server config file '%s'. Error: %s\n\n
+error_no_mapping_tree_entries = Could not find a mapping tree entry.  Error: %s\n
+error_no_configuration_entry = Could not find a configuration entry.  Error: %s\n
+error_no_configuration_entry = Could not find a backend entry.  Error: %s\n
+error_invalid_dbinst_dir = Invalid database instance dir '%s'.\n
+error_cant_backup_db = Failed to back up backend instance '%s'.  Error: %s\n
+error_cant_convert_db = Failed to convert backend instance '%s'.  Error: %s\n
+error_missing_entrydn = Backend instance '%s' does not have database files to upgrade.\n

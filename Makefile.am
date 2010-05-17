@@ -93,7 +93,10 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-restart-slapd ldap/admin/src/scripts/template-restoreconfig \
 	ldap/admin/src/scripts/template-saveconfig ldap/admin/src/scripts/template-start-slapd \
 	ldap/admin/src/scripts/template-stop-slapd ldap/admin/src/scripts/template-suffix2instance \
-	ldap/admin/src/scripts/template-upgradedb ldap/admin/src/scripts/template-verify-db.pl \
+	ldap/admin/src/scripts/template-upgradedb \
+	ldap/admin/src/scripts/template-upgradednformat \
+	ldap/admin/src/scripts/template-usn-tombstone-cleanup.pl \
+	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-vlvindex ldap/admin/src/scripts/DSUtil.pm \
 	ldap/ldif/template-baseacis.ldif ldap/ldif/template-bitwise.ldif ldap/ldif/template-country.ldif \
 	ldap/ldif/template-dnaplugin.ldif ldap/ldif/template-domain.ldif ldap/ldif/template-dse.ldif \
@@ -336,6 +339,7 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-start-slapd \
 	ldap/admin/src/scripts/template-stop-slapd \
 	ldap/admin/src/scripts/template-suffix2instance \
+	ldap/admin/src/scripts/template-upgradednformat \
 	ldap/admin/src/scripts/template-vlvindex \
 	ldap/admin/src/scripts/template-bak2db.pl \
 	ldap/admin/src/scripts/template-db2bak.pl \
@@ -435,6 +439,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50retroclprecedence.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
 	ldap/admin/src/scripts/90subtreerename.pl \
+	ldap/admin/src/scripts/91upgradednformat.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 
 update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh

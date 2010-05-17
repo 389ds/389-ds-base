@@ -227,6 +227,8 @@ ldbm_back_init( Slapi_PBlock *pb )
 	    (void *) ldbm_back_ldbm2archive );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_UPGRADEDB_FN,
 	    (void *) ldbm_back_upgradedb );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_UPGRADEDNFORMAT_FN,
+	    (void *) ldbm_back_upgradednformat );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_DBVERIFY_FN,
 	    (void *) ldbm_back_dbverify );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_BEGIN_FN,

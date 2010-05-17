@@ -449,7 +449,6 @@ static int
 ISEOV(char *s, char *ends)
 {
     char *p;
-    int rc = 1;
     for (p = s; p && *p && p < ends; p++) {
         if (SEPARATOR(*p)) {
             return 1;
@@ -1159,6 +1158,17 @@ rdn_av_swap( struct berval *av1, struct berval *av2, int escape )
     }
 }
 
+/* Introduced for the upgrade tool. DON'T USE THIS API! */
+char *
+slapi_dn_normalize_case_original( char *dn )
+{
+	/* LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	*(substr_dn_normalize_orig( dn, dn + strlen( dn ))) = '\0';
+	/* LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+
+	/* normalize case */
+	return( slapi_dn_ignore_case( dn ));
+}
 
 /*
  * DEPRECATED: this function does nothing.

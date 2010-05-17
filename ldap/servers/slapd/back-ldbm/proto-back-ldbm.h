@@ -171,7 +171,7 @@ int dblayer_db_uses_transactions(DB_ENV *db_env);
 int dblayer_db_uses_mpool(DB_ENV *db_env);
 int dblayer_db_uses_logging(DB_ENV *db_env);
 int dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
-
+int dblayer_remove_env(struct ldbminfo *li);
 
 /*
  * dn2entry.c
@@ -361,6 +361,7 @@ int mkdir_p(char *dir, unsigned int mode);
 int is_fullpath(char *path);
 char get_sep(char *path);
 int get_value_from_string(const char *string, char *type, char **value);
+int get_values_from_string(const char *string, char *type, char ***valuearray);
 
 
 /*
@@ -465,6 +466,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb );
 int ldbm_back_ldbm2ldif( Slapi_PBlock *pb );
 int ldbm_back_ldbm2ldifalt( Slapi_PBlock *pb );
 int ldbm_back_ldbm2index( Slapi_PBlock *pb );
+int ldbm_back_upgradednformat( Slapi_PBlock *pb );
 int ldbm_back_archive2ldbm( Slapi_PBlock *pb );
 int ldbm_back_ldbm2archive( Slapi_PBlock *pb );
 int ldbm_back_upgradedb( Slapi_PBlock *pb );
@@ -586,7 +588,7 @@ int ldbm_attribute_always_indexed(const char *attrtype);
 /*
  * dbversion.c
  */
-int dbversion_write(struct ldbminfo *li, const char *dir, const char *dversion);
+int dbversion_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags);
 int dbversion_read(struct ldbminfo *li, const char *directory,
                    char **ldbmversion, char **dataversion);
 int dbversion_exists(struct ldbminfo *li, const char *directory);

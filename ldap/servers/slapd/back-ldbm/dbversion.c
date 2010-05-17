@@ -74,7 +74,7 @@ mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename
  */
 int
 dbversion_write(struct ldbminfo *li, const char *directory,
-                const char *dataversion)
+                const char *dataversion, PRUint32 flags)
 {
     char filename[ MAXPATHLEN*2 ];
     PRFileDesc *prfd;
@@ -99,33 +99,28 @@ dbversion_write(struct ldbminfo *li, const char *directory,
     else
     {
         /* Write the file */
-        PRInt32    len;
         char buf[ LDBM_VERSION_MAXBUF ];
-        /* recognize the difference between an old/new database regarding idl
-         * (406922) */
-        if (idl_get_idl_new())
-        {
-            if (entryrdn_get_switch()) {
-                sprintf(buf, "%s/%d.%d/%s/%s\n", 
-                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
-                        BDB_BACKEND, BDB_RDNFORMAT);
-            } else {
-                sprintf(buf, "%s/%d.%d/%s\n", 
-                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
-                        BDB_BACKEND);
-            }
+        char *ptr = NULL;
+        size_t len = 0;
+        /* Base DB Version */
+        PR_snprintf(buf, sizeof(buf), "%s/%d.%d/%s",
+                    BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_BACKEND);
+        len = strlen(buf);
+        ptr = buf + len;
+        if (idl_get_idl_new() && (flags & DBVERSION_NEWIDL)) {
+            PR_snprintf(ptr, sizeof(buf) - len, "/%s", BDB_NEWIDL);
+            len = strlen(buf);
+            ptr = buf + len;
         }
-        else
-        {
-            if (entryrdn_get_switch()) {
-                sprintf(buf, "%s/%d.%d/%s/%s\n", 
-                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
-                        BDB_BACKEND, BDB_RDNFORMAT);
-            } else {
-                sprintf(buf, "%s/%d.%d/%s\n", 
-                        BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR,
-                        BDB_BACKEND);
-            }
+        if (entryrdn_get_switch() && (flags & DBVERSION_RDNFORMAT)) {
+            PR_snprintf(ptr, sizeof(buf) - len, "/%s", BDB_RDNFORMAT);
+            len = strlen(buf);
+            ptr = buf + len;
+        }
+        if (flags & DBVERSION_DNFORMAT) {
+            PR_snprintf(ptr, sizeof(buf) - len, "/%s", BDB_DNFORMAT);
+            len = strlen(buf);
+            ptr = buf + len;
         }
         len = strlen( buf );
         if ( slapi_write_buffer( prfd, buf, len ) != len )

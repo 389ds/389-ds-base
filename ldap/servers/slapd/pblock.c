@@ -666,6 +666,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_upgradedb;
         break;
+    case SLAPI_PLUGIN_DB_UPGRADEDNFORMAT_FN:
+        if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
+                return( -1 );
+        }
+        (*(IFP *)value) = pblock->pb_plugin->plg_upgradednformat;
+        break;
     case SLAPI_PLUGIN_DB_DBVERIFY_FN:
         if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
                 return( -1 );
@@ -2040,6 +2046,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_upgradedb = (IFP) value;
+		break;
+    case SLAPI_PLUGIN_DB_UPGRADEDNFORMAT_FN:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_upgradednformat = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_DB_DBVERIFY_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {

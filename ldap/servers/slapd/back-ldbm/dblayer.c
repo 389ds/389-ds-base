@@ -1706,7 +1706,7 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
         if ( (DBLAYER_NORMAL_MODE == dbmode ) && 
              (0 == return_value)) {
             /* update the dbversion file */
-            dbversion_write(li, region_dir, NULL);
+            dbversion_write(li, region_dir, NULL, DBVERSION_ALL);
 
             /* if dblayer_close then dblayer_start is called,
                this flag is set */
@@ -2013,7 +2013,7 @@ int dblayer_instance_start(backend *be, int mode)
             }
         } else {
             /* The dbversion file didn't exist, so we'll create one. */
-            dbversion_write(li, inst_dirp, NULL);
+            dbversion_write(li, inst_dirp, NULL, DBVERSION_ALL);
         }
     } /* on import we don't mess with the dbversion file except to write it
        * when done with the import. */
@@ -2210,7 +2210,7 @@ out:
     }
 
     if (mode & DBLAYER_NORMAL_MODE) {
-        dbversion_write(li, inst_dirp, NULL);
+        dbversion_write(li, inst_dirp, NULL, DBVERSION_ALL);
         /* richm - not sure if need to acquire the be lock first? */
         /* need to set state back to started - set to stopped in
            dblayer_instance_close */
@@ -2284,7 +2284,7 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
     size_t cachesize;
     PRFileInfo prfinfo;
     PRStatus prst;
-    char *id2entry_file;
+    char *id2entry_file = NULL;
     char inst_dir[MAXPATHLEN];
     char *inst_dirp = NULL;
     char *data_directories[2] = {0, 0};
@@ -2651,35 +2651,6 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
     return_value = pEnv->dblayer_DB_ENV->close(pEnv->dblayer_DB_ENV, 0);
     dblayer_free_env(&priv->dblayer_env); /* pEnv is now garbage */
 
-#if 0    /* DBDB do NOT remove the environment: bad, bad idea */
-    if (return_value == 0) {
-        DB_ENV *env = 0;
-        return_value = db_env_create(&env, 0);
-        /* don't be tempted to use the
-           previously nulled out env handle
-           as Sleepycat 3.x is unhappy if
-           the env handle handed to remove
-           was used elsewhere. rwagner  */
-        if (return_value == 0) {
-            char *home_dir = dblayer_get_home_dir(li, NULL);
-            if (home_dir)
-                return_value = env->remove(env, home_dir, 0);
-            if (0 == return_value
-                && !((DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE) & dbmode)
-                && !priv->dblayer_bad_stuff_happened) {
-                /*
-                 * If we got here, we have a good consistent database,
-                 * so we write the guard file
-                 */
-                commit_good_database(priv);
-            } else if (return_value == EBUSY) {
-                /* something else is using the env so ignore */
-                /* but let's not make a guardian file */
-                return_value = 0; 
-            }
-        }
-    }
-#endif
     if (0 == return_value
         && !((DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE) & dbmode)
         && !priv->dblayer_bad_stuff_happened) {
@@ -2744,9 +2715,42 @@ int dblayer_close(struct ldbminfo *li, int dbmode)
  * for the transacted database, we interpret this as an instruction
  * to write a checkpoint.
  */
-int    dblayer_flush(struct ldbminfo *li)
+int
+dblayer_flush(struct ldbminfo *li)
 {
     return 0;
+}
+
+/* API to remove the environment */
+int
+dblayer_remove_env(struct ldbminfo *li)
+{
+    DB_ENV *env = NULL;
+    dblayer_private *priv = NULL;
+    char *home_dir = NULL;
+    int rc = db_env_create(&env, 0);
+    if (rc) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ERROR -- Failed to create DB_ENV (returned: %d)\n", rc);
+        return rc;
+    }
+    if (NULL == li) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "ERROR -- No ldbm info is given\n");
+        return -1;
+    }
+    priv = (dblayer_private *)li->li_dblayer_private;
+
+    home_dir = dblayer_get_home_dir(li, NULL);
+    if (home_dir) {
+        rc = env->remove(env, home_dir, 0);
+        if (rc) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "ERROR -- Failed to remove DB environment files. "
+                          "Please remove %s/__db.00# (# is 1 through 6)\n",
+                          home_dir);
+        }
+    }
+    return rc;
 }
 
 #if !defined(DB_DUPSORT)

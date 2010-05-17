@@ -167,7 +167,14 @@ typedef unsigned short u_int16_t;
  */
 #define BDB_IMPL        "bdb"
 #define BDB_BACKEND     "libback-ldbm" /* This backend plugin */
+#define BDB_NEWIDL      "newidl"       /* new idl format */
 #define BDB_RDNFORMAT   "rdn-format"   /* Subtree rename enabled */
+#define BDB_DNFORMAT    "dn-4514"      /* DN format RFC 4514 compliant */
+
+#define DBVERSION_NEWIDL      0x1
+#define DBVERSION_RDNFORMAT   0x2
+#define DBVERSION_DNFORMAT    0x4
+#define DBVERSION_ALL   0xffffffff
 
 /*
  * While we support both new and old idl index,
@@ -789,7 +796,7 @@ typedef struct _back_search_result_set
 #define BE_INDEX_TOMBSTONE	8   /* Index entry as a tombstone */
 #define BE_INDEX_DONT_ENCRYPT	16   /* Disable any encryption if this flag is set */
 #define BE_INDEX_EQUALITY	32  /* (w/DEL) remove the equality index */
-#define BE_INDEX_NORMALIZED SLAPI_ATTR_FLAG_NORMALIZED /* value already normalized */
+#define BE_INDEX_NORMALIZED SLAPI_ATTR_FLAG_NORMALIZED /* value already normalized (0x200) */
 
 /* Name of attribute type used for binder-based look through limit */
 #define LDBM_LOOKTHROUGHLIMIT_AT	"nsLookThroughLimit"

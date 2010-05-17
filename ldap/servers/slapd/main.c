@@ -113,6 +113,7 @@ static int slapd_exemode_db2index();
 static int slapd_exemode_archive2db();
 static int slapd_exemode_db2archive();
 static int slapd_exemode_upgradedb();
+static int slapd_exemode_upgradednformat();
 static int slapd_exemode_dbverify();
 static int slapd_exemode_dbtest();
 static int slapd_exemode_suffix2instance();
@@ -374,14 +375,16 @@ name2exemode( char *progname, char *s, int exit_if_unknown )
 		exemode = SLAPD_EXEMODE_SUFFIX2INSTANCE;
 	} else if ( strcmp( s, "upgradedb" ) == 0 ) {
 		exemode = SLAPD_EXEMODE_UPGRADEDB;
+    } else if ( strcmp( s, "upgradednformat" ) == 0 ) {
+        exemode = SLAPD_EXEMODE_UPGRADEDNFORMAT;
 	} else if ( strcmp( s, "dbverify" ) == 0 ) {
 		exemode = SLAPD_EXEMODE_DBVERIFY;
 	}
 	else if ( exit_if_unknown ) {
 		fprintf( stderr, "usage: %s -D configdir "
 				 "[ldif2db | db2ldif | archive2db "
-				 "| db2archive | db2index | refer | suffix2instance"
-				 " | upgradedb | dbverify] "
+				 "| db2archive | db2index | refer | suffix2instance "
+				 "| upgradedb | upgradednformat | dbverify] "
 				 "[options]\n", progname );
 		exit( 1 );
 	} else {
@@ -441,6 +444,9 @@ usage( char *name, char *extraname )
     case SLAPD_EXEMODE_UPGRADEDB:
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-f] [-r] -a archivedir\n";
 	break;
+    case SLAPD_EXEMODE_UPGRADEDNFORMAT:
+	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-N] -n backend-instance-name -a fullpath-backend-instance-dir-full\n";
+	break;
     case SLAPD_EXEMODE_DBVERIFY:
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-n backend-instance-name]\n";
 	break;
@@ -484,6 +490,7 @@ static int dbverify_verbose = 0;
 static char *ldif2db_namespaceid = NULL;
 int importexport_encrypt = 0;
 static int upgradedb_flags = 0;
+static int upgradednformat_dryrun = 0;
 
 /* taken from idsktune */
 #if defined(__sun)
@@ -990,6 +997,11 @@ main( int argc, char **argv)
 		goto cleanup;
 		break;
 
+	case SLAPD_EXEMODE_UPGRADEDNFORMAT:
+		return_value = slapd_exemode_upgradednformat();
+		goto cleanup;
+		break;
+
 	case SLAPD_EXEMODE_DBVERIFY:
 		return_value = slapd_exemode_dbverify();
 		goto cleanup;
@@ -1416,6 +1428,16 @@ process_command_line(int argc, char **argv, char *myname,
 		{"configDir",ArgRequired,'D'},
 		{0,0,0}};
 
+	char *opts_upgradednformat = "vd:a:n:D:N"; 
+	struct opt_ext long_options_upgradednformat[] = {
+		{"version",ArgNone,'v'},
+		{"debug",ArgRequired,'d'},
+		{"backend",ArgRequired,'n'},
+		{"archive",ArgRequired,'a'}, /* Path to the work db instance dir */
+		{"configDir",ArgRequired,'D'},
+		{"dryrun",ArgNone,'N'},
+		{0,0,0}};
+
 	char *opts_dbverify = "vVfd:n:D:"; 
 	struct opt_ext long_options_dbverify[] = {
 		{"version",ArgNone,'v'},
@@ -1521,6 +1543,10 @@ process_command_line(int argc, char **argv, char *myname,
 		opts = opts_upgradedb;
 		long_opts = long_options_upgradedb;
 		break;
+	case SLAPD_EXEMODE_UPGRADEDNFORMAT:
+		opts = opts_upgradednformat;
+		long_opts = long_options_upgradednformat;
+		break;
 	case SLAPD_EXEMODE_DBVERIFY:
 		opts = opts_dbverify;
 		long_opts = long_options_dbverify;
@@ -1623,6 +1649,7 @@ process_command_line(int argc, char **argv, char *myname,
 			break;
 		case 'n':	/* which backend to do ldif2db/bak2db for */
 			if (slapd_exemode == SLAPD_EXEMODE_LDIF2DB ||
+				slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ||
 				slapd_exemode == SLAPD_EXEMODE_DBTEST ||
 				slapd_exemode == SLAPD_EXEMODE_DB2INDEX ||
 				slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB) {
@@ -1665,8 +1692,10 @@ process_command_line(int argc, char **argv, char *myname,
 			db2ldif_dump_replica = 1;
 			break;
 		case 'N':	/* do not do ldif2db duplicate value check */
+					/* Or dryrun mode for upgradednformat */
 			if ( slapd_exemode != SLAPD_EXEMODE_LDIF2DB && 
-				slapd_exemode != SLAPD_EXEMODE_DB2LDIF) {
+				slapd_exemode != SLAPD_EXEMODE_DB2LDIF &&
+				slapd_exemode != SLAPD_EXEMODE_UPGRADEDNFORMAT) {
 				usage( myname, *extraname );
 				exit( 1 );
 			}
@@ -1680,6 +1709,9 @@ process_command_line(int argc, char **argv, char *myname,
 			 * with ldif2db. */
 			if ( slapd_exemode == SLAPD_EXEMODE_DB2LDIF ) {
 				ldif_printkey &= ~EXPORT_PRINTKEY;
+			}
+			if ( slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ) {
+				upgradednformat_dryrun = 1;
 			}
 
 			break;
@@ -2171,7 +2203,7 @@ slapd_exemode_ldif2db()
     }
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(plugin)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to do imports.\n",
+        LDAPDebug(LDAP_DEBUG_ANY, "ERROR: %s is too old to reindex all.\n",
                   plugin->plg_name, 0, 0);
         return 1;
     }
@@ -2684,6 +2716,83 @@ slapd_exemode_upgradedb()
     }
     slapi_ch_free((void**)&myname );
     return( return_value );
+}
+
+/* Command to upgrade the old dn format to the new style */
+static int
+slapd_exemode_upgradednformat()
+{
+    int rc = -1; /* error, by default */
+    Slapi_PBlock pb;
+    struct slapdplugin *backend_plugin;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if ( archive_name == NULL ) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "ERROR: Required argument "
+                       "\"-a <path to work db instance dir>\" is missing\n");
+        usage( myname, extraname );
+        goto bail;
+    }
+
+    /* this should be the first time to be called!  if the init order
+     * is ever changed, these lines should be changed (or erased)!
+     */
+    mapping_tree_init();
+
+    if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                       "ERROR: Could not find the ldbm backend plugin.\n");
+        goto bail;
+    }
+
+    /* Make sure we aren't going to run slapd in 
+     * a mode that is going to conflict with other
+     * slapd processes that are currently running
+     * Pretending to execute import.
+     */
+    if (add_new_slapd_process(slapd_exemode, 0, skip_db_protect_check) 
+                                                                        == -1) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "Shutting down due to possible "
+                                      "conflicts with other slapd processes\n");
+        goto bail;
+    }
+    /* check for slapi v2 support */
+    if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+                      "ERROR: %s is too old to upgrade dn format.\n",
+                      backend_plugin->plg_name);
+        goto bail;
+    }
+
+    memset( &pb, '\0', sizeof(pb) );
+    pb.pb_backend = NULL;
+    pb.pb_plugin = backend_plugin;
+    pb.pb_instance_name = cmd_line_instance_name;
+    if (upgradednformat_dryrun) {
+        pb.pb_seq_type = SLAPI_UPGRADEDNFORMAT|SLAPI_DRYRUN;
+    } else {
+        pb.pb_seq_type = SLAPI_UPGRADEDNFORMAT;
+    }
+    pb.pb_seq_val = archive_name; /* Path to the work db instance dir */
+    pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    /* borrowing import code, so need to set up the import variables */
+    pb.pb_ldif_generate_uniqueid = ldif2db_generate_uniqueid;
+    pb.pb_ldif_namespaceid = ldif2db_namespaceid;
+    pb.pb_ldif2db_noattrindexes = 0;
+    pb.pb_removedupvals = 0;
+#ifndef _WIN32
+    main_setuid(slapdFrontendConfig->localuser);
+#endif
+    if ( backend_plugin->plg_upgradednformat != NULL ) {
+        rc  = (*backend_plugin->plg_upgradednformat)( &pb );
+    } else {
+        LDAPDebug( LDAP_DEBUG_ANY,
+                   "ERROR: no upgradednformat function defined for "
+                   "%s\n", backend_plugin->plg_name, 0, 0 );
+    }
+bail:
+    slapi_ch_free((void**)&myname );
+    return( rc  );
 }
 
 /*
