@@ -133,7 +133,9 @@ typedef struct repl5agmt {
 					   to allow another supplier to send its updates -
 					   should be greater than busywaittime -
 					   if set to 0, this means do not pause */
-	void *priv; /* private data, used for windows-specific agreement data */
+	void *priv; /* private data, used for windows-specific agreement data 
+	               for sync agreements or for replication session plug-in
+	               private data for normal replication agreements */
 	int agreement_type;
 } repl5agmt;
 
@@ -381,6 +383,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	else
 	{
 		ra->agreement_type = REPLICA_TYPE_MULTIMASTER;
+		repl_session_plugin_call_agmt_init_cb(ra);
 	}
 
 	
@@ -486,6 +489,14 @@ agmt_delete(void **rap)
 								 slapi_sdn_get_ndn(ra->dn),
 								 LDAP_SCOPE_BASE, "(objectclass=*)",
 								 get_agmt_status);
+
+        /*
+	 * Call the replication session cleanup callback.  We
+	 * need to do this before we free replarea.
+	 */
+	if (ra->agreement_type != REPLICA_TYPE_WINDOWS) {
+		repl_session_plugin_call_destroy_agmt_cb(ra);
+	}
 
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free((void **)&(ra->hostname));
@@ -1929,13 +1940,13 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 			}
 			else if (replrc == NSDS50_REPL_DISABLED)
 			{
-				PR_snprintf(ra->last_update_status, STATUS_LEN, "%d Total update aborted: "
+				PR_snprintf(ra->last_update_status, STATUS_LEN, "%d Incremental update aborted: "
                                             "Replication agreement for %s\n can not be updated while the replica is disabled.\n"
                                             "(If the suffix is disabled you must enable it then restart the server for replication to take place).",
 					replrc, ra->long_name ? ra->long_name : "a replica");
 				/* Log into the errors log, as "ra->long_name" is not accessible from the caller */
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"Total update aborted: Replication agreement for \"%s\" "
+					"Incremental update aborted: Replication agreement for \"%s\" "
 					"can not be updated while the replica is disabled\n", ra->long_name ? ra->long_name : "a replica");
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"(If the suffix is disabled you must enable it then restart the server for replication to take place).\n");

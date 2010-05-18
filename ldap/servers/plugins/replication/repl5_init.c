@@ -86,6 +86,7 @@ void plugin_init_debug_level(int *level_ptr)
 
 static char *start_oid_list[] = {
 		REPL_START_NSDS50_REPLICATION_REQUEST_OID,
+		REPL_START_NSDS90_REPLICATION_REQUEST_OID,
 		NULL
 };
 static char *start_name_list[] = {
@@ -441,6 +442,9 @@ multimaster_start( Slapi_PBlock *pb )
 
     if (!multimaster_started_flag)
 	{
+		/* Get any registered replication session API */
+		repl_session_plugin_init();
+
 		/* Initialize thread private data for logging. Ignore if fails */
 		PR_NewThreadPrivateIndex (&thread_private_agmtname, NULL);
 		PR_NewThreadPrivateIndex (&thread_private_cache, NULL);

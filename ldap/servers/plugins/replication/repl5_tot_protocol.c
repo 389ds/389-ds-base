@@ -397,6 +397,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 
     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Beginning total update of replica "
 		"\"%s\".\n", agmt_get_long_name(prp->agmt));
+
     pb = slapi_pblock_new ();
 
 	/* RMREPL - need to send schema here */

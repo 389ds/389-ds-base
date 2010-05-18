@@ -102,10 +102,12 @@ done:
     return rc;
 }
 
+/* The data_guid and data parameters should only be set if we
+ * are talking with a 9.0 replica. */
 static struct berval *
-create_NSDS50ReplicationExtopPayload(const char *protocol_oid,
+create_ReplicationExtopPayload(const char *protocol_oid,
 	const char *repl_root, char **extra_referrals, CSN *csn,
-	int send_end)
+	int send_end, const char *data_guid, const struct berval *data)
 {
 	struct berval *req_data = NULL;
 	BerElement *tmp_bere = NULL;
@@ -209,6 +211,15 @@ create_NSDS50ReplicationExtopPayload(const char *protocol_oid,
 		}
 	}
 
+	/* If we have data to send to a 9.0 style replica, set it here. */
+	if (data_guid && data) {
+		if (ber_printf(tmp_bere, "sO", data_guid, data) == -1)
+		{
+			rc = LDAP_ENCODING_ERROR;
+			goto loser;
+		}
+	}
+
 	if (ber_printf(tmp_bere, "}") == -1)
 	{
 		rc = LDAP_ENCODING_ERROR;
@@ -255,14 +266,23 @@ struct berval *
 NSDS50StartReplicationRequest_new(const char *protocol_oid,
 	const char *repl_root, char **extra_referrals, CSN *csn)
 {
-	return(create_NSDS50ReplicationExtopPayload(protocol_oid,
-		repl_root, extra_referrals, csn, 0));
+	return(create_ReplicationExtopPayload(protocol_oid,
+		repl_root, extra_referrals, csn, 0, 0, 0));
+}
+
+struct berval *
+NSDS90StartReplicationRequest_new(const char *protocol_oid,
+        const char *repl_root, char **extra_referrals, CSN *csn,
+	const char *data_guid, const struct berval *data)
+{
+	return(create_ReplicationExtopPayload(protocol_oid,
+                repl_root, extra_referrals, csn, 0, data_guid, data));
 }
 
 struct berval *
 NSDS50EndReplicationRequest_new(char *repl_root)
 {
-	return(create_NSDS50ReplicationExtopPayload(NULL, repl_root, NULL, NULL, 1));
+	return(create_ReplicationExtopPayload(NULL, repl_root, NULL, NULL, 1, 0, 0));
 }
 
 static int 
@@ -292,14 +312,15 @@ done:
 }
 
 /*
- * Decode an NSDS50 Start Replication Request extended
+ * Decode an NSDS50 or NSDS90 Start Replication Request extended
  * operation. Returns 0 on success, -1 on decoding error.
  * The caller is responsible for freeing protocol_oid,
- * repl_root, referrals, and csn.
+ * repl_root, referrals, csn, data_guid, and data.
  */
 static int
 decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root, 
-                       RUV **supplier_ruv, char ***extra_referrals, char **csnstr)
+                       RUV **supplier_ruv, char ***extra_referrals, char **csnstr,
+                       char **data_guid, struct berval **data, int *is90)
 {
 	char *extop_oid = NULL;
 	struct berval *extop_value = NULL;
@@ -307,24 +328,35 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root,
 	ber_len_t len;
 	int rc = 0;
 
-    PR_ASSERT (pb && protocol_oid && repl_root && supplier_ruv && extra_referrals && csnstr);
+	PR_ASSERT (pb && protocol_oid && repl_root && supplier_ruv && extra_referrals && csnstr && data_guid && data);
     
-    *protocol_oid = NULL;
-    *repl_root = NULL;
-    *supplier_ruv = NULL;
-    *extra_referrals = NULL;
-    *csnstr = NULL;
+	*protocol_oid = NULL;
+	*repl_root = NULL;
+	*supplier_ruv = NULL;
+	*extra_referrals = NULL;
+	*csnstr = NULL;
     
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
 
 	if (NULL == extop_oid ||
-		strcmp(extop_oid, REPL_START_NSDS50_REPLICATION_REQUEST_OID) != 0 ||
+		((strcmp(extop_oid, REPL_START_NSDS50_REPLICATION_REQUEST_OID) != 0) &&
+		(strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) != 0)) ||
 		NULL == extop_value)
 	{
 		/* bogus */
 		rc = -1;
 		goto free_and_return;
+	}
+
+	/* Set a flag to let the caller know if this is a 9.0 style start extop */
+	if (strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) == 0)
+	{
+		*is90 = 1;
+	}
+	else
+	{
+		*is90 = 0;
 	}
 
 	if ((tmp_bere = ber_init(extop_value)) == NULL)
@@ -349,12 +381,12 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root,
 		goto free_and_return;
 	}
 
-    /* get supplier's ruv */
-    if (decode_ruv (tmp_bere, supplier_ruv) == -1)
-    {
-        rc = -1;
-        goto free_and_return;
-    }
+	/* get supplier's ruv */
+	if (decode_ruv (tmp_bere, supplier_ruv) == -1)
+	{
+		rc = -1;
+		goto free_and_return;
+	}
 
 	/* Get the optional set of referral URLs */
 	if (ber_peek_tag(tmp_bere, &len) == LBER_SET)
@@ -365,10 +397,30 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root,
 			goto free_and_return;
 		}
 	}
-	/* Get the optional CSN */
+	/* Get the CSN */
+	if (ber_get_stringa(tmp_bere, csnstr) == LBER_ERROR)
+	{
+		rc = -1;
+		goto free_and_return;
+	}
+	/* Get the optional replication session callback data. */
 	if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING)
 	{
-		if (ber_get_stringa(tmp_bere, csnstr) == LBER_ERROR)
+		if (ber_get_stringa(tmp_bere, data_guid) == LBER_ERROR)
+		{
+			rc = -1;
+			goto free_and_return;
+		}
+		/* If a data_guid was specified, data must be specified as well. */
+		if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING)
+		{
+			if (ber_get_stringal(tmp_bere, data) == LBER_ERROR)
+			{
+				rc = -1;
+				goto free_and_return;
+			}
+		}
+		else
 		{
 			rc = -1;
 			goto free_and_return;
@@ -469,16 +521,19 @@ free_and_return:
 
 
 /*
- * Decode an NSDS50ReplicationResponse extended response.
- * The extended response just contains a sequence that contains:
+ * Decode an NSDS50ReplicationResponse or NSDS90ReplicationResponse
+ * extended response. The extended response just contains a sequence
+ * that contains:
  * 1) An integer response code
  * 2) An optional array of bervals representing the consumer
  *    replica's update vector
+ * 3) An optional data guid and data string if this is a 9.0
+ *    style response
  * Returns 0 on success, or -1 if the response could not be parsed.
  */
 int
-decode_repl_ext_response(struct berval *data, int *response_code,
-	struct berval ***ruv_bervals)
+decode_repl_ext_response(struct berval *bvdata, int *response_code,
+	struct berval ***ruv_bervals, char **data_guid, struct berval **data)
 {
 	BerElement *tmp_bere = NULL;
 	int return_value = 0;
@@ -486,7 +541,8 @@ decode_repl_ext_response(struct berval *data, int *response_code,
 	PR_ASSERT(NULL != response_code);
 	PR_ASSERT(NULL != ruv_bervals);
 
-	if (NULL == data || NULL == response_code || NULL == ruv_bervals)
+	if (NULL == bvdata || NULL == response_code || NULL == ruv_bervals ||
+		NULL == data_guid || NULL == data)
 	{
 		return_value = -1;
 	}
@@ -495,7 +551,7 @@ decode_repl_ext_response(struct berval *data, int *response_code,
 		ber_len_t len;
 		ber_int_t temp_response_code = 0;
 		*ruv_bervals = NULL;
-		if ((tmp_bere = ber_init(data)) == NULL)
+		if ((tmp_bere = ber_init(bvdata)) == NULL)
 		{
 			return_value = -1;
 		}
@@ -505,14 +561,24 @@ decode_repl_ext_response(struct berval *data, int *response_code,
 		}
 		else if (ber_peek_tag(tmp_bere, &len) == LBER_SEQUENCE)
 		{
-			if (ber_scanf(tmp_bere, "{V}}", ruv_bervals) == LBER_ERROR)
+			if (ber_scanf(tmp_bere, "{V}", ruv_bervals) == LBER_ERROR)
 			{
 				return_value = -1;
 			}
-		} else if (ber_scanf(tmp_bere, "}") == LBER_ERROR)
+		}
+		/* Check for optional data from replication session callback */
+		if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING)
+		{
+			if (ber_scanf(tmp_bere, "aO}", data_guid, data) == LBER_ERROR)
+			{
+				return_value = -1;
+			}
+		}
+		else if (ber_scanf(tmp_bere, "}") == LBER_ERROR)
 		{
 			return_value = -1;
 		}
+
 		*response_code = (int)temp_response_code;
 	}
 	if (0 != return_value)
@@ -561,17 +627,20 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	Slapi_DN *bind_sdn = NULL;
 	char *bind_dn = NULL;
 	Object *ruv_object = NULL;
-    RUV *supplier_ruv = NULL;
+	RUV *supplier_ruv = NULL;
 	PRUint64 connid = 0;
 	int opid = 0;
 	PRBool isInc = PR_FALSE; /* true if incremental update */
 	char *locking_purl = NULL; /* the supplier contacting us */
 	char *current_purl = NULL; /* the supplier which already has exclusive access */
 	char locking_session[24];
+	char *data_guid = NULL;
+	struct berval *data = NULL;
+	int is90 = 0;
 
 	/* Decode the extended operation */
 	if (decode_startrepl_extop(pb, &protocol_oid, &repl_root, &supplier_ruv,
-			&referrals, &replicacsnstr) == -1)
+			&referrals, &replicacsnstr, &data_guid, &data, &is90) == -1)
 	{
 		response = NSDS50_REPL_DECODING_ERROR;
 		goto send_response;
@@ -602,6 +671,20 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	/* Verify that we know about this replication protocol OID */
 	if (strcmp(protocol_oid, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID) == 0)
 	{
+		if (repl_session_plugin_call_recv_acquire_cb(repl_root, 0 /* is_total == FALSE */,
+				data_guid, data))
+		{
+			slapi_ch_free_string(&data_guid);
+			ber_bvfree(data);
+			data = NULL;
+			response = NSDS50_REPL_BACKOFF;
+			goto send_response;
+		} else {
+			slapi_ch_free_string(&data_guid);
+			ber_bvfree(data);
+			data = NULL;
+		}
+
 		/* Stash info that this is an incremental update session */
 		connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -611,6 +694,20 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	}
 	else if (strcmp(protocol_oid, REPL_NSDS50_TOTAL_PROTOCOL_OID) == 0)
 	{
+		if (repl_session_plugin_call_recv_acquire_cb(repl_root, 1 /* is_total == TRUE */,
+				data_guid, data))
+		{
+			slapi_ch_free_string(&data_guid);
+			ber_bvfree(data);
+			data = NULL;
+			response = NSDS50_REPL_DISABLED;
+			goto send_response;
+		} else {
+			slapi_ch_free_string(&data_guid);
+			ber_bvfree(data);
+			data = NULL;
+		}
+
 		/* Stash info that this is a total update session */
 		if (NULL != connext)
 		{
@@ -896,12 +993,15 @@ send_response:
 		/* Don't log replica busy as errors - these are almost always not
 		   errors - use the replication monitoring tools to determine if
 		   a replica is not converging, then look for pathological replica
-		   busy errors by turning on the replication log level */
-		if (response == NSDS50_REPL_REPLICA_BUSY) {
+		   busy errors by turning on the replication log level.  We also
+		   don't want to log replica backoff as an error, as that response
+                   is only used when a replication session hook wants a master to
+                   go into incremental backoff mode. */
+		if ((response == NSDS50_REPL_REPLICA_BUSY) || (response == NSDS50_REPL_BACKOFF)) {
 			resp_log_level = SLAPI_LOG_REPL;
 		}
 
-        slapi_log_error (resp_log_level, repl_plugin_name,
+		slapi_log_error (resp_log_level, repl_plugin_name,
 			"conn=%" NSPRIu64 " op=%d replica=\"%s\": "
 			"Unable to acquire replica: error: %s%s\n",
 			connid, opid,
@@ -910,7 +1010,20 @@ send_response:
 
 		/* enable tombstone reap again since the total update failed */
 		replica_set_tombstone_reap_stop(replica, PR_FALSE);
-    }
+	}
+
+	/* Call any registered replica session reply callback.  We
+	 * want to reject the updates if the return value is non-0. */
+	if (repl_session_plugin_call_reply_acquire_cb(replica ?
+		slapi_sdn_get_ndn(replica_get_root(replica)) : "",
+		((isInc == PR_TRUE) ? 0 : 1), &data_guid, &data))
+	{
+		slapi_ch_free_string(&data_guid);
+		ber_bvfree(data);
+		data = NULL;
+		response = NSDS50_REPL_BACKOFF;
+	}
+
 	/* Send the response */
 	if ((resp_bere = der_alloc()) == NULL)
 	{
@@ -921,18 +1034,40 @@ send_response:
 	{
 		ber_printf(resp_bere, "{V}", ruv_bervals);
 	}
+	/* Add extra data from replication session callback if necessary */
+	if (is90 && data_guid && data)
+	{
+		ber_printf(resp_bere, "sO", data_guid, data);
+	}
+
 	ber_printf(resp_bere, "}");
 	ber_flatten(resp_bere, &resp_bval);
-	slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS50_REPLICATION_RESPONSE_OID);
+
+	if (is90)
+	{
+		slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS90_REPLICATION_RESPONSE_OID);
+	}
+	else
+	{
+		slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS50_REPLICATION_RESPONSE_OID);
+	}
+
 	slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
-					"StartNSDS50ReplicationRequest: response=%d rc=%d\n",
+					"%s: response=%d rc=%d\n",
 					connid, opid, repl_root,
-					response, rc);
+					is90 ? "StartNSDS90ReplicationRequest" :
+					"StartNSDS50ReplicationRequest", response, rc);
 	slapi_send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
 
 	return_value = SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
+
+	/* Free any data allocated by the replication
+	 * session reply callback. */
+	slapi_ch_free_string(&data_guid);
+	ber_bvfree(data);
+	data = NULL;
 
 	slapi_ch_free_string(&current_purl);
 
@@ -943,11 +1078,11 @@ send_response:
 	/* repl_root */
 	slapi_ch_free((void **)&repl_root);
 
-    /* supplier's ruv */
-    if (supplier_ruv)
-    {
-        ruv_destroy (&supplier_ruv);
-    }
+	/* supplier's ruv */
+	if (supplier_ruv)
+	{
+		ruv_destroy (&supplier_ruv);
+	}
 	/* referrals */
 	slapi_ch_free((void **)&referrals);
 

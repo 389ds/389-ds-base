@@ -1145,6 +1145,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 	    else
 	      {
 		rc = send_updates(prp, ruv, &num_changes_sent);
+
 		if (rc == UPDATE_NO_MORE_UPDATES)
 		  {
 		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_NO_MORE_UPDATES -> STATE_WAIT_CHANGES");
@@ -1202,6 +1203,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 	if (rc == UPDATE_TIMEOUT) {
 		conn_disconnect(prp->conn);
 	}
+
 	if (rc == UPDATE_NO_MORE_UPDATES && num_changes_sent > 0)
 	{
 	  if (pausetime > 0)

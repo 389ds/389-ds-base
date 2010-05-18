@@ -176,8 +176,11 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 	}
 	else
 	{
+		CSN *current_csn = NULL;
+
 		/* we don't want the timer to go off in the middle of an operation */
 		conn_cancel_linger(conn);
+
 		/* Does the remote replica support the 5.0 protocol? */
 		crc = conn_replica_supports_ds5_repl(conn);
 		if (CONN_DOES_NOT_SUPPORT_DS5_REPL == crc)
@@ -188,237 +191,337 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 		{
 			/* We don't know anything about the remote replica. Try again later. */
 			return_value = ACQUIRE_TRANSIENT_ERROR;
+			goto error;
 		}
-		else
+
+		/* Find out what level of replication the replica supports. */
+		crc = conn_replica_supports_ds90_repl(conn);
+		if (CONN_DOES_NOT_SUPPORT_DS90_REPL == crc)
 		{
 			/* Does the remote replica support the 7.1 protocol? */
 			crc = conn_replica_supports_ds71_repl(conn);
 			if (CONN_DOES_NOT_SUPPORT_DS71_REPL == crc)
 			{
+				/* This is a pre-7.1 replica. */
 				prp->repl50consumer = 1;
 			}
-			if (CONN_NOT_CONNECTED == crc || CONN_OPERATION_FAILED == crc)
+			else if (CONN_NOT_CONNECTED == crc || CONN_OPERATION_FAILED == crc)
 			{
 				/* We don't know anything about the remote replica. Try again later. */
 				return_value = ACQUIRE_TRANSIENT_ERROR;
-			} else 
+				goto error;
+			}
+			else
 			{
-				CSN *current_csn = NULL;
+				/* This replica is later than 7.1, but pre-9.0. */
+				prp->repl71consumer = 1;
+			}
+		}
+		else if (CONN_NOT_CONNECTED == crc || CONN_OPERATION_FAILED == crc)
+		{
+			/* We don't know anything about the remote replica. Try again later. */
+			return_value = ACQUIRE_TRANSIENT_ERROR;
+			goto error;
+		}
+		else
+		{
+			/* This replica is a 9.0 or later replica. */
+			prp->repl90consumer = 1;
+		}
 
-				/* Good to go. Start the protocol. */
+		/* Good to go. Start the protocol. */
 
-				/* Obtain a current CSN */
-				replarea_sdn = agmt_get_replarea(prp->agmt);
-				current_csn = get_current_csn(replarea_sdn);
-				if (NULL != current_csn)
+		/* Obtain a current CSN */
+		replarea_sdn = agmt_get_replarea(prp->agmt);
+		current_csn = get_current_csn(replarea_sdn);
+		if (NULL != current_csn)
+		{
+			struct berval *payload = NULL;
+
+			if (prp->repl90consumer)
+			{
+				int is_total = 0;
+				char *data_guid = NULL;
+				struct berval *data = NULL;
+
+				/* Check if this is a total or incremental update. */
+				if (strcmp(REPL_NSDS50_TOTAL_PROTOCOL_OID, prot_oid) == 0)
 				{
-					struct berval *payload = NSDS50StartReplicationRequest_new(
-						prot_oid, slapi_sdn_get_ndn(replarea_sdn), 
-						NULL /* XXXggood need to provide referral(s) */, current_csn);
-					/* JCMREPL - Need to extract the referrals from the RUV */
-					csn_free(&current_csn);
-					current_csn = NULL;
-					crc = conn_send_extended_operation(conn,
-						REPL_START_NSDS50_REPLICATION_REQUEST_OID, payload,  NULL /* update control */, NULL /* Message ID */);
-					if (CONN_OPERATION_SUCCESS != crc)
-					{
-						int operation, error;
-						conn_get_error(conn, &operation, &error);
+					is_total = 1;
+				}
 
-						/* Couldn't send the extended operation */
-						return_value = ACQUIRE_TRANSIENT_ERROR; /* XXX right return value? */
-						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"%s: Unable to send a startReplication "
-							"extended operation to consumer (%s). Will retry later.\n",
-							agmt_get_long_name(prp->agmt),
-							error ? ldap_err2string(error) : "unknown error");
-					}
-					/* Since the operation request is async, we need to wait for the response here */
-					crc = conn_read_result_ex(conn,&retoid,&retdata,NULL,NULL,1);
-					ber_bvfree(payload);
-					payload = NULL;
-					/* Look at the response we got. */
-					if (CONN_OPERATION_SUCCESS == crc)
+				/* Call pre-start replication session callback.  This callback
+				 * may have extra data to be sent to the replica. */
+				if (repl_session_plugin_call_pre_acquire_cb(prp->agmt, is_total,
+						&data_guid, &data) == 0) {
+					payload = NSDS90StartReplicationRequest_new(
+						prot_oid, slapi_sdn_get_ndn(replarea_sdn),
+						NULL, current_csn, data_guid, data);
+					slapi_ch_free_string(&data_guid);
+					ber_bvfree(data);
+					data = NULL;
+				} else {
+					return_value = ACQUIRE_TRANSIENT_ERROR;
+					slapi_ch_free_string(&data_guid);
+					ber_bvfree(data);
+					data = NULL;
+					goto error;
+				}
+			}
+			else
+			{
+				payload = NSDS50StartReplicationRequest_new(
+					prot_oid, slapi_sdn_get_ndn(replarea_sdn), 
+					NULL /* XXXggood need to provide referral(s) */, current_csn);
+			}
+
+			/* JCMREPL - Need to extract the referrals from the RUV */
+			csn_free(&current_csn);
+			current_csn = NULL;
+			crc = conn_send_extended_operation(conn,
+				prp->repl90consumer ? REPL_START_NSDS90_REPLICATION_REQUEST_OID :
+				REPL_START_NSDS50_REPLICATION_REQUEST_OID, payload,
+				NULL /* update control */, NULL /* Message ID */);
+			if (CONN_OPERATION_SUCCESS != crc)
+			{
+				int operation, error;
+				conn_get_error(conn, &operation, &error);
+
+				/* Couldn't send the extended operation */
+				return_value = ACQUIRE_TRANSIENT_ERROR; /* XXX right return value? */
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"%s: Unable to send a startReplication "
+					"extended operation to consumer (%s). Will retry later.\n",
+					agmt_get_long_name(prp->agmt),
+					error ? ldap_err2string(error) : "unknown error");
+			}
+			/* Since the operation request is async, we need to wait for the response here */
+			crc = conn_read_result_ex(conn,&retoid,&retdata,NULL,NULL,1);
+			ber_bvfree(payload);
+			payload = NULL;
+			/* Look at the response we got. */
+			if (CONN_OPERATION_SUCCESS == crc)
+			{
+				/*
+				 * Extop was processed. Look at extop response to see if we're
+				 * permitted to go ahead.
+				 */
+				int extop_result;
+				char *data_guid = NULL;
+				struct berval *data = NULL;
+
+				int extop_rc = decode_repl_ext_response(retdata, &extop_result,
+														&ruv_bervals, &data_guid,
+														&data);
+
+				if (0 == extop_rc)
+				{
+					prp->last_acquire_response_code = extop_result;
+					switch (extop_result)
 					{
-						/*
-						 * Extop was processed. Look at extop response to see if we're
-						 * permitted to go ahead.
-						 */
-						int extop_result;
-						int extop_rc = decode_repl_ext_response(retdata, &extop_result,
-																&ruv_bervals);
-						if (0 == extop_rc)
+					/* XXXggood handle other error codes here */
+					case NSDS50_REPL_INTERNAL_ERROR:
+							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+								"%s: Unable to acquire replica: "
+								"an internal error occurred on the remote replica. "
+								"Replication is aborting.\n",
+								agmt_get_long_name(prp->agmt));
+							return_value = ACQUIRE_FATAL_ERROR;
+							break;
+					case NSDS50_REPL_PERMISSION_DENIED:
+						/* Not allowed to send updates */
 						{
-							prp->last_acquire_response_code = extop_result;
-							switch (extop_result)
+							char *repl_binddn = agmt_get_binddn(prp->agmt);
+							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+								"%s: Unable to acquire replica: permission denied. "
+								"The bind dn \"%s\" does not have permission to "
+								"supply replication updates to the replica. "
+								"Will retry later.\n",
+								agmt_get_long_name(prp->agmt), repl_binddn);
+							slapi_ch_free((void **)&repl_binddn);
+							return_value = ACQUIRE_TRANSIENT_ERROR;
+							break;
+						}
+					case NSDS50_REPL_NO_SUCH_REPLICA:
+						/* There is no such replica on the consumer */
+						{
+							Slapi_DN *repl_root = agmt_get_replarea(prp->agmt);
+							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+								"%s: Unable to acquire replica: there is no "
+								"replicated area \"%s\" on the consumer server. "
+								"Replication is aborting.\n",
+								agmt_get_long_name(prp->agmt),
+								slapi_sdn_get_dn(repl_root));
+							slapi_sdn_free(&repl_root);
+							return_value = ACQUIRE_FATAL_ERROR;
+							break;
+						}
+					case NSDS50_REPL_EXCESSIVE_CLOCK_SKEW:
+						/* Large clock skew between the consumer and the supplier */
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Unable to acquire replica: "
+							"Excessive clock skew between the supplier and "
+							"the consumer. Replication is aborting.\n",
+							agmt_get_long_name(prp->agmt));
+						return_value = ACQUIRE_FATAL_ERROR;
+						break;
+					case NSDS50_REPL_DECODING_ERROR:
+						/* We sent something the replica couldn't understand. */
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Unable to acquire replica: "
+							"the consumer was unable to decode the "
+							"startReplicationRequest extended operation sent by the "
+							"supplier. Replication is aborting.\n",
+							agmt_get_long_name(prp->agmt));
+						return_value = ACQUIRE_FATAL_ERROR;
+						break;
+					case NSDS50_REPL_REPLICA_BUSY:
+						/* Someone else is updating the replica. Try later. */
+						/* if acquire_replica is called for replica 
+						   initialization, log REPLICA_BUSY, too */
+						if (strcmp(REPL_NSDS50_TOTAL_PROTOCOL_OID,
+								   prot_oid) == 0)
+						{
+							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+								"%s: Unable to acquire replica: "
+								"the replica is currently being updated"
+								"by another supplier.\n",
+								agmt_get_long_name(prp->agmt));
+						}
+						else /* REPL_NSDS50_INCREMENTAL_PROTOCOL_OID */
+						{
+							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: Unable to acquire replica: "
+								"the replica is currently being updated"
+								"by another supplier. Will try later\n",
+								agmt_get_long_name(prp->agmt));
+						}
+						return_value = ACQUIRE_REPLICA_BUSY;
+						break;
+					case NSDS50_REPL_LEGACY_CONSUMER:
+						/* remote replica is a legacy consumer */
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Unable to acquire replica: the replica "
+							"is supplied by a legacy supplier. "
+							"Replication is aborting.\n", agmt_get_long_name(prp->agmt));
+						return_value = ACQUIRE_FATAL_ERROR;
+						break;
+					case NSDS50_REPL_REPLICAID_ERROR:
+						/* remote replica detected a duplicate ReplicaID */
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Unable to aquire replica: the replica "
+							"has the same Replica ID as this one. "
+							"Replication is aborting.\n",
+							agmt_get_long_name(prp->agmt));
+						return_value = ACQUIRE_FATAL_ERROR;
+						break;
+					case NSDS50_REPL_BACKOFF:
+						/* A replication sesssion hook on the replica
+						 * wants us to go into backoff mode. */
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                                                        "%s: Unable to acquire replica: "
+                                                        "the replica instructed us to go into "
+                                                        "backoff mode. Will retry later.\n",
+                                                        agmt_get_long_name(prp->agmt));
+						return_value = ACQUIRE_TRANSIENT_ERROR;
+						break;
+					case NSDS50_REPL_REPLICA_READY:
+						/* Call any registered replication session post
+						 * acquire callback if we are dealing with a 9.0
+						 * style replica.  We want to bail on sending
+						 * updates if the return value is non-0. */
+						if (prp->repl90consumer)
+						{
+							int is_total = 0;
+
+							/* Check if this is a total or incremental update. */
+			                if (strcmp(REPL_NSDS50_TOTAL_PROTOCOL_OID, prot_oid) == 0)
 							{
-							/* XXXggood handle other error codes here */
-							case NSDS50_REPL_INTERNAL_ERROR:
-									slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-										"%s: Unable to acquire replica: "
-										"an internal error occurred on the remote replica. "
-										"Replication is aborting.\n",
-										agmt_get_long_name(prp->agmt));
-									return_value = ACQUIRE_FATAL_ERROR;
-									break;
-							case NSDS50_REPL_PERMISSION_DENIED:
-								/* Not allowed to send updates */
-								{
-									char *repl_binddn = agmt_get_binddn(prp->agmt);
-									slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-										"%s: Unable to acquire replica: permission denied. "
-										"The bind dn \"%s\" does not have permission to "
-										"supply replication updates to the replica. "
-										"Will retry later.\n",
-										agmt_get_long_name(prp->agmt), repl_binddn);
-										slapi_ch_free((void **)&repl_binddn);
-									return_value = ACQUIRE_TRANSIENT_ERROR;
-									break;
-								}
-							case NSDS50_REPL_NO_SUCH_REPLICA:
-								/* There is no such replica on the consumer */
-								{
-									Slapi_DN *repl_root = agmt_get_replarea(prp->agmt);
-									slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-										"%s: Unable to acquire replica: there is no "
-										"replicated area \"%s\" on the consumer server. "
-										"Replication is aborting.\n",
-										agmt_get_long_name(prp->agmt),
-										slapi_sdn_get_dn(repl_root));
-										slapi_sdn_free(&repl_root);
-									return_value = ACQUIRE_FATAL_ERROR;
-									break;
-								}
-							case NSDS50_REPL_EXCESSIVE_CLOCK_SKEW:
-								/* Large clock skew between the consumer and the supplier */
-								slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-									"%s: Unable to acquire replica: "
-									"Excessive clock skew between the supplier and "
-									"the consumer. Replication is aborting.\n",
-									agmt_get_long_name(prp->agmt));
-								return_value = ACQUIRE_FATAL_ERROR;
-								break;
-							case NSDS50_REPL_DECODING_ERROR:
-								/* We sent something the replica couldn't understand. */
-								slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-									"%s: Unable to acquire replica: "
-									"the consumer was unable to decode the "
-									"startReplicationRequest extended operation sent by the "
-									"supplier. Replication is aborting.\n",
-									agmt_get_long_name(prp->agmt));
-								return_value = ACQUIRE_FATAL_ERROR;
-								break;
-							case NSDS50_REPL_REPLICA_BUSY:
-								/* Someone else is updating the replica. Try later. */
-								/* if acquire_replica is called for replica 
-								   initialization, log REPLICA_BUSY, too */
-								if (strcmp(REPL_NSDS50_TOTAL_PROTOCOL_OID,
-										   prot_oid) == 0)
-								{
-									slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-										"%s: Unable to acquire replica: "
-										"the replica is currently being updated"
-										"by another supplier.\n",
-										agmt_get_long_name(prp->agmt));
-								}
-								else /* REPL_NSDS50_INCREMENTAL_PROTOCOL_OID */
-								{
-									slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-										"%s: Unable to acquire replica: "
-										"the replica is currently being updated"
-										"by another supplier. Will try later\n",
-										agmt_get_long_name(prp->agmt));
-								}
-								return_value = ACQUIRE_REPLICA_BUSY;
-								break;
-							case NSDS50_REPL_LEGACY_CONSUMER:
-								/* remote replica is a legacy consumer */
-								slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-									"%s: Unable to acquire replica: the replica "
-									"is supplied by a legacy supplier. "
-									"Replication is aborting.\n", agmt_get_long_name(prp->agmt));
-								return_value = ACQUIRE_FATAL_ERROR;
-								break;
-							case NSDS50_REPL_REPLICAID_ERROR:
-								/* remote replica detected a duplicate ReplicaID */
-								slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-									"%s: Unable to aquire replica: the replica "
-									"has the same Replica ID as this one. "
-									"Replication is aborting.\n",
-									agmt_get_long_name(prp->agmt));
-								return_value = ACQUIRE_FATAL_ERROR;
-								break;
-							case NSDS50_REPL_REPLICA_READY:
-								/* We've acquired the replica. */
-								slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-									"%s: Replica was successfully acquired.\n",
-									agmt_get_long_name(prp->agmt));
-								/* Parse the update vector */
-								if (NULL != ruv_bervals && NULL != ruv)
-								{
-									if (ruv_init_from_bervals(ruv_bervals, ruv) != RUV_SUCCESS)
-									{
-										/* Couldn't parse the update vector */
-										*ruv = NULL;
-										slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-											"%s: Warning: acquired replica, "
-											"but could not parse update vector. "
-											"The replica must be reinitialized.\n",
-											agmt_get_long_name(prp->agmt));
-									}
-								}
+								is_total = 1;
+							}
 
-								/* Save consumer's RUV in the replication agreement.
-								   It is used by the changelog trimming code */
-								if (ruv && *ruv)
-									agmt_set_consumer_ruv (prp->agmt, *ruv);
-
-								return_value = ACQUIRE_SUCCESS;
+							if (repl_session_plugin_call_post_acquire_cb(prp->agmt, is_total, data_guid, data))
+							{
+								slapi_ch_free_string(&data_guid);
+								ber_bvfree(data);
+								data = NULL;
+								return_value = ACQUIRE_TRANSIENT_ERROR;
 								break;
-							default:
-								return_value = ACQUIRE_FATAL_ERROR;
+							}
+
+							slapi_ch_free_string(&data_guid);
+							ber_bvfree(data);
+							data = NULL;
+						}
+
+						/* We've acquired the replica. */
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: Replica was successfully acquired.\n",
+							agmt_get_long_name(prp->agmt));
+						/* Parse the update vector */
+						if (NULL != ruv_bervals && NULL != ruv)
+						{
+							if (ruv_init_from_bervals(ruv_bervals, ruv) != RUV_SUCCESS)
+							{
+								/* Couldn't parse the update vector */
+								*ruv = NULL;
+								slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+									"%s: Warning: acquired replica, "
+									"but could not parse update vector. "
+									"The replica must be reinitialized.\n",
+									agmt_get_long_name(prp->agmt));
 							}
 						}
-						else
-						{
-							/* Couldn't parse the response */
-							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-								"%s: Unable to parse the response to the "
-								"startReplication extended operation. "
-								"Replication is aborting.\n", 
-								agmt_get_long_name(prp->agmt));
-							prp->last_acquire_response_code = NSDS50_REPL_INTERNAL_ERROR;
-							return_value = ACQUIRE_FATAL_ERROR;
-						}
-					}
-					else
-					{
-						int operation, error;
-						conn_get_error(conn, &operation, &error);
 
-						/* Couldn't send the extended operation */
-						return_value = ACQUIRE_TRANSIENT_ERROR; /* XXX right return value? */
-						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"%s: Unable to receive the response for a startReplication "
-							"extended operation to consumer (%s). Will retry later.\n",
-							agmt_get_long_name(prp->agmt),
-							error ? ldap_err2string(error) : "unknown error");
+						/* Save consumer's RUV in the replication agreement.
+						   It is used by the changelog trimming code */
+						if (ruv && *ruv)
+							agmt_set_consumer_ruv (prp->agmt, *ruv);
+
+						return_value = ACQUIRE_SUCCESS;
+						break;
+					default:
+						return_value = ACQUIRE_FATAL_ERROR;
 					}
 				}
 				else
 				{
-					/* Couldn't get a current CSN */
+					/* Couldn't parse the response */
 					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-						"%s: Unable to obtain current CSN. "
-						"Replication is aborting.\n",
+						"%s: Unable to parse the response to the "
+						"startReplication extended operation. "
+						"Replication is aborting.\n", 
 						agmt_get_long_name(prp->agmt));
+					prp->last_acquire_response_code = NSDS50_REPL_INTERNAL_ERROR;
 					return_value = ACQUIRE_FATAL_ERROR;
 				}
 			}
+			else
+			{
+				int operation, error;
+				conn_get_error(conn, &operation, &error);
+
+				/* Couldn't send the extended operation */
+				return_value = ACQUIRE_TRANSIENT_ERROR; /* XXX right return value? */
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"%s: Unable to receive the response for a startReplication "
+					"extended operation to consumer (%s). Will retry later.\n",
+					agmt_get_long_name(prp->agmt),
+					error ? ldap_err2string(error) : "unknown error");
+			}
+		}
+		else
+		{
+			/* Couldn't get a current CSN */
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				"%s: Unable to obtain current CSN. "
+				"Replication is aborting.\n",
+				agmt_get_long_name(prp->agmt));
+			return_value = ACQUIRE_FATAL_ERROR;
 		}
 	}
 
-/* error: */
+error:
 	if (NULL != ruv_bervals)
 		ber_bvecfree(ruv_bervals);
 	if (NULL != replarea_sdn)
@@ -497,6 +600,8 @@ release_replica(Private_Repl_Protocol *prp)
 		struct berval **ruv_bervals = NULL; /* Shouldn't actually be returned */
 		int extop_result;
 		int extop_rc = 0;
+		char *data_guid = NULL;
+		struct berval *data = NULL;
 
 		/* Check the message id's match */
 		if (sent_message_id != sent_message_id)
@@ -509,8 +614,16 @@ release_replica(Private_Repl_Protocol *prp)
 				error ? ldap_err2string(error) : "unknown error");
 		}
 
+		/* We need to pass data_guid and data in even though they
+		 * are not used here.  We will free them anyway in case they
+		 * are used in the future. */
 		extop_rc = decode_repl_ext_response(retdata, &extop_result,
-			(struct berval ***)&ruv_bervals);
+			(struct berval ***)&ruv_bervals, &data_guid, &data);
+
+		slapi_ch_free_string(&data_guid);
+		ber_bvfree(data);
+		data = NULL;
+
 		if (0 == extop_rc)
 		{
 			if (NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED == extop_result)

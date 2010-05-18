@@ -495,6 +495,7 @@ am_libreplication_plugin_la_OBJECTS = ldap/servers/plugins/replication/libreplic
 	ldap/servers/plugins/replication/libreplication_plugin_la-repl_ops.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-repl_rootdse.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-repl_search.lo \
+	ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-repl5_agmt.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-repl5_agmtlist.lo \
 	ldap/servers/plugins/replication/libreplication_plugin_la-repl5_backoff.lo \
@@ -2087,6 +2088,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/repl_ops.c \
 	ldap/servers/plugins/replication/repl_rootdse.c \
 	ldap/servers/plugins/replication/repl_search.c \
+	ldap/servers/plugins/replication/repl_session_plugin.c \
 	ldap/servers/plugins/replication/repl5_agmt.c \
 	ldap/servers/plugins/replication/repl5_agmtlist.c \
 	ldap/servers/plugins/replication/repl5_backoff.c \
@@ -3480,6 +3482,9 @@ ldap/servers/plugins/replication/libreplication_plugin_la-repl_rootdse.lo:  \
 ldap/servers/plugins/replication/libreplication_plugin_la-repl_search.lo:  \
 	ldap/servers/plugins/replication/$(am__dirstamp) \
 	ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo:  \
+	ldap/servers/plugins/replication/$(am__dirstamp) \
+	ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/plugins/replication/libreplication_plugin_la-repl5_agmt.lo:  \
 	ldap/servers/plugins/replication/$(am__dirstamp) \
 	ldap/servers/plugins/replication/$(DEPDIR)/$(am__dirstamp)
@@ -4784,6 +4789,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-repl_rootdse.lo
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-repl_search.$(OBJEXT)
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-repl_search.lo
+	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.$(OBJEXT)
+	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-replutil.$(OBJEXT)
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-replutil.lo
 	-rm -f ldap/servers/plugins/replication/libreplication_plugin_la-urp.$(OBJEXT)
@@ -5496,6 +5503,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_ops.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_rootdse.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_search.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_session_plugin.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-replutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-urp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-urp_glue.Plo@am__quote@
@@ -7266,6 +7274,13 @@ ldap/servers/plugins/replication/libreplication_plugin_la-repl_search.lo: ldap/s
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/replication/repl_search.c' object='ldap/servers/plugins/replication/libreplication_plugin_la-repl_search.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/replication/libreplication_plugin_la-repl_search.lo `test -f 'ldap/servers/plugins/replication/repl_search.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/repl_search.c
+
+ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo: ldap/servers/plugins/replication/repl_session_plugin.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo -MD -MP -MF "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_session_plugin.Tpo" -c -o ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo `test -f 'ldap/servers/plugins/replication/repl_session_plugin.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/repl_session_plugin.c; \
+@am__fastdepCC_TRUE@	then mv -f "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_session_plugin.Tpo" "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_session_plugin.Plo"; else rm -f "ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl_session_plugin.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/replication/repl_session_plugin.c' object='ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/replication/libreplication_plugin_la-repl_session_plugin.lo `test -f 'ldap/servers/plugins/replication/repl_session_plugin.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/repl_session_plugin.c
 
 ldap/servers/plugins/replication/libreplication_plugin_la-repl5_agmt.lo: ldap/servers/plugins/replication/repl5_agmt.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreplication_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/replication/libreplication_plugin_la-repl5_agmt.lo -MD -MP -MF ldap/servers/plugins/replication/$(DEPDIR)/libreplication_plugin_la-repl5_agmt.Tpo -c -o ldap/servers/plugins/replication/libreplication_plugin_la-repl5_agmt.lo `test -f 'ldap/servers/plugins/replication/repl5_agmt.c' || echo '$(srcdir)/'`ldap/servers/plugins/replication/repl5_agmt.c

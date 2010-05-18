@@ -32,7 +32,7 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -88,6 +88,11 @@
  * because we need a handy way to spot the difference between a pre-7.1 and post-7.0 
  * consumer at the supplier */
 #define REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID "2.16.840.1.113730.3.5.9"
+/* DS9.0 introduces replication session callbacks that can send/receive
+ * arbitrary data when starting a replication session.  This requires a
+ * new set of start and response extops. */
+#define REPL_START_NSDS90_REPLICATION_REQUEST_OID "2.16.840.1.113730.3.5.12"
+#define REPL_NSDS90_REPLICATION_RESPONSE_OID "2.16.840.1.113730.3.5.13"
 
 
 /* DS 5.0 replication protocol error codes */
@@ -105,6 +110,7 @@
 #define NSDS50_REPL_REPLICAID_ERROR 0x0B	/* replicaID doesn't seem to be unique */
 #define NSDS50_REPL_DISABLED 0x0C	/* replica suffix is disabled */
 #define NSDS50_REPL_UPTODATE 0x0D	/* replica is uptodate */
+#define NSDS50_REPL_BACKOFF 0x0E        /* replica wants master to go into backoff mode */
 #define NSDS50_REPL_REPLICA_NO_RESPONSE 0xff /* No response received */
 
 /* Protocol status */
@@ -203,8 +209,11 @@ int extop_noop(Slapi_PBlock *pb);
 struct berval *NSDS50StartReplicationRequest_new(const char *protocol_oid,
 	const char *repl_root, char **extra_referrals, CSN *csn);
 struct berval *NSDS50EndReplicationRequest_new(char *repl_root);
-int decode_repl_ext_response(struct berval *data, int *response_code,
-	struct berval ***ruv_bervals);
+int decode_repl_ext_response(struct berval *bvdata, int *response_code,
+	struct berval ***ruv_bervals, char **data_guid, struct berval **data);
+struct berval *NSDS90StartReplicationRequest_new(const char *protocol_oid,
+        const char *repl_root, char **extra_referrals, CSN *csn,
+	const char *data_guid, const struct berval *data);
 
 /* In repl5_total.c */
 int multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb);
@@ -365,7 +374,9 @@ typedef enum
 	CONN_SUPPORTS_DIRSYNC,
 	CONN_DOES_NOT_SUPPORT_DIRSYNC,
 	CONN_IS_WIN2K3,
-	CONN_NOT_WIN2K3
+	CONN_NOT_WIN2K3,
+	CONN_SUPPORTS_DS90_REPL,
+	CONN_DOES_NOT_SUPPORT_DS90_REPL
 } ConnResult;  
 Repl_Connection *conn_new(Repl_Agmt *agmt);
 ConnResult conn_connect(Repl_Connection *conn);
@@ -389,6 +400,7 @@ void conn_start_linger(Repl_Connection *conn);
 void conn_cancel_linger(Repl_Connection *conn);
 ConnResult conn_replica_supports_ds5_repl(Repl_Connection *conn);
 ConnResult conn_replica_supports_ds71_repl(Repl_Connection *conn);
+ConnResult conn_replica_supports_ds90_repl(Repl_Connection *conn);
 ConnResult conn_replica_is_readonly(Repl_Connection *conn);
 
 ConnResult conn_read_entry_attribute(Repl_Connection *conn, const char *dn, char *type,
@@ -588,5 +600,17 @@ int windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry
 void windows_agreement_delete(Repl_Agmt *ra);
 Repl_Connection *windows_conn_new(Repl_Agmt *agmt);
 
+/* repl_session_plugin.c */
+void repl_session_plugin_init();
+void repl_session_plugin_call_init_agmt_cb(Repl_Agmt *ra);
+int repl_session_plugin_call_pre_acquire_cb(const Repl_Agmt *ra, int is_total,
+        char **data_guid, struct berval **data);
+int repl_session_plugin_call_post_acquire_cb(const Repl_Agmt *ra, int is_total,
+        const char *data_guid, const struct berval *data);
+int repl_session_plugin_call_recv_acquire_cb(const char *repl_area, int is_total,
+        const char *data_guid, const struct berval *data);
+int repl_session_plugin_call_reply_acquire_cb(const char *repl_area, int is_total,
+        char **data_guid, struct berval **data);
+void repl_session_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra);
 
 #endif /* _REPL5_H_ */

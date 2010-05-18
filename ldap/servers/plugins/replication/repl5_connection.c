@@ -79,6 +79,7 @@ typedef struct repl_connection
 	int supports_ds50_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int supports_ds40_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int supports_ds71_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
+	int supports_ds90_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int linger_time; /* time in seconds to leave an idle connection open */
 	PRBool linger_active;
 	Slapi_Eq_Context *linger_event;
@@ -166,6 +167,7 @@ conn_new(Repl_Agmt *agmt)
 	rpc->supports_ds40_repl = -1;
 	rpc->supports_ds50_repl = -1;
 	rpc->supports_ds71_repl = -1;
+	rpc->supports_ds90_repl = -1;
 
 	rpc->linger_active = PR_FALSE;
 	rpc->delete_after_linger = PR_FALSE;
@@ -1170,6 +1172,7 @@ close_connection_internal(Repl_Connection *conn)
 	conn->status = STATUS_DISCONNECTED;
 	conn->supports_ds50_repl = -1;
 	conn->supports_ds71_repl = -1;
+	conn->supports_ds90_repl = -1;
 	/* do this last, to minimize the chance that another thread
 	   might read conn->state as not disconnected and attempt
 	   to use conn->ld */
@@ -1282,11 +1285,11 @@ conn_replica_supports_ds5_repl(Repl_Connection *conn)
 
 
 /*
- * Determine if the remote replica supports DS 5.0 replication.
+ * Determine if the remote replica supports DS 7.1 replication.
  * Return codes:
- * CONN_SUPPORTS_DS71_REPL - the remote replica suport DS5 replication
+ * CONN_SUPPORTS_DS71_REPL - the remote replica suport DS7.1 replication
  * CONN_DOES_NOT_SUPPORT_DS71_REPL - the remote replica does not
- * support DS5 replication.
+ * support DS7.1 replication.
  * CONN_OPERATION_FAILED - it could not be determined if the remote
  * replica supports DS5 replication.
  * CONN_NOT_CONNECTED - no connection was active.
@@ -1341,6 +1344,77 @@ conn_replica_supports_ds71_repl(Repl_Connection *conn)
 		}
 		else {
 			return_value = conn->supports_ds71_repl ? CONN_SUPPORTS_DS71_REPL : CONN_DOES_NOT_SUPPORT_DS71_REPL;
+		}
+	}
+	else
+	{
+		/* Not connected */
+		return_value = CONN_NOT_CONNECTED;
+	}
+	return return_value;
+}
+
+/*
+ * Determine if the remote replica supports DS 9.0 replication.
+ * Return codes:
+ * CONN_SUPPORTS_DS90_REPL - the remote replica suport DS5 replication
+ * CONN_DOES_NOT_SUPPORT_DS90_REPL - the remote replica does not
+ * support DS9.0 replication.
+ * CONN_OPERATION_FAILED - it could not be determined if the remote
+ * replica supports DS9.0 replication.
+ * CONN_NOT_CONNECTED - no connection was active.
+ */
+ConnResult
+conn_replica_supports_ds90_repl(Repl_Connection *conn)
+{
+	ConnResult return_value;
+	int ldap_rc;
+
+	if (conn_connected(conn))
+	{
+		if (conn->supports_ds90_repl == -1) {
+			LDAPMessage *res = NULL;
+			LDAPMessage *entry = NULL;
+			char *attrs[] = {"supportedcontrol", "supportedextension", NULL};
+
+			conn->status = STATUS_SEARCHING;
+			ldap_rc = ldap_search_ext_s(conn->ld, "", LDAP_SCOPE_BASE,
+					"(objectclass=*)", attrs, 0 /* attrsonly */,
+					NULL /* server controls */, NULL /* client controls */,
+					&conn->timeout, LDAP_NO_LIMIT, &res);
+			if (LDAP_SUCCESS == ldap_rc)
+			{
+				conn->supports_ds90_repl = 0;
+				entry = ldap_first_entry(conn->ld, res);
+				if (!attribute_string_value_present(conn->ld, entry, "supportedextension", REPL_START_NSDS90_REPLICATION_REQUEST_OID))
+				{
+					return_value = CONN_DOES_NOT_SUPPORT_DS90_REPL;
+				}
+				else
+				{
+					conn->supports_ds90_repl = 1;
+					return_value = CONN_SUPPORTS_DS90_REPL;
+				}
+			}
+			else
+			{
+				if (IS_DISCONNECT_ERROR(ldap_rc))
+				{
+					conn->last_ldap_error = ldap_rc;        /* specific reason */
+					conn_disconnect(conn);
+					return_value = CONN_NOT_CONNECTED;
+				}
+				else
+				{
+					return_value = CONN_OPERATION_FAILED;
+				}
+			}
+			if (NULL != res)
+                                ldap_msgfree(res);
+		}
+		else
+		{
+			return_value = conn->supports_ds90_repl ? CONN_SUPPORTS_DS90_REPL : CONN_DOES_NOT_SUPPORT_DS90_REPL;
 		}
 	}
 	else
