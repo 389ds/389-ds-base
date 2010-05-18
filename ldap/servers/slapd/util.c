@@ -430,6 +430,8 @@ normalize_mods2bvals(const LDAPMod **mods)
                         *(normed + dnlen) = '\0';
                         *normmbvp = ber_bvdup(*mbvp);
                     } else {
+                        *normmbvp = 
+                        (struct berval *)slapi_ch_malloc(sizeof(struct berval));
                         (*normmbvp)->bv_val = normed;
                         (*normmbvp)->bv_len = dnlen;
                     }
@@ -465,6 +467,8 @@ normalize_mods2bvals(const LDAPMod **mods)
                         (*normmbvp)->bv_val = slapi_ch_strdup(normed);
                         (*normmbvp)->bv_len = dnlen;
                     } else {
+                        *normmbvp = 
+                        (struct berval *)slapi_ch_malloc(sizeof(struct berval));
                         (*normmbvp)->bv_val = normed;
                         (*normmbvp)->bv_len = dnlen;
                     }
