@@ -1447,7 +1447,10 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
         return -1;
     }
     PR_Lock(li->li_config_mutex);
-    priv->dblayer_home_directory = li->li_directory; /* nsslapd-directory */
+    /* li->li_directory comes from nsslapd-directory */
+    /* dblayer_home_directory is freed in dblayer_post_close.
+     * li_directory needs to live beyond dblayer. */
+    priv->dblayer_home_directory = slapi_ch_strdup(li->li_directory); 
     priv->dblayer_cachesize = li->li_dbcachesize;
     priv->dblayer_file_mode = li->li_mode;
     priv->dblayer_ncache = li->li_dbncache;
@@ -5535,7 +5538,9 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
 
     /* DBDB this is a hack, take out later */
     PR_Lock(li->li_config_mutex);
-    priv->dblayer_home_directory = li->li_directory;
+    /* dblayer_home_directory is freed in dblayer_post_close.
+     * li_directory needs to live beyond dblayer. */
+    priv->dblayer_home_directory = slapi_ch_strdup(li->li_directory);
     priv->dblayer_cachesize = li->li_dbcachesize;
     priv->dblayer_ncache = li->li_dbncache;
     priv->dblayer_file_mode = li->li_mode;

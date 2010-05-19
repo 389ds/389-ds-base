@@ -3913,7 +3913,7 @@ acl__recompute_acl (  	Acl_PBlock 		*aclpb,
 	char		*unused_str1, *unused_str2;
 	char		*acl_tag, *testRight[2];
 	int			j, expr_num;
-	int			result_status, cache_result;
+	int			result_status = ACL_RES_INVALID, cache_result;
 	PRUint32	cookie;
 	aci_t		*aci;
 
