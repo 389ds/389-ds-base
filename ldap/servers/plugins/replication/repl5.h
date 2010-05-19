@@ -602,7 +602,7 @@ Repl_Connection *windows_conn_new(Repl_Agmt *agmt);
 
 /* repl_session_plugin.c */
 void repl_session_plugin_init();
-void repl_session_plugin_call_init_agmt_cb(Repl_Agmt *ra);
+void repl_session_plugin_call_agmt_init_cb(Repl_Agmt *ra);
 int repl_session_plugin_call_pre_acquire_cb(const Repl_Agmt *ra, int is_total,
         char **data_guid, struct berval **data);
 int repl_session_plugin_call_post_acquire_cb(const Repl_Agmt *ra, int is_total,
