@@ -522,6 +522,10 @@ do_bind( Slapi_PBlock *pb )
                 goto free_and_return;
             }
 
+            /* set the bind credentials so anonymous limits are set */
+            bind_credentials_set( pb->pb_conn, SLAPD_AUTH_NONE,
+                                      NULL, NULL, NULL, NULL , NULL);
+
             /* call preop plugins */
             if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0){
                 if ( auth_response_requested ) {
@@ -698,6 +702,9 @@ do_bind( Slapi_PBlock *pb )
                             authtype = SLAPD_AUTH_OS;
                         }
 #endif /* ENABLE_AUTOBIND */
+                        else {
+                            authtype = SLAPD_AUTH_NONE;
+                        }
                         break;
                     case LDAP_AUTH_SASL:
                         /* authtype = SLAPD_AUTH_SASL && saslmech: */
@@ -719,6 +726,10 @@ do_bind( Slapi_PBlock *pb )
                                                        slapi_sdn_get_ndn(&sdn));
                         }
                     } else {	/* anonymous */
+                        /* set bind creds here so anonymous limits are set */
+			bind_credentials_set( pb->pb_conn, authtype, NULL,
+                                              NULL, NULL, NULL, NULL );
+
                         if ( auth_response_requested ) {
                             slapi_add_auth_response_control( pb,
                                                        "" );
