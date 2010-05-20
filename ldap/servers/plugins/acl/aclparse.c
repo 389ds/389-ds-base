@@ -764,7 +764,7 @@ normalize_nextACERule:
 	 * " allow (all) groupdn = "ldap:///cn=Domain Administrators,o=$dn.o,o=ISP"
 	 */
 	s =  __aclp__getNextLASRule(aci_item, acestr, &end);
-	while ( s ) {
+	while ( s && (s < end) ) {
 		if ( (0 == strncmp(s, DS_LAS_USERDNATTR, 10)) ||
 			 (0 == strncmp(s, DS_LAS_USERATTR, 8)) ) {
 			/* 
@@ -778,14 +778,15 @@ normalize_nextACERule:
 			if (rc < 0) {
 				goto error;
 			}
-		} else if ( 0 == strncmp ( s, DS_LAS_USERDN, 6)) {
-			p = strstr ( s, "=");
+		} else if ( 0 == strncmp ( s, DS_LAS_USERDN, 6 )) {
+			p = PL_strnchr (s, '=', end - s);
 			if (NULL == p) {
 				goto error;
 			}
 			p--;
-			if ( strncmp (p, "!=", 2) == 0)
+			if ( strncmp (p, "!=", 2) == 0 ) {
 				aci_item->aci_type |= ACI_CONTAIN_NOT_USERDN;
+			}
 
 			/* XXXrbyrne
 			 * Here we need to scan for more ldap:/// within
@@ -830,7 +831,8 @@ normalize_nextACERule:
 			** we cannot cache the result. See above for more comments.
 			*/
 			/* Find out if we have a URL type of rule */
-			if ((p= strstr (s, "ldap")) != NULL) {
+			p = PL_strnstr (s, "ldap", end - s);
+			if (NULL != p) {
 				if ( aci_item->aci_elevel > ACI_ELEVEL_GROUPDNATTR_URL )
 					aci_item->aci_elevel = ACI_ELEVEL_GROUPDNATTR_URL;
 			} else if ( aci_item->aci_elevel > ACI_ELEVEL_GROUPDNATTR ) {
@@ -845,7 +847,7 @@ normalize_nextACERule:
 			}
 		} else if ( 0 == strncmp ( s, DS_LAS_GROUPDN, 7)) {
 
-			p = strstr ( s, "=");
+			p = PL_strnchr (s, '=', end - s);
 			if (NULL == p) {
 				goto error;
 			}
@@ -868,7 +870,7 @@ normalize_nextACERule:
 	
 		} else if ( 0 == strncmp ( s, DS_LAS_ROLEDN, 6)) {
 
-			p = strstr ( s, "=");
+			p = PL_strnchr (s, '=', end - s);
 			if (NULL == p) {
 				goto error;
 			}
@@ -943,21 +945,20 @@ error:
 static char *
 __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRule)
 {
-	char	*newstr, *word, *next, *start, *end;
-	char	*ruleStart = NULL;
-	int		len, ruleLen = 0;
-	int in_dn_expr = 0;
+	char *newstr = NULL, *word = NULL, *next = NULL, *start = NULL, *end = NULL;
+	char *ruleStart = NULL;
+	int  len, ruleLen = 0;
+	int  in_dn_expr = 0;
 
-	*endOfCurrRule = NULL;	
-	end = start = NULL;
-
+	if (endOfCurrRule) {
+		*endOfCurrRule = NULL;
+	}
 	newstr = slapi_ch_strdup (original_str);
 	
 	if ( (strncasecmp(newstr, "allow", 5) == 0) ||
-		(strncasecmp(newstr, "deny", 4) == 0) )  {
-			word = ldap_utf8strtok_r(newstr, ")", &next);
-	}
-	else {
+		 (strncasecmp(newstr, "deny", 4) == 0) )  {
+		word = ldap_utf8strtok_r(newstr, ")", &next);
+	} else {
 		word = ldap_utf8strtok_r(newstr, " ", &next);
 	}
 
@@ -1052,7 +1053,7 @@ __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRu
 									 (strncmp ( word, ">=",2) ==0)   ||
 									 (strncmp ( word, "=>",2) ==0)   ||
 									 (strncmp ( word, "=<",2) ==0))
-																	 ) ){	
+																	 ) ) {
 					aci_item->aci_ruleType |= ruleType;
 					got_rule = 1;
 				}
@@ -1088,20 +1089,55 @@ __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRu
 			}
 	} /* while */
 
-
 	if ( end ) {
 		/* Found an end to the rule and it's not the last rule */
 		len = end - newstr;
-		end = original_str +len;
-		while ( (end != original_str) && *end != '\"') end--;
-		*endOfCurrRule = end;
+		end = original_str + len;
+		while ( (end != original_str) && *end != '\"' ) end--;
+		if (end == original_str) {
+			char *tmpp = NULL;
+			/* The rule has a problem!  Not double quoted?
+			   It should be like this:
+			   userdn="ldap:///cn=*,ou=testou,o=example.com"
+			   But we got this?
+			   userdn=ldap:///cn=*,ou=testou,o=example.com
+			 */
+			tmpp = original_str + len;
+			/* Just excluding the trailing spaces */
+			while ( (tmpp != original_str) && *tmpp == ' ' ) tmpp--;
+			if (tmpp != original_str) {
+				tmpp++;
+			}
+			end = tmpp;
+		}
+		if (endOfCurrRule) {
+			*endOfCurrRule = end;
+		}
 		len = start - newstr;
 		ruleStart =  original_str + len;
 	} else {
 		/* Walked off the end of the string so it's the last rule */
-		end = original_str + strlen(original_str)-1;
-		while ( (end != original_str)  && *end != '\"') end--;
-		*endOfCurrRule = end;
+		end = original_str + strlen(original_str) - 1;
+		while ( (end != original_str) && *end != '\"' ) end--;
+		if (end == original_str) {
+			char *tmpp = NULL;
+			/* The rule has a problem!  Not double quoted?
+			   It should be like this:
+			   userdn="ldap:///cn=*,ou=testou,o=example.com"
+			   But we got this?
+			   userdn=ldap:///cn=*,ou=testou,o=example.com
+			 */
+			tmpp = original_str + strlen(original_str) - 1;
+			/* Just excluding the trailing spaces */
+			while ( (tmpp != original_str) && *tmpp == ' ' ) tmpp--;
+			if (tmpp != original_str) {
+				tmpp++;
+			}
+			end = tmpp;
+		}
+		if (endOfCurrRule) {
+			*endOfCurrRule = end;
+		}
 	}
 	if ( start ) {
 		/* Got a rule, fixup the pointer */
