@@ -72,7 +72,9 @@ repl_session_plugin_call_agmt_init_cb(Repl_Agmt *ra)
 
     LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "--> repl_session_plugin_call_agmt_init_cb -- begin\n");
 
-    initfunc = (repl_session_plugin_agmt_init_cb)_ReplSessionAPI[REPL_SESSION_PLUGIN_AGMT_INIT_CB];
+    if (_ReplSessionAPI) {
+        initfunc = (repl_session_plugin_agmt_init_cb)_ReplSessionAPI[REPL_SESSION_PLUGIN_AGMT_INIT_CB];
+    }
     if (initfunc) {
         replarea = agmt_get_replarea(ra);
         cookie = (*initfunc)(replarea);
