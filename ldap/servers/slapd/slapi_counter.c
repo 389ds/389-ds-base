@@ -42,9 +42,9 @@
 #include "slap.h"
 
 #ifdef SOLARIS
-PRUint64 _sparcv9_AtomicSet_il(PRUint64 *address, PRUint64 newval);
-PRUint64 _sparcv9_AtomicAdd_il(PRUint64 *address, PRUint64 val);
-PRUint64 _sparcv9_AtomicSub_il(PRUint64 *address, PRUint64 val);
+PRUint64 _sparcv9_AtomicSet(PRUint64 *address, PRUint64 newval);
+PRUint64 _sparcv9_AtomicAdd(PRUint64 *address, PRUint64 val);
+PRUint64 _sparcv9_AtomicSub(PRUint64 *address, PRUint64 val);
 #endif
 
 #ifdef HPUX
