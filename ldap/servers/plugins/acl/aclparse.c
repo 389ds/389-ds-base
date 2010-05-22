@@ -326,6 +326,7 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 			if ( (s = strchr( str, '=' )) != NULL ) {
 				value = s + 1;
 				__acl_strip_leading_space(&value);
+				__acl_strip_trailing_space(value);
 				len =  strlen ( value );
 				/* strip double quotes */
 				if (*value == '"' &&  value[len-1] == '"') {
