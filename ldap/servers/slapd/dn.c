@@ -1918,10 +1918,26 @@ slapi_sdn_get_ndn(const Slapi_DN *sdn)
         if(sdn->dn!=NULL)
         {
             char *p= slapi_ch_strdup(sdn->dn);
+            char *normed = NULL;
+            size_t dnlen = 0;
+            int rc = 0;
+
             Slapi_DN *ncsdn= (Slapi_DN*)sdn; /* non-const Slapi_DN */
-            slapi_dn_ignore_case(p); /* dn is normalized; just ignore case */
-            ncsdn->ndn= p;
-            ncsdn->ndn_len=strlen(p);
+            rc = slapi_dn_normalize_case_ext(p, 0, &normed, &dnlen);
+            if (rc < 0) {
+                /* we give up, just set dn to ndn */
+                slapi_dn_ignore_case(p); /* ignore case */
+                ncsdn->ndn = p;
+                ncsdn->ndn_len = strlen(p);
+            } else if (rc == 0) { /* p is passed in */
+                *(normed + dnlen) = '\0';
+                ncsdn->ndn = normed;
+                ncsdn->ndn_len = dnlen;
+            } else { /* rc > 0 */
+                slapi_ch_free_string(&p);
+                ncsdn->ndn = normed;
+                ncsdn->ndn_len = dnlen;
+            }
             ncsdn->flag= slapi_setbit_uchar(sdn->flag,FLAG_NDN);
             PR_INCREMENT_COUNTER(slapi_sdn_counter_ndn_created);
             PR_INCREMENT_COUNTER(slapi_sdn_counter_ndn_exist);
