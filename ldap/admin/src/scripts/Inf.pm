@@ -41,6 +41,8 @@
 
 package Inf;
 
+use File::Temp qw(tempfile tempdir);
+
 #require    Exporter;
 #@ISA       = qw(Exporter);
 #@EXPORT    = qw();
@@ -50,6 +52,9 @@ sub new {
     my $self = {};
 
     $self->{filename} = shift;
+    $self->{writable} = shift; # do not overwrite user supplied file
+    # if you want to init an Inf with a writable file, use
+    # $inf = new Inf($filename, 1)
 
     $self = bless $self, $type;
 
@@ -162,7 +167,7 @@ sub writeSection {
     my $section = $self->{$name};
     if (ref($section) eq 'HASH') {
         print $fh "[$name]\n";
-        for my $key (keys %{$section}) {
+        for my $key (sort keys %{$section}) {
             if (defined($section->{$key})) {
                 my $val = $section->{$key};
                 $val =~ s/\n/\\\n/g; # make continuation lines
@@ -175,28 +180,50 @@ sub writeSection {
 sub write {
     my $self = shift;
     my $filename = shift;
+    my $fh;
 
-    if ($filename) {
-        $self->{filename} = $filename;
-    } else {
-        $filename = $self->{filename};
+    return if ($filename and $filename eq "-");
+
+    # see if user wants to force use of a temp file
+    if ($filename and $filename eq '__temp__') {
+        $self->{writable} = 1;
+        $filename = '';
+        delete $self->{filename};
     }
 
-    return if ($filename eq "-");
+    if (!$self->{writable}) {
+        return; # do not overwrite read only file
+    }
 
-    if (!open(INF, ">$filename")) {
-        print STDERR "Error: could not write inf file $filename: $!\n";
-        return;
+    if ($filename) { # use user supplied filename
+        $self->{filename} = $filename;
+    } elsif ($self->{filename}) { # use existing filename
+        $filename = $self->{filename};
+    } else { # create temp filename
+        ($fh, $self->{filename}) = tempfile("setupXXXXXX", UNLINK => 0,
+                                            SUFFIX => ".inf", OPEN => 1,
+                                            DIR => File::Spec->tmpdir);
+    }
+
+    my $savemask = umask(0077);
+    if (!$fh) {
+        if (!open(INF, ">$filename")) {
+            print STDERR "Error: could not write inf file $filename: $!\n";
+            umask($savemask);
+            return;
+        }
+        $fh = *INF;
     }
     # write General section first
-    $self->writeSection('General', \*INF);
-    print INF "\n";
+    $self->writeSection('General', $fh);
+    print $fh "\n";
     for my $key (keys %{$self}) {
         next if ($key eq 'General');
-        $self->writeSection($key, \*INF);
-        print INF "\n";
+        $self->writeSection($key, $fh);
+        print $fh "\n";
     }
-    close INF;
+    close $fh;
+    umask($savemask);
 }
 
 sub updateFromArgs {

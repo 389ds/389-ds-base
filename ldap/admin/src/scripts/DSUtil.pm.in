@@ -769,30 +769,19 @@ sub createInfFromConfig {
         return 0;
     }
 
-    my ($outfh, $inffile) = tempfile(SUFFIX => '.inf');
-    if (!$outfh || !$inffile) {
-        push @{$errs}, "error_opening_tempinf", $fname, $!;
-        if ($outfh) {
-            close $outfh;
-        }
-        $conn->close();
-        return 0;
-    }
-    print $outfh "[General]\n";
-    print $outfh "FullMachineName = ", $ent->getValues('nsslapd-localhost'), "\n";
-    print $outfh "SuiteSpotUserID = ", $ent->getValues('nsslapd-localuser'), "\n";
-    print $outfh "[slapd]\n";
-    print $outfh "RootDN = ", $ent->getValues('nsslapd-rootdn'), "\n";
-    print $outfh "RootDNPwd = ", $ent->getValues('nsslapd-rootpw'), "\n";
-    print $outfh "ServerPort = ", $ent->getValues('nsslapd-port'), "\n";
-    print $outfh "ServerIdentifier = $id\n";
+    my $inf = new Inf();
+    $inf->{General}->{FullMachineName} = $ent->getValues('nsslapd-localhost');
+    $inf->{General}->{SuiteSpotUserID} = $ent->getValues('nsslapd-localuser');
+    $inf->{slapd}->{RootDN} = $ent->getValues('nsslapd-rootdn');
+    $inf->{slapd}->{RootDNPwd} = $ent->getValues('nsslapd-rootpw');
+    $inf->{slapd}->{ServerPort} = $ent->getValues('nsslapd-port');
+    $inf->{slapd}->{ServerIdentifier} = $id;
 
     my $suffix;
     $ent = $conn->search("cn=ldbm database,cn=plugins,cn=config",
                          "one", "(objectclass=*)");
     if (!$ent) {
         push @{$errs}, "error_opening_dseldif", $fname, $!;
-        close $outfh;
         $conn->close();
         return 0;
     }
@@ -807,7 +796,6 @@ sub createInfFromConfig {
     $ent = $conn->search("cn=config", "base", "(objectclass=*)");
     if (!$ent) {
         push @{$errs}, "error_opening_dseldif", $fname, $!;
-        close $outfh;
         $conn->close();
         return 0;
     }
@@ -816,12 +804,9 @@ sub createInfFromConfig {
     $conn->close();
 
     if ($inst_dir) {
-        print $outfh "inst_dir = $inst_dir\n";
+        $inf->{slapd}->{inst_dir} = $inst_dir;
     }
-    print $outfh "Suffix = $suffix\n";
-    close $outfh;
-
-    my $inf = new Inf($inffile);
+    $inf->{slapd}->{Suffix} = $suffix;
 
     return $inf;
 }

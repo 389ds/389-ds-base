@@ -54,9 +54,6 @@ use Exporter ();
 @EXPORT    = qw();
 @EXPORT_OK = qw();
 
-# tempfiles
-use File::Temp qw(tempfile tempdir);
-
 # hostname
 use Net::Domain qw(hostfqdn);
 
@@ -67,8 +64,6 @@ use Mozilla::LDAP::API qw(ldap_explode_dn);
 use Mozilla::LDAP::LDIF;
 
 use Getopt::Long;
-
-use File::Temp qw(tempfile tempdir);
 
 use SetupLog;
 use DSUtil;
@@ -210,7 +205,6 @@ sub init {
     $actualsroot =~ s/\/+$//; # trim trailing '/'s, if any
     $self->{actualsroot} = $actualsroot || $self->{oldsroot};
     $self->{silent} = $silent;
-    $self->{inffile} = $inffile;
     $self->{keep} = $keep;
     $self->{preonly} = $preonly;
     $self->{logfile} = $logfile;
@@ -218,18 +212,11 @@ sub init {
     $self->{log} = new SetupLog($self->{logfile}, "migrate");
     $self->{start_servers} = 1; # start servers as soon as they are migrated
     # if user supplied inf file, use that to initialize
-    if (defined($self->{inffile})) {
-        $self->{inf} = new Inf($self->{inffile});
+    if (defined($inffile)) {
+        $self->{inf} = new Inf($inffile);
     } else {
         $self->{inf} = new Inf;
     }
-    my $fh;
-    # create a temp inf file for writing for other processes
-    # never overwrite the user supplied inf file
-    ($fh, $self->{inffile}) = tempfile("migrateXXXXXX", UNLINK => !$keep,
-                                       SUFFIX => ".inf", OPEN => 0,
-                                       DIR => File::Spec->tmpdir);
-    $self->{inf}->{filename} = $self->{inffile};
 
     # see if user passed in default inf values - also, command line
     # arguments override those passed in via an inf file - this

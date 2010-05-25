@@ -74,7 +74,6 @@ if (!$setup->{silent}) {
     if ($rc) {
         $setup->doExit();
     }
-    $setup->{inf}->write();
 }
 
 my @errs;
@@ -105,10 +104,8 @@ if (@errs) {
 $setup->doExit(0);
 
 END {
-    if ($setup) {
-        if (!$setup->{keep}) {
-            unlink $setup->{inffile};
-        }
+    if ($setup and $setup->{keep}) {
+        $setup->{inf}->write("__temp__");
     }
 }
 
