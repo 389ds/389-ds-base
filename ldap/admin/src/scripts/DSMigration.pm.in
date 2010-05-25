@@ -1105,7 +1105,7 @@ sub migrateDS {
             $mig->msg($FATAL, 'error_opening_dseldif', "$oldconfigdir/dse.ldif", $!);
             return 0;
         }
-        debug(2, "Using inffile $inf->{filename} created from $oldconfigdir\n");
+        debug(2, "Using inf created from $oldconfigdir\n");
 
         # create servers but do not start them until after databases
         # have been migrated
@@ -1113,7 +1113,9 @@ sub migrateDS {
 
         # create the new instance
         @errs = createDSInstance($inf);
-        unlink($inf->{filename});
+        if ($inf->{filename}) {
+            unlink($inf->{filename});
+        }
         if (@errs) {
             $mig->msg(@errs);
             $mig->msg($FATAL, 'error_creating_dsinstance', $inst);

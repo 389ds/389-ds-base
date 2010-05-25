@@ -52,9 +52,6 @@ use Exporter ();
 @EXPORT    = qw($SILENT $EXPRESS $TYPICAL $CUSTOM);
 @EXPORT_OK = qw($SILENT $EXPRESS $TYPICAL $CUSTOM);
 
-# tempfiles
-use File::Temp qw(tempfile tempdir);
-
 # hostname
 use Net::Domain qw(hostfqdn);
 
@@ -65,8 +62,6 @@ use Mozilla::LDAP::API qw(ldap_explode_dn);
 use Mozilla::LDAP::LDIF;
 
 use Getopt::Long;
-
-use File::Temp qw(tempfile tempdir);
 
 use SetupLog;
 use DSUtil;
@@ -141,7 +136,6 @@ sub init {
                );
 
     $self->{silent} = $silent;
-    $self->{inffile} = $inffile;
     $self->{keep} = $keep;
     $self->{preonly} = $preonly;
     $self->{update} = $update;
@@ -149,18 +143,11 @@ sub init {
     $self->{logfile} = $logfile;
     $self->{log} = new SetupLog($self->{logfile});
     # if user supplied inf file, use that to initialize
-    if (defined($self->{inffile})) {
-        $self->{inf} = new Inf($self->{inffile});
+    if (defined($inffile)) {
+        $self->{inf} = new Inf($inffile);
     } else {
         $self->{inf} = new Inf;
     }
-    my $fh;
-    # create a temp inf file for writing for other processes
-    # never overwrite the user supplied inf file
-    ($fh, $self->{inffile}) = tempfile("setupXXXXXX", UNLINK => !$keep,
-                                       SUFFIX => ".inf", OPEN => 0,
-                                       DIR => File::Spec->tmpdir);
-    $self->{inf}->{filename} = $self->{inffile};
 
     # see if user passed in default inf values - also, command line
     # arguments override those passed in via an inf file - this
