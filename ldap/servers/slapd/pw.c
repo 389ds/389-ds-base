@@ -1115,10 +1115,10 @@ int update_pw_history( Slapi_PBlock *pb, char *dn, char *old_pw ) {
 	}
 	strcpy ( history_str, str );
 	strcat ( history_str, old_pw );
-	if ( i == pwpolicy->pw_inhistory ) {
+	if ( i >= pwpolicy->pw_inhistory ) {
 		/* replace the oldest password in history */
-		values_replace [oldest] = history_str;
-		values_replace[i]=NULL;
+		values_replace[oldest] = history_str;
+		values_replace[pwpolicy->pw_inhistory] = NULL;
 	} else {
 		/* add old_pw at the end of password history */
 		values_replace[i] =  history_str;
