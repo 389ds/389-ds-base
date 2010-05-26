@@ -2976,8 +2976,14 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   if ( schema_ds4x_compat ) nextinput = input;
 
   /* look for X-ORIGIN list */
-  oc_origins = parse_origin_list( nextinput, &num_origins,
-			schema_user_defined_origin );
+  if (is_user_defined) {
+      /* add X-ORIGIN 'user defined' */
+      oc_origins = parse_origin_list( nextinput, &num_origins,
+                                      schema_user_defined_origin );
+  } else {
+      /* add nothing */
+      oc_origins = parse_origin_list( nextinput, &num_origins, NULL );
+  }
 
   /* set remaining flags */
   if ( element_is_user_defined( oc_origins )) {
@@ -3377,8 +3383,14 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     if ( schema_ds4x_compat ) nextinput = input;
 
     /* X-ORIGIN list */
-    attr_origins = parse_origin_list( nextinput, &num_origins,
-            schema_user_defined_origin );
+    if (is_user_defined) {
+        /* add X-ORIGIN 'user defined' */
+        attr_origins = parse_origin_list( nextinput, &num_origins,
+                                          schema_user_defined_origin );
+    } else {
+        /* add nothing */
+        attr_origins = parse_origin_list( nextinput, &num_origins, NULL );
+    }
 
     /* Do some sanity checking to make sure everything was read correctly */
     
@@ -4561,9 +4573,11 @@ parse_origin_list( const char *schema_value, int *num_originsp,
 		origins[i] = NULL;
 	}
 
+/* for debugging
 if ( origins == NULL || origins[0] == NULL ) {
 	LDAPDebug( LDAP_DEBUG_ANY, "no origin (%s)\n", schema_value, 0, 0 );
 }
+*/
 
 	return origins;
 }
