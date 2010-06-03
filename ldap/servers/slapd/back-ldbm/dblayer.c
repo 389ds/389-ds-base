@@ -3128,7 +3128,7 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
   int rc = 0;
   DB *db = 0;
 
-  if (NULL == pEnv)        /* index file does not exist */
+  if (NULL == pEnv)        /* db does not exist */
     return rc;
  
   /* Added for bug 600401. Somehow the checkpoint thread deadlocked on
@@ -3139,7 +3139,8 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
     dblayer_force_checkpoint(li);
   }
 
-  if (dblayer_get_index_file(be, a, &db, DBOPEN_CREATE) == 0) {
+  if (0 == dblayer_get_index_file(be, a, &db, 0 /* Don't create an index file
+                                                   if it does not exist. */)) {
     /* first, remove the file handle for this index, if we have it open */
     PR_Lock(inst->inst_handle_list_mutex);
     if (a->ai_dblayer) {

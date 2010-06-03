@@ -1084,7 +1084,18 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
                     }
                     PR_CloseDir(dirhandle);                
                 }
-                PR_RmDir(inst_dirp);
+                /* 
+                 * When a backend was removed, the db instance directory 
+                 * was removed as well (See also bz463774).
+                 * In case DB_RECOVER_FATAL is set in the DB open after 
+                 * the removal (e.g., in restore), the logs in the transaction
+                 * logs are replayed and compared with the contents of the DB 
+                 * files.  At that time, if the db instance directory does not 
+                 * exist, libdb returns FATAL error.  To prevent the problem, 
+                 * we have to leave the empty directory. (bz597375)
+                 *
+                 * PR_RmDir(inst_dirp);
+                 */
             } /* non-null dirhandle */
             if (inst_dirp != inst_dir) {
                 slapi_ch_free_string(&inst_dirp);
