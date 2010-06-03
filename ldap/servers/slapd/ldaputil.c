@@ -151,7 +151,7 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
         *secure = (*ludpp)->lud_options & LDAP_URL_OPT_SECURE;
     }
 #else /* openldap */
-#if defined(HAVE_LDAP_URL_PARSE_EXT)
+#if defined(HAVE_LDAP_URL_PARSE_EXT) && defined(LDAP_PVT_URL_PARSE_NONE) && defined(LDAP_PVT_URL_PARSE_NOEMPTY_DN)
     rc = ldap_url_parse_ext(url, ludpp, require_dn ? LDAP_PVT_URL_PARSE_NONE : LDAP_PVT_URL_PARSE_NOEMPTY_DN);
 #else
     rc = ldap_url_parse(url, ludpp);
