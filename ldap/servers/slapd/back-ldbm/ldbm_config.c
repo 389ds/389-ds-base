@@ -1322,6 +1322,7 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
 
     slapi_free_search_results_internal(tmp_pb);
     slapi_pblock_destroy(tmp_pb);
+    slapi_ch_free_string(&basedn);
 }
 
 /* Reads in any config information held in the dse for the ldbm plugin.  
