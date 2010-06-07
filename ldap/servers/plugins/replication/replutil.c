@@ -403,9 +403,9 @@ parse_changes_string(char *str)
 	Slapi_Mods *mods;
 	Slapi_Mod  mod;
 	char *line, *next;
-	char *type, *value;
-	int vlen;
-	struct berval bv;
+	struct berval type, value;
+	struct berval bv_null = {0, NULL};
+	int freeval = 0;
 	
 	/* allocate mods array */
 	mods = slapi_mods_new ();
@@ -438,7 +438,9 @@ parse_changes_string(char *str)
 				break;
 			}
 
-			rc = ldif_parse_line(line, &type, &value, &vlen);
+			type = bv_null;
+			value = bv_null;
+			rc = slapi_ldif_parse_line(line, &type, &value, &freeval);
 			if (rc != 0)
 			{
 				/* ONREPL - log warning */
@@ -447,15 +449,15 @@ parse_changes_string(char *str)
 				continue;
 			}
 
-			if (strcasecmp (type, "add") == 0)
+			if (strncasecmp (type.bv_val, "add", type.bv_len) == 0)
 			{
 				slapi_mod_set_operation (&mod, LDAP_MOD_ADD | LDAP_MOD_BVALUES);
 			}
-			else if (strcasecmp (type, "delete") == 0)
+			else if (strncasecmp (type.bv_val, "delete", type.bv_len) == 0)
 			{
 				slapi_mod_set_operation (&mod, LDAP_MOD_DELETE | LDAP_MOD_BVALUES);
 			}
-			else if (strcasecmp (type, "replace") == 0)
+			else if (strncasecmp (type.bv_val, "replace", type.bv_len) == 0)
 			{
 				slapi_mod_set_operation (&mod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
 			}
@@ -464,15 +466,15 @@ parse_changes_string(char *str)
 				/* adding first value */
 				if (slapi_mod_get_type (&mod) == NULL)
 				{
-					slapi_mod_set_type (&mod, type);
+					slapi_mod_set_type (&mod, type.bv_val);
 				}
 
-				bv.bv_val = value;
-				bv.bv_len = vlen;
-
-				slapi_mod_add_value (&mod, &bv);
+				slapi_mod_add_value (&mod, &value);
 			}
 	
+			if (freeval) {
+				slapi_ch_free_string(&value.bv_val);
+			}
 			line = ldif_getline (&next);
 		}
 	}

@@ -686,11 +686,10 @@ update_integrity(char **argv, char *origDN,
 
         for(i = 3; argv[i] != NULL; i++)
         {
-            unsigned long filtlen = strlen(argv[i]) + (strlen(origDN) * 3 ) + 5;
-            filter = (char *)slapi_ch_calloc( filtlen, sizeof(char ));  
-            if (( search_result = ldap_create_filter( filter, filtlen, 
-                            "(%a=*%e)", NULL, NULL, argv[i], origDN, NULL ))
-                    == LDAP_SUCCESS ) {
+            char buf[BUFSIZ];
+            size_t len = strlen(origDN);
+            filter = slapi_ch_smprintf("(%s=*%s)", argv[i], escape_filter_value(origDN, len, buf));
+            if ( filter ) {
 
                 /* Need only the current attribute and its subtypes */
                 char *attrs[2];
@@ -778,7 +777,7 @@ update_integrity(char **argv, char *origDN,
                 }
             }
 
-            slapi_ch_free((void**)&filter);
+            slapi_ch_free_string(&filter);
   
             if (search_result_pb) {
                 slapi_free_search_results_internal(search_result_pb);

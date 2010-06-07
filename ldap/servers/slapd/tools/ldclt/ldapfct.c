@@ -267,8 +267,9 @@ int ldclt_create_deref_control( LDAP *ld, char *derefAttr, char **attrs, LDAPCon
 
 #if !defined(USE_OPENLDAP)
 int ldclt_build_control( char *oid, BerElement *ber, int freeber, char iscritical, LDAPControl **ctrlp );
-int ldclt_alloc_ber( LDAP *ld, BerElement **berp );
 #endif
+int ldclt_alloc_ber( LDAP *ld, BerElement **berp );
+
 
 /* ****************************************************************************
 	FUNCTION :	my_ldap_err2string
@@ -4233,6 +4234,9 @@ ldclt_create_deref_control(
 {
     BerElement *ber;
     int rc;
+#if defined(USE_OPENLDAP)
+    struct berval *bv = NULL;
+#endif
     
     if (ld == 0) {
         return( LDAP_PARAM_ERROR );
@@ -4243,12 +4247,7 @@ ldclt_create_deref_control(
         return ( LDAP_PARAM_ERROR );
     }
 
-    /* create a ber package to hold the controlValue */
-#if defined(USE_OPENLDAP)
-    if ( NULL == ( ber = ldap_alloc_ber_with_options( ld ) ) )
-#else
     if ( LDAP_SUCCESS != ldclt_alloc_ber( ld, &ber )  ) 
-#endif
     {
         return( LDAP_NO_MEMORY );
     }
@@ -4260,9 +4259,21 @@ ldclt_create_deref_control(
     }
 
 #if defined(USE_OPENLDAP)
-    rc = ldap_create_control( LDAP_CONTROL_X_DEREF, ber, 1, ctrlp );
+    if ( LBER_ERROR == ber_flatten(ber, &bv) ) {
+        ber_bvfree( bv );
+        ber_free( ber, 1 );
+        return( LDAP_ENCODING_ERROR );
+    }
+    if ( NULL == bv ) {
+        ber_free( ber, 1 );
+        return( LDAP_NO_MEMORY );
+    }
+    rc = ldap_control_create( LDAP_CONTROL_X_DEREF, 1, bv, 1, ctrlp );
+    ber_bvfree( bv );
+    ber_free( ber, 1 );
 #else
     rc = ldclt_build_control( LDAP_CONTROL_X_DEREF, ber, 1, 1, ctrlp );
+    ber_free( ber, 1 );
 #endif
 
     return( rc );
@@ -4323,6 +4334,7 @@ ldclt_build_control( char *oid, BerElement *ber, int freeber, char iscritical,
 
     return( LDAP_SUCCESS );
 }
+#endif
 
 /*
  * Duplicated nsldapi_build_control from 
@@ -4334,9 +4346,14 @@ int
 ldclt_alloc_ber( LDAP *ld, BerElement **berp )
 {
     int    err;
-
+    int beropt;
+#if defined(USE_OPENLDAP)
+    beropt = LBER_USE_DER;
+#else
+    beropt = LBER_OPT_USE_DER;
+#endif
     /* We use default lberoptions since the value is not public in mozldap. */
-     if (( *berp = ber_alloc_t( LBER_OPT_USE_DER )) == (BerElement *)NULL ) {
+     if (( *berp = ber_alloc_t( beropt )) == (BerElement *)NULL ) {
         err = LDAP_NO_MEMORY;
     } else {
         err = LDAP_SUCCESS;
@@ -4344,6 +4361,5 @@ ldclt_alloc_ber( LDAP *ld, BerElement **berp )
 
     return( err );
 }
-#endif
 
 /* End of file */

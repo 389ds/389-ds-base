@@ -281,7 +281,7 @@ int cb_update_controls( Slapi_PBlock * pb,
     if (addauth) {
         slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &proxyDN );
 
-        if ( ldap_create_proxyauth_control(ld, proxyDN, isabandon?0:1, &ctrls[dCount] )) {
+        if ( slapi_ldap_create_proxyauth_control(ld, proxyDN, isabandon?0:1, 0, &ctrls[dCount] )) {
             ldap_controls_free(ctrls);
                 slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                 "LDAP_CONTROL_PROXYAUTH control encoding failed.\n");

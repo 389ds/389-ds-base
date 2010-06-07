@@ -5062,6 +5062,22 @@ slapi_ldap_bind(
     int *msgidp /* pass in non-NULL for async handling */
 );
 
+int
+slapi_ldap_create_proxyauth_control (
+    LDAP *ld, /* only used to get current ber options */
+    const char *dn, /* proxy dn */
+    const char ctl_iscritical,
+    int usev2, /* use the v2 (.18) control instead */
+    LDAPControl **ctrlp /* value to return */
+);
+
+int
+slapi_ldif_parse_line(
+    char *line, /* line to parse */
+    struct berval *type, /* attribute type to return */
+    struct berval *value, /* attribute value to return */
+    int *freeval /* values will usually be returned in place as pointers into line - if the value is a url, the value will be malloced and must be freed by the caller */
+);
 
 /*
  * computed attributes

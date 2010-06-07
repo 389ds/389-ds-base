@@ -252,6 +252,91 @@ slapi_ldap_count_values( char **vals )
 #endif
 }
 
+int
+slapi_ldap_create_proxyauth_control (
+    LDAP *ld, /* only used to get current ber options */
+    const char *dn, /* proxy dn */
+    const char ctl_iscritical,
+    int usev2, /* use the v2 (.18) control instead */
+    LDAPControl **ctrlp /* value to return */
+)
+{
+    BerElement *ber = NULL;
+    int rc = 0;
+    int beropts = 0;
+    char *berfmtstr = NULL;
+    char *ctrloid = NULL;
+    struct berval *bv = NULL;
+
+    /* note - there is currently no way to get the beroptions from the ld*,
+       so we just hard code it here */
+#if defined(USE_OPENLDAP)
+    beropts = LBER_USE_DER; /* openldap seems to use DER by default */
+#endif
+    if (ctrlp == NULL) {
+	return LDAP_PARAM_ERROR;
+    }
+    if (NULL == dn) {
+	dn = "";
+    }
+
+    if (NULL == (ber = ber_alloc_t(beropts))) {
+	return LDAP_NO_MEMORY;
+    }
+
+    if (usev2) {
+	berfmtstr = "s";
+	ctrloid = LDAP_CONTROL_PROXIEDAUTH;
+    } else {
+	berfmtstr = "{s}";
+	ctrloid = LDAP_CONTROL_PROXYAUTH;
+    }
+
+    if (LBER_ERROR == ber_printf(ber, berfmtstr, dn)) {
+	ber_free(ber, 1);
+	return LDAP_ENCODING_ERROR;
+    }
+
+    if (LBER_ERROR == ber_flatten(ber, &bv)) {
+        ber_bvfree(bv);
+        ber_free(ber, 1);
+	return LDAP_ENCODING_ERROR;
+    }
+	
+    if (NULL == bv) {
+        ber_free(ber, 1);
+        return LDAP_NO_MEMORY;
+    }
+
+    rc = ldap_control_create(ctrloid, ctl_iscritical, bv, 1, ctrlp);
+    ber_bvfree(bv);
+    ber_free(ber, 1);
+
+    return rc;
+}
+
+int
+slapi_ldif_parse_line(
+    char *line,
+    struct berval *type,
+    struct berval *value,
+    int *freeval
+)
+{
+    int rc;
+#if defined(USE_OPENLDAP)
+    rc = ldif_parse_line2(line, type, value, freeval);
+    /* check that type and value are null terminated */
+#else
+    int vlen;
+    rc = ldif_parse_line(line, &type->bv_val, &value->bv_val, &vlen);
+    type->bv_len = type->bv_val ? strlen(type->bv_val) : 0;
+    value->bv_len = vlen;
+    *freeval = 0; /* always returns in place */
+#endif
+    return rc;
+}
+
 /*
   Perform LDAP init and return an LDAP* handle.  If ldapurl is given,
   that is used as the basis for the protocol, host, port, and whether
@@ -462,9 +547,11 @@ slapi_ldap_init_ext(
 	 * Set SSL strength (server certificate validity checking).
 	 */
 	if (secure > 0) {
-#if !defined(USE_OPENLDAP)
+#if defined(USE_OPENLDAP)
+	    char *certdir = config_get_certdir();
+	    int optval = 0;
+#endif /* !USE_OPENLDAP */
 	    int ssl_strength = 0;
-#endif
 	    LDAP *myld = NULL;
 
 	    /* we can only use the set functions below with a real
@@ -477,30 +564,39 @@ slapi_ldap_init_ext(
 	    if (config_get_ssl_check_hostname()) {
 		/* check hostname against name in certificate */
 #if defined(USE_OPENLDAP)
-		if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, "hard"))) {
-		    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				    "failed: unable to set REQUIRE_CERT option to hard\n");
-		}
+		ssl_strength = LDAP_OPT_X_TLS_HARD;
 #else /* !USE_OPENLDAP */
 		ssl_strength = LDAPSSL_AUTH_CNCHECK;
 #endif /* !USE_OPENLDAP */
 	    } else {
 		/* verify certificate only */
 #if defined(USE_OPENLDAP)
-		if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, "allow"))) {
-		    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				    "failed: unable to set REQUIRE_CERT option to allow\n");
-		}
+		ssl_strength = LDAP_OPT_X_TLS_ALLOW;
 #else /* !USE_OPENLDAP */
 		ssl_strength = LDAPSSL_AUTH_CERT;
 #endif /* !USE_OPENLDAP */
 	    }
 
 #if defined(USE_OPENLDAP)
-#if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
-	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, LDAP_OPT_X_TLS_PROTOCOL_SSL3))) {
+	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set minimum TLS protocol level to SSL3n");
+				"failed: unable to create new TLS context\n");
+	    }
+	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+				"failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
+	    }
+	    /* tell it where our cert db is */
+	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+				"failed: unable to set CACERTDIR option to %s\n", certdir);
+	    }
+	    slapi_ch_free_string(&certdir);
+#if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
+	    optval = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
+	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval))) {
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+				"failed: unable to set minimum TLS protocol level to SSL3\n");
 	    }
 #endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
 #else  /* !USE_OPENLDAP */
@@ -512,7 +608,7 @@ slapi_ldap_init_ext(
 
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
 				"failed: unable to set SSL options ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
 				prerr, slapd_pr_strerror(prerr));
 
 	    }

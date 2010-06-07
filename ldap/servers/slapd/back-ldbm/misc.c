@@ -405,6 +405,39 @@ is_fullpath(char *path)
     return 0;
 }
 
+/* the problem with getline is that it inserts \0 for every
+   newline \n or \r - this is a problem when you just want
+   to grab some value from the ldif string but do not
+   want to change the ldif string because it will be
+   parsed again in the future
+   openldap ldif_getline() is more of a problem because
+   it does this for every comment line too, whereas mozldap
+   ldif_getline() just skips comment lines
+*/
+static void
+ldif_getline_fixline(char *start, char *end)
+{
+    while (start && (start < end)) {
+        if (*start == '\0') {
+            /* the original ldif string will usually end with \n \0
+               ldif_getline will turn this into \0 \0
+               in this case, we don't want to turn it into
+               \r \n we want \n \0
+            */
+            if ((start < (end - 1)) && (*(start + 1) == '\0')) {
+                *start = '\r';
+                start++;
+            }
+            *start = '\n';
+            start++;
+        } else {
+            start++;
+        }
+    }
+
+    return;
+}
+
 /* 
  * Get value of type from string.
  * Note: this function is very primitive.  It does not support multi values.
@@ -420,13 +453,10 @@ get_value_from_string(const char *string, char *type, char **value)
     char *ptr = NULL;
     char *copy = NULL;
     char *tmpptr = NULL;
-    char *tmptype = NULL;
-    char *valueptr = NULL;
-#if defined (USE_OPENLDAP)
-    ber_len_t valuelen;
-#else
-    int valuelen;
-#endif
+    char *startptr = NULL;
+    struct berval tmptype;
+    struct berval bvvalue;
+    int freeval = 0;
 
     if (NULL == string || NULL == type || NULL == value) {
         return rc;
@@ -439,43 +469,46 @@ get_value_from_string(const char *string, char *type, char **value)
     }
 
     typelen = strlen(type);
+    startptr = tmpptr;
     while (NULL != (ptr = ldif_getline(&tmpptr))) {
         if ((0 != PL_strncasecmp(ptr, type, typelen)) ||
             (*(ptr + typelen) != ';' && *(ptr + typelen) != ':')) {
             /* did not match */
-            /* ldif_getline replaces '\n' and '\r' with '\0' */
-            if ('\0' == *(tmpptr - 1)) {
-                *(tmpptr - 1) = '\n';
-            }
-            if ('\0' == *(tmpptr - 2)) {
-                *(tmpptr - 2) = '\r';
-            }
+            ldif_getline_fixline(startptr, tmpptr);
+            startptr = tmpptr;
             continue;
         }
         /* matched */
         copy = slapi_ch_strdup(ptr);
-        /* ldif_getline replaces '\n' and '\r' with '\0' */
-        if ('\0' == *(tmpptr - 1)) {
-            *(tmpptr - 1) = '\n';
-        }
-        if ('\0' == *(tmpptr - 2)) {
-            *(tmpptr - 2) = '\r';
-        }
-        rc = ldif_parse_line(copy, &tmptype, &valueptr, &valuelen);
-        if (0 > rc || NULL == valueptr || 0 >= valuelen) {
+        ldif_getline_fixline(startptr, tmpptr);
+        startptr = tmpptr;
+        rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
+        if (0 > rc || NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
             slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", "parse "
                                              "failed: %d\n", rc);
+            if (freeval) {
+                slapi_ch_free_string(&bvvalue.bv_val);
+            }
             goto bail;
         }
-        if (0 != strcasecmp(type, tmptype)) {
+        if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
             slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", "type "
                                              "does not match: %s != %s\n", 
-                                             type, tmptype);
+                                             type, tmptype.bv_val);
+            if (freeval) {
+                slapi_ch_free_string(&bvvalue.bv_val);
+            }
             goto bail;
         }
-        *value = (char *)slapi_ch_malloc(valuelen + 1);
-        memcpy(*value, valueptr, valuelen);
-        *(*value + valuelen) = '\0';
+        if (freeval) {
+            *value = bvvalue.bv_val; /* just hand off the memory */
+            bvvalue.bv_val = NULL;
+        } else { /* make a copy */
+            *value = (char *)slapi_ch_malloc(bvvalue.bv_len + 1);
+            memcpy(*value, bvvalue.bv_val, bvvalue.bv_len);
+            *(*value + bvvalue.bv_len) = '\0';
+        }
+        slapi_ch_free_string(&copy);
     }
 bail:
     slapi_ch_free_string(&copy);
@@ -495,13 +528,9 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
     char *ptr = NULL;
     char *copy = NULL;
     char *tmpptr = NULL;
-    char *tmptype = NULL;
-    char *valueptr = NULL;
-#if defined (USE_OPENLDAP)
-    ber_len_t valuelen;
-#else
-    int valuelen;
-#endif
+    char *startptr = NULL;
+    struct berval tmptype, bvvalue;
+    int freeval = 0;
     char *value = NULL;
     int idx = 0;
 #define get_values_INITIALMAXCNT 1
@@ -518,51 +547,53 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
     }
 
     typelen = strlen(type);
+    startptr = tmpptr;
     while (NULL != (ptr = ldif_getline(&tmpptr))) {
         if ((0 != PL_strncasecmp(ptr, type, typelen)) ||
             (*(ptr + typelen) != ';' && *(ptr + typelen) != ':')) {
             /* did not match */
-            /* ldif_getline replaces '\n' and '\r' with '\0' */
-            if ('\0' == *(tmpptr - 1)) {
-                *(tmpptr - 1) = '\n';
-            }
-            if ('\0' == *(tmpptr - 2)) {
-                *(tmpptr - 2) = '\r';
-            }
+            ldif_getline_fixline(startptr, tmpptr);
+            startptr = tmpptr;
             continue;
         }
         /* matched */
         copy = slapi_ch_strdup(ptr);
-        /* ldif_getline replaces '\n' and '\r' with '\0' */
-        if ('\0' == *(tmpptr - 1)) {
-            *(tmpptr - 1) = '\n';
-        }
-        if ('\0' == *(tmpptr - 2)) {
-            *(tmpptr - 2) = '\r';
-        }
-        rc = ldif_parse_line(copy, &tmptype, &valueptr, &valuelen);
-        if (0 > rc || NULL == valueptr || 0 >= valuelen) {
+        ldif_getline_fixline(startptr, tmpptr);
+        startptr = tmpptr;
+        rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
+        if (0 > rc || NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
             continue;
         }
-        if (0 != strcasecmp(type, tmptype)) {
-            char *p = PL_strchr(tmptype, ';'); /* subtype ? */
+        if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
+            char *p = PL_strchr(tmptype.bv_val, ';'); /* subtype ? */
             if (p) {
-                if (0 != strncasecmp(type, tmptype, p - tmptype)) {
+                if (0 != strncasecmp(type, tmptype.bv_val, p - tmptype.bv_val)) {
                     slapi_log_error(SLAPI_LOG_FATAL, "get_values_from_string", 
                                     "type does not match: %s != %s\n", 
-                                    type, tmptype);
+                                    type, tmptype.bv_val);
+                    if (freeval) {
+                        slapi_ch_free_string(&bvvalue.bv_val);
+                    }
                     goto bail;
                 }
             } else {
                 slapi_log_error(SLAPI_LOG_FATAL, "get_values_from_string", 
                                 "type does not match: %s != %s\n", 
-                                type, tmptype);
+                                type, tmptype.bv_val);
+                if (freeval) {
+                    slapi_ch_free_string(&bvvalue.bv_val);
+                }
                 goto bail;
             }
         }
-        value = (char *)slapi_ch_malloc(valuelen + 1);
-        memcpy(value, valueptr, valuelen);
-        *(value + valuelen) = '\0';
+        if (freeval) {
+            value = bvvalue.bv_val; /* just hand off memory */
+            bvvalue.bv_val = NULL;
+        } else { /* copy */
+            value = (char *)slapi_ch_malloc(bvvalue.bv_len + 1);
+            memcpy(value, bvvalue.bv_val, bvvalue.bv_len);
+            *(value + bvvalue.bv_len) = '\0';
+        }
         if ((get_values_INITIALMAXCNT == maxcnt) || !valuearray || 
             (idx + 1 >= maxcnt)) {
             maxcnt *= 2;

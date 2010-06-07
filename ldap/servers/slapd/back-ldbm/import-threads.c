@@ -271,17 +271,9 @@ static int
 import_get_version(char *str)
 {
     char *s;
-    char *type;
-    char *valuecharptr;
     char *mystr, *ms;
     int offset;
-#if defined(USE_OPENLDAP)
-    ber_len_t valuelen;
-#else
-    int valuelen;
-#endif
     int my_version = 0;
-    int retmalloc = 0;
 
     if ((s = strstr(str, "version:")) == NULL)
         return 0;
@@ -289,17 +281,19 @@ import_get_version(char *str)
     offset = s - str;
     mystr = ms = slapi_ch_strdup(str);
     while ( (s = ldif_getline( &ms )) != NULL ) {
-        if ( (retmalloc = ldif_parse_line( s, &type, &valuecharptr, &valuelen )) >= 0 ) {
-            if (!strcasecmp(type, "version")) {
-                my_version = atoi(valuecharptr);
+        struct berval type = {0, NULL}, value = {0, NULL};
+        int freeval = 0;
+        if ( slapi_ldif_parse_line( s, &type, &value, &freeval ) >= 0 ) {
+            if (!PL_strncasecmp(type.bv_val, "version", type.bv_len)) {
+                my_version = atoi(value.bv_val);
                 *(str + offset) = '#';
                 /* the memory below was not allocated by the slapi_ch_ functions */
-                if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+                if (freeval) slapi_ch_free_string(&value.bv_val);
                 break;
             } 
         }
         /* the memory below was not allocated by the slapi_ch_ functions */
-        if (retmalloc) slapi_ch_free((void **) &valuecharptr);
+        if (freeval) slapi_ch_free_string(&value.bv_val);
     }
 
     slapi_ch_free((void **)&mystr);

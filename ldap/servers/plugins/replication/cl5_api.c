@@ -5147,13 +5147,10 @@ static int
 _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **replGen)
 {
 	int rc;
-#if defined(USE_OPENLDAP)
-	ber_len_t vlen;
-#else
-	int vlen;
-#endif
 	char *next, *line;
-	char *type, *value;
+	struct berval type, value;
+	struct berval bv_null = {0, NULL};
+	int freeval = 0;
 	Slapi_Mods *mods;
 	char *rawDN = NULL;
 
@@ -5170,7 +5167,9 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 		}
 
 		/* this call modifies ldifEntry */
-		rc = ldif_parse_line(line, &type, &value, &vlen);
+		type = bv_null;
+		value = bv_null;
+		rc = slapi_ldif_parse_line(line, &type, &value, &freeval);
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -5178,55 +5177,55 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 			continue;
 		}
 
-		if (strcasecmp (type, T_CHANGETYPESTR) == 0)
+		if (strncasecmp (type.bv_val, T_CHANGETYPESTR, type.bv_len) == 0)
 		{
-			op->operation_type = _cl5Str2OperationType (value);	
+			op->operation_type = _cl5Str2OperationType (value.bv_val);	
 		}
-		else if (strcasecmp (type, T_REPLGEN) == 0)
+		else if (strncasecmp (type.bv_val, T_REPLGEN, type.bv_len) == 0)
         {
-            *replGen = slapi_ch_strdup (value);
+            *replGen = slapi_ch_strdup (value.bv_val);
         }
-		else if (strcasecmp (type, T_CSNSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_CSNSTR, type.bv_len) == 0)
 		{
-			op->csn = csn_new_by_string(value);
+			op->csn = csn_new_by_string(value.bv_val);
 		}
-		else if (strcasecmp (type, T_UNIQUEIDSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_UNIQUEIDSTR, type.bv_len) == 0)
 		{
-			op->target_address.uniqueid = slapi_ch_strdup (value);
+			op->target_address.uniqueid = slapi_ch_strdup (value.bv_val);
 		}
-		else if (strcasecmp (type, T_DNSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_DNSTR, type.bv_len) == 0)
 		{
 			PR_ASSERT (op->operation_type);
 
 			if (op->operation_type == SLAPI_OPERATION_ADD)
 			{
-				rawDN = slapi_ch_strdup (value);
+				rawDN = slapi_ch_strdup (value.bv_val);
 				op->target_address.dn = slapi_ch_strdup(rawDN);
 			}
 			else
-				op->target_address.dn = slapi_ch_strdup (value);
+				op->target_address.dn = slapi_ch_strdup (value.bv_val);
 		}
-		else if (strcasecmp (type, T_PARENTIDSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_PARENTIDSTR, type.bv_len) == 0)
 		{
-			op->p.p_add.parentuniqueid = slapi_ch_strdup (value);	
+			op->p.p_add.parentuniqueid = slapi_ch_strdup (value.bv_val);	
 		}
-		else if (strcasecmp (type, T_NEWRDNSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_NEWRDNSTR, type.bv_len) == 0)
 		{			
-			op->p.p_modrdn.modrdn_newrdn = slapi_ch_strdup (value);
+			op->p.p_modrdn.modrdn_newrdn = slapi_ch_strdup (value.bv_val);
 		}
-		else if (strcasecmp (type, T_DRDNFLAGSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_DRDNFLAGSTR, type.bv_len) == 0)
 		{
-			op->p.p_modrdn.modrdn_deloldrdn = (strcasecmp (value, "true") ? PR_FALSE : PR_TRUE);
+			op->p.p_modrdn.modrdn_deloldrdn = (strncasecmp (value.bv_val, "true", value.bv_len) ? PR_FALSE : PR_TRUE);
 		}
-		else if (strcasecmp (type, T_NEWSUPERIORDNSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_NEWSUPERIORDNSTR, type.bv_len) == 0)
 		{
-			op->p.p_modrdn.modrdn_newsuperior_address.dn = slapi_ch_strdup (value);
+			op->p.p_modrdn.modrdn_newsuperior_address.dn = slapi_ch_strdup (value.bv_val);
 		}		
-		else if (strcasecmp (type, T_NEWSUPERIORIDSTR) == 0)
+		else if (strncasecmp (type.bv_val, T_NEWSUPERIORIDSTR, type.bv_len) == 0)
 		{
-			op->p.p_modrdn.modrdn_newsuperior_address.uniqueid = slapi_ch_strdup (value);
+			op->p.p_modrdn.modrdn_newsuperior_address.uniqueid = slapi_ch_strdup (value.bv_val);
 		}
-		else if (strcasecmp (type, T_CHANGESTR) == 0)
+		else if (strncasecmp (type.bv_val, T_CHANGESTR, type.bv_len) == 0)
 		{
 			PR_ASSERT (op->operation_type);
 
@@ -5245,7 +5244,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 																 op->operation_type);
 													return CL5_BAD_FORMAT;
 												}
-												mods = parse_changes_string(value);
+												mods = parse_changes_string(value.bv_val);
 												PR_ASSERT (mods);
 												slapi_mods2entry (&(op->p.p_add.target_entry), rawDN, 
 																  slapi_mods_get_ldapmods_byref(mods));
@@ -5253,13 +5252,13 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 												slapi_mods_free (&mods);
 												break;
 												
-				case SLAPI_OPERATION_MODIFY:	mods = parse_changes_string(value);
+				case SLAPI_OPERATION_MODIFY:	mods = parse_changes_string(value.bv_val);
 												PR_ASSERT (mods);
 												op->p.p_modify.modify_mods = slapi_mods_get_ldapmods_passout (mods);
 												slapi_mods_free (&mods);
 												break;
 
-				case SLAPI_OPERATION_MODRDN:	mods = parse_changes_string(value);
+				case SLAPI_OPERATION_MODRDN:	mods = parse_changes_string(value.bv_val);
 												PR_ASSERT (mods);
 												op->p.p_modrdn.modrdn_mods = slapi_mods_get_ldapmods_passout (mods);
 												slapi_mods_free (&mods);
@@ -5268,9 +5267,15 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 				default:						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 																"_cl5LDIF2Operation: invalid operation type - %lu\n", 
 																 op->operation_type);
+												if (freeval) {
+													slapi_ch_free_string(&value.bv_val);
+												}
 												return CL5_BAD_FORMAT;
 			}
 		}	
+		if (freeval) {
+			slapi_ch_free_string(&value.bv_val);
+		}
 	}
 
 	if (IsValidOperation (op))

@@ -950,8 +950,6 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
     char **vals = NULL;
     char *type = NULL;
     char *value = NULL;
-    int vlen = 0;
-    struct berval bval;
     Slapi_Value *sval = NULL;
     int found_rdn_map = 0;
     int i = 0;
@@ -982,7 +980,9 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
      * created managed entry. */
     vals = slapi_entry_attr_get_charray(template, MEP_STATIC_ATTR_TYPE);
     for (i = 0; vals && vals[i]; ++i) {
-        if (ldif_parse_line(vals[i], &type, &value, &vlen) != 0) {
+        struct berval bvtype = {0, NULL}, bvvalue = {0, NULL};
+        int freeval = 0;
+        if (slapi_ldif_parse_line(vals[i], &bvtype, &bvvalue, &freeval) != 0) {
             slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
                         "mep_create_managed_entry: Value for %s config setting  "
                         "is not in the correct format in template \"%s\". "
@@ -992,14 +992,15 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
             goto done;
         } else {
             /* Create a berval and add the value to the entry. */
-            bval.bv_len = vlen;
-            bval.bv_val = value;
-            sval = slapi_value_new_berval(&bval);
-            slapi_entry_add_value(managed_entry, type, sval);
+            sval = slapi_value_new_berval(&bvvalue);
+            slapi_entry_add_value(managed_entry, bvtype.bv_val, sval);
             slapi_value_free(&sval);
 
             /* Set type and value to NULL so they don't get
              * free'd by mep_parse_mapped_attr(). */
+            if (freeval) {
+                slapi_ch_free_string(&bvvalue.bv_val);
+            }
             type = NULL;
             value = NULL;
         }

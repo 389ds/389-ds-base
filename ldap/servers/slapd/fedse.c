@@ -1721,20 +1721,16 @@ int
 search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
     char *fstr= NULL;
-    int retmalloc= 0;
 	char eggfilter[64];
 	PR_snprintf(eggfilter,sizeof(eggfilter),"(objectclass=%s)",EGG_OBJECT_CLASS);
     slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
     if(fstr!=NULL && strcasecmp(fstr,eggfilter)==0)
     {
 		static int twiddle= -1;
-		char *type, *value, *copy;
-#if defined(USE_OPENLDAP)
-		ber_len_t vlen;
-#else
-		int vlen;
-#endif
+		char *copy;
+		struct berval bvtype;
 		struct berval bv;
+		int freeval = 0;
 		struct berval *bvals[2];
 		if (twiddle < 0) {
 			twiddle = slapi_rand();
@@ -1742,17 +1738,15 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		bvals[0] = &bv;
 		bvals[1] = NULL;
 		copy= slapi_ch_strdup(easter_egg_photos[twiddle%NUM_EASTER_EGG_PHOTOS]);
-		if ( (retmalloc = ldif_parse_line(copy, &type, &value, &vlen)) < 0 ) {
+		if ( slapi_ldif_parse_line(copy, &bvtype, &bv, &freeval) < 0 ) {
 		    return SLAPI_DSE_CALLBACK_ERROR;
 		}
-		bv.bv_val = value;
-		bv.bv_len = vlen;
 	    slapi_entry_attr_delete(entryBefore, "jpegphoto");
     	slapi_entry_attr_merge(entryBefore, "jpegphoto", bvals);
 		slapi_ch_free((void**)&copy);
 		twiddle++;
 		/* the memory below was not allocated by the slapi_ch_ functions */
-		if (retmalloc) slapi_ch_free( (void**)&value );
+		if (freeval) slapi_ch_free_string(&bv.bv_val);
         return SLAPI_DSE_CALLBACK_OK;
     }
     return SLAPI_DSE_CALLBACK_ERROR;
