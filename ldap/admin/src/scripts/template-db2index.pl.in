@@ -68,7 +68,7 @@ $verbose = 0;
 
 $prefix = "{{DS-ROOT}}";
 
-$ENV{'PATH'} = "$prefix@ldapsdk_bindir@:$prefix/usr/bin:@ldapsdk_bindir@:/usr/bin";
+$ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
 $ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 $ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 
@@ -169,7 +169,7 @@ chdir("$prefix{{SEP}}usr{{SEP}}bin");
 if ( $attribute_arg eq "" && $vlvattribute_arg eq "" )
 {
     # Get the list of indexes from the entry
-    $indexes_list="ldapsearch $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s one " .
+    $indexes_list="ldapsearch @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s one " .
     "-b \"cn=index,cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"(&(objectclass=*)(nsSystemIndex=false))\" cn";
     # build the values of the attribute nsIndexAttribute
     open(LDAP1, "$indexes_list |");
@@ -188,7 +188,7 @@ if ( $attribute_arg eq "" && $vlvattribute_arg eq "" )
     }
 
     # Get the list of indexes from the entry
-    $vlvindexes_list="ldapsearch $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s sub -b \"cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"objectclass=vlvIndex\" cn";
+    $vlvindexes_list="ldapsearch @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -s sub -b \"cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"objectclass=vlvIndex\" cn";
 
     # build the values of the attribute nsIndexVlvAttribute
     open(LDAP1, "$vlvindexes_list |");
@@ -221,6 +221,6 @@ $cn =  "cn: $taskname\n";
 $nsinstance = "nsInstance: ${instance}\n";
 
 $entry = "${dn}${misc}${cn}${nsinstance}${attribute}${vlvattribute}";
-open(FOO, "| ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);

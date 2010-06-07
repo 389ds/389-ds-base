@@ -392,12 +392,12 @@ else
 
 debug("Running ** $cmd ** $operation\n");
 
-$ENV{'PATH'} = "$prefix@ldapsdk_bindir@:$prefix/usr/bin:@ldapsdk_bindir@:/usr/bin";
+$ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
 $ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 $ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 
-$ldapsearch="ldapsearch -1";
-$ldapmodify="ldapmodify";
+$ldapsearch="ldapsearch @ldaptool_opts@ -1";
+$ldapmodify="ldapmodify @ldaptool_opts@";
  
 # Default values
 $defrootdn= "{{ROOT-DN}}";

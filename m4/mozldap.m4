@@ -167,4 +167,8 @@ dnl default path for the ldap c sdk tools (see [210947] for more details)
   fi
   AC_DEFINE([USE_MOZLDAP], [1], [If defined, using MozLDAP for LDAP SDK])
   AC_DEFINE([HAVE_LDAP_URL_PARSE_NO_DEFAULTS], [1], [have the function ldap_url_parse_no_defaults])
+  # where to find ldapsearch, et. al.
+  ldaptool_bindir=$ldapsdk_bindir
+  # default options to pass to the tools
+  ldaptool_opts=
 fi

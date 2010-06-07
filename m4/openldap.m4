@@ -146,4 +146,9 @@ if test "$with_openldap" = yes ; then
   CPPFLAGS="$save_cppflags"
 
   AC_DEFINE([USE_OPENLDAP], [1], [If defined, using OpenLDAP for LDAP SDK])
+  # where to find ldapsearch, et. al.
+  ldaptool_bindir=$openldap_bindir
+  # default options to pass to the tools
+  # use -x because all of our scripts use simple bind
+  ldaptool_opts=-x
 fi

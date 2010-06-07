@@ -1305,6 +1305,8 @@ fixupcmd = sed \
 	-e 's,@nss_libdir\@,$(libdir),g' \
 	-e 's,@ldapsdk_libdir\@,$(libdir),g' \
 	-e 's,@ldapsdk_bindir\@,$(bindir),g' \
+	-e 's,@ldaptool_bindir\@,$(bindir),g' \
+	-e 's,@ldaptool_opts\@,$(ldaptool_opts),g' \
 	-e 's,@db_libdir\@,$(libdir),g' \
 	-e 's,@db_bindir\@,$(bindir),g' \
 	-e 's,@sasl_libdir\@,$(libdir),g' \
@@ -1360,6 +1362,8 @@ fixupcmd = sed \
 	-e 's,@nss_libdir\@,$(nss_libdir),g' \
 	-e 's,@ldapsdk_libdir\@,$(ldapsdk_libdir),g' \
 	-e 's,@ldapsdk_bindir\@,$(ldapsdk_bindir),g' \
+	-e 's,@ldaptool_bindir\@,$(ldaptool_bindir),g' \
+	-e 's,@ldaptool_opts\@,$(ldaptool_opts),g' \
 	-e 's,@db_libdir\@,$(db_libdir),g' \
 	-e 's,@db_bindir\@,$(db_bindir),g' \
 	-e 's,@sasl_libdir\@,$(sasl_libdir),g' \

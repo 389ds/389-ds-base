@@ -60,7 +60,7 @@ $verbose = 0;
 
 $prefix = "{{DS-ROOT}}";
 
-$ENV{'PATH'} = "$prefix@ldapsdk_bindir@:$prefix/usr/bin:@ldapsdk_bindir@:/usr/bin";
+$ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
 $ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 $ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 
@@ -147,6 +147,6 @@ if ($linkdn_arg ne "")
 }
 
 $entry = "${dn}${misc}${cn}${basedn}${linkdn}";
-open(FOO, "| ldapmodify $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);

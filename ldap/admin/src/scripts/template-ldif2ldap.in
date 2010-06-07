@@ -5,10 +5,10 @@ if [ "$prefix" = "/" ] ; then
     prefix=""
 fi
 
-PATH=$prefix@ldapsdk_bindir@:@ldapsdk_bindir@
+PATH=$prefix@ldaptool_bindir@:@ldaptool_bindir@
 LD_LIBRARY_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export LD_LIBRARY_PATH
 SHLIB_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export SHLIB_PATH
 
-ldapmodify -a -p {{SERVER-PORT}} -D "$1" -w "$2" -f $3
+ldapmodify @ldaptool_opts@ -a -p {{SERVER-PORT}} -D "$1" -w "$2" -f $3

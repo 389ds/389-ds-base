@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PATH=$prefix@ldapsdk_bindir@:@ldapsdk_bindir@
+PATH=$prefix@ldaptool_bindir@:@ldaptool_bindir@
 LD_LIBRARY_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
 export LD_LIBRARY_PATH
 SHLIB_PATH=$prefix@ldapsdk_libdir@:@ldapsdk_libdir@:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@
@@ -10,4 +10,4 @@ if [ "x$1" != "x" ];
 then MDN="$1";
 else MDN="cn=monitor";
  fi
-ldapsearch -p {{SERVER-PORT}} -b "$MDN" -s base "objectClass=*"
+ldapsearch @ldaptool_opts@ -p {{SERVER-PORT}} -b "$MDN" -s base "objectClass=*"
