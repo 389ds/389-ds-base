@@ -1684,7 +1684,11 @@ moddn_get_children(back_txn *ptxn,
                         if(slapi_dn_issuffix( backentry_get_ndn(e),
                                             slapi_sdn_get_ndn(dn_parentdn)))
                         {
-                            idl_append(result_idl,id);
+                            /*
+                             * The given ID list is not sorted.
+                             * We have to call idl_insert instead of idl_append.
+                             */
+                            idl_insert(&result_idl,id);
                         }
                     }
                     CACHE_RETURN(&inst->inst_cache, &e);
