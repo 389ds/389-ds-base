@@ -160,7 +160,11 @@ static int st_bind_core(SearchThread *st, LDAP **ld, char *dn, char *pw)
 	int ret = 0;
 	int retry = 0;
     while (1) {
-        ret = ldap_simple_bind_s(*ld, dn, pw);
+        struct berval bvcreds = {0, NULL};
+        bvcreds.bv_val = pw;
+        bvcreds.bv_len = pw ? strlen(pw) : 0;
+        ret = ldap_sasl_bind_s(*ld, dn, LDAP_SASL_SIMPLE, &bvcreds,
+                               NULL, NULL, NULL);
         if (LDAP_SUCCESS == ret) {
             break;
         } else if (LDAP_CONNECT_ERROR == ret && retry < 10) {
@@ -179,14 +183,46 @@ static int st_bind_core(SearchThread *st, LDAP **ld, char *dn, char *pw)
 static int st_bind(SearchThread *st)
 {
     if (!st->ld) {
+#if defined(USE_OPENLDAP)
+        int ret = 0;
+        char *ldapurl = NULL;
+
+        st->ld = NULL;
+        ldapurl = PR_smprintf("ldap://%s:%d", hostname, port);
+        ret = ldap_initialize(&st->ld, ldapurl);
+        PR_smprintf_free(ldapurl);
+        ldapurl = NULL;
+        if (ret) {
+            fprintf(stderr, "T%d: failed to init: %s port %d: %d:%s\n", st->id, hostname, port,
+                    ret, ldap_err2string(ret));
+            return 0;
+        }
+#else
         st->ld = ldap_init(hostname, port);
+#endif
         if (!st->ld) {
             fprintf(stderr, "T%d: failed to init\n", st->id);
             return 0;
         }
     }
     if (!st->ld2) {        /* aux LDAP handle */
+#if defined(USE_OPENLDAP)
+        int ret = 0;
+        char *ldapurl = NULL;
+
+        st->ld2 = NULL;
+        ldapurl = PR_smprintf("ldap://%s:%d", hostname, port);
+        ret = ldap_initialize(&st->ld2, ldapurl);
+        PR_smprintf_free(ldapurl);
+        ldapurl = NULL;
+        if (ret) {
+            fprintf(stderr, "T%d: failed to init: %s port %d: %d:%s\n", st->id, hostname, port,
+                    ret, ldap_err2string(ret));
+            return 0;
+        }
+#else
         st->ld2 = ldap_init(hostname, port);
+#endif
         if (!st->ld2) {
             fprintf(stderr, "T%d: failed to init 2\n", st->id);
             return 0;
@@ -230,8 +266,9 @@ static int st_bind(SearchThread *st)
                 timeout.tv_sec = 3600;
                 timeout.tv_usec = 0;
                 while (1) {
-                    int ret = ldap_search_st(st->ld2, suffix, scope, pFilter,
-                                  NULL, attrsOnly, &timeout, &result);
+                    int ret = ldap_search_ext_s(st->ld2, suffix, scope, pFilter,
+                                                NULL, attrsOnly, NULL, NULL,
+                                                &timeout, -1, &result);
                     if (LDAP_SUCCESS == ret) {
                         break;
                     } else if ((LDAP_CONNECT_ERROR == ret ||
@@ -289,7 +326,7 @@ static int st_bind(SearchThread *st)
 
 static void st_unbind(SearchThread *st)
 {
-    if (ldap_unbind(st->ld) != LDAP_SUCCESS)
+    if (ldap_unbind_ext(st->ld, NULL, NULL) != LDAP_SUCCESS)
 	fprintf(stderr, "T%d: failed to unbind\n", st->id);
     st->ld = NULL;
     st->soc = -1;
@@ -335,8 +372,8 @@ static int st_search(SearchThread *st)
         timeout.tv_usec = 0;
         timeoutp = &timeout;
     }
-    ret = ldap_search_st(st->ld, suffix, scope, pFilter, attrToReturn,
-                         attrsOnly, timeoutp, &result);
+    ret = ldap_search_ext_s(st->ld, suffix, scope, pFilter, attrToReturn,
+                            attrsOnly, NULL, NULL, timeoutp, -1, &result);
     if (ret != LDAP_SUCCESS) {
         fprintf(stderr, "T%d: failed to search 2, error=0x%02X\n",
                 st->id, ret);
@@ -388,7 +425,7 @@ static int st_modify_nonidx(SearchThread *st)
     attr_description.mod_type = "description";
     attr_description.mod_values = description_values;
 
-    rval = ldap_modify_s(st->ld, dn, attrs);
+    rval = ldap_modify_ext_s(st->ld, dn, attrs, NULL, NULL);
     if (rval != LDAP_SUCCESS) {
         fprintf(stderr, "T%d: Failed to modify error=0x%x\n", st->id, rval);
         fprintf(stderr, "dn: %s\n", dn);
@@ -431,7 +468,7 @@ static int st_modify_idx(SearchThread *st)
     attr_telephonenumber.mod_type = "telephonenumber";
     attr_telephonenumber.mod_values = telephonenumber_values;
 
-    rval = ldap_modify_s(st->ld, dn, attrs);
+    rval = ldap_modify_ext_s(st->ld, dn, attrs, NULL, NULL);
     if (rval != LDAP_SUCCESS) {
         fprintf(stderr, "T%d: Failed to modify error=0x%x\n", st->id, rval);
         fprintf(stderr, "dn: %s\n", dn);
@@ -448,6 +485,7 @@ static int st_compare(SearchThread *st)
     char *dn = NULL;
     char *uid = NULL;
     char uid0[100];
+    struct berval bvvalue = {0, NULL};
 
     /* Decide what entry to modify, for this we need a table */
     if (NULL == sdattable || sdt_getlen(sdattable) == 0) {
@@ -469,7 +507,9 @@ static int st_compare(SearchThread *st)
         uid0[0] = '@';        /* make it not matched */
         uid = uid0;
     }
-    rval = ldap_compare_s(st->ld, dn, "uid", uid);
+    bvvalue.bv_val = uid;
+    bvvalue.bv_len = uid ? strlen(uid) : 0;
+    rval = ldap_compare_ext_s(st->ld, dn, "uid", &bvvalue, NULL, NULL);
     correct_answer = compare_true ? LDAP_COMPARE_TRUE : LDAP_COMPARE_FALSE;
     if (rval == correct_answer) {
 		rval = LDAP_SUCCESS;
@@ -499,7 +539,7 @@ static int st_delete(SearchThread *st)
     } while (e < 0);
     dn = sdt_dn_get(sdattable, e);
 
-    rval = ldap_delete_s(st->ld, dn);
+    rval = ldap_delete_ext_s(st->ld, dn, NULL, NULL);
     if (rval != LDAP_SUCCESS) {
         if (rval == LDAP_NO_SUCH_OBJECT) {
 			rval = LDAP_SUCCESS;

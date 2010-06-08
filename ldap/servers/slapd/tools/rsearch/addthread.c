@@ -180,16 +180,33 @@ static void at_bind(AddThread *at)
 {
     int ret;
     int retry = 0;
+#if defined(USE_OPENLDAP)
+    char *ldapurl = NULL;
 
+    at->ld = NULL;
+    ldapurl = PR_smprintf("ldap://%s:%d", hostname, port);
+    ret = ldap_initialize(&at->ld, ldapurl);
+    PR_smprintf_free(ldapurl);
+    ldapurl = NULL;
+	if (ret) {
+        fprintf(stderr, "T%d: failed to init: %s port %d: %d:%s\n", at->id, hostname, port,
+                ret, ldap_err2string(ret));
+        return;
+	}
+#else
     at->ld = ldap_init(hostname, port);
+#endif
     if (! at->ld) {
         fprintf(stderr, "T%d: failed to init: %s port %d\n", at->id, hostname, port);
         return;
     }
     while (retry < 10)
     {
-        ret = ldap_simple_bind_s(at->ld, strlen(username) ? username : NULL,
-                                 strlen(password) ? password : NULL);
+        struct berval bvcreds = {0, NULL};
+        bvcreds.bv_val = password;
+        bvcreds.bv_len = password ? strlen(password) : 0;
+        ret = ldap_sasl_bind_s(at->ld, username, LDAP_SASL_SIMPLE, &bvcreds,
+                               NULL, NULL, NULL);
         if (LDAP_SUCCESS == ret) {
             return;        /* ok */
         } else if (LDAP_CONNECT_ERROR == ret) {
@@ -198,7 +215,7 @@ static void at_bind(AddThread *at)
             break;
         }
     }
-    fprintf(stderr, "T%d: failed to bind, ldap_simple_bind_s returned %d\n", 
+    fprintf(stderr, "T%d: failed to bind, ldap_sasl_bind_s returned %d\n", 
                    at->id,  ret);
 }
 
@@ -318,7 +335,7 @@ static int at_add(AddThread *at)
             fprintf(stderr, "'%s'\n", attrs[i]->mod_values[0]);
     }
 #endif
-    ret = ldap_add_s(at->ld, dn, attrs);
+    ret = ldap_add_ext_s(at->ld, dn, attrs, NULL, NULL);
 	if (ret != LDAP_SUCCESS) {
         fprintf(stderr, "T%d: failed to add, error = %d\n", at->id, ret);
     }
