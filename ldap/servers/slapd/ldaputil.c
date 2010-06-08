@@ -261,8 +261,9 @@ slapi_ldap_create_proxyauth_control (
     LDAPControl **ctrlp /* value to return */
 )
 {
-    BerElement *ber = NULL;
     int rc = 0;
+#if defined(USE_OPENLDAP)
+    BerElement *ber = NULL;
     int beropts = 0;
     char *berfmtstr = NULL;
     char *ctrloid = NULL;
@@ -270,9 +271,7 @@ slapi_ldap_create_proxyauth_control (
 
     /* note - there is currently no way to get the beroptions from the ld*,
        so we just hard code it here */
-#if defined(USE_OPENLDAP)
     beropts = LBER_USE_DER; /* openldap seems to use DER by default */
-#endif
     if (ctrlp == NULL) {
 	return LDAP_PARAM_ERROR;
     }
@@ -311,7 +310,13 @@ slapi_ldap_create_proxyauth_control (
     rc = ldap_control_create(ctrloid, ctl_iscritical, bv, 1, ctrlp);
     ber_bvfree(bv);
     ber_free(ber, 1);
-
+#else
+    if (usev2) {
+        rc = ldap_create_proxiedauth_control(ld, dn, ctrlp);
+    } else {
+        rc = ldap_create_proxyauth_control(ld, dn, ctl_iscritical, ctrlp);
+    }
+#endif
     return rc;
 }
 
