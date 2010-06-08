@@ -372,7 +372,10 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man1/rsearch.1 \
         man/man8/migrate-ds.pl.8 \
         man/man8/ns-slapd.8 \
+        man/man8/restart-dirsrv.8 \
         man/man8/setup-ds.pl.8 \
+        man/man8/start-dirsrv.8 \
+        man/man8/stop-dirsrv.8 \
 	man/man8/remove-ds.pl.8
 
 #------------------------
