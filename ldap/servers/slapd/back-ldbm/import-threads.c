@@ -2140,8 +2140,6 @@ import_foreman(void *param)
                 char *new_dn = NULL;
                 char *orig_dn = 
                       slapi_ch_strdup(slapi_entry_get_dn(fi->entry->ep_entry));
-                struct berval *vals[2];
-                struct berval val;
                 int rc = 0;
                 nsuniqueid = attrlist_find(fi->entry->ep_entry->e_attrs,
                                            "nsuniqueid");

@@ -5037,10 +5037,48 @@ int slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all );
 /*
  * thread-safe LDAP connections
  */
+/**
+ * Initializes an LDAP connection, and returns a handle to the connection.
+ *
+ * \param ldaphost Hostname or IP address - NOTE: for TLS or GSSAPI, should be the FQDN
+ * \param ldapport LDAP server port number (default 389)
+ * \param secure \c 0 - LDAP \c 1 - LDAPS \c 2 - startTLS
+ * \param shared \c 0 - single thread access \c 1 - LDAP* will be shared among multiple threads
+ * \return A pointer to an LDAP* handle
+ *
+ * \note Use #slapi_ldap_unbind() to close and free the handle
+ *
+ * \see slapi_ldap_unbind()
+ * \see slapi_ldap_init_ext()
+ */
 LDAP *slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared );
+/**
+ * Closes an LDAP connection, and frees memory associated with the handle
+ *
+ * \param ld the LDAP connection handle
+ *
+ * \see slapi_ldap_init()
+ * \see slapi_ldap_init_ext()
+ */
 void slapi_ldap_unbind( LDAP *ld );
-LDAP *
-slapi_ldap_init_ext(
+/**
+ * Initializes an LDAP connection, and returns a handle to the connection.
+ *
+ * \param ldapurl A full LDAP url in the form ldap[s]://hostname:port or
+ *                ldapi://path - if \c NULL, #hostname, #port, and #secure must be provided
+ * \param hostname Hostname or IP address - NOTE: for TLS or GSSAPI, should be the FQDN
+ * \param port LDAP server port number (default 389)
+ * \param secure \c 0 - LDAP \c 1 - LDAPS \c 2 - startTLS
+ * \param shared \c 0 - single thread access \c 1 - LDAP* will be shared among multiple threads
+ * \param filename - currently not supported
+ * \return A pointer to an LDAP* handle
+ *
+ * \note Use #slapi_ldap_unbind() to close and free the handle
+ *
+ * \see slapi_ldap_unbind()
+ * \see slapi_ldap_init()
+ */
+LDAP *slapi_ldap_init_ext(
     const char *ldapurl, /* full ldap url */
     const char *hostname, /* can also use this to override
                              host in url */
@@ -5050,8 +5088,30 @@ slapi_ldap_init_ext(
     int shared, /* if true, LDAP* will be shared among multiple threads */
     const char *filename /* for ldapi */
 );
-int
-slapi_ldap_bind(
+/**
+ * The LDAP bind request - this function handles all of the different types of mechanisms
+ * including simple, sasl, and external (client cert auth)
+ *
+ * \param ld the LDAP connection handle
+ * \param bindid Either a bind DN for simple bind or a SASL identity
+ * \param creds usually a password for simple bind or SASL credentials
+ * \param mech a valid mech that can be passed to ldap_sasl_bind (or NULL for simple)
+ * \param serverctrls optional controls to send (or NULL)
+ * \param returnedctrls optional controls returned by the server - use NULL if you just
+ *                      want to ignore them - if you pass in a variable for this, you
+ *                      are responsible for freeing the result (ldap_controls_free)
+ * \param timeout timeout or NULL for no timeout (wait forever)
+ * \param msgidp LDAP message ID \c NULL - call bind synchronously \c non-NULL -
+ *               call bind asynchronously - you are responsible for calling ldap_result
+ *               to read the response
+ * \return an LDAP error code
+ *
+ * \see ldap_sasl_bind()
+ * \see ldap_sasl_bind_s()
+ * \see ldap_controls_free()
+ * \see ldap_result()
+ */
+int slapi_ldap_bind(
     LDAP *ld, /* ldap connection */
     const char *bindid, /* usually a bind DN for simple bind */
     const char *creds, /* usually a password for simple bind */
@@ -5062,8 +5122,20 @@ slapi_ldap_bind(
     int *msgidp /* pass in non-NULL for async handling */
 );
 
-int
-slapi_ldap_create_proxyauth_control (
+/**
+ * Create either a v1 Proxy Auth Control or a v2 Proxied Auth Control
+ *
+ * \param ld the LDAP connection handle
+ * \param dn The proxy DN
+ * \param creds usually a password for simple bind or SASL credentials
+ * \param ctl_iscritical \c 0 - not critical \c 1 - critical
+ * \param usev2 \c 0 - use the v1 Proxy Auth \c 1 - use the v2 Proxied Auth
+ * \param ctrlp the control to send - caller is responsible for freeing (ldap_control_free)
+ * \return an LDAP error code
+ *
+ * \see ldap_control_free()
+ */
+int slapi_ldap_create_proxyauth_control (
     LDAP *ld, /* only used to get current ber options */
     const char *dn, /* proxy dn */
     const char ctl_iscritical,
@@ -5071,8 +5143,27 @@ slapi_ldap_create_proxyauth_control (
     LDAPControl **ctrlp /* value to return */
 );
 
-int
-slapi_ldif_parse_line(
+/**
+ * Parse a line from an LDIF record returned by ldif_getline() and return the LDAP
+ * attribute type and value from the line.  ldif_getline() will encode the LDIF continuation
+ * lines, and slapi_ldif_parse_line() will take those into consideration when returning the
+ * value.
+ *
+ * \param line LDIF record line returned by ldif_getline()
+ * \param type The attribute type returned
+ * \param value The attribute value returned
+ * \param freeval \c NULL - use malloc for the value->bv_val - caller is responsible for freeing
+ *                \c an int* - slapi_ldif_parse_line will usually return pointers into the line
+ *                parameter that should not be freed - if slapi_ldif_parse_line needs to allocate
+ *                memory for the value, *freeval will be set to 1 to indicate the caller must
+ *                free value->bv_val
+ * \return \c 0 - success \c 1 - failure
+ *
+ * \note line is written to - you must pass in writable memory - line must be NULL terminated
+ *
+ * \see ldif_getline()
+ */
+int slapi_ldif_parse_line(
     char *line, /* line to parse */
     struct berval *type, /* attribute type to return */
     struct berval *value, /* attribute value to return */

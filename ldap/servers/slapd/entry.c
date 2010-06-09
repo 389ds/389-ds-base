@@ -437,7 +437,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 						/* Give up normalizing the attribute value */
 						LDAPDebug2Args(LDAP_DEBUG_TRACE,
 							       "str2entry_fast: Invalid DN value: %s: %s\n",
-							       type, valuecharptr);
+							       type.bv_val, value.bv_val);
 						dn_aval = value.bv_val;
 						dnlen = value.bv_len;
 					} else if (rc == 0) { /* rc == 0; valuecharptr is passed in;

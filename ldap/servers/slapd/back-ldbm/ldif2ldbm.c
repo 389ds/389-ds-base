@@ -2475,7 +2475,6 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     char *src_dbversion = NULL;
     char *dest_dbversion = NULL;
     int up_flags;
-    int i;
     Slapi_Task *task;
     char inst_dir[MAXPATHLEN];
     char *inst_dirp = NULL;
