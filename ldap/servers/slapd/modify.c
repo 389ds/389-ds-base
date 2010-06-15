@@ -529,6 +529,7 @@ static int modify_internal_pb (Slapi_PBlock *pb)
 			if (pw_change == -1)
 			{
 				/* The internal result code will already have been set by op_shared_allow_pw_change() */
+				ldap_mods_free(normalized_mods, 1);
 				return 0;
 			}
 		}
