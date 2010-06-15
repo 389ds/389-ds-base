@@ -244,7 +244,7 @@ _ger_parse_control (
 			return LDAP_OPERATIONS_ERROR;
 		}
 		/* "a" means to allocate storage as needed for octet string */
-		if ( ber_scanf (ber, "a", orig) == LBER_ERROR )
+		if ( ber_scanf (ber, "a", &orig) == LBER_ERROR )
 		{
 			aclutil_str_append ( errbuf, "get-effective-rights: invalid ber tag in the subject" );
 			slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
@@ -259,7 +259,7 @@ _ger_parse_control (
 	 * (see section 9 of RFC 2829) only. It also only supports the "dnAuthzId"
 	 * flavor, which looks like "dn:<DN>" where null <DN> is for anonymous.
 	 */
-	subjectndnlen = strlen(orig);
+	subjectndnlen = orig ? strlen(orig) : 0;
 	if ( NULL == orig || subjectndnlen < 3 || strncasecmp ( "dn:", orig, 3 ) != 0 )
 	{
 		aclutil_str_append ( errbuf, "get-effective-rights: subject is not dnAuthzId" );
