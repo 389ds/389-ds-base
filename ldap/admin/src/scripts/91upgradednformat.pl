@@ -11,8 +11,15 @@ use File::Copy;
 #     recursively copy the instance dir to the work dir (dnupgrade)
 #     run upgradednformat w/o -N against the DB in the work dir
 #     if it went ok, replace the original instance dir with the work dir.
+# Note: This script does nothing if the server is up.
 sub runinst {
     my ($inf, $inst, $dseldif, $conn) = @_;
+
+    # First, check if the server is up or down.
+    if ($conn->isa("Mozilla::LDAP::Conn")) {
+        # The server is up, we do nothing.
+        return ();
+    }
 
     my @errs;
 
