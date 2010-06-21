@@ -808,3 +808,15 @@ objectClasses: (  2.16.840.1.113719.2.142.6.1.1  NAME 'ldapSubEntry'
 #
 ################################################################################
 #
+attributeTypes: ( 1.3.1.1.4.1.453.16.2.103 NAME 'numSubordinates'
+  DESC 'count of immediate subordinates'
+  EQUALITY integerMatch
+  ORDERING integerOrderingMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  NO-USER-MODIFICATION
+  USAGE directoryOperation
+  X-ORIGIN 'numSubordinates Internet Draft' )
+#
+################################################################################
+#
