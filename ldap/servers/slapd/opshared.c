@@ -1370,12 +1370,14 @@ compute_limits (Slapi_PBlock *pb)
         }
     }
 
-    if ( requested_timelimit == 0 ) {
-            timelimit = ( max_timelimit == -1 ) ? -1 : max_timelimit;
+    if ( isroot ) {
+        timelimit = max_timelimit = -1;    /* no limit */
+    } else if ( requested_timelimit == 0 ) {
+        timelimit = ( max_timelimit == -1 ) ? -1 : max_timelimit;
     } else if ( max_timelimit == -1 || requested_timelimit < max_timelimit ) {
-            timelimit = requested_timelimit;
+        timelimit = requested_timelimit;
     } else {
-            timelimit = max_timelimit;
+        timelimit = max_timelimit;
     }
 
  set_timelimit:
@@ -1399,12 +1401,14 @@ compute_limits (Slapi_PBlock *pb)
         }
     }
 
-    if ( requested_sizelimit == 0 ) {
-            sizelimit = ( max_sizelimit == -1 ) ? -1 : max_sizelimit;
+    if ( isroot ) {
+        sizelimit = max_sizelimit = -1;
+    } else if ( requested_sizelimit == 0 ) {
+        sizelimit = ( max_sizelimit == -1 ) ? -1 : max_sizelimit;
     } else if ( max_sizelimit == -1 || requested_sizelimit < max_sizelimit ) {
-            sizelimit = requested_sizelimit;
+        sizelimit = requested_sizelimit;
     } else {
-            sizelimit = max_sizelimit;
+        sizelimit = max_sizelimit;
     }
     slapi_pblock_set(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
 
