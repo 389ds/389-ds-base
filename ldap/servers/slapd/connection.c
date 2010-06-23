@@ -2181,6 +2181,14 @@ connection_threadmain()
 					g_decr_active_threadcnt();
 					return;
 				case CONN_FOUND_WORK_TO_DO:
+					/* note - don't need to lock here - connection should only
+					   be used by this thread - since c_gettingber is set to 1
+					   in connection_activity when the conn is added to the
+					   work queue, setup_pr_read_pds won't add the connection prfd
+					   to the poll list */
+					if (connection_call_io_layer_callbacks(pb->pb_conn)) {
+						LDAPDebug0Args( LDAP_DEBUG_ANY, "Error: could not add/remove IO layers from connection\n" );
+					}
 				default:
 					break;
 			}
@@ -2194,6 +2202,9 @@ connection_threadmain()
 			PR_Lock(conn->c_mutex);
 			/* Make our own pb in turbo mode */
 			connection_make_new_pb(&pb,conn);
+			if (connection_call_io_layer_callbacks(conn)) {
+				LDAPDebug0Args( LDAP_DEBUG_ANY, "Error: could not add/remove IO layers from connection\n" );
+			}
 			PR_Unlock(conn->c_mutex);
 			if (! config_check_referral_mode()) {
 			  slapi_counter_increment(ops_initiated);
@@ -2775,3 +2786,31 @@ connection_abandon_operations( Connection *c )
 		}
 	}
 }
+
+/* must be called within c->c_mutex */
+void
+connection_set_io_layer_cb( Connection *c, Conn_IO_Layer_cb push_cb, Conn_IO_Layer_cb pop_cb, void *cb_data )
+{
+	c->c_push_io_layer_cb = push_cb;
+	c->c_pop_io_layer_cb = pop_cb;
+	c->c_io_layer_cb_data = cb_data;
+}
+
+/* must be called within c->c_mutex */
+int
+connection_call_io_layer_callbacks( Connection *c )
+{
+	int rv = 0;
+	if (c->c_pop_io_layer_cb) {
+		rv = (c->c_pop_io_layer_cb)(c, c->c_io_layer_cb_data);
+		c->c_pop_io_layer_cb = NULL;
+	}
+	if (!rv && c->c_push_io_layer_cb) {
+		rv = (c->c_push_io_layer_cb)(c, c->c_io_layer_cb_data);
+		c->c_push_io_layer_cb = NULL;
+	}
+	c->c_io_layer_cb_data = NULL;
+
+	return rv;
+}
+

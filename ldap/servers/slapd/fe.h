@@ -116,6 +116,8 @@ int connection_operations_pending( Connection *conn, Operation *op2ignore,
 void connection_done(Connection *conn);
 void connection_cleanup(Connection *conn);
 void connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is_SSL);
+void connection_set_io_layer_cb( Connection *c, Conn_IO_Layer_cb push_cb, Conn_IO_Layer_cb pop_cb, void *cb_data );
+int connection_call_io_layer_callbacks( Connection *c );
 
 /*
  * conntable.c
@@ -182,7 +184,8 @@ void configure_ns_socket( int * ns );
 /*
  * sasl_io.c
  */
-int sasl_io_enable(Connection *c);
+int sasl_io_enable(Connection *c, void *data);
+int sasl_io_cleanup(Connection *c, void *data);
 
 /*
  * sasl_map.c
