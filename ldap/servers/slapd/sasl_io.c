@@ -481,20 +481,33 @@ sasl_io_write(PRFileDesc *fd, const void *buf, PRInt32 amount)
 }
 
 static PRStatus PR_CALLBACK
-sasl_pop_IO_layer(PRFileDesc* stack)
+sasl_pop_IO_layer(PRFileDesc* stack, int doclose)
 {
     PRFileDesc* layer = NULL;
     sasl_io_private *sp = NULL;
+    PRStatus rv = 0;
+    PRDescIdentity id = PR_TOP_IO_LAYER;
 
     /* see if stack has the sasl io layer */
-    if (!sasl_LayerID || !stack || !PR_GetIdentitiesLayer(stack, sasl_LayerID)) {
+    if (!sasl_LayerID || !stack) {
         LDAPDebug0Args( LDAP_DEBUG_CONNS,
                         "sasl_pop_IO_layer: no SASL IO layer\n" );
         return PR_SUCCESS;
     }
 
+    /* if we're not being called during PR_Close, then we just want to
+       pop the sasl io layer if it is on the stack */
+    if (!doclose) {
+        id = sasl_LayerID;
+        if (!PR_GetIdentitiesLayer(stack, id)) {
+            LDAPDebug0Args( LDAP_DEBUG_CONNS,
+                            "sasl_pop_IO_layer: no SASL IO layer\n" );
+            return PR_SUCCESS;
+        }
+    }
+
     /* remove the layer from the stack */
-    layer = PR_PopIOLayer(stack, sasl_LayerID);
+    layer = PR_PopIOLayer(stack, id);
     if (!layer) {
         LDAPDebug0Args( LDAP_DEBUG_CONNS,
                         "sasl_pop_IO_layer: error - could not pop SASL IO layer\n" );
@@ -517,23 +530,29 @@ sasl_pop_IO_layer(PRFileDesc* stack)
         layer->dtor(layer);
     }
 
-    return PR_SUCCESS;
+    if (doclose) {
+        rv = stack->methods->close(stack);
+    } else {
+        rv = PR_SUCCESS;
+    }
+
+    return rv;
 }
 
 static PRStatus PR_CALLBACK
 closeLayer(PRFileDesc* stack)
 {
+    PRStatus rv = 0;
     LDAPDebug0Args( LDAP_DEBUG_CONNS,
                     "closeLayer: closing SASL IO layer\n" );
-    if (PR_FAILURE == sasl_pop_IO_layer(stack)) {
+    rv = sasl_pop_IO_layer(stack, 1 /* do close */);
+    if (PR_SUCCESS != rv) {
         LDAPDebug0Args( LDAP_DEBUG_CONNS,
-                        "closeLayer: error closing SASL IO layer\n" );
-        return PR_FAILURE;
+                    "closeLayer: error closing SASL IO layer\n" );
+        return rv;
     }
 
-    LDAPDebug0Args( LDAP_DEBUG_CONNS,
-                    "closeLayer: calling PR_Close to close other layers\n" );
-    return PR_Close(stack);
+    return rv;
 }
 
 static PRStatus PR_CALLBACK
@@ -561,22 +580,28 @@ initialize(void)
 /*
  * Push the SASL I/O layer on top of the current NSPR I/O layer of the prfd used
  * by the connection.
+ * must be called with the connection lock (c_mutex) held or in a condition in which
+ * no other threads are accessing conn->c_prfd
  */
 int
-sasl_io_enable(Connection *c)
+sasl_io_enable(Connection *c, void *data /* UNUSED */)
 {
     PRStatus rv = PR_CallOnce(&sasl_callOnce, initialize);
     if (PR_SUCCESS == rv) {
-        PRFileDesc* layer = PR_CreateIOLayerStub(sasl_LayerID, &sasl_IoMethods);
-        sasl_io_private *sp = (sasl_io_private*) slapi_ch_calloc(1, sizeof(sasl_io_private));
+        PRFileDesc* layer = NULL;
+        sasl_io_private *sp = NULL;
 
+        if ( c->c_flags & CONN_FLAG_CLOSING ) {
+            slapi_log_error( SLAPI_LOG_FATAL, "sasl_io_enable",
+                             "Cannot enable SASL security on connection in CLOSING state\n");
+            return PR_FAILURE;
+        }
+        layer = PR_CreateIOLayerStub(sasl_LayerID, &sasl_IoMethods);
+        sp = (sasl_io_private*) slapi_ch_calloc(1, sizeof(sasl_io_private));
         sasl_io_init_buffers(sp);
         layer->secret = sp;
-
-        PR_Lock( c->c_mutex );
         sp->conn = c;
         rv = PR_PushIOLayer(c->c_prfd, PR_TOP_IO_LAYER, layer);
-        PR_Unlock( c->c_mutex );
         if (rv) {
             LDAPDebug( LDAP_DEBUG_ANY,
                        "sasl_io_enable: error enabling sasl io on connection %" NSPRIu64 " %d:%s\n", c->c_connid, rv, slapd_pr_strerror(rv) );
@@ -592,17 +617,17 @@ sasl_io_enable(Connection *c)
 /*
  * Remove the SASL I/O layer from the top of the current NSPR I/O layer of the prfd used
  * by the connection.  Must either be called within the connection lock, or be
- * called while the connection is not being referenced by another thread.
+ * called while the connection (c_prfd) is not being referenced by another thread.
  */
 int
-sasl_io_cleanup(Connection *c)
+sasl_io_cleanup(Connection *c, void *data /* UNUSED */)
 {
     int ret = 0;
 
     LDAPDebug( LDAP_DEBUG_CONNS,
                "sasl_io_cleanup for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
 
-    ret = sasl_pop_IO_layer(c->c_prfd);
+    ret = sasl_pop_IO_layer(c->c_prfd, 0 /* do not close */);
 
     c->c_sasl_ssf = 0;
 

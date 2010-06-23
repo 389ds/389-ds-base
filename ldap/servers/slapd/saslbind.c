@@ -800,10 +800,12 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     PR_ASSERT(pb);
     PR_ASSERT(pb->pb_conn);
 
+    PR_Lock(pb->pb_conn->c_mutex);
     continuing = pb->pb_conn->c_flags & CONN_FLAG_SASL_CONTINUE;
     pb->pb_conn->c_flags &= ~CONN_FLAG_SASL_CONTINUE; /* reset flag */
 
     sasl_conn = (sasl_conn_t*)pb->pb_conn->c_sasl_conn;
+    PR_Unlock(pb->pb_conn->c_mutex);
     if (sasl_conn == NULL) {
         send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                           "sasl library unavailable", 0, NULL );
@@ -820,6 +822,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
      * library that CRAM-MD5 is disabled, but it gives us a
      * different error code to SASL_NOMECH.
      */
+    /* richm - this locks and unlocks pb->pb_conn */
     if (!ids_sasl_mech_supported(pb, sasl_conn, mech)) {
       rc = SASL_NOMECH;
       goto sasl_check_result;
@@ -857,30 +860,33 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
      * using the new mechanism.  We also need to do this if the
      * mechanism changed in the middle of the SASL authentication
      * process. */
+    PR_Lock(pb->pb_conn->c_mutex);
     if ((pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
+        Slapi_Operation *operation;
+        slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
+        slapi_log_error(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                        "cleaning up sasl IO conn=%d op=%d complete=%d continuing=%d\n",
+                        pb->pb_conn->c_connid, operation->o_opid,
+                        (pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE), continuing);
         /* reset flag */
         pb->pb_conn->c_flags &= ~CONN_FLAG_SASL_COMPLETE;
 
-        /* Lock the connection mutex */
-        PR_Lock(pb->pb_conn->c_mutex);
-
         /* remove any SASL I/O from the connection */
-        sasl_io_cleanup(pb->pb_conn);
+        connection_set_io_layer_cb(pb->pb_conn, NULL, sasl_io_cleanup, NULL);
 
         /* dispose of sasl_conn and create a new sasl_conn */
         sasl_dispose(&sasl_conn);
         ids_sasl_server_new(pb->pb_conn);
         sasl_conn = (sasl_conn_t*)pb->pb_conn->c_sasl_conn;
 
-        /* Unlock the connection mutex */
-        PR_Unlock(pb->pb_conn->c_mutex);
-
         if (sasl_conn == NULL) {
             send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                           "sasl library unavailable", 0, NULL );
+            PR_Unlock(pb->pb_conn->c_mutex);
             return;
         }
     }
+    PR_Unlock(pb->pb_conn->c_mutex);
 
     rc = sasl_server_start(sasl_conn, mech, 
                            cred->bv_val, cred->bv_len, 
@@ -890,9 +896,6 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
     switch (rc) {
     case SASL_OK:               /* complete */
-        /* Set a flag to signify that sasl bind is complete */
-        pb->pb_conn->c_flags |= CONN_FLAG_SASL_COMPLETE;
-
         /* retrieve the authenticated username */
         if (sasl_getprop(sasl_conn, SASL_USERNAME,
                          (const void**)&username) != SASL_OK) {
@@ -922,6 +925,35 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         }
 
         slapi_pblock_set( pb, SLAPI_BIND_TARGET, slapi_ch_strdup( dn ) );
+        /* see if we negotiated a security layer */
+        if ((sasl_getprop(sasl_conn, SASL_SSF, 
+                          (const void**)&ssfp) == SASL_OK) && (*ssfp > 0)) {
+            LDAPDebug(LDAP_DEBUG_TRACE, "sasl ssf=%u\n", (unsigned)*ssfp, 0, 0);
+        } else {
+            *ssfp = 0;
+        }
+
+        /* this is stuff we have to do inside the conn mutex */
+        PR_Lock(pb->pb_conn->c_mutex);
+        /* Set a flag to signify that sasl bind is complete */
+        pb->pb_conn->c_flags |= CONN_FLAG_SASL_COMPLETE;
+        /* note - we set this here in case there are pre-bind
+           plugins that want to know what the negotiated
+           ssf is - but this happens before we actually set
+           up the socket for SASL encryption - so one
+           consequence is that we attempt to do sasl
+           encryption on the connection after the pre-bind
+           plugin has been called, and sasl encryption fails
+           and the operation returns an error */
+        pb->pb_conn->c_sasl_ssf = (unsigned)*ssfp;
+
+        /* set the connection bind credentials */
+        PR_snprintf(authtype, sizeof(authtype), "%s%s", SLAPD_AUTH_SASL, mech);
+        bind_credentials_set_nolock(pb->pb_conn, authtype, dn, 
+                                    NULL, NULL, NULL, bind_target_entry);
+
+        PR_Unlock(pb->pb_conn->c_mutex);
+
         if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) != 0){
             break;
         }
@@ -941,26 +973,6 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
                 break;
             }
         }
-
-        /* see if we negotiated a security layer */
-        if ((sasl_getprop(sasl_conn, SASL_SSF, 
-                          (const void**)&ssfp) == SASL_OK) && (*ssfp > 0)) {
-            LDAPDebug(LDAP_DEBUG_TRACE, "sasl ssf=%u\n", (unsigned)*ssfp, 0, 0);
-
-            /* Enable SASL I/O on the connection now */
-            if (0 != sasl_io_enable(pb->pb_conn) ) {
-                send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
-                                 "failed to enable sasl i/o",
-                                 0, NULL);
-            }
-	        /* Set the SSF in the connection */
-	        pb->pb_conn->c_sasl_ssf = (unsigned)*ssfp;
-        }
-
-        /* set the connection bind credentials */
-        PR_snprintf(authtype, sizeof(authtype), "%s%s", SLAPD_AUTH_SASL, mech);
-        bind_credentials_set(pb->pb_conn, authtype, dn, 
-                             NULL, NULL, NULL, bind_target_entry);
 
         /* set the auth response control if requested */
         slapi_pblock_get(pb, SLAPI_REQCONTROLS, &ctrls);
@@ -1017,10 +1029,16 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, &bvr);
         }
 
+        /* see if we negotiated a security layer */
+        if (*ssfp > 0) {
+            /* Enable SASL I/O on the connection */
+            PR_Lock(pb->pb_conn->c_mutex);
+            connection_set_io_layer_cb(pb->pb_conn, sasl_io_enable, NULL, NULL);
+            PR_Unlock(pb->pb_conn->c_mutex);
+        }
+
         /* send successful result */
         send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
-
-        /* TODO: enable sasl security layer */
 
         /* remove the sasl data from the pblock */
         slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, NULL);

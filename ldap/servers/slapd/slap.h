@@ -1253,6 +1253,8 @@ typedef struct op {
  * represents a connection from an ldap client
  */
 
+typedef int (*Conn_IO_Layer_cb)(struct conn*, void *data);
+
 struct Conn_Private;
 typedef struct Conn_private Conn_private;
 
@@ -1308,6 +1310,11 @@ typedef struct conn {
     int             c_sort_result_code;    /* sort result put in response */
     time_t          c_timelimit;           /* time limit for this connection */
     /* PAGED_RESULTS ENDS */
+    /* IO layer push/pop */
+    Conn_IO_Layer_cb c_push_io_layer_cb; /* callback to push an IO layer on the conn->c_prfd */
+    Conn_IO_Layer_cb c_pop_io_layer_cb; /* callback to pop an IO layer off of the conn->c_prfd */
+    void             *c_io_layer_cb_data; /* callback data */
+
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 
