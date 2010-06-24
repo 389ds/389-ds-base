@@ -1241,7 +1241,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         ++sr->sr_lookthroughcount;    /* checked above */
 
         /* get the entry */
-        if ( (e = id2entry( be, id, NULL, &err )) == NULL )
+        e = id2entry_ext( be, id, NULL, &err, ID2ENTRY_ADD_ENTRYDN );
+        if ( e == NULL )
         {
             if ( err != 0 && err != DB_NOTFOUND )
             {

@@ -817,7 +817,7 @@ index_read_ext(
 	DB		*db = NULL;
 	DB_TXN 		*db_txn = NULL;
 	DBT   		key = {0};
-	IDList		*idl;
+	IDList		*idl = NULL;
 	char		*prefix;
 	char		*tmpbuf = NULL;
 	char		buf[BUFSIZ];
@@ -849,6 +849,35 @@ index_read_ext(
 
 	LDAPDebug( LDAP_DEBUG_ARGS, "   indextype: \"%s\" indexmask: 0x%x\n",
 	    indextype, ai->ai_indexmask, 0 );
+
+	/* If entryrdn switch is on AND the type is entrydn AND the prefix is '=', 
+	 * use the entryrdn index directly */
+	if (entryrdn_get_switch() && (*prefix == '=') && 
+		(0 == PL_strcasecmp(basetype, LDBM_ENTRYDN_STR))) {
+		int rc = 0;
+		ID id = 0;
+		Slapi_DN sdn = {0};
+
+		/* We don't need these values... */
+		index_free_prefix( prefix );
+		slapi_ch_free_string( &basetmp );
+		if (NULL == val || NULL == val->bv_val) {
+			/* entrydn value was not given */
+			return NULL;
+		}
+		slapi_sdn_init_dn_byval(&sdn, val->bv_val);
+		rc = entryrdn_index_read(be, &sdn, &id, txn);
+		slapi_sdn_done(&sdn);
+		if (rc) { /* failure */
+			return NULL;
+		} else {  /* success */
+			rc = idl_append_extend(&idl, id);
+			if (rc) { /* failure */
+				return NULL;
+			}
+			return idl;
+		}
+	}
 
 	if ( !is_indexed( indextype, ai->ai_indexmask, ai->ai_index_rules ) ) {
 		idl =  idl_allids( be );

@@ -208,7 +208,7 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
 }
 
 struct backentry *
-id2entry( backend *be, ID id, back_txn *txn, int *err  )
+id2entry_ext( backend *be, ID id, back_txn *txn, int *err, int flags  )
 {
     ldbm_instance    *inst = (ldbm_instance *) be->be_instance_info;
     DB               *db = NULL;
@@ -376,6 +376,29 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
     }
 
 bail:
+    /* 
+     * If return entry exists AND adding entrydn is requested AND
+     * entryrdn switch is on, add the entrydn value.
+     */
+    if (e && e->ep_entry && (flags & ID2ENTRY_ADD_ENTRYDN) &&
+        entryrdn_get_switch()) {
+        Slapi_Attr *eattr = NULL;
+        /* Check if entrydn is in the entry or not */
+        if (slapi_entry_attr_find(e->ep_entry, "entrydn", &eattr)) {
+            /* entrydn does not exist in the entry */
+            char *entrydn = NULL;
+            /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
+            entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
+            entrydn = slapi_dn_ignore_case(entrydn);
+            slapi_entry_attr_set_charptr (e->ep_entry, "entrydn", entrydn);
+            if (0 == slapi_entry_attr_find(e->ep_entry, "entrydn", &eattr)) {
+                /* now entrydn should exist in the entry */
+                /* Set it to operational attribute */
+                eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
+            }
+            slapi_ch_free_string(&entrydn);
+        }
+    }
     slapi_ch_free( &(data.data) );
 
     dblayer_release_id2entry( be, db );
@@ -383,5 +406,11 @@ bail:
     slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
                     "<= id2entry( %lu ) %p (disk)\n", (u_long)id, e);
     return( e );
+}
+
+struct backentry *
+id2entry( backend *be, ID id, back_txn *txn, int *err  )
+{
+    return id2entry_ext(be, id, txn, err, 0);
 }
 
