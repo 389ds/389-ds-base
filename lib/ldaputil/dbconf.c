@@ -503,6 +503,7 @@ int dbconf_read_default_dbinfo_sub (const char *file,
     {
 	if (!strcmp(db_info->dbname, DBCONF_DEFAULT_DBNAME)) break;
 	dbconf_free_dbinfo(db_info);
+	db_info = NULL;
     }
 
     if (rv != LDAPU_SUCCESS) {
