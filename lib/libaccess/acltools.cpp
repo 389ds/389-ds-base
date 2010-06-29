@@ -2131,8 +2131,10 @@ open_cleanup:
 	if (rv<0) {
 		if (*file)
 			fclose(*file);
-		if (*buf)
+		if (*buf) {
 			PERM_FREE(*buf);
+			*buf = NULL;
+		}
 	}
 	return rv;
 }
@@ -2152,7 +2154,9 @@ close_file_buf(FILE * file, char * filename, char * mode, char * buf)
 		fwrite(buf,1,strlen(buf),file);  
 		fclose(file);
 	}
-	PERM_FREE(buf);
+	if (*buf) {
+		PERM_FREE(buf);
+	}
 }
 
 
