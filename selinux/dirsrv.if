@@ -189,6 +189,7 @@ interface(`dirsrv_exec_lib',`
 
 	allow $1 dirsrv_lib_t:dir search_dir_perms;
 	allow $1 dirsrv_lib_t:file exec_file_perms;
+	allow $1 dirsrv_lib_t:link_file exec_file_perms;
 	# Not all platforms include ioctl in exec_file_perms
 	allow $1 dirsrv_lib_t:file ioctl;
 ')
