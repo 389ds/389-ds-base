@@ -112,7 +112,7 @@ create_ReplicationExtopPayload(const char *protocol_oid,
 	struct berval *req_data = NULL;
 	BerElement *tmp_bere = NULL;
 	int rc = 0;
-    Object  *repl_obj, *ruv_obj = NULL;
+    Object  *repl_obj = NULL, *ruv_obj = NULL;
 	Replica *repl;
     RUV *ruv;
     Slapi_DN *sdn = NULL;
