@@ -165,6 +165,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 	CSN *maxcsn = NULL;
 	char *normdn = NULL;
 	int strict = 0;
+	Slapi_Attr **a = NULL;
 
     /* Check if we should be performing strict validation. */
     strict = config_get_dn_validate_strict();
@@ -206,7 +207,6 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 	while ( (s = ldif_getline( &next )) != NULL &&
 	         attr_val_cnt < ENTRY_MAX_ATTRIBUTE_VALUE_COUNT )
 	{
-		Slapi_Attr **a;
 		char *valuecharptr=NULL;
 #if defined(USE_OPENLDAP)
 		ber_len_t valuelen;
