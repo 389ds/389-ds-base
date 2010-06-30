@@ -372,15 +372,20 @@ static void op_shared_delete (Slapi_PBlock *pb)
 	}
 
 free_and_return:
-	if (be)
+	if (be) {
 		slapi_be_Unlock(be);
-	slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
-	slapi_entry_free(ecopy);
-	slapi_pblock_get ( pb, SLAPI_DELETE_GLUE_PARENT_ENTRY, &ecopy );
-	if (ecopy)
+	}
 	{
-		slapi_entry_free (ecopy);
-		slapi_pblock_set (pb, SLAPI_DELETE_GLUE_PARENT_ENTRY, NULL);
+		Slapi_Entry *epre = NULL, *eparent = NULL;
+		slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &epre);
+		slapi_pblock_get(pb, SLAPI_DELETE_GLUE_PARENT_ENTRY, &eparent);
+		slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
+		slapi_pblock_set(pb, SLAPI_DELETE_GLUE_PARENT_ENTRY, NULL);
+		if (epre == eparent) {
+			eparent = NULL;
+		}
+		slapi_entry_free(epre);
+		slapi_entry_free(eparent);
 	}
 	slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &dn);
 	slapi_ch_free((void **)&dn);
