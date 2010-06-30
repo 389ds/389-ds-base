@@ -217,7 +217,7 @@ static int
 preop_add(Slapi_PBlock *pb)
 {
   int result;
-  char *violated;
+  char *violated = NULL;
 
 #ifdef DEBUG
   slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD begin\n");
@@ -359,7 +359,7 @@ static int
 preop_modify(Slapi_PBlock *pb)
 {
   int result;
-  char *violated;
+  char *violated = NULL;
   LDAPMod **checkmods = NULL; /* holds mods to check */
   int checkmodsCapacity = 0; /* max capacity of checkmods */
 
@@ -522,7 +522,7 @@ preop_modrdn(Slapi_PBlock *pb)
 {
   int result;
   Slapi_Entry *e;
-  char *violated;
+  char *violated = NULL;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
