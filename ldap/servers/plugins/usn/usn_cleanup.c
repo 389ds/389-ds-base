@@ -83,6 +83,7 @@ usn_cleanup_thread(void *arg)
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
                       "USN tombstone cleanup: USN plugin is not initialized\n");
         rv = -1;
+        filter = NULL; /* so we don't try to free it */
         goto bail;
     }
 
