@@ -894,10 +894,24 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	}
 
 free_and_return:
-	slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
-	slapi_entry_free(ecopy);
-	slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &ecopy);
-	slapi_entry_free(ecopy);
+	{
+		Slapi_Entry *epre = NULL, *epost = NULL;
+		slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &epre);
+		slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &epost);
+		if (epre == e) {
+			epre = NULL; /* to avoid possible double free below */
+		}
+		if (epost == e) {
+			epost = NULL; /* to avoid possible double free below */
+		}
+		if (epre == epost) {
+			epost = NULL; /* to avoid possible double free below */
+		}
+		slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, NULL);
+		slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
+		slapi_entry_free(epre);
+		slapi_entry_free(epost);
+	}
 	slapi_entry_free(e);
 	
 	if (be)
