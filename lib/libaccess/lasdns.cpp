@@ -289,6 +289,7 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
 	      }
 
 	      PERM_FREE(ipaddrs);
+	      ipaddrs = NULL;
 
 	    }	/* if he */
 
