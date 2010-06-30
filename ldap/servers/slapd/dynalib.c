@@ -129,7 +129,7 @@ sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_error
 	}
 
 	libs = (struct dynalib **) slapi_ch_realloc( (char *) libs, (i + 2) *
-	    sizeof(struct dynalib) );
+	    sizeof(struct dynalib *) );
 	libs[i] = (struct dynalib *) slapi_ch_malloc( sizeof(struct dynalib) );
 	libs[i]->dl_name = slapi_ch_strdup( libpath );
 	libs[i]->dl_handle = handle;
