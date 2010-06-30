@@ -575,7 +575,7 @@ prot_replicate_now(Repl_Protocol *rp)
 static Private_Repl_Protocol *
 private_protocol_factory(Repl_Protocol *rp, int type)
 {
-	Private_Repl_Protocol *prp;
+	Private_Repl_Protocol *prp = NULL;
 
 	switch (type)
 	{
