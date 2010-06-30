@@ -125,6 +125,10 @@ int main( int argc, char **argv )
 		max = BUFSIZ;
 		cur = 0;
 		while ( (nread = read( 0, buf, BUFSIZ )) != 0 ) {
+			if (nread < 0) {
+				perror( "read error" );
+				return( 1 );
+			}
 			if ( nread + cur > max ) {
 				max += BUFSIZ;
 				if (( val = (char *) realloc( val, max )) ==
