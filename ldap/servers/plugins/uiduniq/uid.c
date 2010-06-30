@@ -436,7 +436,7 @@ getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass,
         if (NULL == delimiter)
         {
           /* Old style untagged parameter */
-      *attrName = *argv;
+          *attrName = *argv;
           return UNTAGGED_PARAMETER;
         }
         if (strncasecmp(param, "attribute", delimiter-param) == 0)
@@ -661,7 +661,7 @@ preop_modify(Slapi_PBlock *pb)
 
   BEGIN
     int err;
-    char *attrName;
+    char *attrName = NULL;
     char *markerObjectClass=NULL;
     char *requiredObjectClass=NULL;
     LDAPMod **mods;
@@ -806,7 +806,7 @@ preop_modrdn(Slapi_PBlock *pb)
 
   BEGIN
     int err;
-    char *attrName;
+    char *attrName = NULL;
     char *markerObjectClass=NULL;
     char *requiredObjectClass=NULL;
     char *dn;
