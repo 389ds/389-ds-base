@@ -2597,13 +2597,8 @@ op_copy_identity(Connection *conn, Operation *op)
     if (dnlen <= 0 && typelen <= 0) {
         op->o_authtype = NULL;
     } else {
-        char* id = slapi_ch_malloc (typelen + 1);
-        if (typelen <= 0) 
-		    id[dnlen+1] = '\0';
-        else 
-		    memcpy (id, conn->c_authtype, typelen + 1);
 	    slapi_sdn_set_dn_byval(&op->o_sdn,conn->c_dn);
-        op->o_authtype = id;
+        op->o_authtype = slapi_ch_strdup(conn->c_authtype);
     }
     /* XXX We should also copy c_client_cert into *op here; it's
      * part of the authorization identity.  The operation's copy
