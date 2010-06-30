@@ -886,7 +886,7 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 
 					/* Complete analysis of type matching */
 					*type_name_disposition =
-							(int *)slapi_ch_malloc(sizeof(*type_name_disposition));
+							(int *)slapi_ch_malloc(sizeof(**type_name_disposition));
 					if ( 0 == slapi_attr_type_cmp( type , **actual_type_name, SLAPI_TYPE_CMP_EXACT) )
 					{
 						**type_name_disposition =
@@ -984,7 +984,7 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 		{	
 
 			*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(*results) * attr_count);
-			*type_name_disposition = (int *)slapi_ch_malloc(sizeof(*type_name_disposition)  * attr_count);
+			*type_name_disposition = (int *)slapi_ch_malloc(sizeof(**type_name_disposition)  * attr_count);
 			*actual_type_name = (char**)slapi_ch_malloc(sizeof(*actual_type_name)  * attr_count);
 
 			/* For attributes which are in the entry, we just need to get to the Slapi_Attr structure and yank out the slapi_value_set 
