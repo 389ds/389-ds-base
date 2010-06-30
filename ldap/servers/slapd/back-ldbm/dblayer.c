@@ -2279,9 +2279,9 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
     struct dblayer_private_env *mypEnv = NULL;
     DB *dbp = NULL;
     int rval = 1;
-    struct ldbminfo *li;
-    dblayer_private *opriv;
-    dblayer_private *priv;
+    struct ldbminfo *li = NULL;
+    dblayer_private *opriv = NULL;
+    dblayer_private *priv = NULL;
     char *subname = NULL;
     int envflags;
     size_t cachesize;
@@ -2433,8 +2433,10 @@ err:
         ldbm_delete_dirs(priv->dblayer_home_directory);
 done:
     slapi_ch_free_string(&id2entry_file);
-    slapi_ch_free_string(&priv->dblayer_home_directory);
-    slapi_ch_free_string(&priv->dblayer_log_directory);
+    if (priv) {
+        slapi_ch_free_string(&priv->dblayer_home_directory);
+        slapi_ch_free_string(&priv->dblayer_log_directory);
+    }
     /* Don't free priv->dblayer_data_directories since priv doesn't own the memory */
     slapi_ch_free((void **)&priv);
     slapi_ch_free((void **)&mypEnv);
