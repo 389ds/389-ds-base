@@ -2436,7 +2436,7 @@ ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
  */
 
 void upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
-int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore, int *cnt);
+int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
 int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
 static void normalize_dir(char *dir);
 
@@ -2649,7 +2649,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     }
 
     /* copy checkpoint logs */
-    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0, &cnt);
+    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0);
 
     if (run_from_cmdline)
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
@@ -2769,7 +2769,7 @@ fail1:
                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
             }
     
-            backup_rval = upgradedb_copy_logfiles(li, dest_dir, 1, &cnt);
+            backup_rval = upgradedb_copy_logfiles(li, dest_dir, 1);
             if (backup_rval < 0)
                 slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                         "Failed to restore log files.\n");
@@ -2809,7 +2809,7 @@ normalize_dir(char *dir)
 #define LOG    "log."
 #define LOGLEN    4
 int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
-                                 int restore, int *cnt)
+                                 int restore)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -2823,7 +2823,6 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
     char *from = NULL;
     char *to = NULL;
 
-    *cnt = 0;
     if (restore)
     {
         src = destination_dir;
@@ -2888,7 +2887,6 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
             rval = dblayer_copyfile(from, to, 1, DEFAULT_MODE);
             if (rval < 0)
                 break;
-            cnt++;
         }
     }
     slapi_ch_free_string(&from);
