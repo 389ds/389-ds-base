@@ -115,7 +115,7 @@ create_ReplicationExtopPayload(const char *protocol_oid,
     Object  *repl_obj, *ruv_obj = NULL;
 	Replica *repl;
     RUV *ruv;
-    Slapi_DN *sdn;
+    Slapi_DN *sdn = NULL;
 
 	PR_ASSERT(protocol_oid != NULL || send_end);
 	PR_ASSERT(repl_root != NULL);
