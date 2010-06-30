@@ -582,7 +582,7 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
     int foundDirsyncControl;
 	int i;
 	LDAPControl *dirsync = NULL;
-	BerElement *ber;
+	BerElement *ber = NULL;
 	ber_int_t hasMoreData;
 	ber_int_t maxAttributeCount;
 	BerValue  *serverCookie;
