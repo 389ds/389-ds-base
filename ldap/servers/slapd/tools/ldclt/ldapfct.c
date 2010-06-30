@@ -1523,7 +1523,7 @@ buildNewModAttribFile (
 {
   int		 nbAttribs;	/* Nb of attributes */
   LDAPMod	 attribute;	/* To build the attributes */
-  struct berval	*bv = malloc(sizeof(struct berval *));
+  struct berval	*bv = malloc(sizeof(struct berval));
   attribute.mod_bvalues = (struct berval **)malloc(2 * sizeof(struct berval *));
 
   if ((bv == NULL) || (attribute.mod_bvalues == NULL)) {
