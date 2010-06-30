@@ -591,7 +591,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
     ber_tag_t tag;
     char *str = NULL;
     int rc;
-    Slapi_Value *value;
+    Slapi_Value *value = NULL;
 
     PR_ASSERT (ber && attr && deleted);
 
