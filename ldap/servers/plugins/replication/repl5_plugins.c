@@ -1298,7 +1298,7 @@ is_mmr_replica (Slapi_PBlock *pb)
 static const char *replica_get_purl_for_op (const Replica *r, Slapi_PBlock *pb, const CSN *opcsn)
 {
     int is_replicated_op;
-    const char *purl;
+    const char *purl = NULL;
 
     slapi_pblock_get(pb, SLAPI_IS_MMR_REPLICATED_OPERATION, &is_replicated_op);
 
