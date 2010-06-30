@@ -823,7 +823,8 @@ PListNameProp(PList_t plist, int pindex, const char *pname)
 
                     /* Is it time to grow the hash table? */
                     i = PLSIZENDX(pt->pt_sizendx);
-                    if (((size_t)pt->pt_sizendx < PLMAXSIZENDX) &&
+                    /* cannot allow pt->pt_sizendx == PLMAXSIZENDX */
+                    if (((size_t)(pt->pt_sizendx + 1) < PLMAXSIZENDX) &&
                         pt->pt_nsyms >= (i + i)) {
 
                         PLSymbolTable_t *npt;
