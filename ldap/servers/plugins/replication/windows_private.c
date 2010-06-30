@@ -585,7 +585,7 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 	BerElement *ber = NULL;
 	ber_int_t hasMoreData;
 	ber_int_t maxAttributeCount;
-	BerValue  *serverCookie;
+	BerValue  *serverCookie = NULL;
 #ifdef FOR_DEBUGGING
 	int return_value = LDAP_SUCCESS;
 #endif
