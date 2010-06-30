@@ -1489,7 +1489,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
     PRUint32 current= 0;
     ID id = NOID;
     int found= 0;
-    struct berval **typedown_value;
+    struct berval **typedown_value = NULL;
 
     /* For non-matchrule indexing */
     value_compare_fn_type compare_fn= NULL;
