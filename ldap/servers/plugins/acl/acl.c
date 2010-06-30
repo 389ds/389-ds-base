@@ -1039,9 +1039,9 @@ acl_read_access_allowed_on_entry (
 			** sending
 			*/
 			len = strlen(attr_type);
-			if ( len > ACLPB_MAX_ATTR_LEN) {
+			if ( (len + 1) > ACLPB_MAX_ATTR_LEN) {
 				slapi_ch_free ( (void **) &aclpb->aclpb_Evalattr);
-				aclpb->aclpb_Evalattr = slapi_ch_malloc(len);
+				aclpb->aclpb_Evalattr = slapi_ch_malloc(len+1);
 			}
 			PL_strncpyz (aclpb->aclpb_Evalattr, attr_type, len);
 			if ( attr_index >= 0 ) {
