@@ -230,6 +230,7 @@ NSEFrame_t * nserrGenerate(NSErr_t * errp, long retcode, long errorid,
 	    esp = va_arg(ap, char *);
 	    efp->ef_errv[i] = STRDUP(esp);
 	}
+	va_end(ap);
 
 	/* Add the frame to the list (if any) */
 	if (errp) {

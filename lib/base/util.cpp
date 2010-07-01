@@ -121,9 +121,12 @@ NSAPI_PUBLIC int util_vsnprintf(char *s, int n, register const char *fmt,
 
 NSAPI_PUBLIC int util_snprintf(char *s, int n, const char *fmt, ...)
 {
+    int rc;
     va_list args;
     va_start(args, fmt);
-    return PR_vsnprintf(s, n, fmt, args);
+    rc = PR_vsnprintf(s, n, fmt, args);
+    va_end(args);
+    return rc;
 }
 
 NSAPI_PUBLIC int util_vsprintf(char *s, register const char *fmt, va_list args)
@@ -133,9 +136,12 @@ NSAPI_PUBLIC int util_vsprintf(char *s, register const char *fmt, va_list args)
 
 NSAPI_PUBLIC int util_sprintf(char *s, const char *fmt, ...)
 {
+    int rc;
     va_list args;
     va_start(args, fmt);
-    return PR_vsnprintf(s, UTIL_PRF_MAXSIZE, fmt, args);
+    rc = PR_vsnprintf(s, UTIL_PRF_MAXSIZE, fmt, args);
+    va_end(args);
+    return rc;
 }
 
 /* --------------------------- util_strcasecmp ---------------------------- */
