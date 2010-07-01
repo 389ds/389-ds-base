@@ -140,10 +140,10 @@ static ACLDispatchVector_t __nsacl_vector = {
     ACL_ParseString,
     ACL_WriteString,
     ACL_WriteFile,
-    ACL_FileRenameAcl,
-    ACL_FileDeleteAcl,
-    ACL_FileGetAcl,
-    ACL_FileSetAcl,
+    NULL /* ex ACL_FileRenameAcl */,
+    NULL /* ex ACL_FileDeleteAcl */,
+    NULL /* ex ACL_FileGetAcl */,
+    NULL /* ex ACL_FileSetAcl */,
 
     /*  ACL Expression construction interfaces  */
 

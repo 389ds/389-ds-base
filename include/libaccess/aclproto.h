@@ -64,12 +64,6 @@ NSAPI_PUBLIC ACLListHandle_t * ACL_ParseString(NSErr_t *errp, char *buffer);
 NSAPI_PUBLIC int ACL_Decompose(NSErr_t *errp, char **acl, ACLListHandle_t *acl_list);
 NSAPI_PUBLIC int ACL_WriteString(NSErr_t *errp, char **acl, ACLListHandle_t *acllist);
 NSAPI_PUBLIC int ACL_WriteFile(NSErr_t *errp, char *filename, ACLListHandle_t *acllist);
-NSAPI_PUBLIC int ACL_FileRenameAcl(NSErr_t *errp, char *filename, char *acl_name, char *new_acl_name, int flags);
-NSAPI_PUBLIC int ACL_FileDeleteAcl(NSErr_t *errp, char *filename, char *acl_name, int flags);
-NSAPI_PUBLIC int ACL_FileGetAcl(NSErr_t *errp, char *filename, char *acl_name, char **acl_text, int flags);
-NSAPI_PUBLIC int ACL_FileSetAcl(NSErr_t *errp, char *filename, char *acl_text, int flags);
-NSAPI_PUBLIC int ACL_FileMergeAcl(NSErr_t *errp, char *filename, char **acl_name_list, char *new_acl_name, int  flags);
-NSAPI_PUBLIC int ACL_FileMergeFile(NSErr_t *errp, char *filename, char **file_list, int  flags);
 
 
 /*********************************************************************
@@ -108,7 +102,6 @@ NSAPI_PUBLIC void ACL_ListDestroy(NSErr_t *errp, ACLListHandle_t *acllist);
 NSAPI_PUBLIC ACLHandle_t * ACL_ListFind(NSErr_t *errp, ACLListHandle_t *acllist, char *aclname, int flags);
 NSAPI_PUBLIC int ACL_ListAclDelete(NSErr_t *errp, ACLListHandle_t *acl_list, char *acl_name, int flags);
 NSAPI_PUBLIC int ACL_ListGetNameList(NSErr_t *errp, ACLListHandle_t *acl_list, char ***name_list);
-NSAPI_PUBLIC int ACL_FileGetNameList(NSErr_t *errp, char * filename, char ***name_list);
 NSAPI_PUBLIC int ACL_NameListDestroy(NSErr_t *errp, char **name_list);
 NSAPI_PUBLIC ACLHandle_t *ACL_ListGetFirst(ACLListHandle_t *acl_list,
                                            ACLListEnum_t *acl_enum);
