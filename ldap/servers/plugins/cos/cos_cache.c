@@ -1101,7 +1101,7 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data) {
 static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs, int *vattr_cacheable)
 {
 	Slapi_PBlock *pDnSearch = 0;
-	struct dn_defs_info info;
+	struct dn_defs_info info = {NULL, 0, 0};
     pDnSearch = slapi_pblock_new();
 	if (pDnSearch) {
 		info.ret=-1; /* assume no good defs */
@@ -1314,7 +1314,7 @@ static int cos_cache_add_dn_tmpls(char *dn, cosAttrValue *pCosSpecifier, cosAttr
 {
 	void *plugin_id;
 	int scope;
-	struct tmpl_info	info;
+	struct tmpl_info	info = {NULL, 0, 0};
 	Slapi_PBlock *pDnSearch = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_add_dn_tmpls\n",0,0,0);
@@ -1714,7 +1714,7 @@ int cos_cache_getref(cos_cache **pptheCache)
 */
 int cos_cache_addref(cos_cache *ptheCache)
 {
-	int ret;
+	int ret = 0;
 	cosCache *pCache = (cosCache*)ptheCache;
 	
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_addref\n",0,0,0);

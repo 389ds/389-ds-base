@@ -123,7 +123,7 @@ internal_bitwise_filter_match(void* obj, Slapi_Entry* entry, Slapi_Attr* attr, i
 	    if (errno == ERANGE) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 	    } else {
-		int result;
+		int result = 0;
 		/* The Microsoft Windows AD bitwise operators do not work exactly
 		   as the plain old C bitwise operators work.  For the AND case
 		   the matching rule is true only if all bits from the given value

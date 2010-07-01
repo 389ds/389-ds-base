@@ -1384,7 +1384,7 @@ reset_events (Private_Repl_Protocol *prp)
 ConnResult
 replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *message_id)
 {
-	ConnResult return_value;
+	ConnResult return_value = CONN_OPERATION_FAILED;
 	LDAPControl *update_control;
 	char *parentuniqueid;
 	LDAPMod **modrdn_mods = NULL;
@@ -2202,7 +2202,7 @@ examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 static PRBool
 ignore_error_and_keep_going(int error)
 {
-	int return_value;
+	int return_value = PR_FALSE;
 
 	switch (error)
 	{

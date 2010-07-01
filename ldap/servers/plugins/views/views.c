@@ -1296,7 +1296,7 @@ static int	views_dn_views_cb (Slapi_Entry* e, void *callback_data) {
 static int views_cache_add_dn_views(char *dn, viewEntry **pViews)
 {
 	Slapi_PBlock *pDnSearch = 0;
-	struct dn_views_info info;
+	struct dn_views_info info = {NULL, -1};
     pDnSearch = slapi_pblock_new();
 	if (pDnSearch) {
 		info.ret=-1;

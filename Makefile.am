@@ -533,7 +533,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/base/ereport.cpp \
 	lib/base/file.cpp \
 	lib/base/fsmutex.cpp \
-	lib/base/lexer.cpp \
 	lib/base/net.cpp \
 	lib/base/nscperror.c \
 	lib/base/plist.cpp \

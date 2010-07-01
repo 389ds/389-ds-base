@@ -613,7 +613,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     Slapi_DN *subtree = NULL;
     const char *tmp_ndn;
     int be_list_count = 0;
-    int be_list_size;
+    int be_list_size = 0;
     backend **be_list = NULL;
     char **be_names = NULL;
     int * be_states = NULL;

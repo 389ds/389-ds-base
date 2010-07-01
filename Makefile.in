@@ -335,7 +335,6 @@ am_libns_dshttpd_la_OBJECTS =  \
 	lib/base/libns_dshttpd_la-ereport.lo \
 	lib/base/libns_dshttpd_la-file.lo \
 	lib/base/libns_dshttpd_la-fsmutex.lo \
-	lib/base/libns_dshttpd_la-lexer.lo \
 	lib/base/libns_dshttpd_la-net.lo \
 	lib/base/libns_dshttpd_la-nscperror.lo \
 	lib/base/libns_dshttpd_la-plist.lo \
@@ -1608,7 +1607,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/base/ereport.cpp \
 	lib/base/file.cpp \
 	lib/base/fsmutex.cpp \
-	lib/base/lexer.cpp \
 	lib/base/net.cpp \
 	lib/base/nscperror.c \
 	lib/base/plist.cpp \
@@ -3155,8 +3153,6 @@ lib/base/libns_dshttpd_la-ereport.lo: lib/base/$(am__dirstamp) \
 lib/base/libns_dshttpd_la-file.lo: lib/base/$(am__dirstamp) \
 	lib/base/$(DEPDIR)/$(am__dirstamp)
 lib/base/libns_dshttpd_la-fsmutex.lo: lib/base/$(am__dirstamp) \
-	lib/base/$(DEPDIR)/$(am__dirstamp)
-lib/base/libns_dshttpd_la-lexer.lo: lib/base/$(am__dirstamp) \
 	lib/base/$(DEPDIR)/$(am__dirstamp)
 lib/base/libns_dshttpd_la-net.lo: lib/base/$(am__dirstamp) \
 	lib/base/$(DEPDIR)/$(am__dirstamp)
@@ -5084,8 +5080,6 @@ mostlyclean-compile:
 	-rm -f lib/base/libns_dshttpd_la-file.lo
 	-rm -f lib/base/libns_dshttpd_la-fsmutex.$(OBJEXT)
 	-rm -f lib/base/libns_dshttpd_la-fsmutex.lo
-	-rm -f lib/base/libns_dshttpd_la-lexer.$(OBJEXT)
-	-rm -f lib/base/libns_dshttpd_la-lexer.lo
 	-rm -f lib/base/libns_dshttpd_la-net.$(OBJEXT)
 	-rm -f lib/base/libns_dshttpd_la-net.lo
 	-rm -f lib/base/libns_dshttpd_la-nscperror.$(OBJEXT)
@@ -5587,7 +5581,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/base/$(DEPDIR)/libns_dshttpd_la-ereport.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/base/$(DEPDIR)/libns_dshttpd_la-file.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/base/$(DEPDIR)/libns_dshttpd_la-fsmutex.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@lib/base/$(DEPDIR)/libns_dshttpd_la-lexer.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/base/$(DEPDIR)/libns_dshttpd_la-net.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/base/$(DEPDIR)/libns_dshttpd_la-nscperror.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/base/$(DEPDIR)/libns_dshttpd_la-plist.Plo@am__quote@
@@ -9264,13 +9257,6 @@ lib/base/libns_dshttpd_la-fsmutex.lo: lib/base/fsmutex.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='lib/base/fsmutex.cpp' object='lib/base/libns_dshttpd_la-fsmutex.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL) --tag=CXX --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o lib/base/libns_dshttpd_la-fsmutex.lo `test -f 'lib/base/fsmutex.cpp' || echo '$(srcdir)/'`lib/base/fsmutex.cpp
-
-lib/base/libns_dshttpd_la-lexer.lo: lib/base/lexer.cpp
-@am__fastdepCXX_TRUE@	if $(LIBTOOL) --tag=CXX --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT lib/base/libns_dshttpd_la-lexer.lo -MD -MP -MF "lib/base/$(DEPDIR)/libns_dshttpd_la-lexer.Tpo" -c -o lib/base/libns_dshttpd_la-lexer.lo `test -f 'lib/base/lexer.cpp' || echo '$(srcdir)/'`lib/base/lexer.cpp; \
-@am__fastdepCXX_TRUE@	then mv -f "lib/base/$(DEPDIR)/libns_dshttpd_la-lexer.Tpo" "lib/base/$(DEPDIR)/libns_dshttpd_la-lexer.Plo"; else rm -f "lib/base/$(DEPDIR)/libns_dshttpd_la-lexer.Tpo"; exit 1; fi
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='lib/base/lexer.cpp' object='lib/base/libns_dshttpd_la-lexer.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL) --tag=CXX --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o lib/base/libns_dshttpd_la-lexer.lo `test -f 'lib/base/lexer.cpp' || echo '$(srcdir)/'`lib/base/lexer.cpp
 
 lib/base/libns_dshttpd_la-net.lo: lib/base/net.cpp
 @am__fastdepCXX_TRUE@	if $(LIBTOOL) --tag=CXX --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libns_dshttpd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT lib/base/libns_dshttpd_la-net.lo -MD -MP -MF "lib/base/$(DEPDIR)/libns_dshttpd_la-net.Tpo" -c -o lib/base/libns_dshttpd_la-net.lo `test -f 'lib/base/net.cpp' || echo '$(srcdir)/'`lib/base/net.cpp; \

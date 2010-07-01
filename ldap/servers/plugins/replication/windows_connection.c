@@ -306,7 +306,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	const char *extop_oid, struct berval *extop_payload, char **retoidp,
 	struct berval **retdatap, LDAPControl ***returned_controls)
 {
-	int rc = LDAP_SUCCESS;
+	int rc = -1;
 	ConnResult return_value;
 	LDAPControl **loc_returned_controls;
 	const char *op_string = NULL;
@@ -316,7 +316,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 
 	if (windows_conn_connected(conn))
 	{
-		int msgid;
+		int msgid = -2; /* should match no messages */
 
 		conn->last_operation = optype;
 		switch (optype)

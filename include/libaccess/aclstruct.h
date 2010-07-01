@@ -52,7 +52,6 @@
 
 #include "base/systems.h"
 #include "base/file.h"
-#include "base/lexer.h"
 #include "nsauth.h"		/* authentication types */
 #include "symbols.h"		/* typed symbol support */
 #include "ipfstruct.h"		/* IP address filter structures */
@@ -288,7 +287,6 @@ typedef struct ACLFile_s ACLFile_t;
 struct ACLFile_s {
     ACLFile_t * acf_next;		/* list link */
     char * acf_filename;		/* pointer to filename string */
-    LEXStream_t * acf_lst;		/* LEX stream handle */
     SYS_FILE acf_fd;			/* file descriptor */
     int acf_flags;			/* bit flags (unused) */
     int acf_lineno;			/* current line number */

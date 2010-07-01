@@ -2238,7 +2238,7 @@ getPending (
 {
   LDAPMessage	*res;		/* LDAP async results */
   int		 ret;		/* Return values */
-  int		 expected;	/* Expect this type */
+  int		 expected = 0;	/* Expect this type */
   char		*verb;		/* LDAP verb expected */
   int		 type;		/* Message type */
   int		 errcodep;	/* Async error code */

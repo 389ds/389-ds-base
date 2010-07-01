@@ -639,7 +639,7 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	int deleteoldrdn, LDAPControl *update_control,
 	const char *extop_oid, struct berval *extop_payload, int *message_id)
 {
-	int rc;
+	int rc = -1;
 	ConnResult return_value = CONN_OPERATION_FAILED;
 	LDAPControl *server_controls[3];
 	/* LDAPControl **loc_returned_controls; */

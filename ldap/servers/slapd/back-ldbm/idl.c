@@ -1272,7 +1272,7 @@ void idl_insert(IDList **idl, ID id)
 static int
 idl_insert_maxids( IDList **idl, ID id, int maxids )
 {
-	ID	i, j;
+	ID	i = 0, j = 0;
 	NIDS  nids;
 
 	if ( ALLIDS( *idl ) ) {

@@ -391,7 +391,7 @@ be_unbindall(Connection *conn, Operation *op)
 
 			if ( plugin_call_plugins( &pb, SLAPI_PLUGIN_PRE_UNBIND_FN ) == 0 )
 			{
-				int	rc;
+				int	rc = 0;
 				slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
                 if(backends[i]->be_state != BE_STATE_DELETED && 
 				   backends[i]->be_unbind!=NULL)

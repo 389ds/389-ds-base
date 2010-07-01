@@ -1640,7 +1640,7 @@ is_straight_mapped_attr(const char *type, int is_user /* or group */, int is_nt4
 static int
 is_single_valued_attr(const char *type)
 {
-	int found;
+	int found = 0;
 	size_t offset = 0;
 	char *this_attr = NULL;
 
