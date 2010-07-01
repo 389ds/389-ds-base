@@ -2687,7 +2687,7 @@ cl5DBData2Entry (const char *data, PRUint32 len, CL5Entry *entry)
 	PRUint32 thetime;
 	slapi_operation_parameters *op;	
 	LDAPMod **add_mods;
-	char *rawDN;
+	char *rawDN = NULL;
 	char s[CSN_STRSIZE];		
 
 	PR_ASSERT (data && entry && entry->op);
@@ -5010,7 +5010,7 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 	char *strDeleteOldRDN;
 	char *buff, *start;
 	LDAPMod **add_mods;
-	char *rawDN;
+	char *rawDN = NULL;
 	char strCSN[CSN_STRSIZE];		
 
 	PR_ASSERT (op && replGen && ldifEntry && IsValidOperation (op));
@@ -5145,7 +5145,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 	char *next, *line;
 	char *type, *value;
 	Slapi_Mods *mods;
-	char *rawDN;
+	char *rawDN = NULL;
 
 	PR_ASSERT (op && ldifEntry && replGen);
 	
@@ -5222,7 +5222,21 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 
 			switch (op->operation_type)
 			{
-				case SLAPI_OPERATION_ADD:		mods = parse_changes_string(value);
+				case SLAPI_OPERATION_ADD:		/* 
+												 * When it comes here, case T_DNSTR is already
+												 * passed and rawDN is supposed to set.
+												 * But it's a good idea to make sure it is
+												 * not NULL.
+												 */ 
+												if (NULL == rawDN) {
+													slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+																"_cl5LDIF2Operation: corrupted format "
+																"for operation type - %lu\n", 
+																 op->operation_type);
+													return CL5_BAD_FORMAT;
+												}
+												mods = parse_changes_string(value);
+												PR_ASSERT (mods);
 												slapi_mods2entry (&(op->p.p_add.target_entry), rawDN, 
 																  slapi_mods_get_ldapmods_byref(mods));
 												slapi_ch_free ((void**)&rawDN);
