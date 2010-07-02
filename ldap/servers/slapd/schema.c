@@ -508,6 +508,20 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
 
     ocname = slapi_value_get_string(v);
 
+    if ( !ocname ) {
+	char ebuf[ BUFSIZ ];
+	LDAPDebug( LDAP_DEBUG_ANY,
+	       "Entry \"%s\" \"objectclass\" value missing\n",
+	       escape_string( slapi_entry_get_dn_const(e), ebuf ), 0, 0 );
+	if (pb) {
+		PR_snprintf( errtext, sizeof( errtext ),
+	       "missing \"objectclass\" value\n" );
+		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
+	}
+	ret = 1;
+	goto out;
+    }
+
     if ( isExtensibleObjectclass( ocname )) {
       /* 
        *  if the entry is an extensibleObject, just check to see if
@@ -524,7 +538,7 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
       /* we don't know about the oc; return an appropriate error message */
       char			ebuf[ BUFSIZ ];
       char			ebuf2[ BUFSIZ ];
-	  size_t		ocname_len = ( ocname == NULL ) ? 0 : strlen( ocname );
+	  size_t		ocname_len = strlen( ocname );
 	  const char	*extra_msg = "";
 
 	  if ( ocname_len > 0 && isspace( ocname[ ocname_len-1 ] )) {
