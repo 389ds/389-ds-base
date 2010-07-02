@@ -966,11 +966,10 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             bind_target_entry = get_entry(pb,  dn);
             if ( bind_target_entry == NULL )
             {
-                break;
+                goto out;
             } 
             if ( slapi_check_account_lock(pb, bind_target_entry, pwresponse_requested, 1, 1) == 1) {
-                slapi_entry_free(bind_target_entry);
-                break;
+                goto out;
             }
         }
 
@@ -1003,10 +1002,6 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             int pwrc;
 
             pwrc = need_new_pw(pb, &t, bind_target_entry, pwresponse_requested);
-            if ( bind_target_entry != NULL ) {
-                slapi_entry_free(bind_target_entry);
-                bind_target_entry = NULL;
-            }
             
             switch (pwrc) {
             case 1:
@@ -1081,6 +1076,8 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             slapi_entry_free(referral);
         if (be)
             slapi_be_Unlock(be);
+        if (bind_target_entry)
+            slapi_entry_free(bind_target_entry);
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ids_sasl_check_bind\n", 0, 0, 0 );
 
