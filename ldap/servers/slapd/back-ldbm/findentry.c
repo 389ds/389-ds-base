@@ -49,37 +49,53 @@ check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, co
 {
 	int rc=0, i=0, numValues=0;
 	Slapi_Attr *attr;
+	Slapi_Value *val=NULL;	
+	struct berval **refscopy=NULL;
+	struct berval **url=NULL;
 
 	/* if the entry is a referral send the referral */
-	if ( slapi_entry_attr_find( entry, "ref", &attr ) == 0 )
+	if ( slapi_entry_attr_find( entry, "ref", &attr ) )
 	{
-		Slapi_Value *val=NULL;	
-		struct berval **refscopy=NULL;
-		struct berval **url=NULL;
-		slapi_attr_get_numvalues(attr, &numValues );
-		if(numValues > 0) {
-			url=(struct berval **) slapi_ch_malloc((numValues + 1) * sizeof(struct berval*));
-		}
-		for (i = slapi_attr_first_value(attr, &val); i != -1;
-		     i = slapi_attr_next_value(attr, i, &val)) {
-			url[i]=(struct berval*)slapi_value_get_berval(val);
-		}
-		url[numValues]=NULL;		
-		refscopy = ref_adjust( pb, url, slapi_entry_get_sdn(entry), 0 ); /* JCM - What's this PBlock* for? */
-		slapi_send_ldap_result( pb, LDAP_REFERRAL, matched, NULL, 0, refscopy );
-		LDAPDebug( LDAP_DEBUG_TRACE,
-			"<= %s sent referral to (%s) for (%s)\n",
-			callingfn,
-			refscopy ? refscopy[0]->bv_val : "",
-			slapi_entry_get_dn(entry));
-		if ( refscopy != NULL )
-		{
-			ber_bvecfree( refscopy );
-		}
-		if( url != NULL) {
-			slapi_ch_free( (void **)&url );	
-		}
-		rc= 1;
+		// ref attribute not found
+		goto out;
+	}
+
+	slapi_attr_get_numvalues(attr, &numValues );
+	if(numValues == 0) {
+		// ref attribute is empty
+		goto out;
+	}
+
+	url=(struct berval **) slapi_ch_malloc((numValues + 1) * sizeof(struct berval*));
+	if (!url) {
+		LDAPDebug( LDAP_DEBUG_ANY,
+			"check_entry_for_referral: Out of memory\n",
+			0, 0, 0);
+		goto out;
+	}
+
+	for (i = slapi_attr_first_value(attr, &val); i != -1;
+	     i = slapi_attr_next_value(attr, i, &val)) {
+		url[i]=(struct berval*)slapi_value_get_berval(val);
+	}
+	url[numValues]=NULL;		
+
+	refscopy = ref_adjust( pb, url, slapi_entry_get_sdn(entry), 0 ); /* JCM - What's this PBlock* for? */
+	slapi_send_ldap_result( pb, LDAP_REFERRAL, matched, NULL, 0, refscopy );
+	rc= 1;
+
+	LDAPDebug( LDAP_DEBUG_TRACE,
+		"<= %s sent referral to (%s) for (%s)\n",
+		callingfn,
+		refscopy ? refscopy[0]->bv_val : "",
+		slapi_entry_get_dn(entry));
+out:
+	if ( refscopy != NULL )
+	{
+		ber_bvecfree( refscopy );
+	}
+	if( url != NULL) {
+		slapi_ch_free( (void **)&url );	
 	}
 	return rc;
 }
