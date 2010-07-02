@@ -2016,9 +2016,6 @@ static int dna_get_next_value(struct configEntry *config_entry,
         slapi_modify_internal_pb(pb);
 
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
-
-        slapi_pblock_destroy(pb);
-        pb = NULL;
     }
 
     if (LDAP_SUCCESS == ret) {
@@ -2036,8 +2033,9 @@ static int dna_get_next_value(struct configEntry *config_entry,
   done:
     slapi_unlock_mutex(config_entry->lock);
 
-    if (pb)
+    if (pb) {
         slapi_pblock_destroy(pb);
+    }
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_get_next_value\n");
