@@ -63,11 +63,17 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 	int finished = 0;
 	int mode = 0;
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_copy_file_keybykey\n", 0, 0, 0 );
+
 	if (priv->dblayer_file_mode)
 		mode = priv->dblayer_file_mode;
 	dblayer_set_env_debugging(env, priv);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_copy_file_keybykey\n", 0, 0, 0 );
+	if (!env) {
+		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Out of memory\n", 0, 0, 0);
+		goto error;
+	}
+
 	/* Open the source file */
 	retval = db_create(&source_file, env, 0);
 	if (retval) {
@@ -193,15 +199,17 @@ int dblayer_copy_file_resetlsns(char *home_dir ,char *source_file_name, char *de
 	/* Make the environment */
 
 	retval = dblayer_make_private_simple_env(home_dir,&env);
-	if (retval) {
+	if (retval || !env) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_resetlsns: Call to dblayer_make_private_simple_env failed!\n" 
 			"Unable to open an environment.", 0, 0, 0);
+		goto out;
 	}
 	/* Do the copy */
 	retval = dblayer_copy_file_keybykey(env, source_file_name, destination_file_name, overwrite, priv);
 	if (retval) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_resetlsns: Copy not completed successfully.", 0, 0, 0);
 	}
+out:
 	/* Close the environment */
 	if (env) {
 		int retval2 = 0;
