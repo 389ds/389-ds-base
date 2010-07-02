@@ -707,7 +707,6 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 	Slapi_Entry *e = NULL;
 	Slapi_Attr *attr = NULL;
 	char *str = NULL;
-	CSN *dn_csn = NULL;
 	struct berval *extop_value = NULL;
 	char *extop_oid = NULL;
 	ber_len_t len;
@@ -813,10 +812,6 @@ loser:
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free((void **)&str);
 
-	if (NULL != dn_csn)
-	{
-		csn_free(&dn_csn);
-	}
     if (attr != NULL)
     {
         slapi_attr_free (&attr);
