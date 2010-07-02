@@ -227,20 +227,25 @@ stats_table_create_row(unsigned long portnum)
     stats_table_context *ctx = SNMP_MALLOC_TYPEDEF(stats_table_context);
     oid *index_oid = (oid *)malloc(sizeof(oid) * MAX_OID_LEN);
 
+    if (!ctx || !index_oid) {
+        /* Error during malloc */
+        snmp_log(LOG_ERR, "malloc failed in stats_table_create_row\n");
+        goto error;
+    }
+
     /* Create index using port number */
     index_oid[0] = portnum;
     index.oids = index_oid;
     index.len = 1;
 
     /* Copy index into row structure */
-    if (ctx && index_oid) {
-        memcpy(&ctx->index, &index, sizeof(index));
-        return ctx;
-    } else {
-        /* Error during malloc */
-        snmp_log(LOG_ERR, "malloc failed in stats_table_create_row\n");
-        return NULL;
-    }
+    memcpy(&ctx->index, &index, sizeof(index));
+    return ctx;
+
+error:
+    if (index_oid) free(index_oid);
+    if (ctx) SNMP_FREE(ctx);
+    return NULL;
 }
 
 /************************************************************
