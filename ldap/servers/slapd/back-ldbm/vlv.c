@@ -345,7 +345,15 @@ vlv_init(ldbm_instance *inst)
     char *basedn = NULL;
     const char *searchfilter = "(objectclass=vlvsearch)";
     const char *indexfilter = "(objectclass=vlvindex)";
-    backend *be= inst->inst_be;
+    backend *be = NULL;
+
+    if (!inst) {
+        LDAPDebug(LDAP_DEBUG_ANY, "vlv_init: invalid instance.\n", 0, 0, 0);
+        return_value = LDAP_OPERATIONS_ERROR;
+        goto out;
+    }
+
+    be = inst->inst_be;
 
     /* Initialize lock first time through */
     if(be->vlvSearchList_lock == NULL) {
@@ -368,9 +376,8 @@ vlv_init(ldbm_instance *inst)
         be->vlvSearchList = NULL;
         PR_RWLock_Unlock(be->vlvSearchList_lock);
     }
-    if (inst == NULL) {
-        basedn = NULL;
-    } else {
+
+    {
         basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                            inst->inst_name, inst->inst_li->li_plugin->plg_name);
         if (NULL == basedn) {
@@ -417,6 +424,7 @@ vlv_init(ldbm_instance *inst)
 		slapi_ch_free_string(&basedn);
     }
 
+out:
     return return_value;
 }
 
