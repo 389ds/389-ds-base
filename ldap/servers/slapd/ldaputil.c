@@ -322,7 +322,7 @@ slapi_ldap_init_ext(
 		    !ludp)) {
 	slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
 			"Could not parse given LDAP URL [%s] : error [%s]\n",
-			ldapurl ? ldapurl : "NULL",
+			ldapurl, /* ldapurl cannot be NULL here */
 			slapi_urlparse_err2string(rc));
 	goto done;
     }
@@ -756,7 +756,7 @@ slapi_ldap_bind(
 			    "Error: could not perform interactive bind for id "
 			    "[%s] mech [%s]: error %d (%s)\n",
 			    bindid ? bindid : "(anon)",
-			    mech ? mech : "SIMPLE",
+			    mech, /* mech cannot be SIMPLE here */
 			    rc, ldap_err2string(rc));
 	}
     }
