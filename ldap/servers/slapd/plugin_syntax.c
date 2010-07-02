@@ -319,7 +319,7 @@ slapi_dn_syntax_check(
 			if (dn_plugin->plg_syntax_validate(&dn_bval) != 0) {
 				if (syntaxlogging) {
 					slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check",
-						"DN value (%s) invalid per syntax\n", dn ? dn : "");
+						"DN value (%s) invalid per syntax\n", dn);
 				}
 
 				if (syntaxcheck || override) {
