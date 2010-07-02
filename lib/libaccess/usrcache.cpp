@@ -363,6 +363,11 @@ int acl_usr_cache_insert (const char *uid, const char *dbname,
 	PRCList *tail = PR_LIST_TAIL(usrobj_list);
 	usrobj = USEROBJ_PTR(tail);
 
+	if (!usrobj) {
+	    rv = LAS_EVAL_FAIL;
+	    goto out;
+	}
+
 	/* If the removed usrobj is in the hashtable, remove it from there */
 	if (usrobj->hashtable) {
 	    PR_HashTableRemove(usrobj->hashtable, usrobj);
@@ -393,18 +398,11 @@ int acl_usr_cache_insert (const char *uid, const char *dbname,
     PR_REMOVE_LINK(&usrobj->list);
     PR_INSERT_AFTER(&usrobj->list, usrobj_list);
 
-    /* Set the time in the UserCacheObj */
-    if (usrobj) {
-	rv = LAS_EVAL_TRUE;
-    }
-    else {
-	rv = LAS_EVAL_FAIL;
-    }
-
     DBG_PRINT4("acl_usr_cache_insert: derCert = \"%s\" uid = \"%s\" at time = %ld\n",
 	       usrobj->derCert ? (char *)usrobj->derCert->data : "<NONE>",
 	       uid, time);
 
+out:
     user_hash_crit_exit();
     return rv;
 }
