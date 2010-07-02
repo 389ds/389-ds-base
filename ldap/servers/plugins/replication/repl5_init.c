@@ -571,18 +571,8 @@ int replication_multimaster_plugin_init(Slapi_PBlock *pb)
 */
 	multimaster_mtnode_extension_init ();
 
-	if(rc==0 && !multimaster_initialised)
+	if(!multimaster_initialised)
 	{
-        /* initialize replica hash - has to be done before mapping tree is
-           initialized so we can't do it in the start function */
-        
-        if (rc != 0)
-	    {
-		    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"replication_multimaster_plugin_init: failed to initialize replica hash\n");
-		    return -1;
-	    }
-
 		/* Initialize extensions */
 		repl_con_init_ext();
 		repl_sup_init_ext();
@@ -603,6 +593,10 @@ int replication_multimaster_plugin_init(Slapi_PBlock *pb)
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_end_extop_init", multimaster_end_extop_init, "Multimaster replication end extended operation plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_total_extop_init", multimaster_total_extop_init, "Multimaster replication total update extended operation plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_response_extop_init", multimaster_response_extop_init, "Multimaster replication extended response plugin", NULL, identity);
+		if (0 == rc)
+		{
+			multimaster_initialised = 1;
+		}
 	}
 	return rc;
 }
