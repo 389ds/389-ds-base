@@ -1921,14 +1921,10 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 							replmsg ? " - " : "", replmsg ? replmsg : "");
 			}
 		}
+		/* ldaprc == LDAP_SUCCESS */
 		else if (replrc != 0)
 		{
-			if (replrc == NSDS50_REPL_REPLICA_READY)
-			{
-				PR_snprintf(ra->last_update_status, STATUS_LEN, "%d %s",
-					ldaprc, "Replica acquired successfully");
-			}
-			else if (replrc == NSDS50_REPL_REPLICA_BUSY)
+			if (replrc == NSDS50_REPL_REPLICA_BUSY)
 			{
 				PR_snprintf(ra->last_update_status, STATUS_LEN,
 					"%d Can't acquire busy replica", replrc ); 
@@ -1941,8 +1937,8 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 			else if (replrc == NSDS50_REPL_DISABLED)
 			{
 				PR_snprintf(ra->last_update_status, STATUS_LEN, "%d Incremental update aborted: "
-                                            "Replication agreement for %s\n can not be updated while the replica is disabled.\n"
-                                            "(If the suffix is disabled you must enable it then restart the server for replication to take place).",
+					"Replication agreement for %s\n can not be updated while the replica is disabled.\n"
+					"(If the suffix is disabled you must enable it then restart the server for replication to take place).",
 					replrc, ra->long_name ? ra->long_name : "a replica");
 				/* Log into the errors log, as "ra->long_name" is not accessible from the caller */
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -1959,11 +1955,14 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 					message?" - ":"",message?message:"");
 			}
 		}
-		else if (message != NULL)
+		else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
 		{
-			PR_snprintf(ra->last_update_status, STATUS_LEN, "%d %s", ldaprc, message);
+			PR_snprintf(ra->last_update_status, STATUS_LEN, 
+						"%d Replica acquired successfully: %s",
+						ldaprc, message);
 		}
-		else { /* agmt_set_last_update_status(0,0,NULL) to reset agmt */
+		else
+		{ /* agmt_set_last_update_status(0,0,NULL) to reset agmt */
 			PR_snprintf(ra->last_update_status, STATUS_LEN, "%d", ldaprc);
 		}
 	}
@@ -1999,14 +1998,10 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 							replmsg ? " - " : "", replmsg ? replmsg : "");
 			}
 		}
+		/* ldaprc == LDAP_SUCCESS */
 		else if (replrc != 0)
 		{
-			if (replrc == NSDS50_REPL_REPLICA_READY)
-			{
-				PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s",
-					ldaprc, "Replica acquired successfully");
-			}
-			else if (replrc == NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED)
+			if (replrc == NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED)
 			{
 				PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s",
 					ldaprc, "Replication session successful");
@@ -2014,8 +2009,8 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 			else if (replrc == NSDS50_REPL_DISABLED)
 			{
 				PR_snprintf(ra->last_init_status, STATUS_LEN, "%d Total update aborted: "
-                                            "Replication agreement for %s\n can not be updated while the replica is disabled.\n"
-                                            "(If the suffix is disabled you must enable it then restart the server for replication to take place).",
+					"Replication agreement for %s\n can not be updated while the replica is disabled.\n"
+					"(If the suffix is disabled you must enable it then restart the server for replication to take place).",
 					replrc, ra->long_name ? ra->long_name : "a replica");
 				/* Log into the errors log, as "ra->long_name" is not accessible from the caller */
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -2032,11 +2027,14 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 					message?" - ":"",message?message:"");
 			}
 		}
-		else if (message != NULL)
+		else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
 		{
-			PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s", ldaprc, message);
+			PR_snprintf(ra->last_init_status, STATUS_LEN,
+						"%d Replica acquired successfully: %s", 
+						ldaprc, message);
 		}
-		else { /* agmt_set_last_init_status(0,0,NULL) to reset agmt */
+		else
+		{ /* agmt_set_last_init_status(0,0,NULL) to reset agmt */
 			PR_snprintf(ra->last_init_status, STATUS_LEN, "%d", ldaprc);
 		}
 	}
