@@ -1350,7 +1350,16 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         rval = 1;
         goto bail;
     }
+
     search_pb = slapi_pblock_new();
+    if (!search_pb) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                      "ldbm_config_load_dse_info: Out of memory\n",
+                      0, 0, 0);
+        rval = 1;
+        goto bail;
+    }
+
     slapi_search_internal_set_pb(search_pb, dn, LDAP_SCOPE_BASE, 
         "objectclass=*", NULL, 0, NULL, NULL, li->li_identity, 0);
     slapi_search_internal_pb (search_pb);
