@@ -646,7 +646,7 @@ import_producer(void *param)
         }
 
         ep = import_make_backentry(e, id);
-        if (!ep)
+        if (!ep || !ep->ep_entry)
             goto error;
 
         /* check for include/exclude subtree lists */
@@ -1606,7 +1606,7 @@ upgradedn_producer(void *param)
         }
 
         ep = import_make_backentry(e, temp_id);
-        if (!ep) {
+        if (!ep || !ep->ep_entry) {
             slapi_entry_free(e); e = NULL;
             goto error;
         }
@@ -2725,7 +2725,7 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
     /* make into backentry */
     ep = import_make_backentry(entry, id);
-    if (!ep) {
+    if (!ep || !ep->ep_entry) {
         import_abort_all(job, 1);
         PR_Unlock(job->wire_lock);
         return -1;
@@ -2965,6 +2965,14 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     }
 
     srch_pb = slapi_pblock_new();
+    if (!srch_pb) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                "dse_conf_backup(%s): out of memory\n",
+                filter, 0, 0);
+        rval = -1;
+        goto out;
+    }
+
     slapi_search_internal_set_pb(srch_pb, li->li_plugin->plg_dn,
         LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL, li->li_identity, 0);
     slapi_search_internal_pb(srch_pb);
@@ -3049,9 +3057,9 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     }
 
 out:
-    slapi_free_search_results_internal(srch_pb);
     if (srch_pb)
     {
+        slapi_free_search_results_internal(srch_pb);
         slapi_pblock_destroy(srch_pb);
     }
 
