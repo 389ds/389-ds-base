@@ -1494,8 +1494,6 @@ static int cos_cache_add_defn(
 			cos_cache_del_attrval_list(spec);
 		if(pAttrs)
 			cos_cache_del_attrval_list(pAttrs);
-		if(theDef)
-			slapi_ch_free((void**)&theDef);
 	}
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_cache_add_defn\n",0,0,0);
@@ -3521,9 +3519,6 @@ static int cos_cache_follow_pointer( vattr_context *c, const char *dn, char *typ
 				/* this must be a compare op */
 				ret = slapi_vattr_value_compare_sp(c, pEntryList[0],type, test_this,  result, flags);
 				break;
-
-			default:
-				goto bail;
 			}
 		}
 	}
