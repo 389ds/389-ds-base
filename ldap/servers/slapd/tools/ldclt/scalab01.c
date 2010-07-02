@@ -703,11 +703,19 @@ readAttrValue (
    */
   attrs[0] = attname;
   attrs[1] = NULL;
+
   filter = (char *)malloc((4+strlen(attname))*sizeof(char));
+  if (NULL == filter)
+  {
+    printf ("ldclt[%d]: %s: Out of memory\n", mctx.pid, ident);
+    fflush (stdout);
+    return (-1);
+  }
+
   sprintf(filter, "(%s=*)", attname);
   ret = ldap_search_ext_s (ldapCtx, dn, LDAP_SCOPE_BASE,
 			   filter, attrs, 0, NULL, NULL, NULL, -1, &res);
-  if (filter != NULL) free(filter);
+  free(filter);
   if (ret != LDAP_SUCCESS)
   {
     printf ("ldclt[%d]: %s: Cannot ldap_search (%s in %s), error=%d (%s)\n",
