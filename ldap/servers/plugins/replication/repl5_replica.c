@@ -1476,11 +1476,11 @@ int replica_check_for_data_reload (Replica *r, void *arg)
 
                 /* We can't use existing changelog - remove existing file */
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
-			        "Warning: data for replica %s was reloaded and it no longer matches the data "
+                    "Warning: data for replica %s was reloaded and it no longer matches the data "
                     "in the changelog (replica data %s changelog). Recreating the changelog file. This could affect replication "
                     "with replica's consumers in which case the consumers should be reinitialized.\n",
                     escape_string(slapi_sdn_get_dn(r->repl_root),ebuf),
-		((!be_cover_cl && !cl_cover_be) ? "<>" : (!be_cover_cl ? "<" : ">")) );
+                    ((!be_cover_cl) ? "<>" : ">") );
 
                 rc = cl5DeleteDBSync (r_obj);
 
@@ -2554,7 +2554,7 @@ _replica_reap_tombstones(void *arg)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"Info: No purge CSN for tombstone reap for replica %s.\n",
-						replica_name ? replica_name : "(null)");
+						replica_name);
 	}
 
 done:
