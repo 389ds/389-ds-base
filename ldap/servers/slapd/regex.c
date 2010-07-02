@@ -153,7 +153,7 @@ slapi_re_subs( Slapi_Regex *re_handle, const char *subject,
     int  len = 0;
     int  pin;
     int  *ovector;
-    char *mydst = *dst;
+    char *mydst;
     const char *substring_start;
     const char *p;
 
@@ -165,6 +165,7 @@ slapi_re_subs( Slapi_Regex *re_handle, const char *subject,
     }
 
     ovector = re_handle->re_ovector;
+    mydst = *dst;
 
     for (p = src; *p != '\0'; p++) {
         if ('&' == *p) {
