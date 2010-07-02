@@ -758,7 +758,7 @@ send_dirsync_search(Repl_Connection *conn)
             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"%s: Failed to get %s operation: LDAP error %d (%s)\n",
 					agmt_get_long_name(conn->agmt),
-					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
+					op_string, rc, ldap_err2string(rc));
 			conn->last_ldap_error = rc;
 			if (IS_DISCONNECT_ERROR(rc))
 			{
