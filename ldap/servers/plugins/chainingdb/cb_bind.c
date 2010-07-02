@@ -181,7 +181,7 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
 	char * matcheddnp2, * errmsgp2;
 	matcheddnp2=errmsgp2=NULL;
 	*resctrlsp=NULL;
-        rc = ldap_parse_result( ld, result, status, matcheddnp, errmsgp,
+        rc = ldap_parse_result( ld, result, status, &matcheddnp2, &errmsgp2,
                 &referrals, resctrlsp, 1 );
         if ( referrals != NULL ) {
             *refurlsp = referrals2berval( referrals );
