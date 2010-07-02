@@ -380,12 +380,11 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 	DBC *cursor = NULL;
 	int rc;
 
-	/* txn control seems not improving anything so turn it off */
-	/*
+#if 0 /* txn control seems not improving anything so turn it off */
 	if ( *(_pool->pl_dbenv) ) {
 		txn_begin( *(_pool->pl_dbenv), NULL, &txn, 0 );
 	}
-	*/
+#endif
 
 	PR_Lock ( buf->buf_busy_list->bl_lock );
 	if ( 0 == ( rc = clcache_open_cursor ( txn, buf, &cursor )) ) {
@@ -415,9 +414,11 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 		cursor->c_close ( cursor );
 	}
 
+#if 0 /* txn control seems not improving anything so turn it off */
 	if ( txn ) {
 		txn->commit ( txn, DB_TXN_NOSYNC );
 	}
+#endif
 
 	PR_Unlock ( buf->buf_busy_list->bl_lock );
 
