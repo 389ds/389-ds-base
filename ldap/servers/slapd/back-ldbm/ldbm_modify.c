@@ -221,7 +221,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr );
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent_txn );
+
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
+	if (NULL == operation)
+	{
+		ldap_result_code = LDAP_OPERATIONS_ERROR;
+		goto error_return;
+	}
+
 	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
@@ -347,9 +354,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 * before we make our last abandon check to avoid race conditions in
 	 * the code that processes abandon operations.
 	 */
-	if (operation) {
-		operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
-	}
+	operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
 	if ( slapi_op_abandoned( pb ) ) {
 		goto error_return;
 	}
