@@ -3920,16 +3920,10 @@ DS_LASRoleDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			** Let's compare with the client, thi might be just an user. If it is not
 			** then we test it against the list of groups.
 			*/
-			if ((matched = acllas__user_has_role(
-									lasinfo.aclpb,	      						
-				      				roleDN, 
-				      	lasinfo.aclpb->aclpb_authorization_sdn)) == ACL_TRUE){
-				slapi_ch_free ( (void **)&n_attrval );
-				slapi_sdn_free(&roleDN );
-				break;
-			}			
+			matched = acllas__user_has_role(lasinfo.aclpb,
+							roleDN, lasinfo.aclpb->aclpb_authorization_sdn);
 			slapi_ch_free ( (void **)&n_attrval );
-			slapi_sdn_free(&roleDN );
+			slapi_sdn_free(&roleDN);
 			if (matched == ACL_TRUE) {
 				break;
 			} else if ( matched == ACL_DONT_KNOW ) {
