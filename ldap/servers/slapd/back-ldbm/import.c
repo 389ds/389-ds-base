@@ -521,6 +521,10 @@ static double import_grok_db_stats(ldbm_instance *inst)
 
     return_value = dblayer_memp_stat_instance(inst, &mpstat, &mpfstat);
 
+    if (!mpstat) {
+        goto out;
+    }
+
     if (0 == return_value) {
     unsigned long current_cache_hits = mpstat->st_cache_hit;
     unsigned long current_cache_misses = mpstat->st_cache_miss;
@@ -537,7 +541,9 @@ static double import_grok_db_stats(ldbm_instance *inst)
     }
     inst->inst_cache_misses = current_cache_misses;
     inst->inst_cache_hits = current_cache_hits;
+    }
 
+out:
     if (mpstat)
         slapi_ch_free((void **)&mpstat);
     if (mpfstat) {
@@ -548,7 +554,6 @@ static double import_grok_db_stats(ldbm_instance *inst)
         slapi_ch_free((void **)tfsp);
 #endif
         slapi_ch_free((void **)&mpfstat);
-    }
     }
     return cache_hit_ratio;
 }
