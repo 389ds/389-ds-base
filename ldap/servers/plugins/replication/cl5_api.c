@@ -5538,22 +5538,11 @@ static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_
 	}
 
 	/* db error occured while iterating */
-	if (rc != 0)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-			"_cl5GetFirstEntry: failed to get entry; db error - %d %s\n", rc, db_strerror(rc));
-		rc = CL5_DB_ERROR;
-		goto done;
-	}
-
-	/* successfully retrieved next entry but it was out of range */
-	if (rc == CL5_SUCCESS)
-	{
-		slapi_ch_free (&(key.data));
-		slapi_ch_free (&(data.data));	
-		rc = CL5_NOTFOUND;
-		goto done;
-	}
+	/* On this path, the condition "rc != 0" cannot be false */
+	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+				"_cl5GetFirstEntry: failed to get entry; db error - %d %s\n",
+				rc, db_strerror(rc));
+	rc = CL5_DB_ERROR;
 
 done:;
 	/* error occured */
@@ -5621,15 +5610,11 @@ static int _cl5GetNextEntry (CL5Entry *entry, void *iterator)
 	}
 
 	/* cursor operation failed */
-	if (rc != 0)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-			"_cl5GetNextEntry: failed to get entry; db error - %d %s\n", rc, db_strerror(rc));
+	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+			"_cl5GetNextEntry: failed to get entry; db error - %d %s\n", 
+			rc, db_strerror(rc));
 
-		return CL5_DB_ERROR;
-	}
-
-	return rc;
+	return CL5_DB_ERROR;
 }
 
 static int _cl5CurrentDeleteEntry (void *iterator)
