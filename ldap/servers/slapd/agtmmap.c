@@ -219,7 +219,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 
 	} /* end switch */
 #else
-
+	/* _WIN32 */
 	switch (mode) {
 		case O_RDONLY:
 		{
@@ -309,8 +309,6 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 	}
 
 #endif /* !__WINNT__ */
-
-return 0;
 
 }  /* agt_mopen_stats () */
 
