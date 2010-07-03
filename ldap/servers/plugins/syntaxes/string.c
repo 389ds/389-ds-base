@@ -342,15 +342,15 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 
 		len = bvp->bv_len;
 		if ( len < sizeof(buf) ) {
-			strcpy( buf, bvp->bv_val );
 			realval = buf;
+			strncpy( realval, bvp->bv_val, sizeof(buf) );
 		} else if ( len < tmpbufsize ) {
-			strcpy( buf, bvp->bv_val );
 			realval = tmpbuf;
+			strncpy( realval, bvp->bv_val, tmpbufsize );
 		} else {
-			tmpbuf = (char *) slapi_ch_realloc( tmpbuf, len + 1 );
-			strcpy( tmpbuf, bvp->bv_val );
-			realval = tmpbuf;
+			tmpbufsize = len + 1;
+			realval = tmpbuf = (char *) slapi_ch_realloc( tmpbuf, tmpbufsize );
+			strncpy( realval, bvp->bv_val, tmpbufsize );
 		}
 		/* 3rd arg: 1 - trim leading blanks */
 		value_normalize_ext( realval, syntax, 1, &alt );
