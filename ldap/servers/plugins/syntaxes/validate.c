@@ -361,7 +361,6 @@ int distinguishedname_validate(
 )
 {
 	int rc = 0; /* Assume value is valid */
-	char *val_copy = NULL;
 	const char *p = begin;
 	const char *last = NULL;
 
@@ -400,9 +399,6 @@ int distinguishedname_validate(
 	}
 
 exit:
-	if (val_copy) {
-		slapi_ch_free_string(&val_copy);
-	}
 	return rc;
 }
 
