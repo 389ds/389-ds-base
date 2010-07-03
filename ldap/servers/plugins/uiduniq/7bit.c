@@ -689,7 +689,6 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
   int err = 0;
 
   BEGIN
-    int err;
     int argc;
     char **argv;
 
