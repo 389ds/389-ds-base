@@ -1221,6 +1221,7 @@ static int ldapu_cert_mapfn_default (void *cert_in, LDAP *ld,
 
 	if (rdns == NULL) {
 	    /* error */
+	    return LDAPU_ERR_INTERNAL;
 	}
     
 	/* find last RDN */
