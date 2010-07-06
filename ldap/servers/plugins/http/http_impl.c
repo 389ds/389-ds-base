@@ -605,6 +605,10 @@ static PRStatus sendGetReq(PRFileDesc *fd, const char *path)
 	int buflen = (HTTP_GET_STD_LEN + strlen(path));
 
 	reqBUF = (char *)PR_Calloc(1, buflen);
+	if (!reqBUF) {
+		status = PR_FAILURE;
+		goto out;
+	}
 
 	strcpy(reqBUF, HTTP_GET);
 	strcat(reqBUF, " ");
@@ -615,7 +619,7 @@ static PRStatus sendGetReq(PRFileDesc *fd, const char *path)
 
 	http_connection_time_out = httpConfig->connectionTimeOut;
 	status = sendFullData( fd, reqBUF, http_connection_time_out);
-
+out:
 	if (reqBUF) {
 		PR_Free(reqBUF);
 		reqBUF = 0;
@@ -651,10 +655,10 @@ static PRStatus sendFullData( PRFileDesc *fd, char *buf, int timeOut)
 
 static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httpheaderArray, char *body)
 {
-    PRStatus status = PR_SUCCESS;
+	PRStatus status = PR_SUCCESS;
 	char body_len_str[20];
-    char *reqBUF = NULL;
-    PRInt32 http_connection_time_out = 0;
+	char *reqBUF = NULL;
+	PRInt32 http_connection_time_out = 0;
 	int i = 0;
 	int body_len, buflen = 0; 
 
@@ -665,9 +669,9 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 	}
 	PR_snprintf(body_len_str, sizeof(body_len_str), "%d", body_len);
 
-    buflen = (HTTP_POST_STD_LEN + strlen(path) + body_len + strlen(body_len_str));
+	buflen = (HTTP_POST_STD_LEN + strlen(path) + body_len + strlen(body_len_str));
 
-    for (i = 0; httpheaderArray[i] != NULL; i++) {
+	for (i = 0; httpheaderArray[i] != NULL; i++) {
 
                 if (httpheaderArray[i]->name != NULL)
 				{
@@ -676,22 +680,26 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
                         buflen += strlen(httpheaderArray[i]->value) + 2;
 				}
 
-    }
+	}
 
-    reqBUF = (char *)PR_Calloc(1, buflen);
+	reqBUF = (char *)PR_Calloc(1, buflen);
+	if (!reqBUF) {
+		status = PR_FAILURE;
+		goto out;
+	}
 
-    strcpy(reqBUF, HTTP_POST);
-    strcat(reqBUF, " ");
-    strcat(reqBUF, path);
-    strcat(reqBUF, " ");
-    strcat(reqBUF, HTTP_PROTOCOL);
-    strcat(reqBUF, "\r\n");
-    strcat(reqBUF, HTTP_CONTENT_LENGTH);
-    strcat(reqBUF, " ");
-    strcat(reqBUF, body_len_str);
-    strcat(reqBUF, "\r\n");
-    strcat(reqBUF, HTTP_CONTENT_TYPE_URL_ENCODED);
-    strcat(reqBUF, "\r\n");
+	strcpy(reqBUF, HTTP_POST);
+	strcat(reqBUF, " ");
+	strcat(reqBUF, path);
+	strcat(reqBUF, " ");
+	strcat(reqBUF, HTTP_PROTOCOL);
+	strcat(reqBUF, "\r\n");
+	strcat(reqBUF, HTTP_CONTENT_LENGTH);
+	strcat(reqBUF, " ");
+	strcat(reqBUF, body_len_str);
+	strcat(reqBUF, "\r\n");
+	strcat(reqBUF, HTTP_CONTENT_TYPE_URL_ENCODED);
+	strcat(reqBUF, "\r\n");
  
 	for (i = 0; httpheaderArray[i] != NULL; i++) {
 
@@ -704,22 +712,22 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 
 	}
 
-    strcat(reqBUF, "\r\n");
+	strcat(reqBUF, "\r\n");
 	if (body) {
 		strcat(reqBUF, body);
 	}
-    strcat(reqBUF, "\0");
+	strcat(reqBUF, "\0");
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "---------->reqBUF is %s \n",reqBUF,0,0);
-    http_connection_time_out = httpConfig->connectionTimeOut;
+	http_connection_time_out = httpConfig->connectionTimeOut;
 
 	status = sendFullData( fd, reqBUF, http_connection_time_out);
-
-    if (reqBUF) {
+out:
+	if (reqBUF) {
             PR_Free(reqBUF);
             reqBUF = 0;
-    }
-    return status;
+	}
+	return status;
 }
 
 
@@ -871,19 +879,22 @@ static PRStatus parseAtPath(const char *url, char **path)
 {
 	PRStatus status = PR_SUCCESS;
 	char *dir = "%s%s"; 
-	*path = (char *)PR_Calloc(1, strlen(dir) + strlen(url) + 2);
 
-    /* Just write the path and check for a starting / */
-    if ('/' != *url) {
+	*path = (char *)PR_Calloc(1, strlen(dir) + strlen(url) + 2);
+	if (!*path) {
+		/* Error : HTTP_BAD_URL */
+		status = PR_FAILURE;
+		goto out;
+	}
+
+	/* Just write the path and check for a starting / */
+	if ('/' != *url) {
 		sprintf(*path, dir, "/", url);
 	} else {
 		strcpy(*path, url);
 	}
-	if (!*path) {
-		/* Error : HTTP_BAD_URL */
-		status = PR_FAILURE;
-	}
-    return status;
+out:
+	return status;
 }
 
 static void toLowerCase(char* str)
