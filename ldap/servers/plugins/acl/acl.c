@@ -702,6 +702,11 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 		return;
 	}
 
+	if ( !aclpb ) {
+		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name,  "Missing aclpb \n" );
+		return;
+	}
+
 	slapi_pblock_get(aclpb->aclpb_pblock, SLAPI_OPERATION, &op); /* for logging */
 
 	if (ret_val == LDAP_INSUFFICIENT_ACCESS) {
@@ -756,7 +761,7 @@ static void print_access_control_summary( char *source, int ret_val, char *clien
 			
 	/* Is there a proxy */
 
-	if ( aclpb != NULL && aclpb->aclpb_proxy != NULL) {
+	if ( aclpb->aclpb_proxy != NULL) {
 
 		if ( aclpb->aclpb_authorization_sdn != NULL ) {
 
