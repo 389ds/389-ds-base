@@ -428,6 +428,11 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 		}
 		/* Make a sdn from the string */
 		original_dn = slapi_sdn_new_dn_byref(original_dn_string);
+		if (!original_dn) {
+			slapi_log_error(SLAPI_LOG_REPL, NULL, "map_dn_values: unable to create Slapi_DN from %s.\n", original_dn_string);
+			return;
+		}
+
 		if (to_windows)
 		{
 			Slapi_Entry *local_entry = NULL;
@@ -526,10 +531,7 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 		}
 		/* If not then we skip it */
         i = slapi_valueset_next_value(original_values,i,&original_value);
-		if (original_dn)
-		{
-			slapi_sdn_free(&original_dn);
-		}
+		slapi_sdn_free(&original_dn);
     }/* while */
 	if (new_vs)
 	{
@@ -3289,7 +3291,13 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 		int rc = 0;
 		Slapi_Entry *remote_entry = NULL;
 		new_dn = make_dn_from_guid(guid, is_nt4, suffix);
-		slapi_ch_free_string(&guid);
+		if (!new_dn) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: map_entry_dn_outbound: unable to make dn from guid %s.\n",
+					agmt_get_long_name(prp->agmt), guid);
+			retval = -1;
+			goto done;
+		}
 		/* There are certain cases where we will have a GUID, but the entry does not exist in
 		 * AD.  This happens when you delete an entry, then add it back elsewhere in the tree
 		 * without removing the ntUniqueID attribute.  We should verify that the entry really
@@ -3337,9 +3345,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 					new_dn_string = PR_smprintf("cn=%s,%s%s", cn_string, container_str, suffix);
 
 					if (new_dn_string) {
-						if (new_dn) {
-							slapi_sdn_free(&new_dn);
-						}
+						slapi_sdn_free(&new_dn);
 						new_dn = slapi_sdn_new_dn_byval(new_dn_string);
 						PR_smprintf_free(new_dn_string);
 					}
@@ -3433,6 +3439,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 			slapi_entry_free(remote_entry);
 		}
 	}
+done:
 	if (new_dn) 
 	{
 		*dn = new_dn;
@@ -4125,20 +4132,20 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 					/* Now do a compare on the values, generating mods to bring them into consistency (if any) */
 					/* We ignore any DNs that are outside the scope of the agreement (on both sides) */
 					slapi_attr_get_valueset(local_attr,&local_values);
-					map_dn_values(prp,local_values,&restricted_local_values,!to_windows,1);
-					if (restricted_local_values)
-					{
-						windows_generate_dn_value_mods(local_type,local_attr,smods,mapped_remote_values,restricted_local_values,do_modify);
-						slapi_valueset_free(restricted_local_values);
-						restricted_local_values = NULL;
-					}
-					slapi_valueset_free(mapped_remote_values);
-					mapped_remote_values = NULL;
 					if (local_values) 
 					{
+						map_dn_values(prp,local_values,&restricted_local_values,!to_windows,1);
+						if (restricted_local_values)
+						{
+							windows_generate_dn_value_mods(local_type,local_attr,smods,mapped_remote_values,restricted_local_values,do_modify);
+							slapi_valueset_free(restricted_local_values);
+							restricted_local_values = NULL;
+						}
 						slapi_valueset_free(local_values);
 						local_values = NULL;
 					}
+					slapi_valueset_free(mapped_remote_values);
+					mapped_remote_values = NULL;
 				}
 			}
 		} else
