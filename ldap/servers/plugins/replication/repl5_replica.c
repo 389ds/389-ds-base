@@ -179,6 +179,16 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 
    	r = (Replica *)slapi_ch_calloc(1, sizeof(Replica));
 
+        if (!r)
+	{
+        	if (NULL != errortext)
+		{
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Out of memory");
+		}
+		rc = -1;
+		goto done;
+	}
+
 	if ((r->repl_lock = PR_NewLock()) == NULL)
 	{
 		if (NULL != errortext)
@@ -1873,6 +1883,12 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 	
 	/* read ruv state from the ruv tombstone entry */
 	pb = slapi_pblock_new();
+	if (!pb) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+			"_replica_configure_ruv: Out of memory\n");
+		goto done;
+	}
+
 	attrs[0] = (char*)type_ruvElement;
 	attrs[1] = NULL;
 	slapi_search_internal_set_pb(
