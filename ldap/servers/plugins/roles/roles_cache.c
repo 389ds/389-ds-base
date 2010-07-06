@@ -614,10 +614,17 @@ static int roles_cache_update(roles_cache_def *suffix_to_update)
 
 	operation = suffix_to_update->notified_operation;
 	entry = suffix_to_update->notified_entry;
+
 	dn = slapi_sdn_new();
+	if (!dn) {
+		slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "Out of memory \n");
+		rc = -1;
+		goto done;
+	}
+
 	slapi_sdn_set_dn_byval(dn, suffix_to_update->notified_dn);
 
-	if ( (entry != NULL) && (dn != NULL) )
+	if ( entry != NULL )
 	{
 		if ( (operation == SLAPI_OPERATION_MODIFY) ||
 			 (operation == SLAPI_OPERATION_DELETE) )
@@ -646,8 +653,8 @@ static int roles_cache_update(roles_cache_def *suffix_to_update)
 		suffix_to_update->notified_entry = NULL;
 
 	}
+done:
 	PR_RWLock_Unlock(suffix_to_update->cache_lock);
-
 	if ( dn != NULL )
 	{
 		slapi_sdn_free(&dn);
@@ -1718,6 +1725,12 @@ static int roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, c
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "--> roles_is_entry_member_of_object\n");
 
+	if (!this_role) {
+		slapi_log_error(SLAPI_LOG_FATAL, 
+			ROLES_PLUGIN_SUBSYSTEM, "roles_is_entry_member_of_object-> NULL role\n");
+		goto done;
+	}
+
     if (!roles_is_inscope(entry_to_check, this_role->dn)) 
 	{
 		slapi_log_error(SLAPI_LOG_PLUGIN, 
@@ -1752,7 +1765,7 @@ static int roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, c
 								ROLES_PLUGIN_SUBSYSTEM, "roles_is_entry_member_of_object-> invalid role type\n");
 		}
 	}
-
+done:
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "<-- roles_is_entry_member_of_object\n");
 	return rc;
