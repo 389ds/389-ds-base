@@ -2018,7 +2018,7 @@ slapi_check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, in
 								&type_name_disposition, &actual_type_name,
 								SLAPI_VIRTUALATTRS_REQUEST_POINTERS,
 								&attr_free_flags);
-	if ( rc == 0 )
+	if ( rc == 0 && NULL != values )
 	{
 		Slapi_Value *v = NULL;	
 		const struct berval *bvp = NULL;
@@ -2041,10 +2041,11 @@ slapi_check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, in
 				goto locked;
 			}
 		} /* else, account "activated", keep on the process */
-
-		if ( values != NULL )
-			slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
 	}
+
+	if ( values != NULL )
+		slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
+
 	/* kexcoff - end */
 
 	/*
