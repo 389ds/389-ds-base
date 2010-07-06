@@ -435,7 +435,9 @@ void
 eq_init()
 {
 	if (!eq_initialized) {
-		PR_CallOnce(&init_once, eq_create);
+		if (PR_SUCCESS != PR_CallOnce(&init_once, eq_create)) {
+			slapi_log_error(SLAPI_LOG_FATAL, NULL, "eq_init - eq_create failed\n");
+		}
 	}
 }
 

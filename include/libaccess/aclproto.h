@@ -151,7 +151,6 @@ NSAPI_PUBLIC int ACL_Init(void);
 NSAPI_PUBLIC int ACL_InitPostMagnus(void);
 NSAPI_PUBLIC int ACL_LateInitPostMagnus(void);
 NSAPI_PUBLIC void ACL_ListHashUpdate(ACLListHandle_t **acllistp);
-NSAPI_PUBLIC void ACL_GetPathAcls(char *path, ACLListHandle_t **acllist_p, char *prefix, ACLListHandle_t *masterlist);
 NSAPI_PUBLIC int ACL_ReadDbMapFile(NSErr_t *errp, const char *map_file, int default_only); 
 
 NSAPI_PUBLIC int ACL_MethodNamesGet(NSErr_t *errp, char ***names, int *count);

@@ -885,7 +885,10 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 				LDAPControl **returned_controls = NULL;
 				int code = 0;
 				/* Purify says this is a leak : */
-				ldap_parse_result( conn->ld, res, &code,  NULL, NULL,  NULL, &returned_controls, 0 );
+				if (LDAP_SUCCESS != (rc = ldap_parse_result( conn->ld, res, &code,  NULL, NULL,  NULL, &returned_controls, 0 ))) {
+					slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+									"error reading search result in windows_conn_get_search_result, rc=%d:%s\n", rc, ldap_err2string(rc));
+				}
 				if (returned_controls)
 				{
 					windows_private_update_dirsync_control(conn->agmt, returned_controls);
@@ -1818,7 +1821,20 @@ windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *password
 	/* Attempt to do a bind on the existing connection 
 	 * using the dn and password that were passed in. */
 	msgid = do_simple_bind(conn, conn->ld, (char *) binddn, password);
-	ldap_result(conn->ld, msgid, LDAP_MSG_ALL, NULL, &res);
+	rc = ldap_result(conn->ld, msgid, LDAP_MSG_ALL, NULL, &res);
+	if (0 > rc) { /* error */
+		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						"Error reading bind response for id "
+						"[%s]: error %d (%s)\n",
+						binddn ? binddn : "(anon)",
+						rc, ldap_err2string(rc));
+	} else if (rc == 0) { /* timeout */
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						"Error: timeout reading "
+						"bind response for [%s]\n",
+						binddn ? binddn : "(anon)");
+	}
 	ldap_parse_result( conn->ld, res, &rc, NULL, NULL, NULL, NULL, 1 /* Free res */);
 
 	/* rebind as the DN specified in the sync agreement */

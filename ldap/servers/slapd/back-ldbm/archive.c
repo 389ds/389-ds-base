@@ -235,7 +235,15 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
         if (0 != return_value) {
             /* error case (607331)
              * just to go back to the previous state if possible */
-            dblayer_start(li, DBLAYER_NORMAL_MODE); 
+            if ((return_value = dblayer_start(li, DBLAYER_NORMAL_MODE))) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "archive2db: Unable to to start database in [%s]\n", li->li_directory);
+                if (task) {
+                    slapi_task_log_notice(task, "Failed to start the database in "
+                                          "%s", li->li_directory);
+                }
+                goto out;
+            }
         }
         /* bring all backends back online */
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
@@ -441,7 +449,23 @@ err:
                                         dir_bak, directory);
         }
         ldbm_delete_dirs(directory);
-        PR_Rename(dir_bak, directory);
+        if (PR_SUCCESS != PR_Rename(dir_bak, directory)) {
+            PRErrorCode prerr = PR_GetError();
+            LDAPDebug(LDAP_DEBUG_ANY,
+                            "db2archive: Failed to rename \"%s\" to \"%s\".\n",
+                            dir_bak, directory, 0);
+            LDAPDebug(LDAP_DEBUG_ANY,
+                            SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                            prerr, slapd_pr_strerror(prerr), 0);
+            if (task) {
+                slapi_task_log_notice(task,
+                            "Failed to rename \"%s\" to \"%s\".",
+                            dir_bak, directory);
+                slapi_task_log_notice(task,
+                            SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
+                            prerr, slapd_pr_strerror(prerr));
+            }
+        }
     }
 out:
     /* close the database down again */

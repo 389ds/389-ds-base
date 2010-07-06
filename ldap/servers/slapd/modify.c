@@ -573,7 +573,6 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	Slapi_Backend *be = NULL;
 	Slapi_Entry	*pse;
 	Slapi_Entry *referral;
-	Slapi_Entry	*ecopy = NULL;
 	Slapi_Entry	*e = NULL;
 	char ebuf[BUFSIZ];
 	char *dn;

@@ -245,7 +245,10 @@ allinstance_set_busy(struct ldbminfo *li)
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
-        instance_set_busy(inst);
+        if (instance_set_busy(inst)) {
+            LDAPDebug1Arg(LDAP_DEBUG_TRACE, "could not set instance [%s] as busy, probably already busy\n",
+                      inst->inst_name);
+        }
     }
     if (inst_obj)
         object_release(inst_obj);

@@ -411,7 +411,10 @@ load_config(char *conf_path)
                 int vlen;
 #endif
                 /* Check if this is the cn=config entry */
-                ldif_parse_line(ldif_getline(&entryp), &attr, &val, &vlen);
+                if (ldif_parse_line(ldif_getline(&entryp), &attr, &val, &vlen)) {
+                    printf("ldap-agent: error parsing ldif line from [%s]\n", serv_p->dse_ldif);
+                }
+
                 if ((strcmp(attr, "dn") == 0) &&
                     (strcmp(val, "cn=config") == 0)) {
                     char *dse_line = NULL;

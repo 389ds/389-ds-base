@@ -224,12 +224,15 @@ int cb_update_controls( Slapi_PBlock * pb,
             if (!strcmp(reqControls[cCount]->ldctl_oid,CB_LDAP_CONTROL_CHAIN_SERVER)) {
 
             /* Max hop count reached ?                 */
-            /* Checked realier by a call to cb_forward_operation()  */
+            /* Checked earlier by a call to cb_forward_operation()  */
 
             BerElement      *ber = NULL;
 
             ber = ber_init(&(reqControls[cCount]->ldctl_value));
-            ber_scanf(ber,"i",&hops);
+            if (LBER_ERROR == ber_scanf(ber,"i",&hops)) {
+                slapi_log_error( SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+                                 "Unable to get number of hops from the chaining control\n");
+            }
             ber_free(ber,1);
             useloop=1;
 

@@ -1475,7 +1475,11 @@ int cl5ConfigTrimming (int maxEntries, const char *maxAge)
 
 	/* make sure changelog is not closed while trimming configuration
        is updated.*/
-	_cl5AddThread ();
+	if (CL5_SUCCESS != _cl5AddThread ()) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"cl5ConfigTrimming: could not start changelog trimming thread\n");
+		return CL5_BAD_STATE;	
+	}
 
 	PR_Lock (s_cl5Desc.dbTrim.lock);
 	
