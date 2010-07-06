@@ -441,12 +441,16 @@ age_str2time (const char *age)
     }
     
     maxage = slapi_ch_strdup ( age );
+    if (!maxage) {
+        slapi_log_error( SLAPI_LOG_PLUGIN, "retrocl",
+		       "age_str2time: Out of memory\n" );
+        ageval = -1;
+        goto done;
+    }
+
     unit = maxage[ strlen( maxage ) - 1 ];
     maxage[ strlen( maxage ) - 1 ] = '\0';
     ageval = strntoul( maxage, strlen( maxage ), 10 );
-    if ( maxage) {
-        slapi_ch_free ( (void **) &maxage );
-    }
     switch ( unit ) {
     case 's':
       break;
@@ -468,7 +472,10 @@ age_str2time (const char *age)
 		       "for maxiumum changelog age\n", unit );
       ageval = -1;
     }
-    
+done:
+    if ( maxage) {
+        slapi_ch_free ( (void **) &maxage );
+    }
     return ageval;
 }
 
