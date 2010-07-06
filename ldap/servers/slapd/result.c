@@ -1060,7 +1060,7 @@ int send_specific_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PB
 			vattr_flags |= SLAPI_VIRTUALATTRS_ONLY;
 	}
 	
-	for ( i = 0; attrs[i] != NULL; i++ )
+	for ( i = 0; attrs != NULL && attrs[i] != NULL; i++ )
 	{
 		char *current_type_name = attrs[i];
         if(!dontsendattr[i]) {
@@ -1130,7 +1130,7 @@ int send_specific_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PB
 					 * returned (since it will also trigger the return of the less
 					 * generic attribute subtypes.
 					 */
-					for ( j = i+1; attrs != NULL && attrs[j] != NULL && dontsendattr[i]==0; j++ )
+					for ( j = i+1; attrs[j] != NULL && dontsendattr[i]==0; j++ )
 					{
 						if ( !dontsendattr[j] && slapi_attr_type_cmp( attrs[j], actual_type_name[iter], SLAPI_TYPE_CMP_SUBTYPE ) == 0 )
 						{
