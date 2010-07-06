@@ -913,6 +913,8 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
 
             sprintf(fn, "/proc/%d/status", getpid());
             f = fopen(fn, "r");
+            if (!f)    /* fopen failed */
+                return;
             while (! feof(f)) {
                 fgets(s, 79, f);
                 if (feof(f))
