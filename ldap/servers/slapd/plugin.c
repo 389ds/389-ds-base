@@ -2432,6 +2432,10 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBloc
 	int method = -1;
 
 	PR_ASSERT (plugin);
+	if (!pb) {
+		LDAPDebug(LDAP_DEBUG_ANY, "plugin_invoke_plugin_sdn: NULL pblock.\n", 0, 0, 0);
+		return PR_FALSE;
+	}
 
 	/* get configuration from the group plugin if necessary */
 	config = plugin_get_config (plugin);
@@ -2441,55 +2445,41 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBloc
 	{
 		int repl_op;
 
-		/* if pb is NULL we assume it is not a replicated operation */
-		if (pb)
-		{
-			slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
-			if (repl_op)
-				return PR_FALSE;
-		}
+		slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
+		if (repl_op)
+			return PR_FALSE;
 	}
 
-	if (pb)
-	{		  
-		if (pb->pb_op)
+	if (pb->pb_op)
+	{
+		op = operation_get_type(pb->pb_op);
+
+		if (op == SLAPI_OPERATION_BIND || op == SLAPI_OPERATION_UNBIND)
 		{
-			op = operation_get_type(pb->pb_op);
-
-			if (op == SLAPI_OPERATION_BIND || op == SLAPI_OPERATION_UNBIND)
-			{
-				bindop = PR_TRUE;
-			}
-			else
-			{
-				bindop = PR_FALSE;
-			}
-
-			slapi_pblock_get (pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+			bindop = PR_TRUE;
 		}
 		else
 		{
 			bindop = PR_FALSE;
-			isroot = 1;
 		}
 
-		slapi_pblock_get (pb, SLAPI_BACKEND, &be);
-
-		/* determine whether data are local or remote    */
-		/* remote if chaining backend or default backend */
-
-		if ( be!=NULL ) {
-			islocal=!(slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA));
-		} else {
-			islocal = be != defbackend_get_backend();
-		}
-			
+		slapi_pblock_get (pb, SLAPI_REQUESTOR_ISROOT, &isroot);
 	}
 	else
 	{
 		bindop = PR_FALSE;
-		islocal = PR_TRUE;
 		isroot = 1;
+	}
+
+	slapi_pblock_get (pb, SLAPI_BACKEND, &be);
+
+	/* determine whether data are local or remote    */
+	/* remote if chaining backend or default backend */
+
+	if ( be!=NULL ) {
+		islocal=!(slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA));
+	} else {
+		islocal = be != defbackend_get_backend();
 	}
 
 	if (bindop)
