@@ -626,6 +626,12 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_search_entry\n", 0, 0, 0 );
 
+	if (!entry) {
+		LDAPDebug( LDAP_DEBUG_ANY, "windows_search_entry: NULL entry\n", 0, 0, 0 );
+		return_value = CONN_LOCAL_ERROR; /* entry should never == NULL here */
+		goto done;
+	}
+
 	*entry = NULL;
 
 	if (windows_conn_connected(conn))
@@ -702,6 +708,7 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 	{
 		return_value = CONN_NOT_CONNECTED;
 	}
+done:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_search_entry\n", 0, 0, 0 );
 	return return_value;
 }
