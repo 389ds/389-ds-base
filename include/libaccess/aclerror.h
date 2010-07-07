@@ -237,6 +237,7 @@ NSPR_END_EXTERN_C
 #define	ACLERR4740	4740		/* Cannot add token to hash */
 #define	ACLERR4750	4750		/* Cannot add token to hash */
 #define	ACLERR4760	4760		/* Cannot add token to hash */
+#define	ACLERR4770	4770		/* Invalid attribute pattern */
 
 /* LASDnsEval */
 #define	ACLERR4800	4800		/* Wrong attribute name */

@@ -152,6 +152,12 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
     PRHostEnt *he, host;
 #endif
 
+    if (attr_pattern == NULL) {
+	nserrGenerate(errp, ACLERRINVAL, ACLERR4770, ACL_Program, 1, 
+		      XP_GetAdminStr(DBT_lasdnsbuildInvalidAttributePattern_));
+        return LAS_EVAL_INVALID;
+    }
+
     context->Table = PR_NewHashTable(0,
 				     PR_HashCaseString,
 				     PR_CompareCaseStrings,

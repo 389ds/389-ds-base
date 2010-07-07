@@ -259,6 +259,7 @@ static char* libaccess[] = {
   "acl_user_exists: out of memory",
   "acl_user_exists: user doesn't exist anymore",
   "acl_user_exists: plist error",
+  "LASDnsBuild invalid attribute pattern\n",
   emptyString };
 
 /* libraries in bucket for hashKey==9 */
