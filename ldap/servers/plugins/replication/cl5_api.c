@@ -1805,17 +1805,12 @@ int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRu
 	
 
 	rc = _cl5GetDBFile (replica, &obj);
-	if (rc == CL5_SUCCESS)
+	if (rc == CL5_SUCCESS && obj)
 	{
     	/* iterate through the ruv in csn order to find first master for which 
 	       we can replay changes */		    
 		
 		rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, obj, iterator);
-		if (rc != CL5_SUCCESS)
-		{
-			if (obj)
-				object_release (obj);
-		}
 	}
 	else
 	{
@@ -1825,6 +1820,8 @@ int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRu
 
 	if (rc != CL5_SUCCESS)
 	{
+		if (obj) object_release (obj);
+
 		/* release the thread */
 		_cl5RemoveThread ();
 	}
@@ -1869,17 +1866,12 @@ int cl5CreateReplayIterator (Private_Repl_Protocol *prp, const RUV *consumerRuv,
 	
 
 	rc = _cl5GetDBFile (replica, &obj);
-	if (rc == CL5_SUCCESS)
+	if (rc == CL5_SUCCESS && obj)
 	{
     	/* iterate through the ruv in csn order to find first master for which 
 	       we can replay changes */		    
 		ReplicaId consumerRID = agmt_get_consumer_rid ( prp->agmt, prp->conn );
 		rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, obj, iterator);
-		if (rc != CL5_SUCCESS)
-		{
-			if (obj)
-				object_release (obj);
-		}
 	}
 	else
 	{
@@ -1889,6 +1881,8 @@ int cl5CreateReplayIterator (Private_Repl_Protocol *prp, const RUV *consumerRuv,
 
 	if (rc != CL5_SUCCESS)
 	{
+		if (obj) object_release (obj);
+
 		/* release the thread */
 		_cl5RemoveThread ();
 	}
@@ -4785,11 +4779,22 @@ static int _cl5GetRUV2Purge2 (Object *fileObj, RUV **ruv)
 
     PR_ASSERT (fileObj && ruv);
 
+    if (!ruv) {
+        rc = CL5_UNKNOWN_ERROR;
+        goto done;
+    }
+
     dbFile = (CL5DBFile*)object_get_data (fileObj);
     PR_ASSERT (dbFile);
     
     rObj = replica_get_by_name (dbFile->replName);
     PR_ASSERT (rObj);
+
+    if (!rObj) {
+        rc = CL5_NOTFOUND;
+        goto done;
+    }
+
     r = (Replica*)object_get_data (rObj);
     PR_ASSERT (r);
 
@@ -4840,7 +4845,7 @@ static int _cl5GetRUV2Purge2 (Object *fileObj, RUV **ruv)
     {
         csn_free (&csn);
     }
-
+done:
     if (rObj)
         object_release (rObj);
 
@@ -5664,9 +5669,9 @@ static int _cl5GetOperation (Object *replica, slapi_operation_parameters *op)
 	char csnStr[CSN_STRSIZE];		
 
 	rc = _cl5GetDBFile (replica, &obj);
-	if (rc != CL5_SUCCESS)
+	if (rc != CL5_SUCCESS || !obj)
 	{
-		return rc;
+		goto done;
 	}
 
 	file = (CL5DBFile*)object_get_data (obj);
@@ -5711,7 +5716,7 @@ static int _cl5GetOperation (Object *replica, slapi_operation_parameters *op)
 							goto done;
 	}
 
-done:;	
+done:
 	if (obj)
 		object_release (obj);
 
@@ -5799,6 +5804,12 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
     /* get supplier's RUV */
     supplierRuvObj = replica_get_ruv((Replica*)object_get_data(replica));
     PR_ASSERT (supplierRuvObj);
+
+    if (!supplierRuvObj) {
+        rc = CL5_UNKNOWN_ERROR;
+        goto done;
+    }
+
     supplierRuv = (RUV*)object_get_data (supplierRuvObj);            
     PR_ASSERT (supplierRuv);
 
@@ -6478,6 +6489,12 @@ static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile**
 	
 	PR_ASSERT (replName && replGen && dbFile);
 
+	if (!dbFile) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"_cl5NewDBFile: NULL dbFile\n");
+		return CL5_UNKNOWN_ERROR;
+	}
+
 	(*dbFile) = (CL5DBFile *)slapi_ch_calloc (1, sizeof (CL5DBFile));	
 	if (*dbFile == NULL)
 	{
@@ -6626,8 +6643,7 @@ out:
 done:
 	if (rc != CL5_SUCCESS)
 	{
-		if (dbFile)
-			_cl5DBCloseFile ((void**)dbFile);
+		_cl5DBCloseFile ((void**)dbFile);
 		/* slapi_ch_free accepts NULL pointer */
 		slapi_ch_free ((void**)&name);
 
