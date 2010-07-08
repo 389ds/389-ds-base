@@ -5604,13 +5604,6 @@ config_set_value(
     int ival = 0;
     uintptr_t pval;
 
-    /* for null values, just set the attr value to the empty
-       string */
-    if (!value) {
-        slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
-        return;
-    }
-
     switch (cgas->config_var_type) {
     case CONFIG_ON_OFF: /* convert 0,1 to "off","on" */
         slapi_entry_attr_set_charptr(e, cgas->attr_name,
@@ -5638,12 +5631,16 @@ config_set_value(
         break;
 
     case CONFIG_CHARRAY:
-        values = strarray2bervalarray((const char **)*((char ***)value));
-        if (!values) {
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
+        if (value) {
+            values = strarray2bervalarray((const char **)*((char ***)value));
+            if (!values) {
+                slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
+            } else {
+                slapi_entry_attr_replace(e, cgas->attr_name, values);
+                bervalarray_free(values);
+            }
         } else {
-            slapi_entry_attr_replace(e, cgas->attr_name, values);
-            bervalarray_free(values);
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
         }
         break;
 
