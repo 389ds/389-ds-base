@@ -197,8 +197,7 @@ do_modrdn( Slapi_PBlock *pb )
 			/* check that the dn is formatted correctly */
 			err = slapi_dn_syntax_check(pb, rawnewsuperior, 1);
 			if (err) { /* syntax check failed */
-				op_shared_log_error_access(pb, "MODRDN",
-							rawnewsuperior?rawnewsuperior:"",
+				op_shared_log_error_access(pb, "MODRDN", rawnewsuperior,
 							"strict: invalid new superior");
 				send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
 								 NULL, "invalid new superior", 0, NULL);
@@ -208,8 +207,7 @@ do_modrdn( Slapi_PBlock *pb )
 		}
 		err = slapi_dn_normalize_ext(rawnewsuperior, 0, &newsuperior, &dnlen);
 		if (err < 0) {
-			op_shared_log_error_access(pb, "MODRDN",
-							rawnewsuperior?rawnewsuperior:"",
+			op_shared_log_error_access(pb, "MODRDN", rawnewsuperior,
 							"invalid new superior");
 			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
 							 NULL, "invalid new superior", 0, NULL);
