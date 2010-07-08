@@ -437,7 +437,6 @@ int idl_new_delete_key(
     int ret = 0;
     DBC *cursor = NULL;
     DBT data = {0};
-    ID tmpid = 0;
 
     /* Make a cursor */
     ret = db->cursor(db,txn,&cursor,0);
@@ -453,7 +452,7 @@ int idl_new_delete_key(
     /* Position cursor at the key, value pair */
     ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
     if (0 == ret) {
-        if (tmpid == ALLID) {
+        if (id == ALLID) {
             goto error;	/* allid: never delete it */
         }
     } else {
