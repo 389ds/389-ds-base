@@ -502,7 +502,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                     sort_make_sort_response_control( pb, LDAP_SUCCESS, NULL ))
                 {
                     return ldbm_back_search_cleanup(pb, li, sort_control,
-                                             (abandoned?-1:LDAP_PROTOCOL_ERROR),
+                                             LDAP_PROTOCOL_ERROR,
                                              "Sort Response Control", -1,
                                              &basesdn, &vlv_request_control);
                 }
