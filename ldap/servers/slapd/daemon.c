@@ -1693,7 +1693,7 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
     int fd = PR_FileDesc2NativeHandle((PRFileDesc *)handle);
 
     if (handle == SLAPD_INVALID_SOCKET) {
-		PR_SetError(PR_NOT_SOCKET_ERROR, EBADF);
+        PR_SetError(PR_NOT_SOCKET_ERROR, EBADF);
     } else {
         while (1) {
             if (slapd_poll(handle, SLAPD_POLLOUT) < 0) { /* error */
@@ -1721,13 +1721,8 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
                           fd, prerr, slapd_pr_strerror(prerr));
                 PR_SetError(PR_PIPE_ERROR, EPIPE);
                 break;
-            } else if (sentbytes < count) {
-                LDAPDebug(LDAP_DEBUG_CONNS,
-                          "PR_Write(%d) - wrote only %d bytes (expected %d bytes) - 0 (EOF)\n", /* disconnected */
-                          fd, sentbytes, count);
-                PR_SetError(PR_PIPE_ERROR, EPIPE);
-                break;
-            }
+            } 
+
             if (sentbytes == count) { /* success */
                 return count;
             } else if (sentbytes > count) { /* too many bytes */
@@ -1735,6 +1730,12 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
                           "PR_Write(%d) overflow - sent %d bytes (expected %d bytes) - error\n",
                           fd, sentbytes, count);
                 PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
+                break;
+            } else if (sentbytes < count) {
+                LDAPDebug(LDAP_DEBUG_CONNS,
+                          "PR_Write(%d) - wrote only %d bytes (expected %d bytes) - 0 (EOF)\n", /* disconnected */
+                          fd, sentbytes, count);
+                PR_SetError(PR_PIPE_ERROR, EPIPE);
                 break;
             }
         }
