@@ -639,7 +639,6 @@ int mm_init(int argc, char * argv[])
     int c;
     char *ofn = NULL;
     char *prog = argv[0];
-    char *tailorfile = NULL;
 
     time(&tl);
     seed = (char)tl;
@@ -712,7 +711,6 @@ int mm_init(int argc, char * argv[])
 
     hashmask = 0xfff;
     hashtable = (entry_t **)calloc(0x1000, sizeof(entry_t*));
-    if (tailorfile) free(tailorfile);
     return 0;
 }
 
