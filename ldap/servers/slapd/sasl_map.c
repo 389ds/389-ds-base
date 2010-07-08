@@ -94,10 +94,6 @@ sasl_map_private *sasl_map_new_private()
 	}
 	new_priv = (sasl_map_private *)slapi_ch_calloc(1,sizeof(sasl_map_private));
 	new_priv->lock = new_lock;
-	if (NULL == new_lock) {
-		slapi_ch_free((void**)new_priv);
-		return NULL;
-	}
 	return new_priv;
 }
 
@@ -172,16 +168,61 @@ sasl_map_remove_list_entry(sasl_map_private *priv, char *removeme)
 }
 
 static int 
+sasl_map_cmp_data(sasl_map_data *dp0, sasl_map_data *dp1)
+{
+	int rc = 0;
+	if (NULL == dp0) {
+		if (NULL == dp1) {
+			return 0;
+		} else {
+			return -1;
+		}
+	} else {
+		if (NULL == dp1) {
+			return 1;
+		}
+	}
+
+	rc = PL_strcmp(dp0->name, dp1->name);
+	if (0 != rc) {
+		/* did not match */
+		return rc;
+	}
+	rc = PL_strcmp(dp0->regular_expression, dp1->regular_expression);
+	if (0 != rc) {
+		/* did not match */
+		return rc;
+	}
+	rc = PL_strcmp(dp0->template_base_dn, dp1->template_base_dn);
+	if (0 != rc) {
+		/* did not match */
+		return rc;
+	}
+	rc = PL_strcmp(dp0->template_search_filter, dp1->template_search_filter);
+	return rc;
+}
+
+static int 
 sasl_map_insert_list_entry(sasl_map_private *priv, sasl_map_data *dp)
 {
 	int ret = 0;
 	int ishere = 0;
 	sasl_map_data *current = NULL;
+	if (NULL == dp) {
+		return ret;
+	}
 	PR_Lock(priv->lock);
 	/* Check to see if it's here already */
 	current = priv->map_data_list;
-	while (current && current->next) {
-		current = current->next;
+	while (current) {
+		if (0 == sasl_map_cmp_data(current, dp)) {
+			ishere = 1;
+		}
+		if (current->next) {
+			current = current->next;
+		} else {
+			break;
+		}
 	}
 	if (ishere) {
 		return -1;
