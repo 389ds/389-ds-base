@@ -91,12 +91,11 @@ ldbm_back_start( Slapi_PBlock *pb )
   /* sanity check the autosizing values,
      no value or sum of values larger than 100.
   */
-  if (     (li->li_cache_autosize > 100) ||
-    (li->li_cache_autosize_split > 100) ||
-    (li->li_import_cache_autosize > 100) ||
-    ((li->li_cache_autosize > 0) && (li->li_import_cache_autosize > 0) &&
-    (li->li_cache_autosize + li->li_import_cache_autosize > 100)) )
-  {
+  if ((li->li_cache_autosize > 100) ||
+      (li->li_cache_autosize_split > 100) ||
+      (li->li_import_cache_autosize > 100) ||
+      ((li->li_cache_autosize > 0) && (li->li_import_cache_autosize > 0) &&
+      (li->li_cache_autosize + li->li_import_cache_autosize > 100))) {
       LDAPDebug( LDAP_DEBUG_ANY, "cache autosizing: bad settings, "
         "value or sum of values can not larger than 100.\n", 0, 0, 0 );
   } else
@@ -126,11 +125,12 @@ ldbm_back_start( Slapi_PBlock *pb )
                 db_pages*(pagesize/1024), objset_size(li->li_instance_set),
                 entry_pages*(pagesize/1024));
     
-              /* libdb allocates 1.25x the amount we tell it to, but only for values < 500Meg */
+              /* libdb allocates 1.25x the amount we tell it to,
+               * but only for values < 500Meg 
+               * For the larger memory, the overhead is relatively small. */
+              cache_size_to_configure = (unsigned long)(db_pages * pagesize);
               if (cache_size_to_configure < (500 * MEGABYTE)) {
                   cache_size_to_configure = (unsigned long)((db_pages * pagesize) / 1.25);
-              } else {
-                  cache_size_to_configure = (unsigned long)(db_pages * pagesize);
               }
               sprintf(s, "%lu", cache_size_to_configure);
               ldbm_config_internal_set(li, CONFIG_DBCACHESIZE, s);
