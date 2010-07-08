@@ -421,14 +421,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         if(!(slapi_dn_isbesuffix(pb,slapi_sdn_get_ndn(&dn_olddn)) && isroot))
         {
             /* Here means that we didn't find the parent */
-            if (parententry && parententry->ep_entry)
-            {
-                ldap_result_matcheddn = slapi_ch_strdup((char *) slapi_entry_get_dn(parententry->ep_entry));
-            }
-            else
-            {
-                ldap_result_matcheddn = "NULL";
-            }
+            ldap_result_matcheddn = "NULL";
             ldap_result_code= LDAP_NO_SUCH_OBJECT;
             LDAPDebug( LDAP_DEBUG_TRACE, "Parent does not exist matched %s, parentdn = %s\n", 
                 ldap_result_matcheddn, slapi_sdn_get_ndn(&dn_parentdn), 0 );
