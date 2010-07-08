@@ -231,8 +231,6 @@ allinstance_set_not_busy(struct ldbminfo *li)
         inst = (ldbm_instance *)object_get_data(inst_obj);
         instance_set_not_busy(inst);
     }
-    if (inst_obj)
-        object_release(inst_obj);
 }
 
 void
@@ -250,8 +248,6 @@ allinstance_set_busy(struct ldbminfo *li)
                       inst->inst_name);
         }
     }
-    if (inst_obj)
-        object_release(inst_obj);
 }
 
 int
