@@ -127,7 +127,8 @@ do_bind( Slapi_PBlock *pb )
     char		*dn = NULL, *saslmech = NULL;
     struct berval	cred = {0};
     Slapi_Backend		*be = NULL;
-    ber_tag_t rc;
+    ber_tag_t ber_rc;
+    int rc = 0;
     Slapi_DN sdn;
     Slapi_Entry *referral;
     char errorbuf[BUFSIZ];
@@ -161,8 +162,8 @@ do_bind( Slapi_PBlock *pb )
      *	}
      */
 
-    rc = ber_scanf( ber, "{iat", &version, &rawdn, &method );
-    if ( rc == LBER_ERROR ) {
+    ber_rc = ber_scanf( ber, "{iat", &version, &rawdn, &method );
+    if ( ber_rc == LBER_ERROR ) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "ber_scanf failed (op=Bind; params=Version,DN,Method)\n",
                    0, 0, 0 );
@@ -219,18 +220,18 @@ do_bind( Slapi_PBlock *pb )
             goto free_and_return;
         }
         /* Get the SASL mechanism */
-        rc = ber_scanf( ber, "{a", &saslmech );
+        ber_rc = ber_scanf( ber, "{a", &saslmech );
         /* Get the (optional) SASL credentials */
-        if ( rc != LBER_ERROR ) {
+        if ( ber_rc != LBER_ERROR ) {
             /* Credentials are optional in SASL bind */
             ber_len_t clen;
             if (( ber_peek_tag( ber, &clen )) == LBER_OCTETSTRING ) {
-                rc = ber_scanf( ber, "o}}", &cred );
+                ber_rc = ber_scanf( ber, "o}}", &cred );
                 if (cred.bv_len == 0) {
                     slapi_ch_free_string(&cred.bv_val);
                 }
             } else {
-                rc = ber_scanf( ber, "}}" );
+                ber_rc = ber_scanf( ber, "}}" );
             }
         }
         break;
@@ -249,7 +250,7 @@ do_bind( Slapi_PBlock *pb )
         }
         /* FALLTHROUGH */
     case LDAP_AUTH_SIMPLE:
-        rc = ber_scanf( ber, "o}", &cred );
+        ber_rc = ber_scanf( ber, "o}", &cred );
         if (cred.bv_len == 0) {
             slapi_ch_free_string(&cred.bv_val);
         }
@@ -260,7 +261,7 @@ do_bind( Slapi_PBlock *pb )
                           "Unknown bind method", 0, NULL );
         goto free_and_return;
     }
-    if ( rc == LBER_ERROR ) {
+    if ( ber_rc == LBER_ERROR ) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "ber_scanf failed (op=Bind; params=Credentials)\n",
                    0, 0, 0 );
@@ -660,7 +661,7 @@ do_bind( Slapi_PBlock *pb )
          */
         if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN )
              == 0 )  {
-            int	rc = 0;
+            rc = 0;
 
             /*
              * Is this account locked ?
@@ -673,82 +674,78 @@ do_bind( Slapi_PBlock *pb )
              * 		deal with it.
              *
              */
-			
-			/* get the entry now, so that we can give it to slapi_check_account_lock and reslimit_update_from_dn */
+
+            /* get the entry now, so that we can give it to slapi_check_account_lock and reslimit_update_from_dn */
             if (! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
-				bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(&sdn));
-				rc = slapi_check_account_lock ( pb, bind_target_entry, pw_response_requested, 1, 1);
+                bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(&sdn));
+                rc = slapi_check_account_lock ( pb, bind_target_entry, pw_response_requested, 1, 1);
             }
 
             slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );
             set_db_default_result_handlers(pb);
-            if ( (rc != 1) && (auto_bind || (((rc = (*be->be_bind)( pb ))
-                                == SLAPI_BIND_SUCCESS ) || rc
-                               == SLAPI_BIND_ANONYMOUS ))) {
+            if ( (rc != 1) && 
+                 (auto_bind || 
+                  (((rc = (*be->be_bind)( pb )) == SLAPI_BIND_SUCCESS) ||
+                   (rc == SLAPI_BIND_ANONYMOUS))) ) {
                 long t;
-                {
-                    char* authtype = NULL;
+                char* authtype = NULL;
 
-                    if(auto_bind)
-                        rc = SLAPI_BIND_SUCCESS;
+                if(auto_bind)
+                    rc = SLAPI_BIND_SUCCESS;
 
-                    switch ( method ) {
-                    case LDAP_AUTH_SIMPLE:
-                        if (cred.bv_len != 0) {
-                            authtype = SLAPD_AUTH_SIMPLE;
-                        }
-#if defined(ENABLE_AUTOBIND)
-                        else if(auto_bind) {
-                            authtype = SLAPD_AUTH_OS;
-                        }
-#endif /* ENABLE_AUTOBIND */
-                        else {
-                            authtype = SLAPD_AUTH_NONE;
-                        }
-                        break;
-                    case LDAP_AUTH_SASL:
-                        /* authtype = SLAPD_AUTH_SASL && saslmech: */
-                        PR_snprintf(authtypebuf, sizeof(authtypebuf), "%s%s", SLAPD_AUTH_SASL, saslmech);
-                        authtype = authtypebuf;
-                    break;
-                    default: /* ??? */
-                        break;
+                switch ( method ) {
+                case LDAP_AUTH_SIMPLE:
+                    if (cred.bv_len != 0) {
+                        authtype = SLAPD_AUTH_SIMPLE;
                     }
+#if defined(ENABLE_AUTOBIND)
+                    else if(auto_bind) {
+                        authtype = SLAPD_AUTH_OS;
+                    }
+#endif /* ENABLE_AUTOBIND */
+                    else {
+                        authtype = SLAPD_AUTH_NONE;
+                    }
+                    break;
+                case LDAP_AUTH_SASL:
+                    /* authtype = SLAPD_AUTH_SASL && saslmech: */
+                    PR_snprintf(authtypebuf, sizeof(authtypebuf), "%s%s", SLAPD_AUTH_SASL, saslmech);
+                    authtype = authtypebuf;
+                break;
+                default: /* ??? */
+                    break;
+                }
 
-                    if ( rc == SLAPI_BIND_SUCCESS ) {
-			if(!auto_bind)
-                            bind_credentials_set( pb->pb_conn,
-                                              authtype, slapi_ch_strdup(
-                                                  slapi_sdn_get_ndn(&sdn)),
-                                              NULL, NULL, NULL, bind_target_entry );
-                        if ( auth_response_requested ) {
-                            slapi_add_auth_response_control( pb,
-                                                       slapi_sdn_get_ndn(&sdn));
-                        }
-                    } else {	/* anonymous */
-                        /* set bind creds here so anonymous limits are set */
-			bind_credentials_set( pb->pb_conn, authtype, NULL,
-                                              NULL, NULL, NULL, NULL );
+                if ( rc == SLAPI_BIND_SUCCESS ) {
+                    if(!auto_bind)
+                        bind_credentials_set( pb->pb_conn,
+                                          authtype, slapi_ch_strdup(
+                                              slapi_sdn_get_ndn(&sdn)),
+                                          NULL, NULL, NULL, bind_target_entry );
+                    if ( auth_response_requested ) {
+                        slapi_add_auth_response_control( pb,
+                                                   slapi_sdn_get_ndn(&sdn));
+                    }
+                } else {	/* anonymous */
+                    /* set bind creds here so anonymous limits are set */
+                    bind_credentials_set( pb->pb_conn, authtype, NULL,
+                                          NULL, NULL, NULL, NULL );
 
-                        if ( auth_response_requested ) {
-                            slapi_add_auth_response_control( pb,
-                                                       "" );
-                        }
+                    if ( auth_response_requested ) {
+                        slapi_add_auth_response_control( pb,
+                                                   "" );
                     }
                 }
 
-                if ( 0 == auto_bind && rc != SLAPI_BIND_ANONYMOUS &&
-                     ! slapi_be_is_flag_set(be,
-                                            SLAPI_BE_FLAG_REMOTE_DATA)) {
+                if ( 0 == auto_bind && (rc != SLAPI_BIND_ANONYMOUS) &&
+                     ! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
                     /* check if need new password before sending 
                        the bind success result */
                     switch ( need_new_pw (pb, &t, bind_target_entry, pw_response_requested )) {
-						
                     case 1:
                         (void)slapi_add_pwd_control ( pb, 
                                                 LDAP_CONTROL_PWEXPIRED, 0);
                         break;
-						
                     case 2:
                         (void)slapi_add_pwd_control ( pb, 
                                                 LDAP_CONTROL_PWEXPIRING, t);
@@ -769,7 +766,6 @@ do_bind( Slapi_PBlock *pb )
                     /* increment BindSecurityError count */
                     slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 }
-			
             }
 
             /*
