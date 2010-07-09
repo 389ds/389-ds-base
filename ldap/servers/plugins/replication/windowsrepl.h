@@ -78,6 +78,8 @@ const char* windows_private_get_purl(const Repl_Agmt *ra);
 Slapi_Entry *windows_private_get_raw_entry(const Repl_Agmt *ra);
 /* this is passin - windows_private owns the pointer, not a copy */
 void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e);
+void windows_private_set_keep_raw_entry(const Repl_Agmt *ra, int keep);
+int windows_private_get_keep_raw_entry(const Repl_Agmt *ra);
 void *windows_private_get_api_cookie(const Repl_Agmt *ra);
 void windows_private_set_api_cookie(Repl_Agmt *ra, void *cookie);
 time_t windows_private_get_sync_interval(const Repl_Agmt *ra);
