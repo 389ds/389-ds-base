@@ -406,6 +406,10 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 	Slapi_Value *original_value = NULL;
 	int retval = 0;
 	int i = 0;
+
+	/* Set the keep raw entry flag to avoid overwriting the existing raw entry. */
+	windows_private_set_keep_raw_entry(prp->agmt, 1);
+
 	/* For each value: */
     i= slapi_valueset_first_value(original_values,&original_value);
     while ( i != -1 ) {
@@ -531,6 +535,9 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 	{
 		*mapped_values = new_vs;
 	}
+
+	/* Restore the keep raw entry flag. */
+	windows_private_set_keep_raw_entry(prp->agmt, 0);
 }
 
 static void

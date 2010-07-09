@@ -72,6 +72,7 @@ struct windowsprivate {
   Slapi_Filter *directory_filter; /* Used for checking if local entries need to be sync'd to AD */
   Slapi_Filter *deleted_filter; /* Used for checking if an entry is an AD tombstone */
   Slapi_Entry *raw_entry; /* "raw" un-schema processed last entry read from AD */
+  int keep_raw_entry; /* flag to control when the raw entry is set */
   void *api_cookie; /* private data used by api callbacks */
   time_t sync_interval; /* how often to run the dirsync search, in seconds */
 };
@@ -845,10 +846,47 @@ void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	slapi_entry_free(dp->raw_entry);
-	dp->raw_entry = e;
+	/* If the keep raw entry flag is set, just free the passed
+	 * in entry and leave the current raw entry in place. */
+	if (windows_private_get_keep_raw_entry(ra)) {
+		slapi_entry_free(e);
+	} else {
+		slapi_entry_free(dp->raw_entry);
+		dp->raw_entry = e;
+	}
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_raw_entry\n" );
+}
+
+/* Setting keep to 1 will cause the current raw entry to remain, even if
+ * windows_private_set_raw_entry() is called.  This behavior will persist
+ * until this flag is set back to 0. */
+void windows_private_set_keep_raw_entry(const Repl_Agmt *ra, int keep)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_keep_raw_entry\n" );
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	dp->keep_raw_entry = keep;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_keep_raw_entry\n" );
+}
+
+int windows_private_get_keep_raw_entry(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_keep_raw_entry\n" );
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_keep_raw_entry\n" );
+
+	return dp->keep_raw_entry;
 }
 
 void *windows_private_get_api_cookie(const Repl_Agmt *ra)
