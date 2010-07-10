@@ -368,9 +368,13 @@ slapi_entry_syntax_check(
 	char *errp = &errtext[0];
 	size_t err_remaining = sizeof(errtext);
 
-	if (pb != NULL) {
-		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+	if (!pb) {
+		LDAPDebug( LDAP_DEBUG_ANY, "slapi_entry_syntax_check: NULL PBlock\n", 0, 0, 0 );
+		ret = 1;
+		goto exit;
 	}
+
+	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
 
 	/* If syntax checking and logging are off, or if this is a
          * replicated operation, just return that the syntax is OK. */
@@ -404,12 +408,10 @@ slapi_entry_syntax_check(
 						}
 
 						if (syntaxcheck || override) {
-							if (pb) {
-								/* Append new text to any existing text. */
-								errp += PR_snprintf( errp, err_remaining,
-								    "%s: value #%d invalid per syntax\n", a->a_type, hint );
-								err_remaining -= errp - &errtext[0];
-							}
+							/* Append new text to any existing text. */
+							errp += PR_snprintf( errp, err_remaining,
+							    "%s: value #%d invalid per syntax\n", a->a_type, hint );
+							err_remaining -= errp - &errtext[0];
 							ret = 1;
 						}
 					}
@@ -456,15 +458,13 @@ slapi_mods_syntax_check(
 	char *dn = NULL;
 	LDAPMod *mod = NULL;
 
-	if (mods == NULL) {
+	if (pb == NULL || mods == NULL) {
 		ret = 1;
 		goto exit;
 	}
 
-	if (pb != NULL) {
-		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
-		slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
-	}
+	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+	slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
 
 	/* If syntax checking and logging are  off, or if this is a
 	 * replicated operation, just return that the syntax is OK. */
@@ -496,12 +496,10 @@ slapi_mods_syntax_check(
 						}
 
 						if (syntaxcheck || override) {
-							if (pb) {
-								/* Append new text to any existing text. */
-								errp += PR_snprintf( errp, err_remaining,
-								    "%s: value #%d invalid per syntax\n", mod->mod_type, j );
-								err_remaining -= errp - &errtext[0];
-							}
+							/* Append new text to any existing text. */
+							errp += PR_snprintf( errp, err_remaining,
+							    "%s: value #%d invalid per syntax\n", mod->mod_type, j );
+							err_remaining -= errp - &errtext[0];
 							ret = 1;
 						}
 					}
