@@ -1522,7 +1522,7 @@ filter_optimize(Slapi_Filter *f)
 					if(f_child->f_choice != LDAP_FILTER_NOT)
 					{
 						/* we have a winner, do swap */
-						f_prev->f_next = f_child->f_next;
+						if (f_prev) f_prev->f_next = f_child->f_next;
 						f_child->f_next = f->f_list;
 						f->f_list = f_child;
 						break;
