@@ -464,6 +464,11 @@ slapi_free_search_results_internal(Slapi_PBlock *pb)
 {
     int i;
 	
+    if(pb == NULL)
+    {
+        return;
+    }
+
     if(pb->pb_plugin_internal_search_op_entries != NULL)
     {
         for(i=0; pb->pb_plugin_internal_search_op_entries[i] != NULL; i++)
