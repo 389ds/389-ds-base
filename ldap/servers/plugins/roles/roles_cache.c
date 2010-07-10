@@ -801,7 +801,7 @@ void roles_cache_change_notify(Slapi_PBlock *pb)
 
     /* Don't update local cache when remote entries are updated */
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-    if ( 	( be!=NULL ) && 
+    if ( 	( be==NULL ) ||
 			( slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA)) )
 	{
 		return;
