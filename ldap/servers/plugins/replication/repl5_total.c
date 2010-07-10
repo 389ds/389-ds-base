@@ -481,13 +481,13 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 
 	PR_ASSERT(ber && value && deleted);
 
-	*value = NULL;
-
 	if (NULL == ber && NULL == value)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "my_ber_scanf_value BAD 1\n");
 		goto loser;
 	}
+
+	*value = NULL;
 
 	/* Each value is a sequence */
 	if (ber_scanf(ber, "{O", &attrval) == LBER_ERROR)
@@ -593,11 +593,16 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
     int rc;
     Slapi_Value *value = NULL;
 
+    if (attr == NULL)
+    {
+        goto loser;
+    }
+
     PR_ASSERT (ber && attr && deleted);
 
     /* allocate the attribute */
     *attr = slapi_attr_new ();
-    if (attr == NULL)
+    if (*attr == NULL)
     {
         goto loser;
     }
