@@ -1375,7 +1375,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 
 int mapping_tree_entry_add_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg) 
 {
-    mapping_tree_node *node;
+    mapping_tree_node *node = NULL;
     int i;
     backend * be;
 
@@ -1387,12 +1387,12 @@ int mapping_tree_entry_add_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, 
      * be checked again 
      */
     *returncode = mapping_tree_entry_add(entryBefore, &node);
-    if (LDAP_SUCCESS != *returncode)
+    if (LDAP_SUCCESS != *returncode || !node)
     {
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    if(node && node->mtn_parent != NULL && node != mapping_tree_root )
+    if(node->mtn_parent != NULL && node != mapping_tree_root )
     {
      /* If the node has a parent and the node is not the mapping tree root,
       * then add it as a child node. Note that the special case when the
@@ -1433,7 +1433,7 @@ static void mtn_remove_node(mapping_tree_node * node)
 
         PR_ASSERT(tmp_node != NULL);
 
-        tmp_node->mtn_brother = node->mtn_brother;
+        if (tmp_node) tmp_node->mtn_brother = node->mtn_brother;
     }
     node->mtn_brother = NULL;
 }
