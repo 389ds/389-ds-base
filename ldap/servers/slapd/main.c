@@ -266,22 +266,28 @@ fix_ownership()
 
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-	if (slapdFrontendConfig->localuser != NULL) {
-		if (slapdFrontendConfig->localuserinfo == NULL) {
-			pw = getpwnam( slapdFrontendConfig->localuser );
-			if ( NULL == pw ) {
-				LDAPDebug(LDAP_DEBUG_ANY, 
-					"Unable to find user %s in system account database, "
-					"errno %d (%s)\n",
-					slapdFrontendConfig->localuser, errno, strerror(errno));
-				return; 
-			}
-			slapdFrontendConfig->localuserinfo =
-					(struct passwd *)slapi_ch_malloc(sizeof(struct passwd));
-			memcpy(slapdFrontendConfig->localuserinfo, pw, sizeof(struct passwd));
-		}
-		pw = slapdFrontendConfig->localuserinfo;
+	if (slapdFrontendConfig->localuser == NULL) {
+		LDAPDebug(LDAP_DEBUG_ANY, 
+			"Local user missing from frontend configuration\n",
+			0, 0, 0);
+		return; 
 	}
+
+	if (slapdFrontendConfig->localuserinfo == NULL) {
+		pw = getpwnam( slapdFrontendConfig->localuser );
+		if ( NULL == pw ) {
+			LDAPDebug(LDAP_DEBUG_ANY, 
+				"Unable to find user %s in system account database, "
+				"errno %d (%s)\n",
+				slapdFrontendConfig->localuser, errno, strerror(errno));
+			return; 
+		}
+		slapdFrontendConfig->localuserinfo =
+				(struct passwd *)slapi_ch_malloc(sizeof(struct passwd));
+		memcpy(slapdFrontendConfig->localuserinfo, pw, sizeof(struct passwd));
+	}
+
+	pw = slapdFrontendConfig->localuserinfo;
 
 	/* config directory needs to be owned by the local user */
 	if (slapdFrontendConfig->configdir) {
