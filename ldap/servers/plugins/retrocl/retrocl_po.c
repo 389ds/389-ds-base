@@ -179,13 +179,18 @@ write_replog_db(
     int			i;
     int			extensibleObject = 0;
 
+    if (!dn) {
+        slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "write_replog_db: NULL dn\n");
+	return;
+    }
+
     PR_Lock(retrocl_internal_lock);
     changenum = retrocl_assign_changenumber();
    
     PR_ASSERT( changenum > 0UL );
     slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
 	    "write_replog_db: write change record %lu for dn: \"%s\"\n", 
-	    changenum, ( dn == NULL ) ? "NULL" : dn );
+	    changenum, dn );
 
     /* Construct the dn of this change record */
     edn = slapi_ch_smprintf( "%s=%lu,%s", attr_changenumber, changenum, RETROCL_CHANGELOG_DN);
