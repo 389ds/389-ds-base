@@ -601,6 +601,13 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_acquire_replica\n", 0, 0, 0 );
 
+	if (NULL == ruv)
+	{
+        	slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "NULL ruv\n");
+        	return_value = ACQUIRE_FATAL_ERROR;
+		goto done;
+	}
+
 	PR_ASSERT(prp);
 
     if (prp->replica_acquired)  /* we already acquire replica */
@@ -613,7 +620,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         return ACQUIRE_SUCCESS;
     }
 
-	if (NULL != ruv)
+	if (NULL != *ruv)
 	{
 		ruv_destroy ( ruv );
 	}
@@ -716,7 +723,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         /* replica successfully acquired */
         prp->replica_acquired = PR_TRUE;
     }
-
+done:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_acquire_replica\n", 0, 0, 0 );
 
 	return return_value;
