@@ -373,6 +373,10 @@ load_config(char *conf_path)
                     instancename = NULL;
                     goto close_and_exit;
                 }
+            } else {
+                printf("ldap-agent: missing instance name\n");
+                error = 1;
+                goto close_and_exit;
             }
  
             /* Open dse.ldif */
