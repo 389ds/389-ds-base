@@ -145,7 +145,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                     inst = (ldbm_instance *)object_get_data(inst_obj2);
                     instance_set_not_busy(inst);
                 }
-                object_release(inst_obj2);
+                if (inst_obj2 && inst_obj2 != inst_obj) object_release(inst_obj2);
                 object_release(inst_obj);
                 goto out;
             }
@@ -219,7 +219,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
             bakup_dir = slapi_ch_smprintf("%s%ctmp_%010ld", directory, c, time(0));
             LDAPDebug( LDAP_DEBUG_ANY,
                       "archive2db: backup dir: %s\n", bakup_dir, 0, 0);
-            *p = c;
+            if (p) *p = c;
 
             slapi_pblock_set( pb, SLAPI_SEQ_VAL, bakup_dir );
             slapi_pblock_set( pb, SLAPI_SEQ_TYPE, &skipinit );
@@ -419,7 +419,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
                     inst = (ldbm_instance *)object_get_data(inst_obj2);
                     instance_set_not_busy(inst);
                 }
-                object_release(inst_obj2);
+                if (inst_obj2 && inst_obj2 != inst_obj) object_release(inst_obj2);
                 object_release(inst_obj);
                 goto err;
             }
