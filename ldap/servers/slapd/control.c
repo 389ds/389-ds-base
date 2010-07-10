@@ -222,6 +222,11 @@ get_ldapmessage_controls_ext(
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> get_ldapmessage_controls\n", 0, 0, 0 );
 
+	if (!pb) {
+		LDAPDebug( LDAP_DEBUG_ANY, "<= get_ldapmessage_controls NULL PBlock\n", 0, 0, 0 );
+		return( LDAP_OPERATIONS_ERROR );	/* unexpected error */
+	}
+
 	ctrls = NULL;
 	slapi_pblock_set( pb, SLAPI_REQCONTROLS, ctrls );
 	if ( controlsp != NULL ) {
@@ -265,7 +270,7 @@ get_ldapmessage_controls_ext(
 	 * A sequence of controls is present.  If connection is not LDAPv3
 	 * or better, return a protocol error.  Otherwise, parse the controls.
 	 */
-	if ( pb != NULL && pb->pb_conn != NULL
+	if ( pb->pb_conn != NULL
 			&& pb->pb_conn->c_ldapversion < LDAP_VERSION3 ) {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
 				"received control(s) on an LDAPv%d connection\n",
