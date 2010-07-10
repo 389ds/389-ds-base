@@ -1479,6 +1479,7 @@ void ldbm_config_get(void *arg, config_info *config, char *buf)
     
     if (config == NULL) {
         buf[0] = '\0';
+        return;
     }
     
     switch(config->config_type) {
