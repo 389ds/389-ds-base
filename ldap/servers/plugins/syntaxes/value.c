@@ -249,6 +249,16 @@ value_cmp(
 	int v1sign = 1, v2sign = 1; /* default to positive */
 	char *alt = NULL;
 
+	// check NULL values before normalization
+	if (!v1->bv_val) {
+		if (v2->bv_val) rc = -1;
+		goto done;
+	}
+	if (!v2->bv_val) {
+		rc = 1;
+		goto done;
+	}
+
 	/* This code used to call malloc up to four times in the copying
 	 * of attributes to be normalized. Now we attempt to keep everything
 	 * on the stack and only malloc if the data is big
@@ -330,9 +340,21 @@ value_cmp(
 		}
 	}
 
+	if (normalize) {
+		// check NULL values after normalization
+		if (!v1->bv_val) {
+			if (v2->bv_val) rc = -1;
+			goto done;
+		}
+		if (!v2->bv_val) {
+			rc = 1;
+			goto done;
+		}
+	}
+
 	if (syntax & SYNTAX_INT) {
-		v1sign = v1->bv_val && (*v1->bv_val != '-');
-		v2sign = v2->bv_val && (*v2->bv_val != '-');
+		v1sign = *v1->bv_val != '-';
+		v2sign = *v2->bv_val != '-';
 		rc = v1sign - v2sign;
 		if (rc) { /* one is positive, one is negative */
 			goto done;
