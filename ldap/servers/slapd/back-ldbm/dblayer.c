@@ -4331,24 +4331,29 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
     char *inst_dirp = NULL;
     int rval = 0;
 
-    if (NULL != li)
+    if (NULL == li)
     {
-        if (startdb)
+        LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: NULL LDBM info\n", 0, 0, 0);
+        rval = -1;
+        goto done;
+    }
+
+    if (startdb)
+    {
+        /* close immediately; no need to run db threads */
+        rval = dblayer_start(li, DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
+        if (rval)
         {
-            /* close immediately; no need to run db threads */
-            rval = dblayer_start(li, DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
-            if (rval)
-            {
-                LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_start failed! %s (%d)\n",
-                    dblayer_strerror(rval), rval, 0);
-                goto done;
-            }
+            LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: dblayer_start failed! %s (%d)\n",
+                dblayer_strerror(rval), rval, 0);
+            goto done;
         }
-        priv = (dblayer_private*)li->li_dblayer_private;
-        if (NULL != priv)
-        {
-            pEnv = priv->dblayer_env;
-        }
+    }
+
+    priv = (dblayer_private*)li->li_dblayer_private;
+    if (NULL != priv)
+    {
+        pEnv = priv->dblayer_env;
     }
 
     if (inst->inst_dir_name == NULL)
