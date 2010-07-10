@@ -864,7 +864,11 @@ oc_replace_nolock(const char *ocname, struct objclass *newoc) {
     } else {
         for (pnext = oc ; pnext  != NULL;
         oc = pnext, pnext = pnext->oc_next) {
-            if((pnext->oc_name != NULL) && (newoc->oc_superior != NULL)) {
+            if(pnext->oc_name == NULL) {
+                rc = LDAP_OPERATIONS_ERROR;
+                break;
+            }
+            if(newoc->oc_superior != NULL) {
                 if(strcasecmp( pnext->oc_name, newoc->oc_superior) == 0) 
                 {
                     saw_sup=PR_TRUE;
@@ -2579,7 +2583,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 					   Needs to maintain the list dynamically. */
 					g_set_global_oc_nolock( curlisthead );
 				} else {
-					prevocp->oc_next = tmpocp->oc_next;
+					if (prevocp) prevocp->oc_next = tmpocp->oc_next;
 				}
 				tmpocp->oc_next = NULL;
 
