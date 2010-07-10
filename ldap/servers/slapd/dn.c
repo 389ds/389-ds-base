@@ -333,6 +333,11 @@ substr_dn_normalize_orig( char *dn, char *end )
 				}
 			} else if ( *s == '"' ) {
 				state = B4SEPARATOR;
+				if (!value) {
+					LDAPDebug( LDAP_DEBUG_ANY,
+						"slapi_dn_normalize - missing value\n", 0, 0, 0 );
+					break;
+				}
 				if ( value_separator == dn /* 2 or more separators */
 					 || ISSPACE( value[1] ) || ISSPACE( d[-1] ) ) {
 					*d++ = *s;
