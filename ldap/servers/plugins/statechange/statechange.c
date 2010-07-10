@@ -262,15 +262,14 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 			execute = 0;
 
 			/* first dn */
-			if(notify && notify->dn)
+			if(notify->dn)
 			{
 				if(0 != slapi_dn_issuffix(dn, notify->dn))
 					execute = 1;
 			}
 			else
 			/* note, if supplied null for everything in the entry *all* ops match */
-				if(notify)
-					execute = 1;
+				execute = 1;
 
 			if(execute && notify->filter)
 			{
@@ -298,7 +297,7 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 
 			notify = notify->next;
 		}
-		while(notify != head);
+		while(notify && notify != head);
 	}
 bail:
 	slapi_unlock_mutex(buffer_lock);
