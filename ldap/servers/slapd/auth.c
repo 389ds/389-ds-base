@@ -440,6 +440,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
     char* extraErrorMsg = "";
 	SSLChannelInfo channelInfo;
 	SSLCipherSuiteInfo cipherInfo;
+	char* subject = NULL;
 
 	if ( (slapd_ssl_getChannelInfo (prfd, &channelInfo, sizeof(channelInfo))) != SECSuccess ) {
 		PRErrorCode errorCode = PR_GetError();
@@ -447,7 +448,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 			"conn=%" NSPRIu64 " SSL failed to obtain channel info; "
 			SLAPI_COMPONENT_NAME_NSPR " error %i (%s)\n",
 			conn->c_connid, errorCode, slapd_pr_strerror(errorCode));
-		return;
+		goto done;
 	}
 	if ( (slapd_ssl_getCipherSuiteInfo (channelInfo.cipherSuite, &cipherInfo, sizeof(cipherInfo)) )
 			!= SECSuccess) {
@@ -456,7 +457,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 			"conn=%" NSPRIu64 " SSL failed to obtain cipher info; "
 			SLAPI_COMPONENT_NAME_NSPR " error %i (%s)\n",
 			conn->c_connid, errorCode, slapd_pr_strerror(errorCode));
-		return;
+		goto done;
 	}
 
 	keySize = cipherInfo.effectiveKeyBits;
@@ -468,22 +469,26 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
     if ( conn->c_flags & CONN_FLAG_START_TLS ) {
         if ( cipherInfo.symKeyBits == 0 ) {
 	        start_tls_graceful_closure( conn, NULL, 1 );
-			slapi_ch_free_string(&cipher);
-	        return ;
+		goto done;
 	}
     }
 
     if (config_get_SSLclientAuth() == SLAPD_SSLCLIENTAUTH_OFF ) {
 		slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " SSL %i-bit %s\n",
 		   		conn->c_connid, keySize, cipher ? cipher : "NULL" );
-		slapi_ch_free_string(&cipher);
-		return;
+		goto done;
     } 
     if (clientCert == NULL) {
 	slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " SSL %i-bit %s\n",
 		   conn->c_connid, keySize, cipher ? cipher : "NULL" );
     } else {
-	char* subject = subject_of (clientCert);
+	subject = subject_of (clientCert);
+	if (!subject) {
+		slapi_log_access( LDAP_DEBUG_STATS,
+		       "conn=%" NSPRIu64 " SSL %i-bit %s; missing subject\n",
+		       conn->c_connid, keySize, cipher ? cipher : "NULL");
+		goto done;
+	}
 	{
 	    char* issuer  = issuer_of (clientCert);
 	    char sbuf[ BUFSIZ ], ibuf[ BUFSIZ ];
@@ -521,7 +526,6 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 		slapi_ch_free_string(&basedn);
 	    slapu_msgfree (internal_ld, chain);
 	}
-	if (subject) free (subject);
     }
 
     if (clientDN != NULL) {
@@ -555,7 +559,8 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 	 */
 	bind_credentials_set( conn, SLAPD_AUTH_SSL, clientDN,
 			SLAPD_AUTH_SSL, clientDN, clientCert , NULL);
-
+done:
+    slapi_ch_free_string(&subject);
     slapi_ch_free_string(&cipher);
     /* clientDN and clientCert will be freed later */
 }
