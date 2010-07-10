@@ -192,6 +192,12 @@ attr_index_config(
 			index_rules = slapi_str2charray( argv[2], "," );
 		}
 	}
+
+	if (!indexes) {
+		LDAPDebug(LDAP_DEBUG_ANY, "attr_index_config: Missing index\n", 0, 0, 0);
+		goto done;
+	}
+
 	for ( i = 0; attrs[i] != NULL; i++ ) {
 		int need_compare_fn = 0;
 		const char *attrsyntax_oid = NULL;
@@ -373,6 +379,7 @@ attr_index_config(
 			attrinfo_delete(&a);
 		}
 	}
+done:
 	charray_free( attrs );
 	if ( indexes != NULL ) {
 		charray_free( indexes );
