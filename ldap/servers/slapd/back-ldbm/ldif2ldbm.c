@@ -2543,7 +2543,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
                     inst = (ldbm_instance *)object_get_data(inst_obj2);
                     instance_set_not_busy(inst);
                 }
-                object_release(inst_obj2);
+                if (inst_obj2 && inst_obj2 != inst_obj) object_release(inst_obj2);
                 object_release(inst_obj);
                 return -1;
             }
