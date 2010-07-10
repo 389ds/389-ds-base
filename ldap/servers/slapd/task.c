@@ -538,7 +538,11 @@ destroy_task(time_t when, void *arg)
 {
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_Task *t1;
-    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *pb;
+
+    if (task == NULL) return;
+
+    pb = slapi_pblock_new();
 
     /* Call the custom destructor callback if one was provided,
      * then perform the internal task destruction. */
@@ -1737,7 +1741,14 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         be = (backend *)slapi_get_next_backend (cookie);
     }
     slapi_ch_free((void **)&cookie);
-    if (NULL == be || NULL == be->be_database->plg_upgradedb ||
+    if (NULL == be) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "ERROR: no upgradedb is defined.\n", 0, 0, 0);
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    if (NULL == be->be_database->plg_upgradedb ||
         strcasecmp(database_type, be->be_database->plg_name)) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: no upgradedb is defined in %s.\n",
