@@ -243,7 +243,7 @@ ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e,
         struct attrinfo *ai = NULL;
 
         ainfo_get(inst->inst_be, attribute_name, &ai);
-        if (ai == NULL && (0 == strcmp(LDBM_PSEUDO_ATTR_DEFAULT, ai->ai_type)) ) {
+        if (ai == NULL || (0 == strcmp(LDBM_PSEUDO_ATTR_DEFAULT, ai->ai_type)) ) {
 			LDAPDebug(LDAP_DEBUG_ANY, "Warning: attempt to delete encryption for non-existant attribute: %s\n",
 				attribute_name, 0, 0);
 		} else {
