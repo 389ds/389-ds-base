@@ -712,7 +712,12 @@ static int import_monitor_threads(ImportJob *job, int *status)
 
     if (job->flags & FLAG_USE_FILES)
         PR_ASSERT(producer != NULL);
+
     PR_ASSERT(foreman != NULL);
+
+    if (!foreman) {
+        goto error_abort;
+    }
 
     time(&last_time);
     job->start_time = last_time;
