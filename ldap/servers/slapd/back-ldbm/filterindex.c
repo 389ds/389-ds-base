@@ -194,7 +194,7 @@ ava_candidates(
     Slapi_Value   sv;
     struct berval *bval;
     Slapi_Value   **ivals;
-    IDList        *idl;
+    IDList        *idl = NULL;
     int           unindexed = 0;
     Slapi_Attr    sattr;
 
@@ -250,6 +250,10 @@ ava_candidates(
             break;
         case LDAP_FILTER_APPROX:
             indextype = (char*)indextype_APPROX;
+            break;
+        default:
+            LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates invalid filter\n", 0, 0, 0 );
+            goto done;
             break;
     }
 
