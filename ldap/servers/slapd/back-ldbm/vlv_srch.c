@@ -458,7 +458,7 @@ vlvSearch_removefromlist(struct vlvSearch** pplist, const Slapi_DN *dn)
             } 
             else
             {
-                prev->vlv_next= curr->vlv_next;
+                if (prev) prev->vlv_next= curr->vlv_next;
             }
             done= 1;
         }
