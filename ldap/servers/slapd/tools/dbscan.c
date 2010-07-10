@@ -630,7 +630,12 @@ static void display_index_item(DBC *cursor, DBT *key, DBT *data,
         exit(1);
     }
 
-    if (idl && idl->max == 0) {
+    if (idl == NULL) {
+        printf("\t(illegal idl)\n");
+        return;
+    }
+
+    if (idl->max == 0) {
         /* allids; should not exist in the new idl world */
         if ( allids_cnt == 0 && (display_mode & SHOWSUMMARY)) {
             printf("The following index keys reached allids:\n");
