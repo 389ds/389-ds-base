@@ -2556,9 +2556,12 @@ _replica_reap_tombstones(void *arg)
 	}
 
 done:
-	PR_Lock(replica->repl_lock);
-	replica->tombstone_reap_active = PR_FALSE;
-	PR_Unlock(replica->repl_lock);
+	if (replica)
+	{
+		PR_Lock(replica->repl_lock);
+		replica->tombstone_reap_active = PR_FALSE;
+		PR_Unlock(replica->repl_lock);
+	}
 
 	if (NULL != purge_csn)
 	{
