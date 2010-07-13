@@ -373,9 +373,19 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(Operation **)value) = pblock->pb_op;
 		break;
 	case SLAPI_OPERATION_TYPE:
+		if (pblock->pb_op == NULL) {
+			LDAPDebug( LDAP_DEBUG_ANY,
+		          "Operation is NULL and hence cannot access SLAPI_OPERATION_TYPE \n", 0, 0, 0 );
+			return (-1);
+		}
 		(*(int *)value) = pblock->pb_op->o_params.operation_type;
 		break;
 	case SLAPI_OPINITIATED_TIME:
+		if (pblock->pb_op == NULL) {
+			LDAPDebug( LDAP_DEBUG_ANY,
+		          "Operation is NULL and hence cannot access SLAPI_OPINITIATED_TIME \n", 0, 0, 0 );
+			return (-1);
+		}
 		(*(time_t *)value) = pblock->pb_op->o_time;
 		break;
 	case SLAPI_REQUESTOR_ISROOT:
@@ -1032,10 +1042,16 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_REQCONTROLS:
-		(*(LDAPControl ***)value) = pblock->pb_op->o_params.request_controls;
+		if(pblock->pb_op!=NULL)
+		{
+			(*(LDAPControl ***)value) = pblock->pb_op->o_params.request_controls;
+		}
 		break;
 	case SLAPI_RESCONTROLS:
-		(*(LDAPControl ***)value) = pblock->pb_op->o_results.result_controls;
+		if(pblock->pb_op!=NULL)
+		{
+			(*(LDAPControl ***)value) = pblock->pb_op->o_results.result_controls;
+		}
 		break;
 	case SLAPI_CONTROLS_ARG:	/* used to pass control argument before operation is created */
 		(*(LDAPControl ***)value) = pblock->pb_ctrls_arg;
@@ -1539,7 +1555,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_SEARCH_RESULT_ENTRY_EXT:
 		if(pblock->pb_op!=NULL)
 		{
-        	(*(void **)value) = pblock->pb_op->o_results.r.r_search.opaque_backend_ptr;	    
+        		(*(void **)value) = pblock->pb_op->o_results.r.r_search.opaque_backend_ptr;	    
 		}
 		break;
 	/* Number of entries returned from search */
@@ -1597,20 +1613,24 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
 	case SLAPI_REQUESTOR_DN:
 		/* NOTE: It's not a copy of the DN */	
+		if (pblock->pb_op != NULL)
 		{
-		char *dn= (char*)slapi_sdn_get_dn(&pblock->pb_op->o_sdn);
-		if(dn==NULL)
-    		(*( char **)value ) = "";
-		else
-    		(*( char **)value ) = dn;
+			char *dn= (char*)slapi_sdn_get_dn(&pblock->pb_op->o_sdn);
+			if(dn==NULL)
+    				(*( char **)value ) = "";
+			else
+    				(*( char **)value ) = dn;
 		}
 		break;
 
 	case SLAPI_OPERATION_AUTHTYPE:
-		if(pblock->pb_op->o_authtype==NULL)
-		    (*( char **)value ) = "";
-		else
-    		(*( char **)value ) = pblock->pb_op->o_authtype;
+		if (pblock->pb_op != NULL)
+		{
+			if(pblock->pb_op->o_authtype==NULL)
+				(*( char **)value ) = "";
+			else
+    				(*( char **)value ) = pblock->pb_op->o_authtype;
+		}
 		break;	
 
 	case SLAPI_OPERATION_SSF:
@@ -1635,7 +1655,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(int *)value ) =  be->be_maxnestlevel;
 		break;
 	case SLAPI_OPERATION_ID:
-		(*(int *)value ) = pblock->pb_op->o_opid;
+		if (pblock->pb_op != NULL) {
+			(*(int *)value ) = pblock->pb_op->o_opid;
+		}
 		break;
 	/* Command line arguments */
 	case SLAPI_ARGC:
@@ -1759,7 +1781,9 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_op = (Operation *) value;
 		break;
 	case SLAPI_OPINITIATED_TIME:
-		pblock->pb_op->o_time = *((time_t *) value);
+		if (pblock->pb_op != NULL) {
+			pblock->pb_op->o_time = *((time_t *) value);
+		}
 		break;
 	case SLAPI_REQUESTOR_ISROOT:
 		pblock->pb_requestor_isroot = *((int *) value);
@@ -2482,16 +2506,25 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 	case SLAPI_REQCONTROLS:
-		pblock->pb_op->o_params.request_controls = (LDAPControl **) value;
+		if(pblock->pb_op!=NULL)
+		{
+			pblock->pb_op->o_params.request_controls = (LDAPControl **) value;
+		}
 		break;
 	case SLAPI_RESCONTROLS:
-		pblock->pb_op->o_results.result_controls = (LDAPControl **) value;
+		if(pblock->pb_op!=NULL)
+		{
+			pblock->pb_op->o_results.result_controls = (LDAPControl **) value;
+		}
 		break;
 	case SLAPI_CONTROLS_ARG:	/* used to pass control argument before operation is created */
 		pblock->pb_ctrls_arg = (LDAPControl **) value;
 		break;
 	case SLAPI_ADD_RESCONTROL:
-		add_control( &pblock->pb_op->o_results.result_controls, (LDAPControl *)value );
+		if(pblock->pb_op!=NULL)
+		{
+			add_control( &pblock->pb_op->o_results.result_controls, (LDAPControl *)value );
+		}
 		break;
 
 	/* notes to be added to the access log RESULT line for this op. */
@@ -2915,7 +2948,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_SEARCH_RESULT_ENTRY_EXT:
 		if(pblock->pb_op!=NULL)
 		{
-        	pblock->pb_op->o_results.r.r_search.opaque_backend_ptr = (void *)value;
+        		pblock->pb_op->o_results.r.r_search.opaque_backend_ptr = (void *)value;
 		}
 		break;
 	/* Number of entries returned from search */
