@@ -56,7 +56,11 @@
 void
 addlenstr( lenstr *l, const char *str )
 {
-    size_t len = strlen( str );
+    size_t len;
+
+    if ( NULL == l || NULL == str ) return;
+
+    len = strlen( str );
 
     if ( l->ls_buf == NULL ) {
 	/* string is empty */
