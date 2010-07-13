@@ -1439,7 +1439,16 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	char *group_dn = slapi_entry_get_dn(e);
 	Slapi_Value *group_dn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
+	int rc = 0;
 
+	if (!groupvals)
+	{
+		slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_get_groups_callback: NULL groupvals\n");
+		rc = -1;
+		goto bail;
+
+	}
 	/* get the DN of the group */
 	group_dn_val = slapi_value_new_string(group_dn);
 
@@ -1459,8 +1468,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	}
 
 	/* have we been here before? */
-	if (groupvals &&
-		slapi_valueset_find(((memberof_get_groups_data*)callback_data)->config->group_slapiattr,
+	if (slapi_valueset_find(((memberof_get_groups_data*)callback_data)->config->group_slapiattr,
 		groupvals, group_dn_val))
 	{
 		/* we either hit a recursive grouping, or an entry is
@@ -1482,8 +1490,8 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
 		group_dn, callback_data);
 
-	bail:
-		return 0;
+bail:
+	return rc;
 }
 
 /* memberof_is_direct_member()
