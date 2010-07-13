@@ -3498,8 +3498,14 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	char Q = '?';
 	char *hostport = NULL;
 
+	if ( NULL == aclpb ) {
+		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
+			"acllas__client_match_URL: NULL acl pblock\n");
+		return ACL_FALSE;
+	}
+
 	/* Get the client's entry if we don't have already */
-	if ( aclpb && ( NULL == aclpb->aclpb_client_entry )) {
+	if ( NULL == aclpb->aclpb_client_entry ) {
 		/* SD 00/16/03 Get every attr in case req chained */
 		char **attrs=NULL;
 
@@ -3786,8 +3792,14 @@ static int acllas__user_has_role( struct acl_pblock *aclpb,
 
 	int present = 0;
 
+	if ( NULL == aclpb ) {
+		slapi_log_error (  SLAPI_LOG_ACL, plugin_name, 
+			"acllas__user_has_role: NULL acl pblock\n");
+		return ACL_FALSE;
+	}
+
 	/* Get the client's entry if we don't have already */
-	if ( aclpb && ( NULL == aclpb->aclpb_client_entry )) {
+	if ( NULL == aclpb->aclpb_client_entry ) {
 		/* SD 00/16/03 Get every attr in case req chained */
 		char **attrs=NULL;
 
