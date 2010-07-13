@@ -1515,7 +1515,12 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 	Slapi_PBlock *spb = NULL;
 	char localcsnstr[CSN_STRSIZE + 1] = {0};
 
-	if (!conn_connected(conn))
+	if (!remotecsn)
+	{
+		return_value = CONN_OPERATION_FAILED;
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "NULL remote CSN\n");
+	}
+	else if (!conn_connected(conn))
 	{
 		return_value = CONN_NOT_CONNECTED;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1530,7 +1535,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 			/* Local server has epoch CSN, so don't push schema */
 			return_value = CONN_SCHEMA_NO_UPDATE_NEEDED;
 		}
-		else if ( remotecsn && *remotecsn && csn_compare(localcsn, *remotecsn) <= 0 )
+		else if ( *remotecsn && csn_compare(localcsn, *remotecsn) <= 0 )
 		{
 			/* Local server schema is not newer than the remote one */
 			return_value = CONN_SCHEMA_NO_UPDATE_NEEDED;
@@ -1550,7 +1555,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 						remote_schema_csn_bervals[0]->bv_len);
 					remotecsnstr[remote_schema_csn_bervals[0]->bv_len] = '\0';
 					*remotecsn = csn_new_by_string(remotecsnstr);
-					if (NULL != remotecsn && (csn_compare(localcsn, *remotecsn) <= 0))
+					if (*remotecsn && (csn_compare(localcsn, *remotecsn) <= 0))
 					{
 						return_value = CONN_SCHEMA_NO_UPDATE_NEEDED;
 					}
