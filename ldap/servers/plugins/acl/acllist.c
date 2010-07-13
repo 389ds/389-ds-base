@@ -270,9 +270,10 @@ __acllist_add_aci ( aci_t *aci )
 			
 			/* Now add the new one to the end of the list */
 			t_aci->aci_next = aci;
+
+			slapi_log_error ( SLAPI_LOG_ACL, plugin_name, "Added the ACL:%s to existing container:[%d]%s\n", 
+					aci->aclName, head->acic_index, slapi_sdn_get_ndn( head->acic_sdn ));
 		}
-		slapi_log_error ( SLAPI_LOG_ACL, plugin_name, "Added the ACL:%s to existing container:[%d]%s\n", 
-								aci->aclName, head->acic_index, slapi_sdn_get_ndn( head->acic_sdn ));
 
 		/* now free the tmp container */
 		aciListHead->acic_list = NULL;
@@ -687,13 +688,18 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 	AciContainer	*root;
 	int is_not_search_base = 1;
 
+	if ( !aclpb ) {
+		slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
+				"acllist_aciscan_update_scan: NULL acl pblock\n");
+		return;
+	}
 
 	/* First copy the containers indx from the base to the one which is
 	 * going to be used.
 	 * The base handles get done in acllist_init_scan().
 	 * This stuff is only used if it's a search operation.
 	 */
-	if ( aclpb && aclpb->aclpb_search_base ) {
+	if ( aclpb->aclpb_search_base ) {
 	 	while ( aclpb->aclpb_base_handles_index[index] != -1 &&
 				index < ACLPB_MAX_SELECTED_ACLS -2 ) {
 			aclpb->aclpb_handles_index[index] = 
