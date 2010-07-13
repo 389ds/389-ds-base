@@ -338,6 +338,12 @@ acl_access_allowed(
 		goto cleanup_and_ret;
 	}
 
+	if ( !aclpb->aclpb_curr_entry_sdn ) {
+		slapi_log_error	( SLAPI_LOG_FATAL, plugin_name,	 "NULL aclpb_curr_entry_sdn \n" );
+		ret_val	= LDAP_OPERATIONS_ERROR;
+		goto cleanup_and_ret;
+	}
+
 	/* check if aclpb is initialized or not	*/
 	TNF_PROBE_0_DEBUG(acl_aclpbinit_start,"ACL","");
 	acl_init_aclpb ( pb, aclpb, clientDn, 0	);
@@ -2738,8 +2744,13 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 		** If the handle has been evaluated before, we can
 		** cache the result.
 		*/
-		if (((aci = aclpb->aclpb_deny_handles[i]) == NULL) && (i <= ACI_MAX_ELEVEL))
-			continue;
+		if ((aci = aclpb->aclpb_deny_handles[i]) == NULL) {
+			if (i <= ACI_MAX_ELEVEL) {
+				continue;
+			} else {
+				break;
+			}
+		}
 		k++;
 		index = aci->aci_index;
 		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
@@ -2944,9 +2955,13 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 		** If the handle has been evaluated before, we can
 		** cache the result.
 		*/
-		aci = aclpb->aclpb_allow_handles[i];
-		if (((aci = aclpb->aclpb_allow_handles[i]) == NULL) && (i <= ACI_MAX_ELEVEL))
-			continue;
+		if ((aci = aclpb->aclpb_allow_handles[i]) == NULL) {
+			if (i <= ACI_MAX_ELEVEL) {
+				continue;
+			} else {
+				break;
+			}
+		}
 		k++;
 		index = aci->aci_index;
 		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
