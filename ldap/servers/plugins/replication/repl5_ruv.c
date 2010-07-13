@@ -1146,16 +1146,8 @@ ruv_covers_ruv(const RUV *covering_ruv, const RUV *covered_ruv)
 	int cookie;
 
     /* compare replica generations first */
-    if (covering_ruv->replGen == NULL)
-    {
-        if (covered_ruv->replGen)
-            return PR_FALSE;
-    }
-    else
-    {
-        if (covered_ruv->replGen == NULL)
-            return PR_FALSE;   
-    }
+    if (covering_ruv->replGen == NULL || covered_ruv->replGen == NULL)
+        return PR_FALSE;
     
     if (strcasecmp (covered_ruv->replGen, covering_ruv->replGen))
         return PR_FALSE;
@@ -1662,9 +1654,15 @@ get_ruvelement_from_berval(const struct berval *bval)
 	char ridbuff [RIDSTR_SIZE];
 	int i;
 
-	if (NULL != bval && NULL != bval->bv_val &&
-		bval->bv_len > strlen(prefix_ruvcsn) &&
-		strncasecmp(bval->bv_val, prefix_ruvcsn, strlen(prefix_ruvcsn)) == 0)
+	if (NULL == bval || NULL == bval->bv_val ||
+		bval->bv_len <= strlen(prefix_ruvcsn) ||
+		strncasecmp(bval->bv_val, prefix_ruvcsn, strlen(prefix_ruvcsn)) != 0)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+				"get_ruvelement_from_berval: invalid berval\n");
+		goto loser;
+	} 
+
 	{
 		unsigned int urlbegin = strlen(prefix_ruvcsn);
 		unsigned int urlend;
