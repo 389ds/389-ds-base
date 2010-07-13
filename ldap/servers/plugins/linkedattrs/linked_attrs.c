@@ -1836,13 +1836,15 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
     Slapi_Attr *attr = NULL;
     char *type = NULL;
     struct configEntry *config = NULL;
+    int rc = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_modrdn_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !linked_attrs_oktodo(pb))
-        return 0;;
+    if (!g_plugin_started || !linked_attrs_oktodo(pb)) {
+        goto done;
+    }
 
     /* Reload config if an existing config entry was renamed,
      * or if the new dn brings an entry into the scope of the
@@ -1854,6 +1856,8 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
         slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
                         "linked_attrs_modrdn_post_op: Error "
                         "retrieving post-op entry\n");
+        rc = LDAP_OPERATIONS_ERROR;
+        goto done;
     }
 
     if ((old_dn = linked_attrs_get_dn(pb))) {
@@ -1863,6 +1867,8 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
         slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
                         "linked_attrs_modrdn_post_op: Error "
                         "retrieving dn\n");
+        rc = LDAP_OPERATIONS_ERROR;
+        goto done;
     }
 
     /* Check if this operation requires any updates to links. */
@@ -1956,11 +1962,11 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 
         slapi_entry_next_attr(post_e, attr, &attr);
     }
-
+done:
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_modrdn_post_op\n");
 
-    return 0;
+    return rc;
 }
 
 
