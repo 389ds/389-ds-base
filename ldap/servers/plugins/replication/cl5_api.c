@@ -5860,13 +5860,13 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
         {
             /* use the supplier min csn for the buffer start csn - we know
                this csn is in our changelog */
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-                            "%s: CSN %s not found and no purging, probably a reinit\n",
-                            agmt_name, csnStr);
             if ((RUV_SUCCESS == ruv_get_min_csn(supplierRuv, &startCSN)) &&
                 startCSN)
             { /* must now free startCSN */
                 csn_as_string(startCSN, PR_FALSE, csnStr); 
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                                "%s: CSN %s not found and no purging, probably a reinit\n",
+                                agmt_name, csnStr);
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
                                 "%s: Will try to use supplier min CSN %s to load changelog\n",
                                 agmt_name, csnStr);
@@ -5874,9 +5874,14 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
             }
             else
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+                                "%s: CSN %s not found and no purging, probably a reinit\n",
+                                agmt_name, csnStr);
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
                                 "%s: Could not get the min csn from the supplier RUV\n",
                                 agmt_name);
+                rc = CL5_RUV_ERROR;
+                goto done;
             }
         }
 
