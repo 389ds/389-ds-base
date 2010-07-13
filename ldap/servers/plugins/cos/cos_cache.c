@@ -2383,9 +2383,9 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 		}
 
 		/* is this entry a child of the target tree(s)? */
-		do
+		while(hit == 0 && pTargetTree)
 		{
-			if(pTargetTree) {
+			{
 				int rc = 0;
 				char *tval = NULL;
 				size_t tlen = 0;
@@ -2403,8 +2403,7 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 					pTargetTree->val = tval;
 				}
 			}
-
-    		if(	pTargetTree->val == 0 || 
+			if(	pTargetTree->val == 0 || 
 				slapi_dn_issuffix(pDn, pTargetTree->val) != 0 || 
 				(views_api && views_entry_exists(views_api, pTargetTree->val, e)) /* might be in a view */
 				)
@@ -2529,7 +2528,7 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 
 			pTargetTree = pTargetTree->list.pNext;
 
-		} while(hit == 0 && pTargetTree);
+		} /* while(hit == 0 && pTargetTree) */
 
 
 		if(hit==0 || merge_mode)
