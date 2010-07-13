@@ -179,14 +179,11 @@ repl_objset_destroy(Repl_Objset **o, time_t maxwait, FNFree panic_fn)
 			 * function for each remaining object.
 			 */
 			PR_Lock((*o)->lock);
-			if ((co = llistGetFirst((*o)->objects, &cookie)) != NULL)
+			co = llistGetFirst((*o)->objects, &cookie);
+			while (NULL != co)
 			{
 				panic_fn(co->data);
-				while (NULL != co)
-				{
-					panic_fn(co->data);
-					co = llistGetNext((*o)->objects, &cookie);
-				}
+				co = llistGetNext((*o)->objects, &cookie);
 			}
 			PR_Unlock((*o)->lock);
 		}
