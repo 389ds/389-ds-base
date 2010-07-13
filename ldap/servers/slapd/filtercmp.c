@@ -222,7 +222,11 @@ void filter_compute_hash(struct slapi_filter *f)
 	inval[1] = NULL;
 	/* get the normalized value (according to the matching rule) */
 	pb = get_mr_normval(f->f_mr_oid, f->f_mr_type, inval, &outval);
-	if (pb && outval && outval[0]) {
+	if (!pb) {
+		LDAPDebug(LDAP_DEBUG_ANY, "$$$ out of memory !\n", 0, 0, 0);
+		return;
+	}
+	if (outval && outval[0]) {
 	    STIR(h);
 	    h = addhash_bv(h, *(outval[0]));
 	}
