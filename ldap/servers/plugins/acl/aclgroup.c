@@ -273,14 +273,19 @@ aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn)
 
 	aclUserGroup		*u_group, *f_group;
 
-	if ( aclpb && aclpb->aclpb_groupinfo )
+	if ( !aclpb ) {
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name, "NULL acl pblock\n" );
+		return NULL;
+	}
+
+	if ( aclpb->aclpb_groupinfo )
 		return aclpb->aclpb_groupinfo;
 
 	ACLG_LOCK_GROUPCACHE_WRITE();
 
 	/* try it one more time. We might have one in the meantime */
 	aclg_init_userGroup  (aclpb, n_dn , 1 /* got the lock */);
-	if ( aclpb && aclpb->aclpb_groupinfo ) {
+	if ( aclpb->aclpb_groupinfo ) {
 		ACLG_ULOCK_GROUPCACHE_WRITE();
 		return aclpb->aclpb_groupinfo;
 	}
