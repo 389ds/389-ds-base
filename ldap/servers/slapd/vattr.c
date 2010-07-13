@@ -1215,6 +1215,11 @@ int slapi_vattr_list_attrs(/* Entry we're interested in */ Slapi_Entry *e,
 	size_t block_length = 0;
 	vattr_type_list_context type_context = {0};
 
+	if (NULL == types || NULL == buffer_flags) {
+		LDAPDebug(LDAP_DEBUG_ANY, "slapi_vattr_list_attrs: invalid param\n", 0, 0, 0);
+		return -1;
+	}
+
 	block_length  = 1 + TYPE_LIST_EXTRA_SPACE;
 
 	if(!(flags & SLAPI_VIRTUALATTRS_ONLY))
@@ -1320,9 +1325,8 @@ int slapi_vattr_list_attrs(/* Entry we're interested in */ Slapi_Entry *e,
 
 	result_array[i].type_name = NULL;
 
-	if (types && list_length) {
+	if (list_length)
 		*types = result_array;
-	}
 	else
 		*types = 0;
 
@@ -1606,6 +1610,9 @@ int slapi_vattrspi_regattr(vattr_sp_handle *h,char *type_name_to_register, char*
 	int ret = 0;
 	char *type_to_add;
 	int free_type_to_add = 0;
+	Slapi_DN original_dn;
+
+	slapi_sdn_init(&original_dn);
 
 	/* Supplying a DN means that the plugin requires to be called
 	 * only when the considering attributes in relevant entries - almost
@@ -1622,25 +1629,18 @@ int slapi_vattrspi_regattr(vattr_sp_handle *h,char *type_name_to_register, char*
 		 * to a namespace DN, this helps to hide details
 		 * (that we might decide to change) anyway
 		 */
-		Slapi_DN original_dn;
 		Slapi_Backend *be;
 		Slapi_DN *namespace_dn;
 		
-		slapi_sdn_init(&original_dn);
 		slapi_sdn_set_dn_byref(&original_dn,DN);
 		be = slapi_be_select( &original_dn );
 		namespace_dn = (Slapi_DN*)slapi_be_getsuffix(be, 0);
 
 		if(namespace_dn && be != defbackend_get_backend()) /* just in case someone thinks "" is a good namespace */
 		{
-			type_to_add = (char*)PR_smprintf("%s::%s",
+			type_to_add = slapi_ch_smprintf("%s::%s",
 				(char*)slapi_sdn_get_dn(namespace_dn), 
 				type_name_to_register);
-
-			if(!type_to_add)
-			{
-				ret = -1;
-			}
 
 			free_type_to_add = 1;
 		}
@@ -1649,7 +1649,6 @@ int slapi_vattrspi_regattr(vattr_sp_handle *h,char *type_name_to_register, char*
 			type_to_add = type_name_to_register;
 		}
 
-		slapi_sdn_done(&original_dn);
 	}
 	else
 	{
@@ -1658,9 +1657,11 @@ int slapi_vattrspi_regattr(vattr_sp_handle *h,char *type_name_to_register, char*
 
 	ret = vattr_map_sp_insert(type_to_add,h,hint);
 
+done:
+	slapi_sdn_done(&original_dn);
 	if(free_type_to_add)
 	{
-		PR_smprintf_free(type_to_add);
+		slapi_ch_free((void **)&type_to_add);
 	}
 
 	return ret;
@@ -2145,17 +2146,14 @@ vattr_map_entry *vattr_map_entry_new(char *type_name, vattr_sp_handle *sph, void
 {
 	vattr_map_entry *result = NULL;
 	vattr_sp_handle *sp_copy = NULL;
+
 	sp_copy = (vattr_sp_handle*)slapi_ch_calloc(1, sizeof (vattr_sp_handle));
-	if (!sp_copy) {
-		return NULL;
-	}
 	sp_copy->sp = sph->sp;
 	sp_copy->hint = hint;
+
 	result = (vattr_map_entry*)slapi_ch_calloc(1, sizeof (vattr_map_entry));
-	if (result) {
-		result->type_name = slapi_ch_strdup(type_name);
-		result->sp_list = sp_copy;
-	}
+	result->type_name = slapi_ch_strdup(type_name);
+	result->sp_list = sp_copy;
 
 	/* go get schema */
 	result->objectclasses = vattr_map_entry_build_schema(type_name);
@@ -2200,7 +2198,7 @@ vattr_sp_handle_list *vattr_map_namespace_sp_getlist(Slapi_DN *dn, const char *t
 		if(dn) {
 			char *split_dn = (char*)slapi_sdn_get_dn(dn);
 			char *split_type_to_find = 
-				(char*)PR_smprintf("%s::%s",split_dn, type_to_find);
+				slapi_ch_smprintf("%s::%s",split_dn, type_to_find);
 
 			if(split_type_to_find)
 			{
@@ -2209,7 +2207,7 @@ vattr_sp_handle_list *vattr_map_namespace_sp_getlist(Slapi_DN *dn, const char *t
 					return_list = (vattr_sp_handle_list*) result->sp_list;
 				}
 
-				PR_smprintf_free(split_type_to_find);
+				slapi_ch_free((void **)&split_type_to_find);
 			}
 		}
 	}
