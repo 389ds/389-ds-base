@@ -292,9 +292,12 @@ prot_thread_main(void *arg)
 	PR_ASSERT(NULL != rp);
 
 	agmt = rp->agmt;
-	if (agmt) {
-		set_thread_private_agmtname (agmt_get_long_name(agmt));
+	if (!agmt) {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "missing replication agreement\n");
+		return;
 	}
+
+	set_thread_private_agmtname (agmt_get_long_name(agmt));
 
 	done = 0;
 
