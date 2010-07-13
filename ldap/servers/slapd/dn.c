@@ -954,10 +954,12 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     *dest_len = d - *dest;
 bail:
     if (rc < 0) {
-        if (*dest != src) {
-            slapi_ch_free_string(dest);
-        } else {
-            *dest = NULL;
+        if (dest != NULL) {
+            if (*dest != src) {
+                slapi_ch_free_string(dest);
+            } else {
+                *dest = NULL;
+            }
         }
         *dest_len = 0;
     } else if (rc > 0) {
@@ -1873,6 +1875,10 @@ void
 slapi_sdn_done(Slapi_DN *sdn)
 {
     /* sdn_dump( sdn, "slapi_sdn_done"); */
+    if(sdn==NULL)
+    {
+        return;
+    }
     if(sdn->dn!=NULL)
     {
         if(slapi_isbitset_uchar(sdn->flag,FLAG_DN))
