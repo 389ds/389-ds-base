@@ -250,16 +250,23 @@ void cb_instance_free(cb_backend_instance * inst) {
 			inst->eq_ctx = NULL;
 		}
 
-		if (inst->bind_pool) 
+		if (inst->bind_pool)
+		{
         		cb_close_conn_pool(inst->bind_pool);
-		if (inst->pool)
-        		cb_close_conn_pool(inst->pool);
+			slapi_destroy_condvar(inst->bind_pool->conn.conn_list_cv);
+			slapi_destroy_mutex(inst->bind_pool->conn.conn_list_mutex);
+			slapi_ch_free((void **) &inst->bind_pool);
+		}
 
-		slapi_destroy_condvar(inst->bind_pool->conn.conn_list_cv);
-		slapi_destroy_condvar(inst->pool->conn.conn_list_cv);
+		if (inst->pool)
+		{
+        		cb_close_conn_pool(inst->pool);
+			slapi_destroy_condvar(inst->pool->conn.conn_list_cv);
+			slapi_destroy_mutex(inst->pool->conn.conn_list_mutex);
+			slapi_ch_free((void **) &inst->pool);
+		}
+
 		slapi_destroy_mutex(inst->monitor.mutex);
-		slapi_destroy_mutex(inst->bind_pool->conn.conn_list_mutex);
-		slapi_destroy_mutex(inst->pool->conn.conn_list_mutex);
 		slapi_destroy_mutex(inst->monitor_availability.cpt_lock);
 		slapi_destroy_mutex(inst->monitor_availability.lock_timeLimit);
 		slapi_ch_free_string(&inst->configDn);
@@ -267,11 +274,7 @@ void cb_instance_free(cb_backend_instance * inst) {
 		slapi_ch_free_string(&inst->inst_name);
 		charray_free(inst->every_attribute);
 
-		slapi_ch_free((void **) &inst->bind_pool);
-		slapi_ch_free((void **) &inst->pool);
-
 		PR_RWLock_Unlock(inst->rwl_config_lock);
-
 		PR_DestroyRWLock(inst->rwl_config_lock);
 
 		slapi_ch_free((void **) &inst);
@@ -716,14 +719,21 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 	int 			rc=LDAP_SUCCESS;
 	int			secure = 0;
 
- 	if (( rc = slapi_ldap_url_parse( url, &ludp, 0, &secure )) != 0 ) {
+	if (!inst) {
+		PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
+		rc = LDAP_OPERATIONS_ERROR;
+		goto done;
+	}
+
+ 	if (( rc = slapi_ldap_url_parse( url, &ludp, 0, &secure )) != 0 || !ludp) {
 		PL_strncpyz(errorbuf,slapi_urlparse_err2string( rc ), SLAPI_DSE_RETURNTEXT_SIZE);
 		if (CB_CONFIG_PHASE_INITIALIZATION == phase)
 			inst->pool->url=slapi_ch_strdup("");
-		return(LDAP_INVALID_SYNTAX);
+		rc = LDAP_INVALID_SYNTAX;
+		goto done;
 	}
  
-	if (ludp && secure && inst && inst->rwl_config_lock) {
+	if (secure && inst->rwl_config_lock) {
 		int isgss = 0;
 		PR_RWLock_Rlock(inst->rwl_config_lock);
 		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
@@ -812,7 +822,7 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 
 	        PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
-
+done:
     	if ( ludp != NULL ) {
        		ldap_free_urldesc( ludp );
 	}
@@ -1358,7 +1368,13 @@ static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	int rc = LDAP_SUCCESS;
 
-	if (value && inst && inst->rwl_config_lock) {
+	if (!inst) {
+		PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
+		rc = LDAP_OPERATIONS_ERROR;
+		goto done;
+	}
+
+	if (value && inst->rwl_config_lock) {
 		int isgss = 0;
 		PR_RWLock_Rlock(inst->rwl_config_lock);
 		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
@@ -1378,6 +1394,7 @@ static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int 
 		    rc=CB_REOPEN_CONN; /* reconnect with the new starttls setting */
 		}
 	}
+done:
 	return rc;
 }
 
@@ -1397,7 +1414,13 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	int rc=LDAP_SUCCESS;
 
-	if (value && !PL_strcasecmp((char *) value, "GSSAPI") && inst && inst->rwl_config_lock) {
+	if (!inst) {
+		PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "NULL instance");
+		rc = LDAP_OPERATIONS_ERROR;
+		goto done;
+	}
+
+	if (value && !PL_strcasecmp((char *) value, "GSSAPI") && inst->rwl_config_lock) {
 		int secure = 0;
 		PR_RWLock_Rlock(inst->rwl_config_lock);
 		secure = inst->pool->secure || inst->pool->starttls;
@@ -1427,6 +1450,7 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 		}
                	PR_RWLock_Unlock(inst->rwl_config_lock);
 	}
+done:
 	return rc;
 }
 
@@ -1537,6 +1561,7 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
 
         if (config == NULL) {
                 buf[0] = '\0';
+		return;
         }
  
         switch(config->config_type) {
