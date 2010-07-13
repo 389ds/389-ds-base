@@ -583,7 +583,7 @@ decode_repl_ext_response(struct berval *bvdata, int *response_code,
 	}
 	if (0 != return_value)
 	{
-		if (NULL != *ruv_bervals)
+		if (NULL != ruv_bervals && NULL != *ruv_bervals)
 		{
 			ber_bvecfree(*ruv_bervals);
 		}
