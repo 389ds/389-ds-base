@@ -275,6 +275,11 @@ acl_operation_ext_destructor ( void *ext, void *object, void *parent )
 		(!(aclpb->aclpb_state & ACLPB_INITIALIZED)))
 		goto clean_aclpb;
 
+	if ( NULL == aclpb->aclpb_authorization_sdn ) {
+		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "NULL aclcb_autorization_sdn\n");
+		goto clean_aclpb;
+	}
+
 	/* get the connection  extension */
 	aclcb = (struct acl_cblock *) acl_get_ext ( ACL_EXT_CONNECTION, parent );
 
@@ -316,7 +321,7 @@ acl_operation_ext_destructor ( void *ext, void *object, void *parent )
 			acl_copyEval_context ( NULL, c_evalContext, &aclcb->aclcb_eval_context, attr_only );
 
 			aclcb->aclcb_aclsignature = aclpb->aclpb_signature;
-			if ( aclcb->aclcb_sdn   &&  aclpb->aclpb_authorization_sdn &&
+			if ( aclcb->aclcb_sdn &&
 					(0 != slapi_sdn_compare ( aclcb->aclcb_sdn,
 										aclpb->aclpb_authorization_sdn ) ) ) {
 				slapi_sdn_set_ndn_byval( aclcb->aclcb_sdn,
