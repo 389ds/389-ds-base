@@ -1259,6 +1259,7 @@ parseFilter (
 	RETURN :	-1 if error, 0 else.
 	DESCRIPTION :
  *****************************************************************************/
+#define BUFFERSIZE 1024 /* buffer size for buffer */
 int 
 basicInit (void)
 {
@@ -1270,8 +1271,7 @@ basicInit (void)
   int		 oflags;/* open() flags */			/*JLS 05-04-01*/
   struct stat file_st ; /* file status checker for attreplacefile option */
   FILE *attrF;		/* file pointer for attreplacefile option */
-  int	buffersize=1024;	/* buffer size for buffer */
-  char	buffer[buffersize];	/* buffer used to read attreplacefile content */
+  char	buffer[BUFFERSIZE];	/* buffer used to read attreplacefile content */
 
   /*
    * Misc inits
@@ -1560,17 +1560,17 @@ basicInit (void)
     /* start to read file content */
     mctx.attrplFileContent = (char *)malloc(mctx.attrplFileSize + 1);    
     i=0;
-    while ( fread(buffer, buffersize , 1, attrF) )
+    while ( fread(buffer, BUFFERSIZE , 1, attrF) )
     {
-      memcpy(mctx.attrplFileContent+i, buffer , buffersize );
-      memset(buffer ,'\0', buffersize );
-      i = i + buffersize;
+      memcpy(mctx.attrplFileContent+i, buffer , BUFFERSIZE );
+      memset(buffer ,'\0', BUFFERSIZE );
+      i = i + BUFFERSIZE;
     } 
     /* copy remainding content into mctx.attrplFileContent */
     if (i<mctx.attrplFileSize)
     {
       memcpy(mctx.attrplFileContent+i, buffer , (mctx.attrplFileSize - 1 - i));
-      memset(buffer ,'\0', buffersize );  /* clear the buffer */
+      memset(buffer ,'\0', BUFFERSIZE );  /* clear the buffer */
     }
 
     mctx.attrplFileContent[mctx.attrplFileSize]='\0'; // append the close bit

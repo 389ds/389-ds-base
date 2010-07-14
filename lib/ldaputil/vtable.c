@@ -43,7 +43,7 @@
 #include "ldaputili.h"
 #include <ldap.h>
 
-static LDAPUVTable_t ldapu_VTable = {};
+static LDAPUVTable_t ldapu_VTable = {0};
 
 /* Replace ldapu_VTable.  Subsequently, ldaputil will call the
    functions in 'from' (not the LDAP API) to access the directory.
