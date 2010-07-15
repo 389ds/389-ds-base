@@ -2792,6 +2792,8 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrin
     open_flags = DB_THREAD;
     if (open_flag & DBOPEN_CREATE)
         open_flags |= DB_CREATE;
+    if (open_flag & DBOPEN_TRUNCATE)
+        open_flags |= DB_TRUNCATE;
 
     if (!ppDB)
         goto out;

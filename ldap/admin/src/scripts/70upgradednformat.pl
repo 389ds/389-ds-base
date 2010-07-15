@@ -15,15 +15,21 @@ use File::Copy;
 sub runinst {
     my ($inf, $inst, $dseldif, $conn) = @_;
 
-    # First, check if the server is up or down.
-    if ($conn->isa("Mozilla::LDAP::Conn")) {
-        # The server is up, we do nothing.
-        return ();
-    }
-
     my @errs;
 
     my $config = "cn=config";
+    my $config_entry = $conn->search($config, "base", "(cn=*)");
+    if (!$config_entry) {
+        return ("error_no_configuration_entry", $!);
+    }
+    # First, check if the server is up or down.
+    my $rundir = $config_entry->getValues('nsslapd-rundir');
+
+    # Check if the server is up or not
+    my $pidfile = $rundir . "/" . $inst . ".pid";
+    if (-e $pidfile) {
+        return (); # server is running; do nothing.
+    }
     my $mappingtree = "cn=mapping tree,cn=config";
     my $ldbmbase = "cn=ldbm database,cn=plugins,cn=config";
 
@@ -62,10 +68,6 @@ sub runinst {
         $mtentry = $conn->nextEntry();
     }
 
-    my $config_entry = $conn->search($config, "base", "(cn=*)", 0, ("nsslapd-instancedir"));
-    if (!$config_entry) {
-        return ("error_no_configuration_entry", $!);
-    }
     my $instancedir = $config_entry->{"nsslapd-instancedir"}[0];
     my $upgradednformat = $instancedir . "/upgradednformat";
 

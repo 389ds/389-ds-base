@@ -262,11 +262,25 @@ static int import_attr_callback(void *node, void *param)
          * attribute type. (except entrydn -- taken care below) */
         int rc = 0;
         Slapi_Attr attr = {0};
-        slapi_attr_init(&attr, a->ai_type);
-        rc = slapi_attr_is_dn_syntax_attr(&attr);
-        attr_done(&attr);
-        if (0 == rc) {
-            return 0;
+
+        /* 
+         * Treat cn and ou specially.  Bring up the import workers for
+         * cn and ou even though they are not DN syntax attribute.
+         * This is done because they have some exceptional case to store
+         * DN format in the admin entries such as UserPreferences.
+         */
+        if ((0 == PL_strcasecmp("cn", a->ai_type)) || 
+            (0 == PL_strcasecmp("commonname", a->ai_type)) ||
+            (0 == PL_strcasecmp("ou", a->ai_type)) ||
+            (0 == PL_strcasecmp("organizationalUnit", a->ai_type))) {
+            ;
+        } else {
+            slapi_attr_init(&attr, a->ai_type);
+            rc = slapi_attr_is_dn_syntax_attr(&attr);
+            attr_done(&attr);
+            if (0 == rc) {
+                return 0;
+            }
         }
     }
 

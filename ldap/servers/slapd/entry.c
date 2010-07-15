@@ -279,14 +279,19 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 				if (freetype) slapi_ch_free_string(&type);
 				continue;
 			}
-			normdn = slapi_create_dn_string("%s", valuecharptr);
-			if (NULL == normdn) {
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+			if (flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT) {
+				normdn = slapi_ch_strdup(
+								slapi_dn_normalize_original(valuecharptr));
+			} else {
+				normdn = slapi_create_dn_string("%s", valuecharptr);
+				if (NULL == normdn) {
+					LDAPDebug1Arg(LDAP_DEBUG_TRACE,
 							  "str2entry_fast: Invalid DN: %s\n", valuecharptr);
-				slapi_entry_free( e );
-				if (retmalloc) slapi_ch_free_string(&valuecharptr);
-				if (freetype) slapi_ch_free_string(&type);
-				return NULL;
+					slapi_entry_free( e );
+					if (retmalloc) slapi_ch_free_string(&valuecharptr);
+					if (freetype) slapi_ch_free_string(&type);
+					return NULL;
+				}
 			}
 			/* normdn is consumed in e */
 			slapi_entry_set_dn(e, normdn);
@@ -375,21 +380,26 @@ str2entry_fast( char *s, int flags, int read_stateinfo )
 						return NULL;
 					}
 				}
-				rc = slapi_dn_normalize_ext(valuecharptr, 0, &dn_aval, &dnlen);
-				if (rc < 0) {
-					/* Give up normalizing the attribute value */
-					LDAPDebug2Args(LDAP_DEBUG_TRACE,
+				if (flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT) {
+					dn_aval = slapi_dn_normalize_original(valuecharptr);
+					slapi_value_set(value, dn_aval, strlen(dn_aval));
+				} else {
+					rc = 
+					  slapi_dn_normalize_ext(valuecharptr, 0, &dn_aval, &dnlen);
+					if (rc < 0) {
+						/* Give up normalizing the attribute value */
+						LDAPDebug2Args(LDAP_DEBUG_TRACE,
 							       "str2entry_fast: Invalid DN value: %s: %s\n",
 							       type, valuecharptr);
-					dn_aval = valuecharptr;
-					dnlen = valuelen;
-				}
-				slapi_value_set(value, dn_aval, dnlen);
-				if (rc > 0) { /* if rc == 0, valuecharptr is passed in */
-					slapi_ch_free_string(&dn_aval);
-				} else if (rc == 0) { /* rc == 0; valuecharptr is passed in; 
-										 not null terminated */
-					*(dn_aval + dnlen) = '\0';
+						dn_aval = valuecharptr;
+						dnlen = valuelen;
+					}
+					slapi_value_set(value, dn_aval, dnlen);
+					if (rc > 0) { 
+						/* rc > 0;
+						   dn_aval was allocated in slapi_dn_normalize_ext */
+						slapi_ch_free_string(&dn_aval);
+					}
 				}
 			} else {
 				slapi_value_set(value, valuecharptr, valuelen);
@@ -1172,6 +1182,7 @@ free_and_return:
 			( SLAPI_STR2ENTRY_IGNORE_STATE							\
 			| SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES					\
 			| SLAPI_STR2ENTRY_TOMBSTONE_CHECK						\
+			| SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT					\
 			)
 
 #define SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST				\
@@ -1197,7 +1208,7 @@ slapi_str2entry( char *s, int flags )
 	 * slower but more forgiving str2entry_dupcheck() function.
 	 */
 	if ( 0 != ( flags & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ) ||
-			0 != ( flags & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST ))
+	     0 != ( flags & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST ))
     {
 	    e= str2entry_dupcheck( s, flags, read_stateinfo );
     }

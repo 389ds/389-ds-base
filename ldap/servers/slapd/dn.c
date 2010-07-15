@@ -493,13 +493,19 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     char *d = NULL; /* work pointer for dest */
     char *ends = NULL;
     char *endd = NULL;
-    char *typestart = NULL;
-    char *subtypestart = NULL; /* used for the nested DN */
     char *lastesc = NULL;
+    /* rdn avs for the main DN */
+    char *typestart = NULL;
     int rdn_av_count = 0;
     struct berval *rdn_avs = NULL;
     struct berval initial_rdn_av_stack[ SLAPI_DNNORM_INITIAL_RDN_AVS ];
+    /* rdn avs for the nested DN */
+    char *subtypestart = NULL; /* used for nested rdn avs */
+    int subrdn_av_count = 0;
+    struct berval *subrdn_avs = NULL;
+    struct berval subinitial_rdn_av_stack[ SLAPI_DNNORM_INITIAL_RDN_AVS ];
     int chkblank = 0;
+    int avstat = 0;
 
     if (NULL == dest) {
         goto bail;
@@ -649,16 +655,18 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                              * multivalued RDNs.
                              */
                             if (subtypestart &&
-                                (ISPLUS(*(s+1)) || rdn_av_count > 0)) {
-                                add_rdn_av(subtypestart, d, &rdn_av_count,
-                                           &rdn_avs, initial_rdn_av_stack);
+                                (ISPLUS(*(s+1)) || subrdn_av_count > 0)) {
+                                add_rdn_av(subtypestart, d, &subrdn_av_count,
+                                          &subrdn_avs, subinitial_rdn_av_stack);
                             }
                             if (!ISPLUS(*(s+1))) {    /* at end of this RDN */
-                                if (rdn_av_count > 1) {
-                                    sort_rdn_avs( rdn_avs, rdn_av_count, 1 );
+                                if (subrdn_av_count > 1) {
+                                    sort_rdn_avs( subrdn_avs, 
+                                                  subrdn_av_count, 1 );
                                 }
                                 if (rdn_av_count > 0) {
-                                    reset_rdn_avs( &rdn_avs, &rdn_av_count );
+                                    reset_rdn_avs( &subrdn_avs,
+                                                   &subrdn_av_count );
                                     subtypestart = NULL;
                                 }
                             }
@@ -681,7 +689,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     }
                 } else if (((state == INVALUE1ST) &&
                             (s+2 < ends) && LEADNEEDSESCAPESTR(s+1)) ||
-				           ((state == INVALUE) && 
+                           ((state == INVALUE) && 
                             (((s+2 < ends) && NEEDSESCAPESTR(s+1)) ||
                              (ISEOV(s+3, ends) && ISBLANKSTR(s+1))))) {
                              /* e.g., cn=abc\20 ,... */
@@ -724,16 +732,16 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                          * multivalued RDNs.
                          */
                         if (subtypestart &&
-                            (ISPLUSSTR(s+1) || rdn_av_count > 0)) {
-                            add_rdn_av(subtypestart, d, &rdn_av_count,
-                                       &rdn_avs, initial_rdn_av_stack);
+                            (ISPLUSSTR(s+1) || subrdn_av_count > 0)) {
+                            add_rdn_av(subtypestart, d, &subrdn_av_count,
+                                       &subrdn_avs, subinitial_rdn_av_stack);
                         }
                         if (!ISPLUSSTR(s+1)) {    /* at end of this RDN */
-                            if (rdn_av_count > 1) {
-                                sort_rdn_avs( rdn_avs, rdn_av_count, 1 );
+                            if (subrdn_av_count > 1) {
+                                sort_rdn_avs( subrdn_avs, subrdn_av_count, 1 );
                             }
-                            if (rdn_av_count > 0) {
-                                reset_rdn_avs( &rdn_avs, &rdn_av_count );
+                            if (subrdn_av_count > 0) {
+                                reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
                             }
                         }
                     }
@@ -856,15 +864,15 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                          * multivalued RDNs.
                          */
                         if (ISPLUS(*s) || rdn_av_count > 0) {
-                            add_rdn_av(subtypestart, d, &rdn_av_count,
-                                       &rdn_avs, initial_rdn_av_stack);
+                            add_rdn_av(subtypestart, d, &subrdn_av_count,
+                                       &subrdn_avs, subinitial_rdn_av_stack);
                         }
                         if (!ISPLUS(*s)) {    /* at end of this RDN */
-                            if (rdn_av_count > 1) {
-                                sort_rdn_avs( rdn_avs, rdn_av_count, 1 );
+                            if (subrdn_av_count > 1) {
+                                sort_rdn_avs( subrdn_avs, subrdn_av_count, 1 );
                             }
                             if (rdn_av_count > 0) {
-                                reset_rdn_avs( &rdn_avs, &rdn_av_count );
+                                reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
                                 subtypestart = NULL;
                             }
                         }
@@ -1171,6 +1179,17 @@ slapi_dn_normalize( char *dn )
     *(substr_dn_normalize( dn, dn + strlen( dn ))) = '\0';
 	/* LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
     return dn;
+}
+
+/* Introduced for the upgrade tool. DON'T USE THIS API! */
+char *
+slapi_dn_normalize_original( char *dn )
+{
+	/* LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	*(substr_dn_normalize_orig( dn, dn + strlen( dn ))) = '\0';
+	/* LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+
+	return( dn );
 }
 
 /* Introduced for the upgrade tool. DON'T USE THIS API! */

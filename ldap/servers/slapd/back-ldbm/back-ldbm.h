@@ -755,7 +755,18 @@ typedef struct _back_search_result_set
 
 /* flag: open_flag for dblayer_get_index_file -> dblayer_open_file */
 #define DBOPEN_CREATE 0x1	/* oprinary mode: create a db file if needed */
+#define DBOPEN_TRUNCATE 0x2	/* oprinary mode: truncate a db file if needed */
 
 /* whether we call fat lock or not [608146] */
 #define SERIALLOCK(li)	(li->li_fat_lock)
+
+/* 
+ * 0: SUCCESS
+ * libdb returns negative error codes
+ * Linux errno's < 140, for now
+ * Chose any positive value other than the above values.
+ * Being used to specify duplicated DN is found in entrydn or entryrdn.
+ */
+#define LDBM_ERROR_FOUND_DUPDN 9999
+
 #endif /* _back_ldbm_h_ */

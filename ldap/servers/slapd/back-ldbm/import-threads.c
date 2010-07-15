@@ -547,7 +547,7 @@ void import_producer(void *param)
                               curr_lineno, curr_filename);
             if (e) {
                 slapi_entry_free(e);
-	    }
+            }
 
             job->skipped++;
             continue;
@@ -978,7 +978,7 @@ upgradedn_free_list(struct upgradedn_attr **ud_list)
         slapi_ch_free((void **)&ptr);
         ptr = next;
     }
-	*ud_list = NULL;
+    *ud_list = NULL;
     return;
 }
 
@@ -1011,8 +1011,8 @@ upgradedn_add_to_list(struct upgradedn_attr **ud_list,
  *     deleted attribute list e_deleted_attrs.
  *
  * If FLAG_UPGRADEDNFORMAT is set, worker_threads for indexing DN syntax
- * attributes are brought up.  Foreman thread updates entrydn index
- * as well as the entry itself in the id2entry.db#.
+ * attributes (+ cn & ou) are brought up.  Foreman thread updates entrydn
+ * index as well as the entry itself in the id2entry.db#.
  *
  * Note: QUIT state for info->state is introduced for DRYRUN mode to
  *       distinguish the intentional QUIT (found the dn upgrade candidate)
@@ -1142,7 +1142,7 @@ upgradedn_producer(void *param)
         ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
         memcpy(ecopy, data.dptr, data.dsize);
         *(ecopy + data.dsize) = '\0';
-        e = slapi_str2entry(data.data, 0);
+        e = slapi_str2entry(data.data, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
         if ( NULL == e ) {
             if (job->task) {
                 slapi_task_log_notice(job->task,
@@ -1274,7 +1274,7 @@ upgradedn_producer(void *param)
 
         skipit = 0;
         for (ud_ptr = ud_list; ud_ptr; ud_ptr = ud_ptr->ud_next) {
-            /* Move the current value to e_deleted_attrs. */
+            /* Move the current value to e_aux_attrs. */
             ud_attr = attrlist_find(e->e_attrs, ud_ptr->ud_type);
             if (ud_attr) {
                 if (0 == strcmp(ud_ptr->ud_type, "entrydn")) {
@@ -1304,24 +1304,24 @@ upgradedn_producer(void *param)
                             break;
                         }
                     }
-                    attrlist_add(&e->e_deleted_attrs, ud_attr);
+                    attrlist_add(&e->e_aux_attrs, ud_attr);
                 } else {
                     /* We have to normalize the orignal string to generate
                        the key in the index.
                      */
-                    a = attrlist_find(e->e_deleted_attrs, ud_ptr->ud_type);
+                    a = attrlist_find(e->e_aux_attrs, ud_ptr->ud_type);
                     if (!a) {
                         a = slapi_attr_new();
                         slapi_attr_init(a, ud_ptr->ud_type);
                     } else {
-                        a = attrlist_remove(&e->e_deleted_attrs,
+                        a = attrlist_remove(&e->e_aux_attrs,
                                             ud_ptr->ud_type);
                     }
                     slapi_dn_normalize_case_original(ud_ptr->ud_value);
                     value = slapi_value_new_string(ud_ptr->ud_value);
                     slapi_attr_add_value(a, value);
                     slapi_value_free(&value);
-                    attrlist_add(&e->e_deleted_attrs, a);
+                    attrlist_add(&e->e_aux_attrs, a);
                 }
             }
         }
@@ -1475,7 +1475,7 @@ import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
 }
 
 /* helper function for the foreman: */
-static int foreman_do_parentid(ImportJob *job, struct backentry *entry,
+static int foreman_do_parentid(ImportJob *job, FifoItem *fi,
                                struct attrinfo *parentid_ai)
 {
     backend *be = job->inst->inst_be;
@@ -1483,11 +1483,44 @@ static int foreman_do_parentid(ImportJob *job, struct backentry *entry,
     Slapi_Attr *attr = NULL;
     int idl_disposition = 0;
     int ret = 0;
+    struct backentry *entry = fi->entry;
+
+    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+        /* Get the parentid attribute value from deleted attr list */
+        Slapi_Value *value = NULL;
+        Slapi_Attr *pid_to_del =
+                 attrlist_remove(&entry->ep_entry->e_aux_attrs, "parentid");
+        if (pid_to_del) {
+            /* Delete it. */
+            ret = slapi_attr_first_value(pid_to_del, &value);
+            if (ret < 0) {
+                import_log_notice(job, 
+                                  "Error: retrieving parentid value (error %d)",
+                                  ret);
+            } else {
+                const struct berval *bval = 
+                             slapi_value_get_berval((const Slapi_Value *)value);
+                ret = index_addordel_string(be, "parentid", 
+                             bval->bv_val, entry->ep_id,
+                             BE_INDEX_DEL|BE_INDEX_EQUALITY|BE_INDEX_NORMALIZED,
+                             NULL);
+                if (ret) {
+                    import_log_notice(job, 
+                                      "Error: deleting %s from  parentid index "
+                                      "(error %d: %s)",
+                                      bval->bv_val, ret, dblayer_strerror(ret));
+                    return ret;
+                }
+            }
+            slapi_attr_free(&pid_to_del);
+        }
+    }
 
     if (slapi_entry_attr_find(entry->ep_entry, "parentid", &attr) == 0) {
         svals = attr_get_present_values(attr);
-        ret = index_addordel_values_ext_sv(be, "parentid", svals, NULL, entry->ep_id,
-            BE_INDEX_ADD, NULL, &idl_disposition, NULL);
+        ret = index_addordel_values_ext_sv(be, "parentid", svals, NULL, 
+                                           entry->ep_id, BE_INDEX_ADD, 
+                                           NULL, &idl_disposition, NULL);
         if (idl_disposition != IDL_INSERT_NORMAL) {
             char *attr_value = slapi_value_get_berval(svals[0])->bv_val;
             ID parent_id = atol(attr_value);
@@ -1510,19 +1543,20 @@ static int foreman_do_parentid(ImportJob *job, struct backentry *entry,
 }
 
 /* helper function for the foreman: */
-static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
+static int 
+foreman_do_entrydn(ImportJob *job, FifoItem *fi)
 {
     backend *be = job->inst->inst_be;
     struct berval bv;
     int err = 0, ret = 0;
     IDList *IDL;
+    struct backentry *entry = fi->entry;
 
     if (job->flags & FLAG_UPGRADEDNFORMAT) {
         /* Get the entrydn attribute value from deleted attr list */
         Slapi_Value *value = NULL;
         Slapi_Attr *entrydn_to_del =
-              attrlist_remove(&fi->entry->ep_entry->e_deleted_attrs, "entrydn");
-
+              attrlist_remove(&entry->ep_entry->e_aux_attrs, "entrydn");
         if (entrydn_to_del) {
             /* Delete it. */
             ret = slapi_attr_first_value(entrydn_to_del, &value);
@@ -1534,8 +1568,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
                 const struct berval *bval = 
                              slapi_value_get_berval((const Slapi_Value *)value);
                 ret = index_addordel_string(be, "entrydn", 
-                             bval->bv_val,
-                             fi->entry->ep_id,
+                             bval->bv_val, entry->ep_id,
                              BE_INDEX_DEL|BE_INDEX_EQUALITY|BE_INDEX_NORMALIZED,
                              NULL);
                 if (ret) {
@@ -1551,7 +1584,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     }
 
     /* insert into the entrydn index */
-    bv.bv_val = (void*)backentry_get_ndn(fi->entry);   /* jcm - Had to cast away const */
+    bv.bv_val = (void*)backentry_get_ndn(entry);   /* jcm - Had to cast away const */
     bv.bv_len = strlen(bv.bv_val);
 
     /* We need to check here whether the DN is already present in
@@ -1565,14 +1598,24 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     if (job->flags & FLAG_UPGRADEDNFORMAT) {
         /*
          * In the UPGRADEDNFORMAT case, if entrydn value exists, 
-         * that means entrydn is not upgraded. And it is normal.
-         * We could add entrydn only when the value is not found in the db.
+         * that means either 1) entrydn is not upgraded (ID == entry->ep_id)
+         * or 2) a duplicated entry is found (ID != entry->ep_id).
+         * (1) is normal. For (2), need to return a specific error 
+         * LDBM_ERROR_FOUND_DUPDN.
+         * Otherwise, add entrydn to the entrydn index file.
          */
         if (IDL) {
+            ID id = idl_firstid(IDL); /* entrydn is a single attr */
             idl_free(IDL);
+            if (id != entry->ep_id) { /* case (2) */
+                import_log_notice(job, "Duplicated entrydn detected: \"%s\": "
+                                       "Entry ID: (%d, %d)",
+                                       bv.bv_val, id, entry->ep_id);
+                return LDBM_ERROR_FOUND_DUPDN;
+            }
         } else {
             ret = index_addordel_string(be, "entrydn", 
-                                        bv.bv_val, fi->entry->ep_id,
+                                        bv.bv_val, entry->ep_id,
                                         BE_INDEX_ADD|BE_INDEX_NORMALIZED, NULL);
             if (ret) {
                 import_log_notice(job, "Error writing entrydn index "
@@ -1587,7 +1630,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
             /* IMPOSTER ! Get thee hence... */
             import_log_notice(job, "WARNING: Skipping duplicate entry "
                               "\"%s\" found at line %d of file \"%s\"",
-                              slapi_entry_get_dn(fi->entry->ep_entry),
+                              slapi_entry_get_dn(entry->ep_entry),
                               fi->line, fi->filename);
             idl_free(IDL);
             /* skip this one */
@@ -1595,7 +1638,7 @@ static int foreman_do_entrydn(ImportJob *job, FifoItem *fi)
             job->skipped++;
             return -1;      /* skip to next entry */
         }
-        ret = index_addordel_string(be, "entrydn", bv.bv_val, fi->entry->ep_id,
+        ret = index_addordel_string(be, "entrydn", bv.bv_val, entry->ep_id,
                                     BE_INDEX_ADD|BE_INDEX_NORMALIZED, NULL);
         if (ret) {
             import_log_notice(job, "Error writing entrydn index "
@@ -1678,6 +1721,11 @@ void import_foreman(void *param)
 
         /* first, fill in any operational attributes */
         /* add_op_attrs wants a pblock for some reason. */
+        if (job->flags & FLAG_UPGRADEDNFORMAT) {
+            /* Upgrade dn format may alter the DIT structure. */
+            /* It requires a special treatment for that. */
+            parent_status = IMPORT_ADD_OP_ATTRS_SAVE_OLD_PID;
+        }
         if (add_op_attrs(pb, inst->inst_li, fi->entry, &parent_status) != 0) {
             import_log_notice(job, "ERROR: Could not add op attrs to "
                               "entry ending at line %d of file \"%s\"",
@@ -1720,10 +1768,85 @@ void import_foreman(void *param)
 
             /* insert into the entrydn index */
             ret = foreman_do_entrydn(job, fi);
-            if (ret == -1)
+            if (ret == -1) {
                 goto cont;      /* skip entry */
-            if (ret != 0)
+            } else if ((job->flags & FLAG_UPGRADEDNFORMAT) &&
+                       (LDBM_ERROR_FOUND_DUPDN == ret)) {
+                /* 
+                 * Duplicated DN is detected. 
+                 *
+                 * Rename <DN> to nsuniqueid=<uuid>+<DN>
+                 * E.g., uid=tuser,dc=example,dc=com ==>
+                 * nsuniqueid=<uuid>+uid=tuser,dc=example,dc=com
+                 * 
+                 * Note: FLAG_UPGRADEDNFORMAT only.
+                 */
+                Slapi_Attr *orig_entrydn = NULL;
+                Slapi_Attr *new_entrydn = slapi_attr_new();
+                Slapi_Attr *nsuniqueid = NULL;
+                char *uuidstr = NULL;
+                char *new_dn = NULL;
+                char *orig_dn = 
+                      slapi_ch_strdup(slapi_entry_get_dn(fi->entry->ep_entry));
+                struct berval *vals[2];
+                struct berval val;
+                int rc = 0;
+                nsuniqueid = attrlist_find(fi->entry->ep_entry->e_attrs,
+                                           "nsuniqueid");
+                if (nsuniqueid) {
+                    Slapi_Value *uival = NULL;
+                    rc = slapi_attr_first_value(nsuniqueid, &uival);
+                    uuidstr = slapi_value_get_string(uival);
+                } else {
+                    import_log_notice(job, "ERROR: Failed to get nsUniqueId "
+                                            "of the duplicated entry %s; "
+                                            "Entry ID: %d", 
+                                            orig_dn, fi->entry->ep_id);
+                    goto cont;
+                }
+                new_dn = slapi_create_dn_string("nsuniqueid=%s+%s",
+                                                uuidstr, orig_dn);
+                /* releasing original dn */
+                slapi_sdn_done(&fi->entry->ep_entry->e_sdn);
+                /* setting new dn; pass in */
+                slapi_sdn_init_dn_passin(&fi->entry->ep_entry->e_sdn, new_dn); 
+
+                /* Replacing entrydn attribute value */
+                orig_entrydn = attrlist_remove(&fi->entry->ep_entry->e_attrs,
+                                               "entrydn");
+                /* released in forman_do_entrydn */
+                attrlist_add(&fi->entry->ep_entry->e_aux_attrs, orig_entrydn);
+
+                /* Setting new entrydn attribute value */
+                slapi_attr_init(new_entrydn, "entrydn");
+                valueset_add_string(&new_entrydn->a_present_values,
+                                    /* new_dn: duped in valueset_add_string */
+                                    (const char *)new_dn,
+                                    CSN_TYPE_UNKNOWN, NULL);
+                attrlist_add(&fi->entry->ep_entry->e_attrs, new_entrydn);
+
+                /* Try foreman_do_entrydn, again. */
+                ret = foreman_do_entrydn(job, fi);
+                if (ret) {
+                    import_log_notice(job, "ERROR: Failed to rename duplicated "
+                                            "DN %s to %s; Entry ID: %d", 
+                                            orig_dn, new_dn, fi->entry->ep_id);
+                    slapi_ch_free_string(&orig_dn);
+                    if (-1 == ret) {
+                        goto cont;      /* skip entry */
+                    } else {
+                        goto error; 
+                    }
+                } else {
+                    import_log_notice(job, "WARNING: Duplicated entry %s is "
+                                            "renamed to %s; Entry ID: %d", 
+                                            orig_dn, new_dn, fi->entry->ep_id);
+                    slapi_ch_free_string(&orig_dn);
+                }
+
+            } else if (ret != 0) {
                 goto error; 
+            }
         }
 
         if (job->flags & FLAG_ABORT) {
@@ -1764,17 +1887,14 @@ void import_foreman(void *param)
             goto error;
         }
 
-        if (!(job->flags & FLAG_UPGRADEDNFORMAT) && /* Upgrade dn format mode
-                                                       does not need to update
-                                                       parentid index */
-            !slapi_entry_flag_is_set(fi->entry->ep_entry,
-                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
+                                     SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* parentid index
              * (we have to do this here, because the parentID is dependent on
              * looking up by entrydn.)
              * Only add to the parent index if the entry is not a tombstone.
              */
-            ret = foreman_do_parentid(job, fi->entry, parentid_ai);
+            ret = foreman_do_parentid(job, fi, parentid_ai);
             if (ret != 0)
                 goto error;
             
@@ -1954,7 +2074,7 @@ void import_worker(void *param)
                     Slapi_Value *value = NULL;
                     const struct berval *bval = NULL;
                     Slapi_Attr *key_to_del =
-                          attrlist_remove(&fi->entry->ep_entry->e_deleted_attrs,
+                          attrlist_remove(&fi->entry->ep_entry->e_aux_attrs,
                                           info->index_info->name);
             
                     if (key_to_del) {

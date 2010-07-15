@@ -195,6 +195,7 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
     backend *be;
     char *pdn;
     ID pid = 0;
+    int save_old_pid = 0;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
@@ -203,6 +204,9 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
      */
 
     if (NULL != status) {
+        if (IMPORT_ADD_OP_ATTRS_SAVE_OLD_PID == *status) {
+            save_old_pid = 1;
+        }
         *status = IMPORT_ADD_OP_ATTRS_OK;
     }
 
@@ -248,6 +252,16 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
     /* Get rid of attributes you're not allowed to specify yourself */
     slapi_entry_delete_values( ep->ep_entry, hassubordinates, NULL );
     slapi_entry_delete_values( ep->ep_entry, numsubordinates, NULL );
+
+    /* Upgrade DN format only */
+    /* Set current parentid to e_aux_attrs to remove it from the index file. */
+    if (save_old_pid) {
+        Slapi_Attr *pid_attr = NULL;
+        pid_attr = attrlist_remove(&ep->ep_entry->e_attrs, "parentid");
+        if (pid_attr) {
+            attrlist_add(&ep->ep_entry->e_aux_attrs, pid_attr);
+        }
+    }
     
     /* Add the entryid, parentid and entrydn operational attributes */
     /* Note: This function is provided by the Add code */
@@ -1376,11 +1390,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
+    dblayer_txn_init(li, &txn);
+
     if (run_from_cmdline) {
         /* No ldbm backend exists until we process the config info. */
         li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         ldbm_config_load_dse_info(li);
-        txn.back_txn_txn = NULL;    /* no transaction */
     }
 
     inst = ldbm_instance_find_by_name(li, instance_name);
