@@ -1527,7 +1527,6 @@ static int counter= 0; /* JCM Dumb Name */
 /* The connection private structure for UNIX turbo mode */
 struct Conn_private
 {
-	int turbo_flag;			/* set if we are currently in turbo mode */
 	int previous_op_count;	/* the operation counter value last time we sampled it, used to compute operation rate */
 	int operation_rate;		/* rate (ops/sample period) at which this connection has been processing operations */
 	time_t previous_count_check_time; /* The wall clock time we last sampled the operation count */
@@ -2062,7 +2061,7 @@ void connection_find_our_rank(Connection *conn,int *connection_count, int *our_r
 /* 
  * Evaluate the turbo policy for this connection
  */
-void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
+void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_turbo_flag)
 {
 	int current_mode = 0;
 	int new_mode = 0;
@@ -2071,7 +2070,7 @@ void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
 	int threshold_rank = 0;
 	PR_Lock(conn->c_mutex);
 	/* We can already be in turbo mode, or not */
-	current_mode = conn->c_private->turbo_flag;
+	current_mode = current_turbo_flag;
 	if (conn->c_search_result_set) {
 		/* PAGED_RESULTS does not need turbo mode */
 		new_mode = 0;
@@ -2125,7 +2124,6 @@ void connection_enter_leave_turbo(Connection *conn, int *new_turbo_flag)
 		}
 	  }
 	}
-	conn->c_private->turbo_flag = new_mode;
 	PR_Unlock(conn->c_mutex);
 	if (current_mode != new_mode) {
 		if (current_mode) {
@@ -2158,6 +2156,7 @@ connection_threadmain()
 
 	while (1) {
 		int is_timedout = 0;
+		time_t curtime = 0;
 		
 		if( op_shutdown ) {
 			LDAPDebug( LDAP_DEBUG_TRACE, 
@@ -2218,15 +2217,16 @@ connection_threadmain()
 		more_data = 0;
 		ret = connection_read_operation(conn,op,&tag,&more_data);
 
+		curtime = current_time();
 #define DB_PERF_TURBO 1		
 #if defined(DB_PERF_TURBO)
 		/* If it's been a while since we last did it ... */
-		if (current_time() - conn->c_private->previous_count_check_time > CONN_TURBO_CHECK_INTERVAL) {
+		if (curtime - conn->c_private->previous_count_check_time > CONN_TURBO_CHECK_INTERVAL) {
 			int new_turbo_flag = 0;
 			/* Check the connection's activity level */
 			connection_check_activity_level(conn);
 			/* And if appropriate, change into or out of turbo mode */
-			connection_enter_leave_turbo(conn,&new_turbo_flag);
+			connection_enter_leave_turbo(conn,thread_turbo_flag,&new_turbo_flag);
 			thread_turbo_flag = new_turbo_flag;
 		}
 
@@ -2248,6 +2248,7 @@ connection_threadmain()
 				 * should call connection_make_readable after the op is removed
 				 * connection_make_readable(conn);
 				 */
+				LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode due to %d\n",conn->c_connid,ret,0); 
 				goto done;
 			case CONN_SHUTDOWN:
 				LDAPDebug( LDAP_DEBUG_TRACE, 
@@ -2256,6 +2257,14 @@ connection_threadmain()
 				return;
 			default:
 				break;
+		}
+
+		/* if we got here, then we had some read activity */
+		if (thread_turbo_flag) {
+			/* turbo mode avoids handle_pr_read_ready which avoids setting c_idlesince
+			   update c_idlesince here since, if we got some read activity, we are
+			   not idle */
+			conn->c_idlesince = curtime;
 		}
 
 		/* 
