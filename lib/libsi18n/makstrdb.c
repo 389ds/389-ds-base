@@ -160,13 +160,21 @@ XP_MakeStringProperties(void)
     int j;
     char* LibraryName;
     RESOURCE_TABLE* table;
-    FILE *hresfile;
+    FILE *hresfile = NULL;
     char buffer[2000];
     char *src, *dest;
-    char *dbfile;
+    char *dbfile = NULL;
+    int rc = 0;
   
     /* Creating database */
     dbfile = (char *) malloc (strlen(DATABASE_NAME) + 20);
+
+    if (dbfile==NULL) {
+        printf("Out of memory\n");
+        rc = 1;
+        goto done;
+    }
+
     strcpy(dbfile, DATABASE_NAME);
     strcat(dbfile, ".properties");
 
@@ -174,7 +182,8 @@ XP_MakeStringProperties(void)
 
     if (hresfile==NULL) {
         printf("Error creating properties file %s\n",DATABASE_NAME);
-        return 1;
+        rc = 1;
+        goto done;
     }
  
     j = 0;
@@ -213,8 +222,10 @@ XP_MakeStringProperties(void)
         }
     }
   
-    fclose(hresfile);
-    return 0;
+done:
+    if (hresfile) fclose(hresfile);
+    if (dbfile) free(dbfile);
+    return rc;
 }
 
 
