@@ -132,6 +132,8 @@ NSAPI_PUBLIC void output_alert(int type, char *info, char *details, int wait)
                         "which is %s.", err, verbose_error());
     }
     fprintf(stdout, "\");");
+
+    FREE(wrapped);
 }
 
 NSAPI_PUBLIC void report_error(int type, char *info, char *details)
