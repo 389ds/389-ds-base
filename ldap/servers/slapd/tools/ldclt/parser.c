@@ -570,6 +570,7 @@ readObject (
 {
   FILE	*ifile;			/* The file that contains the object to read */
   char	 line[MAX_FILTER];	/* To read ifile */
+  int    rc = 0;
 
   /*
    * Open the file
@@ -579,7 +580,8 @@ readObject (
   {
     perror (obj->fname);
     fprintf (stderr, "Error: cannot open file \"%s\"\n", obj->fname);
-    return (-1);
+    rc = -1;
+    goto done;
   }
 
   /*
@@ -590,18 +592,21 @@ readObject (
   {
     if ((strlen (line) > 0) && (line[strlen(line)-1]=='\n'))
       line[strlen(line)-1] = '\0';
-    if (parseLine (line, obj->fname, obj) < 0)
-      return (-1);
+    if (parseLine (line, obj->fname, obj) < 0) {
+      rc = -1;
+      goto done;
+    }
   }
 
+done:
   /*
    * Do not forget to close the file !
    */
-  if (fclose (ifile) != 0)
+  if (ifile && fclose (ifile) != 0)
   {
     perror (obj->fname);
     fprintf (stderr, "Error: cannot fclose file \"%s\"\n", obj->fname);
-    return (-1);
+    rc = -1;
   }
 
   /*
@@ -610,9 +615,9 @@ readObject (
   if (obj->attribsNb == 0)
   {
     fprintf (stderr, "Error: no object found in \"%s\"\n", obj->fname);
-    return (-1);
+    rc = -1;
   }
-  return (0);
+  return rc;
 }
 
 
