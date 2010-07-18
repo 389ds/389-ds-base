@@ -1056,6 +1056,15 @@ int slapi_index_register_index(char *plugin_id, indexed_item *registration_item,
 		goto bail;
 	}
 
+	/* map the namespace dn to a backend dn */
+	be = slapi_be_select( registration_item->namespace_dn );
+	
+	if(be == defbackend_get_backend())
+	{
+		ret = -1;
+		goto bail;
+	}
+
 	/* now add the new index - we shall assume indexes 
 	 * will not be registered twice by different plugins,
 	 * in that event, the last one added wins
@@ -1095,15 +1104,6 @@ int slapi_index_register_index(char *plugin_id, indexed_item *registration_item,
 	index->indexfilter = tmp_f;
 	index->lookup_func = registration_item->search_op;
 	index->user_data = user_data;
-
-	/* map the namespace dn to a backend dn */
-	be = slapi_be_select( registration_item->namespace_dn );
-	
-	if(be == defbackend_get_backend())
-	{
-		ret = -1;
-		goto bail;
-	}
 
 	index->namespace_dn = (Slapi_DN*)slapi_be_getsuffix(be, 0);
 	
