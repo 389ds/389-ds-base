@@ -77,6 +77,7 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
     backend *be = inst->inst_be;
     
     if (NULL == be) { /* backend is not associated */
+        vlvSearch_delete(&newVlvSearch);
         return SLAPI_DSE_CALLBACK_ERROR;
     }
     vlvSearch_init(newVlvSearch, pb, entryBefore, inst);
@@ -264,6 +265,7 @@ vlv_init_index_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* en
 		if (pSearch == NULL) { 
 			LDAPDebug( LDAP_DEBUG_ANY, "Parent doesn't exist for entry %s.\n",
 				escape_string(slapi_entry_get_dn(entryBefore), ebuf), 0, 0); 
+			vlvIndex_delete(&newVlvIndex);
 		} 
 		else { 
 			vlvIndex_init(newVlvIndex, be, pSearch, entryBefore);
@@ -284,6 +286,7 @@ vlv_init_search_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
 	backend *be= inst->inst_be;
 
     if (NULL == be) { /* backend is not associated */
+        vlvSearch_delete(&newVlvSearch);
         return SLAPI_DSE_CALLBACK_ERROR;
     }
     vlvSearch_init(newVlvSearch, pb, entryBefore, inst);
