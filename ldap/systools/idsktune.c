@@ -1114,13 +1114,13 @@ linux_check_release(void)
 
   if (fp == NULL) {
     perror("popen");
-    return;
+    goto done;
   }
 
   if (fgets(osl,128,fp) == NULL) {
 	printf("WARNING: Cannot determine the kernel number.\n");
 	pclose(fp);
-	return;
+	goto done;
   }
   pclose(fp);
 
@@ -1131,18 +1131,20 @@ linux_check_release(void)
   if (atoi(strtok(osl, ".")) < 2) {
 	printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
 	flag_os_bad = 1;
-	return;
+	goto done;
   }
   if (atoi(strtok(NULL, ".")) < 4) {
 	printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
 	flag_os_bad = 1;
-	return;
+	goto done;
   }
   if (atoi(strtok(NULL, "-")) < 7) {
 	printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
 	flag_os_bad = 1;
-	return;
+	goto done;
   }
+done:
+  if (cmd) free(cmd);
 }
 #endif /* IDDS_LINUX_INCLUDE */
 
