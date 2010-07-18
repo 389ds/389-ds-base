@@ -827,7 +827,7 @@ static void
 _csngen_gen_tester_main (void *data) 
 {
 	CSNGen *gen = (CSNGen*)data;
-	CSN *csn;
+	CSN *csn = NULL;
 	char buff [CSN_STRSIZE];
 	int rc;
 
@@ -846,6 +846,7 @@ _csngen_gen_tester_main (void *data)
 			slapi_log_error (SLAPI_LOG_FATAL, NULL, "generate csn %s\n", 
 							 csn_as_string(csn, PR_FALSE, buff));
 		}	
+		csn_free(&csn);
 
 		/* sleep for 30 seconds */
 		DS_Sleep (PR_SecondsToInterval(10));
@@ -889,6 +890,7 @@ _csngen_remote_tester_main (void *data)
 			csngen_dump_state (gen);
 
 		}	
+		csn_free(&csn);
 
 		/* sleep for 30 seconds */
 		DS_Sleep (PR_SecondsToInterval(60));
