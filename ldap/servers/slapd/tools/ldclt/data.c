@@ -134,10 +134,10 @@ int loadImages (
 #ifdef _WIN32
   WIN32_FIND_DATA	 fileData;	/* Current file */
   HANDLE		 dirContext;	/* Directory context */
-  char			*findPath;	/* To build the find path */
+  char			*findPath = NULL;	/* To build the find path */
   char			*pt;		/* To read the images */
 #else /* _WIN32 */
-  DIR		*dirp;		/* Directory data */
+  DIR		*dirp = NULL;	/* Directory data */
   struct dirent	*direntp;	/* Directory entry */
 #endif /* _WIN32 */
   char		*fileName;	/* As read from the system */
@@ -145,6 +145,7 @@ int loadImages (
   struct stat	 stat_buf;	/* To read the image size */
   int		 fd;		/* To open the image */
   int		 ret;		/* Return value */
+  int		 rc = 0;
 
   /*
    * Initialization
@@ -158,7 +159,8 @@ int loadImages (
     fprintf (stderr, "ldclt: %s\n", strerror (ret));
     fprintf (stderr, "Error: cannot initiate imagesLast_mutex\n");
     fflush (stderr);
-    return (-1);
+    rc = -1;
+    goto exit;
   }
 
   /*
@@ -174,8 +176,8 @@ int loadImages (
     fprintf (stderr, "ldlct: cannot load images from %s\n", dirpath);
     fprintf (stderr, "ldclt: try using -e imagesdir=path\n");	/*JLS 06-03-01*/
     fflush (stderr);
-    free (findPath);
-    return (-1);
+    rc = -1;
+    goto exit;
   }
 #else /* _WIN32 */
   dirp = opendir (dirpath);
@@ -185,7 +187,8 @@ int loadImages (
     fprintf (stderr, "ldlct: cannot load images from %s\n", dirpath);
     fprintf (stderr, "ldclt: try using -e imagesdir=path\n");	/*JLS 06-03-01*/
     fflush (stderr);
-    return (-1);
+    rc = -1;
+    goto exit;
   }
 #endif /* _WIN32 */
 
@@ -214,7 +217,8 @@ int loadImages (
       {								/*JLS 06-03-00*/
 	printf ("Error: cannot realloc(mctx.images), error=%d (%s)\n",
 		errno, strerror (errno));			/*JLS 06-03-00*/
-	return (-1);						/*JLS 06-03-00*/
+	rc = -1;
+	goto exit;
       }								/*JLS 06-03-00*/
       mctx.images[mctx.imagesNb-1].name = 
 		(char *) malloc (strlen(fileName) + 1);
@@ -222,7 +226,8 @@ int loadImages (
       {								/*JLS 06-03-00*/
 	printf ("Error: cannot malloc(mctx.images[%d]).name, error=%d (%s)\n",
 		mctx.imagesNb-1, errno, strerror (errno));	/*JLS 06-03-00*/
-	return (-1);						/*JLS 06-03-00*/
+	rc = -1;
+	goto exit;
       }								/*JLS 06-03-00*/
       strcpy (mctx.images[mctx.imagesNb-1].name, fileName);
 
@@ -237,7 +242,8 @@ int loadImages (
 	perror (name);
 	fprintf (stderr, "Cannot stat(%s)\n", name);
 	fflush (stderr);
-	return (-1);
+	rc = -1;
+	goto exit;
       }
       mctx.images[mctx.imagesNb-1].length = stat_buf.st_size;
 
@@ -250,7 +256,8 @@ int loadImages (
 	perror (name);
 	fprintf (stderr, "Cannot open(%s)\n", name);
 	fflush (stderr);
-	return (-1);
+	rc = -1;
+	goto exit;
       }
 
 #ifdef _WIN32
@@ -263,14 +270,16 @@ int loadImages (
 	fprintf (stderr, "Cannot malloc(%d) to load %s\n",
 				stat_buf.st_size, name);
 	fflush (stderr);
-	return (-1);
+	rc = -1;
+	goto exit;
       }
       if (read (fd, mctx.images[mctx.imagesNb-1].data, stat_buf.st_size) < 0)
       {
 	perror (name);
 	fprintf (stderr, "Cannot read(%s)\n", name);
 	fflush (stderr);
-	return (-1);
+	rc = -1;
+	goto exit;
       }
 #else /* _WIN32 */
       /*
@@ -283,7 +292,8 @@ int loadImages (
 	perror (name);
 	fprintf (stderr, "Cannot mmap(%s)\n", name);
 	fflush (stderr);
-	return (-1);
+	rc = -1;
+	goto exit;
       }
 #endif /* _WIN32 */
 
@@ -296,7 +306,8 @@ int loadImages (
 	perror (name);
 	fprintf (stderr, "Cannot close(%s)\n", name);
 	fflush (stderr);
-	return (-1);
+	rc = -1;
+	goto exit;
       }
     }
 #ifdef _WIN32
@@ -304,17 +315,17 @@ int loadImages (
 #else
   } /* while ((direntp = readdir (dirp)) != NULL) */
 #endif
-
+exit:
   /*
    * Close the directory
    */
 #ifndef _WIN32
-  if (closedir (dirp) < 0)
+  if (dirp && closedir (dirp) < 0)
   {
     perror (dirpath);
     fprintf (stderr, "Cannot closedir(%s)\n", dirpath);
     fflush (stderr);
-    return (-1);
+    rc = -1;
   }
 #endif
 
@@ -322,9 +333,9 @@ int loadImages (
    * Normal end
    */
 #ifdef _WIN32
-  free (findPath);
+  if (findPath) free (findPath);
 #endif
-  return (0);
+  return rc;
 }
 
 
@@ -447,6 +458,7 @@ loadDataListFile (
   {
     perror (dlf->fname);
     fprintf (stderr, "Error: cannot rewind file \"%s\"\n", dlf->fname);
+    fclose(ifile);
     return (-1);
   }
 
