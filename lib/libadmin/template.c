@@ -80,6 +80,7 @@ NSAPI_PUBLIC char *helpJavaScriptForTopic( char *topic )
 		   getenv("SERVER_URL"), server, topic,
 		   type );
 		   
+    FREE(type);
     return(STRDUP(line));
 }
 
@@ -93,5 +94,6 @@ NSAPI_PUBLIC char *helpJavaScript()
     sn=strrchr(tmp, '/');
     if( sn )
         *sn++='\0';
+    FREE(tmp);
     return helpJavaScriptForTopic( sn );
 }
