@@ -80,6 +80,7 @@ static const char *LIB_DIRECTIVE = "certmap";
 static const int LIB_DIRECTIVE_LEN = 7;	/* strlen("LIB_DIRECTIVE") */
 
 static char *ldapu_dn_normalize( char *dn );
+static void *ldapu_propval_free (void *propval_in, void *arg);
 
 typedef struct {
     FILE *fp;
@@ -257,23 +258,34 @@ static int ldapu_list_copy (const LDAPUList_t *from, LDAPUList_t **to,
 {
     LDAPUListNode_t *node = from->head;
     LDAPUListNode_t *newnode;
-    LDAPUList_t *list;
+    LDAPUList_t *list = NULL;
     int rv;
 
     *to = 0;
     rv = ldapu_list_alloc(&list);
-    if (rv != LDAPU_SUCCESS) return rv;
+    if (rv != LDAPU_SUCCESS) goto error;
 
     while(node) {
 	newnode = (LDAPUListNode_t *)(*copy_fn)(node->info, 0);
-	if (!newnode) return LDAPU_ERR_OUT_OF_MEMORY;
+	if (!newnode) {
+		rv = LDAPU_ERR_OUT_OF_MEMORY;
+		goto error;
+	}
+
 	rv = ldapu_list_add_info(list, newnode);
-	if (rv != LDAPU_SUCCESS) return rv;
+	if (rv != LDAPU_SUCCESS) goto error;
+
 	node = node->next;
     }
 
     *to = list;
-    return LDAPU_SUCCESS;
+    goto done;
+
+error:
+    if (list) ldapu_propval_list_free(list);
+
+done:
+    return rv;
 }
 
 static int ldapu_list_find_node (const LDAPUList_t *list,
@@ -358,7 +370,11 @@ static void *ldapu_propval_copy (void *info, void *arg)
 
     rv = ldapu_propval_alloc(propval->prop, propval->val, &copy);
 
-    if (rv != LDAPU_SUCCESS) return 0;
+    if (rv != LDAPU_SUCCESS) {
+        if (copy) ldapu_propval_free(copy, 0);
+        return 0;
+    }
+
     return copy;
 }
 
@@ -1556,7 +1572,7 @@ NSAPI_PUBLIC int ldapu_cert_to_user (void *cert, LDAP *ld, const char *basedn,
     LDAPMessage *res;
     LDAPMessage *entry;
     int numEntries;
-    char **attrVals;
+    char **attrVals = NULL;
 
     *res_out = 0;
     *user = 0;
@@ -1564,44 +1580,54 @@ NSAPI_PUBLIC int ldapu_cert_to_user (void *cert, LDAP *ld, const char *basedn,
     rv = ldapu_cert_to_ldap_entry(cert, ld, basedn, &res);
 
     if (rv != LDAPU_SUCCESS) {
-	return rv;
+	goto done;
     }
 
     if (!res) {
-	return LDAPU_ERR_EMPTY_LDAP_RESULT;
+	rv = LDAPU_ERR_EMPTY_LDAP_RESULT;
+	goto done;
     }
 
     /* Extract user login (the 'uid' attr) from 'res' */
     numEntries = ldapu_count_entries(ld, res);
 
     if (numEntries != 1) {
-	return LDAPU_ERR_MULTIPLE_MATCHES;
+	rv = LDAPU_ERR_MULTIPLE_MATCHES;
+	goto done;
     }
 
     entry = ldapu_first_entry(ld, res);
 
     if (!entry) {
-	return LDAPU_ERR_MISSING_RES_ENTRY;
+	rv = LDAPU_ERR_MISSING_RES_ENTRY;
+	goto done;
     }
 
     attrVals = ldapu_get_values(ld, entry,
 			       ldapu_strings[LDAPU_STR_ATTR_USER]);
 
     if (!attrVals || !attrVals[0]) {
-	return LDAPU_ERR_MISSING_UID_ATTR;
+	rv = LDAPU_ERR_MISSING_UID_ATTR;
+	goto done;
     }
 
     *user = strdup(attrVals[0]);
-    ldapu_value_free(ld, attrVals);
 
 /*     ldapu_msgfree(res); */
 
     if (!*user) {
-	return LDAPU_ERR_OUT_OF_MEMORY;
+	rv = LDAPU_ERR_OUT_OF_MEMORY;
+	goto done;
     }
 
     *res_out = res;
-    return LDAPU_SUCCESS;
+
+done:
+    if (attrVals) {
+	ldapu_value_free(ld, attrVals);
+    }
+
+    return rv;
 }
 
 
