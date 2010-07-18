@@ -567,12 +567,7 @@ internal_plugin_search_referral_callback(char *referral, void *callback_data)
   
     /* add this to the list of referrals we are making */   
     this_referral = (Referral_Node *)slapi_ch_calloc(1,sizeof(Referral_Node));
-    
-	if ((this_referral->data = slapi_ch_strdup(referral)) == NULL) 
-    {
-        return(0);
-    }
-
+    this_referral->data = slapi_ch_strdup(referral);
     this_referral->next = ((plugin_search_internal_data *) callback_data)->referral_list_head;
 
     ((plugin_search_internal_data *) callback_data)->referral_list_head = this_referral;
