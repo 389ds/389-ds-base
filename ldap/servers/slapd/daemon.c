@@ -2759,12 +2759,12 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 				for  ( i = 0; i < addrcnt; i++ ) {
 					iter = PR_EnumerateAddrInfo( iter, infop, 0, netaddr );
 					if ( NULL == iter ) {
-						slapi_ch_free((void **)&netaddr); /* not used */
 						break;
 					}
 					(*addr)[i] = netaddr;
 					netaddr = (PRNetAddr *)slapi_ch_calloc(1, sizeof(PRNetAddr));
 				}
+				slapi_ch_free((void **)&netaddr); /* not used */
 			}
 			PR_FreeAddrInfo( infop );
 		} else {
