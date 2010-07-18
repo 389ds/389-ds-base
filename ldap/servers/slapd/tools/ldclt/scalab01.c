@@ -416,11 +416,19 @@ scalab01_addLogin (
   int		 ret;	/* Return value */
   isp_user	*new;	/* New entry */
   isp_user	*cur;	/* Current entry */
+  int		 rc = 0;
 
   /*
    * Create the new record.
    */
   new = (isp_user *) malloc (sizeof (isp_user));
+  if (NULL == new) {
+    fprintf (stderr, "ldclt[%d]: %s: cannot malloc(isp_user), error=%d (%s)\n",
+      mctx.pid, tttctx->thrdId, errno, strerror (errno));
+    fflush (stderr);
+    return -1;
+  }
+
   strcpy (new->dn, dn);
   new->cost = new->counter = duration;
   new->next = NULL;
@@ -435,7 +443,8 @@ scalab01_addLogin (
     fprintf (stderr, "ldclt[%d]: %s: cannot mutex_lock(), error=%d (%s)\n",
 		mctx.pid, tttctx->thrdId, ret, strerror (ret));
     fflush (stderr);
-    return (-1);
+    rc = -1;
+    goto error;
   }
 
   /*
@@ -476,6 +485,12 @@ scalab01_addLogin (
     }
   }
 
+  goto done;
+
+error:
+  if (new) free(new);
+
+done:
   /*
    * Free mutex
    */
@@ -484,10 +499,10 @@ scalab01_addLogin (
     fprintf (stderr, "ldclt[%d]: %s: cannot mutex_unlock(), error=%d (%s)\n",
 			mctx.pid, tttctx->thrdId, ret, strerror (ret));
     fflush (stderr);
-    return (-1);
+    rc = -1;
   }
 
-  return (0);
+  return rc;
 }
 
 
