@@ -1525,9 +1525,11 @@ buildNewModAttribFile (
   LDAPMod	 attribute;	/* To build the attributes */
   struct berval	*bv = malloc(sizeof(struct berval));
   attribute.mod_bvalues = (struct berval **)malloc(2 * sizeof(struct berval *));
+  int		 rc = 0;
 
   if ((bv == NULL) || (attribute.mod_bvalues == NULL)) {
-    return -1;
+    rc = -1;
+    goto error;
   }
 
   /*
@@ -1536,8 +1538,11 @@ buildNewModAttribFile (
    * to build the rdn of the new entry.
    * Note that the random new attribute is also build by this function.
    */
-  if (buildRandomRdnOrFilter (tttctx) < 0)
-    return (-1);
+  if (buildRandomRdnOrFilter (tttctx) < 0) {
+    rc = -1;
+    goto error;
+  }
+
   strcpy (newDn, tttctx->bufFilter);
   strcat (newDn, ",");
   strcat (newDn, tttctx->bufBaseDN);
@@ -1554,9 +1559,22 @@ buildNewModAttribFile (
   attribute.mod_bvalues[0] = bv;
   attribute.mod_bvalues[1] = NULL;
 
-  if (addAttrib (attrs, nbAttribs++, &attribute) < 0)
-    return (-1);
+  if (addAttrib (attrs, nbAttribs++, &attribute) < 0) {
+    rc = -1;
+    goto error;
+  }
 
+  goto done;
+
+error:
+  if (bv != NULL) {
+    free(bv);
+  }
+  if (attribute.mod_bvalues != NULL) {
+    free(attribute.mod_bvalues);
+  }
+
+done:
   /*
    * Normal end
    */
