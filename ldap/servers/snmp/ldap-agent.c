@@ -160,6 +160,9 @@ initialize_stats_table(void)
         !ops_table_info || !entries_table_info || !entity_table_info) {
         /* malloc failed */
         snmp_log(LOG_ERR, "malloc failed in initialize_stats_table\n");
+        SNMP_FREE(ops_table_info);
+        SNMP_FREE(entries_table_info);
+        SNMP_FREE(entity_table_info);
         return;
     }
 
