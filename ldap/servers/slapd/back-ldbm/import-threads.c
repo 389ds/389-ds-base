@@ -1784,7 +1784,7 @@ void import_foreman(void *param)
                 Slapi_Attr *orig_entrydn = NULL;
                 Slapi_Attr *new_entrydn = slapi_attr_new();
                 Slapi_Attr *nsuniqueid = NULL;
-                char *uuidstr = NULL;
+                const char *uuidstr = NULL;
                 char *new_dn = NULL;
                 char *orig_dn = 
                       slapi_ch_strdup(slapi_entry_get_dn(fi->entry->ep_entry));

@@ -602,6 +602,12 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 rc = -1;
                 goto bail;
             } /* otherwise, go through */
+            if (ISESCAPE(*s)) {
+                subtypestart = NULL; /* if escaped, can't be multivalued dn */
+            } else {
+                subtypestart = d; /* prepare for '+' in the nested DN, if any */
+            }
+            subrdn_av_count = 0;
         case INVALUE:    /* in value; cn=ABC */
                          /*               ^  */
             if (ISESCAPE(*s)) {
@@ -618,20 +624,6 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                         goto bail;
                     } else {
                         if (ISEQUAL(*(s+1))) {
-                            if (NULL == subtypestart) {
-                                /* e.g., cn=a\=b\,c\=d */
-                                /*            ^        */
-                                *d = '\0';
-                                subtypestart = strrchr(*dest, '=');
-                                if (subtypestart) {
-                                    /* pointing 'a' in the above example */
-                                    subtypestart++;
-                                }
-                                /* else 
-                                 *    No equal for the nested DN looking value.
-                                 *    Just through it.
-                                 */
-                            }
                             while (ISSPACE(*(d-1))) {
                                 /* remove trailing spaces */
                                 d--;
@@ -664,7 +656,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                                     sort_rdn_avs( subrdn_avs, 
                                                   subrdn_av_count, 1 );
                                 }
-                                if (rdn_av_count > 0) {
+                                if (subrdn_av_count > 0) {
                                     reset_rdn_avs( &subrdn_avs,
                                                    &subrdn_av_count );
                                     subtypestart = NULL;
@@ -675,9 +667,17 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                         *d++ = *s++;            /* '\\' */
                         PR_snprintf(d, 3, "%X", *s);    /* hexpair */
                         d += 2;
-                        if (ISPLUS(*s) && PL_strnstr(s, "\\=", ends - s)) {
+                        if (ISPLUS(*s)) {
                             /* next type start of multi values */
-                            subtypestart = d;
+                            /* should not be a escape char AND should be 
+                             * followed by \\= or \\3D */
+                            if (!ISESCAPE(*s) &&
+                                (PL_strnstr(s, "\\=", ends - s) ||
+                                 PL_strncaserstr(s, "\\3D", ends - s))) {
+                                subtypestart = d;
+                            } else {
+                                subtypestart = NULL;
+                            }
                         }
                         if (SEPARATOR(*s) || ISEQUAL(*s)) {
                             while (ISSPACE(*(s+1)))
@@ -695,20 +695,6 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                              /* e.g., cn=abc\20 ,... */
                              /*             ^        */
                     if (ISEQUALSTR(s+1)) {
-                        if (NULL == subtypestart) {
-                            /* e.g., cn=a\3Db\2Cc\3Dd */
-                            /*           ^            */
-                            *d = '\0';
-                            subtypestart = strrchr(*dest, '=');
-                            if (subtypestart) {
-                                /* pointing 'a' in the above example */
-                                subtypestart++;
-                            }
-                            /* else 
-                             *    No equal for the nested DN looking value.
-                             *    Just through it.
-                             */
-                        }
                         while (ISSPACE(*(d-1))) {
                             /* remove trailing spaces */
                             d--;
@@ -742,15 +728,23 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             }
                             if (subrdn_av_count > 0) {
                                 reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
+                                subtypestart = NULL;
                             }
                         }
                     }
                     *d++ = *s++;            /* '\\' */
                     *d++ = *s++;            /* HEX */
                     *d++ = *s++;            /* HEX */
-                    if (ISPLUSSTR(s-2) && PL_strnstr(s, "\\=", ends - s)) {
+                    if (ISPLUSSTR(s-2)) {
                         /* next type start of multi values */
-                        subtypestart = d;
+                        /* should not be a escape char AND should be followed
+                         * by \\= or \\3D */
+                        if (!ISESCAPE(*s) && (PL_strnstr(s, "\\=", ends - s) ||
+                            PL_strncaserstr(s, "\\3D", ends - s))) {
+                            subtypestart = d;
+                        } else {
+                            subtypestart = NULL;
+                        }
                     }
                     if (SEPARATORSTR(s-2) || ISEQUALSTR(s-2)) {
                         while (ISSPACE(*s)) /* remove leading spaces */
@@ -812,6 +806,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 continue;
             }
             subtypestart = d; /* prepare for '+' in the quoted value, if any */
+            subrdn_av_count = 0;
         case INQUOTEDVALUE:
             if (ISQUOTE(*s)) {
                 if (ISESCAPE(*(d-1))) { /* the quote is escaped */
@@ -863,7 +858,8 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                          * Track and sort attribute values within
                          * multivalued RDNs.
                          */
-                        if (ISPLUS(*s) || rdn_av_count > 0) {
+                        if (subtypestart &&
+                            (ISPLUS(*s) || subrdn_av_count > 0)) {
                             add_rdn_av(subtypestart, d, &subrdn_av_count,
                                        &subrdn_avs, subinitial_rdn_av_stack);
                         }
@@ -871,7 +867,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             if (subrdn_av_count > 1) {
                                 sort_rdn_avs( subrdn_avs, subrdn_av_count, 1 );
                             }
-                            if (rdn_av_count > 0) {
+                            if (subrdn_av_count > 0) {
                                 reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
                                 subtypestart = NULL;
                             }
@@ -905,7 +901,8 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                  * Track and sort attribute values within
                  * multivalued RDNs.
                  */
-                if (ISPLUS(*s) || rdn_av_count > 0) {
+                if (typestart &&
+                    (ISPLUS(*s) || rdn_av_count > 0)) {
                     add_rdn_av(typestart, d, &rdn_av_count,
                                &rdn_avs, initial_rdn_av_stack);
                 }
@@ -915,6 +912,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     }
                     if (rdn_av_count > 0) {
                         reset_rdn_avs( &rdn_avs, &rdn_av_count );
+                        typestart = NULL;
                     }
                 }
 
@@ -939,7 +937,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
      * rdn to our list to sort.  We should only be in the INVALUE
      * or B4SEPARATOR state if we have a valid rdn component to 
      * be added. */
-    if ((rdn_av_count > 0) && ((state == INVALUE1ST) || 
+    if (typestart && (rdn_av_count > 0) && ((state == INVALUE1ST) || 
         (state == INVALUE) || (state == B4SEPARATOR))) {
         add_rdn_av(typestart, d, &rdn_av_count, &rdn_avs, initial_rdn_av_stack);
     }
