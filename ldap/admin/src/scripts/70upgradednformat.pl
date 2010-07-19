@@ -109,7 +109,8 @@ sub runinst {
                 my $rc = 0;
 
                 if (system("cd $pdbdir; tar cf - db/DBVERSION | (cd $dbinstdir; tar xf -)") ||
-                    system("cd $pdbdir; tar cf - db/$instname/{DBVERSION,*.db4} | (cd $dbinstdir; tar xf -)")) {
+                    system("cd $pdbdir; tar cf - db/$instname/DBVERSION | (cd $dbinstdir; tar xf -)") ||
+                    system("cd $pdbdir; tar cf - db/$instname/*.db4 | (cd $dbinstdir; tar xf -)")) {
                     push @errs, ["error_cant_backup_db", $backend, $!];
                     return @errs;
                 }
