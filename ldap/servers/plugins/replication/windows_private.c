@@ -737,6 +737,7 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 
     if (rc == LDAP_NO_SUCH_ATTRIBUTE)
     {	/* try again, but as an add instead */
+		slapi_mods_free(&mods);
 		mods = windows_private_get_cookie_mod(dp, LDAP_MOD_ADD);
 		slapi_modify_internal_set_pb (pb, dn, slapi_mods_get_ldapmods_byref(mods), NULL, NULL, 
                                       repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
