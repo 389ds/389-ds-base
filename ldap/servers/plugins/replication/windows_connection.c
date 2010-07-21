@@ -1148,7 +1148,7 @@ windows_conn_connect(Repl_Connection *conn)
 	int optdata;
 	int secure = 0;
 	char* binddn = NULL;
-	struct berval *creds;
+	struct berval *creds = NULL;
 	ConnResult return_value = CONN_OPERATION_SUCCESS;
 	int pw_ret = 1;
 
@@ -1156,8 +1156,7 @@ windows_conn_connect(Repl_Connection *conn)
 
 	/** Connection already open just return SUCCESS **/
 	if(conn->state == STATE_CONNECTED) {
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
-		return return_value;
+		goto done;
 	}
 
 	PR_Lock(conn->lock);
@@ -1196,8 +1195,7 @@ windows_conn_connect(Repl_Connection *conn)
 			return_value = CONN_OPERATION_FAILED;
 			conn->last_ldap_error = LDAP_INVALID_CREDENTIALS;
 			conn->state = STATE_DISCONNECTED;
-			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
-			return (return_value);
+			goto done;
 		} /* Else, does not mean that the plain is correct, only means the we had no internal
 		   decoding pb */
 		conn->plain = slapi_ch_strdup (plain);
@@ -1220,11 +1218,10 @@ windows_conn_connect(Repl_Connection *conn)
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"%s: SSL Not Initialized, Replication over SSL FAILED\n",
 							agmt_get_long_name(conn->agmt));
+			return_value = CONN_SSL_NOT_ENABLED;
 			conn->last_ldap_error = LDAP_INAPPROPRIATE_AUTH;
 			conn->last_operation = CONN_INIT;
-			ber_bvfree(creds);
-			creds = NULL;
-			return CONN_SSL_NOT_ENABLED;
+			goto done;
 		}
 	}
 
@@ -1252,10 +1249,7 @@ windows_conn_connect(Repl_Connection *conn)
 				agmt_get_long_name(conn->agmt),
 				secure ? "secure " : "",
 				(secure == 2) ? "startTLS " : "");
-			ber_bvfree(creds);
-			creds = NULL;
-			LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
-			return return_value;
+			goto done;
 		}
 		
 		/* slapi_ch_strdup is OK with NULL strings */
@@ -1326,9 +1320,6 @@ windows_conn_connect(Repl_Connection *conn)
 		}
 	}
 
-	ber_bvfree(creds);
-	creds = NULL;
-
 	slapi_ch_free((void**)&binddn);
 
 	if(return_value == CONN_OPERATION_FAILED)
@@ -1338,6 +1329,12 @@ windows_conn_connect(Repl_Connection *conn)
 	{
 		conn->last_ldap_error = LDAP_SUCCESS;
 		conn->state = STATE_CONNECTED;
+	}
+
+done:
+	if (creds) {
+		ber_bvfree(creds);
+		creds = NULL;
 	}
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_connect\n", 0, 0, 0 );
