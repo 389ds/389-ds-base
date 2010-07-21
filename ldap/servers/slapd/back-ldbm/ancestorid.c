@@ -397,8 +397,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
     ai_aid->ai_indexmask |= INDEX_OFFLINE;
 
     /* Open the ancestorid index file */
-    ret = dblayer_get_index_file(be, ai_aid, &db_aid, 
-                                 DBOPEN_CREATE|DBOPEN_TRUNCATE);
+    ret = dblayer_get_index_file(be, ai_aid, &db_aid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty(sourcefile,13050,ret);
         goto out;

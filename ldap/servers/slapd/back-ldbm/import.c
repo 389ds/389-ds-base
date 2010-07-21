@@ -1344,6 +1344,12 @@ int import_main_offline(void *arg)
     }
 
     /* And the ancestorid index */
+    {
+    /* Creating ancestorid from the scratch; delete the index file first. */
+    struct attrinfo *ai = NULL;
+    ainfo_get(be, "ancestorid", &ai);
+    dblayer_erase_index_file(be, ai, 0);
+    }
     if ((ret = ldbm_ancestorid_create_index(be)) != 0) {
         import_log_notice(job, "Failed to create ancestorid index");
         goto error;
