@@ -783,7 +783,7 @@ sub add_server
 
 	# Remove the domain name from the host name
 	my ($hostnode) = $host;
-	$hostnode = $1 if $host =~ /^(\w+)\./;
+	$hostnode = $1 if $host =~ /^(.+?)\./;
 
 	# new host:port
 	if ($binddn eq "" || $bindpwd eq "" && $bindcert eq "") {
@@ -819,6 +819,7 @@ sub add_server
 
 	for ($i = 0; $i <= $#servers; $i++) {
 		return $i if ($servers[$i] =~ /$hostnode($domainpattern)*:\d*=$shadowport\D/i);
+		return $i if ($servers[$i] =~ /$hostnode($domainpattern)*:$port\D/i);
 	}
 
 	if ($shadowport) {
