@@ -375,6 +375,7 @@ Slapi_DN *slapi_sdn_init_dn_passin(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byref(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byval(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_dn_ndn_byref(Slapi_DN *sdn,const char *dn);
+char *slapi_dn_normalize_original( char *dn );
 char *slapi_dn_normalize_case_original( char *dn );
 
 /* filter.c */

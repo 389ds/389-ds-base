@@ -629,6 +629,7 @@ struct slapi_entry {
     PRRWLock *e_virtual_lock;    /* for access to cached vattrs */
     void *e_extension;           /* A list of entry object extensions */
     unsigned char e_flags;
+    Slapi_Attr *e_aux_attrs;     /* Attr list used for upgrade */
 };
 
 /*

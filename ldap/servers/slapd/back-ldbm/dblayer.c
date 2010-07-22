@@ -2816,6 +2816,8 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrin
     open_flags = DB_THREAD;
     if (open_flag & DBOPEN_CREATE)
         open_flags |= DB_CREATE;
+    if (open_flag & DBOPEN_TRUNCATE)
+        open_flags |= DB_TRUNCATE;
 
     if (!ppDB)
         goto out;
@@ -4722,12 +4724,18 @@ dblayer_copyfile(char *source, char *destination, int overwrite, int mode)
     source_fd = OPEN_FUNCTION(source,O_RDONLY,0);
     if (-1 == source_fd)
     {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "dblayer_copyfile: failed to open source file: %s\n",
+                      source);
         goto error;
     }
     /* Open destination file */
     dest_fd = OPEN_FUNCTION(destination,O_CREAT | O_WRONLY, mode);
     if (-1 == dest_fd)
     {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "dblayer_copyfile: failed to open dest file: %s\n",
+                      destination);
         goto error;
     }
     /* Loop round reading data and writing it */
@@ -4737,6 +4745,11 @@ dblayer_copyfile(char *source, char *destination, int overwrite, int mode)
         if (return_value <= 0)
         {
             /* means error or EOF */
+            if (return_value < 0)
+            {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "dblayer_copyfile: failed to read: %d\n", errno);
+            }
             break;
         }
         bytes_to_write = return_value;
@@ -4744,6 +4757,8 @@ dblayer_copyfile(char *source, char *destination, int overwrite, int mode)
         if (return_value != bytes_to_write)
         {
             /* means error */
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "dblayer_copyfile: failed to write: %d\n", errno);
             return_value = -1;
             break;
         }
@@ -4779,15 +4794,16 @@ error:
  * DBDB added resetlsns arg which is used in partial restore (because the LSNs need to be reset to avoid
  * confusing transaction logging code).
  */
-int dblayer_copy_directory(struct ldbminfo *li,
-                           Slapi_Task *task,
-                           char *src_dir, 
-                           char *dest_dir,
-                           int restore,
-                           int *cnt,
-                           int instance_dir_flag,
-                           int indexonly,
-                           int resetlsns)
+int
+dblayer_copy_directory(struct ldbminfo *li,
+                       Slapi_Task *task,
+                       char *src_dir, 
+                       char *dest_dir,
+                       int restore,
+                       int *cnt,
+                       int instance_dir_flag,
+                       int indexonly,
+                       int resetlsns)
 {
     dblayer_private *priv = NULL;
     char            *new_src_dir = NULL;
@@ -4806,8 +4822,18 @@ int dblayer_copy_directory(struct ldbminfo *li,
     char            sep;
     ldbm_instance   *inst;
 
-    if (!src_dir || '\0' == *src_dir || !dest_dir || '\0' == *dest_dir)
+    if (!src_dir || '\0' == *src_dir)
+    {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, 
+                       "dblayer_copy_directory: src_dir is empty\n");
         return return_value;
+    }
+    if (!dest_dir || '\0' == *dest_dir)
+    {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, 
+                       "dblayer_copy_directory: dest_dir is empty\n");
+        return return_value;
+    }
 
     priv = (dblayer_private *) li->li_dblayer_private;
 
@@ -4828,7 +4854,9 @@ int dblayer_copy_directory(struct ldbminfo *li,
     }
 
     if (is_fullpath(src_dir))
+    {
         new_src_dir = src_dir;
+    }
     else
     {
         int len;
@@ -4843,14 +4871,18 @@ int dblayer_copy_directory(struct ldbminfo *li,
         sep = get_sep(inst_dirp);
         if (*(inst_dirp+len-1) == sep)
             sep = '\0';
-        new_src_dir = slapi_ch_smprintf("%s%c%s", inst_dirp, sep, src_dir);
-        if (inst_dirp != inst_dir)
-            slapi_ch_free_string(&inst_dirp);
+        new_src_dir = inst_dirp;
     }
 
     dirhandle = PR_OpenDir(new_src_dir);
     if (NULL == dirhandle)
+    {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+                      "dblayer_copy_directory: failed to open dir %s\n",
+                      new_src_dir);
+
         return return_value;
+    }
 
     while (NULL != (direntry =
                     PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
@@ -4959,9 +4991,11 @@ int dblayer_copy_directory(struct ldbminfo *li,
     }
 out:
     PR_CloseDir(dirhandle);
-    slapi_ch_free((void**)&new_dest_dir);
-    if (new_src_dir != src_dir)
-        slapi_ch_free((void**)&new_src_dir);
+    slapi_ch_free_string(&new_dest_dir);
+    if ((new_src_dir != src_dir) && (new_src_dir != inst_dir))
+    {
+        slapi_ch_free_string(&new_src_dir);
+    }
     return return_value;
 }
 

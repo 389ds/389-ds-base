@@ -37,6 +37,7 @@ sub runinst {
     } elsif ("off" eq $switch || "OFF" eq $switch) {
         $ent1->setValues('nsslapd-subtree-rename-switch', "on");
         $need_update = 1;
+        $conn->update($ent1);
     }
 
     if (1 == $need_update) {
@@ -46,6 +47,11 @@ sub runinst {
         my $prog = $instdir . "/dn2rdn";
         my $output = `$prog 2>&1`;
         my $stat = $?;
+
+        if (0 != $stat) {
+            $ent1->setValues('nsslapd-subtree-rename-switch', "off");
+            $conn->update($ent1);
+        }
     }
 
     return ();

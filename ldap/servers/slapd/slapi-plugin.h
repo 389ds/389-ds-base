@@ -887,6 +887,15 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, char *s, int flags );
 #define SLAPI_STR2ENTRY_NO_SCHEMA_LOCK       256
 
 /**
+ * Normalize DN using obsolete DN normalizer.
+ *
+ * This marco is used only for the upgrading dn format tool.
+ *
+ * \see slapi_str2entry()
+ */
+#define SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT 512
+
+/**
  * Generates a description of an entry as an LDIF string.
  *
  * This function behaves much like slapi_entry2str(); however, you can specify
