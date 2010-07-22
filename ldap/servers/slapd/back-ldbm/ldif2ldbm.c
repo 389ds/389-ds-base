@@ -221,6 +221,7 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
     backend *be;
     char *pdn;
     ID pid = 0;
+    int save_old_pid = 0;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
@@ -229,6 +230,9 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
      */
 
     if (NULL != status) {
+        if (IMPORT_ADD_OP_ATTRS_SAVE_OLD_PID == *status) {
+            save_old_pid = 1;
+        }
         *status = IMPORT_ADD_OP_ATTRS_OK;
     }
 
@@ -292,6 +296,16 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
     slapi_entry_delete_values( ep->ep_entry, hassubordinates, NULL );
     slapi_entry_delete_values( ep->ep_entry, numsubordinates, NULL );
     
+    /* Upgrade DN format only */
+    /* Set current parentid to e_aux_attrs to remove it from the index file. */
+    if (save_old_pid) {
+        Slapi_Attr *pid_attr = NULL;
+        pid_attr = attrlist_remove(&ep->ep_entry->e_attrs, "parentid");
+        if (pid_attr) {
+            attrlist_add(&ep->ep_entry->e_aux_attrs, pid_attr);
+        }
+    }
+
     /* Add the entryid, parentid and entrydn operational attributes */
     /* Note: This function is provided by the Add code */
     add_update_entry_operational_attributes(ep, pid);
@@ -1607,11 +1621,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
+    dblayer_txn_init(li, &txn);
+
     if (run_from_cmdline) {
         /* No ldbm backend exists until we process the config info. */
         li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         ldbm_config_load_dse_info(li);
-        txn.back_txn_txn = NULL;    /* no transaction */
     }
 
     inst = ldbm_instance_find_by_name(li, instance_name);
@@ -2435,7 +2450,7 @@ ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
  * (604921) Support a database uprev process any time post-install
  */
 
-void upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
+int upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
 int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
 int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
 static void normalize_dir(char *dir);
@@ -2605,57 +2620,12 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     if (mkdir_p(dest_dir, 0700) < 0)
         goto fail0;
 
-    while (1)
-    {
-        inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                              inst_dir, MAXPATHLEN);
-        backup_rval = dblayer_copy_directory(li, NULL /* task */,
-                                          inst_dirp, dest_dir, 0/*backup*/,
-                                          &cnt, 0, 1, 0);
-        if (inst_dirp != inst_dir)
-            slapi_ch_free_string(&inst_dirp);
-        if (backup_rval < 0)
-        {
-            slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
-              "Warning: Failed to backup index files (instance %s).\n",
-              inst_dirp);
-            goto fail1;
-        }
-
-        /* delete index files to be reindexed */
-        if (run_from_cmdline)
-        {
-            if (0 != upgradedb_delete_indices_4cmd(inst, up_flags))
-            {
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
-                    "Can't clean up indices in %s\n", inst->inst_dir_name);
-                goto fail1;
-            }
-        }
-        else
-        {
-            if (0 != dblayer_delete_indices(inst))
-            {
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
-                    "Can't clean up indices in %s\n", inst->inst_dir_name);
-                goto fail1;
-            }
-        }
-
-        inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
-        if (NULL == inst_obj)
-            break;
-        inst = (ldbm_instance *)object_get_data(inst_obj);
-    }
-
-    /* copy checkpoint logs */
-    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0);
-
     if (run_from_cmdline)
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
-    inst_obj = objset_first_obj(li->li_instance_set);
-    for (i = 0; NULL != inst_obj; i++)
+    for (inst_obj = objset_first_obj(li->li_instance_set);
+         inst_obj;
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
     {
         if (run_from_cmdline)
         {
@@ -2673,8 +2643,63 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         inst = (ldbm_instance *)object_get_data(inst_obj);
         slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
         slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, inst->inst_name);
-        upgradedb_core(pb, inst);
-        inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
+
+        /* Back up */
+        inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
+                                              inst_dir, MAXPATHLEN);
+        backup_rval = dblayer_copy_directory(li, NULL /* task */,
+                                             inst_dirp, dest_dir, 0/*backup*/,
+                                             &cnt, 0, 1, 0);
+        if (inst_dirp != inst_dir)
+            slapi_ch_free_string(&inst_dirp);
+        if (backup_rval < 0)
+        {
+            slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+              "Warning: Failed to backup index files (instance %s).\n",
+              inst_dirp);
+            goto fail1;
+        }
+
+        /* delete index files to be reindexed */
+        if (run_from_cmdline)
+        {
+            rval = upgradedb_delete_indices_4cmd(inst, up_flags);
+            if (rval)
+            {
+                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                    "Can't clean up indices in %s\n", inst->inst_dir_name);
+                continue; /* Need to make all backups; continue */
+            }
+        }
+        else
+        {
+            rval = dblayer_delete_indices(inst);
+            if (rval);
+            {
+                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                    "Can't clean up indices in %s\n", inst->inst_dir_name);
+                continue; /* Need to make all backups; continue */
+            }
+        }
+
+        rval = upgradedb_core(pb, inst);
+        if (rval)
+        {
+            slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                            "upgradedb: Failed to upgrade database %s\n",
+                            inst->inst_name);
+            if (run_from_cmdline)
+            {
+                continue; /* Need to make all backups; continue */
+            }
+        }
+    }
+
+    /* copy transaction logs */
+    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0);
+
+    if (rval) {
+        goto fail1;
     }
 
     /* upgrade idl to new; otherwise no need to modify idl-switch */
@@ -2748,34 +2773,40 @@ fail1:
         {
             cnt = 0;
 
-            inst_obj = objset_first_obj(li->li_instance_set);
-            while (NULL != inst_obj)
+            for (inst_obj = objset_first_obj(li->li_instance_set);
+                 inst_obj;
+                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
             {
+                char *restore_inst_dir = NULL;
                 inst = (ldbm_instance *)object_get_data(inst_obj);
-
-                inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                                      inst_dir, MAXPATHLEN);
+                restore_inst_dir = 
+                      slapi_ch_smprintf("%s/%s", dest_dir, inst->inst_dir_name);
                 backup_rval = dblayer_copy_directory(li, NULL /* task */,
+                                                     restore_inst_dir,
                                                      inst->inst_dir_name,
-                                                     dest_dir, 1/*restore*/,
+                                                     1/*restore*/,
                                                      &cnt, 0, 1, 0);
-                if (inst_dirp != inst_dir)
-                    slapi_ch_free_string(&inst_dirp);
+                slapi_ch_free_string(&restore_inst_dir);
                 if (backup_rval < 0)
+                {
                     slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
-                        "Failed to restore index files (instance %s).\n",
-                        inst->inst_name);
-
-                inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
+                                    "Failed to restore index files "
+                                    "(instance %s; bakup dir: %s).\n",
+                                    inst->inst_name, dest_dir);
+                    goto fail0;
+                }
             }
     
             backup_rval = upgradedb_copy_logfiles(li, dest_dir, 1);
             if (backup_rval < 0)
+            {
                 slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                         "Failed to restore log files.\n");
+                goto fail0;
+            }
         }
 
-        /* anyway clean up the backup dir */
+        /* restore is done; clean up the backup dir */
         ldbm_delete_dirs(dest_dir);
     }
 
@@ -2809,7 +2840,7 @@ normalize_dir(char *dir)
 #define LOG    "log."
 #define LOGLEN    4
 int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
-                                 int restore)
+                            int restore)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -2956,7 +2987,8 @@ int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags)
 /*
  * upgradedb_core
  */
-void upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
+int
+upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
 {
     backend *be = NULL;
     int task_flags = 0;
@@ -2988,13 +3020,13 @@ void upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     {
         slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                     "upgradedb: Failed to init instance %s\n", inst->inst_name);
-        return;
+        return -1;
     }
 
     if (run_from_cmdline)
         vlv_init(inst);    /* Initialise the Virtual List View code */
 
-    ldbm_back_ldif2ldbm_deluxe(pb);
+    return ldbm_back_ldif2ldbm_deluxe(pb);
 }
 
 /* Used by the reindex and export (subtree rename must be on)*/

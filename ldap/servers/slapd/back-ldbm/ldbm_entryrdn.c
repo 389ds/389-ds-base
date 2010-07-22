@@ -1959,7 +1959,8 @@ _entryrdn_insert_key(backend *be,
                                 tmprc?"rdn":"dn", tmprc?childnrdn:dn,
                                 LDBM_ENTRYRDN_STR, elem->rdn_elem_id, id);
                     slapi_ch_free_string(&dn);
-                    rc = -1;
+                    /* returning special error code for the upgrade */
+                    rc = LDBM_ERROR_FOUND_DUPDN;
                 }
                 goto bail;
             } else { /* if (0 != rdnidx) */

@@ -15,15 +15,21 @@ use File::Copy;
 sub runinst {
     my ($inf, $inst, $dseldif, $conn) = @_;
 
-    # First, check if the server is up or down.
-    if ($conn->isa("Mozilla::LDAP::Conn")) {
-        # The server is up, we do nothing.
-        return ();
-    }
-
     my @errs;
 
     my $config = "cn=config";
+    my $config_entry = $conn->search($config, "base", "(cn=*)");
+    if (!$config_entry) {
+        return ("error_no_configuration_entry", $!);
+    }
+    # First, check if the server is up or down.
+    my $rundir = $config_entry->getValues('nsslapd-rundir');
+
+    # Check if the server is up or not
+    my $pidfile = $rundir . "/" . $inst . ".pid";
+    if (-e $pidfile) {
+        return (); # server is running; do nothing.
+    }
     my $mappingtree = "cn=mapping tree,cn=config";
     my $ldbmbase = "cn=ldbm database,cn=plugins,cn=config";
 
@@ -31,6 +37,22 @@ sub runinst {
     my $mtentry = $conn->search($mappingtree, "onelevel", "(cn=*)", 0, @attr);
     if (!$mtentry) {
         return ("error_no_mapping_tree_entries", $!);
+    }
+
+    my $db_config_entry = 
+            $conn->search("cn=config,cn=ldbm database,cn=plugins,cn=config",
+            "base", "(objectclass=*)");
+    if (!$db_config_entry) {
+        return ('error_finding_config_entry',
+                'cn=config,cn=ldbm database,cn=plugins,cn=config',
+                $conn->getErrorString());
+    }
+    # If subtree rename swich is not found in the config file,
+    # set off to the switch and upgrade dn format using entrydn.
+    my $switch = $db_config_entry->getValues('nsslapd-subtree-rename-switch');
+    if ("" eq $switch) { 
+        $db_config_entry->addValue('nsslapd-subtree-rename-switch', "off");
+        $conn->update($db_config_entry);
     }
 
     # If a suffix in the mapping tree is doube-quoted and 
@@ -62,10 +84,6 @@ sub runinst {
         $mtentry = $conn->nextEntry();
     }
 
-    my $config_entry = $conn->search($config, "base", "(cn=*)", 0, ("nsslapd-instancedir"));
-    if (!$config_entry) {
-        return ("error_no_configuration_entry", $!);
-    }
     my $instancedir = $config_entry->{"nsslapd-instancedir"}[0];
     my $upgradednformat = $instancedir . "/upgradednformat";
 
@@ -107,7 +125,8 @@ sub runinst {
                 my $rc = 0;
 
                 if (system("cd $pdbdir; tar cf - db/DBVERSION | (cd $dbinstdir; tar xf -)") ||
-                    system("cd $pdbdir; tar cf - db/$instname/{DBVERSION,*.db4} | (cd $dbinstdir; tar xf -)")) {
+                    system("cd $pdbdir; tar cf - db/$instname/DBVERSION | (cd $dbinstdir; tar xf -)") ||
+                    system("cd $pdbdir; tar cf - db/$instname/*.db4 | (cd $dbinstdir; tar xf -)")) {
                     push @errs, ["error_cant_backup_db", $backend, $!];
                     return @errs;
                 }
