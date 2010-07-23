@@ -3530,7 +3530,6 @@ static int cos_cache_follow_pointer( vattr_context *c, const char *dn, char *typ
 		}
 	}
 
-bail:
 	/* clean up */
 	if(pDnSearch)
 	{

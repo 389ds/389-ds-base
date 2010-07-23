@@ -310,6 +310,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 
 #endif /* !__WINNT__ */
 
+    return 0;
 }  /* agt_mopen_stats () */
 
 

@@ -510,7 +510,6 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     struct berval *subrdn_avs = NULL;
     struct berval subinitial_rdn_av_stack[ SLAPI_DNNORM_INITIAL_RDN_AVS ];
     int chkblank = 0;
-    int avstat = 0;
 
     if (NULL == dest) {
         goto bail;
