@@ -3748,7 +3748,7 @@ acl__match_handlesFromCache (  Acl_PBlock *aclpb, char *attr, int access)
 			aclpb->aclpb_state &= ~ACLPB_MATCHES_ALL_ACLS;
 			aclpb->aclpb_state |= ACLPB_UPD_ACLCB_CACHE;
 			/* Did not match */
-			if ( context_type == ACLPB_HAS_ACLCB_EVALCONTEXT ) {
+			if ( context_type == ACLPB_EVALCONTEXT_ACLCB ) {
 				aclpb->aclpb_state &= ~ACLPB_HAS_ACLCB_EVALCONTEXT;
 			} else {
 				aclpb->aclpb_state |= ACLPB_COPY_EVALCONTEXT;
