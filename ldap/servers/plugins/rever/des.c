@@ -225,7 +225,8 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	store = (struct pk11ContextStore*)slapi_ch_malloc(sizeof(*store));
 	if (store == NULL) 
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 	*out = store;
 
@@ -239,7 +240,8 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	store->slot = slapd_pk11_findSlotByName((char *)token);
 	if (store->slot == NULL) 
 	{
-		return (err = SVRCORE_NoSuchToken_Error);
+		err = SVRCORE_NoSuchToken_Error;
+		goto done;
 	}
 
 	/* Generate a key and parameters to do the encryption */
@@ -251,7 +253,8 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 		configdir = config_get_configdir();
 		if ( configdir == NULL )
 		{
-		  return (err = SVRCORE_System_Error);
+		  err = SVRCORE_System_Error;
+		  goto done;
 		}
 	}
 	else
@@ -261,20 +264,23 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	if ( slapi_uniqueIDGenerateFromNameString (&iv, NULL, configdir, strlen(configdir)) != UID_SUCCESS )
 	{
 	  slapi_ch_free((void**)&configdir);
-	  return (err = SVRCORE_System_Error);
+	  err = SVRCORE_System_Error;
+	  goto done;
 	}
 	slapi_ch_free((void**)&configdir);
 
 	pwitem = (SECItem *) PORT_Alloc(sizeof(SECItem));
 	if (pwitem == NULL)
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 	pwitem->type = siBuffer;
 	pwitem->data = (unsigned char *)PORT_Alloc(strlen(iv)+1);
 	if (pwitem->data == NULL)
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 	strcpy((char*)pwitem->data, iv);		
 	pwitem->len = strlen(iv) + 1;
@@ -284,17 +290,18 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	salt = (SECItem *) PORT_Alloc(sizeof(SECItem));
 	if (salt == NULL)
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 	salt->type = siBuffer;
 	salt->data = (unsigned char *)PORT_Alloc(strlen(iv)+1);
 	if ( salt->data == NULL )
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 	strcpy((char*)salt->data, iv);		
 	salt->len = strlen(iv) + 1;
-	slapi_ch_free((void**)&iv);
 
 	algid = slapd_pk11_createPBEAlgorithmID(algoid, 2, salt);
 
@@ -303,7 +310,8 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	if (store->key == 0)
 	{
       slapi_unlock_mutex(mylock);
-	  return (err = SVRCORE_System_Error);
+	  err = SVRCORE_System_Error;
+	  goto done;
 	}
 
 	slapi_unlock_mutex(mylock);
@@ -316,7 +324,8 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
                         PR_FALSE) != CKR_OK) 
 	{
 		SECITEM_FreeItem(result, PR_TRUE); 
-        return (err = SVRCORE_System_Error);
+        err = SVRCORE_System_Error;
+        goto done;
     }
 	SECITEM_FreeItem(result, PR_TRUE);
 	SECITEM_FreeItem(pwitem, PR_TRUE);
@@ -324,17 +333,22 @@ static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, cha
 	store->params = (SECItem *) PORT_Alloc(sizeof(SECItem));
     if (store->params == NULL) 
 	{
-	  return (err = SVRCORE_System_Error);
+	  err = SVRCORE_System_Error;
+	  goto done;
 	}
     store->params->type = store->mech->type;
     store->params->data = (unsigned char *)PORT_Alloc(cryptoMech.ulParameterLen);
     if (store->params->data == NULL) 
 	{
-	  return (err = SVRCORE_System_Error);
+	  err = SVRCORE_System_Error;
+	  goto done;
 	}
     memcpy(store->params->data, (unsigned char *)cryptoMech.pParameter, cryptoMech.ulParameterLen);
     store->params->len = cryptoMech.ulParameterLen;
 	PORT_Free(cryptoMech.pParameter);
+
+done:
+	slapi_ch_free((void**)&iv);
 	return (err);
 }
 
@@ -364,7 +378,8 @@ static SVRCOREError decryptPassword(struct pk11ContextStore *store, unsigned cha
 											 store->length+1);
 	if (!plain) 
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 
 	/* create a buffer holding the original cipher bytes, padded with
@@ -374,7 +389,8 @@ static SVRCOREError decryptPassword(struct pk11ContextStore *store, unsigned cha
 														   store->length);
 	if (!cipher_with_padding)
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 	memcpy(cipher_with_padding, cipher, len);
 
@@ -382,7 +398,8 @@ static SVRCOREError decryptPassword(struct pk11ContextStore *store, unsigned cha
 	  store->key, store->params);
 	if (!ctx) 
 	{
-		return (err = SVRCORE_System_Error);
+		err = SVRCORE_System_Error;
+		goto done;
 	}
 
 	/* warning - there is a purify UMR in the NSS des code - you may see it when the
@@ -400,12 +417,20 @@ static SVRCOREError decryptPassword(struct pk11ContextStore *store, unsigned cha
 	if (rv && (SVRCORE_Success == err))
 		err = SVRCORE_System_Error;
 
+done:
 	if (err == SVRCORE_Success)
+	{
 		*out = (char *)plain;
+	}
+	else
+	{
+		slapi_ch_free((void **)&plain);
+	}
 
 	slapi_ch_free((void **)&cipher_with_padding);
 	/* We should free the PK11Context... Something like : */
-	slapd_pk11_destroyContext(ctx, PR_TRUE);
+	if (ctx) slapd_pk11_destroyContext(ctx, PR_TRUE);
+
 	return err;
 }
 
@@ -436,7 +461,8 @@ static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, 
 													store->length+1);
 	if (!store->crypt) 
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 
 	/* create a buffer big enough to hold the clear text password and padding */
@@ -444,7 +470,8 @@ static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, 
 														  store->length+1);
 	if (!clear_with_padding)
 	{
-		return (err = SVRCORE_NoMemory_Error);
+		err = SVRCORE_NoMemory_Error;
+		goto done;
 	}
 	/* copy the clear text password into the buffer - the calloc insures the
 	   remainder is zero padded */
@@ -454,7 +481,8 @@ static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, 
 	  store->key, store->params);
 	if (!ctx) 
 	{
-		return (err = SVRCORE_System_Error);
+		err = SVRCORE_System_Error;
+		goto done;
 	}
 
 	rv = slapd_pk11_cipherOp(ctx, store->crypt, &outLen, store->length,
@@ -470,12 +498,14 @@ static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, 
 	if (rv && (SVRCORE_Success == err))
 		err = SVRCORE_System_Error;
 
+done:
 	if (err == SVRCORE_Success)
 		*out = store->crypt;
 
 	slapi_ch_free((void **)&clear_with_padding);
 	/* We should free the PK11Context... Something like : */
-	slapd_pk11_destroyContext(ctx, PR_TRUE);
+	if (ctx) slapd_pk11_destroyContext(ctx, PR_TRUE);
+
 	return err;
 }
 
