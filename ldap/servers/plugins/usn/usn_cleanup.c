@@ -302,6 +302,7 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
             "USN tombstone cleanup: unable to allocate new task.\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
+        slapi_ch_free((void**)&cleanup_data);
         goto bail;
     }
 
