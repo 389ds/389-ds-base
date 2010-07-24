@@ -487,14 +487,18 @@ static int dbconf_to_certmap_err (int err)
 static int dbinfo_to_certinfo (DBConfDBInfo_t *db_info,
 			       LDAPUCertMapInfo_t **certinfo_out) 
 {
-    LDAPUCertMapInfo_t *certinfo;
-    int rv;
+    LDAPUCertMapInfo_t *certinfo = NULL;
+    LDAPUPropValList_t *propval_list = NULL;
+    int rv = LDAPU_SUCCESS;
 
     *certinfo_out = 0;
 
     certinfo = (LDAPUCertMapInfo_t *)malloc(sizeof(LDAPUCertMapInfo_t));
 
-    if (!certinfo) return LDAPU_ERR_OUT_OF_MEMORY;
+    if (!certinfo) {
+        rv = LDAPU_ERR_OUT_OF_MEMORY;
+        goto error;
+    }
 
     memset((void *)certinfo, 0, sizeof(LDAPUCertMapInfo_t));
 
@@ -509,7 +513,6 @@ static int dbinfo_to_certinfo (DBConfDBInfo_t *db_info,
 
     /* hijack actual prop-vals from dbinfo -- to avoid strdup calls */
     if (db_info->firstprop) {
-	LDAPUPropValList_t *propval_list;
 	LDAPUPropVal_t *propval;
 	DBPropVal_t *dbpropval;
 
@@ -517,14 +520,16 @@ static int dbinfo_to_certinfo (DBConfDBInfo_t *db_info,
 
 	rv = ldapu_list_alloc(&propval_list);
 
-	if (rv != LDAPU_SUCCESS) return rv;
+	if (rv != LDAPU_SUCCESS) {
+	    goto error;
+	}
 
 	while(dbpropval) {
 	    propval = (LDAPUPropVal_t *)malloc(sizeof(LDAPUPropVal_t));
 
 	    if (!propval) {
-		free(certinfo);
-		return LDAPU_ERR_OUT_OF_MEMORY;
+		rv = LDAPU_ERR_OUT_OF_MEMORY;
+		goto error;
 	    }
 
 	    propval->prop = dbpropval->prop;
@@ -536,8 +541,7 @@ static int dbinfo_to_certinfo (DBConfDBInfo_t *db_info,
 	    rv = ldapu_list_add_info(propval_list, propval);
 
 	    if (rv != LDAPU_SUCCESS) {
-		free(certinfo);
-		return rv;
+		goto error;
 	    }
 
 	    dbpropval = dbpropval->next;
@@ -547,8 +551,14 @@ static int dbinfo_to_certinfo (DBConfDBInfo_t *db_info,
     }
 
     *certinfo_out = certinfo;
+    goto done;
 
-    return LDAPU_SUCCESS;
+error:
+    if (propval_list) ldapu_propval_list_free(propval_list);
+    if (certinfo) free(certinfo);
+
+done:
+    return rv;
 }
 
 static int ldapu_binary_cmp_certs (void *subject_cert,
