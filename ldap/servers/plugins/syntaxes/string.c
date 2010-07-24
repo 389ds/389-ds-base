@@ -688,11 +688,15 @@ string_assertion2keys_sub(
 	int localsublens[3] = {SUBBEGIN, SUBMIDDLE, SUBEND};/* default values */
 	int maxsublen;
 	char	*comp_buf = NULL;
+	/* altinit|any|final: store alt string from value_normalize_ext if any,
+	 * otherwise the original string. And use for the real job */
 	char *altinit = NULL;
-	char *oaltinit = NULL;
 	char **altany = NULL;
-	char **oaltany = NULL;
 	char *altfinal = NULL;
+	/* oaltinit|any|final: prepared to free altinit|any|final if allocated in
+	 * value_normalize_ext */
+	char *oaltinit = NULL;
+	char **oaltany = NULL;
 	char *oaltfinal = NULL;
 	int anysize = 0;
 
@@ -776,7 +780,7 @@ string_assertion2keys_sub(
 		}
 	}
 	if ( nsubs == 0 ) {	/* no keys to return */
-		return( 0 );
+		goto done;
 	}
 
 	/*
@@ -795,7 +799,6 @@ string_assertion2keys_sub(
 		substring_comp_keys( ivals, &nsubs, altinit, initiallen, '^', syntax,
 							 comp_buf, substrlens );
 	}
-	slapi_ch_free_string(&oaltinit);
 	for ( i = 0; altany != NULL && altany[i] != NULL; i++ ) {
 		len = strlen( altany[i] );
 		if ( len < substrlens[INDEX_SUBSTRMIDDLE] ) {
@@ -803,18 +806,22 @@ string_assertion2keys_sub(
 		}
 		substring_comp_keys( ivals, &nsubs, altany[i], len, 0, syntax,
 							 comp_buf, substrlens );
-		slapi_ch_free_string(&oaltany[i]);
 	}
-	slapi_ch_free((void **)&oaltany);
-	slapi_ch_free((void **)&altany);
 	if ( altfinal != NULL ) {
 		substring_comp_keys( ivals, &nsubs, altfinal, finallen, '$', syntax,
 							 comp_buf, substrlens );
 	}
-	slapi_ch_free_string(&oaltfinal);
 	(*ivals)[nsubs] = NULL;
-	slapi_ch_free_string(&comp_buf);
 
+done:
+	slapi_ch_free_string(&oaltinit);
+	for ( i = 0; altany != NULL && altany[i] != NULL; i++ ) {
+		slapi_ch_free_string(&oaltany[i]);
+	}
+	slapi_ch_free((void **)&oaltany);
+	slapi_ch_free_string(&oaltfinal);
+	slapi_ch_free((void **)&altany);
+	slapi_ch_free_string(&comp_buf);
 	return( 0 );
 }
 
