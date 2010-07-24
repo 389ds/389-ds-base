@@ -92,9 +92,7 @@ char * string_concatenate(char *a, char* b)
 
 	string_length = strlen(a) + strlen(b) + 1;
 	string = slapi_ch_malloc(string_length);
-	if (NULL == string) {
-		return string;
-	}
+
 	sprintf(string,"%s%s",a,b);
 	return string;
 }
@@ -176,12 +174,12 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 	 * On Windows, the performance counters reside in shared memory.
 	 */
 	if (NULL == instance_name) {
-		return;
+		goto error;
 	}
 	/* Invent the name for the shared memory region */
 	string = string_concatenate(instance_name,PERFCTRS_REGION_SUFFIX);
 	if (NULL == string) {
-		return;
+		goto error;
 	}
 #endif
 
@@ -189,9 +187,6 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 	 * We need the perfctrs_private area on all platforms.
 	 */
 	priv = (perfctrs_private *)slapi_ch_calloc(1,sizeof(perfctrs_private));
-	if (NULL == priv) {
-		return;
-	}
 
 #if defined(_WIN32)
 	/* Try to open the shared memory region */
@@ -200,7 +195,7 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 	/* Invent the name for the update mutex */
 	string = string_concatenate(instance_name,PERFCTRS_MUTEX_SUFFIX);
 	if (NULL == string) {
-		return;
+		goto error;
 	}
 	open_event(string,priv);
 	free(string);
@@ -210,12 +205,17 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 	/*
 	 * On other platforms, the performance counters reside in regular memory.
 	 */
-	if ( NULL == ( priv->memory = slapi_ch_calloc( 1, sizeof( performance_counters )))) {
-		return;
-	}
+	priv->memory = slapi_ch_calloc( 1, sizeof( performance_counters ));
 #endif
 
 	*ret_priv = priv;
+	return;
+
+error:
+#if !defined(_WIN32)
+	if (priv) slapi_ch_free((void**)&priv->memory);
+#endif
+	slapi_ch_free((void**)&priv);
 }
 
 /* Terminate perf ctrs */
