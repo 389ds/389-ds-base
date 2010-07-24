@@ -54,11 +54,15 @@ int
 des_cmp( char *userpwd, char *dbpwd )
 {
 	char *cipher = NULL;
+	int rc = 0;
 
 	if ( encode(userpwd, &cipher) != 0 )
-		return 1;
+		rc = 1;
 	else
-		return( strcmp(cipher, dbpwd) );
+		rc = strcmp(cipher, dbpwd);
+
+	slapi_ch_free((void**)&cipher);
+	return rc;
 }
 
 char *
