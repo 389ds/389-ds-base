@@ -1271,6 +1271,7 @@ upgradedn_producer(void *param)
         }
         info->state = RUNNING;
 
+        slapi_ch_free(&(data.data));
         key.flags = DB_DBT_MALLOC;
         data.flags = DB_DBT_MALLOC;
         if (isfirst)
@@ -1304,9 +1305,12 @@ upgradedn_producer(void *param)
 
         /* call post-entry plugin */
         plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+
+        slapi_ch_free_string((void**)&ecopy);
         ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
         memcpy(ecopy, data.dptr, data.dsize);
         *(ecopy + data.dsize) = '\0';
+
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
     
@@ -1391,7 +1395,6 @@ upgradedn_producer(void *param)
             e = 
               slapi_str2entry(data.data, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
         }
-        slapi_ch_free(&(data.data));
         if ( NULL == e ) {
             if (job->task) {
                 slapi_task_log_notice(job->task,
@@ -1534,7 +1537,6 @@ upgradedn_producer(void *param)
                 }
             } /* if (slapi_attr_is_dn_syntax_attr(a)) */
         } /* for (a = e->e_attrs; a; a = a->a_next)  */
-        slapi_ch_free_string(&ecopy);
         if (skipit) {
             upgradedn_free_list(&ud_list);
             slapi_entry_free(e); e = NULL;
@@ -1705,12 +1707,16 @@ bail:
     } else {
         info->state = FINISHED;
     }
-    return;
+    goto done;
 
 error:
     dbc->c_close(dbc);
     dblayer_release_aux_id2entry( be, db, env );
     info->state = ABORTED;
+
+done:
+    slapi_ch_free_string((void**)&ecopy);
+    slapi_ch_free(&(data.data));
 }
 
 static void
@@ -2536,10 +2542,9 @@ import_worker(void *param)
         if (0 != ret) {
             goto error;
         }
-        index_buffer_terminate(substring_key_buffer);
     }
     info->state = FINISHED;
-    return;
+    goto done;
 
 error:
     if (ret == DB_RUNRECOVERY) {
@@ -2550,6 +2555,11 @@ error:
     }
 
     info->state = ABORTED;
+
+done:
+    if (substring_key_buffer) {
+        index_buffer_terminate(substring_key_buffer);
+    }
 }
 
 
@@ -3129,6 +3139,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         if (entry_filter != NULL) /* Single instance restoration */
         {
             if (NULL == strstr(estr, entry_filter))
+                slapi_ch_free_string(&estr);
                 continue;
         }
 
