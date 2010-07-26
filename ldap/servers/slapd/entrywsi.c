@@ -475,7 +475,6 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 			/* Append the pending values to a->a_present_values */
 			valuearray_update_csn (valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
 			valueset_add_valuearray_ext(&a->a_present_values, valuestoadd, SLAPI_VALUE_FLAG_PASSIN);
-			slapi_ch_free ( (void **)&valuestoadd );
 
 			/*
 			 * Now delete non-RDN values from a->a_present_values; and
@@ -522,10 +521,11 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 			}
 			valuearray_update_csn(valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
 			retVal= attr_add_valuearray(a, valuestoadd, slapi_entry_get_dn_const(e));
-			valuearray_free(&valuestoadd);
 		}
 		a->a_flags = a_flags_orig;
 	}
+
+	valuearray_free(&valuestoadd);
 	return(retVal);
 }
 
