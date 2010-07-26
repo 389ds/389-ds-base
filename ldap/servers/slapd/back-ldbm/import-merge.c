@@ -128,17 +128,11 @@ static import_merge_queue_entry *import_merge_make_new_queue_entry(import_merge_
     /* Make a new entry */
     import_merge_queue_entry *new_entry = (import_merge_queue_entry *)slapi_ch_calloc(1, sizeof(import_merge_queue_entry));
 
-    if (NULL == new_entry) {
-        return NULL;
-    }
     new_entry->key = *key;
     new_entry->thang = *thang;
     new_entry->file_referenced_list =
         (int *)slapi_ch_calloc(passes, sizeof(fileno));
 
-    if (NULL == new_entry->file_referenced_list) {
-        return NULL;
-    }
     (new_entry->file_referenced_list)[fileno] = 1;
     return new_entry;
 }
@@ -403,6 +397,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
     int preclose_ret = 0;
     int number_found = 0;
     int pass_number = 0;
+    DB **input_files = NULL;
 
     PR_ASSERT(NULL != inst);
     
@@ -446,7 +441,6 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
     } else {
 	/* We really need to merge */
 	import_merge_queue_entry *merge_queue = NULL;
-	DB **input_files = NULL;
 	DBC **input_cursors = NULL;
 	DBT key = {0};
 	import_merge_thang thang = {0};
@@ -463,17 +457,17 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	    } else {
 		import_log_notice(worker->job, "MERGE FAIL 8 %d", ret);
 	    }
-	    return ret;
+            goto error;
 	}
 	ret = dblayer_start(inst->inst_li, DBLAYER_IMPORT_MODE);
 	if (0 != ret) {
 	    import_log_notice(worker->job, "MERGE FAIL 9");
-	    return ret;
+            goto error;
 	}
 	ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
 	if (0 != ret) {
 	    import_log_notice(worker->job, "MERGE FAIL 9A");
-	    return ret;
+            goto error;
 	}
 #else
         /* we have reason to believe that it's okay to leave the region files
@@ -485,12 +479,12 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
         ret = dblayer_instance_close(be);
         if (0 != ret) {
             import_log_notice(worker->job, "MERGE FAIL 8i %d\n", ret);
-            return ret;
+	    goto error;
         }
         ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
         if (0 != ret) {
             import_log_notice(worker->job, "MERGE FAIL 8j %d\n", ret);
-            return ret;
+	    goto error;
         }
 #endif
 
@@ -498,7 +492,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 		passes, &input_files, &number_found, &pass_number);
 	if (0 != ret) {
 	    import_log_notice(worker->job, "MERGE FAIL 10");
-	    return ret;
+	    goto error;
 	}
 
 	ret = dblayer_open_file(be, worker->index_info->name, 1,
@@ -635,7 +629,6 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	    }			
 	}
 	if (preclose_ret != 0) ret = preclose_ret;
-	slapi_ch_free( (void**)&input_files);
 	slapi_ch_free( (void**)&input_cursors);
     }
     if (EOF == ret) {
@@ -643,6 +636,13 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
     }
 
 error:
+    slapi_ch_free((void**)&input_files);
+    if (ret) {
+        import_log_notice(worker->job, "%s: Import merge failed. "
+                          "If this is an online-import, shutdown the server "
+                          "and try the offline command line import (ldif2db)",
+                          inst->inst_name);
+    }
     return ret;
 }
 
