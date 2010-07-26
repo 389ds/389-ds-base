@@ -2979,7 +2979,7 @@ plugin_enabled(const char *plugin_name, void *identity)
 {
 	Slapi_PBlock *search_pb = NULL;
 	Slapi_Entry **entries = NULL, **ep = NULL;
-	char *on_off = NULL;
+	Slapi_Value *on_off = slapi_value_new_string("on");
 	char *filter = NULL;
 	int rc = 0;	/* disabled, by default */
 
@@ -2995,15 +2995,14 @@ plugin_enabled(const char *plugin_name, void *identity)
 
 	slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 	for (ep = entries; ep && *ep; ep++) {
-		on_off = slapi_entry_attr_get_charptr(*ep, "nsslapd-pluginEnabled");
-		if (on_off && (0 == strcasecmp(on_off, "on"))) {
+		if (slapi_entry_attr_has_syntax_value(*ep, "nsslapd-pluginEnabled", on_off)) {
 			rc = 1; /* plugin is on */
 			goto bail;
 		}
 	}
 
 bail:
-	slapi_ch_free_string(&on_off);
+	slapi_value_free(&on_off);
 	slapi_free_search_results_internal(search_pb);
 	slapi_pblock_destroy(search_pb);
 	slapi_ch_free_string(&filter);
