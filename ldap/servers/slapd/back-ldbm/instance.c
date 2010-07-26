@@ -53,7 +53,8 @@ static void ldbm_instance_destructor(void **arg);
 int ldbm_instance_create(backend *be, char *name)
 {
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
-    ldbm_instance *inst;
+    ldbm_instance *inst = NULL;
+    int rc = 0;
 
     /* Allocate storage for the ldbm_instance structure.  Information specific
      * to this instance of the ldbm backend will be held here. */
@@ -67,7 +68,8 @@ int ldbm_instance_create(backend *be, char *name)
                      DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: cache_init failed\n",
                   0, 0, 0);
-        return -1;
+        rc = -1;
+        goto error;
     }
 
     /*
@@ -79,7 +81,8 @@ int ldbm_instance_create(backend *be, char *name)
                      DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
         LDAPDebug0Args(LDAP_DEBUG_ANY,
                        "ldbm_instance_create: dn cache_init failed\n");
-        return -1;
+        rc = -1;
+        goto error;
     }
 
     /* Lock for the list of open db handles */
@@ -87,7 +90,8 @@ int ldbm_instance_create(backend *be, char *name)
     if (NULL == inst->inst_handle_list_mutex) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: PR_NewLock failed\n",
                   0, 0, 0);
-        return -1;
+        rc = -1;
+        goto error;
     }
 
     /* Lock used to synchronize modify operations. */
@@ -95,24 +99,28 @@ int ldbm_instance_create(backend *be, char *name)
     if (NULL == inst->inst_db_mutex) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: PR_NewLock failed\n",
                   0, 0, 0);
-        return -1;
+        rc = -1;
+        goto error;
     }
 
     if ((inst->inst_config_mutex = PR_NewLock()) == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: PR_NewLock failed\n",
                   0, 0, 0);
-        return -1;
+        rc = -1;
+        goto error;
     }
 
     if ((inst->inst_nextid_mutex = PR_NewLock()) == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: PR_NewLock failed\n",
                   0, 0, 0);
-        return -1;
+        rc = -1;
+        goto error;
     }
 
     if ((inst->inst_indexer_cv = PR_NewCondVar(inst->inst_nextid_mutex)) == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: PR_NewCondVar failed\n", 0, 0, 0 );
-        return -1;
+        rc = -1;
+        goto error;
     }
 
     inst->inst_be = be;
@@ -130,8 +138,13 @@ int ldbm_instance_create(backend *be, char *name)
         objset_add_obj(li->li_instance_set, instance_obj);
         object_release(instance_obj);
     }
+    goto done;
 
-    return 0;
+error:
+    slapi_ch_free((void**)&inst);
+
+done:
+    return rc;
 }
 
 /* create the default indexes separately
