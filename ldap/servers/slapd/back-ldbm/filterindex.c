@@ -523,7 +523,7 @@ range_candidates(
     const Slapi_Attr *sattr
 )
 {
-    IDList *idl;
+    IDList *idl = NULL;
     struct berval *low = NULL, *high = NULL;
     struct berval **lows = NULL, **highs = NULL;
 
@@ -534,7 +534,8 @@ range_candidates(
         if (lows == NULL || *lows == NULL) {
             LDAPDebug( LDAP_DEBUG_TRACE,
                        "<= range_candidates ALLIDS (no keys)\n", 0, 0, 0 );
-            return( idl_allids( be ) );
+            idl = idl_allids( be );
+            goto done;
         }
         low = attr_value_lowest(lows, slapi_berval_reverse_cmp);
     }
@@ -544,8 +545,8 @@ range_candidates(
         if (highs == NULL || *highs == NULL) {
             LDAPDebug( LDAP_DEBUG_TRACE,
                        "<= range_candidates ALLIDS (no keys)\n", 0, 0, 0 );
-            if (lows) ber_bvecfree(lows);
-            return( idl_allids( be ) );
+            idl = idl_allids( be );
+            goto done;
         }
         high = attr_value_lowest(highs, slapi_berval_cmp);
     }
@@ -564,6 +565,7 @@ range_candidates(
                                low, high, 1, NULL, err);
     }
 
+done:
     if (lows) ber_bvecfree(lows);
     if (highs) ber_bvecfree(highs);
 
