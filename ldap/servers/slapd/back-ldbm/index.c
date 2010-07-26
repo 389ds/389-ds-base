@@ -114,10 +114,12 @@ index_buffer_init_internal(size_t idl_size,
 	index_buffer_bin *bins = NULL;
 	size_t i = 0;
 	size_t byte_range = 0;
+	int rc = 0;
 
 	index_buffer_handle *handle = (index_buffer_handle *) slapi_ch_calloc(1,sizeof(index_buffer_handle));
 	if (NULL == handle) {
-		return -1;
+		rc = -1;
+		goto error;
 	}
 	handle->idl_size = idl_size;
 	handle->flags = flags;
@@ -136,11 +138,18 @@ index_buffer_init_internal(size_t idl_size,
 	handle->buffer_size = bin_count;
 	bins = (index_buffer_bin *)slapi_ch_calloc(bin_count, sizeof(index_buffer_bin));
 	if (NULL == bins) {
-		return -1;
+		rc = -1;
+		goto error;
 	}
 	handle->bins = bins;
 	*h = (void*) handle;
-	return 0;
+	goto done;
+
+error:
+	slapi_ch_free((void**)&handle);
+
+done:
+	return rc;
 }
 
 int index_buffer_init(size_t size,int flags,void **h)
@@ -1973,6 +1982,7 @@ index_addordel_values_ext_sv(
                         if ( err != 0 )
                         {
                             ldbm_nasty(errmsg, 1260, err);
+                            slapi_ch_free(&keys);
                             goto bad;
                         }
                     }
@@ -1981,6 +1991,7 @@ index_addordel_values_ext_sv(
                      * But, for simplicity, we destroy it now:
                      */
                     destroy_matchrule_indexer(pb);
+                    slapi_ch_free(&keys);
                 }
             }
         }
