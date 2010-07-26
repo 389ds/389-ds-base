@@ -67,7 +67,8 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     if ( (rc = dblayer_get_id2entry( be, &db )) != 0 ) {
         LDAPDebug( LDAP_DEBUG_ANY, "Could not open/create id2entry\n",
             0, 0, 0 );
-        return( -1 );
+        rc = -1;
+        goto done;
     }
 
     id_internal_to_stored(e->ep_id,temp_id);
@@ -82,7 +83,8 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
         if (rc) {
             LDAPDebug( LDAP_DEBUG_ANY, "attrcrypt_encrypt_entry failed in id2entry_add\n",
                 0, 0, 0 );
-            return ( -1 );
+            rc = -1;
+            goto done;
         }
     }
 
@@ -111,10 +113,6 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
         }
         data.dptr = slapi_entry2str_with_options(entry_to_use, &len, options);
         data.dsize = len + 1;
-        /* If we had an encrypted entry, we no longer need it */
-        if (encrypted_entry) {
-            backentry_free(&encrypted_entry);
-        }
     }
 
     if (NULL != txn) {
@@ -145,6 +143,12 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
          * entry cache.  It'll be added by cache_replace.
          */
         (void) CACHE_ADD( &inst->inst_cache, e, NULL );
+    }
+
+done:
+    /* If we had an encrypted entry, we no longer need it */
+    if (encrypted_entry) {
+        backentry_free(&encrypted_entry);
     }
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= id2entry_add %d\n", rc, 0, 0 );
