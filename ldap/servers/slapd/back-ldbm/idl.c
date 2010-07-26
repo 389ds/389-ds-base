@@ -1080,6 +1080,7 @@ int idl_old_store_block(
 	struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
 	int ret = 0;
 	idl_private *priv = a->ai_idl;
+	IDList *master_block = NULL;
 
 	if (0 == a->ai_idl->idl_maxids) {
 		idl_init_maxids(li,a->ai_idl);
@@ -1107,7 +1108,6 @@ int idl_old_store_block(
 				size_t number_of_cont_blks = 0;
 				size_t i = 0;
 				size_t number_of_ids_left = 0;
-				IDList *master_block = NULL;
 				size_t index = 0;
 				DBT cont_key = {0};
 
@@ -1123,7 +1123,8 @@ int idl_old_store_block(
 				/* Alloc master block */
 				master_block = idl_alloc(number_of_cont_blks + 1);
 				if (NULL == master_block) {
-					return -1;
+					ret = -1;
+					goto done;
 				}
 				master_block->b_nids = INDBLOCK;
 				master_block->b_ids[number_of_cont_blks] = NOID;
@@ -1142,7 +1143,8 @@ int idl_old_store_block(
 					}
 					this_cont_block = idl_alloc(size_of_this_block);
 					if (NULL == this_cont_block) {
-						return -1;
+						ret = -1;
+						goto done;
 					}
 					this_cont_block->b_nids = size_of_this_block;
 					/* Copy over the ids to the cont block we're making */
@@ -1158,7 +1160,7 @@ int idl_old_store_block(
 					if ( ret != 0 && ret != DB_LOCK_DEADLOCK )
 					{
 						LDAPDebug( LDAP_DEBUG_ANY, "idl_store_block(%s) 1 BAD %d %s\n",key->data, ret, dblayer_strerror( ret ));
-						return ret;
+						goto done;
 					}
 					/* Put the lead ID number in the header block */
 					master_block->b_ids[i] = lead_id;
@@ -1170,11 +1172,12 @@ int idl_old_store_block(
 				PR_ASSERT(0 == number_of_ids_left);
 				/* Now store the master block */
 				ret = idl_store(be,db,key,master_block,txn);
-				/* And free it */
-				idl_free(master_block);
 				}
 		}
 	}
+done:
+	/* Free master block */
+	idl_free(master_block);
 	return ret;
 }
 
