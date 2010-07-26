@@ -1034,11 +1034,13 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
     DBT key = {0};
     DBT data = {0};
     ID id;
+    int rc = LDAP_SUCCESS;
 
     idl = idl_alloc(stop-start+1);
     if (!idl) {
         /* out of memory :( */
-        return LDAP_OPERATIONS_ERROR;
+        rc = LDAP_OPERATIONS_ERROR;
+        goto error;
     }
     recno = start+1;
     key.size = sizeof(recno);
@@ -1063,24 +1065,30 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
         if (err == ENOMEM)
             LDAPDebug(LDAP_DEBUG_ANY, "   nomem: wants %d key, %d data\n",
                       key.size, data.size, 0);
-        return LDAP_OPERATIONS_ERROR;
+        rc = LDAP_OPERATIONS_ERROR;
+        goto error;
+    }
+
+    if (!candidates)
+    {
+        goto error;
     }
 
     /* success! */
-    if (idl) {
-        if (candidates)
-        {
-            if (dosort)
-            {
-                qsort((void *)&idl->b_ids[0], idl->b_nids,
-                      (size_t)sizeof(ID), vlv_idl_sort_cmp);
-            }
-            *candidates = idl;
-        }
-        else
-            idl_free(idl);        /* ??? */
+    if (dosort)
+    {
+        qsort((void *)&idl->b_ids[0], idl->b_nids,
+              (size_t)sizeof(ID), vlv_idl_sort_cmp);
     }
-    return LDAP_SUCCESS;
+    *candidates = idl;
+
+    goto done;
+
+error:
+    if (idl) idl_free(idl);
+
+done:
+    return rc;
 }
 
 
@@ -1256,7 +1264,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
 	int return_value = LDAP_SUCCESS;
 
 	/* Refuse to filter a non-existent IDlist */
-	if (NULL == candidates)
+	if (NULL == candidates || NULL == filteredCandidates)
 	{
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
@@ -1330,7 +1338,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
         	}
     	} while (!done && id!=NOID);
 	}
-    if(filteredCandidates!=NULL)
+
         *filteredCandidates= resultIdl;
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_filter_candidates: Filtering done\n",0, 0, 0 );
 
@@ -1358,7 +1366,7 @@ vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort
     int do_trim= 1;
 
 	/* Refuse to trim a non-existent IDlist */
-	if (NULL == candidates || candidates->b_nids==0)
+	if (NULL == candidates || candidates->b_nids==0 || NULL == trimmedCandidates)
 	{
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
@@ -1410,8 +1418,7 @@ vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort
         }
     }
    	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates: Trimmed list contains %lu entries.\n",(u_long)resultIdl->b_nids, 0, 0 );
-    if(trimmedCandidates!=NULL)
-        *trimmedCandidates= resultIdl;
+    *trimmedCandidates= resultIdl;
     return return_value;
 }
 
