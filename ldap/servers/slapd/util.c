@@ -535,9 +535,9 @@ normalize_path(char *path)
 {
     char *dname = NULL;
     char *dnamep = NULL;
-    char **dirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
-    char **rdirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
-    char **dp = dirs;
+    char **dirs = NULL;
+    char **rdirs = NULL;
+    char **dp = NULL;
     char **rdp;
     int elimdots = 0;
 
@@ -545,6 +545,10 @@ normalize_path(char *path)
         return NULL;
     }
 
+    dirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
+    rdirs = (char **)slapi_ch_calloc(strlen(path), sizeof(char *));
+
+    dp = dirs;
     dname = slapi_ch_strdup(path);
     do {
         dnamep = strrchr(dname, _CSEP);
