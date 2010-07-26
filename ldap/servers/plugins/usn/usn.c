@@ -290,6 +290,7 @@ usn_preop_delete(Slapi_PBlock *pb)
         if (CSN_SUCCESS != rc) {
             slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
                             "usn_preop_delete: csngen_new failed (%d)\n", rc);
+            csngen_free(&csn);
             goto bail;
         }
         operation_set_csn(op, csn);
