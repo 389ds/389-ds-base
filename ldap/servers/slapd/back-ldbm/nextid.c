@@ -232,3 +232,18 @@ ID id_stored_to_internal(char* b)
 	i |= ((ID)b[0]) << 24;
 	return i;
 }
+
+void sizeushort_internal_to_stored(size_t i,char *b)
+{
+	PRUint16 ui = (PRUint16)(i & 0xffff);
+	b[0] = (char)(ui >> 8);
+	b[1] = (char)ui;
+}
+
+size_t sizeushort_stored_to_internal(char* b)
+{
+	size_t i;
+	i = (PRUint16)b[1] & 0x000000ff;
+	i |= (((PRUint16)b[0]) << 8) & 0x0000ff00;
+	return i;
+}
