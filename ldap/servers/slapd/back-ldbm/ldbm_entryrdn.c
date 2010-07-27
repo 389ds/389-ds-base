@@ -73,13 +73,15 @@ static int entryrdn_noancestorid = 0;
 #define RDN_STRINGID_LEN 64
 
 typedef struct _rdn_elem {
-    PRUint32 rdn_elem_id;
-    PRUint16 rdn_elem_nrdn_len; /* including '\0' */
-    PRUint16 rdn_elem_rdn_len;  /* including '\0' */
-    char rdn_elem_nrdn_rdn[1];  /* "normalized rdn" '\0' "rdn" '\0' */
+    char rdn_elem_id[sizeof(ID)];
+    char rdn_elem_nrdn_len[2]; /* ushort; length including '\0' */
+    char rdn_elem_rdn_len[2];  /* ushort; length including '\0' */
+    char rdn_elem_nrdn_rdn[1]; /* "normalized rdn" '\0' "rdn" '\0' */
 } rdn_elem;
 
-#define RDN_ADDR(elem) ((elem)->rdn_elem_nrdn_rdn + (elem)->rdn_elem_nrdn_len)
+#define RDN_ADDR(elem) \
+    ((elem)->rdn_elem_nrdn_rdn + \
+     sizeushort_stored_to_internal((elem)->rdn_elem_nrdn_len))
 
 /* helper functions */
 static rdn_elem *_entryrdn_new_rdn_elem(backend *be, ID id, Slapi_RDN *srdn, size_t *length);
@@ -356,7 +358,7 @@ entryrdn_index_read(backend *be,
     if (rc) {
         goto bail;
     }
-    *id = elem->rdn_elem_id;
+    *id = id_stored_to_internal(elem->rdn_elem_id);
 
 bail:
     /* Close the cursor */
@@ -423,6 +425,7 @@ entryrdn_rename_subtree(backend *be,
     size_t oldsupelemlen = 0;
     const Slapi_DN *mynewsupsdn = NULL;
     Slapi_RDN *mynewsrdn = NULL;
+    ID targetid = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                                      "--> entryrdn_rename_subtree\n");
@@ -568,6 +571,7 @@ entryrdn_rename_subtree(backend *be,
                             slapi_sdn_get_dn(oldsdn), rc);
         goto bail;
     }
+    targetid = id_stored_to_internal(targetelem->rdn_elem_id);
     targetelemlen = _entryrdn_rdn_elem_size(targetelem);
     if (oldsupelem) {
         oldsupelemlen = _entryrdn_rdn_elem_size(oldsupelem);
@@ -577,8 +581,8 @@ entryrdn_rename_subtree(backend *be,
     /* 2) update targetelem's child link, if renaming the target */
     if (mynewsrdn) {
         /* remove the old elem; (1) rename targetelem */
-        keybuf = slapi_ch_smprintf("%d:%s",
-                        targetelem->rdn_elem_id, targetelem->rdn_elem_nrdn_rdn);
+        keybuf = slapi_ch_smprintf("%u:%s",
+                                   targetid, targetelem->rdn_elem_nrdn_rdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -593,8 +597,8 @@ entryrdn_rename_subtree(backend *be,
         }
         if (childelems) {
             slapi_ch_free_string(&keybuf);
-            keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD,
-                        targetelem->rdn_elem_id, targetelem->rdn_elem_nrdn_rdn);
+            keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD,
+                                       targetid, targetelem->rdn_elem_nrdn_rdn);
             key.data = keybuf;
             key.size = key.ulen = strlen(keybuf) + 1;
             key.flags = DB_DBT_USERMEM;    
@@ -614,8 +618,7 @@ entryrdn_rename_subtree(backend *be,
 
         /* add the new elem */
         slapi_ch_free_string(&keybuf);
-        keybuf = slapi_ch_smprintf("%d:%s",
-                              newelem->rdn_elem_id, newelem->rdn_elem_nrdn_rdn);
+        keybuf = slapi_ch_smprintf("%u:%s", id, newelem->rdn_elem_nrdn_rdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -633,8 +636,8 @@ entryrdn_rename_subtree(backend *be,
         }
         if (childelems) {
             slapi_ch_free_string(&keybuf);
-            keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD,
-                              newelem->rdn_elem_id, newelem->rdn_elem_nrdn_rdn);
+            keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id,
+                                       newelem->rdn_elem_nrdn_rdn);
             key.data = keybuf;
             key.size = key.ulen = strlen(keybuf) + 1;
             key.flags = DB_DBT_USERMEM;    
@@ -656,9 +659,8 @@ entryrdn_rename_subtree(backend *be,
     /* 3) update targetelem's parent link, if any */
     if (oldsupelem) {
         slapi_ch_free_string(&keybuf);
-        keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_PARENT,
-                                              targetelem->rdn_elem_id,
-                                              targetelem->rdn_elem_nrdn_rdn);
+        keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_PARENT,
+                                   targetid, targetelem->rdn_elem_nrdn_rdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -676,9 +678,8 @@ entryrdn_rename_subtree(backend *be,
         if (mynewsrdn) {
             slapi_ch_free_string(&keybuf);
             key.flags = DB_DBT_USERMEM;    
-            keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_PARENT,
-                                                  newelem->rdn_elem_id,
-                                                  newelem->rdn_elem_nrdn_rdn);
+            keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_PARENT,
+                                       id, newelem->rdn_elem_nrdn_rdn);
             key.data = keybuf;
             key.size = key.ulen = strlen(keybuf) + 1;
 
@@ -716,8 +717,9 @@ entryrdn_rename_subtree(backend *be,
         for (cep = childelems; cep && *cep; cep++) {
             /* remove the old elem */
             slapi_ch_free_string(&keybuf);
-            keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_PARENT,
-                                (*cep)->rdn_elem_id, (*cep)->rdn_elem_nrdn_rdn);
+            keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_PARENT,
+                                     id_stored_to_internal((*cep)->rdn_elem_id),
+                                     (*cep)->rdn_elem_nrdn_rdn);
             key.data = keybuf;
             key.size = key.ulen = strlen(keybuf) + 1;
             key.flags = DB_DBT_USERMEM;    
@@ -750,9 +752,9 @@ entryrdn_rename_subtree(backend *be,
     if (oldsupelem) {
         /* remove the old elem */
         slapi_ch_free_string(&keybuf);
-        keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD,
-                                              oldsupelem->rdn_elem_id,
-                                              oldsupelem->rdn_elem_nrdn_rdn);
+        keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD,
+                                 id_stored_to_internal(oldsupelem->rdn_elem_id),
+                                 oldsupelem->rdn_elem_nrdn_rdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -769,9 +771,9 @@ entryrdn_rename_subtree(backend *be,
         /* add the new elem */
         if (mynewsupsdn) {
             slapi_ch_free_string(&keybuf);
-            keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD,
-                                                 newsupelem->rdn_elem_id,
-                                                 newsupelem->rdn_elem_nrdn_rdn);
+            keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD,
+                                 id_stored_to_internal(newsupelem->rdn_elem_id),
+                                 newsupelem->rdn_elem_nrdn_rdn);
             key.data = keybuf;
             key.size = key.ulen = strlen(keybuf) + 1;
             key.flags = DB_DBT_USERMEM;    
@@ -924,24 +926,24 @@ entryrdn_get_subordinates(backend *be,
                               NULL, &childelems, db_txn);
 
     for (cep = childelems; cep && *cep; cep++) {
+        ID childid = id_stored_to_internal((*cep)->rdn_elem_id);
         /* set direct children to the idlist */
-        rc = idl_append_extend(subordinates, (*cep)->rdn_elem_id);
+        rc = idl_append_extend(subordinates, childid);
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                             "entryrdn_get_subordinates: Appending %d to idl "
-                            "for direct children failed (%d)\n",
-                            (*cep)->rdn_elem_id, rc);
+                            "for direct children failed (%d)\n", childid, rc);
             goto bail;
         }
 
         /* set indirect subordinates to the idlist */
         rc = _entryrdn_append_childidl(cursor, (*cep)->rdn_elem_nrdn_rdn,
-                                       (*cep)->rdn_elem_id, subordinates);
+                                       childid, subordinates);
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                             "entryrdn_get_subordinates: Appending %d to idl "
                             "for indirect children failed (%d)\n",
-                            (*cep)->rdn_elem_id, rc);
+                            childid, rc);
             goto bail;
         }
     }
@@ -1062,7 +1064,7 @@ entryrdn_lookup_dn(backend *be,
     do {
         /* Setting up a key for the node to get its parent */
         slapi_ch_free_string(&keybuf);
-        keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_PARENT, workid, nrdn);
+        keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_PARENT, workid, nrdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -1118,7 +1120,7 @@ retry_get1:
 #endif
         slapi_ch_free_string(&nrdn);
         nrdn = slapi_ch_strdup(elem->rdn_elem_nrdn_rdn);
-        workid = elem->rdn_elem_id;
+        workid = id_stored_to_internal(elem->rdn_elem_id);
         /* 1 is byref, and the dup'ed rdn is freed with srdn */
         slapi_rdn_add_rdn_to_all_rdns(srdn, slapi_ch_strdup(RDN_ADDR(elem)), 1);
     } while (workid);
@@ -1228,7 +1230,7 @@ entryrdn_get_parent(backend *be,
 
     /* Setting up a key for the node to get its parent */
     slapi_ch_free_string(&keybuf);
-    keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_PARENT, id, nrdn);
+    keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_PARENT, id, nrdn);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;
     key.flags = DB_DBT_USERMEM;    
@@ -1269,7 +1271,7 @@ retry_get1:
 #ifdef LDAP_DEBUG_ENTRYRDN
     _entryrdn_dump_rdn_elem(elem);
 #endif
-    *pid = elem->rdn_elem_id;
+    *pid = id_stored_to_internal(elem->rdn_elem_id);
     *prdn = slapi_ch_strdup(RDN_ADDR(elem));
 bail:
     slapi_ch_free_string(&nrdn);
@@ -1339,11 +1341,11 @@ _entryrdn_new_rdn_elem(backend *be,
     nrdn_len = strlen(nrdn) + 1;
     *length = sizeof(rdn_elem) + rdn_len + nrdn_len;
     re = (rdn_elem *)slapi_ch_malloc(*length);
-    re->rdn_elem_id = id;
-    re->rdn_elem_nrdn_len = nrdn_len;
-    re->rdn_elem_rdn_len = rdn_len;
-    PR_snprintf(re->rdn_elem_nrdn_rdn, re->rdn_elem_nrdn_len, nrdn);
-    PR_snprintf(RDN_ADDR(re), re->rdn_elem_rdn_len, rdn);
+    id_internal_to_stored(id, re->rdn_elem_id);
+    sizeushort_internal_to_stored(nrdn_len, re->rdn_elem_nrdn_len);
+    sizeushort_internal_to_stored(rdn_len, re->rdn_elem_rdn_len);
+    PR_snprintf(re->rdn_elem_nrdn_rdn, nrdn_len, nrdn);
+    PR_snprintf(RDN_ADDR(re), rdn_len, rdn);
 
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                                      "<-- _entryrdn_new_rdn_elem\n");
@@ -1363,7 +1365,8 @@ static size_t
 _entryrdn_rdn_elem_size(rdn_elem *elem)
 {
     size_t len = sizeof(rdn_elem);
-    len += elem->rdn_elem_rdn_len + elem->rdn_elem_nrdn_len;
+    len += sizeushort_stored_to_internal(elem->rdn_elem_rdn_len) +
+           sizeushort_stored_to_internal(elem->rdn_elem_nrdn_len);
     return len;
 }
 
@@ -1376,16 +1379,16 @@ _entryrdn_dump_rdn_elem(rdn_elem *elem)
         return;
     }
     slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG, "RDN ELEMENT:\n");
-    slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG, "    ID: %d\n",
-                                                   elem->rdn_elem_id);
+    slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG, "    ID: %u\n",
+                    id_stored_to_internal(elem->rdn_elem_id));
     slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG, "    RDN: \"%s\"\n",
-                                                   RDN_ADDR(elem));
+                    RDN_ADDR(elem));
     slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG, "    RDN length: %u\n",
-                                                   elem->rdn_elem_rdn_len);
+                    sizeushort_stored_to_internal(elem->rdn_elem_rdn_len));
     slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG, "    Normalized RDN: \"%s\"\n",
-                                                   elem->rdn_elem_nrdn_rdn);
+                    elem->rdn_elem_nrdn_rdn);
     slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG, "    Normalized RDN length: %u\n",
-                                                   elem->rdn_elem_nrdn_len);
+                    sizeushort_stored_to_internal(elem->rdn_elem_nrdn_len));
     return;
 }
 #endif
@@ -1674,6 +1677,7 @@ _entryrdn_insert_key_elems(backend *be,
     char *keybuf = NULL;
     size_t len = 0;
     int rc = 0;
+    ID myid = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                                      "--> _entryrdn_insert_key_elems\n");
@@ -1702,11 +1706,13 @@ _entryrdn_insert_key_elems(backend *be,
         goto bail;
     }
 
+    myid = id_stored_to_internal(elem->rdn_elem_id);
+
     /* adding RDN to the self key */
     slapi_ch_free_string(&keybuf);
     /* Generate a key for self rdn */
     /* E.g., 222:uid=tuser0 */
-    keybuf = slapi_ch_smprintf("%d:%s", elem->rdn_elem_id, elem->rdn_elem_nrdn_rdn);
+    keybuf = slapi_ch_smprintf("%u:%s", myid, elem->rdn_elem_nrdn_rdn);
     key->data = keybuf;
     key->size = key->ulen = strlen(keybuf) + 1;
     key->flags = DB_DBT_USERMEM;    
@@ -1720,7 +1726,8 @@ _entryrdn_insert_key_elems(backend *be,
     slapi_ch_free_string(&keybuf);
     /* Generate a key for parent rdn */
     /* E.g., P222:uid=tuser0 */
-    keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_PARENT, elem->rdn_elem_id, elem->rdn_elem_nrdn_rdn);
+    keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_PARENT,
+                               myid, elem->rdn_elem_nrdn_rdn);
     key->data = keybuf;
     key->size = key->ulen = strlen(keybuf) + 1;
     key->flags = DB_DBT_USERMEM;    
@@ -1857,7 +1864,7 @@ _entryrdn_insert_key(backend *be,
         goto bail;
     }
     /* workid: ID of suffix */
-    workid = elem->rdn_elem_id;
+    workid = id_stored_to_internal(elem->rdn_elem_id);
     parentelem = elem;
     elem = NULL;
 
@@ -1869,7 +1876,7 @@ _entryrdn_insert_key(backend *be,
                                         &childnrdn, FLAG_ALL_NRDNS);
         /* Generate a key for child tree */
         /* E.g., C1:dc=example,dc=com */
-        keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD, workid, nrdn);
+        keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, workid, nrdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -1913,7 +1920,7 @@ _entryrdn_insert_key(backend *be,
                     /* keybuf (C#:<parent_rdn>) is consumed in
                        _entryrdn_insert_key_elems */
                     /* set id to the elem to be added */
-                    elem->rdn_elem_id = id;
+                    id_internal_to_stored(id, elem->rdn_elem_id);
                     rc = _entryrdn_insert_key_elems(be, cursor, srdn, &key,
                                                  parentelem, elem, len, db_txn);
                     keybuf = NULL;
@@ -1937,17 +1944,18 @@ _entryrdn_insert_key(backend *be,
             slapi_ch_free((void **)&tmpelem);
             goto bail;
         } else { /* rc == 0; succeeded to get an element */
+            ID currid = 0;
             slapi_ch_free((void **)&elem);
             elem = tmpelem;
+            currid = id_stored_to_internal(elem->rdn_elem_id);
             if (0 == rdnidx) { /* Child is a Leaf RDN to be added */
-                if (elem->rdn_elem_id == id) {
+                if (currid == id) {
                     /* already in the file */
                     /* do nothing and return. */
                     rc = 0;
                     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
-                                            "_entryrdn_insert_key: ID %d is "
-                                            "already in the index. NOOP.\n",
-                                            elem->rdn_elem_id);
+                                    "_entryrdn_insert_key: ID %d is already "
+                                    "in the index. NOOP.\n", currid);
                 } else { /* different id, error return */
                     char *dn  = NULL;
                     int tmprc = slapi_rdn_get_dn(srdn, &dn);
@@ -1957,7 +1965,7 @@ _entryrdn_insert_key(backend *be,
                                 "is already in the %s file with different ID "
                                 "%d.  Expected ID is %d.\n", 
                                 tmprc?"rdn":"dn", tmprc?childnrdn:dn,
-                                LDBM_ENTRYRDN_STR, elem->rdn_elem_id, id);
+                                LDBM_ENTRYRDN_STR, currid, id);
                     slapi_ch_free_string(&dn);
                     /* returning special error code for the upgrade */
                     rc = LDBM_ERROR_FOUND_DUPDN;
@@ -1965,7 +1973,7 @@ _entryrdn_insert_key(backend *be,
                 goto bail;
             } else { /* if (0 != rdnidx) */
                 nrdn = childnrdn;
-                workid = elem->rdn_elem_id;
+                workid = currid;
                 slapi_ch_free((void **)&parentelem);
                 parentelem = elem;
                 elem = NULL;
@@ -2046,7 +2054,7 @@ _entryrdn_delete_key(backend *be,
     }
 
     /* check if the target element has a child or not */
-    keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD, id, nrdn);
+    keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id, nrdn);
     key.data = (void *)keybuf;
     key.size = key.ulen = strlen(nrdn) + 1;
     key.flags = DB_DBT_USERMEM;    
@@ -2082,7 +2090,7 @@ retry_get0:
         if (NULL == parentnrdn && NULL == selfnrdn) {
             /* First, deleting parent link */
             /* E.g., P10:uid=tuser0 */
-            keybuf = slapi_ch_smprintf("%c%d:%s", 
+            keybuf = slapi_ch_smprintf("%c%u:%s", 
                                        RDN_INDEX_PARENT, workid, nrdn);
             rc = slapi_rdn_partial_dup(srdn, &tmpsrdn, 1);
             if (rc) {
@@ -2106,7 +2114,7 @@ retry_get0:
             }
         } else if (parentnrdn) {
             /* Then, the child link from the parent */
-            keybuf = slapi_ch_smprintf("%c%d:%s", 
+            keybuf = slapi_ch_smprintf("%c%u:%s", 
                                        RDN_INDEX_CHILD, workid, parentnrdn);
             elem = _entryrdn_new_rdn_elem(be, id, srdn, &len);
             if (NULL == elem) {
@@ -2123,7 +2131,7 @@ retry_get0:
             if (issuffix) {
                 keybuf = slapi_ch_smprintf("%s", selfnrdn);
             } else {
-                keybuf = slapi_ch_smprintf("%d:%s", workid, selfnrdn);
+                keybuf = slapi_ch_smprintf("%u:%s", workid, selfnrdn);
             }
             elem = _entryrdn_new_rdn_elem(be, id, srdn, &len);
             if (NULL == elem) {
@@ -2170,7 +2178,7 @@ retry_get0:
             _entryrdn_dump_rdn_elem(elem);
 #endif
             parentnrdn = slapi_ch_strdup(elem->rdn_elem_nrdn_rdn);
-            workid = elem->rdn_elem_id;
+            workid = id_stored_to_internal(elem->rdn_elem_id);
 
             /* deleteing the parent link */
             /* the cursor is set at the parent link by _entryrdn_get_elem */
@@ -2318,7 +2326,7 @@ _entryrdn_index_read(backend *be,
         goto bail;
     }
     /* workid: ID of suffix */
-    id = (*elem)->rdn_elem_id;
+    id = id_stored_to_internal((*elem)->rdn_elem_id);
 
     do {
         slapi_ch_free_string(&keybuf);
@@ -2374,7 +2382,7 @@ _entryrdn_index_read(backend *be,
 
         /* Generate a key for child tree */
         /* E.g., C1:dc=example,dc=com */
-        keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD, id, nrdn);
+        keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id, nrdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -2410,7 +2418,7 @@ _entryrdn_index_read(backend *be,
                         "_entryrdn_index_read: %s matched normalized child "
                         "rdn %s\n", (*elem)->rdn_elem_nrdn_rdn, childnrdn);
 #endif
-        id = (*elem)->rdn_elem_id;
+        id = id_stored_to_internal((*elem)->rdn_elem_id);
         nrdn = childnrdn;
     
         if (0 == id) {
@@ -2426,7 +2434,7 @@ _entryrdn_index_read(backend *be,
         static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
 
         slapi_ch_free_string(&keybuf);
-        keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD, id, nrdn);
+        keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id, nrdn);
         key.data = keybuf;
         key.size = key.ulen = strlen(keybuf) + 1;
         key.flags = DB_DBT_USERMEM;    
@@ -2510,7 +2518,7 @@ _entryrdn_append_childidl(DBC *cursor,
                           IDList **affectedidl)
 {
     /* E.g., C5:ou=accounting */
-    char *keybuf = slapi_ch_smprintf("%c%d:%s", RDN_INDEX_CHILD, id, nrdn);
+    char *keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id, nrdn);
     DBT key, data;
     static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
     int rc = 0;
@@ -2549,6 +2557,7 @@ retry_get0:
         void *ptr;
         DB_MULTIPLE_INIT(ptr, &data);
         do {
+            ID myid = 0;
             myelem = NULL;
             memset(&dataret, 0, sizeof(dataret));
             DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
@@ -2556,16 +2565,17 @@ retry_get0:
                 break;
             }
             myelem = (rdn_elem *)dataret.data;
-            rc = idl_append_extend(affectedidl, myelem->rdn_elem_id);
+            myid = id_stored_to_internal(myelem->rdn_elem_id);
+            rc = idl_append_extend(affectedidl, myid);
             if (rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "_entryrdn_append_childidl: Appending %d to "
-                        "affectedidl failed (%d)\n", myelem->rdn_elem_id, rc);
+                        "affectedidl failed (%d)\n", myid, rc);
                 goto bail;
             }
             rc = _entryrdn_append_childidl(cursor,
                                         (const char *)myelem->rdn_elem_nrdn_rdn,
-                                        myelem->rdn_elem_id, affectedidl);
+                                        myid, affectedidl);
             if (rc) {
                 goto bail;
             }

@@ -128,13 +128,16 @@ typedef struct {
 
 #define RDN_BULK_FETCH_BUFFER_SIZE (8*1024)
 typedef struct _rdn_elem {
-    PRUint32 rdn_elem_id;
-    PRUint16 rdn_elem_nrdn_len; /* including '\0' */
-    PRUint16 rdn_elem_rdn_len;  /* including '\0' */
-    char rdn_elem_nrdn_rdn[1];  /* "normalized rdn" '\0' "rdn" '\0' */
+    char rdn_elem_id[sizeof(ID)];
+    char rdn_elem_nrdn_len[2]; /* ushort; length including '\0' */
+    char rdn_elem_rdn_len[2];  /* ushort; length including '\0' */
+    char rdn_elem_nrdn_rdn[1]; /* "normalized rdn" '\0' "rdn" '\0' */
 } rdn_elem;
 
-#define RDN_ADDR(elem) ((elem)->rdn_elem_nrdn_rdn + (elem)->rdn_elem_nrdn_len)
+
+#define RDN_ADDR(elem) \
+    ((elem)->rdn_elem_nrdn_rdn + \
+     sizeushort_stored_to_internal((elem)->rdn_elem_nrdn_len))
 
 static void display_entryrdn_parent(DB *db, ID id, const char *nrdn, int indent);
 static void display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent);
@@ -443,6 +446,14 @@ static void id_internal_to_stored(ID i,char *b)
     b[3] = (char)i;
 }
 
+static size_t sizeushort_stored_to_internal(char* b)
+{
+    size_t i;
+    i = (PRUint16)b[1] & 0x000000ff;
+    i |= (((PRUint16)b[0]) << 8) & 0x0000ff00;
+    return i;
+}
+
 void _cl5ReadMod(char **buff)
 {
     char *pos = *buff;
@@ -745,7 +756,7 @@ static void display_item(DBC *cursor, DBT *key, DBT *data)
         } else if (file_type & ENTRYTYPE) {
             /* id2entry file */
             ID entry_id = id_stored_to_internal(key->data);
-            printf("id %d\n", entry_id);
+            printf("id %u\n", entry_id);
             printf("\t%s\n", format_entry(data->data, data->size, buf, buflen));
         } else {
             /* user didn't tell us what kind of file, dump it raw */
@@ -765,8 +776,9 @@ _entryrdn_dump_rdn_elem(char *key, rdn_elem *elem, int indent)
     for (p = indentp; p < endp; p++) *p = ' ';
     *p = '\0';    
     printf("%s\n", key);
-    printf("%sID: %d; RDN: \"%s\"; NRDN: \"%s\"\n",
-           indentp, elem->rdn_elem_id, RDN_ADDR(elem), elem->rdn_elem_nrdn_rdn);
+    printf("%sID: %u; RDN: \"%s\"; NRDN: \"%s\"\n",
+           indentp, id_stored_to_internal(elem->rdn_elem_id),
+           RDN_ADDR(elem), elem->rdn_elem_nrdn_rdn);
     free(indentp);
 }
 
@@ -785,7 +797,7 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent)
         printf("Can't create db cursor: %s\n", db_strerror(rc));
         exit(1);
     }
-    snprintf(buffer, sizeof(buffer), "%d:%s", id, nrdn);
+    snprintf(buffer, sizeof(buffer), "%u:%s", id, nrdn);
     keybuf = strdup(buffer);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;
@@ -803,9 +815,9 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent)
 
     elem = (rdn_elem *)data.data;
     _entryrdn_dump_rdn_elem(keybuf, elem, indent);
-    display_entryrdn_parent(db, elem->rdn_elem_id,
+    display_entryrdn_parent(db, id_stored_to_internal(elem->rdn_elem_id),
                             elem->rdn_elem_nrdn_rdn, indent);
-    display_entryrdn_children(db, elem->rdn_elem_id,
+    display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
                               elem->rdn_elem_nrdn_rdn, indent);
 bail:
     if (keybuf) {
@@ -903,7 +915,7 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent)
     for (;;) {
         elem = (rdn_elem *)data.data;
         _entryrdn_dump_rdn_elem(keybuf, elem, indent);
-        display_entryrdn_self(db, elem->rdn_elem_id,
+        display_entryrdn_self(db, id_stored_to_internal(elem->rdn_elem_id),
                               elem->rdn_elem_nrdn_rdn, indent);
         rc = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP);
         if (rc) {
@@ -950,9 +962,8 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
     
         elem = (rdn_elem *)data.data;
         _entryrdn_dump_rdn_elem((char *)key->data, elem, indent);
-        display_entryrdn_children(db, elem->rdn_elem_id,
-                                      elem->rdn_elem_nrdn_rdn,
-                                      indent);
+        display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
+                                  elem->rdn_elem_nrdn_rdn, indent);
     } else { /* otherwise, display all from the HEAD to TAIL */
         char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
         DBT dataret;
