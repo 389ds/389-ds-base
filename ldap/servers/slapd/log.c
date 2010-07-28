@@ -3847,6 +3847,7 @@ log__open_auditlogfile(int logfile_state, int locked)
 				 */
 				if (PR_FILE_EXISTS_ERROR != prerr) {
 					if (!locked) LOG_AUDIT_UNLOCK_WRITE();
+					slapi_ch_free((void**)&log);
 					return LOG_UNABLE_TO_OPENFILE;
 				}
 			}
