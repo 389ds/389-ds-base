@@ -450,6 +450,7 @@ slapi_register_object_extension(
 	{
    		LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: Plugin %s failed to register extension for object %s.\n", pluginname, objectname, 0);
 		rc= -1;
+		delete_factory_extension(&fe);
 	}
 	return rc;
 }
