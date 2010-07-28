@@ -475,13 +475,13 @@ mtn_get_referral_from_entry(Slapi_Entry * entry)
         return NULL;
 
     slapi_attr_get_numvalues(attr, &nb);
-    referral = (char **) slapi_ch_malloc(sizeof(char *) * (nb+1));
     hint = slapi_attr_first_value(attr, &val);
     if (NULL == val) {
         LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-referral attribute has no value for the mapping tree node %s\n", slapi_entry_get_dn(entry), 0, 0);
     return NULL;
     }
 
+    referral = (char **) slapi_ch_malloc(sizeof(char *) * (nb+1));
     nb = 0;
     while (val)
     {
