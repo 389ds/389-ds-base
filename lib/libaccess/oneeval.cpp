@@ -542,6 +542,8 @@ ACLEvalBuildContext(
     return 0;
 
 error:
+    if (curauthplist)
+	PListDestroy(curauthplist);
     if (absauthplist)
 	PListDestroy(absauthplist);
     if (cache) {
