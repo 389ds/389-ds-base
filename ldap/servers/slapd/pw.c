@@ -1401,7 +1401,7 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 	}
 
 	/* Get a list of new values for attrtype from the operation */
-	if ( (smod = slapi_mod_new()) && smods )
+	if ( smods && (smod = slapi_mod_new()) )
 	{
 		for (smodp = slapi_mods_get_first_smod(smods, smod);
 			smodp != NULL; smodp = slapi_mods_get_next_smod(smods, smod) )
