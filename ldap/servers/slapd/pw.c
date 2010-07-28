@@ -563,11 +563,11 @@ pw_rever_encode(Slapi_Value **vals, char * attr_name)
 						return (0);
 					}
 				}
+				free_pw_scheme( pwsp );
 			}
 		}
 	}
 	 
-	free_pw_scheme( pwsp );
 	return(-1);
 }
 
