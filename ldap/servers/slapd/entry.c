@@ -285,7 +285,8 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 						slapi_entry_free( e );
 						if (retmalloc) slapi_ch_free_string(&valuecharptr);
 						if (freetype) slapi_ch_free_string(&type);
-						return NULL;
+						e = NULL;
+						goto done;
 					}
 				}
 				/* normdn is consumed in e */
@@ -307,7 +308,8 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 							slapi_entry_free( e );
 							if (retmalloc) slapi_ch_free_string(&valuecharptr);
 							if (freetype) slapi_ch_free_string(&type);
-							return NULL;
+							e = NULL;
+							goto done;
 						}
 					}
 					/* normdn is just referred in slapi_entry_set_rdn. */
@@ -343,7 +345,8 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 				slapi_entry_free( e );
 				if (retmalloc) slapi_ch_free_string(&valuecharptr);
 				if (freetype) slapi_ch_free_string(&type);
-				return NULL;
+				e = NULL;
+				goto done;
 			}
 			/* normdn is consumed in e */
 			slapi_entry_set_dn(e, normdn);
@@ -441,7 +444,8 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 						slapi_entry_free( e );
 						if (retmalloc) slapi_ch_free_string(&valuecharptr);
 						if (freetype) slapi_ch_free_string(&type);
-						return NULL;
+						e = NULL;
+						goto done;
 					}
 				}
 				if (flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT) {
@@ -536,9 +540,11 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 			LDAPDebug( LDAP_DEBUG_ANY, "str2entry_fast: entry has no dn\n",
 									   0, 0, 0 );
 		slapi_entry_free( e );
-		return( NULL );
+		e = NULL;
 	}
 
+done:
+	csn_free(&attributedeletioncsn);
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= str2entry_fast 0x%x\n",
 		e, 0, 0 );
 	return( e );
