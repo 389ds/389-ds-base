@@ -25,10 +25,6 @@ type dirsrv_snmp_exec_t;
 domain_type(dirsrv_snmp_t)
 init_daemon_domain(dirsrv_snmp_t, dirsrv_snmp_exec_t)
 
-# dynamic libraries
-type dirsrv_lib_t;
-files_type(dirsrv_lib_t)
-
 # var/lib files
 type dirsrv_var_lib_t;
 files_type(dirsrv_var_lib_t)
@@ -92,11 +88,6 @@ allow dirsrv_t self:capability { sys_nice setuid setgid fsetid chown dac_overrid
 allow dirsrv_t self:sem all_sem_perms;
 manage_files_pattern(dirsrv_t, dirsrv_tmpfs_t, dirsrv_tmpfs_t)
 fs_tmpfs_filetrans(dirsrv_t, dirsrv_tmpfs_t, file)
-
-# dynamic libraries
-allow dirsrv_t dirsrv_lib_t:file exec_file_perms;
-allow dirsrv_t dirsrv_lib_t:lnk_file read_lnk_file_perms;
-allow dirsrv_t dirsrv_lib_t:dir search_dir_perms;
 
 # var/lib files for dirsrv
 manage_files_pattern(dirsrv_t, dirsrv_var_lib_t, dirsrv_var_lib_t)
