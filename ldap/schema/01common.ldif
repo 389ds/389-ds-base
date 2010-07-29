@@ -227,6 +227,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2064 NAME 'nsSaslMapRegexString' DESC 'N
 attributeTypes: ( 2.16.840.1.113730.3.1.2065 NAME 'nsSaslMapBaseDNTemplate' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2066 NAME 'nsSaslMapFilterTemplate' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2093 NAME 'nsslapd-changelogsuffix' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2094 NAME 'nsslapd-parent-suffix' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape' )
 #
 # objectclasses:
 #
