@@ -2139,12 +2139,14 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 				"an integer between %d and %d\n", ATTR_PLUGIN_PRECEDENCE,
 				PLUGIN_MIN_PRECEDENCE, PLUGIN_MAX_PRECEDENCE);
 			status = -1;
+			slapi_ch_free((void**)&value);
 			goto PLUGIN_CLEANUP;
 		}
 		else
 		{
 			plugin->plg_precedence = precedence;
 		}
+		slapi_ch_free((void**)&value);
 	}
 
 	if (!(value = slapi_entry_attr_get_charptr(plugin_entry,
