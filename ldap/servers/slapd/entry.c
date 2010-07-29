@@ -529,6 +529,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 	if (read_stateinfo && maxcsn)
 	{
 		e->e_maxcsn = maxcsn;
+		maxcsn = NULL;
 	}
 
 	/* release read lock of name2asi, per-entry lock */
@@ -545,6 +546,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 
 done:
 	csn_free(&attributedeletioncsn);
+	csn_free(&maxcsn);
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= str2entry_fast 0x%x\n",
 		e, 0, 0 );
 	return( e );
