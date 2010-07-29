@@ -3483,7 +3483,7 @@ static int
 acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url )
 {
 
-	LDAPURLDesc	*ludp;
+	LDAPURLDesc	*ludp = NULL;
 	int		rc;
 	Slapi_Filter	*f = NULL;
 	char *rawdn = NULL;
@@ -3537,7 +3537,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	if ( NULL == aclpb->aclpb_client_entry ) {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			"acllas__client_match_URL: Unable to get client's entry\n");
-		return ACL_FALSE;
+		rc = ACL_FALSE;
+		goto done;
 	}
 
 	/* DN potion of URL must be normalized before calling ldap_url_parse.
@@ -3552,14 +3553,14 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	} else {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			"acllas__client_match_URL: url %s does not have a recognized ldap protocol prefix\n", url);
-		return ACL_FALSE;
+		rc = ACL_FALSE;
+		goto done;
 	}
 	rawdn = url + prefix_len; /* ldap(s)://host:port/... or ldap(s):///... */
 	                          /* rawdn at  ^             or           ^    */
 	/* let rawdn point the suffix */
 	if ('/' == *(rawdn+1)) { /* ldap(s):/// */
 		rawdn += 2;
-		hostport = "/";
 	} else {
 		char *tmpp = rawdn;
 		rawdn = strchr(tmpp, '/');
@@ -3567,7 +3568,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		if (NULL == rawdn) {
 			slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 				"acllas__client_match_URL: url %s does not have a valid ldap protocol prefix\n", url);
-			return ACL_FALSE;
+			rc = ACL_FALSE;
+			goto done;
 		}
 		hostport_len = ++rawdn - tmpp; /* ldap(s)://host:port/... */
 		                               /*           <-------->    */
@@ -3584,7 +3586,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	if (rc < 0) {
 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
 						"acllas__client_match_URL: Invalid syntax: %s\n", url);
-		return ACL_FALSE;
+		rc = ACL_FALSE;
+		goto done;
 	} else if (rc == 0) { /* url is passed in and not terminated with NULL*/
 		*(dn + dnlen) = '\0';
 	}
@@ -3594,43 +3597,41 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	normed = slapi_ch_smprintf("%s%s%s%s", 
 			 (prefix_len==LDAP_URL_prefix_len)?
 			  LDAP_URL_prefix_core:LDAPS_URL_prefix_core,
-			 hostport, dn, p?p:"");
+			 hostport ? hostport : "/", dn, p?p:"");
 	if (rc > 0) {
 		/* dn was allocated in slapi_dn_normalize_ext */
 		slapi_ch_free_string(&dn);
 	}
-	if ('/' != *hostport) {
-		slapi_ch_free_string(&hostport);
-	}
 	rc = ldap_url_parse(normed, &ludp);
 	slapi_ch_free_string(&normed);
 	if (rc) {
-		return ACL_FALSE;
+		rc = ACL_FALSE;
+		goto done;
 	}
 	if ( ( NULL == ludp->lud_dn) || ( NULL == ludp->lud_filter) ) {
-		ldap_free_urldesc( ludp );
-		return ACL_FALSE;
+		rc = ACL_FALSE;
+		goto done;
 	}
 
 	/* Check the scope */
 	if ( ludp->lud_scope == LDAP_SCOPE_SUBTREE ) {
 		if (!slapi_dn_issuffix(n_clientdn, ludp->lud_dn)) {
-			ldap_free_urldesc( ludp );
-			return ACL_FALSE;
+			rc = ACL_FALSE;
+			goto done;
 		}
 	} else if ( ludp->lud_scope == LDAP_SCOPE_ONELEVEL ) {
 		char    *parent = slapi_dn_parent (n_clientdn);
 
 		if (slapi_utf8casecmp ((ACLUCHP)parent, (ACLUCHP)ludp->lud_dn) != 0 ) {
 			slapi_ch_free ( (void **) &parent);
-			ldap_free_urldesc( ludp );
-			return ACL_FALSE;
+			rc = ACL_FALSE;
+			goto done;
 		}
 		slapi_ch_free ( (void **) &parent);
 	} else  { /* default */
 		if (slapi_utf8casecmp ( (ACLUCHP)n_clientdn, (ACLUCHP)ludp->lud_dn) != 0 ) {
-			ldap_free_urldesc( ludp );
-			return ACL_FALSE;
+			rc = ACL_FALSE;
+			goto done;
 		}
 
 	} 
@@ -3643,8 +3644,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 						"DS_LASUserAttrEval: The member URL search filter in entry [%s] is not valid: [%s]\n",
 						n_clientdn, ludp->lud_filter);
-		ldap_free_urldesc( ludp );
-		return ACL_FALSE;
+		rc = ACL_FALSE;
+		goto done;
     }
 
 	rc = ACL_TRUE;
@@ -3652,9 +3653,11 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 				aclpb->aclpb_client_entry, f, 0 /* no acces chk */ )))
 		rc = ACL_FALSE;
 
-	ldap_free_urldesc( ludp );
 	slapi_filter_free ( f, 1 ) ;
 
+done:
+	slapi_ch_free_string(&hostport);
+	ldap_free_urldesc( ludp );
 	return rc;
 }
 static int
