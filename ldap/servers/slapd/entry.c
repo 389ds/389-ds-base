@@ -789,6 +789,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				/* the memory below was not allocated by the slapi_ch_ functions */
 				if (retmalloc) slapi_ch_free_string(&valuecharptr);
 				if (freetype) slapi_ch_free_string(&type);
+				csn_free(&attributedeletioncsn);
 				continue;
 			}
 			/* Ignore CSNs */
@@ -805,6 +806,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					slapi_entry_free( e );
 					if (retmalloc) slapi_ch_free_string(&valuecharptr);
 					if (freetype) slapi_ch_free_string(&type);
+					csn_free(&attributedeletioncsn);
 					return NULL;
 				}
 				/* normdn is consumed in e */
@@ -822,6 +824,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						slapi_entry_free( e );
 						if (retmalloc) slapi_ch_free_string(&valuecharptr);
 						if (freetype) slapi_ch_free_string(&type);
+						csn_free(&attributedeletioncsn);
 						return NULL;
 					}
 					/* normdn is just referred in slapi_entry_set_rdn. */
@@ -843,6 +846,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				/* the memory below was not allocated by the slapi_ch_ functions */
 				if (retmalloc) slapi_ch_free_string(&valuecharptr);
 				if (freetype) slapi_ch_free_string(&type);
+				csn_free(&attributedeletioncsn);
 				continue;
 			}
 			normdn = slapi_create_dn_string("%s", valuecharptr);
@@ -859,6 +863,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (retmalloc) slapi_ch_free_string(&valuecharptr);
 			if (freetype) slapi_ch_free_string(&type);
+			csn_free(&attributedeletioncsn);
 		    continue;
 		}
 
@@ -869,6 +874,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (retmalloc) slapi_ch_free_string(&valuecharptr);
 			if (freetype) slapi_ch_free_string(&type);
+			csn_free(&attributedeletioncsn);
 		    continue;
 		}
 
@@ -886,6 +892,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (retmalloc) slapi_ch_free_string(&valuecharptr);
 			if (freetype) slapi_ch_free_string(&type);
+			csn_free(&attributedeletioncsn);
 			continue;
 		}
 
@@ -929,6 +936,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						/* Something very bad happened */
 						if (retmalloc) slapi_ch_free_string(&valuecharptr);
 						if (freetype) slapi_ch_free_string(&type);
+						csn_free(&attributedeletioncsn);
 						return NULL;
 					}
 					for ( i = 0; i < nattrs; i++ )
@@ -1015,6 +1023,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					slapi_entry_free( e ); e = NULL;
 					if (retmalloc) slapi_ch_free_string(&valuecharptr);
 					if (freetype) slapi_ch_free_string(&type);
+					csn_free(&attributedeletioncsn);
 					goto free_and_return;
 				}
 			}
@@ -1123,12 +1132,14 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		else if (rc==LDAP_TYPE_OR_VALUE_EXISTS)
 		{
 		    sa->sa_numdups++;
+		    csn_free(&attributedeletioncsn);
 		}
 		else
 		{
 		    /* Failure adding to value tree */
 		    LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: unexpected failure %d constructing value tree\n", rc, 0, 0 );
 		    slapi_entry_free( e ); e = NULL;
+		    csn_free(&attributedeletioncsn);
 		    goto free_and_return;
 		}
 
