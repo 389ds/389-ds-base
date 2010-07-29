@@ -174,28 +174,6 @@ interface(`dirsrv_manage_config',`
 
 ########################################
 ## <summary>
-##      Read and exec dirsrv lib files.
-## </summary>
-## <param name="domain">
-##      <summary>
-##      Domain allowed access.
-##      </summary>
-## </param>
-#
-interface(`dirsrv_exec_lib',`
-	gen_require(`
-		type dirsrv_lib_t;
-	')
-
-	allow $1 dirsrv_lib_t:dir search_dir_perms;
-	allow $1 dirsrv_lib_t:file exec_file_perms;
-	allow $1 dirsrv_lib_t:link_file exec_file_perms;
-	# Not all platforms include ioctl in exec_file_perms
-	allow $1 dirsrv_lib_t:file ioctl;
-')
-
-########################################
-## <summary>
 ##      Read dirsrv share files.
 ## </summary>
 ## <param name="domain">

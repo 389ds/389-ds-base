@@ -8,8 +8,6 @@
 @sbindir@/ldap-agent-bin		--	gen_context(system_u:object_r:dirsrv_snmp_exec_t,s0)
 @sbindir@/start-dirsrv			--	gen_context(system_u:object_r:initrc_exec_t,s0)
 @sbindir@/restart-dirsrv		--	gen_context(system_u:object_r:initrc_exec_t,s0)
-@serverdir@					gen_context(system_u:object_r:dirsrv_lib_t,s0)
-@serverdir@(/.*)				gen_context(system_u:object_r:dirsrv_lib_t,s0)
 @localstatedir@/run/@package_name@		gen_context(system_u:object_r:dirsrv_var_run_t,s0)
 @localstatedir@/run/@package_name@(/.*)		gen_context(system_u:object_r:dirsrv_var_run_t,s0)
 @localstatedir@/run/ldap-agent.pid		gen_context(system_u:object_r:dirsrv_snmp_var_run_t,s0)
