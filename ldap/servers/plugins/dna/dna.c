@@ -740,6 +740,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
          * attribute type.  We require this since we internally
          * perform a sorted range search on what we assume to
          * be an INTEGER syntax. */
+        slapi_ch_free_string(&value);
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
