@@ -1482,7 +1482,7 @@ static int cos_cache_add_defn(
 		}
 	}
 
-	if(ret == -1)
+	if(ret < 0)
 	{
 		if(dn)
 			cos_cache_del_attrval_list(dn);
