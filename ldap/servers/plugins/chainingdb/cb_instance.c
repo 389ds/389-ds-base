@@ -576,15 +576,14 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
                         	i = slapi_attr_first_value(attr, &sval);
                         	while (i != -1 ) {
                                 	bval = (struct berval *) slapi_value_get_berval(sval);
-                                	slapi_sdn_init_dn_byref(suffix, bval->bv_val);
+                                	slapi_sdn_set_dn_byref(suffix, bval->bv_val);
 
                                 	if (!slapi_be_issuffix(inst->inst_be, suffix)) {
                                         	slapi_be_addsuffix(inst->inst_be, suffix);
                                 	}
-                                	slapi_sdn_done(suffix);
-					slapi_sdn_free(&suffix);
                                 	i = slapi_attr_next_value(attr, i, &sval);
                         	}
+				slapi_sdn_free(&suffix);
 			}
                         continue;
 		} else
