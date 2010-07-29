@@ -2506,6 +2506,7 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
     }
 
 bail:
+    slapi_ch_free_string(&transport);
     slapi_ch_free_string(&filter);
     slapi_sdn_free(&range_sdn);
     slapi_ch_free_string(&replica_dn);
