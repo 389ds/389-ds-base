@@ -1251,6 +1251,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 	if (read_stateinfo)
 	{
 		e->e_maxcsn = maxcsn;
+		maxcsn = NULL;
 	}
 
 free_and_return:
@@ -1268,6 +1269,7 @@ free_and_return:
 	}
 	slapi_ch_free((void **) &dyn_attrs );
 	if (value) slapi_value_free(&value);
+	csn_free(&maxcsn);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= str2entry_dupcheck 0x%x \"%s\"\n",
 		e, slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), 0 );
