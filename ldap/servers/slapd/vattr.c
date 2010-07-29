@@ -1570,31 +1570,24 @@ int slapi_vattrspi_register_internal(vattr_sp_handle **h, vattr_get_fn_type get_
 	vattr_sp_handle *return_to_caller = NULL;
 	vattr_sp_handle *list_handle = NULL;
 	vattr_sp *new_sp = NULL;
+
 	/* Make a service provider handle */
 	new_sp = (vattr_sp*)slapi_ch_calloc(1,sizeof(vattr_sp));
-	if (NULL == new_sp) {
-		slapd_nasty(sourcefile,7,0);
-		return ENOMEM;
-	}
-	return_to_caller = (vattr_sp_handle*)slapi_ch_calloc(1,sizeof(vattr_sp_handle));
-	if (NULL == return_to_caller) {
-		slapd_nasty(sourcefile,8,0);
-		return ENOMEM;
-	}
 	new_sp->sp_get_fn = get_fn;
 	new_sp->sp_get_ex_fn = get_ex_fn;
 	new_sp->sp_compare_fn = compare_fn;
 	new_sp->sp_types_fn = types_fn;
+
+	return_to_caller = (vattr_sp_handle*)slapi_ch_calloc(1,sizeof(vattr_sp_handle));
 	return_to_caller->sp = new_sp;
+
 	/* Add to the service provider list */
 	/* Make a handle for the list */
 	list_handle = (vattr_sp_handle*)slapi_ch_calloc(1, sizeof (vattr_sp_handle));
-	if (NULL == list_handle) {
-		return ENOMEM;
-	}
 	*list_handle = *return_to_caller;
 	list_handle->next = vattr_sp_list;
 	vattr_sp_list = list_handle;
+
 	/* Return the handle to the caller */
 	*h = return_to_caller;
 	return 0;
