@@ -567,33 +567,33 @@ acl__malloc_aclpb ( )
 	if ((aclpb->aclpb_proplist = PListNew(NULL)) == NULL) {
 		 slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
 			    "Unable to allocate the aclprop PList\n");
-			return NULL;
+			goto error;
 	}
 
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_PROP_ACLPB, aclpb, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 					"Unable to set the ACL PBLOCK in the Plist\n");
-		return NULL;
+		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_USERDN, aclpb, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 					"Unable to set the USER DN in the Plist\n");
-		return NULL;
+		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_AUTHTYPE, aclpb, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 					"Unable to set the AUTH TYPE in the Plist\n");
-		return NULL;
+		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_ENTRY, aclpb, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 					"Unable to set the ENTRY TYPE in the Plist\n");
-		return NULL;
+		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_SSF, aclpb, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 					"Unable to set the SSF in the Plist\n");
-		return NULL;
+		goto error;
 	}
 
 	/* 
@@ -608,7 +608,7 @@ acl__malloc_aclpb ( )
 	if (aclpb->aclpb_acleval == NULL) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 							"Unable to allocate the acleval block\n");
-		return NULL;
+		goto error;
 	}
 	/*
      * This is a libaccess routine.
@@ -648,6 +648,12 @@ acl__malloc_aclpb ( )
 
 	return aclpb;
 
+error:
+	if (aclpb->aclpb_acleval) ACL_EvalDestroy(NULL, NULL, aclpb->aclpb_acleval);
+	if (aclpb->aclpb_proplist) PListDestroy(aclpb->aclpb_proplist);
+	slapi_ch_free((void**)&aclpb);
+
+	return NULL;
 }
 
 /* Initializes the aclpb */
