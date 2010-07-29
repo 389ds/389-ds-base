@@ -2322,7 +2322,8 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
             slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                             "dna_is_replica_bind_dn: failed to create "
                             "replica dn for %s\n", be_suffix);
-            return 1;
+            ret = 1;
+            goto done;
         }
         replica_sdn = slapi_sdn_new_dn_passin(replica_dn);
 
@@ -2350,6 +2351,7 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
         }
     }
 
+done:
     slapi_entry_free(e);
     slapi_sdn_free(&range_sdn);
     slapi_sdn_free(&replica_sdn);
