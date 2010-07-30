@@ -184,6 +184,7 @@ windows_conn_new(Repl_Agmt *agmt)
 	return rpc;
 loser:
 	windows_conn_delete(rpc);
+	slapi_ch_free((void**)&rpc);
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_conn_new - loser\n", 0, 0, 0 );
 	return NULL;
 }
