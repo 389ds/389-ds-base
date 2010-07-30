@@ -83,7 +83,7 @@ get_current_csn(Slapi_DN *replarea_sdn)
 						if (csngen_new_csn(gen, &current_csn,
 							PR_FALSE /* notify */) != CSN_SUCCESS)
 						{
-							current_csn = NULL;
+							csn_free(&current_csn);
 							
 						}
 						object_release(gen_obj);
