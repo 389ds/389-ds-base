@@ -1001,12 +1001,12 @@ conn_connect(Repl_Connection *conn)
 	int optdata;
 	int secure = 0;
 	char* binddn = NULL;
-	struct berval *creds;
+	struct berval *creds = NULL;
 	ConnResult return_value = CONN_OPERATION_SUCCESS;
 	int pw_ret = 1;
 
 	/** Connection already open just return SUCCESS **/
-	if(conn->state == STATE_CONNECTED) return return_value;
+	if(conn->state == STATE_CONNECTED) goto done;
 
 	PR_Lock(conn->lock);
 	if (conn->flag_agmt_changed) {
@@ -1044,7 +1044,7 @@ conn_connect(Repl_Connection *conn)
 			return_value = CONN_OPERATION_FAILED;
 			conn->last_ldap_error = LDAP_INVALID_CREDENTIALS;
 			conn->state = STATE_DISCONNECTED;
-			return (return_value);
+			goto done;
 		} /* Else, does not mean that the plain is correct, only means the we had no internal
 		   decoding pb */
 		conn->plain = slapi_ch_strdup (plain);
@@ -1068,9 +1068,8 @@ conn_connect(Repl_Connection *conn)
 							agmt_get_long_name(conn->agmt));
 			conn->last_ldap_error = LDAP_INAPPROPRIATE_AUTH;
 			conn->last_operation = CONN_INIT;
-			ber_bvfree(creds);
-			creds = NULL;
-			return CONN_SSL_NOT_ENABLED;
+			return_value = CONN_SSL_NOT_ENABLED;
+			goto done;
 		}
 	}
 
@@ -1098,9 +1097,7 @@ conn_connect(Repl_Connection *conn)
 				agmt_get_long_name(conn->agmt),
 				secure ? "secure " : "",
 				(secure == 2) ? "startTLS " : "");
-			ber_bvfree(creds);
-			creds = NULL;
-			return return_value;
+			goto done;
 		}
 		
 		/* slapi_ch_strdup is OK with NULL strings */
@@ -1147,19 +1144,19 @@ conn_connect(Repl_Connection *conn)
 		return_value = CONN_OPERATION_SUCCESS;
 	}
 		
-	
+done:
 	ber_bvfree(creds);
 	creds = NULL;
 
 	slapi_ch_free((void**)&binddn);
 
-	if(return_value == CONN_OPERATION_FAILED)
-	{
-		close_connection_internal(conn);
-	} else
+	if(return_value == CONN_OPERATION_SUCCESS)
 	{
 		conn->last_ldap_error = LDAP_SUCCESS;
 		conn->state = STATE_CONNECTED;
+	} else
+	{
+		close_connection_internal(conn);
 	}
 
 	return return_value;
