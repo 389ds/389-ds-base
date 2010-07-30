@@ -4481,7 +4481,7 @@ static int _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge)
     int rc;
 	char csnStr [CSN_STRSIZE];
 	DBT key={0}, data={0};
-    struct berval **vals;
+    struct berval **vals = NULL;
     CL5DBFile *file;
 	char *pos;
 	char *agmt_name;
@@ -4510,7 +4510,7 @@ static int _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge)
 							rc = _cl5ReadBervals (&vals, &pos, data.size);
                             slapi_ch_free (&(data.data));
                             if (rc != CL5_SUCCESS)
-                                return rc;
+				goto done;
                             
                             if (purge)
                                 rc = ruv_init_from_bervals(vals, &file->purgeRUV);							
@@ -4523,26 +4523,31 @@ static int _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge)
 						            "%s: _cl5ReadRUV: failed to initialize %s ruv; "
                                     "RUV error %d\n", agmt_name, purge? "purge" : "upper bound", rc);
 						
-                                return CL5_RUV_ERROR;
+                                rc = CL5_RUV_ERROR;
+				goto done;
                             }
-
-                            ber_bvecfree(vals);
 
                             /* delete the entry; it is re-added when file
 							   is successfully closed */
 							file->db->del (file->db, NULL, &key, DEFAULT_DB_OP_FLAGS);
 							
-							return CL5_SUCCESS;
+							rc = CL5_SUCCESS;
+							goto done;
 
 		case DB_NOTFOUND:	/* RUV is lost - need to construct */
                             rc = _cl5ConstructRUV (replGen, obj, purge);
-							return rc;
+							goto done;
 		
 		default:			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 								"%s: _cl5ReadRUV: failed to get purge RUV; "
 								"db error - %d %s\n", agmt_name, rc, db_strerror(rc));
-							return CL5_DB_ERROR;
+							rc = CL5_DB_ERROR;
+							goto done;
 	}	
+
+done:
+	ber_bvecfree(vals);
+	return rc;
 }
 
 static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
