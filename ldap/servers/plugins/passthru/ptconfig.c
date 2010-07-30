@@ -103,14 +103,16 @@ passthru_config( int argc, char **argv )
 {
     int			i, j, rc, tosecs, using_def_connlifetime, starttls = 0;
     char		**suffixarray;
-    PassThruServer	*prevsrvr, *srvr;
+    PassThruServer	*prevsrvr, *srvr = NULL;
     PassThruSuffix	*suffix, *prevsuffix;
     LDAPURLDesc		*ludp;
+    int			ret = LDAP_SUCCESS;
 
     if ( inited ) {
 	slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"only one pass through plugin instance can be used\n" );
-	return( LDAP_PARAM_ERROR );
+	ret = LDAP_PARAM_ERROR;
+	goto error;
     }
 
     inited = 1;
@@ -123,7 +125,8 @@ passthru_config( int argc, char **argv )
 	slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"no pass through servers found in configuration"
 		" (at least one must be listed)\n" );
-	return( LDAP_PARAM_ERROR );
+	ret = LDAP_PARAM_ERROR;
+	goto error;
     }
 
     /*
@@ -183,7 +186,8 @@ passthru_config( int argc, char **argv )
 			"server parameters should be in the form "
 			"\"maxconnections,maxconcurrency,timeout,ldapversion,"
 			"connlifetime\" (got \"%s\")\n", p );
-		return( LDAP_PARAM_ERROR );
+		ret = LDAP_PARAM_ERROR;
+		goto error;
 	    } else if ( rc < 5 ) {
 		using_def_connlifetime = 1;
 		srvr->ptsrvr_connlifetime = PASSTHRU_DEF_SRVR_CONNLIFETIME;
@@ -202,21 +206,24 @@ passthru_config( int argc, char **argv )
 			"LDAP protocol version should be %d or %d (got %d)\n",
 			LDAP_VERSION2, LDAP_VERSION3,
 			srvr->ptsrvr_ldapversion );
-		return( LDAP_PARAM_ERROR );
+		ret = LDAP_PARAM_ERROR;
+		goto error;
 	    }
 
 	    if ( srvr->ptsrvr_maxconnections <= 0 ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 			"maximum connections must be greater than "
 			"zero (got %d)\n", srvr->ptsrvr_maxconnections );
-		return( LDAP_PARAM_ERROR );
+		ret = LDAP_PARAM_ERROR;
+		goto error;
 	    }
 
 	    if ( srvr->ptsrvr_maxconcurrency <= 0 ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 			"maximum concurrency must be greater than "
 			"zero (got %d)\n", srvr->ptsrvr_maxconcurrency );
-		return( LDAP_PARAM_ERROR );
+		ret = LDAP_PARAM_ERROR;
+		goto error;
 	    }
 
 	    if ( tosecs <= 0 ) {
@@ -235,14 +242,16 @@ passthru_config( int argc, char **argv )
 	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		    "unable to parse LDAP URL \"%s\" (%s)\n",
 		    srvr->ptsrvr_url, slapi_urlparse_err2string( rc ));
-	    return( LDAP_PARAM_ERROR );
+	    ret = LDAP_PARAM_ERROR;
+	    goto error;
 	}
 
 	if ( ludp->lud_dn == NULL || *ludp->lud_dn == '\0' ) {
 	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		    "missing suffix in LDAP URL \"%s\"\n",
 		    srvr->ptsrvr_url );
-	    return( LDAP_PARAM_ERROR );
+	    ret = LDAP_PARAM_ERROR;
+	    goto error;
 	}
 	
 	srvr->ptsrvr_hostname = slapi_ch_strdup( ludp->lud_host );
@@ -269,7 +278,8 @@ passthru_config( int argc, char **argv )
 	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"unable to parse suffix string \"%s\" within \"%s\"\n",
 		ludp->lud_dn, srvr->ptsrvr_url );
-	    return( LDAP_PARAM_ERROR );
+	    ret = LDAP_PARAM_ERROR;
+	    goto error;
 	}
 
 	/*
@@ -313,7 +323,8 @@ passthru_config( int argc, char **argv )
 	if (( srvr->ptsrvr_connlist_mutex = slapi_new_mutex()) == NULL ||
 		( srvr->ptsrvr_connlist_cv = slapi_new_condvar(
 		srvr->ptsrvr_connlist_mutex )) == NULL ) {
-	    return( LDAP_LOCAL_ERROR );
+	    ret = LDAP_LOCAL_ERROR;
+	    goto error;
 	}
 
 	/*
@@ -350,7 +361,13 @@ passthru_config( int argc, char **argv )
 
     }
 
-    return( LDAP_SUCCESS );
+    goto done;
+
+error:
+    slapi_ch_free((void**)&srvr);
+
+done:
+    return ret;
 }
 
 
