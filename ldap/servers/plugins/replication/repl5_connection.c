@@ -183,6 +183,7 @@ conn_new(Repl_Agmt *agmt)
 	return rpc;
 loser:
 	conn_delete(rpc);
+	slapi_ch_free((void**)&rpc);
 	return NULL;
 }
 
