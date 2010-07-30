@@ -67,5 +67,6 @@ legacy_preop_compare( Slapi_PBlock *pb )
 		slapi_send_ldap_result(pb, LDAP_REFERRAL, NULL, NULL, 0, referral);
 		return_code = 1;	/* return 1 to prevent further search processing */
 	}
+	slapi_ch_free((void**)&referral);
 	return return_code;
 }
