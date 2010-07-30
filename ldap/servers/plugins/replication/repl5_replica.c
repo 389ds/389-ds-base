@@ -2725,6 +2725,7 @@ replica_create_ruv_tombstone(Replica *r)
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"Cannot obtain CSN for new replica update vector for %s\n",
 							escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+			csn_free(&csn);
             goto done;
 		}
 	}
