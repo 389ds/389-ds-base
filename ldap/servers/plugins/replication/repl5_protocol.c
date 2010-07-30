@@ -320,6 +320,7 @@ prot_thread_main(void *arg)
 		Slapi_DN *dn = agmt_get_replarea(agmt);
 		Replica *replica = NULL;
 		Object *replica_obj = replica_get_replica_from_dn(dn);
+		slapi_sdn_free(&dn);
 		if (replica_obj)
 		{
 		    replica = (Replica*) object_get_data (replica_obj);
