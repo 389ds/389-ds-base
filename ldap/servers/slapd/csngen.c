@@ -209,6 +209,8 @@ csngen_free (CSNGen **gen)
 	
 	if ((*gen)->lock)
 		PR_DestroyRWLock ((*gen)->lock);
+
+	slapi_ch_free((void**)gen);
 }
 
 int 
