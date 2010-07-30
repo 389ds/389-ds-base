@@ -373,6 +373,11 @@ repl5_tot_run(Private_Repl_Protocol *prp)
     agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update in progress");
 	remote_schema_csn = agmt_get_consumer_schema_csn ( prp->agmt );
 	rc = conn_push_schema(prp->conn, &remote_schema_csn);
+
+	if (remote_schema_csn != agmt_get_consumer_schema_csn ( prp->agmt )) {
+	    csn_free(&remote_schema_csn);
+	}
+
 	if (CONN_SCHEMA_UPDATED != rc && CONN_SCHEMA_NO_UPDATE_NEEDED != rc)
 	{
 	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
