@@ -136,12 +136,13 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 
 	/* XXXggood register callback handlers for entries updated, and
 		schedule window enter/leave. */
-	slapi_sdn_free(&replarea_sdn);
 	
-	return rp;
+	goto done;
 loser:
 	prot_delete(&rp);
-	return NULL;
+done:
+	slapi_sdn_free(&replarea_sdn);
+	return rp;
 }
 
 
