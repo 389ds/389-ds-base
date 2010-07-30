@@ -2451,7 +2451,7 @@ ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
  */
 
 int upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
-int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore, int *cnt);
+int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
 int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
 static void normalize_dir(char *dir);
 
@@ -2472,9 +2472,12 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     int server_running = 0;
     int rval = 0;
     int backup_rval = 0;
+    int upgrade_rval = 0;
     char *dest_dir = NULL;
     char *orig_dest_dir = NULL;
     char *home_dir = NULL;
+    char *src_dbversion = NULL;
+    char *dest_dbversion = NULL;
     int up_flags;
     int i;
     Slapi_Task *task;
@@ -2649,7 +2652,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
                                               inst_dir, MAXPATHLEN);
         backup_rval = dblayer_copy_directory(li, NULL /* task */,
                                              inst_dirp, dest_dir, 0/*backup*/,
-                                             &cnt, 0, 1, 0);
+                                             &cnt, 0, 0, 0);
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
         if (backup_rval < 0)
@@ -2666,6 +2669,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             rval = upgradedb_delete_indices_4cmd(inst, up_flags);
             if (rval)
             {
+                upgrade_rval += rval;
                 slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                     "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
@@ -2676,6 +2680,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             rval = dblayer_delete_indices(inst);
             if (rval);
             {
+                upgrade_rval += rval;
                 slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                     "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
@@ -2685,6 +2690,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         rval = upgradedb_core(pb, inst);
         if (rval)
         {
+            upgrade_rval += rval;
             slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                             "upgradedb: Failed to upgrade database %s\n",
                             inst->inst_name);
@@ -2696,9 +2702,15 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     }
 
     /* copy transaction logs */
-    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0, &cnt);
+    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0);
 
-    if (rval) {
+    /* copy DBVERSION */
+    home_dir = dblayer_get_home_dir(li, NULL);
+    src_dbversion = slapi_ch_smprintf("%s/%s", home_dir, DBVERSION_FILENAME);
+    dest_dbversion = slapi_ch_smprintf("%s/%s", dest_dir, DBVERSION_FILENAME);
+    backup_rval += dblayer_copyfile(src_dbversion, dest_dbversion, 0, 0600);
+
+    if (upgrade_rval) {
         goto fail1;
     }
 
@@ -2707,8 +2719,6 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     {
         replace_ldbm_config_value(CONFIG_IDL_SWITCH, "new", li);
     }
-
-    home_dir = dblayer_get_home_dir(li, NULL);
 
     /* write db version files */
     dbversion_write(li, home_dir, NULL, DBVERSION_ALL);
@@ -2752,6 +2762,9 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     if (dest_dir != orig_dest_dir)
         slapi_ch_free_string(&dest_dir);
 
+    slapi_ch_free_string(&src_dbversion);
+    slapi_ch_free_string(&dest_dbversion);
+
     return 0;
 
 fail1:
@@ -2759,7 +2772,7 @@ fail1:
         slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                         "Failed to flush database\n");
 
-    /* Ugly! (we started dblayer with DBLAYER_IMPORT_MODE)
+    /* we started dblayer with DBLAYER_IMPORT_MODE
      * We just want not to generate a guardian file...
      */
     if (0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE))
@@ -2769,52 +2782,25 @@ fail1:
     /* restore from the backup, if possible */
     if (NULL != dest_dir)
     {
-        if (0 == backup_rval)    /* only when the backup succeeded... */
+        /* If the backup was successfull and ugrade failed... */
+        if ((0 == backup_rval) && upgrade_rval)
         {
-            cnt = 0;
-
-            for (inst_obj = objset_first_obj(li->li_instance_set);
-                 inst_obj;
-                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
-            {
-                char *restore_inst_dir = NULL;
-                inst = (ldbm_instance *)object_get_data(inst_obj);
-                restore_inst_dir = 
-                      slapi_ch_smprintf("%s/%s", dest_dir, inst->inst_dir_name);
-                backup_rval = dblayer_copy_directory(li, NULL /* task */,
-                                                     restore_inst_dir,
-                                                     inst->inst_dir_name,
-                                                     1/*restore*/,
-                                                     &cnt, 0, 1, 0);
-                slapi_ch_free_string(&restore_inst_dir);
-                if (backup_rval < 0)
-                {
-                    slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
-                                    "Failed to restore index files "
-                                    "(instance %s; bakup dir: %s).\n",
-                                    inst->inst_name, dest_dir);
-                    goto fail0;
-                }
-            }
-    
-            backup_rval = upgradedb_copy_logfiles(li, dest_dir, 1, &cnt);
-            if (backup_rval < 0)
-            {
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
-                        "Failed to restore log files.\n");
-                goto fail0;
-            }
+            backup_rval = dblayer_restore(li, dest_dir, NULL, NULL);
         }
-
         /* restore is done; clean up the backup dir */
-        ldbm_delete_dirs(dest_dir);
+        if (0 == backup_rval)
+        {
+            ldbm_delete_dirs(dest_dir);
+        }
     }
+    slapi_ch_free_string(&src_dbversion);
+    slapi_ch_free_string(&dest_dbversion);
 
 fail0:
     if (dest_dir != orig_dest_dir)
         slapi_ch_free_string(&dest_dir);
 
-    return rval;
+    return rval + upgrade_rval;
 }
 
 static void
@@ -2839,8 +2825,8 @@ normalize_dir(char *dir)
 
 #define LOG    "log."
 #define LOGLEN    4
-int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
-                                 int restore, int *cnt)
+int upgradedb_copy_logfiles(struct ldbminfo *li,
+                            char *destination_dir, int restore)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -2854,7 +2840,6 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
     char *from = NULL;
     char *to = NULL;
 
-    *cnt = 0;
     if (restore)
     {
         src = destination_dir;
@@ -2919,7 +2904,6 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
             rval = dblayer_copyfile(from, to, 1, DEFAULT_MODE);
             if (rval < 0)
                 break;
-            cnt++;
         }
     }
     slapi_ch_free_string(&from);
