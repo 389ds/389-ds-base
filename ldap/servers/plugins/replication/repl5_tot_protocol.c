@@ -476,7 +476,6 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	agmt_set_last_init_end(prp->agmt, current_time());
 	rc = cb_data.rc;
 	release_replica(prp);
-	slapi_sdn_free(&area_sdn);
 	
     if (rc != LDAP_SUCCESS)
     {
@@ -491,6 +490,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	}
 
 done:
+	slapi_sdn_free(&area_sdn);
 	slapi_ch_free_string(&hostname);
 	if (cb_data.lock) 
 	{
