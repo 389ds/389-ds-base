@@ -2717,6 +2717,7 @@ replica_create_ruv_tombstone(Replica *r)
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 								"Cannot create new replica update vector for %s\n",
 								escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+				ruv_destroy(&ruv);
                 goto done;
 			}
 		}
