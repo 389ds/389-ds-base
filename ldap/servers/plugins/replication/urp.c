@@ -938,6 +938,7 @@ urp_add_resolve_parententry (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *ent
 bailout:
 	if (parentdn)
 		slapi_sdn_free(&parentdn);
+	slapi_rdn_free(&add_rdn);
 	return rc;
 }
 
