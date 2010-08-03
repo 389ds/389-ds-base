@@ -751,7 +751,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			if (entryrdn_get_switch()) /* subtree-rename: on */
 			{
 				retval =
-						entryrdn_index_entry(be, tombstone, BE_INDEX_DEL, &txn);
+						entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
 					LDAPDebug0Args( LDAP_DEBUG_ARGS,
 							"delete (deleting entryrdn) DB_LOCK_DEADLOCK\n");
