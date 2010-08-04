@@ -1194,7 +1194,6 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     if ((( dblayer_get_id2entry( be, &db )) != 0) || (db == NULL)) {
         LDAPDebug( LDAP_DEBUG_ANY, "Could not open/create id2entry\n",
             0, 0, 0 );
-        ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
         return_value = -1;
         goto bye;
     }
@@ -1217,7 +1216,6 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             LDAPDebug2Args(LDAP_DEBUG_ANY,
                           "Failed to get cursor for db2ldif; %s (%d)\n",
                           dblayer_strerror(return_value), return_value);
-            ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
             return_value = -1;
             goto bye;
         }
@@ -1517,7 +1515,6 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     }
 
     dblayer_release_id2entry( be, db );
-    ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
 
     if (fd != FD_STDOUT) {
         close(fd);
@@ -1543,6 +1540,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     }
 
 bye:
+    ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
     idl_free(eargs.pre_exported_idl);
     if (inst != NULL) {
         PR_Lock(inst->inst_config_mutex);
