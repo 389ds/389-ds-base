@@ -1522,6 +1522,13 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			(*(void **)value) = pblock->pb_op->o_results.r.r_search.search_result_set;
 		}
 		break;
+	/* estimated search result set size */
+	case SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE:
+		if(pblock->pb_op!=NULL)
+		{
+			(*(int *)value) = pblock->pb_op->o_results.r.r_search.estimate;
+		}
+		break;
 	/* Entry returned from iterating over results set */
 	case SLAPI_SEARCH_RESULT_ENTRY:
 		if(pblock->pb_op!=NULL)
@@ -2889,6 +2896,13 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		if(pblock->pb_op!=NULL)
 		{
 			pblock->pb_op->o_results.r.r_search.search_result_set = (void *)value;
+		}
+		break;
+	/* estimated search result set size */
+	case SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE:
+		if(pblock->pb_op!=NULL)
+		{
+			pblock->pb_op->o_results.r.r_search.estimate = *(int *)value;
 		}
 		break;
 	/* Search result - entry returned from iterating over result set */

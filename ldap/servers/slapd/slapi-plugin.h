@@ -5841,6 +5841,8 @@ typedef struct slapi_plugindesc {
  */
 /* Search result set */
 #define SLAPI_SEARCH_RESULT_SET			193
+/* Estimated search result set size (for paged results) */
+#define SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE	1930
 /* Search result - next entry returned from search result set */
 #define	SLAPI_SEARCH_RESULT_ENTRY		194
 #define SLAPI_SEARCH_RESULT_ENTRY_EXT           1944

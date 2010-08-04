@@ -1660,6 +1660,7 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int isrootdse= 0;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
 	Slapi_DN basesdn;
+	int estimate = 0; /* estimated search result set size */
 
     /* 
      * Get private information created in the init routine. 
@@ -1716,6 +1717,7 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 				slapi_pblock_set (pb, SLAPI_SEARCH_RESULT_SET, ss);
 				dse_search_set_add_entry (ss, baseentry); /* consumes the entry */
 				baseentry= NULL;
+				estimate = 1; /* scope base */
         	}
         }
 		slapi_entry_free(baseentry);
@@ -1726,10 +1728,11 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     case LDAP_SCOPE_SUBTREE:
         if(!isrootdse)
         {
-            do_dse_search(pdse, pb, scope, &basesdn, filter, attrs, attrsonly);
+            estimate = do_dse_search(pdse, pb, scope, &basesdn, filter, attrs, attrsonly);
         }
         break;
     }
+	slapi_pblock_set (pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
 
     /* Search is done, send LDAP_SUCCESS */
 	slapi_sdn_done(&basesdn);

@@ -108,6 +108,8 @@ berval_done(struct berval *val)
  */
 int ldbm_back_search_cleanup(Slapi_PBlock *pb, struct ldbminfo *li, sort_spec_thing *sort_control, int ldap_result, char* ldap_result_description, int function_result, Slapi_DN *sdn, struct vlv_request *vlv_request_control)
 {
+    int estimate = 0; /* estimated search result count */
+
     if(sort_control!=NULL)
     {
         sort_spec_free(sort_control);
@@ -125,6 +127,7 @@ int ldbm_back_search_cleanup(Slapi_PBlock *pb, struct ldbminfo *li, sort_spec_th
             /* in case paged results, clean up the conn */
             pagedresults_set_search_result(pb->pb_conn, NULL);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             delete_search_result_set(&sr);
         }
     }
@@ -160,6 +163,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     LDAPControl **controls = NULL;
     Slapi_Operation *operation;
     entry_address *addr;
+    int estimate = 0; /* estimated search result set size */
 
     /* SORT control stuff */
     int sort = 0;
@@ -202,6 +206,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     sr = new_search_result_set( NULL, 0, 
                                 compute_lookthrough_limit( pb, li ));
     slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, sr );
+    slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
     
     /* clear this out so we can free it later */
     memset(&vlv_request_control, 0, sizeof(vlv_request_control));
@@ -675,6 +680,12 @@ ldbm_back_search( Slapi_PBlock *pb )
     sr->sr_candidates = candidates;
     sr->sr_virtuallistview = virtual_list_view;
 
+    /* Set the estimated search result count for simple paged results */
+    if (sr->sr_candidates && !ALLIDS(sr->sr_candidates)) {
+        estimate = IDL_NIDS(sr->sr_candidates);
+    }
+    slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
+
     /* check to see if we can skip the filter test */
     if ( li->li_filter_bypass && NULL != candidates && !virtual_list_view
                 && !lookup_returned_allids ) {
@@ -1117,6 +1128,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     Slapi_DN               basesdn;
     char                   *target_uniqueid;
     int                    rc = 0; 
+    int                    estimate = 0; /* estimated search result count */
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -1178,6 +1190,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* in case paged results, clean up the conn */
             pagedresults_set_search_result(pb->pb_conn, NULL);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             }
@@ -1195,6 +1208,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* in case paged results, clean up the conn */
             pagedresults_set_search_result(pb->pb_conn, NULL);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             } 
@@ -1211,6 +1225,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* in case paged results, clean up the conn */
             pagedresults_set_search_result(pb->pb_conn, NULL);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             } 
@@ -1229,6 +1244,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* in case paged results, clean up the conn */
             pagedresults_set_search_result(pb->pb_conn, NULL);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             }
@@ -1371,6 +1387,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                          /* in case paged results, clean up the conn */
                          pagedresults_set_search_result(pb->pb_conn, NULL);
                          slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
+                         slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
                          delete_search_result_set( &sr );
                          slapi_send_ldap_result( pb, LDAP_SIZELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
                          rc = SLAPI_FAIL_GENERAL;

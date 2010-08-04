@@ -217,6 +217,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   unsigned int    pr_stat = 0;
 
   ber_int_t pagesize = -1;
+  ber_int_t estimate = 0; /* estimated search result set size */
   int curr_search_count = 0;
   Slapi_Backend *pr_be = NULL;
   void *pr_search_result = NULL;
@@ -376,6 +377,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               pr_search_result = pagedresults_get_search_result(pb->pb_conn);
               pr_search_result_count =
                              pagedresults_get_search_result_count(pb->pb_conn);
+              estimate = 
+                 pagedresults_get_search_result_set_size_estimate(pb->pb_conn);
           } else {
               /* parse paged-results-control failed */
               if (iscritical) { /* return an error since it's critical */
@@ -572,13 +575,16 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         } else {
           curr_search_count = pnentries;
         }
+        estimate = 0;
       } else {
         curr_search_count = pnentries;
+        estimate -= estimate?curr_search_count:0;
       }
-      pagedresults_set_response_control(pb, 0, pagesize, curr_search_count);
+      pagedresults_set_response_control(pb, 0, estimate, curr_search_count);
       if (pagedresults_get_with_sort(pb->pb_conn)) {
         sort_make_sort_response_control(pb, CONN_GET_SORT_RESULT_CODE, NULL);
       }
+      pagedresults_set_search_result_set_size_estimate(pb->pb_conn, estimate);
       next_be = NULL; /* to break the loop */
     } else {
       /* be_suffix null means that we are searching the default backend
@@ -706,16 +712,19 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
             } else {
               curr_search_count = pnentries;
               slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+              slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
               if (pagedresults_set_current_be(pb->pb_conn, be) < 0 ||
                   pagedresults_set_search_result(pb->pb_conn, sr) < 0 ||
                   pagedresults_set_search_result_count(pb->pb_conn,
                                                    curr_search_count) < 0 ||
+                  pagedresults_set_search_result_set_size_estimate(pb->pb_conn,
+                                                   estimate) < 0 ||
                   pagedresults_set_with_sort(pb->pb_conn, with_sort) < 0) {
                 goto free_and_return;
               }
             }
             pagedresults_set_response_control(pb, 0,
-                                              pagesize, curr_search_count);
+                                              estimate, curr_search_count);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             next_be = NULL; /* to break the loop */
         }

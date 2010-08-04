@@ -1230,6 +1230,8 @@ typedef struct slapi_operation_results
 			int nentries;
 			/* Any referrals encountered during the search */
 			struct berval **search_referrals;
+			/* estimated search result set size */
+			int estimate;
 		} r_search;
 
 		struct extended_results
@@ -1345,6 +1347,7 @@ typedef struct conn {
     Slapi_Backend   *c_current_be;         /* backend being used */
     void            *c_search_result_set;  /* search result set for paging */
     int             c_search_result_count; /* search result count */
+    int             c_search_result_set_size_estimate; /* estimated search result set size */
     int             c_sort_result_code;    /* sort result put in response */
     time_t          c_timelimit;           /* time limit for this connection */
     /* PAGED_RESULTS ENDS */

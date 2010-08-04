@@ -1358,13 +1358,15 @@ int slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
  * pagedresults.c
  */
 int pagedresults_parse_control_value(struct berval *psbvp, ber_int_t *pagesize, int *curr_search_count);
-void pagedresults_set_response_control(Slapi_PBlock *pb, int	iscritical, ber_int_t pagesize, int curr_search_count);
+void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, ber_int_t estimate, int curr_search_count);
 Slapi_Backend *pagedresults_get_current_be(Connection *conn);
 int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be);
 void *pagedresults_get_search_result(Connection *conn);
 int pagedresults_set_search_result(Connection *conn, void *sr);
 int pagedresults_get_search_result_count(Connection *conn);
 int pagedresults_set_search_result_count(Connection *conn, int cnt);
+int pagedresults_get_search_result_get_size_estimate(Connection *conn);
+int pagedresults_set_search_result_set_size_estimate(Connection *conn, int cnt);
 int pagedresults_get_with_sort(Connection *conn);
 int pagedresults_set_with_sort(Connection *conn, int flags);
 int pagedresults_get_sort_result_code(Connection *conn);

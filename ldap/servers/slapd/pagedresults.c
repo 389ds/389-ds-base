@@ -114,7 +114,7 @@ pagedresults_parse_control_value( struct berval *psbvp,
  */
 void
 pagedresults_set_response_control( Slapi_PBlock *pb, int iscritical,
-                                    ber_int_t pagesize, int curr_search_count )
+                                   ber_int_t estimate, int curr_search_count )
 {
     LDAPControl **resultctrls = NULL;
     LDAPControl pr_respctrl;
@@ -135,7 +135,7 @@ pagedresults_set_response_control( Slapi_PBlock *pb, int iscritical,
     } else {
         cookie_str = slapi_ch_smprintf("%d", curr_search_count);
     }
-    ber_printf ( ber, "{io}", pagesize, cookie_str, strlen(cookie_str) );
+    ber_printf ( ber, "{io}", estimate, cookie_str, strlen(cookie_str) );
     if ( ber_flatten ( ber, &berval ) != LDAP_SUCCESS )
     {
         goto bailout;
@@ -243,6 +243,31 @@ pagedresults_set_search_result_count(Connection *conn, int count)
     if (conn) {
         PR_Lock(conn->c_mutex);
         conn->c_search_result_count = count;
+        PR_Unlock(conn->c_mutex);
+        rc = 0;
+    }
+    return rc;
+}
+
+int
+pagedresults_get_search_result_set_size_estimate(Connection *conn)
+{
+    int count = 0;
+    if (conn) {
+        PR_Lock(conn->c_mutex);
+        count = conn->c_search_result_set_size_estimate;
+        PR_Unlock(conn->c_mutex);
+    }
+    return count;
+}
+
+int
+pagedresults_set_search_result_set_size_estimate(Connection *conn, int count)
+{
+    int rc = -1;
+    if (conn) {
+        PR_Lock(conn->c_mutex);
+        conn->c_search_result_set_size_estimate = count;
         PR_Unlock(conn->c_mutex);
         rc = 0;
     }
