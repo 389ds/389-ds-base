@@ -623,6 +623,7 @@ int ldbm_instance_config_add_index_entry(
     char tmpMatchingRulesStr[1024];
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
+    int rc = 0;
 
     if ((argc < 2) || (NULL == argv) || (NULL == argv[0]) || 
         (NULL == argv[1])) {
@@ -652,7 +653,9 @@ int ldbm_instance_config_add_index_entry(
                       "instance %s\n",
                       basetype, inst->inst_li->li_plugin->plg_name,
                       inst->inst_name);
-            return -1;
+            slapi_ch_free((void**)&basetype);
+            rc = -1;
+            goto done;
         }
         eBuf = PR_smprintf(
                 "dn: %s\n"
@@ -683,6 +686,7 @@ int ldbm_instance_config_add_index_entry(
         slapi_ch_free((void**)&basetype);
     }
 
+done:
     if(NULL != attrs) {
         charray_free(attrs);
     }
@@ -692,7 +696,7 @@ int ldbm_instance_config_add_index_entry(
     if(NULL != matchingRules) {
         charray_free(matchingRules);
     }
-    return (0);
+    return rc;
 }
 
 int
