@@ -102,6 +102,7 @@ static int slapi_log_map[] = {
     LDAP_DEBUG_PLUGIN,		/* SLAPI_LOG_PLUGIN */
     LDAP_DEBUG_TIMING,		/* SLAPI_LOG_TIMING */
     LDAP_DEBUG_ACLSUMMARY,	/* SLAPI_LOG_ACLSUMMARY */
+    LDAP_DEBUG_BACKLDBM,	/* SLAPI_LOG_BACKLDBM */
 };
 
 #define SLAPI_LOG_MIN	SLAPI_LOG_FATAL		/* from slapi-plugin.h */

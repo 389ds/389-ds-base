@@ -4990,7 +4990,8 @@ int slapi_log_error( int severity, char *subsystem, char *fmt, ... )
 #define SLAPI_LOG_CACHE			13
 #define SLAPI_LOG_PLUGIN		14
 #define SLAPI_LOG_TIMING		15
-#define SLAPI_LOG_ACLSUMMARY		16
+#define SLAPI_LOG_BACKLDBM		16
+#define SLAPI_LOG_ACLSUMMARY		17
 
 int slapi_is_loglevel_set( const int loglevel );
 

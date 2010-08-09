@@ -245,7 +245,7 @@ entryrdn_index_entry(backend *be,
             rc = LDAP_INVALID_DN_SYNTAX;
             goto bail;
         } else if (rc > 0) {
-            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                             "entryrdn_index_entry: %s does not belong to "
                             "the db\n", slapi_sdn_get_dn(sdn));
             rc = DB_NOTFOUND;
@@ -335,7 +335,7 @@ entryrdn_index_read(backend *be,
         rc = LDAP_INVALID_DN_SYNTAX;
         goto bail;
     } else if (rc > 0) {
-        slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "entryrdn_index_read: %s does not belong to the db\n",
                         slapi_sdn_get_dn(sdn));
         rc = DB_NOTFOUND;
@@ -346,7 +346,7 @@ entryrdn_index_read(backend *be,
     rc = _entryrdn_open_index(be, &ai, &db);
     if (rc) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                        "entryrdn_index_read:: Opening the index failed: "
+                        "entryrdn_index_read: Opening the index failed: "
                         "%s(%d)\n",
                         rc<0?dblayer_strerror(rc):"Invalid parameter", rc);
         goto bail;
@@ -455,8 +455,8 @@ entryrdn_rename_subtree(backend *be,
         rc = LDAP_INVALID_DN_SYNTAX;
         goto bail;
     } else if (rc > 0) {
-        slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
-                        "entryrdn_rename_subtree:: %s does not belong to "
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+                        "entryrdn_rename_subtree: %s does not belong to "
                         "the db\n", slapi_sdn_get_dn(oldsdn));
         rc = DB_NOTFOUND;
         goto bail;
@@ -497,7 +497,7 @@ entryrdn_rename_subtree(backend *be,
             goto bail;
         } else {
             /* newsupsdn == NULL, so newsrdn is not */
-            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "entryrdn_rename_subtree: Renaming suffix %s to %s\n",
                         nrdn, slapi_rdn_get_nrdn((Slapi_RDN *)mynewsrdn));
         }
@@ -546,8 +546,8 @@ entryrdn_rename_subtree(backend *be,
             rc = LDAP_INVALID_DN_SYNTAX;
             goto bail;
         } else if (rc > 0) {
-            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
-                            "entryrdn_rename_subtree:: %s does not belong "
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+                            "entryrdn_rename_subtree: %s does not belong "
                             "to the db\n", slapi_sdn_get_dn(mynewsupsdn));
             rc = DB_NOTFOUND;
             goto bail;
@@ -894,8 +894,8 @@ entryrdn_get_subordinates(backend *be,
                             "\"%s\" to Slapi_RDN\n", slapi_sdn_get_dn(sdn));
             rc = LDAP_INVALID_DN_SYNTAX;
         } else if (rc > 0) {
-            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
-                            "entryrdn_get_subordinates:: %s does not belong to "
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+                            "entryrdn_get_subordinates: %s does not belong to "
                             "the db\n", slapi_sdn_get_dn(sdn));
             rc = DB_NOTFOUND;
         }
@@ -1601,7 +1601,7 @@ _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type)
     if (rc) {
         if (DB_KEYEXIST == rc) {
             /* this is okay */
-            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                             "_entryrdn_put_data: The same key (%s) and the "
                             "data exists in index\n",
                             (char *)key->data);
@@ -2026,7 +2026,7 @@ _entryrdn_insert_key(backend *be,
             } /* if (TMPID == tmpid) */
             rc = 0;
         } /* if (DB_KEYEXIST == rc) */
-        slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "_entryrdn_insert_key: Suffix %s added: %d\n", 
                         nrdn, rc);
         goto bail; /* succeeded or failed, it's done */
@@ -2099,7 +2099,7 @@ _entryrdn_insert_key(backend *be,
             adddata.flags = DB_DBT_USERMEM;
 
             rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF);
-            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "_entryrdn_insert_key: Suffix %s added: %d\n", 
                         slapi_rdn_get_rdn(tmpsrdn), rc);
         } else {
@@ -2201,7 +2201,7 @@ _entryrdn_insert_key(backend *be,
                     /* already in the file */
                     /* do nothing and return. */
                     rc = 0;
-                    slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+                    slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                                     "_entryrdn_insert_key: ID %d is already "
                                     "in the index. NOOP.\n", currid);
                 } else { /* different id, error return */
@@ -2409,7 +2409,7 @@ retry_get0:
         }
         if (rc) {
             if (DB_NOTFOUND == rc) {
-                slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+                slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                            "_entryrdn_delete_key: No parent link %s\n", keybuf);
                 goto bail;
             } else {
@@ -2567,7 +2567,7 @@ _entryrdn_index_read(backend *be,
     /* getting the suffix element */
     rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, elem); 
     if (rc || NULL == *elem) {
-        slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "_entryrdn_index_read: Suffix \"%s\" not found: "
                         "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
         rc = DB_NOTFOUND;
@@ -2644,7 +2644,7 @@ _entryrdn_index_read(backend *be,
         rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem); 
         if (rc) {
             slapi_ch_free((void **)&tmpelem);
-            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                             "_entryrdn_index_read: Child link \"%s\" of key "
                             "\"%s\" not found: %s(%d)\n",
                             childnrdn, keybuf, dblayer_strerror(rc), rc);

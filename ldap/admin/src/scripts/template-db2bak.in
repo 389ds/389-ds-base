@@ -12,13 +12,41 @@ export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
-cd {{SERVERBIN-DIR}}
-if [ "$#" -eq 1 ]
+if [ $# -gt 4 ]
 then
-	bak_dir=$1
-else
-	bak_dir={{BAK-DIR}}/{{SERV-ID}}-`date +%Y_%m_%d_%H_%M_%S`
+    echo "Usage: db2bak [archivedir] [-q] [-h]"
+    exit 1
+fi
+
+bak_dir={{BAK-DIR}}/{{SERV-ID}}-`date +%Y_%m_%d_%H_%M_%S`
+dlevel=0
+quiet=0
+cd {{SERVERBIN-DIR}}
+if [ "$#" -gt 0 ]
+then
+  if [ "$1" != "-q" ] && [ "$1" != "-d" ] && [ "$1" != "-h" ]
+  then
+    bak_dir=$1
+    shift
+  fi
+  while getopts "hqd:" flag
+  do
+    case $flag in
+        h) echo "Usage: db2bak [archivedir] [-q] [-h]"
+           exit 0;;
+        q) quiet=1;;
+        d) dlevel=$OPTARG;;
+    esac
+  done
+fi
+# If not quiet, set LDAP_DEBUG_BACKLDBM to debug level
+if [ $quiet -eq 0 ]
+then
+  if [ $dlevel -ne 524288 ]
+  then
+    dlevel=`expr $dlevel + 524288`
+  fi
 fi
 
 echo "Back up directory: $bak_dir"
-./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir
+./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir -d $dlevel

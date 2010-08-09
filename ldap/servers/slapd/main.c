@@ -2579,6 +2579,9 @@ slapd_exemode_db2archive()
 		LDAPDebug(LDAP_DEBUG_ANY, "Initialization Failed 0 %d\n",return_value,0,0);
 		return 1;
 	}
+	if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
+		g_set_detached(1);
+	}
 
 	memset( &pb, '\0', sizeof(pb) );
 	pb.pb_backend = NULL;
@@ -2628,6 +2631,10 @@ slapd_exemode_archive2db()
 	if (compute_init()) {
 		LDAPDebug(LDAP_DEBUG_ANY, "Initialization Failed 0 %d\n",return_value,0,0);
 		return 1;
+	}
+
+	if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
+		g_set_detached(1);
 	}
 
 	memset( &pb, '\0', sizeof(pb) );
@@ -2928,6 +2935,7 @@ static struct slapd_debug_level_entry {
         { LDAP_DEBUG_PLUGIN,	"plugin",			1	},
         { LDAP_DEBUG_TIMING,	"timing",			0	},
         { LDAP_DEBUG_ACLSUMMARY,"accesscontrolsummary", 0  },
+        { LDAP_DEBUG_BACKLDBM,  "backend",          0  },
         { LDAP_DEBUG_ALL_LEVELS,"ALL",				0	},
         { 0,                    NULL,               0     }
 };
