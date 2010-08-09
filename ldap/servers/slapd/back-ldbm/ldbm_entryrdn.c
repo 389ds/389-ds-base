@@ -83,6 +83,14 @@ typedef struct _rdn_elem {
     ((elem)->rdn_elem_nrdn_rdn + \
      sizeushort_stored_to_internal((elem)->rdn_elem_nrdn_len))
 
+#define TMPID 0 /* Used for the fake ID */
+
+/* RDN(s) which can be added even if no suffix exists in the entryrdn index */
+const char *rdn_exceptions[] = {
+    "nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff",
+    NULL
+};
+
 /* helper functions */
 static rdn_elem *_entryrdn_new_rdn_elem(backend *be, ID id, Slapi_RDN *srdn, size_t *length);
 static void _entryrdn_dup_rdn_elem(const void *raw, rdn_elem **new);
@@ -1224,7 +1232,6 @@ entryrdn_get_parent(backend *be,
         slapi_ch_free_string(&orignrdn);
     }
 
-    /* Setting the bulk fetch buffer */
     memset(&data, 0, sizeof(data));
     data.flags = DB_DBT_MALLOC;
 
@@ -1593,12 +1600,11 @@ _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type)
     rc = cursor->c_put(cursor, key, data, DB_NODUPDATA);
     if (rc) {
         if (DB_KEYEXIST == rc) {
-            /* this is okay; this won't happen, tho */
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+            /* this is okay */
+            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                             "_entryrdn_put_data: The same key (%s) and the "
                             "data exists in index\n",
                             (char *)key->data);
-            rc = 0;
         } else {
             char *keyword = NULL;
             if (type == RDN_INDEX_CHILD) {
@@ -1748,6 +1754,182 @@ bail:
 }
 
 /*
+ * Helper function to replace a temporary id assigned to suffix id.
+ */
+static int
+_entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
+                            ID id, const char *normsuffix)
+{
+    int rc = 0;
+    char *keybuf = NULL;
+    char *realkeybuf = NULL;
+    DBT realkey;
+    static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
+    DBT data;
+    DBT moddata;
+    rdn_elem **childelems = NULL;
+    rdn_elem **cep = NULL;
+    rdn_elem *childelem = NULL;
+    size_t childnum = 4;
+    size_t curr_childnum = 0;
+
+    /* temporary id added for the non exisiting suffix */
+    /* Let's replace it with the real entry ID */
+    /* SELF */
+    rc = cursor->c_put(cursor, key, adddata, DB_CURRENT);
+    if (rc) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "_entryrdn_insert_key: Adding suffix %s failed: "
+                        "%s (%d)\n", normsuffix, dblayer_strerror(rc), rc);
+        goto bail;
+    }
+
+    /*
+     * Fixing Child link:
+     * key: C0:Suffix --> C<realID>:Suffix
+     */
+    /* E.g., C1:dc=example,dc=com */
+    keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, TMPID, normsuffix);
+    key->data = keybuf;
+    key->size = key->ulen = strlen(keybuf) + 1;
+    key->flags = DB_DBT_USERMEM;    
+
+    /* Setting the bulk fetch buffer */
+    memset(&data, 0, sizeof(data));
+    data.ulen = sizeof(buffer);
+    data.size = sizeof(buffer);
+    data.data = buffer;
+    data.flags = DB_DBT_USERMEM;
+
+    realkeybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id, normsuffix);
+    realkey.data = realkeybuf;
+    realkey.size = realkey.ulen = strlen(realkeybuf) + 1;
+    realkey.flags = DB_DBT_USERMEM;    
+
+    memset(&moddata, 0, sizeof(moddata));
+    moddata.flags = DB_DBT_USERMEM;
+retry_get0:
+    rc = cursor->c_get(cursor, key, &data, DB_SET|DB_MULTIPLE);
+    if (DB_LOCK_DEADLOCK == rc) {
+        /* try again */
+        goto retry_get0;
+    } else if (DB_NOTFOUND == rc) {
+        _entryrdn_cursor_print_error("_entryrdn_insert_key",
+                                     key->data, data.size, data.ulen, rc);
+        goto bail;
+    } else if (rc) {
+        _entryrdn_cursor_print_error("_entryrdn_insert_key",
+                                     key->data, data.size, data.ulen, rc);
+        goto bail;
+    }
+    childelems = (rdn_elem **)slapi_ch_calloc(childnum, sizeof(rdn_elem *));
+    do {
+        DBT dataret;
+        void *ptr;
+        DB_MULTIPLE_INIT(ptr, &data);
+        do {
+            memset(&dataret, 0, sizeof(dataret));
+            DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
+            if (NULL == dataret.data || NULL == ptr) {
+                break;
+            }
+            _entryrdn_dup_rdn_elem((const void *)dataret.data, &childelem);
+            moddata.data = childelem;
+            moddata.ulen = moddata.size = _entryrdn_rdn_elem_size(childelem);
+            /* Delete it first */
+            rc = _entryrdn_del_data(cursor, key, &moddata);
+            if (rc) {
+                goto bail0;
+            }
+            /* Add it back */
+            rc = _entryrdn_put_data(cursor, &realkey, &moddata, 
+                                                RDN_INDEX_CHILD);
+            if (curr_childnum + 1 == childnum) {
+                childnum *= 2;
+                childelems = (rdn_elem **)slapi_ch_realloc((char *)childelems,
+                                                sizeof(rdn_elem *) * childnum);
+                memset(childelems + curr_childnum, 0,
+                       sizeof(rdn_elem *) * (childnum - curr_childnum));
+            }
+            childelems[curr_childnum++] = childelem;
+            /* We don't access the address with this variable any more */
+            childelem = NULL;
+        } while (NULL != dataret.data && NULL != ptr);
+retry_get1:
+        rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
+        if (DB_LOCK_DEADLOCK == rc) {
+            /* try again */
+            goto retry_get1;
+        } else if (DB_NOTFOUND == rc) {
+            rc = 0;
+            break; /* done */
+        } else if (rc) {
+            _entryrdn_cursor_print_error("_entryrdn_insert_key",
+                                         key->data, data.size, data.ulen, rc);
+            goto bail0;
+        }
+    } while (0 == rc);
+
+    /*
+     * Fixing Children's parent link:
+     * key:  P<childID>:<childRDN>  --> P<childID>:<childRDN>
+     * data: 0                      --> <realID>
+     */
+    for (cep = childelems; cep && *cep; cep++) {
+        rdn_elem *pelem = NULL;
+        slapi_ch_free_string(&keybuf);
+        /* E.g., P1:nsuniqueid=ffff.... */
+        keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_PARENT, 
+                                   id_stored_to_internal((*cep)->rdn_elem_id),
+                                   (*cep)->rdn_elem_nrdn_rdn);
+        key->data = keybuf;
+        key->size = key->ulen = strlen(keybuf) + 1;
+        key->flags = DB_DBT_USERMEM;    
+
+        memset(&moddata, 0, sizeof(moddata));
+        moddata.flags = DB_DBT_MALLOC;
+
+        /* Position cursor at the matching key */
+retry_get2:
+        rc = cursor->c_get(cursor, key, &moddata, DB_SET);
+        if (rc) {
+            if (DB_LOCK_DEADLOCK == rc) {
+                /* try again */
+                goto retry_get2;
+            } else if (rc) {
+                _entryrdn_cursor_print_error("_entryrdn_insert_key",
+                                           key->data, data.size, data.ulen, rc);
+                goto bail0;
+            }
+        }
+        pelem = (rdn_elem *)moddata.data;
+        if (TMPID == id_stored_to_internal(pelem->rdn_elem_id)) {
+            /* the parent id is TMPID;
+             * replace it with the given id */
+            id_internal_to_stored(id, pelem->rdn_elem_id);
+            rc = cursor->c_put(cursor, key, &moddata, DB_CURRENT);
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                                "_entryrdn_insert_key: Fixing the parent link "
+                                "(%s) failed: %s (%d)\n", keybuf,
+                                dblayer_strerror(rc), rc);
+                goto bail0;
+            }
+        }
+        slapi_ch_free((void **)&moddata.data);
+    } /* for (cep = childelems; cep && *cep; cep++) */
+bail0:
+    for (cep = childelems; cep && *cep; cep++) {
+        slapi_ch_free((void **)cep);
+    }
+    slapi_ch_free((void **)&childelems);
+bail:
+    slapi_ch_free_string(&keybuf);
+    slapi_ch_free_string(&realkeybuf);
+    return rc;
+}
+
+/*
  * This function starts from the suffix following the child links to the bottom.
  * If the target leaf node does not exist, the nodes (the child link of the 
  * parent node and the self link) are added.
@@ -1818,6 +2000,32 @@ _entryrdn_insert_key(backend *be,
         adddata.flags = DB_DBT_USERMEM;
 
         rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF);
+        if (DB_KEYEXIST == rc) {
+            DBT existdata;
+            rdn_elem *existelem = NULL;
+            ID tmpid;
+            memset(&existdata, 0, sizeof(existdata));
+            existdata.flags = DB_DBT_MALLOC;
+            rc = cursor->c_get(cursor, &key, &existdata, DB_SET);
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                                "_entryrdn_insert_key: Get existing suffix %s "
+                                "failed: %s (%d)\n",
+                                nrdn, dblayer_strerror(rc), rc);
+                goto bail;
+            }
+            existelem = (rdn_elem *)existdata.data;
+            tmpid = id_stored_to_internal(existelem->rdn_elem_id);
+            slapi_ch_free((void **)&existelem);
+            if (TMPID == tmpid) {
+                rc = _entryrdn_replace_suffix_id(cursor, &key, &adddata, 
+                                                 id, nrdn);
+                if (rc) {
+                    goto bail;
+                }
+            } /* if (TMPID == tmpid) */
+            rc = 0;
+        } /* if (DB_KEYEXIST == rc) */
         slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                         "_entryrdn_insert_key: Suffix %s added: %d\n", 
                         nrdn, rc);
@@ -1849,7 +2057,6 @@ _entryrdn_insert_key(backend *be,
         goto bail;
     }
 
-    slapi_rdn_free(&tmpsrdn);
     memset(&data, 0, sizeof(data));
     data.ulen = data.size = len;
     data.data = elem;
@@ -1858,11 +2065,52 @@ _entryrdn_insert_key(backend *be,
     /* getting the suffix element */
     rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, &elem); 
     if (rc) {
-        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                        "_entryrdn_insert_key: Suffix \"%s\" not found: "
-                        "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
-        goto bail;
+        const char *myrdn = slapi_rdn_get_nrdn(srdn);
+        const char *ep = NULL;
+        int isexception = 0;
+        /* Check the RDN is in the exception list */
+        for (ep = *rdn_exceptions; ep && *ep; ep++) {
+            if (!strcmp(ep, myrdn)) {
+                isexception = 1;
+            }
+        }
+
+        if (isexception) {
+            /* adding suffix RDN to the self key */
+            DBT adddata;
+            /* suffix ID = 0: fake ID to be replaced with the real one when
+             * it's really added. */
+            ID suffixid = TMPID;
+            slapi_ch_free((void **)&elem);
+            elem = _entryrdn_new_rdn_elem(be, suffixid, tmpsrdn, &len);
+            if (NULL == elem) {
+                slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                           "_entryrdn_insert_key: Failed to generate an elem: "
+                           "id: %d, rdn: %s\n", 
+                           suffixid, slapi_rdn_get_rdn(tmpsrdn));
+                goto bail;
+            }
+#ifdef LDAP_DEBUG_ENTRYRDN
+            _entryrdn_dump_rdn_elem(elem);
+#endif
+            memset(&adddata, 0, sizeof(adddata));
+            adddata.ulen = adddata.size = len;
+            adddata.data = (void *)elem;
+            adddata.flags = DB_DBT_USERMEM;
+
+            rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF);
+            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
+                        "_entryrdn_insert_key: Suffix %s added: %d\n", 
+                        slapi_rdn_get_rdn(tmpsrdn), rc);
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "_entryrdn_insert_key: Suffix \"%s\" not found: "
+                            "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
+            goto bail;
+        }
     }
+    slapi_rdn_free(&tmpsrdn);
+
     /* workid: ID of suffix */
     workid = id_stored_to_internal(elem->rdn_elem_id);
     parentelem = elem;
@@ -2185,7 +2433,7 @@ retry_get0:
             rc = cursor->c_del(cursor, 0);
             if (rc && DB_NOTFOUND != rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                                "_entryrdn_del_data: Deleting %s failed; "
+                                "_entryrdn_delete_key: Deleting %s failed; "
                                 "%s(%d)\n", (char *)key.data,
                                 dblayer_strerror(rc), rc);
                 goto bail;
@@ -2200,7 +2448,7 @@ retry_get0:
             rc = cursor->c_del(cursor, 0);
             if (rc && DB_NOTFOUND != rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                                "_entryrdn_del_data: Deleting %s failed; "
+                                "_entryrdn_delete_key: Deleting %s failed; "
                                 "%s(%d)\n", (char *)key.data,
                                 dblayer_strerror(rc), rc);
                 goto bail;
@@ -2216,7 +2464,7 @@ retry_get0:
             rc = cursor->c_del(cursor, 0);
             if (rc && DB_NOTFOUND != rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                                "_entryrdn_del_data: Deleting %s failed; "
+                                "_entryrdn_delete_key: Deleting %s failed; "
                                 "%s(%d)\n", (char *)key.data,
                                 dblayer_strerror(rc), rc);
                 goto bail;

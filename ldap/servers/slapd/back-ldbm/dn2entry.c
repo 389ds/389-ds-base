@@ -73,7 +73,7 @@ dn2entry(
 	e = cache_find_dn(&inst->inst_cache, ndnv.bv_val, ndnv.bv_len);
 	if (e == NULL)
 	{
-		ID id = 0;
+		ID id = ALLID;
 		/* convert dn to entry id */
 		if (entryrdn_get_switch())
 		{ /* subtree-rename: on */
@@ -88,6 +88,16 @@ dn2entry(
 									slapi_sdn_get_dn(sdn), *err);
 				}
 				/* There's no entry with this DN. */
+				goto bail;
+			}
+			if (0 == id) {
+				/* 
+				 * Note: A special entry such as RUV could be added 
+				 * to entryrdn even if the suffix does not exist in 
+				 * the index.  At that time, fake ID 0 is used as the
+				 * parent id.
+				 */
+				/* There's no entry with this suffix. */
 				goto bail;
 			}
 			indexname = LDBM_ENTRYRDN_STR;
