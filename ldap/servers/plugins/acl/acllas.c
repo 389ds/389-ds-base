@@ -1207,14 +1207,14 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 	
 	/* See if we have a  parent[2].attr" rule */
-	if ( (ptr = strstr(attrName, "parent[")) != NULL) {
+	if (strstr(attrName, "parent[") != NULL) {
 		char	*word, *str, *next;
 	
 		numOflevels = 0;
 		n_currEntryDn = slapi_entry_get_ndn ( lasinfo.resourceEntry );
 		str = attrName;
 
-		word = ldap_utf8strtok_r(str, "[],. ",&next);
+		ldap_utf8strtok_r(str, "[],. ",&next);
 		/* The first word is "parent[" and so it's not important */
 
 		while ((word= ldap_utf8strtok_r(NULL, "[],.", &next)) != NULL) {
@@ -1453,14 +1453,14 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	}
 
 	/* See if we have a  parent[2].attr" rule */
-	if ( (ptr = strstr(attrName, "parent[")) != NULL) {
+	if (strstr(attrName, "parent[") != NULL) {
 		char	*word, *str, *next;
 	
 		numOflevels = 0;
 		n_currEntryDn = slapi_entry_get_ndn ( lasinfo.resourceEntry );
 		str = attrName;
 
-		word = ldap_utf8strtok_r(str, "[],. ",&next);
+		ldap_utf8strtok_r(str, "[],. ",&next);
 		/* The first word is "parent[" and so it's not important */
 
 		while ((word= ldap_utf8strtok_r(NULL, "[],.", &next)) != NULL) {
@@ -2619,7 +2619,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName);
 
 		/* See if we have a  parent[2].attr" rule */
-		if ( (ptr = strstr(attrName, "parent[")) != NULL) {
+		if (strstr(attrName, "parent[") != NULL) {
 			char	*word, *str, *next;
 
 			numOflevels = 0;
@@ -2627,7 +2627,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			s_attrName = attrName = slapi_ch_strdup ( attr_pattern );
 			str = attrName;
 
-			word = ldap_utf8strtok_r(str, "[],. ",&next);
+			ldap_utf8strtok_r(str, "[],. ",&next);
 			/* The first word is "parent[" and so it's not important */
 
 			while ((word= ldap_utf8strtok_r(NULL, "[],.", &next)) != NULL) {
