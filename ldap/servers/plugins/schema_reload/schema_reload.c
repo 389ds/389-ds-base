@@ -151,7 +151,7 @@ schemareload_thread(void *arg)
         slapi_task_log_status(task, "Schema validation passed.");
         slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema validation passed.\n");
 
-    	rv = slapi_reload_schema_files(schemadir);
+        rv = slapi_reload_schema_files(schemadir);
         slapi_task_inc_progress(task);
 
         /* update task state to say we're finished */
@@ -212,13 +212,12 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
                     void *arg)
 {
     PRThread *thread = NULL;
-    const char *cn;
     const char *schemadir = NULL;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Task *task = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if (fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
