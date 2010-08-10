@@ -1486,11 +1486,6 @@ int dblayer_start(struct ldbminfo *li, int dbmode)
             return return_value;
         }
     }
-    else
-    {
-        /* using the home dir for the log dir, which is already checked */
-        log_dir = dblayer_get_home_dir(li, NULL);
-    }
 
     /* Sanity check on cache size on platforms which allow us to figure out
      * the available phys mem */
