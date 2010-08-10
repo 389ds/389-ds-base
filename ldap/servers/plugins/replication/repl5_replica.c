@@ -166,7 +166,6 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 {
     int rc = 0;
     Replica *r;
-    RUV *ruv;
 	char *repl_name = NULL;
 
     if (e == NULL)
@@ -215,8 +214,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 	}
 
 	/* If smallest csn exists in RUV for our local replica, it's ok to begin iteration */
-    ruv = (RUV*) object_get_data (r->repl_ruv);
-    PR_ASSERT (ruv);
+	PR_ASSERT (object_get_data (r->repl_ruv));
 
 	if (is_add_operation)
 	{
