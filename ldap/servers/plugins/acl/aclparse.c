@@ -268,7 +268,7 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 
 			type = ACI_TARGET_FILTER;
 			/* we need to remove the targetfilter stuff*/
-			if ( (s = strstr( str, "!=" )) != NULL ) {
+			if ( strstr( str, "!=" ) != NULL ) {
 				type |= ACI_TARGET_FILTER_NOT;
 			}
 
@@ -277,8 +277,8 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 			 * have a target and it must have a macro.
 			*/
 		
-			if ((s = strstr (str, ACL_RULE_MACRO_DN_KEY)) != NULL ||
-				((s = strstr(str, ACL_RULE_MACRO_DN_LEVELS_KEY)) != NULL)) {
+			if ((strstr(str, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+			    (strstr(str, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL)) {
 			
 				/* Must have a targetmacro */
 				if ( !(aci_item->aci_type & ACI_TARGET_MACRO_DN)) {
@@ -958,16 +958,16 @@ __aclp__getNextLASRule (aci_t *aci_item, char *original_str , char **endOfCurrRu
 	
 	if ( (strncasecmp(newstr, "allow", 5) == 0) ||
 		 (strncasecmp(newstr, "deny", 4) == 0) )  {
-		word = ldap_utf8strtok_r(newstr, ")", &next);
+		ldap_utf8strtok_r(newstr, ")", &next);
 	} else {
-		word = ldap_utf8strtok_r(newstr, " ", &next);
+		ldap_utf8strtok_r(newstr, " ", &next);
 	}
 
 	/*
 	 * The first word is of no interest  -- skip it
 	 * it's allow or deny followed by the rights (<rights>),
 	 * so skip over the rights as well or it's 'and', 'or',....
-	*/
+	 */
  
 	while ( (word = ldap_utf8strtok_r(NULL, " ", &next)) != NULL) {
 			int		got_rule = 0;
