@@ -499,7 +499,6 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				/* ONREPL - at this state we unconditionally acquire the replica
 				   ignoring all events. Not sure if this is good */
 				object_acquire(prp->replica_object);
-				replica = object_get_data(prp->replica_object);
 						
 				rc = windows_acquire_replica(prp, &ruv , (run_dirsync == 0) /* yes, check the consumer RUV for incremental, but not if we're going to dirsync afterwards */);
 
@@ -539,7 +538,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 								prp->last_acquire_response_code, NULL);
 				  }
 						
-				object_release(prp->replica_object); replica = NULL;
+				object_release(prp->replica_object);
 				break;
 
 		case STATE_BACKOFF_START:
