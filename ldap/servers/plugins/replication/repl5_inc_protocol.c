@@ -626,7 +626,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
   int e1;
   RUV *ruv = NULL;
   CSN *cons_schema_csn;
-  Replica *replica;
+  Replica *replica = NULL;
   int wait_change_timer_set = 0;
   time_t last_start_time;
   PRUint32 num_changes_sent;
@@ -823,7 +823,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 	/* ONREPL - at this state we unconditionally acquire the replica
 	   ignoring all events. Not sure if this is good */
 	object_acquire(prp->replica_object);
-	replica = object_get_data(prp->replica_object);
 			
 	rc = acquire_replica(prp, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID, &ruv);
 	use_busy_backoff_timer = PR_FALSE; /* default */
@@ -856,7 +855,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 					prp->last_acquire_response_code, NULL);
 	  }
 			
-	object_release(prp->replica_object); replica = NULL;
+	object_release(prp->replica_object);
 	break;
       case STATE_BACKOFF_START:
 	dev_debug("repl5_inc_run(STATE_BACKOFF_START)");
