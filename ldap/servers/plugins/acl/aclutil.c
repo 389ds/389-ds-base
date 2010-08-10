@@ -389,7 +389,6 @@ aclutil__typestr (int type , char str[])
 	}
 	if (type & ACI_HAS_DENY_RULE) {
 		strcpy (p, "deny_rule ");
-		p = strchr (p, '\0');	
 	}
 }
 static void 
@@ -453,7 +452,6 @@ aclutil__Ruletypestr (int type , char str[])
 	}
 	if ( type & ACI_SSF_RULE) {
 		strcpy (p, "ssf ");
-		p = strchr (p, '\0');
 	}
 }
 /*
