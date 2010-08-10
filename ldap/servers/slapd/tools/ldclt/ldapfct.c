@@ -2182,11 +2182,13 @@ createMissingNodes (
 #endif								/*JLS 14-11-00*/
   }
   else								/*JLS 15-12-00*/
-    if ((mctx.mode & COUNT_EACH) & (ret == LDAP_ALREADY_EXISTS))/*JLS 15-12-00*/
+  {
+    if (mctx.mode & COUNT_EACH)		/*JLS 15-12-00*/
     {								/*JLS 15-12-00*/
       if (incrementNbOpers (tttctx) < 0)			/*JLS 15-12-00*/
 	return (-1);						/*JLS 15-12-00*/
     }								/*JLS 15-12-00*/
+  }
 
   /*
    * Ok, we succeed to create the entry ! or it already exist.
