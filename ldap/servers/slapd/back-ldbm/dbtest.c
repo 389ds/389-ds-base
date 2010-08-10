@@ -138,7 +138,7 @@ int ldbm_back_db_test( Slapi_PBlock *pb )
 			if ( (err = dblayer_get_index_file( be, ai, &db, 0 /* no create */ ))
 			    != 0 ) {
 				fprintf( stderr, "could not get index for %s (error %d - %s)\n",
-				    buf, err, slapd_system_strerror( err ));
+				    buf, err, dblayer_strerror( err ));
 				continue;
 			}
 
