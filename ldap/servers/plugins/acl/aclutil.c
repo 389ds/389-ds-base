@@ -1237,7 +1237,7 @@ acl_replace_str(char * s, char *substr, char* replace_with_str) {
 		char *working_s, *suffix, *prefix, *patched;
 		int replace_with_len, substr_len, prefix_len, suffix_len;
 
-		if ( (str = strstr(s, substr)) == NULL) {
+		if (strstr(s, substr) == NULL) {
 			return(slapi_ch_strdup(s));
 		} else {
 
