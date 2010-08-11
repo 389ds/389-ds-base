@@ -183,7 +183,6 @@ attr_index_config(
 	char	**index_rules = NULL;
 	struct attrinfo	*a;
 	int return_value = -1;
-	char    *p;
 	int *substrlens = NULL;
 
 	attrs = slapi_str2charray( argv[0], "," );
@@ -272,15 +271,15 @@ attr_index_config(
 					Slapi_PBlock* pb = NULL;
 					int do_continue = 0; /* can we skip the RULE parsing stuff? */
 
-					if ((p = strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN))) {
+					if (strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN)) {
 						_set_attr_substrlen(INDEX_SUBSTRBEGIN, index_rules[j],
 											&substrlens);
 						do_continue = 1; /* done with j - next j */
-					} else if ((p = strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE))) {
+					} else if (strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE)) {
 						_set_attr_substrlen(INDEX_SUBSTRMIDDLE, index_rules[j],
 											&substrlens);
 						do_continue = 1; /* done with j - next j */
-					} else if ((p = strstr(index_rules[j], INDEX_ATTR_SUBSTREND))) {
+					} else if (strstr(index_rules[j], INDEX_ATTR_SUBSTREND)) {
 						_set_attr_substrlen(INDEX_SUBSTREND, index_rules[j],
 											&substrlens);
 						do_continue = 1; /* done with j - next j */
