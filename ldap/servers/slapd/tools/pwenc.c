@@ -241,7 +241,7 @@ main( argc, argv )
     }
 
 	if (!slapdFrontendConfig) {
-		if (!(slapdFrontendConfig = init_config(NULL))) {
+		if (!init_config(NULL)) {
 			usage( name );
 			return(1);
 		}
