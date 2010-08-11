@@ -166,7 +166,6 @@ NSAPI_PUBLIC int
 ACL_LasRegister(NSErr_t *errp, char *attr_name, LASEvalFunc_t eval_func,
 LASFlushFunc_t flush_func)
 {
-
     if ((!attr_name) || (!eval_func)) return -1;
 
     ACL_CritEnter();
@@ -175,13 +174,20 @@ LASFlushFunc_t flush_func)
      *  error, but go ahead and replace it.
      */
     if (PR_HashTableLookup(ACLLasEvalHash, attr_name) != NULL) {
-	nserrGenerate(errp, ACLERRDUPSYM, ACLERR3900, ACL_Program, 1,
+        nserrGenerate(errp, ACLERRDUPSYM, ACLERR3900, ACL_Program, 1,
                       attr_name);
     }
 
     /*  Put it in the hash tables  */
-    PR_HashTableAdd(ACLLasEvalHash, attr_name, (void *)eval_func);
-    PR_HashTableAdd(ACLLasFlushHash, attr_name, (void *)flush_func);
+    if (NULL == PR_HashTableAdd(ACLLasEvalHash, attr_name, (void *)eval_func)) {
+        ACL_CritExit();
+        return -1;
+    }
+    if (NULL == 
+              PR_HashTableAdd(ACLLasFlushHash, attr_name, (void *)flush_func)) {
+        ACL_CritExit();
+        return -1;
+    }
 
     ACL_CritExit();
     return 0;
@@ -263,7 +269,10 @@ ACL_MethodRegister(NSErr_t *errp, const char *name, ACLMethod_t *t)
     }
 	
     /*  Put it in the hash table  */
-    rv = PR_HashTableAdd(ACLMethodHash, name, (void *)++cur_method);
+    if (NULL == PR_HashTableAdd(ACLMethodHash, name, (void *)++cur_method)) {
+        ACL_CritExit();
+        return -1;
+    }
     *t = (ACLMethod_t) cur_method;
 
     ACL_CritExit();
@@ -404,7 +413,10 @@ ACL_DbTypeRegister(NSErr_t *errp, const char *name, DbParseFn_t func, ACLDbType_
     }
 	
     /*  Put it in the hash table  */
-    rv = PR_HashTableAdd(ACLDbTypeHash, name, (void *)++cur_dbtype);
+    if (NULL == PR_HashTableAdd(ACLDbTypeHash, name, (void *)++cur_dbtype)) {
+        ACL_CritExit();
+        return -1;
+    }
     *t = (ACLDbType_t) cur_dbtype;
     ACLDbParseFnTable[cur_dbtype] = func;
 
@@ -775,9 +787,11 @@ ACL_AttrGetterRegister(NSErr_t *errp, const char *attr, ACLAttrGetterFn_t fn,
     getter->arg = arg;
 
     if (*hep == 0) {	/* New entry */
-
-	PR_INIT_CLIST(&getter->list);
-        PR_HashTableAdd(ACLAttrGetterHash, attr, (void *)getter);
+        PR_INIT_CLIST(&getter->list);
+        if (NULL == PR_HashTableAdd(ACLAttrGetterHash, attr, (void *)getter)) {
+            ACL_CritExit();
+            return -1;
+        }
     }
     else {
 
