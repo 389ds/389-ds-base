@@ -44,6 +44,7 @@
 #include "slapi-plugin.h"
 #include "fe.h"
 #include <sasl.h>
+#include <arpa/inet.h>
 
 /*
  * I/O Shim Layer for SASL Encryption
@@ -204,7 +205,7 @@ static PRInt32
 sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt32 *err)
 {
     PRInt32 ret = 0;
-    unsigned char buffer[4];
+    unsigned char buffer[sizeof(PRInt32)];
     size_t packet_length = 0;
     size_t saslio_limit;
     sasl_io_private *sp = sasl_get_io_private(fd);
@@ -242,8 +243,8 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
 	    return -1;        
     }
     if (ret == sizeof(buffer)) {
-        /* Decode the length (could use ntohl here ??) */
-        packet_length = buffer[0] << 24 | buffer[1] << 16 | buffer[2] << 8 | buffer[3];
+        /* Decode the length */
+        packet_length = ntohl(*(uint32_t *)buffer);
         /* add length itself (for Cyrus SASL library) */
         packet_length += 4;
 
