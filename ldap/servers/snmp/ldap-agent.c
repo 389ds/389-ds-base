@@ -84,7 +84,7 @@ init_ldap_agent(void)
     /* Initialize data for each server in conf file */
     for (serv_p = server_head; serv_p != NULL; serv_p = serv_p->next) {
         /* Check if this row already exists. */
-        if ((new_row = stats_table_find_row(serv_p->port)) == NULL) {
+        if (stats_table_find_row(serv_p->port) == NULL) {
             /* Create a new row */
             if ((new_row = stats_table_create_row(serv_p->port)) != NULL) {
                 /* Set pointer for entity table */
