@@ -64,7 +64,6 @@ ldbm_usn_init(struct ldbminfo  *li)
 {
     Slapi_DN *sdn = NULL;
     void *node = NULL;
-    const char *base = NULL;
     int rc = 0;
     Slapi_Backend *be = NULL;
     PRUint64 last_usn = 0;
@@ -77,7 +76,6 @@ ldbm_usn_init(struct ldbminfo  *li)
     /* Search each namingContext in turn */
     for ( sdn = slapi_get_first_suffix( &node, 0 ); sdn != NULL;
           sdn = slapi_get_next_suffix( &node, 0 )) {
-        base = slapi_sdn_get_dn( sdn );
         be = slapi_mapping_tree_find_backend_for_sdn(sdn);
         slapi_log_error(SLAPI_LOG_TRACE, "ldbm_usn_init",
                         "backend: %s\n", be->be_name);
