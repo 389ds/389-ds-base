@@ -249,7 +249,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 		/*
 		 * We cache some stuff as we go around the loop.
 		 */
-		if((ptype==NULL)||(PL_strncasecmp(type.bv_val,ptype,type.bv_len) != 0))
+		if((ptype==NULL)||(PL_strcasecmp(type.bv_val,ptype) != 0))
 		{
 			slapi_ch_free_string(&ptype);
 			ptype=PL_strndup(type.bv_val, type.bv_len);
