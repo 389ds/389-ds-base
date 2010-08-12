@@ -574,6 +574,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           curr_search_count = -1;
         } else {
           curr_search_count = pnentries;
+          /* no more entries, but at least another backend */
+          if (pagedresults_set_current_be(pb->pb_conn, next_be) < 0) {
+              goto free_and_return;
+          }
         }
         estimate = 0;
       } else {
