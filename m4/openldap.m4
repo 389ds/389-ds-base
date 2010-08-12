@@ -151,4 +151,6 @@ if test "$with_openldap" = yes ; then
   # default options to pass to the tools
   # use -x because all of our scripts use simple bind
   ldaptool_opts=-x
+  # get plain output from ldapsearch - no version, no comments
+  plainldif_opts=-LLL
 fi

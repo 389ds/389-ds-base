@@ -69,7 +69,7 @@ $opt_h = "{{SERVER-NAME}}";
 $opt_v = 0;
 
 # Variables
-$ldapsearch="ldapsearch @ldaptool_opts@ -1";
+$ldapsearch="ldapsearch @ldaptool_opts@ @plainldif_opts@";
 $ldapmodify="ldapmodify @ldaptool_opts@";
 
 #############################################################################

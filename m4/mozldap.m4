@@ -171,4 +171,6 @@ dnl default path for the ldap c sdk tools (see [210947] for more details)
   ldaptool_bindir=$ldapsdk_bindir
   # default options to pass to the tools
   ldaptool_opts=
+  # get plain output from ldapsearch - no version
+  plainldif_opts=-1
 fi

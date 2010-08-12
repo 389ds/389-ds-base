@@ -396,7 +396,7 @@ $ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/
 $ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 $ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
 
-$ldapsearch="ldapsearch @ldaptool_opts@ -1";
+$ldapsearch="ldapsearch @ldaptool_opts@ @plainldif_opts@";
 $ldapmodify="ldapmodify @ldaptool_opts@";
  
 # Default values
