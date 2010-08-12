@@ -240,7 +240,7 @@ check_and_send_extended_result(Slapi_PBlock *pb, ber_tag_t tag, BerElement *ber)
 		if (rc != LBER_ERROR && exop_value != NULL) {
 			rc = ber_printf( ber, "to",
 			    LDAP_TAG_EXOP_RES_VALUE,
-			    exop_value->bv_val,
+			    exop_value->bv_val ? exop_value->bv_val : "",
 			    exop_value->bv_len );
 		}
 	}
@@ -263,7 +263,7 @@ check_and_send_SASL_response(Slapi_PBlock *pb, ber_tag_t tag, BerElement *ber, C
 		if ( bind_ret_saslcreds != NULL ) {
 			rc = ber_printf( ber, "to",
 			    LDAP_TAG_SASL_RES_CREDS,
-			    bind_ret_saslcreds->bv_val,
+			    bind_ret_saslcreds->bv_val ? bind_ret_saslcreds->bv_val : "",
 			    bind_ret_saslcreds->bv_len );
 		}
 	}
