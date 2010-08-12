@@ -238,7 +238,7 @@ passthru_config( int argc, char **argv )
 	/*
 	 * parse the LDAP URL
 	 */
-	if (( rc = slapi_ldap_url_parse( srvr->ptsrvr_url, &ludp, 0, &secure )) != 0 ) {
+	if (( rc = slapi_ldap_url_parse( srvr->ptsrvr_url, &ludp, 1, &secure )) != 0 ) {
 	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
 		    "unable to parse LDAP URL \"%s\" (%s)\n",
 		    srvr->ptsrvr_url, slapi_urlparse_err2string( rc ));

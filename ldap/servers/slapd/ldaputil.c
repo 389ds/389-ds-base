@@ -155,13 +155,16 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
     rc = ldap_url_parse_ext(url, ludpp, require_dn ? LDAP_PVT_URL_PARSE_NONE : LDAP_PVT_URL_PARSE_NOEMPTY_DN);
 #else
     rc = ldap_url_parse(url, ludpp);
-    if (rc || !*ludpp || !require_dn) { /* failed - see if failure was due to missing dn */
+    if ((rc || !*ludpp) && !require_dn) { /* failed - see if failure was due to missing dn */
         size_t len = strlen(url);
         /* assume the url is just scheme://host:port[/] - add the empty string
            as the DN (adding a trailing / first if needed) and try to parse
            again
         */
         char *urlcopy = slapi_ch_smprintf("%s%s%s", url, (url[len-1] == '/' ? "" : "/"), "");
+        if (*ludpp) {
+            ldap_free_urldesc(*ludpp); /* free the old one, if any */
+        }
         rc = ldap_url_parse(urlcopy, ludpp);
         slapi_ch_free_string(&urlcopy);
         if (0 == rc) { /* only problem was the DN - free it */
