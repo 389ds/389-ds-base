@@ -89,10 +89,6 @@ rootdse_is_readonly_attr( char *attr )
 	return 1;	/* I guess.  It's not really an attribute at all */
     }
 
-    if ( NULL == readonly_attributes ) {
-	return 0;
-    }
-
     /*
      * optimization: check for attributes we're likely to be writing
      * frequently.
