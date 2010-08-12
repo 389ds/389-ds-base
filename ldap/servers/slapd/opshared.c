@@ -394,7 +394,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
      */
     err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf);
     if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL))
-      || ((err_code == LDAP_OPERATIONS_ERROR) && ((be_list == NULL) || be_list[0] == NULL)))
+      || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL)))
     
     {
       send_ldap_result(pb, err_code, NULL, errorbuf, 0, NULL);
