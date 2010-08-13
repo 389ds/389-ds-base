@@ -1712,6 +1712,11 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
                     LDAPDebug(LDAP_DEBUG_ANY, "PR_Write(%d) "
                               SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               fd, prerr, slapd_pr_strerror( prerr ));
+                    if (sentbytes < count) {
+                        LDAPDebug(LDAP_DEBUG_CONNS,
+                                  "PR_Write(%d) - wrote only %d bytes (expected %d bytes) - 0 (EOF)\n", /* disconnected */
+                                  fd, sentbytes, count);
+                    }
                     break;		/* fatal error */
                 }
             } else if (bytes == 0) { /* disconnect */
@@ -1730,12 +1735,6 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
                           "PR_Write(%d) overflow - sent %d bytes (expected %d bytes) - error\n",
                           fd, sentbytes, count);
                 PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
-                break;
-            } else if (sentbytes < count) {
-                LDAPDebug(LDAP_DEBUG_CONNS,
-                          "PR_Write(%d) - wrote only %d bytes (expected %d bytes) - 0 (EOF)\n", /* disconnected */
-                          fd, sentbytes, count);
-                PR_SetError(PR_PIPE_ERROR, EPIPE);
                 break;
             }
         }
