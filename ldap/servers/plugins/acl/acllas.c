@@ -4148,19 +4148,21 @@ acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 	
 	/* Determine what the rule's got once */
 	if ( strstr(rule, ACL_RULE_MACRO_DN_KEY) != NULL) {
+		/* ($dn) exists */
 		has_macro_dn = 1;
 	}
 
 	if ( strstr(rule, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) {
+		/* [$dn] exists */
 		has_macro_levels = 1;
 	}
 
-	if ( !has_macro_dn && !has_macro_levels ) {		 
+	if ( !has_macro_dn ) { /* No $(dn) */
 
 		/*
 		 * No $dn thing, just return a list with two elements, rule and NULL.
 		 * charray_add will create the list and null terminate it.		
-		*/
+		 */
 
 		charray_add( &a, slapi_ch_strdup(rule));
 		return(a);
@@ -4170,12 +4172,9 @@ acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 		 * Have an occurrence of the macro rules
 		 *
 		 * First, replace all occurrencers of ($dn) with the matched_val
-		*/
-			
-		if ( has_macro_dn) {
-			patched_rule =
+		 */
+		patched_rule =
 				acl_replace_str(rule, ACL_RULE_MACRO_DN_KEY, matched_val);
-		}
 		
 		/* If there are no [$dn] we're done */
 
@@ -4196,7 +4195,7 @@ acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 			 * If has_macro_dn then patched_rule is the rule to strart with,
 			 * and this needs to be freed at the end, otherwise
 			 * just use rule.
-			*/
+			 */
 	
 			if (patched_rule) {
 				rule_to_use = patched_rule;
