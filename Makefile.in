@@ -2296,6 +2296,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@ldapsdk_libdir\@,$(ldapsdk_libdir),g' \
 @BUNDLE_FALSE@	-e 's,@ldapsdk_bindir\@,$(ldapsdk_bindir),g' \
 @BUNDLE_FALSE@	-e 's,@ldaptool_bindir\@,$(ldaptool_bindir),g' \
+@BUNDLE_FALSE@	-e 's,@ldaptool_opts\@,$(ldaptool_opts),g' \
 @BUNDLE_FALSE@	-e 's,@plainldif_opts\@,$(plainldif_opts),g' \
 @BUNDLE_FALSE@	-e 's,@db_libdir\@,$(db_libdir),g' \
 @BUNDLE_FALSE@	-e 's,@db_bindir\@,$(db_bindir),g' \
