@@ -755,9 +755,9 @@ libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
 #------------------------
 libattr_unique_plugin_la_SOURCES = ldap/servers/plugins/uiduniq/7bit.c \
 	ldap/servers/plugins/uiduniq/uid.c \
-	ldap/servers/plugins/shared/utils.c
+	ldap/servers/plugins/uiduniq/utils.c
 
-libattr_unique_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/shared $(PLUGIN_CPPFLAGS)
+libattr_unique_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libattr_unique_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
 libattr_unique_plugin_la_LDFLAGS = -avoid-version
 
