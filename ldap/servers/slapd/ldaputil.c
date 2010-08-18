@@ -579,7 +579,7 @@ slapi_ldap_init_ext(
 	    } else {
 		/* verify certificate only */
 #if defined(USE_OPENLDAP)
-		ssl_strength = LDAP_OPT_X_TLS_ALLOW;
+		ssl_strength = LDAP_OPT_X_TLS_NEVER;
 #else /* !USE_OPENLDAP */
 		ssl_strength = LDAPSSL_AUTH_CERT;
 #endif /* !USE_OPENLDAP */
