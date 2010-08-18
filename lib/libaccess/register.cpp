@@ -631,7 +631,7 @@ ACL_AuthInfoSetMethod(NSErr_t *errp, PList_t auth_info, ACLMethod_t t)
 NSAPI_PUBLIC int
 ACL_AuthInfoSetDbname(NSErr_t *errp, PList_t auth_info, const char *dbname)
 {
-    ACLDbType_t *dbtype = (ACLDbType_t *)PERM_MALLOC(sizeof(ACLDbType_t));
+    ACLDbType_t *dbtype = NULL;
     ACLDbType_t *t2;
     char *copy;
     char *n2;
@@ -640,12 +640,12 @@ ACL_AuthInfoSetDbname(NSErr_t *errp, PList_t auth_info, const char *dbname)
     int old2;
     int rv;
 
-    if (!dbtype) {
-	/* out of memory */
-	return -1;
-    }
-
     if (auth_info) {
+    	dbtype = (ACLDbType_t *)PERM_MALLOC(sizeof(ACLDbType_t));
+	if (!dbtype) {
+	    /* out of memory */
+	    return -1;
+	}
 	rv = ACL_DatabaseFind(errp, dbname, dbtype, (void **)&db);
 
 	if (rv != LAS_EVAL_TRUE) {
@@ -679,7 +679,10 @@ ACL_AuthInfoSetDbname(NSErr_t *errp, PList_t auth_info, const char *dbname)
 
 	/* Create new entries for "dbtype" & "dbname" */
 	copy = (char *)PERM_STRDUP(dbname);
-	if (!copy) return -1;
+	if (!copy) {
+	    PERM_FREE(dbtype);
+	    return -1;
+	}
 	PListInitProp(auth_info, ACL_ATTR_DATABASE_INDEX,
 		      ACL_ATTR_DATABASE, copy, 0);
 	PListInitProp(auth_info, ACL_ATTR_DBTYPE_INDEX, ACL_ATTR_DBTYPE, 
