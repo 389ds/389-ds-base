@@ -2030,7 +2030,7 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 		else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
 		{
 			PR_snprintf(ra->last_init_status, STATUS_LEN,
-						"%d Replica acquired successfully: %s", 
+						"%d %s", 
 						ldaprc, message);
 		}
 		else
