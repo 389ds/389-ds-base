@@ -81,54 +81,6 @@ char *get_flock_path(void)
     return result;
 }
 
-/* Open a file with locking, close a file with unlocking. */
-FILE *fopen_l(char *path, char *mode)
-{
-    FILE *f = fopen(path, mode);
-    char *lockpath;
-    char *sn="admserv";
-    char *flp=get_flock_path();
- 
-    if(f == NULL) return NULL;
-    lockpath=(char *) MALLOC(strlen(sn)+strlen(flp)+16);
-    sprintf(lockpath, flp, sn);
-#ifdef XP_UNIX
-    if( (lf=system_fopenRW(lockpath)) == SYS_ERROR_FD)
-        report_error(FILE_ERROR, lockpath, "Could not open file.");
-    if(system_flock(lf)==IO_ERROR)
-        report_error(FILE_ERROR, lockpath, "Could not lock file.");
-#elif defined(XP_WIN32)
-    /* Using mutexes because if the CGI program dies, the mutex will be
-     * automatically released by the OS for another process to grab.  
-     * Semaphores do not have this property; and if the CGI program crashes,
-     * the admin server would be effectively crippled.
-     */
-	if ( (lf = CreateMutex(NULL, 0, lockpath)) == NULL) {
-        report_error(FILE_ERROR, lockpath, "Could not create admin mutex.");
-	} else {
-        if ( WaitForSingleObject(lf, 60*1000) == WAIT_FAILED) {
-            report_error(FILE_ERROR, lockpath, "Unable to obtain mutex after 60 seconds.");
-        }
-	}
-#endif /* XP_UNIX */
-    return f;
-}
-
-void fclose_l(FILE *f)
-{
-    fclose(f);
-#ifdef XP_UNIX
-    if(system_ulock(lf)==IO_ERROR)
-        report_error(FILE_ERROR, NULL, "Could not unlock lock file.");
-    system_fclose(lf);
-#elif defined(XP_WIN32)
-    if (lf) {
-        ReleaseMutex(lf);
-        CloseHandle(lf);
-    }
-#endif /* XP_UNIX */
-}
- 
 char *alert_word_wrap(char *str, int width, char *linefeed)
 {
     char *ans = NULL;
