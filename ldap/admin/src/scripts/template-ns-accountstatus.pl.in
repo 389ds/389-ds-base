@@ -505,7 +505,7 @@ if ( $retCode2 != 0 )
 	exit $retCode2;
 }
 
-if ( $nbLineRole == 1 )
+if ( $nbLineRole > 0 )
 {
 	debug("Groups of users\n");
 	$role=1;
