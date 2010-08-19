@@ -1569,6 +1569,14 @@ openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 
 	if (bytes_to_copy <= 0) {
 		bytes_to_copy = 0;	/* never return a negative result */
+		/* in this case, we don't have enough data to satisfy the
+		   caller, so we have to let it know we need more */
+#if defined(EWOULDBLOCK)
+		errno = EWOULDBLOCK;
+#elif defined(EAGAIN)
+		errno = EAGAIN;
+#endif			
+		PR_SetError(PR_WOULD_BLOCK_ERROR, 0);
 	} else {
 		/* copy buffered data into output buf */
 		SAFEMEMCPY(buf, readbuf + offset, bytes_to_copy);
