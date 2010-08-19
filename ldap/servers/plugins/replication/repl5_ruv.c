@@ -1441,21 +1441,9 @@ ruvInit (RUV **ruv, int initCount)
 
 	/* allocate new RUV */
 	*ruv = (RUV *)slapi_ch_calloc (1, sizeof (RUV));
-	if (ruv == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-						"ruvInit: memory allocation failed\n");
-		return RUV_MEMORY_ERROR;
-	}
 
 	/* allocate	elements */
-	(*ruv)->elements = dl_new ();
-	if ((*ruv)->elements == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-						"ruvInit: memory allocation failed\n");
-		return RUV_MEMORY_ERROR;
-	}
+	(*ruv)->elements = dl_new (); /* never returns NULL */
 
 	dl_init ((*ruv)->elements, initCount);
 
@@ -1465,6 +1453,10 @@ ruvInit (RUV **ruv, int initCount)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 						"ruvInit: failed to create lock\n");
+		if (*ruv) {
+			dl_free(&(*ruv)->elements);
+		}
+		slapi_ch_free((void**)ruv);
 		return RUV_NSPR_ERROR;
 	}
 
