@@ -161,6 +161,22 @@ windows_inc_delete(Private_Repl_Protocol **prpp)
 	/* First, stop the protocol if it isn't already stopped */
 	/* Then, delete all resources used by the protocol */
 	slapi_eq_cancel(dirsync); 
+
+        if (!(*prpp)->stopped) {
+                (*prpp)->stopped = 1;
+                (*prpp)->stop(*prpp);
+        }
+        if ((*prpp)->lock) {
+                PR_DestroyLock((*prpp)->lock);
+                (*prpp)->lock = NULL;
+        }
+        if ((*prpp)->cvar) {
+                PR_DestroyCondVar((*prpp)->cvar);
+                (*prpp)->cvar = NULL;
+        }
+        slapi_ch_free((void **)&(*prpp)->private);
+        slapi_ch_free((void **)prpp);
+
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_delete\n" );
 }
 
@@ -1556,7 +1572,7 @@ Private_Repl_Protocol *
 Windows_Inc_Protocol_new(Repl_Protocol *rp)
 {
 	windows_inc_private *rip = NULL;
-	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
+	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> Windows_Inc_Protocol_new\n" );
 
