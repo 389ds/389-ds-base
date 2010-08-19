@@ -2148,6 +2148,7 @@ connection_threadmain()
 	int ret = 0;
 	int more_data = 0;
 	int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
+	int doshutdown = 0;
 
 #if defined( OSF1 ) || defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
@@ -2252,9 +2253,10 @@ connection_threadmain()
 				goto done;
 			case CONN_SHUTDOWN:
 				LDAPDebug( LDAP_DEBUG_TRACE, 
-				"op_thread received shutdown signal\n", 					0,  0, 0 );
+				"op_thread received shutdown signal\n", 0, 0, 0 );
 				g_decr_active_threadcnt();
-				return;
+				doshutdown = 1;
+				goto done; /* To destroy pb, jump to done once */
 			default:
 				break;
 		}
@@ -2349,6 +2351,9 @@ done:
 		if ( ((1 == is_timedout) || (replication_connection && !thread_turbo_flag)) && !more_data)
 			connection_make_readable(conn);
 		pb = NULL;
+		if (doshutdown) {
+			return;
+		}
 
 		if (!thread_turbo_flag && !more_data) { /* Don't do this in turbo mode */
 			PR_Lock( conn->c_mutex );
