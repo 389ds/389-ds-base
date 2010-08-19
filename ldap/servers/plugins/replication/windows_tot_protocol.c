@@ -244,6 +244,7 @@ done:
 	}
 	
 	prp->stopped = 1;
+	ruv_destroy(&ruv);
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_tot_run\n" );
 }
 
@@ -311,7 +312,7 @@ Private_Repl_Protocol *
 Windows_Tot_Protocol_new(Repl_Protocol *rp)
 {
 	windows_tot_private *rip = NULL;
-	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
+	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> Windows_Tot_Protocol_new\n" );
 
@@ -351,9 +352,27 @@ loser:
 }
 
 static void
-windows_tot_delete(Private_Repl_Protocol **prp)
+windows_tot_delete(Private_Repl_Protocol **prpp)
 {
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_delete\n" );
+
+        /* First, stop the protocol if it isn't already stopped */
+        if (!(*prpp)->stopped) {
+                (*prpp)->stopped = 1;
+                (*prpp)->stop(*prpp);
+        }
+        /* Then, delete all resources used by the protocol */
+        if ((*prpp)->lock) {
+                PR_DestroyLock((*prpp)->lock);
+                (*prpp)->lock = NULL;
+        }
+        if ((*prpp)->cvar) {
+                PR_DestroyCondVar((*prpp)->cvar);
+                (*prpp)->cvar = NULL;
+        }
+        slapi_ch_free((void **)&(*prpp)->private);
+        slapi_ch_free((void **)prpp);
+
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_tot_delete\n" );
 }
 
