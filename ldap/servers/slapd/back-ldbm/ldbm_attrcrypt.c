@@ -230,12 +230,8 @@ attrcrypt_keymgmt_store_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECK
 			LDAPDebug(LDAP_DEBUG_ANY, "attrcrypt_keymgmt_store_key: failed to add config key entries to the DSE: %d: %s: %s\n", rc, ldap_err2string(rc), resulttext ? resulttext : "unknown");
 			ret = -1;
 		}
-		if (entry_string) {
-			slapi_ch_free((void**)&entry_string);
-		}
-		if (pb) {
-			slapi_pblock_destroy(pb);
-		}
+		slapi_ch_free((void**)&entry_string);
+		slapi_pblock_destroy(pb);
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_keymgmt_store_key\n", 0, 0, 0);
 	return ret;
