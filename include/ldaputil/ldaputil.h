@@ -116,16 +116,6 @@ NSAPI_PUBLIC extern int ldapu_certmap_init (const char *config_file,
 					    LDAPUCertMapInfo_t
 					    **certmap_default);
 
-NSAPI_PUBLIC extern int ldapu_certinfo_modify (const char *issuerName,
-					       const char *issuerDN,
-					       const LDAPUPropValList_t *propval);
-
-NSAPI_PUBLIC extern int ldapu_certinfo_delete (const char *issuerDN);
-
-NSAPI_PUBLIC extern int ldapu_certinfo_save (const char *fname,
-					     const char *old_fname,
-					     const char *tmp_fname);
-
 NSAPI_PUBLIC extern int ldapu_list_alloc (LDAPUList_t **list);
 NSAPI_PUBLIC extern int ldapu_propval_alloc (const char *prop, const char *val,
 					     LDAPUPropVal_t **propval);
