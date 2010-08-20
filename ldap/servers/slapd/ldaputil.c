@@ -228,7 +228,6 @@ slapi_ldif_put_type_and_value_with_options( char **out, const char *t, const cha
             }
             *dest++ = *src;
         }
-        *dest = '\n';
     }
 #else
     ldif_put_type_and_value_with_options( out, (char *)t, (char *)val, vlen, options );
