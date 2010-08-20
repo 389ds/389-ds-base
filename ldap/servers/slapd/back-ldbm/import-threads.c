@@ -931,7 +931,7 @@ index_producer(void *param)
 
     /* get a cursor to we can walk over the table */
     db_rval = db->cursor(db, NULL, &dbc, 0);
-    if ( 0 != db_rval ) {
+    if ( db_rval || !dbc ) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "Failed to get cursor for reindexing\n", 0, 0, 0 );
         dblayer_release_id2entry(be, db);
@@ -1118,7 +1118,9 @@ index_producer(void *param)
     return;
 
 error:
-    dbc->c_close(dbc);
+    if (dbc) {
+        dbc->c_close(dbc);
+    }
     dblayer_release_aux_id2entry( be, db, env );
     info->state = ABORTED;
 }
@@ -1248,7 +1250,7 @@ upgradedn_producer(void *param)
 
     /* get a cursor to we can walk over the table */
     db_rval = db->cursor(db, NULL, &dbc, 0);
-    if ( 0 != db_rval ) {
+    if ( db_rval || !dbc ) {
         LDAPDebug( LDAP_DEBUG_ANY,
                    "Failed to get cursor for reindexing\n", 0, 0, 0 );
         dblayer_release_id2entry(be, db);
@@ -1710,7 +1712,9 @@ bail:
     goto done;
 
 error:
-    dbc->c_close(dbc);
+    if (dbc) {
+        dbc->c_close(dbc);
+    }
     dblayer_release_aux_id2entry( be, db, env );
     info->state = ABORTED;
 
