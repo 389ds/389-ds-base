@@ -555,6 +555,9 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
     unsigned char char_min = 0x00;
     unsigned char char_max = 0xFF;
     struct vlv_key *key= vlv_key_new();
+    struct berval **value = NULL;
+    int free_value = 0;
+
     if(p->vlv_sortkey!=NULL)
     {
         /* Foreach sorted attribute... */
@@ -573,8 +576,8 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
 				/* xxxPINAKI */
 				/* need to free some stuff! */
 		        Slapi_Value **cvalue = NULL;
-        		struct berval **value = NULL, *lowest_value = NULL;
-                int free_value= 0;
+                struct berval *lowest_value = NULL;
+
                 if (attr != NULL && !valueset_isempty(&attr->a_present_values))
 				{
                     /* Sorted attribute found. */
@@ -609,7 +612,12 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
 						    valuearray_get_bervalarray(va,&bval);
                 			matchrule_values_to_keys(p->vlv_mrpb[sortattr],bval,&value);
                         }
-            		}
+                    }
+
+                    if (!value) {
+                        goto error;
+                    }
+
                     for(totalattrs=0;value[totalattrs]!=NULL;totalattrs++) {}; /* Total Number of Attributes */
                     if(totalattrs==1)
                     {
@@ -617,7 +625,7 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
                     }
                     else
                     {
-                    	lowest_value = attr_value_lowest(value, slapi_berval_cmp);
+                        lowest_value = attr_value_lowest(value, slapi_berval_cmp);
                     }
                 } /* end of if (attr != NULL && ...) */
                 if(p->vlv_sortkey[sortattr]->sk_reverseorder)
@@ -680,8 +688,10 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
                 }
                 if(free_value)
                 {
-           			ber_bvecfree(value);
+                    ber_bvecfree(value);
+                    free_value = 0;
                 }
+                value = NULL;
             }
             sortattr++;
         }
@@ -693,6 +703,11 @@ vlv_create_key(struct vlvIndex* p, struct backentry* e)
         vlv_key_addattr(key,&val);
     }
     return key;
+
+error:
+    if (free_value) ber_bvecfree(value);
+    vlv_key_delete(&key);
+    return NULL;
 }
 
 /*
@@ -1420,7 +1435,7 @@ vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort
             }
         }
     }
-   	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates: Trimmed list contains %lu entries.\n",(u_long)resultIdl->b_nids, 0, 0 );
+   	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates: Trimmed list contains %lu entries.\n", (u_long)(resultIdl ? resultIdl->b_nids : 0), 0, 0 );
     *trimmedCandidates= resultIdl;
     return return_value;
 }
