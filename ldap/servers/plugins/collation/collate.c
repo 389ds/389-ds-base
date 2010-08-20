@@ -426,6 +426,9 @@ collation_indexer_create (const char* oid)
     indexer_t* ix = NULL;
     const coll_id_t** id = collation_id;
     char* locale = NULL; /* NULL == default locale */
+    UCollator* coll = NULL;
+    collation_indexer_t* etc = NULL;
+
     if (id) for (; *id; ++id) {
 	if (!strcasecmp (oid, (*id)->oid)) {
 	    const coll_profile_t* profile = (*id)->profile;
@@ -444,7 +447,7 @@ collation_indexer_create (const char* oid)
 						     profile->variant);
 	    }
 	    if (err == U_ZERO_ERROR) {
-		UCollator* coll = ucol_open(locale, &err);
+		coll = ucol_open(locale, &err);
 		/*
 		 * If we found exactly the right collator for this locale,
 		 * or if we found a fallback one, or if we are happy with
@@ -452,8 +455,7 @@ collation_indexer_create (const char* oid)
 		 */
 		if (err == U_ZERO_ERROR || err == U_USING_FALLBACK_WARNING ||
 		    (err == U_USING_DEFAULT_WARNING && is_default)) {
-		    collation_indexer_t* etc = (collation_indexer_t*)
-		      slapi_ch_calloc (1, sizeof (collation_indexer_t));
+		    etc = (collation_indexer_t*) slapi_ch_calloc (1, sizeof (collation_indexer_t));
 		    ix = (indexer_t*) slapi_ch_calloc (1, sizeof (indexer_t));
 		    ucol_setAttribute (coll, UCOL_STRENGTH, profile->strength, &err);
 		    if (err != U_ZERO_ERROR && err != U_USING_FALLBACK_WARNING
@@ -475,6 +477,11 @@ collation_indexer_create (const char* oid)
 			    break; /* found the 'official' id */
 			}
 		    }
+                    if (!*id) {
+			LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: id not found\n", 0, 0, 0);
+                        goto error;
+                    }
+
 		    ix->ix_etc = etc;
 		    ix->ix_oid = (*id)->oid;
 		    ix->ix_index = collation_index;
@@ -500,6 +507,15 @@ collation_indexer_create (const char* oid)
 	    break; /* failed to create the specified collator */
 	}
     }
+    goto done;
+error:
+    slapi_ch_free((void **)&etc);
+    slapi_ch_free((void **)&ix);
+    if (coll) {
+        ucol_close (coll);
+        coll = NULL;
+    }
+done:
     if (locale) {
 	PR_smprintf_free(locale);
 	locale = NULL;
