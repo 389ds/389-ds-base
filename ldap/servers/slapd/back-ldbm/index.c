@@ -840,6 +840,10 @@ index_read_ext(
 
 	if (unindexed != NULL) *unindexed = 0;
 	prefix = index_index2prefix( indextype );
+	if (prefix == NULL) {
+		LDAPDebug0Args( LDAP_DEBUG_ANY, "index_read_ext: NULL prefix\n" );
+		return NULL;
+	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> index_read( \"%s\" %s \"%s\" )\n",
 		   type, prefix, encode (val, buf));
 
@@ -1133,7 +1137,14 @@ index_range_read(
     int timelimit = -1;
 
     *err = 0;
-    plen = strlen( prefix = index_index2prefix( indextype ));
+
+    prefix = index_index2prefix( indextype );
+    if (prefix == NULL) {
+        LDAPDebug0Args( LDAP_DEBUG_ANY, "index_range_read: NULL prefix\n" );
+        return( NULL );
+    }
+
+    plen = strlen(prefix);
     slapi_pblock_get(pb, SLAPI_SEARCH_IS_AND, &is_and);
     if (!is_and)
     {
@@ -1511,6 +1522,13 @@ addordel_values(
 		   (flags & BE_INDEX_ADD) ? "add" : "del", 0, 0);
 
 	prefix = index_index2prefix( indextype );
+
+	if (prefix == NULL) {
+		LDAPDebug( LDAP_DEBUG_ANY, "<= %s_values: NULL prefix\n",
+			(flags & BE_INDEX_ADD) ? "add" : "del", 0, 0 );
+		return( -1 );
+	}
+
 	if ( vals == NULL ) {
 		key.dptr  = prefix;
 		key.dsize = strlen( prefix ) + 1; /* include null terminator */
@@ -1651,6 +1669,11 @@ addordel_values_sv(
                (flags & BE_INDEX_ADD) ? "add" : "del", 0, 0);
 
     prefix = index_index2prefix( indextype );
+    if (prefix == NULL) {
+        LDAPDebug0Args( LDAP_DEBUG_ANY, "addordel_values_sv: NULL prefix\n" );
+        return( -1 );
+    }
+
     if ( vals == NULL ) {
         key.dptr  = prefix;
         key.dsize = strlen( prefix ) + 1; /* include null terminator */
@@ -1982,7 +2005,7 @@ index_addordel_values_ext_sv(
                         if ( err != 0 )
                         {
                             ldbm_nasty(errmsg, 1260, err);
-                            slapi_ch_free(&keys);
+                            slapi_ch_free((void **)&keys);
                             goto bad;
                         }
                     }
@@ -1991,7 +2014,7 @@ index_addordel_values_ext_sv(
                      * But, for simplicity, we destroy it now:
                      */
                     destroy_matchrule_indexer(pb);
-                    slapi_ch_free(&keys);
+                    slapi_ch_free((void **)&keys);
                 }
             }
         }
@@ -2054,7 +2077,8 @@ char*
 index_index2prefix (const char* indextype)
 {
     char* prefix;
-    if      ( indextype == indextype_PRESENCE ) prefix = prefix_PRESENCE;
+    if      ( indextype == NULL ) prefix = NULL;
+    else if ( indextype == indextype_PRESENCE ) prefix = prefix_PRESENCE;
     else if ( indextype == indextype_EQUALITY ) prefix = prefix_EQUALITY;
     else if ( indextype == indextype_APPROX   ) prefix = prefix_APPROX;
     else if ( indextype == indextype_SUB      ) prefix = prefix_SUB;
