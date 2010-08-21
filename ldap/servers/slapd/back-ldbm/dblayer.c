@@ -4740,6 +4740,8 @@ dblayer_copyfile(char *source, char *destination, int overwrite, int mode)
                       destination);
         goto error;
     }
+    LDAPDebug2Args(LDAP_DEBUG_BACKLDBM,
+                   "Copying %s to %s\n", source, destination);
     /* Loop round reading data and writing it */
     while (1)
     {

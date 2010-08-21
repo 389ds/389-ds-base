@@ -1212,7 +1212,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
          */
         /* get a cursor to we can walk over the table */
         return_value = db->cursor(db,NULL,&dbc,0);
-        if (0 != return_value ) {
+        if (0 != return_value || NULL == dbc) {
             LDAPDebug2Args(LDAP_DEBUG_ANY,
                           "Failed to get cursor for db2ldif; %s (%d)\n",
                           dblayer_strerror(return_value), return_value);
@@ -1506,7 +1506,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                       "export %s: Processed %d entries (100%%).\n",
                       inst->inst_name, cnt, 0);
     }
-
+bye:
     if (idl) {
         idl_free(idl);
     }
@@ -1522,24 +1522,22 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= ldbm_back_ldbm2ldif\n", 0, 0, 0 );
 
-    if (we_start_the_backends && 0 != dblayer_flush(li)) {
-        LDAPDebug( LDAP_DEBUG_ANY, "db2ldif: Failed to flush database\n",
-               0, 0, 0 );
-    }
+    if (we_start_the_backends && NULL != li) {
+        if (0 != dblayer_flush(li)) {
+            LDAPDebug0Args( LDAP_DEBUG_ANY, 
+                            "db2ldif: Failed to flush database\n" );
+        }
 
-    if (we_start_the_backends) {
         if (0 != dblayer_close(li,DBLAYER_EXPORT_MODE)) {
-        LDAPDebug( LDAP_DEBUG_ANY,
-               "db2ldif: Failed to close database\n",
-               0, 0, 0 );
+            LDAPDebug0Args( LDAP_DEBUG_ANY,
+                            "db2ldif: Failed to close database\n" );
         }
     }
 
-    if (!run_from_cmdline) {
+    if (!run_from_cmdline && NULL != inst) {
         instance_set_not_busy(inst);
     }
 
-bye:
     ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
     idl_free(eargs.pre_exported_idl);
     if (inst != NULL) {
@@ -2848,6 +2846,16 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
         src = li->li_directory;
         dest = destination_dir;
     }
+    if (NULL == src || '\0' == *src) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "upgradedb_copy_logfiles: "
+                                       "NULL src directory\n");
+        return -1;
+    }
+    if (NULL == dest || '\0' == *dest) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "upgradedb_copy_logfiles: "
+                                       "NULL dest directory\n");
+        return -1;
+    }
     srclen = strlen(src);
     destlen = strlen(dest);
 
@@ -2888,7 +2896,7 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
                 from = slapi_ch_calloc(1, fromlen);
                 len0 = fromlen;
             }
-            sprintf(from, "%s/%s", src, direntry->name);
+            PR_snprintf(from, len0, "%s/%s", src, direntry->name);
             tolen = destlen + filelen + 2;
             if (len1 < tolen)
             {
@@ -2896,9 +2904,7 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
                 to = slapi_ch_calloc(1, tolen);
                 len1 = tolen;
             }
-            sprintf(to, "%s/%s", dest, direntry->name);
-            if (NULL == from || NULL == to)
-                break;
+            PR_snprintf(to, len1, "%s/%s", dest, direntry->name);
             rval = dblayer_copyfile(from, to, 1, DEFAULT_MODE);
             if (rval < 0)
                 break;
