@@ -1135,6 +1135,13 @@ index_range_read(
     int sizelimit = 0;
     time_t curtime, stoptime, optime;
     int timelimit = -1;
+    back_search_result_set *sr = NULL;
+
+    if (!pb) {
+        LDAPDebug(LDAP_DEBUG_ANY, "index_range_read: NULL pblock\n",
+                  0, 0, 0);
+        return NULL;
+    }
 
     *err = 0;
 
@@ -1156,22 +1163,18 @@ index_range_read(
 
     /*
      * Determine the lookthrough_limit from the PBlock.
-     * No limit if there is no PBlock supplied or if there is no
-     * search result set and the requestor is root.
+     * No limit if there is no search result set and the requestor is root.
      */
-    if (pb != NULL) {
-        back_search_result_set *sr = NULL;
 
-        slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
-        if (sr != NULL) {
-            /* the normal case */
-            lookthrough_limit = sr->sr_lookthroughlimit;
-        } else {
-            int isroot = 0;
-            slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
-            if (!isroot) {
-                lookthrough_limit = li->li_lookthroughlimit; 
-            }
+    slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
+    if (sr != NULL) {
+        /* the normal case */
+        lookthrough_limit = sr->sr_lookthroughlimit;
+    } else {
+        int isroot = 0;
+        slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
+        if (!isroot) {
+            lookthrough_limit = li->li_lookthroughlimit; 
         }
     }
 
