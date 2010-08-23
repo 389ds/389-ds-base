@@ -268,6 +268,10 @@ LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_patter
     char        *plusptr;
     int            retcode;
 
+    if (NULL == treetop) {
+        return ACL_RES_ERROR;
+    }
+
     /* ip address can be delimited by space, tab, comma, or carriage return
      * only.
      */
@@ -343,8 +347,12 @@ LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop)
     LASIpTree_t    *curptr = NULL;    /* pointer to the current node    */
     LASIpTree_t    *newptr;
 
+    if (NULL == treetop) {
+        return ACL_RES_ERROR;
+    }
+
     /* stop at the first 1 in the netmask from low to high         */
-    for (stopbit=0;  stopbit<32; stopbit++) {
+    for (stopbit=0; stopbit<32; stopbit++) {
         if ((netmask&(1<<stopbit)) != 0)
             break;
     }
@@ -353,7 +361,7 @@ LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop)
     if (*treetop == (LASIpTree_t *)NULL) {    /* No tree at all */
         curptr = LASIpTreeAllocNode(errp);
         if (curptr == NULL) {
-	    nserrGenerate(errp, ACLERRFAIL, ACLERR5100, ACL_Program, 1, XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_));
+            nserrGenerate(errp, ACLERRFAIL, ACLERR5100, ACL_Program, 1, XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_));
             return ACL_RES_ERROR;
         }
         *treetop = curptr;
@@ -362,8 +370,8 @@ LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop)
     /* Special case if the netmask is 0.
      */
     if (stopbit > 31) {
-        curptr->action[0] = (LASIpTree_t *)LAS_EVAL_TRUE;
-        curptr->action[1] = (LASIpTree_t *)LAS_EVAL_TRUE;
+        (*treetop)->action[0] = (LASIpTree_t *)LAS_EVAL_TRUE;
+        (*treetop)->action[1] = (LASIpTree_t *)LAS_EVAL_TRUE;
         return 0;
     }
 
