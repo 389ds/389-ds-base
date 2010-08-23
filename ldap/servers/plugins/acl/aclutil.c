@@ -286,7 +286,7 @@ aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 	}
 
 	slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "%s", lineptr);
-	if (newline) slapi_ch_free((void **) &newline);
+	slapi_ch_free_string(&newline);
 }
 
 /***************************************************************************
@@ -549,7 +549,7 @@ aclutil_expand_paramString ( char *str, Slapi_Entry *e )
 	char		**a_dns;
 	char		*attrName;
 	char		*s, *p;
-	char		*attrVal;
+	char		*attrVal = NULL;
 	int			i, len;
 	int			ncomponents, type;
 	int			rc = -1;
@@ -635,8 +635,7 @@ cleanup:
 	slapi_ldap_value_free ( a_dns );
 	slapi_ldap_value_free ( e_dns );
 	if ( 0 != rc ) /* error */ {
-		slapi_ch_free ( (void **) &buf );
-		buf = NULL;
+		slapi_ch_free_string ( &buf );
 	}
 
 	return buf;
@@ -779,11 +778,19 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 	
 	/* we know it's got a $(dn) */
 	tmp_ptr = strstr(macro_prefix, ACL_TARGET_MACRO_DN_KEY);	
+	if (!tmp_ptr) {
+		LDAPDebug(LDAP_DEBUG_ACL,"acl_match_macro_in_target: "
+				"Target macro DN key \"%s\" not found in \"%s\".\n",
+				ACL_TARGET_MACRO_DN_KEY, macro_prefix, 0);
+		slapi_ch_free_string(&macro_prefix);
+		return ret_val;
+	}
+
 	*tmp_ptr = '\0';
 	/* There may be a NULL prefix eg. match_this: ($dn),o=sun.com */
 	macro_prefix_len = strlen(macro_prefix);
 	if (macro_prefix_len == 0) {
-		slapi_ch_free((void **) &macro_prefix);
+		slapi_ch_free_string(&macro_prefix);
 		macro_prefix = NULL;
 	}
 	
@@ -950,7 +957,7 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 				}
 			}
 		}/* contains an =* */	
-		slapi_ch_free((void **) &macro_prefix);		
+		slapi_ch_free_string(&macro_prefix);
 	}/* macro_prefix != NULL */
 
 	return(ret_val);
@@ -1119,7 +1126,7 @@ acl_match_prefix( char *macro_prefix, const char *ndn, int *exact_match) {
 					}											
 				}
 			}
-			slapi_ch_free((void **)&tmp_str);
+			slapi_ch_free_string(&tmp_str);
 		}
 	}/* while */
 
@@ -1211,13 +1218,13 @@ acl_strstr(char * s, char *substr) {
 	tmp_str = slapi_ch_strdup(s);
 	
 	if ( (t = strstr(tmp_str, substr)) == NULL ) {
-		slapi_ch_free((void **)&tmp_str);
+		slapi_ch_free_string(&tmp_str);
 		return(-1);
 	} else {
 		int l = 0;
 		*t = '\0';
 		l = strlen(tmp_str);
-		slapi_ch_free((void **)&tmp_str);
+		slapi_ch_free_string(&tmp_str);
 		return(l);
 	}
 }
@@ -1268,7 +1275,7 @@ acl_replace_str(char * s, char *substr, char* replace_with_str) {
 				strcat(patched, replace_with_str);
 				strcat(patched, suffix);
 
-				slapi_ch_free((void **)&working_s);
+				slapi_ch_free_string(&working_s);
 
 				working_s = patched;
 				prefix = working_s;
@@ -1379,7 +1386,7 @@ void acl_ht_add_and_freeOld(acl_ht_t * acl_ht,
 
 	if ( (old_value = (char *)acl_ht_lookup( acl_ht, key)) != NULL ) {
 		acl_ht_remove( acl_ht, key);
-		slapi_ch_free((void **)&old_value);
+		slapi_ch_free_string(&old_value);
 	}
 
 	PL_HashTableAdd( acl_ht, (const void *)pkey, value);
