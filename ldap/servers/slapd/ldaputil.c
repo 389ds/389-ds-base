@@ -79,6 +79,79 @@ slapi_ldap_unbind( LDAP *ld )
     }
 }
 
+/* mozldap ldap_init and ldap_url_parse accept a hostname in the form
+   host1[:port1]SPACEhost2[:port2]SPACEhostN[:portN]
+   where SPACE is a single space (0x20) character
+   for openldap, we have to convert this to a string like this:
+   PROTO://host1[:port1]/SPACEPROTO://host2[:port2]/SPACEPROTO://hostN[:portN]/
+   where PROTO is ldap or ldaps or ldapi
+   if proto is NULL, assume hostname_or_uri is really a valid ldap uri
+*/
+static char *
+convert_to_openldap_uri(const char *hostname_or_uri, int port, const char *proto)
+{
+    char *retstr = NULL;
+    char *my_copy = NULL;
+    char *start = NULL;
+    char *iter = NULL;
+    char *s = NULL;
+    const char *brkstr = " ";
+
+    if (!hostname_or_uri) {
+	return NULL;
+    }
+
+    my_copy = slapi_ch_strdup(hostname_or_uri);
+    /* see if hostname_or_uri is an ldap uri */
+    if (!proto && !PL_strncasecmp(my_copy, "ldap", 4)) {
+	start = my_copy + 4;
+	if ((*start == 's') || (*start == 'i')) {
+	    start++;
+	}
+	if (!PL_strncmp(start, "://", 3)) {
+	    *start = '\0';
+	    proto = my_copy;
+	    start += 3;
+	} else {
+	    slapi_log_error(SLAPI_LOG_FATAL, "convert_to_openldap_uri",
+			    "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
+	    goto end;
+	}
+    } else if (!proto) {
+	slapi_log_error(SLAPI_LOG_FATAL, "convert_to_openldap_uri",
+			"The given LDAP URI [%s] is not valid\n", hostname_or_uri);
+	goto end;
+    } else {
+	start = my_copy; /* just assume it's not a uri */
+    }
+	    
+    for (s = ldap_utf8strtok_r(my_copy, brkstr, &iter); s != NULL;
+	 s = ldap_utf8strtok_r(NULL, brkstr, &iter)) {
+	char *ptr;
+	int last = 0;
+	/* strtok will grab the '/' at the end of the uri, if any,
+	   so terminate parsing there */
+	if ((ptr = strchr(s, '/'))) {
+	    *ptr = '\0';
+	    last = 1;
+	}
+	if (retstr) {
+	    retstr = PR_sprintf_append(retstr, "/ %s://%s", proto, s);
+	} else {
+	    retstr = PR_smprintf("%s://%s", proto, s);
+	}
+	if (last) {
+	    break;
+	}
+    }
+
+    /* add the port on the last one */
+    retstr = PR_sprintf_append(retstr, ":%d/", port);
+end:
+    slapi_ch_free_string(&my_copy);
+    return retstr;    
+}
+
 const char *
 slapi_urlparse_err2string( int err )
 {
@@ -571,7 +644,7 @@ slapi_ldap_init_ext(
 	if (filename) {
 	    makeurl = slapi_ch_smprintf("ldapi://%s/", filename);
 	} else { /* host port */
-	    makeurl = slapi_ch_smprintf("ldap%s://%s:%d/", (secure == 1 ? "s" : ""), hostname, port);
+	    makeurl = convert_to_openldap_uri(hostname, port, (secure == 1 ? "ldaps" : "ldap"));
 	}
 	rc = ldap_initialize(&ld, makeurl);
 	if (rc) {
@@ -806,11 +879,11 @@ slapi_ldap_bind(
 	/* openldap doesn't have a SSL/TLS yes/no flag - so grab the
 	   ldapurl, parse it, and see if it is a secure one */
 	char *ldapurl = NULL;
-	LDAPURLDesc *ludp = NULL;
 
 	ldap_get_option(ld, LDAP_OPT_URI, &ldapurl);
-	slapi_ldap_url_parse(ldapurl, &ludp, 0, &secure);
-	ldap_free_urldesc(ludp);
+	if (ldapurl && !PL_strncasecmp(ldapurl, "ldaps", 5)) {
+	    secure = 1;
+	}
 	slapi_ch_free_string(&ldapurl);
 #else /* !USE_OPENLDAP */
 	ldap_get_option(ld, LDAP_OPT_SSL, &secure);
