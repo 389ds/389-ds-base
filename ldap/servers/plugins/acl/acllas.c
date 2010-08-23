@@ -3999,12 +3999,11 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 	/*
 	 * First, get the matched value from the target resource.
 	 * We have alredy done this matching once beofer at tasrget match time.
-	*/
+	 */
 
-	LDAPDebug ( LDAP_DEBUG_ACL, "aclutil_evaluate_macro for aci '%s'"
-								"index '%d'\n",
-			aci->aclName, aci->aci_index,0);
-	
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+	 				"aclutil_evaluate_macro for aci '%s' index '%d'\n",
+					aci->aclName, aci->aci_index );
 	if ( aci->aci_macro == NULL ) {
 		/* No $dn in the target, it's a $attr type subject rule */
 		matched_val = NULL;
@@ -4013,20 +4012,20 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 		/*
 		 * Look up the matched_val value calculated
 		 * from the target and stored judiciously there for us.
-		*/
+		 */
 
 		if ( (matched_val = (char *)acl_ht_lookup( aclpb->aclpb_macro_ht,
-								(PLHashNumber)aci->aci_index)) == NULL) {				
-			LDAPDebug( LDAP_DEBUG_ACL,
+								(PLHashNumber)aci->aci_index)) == NULL) {
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 				"ACL info: failed to locate the calculated target"
 				"macro for aci '%s' index '%d'\n",
-				aci->aclName, aci->aci_index,0);
+				aci->aclName, aci->aci_index );
 			return(ACL_FALSE); /* Not a match */
 		} else {
-			LDAPDebug( LDAP_DEBUG_ACL,
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 				"ACL info: found matched_val (%s) for aci index %d"
 				"in macro ht\n", 
-				aci->aclName, aci->aci_index,0);
+				aci->aclName, aci->aci_index );
 		}
 	}
 
@@ -4057,7 +4056,7 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 		inner_list = acllas_replace_attr_macro( s, lasinfo);
 
 		tptr = inner_list;
-		while( *tptr != NULL && (matched != ACL_TRUE) ){
+		while( tptr && *tptr != NULL && (matched != ACL_TRUE) ){
 
 			t = *tptr;
 
@@ -4247,8 +4246,8 @@ acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 */
 
 static char **
-acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
-
+acllas_replace_attr_macro( char *rule, lasInfo *lasinfo)
+{
 	char **a = NULL;
 	char **working_list = NULL;
 	Slapi_Entry *e = lasinfo->resourceEntry;
@@ -4278,14 +4277,22 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
 			 * $attr.atrName replaced with the value of attrName in e.
 			 * If attrName is multi valued then this generates another
 			 * list which replaces the old one.
-			*/
-        		
+			 */
 			l = acl_strstr(&str[0], ")");
 			macro_str = slapi_ch_malloc(l+2);
 			strncpy( macro_str, &str[0], l+1);
 			macro_str[l+1] = '\0';
 
 			str = strstr(macro_str, ".");
+			if (!str) {
+				slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+						"acllas_replace_attr_macro: Invalid macro \"%s\".",
+						macro_str);
+				slapi_ch_free_string(&macro_str);
+				charray_free(working_list);
+				return NULL;
+			}
+ 
 			str++;								/* skip the . */
 			l = acl_strstr(&str[0], ")");
 			macro_attr_name = slapi_ch_malloc(l+1);
@@ -4303,12 +4310,11 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
 				 * be taken as the candidate.
 				*/
 				
-				slapi_ch_free((void **)&macro_str);
-				slapi_ch_free((void **)&macro_attr_name);
+				slapi_ch_free_string(&macro_str);
+				slapi_ch_free_string(&macro_attr_name);
 			
 				charray_free(working_list);
-				charray_add(&a, slapi_ch_strdup(""));
-				return(a);	
+				return NULL;
 				
 			} else{
 
@@ -4344,8 +4350,8 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
 				if (a == NULL) {
 					/* This shouldn't happen, but we play
 					 * if safe to avoid any problems. */
-					slapi_ch_free((void **)&macro_str);
-					slapi_ch_free((void **)&macro_attr_name);
+					slapi_ch_free_string(&macro_str);
+					slapi_ch_free_string(&macro_attr_name);
 					charray_add(&a, slapi_ch_strdup(""));
 					return(a);
 				} else {
@@ -4354,8 +4360,8 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
 					a = NULL;
 				}
 			}
-			slapi_ch_free((void **)&macro_str);
-			slapi_ch_free((void **)&macro_attr_name);
+			slapi_ch_free_string(&macro_str);
+			slapi_ch_free_string(&macro_attr_name);
 			
 			str = strstr(working_rule, ACL_RULE_MACRO_ATTR_KEY);
 		
@@ -4363,8 +4369,6 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo) {
 		
 		return(working_list);
 	}
-	
-	
 }
 
 /*
