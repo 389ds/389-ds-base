@@ -408,6 +408,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     int i, j;
     int dodeletes = 0;
     char tmpBuf[MAX_TMPBUF];
+    int rc = SLAPI_DSE_CALLBACK_OK;
 
     returntext[0] = '\0';
     *returncode = LDAP_SUCCESS;
@@ -416,15 +417,36 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     slapi_entry_attr_find(e, "cn", &attr);
     slapi_attr_first_value(attr, &sval);
     attrValue = slapi_value_get_berval(sval);
+
     ainfo_get(inst->inst_be, attrValue->bv_val, &ainfo);
     if (NULL == ainfo) {
-        return SLAPI_DSE_CALLBACK_ERROR;
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
     }
 
     origIndexTypes = attrinfo2ConfIndexes(ainfo);
+    if (NULL == origIndexTypes) {
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
     origMatchingRules = attrinfo2ConfMatchingRules(ainfo);
+    if (NULL == origMatchingRules) {
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
     origIndexTypesArray = slapi_str2charray(origIndexTypes, ",");
+    if (NULL == origIndexTypesArray) {
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
     origMatchingRulesArray = slapi_str2charray(origMatchingRules, ",");
+    if (NULL == origMatchingRulesArray) {
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
 
     for (i = 0; mods[i] != NULL; i++) {
         config_attr = (char *)mods[i]->mod_type;
@@ -570,6 +592,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     arglist[i] = NULL;
     attr_index_config(inst->inst_be, "from DSE modify", 0, i, arglist, 0);
 
+out:
     /* Free args */
     for (i=0; arglist[i]; i++) {
 	slapi_ch_free((void **)&arglist[i]);
@@ -600,7 +623,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
 	slapi_ch_free ((void **)&origMatchingRules);	
     }
 
-    return SLAPI_DSE_CALLBACK_OK;
+    return rc;
 }
 
 /* add index entries to the per-instance DSE (used only from instance.c) */
@@ -640,7 +663,7 @@ int ldbm_instance_config_add_index_entry(
         matchingRules = slapi_str2charray( tmpMatchingRulesStr, ",");
     }
 
-    for(i=0; attrs[i] !=NULL; i++)
+    for(i=0; attrs && attrs[i] !=NULL; i++)
     {
         if('\0' == attrs[i][0]) continue;
         basetype = slapi_attr_basetype(attrs[i], NULL, 0);
@@ -666,13 +689,13 @@ int ldbm_instance_config_add_index_entry(
                 dn, basetype,
                 (ldbm_attribute_always_indexed(basetype)?"true":"false"));
         slapi_ch_free_string(&dn);
-        for(j=0; indexes[j] != NULL; j++)
+        for(j=0; indexes && indexes[j] != NULL; j++)
         {
             eBuf = PR_sprintf_append(eBuf, "nsIndexType:%s\n", indexes[j]);
         }
         if((argc>2)&&(argv[2]))
         {
-            for(j=0; matchingRules[j] != NULL; j++)
+            for(j=0; matchingRules && matchingRules[j] != NULL; j++)
             { 
                 eBuf = PR_sprintf_append(eBuf, "nsMatchingRule:%s\n", matchingRules[j]);
             }
@@ -687,15 +710,9 @@ int ldbm_instance_config_add_index_entry(
     }
 
 done:
-    if(NULL != attrs) {
-        charray_free(attrs);
-    }
-    if(NULL != indexes) {
-        charray_free(indexes);
-    }
-    if(NULL != matchingRules) {
-        charray_free(matchingRules);
-    }
+    charray_free(attrs);
+    charray_free(indexes);
+    charray_free(matchingRules);
     return rc;
 }
 
