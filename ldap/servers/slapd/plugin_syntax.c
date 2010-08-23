@@ -351,6 +351,9 @@ exit:
  *
  * Returns 1 if there is a syntax violation and sets the error message
  * appropriately.  Returns 0 if everything checks out fine.
+ * 
+ * Note: this function allows NULL pb.  If NULL, is_replicated_operation
+ * will not checked and error message will not be generated and returned.
  */
 int
 slapi_entry_syntax_check(
@@ -368,13 +371,9 @@ slapi_entry_syntax_check(
 	char *errp = &errtext[0];
 	size_t err_remaining = sizeof(errtext);
 
-	if (!pb) {
-		LDAPDebug( LDAP_DEBUG_ANY, "slapi_entry_syntax_check: NULL PBlock\n", 0, 0, 0 );
-		ret = 1;
-		goto exit;
+	if (pb != NULL) {
+		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
 	}
-
-	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
 
 	/* If syntax checking and logging are off, or if this is a
          * replicated operation, just return that the syntax is OK. */
@@ -408,10 +407,12 @@ slapi_entry_syntax_check(
 						}
 
 						if (syntaxcheck || override) {
-							/* Append new text to any existing text. */
-							errp += PR_snprintf( errp, err_remaining,
-							    "%s: value #%d invalid per syntax\n", a->a_type, hint );
-							err_remaining -= errp - &errtext[0];
+							if (pb) {
+								/* Append new text to any existing text. */
+								errp += PR_snprintf( errp, err_remaining,
+								    "%s: value #%d invalid per syntax\n", a->a_type, hint );
+								err_remaining -= errp - &errtext[0];
+							}
 							ret = 1;
 						}
 					}
@@ -426,7 +427,7 @@ slapi_entry_syntax_check(
 	}
 
 	/* See if we need to set the error text in the pblock. */
-	if (errp != &errtext[0]) {
+	if (pb && (errp != &errtext[0])) { /* Check pb for coverity  */
 		/* SLAPI_PB_RESULT_TEXT duplicates the text in slapi_pblock_set */
 		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
 	}
@@ -441,6 +442,9 @@ exit:
  * value for a modrdn operation will be checked.
  * Returns 1 if there is a syntax violation and sets the error message
  * appropriately.  Returns 0 if everything checks out fine.
+ *
+ * Note: this function allows NULL pb.  If NULL, is_replicated_operation
+ * will not checked and error message will not be generated and returned.
  */
 int
 slapi_mods_syntax_check(
@@ -458,13 +462,15 @@ slapi_mods_syntax_check(
 	char *dn = NULL;
 	LDAPMod *mod = NULL;
 
-	if (pb == NULL || mods == NULL) {
+	if (mods == NULL) {
 		ret = 1;
 		goto exit;
 	}
 
-	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
-	slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
+	if (pb != NULL) {
+		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+		slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
+	}
 
 	/* If syntax checking and logging are  off, or if this is a
 	 * replicated operation, just return that the syntax is OK. */
@@ -496,10 +502,12 @@ slapi_mods_syntax_check(
 						}
 
 						if (syntaxcheck || override) {
-							/* Append new text to any existing text. */
-							errp += PR_snprintf( errp, err_remaining,
-							    "%s: value #%d invalid per syntax\n", mod->mod_type, j );
-							err_remaining -= errp - &errtext[0];
+							if (pb) {
+								/* Append new text to any existing text. */
+								errp += PR_snprintf( errp, err_remaining,
+								    "%s: value #%d invalid per syntax\n", mod->mod_type, j );
+								err_remaining -= errp - &errtext[0];
+							}
 							ret = 1;
 						}
 					}
@@ -509,7 +517,7 @@ slapi_mods_syntax_check(
 	}
 
 	/* See if we need to set the error text in the pblock. */
-	if (errp != &errtext[0]) {
+	if (pb && (errp != &errtext[0])) { /* Check pb for coverity  */
 		/* SLAPI_PB_RESULT_TEXT duplicates the text in slapi_pblock_set */
 		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
 	}
