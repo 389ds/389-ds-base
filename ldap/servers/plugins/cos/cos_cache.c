@@ -1387,10 +1387,18 @@ static int cos_cache_add_defn(
 	cosAttrValue *pDummyAttrVal = 0;
 	cosAttrValue *pAttrsIter = 0;
 	cosAttributes *pDummyAttributes = 0;
-	cosAttrValue *pSpecsIter = *spec;
+	cosAttrValue *pSpecsIter = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_add_defn\n",0,0,0);
 	
+	if (!spec) {
+		LDAPDebug( LDAP_DEBUG_ANY, "missing spec\n",0,0,0);
+		ret = -1;
+		goto out;
+	}
+
+	pSpecsIter = *spec;
+
 	/* we don't want cosspecifiers that can be supplied by the same scheme */
 	while( pSpecsIter )
 	{
@@ -1481,7 +1489,7 @@ static int cos_cache_add_defn(
 			ret = -1;
 		}
 	}
-
+out:
 	if(ret < 0)
 	{
 		if(dn)
