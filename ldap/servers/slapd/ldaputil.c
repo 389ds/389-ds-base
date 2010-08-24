@@ -384,8 +384,8 @@ slapi_ldif_put_type_and_value_with_options( char **out, const char *t, const cha
         /* modify out in place, stripping out continuation lines */
         char *src = save;
         char *dest = save;
-        for (; src && *src && (src != *out); ++src) {
-            if (!strncmp(src, "\n ", 2)) {
+        for (; src < *out; ++src) {
+            if ((src < (*out - 2)) && !strncmp(src, "\n ", 2)) {
                 src += 2; /* skip continuation */
             }
             *dest++ = *src;
