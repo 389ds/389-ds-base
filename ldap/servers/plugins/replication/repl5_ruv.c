@@ -825,14 +825,18 @@ ruv_get_replica_generation(const RUV *ruv)
 {
 	char *return_str = NULL;
 
-    PR_RWLock_Rlock (ruv->lock);
+	if (!ruv) {
+		return return_str;
+	}
+
+	PR_RWLock_Rlock (ruv->lock);
 
 	if (ruv != NULL && ruv->replGen != NULL)
 	{
 		return_str = slapi_ch_strdup(ruv->replGen);
 	}
 
-    PR_RWLock_Unlock (ruv->lock);
+	PR_RWLock_Unlock (ruv->lock);
 
 	return return_str;
 }
