@@ -390,6 +390,7 @@ slapi_ldif_put_type_and_value_with_options( char **out, const char *t, const cha
             }
             *dest++ = *src;
         }
+        *out = dest; /* move 'out' back if we removed some continuation lines */
     }
 #else
     ldif_put_type_and_value_with_options( out, (char *)t, (char *)val, vlen, options );
