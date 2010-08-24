@@ -979,7 +979,7 @@ static int postal_validate(
 	 *                   / %x5D-7F
 	 *                   / UTFMB
 	 */
-	if (val != NULL) {
+	if ((val != NULL) && (val->bv_val != NULL) && (val->bv_len > 0)) {
 		start = val->bv_val;
 		end = &(val->bv_val[val->bv_len - 1]);
 		for (p = start; p <= end; p++) {
@@ -995,11 +995,11 @@ static int postal_validate(
 					 * of the hex code for the escaped character */
 					p++;
 				}
-			} else if (*p == '$') {
+			} else if ((*p == '$') || (p == end)) {
 				/* This signifies the end of a line.  We need
 				 * to ensure that the line is not empty. */
 				/* make sure the value doesn't end with a '$' */
-				if ((p == start) || (p == end)) {
+				if ((p == start) || ((*p == '$') && (p == end))) {
 					if (!postal_allow_empty_lines) {
 						rc = 1;
 						goto exit;
