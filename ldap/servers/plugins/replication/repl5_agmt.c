@@ -324,11 +324,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	{
 		ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
 	}
-	/* XXXggood get fractional attribute include/exclude lists here */
-	/* Alrighty Gordon, you get your way... */
-	if (slapi_entry_attr_find(e, type_nsds5ReplicaUpdateSchedule, &sattr) == 0)
-	{
-	}
+
 	/* Replication schedule */
 	ra->schedule = schedule_new(update_window_state_change_callback, ra, agmt_get_long_name(ra));
 	if (slapi_entry_attr_find(e, type_nsds5ReplicaUpdateSchedule, &sattr) == 0)
