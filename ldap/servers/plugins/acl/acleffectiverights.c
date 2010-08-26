@@ -702,7 +702,8 @@ _ger_get_attrs_rights (
 				{
 					if (charray_inlist(allattrs, attrs[i]) ||
 						charray_inlist(opattrs, attrs[i]) ||
-						(0 == strcasecmp(attrs[i], "dn")))
+						(0 == strcasecmp(attrs[i], "dn")) ||
+						(0 == strcasecmp(attrs[i], "distinguishedName")))
 					{
 						_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i],
 							gerstr, gerstrsize, gerstrcap, isfirstattr, errbuf );
