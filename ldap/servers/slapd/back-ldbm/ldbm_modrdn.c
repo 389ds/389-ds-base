@@ -701,7 +701,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             char **rdns;
             int i;
-            if ( (rdns = ldap_explode_rdn( slapi_sdn_get_dn(&dn_newrdn), 0 )) != NULL ) 
+            if ( (rdns = slapi_ldap_explode_rdn( slapi_sdn_get_dn(&dn_newrdn), 0 )) != NULL ) 
             {
                 for ( i = 0; rdns[i] != NULL; i++ ) 
                 {
@@ -1202,10 +1202,10 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
     int baddn = 0; /* set to true if could not parse dn */
     int badrdn = 0; /* set to true if could not parse rdn */
     dn = slapi_ch_strdup(olddn);
-    dns = ldap_explode_dn( dn, 0 );
+    dns = slapi_ldap_explode_dn( dn, 0 );
     if ( dns != NULL )
     {
-        rdns = ldap_explode_rdn( dns[0], 0 );
+        rdns = slapi_ldap_explode_rdn( dns[0], 0 );
         if ( rdns != NULL )
         {
             for ( i = 0; rdns[i] != NULL; i++ )
@@ -1254,7 +1254,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
     /*
      * add new RDN values to the entry (non-normalized)
      */
-    rdns = ldap_explode_rdn( newrdn, 0 );
+    rdns = slapi_ldap_explode_rdn( newrdn, 0 );
     if ( rdns != NULL )
     {
         for ( i = 0; rdns[i] != NULL; i++ )
@@ -1434,7 +1434,7 @@ moddn_rename_child_entry(
      * excluding the old parent entry DN, and adding the new
      * superior entry DN.
      *
-     * ldap_explode_dn is probably a bit slow, but it knows about
+     * slapi_ldap_explode_dn is probably a bit slow, but it knows about
      * DN escaping which is pretty complicated, and we wouldn't
      * want to reimplement that here.
      *
@@ -1449,7 +1449,7 @@ moddn_rename_child_entry(
     int i;
 
     olddn = slapi_entry_get_dn(ec->ep_entry);
-    olddns = ldap_explode_dn( olddn, 0 );
+    olddns = slapi_ldap_explode_dn( olddn, 0 );
     for(;olddns[olddncomps]!=NULL;olddncomps++);
     for(i=0;i<olddncomps-parentdncomps;i++)
     {
@@ -1540,7 +1540,7 @@ moddn_rename_children(
      * Break down the parent entry dn into its components.
      */
     {
-        char **parentdns = ldap_explode_dn( slapi_sdn_get_dn(dn_parentdn), 0 );
+        char **parentdns = slapi_ldap_explode_dn( slapi_sdn_get_dn(dn_parentdn), 0 );
         if (parentdns)
         {
             for(;parentdns[parentdncomps]!=NULL;parentdncomps++);
@@ -1555,7 +1555,7 @@ moddn_rename_children(
     /*
      * Break down the new superior entry dn into its components.
      */    
-    newsuperiordns = ldap_explode_dn( slapi_sdn_get_dn(dn_newsuperiordn), 0 );
+    newsuperiordns = slapi_ldap_explode_dn( slapi_sdn_get_dn(dn_newsuperiordn), 0 );
     if (newsuperiordns)
     {
         for(;newsuperiordns[newsuperiordncomps]!=NULL;newsuperiordncomps++);

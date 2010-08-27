@@ -34,6 +34,47 @@
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
+ *
+ * mozldap_ldap_explode, mozldap_ldap_explode_dn, mozldap_ldap_explode_rdn
+ * are from the file ldap/libraries/libldap/getdn.c in the Mozilla LDAP C SDK
+ *
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ * 
+ * The contents of this file are subject to the Mozilla Public License Version 
+ * 1.1 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at 
+ * http://www.mozilla.org/MPL/
+ * 
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ * 
+ * The Original Code is Mozilla Communicator client code, released
+ * March 31, 1998.
+ * 
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998-1999
+ * the Initial Developer. All Rights Reserved.
+ * 
+ * Contributor(s):
+ * 
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ * 
+ *  Copyright (c) 1994 Regents of the University of Michigan.
+ *  All rights reserved.
+ *
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -60,6 +101,15 @@
 #include <ldappr.h>
 #endif
 
+#if defined(USE_OPENLDAP)
+/* the server depends on the old, deprecated ldap_explode behavior which openldap
+   does not support - the use of the mozldap code should be seen as a temporary
+   measure which we should remove as we improve our internal DN handling */
+static char **mozldap_ldap_explode( const char *dn, const int notypes, const int nametype );
+static char **mozldap_ldap_explode_dn( const char *dn, const int notypes );
+static char **mozldap_ldap_explode_rdn( const char *rdn, const int notypes );
+#endif
+
 #ifdef MEMPOOL_EXPERIMENTAL
 void _free_wrapper(void *ptr)
 {
@@ -79,6 +129,7 @@ slapi_ldap_unbind( LDAP *ld )
     }
 }
 
+#if defined(USE_OPENLDAP)
 /* mozldap ldap_init and ldap_url_parse accept a hostname in the form
    host1[:port1]SPACEhost2[:port2]SPACEhostN[:portN]
    where SPACE is a single space (0x20) character
@@ -151,6 +202,7 @@ end:
     slapi_ch_free_string(&my_copy);
     return retstr;    
 }
+#endif /* USE_OPENLDAP */
 
 const char *
 slapi_urlparse_err2string( int err )
@@ -1034,6 +1086,26 @@ done:
     return rc;
 }
 
+char **
+slapi_ldap_explode_rdn(const char *rdn, int notypes)
+{
+#if defined(USE_OPENLDAP)
+    return mozldap_ldap_explode_rdn(rdn, notypes);
+#else
+    return ldap_explode_dn(rdn, notypes);
+#endif
+}
+
+char **
+slapi_ldap_explode_dn(const char *dn, int notypes)
+{
+#if defined(USE_OPENLDAP)
+    return mozldap_ldap_explode_dn(dn, notypes);
+#else
+    return ldap_explode_dn(dn, notypes);
+#endif
+}
+
 void
 slapi_add_auth_response_control( Slapi_PBlock *pb, const char *binddn )
 {
@@ -1871,3 +1943,161 @@ cleanup:
 }
 
 #endif /* HAVE_KRB5 */
+
+#if defined(USE_OPENLDAP)
+
+#define LDAP_DN		1
+#define LDAP_RDN	2
+
+#define INQUOTE		1
+#define OUTQUOTE	2
+
+static char **
+mozldap_ldap_explode( const char *dn, const int notypes, const int nametype )
+{
+	char	*p, *q, *rdnstart, **rdns = NULL;
+	size_t	plen = 0;
+	int		state = 0;
+	int		count = 0;
+	int		startquote = 0;
+	int		endquote = 0;
+	int		len = 0;
+	int		goteq = 0;
+
+	if ( dn == NULL ) {
+		dn = "";
+	}
+
+	while ( ldap_utf8isspace( (char *)dn )) { /* ignore leading spaces */
+		++dn;
+	}
+
+	p = rdnstart = (char *) dn;
+	state = OUTQUOTE;
+
+	do {
+		p += plen;
+		plen = 1;
+		switch ( *p ) {
+		case '\\':
+			if ( *++p == '\0' )
+				p--;
+			else
+				plen = LDAP_UTF8LEN(p);
+			break;
+		case '"':
+			if ( state == INQUOTE )
+				state = OUTQUOTE;
+			else
+				state = INQUOTE;
+			break;
+		case '+': if ( nametype != LDAP_RDN ) break;
+		case ';':
+		case ',':
+		case '\0':
+			if ( state == OUTQUOTE ) {
+				/*
+				 * semicolon and comma are not valid RDN
+				 * separators.
+				 */
+				if ( nametype == LDAP_RDN && 
+					( *p == ';' || *p == ',' || !goteq)) {
+					charray_free( rdns );
+					return NULL;
+				}
+				if ( (*p == ',' || *p == ';') && !goteq ) {
+                                   /* If we get here, we have a case similar
+				    * to <attr>=<value>,<string>,<attr>=<value>
+				    * This is not a valid dn */
+				    charray_free( rdns );
+				    return NULL;
+				}
+				goteq = 0;
+				++count;
+				if ( rdns == NULL ) {
+					if (( rdns = (char **)slapi_ch_malloc( 8
+						 * sizeof( char *))) == NULL )
+						return( NULL );
+				} else if ( count >= 8 ) {
+					if (( rdns = (char **)slapi_ch_realloc(
+					    rdns, (count+1) *
+					    sizeof( char *))) == NULL )
+						return( NULL );
+				}
+				rdns[ count ] = NULL;
+				endquote = 0;
+				if ( notypes ) {
+					for ( q = rdnstart;
+					    q < p && *q != '='; ++q ) {
+						;
+					}
+					if ( q < p ) { /* *q == '=' */
+						rdnstart = ++q;
+					}
+					if ( *rdnstart == '"' ) {
+						startquote = 1;
+						++rdnstart;
+					}
+					
+					if ( (*(p-1) == '"') && startquote ) {
+						endquote = 1;
+						--p;
+					}
+				}
+
+				len = p - rdnstart;
+				if (( rdns[ count-1 ] = (char *)slapi_ch_calloc(
+				    1, len + 1 )) != NULL ) {
+				    	memcpy( rdns[ count-1 ], rdnstart,
+					    len );
+					if ( !endquote ) {
+						/* trim trailing spaces */
+						while ( len > 0 &&
+						    ldap_utf8isspace(
+						    &rdns[count-1][len-1] )) {
+							--len;
+						}
+					}
+					rdns[ count-1 ][ len ] = '\0';
+				}
+
+				/*
+				 *  Don't forget to increment 'p' back to where
+				 *  it should be.  If we don't, then we will
+				 *  never get past an "end quote."
+				 */
+				if ( endquote == 1 )
+					p++;
+
+				rdnstart = *p ? p + 1 : p;
+				while ( ldap_utf8isspace( rdnstart ))
+					++rdnstart;
+			}
+			break;
+		case '=':
+			if ( state == OUTQUOTE ) {
+				goteq = 1;
+			}
+			/* FALL */
+		default:
+			plen = LDAP_UTF8LEN(p);
+			break;
+		}
+	} while ( *p );
+
+	return( rdns );
+}
+
+static char **
+mozldap_ldap_explode_dn( const char *dn, const int notypes )
+{
+	return( mozldap_ldap_explode( dn, notypes, LDAP_DN ) );
+}
+
+static char **
+mozldap_ldap_explode_rdn( const char *rdn, const int notypes )
+{
+	return( mozldap_ldap_explode( rdn, notypes, LDAP_RDN ) );
+}
+
+#endif /* USE_OPENLDAP */

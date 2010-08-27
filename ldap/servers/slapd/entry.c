@@ -2873,9 +2873,9 @@ slapi_entry_rdn_values_present( const Slapi_Entry *e )
 
 	/* JCM Use the Slapi_RDN code */
 	rc = 1;
-	if ( (dns = ldap_explode_dn( slapi_entry_get_dn_const(e), 0 )) != NULL )
+	if ( (dns = slapi_ldap_explode_dn( slapi_entry_get_dn_const(e), 0 )) != NULL )
 	{
-		if ( (rdns = ldap_explode_rdn( dns[0], 0 )) != NULL )
+		if ( (rdns = slapi_ldap_explode_rdn( dns[0], 0 )) != NULL )
 		{
 			for ( i = 0; rdns[i] != NULL; i++ )
 			{
@@ -2934,10 +2934,10 @@ slapi_entry_add_rdn_values( Slapi_Entry *e )
 
     /* JCM Use the Slapi_RDN code */
     /* make sure RDN values are also in the entry */
-    if ( (dns = ldap_explode_dn( dn, 0 )) == NULL ) {
+    if ( (dns = slapi_ldap_explode_dn( dn, 0 )) == NULL ) {
         return( LDAP_INVALID_DN_SYNTAX );
     }
-    if ( (rdns = ldap_explode_rdn( dns[0], 0 )) == NULL ) {
+    if ( (rdns = slapi_ldap_explode_rdn( dns[0], 0 )) == NULL ) {
         slapi_ldap_value_free( dns );
         return( LDAP_INVALID_DN_SYNTAX );
     }

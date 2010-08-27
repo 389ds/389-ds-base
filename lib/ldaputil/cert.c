@@ -221,12 +221,12 @@ _explode_dn (const char* dn)
 {
     auto char*** exp = NULL;
     if (dn && *dn) {
-	auto char** rdns = ldap_explode_dn (dn, 0);
+	auto char** rdns = slapi_ldap_explode_dn (dn, 0);
 	if (rdns) {
 	    auto size_t expLen = 0;
 	    auto char** rdn;
 	    for (rdn = rdns; *rdn; ++rdn) {
-		auto char** avas = ldap_explode_rdn (*rdn, 0);
+		auto char** avas = slapi_ldap_explode_rdn (*rdn, 0);
 		if (avas && *avas) {
 		    exp = (char***) ldapu_realloc (exp, sizeof(char**) * (expLen + 2));
 		    if (exp) {

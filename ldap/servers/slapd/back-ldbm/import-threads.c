@@ -1497,7 +1497,7 @@ upgradedn_producer(void *param)
                         workdn = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
                         isentrydn = 1;
                     }
-                    rdns = ldap_explode_dn(workdn, 0);
+                    rdns = slapi_ldap_explode_dn(workdn, 0);
                     skipit = 0;
                     for (rdnsp = rdns; rdnsp && *rdnsp; rdnsp++) {
                         valueptr = PL_strchr(*rdnsp, '=');

@@ -371,7 +371,7 @@ test_winsync_get_new_ds_user_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
                     "--> test_winsync_get_new_ds_user_dn_cb -- old dn [%s] -- begin\n",
                     *new_dn_string);
 
-    rdns = ldap_explode_dn(*new_dn_string, 0);
+    rdns = slapi_ldap_explode_dn(*new_dn_string, 0);
     if (!rdns || !rdns[0]) {
         ldap_value_free(rdns);
         return;

@@ -170,8 +170,8 @@ ldif_back_modrdn( Slapi_PBlock *pb )
   mods = NULL;
   bvps[0] = &bv;
   bvps[1] = NULL;
-  if ( (dns = ldap_explode_dn( dn, 0 )) != NULL ) {
-    if ( (rdns = ldap_explode_rdn( dns[0], 0 )) != NULL ) {
+  if ( (dns = slapi_ldap_explode_dn( dn, 0 )) != NULL ) {
+    if ( (rdns = slapi_ldap_explode_rdn( dns[0], 0 )) != NULL ) {
       for ( i = 0; rdns[i] != NULL; i++ ) {
 
 	/* Delete from entry attributes */
@@ -179,23 +179,23 @@ ldif_back_modrdn( Slapi_PBlock *pb )
 	  ldif_add_mod( &mods, LDAP_MOD_DELETE, type, bvps );
 	}
       }
-      ldap_value_free( rdns );
+      slapi_ldap_value_free( rdns );
     }
-    ldap_value_free( dns );
+    slapi_ldap_value_free( dns );
   }
   if ( dns == NULL || rdns == NULL ) {
     slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
     goto error_return;
   }
   /* Add new rdn values to the entry */
-  if ( (rdns = ldap_explode_rdn( newrdn, 0 )) != NULL ) {
+  if ( (rdns = slapi_ldap_explode_rdn( newrdn, 0 )) != NULL ) {
     for ( i = 0; rdns[i] != NULL; i++ ) {
       /* Add to entry */
       if ( rdn2typval( rdns[i], &type, &bv ) == 0 ) {
 	ldif_add_mod( &mods, LDAP_MOD_ADD, type, bvps );
       }
     }
-    ldap_value_free( rdns );
+    slapi_ldap_value_free( rdns );
   } else {
     slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
     goto error_return;

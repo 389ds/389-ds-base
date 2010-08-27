@@ -1184,8 +1184,8 @@ entry_dn_cmp( caddr_t d1, caddr_t d2 )
 		{
 			/* put fewer rdns before more rdns */
 			int rc = 0;
-			char **dnlist1 = ldap_explode_dn(slapi_sdn_get_ndn(dn1), 0);
-			char **dnlist2 = ldap_explode_dn(slapi_sdn_get_ndn(dn2), 0);
+			char **dnlist1 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(dn1), 0);
+			char **dnlist2 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(dn2), 0);
 			int len1 = 0;
 			int len2 = 0;
 			if (dnlist1)

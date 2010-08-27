@@ -172,9 +172,9 @@ static int check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, char *dn,
 	int retCode = LDAP_INSUFFICIENT_ACCESS;
 	int i;
 
-	if ( (dns = ldap_explode_dn( dn, 0 )) != NULL ) {
+	if ( (dns = slapi_ldap_explode_dn( dn, 0 )) != NULL ) {
 
-		if ( (rdns = ldap_explode_rdn( dns[0], 0 )) != NULL ) {
+		if ( (rdns = slapi_ldap_explode_rdn( dns[0], 0 )) != NULL ) {
 	
 			for ( i = 0; rdns[i] != NULL; i++ ) {
 				char *type;			

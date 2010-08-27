@@ -101,7 +101,7 @@ slapi_rdn_init_dn(Slapi_RDN *rdn,const char *dn)
 	slapi_rdn_init(rdn);
 	if(dn!=NULL)
 	{
-		char **dns= ldap_explode_dn(dn, 0);
+		char **dns= slapi_ldap_explode_dn(dn, 0);
 		if(dns!=NULL)
 		{
 			rdn->rdn= slapi_ch_strdup(dns[0]);
@@ -174,9 +174,9 @@ _slapi_rdn_init_all_dn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn)
 				if (q) {
 					char bakup = *q;
 					*q = '\0';
-					dns = ldap_explode_dn(dn, 0);
+					dns = slapi_ldap_explode_dn(dn, 0);
 					if (NULL == dns) { /* if dn contains NULL RDN (e.g., ",,"),
-										  ldap_explode_dn returns NULL */
+										  slapi_ldap_explode_dn returns NULL */
 						*q = bakup;
 						return -1;
 					}
@@ -187,16 +187,16 @@ _slapi_rdn_init_all_dn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn)
 					rc = 0; /* success */
 				} else {
 					/* Given dn does not belong to this server. Just set it. */
-					dns = ldap_explode_dn(dn, 0);
+					dns = slapi_ldap_explode_dn(dn, 0);
 				}
 			}
 		} else {
 			/* Given dn does not belong to this server. Just set it. */
-			dns = ldap_explode_dn(dn, 0);
+			dns = slapi_ldap_explode_dn(dn, 0);
 		}
 	} else {
 		/* Given dn does not belong to this server. Just set it. */
-		dns = ldap_explode_dn(dn, 0);
+		dns = slapi_ldap_explode_dn(dn, 0);
 	}
 
 	/* Get the last matched position */
@@ -329,7 +329,7 @@ slapi_rdn_get_rdns(Slapi_RDN *rdn)
 		}
 		if(rdn->rdn!=NULL)
 		{
-		   	rdn->rdns = ldap_explode_rdn( rdn->rdn, 0 );
+		   	rdn->rdns = slapi_ldap_explode_rdn( rdn->rdn, 0 );
 			rdns= rdn->rdns;
 		}
 	    slapi_setbit_uchar(rdn->flag,FLAG_RDNS);

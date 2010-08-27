@@ -465,7 +465,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	}
 
 	/* check that the rdn is formatted correctly */
-	if ((rdns = ldap_explode_rdn(newrdn, 0)) == NULL) 
+	if ((rdns = slapi_ldap_explode_rdn(newrdn, 0)) == NULL) 
 	{
 		if ( !internal_op ) {
 			slapi_log_error(SLAPI_LOG_ARGS, NULL, 

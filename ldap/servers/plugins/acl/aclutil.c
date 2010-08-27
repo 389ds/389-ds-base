@@ -556,8 +556,8 @@ aclutil_expand_paramString ( char *str, Slapi_Entry *e )
 	char		*buf = NULL;
 
 
-	e_dns = ldap_explode_dn ( slapi_entry_get_ndn ( e ), 0 );
-	a_dns = ldap_explode_dn ( str, 0 );
+	e_dns = slapi_ldap_explode_dn ( slapi_entry_get_ndn ( e ), 0 );
+	a_dns = slapi_ldap_explode_dn ( str, 0 );
 
 	i = 0;
 	ncomponents = 0;

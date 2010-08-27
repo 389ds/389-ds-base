@@ -5170,6 +5170,40 @@ int slapi_ldif_parse_line(
     int *freeval /* values will usually be returned in place as pointers into line - if the value is a url, the value will be malloced and must be freed by the caller */
 );
 
+/**
+ * Parse an LDAP DN string.  Return an array of RDN strings, terminated by a NULL.  This
+ * function differs from the standard openldap ldap_explode_dn, which will escape utf-8
+ * characters.  In the directory server, we do not want to escape them.  The caller
+ * should use slapi_ldap_value_free to free the returned memory when finished.
+ *
+ * \param dn      The LDAP DN
+ * \param notypes set to true (1) to return only the attribute values with no attribute types  
+ * \return \c     An array of RDN strings - use slapi_ch_array_free to free
+ *
+ * \see slapi_ldap_value_free()
+ */
+char **slapi_ldap_explode_dn(
+    const char *dn, /* dn to explode */
+    int notypes /* set to true to return only the values with no types */
+);
+
+/**
+ * Parse an LDAP RDN string.  Return an array of AVA strings, terminated by a NULL.  This
+ * function differs from the standard openldap ldap_explode_rdn, which will escape utf-8
+ * characters.  In the directory server, we do not want to escape them.  The caller
+ * should use slapi_ldap_value_free to free the returned memory when finished.
+ *
+ * \param dn      The LDAP RDN
+ * \param notypes set to true (1) to return only the attribute values with no attribute types  
+ * \return \c     An array of AVA strings - use slapi_ch_array_free to free
+ *
+ * \see slapi_ldap_value_free()
+ */
+char **slapi_ldap_explode_rdn(
+    const char *rdn, /* rdn to explode */
+    int notypes /* set to true to return only the values with no types */
+);
+
 /*
  * computed attributes
  */

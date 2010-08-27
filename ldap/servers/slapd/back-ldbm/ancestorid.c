@@ -867,8 +867,8 @@ int slapi_sdn_suffix_cmp(
     size_t len = 0;
     char *p, *ndnstr;
 
-    rdns1 = ldap_explode_dn(slapi_sdn_get_ndn(left), 0);
-    rdns2 = ldap_explode_dn(slapi_sdn_get_ndn(right), 0);
+    rdns1 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(left), 0);
+    rdns2 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(right), 0);
 
     for(count1 = 0; rdns1[count1]!=NULL; count1++){
     }

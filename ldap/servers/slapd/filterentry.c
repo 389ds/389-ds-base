@@ -415,13 +415,13 @@ dn2attrs(const char *dn)
 {
     int rc= 0;
     Slapi_Attr* dnAttrs = NULL;
-    char** rdns = ldap_explode_dn (dn, 0);
+    char** rdns = slapi_ldap_explode_dn (dn, 0);
     if (rdns)
     {
         char** rdn = rdns;
         for (; !rc && *rdn; ++rdn)
         {
-            char** avas = ldap_explode_rdn (*rdn, 0);
+            char** avas = slapi_ldap_explode_rdn (*rdn, 0);
             if (avas)
             {
                 char** ava = avas;

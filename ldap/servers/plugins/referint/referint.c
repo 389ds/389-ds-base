@@ -375,7 +375,7 @@ _update_one_per_mod(const char *entryDN, /* DN of the searched entry */
         Slapi_Value *v = NULL;
 
         /* need to put together rdn into a dn */
-        dnParts = ldap_explode_dn( origDN, 0 );
+        dnParts = slapi_ldap_explode_dn( origDN, 0 );
         if (NULL == newRDN) {
             newRDN = dnParts[0];
         }
@@ -553,7 +553,7 @@ _update_all_per_mod(const char *entryDN, /* DN of the searched entry */
         Slapi_Value *v = NULL;
 
         /* need to put together rdn into a dn */
-        dnParts = ldap_explode_dn( origDN, 0 );
+        dnParts = slapi_ldap_explode_dn( origDN, 0 );
         if (NULL == newRDN) {
             newRDN = dnParts[0];
         }
