@@ -666,11 +666,30 @@ import_producer(void *param)
             pw_encodevals( (Slapi_Value **)va ); /* jcm - cast away const */
         }
 
-         if (job->flags & FLAG_ABORT) { 
-             backentry_free(&ep);
-             goto error;
-         }
+        if (job->flags & FLAG_ABORT) { 
+            backentry_free(&ep);
+            goto error;
+        }
 
+        /* 
+         * Check if entryusn plugin is enabled.  
+         * If yes, add "entryusn: 0" to the entry 
+         * if it does not have the attr type .
+         */
+        if (plugin_enabled("USN", (void *)plugin_get_default_component_id())) {
+            if (slapi_entry_attr_find(ep->ep_entry, SLAPI_ATTR_ENTRYUSN,
+                                                      &attr)) { /* not found */
+                /* add entryusn: 0 to the entry */
+                Slapi_Value *usn_value = NULL;
+                struct berval usn_berval = {0};
+                usn_berval.bv_val = slapi_ch_smprintf("0");
+                usn_berval.bv_len = strlen(usn_berval.bv_val);
+                usn_value = slapi_value_new_berval(&usn_berval);
+                slapi_entry_add_value(ep->ep_entry,
+                                      SLAPI_ATTR_ENTRYUSN, usn_value);
+                slapi_value_free(&usn_value);
+            }
+        }
 
         /* Now we have this new entry, all decoded
          * Next thing we need to do is:

@@ -565,31 +565,58 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
     int attr_len = 64; /* length of lastusn;<backend_name> */
     char *attr = (char *)slapi_ch_malloc(attr_len);
     char *attr_subp = NULL;
+    int isglobal = config_get_entryusn_global();
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_rootdse_search\n");
 
     usn_berval.bv_val = counter_buf;
-    PR_snprintf(attr, USN_LAST_USN_ATTR_CORE_LEN+1, "%s;", USN_LAST_USN);
-    attr_subp = attr + USN_LAST_USN_ATTR_CORE_LEN;
-    for (be = slapi_get_first_backend(&cookie); be;
-         be = slapi_get_next_backend(cookie)) {
-        if (NULL == be->be_usn_counter) { /* no counter == not a db backend */
-            continue;
+    if (isglobal) {
+        /* nsslapd-entryusn-global: on*/
+        /* root dse shows ...
+         * lastusn: <num> */
+        PR_snprintf(attr, USN_LAST_USN_ATTR_CORE_LEN + 1, "%s", USN_LAST_USN);
+        for (be = slapi_get_first_backend(&cookie); be;
+             be = slapi_get_next_backend(cookie)) {
+            if (be->be_usn_counter) {
+                break;
+            }
         }
-        /* get a next USN counter from be_usn_counter; then minus 1 from it */
-        PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRI64 "d", 
-                                 slapi_counter_get_value(be->be_usn_counter)-1);
-        usn_berval.bv_len = strlen(usn_berval.bv_val);
-
-        if (USN_LAST_USN_ATTR_CORE_LEN + strlen(be->be_name) + 1 > attr_len) {
-            attr_len *= 2;
-            attr = (char *)slapi_ch_realloc(attr, attr_len);
-            attr_subp = attr + USN_LAST_USN_ATTR_CORE_LEN;
+        if (be->be_usn_counter) {
+            /* get a next USN counter from be_usn_counter; 
+             * then minus 1 from it */
+            PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRI64 "d",
+                                slapi_counter_get_value(be->be_usn_counter)-1);
+            usn_berval.bv_len = strlen(usn_berval.bv_val);
+            slapi_entry_attr_replace(e, attr, vals);
         }
-        PR_snprintf(attr_subp, attr_len - USN_LAST_USN_ATTR_CORE_LEN,
-                                "%s", be->be_name);
-        slapi_entry_attr_replace(e, attr, vals);
+    } else {
+        /* nsslapd-entryusn-global: off (default) */
+        /* root dse shows ...
+         * lastusn;<backend>: <num> */
+        PR_snprintf(attr, USN_LAST_USN_ATTR_CORE_LEN + 2, "%s;", USN_LAST_USN);
+        attr_subp = attr + USN_LAST_USN_ATTR_CORE_LEN + 1;
+        for (be = slapi_get_first_backend(&cookie); be;
+             be = slapi_get_next_backend(cookie)) {
+            if (NULL == be->be_usn_counter) {
+                /* no counter == not a db backend */
+                continue;
+            }
+            /* get a next USN counter from be_usn_counter; 
+             * then minus 1 from it */
+            PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRI64 "d",
+                                slapi_counter_get_value(be->be_usn_counter)-1);
+            usn_berval.bv_len = strlen(usn_berval.bv_val);
+    
+            if (USN_LAST_USN_ATTR_CORE_LEN+strlen(be->be_name)+2 > attr_len) {
+                attr_len *= 2;
+                attr = (char *)slapi_ch_realloc(attr, attr_len);
+                attr_subp = attr + USN_LAST_USN_ATTR_CORE_LEN;
+            }
+            PR_snprintf(attr_subp, attr_len - USN_LAST_USN_ATTR_CORE_LEN,
+                                    "%s", be->be_name);
+            slapi_entry_attr_replace(e, attr, vals);
+        }
     }
 
     slapi_ch_free_string(&cookie);

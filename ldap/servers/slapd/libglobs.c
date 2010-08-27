@@ -624,7 +624,11 @@ static struct config_get_and_set {
 	{CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE, config_set_force_sasl_external,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.force_sasl_external, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_force_sasl_external}
+		(ConfigGetFunc)config_get_force_sasl_external},
+	{CONFIG_ENTRYUSN_GLOBAL, config_set_entryusn_global,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.entryusn_global, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_entryusn_global}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1001,6 +1005,8 @@ FrontendConfig_init () {
   cfg->auditlog_minfreespace = 5;
   cfg->auditlog_exptime = 1;
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
+
+  cfg->entryusn_global = LDAP_OFF; 
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -5526,6 +5532,30 @@ config_set_force_sasl_external( const char *attrname, char *value,
 	return retVal;
 }
 
+int
+config_get_entryusn_global(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->entryusn_global;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_entryusn_global( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->entryusn_global),
+                              errorbuf, apply);
+    return retVal;
+}
 
 /*
  * This function is intended to be used from the dse code modify callback.  It

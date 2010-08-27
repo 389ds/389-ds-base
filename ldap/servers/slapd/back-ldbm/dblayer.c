@@ -657,6 +657,10 @@ int dblayer_terminate(struct ldbminfo *li)
     slapi_ch_free((void**)&priv);
     li->li_dblayer_private = NULL;
 
+    if (config_get_entryusn_global()) {
+        slapi_counter_destroy(&li->li_global_usn_counter);
+    }
+
     return 0;
 }
 

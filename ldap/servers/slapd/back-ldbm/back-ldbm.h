@@ -635,6 +635,7 @@ struct ldbminfo {
     int li_flags;
     int li_fat_lock;         /* 608146 -- make this configurable, first */
     int li_legacy_errcode;   /* 615428 -- in case legacy err code is expected */
+    Slapi_Counter *li_global_usn_counter; /* global USN counter */
 };
 
 /* li_flags could store these bits defined in ../slapi-plugin.h
@@ -839,5 +840,8 @@ typedef struct _back_search_result_set
  * Being used to specify duplicated DN is found in entrydn or entryrdn.
  */ 
 #define LDBM_ERROR_FOUND_DUPDN 9999
+
+/* Initial entryusn value */
+#define INITIALUSN (PRUint64)(-1)
 
 #endif /* _back_ldbm_h_ */

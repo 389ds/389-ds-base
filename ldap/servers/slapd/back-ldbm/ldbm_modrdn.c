@@ -995,6 +995,9 @@ common_return:
     }
 
     moddn_unlock_and_return_entries(be,&e,&existingentry);
+
+    /* result code could be used in the bepost plugin functions. */
+    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
     /*
      * The bepostop is called even if the operation fails.
      */

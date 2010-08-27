@@ -46,6 +46,14 @@
 
 #include "back-ldbm.h"
 
+static int initialized = 0;
+
+int
+ldbm_back_isinitialized()
+{
+    return initialized;
+}
+
 /*
  * Start the LDBM plugin, and all its instances.
  */
@@ -53,7 +61,6 @@ int
 ldbm_back_start( Slapi_PBlock *pb )
 {
   struct ldbminfo  *li;
-  static int initialized = 0;
   char *home_dir;
   int action;
   int retval; 

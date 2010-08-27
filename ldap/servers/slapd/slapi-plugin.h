@@ -5104,6 +5104,7 @@ void * slapi_be_get_instance_info(Slapi_Backend * be);
 void  slapi_be_set_instance_info(Slapi_Backend * be, void * data);
 Slapi_DN * slapi_get_first_suffix(void ** node, int show_private);
 Slapi_DN * slapi_get_next_suffix(void ** node, int show_private);
+Slapi_DN * slapi_get_next_suffix_ext(void ** node, int show_private);
 int slapi_is_root_suffix(Slapi_DN * dn);
 const Slapi_DN *slapi_get_suffix_by_dn(const Slapi_DN *dn);
 const char * slapi_be_gettype(Slapi_Backend *be);

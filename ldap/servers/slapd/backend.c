@@ -129,7 +129,9 @@ be_done(Slapi_Backend *be)
     slapi_ch_free((void **)&be->be_backendconfig);
     /* JCM char **be_include; ??? */
     slapi_ch_free((void **)&be->be_name);
-    slapi_counter_destroy(&be->be_usn_counter);
+    if (!config_get_entryusn_global()) {
+        slapi_counter_destroy(&be->be_usn_counter);
+    }
     PR_DestroyLock(be->be_state_lock);
     if (be->be_lock != NULL)
     {

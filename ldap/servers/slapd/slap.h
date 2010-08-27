@@ -1891,6 +1891,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_HASH_FILTERS_ATTRIBUTE "nsslapd-hash-filters"
 #define CONFIG_OUTBOUND_LDAP_IO_TIMEOUT_ATTRIBUTE "nsslapd-outbound-ldap-io-timeout"
 #define CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE "nsslapd-force-sasl-external"
+#define CONFIG_ENTRYUSN_GLOBAL	"nsslapd-entryusn-global"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2107,6 +2108,7 @@ typedef struct _slapdFrontendConfig {
   int system_page_bits;			/* bit count to shift the system page size */
 #endif /* MEMPOOL_EXPERIMENTAL */
   int force_sasl_external;      /* force SIMPLE bind to be SASL/EXTERNAL if client cert credentials were supplied */
+  int entryusn_global;          /* Entry USN: Use global counter */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

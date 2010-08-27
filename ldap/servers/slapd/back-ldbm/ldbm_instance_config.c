@@ -855,9 +855,21 @@ static int ldbm_instance_generate(struct ldbminfo *li, char *instance_name,
     rc = ldbm_instance_create_default_indexes(new_be);
 
     /* if USN plugin is enabled, set slapi_counter */
-    if (plugin_enabled("USN", li->li_identity)) {
-        /* slapi_counter_new sets the initial value to 0 */
-        new_be->be_usn_counter = slapi_counter_new();
+    if (plugin_enabled("USN", li->li_identity) && ldbm_back_isinitialized()) {
+        /* 
+         * ldbm_back is already initialized. 
+         * I.e., a new instance is being added.
+         * If not initialized, ldbm_usn_init is called later and
+         * be usn counter is initialized there.
+         */
+        if (config_get_entryusn_global()) {
+            /* global usn counter is already created. 
+             * set it to be_usn_counter. */
+            new_be->be_usn_counter = li->li_global_usn_counter;
+        } else {
+            new_be->be_usn_counter = slapi_counter_new();
+            slapi_counter_set_value(new_be->be_usn_counter, INITIALUSN);
+        }
     }
 
     if (ret_be != NULL) {

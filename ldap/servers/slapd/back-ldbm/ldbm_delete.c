@@ -892,6 +892,8 @@ common_return:
 		backentry_free( &tombstone );
 	}
 	
+	/* result code could be used in the bepost plugin functions. */
+	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/*
 	 * The bepostop is called even if the operation fails,
 	 * but not if the operation is purging tombstones.

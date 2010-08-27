@@ -67,6 +67,9 @@ ldbm_usn_init(struct ldbminfo  *li)
     int rc = 0;
     Slapi_Backend *be = NULL;
     PRUint64 last_usn = 0;
+    PRUint64 global_last_usn = INITIALUSN;
+    int isglobal = config_get_entryusn_global();
+    int isfirst = 1;
 
     /* if USN is not enabled, return immediately */
     if (!plugin_enabled("USN", li->li_identity)) {
@@ -75,15 +78,34 @@ ldbm_usn_init(struct ldbminfo  *li)
 
     /* Search each namingContext in turn */
     for ( sdn = slapi_get_first_suffix( &node, 0 ); sdn != NULL;
-          sdn = slapi_get_next_suffix( &node, 0 )) {
+          sdn = slapi_get_next_suffix_ext( &node, 0 )) {
         be = slapi_mapping_tree_find_backend_for_sdn(sdn);
-        slapi_log_error(SLAPI_LOG_TRACE, "ldbm_usn_init",
-                        "backend: %s\n", be->be_name);
+        slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_usn_init",
+                    "backend: %s \n", be->be_name, isglobal?"(global mode)":"");
         rc = usn_get_last_usn(be, &last_usn);
         if (0 == rc) { /* only when the last usn is available */
-            be->be_usn_counter = slapi_counter_new();
-            slapi_counter_set_value(be->be_usn_counter, last_usn);
-            slapi_counter_increment(be->be_usn_counter); /* stores next usn */
+            if (isglobal) {
+                if (isfirst) {
+                    li->li_global_usn_counter = slapi_counter_new();
+                    isfirst = 0;
+                }
+                /* share one counter */
+                be->be_usn_counter = li->li_global_usn_counter;
+                /* Initialize global_last_usn;
+                 * Set the largest last_usn among backends */
+                if ((global_last_usn == INITIALUSN) ||
+                   ((last_usn != INITIALUSN) && (global_last_usn < last_usn))) {
+                    global_last_usn = last_usn;
+                }
+                slapi_counter_set_value(be->be_usn_counter, global_last_usn);
+                /* stores next usn */
+                slapi_counter_increment(be->be_usn_counter);
+            } else {
+                be->be_usn_counter = slapi_counter_new();
+                slapi_counter_set_value(be->be_usn_counter, last_usn);
+                /* stores next usn */
+                slapi_counter_increment(be->be_usn_counter);
+            }
         }
     }
 bail:
@@ -110,7 +132,7 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     memset(&key, 0, sizeof(key));
     memset(&value, 0, sizeof(key));
 
-    *last_usn = -1; /* to start from 0 */
+    *last_usn = INITIALUSN; /* to start from 0 */
 
     /* Open the entryusn index */
     ainfo_get(be, SLAPI_ATTR_ENTRYUSN, &ai);
@@ -179,14 +201,32 @@ int
 ldbm_set_last_usn(Slapi_Backend *be)
 {
     PRUint64 last_usn = 0;
-    int rc = usn_get_last_usn(be, &last_usn);
+    PRUint64 current_usn = 0;
+    int isglobal = config_get_entryusn_global();
+    int rc = -1;
 
-    if (0 == rc) { /* only when the last usn is available */
-        /* destroy old counter, if any */
-        slapi_counter_destroy(&(be->be_usn_counter));
-        be->be_usn_counter = slapi_counter_new();
-        slapi_counter_set_value(be->be_usn_counter, last_usn);
-        slapi_counter_increment(be->be_usn_counter); /* stores next usn */
+    if (NULL == be) {
+        slapi_log_error(SLAPI_LOG_FATAL, "ldbm_set_last_usn",
+                        "Empty backend\n");
+        return rc;
+    }
+
+    if (isglobal) {
+       struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+       /* destroy old counter, if any */
+       slapi_counter_destroy(&(li->li_global_usn_counter));
+       ldbm_usn_init(li);
+    } else {
+        slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_set_last_usn",
+                        "backend: %s\n", be->be_name);
+        rc = usn_get_last_usn(be, &last_usn);
+        if (0 == rc) { /* only when the last usn is available */
+            /* destroy old counter, if any */
+            slapi_counter_destroy(&(be->be_usn_counter));
+            be->be_usn_counter = slapi_counter_new();
+            slapi_counter_set_value(be->be_usn_counter, last_usn);
+            slapi_counter_increment(be->be_usn_counter); /* stores next usn */
+        }
     }
 
     return rc;

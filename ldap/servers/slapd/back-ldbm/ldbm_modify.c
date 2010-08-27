@@ -332,7 +332,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 		if ( !change_entry || ldap_result_code != 0 ) {
 			/* change_entry == 0 is not an error, but we need to free lock etc */
-			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			goto error_return;
 		}
 	}
@@ -550,7 +549,11 @@ common_return:
 	{
 		CACHE_RETURN( &inst->inst_cache, &ec );
 	}
-	/* JCMREPL - The bepostop is called even if the operation fails. */
+
+	/* result code could be used in the bepost plugin functions. */
+	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+
+	/* The bepostop is called even if the operation fails. */
 	if (!disk_full)
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN);
 
@@ -560,10 +563,10 @@ common_return:
 	}
 	if(ldap_result_code!=-1)
 	{
-    	slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
 	
-    slapi_ch_free( (void**)&errbuf);
+	slapi_ch_free_string(&errbuf);
 	return rc;
 }
 

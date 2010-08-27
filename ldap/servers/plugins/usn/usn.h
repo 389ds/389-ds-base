@@ -44,7 +44,7 @@
 #define USN_CSNGEN_ID              65535
 
 #define USN_LAST_USN               "lastusn"
-#define USN_LAST_USN_ATTR_CORE_LEN 8 /* lastusn; */
+#define USN_LAST_USN_ATTR_CORE_LEN 7 /* lastusn */
 
 #define USN_COUNTER_BUF_LEN        64 /* enough size for 64 bit integers */
 

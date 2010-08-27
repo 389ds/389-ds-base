@@ -3005,6 +3005,9 @@ Slapi_DN *
 slapi_get_first_suffix(void ** node, int show_private)
 {
     mapping_tree_node * first_node = mapping_tree_root->mtn_children;
+    if (NULL == node) {
+        return NULL;
+    }
     *node = (void * ) first_node ;
     while (first_node && (first_node->mtn_private && (show_private == 0)))
             first_node = first_node->mtn_brother;
@@ -3014,15 +3017,51 @@ slapi_get_first_suffix(void ** node, int show_private)
 Slapi_DN * 
 slapi_get_next_suffix(void ** node, int show_private)
 {
-    mapping_tree_node * next_node = *node;
+    mapping_tree_node * next_node = NULL;
 
-    if (next_node == NULL)
+    if (NULL == node) {
         return NULL;
-        
+    }
+    next_node = *node;
+    if (next_node == NULL) {
+        return NULL;
+    }
     next_node = next_node->mtn_brother;
     while (next_node && (next_node->mtn_private && (show_private == 0)))
             next_node = next_node->mtn_brother;
     *node = next_node;
+    return (next_node ? next_node->mtn_subtree : NULL);
+}
+
+/* get mapping tree node recursively */
+Slapi_DN * 
+slapi_get_next_suffix_ext(void ** node, int show_private)
+{
+    mapping_tree_node * next_node = NULL;
+
+    if (NULL == node) {
+        return NULL;
+    }
+    next_node = *node;
+    if (next_node == NULL) {
+        return NULL;
+    }
+    if (next_node->mtn_children) {
+        next_node = next_node->mtn_children;
+    } else if (next_node->mtn_brother) {
+        next_node = next_node->mtn_brother;
+    } else {
+        next_node = next_node->mtn_parent;
+        if (next_node) {
+            next_node = next_node->mtn_brother;
+        }
+    }
+    while (next_node && (next_node->mtn_private && (show_private == 0)))
+            next_node = next_node->mtn_brother;
+    if (next_node) {
+        *node = next_node;
+        return next_node->mtn_subtree;
+    }
     return (next_node ? next_node->mtn_subtree : NULL);
 }
 

@@ -479,6 +479,7 @@ int ldbm_back_entry_release( Slapi_PBlock *pb, void *backend_info_ptr );
 void ldbm_back_search_results_release( void **search_results );
 int ldbm_back_init( Slapi_PBlock *pb ); 
 void ldbm_back_prev_search_results( Slapi_PBlock *pb );
+int ldbm_back_isinitialized();
 
 /*
  * monitor.c
