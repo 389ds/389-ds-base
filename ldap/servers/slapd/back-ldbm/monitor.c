@@ -131,19 +131,19 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         cache_get_stats(&(inst->inst_dncache), &hits, &tries, 
                         &nentries, &maxentries, &size, &maxsize);
         sprintf(buf, "%" NSPRIu64, hits);
-        MSET("dnEntryCacheHits");
+        MSET("dnCacheHits");
         sprintf(buf, "%" NSPRIu64, tries);
-        MSET("dnEntryCacheTries");
+        MSET("dnCacheTries");
         sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
-        MSET("dnEntryCacheHitRatio");
+        MSET("dnCacheHitRatio");
         sprintf(buf, "%lu", size);
-        MSET("dnCurrentEntryCacheSize");
+        MSET("currentDnCacheSize");
         sprintf(buf, "%lu", maxsize);
-        MSET("dnMaxEntryCacheSize");
+        MSET("maxDnCacheSize");
         sprintf(buf, "%ld", nentries);
-        MSET("dnCurrentEntryCacheCount");
+        MSET("currentDnCacheCount");
         sprintf(buf, "%ld", maxentries);
-        MSET("dnMaxEntryCacheCount");
+        MSET("maxDnCacheCount");
     }
 
 #ifdef DEBUG

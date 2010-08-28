@@ -100,8 +100,10 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
             struct backdn *bdn = backdn_init(sdn, e->ep_id, 0);
             options |= SLAPI_DUMP_RDN_ENTRY;
 
-            /* If the ID already exists in the DN cache, replace it. */
-            if (CACHE_ADD( &inst->inst_dncache, bdn, &oldbdn ) == 1) {
+            /* If the ID already exists in the DN cache && the DNs do not match,
+             * replace it. */
+            if ((CACHE_ADD( &inst->inst_dncache, bdn, &oldbdn ) == 1) &&
+                (slapi_sdn_compare(sdn, oldbdn->dn_sdn))) {
                 cache_replace( &inst->inst_dncache, oldbdn, bdn );
                 CACHE_RETURN(&inst->inst_dncache, &oldbdn); /* to free oldbdn */
             }
