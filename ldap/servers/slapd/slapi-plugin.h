@@ -4796,15 +4796,38 @@ int slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int log
 #define LDAP_PWPOLICY_PWDTOOYOUNG		7
 #define LDAP_PWPOLICY_PWDINHISTORY		8
 
-/*
- * routine for freeing the ch_arrays returned by the slapi_get*_copy functions above
+/**
+ * Free an array of strings from memory
+ *
+ * \param array The array that you want to free
+ * \see slapi_ch_array_add()
+ * \see slapi_ch_array_dup()
  */
 void slapi_ch_array_free( char **array );
-/*
- * Add the given string to the given null terminated array.
- * s is not copied, so if you want to add a copy of s to the
- * array, use slapi_ch_strdup(s)
- * if *a is NULL, a new array will be created
+
+/**
+ * Duplicate an array of strings
+ *
+ * \param array The array that you want to duplicate
+ * \return A newly allocated copy of \c array
+ * \return \c NULL if there is a problem duplicating the array
+ * \warning The caller should free the returned array when finished
+ *          by calling the slapi_ch_array_free() function.
+ * \see slapi_ch_array_free()
+ */
+char ** slapi_ch_array_dup( char **array );
+
+/**
+ * Add a string to an array of strings
+ *
+ * \param array The array to add the string to
+ * \param string The string to add to the array
+ * \warning The \c string parameter is not copied.  If you do not
+ *          want to hand the memory used by \c string over to the
+ *          array, you should duplicate it first by calling the
+ *          slapi_ch_strdup() function.
+ * \warning If \c *a is \c NULL, a new array will be allocated.
+ * \see slapi_ch_array_free()
  */
 void slapi_ch_array_add( char ***array, char *string );
 

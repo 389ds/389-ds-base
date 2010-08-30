@@ -320,6 +320,12 @@ charray_dup( char **a )
 }
 
 char **
+slapi_ch_array_dup( char **array )
+{
+    return charray_dup(array);
+}
+
+char **
 slapi_str2charray( char *str, char *brkstr )
 {
     return( slapi_str2charray_ext( str, brkstr, 1 ));

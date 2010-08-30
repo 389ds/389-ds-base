@@ -64,16 +64,17 @@
 #define MEMBEROF_PLUGIN_SUBSYSTEM   "memberof-plugin"   /* used for logging */
 #define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"
 #define MEMBEROF_ATTR "memberOfAttr"
+#define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 
 
 /*
  * structs
  */
 typedef struct memberofconfig {
-	char *groupattr;
+	char **groupattrs;
 	char *memberof_attr;
 	Slapi_Filter *group_filter;
-	Slapi_Attr *group_slapiattr;
+	Slapi_Attr **group_slapiattrs;
 } MemberOfConfig;
 
 

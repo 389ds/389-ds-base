@@ -32,8 +32,9 @@
  *
  * Authors: 
  * Pete Rowley <prowley@redhat.com>
+ * Nathan Kinder <nkinder@redhat.com>
  *
- * Copyright (C) 2007 Red Hat, Inc.
+ * Copyright (C) 2010 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK
  **/
@@ -138,11 +139,12 @@ static void *memberof_get_plugin_id();
 static int memberof_compare(MemberOfConfig *config, const void *a, const void *b);
 static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
-static int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn);
+static void memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn);
 static int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
-	char *type, plugin_search_entry_callback callback,  void *callback_data);
+	char **types, plugin_search_entry_callback callback,  void *callback_data);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 	Slapi_Value *memberdn);
+static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
 static Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, char *memberdn);
 static int memberof_get_groups_r(MemberOfConfig *config, char *memberdn,
 	memberof_get_groups_data *data);
@@ -152,7 +154,7 @@ static int memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config,
 static int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data);
-static int memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
+static void memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	char *pre_dn, char *post_dn);
 static int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	int mod_op, char *group_dn, char *op_this, char *replace_with, char *op_to,
@@ -335,19 +337,24 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		/* get the memberOf operation lock */
 		memberof_lock();
 		
-		/* remove this group DN from the
+		/* remove this DN from the
 		 * membership lists of groups
 		 */
 		memberof_del_dn_from_groups(pb, &configCopy, dn);
 
 		/* is the entry of interest as a group? */
-		if(e && !slapi_filter_test_simple(e, configCopy.group_filter))
+		if(e && configCopy.group_filter && !slapi_filter_test_simple(e, configCopy.group_filter))
 		{
+			int i = 0;
 			Slapi_Attr *attr = 0;
 
-			if(0 == slapi_entry_attr_find(e, configCopy.groupattr, &attr))
+			/* Loop through to find each grouping attribute separately. */
+			for (i = 0; configCopy.groupattrs[i]; i++)
 			{
-				memberof_del_attr_list(pb, &configCopy, dn, attr);
+				if (0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
+				{
+					memberof_del_attr_list(pb, &configCopy, dn, attr);
+				}
 			}
 		}
 
@@ -367,12 +374,25 @@ typedef struct _memberof_del_dn_data
 	char *type;
 } memberof_del_dn_data;
 
-int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn)
+/* Deletes a member dn from all groups that refer to it. */
+static void
+memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn)
 {
-	memberof_del_dn_data data = {dn, config->groupattr};
+	int i = 0;
+	char *groupattrs[2] = {0, 0};
 
-	return memberof_call_foreach_dn(pb, dn,
-		config->groupattr, memberof_del_dn_type_callback, &data);
+	/* Loop through each grouping attribute to find groups that have
+	 * dn as a member.  For any matches, delete the dn value from the
+	 * same grouping attribute. */
+	for (i = 0; config->groupattrs[i]; i++)
+	{
+		memberof_del_dn_data data = {dn, config->groupattrs[i]};
+
+		groupattrs[0] = config->groupattrs[i];
+
+		memberof_call_foreach_dn(pb, dn, groupattrs,
+			memberof_del_dn_type_callback, &data);
+	}
 }
 
 int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
@@ -418,7 +438,7 @@ int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
  * case.
  */
 int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
-	char *type, plugin_search_entry_callback callback, void *callback_data)
+	char **types, plugin_search_entry_callback callback, void *callback_data)
 {
 	int rc = 0;
 	Slapi_PBlock *search_pb = slapi_pblock_new();
@@ -426,6 +446,9 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	Slapi_DN *sdn = 0;
 	Slapi_DN *base_sdn = 0;
 	char *filter_str = 0;
+	int num_types = 0;
+	int types_name_len = 0;
+	int i = 0;
 
 	/* get the base dn for the backend we are in
 	   (we don't support having members and groups in
@@ -440,7 +463,39 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 
 	if(base_sdn)
 	{
-		filter_str = slapi_ch_smprintf("(%s=%s)", type, dn);
+		/* Count the number of types. */
+		for (num_types = 0; types && types[num_types]; num_types++)
+		{
+			/* Add up the total length of all attribute names.
+			 * We need to know this for building the filter. */
+			types_name_len += strlen(types[num_types]);
+		}
+
+		/* Build the search filter. */
+		if (num_types > 1)
+		{
+			int bytes_out = 0;
+			int filter_str_len = types_name_len + (num_types * 4) + 4;
+
+			/* Allocate enough space for the filter */
+			filter_str = slapi_ch_malloc(filter_str_len);
+
+			/* Add beginning of filter. */
+			bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
+
+			/* Add filter section for each type. */
+			for (i = 0; types[i]; i++)
+			{
+				bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", types[i]);
+			}
+
+			/* Add end of filter. */
+			snprintf(filter_str + bytes_out, filter_str_len - bytes_out, ")");
+		}
+		else if (num_types == 1)
+		{
+			filter_str = slapi_ch_smprintf("(%s=%s)", types[0], dn);
+		}
 	}
 
 	if(filter_str)
@@ -503,16 +558,20 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		memberof_lock();
 
 		/*  update any downstream members */
-		if(pre_dn && post_dn &&
+		if(pre_dn && post_dn && configCopy.group_filter &&
 			!slapi_filter_test_simple(post_e, configCopy.group_filter))
 		{
+			int i = 0;
 			Slapi_Attr *attr = 0;
 
 			/* get a list of member attributes present in the group
 			 * entry that is being renamed. */
-			if(0 == slapi_entry_attr_find(post_e, configCopy.groupattr, &attr))
+			for (i = 0; configCopy.groupattrs[i]; i++)
 			{
-				memberof_moddn_attr_list(pb, &configCopy, pre_dn, post_dn, attr);
+				if(0 == slapi_entry_attr_find(post_e, configCopy.groupattrs[i], &attr))
+				{
+					memberof_moddn_attr_list(pb, &configCopy, pre_dn, post_dn, attr);
+				}
 			}
 		}
 
@@ -538,13 +597,28 @@ typedef struct _replace_dn_data
 	char *type;
 } replace_dn_data;
 
-int memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
+
+/* Finds any groups that have pre_dn as a member and modifies them to
+ * to use post_dn instead. */
+static void
+memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	char *pre_dn, char *post_dn)
 {
-	replace_dn_data data = {pre_dn, post_dn, config->groupattr};
+	int i = 0;
+	char *groupattrs[2] = {0, 0};
 
-	return memberof_call_foreach_dn(pb, pre_dn, config->groupattr, 
-		memberof_replace_dn_type_callback, &data);
+	/* Loop through each grouping attribute to find groups that have
+	 * pre_dn as a member.  For any matches, replace pre_dn with post_dn
+	 * using the same grouping attribute. */
+	for (i = 0; config->groupattrs[i]; i++)
+	{
+		replace_dn_data data = {pre_dn, post_dn, config->groupattrs[i]};
+
+		groupattrs[0] = config->groupattrs[i];
+
+		memberof_call_foreach_dn(pb, pre_dn, groupattrs, 
+			memberof_replace_dn_type_callback, &data);
+	}
 }
 
 
@@ -650,7 +724,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				memberof_rlock_config();
 				mainConfig = memberof_get_config();
 
-				if(slapi_attr_types_equivalent(type, mainConfig->groupattr))
+				if (memberof_is_grouping_attr(type, mainConfig))
 				{
 					interested = 1;
 					/* copy config so it doesn't change out from under us */
@@ -660,7 +734,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 
 				memberof_unlock_config();
 			} else {
-				if(slapi_attr_types_equivalent(type, configCopy.groupattr))
+				if (memberof_is_grouping_attr(type, &configCopy))
 				{
 					interested = 1;
 				}
@@ -766,7 +840,8 @@ int memberof_postop_add(Slapi_PBlock *pb)
 		/* is the entry of interest? */
 		memberof_rlock_config();
 		mainConfig = memberof_get_config();
-		if(e && !slapi_filter_test_simple(e, mainConfig->group_filter))
+		if(e && mainConfig && mainConfig->group_filter &&
+		   !slapi_filter_test_simple(e, mainConfig->group_filter))
 		{
 			interested = 1;
 			/* copy config so it doesn't change out from under us */
@@ -776,13 +851,17 @@ int memberof_postop_add(Slapi_PBlock *pb)
 
 		if(interested)
 		{
+			int i = 0;
 			Slapi_Attr *attr = 0;
 
 			memberof_lock();
 
-			if(0 == slapi_entry_attr_find(e, configCopy.groupattr, &attr))
+			for (i = 0; configCopy.groupattrs[i]; i++)
 			{
-				memberof_add_attr_list(pb, &configCopy, dn, attr);
+				if(0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
+				{
+					memberof_add_attr_list(pb, &configCopy, dn, attr);
+				}
 			}
 
 			memberof_unlock();
@@ -894,7 +973,6 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	char *val[2];
 	char *replace_val[2];
 	Slapi_PBlock *mod_pb = 0;
-	char *attrlist[2] = {config->groupattr,0};
 	Slapi_DN *op_to_sdn = 0;
 	Slapi_Entry *e = 0; 
 	memberofstringll *ll = 0;
@@ -904,7 +982,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 
 	/* determine if this is a group op or single entry */
 	op_to_sdn = slapi_sdn_new_dn_byref(op_to);
-	slapi_search_internal_get_entry( op_to_sdn, attrlist,
+	slapi_search_internal_get_entry( op_to_sdn, config->groupattrs,
 		&e, memberof_get_plugin_id());
 	if(!e)
 	{
@@ -998,11 +1076,12 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		"memberof_modop_one_replace_r: %s %s in %s\n"
 		,op_str, op_this, op_to);
 
-	if(!slapi_filter_test_simple(e, config->group_filter))
+	if(config && config->group_filter && !slapi_filter_test_simple(e, config->group_filter))
 	{
 		/* group */
 		Slapi_Value *ll_dn_val = 0;
 		Slapi_Attr *members = 0;
+		int i = 0;
 
 		ll = stack;
 
@@ -1039,10 +1118,14 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		ll->dn = op_to;
 		ll->next = stack;
 		
-		slapi_entry_attr_find( e, config->groupattr, &members );
-		if(members)
+		/* Go through each grouping attribute one at a time. */
+		for (i = 0; config->groupattrs[i]; i++)
 		{
-			memberof_mod_attr_list_r(pb, config, mod_op, group_dn, op_this, members, ll);
+			slapi_entry_attr_find( e, config->groupattrs[i], &members );
+			if(members)
+			{
+				memberof_mod_attr_list_r(pb, config, mod_op, group_dn, op_this, members, ll);
+			}
 		}
 
 		{
@@ -1424,9 +1507,9 @@ Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, char *memberdn)
 
 int memberof_get_groups_r(MemberOfConfig *config, char *memberdn, memberof_get_groups_data *data)
 {
-	/* Search for member=<memberdn>
+	/* Search for any grouping attributes that point to memberdn.
 	 * For each match, add it to the list, recurse and do same search */
-	return memberof_call_foreach_dn(NULL, memberdn, config->groupattr,
+	return memberof_call_foreach_dn(NULL, memberdn, config->groupattrs,
 		memberof_get_groups_callback, data);
 }
 
@@ -1467,9 +1550,12 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 
 	}
 
-	/* have we been here before? */
-	if (slapi_valueset_find(((memberof_get_groups_data*)callback_data)->config->group_slapiattr,
-		groupvals, group_dn_val))
+	/* Have we been here before?  Note that we don't loop through all of the group_slapiattrs
+	 * in config.  We only need this attribute for it's syntax so the comparison can be
+	 * performed.  Since all of the grouping attributes are validated to use the Dinstinguished
+	 * Name syntax, we can safely just use the first group_slapiattr. */
+	if (groupvals && slapi_valueset_find(
+		((memberof_get_groups_data*)callback_data)->config->group_slapiattrs[0], groupvals, group_dn_val))
 	{
 		/* we either hit a recursive grouping, or an entry is
 		 * a member of a group through multiple paths.  Either
@@ -1504,28 +1590,58 @@ int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 {
 	int rc = 0;
 	Slapi_DN *sdn = 0;
-	char *attrlist[2] = {config->groupattr,0};
 	Slapi_Entry *group_e = 0;
 	Slapi_Attr *attr = 0;
+	int i = 0;
 
 	sdn = slapi_sdn_new_dn_byref(slapi_value_get_string(groupdn));
 
-	slapi_search_internal_get_entry(sdn, attrlist,
+	slapi_search_internal_get_entry(sdn, config->groupattrs,
 		&group_e, memberof_get_plugin_id());
 
 	if(group_e)
 	{
-		slapi_entry_attr_find(group_e, config->groupattr, &attr );
-		if(attr)
+		/* See if memberdn is referred to by any of the group attributes. */
+		for (i = 0; config->groupattrs[i]; i++)
 		{
-			rc = 0 == slapi_attr_value_find(
-				attr, slapi_value_get_berval(memberdn));
+			slapi_entry_attr_find(group_e, config->groupattrs[i], &attr );
+			if(attr && (0 == slapi_attr_value_find(attr, slapi_value_get_berval(memberdn))))
+			{
+				rc = 1;
+				break;
+			}
 		}
+
 		slapi_entry_free(group_e);
 	}
 
 	slapi_sdn_free(&sdn);
 	return rc;
+}
+
+/* memberof_is_grouping_attr()
+ *
+ * Checks if a supplied attribute is one of the configured
+ * grouping attributes.
+ * 
+ * Returns non-zero when true, zero otherwise.
+ */
+static int memberof_is_grouping_attr(char *type, MemberOfConfig *config)
+{
+	int match = 0;
+	int i = 0;
+
+	for (i = 0; config && config->groupattrs[i]; i++)
+	{
+		match = slapi_attr_types_equivalent(type, config->groupattrs[i]);
+		if (match)
+		{
+			/* If we found a match, we're done. */
+			break;
+		}
+	}
+
+	return match;
 }
 
 /* memberof_test_membership()
@@ -1545,7 +1661,9 @@ int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
  */
 int memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config, char *group_dn)
 {
-	return memberof_call_foreach_dn(pb, group_dn, config->memberof_attr, 
+	char *attrs[2] = {config->memberof_attr, 0};
+
+	return memberof_call_foreach_dn(pb, group_dn, attrs, 
 		memberof_test_membership_callback , config);
 }
 
@@ -1728,142 +1846,146 @@ int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group_
 	struct slapi_entry *post_e = NULL;
 	Slapi_Attr *pre_attr = 0;
 	Slapi_Attr *post_attr = 0;
+	int i = 0;
 
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &pre_e );
 	slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &post_e );
 		
-	if(pre_e && post_e)
+	for (i = 0; config && config->groupattrs[i]; i++)
 	{
-		slapi_entry_attr_find( pre_e, config->groupattr, &pre_attr );
-		slapi_entry_attr_find( post_e, config->groupattr, &post_attr );
-	}
-
-	if(pre_attr || post_attr)
-	{
-		int pre_total = 0;
-		int post_total = 0;
-		Slapi_Value **pre_array = 0;
-		Slapi_Value **post_array = 0;
-		int pre_index = 0;
-		int post_index = 0;
-
-		/* create arrays of values */
-		if(pre_attr)
+		if(pre_e && post_e)
 		{
-			slapi_attr_get_numvalues( pre_attr, &pre_total);
+			slapi_entry_attr_find( pre_e, config->groupattrs[i], &pre_attr );
+			slapi_entry_attr_find( post_e, config->groupattrs[i], &post_attr );
 		}
 
-		if(post_attr)
+		if(pre_attr || post_attr)
 		{
-			slapi_attr_get_numvalues( post_attr, &post_total);
-		}
+			int pre_total = 0;
+			int post_total = 0;
+			Slapi_Value **pre_array = 0;
+			Slapi_Value **post_array = 0;
+			int pre_index = 0;
+			int post_index = 0;
 
-		/* Stash a plugin global pointer here and have memberof_qsort_compare
-		 * use it.  We have to do this because we use memberof_qsort_compare
-		 * as the comparator function for qsort, which requires the function
-		 * to only take two void* args.  This is thread-safe since we only
-		 * store and use the pointer while holding the memberOf operation
-		 * lock. */
-		qsortConfig = config;
-
-		if(pre_total)
-		{
-			pre_array =
-				(Slapi_Value**)
-				slapi_ch_malloc(sizeof(Slapi_Value*)*pre_total);
-			memberof_load_array(pre_array, pre_attr);
-			qsort(
-				pre_array,
-				pre_total,
-				sizeof(Slapi_Value*),
-				memberof_qsort_compare);
-		}
-
-		if(post_total)
-		{
-			post_array =
-				(Slapi_Value**)
-				slapi_ch_malloc(sizeof(Slapi_Value*)*post_total);
-			memberof_load_array(post_array, post_attr);
-			qsort(
-				post_array, 
-				post_total, 
-				sizeof(Slapi_Value*), 
-				memberof_qsort_compare);
-		}
-
-		qsortConfig = 0;
-
-
-		/* 	work through arrays, following these rules:
-			in pre, in post, do nothing
-			in pre, not in post, delete from entry
-			not in pre, in post, add to entry
-		*/
-		while(pre_index < pre_total || post_index < post_total)
-		{
-			if(pre_index == pre_total)
+			/* create arrays of values */
+			if(pre_attr)
 			{
-				/* add the rest of post */
-				memberof_add_one(
-					pb, config, 
-					group_dn, 
-					(char*)slapi_value_get_string(
-						post_array[post_index]));
-
-				post_index++;
+				slapi_attr_get_numvalues( pre_attr, &pre_total);
 			}
-			else if(post_index == post_total)
-			{
-				/* delete the rest of pre */
-				memberof_del_one(
-					pb, config,
-					group_dn, 
-					(char*)slapi_value_get_string(
-						pre_array[pre_index]));
 
-				pre_index++;
+			if(post_attr)
+			{
+				slapi_attr_get_numvalues( post_attr, &post_total);
 			}
-			else
+
+			/* Stash a plugin global pointer here and have memberof_qsort_compare
+			 * use it.  We have to do this because we use memberof_qsort_compare
+			 * as the comparator function for qsort, which requires the function
+			 * to only take two void* args.  This is thread-safe since we only
+			 * store and use the pointer while holding the memberOf operation
+			 * lock. */
+			qsortConfig = config;
+
+			if(pre_total)
 			{
-				/* decide what to do */
-				int cmp = memberof_compare(
-						config,
-						&(pre_array[pre_index]),
-						&(post_array[post_index]));
+				pre_array =
+					(Slapi_Value**)
+					slapi_ch_malloc(sizeof(Slapi_Value*)*pre_total);
+				memberof_load_array(pre_array, pre_attr);
+				qsort(
+					pre_array,
+					pre_total,
+					sizeof(Slapi_Value*),
+					memberof_qsort_compare);
+			}
 
-				if(cmp < 0)
-				{
-					/* delete pre array */
-					memberof_del_one(
-						pb, config, 
-						group_dn, 
-						(char*)slapi_value_get_string(
-							pre_array[pre_index]));
+			if(post_total)
+			{
+				post_array =
+					(Slapi_Value**)
+					slapi_ch_malloc(sizeof(Slapi_Value*)*post_total);
+				memberof_load_array(post_array, post_attr);
+				qsort(
+					post_array, 
+					post_total, 
+					sizeof(Slapi_Value*), 
+					memberof_qsort_compare);
+			}
 
-					pre_index++;
-				}
-				else if(cmp > 0)
+			qsortConfig = 0;
+
+
+			/* 	work through arrays, following these rules:
+				in pre, in post, do nothing
+				in pre, not in post, delete from entry
+				not in pre, in post, add to entry
+			*/
+			while(pre_index < pre_total || post_index < post_total)
+			{
+				if(pre_index == pre_total)
 				{
-					/* add post array */
+					/* add the rest of post */
 					memberof_add_one(
-						pb, config,
+						pb, config, 
 						group_dn, 
 						(char*)slapi_value_get_string(
 							post_array[post_index]));
 
 					post_index++;
 				}
+				else if(post_index == post_total)
+				{
+					/* delete the rest of pre */
+					memberof_del_one(
+						pb, config,
+						group_dn, 
+						(char*)slapi_value_get_string(
+							pre_array[pre_index]));
+
+					pre_index++;
+				}
 				else
 				{
-					/* do nothing, advance */
-					pre_index++;
-					post_index++;
+					/* decide what to do */
+					int cmp = memberof_compare(
+							config,
+							&(pre_array[pre_index]),
+							&(post_array[post_index]));
+
+					if(cmp < 0)
+					{
+						/* delete pre array */
+						memberof_del_one(
+							pb, config, 
+							group_dn, 
+							(char*)slapi_value_get_string(
+								pre_array[pre_index]));
+
+						pre_index++;
+					}
+					else if(cmp > 0)
+					{
+						/* add post array */
+						memberof_add_one(
+							pb, config,
+							group_dn, 
+							(char*)slapi_value_get_string(
+								post_array[post_index]));
+
+						post_index++;
+					}
+					else
+					{
+						/* do nothing, advance */
+						pre_index++;
+						post_index++;
+					}
 				}
 			}
+			slapi_ch_free((void **)&pre_array);
+			slapi_ch_free((void **)&post_array);
 		}
-		slapi_ch_free((void **)&pre_array);
-		slapi_ch_free((void **)&post_array);
 	}
 	
 	return 0;
@@ -1895,8 +2017,11 @@ int memberof_compare(MemberOfConfig *config, const void *a, const void *b)
 	Slapi_Value *val1 = *((Slapi_Value **)a);
 	Slapi_Value *val2 = *((Slapi_Value **)b);
 
+	/* We only need to provide a Slapi_Attr here for it's syntax.  We
+	 * already validated all grouping attributes to use the Distinguished
+	 * Name syntax, so we can safely just use the first attr. */
 	return slapi_attr_value_cmp(
-		config->group_slapiattr,
+		config->group_slapiattrs[0],
 		slapi_value_get_berval(val1),
 		slapi_value_get_berval(val2));
 }
@@ -1915,8 +2040,11 @@ int memberof_qsort_compare(const void *a, const void *b)
 	Slapi_Value *val1 = *((Slapi_Value **)a);
 	Slapi_Value *val2 = *((Slapi_Value **)b);
 
+	/* We only need to provide a Slapi_Attr here for it's syntax.  We
+	 * already validated all grouping attributes to use the Distinguished
+	 * Name syntax, so we can safely just use the first attr. */
 	return slapi_attr_value_cmp(
-		qsortConfig->group_slapiattr, 
+		qsortConfig->group_slapiattrs[0], 
 		slapi_value_get_berval(val1), 
 		slapi_value_get_berval(val2));
 }
