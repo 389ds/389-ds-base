@@ -131,10 +131,35 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
 
     if (0 == rc)
     {
-        /* DBDB the fact that we don't check the return code here is
-         * indicitive that there may be a latent race condition lurking
-         * ---what happens if the entry is already in the cache by this point?
-         */
+        if (entryrdn_get_switch()) {
+            struct backentry *parententry = NULL;
+            ID parentid = slapi_entry_attr_get_ulong(e->ep_entry, "parentid");
+            const char *myrdn = slapi_entry_get_rdn_const(e->ep_entry);
+            const char *parentdn = NULL;
+            char *myparentdn = NULL;
+            /* If the parent is in the cache, check the parent's DN and 
+             * adjust to it if they don't match. (bz628300) */
+            if (parentid && myrdn) {
+                parententry = cache_find_id(&inst->inst_cache, parentid);
+                if (parententry) {
+                    parentdn = slapi_entry_get_dn_const(parententry->ep_entry);
+                    if (parentdn) {
+                        myparentdn = 
+                         slapi_dn_parent(slapi_entry_get_dn_const(e->ep_entry));
+                        if (myparentdn && PL_strcmp(parentdn, myparentdn)) {
+                            Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
+                            char *newdn = NULL;
+                            slapi_sdn_done(sdn);
+                            newdn = slapi_ch_smprintf("%s,%s", myrdn, parentdn);
+                            slapi_sdn_init_dn_passin(sdn, newdn);
+                            slapi_sdn_get_ndn(sdn); /* to set ndn */
+                        }
+                        slapi_ch_free_string(&myparentdn);
+                    }
+                    CACHE_RETURN(&inst->inst_cache, &parententry);
+                }
+            }
+        }
         /* 
          * For ldbm_back_add and ldbm_back_modify, this entry had been already
          * reserved as a tentative entry.  So, it should be safe.
@@ -158,7 +183,7 @@ done:
 int
 id2entry_add( backend *be, struct backentry *e, back_txn *txn  )
 {
-	return id2entry_add_ext(be,e,txn,1);
+    return id2entry_add_ext(be,e,txn,1);
 }
 
 /* 
@@ -229,8 +254,8 @@ id2entry_ext( backend *be, ID id, back_txn *txn, int *err, int flags  )
     if ( (e = cache_find_id( &inst->inst_cache, id )) != NULL ) {
         slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
                         "<= id2entry %p, dn \"%s\" (cache)\n",
-						e, backentry_get_ndn(e));
-        return( e );
+                        e, backentry_get_ndn(e));
+        goto bail;
     }
 
     if ( (*err = dblayer_get_id2entry( be, &db )) != 0 ) {
@@ -344,7 +369,7 @@ id2entry_ext( backend *be, ID id, back_txn *txn, int *err, int flags  )
         e->ep_id = id;
         slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
                         "id2entry id: %d, dn \"%s\" -- adding it to cache\n",
-						id, backentry_get_ndn(e));
+                        id, backentry_get_ndn(e));
 
         /* Decrypt any encrypted attributes in this entry, 
          * before adding it to the cache */
