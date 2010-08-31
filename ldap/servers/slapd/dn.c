@@ -564,6 +564,10 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 *d++ = *s++;
             } else if (ISSPACE(*s)) {
                 state = B4EQUAL; /* skip a trailing space */
+            } else if (ISQUOTE(*s) || SEPARATOR(*s)) {
+                /* type includes quote / separator; not a valid dn */
+                rc = -1;
+                goto bail;
             } else {
                 *d++ = *s++;
             }
