@@ -965,11 +965,16 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		mods[0] = mod;
 		mods[1] = NULL;
 
-		/* Create a bogus entry with just the target dn.  This will
-		 * only be used for checking the ACIs. */
-		e = slapi_entry_alloc();
-		slapi_entry_init( e, NULL, NULL );
-		slapi_sdn_set_dn_byref(slapi_entry_get_sdn(e), dn);
+		/* We need to actually fetch the target here to use for ACI checking. */
+		slapi_search_internal_get_entry(&sdn, NULL, &e, (void *)plugin_get_default_component_id());
+
+		/* Create a bogus entry with just the target dn if we were unable to 
+		 * find the actual entry.  This will only be used for checking the ACIs. */
+		if (e == NULL) {
+			e = slapi_entry_alloc();
+			slapi_entry_init( e, NULL, NULL );
+			slapi_sdn_set_dn_byref(slapi_entry_get_sdn(e), dn);
+		}
 
 		/* Set the backend in the pblock.  The slapi_access_allowed function
 		 * needs this set to work properly. */
