@@ -4178,8 +4178,8 @@ acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 		has_macro_levels = 1;
 	}
 
-	if ( !has_macro_dn ) { /* No $(dn) */
-
+	if ( (!has_macro_dn && !has_macro_levels) || !matched_val ) { /* No ($dn) and no [$dn] ... */
+		/* ... or no value to replace */
 		/*
 		 * No $dn thing, just return a list with two elements, rule and NULL.
 		 * charray_add will create the list and null terminate it.		
@@ -4194,9 +4194,11 @@ acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 		 *
 		 * First, replace all occurrencers of ($dn) with the matched_val
 		 */
-		patched_rule =
+		if ( has_macro_dn) {
+			patched_rule =
 				acl_replace_str(rule, ACL_RULE_MACRO_DN_KEY, matched_val);
-		
+		}
+
 		/* If there are no [$dn] we're done */
 
 		if ( !has_macro_levels ) {			
