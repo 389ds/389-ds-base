@@ -264,7 +264,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 			if ( NULL == slapi_entry_get_dn_const( e )) {
 				if (flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT) {
 					normdn = 
-						slapi_ch_strdup(slapi_dn_normalize_original(rawdn));
+						slapi_dn_normalize_original(slapi_ch_strdup(rawdn));
 				} else {
 					normdn = slapi_create_dn_string("%s", rawdn);
 					if (NULL == normdn) {
@@ -286,7 +286,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 				} else {
 					if (flags & SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT) {
 						normdn = 
-							slapi_ch_strdup(slapi_dn_normalize_original(rawdn));
+							slapi_dn_normalize_original(slapi_ch_strdup(rawdn));
 					} else {
 						normdn = slapi_create_dn_string("%s", rawdn);
 						if (NULL == normdn) {
