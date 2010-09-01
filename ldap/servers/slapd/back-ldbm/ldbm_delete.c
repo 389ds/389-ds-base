@@ -893,7 +893,7 @@ common_return:
 	}
 	
 	/* result code could be used in the bepost plugin functions. */
-	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/*
 	 * The bepostop is called even if the operation fails,
 	 * but not if the operation is purging tombstones.
