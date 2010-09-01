@@ -462,7 +462,7 @@ psearch_alloc()
     if (( ps->ps_lock = PR_NewLock()) == NULL ) {
 	LDAPDebug( LDAP_DEBUG_ANY, "psearch_add: cannot create new lock.  "
 		"Persistent search abandoned.\n", 0, 0, 0 );
-	slapi_ch_free(&ps);
+	slapi_ch_free((void **)&ps);
 	return( NULL );
     }
     ps->ps_tid = (PRThread *) NULL;

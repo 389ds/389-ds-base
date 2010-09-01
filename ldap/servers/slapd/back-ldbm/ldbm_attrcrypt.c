@@ -1014,7 +1014,7 @@ attrcrypt_decrypt_index_key(backend *be,
 				rc = -1;
 				goto bail;
 			}
-			(*out) = ber_bvdup(out_bv);
+			(*out) = ber_bvdup((struct berval *)out_bv);
 			if (NULL == *out) {
 				rc = -1;
 			}

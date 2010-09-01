@@ -814,7 +814,7 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent)
     rc = cursor->c_get(cursor, &key, &data, DB_SET);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", key.data, db_strerror(rc), rc);
+                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
         goto bail;
     }
 
@@ -859,7 +859,7 @@ display_entryrdn_parent(DB *db, ID id, const char *nrdn, int indent)
     rc = cursor->c_get(cursor, &key, &data, DB_SET);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", key.data, db_strerror(rc), rc);
+                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
         goto bail;
     }
 
@@ -908,10 +908,10 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent)
             fprintf(stderr, "Entryrdn index is corrupt; "
                             "data item for key %s is too large for our "
                             "buffer (need=%d actual=%d)\n",
-                            key.data, data.size, data.ulen);
+                            (char *)key.data, data.size, data.ulen);
         } else if (rc != DB_NOTFOUND) {
             fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", key.data, db_strerror(rc), rc);
+                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
         }
         goto bail;
     }
@@ -932,10 +932,10 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent)
             fprintf(stderr, "Entryrdn index is corrupt; "
                             "data item for key %s is too large for our "
                             "buffer (need=%d actual=%d)\n",
-                            key.data, data.size, data.ulen);
+                            (char *)key.data, data.size, data.ulen);
         } else if (rc != DB_NOTFOUND) {
             fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n", key.data, db_strerror(rc), rc);
+                            "(%d)\n", (char *)key.data, db_strerror(rc), rc);
         }
     }
 bail:
@@ -961,7 +961,7 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
         rc = cursor->c_get(cursor, key, &data, DB_SET);
         if (rc) {
             fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                                "(%d)\n", key->data, db_strerror(rc), rc);
+                                "(%d)\n", (char *)key->data, db_strerror(rc), rc);
             return;
         }
     
@@ -986,12 +986,12 @@ next:
                 fprintf(stderr, "Entryrdn index is corrupt; "
                                 "data item for key %s is too large for our "
                                 "buffer (need=%d actual=%d)\n",
-                                key->data, data.size, data.ulen);
+                                (char *)key->data, data.size, data.ulen);
             } else {
                 if (rc != DB_NOTFOUND) {
                     fprintf(stderr, "Failed to position cursor "
                                     "at the key: %s: %s (%d)\n",
-                                    key->data, db_strerror(rc), rc);
+                                    (char *)key->data, db_strerror(rc), rc);
                 }
             }
             goto bail;
@@ -1021,11 +1021,11 @@ next:
             fprintf(stderr, "Entryrdn index is corrupt; "
                                 "data item for key %s is too large for our "
                                 "buffer (need=%d actual=%d)\n",
-                                key->data, data.size, data.ulen);
+                                (char *)key->data, data.size, data.ulen);
             goto bail;
         } else if (rc != DB_NOTFOUND) {
             fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                                "(%d)\n", key->data, db_strerror(rc), rc);
+                                "(%d)\n", (char *)key->data, db_strerror(rc), rc);
             goto bail;
         }
         flags = DB_NEXT|DB_MULTIPLE;

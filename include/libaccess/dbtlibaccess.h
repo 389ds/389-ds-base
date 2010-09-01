@@ -43,7 +43,9 @@
 
 #define LIBRARY_NAME "libaccess"
 
+#ifdef RESOURCE_STR
 static char dbtlibaccessid[] = "$DBT: libaccess referenced v1 $";
+#endif /* RESOURCE_STR */
 
 #include "i18n.h"
 

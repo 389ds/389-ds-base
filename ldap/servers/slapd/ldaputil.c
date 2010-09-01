@@ -2020,7 +2020,7 @@ mozldap_ldap_explode( const char *dn, const int notypes, const int nametype )
 						return( NULL );
 				} else if ( count >= 8 ) {
 					if (( rdns = (char **)slapi_ch_realloc(
-					    rdns, (count+1) *
+					    (char *)rdns, (count+1) *
 					    sizeof( char *))) == NULL )
 						return( NULL );
 				}

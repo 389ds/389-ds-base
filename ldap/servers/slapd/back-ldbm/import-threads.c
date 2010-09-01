@@ -1321,7 +1321,7 @@ upgradedn_producer(void *param)
         /* call post-entry plugin */
         plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
-        slapi_ch_free_string((void**)&ecopy);
+        slapi_ch_free_string(&ecopy);
         ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
         memcpy(ecopy, data.dptr, data.dsize);
         *(ecopy + data.dsize) = '\0';
@@ -1732,7 +1732,7 @@ error:
     info->state = ABORTED;
 
 done:
-    slapi_ch_free_string((void**)&ecopy);
+    slapi_ch_free_string(&ecopy);
     slapi_ch_free(&(data.data));
 }
 

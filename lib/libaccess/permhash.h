@@ -80,13 +80,7 @@ static PLHashAllocOps ACLPermAllocOps = {
     ACL_PermFreeEntry
 };
 
-static int
-PR_StringFree(PLHashEntry *he, int i, void *arg)
-{
-    PERM_FREE(he->key);
-    return 0;
-}
-
+#ifndef NO_ACL_HASH_FUNCS
 static PLHashNumber
 PR_HashCaseString(const void *key)
 {
@@ -111,6 +105,7 @@ PR_CompareCaseStrings(const void *v1, const void *v2)
     return (strcasecmp(s1, s2) == 0);
 #endif
 }
- 
+#endif /* NO_ACL_HASH_FUNCS */
+
 
 #endif	/* _PERMHASH_H */

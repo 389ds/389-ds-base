@@ -632,8 +632,7 @@ static int cb_parse_config_entry(cb_backend * cb, Slapi_Entry *e)
                 } else
                 if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_DEBUG )) {
                         i = slapi_attr_first_value(attr, &sval);
-                        if (i != -1 ) {
-                        	(struct berval *) slapi_value_get_berval(sval);
+                        if ((i != -1) && slapi_value_get_berval(sval)) {
 				/* any value */
 				cb_set_debug(1);
                         }

@@ -66,8 +66,8 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
    unsigned int outLen;
    unsigned char userhash[MD5_LENGTH];
    int hash_len;
-   unsigned char quick_dbhash[MD5_LENGTH + MD5_DEFAULT_SALT_LENGTH + 1];
-   unsigned char *dbhash = quick_dbhash;
+   char quick_dbhash[MD5_LENGTH + MD5_DEFAULT_SALT_LENGTH + 1];
+   char *dbhash = quick_dbhash;
    struct berval salt;
    char *hashresult = NULL;
 
@@ -83,7 +83,7 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
     */
    hash_len = pwdstorage_base64_decode_len(dbpwd, 0);
    if ( hash_len >= sizeof(quick_dbhash) ) { /* get more space: */
-      dbhash = (unsigned char*) slapi_ch_calloc( hash_len + 1, sizeof(char) );
+      dbhash = (char*) slapi_ch_calloc( hash_len + 1, sizeof(char) );
       if ( dbhash == NULL ) goto loser;
    } else {
       memset( quick_dbhash, 0, sizeof(quick_dbhash) );

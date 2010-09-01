@@ -234,94 +234,6 @@ NSAPI_PUBLIC int ldapu_list_add_info (LDAPUList_t *list, void *info)
     return ldapu_list_add_node(list, node);
 }
 
-static int ldapu_list_remove_node (LDAPUList_t *list, LDAPUListNode_t *node)
-{
-    if (list->head == node) {
-	list->head = node->next;
-	if (list->tail == node) list->tail = 0;	/* removed the only node */
-    }
-    else if (list->tail == node) {
-	list->tail = node->prev;
-    }
-    else {
-	node->prev->next = node->next;
-	node->next->prev = node->prev;
-    }
-
-    node->next = 0;
-    node->prev = 0;
-    return LDAPU_SUCCESS;
-}
-
-static int ldapu_list_copy (const LDAPUList_t *from, LDAPUList_t **to,
-			    LDAPUListNodeFn_t copy_fn)
-{
-    LDAPUListNode_t *node = from->head;
-    LDAPUListNode_t *newnode;
-    LDAPUList_t *list = NULL;
-    int rv;
-
-    *to = 0;
-    rv = ldapu_list_alloc(&list);
-    if (rv != LDAPU_SUCCESS) goto error;
-
-    while(node) {
-	newnode = (LDAPUListNode_t *)(*copy_fn)(node->info, 0);
-	if (!newnode) {
-		rv = LDAPU_ERR_OUT_OF_MEMORY;
-		goto error;
-	}
-
-	rv = ldapu_list_add_info(list, newnode);
-	if (rv != LDAPU_SUCCESS) goto error;
-
-	node = node->next;
-    }
-
-    *to = list;
-    goto done;
-
-error:
-    if (list) ldapu_propval_list_free(list);
-
-done:
-    return rv;
-}
-
-static int ldapu_list_find_node (const LDAPUList_t *list,
-				 LDAPUListNode_t **found,
-				 LDAPUListNodeFn_t find_fn,
-				 void *find_arg)
-{
-    LDAPUListNode_t *node = list->head;
-
-    while(node) {
-	if ((*find_fn)(node->info, find_arg) == LDAPU_SUCCESS) {
-	    *found = node;
-	    return LDAPU_SUCCESS;
-	}
-	node = node->next;
-    }
-
-    return LDAPU_ERR_CERTMAP_INFO_MISSING;
-}
-
-static int ldapu_list_print (LDAPUList_t *list, LDAPUListNodeFn_t print_fn,
-			     LDAPUPrintInfo_t *pinfo)
-{
-    LDAPUListNode_t *node = list->head;
-    int rv;
-
-    while(node) {
-	uintptr_t retval = (uintptr_t)(*print_fn)(node->info, pinfo);
-	rv = (int)retval;
-	if (rv != LDAPU_SUCCESS) return rv;
-	node = node->next;
-    }
-
-    return LDAPU_SUCCESS;
-}
-
 
 static void ldapu_list_free (LDAPUList_t *list, LDAPUListNodeFn_t free_fn)
 {
@@ -362,44 +274,6 @@ NSAPI_PUBLIC int ldapu_propval_alloc (const char *prop, const char *val,
     }
 }
 
-static void *ldapu_propval_copy (void *info, void *arg)
-{
-    LDAPUPropVal_t *propval = (LDAPUPropVal_t *)info;
-    LDAPUPropVal_t *copy = 0;
-    int rv;
-
-    rv = ldapu_propval_alloc(propval->prop, propval->val, &copy);
-
-    if (rv != LDAPU_SUCCESS) {
-        if (copy) ldapu_propval_free(copy, 0);
-        return 0;
-    }
-
-    return copy;
-}
-
-#define PRINT_STR(x) (x ? x : "<NULL>")
-
-static void * ldapu_propval_print (void *info, void *arg)
-{
-    LDAPUPropVal_t *propval = (LDAPUPropVal_t *)info;
-    LDAPUPrintInfo_t *pinfo = (LDAPUPrintInfo_t *)arg;
-
-    if (!pinfo || !pinfo->fp) {
-	fprintf(stderr, "\tprop = \"%s\", \tval = \"%s\"\n",
-		PRINT_STR(propval->prop),
-		PRINT_STR(propval->val));
-    }
-    else {
-	char *issuerName = (char *)pinfo->arg;
-
-	fprintf(pinfo->fp, "%s:%s %s\n", issuerName,
-		propval->prop ? propval->prop : "",
-		propval->val ? propval->val : "");
-    }
-
-    return 0;
-}
 
 static int PresentInComps (long comps_bitmask, int tag)
 {
@@ -411,79 +285,6 @@ static int PresentInComps (long comps_bitmask, int tag)
 	return 0;
 }
 
-static void print_oid_bitmask (long bitmask)
-{
-    fprintf(stderr, "%lx: ", bitmask);
-
-    if (PresentInComps(bitmask, SEC_OID_AVA_COUNTRY_NAME))
-	fprintf(stderr, " C");
-    if (PresentInComps(bitmask, SEC_OID_AVA_ORGANIZATION_NAME))
-	fprintf(stderr, " O");
-    if (PresentInComps(bitmask, SEC_OID_AVA_COMMON_NAME))
-	fprintf(stderr, " CN");
-    if (PresentInComps(bitmask, SEC_OID_AVA_LOCALITY))
-	fprintf(stderr, " L");
-    if (PresentInComps(bitmask, SEC_OID_AVA_STATE_OR_PROVINCE))
-	fprintf(stderr, " ST");
-    if (PresentInComps(bitmask, SEC_OID_AVA_ORGANIZATIONAL_UNIT_NAME))
-	fprintf(stderr, " OU");
-    if (PresentInComps(bitmask, SEC_OID_PKCS9_EMAIL_ADDRESS))
-	fprintf(stderr, " E");
-    if (PresentInComps(bitmask, SEC_OID_RFC1274_UID))
-	fprintf(stderr, " UID");
-    if (PresentInComps(bitmask, SEC_OID_RFC1274_MAIL))
-	fprintf(stderr, " MAIL");
-    if (PresentInComps(bitmask, SEC_OID_AVA_DC))
-	fprintf(stderr, " DC");
-    /* check for not yet known oid */
-    if (PresentInComps(bitmask, 34325))
-	fprintf(stderr, " UNKNOWN");
-
-    fprintf(stderr, "\n");
-}
-
-static void *ldapu_certinfo_print (void *info, void *arg)
-{
-    LDAPUCertMapInfo_t *certinfo = (LDAPUCertMapInfo_t*)info;
-    LDAPUPrintInfo_t *pinfo = (LDAPUPrintInfo_t *)arg;
-
-    if (!certinfo) return (void *)LDAPU_ERR_WRONG_ARGS;
-
-    if (!pinfo || !pinfo->fp) {
-	fprintf(stderr, "Printing cert mapinfo: \"%s\" ...\n",
-		PRINT_STR(certinfo->issuerName));
-	fprintf(stderr, "\tissuerDN = \"%s\"\n",
-		PRINT_STR(certinfo->issuerDN));
-	fprintf(stderr, "\tParsed dncomps: ");
-	print_oid_bitmask(certinfo->dncomps);
-	fprintf(stderr, "\tParsed filtercomps: ");
-	print_oid_bitmask(certinfo->filtercomps);
-
-	if (certinfo->propval) {
-	    fprintf(stderr, "\tPrinting propval pairs: ...\n");
-	    if (certinfo->propval)
-		ldapu_list_print(certinfo->propval, ldapu_propval_print, pinfo);
-	}
-	else {
-	    fprintf(stderr, "\tNo propval pairs\n");
-	}
-    }
-    else {
-	LDAPUPrintInfo_t pinfo2;
-
-	pinfo2.fp = pinfo->fp;
-	pinfo2.arg = certinfo->issuerName;
-
-	/* Write certinfo to pinfo->fp */
-	fprintf(pinfo->fp, "%s %s %s\n", LIB_DIRECTIVE, certinfo->issuerName,
-		certinfo->issuerDN ? certinfo->issuerDN : "");
-	if (certinfo->propval)
-	    ldapu_list_print(certinfo->propval, ldapu_propval_print, &pinfo2);
-	fprintf(pinfo->fp, "\n");
-    }
-
-    return (void *)LDAPU_SUCCESS;
-}
 
 static int dbconf_to_certmap_err (int err)
 {
@@ -1629,19 +1430,6 @@ done:
     }
 
     return rv;
-}
-
-/* ldapu_propval_same - returns LDAPU_SUCCESS or LDAPU_FAILED */
-static void * ldapu_propval_same (void *info, void *find_arg)
-{
-    /* check if info has find_arg as the issuerDN */
-    const char *issuerDN = (const char *)find_arg;
-    const LDAPUCertMapInfo_t *certinfo = (const LDAPUCertMapInfo_t *) info;
-
-    if (!ldapu_strcasecmp(certinfo->issuerDN, issuerDN))
-	return (void *)LDAPU_SUCCESS;
-    else
-	return (void *)LDAPU_FAILED;
 }
 
 static void * ldapu_propval_free (void *propval_in, void *arg)

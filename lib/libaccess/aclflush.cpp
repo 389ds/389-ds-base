@@ -52,7 +52,6 @@
 #include	<libaccess/aclglobal.h>
 #include	<libaccess/las.h>
 #include	"aclcache.h"
-#include 	<libaccess/dbtlibaccess.h>
 
 extern void ACL_DatabaseDestroy(void);
 

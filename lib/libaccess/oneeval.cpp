@@ -70,6 +70,7 @@
 #include "aclutil.h"
 #include "aclcache.h"
 #include "oneeval.h"
+#define NO_ACL_HASH_FUNCS
 #include "permhash.h"
 
 static ACLDispatchVector_t __nsacl_vector = {

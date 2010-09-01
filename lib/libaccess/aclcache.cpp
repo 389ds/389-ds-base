@@ -52,6 +52,7 @@
 #include <libaccess/usrcache.h>
 #include <libaccess/las.h>
 #include "aclutil.h"
+#define NO_ACL_HASH_FUNCS
 #include "permhash.h"
 #include "aclcache.h"
 

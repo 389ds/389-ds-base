@@ -56,7 +56,6 @@
 #include <libaccess/aclproto.h>
 #include <libaccess/aclglobal.h>
 #include "aclcache.h"
-#include <libaccess/dbtlibaccess.h>
 #include <libaccess/aclerror.h>
 
 /* This is to force aclspace.o into ns-httpd30.dll */

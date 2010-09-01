@@ -47,7 +47,6 @@
 #include <plhash.h>
 
 #include <netsite.h>
-#include "permhash.h"
 #include <ldaputil/errors.h>
 #include <ldaputil/certmap.h>
 #include <ldaputil/dbconf.h>
@@ -248,117 +247,6 @@ NSAPI_PUBLIC int ACL_DatabaseFind(NSErr_t *errp, const char *name,
     }
 
     return LAS_EVAL_FAIL;
-}
-
-
-NSAPI_PUBLIC int ACL_ReadDbMapFile (NSErr_t *errp, const char *map_file,
-				    int default_only)
-{
-    DBConfInfo_t *info;
-    DBConfDBInfo_t *db_info;
-    DBPropVal_t *propval;
-    PList_t plist;
-    int rv;
-    int seen_default = 0;
-
-    if (default_only)
-	rv = dbconf_read_default_dbinfo(map_file, &db_info);
-    else
-	rv = dbconf_read_config_file(map_file, &info);
-
-    if (rv != LDAPU_SUCCESS) {
-	nserrGenerate(errp, ACLERRFAIL, ACLERR4600, ACL_Program, 3, XP_GetAdminStr(DBT_ReadDbMapFileErrorReadingFile), map_file, ldapu_err2string(rv));
-	return -1;
-    }
-
-    rv = 0;
-
-    if (!default_only)
-	db_info = info->firstdb;
-
-    while(db_info) {
-	char *url = db_info->url;
-	char *dbname = db_info->dbname;
-	ACLDbType_t dbtype;
-
-	/* process db_info */
-	if (url) {
-	    rv = acl_url_to_dbtype(url, &dbtype);
-	    
-	    if (rv < 0) {
-		nserrGenerate(errp, ACLERRFAIL, ACLERR4610, ACL_Program, 2,
-		              XP_GetAdminStr(DBT_ReadDbMapFileCouldntDetermineDbtype), url);
-		break;
-	    }
-	}
-	else {
-            nserrGenerate(errp, ACLERRFAIL, ACLERR4620, ACL_Program, 2,
-	                  XP_GetAdminStr(DBT_ReadDbMapFileMissingUrl), dbname);
-	    rv = -1;
-	    break;
-	}
-
-	/* convert any property-value pairs in db_info into plist */
-	plist = PListNew(NULL);
-	propval = db_info->firstprop;
-
-	while(propval) {
-	    if (propval->prop) {
-		PListInitProp(plist, 0, propval->prop, propval->val, 0);
-	    }
-	    else {
-		nserrGenerate(errp, ACLERRINVAL, ACLERR4630, ACL_Program, 2,
-		              XP_GetAdminStr(DBT_ReadDbMapFileInvalidPropertyPair), dbname);
-		rv = -1;
-		break;
-	    }
-	    propval = propval->next;
-	}
-
-	if (rv < 0) break;
-
-	/* register the database */
-	rv = ACL_DatabaseRegister(errp, dbtype, dbname, url, plist);
-	PListDestroy(plist);
-
-	if (rv < 0) {
-	    /* Failed to register database */
-	    nserrGenerate(errp, ACLERRFAIL, ACLERR4640, ACL_Program, 2,
-	                  XP_GetAdminStr(DBT_ReadDbMapFileRegisterDatabaseFailed), dbname);
-	    break;
-	}
-
-	/* If the dbname is "default", set the default_dbtype */
-	if (!strcmp(dbname, DBCONF_DEFAULT_DBNAME)) {
-	    if (!ACL_DbTypeIsEqual(errp, dbtype, ACL_DbTypeLdap)) {
-		nserrGenerate(errp, ACLERRINVAL, ACLERR4350, ACL_Program, 1,
-		              XP_GetAdminStr(DBT_ReadDbMapFileDefaultDatabaseNotLdap));
-		rv = -1;
-		break;
-	    }
-	    if (seen_default) {
-		nserrGenerate(errp, ACLERRINVAL, ACLERR4360, ACL_Program, 1, XP_GetAdminStr(DBT_ReadDbMapFileMultipleDefaultDatabases));
-		rv = -1;
-		break;
-	    }
-	    seen_default = 1;
-	    ACL_DatabaseSetDefault(errp, dbname);
-	}
-
-	db_info = db_info->next;
-    }
-
-    if (!seen_default) {
-	nserrGenerate(errp, ACLERRINVAL, ACLERR4370, ACL_Program, 1, XP_GetAdminStr(DBT_ReadDbMapFileMissingDefaultDatabase));
-	rv = -1;
-    }
-
-    if (default_only)
-	dbconf_free_dbinfo(db_info);
-    else
-	dbconf_free_confinfo(info);
-
-    return rv;
 }
 
 void 

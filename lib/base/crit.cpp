@@ -56,13 +56,7 @@
 #include "crit.h"
 #include "pool.h"
 
-#include "base/dbtbase.h"
-
 #ifdef USE_NSPR
-/*
-#include "prmon.h"
-#include "private/primpl.h"
-*/
 #include "nspr.h"
 
 #include "prthread.h"

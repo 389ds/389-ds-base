@@ -61,6 +61,7 @@
 #define ACL_MIN_IDX		0
 #define ACL_EXPR_STACK		1024
 #define ACL_TABLE_THRESHOLD	10
+#define ACL_NO_UNPUT 1 /* unput is not used and causes compiler warnings */
 
 typedef enum    {
                 ACL_EXPR_OP_AND,

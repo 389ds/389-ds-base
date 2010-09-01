@@ -303,7 +303,7 @@ valuearray_get_bervalarray(Slapi_Value **cvals,struct berval ***bvals)
     	*bvals = (struct berval **)slapi_ch_malloc((n + 1) * sizeof(struct berval *));
     	for(i=0;i<n;i++)
     	{
-			(*bvals)[i] = ber_bvdup(slapi_value_get_berval(cvals[i]));
+			(*bvals)[i] = ber_bvdup((struct berval *)slapi_value_get_berval(cvals[i]));
     	}
     	(*bvals)[i] = NULL;
 	}

@@ -1650,7 +1650,6 @@ int slapi_vattrspi_regattr(vattr_sp_handle *h,char *type_name_to_register, char*
 
 	ret = vattr_map_sp_insert(type_to_add,h,hint);
 
-done:
 	slapi_sdn_done(&original_dn);
 	if(free_type_to_add)
 	{

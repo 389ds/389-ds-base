@@ -62,11 +62,6 @@
 
 static char *plugin_name = "utils";
 
-/*
- * Lock for updating a counter (global for all counters)
- */
-static Slapi_Mutex *counter_lock = NULL;
-
 /* ------------------------------------------------------------ */
 /*
  * op_error - Record (and report) an operational error.

@@ -1004,7 +1004,6 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                 break;
             }
 
-          next:
             list = PR_NEXT_LINK(list);
 
             if (dna_global_config == list) {
@@ -1772,7 +1771,7 @@ dna_first_free_value(struct configEntry *config_entry,
     char *filter = NULL;
     char *prefix;
     int multitype;
-    int result, status, filterlen;
+    int result, status;
     PRUint64 tmpval, sval, i;
     char *strval = NULL;
 

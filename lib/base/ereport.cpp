@@ -54,8 +54,6 @@
 #include "ereport.h"
 #include "slapi-plugin.h"
 
-#include "base/dbtbase.h"
-
 #include <stdarg.h>
 #include <stdio.h>      /* vsprintf */
 #include <string.h>     /* strcpy */

@@ -43,7 +43,9 @@
 
 #define LIBRARY_NAME "base"
 
+#ifdef RESOURCE_STR
 static char dbtbaseid[] = "$DBT: base referenced v1 $";
+#endif
 
 #include "i18n.h"
 
