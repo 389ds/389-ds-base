@@ -374,12 +374,12 @@ _usn_mod_next_usn(LDAPMod ***mods, Slapi_Backend *be)
     bvals[0] = &usn_berval;
     bvals[1] = NULL;
 
-    slapi_mods_init_byref(&smods, *mods);
+    slapi_mods_init_passin(&smods, *mods);
     /* bvals is duplicated by ber_bvdup in slapi_mods_add_modbvps */
     slapi_mods_add_modbvps(&smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
                            SLAPI_ATTR_ENTRYUSN, bvals);
 
-    *mods = slapi_mods_get_ldapmods_byref(&smods);
+    *mods = slapi_mods_get_ldapmods_passout(&smods);
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- _usn_mod_next_usn\n");
