@@ -73,19 +73,23 @@
 
 static int special_np(unsigned char c)
 {
-	if(c < 32 || c > 126) {
-		return UTIL_ESCAPE_HEX;
-	} else if ((c== '"') || (c=='\\')) 
-	{
-		return UTIL_ESCAPE_HEX;
-	} 
+    if (c == '\\') {
+        return UTIL_ESCAPE_BACKSLASH;
+    }
+    if (c < 32 || c > 126 || c == '"') {
+        return UTIL_ESCAPE_HEX;
+    } 
     return UTIL_ESCAPE_NONE;
 }
 
 static int special_np_and_punct(unsigned char c)
 {
-    if (c < 32 || c > 126 || c == '*') return UTIL_ESCAPE_HEX;
-    if (c == '\\' || c == '"') return UTIL_ESCAPE_BACKSLASH;
+    if (c == '\\') {
+        return UTIL_ESCAPE_BACKSLASH;
+    }
+    if (c < 32 || c > 126 || c == '"' || c == '*') {
+        return UTIL_ESCAPE_HEX;
+    }
     return UTIL_ESCAPE_NONE;
 }
 
@@ -142,16 +146,26 @@ do_escape_string (
 		    break;
 		}
 		do {
-		    *bufNext++ = '\\'; --bufSpace;
-		    if (bufSpace < 2) {
-			memcpy (bufNext, "..", 2);
-			bufNext += 2;
-			goto bail;
-		    }
 		    if (esc == UTIL_ESCAPE_BACKSLASH) {
-			*bufNext++ = *s; --bufSpace;
+			/* *s is '\\' */
+			/* If *(s+1) and *(s+2) are both hex digits,
+			 * the char is already escaped. */
+			if (isxdigit(*(s+1)) && isxdigit(*(s+2))) {
+			    memcpy(bufNext, s, 3);
+			    bufNext += 3;
+			    bufSpace -= 3;
+			    s += 2;
+			} else {
+			    *bufNext++ = *s; --bufSpace;
+			}
 		    } else {    /* UTIL_ESCAPE_HEX */
-			sprintf (bufNext, "%02x", (unsigned)*(unsigned char*)s);
+			*bufNext++ = '\\'; --bufSpace;
+			if (bufSpace < 3) {
+			    memcpy(bufNext, "..", 2);
+			    bufNext += 2;
+			    goto bail;
+			}
+			PR_snprintf(bufNext, 3, "%02x", *(unsigned char*)s);
 			bufNext += 2; bufSpace -= 2;
 		    }
 	        } while (++s <= last && 
