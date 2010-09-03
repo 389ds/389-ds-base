@@ -1604,7 +1604,10 @@ static int dna_request_range(struct configEntry *config_entry,
     /* Parse response */
     if (responsedata) {
         respber = ber_init(responsedata);
-        ber_scanf(respber, "{aa}", &lower_str, &upper_str);
+        if (ber_scanf(respber, "{aa}", &lower_str, &upper_str) == LBER_ERROR) {
+            ret = LDAP_PROTOCOL_ERROR;
+            goto bail;
+        }
     }
 
     /* Fill in upper and lower */
