@@ -1737,7 +1737,6 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
 {
     int found;
     const char *oldndn;
-    const char *newndn;
 
     if (!entryrdn_get_switch()) {
         return 0;
@@ -1751,7 +1750,6 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
      * of these return errors.
      */
     oldndn = slapi_sdn_get_ndn(olddn->dn_sdn);
-    newndn = slapi_sdn_get_ndn(newdn->dn_sdn);
     PR_Lock(cache->c_mutex);
 
     /*
