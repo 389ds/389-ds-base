@@ -593,6 +593,7 @@ slapi_ldap_init_ext(
     LDAP *ld = NULL;
     int rc = 0;
     int secureurl = 0;
+    int ldap_version3 = LDAP_VERSION3;
 
     /* We need to provide a sasl path used for client connections, especially
        if the server is not set up to be a sasl server - since mozldap provides
@@ -723,6 +724,10 @@ slapi_ldap_init_ext(
 	ld = prldap_init(hostname, port, shared);
     }
 #endif /* !USE_OPENLDAP */
+
+    /* must explicitly set version to 3 */
+    ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &ldap_version3);
+
     /* Update snmp interaction table */
     if (hostname) {
 	if (ld == NULL) {
