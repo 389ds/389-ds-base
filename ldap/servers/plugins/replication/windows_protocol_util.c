@@ -1264,7 +1264,7 @@ process_replay_rename(Private_Repl_Protocol *prp,
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 					"process_replay_rename: %s is empty\n",
 					NULL==newparent?"newparent":NULL==local_origsdn?"local sdn":
-					NULL==local_newentry?"local entry":"unknown");
+					"local entry");
 		goto bail;
 	}
 	if (0 == is_user && 0 == is_group) {
