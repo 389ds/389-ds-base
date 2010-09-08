@@ -1613,10 +1613,6 @@ upgradedn_producer(void *param)
             }
         }
         upgradedn_free_list(&ud_list);
-        if (skipit) {
-            slapi_entry_free(e); e = NULL;
-            continue;
-        }
 
         ep = import_make_backentry(e, temp_id);
         if (!ep || !ep->ep_entry) {
