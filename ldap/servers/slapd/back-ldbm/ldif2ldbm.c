@@ -885,7 +885,6 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
     return idltotal;
 }
 
-#define FD_STDOUT 1
 
 static int
 export_one_entry(struct ldbminfo *li,
@@ -999,7 +998,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     int              decrypt = 0;
     int              dump_replica = 0;
     int              dump_uniqueid = 1;
-    int              fd;
+    int              fd = STDOUT_FILENO;
     IDList           *idl = NULL;    /* optimization for -s include lists */
     int              cnt = 0, lastcnt = 0;
     int              options = 0;
@@ -1168,7 +1167,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             goto bye;
         }
     } else {                    /* '-' */
-        fd = FD_STDOUT;
+        fd = STDOUT_FILENO;
     }
 
     if ( we_start_the_backends )  {
@@ -1516,7 +1515,7 @@ bye:
 
     dblayer_release_id2entry( be, db );
 
-    if (fd != FD_STDOUT) {
+    if (fd > STDERR_FILENO) {
         close(fd);
     }
 
