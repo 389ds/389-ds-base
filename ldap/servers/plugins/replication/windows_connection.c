@@ -374,11 +374,10 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 				char *s = NULL;
 		
 				rc = slapi_ldap_get_lderrno(conn->ld, NULL, &s);
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Received error %d: %s for %s operation\n",
 						agmt_get_long_name(conn->agmt),
-						rc, s ? s : "NULL",
-						op_string ? op_string : "NULL");
+						rc, s ? s : "NULL", op_string);
 				conn->last_ldap_error = rc;
 				/* some errors will require a disconnect and retry the connection
 				   later */
@@ -399,7 +398,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 				char *errmsg = NULL;
 				char **referrals = NULL;
 				char *matched = NULL;
-                char *ptr;
+				char *ptr;
 
 				rc = ldap_parse_result(conn->ld, res, &err, &matched,
 									   &errmsg, &referrals, &loc_returned_controls,
@@ -448,34 +447,36 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 					}
 					return_value = LDAP_SUCCESS == conn->last_ldap_error ? CONN_OPERATION_SUCCESS : CONN_OPERATION_FAILED;
 				}
-                /* remove extra newlines from AD error message */
-                for (ptr = errmsg; ptr && *ptr; ++ptr) {
-                    if ((*ptr == '\n') || (*ptr == '\r')) {
-                        *ptr = ' ';
-                    }
-                }
-                /* handle special case of constraint violation - give admin
-                   enough information to allow them to fix the problem
-                   and retry - bug 170350 */
-                if (conn->last_ldap_error == LDAP_CONSTRAINT_VIOLATION) {
-                    char ebuf[BUFSIZ];
-                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+
+				/* remove extra newlines from AD error message */
+				for (ptr = errmsg; ptr && *ptr; ++ptr) {
+					if ((*ptr == '\n') || (*ptr == '\r')) {
+						*ptr = ' ';
+					}
+				}
+
+				/* handle special case of constraint violation - give admin
+				 * enough information to allow them to fix the problem
+				 * and retry - bug 170350 */
+				if (conn->last_ldap_error == LDAP_CONSTRAINT_VIOLATION) {
+					char ebuf[BUFSIZ];
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Received error [%s] when attempting to %s"
-                        " entry [%s]: Please correct the attribute specified "
-                        "in the error message.  Refer to the Windows Active "
-                        "Directory docs for more information.\n",
+						" entry [%s]: Please correct the attribute specified "
+						"in the error message.  Refer to the Windows Active "
+						"Directory docs for more information.\n",
 						agmt_get_long_name(conn->agmt),
-						errmsg, op_string == NULL ? "" : op_string,
-						escape_string(dn, ebuf));
-                } else {
-                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						errmsg, op_string, escape_string(dn, ebuf));
+				} else {
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"%s: Received result code %d (%s) for %s operation %s%s\n",
 						agmt_get_long_name(conn->agmt),
 						conn->last_ldap_error, errmsg,
-						op_string == NULL ? "" : op_string,
+						op_string,
 						extra_op_string == NULL ? "" : extra_op_string,
 						extra_op_string ==  NULL ? "" : " ");
-                }
+				}
+
 				/*
 				 * XXXggood do I need to free matched, referrals,
 				 * anything else? Or can I pass NULL for the args
@@ -491,7 +492,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		}
 		else
 		{
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"%s: Failed to send %s operation: LDAP error %d (%s)\n",
 					agmt_get_long_name(conn->agmt),
 					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
