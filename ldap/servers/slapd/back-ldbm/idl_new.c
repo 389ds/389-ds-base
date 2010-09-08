@@ -154,6 +154,7 @@ IDList * idl_new_fetch(
 )
 {
     int ret = 0;
+    int idl_rc = 0;
     DBC *cursor = NULL;
     IDList *idl = NULL;
     DBT key;
@@ -246,7 +247,12 @@ IDList * idl_new_fetch(
             memcpy(&id, dataret.data, sizeof(ID));
 
             /* we got another ID, add it to our IDL */
-            idl_append_extend(&idl, id);
+            idl_rc = idl_append_extend(&idl, id);
+            if (idl_rc) {
+                LDAPDebug(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc, 0, 0);
+                idl_free(idl); idl = NULL;
+                goto error;
+            }
 
             count++;
         }
@@ -275,7 +281,12 @@ IDList * idl_new_fetch(
             break;
         }
         /* we got another ID, add it to our IDL */
-        idl_append_extend(&idl, id);
+        idl_rc = idl_append_extend(&idl, id);
+        if (idl_rc) {
+            LDAPDebug(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc);
+            idl_free(idl); idl = NULL;
+            goto error;
+        }
 #if defined(DB_ALLIDS_ON_READ)	
 		/* enforce the allids read limit */
 		if (count > idl_new_get_allidslimit(a)) {
