@@ -185,6 +185,11 @@ attr_index_config(
 	int return_value = -1;
 	int *substrlens = NULL;
 
+	if ((argc == 0) || (argv == NULL)) {
+		LDAPDebug(LDAP_DEBUG_ANY, "attr_index_config: Missing indexing arguments\n", 0, 0, 0);
+		goto done;
+	}
+
 	attrs = slapi_str2charray( argv[0], "," );
 	if ( argc > 1 ) {
 		indexes = slapi_str2charray( argv[1], "," );
@@ -209,143 +214,138 @@ attr_index_config(
 		   them */
 		a->ai_type = slapi_attr_basetype( attrs[i], NULL, 0 );
 		attrsyntax_oid = attr_get_syntax_oid(&a->ai_sattr);
-		if ( argc == 1 ) {
-			a->ai_indexmask = (INDEX_PRESENCE | INDEX_EQUALITY |
-				INDEX_APPROX | INDEX_SUB);
-		} else {
-			a->ai_indexmask = 0;
-			for ( j = 0; indexes[j] != NULL; j++ ) {
-				if ( strncasecmp( indexes[j], "pres", 4 ) == 0 ) {
-					a->ai_indexmask |= INDEX_PRESENCE;
-				} else if ( strncasecmp( indexes[j], "eq", 2 ) == 0 ) {
-					a->ai_indexmask |= INDEX_EQUALITY;
-				} else if ( strncasecmp( indexes[j], "approx", 6 ) == 0 ) {
-					a->ai_indexmask |= INDEX_APPROX;
-				} else if ( strncasecmp( indexes[j], "subtree", 7 ) == 0 ) {
-					/* subtree should be located before "sub" */
-					a->ai_indexmask |= INDEX_SUBTREE;
-					a->ai_dup_cmp_fn = entryrdn_compare_dups;
-				} else if ( strncasecmp( indexes[j], "sub", 3 ) == 0 ) {
-					a->ai_indexmask |= INDEX_SUB;
-				} else if ( strncasecmp( indexes[j], "none", 4 ) == 0 ) {
-					if ( a->ai_indexmask != 0 ) {
-						LDAPDebug(LDAP_DEBUG_ANY,
-							"%s: line %d: index type \"none\" cannot be combined with other types\n",
-							fname, lineno, 0);
-					}
-					a->ai_indexmask = INDEX_OFFLINE; /* note that the index isn't available */
-				} else {
+		a->ai_indexmask = 0;
+		for ( j = 0; indexes[j] != NULL; j++ ) {
+			if ( strncasecmp( indexes[j], "pres", 4 ) == 0 ) {
+				a->ai_indexmask |= INDEX_PRESENCE;
+			} else if ( strncasecmp( indexes[j], "eq", 2 ) == 0 ) {
+				a->ai_indexmask |= INDEX_EQUALITY;
+			} else if ( strncasecmp( indexes[j], "approx", 6 ) == 0 ) {
+				a->ai_indexmask |= INDEX_APPROX;
+			} else if ( strncasecmp( indexes[j], "subtree", 7 ) == 0 ) {
+				/* subtree should be located before "sub" */
+				a->ai_indexmask |= INDEX_SUBTREE;
+				a->ai_dup_cmp_fn = entryrdn_compare_dups;
+			} else if ( strncasecmp( indexes[j], "sub", 3 ) == 0 ) {
+				a->ai_indexmask |= INDEX_SUB;
+			} else if ( strncasecmp( indexes[j], "none", 4 ) == 0 ) {
+				if ( a->ai_indexmask != 0 ) {
 					LDAPDebug(LDAP_DEBUG_ANY,
-						"%s: line %d: unknown index type \"%s\" (ignored)\n",
-						fname, lineno, indexes[j]);
-					LDAPDebug(LDAP_DEBUG_ANY,
-						"valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
-						0, 0, 0);
+						"%s: line %d: index type \"none\" cannot be combined with other types\n",
+						fname, lineno, 0);
 				}
+				a->ai_indexmask = INDEX_OFFLINE; /* note that the index isn't available */
+			} else {
+				LDAPDebug(LDAP_DEBUG_ANY,
+					"%s: line %d: unknown index type \"%s\" (ignored)\n",
+					fname, lineno, indexes[j]);
+				LDAPDebug(LDAP_DEBUG_ANY,
+					"valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
+					0, 0, 0);
 			}
+		}
 
-			/* compute a->ai_index_rules: */
-			/* for index rules there are two uses:
-			 * 1) a simple way to define an ordered index to support <= and >= searches
-			 * for those attributes which do not have an ORDERING matching rule defined
-			 * for them in their schema definition.  The index generated is not a :RULE:
-			 * index, it is a normal = EQUALITY index, with the keys ordered using the
-			 * comparison function provided by the syntax plugin for the attribute.  For
-			 * example - the uidNumber attribute has INTEGER syntax, but the standard
-			 * definition of the attribute does not specify an ORDERING matching rule.
-			 * By default, this means that you cannot perform searches like
-			 * (uidNumber>=501) - but many users expect to be able to perform this type of
-			 * search.  By specifying that you want an ordered index, using an integer
-			 * matching rule, you can support indexed seaches of this type.
-			 * 2) a RULE index - the index key prefix is :NAMEOROID: - this is used
-			 * to support extensible match searches like (cn:fr-CA.3:=gilles), which would
-			 * find the index key :fr-CA.3:gilles in the cn index.
-			 * We check first to see if this is a simple ordered index - user specified an
-			 * ordering matching rule compatible with the attribute syntax, and there is
-			 * a compare function.  If not, we assume it is a RULE index definition.
-			 */
-			j = 0;
-			if (index_rules != NULL) for (; index_rules[j] != NULL; ++j);
-			if (j > 0) { /* there are some candidates */
-				char** official_rules =
-						(char**)slapi_ch_malloc ((j + 1) * sizeof (char*));
-				size_t k = 0;
-				for (j = 0; index_rules[j] != NULL; ++j) {
-					/* Check that index_rules[j] is an official OID */
-					char* officialOID = NULL;
-					IFP mrINDEX = NULL;
-					Slapi_PBlock* pb = NULL;
-					int do_continue = 0; /* can we skip the RULE parsing stuff? */
+		/* compute a->ai_index_rules: */
+		/* for index rules there are two uses:
+		 * 1) a simple way to define an ordered index to support <= and >= searches
+		 * for those attributes which do not have an ORDERING matching rule defined
+		 * for them in their schema definition.  The index generated is not a :RULE:
+		 * index, it is a normal = EQUALITY index, with the keys ordered using the
+		 * comparison function provided by the syntax plugin for the attribute.  For
+		 * example - the uidNumber attribute has INTEGER syntax, but the standard
+		 * definition of the attribute does not specify an ORDERING matching rule.
+		 * By default, this means that you cannot perform searches like
+		 * (uidNumber>=501) - but many users expect to be able to perform this type of
+		 * search.  By specifying that you want an ordered index, using an integer
+		 * matching rule, you can support indexed seaches of this type.
+		 * 2) a RULE index - the index key prefix is :NAMEOROID: - this is used
+		 * to support extensible match searches like (cn:fr-CA.3:=gilles), which would
+		 * find the index key :fr-CA.3:gilles in the cn index.
+		 * We check first to see if this is a simple ordered index - user specified an
+		 * ordering matching rule compatible with the attribute syntax, and there is
+		 * a compare function.  If not, we assume it is a RULE index definition.
+		 */
+		j = 0;
+		if (index_rules != NULL) for (; index_rules[j] != NULL; ++j);
+		if (j > 0) { /* there are some candidates */
+			char** official_rules =
+					(char**)slapi_ch_malloc ((j + 1) * sizeof (char*));
+			size_t k = 0;
+			for (j = 0; index_rules[j] != NULL; ++j) {
+				/* Check that index_rules[j] is an official OID */
+				char* officialOID = NULL;
+				IFP mrINDEX = NULL;
+				Slapi_PBlock* pb = NULL;
+				int do_continue = 0; /* can we skip the RULE parsing stuff? */
 
-					if (strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN)) {
-						_set_attr_substrlen(INDEX_SUBSTRBEGIN, index_rules[j],
-											&substrlens);
-						do_continue = 1; /* done with j - next j */
-					} else if (strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE)) {
-						_set_attr_substrlen(INDEX_SUBSTRMIDDLE, index_rules[j],
-											&substrlens);
-						do_continue = 1; /* done with j - next j */
-					} else if (strstr(index_rules[j], INDEX_ATTR_SUBSTREND)) {
-						_set_attr_substrlen(INDEX_SUBSTREND, index_rules[j],
-											&substrlens);
-						do_continue = 1; /* done with j - next j */
-					/* check if this is a simple ordering specification
-					   for an attribute that has no ordering matching rule */
-					} else if (slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid) &&
-							   !a->ai_sattr.a_mr_ord_plugin) { /* no ordering for this attribute */
-						need_compare_fn = 1; /* get compare func for this attr */
-						do_continue = 1; /* done with j - next j */
-					}
-
-					if (do_continue) {
-						continue; /* done with index_rules[j] */
-					}
-
-					/* must be a RULE specification */
-					pb = slapi_pblock_new();
-					/* next check if this is a RULE type index
-					   try to actually create an indexer and see if the indexer
-					   actually has a regular INDEX_FN or an INDEX_SV_FN */
-					if (!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, index_rules[j]) &&
-						!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_TYPE, a->ai_type) &&
-						!slapi_mr_indexer_create (pb) &&
-						((!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX) &&
-						  mrINDEX != NULL) ||
-						 (!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &mrINDEX) &&
-						  mrINDEX != NULL)) &&
-						!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &officialOID) &&
-						officialOID != NULL) {
-						if (!strcasecmp (index_rules[j], officialOID)) {
-							official_rules[k++] = slapi_ch_strdup (officialOID);
-						} else {
-							char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
-							LDAPDebug (LDAP_DEBUG_ANY, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
-									   preamble, officialOID, index_rules[j] );
-							slapi_ch_free((void**)&preamble);
-						}
-					} else { /* we don't know what this is */
-						LDAPDebug (LDAP_DEBUG_ANY, "%s: line %d: "
-							   "unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
-							   fname, lineno, index_rules[j] );
-					}
-					{/* It would improve speed to save the indexer, for future use.
-						But, for simplicity, we destroy it now: */
-						IFP mrDESTROY = NULL;
-						if (!slapi_pblock_get (pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
-							mrDESTROY != NULL) {
-							mrDESTROY (pb);
-						}
-					}
-					slapi_pblock_destroy (pb);
+				if (strstr(index_rules[j], INDEX_ATTR_SUBSTRBEGIN)) {
+					_set_attr_substrlen(INDEX_SUBSTRBEGIN, index_rules[j],
+										&substrlens);
+					do_continue = 1; /* done with j - next j */
+				} else if (strstr(index_rules[j], INDEX_ATTR_SUBSTRMIDDLE)) {
+					_set_attr_substrlen(INDEX_SUBSTRMIDDLE, index_rules[j],
+										&substrlens);
+					do_continue = 1; /* done with j - next j */
+				} else if (strstr(index_rules[j], INDEX_ATTR_SUBSTREND)) {
+					_set_attr_substrlen(INDEX_SUBSTREND, index_rules[j],
+										&substrlens);
+					do_continue = 1; /* done with j - next j */
+				/* check if this is a simple ordering specification
+				   for an attribute that has no ordering matching rule */
+				} else if (slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid) &&
+						   !a->ai_sattr.a_mr_ord_plugin) { /* no ordering for this attribute */
+					need_compare_fn = 1; /* get compare func for this attr */
+					do_continue = 1; /* done with j - next j */
 				}
-				official_rules[k] = NULL;
-				a->ai_substr_lens = substrlens;
-				if (k > 0) {
-					a->ai_index_rules = official_rules;
-					a->ai_indexmask |= INDEX_RULES;
-				} else {
-					slapi_ch_free((void**)&official_rules);
+
+				if (do_continue) {
+					continue; /* done with index_rules[j] */
 				}
+
+				/* must be a RULE specification */
+				pb = slapi_pblock_new();
+				/* next check if this is a RULE type index
+				   try to actually create an indexer and see if the indexer
+				   actually has a regular INDEX_FN or an INDEX_SV_FN */
+				if (!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, index_rules[j]) &&
+					!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_TYPE, a->ai_type) &&
+					!slapi_mr_indexer_create (pb) &&
+					((!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX) &&
+					  mrINDEX != NULL) ||
+					 (!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &mrINDEX) &&
+					  mrINDEX != NULL)) &&
+					!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &officialOID) &&
+					officialOID != NULL) {
+					if (!strcasecmp (index_rules[j], officialOID)) {
+						official_rules[k++] = slapi_ch_strdup (officialOID);
+					} else {
+						char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
+						LDAPDebug (LDAP_DEBUG_ANY, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
+								   preamble, officialOID, index_rules[j] );
+						slapi_ch_free((void**)&preamble);
+					}
+				} else { /* we don't know what this is */
+					LDAPDebug (LDAP_DEBUG_ANY, "%s: line %d: "
+						   "unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
+						   fname, lineno, index_rules[j] );
+				}
+				{/* It would improve speed to save the indexer, for future use.
+					But, for simplicity, we destroy it now: */
+					IFP mrDESTROY = NULL;
+					if (!slapi_pblock_get (pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
+						mrDESTROY != NULL) {
+						mrDESTROY (pb);
+					}
+				}
+				slapi_pblock_destroy (pb);
+			}
+			official_rules[k] = NULL;
+			a->ai_substr_lens = substrlens;
+			if (k > 0) {
+				a->ai_index_rules = official_rules;
+				a->ai_indexmask |= INDEX_RULES;
+			} else {
+				slapi_ch_free((void**)&official_rules);
 			}
 		}
 
