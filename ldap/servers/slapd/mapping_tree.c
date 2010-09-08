@@ -3058,10 +3058,11 @@ slapi_get_next_suffix_ext(void ** node, int show_private)
     }
     while (next_node && (next_node->mtn_private && (show_private == 0)))
             next_node = next_node->mtn_brother;
+
     if (next_node) {
         *node = next_node;
-        return next_node->mtn_subtree;
     }
+
     return (next_node ? next_node->mtn_subtree : NULL);
 }
 
