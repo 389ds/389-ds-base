@@ -101,6 +101,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 {
 	caddr_t 	fp;
 	char 		*path;
+	int		rc = 0;
 #ifndef  _WIN32
 	int 		fd;
         char            *buf;
@@ -115,7 +116,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 		  if (mmap_tbl [0].maptype != AGT_MAP_UNINIT)
 		  {
 			*hdl = 0;
-			return (EEXIST); 	/* We already mapped it once */
+			rc = EEXIST; 	/* We already mapped it once */
+			goto bail;
 		  }
 		  break;
 
@@ -123,12 +125,14 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 		  if (mmap_tbl [1].maptype != AGT_MAP_UNINIT)
 		  {
 			*hdl = 1;
-			return (EEXIST); 	/* We already mapped it once */
+			rc = EEXIST; 	/* We already mapped it once */
+			goto bail;
 		  }
 		  break;
 		 
-		default:
-		  return (EINVAL);  	/* Invalid (mode) parameter */
+	     default:
+		  rc = EINVAL;  	/* Invalid (mode) parameter */
+		  goto bail;
 
 	} /* end switch */
 
@@ -149,7 +153,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 #if (0)
 			fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
 #endif
-	                return (err);
+	                rc = err;
+			goto bail;
                    }
 
 		   fp = mmap (NULL, sizeof (struct agt_stats_t), PROT_READ, MAP_PRIVATE, fd, 0);
@@ -161,7 +166,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 #if (0)
 			fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
 #endif
-			return (err);
+			rc = err;
+			goto bail;
 		   }
 
 		   mmap_tbl [0].maptype = AGT_MAP_READ;
@@ -171,7 +177,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 #if (0)
 		   fprintf (stderr, "%s@%d> opened fp = %d\n",  __FILE__, __LINE__, fp);
 #endif
-		   return (0);
+		   rc = 0;
 		   
 	     case O_RDWR:
 	           fd = open (path, 
@@ -184,7 +190,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 #if (0)
 			fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
 #endif
-	                return (err);
+	                rc = err;
+			goto bail;
                    }
 		
 		   fstat (fd, &fileinfo);
@@ -208,14 +215,16 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 #if (0)
 			fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
 #endif
-			return (err);
+			rc = err;
+			goto bail;
 		   }
 
 		   mmap_tbl [1].maptype = AGT_MAP_RDWR;
 		   mmap_tbl [1].fd 	= fd;
 		   mmap_tbl [1].fp 	= fp;
 		   *hdl = 1;
-		   return (0);
+
+		   rc = 0;
 
 	} /* end switch */
 #else
@@ -242,7 +251,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 						NULL);
 			if ( hMapFile == NULL ) {
 				CloseHandle( hFile );
-				return GetLastError();
+				rc = GetLastError();
+				goto bail;
 			}
 
 				/* Create addr ptr to the start of the file */
@@ -251,7 +261,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 			if ( fp == NULL ) {
 				CloseHandle( hMapFile );
 				CloseHandle( hFile );
-				return GetLastError();
+				rc = GetLastError();
+				goto bail;
 			}
 
 			/* Fill in info on this opaque handle */
@@ -260,7 +271,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 			mmap_tbl[0].fp = fp;
 			mmap_tbl[0].mfh = hMapFile;
 			*hdl = 0;
-			return 0;
+
+			rc = 0;
 		}
 		
 		case O_RDWR:
@@ -284,7 +296,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 						NULL );
 			if ( hMapFile == NULL ) {
 				CloseHandle( hFile );
-				return GetLastError();
+				rc = GetLastError();
+				goto bail;
 			}
 
 				/* Create addr ptr to the start of the file */
@@ -293,7 +306,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 			if ( fp == NULL ) {
 				CloseHandle( hMapFile );
 				CloseHandle( hFile );
-				return GetLastError();
+				rc = GetLastError();
+				goto bail;
 			}
 
 			mmap_tbl[1].maptype = AGT_MAP_RDWR;
@@ -301,7 +315,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 			mmap_tbl[1].fp = fp;
 			mmap_tbl[1].mfh = hMapFile;
 			*hdl = 1;
-			return 0;
+
+			rc = 0;
 
 		}
 		
@@ -310,7 +325,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 
 #endif /* !__WINNT__ */
 
-    return 0;
+bail:
+    return rc;
 }  /* agt_mopen_stats () */
 
 
