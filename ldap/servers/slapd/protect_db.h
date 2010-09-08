@@ -76,6 +76,9 @@ void remove_slapd_process();
 #define CHOWN_WARNING "Warning - couldn't set the ownership for %s\n"
   /* file name */
 
+#define STAT_ERROR "Error - unable to stat %s (error %d)\n"
+  /* file name, error number */
+
 #define NO_SERVER_DUE_TO_SERVER "Unable to start slapd because it is already running as process %d\n"
   /* pid of running slapd process */
 

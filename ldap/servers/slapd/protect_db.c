@@ -205,9 +205,11 @@ make_sure_dir_exists(char *dir)
         slapdFrontendConfig->localuserinfo != NULL) {
         pw = slapdFrontendConfig->localuserinfo;
         if (chown(dir, pw->pw_uid, -1) == -1) {
-            stat(dir, &stat_buffer);
-            if (stat_buffer.st_uid != pw->pw_uid) {
+            if ((stat(dir, &stat_buffer) == 0) && (stat_buffer.st_uid != pw->pw_uid)) {
                 LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, dir, 0, 0);
+                return 1;
+            } else {
+                LDAPDebug(LDAP_DEBUG_ANY, STAT_ERROR, dir, errno, 0);
                 return 1;
             }
         }
@@ -242,8 +244,7 @@ add_this_process_to(char *dir_name)
         slapdFrontendConfig->localuserinfo != NULL) {
         pw = slapdFrontendConfig->localuserinfo;
         if (chown(file_name, pw->pw_uid, -1) == -1) {
-            stat(file_name, &stat_buffer);
-            if (stat_buffer.st_uid != pw->pw_uid) {
+            if ((stat(file_name, &stat_buffer) == 0) && (stat_buffer.st_uid != pw->pw_uid)) {
                 LDAPDebug(LDAP_DEBUG_ANY, CHOWN_WARNING, file_name, 0, 0);
             }
         }
