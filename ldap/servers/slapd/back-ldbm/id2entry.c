@@ -104,7 +104,12 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
              * replace it. */
             if (CACHE_ADD( &inst->inst_dncache, bdn, &oldbdn ) == 1) {
                 if (slapi_sdn_compare(sdn, oldbdn->dn_sdn)) {
-                    cache_replace( &inst->inst_dncache, oldbdn, bdn );
+                    if (cache_replace( &inst->inst_dncache, oldbdn, bdn ) != 0) {
+                        /* The entry was not in the cache for some reason (this
+                         * should not happen since CACHE_ADD said it existed above). */
+			LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add_ext(): Entry disappeared "
+                                   "from cache (%s)\n", oldbdn->dn_sdn, 0, 0 );
+                    }
                 }
                 CACHE_RETURN(&inst->inst_dncache, &oldbdn); /* to free oldbdn */
             }
