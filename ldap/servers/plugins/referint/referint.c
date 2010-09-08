@@ -690,7 +690,6 @@ update_integrity(char **argv, char *origDN,
             size_t len = strlen(origDN);
             filter = slapi_ch_smprintf("(%s=*%s)", argv[i], escape_filter_value(origDN, len, buf));
             if ( filter ) {
-
                 /* Need only the current attribute and its subtypes */
                 char *attrs[2];
                 attrs[0] = argv[i];
@@ -705,79 +704,79 @@ update_integrity(char **argv, char *origDN,
   
                 slapi_pblock_get( search_result_pb, SLAPI_PLUGIN_INTOP_RESULT, 
                                   &search_result);
-            }
 
-            /* if search successfull then do integrity update */
-            if(search_result == LDAP_SUCCESS)
-            {
-                slapi_pblock_get(search_result_pb,
-                                 SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
-                                 &search_entries);
-
-                for(j=0; search_entries[j] != NULL; j++)
+                /* if search successfull then do integrity update */
+                if(search_result == LDAP_SUCCESS)
                 {
-                    Slapi_Attr *attr = NULL;
-                    char *attrName = NULL;
+                    slapi_pblock_get(search_result_pb,
+                                     SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
+                                     &search_entries);
 
-                    /* Loop over all the attributes of the entry and search
-                     * for the integrity attribute and its subtypes */
-                    for (slapi_entry_first_attr(search_entries[j], &attr); attr; 
-                         slapi_entry_next_attr(search_entries[j], attr, &attr))
+                    for(j=0; search_entries[j] != NULL; j++)
                     {
-                        /* Take into account only the subtypes of the attribute 
-                         * in argv[i] having the necessary value  - origDN */
-                        slapi_attr_get_type(attr, &attrName);
-                        if (slapi_attr_type_cmp(argv[i], attrName,
-                                                SLAPI_TYPE_CMP_SUBTYPE) == 0)
-                        {
-                            int nval = 0;
-                            slapi_attr_get_numvalues(attr, &nval);
+                        Slapi_Attr *attr = NULL;
+                        char *attrName = NULL;
 
-                            /* 
-                             * We want to reduce the "modify" call as much as
-                             * possible. But if an entry contains 1000s of 
-                             * attributes which need to be updated by the 
-                             * referint plugin (e.g., a group containing 1000s 
-                             * of members), we want to avoid to allocate too 
-                             * many mods * in one "modify" call.
-                             * This is a compromise: If an attribute type has
-                             * more than 128 values, we update the attribute 
-                             * value one by one. Otherwise, update all values
-                             * in one "modify" call.
-                             */
-                            if (nval > 128) {
-                                rc = _update_one_per_mod(
-                                          slapi_entry_get_dn(search_entries[j]),
-                                          attr, attrName,
-                                          origDN, norm_origDN,
-                                          newrDN, newsuperior,
-                                          mod_pb);
-                            } else {
-                                rc = _update_all_per_mod(
-                                          slapi_entry_get_dn(search_entries[j]),
-                                          attr, attrName,
-                                          origDN, norm_origDN,
-                                          newrDN, newsuperior,
-                                          mod_pb);
+                        /* Loop over all the attributes of the entry and search
+                         * for the integrity attribute and its subtypes */
+                        for (slapi_entry_first_attr(search_entries[j], &attr); attr; 
+                             slapi_entry_next_attr(search_entries[j], attr, &attr))
+                        {
+                            /* Take into account only the subtypes of the attribute 
+                             * in argv[i] having the necessary value  - origDN */
+                            slapi_attr_get_type(attr, &attrName);
+                            if (slapi_attr_type_cmp(argv[i], attrName,
+                                                    SLAPI_TYPE_CMP_SUBTYPE) == 0)
+                            {
+                                int nval = 0;
+                                slapi_attr_get_numvalues(attr, &nval);
+
+                                /* 
+                                 * We want to reduce the "modify" call as much as
+                                 * possible. But if an entry contains 1000s of 
+                                 * attributes which need to be updated by the 
+                                 * referint plugin (e.g., a group containing 1000s 
+                                 * of members), we want to avoid to allocate too 
+                                 * many mods * in one "modify" call.
+                                 * This is a compromise: If an attribute type has
+                                 * more than 128 values, we update the attribute 
+                                 * value one by one. Otherwise, update all values
+                                 * in one "modify" call.
+                                 */
+                                if (nval > 128) {
+                                    rc = _update_one_per_mod(
+                                              slapi_entry_get_dn(search_entries[j]),
+                                              attr, attrName,
+                                              origDN, norm_origDN,
+                                              newrDN, newsuperior,
+                                              mod_pb);
+                                } else {
+                                    rc = _update_all_per_mod(
+                                              slapi_entry_get_dn(search_entries[j]),
+                                              attr, attrName,
+                                              origDN, norm_origDN,
+                                              newrDN, newsuperior,
+                                              mod_pb);
+                                }
+                                /* Should we stop if one modify returns an error? */
                             }
-                            /* Should we stop if one modify returns an error? */
                         }
                     }
+                } else {
+                    if (isFatalSearchError(search_result))
+                    {
+                        /* NPCTE fix for bugid 531225, esc 0. <P.R> <30-May-2001> */
+                        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                            "update_integrity search (base=%s filter=%s) returned "
+                            "error %d\n", search_base, filter, search_result);
+                        /* end of NPCTE fix for bugid 531225 */
+                        rc = -1;
+                        goto free_and_return;
+                    }
                 }
-            } else {
-                if (isFatalSearchError(search_result))
-                {
-                    /* NPCTE fix for bugid 531225, esc 0. <P.R> <30-May-2001> */
-                    slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                        "update_integrity search (base=%s filter=%s) returned "
-                        "error %d\n", search_base, filter, search_result);
-                    /* end of NPCTE fix for bugid 531225 */
-                    rc = -1;
-                    goto free_and_return;
-                }
-            }
 
-            slapi_ch_free_string(&filter);
+                slapi_ch_free_string(&filter);
+            }
   
             if (search_result_pb) {
                 slapi_free_search_results_internal(search_result_pb);
