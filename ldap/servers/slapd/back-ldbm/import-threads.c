@@ -3279,7 +3279,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
     if (NULL == inst || NULL == srdn) {
         slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                         "import_get_and_add_parent_rdns: Empty %s\n",
-                        NULL==inst?"inst":NULL==srdn?"srdn":"unknown");
+                        NULL==inst?"inst":"srdn");
         return rc;
     }
     li = inst->inst_li;
