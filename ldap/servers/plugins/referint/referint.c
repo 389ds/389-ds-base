@@ -490,15 +490,6 @@ _update_one_per_mod(const char *entryDN, /* DN of the searched entry */
         slapi_ch_free_string(&newDN);
     }
 
-    /* in case these memories have not freed */
-    slapi_ch_free_string(&newvalue);
-    slapi_ch_free_string(&sval);
-    if (dnParts){
-        slapi_ldap_value_free(dnParts);
-        dnParts = NULL;
-    }
-    slapi_ch_free_string(&newDN);
-
     return rc;
 }
 
