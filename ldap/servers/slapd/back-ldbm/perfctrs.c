@@ -211,10 +211,11 @@ void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 	*ret_priv = priv;
 	return;
 
-#if !defined(_WIN32)
-	if (priv) slapi_ch_free((void**)&priv->memory);
-#endif
+#if defined(_WIN32)
+error:
 	slapi_ch_free((void**)&priv);
+	return;
+#endif
 }
 
 /* Terminate perf ctrs */
