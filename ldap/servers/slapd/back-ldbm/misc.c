@@ -454,8 +454,8 @@ get_value_from_string(const char *string, char *type, char **value)
     char *copy = NULL;
     char *tmpptr = NULL;
     char *startptr = NULL;
-    struct berval tmptype;
-    struct berval bvvalue;
+    struct berval tmptype = {0, NULL};
+    struct berval bvvalue = {0, NULL};
     int freeval = 0;
 
     if (NULL == string || NULL == type || NULL == value) {
