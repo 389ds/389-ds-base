@@ -352,14 +352,7 @@ NSAPI_PUBLIC extern ACLDispatchVector_t *__nsacl_table;
 
     /*  ACL language and file interfaces */
 
-#define ACL_ParseFile (*__nsacl_table->f_ACL_ParseFile)
 #define ACL_ParseString (*__nsacl_table->f_ACL_ParseString)
-#define ACL_WriteString (*__nsacl_table->f_ACL_WriteString)
-#define ACL_WriteFile (*__nsacl_table->f_ACL_WriteFile)
-#define ACL_FileRenameAcl (*__nsacl_table->f_ACL_FileRenameAcl)
-#define ACL_FileDeleteAcl (*__nsacl_table->f_ACL_FileDeleteAcl)
-#define ACL_FileGetAcl (*__nsacl_table->f_ACL_FileGetAcl)
-#define ACL_FileSetAcl (*__nsacl_table->f_ACL_FileSetAcl)
 
     /*  ACL Expression construction interfaces  
      *  These are low-level interfaces that may be useful to those who are not

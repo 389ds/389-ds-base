@@ -58,13 +58,7 @@ NSPR_BEGIN_EXTERN_C
 /*********************************************************************
  *  ACL language and file interfaces
  *********************************************************************/
-
-NSAPI_PUBLIC ACLListHandle_t * ACL_ParseFile(NSErr_t *errp, char *filename);
 NSAPI_PUBLIC ACLListHandle_t * ACL_ParseString(NSErr_t *errp, char *buffer);
-NSAPI_PUBLIC int ACL_Decompose(NSErr_t *errp, char **acl, ACLListHandle_t *acl_list);
-NSAPI_PUBLIC int ACL_WriteString(NSErr_t *errp, char **acl, ACLListHandle_t *acllist);
-NSAPI_PUBLIC int ACL_WriteFile(NSErr_t *errp, char *filename, ACLListHandle_t *acllist);
-
 
 /*********************************************************************
  *  ACL Expression construction interfaces
