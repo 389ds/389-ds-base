@@ -1578,7 +1578,7 @@ moddn_rename_children(
      */
     slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
     opcsn = operation_get_csn (operation);
-    for (i=0; retval == 0 && child_entries[i] && child_entry_copies[i]; i++) {
+    for (i=0,retval=0; retval == 0 && child_entries[i] && child_entry_copies[i]; i++) {
         retval = moddn_rename_child_entry(ptxn, pb, li, child_entries[i],
                                          child_entry_copies[i], parentdncomps,
                                          newsuperiordns, newsuperiordncomps,
