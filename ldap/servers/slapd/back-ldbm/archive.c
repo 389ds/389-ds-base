@@ -208,7 +208,8 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
 
             if (NULL == p)    /* never happen, I guess */
             {
-                directory = ".";
+                slapi_ch_free_string(&directory);
+                directory = slapi_ch_smprintf(".");
                 c = '/';
             }
             else
