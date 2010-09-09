@@ -178,6 +178,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 		   fprintf (stderr, "%s@%d> opened fp = %d\n",  __FILE__, __LINE__, fp);
 #endif
 		   rc = 0;
+		   break;
 		   
 	     case O_RDWR:
 	           fd = open (path, 
@@ -225,7 +226,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 		   *hdl = 1;
 
 		   rc = 0;
-
+                   break;
 	} /* end switch */
 #else
 	/* _WIN32 */
@@ -273,6 +274,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 			*hdl = 0;
 
 			rc = 0;
+			break;
 		}
 		
 		case O_RDWR:
@@ -317,6 +319,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 			*hdl = 1;
 
 			rc = 0;
+			break;
 
 		}
 		
