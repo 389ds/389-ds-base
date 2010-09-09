@@ -3052,7 +3052,7 @@ _get_and_add_parent_rdns(backend *be,
     if (NULL == be || NULL == srdn) {
         slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                         "_get_and_add_parent_rdns: Empty %s\n",
-                        NULL==be?"be":NULL==srdn?"srdn":"unknown");
+                        NULL==be?"be":"srdn");
         return rc;
     }
 
