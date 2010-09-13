@@ -844,4 +844,8 @@ typedef struct _back_search_result_set
 /* Initial entryusn value */
 #define INITIALUSN (PRUint64)(-1)
 
+/* changelog backup dir name 
+ * starting with '.' to reduce the risk to match an ordinary backend name */
+#define CHANGELOG_BACKUPDIR ".repl_changelog_backup"
+
 #endif /* _back_ldbm_h_ */

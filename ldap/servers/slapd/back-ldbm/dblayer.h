@@ -207,4 +207,8 @@ void dblayer_set_env_debugging(DB_ENV *pEnv, dblayer_private *priv);
 /* Return the last four characters of a string; used for comparing extensions. */
 char* last_four_chars(const char* s);
 
+/* To support backingup/restoring changelog dir */
+#define CHANGELOGENTRY   "cn=changelog5,cn=config"
+#define CHANGELOGDIRATTR "nsslapd-changelogdir"
+
 #endif /* _DBLAYER_H_ */

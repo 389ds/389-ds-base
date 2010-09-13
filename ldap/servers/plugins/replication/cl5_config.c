@@ -329,8 +329,6 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	config.maxEntries = CL5_NUM_IGNORE;
 	slapi_ch_free_string(&config.maxAge);
 	config.maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
-	config.dbconfig.maxChCacheEntries = 0;
-	config.dbconfig.maxChCacheSize = (PRUint32)CL5_NUM_IGNORE;
 
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
     for (i = 0; mods[i] != NULL; i++)
@@ -392,28 +390,6 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					slapi_ch_free_string(&config.maxAge);
                     config.maxAge = slapi_ch_strdup(config_attr_value);
                 }
-                else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_CACHESIZE ) == 0 )
-				{ /* The Changelog Cache Size parameters can be modified online without a need for restart */
-					if (config_attr_value && config_attr_value[0] != '\0')
-					{
-						config.dbconfig.maxChCacheEntries = atoi (config_attr_value);
-					}
-					else
-					{
-						config.dbconfig.maxChCacheEntries = 0;
-					}
-                }
-                else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_CACHEMEMSIZE ) == 0 )
-				{ /* The Changelog Cache Size parameters can be modified online without a need for restart */
-					if (config_attr_value && config_attr_value[0] != '\0')
-					{
-						config.dbconfig.maxChCacheSize = atoi (config_attr_value);
-					}
-					else
-					{
-						config.dbconfig.maxChCacheSize = 0;
-					}
-				} 
 				else 
 				{
 					*returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -436,11 +412,6 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 		if (originalConfig->maxAge)
 			config.maxAge = slapi_ch_strdup(originalConfig->maxAge);
 	}
-	if (config.dbconfig.maxChCacheEntries == 0)
-		config.dbconfig.maxChCacheEntries = originalConfig->dbconfig.maxChCacheEntries;
-	if (config.dbconfig.maxChCacheSize == (PRUint32)CL5_NUM_IGNORE)
-		config.dbconfig.maxChCacheSize = originalConfig->dbconfig.maxChCacheSize;
-
 	
 	/* attempt to change chagelog dir */
 	if (config.dir)
@@ -543,7 +514,8 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 					"changelog5_config_modify: failed to restart changelog\n");
 				/* before finishing, let's try to do some error recovery */
-				if (CL5_SUCCESS != cl5Open(currentDir, &config.dbconfig)) {
+				if (CL5_SUCCESS != cl5Open(currentDir, &config.dbconfig))
+				{
 					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 									"changelog5_config_modify: failed to restore previous changelog\n");
 				}
@@ -573,9 +545,6 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 			goto done;
 		}
 	}
-
-	if (config.dbconfig.maxChCacheEntries != 0 || config.dbconfig.maxChCacheSize != (PRUint32)CL5_NUM_IGNORE)
-	  clcache_set_config(&config.dbconfig);
 
 done:;						   
 	PR_RWLock_Unlock (s_configLock);
@@ -721,22 +690,9 @@ static changelog5Config * changelog5_dup_config(changelog5Config *config)
 
 	dup->maxEntries = config->maxEntries;
 
-	/*memcpy((void *) &dup->dbconfig, (const void *) &config->dbconfig, sizeof(CL5DBConfig));*/
-	dup->dbconfig.cacheSize = config->dbconfig.cacheSize;
-	dup->dbconfig.durableTrans = config->dbconfig.durableTrans;
-	dup->dbconfig.checkpointInterval = config->dbconfig.checkpointInterval;
-	dup->dbconfig.circularLogging = config->dbconfig.circularLogging;
 	dup->dbconfig.pageSize = config->dbconfig.pageSize;
-	dup->dbconfig.logfileSize = config->dbconfig.logfileSize;
-	dup->dbconfig.maxTxnSize = config->dbconfig.maxTxnSize;
 	dup->dbconfig.fileMode = config->dbconfig.fileMode;
-	dup->dbconfig.verbose = config->dbconfig.verbose;
-	dup->dbconfig.debug = config->dbconfig.debug;
-	dup->dbconfig.tricklePercentage = config->dbconfig.tricklePercentage;
-	dup->dbconfig.spinCount = config->dbconfig.spinCount;
-	dup->dbconfig.maxChCacheEntries = config->dbconfig.maxChCacheEntries;
-	dup->dbconfig.maxChCacheSize = config->dbconfig.maxChCacheSize;
-	dup->dbconfig.nb_lock_config = config->dbconfig.nb_lock_config;
+	dup->dbconfig.maxConcurrentWrites = config->dbconfig.maxConcurrentWrites;
 
 	return dup;
 }
@@ -766,98 +722,6 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	 * Read the Changelog Internal Configuration Parameters for the Changelog DB
 	 * (db cache size, db settings...)
 	 */
-
-	/* Set configuration default values first... */
-	config->dbconfig.cacheSize		    = CL5_DEFAULT_CONFIG_DB_DBCACHESIZE;
-	config->dbconfig.durableTrans	    = CL5_DEFAULT_CONFIG_DB_DURABLE_TRANSACTIONS;
-	config->dbconfig.checkpointInterval = CL5_DEFAULT_CONFIG_DB_CHECKPOINT_INTERVAL;
-	config->dbconfig.circularLogging	= CL5_DEFAULT_CONFIG_DB_CIRCULAR_LOGGING;
-	config->dbconfig.pageSize		    = CL5_DEFAULT_CONFIG_DB_PAGE_SIZE;
-	config->dbconfig.logfileSize		= CL5_DEFAULT_CONFIG_DB_LOGFILE_SIZE;
-	config->dbconfig.maxTxnSize		    = CL5_DEFAULT_CONFIG_DB_TXN_MAX;
-	config->dbconfig.verbose			= CL5_DEFAULT_CONFIG_DB_VERBOSE;
-	config->dbconfig.debug			    = CL5_DEFAULT_CONFIG_DB_DEBUG;
-	config->dbconfig.tricklePercentage  = CL5_DEFAULT_CONFIG_DB_TRICKLE_PERCENTAGE;
-	config->dbconfig.spinCount		    = CL5_DEFAULT_CONFIG_DB_SPINCOUNT;
-	config->dbconfig.nb_lock_config		= CL5_DEFAULT_CONFIG_NB_LOCK;
-	
-	/* Now read from the entry to override default values if needed */
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_DBCACHESIZE);
-	if (arg)
-	{
-		size_t theSize = atoi (arg);
-		if (theSize > CL5_MIN_DB_DBCACHESIZE)
-			config->dbconfig.cacheSize = theSize;
-		else {
-			config->dbconfig.cacheSize = CL5_MIN_DB_DBCACHESIZE;
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"Warning: Changelog dbcache size too small. "
-				"Increasing the Memory Size to %d bytes\n", 
-				CL5_MIN_DB_DBCACHESIZE);
-		}
-		slapi_ch_free_string(&arg);
-	}
-
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_DURABLE_TRANSACTIONS);
-	if (arg)
-	{
-		config->dbconfig.durableTrans = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_CHECKPOINT_INTERVAL);
-	if (arg)
-	{
-		config->dbconfig.checkpointInterval = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_CIRCULAR_LOGGING);
-	if (arg)
-	{
-		config->dbconfig.circularLogging = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_PAGE_SIZE);
-	if (arg)
-	{
-		config->dbconfig.pageSize = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_LOGFILE_SIZE);
-	if (arg)
-	{
-		config->dbconfig.logfileSize = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_MAXTXN_SIZE);
-	if (arg)
-	{
-		config->dbconfig.maxTxnSize = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_VERBOSE);
-	if (arg)
-	{
-		config->dbconfig.verbose = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_DEBUG);
-	if (arg)
-	{
-		config->dbconfig.debug = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_TRICKLE_PERCENTAGE);
-	if (arg)
-	{
-		config->dbconfig.tricklePercentage = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DB_SPINCOUNT);
-	if (arg)
-	{
-		config->dbconfig.spinCount = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
 	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES);
 	if (arg)
 	{
@@ -867,45 +731,6 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	if ( config->dbconfig.maxConcurrentWrites <= 0 )
 	{
 		config->dbconfig.maxConcurrentWrites = CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES;
-	}
-
-	/* 
-	 * Read the Changelog Internal Configuration Parameters for the Changelog Cache
-	 */
-
-	/* Set configuration default values first... */
-	config->dbconfig.maxChCacheEntries	= CL5_DEFAULT_CONFIG_CACHESIZE;
-	config->dbconfig.maxChCacheSize	= CL5_DEFAULT_CONFIG_CACHEMEMSIZE;
-
-	/* Now read from the entry to override default values if needed */
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_CACHESIZE);
-	if (arg)
-	{
-		config->dbconfig.maxChCacheEntries = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_CACHEMEMSIZE);
-	if (arg)
-	{
-		config->dbconfig.maxChCacheSize = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_NB_LOCK);
-	if (arg)
-	{
-		size_t theSize = atoi(arg);
-		if (theSize < CL5_MIN_NB_LOCK)
-		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"Warning: Changelog %s value is too low (%ld). Set to minimal value instead (%d)\n",
-				CONFIG_CHANGELOG_NB_LOCK, theSize, CL5_MIN_NB_LOCK);
-			config->dbconfig.nb_lock_config = CL5_MIN_NB_LOCK;
-		} 
-		else
-		{
-			config->dbconfig.nb_lock_config = theSize;
-		}
-		slapi_ch_free_string(&arg);
 	}
 }
 

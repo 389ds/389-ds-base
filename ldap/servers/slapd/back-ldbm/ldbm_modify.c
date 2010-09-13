@@ -190,7 +190,7 @@ int
 ldbm_back_modify( Slapi_PBlock *pb )
 {
 	backend *be;
-	ldbm_instance *inst;
+	ldbm_instance *inst = NULL;
 	struct ldbminfo		*li;
 	struct backentry	*e = NULL, *ec = NULL;
 	Slapi_Entry		*postentry = NULL;

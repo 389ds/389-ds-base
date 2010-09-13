@@ -347,6 +347,7 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 	case SLAPI_PLUGIN_BE_PRE_MODRDN_FN:
 	case SLAPI_PLUGIN_BE_PRE_ADD_FN:
 	case SLAPI_PLUGIN_BE_PRE_DELETE_FN:
+	case SLAPI_PLUGIN_BE_PRE_CLOSE_FN:
         plugin_list_number= PLUGIN_LIST_BEPREOPERATION;
 		do_op = 1; /* always allow backend callbacks (even during startup) */
 		break;
@@ -354,6 +355,7 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 	case SLAPI_PLUGIN_BE_POST_MODRDN_FN:
 	case SLAPI_PLUGIN_BE_POST_ADD_FN:
 	case SLAPI_PLUGIN_BE_POST_DELETE_FN:
+	case SLAPI_PLUGIN_BE_POST_OPEN_FN:
         plugin_list_number= PLUGIN_LIST_BEPOSTOPERATION;
 		do_op = 1; /* always allow backend callbacks (even during startup) */
 		break;
@@ -2403,8 +2405,12 @@ plugin_invoke_plugin_pb (struct slapdplugin *plugin, int operation, Slapi_PBlock
 	PR_ASSERT (pb);	
 
 	/* we always allow initialization and cleanup operations */
-	if (operation == SLAPI_PLUGIN_START_FN || operation == SLAPI_PLUGIN_POSTSTART_FN ||
-		operation == SLAPI_PLUGIN_CLOSE_FN || operation == SLAPI_PLUGIN_CLEANUP_FN)
+	if (operation == SLAPI_PLUGIN_START_FN || 
+		operation == SLAPI_PLUGIN_POSTSTART_FN ||
+		operation == SLAPI_PLUGIN_CLOSE_FN || 
+		operation == SLAPI_PLUGIN_CLEANUP_FN ||
+		operation == SLAPI_PLUGIN_BE_PRE_CLOSE_FN ||
+		operation == SLAPI_PLUGIN_BE_POST_OPEN_FN)
 		return PR_TRUE;
 
 	PR_ASSERT (pb->pb_op);

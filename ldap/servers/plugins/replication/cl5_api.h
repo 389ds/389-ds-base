@@ -67,23 +67,9 @@
 /* changelog configuration structure */
 typedef struct cl5dbconfig
 {
-	size_t	cacheSize;			/* cache size in bytes */
-	PRBool	durableTrans;		/* flag that tells not to sync log when trans commits */
-	PRInt32	checkpointInterval;	/* checkpoint interval in seconds */
-	PRBool  circularLogging;	/* flag to archive and trancate log */
 	size_t	pageSize;			/* page size in bytes */
-	size_t	logfileSize;		/* maximum log size in bytes */
-	size_t	maxTxnSize;			/* maximum txn table size in count*/
 	PRInt32	fileMode;			/* file mode */
-	PRBool	verbose;			/* Get libdb to exhale debugging info */
-	PRBool	debug;				/* Will libdb emit debugging info into our log ? */
-	PRInt32	tricklePercentage;	/* guaranteed percentage of clean cache pages; 0 - 100 */
-	PRInt32	spinCount;			/* DB Mutex spin count */
-	PRUint32 nb_lock_config;	/* Number of locks in the DB lock table. New in 5.1 */
-/* The next 2 parameters are needed for configuring the changelog cache. New in 5.1 */
-	PRUint32 maxChCacheEntries;
-	PRUint32 maxChCacheSize;
-	PRUint32 maxConcurrentWrites;	/* 6.2 max number of concurrent cl writes */
+	PRUint32 maxConcurrentWrites;	/* max number of concurrent cl writes */
 } CL5DBConfig;
 
 /* changelog entry format */
@@ -218,37 +204,6 @@ int cl5Close ();
  */
 int cl5Delete (const char *dir);
 
-/* Name:		cl5OpenDB
-   Description: opens changelog file for specified file
-   Parameters:	replica - replica whose file we wish to open 
-   Return:		CL5_SUCCESS if successful;
-				CL5_BAD_STATE if the changelog is not initialized;
-				CL5_BAD_DATA - if NULL id is supplied
- */		
-int cl5OpenDB (Object *replica);
-
-/* Name:		cl5CloseDB
-   Description: closes changelog file for the specified replica
-   Parameters:	replica - replica whose file we wish to close
-   Return:		CL5_SUCCESS if successful;
-				CL5_BAD_STATE if the changelog is not initialized;
-				CL5_BAD_DATA - if NULL id is supplied
-				CL5_NOTFOUND - nothing is known about specified database
- */		
-int cl5CloseDB (Object *replica);
-
-/* Name:		cl5DeleteDB
-   Description: asynchronously removes changelog file for the specified replica.
-                The file is physically removed when it is no longer in use.
-				This function is called when a backend is removed or reloaded. 
-   Parameters:	replica - replica whose file we wish to delete 
-   Return:		CL5_SUCCESS if successful;
-				CL5_BAD_STATE if the changelog is not initialized;
-				CL5_BAD_DATA - if NULL id is supplied
-				CL5_NOTFOUND - nothing is known about specified database
- */		
-int cl5DeleteDB (Object *replica);
-
 /* Name:        cl5DeleteDBSync
    Description: The same as cl5DeleteDB except the function does not return
                 until the file is removed.
@@ -268,36 +223,6 @@ int cl5DeleteDBSync (Object *replica);
                 CL5_NOTFOUND, if changelog file for replica is not found
  */
 int cl5GetUpperBoundRUV (Replica *r, RUV **ruv);
-
-/* Name:		cl5Backup
-   Description:	makes a backup of the changelog including *.db2, 
-				log files, and dbversion. Can be called with the changelog in either open or
-				closed state.
-   Parameters:  bkDir - directory to which the data is backed up; 
-				created if it does not exist
-				replicas - optional list of replicas whose changes should be backed up;
-						   if the list is NULL, entire changelog is backed up.
-   Return:		CL5_SUCCESS if function is successful;
-				CL5_BAD_DATA if invalid directory is passed;
-				CL5_BAD_STATE if changelog has not been initialized;
-				CL5_DB_ERROR if db call fails;
-				CL5_SYSTEM_ERROR if NSPR call or file copy failes.
- */
-int cl5Backup (const char *bkDir, Object **replicas);
-
-/* Name:		cl5Restore
-   Description:	restores changelog from the backed up copy. Changelog must be ibnitalized and closed.
-   Parameters:  clDir - changelog dir
-				bkDir - directory that contains the backup
-				replicas - optional list of replicas whose changes should be recovered;
-						   if the list is NULL, entire changelog is recovered.
-   Return:		CL5_SUCCESS if function is successfull;
-				CL5_BAD_DATA if invalid parameter is passed;
-				CL5_BAD_STATE if changelog is open or not initialized;
-				CL5_DB_ERROR if db call fails;
-				CL5_SYSTEM_ERROR if NSPR call of file copy fails
- */
-int cl5Restore (const char *clDir, const char *bkDir, Object **replicas);
 
 /* Name:		cl5ExportLDIF
    Description:	dumps changelog to an LDIF file; changelog can be open or closed.

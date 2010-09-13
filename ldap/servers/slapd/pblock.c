@@ -610,6 +610,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_DB_ADD_SCHEMA_FN:
 		(*(IFP *)value) = pblock->pb_plugin->plg_add_schema;
 		break;
+	case SLAPI_PLUGIN_DB_GET_INFO_FN:
+		(*(IFP *)value) = pblock->pb_plugin->plg_get_info;
+		break;
+	case SLAPI_PLUGIN_DB_SET_INFO_FN:
+		(*(IFP *)value) = pblock->pb_plugin->plg_set_info;
+		break;
 	case SLAPI_PLUGIN_DB_SEQ_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
 			return( -1 );
@@ -936,6 +942,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_bepredelete;
 		break;
+	case SLAPI_PLUGIN_BE_PRE_CLOSE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_bepreclose;
+		break;
 
 	/* backend postoperation plugin */
 	case SLAPI_PLUGIN_BE_POST_MODIFY_FN:
@@ -961,6 +973,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_bepostdelete;
+		break;
+	case SLAPI_PLUGIN_BE_POST_OPEN_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_bepostopen;
 		break;
 
 	/* internal preoperation plugin */
@@ -2014,6 +2032,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_DB_ADD_SCHEMA_FN:
 		pblock->pb_plugin->plg_add_schema = (IFP) value;
 		break;
+	case SLAPI_PLUGIN_DB_GET_INFO_FN:
+		pblock->pb_plugin->plg_get_info = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_DB_SET_INFO_FN:
+		pblock->pb_plugin->plg_set_info = (IFP) value;
+		break;
 	case SLAPI_PLUGIN_DB_SEQ_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
 			return( -1 );
@@ -2332,6 +2356,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_plugin->plg_bepredelete = (IFP) value;
 		break;
+	case SLAPI_PLUGIN_BE_PRE_CLOSE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_bepreclose = (IFP) value;
+		break;
 
 	/* backend postoperation plugin */
 	case SLAPI_PLUGIN_BE_POST_MODIFY_FN:
@@ -2358,7 +2388,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_plugin->plg_bepostdelete = (IFP) value;
 		break;
-
+	case SLAPI_PLUGIN_BE_POST_OPEN_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_bepostopen = (IFP) value;
+		break;
 
 	/* internal preoperation plugin */
 	case SLAPI_PLUGIN_INTERNAL_PRE_MODIFY_FN:

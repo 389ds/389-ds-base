@@ -1424,13 +1424,3 @@ multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int 
 
     object_release (r_obj);
 }
-
-#ifdef NOTUSED
-/*  Keeping the function just in case */
-static void 
-close_changelog_for_replica (Object *r_obj)
-{
-    if (cl5GetState () == CL5_STATE_OPEN)
-        cl5CloseDB (r_obj);
-}
-#endif

@@ -443,6 +443,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
 	ldap/admin/src/scripts/90subtreerename.pl \
 	ldap/admin/src/scripts/80upgradednformat.pl \
+	ldap/admin/src/scripts/81changelog.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 
 update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh

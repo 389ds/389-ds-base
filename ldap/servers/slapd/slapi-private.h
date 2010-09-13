@@ -878,6 +878,8 @@ int valuearray_normalize_value(Slapi_Value **vals);
 /* database plugin-specific parameters */
 #define SLAPI_PLUGIN_DB_NO_ACL        		250
 #define SLAPI_PLUGIN_DB_RMDB_FN         	280
+#define SLAPI_PLUGIN_DB_GET_INFO_FN			290
+#define SLAPI_PLUGIN_DB_SET_INFO_FN			291
 
 /**** End of database plugin interface. **************************************/
 

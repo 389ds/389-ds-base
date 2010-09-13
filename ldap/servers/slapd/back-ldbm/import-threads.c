@@ -549,6 +549,7 @@ import_producer(void *param)
             }
             continue;
         }
+        /* From here, e != NULL */
         if (0 == my_version) {
             /* after the first entry version string won't be given */
             my_version = -1;
@@ -556,10 +557,7 @@ import_producer(void *param)
 
         if (! import_entry_belongs_here(e, inst->inst_be)) {
             /* silently skip */
-            if (e) {
-                slapi_entry_free(e);
-            }
-
+            slapi_entry_free(e);
             continue;
         }
 
@@ -569,9 +567,7 @@ import_producer(void *param)
                               "violates schema, ending line %d of file "
                               "\"%s\"", escape_string(slapi_entry_get_dn(e), ebuf),
                               curr_lineno, curr_filename);
-            if (e) {
-                slapi_entry_free(e);
-            }
+            slapi_entry_free(e);
 
             job->skipped++;
             continue;
@@ -625,9 +621,7 @@ import_producer(void *param)
                               "violates attribute syntax, ending line %d of "
                               "file \"%s\"", escape_string(slapi_entry_get_dn(e), ebuf),
                               curr_lineno, curr_filename);
-            if (e) {
-                slapi_entry_free(e);
-            }
+            slapi_entry_free(e);
 
             job->skipped++;
             continue;
@@ -640,8 +634,10 @@ import_producer(void *param)
         }
 
         ep = import_make_backentry(e, id);
-        if (!ep || !ep->ep_entry)
+        if (!ep) {
+            slapi_entry_free(e);
             goto error;
+        }
 
         /* check for include/exclude subtree lists */
         if (! ldbm_back_ok_to_dump(backentry_get_ndn(ep),
@@ -729,8 +725,8 @@ import_producer(void *param)
                     "ending line %d of file \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf),
                     curr_lineno, curr_filename);
-            import_log_notice(job, "REASON: entry too large (%ld bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%u bytes) for "
+                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -1422,6 +1418,7 @@ upgradedn_producer(void *param)
             continue;
         } 
 
+        /* From here, e != NULL */
         /* Check DN syntax attr values if it contains '\\' or not */
         /* Start from the rdn */
         if (entryrdn_get_switch()) { /* subtree-rename: on */
@@ -1615,7 +1612,7 @@ upgradedn_producer(void *param)
         upgradedn_free_list(&ud_list);
 
         ep = import_make_backentry(e, temp_id);
-        if (!ep || !ep->ep_entry) {
+        if (!ep) {
             slapi_entry_free(e); e = NULL;
             goto error;
         }
@@ -2130,7 +2127,7 @@ import_foreman(void *param)
                  * Note: FLAG_UPGRADEDNFORMAT only.
                  */
                 Slapi_Attr *orig_entrydn = NULL;
-                Slapi_Attr *new_entrydn = slapi_attr_new();
+                Slapi_Attr *new_entrydn = NULL;
                 Slapi_Attr *nsuniqueid = NULL;
                 const char *uuidstr = NULL;
                 char *new_dn = NULL;
@@ -2150,6 +2147,7 @@ import_foreman(void *param)
                                             orig_dn, fi->entry->ep_id);
                     goto cont;
                 }
+                new_entrydn = slapi_attr_new();
                 new_dn = slapi_create_dn_string("nsuniqueid=%s+%s",
                                                 uuidstr, orig_dn);
                 /* releasing original dn */
@@ -2724,6 +2722,10 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     Slapi_Attr *attr = NULL;
     size_t newesize = 0;
 
+    if (!entry) {
+        return -1;
+    }
+
     PR_Lock(job->wire_lock);
     /* Let's do this inside the lock !*/
     id = job->lead_ID + 1;
@@ -2732,7 +2734,7 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
     /* make into backentry */
     ep = import_make_backentry(entry, id);
-    if (!ep || !ep->ep_entry) {
+    if (!ep) {
         import_abort_all(job, 1);
         PR_Unlock(job->wire_lock);
         return -1;
@@ -3157,9 +3159,10 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
         if (entry_filter != NULL) /* Single instance restoration */
         {
-            if (NULL == strstr(estr, entry_filter))
+            if (NULL == strstr(estr, entry_filter)) {
                 slapi_ch_free_string(&estr);
                 continue;
+            }
         }
 
         e = slapi_str2entry(estr, 0);

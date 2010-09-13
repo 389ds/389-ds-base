@@ -839,6 +839,8 @@ struct slapdplugin {
 			IFP	plg_un_db_wire_import;    /* fast replica update */
 			IFP	plg_un_db_verify;	      /* verify db files */
 			IFP	plg_un_db_add_schema;     /* add schema */
+			IFP	plg_un_db_get_info;       /* get info */
+			IFP	plg_un_db_set_info;       /* set info */
 		} plg_un_db;
 #define plg_bind		plg_un.plg_un_db.plg_un_db_bind
 #define plg_unbind		plg_un.plg_un_db.plg_un_db_unbind
@@ -874,6 +876,8 @@ struct slapdplugin {
 #define plg_init_instance       plg_un.plg_un_db.plg_un_db_init_instance
 #define plg_wire_import         plg_un.plg_un_db.plg_un_db_wire_import
 #define plg_add_schema          plg_un.plg_un_db.plg_un_db_add_schema
+#define plg_get_info            plg_un.plg_un_db.plg_un_db_get_info
+#define plg_set_info            plg_un.plg_un_db.plg_un_db_set_info
 
 		/* extended operation plugin structure */
 		struct plg_un_protocol_extension {
@@ -950,11 +954,13 @@ struct slapdplugin {
 			IFP	plg_un_bepre_modrdn;	  /* modrdn */
 			IFP	plg_un_bepre_add;		  /* add */
 			IFP	plg_un_bepre_delete;	  /* delete */
+			IFP	plg_un_bepre_close;		  /* close */
 		} plg_un_bepre;
 #define plg_bepremodify	plg_un.plg_un_bepre.plg_un_bepre_modify
 #define plg_bepremodrdn	plg_un.plg_un_bepre.plg_un_bepre_modrdn
 #define plg_bepreadd	plg_un.plg_un_bepre.plg_un_bepre_add
 #define plg_bepredelete	plg_un.plg_un_bepre.plg_un_bepre_delete
+#define plg_bepreclose	plg_un.plg_un_bepre.plg_un_bepre_close
 
 		/* backend post-operation plugin structure */
 		struct plg_un_bepost_operation {
@@ -962,11 +968,13 @@ struct slapdplugin {
 			IFP	plg_un_bepost_modrdn;	  /* modrdn */
 			IFP	plg_un_bepost_add;	  /* add */
 			IFP	plg_un_bepost_delete;	  /* delete */
+			IFP	plg_un_bepost_open;		  /* open */
 		} plg_un_bepost;
 #define plg_bepostmodify		plg_un.plg_un_bepost.plg_un_bepost_modify
 #define plg_bepostmodrdn		plg_un.plg_un_bepost.plg_un_bepost_modrdn
 #define plg_bepostadd			plg_un.plg_un_bepost.plg_un_bepost_add
 #define plg_bepostdelete		plg_un.plg_un_bepost.plg_un_bepost_delete
+#define plg_bepostopen			plg_un.plg_un_bepost.plg_un_bepost_open
 
         /* internal  pre-operation plugin structure */
 		struct plg_un_internal_pre_operation {
@@ -1148,6 +1156,8 @@ typedef struct backend {
 #define be_init_instance be_database->plg_init_instance
 #define be_cleanup		be_database->plg_cleanup
 #define be_wire_import          be_database->plg_wire_import
+#define be_get_info             be_database->plg_get_info
+#define be_set_info             be_database->plg_set_info
 
 	void *be_instance_info;		/* If the database plugin pointed to by
 								 * be_database supports more than one instance,

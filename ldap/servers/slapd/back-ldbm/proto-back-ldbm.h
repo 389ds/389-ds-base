@@ -173,6 +173,9 @@ int dblayer_db_uses_logging(DB_ENV *db_env);
 int dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
 int dblayer_remove_env(struct ldbminfo *li);
 
+int ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info);
+int ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info);
+
 /*
  * dn2entry.c
  */
@@ -364,7 +367,7 @@ int is_fullpath(char *path);
 char get_sep(char *path);
 int get_value_from_string(const char *string, char *type, char **value);
 int get_values_from_string(const char *string, char *type, char ***valuearray);
-
+void normalize_dir(char *dir);
 
 /*
  * nextid.c

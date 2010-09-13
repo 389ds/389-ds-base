@@ -115,17 +115,8 @@
     (env)->txn_begin((env), (parent_txn), (tid), (flags))
 #define TXN_COMMIT(txn, flags) (txn)->commit((txn), (flags))
 #define TXN_ABORT(txn) (txn)->abort(txn)
-#define TXN_CHECKPOINT(env, kbyte, min, flags) \
-    (env)->txn_checkpoint((env), (kbyte), (min), (flags))
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) \
 	(env)->memp_stat((env), (gsp), (fsp), (flags))
-#define MEMP_TRICKLE(env, pct, nwrotep) \
-    (env)->memp_trickle((env), (pct), (nwrotep))
-#define LOG_ARCHIVE(env, listp, flags, malloc) \
-    (env)->log_archive((env), (listp), (flags))
-#define LOG_FLUSH(env, lsn) (env)->log_flush((env), (lsn))
-#define LOCK_DETECT(env, flags, atype, aborted) \
-	(env)->lock_detect((env), (flags), (atype), (aborted))
 #if DB_VERSION_MINOR >= 4 /* i.e. 4.4 or later */
 #define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
     (env)->mutex_set_tas_spins((env), (tas_spins))
@@ -142,23 +133,13 @@
     txn_begin((env), (parent_txn), (tid), (flags))
 #define TXN_COMMIT(txn, flags) txn_commit((txn), (flags))
 #define TXN_ABORT(txn) txn_abort((txn))
-#define TXN_CHECKPOINT(env, kbyte, min, flags) \
-	txn_checkpoint((env), (kbyte), (min), (flags))
-#define MEMP_TRICKLE(env, pct, nwrotep) memp_trickle((env), (pct), (nwrotep))
-#define LOG_FLUSH(env, lsn) log_flush((env), (lsn))
-#define LOCK_DETECT(env, flags, atype, aborted) \
-	lock_detect((env), (flags), (atype), (aborted))
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) memp_stat((env), (gsp), (fsp))
-#define LOG_ARCHIVE(env, listp, flags, malloc) \
-    log_archive((env), (listp), (flags))
 
 #else	/* older than db 3.3 */
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) \
 	memp_stat((env), (gsp), (fsp), (malloc))
-#define LOG_ARCHIVE(env, listp, flags, malloc) \
-    log_archive((env), (listp), (flags), (malloc))
 #endif
 #endif
 /* 
@@ -284,14 +265,9 @@ static int _cl5AppInit (PRBool *didRecovery);
 static int _cl5DBOpen ();
 static void _cl5SetDefaultDBConfig ();
 static void _cl5SetDBConfig (const CL5DBConfig *config);
-static void _cl5InitDBEnv(DB_ENV *dbEnv);
 static int _cl5CheckDBVersion ();
 static int _cl5ReadDBVersion (const char *dir, char *clVersion, int buflen);
 static int _cl5WriteDBVersion ();
-static int _cl5CheckGuardian ();
-static int _cl5ReadGuardian (char *buff);
-static int _cl5WriteGuardian ();
-static int _cl5RemoveGuardian ();
 static void _cl5Close ();
 static int  _cl5Delete (const char *dir, PRBool rmDir);
 static void _cl5DBClose ();
@@ -300,9 +276,6 @@ static void _cl5DBClose ();
 static int _cl5DispatchDBThreads ();
 static int _cl5AddThread ();
 static void _cl5RemoveThread ();
-static int _cl5DeadlockMain (void *param);
-static int _cl5CheckpointMain (void *param);
-static int _cl5TrickleMain (void *param);
 
 /* functions that work with individual changelog files */
 static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile** dbFile);
@@ -317,7 +290,6 @@ static int _cl5GetDBFileByReplicaName (const char *replName, const char *replGen
                                        Object **obj);
 static int _cl5AddDBFile (CL5DBFile *file, Object **obj);
 static int _cl5CompareDBFile (Object *el1, const void *el2);
-static int _cl5CopyDBFiles (const char *srcDir, const char *distDir, Object **replicas);
 static char* _cl5Replica2FileName (Object *replica);
 static char* _cl5MakeFileName (const char *replName, const char *replGen);
 static PRBool _cl5FileName2Replica (const char *fileName, Object **replica);
@@ -369,16 +341,7 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge);
 static int  _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purge);
 static int  _cl5GetRUV2Purge2 (Object *fileObj, RUV **ruv);
 
-/* db error processing */
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-static void _cl5DBLogPrint(const DB_ENV *dbenv, const char* prefix, const char *buffer);
-#else /* assume 42 */
-static void _cl5DBLogPrint(const char* prefix, char *buffer);
-#endif
-
 /* bakup/recovery, import/export */
-static PRBool _cl5IsLogFile (const char *name);
-static int _cl5Recover (int open_flags, DB_ENV *dbEnv);
 static int _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op,
                                char **replGen);
 static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char *replGen,
@@ -392,18 +355,6 @@ static int _cl5WriteEntryCount (CL5DBFile *file);
 static char*  _cl5GetHelperEntryKey (int type, char *csnStr);
 static Object* _cl5GetReplica (const slapi_operation_parameters *op, const char* replGen);
 static int _cl5FileEndsWith(const char *filename, const char *ext);
-
-/* Callback function for libdb to spit error info into our log */
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-static void dblayer_log_print(const DB_ENV *dbenv, const char* prefix,
-                              const char *buffer)
-#else
-static void dblayer_log_print(const char* prefix, char *buffer)
-#endif
-{
-	/* We ignore the prefix since we know who we are anyway */
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "libdb: %s\n", buffer);
-}
 
 static PRLock *cl5_diskfull_lock = NULL;
 static int cl5_diskfull_flag = 0;
@@ -560,7 +511,7 @@ int cl5Open (const char *dir, const CL5DBConfig *config)
 	else
 	{
 		s_cl5Desc.dbState = CL5_STATE_OPEN;	
-		clcache_set_config((CL5DBConfig *)config);
+		clcache_set_config();
 	}
 
 done:;	
@@ -668,147 +619,6 @@ int cl5Delete (const char *dir)
 	PR_RWLock_Unlock (s_cl5Desc.stLock);
 	return rc;
 } 
-
-/* Name:		cl5OpenDB
-   Description: opens changelog file for specified file
-   Parameters:	replica - replica whose file we wish to open 
-   Return:		CL5_SUCCESS if successful;
-				CL5_BAD_STATE if the changelog is not initialized;
-				CL5_BAD_DATA - if NULL id is supplied
- */		
-int cl5OpenDB (Object *replica)
-{
-	int rc;
-
-	if (replica == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "cl5OpenDB: null replica\n");
-		return CL5_BAD_DATA;
-	}
-
-	if (s_cl5Desc.dbState == CL5_STATE_NONE)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"cl5OpenDB: changelog is not initialized\n");
-		return CL5_BAD_STATE;	
-	}
-
-	/* make sure that changelog stays open while operation is in progress */
-	rc = _cl5AddThread ();
-	if (rc != CL5_SUCCESS)
-		return rc;
-
-	rc = _cl5DBOpenFile (replica, NULL /* file object */, PR_TRUE /* check for duplicates */);
-
-	_cl5RemoveThread ();
-
-	return rc;
-}
-
-/* Name:		cl5CloseDB
-   Description: closes changelog file for the specified replica
-   Parameters:	replica - replica whose file we wish to close
-   Return:		CL5_SUCCESS if successful;
-				CL5_BAD_STATE if the changelog is not initialized;
-				CL5_BAD_DATA - if NULL id is supplied
-				CL5_NOTFOUND - nothing is known about specified database
- */		
-int cl5CloseDB (Object *replica)
-{
-	int rc;
-	Object *obj;
-
-	if (replica == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5CloseDB: null replica\n");
-		return CL5_BAD_DATA;
-	}
-
-	if (s_cl5Desc.dbState == CL5_STATE_NONE)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"cl5CloseDB: changelog is not initialized\n");
-		return CL5_BAD_STATE;	
-	}
-
-	/* make sure that changelog is open while operation is in progress */
-	rc = _cl5AddThread ();
-	if (rc != CL5_SUCCESS)
-		return rc;
-
-	rc = _cl5GetDBFile (replica, &obj);
-	if (rc == CL5_SUCCESS)
-	{
-		rc = objset_remove_obj(s_cl5Desc.dbFiles, obj);
-		object_release (obj);
-	}
-    else
-    {
-        Replica *r;
-
-        r = (Replica*)object_get_data (replica);
-        PR_ASSERT (r);
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-                        "cl5CloseDB: failed to close file for replica at (%s)\n",
-                        slapi_sdn_get_dn (replica_get_root (r)));
-    }
-	
-	_cl5RemoveThread (); 
-	return rc;
-}
-
-/* Name:		cl5DeleteDB
-   Description: asynchronously removes changelog file for the specified replica.
-                The file is physically removed when it is no longer in use.
-				This function is called when a backend is removed or reloaded.
-   Parameters:	replica - replica whose file we wish to delete 
-   Return:		CL5_SUCCESS if successful;
-				CL5_BAD_STATE if the changelog is not initialized;
-				CL5_BAD_DATA - if NULL id is supplied
-				CL5_NOTFOUND - nothing is known about specified database
- */		
-int cl5DeleteDB (Object *replica)
-{
-	Object *obj;
-	int rc;
-
-	if (replica == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"cl5DeleteDB: invalid database id\n");
-		return CL5_BAD_DATA;
-	}
-
-	/* changelog is not initialized */
-	if (s_cl5Desc.dbState == CL5_STATE_NONE)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5DeleteDB: "
-					    "changelog is not initialized\n");
-		return CL5_BAD_STATE;	
-	}
-
-	/* make sure that changelog stays open while operation is in progress */
-	rc = _cl5AddThread ();
-	if (rc != CL5_SUCCESS)
-		return rc;
-
-	rc = _cl5GetDBFile (replica, &obj);
-	if (rc == CL5_SUCCESS)
-	{
-        _cl5DBDeleteFile (obj);
-	}
-    else
-    {
-        Replica *r = (Replica*)object_get_data (replica);
-        PR_ASSERT (r);
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5DeleteDB: "
-					    "file for replica at (%s) not found\n",
-                        slapi_sdn_get_dn (replica_get_root (r)));
-    }
-
-	_cl5RemoveThread ();
-	return rc;
-}
 
 /* Name:        cl5DeleteDBSync
    Description: The same as cl5DeleteDB except the function does not return
@@ -933,267 +743,6 @@ int cl5GetUpperBoundRUV (Replica *r, RUV **ruv)
 	return rc;
 }
 
-/* Name:		cl5Backup
-   Description:	makes a backup of the changelog including *.db2, 
-				log files, and dbversion. Can be called with the changelog in either open or
-				closed state.
-   Parameters:  bkDir - directory to which the data is backed up; 
-				created if it does not exist
-				replicas - optional list of replicas whose changes should be backed up;
-						   if the list is NULL, entire changelog is backed up.
-   Return:		CL5_SUCCESS if function is successful;
-				CL5_BAD_DATA if invalid directory is passed;
-				CL5_BAD_STATE if changelog has not been initialized;
-				CL5_DB_ERROR if db call fails;
-				CL5_SYSTEM_ERROR if NSPR call or file copy failes.
- */
-int cl5Backup (const char *bkDir, Object **replicas)
-{
-	int rc;
-	char **list = NULL;
-	char **logFile;
-	char srcFile [MAXPATHLEN + 1];
-	char destFile[MAXPATHLEN + 1];
-	DB_TXN *txn = NULL;
-
-	if (bkDir == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "cl5Backup: null backup directory\n");
-		return CL5_BAD_DATA;
-	}
-
-	/* changelog must be initialized */
-	if (s_cl5Desc.dbState == CL5_STATE_NONE)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Backup: changelog is not initialized\n");
-		return CL5_BAD_STATE;
-	}
-
-	/* make sure that changelog stays open while operation is in progress */
-	rc = _cl5AddThread ();
-	if (rc != CL5_SUCCESS)
-		return rc;
-	
-	/* create backup directory if necessary */
-	rc = cl5CreateDirIfNeeded (bkDir);
-	if (rc != CL5_SUCCESS)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Backup: failed to create backup directory\n");
-	    goto done;	
-	}
-
-	/* start transaction to tempararily prevent transaction log
-	   from being trimmed
-     */		
-	rc = TXN_BEGIN(s_cl5Desc.dbEnv, NULL /*pid*/, &txn, 0);
-	if (rc != 0) 
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"cl5Backup: failed to begin transaction; db error - %d %s\n",
-				rc, db_strerror(rc));
-		rc = CL5_DB_ERROR;
-		goto done;
-	}
-
-	slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
-			"cl5Backup: starting changelog backup from %s to %s ...\n", s_cl5Desc.dbDir, bkDir);
-
-	/* The following files are backed up: *.<dbext>, log files, dbversion file */	 
-
-	/* copy db file */ 
-	/* ONREPL currently, list of replicas is ignored because db code can't handle 
-       discrepancy between transaction log and present files; should be fixed before 5.0 ships */
-	rc = _cl5CopyDBFiles (s_cl5Desc.dbDir, bkDir, replicas);
-	if (rc != CL5_SUCCESS)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"cl5Backup : failed to copy database files from %s to %s\n", s_cl5Desc.dbDir, bkDir);
-		goto done;
-	}
-		
-	/* copy db log files */
-	rc = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list, DB_ARCH_LOG, (void *)slapi_ch_malloc);
-	if (rc != 0)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"cl5Backup: failed to get list of log files; db error - %d %s\n", 
-				rc, db_strerror(rc));
-		rc = CL5_SYSTEM_ERROR;
-		goto done;
-	}
-
-	if (list)
-	{
-		logFile = list;
-		while (*logFile)
-		{	
-			PR_snprintf(srcFile, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, *logFile);
-			PR_snprintf(destFile, MAXPATHLEN, "%s/%s", bkDir, *logFile);
-			rc = copyfile(srcFile, destFile, 0, FILE_CREATE_MODE);
-			if (rc != 0)
-			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Backup: failed to copy %s\n", *logFile);
-				rc = CL5_SYSTEM_ERROR;
-				goto done;
-			}
-
-			logFile ++;
-		}
-		
-		slapi_ch_free((void **)&list);
-	}
-		
-	/* now, copy the version file */
-	PR_snprintf(srcFile, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, VERSION_FILE);
-	PR_snprintf(destFile, MAXPATHLEN, "%s/%s", bkDir, VERSION_FILE);
-	rc = copyfile(srcFile, destFile, 0, FILE_CREATE_MODE);
-	if (rc != 0)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Backup: failed to copy %s\n", VERSION_FILE);
-		rc = CL5_SYSTEM_ERROR;
-		goto done;
-	}
-
-	rc = CL5_SUCCESS;
-	slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
-						"cl5Backup: changelog backup is finished \n");
-done:;	
-	if (txn && TXN_ABORT (txn) != 0)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-			"cl5Backup: failed to abort transaction; db error - %d %s\n", 
-			rc, db_strerror(rc));	
-		rc = CL5_DB_ERROR;
-	}
-
-	_cl5RemoveThread ();
-
-	return rc;
-}
-
-/* Name:		cl5Restore
-   Description:	restores changelog from the backed up copy. Changelog must be ibnitalized and closed.
-   Parameters:  clDir - changelog dir
-				bkDir - directory that contains the backup
-				replicas - optional list of replicas whose changes should be recovered;
-						   if the list is NULL, entire changelog is recovered.
-   Return:		CL5_SUCCESS if function is successfull;
-				CL5_BAD_DATA if invalid parameter is passed;
-				CL5_BAD_STATE if changelog is open or not initialized;
-				CL5_DB_ERROR if db call fails;
-				CL5_SYSTEM_ERROR if NSPR call of file copy fails
- */
-int cl5Restore (const char *clDir, const char *bkDir, Object **replicas)
-{
-	int rc;
-	char srcFile[MAXPATHLEN + 1];
-	char destFile[MAXPATHLEN + 1];
-	PRDir *prDir;
-	PRDirEntry *prDirEntry;
-	int seenLog = 0; /* Tells us if we restored any logfiles */
-
-	if (clDir == NULL || bkDir == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "cl5Restore: null parameter\n");
-		return CL5_BAD_DATA;
-	}
-
-	if (s_cl5Desc.dbState == CL5_STATE_NONE)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Restore: changelog is not initialized\n");
-		return CL5_BAD_STATE;	
-	}
-
-	/* prevent state change while recovery is in progress */	
-	PR_RWLock_Wlock (s_cl5Desc.stLock);
-
-	if (s_cl5Desc.dbState != CL5_STATE_CLOSED)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Restore: changelog must be closed\n");
-		PR_RWLock_Unlock (s_cl5Desc.stLock);
-		return CL5_BAD_STATE;
-	}
-
-	slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
-					"cl5Restore: starting changelog recovery from %s to %s ...\n", bkDir, clDir);
-
-	/* delete current changelog content */
-	rc = _cl5Delete (clDir, PR_FALSE);
-	if (rc != CL5_SUCCESS)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Restore: failed to remove changelog\n");
-		goto done;
-	}
-
-	/* We copy the files over from the staging area */	
-	prDir = PR_OpenDir(bkDir);
-	if (prDir == NULL)
-	{
-		rc = CL5_SYSTEM_ERROR;
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-			"cl5Restore: unable to access backup directory %s; NSPR error - %d\n",
-			bkDir, PR_GetError ());
-		goto done;
-	}
-
-	while (NULL != (prDirEntry = PR_ReadDir(prDir, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) 
-	{
-		if (NULL == prDirEntry->name)	/* NSPR doesn't behave like the docs say it should */
-		{
-			break;
-		}
-
-		/* Log files have names of the form "log.xxxxx". We detect these by looking for 
-		   the prefix "log." and the lack of the ".<dbext>" suffix */
-		seenLog |= _cl5IsLogFile(prDirEntry->name);
-
-		/* ONREPL currently, list of replicas is ignored because db code can't handle discrepancy 
-		   between transaction log and present files; this should change before 5.0 ships */
-		PR_snprintf(destFile, MAXPATHLEN, "%s/%s", clDir, prDirEntry->name);
-		PR_snprintf(srcFile, MAXPATHLEN, "%s/%s", bkDir, prDirEntry->name);
-		rc = copyfile(srcFile, destFile, 0, FILE_CREATE_MODE);
-		if (rc != 0)
-		{
-			rc = CL5_SYSTEM_ERROR;
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Restore: failed to copy %s\n", prDirEntry->name);
-			PR_CloseDir(prDir);
-			goto done;
-		}
-	}
-
-	PR_CloseDir(prDir);
-
-	/* now open and close changelog to create all necessary files */
-	if (seenLog)
-		rc = _cl5Open (clDir, NULL, CL5_OPEN_RESTORE_RECOVER);
-	else
-		rc = _cl5Open (clDir, NULL, CL5_OPEN_RESTORE);	
-
-	if (rc == CL5_SUCCESS)
-	{
-		_cl5Close ();
-
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
-						"cl5Restore: changelog recovery is finished \n");
-	}
-	else
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5Restore: failed open changelog after recovery\n");
-	}	
-
-done:;	
-	PR_RWLock_Unlock (s_cl5Desc.stLock);
-	return rc;
-}
 
 /* Name:		cl5ExportLDIF
    Description:	dumps changelog to an LDIF file; changelog can be open or closed.
@@ -1275,7 +824,6 @@ int cl5ExportLDIF (const char *ldifFile, Object **replicas)
 			 obj = objset_next_obj(s_cl5Desc.dbFiles, obj))
 		{
 			rc = _cl5ExportFile (prFile, obj);
-            object_release (obj);
 		}
 	}
 
@@ -2246,213 +1794,39 @@ int cl5CreateDirIfNeeded (const char *dirName)
 	return CL5_SUCCESS;
 }
 
-static int _cl5RemoveEnv ()
-{
-	DB_ENV *dbEnv = NULL;
-	int rc = 0;
-
-	if ((rc = db_env_create(&dbEnv, 0)) != 0)
-			dbEnv = NULL;
-
-	if (dbEnv == NULL)
-	{
-		char *errstr = db_strerror(rc);
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5RemoveEnv: failed to allocate db environment; "
-						"db error - %d %s\n", rc, errstr ? errstr : "unknown");
-		return CL5_MEMORY_ERROR;
-	}
-	rc = dbEnv->remove(dbEnv, s_cl5Desc.dbDir, DB_FORCE);
-	if (0 != rc)
-	{
-		char *errstr = db_strerror(rc);
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-			"_cl5AppInit: failed to remove db environment; "
-			"db error - %d %s\n", rc, errstr ? errstr : "unknown");
-		return CL5_DB_ERROR;
-	}
-	return CL5_SUCCESS;
-}
-
-#ifdef NEED_CL5_REMOVE_LOGS
-static int _cl5RemoveLogs ()
-{
-	int rc = CL5_DB_ERROR;
-	char filename1[MAXPATHLEN];
-	PRDir *dirhandle = NULL;
-	dirhandle = PR_OpenDir(s_cl5Desc.dbDir);
-	if (NULL != dirhandle) {
-		PRDirEntry *direntry = NULL;
-		int pre = 0; 
-		PRFileInfo info;
-			
-		while (NULL != (direntry =
-						PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
-		{
-			if (NULL == direntry->name) {
-				/* NSPR doesn't behave like the docs say it should */
-				slapi_log_error(SLAPI_LOG_FATAL,  repl_plugin_name_cl,
-								"_cl5RemoveLogs: PR_ReadDir failed (%d): %s\n", 
-								PR_GetError(),slapd_pr_strerror(PR_GetError()));
-				break;
-			}
-			PR_snprintf(filename1, MAXPATHLEN,
-									"%s/%s", s_cl5Desc.dbDir, direntry->name);
-			pre = PR_GetFileInfo(filename1, &info);
-			if (pre == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
-				continue;
-			}
-			if (0 == strncmp(direntry->name, "log.", 4))
-			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
-									"Deleting log file: (%s)\n", filename1);
-				unlink(filename1);
-			}
-			rc = CL5_SUCCESS;
-		}
-		PR_CloseDir(dirhandle);
-	}
-	else if (PR_FILE_NOT_FOUND_ERROR != PR_GetError())
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
-			"_cl5RemoveLogs:: PR_OpenDir(%s) failed (%d): %s\n",
-			 s_cl5Desc.dbDir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
-	}
-	return rc;
-}
-#endif /* NEED_CL5_REMOVE_LOGS */
-
 static int _cl5AppInit (PRBool *didRecovery)
 {
-	int rc;
-	unsigned int flags = DB_CREATE  |  DB_INIT_MPOOL | DB_THREAD; 
-	DB_ENV *dbEnv;
-	if ((rc = db_env_create(&dbEnv, 0)) != 0)
-		dbEnv = NULL;
-
-	if (dbEnv == NULL)
-	{
-		char *errstr = db_strerror(rc);
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5AppInit: failed to allocate db environment; db error - %d (%s)\n",
-						rc, errstr ? errstr : "unknown");
-		return CL5_MEMORY_ERROR;
-	}
-
-	_cl5InitDBEnv (dbEnv);
-
-	if (didRecovery)
-		*didRecovery = PR_FALSE;
-
-	/* decide how two open based on the mode in which db is open */
-	switch (s_cl5Desc.dbOpenMode)
-	{
-		case CL5_OPEN_NORMAL: 
-				flags |= DB_INIT_LOCK | DB_INIT_TXN | DB_INIT_LOG;
-				/* check if need to initiate recovery */
-				rc = _cl5CheckGuardian ();
-				if (rc != CL5_SUCCESS)
-				{
-					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"_cl5AppInit: recovering changelog after disorderly shutdown\n");
-					flags |= DB_RECOVER;
-				}
-				break;
-
-		case CL5_OPEN_RESTORE:
-				flags |= DB_INIT_LOCK | DB_INIT_TXN | DB_INIT_LOG;
-				break;
-
-		case CL5_OPEN_CLEAN_RECOVER:	
-				flags |= DB_INIT_LOCK | DB_INIT_TXN | DB_INIT_LOG | DB_RECOVER;
-				break;
-
-		case CL5_OPEN_RESTORE_RECOVER:	
-				flags |= DB_INIT_LOCK | DB_INIT_TXN | DB_INIT_LOG | DB_RECOVER_FATAL;
-				break;
-
-		case CL5_OPEN_LDIF2CL: 
-				/* ONREPL -  don't think we need any extra flags here */
-				break;
-                default:
-                    /* fixme?  CL5_OPEN_NONE */
-                    break;
-	}
-
-	if (!s_cl5Desc.dbConfig.durableTrans)
-	{
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
-	  dbEnv->set_flags(dbEnv, DB_TXN_NOSYNC, 1);
-#else
-	  flags |= DB_TXN_NOSYNC;
-#endif
-	}
-
-	dbEnv->set_errcall(dbEnv, dblayer_log_print);
-
-	/* do recovery if necessary */
-	if ((flags & DB_RECOVER) || (flags & DB_RECOVER_FATAL))
-	{		
-		if (CL5_OPEN_CLEAN_RECOVER == s_cl5Desc.dbOpenMode)
-		{
-			_cl5RemoveEnv();
+	int rc = -1; /* initialize to failure */
+	DB_ENV *dbEnv = NULL;
+	size_t pagesize = 0;
+	char *cookie = NULL;
+	Slapi_Backend *be = slapi_get_first_backend(&cookie);
+	while (be) {
+		rc = slapi_back_get_info(be, BACK_INFO_DBENV, (void **)&dbEnv);
+		if ((LDAP_SUCCESS == rc) && dbEnv) {
+			rc = slapi_back_get_info(be,
+							BACK_INFO_INDEXPAGESIZE, (void **)&pagesize);
+			if ((LDAP_SUCCESS == rc) && pagesize) {
+				break; /* Successfully fetched */
+			}
 		}
-
-		rc = _cl5Recover (flags, dbEnv);
-		if (rc != CL5_SUCCESS)
-		{
-			char *errstr = db_strerror(rc);
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-							"_cl5AppInit: failed to recover changelog; db error - %d %s\n",
-							rc, errstr ? errstr : "unknown");
-
-			slapi_ch_free ((void **)&dbEnv);
-
-			return rc;
-		}
-
-		if (didRecovery)
-			*didRecovery = PR_TRUE;
-		flags &= ~(DB_RECOVER | DB_RECOVER_FATAL);
-		/* Need to reset the env */
-		/* Does this leak the dbEnv? */
-		if ((rc = db_env_create(&dbEnv, 0)) != 0)
-			dbEnv = NULL;
-
-		if (dbEnv == NULL)
-		{
-			char *errstr = db_strerror(rc);
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-							"_cl5AppInit: failed to allocate db environment after recovery; "
-							"db error - %d %s\n", rc, errstr ? errstr : "unknown");
-			return CL5_MEMORY_ERROR;
-		}
-		_cl5InitDBEnv (dbEnv);
+		be = slapi_get_next_backend(cookie);
 	}
+	slapi_ch_free((void **)&cookie);
 
-	rc = dbEnv->open(dbEnv, s_cl5Desc.dbDir, flags,
-		s_cl5Desc.dbConfig.fileMode);
-	if (rc == 0)
+	if (rc == 0 && dbEnv && pagesize)
 	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
+			"_cl5AppInit: fetched backend dbEnv (%p)\n", dbEnv);
 		s_cl5Desc.dbEnv = dbEnv;
-		s_cl5Desc.dbEnvOpenFlags = flags;
+		s_cl5Desc.dbConfig.pageSize = pagesize;
 		return CL5_SUCCESS;
 	}
 	else
 	{
-		char *errstr = db_strerror(rc);
-		char flagstr[20];
-
-		flagstr[0] = 0;
-		/* EINVAL return means bad flags - let's see what the flags are */
-		if (rc == EINVAL)
-		{
-			sprintf(flagstr, "%u", flags);
-		}
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"_cl5AppInit: db environment open failed; db error - %d %s %s\n", 
-				rc, errstr ? errstr : "unknown", flagstr);
-		slapi_ch_free ((void **)&dbEnv);
+				"_cl5AppInit: failed to fetch backend dbenv (%p) and/or "
+				"index page size (%ld)\n", dbEnv, pagesize);
 		return CL5_DB_ERROR;
 	}
 }
@@ -2462,7 +1836,7 @@ static int _cl5DBOpen ()
     PRBool dbFile;
 	PRDir *dir;
 	PRDirEntry *entry = NULL;
-	int rc;
+	int rc = -1; /* initialize to failure */
 	Object *replica;
 	int count = 0;
 
@@ -2765,43 +2139,16 @@ cl5DBData2Entry (const char *data, PRUint32 len, CL5Entry *entry)
 /* thread management functions */
 static int _cl5DispatchDBThreads ()
 {
-	if (NULL == PR_CreateThread (PR_USER_THREAD, (VFP)(void *)_cl5DeadlockMain,
-								 NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, 
-								 PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE))
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"_cl5DispatchDBThreads: failed to create deadlock thread; "
-                        "NSPR error - %d\n", PR_GetError ());
-		return CL5_SYSTEM_ERROR;
-	}
+	PRThread *pth = NULL;
 
-	if (NULL == PR_CreateThread (PR_USER_THREAD, (VFP)(void *)_cl5CheckpointMain,
-								 NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, 
-								 PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE))
+	pth = PR_CreateThread(PR_USER_THREAD, (VFP)(void*)_cl5TrimMain,
+						  NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, 
+						  PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE);
+	if (NULL == pth)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"_cl5DispatchDBThreads: failed to create checkpoint thread; "
-                        "NSPR error - %d\n", PR_GetError ());
-		return CL5_SYSTEM_ERROR;
-	}
-
-	if (NULL == PR_CreateThread (PR_USER_THREAD, (VFP)(void *)_cl5TrickleMain,
-								 NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, 
-								 PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE) )
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"_cl5DispatchDBThreads: failed to create trickle thread; "
-                        "NSPR error - %d\n", PR_GetError ());
-		return CL5_SYSTEM_ERROR;
-	}
-
-	if (NULL == PR_CreateThread (PR_USER_THREAD, (VFP)(void*)_cl5TrimMain,
-								 NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, 
-								 PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE) )
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"_cl5DispatchDBThreads: failed to create trimming thread; "
-                        "NSPR error - %d\n", PR_GetError ());
+						"_cl5DispatchDBThreads: failed to create trimming "
+						"thread; NSPR error - %d\n", PR_GetError ());
 		return CL5_SYSTEM_ERROR;
 	}
 	
@@ -3195,150 +2542,6 @@ static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size
     return CL5_SUCCESS;
 }
 
-static int _cl5DeadlockMain (void *param)
-{
-	PRIntervalTime    interval;
-	int rc;
-
-	PR_AtomicIncrement (&s_cl5Desc.threadCount);
-	interval = PR_MillisecondsToInterval(100);
-	while (s_cl5Desc.dbState != CL5_STATE_CLOSING)
-	{
-		int aborted;
-		if ((rc = LOCK_DETECT(s_cl5Desc.dbEnv, 0, DB_LOCK_YOUNGEST, &aborted)) != 0)
-		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"_cl5DeadlockMain: lock_detect failed (%d transaction%s aborted); db error - %d %s\n",
-				aborted, (aborted == 1)? "":"s", rc, db_strerror(rc));
-		}
-		else if (aborted)
-		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"_cl5DeadlockMain: lock_detect succeeded, but %d transaction%s ha%s been aborted\n",
-				aborted, (aborted == 1)? "":"s", (aborted == 1)? "s":"ve");
-		}
-		
-		DS_Sleep(interval);
-	}
-
-	PR_AtomicDecrement (&s_cl5Desc.threadCount);
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DeadlockMain: exiting\n");
-    return 0;
-}
-
-static int  _cl5CheckpointMain (void *param)
-{
-	time_t lastCheckpointCompletion = 0;
-	PRIntervalTime interval;
-	int rc = -1;
-
-	PR_AtomicIncrement (&s_cl5Desc.threadCount);
-
-	interval = PR_MillisecondsToInterval(1000);
-	lastCheckpointCompletion = current_time();
-	
-	while (s_cl5Desc.dbState != CL5_STATE_CLOSING)
-	{
-		/* Check to see if the checkpoint interval has elapsed */
-		if (current_time() - lastCheckpointCompletion > s_cl5Desc.dbConfig.checkpointInterval) 
-		{
-			rc = TXN_CHECKPOINT(s_cl5Desc.dbEnv, 0, 0, 0);
-			if (rc == 0)
-			{
-				lastCheckpointCompletion = current_time();
-			}
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-			else if (rc != DB_INCOMPLETE) /* real error happened */
-			{				
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-					"_cl5CheckpointMain: checkpoint failed, db error - %d %s\n",
-					rc, db_strerror(rc));
-			}
-#endif
-			
-			/* According to dboreham, we are doing checkpoint twice
-			   to reduce the number of transaction log files which need
-               to be retained at any time. */
-			rc = TXN_CHECKPOINT(s_cl5Desc.dbEnv, 0, 0, 0);
-			if (rc == 0)
-			{
-				lastCheckpointCompletion = current_time();
-			}
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-			else if (rc != DB_INCOMPLETE) /* real error happened */
-			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-					"_cl5CheckpointMain: checkpoint failed, db error - %d %s\n",
-					rc, db_strerror(rc));
-			}
-#endif
-			
-			/* check if we should truncate logs */
-			if (s_cl5Desc.dbConfig.circularLogging)
-			{
-				char **list = NULL;
-				/* find out which log files don't contain active txns */
-				/* DB_ARCH_REMOVE: Remove log files that are no longer needed; 
-				 * no filenames are returned. */
-				int rc  = LOG_ARCHIVE(s_cl5Desc.dbEnv, &list,
-									  DB_ARCH_REMOVE, (void *)slapi_ch_malloc);
-				if (rc)
-				{
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-									"_cl5CheckpointMain: log archive failed, "
-									"db error - %d %s\n", rc, db_strerror(rc));
-				}
-				slapi_ch_free((void **)&list); /* just in case */
-			}
-			else
-			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
-								"_cl5CheckpointMain: %s is off; "
-								"transaction logs won't be removed.\n", 
-								CONFIG_CHANGELOG_DB_CIRCULAR_LOGGING);
-			}
-		}
-
-		/* sleep for a while */
-		/* why aren't we sleeping exactly the right amount of time ? */
-		/* answer---because the interval might be changed after the server starts up */
-		DS_Sleep(interval);
-	}
-	/* Check point and archive before shutting down */
-	rc = TXN_CHECKPOINT(s_cl5Desc.dbEnv, 0, 0, 0);
-
-	PR_AtomicDecrement (&s_cl5Desc.threadCount);
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckpointMain: exiting\n");
-    return 0;
-}
-
-static int  _cl5TrickleMain (void *param)
-{
-	PRIntervalTime    interval; 
-	int pages_written;
-	int rc;
-
-	PR_AtomicIncrement (&s_cl5Desc.threadCount);
-	interval = PR_MillisecondsToInterval(1000);
-	while (s_cl5Desc.dbState != CL5_STATE_CLOSING)
-	{
-		if ((rc = MEMP_TRICKLE(s_cl5Desc.dbEnv,
-				 	s_cl5Desc.dbConfig.tricklePercentage, &pages_written)) != 0)
-		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-					"_cl5TrickleMain: memp_trickle failed; db error - %d %s\n", 
-					rc, db_strerror(rc));
-		}
-		
-		DS_Sleep(interval);
-	}
-
-	PR_AtomicDecrement (&s_cl5Desc.threadCount);
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5TrickleMain: exiting\n");
-
-	return 0;
-}
-
 /* upgrade from db33 to db41
  * 1. Run recovery on the database environment using the DB_ENV->open method
  * 2. Remove any Berkeley DB environment using the DB_ENV->remove method 
@@ -3422,9 +2625,6 @@ static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 	}
 	/* update the version file */
 	_cl5WriteDBVersion ();
-
-	/* update the guardian file */
-	_cl5WriteGuardian ();
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 		"Upgrading from %s to %s is successfully done (%s)\n",
 		fromVersion, toVersion, s_cl5Desc.dbDir);
@@ -3432,12 +2632,6 @@ out:
 	if (NULL != dir)
 	{
 		PR_CloseDir(dir);
-	}
-	if (s_cl5Desc.dbEnv)
-	{
-		DB_ENV *dbEnv = s_cl5Desc.dbEnv;
-		dbEnv->close(dbEnv, 0);
-		s_cl5Desc.dbEnv = NULL;
 	}
 	return rc;
 }
@@ -3466,19 +2660,10 @@ static int _cl5Upgrade4_4(char *fromVersion, char *toVersion)
 
 	/* update the version file */
 	_cl5WriteDBVersion ();
-
-	/* update the guardian file */
-	_cl5WriteGuardian ();
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 		"Upgrading from %s to %s is successfully done (%s)\n",
 		fromVersion, toVersion, s_cl5Desc.dbDir);
 
-	if (s_cl5Desc.dbEnv)
-	{
-		DB_ENV *dbEnv = s_cl5Desc.dbEnv;
-		dbEnv->close(dbEnv, 0);
-		s_cl5Desc.dbEnv = NULL;
-	}
 	return rc;
 }
 
@@ -3492,9 +2677,6 @@ static int _cl5CheckDBVersion ()
 	{
 		/* this is new changelog - write DB version and guardian file */
 		rc = _cl5WriteDBVersion ();
-		if (rc == CL5_SUCCESS) {
-		  rc = _cl5WriteGuardian();
-		}
 	}
 	else
 	{
@@ -3683,161 +2865,6 @@ static int _cl5WriteDBVersion ()
 	return CL5_SUCCESS;	
 }
 
-/* for now guardian file is just like dbversion file */
-static int _cl5CheckGuardian ()
-{
-	char plVersion [VERSION_SIZE + 1];
-	char dbVersion [VERSION_SIZE + 1];
-	int rc;
-
-	/* new changelog - no guardian file */
-	if (!cl5Exist(s_cl5Desc.dbDir))
-	{
-		return CL5_SUCCESS;
-	}
-	else
-	{
-		PR_snprintf (plVersion, VERSION_SIZE, "%s/%d.%d/%s\n", 
-				BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_REPLPLUGIN);
-        dbVersion[0] = '\0';
-		rc = _cl5ReadGuardian (dbVersion);
-
-		if (rc != CL5_SUCCESS || strcasecmp (plVersion, dbVersion) != 0)
-		{
-			PR_snprintf (plVersion, VERSION_SIZE, "%s/%s/%s", 
-							CL5_TYPE, REPL_PLUGIN_NAME, CHANGELOG_DB_VERSION);
-			if (strcasecmp (plVersion, dbVersion) != 0)
-			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-					"_cl5CheckGuardian: found old style of guardian file: %s\n",
-					dbVersion);
-			}
-			else
-			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-					"_cl5CheckGuardian: missing or invalid guardian file\n");
-				return (CL5_BAD_FORMAT);
-			}
-		}
-
-		/* remove guardian file */
-		rc = _cl5RemoveGuardian ();
-		if (rc != CL5_SUCCESS)
-		{
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-							"_cl5CheckGuardian: failed to remove guardian file\n");	
-		}
-	}
-
-	return rc;
-}
-
-static int _cl5WriteGuardian ()
-{
-	int rc;
-	PRFileDesc *file;
-	char fName [MAXPATHLEN + 1];
-	char version [VERSION_SIZE];
-	PRInt32 len, size;
-
-	PR_snprintf (fName, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, GUARDIAN_FILE);
-
-	file = PR_Open (fName, PR_WRONLY | PR_CREATE_FILE, s_cl5Desc.dbConfig.fileMode);
-	if (file == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5WriteGuardian: failed to open guardian file; NSPR error - %d\n",
-				PR_GetError());
-		return CL5_SYSTEM_ERROR;
-	}
-
-	PR_snprintf (version, VERSION_SIZE, "%s/%d.%d/%s\n", 
-				BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_REPLPLUGIN);
-
-	len = strlen (version);
-	size = slapi_write_buffer (file, version, len);
-	if (size != len)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"_cl5WriteGuardian: failed to write guardian file; NSPR error - %d\n",
-				PR_GetError());
-		PR_Close (file);
-		return CL5_SYSTEM_ERROR;
-	}	
-
-	rc = PR_Close (file);
-	if (rc != PR_SUCCESS)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5WriteGuardian: failed to close guardian file; NSPR error - %d\n",
-				PR_GetError());
-		return CL5_SYSTEM_ERROR;
-	}
-
-	return CL5_SUCCESS;
-}
-
-static int _cl5ReadGuardian (char *buff)
-{
-	int rc;
-	PRFileDesc *file;
-	char fName [MAXPATHLEN + 1];
-	PRInt32 size;
-
-	PR_snprintf (fName, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, GUARDIAN_FILE);
-
-	file = PR_Open (fName, PR_RDONLY, 0);
-	if (file == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5ReadGuardian: failed to open guardian file; NSPR error - %d\n",
-				PR_GetError());
-		return CL5_SYSTEM_ERROR;
-	}
-	
-	size = slapi_read_buffer (file, buff, VERSION_SIZE);
-	if (size <= 0)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5ReadGuardian: failed to read guardian file; NSPR error - %d\n",
-				PR_GetError());
-		PR_Close (file);
-		return CL5_SYSTEM_ERROR;
-	}
-
-	buff [size-1] = '\0';	
-
-	rc = PR_Close (file);
-	if (rc != PR_SUCCESS)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5ReadGuardian: failed to close guardian file; NSPR error - %d\n",
-				PR_GetError());
-		return CL5_SYSTEM_ERROR;
-	}
-
-	return CL5_SUCCESS;		
-}
-
-static int _cl5RemoveGuardian ()
-{
-	char fName [MAXPATHLEN + 1];
-	int rc;
-
-	PR_snprintf (fName, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, GUARDIAN_FILE);
-
-	rc = PR_Delete (fName);
-	if (rc != PR_SUCCESS)
-	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5RemoveGuardian: failed to remove guardian file; NSPR error - %d\n",
-				PR_GetError());
-		return CL5_SYSTEM_ERROR;
-	}
-
-	return CL5_SUCCESS;	
-}
-
 /* must be called under the state lock */
 static void _cl5Close ()
 {
@@ -3865,27 +2892,6 @@ static void _cl5Close ()
 
 		/* cleanup trimming */
 		_cl5TrimCleanup ();
-
-		/* There should be no more open databases after _cl5DBClose, so it is now
-		   safe to close the dbEnv */
-		if (s_cl5Desc.dbEnv)
-		{
-			DB_ENV *dbEnv = s_cl5Desc.dbEnv;
-			int rc = dbEnv->close(dbEnv, 0);
-			s_cl5Desc.dbEnv = NULL;
-			if (rc) {
-				slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name_cl,
-								 "_cl5Close: error closing DB environment: %d (%s)\n",
-								 rc, db_strerror(rc));
-			}
-		}
-
-		/* record successful close by writing guardian file;
-		   we do it in all case accept incomplete open due to an error  */
-		if (s_cl5Desc.dbState == CL5_STATE_CLOSING || s_cl5Desc.dbOpenMode != CL5_OPEN_NORMAL)
-		{	
-			_cl5WriteGuardian ();
-		}	
 
 		/* remove changelog if requested */
 		if (s_cl5Desc.dbRmOnClose)
@@ -3932,13 +2938,8 @@ static void _cl5DBClose ()
 static int
 _cl5IsDbFile(const char *fname)
 {
-	char *ptr = NULL;
 	if (!fname || !*fname) {
 		return 0;
-	}
-
-	if (!strcmp(fname, GUARDIAN_FILE)) {
-		return 1;
 	}
 
 	if (!strcmp(fname, VERSION_FILE)) {
@@ -3946,15 +2947,6 @@ _cl5IsDbFile(const char *fname)
 	}
 
 	if (_cl5FileEndsWith(fname, DB_EXTENSION)) {
-		return 1;
-	}
-
-	if (_cl5IsLogFile(fname)) {
-		return 1;
-	}
-
-	ptr = strstr(fname, "__db.");
-	if (ptr == fname) { /* begins with __db. */
 		return 1;
 	}
 
@@ -4039,147 +3031,16 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 
 static void _cl5SetDefaultDBConfig ()
 {
-  s_cl5Desc.dbConfig.cacheSize          = CL5_DEFAULT_CONFIG_DB_DBCACHESIZE;
-  s_cl5Desc.dbConfig.durableTrans       = CL5_DEFAULT_CONFIG_DB_DURABLE_TRANSACTIONS;
-  s_cl5Desc.dbConfig.checkpointInterval = CL5_DEFAULT_CONFIG_DB_CHECKPOINT_INTERVAL;
-  s_cl5Desc.dbConfig.circularLogging    = CL5_DEFAULT_CONFIG_DB_CIRCULAR_LOGGING;
-  s_cl5Desc.dbConfig.pageSize           = CL5_DEFAULT_CONFIG_DB_PAGE_SIZE;
-  s_cl5Desc.dbConfig.logfileSize        = CL5_DEFAULT_CONFIG_DB_LOGFILE_SIZE;
-  s_cl5Desc.dbConfig.maxTxnSize         = CL5_DEFAULT_CONFIG_DB_TXN_MAX;
-  s_cl5Desc.dbConfig.verbose            = CL5_DEFAULT_CONFIG_DB_VERBOSE;
-  s_cl5Desc.dbConfig.debug              = CL5_DEFAULT_CONFIG_DB_DEBUG;
-  s_cl5Desc.dbConfig.tricklePercentage  = CL5_DEFAULT_CONFIG_DB_TRICKLE_PERCENTAGE;
-  s_cl5Desc.dbConfig.spinCount          = CL5_DEFAULT_CONFIG_DB_SPINCOUNT;
-  s_cl5Desc.dbConfig.nb_lock_config		= CL5_DEFAULT_CONFIG_NB_LOCK;
+  s_cl5Desc.dbConfig.maxConcurrentWrites= CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES;
   s_cl5Desc.dbConfig.fileMode           = FILE_CREATE_MODE;
 }
 
 static void _cl5SetDBConfig (const CL5DBConfig *config)
 {
-  /* through CL5DBConfig, we have access to all the LDAP configurable Changelog DB parameters */ 
-  s_cl5Desc.dbConfig.cacheSize = config->cacheSize;
-  s_cl5Desc.dbConfig.durableTrans = config->durableTrans;
-  s_cl5Desc.dbConfig.checkpointInterval = config->checkpointInterval;
-  s_cl5Desc.dbConfig.circularLogging = config->circularLogging;
-  s_cl5Desc.dbConfig.pageSize = config->pageSize;
-  s_cl5Desc.dbConfig.logfileSize = config->logfileSize;
-  s_cl5Desc.dbConfig.maxTxnSize = config->maxTxnSize;
-  s_cl5Desc.dbConfig.verbose = config->verbose;
-  s_cl5Desc.dbConfig.debug = config->debug;
-  s_cl5Desc.dbConfig.tricklePercentage = config->tricklePercentage;
-  s_cl5Desc.dbConfig.spinCount = config->spinCount;				
-  s_cl5Desc.dbConfig.nb_lock_config = config->nb_lock_config;
-  s_cl5Desc.dbConfig.maxConcurrentWrites = config->maxConcurrentWrites;
-  
-  if (config->spinCount != 0) 
-    {
-      DB_ENV_SET_TAS_SPINS(s_cl5Desc.dbEnv, config->spinCount);
-    }
-
+  /* s_cl5Desc.dbConfig.pageSize is retrieved from backend */
   /* Some other configuration parameters are hardcoded... */
+  s_cl5Desc.dbConfig.maxConcurrentWrites = config->maxConcurrentWrites;
   s_cl5Desc.dbConfig.fileMode = FILE_CREATE_MODE;
-}
-
-/*
- * a wrapper for slapi_ch_free; it's declared to set slapi_ch_free in BDB
- * dbEnv->set_alloc(dbEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, _cl5_api_free);
- *
- */
-void _cl5_api_free(void *ptr)
-{
-    slapi_ch_free(&ptr);
-}
-
-#define ONEG    1073741824      /* one giga bytes */
-static void _cl5InitDBEnv(DB_ENV *dbEnv)
-{
-	dbEnv->set_errpfx(dbEnv, "ns-slapd");
-	dbEnv->set_lg_max(dbEnv, s_cl5Desc.dbConfig.logfileSize);
-	dbEnv->set_tx_max(dbEnv, s_cl5Desc.dbConfig.maxTxnSize);
-	dbEnv->set_cachesize(dbEnv, s_cl5Desc.dbConfig.cacheSize/ONEG,
-				    s_cl5Desc.dbConfig.cacheSize%ONEG,
-				    0);
-	/* Set default number of locks */
-	dbEnv->set_lk_max_locks(dbEnv, s_cl5Desc.dbConfig.nb_lock_config);
-	
-	if (s_cl5Desc.dbConfig.verbose)
-	{
-		int on = 1;
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-		/* DB_VERB_CHKPOINT removed in 43 */
-#else
-		dbEnv->set_verbose(dbEnv, DB_VERB_CHKPOINT, on);
-#endif
-		dbEnv->set_verbose(dbEnv, DB_VERB_DEADLOCK, on);
-		dbEnv->set_verbose(dbEnv, DB_VERB_RECOVERY, on);
-		dbEnv->set_verbose(dbEnv, DB_VERB_WAITSFOR, on);
-	}
-	if (s_cl5Desc.dbConfig.debug)
-	{
-		dbEnv->set_errcall(dbEnv, _cl5DBLogPrint);
-	}
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3300
-        dbEnv->set_alloc(dbEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, _cl5_api_free);
-#endif
-}
-
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-static void _cl5DBLogPrint(const DB_ENV *dbenv, const char* prefix,
-                           const char *buffer)
-#else
-static void _cl5DBLogPrint(const char* prefix, char *buffer)
-#endif
-{
-	/* We ignore the prefix since we know who we are anyway */
-	slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name_cl, "cl5: %s\n", buffer);
-}
-
-static PRBool _cl5IsLogFile (const char *path)
-{
-	int rc;
-
-	/* Is the filename at least 4 characters long ? */
-	if (strlen(path) < 4) 
-	{
-		return PR_FALSE; /* Not a log file then */
-	}
-
-	/* Are the first 4 characters "log." ? */
-	rc = strncmp(path,"log.",4);
-	if (0 == rc) 
-	{
-		/* Now, are the last 4 characters _not_ .db# ? */
-		const char *piece = path + (strlen(path) - 4);
-		rc = strcmp(piece, DB_EXTENSION);
-		if (0 != rc) 
-		{
-			/* Is */
-			return PR_TRUE;
-		}
-	}
-	return PR_FALSE; /* Is not */
-}
-
-static int _cl5Recover (int open_flags, DB_ENV *dbEnv)
-{
-	/* If we're doing recovery, we MUST open the env single-threaded ! */
-	int recover_flags = open_flags & ~DB_THREAD;
-	int rc;
-			
-	rc = dbEnv->open(dbEnv, s_cl5Desc.dbDir, recover_flags, s_cl5Desc.dbConfig.fileMode);
-
-	if (rc != 0) 
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"_cl5Recover: appinit failed; db error - %d %s\n", 
-				rc, db_strerror(rc));
-		return CL5_DB_ERROR;
-	} 
-
-	/* Now close it so we can re-open it again... */
-	dbEnv->close(dbEnv, 0);
-	
-	return CL5_SUCCESS;
 }
 
 /* Trimming helper functions */
@@ -6325,7 +5186,9 @@ static char* _cl5Replica2FileName (Object *replica)
 
 static char* _cl5MakeFileName (const char *replName, const char *replGen)
 {
-    char *fileName = slapi_ch_smprintf("%s%s%s.%s", replName, FILE_SEP, replGen, DB_EXTENSION);
+    char *fileName = slapi_ch_smprintf("%s/%s%s%s.%s", 
+                                       s_cl5Desc.dbDir, replName,
+                                       FILE_SEP, replGen, DB_EXTENSION);
 
     return fileName;
 }
@@ -6569,9 +5432,7 @@ out:
 	 *     keys. To avoid the test-and-set mutexes, we could use semaphore
 	 *     to serialize the writers and avoid the high mutex contention
 	 *     that SleepyCat is unable to avoid.
-	 * (2) [610948] Linux master hangs for 2 hours
-	 *     [611239] _cl5DeadlockMain: lock_detect succeeded
-	 * (3) DS 6.2 introduced the semaphore on all platforms (replaced
+	 * (2) DS 6.2 introduced the semaphore on all platforms (replaced
 	 *     the serial lock used on Windows and Linux described above). 
 	 *     The number of the concurrent writes now is configurable by
 	 *     nsslapd-changelogmaxconcurrentwrites (the server needs to
@@ -6818,40 +5679,6 @@ static int _cl5CompareDBFile (Object *el1, const void *el2)
 	file = (CL5DBFile*) object_get_data (el1);
 	name = (const char*) el2;
 	return ((file->flags & DB_FILE_INIT) ? strcmp (file->name, name) : 1);
-}
-
-static int _cl5CopyDBFiles (const char *srcDir, const char *destDir, Object **replicas)
-{
-	char srcFile [MAXPATHLEN + 1];
-	char destFile[MAXPATHLEN + 1];
-	int rc;
-	Object *obj;
-	CL5DBFile *file;
-
-	/* ONREPL currently, dbidlist is ignored because db code can't handle discrepancy between
-       transaction log and present files; this should change before 5.0 ships */
-	obj = objset_first_obj (s_cl5Desc.dbFiles);
-	while (obj)
-	{	
-		file = (CL5DBFile*)object_get_data (obj);
-		PR_ASSERT (file);
-
-		PR_snprintf(srcFile, MAXPATHLEN, "%s/%s", srcDir, file->name);
-		PR_snprintf(destFile, MAXPATHLEN, "%s/%s", destDir, file->name);
-		rc = copyfile(srcFile, destFile, 0, FILE_CREATE_MODE);
-		if (rc != 0)
-		{
-			object_release (obj);
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-							"_cl5CopyDBFiles: failed to copy %s from %s to %s\n", 
-							file->name, srcDir, destDir);
-			return CL5_SYSTEM_ERROR;
-		}
-
-		obj = objset_next_obj (s_cl5Desc.dbFiles, obj);
-	}
-	
-	return CL5_SUCCESS;	
 }
 
 /*

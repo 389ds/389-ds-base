@@ -248,6 +248,10 @@ ldbm_back_init( Slapi_PBlock *pb )
 	    (void *) ldbm_back_wire_import );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_ADD_SCHEMA_FN,
 	    (void *) ldbm_back_add_schema );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_GET_INFO_FN,
+	    (void *) ldbm_back_get_info );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_SET_INFO_FN,
+	    (void *) ldbm_back_set_info );
 
 	if ( rc != 0 ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init failed\n", 0, 0, 0 );

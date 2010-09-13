@@ -5250,6 +5250,7 @@ int slapi_is_root_suffix(Slapi_DN * dn);
 const Slapi_DN *slapi_get_suffix_by_dn(const Slapi_DN *dn);
 const char * slapi_be_gettype(Slapi_Backend *be);
 
+
 int slapi_be_is_flag_set(Slapi_Backend * be, int flag);
 void slapi_be_set_flag(Slapi_Backend * be, int flag);
 #define SLAPI_BE_FLAG_REMOTE_DATA   0x1  /* entries held by backend are remote */
@@ -5687,6 +5688,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_BE_PRE_MODIFY_FN		451
 #define SLAPI_PLUGIN_BE_PRE_MODRDN_FN		452
 #define SLAPI_PLUGIN_BE_PRE_DELETE_FN		453
+#define SLAPI_PLUGIN_BE_PRE_CLOSE_FN		454
 
 /* postoperation plugin functions */
 #define SLAPI_PLUGIN_POST_BIND_FN		501
@@ -5714,6 +5716,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_BE_POST_MODIFY_FN		551
 #define SLAPI_PLUGIN_BE_POST_MODRDN_FN		552
 #define SLAPI_PLUGIN_BE_POST_DELETE_FN		553
+#define SLAPI_PLUGIN_BE_POST_OPEN_FN		554
 
 /* matching rule plugin functions */
 #define SLAPI_PLUGIN_MR_FILTER_CREATE_FN	600
@@ -6195,10 +6198,44 @@ int slapi_set_plugin_default_config(const char *type, Slapi_Value *value);
  * \return \c 0 if the operation was successful
  * \return non-0 if the operation was not successful
  * \warning Caller is responsible to free attrs by slapi_ch_array_free
- *     */
+ */
 int slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset);
 
 int slapi_check_account_lock( Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int pwresponse_req, int check_password_policy, int send_result);
+
+/* backend get/set info */
+/**
+ * Get backend info based upon cmd
+ *
+ * \param be Backend from which the infomation will be retrieved
+ * \param cmd macro to specify the information type
+ * \param info pointer to store the information
+ * \return \c 0 if the operation was successful
+ * \return non-0 if the operation was not successful
+ *
+ * \note Implemented cmd:
+ * BACK_INFO_DBENV - Get the dbenv
+ */
+int slapi_back_get_info(Slapi_Backend *be, int cmd, void **info);
+
+/**
+ * Set info to backend based upon cmd
+ *
+ * \param be Backend to which the infomation will be set
+ * \param cmd macro to specify the information type
+ * \param info pointer to the information
+ * \return \c 0 if the operation was successful
+ * \return non-0 if the operation was not successful
+ * \warning No cmd is defined yet.
+ */
+int slapi_back_set_info(Slapi_Backend *be, int cmd, void *info);
+
+/* cmd */
+enum
+{
+    BACK_INFO_DBENV,         /* Get the dbenv */
+    BACK_INFO_INDEXPAGESIZE  /* Get the index page size */
+};
 
 #ifdef __cplusplus
 }

@@ -1389,6 +1389,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                             &eargs, DB2LDIF_ENTRYRDN, &psrdn);
                         if (rc) {
                             slapi_rdn_done(&psrdn);
+                            backentry_free(&ep);
                             continue;
                         }
                     }
@@ -1424,6 +1425,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                           "%d\n", pid);
                                     slapi_ch_free_string(&rdn);
                                     slapi_rdn_done(&psrdn);
+                                    backentry_free(&ep);
                                     continue;
                                 }
                             }
@@ -1436,6 +1438,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                        rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
+                                backentry_free(&ep);
                                 continue;
                             }
                         }
@@ -1932,6 +1935,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                             rdn, temp_id, pid, run_from_cmdline,
                                             NULL, index_ext, &psrdn);
                         if (rc) {
+                            backentry_free(&ep);
                             continue;
                         }
                     }
@@ -1966,6 +1970,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                           "%d\n", pid);
                                     slapi_ch_free_string(&rdn);
                                     slapi_rdn_done(&psrdn);
+                                    backentry_free(&ep);
                                     continue;
                                 }
                             }
@@ -1978,6 +1983,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                        rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
+                                backentry_free(&ep);
                                 continue;
                             }
                         }
@@ -2448,7 +2454,6 @@ ldbm_exclude_attr_from_export( struct ldbminfo *li , const char *attr,
 int upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
 int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
 int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
-static void normalize_dir(char *dir);
 
 /*
  * ldbm_back_upgradedb - 
@@ -2797,26 +2802,6 @@ fail0:
     return rval + upgrade_rval;
 }
 
-static void
-normalize_dir(char *dir)
-{
-    char *p = NULL;
-    int l = 0;
-
-    if (NULL == dir) {
-        return;
-    }
-    l = strlen(dir);
-
-    for (p = dir + l - 1; p && *p; p--) {
-        if (' ' != *p && '\t' != *p && '/' != *p && '\\' != *p) {
-            break;
-        }
-    }
-    *(p+1) = '\0';
-}
-
-
 #define LOG    "log."
 #define LOGLEN    4
 int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
@@ -3070,7 +3055,7 @@ _get_and_add_parent_rdns(backend *be,
                 slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                                 "_get_and_add_parent_rdns: "
                                 "Failed to convert DN %s to RDN\n", 
-                                slapi_sdn_get_dn(bdn->dn_sdn));
+                                slapi_rdn_get_rdn(&mysrdn));
                 slapi_rdn_done(&mysrdn);
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
                 goto bail;
@@ -3162,7 +3147,7 @@ _get_and_add_parent_rdns(backend *be,
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                                    "_get_and_add_parent_rdns: "
                                    "Failed to merge Slapi_RDN %s to RDN\n",
-                                   slapi_sdn_get_dn(bdn->dn_sdn));
+                                   slapi_rdn_get_rdn(&mysrdn));
             goto bail;
         }
     }

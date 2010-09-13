@@ -181,6 +181,9 @@ clcache_init ( DB_ENV **dbenv )
 	if (_pool) {
 		return 0; /* already initialized */
 	}
+	if (NULL == dbenv) {
+		return -1;
+	}
 	_pool = (struct clc_pool*) slapi_ch_calloc ( 1, sizeof ( struct clc_pool ));
 	_pool->pl_dbenv = dbenv;
 	_pool->pl_buffer_cnt_min = DEFAULT_CLC_BUFFER_COUNT_MIN;
@@ -195,20 +198,18 @@ clcache_init ( DB_ENV **dbenv )
  * is read or updated.
  */
 void
-clcache_set_config ( CL5DBConfig *config )
+clcache_set_config ()
 {
-	if ( config == NULL ) return;
-
 	PR_RWLock_Wlock ( _pool->pl_lock );
 
-	_pool->pl_buffer_cnt_max = config->maxChCacheEntries;
+	_pool->pl_buffer_cnt_max = CL5_DEFAULT_CONFIG_CACHESIZE;
 
 	/*
 	 * According to http://www.sleepycat.com/docs/api_c/dbc_get.html,
 	 * data buffer should be a multiple of 1024 bytes in size
 	 * for DB_MULTIPLE_KEY operation.
 	 */
-	_pool->pl_buffer_default_pages = config->maxChCacheSize / DEFAULT_CLC_BUFFER_PAGE_SIZE + 1;
+	_pool->pl_buffer_default_pages = CL5_DEFAULT_CONFIG_CACHEMEMSIZE / DEFAULT_CLC_BUFFER_PAGE_SIZE + 1;
 	_pool->pl_buffer_default_pages = DEFAULT_CLC_BUFFER_PAGE_COUNT;
 	if ( _pool->pl_buffer_default_pages <= 0 ) {
 		_pool->pl_buffer_default_pages = DEFAULT_CLC_BUFFER_PAGE_COUNT;

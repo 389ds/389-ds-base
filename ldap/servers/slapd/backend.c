@@ -581,3 +581,25 @@ void be_set_timelimit(Slapi_Backend * be, int timelimit)
 {
         be->be_timelimit = timelimit;
 }
+
+int
+slapi_back_get_info(Slapi_Backend *be, int cmd, void **info)
+{
+    int rc = -1;
+    if (!be || !be->be_get_info || !info) {
+        return rc;
+    }
+    rc = (*be->be_get_info)(be, cmd, info);
+    return rc;
+}
+
+int
+slapi_back_set_info(Slapi_Backend *be, int cmd, void *info)
+{
+    int rc = -1;
+    if (!be || !be->be_set_info || !info) {
+        return rc;
+    }
+    rc = (*be->be_set_info)(be, cmd, info);
+    return rc;
+}

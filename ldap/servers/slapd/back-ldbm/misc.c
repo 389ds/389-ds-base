@@ -483,12 +483,14 @@ get_value_from_string(const char *string, char *type, char **value)
         ldif_getline_fixline(startptr, tmpptr);
         startptr = tmpptr;
         rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
-        if (0 > rc || NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
+        if (0 > rc || NULL == tmptype.bv_val ||
+            NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
             slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", "parse "
                                              "failed: %d\n", rc);
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
             }
+            rc = -1; /* set non-0 to rc */
             goto bail;
         }
         if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
@@ -498,8 +500,10 @@ get_value_from_string(const char *string, char *type, char **value)
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
             }
+            rc = -1; /* set non-0 to rc */
             goto bail;
         }
+        rc = 0; /* set 0 to rc */
         if (freeval) {
             *value = bvvalue.bv_val; /* just hand off the memory */
             bvvalue.bv_val = NULL;
@@ -609,3 +613,23 @@ bail:
     slapi_ch_free_string(&copy);
     return rc;
 }
+
+void
+normalize_dir(char *dir)
+{
+    char *p = NULL;
+    int l = 0;
+
+    if (NULL == dir) {
+        return;
+    }
+    l = strlen(dir);
+
+    for (p = dir + l - 1; p && *p && (p > dir); p--) {
+        if ((' ' != *p) && ('\t' != *p) && ('/' != *p) && ('\\' != *p)) {
+            break;
+        }
+    }
+    *(p+1) = '\0';
+}
+

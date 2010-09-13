@@ -1268,6 +1268,9 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			response = NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED;
 			/* Outbound replication agreements need to all be restarted now */
 			/* XXXGGOOD RESTART REEPL AGREEMENTS */
+		} else {
+			/* Unless bail out, we return uninitialized response */
+			goto free_and_return; 
 		}
 	}
 

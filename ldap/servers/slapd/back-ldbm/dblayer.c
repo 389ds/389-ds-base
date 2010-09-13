@@ -4320,6 +4320,50 @@ static int dblayer_force_checkpoint(struct ldbminfo *li)
   return ret;
 }
 
+static int
+_dblayer_delete_aux_dir(struct ldbminfo *li, char *path)
+{
+    PRDir *dirhandle = NULL;
+    PRDirEntry *direntry = NULL;
+    char filename[MAXPATHLEN];
+    dblayer_private *priv = NULL;
+    struct dblayer_private_env *pEnv = NULL;
+    int rc = -1;
+
+    if (NULL == li || NULL == path) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "_dblayer_delete_aux_dir: Invalid LDBM info (0x%x) "
+                       "or path (0x%x)\n", li, path);
+        return rc;
+    }
+    priv = (dblayer_private*)li->li_dblayer_private;
+    if (priv) {
+        pEnv = priv->dblayer_env;
+    }
+    dirhandle = PR_OpenDir(path);
+    if (!dirhandle) {
+        return 0; /* The dir does not exist. */
+    }
+    while (NULL != (direntry = PR_ReadDir(dirhandle,
+                                          PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+        if (! direntry->name)
+            break;
+        PR_snprintf(filename, sizeof(filename), "%s/%s", path, direntry->name);
+        if (pEnv &&
+            strcmp(LDBM_FILENAME_SUFFIX , last_four_chars(direntry->name)) == 0)
+        {
+            rc = dblayer_db_remove_ex(pEnv, filename, 0, PR_TRUE);
+        }
+        else
+        {
+            rc = ldbm_delete_dirs(filename);
+        }
+    }
+    PR_CloseDir(dirhandle);
+    PR_RmDir(path);
+    return rc;
+}
+
 /* TEL:  Added startdb flag.  If set (1), the DB environment will be started so
  * that dblayer_db_remove_ex will be used to remove the database files instead
  * of simply deleting them.  That is important when doing a selective restoration
@@ -4339,7 +4383,8 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
 
     if (NULL == li)
     {
-        LDAPDebug(LDAP_DEBUG_ANY, "_dblayer_delete_instance_dir: NULL LDBM info\n", 0, 0, 0);
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                       "_dblayer_delete_instance_dir: NULL LDBM info\n");
         rval = -1;
         goto done;
     }
@@ -4461,7 +4506,8 @@ int dblayer_delete_instance_dir(backend *be)
  * this is used mostly for restores.
  * dblayer is assumed to be closed.
  */
-int dblayer_delete_database_ex(struct ldbminfo *li, char *instance)
+static int
+dblayer_delete_database_ex(struct ldbminfo *li, char *instance, char *cldir)
 {
     dblayer_private *priv = NULL;
     Object *inst_obj;
@@ -4501,6 +4547,17 @@ int dblayer_delete_database_ex(struct ldbminfo *li, char *instance)
 					return ret;
 				}	
 			}
+        }
+    }
+
+    /* changelog path is given; delete it, too. */
+    if (cldir) {
+        ret = _dblayer_delete_aux_dir(li, cldir);
+        if (ret) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "dblayer_delete_database: failed to deelete \"%s\"\n",
+                          chdir);
+            return ret;
         }
     }
 
@@ -4567,7 +4624,7 @@ int dblayer_delete_database_ex(struct ldbminfo *li, char *instance)
  */
 int dblayer_delete_database(struct ldbminfo *li)
 {
-	return dblayer_delete_database_ex(li, NULL);
+	return dblayer_delete_database_ex(li, NULL, NULL);
 }
 
 
@@ -4830,7 +4887,6 @@ dblayer_copy_directory(struct ldbminfo *li,
     char            *inst_dirp = NULL;
     char            inst_dir[MAXPATHLEN];
     char            sep;
-    ldbm_instance   *inst;
 
     if (!src_dir || '\0' == *src_dir)
     {
@@ -4854,15 +4910,6 @@ dblayer_copy_directory(struct ldbminfo *li,
     else
         relative_instance_name++;
 
-    inst = ldbm_instance_find_by_name(li, relative_instance_name);
-    if (NULL == inst)
-    {
-        LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
-                  "Instance path %s could be invalid.\n",
-                  relative_instance_name, src_dir, 0);
-        return return_value;
-    }
-
     if (is_fullpath(src_dir))
     {
         new_src_dir = src_dir;
@@ -4870,6 +4917,16 @@ dblayer_copy_directory(struct ldbminfo *li,
     else
     {
         int len;
+        ldbm_instance *inst =
+                       ldbm_instance_find_by_name(li, relative_instance_name);
+        if (NULL == inst)
+        {
+            LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
+                  "Instance path %s could be invalid.\n",
+                  relative_instance_name, src_dir, 0);
+            return return_value;
+        }
+
         inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                               inst_dir, MAXPATHLEN);
         if (!inst_dirp || !*inst_dirp)
@@ -5009,21 +5066,98 @@ out:
     return return_value;
 }
 
+/*
+ * Get changelogdir from cn=changelog5,cn=config
+ * The value does not have trailing spaces nor slashes.
+ */
+static int
+_dblayer_get_changelogdir(struct ldbminfo *li, char **changelogdir)
+{
+    Slapi_PBlock *pb = NULL;
+    Slapi_Entry **entries = NULL;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *v = NULL;
+    const char *s = NULL;
+    char *attrs[2];
+    int rc = -1;
 
+    if (NULL == li || NULL == changelogdir) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY, 
+                       "ERROR: _dblayer_get_changelogdir: Invalid arg: "
+                       "li: 0x%x, changelogdir: 0x%x\n", li, changelogdir);
+        return rc;
+    }
+    *changelogdir = NULL;
+
+    pb = slapi_pblock_new();
+    attrs[0] = CHANGELOGDIRATTR;
+    attrs[1] = NULL;
+    slapi_search_internal_set_pb(pb, CHANGELOGENTRY,
+                                 LDAP_SCOPE_BASE, "cn=*", attrs, 0, NULL, NULL,
+                                 li->li_identity, 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    
+    if (LDAP_NO_SUCH_OBJECT == rc) {
+        /* No changelog; Most likely standalone or not a master. */
+        rc = LDAP_SUCCESS;
+        goto bail;
+    }
+    if (LDAP_SUCCESS != rc) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+                      "ERROR: Failed to search \"%s\"\n", CHANGELOGENTRY);
+        goto bail;
+    }
+    /* rc == LDAP_SUCCESS */
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    if (NULL == entries) {
+        /* No changelog */
+        goto bail;
+    }
+    /* There should be only one entry. */
+    rc = slapi_entry_attr_find(entries[0], CHANGELOGDIRATTR, &attr);
+    if (rc || NULL == attr) {
+        /* No changelog dir */
+        rc = LDAP_SUCCESS;
+        goto bail;
+    }
+    rc = slapi_attr_first_value(attr, &v);
+    if (rc || NULL == v) {
+        /* No changelog dir */
+        rc = LDAP_SUCCESS;
+        goto bail;
+    }
+    rc = LDAP_SUCCESS;
+    s = slapi_value_get_string(v);
+    if (NULL == s) {
+        /* No changelog dir */
+        goto bail;
+    }
+    *changelogdir = slapi_ch_strdup(s);
+    /* Remove trailing spaces and '/' if any */
+    normalize_dir(*changelogdir);
+bail:
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+    return rc;
+}
 
 /* Destination Directory is an absolute pathname */
-int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
+int
+dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 {
     dblayer_private *priv = NULL;
     char **listA = NULL, **listB = NULL, **listi, **listj, *prefix;
     char *home_dir = NULL;
-    int return_value  = 0;
+    int return_value = -1;
     char *pathname1;
     char *pathname2;
     back_txn txn;
     int cnt = 1, ok = 0;
-    ldbm_instance *inst;
     Object *inst_obj;
+    char inst_dir[MAXPATHLEN];
+    char *inst_dirp = NULL;
+    char *changelogdir = NULL;
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -5031,9 +5165,9 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     home_dir = dblayer_get_home_dir(li, NULL);
     if (NULL == home_dir || '\0' == *home_dir)
     {
-        LDAPDebug(LDAP_DEBUG_ANY, 
-            "Backup failed due to missing db home directory info\n", 0, 0, 0);
-        return -1;
+        LDAPDebug0Args(LDAP_DEBUG_ANY, 
+                       "Backup: missing db home directory info\n");
+        return return_value;
     }
 
     /*
@@ -5068,15 +5202,16 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     dblayer_force_checkpoint(li);
     dblayer_txn_init(li,&txn);
     return_value=dblayer_txn_begin(li,NULL,&txn);  
-    if (0 != return_value) {
-        LDAPDebug(LDAP_DEBUG_ANY, 
-            "Backup failed due to transaction failure\n", 0, 0, 0);
-        return -1;
+    if (return_value) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, 
+                       "Backup: transaction error\n");
+        return return_value;
     }
 
     if ( g_get_shutdown() || c_get_shutdown() ) {
-        dblayer_txn_abort(li,&txn);
-        return -1;
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "Backup aborted\n");
+        return_value = -1;
+        goto bail;
     }
 
     /* repeat this until the logfile sets match... */
@@ -5085,73 +5220,104 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         if (priv->dblayer_enable_transactions) {
             return_value = LOG_ARCHIVE(priv->dblayer_env->dblayer_DB_ENV,
                 &listA, DB_ARCH_LOG, (void *)slapi_ch_malloc);
-            if ((return_value != 0) || (listA == NULL)) {
-                LDAPDebug(LDAP_DEBUG_ANY, "BAD: can't get list of logs\n",
-                    0, 0, 0);
-                dblayer_txn_abort(li,&txn);
-                return return_value;
+            if (return_value || (listA == NULL)) {
+                LDAPDebug0Args(LDAP_DEBUG_ANY,
+                               "Backup: log archive error\n");
+                if (task) {
+                    slapi_task_log_notice(task, "Backup: log archive error\n");
+                }
+                return_value = -1;
+                goto bail;
             }
         } else {
             ok=1;
         }
         if ( g_get_shutdown() || c_get_shutdown() ) {
-            dblayer_txn_abort(li,&txn);
-            return -1;
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "Backup aborted\n");
+            return_value = -1;
+            goto bail;
         }
 
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
         {
-            char inst_dir[MAXPATHLEN];
-            char *inst_dirp = NULL;
-            inst = (ldbm_instance *)object_get_data(inst_obj);
+            ldbm_instance *inst = (ldbm_instance *)object_get_data(inst_obj);
             inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                                    inst_dir, MAXPATHLEN);
-            if (inst_dirp && *inst_dirp)
-            {
-                return_value = dblayer_copy_directory(li, task, inst_dirp,
-                                 dest_dir, 0 /* backup */, &cnt, 0, 0, 0);
-            }
-            else
-            {
-                LDAPDebug(LDAP_DEBUG_ANY,
-                          "ERROR: Instance dir is empty\n", 0, 0, 0);
+                                                  inst_dir, MAXPATHLEN);
+            if ((NULL == inst_dirp) || ('\0' == *inst_dirp)) {
+                LDAPDebug0Args(LDAP_DEBUG_ANY, 
+                               "Backup: Instance dir is empty\n");
                 if (task) {
                     slapi_task_log_notice(task,
-                          "ERROR: Instance dir is empty\n");
+                                          "Backup: Instance dir is empty\n");
                 }
-                slapi_ch_free((void **)&listA);
-                dblayer_txn_abort(li,&txn);
-                return -1;
+                return_value = -1;
+                goto bail;
             }
-            if (return_value != 0) {
+            return_value = dblayer_copy_directory(li, task, inst_dirp,
+                                                  dest_dir, 0 /* backup */,
+                                                  &cnt, 0, 0, 0);
+            if (return_value) {
                 LDAPDebug(LDAP_DEBUG_ANY,
-                    "ERROR: error copying directory (%s -> %s): err=%d\n",
-                    inst_dirp, dest_dir, return_value);
+                          "Backup: error in copying directory "
+                          "(%s -> %s): err=%d\n",
+                          inst_dirp, dest_dir, return_value);
                 if (task) {
                     slapi_task_log_notice(task,
-                        "ERROR: error copying directory (%s -> %s): err=%d",
-                        inst_dirp, dest_dir, return_value);
+                          "Backup: error in copying directory "
+                          "(%s -> %s): err=%d\n",
+                          inst_dirp, dest_dir, return_value);
                 }
-                slapi_ch_free((void **)&listA);
-                dblayer_txn_abort(li,&txn);
                 if (inst_dirp != inst_dir)
                     slapi_ch_free_string(&inst_dirp);
-                return return_value;
+                goto bail;
             }
             if (inst_dirp != inst_dir)
                 slapi_ch_free_string(&inst_dirp);
+        }
+        /* Get changelogdir, if any */
+        _dblayer_get_changelogdir(li, &changelogdir);
+        if (changelogdir) {
+            /* dest dir for changelog: dest_dir/repl_changelog_backup  */
+            char *changelog_destdir = slapi_ch_smprintf("%s/%s",
+                                                 dest_dir, CHANGELOG_BACKUPDIR);
+            return_value = dblayer_copy_directory(li, task, changelogdir,
+                                                  changelog_destdir,
+                                                  0 /* backup */,
+                                                  &cnt, 0, 0, 0);
+            if (return_value) {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                          "Backup: error in copying directory "
+                          "(%s -> %s): err=%d\n",
+                          changelogdir, changelog_destdir, return_value);
+                if (task) {
+                    slapi_task_log_notice(task,
+                          "Backup: error in copying directory "
+                          "(%s -> %s): err=%d\n",
+                          changelogdir, changelog_destdir, return_value);
+                }
+                slapi_ch_free_string(&changelog_destdir);
+                goto bail;
+            }
+            /* Copy DBVERSION */
+            pathname1 = slapi_ch_smprintf("%s/%s",
+                                         changelogdir, DBVERSION_FILENAME);
+            pathname2 = slapi_ch_smprintf("%s/%s",
+                                         changelog_destdir, DBVERSION_FILENAME);
+            return_value = dblayer_copyfile(pathname1, pathname2,
+                                            0, priv->dblayer_file_mode);
+            slapi_ch_free_string(&pathname1);
+            slapi_ch_free_string(&pathname1);
+            slapi_ch_free_string(&changelog_destdir);
         }
         if (priv->dblayer_enable_transactions) {
             /* now, get the list of logfiles that still exist */
             return_value = LOG_ARCHIVE(priv->dblayer_env->dblayer_DB_ENV,
                 &listB, DB_ARCH_LOG, (void *)slapi_ch_malloc);
-            if ((return_value != 0) || (listB == NULL)) {
-                LDAPDebug(LDAP_DEBUG_ANY, "ERROR: can't get list of logs\n",
-                    0, 0, 0);
-                slapi_ch_free((void **)&listA);
-                dblayer_txn_abort(li,&txn);
-                return return_value;
+            if (return_value || (listB == NULL)) {
+                LDAPDebug0Args(LDAP_DEBUG_ANY,
+                               "Backup: can't get list of logs\n");
+                goto bail;
             }
             
             /* compare: make sure everything in list A is still in list B */
@@ -5166,8 +5332,9 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                 }
                 if (! found) {
                     ok = 0;     /* missing log: start over */
-                    LDAPDebug(LDAP_DEBUG_ANY, "WARNING: Log %s has been swiped "
-                        "out from under me! (retrying)\n", *listi, 0, 0);
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                  "WARNING: Log %s has been swiped "
+                                  "out from under me! (retrying)\n", *listi);
                     if (task) {
                         slapi_task_log_notice(task,
                           "WARNING: Log %s has been swiped out from under me! "
@@ -5177,8 +5344,9 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             }
             
             if ( g_get_shutdown() || c_get_shutdown() ) {
-                dblayer_txn_abort(li,&txn);
-                return -1;
+                LDAPDebug0Args(LDAP_DEBUG_ANY, "Backup aborted\n");
+                return_value = -1;
+                goto bail;
             }
 
             if (ok) {
@@ -5201,8 +5369,8 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                 for (listptr = listB; listptr && *listptr && ok; ++listptr) {
                     PR_snprintf(pathname1, p1len, "%s/%s", prefix, *listptr);
                     PR_snprintf(pathname2, p2len, "%s/%s", dest_dir, *listptr);
-                    LDAPDebug(LDAP_DEBUG_ANY, "Backing up file %d (%s)\n",
-                        cnt, pathname2, 0);
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, "Backing up file %d (%s)\n",
+                        cnt, pathname2);
                     if (task)
                     {
                         slapi_task_log_notice(task,
@@ -5213,9 +5381,9 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     return_value = dblayer_copyfile(pathname1, pathname2,
                         0, priv->dblayer_file_mode);
                     if (0 > return_value) {
-                        LDAPDebug(LDAP_DEBUG_ANY, "Error copying file '%s' "
-                            "(err=%d) -- Starting over...\n",
-                            pathname1, return_value, 0);
+                        LDAPDebug2Args(LDAP_DEBUG_ANY, "Backup: error in "
+                            "copying file '%s' (err=%d) -- Starting over...\n",
+                            pathname1, return_value);
                         if (task) {
                             slapi_task_log_notice(task,
                                 "Error copying file '%s' (err=%d) -- Starting "
@@ -5224,8 +5392,11 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                         ok = 0;
                     }
                     if ( g_get_shutdown() || c_get_shutdown() ) {
-                        dblayer_txn_abort(li,&txn);
-                        return -1;
+                        LDAPDebug0Args(LDAP_DEBUG_ANY, "Backup aborted\n");
+                        return_value = -1;
+                        slapi_ch_free((void **)&pathname1);
+                        slapi_ch_free((void **)&pathname2);
+                        goto bail;
                     }
                     cnt++;
                 }
@@ -5238,22 +5409,28 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         }
     } while (!ok);
 
-
-    if ( g_get_shutdown() || c_get_shutdown() ) {
-        dblayer_txn_abort(li,&txn);
-        return -1;
-    }
-
     /* now copy the version file */
     pathname1 = slapi_ch_smprintf("%s/%s", home_dir, DBVERSION_FILENAME);
     pathname2 = slapi_ch_smprintf("%s/%s", dest_dir, DBVERSION_FILENAME);
-    LDAPDebug(LDAP_DEBUG_ANY, "Backing up file %d (%s)\n",
-              cnt, pathname2, 0);
+    LDAPDebug2Args(LDAP_DEBUG_ANY, "Backing up file %d (%s)\n", cnt, pathname2);
     if (task) {
         slapi_task_log_notice(task, "Backing up file %d (%s)", cnt, pathname2);
         slapi_task_log_status(task, "Backing up file %d (%s)", cnt, pathname2);
     }
-    return_value = dblayer_copyfile(pathname1,pathname2,0,priv->dblayer_file_mode);
+    return_value =
+             dblayer_copyfile(pathname1, pathname2, 0, priv->dblayer_file_mode);
+    if (return_value) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "Backup: error in copying version file "
+                  "(%s -> %s): err=%d\n",
+                  pathname1, pathname2, return_value);
+        if (task) {
+            slapi_task_log_notice(task,
+                  "Backup: error in copying version file "
+                  "(%s -> %s): err=%d\n",
+                  pathname1, pathname2, return_value);
+        }
+    }
     slapi_ch_free((void **)&pathname1);
     slapi_ch_free((void **)&pathname2);
 
@@ -5261,8 +5438,11 @@ int dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 
     if (0 == return_value)  /* if everything went well, backup the index conf */
         return_value = dse_conf_backup(li, dest_dir);
-
-    return_value = dblayer_txn_abort(li,&txn);
+bail:
+    slapi_ch_free((void **)&listA);
+    slapi_ch_free((void **)&listB);
+    dblayer_txn_abort(li,&txn);
+    slapi_ch_free_string(&changelogdir);
     return return_value;
 }
 
@@ -5560,7 +5740,7 @@ static int dblayer_fri_restore(char *home_dir, char *src_dir, dblayer_private *p
 int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bename)
 {
     dblayer_private *priv = NULL;
-    int return_value  = 0;
+    int return_value = 0;
     int tmp_rval;
     char filename1[MAXPATHLEN];
     char filename2[MAXPATHLEN];
@@ -5576,6 +5756,10 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     char *real_src_dir = NULL;
     int frirestore = 0; /* Is a an FRI/single instance restore. 0 for no, 1 for yes */
     struct stat sbuf;
+    char *changelogdir = NULL;
+    char *restore_dir = NULL;
+    char *prefix = NULL;
+    int cnt = 1;
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -5595,8 +5779,8 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     
     if (NULL == home_dir || '\0' == *home_dir)
     {
-        LDAPDebug(LDAP_DEBUG_ANY, 
-            "Restore failed due to missing db home directory info\n", 0, 0, 0);
+        LDAPDebug0Args(LDAP_DEBUG_ANY, 
+                       "Restore: missing db home directory info\n");
         return -1;
     }
 
@@ -5605,27 +5789,27 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     /* We check on the source staging area, no point in going further if it
      * isn't there */
     if (stat(src_dir, &sbuf) < 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "restore: backup directory %s does not "
-                  "exist.\n", src_dir, 0, 0);
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "Restore: backup directory %s does not "
+                      "exist.\n", src_dir);
         if (task) {
-            slapi_task_log_notice(task,
-                    "Backup directory %s does not exist.\n", src_dir);
+            slapi_task_log_notice(task, "Restore: backup directory %s does not "
+                      "exist.\n", src_dir);
         }
         return LDAP_UNWILLING_TO_PERFORM;
     } else if (!S_ISDIR(sbuf.st_mode)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "restore: backup directory %s is not "
-                  "a directory.\n", src_dir, 0, 0);
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "Restore: backup directory %s is not "
+                      "a directory.\n", src_dir);
         if (task) {
-            slapi_task_log_notice(task,
-                    "Backup directory %s is not a directory.\n", src_dir);
+            slapi_task_log_notice(task, "Restore: backup directory %s is not "
+                      "a directory.\n", src_dir);
         }
         return LDAP_UNWILLING_TO_PERFORM;
     }
     if (!dbversion_exists(li, src_dir)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "restore: backup directory %s does not "
-                  "contain a complete backup\n", src_dir, 0, 0);
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "Restore: backup directory %s does not "
+                      "contain a complete backup\n", src_dir);
         if (task) {
-            slapi_task_log_notice(task, "Backup directory %s does not "
+            slapi_task_log_notice(task, "Restore: backup directory %s does not "
                                   "contain a complete backup", src_dir );
         }
         return LDAP_UNWILLING_TO_PERFORM;
@@ -5646,34 +5830,50 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         while ((direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))
             && direntry->name)
         {
-            PR_snprintf(filename1, MAXPATHLEN, "%s/%s", src_dir, direntry->name);
+            PR_snprintf(filename1, sizeof(filename1), "%s/%s",
+                                                      src_dir, direntry->name);
             if(!frirestore || strcmp(direntry->name,bename)==0)
             {
                 tmp_rval = PR_GetFileInfo(filename1, &info);
                 if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
+                    /* Is it CHANGELOG_BACKUPDIR? */
+                    if (0 == strcmp(CHANGELOG_BACKUPDIR, direntry->name)) {
+                        /* Yes, this is a changelog backup. */
+                        /* Get the changelog path */
+                        _dblayer_get_changelogdir(li, &changelogdir);
+                        continue;
+                    }
                     inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
                     if ( inst == NULL)
                     {
-                        LDAPDebug(LDAP_DEBUG_ANY,
-                         "ERROR: target server has no %s configured\n", direntry->name, 0, 0);
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                "Restore: target server has no %s configured\n",
+                                direntry->name);
                         if (task) {
                             slapi_task_log_notice(task,
-                            "ERROR: target server has no %s configured\n", direntry->name);
+                                "Restore: target server has no %s configured\n",
+                                direntry->name);
                         }
                         PR_CloseDir(dirhandle);
-                        return LDAP_UNWILLING_TO_PERFORM;
+                        return_value = LDAP_UNWILLING_TO_PERFORM;
+                        goto error_out;
                     }
 
                     if (slapd_comp_path(src_dir, inst->inst_parent_dir_name)
                         == 0) {
-                        LDAPDebug(LDAP_DEBUG_ANY,
-                                  "ERROR: backup dir %s and target dir %s are identical\n", src_dir, inst->inst_parent_dir_name, 0);
+                        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                "Restore: backup dir %s and target dir %s "
+                                "are identical\n",
+                                src_dir, inst->inst_parent_dir_name);
                         if (task) {
                             slapi_task_log_notice(task,
-                                  "ERROR: backup dir %s and target dir %s are identical\n", src_dir, inst->inst_parent_dir_name);
+                                "Restore: backup dir %s and target dir %s "
+                                "are identical\n",
+                                src_dir, inst->inst_parent_dir_name);
                         }
                         PR_CloseDir(dirhandle);
-                        return LDAP_UNWILLING_TO_PERFORM;
+                        return_value = LDAP_UNWILLING_TO_PERFORM;
+                        goto error_out;
                     }
                 }
             }
@@ -5682,10 +5882,10 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     }
 
     /* We delete the existing database */
-
-    return_value = dblayer_delete_database_ex(li, bename);  
+    /* changelogdir is taken care only when it's not NULL. */
+    return_value = dblayer_delete_database_ex(li, bename, changelogdir);
     if (return_value) {
-        return return_value;
+        goto error_out;
     }
 
     if (frirestore) /*if we are restoring a single backend*/
@@ -5693,7 +5893,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         char *new_src_dir = NULL;
         return_value = dblayer_fri_restore(home_dir,src_dir,priv,task,&new_src_dir,bename);
         if (return_value) {
-            return return_value;
+            goto error_out;
         }
         /* Now modify the src_dir to point to our recovery area and carry on as if nothing had happened... */
         real_src_dir = new_src_dir;
@@ -5707,91 +5907,141 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     /* We want to treat the logfiles specially: if there's
      * a log file directory configured, copy the logfiles there
      * rather than to the db dirctory */
-    if (0 == return_value) {
-        dirhandle = PR_OpenDir(real_src_dir);
-        if (NULL != dirhandle) {
-            char *restore_dir;
-            char *prefix = NULL;
-            int cnt = 1;
+    dirhandle = PR_OpenDir(real_src_dir);
+    if (NULL == dirhandle) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+            "Restore: failed to open the directory \"%s\"\n", real_src_dir);
+        if (task) {
+            slapi_task_log_notice(task,
+                "Restore: failed to open the directory \"%s\"\n", real_src_dir);
+        }
+        return_value = -1;
+        goto error_out;
+    }
+    
+    while (NULL !=
+           (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+        if (NULL == direntry->name) {
+            /* NSPR doesn't behave like the docs say it should */
+            break;
+        }
 
-        
-            while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
-                if (NULL == direntry->name) {
-                    /* NSPR doesn't behave like the docs say it should */
-                    break;
-                }
-
-
-                /* Is this entry a directory? */
-                PR_snprintf(filename1, MAXPATHLEN, "%s/%s", real_src_dir, direntry->name);
-                tmp_rval = PR_GetFileInfo(filename1, &info);
-                if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
-                    /* This is an instance directory. It contains the *.db#
-                     * files for the backend instance.
-                     * restore directory is supposed to be where the backend
-                     * directory is located.
-                     */
-
-                    inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
-                    if (inst == NULL)
-                        continue;
-
-                    restore_dir = inst->inst_parent_dir_name;
-                    /* If we're doing a partial restore, we need to reset the LSNs on the data files */
-                    if (dblayer_copy_directory(li, task, filename1,
-                        restore_dir, 1 /* restore */, &cnt, 0, 0, (bename) ? 1 : 0) == 0)
-                        continue;
-                    else
-                    {
-                        LDAPDebug(LDAP_DEBUG_ANY,
-                                  "restore: failed to copy directory %s\n",
-                                  filename1, 0, 0);
+        /* Is this entry a directory? */
+        PR_snprintf(filename1, sizeof(filename1), "%s/%s",
+                                                  real_src_dir, direntry->name);
+        tmp_rval = PR_GetFileInfo(filename1, &info);
+        if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
+            /* This is an instance directory. It contains the *.db#
+             * files for the backend instance.
+             * restore directory is supposed to be where the backend
+             * directory is located.
+             */
+            if (0 == strcmp(CHANGELOG_BACKUPDIR, direntry->name)) {
+                if (changelogdir) {
+                    char *cldirname = PL_strrchr(changelogdir, '/');
+                    char *p = filename1 + strlen(filename1);
+                    if (NULL == cldirname) {
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "Restore: broken changelog dir path %s\n",
+                              changelogdir);
                         if (task) {
                             slapi_task_log_notice(task,
-                                "Failed to copy directory %s", filename1);
+                                 "Restore: broken changelog dir path %s\n",
+                                 changelogdir);
                         }
-                        break;
+                        goto error_out;
                     }
+                    PR_snprintf(p, sizeof(filename1) - (p - filename1),
+                                    "/%s", cldirname+1);
+                    /* Get the parent dir of changelogdir */
+                    *cldirname = '\0';
+                    return_value = dblayer_copy_directory(li, task, filename1,
+                                  changelogdir, 1 /* restore */, &cnt, 0, 0, 0);
+                    *cldirname = '/';
+                    if (return_value) {
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "Restore: failed to copy directory %s\n",
+                              filename1);
+                        if (task) {
+                            slapi_task_log_notice(task,
+                                "Restore: failed to copy directory %s", 
+                                filename1);
+                        }
+                        goto error_out;
+                    }
+                    /* Copy DBVERSION */
+                    p = filename1 + strlen(filename1);
+                    PR_snprintf(p, sizeof(filename1) - (p - filename1),
+                                              "/%s", DBVERSION_FILENAME);
+                    PR_snprintf(filename2, sizeof(filename2), "%s/%s",
+                                              changelogdir, DBVERSION_FILENAME);
+                    return_value = dblayer_copyfile(filename1, filename2,
+                                                    0, priv->dblayer_file_mode);
                 }
-
-                if (doskip(direntry->name))
-                    continue;
-
-                /* Is this a log file ? */
-                /* Log files have names of the form "log.xxxxx" */
-                /* We detect these by looking for the prefix "log." and
-                 * the lack of the ".db#" suffix */
-                is_a_logfile = dblayer_is_logfilename(direntry->name);
-                if (is_a_logfile) {
-                    seen_logfiles = 1;
-                }
-                if (is_a_logfile && (NULL != priv->dblayer_log_directory) &&
-                    (0 != strlen(priv->dblayer_log_directory)) ) {
-                    prefix = priv->dblayer_log_directory;
-                } else {
-                    prefix = home_dir;
-                }
-                mkdir_p(prefix, 0700);
-                PR_snprintf(filename1, MAXPATHLEN, "%s/%s", real_src_dir, direntry->name);
-                PR_snprintf(filename2, MAXPATHLEN, "%s/%s", prefix, direntry->name);
-                LDAPDebug(LDAP_DEBUG_ANY, "Restoring file %d (%s)\n",
-                          cnt, filename2, 0);
-                if (task) {
-                    slapi_task_log_notice(task, "Restoring file %d (%s)",
-                                          cnt, filename2);
-                    slapi_task_log_status(task, "Restoring file %d (%s)",
-                                          cnt, filename2);
-                }
-                return_value = dblayer_copyfile(filename1, filename2, 0,
-                                                priv->dblayer_file_mode);
-                if (0 > return_value)
-                    break;
-                
-                cnt++;
+                continue;
             }
-            PR_CloseDir(dirhandle);
+
+            inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
+            if (inst == NULL)
+                continue;
+
+            restore_dir = inst->inst_parent_dir_name;
+            /* If we're doing a partial restore, we need to reset the LSNs on the data files */
+            if (dblayer_copy_directory(li, task, filename1,
+                restore_dir, 1 /* restore */, &cnt, 0, 0, (bename) ? 1 : 0) == 0)
+                continue;
+            else
+            {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "Restore: failed to copy directory %s\n",
+                              filename1);
+                if (task) {
+                    slapi_task_log_notice(task,
+                        "Restore: failed to copy directory %s", filename1);
+                }
+                goto error_out;
+            }
         }
+
+        if (doskip(direntry->name))
+            continue;
+
+        /* Is this a log file ? */
+        /* Log files have names of the form "log.xxxxx" */
+        /* We detect these by looking for the prefix "log." and
+         * the lack of the ".db#" suffix */
+        is_a_logfile = dblayer_is_logfilename(direntry->name);
+        if (is_a_logfile) {
+            seen_logfiles = 1;
+        }
+        if (is_a_logfile && (NULL != priv->dblayer_log_directory) &&
+            (0 != strlen(priv->dblayer_log_directory)) ) {
+            prefix = priv->dblayer_log_directory;
+        } else {
+            prefix = home_dir;
+        }
+        mkdir_p(prefix, 0700);
+        PR_snprintf(filename1, sizeof(filename1), "%s/%s",
+                                                  real_src_dir, direntry->name);
+        PR_snprintf(filename2, sizeof(filename2), "%s/%s",
+                                                  prefix, direntry->name);
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "Restoring file %d (%s)\n",
+                       cnt, filename2);
+        if (task) {
+            slapi_task_log_notice(task, "Restoring file %d (%s)",
+                                  cnt, filename2);
+            slapi_task_log_status(task, "Restoring file %d (%s)",
+                                  cnt, filename2);
+        }
+        return_value = dblayer_copyfile(filename1, filename2, 0,
+                                        priv->dblayer_file_mode);
+        if (0 > return_value) {
+            goto error_out;
+        }
+        cnt++;
     }
+    PR_CloseDir(dirhandle);
+
     /* We're done ! */
 
     /* [605024] check the DBVERSION and reset idl-switch if needed */
@@ -5802,8 +6052,8 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
 
         if (dbversion_read(li, home_dir, &ldbmversion, &dataversion) != 0)
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion "
-                          "file in %s\n", home_dir, 0, 0);
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion "
+                          "file in %s\n", home_dir);
         }
         else
         {
@@ -5862,10 +6112,10 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
 
     tmp_rval = dblayer_start(li, dbmode);
     if (0 != tmp_rval) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-                  "dblayer_restore: Failed to init database\n", 0, 0, 0);
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                       "Restore: failed to init database\n");
         if (task) {
-            slapi_task_log_notice(task, "Failed to init database");
+            slapi_task_log_notice(task, "Restore: failed to init database");
         }
         return_value = tmp_rval;
         goto error_out;
@@ -5875,16 +6125,16 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         /* check the DSE_* files, if any */
         tmp_rval = dse_conf_verify(li, real_src_dir, bename);
         if (0 != tmp_rval)
-            LDAPDebug(LDAP_DEBUG_ANY,
-                "Warning: Unable to verify the index configuration\n", 0, 0, 0);
+            LDAPDebug0Args(LDAP_DEBUG_ANY,
+                        "Warning: Unable to verify the index configuration\n");
     }
 
     if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* command line: close the database down again */
         tmp_rval = dblayer_close(li, dbmode);
         if (0 != tmp_rval) {
-            LDAPDebug(LDAP_DEBUG_ANY,
-                      "dblayer_restore: Failed to close database\n", 0, 0, 0);
+            LDAPDebug0Args(LDAP_DEBUG_ANY,
+                           "Restore: Failed to close database\n");
         }
     } else {
         allinstance_set_busy(li); /* on-line mode */
@@ -5894,20 +6144,24 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
 
 error_out:
     /* Free the restore src dir, but only if we allocated it above */
-    if (real_src_dir != src_dir) {
+    if (real_src_dir && (real_src_dir != src_dir)) {
         /* If this was an FRI restore and the staging area exists, go ahead and remove it */
         if (frirestore && PR_Access(real_src_dir, PR_ACCESS_EXISTS) == PR_SUCCESS)
         {
             int ret1 = 0;
-            LDAPDebug(LDAP_DEBUG_ANY, "dblayer_restore: Removing staging area %s.\n",real_src_dir, 0, 0);
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "Restore: Removing staging area %s.\n", real_src_dir);
             ret1 = ldbm_delete_dirs(real_src_dir);
             if (ret1)
             {
-                LDAPDebug(LDAP_DEBUG_ANY, "dblayer_restore: Removal of staging area %s failed!\n", real_src_dir, 0, 0);
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "Restore: Removal of staging area %s failed!\n",
+                              real_src_dir);
             }
         }
-        slapi_ch_free((void**)&real_src_dir);
+        slapi_ch_free_string(&real_src_dir);
     }
+    slapi_ch_free_string(&changelogdir);
     return return_value;
 }
 
@@ -6136,3 +6390,60 @@ void dblayer_set_recovery_required(struct ldbminfo *li)
     li->li_dblayer_private->dblayer_recovery_required = 1;
 }
 
+int
+ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
+{
+    int rc = -1;
+    if (!be || !info) {
+        return rc;
+    }
+
+    switch (cmd) {
+    case BACK_INFO_DBENV:
+    {
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        if (li) {
+            dblayer_private *prv = (dblayer_private*)li->li_dblayer_private;
+            if (prv && prv->dblayer_env && prv->dblayer_env->dblayer_DB_ENV) {
+                *(DB_ENV **)info = prv->dblayer_env->dblayer_DB_ENV;
+                rc = 0;
+            }
+        }
+        break;
+    }
+    case BACK_INFO_INDEXPAGESIZE:
+    {
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        if (li) {
+            dblayer_private *prv = (dblayer_private*)li->li_dblayer_private;
+            if (prv && prv->dblayer_index_page_size) {
+                *(size_t *)info = prv->dblayer_index_page_size;
+            } else {
+                *(size_t *)info = DBLAYER_INDEX_PAGESIZE;
+            }
+            rc = 0;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    return rc;
+}
+
+int
+ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info)
+{
+    int rc = -1;
+    if (!be || !info) {
+        return rc;
+    }
+
+    switch (cmd) {
+    default:
+        break;
+    }
+
+    return rc;
+}

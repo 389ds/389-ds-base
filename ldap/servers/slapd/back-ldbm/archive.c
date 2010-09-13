@@ -151,7 +151,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
             }
         }
 
-        /* now take down ALL BACKENDS */
+        /* now take down ALL BACKENDS and changelog */
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
@@ -167,6 +167,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                 cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
             }
         }
+        plugin_call_plugins (pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN);
         /* now we know nobody's using any of the backend instances, so we
          * can shutdown the dblayer -- this closes all instances too.
          * Use DBLAYER_RESTORE_MODE to prevent loss of perfctr memory.
@@ -246,7 +247,8 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                 goto out;
             }
         }
-        /* bring all backends back online */
+        /* bring all backends and changelog back online */
+        plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_OPEN_FN);
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
@@ -316,8 +318,6 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
     directory = rel2abspath(rawdirectory);
 
     if (stat(directory, &sbuf) == 0) {
-        int baklen = 0;
-
         if (slapd_comp_path(directory, li->li_directory) == 0) {
             LDAPDebug(LDAP_DEBUG_ANY,
                 "db2archive: Cannot archive to the db directory.\n", 0, 0, 0);
@@ -329,9 +329,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
             goto out;
         }
 
-        baklen = strlen(directory) + 5; /* ".bak\0" */
-        dir_bak = slapi_ch_malloc(baklen);
-        PR_snprintf(dir_bak, baklen, "%s.bak", directory);
+        dir_bak = slapi_ch_smprintf("%s.bak", directory);
         LDAPDebug(LDAP_DEBUG_ANY, "db2archive: %s exists. Renaming to %s\n",
                                   directory, dir_bak, 0);
         if (task) {
@@ -442,22 +440,33 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         }
     }
 err:
-    if (return_value != 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Rename %s back to %s\n",
-                                  dir_bak, directory, 0);
-        if (task) {
-            slapi_task_log_notice(task, "Rename %s back to %s",
-                                        dir_bak, directory);
+    if (return_value) {
+        if (dir_bak) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                           "db2archive failed: renaming %s back to %s\n",
+                           dir_bak, directory);
+            if (task) {
+                slapi_task_log_notice(task,
+                                "db2archive failed: renaming %s back to %s",
+                                dir_bak, directory);
+            }
+        } else {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "db2archive failed: removing %s\n", directory);
+            if (task) {
+                slapi_task_log_notice(task, "db2archive failed: removing %s",
+                                      directory);
+            }
         }
         ldbm_delete_dirs(directory);
-        if (PR_SUCCESS != PR_Rename(dir_bak, directory)) {
+        if (dir_bak && (PR_SUCCESS != PR_Rename(dir_bak, directory))) {
             PRErrorCode prerr = PR_GetError();
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
                             "db2archive: Failed to rename \"%s\" to \"%s\".\n",
-                            dir_bak, directory, 0);
-            LDAPDebug(LDAP_DEBUG_ANY,
+                            dir_bak, directory);
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
                             SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                            prerr, slapd_pr_strerror(prerr), 0);
+                            prerr, slapd_pr_strerror(prerr));
             if (task) {
                 slapi_task_log_notice(task,
                             "Failed to rename \"%s\" to \"%s\".",
