@@ -2291,6 +2291,7 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
     Slapi_DN *target_sdn = NULL;
     Slapi_DN dn_newdn;
     Slapi_Backend * new_be = NULL;
+    Slapi_Backend * def_be = defbackend_get_backend();
     Slapi_Entry * new_referral = NULL;
     mapping_tree_node *target_node;
     int index;
@@ -2329,7 +2330,7 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
     {
         /* suffix is a part of mapping tree. We should not free it */
         const Slapi_DN *suffix = slapi_get_suffix_by_dn(target_sdn);
-        if (NULL == suffix)
+        if ((*be != def_be) && (NULL == suffix))
         {
             ret = LDAP_NO_SUCH_OBJECT;
             PR_snprintf(errorbuf, BUFSIZ,
@@ -2337,7 +2338,7 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
                         slapi_sdn_get_dn(target_sdn));
             goto unlock_and_return;
         }
-        if (0 == slapi_sdn_compare(target_sdn, suffix))
+        if (suffix && (0 == slapi_sdn_compare(target_sdn, suffix)))
         {
             /* target_sdn is a suffix */
             const Slapi_DN *new_suffix = NULL;
