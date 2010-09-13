@@ -1728,8 +1728,8 @@ search_easter_egg( Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
     {
 		static int twiddle= -1;
 		char *copy;
-		struct berval bvtype;
-		struct berval bv;
+		struct berval bvtype = {0, NULL};
+		struct berval bv = {0, NULL};
 		int freeval = 0;
 		struct berval *bvals[2];
 		if (twiddle < 0) {
