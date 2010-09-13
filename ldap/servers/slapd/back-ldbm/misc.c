@@ -529,7 +529,8 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
     char *copy = NULL;
     char *tmpptr = NULL;
     char *startptr = NULL;
-    struct berval tmptype, bvvalue;
+    struct berval tmptype = {0, NULL};
+    struct berval bvvalue = {0, NULL};
     int freeval = 0;
     char *value = NULL;
     int idx = 0;
