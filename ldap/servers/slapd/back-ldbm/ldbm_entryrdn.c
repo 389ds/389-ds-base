@@ -1189,6 +1189,9 @@ entryrdn_get_parent(backend *be,
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                                      "--> entryrdn_get_parent\n");
 
+    /* Initialize data */
+    memset(&data, 0, sizeof(data));
+
     if (NULL == be || NULL == rdn || 0 == id || NULL == prdn || NULL == pid) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                     "entryrdn_get_parent: Param error: Empty %s\n",
@@ -1232,7 +1235,6 @@ entryrdn_get_parent(backend *be,
         slapi_ch_free_string(&orignrdn);
     }
 
-    memset(&data, 0, sizeof(data));
     data.flags = DB_DBT_MALLOC;
 
     /* Setting up a key for the node to get its parent */
