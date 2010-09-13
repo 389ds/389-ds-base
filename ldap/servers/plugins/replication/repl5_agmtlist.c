@@ -75,7 +75,7 @@ typedef struct agmt_wrapper {
 Repl_Agmt *
 agmtlist_get_by_agmt_name(const Slapi_DN *agmt_name)
 {
-	Repl_Agmt *ra;
+	Repl_Agmt *ra = NULL;
 	Object *ro;
 
 	for (ro = objset_first_obj(agmt_set); NULL != ro;
@@ -634,10 +634,12 @@ agmtlist_shutdown()
 	ro = objset_first_obj(agmt_set);
 	while (NULL != ro)
 	{
-		next_ro = objset_next_obj(agmt_set, ro);
 		ra = (Repl_Agmt *)object_get_data(ro);
 		agmt_stop(ra);
-        agmt_update_consumer_ruv (ra);
+		agmt_update_consumer_ruv (ra);
+		next_ro = objset_next_obj(agmt_set, ro);
+		/* Object ro was released in objset_next_obj, 
+		 * but the address ro can be still used to remove ro from objset. */
 		objset_remove_obj(agmt_set, ro);
 		ro = next_ro;
 	}
