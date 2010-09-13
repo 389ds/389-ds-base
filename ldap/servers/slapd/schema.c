@@ -2653,7 +2653,9 @@ clean_up_and_return:
 				if ( tmpocp == curlisthead ) {
 					curlisthead = tmpocp->oc_next;
 				} else {
-					prevocp->oc_next = tmpocp->oc_next;
+					if (prevocp) {
+						prevocp->oc_next = tmpocp->oc_next;
+					}
 				}
 				nextocp = tmpocp->oc_next;
 				oc_free( &tmpocp );
