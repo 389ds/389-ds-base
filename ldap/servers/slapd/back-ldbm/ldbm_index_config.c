@@ -396,7 +396,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     const struct berval *attrValue;
     struct attrinfo *ainfo = NULL;
     LDAPMod **mods;
-    char *arglist[4];
+    char *arglist[4] = {0};
     char *config_attr;
     char *origIndexTypes, *origMatchingRules;
     char **origIndexTypesArray = NULL;
