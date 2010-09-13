@@ -178,7 +178,7 @@ attr_index_config(
 {
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	int	i, j;
-	char	**attrs;
+	char	**attrs = NULL;
 	char	**indexes = NULL;
 	char	**index_rules = NULL;
 	struct attrinfo	*a;
