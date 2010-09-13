@@ -1086,7 +1086,7 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
         } else {
             cmp = stricmp(a->name, attribname(b));
         }
-        if (cmp < 0) {
+        if ((cmp < 0) && (a != NULL)) {
             /* a < b: a is deleted */
             attrname = a->name;
             fprintf(edf3, "delete: %s\n-\n", attrname);
