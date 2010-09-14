@@ -980,6 +980,12 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	Slapi_Value *to_dn_val = slapi_value_new_string(op_to);
 	Slapi_Value *this_dn_val = slapi_value_new_string(op_this);
 
+	if (config == NULL) {
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+				"memberof_modop_one_replace_r: NULL config parameter");
+		goto bail;
+	}
+
 	/* determine if this is a group op or single entry */
 	op_to_sdn = slapi_sdn_new_dn_byref(op_to);
 	slapi_search_internal_get_entry( op_to_sdn, config->groupattrs,
@@ -1076,7 +1082,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		"memberof_modop_one_replace_r: %s %s in %s\n"
 		,op_str, op_this, op_to);
 
-	if(config && config->group_filter && !slapi_filter_test_simple(e, config->group_filter))
+	if(config->group_filter && !slapi_filter_test_simple(e, config->group_filter))
 	{
 		/* group */
 		Slapi_Value *ll_dn_val = 0;
