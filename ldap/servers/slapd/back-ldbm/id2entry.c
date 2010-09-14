@@ -60,6 +60,7 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     int    len, rc;
     char   temp_id[sizeof(ID)];
     struct backentry *encrypted_entry = NULL;
+    char *entrydn = NULL;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> id2entry_add( %lu, \"%s\" )\n",
                                  (u_long)e->ep_id, backentry_get_ndn(e), 0 );
@@ -92,6 +93,7 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
         memset(&data, 0, sizeof(data));
         if (entryrdn_get_switch())
         {
+            Slapi_Attr *eattr = NULL;
             struct backdn *oldbdn = NULL;
             Slapi_DN *sdn =
                           slapi_sdn_dup(slapi_entry_get_sdn_const(e->ep_entry));
@@ -100,7 +102,14 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
 
             /* If the ID already exists in the DN cache, replace it. */
             if (CACHE_ADD( &inst->inst_dncache, bdn, &oldbdn ) == 1) {
-                cache_replace( &inst->inst_dncache, oldbdn, bdn );
+                if (slapi_sdn_compare(sdn, oldbdn->dn_sdn)) {
+                    if (cache_replace( &inst->inst_dncache, oldbdn, bdn ) != 0) {
+                        /* The entry was not in the cache for some reason (this
+                         * should not happen since CACHE_ADD said it existed above). */
+                        LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add_ext(): Entry disappeared "
+                                   "from cache (%s)\n", oldbdn->dn_sdn, 0, 0 );
+                    }
+                }
                 CACHE_RETURN(&inst->inst_dncache, &oldbdn); /* to free oldbdn */
             }
 
@@ -108,6 +117,13 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
             LDAPDebug( LDAP_DEBUG_TRACE,
                    "=> id2entry_add (dncache) ( %lu, \"%s\" )\n",
                    (u_long)e->ep_id, slapi_entry_get_dn_const(e->ep_entry), 0 );
+            /* If entrydn exists in the entry, we have to remove it before
+             * writing the entry to the database. */
+            if (0 == slapi_entry_attr_find(e->ep_entry,
+                                           LDBM_ENTRYDN_STR, &eattr)) {
+                /* entrydn exists in the entry.  let's removed it. */
+                slapi_entry_delete_values(e->ep_entry, LDBM_ENTRYDN_STR, NULL);
+            }
         }
         data.dptr = slapi_entry2str_with_options(entry_to_use, &len, options);
         data.dsize = len + 1;
@@ -133,10 +149,54 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
 
     if (0 == rc)
     {
-        /* DBDB the fact that we don't check the return code here is
-         * indicitive that there may be a latent race condition lurking
-         * ---what happens if the entry is already in the cache by this point?
-         */
+        if (entryrdn_get_switch()) {
+            struct backentry *parententry = NULL;
+            ID parentid = slapi_entry_attr_get_ulong(e->ep_entry, "parentid");
+            const char *myrdn = slapi_entry_get_rdn_const(e->ep_entry);
+            const char *parentdn = NULL;
+            char *myparentdn = NULL;
+            Slapi_Attr *eattr = NULL;
+            /* If the parent is in the cache, check the parent's DN and 
+             * adjust to it if they don't match. (bz628300) */
+            if (parentid && myrdn) {
+                parententry = cache_find_id(&inst->inst_cache, parentid);
+                if (parententry) {
+                    parentdn = slapi_entry_get_dn_const(parententry->ep_entry);
+                    if (parentdn) {
+                        myparentdn = 
+                         slapi_dn_parent(slapi_entry_get_dn_const(e->ep_entry));
+                        if (myparentdn && PL_strcmp(parentdn, myparentdn)) {
+                            Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
+                            char *newdn = NULL;
+                            slapi_sdn_done(sdn);
+                            newdn = slapi_ch_smprintf("%s,%s", myrdn, parentdn);
+                            slapi_sdn_init_dn_passin(sdn, newdn);
+                            slapi_sdn_get_ndn(sdn); /* to set ndn */
+                        }
+                        slapi_ch_free_string(&myparentdn);
+                    }
+                    CACHE_RETURN(&inst->inst_cache, &parententry);
+                }
+            }
+            /* 
+             * Adding entrydn attribute value to the entry,
+             * which should be done before adding the entry to the entry cache.
+             * Note: since we removed entrydn from the entry before writing
+             * it to the database, it is guaranteed not in the entry.
+             */
+            /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
+            entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
+            entrydn = slapi_dn_ignore_case(entrydn);
+            slapi_entry_attr_set_charptr (e->ep_entry,
+                                          LDBM_ENTRYDN_STR, entrydn);
+            if (0 == slapi_entry_attr_find(e->ep_entry,
+                                           LDBM_ENTRYDN_STR, &eattr)) {
+                /* now entrydn should exist in the entry */
+                /* Set it to operational attribute */
+                eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
+            }
+            slapi_ch_free_string(&entrydn);
+        }
         /* 
          * For ldbm_back_add and ldbm_back_modify, this entry had been already
          * reserved as a tentative entry.  So, it should be safe.
@@ -208,7 +268,7 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
 }
 
 struct backentry *
-id2entry_ext( backend *be, ID id, back_txn *txn, int *err, int flags  )
+id2entry( backend *be, ID id, back_txn *txn, int *err  )
 {
     ldbm_instance    *inst = (ldbm_instance *) be->be_instance_info;
     DB               *db = NULL;
@@ -350,6 +410,30 @@ id2entry_ext( backend *be, ID id, back_txn *txn, int *err, int flags  )
                             "attrcrypt_decrypt_entry failed in id2entry\n");
         }
         
+        /* 
+         * If return entry exists AND entryrdn switch is on,
+         * add the entrydn value.
+         */
+        if (entryrdn_get_switch()) {
+            Slapi_Attr *eattr = NULL;
+            /* Check if entrydn is in the entry or not */
+            if (slapi_entry_attr_find(e->ep_entry, LDBM_ENTRYDN_STR, &eattr)) {
+                /* entrydn does not exist in the entry */
+                char *entrydn = NULL;
+                /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
+                entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
+                entrydn = slapi_dn_ignore_case(entrydn);
+                slapi_entry_attr_set_charptr (e->ep_entry,
+                                              LDBM_ENTRYDN_STR, entrydn);
+                if (0 == slapi_entry_attr_find(e->ep_entry,
+                                               LDBM_ENTRYDN_STR, &eattr)) {
+                    /* now entrydn should exist in the entry */
+                    /* Set it to operational attribute */
+                    eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
+                }
+                slapi_ch_free_string(&entrydn);
+            }
+        }
         retval = CACHE_ADD( &inst->inst_cache, e, &imposter );
         if (1 == retval) {
             /* This means that someone else put the entry in the cache
@@ -376,29 +460,6 @@ id2entry_ext( backend *be, ID id, back_txn *txn, int *err, int flags  )
     }
 
 bail:
-    /* 
-     * If return entry exists AND adding entrydn is requested AND
-     * entryrdn switch is on, add the entrydn value.
-     */
-    if (e && e->ep_entry && (flags & ID2ENTRY_ADD_ENTRYDN) &&
-        entryrdn_get_switch()) {
-        Slapi_Attr *eattr = NULL;
-        /* Check if entrydn is in the entry or not */
-        if (slapi_entry_attr_find(e->ep_entry, "entrydn", &eattr)) {
-            /* entrydn does not exist in the entry */
-            char *entrydn = NULL;
-            /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
-            entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
-            entrydn = slapi_dn_ignore_case(entrydn);
-            slapi_entry_attr_set_charptr (e->ep_entry, "entrydn", entrydn);
-            if (0 == slapi_entry_attr_find(e->ep_entry, "entrydn", &eattr)) {
-                /* now entrydn should exist in the entry */
-                /* Set it to operational attribute */
-                eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
-            }
-            slapi_ch_free_string(&entrydn);
-        }
-    }
     slapi_ch_free( &(data.data) );
 
     dblayer_release_id2entry( be, db );
@@ -407,10 +468,3 @@ bail:
                     "<= id2entry( %lu ) %p (disk)\n", (u_long)id, e);
     return( e );
 }
-
-struct backentry *
-id2entry( backend *be, ID id, back_txn *txn, int *err  )
-{
-    return id2entry_ext(be, id, txn, err, 0);
-}
-
