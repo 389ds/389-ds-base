@@ -582,7 +582,7 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
                 break;
             }
         }
-        if (be->be_usn_counter) {
+        if (be && be->be_usn_counter) {
             /* get a next USN counter from be_usn_counter; 
              * then minus 1 from it */
             PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRI64 "d",
