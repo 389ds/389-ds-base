@@ -1576,7 +1576,8 @@ struct slapi_note_map {
 };
 
 static struct slapi_note_map notemap[] = {
-	{ SLAPI_OP_NOTE_UNINDEXED,	"U" },
+	{ SLAPI_OP_NOTE_UNINDEXED,   "U" },
+	{ SLAPI_OP_NOTE_SIMPLEPAGED, "P" }
 };
 
 #define SLAPI_NOTEMAP_COUNT  ( sizeof(notemap) / sizeof(struct slapi_note_map))

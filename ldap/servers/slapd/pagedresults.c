@@ -301,6 +301,31 @@ pagedresults_set_with_sort(Connection *conn, int flags)
 }
 
 int
+pagedresults_get_unindexed(Connection *conn)
+{
+    int flags = 0;
+    if (conn) {
+        PR_Lock(conn->c_mutex);
+        flags = conn->c_flags&CONN_FLAG_PAGEDRESULTS_UNINDEXED;
+        PR_Unlock(conn->c_mutex);
+    }
+    return flags;
+}
+
+int
+pagedresults_set_unindexed(Connection *conn)
+{
+    int rc = -1;
+    if (conn) {
+        PR_Lock(conn->c_mutex);
+        conn->c_flags |= CONN_FLAG_PAGEDRESULTS_UNINDEXED;
+        PR_Unlock(conn->c_mutex);
+        rc = 0;
+    }
+    return rc;
+}
+
+int
 pagedresults_get_sort_result_code(Connection *conn)
 {
     int code = 0;

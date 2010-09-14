@@ -1372,6 +1372,8 @@ int pagedresults_get_search_result_set_size_estimate(Connection *conn);
 int pagedresults_set_search_result_set_size_estimate(Connection *conn, int cnt);
 int pagedresults_get_with_sort(Connection *conn);
 int pagedresults_set_with_sort(Connection *conn, int flags);
+int pagedresults_get_unindexed(Connection *conn);
+int pagedresults_set_unindexed(Connection *conn);
 int pagedresults_get_sort_result_code(Connection *conn);
 int pagedresults_set_sort_result_code(Connection *conn, int code);
 int pagedresults_set_timelimit(Connection *conn, time_t timelimit);

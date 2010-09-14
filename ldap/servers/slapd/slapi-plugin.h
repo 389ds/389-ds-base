@@ -5854,6 +5854,7 @@ typedef struct slapi_plugindesc {
 /* Extra notes to be logged within access log RESULT lines */
 #define SLAPI_OPERATION_NOTES			57
 #define SLAPI_OP_NOTE_UNINDEXED		0x01
+#define SLAPI_OP_NOTE_SIMPLEPAGED	0x02
 
 /* Allows controls to be passed before operation object is created */
 #define SLAPI_CONTROLS_ARG			58

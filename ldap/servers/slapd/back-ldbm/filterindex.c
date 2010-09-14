@@ -287,6 +287,7 @@ ava_candidates(
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+            pagedresults_set_unindexed( pb->pb_conn );
         }
 
         /* We don't use valuearray_free here since the valueset, berval
@@ -318,6 +319,7 @@ ava_candidates(
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+            pagedresults_set_unindexed( pb->pb_conn );
         }
          valuearray_free( &ivals );
          LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
@@ -353,6 +355,7 @@ presence_candidates(
     if ( unindexed ) {
         unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        pagedresults_set_unindexed( pb->pb_conn );
     }
 
     if (idl != NULL && ALLIDS(idl) && strcasecmp(type, "nscpentrydn") == 0) {
@@ -458,6 +461,7 @@ extensible_candidates(
                                 unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
                                 slapi_pblock_set( glob_pb,
                                                SLAPI_OPERATION_NOTES, &opnote );
+                                pagedresults_set_unindexed( glob_pb->pb_conn );
                             }
                             if (idl2 == NULL)
                             {
@@ -864,6 +868,7 @@ substring_candidates(
     attr_done(&sattr);
     if ( ivals == NULL || *ivals == NULL ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        pagedresults_set_unindexed( pb->pb_conn );
         LDAPDebug( LDAP_DEBUG_TRACE,
             "<= sub_candidates ALLIDS (no keys)\n", 0, 0, 0 );
         return( idl_allids( be ) );
@@ -876,6 +881,7 @@ substring_candidates(
     idl = keys2idl( be, type, indextype_SUB, ivals, err, &unindexed );
     if ( unindexed ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        pagedresults_set_unindexed( pb->pb_conn );
     }
     valuearray_free( &ivals );
 

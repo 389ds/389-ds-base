@@ -675,6 +675,7 @@ ldbm_back_search( Slapi_PBlock *pb )
         }
 
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+        pagedresults_set_unindexed( pb->pb_conn );
     }
 
     sr->sr_candidates = candidates;

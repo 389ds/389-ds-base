@@ -372,6 +372,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           rc = pagedresults_parse_control_value(ctl_value,
                                                &pagesize, &curr_search_count);
           if (LDAP_SUCCESS == rc) {
+              unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
               operation->o_flags |= OP_FLAG_PAGED_RESULTS;
               pr_be = pagedresults_get_current_be(pb->pb_conn);
               pr_search_result = pagedresults_get_search_result(pb->pb_conn);
@@ -379,6 +380,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                              pagedresults_get_search_result_count(pb->pb_conn);
               estimate = 
                  pagedresults_get_search_result_set_size_estimate(pb->pb_conn);
+              if (pagedresults_get_unindexed(pb->pb_conn)) {
+                  opnote |= SLAPI_OP_NOTE_UNINDEXED;
+              }
+              slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
           } else {
               /* parse paged-results-control failed */
               if (iscritical) { /* return an error since it's critical */
