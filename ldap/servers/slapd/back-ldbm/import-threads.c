@@ -634,7 +634,7 @@ import_producer(void *param)
         }
 
         ep = import_make_backentry(e, id);
-        if (!ep) {
+        if ((ep == NULL) || (ep->ep_entry == NULL)) {
             slapi_entry_free(e);
             goto error;
         }
@@ -2734,7 +2734,7 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
     /* make into backentry */
     ep = import_make_backentry(entry, id);
-    if (!ep) {
+    if ((ep == NULL) || (ep->ep_entry == NULL)) {
         import_abort_all(job, 1);
         PR_Unlock(job->wire_lock);
         return -1;
