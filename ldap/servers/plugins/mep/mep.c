@@ -2021,6 +2021,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
                         "mep_modrdn_post_op: Error "
                         "retrieving post-op entry\n");
+        return 0;
     }
 
     if ((old_dn = mep_get_dn(pb))) {
