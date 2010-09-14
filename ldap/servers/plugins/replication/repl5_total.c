@@ -689,7 +689,7 @@ my_ber_scanf_attr (BerElement *ber, Slapi_Attr **attr, PRBool *deleted)
 
     return 0;
 loser:
-    if (*attr)
+    if (attr && *attr)
         slapi_attr_free (attr);
     if (value)
         slapi_value_free (&value);
