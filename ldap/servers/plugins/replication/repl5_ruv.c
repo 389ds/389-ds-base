@@ -1443,6 +1443,10 @@ ruvInit (RUV **ruv, int initCount)
 {
 	PR_ASSERT (ruv);
 
+	if (ruv == NULL) {
+		return RUV_NSPR_ERROR;
+	}
+
 	/* allocate new RUV */
 	*ruv = (RUV *)slapi_ch_calloc (1, sizeof (RUV));
 
@@ -1457,9 +1461,7 @@ ruvInit (RUV **ruv, int initCount)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 						"ruvInit: failed to create lock\n");
-		if (*ruv) {
-			dl_free(&(*ruv)->elements);
-		}
+		dl_free(&(*ruv)->elements);
 		slapi_ch_free((void**)ruv);
 		return RUV_NSPR_ERROR;
 	}
