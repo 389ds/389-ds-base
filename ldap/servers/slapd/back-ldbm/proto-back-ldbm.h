@@ -217,8 +217,6 @@ int id2entry_add( backend *be, struct backentry *e, back_txn *txn );
 int id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt );
 int id2entry_delete( backend *be, struct backentry *e, back_txn *txn );
 struct backentry * id2entry( backend *be, ID id, back_txn *txn, int *err );
-struct backentry * id2entry_ext( backend *be, ID id, back_txn *txn, int *err, int flags  );
-
 
 /*
  * idl.c

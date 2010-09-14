@@ -575,17 +575,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 	
 	if(is_resurect_operation)
 	{
-		if (!entryrdn_get_switch()) { /* subtree-rename: off */
-			/* add the entrydn operational attributes to the addingentry */
-			add_update_entrydn_operational_attributes(addingentry);
-		}
+		add_update_entrydn_operational_attributes(addingentry);
 	}
 	else if (is_tombstone_operation)
 	{
-		if (!entryrdn_get_switch()) { /* subtree-rename: off */
-			/* Remove the entrydn operational attributes from the addingentry */
-			delete_update_entrydn_operational_attributes(addingentry);
-		}
+		/* Remove the entrydn operational attributes from the addingentry */
+		delete_update_entrydn_operational_attributes(addingentry);
 	}
 	else
 	{
@@ -978,10 +973,8 @@ add_update_entry_operational_attributes(struct backentry *ep, ID pid)
 	bv.bv_len = strlen( buf );
 	entry_replace_values( ep->ep_entry, "entryid", bvp );
 
-    if (!entryrdn_get_switch()) { /* subtree-rename: off */
-		/* add the entrydn operational attribute to the entry. */
-		add_update_entrydn_operational_attributes(ep);
-	}
+	/* add the entrydn operational attribute to the entry. */
+	add_update_entrydn_operational_attributes(ep);
 }
 
 /*

@@ -829,9 +829,6 @@ typedef struct _back_search_result_set
 /* whether we call fat lock or not [608146] */
 #define SERIALLOCK(li)	(li->li_fat_lock)
 
-/* id2entry_ext flags */
-#define ID2ENTRY_ADD_ENTRYDN 0x1
-
 /* 
  * 0: SUCCESS
  * libdb returns negative error codes
