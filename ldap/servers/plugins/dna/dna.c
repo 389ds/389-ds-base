@@ -2861,7 +2861,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
 
 
             if (LDAP_CHANGETYPE_ADD == modtype) {
-                if (config_entry->types && dna_is_multitype_range(config_entry)) {
+                if (dna_is_multitype_range(config_entry)) {
                     /* For a multi-type range, we only generate a value
                      * for types where the magic value is set.  We do not
                      * generate a value for missing types. */
