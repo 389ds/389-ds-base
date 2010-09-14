@@ -276,8 +276,8 @@ ResHash * ResHashCreate(char * name)
     goto done;
 
 error:
-    if (pResHash->treelist && pResHash->treelist->vlist) free(pResHash->treelist->vlist);
-    if (pResHash->treelist) free(pResHash->treelist);
+    if (pResHash && pResHash->treelist && pResHash->treelist->vlist) free(pResHash->treelist->vlist);
+    if (pResHash && pResHash->treelist) free(pResHash->treelist);
     if (pResHash) free(pResHash);
     return NULL;
 
