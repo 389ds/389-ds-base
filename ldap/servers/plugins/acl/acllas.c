@@ -3598,7 +3598,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	normed = slapi_ch_smprintf("%s%s%s%s%s", 
 			 (prefix_len==LDAP_URL_prefix_len)?
 			  LDAP_URL_prefix_core:LDAPS_URL_prefix_core,
-							   hostport, dn, p?"?":"",p?p+1:"");
+							   hostport?hostport:"", dn, p?"?":"",p?p+1:"");
 	if (p) {
 		*p = Q; /* put the Q back in rawdn which will un-null terminate the DN part */
 	}
@@ -3606,7 +3606,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		/* dn was allocated in slapi_dn_normalize_ext */
 		slapi_ch_free_string(&dn);
 	}
-	if ('/' != *hostport) {
+	if (hostport && ('/' != *hostport)) {
 		slapi_ch_free_string(&hostport);
 	}
 	rc = slapi_ldap_url_parse(normed, &ludp, 1, NULL);
