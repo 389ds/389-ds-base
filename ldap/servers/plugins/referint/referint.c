@@ -769,9 +769,7 @@ update_integrity(char **argv, char *origDN,
                 slapi_ch_free_string(&filter);
             }
   
-            if (search_result_pb) {
-                slapi_free_search_results_internal(search_result_pb);
-            }
+            slapi_free_search_results_internal(search_result_pb);
         }
     }
     /* if got here, then everything good rc = 0 */
