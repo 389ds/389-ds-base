@@ -724,7 +724,7 @@ int acl_Parse(void)
 int acl_Parse()
 #endif
 {
-	register ACLSTYPE *aclpvt;	/* top of value stack for $vars */
+	register ACLSTYPE *aclpvt = 0;	/* top of value stack for $vars */
 
 #if defined(__cplusplus) || defined(lint)
 /*
@@ -737,7 +737,6 @@ int acl_Parse()
 		case 1: goto aclerrlab;
 		case 2: goto aclnewstate;
 	}
-	aclpvt = 0;
 #endif
 
 	/*
