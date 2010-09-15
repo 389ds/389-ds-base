@@ -79,6 +79,11 @@ do_modrdn( Slapi_PBlock *pb )
 	int		err = 0, deloldrdn = 0;
 	ber_len_t	len = 0;
 	size_t		dnlen = 0;
+	char		*newdn = NULL;
+	char		*parent = NULL;
+	Slapi_DN	sdn = {0};
+	Slapi_DN	snewdn = {0};
+	Slapi_DN	snewsuperior = {0};
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modrdn\n", 0, 0, 0 );
 
@@ -221,6 +226,38 @@ do_modrdn( Slapi_PBlock *pb )
 	}
 
 	/*
+	 * If newsuperior is myself or my descendent, the modrdn should fail.
+	 * Note: need to check the case newrdn is given, and newsuperior
+	 * uses the newrdn, as well.
+	 */ 
+	/* Both newrdn and dn are already normalized. */
+	parent = slapi_dn_parent(dn);
+	newdn = slapi_ch_smprintf("%s,%s", newrdn, parent);
+	slapi_sdn_set_dn_byref(&sdn, dn);
+	slapi_sdn_set_dn_byref(&snewdn, newdn);
+	slapi_sdn_set_dn_byref(&snewsuperior, newsuperior);
+	if (0 == slapi_sdn_compare(&sdn, &snewsuperior) ||
+	    0 == slapi_sdn_compare(&snewdn, &snewsuperior)) {
+		op_shared_log_error_access(pb, "MODRDN", rawnewsuperior,
+						 "new superior is identical to the entry dn");
+		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+						 "new superior is identical to the entry dn", 0, NULL);
+		goto free_and_return;
+	}
+	if (slapi_sdn_issuffix(&snewsuperior, &sdn) ||
+	    slapi_sdn_issuffix(&snewsuperior, &snewdn)) {
+		/* E.g.,
+		 * newsuperior: ou=sub,ou=people,dc=example,dc=com
+		 * dn: ou=people,dc=example,dc=com
+		 */
+		op_shared_log_error_access(pb, "MODRDN", rawnewsuperior,
+						 "new superior is descendent of the entry");
+		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+						 "new superior is descendent of the entry", 0, NULL);
+		goto free_and_return;
+	}
+
+	/*
 	 * in LDAPv3 there can be optional control extensions on
 	 * the end of an LDAPMessage. we need to read them in and
 	 * pass them to the backend.
@@ -242,12 +279,19 @@ do_modrdn( Slapi_PBlock *pb )
 	slapi_pblock_set( pb, SLAPI_MODRDN_DELOLDRDN, &deloldrdn );
 
 	op_shared_rename(pb, 1 /* pass in ownership of string arguments */ );
-	return;
+	goto ok_return;
 
 free_and_return:
 	slapi_ch_free_string( &dn );
 	slapi_ch_free_string( &newrdn );
 	slapi_ch_free_string( &newsuperior );
+ok_return:
+	slapi_sdn_done(&sdn);
+	slapi_sdn_done(&snewdn);
+	slapi_sdn_done(&snewsuperior);
+	slapi_ch_free_string(&parent);
+	slapi_ch_free_string(&newdn);
+
 	return;
 }
 
@@ -385,7 +429,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	char			**rdns;
 	int				deloldrdn;
 	Slapi_Backend	*be = NULL;
-	Slapi_DN		sdn;
+	Slapi_DN		sdn = {0};
 	Slapi_Mods		smods;
 	char			dnbuf[BUFSIZ];
 	char			newrdnbuf[BUFSIZ];
