@@ -1245,7 +1245,7 @@ putvalue(
     int    valuelen
 )
 {
-    Enc64_t *	b64;
+    Enc64_t *	b64 = NULL;
     char *	lptr;
     char	line[255];
     int	return_code;
@@ -1330,6 +1330,7 @@ putvalue(
     }
 
  return_bit:
+    if (b64) freeEnc64(b64);
     if (tag != NULL) {
         fputs("-\n", fh);
     }
