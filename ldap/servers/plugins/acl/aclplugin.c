@@ -205,6 +205,12 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 
 	aclpb = acl_get_aclpb ( pb, ACLPB_BINDDN_PBLOCK );
 
+	if (aclpb == NULL) {
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name, "aclplugin_preop_common: Error: aclpb is NULL\n" );
+		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
+		return 1;
+	}
+
         /* See if we have initialized already */
         if ( aclpb->aclpb_state & ACLPB_INITIALIZED ) goto done;
 
