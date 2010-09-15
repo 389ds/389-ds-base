@@ -1108,6 +1108,11 @@ linux_check_release(void)
   char osl[128];
   char *cmd = strdup("/bin/uname -r");
 
+  if (cmd == NULL) {
+    printf("ERROR: Unable to allocate memory\n");
+    goto done;
+  }
+
   if (flag_html) printf("<P>\n");
   if (flag_debug) printf("DEBUG  : %s\n",cmd);
   fp = popen(cmd,"r");
