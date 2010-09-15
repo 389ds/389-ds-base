@@ -121,6 +121,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 	char *retoid = NULL;
 	Slapi_DN *replarea_sdn = NULL;
 	struct berval **ruv_bervals = NULL;
+	CSN *current_csn = NULL;
 
 	PR_ASSERT(prp && prot_oid);
 
@@ -176,8 +177,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 	}
 	else
 	{
-		CSN *current_csn = NULL;
-
 		/* we don't want the timer to go off in the middle of an operation */
 		conn_cancel_linger(conn);
 
@@ -276,8 +275,6 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 			}
 
 			/* JCMREPL - Need to extract the referrals from the RUV */
-			csn_free(&current_csn);
-			current_csn = NULL;
 			crc = conn_send_extended_operation(conn,
 				prp->repl90consumer ? REPL_START_NSDS90_REPLICATION_REQUEST_OID :
 				REPL_START_NSDS50_REPLICATION_REQUEST_OID, payload,
@@ -522,6 +519,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 	}
 
 error:
+	csn_free(&current_csn);
 	if (NULL != ruv_bervals)
 		ber_bvecfree(ruv_bervals);
 	if (NULL != replarea_sdn)
