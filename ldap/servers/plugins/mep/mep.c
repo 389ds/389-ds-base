@@ -1631,11 +1631,11 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
 
                 /* Dispose of the test entry */
                 slapi_entry_free(test_entry);
-
-                /* Free the config copy */
-                mep_free_config_entry(&config_copy);
                 break;
             }
+
+            /* Free the config copy */
+            mep_free_config_entry(&config_copy);
         }
         mep_config_unlock();
 
