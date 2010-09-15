@@ -65,14 +65,14 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_copy_file_keybykey\n", 0, 0, 0 );
 
-	if (priv->dblayer_file_mode)
-		mode = priv->dblayer_file_mode;
-	dblayer_set_env_debugging(env, priv);
-
 	if (!env) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Out of memory\n", 0, 0, 0);
 		goto error;
 	}
+
+	if (priv->dblayer_file_mode)
+		mode = priv->dblayer_file_mode;
+	dblayer_set_env_debugging(env, priv);
 
 	/* Open the source file */
 	retval = db_create(&source_file, env, 0);
