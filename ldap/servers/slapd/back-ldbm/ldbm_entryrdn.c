@@ -173,8 +173,8 @@ entryrdn_get_noancestorid()
 int
 entryrdn_compare_dups(DB *db, const DBT *a, const DBT *b)
 {   
-    rdn_elem *elem_a = (rdn_elem *)a->data;
-    rdn_elem *elem_b = (rdn_elem *)b->data;
+    rdn_elem *elem_a = NULL;
+    rdn_elem *elem_b = NULL;
     int delta = 0;
 
     if (NULL == a) {
@@ -186,6 +186,9 @@ entryrdn_compare_dups(DB *db, const DBT *a, const DBT *b)
     } else if (NULL == b) {
         return 1;
     }
+
+    elem_a = (rdn_elem *)a->data;
+    elem_b = (rdn_elem *)b->data;
 
     delta = strcmp((char *)elem_a->rdn_elem_nrdn_rdn,
                    (char *)elem_b->rdn_elem_nrdn_rdn);
