@@ -4607,6 +4607,8 @@ windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *u
 	{
 		PR_smprintf_free(filter_string);
 	}
+
+    if (is_global) slapi_sdn_free(&local_subtree);
     return rc;
 }
 
