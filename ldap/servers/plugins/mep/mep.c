@@ -1514,7 +1514,8 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
 
         if (LDAP_CHANGETYPE_ADD == modop) {
             slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
-        } else {
+
+        } else if (LDAP_CHANGETYPE_MODIFY == modop) {
             /* Fetch the entry being modified so we can
              * create the resulting entry for validation. */
             Slapi_DN *tmp_dn = slapi_sdn_new_dn_byref(dn);
@@ -1541,6 +1542,12 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                  * to let the main server handle it. */
                 goto bailmod;
             }
+
+        } else {
+            /* Refuse other operations. */
+            ret = LDAP_UNWILLING_TO_PERFORM;
+            errstr = slapi_ch_smprintf("Not a valid operation.");
+            goto bail;
         }
 
         if (mep_parse_config_entry(e, 0) != 0) {
