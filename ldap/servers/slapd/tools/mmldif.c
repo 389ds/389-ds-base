@@ -1108,7 +1108,7 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
             } while (num_b <= tot_b && stricmp(attribname(b), attrname) == 0);
             fprintf(edf3, "-\n");
             continue;
-        } else {
+        } else if (a != NULL) {
             /* a == b */
             int nmods = 0;
             attrib_t *begin_b = b;
