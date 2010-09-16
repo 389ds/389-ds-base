@@ -2560,6 +2560,7 @@ _entryrdn_index_read(backend *be,
                         "_entryrdn_index_read: Failed to generate a new elem: "
                         "dn: %s\n", dn);
         slapi_ch_free_string(&dn);
+        slapi_rdn_free(&tmpsrdn);
         goto bail;
     }
     slapi_rdn_free(&tmpsrdn);
@@ -2627,6 +2628,9 @@ _entryrdn_index_read(backend *be,
                         "_entryrdn_index_read: Failed to generate a new elem: "
                         "dn: %s\n", dn);
             slapi_ch_free_string(&dn);
+            if (tmpsrdn != srdn) {
+                slapi_rdn_free(&tmpsrdn);
+            }
             goto bail;
         }
         if (tmpsrdn != srdn) {
