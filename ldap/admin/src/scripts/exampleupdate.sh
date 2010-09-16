@@ -38,11 +38,11 @@
 #
 
 # There are several environment variables passed in:
-my $PRE_STAGE = "pre";
-my $PREINST_STAGE = "preinst";
-my $RUNINST_STAGE = "runinst";
-my $POSTINST_STAGE = "postinst";
-my $POST_STAGE = "post";
+PRE_STAGE="pre";
+PREINST_STAGE="preinst";
+RUNINST_STAGE="runinst";
+POSTINST_STAGE="postinst";
+POST_STAGE="post";
 
 # $DS_UPDATE_STAGE - the current stage of the update - one of
 # pre - called at the beginning of the update
