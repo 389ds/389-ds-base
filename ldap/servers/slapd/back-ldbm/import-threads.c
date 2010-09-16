@@ -636,6 +636,7 @@ import_producer(void *param)
         ep = import_make_backentry(e, id);
         if ((ep == NULL) || (ep->ep_entry == NULL)) {
             slapi_entry_free(e);
+            backentry_free(&ep);
             goto error;
         }
 
