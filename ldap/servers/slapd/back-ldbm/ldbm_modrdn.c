@@ -1598,6 +1598,7 @@ moddn_rename_children(
         }
     }
     slapi_ldap_value_free( newsuperiordns );
+    slapi_ch_free((void**)&child_entry_copies);
     return retval;
 }
 
