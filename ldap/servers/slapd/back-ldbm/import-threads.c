@@ -2736,6 +2736,7 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     ep = import_make_backentry(entry, id);
     if ((ep == NULL) || (ep->ep_entry == NULL)) {
         import_abort_all(job, 1);
+        backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);
         return -1;
     }
