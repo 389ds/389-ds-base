@@ -2363,6 +2363,7 @@ retry_get0:
                         "_entryrdn_delete_key: Failed to generate a parent "
                         "elem: dn: %s\n", dn);
                 slapi_ch_free_string(&dn);
+                slapi_rdn_free(&tmpsrdn);
                 goto bail;
             }
         } else if (parentnrdn) {
