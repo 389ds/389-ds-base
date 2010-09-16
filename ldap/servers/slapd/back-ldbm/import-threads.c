@@ -805,6 +805,7 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
     }
 
     if (job->flags & FLAG_ABORT) {
+        backentry_free(&ep);
         goto bail;
     }
 
@@ -831,6 +832,7 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
             DS_Sleep(sleeptime);
         }
         if (job->flags & FLAG_ABORT) {
+            backentry_free(&ep);
             goto bail;
         }
 
