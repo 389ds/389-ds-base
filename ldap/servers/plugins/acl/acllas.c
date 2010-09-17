@@ -3606,9 +3606,6 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		/* dn was allocated in slapi_dn_normalize_ext */
 		slapi_ch_free_string(&dn);
 	}
-	if (hostport && ('/' != *hostport)) {
-		slapi_ch_free_string(&hostport);
-	}
 	rc = slapi_ldap_url_parse(normed, &ludp, 1, NULL);
 	if (rc) {
 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
@@ -3673,6 +3670,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		result = ACL_FALSE;
 
 done:
+	slapi_ch_free_string(&hostport);
 	ldap_free_urldesc( ludp );
 	slapi_ch_free_string(&normed);
 	slapi_filter_free ( f, 1 ) ;
