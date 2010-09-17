@@ -846,7 +846,11 @@ int acl_Parse()
 					aclv = ACLCOPY(newaclv, aclv, ACLSTYPE);
 				}
 				else
+				{
 					aclnewmax = 0;	/* failed */
+					if (newacls) PERM_FREE(newacls);
+					if (newaclv) PERM_FREE(newaclv);
+				}
 			}
 			else				/* not first time */
 			{
