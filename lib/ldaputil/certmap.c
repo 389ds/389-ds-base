@@ -1472,6 +1472,7 @@ void ldapu_propval_list_free (void *propval_list)
 {
     LDAPUPropValList_t *list = (LDAPUPropValList_t *)propval_list;
     ldapu_list_free(list, ldapu_propval_free);
+    free(list);
 }
 
 int ldapu_certmap_init (const char *config_file,
