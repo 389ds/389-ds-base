@@ -1600,7 +1600,6 @@ config_set_pw_storagescheme( const char *attrname, char *value, char *errorbuf, 
 		}
 	retVal = LDAP_OPERATIONS_ERROR;
 	slapi_ch_free_string(&scheme_list);
-	free_pw_scheme(new_scheme);
 	return retVal;
   }
   else if ( new_scheme->pws_enc == NULL )
@@ -1616,6 +1615,7 @@ config_set_pw_storagescheme( const char *attrname, char *value, char *errorbuf, 
 	}
 	retVal = LDAP_UNWILLING_TO_PERFORM;
 	slapi_ch_free_string(&scheme_list);
+	free_pw_scheme(new_scheme);
 	return retVal;
   }
     
