@@ -320,6 +320,7 @@ str2simple( char *str , int unescape_filter)
 		value[len] = savechar;
 		if (!r) {
 		    slapi_filter_free(f, 1);
+		    slapi_ch_free((void**)&unqstr);
 		    return NULL;
 		}
 		f->f_avvalue.bv_val = unqstr;
