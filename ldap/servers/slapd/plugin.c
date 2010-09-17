@@ -2270,6 +2270,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 				  plugin->plg_initfunc, plugin->plg_name,
 				  plugin->plg_libpath);
         status = -1;
+		slapi_ch_free((void**)&value);
 		goto PLUGIN_CLEANUP;
 	}
 
@@ -2277,8 +2278,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		status = plugin_add_descriptive_attributes( plugin_entry, plugin );
 	}
 
-	if (value)
-		slapi_ch_free((void**)&value);
+	slapi_ch_free((void**)&value);
 
 	if(enabled)
 	{
