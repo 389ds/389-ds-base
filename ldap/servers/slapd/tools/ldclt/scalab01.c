@@ -465,6 +465,13 @@ scalab01_addLogin (
     else
     {
       cur = s1ctx.list;
+
+      /* If cur is NULL, we should just bail and free new. */
+      if (cur == NULL)
+      {
+        goto error;
+      }
+
       while (cur != NULL)
       {
 	if (cur->next == NULL)
@@ -472,15 +479,16 @@ scalab01_addLogin (
 	  cur->next = new;
 	  cur       = NULL; /* Exit loop */
 	}
-	else
-	  if (cur->next->counter >= duration)
-	  {
+	else if (cur->next->counter >= duration)
+	{
 	    new->next = cur->next;
 	    cur->next = new;
 	    cur       = NULL; /* Exit loop */
-	  }
-	  else
+	}
+	else
+	{
 	    cur = cur->next;
+	}
       }
     }
   }
