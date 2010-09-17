@@ -1498,6 +1498,7 @@ static int cos_cache_add_defn(
 out:
 	if(ret < 0)
 	{
+		slapi_ch_free((void**)&theDef);
 		if(dn)
 			cos_cache_del_attrval_list(dn);
 		if(tree)
