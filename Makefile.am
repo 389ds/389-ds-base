@@ -176,6 +176,12 @@ if SELINUX
 POLICY_FC = selinux-built/dirsrv.fc
 endif
 
+if enable_acctpolicy
+LIBACCTPOLICY_PLUGIN = libacctpolicy-plugin.la
+LIBACCTPOLICY_SCHEMA = $(srcdir)/ldap/schema/60acctpolicy.ldif
+enable_bitwise = 1
+endif
+
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
 	libcos-plugin.la libderef-plugin.la libdes-plugin.la libdistrib-plugin.la \
@@ -184,6 +190,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
+	$(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
 
@@ -277,7 +284,8 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60sudo.ldif \
 	$(srcdir)/ldap/schema/60trust.ldif \
 	$(srcdir)/ldap/schema/60nss-ldap.ldif \
-	$(srcdir)/ldap/schema/99user.ldif
+	$(srcdir)/ldap/schema/99user.ldif \
+	$(LIBACCTPOLICY_SCHEMA)
 
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/migrate-ds.pl \
@@ -729,6 +737,18 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 libback_ldbm_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @db_inc@
 libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
 libback_ldbm_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libacctpolicy-plugin
+#------------------------
+libacctpolicy_plugin_la_SOURCES = ldap/servers/plugins/acctpolicy/acct_config.c \
+	ldap/servers/plugins/acctpolicy/acct_init.c \
+	ldap/servers/plugins/acctpolicy/acct_plugin.c \
+	ldap/servers/plugins/acctpolicy/acct_util.c
+
+libacctpolicy_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libacctpolicy_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libacctpolicy_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libacl-plugin

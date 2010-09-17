@@ -1,0 +1,47 @@
+# Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# version 2 as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Contributors:
+# Hewlett-Packard Development Company, L.P.
+#
+# Schema for the account policy plugin
+#
+dn: cn=schema
+##
+## lastLoginTime holds login state in user entries (GeneralizedTime syntax)
+attributeTypes: ( 2.16.840.1.113719.1.1.4.1.35 NAME 'lastLoginTime'
+  DESC 'Last login time'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE USAGE directoryOperation
+  X-ORIGIN 'Account Policy Plugin' )
+##
+## acctPolicySubentry is an an account policy pointer (DN syntax)
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.2.1.2 NAME 'acctPolicySubentry'
+  DESC 'Account policy pointer'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE USAGE directoryOperation
+  X-ORIGIN 'Account Policy Plugin' )
+##
+## accountInactivityLimit specifies inactivity limit in accountPolicy objects
+## (DirectoryString syntax)
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.2.1.3 NAME 'accountInactivityLimit'
+  DESC 'Account inactivity limit'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE
+  X-ORIGIN 'Account Policy Plugin' )
+##
+## accountPolicy is the objectclass of account policy subentries
+objectClasses: ( 1.3.6.1.4.1.11.1.3.2.2.1 NAME 'accountPolicy'
+  DESC 'Account policy entry'
+  SUP top AUXILIARY MAY ( accountInactivityLimit )
+  X-ORIGIN 'Account Policy Plugin' )
+

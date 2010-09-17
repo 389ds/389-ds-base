@@ -2509,7 +2509,8 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
         ((cid != NULL) && (pw_get_componentID() != NULL) && (pw_get_componentID() == cid)) ||
         operation_is_flag_set(op, OP_FLAG_LEGACY_REPLICATION_DN) || /* 4.0 lgacy update */
         operation_is_flag_set(op, OP_FLAG_REPLICATED) || /* 5.0 replication update */
-        operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY); /* 5.1 fix to enable tombstone delete on a R-O consumer */
+        operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY) || /* 5.1 fix to enable tombstone delete on a R-O consumer */
+        operation_is_flag_set(op, SLAPI_OP_FLAG_BYPASS_REFERRALS); /* 6.1 fix to allow internal updates from plugins on R-O consumer */
     if ((target_node->mtn_state == MTN_BACKEND) ||
     (target_node->mtn_state == MTN_CONTAINER ) ||
         ((target_node->mtn_state == MTN_REFERRAL_ON_UPDATE) && 

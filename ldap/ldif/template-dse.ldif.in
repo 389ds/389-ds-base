@@ -955,3 +955,21 @@ objectclass: top
 objectclass: extensibleObject
 cn: tasks
 
+dn: cn=Account Policy Plugin,cn=plugins,cn=config
+objectClass: top
+objectClass: nsSlapdPlugin
+objectClass: extensibleObject
+cn: Account Policy Plugin
+nsslapd-pluginPath: libacctpolicy-plugin
+nsslapd-pluginInitfunc: acct_policy_init
+nsslapd-pluginType: object
+nsslapd-pluginEnabled: off
+nsslapd-plugin-depends-on-type: database
+nsslapd-pluginId: acct-policy
+
+dn: cn=config,cn=Account Policy Plugin,cn=plugins,cn=config
+objectClass: top
+objectClass: extensibleObject
+cn: config
+alwaysrecordlogin: no
+

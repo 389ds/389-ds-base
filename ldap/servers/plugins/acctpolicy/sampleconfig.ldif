@@ -1,0 +1,40 @@
+# Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# version 2 as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Contributors:
+# Hewlett-Packard Development Company, L.P.
+
+dn: cn=Account Policy Plugin,cn=plugins,cn=config
+objectClass: top
+objectClass: nsSlapdPlugin
+objectClass: extensibleObject
+cn: Account Policy Plugin
+nsslapd-pluginPath: /path/to/libacctpolicy-plugin.so
+nsslapd-pluginInitfunc: acct_policy_init
+nsslapd-pluginType: object
+nsslapd-pluginEnabled: on
+nsslapd-plugin-depends-on-type: database
+nsslapd-pluginId: acct-policy
+
+dn: cn=config,cn=Account Policy Plugin,cn=plugins,cn=config
+objectClass: top
+objectClass: extensibleObject
+cn: config
+alwaysrecordlogin: yes
+stateattrname: lastLoginTime
+altstateattrname: createTimestamp
+specattrname: acctPolicySubentry
+limitattrname: accountInactivityLimit
+

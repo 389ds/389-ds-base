@@ -194,6 +194,21 @@ else
 fi
 AM_CONDITIONAL(enable_presence,test "$enable_presence" = "yes")
 
+if test -z "$enable_acctpolicy" ; then
+   enable_acctpolicy=yes # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-acctpolicy)
+AC_ARG_ENABLE(acctpolicy,
+        AS_HELP_STRING([--enable-acctpolicy],
+                       [enable the account policy plugin (default: yes)]))
+if test "$enable_acctpolicy" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_ACCTPOLICY], [1], [enable the account policy plugin])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_acctpolicy,test "$enable_acctpolicy" = "yes")
+
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
