@@ -948,12 +948,10 @@ subtree_candidates(
         } else if (!has_tombstone_filter) {
             *err = ldbm_ancestorid_read(be, NULL, e->ep_id, &descendants);
         }
-        if (descendants) {
-            idl_insert(&descendants, e->ep_id);
-            candidates = idl_intersection(be, candidates, descendants);
-            idl_free(tmp);
-            idl_free(descendants);
-        }
+        idl_insert(&descendants, e->ep_id);
+        candidates = idl_intersection(be, candidates, descendants);
+        idl_free(tmp);
+        idl_free(descendants);
     }
 
     return( candidates );
