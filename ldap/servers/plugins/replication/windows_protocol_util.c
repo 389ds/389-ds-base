@@ -1562,7 +1562,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			if (CONN_OPERATION_FAILED == return_value) {
 				int operation = 0;
 				int error = 0;
-				conn_get_error(prp->conn, &operation, &error);
+				windows_conn_get_error(prp->conn, &operation, &error);
 				/* The remote entry is missing. Let's add the renamed entry. */
 				if (LDAP_NO_SUCH_OBJECT == error) {
 					return_value = process_replay_add(prp,
@@ -4508,7 +4508,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 				int operation = 0;
 				int error = 0;
 				
-				conn_get_error(prp->conn, &operation, &error);
+				windows_conn_get_error(prp->conn, &operation, &error);
 				if (windows_ignore_error_and_keep_going(error))
 				{
 					retval = CONN_OPERATION_SUCCESS;

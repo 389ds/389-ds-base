@@ -1003,9 +1003,9 @@ windows_inc_run(Private_Repl_Protocol *prp)
   /* remove_protocol_callbacks(prp); */
   prp->stopped = 1;
   /* Cancel any linger timer that might be in effect... */
-  conn_cancel_linger(prp->conn);
+  windows_conn_cancel_linger(prp->conn);
   /* ... and disconnect, if currently connected */
-  conn_disconnect(prp->conn);
+  windows_conn_disconnect(prp->conn);
   LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_run\n" );
 }
 
@@ -1309,7 +1309,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				if (CONN_OPERATION_SUCCESS != replay_crc)
 				{
 					int operation, error;
-					conn_get_error(prp->conn, &operation, &error);
+					windows_conn_get_error(prp->conn, &operation, &error);
 					csn_as_string(entry.op->csn, PR_FALSE, csn_str);
 					/* Figure out what to do next */
 					if (CONN_OPERATION_FAILED == replay_crc)
