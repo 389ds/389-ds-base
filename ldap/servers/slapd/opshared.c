@@ -1370,12 +1370,18 @@ compute_limits (Slapi_PBlock *pb)
         }
     }
 
-    if ( isroot ) {
-        timelimit = max_timelimit = -1;    /* no limit */
-    } else if ( requested_timelimit == 0 ) {
-        timelimit = ( max_timelimit == -1 ) ? -1 : max_timelimit;
-    } else if ( max_timelimit == -1 || requested_timelimit < max_timelimit ) {
-        timelimit = requested_timelimit;
+    if ( requested_timelimit ) {
+        /* requested limit should be applied to all (including root) */
+        if ( isroot ) {
+            timelimit = requested_timelimit;
+        } else if ( (max_timelimit == -1) ||
+                    (requested_timelimit < max_timelimit) ) {
+            timelimit = requested_timelimit;
+        } else {
+            timelimit = max_timelimit;
+        }
+    } else if ( isroot ) {
+        timelimit = -1;    /* no limit */
     } else {
         timelimit = max_timelimit;
     }
@@ -1401,12 +1407,18 @@ compute_limits (Slapi_PBlock *pb)
         }
     }
 
-    if ( isroot ) {
-        sizelimit = max_sizelimit = -1;
-    } else if ( requested_sizelimit == 0 ) {
-        sizelimit = ( max_sizelimit == -1 ) ? -1 : max_sizelimit;
-    } else if ( max_sizelimit == -1 || requested_sizelimit < max_sizelimit ) {
-        sizelimit = requested_sizelimit;
+    if ( requested_sizelimit ) {
+        /* requested limit should be applied to all (including root) */
+        if ( isroot ) {
+            sizelimit = requested_sizelimit;
+        } else if ( (max_sizelimit == -1) ||
+                    (requested_sizelimit < max_sizelimit) ) {
+            sizelimit = requested_sizelimit;
+        } else {
+            sizelimit = max_sizelimit;
+        }
+    } else if ( isroot ) {
+        sizelimit = -1;    /* no limit */
     } else {
         sizelimit = max_sizelimit;
     }
