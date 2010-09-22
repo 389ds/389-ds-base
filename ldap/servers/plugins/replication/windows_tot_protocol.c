@@ -120,7 +120,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		goto done;
 	}
 
-	conn_set_timeout(prp->conn, agmt_get_timeout(prp->agmt));
+	windows_conn_set_timeout(prp->conn, agmt_get_timeout(prp->agmt));
 
     /* acquire remote replica */
 	agmt_set_last_init_start(prp->agmt, current_time());
@@ -132,14 +132,14 @@ windows_tot_run(Private_Repl_Protocol *prp)
     if (rc != ACQUIRE_SUCCESS)
     {
 		int optype, ldaprc;
-		conn_get_error(prp->conn, &optype, &ldaprc);
+		windows_conn_get_error(prp->conn, &optype, &ldaprc);
 		agmt_set_last_init_status(prp->agmt, ldaprc,
 				  prp->last_acquire_response_code, NULL);
         goto done;
     }
 	else if (prp->terminate)
     {
-        conn_disconnect(prp->conn);
+        windows_conn_disconnect(prp->conn);
         prp->stopped = 1;
 		goto done;    
     }
@@ -272,7 +272,7 @@ windows_tot_stop(Private_Repl_Protocol *prp)
                          "protocol not stopped after waiting for %d seconds "
 						 "for agreement %s\n", PR_IntervalToSeconds(now-start),
 						 agmt_get_long_name(prp->agmt));
-        conn_disconnect(prp->conn);
+        windows_conn_disconnect(prp->conn);
 		return_value = -1;
 	}
 	else
@@ -383,7 +383,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 
     if (prp->terminate)
     {
-        conn_disconnect(prp->conn);
+        windows_conn_disconnect(prp->conn);
         prp->stopped = 1;
 		((callback_data*)cb_data)->rc = -1;
 		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= send_entry\n" );

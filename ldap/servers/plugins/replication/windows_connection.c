@@ -75,6 +75,8 @@ typedef struct repl_connection
 	int supports_ldapv3; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int supports_ds50_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int supports_ds40_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
+	int supports_ds71_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
+	int supports_ds90_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
 	int linger_time; /* time in seconds to leave an idle connection open */
 	int supports_dirsync; /* 1 if does, 0 if doesn't, -1 if not determined */
 	PRBool linger_active;
