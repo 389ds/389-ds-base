@@ -945,13 +945,17 @@ subtree_candidates(
             *err = entryrdn_get_subordinates(be,
                                          slapi_entry_get_sdn_const(e->ep_entry),
                                          e->ep_id, &descendants, NULL);
+            idl_insert(&descendants, e->ep_id);
+            candidates = idl_intersection(be, candidates, descendants);
+            idl_free(tmp);
+            idl_free(descendants);
         } else if (!has_tombstone_filter) {
             *err = ldbm_ancestorid_read(be, NULL, e->ep_id, &descendants);
-        }
-        idl_insert(&descendants, e->ep_id);
-        candidates = idl_intersection(be, candidates, descendants);
-        idl_free(tmp);
-        idl_free(descendants);
+            idl_insert(&descendants, e->ep_id);
+            candidates = idl_intersection(be, candidates, descendants);
+            idl_free(tmp);
+            idl_free(descendants);
+        } /* else == has_tombstone_filter: do nothing */
     }
 
     return( candidates );
