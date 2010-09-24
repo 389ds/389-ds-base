@@ -962,14 +962,20 @@ int acl_Parse()
 			{
 				register int *aclxi = aclexca;
 
-				while ( ( *aclxi != -1 ) ||
-					( aclxi[1] != acl_state ) )
+				/* The first element of the last pair is -2, so we
+				 * need to make sure we don't increment past it. */
+				while ( (*aclxi != -2) && ((*aclxi != -1) ||
+					(aclxi[1] != acl_state)) )
 				{
 					aclxi += 2;
 				}
-				while ( ( *(aclxi += 2) >= 0 ) &&
-					( *aclxi != aclchar ) )
+
+				while ( (*aclxi != -2) && (*(aclxi += 2) >= 0) &&
+					(*aclxi != aclchar) )
+				{
 					;
+				}
+
 				if ( ( acl_n = aclxi[1] ) < 0 )
 					ACLACCEPT;
 			}
