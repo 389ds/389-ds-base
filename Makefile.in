@@ -1268,7 +1268,6 @@ server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 @enable_dna_TRUE@LIBDNA_PLUGIN = libdna-plugin.la
 @enable_dna_TRUE@enable_dna = 1
 @enable_bitwise_TRUE@LIBBITWISE_PLUGIN = libbitwise-plugin.la
-@enable_acctpolicy_TRUE@enable_bitwise = 1
 @enable_bitwise_TRUE@enable_bitwise = 1
 @enable_presence_TRUE@LIBPRESENCE_PLUGIN = libpresence-plugin.la
 @enable_presence_TRUE@LIBPRESENCE_SCHEMA = $(srcdir)/ldap/schema/10presence.ldif
@@ -1277,6 +1276,7 @@ server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 @SELINUX_TRUE@POLICY_FC = selinux-built/dirsrv.fc
 @enable_acctpolicy_TRUE@LIBACCTPOLICY_PLUGIN = libacctpolicy-plugin.la
 @enable_acctpolicy_TRUE@LIBACCTPOLICY_SCHEMA = $(srcdir)/ldap/schema/60acctpolicy.ldif
+@enable_acctpolicy_TRUE@enable_acctpolicy = 1
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
 	libcos-plugin.la libderef-plugin.la libdes-plugin.la libdistrib-plugin.la \

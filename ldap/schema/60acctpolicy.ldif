@@ -26,7 +26,7 @@ attributeTypes: ( 2.16.840.1.113719.1.1.4.1.35 NAME 'lastLoginTime'
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE USAGE directoryOperation
   X-ORIGIN 'Account Policy Plugin' )
 ##
-## acctPolicySubentry is an an account policy pointer (DN syntax)
+## acctPolicySubentry is an  account policy pointer (DN syntax)
 attributeTypes: ( 1.3.6.1.4.1.11.1.3.2.1.2 NAME 'acctPolicySubentry'
   DESC 'Account policy pointer'
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE USAGE directoryOperation

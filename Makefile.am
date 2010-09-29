@@ -179,7 +179,7 @@ endif
 if enable_acctpolicy
 LIBACCTPOLICY_PLUGIN = libacctpolicy-plugin.la
 LIBACCTPOLICY_SCHEMA = $(srcdir)/ldap/schema/60acctpolicy.ldif
-enable_bitwise = 1
+enable_acctpolicy = 1
 endif
 
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
