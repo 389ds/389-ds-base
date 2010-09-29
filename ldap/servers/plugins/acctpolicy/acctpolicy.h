@@ -18,6 +18,7 @@ Contributors:
 Hewlett-Packard Development Company, L.P.
 ******************************************************************************/
 
+#include <limits.h> /* ULONG_MAX */
 #include "nspr.h"
 
 #define SLAPI_OP_FLAG_BYPASS_REFERRALS  0x40000
@@ -55,6 +56,7 @@ typedef struct acct_plugin_cfg {
 	char* spec_attr_name;
 	char* limit_attr_name;
 	int always_record_login;
+	unsigned long inactivitylimit;
 } acctPluginCfg;
 
 typedef struct accountpolicy {

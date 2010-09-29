@@ -103,8 +103,14 @@ get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
 	if( policy_dn == NULL ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"\"%s\" is not governed by an account inactivity "
-				" policy\n", slapi_entry_get_ndn( target_entry ) );
-		return( rc );
+				"policy subentry\n", slapi_entry_get_ndn( target_entry ) );
+        if (cfg->inactivitylimit != ULONG_MAX) {
+            goto dopolicy;
+        }
+		slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME,
+				"\"%s\" is not governed by an account inactivity "
+				"global policy\n", slapi_entry_get_ndn( target_entry ) );
+        return rc;
 	}
 
 	sdn = slapi_sdn_new_dn_byref( policy_dn );
@@ -125,7 +131,13 @@ get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
         goto done;
 	}
 
+dopolicy:
 	*policy = (acctPolicy *)slapi_ch_calloc( 1, sizeof( acctPolicy ) );
+
+	if ( !policy_entry ) { /* global policy */
+		(*policy)->inactivitylimit = cfg->inactivitylimit;
+		goto done;
+	}
 
 	for( slapi_entry_first_attr( policy_entry, &attr ); attr != NULL;
 			slapi_entry_next_attr( policy_entry, attr, &attr ) ) {

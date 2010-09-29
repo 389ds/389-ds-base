@@ -68,7 +68,8 @@ acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id ) {
 */
 static int
 acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
-	const char *config_val;
+	char *config_val;
+	int rc = 0;
 
 	if( newcfg == NULL ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
@@ -99,17 +100,36 @@ acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
 	}
 
 	config_val = get_attr_string_val( e, CFG_RECORD_LOGIN );
-	if(     strcasecmp( config_val, "true" ) == 0 ||
-		strcasecmp( config_val, "yes" ) == 0 ||
-		strcasecmp( config_val, "on" ) == 0 ||
-		strcasecmp( config_val, "1" ) == 0 ) {
+	if( config_val &&
+		( strcasecmp( config_val, "true" ) == 0 ||
+		  strcasecmp( config_val, "yes" ) == 0 ||
+		  strcasecmp( config_val, "on" ) == 0 ||
+		  strcasecmp( config_val, "1" ) == 0 ) ) {
 		newcfg->always_record_login = 1;
 	} else {
 		newcfg->always_record_login = 0;
 	}
 	slapi_ch_free_string(&config_val);
 
-	return( 0 );
+	/* the default limit if not set in the acctPolicySubentry */
+	config_val = get_attr_string_val( e, newcfg->limit_attr_name );
+	if( config_val ) {
+		char *endptr = NULL;
+		newcfg->inactivitylimit = strtoul(config_val, &endptr, 10);
+		if (endptr && (*endptr != '\0')) {
+			slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
+							 "Failed to parse [%s] from the config entry: [%s] is not a valid unsigned long value\n",
+							 newcfg->limit_attr_name, config_val );
+
+			rc = -1;
+			newcfg->inactivitylimit = ULONG_MAX;
+		}
+	} else {
+		newcfg->inactivitylimit = ULONG_MAX;
+	}
+	slapi_ch_free_string(&config_val);
+
+	return( rc );
 }
 
 /*
