@@ -92,7 +92,7 @@ done:
   with the current time.
 */
 static int
-acct_record_login( Slapi_PBlock *modpb, char *dn )
+acct_record_login( const char *dn )
 {
 	int ldrc;
 	int rc = 0; /* Optimistic default */
@@ -103,6 +103,7 @@ acct_record_login( Slapi_PBlock *modpb, char *dn )
 	char *timestr = NULL;
 	acctPluginCfg *cfg;
 	void *plugin_id;
+	Slapi_PBlock *modpb = NULL;
 
 	cfg = get_config();
 	plugin_id = get_identity();
@@ -142,9 +143,8 @@ acct_record_login( Slapi_PBlock *modpb, char *dn )
 	}
 
 done:
-	if( timestr ) {
-		slapi_ch_free_string( &timestr );
-	}
+	slapi_pblock_destroy( modpb );
+	slapi_ch_free_string( &timestr );
 
 	return( rc );
 }
@@ -222,17 +222,11 @@ done:
 		slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
 	}
 
-	if( target_entry ) {
-		slapi_entry_free( target_entry );
-	}
+	slapi_entry_free( target_entry );
 
-	if( sdn ) {
-		slapi_sdn_free( &sdn );
-	}
+	slapi_sdn_free( &sdn );
 
-	if( policy ) {
-		free_acctpolicy( &policy );
-	}
+	free_acctpolicy( &policy );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
 		"<= acct_bind_preop\n" );
@@ -249,7 +243,6 @@ int
 acct_bind_postop( Slapi_PBlock *pb )
 {
 	char *dn = NULL;
-	Slapi_PBlock *modpb = NULL;
 	int ldrc, tracklogin = 0;
 	int rc = 0; /* Optimistic default */
 	Slapi_DN *sdn = NULL;
@@ -300,7 +293,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 	}
 
 	if( tracklogin ) {
-		rc = acct_record_login( modpb, dn );
+		rc = acct_record_login( dn );
 	}
 
 	/* ...Any additional account policy postops go here... */
@@ -310,21 +303,11 @@ done:
 		slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
 	}
 
-	if( modpb ) {
-		slapi_pblock_destroy( modpb );
-	}
+	slapi_entry_free( target_entry );
 
-	if( target_entry ) {
-		slapi_entry_free( target_entry );
-	}
+	slapi_sdn_free( &sdn );
 
-	if( sdn ) {
-		slapi_sdn_free( &sdn );
-	}
-
-	if( dn ) {
-		slapi_ch_free_string( &dn );
-	}
+	slapi_ch_free_string( &dn );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
 		"<= acct_bind_postop\n" );
