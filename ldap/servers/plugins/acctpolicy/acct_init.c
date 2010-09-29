@@ -69,6 +69,14 @@ int
 acct_policy_init( Slapi_PBlock *pb )
 {
 	void *plugin_id;
+	int enabled;
+
+	slapi_pblock_get(pb, SLAPI_PLUGIN_ENABLED, &enabled);
+
+	if (!enabled) {
+		/* not enabled */
+		return( CALLBACK_OK );
+	}
 
 	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 				SLAPI_PLUGIN_VERSION_01 ) != 0 ||
