@@ -1602,7 +1602,7 @@ static int dna_request_range(struct configEntry *config_entry,
     }
 
     /* Parse response */
-    if (responsedata) {
+    if (responsedata && responsedata->bv_val) {
         respber = ber_init(responsedata);
         if (ber_scanf(respber, "{aa}", &lower_str, &upper_str) == LBER_ERROR) {
             ret = LDAP_PROTOCOL_ERROR;
@@ -3123,7 +3123,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
  ***************************************************/
 static int dna_extend_exop(Slapi_PBlock *pb)
 {
-    int ret = -1;
+    int ret = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
     struct berval *reqdata = NULL;
     BerElement *tmp_bere = NULL;
     char *shared_dn = NULL;
@@ -3152,20 +3152,19 @@ static int dna_extend_exop(Slapi_PBlock *pb)
 
     /* Fetch the request data */
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &reqdata);
-    if (!reqdata) {
+    if (!reqdata || !reqdata->bv_val) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_extend_exop: No request data received.\n");
         goto free_and_return;
     }
 
     /* decode the exop */
-    if ((tmp_bere = ber_init(reqdata)) == NULL) {
-        ret = -1;
+    if ((reqdata->bv_val == NULL) || (tmp_bere = ber_init(reqdata)) == NULL) {
         goto free_and_return;
     }
 
     if (ber_scanf(tmp_bere, "{a}", &shared_dn) == LBER_ERROR) {
-        ret = -1;
+        ret = LDAP_PROTOCOL_ERROR;
         goto free_and_return;
     }
 

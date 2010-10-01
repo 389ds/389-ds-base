@@ -342,7 +342,7 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root,
 	if (NULL == extop_oid ||
 		((strcmp(extop_oid, REPL_START_NSDS50_REPLICATION_REQUEST_OID) != 0) &&
 		(strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) != 0)) ||
-		NULL == extop_value)
+		NULL == extop_value || NULL == extop_value->bv_val)
 	{
 		/* bogus */
 		rc = -1;
@@ -478,7 +478,7 @@ decode_endrepl_extop(Slapi_PBlock *pb, char **repl_root)
 
 	if (NULL == extop_oid ||
 		strcmp(extop_oid, REPL_END_NSDS50_REPLICATION_REQUEST_OID) != 0 ||
-		NULL == extop_value)
+		NULL == extop_value || NULL == extop_value->bv_val)
 	{
 		/* bogus */
 		rc = -1;
@@ -542,7 +542,7 @@ decode_repl_ext_response(struct berval *bvdata, int *response_code,
 	PR_ASSERT(NULL != ruv_bervals);
 
 	if (NULL == bvdata || NULL == response_code || NULL == ruv_bervals ||
-		NULL == data_guid || NULL == data)
+		NULL == data_guid || NULL == data || NULL == bvdata->bv_val)
 	{
 		return_value = -1;
 	}

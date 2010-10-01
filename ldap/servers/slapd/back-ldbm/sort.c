@@ -299,6 +299,10 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 	char *matchrule = NULL;
 	int rc = LDAP_SUCCESS;
 
+	if (NULL == sort_spec_ber->bv_val) {
+		return LDAP_PROTOCOL_ERROR;
+	}
+
 	ber = ber_init(sort_spec_ber);
     if(ber==NULL)
     {

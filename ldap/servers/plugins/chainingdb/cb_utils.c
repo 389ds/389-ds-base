@@ -147,7 +147,8 @@ int cb_forward_operation(Slapi_PBlock * pb ) {
 		struct berval   *ctl_value=NULL;
 		int iscritical=0;
 
-		if (slapi_control_present(ctrls,CB_LDAP_CONTROL_CHAIN_SERVER,&ctl_value,&iscritical)) {
+		if (slapi_control_present(ctrls,CB_LDAP_CONTROL_CHAIN_SERVER,&ctl_value,&iscritical) &&
+			ctl_value && ctl_value->bv_val) {
 
 			/* Decode control data 			*/
 			/* hop           INTEGER (0 .. maxInt) 	*/

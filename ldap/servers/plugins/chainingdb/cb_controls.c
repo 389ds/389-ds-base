@@ -221,7 +221,8 @@ int cb_update_controls( Slapi_PBlock * pb,
             dCount++;
 
         } else
-            if (!strcmp(reqControls[cCount]->ldctl_oid,CB_LDAP_CONTROL_CHAIN_SERVER)) {
+            if (!strcmp(reqControls[cCount]->ldctl_oid,CB_LDAP_CONTROL_CHAIN_SERVER) &&
+                reqControls[cCount]->ldctl_value.bv_val) {
 
             /* Max hop count reached ?                 */
             /* Checked earlier by a call to cb_forward_operation()  */

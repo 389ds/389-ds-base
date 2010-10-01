@@ -612,6 +612,12 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 #endif
 			goto choke;
 		}
+		else if (!controls[i-1]->ldctl_value.bv_val) {
+#ifdef FOR_DEBUGGING
+			return_value = LDAP_CONTROL_NOT_FOUND;
+#endif
+			goto choke;
+		}
 		else
 		{
 			dirsync = slapi_dup_control( controls[i-1]);

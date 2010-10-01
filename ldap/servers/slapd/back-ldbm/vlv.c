@@ -1846,6 +1846,12 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
     vlvp->value.bv_len = 0;
     vlvp->value.bv_val = NULL;
 
+    if (NULL == vlv_spec_ber->bv_val)
+    {
+        return_value= LDAP_OPERATIONS_ERROR;
+        return return_value;
+    }
+
     ber = ber_init(vlv_spec_ber);
     if (ber_scanf(ber, "{ii", &vlvp->beforeCount, &vlvp->afterCount) == LBER_ERROR)
     {

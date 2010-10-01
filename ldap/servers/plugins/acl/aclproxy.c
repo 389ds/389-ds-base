@@ -98,6 +98,10 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 		break;
 	}
 
+	if ( !spec_ber || !spec_ber->bv_val ) {
+		break;
+	}
+
 	/* create_LDAPProxyAuth */
     spec = (LDAPProxyAuth*)slapi_ch_calloc(1,sizeof (LDAPProxyAuth));
 	if (!spec) {

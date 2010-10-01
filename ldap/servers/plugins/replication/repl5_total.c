@@ -729,7 +729,7 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 	if (NULL == extop_oid ||
 		((strcmp(extop_oid, REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID) != 0) && 
 		(strcmp(extop_oid, REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID) != 0)) ||
-		NULL == extop_value)
+		NULL == extop_value || NULL == extop_value->bv_val)
 	{
 		/* Bogus */
 		goto loser;

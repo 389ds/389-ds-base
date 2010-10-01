@@ -527,6 +527,16 @@ passwd_modify_extop( Slapi_PBlock *pb )
 
 	/* Get the ber value of the extended operation */
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
+
+	if (extop_value->bv_val == NULL)
+	{
+		/* The request field wasn't provided.  We'll
+		 * now try to determine the userid and verify
+		 * knowledge of the old password via other
+		 * means.
+		 */
+		goto parse_req_done;
+	}
 	
 	if ((ber = ber_init(extop_value)) == NULL)
 	{
