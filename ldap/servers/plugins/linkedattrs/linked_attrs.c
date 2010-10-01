@@ -1934,7 +1934,8 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
                 linked_attrs_find_config_reverse(slapi_value_get_string(val),
                                                   type, &config);
 
-                if (config) {
+                /* If the new DN is within scope, we should fixup the forward links. */
+                if (config && slapi_dn_issuffix(new_dn, (config->scope))) {
                     Slapi_ValueSet *vals = slapi_valueset_new();
                     slapi_valueset_add_value(vals, val);
 
