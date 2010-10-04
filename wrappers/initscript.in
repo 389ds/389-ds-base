@@ -98,12 +98,17 @@ umask 077
 INSTANCES=""
 
 # Ignore instances that have been removed
-for FILE in `/bin/ls -d $instbase/slapd-* | sed -n '/\.removed$/!p' 2>/dev/null`; do
+for FILE in `/bin/ls -d $instbase/slapd-* 2>/dev/null | sed -n '/\.removed$/!p'`; do
     if [ -d "$FILE" ] ; then
         inst=`echo "$FILE" | sed -e "s|$instbase/slapd-||"`
         INSTANCES="$INSTANCES $inst"
     fi
 done
+
+if [ -z "$INSTANCES" ]; then
+    echo "  *** Error: no $prog instances configured"
+    exit 0
+fi
 
 if [ -n "$2" ]; then
    for I in $INSTANCES; do
@@ -119,116 +124,112 @@ if [ -n "$2" ]; then
 fi
 
 start() {
-    if [ -n "$INSTANCES" ]; then
-        LD_LIBRARY_PATH=@libdir@/@package_name@:@nss_libdir@:@pcre_libdir@
-        export LD_LIBRARY_PATH
-        echo  "Starting $prog: "
-        # Start every slapd instance that isn't already running
-        errors=0
-        successes=0
-        for instance in $INSTANCES; do
-            echo_n "    $instance..."
-            # the server creates pidfile and writes the pid to it when it is fully
-            # started and available to serve clients
-            pidfile=$piddir/slapd-$instance.pid
-            # the server creates startpidfile and writes the pid to just after
-            # the process begins i.e. it received the startup request and didn't
-            # die a horrible death (e.g. shared lib problem, oom, etc.)
-            startpidfile=$piddir/slapd-$instance.startpid
-            server_running=0
-            if [ -f $pidfile ]; then
-                pid=`cat $pidfile`
-                instlockfile="@localstatedir@/lock/@package_name@/slapd-$instance/server/$pid"
-                name=`ps -p $pid | tail -1 | awk '{ print $4 }'`
-                if kill -0 $pid && [ $name = "ns-slapd" ]; then
-                    echo_n " already running"
-                    success; echo
-                    successes=`expr $successes + 1`
-                    server_running=1
-                else
-                    echo " not running, but pid file exists"
-                    echo_n "    $instance... attempting to start anyway"
-                    # Clean up the instance lockfile since we know the pid.  The
-                    # pidfiles will get cleaned up below.
-                    rm -f $instlockfile
-                fi
+    LD_LIBRARY_PATH=@libdir@/@package_name@:@nss_libdir@:@pcre_libdir@
+    export LD_LIBRARY_PATH
+    echo  "Starting $prog: "
+    # Start every slapd instance that isn't already running
+    errors=0
+    successes=0
+    for instance in $INSTANCES; do
+        echo_n "    $instance..."
+        # the server creates pidfile and writes the pid to it when it is fully
+        # started and available to serve clients
+        pidfile=$piddir/slapd-$instance.pid
+        # the server creates startpidfile and writes the pid to just after
+        # the process begins i.e. it received the startup request and didn't
+        # die a horrible death (e.g. shared lib problem, oom, etc.)
+        startpidfile=$piddir/slapd-$instance.startpid
+        server_running=0
+        if [ -f $pidfile ]; then
+            pid=`cat $pidfile`
+            instlockfile="@localstatedir@/lock/@package_name@/slapd-$instance/server/$pid"
+            name=`ps -p $pid | tail -1 | awk '{ print $4 }'`
+            if kill -0 $pid && [ $name = "ns-slapd" ]; then
+                echo_n " already running"
+                success; echo
+                successes=`expr $successes + 1`
+                server_running=1
+            else
+                echo " not running, but pid file exists"
+                echo_n "    $instance... attempting to start anyway"
+                # Clean up the instance lockfile since we know the pid.  The
+                # pidfiles will get cleaned up below.
+                rm -f $instlockfile
             fi
-            server_started=0
-            if [ $server_running -eq 0 ] ; then
-                rm -f $pidfile
-                rm -f $startpidfile
-                fix_pid_dir_ownership $instbase/slapd-$instance
-                # start the directory server in a subshell so that the instance specific
-                # init config environment will not apply to any other instance
-                (
-                    umask 002 # reset umask to allow logs and other files modes to be explicitly set
-                    [ -f @initconfigdir@/@package_name@-$instance ] && . @initconfigdir@/@package_name@-$instance
-                    $exec -D $instbase/slapd-$instance -i $pidfile -w $startpidfile
-                )
-                if [ $? -eq 0 ]; then
-                    server_started=1 # well, perhaps not running, but started ok
-                else
-                    failure; echo
-                    errors=`expr $errors + 1`
-                fi
+        fi
+        server_started=0
+        if [ $server_running -eq 0 ] ; then
+            rm -f $pidfile
+            rm -f $startpidfile
+            fix_pid_dir_ownership $instbase/slapd-$instance
+            # start the directory server in a subshell so that the instance specific
+            # init config environment will not apply to any other instance
+            (
+                umask 002 # reset umask to allow logs and other files modes to be explicitly set
+                [ -f @initconfigdir@/@package_name@-$instance ] && . @initconfigdir@/@package_name@-$instance
+                $exec -D $instbase/slapd-$instance -i $pidfile -w $startpidfile
+            )
+            if [ $? -eq 0 ]; then
+                server_started=1 # well, perhaps not running, but started ok
+            else
+                failure; echo
+                errors=`expr $errors + 1`
             fi
-            # ok, if we started the server successfully, let's see if it is really
-            # running and ready to serve requests
-            if [ $server_started -eq 1 ] ; then
-                loop_counter=1
-				# wait for 10 seconds for the start pid file to appear
-                max_count=10
-                while test $loop_counter -le $max_count; do
-                    loop_counter=`expr $loop_counter + 1`
-                    if test ! -f $startpidfile ; then
+        fi
+        # ok, if we started the server successfully, let's see if it is really
+        # running and ready to serve requests
+        if [ $server_started -eq 1 ] ; then
+            loop_counter=1
+            # wait for 10 seconds for the start pid file to appear
+            max_count=10
+            while test $loop_counter -le $max_count; do
+                loop_counter=`expr $loop_counter + 1`
+                if test ! -f $startpidfile ; then
+                    sleep 1
+                else
+                    pid=`cat $startpidfile`
+                fi
+            done
+            if test ! -f $startpidfile ; then
+                failure; echo
+                errors=`expr $errors + 1`
+                server_started=0
+            fi
+        fi
+        # ok, server wrote the startpid file - let's see if it comes up
+        # ready to service requests
+        if [ $server_started -eq 1 ] ; then
+            loop_counter=1
+            # wait for 10 minutes (600 times 1 seconds)
+            max_count=600
+            while test $loop_counter -le $max_count ; do
+                loop_counter=`expr $loop_counter + 1`
+                if test ! -f $pidfile ; then
+                    if kill -0 $pid > /dev/null 2>&1 ; then
                         sleep 1
                     else
-                        pid=`cat $startpidfile`
-                    fi
-                done
-                if test ! -f $startpidfile ; then
-                    failure; echo
-                    errors=`expr $errors + 1`
-                    server_started=0
-                fi
-            fi
-            # ok, server wrote the startpid file - let's see if it comes up
-            # ready to service requests
-            if [ $server_started -eq 1 ] ; then
-                loop_counter=1
-				# wait for 10 minutes (600 times 1 seconds)
-                max_count=600
-                while test $loop_counter -le $max_count ; do
-                    loop_counter=`expr $loop_counter + 1`
-                    if test ! -f $pidfile ; then
-                        if kill -0 $pid > /dev/null 2>&1 ; then
-                            sleep 1
-                        else
-                            break
-                        fi
-                    else
-                        pid=`cat $pidfile`
                         break
                     fi
-                done
-                if kill -0 $pid > /dev/null 2>&1 && test -f $pidfile ; then
-                    success; echo
-                    successes=`expr $successes + 1`
                 else
-                    failure; echo
-                    errors=`expr $errors + 1`
+                    pid=`cat $pidfile`
+                    break
                 fi
+            done
+            if kill -0 $pid > /dev/null 2>&1 && test -f $pidfile ; then
+                success; echo
+                successes=`expr $successes + 1`
+            else
+                failure; echo
+                errors=`expr $errors + 1`
             fi
-            rm -f $startpidfile
-        done
-        if [ $successes -ge 1 ]; then
-            touch $lockfile
         fi
-        if [ $errors -ge 1 ]; then
-            echo "  *** Warning: $errors instance(s) failed to start"
-        fi
-    else
-        echo "  *** Error: no $prog instances configured"
+        rm -f $startpidfile
+    done
+    if [ $successes -ge 1 ]; then
+        touch $lockfile
+    fi
+    if [ $errors -ge 1 ]; then
+        echo "  *** Warning: $errors instance(s) failed to start"
     fi
 }
 
@@ -256,7 +257,7 @@ stop() {
             fi
             if [ $server_stopped -eq 1 ] ; then
                 loop_counter=1
-				# wait for 10 minutes (600 times 1 second)
+                # wait for 10 minutes (600 times 1 second)
                 max_count=600
                 while test $loop_counter -le $max_count; do
                     loop_counter=`expr $loop_counter + 1`
