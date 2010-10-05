@@ -51,6 +51,7 @@ use Migration;
 use DSUtil;
 use Inf;
 use DSCreate;
+use DSUpdate;
 
 # tempfiles
 use File::Temp qw(tempfile tempdir);
@@ -1039,6 +1040,10 @@ sub migrateDSInstance {
 
     # next, grab the old schema
     if (@errs = migrateSchema($mig, $inst, $src, $dest)) {
+        return @errs;
+    }
+
+    if (@errs = updateDS($mig)) {
         return @errs;
     }
 
