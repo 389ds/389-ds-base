@@ -1250,6 +1250,9 @@ dn_ignore_case_to_end( char *dn, char *end )
          s += ssz, d += dsz) {
         slapi_utf8ToLower( s, d, &ssz, &dsz );
     }
+    if (d) {
+        *d = '\0'; /* utf8ToLower result may be shorter than the original */
+    }
     return( dn );
 }
 
