@@ -116,6 +116,11 @@ hexchar2int( char c )
 
 #define ISCLOSEBRACKET(c) (((c) == ')') || ((c) == ']'))
 
+#define MAYBEDN(eq) ( \
+    (eq) && ((eq) != subtypestart) && \
+    ((eq) != subtypestart + strlen(subtypestart) - 3) \
+)
+
 #define B4TYPE           0
 #define INTYPE           1
 #define B4EQUAL          2
@@ -700,8 +705,19 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                              */
                             if (subtypestart &&
                                 (ISPLUS(*(s+1)) || subrdn_av_count > 0)) {
-                                add_rdn_av(subtypestart, d, &subrdn_av_count,
-                                          &subrdn_avs, subinitial_rdn_av_stack);
+                                 /* if subtypestart is not valid DN,
+                                  * we do not do sorting.*/
+                                 char *p = PL_strcasestr(subtypestart, "\\3d");
+                                 if (MAYBEDN(p)) {
+                                     add_rdn_av(subtypestart, d, 
+                                               &subrdn_av_count,
+                                               &subrdn_avs, 
+                                               subinitial_rdn_av_stack);
+                                 } else {
+                                     reset_rdn_avs(&subrdn_avs, 
+                                                   &subrdn_av_count);
+                                     subtypestart = NULL;
+                                 }
                             }
                             if (!ISPLUS(*(s+1))) {    /* at end of this RDN */
                                 if (subrdn_av_count > 1) {
@@ -723,8 +739,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             /* next type start of multi values */
                             /* should not be a escape char AND should be 
                              * followed by \\= or \\3D */
-                            if (!ISESCAPE(*s) &&
-                                (PL_strnstr(s, "\\=", ends - s) ||
+                            if ((PL_strnstr(s, "\\=", ends - s) ||
                                  PL_strncaserstr(s, "\\3D", ends - s))) {
                                 subtypestart = d;
                             } else {
@@ -771,8 +786,16 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                          */
                         if (subtypestart &&
                             (ISPLUSSTR(s+1) || subrdn_av_count > 0)) {
-                            add_rdn_av(subtypestart, d, &subrdn_av_count,
+                            /* if subtypestart is not valid DN,
+                             * we do not do sorting.*/
+                            char *p = PL_strcasestr(subtypestart, "\\3d");
+                            if (MAYBEDN(p)) {
+                                add_rdn_av(subtypestart, d, &subrdn_av_count,
                                        &subrdn_avs, subinitial_rdn_av_stack);
+                            } else {
+                                reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
+                                subtypestart = NULL;
+                            }
                         }
                         if (!ISPLUSSTR(s+1)) {    /* at end of this RDN */
                             if (subrdn_av_count > 1) {
@@ -923,8 +946,16 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                          */
                         if (subtypestart &&
                             (ISPLUS(*s) || subrdn_av_count > 0)) {
-                            add_rdn_av(subtypestart, d, &subrdn_av_count,
+                            /* if subtypestart is not valid DN,
+                             * we do not do sorting.*/
+                            char *p = PL_strcasestr(subtypestart, "\\3d");
+                            if (MAYBEDN(p)) {
+                                add_rdn_av(subtypestart, d, &subrdn_av_count,
                                        &subrdn_avs, subinitial_rdn_av_stack);
+                            } else {
+                                reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
+                                subtypestart = NULL;
+                            }
                         }
                         if (!ISPLUS(*s)) {    /* at end of this RDN */
                             if (subrdn_av_count > 1) {
@@ -969,6 +1000,11 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     add_rdn_av(typestart, d, &rdn_av_count,
                                &rdn_avs, initial_rdn_av_stack);
                 }
+                /* Sub type sorting might be also ongoing */
+                if (subtypestart && subrdn_av_count > 0) {
+                    add_rdn_av(subtypestart, d, &subrdn_av_count,
+                               &subrdn_avs, subinitial_rdn_av_stack);
+                }
                 if (!ISPLUS(*s)) {    /* at end of this RDN */
                     if (rdn_av_count > 1) {
                         sort_rdn_avs( rdn_avs, rdn_av_count, 0 );
@@ -976,6 +1012,14 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     if (rdn_av_count > 0) {
                         reset_rdn_avs( &rdn_avs, &rdn_av_count );
                         typestart = NULL;
+                    }
+                    /* If in the middle of sub type sorting, finish it. */
+                    if (subrdn_av_count > 1) {
+                        sort_rdn_avs( subrdn_avs, subrdn_av_count, 1 );
+                    }
+                    if (subrdn_av_count > 0) {
+                        reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
+                        subtypestart = NULL;
                     }
                 }
 
