@@ -6411,6 +6411,18 @@ ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
         }
         break;
     }
+    case BACK_INFO_DBENV_OPENFLAGS:
+    {
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        if (li) {
+            dblayer_private *prv = (dblayer_private*)li->li_dblayer_private;
+            if (prv && prv->dblayer_env) {
+                *(int *)info = prv->dblayer_env->dblayer_openflags;
+                rc = 0;
+            }
+        }
+        break;
+    }
     case BACK_INFO_INDEXPAGESIZE:
     {
         struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;

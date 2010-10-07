@@ -6217,6 +6217,8 @@ int slapi_check_account_lock( Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, 
  *
  * \note Implemented cmd:
  * BACK_INFO_DBENV - Get the dbenv
+ * BACK_INFO_DBENV_OPENFLAGS - Get the dbenv openflags
+ * BACK_INFO_INDEXPAGESIZE - Get the index page size
  */
 int slapi_back_get_info(Slapi_Backend *be, int cmd, void **info);
 
@@ -6236,7 +6238,8 @@ int slapi_back_set_info(Slapi_Backend *be, int cmd, void *info);
 enum
 {
     BACK_INFO_DBENV,         /* Get the dbenv */
-    BACK_INFO_INDEXPAGESIZE  /* Get the index page size */
+    BACK_INFO_INDEXPAGESIZE, /* Get the index page size */
+    BACK_INFO_DBENV_OPENFLAGS/* Get the dbenv openflags */
 };
 
 #ifdef __cplusplus

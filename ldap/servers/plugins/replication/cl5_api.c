@@ -1799,6 +1799,7 @@ static int _cl5AppInit (PRBool *didRecovery)
 	int rc = -1; /* initialize to failure */
 	DB_ENV *dbEnv = NULL;
 	size_t pagesize = 0;
+	int openflags = 0;
 	char *cookie = NULL;
 	Slapi_Backend *be = slapi_get_first_backend(&cookie);
 	while (be) {
@@ -1807,7 +1808,11 @@ static int _cl5AppInit (PRBool *didRecovery)
 			rc = slapi_back_get_info(be,
 							BACK_INFO_INDEXPAGESIZE, (void **)&pagesize);
 			if ((LDAP_SUCCESS == rc) && pagesize) {
-				break; /* Successfully fetched */
+				rc = slapi_back_get_info(be,
+							BACK_INFO_DBENV_OPENFLAGS, (void **)&openflags);
+				if (LDAP_SUCCESS == rc) {
+					break; /* Successfully fetched */
+				}
 			}
 		}
 		be = slapi_get_next_backend(cookie);
@@ -1819,6 +1824,7 @@ static int _cl5AppInit (PRBool *didRecovery)
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
 			"_cl5AppInit: fetched backend dbEnv (%p)\n", dbEnv);
 		s_cl5Desc.dbEnv = dbEnv;
+		s_cl5Desc.dbEnvOpenFlags = openflags;
 		s_cl5Desc.dbConfig.pageSize = pagesize;
 		return CL5_SUCCESS;
 	}
