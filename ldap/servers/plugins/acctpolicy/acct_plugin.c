@@ -38,10 +38,8 @@ acct_inact_limit( Slapi_PBlock *pb, char *dn, Slapi_Entry *target_entry, acctPol
 	time_t lim_t, last_t, cur_t;
 	int rc = 0; /* Optimistic default */
 	acctPluginCfg *cfg;
-	void *plugin_id;
 
 	cfg = get_config();
-	plugin_id = get_identity();
 	if( ( lasttimestr = get_attr_string_val( target_entry,
 		cfg->state_attr_name ) ) != NULL ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
