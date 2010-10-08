@@ -269,6 +269,10 @@ static void op_shared_delete (Slapi_PBlock *pb)
 	Slapi_Entry	*ecopy = NULL;
 	char errorbuf[BUFSIZ];
 	int				err;
+	char		*proxydn = NULL;
+	char		*proxystr = NULL;
+	int		proxy_err = LDAP_SUCCESS;
+	char		*errtext = NULL;
 
 	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
 	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
@@ -280,22 +284,40 @@ static void op_shared_delete (Slapi_PBlock *pb)
 	/* target spec is used to decide which plugins are applicable for the operation */
 	operation_set_target_spec (operation, &sdn);
 
+	/* get the proxy auth dn if the proxy auth control is present */
+	proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
+
 	if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
 	{
+		if (proxydn)
+		{
+			proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
+		}
+
 		if (!internal_op )
 		{
-			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d DEL dn=\"%s\"\n",
+			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d DEL dn=\"%s\"%s\n",
 							pb->pb_conn->c_connid, 
 							pb->pb_op->o_opid,
-							escape_string(dn, ebuf));
+							escape_string(dn, ebuf),
+							proxystr ? proxystr: "");
 		}
 		else
 		{
-			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d DEL dn=\"%s\"\n",
+			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d DEL dn=\"%s\"%s\n",
 							LOG_INTERNAL_OP_CON_ID,
 							LOG_INTERNAL_OP_OP_ID,
-							escape_string(dn, ebuf));
+							escape_string(dn, ebuf),
+							proxystr ? proxystr: "");
 		}
+	}
+
+	/* If we encountered an error parsing the proxy control, return an error
+	 * to the client.  We do this here to ensure that we log the operation first. */
+	if (proxy_err != LDAP_SUCCESS)
+	{
+		send_ldap_result(pb, proxy_err, NULL, errtext, 0, NULL);
+		goto free_and_return;
 	}
 
 	/*
@@ -390,4 +412,6 @@ free_and_return:
 	slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &dn);
 	slapi_ch_free((void **)&dn);
 	slapi_sdn_done(&sdn);
+	slapi_ch_free_string(&proxydn);
+	slapi_ch_free_string(&proxystr);
 }

@@ -200,7 +200,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   Slapi_DN        sdn;
   Slapi_Operation *operation;
   Slapi_Entry     *referral = NULL;
- 
+  char            *proxydn = NULL; 
+  char            *proxystr = NULL;
+  int             proxy_err = LDAP_SUCCESS;
+  char            *errtext = NULL;
   char            errorbuf[BUFSIZ];
   int             nentries,pnentries;
   int             flag_search_base_found = 0;
@@ -236,6 +239,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   flag_psearch = operation_is_flag_set(operation, OP_FLAG_PS);
   
   slapi_sdn_init_dn_byref(&sdn, base);
+
+  /* get the proxy auth dn if the proxy auth control is present */
+  proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
  
   if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
   {
@@ -243,7 +249,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         
 #define SLAPD_SEARCH_FMTSTR_BASE "conn=%" NSPRIu64 " op=%d SRCH base=\"%s\" scope=%d "
 #define SLAPD_SEARCH_FMTSTR_BASE_INT "conn=%s op=%d SRCH base=\"%s\" scope=%d "
-#define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s\n"
+#define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s%s\n"
 
       PR_ASSERT(fstr);
       if ( strlen(fstr) > 1024 )
@@ -279,6 +285,11 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                         1 /* include quotes */ );
           attrliststr = attrlistbuf;
       }
+
+      if (proxydn)
+      {
+          proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
+      }
       
       if ( !internal_op )
       {
@@ -287,7 +298,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                            pb->pb_op->o_opid, 
                            escape_string(slapi_sdn_get_dn (&sdn), ebuf),
                            scope, fstr, attrliststr,
-                           flag_psearch ? " options=persistent" : "");
+                           flag_psearch ? " options=persistent" : "",
+                           proxystr ? proxystr : "");
       }
       else
       {
@@ -296,8 +308,18 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                            LOG_INTERNAL_OP_OP_ID,
                            escape_string(slapi_sdn_get_dn (&sdn), ebuf),
                            scope, fstr, attrliststr,
-                           flag_psearch ? " options=persistent" : "");
+                           flag_psearch ? " options=persistent" : "",
+                           proxystr ? proxystr : "");
       }
+  }
+
+  /* If we encountered an error parsing the proxy control, return an error
+   * to the client.  We do this here to ensure that we log the operation first. */
+  if (proxy_err != LDAP_SUCCESS)
+  {
+      rc = -1;
+      send_ldap_result(pb, proxy_err, NULL, errtext, 0, NULL);
+      goto free_and_return_nolock;
   }
         
   slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, (void*)slapi_sdn_get_ndn (&sdn));
@@ -855,6 +877,8 @@ next_be:
   slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
   index_subsys_filter_decoders_done(pb);
   slapi_sdn_done(&sdn);
+  slapi_ch_free_string(&proxydn);
+  slapi_ch_free_string(&proxystr);
 }
 
 /* Returns 1 if this processing on this entry is finished
@@ -1511,12 +1535,22 @@ send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize,
 void op_shared_log_error_access (Slapi_PBlock *pb, const char *type, const char *dn, const char *msg)
 {
     char ebuf[BUFSIZ];
-    slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s dn=\"%s\", %s\n",
+    char *proxydn = NULL;
+    char *proxystr = NULL;
+
+    if ((proxyauth_get_dn(pb, &proxydn, NULL) == LDAP_SUCCESS)) {
+        proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
+    }
+
+    slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s dn=\"%s\"%s, %s\n",
                       ( pb->pb_conn ? pb->pb_conn->c_connid : 0), 
                       ( pb->pb_op ? pb->pb_op->o_opid : 0), 
                       type, 
                       escape_string( dn, ebuf ), 
+                      proxystr ? proxystr : "",
                       msg ? msg : "" );
 
+    slapi_ch_free_string(&proxydn);
+    slapi_ch_free_string(&proxystr);
 }
 

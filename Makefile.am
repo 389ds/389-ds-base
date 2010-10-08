@@ -623,6 +623,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/plugin_mr.c \
 	ldap/servers/slapd/plugin_role.c \
 	ldap/servers/slapd/plugin_syntax.c \
+	ldap/servers/slapd/proxyauth.c \
 	ldap/servers/slapd/pw.c \
 	ldap/servers/slapd/pw_retry.c \
 	ldap/servers/slapd/rdn.c \
@@ -763,7 +764,6 @@ libacl_plugin_la_SOURCES = ldap/servers/plugins/acl/acl.c \
 	ldap/servers/plugins/acl/acllist.c \
 	ldap/servers/plugins/acl/aclparse.c \
 	ldap/servers/plugins/acl/aclplugin.c \
-	ldap/servers/plugins/acl/aclproxy.c \
 	ldap/servers/plugins/acl/aclutil.c
 
 libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)

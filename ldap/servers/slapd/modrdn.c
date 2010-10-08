@@ -438,7 +438,11 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	Slapi_Operation *operation;
 	Slapi_Entry *referral;
 	char errorbuf[BUFSIZ];
-	int				err;
+	int			err;
+	char			*proxydn = NULL;
+	char			*proxystr = NULL;
+	int			proxy_err = LDAP_SUCCESS;
+	char			*errtext = NULL;
 
 	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
@@ -479,6 +483,9 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, (void *)newrdn );
 	slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR, (void *)newsuperior);
 
+	/* get the proxy auth dn if the proxy auth control is present */
+	proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
+
 	/*
 	 * first, log the operation to the access log,
 	 * then check rdn and newsuperior,
@@ -486,26 +493,41 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	 */
 	if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
 	{
+		if (proxydn)
+		{
+			proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
+		}
+
 		if ( !internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS,
-					 "conn=%" NSPRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
+					 "conn=%" NSPRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
 					 pb->pb_conn->c_connid, 
 					 pb->pb_op->o_opid,
 					 escape_string(dn, dnbuf),
 					 (NULL == newrdn) ? "(null)" : escape_string(newrdn, newrdnbuf),
-					 (NULL == newsuperior) ? "(null)" : escape_string(newsuperior, newsuperiorbuf));
+					 (NULL == newsuperior) ? "(null)" : escape_string(newsuperior, newsuperiorbuf),
+					 proxystr ? proxystr : "");
 		}
 		else
 		{
 			slapi_log_access(LDAP_DEBUG_ARGS,
-					 "conn=%s op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"\n",
+					 "conn=%s op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
 					 LOG_INTERNAL_OP_CON_ID,
 					 LOG_INTERNAL_OP_OP_ID,
 					 escape_string(dn, dnbuf),
 					 (NULL == newrdn) ? "(null)" : escape_string(newrdn, newrdnbuf),
-					 (NULL == newsuperior) ? "(null)" : escape_string(newsuperior, newsuperiorbuf));
+					 (NULL == newsuperior) ? "(null)" : escape_string(newsuperior, newsuperiorbuf),
+					 proxystr ? proxystr : "");
 		}
+	}
+
+	/* If we encountered an error parsing the proxy control, return an error
+	 * to the client.  We do this here to ensure that we log the operation first. */
+	if (proxy_err != LDAP_SUCCESS)
+	{
+		send_ldap_result(pb, proxy_err, NULL, errtext, 0, NULL);
+		goto free_and_return_nolock;
 	}
 
 	/* check that the rdn is formatted correctly */
@@ -681,6 +703,8 @@ free_and_return_nolock:
 		slapi_entry_free(pse);
 		slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 		ldap_mods_free( mods, 1 );
+		slapi_ch_free_string(&proxydn);
+		slapi_ch_free_string(&proxystr);
 
 		/* retrieve these in case a pre- or post-op plugin has changed them */
 		slapi_pblock_get(pb, SLAPI_MODRDN_TARGET, &s);

@@ -453,12 +453,16 @@ static void op_shared_add (Slapi_PBlock *pb)
 	Slapi_Attr *attr = NULL;
 	Slapi_Entry *referral;
 	char errorbuf[BUFSIZ];
-    struct slapdplugin  *p = NULL;
+	struct slapdplugin  *p = NULL;
+	char *proxydn = NULL;
+	char *proxystr = NULL;
+	int proxy_err = LDAP_SUCCESS;
+	char *errtext = NULL;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get (pb, SLAPI_ADD_ENTRY, &e);
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);	
-    slapi_pblock_get (pb, SLAPI_IS_LEGACY_REPLICATED_OPERATION, &legacy_op);
+	slapi_pblock_get (pb, SLAPI_IS_LEGACY_REPLICATED_OPERATION, &legacy_op);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
 	/* target spec is used to decide which plugins are applicable for the operation */
@@ -470,23 +474,40 @@ static void op_shared_add (Slapi_PBlock *pb)
 	  goto done;
 	}
 
+	/* get the proxy auth dn if the proxy auth control is present */
+	proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
 
 	if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
 	{
+		if (proxydn)
+		{
+			proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
+		}
+
 		if ( !internal_op )
 		{
-			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ADD dn=\"%s\"\n",
+			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ADD dn=\"%s\"%s\n",
 							 pb->pb_conn->c_connid, 
 							 operation->o_opid,
-							 escape_string(slapi_entry_get_dn_const(e), ebuf));
+							 escape_string(slapi_entry_get_dn_const(e), ebuf),
+							 proxystr ? proxystr : "");
 		}
 		else
 		{
 			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d ADD dn=\"%s\"\n",
-							LOG_INTERNAL_OP_CON_ID,
-							LOG_INTERNAL_OP_OP_ID,
-							 escape_string(slapi_entry_get_dn_const(e), ebuf));
+							 LOG_INTERNAL_OP_CON_ID,
+							 LOG_INTERNAL_OP_OP_ID,
+							 escape_string(slapi_entry_get_dn_const(e), ebuf),
+							 proxystr ? proxystr : "");
 		}
+	}
+
+	/* If we encountered an error parsing the proxy control, return an error
+	 * to the client.  We do this here to ensure that we log the operation first. */
+	if (proxy_err != LDAP_SUCCESS)
+	{
+		send_ldap_result(pb, proxy_err, NULL, errtext, 0, NULL);
+		goto done;
 	}
 
 	/*
@@ -718,6 +739,8 @@ done:
 	slapi_entry_free(e);
 	valuearray_free(&unhashed_password_vals);
 	slapi_ch_free((void**)&pwdtype);
+	slapi_ch_free_string(&proxydn);
+	slapi_ch_free_string(&proxystr);
 }
 
 static void

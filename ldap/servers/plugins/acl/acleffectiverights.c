@@ -124,7 +124,7 @@ _ger_g_permission_granted (
 	/*
 	 * The requestor may be either the bind dn or a proxy dn
 	 */
-	acl_get_proxyauth_dn ( pb, &proxydn, &errtext );
+	proxyauth_get_dn ( pb, &proxydn, &errtext );
 	if ( proxydn != NULL )
 	{
 		requestor_sdn = slapi_sdn_new_dn_passin ( proxydn );

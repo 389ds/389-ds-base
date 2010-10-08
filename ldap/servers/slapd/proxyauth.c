@@ -32,7 +32,7 @@
  * 
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -40,7 +40,7 @@
 #  include <config.h>
 #endif
 
-#include "acl.h"
+#include "slap.h"
 
 #define BEGIN do {
 #define END   } while(0);
@@ -92,7 +92,7 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
   size_t dnlen = 0;
 
   BEGIN
-    ber_tag_t tag;
+	ber_tag_t tag;
 
 	if ( version != 1 && version != 2 ) {
 		break;
@@ -103,12 +103,12 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 	}
 
 	/* create_LDAPProxyAuth */
-    spec = (LDAPProxyAuth*)slapi_ch_calloc(1,sizeof (LDAPProxyAuth));
+	spec = (LDAPProxyAuth*)slapi_ch_calloc(1,sizeof (LDAPProxyAuth));
 	if (!spec) {
 		break;
 	}
 
-    ber = ber_init(spec_ber);
+	ber = ber_init(spec_ber);
 	if (!ber) {
 		break;
 	}
@@ -118,7 +118,7 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 	} else {
 		tag = ber_scanf(ber, "a", &spec->auth_dn);
 	}
-    if (tag == LBER_ERROR) {
+	if (tag == LBER_ERROR) {
 		lderr = LDAP_PROTOCOL_ERROR;
 		break;
 	}
@@ -180,7 +180,7 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
  * returned if the proxy auth control is not present or not critical.
  */
 int
-acl_get_proxyauth_dn( Slapi_PBlock *pb, char **proxydnp, char **errtextp )
+proxyauth_get_dn( Slapi_PBlock *pb, char **proxydnp, char **errtextp )
 {
   char *dn = 0;
   LDAPProxyAuth *spec = 0;

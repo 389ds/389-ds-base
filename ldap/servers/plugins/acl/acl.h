@@ -822,8 +822,6 @@ void		acl_set_aclsignature( short value);
 void		acl_regen_aclsignature();
 struct acl_pblock * acl_new_proxy_aclpb( Slapi_PBlock *pb );
 void 		acl_set_authorization_dn( Slapi_PBlock *pb, char *dn, int type );
-int 		acl_get_proxyauth_dn( Slapi_PBlock *pb, char **proxydnp,
-								char **errtextp );
 void 		acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, 
 								const char *dn, int copy_from_aclcb);
 int 		acl_create_aclpb_pool ();

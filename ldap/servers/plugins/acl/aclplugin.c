@@ -220,7 +220,7 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 	 * is the "proxy master".
 	*/
 	proxy_dn = NULL;
-	if ( LDAP_SUCCESS != ( lderr = acl_get_proxyauth_dn( pb, &proxy_dn,
+	if ( LDAP_SUCCESS != ( lderr = proxyauth_get_dn( pb, &proxy_dn,
 			&errtext ))) {
 		/*
 		 * Fatal error -- send a result to the client and arrange to skip

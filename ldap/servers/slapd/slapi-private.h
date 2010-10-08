@@ -825,6 +825,11 @@ void valuearray_add_valuearray_fast( Slapi_Value ***vals, Slapi_Value **addvals,
 int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v);
 int valuearray_normalize_value(Slapi_Value **vals);
 
+/*
+ * proxyauth.c
+ */
+int proxyauth_get_dn( Slapi_PBlock *pb, char **proxydnp, char **errtextp );
+
 
 /******************************************************************************
  * Database plugin interface.
