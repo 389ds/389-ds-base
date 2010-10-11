@@ -210,11 +210,13 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     size_t saslio_limit;
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
+    PRInt32 amount = sizeof(buffer);
 
     *err = 0;
     debug_print_layers(fd);
+    amount -= sp->encrypted_buffer_offset;
     /* first we need the length bytes */
-    ret = PR_Recv(fd->lower, buffer, sizeof(buffer), flags, timeout);
+    ret = PR_Recv(fd->lower, buffer, amount, flags, timeout);
     LDAPDebug( LDAP_DEBUG_CONNS,
                "read sasl packet length returned %d on connection %" NSPRIu64 "\n", ret, c->c_connid, 0 );
     if (ret <= 0) {
@@ -229,48 +231,56 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
         return ret;
     }
     /*
-     * NOTE: A better way to do this would be to read the bytes and add them to 
-     * sp->encrypted_buffer - if offset < 4, tell caller we didn't read enough
-     * bytes yet - if offset >= 4, decode the length and proceed.  However, it
-     * is highly unlikely that a request to read 4 bytes will return < 4 bytes,
-     * perhaps only in error conditions, in which case the ret < 0 case above
-     * will run
+     * Read the bytes and add them to sp->encrypted_buffer 
+     * - if offset < 4, tell caller we didn't read enough bytes yet 
+     * - if offset >= 4, decode the length and proceed.
      */
     if (ret < sizeof(buffer)) {
-        LDAPDebug( LDAP_DEBUG_ANY,
-                   "sasl_io_start_packet: failed - read only %d bytes of sasl packet length on connection %" NSPRIu64 "\n", ret, c->c_connid, 0 );
-	    PR_SetError(PR_IO_ERROR, 0);
-	    return -1;        
+        memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, buffer, ret);
+        sp->encrypted_buffer_offset += ret;
+        if (sp->encrypted_buffer_offset < sizeof(buffer)) {
+            LDAPDebug2Args( LDAP_DEBUG_CONNS,
+                   "sasl_io_start_packet: read only %d bytes of sasl packet "
+                   "length on connection %" NSPRIu64 "\n", ret, c->c_connid );
+#if defined(EWOULDBLOCK)
+            errno = EWOULDBLOCK;
+#elif defined(EAGAIN)
+            errno = EAGAIN;
+#endif
+            PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
+            return PR_FAILURE;
+        }
+    } else {
+        memcpy(sp->encrypted_buffer, buffer, sizeof(buffer));
+        sp->encrypted_buffer_offset = sizeof(buffer);
     }
-    if (ret == sizeof(buffer)) {
-        /* Decode the length */
-        packet_length = ntohl(*(uint32_t *)buffer);
-        /* add length itself (for Cyrus SASL library) */
-        packet_length += 4;
+    /* At this point, sp->encrypted_buffer_offset == sizeof(buffer) */
+    /* Decode the length */
+    packet_length = ntohl(*(uint32_t *)sp->encrypted_buffer);
+    /* add length itself (for Cyrus SASL library) */
+    packet_length += sizeof(uint32_t);
 
-        LDAPDebug( LDAP_DEBUG_CONNS,
-                   "read sasl packet length %ld on connection %" NSPRIu64 "\n", packet_length, c->c_connid, 0 );
+    LDAPDebug2Args( LDAP_DEBUG_CONNS,
+                    "read sasl packet length %ld on connection %" NSPRIu64 "\n", 
+                    packet_length, c->c_connid );
 
-        /* Check if the packet length is larger than our max allowed.  A
-         * setting of -1 means that we allow any size SASL IO packet. */
-        saslio_limit = config_get_maxsasliosize();
-        if(((long)saslio_limit != -1) && (packet_length > saslio_limit)) {
-            LDAPDebug( LDAP_DEBUG_ANY,
+    /* Check if the packet length is larger than our max allowed.  A
+     * setting of -1 means that we allow any size SASL IO packet. */
+    saslio_limit = config_get_maxsasliosize();
+    if(((long)saslio_limit != -1) && (packet_length > saslio_limit)) {
+        LDAPDebug2Args( LDAP_DEBUG_ANY,
                 "SASL encrypted packet length exceeds maximum allowed limit (length=%ld, limit=%ld)."
                 "  Change the nsslapd-maxsasliosize attribute in cn=config to increase limit.\n",
-                 packet_length, config_get_maxsasliosize(), 0);
-            PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
-            *err = PR_BUFFER_OVERFLOW_ERROR;
-            return -1;
-        }
-
-        sasl_io_resize_encrypted_buffer(sp, packet_length);
-        /* Cyrus SASL implementation expects to have the length at the first 
-           4 bytes */
-        memcpy(sp->encrypted_buffer, buffer, 4);
-        sp->encrypted_buffer_count = packet_length;
-        sp->encrypted_buffer_offset = 4;
+                 packet_length, config_get_maxsasliosize() );
+        PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
+        *err = PR_BUFFER_OVERFLOW_ERROR;
+        return -1;
     }
+
+    sasl_io_resize_encrypted_buffer(sp, packet_length);
+    /* Cyrus SASL implementation expects to have the length at the first 
+       4 bytes */
+    sp->encrypted_buffer_count = packet_length;
 
     return 1;
 }
@@ -345,7 +355,12 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
         if (!sasl_io_finished_packet(sp)) {
             LDAPDebug( LDAP_DEBUG_CONNS,
                        "sasl_io_recv for connection %" NSPRIu64 " - not finished reading packet yet\n", c->c_connid, 0, 0 );
-            PR_SetError(PR_WOULD_BLOCK_ERROR, 0);
+#if defined(EWOULDBLOCK)
+            errno = EWOULDBLOCK;
+#elif defined(EAGAIN)
+            errno = EAGAIN;
+#endif
+            PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
             return PR_FAILURE;
         }
         /* We have the full encrypted buffer now - decrypt it */
@@ -356,6 +371,9 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
                        "sasl_io_recv finished reading packet for connection %" NSPRIu64 "\n", c->c_connid );
             /* Now decode it */
             ret = sasl_decode(c->c_sasl_conn,sp->encrypted_buffer,sp->encrypted_buffer_count,&output_buffer,&output_length);
+            /* even if decode fails, need re-initialize the encrypted_buffer */
+            sp->encrypted_buffer_offset = 0;
+            sp->encrypted_buffer_count = 0;
             if (SASL_OK == ret) {
                 LDAPDebug2Args( LDAP_DEBUG_CONNS,
                            "sasl_io_recv decoded packet length %d for connection %" NSPRIu64 "\n", output_length, c->c_connid );
@@ -364,8 +382,6 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
                     memcpy(sp->decrypted_buffer,output_buffer,output_length);
                     sp->decrypted_buffer_count = output_length;
                     sp->decrypted_buffer_offset = 0;
-                    sp->encrypted_buffer_offset = 0;
-                    sp->encrypted_buffer_count = 0;
                     bytes_in_buffer = output_length;
                 }
             } else {
@@ -461,7 +477,12 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount,
                             (sp->send_size - sp->send_offset) );
             sp->send_offset += ret;
             ret = PR_FAILURE;
-            PR_SetError(PR_WOULD_BLOCK_ERROR, 0);
+#if defined(EWOULDBLOCK)
+            errno = EWOULDBLOCK;
+#elif defined(EAGAIN)
+            errno = EAGAIN;
+#endif
+            PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
         }
         /* else - ret is error - caller will handle */
     } else {
