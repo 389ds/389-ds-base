@@ -1194,7 +1194,7 @@ sub removeDSInstance {
         {
             my $semanage_err = `semanage port -d -t ldap_port_t -p tcp $port 2>&1`;
             if ($? != 0)  {
-                if ($semanage_err !~ /defined in policy, cannot be deleted/) {
+                if (($semanage_err !~ /defined in policy, cannot be deleted/) && ($semanage_err !~ /is not defined/)) {
                     push @errs, [ 'error_removing_port_label', $port, $semanage_err];
                     debug(1, "Warning: Port $port not removed from selinux policy correctly.  Error: $semanage_err\n");
                 }
@@ -1205,7 +1205,7 @@ sub removeDSInstance {
         {
             my $semanage_err = `semanage port -d -t ldap_port_t -p tcp $secureport 2>&1`;
             if ($? != 0)  {
-                if ($semanage_err !~ /defined in policy, cannot be deleted/) {
+                if (($semanage_err !~ /defined in policy, cannot be deleted/) && ($semanage_err !~ /is not defined/)) {
                     push @errs, [ 'error_removing_port_label', $secureport, $semanage_err];
                     debug(1, "Warning: Port $secureport not removed from selinux policy correctly.  Error: $semanage_err\n");
                 }
