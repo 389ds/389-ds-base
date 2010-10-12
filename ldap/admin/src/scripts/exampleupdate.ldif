@@ -37,4 +37,4 @@
 #
 
 # These files work the same way as the LDIF templates in
-# /usr/share/dirsrv/ldif/template*.ldif
+# /usr/share/dirsrv/data/template-*.ldif
