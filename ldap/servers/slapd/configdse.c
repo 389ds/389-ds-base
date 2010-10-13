@@ -123,6 +123,22 @@ ignore_attr_type(const char *attr_type)
 	return 0;
 }
 
+/* these attr types are allowed to delete */
+static int
+allowed_to_delete_attrs(const char *attr_type)
+{
+	if (attr_type) {
+		char **ap = config_get_allowed_to_delete_attrs();
+		for ( ; ap && *ap; ap++) {
+			if (strcasecmp (attr_type, *ap) == 0) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int 
 read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
@@ -395,14 +411,32 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 			config_attr = (char *)mods[i]->mod_type;
 			if (ignore_attr_type(config_attr))
 				continue;
-
-			if ((mods[i]->mod_op & LDAP_MOD_DELETE) ||
-				(mods[i]->mod_op & LDAP_MOD_ADD)) {
-				rc= LDAP_UNWILLING_TO_PERFORM;
-				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed",
-						(mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding");
-			} else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
-				if (  (checked_all_maxdiskspace_and_mlogsize == 0 ) && 
+ 
+			if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+				if (apply_mods) { /* log warning once */
+					slapi_log_error (SLAPI_LOG_FATAL, NULL, 
+						"Warning: Adding configuration attribute \"%s\"\n",
+						config_attr);
+				}
+				rc = config_set(config_attr, mods[i]->mod_bvalues, 
+								returntext, apply_mods);
+			} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+				/* Need to allow deleting some configuration attrs */
+			    if (allowed_to_delete_attrs(config_attr)) {
+					rc = config_set(config_attr, mods[i]->mod_bvalues, 
+									returntext, apply_mods);
+					if (apply_mods) { /* log warning once */
+						slapi_log_error (SLAPI_LOG_FATAL, NULL, 
+						  "Warning: Deleting configuration attribute \"%s\"\n",
+						  config_attr);
+					}
+				} else {
+					rc= LDAP_UNWILLING_TO_PERFORM;
+					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+								"Deleting attributes is not allowed");
+				}
+			} else if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+				if (( checked_all_maxdiskspace_and_mlogsize == 0 ) && 
 					((strcasecmp( mods[i]->mod_type, CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE) == 0) ||
 					(strcasecmp( mods[i]->mod_type, CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE) == 0) ||
 					(strcasecmp( mods[i]->mod_type, CONFIG_ACCESSLOG_MAXLOGDISKSPACE_ATTRIBUTE) == 0) ||

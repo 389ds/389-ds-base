@@ -628,7 +628,11 @@ static struct config_get_and_set {
 	{CONFIG_ENTRYUSN_GLOBAL, config_set_entryusn_global,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.entryusn_global, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_entryusn_global}
+		(ConfigGetFunc)config_get_entryusn_global},
+	{CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, config_set_allowed_to_delete_attrs,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.allowed_to_delete_attrs,
+		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_to_delete_attrs}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1007,6 +1011,10 @@ FrontendConfig_init () {
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
 
   cfg->entryusn_global = LDAP_OFF; 
+  slapi_ch_array_add(&(cfg->allowed_to_delete_attrs),
+                     slapi_ch_strdup("nsslapd-listenhost"));
+  slapi_ch_array_add(&(cfg->allowed_to_delete_attrs),
+                     slapi_ch_strdup("nsslapd-securelistenhost"));
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -5554,6 +5562,35 @@ config_set_entryusn_global( const char *attrname, char *value,
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->entryusn_global),
                               errorbuf, apply);
+    return retVal;
+}
+
+char **
+config_get_allowed_to_delete_attrs(void)
+{
+    char **retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->allowed_to_delete_attrs;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_allowed_to_delete_attrs( const char *attrname, char *value,
+                                    char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_array_free(slapdFrontendConfig->allowed_to_delete_attrs);
+        slapdFrontendConfig->allowed_to_delete_attrs = 
+                                           slapi_str2charray_ext(value, " ", 0);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
     return retVal;
 }
 
