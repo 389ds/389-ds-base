@@ -497,8 +497,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d ADD dn=\"%s\"\n",
 							 LOG_INTERNAL_OP_CON_ID,
 							 LOG_INTERNAL_OP_OP_ID,
-							 escape_string(slapi_entry_get_dn_const(e), ebuf),
-							 proxystr ? proxystr : "");
+							 escape_string(slapi_entry_get_dn_const(e), ebuf));
 		}
 	}
 

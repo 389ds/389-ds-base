@@ -726,8 +726,8 @@ import_producer(void *param)
                     "ending line %d of file \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf),
                     curr_lineno, curr_filename);
-            import_log_notice(job, "REASON: entry too large (%u bytes) for "
-                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
