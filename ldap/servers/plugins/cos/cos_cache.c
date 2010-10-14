@@ -2367,9 +2367,10 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 
 	/** class of service specifier **/
 	/* 
-		now we need to iterate through the attributes to discover
+		Now we need to iterate through the attributes to discover
 		if one fits all the criteria, we'll take the first that does
-		and blow off the rest
+		and blow off the rest unless the definition has merge-scheme
+		set.
 	*/
 	do
 	{
@@ -2397,8 +2398,9 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 			continue;
 		}
 
-		/* is this entry a child of the target tree(s)? */
-		while(hit == 0 && pTargetTree)
+		/* If we haven't found a hit yet, or if we are in merge mode, look for
+		 * hits.  We only check if this entry is a child of the target tree(s). */
+		while((hit == 0 || merge_mode) && pTargetTree)
 		{
 			{
 				int rc = 0;
@@ -2459,16 +2461,73 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 								Note: we support one dn only, the result of multiple pointers is undefined
 							*/
 							Slapi_Value *indirectdn;
+							Slapi_ValueSet *tmp_vals = NULL;
 							int pointer_flags = 0;
+							int hint = 0;
 
-							slapi_valueset_first_value( pAttrSpecs, &indirectdn );
+							hint = slapi_valueset_first_value( pAttrSpecs, &indirectdn );
 
 							if(props)
 								pointer_flags = *props;
 
-							if( indirectdn != NULL &&
-								!cos_cache_follow_pointer( context, (char*)slapi_value_get_string(indirectdn), type, out_attr, test_this, result, pointer_flags))
-								hit = 1;
+							while (indirectdn != NULL)
+							{
+								if (cos_cache_follow_pointer( context, (char*)slapi_value_get_string(indirectdn),
+									type, &tmp_vals, test_this, result, pointer_flags) == 0)
+								{
+									hit = 1;
+									/* If the caller requested values, set them.  We need
+									 * to append values when we follow multiple pointers DNs. */
+									if (out_attr && tmp_vals)
+									{
+										if (*out_attr)
+										{
+											Slapi_Attr *attr = NULL;
+											Slapi_Value *val = NULL;
+											int idx = 0;
+
+											/* Create an attr to use for duplicate detection. */
+											attr = slapi_attr_new();
+											slapi_attr_init(attr, type);
+
+											/* Copy any values into out_attr if they don't already exist. */
+											for (idx = slapi_valueset_first_value(tmp_vals, &val);
+													val && (idx != -1);
+													idx = slapi_valueset_next_value(tmp_vals, idx, &val))
+											{
+												if (slapi_valueset_find(attr, *out_attr, val) == NULL)
+												{
+													slapi_valueset_add_value(*out_attr, val);
+												}
+											}
+
+											slapi_attr_free(&attr);
+											slapi_valueset_free(tmp_vals);
+											tmp_vals = NULL;
+										} else {
+											*out_attr = tmp_vals;
+											tmp_vals = NULL;
+										}
+									}
+								}
+
+								/* If this definition has merge-scheme set, we
+								 * need to follow the rest of the pointers. */
+								if (pAttr->attr_cos_merge)
+								{
+									hint = slapi_valueset_next_value(pAttrSpecs, hint, &indirectdn);
+								} else {
+									indirectdn = NULL;
+								}
+							}
+
+							/* If merge-scheme is specified, set merge mode.  This will allow
+							 * us to merge in values from other CoS definitions for this attr. */
+							if (pAttr->attr_cos_merge)
+							{
+								merge_mode = 1;
+								attr_matched_index = attr_index;
+							}
 						}
 						else
 						{
