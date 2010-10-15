@@ -794,14 +794,14 @@ int 		acl_access_allowed_main ( Slapi_PBlock *pb, Slapi_Entry *e, char **attrs,
                           		  struct berval *val, int access , int flags, char **errbuf);
 int 		acl_access_allowed( Slapi_PBlock *pb, Slapi_Entry *e, char *attr,
 				        	struct berval *val, int access );
-int 		acl_verify_syntax(const Slapi_DN *e_sdn, const struct berval *bval);
+int 		acl_verify_syntax(const Slapi_DN *e_sdn, const struct berval *bval, char **errbuf);
 aclUserGroup * acl_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn);
 void		acl_print_acllib_err (NSErr_t *errp , char * str);	
 int 		acl_check_mods( Slapi_PBlock *pb, Slapi_Entry *e, LDAPMod **mods, char **errbuf );
 int 		acl_verify_aci_syntax (Slapi_Entry *e, char **errbuf);
 char * 		acl__access2str(int access);
 void		acl_strcpy_special (char *d, char *s);
-int			acl_parse(char * str, aci_t *aci_item);
+int			acl_parse(char *str, aci_t *aci_item, char **errbuf);
 char *		acl_access2str ( int access );
 int 		acl_init_ext ();
 void * 		acl_get_ext (ext_type type, void *object);

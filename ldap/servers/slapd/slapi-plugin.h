@@ -4480,6 +4480,14 @@ int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2);
 Slapi_Filter *slapi_filter_dup(Slapi_Filter *f);
 int slapi_filter_changetype(Slapi_Filter *f, const char *newtype);
 
+/**
+ * Check whether a given attribute type is defined in schema or not
+ *
+ * \param attribute type name to be checked
+ * \return \c 0 if the attribute type is not defined in schema
+ * \return non-0 if the attribute type is defined in schema
+ */
+int slapi_attr_syntax_exists(const char *type);
 
 /*
  * slapi_filter_apply() is used to apply a function to each simple filter

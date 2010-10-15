@@ -45,14 +45,14 @@
 /****************************************************************************/
 /* prototypes                                                               */
 /****************************************************************************/
-static int		__aclp__parse_aci(char *str, aci_t  *aci_item);
-static int		__aclp__sanity_check_acltxt(aci_t *aci_item, char *str);
+static int __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf);
+static int __aclp__sanity_check_acltxt(aci_t *aci_item, char *str);
 static char *	__aclp__normalize_acltxt (aci_t *aci_item, char *str);
 static char *	__aclp__getNextLASRule(aci_t *aci_item, char *str,
         								 char **endOfCurrRule);
 static int	__aclp__get_aci_right ( char *str);
-static int 	__aclp__init_targetattr (aci_t *aci, char *attr_val);
-static int			__acl__init_targetattrfilters( aci_t *aci_item, char *str);
+static int	__aclp__init_targetattr (aci_t *aci, char *attr_val, char **errbuf);
+static int	__acl__init_targetattrfilters( aci_t *aci_item, char *str);
 static int process_filter_list( Targetattrfilter ***attrfilterarray,
 								char * str);
 static int __acl_init_targetattrfilter( Targetattrfilter *attrfilter, char *str );
@@ -93,7 +93,7 @@ static int get_acl_rights_as_int( char * strValue);
 *
 **************************************************************************/
 int
-acl_parse(char * str, aci_t *aci_item)
+acl_parse(char * str, aci_t *aci_item, char **errbuf)
 {
 
 	int  		rv=0;
@@ -118,7 +118,7 @@ acl_parse(char * str, aci_t *aci_item)
 		*save = '\0';
 
 		/* Now we have a "str)" */
-		if ( 0 != (rv = __aclp__parse_aci(str, aci_item))) {
+		if ( 0 != (rv = __aclp__parse_aci(str, aci_item, errbuf))) {
 			return(rv);
 		}
 		
@@ -200,7 +200,7 @@ acl_parse(char * str, aci_t *aci_item)
 *
 **************************************************************************/
 static int
-__aclp__parse_aci (char 	*str, aci_t  *aci_item)
+__aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 {
 
 	int		len;
@@ -242,8 +242,7 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 			 *  (targetattrfilters="add= attr1:F1 && attr2:F2 ... && attrn:Fn,
 			 *                      del= attr1:F1 && attr2:F2... && attrn:Fn")
 			 */
-			if ( 0 != (rv= __acl__init_targetattrfilters(
-					aci_item, str))) {
+			if (0 != (rv = __acl__init_targetattrfilters(aci_item, str))) {
 				return  rv;
 			}
 		} else if (strncmp(str, aci_targetattr,targetattrlen ) == 0) {	
@@ -259,7 +258,7 @@ __aclp__parse_aci (char 	*str, aci_t  *aci_item)
 			 * If it contains a value filter, the type will also be
 			 *	ACI_TARGET_VALUE_ATTR.
 			 */
-			if (0 != (rv =  __aclp__init_targetattr(aci_item, str))) {
+			if (0 != (rv =  __aclp__init_targetattr(aci_item, str, errbuf))) {
 				return  rv;
 			}
 		} else if (strncmp(str, aci_targetfilter,tfilterlen ) == 0) {
@@ -1309,7 +1308,7 @@ acl_access2str(int access)
 *	
 ***************************************************************************/
 static int 
-__aclp__init_targetattr (aci_t *aci, char *attr_val)
+__aclp__init_targetattr (aci_t *aci, char *attr_val, char **errbuf)
 {
 
 	int		numattr=0;
@@ -1335,9 +1334,15 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 			s[len-1] = '\0'; /* trim trailing quote */
 		} else {
 			/* error - if it begins with a quote, it must end with a quote */
+			char *errstr = 
+					slapi_ch_smprintf("The statement does not begin and end "
+					                  "with a \": [%s]. ", attr_val);
 			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
-							"__aclp__init_targetattr: Error: The statement does not begin and end with a \": [%s]\n",
-							attr_val);
+							"__aclp__init_targetattr: %s\n", errstr);
+			if (errbuf) {
+				aclutil_str_append(errbuf, errstr);
+			}
+			slapi_ch_free_string(&errstr);
 			return ACL_SYNTAX_ERR;
 		}
 		s++; /* skip leading quote */
@@ -1372,16 +1377,14 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 		 * Here:
 		 * end_attr points to the next attribute thing.
 		 *
-	  	 * str points to the current one to be processed and it looks like this:
+		 * str points to the current one to be processed and it looks like this:
 		 * rbyrneXXX Watchout is it OK to use : as the speperator ?
 		 * cn
 		 * c*n*
-         * *
+		 * *
+		 *
 		 * The attribute goes in the attrTarget list.
-		 * 
-		*/
-
-
+		 */
 		attr = (Targetattr *) slapi_ch_malloc (sizeof (Targetattr));
 		memset (attr, 0, sizeof(Targetattr));
                                 
@@ -1392,7 +1395,6 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 			str++;
 		}
 		if (strchr(str, '*')) {
-             		
 			/* It contains a * so it's something like * or cn* */
 			if (strcmp(str, "*" ) != 0) {
 				char			line[100];
@@ -1410,29 +1412,50 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 				f = slapi_str2filter (lineptr);
 	
 				if (f == NULL)  {
-                   	slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
-					  "__aclp__init_targetattr:Unable to generate filter (%s)\n", lineptr);
+					char *errstr = slapi_ch_smprintf("Unable to generate filter"
+					                                 " (%s). ", lineptr);
+					slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+							"__aclp__init_targetattr: %s\n", errstr);
+					if (errbuf) {
+						aclutil_str_append(errbuf, errstr);
+					}
+					slapi_ch_free_string(&errstr);
 				} else {
 					attr->u.attr_filter = f;
 				}
 
-				if (newline) slapi_ch_free((void **) &newline);
+				slapi_ch_free_string(&newline);
 			} else {
 				attr->attr_type = ACL_ATTR_STAR;
 				attr->u.attr_str = slapi_ch_strdup (str);
 			}
 
 		} else {
-			attr->u.attr_str = slapi_ch_strdup (str);				
-            attr->attr_type = ACL_ATTR_STRING;
+			/* targetattr = str or targetattr != str */
+			/* Make sure str is a valid attribute */
+			if (slapi_attr_syntax_exists((const char *)str)) {
+				attr->u.attr_str = slapi_ch_strdup (str);
+				attr->attr_type = ACL_ATTR_STRING;
+			} else {
+				char *errstr = slapi_ch_smprintf("targetattr \"%s\" does not "
+				                  "exist in schema. Please add attributeTypes "
+				                  "\"%s\" to schema if necessary. ", str, str);
+				slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+				                "__aclp__init_targetattr: %s\n", errstr);
+				if (errbuf) {
+					aclutil_str_append(errbuf, errstr);
+				}
+				slapi_ch_free_string(&errstr);
+				slapi_ch_free((void **)&attr);
+				return ACL_SYNTAX_ERR;
+			}
 		}
-
 
 		/*
 		 * Add the attr to the targetAttr list
-		*/
+		 */
 
-     	attrArray[numattr] = attr;
+		attrArray[numattr] = attr;
 		numattr++;
 		if (!(numattr % ACL_INIT_ATTR_ARRAY)) {
 			aci->targetAttr = (Targetattr **) slapi_ch_realloc (
@@ -1441,7 +1464,6 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val)
 						     sizeof(Targetattr *));
             				attrArray = aci->targetAttr;
 		}
-	
 
 		/* Move on to the next attribute in the list */
 		str = end_attr;
@@ -1512,7 +1534,7 @@ acl_verify_aci_syntax (Slapi_Entry *e, char **errbuf)
 		i= slapi_attr_first_value ( attr,&sval );
 		while ( i != -1 ) {
 		        attrVal = slapi_value_get_berval ( sval );
-		        rv=acl_verify_syntax ( e_sdn, attrVal);
+		        rv = acl_verify_syntax( e_sdn, attrVal, errbuf );
 			if ( 0 != rv ) {
 				aclutil_print_err(rv, e_sdn, attrVal, errbuf);
 				return ACL_ERR;
@@ -1540,7 +1562,8 @@ acl_verify_aci_syntax (Slapi_Entry *e, char **errbuf)
 *
 **************************************************************************/
 int
-acl_verify_syntax(const Slapi_DN *e_sdn, const struct berval *bval)
+acl_verify_syntax(const Slapi_DN *e_sdn, 
+                  const struct berval *bval, char **errbuf)
 {
 	aci_t			*aci_item;
 	int				rv = 0;
@@ -1550,7 +1573,7 @@ acl_verify_syntax(const Slapi_DN *e_sdn, const struct berval *bval)
 
 	/* make a copy the the string */
 	str =  slapi_ch_strdup(bval->bv_val);
-	rv = acl_parse(str, aci_item);
+	rv = acl_parse(str, aci_item, errbuf);
 
 	/* cleanup before you leave ... */
 	acllist_free_aci (aci_item);

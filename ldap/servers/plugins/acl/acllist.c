@@ -210,7 +210,7 @@ acllist_insert_aci_needsLock( const Slapi_DN *e_sdn, const struct berval* aci_at
 
 	acl_str = slapi_ch_strdup(aci_attr->bv_val);
 	/* Parse the ACL TEXT */
-	if (  0 != (rv = acl_parse ( acl_str, aci )) ) {
+	if (  0 != (rv = acl_parse ( acl_str, aci, NULL )) ) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
 				"ACL PARSE ERR(rv=%d): %s\n", rv, acl_str );
 		slapi_ch_free ( (void **) &acl_str );

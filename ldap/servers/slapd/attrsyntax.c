@@ -1072,3 +1072,9 @@ attr_syntax_init(void)
 	}
 	return 0;
 }
+
+int
+slapi_attr_syntax_exists(const char *attr_name)
+{
+    return attr_syntax_exists(attr_name);
+}

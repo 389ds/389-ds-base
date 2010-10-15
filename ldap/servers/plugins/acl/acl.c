@@ -1482,7 +1482,7 @@ acl_check_mods(
 				if (strcmp(mod->mod_type, 
 					   aci_attr_type) == 0) {
 					if ( 0 != (rv = acl_verify_syntax( e_sdn,
-						      mod->mod_bvalues[i]))) {
+						                        mod->mod_bvalues[i], errbuf))) {
 						aclutil_print_err(rv, e_sdn, 
 							mod->mod_bvalues[i],
 							errbuf);
