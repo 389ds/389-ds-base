@@ -1009,7 +1009,6 @@ entryrdn_lookup_dn(backend *be,
     DBC *cursor = NULL;
     DB_TXN *db_txn = (txn != NULL) ? txn->back_txn_txn : NULL;
     DBT key, data;
-    static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
     char *keybuf = NULL;
     Slapi_RDN *srdn = NULL;
     char *orignrdn = NULL;
@@ -1067,10 +1066,7 @@ entryrdn_lookup_dn(backend *be,
 
     /* Setting the bulk fetch buffer */
     memset(&data, 0, sizeof(data));
-    data.ulen = sizeof(buffer);
-    data.size = sizeof(buffer);
-    data.data = buffer;
-    data.flags = DB_DBT_USERMEM;
+    data.flags = DB_DBT_MALLOC;
 
     do {
         /* Setting up a key for the node to get its parent */
@@ -1134,6 +1130,7 @@ retry_get1:
         workid = id_stored_to_internal(elem->rdn_elem_id);
         /* 1 is byref, and the dup'ed rdn is freed with srdn */
         slapi_rdn_add_rdn_to_all_rdns(srdn, slapi_ch_strdup(RDN_ADDR(elem)), 1);
+        slapi_ch_free(&data.data);
     } while (workid);
 
     if (0 == workid) {
@@ -1141,6 +1138,7 @@ retry_get1:
     }
 
 bail:
+    slapi_ch_free(&data.data);
     /* Close the cursor */
     if (cursor) {
         int myrc = cursor->c_close(cursor);
@@ -1769,7 +1767,7 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
     char *keybuf = NULL;
     char *realkeybuf = NULL;
     DBT realkey;
-    static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
+    char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
     DBT data;
     DBT moddata;
     rdn_elem **childelems = NULL;
@@ -2689,7 +2687,7 @@ _entryrdn_index_read(backend *be,
 
     /* get the child elems */
     if (childelems) {
-        static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
+        char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
 
         slapi_ch_free_string(&keybuf);
         keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id, nrdn);
@@ -2778,7 +2776,7 @@ _entryrdn_append_childidl(DBC *cursor,
     /* E.g., C5:ou=accounting */
     char *keybuf = slapi_ch_smprintf("%c%u:%s", RDN_INDEX_CHILD, id, nrdn);
     DBT key, data;
-    static char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
+    char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
     int rc = 0;
 
     key.data = keybuf;
