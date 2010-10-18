@@ -2100,6 +2100,8 @@ Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
 	prp->private = (void *)rip;
     prp->replica_acquired = PR_FALSE;
 	prp->repl50consumer = 0;
+	prp->repl71consumer = 0;
+	prp->repl90consumer = 0;
 	return prp;
 loser:
 	repl5_inc_delete(&prp);
