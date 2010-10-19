@@ -351,6 +351,12 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 			continue;
 		}
 
+		/* If SLAPI_STR2ENTRY_NO_ENTRYDN is set, skip entrydn */
+		if ( (flags & SLAPI_STR2ENTRY_NO_ENTRYDN) &&
+		     PL_strncasecmp( type.bv_val, "entrydn", type.bv_len ) == 0 ) {
+			if (freeval) slapi_ch_free_string(&value.bv_val);
+			continue;
+		}
 
 		/* retrieve uniqueid */
 		if ( PL_strncasecmp (type.bv_val, SLAPI_ATTR_UNIQUEID, type.bv_len) == 0 ){
@@ -852,6 +858,13 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 			csn_free(&attributedeletioncsn);
 		    continue;
+		}
+
+		/* If SLAPI_STR2ENTRY_NO_ENTRYDN is set, skip entrydn */
+		if ( (flags & SLAPI_STR2ENTRY_NO_ENTRYDN) &&
+		     strcasecmp( type, "entrydn" ) == 0 ) {
+			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
+			continue;
 		}
 
 		/* retrieve uniqueid */

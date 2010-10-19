@@ -786,6 +786,9 @@ void slapi_pblock_destroy( Slapi_PBlock *pb );
  *        \arg #SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES
  *        \arg #SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF
  *        \arg #SLAPI_STR2ENTRY_NO_SCHEMA_LOCK
+ *        \arg #SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT
+ *        \arg #SLAPI_STR2ENTRY_NO_ENTRYDN
+ *
  * \return A pointer to the #Slapi_Entry structure representing the entry.
  * \return \c NULL if the string cannot be converted; for example, if no DN is
  *         specified in the string.
@@ -895,6 +898,15 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, char *s, int flags );
  * \see slapi_str2entry()
  */
 #define SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT 512
+
+/**
+ * Do not include entrydn attribute value in the in-memory entry
+ *
+ * If this flag is set, entrydn in the source string is ignored.
+ *
+ * \see slapi_str2entry()
+ */
+#define SLAPI_STR2ENTRY_NO_ENTRYDN 1024
 
 /**
  * Generates a description of an entry as an LDIF string.

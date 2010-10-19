@@ -359,7 +359,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
         if (rc) {
             /* data.dptr may not include rdn: ..., try "dn: ..." */
-            ee = slapi_str2entry( data.dptr, 0 );
+            ee = slapi_str2entry( data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN );
         } else {
             char *dn = NULL;
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
@@ -380,13 +380,19 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
                 }
                 sdn = slapi_sdn_new_dn_byval((const char *)dn);
                 bdn = backdn_init(sdn, id, 0);
-                CACHE_ADD( &inst->inst_dncache, bdn, NULL );
-                CACHE_RETURN(&inst->inst_dncache, &bdn);
-                slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
-                                "entryrdn_lookup_dn returned: %s, "
-                                "and set to dn cache (id %d)\n", dn, id);
+                if (CACHE_ADD( &inst->inst_dncache, bdn, NULL )) {
+                    backdn_free(&bdn);
+                    slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
+                                    "%s is already in the dn cache\n", dn);
+                } else {
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
+                                    "entryrdn_lookup_dn returned: %s, "
+                                    "and set to dn cache (id %d)\n", dn, id);
+                }
             }
-            ee = slapi_str2entry_ext( (const char *)dn, data.dptr, 0 );
+            ee = slapi_str2entry_ext( (const char *)dn, data.dptr, 
+                                      SLAPI_STR2ENTRY_NO_ENTRYDN );
             slapi_ch_free_string(&rdn);
             slapi_ch_free_string(&dn);
         }

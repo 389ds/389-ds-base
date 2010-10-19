@@ -1145,7 +1145,7 @@ bail:
         if (0 != myrc) {
             slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                   "entryrdn_lookup_dn: Failed to close cursor: %s(%d)\n",
-                  dblayer_strerror(rc), rc);
+                  dblayer_strerror(myrc), myrc);
         }
     }
     if (db) {

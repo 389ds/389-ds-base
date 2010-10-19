@@ -1358,7 +1358,8 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
-                ep->ep_entry = slapi_str2entry( data.dptr, str2entry_options );
+                ep->ep_entry = slapi_str2entry( data.dptr, 
+                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN );
             } else {
                 char *pid_str = NULL;
                 char *pdn = NULL;
@@ -1447,10 +1448,10 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                         slapi_ch_free_string(&pdn);
                     }
                     slapi_rdn_done(&psrdn);
-                    /* dn is not dup'ed in slapi_sdn_new_dn_byref.
+                    /* dn is not dup'ed in slapi_sdn_new_dn_passin.
                      * It's set to bdn and put in the dn cache. */
                     /* don't free dn */
-                    sdn = slapi_sdn_new_dn_byref(dn);
+                    sdn = slapi_sdn_new_dn_passin(dn);
                     bdn = backdn_init(sdn, temp_id, 0);
                     myrc = CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                     if (myrc) {
@@ -1465,8 +1466,8 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                         "and set to dn cache\n", dn);
                     }
                 }
-                ep->ep_entry =
-                        slapi_str2entry_ext( dn, data.dptr, str2entry_options );
+                ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 
+                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN );
                 slapi_ch_free_string(&rdn);
             }
         } else {
@@ -1751,10 +1752,35 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                 CONFIG_ENTRYRDN_SWITCH);
                         }
                         LDAPDebug(LDAP_DEBUG_ANY, 
-                                "%s: Requested to index %s, but %s is off",
+                                "%s: Requested to index %s, but %s is off\n",
                                 inst->inst_name, LDBM_ENTRYRDN_STR,
                                 CONFIG_ENTRYRDN_SWITCH);
                         goto err_out;
+                    }
+                } else if (strcasecmp(attrs[i]+1, LDBM_ENTRYDN_STR) == 0) {
+                    if (entryrdn_get_switch()) { /* subtree-rename: on */
+                        if (task) {
+                            slapi_task_log_notice(task, 
+                                "%s: Requested to index %s, but %s is on",
+                                inst->inst_name, LDBM_ENTRYDN_STR,
+                                CONFIG_ENTRYRDN_SWITCH);
+                        }
+                        LDAPDebug(LDAP_DEBUG_ANY,
+                                "%s: Requested to index %s, but %s is on\n",
+                                inst->inst_name, LDBM_ENTRYDN_STR,
+                                CONFIG_ENTRYRDN_SWITCH);
+                        goto err_out;
+                    } else {
+                        charray_add(&indexAttrs, attrs[i]+1);
+                        ai->ai_indexmask |= INDEX_OFFLINE;
+                        if (task) {
+                            slapi_task_log_notice(task,
+                                                  "%s: Indexing attribute: %s",
+                                                  inst->inst_name, attrs[i]+1);
+                        }
+                        LDAPDebug2Args(LDAP_DEBUG_ANY, 
+                                       "%s: Indexing attribute: %s\n",
+                                       inst->inst_name, attrs[i] + 1);
                     }
                 } else {
                     charray_add(&indexAttrs, attrs[i]+1);
@@ -1763,8 +1789,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                       slapi_task_log_notice(task, "%s: Indexing attribute: %s",
                                             inst->inst_name, attrs[i]+1);
                     }
-                    LDAPDebug(LDAP_DEBUG_ANY, "%s: Indexing attribute: %s\n",
-                              inst->inst_name, attrs[i]+1, 0);
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, 
+                                   "%s: Indexing attribute: %s\n",
+                                   inst->inst_name, attrs[i]+1);
                 }
                 dblayer_erase_index_file(be, ai, i/* chkpt; 1st time only */);
                 break;
@@ -1789,8 +1816,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_task_log_notice(task, "%s: Indexing VLV: %s",
                                               inst->inst_name, attrs[i]+1);
                     }
-                    LDAPDebug(LDAP_DEBUG_ANY, "%s: Indexing VLV: %s\n",
-                              inst->inst_name, attrs[i]+1, 0);
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, "%s: Indexing VLV: %s\n",
+                                   inst->inst_name, attrs[i]+1);
                 }
                 break;
             }
@@ -1911,7 +1938,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
-                ep->ep_entry = slapi_str2entry( data.dptr, 0 );
+                ep->ep_entry = slapi_str2entry( data.dptr, 
+                                                SLAPI_STR2ENTRY_NO_ENTRYDN );
             } else {
                 char *pid_str = NULL;
                 char *pdn = NULL;
@@ -1991,10 +2019,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                                rdn, pdn?",":"", pdn?pdn:"");
                         slapi_ch_free_string(&pdn);
                     }
-                    /* dn is not dup'ed in slapi_sdn_new_dn_byref.
+                    /* dn is not dup'ed in slapi_sdn_new_dn_passin.
                      * It's set to bdn and put in the dn cache. */
                     /* don't free dn */
-                    sdn = slapi_sdn_new_dn_byref(dn);
+                    sdn = slapi_sdn_new_dn_passin(dn);
                     bdn = backdn_init(sdn, temp_id, 0);
                     myrc = CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                     if (myrc) {
@@ -2010,7 +2038,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     }
                 }
                 slapi_rdn_done(&psrdn);
-                ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 0 );
+                ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 
+                                                   SLAPI_STR2ENTRY_NO_ENTRYDN );
                 slapi_ch_free_string(&rdn);
             }
         } else {
@@ -3162,7 +3191,8 @@ _get_and_add_parent_rdns(backend *be,
                            "(rdn: %s, ID: %d) from Slapi_RDN\n", rdn, id);
             goto bail;
         }
-        ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 0 );
+        ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 
+                                            SLAPI_STR2ENTRY_NO_ENTRYDN );
         ep->ep_id = id;
         slapi_ch_free_string(&dn);
     }
@@ -3296,7 +3326,7 @@ _export_or_index_parents(ldbm_instance *inst,
                     int myrc = 0;
                     /* pdn is put in DN cache.  No need to free it here,
                      * since it'll be free'd when evicted from the cache. */
-                    psdn = slapi_sdn_new_dn_byref(pdn);
+                    psdn = slapi_sdn_new_dn_passin(pdn);
                     bdn = backdn_init(psdn, pid, 0);
                     myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     if (myrc) {

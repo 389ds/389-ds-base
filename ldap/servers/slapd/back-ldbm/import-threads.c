@@ -535,7 +535,7 @@ import_producer(void *param)
                 FREE(estr);
                 continue;
             }
-            e = slapi_str2entry_ext(dn, estr, flags);
+            e = slapi_str2entry_ext(dn, estr, flags|SLAPI_STR2ENTRY_NO_ENTRYDN);
             slapi_ch_free_string(&dn);
         } else {
             e = slapi_str2entry(estr, flags);
@@ -1004,7 +1004,7 @@ index_producer(void *param)
             rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
-                e = slapi_str2entry( data.dptr, 0 );
+                e = slapi_str2entry( data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN );
                 if (job->flags & FLAG_DN2RDN) {
                     int len = 0;
                     int options = SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID |
@@ -1092,7 +1092,8 @@ index_producer(void *param)
                                     "entryrdn_lookup_dn returned: %s, "
                                     "and set to dn cache\n", dn);
                 }
-                e = slapi_str2entry_ext( dn, data.dptr, 0 );
+                e = slapi_str2entry_ext(dn, data.dptr, 
+                                        SLAPI_STR2ENTRY_NO_ENTRYDN);
                 slapi_ch_free_string(&rdn);
             }
         } else {
@@ -3391,7 +3392,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                                 "from Slapi_RDN\n", rdn, id);
             goto bail;
         }
-        e = slapi_str2entry_ext( dn, data.dptr, 0 );
+        e = slapi_str2entry_ext(dn, data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
         (*curr_entry)++;
         rc = index_set_entry_to_fifo(info, e, id, total_id, *curr_entry);
         if (rc) {
