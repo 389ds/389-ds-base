@@ -341,24 +341,6 @@ do_modify( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-	/* see if there were actually any mods to perform */
-	if ( slapi_mods_get_num_mods (&smods) == 0 )
-	{
-		int		lderr;
-		char	*emsg;
-
-		if ( ignored_some_mods ) {
-			lderr = LDAP_UNWILLING_TO_PERFORM;
-			emsg = "no modifiable attributes specified";
-		} else {
-			lderr = LDAP_PROTOCOL_ERROR;
-			emsg = "no modifications specified";
-		}
-		op_shared_log_error_access (pb, "MOD", dn, emsg);
-		send_ldap_result( pb, lderr, NULL, emsg, 0, NULL );
-		goto free_and_return;
-	}
-
 #ifdef LDAP_DEBUG
 	LDAPDebug( LDAP_DEBUG_ARGS, "modifications:\n", 0, 0, 0 );
 	for (mod = slapi_mods_get_first_mod(&smods); mod != NULL; 
