@@ -80,7 +80,7 @@ typedef struct _cnumRet {
 /* 
  * How often the changelog trimming thread runs. This is the minimum trim age.
  */
-#define	CHANGELOGDB_TRIM_INTERVAL	300*1000 /* 5 minutes */
+#define	CHANGELOGDB_TRIM_INTERVAL	300*1000 /* 5 minutes in milliseconds */
 
 #if defined(__hpux) && defined(__ia64)
 #define RETROCL_DLL_DEFAULT_THREAD_STACKSIZE 524288L
