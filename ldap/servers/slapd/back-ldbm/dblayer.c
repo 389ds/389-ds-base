@@ -2774,6 +2774,79 @@ dblayer_remove_env(struct ldbminfo *li)
 #define DB_DUPSORT 0
 #endif
 
+static int
+_dblayer_set_db_callbacks(dblayer_private *priv, DB *dbp, struct attrinfo *ai)
+{
+    int rc = 0;
+
+    /* With the new idl design, the large 8Kbyte pages we use are not
+       optimal. The page pool churns very quickly as we add new IDs under a
+       sustained add load. Smaller pages stop this happening so much and
+       consequently make us spend less time flushing dirty pages on checkpoints.
+       But 8K is still a good page size for id2entry. So we now allow different
+       page sizes for the primary and secondary indices. 
+       Filed as bug: 604654
+     */
+    if (idl_get_idl_new()) {
+        rc = dbp->set_pagesize(
+                        dbp,
+                        (priv->dblayer_index_page_size == 0) ?
+                        DBLAYER_INDEX_PAGESIZE : priv->dblayer_index_page_size);
+    } else {
+        rc = dbp->set_pagesize(
+                        dbp,
+                        (priv->dblayer_page_size == 0) ?
+                        DBLAYER_PAGESIZE : priv->dblayer_page_size);
+    }
+    if (rc)
+        return rc;
+
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
+    rc = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
+    if (rc)
+        return rc;
+#endif
+
+    if (idl_get_idl_new() && !(ai->ai_indexmask & INDEX_VLV)) {
+        rc = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
+        if (rc)
+            return rc;
+
+        rc = dbp->set_dup_compare( dbp, idl_new_compare_dups);
+        if (rc)
+            return rc;
+    }
+
+    if (ai->ai_indexmask & INDEX_VLV) {
+        /*
+         * Need index with record numbers for
+         * Virtual List View index
+         */
+        rc = dbp->set_flags(dbp, DB_RECNUM);
+        if (rc)
+            return rc;
+    } else if (ai->ai_key_cmp_fn) { /* set in attr_index_config() */
+        /*
+          This is so that we can have ordered keys in the index, so that
+          greater than/less than searches work on indexed attrs.  We had
+          to introduce this when we changed the integer key format from
+          a 32/64 bit value to a normalized string value.  The default
+          bdb key cmp is based on length and lexicographic order, which
+          does not work with integer strings.
+
+          NOTE: If we ever need to use app_private for something else, we
+          will have to create some sort of data structure with different
+          fields for different uses.  We will also need to have a new()
+          function that creates and allocates that structure, and a
+          destroy() function that destroys the structure, and make sure
+          to call it when the DB* is closed and/or freed.
+        */
+        dbp->app_private = (void *)ai->ai_key_cmp_fn;
+        dbp->set_bt_compare(dbp, dblayer_bt_compare);
+    }
+    return rc;
+}
+
 /* Routines for opening and closing random files in the DB_ENV.
    Used by ldif2db merging code currently.
 
@@ -2781,7 +2854,9 @@ dblayer_remove_env(struct ldbminfo *li)
        Success: 0
     Failure: -1
  */
-int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrinfo *ai, DB **ppDB)
+int
+dblayer_open_file(backend *be, char* indexname, int open_flag, 
+                  struct attrinfo *ai, DB **ppDB)
 {
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
@@ -2840,79 +2915,9 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrin
         goto out;
 
     dbp = *ppDB;
-/* With the new idl design, the large 8Kbyte pages we use are not
-   optimal. The page pool churns very quickly as we add new IDs under a
-   sustained add load. Smaller pages stop this happening so much and
-   consequently make us spend less time flushing dirty pages on checkpoints.
-   But 8K is still a good page size for id2entry. So we now allow different
-   page sizes for the primary and secondary indices. 
-   Filed as bug: 604654
- */
-    if (idl_get_idl_new()) {
-        return_value = dbp->set_pagesize(
-                        dbp,
-                        (priv->dblayer_index_page_size == 0) ?
-                        DBLAYER_INDEX_PAGESIZE : priv->dblayer_index_page_size
-                        );
-    } else {
-        return_value = dbp->set_pagesize(
-                        dbp,
-                        (priv->dblayer_page_size == 0) ?
-                        DBLAYER_PAGESIZE : priv->dblayer_page_size
-                        );
-    }
-    if (0 != return_value)
+    return_value = _dblayer_set_db_callbacks(priv, dbp, ai);
+    if (return_value)
         goto out;
-
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
-    return_value = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
-    if (0 != return_value) {
-        goto out;
-    }
-#endif
-
-    if (idl_get_idl_new() && !(ai->ai_indexmask & INDEX_VLV)) {
-        return_value = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
-        if (0 != return_value)
-            goto out;
-
-        if (ai->ai_dup_cmp_fn) {
-            /* If set, use the special dup compare callback */
-            return_value = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
-        } else {
-            return_value = dbp->set_dup_compare(dbp, idl_new_compare_dups);
-        }
-        if (0 != return_value)
-            goto out;
-    }
-
-    if (ai->ai_indexmask & INDEX_VLV) {
-        /*
-         * Need index with record numbers for
-         * Virtual List View index
-         */
-        return_value = dbp->set_flags(dbp, DB_RECNUM);
-        if (0 != return_value)
-            goto out;
-    } else if (ai->ai_key_cmp_fn) { /* set in attr_index_config() */
-        /*
-          This is so that we can have ordered keys in the index, so that
-          greater than/less than searches work on indexed attrs.  We had
-          to introduce this when we changed the integer key format from
-          a 32/64 bit value to a normalized string value.  The default
-          bdb key cmp is based on length and lexicographic order, which
-          does not work with integer strings.
-
-          NOTE: If we ever need to use app_private for something else, we
-          will have to create some sort of data structure with different
-          fields for different uses.  We will also need to have a new()
-          function that creates and allocates that structure, and a
-          destroy() function that destroys the structure, and make sure
-          to call it when the DB* is closed and/or freed.
-        */
-        dbp->app_private = (void *)ai->ai_key_cmp_fn;
-        dbp->set_bt_compare(dbp, dblayer_bt_compare);
-    }
 
     /* The subname argument allows applications to have
      * subdatabases, i.e., multiple databases inside of a single
@@ -2920,8 +2925,10 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrin
      * are both numerous and reasonably small, in order to
      * avoid creating a large number of underlying files.
      */
+    /* If inst_parent_dir_name is not the primary DB dir &&
+     * the index file does not exist */
     if ((charray_get_index(priv->dblayer_data_directories,
-                           inst->inst_parent_dir_name) != 0) &&
+                           inst->inst_parent_dir_name) > 0) &&
         !dblayer_inst_exists(inst, file_name))
     {
         char inst_dir[MAXPATHLEN];
@@ -2947,6 +2954,9 @@ int dblayer_open_file(backend *be, char* indexname, int open_flag, struct attrin
             goto out;
         }
         dbp = *ppDB;
+        return_value = _dblayer_set_db_callbacks(priv, dbp, ai);
+        if (return_value)
+            goto out;
 
         slapi_ch_free_string(&abs_file_name);
         if (inst_dirp != inst_dir)
