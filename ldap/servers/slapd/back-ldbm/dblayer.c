@@ -2812,7 +2812,12 @@ _dblayer_set_db_callbacks(dblayer_private *priv, DB *dbp, struct attrinfo *ai)
         if (rc)
             return rc;
 
-        rc = dbp->set_dup_compare( dbp, idl_new_compare_dups);
+        if (ai->ai_dup_cmp_fn) {
+            /* If set, use the special dup compare callback */
+            rc = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
+        } else {
+            rc = dbp->set_dup_compare(dbp, idl_new_compare_dups);
+        }
         if (rc)
             return rc;
     }
