@@ -682,7 +682,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/dbhelp.c \
 	ldap/servers/slapd/back-ldbm/dblayer.c \
 	ldap/servers/slapd/back-ldbm/dbsize.c \
-	ldap/servers/slapd/back-ldbm/dbtest.c \
 	ldap/servers/slapd/back-ldbm/dbversion.c \
 	ldap/servers/slapd/back-ldbm/dn2entry.c \
 	ldap/servers/slapd/back-ldbm/entrystore.c \

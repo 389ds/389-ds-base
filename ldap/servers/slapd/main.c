@@ -115,7 +115,6 @@ static int slapd_exemode_db2archive();
 static int slapd_exemode_upgradedb();
 static int slapd_exemode_upgradednformat();
 static int slapd_exemode_dbverify();
-static int slapd_exemode_dbtest();
 static int slapd_exemode_suffix2instance();
 static int slapd_debug_level_string2level( const char *s );
 static void slapd_debug_level_log( int level );
@@ -371,8 +370,6 @@ name2exemode( char *progname, char *s, int exit_if_unknown )
 		exemode = SLAPD_EXEMODE_DB2ARCHIVE;
 	} else if ( strcmp( s, "server" ) == 0 ) {
 		exemode = SLAPD_EXEMODE_SLAPD;
-	} else if ( strcmp( s, "dbtest" ) == 0 ) {
-		exemode = SLAPD_EXEMODE_DBTEST;
 	} else if ( strcmp( s, "db2index" ) == 0 ) {
 		exemode = SLAPD_EXEMODE_DB2INDEX;
 	} else if ( strcmp( s, "refer" ) == 0 ) {
@@ -439,10 +436,6 @@ usage( char *name, char *extraname )
 	break;
     case SLAPD_EXEMODE_REFERRAL:
 	usagestr = "usage: %s %s%s-D configdir -r referral-url [-p port]\n";
-	break;
-    case SLAPD_EXEMODE_DBTEST:
-	usagestr = "usage: %s %s%s-D configdir -n backend-instance-name "
-		"[-d debuglevel] [-S] [-v]\n";
 	break;
     case SLAPD_EXEMODE_SUFFIX2INSTANCE:
 	usagestr = "usage: %s %s%s -D configdir {-s suffix}*\n";
@@ -980,11 +973,6 @@ main( int argc, char **argv)
 		goto cleanup;
 		break;
 
-	case SLAPD_EXEMODE_DBTEST:
-		return_value = slapd_exemode_dbtest();
-		goto cleanup;
-		break;
-		
 	case SLAPD_EXEMODE_REFERRAL:
 		/* check that all the necessary info was given, then go on */
 		if (! config_check_referral_mode()) {
@@ -1340,16 +1328,6 @@ process_command_line(int argc, char **argv, char *myname,
 	 *
 	 */
 
-	char *opts_dbtest = "vd:n:SD:";
-	struct opt_ext long_options_dbtest[] = {
-		{"version",ArgNone,'v'},
-		{"debug",ArgRequired,'d'},
-		{"backend",ArgRequired,'n'},
-		{"allowMultipleProcesses",ArgNone,'S'},
-		{"configDir",ArgRequired,'D'},
-		{0,0,0}};
-	
-	
 	char *opts_db2ldif = "vd:D:ENa:rs:x:CSut:n:UmMo1";
 	struct opt_ext long_options_db2ldif[] = {
 		{"version",ArgNone,'v'},
@@ -1514,10 +1492,6 @@ process_command_line(int argc, char **argv, char *myname,
 
 	/* maintain compatibility with pre-5.x options */
 	switch( slapd_exemode ) {
-	case SLAPD_EXEMODE_DBTEST:
-		opts = opts_dbtest;
-		long_opts = long_options_dbtest;
-		break;
 	case SLAPD_EXEMODE_DB2LDIF:
 		opts = opts_db2ldif;
 		long_opts = long_options_db2ldif;
@@ -1658,7 +1632,6 @@ process_command_line(int argc, char **argv, char *myname,
 		case 'n':	/* which backend to do ldif2db/bak2db for */
 			if (slapd_exemode == SLAPD_EXEMODE_LDIF2DB ||
 				slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ||
-				slapd_exemode == SLAPD_EXEMODE_DBTEST ||
 				slapd_exemode == SLAPD_EXEMODE_DB2INDEX ||
 				slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB) {
 				/* The -n argument will give the name of a backend instance. */
@@ -2856,53 +2829,6 @@ slapd_exemode_dbverify()
 
     return( return_value );
 }
-
-
-static int
-slapd_exemode_dbtest()
-{
-    int return_value= 0;
-    Slapi_PBlock pb;
-    struct slapdplugin *plugin;
-
-    if (NULL == cmd_line_instance_name) {
-        LDAPDebug(LDAP_DEBUG_ANY, 
-                  "dbtest: Required argument -n <instance name> missing\n", 0, 0, 0);
-        usage( myname, extraname );
-        return 1;
-    }
-
-    mapping_tree_init();
-
-    plugin = lookup_plugin_by_instance_name(cmd_line_instance_name);
-    if (plugin == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, 
-                  "ERROR: Could not find backend '%s'.\n",
-                  cmd_line_instance_name, 0, 0);
-        return 1;
-    }
-
-    /* Make sure we aren't going to run slapd in 
-     * a mode that is going to conflict with other
-     * slapd processes that are currently running
-     */
-    if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-                               skip_db_protect_check) == -1 )  {
-
-        LDAPDebug( LDAP_DEBUG_ANY, 
-                   "Shutting down due to possible conflicts with other slapd processes\n",
-                   0, 0, 0 );
-        return 1;
-    }
-
-    pb.pb_backend = NULL;
-    pb.pb_plugin = plugin;
-    pb.pb_instance_name = cmd_line_instance_name;
-    /* For dbtest, we do _not_ change identity (no setuid()) */
-    return_value= (*plugin->plg_dbtest)( &pb );
-    return return_value;
-}
-
 
 
 #ifdef LDAP_DEBUG

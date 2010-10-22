@@ -175,7 +175,6 @@ am_libback_ldbm_la_OBJECTS =  \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbhelp.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dblayer.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.lo \
-	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-dn2entry.lo \
 	ldap/servers/slapd/back-ldbm/libback_ldbm_la-entrystore.lo \
@@ -1107,6 +1106,7 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
@@ -1800,7 +1800,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/dbhelp.c \
 	ldap/servers/slapd/back-ldbm/dblayer.c \
 	ldap/servers/slapd/back-ldbm/dbsize.c \
-	ldap/servers/slapd/back-ldbm/dbtest.c \
 	ldap/servers/slapd/back-ldbm/dbversion.c \
 	ldap/servers/slapd/back-ldbm/dn2entry.c \
 	ldap/servers/slapd/back-ldbm/entrystore.c \
@@ -2797,9 +2796,6 @@ ldap/servers/slapd/back-ldbm/libback_ldbm_la-dblayer.lo:  \
 	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
 	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.lo:  \
-	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
-	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
-ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo:  \
 	ldap/servers/slapd/back-ldbm/$(am__dirstamp) \
 	ldap/servers/slapd/back-ldbm/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.lo:  \
@@ -4967,8 +4963,6 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dblayer.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.$(OBJEXT)
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.lo
-	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.$(OBJEXT)
-	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.$(OBJEXT)
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbverify.lo
 	-rm -f ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.$(OBJEXT)
@@ -5753,7 +5747,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbhelp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dblayer.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbsize.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbtest.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbverify.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbversion.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dn2entry.Plo@am__quote@
@@ -6252,13 +6245,6 @@ ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.lo: ldap/servers/slapd/back-
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/back-ldbm/dbsize.c' object='ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbsize.lo `test -f 'ldap/servers/slapd/back-ldbm/dbsize.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/dbsize.c
-
-ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo: ldap/servers/slapd/back-ldbm/dbtest.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo -MD -MP -MF ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbtest.Tpo -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo `test -f 'ldap/servers/slapd/back-ldbm/dbtest.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/dbtest.c
-@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbtest.Tpo ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbtest.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/back-ldbm/dbtest.c' object='ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbtest.lo `test -f 'ldap/servers/slapd/back-ldbm/dbtest.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/dbtest.c
 
 ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.lo: ldap/servers/slapd/back-ldbm/dbversion.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libback_ldbm_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.lo -MD -MP -MF ldap/servers/slapd/back-ldbm/$(DEPDIR)/libback_ldbm_la-dbversion.Tpo -c -o ldap/servers/slapd/back-ldbm/libback_ldbm_la-dbversion.lo `test -f 'ldap/servers/slapd/back-ldbm/dbversion.c' || echo '$(srcdir)/'`ldap/servers/slapd/back-ldbm/dbversion.c

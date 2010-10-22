@@ -475,7 +475,6 @@ int ldbm_back_upgradedb( Slapi_PBlock *pb );
 int ldbm_back_dbverify( Slapi_PBlock *pb );
 int ldbm_back_next_search_entry( Slapi_PBlock *pb ); 
 int ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension );
-int ldbm_back_db_test( Slapi_PBlock *pb ); 
 int ldbm_back_entry_release( Slapi_PBlock *pb, void *backend_info_ptr );
 void ldbm_back_search_results_release( void **search_results );
 int ldbm_back_init( Slapi_PBlock *pb ); 

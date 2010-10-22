@@ -239,8 +239,6 @@ ldbm_back_init( Slapi_PBlock *pb )
 	    (void *) dblayer_plugin_abort );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_SIZE_FN,
 	    (void *) ldbm_db_size );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_TEST_FN,
-	    (void *) ldbm_back_db_test );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_INIT_INSTANCE_FN,
 	    (void *) ldbm_back_init ); /* register itself so that the secon instance
                                           can be initialized */
