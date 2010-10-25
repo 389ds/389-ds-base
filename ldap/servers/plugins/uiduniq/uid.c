@@ -70,7 +70,7 @@ int ldap_quote_filter_value(
 
 
 static int search_one_berval(const char *baseDN, const char *attrName,
-		const struct berval *value, const char *target);
+		const struct berval *value, const char *requiredObjectClass, const char *target);
 
 /*
  * ISSUES:
@@ -141,13 +141,14 @@ uid_op_error(int internal_error)
  */
 
 static char *
-create_filter(const char *attribute, const struct berval *value)
+create_filter(const char *attribute, const struct berval *value, const char *requiredObjectClass)
 {
   char *filter;
   char *fp;
   char *max;
   int attrLen;
   int valueLen;
+  int classLen = 0;
   int filterLen;
 
   PR_ASSERT(attribute);
@@ -159,12 +160,28 @@ create_filter(const char *attribute, const struct berval *value)
 	value->bv_len, 0, 0, &valueLen))
     return 0;
 
-  filterLen = attrLen + 1 + valueLen + 1;
+  if (requiredObjectClass) {
+    classLen = strlen(requiredObjectClass);
+    /* "(&(objectClass=)())" == 19 */
+    filterLen = attrLen + 1 + valueLen + classLen + 19 + 1;
+  } else {
+    filterLen = attrLen + 1 + valueLen + 1;
+  }
 
   /* Allocate the buffer */
   filter = slapi_ch_malloc(filterLen);
   fp = filter;
   max = &filter[filterLen];
+
+  /* Place AND expression and objectClass in filter */
+  if (requiredObjectClass) {
+    strcpy(fp, "(&(objectClass=");
+    fp += 15;
+    strcpy(fp, requiredObjectClass);
+    fp += classLen;
+    *fp++ = ')';
+    *fp++ = '(';
+  }
 
   /* Place attribute name in filter */
   strcpy(fp, attribute);
@@ -177,6 +194,12 @@ create_filter(const char *attribute, const struct berval *value)
   if (ldap_quote_filter_value(value->bv_val, value->bv_len,
     fp, max-fp, &valueLen)) { slapi_ch_free((void**)&filter); return 0; }
   fp += valueLen;
+
+  /* Close AND expression if a requiredObjectClass was set */
+  if (requiredObjectClass) {
+    *fp++ = ')';
+    *fp++ = ')';
+  }
 
   /* Terminate */
   *fp = 0;
@@ -202,7 +225,8 @@ create_filter(const char *attribute, const struct berval *value)
  */
 static int
 search(const char *baseDN, const char *attrName, Slapi_Attr *attr,
-  struct berval **values, const char *target)
+  struct berval **values, const char *requiredObjectClass,
+  const char *target)
 {
   int result;
 
@@ -234,15 +258,17 @@ search(const char *baseDN, const char *attrName, Slapi_Attr *attr,
 		vhint != -1 && LDAP_SUCCESS == result;
 		vhint = slapi_attr_next_value( attr, vhint, &v ))
 	{
-	  result = search_one_berval(baseDN,attrName,
-					slapi_value_get_berval(v),target);
+	  result = search_one_berval(baseDN, attrName,
+					slapi_value_get_berval(v),
+					requiredObjectClass, target);
 	}
   }
   else
   {
 	for (;*values != NULL && LDAP_SUCCESS == result; values++)
 	{
-	  result = search_one_berval(baseDN,attrName,*values,target);
+	  result = search_one_berval(baseDN, attrName, *values, requiredObjectClass,
+					target);
 	}
   }
 
@@ -257,7 +283,8 @@ search(const char *baseDN, const char *attrName, Slapi_Attr *attr,
 
 static int
 search_one_berval(const char *baseDN, const char *attrName,
-		const struct berval *value, const char *target)
+		const struct berval *value, const char *requiredObjectClass,
+		const char *target)
 {
 	int result;
     char *filter;
@@ -279,7 +306,7 @@ search_one_berval(const char *baseDN, const char *attrName,
       static char *attrs[] = { "1.1", 0 };
 
       /* Create the filter - this needs to be freed */
-      filter = create_filter(attrName, value);
+      filter = create_filter(attrName, value, requiredObjectClass);
 
 #ifdef DEBUG
       slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -376,7 +403,8 @@ search_one_berval(const char *baseDN, const char *attrName,
  */
 static int
 searchAllSubtrees(int argc, char *argv[], const char *attrName,
-  Slapi_Attr *attr, struct berval **values, const char *dn)
+  Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass,
+  const char *dn)
 {
   int result = LDAP_SUCCESS;
 
@@ -391,7 +419,7 @@ searchAllSubtrees(int argc, char *argv[], const char *attrName,
      * worry about that here.
      */
     if (slapi_dn_issuffix(dn, *argv)) {
-      result = search(*argv, attrName, attr, values, dn);
+      result = search(*argv, attrName, attr, values, requiredObjectClass, dn);
       if (result) break;
     }
   }
@@ -480,7 +508,8 @@ getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass,
  */
 static int
 findSubtreeAndSearch(char *parentDN, const char *attrName, Slapi_Attr *attr,
-  struct berval **values, const char *target, const char *markerObjectClass)
+  struct berval **values, const char *requiredObjectClass, const char *target,
+  const char *markerObjectClass)
 {
   int result = LDAP_SUCCESS;
   Slapi_PBlock *spb = NULL;
@@ -494,7 +523,8 @@ findSubtreeAndSearch(char *parentDN, const char *attrName, Slapi_Attr *attr,
            * Do the search.   There is no entry that is allowed
            * to have the attribute already.
            */
-          result = search(parentDN, attrName, attr, values, target);
+          result = search(parentDN, attrName, attr, values, requiredObjectClass,
+                          target);
           break;
         }
   }
@@ -606,11 +636,13 @@ preop_add(Slapi_PBlock *pb)
         {
           /* Subtree defined by location of marker object class */
                 result = findSubtreeAndSearch(dn, attrName, attr, NULL,
-								dn, markerObjectClass);
+                                              requiredObjectClass, dn,
+                                              markerObjectClass);
         } else
         {
           /* Subtrees listed on invocation line */
-          result = searchAllSubtrees(argc, argv, attrName, attr, NULL, dn);
+          result = searchAllSubtrees(argc, argv, attrName, attr, NULL,
+                                     requiredObjectClass, dn);
         }
   END
 
@@ -756,14 +788,13 @@ preop_modify(Slapi_PBlock *pb)
 			if (NULL != markerObjectClass)
 			{
 				/* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(dn, attrName, NULL,
-											  mod->mod_bvalues, dn,
-											  markerObjectClass);
+                result = findSubtreeAndSearch(dn, attrName, NULL, mod->mod_bvalues,
+                                              requiredObjectClass, dn, markerObjectClass);
 			} else
 			{
 				/* Subtrees listed on invocation line */
 				result = searchAllSubtrees(argc, argv, attrName, NULL,
-										   mod->mod_bvalues, dn);
+                                                           mod->mod_bvalues, requiredObjectClass, dn);
 			}
 		}
   END
@@ -907,12 +938,14 @@ preop_modrdn(Slapi_PBlock *pb)
         if (NULL != markerObjectClass)
         {
           /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(dn, attrName, attr, NULL, dn,
-                                  markerObjectClass);
+                result = findSubtreeAndSearch(dn, attrName, attr, NULL,
+                                              requiredObjectClass, dn,
+                                              markerObjectClass);
         } else
         {
           /* Subtrees listed on invocation line */
-          result = searchAllSubtrees(argc, argv, attrName, attr, NULL, dn);
+          result = searchAllSubtrees(argc, argv, attrName, attr, NULL,
+                                     requiredObjectClass, dn);
         }
   END
   /* Clean-up */
