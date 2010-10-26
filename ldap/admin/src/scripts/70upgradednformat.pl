@@ -106,6 +106,7 @@ sub runinst {
             #                -1 -- error
             my $escapes = system("$upgradednformat -n $backend -a $dbinstdir -N");
             if (0 == $escapes) {
+                # need to upgrade dn format
                 my $rc = 0;
 
                 if (system("cd $pdbdir; tar cf - db/DBVERSION | (cd $dbinstdir; tar xf -)") ||
@@ -144,6 +145,40 @@ sub runinst {
                     unlink <$dbinstdir/dnupgrade/*>;
                     rmdir("$dbinstdir/dnupgrade");
                     return ("error_cant_convert_db", $backend, $rc);
+                }
+            } else {
+                # already upgraded or an error occurred.
+                # check ancestorid to see if it has not-sorted ID list or not.
+                my $ancestorid = $dbinstdir . "/ancestorid.db4";
+                if (-e "$ancestorid") {
+                    my $disorder = 0;
+                    open(ANCESTOR, "/usr/bin/dbscan -f $ancestorid -r |");
+                    while (<ANCESTOR>) {
+                        if (!/^=[0-9]*/) {
+                            chomp($_);
+                            my @IDs = split(/ |	/, $_);
+                            # print "ID count: $#IDs\n";
+                            my $lasti = $#IDs;
+                            for (my $i = 1; $i < $lasti; $i++) {
+                                if ($IDs[$i] >= $IDs[$i + 1]) {
+                                    $disorder = 1;
+                                    last;
+                                }
+                            }
+                            # print "Result: $disorder \n";
+                            if ($disorder) {
+                                last;
+                            }
+                        }
+                    }
+                    close(ANCESTOR);
+
+                    # ancestorid index is in disorder; need to reindex it.
+                    if ($disorder) {
+                        print "The ancestorid index in $backend is in disorder; Reindexing $ancestorid.\n";
+                        my $reindex = $instancedir . "/db2index";
+                        my $rc = system("$reindex -n $backend -t ancestorid");
+                    }
                 }
             }
         }
