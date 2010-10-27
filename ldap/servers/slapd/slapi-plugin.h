@@ -1979,6 +1979,24 @@ void slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int d
  */
 int slapi_entry_apply_mods(Slapi_Entry *e, LDAPMod **mods);
 
+/**
+ * Renames a Slapi_Entry.
+ *
+ * This function will rename an existing \c Slapi_Entry, similar to what
+ * would happen with a \c MODRDN operation.  New RDN values will be added
+ * as attributes to the entry and old RDN values will be deleted if requested.
+ *
+ * \param e Entry that you want to rename.
+ * \param newrdn The new RDN value to be used for renaming the entry.  This must
+ *               not be \c NULL.
+ * \param deleteoldrdn Will delete the old RDN values from the entry if set to \c 1.
+ * \param newsuperior The new superior DN to use when renaming the entry.  Set this
+ *                    to \c NULL if you do not want to move the entry.
+ * \return \c LDAP_SUCCESS if the rename was successful, otherwise an LDAP error
+ *         is returned.
+ */
+int slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, const char *newsuperior);
+
 
 /*------------------------
  * Entry flags.

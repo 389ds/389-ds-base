@@ -771,6 +771,9 @@ preop_modify(Slapi_PBlock *pb)
     err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET, &dn);
     if (err) { result = uid_op_error(11); break; }
 
+        /*
+         * Check if it has the required object class
+         */
         if (requiredObjectClass &&
                 !(spb = dnHasObjectClass(dn, requiredObjectClass))) { break; }
 
@@ -823,17 +826,15 @@ preop_modify(Slapi_PBlock *pb)
 static int
 preop_modrdn(Slapi_PBlock *pb)
 {
-  int result;
-  Slapi_Entry *e;
+  int result = LDAP_SUCCESS;
+  Slapi_Entry *e = NULL;
+  Slapi_DN *sdn = NULL;
+  Slapi_Value *sv_requiredObjectClass = NULL;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "MODRDN begin\n");
 #endif
-
-  /* Init */
-  result = LDAP_SUCCESS;
-  e = 0;
 
   BEGIN
     int err;
@@ -843,8 +844,9 @@ preop_modrdn(Slapi_PBlock *pb)
     char *dn;
     char *superior;
     char *rdn;
-        int isupdatedn;
-        Slapi_Attr *attr;
+    int deloldrdn = 0;
+    int isupdatedn;
+    Slapi_Attr *attr;
     int argc;
     char **argv = NULL;
 
@@ -879,9 +881,18 @@ preop_modrdn(Slapi_PBlock *pb)
           break;
         }
 
+    /* Create a Slapi_Value for the requiredObjectClass to use
+     * for checking the entry. */
+    if (requiredObjectClass) {
+        sv_requiredObjectClass = slapi_value_new_string(requiredObjectClass);
+    }
+
     /* Get the DN of the entry being renamed */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET, &dn);
     if (err) { result = uid_op_error(31); break; }
+
+    /* Create a Slapi_DN to use for searching. */
+    sdn = slapi_sdn_new_dn_byref(dn);
 
     /* Get superior value - unimplemented in 3.0/4.0/5.0 DS */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR, &superior);
@@ -902,33 +913,30 @@ preop_modrdn(Slapi_PBlock *pb)
       "MODRDN newrdn=%s\n", rdn);
 #endif
 
-    /*
-     * Parse the RDN into attributes by creating a "dummy" entry
-     * and setting the attributes from the RDN.
-     *
-     * The new entry must be freed.
-     */
-    e = slapi_entry_alloc();
-    if (!e) { result = uid_op_error(34); break; }
+    /* See if the old RDN value is being deleted. */
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_DELOLDRDN, &deloldrdn);
+    if (err) { result = uid_op_error(34); break; }
 
-    /* NOTE: strdup on the rdn, since it will be freed when
-     * the entry is freed */
+    /* Get the entry that is being renamed so we can make a dummy copy
+     * of what it will look like after the rename. */
+    err = slapi_search_internal_get_entry(sdn, NULL, &e, plugin_identity);
+    if (err != LDAP_SUCCESS) { result = uid_op_error(35); break; }
 
-    slapi_entry_set_dn(e, slapi_ch_strdup(rdn));
-
-    err = slapi_entry_add_rdn_values(e);
-    if (err)
-    {
-      slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
-        "MODRDN bad rdn value=%s\n", rdn);
-      break; /* Bad DN */
-    }
+    /* Apply the rename operation to the dummy entry. */
+    err = slapi_entry_rename(e, rdn, deloldrdn, superior);
+    if (err != LDAP_SUCCESS) { result = uid_op_error(36); break; }
 
         /*
          * Find any unique attribute data in the new RDN
          */
         err = slapi_entry_attr_find(e, attrName, &attr);
         if (err) break;  /* no UID attribute */
+
+        /*
+         * Check if it has the required object class
+         */
+        if (requiredObjectClass &&
+            !slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS, sv_requiredObjectClass)) { break; }
 
         /*
          * Passed all the requirements - this is an operation we
@@ -938,7 +946,7 @@ preop_modrdn(Slapi_PBlock *pb)
         if (NULL != markerObjectClass)
         {
           /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(dn, attrName, attr, NULL,
+                result = findSubtreeAndSearch(slapi_entry_get_dn(e), attrName, attr, NULL,
                                               requiredObjectClass, dn,
                                               markerObjectClass);
         } else
@@ -949,6 +957,8 @@ preop_modrdn(Slapi_PBlock *pb)
         }
   END
   /* Clean-up */
+  slapi_sdn_free(&sdn);
+  slapi_value_free(&sv_requiredObjectClass);
   if (e) slapi_entry_free(e);
 
   if (result)

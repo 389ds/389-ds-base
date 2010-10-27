@@ -3056,6 +3056,92 @@ slapi_entry_has_children(const Slapi_Entry *entry)
 }
 
 /*
+ * Renames an entry to simulate a MODRDN operation
+ */
+int
+slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, const char *newsuperior)
+{
+    int err = LDAP_SUCCESS;
+    char *newdn = NULL;
+    char *olddn = NULL;
+    Slapi_RDN *oldrdn = NULL;
+    Slapi_Mods *smods = NULL;
+
+    LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_entry_rename\n", 0, 0, 0 );
+
+    /* Check if entry or newrdn are NULL. */
+    if (!e || !newrdn) {
+        err = LDAP_PARAM_ERROR;
+        goto done;
+    }
+
+    /* Get the old DN. */
+    olddn = slapi_entry_get_dn(e);
+
+    /* If deleteoldrdn, find old RDN values and remove them from the entry. */
+    if (deleteoldrdn) {
+        char *type = NULL;
+        char * val = NULL;
+        int num_rdns = 0;
+        int i = 0;
+
+        oldrdn = slapi_rdn_new_dn(olddn);
+
+        /* Create mods based on the number of rdn elements. */
+        num_rdns = slapi_rdn_get_num_components(oldrdn);
+        smods = slapi_mods_new();
+        slapi_mods_init(smods, num_rdns + 2);
+
+        /* Loop through old rdns and construct a mod to remove the value. */
+        for (i = 0; i < num_rdns; i++) {
+            if (slapi_rdn_get_next(oldrdn, i, &type, &val) != -1) {
+                slapi_mods_add(smods, LDAP_MOD_DELETE, type, strlen(val), val);
+            }
+        }
+
+        /* Apply the mods to the entry. */
+        if ((err = slapi_entry_apply_mods(e, slapi_mods_get_ldapmods_byref(smods))) != LDAP_SUCCESS) {
+            /* A problem was encountered applying the mods.  Bail. */
+            goto done;
+        }
+    }
+
+    /* We remove the parentid and entrydn since the backend will change these.
+     * We don't want to give the caller an inconsistent entry. */
+    slapi_entry_attr_delete(e, "parentid");
+    slapi_entry_attr_delete(e, "entrydn");
+
+    /* Build new DN.  If newsuperior is set, just use "newrdn,newsuperior".  If
+     * newsuperior is not set, need to add newrdn to old superior. */
+    if (newsuperior) {
+        newdn = slapi_ch_smprintf("%s,%s", newrdn, newsuperior);
+    } else {
+        char *oldsuperior = NULL;
+
+        oldsuperior = slapi_dn_parent(olddn);
+        newdn = slapi_ch_smprintf("%s,%s", newrdn, oldsuperior);
+
+        slapi_ch_free_string(&oldsuperior);
+    }
+
+    /* Set the new DN in the entry.  This hands off the memory used by newdn to the entry. */
+    slapi_entry_set_dn(e, newdn);
+
+    /* Set the RDN in the entry. */
+    slapi_entry_set_rdn(e, newdn);
+
+    /* Add RDN values to entry. */
+    err = slapi_entry_add_rdn_values(e);
+
+done:
+    slapi_rdn_free(&oldrdn);
+    slapi_mods_free(&smods);
+
+    LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_entry_rename\n", 0, 0, 0 );
+    return err;
+}
+
+/*
  * Apply a set of modifications to an entry 
  */
 int
