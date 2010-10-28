@@ -105,7 +105,7 @@ static void* plugin_identity = NULL;
  * More information about constraint failure
  */
 static char *moreInfo =
-  "Another entry with the same attribute value already exists";
+  "Another entry with the same attribute value already exists (attribute: \"%s\")";
 
 static void
 freePblock( Slapi_PBlock *spb ) {
@@ -540,6 +540,8 @@ static int
 preop_add(Slapi_PBlock *pb)
 {
   int result;
+  char *errtext = NULL;
+  char *attrName = NULL;
 
 #ifdef DEBUG
   slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD begin\n");
@@ -553,13 +555,12 @@ preop_add(Slapi_PBlock *pb)
 
  BEGIN
     int err;
-    char *attrName = NULL;
     char *markerObjectClass = NULL;
     char *requiredObjectClass = NULL;
     char *dn;
-        int isupdatedn;
-        Slapi_Entry *e;
-        Slapi_Attr *attr;
+    int isupdatedn;
+    Slapi_Entry *e;
+    Slapi_Attr *attr;
     int argc;
     char **argv = NULL;
 
@@ -651,8 +652,12 @@ preop_add(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "ADD result %d\n", result);
 
+    errtext = slapi_ch_smprintf(moreInfo, attrName);
+
     /* Send failure to the client */
-    slapi_send_ldap_result(pb, result, 0, moreInfo, 0, 0);
+    slapi_send_ldap_result(pb, result, 0, errtext, 0, 0);
+
+    slapi_ch_free_string(&errtext);
   }
 
   return (result==LDAP_SUCCESS)?0:-1;
@@ -685,6 +690,8 @@ preop_modify(Slapi_PBlock *pb)
   Slapi_PBlock *spb = NULL;
   LDAPMod **checkmods = NULL;
   int checkmodsCapacity = 0;
+  char *errtext = NULL;
+  char *attrName = NULL;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -693,7 +700,6 @@ preop_modify(Slapi_PBlock *pb)
 
   BEGIN
     int err;
-    char *attrName = NULL;
     char *markerObjectClass=NULL;
     char *requiredObjectClass=NULL;
     LDAPMod **mods;
@@ -809,7 +815,11 @@ preop_modify(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "MODIFY result %d\n", result);
 
-    slapi_send_ldap_result(pb, result, 0, moreInfo, 0, 0);
+    errtext = slapi_ch_smprintf(moreInfo, attrName);
+
+    slapi_send_ldap_result(pb, result, 0, errtext, 0, 0);
+
+    slapi_ch_free_string(&errtext);
   }
 
   return (result==LDAP_SUCCESS)?0:-1;
@@ -830,6 +840,8 @@ preop_modrdn(Slapi_PBlock *pb)
   Slapi_Entry *e = NULL;
   Slapi_DN *sdn = NULL;
   Slapi_Value *sv_requiredObjectClass = NULL;
+  char *errtext = NULL;
+  char *attrName = NULL;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -838,7 +850,6 @@ preop_modrdn(Slapi_PBlock *pb)
 
   BEGIN
     int err;
-    char *attrName = NULL;
     char *markerObjectClass=NULL;
     char *requiredObjectClass=NULL;
     char *dn;
@@ -966,7 +977,11 @@ preop_modrdn(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "MODRDN result %d\n", result);
 
-    slapi_send_ldap_result(pb, result, 0, moreInfo, 0, 0);
+    errtext = slapi_ch_smprintf(moreInfo, attrName);
+
+    slapi_send_ldap_result(pb, result, 0, errtext, 0, 0);
+
+    slapi_ch_free_string(&errtext);
   }
 
   return (result==LDAP_SUCCESS)?0:-1;
