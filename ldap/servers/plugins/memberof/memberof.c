@@ -448,6 +448,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	char *filter_str = 0;
 	int num_types = 0;
 	int types_name_len = 0;
+	int dn_len = 0;
 	int i = 0;
 
 	/* get the base dn for the backend we are in
@@ -463,6 +464,9 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 
 	if(base_sdn)
 	{
+		/* Find the length of the dn */
+		dn_len = strlen(dn);
+
 		/* Count the number of types. */
 		for (num_types = 0; types && types[num_types]; num_types++)
 		{
@@ -475,7 +479,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 		if (num_types > 1)
 		{
 			int bytes_out = 0;
-			int filter_str_len = types_name_len + (num_types * 4) + 4;
+			int filter_str_len = types_name_len + (num_types * (3 + dn_len)) + 4;
 
 			/* Allocate enough space for the filter */
 			filter_str = slapi_ch_malloc(filter_str_len);
@@ -486,7 +490,8 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 			/* Add filter section for each type. */
 			for (i = 0; types[i]; i++)
 			{
-				bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", types[i]);
+				bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out,
+						"(%s=%s)", types[i], dn);
 			}
 
 			/* Add end of filter. */
