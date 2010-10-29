@@ -627,11 +627,13 @@ write_start_pid_file()
 	if ( (fp = fopen( start_pid_file, "w" )) != NULL ) {
 		fprintf( fp, "%d\n", getpid() );
 		fclose( fp );
-		return 0;
-	} else
-	{
-		return -1;
+		if ( chmod(start_pid_file, S_IWUSR|S_IRUSR|S_IRGRP|S_IROTH) != 0 ) {
+			unlink(start_pid_file);
+		} else {
+			return 0;
+		} 
 	}
+	return -1;
 }
 #endif /* WIN32 */
 

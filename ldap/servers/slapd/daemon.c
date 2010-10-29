@@ -2432,11 +2432,13 @@ write_pid_file()
 	if ( (fp = fopen( get_pid_file(), "w" )) != NULL ) {
 		fprintf( fp, "%d\n", getpid() );
 		fclose( fp );
-		return 0;
-	} else
-	{
-		return -1;
+		if ( chmod(get_pid_file(), S_IWUSR|S_IRUSR|S_IRGRP|S_IROTH) != 0 ) {
+			unlink(get_pid_file());
+	 	} else {
+			return 0;
+		}
 	}
+	return -1;
 }
 #endif /* WIN32 */
 

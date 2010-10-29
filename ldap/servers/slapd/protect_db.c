@@ -97,7 +97,7 @@ grab_lockfile()
     pid = getpid();
 
     /* Try to grab it */
-    if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0664)) != -1) {
+    if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644)) != -1) {
         /* We got the lock, write our pid to the file */
         write(fd, (void *) &pid, sizeof(pid_t));
     close(fd);
@@ -116,7 +116,7 @@ grab_lockfile()
     t.tv_sec = 0;
     t.tv_usec = WAIT_TIME * 1000;
         for(x = 0; x < NUM_TRIES; x++) {
-            if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0664)) != -1) {
+            if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644)) != -1) {
                 /* Got the lock */
                 write(fd, (void *) &pid, sizeof(pid_t));
         close(fd);
@@ -233,7 +233,7 @@ add_this_process_to(char *dir_name)
     snprintf(file_name, sizeof(file_name), "%s/%d", dir_name, getpid());
     file_name[sizeof(file_name)-1] = (char)0;
     
-    if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0666)) == NULL) {
+    if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0644)) == NULL) {
         LDAPDebug(LDAP_DEBUG_ANY, FILE_CREATE_WARNING, file_name, 0, 0);
         return;
     }
