@@ -2821,6 +2821,18 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
         goto bailmod;
     }
 
+    /* See if the operation is going to be rejected by the ACIs.  There's no use in
+     * us worrying about the change if it's going to be rejected. */
+    if (LDAP_CHANGETYPE_MODIFY == modtype) {
+        if (slapi_acl_check_mods(pb, e, slapi_mods_get_ldapmods_byref(smods), NULL) != LDAP_SUCCESS) {
+            goto bailmod;
+        }
+    } else {
+        if (slapi_access_allowed(pb, e, NULL, NULL, SLAPI_ACL_ADD) != LDAP_SUCCESS) {
+            goto bailmod;
+        }
+    }
+
     dna_read_lock();
 
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
