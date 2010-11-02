@@ -1034,12 +1034,14 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data) {
 				 * Don't reset info->ret....it keeps track of any success
 				*/
 				if ( rc == COS_DEF_ERROR_NO_TEMPLATES) {
-					LDAPDebug(LDAP_DEBUG_ANY, "skipping cos definition %s"
-							"--no templates found\n",
-							escape_string(pTmpDn, ebuf),0,0);
+					LDAPDebug(LDAP_DEBUG_ANY, "Skipping CoS Definition %s"
+						"--no CoS Templates found, "
+						"which should be added before the CoS Definition.\n",
+						escape_string(pTmpDn, ebuf), 0, 0);
 				} else {
-					LDAPDebug(LDAP_DEBUG_ANY, "skipping cos definition %s\n"
-								,escape_string(pTmpDn, ebuf),0,0);
+					LDAPDebug(LDAP_DEBUG_ANY, "Skipping CoS Definition %s\n"
+						"--error(%d)\n",
+						escape_string(pTmpDn, ebuf), rc, 0);
 				}
 			}
 			
@@ -2441,10 +2443,6 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 						/* MAB: We need to free actual_type_name here !!! 
 						XXX BAD--should use slapi_vattr_values_free() */	
 						slapi_ch_free((void **) &actual_type_name);
-						if (SLAPI_VIRTUALATTRS_LOOP_DETECTED == ret) {
-							ret = LDAP_UNWILLING_TO_PERFORM;
-							goto bail;
-						}
 					}
 
 					if(pAttrSpecs || pDef->cosType == COSTYPE_POINTER)

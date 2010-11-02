@@ -102,7 +102,7 @@ struct _vattr_context {
 	unsigned int vattr_context_loop_count;
 	unsigned int error_displayed;
 };
-#define VATTR_LOOP_COUNT_MAX 256
+#define VATTR_LOOP_COUNT_MAX 50
 
 typedef  vattr_sp_handle vattr_sp_handle_list;
 
@@ -1082,8 +1082,11 @@ int slapi_vattr_namespace_value_compare_sp(vattr_context *c,/* Entry we're inter
 
 	rc = vattr_context_grok(&c);
 	if (0 != rc) {
-		/* Print a handy error log message */
-		LDAPDebug(LDAP_DEBUG_ANY,"Detected virtual attribute loop in compare on entry %s, attribute %s\n", slapi_entry_get_dn_const(e), type, 0);
+		if(!vattr_context_is_loop_msg_displayed(&c)) {
+			/* Print a handy error log message */
+			LDAPDebug(LDAP_DEBUG_ANY,"Detected virtual attribute loop in compare on entry %s, attribute %s\n", slapi_entry_get_dn_const(e), type, 0);
+			vattr_context_set_loop_msg_displayed(&c);
+		}
 		return rc;
 	}
 

@@ -1176,6 +1176,8 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 
 			Slapi_Filter *filter = NULL;
 			char *filter_attr_value = NULL;
+			Slapi_PBlock *pb = NULL;
+			char *parent = NULL;
 
 			/* Get the filter and retrieve the filter attribute */
 			filter_attr_value = slapi_entry_attr_get_charptr(role_entry,ROLE_FILTER_ATTR_NAME);
@@ -1185,6 +1187,47 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 				slapi_ch_free((void**)&this_role);
 				return SLAPI_ROLE_ERROR_NO_FILTER_SPECIFIED;
 			}
+			/* search (&(objectclass=costemplate)(filter_attr_value))*/
+			/* if found, reject it (returning SLAPI_ROLE_ERROR_FILTER_BAD) */
+			pb = slapi_pblock_new();
+			parent = slapi_dn_parent(slapi_entry_get_dn(role_entry));
+			if (parent) {
+				Slapi_Entry **cosentries = NULL;
+				char *costmpl_filter = NULL;
+				if ((*filter_attr_value == '(') &&
+				    (*(filter_attr_value+strlen(filter_attr_value)-1) == ')')) {
+					costmpl_filter =
+					      slapi_ch_smprintf("(&(objectclass=costemplate)%s)", 
+					                        filter_attr_value);
+				} else {
+					costmpl_filter =
+					      slapi_ch_smprintf("(&(objectclass=costemplate)(%s))", 
+					                        filter_attr_value);
+				}
+				slapi_search_internal_set_pb(pb, parent, LDAP_SCOPE_SUBTREE,
+				                             costmpl_filter, NULL, 0, NULL, 
+				                             NULL, roles_get_plugin_identity(),
+				                             0);
+				slapi_search_internal_pb(pb);
+				slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, 
+				                 &cosentries);
+				slapi_ch_free_string(&costmpl_filter);
+				slapi_ch_free_string(&parent);
+				if (cosentries && *cosentries) {
+					slapi_free_search_results_internal(pb);
+					slapi_pblock_destroy(pb);
+					slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+					    "%s: not allowed to refer virtual attribute "
+					    "in the value of %s %s. The %s is disabled.\n",
+					    (char*)slapi_sdn_get_ndn(this_role->dn),
+					    ROLE_FILTER_ATTR_NAME, filter_attr_value,
+					    ROLE_FILTER_ATTR_NAME);
+					slapi_ch_free((void**)&this_role);
+					return SLAPI_ROLE_ERROR_FILTER_BAD;
+				}
+			}
+			slapi_free_search_results_internal(pb);
+			slapi_pblock_destroy(pb);
 
 			/* Turn it into a slapi filter object */
 			filter = slapi_str2filter(filter_attr_value);
