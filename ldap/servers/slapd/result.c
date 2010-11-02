@@ -723,6 +723,13 @@ encode_attr_2(
 {
 
 	char *attrs[2] = { NULL, NULL };
+	Slapi_Value *v;
+	int i = slapi_valueset_first_value(vs,&v);
+
+	if (i==-1)
+	{
+		return( 0 );
+	}
 
 	attrs[0] = (char*)attribute_type;
 
@@ -743,8 +750,6 @@ encode_attr_2(
 
 	if ( ! attrsonly )
 	{
-		Slapi_Value *v;
-		int i= slapi_valueset_first_value(vs,&v);
 		while(i!=-1)
 		{
 			if ( ber_printf( ber, "o", v->bv.bv_val,v->bv.bv_len ) == -1 )
