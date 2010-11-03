@@ -152,7 +152,12 @@ do_abandon( Slapi_PBlock *pb )
 		    0 );
 	}
 
-	if ( NULL == o ) {
+	if (pagedresults_cleanup(pb->pb_conn)) {
+		/* Cleaned up paged result connection */
+		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
+			" targetop=Simple Paged Results\n",
+			pb->pb_conn->c_connid, pb->pb_op->o_opid );
+	} else if ( NULL == o ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
 			" targetop=NOTFOUND msgid=%d\n",
 			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );

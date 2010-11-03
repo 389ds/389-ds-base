@@ -363,3 +363,27 @@ pagedresults_set_timelimit(Connection *conn, time_t timelimit)
     return rc;
 }
 
+/*
+ * return values
+ * 0: not a simple paged result connection
+ * 1: simple paged result and successfully abandoned
+ */
+int
+pagedresults_cleanup(Connection *conn)
+{
+    int rc = 0;
+
+    if (conn->c_current_be) {
+        if (conn->c_search_result_set) {
+            if (conn->c_current_be->be_search_results_release) {
+                conn->c_current_be->be_search_results_release(&(conn->c_search_result_set));
+            }
+            conn->c_search_result_set = NULL;
+        }
+        conn->c_current_be = 0;
+        conn->c_search_result_count = 0;
+        conn->c_timelimit = 0;
+        rc = 1;
+    }
+    return rc;
+}

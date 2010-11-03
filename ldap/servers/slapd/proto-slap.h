@@ -1379,6 +1379,7 @@ int pagedresults_set_unindexed(Connection *conn);
 int pagedresults_get_sort_result_code(Connection *conn);
 int pagedresults_set_sort_result_code(Connection *conn, int code);
 int pagedresults_set_timelimit(Connection *conn, time_t timelimit);
+int pagedresults_cleanup(Connection *conn);
 
 /*
  * sort.c

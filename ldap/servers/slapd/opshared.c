@@ -866,7 +866,7 @@ next_be:
     rc = 0;
   }
 
- free_and_return:
+free_and_return:
   if ((be_list[0] != NULL) || (referral_list[0] != NULL))
     slapi_mapping_tree_free_all(be_list, referral_list);
   else if (be_single)

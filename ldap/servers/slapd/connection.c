@@ -200,16 +200,7 @@ connection_cleanup(Connection *conn)
 	/* destroy any sasl context */
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
 	/* PAGED_RESULTS */
-	if (conn->c_search_result_set) {
-		if (conn->c_current_be->be_search_results_release) {
-			conn->c_current_be->be_search_results_release(&(conn->c_search_result_set));
-		}
-		conn->c_search_result_set = NULL;
-	}
-	conn->c_current_be = NULL;
-	conn->c_search_result_count = 0;
-	conn->c_timelimit = 0;
-	/* PAGED_RESULTS ENDS */
+	pagedresults_cleanup(conn);
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
