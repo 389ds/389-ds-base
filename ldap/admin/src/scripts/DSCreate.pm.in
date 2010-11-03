@@ -359,6 +359,9 @@ sub createConfigFile {
     if ("@enable_dna@") {
         push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-dnaplugin.ldif";
     }
+    if (-f "$inf->{General}->{prefix}@updatedir@/50replication-plugins.ldif") {
+        push @ldiffiles, "$inf->{General}->{prefix}@updatedir@/50replication-plugins.ldif";
+    }
 
     # additional configuration LDIF files
     if (exists($inf->{slapd}->{ConfigFile})) {
