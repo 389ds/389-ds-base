@@ -1349,7 +1349,7 @@ int import_main_offline(void *arg)
     /* Now do the numsubordinates attribute */
     import_log_notice(job, "Indexing complete.  Post-processing...");
     /* [610066] reindexed db cannot be used in the following backup/restore */
-    if ( !(job->flags & FLAG_REINDEXING) &&
+    if ( (!(job->flags & FLAG_REINDEXING) || (job->flags & FLAG_DN2RDN)) &&
          (ret = update_subordinatecounts(be, job->mothers, job->encrypt, NULL))
          != 0 ) {
         import_log_notice(job, "Failed to update numsubordinates attributes");

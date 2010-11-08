@@ -2138,9 +2138,8 @@ int dblayer_instance_start(backend *be, int mode)
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
         return_value = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
         if (0 != return_value) {
-            LDAPDebug(LDAP_DEBUG_ANY,
-                      "dbp->set_malloc failed %d\n",
-                      return_value, 0, 0);
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "dbp->set_malloc failed %d\n",
+                          return_value);
 
             goto out;
         }
@@ -2163,6 +2162,26 @@ int dblayer_instance_start(backend *be, int mode)
             if (0 != return_value)
                 goto out;
             dbp = inst->inst_id2entry;
+            return_value = dbp->set_pagesize(dbp,
+                (priv->dblayer_page_size == 0) ? DBLAYER_PAGESIZE :
+                priv->dblayer_page_size);
+            if (0 != return_value) {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                      "dbp->set_pagesize(%lu or %lu) failed %d\n",
+                      priv->dblayer_page_size, DBLAYER_PAGESIZE,
+                      return_value);
+                goto out;
+            }
+
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 3300
+            return_value = dbp->set_malloc(dbp, (void *)slapi_ch_malloc);
+            if (0 != return_value) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, "dbp->set_malloc failed %d\n",
+                              return_value);
+
+                goto out;
+            }
+#endif
             slapi_ch_free_string(&abs_id2entry_file);
         }
         DB_OPEN(mypEnv->dblayer_openflags,
@@ -2273,8 +2292,29 @@ int dblayer_release_id2entry(backend *be, DB *pDB)
  * - create a dedicated db env and db handler for id2entry.
  * - introduced for upgradedb not to share the env and db handler with
  *   other index files to support multiple passes and merge.
+ * - Argument path is for returning the full path for the id2entry.db#,
+ *   if the memory to store the address of the full path is given.  The
+ *   caller is supposed to release the full path.
  */
-int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
+int
+dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path)
+{
+    return dblayer_get_aux_id2entry_ext(be, ppDB, ppEnv, path, 0);
+}
+
+/*
+ * flags:
+ * DBLAYER_AUX_ID2ENTRY_TMP -- create id2entry_tmp.db#
+ *
+ * - if non-NULL *ppEnv is given, env is already open.
+ *   Just open an id2entry[_tmp].db#.
+ * - Argument path is for returning the full path for the id2entry[_tmp].db#,
+ *   if the memory to store the address of the full path is given.  The
+ *   caller is supposed to release the full path.
+ */
+int
+dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, 
+                             char **path, int flags)
 {
     ldbm_instance *inst;
     struct dblayer_private_env *mypEnv = NULL;
@@ -2284,7 +2324,8 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
     dblayer_private *opriv = NULL;
     dblayer_private *priv = NULL;
     char *subname = NULL;
-    int envflags;
+    int envflags = 0;
+    int dbflags = 0;
     size_t cachesize;
     PRFileInfo prfinfo;
     PRStatus prst;
@@ -2295,8 +2336,11 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
 
     PR_ASSERT(NULL != be);
     
+    if ((NULL == ppEnv) || (NULL == ppDB)) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "No memory for DB_ENV or DB handle\n");
+        goto done;
+    }
     *ppDB = NULL;
-    *ppEnv = NULL;
     inst = (ldbm_instance *) be->be_instance_info;
     if (NULL == inst)
     {
@@ -2352,87 +2396,102 @@ int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv)
         ldbm_delete_dirs(priv->dblayer_home_directory);
     }
     rval = mkdir_p(priv->dblayer_home_directory, 0700);
-    if (0 != rval)
+    if (rval)
     {
-        LDAPDebug(LDAP_DEBUG_ANY,
-            "can't create env dir: persistent id2entry is not available\n", 0, 0, 0);
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+               "can't create env dir: persistent id2entry is not available\n");
         goto done;
     }
 
-    /* use our own env */
-    rval = dblayer_make_env(&mypEnv, li);
-    if (rval != 0) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-            "Unable to create new DB_ENV for import/export! %d\n", rval, 0, 0);
-        goto err;
+    /* use our own env if not passed */
+    if (!*ppEnv) {
+        rval = dblayer_make_env(&mypEnv, li);
+        if (rval) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                  "Unable to create new DB_ENV for import/export! %d\n", rval);
+            goto err;
+        }
     }
 
     envflags = DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE;
-    cachesize = 1048576; /* 1M */
+    cachesize = 10485760; /* 10M */
 
-    mypEnv->dblayer_DB_ENV->set_cachesize(mypEnv->dblayer_DB_ENV,
+    if (!*ppEnv) {
+        mypEnv->dblayer_DB_ENV->set_cachesize(mypEnv->dblayer_DB_ENV,
                 0, cachesize, priv->dblayer_ncache);
 
-    /* probably want to change this -- but for now, create the 
-     * mpool files in the instance directory.
-     */
-    mypEnv->dblayer_openflags = envflags;
-    data_directories[0] = inst->inst_parent_dir_name;
-    dblayer_set_data_dir(priv, mypEnv, data_directories);
-    rval = (mypEnv->dblayer_DB_ENV->open)(mypEnv->dblayer_DB_ENV,
+        /* probably want to change this -- but for now, create the 
+         * mpool files in the instance directory.
+         */
+        mypEnv->dblayer_openflags = envflags;
+        data_directories[0] = inst->inst_parent_dir_name;
+        dblayer_set_data_dir(priv, mypEnv, data_directories);
+        rval = (mypEnv->dblayer_DB_ENV->open)(mypEnv->dblayer_DB_ENV,
             priv->dblayer_home_directory, envflags, priv->dblayer_file_mode);
-    if (rval != 0)
-    {
-        LDAPDebug(LDAP_DEBUG_ANY,
-            "Unable to open new DB_ENV for upgradedb/reindex %d\n", rval, 0, 0);
-        goto err;
+        if (rval) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                  "Unable to open new DB_ENV for upgradedb/reindex %d\n", rval);
+            goto err;
+        }
+        *ppEnv = mypEnv->dblayer_DB_ENV;
     }
-    *ppEnv = mypEnv->dblayer_DB_ENV;
-
-    rval = db_create(&dbp, mypEnv->dblayer_DB_ENV, 0);
-    if (0 != rval) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-                  "Unable to create id2entry db handler! %d\n", rval, 0, 0);
+    rval = db_create(&dbp, *ppEnv, 0);
+    if (rval) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "Unable to create id2entry db handler! %d\n", rval);
         goto err;
     }
 
     rval = dbp->set_pagesize(dbp, (priv->dblayer_page_size == 0) ?
                         DBLAYER_PAGESIZE : priv->dblayer_page_size);
-    if (0 != rval)
-    {
+    if (rval) {
         LDAPDebug(LDAP_DEBUG_ANY,
-            "dbp->set_pagesize(%lu or %lu) failed %d\n",
-            priv->dblayer_page_size, DBLAYER_PAGESIZE, rval);
+                  "dbp->set_pagesize(%lu or %lu) failed %d\n",
+                  priv->dblayer_page_size, DBLAYER_PAGESIZE, rval);
         goto err;
     }
 
-    id2entry_file = slapi_ch_smprintf("%s/%s",
-        inst->inst_dir_name, ID2ENTRY LDBM_FILENAME_SUFFIX);
+    if (flags & DBLAYER_AUX_ID2ENTRY_TMP) {
+        id2entry_file = slapi_ch_smprintf("%s/%s_tmp%s",
+            inst->inst_dir_name, ID2ENTRY, LDBM_FILENAME_SUFFIX);
+        dbflags = DB_CREATE;
+    } else {
+        id2entry_file = slapi_ch_smprintf("%s/%s",
+            inst->inst_dir_name, ID2ENTRY LDBM_FILENAME_SUFFIX);
+    }
 
     PR_ASSERT(dblayer_inst_exists(inst, NULL));
-    DB_OPEN(mypEnv->dblayer_openflags,
-            dbp, NULL/* txnid */, id2entry_file, subname, DB_BTREE,
-            0, priv->dblayer_file_mode, rval);
-    if (0 != rval)
-    {
+    DB_OPEN(envflags, dbp, NULL/* txnid */, id2entry_file, subname, DB_BTREE,
+            dbflags, priv->dblayer_file_mode, rval);
+    if (rval) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "dbp->open(\"%s\") failed: %s (%d)\n",
                   id2entry_file, dblayer_strerror(rval), rval);
-        if (strstr(dblayer_strerror(rval), "Permission denied"))
-        {
-            LDAPDebug(LDAP_DEBUG_ANY,
-                "Instance directory %s may not be writable\n", inst_dirp, 0, 0);
+        if (strstr(dblayer_strerror(rval), "Permission denied")) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                  "Instance directory %s may not be writable\n", inst_dirp);
         }
         goto err;
     }
     *ppDB = dbp;
+    rval = 0; /* to make it sure ... */
     goto done;
 err:
-    if (*ppEnv)
+    if (*ppEnv) {
        (*ppEnv)->close(*ppEnv, 0);
-    if (priv->dblayer_home_directory)
+       *ppEnv = NULL;
+    }
+    if (id2entry_file) {
+        slapi_ch_free_string(&id2entry_file);
+    }
+    if (priv->dblayer_home_directory) {
         ldbm_delete_dirs(priv->dblayer_home_directory);
+    }
 done:
+    if ((0 == rval) && path) { /* only when successfull */
+        *path = slapi_ch_smprintf("%s/%s",
+                                  inst->inst_parent_dir_name, id2entry_file);
+    }
     slapi_ch_free_string(&id2entry_file);
     if (priv) {
         slapi_ch_free_string(&priv->dblayer_home_directory);

@@ -845,4 +845,7 @@ typedef struct _back_search_result_set
  * starting with '.' to reduce the risk to match an ordinary backend name */
 #define CHANGELOG_BACKUPDIR ".repl_changelog_backup"
 
+/* For dblayer_get_aux_id2entry_ext */
+#define DBLAYER_AUX_ID2ENTRY_TMP 0x1
+
 #endif /* _back_ldbm_h_ */

@@ -111,7 +111,8 @@ int dblayer_erase_index_file(backend *be, struct attrinfo *a, int no_force_chkpt
 int dblayer_erase_index_file_nolock(backend *be, struct attrinfo *a, int no_force_chkpt); 
 int dblayer_get_id2entry(backend *be, DB **ppDB);
 int dblayer_release_id2entry(backend *be, DB *pDB);
-int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv);
+int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path);
+int dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path, int flags);
 int dblayer_release_aux_id2entry(backend *be, DB *pDB, DB_ENV *pEnv);
 int dblayer_txn_init(struct ldbminfo *li, back_txn *txn);
 int dblayer_txn_begin(struct ldbminfo *li,back_txnid parent_txn, back_txn *txn);

@@ -909,7 +909,10 @@ index_producer(void *param)
 
     /* vars for Berkeley DB */
     DB_ENV *env = NULL;
+    char *id2entry = NULL;
+    char *tmpid2entry = NULL;
     DB *db = NULL;
+    DB *tmp_db = NULL;
     DBC *dbc = NULL;
     DBT key = {0};
     DBT data = {0};
@@ -935,10 +938,19 @@ index_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if ( dblayer_get_aux_id2entry( be, &db, &env ) != 0  || db == NULL ||
-         env == NULL) {
-        LDAPDebug( LDAP_DEBUG_ANY, "Could not open id2entry\n", 0, 0, 0 );
+    if ( dblayer_get_aux_id2entry( be, &db, &env, &id2entry ) != 0  ||
+         db == NULL || env == NULL) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "Could not open id2entry\n" );
         goto error;
+    }
+    if (job->flags & FLAG_DN2RDN) {
+        /* open new id2entry for the rdn format entries */
+        if ( dblayer_get_aux_id2entry_ext( be, &tmp_db, &env, &tmpid2entry,
+                                           DBLAYER_AUX_ID2ENTRY_TMP ) != 0  ||
+             tmp_db == NULL || env == NULL) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "Could not open new id2entry\n");
+            goto error;
+        }
     }
 
     /* get a cursor to we can walk over the table */
@@ -1013,8 +1025,8 @@ index_producer(void *param)
                     data.dptr = slapi_entry2str_with_options(e, &len, options);
                     data.dsize = len + 1;
 
-                    /* store it  */
-                    rc = db->put( db, NULL, &key, &data, 0);
+                    /* store it in the new id2entry db file */
+                    rc = tmp_db->put( tmp_db, NULL, &key, &data, 0);
                     if (rc) {
                         LDAPDebug2Args( LDAP_DEBUG_TRACE,
                                    "index_producer: converting an entry "
@@ -1125,8 +1137,34 @@ index_producer(void *param)
         }
     }
 
-    dbc->c_close(dbc);
-    dblayer_release_aux_id2entry( be, db, env );
+    dbc->c_close(dbc); dbc = NULL;
+    db->close(db, 0);
+    if (job->flags & FLAG_DN2RDN) {
+        /* remove id2entry, then rename tmp to id2entry */
+        tmp_db->close(tmp_db, 0);
+        rc = db_create(&db, env, 0);
+        if (rc) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                           "Creating db handle to rename %s to %s failed.\n",
+                           tmpid2entry, id2entry);
+            goto bail;
+        }
+        rc = db->remove(db, id2entry, NULL, 0);
+        if (rc) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "Removing %s failed.\n", id2entry);
+            goto bail;
+        }
+        db_create(&db, env, 0);
+        rc = db->rename(db, tmpid2entry, NULL, id2entry, 0);
+        if (rc) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY, "Renaming %s to %s failed.\n",
+                           tmpid2entry, id2entry);
+            goto bail;
+        }
+    }
+    dblayer_release_aux_id2entry(be, NULL, env);
+    slapi_ch_free_string(&id2entry);
+    slapi_ch_free_string(&tmpid2entry);
     info->state = FINISHED;
     return;
 
@@ -1134,7 +1172,29 @@ error:
     if (dbc) {
         dbc->c_close(dbc);
     }
+    if (job->flags & FLAG_DN2RDN) {
+        if (tmp_db) {
+            tmp_db->close(tmp_db, 0);
+            rc = db_create(&tmp_db, env, 0);
+            if (rc) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "Creating db handle to remove %s s failed.\n",
+                              tmpid2entry);
+                goto bail;
+            }
+            /* remove tmp */
+            rc = tmp_db->remove(tmp_db, tmpid2entry, NULL, 0);
+            if (rc) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, "Removing %s failed.\n",
+                              tmpid2entry);
+                goto bail;
+            }
+        }
+    }
+bail:
     dblayer_release_aux_id2entry( be, db, env );
+    slapi_ch_free_string(&id2entry);
+    slapi_ch_free_string(&tmpid2entry);
     info->state = ABORTED;
 }
 
@@ -1255,7 +1315,7 @@ upgradedn_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if ( dblayer_get_aux_id2entry( be, &db, &env ) != 0  || db == NULL ||
+    if ( dblayer_get_aux_id2entry( be, &db, &env, NULL ) != 0  || db == NULL ||
          env == NULL) {
         LDAPDebug( LDAP_DEBUG_ANY, "Could not open id2entry\n", 0, 0, 0 );
         goto error;
