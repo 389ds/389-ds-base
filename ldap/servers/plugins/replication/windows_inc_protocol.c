@@ -139,7 +139,7 @@ typedef struct windows_inc_private
 static PRUint32 event_occurred(Private_Repl_Protocol *prp, PRUint32 event);
 static void reset_events (Private_Repl_Protocol *prp);
 static void protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration);
-static int send_updates(Private_Repl_Protocol *prp, RUV *ruv, PRUint32 *num_changes_sent);
+static int send_updates(Private_Repl_Protocol *prp, RUV *ruv, PRUint32 *num_changes_sent, int do_send);
 static void windows_inc_backoff_expired(time_t timer_fire_time, void *arg);
 static int windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *ruv);
 static const char* state2name (int state);
@@ -294,6 +294,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	long busywaittime = 0;
 	/* Some operations should only be done the first time STATE_START is true. */
 	static PRBool is_first_start = PR_TRUE;
+	int one_way;
  
 	PRBool run_dirsync = PR_FALSE;
 
@@ -303,6 +304,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	prp->terminate = 0;
 
 	windows_private_load_dirsync_cookie(prp->agmt);
+
+	one_way = windows_private_get_one_way(prp->agmt);
 	
 	do {
 		int rc = 0;
@@ -829,7 +832,14 @@ windows_inc_run(Private_Repl_Protocol *prp)
 						    windows_private_get_windows_subtree(prp->agmt),
 						    0 /* is_total == FALSE */);
 
-		rc = send_updates(prp, ruv, &num_changes_sent);
+		if ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_TO_AD)) {
+		    rc = send_updates(prp, ruv, &num_changes_sent, 1 /* actually send updates */);
+		} else {
+		    /* We call send_updates to fast-forward the RUV
+		     * without actually sending any updates. */
+		    rc = send_updates(prp, ruv, &num_changes_sent, 0 /* don't send updates */);
+		}
+
 		if (rc == UPDATE_NO_MORE_UPDATES)
 		  {
 		    dev_debug("windows_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_NO_MORE_UPDATES -> STATE_WAIT_CHANGES");
@@ -877,7 +887,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	    break;
 	  }
 
-	if ( run_dirsync )
+	if ( run_dirsync && ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_FROM_AD)))
 	{
 		/* Don't run dirsync if we encountered
 		 * an error when sending updates to AD. */
@@ -1151,7 +1161,7 @@ w_cl5_operation_parameters_done (struct slapi_operation_parameters *sop)
  * UPDATE_SCHEDULE_WINDOW_CLOSED - the schedule window closed on us.
  */
 static int
-send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *num_changes_sent)
+send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *num_changes_sent, int do_send)
 {
 	CL5Entry entry;
 	slapi_operation_parameters op;
@@ -1305,7 +1315,12 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				    continue;
                 }
 				/* This is where the work actually happens: */
-				replay_crc = windows_replay_update(prp, entry.op);
+				if (do_send) {
+					replay_crc = windows_replay_update(prp, entry.op);
+				} else {
+					/* Skip sending the updates and just set a success code. */
+					replay_crc = CONN_OPERATION_SUCCESS;
+				}
 				if (CONN_OPERATION_SUCCESS != replay_crc)
 				{
 					int operation, error;

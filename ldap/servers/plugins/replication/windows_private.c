@@ -75,6 +75,7 @@ struct windowsprivate {
   int keep_raw_entry; /* flag to control when the raw entry is set */
   void *api_cookie; /* private data used by api callbacks */
   time_t sync_interval; /* how often to run the dirsync search, in seconds */
+  int one_way; /* Indicates if this is a one-way agreement and which direction it is */
 };
 
 static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
@@ -163,6 +164,30 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			windows_private_set_sync_interval(ra,tmpstr);
 		}
 		slapi_ch_free_string(&tmpstr);
+		retval = 1;
+	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_oneWaySync))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_oneWaySync);
+		if (NULL != tmpstr)
+		{
+			if (strcasecmp(tmpstr, "fromWindows") == 0) {
+				windows_private_set_one_way(ra, ONE_WAY_SYNC_FROM_AD);
+			} else if (strcasecmp(tmpstr, "toWindows") == 0) {
+				windows_private_set_one_way(ra, ONE_WAY_SYNC_TO_AD);
+			} else {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"Ignoring illegal setting for %s attribute in replication "
+					"agreement \"%s\".  Valid values are \"toWindows\" or "
+					"\"fromWindows\".\n", type_oneWaySync, slapi_entry_get_dn(e));
+				windows_private_set_one_way(ra, ONE_WAY_SYNC_DISABLED);
+			}
+		}
+		else
+		{
+			windows_private_set_one_way(ra, ONE_WAY_SYNC_DISABLED);
+		}
+		slapi_ch_free((void**)&tmpstr);
 		retval = 1;
 	}
 	return retval;
@@ -530,6 +555,38 @@ void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value)
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_create_groups\n" );
 
+}
+
+
+int windows_private_get_one_way(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_one_way\n" );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_one_way\n" );
+
+	return dp->one_way;
+}
+
+
+void windows_private_set_one_way(const Repl_Agmt *ra, int value)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_one_way\n" );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	dp->one_way = value;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_one_way\n" );
 }
 
 

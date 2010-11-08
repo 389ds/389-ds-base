@@ -134,6 +134,7 @@ const char *type_nsds7CreateNewGroups = "nsds7NewWinGroupSyncEnabled";
 const char *type_nsds7WindowsDomain = "nsds7WindowsDomain";
 const char *type_nsds7DirsyncCookie = "nsds7DirsyncCookie";
 const char *type_winSyncInterval = "winSyncInterval";
+const char *type_oneWaySync = "oneWaySync";
 
 /* To Allow Consumer Initialisation when adding an agreement - */
 const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";

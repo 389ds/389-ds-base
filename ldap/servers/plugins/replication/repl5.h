@@ -156,6 +156,8 @@ extern const char *type_nsds7CreateNewGroups;
 extern const char *type_nsds7DirsyncCookie;
 extern const char *type_nsds7WindowsDomain;
 extern const char *type_winSyncInterval;
+extern const char *type_oneWaySync;
+
 /* To Allow Consumer Initialisation when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;
 

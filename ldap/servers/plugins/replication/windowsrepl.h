@@ -84,6 +84,8 @@ void *windows_private_get_api_cookie(const Repl_Agmt *ra);
 void windows_private_set_api_cookie(Repl_Agmt *ra, void *cookie);
 time_t windows_private_get_sync_interval(const Repl_Agmt *ra);
 void windows_private_set_sync_interval(Repl_Agmt *ra, char *str);
+PRBool windows_private_get_one_way(const Repl_Agmt *ra);
+void windows_private_set_one_way(const Repl_Agmt *ra, PRBool value);
 
 /* in windows_connection.c */
 ConnResult windows_conn_connect(Repl_Connection *conn);
@@ -132,6 +134,13 @@ int windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *pass
  * The time is in seconds.
  */
 #define PERIODIC_DIRSYNC_INTERVAL 5 * 60 /* default value is 5 minutes */
+
+/*
+ * One way sync flags.  Used to indicate the direction when one-way sync is used.
+ */
+#define ONE_WAY_SYNC_DISABLED 0
+#define ONE_WAY_SYNC_FROM_AD 1
+#define ONE_WAY_SYNC_TO_AD 2
 
 /* called for each replication agreement - so the winsync
    plugin can be agreement specific and store agreement

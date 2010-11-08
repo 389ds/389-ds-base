@@ -96,9 +96,9 @@ static void windows_tot_delete(Private_Repl_Protocol **prp);
 static void
 windows_tot_run(Private_Repl_Protocol *prp)
 {
-    int rc;
-    callback_data cb_data;
-    Slapi_PBlock *pb;
+	int rc;
+	callback_data cb_data;
+	Slapi_PBlock *pb;
 	char* dn;
 	RUV *ruv = NULL;
 	RUV *starting_ruv = NULL;
@@ -108,6 +108,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	char *filter = slapi_ch_strdup("(|(objectclass=ntuser)(objectclass=ntgroup))");
 	char **attrs = NULL;
 	LDAPControl **server_controls = NULL;
+	int one_way;
 	
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_run\n" );
 	
@@ -120,35 +121,37 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		goto done;
 	}
 
+	one_way = windows_private_get_one_way(prp->agmt);
+
 	windows_conn_set_timeout(prp->conn, agmt_get_timeout(prp->agmt));
 
-    /* acquire remote replica */
+	/* acquire remote replica */
 	agmt_set_last_init_start(prp->agmt, current_time());
 	
-    rc = windows_acquire_replica (prp, &ruv, 0 /* don't check RUV for total protocol */);
-    /* We never retry total protocol, even in case a transient error.
-       This is because if somebody already updated the replica we don't
-       want to do it again */
-    if (rc != ACQUIRE_SUCCESS)
-    {
+	rc = windows_acquire_replica (prp, &ruv, 0 /* don't check RUV for total protocol */);
+	/* We never retry total protocol, even in case a transient error.
+	 * This is because if somebody already updated the replica we don't
+	 * want to do it again */
+	if (rc != ACQUIRE_SUCCESS)
+	{
 		int optype, ldaprc;
 		windows_conn_get_error(prp->conn, &optype, &ldaprc);
 		agmt_set_last_init_status(prp->agmt, ldaprc,
 				  prp->last_acquire_response_code, NULL);
-        goto done;
-    }
+		goto done;
+	}
 	else if (prp->terminate)
-    {
-        windows_conn_disconnect(prp->conn);
-        prp->stopped = 1;
+	{
+		windows_conn_disconnect(prp->conn);
+		prp->stopped = 1;
 		goto done;    
-    }
+	}
 
 	agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update in progress");
 
-    agmt_set_last_init_status(prp->agmt, 0, 0, "Total update in progress");
+	agmt_set_last_init_status(prp->agmt, 0, 0, "Total update in progress");
 
-    slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "Beginning total update of replica "
+	slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "Beginning total update of replica "
 		"\"%s\".\n", agmt_get_long_name(prp->agmt));
     
 	windows_private_null_dirsync_cookie(prp->agmt);
@@ -159,8 +162,10 @@ windows_tot_run(Private_Repl_Protocol *prp)
 										windows_private_get_windows_subtree(prp->agmt),
 										1 /* is_total == TRUE */);
 
-	/* get everything */
-	windows_dirsync_inc_run(prp);
+	if ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_FROM_AD)) {
+		/* get everything */
+		windows_dirsync_inc_run(prp);
+	}
 	
 	windows_private_save_dirsync_cookie(prp->agmt);
 
@@ -176,28 +181,33 @@ windows_tot_run(Private_Repl_Protocol *prp)
         starting_ruv = ruv_dup((RUV*)  object_get_data ( local_ruv_obj ));
         object_release (local_ruv_obj);
 	
-
-	/* send everything */
-	dn = slapi_ch_strdup(slapi_sdn_get_dn( windows_private_get_directory_subtree(prp->agmt)));
-
-	winsync_plugin_call_pre_ds_search_all_cb(prp->agmt, NULL, &dn, &scope, &filter,
-											 &attrs, &server_controls);
-
-	pb = slapi_pblock_new ();
-    /* Perform a subtree search for any ntuser or ntgroup entries underneath the
-     * suffix defined in the sync agreement. */
-    slapi_search_internal_set_pb (pb, dn, scope, filter, attrs, 0, server_controls, NULL, 
-                                  repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
-    cb_data.prp = prp;
-    cb_data.rc = 0;
+	/* Set up the callback data. */
+	cb_data.prp = prp;
+	cb_data.rc = 0;
 	cb_data.num_entries = 0UL;
 	cb_data.sleep_on_busy = 0UL;
 	cb_data.last_busy = current_time ();
 
-    slapi_search_internal_callback_pb (pb, &cb_data /* callback data */,
-                                       get_result /* result callback */,
-                                       send_entry /* entry callback */,
-	    					           NULL /* referral callback*/);
+	/* Don't send anything if one-way is set. */
+	if ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_TO_AD)) {
+		/* send everything */
+		dn = slapi_ch_strdup(slapi_sdn_get_dn( windows_private_get_directory_subtree(prp->agmt)));
+
+		winsync_plugin_call_pre_ds_search_all_cb(prp->agmt, NULL, &dn, &scope, &filter,
+											 &attrs, &server_controls);
+
+		pb = slapi_pblock_new ();
+		/* Perform a subtree search for any ntuser or ntgroup entries underneath the
+		 * suffix defined in the sync agreement. */
+		slapi_search_internal_set_pb (pb, dn, scope, filter, attrs, 0, server_controls, NULL, 
+				repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
+
+		slapi_search_internal_callback_pb (pb, &cb_data /* callback data */,
+				get_result /* result callback */,
+				send_entry /* entry callback */,
+				NULL /* referral callback*/);
+	}
+
     slapi_ch_free_string(&dn);
     slapi_ch_free_string(&filter);
     slapi_ch_array_free(attrs);
