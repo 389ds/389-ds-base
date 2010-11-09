@@ -98,7 +98,7 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
             Slapi_Attr *eattr = NULL;
             struct backdn *oldbdn = NULL;
             Slapi_DN *sdn =
-                          slapi_sdn_dup(slapi_entry_get_sdn_const(e->ep_entry));
+                         slapi_sdn_dup(slapi_entry_get_sdn_const(entry_to_use));
             struct backdn *bdn = backdn_init(sdn, e->ep_id, 0);
             options |= SLAPI_DUMP_RDN_ENTRY;
 
@@ -117,15 +117,15 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
             }
 
             CACHE_RETURN(&inst->inst_dncache, &bdn);
-            LDAPDebug( LDAP_DEBUG_TRACE,
+            LDAPDebug2Args( LDAP_DEBUG_TRACE,
                    "=> id2entry_add (dncache) ( %lu, \"%s\" )\n",
-                   (u_long)e->ep_id, slapi_entry_get_dn_const(e->ep_entry), 0 );
+                   (u_long)e->ep_id, slapi_entry_get_dn_const(entry_to_use) );
             /* If entrydn exists in the entry, we have to remove it before
              * writing the entry to the database. */
-            if (0 == slapi_entry_attr_find(e->ep_entry,
+            if (0 == slapi_entry_attr_find(entry_to_use,
                                            LDBM_ENTRYDN_STR, &eattr)) {
                 /* entrydn exists in the entry.  let's removed it. */
-                slapi_entry_delete_values(e->ep_entry, LDBM_ENTRYDN_STR, NULL);
+                slapi_entry_delete_values(entry_to_use, LDBM_ENTRYDN_STR, NULL);
             }
         }
         data.dptr = slapi_entry2str_with_options(entry_to_use, &len, options);
@@ -148,6 +148,8 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
 
     if (0 == rc)
     {
+        /* Putting the entry into the entry cache.  
+         * We don't use the encrypted entry here. */
         if (entryrdn_get_switch()) {
             struct backentry *parententry = NULL;
             ID parentid = slapi_entry_attr_get_ulong(e->ep_entry, "parentid");
@@ -207,7 +209,8 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     }
 
 done:
-    /* If we had an encrypted entry, we no longer need it */
+    /* If we had an encrypted entry, we no longer need it.
+     * Note: encrypted_entry is not in the entry cache. */
     if (encrypted_entry) {
         backentry_free(&encrypted_entry);
     }
