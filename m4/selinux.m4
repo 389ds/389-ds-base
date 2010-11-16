@@ -22,7 +22,7 @@ AC_CHECKING(for SELinux)
 
 # check for --with-selinux
 AC_MSG_CHECKING(for --with-selinux)
-AC_ARG_WITH(selinux, AS_HELP_STRING([--with-selinux],[Build SELinux policy]),
+AC_ARG_WITH(selinux, AS_HELP_STRING([--with-selinux],[Support SELinux policy]),
 [
   if test "$withval" = "no"; then
     AC_MSG_RESULT(no)
@@ -30,9 +30,6 @@ AC_ARG_WITH(selinux, AS_HELP_STRING([--with-selinux],[Build SELinux policy]),
     with_selinux=yes
     AC_MSG_RESULT(yes)
     AC_SUBST(with_selinux)
-    if test ! -f "/usr/share/selinux/devel/Makefile"; then
-      AC_MSG_ERROR([SELinux development tools (selinux-policy) not found])
-    fi
   fi
 ],
 AC_MSG_RESULT(no))
