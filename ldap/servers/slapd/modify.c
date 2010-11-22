@@ -33,7 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2009 Red Hat, Inc.
- * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+ * Copyright (C) 2009, 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
  * Contributors:
@@ -77,6 +77,7 @@ static int modify_internal_pb (Slapi_PBlock *pb);
 static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw);
 static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_unhashed);
 static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods);
+static int hash_rootpw (LDAPMod **mods);
 
 #ifdef LDAP_DEBUG
 static const char*
@@ -821,6 +822,20 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	{
 		int	rc;
 
+		/* 
+		 * Hash any rootpw attribute values.  We hash them after pre-op
+		 * plugins are called in case any pre-op plugin needs the clear value.
+		 * They do need to be hashed here so they wont get audit logged in the
+		 * clear.  Note that config_set_rootpw will also do hashing if needed,
+		 * but it will detect that the password is already hashed.
+		 */
+		slapi_pblock_get (pb, SLAPI_MODIFY_MODS, &mods);
+		if (hash_rootpw (mods) != 0) {
+			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+			"Failed to hash root user's password", 0, NULL);
+			goto free_and_return;
+		}
+
 		slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
 		set_db_default_result_handlers(pb);
 
@@ -828,7 +843,6 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 		/* to db access */
 		if (pw_change)
 		{
-			slapi_pblock_get (pb, SLAPI_MODIFY_MODS, &mods);
 			slapi_mods_init_passin (&smods, mods);
 			remove_mod (&smods, unhashed_pw_attr, &unhashed_pw_smod);
 			slapi_pblock_set (pb, SLAPI_MODIFY_MODS, 
@@ -1169,3 +1183,45 @@ done:
 	slapi_ch_free_string(&proxystr);
 	return rc;
 }
+
+/*
+ * Hashes any nsslapd-rootpw attribute values using the password storage
+ * scheme specified in cn=config:nsslapd-rootpwstoragescheme.
+ * Note: This is only done for modify, because rootdn's password lives
+ * in cn=config, which is never added.
+ */
+static int
+hash_rootpw (LDAPMod **mods)
+{
+	int i, j;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	if (strcasecmp(slapdFrontendConfig->rootpwstoragescheme->pws_name, "clear") == 0) {
+		/* No work to do if the rootpw storage scheme is clear */
+		return 0;
+	}
+
+	for (i=0; mods[i] != NULL; i++) {
+		LDAPMod *mod = mods[i];
+		if (strcasecmp (mod->mod_type, CONFIG_ROOTPW_ATTRIBUTE) != 0) 
+			continue;
+
+		for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
+			char *val = mod->mod_bvalues[j]->bv_val;
+			char *hashedval = NULL;
+			if (pw_val2scheme (val, NULL, 0)) {
+				/* Value is pre-hashed, no work to do for this value */
+				continue;
+			} else if (! slapd_nss_is_initialized() ) {
+				/* We need to hash a value but NSS is not initialized; bail */
+				return -1;
+			}
+			hashedval=(slapdFrontendConfig->rootpwstoragescheme->pws_enc)(val);
+			slapi_ch_free_string (&val);
+			mod->mod_bvalues[j]->bv_val = hashedval;
+			mod->mod_bvalues[j]->bv_len = strlen (hashedval);
+		}
+	}
+	return 0;
+}
+
