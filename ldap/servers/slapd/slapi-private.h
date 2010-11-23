@@ -190,6 +190,7 @@ void csn_set_seqnum(CSN *csn, PRUint16 seqnum);
 ReplicaId csn_get_replicaid(const CSN *csn);
 time_t csn_get_time(const CSN *csn);
 PRUint16 csn_get_seqnum(const CSN *csn);
+PRUint16 csn_get_subseqnum(const CSN *csn);
 char *csn_as_string(const CSN *csn, PRBool replicaIdOrder, char *ss); /* WARNING: ss must be CSN_STRSIZE bytes, or NULL. */
 int csn_compare(const CSN *csn1, const CSN *csn2);
 time_t csn_time_difference(const CSN *csn1, const CSN *csn2);

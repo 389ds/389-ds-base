@@ -748,6 +748,11 @@ entry_apply_mods_wsi(Slapi_Entry *e, Slapi_Mods *smods, const CSN *csn, int urp)
 {
 	int retVal= LDAP_SUCCESS;
 	LDAPMod *mod;
+	CSN localcsn;
+
+	if (csn) {
+		localcsn = *csn; /* make a copy */
+	}
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> entry_apply_mods_wsi\n", 0, 0, 0 );
 
@@ -756,7 +761,15 @@ entry_apply_mods_wsi(Slapi_Entry *e, Slapi_Mods *smods, const CSN *csn, int urp)
 	{
 		if(csn!=NULL)
 		{
-			retVal= entry_apply_mod_wsi(e, mod, csn, urp);
+			retVal= entry_apply_mod_wsi(e, mod, &localcsn, urp);
+			/* use subsequence to guarantee absolute ordering of all of the
+			   mods in a set of mods, if this is a replicated operation,
+			   and the csn doesn't already have a subsequence
+			   if the csn already has a subsequence, assume it was generated
+			   on another replica in the correct order */
+			if (urp && (csn_get_subseqnum(csn) == 0)) {
+				csn_increment_subsequence(&localcsn);
+			}
 		}
 		else
 		{

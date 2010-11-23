@@ -212,6 +212,11 @@ PRUint16 csn_get_seqnum(const CSN *csn)
     return csn->seqnum;
 }
 
+PRUint16 csn_get_subseqnum(const CSN *csn)
+{
+    return csn->subseqnum;
+}
+
 time_t csn_get_time(const CSN *csn)
 {
 	if(csn==NULL)
