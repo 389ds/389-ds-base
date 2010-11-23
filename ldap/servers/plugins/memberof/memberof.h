@@ -65,6 +65,7 @@
 #define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"
 #define MEMBEROF_ATTR "memberOfAttr"
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
+#define NAME_OPT_UID_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.34"
 
 
 /*

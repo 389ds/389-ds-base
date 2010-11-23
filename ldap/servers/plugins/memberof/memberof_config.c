@@ -187,9 +187,10 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 			test_attr = slapi_attr_new();
 			slapi_attr_init(test_attr, slapi_value_get_string(value));
 
-			/* Get the syntax OID and see if it's the Distinguished Name syntax. */
+			/* Get the syntax OID and see if it's the Distinguished Name or
+			 * Name and Optional UID syntax. */
 			slapi_attr_get_syntax_oid_copy(test_attr, &syntaxoid );
-			not_dn_syntax = strcmp(syntaxoid, DN_SYNTAX_OID);
+			not_dn_syntax = strcmp(syntaxoid, DN_SYNTAX_OID) & strcmp(syntaxoid, NAME_OPT_UID_SYNTAX_OID);
 			slapi_ch_free_string(&syntaxoid);
 
 			/* Print an error if the current attribute is not using the Distinguished
@@ -198,8 +199,8 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 			{
 				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"The %s configuration attribute must be set to "
-					"an attribute defined to use the Distinguished "
-					"Name syntax. (illegal value: %s)",
+					"an attribute defined to use either the Distinguished "
+					"Name or Name and Optional UID syntax. (illegal value: %s)",
 					slapi_value_get_string(value), MEMBEROF_GROUP_ATTR);
 			}
 			else
