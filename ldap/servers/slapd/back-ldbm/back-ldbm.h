@@ -45,8 +45,6 @@
 #ifndef _BACK_LDBM_H_
 #define _BACK_LDBM_H_
 
-#define	SLAPD_LOGGING	1
-
 #if defined(irix) || defined(AIX) || defined(HPUX11) || defined(OS_solaris) || defined(linux)
 /* built-in 64-bit file I/O support */
 #define DB_USE_64LFS

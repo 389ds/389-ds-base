@@ -86,7 +86,6 @@
 #include <time.h>
 #include "slapi-plugin.h"
 
-#define SLAPD_LOGGING 1
 #define	_ADD	0
 #define _MOD	1
 #define _DEL	2

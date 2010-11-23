@@ -45,8 +45,6 @@
 #ifndef _LIBSYNTAX_H_
 #define _LIBSYNTAX_H_
 
-#define SLAPD_LOGGING	1
-
 #include "slap.h"
 #include "slapi-plugin.h"
 

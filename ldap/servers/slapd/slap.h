@@ -149,7 +149,6 @@ typedef struct symbol_t {
 #define SLAPD_SSLCLIENTAUTH_REQUIRED 2 /* server will refuse SSL session unless client sends cert */
 #define SLAPD_SSLCLIENTAUTH_DEFAULT  SLAPD_SSLCLIENTAUTH_ALLOWED
 
-#define	SLAPD_LOGGING	1
 #define NUM_SNMP_INT_TBL_ROWS 5
 #define SNMP_FIELD_LENGTH 100
 

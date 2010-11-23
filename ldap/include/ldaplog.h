@@ -85,8 +85,6 @@ extern "C" {
 #  undef LDAPDebug2Args
 #  undef LDAPDebugLevelIsSet
 
-/* SLAPD_LOGGING should not be on for WINSOCK (16-bit Windows) */
-#  if defined(SLAPD_LOGGING)
 #    ifdef _WIN32
 #      ifndef DONT_DECLARE_SLAPD_LDAP_DEBUG /* see libglobs.c for info */
        extern __declspec(dllimport) int	slapd_ldap_debug;
@@ -144,35 +142,6 @@ extern "C" {
        }
 #      define LDAPDebugLevelIsSet( level ) (0 != (slapd_ldap_debug & level))
 #    endif /* Win32 */
-#  else /* no SLAPD_LOGGING */
-     extern void ber_err_print( char * );
-     extern int	slapd_ldap_debug;
-#    define LDAPDebug( level, fmt, arg1, arg2, arg3 ) \
-		if ( slapd_ldap_debug & level ) { \
-			char msg[256]; \
-			PR_snprintf( msg, sizeof(msg), fmt, arg1, arg2, arg3 ); \
-			ber_err_print( msg ); \
-		}
-#    define LDAPDebug0Args( level, fmt ) \
-		if ( slapd_ldap_debug & level ) { \
-			char msg[256]; \
-			PR_snprintf( msg, sizeof(msg), fmt ); \
-			ber_err_print( msg ); \
-		}
-#    define LDAPDebug1Arg( level, fmt, arg )  \
-		if ( slapd_ldap_debug & level ) { \
-			char msg[256]; \
-			PR_snprintf( msg, sizeof(msg), fmt, arg );  \
-			ber_err_print( msg ); \
-		}
-#    define LDAPDebug2Args( level, fmt, arg1, arg2 ) \
-		if ( slapd_ldap_debug & level ) { \
-			char msg[256]; \
-			PR_snprintf( msg, sizeof(msg), fmt, arg1, arg2 );    \
-			ber_err_print( msg ); \
-		}
-#    define LDAPDebugLevelIsSet( level )	(0 != (slapd_ldap_debug & level))
-#  endif /* SLAPD_LOGGING */
 #endif /* LDAP_DEBUG */
 
 #ifdef __cplusplus
