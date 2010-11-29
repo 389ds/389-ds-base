@@ -73,10 +73,10 @@
 /* Forward declarations */
 static int add_internal_pb (Slapi_PBlock *pb);
 static void op_shared_add (Slapi_PBlock *pb);
-static void add_created_attrs(Operation *op, Slapi_Entry *e);
+static int add_created_attrs(Operation *op, Slapi_Entry *e);
 static int check_rdn_for_created_attrs(Slapi_Entry *e);
 static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry);
-static void add_uniqueid (Slapi_Entry *e);
+static int add_uniqueid (Slapi_Entry *e);
 static PRBool check_oc_subentry(Slapi_Entry *e, struct berval	**vals, char *normtype);
 
 /* This function is called to process operation that come over external connections */
@@ -630,8 +630,12 @@ static void op_shared_add (Slapi_PBlock *pb)
 	slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
 	if (!repl_op && lastmod)
 	{
-		add_created_attrs(operation, e);
-		/* JCM - We could end up with an entry without a uniqueid...??? */
+		if (add_created_attrs(operation, e) != 0)
+		{
+			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+				"cannot insert computed attributes", 0, NULL);
+			goto done;
+		}
 	}
 
 	/* expand objectClass values to reflect the inheritance hierarchy */
@@ -640,7 +644,12 @@ static void op_shared_add (Slapi_PBlock *pb)
 
     /* uniqueid needs to be generated for entries added during legacy replication */
     if (legacy_op)
-        add_uniqueid (e);
+	if (add_uniqueid(e) != UID_SUCCESS)
+	{
+		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+			"cannot insert computed attributes", 0, NULL);
+		goto done;
+	}
 
 	/*
 	 * call the pre-add plugins. if they succeed, call
@@ -742,7 +751,7 @@ done:
 	slapi_ch_free_string(&proxystr);
 }
 
-static void
+static int 
 add_created_attrs(Operation *op, Slapi_Entry *e)
 {
 	char   buf[20];
@@ -786,7 +795,11 @@ add_created_attrs(Operation *op, Slapi_Entry *e)
 	bv.bv_len = strlen(bv.bv_val);
 	slapi_entry_attr_replace(e, "modifytimestamp", bvals);
 
-    add_uniqueid (e);
+	if (add_uniqueid(e) != UID_SUCCESS ) {
+		return( -1 );
+	}
+
+	return( 0 );
 }
 
 
@@ -901,7 +914,7 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
     return;
 }
 
-static void
+static int
 add_uniqueid (Slapi_Entry *e)
 {
     char *uniqueid;
@@ -918,6 +931,8 @@ add_uniqueid (Slapi_Entry *e)
 		LDAPDebug(LDAP_DEBUG_ANY, "add_created_attrs: uniqueid generation failed for %s; error = %d\n", 
 				   slapi_entry_get_dn_const(e), rc, 0);
 	}
+
+	return( rc );
 }
 
 static PRBool

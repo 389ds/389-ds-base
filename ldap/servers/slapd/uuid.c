@@ -365,10 +365,8 @@ static int uuid_create_mt(guid_t *uuid)
 	unsigned16 clock_seq = 0;
 
 	/* just bumps time sequence number. the actual
-       time calls are made by a uuid_update_state */
-    update_time_mt (&timestamp, &clock_seq);
-
-	if (timestamp == (uuid_time_t)NEED_TIME_UPDATE)
+	 * time calls are made by a uuid_update_state */
+	if (update_time_mt(&timestamp, &clock_seq) == UUID_TIME_ERROR)
 	{
 		slapi_log_error (SLAPI_LOG_FATAL, MODULE, "uuid_create_mt: generator ran "
 						 "out of sequence numbers.\n");

@@ -77,7 +77,7 @@ static void import_decref_entry(struct backentry *ep)
 }
 
 /* generate uniqueid if requested */
-static void import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
+static int import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 {
     const char *uniqueid = slapi_entry_get_uniqueid(e);
     int rc;
@@ -106,6 +106,8 @@ static void import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
                        escape_string(slapi_entry_get_dn_const(e), ebuf), rc, 0 );
         }                
     }
+
+    return( rc );
 }
 
 
@@ -628,7 +630,10 @@ import_producer(void *param)
         }
 
         /* generate uniqueid if necessary */
-        import_generate_uniqueid(job, e);
+        if (import_generate_uniqueid(job, e) != UID_SUCCESS) {
+            goto error;
+        }
+
         if (g_get_global_lastmod()) {
             import_add_created_attrs(e);
         }
@@ -789,7 +794,9 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
     PRIntervalTime sleeptime = PR_MillisecondsToInterval(import_sleep_time);
 
     /* generate uniqueid if necessary */
-    import_generate_uniqueid(job, e);
+    if (import_generate_uniqueid(job, e) != UID_SUCCESS) {
+        goto bail;
+    }
 
     ep = import_make_backentry(e, id);
     if (NULL == ep) {
@@ -2794,7 +2801,11 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     /* Let's do this inside the lock !*/
     id = job->lead_ID + 1;
     /* generate uniqueid if necessary */
-    import_generate_uniqueid(job, entry);
+    if (import_generate_uniqueid(job, entry) != UID_SUCCESS) {
+        import_abort_all(job, 1);
+        PR_Unlock(job->wire_lock);
+        return -1;
+    }
 
     /* make into backentry */
     ep = import_make_backentry(entry, id);
