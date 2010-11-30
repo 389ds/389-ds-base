@@ -1325,17 +1325,46 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                 /* This is an escaped $, so just skip it. */
                 p++;
             } else {
+                int quoted = 0;
+
                 /* We found a variable.  Terminate the pre
                  * string and process the variable. */
                 *p = '\0';
                 p++;
 
+                /* Check if the variable name is quoted.  If it is, we skip past
+                 * the quoting brace to avoid putting it in the mapped value. */
+                if (*p == '{') {
+                    quoted = 1;
+                    if (p < end) {
+                        p++;
+                    } else {
+                        slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                        "mep_parse_mapped_attr: Invalid mapped "
+                                        "attribute value for type \"%s\".\n", mapping);
+                        ret = 1;
+                        goto bail;
+                    }
+                }
+
                 /* We should be pointing at the variable name now. */
                 var_start = p;
 
-                /* Move the pointer to the end of the variable name. */
-                while ((p < end) && !isspace(*p)) {
+                /* Move the pointer to the end of the variable name.  We
+                 * stop at the first character that is not legal for use
+                 * in an attribute description. */
+                while ((p < end) && IS_ATTRDESC_CHAR(*p)) {
                     p++;
+                }
+
+                /* If the variable is quoted and this is not a closing
+                 * brace, there is a syntax error in the mapping rule. */
+                if (quoted && (*p != '}')) {
+                        slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                        "mep_parse_mapped_attr: Invalid mapped "
+                                        "attribute value for type \"%s\".\n", mapping);
+                        ret = 1;
+                        goto bail;
                 }
 
                 /* Check for a missing variable name. */
@@ -1352,7 +1381,13 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                 if (p == end) {
                     post_str = "";
                 } else {
-                    post_str = p;
+                    /* If the variable is quoted, don't include
+                     * the closing brace in the post string. */
+                    if (quoted) {
+                        post_str = p+1;
+                    } else {
+                        post_str = p;
+                    }
                 }
 
                 /* We only support a single variable, so we're done. */
@@ -1363,7 +1398,14 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
 
     if (map_type) {
         if (origin) {
-            char *map_val = slapi_entry_attr_get_charptr(origin, map_type);
+            char *map_val = NULL;
+
+            /* If the map type is dn, fetch the origin dn. */
+            if (slapi_attr_type_cmp(map_type, "dn", SLAPI_TYPE_CMP_EXACT) == 0) {
+                map_val = slapi_entry_get_ndn(origin);
+            } else {
+                map_val = slapi_entry_attr_get_charptr(origin, map_type);
+            }
 
             if (map_val) {
                 /* Create the new mapped value. */
@@ -1625,9 +1667,7 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                             errstr = slapi_ch_smprintf("Changes result in an invalid "
                                                        "managed entries template.");
                             ret = LDAP_UNWILLING_TO_PERFORM;
-                        }
-
-                        if (slapi_entry_schema_check(NULL, test_entry) != 0) {
+                        } else if (slapi_entry_schema_check(NULL, test_entry) != 0) {
                             errstr = slapi_ch_smprintf("Changes result in an invalid "
                                                        "managed entries template due "
                                                        "to a schema violation.");

@@ -90,6 +90,11 @@
 #define MEP_ORIGIN_OC   "mepOriginEntry"
 
 /*
+ * Helper defines
+ */
+#define IS_ATTRDESC_CHAR(c) ( isalnum(c) || (c == '.') || (c == ';') || (c == '-') )
+
+/*
  * Linked list of config entries.
  */
 struct configEntry {
