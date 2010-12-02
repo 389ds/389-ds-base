@@ -1308,7 +1308,9 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
     }
 
     pre_str = p;
-    end = p + strlen(p);
+
+    /* Make end point to the last character that we want in the value. */
+    end = p + strlen(p) - 1;
 
     /* Find the variable that we need to substitute. */
     for (; p <= end; p++) {
@@ -1322,8 +1324,12 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
             }
 
             if (*(p + 1) == '$') {
-                /* This is an escaped $, so just skip it. */
+                /* This is an escaped $.  Eliminate the escape character
+                 * to prevent if from being a part of the value. */
                 p++;
+                memmove(p, p+1, end-(p+1)+1);
+                *end = '\0';
+                end--;
             } else {
                 int quoted = 0;
 
@@ -1372,21 +1378,52 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                     break;
                 }
 
-                /* Set the map type. */
-                map_type = strndup(var_start, p - var_start);
-
-                /* If we're at the end of the string, we
-                 * don't have a post string.  Just set
-                 * it to an empty string. */
                 if (p == end) {
-                    post_str = "";
+                    /* Set the map type.  In this case, p could be
+                     * pointing at either the last character of the
+                     * map type, or at the first character after the
+                     * map type.  If the character is valid for use
+                     * in an attribute description, we consider it
+                     * to be a part of the map type. */
+                    if (IS_ATTRDESC_CHAR(*p)) {
+                        map_type = strndup(var_start, p - var_start + 1);
+                        /* There is no post string, so
+                         * set it to be empty. */
+                        post_str = "";
+                    } else {
+                        map_type = strndup(var_start, p - var_start);
+                        post_str = p;
+                    }
                 } else {
+                    /* Set the map type.  In this case, p is pointing
+                     * at the first character after the map type. */
+                    map_type = strndup(var_start, p - var_start);
+
                     /* If the variable is quoted, don't include
                      * the closing brace in the post string. */
                     if (quoted) {
                         post_str = p+1;
                     } else {
                         post_str = p;
+                    }
+                }
+
+                /* Process the post string to remove any escapes. */
+                for (p = post_str; p <= end; p++) {
+                    if (*p == '$') {
+                        if ((p == end) || (*(p+1) != '$')) {
+                            slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                        "mep_parse_mapped_attr: Invalid mapped "
+                                        "attribute value for type \"%s\".\n", mapping);
+                            ret = 1;
+                            goto bail;
+                        } else {
+                            /* This is an escaped '$'.  Remove the escape char. */
+                            p++;
+                            memmove(p, p+1, end-(p+1)+1);
+                            *end = '\0';
+                            end--;
+                        }
                     }
                 }
 
