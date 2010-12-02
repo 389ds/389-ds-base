@@ -611,7 +611,7 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 	PR_ASSERT (dp);
 	ber = 	ber_alloc();
 
-	ber_printf( ber, "{iio}", dp->dirsync_flags, dp->dirsync_maxattributecount, dp->dirsync_cookie, dp->dirsync_cookie_len );
+	ber_printf( ber, "{iio}", dp->dirsync_flags, dp->dirsync_maxattributecount, dp->dirsync_cookie ? dp->dirsync_cookie : "", dp->dirsync_cookie_len );
 
 	/* Use a regular directory server instead of a real AD - for testing */
 	if (getenv("WINSYNC_USE_DS")) {
