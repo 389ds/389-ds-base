@@ -80,7 +80,7 @@ static void import_decref_entry(struct backentry *ep)
 static int import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 {
     const char *uniqueid = slapi_entry_get_uniqueid(e);
-    int rc;
+    int rc = UID_SUCCESS;
 
     if (!uniqueid && (job->uuid_gen_type != SLAPI_UNIQUEID_GENERATE_NONE)) {
         char *newuniqueid;
