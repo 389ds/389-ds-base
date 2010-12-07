@@ -1436,19 +1436,23 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
     if (map_type) {
         if (origin) {
             char *map_val = NULL;
+            int freeit = 0;
 
             /* If the map type is dn, fetch the origin dn. */
             if (slapi_attr_type_cmp(map_type, "dn", SLAPI_TYPE_CMP_EXACT) == 0) {
                 map_val = slapi_entry_get_ndn(origin);
             } else {
                 map_val = slapi_entry_attr_get_charptr(origin, map_type);
+                freeit = 1;
             }
 
             if (map_val) {
                 /* Create the new mapped value. */
                 *value = slapi_ch_smprintf("%s%s%s", pre_str,
                                            map_val, post_str);
-                slapi_ch_free_string(&map_val);
+                if (freeit) {
+                    slapi_ch_free_string(&map_val);
+                }
             } else {
                 slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
                     "mep_parse_mapped_attr: Mapped attribute \"%s\" "
