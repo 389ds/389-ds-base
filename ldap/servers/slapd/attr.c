@@ -892,3 +892,13 @@ attr_check_minmax ( const char *attr_name, char *value, long minval, long maxval
 
 	return retVal;
 }
+
+const char *
+attr_get_syntax_oid(const Slapi_Attr *attr)
+{
+        if (attr->a_plugin) {
+                return attr->a_plugin->plg_syntax_oid;
+        } else {
+                return NULL;
+        }
+}

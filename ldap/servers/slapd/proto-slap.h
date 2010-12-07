@@ -69,6 +69,7 @@ int attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn);
 int attr_replace(Slapi_Attr *a, Slapi_Value **vals);
 int attr_check_onoff ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
 int attr_check_minmax ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
+const char *attr_get_syntax_oid(const Slapi_Attr *attr);
 
 /*
  * attrlist.c

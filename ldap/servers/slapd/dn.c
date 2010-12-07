@@ -506,6 +506,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     struct berval subinitial_rdn_av_stack[ SLAPI_DNNORM_INITIAL_RDN_AVS ];
     int chkblank = 0;
     int avstat = 0;
+    int is_dn_syntax = 0;
 
     if (NULL == dest) {
         goto bail;
@@ -553,12 +554,63 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
         case INTYPE: /* in type; cn=... */
                      /*          ^      */
             if (ISEQUAL(*s)) {
+                /* See if the type is defined to use
+                 * the Distinguished Name syntax. */
+                char savechar;
+                Slapi_Attr test_attr;
+
+                /* We need typestart to be a string containing only
+                 * the type.  We terminate the type and then reset
+                 * the string after we check the syntax. */
+                savechar = *d;
+                *d = '\0'; 
+
+                slapi_attr_init(&test_attr, typestart);
+                is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
+
+                /* Reset the character we modified. */
+                *d = savechar;
+
                 state = B4VALUE;
                 *d++ = *s++;
             } else if (ISCLOSEBRACKET(*s)) { /* special care for ACL macro */
+                /* See if the type is defined to use
+                 * the Distinguished Name syntax. */
+                char savechar;
+                Slapi_Attr test_attr;
+
+                /* We need typestart to be a string containing only
+                 * the type.  We terminate the type and then reset
+                 * the string after we check the syntax. */
+                savechar = *d;
+                *d = '\0';
+
+                slapi_attr_init(&test_attr, typestart);
+                is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
+
+                /* Reset the character we modified. */
+                *d = savechar;
+
                 state = INVALUE; /* skip a trailing space */
                 *d++ = *s++;
             } else if (ISSPACE(*s)) {
+                /* See if the type is defined to use
+                 * the Distinguished Name syntax. */
+                char savechar;
+                Slapi_Attr test_attr;
+
+                /* We need typestart to be a string containing only
+                 * the type.  We terminate the type and then reset
+                 * the string after we check the syntax. */
+                savechar = *d;
+                *d = '\0';
+
+                slapi_attr_init(&test_attr, typestart);
+                is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
+
+                /* Reset the character we modified. */
+                *d = savechar;
+
                 state = B4EQUAL; /* skip a trailing space */
             } else {
                 *d++ = *s++;
@@ -602,7 +654,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 rc = -1;
                 goto bail;
             } /* otherwise, go through */
-            if (ISESCAPE(*s)) {
+            if (!is_dn_syntax || ISESCAPE(*s)) {
                 subtypestart = NULL; /* if escaped, can't be multivalued dn */
             } else {
                 subtypestart = d; /* prepare for '+' in the nested DN, if any */
@@ -623,12 +675,12 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                         rc = -1;
                         goto bail;
                     } else {
-                        if (ISEQUAL(*(s+1))) {
+                        if (ISEQUAL(*(s+1)) && is_dn_syntax) {
                             while (ISSPACE(*(d-1))) {
                                 /* remove trailing spaces */
                                 d--;
                             }
-                        } else if (SEPARATOR(*(s+1))) {
+                        } else if (SEPARATOR(*(s+1)) && is_dn_syntax) {
                             /* separator is a subset of needsescape */
                             while (ISSPACE(*(d-1))) {
                                 /* remove trailing spaces */
@@ -667,7 +719,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                         *d++ = *s++;            /* '\\' */
                         PR_snprintf(d, 3, "%X", *s);    /* hexpair */
                         d += 2;
-                        if (ISPLUS(*s)) {
+                        if (ISPLUS(*s) && is_dn_syntax) {
                             /* next type start of multi values */
                             /* should not be a escape char AND should be 
                              * followed by \\= or \\3D */
@@ -679,7 +731,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                                 subtypestart = NULL;
                             }
                         }
-                        if (SEPARATOR(*s) || ISEQUAL(*s)) {
+                        if ((SEPARATOR(*s) || ISEQUAL(*s)) && is_dn_syntax) {
                             while (ISSPACE(*(s+1)))
                                 s++; /* remove leading spaces */
                             s++;
@@ -694,12 +746,12 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                              (ISEOV(s+3, ends) && ISBLANKSTR(s+1))))) {
                              /* e.g., cn=abc\20 ,... */
                              /*             ^        */
-                    if (ISEQUALSTR(s+1)) {
+                    if (ISEQUALSTR(s+1) && is_dn_syntax) {
                         while (ISSPACE(*(d-1))) {
                             /* remove trailing spaces */
                             d--;
                         }
-                    } else if (SEPARATORSTR(s+1)) {
+                    } else if (SEPARATORSTR(s+1) && is_dn_syntax) {
                         /* separator is a subset of needsescape */
                         while (ISSPACE(*(d-1))) {
                             /* remove trailing spaces */
@@ -735,7 +787,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     *d++ = *s++;            /* '\\' */
                     *d++ = *s++;            /* HEX */
                     *d++ = *s++;            /* HEX */
-                    if (ISPLUSSTR(s-2)) {
+                    if (ISPLUSSTR(s-2) && is_dn_syntax) {
                         /* next type start of multi values */
                         /* should not be a escape char AND should be followed
                          * by \\= or \\3D */
@@ -746,9 +798,10 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             subtypestart = NULL;
                         }
                     }
-                    if (SEPARATORSTR(s-2) || ISEQUALSTR(s-2)) {
-                        while (ISSPACE(*s)) /* remove leading spaces */
+                    if ((SEPARATORSTR(s-2) || ISEQUALSTR(s-2)) && is_dn_syntax) {
+                        while (ISSPACE(*s)) {/* remove leading spaces */
                             s++;
+                        }
                     }
                 } else if (s + 2 < ends &&
                            isxdigit(*(s+1)) && isxdigit(*(s+2))) {
@@ -805,26 +858,36 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 s++;
                 continue;
             }
-            subtypestart = d; /* prepare for '+' in the quoted value, if any */
+            if (is_dn_syntax) {
+                subtypestart = d; /* prepare for '+' in the quoted value, if any */
+            }
             subrdn_av_count = 0;
         case INQUOTEDVALUE:
             if (ISQUOTE(*s)) {
                 if (ISESCAPE(*(d-1))) { /* the quote is escaped */
                     PR_snprintf(d, 3, "%X", *(s++));    /* hexpair */
                 } else { /* end of INQUOTEVALUE */
-                    while (ISSPACE(*(d-1))) { /* eliminate trailing spaces */
+                    if (is_dn_syntax) {
+                        while (ISSPACE(*(d-1))) { /* eliminate trailing spaces */
+                            d--;
+                            chkblank = 1;
+                        }
+                        /* We have to keep the last ' ' of a value in quotes.
+                         * The same idea as the escaped last space:
+                         * "cn=A,ou=B " */
+                        /*           ^  */
+                        if (chkblank && ISBLANK(*d)) {
+                            PR_snprintf(d, 4, "\\%X", *d);    /* hexpair */
+                            d += 3;
+                            chkblank = 0;
+                        }
+                    } else if (ISSPACE(*(d-1))) {
+                        /* Convert last trailing space to hex code */
                         d--;
-                        chkblank = 1;
-                    }
-                    /* We have to keep the last ' ' of a value in quotes.
-                     * The same idea as the escaped last space:
-                     * "cn=A,ou=B " */
-                    /*           ^  */
-                    if (chkblank && ISBLANK(*d)) {
                         PR_snprintf(d, 4, "\\%X", *d);    /* hexpair */
                         d += 3;
-                        chkblank = 0;
                     }
+
                     state = B4SEPARATOR;
                     s++;
                 }
@@ -835,11 +898,11 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     rc = -1;
                     goto bail;
                 } else {
-                    if (ISEQUAL(*s)) {
+                    if (ISEQUAL(*s) && is_dn_syntax) {
                         while (ISSPACE(*(d-1))) { /* remove trailing spaces */
                             d--;
                         }
-                    } else if (SEPARATOR(*s)) {
+                    } else if (SEPARATOR(*s) && is_dn_syntax) {
                         /* separator is a subset of needsescape */
                         while (ISSPACE(*(d-1))) { /* remove trailing spaces */
                             d--;
@@ -878,10 +941,10 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     *d++ = '\\';
                     PR_snprintf(d, 3, "%X", *s);    /* hexpair */
                     d += 2;
-                    if (ISPLUS(*s++)) {
+                    if (ISPLUS(*s++) && is_dn_syntax) {
                         subtypestart = d; /* next type start of multi values */
                     }
-                    if (SEPARATOR(*(s-1)) || ISEQUAL(*(s-1))) {
+                    if ((SEPARATOR(*(s-1)) || ISEQUAL(*(s-1))) && is_dn_syntax) {
                         while (ISSPACE(*s)) /* remove leading spaces */
                             s++;
                     }
