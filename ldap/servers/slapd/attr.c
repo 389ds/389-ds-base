@@ -964,5 +964,9 @@ done:
 const char *
 attr_get_syntax_oid(const Slapi_Attr *attr)
 {
-	return attr->a_plugin->plg_syntax_oid;
+	if (attr->a_plugin) {
+		return attr->a_plugin->plg_syntax_oid;
+	} else {
+		return NULL;
+	}
 }

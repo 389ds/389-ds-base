@@ -822,15 +822,13 @@ slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp )
 int
 slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr)
 {
-	char *syntaxoid = NULL;
+	const char *syntaxoid = NULL;
 	int dn_syntax = 0; /* not DN, by default */
 
-	if (attr->a_plugin) { /* If not set, there is no way to get the info */
-		slapi_attr_get_syntax_oid_copy(attr, &syntaxoid);
-		if (syntaxoid) {
+	if (attr && attr->a_plugin) { /* If not set, there is no way to get the info */
+		if (syntaxoid = attr_get_syntax_oid(attr)) {
 			dn_syntax = ((0 == strcmp(syntaxoid, NAMEANDOPTIONALUID_SYNTAX_OID))
 						 || (0 == strcmp(syntaxoid, DN_SYNTAX_OID)));
-			slapi_ch_free_string(&syntaxoid);
 		}
 	}
 	return dn_syntax;
