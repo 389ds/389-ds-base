@@ -1387,9 +1387,8 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                      * to be a part of the map type. */
                     if (IS_ATTRDESC_CHAR(*p)) {
                         map_type = strndup(var_start, p - var_start + 1);
-                        /* There is no post string, so
-                         * set it to be empty. */
-                        post_str = "";
+                        /* There is no post string. */
+                        post_str = NULL;
                     } else {
                         map_type = strndup(var_start, p - var_start);
                         post_str = p;
@@ -1409,7 +1408,7 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
                 }
 
                 /* Process the post string to remove any escapes. */
-                for (p = post_str; p <= end; p++) {
+                for (p = post_str; p && (p <= end); p++) {
                     if (*p == '$') {
                         if ((p == end) || (*(p+1) != '$')) {
                             slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
@@ -1449,7 +1448,7 @@ mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
             if (map_val) {
                 /* Create the new mapped value. */
                 *value = slapi_ch_smprintf("%s%s%s", pre_str,
-                                           map_val, post_str);
+                                           map_val, post_str ? post_str : "");
                 if (freeit) {
                     slapi_ch_free_string(&map_val);
                 }
