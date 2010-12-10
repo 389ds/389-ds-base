@@ -522,10 +522,20 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	 * not authenticated, only allow bind and extended operations.
 	 * We allow extended operations so one can do a startTLS prior
 	 * to binding to protect their credentials in transit. 
-	 * We also allow UNBIND and ABANDON. */
-	if (!config_get_anon_access_switch() && (op->o_tag != LDAP_REQ_BIND) &&
-	    (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
-	    (op->o_tag != LDAP_REQ_ABANDON) && (slapi_sdn_get_dn(&(op->o_sdn)) == NULL )) {
+	 * We also allow UNBIND and ABANDON.
+	 *
+	 * If anonymous access is only allowed for root DSE searches,
+	 * we let SEARCH operations through as well.  The search code
+	 * is responsible for checking if the operation is a root DSE
+	 * search. */
+        if ((slapi_sdn_get_dn(&(op->o_sdn)) == NULL ) &&
+            /* anon access off and something other than BIND, EXTOP, UNBIND or ABANDON */
+	    (((config_get_anon_access_switch() == SLAPD_ANON_ACCESS_OFF) && (op->o_tag != LDAP_REQ_BIND) &&
+             (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) && (op->o_tag != LDAP_REQ_ABANDON)) ||
+            /* root DSE access only and something other than BIND, EXTOP, UNBIND, ABANDON, or SEARCH */
+	    ((config_get_anon_access_switch() == SLAPD_ANON_ACCESS_ROOTDSE) && (op->o_tag != LDAP_REQ_BIND) &&
+	     (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
+	     (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH)))) {
 		slapi_log_access( LDAP_DEBUG_STATS,
 			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
 			" - Anonymous access not allowed\n",

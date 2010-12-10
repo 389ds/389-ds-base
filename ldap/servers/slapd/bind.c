@@ -514,8 +514,9 @@ do_bind( Slapi_PBlock *pb )
                that counter */
             slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
-            /* Refuse the operation if anonymous access is disabled. */
-            if (!config_get_anon_access_switch()) {
+            /* Refuse the operation if anonymous access is disabled.  We need to allow
+             * an anonymous bind through if only root DSE anonymous access is set too. */
+            if (config_get_anon_access_switch() == SLAPD_ANON_ACCESS_OFF) {
                 send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                  "Anonymous access is not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
@@ -544,7 +545,7 @@ do_bind( Slapi_PBlock *pb )
             slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
             /* Refuse the operation if anonymous access is disabled. */
-            if (!config_get_anon_access_switch()) {
+            if (config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) {
                 send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                  "Anonymous access is not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */

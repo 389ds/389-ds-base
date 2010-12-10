@@ -327,7 +327,7 @@ do_extended( Slapi_PBlock *pb )
 
 		/* If anonymous access is disabled and we haven't
 		 * authenticated yet, only allow startTLS. */
-		if (!config_get_anon_access_switch() && ((pb->pb_op->o_authtype == NULL) ||
+		if ((config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) && ((pb->pb_op->o_authtype == NULL) ||
     		        (strcasecmp(pb->pb_op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
 			send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
 				"Anonymous access is not allowed.", 0, NULL );

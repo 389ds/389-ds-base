@@ -663,7 +663,7 @@ void ids_sasl_server_new(Connection *conn)
     secprops.max_ssf = 0xffffffff;
     secprops.min_ssf = config_get_minssf();
     /* If anonymous access is disabled, set the appropriate flag */
-    if (!config_get_anon_access_switch()) {
+    if (config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) {
         secprops.security_flags = SASL_SEC_NOANONYMOUS;
     }
 

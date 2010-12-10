@@ -328,6 +328,11 @@ typedef void	(*VFP0)(void);
 #define SLAPD_LDAPI_DEFAULT_FILENAME "/var/run/ldapi"
 #define SLAPD_LDAPI_DEFAULT_STATUS "off"
 
+/* Anonymous access */
+#define SLAPD_ANON_ACCESS_OFF           0
+#define SLAPD_ANON_ACCESS_ON            1
+#define SLAPD_ANON_ACCESS_ROOTDSE       2
+
 struct subfilt {
 	char	*sf_type;
 	char	*sf_initial;

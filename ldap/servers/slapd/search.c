@@ -152,6 +152,18 @@ do_search( Slapi_PBlock *pb )
 		*(base + baselen) = '\0';
 	}
 
+	/* If anonymous access is only allowed for searching the root DSE,
+	 * we need to reject any other anonymous search attempts. */
+	if ((slapi_sdn_get_dn(&(operation->o_sdn)) == NULL) && ((baselen != 0) || (scope != LDAP_SCOPE_BASE))
+	    && (config_get_anon_access_switch() == SLAPD_ANON_ACCESS_ROOTDSE)) {
+		op_shared_log_error_access(pb, "SRCH", base?base:"", "anonymous search not allowed");
+
+		send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+			"Anonymous access is not allowed.", 0, NULL );
+
+		goto free_and_return;
+	}
+
 	/*
 	 * ignore negative time and size limits since they make no sense
 	 */

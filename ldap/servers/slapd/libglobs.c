@@ -115,7 +115,8 @@ typedef enum {
 	CONFIG_SPECIAL_REFERRALLIST, /* this is a berval list */
 	CONFIG_SPECIAL_SSLCLIENTAUTH, /* maps strings to an enumeration */
     CONFIG_SPECIAL_ERRORLOGLEVEL, /* requires & with LDAP_DEBUG_ANY */
-	CONFIG_STRING_OR_EMPTY /* use an empty string */
+	CONFIG_STRING_OR_EMPTY, /* use an empty string */
+	CONFIG_SPECIAL_ANON_ACCESS_SWITCH /* maps strings to an enumeration */
 } ConfigVarType;
 
 static int config_set_onoff( const char *attrname, char *value,
@@ -616,7 +617,7 @@ static struct config_get_and_set {
 		(ConfigGetFunc)config_get_require_secure_binds},
 	{CONFIG_ANON_ACCESS_ATTRIBUTE, config_set_anon_access_switch,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.allow_anon_access, CONFIG_ON_OFF,
+		(void**)&global_slapdFrontendConfig.allow_anon_access, CONFIG_SPECIAL_ANON_ACCESS_SWITCH,
 		(ConfigGetFunc)config_get_anon_access_switch},
 	{CONFIG_MINSSF_ATTRIBUTE, config_set_minssf,
 		NULL, 0,
@@ -885,7 +886,7 @@ FrontendConfig_init () {
 #endif
   cfg->allow_unauth_binds = LDAP_OFF;
   cfg->require_secure_binds = LDAP_OFF;
-  cfg->allow_anon_access = LDAP_ON;
+  cfg->allow_anon_access = SLAPD_ANON_ACCESS_ON;
   cfg->slapi_counters = LDAP_ON;
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
@@ -4628,12 +4629,11 @@ config_get_require_secure_binds(void)
 int
 config_get_anon_access_switch(void)
 {
-	int retVal;
+	char *retVal = NULL;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	CFG_LOCK_READ(slapdFrontendConfig);
-	retVal = slapdFrontendConfig->allow_anon_access;
+        retVal = slapdFrontendConfig->allow_anon_access;
 	CFG_UNLOCK_READ(slapdFrontendConfig);
-
 	return retVal;
 }
 
@@ -5503,12 +5503,34 @@ config_set_anon_access_switch( const char *attrname, char *value,
 	int retVal = LDAP_SUCCESS;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-	retVal = config_set_onoff(attrname,
-		value,
-		&(slapdFrontendConfig->allow_anon_access),
-		errorbuf,
-		apply);
+	if (config_value_is_null(attrname, value, errorbuf, 0)) {
+		return LDAP_OPERATIONS_ERROR;
+	}
 
+	if ((strcasecmp(value, "on") != 0) && (strcasecmp(value, "off") != 0) &&
+	    (strcasecmp(value, "rootdse") != 0)) {
+		PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+			"%s: invalid value \"%s\". Valid values are \"on\", "
+			"\"off\", or \"rootdse\".", attrname, value);
+		retVal = LDAP_OPERATIONS_ERROR;
+	}
+
+	if (!apply) {
+		/* we can return now if we aren't applying the changes */
+		return retVal;
+	}
+
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+
+	if (strcasecmp(value, "on") == 0 ) {
+		slapdFrontendConfig->allow_anon_access = SLAPD_ANON_ACCESS_ON;
+	} else if (strcasecmp(value, "off") == 0 ) {
+		slapdFrontendConfig->allow_anon_access = SLAPD_ANON_ACCESS_OFF;
+	} else if (strcasecmp(value, "rootdse") == 0) {
+		slapdFrontendConfig->allow_anon_access = SLAPD_ANON_ACCESS_ROOTDSE;
+	}
+
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
 	return retVal;
 }
 
@@ -5774,6 +5796,22 @@ config_set_value(
         }
         else
             slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
+        break;
+
+    case CONFIG_SPECIAL_ANON_ACCESS_SWITCH:
+        if (!value) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "off");
+            break;
+        }
+
+        if (*((int *)value) == SLAPD_ANON_ACCESS_ON) {
+            sval = "on";
+        } else if (*((int *)value) == SLAPD_ANON_ACCESS_ROOTDSE) {
+            sval = "rootdse";
+        } else {
+            sval = "off";
+        }
+        slapi_entry_attr_set_charptr(e, cgas->attr_name, sval);
         break;
 
     default:
