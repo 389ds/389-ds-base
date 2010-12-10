@@ -2300,6 +2300,7 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 {
 	slapdFrontendConfig_t	*slapdFrontendConfig = getFrontendConfig();
 	char					addrbuf[ 256 ];
+	int			isfirsttime = 1;
 
 	if ( ct->size <= slapdFrontendConfig->reservedescriptors ) {
 #ifdef _WIN32
@@ -2340,7 +2341,6 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 #if !defined( XP_WIN32 )
 	if ( n_tcps != NULL ) {					/* standard LDAP */
 		PRNetAddr   **nap = NULL;
-		int isfirsttime = 1;
 
 		for (nap = ports->n_listenaddr; nap && *nap; nap++) {
 			if (isfirsttime) {
@@ -2362,10 +2362,18 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 		PRNetAddr   **sap = NULL;
 
 		for (sap = ports->s_listenaddr; sap && *sap; sap++) {
-			LDAPDebug( LDAP_DEBUG_ANY,
-				"Listening on %s port %d for LDAPS requests\n",
-				netaddr2string(*sap, addrbuf, sizeof(addrbuf)),
-				ports->s_port, 0 );
+			if (isfirsttime) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"slapd started.  Listening on %s port %d for LDAPS requests\n",
+					netaddr2string(*sap, addrbuf, sizeof(addrbuf)),
+					ports->s_port, 0 );
+				isfirsttime = 0;
+			} else {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"Listening on %s port %d for LDAPS requests\n",
+					netaddr2string(*sap, addrbuf, sizeof(addrbuf)),
+					ports->s_port, 0 );
+			}
 		}
 	}
 #else
@@ -2388,8 +2396,10 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 #if defined(ENABLE_LDAPI)
 	if ( i_unix != NULL ) {                                 /* LDAPI */
 		PRNetAddr   **iap = ports->i_listenaddr;
+
 		LDAPDebug( LDAP_DEBUG_ANY,
-			"Listening on %s for LDAPI requests\n", (*iap)->local.path, 0, 0 );
+			"%sListening on %s for LDAPI requests\n", isfirsttime?"slapd started.  ":"",
+			(*iap)->local.path, 0 );
 	}
 #endif /* ENABLE_LDAPI */
 #endif
