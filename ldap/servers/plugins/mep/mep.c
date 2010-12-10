@@ -1902,10 +1902,11 @@ mep_mod_post_op(Slapi_PBlock *pb)
             goto bail;
         }
 
-        /* Fetch the modified entry. */
+        /* Fetch the modified entry.  This will not be set for a chaining
+	 * backend, so don't treat the message as fatal. */
         slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
         if (e == NULL) {
-            slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+            slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
                             "mep_mod_post_op: Unable to fetch postop entry.\n");
             goto bail;
         }
