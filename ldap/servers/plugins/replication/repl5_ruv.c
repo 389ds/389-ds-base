@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -1945,6 +1946,26 @@ ruv_force_csn_update (RUV *ruv, CSN *csn)
 		csn_free(&max);
 	}	
 }
+
+/* This routine is used to iterate the elements in a RUV and set each vector's
++ * minimal CSN to a dummy with just the rid set, e.g. 00000000000000010000 */
+void
+ruv_insert_dummy_min_csn (RUV *ruv)
+{
+	RUVElement *r;
+	int cookie;
+
+	for (r = dl_get_first (ruv->elements, &cookie); r;
+		r = dl_get_next (ruv->elements, &cookie)) {
+		if (r->csn && !r->min_csn) {
+			CSN *dummycsn = csn_new();
+			csn_init(dummycsn);
+			csn_set_replicaid(dummycsn, csn_get_replicaid(r->csn));
+			r->min_csn = dummycsn;
+		}
+	}
+}
+
 
 #ifdef TESTING /* Some unit tests for code in this file */
 

@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -3425,6 +3426,13 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 
 	if (purge)
 	{
+		/* Set the minimum CSN of each vector to a dummy CSN that contains
+		 * just a replica ID, e.g. 00000000000000010000.
+		 * The minimum CSN in a purge RUV is not used so the value doesn't
+		 * matter, but it needs to be set to something so that it can be
+		 * flushed to changelog at shutdown and parsed at startup with the
+		 * regular string-to-RUV parsing routines. */
+		ruv_insert_dummy_min_csn(file->purgeRUV);
 		key.data = _cl5GetHelperEntryKey (PURGE_RUV_TIME, csnStr);
 		rc = ruv_to_bervals(file->purgeRUV, &vals);
 	}

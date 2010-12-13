@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -120,6 +121,7 @@ PRBool ruv_has_csns(const RUV *ruv);
 PRBool ruv_has_both_csns(const RUV *ruv);
 PRBool ruv_is_newer (Object *sruv, Object *cruv);
 void ruv_force_csn_update (RUV *ruv, CSN *csn);
+void ruv_insert_dummy_min_csn (RUV *ruv);
 #ifdef __cplusplus
 }
 #endif
