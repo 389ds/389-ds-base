@@ -267,7 +267,7 @@ sub createInstanceScripts {
     # determine initconfig_dir
     my $initconfig_dir = $inf->{slapd}->{initconfig_dir};
     if (!$initconfig_dir) {
-        if ($ENV{USER} eq 'root') {
+        if (getLogin eq 'root') {
             $initconfig_dir = "$inf->{General}->{prefix}@initconfigdir@";
         } else {
             $initconfig_dir = "$ENV{HOME}/.@package_name@";
@@ -485,7 +485,7 @@ sub makeOtherConfigFiles {
     # determine initconfig_dir
     my $initconfig_dir = $inf->{slapd}->{initconfig_dir};
     if (!$initconfig_dir) {
-        if ($ENV{USER} eq 'root') {
+        if (getLogin eq 'root') {
             $initconfig_dir = "$inf->{General}->{prefix}@initconfigdir@";
         } else {
             $initconfig_dir = "$ENV{HOME}/.@package_name@";
@@ -1075,7 +1075,7 @@ sub removeDSInstance {
 
     # determine initconfig_dir
     if (!$initconfig_dir) {
-        if ($ENV{USER} eq 'root') {
+        if (getLogin eq 'root') {
             $initconfig_dir = "@initconfigdir@";
         } else {
             $initconfig_dir = "$ENV{HOME}/.@package_name@";
