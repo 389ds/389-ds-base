@@ -630,7 +630,6 @@ int cl5DeleteDBSync (Object *replica)
     Object *obj;
 	int rc;
     CL5DBFile *file;
-    char fName [MAXPATHLEN + 1];
 
 	if (replica == NULL)
 	{
@@ -658,12 +657,10 @@ int cl5DeleteDBSync (Object *replica)
         file = (CL5DBFile*)object_get_data (obj);
         PR_ASSERT (file);
 
-        PR_snprintf (fName, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, file->name);
-        
         _cl5DBDeleteFile (obj);
 
         /* wait until the file is gone */
-        while (PR_Access (fName, PR_ACCESS_EXISTS) == PR_SUCCESS)
+        while (PR_Access (file->name, PR_ACCESS_EXISTS) == PR_SUCCESS)
         {
             DS_Sleep (PR_MillisecondsToInterval(100));
         }
@@ -1891,10 +1888,11 @@ static int _cl5DBOpen ()
 		    }
             else /* there is no matching replica for the file - remove */
             {
-				char fullpathname[MAXPATHLEN];
+                char fullpathname[MAXPATHLEN];
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBOpen: "
                           "file %s has no matching replica; removing\n", entry->name);
 
+                PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, entry->name);
                 rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv,
                                                0, fullpathname, 0, 0);
                 if (rc != 0)
@@ -1903,6 +1901,13 @@ static int _cl5DBOpen ()
                                     "_cl5DBOpen: failed to remove (%s) file; "
                                     "libdb error - %d (%s)\n",
                                     fullpathname, rc, db_strerror(rc));
+                    if (PR_Delete(fullpathname) != PR_SUCCESS) {
+                        PRErrorCode prerr = PR_GetError();
+                        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+                                    "_cl5DBOpen: failed to remove (%s) file; "
+                                    "nspr error - %d (%s)\n",
+                                    fullpathname, prerr, slapd_pr_strerror(prerr));
+                    }
                 }
             }
         }
@@ -5536,8 +5541,7 @@ done:
 static void _cl5DBCloseFile (void **data)
 { 
 	CL5DBFile *file;
-    char fullpathname[MAXPATHLEN];
-                				
+
 	PR_ASSERT (data);
 
 	file = *(CL5DBFile**)data;
@@ -5545,7 +5549,7 @@ static void _cl5DBCloseFile (void **data)
 	PR_ASSERT (file);
 
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
-					"Closing database %s/%s\n", s_cl5Desc.dbDir, file->name);
+					"Closing database %s\n", file->name);
 
 	/* close the file */
 	/* if this is normal close or close after import, update entry count */	
@@ -5561,7 +5565,7 @@ static void _cl5DBCloseFile (void **data)
 	if (file->db) {
 	    file->db->close(file->db, 0);
 	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
-						"Closed the changelog database handle for %s/%s\n", s_cl5Desc.dbDir, file->name);
+						"Closed the changelog database handle for %s\n", file->name);
 	    file->db = NULL;
 	}
 
@@ -5570,16 +5574,15 @@ static void _cl5DBCloseFile (void **data)
 		int rc = 0;
 		/* We need to use the libdb API to delete the files, otherwise we'll
 		 * run into problems when we try to checkpoint transactions later. */
-		PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, file->name);
-		rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, fullpathname, 0, 0);
+		rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, file->name, 0, 0);
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
 							"failed to remove (%s) file; libdb error - %d (%s)\n", 
-							fullpathname, rc, db_strerror(rc));
+							file->name, rc, db_strerror(rc));
 		} else {
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
-							"Deleted the changelog database file %s/%s\n", s_cl5Desc.dbDir, file->name);
+							"Deleted the changelog database file %s\n", file->name);
 
         }
 	}
