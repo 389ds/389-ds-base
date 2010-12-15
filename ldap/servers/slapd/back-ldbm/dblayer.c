@@ -924,7 +924,7 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
                 if (feof(f))
                     break;
                 if (strncmp(s, "VmSize:", 7) == 0) {
-                    sscanf(s+7, "%lu", procpages);
+                    sscanf(s+7, "%u", procpages);
                     break;
                 }
             }
@@ -4213,7 +4213,7 @@ static int commit_good_database(dblayer_private *priv)
             filename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
         return -1;
     } 
-    PR_snprintf(line,sizeof(line),"cachesize:%lu\nncache:%d\nversion:%d\n",
+    PR_snprintf(line,sizeof(line),"cachesize:%u\nncache:%d\nversion:%d\n",
             priv->dblayer_cachesize, priv->dblayer_ncache, DB_VERSION_MAJOR);
     num_bytes = strlen(line);
     return_value = slapi_write_buffer(prfd, line, num_bytes);
@@ -6538,6 +6538,44 @@ ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info)
     }
 
     switch (cmd) {
+    default:
+        break;
+    }
+
+    return rc;
+}
+
+int
+ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info)
+{
+    int rc = -1;
+    if (!be || !info) {
+        return rc;
+    }
+
+    switch (cmd) {
+    case BACK_INFO_CRYPT_INIT:
+    {
+        back_info_crypt_init *crypt_init = (back_info_crypt_init *)info;
+        rc = back_crypt_init(crypt_init->be, crypt_init->dn,
+                             crypt_init->encryptionAlgorithm, 
+                             &(crypt_init->state_priv));
+        break;
+    }
+    case BACK_INFO_CRYPT_ENCRYPT_VALUE:
+    {
+        back_info_crypt_value *crypt_value = (back_info_crypt_value *)info;
+        rc = back_crypt_encrypt_value(crypt_value->state_priv, crypt_value->in, 
+                                      &(crypt_value->out));
+        break;
+    }
+    case BACK_INFO_CRYPT_DECRYPT_VALUE:
+    {
+        back_info_crypt_value *crypt_value = (back_info_crypt_value *)info;
+        rc = back_crypt_decrypt_value(crypt_value->state_priv, crypt_value->in, 
+                                      &(crypt_value->out));
+        break;
+    }
     default:
         break;
     }

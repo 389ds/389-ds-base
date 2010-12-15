@@ -845,6 +845,7 @@ struct slapdplugin {
 			IFP	plg_un_db_add_schema;     /* add schema */
 			IFP	plg_un_db_get_info;       /* get info */
 			IFP	plg_un_db_set_info;       /* set info */
+			IFP	plg_un_db_ctrl_info;      /* ctrl info */
 		} plg_un_db;
 #define plg_bind		plg_un.plg_un_db.plg_un_db_bind
 #define plg_unbind		plg_un.plg_un_db.plg_un_db_unbind
@@ -882,6 +883,7 @@ struct slapdplugin {
 #define plg_add_schema          plg_un.plg_un_db.plg_un_db_add_schema
 #define plg_get_info            plg_un.plg_un_db.plg_un_db_get_info
 #define plg_set_info            plg_un.plg_un_db.plg_un_db_set_info
+#define plg_ctrl_info            plg_un.plg_un_db.plg_un_db_ctrl_info
 
 		/* extended operation plugin structure */
 		struct plg_un_protocol_extension {
@@ -1162,6 +1164,7 @@ typedef struct backend {
 #define be_wire_import          be_database->plg_wire_import
 #define be_get_info             be_database->plg_get_info
 #define be_set_info             be_database->plg_set_info
+#define be_ctrl_info            be_database->plg_ctrl_info
 
 	void *be_instance_info;		/* If the database plugin pointed to by
 								 * be_database supports more than one instance,

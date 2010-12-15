@@ -390,6 +390,14 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					slapi_ch_free_string(&config.maxAge);
                     config.maxAge = slapi_ch_strdup(config_attr_value);
                 }
+                else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_SYMMETRIC_KEY ) == 0 )
+                {
+                    slapi_ch_free_string(&config.symmetricKey);
+                    config.symmetricKey = slapi_ch_strdup(config_attr_value);
+                    /* Storing the encryption symmetric key */
+                    /* no need to change any changelog configuration */
+                    goto done;
+                }
 				else 
 				{
 					*returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -720,7 +728,6 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 
 	/* 
 	 * Read the Changelog Internal Configuration Parameters for the Changelog DB
-	 * (db cache size, db settings...)
 	 */
 	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES);
 	if (arg)
@@ -731,6 +738,34 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	if ( config->dbconfig.maxConcurrentWrites <= 0 )
 	{
 		config->dbconfig.maxConcurrentWrites = CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES;
+	}
+
+	/* 
+	 * changelog encryption
+	 */
+	arg = slapi_entry_attr_get_charptr(entry,
+	                                   CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM);
+	if (arg)
+	{
+		config->dbconfig.encryptionAlgorithm = slapi_ch_strdup(arg);
+		slapi_ch_free_string(&arg);
+	}
+	else
+	{
+		config->dbconfig.encryptionAlgorithm = NULL; /* no encryption */
+	}
+	/* 
+	 * symmetric key
+	 */
+	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_SYMMETRIC_KEY);
+	if (arg)
+	{
+		config->dbconfig.symmetricKey = slapi_ch_strdup(arg);
+		slapi_ch_free_string(&arg);
+	}
+	else
+	{
+		config->dbconfig.symmetricKey = NULL; /* no symmetric key */
 	}
 }
 

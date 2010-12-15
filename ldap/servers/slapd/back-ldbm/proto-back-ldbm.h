@@ -176,6 +176,7 @@ int dblayer_remove_env(struct ldbminfo *li);
 
 int ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info);
 int ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info);
+int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 
 /*
  * dn2entry.c
@@ -618,6 +619,11 @@ int ldbm_attrcrypt_init_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 int ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
 int ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
 int ldbm_instance_attrcrypt_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+
+int back_crypt_init(Slapi_Backend *be, const char *dn, const char *encAlgorithm, void **handle);
+int back_crypt_encrypt_value(void *handle, struct berval *in, struct berval **out);
+int
+back_crypt_decrypt_value(void *handle, struct berval *in, struct berval **out);
 
 void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li);
 

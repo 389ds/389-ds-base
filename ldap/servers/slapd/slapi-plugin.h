@@ -6272,13 +6272,49 @@ int slapi_back_get_info(Slapi_Backend *be, int cmd, void **info);
  */
 int slapi_back_set_info(Slapi_Backend *be, int cmd, void *info);
 
+/**
+ * Execute cmd in backend
+ *
+ * \param be Backend where the command is executed
+ * \param cmd macro to specify the execution type
+ * \param info pointer to the information
+ * \return \c 0 if the operation was successful
+ * \return non-0 if the operation was not successful
+ *
+ * \note Implemented cmd:
+ * BACK_INFO_CRYPT_INIT - Initialize cipher (info: back_info_crypt_init)
+ * BACK_INFO_CRYPT_ENCRYPT_VALUE - Encrypt the given value (info: back_info_crypt_value)
+ * BACK_INFO_CRYPT_DECRYPT_VALUE - Decrypt the given value (info: back_info_crypt_value)
+ */
+int slapi_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
+
 /* cmd */
 enum
 {
-    BACK_INFO_DBENV,         /* Get the dbenv */
-    BACK_INFO_INDEXPAGESIZE, /* Get the index page size */
-    BACK_INFO_DBENV_OPENFLAGS/* Get the dbenv openflags */
+    BACK_INFO_DBENV,               /* Get the dbenv */
+    BACK_INFO_INDEXPAGESIZE,       /* Get the index page size */
+    BACK_INFO_DBENV_OPENFLAGS,     /* Get the dbenv openflags */
+    BACK_INFO_CRYPT_INIT,          /* Ctrl: clcrypt_init */
+    BACK_INFO_CRYPT_ENCRYPT_VALUE, /* Ctrl: clcrypt_encrypt_value */
+    BACK_INFO_CRYPT_DECRYPT_VALUE  /* Ctrl: clcrypt_decrypt_value */
 };
+
+struct _back_info_crypt_init {
+    char *dn;                  /* input -- entry to store nsSymmetricKey */
+    char *encryptionAlgorithm; /* input -- encryption althorithm */
+    Slapi_Backend *be;         /* input -- backend to use */
+    void *state_priv;          /* outout */
+};
+typedef struct _back_info_crypt_init back_info_crypt_init;
+
+struct _back_info_crypt_value {
+    void *state_priv;          /* input */
+    struct berval *in;          /* input */
+    struct berval *out;         /* output */
+};
+typedef struct _back_info_crypt_value back_info_crypt_value;
+
+#define BACK_CRYPT_OUTBUFF_EXTLEN 16
 
 #ifdef __cplusplus
 }

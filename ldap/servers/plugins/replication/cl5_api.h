@@ -70,6 +70,8 @@ typedef struct cl5dbconfig
 	size_t	pageSize;			/* page size in bytes */
 	PRInt32	fileMode;			/* file mode */
 	PRUint32 maxConcurrentWrites;	/* max number of concurrent cl writes */
+	char *encryptionAlgorithm;	/* nsslapd-encryptionalgorithm */
+	char *symmetricKey;
 } CL5DBConfig;
 
 /* changelog entry format */

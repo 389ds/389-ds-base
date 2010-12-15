@@ -31,8 +31,7 @@
  * exception. 
  * 
  * 
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010/ Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -40,37 +39,15 @@
 #  include <config.h>
 #endif
 
-/* cl5.h - changelog related function */
+#ifndef _CLCRYPT_H_
+#define _CLCRYPT_H_
 
-#ifndef CL5_H
-#define CL5_H
+#include "pk11func.h"
+#include "keyhi.h"
+#include "nss.h"
+#include "cert.h"
 
-#include "cl5_api.h"	/* changelog access APIs */
-
-typedef struct changelog5Config
-{
-	char *dir;
-/* These 2 parameters are needed for changelog trimming. Already present in 5.0 */
-	char *maxAge;
-	int	 maxEntries;
-/* the changelog DB configuration parameters are defined as CL5DBConfig in cl5_api.h */
-	CL5DBConfig dbconfig;	
-	char *symmetricKey;
-}changelog5Config;
-
-/* initializes changelog*/
-int changelog5_init();
-/* cleanups changelog data */
-void changelog5_cleanup();
-/* initializes changelog configurationd */
-int changelog5_config_init();
-/* cleanups config data */
-void changelog5_config_cleanup();
-/* reads changelog configuration */
-int changelog5_read_config (changelog5Config *config); 
-/* cleanups the content of the config structure */
-void changelog5_config_done (changelog5Config *config);
-/* frees the content and the config structure */
-void changelog5_config_free (changelog5Config **config);
-
-#endif
+int clcrypt_init(const CL5DBConfig *config, void **clcrypt_handle);
+int clcrypt_encrypt_value(void *clcrypt_handle, struct berval *in, struct berval **out);
+int clcrypt_decrypt_value(void *state_priv, struct berval *in, struct berval **out);
+#endif /* _CLCRYPT_H_ */

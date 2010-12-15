@@ -62,23 +62,10 @@
 #define CONFIG_CHANGELOG_DIR_ATTRIBUTE		"nsslapd-changelogdir"
 #define CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE	"nsslapd-changelogmaxentries"
 #define CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE	"nsslapd-changelogmaxage"
-/* Changelog Internal Configuration Parameters -> DB related */
-#define CONFIG_CHANGELOG_DB_DBCACHESIZE			"nsslapd-dbcachesize"
-#define CONFIG_CHANGELOG_DB_DURABLE_TRANSACTIONS	"nsslapd-db-durable-transaction"
-#define CONFIG_CHANGELOG_DB_CHECKPOINT_INTERVAL		"nsslapd-db-checkpoint-interval"
-#define CONFIG_CHANGELOG_DB_CIRCULAR_LOGGING		"nsslapd-db-circular-logging"
-#define CONFIG_CHANGELOG_DB_PAGE_SIZE			"nsslapd-db-page-size"
-#define CONFIG_CHANGELOG_DB_LOGFILE_SIZE		"nsslapd-db-logfile-size"
-#define CONFIG_CHANGELOG_DB_MAXTXN_SIZE			"nsslapd-db-max-txn"
-#define CONFIG_CHANGELOG_DB_VERBOSE			"nsslapd-db-verbose"
-#define CONFIG_CHANGELOG_DB_DEBUG			"nsslapd-db-debug"
-#define CONFIG_CHANGELOG_DB_TRICKLE_PERCENTAGE		"nsslapd-db-trickle-percentage"
-#define CONFIG_CHANGELOG_DB_SPINCOUNT			"nsslapd-db-spin-count"
 /* Changelog Internal Configuration Parameters -> Changelog Cache related */
-#define CONFIG_CHANGELOG_CACHESIZE			"nsslapd-cachesize"
-#define CONFIG_CHANGELOG_CACHEMEMSIZE			"nsslapd-cachememsize"
-#define CONFIG_CHANGELOG_NB_LOCK	"nsslapd-db-locks"
 #define CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES	"nsslapd-changelogmaxconcurrentwrites"
+#define CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM	"nsslapd-encryptionalgorithm"
+#define CONFIG_CHANGELOG_SYMMETRIC_KEY	"nsSymmetricKey"
 
 #define	T_CHANGETYPESTR		"changetype"
 #define	T_CHANGETYPE		1

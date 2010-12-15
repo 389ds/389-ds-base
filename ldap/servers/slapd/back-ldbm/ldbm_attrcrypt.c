@@ -31,7 +31,7 @@
  * exception. 
  * 
  * 
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010 Red Hat, Inc.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -39,9 +39,8 @@
 #  include <config.h>
 #endif
 
-/* This file handles attribute encryption.
- */
-
+/* This file handles attribute encryption.  */
+/* #define DEBUG_ATTRCRYPT 1 */
 
 #include "back-ldbm.h"
 #include "attrcrypt.h"
@@ -53,6 +52,8 @@
  * Todo: 
  * Remember to free the private structures in the attrinfos, so avoid a leak.
  */
+
+#define ATTRCRYPT "attrcrypt"
 
 attrcrypt_cipher_entry attrcrypt_cipher_list[] = { {ATTRCRYPT_CIPHER_AES, "AES", CKM_AES_CBC_PAD, CKM_AES_CBC_PAD, CKM_AES_CBC_PAD, 128/8, 16} , 
 	{ATTRCRYPT_CIPHER_DES3 , "3DES" , CKM_DES3_CBC_PAD, CKM_DES3_CBC_PAD, CKM_DES3_CBC_PAD, 112/8, 8}, 
@@ -76,8 +77,25 @@ struct _attrcrypt_state_private {
 	attrcrypt_cipher_state *acs_array[1];
 };
 
+/*
+ * Return 
+ */
+enum
+{
+    KEYMGMT_SUCCESS = 0,
+    KEYMGMT_ERR_NO_ENTRY,       /* Entry to store key does not exist */
+    KEYMGMT_ERR_NO_KEY_ATTR,    /* Entry has no key attribute */
+    KEYMGMT_ERR_NO_KEY_VALUE,   /* Empty key */
+    KEYMGMT_ERR_CANT_UNWRAP,    /* Key failed to unwrap */
+    KEYMGMT_ERR_OTHER           /* Other error */
+};
+
 static int attrcrypt_wrap_key(attrcrypt_cipher_state *acs, PK11SymKey *symmetric_key, SECKEYPublicKey *public_key, SECItem *wrapped_symmetric_key);
 static int attrcrypt_unwrap_key(attrcrypt_cipher_state *acs, SECKEYPrivateKey *private_key, SECItem *wrapped_symmetric_key, PK11SymKey **unwrapped_symmetric_key);
+static int _back_crypt_cleanup_private(attrcrypt_state_private **state_priv);
+static void _back_crypt_acs_list_add(attrcrypt_state_private **state_priv, attrcrypt_cipher_state *acs);
+static int _back_crypt_keymgmt_get_key(attrcrypt_cipher_state *acs, SECKEYPrivateKey *private_key, PK11SymKey **key_from_store, const char *dn_string);
+static int _back_crypt_crypto_op(attrcrypt_private *priv, attrcrypt_cipher_state *acs, char *in_data, size_t in_size, char **out_data, size_t *out_size, int encrypt, backend *be, struct attrinfo *ai /* just for debugging */);
 
 /*
  * Copied from front-end because it's private to plugins
@@ -141,10 +159,8 @@ static int
 attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEYPrivateKey *private_key, PK11SymKey **key_from_store)
 {
 	int ret = 0;
-	Slapi_Entry *entry = NULL;
 	char *dn_template = "cn=%s,cn=encrypted attribute keys,cn=%s,cn=%s,cn=plugins,cn=config";
 	char *instance_name =  li->inst_name;
-	Slapi_Attr *keyattr = NULL;
 	char *dn_string = NULL;
 	
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_keymgmt_get_key\n", 0, 0, 0);
@@ -161,27 +177,8 @@ attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEY
 		ret = -1;
 		goto bail;
 	}
-	/* Fetch the entry */
-	getConfigEntry(dn_string, &entry);
-	/* Did we find the entry ? */
-	if (NULL != entry) {
-		SECItem key_to_unwrap = {0};
-		/* If so then look for the attribute that contains the key */
-		slapi_entry_attr_find(entry, KEY_ATTRIBUTE_NAME, &keyattr);
-		if (keyattr != NULL) {
-			Slapi_Value *v = NULL;
-			slapi_valueset_first_value( &keyattr->a_present_values, &v);
-			key_to_unwrap.len = slapi_value_get_length(v);
-			key_to_unwrap.data = (void*)slapi_value_get_string(v);
-    		}
-		/* Unwrap it */
-		ret = attrcrypt_unwrap_key(acs, private_key, &key_to_unwrap, key_from_store);
-		if (entry) {
-			freeConfigEntry(&entry);
-		}
-	} else {
-		ret = -2; /* Means: we didn't find the entry (which happens if the key has never been generated) */	
-	}
+	ret = _back_crypt_keymgmt_get_key(acs, private_key, key_from_store, 
+	                                  (const char *)dn_string);
 bail:
 	slapi_ch_free_string(&dn_string);
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_keymgmt_get_key\n", 0, 0, 0);
@@ -402,34 +399,51 @@ attrcrypt_cipher_init(ldbm_instance *li, attrcrypt_cipher_entry *ace, SECKEYPriv
 	acs->ace = ace;
 	acs->cipher_display_name = ace->cipher_display_name;
 	if (NULL == acs->cipher_lock) {
-		LDAPDebug(LDAP_DEBUG_ANY,"Failed to create cipher lock in attrcrypt_cipher_init\n", 0, 0, 0);
+		slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+			"Failed to create cipher lock in attrcrypt_cipher_init\n");
 	}
 	acs->slot = slapd_pk11_GetInternalKeySlot();
 	if (NULL == acs->slot) {
-		LDAPDebug(LDAP_DEBUG_ANY,"Failed to create a slot for cipher %s in attrcrypt_cipher_entry\n", acs->cipher_display_name, 0, 0);
+		slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+			"Failed to create a slot for cipher %s in attrcrypt_cipher_entry\n",
+			acs->cipher_display_name);
 		goto error;
 	}
 	/* Try to get the symmetric key for this cipher */
 	ret = attrcrypt_keymgmt_get_key(li,acs,private_key,&symmetric_key);
-	if (ret) {
-		if (-2 == ret) {
-			LDAPDebug(LDAP_DEBUG_ANY,"No symmetric key found for cipher %s in backend %s, attempting to create one...\n", acs->cipher_display_name, li->inst_name, 0);
-			ret = attrcrypt_generate_key(acs,&symmetric_key);
-			if (ret) {
-				LDAPDebug(LDAP_DEBUG_ANY,"Failed to generate key for %s in attrcrypt_cipher_init\n", acs->cipher_display_name, 0, 0);
-			}
-			if (symmetric_key) {
-				ret = attrcrypt_keymgmt_store_key(li,acs,public_key,symmetric_key);
-				if (ret) {
-					LDAPDebug(LDAP_DEBUG_ANY,"Failed to store key for cipher %s in attrcrypt_cipher_init\n", acs->cipher_display_name, 0, 0);
-				} else {
-					LDAPDebug(LDAP_DEBUG_ANY,"Key for cipher %s successfully generated and stored\n", acs->cipher_display_name, 0, 0);
-				}
-			}
-			
-		}  else {
-			LDAPDebug(LDAP_DEBUG_ANY,"Failed to retrieve key for cipher %s in attrcrypt_cipher_init\n", acs->cipher_display_name, 0, 0);
+	if (KEYMGMT_ERR_NO_ENTRY == ret) {
+		slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+			"No symmetric key found for cipher %s in backend %s, "
+			"attempting to create one...\n",
+			acs->cipher_display_name, li->inst_name);
+		ret = attrcrypt_generate_key(acs,&symmetric_key);
+		if (ret) {
+			slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+				"Failed to generate key for %s in attrcrypt_cipher_init\n",
+				acs->cipher_display_name);
 		}
+		if (symmetric_key) {
+			ret = attrcrypt_keymgmt_store_key(li,acs,public_key,symmetric_key);
+			if (ret) {
+				slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+					"Failed to store key for cipher %s in "
+					"attrcrypt_cipher_init\n", acs->cipher_display_name);
+			} else {
+				slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+					"Key for cipher %s successfully generated and stored\n",
+					acs->cipher_display_name);
+			}
+		}
+	} else if (KEYMGMT_ERR_CANT_UNWRAP == ret) {
+		slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+				"attrcrypt_cipher_init: symmetric key failed to unwrap "
+				"with the private key; Cert might have been renewed since "
+				"the key is wrapped.  To recover the encrypted contents, "
+				"keep the wrapped symmetric key value.\n");
+	} else if (ret) {
+		slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+			"Failed to retrieve key for cipher %s in attrcrypt_cipher_init "
+			"(%d)\n", acs->cipher_display_name, ret);
 	}
 	if (symmetric_key) {
 		/* we loaded the symmetric key, store it in the acs */
@@ -444,21 +458,7 @@ static void
 attrcrypt_acs_list_add(ldbm_instance *li,attrcrypt_cipher_state *acs)
 {
 	/* Realloc the existing list and add to the end */
-	attrcrypt_cipher_state **current = NULL;
-	size_t list_size = 0;
-	/* Is the list already there ? */
-	if (NULL == li->inst_attrcrypt_state_private) {
-		/* If not, add it */
-		li->inst_attrcrypt_state_private = (attrcrypt_state_private *) slapi_ch_calloc(sizeof(attrcrypt_cipher_state *), 2); /* 2 == The pointer and a NULL terminator */
-	} else {
-		/* Otherwise re-size it */
-		for (current = &(li->inst_attrcrypt_state_private->acs_array[0]); *current; current++) {
-			list_size++;
-		}
-		li->inst_attrcrypt_state_private = (attrcrypt_state_private *) slapi_ch_realloc((char*)li->inst_attrcrypt_state_private,sizeof(attrcrypt_cipher_state *) * (list_size + 2));
-		li->inst_attrcrypt_state_private->acs_array[list_size + 1] = NULL; 
-	}
-	li->inst_attrcrypt_state_private->acs_array[list_size] = acs;
+    _back_crypt_acs_list_add(&(li->inst_attrcrypt_state_private), acs);
 }
 
 int
@@ -495,7 +495,6 @@ attrcrypt_init(ldbm_instance *li)
 						attrcrypt_acs_list_add(li,acs);
 						LDAPDebug(LDAP_DEBUG_TRACE,"Initialized cipher %s in attrcrypt_init\n", ace->cipher_display_name, 0, 0);
 					}
-					
 				}
 			}
 			slapd_pk11_DestroyPublicKey(public_key);
@@ -548,16 +547,9 @@ attrcrypt_cleanup(attrcrypt_cipher_state *acs)
 int
 attrcrypt_cleanup_private(ldbm_instance *li)
 {
-	attrcrypt_cipher_state **current = NULL;
-
 	LDAPDebug(LDAP_DEBUG_TRACE, "-> attrcrypt_cleanup_private\n", 0, 0, 0);
 	if (li && li->inst_attrcrypt_state_private) {
-		for (current = &(li->inst_attrcrypt_state_private->acs_array[0]);
-			 *current; current++) {
-			attrcrypt_cleanup(*current);
-			slapi_ch_free((void **)current);
-		}
-		slapi_ch_free((void **)&li->inst_attrcrypt_state_private);
+        _back_crypt_cleanup_private(&(li->inst_attrcrypt_state_private));
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE, "<- attrcrypt_cleanup_private\n", 0, 0, 0);
 	return 0;
@@ -609,14 +601,6 @@ static int
 attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, char *in_data, size_t in_size, char **out_data, size_t *out_size, int encrypt)
 {
 	int ret = -1;
-	SECStatus secret = 0;
-	PK11Context* sec_context = NULL;
-	SECItem iv_item = {0};
-	SECItem *security_parameter = NULL;
-	int output_buffer_length = 0;
-	int output_buffer_size1 = 0;
-	unsigned int output_buffer_size2 = 0;
-	unsigned char *output_buffer = NULL;
 	attrcrypt_cipher_state *acs = NULL;
 
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_crypto_op\n", 0, 0, 0);
@@ -632,80 +616,8 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 		log_bytes("attrcrypt_crypto_op decrypt '%s' (%d)\n", (unsigned char *)in_data, in_size);
 	}
 #endif
-	/* Allocate the output buffer */
-	output_buffer_length = in_size + 16;
-	output_buffer = (unsigned char *)slapi_ch_malloc(output_buffer_length);
-	/* Now call NSS to do the cipher op */
-	iv_item.data = (unsigned char *)"aaaaaaaaaaaaaaaa"; /* ptr to an array of IV bytes */
-	iv_item.len = acs->ace->iv_length; /* length of the array of IV bytes */
-	security_parameter = slapd_pk11_ParamFromIV(acs->ace->cipher_mechanism, &iv_item);
-	if (NULL == security_parameter) {
-		int errorCode = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op failed to make IV for cipher %s : %d - %s\n", acs->ace->cipher_display_name, errorCode, slapd_pr_strerror(errorCode));
-		goto error;
-	}
-	sec_context = slapd_pk11_createContextBySymKey(acs->ace->cipher_mechanism, (encrypt ? CKA_ENCRYPT : CKA_DECRYPT), acs->key, security_parameter); 
-	if (NULL == sec_context) {
-		int errorCode = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op failed on cipher %s : %d - %s\n", acs->ace->cipher_display_name, errorCode, slapd_pr_strerror(errorCode));
-		goto error;
-	}	
-	secret = slapd_pk11_cipherOp(sec_context, output_buffer, &output_buffer_size1, output_buffer_length, (unsigned char *)in_data, in_size);
-	if (SECSuccess != secret) {
-		int errorCode = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op failed on cipher %s : %d - %s\n", acs->ace->cipher_display_name, errorCode, slapd_pr_strerror(errorCode));
-		goto error;
-	}
-#if defined(DEBUG_ATTRCRYPT)
-	LDAPDebug(LDAP_DEBUG_ANY,"slapd_pk11_cipherOp %d\n", output_buffer_size1, 0, 0);
-#endif
-	secret = slapd_pk11_DigestFinal(sec_context, output_buffer + output_buffer_size1, &output_buffer_size2, output_buffer_length - output_buffer_size1);
-	if (SECSuccess != secret) {
-		int errorCode = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op digest final failed on cipher %s : %d - %s\n", acs->ace->cipher_display_name, errorCode, slapd_pr_strerror(errorCode));
-		goto error;
-	} else {
-#if defined(DEBUG_ATTRCRYPT)
-		int recurse = 1;
-		if (encrypt) {
-			log_bytes("slapd_pk11_DigestFinal '%s' (%d)\n", output_buffer, output_buffer_size1 + output_buffer_size2);
-		} else {
-			LDAPDebug(LDAP_DEBUG_ANY,"slapd_pk11_DigestFinal '%s', %u\n", output_buffer, output_buffer_size2, 0);
-		}
-		if (*out_size == -1) {
-			recurse = 0;
-		}
-#endif
-		*out_size = output_buffer_size1 + output_buffer_size2;
-		*out_data = (char *)output_buffer;
-		ret = 0; /* success */
-#if defined(DEBUG_ATTRCRYPT)
-		if (recurse) {
-			char *redo_data = NULL;
-			size_t redo_size = -1;
-			int redo_ret;
-
-			LDAPDebug(LDAP_DEBUG_ANY,"------> check result of crypto op\n", 0, 0, 0);
-			redo_ret = attrcrypt_crypto_op(priv, be, ai, *out_data, *out_size, &redo_data, &redo_size, !encrypt);
-			slapi_log_error(SLAPI_LOG_FATAL, "DEBUG_ATTRCRYPT",
-							"orig length %ld redone length %ld\n", in_size, redo_size);
-			log_bytes("DEBUG_ATTRCRYPT orig bytes '%s' (%d)\n", (unsigned char *)in_data, in_size);
-			log_bytes("DEBUG_ATTRCRYPT redo bytes '%s' (%d)\n", (unsigned char *)redo_data, redo_size);
-
-			LDAPDebug(LDAP_DEBUG_ANY,"<------ check result of crypto op\n", 0, 0, 0);
-		}
-#endif
-	}
-error:
-	if (sec_context) {
-		slapd_pk11_DestroyContext(sec_context, PR_TRUE);
-	}
-	if (security_parameter) {
-		slapd_SECITEM_FreeItem(security_parameter, PR_TRUE);
-	}
-	if (ret) {
-		slapi_ch_free_string((char **)&output_buffer);
-	}
+	ret = _back_crypt_crypto_op(priv, acs, in_data, in_size,
+	                            out_data, out_size, encrypt, be, ai);
 	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_crypto_op\n", 0, 0, 0);
 	return ret;
 }
@@ -1025,4 +937,608 @@ bail:
 	}
 
 	return rc;
+}
+
+/******************************************************************************/
+static int _back_crypt_cipher_init(Slapi_Backend *be, attrcrypt_state_private **state_priv, attrcrypt_cipher_entry *ace, SECKEYPrivateKey *private_key, SECKEYPublicKey *public_key, attrcrypt_cipher_state *acs, const char *dn_string);
+static int _back_crypt_keymgmt_store_key(Slapi_Backend *be, attrcrypt_cipher_state *acs, SECKEYPublicKey *public_key, PK11SymKey *key_to_store, const char *dn_string);
+static int _back_crypt_crypto_op_value(attrcrypt_state_private *state_priv, Slapi_Value *invalue, Slapi_Value **outvalue, int encrypt);
+
+int
+back_crypt_init(Slapi_Backend *be, const char *dn,
+                const char *encAlgorithm, void **handle)
+{
+    int ret = 0;
+    attrcrypt_cipher_entry *ace = NULL;
+    SECKEYPrivateKey *private_key = NULL;
+    SECKEYPublicKey *public_key = NULL;
+    attrcrypt_state_private **state_priv = (attrcrypt_state_private **)handle;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "-> back_crypt_init\n");
+    /* Encryption is not specified */
+    if (!encAlgorithm || !handle) {
+        goto bail;
+    }
+    if (!slapd_security_library_is_initialized()) {
+        goto bail;
+    }
+    _back_crypt_cleanup_private(state_priv);
+
+    /* Get the server's private key, 
+     * which is used to unwrap the stored symmetric keys */
+    ret = attrcrypt_fetch_private_key(&private_key);
+    if (ret) {
+        goto bail;
+    }
+    ret = attrcrypt_fetch_public_key(&public_key);
+    if (ret) {
+        goto bail;
+    }
+    for (ace = attrcrypt_cipher_list;
+         ace && ace->cipher_number && !ret; ace++) {
+        if (strcasecmp(ace->cipher_display_name, encAlgorithm)) {
+            continue; /* did not match. next. */
+        }
+        /* Make a state object for this cipher */
+        attrcrypt_cipher_state *acs = (attrcrypt_cipher_state *)slapi_ch_calloc(
+                                             sizeof(attrcrypt_cipher_state), 1);
+        ret = _back_crypt_cipher_init(be, state_priv, ace,
+                                      private_key, public_key, acs, dn);
+        if (ret) {
+            slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                            "back_crypt_init: Failed to initialize cipher %s\n",
+                            ace->cipher_display_name);
+            slapi_ch_free((void **)&acs);
+        } else {
+            /* Since we succeeded, set acs to state_priv */
+            _back_crypt_acs_list_add(state_priv, acs);
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ATTRCRYPT,
+                           "back_crypt_init: Initialized cipher %s\n",
+                           ace->cipher_display_name);
+        }
+        break;
+    }
+    SECKEY_DestroyPublicKey(public_key);
+    public_key = NULL;
+    SECKEY_DestroyPrivateKey(private_key);
+    private_key = NULL;
+bail:
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "<- back_crypt_init : %d\n", ret);
+    return ret;
+}
+
+/*
+ * return values:  0 - success
+ *              : -1 - error 
+ *
+ * output value: out: non-NULL - encryption successful
+ *                  :     NULL - no encryption or failure
+ */
+int
+back_crypt_encrypt_value(void *handle, struct berval *in, struct berval **out)
+{
+    int ret = -1;
+    Slapi_Value *invalue = NULL;
+    Slapi_Value *outvalue = NULL;
+    attrcrypt_state_private *state_priv = (attrcrypt_state_private *)handle;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "-> back_crypt_encrypt_value\n");
+    if (NULL == out) {
+        goto bail;
+    }
+    *out = NULL;
+    if (!state_priv || !state_priv->acs_array) {
+        goto bail;
+    }
+    invalue = slapi_value_new_berval(in);
+    /* Now encrypt the attribute values in place on the new entry */
+    ret = _back_crypt_crypto_op_value(state_priv, invalue, &outvalue, 1);
+    if (0 == ret) {
+        *out = slapi_ch_bvdup(slapi_value_get_berval(outvalue));
+    }
+bail:
+    slapi_value_free(&invalue);
+    slapi_value_free(&outvalue);
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "<- back_crypt_encrypt_entry (returning %d)\n", ret);
+    return ret;
+}
+
+int 
+back_crypt_decrypt_value(void *handle, struct berval *in, struct berval **out)
+{
+    int ret = -1;
+    Slapi_Value *invalue = NULL;
+    Slapi_Value *outvalue = NULL;
+    attrcrypt_state_private *state_priv = (attrcrypt_state_private *)handle;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "-> back_crypt_decrypt_value\n");
+    if (NULL == out) {
+        goto bail;
+    }
+    *out = NULL;
+    if (!state_priv || !state_priv->acs_array) {
+        goto bail;
+    }
+    invalue = slapi_value_new_berval(in);
+    /* Now decrypt the value */
+    ret = _back_crypt_crypto_op_value(state_priv, invalue, &outvalue, 0);
+    if (0 == ret) {
+        *out = slapi_ch_bvdup(slapi_value_get_berval(outvalue));
+    }
+bail:
+    slapi_value_free(&invalue);
+    slapi_value_free(&outvalue);
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "<- _back_crypt_decrypt_entry (returning %d)\n", ret);
+    return ret;
+}
+
+static int
+_back_crypt_crypto_op_value(attrcrypt_state_private *state_priv,
+                            Slapi_Value *invalue, Slapi_Value **outvalue,
+                            int encrypt)
+{
+    int ret = -1;
+    char *in_data = NULL;
+    size_t in_size = 0;
+    char *out_data = NULL;
+    size_t out_size = 0;
+    struct berval *bval = NULL;
+    attrcrypt_cipher_state *acs = NULL;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "-> _back_crypt_crypto_op_value\n");
+    if (NULL == invalue || NULL == outvalue) {
+        goto bail;
+    }
+    
+    bval = (struct berval *) slapi_value_get_berval(invalue);
+    if (NULL == bval) {
+        goto bail;
+    }
+    in_data = bval->bv_val;
+    in_size = bval->bv_len;
+
+    acs = state_priv->acs_array[0];
+    if (NULL == acs) {
+        /* This happens if SSL/NSS has not been enabled */
+        goto bail;
+    }
+    ret = _back_crypt_crypto_op(NULL, acs, in_data, in_size,
+                                &out_data, &out_size, encrypt, NULL, NULL);
+    if (0 == ret) {
+        struct berval outbervalue = {0};
+        outbervalue.bv_len = out_size;
+        outbervalue.bv_val = out_data;
+        /* This call makes a copy of the payload data, 
+         * so we need to free the original data after making the call */
+        *outvalue = slapi_value_new_berval(&outbervalue);
+        slapi_ch_free((void**)&out_data);
+    }
+
+bail:
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "<- _back_crypt_crypto_op_value (returning %d)\n", ret);
+    return ret;
+}
+
+
+/* Initialize the structure for a single cipher */
+static int
+_back_crypt_cipher_init(Slapi_Backend *be,
+                        attrcrypt_state_private **state_priv,
+                        attrcrypt_cipher_entry *ace,
+                        SECKEYPrivateKey *private_key,
+                        SECKEYPublicKey *public_key,
+                        attrcrypt_cipher_state *acs,
+                        const char *dn_string)
+{
+    int ret = 1; /* fail by default */
+    PK11SymKey *symmetric_key = NULL;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "-> _back_crypt_cipher_init\n");
+    acs->cipher_lock = PR_NewLock();
+    /* Fill in some basic stuff */
+    acs->ace = ace;
+    acs->cipher_display_name = ace->cipher_display_name;
+    if (NULL == acs->cipher_lock) {
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                        "_back_crypt_cipher_init: Cipher lock not found.\n");
+    }
+    acs->slot = slapd_pk11_getInternalKeySlot();
+    if (NULL == acs->slot) {
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+            "_back_crypt_cipher_init: Failed to create a slot for cipher %s\n",
+            acs->cipher_display_name);
+        goto error;
+    }
+    /* Try to get the symmetric key for this cipher */
+    ret = _back_crypt_keymgmt_get_key(acs, private_key, 
+                                      &symmetric_key, dn_string);
+    if (KEYMGMT_ERR_NO_ENTRY == ret) {
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                "_back_crypt_cipher_init: entry storing key does not exist.\n");
+    } else if (KEYMGMT_ERR_OTHER == ret) {
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                "_back_crypt_cipher_init: coding error.\n");
+    } else if (KEYMGMT_ERR_CANT_UNWRAP == ret) {
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                "_back_crypt_cipher_init: symmetric key failed to unwrap "
+                "with the private key; Cert might have been renewed since "
+                "the key is wrapped.  To recover the encrypted contents, "
+                "keep the wrapped symmetric key value.\n");
+    } else if (ret) {
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                "_back_crypt_cipher_init: No symmetric key found for cipher "
+                "%s, attempting to create one...\n", acs->cipher_display_name);
+        ret = attrcrypt_generate_key(acs, &symmetric_key);
+        if (ret) {
+            slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                    "_back_crypt_cipher_init: Failed to generate key for %s\n",
+                    acs->cipher_display_name);
+        }
+        if (symmetric_key) {
+            ret = _back_crypt_keymgmt_store_key(be, acs, public_key, 
+                                                symmetric_key, dn_string);
+            if (ret) {
+                slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                    "_back_crypt_cipher_init: Failed to store key for cipher "
+                    "%s\n", acs->cipher_display_name);
+            } else {
+                slapi_log_error(SLAPI_LOG_BACKLDBM, ATTRCRYPT, 
+                    "Key for cipher %s successfully generated and stored\n",
+                    acs->cipher_display_name);
+            }
+        }
+    }
+    if (symmetric_key) {
+        /* we loaded the symmetric key, store it in the acs */
+        acs->key = symmetric_key;
+    }
+error:
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                    "<- _back_crypt_cipher_init (returning %d\n", ret);
+    return ret;
+}
+
+/*
+ * This function cleans up the state_private in cl5Desc
+ */
+static int
+_back_crypt_cleanup_private(attrcrypt_state_private **state_priv)
+{
+    attrcrypt_cipher_state **current = NULL;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                    "-> _back_crypt_cleanup_private\n");
+    if (state_priv && *state_priv) {
+        for (current = &((*state_priv)->acs_array[0]); *current; current++) {
+            attrcrypt_cleanup(*current);
+            slapi_ch_free((void **)current);
+        }
+        slapi_ch_free((void **)state_priv);
+    }
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                    "<- _back_crypt_cleanup_private\n");
+    return 0;
+}
+
+/* Retrieve a symmetric key from dse.ldif for a specified cipher */
+/*
+ * return values: 0 -- successfully retrieved
+ *                KEYMGMT_ERR_NO_ENTRY     - Entry to store key does not exist
+ *                KEYMGMT_ERR_NO_KEY_ATTR  - Entry has no key attribute
+ *                KEYMGMT_ERR_NO_KEY_VALUE - Empty key
+ *                KEYMGMT_ERR_CANT_UNWRAP  - Key failed to unwrap
+ *                KEYMGMT_ERR_OTHER        - Other error
+ */
+static int
+_back_crypt_keymgmt_get_key(attrcrypt_cipher_state *acs,
+                            SECKEYPrivateKey *private_key,
+                            PK11SymKey **key_from_store,
+                            const char *dn_string)
+{
+    int ret = KEYMGMT_ERR_OTHER;
+    Slapi_Entry *entry = NULL;
+    Slapi_Attr *keyattr = NULL;
+    
+    if (NULL == key_from_store) {
+        return ret;
+    }
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                    "-> _back_crypt_keymgmt_get_key\n");
+    *key_from_store = NULL;
+    /* Fetch the entry */
+    getConfigEntry(dn_string, &entry);
+    /* Did we find the entry ? */
+    if (entry) {
+        SECItem key_to_unwrap = {0};
+        /* If so then look for the attribute that contains the key */
+        slapi_entry_attr_find(entry, KEY_ATTRIBUTE_NAME, &keyattr);
+        if (keyattr) {
+            Slapi_Value *v = NULL;
+            ret = slapi_attr_first_value(keyattr, &v);
+            if (ret < 0) {
+                ret = KEYMGMT_ERR_NO_KEY_VALUE; /* Empty key */
+                goto bail;
+            }
+            key_to_unwrap.len = slapi_value_get_length(v);
+            key_to_unwrap.data = (void*)slapi_value_get_string(v);
+            /* Unwrap it */
+            ret = attrcrypt_unwrap_key(acs, private_key,
+                                       &key_to_unwrap, key_from_store);
+            if (ret) {
+                ret = KEYMGMT_ERR_CANT_UNWRAP; /* Key failed to unwrap */
+            }
+        } else {
+            ret = KEYMGMT_ERR_NO_KEY_ATTR; /* Entry has no key attribute */
+        }
+    } else {
+        /* we didn't find the entry (which happens if the key has
+         * never been generated) */
+        ret = KEYMGMT_ERR_NO_ENTRY;
+    }
+bail:
+    freeConfigEntry(&entry);
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                    "<- _back_crypt_keymgmt_get_key (returning %d)\n", ret);
+    return ret;
+}
+
+/* Store a symmetric key for a given cipher in dse.ldif */
+static int
+_back_crypt_keymgmt_store_key(Slapi_Backend *be,
+                              attrcrypt_cipher_state *acs, 
+                              SECKEYPublicKey *public_key,
+                              PK11SymKey *key_to_store,
+                              const char *dn_string)
+{
+    int ret = 1;
+    SECItem wrapped_symmetric_key = {0};
+    ldbm_instance *li = NULL;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                   "-> _back_crypt_keymgmt_store_key\n");
+    if (!be || !be->be_instance_info) {
+        goto bail;
+    }
+    li = (ldbm_instance *)be->be_instance_info;
+    /* Wrap the key and then store it in the right place in dse.ldif */
+    ret = attrcrypt_wrap_key(acs, key_to_store, 
+                             public_key, &wrapped_symmetric_key);
+    if (!ret) {
+        /* store the wrapped symmetric key to the specified entry (dn_string) */
+        Slapi_PBlock *pb = slapi_pblock_new();
+        Slapi_Value *key_value = NULL;
+        struct berval key_as_berval = {0};
+        Slapi_Mods *smods = slapi_mods_new();
+        Slapi_Value *va[2];
+        int rc = 0;
+
+        /* Add the key as a binary attribute */
+        key_as_berval.bv_val = (char *)wrapped_symmetric_key.data;
+        key_as_berval.bv_len = wrapped_symmetric_key.len;
+        key_value = slapi_value_new_berval(&key_as_berval);
+        va[0] = key_value;
+        va[1] = NULL;
+        /* key_value is now a copy of key_as_berval
+         * - free wrapped_symmetric_key */
+        slapi_ch_free_string((char **)&wrapped_symmetric_key.data);
+
+        slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE,
+                                  KEY_ATTRIBUTE_NAME, va);
+        slapi_modify_internal_set_pb(pb, dn_string,
+                slapi_mods_get_ldapmods_byref(smods), NULL, NULL, 
+                li->inst_li->li_identity, 0);
+        slapi_modify_internal_pb (pb);
+        slapi_value_free(&key_value);
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (rc) {
+            char *resulttext = NULL;
+            slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &resulttext);
+            slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT,
+                      "_back_crypt_keymgmt_store_key: failed to add config key "
+                     "to the DSE: %d: %s: %s\n", rc, ldap_err2string(rc),
+                     resulttext ? resulttext : "unknown");
+            ret = -1;
+        }
+        slapi_mods_free(&smods);
+        slapi_pblock_destroy(pb);
+    }
+bail:
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                  "<- _back_crypt_keymgmt_store_key (returning %d)\n", ret);
+    return ret;
+}
+
+static void 
+_back_crypt_acs_list_add(attrcrypt_state_private **state_priv,
+                         attrcrypt_cipher_state *acs)
+{
+    /* Realloc the existing list and add to the end */
+    attrcrypt_cipher_state **current = NULL;
+    size_t list_size = 0;
+
+    if (NULL == state_priv) {
+        return;
+    }
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                    "-> _back_crypt_acs_list_add\n");
+
+    /* Is the list already there ? */
+    if (NULL == *state_priv) {
+        /* If not, add it */
+        /* 2 == The pointer and a NULL terminator */
+        *state_priv = (attrcrypt_state_private *)slapi_ch_calloc(
+                                           sizeof(attrcrypt_cipher_state *), 2);
+    } else {
+        /* Otherwise re-size it */
+        for (current = &((*state_priv)->acs_array[0]); current && *current;
+             current++) {
+            list_size++;
+        }
+        *state_priv =
+            (attrcrypt_state_private *)slapi_ch_realloc((char *)*state_priv,
+                            sizeof(attrcrypt_cipher_state *) * (list_size + 2));
+        (*state_priv)->acs_array[list_size + 1] = NULL; 
+    }
+    (*state_priv)->acs_array[list_size] = acs;
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+                    "<- _back_crypt_acs_list_add\n");
+    return;
+}
+
+/* Either encipher or decipher an attribute value */
+static int
+_back_crypt_crypto_op(attrcrypt_private *priv, 
+                      attrcrypt_cipher_state *acs,
+                      char *in_data, size_t in_size,
+                      char **out_data, size_t *out_size, int encrypt,
+                      backend *be, struct attrinfo *ai /* just for debugging */)
+{
+    int rc = -1;
+    SECStatus secret = 0;
+    PK11Context* sec_context = NULL;
+    SECItem iv_item = {0};
+    SECItem *security_parameter = NULL;
+    int output_buffer_length = 0;
+    int output_buffer_size1 = 0;
+    unsigned int output_buffer_size2 = 0;
+    unsigned char *output_buffer = NULL;
+
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "-> _back_crypt_crypto_op\n");
+    if (NULL == acs) {
+        goto bail;
+    }
+    if (encrypt) {
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ATTRCRYPT,
+                        "_back_crypt_crypto_op encrypt '%s' (%d)\n", 
+                        in_data, in_size);
+    } else {
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ATTRCRYPT,
+                        "_back_crypt_crypto_op decrypt (%d)\n", in_size);
+    }
+    /* Allocate the output buffer */
+    output_buffer_length = in_size + BACK_CRYPT_OUTBUFF_EXTLEN;
+    output_buffer = (unsigned char *)slapi_ch_malloc(output_buffer_length);
+    /* Now call NSS to do the cipher op */
+    iv_item.data = (unsigned char *)"aaaaaaaaaaaaaaaa"; /* ptr to an array 
+                                                           of IV bytes */
+    iv_item.len = acs->ace->iv_length; /* length of the array of IV bytes */
+    security_parameter = slapd_pk11_ParamFromIV(acs->ace->cipher_mechanism,
+                                                &iv_item);
+    if (NULL == security_parameter) {
+        int errorCode = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                        "back_crypt_crypto_op: failed to make IV for cipher %s "
+                        ": %d - %s\n", acs->ace->cipher_display_name, errorCode,
+                        slapd_pr_strerror(errorCode));
+        goto error;
+    }
+    sec_context = slapd_pk11_createContextBySymKey(acs->ace->cipher_mechanism,
+                                          (encrypt ? CKA_ENCRYPT : CKA_DECRYPT),
+                                          acs->key, security_parameter); 
+    if (NULL == sec_context) {
+        int errorCode = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                        "_back_crypt_crypto_op: failed on cipher %s : "
+                        "%d - %s\n", acs->ace->cipher_display_name, errorCode, 
+                        slapd_pr_strerror(errorCode));
+        goto error;
+    }    
+    secret = slapd_pk11_cipherOp(sec_context, output_buffer,
+                                 &output_buffer_size1, output_buffer_length,
+                                 (unsigned char *)in_data, in_size);
+    if (SECSuccess != secret) {
+        int errorCode = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                    "_back_crypt_crypto_op failed on cipher %s : %d - %s\n",
+                    acs->ace->cipher_display_name, errorCode, 
+                    slapd_pr_strerror(errorCode));
+        goto error;
+    }
+    secret = slapd_pk11_DigestFinal(sec_context,
+                                    output_buffer + output_buffer_size1,
+                                    &output_buffer_size2,
+                                    output_buffer_length - output_buffer_size1);
+    if (SECSuccess != secret) {
+        int errorCode = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                        "_back_crypt_crypto_op digest final failed on cipher "
+                        "%s : %d - %s\n", acs->ace->cipher_display_name,
+                        errorCode, slapd_pr_strerror(errorCode));
+        goto error;
+    } else {
+#if defined(DEBUG_ATTRCRYPT)
+        int recurse = 1;
+        if (encrypt) {
+            log_bytes("slapd_pk11_DigestFinal '%s' (%d)\n", 
+                    output_buffer, output_buffer_size1 + output_buffer_size2);
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, "DEBUG_ATTRCRYPT", 
+                    "slapd_pk11_DigestFinal '%s', %u\n",
+                    output_buffer, output_buffer_size1 + output_buffer_size2);
+        }
+        if (*out_size == -1) {
+            recurse = 0;
+        }
+#endif
+        *out_size = output_buffer_size1 + output_buffer_size2;
+        *out_data = (char *)output_buffer;
+        rc = 0; /* success */
+#if defined(DEBUG_ATTRCRYPT)
+        if (recurse) {
+            char *redo_data = NULL;
+            size_t redo_size = -1;
+            int redo_ret;
+
+            slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                            "------> check result of crypto op\n");
+            if (priv && be && ai) {
+                redo_ret = attrcrypt_crypto_op(priv, be, ai, 
+                                               *out_data, *out_size,
+                                               &redo_data, &redo_size,
+                                               !encrypt);
+                slapi_log_error(SLAPI_LOG_FATAL, "DEBUG_ATTRCRYPT",
+                                "attrcrypt_crypto_op returned (%d) "
+                                "orig length %u redone length %u\n", 
+                                redo_ret, in_size, redo_size);
+            } else {
+                redo_ret = _back_crypt_crypto_op(NULL, acs,
+                                                 *out_data, *out_size,
+                                                 &redo_data, &redo_size,
+                                                 !encrypt, NULL, NULL);
+                slapi_log_error(SLAPI_LOG_FATAL, "DEBUG_ATTRCRYPT",
+                                "_back_crypt_crypto_op returned (%d) "
+                                "orig length %u redone length %u\n", 
+                                redo_ret, in_size, redo_size);
+            }
+            log_bytes("DEBUG_ATTRCRYPT orig bytes '%s' (%d)\n", 
+                            (unsigned char *)in_data, in_size);
+            log_bytes("DEBUG_ATTRCRYPT redo bytes '%s' (%d)\n", 
+                            (unsigned char *)redo_data, redo_size);
+
+            slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+                            "<------ check result of crypto op\n");
+        }
+#endif
+    }
+error:
+    if (sec_context) {
+        PK11_DestroyContext(sec_context, PR_TRUE);
+    }
+    if (security_parameter) {
+        SECITEM_FreeItem(security_parameter, PR_TRUE);
+    }
+    if (rc) {
+        slapi_ch_free_string((char **)&output_buffer);
+    }
+bail:
+    slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, 
+                    "<- _back_crypt_crypto_op (returning %d)\n", rc);
+    return rc;
 }

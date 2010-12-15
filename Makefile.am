@@ -991,6 +991,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/cl5_clcache.c \
 	ldap/servers/plugins/replication/cl5_config.c \
 	ldap/servers/plugins/replication/cl5_init.c \
+	ldap/servers/plugins/replication/cl_crypt.c \
 	ldap/servers/plugins/replication/csnpl.c \
 	ldap/servers/plugins/replication/legacy_consumer.c \
 	ldap/servers/plugins/replication/llist.c \

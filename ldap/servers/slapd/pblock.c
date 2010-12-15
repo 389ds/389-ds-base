@@ -616,6 +616,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_DB_SET_INFO_FN:
 		(*(IFP *)value) = pblock->pb_plugin->plg_set_info;
 		break;
+	case SLAPI_PLUGIN_DB_CTRL_INFO_FN:
+		(*(IFP *)value) = pblock->pb_plugin->plg_ctrl_info;
+		break;
 	case SLAPI_PLUGIN_DB_SEQ_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {
 			return( -1 );
@@ -2037,6 +2040,9 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_PLUGIN_DB_SET_INFO_FN:
 		pblock->pb_plugin->plg_set_info = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_DB_CTRL_INFO_FN:
+		pblock->pb_plugin->plg_ctrl_info = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_DB_SEQ_FN:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE ) {

@@ -57,6 +57,7 @@
 
 
 #include "cl5_api.h"
+#include "cl_crypt.h"
 #include "plhash.h" 
 #include "plstr.h"
 
@@ -249,6 +250,7 @@ typedef struct cl5desc
 							   deadlock detection, etc. */
 	PRLock		*clLock;	/* Lock associated to clVar, used to notify threads on close */
 	PRCondVar	*clCvar;	/* Condition Variable used to notify threads on close */
+	void        *clcrypt_handle; /* for cl encryption */
 } CL5Desc;
 
 typedef void (*VFP)(void *);
@@ -513,9 +515,12 @@ int cl5Open (const char *dir, const CL5DBConfig *config)
 	{
 		s_cl5Desc.dbState = CL5_STATE_OPEN;	
 		clcache_set_config();
+
+		/* Set the cl encryption algorithm (if configured) */
+		rc = clcrypt_init(config, &s_cl5Desc.clcrypt_handle);
 	}
 
-done:;	
+done:
 	PR_RWLock_Unlock (s_cl5Desc.stLock);
 
 	return rc;
@@ -1830,7 +1835,7 @@ static int _cl5AppInit (PRBool *didRecovery)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 				"_cl5AppInit: failed to fetch backend dbenv (%p) and/or "
-				"index page size (%ld)\n", dbEnv, pagesize);
+				"index page size (%u)\n", dbEnv, pagesize);
 		return CL5_DB_ERROR;
 	}
 }
@@ -1960,11 +1965,21 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 											size ++; /* we just store NULL char */
 										slapi_entry2mods (op->p.p_add.target_entry, &rawDN/* dn */, &add_mods);										
 										size += strlen (rawDN) + 1;
-										size += _cl5GetModsSize (add_mods);
+										/* Need larger buffer for the encrypted changelog */
+										if (s_cl5Desc.clcrypt_handle) {
+											size += (_cl5GetModsSize (add_mods) * (1 + BACK_CRYPT_OUTBUFF_EXTLEN));
+										} else {
+											size += _cl5GetModsSize (add_mods);
+										}
 										break;
 
 		case SLAPI_OPERATION_MODIFY:	size += strlen (op->target_address.dn) + 1;
-										size += _cl5GetModsSize (op->p.p_modify.modify_mods);
+										/* Need larger buffer for the encrypted changelog */
+										if (s_cl5Desc.clcrypt_handle) {
+											size += (_cl5GetModsSize (op->p.p_modify.modify_mods) * (1 + BACK_CRYPT_OUTBUFF_EXTLEN));
+										} else {
+											size += _cl5GetModsSize (op->p.p_modify.modify_mods);
+										}
 										break;
 
 		case SLAPI_OPERATION_MODRDN:	size += strlen (op->target_address.dn) + 1;
@@ -1978,7 +1993,12 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 											size += strlen (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid) + 1;
 										else
 											size ++; /* for NULL char */
-										size += _cl5GetModsSize (op->p.p_modrdn.modrdn_mods);
+										/* Need larger buffer for the encrypted changelog */
+										if (s_cl5Desc.clcrypt_handle) {
+											size += (_cl5GetModsSize (op->p.p_modrdn.modrdn_mods) * (1 + BACK_CRYPT_OUTBUFF_EXTLEN));
+										} else {
+											size += _cl5GetModsSize (op->p.p_modrdn.modrdn_mods);
+										}
 										break;
 
 		case SLAPI_OPERATION_DELETE:	size += strlen (op->target_address.dn) + 1;
@@ -2038,8 +2058,16 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 										break;
 	}
 	
-	(*len) = size;
-	
+	/* (*len) != size in case encrypted */
+	(*len) = pos - *data;
+
+	if (*len > size) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"_cl5Entry2DBData: real len %d > estimated size %d\n",
+						*len, size);
+		return CL5_MEMORY_ERROR;
+	}
+
     return CL5_SUCCESS;
 }
 
@@ -2274,7 +2302,10 @@ static void _cl5WriteMod (LDAPMod *mod, char **buff)
 	char *pos;
 	PRInt32 count;
 	struct berval *bv;
+	struct berval *encbv;
+	struct berval *bv_to_use;
 	Slapi_Mod smod;
+	int rc = 0;
 
 	slapi_mod_init_byref(&smod, mod);
 
@@ -2293,7 +2324,26 @@ static void _cl5WriteMod (LDAPMod *mod, char **buff)
 	bv = slapi_mod_get_first_value (&smod);
 	while (bv)
 	{
-        _cl5WriteBerval (bv, &pos);
+		encbv = NULL;
+		rc = 0;
+		rc = clcrypt_encrypt_value(s_cl5Desc.clcrypt_handle, 
+		                           bv, &encbv);
+		if (rc > 0) {
+			/* no encryption needed. use the original bv */
+			bv_to_use = bv;
+		} else if ((0 == rc) && encbv) {
+			/* successfully encrypted. use the encrypted bv */
+			bv_to_use = encbv;
+		} else { /* failed */
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"_cl5WriteMod: encrypting \"%s: %s\" failed\n",
+						slapi_mod_get_type(&smod), bv->bv_val);
+			bv_to_use = NULL;
+		}
+		if (bv_to_use) {
+			_cl5WriteBerval (bv_to_use, &pos);
+		}
+		slapi_ch_bvfree(&encbv);
 		bv = slapi_mod_get_next_value (&smod);
 	}
 
@@ -2358,6 +2408,9 @@ static int _cl5ReadMod (Slapi_Mod *smod, char **buff)
 	char *type;
 	int op;
 	struct berval bv;
+	struct berval *decbv;
+	struct berval *bv_to_use;
+	int rc = 0;
 
 	op = (*pos) & 0x000000FF;
 	pos ++;
@@ -2373,11 +2426,43 @@ static int _cl5ReadMod (Slapi_Mod *smod, char **buff)
 	slapi_mod_set_operation (smod, op|LDAP_MOD_BVALUES); 
 	slapi_mod_set_type (smod, type);
 	slapi_ch_free ((void**)&type);
-								
+
 	for (i = 0; i < val_count; i++)
 	{
-        _cl5ReadBerval (&bv, &pos);
-		slapi_mod_add_value (smod, &bv);
+		_cl5ReadBerval (&bv, &pos);
+		decbv = NULL;
+		rc = 0;
+		rc = clcrypt_decrypt_value(s_cl5Desc.clcrypt_handle,
+		                           &bv, &decbv);
+		if (rc > 0) {
+			/* not encrypted. use the original bv */
+			bv_to_use = &bv;
+		} else if ((0 == rc) && decbv) {
+			/* successfully decrypted. use the decrypted bv */
+			bv_to_use = decbv;
+		} else { /* failed */
+			char encstr[128];
+			char *encend = encstr + 128;
+			char *ptr;
+			int i;
+			for (i = 0, ptr = encstr; (i < bv.bv_len) && (ptr < encend - 4);
+				 i++, ptr += 3) {
+				sprintf(ptr, "%x", 0xff & bv.bv_val[i]);
+			}
+			if (ptr >= encend - 4) {
+				sprintf(ptr, "...");
+				ptr += 3;
+			}
+			*ptr = '\0';
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"_cl5ReadMod: decrypting \"%s: %s\" failed\n",
+						slapi_mod_get_type(smod), encstr);
+			bv_to_use = NULL;
+		}
+		if (bv_to_use) {
+			slapi_mod_add_value (smod, bv_to_use);
+		}
+		slapi_ch_bvfree(&decbv);
 		slapi_ch_free((void **) &bv.bv_val);
 	}
 
