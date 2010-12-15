@@ -1012,10 +1012,7 @@ FrontendConfig_init () {
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
 
   cfg->entryusn_global = LDAP_OFF; 
-  slapi_ch_array_add(&(cfg->allowed_to_delete_attrs),
-                     slapi_ch_strdup("nsslapd-listenhost"));
-  slapi_ch_array_add(&(cfg->allowed_to_delete_attrs),
-                     slapi_ch_strdup("nsslapd-securelistenhost"));
+  cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost");
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -5587,13 +5584,13 @@ config_set_entryusn_global( const char *attrname, char *value,
     return retVal;
 }
 
-char **
+char *
 config_get_allowed_to_delete_attrs(void)
 {
-    char **retVal;
+    char *retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->allowed_to_delete_attrs;
+    retVal = slapi_ch_strdup(slapdFrontendConfig->allowed_to_delete_attrs);
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;
@@ -5608,9 +5605,8 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
 
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapi_ch_array_free(slapdFrontendConfig->allowed_to_delete_attrs);
-        slapdFrontendConfig->allowed_to_delete_attrs = 
-                                           slapi_str2charray_ext(value, " ", 0);
+        slapi_ch_free_string(&(slapdFrontendConfig->allowed_to_delete_attrs));
+        slapdFrontendConfig->allowed_to_delete_attrs = slapi_ch_strdup(value);
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;

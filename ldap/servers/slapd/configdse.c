@@ -127,16 +127,21 @@ ignore_attr_type(const char *attr_type)
 static int
 allowed_to_delete_attrs(const char *attr_type)
 {
+	int rc = 0;
 	if (attr_type) {
-		char **ap = config_get_allowed_to_delete_attrs();
-		for ( ; ap && *ap; ap++) {
+		char *delattrs = config_get_allowed_to_delete_attrs();
+		char **allowed = slapi_str2charray_ext(delattrs, " ", 0);
+		char **ap;
+		for (ap = allowed; ap && *ap; ap++) {
 			if (strcasecmp (attr_type, *ap) == 0) {
-				return 1;
+				rc = 1;
+				break;
 			}
 		}
+		slapi_ch_array_free(allowed);
+		slapi_ch_free_string(&delattrs);
 	}
-
-	return 0;
+	return rc;
 }
 
 int 

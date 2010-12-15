@@ -513,7 +513,7 @@ int config_get_system_page_bits();
 #endif
 int config_get_force_sasl_external();
 int config_get_entryusn_global(void);
-char **config_get_allowed_to_delete_attrs(void);
+char *config_get_allowed_to_delete_attrs(void);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
