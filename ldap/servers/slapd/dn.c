@@ -576,6 +576,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
 
                 slapi_attr_init(&test_attr, typestart);
                 is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
+                attr_done(&test_attr);
 
                 /* Reset the character we modified. */
                 *d = savechar;
@@ -596,6 +597,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
 
                 slapi_attr_init(&test_attr, typestart);
                 is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
+                attr_done(&test_attr);
 
                 /* Reset the character we modified. */
                 *d = savechar;
@@ -616,6 +618,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
 
                 slapi_attr_init(&test_attr, typestart);
                 is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
+                attr_done(&test_attr);
 
                 /* Reset the character we modified. */
                 *d = savechar;
