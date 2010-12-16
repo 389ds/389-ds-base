@@ -1620,6 +1620,23 @@ cleanup:
     return myrc;
 }
 
+static PRCallOnceType krb5_callOnce = {0,0};
+static PRLock *krb5_lock = NULL;
+
+static PRStatus
+internal_krb5_init(void)
+{
+    PR_ASSERT(NULL == krb5_lock);
+    if ((krb5_lock = PR_NewLock()) == NULL) {
+        PRErrorCode errorCode = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, NULL, "internal_krb5_init PR_NewLock failed %d:%s\n",
+                        errorCode, slapd_pr_strerror(errorCode));
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+
 /*
  * This implementation assumes that we want to use the 
  * keytab from the default keytab env. var KRB5_KTNAME
@@ -1658,14 +1675,23 @@ set_krb5_creds(
                                              appear to be used 
                                              currently */
 
-    /* probably have to put a mutex around this whole thing, to avoid
-       problems with reentrancy, since we are setting a "global"
-       variable via an environment variable */
-
     /* wipe this out so we can safely free it later if we
        short circuit */
     memset(&creds, 0, sizeof(creds));
 
+    /*
+     * we are using static variables and sharing an in-memory credentials cache
+     * so we put a lock around all kerberos interactions
+     */
+    if (PR_SUCCESS != PR_CallOnce(&krb5_callOnce, internal_krb5_init)) {
+        slapi_log_error(SLAPI_LOG_FATAL, logname,
+                        "Could not perform internal krb5 init\n");
+        rc = -1;
+        goto cleanup;
+    }
+
+    PR_Lock(krb5_lock);
+    
     /* initialize the kerberos context */
     if ((rc = krb5_init_context(&ctx))) {
         slapi_log_error(SLAPI_LOG_FATAL, logname,
@@ -1765,14 +1791,29 @@ set_krb5_creds(
         goto cleanup;
     }
 
-    /* if still no principal, construct one */
-    if (!princ &&
-        (rc = krb5_sname_to_principal(ctx, NULL, "ldap",
-                                      KRB5_NT_SRV_HST, &princ))) {
+    if (getenv("HACK_PRINCIPAL_NAME") &&
+        (rc = krb5_parse_name(ctx, getenv("HACK_PRINCIPAL_NAME"), &princ))) {
         slapi_log_error(SLAPI_LOG_FATAL, logname,
-                        "Error: could not construct ldap service "
-                        "principal: %d (%s)\n", rc, error_message(rc));
+                        "Error: could not convert [%s] into a kerberos "
+                        "principal: %d (%s)\n", getenv("HACK_PRINCIPAL_NAME"),
+                        rc, error_message(rc));
         goto cleanup;
+    }
+
+    /* if still no principal, construct one */
+    if (!princ) {
+        char *hostname = config_get_localhost();
+        if ((rc = krb5_sname_to_principal(ctx, hostname, "ldap",
+                                          KRB5_NT_SRV_HST, &princ))) {
+            slapi_log_error(SLAPI_LOG_FATAL, logname,
+                            "Error: could not construct ldap service "
+                            "principal from hostname [%s]: %d (%s)\n",
+                            hostname ? hostname : "NULL", rc, error_message(rc));
+        }
+        slapi_ch_free_string(&hostname);
+        if (rc) {
+            goto cleanup;
+        }
     }
 
     if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
@@ -1944,6 +1985,8 @@ cleanup:
     if (ctx) { /* cannot pass NULL to free context */
         krb5_free_context(ctx);
     }
+    PR_Unlock(krb5_lock);
+
     return;
 }
 
