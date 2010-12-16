@@ -1321,44 +1321,63 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 	Slapi_Attr     **a, **next;
 	passwdPolicy *pwpolicy = NULL;
 	char *dn = slapi_entry_get_ndn(e);
-
-	pwpolicy = new_passwdPolicy(pb, dn);
+	int has_allowchangetime = 0, has_expirationtime = 0;
+	time_t existing_exptime = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "add_password_attrs\n", 0, 0, 0 );
 
 	bvals[0] = &bv;
 	bvals[1] = NULL;
 		
-	if ( pwpolicy->pw_must_change) {
-		/* must change password when first time logon */
-		bv.bv_val = format_genTime ( NO_TIME );
-	} else {
-		/* If passwordexpirationtime is specified by the user, don't 
-		   try to assign the initial value */
-		for ( a = &e->e_attrs; *a != NULL; a = next ) {
-			if ( strcasecmp( (*a)->a_type, 
-				"passwordexpirationtime" ) == 0) {
-				delete_passwdPolicy(&pwpolicy);
-				return;
+	/* If passwordexpirationtime is specified by the user, don't 
+	   try to assign the initial value */
+	for ( a = &e->e_attrs; *a != NULL; a = next ) {
+		if ( strcasecmp( (*a)->a_type, 
+			"passwordexpirationtime" ) == 0) {
+			Slapi_Value *sval;
+			if (slapi_attr_first_value(*a, &sval) == 0) {
+				const struct berval *bv = slapi_value_get_berval(sval);
+				existing_exptime = parse_genTime(bv->bv_val);
 			}
-			next = &(*a)->a_next;
+			has_expirationtime = 1;
+			
+		} else if ( strcasecmp( (*a)->a_type,
+			"passwordallowchangetime" ) == 0) {
+			has_allowchangetime = 1;
 		}
-
-		bv.bv_val = format_genTime ( time_plus_sec ( current_time (),
-                        pwpolicy->pw_maxage ) );
+		next = &(*a)->a_next;
 	}
-	if ( pwpolicy->pw_exp  || pwpolicy->pw_must_change ) {
+
+	if ( has_allowchangetime && has_expirationtime ) {
+		return;
+	}
+
+	pwpolicy = new_passwdPolicy(pb, dn);
+
+	if ( !has_expirationtime && 
+		( pwpolicy->pw_exp || pwpolicy->pw_must_change ) ) {
+		if ( pwpolicy->pw_must_change) {
+			/* must change password when first time logon */
+			bv.bv_val = format_genTime ( NO_TIME );
+		} else if ( pwpolicy->pw_exp ) {
+			bv.bv_val = format_genTime ( time_plus_sec ( current_time (),
+       	                 pwpolicy->pw_maxage ) );
+		}
 		bv.bv_len = strlen( bv.bv_val );
 		slapi_entry_attr_merge( e, "passwordexpirationtime", bvals );
+		slapi_ch_free_string( &bv.bv_val );
 	}
-	slapi_ch_free((void **) &bv.bv_val );
 
 	/* 
 	 * If the password minimum age is not 0, calculate when the password 
 	 * is allowed to be changed again and store the result 
 	 * in passwordallowchangetime in the user's entry.
+	 * If the password has expired, don't add passwordallowchangetime,
+	 * otherwise if the user has grace logins, they can't be used to change
+	 * the password if we set a passwordallowchangetime in the future.
 	 */
-	if ( pwpolicy->pw_minage != 0 ) {
+	if ( !has_allowchangetime && pwpolicy->pw_minage != 0 && 
+		(has_expirationtime && existing_exptime > current_time()) ) {
 		bv.bv_val = format_genTime ( time_plus_sec ( current_time (),
                         pwpolicy->pw_minage ) );
 		bv.bv_len = strlen( bv.bv_val );
