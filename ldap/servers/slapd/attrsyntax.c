@@ -469,14 +469,14 @@ char *
 slapi_attr_syntax_normalize( const char *s )
 {
 	struct asyntaxinfo *asi = NULL;
-	char *r;
-	
+	char *r = NULL;
 
-    if((asi=attr_syntax_get_by_name(s)) != NULL ) {
+	if((asi=attr_syntax_get_by_name(s)) != NULL ) {
 		r = slapi_ch_strdup(asi->asi_name);
 		attr_syntax_return( asi );
 	}
 	if ( NULL == asi ) {
+		slapi_ch_free_string( &r );
 		r = attr_syntax_normalize_no_lookup( s );
 	}
 	return r;
