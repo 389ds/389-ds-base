@@ -659,18 +659,21 @@ int cl5DeleteDBSync (Object *replica)
 	rc = _cl5GetDBFile (replica, &obj);
 	if (rc == CL5_SUCCESS)
 	{
+        char *filename = NULL;
         file = (CL5DBFile*)object_get_data (obj);
         PR_ASSERT (file);
+        /* file->name is freed in _cl5DBDeleteFile */
+        filename = slapi_ch_strdup(file->name);
 
         _cl5DBDeleteFile (obj);
 
         /* wait until the file is gone */
-        while (PR_Access (file->name, PR_ACCESS_EXISTS) == PR_SUCCESS)
+        while (PR_Access (filename, PR_ACCESS_EXISTS) == PR_SUCCESS)
         {
             DS_Sleep (PR_MillisecondsToInterval(100));
         }
-
-	}
+        slapi_ch_free_string(&filename);
+    }
     else
     {
         Replica *r = (Replica*)object_get_data (replica);

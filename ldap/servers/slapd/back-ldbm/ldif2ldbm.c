@@ -682,6 +682,28 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
         /* from the command line, libdb needs to be started up */
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
+        /* If USN plugin is enabled, 
+         * initialize the USN counter to get the next USN */
+        if (plugin_enabled("USN", li->li_identity)) {
+            /* close immediately; no need to run db threads */
+            int rc = dblayer_start(li,
+                                 DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
+            if (rc) {
+                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                    "ldbm_back_ldif2ldbm: dblayer_start failed! %s (%d)\n",
+                    dblayer_strerror(rc), rc);
+                goto fail;
+            }
+            /* initialize the USN counter */
+            ldbm_usn_init(li);
+            rc = dblayer_close(li, DBLAYER_NORMAL_MODE);
+            if (rc) {
+                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                    "ldbm_back_ldif2ldbm: dblayer_close failed! %s (%d)\n",
+                    dblayer_strerror(rc), rc);
+            }
+        }
+
         if (0 != (ret = dblayer_start(li, DBLAYER_IMPORT_MODE)) ) {
             if (LDBM_OS_ERR_IS_DISKFULL(ret)) {
                 LDAPDebug(LDAP_DEBUG_ANY, "ERROR: Failed to init database.  "

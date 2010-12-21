@@ -285,8 +285,6 @@ do_modify( Slapi_PBlock *pb )
 			slapi_ch_free((void **)&(mod->mod_type));
 			slapi_ch_free((void **)&mod);
             continue;
-			/* send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
-			goto free_and_return; */
 		}
 		
 		/* check for password change */
@@ -297,6 +295,11 @@ do_modify( Slapi_PBlock *pb )
 
 		mod->mod_op |= LDAP_MOD_BVALUES;
 		slapi_mods_add_ldapmod (&smods, mod);
+	}
+
+	if (ignored_some_mods && (0 == smods.num_elements)) {
+		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
+		goto free_and_return;
 	}
 
 	/* check for decoding error */

@@ -1913,6 +1913,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_OUTBOUND_LDAP_IO_TIMEOUT_ATTRIBUTE "nsslapd-outbound-ldap-io-timeout"
 #define CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE "nsslapd-force-sasl-external"
 #define CONFIG_ENTRYUSN_GLOBAL	"nsslapd-entryusn-global"
+#define CONFIG_ENTRYUSN_IMPORT_INITVAL	"nsslapd-entryusn-import-initval"
 #define CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE	"nsslapd-allowed-to-delete-attrs"
 
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -2131,7 +2132,8 @@ typedef struct _slapdFrontendConfig {
 #endif /* MEMPOOL_EXPERIMENTAL */
   int force_sasl_external;      /* force SIMPLE bind to be SASL/EXTERNAL if client cert credentials were supplied */
   int entryusn_global;          /* Entry USN: Use global counter */
-  char **allowed_to_delete_attrs;/* charray of config attrs allowed to delete */
+  char *allowed_to_delete_attrs;/* list of config attrs allowed to delete */
+  char *entryusn_import_init;   /* Entry USN: determine the initital value of import */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

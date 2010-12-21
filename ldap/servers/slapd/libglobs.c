@@ -630,6 +630,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.entryusn_global, CONFIG_ON_OFF,
 		(ConfigGetFunc)config_get_entryusn_global},
+	{CONFIG_ENTRYUSN_IMPORT_INITVAL, config_set_entryusn_import_init,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.entryusn_import_init,
+		CONFIG_STRING, (ConfigGetFunc)config_get_entryusn_import_init},
 	{CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, config_set_allowed_to_delete_attrs,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allowed_to_delete_attrs,
@@ -1012,6 +1016,7 @@ FrontendConfig_init () {
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
 
   cfg->entryusn_global = LDAP_OFF; 
+  cfg->entryusn_import_init = slapi_ch_strdup("0"); 
   cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost");
 
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -5585,6 +5590,35 @@ config_set_entryusn_global( const char *attrname, char *value,
 }
 
 char *
+config_get_entryusn_import_init(void)
+{
+    char *retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_strdup(slapdFrontendConfig->entryusn_import_init);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+
+int
+config_set_entryusn_import_init( const char *attrname, char *value,
+                                 char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&(slapdFrontendConfig->entryusn_import_init));
+        slapdFrontendConfig->entryusn_import_init = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+char *
 config_get_allowed_to_delete_attrs(void)
 {
     char *retVal;
@@ -5595,6 +5629,7 @@ config_get_allowed_to_delete_attrs(void)
 
     return retVal;
 }
+
 
 int
 config_set_allowed_to_delete_attrs( const char *attrname, char *value,

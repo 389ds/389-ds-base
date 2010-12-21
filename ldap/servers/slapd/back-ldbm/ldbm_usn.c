@@ -142,7 +142,8 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     if (0 != rc) {
         /* entryusn.db# is missing; it would be the first time. */
         slapi_log_error(SLAPI_LOG_FATAL, "usn_get_last_usn", 
-                        "failed to open the entryusn index: %d", rc);
+                        "WARNING: failed to open the entryusn index: %d; "
+                        "Creating it...\n", rc);
         goto bail;
     }
 

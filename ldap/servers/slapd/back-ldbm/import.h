@@ -156,6 +156,7 @@ typedef struct {
     PRCondVar *wire_cv;         /* ... and ordering the startup */
     PRThread *main_thread;      /* for FRI: import_main() thread id */
 	int encrypt;
+	Slapi_Value *usn_value;     /* entryusn for import */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS	0x01	/* should we index the attributes? */

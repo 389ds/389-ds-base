@@ -58,6 +58,7 @@
 
 static void import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
 static int import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
+static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
 
 static struct backentry *import_make_backentry(Slapi_Entry *e, ID id)
 {
@@ -393,6 +394,9 @@ import_producer(void *param)
     info->state = RUNNING;
     import_init_ldif(&c);
 
+    /* Get entryusn, if needed. */
+    _get_import_entryusn(job, &(job->usn_value));
+
     /* jumpstart by opening the first file */
     curr_file = 0;
     fd = -1;
@@ -667,24 +671,11 @@ import_producer(void *param)
             goto error;
         }
 
-        /* 
-         * Check if entryusn plugin is enabled.  
-         * If yes, add "entryusn: 0" to the entry 
-         * if it does not have the attr type .
-         */
-        if (plugin_enabled("USN", (void *)plugin_get_default_component_id())) {
-            if (slapi_entry_attr_find(ep->ep_entry, SLAPI_ATTR_ENTRYUSN,
-                                                      &attr)) { /* not found */
-                /* add entryusn: 0 to the entry */
-                Slapi_Value *usn_value = NULL;
-                struct berval usn_berval = {0};
-                usn_berval.bv_val = slapi_ch_smprintf("0");
-                usn_berval.bv_len = strlen(usn_berval.bv_val);
-                usn_value = slapi_value_new_berval(&usn_berval);
-                slapi_entry_add_value(ep->ep_entry,
-                                      SLAPI_ATTR_ENTRYUSN, usn_value);
-                slapi_value_free(&usn_value);
-            }
+        /* if usn_value is available AND the entry does not have it, */
+        if (job->usn_value && slapi_entry_attr_find(ep->ep_entry, 
+                                               SLAPI_ATTR_ENTRYUSN, &attr)) {
+            slapi_entry_add_value(ep->ep_entry, SLAPI_ATTR_ENTRYUSN,
+                                  job->usn_value);
         }
 
         /* Now we have this new entry, all decoded
@@ -731,8 +722,8 @@ import_producer(void *param)
                     "ending line %d of file \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf),
                     curr_lineno, curr_filename);
-            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%u bytes) for "
+                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -773,11 +764,13 @@ import_producer(void *param)
         }
     }
 
+    slapi_value_free(&(job->usn_value));
     import_free_ldif(&c);
     info->state = FINISHED;
     return;
 
 error:
+    slapi_value_free(&(job->usn_value));
     info->state = ABORTED;
 }
 
@@ -860,8 +853,8 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
         char ebuf[BUFSIZ];
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf));
-        import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+        import_log_notice(job, "REASON: entry too large (%u bytes) for "
+                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
         backentry_free(&ep);
         job->skipped++;
         rc = 0; /* go to the next loop */
@@ -1735,8 +1728,8 @@ upgradedn_producer(void *param)
             char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf));
-            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%u bytes) for "
+                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -2823,6 +2816,13 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         pw_encodevals( (Slapi_Value **)va ); /* jcm - had to cast away const */
     }
 
+    /* if usn_value is available AND the entry does not have it, */
+    if (job->usn_value && slapi_entry_attr_find(ep->ep_entry, 
+                                               SLAPI_ATTR_ENTRYUSN, &attr)) {
+        slapi_entry_add_value(ep->ep_entry, SLAPI_ATTR_ENTRYUSN, 
+                              job->usn_value);
+    }
+
     /* Now we have this new entry, all decoded
      * Next thing we need to do is:
      * (1) see if the appropriate fifo location contains an
@@ -2871,8 +2871,8 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         char ebuf[BUFSIZ];
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(ep->ep_entry), ebuf));
-        import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the import buffer size (%lu bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
+        import_log_notice(job, "REASON: entry too large (%u bytes) for "
+                    "the import buffer size (%u bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
         backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
         backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);
@@ -2953,7 +2953,17 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BULK_IMPORT_STATE, &state);
     if (state == SLAPI_BI_STATE_START) {
         /* starting a new import */
-        return bulk_import_start(pb);
+        int rc = bulk_import_start(pb);
+        if (!rc) {
+            /* job must be available since bulk_import_start was successful */
+            job =
+              (ImportJob *)slapi_get_object_extension(li->li_bulk_import_object,
+                                                     pb->pb_conn,
+                                                     li->li_bulk_import_handle);
+            /* Get entryusn, if needed. */
+            _get_import_entryusn(job, &(job->usn_value));
+        }
+        return rc;
     }
 
     PR_ASSERT(pb->pb_conn != NULL);
@@ -2982,6 +2992,7 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
     thread = job->main_thread;
 
     if (state == SLAPI_BI_STATE_DONE) {
+        slapi_value_free(&(job->usn_value));
         /* finished with an import */
         job->flags |= FLAG_PRODUCER_DONE;
         /* "job" struct may vanish at any moment after we set the DONE
@@ -3481,4 +3492,56 @@ bail:
         slapi_ch_free_string(&rdn);
         return rc;
     }
+}
+
+static int
+_get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
+{
+#define USN_COUNTER_BUF_LEN        64 /* enough size for 64 bit integers */
+    static char counter_buf[USN_COUNTER_BUF_LEN] = {0};
+    char *usn_init_str = NULL;
+    long long usn_init;
+    char *endptr = NULL;
+    struct berval usn_berval = {0};
+
+    if (NULL == usn_value) {
+        return 1;
+    }
+    *usn_value = NULL;
+    /* 
+     * Check if entryusn plugin is enabled.  
+     * If yes, get entryusn to set depending upon nsslapd-entryusn-import-init
+     */
+    if (!plugin_enabled("USN", (void *)plugin_get_default_component_id())) {
+        return 1;
+    }
+    /* get the import_init config param */
+    usn_init_str = config_get_entryusn_import_init();
+    if (usn_init_str) {
+        /* nsslapd-entryusn-import-init has a value */
+        usn_init = strtoll(usn_init_str, &endptr, 10);
+        if (errno || (0 == usn_init && endptr == usn_init_str)) {
+            ldbm_instance *inst = job->inst;
+            backend *be = inst->inst_be;
+            /* import_init value is not digit.
+             * Use the counter which stores the old DB's
+             * next entryusn. */
+            PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN,
+                        "%" NSPRI64 "d",
+                        slapi_counter_get_value(be->be_usn_counter));
+        } else {
+            /* import_init value is digit.
+             * Initialize the entryusn values with the digit */
+            PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN, "%s", usn_init_str);
+        }
+        slapi_ch_free_string(&usn_init_str);
+    } else {
+        /* nsslapd-entryusn-import-init is not defined */
+         /* Initialize to 0 by default */
+        PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN, "0");
+    }
+    usn_berval.bv_val = counter_buf;
+    usn_berval.bv_len = strlen(usn_berval.bv_val);
+    *usn_value = slapi_value_new_berval(&usn_berval);
+    return 0;
 }
