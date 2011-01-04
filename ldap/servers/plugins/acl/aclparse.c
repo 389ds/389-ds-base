@@ -1638,9 +1638,23 @@ acl_check_for_target_macro( aci_t *aci_item, char *value)
 
 	char			*str = NULL;
 
-	str = strstr( value, ACL_TARGET_MACRO_DN_KEY);	
+	str = strstr(value, ACL_TARGET_MACRO_DN_KEY /* ($dn) */);	
 	
 	if (str != NULL) {
+		char *p0 = NULL, p1 = NULL;
+		/* Syntax check: 
+		 * error return if ($dn) is in '[' and ']', e.g., "[($dn)]" */
+		p0 = strchr(value, '[');
+		if (p0 && p0 < str) {
+			p1 = strchr(value, ']');
+			if (p1 && p1 < str) {
+				/* [...] ... ($dn) : good */
+				;
+			} else {
+				/* [...($dn)...] or [...($dn... : bad */
+				return -1;
+			}
+		}
 		aci_item->aci_type &= ~ACI_TARGET_DN;
 		aci_item->aci_type |= ACI_TARGET_MACRO_DN;
 		aci_item->aci_macro = (aciMacro *)slapi_ch_malloc(sizeof(aciMacro));

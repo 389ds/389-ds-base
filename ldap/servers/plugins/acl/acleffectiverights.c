@@ -612,7 +612,12 @@ _ger_get_attrs_rights (
 	/* gerstr was initially allocated with enough space for one more line */
 	_append_gerstr(gerstr, gerstrsize, gerstrcap, "attributeLevelRights: ", NULL);
 
-	if (attrs && *attrs)
+	/* 
+	 * If it's stated attribute list is given,
+	 * the first attr in the list should not be empty.
+	 * Otherwise, it's considered the list is not given.
+	 */
+	if (attrs && *attrs && (strlen(*attrs) > 0))
 	{
 		int i = 0;
 		char **allattrs = NULL;
@@ -674,6 +679,9 @@ _ger_get_attrs_rights (
 		{
 			for ( i = 0; attrs[i]; i++ )
 			{
+				if ('\0' == *attrs[i]) {
+					continue; /* skip an empty attr */
+				}
 				_ger_get_attr_rights ( gerpb, e, subjectndn, attrs[i], gerstr, 
 								gerstrsize, gerstrcap, isfirstattr, errbuf );
 				isfirstattr = 0;
@@ -700,6 +708,9 @@ _ger_get_attrs_rights (
 			{
 				for ( i = 0; attrs[i]; i++ )
 				{
+					if ('\0' == *attrs[i]) {
+						continue; /* skip an empty attr */
+					}
 					if (charray_inlist(allattrs, attrs[i]) ||
 						charray_inlist(opattrs, attrs[i]) ||
 						(0 == strcasecmp(attrs[i], "dn")) ||
@@ -824,11 +835,13 @@ _ger_generate_template_entry (
 	Slapi_Entry	*e = NULL;
 	char **gerattrs = NULL;
 	char **attrs = NULL;
+	char **allowedattrs = NULL;
 	char *templateentry = NULL;
 	char *object = NULL;
 	char *superior = NULL;
 	char *p = NULL;
 	char *dn = NULL;
+	char *dntype = NULL;
 	int siz = 0;
 	int len = 0;
 	int i = 0;
@@ -859,10 +872,26 @@ _ger_generate_template_entry (
 		rc = LDAP_SUCCESS;	/* no objectclass info; ok to return */
 		goto bailout;
 	}
+	/* 
+	 * Either @objectclass or @objectclass:dntype is accepted.
+	 * If @objectclass, the first MUST attributetype (or the first MAY
+	 * attributetype if MUST does not exist) is used for the attribute
+	 * type in the leaf RDN.
+	 * If @objectclass:dntype, dntype is used for the attribute type in the
+	 * leaf RDN.
+	 */
+	dntype = strchr(object, ':');
+	if (dntype) { /* @objectclasse:dntype */
+		*dntype++ = '\0';
+	}
+
 	attrs = slapi_schema_list_objectclass_attributes(
 						(const char *)object, SLAPI_OC_FLAG_REQUIRED);
-	if (NULL == attrs)
-	{
+	allowedattrs = slapi_schema_list_objectclass_attributes(
+						(const char *)object, SLAPI_OC_FLAG_ALLOWED);
+	charray_merge(&attrs, allowedattrs, 0 /* no copy */);
+	slapi_ch_free((void **)&allowedattrs); /* free just allowedattrs */
+	if (NULL == attrs) {
 		rc = LDAP_SUCCESS;	/* bogus objectclass info; ok to return */
 		goto bailout;
 	}
@@ -881,24 +910,34 @@ _ger_generate_template_entry (
 	}
 	if (dn)
 	{
-		/* dn: cn=<template_name>,<dn>\n\0 */
-		siz += 32 + strlen(object) + strlen(dn);
+		/* dn: <attr>=<template_name>,<dn>\n\0 */
+		if (dntype) {
+			siz += strlen(dntype) + 30 + strlen(object) + strlen(dn);
+		} else {
+			siz += strlen(attrs[0]) + 30 + strlen(object) + strlen(dn);
+		}
 	}
 	else
 	{
-		/* dn: cn=<template_name>\n\0 */
-		siz += 32 + strlen(object);
+		/* dn: <attr>=<template_name>\n\0 */
+		if (dntype) {
+			siz += strlen(dntype) + 30 + strlen(object);
+		} else {
+			siz += strlen(attrs[0]) + 30 + strlen(object);
+		}
 	}
 	templateentry = (char *)slapi_ch_malloc(siz);
 	if (NULL != dn && strlen(dn) > 0)
 	{
 		PR_snprintf(templateentry, siz,
-			"dn: cn=template_%s_objectclass,%s\n", object, dn);
+		            "dn: %s=template_%s_objectclass,%s\n",
+		            dntype?dntype:attrs[0], object, dn);
 	}
 	else
 	{
 		PR_snprintf(templateentry, siz,
-			"dn: cn=template_%s_objectclass\n", object);
+		            "dn: %s=template_%s_objectclass\n",
+		            dntype?dntype:attrs[0], object);
 	}
 	for (--i; i >= 0; i--)
 	{
