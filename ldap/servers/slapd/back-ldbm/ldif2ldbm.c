@@ -955,6 +955,32 @@ export_one_entry(struct ldbminfo *li,
                       slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc, 0);
         }
     }
+    /* 
+     * Check if userPassword value is hashed or not.
+     * If it is not, put "{CLEAR}" in front of the password value.
+     */
+    {
+        char *pw = slapi_entry_attr_get_charptr(expargs->ep->ep_entry, 
+                                                "userpassword");
+        if (pw && !slapi_is_encoded(pw)) {
+            /* clear password does not have {CLEAR} storage scheme */
+            struct berval *vals[2];
+            struct berval val;
+            val.bv_val = slapi_ch_smprintf("{CLEAR}%s", pw);
+            val.bv_len = strlen(val.bv_val);
+            vals[0] = &val;
+            vals[1] = NULL;
+            rc = slapi_entry_attr_replace(expargs->ep->ep_entry,
+                                          "userpassword", vals);
+            if (rc) {
+                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                        "%s: Failed to add clear password storage scheme: %d\n",
+                        slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
+            }
+            slapi_ch_free_string(&val.bv_val);
+        }
+        slapi_ch_free_string(&pw);
+    }
     rc = 0;
     data.data = slapi_entry2str_with_options(expargs->ep->ep_entry,
                                              &len, expargs->options);
