@@ -1097,7 +1097,7 @@ slapi_ldap_explode_rdn(const char *rdn, int notypes)
 #if defined(USE_OPENLDAP)
     return mozldap_ldap_explode_rdn(rdn, notypes);
 #else
-    return ldap_explode_dn(rdn, notypes);
+    return ldap_explode_rdn(rdn, notypes);
 #endif
 }
 
