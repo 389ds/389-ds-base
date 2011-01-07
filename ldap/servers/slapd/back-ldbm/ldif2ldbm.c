@@ -2110,18 +2110,6 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             continue;
         }
 
-        if ( add_op_attrs( pb, li, ep, NULL ) != 0 ) {
-            if (task) {
-                slapi_task_log_notice(task,
-                    "%s: ERROR: Could not add op attrs to entry (id %lu)",
-                    inst->inst_name, (u_long)ep->ep_id);
-            }
-            LDAPDebug(LDAP_DEBUG_ANY,
-                "%s: ERROR: Could not add op attrs to entry (id %lu)\n",
-                inst->inst_name, (u_long)ep->ep_id, 0);
-            goto err_out;
-        }
-
         /*
          * Update the attribute indexes
          */
