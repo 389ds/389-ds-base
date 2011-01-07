@@ -1043,6 +1043,10 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     case SASL_CONTINUE:         /* another step needed */
         pb->pb_conn->c_flags |= CONN_FLAG_SASL_CONTINUE;
 
+        if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) != 0){
+            break;
+        }
+
         /* attach the sasl data */
         bvr.bv_val = (char*)sdata;
         bvr.bv_len = slen;
