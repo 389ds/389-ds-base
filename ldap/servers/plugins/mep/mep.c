@@ -105,8 +105,10 @@ static Slapi_Entry *mep_create_managed_entry(struct configEntry *config,
     Slapi_Entry *origin);
 static void mep_add_managed_entry(struct configEntry *config,
     Slapi_Entry *origin);
+static void mep_rename_managed_entry(Slapi_Entry *origin,
+    char *new_dn, char *old_dn);
 static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
-    Slapi_Entry *origin);
+    Slapi_Entry *origin, char **mapped_dn);
 static int mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
     char **type, char **value);
 static int mep_is_managed_entry(Slapi_Entry *e);
@@ -1193,6 +1195,77 @@ mep_add_managed_entry(struct configEntry *config,
     slapi_pblock_destroy(mod_pb);
 }
 
+/* mep_rename_managed_entry()
+ *
+ * Renames a managed entry and updates the pointer in the
+ * origin entry.
+ */
+static void mep_rename_managed_entry(Slapi_Entry *origin,
+    char *new_dn, char *old_dn)
+{
+    Slapi_RDN *srdn = slapi_rdn_new();
+    Slapi_PBlock *mep_pb = slapi_pblock_new();
+    LDAPMod mod;
+    LDAPMod *mods[2];
+    char *vals[2];
+    int result = LDAP_SUCCESS;
+
+    /* Just bail if any of our parameters are NULL. */
+    if (origin == NULL || new_dn == NULL || old_dn == NULL) {
+        goto bail;
+    }
+
+    /* Create new RDN */
+    slapi_rdn_set_dn(srdn, new_dn);
+
+    /* Rename the managed entry. */
+    slapi_rename_internal_set_pb(mep_pb, old_dn,
+                                 slapi_rdn_get_rdn(srdn),
+                                 NULL, 1, NULL, NULL, mep_get_plugin_id(), 0);
+    slapi_modrdn_internal_pb(mep_pb);
+    slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+
+    if (result != LDAP_SUCCESS) {
+        slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                    "mep_rename_managed_entry: Unable to rename managed "
+                    "entry \"%s\" to \"%s\" (%s).\n", old_dn,
+                    new_dn, ldap_err2string(result));
+    } else {
+        /* Clear out the pblock for reuse. */
+        slapi_pblock_init(mep_pb);
+
+        /* Update the link to the managed entry in the origin entry. */
+        vals[0] = new_dn;
+        vals[1] = 0;
+        mod.mod_op = LDAP_MOD_REPLACE;
+        mod.mod_type = MEP_MANAGED_ENTRY_TYPE;
+        mod.mod_values = vals;
+        mods[0] = &mod;
+        mods[1] = 0;
+
+        /* Perform the modify operation. */
+        slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                "mep_rename_managed_entry: Updating %s pointer to "
+                "\"%s\" in entry \"%s\"\n.", MEP_MANAGED_ENTRY_TYPE,
+                vals[0], slapi_entry_get_dn(origin));
+        slapi_modify_internal_set_pb(mep_pb, slapi_entry_get_dn(origin), mods,
+                                     0, 0, mep_get_plugin_id(), 0);
+        slapi_modify_internal_pb(mep_pb);
+        slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+
+        if (result != LDAP_SUCCESS) {
+            slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                    "mep_rename_managed_entry: Unable to update %s "
+                    "pointer in entry \"%s\" (%s).\n", MEP_MANAGED_ENTRY_TYPE,
+                    slapi_entry_get_dn(origin), ldap_err2string(result));
+        }
+    }
+
+bail:
+    slapi_rdn_free(&srdn);
+    slapi_pblock_destroy(mep_pb);
+}
+
 /*
  * mep_get_mapped_mods()
  *
@@ -1201,7 +1274,7 @@ mep_add_managed_entry(struct configEntry *config,
  * returned mods when it is finished using them.
  */
 static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
-    Slapi_Entry *origin)
+    Slapi_Entry *origin, char **mapped_dn)
 {
     Slapi_Mods *smods = NULL;
     Slapi_Entry *template = NULL;
@@ -1209,6 +1282,7 @@ static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
     char **vals = NULL;
     char *type = NULL;
     char *value = NULL;
+    char *rdn_type = NULL;
     int i = 0;
 
     /* If no template was supplied, there's nothing we can do. */
@@ -1227,12 +1301,31 @@ static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
         slapi_mods_init(smods, numvals);
     }
 
+    /* Find the the RDN type for the managed entry. */
+    if ((rdn_type = slapi_entry_attr_get_charptr(template, MEP_RDN_ATTR_TYPE)) == NULL) {
+        slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                "mep_get_mapped_mods: Error getting RDN type from tempate "
+                "\"%s\".\n", config->template_dn);
+        slapi_mods_free(&smods);
+        goto bail;
+    }
+
     /* Go through the template and find the mapped attrs. */
     vals = slapi_entry_attr_get_charray(template, MEP_MAPPED_ATTR_TYPE);
     for (i = 0; vals && vals[i]; ++i) {
         if (mep_parse_mapped_attr(vals[i], origin, &type, &value) == 0) {
-            /* Add a modify that replaces all values with the new value. */
-            slapi_mods_add_string(smods, LDAP_MOD_REPLACE, type, value);
+            /* Don't attempt to modify the RDN type, but create
+             * the mapped DN if requested.  It is up to the caller
+             * to free the returned DN. */
+            if (slapi_attr_type_cmp(type, rdn_type, SLAPI_TYPE_CMP_EXACT) == 0) {
+                if (mapped_dn) {
+                    *mapped_dn = slapi_create_dn_string("%s=%s,%s", rdn_type,
+                            value, config->managed_base);
+                }
+            } else {
+                /* Add a modify that replaces all values with the new value. */
+                slapi_mods_add_string(smods, LDAP_MOD_REPLACE, type, value);
+            }
             slapi_ch_free_string(&type);
             slapi_ch_free_string(&value);
         } else {
@@ -1245,6 +1338,7 @@ static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
     }
 
   bail:
+    slapi_ch_free_string(&rdn_type);
     slapi_ch_array_free(vals);
 
     return smods;
@@ -1881,6 +1975,9 @@ mep_mod_post_op(Slapi_PBlock *pb)
     Slapi_Entry *e = NULL;
     char *dn = NULL;
     char *managed_dn = NULL;
+    Slapi_DN *managed_sdn = NULL;
+    char *mapped_dn = NULL;
+    Slapi_DN *mapped_sdn = NULL;
     struct configEntry *config = NULL;
     int result = 0;
 
@@ -1918,7 +2015,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
             mep_config_read_lock();
             mep_find_config(e, &config);
             if (config) {
-                smods = mep_get_mapped_mods(config, e);
+                smods = mep_get_mapped_mods(config, e, &mapped_dn);
                 if (smods) {
                     /* Clear out the pblock for reuse. */
                     mep_pb = slapi_pblock_new();
@@ -1943,6 +2040,19 @@ mep_mod_post_op(Slapi_PBlock *pb)
 
                     slapi_mods_free(&smods);
                     slapi_pblock_destroy(mep_pb);
+                }
+
+                /* Check if we need to rename the managed entry. */
+                if (mapped_dn) {
+                    mapped_sdn = slapi_sdn_new_dn_passin(mapped_dn);
+                    managed_sdn = slapi_sdn_new_dn_byref(managed_dn);
+
+                    if (slapi_sdn_compare(managed_sdn, mapped_sdn) != 0) {
+                        mep_rename_managed_entry(e, mapped_dn, managed_dn);
+                    }
+
+                    slapi_sdn_free(&mapped_sdn);
+                    slapi_sdn_free(&managed_sdn);
                 }
             } else {
                 slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
@@ -2223,70 +2333,18 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                 /* See if we need to rename the managed entry. */
                 managed_sdn = slapi_sdn_new_dn_byref(managed_dn);
                 if (slapi_sdn_compare(slapi_entry_get_sdn(new_managed_entry), managed_sdn) != 0) {
-                    Slapi_RDN *srdn = slapi_rdn_new();
-
-                    /* Clear out the pblock for reuse. */
-                    slapi_pblock_init(mep_pb);
-
-                    /* Create new RDN */
-                    slapi_rdn_set_dn(srdn, slapi_entry_get_dn(new_managed_entry));
-
                     /* Rename the managed entry. */
                     slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
                                     "mep_modrdn_post_op: Renaming managed entry "
                                     "\"%s\" to \"%s\" due to rename of origin "
                                     "entry \"%s\".\n ", managed_dn,
                                     slapi_entry_get_dn(new_managed_entry), old_dn);
-                    slapi_rename_internal_set_pb(mep_pb, managed_dn,
-                                                 slapi_rdn_get_rdn(srdn),
-                                                 NULL, 1, NULL, NULL, mep_get_plugin_id(), 0);
-                    slapi_modrdn_internal_pb(mep_pb);
-                    slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
-
-                    if (result != LDAP_SUCCESS) {
-                        slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
-                                    "mep_modrdn_post_op: Unable to rename managed "
-                                    "entry \"%s\" to \"%s\" (%s).\n", managed_dn,
-                                    slapi_entry_get_dn(new_managed_entry),
-                                    ldap_err2string(result));
-                    } else {
-                        /* Clear out the pblock for reuse. */
-                        slapi_pblock_init(mep_pb);
-
-                        /* Update the link to the managed entry in the origin
-                         * entry.  We can just reuse the mod structure. */
-                        vals[0] = slapi_entry_get_dn(new_managed_entry);
-                        mod.mod_op = LDAP_MOD_REPLACE;
-                        mod.mod_type = MEP_MANAGED_ENTRY_TYPE;
-                        mod.mod_values = vals;
-
-                        /* Perform the modify operation. */
-                        slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
-                                "mep_modrdn_post_op: Updating %s pointer to "
-                                "\"%s\" in entry \"%s\"\n.", MEP_MANAGED_ENTRY_TYPE,
-                                vals[0], new_dn);
-                        slapi_modify_internal_set_pb(mep_pb, new_dn, mods, 0, 0,
-                                                     mep_get_plugin_id(), 0);
-                        slapi_modify_internal_pb(mep_pb);
-                        slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
-
-                        if (result != LDAP_SUCCESS) {
-                            slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
-                                    "mep_modrdn_post_op: Unable to rename managed "
-                                    "entry \"%s\" to \"%s\" (%s).\n", managed_dn,
-                                    slapi_entry_get_dn(new_managed_entry),
-                                    ldap_err2string(result));
-                            slapi_rdn_free(&srdn);
-                            goto bail;
-                        }
-                    }
-
-                    slapi_rdn_free(&srdn);
+                    mep_rename_managed_entry(post_e, slapi_entry_get_dn(new_managed_entry), managed_dn);
                 }
 
                 /* Update all of the mapped attributes
                  * to be sure they are up to date. */
-                smods = mep_get_mapped_mods(config, post_e);
+                smods = mep_get_mapped_mods(config, post_e, NULL);
                 if (smods) {
                     /* Clear out the pblock for reuse. */
                     slapi_pblock_init(mep_pb);
