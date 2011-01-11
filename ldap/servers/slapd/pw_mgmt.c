@@ -210,7 +210,8 @@ skip:
 		   pre and post ops.  Maybe we don't want to call them */
 		if (pb->pb_conn && (LDAP_VERSION2 == pb->pb_conn->c_ldapversion)) {
 			/* We close the connection only with LDAPv2 connections */
-			do_unbind( pb );
+			disconnect_server( pb->pb_conn, pb->pb_op->o_connid,
+				pb->pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
 		}
 		/* Apply current modifications */
 		pw_apply_mods(dn, &smods);
