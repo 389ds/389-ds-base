@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -2804,14 +2805,16 @@ log__check_prevlogs (FILE *fp, char *pathname)
 
 			fseek(fp, 0 ,SEEK_SET);
 			buf[BUFSIZ-1] = '\0';
+			rval = LOG_ERROR; /* pessmistic default */
 			while (fgets(buf, BUFSIZ - 1, fp)) {
 				if (strstr(buf, dirent->name)) {
 					rval = LOG_CONTINUE;	/* found in .rotationinfo */
-					continue;
-				}	
+					break;
+				}
 			}
-			rval = LOG_ERROR;	/* not found in .rotationinfo */
-			break;
+			if(LOG_ERROR == rval) {
+				goto done;
+			}
 		}
 	}
 done:
@@ -4101,8 +4104,18 @@ log_reverse_convert_time(char *tbuf)
 {
 	struct tm tm = {0};
 
-	if (strchr(tbuf, '-')) { /* short format */
-		strptime(tbuf, "%Y%m%d-%H%M%S", &tm);
+	if (strchr(tbuf, '-') && strlen(tbuf) >= 15) {
+		/* short format: YYYYmmdd-HHMMSS
+		   strptime requires whitespace or non-alpha characters between format
+		   specifiers on some platforms, so convert to an ISO8601-like format
+		   with separators */
+		char tbuf_with_sep[] = "yyyy-mm-dd HH:MM:SS";
+		if( sscanf(tbuf, "%4c%2c%2c-%2c%2c%2c", tbuf_with_sep,
+			tbuf_with_sep+5, tbuf_with_sep+8, tbuf_with_sep+11,
+			tbuf_with_sep+14, tbuf_with_sep+17) != 6 ) {
+			return 0;
+		}
+		strptime(tbuf_with_sep, "%Y-%m-%d %H:%M:%S", &tm);
 	} else if (strchr(tbuf, '/') && strchr(tbuf, ':')) { /* long format */
 		strptime(tbuf, "%d/%b/%Y:%H:%M:%S", &tm);
 	} else {
