@@ -182,6 +182,7 @@ CSN *csn_new();
 CSN *csn_new_by_string(const char *s);
 void csn_init_by_csn(CSN *csn1,const CSN *csn2);
 void csn_init_by_string(CSN *csn, const char *s);
+void csn_init(CSN *csn);
 CSN *csn_dup(const CSN *csn);
 void csn_free(CSN **csn);
 void csn_set_replicaid(CSN *csn, ReplicaId rid);

@@ -1715,9 +1715,12 @@ get_ruvelement_from_berval(const struct berval *bval)
 		}
 		else
 		{
-			if (bval->bv_len - mincsnbegin != (_CSN_VALIDCSN_STRLEN * 2) + 1)
+			if ((bval->bv_len - mincsnbegin != (_CSN_VALIDCSN_STRLEN * 2) + 1)
+			 && (bval->bv_len - mincsnbegin != (_CSN_VALIDCSN_STRLEN * 2) + 10))
 			{
-				/* Malformed - incorrect length for 2 CSNs + space */
+				/* Malformed - incorrect length for 2 CSNs + space AND
+				 *             incorrect length for 2 CSNs + 2 spaces +
+				 *                              last_modified (see ruv_dump) */
 				goto loser;
 			}
 			else

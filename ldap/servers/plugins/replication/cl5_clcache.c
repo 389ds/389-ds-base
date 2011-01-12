@@ -379,13 +379,26 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 {
 	DB_TXN *txn = NULL;
 	DBC *cursor = NULL;
-	int rc;
+	int rc = 0;
 
 #if 0 /* txn control seems not improving anything so turn it off */
 	if ( *(_pool->pl_dbenv) ) {
 		txn_begin( *(_pool->pl_dbenv), NULL, &txn, 0 );
 	}
 #endif
+
+	if (NULL == buf) {
+		slapi_log_error ( SLAPI_LOG_FATAL, "clcache_load_buffer_bulk",
+		                  "NULL buf\n" );
+		return rc;
+	}
+	if (NULL == buf->buf_busy_list) {
+		slapi_log_error ( SLAPI_LOG_FATAL, "clcache_load_buffer_bulk",
+		                  "%s%sno buf_busy_list\n",
+		                  buf->buf_agmt_name?buf->buf_agmt_name:"",
+		                  buf->buf_agmt_name?": ":"" );
+		return rc;
+	}
 
 	PR_Lock ( buf->buf_busy_list->bl_lock );
 	if ( 0 == ( rc = clcache_open_cursor ( txn, buf, &cursor )) ) {

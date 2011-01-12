@@ -852,8 +852,7 @@ done:;
    Description:	imports ldif file into changelog; changelog must be in the closed state
    Parameters:  clDir - changelog dir
 				ldifFile - absolute path to the ldif file to import
-				replicas - optional list of replicas whose data should be imported;
-						   if the list is NULL, all data in the file is imported.
+				replicas - optional list of replicas whose data should be imported.
    Return:		CL5_SUCCESS if function is successfull;
 				CL5_BAD_DATA if invalid parameter is passed;
 				CL5_BAD_STATE if changelog is open or not inititalized;
@@ -861,7 +860,8 @@ done:;
 				CL5_SYSTEM_ERROR if NSPR call fails;
 				CL5_MEMORY_ERROR if memory allocation fials.
  */
-int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
+int
+cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 {
 #if defined(USE_OPENLDAP)
 	LDIFFP *file = NULL;
@@ -873,8 +873,19 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 	char *buff = NULL;
 	int lineno = 0;
 	slapi_operation_parameters op;
-    Object *replica = NULL;
-    char *replGen = NULL;
+	Object *prim_replica_obj = NULL;
+	Object *replica_obj = NULL;
+	Object *file_obj = NULL;
+	Replica *prim_replica = NULL;
+	char *replGen = NULL;
+	CL5DBFile *dbfile = NULL;
+	struct berval **purgevals = NULL;
+	struct berval **maxvals = NULL;
+	int purgeidx = 0;
+	int maxidx = 0;
+	int maxpurgesz = 8;
+	int maxmaxsz = 8;
+	int entryCount = 0;
 
 	/* validate params */
 	if (ldifFile == NULL)
@@ -890,6 +901,16 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 						"cl5ImportLDIF: changelog is not initialized\n");
 		return CL5_BAD_STATE;	
 	}
+
+	prim_replica_obj = replicas[0];
+	if (NULL == prim_replica_obj)
+	{
+		/* Never happens for now. (see replica_execute_ldif2cl_task) */
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+						"cl5ImportLDIF: empty replica list\n");
+		return CL5_BAD_DATA;
+	}
+	prim_replica = (Replica*)object_get_data(prim_replica_obj);
 
 	/* make sure that nobody change changelog state while import is in progress */
 	PR_RWLock_Wlock (s_cl5Desc.stLock);
@@ -936,6 +957,7 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 						"cl5ImportLDIF: failed to open changelog\n");
 		goto done;
 	}
+	s_cl5Desc.dbState = CL5_STATE_OPEN; /* force to change the state */
 	
 	/* read entries and write them to changelog */
 #if defined(USE_OPENLDAP)
@@ -945,50 +967,154 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 #endif
 	{
 		rc = _cl5LDIF2Operation (buff, &op, &replGen);
-		slapi_ch_free_string(&buff);
 		if (rc != CL5_SUCCESS)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"cl5ImportLDIF: failed to convert LDIF fragment to LDAP operation; "
-				"end of fragment line number - %d\n", lineno);
-			goto done;
+            /*
+             * clpurgeruv: {replicageneration} 4d13a124000000010000
+             * clpurgeruv: {replica 2 ldap://host:port} 
+             * clpurgeruv: {replica 1 ldap://host:port} 
+             * clmaxruv: {replicageneration} 4d13a124000000010000
+             * clmaxruv: {replica 2} <mincsn> <maxcsn> <timestamp>
+             * clmaxruv: {replica 1} <mincsn> <maxcsn> <timestamp>
+             */
+            char *line;
+            char *next = buff;
+            struct berval type, value;
+            int freeval = 0;
+
+            purgevals = (struct berval **)slapi_ch_malloc(
+                                          sizeof(struct berval *) * maxpurgesz);
+            maxvals = (struct berval **)slapi_ch_malloc(
+                                          sizeof(struct berval *) * maxmaxsz);
+            while ((line = ldif_getline(&next)) != NULL) {
+                rc = slapi_ldif_parse_line(line, &type, &value, &freeval);
+                /* ruv_dump (dbfile->purgeRUV, "clpurgeruv", prFile); */
+                if (0 == strcasecmp (type.bv_val, "clpurgeruv")) {
+                    if (maxpurgesz == purgeidx + 2) {
+                        maxpurgesz *= 2;
+                        purgevals = (struct berval **)slapi_ch_realloc(
+                                          (char *)purgevals,
+                                          sizeof(struct berval *) * maxpurgesz);
+                    }
+                    purgevals[purgeidx++] = slapi_ch_bvdup(&value);
+                }
+                /* ruv_dump (dbfile->maxRUV, "clmaxruv", prFile); */
+                else if (0 == strcasecmp (type.bv_val, "clmaxruv")) {
+                    if (maxmaxsz == maxidx + 2) {
+                        maxmaxsz *= 2;
+                        maxvals = (struct berval **)slapi_ch_realloc(
+                                          (char *)maxvals,
+                                          sizeof(struct berval *) * maxmaxsz);
+                    }
+                    /* {replica #} min_csn csn [last_modified] */
+                    /* get rid of last_modified, if any */
+                    maxvals[maxidx++] = slapi_ch_bvdup(&value);
+                }
+                if (freeval) {
+                    slapi_ch_free_string(&value.bv_val);
+                }
+            }
+            slapi_ch_free_string(&buff);
+            goto next;
 		}
+		slapi_ch_free_string(&buff);
 
 		/* if we perform selective import, check if the operation should be wriiten to changelog */
-        replica = _cl5GetReplica (&op, replGen);
-        if (replica == NULL)
+        replica_obj = _cl5GetReplica (&op, replGen);
+        if (replica_obj == NULL)
         {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"cl5ImportLDIF: failed to locate replica for target dn (%s) and "
-                "replica generation %s\n", op.target_address.dn, replGen);
-			
-            slapi_ch_free_string(&replGen);
-            operation_parameters_done (&op);
-			goto done;
+            /* 
+             * changetype: delete
+             * replgen: 4d13a124000000010000
+             * csn: 4d23b909000000020000
+             * nsuniqueid: 00000000-00000000-00000000-00000000
+             * dn: cn=start iteration
+             */
+            rc = _cl5WriteOperation (replica_get_name(prim_replica), 
+                                     replGen, &op, 1);
+            if (rc != CL5_SUCCESS)
+            {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                        "cl5ImportLDIF: "
+                        "failed to write operation to the changelog: "
+                        "type: %lu, dn: %s\n",
+                        op.operation_type, op.target_address.dn);
+                object_release (replica_obj);
+                slapi_ch_free_string(&replGen);
+                operation_parameters_done (&op);
+                goto done;
+            }
+            entryCount++;
+            goto next;
         }
 
-		if (!replicas || _cl5ReplicaInList (replica, replicas))
+		if (!replicas || _cl5ReplicaInList (replica_obj, replicas))
 		{
 			/* write operation creates the file if it does not exist */
-			rc = _cl5WriteOperation (replica_get_name ((Replica*)object_get_data(replica)), 
+			rc = _cl5WriteOperation (replica_get_name ((Replica*)object_get_data(replica_obj)), 
                                      replGen, &op, 1);
 			if (rc != CL5_SUCCESS)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"cl5ImportLDIF: failed to write operation to the changelog\n");
-                object_release (replica);
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                        "cl5ImportLDIF: "
+                        "failed to write operation to the changelog: "
+                        "type: %lu, dn: %s\n",
+                        op.operation_type, op.target_address.dn);
+                object_release (replica_obj);
                 slapi_ch_free_string(&replGen);
 				operation_parameters_done (&op);
 				goto done;
 			}
+            entryCount++;
 		}
-        
-        object_release (replica);
+next:
+        if (replica_obj) {
+            object_release (replica_obj);
+        }
         slapi_ch_free_string(&replGen);
-		operation_parameters_done (&op);
+        operation_parameters_done (&op);
 	}
 
-done:;
+    /* Set RUVs and entry count */
+    file_obj = objset_first_obj(s_cl5Desc.dbFiles);
+    while (file_obj)
+    {
+        dbfile = (CL5DBFile *)object_get_data(file_obj);
+        if (0 == strcasecmp(dbfile->replName, replica_get_name(prim_replica))) {
+            break;
+        }
+        dbfile = NULL;
+        file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
+    }
+
+    if (dbfile) {
+        if (purgeidx > 0) {
+            ruv_destroy (&dbfile->purgeRUV);
+            purgevals[purgeidx] = NULL;
+            rc = ruv_init_from_bervals(purgevals, &dbfile->purgeRUV);
+        }
+        if (maxidx > 0) {
+            ruv_destroy (&dbfile->maxRUV);
+            maxvals[maxidx] = NULL;
+            rc = ruv_init_from_bervals(maxvals, &dbfile->maxRUV);
+        }
+
+        for (purgeidx = 0; purgevals && purgevals[purgeidx]; purgeidx++) {
+            slapi_ch_bvfree(&purgevals[purgeidx]);
+        }
+        slapi_ch_free((void **)&purgevals);
+        for (maxidx = 0; maxvals && maxvals[maxidx]; maxidx++) {
+            slapi_ch_bvfree(&maxvals[maxidx]);
+        }
+        slapi_ch_free((void **)&maxvals);
+
+        dbfile->entryCount = entryCount;
+    }
+    if (file_obj) {
+        object_release (file_obj);
+    }
+
+done:
 	if (file) {
 #if defined(USE_OPENLDAP)
 		ldif_close(file);
@@ -996,7 +1122,10 @@ done:;
 		fclose(file);
 #endif
 	}
-	_cl5Close ();
+	if (CL5_STATE_OPEN == s_cl5Desc.dbState) {
+		_cl5Close ();
+		s_cl5Desc.dbState = CL5_STATE_CLOSED; /* force to change the state */
+	}
 	PR_RWLock_Unlock (s_cl5Desc.stLock);
     return rc;
 }
@@ -1702,6 +1831,9 @@ static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode ope
 		goto done;
 	}
 
+	if (s_cl5Desc.dbDir) {
+		slapi_ch_free_string (&s_cl5Desc.dbDir);
+	}
 	s_cl5Desc.dbDir = slapi_ch_strdup (dir);
 
 	/* check database version */
@@ -1902,7 +2034,8 @@ static int _cl5DBOpen ()
 
                 PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, entry->name);
                 rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv,
-                                               0, fullpathname, 0, 0);
+                                               0, fullpathname, 0,
+                                               DEFAULT_DB_OP_FLAGS);
                 if (rc != 0)
                 {
                     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
@@ -3089,12 +3222,24 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 		PR_snprintf(filename, MAXPATHLEN, "%s/%s", clDir, entry->name);
 		/* _cl5Delete deletes the whole changelog directory with all the files 
 		 * underneath.  Thus, we can just remove them physically. */
-		rc = PR_Delete(filename);
-		if (rc != PR_SUCCESS)
-		{
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-					"_cl5Delete: failed to remove (%s) file; NSPR error - %d\n",
+		if (0 == strcmp(entry->name, VERSION_FILE)) {
+			/* DBVERSION */
+			rc = PR_Delete(filename) != PR_SUCCESS;
+			if (PR_SUCCESS != rc) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+					"_cl5Delete: failed to remove \"%s\"; NSPR error - %d\n",
 					filename, PR_GetError ());
+			}
+		} else {
+			/* DB files */
+			rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, filename, 0,
+                                           DEFAULT_DB_OP_FLAGS);
+			if (rc) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+				                "_cl5Delete: failed to remove \"%s\"; "
+				                "libdb error - %d (%s)\n",
+				                filename, rc, db_strerror(rc));
+			}
 		}
 	}
 		
@@ -4115,18 +4260,20 @@ static int
 _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **replGen)
 {
 	int rc;
+	int rval = CL5_BAD_FORMAT;
 	char *next, *line;
 	struct berval type, value;
 	struct berval bv_null = {0, NULL};
 	int freeval = 0;
 	Slapi_Mods *mods;
 	char *rawDN = NULL;
+	char *ldifEntryWork = slapi_ch_strdup(ldifEntry);
 
 	PR_ASSERT (op && ldifEntry && replGen);
 	
 	memset (op, 0, sizeof (*op));
 	
-	next = ldifEntry;
+	next = ldifEntryWork;
 	while ((line = ldif_getline(&next)) != NULL) 
 	{
 		if ( *line == '\n' || *line == '\0' ) 
@@ -4144,8 +4291,9 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 							"_cl5LDIF2Operation: warning - failed to parse ldif line\n");
 			continue;
 		}
-
-		if (strncasecmp (type.bv_val, T_CHANGETYPESTR, type.bv_len) == 0)
+		if (strncasecmp (type.bv_val, T_CHANGETYPESTR,
+			             strlen(T_CHANGETYPESTR)>type.bv_len?
+						 strlen(T_CHANGETYPESTR):type.bv_len) == 0)
 		{
 			op->operation_type = _cl5Str2OperationType (value.bv_val);	
 		}
@@ -4193,7 +4341,9 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 		{
 			op->p.p_modrdn.modrdn_newsuperior_address.uniqueid = slapi_ch_strdup (value.bv_val);
 		}
-		else if (strncasecmp (type.bv_val, T_CHANGESTR, type.bv_len) == 0)
+		else if (strncasecmp (type.bv_val, T_CHANGESTR,
+			                  strlen(T_CHANGESTR)>type.bv_len?
+						      strlen(T_CHANGESTR):type.bv_len) == 0)
 		{
 			PR_ASSERT (op->operation_type);
 
@@ -4210,6 +4360,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 																"_cl5LDIF2Operation: corrupted format "
 																"for operation type - %lu\n", 
 																 op->operation_type);
+													slapi_ch_free_string(&ldifEntryWork);
 													return CL5_BAD_FORMAT;
 												}
 												mods = parse_changes_string(value.bv_val);
@@ -4238,6 +4389,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 												if (freeval) {
 													slapi_ch_free_string(&value.bv_val);
 												}
+												slapi_ch_free_string(&ldifEntryWork);
 												return CL5_BAD_FORMAT;
 			}
 		}	
@@ -4246,12 +4398,21 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 		}
 	}
 
-	if (IsValidOperation (op))
-		return CL5_SUCCESS;
-	
-	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-					"_cl5LDIF2Operation: invalid data format\n");
-	return CL5_BAD_FORMAT;
+	if ((0 != strncmp(ldifEntryWork, "clpurgeruv", 10)) && /* skip RUV; */
+	    (0 != strncmp(ldifEntryWork, "clmaxruv", 8)))      /* RUV has NULL op */
+	{
+		if (IsValidOperation (op))
+		{
+			rval = CL5_SUCCESS;
+		}
+		else
+		{
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+			                "_cl5LDIF2Operation: invalid data format\n");
+		}
+	}
+	slapi_ch_free_string(&ldifEntryWork);
+	return rval;
 }
 
 static int _cl5WriteOperation(const char *replName, const char *replGen, 
@@ -5339,7 +5500,6 @@ static int _cl5DBOpenFileByReplicaName (const char *replName, const char *replGe
         file_name = _cl5MakeFileName (replName, replGen);
 		tmpObj = objset_find (s_cl5Desc.dbFiles, _cl5CompareDBFile, file_name);
 		slapi_ch_free((void **)&file_name);
-		file_name = NULL;
 		if (tmpObj)	/* this file already exist */
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -5629,6 +5789,7 @@ done:
 static void _cl5DBCloseFile (void **data)
 { 
 	CL5DBFile *file;
+	int rc = 0;
 
 	PR_ASSERT (data);
 
@@ -5651,18 +5812,23 @@ static void _cl5DBCloseFile (void **data)
 
 	/* close the db */
 	if (file->db) {
-	    file->db->close(file->db, 0);
-	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
-						"Closed the changelog database handle for %s\n", file->name);
+	    rc = file->db->close(file->db, 0);
+	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+						"_cl5DBCloseFile: "
+						"Closed the changelog database handle for %s "
+						"(rc: %d)\n", file->name, rc);
 	    file->db = NULL;
 	}
 
 	if (file->flags & DB_FILE_DELETED)
     {
-		int rc = 0;
 		/* We need to use the libdb API to delete the files, otherwise we'll
 		 * run into problems when we try to checkpoint transactions later. */
-		rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, file->name, 0, 0);
+	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
+						"removing the changelog %s (flag %d)\n",
+						file->name, DEFAULT_DB_OP_FLAGS);
+		rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, file->name, 0,
+                                       DEFAULT_DB_OP_FLAGS);
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
@@ -5681,6 +5847,7 @@ static void _cl5DBCloseFile (void **data)
 	slapi_ch_free ((void**)&file->replGen);
 	ruv_destroy(&file->maxRUV);
 	ruv_destroy(&file->purgeRUV);
+	file->db = NULL;
 	if (file->sema) {
 		PR_CloseSemaphore (file->sema);
 		PR_DeleteSemaphore (file->semaName);
@@ -5838,7 +6005,7 @@ static int _cl5ExportFile (PRFileDesc *prFile, Object *obj)
 		if (rc != CL5_SUCCESS)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5ExportLDIF: failed to convert operation to ldif\n");
+						"_cl5ExportFile: failed to convert operation to ldif\n");
 			operation_parameters_done (&op);
 			break;
 		}
@@ -5848,7 +6015,7 @@ static int _cl5ExportFile (PRFileDesc *prFile, Object *obj)
 		if (wlen < len)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5ExportLDIF: failed to write to ldif file\n");
+						"_cl5ExportFile: failed to write to ldif file\n");
 			rc = CL5_SYSTEM_ERROR;
 			operation_parameters_done (&op);
 			break;
@@ -5867,7 +6034,7 @@ static int _cl5ExportFile (PRFileDesc *prFile, Object *obj)
 	if (rc != CL5_NOTFOUND)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5ExportLDIF: failed to retrieve changelog entry\n");
+						"_cl5ExportFile: failed to retrieve changelog entry\n");
 	}
 	else
 	{
@@ -5932,7 +6099,7 @@ static Object* _cl5GetReplica (const slapi_operation_parameters *op, const char*
             replObj = NULL;
         }
 
-        slapi_ch_free ((void**)&replGen);
+        slapi_ch_free ((void**)&newGen);
     }
 
     slapi_sdn_free (&sdn);

@@ -46,20 +46,24 @@
 #include "repl.h"   /* ONREPL - this is bad */
 #include "repl5.h"
 #include "cl5_api.h"
+#include "cl5.h"
 
 /* CONFIG_BASE: no need to optimize */
 #define CONFIG_BASE		    "cn=mapping tree,cn=config"
 #define CONFIG_FILTER	    "(objectclass=nsDS5Replica)"
 #define TASK_ATTR           "nsds5Task"
 #define CL2LDIF_TASK        "CL2LDIF"
+#define LDIF2CL_TASK        "LDIF2CL"
 #define CLEANRUV            "CLEANRUV"
 #define CLEANRUVLEN         8
+#define REPLICA_RDN         "cn=replica"
 
 int slapi_log_urp = SLAPI_LOG_REPL;
 
 /* Forward Declartions */
 static int replica_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 static int replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
+static int replica_config_post_modify (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 static int replica_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 static int replica_config_search (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 
@@ -68,7 +72,10 @@ static int replica_config_change_updatedn (Replica *r, const LDAPMod *mod, char 
 static int replica_config_change_flags (Replica *r, const char *new_flags,  char *returntext, int apply_mods);
 static int replica_execute_task (Object *r, const char *task_name, char *returntext, int apply_mods);
 static int replica_execute_cl2ldif_task (Object *r, char *returntext);
+static int replica_execute_ldif2cl_task (Object *r, char *returntext);
 static int replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext);
+static int replica_cleanup_task (Object *r, const char *task_name, char *returntext, int apply_mods);
+static int replica_task_done(Replica *replica);
 												
 static multimaster_mtnode_extension * _replica_config_get_mtnode_ext (const Slapi_Entry *e);
 
@@ -104,6 +111,10 @@ replica_config_init()
 								   CONFIG_FILTER, replica_config_delete,NULL); 
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, CONFIG_BASE, LDAP_SCOPE_SUBTREE,
 								   CONFIG_FILTER, replica_config_search,NULL); 
+    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, 
+                                   CONFIG_BASE, LDAP_SCOPE_SUBTREE,
+                                   CONFIG_FILTER, replica_config_post_modify,
+                                   NULL);
     return 0;
 }
 
@@ -127,6 +138,9 @@ replica_config_destroy ()
 								 CONFIG_FILTER, replica_config_delete);
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, CONFIG_BASE, LDAP_SCOPE_SUBTREE,
 								 CONFIG_FILTER, replica_config_search);
+    slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, 
+                                 CONFIG_BASE, LDAP_SCOPE_SUBTREE,
+                                 CONFIG_FILTER, replica_config_post_modify);
 }
 
 static int 
@@ -448,6 +462,141 @@ done:
 }
 
 static int 
+replica_config_post_modify(Slapi_PBlock *pb,
+                           Slapi_Entry* entryBefore, 
+                           Slapi_Entry* e,
+                           int *returncode,
+                           char *returntext,
+                           void *arg)
+{
+    int rc= 0;
+    LDAPMod **mods;
+    int i, apply_mods;
+    multimaster_mtnode_extension *mtnode_ext;    
+    Replica *r = NULL;
+    char *replica_root = NULL; 
+    char buf [SLAPI_DSE_RETURNTEXT_SIZE];
+    char *errortext = returntext ? returntext : buf;
+    char *config_attr, *config_attr_value;
+    Slapi_Operation *op;
+    void *identity;
+
+    if (returntext)
+    {
+        returntext[0] = '\0';
+    }
+    *returncode = LDAP_SUCCESS;
+
+    /* just let internal operations originated from replication plugin to go through */
+    slapi_pblock_get (pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &identity);                
+
+    if (operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+        (identity == repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION)))
+    {
+        *returncode = LDAP_SUCCESS;
+        return SLAPI_DSE_CALLBACK_OK;
+    }
+
+    replica_root = (char*)slapi_entry_attr_get_charptr (e, attr_replicaRoot);
+
+    PR_Lock (s_configLock);
+    
+    mtnode_ext = _replica_config_get_mtnode_ext (e);
+    PR_ASSERT (mtnode_ext);
+
+    if (mtnode_ext->replica)
+        object_acquire (mtnode_ext->replica);
+
+    if (mtnode_ext->replica == NULL)
+    {
+        PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                     "replica does not exist for %s", replica_root);
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                        "replica_config_post_modify: %s\n",
+                        errortext);
+        *returncode = LDAP_OPERATIONS_ERROR;    
+        goto done;
+    }
+
+    r = object_get_data (mtnode_ext->replica);
+    PR_ASSERT (r);
+
+    slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+    for (apply_mods = 0; apply_mods <= 1; apply_mods++)
+    {
+        /* we only allow the replica ID and type to be modified together e.g.
+           if converting a read only replica to a master or vice versa - 
+           we will need to change both the replica ID and the type at the same
+           time - we must disallow changing the replica ID if the type is not
+           being changed and vice versa
+        */
+        if (*returncode != LDAP_SUCCESS)
+            break;
+
+        for (i = 0; (mods[i] && (LDAP_SUCCESS == rc)); i++)
+        {
+            if (*returncode != LDAP_SUCCESS)
+                break;
+
+            config_attr = (char *) mods[i]->mod_type;
+            PR_ASSERT (config_attr); 
+
+            /* disallow modifications or removal of replica root,
+               replica name and replica state attributes */
+            if (strcasecmp (config_attr, attr_replicaRoot) == 0 ||
+                strcasecmp (config_attr, attr_replicaName) == 0 ||
+                strcasecmp (config_attr, attr_state) == 0)
+            {
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                             "modification of %s attribute is not allowed", 
+                             config_attr);                         
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                                "replica_config_post_modify: %s\n", 
+                                errortext);
+            }
+            /* this is a request to delete an attribute */
+            else if (mods[i]->mod_op & LDAP_MOD_DELETE || 
+                     mods[i]->mod_bvalues == NULL ||
+                     mods[i]->mod_bvalues[0]->bv_val == NULL) 
+            {
+                ;
+            }
+            else    /* modify an attribute */
+            {
+                config_attr_value = (char *) mods[i]->mod_bvalues[0]->bv_val;
+
+                if (strcasecmp (config_attr, TASK_ATTR) == 0) 
+                {
+                    *returncode = replica_cleanup_task(mtnode_ext->replica,
+                                                       config_attr_value,
+                                                       errortext, apply_mods);
+                }
+            }
+        }
+    }
+
+done:
+    if (mtnode_ext->replica)
+        object_release (mtnode_ext->replica);
+    
+    /* slapi_ch_free accepts NULL pointer */
+    slapi_ch_free ((void**)&replica_root);
+
+    PR_Unlock (s_configLock);
+
+    if (*returncode != LDAP_SUCCESS)
+    {
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+    else
+    {
+        return SLAPI_DSE_CALLBACK_OK;
+    }
+}
+
+static int 
 replica_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, 
 					   int *returncode, char *returntext, void *arg)
 {
@@ -653,6 +802,15 @@ static int replica_execute_task (Object *r, const char *task_name, char *returnt
 		else
 			return LDAP_SUCCESS;
 	}
+	else if (strcasecmp (task_name, LDIF2CL_TASK) == 0)
+    {
+		if (apply_mods)
+		{
+			return replica_execute_ldif2cl_task (r, returntext);
+		}
+		else
+			return LDAP_SUCCESS;
+	}
 	else if (strncasecmp (task_name, CLEANRUV, CLEANRUVLEN) == 0)
 	{
 		int temprid = atoi(&(task_name[CLEANRUVLEN]));
@@ -680,6 +838,69 @@ static int replica_execute_task (Object *r, const char *task_name, char *returnt
     
 }
 
+static int 
+replica_cleanup_task (Object *r, const char *task_name, char *returntext, 
+                      int apply_mods)
+{
+    int rc = LDAP_SUCCESS;
+    if (apply_mods) {
+        Replica *replica = (Replica*)object_get_data (r);
+        if (NULL == replica) {
+            rc = LDAP_OPERATIONS_ERROR;    
+        } else {
+            rc = replica_task_done(replica);
+        }
+    }
+    return rc;
+}
+
+static int
+replica_task_done(Replica *replica)
+{
+    int rc = LDAP_OPERATIONS_ERROR;
+    char *replica_dn = NULL;
+    Slapi_PBlock *pb = NULL;
+    LDAPMod *mods [2];
+    LDAPMod mod;
+    if (NULL == replica) {
+        return rc;
+    }
+    /* dn: cn=replica,cn=dc\3Dexample\2Cdc\3Dcom,cn=mapping tree,cn=config */
+    replica_dn = slapi_create_dn_string("%s,cn=\"%s\",%s",
+                                    REPLICA_RDN,
+                                    slapi_sdn_get_dn(replica_get_root(replica)),
+                                    CONFIG_BASE);
+    if (NULL == replica_dn) {
+        return rc;
+    }
+    pb = slapi_pblock_new();
+    mods[0] = &mod;
+    mods[1] = NULL;
+    mod.mod_op = LDAP_MOD_DELETE | LDAP_MOD_BVALUES;
+    mod.mod_type = (char *)TASK_ATTR;
+    mod.mod_bvalues = NULL;
+
+    slapi_modify_internal_set_pb(pb, replica_dn, mods, NULL/* controls */, 
+                      NULL/* uniqueid */, 
+                      repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
+                      0/* flags */);
+    slapi_modify_internal_pb (pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if ((rc != LDAP_SUCCESS) && (rc != LDAP_NO_SUCH_ATTRIBUTE)) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "replica_task_done: "
+                        "failed to remove (%s) attribute from (%s) entry; "
+                        "LDAP error - %d\n",
+                        TASK_ATTR, replica_dn, rc);   
+    }
+
+    slapi_pblock_destroy (pb);
+    slapi_ch_free_string(&replica_dn);
+
+    return rc;
+}
+
 static int replica_execute_cl2ldif_task (Object *r, char *returntext)
 {
     int rc;
@@ -693,7 +914,8 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
         PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "changelog is not open");
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
                         "replica_execute_cl2ldif_task: %s\n", returntext);        
-        return LDAP_OPERATIONS_ERROR;
+        rc = LDAP_OPERATIONS_ERROR;    
+        goto bail;
     }
 
     rlist[0] = r;
@@ -702,25 +924,126 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
     /* file is stored in the changelog directory and is named
        <replica name>.ldif */
     clDir = cl5GetDir ();
-    PR_ASSERT (clDir);
+    if (NULL == clDir) {
+        rc = LDAP_OPERATIONS_ERROR;    
+        goto bail;
+    }
 
     replica = (Replica*)object_get_data (r);
-    PR_ASSERT (replica);
+    if (NULL == replica) {
+        rc = LDAP_OPERATIONS_ERROR;    
+        goto bail;
+    }
 
     PR_snprintf (fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name (replica));
     slapi_ch_free ((void**)&clDir);
 
+    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                    "Beginning changelog export of replica \"%s\"\n",
+                    replica_get_name(replica));
     rc = cl5ExportLDIF (fName, rlist);
-    if (rc != CL5_SUCCESS)
-    {
-        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to export changelog data to file %s; "
-                 "changelog error - %d", fName, rc);
+    if (rc == CL5_SUCCESS) {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-                        "replica_execute_cl2ldif_task: %s\n", returntext);        
-        return LDAP_OPERATIONS_ERROR;    
+                        "Finished changelog export of replica \"%s\"\n",
+                        replica_get_name(replica));
+        rc = LDAP_SUCCESS;
+    } else {
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                     "Failed changelog export replica %s; "
+                     "changelog error - %d", replica_get_name(replica), rc);
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "replica_execute_cl2ldif_task: %s\n", returntext);
+        rc = LDAP_OPERATIONS_ERROR;    
+    }
+bail:
+    return rc;
+}
+
+static int replica_execute_ldif2cl_task (Object *r, char *returntext)
+{
+    int rc, imprc = 0;
+    Object *rlist [2];
+    Replica *replica;
+    char fName [MAXPATHLEN];
+    char *clDir;
+    changelog5Config config;
+
+    if (cl5GetState () != CL5_STATE_OPEN)
+    {
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "changelog is not open");
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "replica_execute_ldif2cl_task: %s\n", returntext);        
+        rc = LDAP_OPERATIONS_ERROR;
+        goto bail;
     }
 
-    return LDAP_SUCCESS;
+    rlist[0] = r;
+    rlist[1] = NULL;
+
+    /* file is stored in the changelog directory and is named
+       <replica name>.ldif */
+    clDir = cl5GetDir ();
+    if (NULL == clDir) {
+        rc = LDAP_OPERATIONS_ERROR;    
+        goto bail;
+    }
+
+    replica = (Replica*)object_get_data (r);
+    if (NULL == replica) {
+        rc = LDAP_OPERATIONS_ERROR;    
+        goto bail;
+    }
+
+    PR_snprintf (fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name (replica));
+
+    rc = cl5Close();
+    if (rc != CL5_SUCCESS)
+    {
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                     "failed to close changelog to import changelog data; "
+                     "changelog error - %d", rc);
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "replica_execute_ldif2cl_task: %s\n", returntext);
+        rc = LDAP_OPERATIONS_ERROR;
+        goto bail;
+    }
+    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                    "Beginning changelog import of replica \"%s\"\n",
+                    replica_get_name(replica));
+    imprc = cl5ImportLDIF (clDir, fName, rlist);
+    slapi_ch_free ((void**)&clDir);
+    if (CL5_SUCCESS == imprc)
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "Finished changelog import of replica \"%s\"\n",
+                        replica_get_name(replica));
+    }
+	else
+    {
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                     "Failed changelog import replica %s; "
+                     "changelog error - %d", replica_get_name(replica), rc);
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "replica_execute_ldif2cl_task: %s\n", returntext);
+        imprc = LDAP_OPERATIONS_ERROR;
+    }
+    changelog5_read_config (&config);
+    /* restart changelog */
+    rc = cl5Open (config.dir, &config.dbconfig);
+    if (CL5_SUCCESS == rc)
+    {
+        rc = LDAP_SUCCESS;
+    }
+    else
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+            "replica_execute_ldif2cl_task: failed to start changelog at %s\n",
+            config.dir);
+        rc = LDAP_OPERATIONS_ERROR;    
+    }
+bail:
+    /* if cl5ImportLDIF returned an error, report it first. */
+    return imprc?imprc:rc;
 }
 
 static multimaster_mtnode_extension * 
@@ -739,7 +1062,7 @@ _replica_config_get_mtnode_ext (const Slapi_Entry *e)
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_add: "
                         "configuration entry %s missing %s attribute\n",
                         escape_string(slapi_entry_get_dn((Slapi_Entry *)e), ebuf),
-						attr_replicaRoot);   
+                        attr_replicaRoot);   
         return NULL;
     }
 
@@ -756,7 +1079,7 @@ _replica_config_get_mtnode_ext (const Slapi_Entry *e)
     else
     {
         /* check if replica object already exists for the specified subtree */
-	    ext = (multimaster_mtnode_extension *)repl_con_get_ext (REPL_CON_EXT_MTNODE, mtnode);    
+        ext = (multimaster_mtnode_extension *)repl_con_get_ext (REPL_CON_EXT_MTNODE, mtnode);    
     }
     
     slapi_sdn_free (&sdn);
