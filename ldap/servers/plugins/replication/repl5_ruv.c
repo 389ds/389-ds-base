@@ -1259,12 +1259,14 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 		 replica = dl_get_next (ruv->elements, &cookie))
 	{
 		/* prefix_ruvcsn = "{replica " */
-		PR_snprintf (buff, len, "%s: %s%d%s%s} %s %s\n",
+		PR_snprintf (buff, len, "%s: %s%d%s%s}%s%s%s%s\n",
 					ruv_name ? ruv_name : type_ruvElement,
 					prefix_ruvcsn, replica->rid,
 					replica->replica_purl == NULL ? "" : " ",
 					replica->replica_purl == NULL ? "" : replica->replica_purl,
+					replica->min_csn == NULL ? "" : " ",
 					csn_as_string(replica->min_csn, PR_FALSE, csnstr1),
+					replica->csn == NULL ? "" : " ",
 					csn_as_string(replica->csn, PR_FALSE, csnstr2));
 		if (strlen (csnstr1) > 0) {
 			PR_snprintf (buff + strlen(buff) - 1, len - strlen(buff), " %08lx\n",

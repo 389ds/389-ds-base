@@ -124,6 +124,7 @@ static void replica_remove_legacy_attr (const Slapi_DN *repl_root_sdn, const cha
 static int replica_log_ruv_elements_nolock (const Replica *r);
 static void replica_replace_ruv_tombstone(Replica *r);
 static void start_agreements_for_replica (Replica *r, PRBool start);
+static void _delete_tombstone(const char *tombstone_dn, const char *uniqueid, int ext_op_flags);
 
 /* Allocates new replica and reads its state and state of its component from
  * various parts of the DIT. 
@@ -134,7 +135,6 @@ replica_new(const Slapi_DN *root)
 	Replica *r = NULL;
 	Slapi_Entry *e = NULL;
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
-	char ebuf[BUFSIZ];
 	
 	PR_ASSERT (root);
 
@@ -148,6 +148,7 @@ replica_new(const Slapi_DN *root)
 
 	    if (NULL == r)
 	    {
+			char ebuf[BUFSIZ];
 		    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to "
 			    "configure replica %s: %s\n", 
 				escape_string(slapi_sdn_get_dn(root), ebuf),
@@ -1949,6 +1950,8 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 				if (r->repl_type == REPLICA_TYPE_UPDATABLE)
 				{
 					int need_update = 0;
+#define RUV_UPDATE_PARTIAL 1
+#define RUV_UPDATE_FULL    2
 					if (rid == 0)
 					{
 						/* We can not have more than 1 ruv with the same rid
@@ -1958,7 +1961,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 						purl = multimaster_get_local_purl();
 						ruv_delete_replica(ruv, r->repl_rid);
 						ruv_add_index_replica(ruv, r->repl_rid, purl, 1);
-						need_update = 1; /* ruv changed, so write tombstone */
+						need_update = RUV_UPDATE_PARTIAL; /* ruv changed, so write tombstone */
 					}
 					else /* bug 540844: make sure the local supplier rid is first in the ruv */
 					{
@@ -1971,19 +1974,48 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 						{
 							/* . . . move the local supplier to the beginning of the list */
 							ruv_move_local_supplier_to_first(ruv, rid);
-							need_update = 1; /* must update tombstone also */
+							need_update = RUV_UPDATE_PARTIAL; /* must update tombstone also */
+						}
+						if (r->repl_rid != first_rid)
+						{
+						    /* Most likely, the replica was once deleted
+						     * and recreated with a different rid from the
+						     * previous. */
+						    /* must recreate ruv tombstone */
+						    need_update = RUV_UPDATE_FULL;
+						    if(NULL != r->repl_ruv) 
+						    {
+						        object_release(r->repl_ruv);
+						        r->repl_ruv = NULL;
+						    }
 						}
 					}
 
 					/* Update also the directory entry */
-					if (need_update) {
+					if (RUV_UPDATE_PARTIAL == need_update) {
 						/* richm 20010821 bug 556498
 						   replica_replace_ruv_tombstone acquires the repl_lock, so release
 						   the lock then reacquire it if locked */
 						if (isLocked) PR_Unlock(r->repl_lock);
 						replica_replace_ruv_tombstone(r);
 						if (isLocked) PR_Lock(r->repl_lock);
+					} else if (RUV_UPDATE_FULL == need_update) {
+						_delete_tombstone(slapi_sdn_get_dn(r->repl_root), 
+						                  RUV_STORAGE_ENTRY_UNIQUEID, 
+						                  OP_FLAG_REPL_RUV);
+						rc = replica_create_ruv_tombstone(r);
+						if (rc) {
+							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+								"_replica_configure_ruv: "
+								"failed to recreate replica ruv tombstone entry"
+								" (%s); LDAP error - %d\n",
+								escape_string(slapi_sdn_get_dn(r->repl_root),
+								              ebuf), rc);
+							goto done;
+						}
 					}
+#undef RUV_UPDATE_PARTIAL
+#undef RUV_UPDATE_FULL
 				}
 
 			    slapi_ch_free((void **)&generation);
@@ -2359,7 +2391,7 @@ _get_deletion_csn(Slapi_Entry *e)
 	
 
 static void
-_delete_tombstone(const char *tombstone_dn, const char *uniqueid)
+_delete_tombstone(const char *tombstone_dn, const char *uniqueid, int ext_op_flags)
 {
 
 	PR_ASSERT(NULL != tombstone_dn && NULL != uniqueid);
@@ -2374,7 +2406,7 @@ _delete_tombstone(const char *tombstone_dn, const char *uniqueid)
 		Slapi_PBlock *pb = slapi_pblock_new();
 		slapi_delete_internal_set_pb(pb, tombstone_dn, NULL, /* controls */
 			uniqueid, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
-			OP_FLAG_TOMBSTONE_ENTRY);
+			OP_FLAG_TOMBSTONE_ENTRY | ext_op_flags);
 		slapi_delete_internal_pb(pb);
 		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ldaprc);
 		if (LDAP_SUCCESS != ldaprc)
@@ -2434,7 +2466,7 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 			csn_as_string(deletion_csn, PR_FALSE, deletion_csn_str),
 			csn_as_string(purge_csn, PR_FALSE, purge_csn_str));
 		_delete_tombstone(slapi_entry_get_dn(entry),
-			slapi_entry_get_uniqueid(entry));
+			slapi_entry_get_uniqueid(entry), 0);
 		(*num_purged_entriesp)++;
 	}
 	else {
