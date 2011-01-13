@@ -1409,6 +1409,9 @@ typedef struct conn {
 #define CONN_FLAG_PAGEDRESULTS_UNINDEXED 128 /* If the search is unindexed,
                                               * store the info in c_flags
                                               */
+#define CONN_FLAG_PAGEDRESULTS_PROCESSING 256 /* there is an operation
+					       * processing a pagedresults search
+					       */
 #define CONN_GET_SORT_RESULT_CODE (-1)
 
 #define START_TLS_OID    "1.3.6.1.4.1.1466.20037"
