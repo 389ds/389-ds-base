@@ -1349,6 +1349,8 @@ int pagedresults_set_with_sort(Connection *conn, int flags);
 int pagedresults_get_sort_result_code(Connection *conn);
 int pagedresults_set_sort_result_code(Connection *conn, int code);
 int pagedresults_set_timelimit(Connection *conn, time_t timelimit);
+int pagedresults_check_or_set_processing(Connection *conn);
+int pagedresults_reset_processing(Connection *conn);
 
 /*
  * sort.c

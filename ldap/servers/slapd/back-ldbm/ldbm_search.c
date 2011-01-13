@@ -1145,6 +1145,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     if ( !use_extension )
     {
         cache_return( &inst->inst_cache, &(sr->sr_entry) );
+        sr->sr_entry = NULL;
     }
 
     if(sr->sr_vlventry != NULL && !use_extension )
@@ -1182,7 +1183,6 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         curtime = current_time();
         if ( tlimit != -1 && curtime > stoptime )
         {
-            slapi_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             /* in case paged results, clean up the conn */
             pagedresults_set_search_result(pb->pb_conn, NULL);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
@@ -1192,13 +1192,13 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
             delete_search_result_set( &sr );
             rc = SLAPI_FAIL_GENERAL;
+            slapi_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             goto bail;
         }
             
         /* check lookthrough limit */
         if ( llimit != -1 && sr->sr_lookthroughcount >= llimit )
         {
-            slapi_send_ldap_result( pb, LDAP_ADMINLIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             /* in case paged results, clean up the conn */
             pagedresults_set_search_result(pb->pb_conn, NULL);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
@@ -1208,6 +1208,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
             delete_search_result_set( &sr );
             rc = SLAPI_FAIL_GENERAL;
+            slapi_send_ldap_result( pb, LDAP_ADMINLIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             goto bail;
         }
             
@@ -1394,12 +1395,14 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
              else 
              {
                  cache_return ( &inst->inst_cache, &(sr->sr_entry) );
+                 sr->sr_entry = NULL;
              }
           }
           else
           {
               /* Failed the filter test, and this isn't a VLV Search */
               cache_return( &inst->inst_cache, &(sr->sr_entry) );
+              sr->sr_entry = NULL;
               if (LDAP_UNWILLING_TO_PERFORM == filter_test) {
                   /* Need to catch this error to detect the vattr loop */
                   slapi_send_ldap_result( pb, filter_test, NULL,
@@ -1459,6 +1462,7 @@ delete_search_result_set( back_search_result_set **sr )
     {
         idl_free( (*sr)->sr_candidates );
     }
+    memset( *sr, 0, sizeof( back_search_result_set ) );
     slapi_ch_free( (void**)sr );
 }
 
