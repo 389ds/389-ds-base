@@ -481,7 +481,7 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",
            	pb->pb_conn->c_connid, pb->pb_op->o_opid, 
-			"need new password" );
+			"UNPROCESSED OPERATION - need new password" );
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, 
 			NULL, NULL, 0, NULL );
 		r= 1;
