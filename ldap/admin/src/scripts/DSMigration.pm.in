@@ -1124,7 +1124,7 @@ sub migrateDS {
         if (@errs) {
             $mig->msg(@errs);
             $mig->msg($FATAL, 'error_creating_dsinstance', $inst);
-            return 0;
+            goto cleanup;
         } else {
             $mig->msg('created_dsinstance', $inst);
         }
@@ -1132,13 +1132,13 @@ sub migrateDS {
         my $src = new FileConn("$oldconfigdir/dse.ldif", 1); # read-only
         if (!$src) {
             $mig->msg($FATAL, 'error_opening_dseldif', "$oldconfigdir/dse.ldif", $!);
-            return 0;
+            goto cleanup;
         }
         my $dest = new FileConn("$mig->{configdir}/$inst/dse.ldif");
         if (!$dest) {
             $src->close();
             $mig->msg($FATAL, 'error_opening_dseldif', "$mig->{configdir}/$inst/dse.ldif", $!);
-            return 0;
+            goto cleanup;
         }
 
         @errs = migrateDSInstance($mig, $inst, $src, $dest);
@@ -1146,7 +1146,7 @@ sub migrateDS {
         $dest->close();
         if (@errs) {
             $mig->msg(@errs);
-            return 0;
+            goto cleanup;
         }
 
 	# ensure any selinux relabeling gets done if needed
@@ -1157,9 +1157,20 @@ sub migrateDS {
             $inf->{slapd}->{start_server} = 1;
             if (@errs = DSCreate::startServer($inf)) {
                 $mig->msg(@errs);
-                return 0;
+                goto cleanup;
             }
         }
+
+        next;
+
+cleanup:
+        if (-d "$mig->{configdir}/$inst") {
+            @errs = removeDSInstance($inf->{slapd}->{ServerIdentifier}, 1);
+            if (@errs) {
+                $mig->msg(@errs);
+            }
+        }
+        return 0;
     }
 
     return 1;
