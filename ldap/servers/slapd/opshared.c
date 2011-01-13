@@ -226,6 +226,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   Slapi_Backend *pr_be = NULL;
   void *pr_search_result = NULL;
   int pr_search_result_count = 0;
+  int pr_reset_processing = 0;
 
   be_list[0] = NULL;
   referral_list[0] = NULL;
@@ -396,6 +397,12 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                                                &pagesize, &curr_search_count);
           if (LDAP_SUCCESS == rc) {
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
+              if (pagedresults_check_or_set_processing(pb->pb_conn)) {
+                  send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM,
+                                   NULL, "Simple Paged Results Search already in progress on this connection", 0, NULL);
+                  goto free_and_return_nolock;
+              }
+              pr_reset_processing = 1; /* need to reset after we are done with this op */
               operation->o_flags |= OP_FLAG_PAGED_RESULTS;
               pr_be = pagedresults_get_current_be(pb->pb_conn);
               pr_search_result = pagedresults_get_search_result(pb->pb_conn);
@@ -880,6 +887,9 @@ free_and_return:
   slapi_sdn_done(&sdn);
   slapi_ch_free_string(&proxydn);
   slapi_ch_free_string(&proxystr);
+  if (pr_reset_processing) {
+    pagedresults_reset_processing(pb->pb_conn);
+  }
 }
 
 /* Returns 1 if this processing on this entry is finished
