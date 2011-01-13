@@ -792,9 +792,24 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
 
     value = slapi_entry_attr_get_charptr(e, DNA_SCOPE);
     if (value) {
+        Slapi_DN *test_dn = NULL;
+
         /* TODO - Allow multiple scope settings for a single range.  This may
          * make ordering the scopes tough when we put them in the clist. */
         entry->scope = value;
+        /* Check if the scope is a valid DN.  We want to normalize the DN
+         * first to allow old config entries with things like spaces between
+         * RDN elements to still work. */
+        test_dn = slapi_sdn_new_dn_byref(value);
+        if (slapi_dn_syntax_check(NULL, (char *)slapi_sdn_get_ndn(test_dn), 1) == 1) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                "Error: Invalid DN used as scope in entry [%s]: [%s]\n",
+                entry->dn, value);
+            ret = DNA_FAILURE;
+            slapi_sdn_free(&test_dn);
+            goto bail;
+        }
+        slapi_sdn_free(&test_dn);
     } else {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_parse_config_entry: The %s config "
