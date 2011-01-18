@@ -907,7 +907,7 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
     Object *rlist [2];
     Replica *replica;
     char fName [MAXPATHLEN];
-    char *clDir;
+    char *clDir = NULL;
 
     if (cl5GetState () != CL5_STATE_OPEN)
     {
@@ -936,7 +936,7 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
     }
 
     PR_snprintf (fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name (replica));
-    slapi_ch_free ((void**)&clDir);
+    slapi_ch_free_string (&clDir);
 
     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
                     "Beginning changelog export of replica \"%s\"\n",
@@ -965,7 +965,7 @@ static int replica_execute_ldif2cl_task (Object *r, char *returntext)
     Object *rlist [2];
     Replica *replica;
     char fName [MAXPATHLEN];
-    char *clDir;
+    char *clDir = NULL;
     changelog5Config config;
 
     if (cl5GetState () != CL5_STATE_OPEN)
@@ -1011,14 +1011,14 @@ static int replica_execute_ldif2cl_task (Object *r, char *returntext)
                     "Beginning changelog import of replica \"%s\"\n",
                     replica_get_name(replica));
     imprc = cl5ImportLDIF (clDir, fName, rlist);
-    slapi_ch_free ((void**)&clDir);
+    slapi_ch_free_string (&clDir);
     if (CL5_SUCCESS == imprc)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
                         "Finished changelog import of replica \"%s\"\n",
                         replica_get_name(replica));
     }
-	else
+    else
     {
         PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                      "Failed changelog import replica %s; "
@@ -1042,6 +1042,7 @@ static int replica_execute_ldif2cl_task (Object *r, char *returntext)
         rc = LDAP_OPERATIONS_ERROR;    
     }
 bail:
+    changelog5_config_done(&config);
     /* if cl5ImportLDIF returned an error, report it first. */
     return imprc?imprc:rc;
 }

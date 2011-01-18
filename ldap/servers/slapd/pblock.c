@@ -952,6 +952,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_bepreclose;
 		break;
+	case SLAPI_PLUGIN_BE_PRE_BACKUP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_beprebackup;
+		break;
 
 	/* backend postoperation plugin */
 	case SLAPI_PLUGIN_BE_POST_MODIFY_FN:
@@ -983,6 +989,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_bepostopen;
+		break;
+	case SLAPI_PLUGIN_BE_POST_BACKUP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_bepostbackup;
 		break;
 
 	/* internal preoperation plugin */
@@ -2372,6 +2384,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_plugin->plg_bepreclose = (IFP) value;
 		break;
+	case SLAPI_PLUGIN_BE_PRE_BACKUP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_beprebackup = (IFP) value;
+		break;
 
 	/* backend postoperation plugin */
 	case SLAPI_PLUGIN_BE_POST_MODIFY_FN:
@@ -2403,6 +2421,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_bepostopen = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_POST_BACKUP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_bepostbackup = (IFP) value;
 		break;
 
 	/* internal preoperation plugin */

@@ -43,7 +43,7 @@
 /* Header file for protect_db.c */
 
 int add_new_slapd_process(int exec_mode, int r_flag, int skip_flag);
-int is_slapd_running();
+/* int is_slapd_running(); */
 void remove_slapd_process();
 
 /*

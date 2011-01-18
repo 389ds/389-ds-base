@@ -624,6 +624,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/plugin_mr.c \
 	ldap/servers/slapd/plugin_role.c \
 	ldap/servers/slapd/plugin_syntax.c \
+	ldap/servers/slapd/protect_db.c \
 	ldap/servers/slapd/proxyauth.c \
 	ldap/servers/slapd/pw.c \
 	ldap/servers/slapd/pw_retry.c \
@@ -1264,7 +1265,6 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/main.c \
 	ldap/servers/slapd/monitor.c \
 	ldap/servers/slapd/passwd_extop.c \
-	ldap/servers/slapd/protect_db.c \
 	ldap/servers/slapd/psearch.c \
 	ldap/servers/slapd/pw_mgmt.c \
 	ldap/servers/slapd/rootdse.c \

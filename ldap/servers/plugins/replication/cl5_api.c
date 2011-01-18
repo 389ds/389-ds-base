@@ -56,7 +56,7 @@
 #endif
 
 
-#include "cl5_api.h"
+#include "cl5.h"
 #include "cl_crypt.h"
 #include "plhash.h" 
 #include "plstr.h"
@@ -1807,12 +1807,6 @@ static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode ope
 		_cl5SetDefaultDBConfig ();
 	}
 
-	/* init the clcache */
-	if (( clcache_init (&s_cl5Desc.dbEnv) != 0 )) {
-		rc = CL5_SYSTEM_ERROR;
-		goto done;
-	}
-
 	/* initialize trimming */
 	rc = _cl5TrimInit ();
 	if (rc != CL5_SUCCESS)
@@ -1852,6 +1846,12 @@ static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode ope
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 						"_cl5Open: failed to initialize db environment\n");
+		goto done;
+	}
+
+	/* init the clcache */
+	if (( clcache_init (&s_cl5Desc.dbEnv) != 0 )) {
+		rc = CL5_SYSTEM_ERROR;
 		goto done;
 	}
 
@@ -5364,7 +5364,7 @@ static int _cl5CheckMissingCSN (const CSN *csn, const RUV *supplierRuv, CL5DBFil
 
 /* Helper functions that work with individual changelog files */
 
-/* file name format : <replica name>_<replica generation>db{2,3} */
+/* file name format : <replica name>_<replica generation>db{2,3,...} */
 static PRBool _cl5FileName2Replica (const char *file_name, Object **replica)
 {
     Replica *r;
@@ -6219,4 +6219,186 @@ cl5DbDirIsEmpty(const char *dir)
 	PR_CloseDir(prDir);
 
 	return isempty;
+}
+
+/*
+ * Write RUVs into the changelog;
+ * implemented for backup to make sure the backed up changelog contains RUVs
+ * Return values: 0 -- success
+ *                1 -- failure
+ */
+int
+cl5WriteRUV()
+{
+    int rc = 0;
+    Object *file_obj = NULL;
+    CL5DBFile *dbfile = NULL;
+    int closeit = 0;
+    int slapd_pid = 0;
+
+    changelog5Config config;
+
+    /* read changelog configuration */
+    changelog5_read_config (&config);
+    if (config.dir == NULL) {
+        /* Changelog is not configured; Replication is not enabled.
+         * we don't have to update RUVs.
+         * bail out - return success */
+        goto bail;
+    }
+
+    slapd_pid = is_slapd_running();
+    if (slapd_pid <= 0) {
+        /* I'm not a server, rather a utility.
+         * And the server is NOT running.
+         * RUVs should be in the changelog.
+         * we don't have to update RUVs.
+         * bail out - return success */
+        goto bail;
+    }
+
+    if (getpid() != slapd_pid) {
+        /* I'm not a server, rather a utility.
+         * And the server IS running.
+         * RUVs are not in the changelog and no easy way to retrieve them.
+         * bail out - return failure */
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                     "cl5WriteRUV: server (pid %d) is already running; bail.\n",
+                     slapd_pid);
+        rc = 1;
+        goto bail;
+    }
+
+    /* file is stored in the changelog directory and is named
+     *        <replica name>.ldif */
+    if (CL5_STATE_OPEN != s_cl5Desc.dbState) {
+        rc = _cl5Open(config.dir, &config.dbconfig, CL5_OPEN_NORMAL);
+        if (rc != CL5_SUCCESS) {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                            "cl5WriteRUV: failed to open changelog\n");
+            goto bail;
+        }
+        s_cl5Desc.dbState = CL5_STATE_OPEN; /* force to change the state */
+        closeit = 1; /* It had not been opened; close it */
+    }
+                
+    file_obj = objset_first_obj(s_cl5Desc.dbFiles);
+    while (file_obj) {
+        dbfile = (CL5DBFile *)object_get_data(file_obj);
+        if (dbfile) {
+            _cl5WriteEntryCount(dbfile);
+            _cl5WriteRUV(dbfile, PR_TRUE);
+            _cl5WriteRUV(dbfile, PR_FALSE); 
+        }
+        file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
+    }
+    if (file_obj) {
+        object_release (file_obj);
+    }
+bail:
+    if (closeit && (CL5_STATE_OPEN == s_cl5Desc.dbState)) {
+        _cl5Close ();
+        s_cl5Desc.dbState = CL5_STATE_CLOSED; /* force to change the state */
+    }
+    changelog5_config_done(&config);
+    return rc;
+}
+
+/*
+ * Delete RUVs from the changelog;
+ * implemented for backup to clean up RUVs
+ * Return values: 0 -- success
+ *                1 -- failure
+ */
+int
+cl5DeleteRUV()
+{
+    int rc = 0;
+    Object *file_obj = NULL;
+    CL5DBFile *dbfile = NULL;
+    int slapd_pid = 0;
+    int closeit = 0;
+
+    changelog5Config config;
+
+    /* read changelog configuration */
+    changelog5_read_config (&config);
+    if (config.dir == NULL) {
+        /* Changelog is not configured; Replication is not enabled.
+         * we don't have to update RUVs.
+         * bail out - return success */
+        goto bail;
+    }
+
+    slapd_pid = is_slapd_running();
+    if (slapd_pid <= 0) {
+        /* I'm not a server, rather a utility.
+         * And the server is NOT running.
+         * RUVs should be in the changelog.
+         * we don't have to update RUVs.
+         * bail out - return success */
+        goto bail;
+    }
+
+    if (getpid() != slapd_pid) {
+        /* I'm not a server, rather a utility.
+         * And the server IS running.
+         * RUVs are not in the changelog.
+         * bail out - return success */
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                    "cl5DeleteRUV: server (pid %d) is already running; bail.\n",
+                    slapd_pid);
+        goto bail;
+    }
+
+    /* file is stored in the changelog directory and is named
+     *        <replica name>.ldif */
+    if (CL5_STATE_OPEN != s_cl5Desc.dbState) {
+        rc = _cl5Open(config.dir, &config.dbconfig, CL5_OPEN_NORMAL);
+        if (rc != CL5_SUCCESS) {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                            "cl5DeleteRUV: failed to open changelog\n");
+            goto bail;
+        }
+        s_cl5Desc.dbState = CL5_STATE_OPEN; /* force to change the state */
+        closeit = 1; /* It had been opened; no need to close */
+    }
+
+    file_obj = objset_first_obj(s_cl5Desc.dbFiles);
+    while (file_obj) {
+        dbfile = (CL5DBFile *)object_get_data(file_obj);
+
+        /* _cl5GetEntryCount deletes entry count after reading it */
+        rc = _cl5GetEntryCount(dbfile);
+        if (rc != CL5_SUCCESS)
+        {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                            "cl5DeleteRUV: failed to get/delete entry count\n");
+            goto bail;
+        }
+        /* _cl5ReadRUV deletes RUV after reading it */
+        rc = _cl5ReadRUV (dbfile->replGen, file_obj, PR_TRUE);    
+        if (rc != CL5_SUCCESS) {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                       "cl5DeleteRUV: failed to read/delete purge RUV\n");
+            goto bail;
+        }
+        rc = _cl5ReadRUV (dbfile->replGen, file_obj, PR_FALSE);    
+        if (rc != CL5_SUCCESS) {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                       "cl5DeleteRUV: failed to read/delete upper bound RUV\n");
+            goto bail;
+        }
+        file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
+    }
+    if (file_obj) {
+        object_release (file_obj);
+    }
+bail:
+    if (closeit && (CL5_STATE_OPEN == s_cl5Desc.dbState)) {
+        _cl5Close ();
+        s_cl5Desc.dbState = CL5_STATE_CLOSED; /* force to change the state */
+    }
+    changelog5_config_done(&config);
+    return rc;
 }

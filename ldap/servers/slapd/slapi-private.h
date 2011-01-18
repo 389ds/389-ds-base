@@ -1226,6 +1226,8 @@ void    DS_Sleep(PRIntervalTime ticks);
 /* plugin.c */
 int plugin_enabled(const char *plugin_name, void *identity);
 
+int is_slapd_running();
+
 #ifdef __cplusplus
 }
 #endif

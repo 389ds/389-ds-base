@@ -70,6 +70,8 @@ int changelog5_init()
 	if (config.dir == NULL)
 	{
 		/* changelog is not configured - bail out */
+		/* Note: but still changelog needs to be initialized to allow it
+		 * to configure after this point. (don't call cl5Cleanup) */
 		rc = 0; /* OK */
         goto done;
 	}

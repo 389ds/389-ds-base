@@ -299,7 +299,8 @@ multimaster_bepreop_init( Slapi_PBlock *pb )
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN, (void *) multimaster_bepreop_delete ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN, (void *) multimaster_bepreop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN, (void *) multimaster_bepreop_modrdn ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *) cl5Close ) != 0 )
+	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *) cl5Close ) != 0 ||
+	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_BACKUP_FN, (void *) cl5WriteRUV ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepreop_init failed\n" );
 		rc= -1;
@@ -317,7 +318,8 @@ multimaster_bepostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbepostopdesc ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_MODRDN_FN, (void *) multimaster_bepostop_modrdn ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_DELETE_FN, (void *) multimaster_bepostop_delete ) != 0 ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *) changelog5_init ) != 0 )
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *) changelog5_init ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN, (void *) cl5DeleteRUV ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepostop_init failed\n" );
 		rc= -1;

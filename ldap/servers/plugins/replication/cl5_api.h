@@ -455,4 +455,17 @@ int cl5_diskspace_is_available();
 */
 int cl5DbDirIsEmpty(const char *dir);
 
+/* Name: cl5WriteRUV
+   Description: Write RUVs into changelog db's.  Called before backup.
+   Parameters:	none
+   Return:		TRUE
+*/
+int cl5WriteRUV();
+
+/* Name: cl5DeleteRUV
+   Description: Read and delete RUVs from changelog db's.  Called after backup.
+   Parameters:	none
+   Return:		TRUE
+*/
+int cl5DeleteRUV();
 #endif

@@ -961,12 +961,14 @@ struct slapdplugin {
 			IFP	plg_un_bepre_add;		  /* add */
 			IFP	plg_un_bepre_delete;	  /* delete */
 			IFP	plg_un_bepre_close;		  /* close */
+			IFP	plg_un_bepre_backup;	  /* backup */
 		} plg_un_bepre;
 #define plg_bepremodify	plg_un.plg_un_bepre.plg_un_bepre_modify
 #define plg_bepremodrdn	plg_un.plg_un_bepre.plg_un_bepre_modrdn
 #define plg_bepreadd	plg_un.plg_un_bepre.plg_un_bepre_add
 #define plg_bepredelete	plg_un.plg_un_bepre.plg_un_bepre_delete
 #define plg_bepreclose	plg_un.plg_un_bepre.plg_un_bepre_close
+#define plg_beprebackup	plg_un.plg_un_bepre.plg_un_bepre_backup
 
 		/* backend post-operation plugin structure */
 		struct plg_un_bepost_operation {
@@ -975,12 +977,14 @@ struct slapdplugin {
 			IFP	plg_un_bepost_add;	  /* add */
 			IFP	plg_un_bepost_delete;	  /* delete */
 			IFP	plg_un_bepost_open;		  /* open */
+			IFP	plg_un_bepost_backup;	  /* backup */
 		} plg_un_bepost;
 #define plg_bepostmodify		plg_un.plg_un_bepost.plg_un_bepost_modify
 #define plg_bepostmodrdn		plg_un.plg_un_bepost.plg_un_bepost_modrdn
 #define plg_bepostadd			plg_un.plg_un_bepost.plg_un_bepost_add
 #define plg_bepostdelete		plg_un.plg_un_bepost.plg_un_bepost_delete
 #define plg_bepostopen			plg_un.plg_un_bepost.plg_un_bepost_open
+#define plg_bepostbackup		plg_un.plg_un_bepost.plg_un_bepost_backup
 
         /* internal  pre-operation plugin structure */
 		struct plg_un_internal_pre_operation {

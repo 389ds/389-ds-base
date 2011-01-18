@@ -5728,6 +5728,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_BE_PRE_MODRDN_FN		452
 #define SLAPI_PLUGIN_BE_PRE_DELETE_FN		453
 #define SLAPI_PLUGIN_BE_PRE_CLOSE_FN		454
+#define SLAPI_PLUGIN_BE_PRE_BACKUP_FN		455
 
 /* postoperation plugin functions */
 #define SLAPI_PLUGIN_POST_BIND_FN		501
@@ -5756,6 +5757,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_BE_POST_MODRDN_FN		552
 #define SLAPI_PLUGIN_BE_POST_DELETE_FN		553
 #define SLAPI_PLUGIN_BE_POST_OPEN_FN		554
+#define SLAPI_PLUGIN_BE_POST_BACKUP_FN		555
 
 /* matching rule plugin functions */
 #define SLAPI_PLUGIN_MR_FILTER_CREATE_FN	600
