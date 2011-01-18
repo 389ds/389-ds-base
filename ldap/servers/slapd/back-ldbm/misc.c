@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -385,6 +386,69 @@ mkdir_p(char *dir, unsigned int mode)
         return 0;
     }
 }
+
+/* This routine checks to see if there is a callback registered for retrieving
+ * RUV updates to add to the datastore transaction.  If so, it allocates a
+ * modify_context for consumption by the caller. */
+int
+ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
+{
+    char *uniqueid = NULL;
+    backend *be;
+    Slapi_Mods *smods = NULL;
+    struct backentry *bentry;
+    entry_address bentry_addr;
+    IFP fn = NULL;
+    int rc = 0;
+
+    slapi_pblock_get(pb, SLAPI_TXN_RUV_MODS_FN, (void *)&fn);
+
+    if (NULL == fn) {
+        return (0);
+    }
+
+    rc = (*fn)(pb, &uniqueid, &smods);
+
+    /* Either something went wrong when the RUV callback tried to assemble
+     * the updates for us, or there were no updates because the op doesn't
+     * target a replica. */
+    if (1 != rc || NULL == smods || NULL == uniqueid) {
+        return (rc);
+    }
+
+    slapi_pblock_get( pb, SLAPI_BACKEND, &be);
+
+    bentry_addr.dn = NULL;
+    bentry_addr.uniqueid = uniqueid;
+
+    /* Note: if we find the bentry, it will stay locked until someone calls
+     * modify_term on the mc we'll be associating the bentry with */
+    bentry = find_entry2modify_only( pb, be, &bentry_addr, NULL );
+
+    if (NULL == bentry) {
+	/* Uh oh, we couldn't find and lock the RUV entry! */
+        LDAPDebug( LDAP_DEBUG_ANY, "Error: ldbm_txn_ruv_modify_context failed to retrieve and lock RUV entry\n",
+            0, 0, 0 );
+        rc = -1;
+        goto done;
+    }
+
+    modify_init( mc, bentry );
+
+    if (modify_apply_mods( mc, smods )) {
+        LDAPDebug( LDAP_DEBUG_ANY, "Error: ldbm_txn_ruv_modify_context failed to apply updates to RUV entry\n",
+            0, 0, 0 );
+        rc = -1;
+        modify_term( mc, be );
+    }
+
+done:
+    slapi_ch_free_string( &uniqueid );
+    /* No need to free smods; they get freed along with the modify context */
+
+    return (rc);
+}
+
 
 int
 is_fullpath(char *path)

@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -97,7 +98,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int	retry_count = 0;
 	int	disk_full = 0;
 	modify_context parent_modify_c = {0};
+	modify_context ruv_c = {0};
 	int parent_found = 0;
+	int ruv_c_init = 0;
 	int rc;
 	int addingentry_id_assigned= 0;
 	int addingentry_in_cache= 0;
@@ -626,6 +629,20 @@ ldbm_back_add( Slapi_PBlock *pb )
 		parent_found = 1;
 		parententry = NULL;
 	}
+
+	if (!is_ruv && !is_fixup_operation) {
+		ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+		if (-1 == ruv_c_init) {
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"ldbm_back_add: ldbm_txn_ruv_modify_context "
+				"failed to construct RUV modify context\n",
+				0, 0, 0);
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			retval = 0;
+			goto error_return;
+		}
+	}
+
 	/*
  	 * So, we believe that no code up till here actually added anything
 	 * to persistent store. From now on, we're transacted
@@ -795,6 +812,24 @@ ldbm_back_add( Slapi_PBlock *pb )
 				goto error_return; 
 			}
 		}
+
+		if (ruv_c_init) {
+			retval = modify_update_all( be, pb, &ruv_c, &txn );
+			if (DB_LOCK_DEADLOCK == retval) {
+				/* Abort and re-try */
+				continue;
+			}
+			if (0 != retval) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"modify_update_all failed, err=%d %s\n", retval,
+					(msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				if (LDBM_OS_ERR_IS_DISKFULL(retval))
+					disk_full = 1;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+		}
+
 		if (retval == 0) {
 			break;
 		}
@@ -837,6 +872,15 @@ ldbm_back_add( Slapi_PBlock *pb )
 	{
 		/* switch the parent entry copy into play */
 		modify_switch_entries( &parent_modify_c,be);
+	}
+
+	if (ruv_c_init) {
+		if (modify_switch_entries(&ruv_c, be) != 0 ) {
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"ldbm_back_add: modify_switch_entries failed\n", 0, 0, 0);
+			goto error_return;
+		}
 	}
 
 	retval = dblayer_txn_commit(li,&txn);
@@ -920,7 +964,9 @@ common_return:
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/* JCMREPL - The bepostop is called even if the operation fails. */
 	plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_ADD_FN);
-
+	if (ruv_c_init) {
+		modify_term(&ruv_c, be);
+	}
 	modify_term(&parent_modify_c,be);
 	done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY);
 	done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY);

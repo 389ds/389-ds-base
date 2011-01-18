@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -188,6 +189,8 @@ int multimaster_preop_compare (Slapi_PBlock *pb);
 int multimaster_bepreop_add (Slapi_PBlock *pb);
 int multimaster_bepreop_delete (Slapi_PBlock *pb);
 int multimaster_bepreop_modify (Slapi_PBlock *pb);
+int replica_ruv_smods_for_op (Slapi_PBlock *pb, char **uniqueid,
+	Slapi_Mods **smods);
 int multimaster_bepreop_modrdn (Slapi_PBlock *pb);
 int multimaster_bepostop_modrdn (Slapi_PBlock *pb);
 int multimaster_bepostop_delete (Slapi_PBlock *pb);

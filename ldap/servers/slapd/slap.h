@@ -1508,6 +1508,7 @@ typedef struct slapi_pblock {
 	void		*pb_plugin_identity; /* identifies plugin for internal operation */
 	void		*pb_parent_txn;	/* parent transaction ID */
 	void		*pb_txn;		/* transaction ID */
+	IFP		pb_txn_ruv_mods_fn; /* Function to fetch RUV mods for txn */
 
 	/* Size of the database on disk, in kilobytes */
 	unsigned int	pb_dbsize;

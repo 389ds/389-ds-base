@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -365,6 +366,7 @@ int ldbm_delete_dirs(char *path);
 int mkdir_p(char *dir, unsigned int mode);
 int is_fullpath(char *path);
 char get_sep(char *path);
+int ldbm_txn_ruv_modify_context(Slapi_PBlock *pb, modify_context *mc);
 int get_value_from_string(const char *string, char *type, char **value);
 int get_values_from_string(const char *string, char *type, char ***valuearray);
 void normalize_dir(char *dir);

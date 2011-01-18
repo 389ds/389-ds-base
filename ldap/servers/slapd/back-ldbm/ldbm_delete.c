@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -68,7 +69,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int retry_count = 0;
 	int disk_full = 0;
 	int parent_found = 0;
+	int ruv_c_init = 0;
 	modify_context parent_modify_c = {0};
+	modify_context ruv_c = {0};
 	int rc = 0;
 	int ldap_result_code= LDAP_SUCCESS;
 	char *ldap_result_message= NULL;
@@ -417,6 +420,19 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 		/* XXXggood above used to be: slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE); */
 		/* JCMREPL - Add a description of what's going on? */
+	}
+
+	if (!is_ruv && !is_fixup_operation && !delete_tombstone_entry) {
+		ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+		if (-1 == ruv_c_init) {
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"ldbm_back_delete: ldbm_txn_ruv_modify_context "
+				"failed to construct RUV modify context\n",
+				0, 0, 0);
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			retval = 0;
+			goto error_return;
+		}
 	}
 
 	/*
@@ -810,6 +826,24 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				goto error_return;
 			}
 		}
+
+		if (ruv_c_init) {
+			retval = modify_update_all( be, pb, &ruv_c, &txn );
+			if (DB_LOCK_DEADLOCK == retval) {
+				/* Abort and re-try */
+				continue;
+			}
+			if (0 != retval) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"modify_update_all failed, err=%d %s\n", retval,
+					(msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				if (LDBM_OS_ERR_IS_DISKFULL(retval))
+					disk_full = 1;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+		}
+
 		if (retval == 0 ) {
 			break;
 		}
@@ -846,6 +880,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		modify_switch_entries( &parent_modify_c,be);
 	}
 	
+	if (ruv_c_init) {
+		if (modify_switch_entries(&ruv_c, be) != 0 ) {
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"ldbm_back_delete: modify_switch_entries failed\n", 0, 0, 0);
+			goto error_return;
+		}
+	}
 
 	rc= 0;
 	goto common_return;
@@ -900,6 +942,10 @@ common_return:
 	 */
 	if (!delete_tombstone_entry) {
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
+	}
+
+	if (ruv_c_init) {
+		modify_term(&ruv_c, be);
 	}
 
 diskfull_return:

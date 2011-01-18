@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -198,6 +199,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	Slapi_Mods smods = {0};
 	back_txn txn;
 	back_txnid		parent_txn;
+	modify_context		ruv_c = {0};
+	int			ruv_c_init = 0;
 	int			retval = -1;
 	char			*msg;
 	char			*errbuf = NULL;
@@ -383,6 +386,19 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
+	if (!is_ruv && !is_fixup_operation) {
+		ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+		if (-1 == ruv_c_init) {
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"ldbm_back_modify: ldbm_txn_ruv_modify_context "
+				"failed to construct RUV modify context\n",
+				0, 0, 0);
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			retval = 0;
+			goto error_return;
+		}
+	}
+
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 
 		if (retry_count > 0) {
@@ -460,6 +476,24 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			}
 
 		}
+
+		if (ruv_c_init) {
+			retval = modify_update_all( be, pb, &ruv_c, &txn );
+			if (DB_LOCK_DEADLOCK == retval) {
+				/* Abort and re-try */
+				continue;
+			}
+			if (0 != retval) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"modify_update_all failed, err=%d %s\n", retval,
+					(msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				if (LDBM_OS_ERR_IS_DISKFULL(retval))
+					disk_full = 1;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+		}
+
 		if (0 == retval) {
 			break;
 		}
@@ -468,6 +502,15 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in modify\n", 0, 0, 0 );
 	   	ldap_result_code= LDAP_OPERATIONS_ERROR;
 		goto error_return;
+	}
+
+	if (ruv_c_init) {
+		if (modify_switch_entries(&ruv_c, be) != 0 ) {
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"ldbm_back_modify: modify_switch_entries failed\n", 0, 0, 0);
+			goto error_return;
+		}
 	}
 	
 	if (cache_replace( &inst->inst_cache, e, ec ) != 0 ) {
@@ -556,6 +599,10 @@ common_return:
 	/* The bepostop is called even if the operation fails. */
 	if (!disk_full)
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN);
+
+	if (ruv_c_init) {
+		modify_term(&ruv_c, be);
+	}
 
 	if(dblock_acquired)
 	{

@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -1551,6 +1552,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_TXN:
 		(*(void **)value) = pblock->pb_txn;
 		break;
+	case SLAPI_TXN_RUV_MODS_FN:
+		(*(IFP*)value) = pblock->pb_txn_ruv_mods_fn;
+		break;
 
 	/* Search results set */
 	case SLAPI_SEARCH_RESULT_SET:
@@ -2963,6 +2967,9 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_TXN:
 		pblock->pb_txn = (void *)value;
+		break;
+	case SLAPI_TXN_RUV_MODS_FN:
+		pblock->pb_txn_ruv_mods_fn = (IFP) value;
 		break;
 
 	/* Search results set */

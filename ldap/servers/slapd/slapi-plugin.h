@@ -6036,6 +6036,7 @@ typedef struct slapi_plugindesc {
 /* transaction arguments */
 #define SLAPI_PARENT_TXN			190
 #define SLAPI_TXN				191
+#define SLAPI_TXN_RUV_MODS_FN			1901
 
 /*
  * The following are used to pass information back and forth

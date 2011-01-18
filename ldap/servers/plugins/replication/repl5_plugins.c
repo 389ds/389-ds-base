@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -692,7 +693,7 @@ multimaster_bepreop_add (Slapi_PBlock *pb)
 {
 	int rc= 0;
 	Slapi_Operation *op;
-    int is_replicated_operation;
+	int is_replicated_operation;
 	int is_fixup_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
@@ -700,9 +701,13 @@ multimaster_bepreop_add (Slapi_PBlock *pb)
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
 
 	/* For replicated operations, apply URP algorithm */
-	if (is_replicated_operation && !is_fixup_operation)
+	if (!is_fixup_operation)
 	{
-		rc = urp_add_operation(pb);
+		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
+			(void *)replica_ruv_smods_for_op);
+		if (is_replicated_operation) { 
+			rc = urp_add_operation(pb);
+		}
 	}
 
 	return rc;
@@ -713,7 +718,7 @@ multimaster_bepreop_delete (Slapi_PBlock *pb)
 {
 	int rc= 0;
 	Slapi_Operation *op;
-    int is_replicated_operation;
+	int is_replicated_operation;
 	int is_fixup_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
@@ -721,9 +726,13 @@ multimaster_bepreop_delete (Slapi_PBlock *pb)
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
 
 	/* For replicated operations, apply URP algorithm */
-	if(is_replicated_operation && !is_fixup_operation)
+	if(!is_fixup_operation)
 	{
-		rc = urp_delete_operation(pb);
+		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
+			(void *)replica_ruv_smods_for_op);
+		if (is_replicated_operation) {
+			rc = urp_delete_operation(pb);
+		}
 	}
 
 	return rc;
@@ -734,7 +743,7 @@ multimaster_bepreop_modify (Slapi_PBlock *pb)
 {
 	int rc= 0;
 	Slapi_Operation *op;
-    int is_replicated_operation;
+	int is_replicated_operation;
 	int is_fixup_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
@@ -742,9 +751,13 @@ multimaster_bepreop_modify (Slapi_PBlock *pb)
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
 
 	/* For replicated operations, apply URP algorithm */
-	if(is_replicated_operation && !is_fixup_operation)
+	if(!is_fixup_operation)
 	{
-		rc = urp_modify_operation(pb);
+		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
+			(void *)replica_ruv_smods_for_op);
+		if (is_replicated_operation) {
+			rc = urp_modify_operation(pb);
+		}
 	}
 
 	/* Clean up old state information */
@@ -758,7 +771,7 @@ multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 {
 	int rc= 0;
 	Slapi_Operation *op;
-    int is_replicated_operation;
+	int is_replicated_operation;
 	int is_fixup_operation;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
@@ -766,9 +779,13 @@ multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
 
 	/* For replicated operations, apply URP algorithm */
-	if(is_replicated_operation && !is_fixup_operation)
+	if(!is_fixup_operation)
 	{
-		rc = urp_modrdn_operation(pb);
+		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
+			(void *)replica_ruv_smods_for_op);
+		if (is_replicated_operation) {
+			rc = urp_modrdn_operation(pb);
+		}
 	}
 
 	/* Clean up old state information */

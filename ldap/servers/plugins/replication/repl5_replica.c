@@ -33,6 +33,7 @@
  * 
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
@@ -1477,19 +1478,36 @@ int replica_check_for_data_reload (Replica *r, void *arg)
             cl_cover_be = ruv_covers_ruv (upper_bound_ruv, r_ruv);
             if (!cl_cover_be)
             {
-                /* the data was reloaded and we can no longer use existing changelog */
-				char ebuf[BUFSIZ];
+                /* the data was reloaded, or we had disorderly shutdown between
+                 * writing RUV and CL, and we can no longer use existing CL */
+                char ebuf[BUFSIZ];
+                char cl_csn_str[CSN_STRSIZE] = {0};
+                char be_csn_str[CSN_STRSIZE] = {0};
+                CSN *cl_csn = NULL;
+                CSN *be_csn = NULL;
+ 
+                if (ruv_get_max_csn( r_ruv, &be_csn ) == RUV_SUCCESS) {
+                    csn_as_string( be_csn, PR_FALSE, be_csn_str );
+                    csn_free( &be_csn );
+                }
+
+                if (ruv_get_max_csn( upper_bound_ruv, &cl_csn ) == RUV_SUCCESS) {
+                    csn_as_string( cl_csn, PR_FALSE, cl_csn_str );
+                    csn_free( &cl_csn );
+                }
 
                 /* create a temporary replica object to conform to the interface */
                 r_obj = object_new (r, NULL);
 
                 /* We can't use existing changelog - remove existing file */
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
-                    "Warning: data for replica %s was reloaded and it no longer matches the data "
-                    "in the changelog (replica data %s changelog). Recreating the changelog file. This could affect replication "
-                    "with replica's consumers in which case the consumers should be reinitialized.\n",
+                    "Warning: data for replica %s does not match the data in the changelog "
+                    "(replica data (%s) %s changelog (%s)). Recreating the changelog file. "
+                    "This could affect replication with replica's consumers in which case the "
+                    "consumers should be reinitialized.\n",
                     escape_string(slapi_sdn_get_dn(r->repl_root),ebuf),
-                    ((!be_cover_cl) ? "<>" : ">") );
+                    (*be_csn_str=='\0' ? "unknown" : be_csn_str),
+                    ((!be_cover_cl) ? "<>" : ">"), (*cl_csn_str=='\0' ? "unknown" : cl_csn_str));
 
                 rc = cl5DeleteDBSync (r_obj);
 
@@ -2363,6 +2381,67 @@ replica_write_ruv (Replica *r)
 	slapi_mod_done (&smod_last_modified);
 	slapi_pblock_destroy (pb);
 }
+
+
+/* This routine figures out if an operation is for a replicated area and if so,
+ * pulls out the operation CSN and returns it through the smods parameter.
+ * It also informs the caller of the RUV entry's unique ID, since the caller
+ * may not have access to the macro in repl5.h. */
+int
+replica_ruv_smods_for_op( Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods )
+{
+    int rc = 0;
+    Object *replica_obj;
+    Object *ruv_obj;
+    Replica *replica;
+    RUV *ruv;
+    RUV *ruv_copy;
+    CSN *opcsn = NULL;
+    Slapi_Mod smod;
+    Slapi_Mod smod_last_modified;
+    Slapi_Operation *op;
+
+    replica_obj = replica_get_replica_for_op (pb);
+    slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+
+    if (NULL != replica_obj && NULL != op) {
+        opcsn = operation_get_csn( op );
+    }
+
+    /* If the op has no CSN then it's not in a replicated area, so we're done */
+    if (NULL == opcsn) {
+        return (0);
+    }
+
+    replica = (Replica*)object_get_data(replica_obj);
+    PR_ASSERT (replica);
+
+    ruv_obj = replica_get_ruv(replica);
+    PR_ASSERT (ruv_obj);
+
+    ruv = (RUV*)object_get_data(ruv_obj);
+    PR_ASSERT (ruv);
+
+    ruv_copy = ruv_dup( ruv );
+
+    object_release (ruv_obj);
+    object_release (replica_obj);
+
+    ruv_set_max_csn( ruv_copy, opcsn, NULL );
+
+    ruv_to_smod( ruv_copy, &smod );
+    ruv_last_modified_to_smod( ruv_copy, &smod_last_modified );
+
+    ruv_destroy( &ruv_copy );
+
+    *smods = slapi_mods_new();
+    slapi_mods_add_smod(*smods, &smod);
+    slapi_mods_add_smod(*smods, &smod_last_modified);
+    *uniqueid = slapi_ch_strdup( RUV_STORAGE_ENTRY_UNIQUEID );
+
+    return (1);
+}
+
 
 
 const CSN *
