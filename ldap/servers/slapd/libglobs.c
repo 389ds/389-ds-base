@@ -5671,7 +5671,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 #endif
 		PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown attribute %s will be ignored", attr);
 		slapi_log_error(SLAPI_LOG_FATAL, "config", "%s\n", errorbuf);
-		return retval;
+		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
 
 	switch (cgas->config_var_type)

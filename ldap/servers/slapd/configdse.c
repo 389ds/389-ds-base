@@ -329,9 +329,12 @@ load_config_dse(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *ret
 					retval = LDAP_SUCCESS;
 				}
 			} else {
-				if ((retval != LDAP_SUCCESS) &&
-					slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_OPATTR)) {
-					retval = LDAP_SUCCESS; /* ignore attempts to modify operational attrs */
+				if (((retval != LDAP_SUCCESS) &&
+					slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_OPATTR)) ||
+					(LDAP_NO_SUCH_ATTRIBUTE == retval)) {
+					/* ignore attempts to modify operational attrs and */
+					/* ignore attempts to modify unknown attributes for load. */
+					retval = LDAP_SUCCESS;
 				}
 			}
 		}
@@ -425,6 +428,12 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 				}
 				rc = config_set(config_attr, mods[i]->mod_bvalues, 
 								returntext, apply_mods);
+				if (LDAP_NO_SUCH_ATTRIBUTE == rc) {
+					/* config_set returns LDAP_NO_SUCH_ATTRIBUTE if the
+					 * attr is not defined for cn=config. 
+					 * map it to LDAP_UNWILLING_TO_PERFORM */
+					rc = LDAP_UNWILLING_TO_PERFORM;
+				}
 			} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
 				/* Need to allow deleting some configuration attrs */
 			    if (allowed_to_delete_attrs(config_attr)) {
@@ -458,6 +467,12 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 
 				rc = config_set(config_attr, mods[i]->mod_bvalues, returntext,
 								apply_mods);
+				if (LDAP_NO_SUCH_ATTRIBUTE == rc) {
+					/* config_set returns LDAP_NO_SUCH_ATTRIBUTE if the
+					 * attr is not defined for cn=config. 
+					 * map it to LDAP_UNWILLING_TO_PERFORM */
+					rc = LDAP_UNWILLING_TO_PERFORM;
+				}
 			}
 		}
 	}
