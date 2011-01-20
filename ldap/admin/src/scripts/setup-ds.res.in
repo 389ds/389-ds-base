@@ -33,7 +33,7 @@ dialog_setuptype_error = Invalid setup type\n\n
 
 
 # ----------- HostName Dialog Resource  ----------------
-dialog_hostname_text = Enter the fully qualified domain name of the computer\non which you're setting up server software. Using the form\n<hostname>.<domainname>\nExample: eros.example.com.\n\nTo accept the default shown in brackets, press the Enter key.\n\n
+dialog_hostname_text = Enter the fully qualified domain name of the computer\non which you're setting up server software. Using the form\n<hostname>.<domainname>\nExample: eros.example.com.\n\nTo accept the default shown in brackets, press the Enter key.\n\nWarning: This step may take a few minutes if your DNS servers\ncan not be reached or if DNS is not configured correctly.  If\nyou would rather not wait, hit Ctrl-C and run this program again\nwith the following command line option to specify the hostname:\n\n    General.FullMachineName=your.hostname.domain.name\n\n
 
 dialog_hostname_prompt = Computer name
 
