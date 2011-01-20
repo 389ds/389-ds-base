@@ -2313,10 +2313,7 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
 {
     char *replica_dn = NULL;
     Slapi_DN *replica_sdn = NULL;
-    char *replica_bind_dn = NULL;
-    Slapi_DN *replica_bind_sdn = NULL;
     Slapi_DN *range_sdn = NULL;
-    Slapi_DN *bind_sdn = NULL;
     Slapi_Entry *e = NULL;
     char *attrs[2];
     Slapi_Backend *be = NULL;
@@ -2351,7 +2348,10 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
         slapi_search_internal_get_entry(replica_sdn, attrs, &e, getPluginID());
 
         if (e) {
-            replica_bind_dn = slapi_entry_attr_get_charptr(e, DNA_REPL_BIND_DN);
+            /* Check if the passed in bind dn matches any of the replica bind dns. */
+            Slapi_Value *bind_dn_sv = slapi_value_new_string(bind_dn);
+            ret = slapi_entry_attr_has_syntax_value(e, DNA_REPL_BIND_DN, bind_dn_sv);
+            slapi_value_free(&bind_dn_sv);
         } else {
             slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                             "dna_is_replica_bind_dn: Failed to fetch replica entry "
@@ -2359,21 +2359,10 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
         }
     }
 
-    if (replica_bind_dn) {
-        /* Compare the passed in bind dn to the replica bind dn */
-        bind_sdn = slapi_sdn_new_dn_byref(bind_dn);
-        replica_bind_sdn = slapi_sdn_new_dn_passin(replica_bind_dn);
-        if (slapi_sdn_compare(bind_sdn, replica_bind_sdn) == 0) {
-            ret = 1;
-        }
-    }
-
 done:
     slapi_entry_free(e);
     slapi_sdn_free(&range_sdn);
     slapi_sdn_free(&replica_sdn);
-    slapi_sdn_free(&replica_bind_sdn);
-    slapi_sdn_free(&bind_sdn);
 
     return ret;
 }
@@ -2515,15 +2504,9 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
         }
     }
 
-    /* If we didn't get both a bind DN and a decoded password,
-     * then just free everything and return an error. */
-    if (*bind_dn && *bind_passwd) {
-        ret = 0;
-    } else {
-        slapi_ch_free_string(bind_dn);
-        slapi_ch_free_string(bind_passwd);
-        slapi_ch_free_string(bind_method);
-    }
+    /* If we got here, we succesfully got the
+     * creds.  Set the success return value. */
+    ret = 0;
 
 bail:
     slapi_ch_free_string(&transport);
