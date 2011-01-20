@@ -399,5 +399,88 @@ parse_genTime (char* from)
     tbv.bv_val = from;
     tbv.bv_len = strlen (from);
 
-	return read_genTime(&tbv);
+    return read_genTime(&tbv);
+}
+
+/*
+ * Return Value:
+ *   Success: duration in seconds
+ *   Failure: -1
+ */
+long
+parse_duration(char *value)
+{
+    char *input = NULL;
+    char *endp;
+    long duration = -1;
+    int times = 1;
+
+    if (NULL == value || '\0' == *value) {
+        goto bail;
+    }
+    input = slapi_ch_strdup(value);
+    endp = input + strlen(input) - 1;
+    while ((' ' == *endp || '\t' == *endp) && endp >= input) {
+        endp--;
+    }
+    if ((endp == input) && !isdigit(*input)) {
+        goto bail;
+    }
+    if ('d' == *endp || 'D' == *endp) {
+        times = 60 * 60 * 24;
+        *endp = '\0';
+    } else if ('h' == *endp || 'H' == *endp) {
+        times = 60 * 60;
+        *endp = '\0';
+    } else if ('m' == *endp || 'M' == *endp) {
+        times = 60;
+        *endp = '\0';
+    } else if ('s' == *endp || 'S' == *endp) {
+        times = 1;
+        *endp = '\0';
+    }
+
+    duration = strtol(input, &endp, 10);
+    if ( *endp != '\0' || errno == ERANGE ) {
+        duration = -1;
+        goto bail;
+    }
+    duration *= times;
+
+bail:
+    slapi_ch_free_string(&input);
+    return duration;
+}
+
+/*
+ * caller is responsible to free the returned string
+ */
+char *
+gen_duration(long duration)
+{
+    char *duration_str = NULL;
+    long remainder = 0;
+    long devided = duration;
+    int devider[] = {60, 60, 24, 0};
+    char *unit[] = {"", "M", "H", "D", NULL};
+    int i = 0;
+
+    if (0 > duration) {
+        goto bail;
+    } else if (0 == duration) {
+        duration_str = strdup("0");
+        goto bail;
+    }
+    do { 
+        remainder = devided % devider[i];
+        if (remainder) {
+            break;
+        }
+        devided /= devider[i++];
+    } while (devider[i]);
+
+    duration_str = slapi_ch_smprintf("%ld%s", devided, unit[i]);
+
+bail:
+    return duration_str;
 }

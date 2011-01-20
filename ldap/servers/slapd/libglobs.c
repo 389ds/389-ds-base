@@ -2163,7 +2163,6 @@ int
 config_set_pw_lockduration( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   long duration = 0; /* in minutes */
-  char *endp = NULL;
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
@@ -2173,11 +2172,11 @@ config_set_pw_lockduration( const char *attrname, char *value, char *errorbuf, i
 
   errno = 0;
   /* in seconds */
-  duration = strtol(value, &endp, 10);
+  duration = parse_duration(value);
 
-  if ( *endp != '\0' || errno == ERANGE || duration <= 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
+  if ( errno == ERANGE || duration <= 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			  "password lockout duration \"%s\" seconds is invalid. ",
+			  "password lockout duration \"%s\" is invalid. ",
 			  value );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -2195,7 +2194,6 @@ int
 config_set_pw_resetfailurecount( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   long duration = 0; /* in minutes */
-  char *endp = NULL;
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
@@ -2205,11 +2203,11 @@ config_set_pw_resetfailurecount( const char *attrname, char *value, char *errorb
 
   errno = 0;
   /* in seconds */  
-  duration = strtol(value, &endp, 10);
+  duration = parse_duration(value);
 
-  if ( *endp != '\0' || errno == ERANGE || duration < 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
+  if ( errno == ERANGE || duration < 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			  "password reset count duration \"%s\" seconds is invalid. ",
+			  "password reset count duration \"%s\" is invalid. ",
 			  value );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -3269,7 +3267,6 @@ int
 config_set_pw_maxage( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   long age;
-  char *endp = NULL;
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
@@ -3279,11 +3276,11 @@ config_set_pw_maxage( const char *attrname, char *value, char *errorbuf, int app
   
   errno = 0;
   /* age in seconds */
-  age = strtol(value, &endp, 10);
+  age = parse_duration(value);
 
-  if ( *endp != '\0' || errno == ERANGE || age <= 0 || age > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
+  if ( age <= 0 || age > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			  "%s: password maximum age \"%s\" seconds is invalid. ",
+			  "%s: password maximum age \"%s\" is invalid. ",
 			  attrname, value );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -3299,7 +3296,6 @@ int
 config_set_pw_minage( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   long age;
-  char *endPtr = NULL;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
   if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
@@ -3308,24 +3304,11 @@ config_set_pw_minage( const char *attrname, char *value, char *errorbuf, int app
   
   errno = 0;
   /* age in seconds */
-  age = strtol(value, &endPtr, 0 );
-  /* endPtr should never be NULL, but we check just in case; if the
-	 value contains no digits, or a string that does not begin with
-	 a valid digit (e.g. "z2"), the days will be 0, and endPtr will
-	 point to the beginning of value; if days contains at least 1
-	 valid digit string, endPtr will point to the character after
-	 the end of the first valid digit string in value.  Example:
-	 value = "   2 3 " endPtr will point at the space character
-	 between the 2 and the 3.  So, we should be able to simply
-	 check to see if the character at *(endPtr - 1) is a digit.
-	 */
-  if ( (age < 0) || 
-		(age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
-	   (endPtr == NULL) || (endPtr == value) || !isdigit(*(endPtr-1)) ||
-            errno == ERANGE ) {
+  age = parse_duration(value);
+  if ( age < 0 || age > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			   "%s: password minimum age \"%s\" seconds is invalid. ",
-			   attrname, value );
+			  "%s: password minimum age \"%s\" is invalid. ",
+			  attrname, value );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -3340,7 +3323,6 @@ int
 config_set_pw_warning( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   long sec;
-  char *endp = NULL;
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
@@ -3350,11 +3332,11 @@ config_set_pw_warning( const char *attrname, char *value, char *errorbuf, int ap
   
   errno = 0;
   /* in seconds */
-  sec = strtol(value, &endp, 10);
+  sec = parse_duration(value);
 
-  if (*endp != '\0' || errno == ERANGE || sec < 0) {
+  if (errno == ERANGE || sec < 0) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			   "%s: password warning age \"%s\" seconds is invalid, password warning "
+			   "%s: password warning age \"%s\" is invalid, password warning "
 			   "age must range from 0 to %ld seconds", 
 			   attrname, value, LONG_MAX );
 	retVal = LDAP_OPERATIONS_ERROR;

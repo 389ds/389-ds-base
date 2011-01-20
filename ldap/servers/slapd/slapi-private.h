@@ -1117,10 +1117,10 @@ time_t read_localTime(struct berval* from);
 time_t parse_localTime(char* from);
 void write_localTime(time_t from, struct berval* into);
 time_t current_time( void );
-char* format_genTime(time_t from);
 void write_genTime(time_t from, struct berval* into);
 time_t read_genTime(struct berval* from);
-time_t parse_genTime(char* from);
+long parse_duration(char *value);
+char *gen_duration(long duration);
 
 /* Client SSL code */
 int slapd_security_library_is_initialized( void );
@@ -1225,8 +1225,6 @@ void    DS_Sleep(PRIntervalTime ticks);
 
 /* plugin.c */
 int plugin_enabled(const char *plugin_name, void *identity);
-
-int is_slapd_running();
 
 #ifdef __cplusplus
 }
