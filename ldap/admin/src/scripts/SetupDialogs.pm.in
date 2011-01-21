@@ -94,7 +94,10 @@ my $dsktune = new DialogYesNo (
     ['dialog_dsktune_prompt']
 );
 
+$? = 0; # clear error condition
 my $dsktune_output = `@bindir@/dsktune`;
+my $dsktune_result = $?;
+$dsktune->{defaultIsYes} = $dsktune_result ? 0 : 1;
 $dsktune->{text} = [$dsktune->{text}, $dsktune_output];
 
 my $setuptype = new Dialog (
