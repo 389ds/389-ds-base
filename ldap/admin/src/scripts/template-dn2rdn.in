@@ -16,7 +16,7 @@ cd {{SERVERBIN-DIR}}
 if [ $# -eq 0 ]
 then
 	bak_dir={{BAK-DIR}}/reindex_`date +%Y_%m_%d_%H_%M_%S`
-	./ns-slapd upgradedb -D {{CONFIG-DIR}} -f -r -a "$bak_dir"
+	./ns-slapd upgradedb -D {{CONFIG-DIR}} -r -a "$bak_dir"
 else
 	echo "Usage: dn2rdn"
 	exit 1
