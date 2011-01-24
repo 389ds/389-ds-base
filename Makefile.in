@@ -19,6 +19,7 @@
 
 
 
+
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -49,9 +50,10 @@ noinst_PROGRAMS = makstrdb$(EXEEXT)
 @SOLARIS_TRUE@am__append_3 = ldap/servers/slapd/tools/ldclt/opCheck.c
 subdir = .
 DIST_COMMON = $(am__configure_deps) $(dist_man_MANS) \
-	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
-	$(srcdir)/config.h.in $(top_srcdir)/configure compile \
-	config.guess config.sub depcomp install-sh ltmain.sh missing
+	$(serverinc_HEADERS) $(srcdir)/Makefile.am \
+	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
+	$(top_srcdir)/configure compile config.guess config.sub \
+	depcomp install-sh ltmain.sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
@@ -119,8 +121,9 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" \
 	"$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" \
 	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" \
-	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" \
-	"$(DESTDIR)$(schemadir)" "$(DESTDIR)$(updatedir)"
+	"$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" \
+	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" \
+	"$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libacctpolicy_plugin_la_DEPENDENCIES = libslapd.la \
@@ -1023,8 +1026,10 @@ man8dir = $(mandir)/man8
 NROFF = nroff
 MANS = $(dist_man_MANS)
 DATA = $(config_DATA) $(inf_DATA) $(initconfig_DATA) $(mib_DATA) \
-	$(nodist_property_DATA) $(perl_DATA) $(property_DATA) \
-	$(sampledata_DATA) $(schema_DATA) $(update_DATA)
+	$(nodist_property_DATA) $(perl_DATA) $(pkgconfig_DATA) \
+	$(property_DATA) $(sampledata_DATA) $(schema_DATA) \
+	$(update_DATA)
+HEADERS = $(serverinc_HEADERS)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -1226,6 +1231,7 @@ sbindir = @sbindir@
 schemadir = $(sysconfdir)@schemadir@
 scripttemplatedir = @scripttemplatedir@
 serverdir = $(libdir)@serverdir@
+serverincdir = $(includedir)@serverincdir@
 serverplugindir = $(libdir)@serverplugindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -1288,6 +1294,10 @@ NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
 @OPENLDAP_FALSE@LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
 @OPENLDAP_TRUE@LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ -lldif@ol_libver@ -llber@ol_libver@
+@OPENLDAP_FALSE@ldaplib = mozldap
+@OPENLDAP_TRUE@ldaplib = openldap
+@OPENLDAP_FALSE@ldaplib_defs = 
+@OPENLDAP_TRUE@ldaplib_defs = -DUSE_OPENLDAP
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
 SVRCORE_LINK = @svrcore_lib@ -lsvrcore
@@ -1337,6 +1347,7 @@ CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
 
 taskdir = $(datadir)@scripttemplatedir@
+pkgconfigdir = $(libdir)/pkgconfig
 server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 
 # this is how to add optional plugins
@@ -1553,6 +1564,15 @@ mib_DATA = ldap/servers/snmp/RFC-1215.txt \
 	ldap/servers/snmp/NETWORK-SERVICES-MIB.txt \
 	ldap/servers/snmp/RFC1155-SMI.txt \
 	ldap/servers/snmp/SNMPv2-SMI.txt
+
+pkgconfig_DATA = $(PACKAGE_NAME).pc
+
+#------------------------
+# header files
+#------------------------
+serverinc_HEADERS = ldap/servers/plugins/replication/repl-session-plugin.h \
+	ldap/servers/slapd/slapi-plugin.h \
+	ldap/servers/plugins/replication/winsync-plugin.h
 
 
 #------------------------
@@ -2416,6 +2436,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@datadir\@,$(datadir),g' \
 @BUNDLE_FALSE@	-e 's,@schemadir\@,$(schemadir),g' \
 @BUNDLE_FALSE@	-e 's,@serverdir\@,$(serverdir),g' \
+@BUNDLE_FALSE@	-e 's,@serverincdir\@,$(serverincdir),g' \
 @BUNDLE_FALSE@	-e 's,@serverplugindir\@,$(serverplugindir),g' \
 @BUNDLE_FALSE@	-e 's,@taskdir\@,$(taskdir),g' \
 @BUNDLE_FALSE@	-e 's,@configdir\@,$(configdir),g' \
@@ -2451,7 +2472,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_FALSE@	-e 's,@perlexec\@,@perlexec@,g' \
 @BUNDLE_FALSE@	-e 's,@initconfigdir\@,$(initconfigdir),g' \
-@BUNDLE_FALSE@	-e 's,@updatedir\@,$(updatedir),g'
+@BUNDLE_FALSE@	-e 's,@updatedir\@,$(updatedir),g' \
+@BUNDLE_FALSE@	-e 's,@ldaplib\@,$(ldaplib),g' \
+@BUNDLE_FALSE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -2484,6 +2507,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@datadir\@,$(datadir),g' \
 @BUNDLE_TRUE@	-e 's,@schemadir\@,$(schemadir),g' \
 @BUNDLE_TRUE@	-e 's,@serverdir\@,$(serverdir),g' \
+@BUNDLE_TRUE@	-e 's,@serverincdir\@,$(serverincdir),g' \
 @BUNDLE_TRUE@	-e 's,@serverplugindir\@,$(serverplugindir),g' \
 @BUNDLE_TRUE@	-e 's,@taskdir\@,$(taskdir),g' \
 @BUNDLE_TRUE@	-e 's,@configdir\@,$(configdir),g' \
@@ -2519,7 +2543,9 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_TRUE@	-e 's,@perlexec\@,@perlexec@,g' \
 @BUNDLE_TRUE@	-e 's,@initconfigdir\@,$(initconfigdir),g'\
-@BUNDLE_TRUE@	-e 's,@updatedir\@,$(updatedir),g'
+@BUNDLE_TRUE@	-e 's,@updatedir\@,$(updatedir),g' \
+@BUNDLE_TRUE@	-e 's,@ldaplib\@,$(ldaplib),g' \
+@BUNDLE_TRUE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -9858,6 +9884,26 @@ uninstall-perlDATA:
 	test -n "$$files" || exit 0; \
 	echo " ( cd '$(DESTDIR)$(perldir)' && rm -f" $$files ")"; \
 	cd "$(DESTDIR)$(perldir)" && rm -f $$files
+install-pkgconfigDATA: $(pkgconfig_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(pkgconfigdir)" || $(MKDIR_P) "$(DESTDIR)$(pkgconfigdir)"
+	@list='$(pkgconfig_DATA)'; test -n "$(pkgconfigdir)" || list=; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(pkgconfigdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(pkgconfigdir)" || exit $$?; \
+	done
+
+uninstall-pkgconfigDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(pkgconfig_DATA)'; test -n "$(pkgconfigdir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	test -n "$$files" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(pkgconfigdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(pkgconfigdir)" && rm -f $$files
 install-propertyDATA: $(property_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(propertydir)" || $(MKDIR_P) "$(DESTDIR)$(propertydir)"
@@ -9938,6 +9984,26 @@ uninstall-updateDATA:
 	test -n "$$files" || exit 0; \
 	echo " ( cd '$(DESTDIR)$(updatedir)' && rm -f" $$files ")"; \
 	cd "$(DESTDIR)$(updatedir)" && rm -f $$files
+install-serverincHEADERS: $(serverinc_HEADERS)
+	@$(NORMAL_INSTALL)
+	test -z "$(serverincdir)" || $(MKDIR_P) "$(DESTDIR)$(serverincdir)"
+	@list='$(serverinc_HEADERS)'; test -n "$(serverincdir)" || list=; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(serverincdir)'"; \
+	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(serverincdir)" || exit $$?; \
+	done
+
+uninstall-serverincHEADERS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(serverinc_HEADERS)'; test -n "$(serverincdir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	test -n "$$files" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(serverincdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(serverincdir)" && rm -f $$files
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -10154,9 +10220,9 @@ check-am: all-am
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
-		$(MANS) $(DATA) config.h
+		$(MANS) $(DATA) $(HEADERS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" "$(DESTDIR)$(updatedir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -10298,9 +10364,11 @@ info-am:
 install-data-am: install-configDATA install-infDATA \
 	install-initSCRIPTS install-initconfigDATA install-man \
 	install-mibDATA install-nodist_propertyDATA install-perlDATA \
-	install-propertyDATA install-sampledataDATA install-schemaDATA \
-	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
-	install-taskSCRIPTS install-updateDATA install-updateSCRIPTS
+	install-pkgconfigDATA install-propertyDATA \
+	install-sampledataDATA install-schemaDATA \
+	install-serverLTLIBRARIES install-serverincHEADERS \
+	install-serverpluginLTLIBRARIES install-taskSCRIPTS \
+	install-updateDATA install-updateSCRIPTS
 
 install-dvi: install-dvi-am
 
@@ -10353,9 +10421,10 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-configDATA uninstall-infDATA uninstall-initSCRIPTS \
 	uninstall-initconfigDATA uninstall-man uninstall-mibDATA \
 	uninstall-nodist_propertyDATA uninstall-perlDATA \
-	uninstall-propertyDATA uninstall-sampledataDATA \
-	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
-	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
+	uninstall-pkgconfigDATA uninstall-propertyDATA \
+	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
+	uninstall-sbinSCRIPTS uninstall-schemaDATA \
+	uninstall-serverLTLIBRARIES uninstall-serverincHEADERS \
 	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS \
 	uninstall-updateDATA uninstall-updateSCRIPTS
 
@@ -10379,25 +10448,26 @@ uninstall-man: uninstall-man1 uninstall-man8
 	install-initSCRIPTS install-initconfigDATA install-man \
 	install-man1 install-man8 install-mibDATA \
 	install-nodist_propertyDATA install-pdf install-pdf-am \
-	install-perlDATA install-propertyDATA install-ps install-ps-am \
-	install-sampledataDATA install-sbinPROGRAMS \
-	install-sbinSCRIPTS install-schemaDATA \
-	install-serverLTLIBRARIES install-serverpluginLTLIBRARIES \
-	install-strip install-taskSCRIPTS install-updateDATA \
-	install-updateSCRIPTS installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags uninstall uninstall-am \
-	uninstall-binPROGRAMS uninstall-binSCRIPTS \
-	uninstall-configDATA uninstall-infDATA uninstall-initSCRIPTS \
-	uninstall-initconfigDATA uninstall-man uninstall-man1 \
-	uninstall-man8 uninstall-mibDATA uninstall-nodist_propertyDATA \
-	uninstall-perlDATA uninstall-propertyDATA \
+	install-perlDATA install-pkgconfigDATA install-propertyDATA \
+	install-ps install-ps-am install-sampledataDATA \
+	install-sbinPROGRAMS install-sbinSCRIPTS install-schemaDATA \
+	install-serverLTLIBRARIES install-serverincHEADERS \
+	install-serverpluginLTLIBRARIES install-strip \
+	install-taskSCRIPTS install-updateDATA install-updateSCRIPTS \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags uninstall uninstall-am uninstall-binPROGRAMS \
+	uninstall-binSCRIPTS uninstall-configDATA uninstall-infDATA \
+	uninstall-initSCRIPTS uninstall-initconfigDATA uninstall-man \
+	uninstall-man1 uninstall-man8 uninstall-mibDATA \
+	uninstall-nodist_propertyDATA uninstall-perlDATA \
+	uninstall-pkgconfigDATA uninstall-propertyDATA \
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
-	uninstall-serverLTLIBRARIES uninstall-serverpluginLTLIBRARIES \
-	uninstall-taskSCRIPTS uninstall-updateDATA \
-	uninstall-updateSCRIPTS
+	uninstall-serverLTLIBRARIES uninstall-serverincHEADERS \
+	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS \
+	uninstall-updateDATA uninstall-updateSCRIPTS
 
 
 clean-local:
@@ -10427,6 +10497,10 @@ ns-slapd.properties: makstrdb
 	$(fixupcmd) $^ > $@
 
 %/$(PACKAGE_NAME): %/initconfig.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME).pc: %/dirsrv.pc.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 

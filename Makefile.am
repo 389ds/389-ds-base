@@ -46,8 +46,12 @@ NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
 if OPENLDAP
 LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ -lldif@ol_libver@ -llber@ol_libver@
+ldaplib = openldap
+ldaplib_defs = -DUSE_OPENLDAP
 else
 LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
+ldaplib = mozldap
+ldaplib_defs =
 endif
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
@@ -135,6 +139,8 @@ perldir = $(libdir)@perldir@
 infdir = $(datadir)@infdir@
 mibdir = $(datadir)@mibdir@
 updatedir = $(datadir)@updatedir@
+pkgconfigdir = $(libdir)/pkgconfig
+serverincdir = $(includedir)@serverincdir@
 
 defaultuser=@defaultuser@
 defaultgroup=@defaultgroup@
@@ -383,6 +389,15 @@ mib_DATA = ldap/servers/snmp/RFC-1215.txt \
 	ldap/servers/snmp/NETWORK-SERVICES-MIB.txt \
 	ldap/servers/snmp/RFC1155-SMI.txt \
 	ldap/servers/snmp/SNMPv2-SMI.txt
+
+pkgconfig_DATA = $(PACKAGE_NAME).pc
+
+#------------------------
+# header files
+#------------------------
+serverinc_HEADERS = ldap/servers/plugins/replication/repl-session-plugin.h \
+	ldap/servers/slapd/slapi-plugin.h \
+	ldap/servers/plugins/replication/winsync-plugin.h
 
 #------------------------
 # man pages
@@ -1340,6 +1355,7 @@ fixupcmd = sed \
 	-e 's,@datadir\@,$(datadir),g' \
 	-e 's,@schemadir\@,$(schemadir),g' \
 	-e 's,@serverdir\@,$(serverdir),g' \
+	-e 's,@serverincdir\@,$(serverincdir),g' \
 	-e 's,@serverplugindir\@,$(serverplugindir),g' \
 	-e 's,@taskdir\@,$(taskdir),g' \
 	-e 's,@configdir\@,$(configdir),g' \
@@ -1375,7 +1391,9 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g'\
-	-e 's,@updatedir\@,$(updatedir),g'
+	-e 's,@updatedir\@,$(updatedir),g' \
+	-e 's,@ldaplib\@,$(ldaplib),g' \
+	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1398,6 +1416,7 @@ fixupcmd = sed \
 	-e 's,@datadir\@,$(datadir),g' \
 	-e 's,@schemadir\@,$(schemadir),g' \
 	-e 's,@serverdir\@,$(serverdir),g' \
+	-e 's,@serverincdir\@,$(serverincdir),g' \
 	-e 's,@serverplugindir\@,$(serverplugindir),g' \
 	-e 's,@taskdir\@,$(taskdir),g' \
 	-e 's,@configdir\@,$(configdir),g' \
@@ -1433,7 +1452,9 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \
-	-e 's,@updatedir\@,$(updatedir),g'
+	-e 's,@updatedir\@,$(updatedir),g' \
+	-e 's,@ldaplib\@,$(ldaplib),g' \
+	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
 endif
 
 %: %.in
@@ -1445,6 +1466,10 @@ endif
 	$(fixupcmd) $^ > $@
 
 %/$(PACKAGE_NAME): %/initconfig.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME).pc: %/dirsrv.pc.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 

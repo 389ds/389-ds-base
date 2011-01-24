@@ -232,6 +232,8 @@ if test "$with_fhs_opt" = "yes"; then
   updatedir=/updates
   # relative to libdir
   serverdir=
+  # relative to includedir
+  serverincdir=
   # relative to libdir
   serverplugindir=/plugins
   # relative to datadir
@@ -260,6 +262,8 @@ else
   updatedir=/$PACKAGE_NAME/updates
   # relative to libdir
   serverdir=/$PACKAGE_NAME
+  # relative to includedir
+  serverincdir=/$PACKAGE_NAME
   # relative to libdir
   serverplugindir=/$PACKAGE_NAME/plugins
   # relative to datadir
@@ -293,6 +297,7 @@ AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
 AC_SUBST(schemadir)
 AC_SUBST(serverdir)
+AC_SUBST(serverincdir)
 AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
 AC_SUBST(perldir)
