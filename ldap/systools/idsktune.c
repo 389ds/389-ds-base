@@ -223,6 +223,7 @@ int flag_mproc = 0;
 int tcp_max_listen = 0;
 int flag_nonroot = 0;
 int flag_carrier = 0;
+int flag_warnings = 0;
 
 int conn_thread = 1;
 int maxconn = 0;
@@ -649,6 +650,7 @@ int sun_check_kern_arch(char *a,char *b)
     printf("%s: The kernel architecture is %s.  " VENDOR " products are optimized\nfor the UltraSPARC architecture and will exhibit poorer performance on earlier\nmachines.\n\n","WARNING",b);
     if (flag_html) printf("</P>\n");
     flag_arch_bad = 1;
+    flag_warnings++;
   }
   return 0;
 }
@@ -748,6 +750,7 @@ int sun_check_kern_ver(char *a,char *b)
 	     "mid-1998 are lacking many tuning fixes, uprading is strongly recommended.\n\n","WARNING",pp,rp);
       pw = 1;
       flag_os_bad = 1;
+      flag_warnings++;
     }
   }
 
@@ -845,6 +848,7 @@ int sun_check_etcsystem(void)
       printf("NOTICE : priority_paging is set to 0 in /etc/system.\n\n");
     } else {
       printf("WARNING: priority_paging is not set to 1 in /etc/system.  See Sun FAQ 2833.\n\n");
+      flag_warnings++;
     }
   }
 
@@ -1051,6 +1055,7 @@ int check_tcpmaxlisten(char *a,char *b)
     } else if (tcp_max_listen < 65536) {
       
       printf("%s: The kernel has a configured limit of %d for the maximum listen\nbacklog queue size.  Setting a value larger than this with ndd will not have\nan effect.\n","WARNING",tcp_max_listen);
+      flag_warnings++;
       
       if (flag_mproc == 0) {
 	printf("The value can be raised by adding the following line to the file\n/etc/init.d/inetinit:\n");
@@ -1125,6 +1130,7 @@ linux_check_release(void)
   if (fgets(osl,128,fp) == NULL) {
 	printf("WARNING: Cannot determine the kernel number.\n");
 	pclose(fp);
+	flag_warnings++;
 	goto done;
   }
   pclose(fp);
@@ -1353,6 +1359,7 @@ static void gen_tests (void)
 	       iii_patches[i].intel ? "(Intel)" : "");
 	if (flag_html) printf("</P>\n");
 	pur++;
+	flag_warnings++;
       }
 
     } /* for */
@@ -1465,6 +1472,7 @@ static void gen_tests (void)
     printf("%s: %dMB of physical memory is available on the system. %dMB is recommended for best performance on large production system.\n\n",
 	   "WARNING",
 	   phys_mb,mem_rec);
+    flag_warnings++;
   } else if (flag_debug) {
     printf("DEBUG  : Memory size %d\n",phys_mb);
   }
@@ -1527,6 +1535,7 @@ static void gen_tests (void)
     if (flag_html) printf("<P>\n");
     if (flag_quick == 0) {
       printf("WARNING: This program should be run by the superuser to collect kernel\ninformation on the overriding maximum backlog queue size and IP tuning.\n\n");
+      flag_warnings++;
     }
     flag_nonroot = 1;
     if (flag_html) printf("</P>\n");
@@ -1621,6 +1630,7 @@ int tru64_check_tcbhashsize(char *a,char *b)
 
   if (strcmp(b,"unknown attribute") == 0) {
     printf("WARNING: TCP tuning parameters are missing.\n\n");
+    flag_warnings++;
     return 0;
   }
   i = atoi(b);
@@ -1628,6 +1638,7 @@ int tru64_check_tcbhashsize(char *a,char *b)
   if (i < 32) {
     printf("WARNING: The inet tuning parameter tcbhashsize is set too low (%d),\nand should be raised to between 512 and 1024.\n\n",i);
     flag_tru64_tuning_needed = 1;
+    flag_warnings++;
   } else if (i < 512) {
     printf("NOTICE : The inet tuning parameter tcbhashsize is set too low (%d),\nand should be raised to between 512 and 1024.\n\n",i);
     flag_tru64_tuning_needed = 1;
@@ -1644,6 +1655,7 @@ int tru64_check_present_smp(char *a,char *b)
     printf("WARNING: If this is a multiprocessor system, additional tuning patches need\nto be installed, as sysconfig -q inet tuning parameter %s is missing.\n",
 	   a);
     printf("NOTICE : If this is a uniprocessor system, the above warning can be ignored.\n\n");
+    flag_warnings++;
   } else {
     if (flag_debug) printf("DEBUG  : %s %s\n", a, b);
   }
@@ -1657,6 +1669,7 @@ int tru64_check_msl(char *a,char *b)
 
   if (strcmp(b,"unknown attribute") == 0) {
     printf("WARNING: TCP tuning parameters are missing.\n\n");
+    flag_warnings++;
     return 0;
   }
   i = atoi(b);
@@ -1709,6 +1722,7 @@ int tru64_check_threads(char *a,char *b)
   if (i < 512) {
     printf("WARNING: The proc tuning parameter max-threads-per-user should be raised from\n%d to at least 512.\n\n",i);
     flag_tru64_tuning_needed = 1;
+    flag_warnings++;
   } else {
     if (flag_debug) printf("DEBUG  : %s %s\n",a,b); 
   }
@@ -1754,6 +1768,7 @@ static void sysconfig_tests (void)
       } else if (iv < 878) {
 	printf("WARNING: Tru64 UNIX versions prior to 4.0D require a patch to provide \noptimal Internet performance.\n\n");	
 	flag_tru64_40b = 1;
+	flag_warnings++;
       } else {
 	if (flag_debug) printf("DEBUG  : Digital UNIX %s %s\n",
 			       u.release,u.version);
@@ -1914,6 +1929,7 @@ static void hp_check_index(char *index_path, char *desc, int yr, int mo)
             else
             {
               printf("WARNING: Bad formatted date: %s\n", datep);
+              flag_warnings++;
             }
           }
         }
@@ -1935,6 +1951,7 @@ static void hp_check_qpk()
 
   if (access(HP_PATCH_DIR,X_OK) == -1) {
     printf("\nWARNING : Only the superuser can check which patches are installed.  You must\nrun dsktune as root to ensure the necessary patches are present.  If required\npatches are not present, the server may not function correctly.\n\n");
+    flag_warnings++;
     return;
   }
 
@@ -1959,6 +1976,7 @@ static void hp_check_qpk()
         if (access(fbuf, R_OK) == -1)
         {
           printf("WARNING : Patch info file %s does not exist or not readable.\n\n", fbuf);
+          flag_warnings++;
         }
         else
         {
@@ -1983,6 +2001,7 @@ static void hp_pthreads_tests(void)
 
   if (_SYSTEM_SUPPORTS_LP64OS(cpu64) == 0) {
     printf("WARNING: This system does not support 64 bit operating systems.\n\n");
+    flag_warnings++;
   } else {
     if (flag_debug) printf("DEBUG  : _SC_HW_32_64_CAPABLE 0x%lx\n",cpu64);
   }
@@ -1993,6 +2012,7 @@ static void hp_pthreads_tests(void)
     printf("WARNING: only %lu threads are available in a process.\n", tmax);
     printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change max_thread_proc\n");
     printf("and nkthreads as needed.\n\n");
+    flag_warnings++;
   } else {
     if (flag_debug) printf("DEBUG  : HP-UX max threads %lu\n", tmax);
   }
@@ -2006,6 +2026,7 @@ static void hp_pthreads_tests(void)
   if (omax < 120) {
     printf("WARNING: only %lu files can be opened at once in a process.\n",omax);
     printf("NOTICE : use kmtune or sam Kernel Configuration Parameters to change maxfiles.\n");    
+    flag_warnings++;
   } else {
     if (flag_debug) printf("DEBUG  : HP-UX maxfiles %ld\n", omax);    
   }
@@ -2097,12 +2118,17 @@ static void ndd_tests (void)
         printf("NDD_VALUE[10]=%d\n\n", 30000);
         if (flag_html) printf("</PRE><P>\n");
 #endif
-        if (flag_carrier) flag_os_bad = 1;
+        if (flag_carrier) {
+          flag_os_bad = 1;
+        } else {
+          flag_warnings++;
+        }
       } else if (ndd_tcp_time_wait_interval < 10000) {
         if (flag_html) printf("<P>\n");
         printf("WARNING: The %s is set to %ld milliseconds.  Values below\n30000 may cause problems.\n\n",
 	  name_tcp_time_wait_interval, ndd_tcp_time_wait_interval);
         if (flag_html) printf("</P>\n");
+        flag_warnings++;
       } else {
         if (flag_debug) {
 	  printf("DEBUG  : %s %ld\n", name_tcp_time_wait_interval, ndd_tcp_time_wait_interval);
@@ -2143,6 +2169,7 @@ static void ndd_tests (void)
 	if (flag_html) printf("</P>\n");      
 	
 	printf("\n");
+	flag_warnings++;
       }
       
       if (tcp_max_listen && ndd_tcp_conn_req_max_q0 > tcp_max_listen) {
@@ -2200,6 +2227,7 @@ static void ndd_tests (void)
       
       if (tcp_max_listen && ndd_tcp_conn_req_max_q > tcp_max_listen) {
 	printf("WARNING: %s (value %ld) is larger than the kernel will allow.\n\n", NAME_TCP_CONN_REQ_MAX_Q, ndd_tcp_conn_req_max_q);
+	flag_warnings++;
       }
       
       if (flag_html) printf("</P><P>\n");      
@@ -2234,6 +2262,7 @@ static void ndd_tests (void)
 	  printf("WARNING: There may be a bug in Solaris 2.5.1 which causes infinite\nretransmission when the %s (%ld s) is set.  As there is\nno known fix, upgrading to Solaris 2.6 or later is recommended.\n\n",
 		 NAME_TCP_KEEPALIVE_INTERVAL, ndd_tcp_keepalive_interval/1000);
 	  if (flag_html) printf("</P><P>\n");      
+	  flag_warnings++;
 	} else {
 	  if (ndd_tcp_keepalive_interval < 60000) {
 	    if (flag_html) printf("</P><P>\n");      
@@ -2459,6 +2488,7 @@ static void ndd_tests (void)
     if (ndd_get_tcp("net.inet.tcp.delayed_ack",&ndd_tcp_deferred_ack_interval) == 0) {
       if (ndd_tcp_deferred_ack_interval > 0) {
 	printf("WARNING: net.inet.tcp.delayed_ack is currently set. This will\ncause FreeBSD to insert artificial delays in the LDAP protocol.  It should\nbe reduced during load testing.\n");
+	flag_warnings++;
       } else {
 	if (flag_debug) printf("DEBUG  : ndd /dev/tcp tcp_deferred_ack_interval %ld\n", ndd_tcp_deferred_ack_interval);
       }
@@ -2473,7 +2503,11 @@ static void ndd_tests (void)
 	printf("%s: tcp_deferred_ack_interval is currently %ld milliseconds. This will\ncause the operating system to insert artificial delays in the LDAP protocol.  It should\nbe reduced during load testing.\n", 
 	       flag_carrier ? "ERROR  " : "WARNING",
 	       ndd_tcp_deferred_ack_interval);
-	if (flag_carrier) flag_os_bad = 1;
+	if (flag_carrier) {
+	  flag_os_bad = 1;
+	} else {
+	  flag_warnings++;
+	}
 #ifdef NAME_NDD_CFG_FILE
       printf("An entry similar to the following can be\nadded to the %s file:\n", NAME_NDD_CFG_FILE);
       if (flag_html) printf("</P><PRE>\n");      
@@ -2736,10 +2770,12 @@ static int check_fs_options(char *reqdir,char mntbuf[MAXPATHLEN])
       } else {
 	printf("WARNING: largefiles option is not present on mount of %s, \nalthough it is present on other file systems.  Files on the %s\nfile system will be limited to 2GB in size.\n\n", mntbuf, mntbuf);	
       }
+      flag_warnings++;
     }
   } else {
     if (any_found == 0) {
       printf("WARNING: no file system mounted with largefiles option.\n\n");
+      flag_warnings++;
     }
   }
 #endif
@@ -2913,6 +2949,7 @@ static void check_mem_size(int ro,char *rn)
     printf("WARNING: processes are limited by %s to %ld MB in size.\n",
 	   rn, m_mb);
     m_change_needed = 1;
+    flag_warnings++;
   }
 
   if (m_change_needed) {
@@ -2941,6 +2978,7 @@ static void limits_tests(void)
       flag_os_bad = 1;
     } else {
       printf("WARNING: There are only %ld file descriptors (hard limit) available, which\nlimit the number of simultaneous connections.  ",r.rlim_max);
+      flag_warnings++;
     }
 
 #if defined(__sun)
@@ -2975,6 +3013,7 @@ static void limits_tests(void)
       flag_os_bad = 1;
     } else {
       printf("WARNING: There are only %ld file descriptors (soft limit) available, which\nlimit the number of simultaneous connections.  ",r.rlim_cur);
+      flag_warnings++;
     }
 
 #if defined(__sun) || defined(__hpux)
@@ -3335,6 +3374,11 @@ int main(int argc,char *argv[])
   if (flag_os_bad || flag_arch_bad) {
     if (flag_html) printf("<P>\n");
     printf("ERROR  : The above errors MUST be corrected before proceeding.\n\n");
+    if (flag_html) printf("</P>\n");
+    exit(1);
+  } else if (flag_warnings) {
+    if (flag_html) printf("<P>\n");
+    printf("WARNING  : The warning messages above should be reviewed before proceeding.\n\n");
     if (flag_html) printf("</P>\n");
     exit(1);
   }
