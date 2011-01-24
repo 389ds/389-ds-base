@@ -465,11 +465,11 @@ if ($pwfile ne ""){
 # Read the password from terminal
 	print "Bind Password: ";
 	# Disable console echo
-	system("stty -echo");
+	system("stty -echo") if -t STDIN;
 	# read the answer
 	$rootpw = <STDIN>;
 	# Enable console echo
-	system("stty echo");
+	system("stty echo") if -t STDIN;
 	print "\n";
 	chop($rootpw); # trim trailing newline
 }

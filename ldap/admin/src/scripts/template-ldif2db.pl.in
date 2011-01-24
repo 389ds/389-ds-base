@@ -169,11 +169,11 @@ if ($passwdfile ne ""){
 # Read the password from terminal
 	print "Bind Password: ";
 	# Disable console echo
-	system("stty -echo");
+	system("stty -echo") if -t STDIN;
 	# read the answer
 	$passwd = <STDIN>;
 	# Enable console echo
-	system("stty echo");
+	system("stty echo") if -t STDIN;
 	print "\n";
 	chop($passwd); # trim trailing newline
 }
