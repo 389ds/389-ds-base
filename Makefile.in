@@ -1235,6 +1235,7 @@ serverincdir = $(includedir)@serverincdir@
 serverplugindir = $(libdir)@serverplugindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
+sttyexec = @sttyexec@
 svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
 sysconfdir = @sysconfdir@
@@ -2471,6 +2472,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 @BUNDLE_FALSE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_FALSE@	-e 's,@perlexec\@,@perlexec@,g' \
+@BUNDLE_FALSE@	-e 's,@sttyexec\@,@sttyexec@,g' \
 @BUNDLE_FALSE@	-e 's,@initconfigdir\@,$(initconfigdir),g' \
 @BUNDLE_FALSE@	-e 's,@updatedir\@,$(updatedir),g' \
 @BUNDLE_FALSE@	-e 's,@ldaplib\@,$(ldaplib),g' \
@@ -2542,6 +2544,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 @BUNDLE_TRUE@	-e 's,@with_selinux\@,@with_selinux@,g' \
 @BUNDLE_TRUE@	-e 's,@perlexec\@,@perlexec@,g' \
+@BUNDLE_TRUE@	-e 's,@sttyexec\@,@sttyexec@,g' \
 @BUNDLE_TRUE@	-e 's,@initconfigdir\@,$(initconfigdir),g'\
 @BUNDLE_TRUE@	-e 's,@updatedir\@,$(updatedir),g' \
 @BUNDLE_TRUE@	-e 's,@ldaplib\@,$(ldaplib),g' \

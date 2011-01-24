@@ -1390,6 +1390,7 @@ fixupcmd = sed \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
+	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g'\
 	-e 's,@updatedir\@,$(updatedir),g' \
 	-e 's,@ldaplib\@,$(ldaplib),g' \
@@ -1451,6 +1452,7 @@ fixupcmd = sed \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
+	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \
 	-e 's,@updatedir\@,$(updatedir),g' \
 	-e 's,@ldaplib\@,$(ldaplib),g' \

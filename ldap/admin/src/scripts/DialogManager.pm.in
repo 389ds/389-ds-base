@@ -164,13 +164,13 @@ sub showPrompt {
     print ": ";
     # if we are prompting for a password, disable console echo
     if ($ispwd) {
-        system("stty -echo");
+        system("@sttyexec@ -echo");
     }
     # read the answer
     my $ans = <STDIN>;
     # if we are prompting for a password, enable console echo
     if ($ispwd) {
-        system("stty echo");
+        system("@sttyexec@ echo");
         print "\n";
     }
     chop($ans); # trim trailing newline

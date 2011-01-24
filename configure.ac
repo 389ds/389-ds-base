@@ -357,6 +357,15 @@ AC_ARG_WITH(initddir,
 # and HP-UX, /usr/bin/perl is 32 bit, so we cannot use
 # those with our 64 bit compiled product.
 perlexec='/usr/bin/env perl'
+# we use stty in perl scripts to disable password echo
+# this doesn't work unless the full absolute path of the
+# stty command is used e.g. system("stty -echo") does not
+# work but system("/bin/stty -echo") does work
+# since the path of stty may not be the same on all
+# platforms, we set the default here to /bin/stty and
+# allow that value to be overridden in the platform
+# specific section below
+sttyexec=/bin/stty
 case $host in
   *-*-linux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
@@ -467,6 +476,7 @@ if test -n "$with_initddir" ; then
 fi
 AC_SUBST(initdir)
 AC_SUBST(perlexec)
+AC_SUBST(sttyexec)
 
 # set default initconfigdir if not already set
 # value will be set so as to be relative to $(sysconfdir)
