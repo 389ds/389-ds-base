@@ -111,15 +111,22 @@ chaining_back_compare ( Slapi_PBlock *pb )
 	/*
 	 * Grab a connection handle
 	 */
-
-	if ((rc = cb_get_connection(cb->pool,&ld,&cnx,NULL,&cnxerrbuf)) != LDAP_SUCCESS) {
-                cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, cnxerrbuf, 0, NULL);
-				if (cnxerrbuf) {
-					PR_smprintf_free(cnxerrbuf);
-				}
-                /* ping the farm. If the farm is unreachable, we increment the counter */
-                cb_ping_farm(cb,NULL,0);
-                return 1;
+	rc = cb_get_connection(cb->pool, &ld, &cnx, NULL, &cnxerrbuf);
+	if (LDAP_SUCCESS != rc) {
+		static int warned_get_conn = 0;
+		if (!warned_get_conn) {
+			slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			                "cb_get_connection failed (%d) %s\n",
+			                rc, ldap_err2string(rc));
+			warned_get_conn = 1;
+		}
+		cb_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, 
+		                    cnxerrbuf, 0, NULL);
+		slapi_ch_free_string(&cnxerrbuf);
+		/* ping the farm. 
+		 * If the farm is unreachable, we increment the counter */
+		cb_ping_farm(cb, NULL, 0);
+		return 1;
 	}
 
  	/*
@@ -195,20 +202,28 @@ chaining_back_compare ( Slapi_PBlock *pb )
 		default:
 			matched_msg=error_msg=NULL;
 			parse_rc = ldap_parse_result( ld, res, &rc, &matched_msg, 
-         			&error_msg, &referrals, &serverctrls, 1 );
-      			if ( parse_rc != LDAP_SUCCESS ) {
-
-                		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
-                        		ldap_err2string(parse_rc), 0, NULL);
+			                          &error_msg, &referrals, &serverctrls, 1 );
+			if ( parse_rc != LDAP_SUCCESS ) {
+				static int warned_parse_rc = 0;
+				if (!warned_parse_rc) {
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						            "%s%s%s\n", 
+						            matched_msg?matched_msg:"",
+						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
+					                ldap_err2string(parse_rc));
+					warned_parse_rc = 1;
+				}
+				cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
+				                     ENDUSERMSG, 0, NULL );
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(parse_rc));
-		       		slapi_ch_free((void **)&matched_msg);
-		       		slapi_ch_free((void **)&error_msg);
+				slapi_ch_free((void **)&matched_msg);
+				slapi_ch_free((void **)&error_msg);
 				if (serverctrls)
-	                                ldap_controls_free(serverctrls);
+					ldap_controls_free(serverctrls);
 				/* jarnou: free referrals */
-                                if (referrals)
-                                        charray_free(referrals);
-                		return 1;
+				if (referrals)
+					charray_free(referrals);
+				return 1;
 			}
 
 			switch ( rc ) {

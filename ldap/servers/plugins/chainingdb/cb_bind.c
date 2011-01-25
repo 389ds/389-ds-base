@@ -94,8 +94,8 @@ static int
 cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
         struct berval *creds, LDAPControl **reqctrls,
         char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
-        LDAPControl ***resctrlsp , int * status) {
-
+        LDAPControl ***resctrlsp , int * status )
+{
     int                 rc, msgid;
     char                **referrals;
     struct timeval      timeout_copy, *timeout;
@@ -112,10 +112,18 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
     timeout_copy.tv_usec = pool->conn.bind_timeout.tv_usec;
     PR_RWLock_Unlock(pool->rwl_config_lock);
 
-    if (( rc = cb_get_connection( pool, &ld ,&cnx, NULL, &cnxerrbuf)) != LDAP_SUCCESS ) {
-	*errmsgp=cnxerrbuf;
-        goto release_and_return;
-    }
+	rc = cb_get_connection(pool, &ld, &cnx, NULL, &cnxerrbuf);
+	if (LDAP_SUCCESS != rc) {
+		static int warned_get_conn = 0;
+		if (!warned_get_conn) {
+			slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			                "cb_get_connection failed (%d) %s\n",
+			                rc, ldap_err2string(rc));
+			warned_get_conn = 1;
+		}
+		*errmsgp = cnxerrbuf;
+		goto release_and_return;
+	}
        
     /* Send the bind operation (need to retry on LDAP_SERVER_DOWN) */
     
@@ -171,8 +179,15 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
 		*errmsgp=slapi_ch_strdup(errmsgp2);
 	
 	if ( LDAP_SUCCESS != rc )  {
-        	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-			"cb_sasl_bind_once_s failed (%s)\n",ldap_err2string(rc));
+		static int warned_bind_once = 0;
+		if (!warned_bind_once) {
+			slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			                "cb_sasl_bind_once_s failed (%s%s%s)\n",
+			                matcheddnp?matcheddnp:"", 
+							(matcheddnp&&(*matcheddnp!='\0'))?": ":"",
+			                ldap_err2string(rc));
+			warned_bind_once = 1;
+		}
 	}
     } else {
 
@@ -274,29 +289,30 @@ chainingdb_bind( Slapi_PBlock *pb ) {
 	bind_retry=cb->bind_retry;
         PR_RWLock_Unlock(cb->rwl_config_lock);
 
-	if ( LDAP_SUCCESS == (rc = cb_sasl_bind_s(pb, cb->bind_pool, bind_retry, dn,method,mechanism,
-		creds,reqctrls,&matcheddn,&errmsg,&urls,&resctrls, &status))) {
-        	rc = status;
-            	allocated_errmsg = 1;
-	} else
-	if ( LDAP_USER_CANCELLED != rc ) {
-   		errmsg = ldap_err2string( rc );
+	rc = cb_sasl_bind_s(pb, cb->bind_pool, bind_retry, dn, method, 
+	                    mechanism, creds, reqctrls, &matcheddn, &errmsg, 
+	                    &urls, &resctrls, &status);
+	if ( LDAP_SUCCESS == rc ) {
+		rc = status;
+		allocated_errmsg = 1;
+	} else if ( LDAP_USER_CANCELLED != rc ) {
+		errmsg = ldap_err2string( rc );
 		if (rc == LDAP_TIMEOUT) {
-		  cb_ping_farm(cb,NULL,0);
+			cb_ping_farm(cb,NULL,0);
 		}
-            	rc = LDAP_OPERATIONS_ERROR;
+		rc = LDAP_OPERATIONS_ERROR;
 	}
 
- 	if ( rc != LDAP_USER_CANCELLED ) {  /* not abandoned */
-        	if ( resctrls != NULL ) {
-            		slapi_pblock_set( pb, SLAPI_RESCONTROLS, resctrls );
+	if ( rc != LDAP_USER_CANCELLED ) {  /* not abandoned */
+		if ( resctrls != NULL ) {
+			slapi_pblock_set( pb, SLAPI_RESCONTROLS, resctrls );
 			freectrls=0;
-        	}
+		}
 
 		if ( rc != LDAP_SUCCESS ) {
-        		cb_send_ldap_result( pb, rc, matcheddn, errmsg, 0, urls );
+			cb_send_ldap_result( pb, rc, matcheddn, errmsg, 0, urls );
 		}
-    	}
+	}
 
     	if ( urls != NULL ) {
         	cb_free_bervals( urls );

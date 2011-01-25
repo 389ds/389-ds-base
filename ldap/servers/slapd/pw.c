@@ -457,7 +457,7 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 				if ( pwsp->pws_dec != NULL )	
 				{
 					/* check that the prefix of the cipher is the same name
-						as the schema name */
+						as the scheme name */
 					prefixOK = checkPrefix(cipher, pwsp->pws_name, &encrypt);
 					if ( prefixOK == -1 )
 					{
@@ -468,7 +468,7 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 					}
 					else if ( prefixOK == 1 )
 					{
-						/* schema names are different */
+						/* scheme names are different */
 						ret_code = -1;
 						goto free_and_return;
 					}

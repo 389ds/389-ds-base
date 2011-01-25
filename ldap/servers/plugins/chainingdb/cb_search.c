@@ -214,18 +214,25 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	}
 
 	/* Grab a connection handle */
-
-	if ( LDAP_SUCCESS != (rc = cb_get_connection(cb->pool,&ld,&cnx,&timeout,&cnxerrbuf))) {
-		if (rc == LDAP_TIMELIMIT_EXCEEDED)
-			cb_send_ldap_result( pb, rc, NULL,cnxerrbuf, 0, NULL);
-		else
-			cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,cnxerrbuf, 0, NULL);
-
-		if (cnxerrbuf) {
-			PR_smprintf_free(cnxerrbuf);
+	rc = cb_get_connection(cb->pool, &ld, &cnx, &timeout, &cnxerrbuf);
+	if (LDAP_SUCCESS != rc) {
+		static int warned_get_conn = 0;
+		if (!warned_get_conn) {
+			slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			                "cb_get_connection failed (%d) %s\n",
+			                rc, ldap_err2string(rc));
+			warned_get_conn = 1;
 		}
-                /* ping the farm. If the farm is unreachable, we increment the counter */
-                cb_ping_farm(cb,NULL,0);
+		if (rc == LDAP_TIMELIMIT_EXCEEDED) {
+			cb_send_ldap_result(pb, rc, NULL, cnxerrbuf, 0, NULL);
+		} else {
+			cb_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
+			                    cnxerrbuf, 0, NULL);
+		}
+		slapi_ch_free_string(&cnxerrbuf);
+		/* ping the farm.
+		 * If the farm is unreachable, we increment the counter */
+		cb_ping_farm(cb, NULL, 0);
 		return 1;
 	}
 
@@ -358,17 +365,34 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 				error_msg=NULL;
 				referrals=NULL;
 				serverctrls=NULL;
-                        	parse_rc=ldap_parse_result(ld,res,&rc,&matched_msg,
+				parse_rc=ldap_parse_result(ld,res,&rc,&matched_msg,
 					&error_msg,&referrals, &serverctrls, 0 );
-                        	if ( parse_rc != LDAP_SUCCESS ) {
-                                	cb_send_ldap_result(pb,parse_rc,
-						matched_msg,error_msg,0,NULL);
+				if ( parse_rc != LDAP_SUCCESS ) {
+					static int warned_parse_rc = 0;
+					if (!warned_parse_rc && error_msg) {
+						slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						            "%s%s%s\n", 
+						            matched_msg?matched_msg:"",
+						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
+						            error_msg );
+						warned_parse_rc = 1;
+					}
+					cb_send_ldap_result( pb, parse_rc, NULL,
+					                     ENDUSERMSG, 0, NULL );
 					rc=-1;
-                        	} else
-                        	if ( rc != LDAP_SUCCESS ) {
-                                	slapi_ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
-                                	cb_send_ldap_result( pb, rc, matched_msg,
-                                        	error_msg,0,NULL);
+				} else if ( rc != LDAP_SUCCESS ) {
+					static int warned_rc = 0;
+					if (!warned_rc) {
+						slapi_ldap_get_lderrno( ctx->ld, 
+						                        &matched_msg, &error_msg );
+						slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						            "%s%s%s\n", 
+						            matched_msg?matched_msg:"",
+						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
+						            error_msg );
+						warned_rc = 1;
+					}
+					cb_send_ldap_result( pb, rc, NULL, ENDUSERMSG, 0, NULL);
 					/* BEWARE: matched_msg and error_msg points */
 					/* to ld fields.			    */
 					matched_msg=NULL;
@@ -689,25 +713,42 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
 		case LDAP_RES_SEARCH_RESULT:
 
-         		/* Parse the final result received from the server. Note the last
-            		 * argument is a non-zero value, which indicates that the 
-            		 * LDAPMessage structure will be freed when done. 
+			/* Parse the final result received from the server. Note the last
+			 * argument is a non-zero value, which indicates that the 
+			 * LDAPMessage structure will be freed when done. 
 			 */
 
         		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
         		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
 
-         		parse_rc = ldap_parse_result( ctx->ld, res, 
+			parse_rc = ldap_parse_result( ctx->ld, res, 
 				&rc,&matched_msg,&error_msg, &referrals, &serverctrls, 1 );
-         		if ( parse_rc != LDAP_SUCCESS ) {
-	                	cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, matched_msg, 
-					ldap_err2string( parse_rc ), 0, NULL);
-				
+			if ( parse_rc != LDAP_SUCCESS ) {
+				static int warned_parse_rc = 0;
+				if (!warned_parse_rc) {
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						            "%s%s%s\n", 
+						            matched_msg?matched_msg:"",
+						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
+					                ldap_err2string( parse_rc ));
+					warned_parse_rc = 1;
+				}
+				cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
+				                     ENDUSERMSG, 0, NULL );
 				retcode=-1;
 			} else
 			if ( rc != LDAP_SUCCESS ) {
+				static int warned_rc = 0;
 				slapi_ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
-	                	cb_send_ldap_result( pb, rc, matched_msg, NULL, 0, NULL);
+				if (!warned_rc) {
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						            "%s%s%s\n", 
+						            matched_msg?matched_msg:"",
+						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
+						            error_msg );
+					warned_rc = 1;
+				}
+				cb_send_ldap_result( pb, rc, matched_msg, ENDUSERMSG, 0, NULL );
 
 				/* BEWARE: Don't free matched_msg && error_msg */
 				/* Points to the ld fields		       */

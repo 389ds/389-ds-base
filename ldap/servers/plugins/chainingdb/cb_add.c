@@ -110,16 +110,24 @@ chaining_back_add ( Slapi_PBlock *pb )
 	}
 
 	/* Grab a connection handle */
-	if ((rc = cb_get_connection(cb->pool,&ld,&cnx,NULL,&cnxerrbuf)) != LDAP_SUCCESS) {
-                cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR,NULL,cnxerrbuf, 0, NULL);
-		ldap_mods_free(mods,1);
-		if (cnxerrbuf) {
-		  PR_smprintf_free(cnxerrbuf);
+	rc = cb_get_connection(cb->pool, &ld, &cnx, NULL, &cnxerrbuf);
+	if (LDAP_SUCCESS != rc) {
+		static int warned_get_conn = 0;
+		if (!warned_get_conn) {
+			slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			                "cb_get_connection failed (%d) %s\n",
+			                rc, ldap_err2string(rc));
+			warned_get_conn = 1;
 		}
-                /* ping the farm. If the farm is unreachable, we increment the counter */
-                cb_ping_farm(cb,NULL,0);
+		cb_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, 
+		                    cnxerrbuf, 0, NULL);
+		ldap_mods_free(mods, 1);
+		slapi_ch_free_string(&cnxerrbuf);
+		/* ping the farm.
+		 * If the farm is unreachable, we increment the counter */
+		cb_ping_farm(cb, NULL, 0);
 
-                return -1;
+		return -1;
 	}
 	
 	/* Control management */
@@ -149,12 +157,14 @@ chaining_back_add ( Slapi_PBlock *pb )
 		ldap_controls_free(ctrls);
 
 	if ( rc != LDAP_SUCCESS ) {
+		slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+		                 "ldap_add_ext failed -- %s\n", ldap_err2string(rc) );
 
-                cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
-                        ldap_err2string(rc), 0, NULL);
+		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
+		                     ENDUSERMSG, 0, NULL );
 		cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
 		ldap_mods_free(mods,1);
-                return -1;
+		return -1;
 	}
 
 	/* 
@@ -208,35 +218,53 @@ chaining_back_add ( Slapi_PBlock *pb )
 			parse_rc = ldap_parse_result( ld, res, &rc, &matched_msg, 
          			&error_msg, &referrals, &serverctrls, 1 );
 
-      			if ( parse_rc != LDAP_SUCCESS ) {
-                		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
-                        		ldap_err2string(parse_rc), 0, NULL);
+			if ( parse_rc != LDAP_SUCCESS ) {
+				static int warned_parse_rc = 0;
+				if (!warned_parse_rc) {
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						            "%s%s%s\n", 
+						            matched_msg?matched_msg:"",
+						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
+					                ldap_err2string(parse_rc));
+					warned_parse_rc = 1;
+				}
+				cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
+				                     ENDUSERMSG, 0, NULL );
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(parse_rc));
 				ldap_mods_free(mods,1);
-			       	slapi_ch_free((void **)&matched_msg);
+				slapi_ch_free((void **)&matched_msg);
 				slapi_ch_free((void **)&error_msg);
 				if (serverctrls)
-	                                ldap_controls_free(serverctrls);
+					ldap_controls_free(serverctrls);
 				/* jarnou: free referrals */
-                                if (referrals)
-                                        charray_free(referrals);
-                		return -1;
+				if (referrals)
+					charray_free(referrals);
+				return -1;
 			}
 
-      			if ( rc != LDAP_SUCCESS ) {
+			if ( rc != LDAP_SUCCESS ) {
 				struct berval ** refs =  referrals2berval(referrals); 
-                        	cb_send_ldap_result( pb, rc, matched_msg, error_msg, 0, refs);
+				static int warned_rc = 0;
+				if (!warned_rc && error_msg) {
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						            "%s%s%s\n", 
+						            matched_msg?matched_msg:"",
+						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
+						            error_msg );
+					warned_rc = 1;
+				}
+				cb_send_ldap_result( pb, rc, matched_msg, ENDUSERMSG, 0, refs);
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
 				ldap_mods_free(mods,1);
 				slapi_ch_free((void **)&matched_msg);
-			       	slapi_ch_free((void **)&error_msg);
+				slapi_ch_free((void **)&error_msg);
 				if (refs) 
 					ber_bvecfree(refs);
 				if (referrals) 
 					charray_free(referrals);
 				if (serverctrls)
-	                                ldap_controls_free(serverctrls);
-                		return -1;
+					ldap_controls_free(serverctrls);
+				return -1;
 			}
 
 			ldap_mods_free(mods,1 );

@@ -503,4 +503,6 @@ char* get_localhost_DNS();
 /* this function is called when state of a backend changes */
 void cb_be_state_change (void *handle, char *be_name, int old_be_state, int new_be_state);
 
+#define ENDUSERMSG "database configuration error - please contact the system administrator"
+
 #endif

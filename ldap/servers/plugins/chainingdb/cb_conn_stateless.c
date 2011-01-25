@@ -151,8 +151,13 @@ void cb_close_conn_pool(cb_conn_pool * pool) {
  * NOTE : if maxtime NULL, use operation timeout
  */
 
-int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,struct timeval * maxtime, char **errmsg) {
-
+int
+cb_get_connection(cb_conn_pool * pool,
+                  LDAP ** lld,
+                  cb_outgoing_conn ** cc,
+                  struct timeval * maxtime,
+                  char **errmsg)
+{
 	int 				rc=LDAP_SUCCESS;          /* optimistic */
 	cb_outgoing_conn	*conn=NULL;
 	cb_outgoing_conn	*connprev=NULL;
@@ -213,13 +218,17 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 
 	/* For stupid admins */
 	if (maxconnections <=0) {
-                slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                	"<== cb_get_connection error (no connection available)\n");
+		static int warned_maxconn = 0;
+		if (!warned_maxconn) {
+			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			    "<== cb_get_connection error (no connection available)\n");
+			warned_maxconn = 1;
+		}
 		if ( errmsg ) {
-			*errmsg = PR_smprintf(error1, "no connection available");
+			*errmsg = slapi_ch_smprintf("%s", ENDUSERMSG);
 		}
 		return LDAP_CONNECT_ERROR;
-        }
+	}
 
 	if (maxtime) {
 		if (maxtime->tv_sec != 0) {
@@ -324,13 +333,17 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
              		 */
 
 			/* No need to lock. url can't be changed dynamically */
-			if ((ld=slapi_ldap_init(hostname,port,secure,isMultiThread))== NULL) { 
-				if (cb_debug_on()) {
-                        		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                               		"Can't contact server <%s> port <%d>.\n", hostname, port);
+			ld = slapi_ldap_init(hostname, port, secure, isMultiThread);
+			if (NULL == ld) {
+				static int warned_init = 0;
+				if (!warned_init) {
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+					                 "Can't contact server <%s> port <%d>.\n",
+					                 hostname, port );
+					warned_init = 1;
 				}
 				if ( errmsg ) {
-					*errmsg = PR_smprintf(error1,"unknown reason");
+					*errmsg = slapi_ch_smprintf("%s", ENDUSERMSG);
 				}
 				rc = LDAP_CONNECT_ERROR;
 				goto unlock_and_return;
@@ -363,11 +376,18 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 				/* Pb occured in decryption: stop now, binding will fail */
 				if ( ret == -1 )
 				{
-					if (cb_debug_on()) {
-                               			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                                       		"Internal credentials decoding error\n.");
+					static int warned_pw = 0;
+					if (!warned_pw) {
+						slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+							"Internal credentials decoding error; "
+							"password storage schemes do not match or "
+							"encrypted password is corrupted.\n");
+						warned_pw = 1;
 					}
-					rc = LDAP_LOCAL_ERROR;
+					if ( errmsg ) {
+						*errmsg = slapi_ch_smprintf("%s", ENDUSERMSG);
+					}
+					rc = LDAP_INVALID_CREDENTIALS;
 					goto unlock_and_return;
 				}
 
@@ -378,26 +398,33 @@ int cb_get_connection(cb_conn_pool * pool, LDAP ** lld, cb_outgoing_conn ** cc,s
 				if ( ret == 0 ) slapi_ch_free_string(&plain); /* free plain only if it has been duplicated */
 
 				if ( rc == LDAP_TIMEOUT ) {
-					if (cb_debug_on()) {
-                                	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-                                        	"Can't bind to server <%s> port <%d>. (%s)\n",
-                                        	hostname, port, "time-out expired");
+					static int warned_bind_timeout = 0;
+					if (!warned_bind_timeout) {
+						slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+							"Can't bind to server <%s> port <%d>. (%s)\n",
+							hostname, port, "time-out expired");
+						warned_bind_timeout = 1;
+					}
+					if ( errmsg ) {
+						*errmsg = slapi_ch_smprintf("%s", ENDUSERMSG);
 					}
 					rc = LDAP_CONNECT_ERROR;
 					goto unlock_and_return;
 				} else if ( rc != LDAP_SUCCESS ) {
 					prerr=PR_GetError();
-					if (cb_debug_on()) {
-						slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					static int warned_bind_err = 0;
+					if (!warned_bind_err) {
+						slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
 								"Can't bind to server <%s> port <%d>. "
 								"(LDAP error %d - %s; "
 								SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
 								hostname, port, rc,
 								ldap_err2string(rc),
 								prerr, slapd_pr_strerror(prerr));
+						warned_bind_err = 1;
 					}
 					if ( errmsg ) {
-						*errmsg = PR_smprintf(error2, ldap_err2string(rc));
+						*errmsg = slapi_ch_smprintf("%s", ENDUSERMSG);
 					}
 					rc = LDAP_CONNECT_ERROR;
 					goto unlock_and_return;
