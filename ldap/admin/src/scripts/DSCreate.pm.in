@@ -161,6 +161,7 @@ sub changeOwnerMode {
     my $mode = shift;
     my $it = shift;
     my $gidonly = shift;
+    my $othermode = shift;
 
     my $uid = getpwnam $inf->{General}->{SuiteSpotUserID};
     my $gid = -1; # default to leave it alone
@@ -170,7 +171,8 @@ sub changeOwnerMode {
         $gid = getgrnam $inf->{General}->{SuiteSpotGroup};
     }
 
-    $mode = getMode($inf, $mode, $gidonly);
+    $mode = getMode($inf, $mode, $othermode);
+
     $! = 0; # clear errno
     chmod $mode, $it;
     if ($!) {
@@ -236,9 +238,8 @@ sub makeDSDirs {
         debug(3, "Root user " . $inf->{General}->{SuiteSpotUserID} . " already has access to $inf->{slapd}->{run_dir} - skipping\n");
     } else {
         my $dir = $inf->{slapd}->{run_dir};
-        # rwx by user only, or by user & group if a group is defined
-        @errs = changeOwnerMode($inf, 7, $dir, 7);
-        debug(3, "Changed owner of $dir to " . $inf->{General}->{SuiteSpotUserID} . ": error @errs\n");
+        # rwx by user only, or by user & group if a group is defined.  Also only change the group ownership.
+        @errs = changeOwnerMode($inf, 7, $dir, 1);
         debug(3, "\t" . `/bin/ls -ld $dir`);
     }
     # set the group of the parent dir of config_dir and inst_dir
@@ -246,8 +247,8 @@ sub makeDSDirs {
         for my $kw (qw(inst_dir config_dir)) {
             my $dir = $inf->{slapd}->{$kw};
             my $parent = dirname($dir);
-                  # changeOwnerMode(inf, mode, file, gidonly & default mode);
-            @errs = changeOwnerMode($inf, 7, $parent, 5);
+            # changeOwnerMode(inf, mode, file, gidonly, othermode);
+            @errs = changeOwnerMode($inf, 7, $parent, 1, 5);
             if (@errs) {
                 return @errs;
             }
