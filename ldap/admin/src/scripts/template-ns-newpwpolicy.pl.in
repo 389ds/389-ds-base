@@ -47,8 +47,13 @@ use lib qw(@perlpath@);
 $prefix = "{{DS-ROOT}}";
 
 $ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
-$ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
-$ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
+
+libpath_add("$prefix@nss_libdir@");
+libpath_add("$prefix/usr/lib");
+libpath_add("@nss_libdir@");
+libpath_add("/usr/lib");
+
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 # Add new password policy specific entries
 
 #############################################################################
@@ -282,4 +287,16 @@ sub usage {
 			print( STDERR "Entry \"cn=config\" modified\n\n") if $opt_v;
 		}
 	} # end of $opt_U
+}
+
+sub libpath_add {
+    my $libpath = shift;
+
+    if ($libpath) {
+        if ($ENV{'LD_LIBRARY_PATH'}) {
+            $ENV{'LD_LIBRARY_PATH'} = "$ENV{'LD_LIBRARY_PATH'}:$libpath";
+        } else {
+            $ENV{'LD_LIBRARY_PATH'} = "$libpath";
+        }
+    }
 }

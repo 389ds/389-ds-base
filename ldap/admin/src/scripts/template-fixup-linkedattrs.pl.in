@@ -61,8 +61,13 @@ $verbose = 0;
 $prefix = "{{DS-ROOT}}";
 
 $ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
-$ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
-$ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
+
+libpath_add("$prefix@nss_libdir@");
+libpath_add("$prefix/usr/lib");
+libpath_add("@nss_libdir@");
+libpath_add("/usr/lib");
+
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
 $i = 0;
 while ($i <= $#ARGV) 
@@ -150,3 +155,15 @@ $entry = "${dn}${misc}${cn}${basedn}${linkdn}";
 open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);
+
+sub libpath_add {
+    my $libpath = shift;
+
+    if ($libpath) {
+        if ($ENV{'LD_LIBRARY_PATH'}) {
+            $ENV{'LD_LIBRARY_PATH'} = "$ENV{'LD_LIBRARY_PATH'}:$libpath";
+        } else {
+            $ENV{'LD_LIBRARY_PATH'} = "$libpath";
+        }
+    }
+}

@@ -170,8 +170,11 @@ my $dbdirs = getDbDir($startpoint);
 my $prefix = "{{DS-ROOT}}";
 
 $ENV{'PATH'} = "{{INST-DIR}}:$prefix@db_bindir@:$prefix/usr/bin:@db_bindir@:/usr/bin";
-$ENV{'LD_LIBRARY_PATH'} = "@db_libdir@:@libdir@";
-$ENV{'SHLIB_PATH'} = "@db_libdir@:@libdir@";
+
+libpath_add("@db_libdir@");
+libpath_add("@libdir@");
+
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
 # Check transaction logs by db_printlog
 for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
@@ -255,4 +258,16 @@ else
 {
     print "Good\n";
     exit(0);
+}
+
+sub libpath_add {
+    my $libpath = shift;
+
+    if ($libpath) {
+        if ($ENV{'LD_LIBRARY_PATH'}) {
+            $ENV{'LD_LIBRARY_PATH'} = "$ENV{'LD_LIBRARY_PATH'}:$libpath";
+        } else {
+            $ENV{'LD_LIBRARY_PATH'} = "$libpath";
+        }
+    }
 }
