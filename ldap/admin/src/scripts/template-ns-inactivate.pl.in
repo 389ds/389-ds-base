@@ -393,8 +393,13 @@ else
 debug("Running ** $cmd ** $operation\n");
 
 $ENV{'PATH'} = "$prefix@ldapsdk_bindir@:$prefix/usr/bin:@ldapsdk_bindir@:/usr/bin";
-$ENV{'LD_LIBRARY_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
-$ENV{'SHLIB_PATH'} = "$prefix@nss_libdir@:$prefix/usr/lib:@nss_libdir@:/usr/lib";
+
+libpath_add("$prefix@nss_libdir@");
+libpath_add("$prefix/usr/lib");
+libpath_add("@nss_libdir@");
+libpath_add("/usr/lib");
+
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
 $ldapsearch="ldapsearch -1";
 $ldapmodify="ldapmodify";
@@ -842,3 +847,15 @@ debug("$modrole, $entry\n");
 
 out("$entry $state.\n");
 exit 0;
+
+sub libpath_add {
+    my $libpath = shift;
+
+    if ($libpath) {
+        if ($ENV{'LD_LIBRARY_PATH'}) {
+            $ENV{'LD_LIBRARY_PATH'} = "$ENV{'LD_LIBRARY_PATH'}:$libpath";
+        } else {
+            $ENV{'LD_LIBRARY_PATH'} = "$libpath";
+        }
+    }
+}

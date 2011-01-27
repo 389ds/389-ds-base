@@ -43,8 +43,15 @@
 # wrapper for repl-monitor.pl
 # set the library paths and call repl-monitor.pl
 
-LD_LIBRARY_PATH=@nss_libdir@:/usr/lib
-SHLIB_PATH=@nss_libdir@:/usr/lib
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
+libpath_add "@nss_libdir@"
+libpath_add "/usr/lib"
+
+SHLIB_PATH=$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH SHLIB_PATH
 
 @bindir@/repl-monitor.pl "$@"

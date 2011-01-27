@@ -4,7 +4,6 @@
 ##  (1) Specify variables used by this script.                               ##
 ###############################################################################
 
-LIB_DIR=@serverdir@:@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@sasl_libdir@:@pcre_libdir@
 BIN_DIR=@bindir@
 COMMAND=mmldif-bin
 
@@ -14,7 +13,18 @@ COMMAND=mmldif-bin
 ##      search order this command wrapper uses to find shared libraries.     ##
 ###############################################################################
 
-LD_LIBRARY_PATH=${LIB_DIR}
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
+libpath_add "@serverdir@"
+libpath_add "@nss_libdir@"
+libpath_add "@nspr_libdir@"
+libpath_add "@ldapsdk_libdir@"
+libpath_add "@sasl_libdir@"
+libpath_add "@pcre_libdir@"
+
 export LD_LIBRARY_PATH
 
 

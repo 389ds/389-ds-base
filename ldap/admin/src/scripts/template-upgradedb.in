@@ -1,9 +1,20 @@
 #!/bin/sh
 
 prefix="{{DS-ROOT}}"
-LD_LIBRARY_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@:$prefix@pcre_libdir@
+
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
+libpath_add "$prefix{{SERVER-DIR}}"
+libpath_add "$prefix@nss_libdir@"
+libpath_add "$prefix@libdir@"
+libpath_add "@nss_libdir@"
+libpath_add "$prefix@pcre_libdir@"
+
 export LD_LIBRARY_PATH
-SHLIB_PATH=$prefix/{{SERVER-DIR}}:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@:$prefix@pcre_libdir@
+SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
 cd {{SERVERBIN-DIR}}

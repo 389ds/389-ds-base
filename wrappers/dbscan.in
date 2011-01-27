@@ -4,7 +4,6 @@
 ##  (1) Specify variables used by this script.                               ##
 ###############################################################################
 
-LIB_DIR=@nspr_libdir@:@db_libdir@
 BIN_DIR=@bindir@
 COMMAND=dbscan-bin
 
@@ -14,7 +13,14 @@ COMMAND=dbscan-bin
 ##      search order this command wrapper uses to find shared libraries.     ##
 ###############################################################################
 
-LD_LIBRARY_PATH=${LIB_DIR}
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
+libpath_add "@nspr_libdir@"
+libpath_add "@db_libdir@"
+
 export LD_LIBRARY_PATH
 
 

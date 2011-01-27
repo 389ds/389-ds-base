@@ -4,7 +4,6 @@
 ##  (1) Specify variables used by this script.                               ##
 ###############################################################################
 
-LIB_DIR=@nss_libdir@:@nspr_libdir@:@ldapsdk_libdir@:@sasl_libdir@
 BIN_DIR=@bindir@
 COMMAND=ldclt-bin
 
@@ -14,7 +13,16 @@ COMMAND=ldclt-bin
 ##      search order this command wrapper uses to find shared libraries.     ##
 ###############################################################################
 
-LD_LIBRARY_PATH=${LIB_DIR}
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
+libpath_add "@nss_libdir@"
+libpath_add "@nspr_libdir@"
+libpath_add "@ldapsdk_libdir@"
+libpath_add "@sasl_libdir@"
+
 export LD_LIBRARY_PATH
 SASL_PATH=@sasl_path@
 export SASL_PATH

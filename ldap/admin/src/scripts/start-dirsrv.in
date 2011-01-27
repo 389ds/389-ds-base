@@ -6,6 +6,11 @@
 #       1: Server could not be started
 #       2: Server already running
 
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
 # Starts a single instance
 start_instance() {
     # The first argument is the server ID.  Anything
@@ -22,9 +27,15 @@ start_instance() {
     fi
 
     prefix="$DS_ROOT"
-    LD_LIBRARY_PATH=$prefix$SERVER_DIR:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@:@pcre_libdir@
+
+    libpath_add "$prefix$SERVER_DIR"
+    libpath_add "$prefix@nss_libdir@"
+    libpath_add "$prefix@libdir@"
+    libpath_add "@nss_libdir@"
+    libpath_add "$prefix@pcre_libdir@"
+
     export LD_LIBRARY_PATH
-    SHLIB_PATH=$prefix$SERVER_DIR:$prefix@nss_libdir@:$prefix@libdir@:@nss_libdir@:@pcre_libdir@
+    SHLIB_PATH=$LD_LIBRARY_PATH
     export SHLIB_PATH
 
     DS_CONFIG_DIR=$CONFIG_DIR

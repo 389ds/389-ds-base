@@ -54,6 +54,11 @@ success()
 }
 }
 
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
 # On Solaris /var/run is in tmpfs and gets wiped out upon reboot
 # we have to recreate the /var/run/@package_name@ directory
 # We also have to make sure that the directory is writable
@@ -120,7 +125,10 @@ fi
 
 start() {
     if [ -n "$INSTANCES" ]; then
-        LD_LIBRARY_PATH=@libdir@/@package_name@:@nss_libdir@:@pcre_libdir@
+        libpath_add "@libdir@/@package_name@"
+        libpath_add "@nss_libdir@"
+        libpath_add "@pcre_libdir@"
+
         export LD_LIBRARY_PATH
         echo  "Starting $prog: "
         # Start every slapd instance that isn't already running
