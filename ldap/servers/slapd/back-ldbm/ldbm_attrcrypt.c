@@ -55,9 +55,12 @@
 
 #define ATTRCRYPT "attrcrypt"
 
-attrcrypt_cipher_entry attrcrypt_cipher_list[] = { {ATTRCRYPT_CIPHER_AES, "AES", CKM_AES_CBC_PAD, CKM_AES_CBC_PAD, CKM_AES_CBC_PAD, 128/8, 16} , 
-	{ATTRCRYPT_CIPHER_DES3 , "3DES" , CKM_DES3_CBC_PAD, CKM_DES3_CBC_PAD, CKM_DES3_CBC_PAD, 112/8, 8}, 
-	{0} };
+attrcrypt_cipher_entry attrcrypt_cipher_list[] =
+{
+  {ATTRCRYPT_CIPHER_AES, "AES", CKM_AES_CBC_PAD, CKM_AES_CBC_PAD, CKM_AES_CBC_PAD, 128/8, 16} , 
+  {ATTRCRYPT_CIPHER_DES3, "3DES", CKM_DES3_CBC_PAD, CKM_DES3_CBC_PAD, CKM_DES3_CBC_PAD, 112/8, 8}, 
+  {0}
+};
 
 #define KEY_ATTRIBUTE_NAME "nsSymmetricKey"
 
@@ -143,13 +146,28 @@ attrcrypt_get_ssl_cert_name(char **cert_name)
 {
 	char *config_entry_dn = "cn=RSA,cn=encryption,cn=config";
 	Slapi_Entry *config_entry = NULL;
+	char *personality = NULL;
+	char *token = NULL;
 	
 	*cert_name = NULL;
 	getConfigEntry(config_entry_dn, &config_entry);
 	if (NULL == config_entry) {
 		return -1;
 	}
-	*cert_name = slapi_entry_attr_get_charptr( config_entry, "nssslpersonalityssl" );
+	token = slapi_entry_attr_get_charptr( config_entry, "nsssltoken" );
+	personality = 
+		slapi_entry_attr_get_charptr( config_entry, "nssslpersonalityssl" );
+	if (token && personality) {
+		if(!strcasecmp(token, "internal") ||
+		   !strcasecmp(token, "internal (software)")) {
+			*cert_name = personality;
+		} else {
+			/* external PKCS #11 token - attach token name */
+			*cert_name = slapi_ch_smprintf("%s:%s", token, personality);
+			slapi_ch_free_string(&personality);
+		}
+		slapi_ch_free_string(&token);
+	}
 	freeConfigEntry(&config_entry);
 	return 0;
 }
@@ -265,13 +283,31 @@ attrcrypt_unwrap_key(attrcrypt_cipher_state *acs, SECKEYPrivateKey *private_key,
 	int ret = 0;
 	CK_MECHANISM_TYPE wrap_mechanism = acs->ace->wrap_mechanism;
 	SECKEYPrivateKey *unwrapping_key = private_key;
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_unwrap_key\n", 0, 0, 0);
-	*unwrapped_symmetric_key = slapd_pk11_PubUnwrapSymKey(unwrapping_key, wrapped_symmetric_key, wrap_mechanism, CKA_UNWRAP, 0);
+
+	slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "-> attrcrypt_unwrap_key\n");
+	/* 
+	 * NOTE: we are unwrapping one symmetric key with attribute both ENCRYPT
+	 *       and DECRYPT set.  Some hardware token might have a problem with
+	 *       it.  In such case, we need to generate 2 identiday keys, one for
+	 *       encryption  and another for decription.  When unwrapping them,
+	 *       set attribute ENCRYPT for the encryption key and DECRYPT for
+	 *       the decryption key.
+	 */
+	*unwrapped_symmetric_key = slapd_pk11_PubUnwrapSymKeyWithFlagsPerm(
+	                                                      unwrapping_key, 
+	                                                      wrapped_symmetric_key,
+	                                                      wrap_mechanism,
+	                                                      CKA_DECRYPT, 0,
+	                                                      CKF_ENCRYPT,
+	                                                      PR_FALSE);
 	if (NULL == *unwrapped_symmetric_key) {
 		ret = -1;
-		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_unwrap_key: failed to unwrap key for cipher %s\n", acs->ace->cipher_display_name, 0, 0);
+		slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
+		                "attrcrypt_unwrap_key: "
+		                "failed to unwrap key for cipher %s\n", 
+		                acs->ace->cipher_display_name);
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_unwrap_key\n", 0, 0, 0);
+	slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "<- attrcrypt_unwrap_key\n");
 	return ret;
 }
 
@@ -279,16 +315,44 @@ attrcrypt_unwrap_key(attrcrypt_cipher_state *acs, SECKEYPrivateKey *private_key,
 static int
 attrcrypt_generate_key(attrcrypt_cipher_state *acs,PK11SymKey **symmetric_key)
 {
-	int ret = -1;
+	int ret = 1;
 	PK11SymKey *new_symmetric_key = NULL;
+	slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "-> attrcrypt_generate_key\n");
+	if (NULL == symmetric_key) {
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "NULL symmetric_key\n");
+		goto bail;
+	}
 	*symmetric_key = NULL;
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_generate_key\n", 0, 0, 0);
-	new_symmetric_key = slapd_pk11_KeyGen(acs->slot, acs->ace->key_gen_mechanism, NULL, acs->ace->key_size, NULL);	
+
+	if (!slapd_pk11_DoesMechanism(acs->slot, acs->ace->cipher_mechanism)) {
+		slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, "%s is not supported.\n",
+		                acs->ace->cipher_display_name);
+		ret = -1;
+		goto bail;
+	}
+
+	/* 
+	 * NOTE: we are generating one symmetric key with attribute both ENCRYPT
+	 *       and DECRYPT set.  Some hardware token might have a problem with
+	 *       it.  In such case, we need to generate 2 identiday keys, one for
+	 *       encryption (with an attribute ENCRYPT set) and another for
+	 *       decription (DECRYPT set).
+	 */
+	new_symmetric_key = slapd_pk11_TokenKeyGenWithFlags(acs->slot,
+	                                                acs->ace->key_gen_mechanism,
+	                                                0 /*param*/,
+	                                                acs->ace->key_size,
+	                                                NULL /*keyid*/, 
+	                                                CKA_DECRYPT/*op*/,
+	                                                CKF_ENCRYPT/*attr*/,
+	                                                NULL);
 	if (new_symmetric_key) {
 		*symmetric_key = new_symmetric_key;
 		ret = 0;
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_generate_key\n", 0, 0, 0);
+bail:
+	slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+	                "<- attrcrypt_generate_key (%d)\n", ret);
 	return ret;
 }
 
@@ -393,7 +457,7 @@ attrcrypt_cipher_init(ldbm_instance *li, attrcrypt_cipher_entry *ace, SECKEYPriv
 {
 	int ret = 0;
 	PK11SymKey *symmetric_key = NULL;
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_cipher_init\n", 0, 0, 0);
+	slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "-> attrcrypt_cipher_init\n");
 	acs->cipher_lock = PR_NewLock();
 	/* Fill in some basic stuff */
 	acs->ace = ace;
@@ -416,11 +480,17 @@ attrcrypt_cipher_init(ldbm_instance *li, attrcrypt_cipher_entry *ace, SECKEYPriv
 			"No symmetric key found for cipher %s in backend %s, "
 			"attempting to create one...\n",
 			acs->cipher_display_name, li->inst_name);
-		ret = attrcrypt_generate_key(acs,&symmetric_key);
+		ret = attrcrypt_generate_key(acs, &symmetric_key);
 		if (ret) {
-			slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
-				"Failed to generate key for %s in attrcrypt_cipher_init\n",
+			slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, "Warning: "
+			    "Failed to generate key for %s in attrcrypt_cipher_init\n",
 				acs->cipher_display_name);
+			if ((ret < 0) && li->attrcrypt_configured) {
+				slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT,
+					       "Cipher %s is not supported on the security device. "
+					       "Do not configure attrcrypt with the cipher.\n",
+					       ace->cipher_display_name);
+			}
 		}
 		if (symmetric_key) {
 			ret = attrcrypt_keymgmt_store_key(li,acs,public_key,symmetric_key);
@@ -450,7 +520,7 @@ attrcrypt_cipher_init(ldbm_instance *li, attrcrypt_cipher_entry *ace, SECKEYPriv
 		acs->key = symmetric_key;
 	}
 error:
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_cipher_init\n", 0, 0, 0);
+	slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT, "<- attrcrypt_cipher_init\n");
 	return ret;
 }
 
@@ -479,22 +549,37 @@ attrcrypt_init(ldbm_instance *li)
 		if (!ret) { 
 			ret = attrcrypt_fetch_public_key(&public_key);
 			if (!ret) {
-				for (ace = attrcrypt_cipher_list; ace && ace->cipher_number && !ret; ace++) {
+				int cipher_is_available = 0;
+				for (ace = attrcrypt_cipher_list;
+				     ace && ace->cipher_number && !ret; ace++) {
 					/* Make a state object for this cipher */
 					attrcrypt_cipher_state *acs = (attrcrypt_cipher_state *) slapi_ch_calloc(sizeof(attrcrypt_cipher_state),1);
 					ret = attrcrypt_cipher_init(li, ace, private_key, public_key, acs);
 					if (ret) {
-						LDAPDebug(LDAP_DEBUG_ANY,"Failed to initialize cipher %s in attrcrypt_init\n", ace->cipher_display_name, 0, 0);
-						if (!li->attrcrypt_configured) {
+						slapi_ch_free((void **)&acs);
+						if (li->attrcrypt_configured) {
+							if ((ace+1)->cipher_number) {
+								/* this is not the last cipher */
+								ret = 0;
+								continue;
+							}
+						} else {
 							/* if not using attrcrypt, just return success */
 							ret = 0;
 						}
-						slapi_ch_free((void **)&acs);
 					} else {
 						/* Since we succeeded, add the acs to the backend instance list */
 						attrcrypt_acs_list_add(li,acs);
-						LDAPDebug(LDAP_DEBUG_TRACE,"Initialized cipher %s in attrcrypt_init\n", ace->cipher_display_name, 0, 0);
+						slapi_log_error(SLAPI_LOG_TRACE, ATTRCRYPT,
+						        "Initialized cipher %s in attrcrypt_init\n",
+						        ace->cipher_display_name);
+						cipher_is_available = 1; /* at least one is available */
 					}
+				}
+				if (!cipher_is_available) {
+					slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT,
+							        "All prepared ciphers are not available. "
+							        "Please disable attribute encryption.\n");
 				}
 			}
 			slapd_pk11_DestroyPublicKey(public_key);
@@ -986,7 +1071,9 @@ back_crypt_init(Slapi_Backend *be, const char *dn,
                                       private_key, public_key, acs, dn);
         if (ret) {
             slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
-                            "back_crypt_init: Failed to initialize cipher %s\n",
+                            "back_crypt_init: Failed to initialize cipher %s."
+                            "Please choose other cipher or disable changelog "
+                            "encryption.\n",
                             ace->cipher_display_name);
             slapi_ch_free((void **)&acs);
         } else {
@@ -1180,6 +1267,12 @@ _back_crypt_cipher_init(Slapi_Backend *be,
             slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT, 
                     "_back_crypt_cipher_init: Failed to generate key for %s\n",
                     acs->cipher_display_name);
+            if (ret < 0) {
+                slapi_log_error(SLAPI_LOG_FATAL, ATTRCRYPT,
+                     "Cipher %s is not supported on the security device.  "
+                     "Do not configure changelog encryption with the cipher.\n",
+                     ace->cipher_display_name);
+            }
         }
         if (symmetric_key) {
             ret = _back_crypt_keymgmt_store_key(be, acs, public_key, 
@@ -1529,7 +1622,7 @@ _back_crypt_crypto_op(attrcrypt_private *priv,
     }
 error:
     if (sec_context) {
-        PK11_DestroyContext(sec_context, PR_TRUE);
+        slapd_pk11_destroyContext(sec_context, PR_TRUE);
     }
     if (security_parameter) {
         SECITEM_FreeItem(security_parameter, PR_TRUE);

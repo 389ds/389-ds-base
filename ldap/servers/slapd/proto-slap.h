@@ -1017,6 +1017,9 @@ SECStatus slapd_pk11_DigestFinal(PK11Context *context, unsigned char *data,unsig
 void slapd_SECITEM_FreeItem (SECItem *zap, PRBool freeit);
 void slapd_pk11_DestroyPrivateKey(SECKEYPrivateKey *key);
 void slapd_pk11_DestroyPublicKey(SECKEYPublicKey *key);
+PRBool slapd_pk11_DoesMechanism(PK11SlotInfo *slot, CK_MECHANISM_TYPE type);
+PK11SymKey *slapd_pk11_PubUnwrapSymKeyWithFlagsPerm(SECKEYPrivateKey *wrappingKey, SECItem *wrappedKey, CK_MECHANISM_TYPE target, CK_ATTRIBUTE_TYPE operation, int keySize, CK_FLAGS flags, PRBool isPerm);
+PK11SymKey *slapd_pk11_TokenKeyGenWithFlags(PK11SlotInfo *slot, CK_MECHANISM_TYPE type, SECItem *param, int keySize, SECItem *keyid, CK_FLAGS opFlags, PK11AttrFlags attrFlags, void *wincx);
 
 /*
  * start_tls_extop.c

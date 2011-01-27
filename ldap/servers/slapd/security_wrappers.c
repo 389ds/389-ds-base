@@ -338,11 +338,6 @@ void slapd_pk11_FreeSymKey(PK11SymKey *key)
 	PK11_FreeSymKey(key);
 }
 
-void slapd_pk11_DestroyContext(PK11Context *context, PRBool freeit)
-{
-	PK11_DestroyContext(context,freeit);
-}
-
 SECItem *slapd_pk11_ParamFromIV(CK_MECHANISM_TYPE type,SECItem *iv)
 {
 	return PK11_ParamFromIV(type,iv);
@@ -382,4 +377,35 @@ void slapd_pk11_DestroyPrivateKey(SECKEYPrivateKey *key)
 void slapd_pk11_DestroyPublicKey(SECKEYPublicKey *key)
 {
 	SECKEY_DestroyPublicKey(key);
+}
+
+PRBool slapd_pk11_DoesMechanism(PK11SlotInfo *slot, CK_MECHANISM_TYPE type)
+{
+	return PK11_DoesMechanism(slot, type);
+}
+
+PK11SymKey *slapd_pk11_PubUnwrapSymKeyWithFlagsPerm(
+                                        SECKEYPrivateKey *wrappingKey,
+                                        SECItem *wrappedKey,
+                                        CK_MECHANISM_TYPE target,
+                                        CK_ATTRIBUTE_TYPE operation,
+                                        int keySize,
+                                        CK_FLAGS flags, 
+                                        PRBool isPerm)
+{
+	return PK11_PubUnwrapSymKeyWithFlagsPerm(wrappingKey, wrappedKey, target,
+	                                         operation, keySize, flags, isPerm);
+}
+
+PK11SymKey *slapd_pk11_TokenKeyGenWithFlags(PK11SlotInfo *slot,
+                                            CK_MECHANISM_TYPE type,
+                                            SECItem *param,
+                                            int keySize,
+                                            SECItem *keyid,
+                                            CK_FLAGS opFlags,
+                                            PK11AttrFlags attrFlags,
+                                            void *wincx)
+{
+	return PK11_TokenKeyGenWithFlags(slot, type, param, keySize, keyid, 
+	                                 opFlags, attrFlags, wincx);
 }
