@@ -381,9 +381,9 @@ pagedresults_cleanup(Connection *conn)
             conn->c_search_result_set = NULL;
         }
         conn->c_current_be = 0;
-        conn->c_search_result_count = 0;
-        conn->c_timelimit = 0;
         rc = 1;
     }
+    conn->c_search_result_count = 0;
+    conn->c_timelimit = 0;
     return rc;
 }

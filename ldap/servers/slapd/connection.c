@@ -2721,6 +2721,8 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) ) { 
 
+	pagedresults_cleanup(conn); /* In case the connection is on pagedresult */
+
 	/*
 	 * PR_Close must be called before anything else is done because
 	 * of NSPR problem on NT which requires that the socket on which

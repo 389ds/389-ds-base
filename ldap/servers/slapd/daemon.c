@@ -1221,7 +1221,8 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 					c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
 				}
 			}
-			if (c->c_timelimit > 0) /* check timeout for PAGED RESULTS */
+			/* check timeout for PAGED RESULTS */
+			if (c->c_current_be && (c->c_timelimit > 0))
 			{
 				time_t ctime = current_time();
 				if (ctime > c->c_timelimit)
