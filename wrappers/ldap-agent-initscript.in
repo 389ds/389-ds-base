@@ -22,7 +22,13 @@ fi
 if [ "${NETWORKING}" = "no" ]
 then
     echo "Networking is down"
-    exit 0
+    if [ "$1" = "status" ]; then
+        # exit code 4 means unknown status for status action
+        exit 4
+    else
+        # exit code 1 means unspecified error for non-status actions
+        exit 1
+    fi
 fi
 
 # figure out which echo we're using
@@ -61,8 +67,16 @@ pidfile="@localstatedir@/run/ldap-agent.pid"
 configfile="@sysconfdir@/@package_name@/config/ldap-agent.conf"
 
 
-
-[ -f $exec ] || exit 0
+# Check if ldap-agent exists
+if [ ! -f $exec ]; then
+    if [ "$1" = "status" ]; then
+        # exit code 4 means unknown status for status action
+        exit 4
+    else
+        # exit code 5 means program is not installed for non-status actions
+        exit 5
+    fi
+fi
 
 
 umask 077

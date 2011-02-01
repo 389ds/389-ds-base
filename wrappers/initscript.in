@@ -23,7 +23,13 @@ fi
 if [ "${NETWORKING}" = "no" ]
 then
     echo "Networking is down"
-    exit 0
+    if [ "$1" = "status" ]; then
+        # exit code 4 means unknown status for status action
+        exit 4
+    else
+        # exit code 1 means unspecified error for non-status actions
+        exit 1
+    fi
 fi
 
 # figure out which echo we're using
@@ -87,8 +93,16 @@ piddir="@localstatedir@/run/@package_name@"
 # Instance basedir
 instbase="@instconfigdir@"
 
-
-[ -f $exec ] || exit 0
+# Check that ns-slapd exists
+if [ ! -f $exec ] ; then
+    if [ "$1" = "status" ]; then
+        # exit code 4 means unknown status for status action
+        exit 4
+    else
+        # exit code 5 means program is not installed for non-status actions
+        exit 5
+    fi
+fi
 
 
 umask 077
@@ -107,7 +121,13 @@ done
 
 if [ -z "$INSTANCES" ]; then
     echo "  *** Error: no $prog instances configured"
-    exit 0
+    if [ "$1" = "status" ]; then
+        # exit code 4 means unknown status for status action
+        exit 4
+    else
+        # exit code 6 means program is not configured for non-status actions
+        exit 6
+    fi
 fi
 
 if [ -n "$2" ]; then
@@ -119,7 +139,13 @@ if [ -n "$2" ]; then
    if [ "$2" != "$INSTANCES" ]; then
       echo_n "$2 is an invalid @package_name@ instance"
       failure; echo
-      exit 1
+      if [ "$1" = "status" ]; then
+          # exit code 4 means unknown status for status action
+          exit 4
+      else
+          # exit code 2 means invalid argument for non-status actions
+          exit 2
+      fi
    fi
 fi
 
