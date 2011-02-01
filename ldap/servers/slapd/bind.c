@@ -499,7 +499,8 @@ do_bind( Slapi_PBlock *pb )
 
         /* Check if the minimum SSF requirement has been met. */
         minssf = config_get_minssf();
-        if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf)) {
+        if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf) &&
+            (pb->pb_conn->c_local_ssf < minssf)) {
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "Minimum SSF not met.", 0, NULL);
             /* increment BindSecurityErrorcount */
@@ -569,6 +570,7 @@ do_bind( Slapi_PBlock *pb )
         } else if (config_get_require_secure_binds() == 1) {
                 Connection *conn = NULL;
                 int sasl_ssf = 0;
+                int local_ssf = 0;
 
                 /* Allow simple binds only for SSL/TLS established connections
                  * or connections using SASL privacy layers */
@@ -579,8 +581,14 @@ do_bind( Slapi_PBlock *pb )
                     sasl_ssf = 0;
                 }
 
+                if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
+                    slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
+                                     "Could not get local SSF from connection\n" );
+                    local_ssf = 0;
+                }
+
                 if (((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
-                    (sasl_ssf <= 1) ) {
+                    (sasl_ssf <= 1) && (local_ssf <= 1)) {
                         send_ldap_result(pb, LDAP_CONFIDENTIALITY_REQUIRED, NULL,
                                          "Operation requires a secure connection",
                                          0, NULL);

@@ -5630,6 +5630,7 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 #define SLAPI_CONN_AUTHMETHOD			746
 #define SLAPI_CONN_SASL_SSF			748
 #define SLAPI_CONN_SSL_SSF			749
+#define SLAPI_CONN_LOCAL_SSF			751
 
 /* 
  * Types of authentication for SLAPI_CONN_AUTHMETHOD

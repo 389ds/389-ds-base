@@ -2207,6 +2207,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	if( local )
 	{
 		conn->c_unix_local = 1;
+		conn->c_local_ssf = config_get_localssf();
 		slapd_identify_local_user(conn);
 	}
 #endif

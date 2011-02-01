@@ -103,6 +103,7 @@ my %ignoreOld =
 # these are new attrs that we should just pass through
  'nsslapd-allow-unauthenticated-binds' => 'nsslapd-allow-unauthenticated-binds',
  'nsslapd-allow-anonymous-access'  => 'nsslapd-allow-anonymous-access',
+ 'nsslapd-localssf'                => 'nsslapd-localssf',
  'nsslapd-minssf'                  => 'nsslapd-minssf',
  'nsslapd-saslpath'                => 'nsslapd-saslpath',
  'nsslapd-rundir'                  => 'nsslapd-rundir',

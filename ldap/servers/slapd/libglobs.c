@@ -619,6 +619,9 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allow_anon_access, CONFIG_SPECIAL_ANON_ACCESS_SWITCH,
 		(ConfigGetFunc)config_get_anon_access_switch},
+	{CONFIG_LOCALSSF_ATTRIBUTE, config_set_localssf,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.localssf, CONFIG_INT, NULL},
 	{CONFIG_MINSSF_ATTRIBUTE, config_set_minssf,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.minssf, CONFIG_INT, NULL},
@@ -900,6 +903,7 @@ FrontendConfig_init () {
   cfg->outbound_ldap_io_timeout = SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT;
   cfg->max_filter_nest_level = SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL;
   cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
+  cfg->localssf = SLAPD_DEFAULT_LOCAL_SSF;
   cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
 
 #ifdef _WIN32
@@ -4710,6 +4714,48 @@ config_get_maxsasliosize()
 }
 
 int
+config_set_localssf( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal =  LDAP_SUCCESS;
+  int localssf;
+  char *endptr;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+  }
+
+  localssf = (int) strtol(value, &endptr, 10);
+
+  /* Check for non-numeric garbage in the value */
+  if (*endptr != '\0') {
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
+
+  /* Check for a value overflow */
+  if (((localssf == INT_MAX) || (localssf == INT_MIN)) && (errno == ERANGE)){
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
+
+  /* Don't allow negative values. */
+  if (localssf < 0) {
+    retVal = LDAP_OPERATIONS_ERROR;
+  }
+
+  if (retVal != LDAP_SUCCESS) {
+    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                 "%s: \"%s\" is invalid. Value must range from 0 to %d",
+                 attrname, value, INT_MAX );
+  } else if (apply) {
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->localssf = localssf;
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
+
+  return retVal;
+}
+
+int
 config_set_minssf( const char *attrname, char *value, char *errorbuf, int apply )
 {
   int retVal =  LDAP_SUCCESS;
@@ -4749,6 +4795,17 @@ config_set_minssf( const char *attrname, char *value, char *errorbuf, int apply 
   }
 
   return retVal;
+}
+
+int
+config_get_localssf()
+{
+  int localssf;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  localssf = slapdFrontendConfig->localssf;
+
+  return localssf;
 }
 
 int

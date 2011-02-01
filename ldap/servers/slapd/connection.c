@@ -196,6 +196,7 @@ connection_cleanup(Connection *conn)
 	conn->c_prev= NULL;
 	conn->c_extension= NULL;
 	conn->c_ssl_ssf = 0; 
+	conn->c_local_ssf = 0;
 	conn->c_unix_local = 0;
 	/* destroy any sasl context */
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
@@ -388,6 +389,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     /* Just initialize the SSL SSF to 0 now since the handshake isn't complete
      * yet, which prevents us from getting the effective key length. */
     conn->c_ssl_ssf = 0;
+    conn->c_local_ssf = 0;
 }
 
 /* Create a pool of threads for handling the operations */ 
@@ -507,12 +509,14 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	 * allowed, which gives the connection a chance to meet the
 	 * SSF requirements.  We also allow UNBIND and ABANDON.*/
 	if ((conn->c_sasl_ssf < minssf) && (conn->c_ssl_ssf < minssf) &&
-	    (op->o_tag != LDAP_REQ_BIND) && (op->o_tag != LDAP_REQ_EXTENDED) &&
-	    (op->o_tag != LDAP_REQ_UNBIND) && (op->o_tag != LDAP_REQ_ABANDON)) {
+	    (conn->c_local_ssf < minssf) &&(op->o_tag != LDAP_REQ_BIND) &&
+	    (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
+	    (op->o_tag != LDAP_REQ_ABANDON)) {
 		slapi_log_access( LDAP_DEBUG_STATS,
 			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
-			" - Insufficient SSF (sasl_ssf=%d ssl_ssf=%d)\n",
-			conn->c_connid, op->o_opid, conn->c_sasl_ssf, conn->c_ssl_ssf );
+			" - Insufficient SSF (local_ssf=%d sasl_ssf=%d ssl_ssf=%d)\n",
+			conn->c_connid, op->o_opid, conn->c_local_ssf,
+			conn->c_sasl_ssf, conn->c_ssl_ssf );
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 			"Minimum SSF not met.", 0, NULL );
 		return;
@@ -2631,15 +2635,17 @@ op_copy_identity(Connection *conn, Operation *op)
     /* copy isroot flag as well so root DN privileges are preserved */
     op->o_isroot = conn->c_isroot;
 
-    /* copy the highest SSF (between SASL and SSL/TLS) into the
-     * operation for use by access control. */
-    if (conn->c_sasl_ssf >= conn->c_ssl_ssf) {
+    /* copy the highest SSF (between local, SASL, and SSL/TLS)
+     * into the operation for use by access control. */
+    if ((conn->c_sasl_ssf >= conn->c_ssl_ssf) && (conn->c_sasl_ssf >= conn->c_local_ssf)) {
         op->o_ssf = conn->c_sasl_ssf;
-    } else {
+    } else if ((conn->c_ssl_ssf >= conn->c_sasl_ssf) && (conn->c_ssl_ssf >= conn->c_local_ssf)){
         op->o_ssf = conn->c_ssl_ssf;
+    } else {
+        op->o_ssf = conn->c_local_ssf;
     }
 
-	PR_Unlock( conn->c_mutex );
+    PR_Unlock( conn->c_mutex );
 }
 
 /* Sets the SSL SSF in the connection struct. */

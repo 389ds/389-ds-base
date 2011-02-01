@@ -335,7 +335,8 @@ do_extended( Slapi_PBlock *pb )
 		}
 
 		/* If the minssf is not met, only allow startTLS. */
-		if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf)) {
+		if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf) &&
+		    (pb->pb_conn->c_local_ssf < minssf)) {
 			send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 				"Minimum SSF not met.", 0, NULL );
 			goto free_and_return;

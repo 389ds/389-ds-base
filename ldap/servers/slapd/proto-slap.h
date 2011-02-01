@@ -367,6 +367,7 @@ int config_set_outbound_ldap_io_timeout( const char *attrname, char *value,
 int config_set_unauth_binds_switch(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_require_secure_binds(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_anon_access_switch(const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_localssf(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_minssf(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
@@ -504,6 +505,7 @@ int config_get_outbound_ldap_io_timeout(void);
 int config_get_unauth_binds_switch(void);
 int config_get_require_secure_binds(void);
 int config_get_anon_access_switch(void);
+int config_get_localssf(void);
 int config_get_minssf(void);
 int config_get_csnlogging();
 #ifdef MEMPOOL_EXPERIMENTAL

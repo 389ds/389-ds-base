@@ -462,7 +462,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
 	char		*errMesg = NULL;
-	int             ret=0, rc=0, sasl_ssf=0, need_pwpolicy_ctrl=0;
+	int             ret=0, rc=0, sasl_ssf=0, local_ssf=0, need_pwpolicy_ctrl=0;
 	ber_tag_t	tag=0;
 	ber_len_t	len=(ber_len_t)-1;
 	struct berval	*extop_value = NULL;
@@ -517,8 +517,16 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
+	if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
+		errMesg = "Could not get local SSF from connection\n";
+		rc = LDAP_OPERATIONS_ERROR;
+		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+				 errMesg );
+		goto free_and_return;
+	}
+
 	if ( ((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
-	      (sasl_ssf <= 1) ) {
+	      (sasl_ssf <= 1) && (local_ssf <= 1)) {
 		errMesg = "Operation requires a secure connection.\n";
 		rc = LDAP_CONFIDENTIALITY_REQUIRED;
 		goto free_and_return;
