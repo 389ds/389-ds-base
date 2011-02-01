@@ -5,7 +5,6 @@ import __main__ # to use globals
 # supports more than one regex - multiple regex are combined using AND logic
 # OR logic is easily supported with the '|' regex modifier
 regex_regex_ary = []
-buffer = []
 
 def pre(plgargs):
     global regex_regex_ary
@@ -19,18 +18,11 @@ def pre(plgargs):
         regex_regex_ary.append(re.compile(regexary))
     return True
 
-def post():
-    global buffer
-    sys.stdout.writelines(buffer)
-    buffer = []
-
 def plugin(line):
-    global buffer
+    __main__.totallines = __main__.totallines + 1
     for rx in regex_regex_ary:
         if not rx.search(line):
-            break # must match all regex
+            return True # regex did not match - get next line
     else: # all regexes matched
-        buffer.append(line)
-        if len(buffer) > __main__.maxlines:
-            del buffer[0]
-    return True
+        __main__.totallines = __main__.totallines - 1
+        return __main__.defaultplugin(line)

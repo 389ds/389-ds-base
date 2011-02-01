@@ -30,6 +30,7 @@ def printbuffer():
     sys.stdout.writelines(buffer)
     print "Read %d total lines" % totallines
     print logfname, "=" * 60
+    sys.stdout.flush()
 
 def defaultpost(): printbuffer()
 
@@ -179,7 +180,7 @@ def read_and_process_line(logf, plgfuncs):
     if line: # read something
         for plgfunc in plgfuncs:
             if not plgfunc(line):
-                print "Aborting processing due to function %s" % str(plgfunc)
+                print "Aborting processing due to function %s.%s" % (plgfunc.__module__, plgfunc.__name__)
                 finish()
                 done = True
                 break
