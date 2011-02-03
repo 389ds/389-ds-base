@@ -126,15 +126,21 @@ static cipherstruct _conf_ciphers[] = {
     {"SSL3","des", SSL_EN_DES_64_CBC_WITH_MD5},
     {"SSL3","desede3", SSL_EN_DES_192_EDE3_CBC_WITH_MD5},
     {"SSL3","rsa_rc4_128_md5", SSL_RSA_WITH_RC4_128_MD5},
+    {"SSL3","rsa_rc4_128_sha", SSL_RSA_WITH_RC4_128_SHA},
     {"SSL3","rsa_3des_sha", SSL_RSA_WITH_3DES_EDE_CBC_SHA},
     {"SSL3","rsa_des_sha", SSL_RSA_WITH_DES_CBC_SHA},
     {"SSL3","rsa_fips_3des_sha", SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA},
+    {"SSL3","fips_3des_sha", SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA}, /* ditto */
     {"SSL3","rsa_fips_des_sha", SSL_RSA_FIPS_WITH_DES_CBC_SHA},
+    {"SSL3","fips_des_sha", SSL_RSA_FIPS_WITH_DES_CBC_SHA}, /* ditto */
     {"SSL3","rsa_rc4_40_md5", SSL_RSA_EXPORT_WITH_RC4_40_MD5},
     {"SSL3","rsa_rc2_40_md5", SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5},
     {"SSL3","rsa_null_md5", SSL_RSA_WITH_NULL_MD5},
+    {"SSL3","rsa_null_sha", SSL_RSA_WITH_NULL_SHA},
     {"TLS","tls_rsa_export1024_with_rc4_56_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA},
+    {"TLS","rsa_rc4_56_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA}, /* ditto */
     {"TLS","tls_rsa_export1024_with_des_cbc_sha", TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA},
+    {"TLS","rsa_des_56_sha", TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA}, /* ditto */
     {"SSL3","fortezza", SSL_FORTEZZA_DMS_WITH_FORTEZZA_CBC_SHA},
     {"SSL3","fortezza_rc4_128_sha", SSL_FORTEZZA_DMS_WITH_RC4_128_SHA},
     {"SSL3","fortezza_null", SSL_FORTEZZA_DMS_WITH_NULL_SHA}, 
@@ -148,10 +154,12 @@ static cipherstruct _conf_ciphers[] = {
     {"SSL3","dhe_rsa_3des_sha", SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA},
 
     {"TLS","tls_rsa_aes_128_sha", TLS_RSA_WITH_AES_128_CBC_SHA},
+    {"TLS","rsa_aes_128_sha", TLS_RSA_WITH_AES_128_CBC_SHA}, /* ditto */
     {"TLS","tls_dhe_dss_aes_128_sha", TLS_DHE_DSS_WITH_AES_128_CBC_SHA},
     {"TLS","tls_dhe_rsa_aes_128_sha", TLS_DHE_RSA_WITH_AES_128_CBC_SHA},
 
     {"TLS","tls_rsa_aes_256_sha", TLS_RSA_WITH_AES_256_CBC_SHA},
+    {"TLS","rsa_aes_256_sha", TLS_RSA_WITH_AES_256_CBC_SHA}, /* ditto */
     {"TLS","tls_dhe_dss_aes_256_sha", TLS_DHE_DSS_WITH_AES_256_CBC_SHA},
     {"TLS","tls_dhe_rsa_aes_256_sha", TLS_DHE_RSA_WITH_AES_256_CBC_SHA},
     /*{"TLS","tls_dhe_dss_1024_des_sha", TLS_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA}, */
