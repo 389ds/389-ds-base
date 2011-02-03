@@ -17175,9 +17175,6 @@ $as_echo "#define _HPUX_SOURCE 1" >>confdefs.h
 
 $as_echo "#define _INCLUDE_STDC__SOURCE_199901 1" >>confdefs.h
 
-
-$as_echo "#define ATOMIC_64BIT_OPERATIONS 1" >>confdefs.h
-
     # assume 64 bit
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"

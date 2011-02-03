@@ -407,7 +407,6 @@ case $host in
     AC_DEFINE([_POSIX_C_SOURCE], [199506L], [POSIX revision])
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
-    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
     # assume 64 bit
     perlexec='/opt/perl_64/bin/perl'
     platform="hpux"

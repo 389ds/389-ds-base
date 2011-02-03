@@ -79,10 +79,9 @@ __inline static int tolower_fast(int c)
 
 #else
 
-#ifdef HPUX
-#pragma INLINE strcmpi_fast,tolower_fast,toupper_fast,strncasecmp_fast
-#endif
-#ifdef LINUX
+#if defined(HPUX)
+#define INLINE_DIRECTIVE __inline
+#elif defined(LINUX)
 #define INLINE_DIRECTIVE __inline__
 #else
 #define INLINE_DIRECTIVE
