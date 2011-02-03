@@ -652,7 +652,11 @@ preop_add(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "ADD result %d\n", result);
 
-    errtext = slapi_ch_smprintf(moreInfo, attrName);
+    if (result == LDAP_CONSTRAINT_VIOLATION) {
+      errtext = slapi_ch_smprintf(moreInfo, attrName);
+    } else {
+      errtext = slapi_ch_strdup("Error checking for attribute uniqueness.");
+    }
 
     /* Send failure to the client */
     slapi_send_ldap_result(pb, result, 0, errtext, 0, 0);
@@ -815,7 +819,11 @@ preop_modify(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "MODIFY result %d\n", result);
 
-    errtext = slapi_ch_smprintf(moreInfo, attrName);
+    if (result == LDAP_CONSTRAINT_VIOLATION) {
+      errtext = slapi_ch_smprintf(moreInfo, attrName);
+    } else {
+      errtext = slapi_ch_strdup("Error checking for attribute uniqueness.");
+    }
 
     slapi_send_ldap_result(pb, result, 0, errtext, 0, 0);
 
@@ -931,7 +939,14 @@ preop_modrdn(Slapi_PBlock *pb)
     /* Get the entry that is being renamed so we can make a dummy copy
      * of what it will look like after the rename. */
     err = slapi_search_internal_get_entry(sdn, NULL, &e, plugin_identity);
-    if (err != LDAP_SUCCESS) { result = uid_op_error(35); break; }
+    if (err != LDAP_SUCCESS) {
+        result = uid_op_error(35);
+        /* We want to return a no such object error if the target doesn't exist. */
+        if (err == LDAP_NO_SUCH_OBJECT) {
+            result = err;
+        }
+        break;
+    }
 
     /* Apply the rename operation to the dummy entry. */
     err = slapi_entry_rename(e, rdn, deloldrdn, superior);
@@ -977,7 +992,11 @@ preop_modrdn(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
       "MODRDN result %d\n", result);
 
-    errtext = slapi_ch_smprintf(moreInfo, attrName);
+    if (result == LDAP_CONSTRAINT_VIOLATION) {
+      errtext = slapi_ch_smprintf(moreInfo, attrName);
+    } else {
+      errtext = slapi_ch_strdup("Error checking for attribute uniqueness.");
+    }
 
     slapi_send_ldap_result(pb, result, 0, errtext, 0, 0);
 
