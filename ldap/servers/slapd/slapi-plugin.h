@@ -557,9 +557,8 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
  * larger stacksize (256KB) is needed on IRIX due to its 4KB BUFSIZ.
  * (@ pthread IRIX porting -- 01/11/99)
  *
- * Don't know why HP was defined as follows up until DS6.1x. HP BUFSIZ is 1KB
-	#elif ( defined( hpux ))
-	#define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
+ * HP-UX on PA-RISC uses 64KB default stack size.  Just set to 256K for all
+ * HP-UX.
  */
 #if ( defined( irix ))
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
@@ -567,8 +566,10 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
 #elif ( defined ( AIX ))
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
-/* All other platforms use the default stack size */
+#elif ( defined ( hpux ))
+#define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
 #else
+/* All other platforms use the default stack size */
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  0
 #endif
 
