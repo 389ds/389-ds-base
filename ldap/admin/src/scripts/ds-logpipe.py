@@ -16,6 +16,7 @@ S_IFIFO = 0010000
 buffer = [] # default circular buffer used by default plugin
 totallines = 0
 logfname = "" # name of log pipe
+debug = False
 
 # default plugin just keeps a circular buffer
 def defaultplugin(line):
@@ -39,10 +40,17 @@ plgpostfuncs = [] # list of post plugin funcs
 
 def finish():
     for postfunc in plgpostfuncs: postfunc()
+    if options.scriptpidfile: os.unlink(options.scriptpidfile)
     sys.exit(0)
 
 def sighandler(signum, frame):
-    if signum != signal.SIGHUP: finish()
+    if signum != signal.SIGHUP:
+        signal.signal(signal.SIGHUP, signal.SIG_DFL)
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        #signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        finish()
     else: printbuffer()
 
 def isvalidpluginfile(plg):
@@ -115,7 +123,8 @@ def parse_plugins(parser, options, args):
             else:
                 newargs.append(arg)
         if prefunc:
-            print 'Calling "pre" function in', plgfile
+            if debug:
+                print 'Calling "pre" function in', plgfile
             if not prefunc(bvals):
                 parser.error('the "pre" function in %s returned an error' % plgfile)
         args = newargs
@@ -128,9 +137,6 @@ def open_pipe(logfname):
     while not opencompleted:
         try:
             logf = open(logfname, 'r') # blocks until there is some input
-            # set pipe to non-blocking
-#             oldflags = fcntl.fcntl(logf, fcntl.F_GETFL)
-#             fcntl.fcntl(logf, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
             opencompleted = True
         except IOError, e:
             if e.errno == errno.EINTR:
@@ -139,30 +145,60 @@ def open_pipe(logfname):
                 raise Exception, "%s [%d]" % (e.strerror, e.errno)
     return logf
 
-def get_server_pid(serverpidfile, servertimeout):
-    endtime = int(time.time()) + servertimeout
-    serverpid = 0
-    if serverpidfile:
-        line = None
-        try:
-            spfd = open(serverpidfile, 'r')
-            line = spfd.readline()
-            spfd.close()
-        except IOError, e:
-            if e.errno != errno.ENOENT: # may not exist yet - that's ok
-                raise Exception, "%s [%d]" % (e.strerror, e.errno)
-        if line:
-            serverpid = int(line)
-    return serverpid
-
-def is_server_alive(serverpid):
+def is_proc_alive(procpid):
     retval = False
     try:
-        os.kill(serverpid, 0) # sig 0 is a "ping"
-        retval = True
-    except OSError, e:
-        pass # no such process, or EPERM/EACCES
+        retval = os.path.exists("/proc/%d" % procpid)
+    except IOError, e:
+        if e.errno != errno.ENOENT: # may not exist yet - that's ok
+            # otherwise, probably permissions or other badness
+            raise Exception, "could not open file %s - %s [%d]" % (procfile, e.strerror, e.errno)
+    # using /proc/pid failed, try kill
+    if not retval:
+        try:
+            os.kill(procpid, 0) # sig 0 is a "ping"
+            retval = True # if we got here, proc exists
+        except OSError, e:
+            pass # no such process, or EPERM/EACCES
     return retval
+
+def get_pid_from_file(pidfile):
+    procpid = 0
+    if pidfile:
+        line = None
+        try:
+            pfd = open(pidfile, 'r')
+            line = pfd.readline()
+            pfd.close()
+        except IOError, e:
+            if e.errno != errno.ENOENT: # may not exist yet - that's ok
+                # otherwise, probably permissions or other badness
+                raise Exception, "Could not read pid from file %s - %s [%d]" % (pidfile, e.strerror, e.errno)
+        if line:
+            procpid = int(line)
+    return procpid
+
+def write_pid_file(pidfile):
+    try:
+        pfd = open(pidfile, 'w')
+        pfd.write("%d\n" % os.getpid())
+        pfd.close()
+    except IOError, e:
+        raise Exception, "Could not write pid to file %s - %s [%d]" % (pidfile, e.strerror, e.errno)
+
+def handle_script_pidfile(scriptpidfile):
+    scriptpid = get_pid_from_file(scriptpidfile)
+    # 0 if no file or no pid or error
+    if scriptpid and is_proc_alive(scriptpid):
+        # already running
+        if debug:
+            print "Script is already running: process id %d" % scriptpid
+        return False
+    else:
+        # either process is not running or no file
+        # write our pid to the file
+        write_pid_file(scriptpidfile)
+    return True
 
 def read_and_process_line(logf, plgfuncs):
     line = None
@@ -181,7 +217,7 @@ def read_and_process_line(logf, plgfuncs):
         for plgfunc in plgfuncs:
             if not plgfunc(line):
                 print "Aborting processing due to function %s.%s" % (plgfunc.__module__, plgfunc.__name__)
-                finish()
+                finish() # this will exit the process
                 done = True
                 break
     else: # EOF
@@ -206,6 +242,8 @@ def parse_options():
                       help="process id of server to monitor", default=0)
     parser.add_option("-u", "--user", type='string', dest='user',
                       help='name of user to set effective uid to')
+    parser.add_option("-i", "--scriptpidfile", type='string', dest='scriptpidfile',
+                      help='name of file containing the pid of this script')
 
     options, args = parser.parse_args()
 
@@ -220,6 +258,8 @@ def parse_options():
 
 options, logfname = parse_options()
 
+if options.debug: debug = True
+
 if len(plgfuncs) == 0:
     plgfuncs.append(defaultplugin)
 if len(plgpostfuncs) == 0:
@@ -231,28 +271,36 @@ if options.user:
         userid = pwd.getpwnam(options.user)[2]
     os.seteuid(userid)
 
+if options.scriptpidfile:
+    if not handle_script_pidfile(options.scriptpidfile):
+        options.scriptpidfile = None
+        sys.exit(1)
+
 serverpid = options.serverpid
 if serverpid:
-    if not is_server_alive(serverpid):
+    if not is_proc_alive(serverpid):
         print "Server pid [%d] is not alive - exiting" % serverpid
         sys.exit(1)
 
 try:
     if os.stat(logfname).st_mode & S_IFIFO:
-        print "Using existing log pipe", logfname
+        if debug:
+            print "Using existing log pipe", logfname
     else:
         print "Error:", logfname, "exists and is not a log pipe"
         print "use a filename other than", logfname
         sys.exit(1)
 except OSError, e:
     if e.errno == errno.ENOENT:
-        print "Creating log pipe", logfname
+        if debug:
+            print "Creating log pipe", logfname
         os.mkfifo(logfname)
         os.chmod(logfname, 0600)
     else:
         raise Exception, "%s [%d]" % (e.strerror, e.errno)
 
-print "Listening to log pipe", logfname, "number of lines", maxlines
+if debug:
+    print "Listening to log pipe", logfname, "number of lines", maxlines
 
 # set up our signal handlers
 signal.signal(signal.SIGHUP, sighandler)
@@ -273,13 +321,15 @@ while not done:
     logf = open_pipe(logfname)
 
     if serverpid:
-        if not is_server_alive(serverpid):
-            print "Server pid [%d] is not alive - exiting" % serverpid
-            sys.exit(1)
+        if not is_proc_alive(serverpid):
+            done = True
+            if debug:
+                print "Server pid [%d] is not alive - exiting" % serverpid
         else: # cancel the timer
             signal.alarm(0) # cancel timer - got pid
 
     innerdone = False
+    lines = 0
     while not innerdone and not done:
         # read and process the next line in the pipe
         # if server exits while we are reading, we will get
@@ -288,9 +338,10 @@ while not done:
         # we can get the pid file
         innerdone = read_and_process_line(logf, plgfuncs)
         if not serverpid and options.serverpidfile:
-            serverpid = get_server_pid(options.serverpidfile, options.servertimeout)
+            serverpid = get_pid_from_file(options.serverpidfile)
             if serverpid:
                 signal.alarm(0) # cancel timer - got pid
+        if not innerdone: lines += 1
 
     if logf:
         logf.close()
@@ -298,17 +349,22 @@ while not done:
 
     if not done:
         if serverpid:
-            if not is_server_alive(serverpid):
-                print "Server pid [%d] is not alive - exiting" % serverpid
-                sys.exit(1)
-            else: # the server will sometimes close the log and reopen it
+            if not lines:
+                # the server will sometimes close the log and reopen it
+                # when it does this lines will be 0 - this means we need
+                # immediately attempt to reopen the log pipe and read it
                 # however, at shutdown, the server will close the log before
-                # the process has exited - so is_server_alive will return
+                # the process has exited - so is_proc_alive will return
                 # true for a short time - if we then attempt to open the
                 # pipe, the open will hang forever - to avoid this situation
-                # we set the alarm again to wake up the open
-                signal.alarm(options.servertimeout)
-                
-        print "log pipe", logfname, "closed - reopening"
+                # we set the alarm again to wake up the open - use a short
+                # timeout so we don't wait a long time if the server
+                # really is exiting
+                signal.alarm(5)
+            else:
+                # pipe closed - usually when server shuts down
+                done = True
+        if not done and debug:
+            print "log pipe", logfname, "closed - reopening - read", totallines, "total lines"
 
 finish()
