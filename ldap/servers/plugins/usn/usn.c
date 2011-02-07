@@ -59,6 +59,7 @@ static int usn_bepreop_add(Slapi_PBlock *pb);
 static int usn_bepreop_delete(Slapi_PBlock *pb);
 static int usn_bepreop_modify(Slapi_PBlock *pb);
 static int usn_bepostop(Slapi_PBlock *pb);
+static int usn_bepostop_delete (Slapi_PBlock *pb);
 static int usn_start(Slapi_PBlock *pb);
 static int usn_close(Slapi_PBlock *pb);
 static int usn_get_attr(Slapi_PBlock *pb, const char* type, void *value);
@@ -177,7 +178,7 @@ usn_bepostop_init(Slapi_PBlock *pb)
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_ADD_FN,
                                  (void *)usn_bepostop) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_DELETE_FN,
-                                 (void *)usn_bepostop) != 0 ||
+                                 (void *)usn_bepostop_delete) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN,
                                  (void *)usn_bepostop) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_MODRDN_FN,
@@ -498,6 +499,47 @@ usn_bepostop (Slapi_PBlock *pb)
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
+        goto bail;
+    }
+
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    if (NULL == be) {
+        rc = LDAP_PARAM_ERROR;    
+        goto bail;
+    }
+
+    if (be->be_usn_counter) {
+        slapi_counter_increment(be->be_usn_counter);
+    }
+bail:
+    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
+                    "<-- usn_bepostop\n");
+    return rc;
+}
+
+/* count up the counter */
+/* if the op is delete and the op was not successful, remove preventryusn */
+static int
+usn_bepostop_delete (Slapi_PBlock *pb)
+{
+    int rc = -1;
+    Slapi_Backend *be = NULL;
+
+    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
+                    "--> usn_bepostop\n");
+
+    /* if op is not successful, don't increment the counter */
+    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+    if (LDAP_SUCCESS != rc) {
+        Slapi_Entry *e = NULL;
+
+        slapi_pblock_get(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, &e);
+        if (NULL == e) {
+            rc = LDAP_NO_SUCH_OBJECT;    
+            goto bail;
+        }
+        /* okay to return the rc from slapi_entry_delete_values */
+        rc = slapi_entry_delete_values(e, SLAPI_ATTR_ENTRYUSN_PREV, NULL);
         goto bail;
     }
 

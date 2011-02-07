@@ -116,6 +116,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	if (NULL == addr)
 	{
+		/* retval is -1 */
 		goto error_return;
 	}
 	ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
@@ -123,6 +124,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	{
 		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
 		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+		/* retval is -1 */
 		goto error_return;
 	}
 
@@ -158,19 +160,22 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
 	}
 	if ( slapi_op_abandoned( pb ) ) {
+		/* retval is -1 */
 		goto error_return;
 	}
 
 	/* find and lock the entry we are about to modify */
 	if ( (e = find_entry2modify( pb, be, addr, NULL )) == NULL )
 	{
-    	ldap_result_code= -1; 
+		ldap_result_code= LDAP_NO_SUCH_OBJECT; 
+		/* retval is -1 */
 		goto error_return; /* error result sent by find_entry2modify() */
 	}
 
 	if ( slapi_entry_has_children( e->ep_entry ) )
 	{
 		ldap_result_code= LDAP_NOT_ALLOWED_ON_NONLEAF;
+		/* retval is -1 */
 		goto error_return;
 	}
 
@@ -194,6 +199,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		{
 			/* restore original entry so the front-end delete code can free it */
 			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
+			/* retval is -1 */
 			goto error_return;
 		}
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -211,6 +217,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			/* restore original entry so the front-end delete code can free it */
 			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
+			/* retval is -1 */
 			goto error_return;
 		}
 		/* the flag could be set in a preop plugin (e.g., USN) */
@@ -294,6 +301,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	if ( ldap_result_code != LDAP_SUCCESS )
 	{
 		ldap_result_message= errbuf;
+		/* retval is -1 */
 		goto error_return;
 	}
 
@@ -766,8 +774,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			if (entryrdn_get_switch()) /* subtree-rename: on */
 			{
-				retval =
-						entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
+				retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
 					LDAPDebug0Args( LDAP_DEBUG_ARGS,
 							"delete (deleting entryrdn) DB_LOCK_DEADLOCK\n");
@@ -852,6 +859,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		/* Failed */
 		LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in delete\n", 0, 0, 0 );
 		ldap_result_code= LDAP_OPERATIONS_ERROR;
+		retval = -1;
 		goto error_return;
 	}
 
@@ -885,6 +893,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			LDAPDebug( LDAP_DEBUG_ANY,
 				"ldbm_back_delete: modify_switch_entries failed\n", 0, 0, 0);
+			retval = -1;
 			goto error_return;
 		}
 	}
@@ -893,10 +902,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	goto common_return;
 
 error_return:
-	if (e!=NULL) {
-	    cache_unlock_entry( &inst->inst_cache, e );
-	    CACHE_RETURN( &inst->inst_cache, &e );
-	}
 	if (tombstone_in_cache)
 	{
 		CACHE_REMOVE( &inst->inst_cache, tombstone );
@@ -941,9 +946,27 @@ common_return:
 	 * but not if the operation is purging tombstones.
 	 */
 	if (!delete_tombstone_entry) {
+		if (e) {
+			/* set entry in case be-postop plugins need to work on it
+			 * (e.g., USN) */
+			slapi_pblock_get( pb, SLAPI_DELETE_BEPOSTOP_ENTRY, &orig_entry );
+			slapi_pblock_set( pb, SLAPI_DELETE_BEPOSTOP_ENTRY, e->ep_entry );
+		}
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
+		/* set original entry back */
+		if (e) {
+			slapi_pblock_set( pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry );
+		}
 	}
 
+	/* Need to return to cache after post op plugins are called */
+	if (retval) { /* error case */
+		if (e) {
+			cache_unlock_entry( &inst->inst_cache, e );
+			CACHE_RETURN( &inst->inst_cache, &e );
+		}
+	}
+	
 	if (ruv_c_init) {
 		modify_term(&ruv_c, be);
 	}
