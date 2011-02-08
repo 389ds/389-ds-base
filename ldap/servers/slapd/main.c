@@ -218,7 +218,7 @@ extern void collation_init();
 */
 
 static void
-chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
+chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
 {
   PRDir *dir;
   PRDirEntry *entry;
@@ -247,7 +247,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn)
     while( (entry = PR_ReadDir(dir , PR_SKIP_BOTH )) !=NULL ) 
     {
       PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
-      slapd_chown_if_not_owner( file, pw->pw_uid, -1 ); 
+      slapd_chown_if_not_owner( file, pw->pw_uid, both?pw->pw_gid:-1 ); 
     }
     PR_CloseDir( dir );
   }
@@ -290,19 +290,19 @@ fix_ownership()
 
 	/* config directory needs to be owned by the local user */
 	if (slapdFrontendConfig->configdir) {
-		chown_dir_files(slapdFrontendConfig->configdir, pw, PR_FALSE);
+		chown_dir_files(slapdFrontendConfig->configdir, pw, PR_FALSE, PR_FALSE);
 	}
 	/* do access log file, if any */
 	if (slapdFrontendConfig->accesslog) {
-		chown_dir_files(slapdFrontendConfig->accesslog, pw, PR_TRUE);
+		chown_dir_files(slapdFrontendConfig->accesslog, pw, PR_TRUE, PR_TRUE);
 	}
 	/* do audit log file, if any */
 	if (slapdFrontendConfig->auditlog) {
-		chown_dir_files(slapdFrontendConfig->auditlog, pw, PR_TRUE); 
+		chown_dir_files(slapdFrontendConfig->auditlog, pw, PR_TRUE, PR_TRUE);
 	}
 	/* do error log file, if any */
 	if (slapdFrontendConfig->errorlog) {
-		chown_dir_files(slapdFrontendConfig->errorlog, pw, PR_TRUE); 
+		chown_dir_files(slapdFrontendConfig->errorlog, pw, PR_TRUE, PR_TRUE);
 	}
 }
 #endif  
