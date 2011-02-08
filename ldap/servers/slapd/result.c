@@ -1690,7 +1690,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 			{
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
-								  " tag=%u nentries=%d etime=%s%s%s"
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
 								  ", SASL bind in progress\n",
 								  op->o_connid, 
 								  op->o_opid,
@@ -1702,7 +1702,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 			{
 				slapi_log_access( LDAP_DEBUG_ARGS,
 								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%u nentries=%d etime=%s%s%s"
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
 								  ", SASL bind in progress\n",
 									LOG_INTERNAL_OP_CON_ID,
 									LOG_INTERNAL_OP_OP_ID,
@@ -1722,7 +1722,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 			{
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
-								  " tag=%u nentries=%d etime=%s%s%s"
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
 								  " dn=\"%s\"\n",
 								  op->o_connid, 
 								  op->o_opid,
@@ -1734,7 +1734,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 			{
 				slapi_log_access( LDAP_DEBUG_ARGS,
 								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%u nentries=%d etime=%s%s%s"
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
 								  " dn=\"%s\"\n",
 									LOG_INTERNAL_OP_CON_ID,
 									LOG_INTERNAL_OP_OP_ID,	
@@ -1748,7 +1748,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 			{
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
-								  " tag=%u nentries=%d etime=%s%s%s\n",
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
 								  op->o_connid, 
 								  op->o_opid,
 								  err, tag, nentries, 
@@ -1759,7 +1759,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 			{
 				slapi_log_access( LDAP_DEBUG_ARGS,
 								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%u nentries=%d etime=%s%s%s\n",
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
 									LOG_INTERNAL_OP_CON_ID,
 									LOG_INTERNAL_OP_OP_ID,
 								  err, tag, nentries, 

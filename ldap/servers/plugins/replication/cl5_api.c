@@ -1970,7 +1970,7 @@ static int _cl5AppInit (PRBool *didRecovery)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 				"_cl5AppInit: failed to fetch backend dbenv (%p) and/or "
-				"index page size (%u)\n", dbEnv, pagesize);
+				"index page size (%lu)\n", dbEnv, pagesize);
 		return CL5_DB_ERROR;
 	}
 }

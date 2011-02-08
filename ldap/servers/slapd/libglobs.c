@@ -4617,7 +4617,7 @@ config_get_require_secure_binds(void)
 int
 config_get_anon_access_switch(void)
 {
-	char *retVal = NULL;
+	int retVal = 0;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	CFG_LOCK_READ(slapdFrontendConfig);
         retVal = slapdFrontendConfig->allow_anon_access;

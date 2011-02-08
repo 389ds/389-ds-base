@@ -1509,11 +1509,11 @@ _back_crypt_crypto_op(attrcrypt_private *priv,
     }
     if (encrypt) {
         slapi_log_error(SLAPI_LOG_BACKLDBM, ATTRCRYPT,
-                        "_back_crypt_crypto_op encrypt '%s' (%d)\n", 
+                        "_back_crypt_crypto_op encrypt '%s' (%lu)\n", 
                         in_data, in_size);
     } else {
         slapi_log_error(SLAPI_LOG_BACKLDBM, ATTRCRYPT,
-                        "_back_crypt_crypto_op decrypt (%d)\n", in_size);
+                        "_back_crypt_crypto_op decrypt (%lu)\n", in_size);
     }
     /* Allocate the output buffer */
     output_buffer_length = in_size + BACK_CRYPT_OUTBUFF_EXTLEN;

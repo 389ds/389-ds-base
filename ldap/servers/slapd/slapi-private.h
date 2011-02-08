@@ -1228,6 +1228,13 @@ void    DS_Sleep(PRIntervalTime ticks);
 /* plugin.c */
 int plugin_enabled(const char *plugin_name, void *identity);
 
+/* protect_db.c */
+/* is_slapd_running()
+ * returns 1 if slapd is running, 0 if not, -1 on error
+ */
+int is_slapd_running();
+
+
 #ifdef __cplusplus
 }
 #endif

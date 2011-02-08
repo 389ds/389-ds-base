@@ -2691,13 +2691,13 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 	if (0 == ber_len) {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
 			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable"
-			" is %u bytes. Change the nsslapd-maxbersize attribute in"
+			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, maxbersize );
 	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
-			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was %u bytes, max allowable"
-			" is %u bytes. Change the nsslapd-maxbersize attribute in"
+			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was %" BERLEN_T " bytes, max allowable"
+			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, ber_len, maxbersize );
 	}
