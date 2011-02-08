@@ -924,7 +924,7 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
                 if (feof(f))
                     break;
                 if (strncmp(s, "VmSize:", 7) == 0) {
-                    sscanf(s+7, "%u", procpages);
+                    sscanf(s+7, "%lu", procpages);
                     break;
                 }
             }
@@ -4213,7 +4213,7 @@ static int commit_good_database(dblayer_private *priv)
             filename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
         return -1;
     } 
-    PR_snprintf(line,sizeof(line),"cachesize:%u\nncache:%d\nversion:%d\n",
+    PR_snprintf(line,sizeof(line),"cachesize:%lu\nncache:%d\nversion:%d\n",
             priv->dblayer_cachesize, priv->dblayer_ncache, DB_VERSION_MAJOR);
     num_bytes = strlen(line);
     return_value = slapi_write_buffer(prfd, line, num_bytes);

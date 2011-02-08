@@ -826,7 +826,7 @@ slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr)
 	int dn_syntax = 0; /* not DN, by default */
 
 	if (attr && attr->a_plugin) { /* If not set, there is no way to get the info */
-		if (syntaxoid = attr_get_syntax_oid(attr)) {
+		if ((syntaxoid = attr_get_syntax_oid(attr))) {
 			dn_syntax = ((0 == strcmp(syntaxoid, NAMEANDOPTIONALUID_SYNTAX_OID))
 						 || (0 == strcmp(syntaxoid, DN_SYNTAX_OID)));
 		}

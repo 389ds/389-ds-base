@@ -722,8 +722,8 @@ import_producer(void *param)
                     "ending line %d of file \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf),
                     curr_lineno, curr_filename);
-            import_log_notice(job, "REASON: entry too large (%u bytes) for "
-                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -853,8 +853,8 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
         char ebuf[BUFSIZ];
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf));
-        import_log_notice(job, "REASON: entry too large (%u bytes) for "
-                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
+        import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
         backentry_free(&ep);
         job->skipped++;
         rc = 0; /* go to the next loop */
@@ -1728,8 +1728,8 @@ upgradedn_producer(void *param)
             char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf));
-            import_log_notice(job, "REASON: entry too large (%u bytes) for "
-                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -2871,8 +2871,8 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         char ebuf[BUFSIZ];
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(ep->ep_entry), ebuf));
-        import_log_notice(job, "REASON: entry too large (%u bytes) for "
-                    "the import buffer size (%u bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
+        import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the import buffer size (%lu bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
         backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
         backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);

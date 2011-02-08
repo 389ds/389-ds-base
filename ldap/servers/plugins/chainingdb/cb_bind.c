@@ -181,10 +181,11 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
 	if ( LDAP_SUCCESS != rc )  {
 		static int warned_bind_once = 0;
 		if (!warned_bind_once) {
+			int hasmatched = (matcheddnp && *matcheddnp && (**matcheddnp != '\0'));
 			slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
 			                "cb_sasl_bind_once_s failed (%s%s%s)\n",
-			                matcheddnp?matcheddnp:"", 
-							(matcheddnp&&(*matcheddnp!='\0'))?": ":"",
+			                hasmatched ? *matcheddnp : "", 
+			                hasmatched ? ": " : "",
 			                ldap_err2string(rc));
 			warned_bind_once = 1;
 		}

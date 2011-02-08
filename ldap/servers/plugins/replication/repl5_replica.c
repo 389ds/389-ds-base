@@ -2390,7 +2390,6 @@ replica_write_ruv (Replica *r)
 int
 replica_ruv_smods_for_op( Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods )
 {
-    int rc = 0;
     Object *replica_obj;
     Object *ruv_obj;
     Replica *replica;

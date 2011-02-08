@@ -96,6 +96,16 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define NSPRIu64	"llu"
 #define NSPRI64	"ll"
 
+/* OpenLDAP uses unsigned long for ber_tag_t and ber_len_t but mozldap uses unsigned int */
+/* use this macro for printf statements for ber_tag_t and ber_len_t */
+#if defined(USE_OPENLDAP)
+#define BERTAG_T "lu"
+#define BERLEN_T "lu"
+#else
+#define BERTAG_T "u"
+#define BERLEN_T "u"
+#endif
+
 /*
  * The slapi_attr_get_flags() routine returns a bitmap that contains one or
  * more of these values.

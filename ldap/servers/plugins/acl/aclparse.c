@@ -1641,7 +1641,7 @@ acl_check_for_target_macro( aci_t *aci_item, char *value)
 	str = strstr(value, ACL_TARGET_MACRO_DN_KEY /* ($dn) */);	
 	
 	if (str != NULL) {
-		char *p0 = NULL, p1 = NULL;
+		char *p0 = NULL, *p1 = NULL;
 		/* Syntax check: 
 		 * error return if ($dn) is in '[' and ']', e.g., "[($dn)]" */
 		p0 = strchr(value, '[');

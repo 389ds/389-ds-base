@@ -171,7 +171,6 @@ cb_get_connection(cb_conn_pool * pool,
 	int 				secure;
 	char 				*mech = NULL;;
 	static	char		*error1="Can't contact remote server : %s";
-	static	char		*error2="Can't bind to remote server : %s";
 	int					isMultiThread = ENABLE_MULTITHREAD_PER_CONN ; /* by default, we enable multiple operations per connection */
 	
 	/*

@@ -2371,7 +2371,6 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                     slapi_mods_free(&smods);
                 }
 
-              bail:
                 slapi_sdn_free(&managed_sdn);
                 slapi_entry_free(new_managed_entry);
             }
