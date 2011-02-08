@@ -101,14 +101,12 @@
 #include <ldappr.h>
 #endif
 
-#if defined(USE_OPENLDAP)
 /* the server depends on the old, deprecated ldap_explode behavior which openldap
-   does not support - the use of the mozldap code should be seen as a temporary
-   measure which we should remove as we improve our internal DN handling */
+   does not support - the use of the mozldap code should be discouraged as
+   there are issues that mozldap does not handle correctly. */
 static char **mozldap_ldap_explode( const char *dn, const int notypes, const int nametype );
 static char **mozldap_ldap_explode_dn( const char *dn, const int notypes );
 static char **mozldap_ldap_explode_rdn( const char *rdn, const int notypes );
-#endif
 
 #ifdef MEMPOOL_EXPERIMENTAL
 void _free_wrapper(void *ptr)
@@ -1094,21 +1092,13 @@ done:
 char **
 slapi_ldap_explode_rdn(const char *rdn, int notypes)
 {
-#if defined(USE_OPENLDAP)
     return mozldap_ldap_explode_rdn(rdn, notypes);
-#else
-    return ldap_explode_rdn(rdn, notypes);
-#endif
 }
 
 char **
 slapi_ldap_explode_dn(const char *dn, int notypes)
 {
-#if defined(USE_OPENLDAP)
     return mozldap_ldap_explode_dn(dn, notypes);
-#else
-    return ldap_explode_dn(dn, notypes);
-#endif
 }
 
 void
@@ -1992,14 +1982,15 @@ cleanup:
 
 #endif /* HAVE_KRB5 */
 
-#if defined(USE_OPENLDAP)
-
 #define LDAP_DN		1
 #define LDAP_RDN	2
 
 #define INQUOTE		1
 #define OUTQUOTE	2
 
+/* We use the following two functions when built against OpenLDAP
+ * or the MozLDAP libs since the MozLDAP ldap_explode_dn() function
+ * does not handle trailing whitespace characters properly. */
 static char **
 mozldap_ldap_explode( const char *dn, const int notypes, const int nametype )
 {
@@ -2101,8 +2092,7 @@ mozldap_ldap_explode( const char *dn, const int notypes, const int nametype )
 					if ( !endquote ) {
 						/* trim trailing spaces */
 						while ( len > 0 &&
-						    ldap_utf8isspace(
-						    &rdns[count-1][len-1] )) {
+							(rdns[count-1][len-1] == ' ')) {
 							--len;
 						}
 					}
@@ -2148,4 +2138,3 @@ mozldap_ldap_explode_rdn( const char *rdn, const int notypes )
 	return( mozldap_ldap_explode( rdn, notypes, LDAP_RDN ) );
 }
 
-#endif /* USE_OPENLDAP */
