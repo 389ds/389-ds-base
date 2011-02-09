@@ -303,12 +303,33 @@ do_modify( Slapi_PBlock *pb )
 	}
 
 	/* check for decoding error */
-	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) )
+	/*
+	  if using mozldap - will return LBER_END_OF_SEQORSET if loop
+	  completed successfully, otherwise, other value
+	  if using openldap - will return LBER_DEFAULT in either case
+	    if there was at least one element read, len will be -1
+		if there were no elements read (empty modify) len will be 0
+	*/
+#if defined(USE_OPENLDAP)
+	if ( tag != LBER_END_OF_SEQORSET )
+	{
+		if ( ( len == 0 ) && ( 0 == smods.num_elements ) && !ignored_some_mods ) {
+			/* ok - empty modify - allow empty modifies */
+		} else if ( len != -1 ) {
+			op_shared_log_error_access (pb, "MOD", dn, "decoding error");
+			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0, NULL );
+			goto free_and_return;
+		}
+		/* else ok */
+	} 
+#else
+	if ( tag != LBER_END_OF_SEQORSET )
 	{
 		op_shared_log_error_access (pb, "MOD", dn, "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0, NULL );
 		goto free_and_return;
 	} 
+#endif
 
 	/* decode the optional controls - put them in the pblock */
 	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 )
@@ -728,7 +749,14 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	if (!repl_op && !skip_modified_attrs && lastmod)
 	{
 		modify_update_last_modified_attr(pb, &smods);
-	}			
+	}
+
+	if (0 == slapi_mods_get_num_mods(&smods)) {
+		/* nothing to do - no mods - this is not an error - just
+		   send back LDAP_SUCCESS */
+		send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+		goto free_and_return;
+	}
 			
 	/*
 	 * Add the unhashed password pseudo-attribute before
