@@ -186,7 +186,11 @@ slapu_next_entry( LDAP* ld, LDAPMessage* msg )
 {
     Slapi_Entry** entry = (Slapi_Entry**)msg;
     if (ld != internal_ld) {
-	return ldap_next_entry (ld, msg);
+	if (msg) {
+	    return ldap_next_entry (ld, msg);
+	} else {
+	    return NULL;
+	}
     }
     if (entry && *entry && *++entry) {
 	return (LDAPMessage*)entry;
