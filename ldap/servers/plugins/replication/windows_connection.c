@@ -688,7 +688,8 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 			/* See if there are any more entries : if so then that's an error
 			 * but we still need to get them to avoid gumming up the connection
 			 */
-			while (NULL != ( message = ldap_next_entry(conn->ld,message))) ;
+			/* have to check message first - cannot pass a NULL message */
+			while (message && (NULL != ( message = ldap_next_entry(conn->ld,message)))) ;
 			return_value = CONN_OPERATION_SUCCESS;
 		}
 		else if (IS_DISCONNECT_ERROR(ldap_rc))
