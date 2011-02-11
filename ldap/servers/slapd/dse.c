@@ -2066,25 +2066,21 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
 		return dse_add_return(error, NULL);
     }
 
-	/* make copy for postop fns because add_entry_pb consumes e */
+	/* make copy for postop fns because add_entry_pb consumes the given entry */
 	e_copy = slapi_entry_dup(e);
-    if ( dse_add_entry_pb(pdse, e, pb) != 0)
+    if ( dse_add_entry_pb(pdse, e_copy, pb) != 0)
     {
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
 		slapi_sdn_done(&sdn);
 		return dse_add_return(error, e_copy);
     }
-
-	/* e has been consumed, so use the copy for the post ops */
-	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, e_copy);
-
 	/* The postop must be called after the write lock is released. */
-    dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, e_copy, NULL, &returncode, returntext);
+    dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, e, NULL, &returncode, returntext);
 
     /* We have been successful. Tell the user */  
     slapi_send_ldap_result( pb, returncode, NULL, NULL, 0, NULL );
 
-	slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup( e_copy ));
+	slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup( e ));
 
 	/* entry has been freed, so make sure no one tries to use it later */
 	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
@@ -2092,7 +2088,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     /* Free the dn, and return */
 	slapi_sdn_done(&sdn);
 
-	return dse_add_return(rc, e_copy);
+	return dse_add_return(rc, e);
 }
 
 /*
