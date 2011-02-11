@@ -305,7 +305,8 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         goto bail;
     }
 
-    if ( (*err = dblayer_get_id2entry( be, &db )) != 0 ) {
+    *err = dblayer_get_id2entry( be, &db );
+    if ( (*err != 0) || (NULL == db) ) {
         slapi_log_error(SLAPI_LOG_FATAL, ID2ENTRY,
                         "Could not open id2entry err %d\n", *err);
         return( NULL );

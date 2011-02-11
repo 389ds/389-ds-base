@@ -1024,6 +1024,7 @@ bail:
  * ldif file.
  * (reunified at last)
  */
+#define LDBM2LDIF_BUSY (-2)
 int
 ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 {
@@ -1147,7 +1148,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             LDAPDebug(LDAP_DEBUG_ANY, "ldbm: '%s' is already in the middle"
                     " of another task and cannot be disturbed.\n",
                     inst->inst_name, 0, 0);
-            return_value = -1;
+            return_value = LDBM2LDIF_BUSY;
             goto bye;
         }
     }
@@ -1585,17 +1586,12 @@ bye:
         }
     }
 
-    if (!run_from_cmdline && NULL != inst) {
+    if (!run_from_cmdline && inst && (LDBM2LDIF_BUSY != return_value)) {
         instance_set_not_busy(inst);
     }
 
     ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
     idl_free(eargs.pre_exported_idl);
-    if (inst != NULL) {
-        PR_Lock(inst->inst_config_mutex);
-        inst->inst_flags &= ~INST_FLAG_BUSY;
-        PR_Unlock(inst->inst_config_mutex);
-    }
     
     return( return_value );
 }
