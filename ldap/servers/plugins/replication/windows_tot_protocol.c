@@ -98,8 +98,8 @@ windows_tot_run(Private_Repl_Protocol *prp)
 {
 	int rc;
 	callback_data cb_data;
-	Slapi_PBlock *pb;
-	char* dn;
+	Slapi_PBlock *pb = NULL;
+	char* dn = NULL;
 	RUV *ruv = NULL;
 	RUV *starting_ruv = NULL;
 	Replica *replica = NULL;
