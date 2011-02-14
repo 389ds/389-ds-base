@@ -1458,9 +1458,32 @@ bail:
 void
 ldbm_back_prev_search_results( Slapi_PBlock *pb )
 {
+    backend *be;
+    ldbm_instance *inst;
     back_search_result_set *sr;
+
+    slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+    if (!be) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                       "ldbm_back_prev_search_results: no backend\n");
+        return;
+    }
+    inst = (ldbm_instance *) be->be_instance_info;
+    if (!inst) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                       "ldbm_back_prev_search_results: no backend instance\n");
+        return;
+    }
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
     if (sr) {
+        if (sr->sr_entry) {
+            /* The last entry should be returned to cache */
+            LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+                          "ldbm_back_prev_search_results: returning: %s\n",
+                          slapi_entry_get_dn_const(sr->sr_entry->ep_entry));
+            CACHE_RETURN (&inst->inst_cache, &(sr->sr_entry));
+            sr->sr_entry = NULL;
+        }
         idl_iterator_decrement(&(sr->sr_current));
     }
     return;

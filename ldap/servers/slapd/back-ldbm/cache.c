@@ -275,6 +275,42 @@ int remove_hash(Hashtable *ht, const void *key, size_t keylen)
     return 0;
 }
 
+#ifdef LDAP_CACHE_DEBUG
+void
+dump_hash(Hashtable *ht)
+{
+    u_long i;
+    void *e;
+    char ep_id[16];
+    char ep_ids[80];
+    char *p;
+    int ids_size = 80;
+
+    LDAPDebug0Args(LDAP_DEBUG_ANY, "entry cache:\n");
+    p = ep_ids;
+    for (i = 0; i < ht->size; i++) {
+        int len;
+        e = ht->slot[i];
+        if (NULL == e) {
+            continue;
+        }
+        do {
+            PR_snprintf(ep_id, 16, "%u", ((struct backcommon *)e)->ep_id);
+            len = strlen(ep_id);
+            if (ids_size < len + 1) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", ep_ids);
+                p = ep_ids; ids_size = 80;
+            }
+            PR_snprintf(p, ids_size, "%s", ep_id);
+            p += len; ids_size -= len + 1;
+        } while (e = HASH_NEXT(ht, e));
+    }
+    if (p != ep_ids) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", ep_ids);
+    }
+}
+#endif
+
 /* hashtable distribution stats --
  * slots: # of slots in the hashtable
  * total_entries: # of entries in the hashtable
@@ -574,9 +610,12 @@ static void entrycache_clear_int(struct cache *cache)
     }
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
-       LDAPDebug1Arg(LDAP_DEBUG_ANY,
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
                      "entrycache_clear_int: there are still %ld entries "
-                     "in the entry cache. :/\n", cache->c_curentries);
+                     "in the entry cache.\n", cache->c_curentries);
+#ifdef LDAP_CACHE_DEBUG
+        dump_hash(cache->c_idtable);
+#endif
     }
 }
 
