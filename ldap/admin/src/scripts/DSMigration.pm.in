@@ -1153,6 +1153,13 @@ sub migrateDS {
 	# ensure any selinux relabeling gets done if needed
         DSCreate::updateSelinuxPolicy($inf);
 
+	# do the tmpfiles.d stuff
+        @errs = DSCreate::updateTmpfilesDotD($inf);
+        if (@errs) {
+            $mig->msg(@errs);
+            goto cleanup;
+        }
+
         # finally, start the server
         if ($mig->{start_servers}) {
             $inf->{slapd}->{start_server} = 1;
