@@ -1112,7 +1112,6 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
-PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
@@ -1192,6 +1191,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mibdir = $(datadir)@mibdir@
 mkdir_p = @mkdir_p@
@@ -1247,6 +1247,7 @@ updatedir = $(datadir)@updatedir@
 vendor = @vendor@
 with_fhs_opt = @with_fhs_opt@
 with_selinux = @with_selinux@
+with_tmpfiles_d = @with_tmpfiles_d@
 
 # look for included m4 files in the ./m4/ directory
 ACLOCAL_AMFLAGS = -I m4
@@ -2471,6 +2472,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 @BUNDLE_FALSE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 @BUNDLE_FALSE@	-e 's,@with_selinux\@,@with_selinux@,g' \
+@BUNDLE_FALSE@	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 @BUNDLE_FALSE@	-e 's,@perlexec\@,@perlexec@,g' \
 @BUNDLE_FALSE@	-e 's,@sttyexec\@,@sttyexec@,g' \
 @BUNDLE_FALSE@	-e 's,@initconfigdir\@,$(initconfigdir),g' \
@@ -2543,6 +2545,7 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 @BUNDLE_TRUE@	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 @BUNDLE_TRUE@	-e 's,@with_selinux\@,@with_selinux@,g' \
+@BUNDLE_TRUE@	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 @BUNDLE_TRUE@	-e 's,@perlexec\@,@perlexec@,g' \
 @BUNDLE_TRUE@	-e 's,@sttyexec\@,@sttyexec@,g' \
 @BUNDLE_TRUE@	-e 's,@initconfigdir\@,$(initconfigdir),g'\

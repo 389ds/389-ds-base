@@ -292,6 +292,25 @@ schemadir=/$PACKAGE_NAME/schema
 defaultuser=nobody
 defaultgroup=nobody
 
+if test -z "$with_tmpfiles_d" ; then
+   if test -d $sysconfdir/tmpfiles.d ; then
+      with_tmpfiles_d='$(sysconfdir)/tmpfiles.d'
+   fi
+fi
+AC_MSG_CHECKING(for --with-tmpfiles-d)
+AC_ARG_WITH(tmpfiles-d,
+   AS_HELP_STRING([--with-tmpfiles-d=PATH],
+                  [system uses tmpfiles.d to handle temp files/dirs (default: $with_tmpfiles_d)])
+)
+if test "$with_tmpfiles_d" = yes ; then
+  AC_MSG_ERROR([You must specify --with-tmpfiles-d=/full/path/to/tmpfiles.d directory])
+elif test "$with_tmpfiles_d" = no ; then
+  with_tmpfiles_d=
+else
+  AC_MSG_RESULT([$with_tmpfiles_d])
+fi
+AC_SUBST(with_tmpfiles_d)
+
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)

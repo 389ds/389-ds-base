@@ -1389,6 +1389,7 @@ fixupcmd = sed \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
+	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g'\
@@ -1451,6 +1452,7 @@ fixupcmd = sed \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
+	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \

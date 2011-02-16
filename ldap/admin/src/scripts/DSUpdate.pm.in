@@ -47,7 +47,7 @@ package DSUpdate;
 use DSUtil;
 use Inf;
 use FileConn;
-use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles updateSelinuxPolicy);
+use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles updateSelinuxPolicy updateTmpfilesDotD);
 
 use File::Basename qw(basename dirname);
 
@@ -407,6 +407,8 @@ sub updateDSInstance {
     $conn->close();
 
     updateSelinuxPolicy($inf);
+
+    push @errs, updateTmpfilesDotD($inf);
 
     return @errs;
 }
