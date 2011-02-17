@@ -286,7 +286,6 @@ dump_hash(Hashtable *ht)
     char *p;
     int ids_size = 80;
 
-    LDAPDebug0Args(LDAP_DEBUG_ANY, "entry cache:\n");
     p = ep_ids;
     for (i = 0; i < ht->size; i++) {
         int len;
@@ -301,8 +300,8 @@ dump_hash(Hashtable *ht)
                 LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", ep_ids);
                 p = ep_ids; ids_size = 80;
             }
-            PR_snprintf(p, ids_size, "%s", ep_id);
-            p += len; ids_size -= len + 1;
+            PR_snprintf(p, ids_size, "%s:", ep_id);
+            p += len + 1; ids_size -= len + 1;
         } while (e = HASH_NEXT(ht, e));
     }
     if (p != ep_ids) {
@@ -614,6 +613,7 @@ static void entrycache_clear_int(struct cache *cache)
                      "entrycache_clear_int: there are still %ld entries "
                      "in the entry cache.\n", cache->c_curentries);
 #ifdef LDAP_CACHE_DEBUG
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "ID(s) in entry cache:\n");
         dump_hash(cache->c_idtable);
 #endif
     }

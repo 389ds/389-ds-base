@@ -1634,10 +1634,10 @@ retry:
                 {
                     match= sort_attr_compare((struct berval**)typedown_value, entry_value, compare_fn);
                 }
-        if (needFree) {
-            ber_bvecfree((struct berval**)entry_value);
-            entry_value = NULL;
-        }
+                if (needFree) {
+                    ber_bvecfree((struct berval**)entry_value);
+                    entry_value = NULL;
+                }
             }
             else
             {
@@ -1690,6 +1690,8 @@ retry:
                     LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byvalue: Found. Index %lu\n",si, 0, 0 );
                 }
             }
+            CACHE_RETURN(&(((ldbm_instance *)be->be_instance_info)->inst_cache),
+                         &e);
         }
     } while (!found);
     ber_bvecfree((struct berval**)typedown_value);
