@@ -632,6 +632,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 		if (0 != err ) {
 			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries db err %d\n",err,0,0);
 		}
+		CACHE_RETURN(&inst->inst_cache,&a);
 		return 0;
 	}
 	/* OK, now we have the entries, so we work our way down the attribute list comparing as we go */
