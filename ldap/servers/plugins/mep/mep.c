@@ -2008,6 +2008,12 @@ mep_mod_post_op(Slapi_PBlock *pb)
             goto bail;
         }
 
+        /* If the entry is a tombstone, just bail. */
+        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
+                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+            goto bail;
+        }
+
         /* Check if we're an origin entry.  Update the
          * mapped attrs of it's managed entry if so. */
         managed_dn = slapi_entry_attr_get_charptr(e, MEP_MANAGED_ENTRY_TYPE);
@@ -2108,6 +2114,12 @@ mep_add_post_op(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
 
     if (e) {
+        /* If the entry is a tombstone, just bail. */
+        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
+                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+            return 0;
+        }
+
         /* Check if a config entry applies
          * to the entry being added. */
         mep_config_read_lock();
@@ -2163,6 +2175,12 @@ mep_del_post_op(Slapi_PBlock *pb)
 
     if (e) {
         char *managed_dn = NULL;
+
+        /* If the entry is a tombstone, just bail. */
+        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
+                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+            return 0;
+        }
 
         /* See if we're an origin entry . */
         managed_dn = slapi_entry_attr_get_charptr(e, MEP_MANAGED_ENTRY_TYPE);
@@ -2233,6 +2251,12 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
     /* If replication, just bail. */
     if (mep_isrepl(pb)) {
+        return 0;
+    }
+
+    /* If the entry is a tombstone, just bail. */
+    if (slapi_entry_attr_hasvalue(post_e, SLAPI_ATTR_OBJECTCLASS,
+                                  SLAPI_ATTR_VALUE_TOMBSTONE)) {
         return 0;
     }
 
