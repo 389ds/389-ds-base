@@ -89,12 +89,14 @@ struct config_info {
 #define CONFIG_DIRECTORY "nsslapd-directory"
 #define CONFIG_MODE "nsslapd-mode"
 #define CONFIG_DBCACHESIZE "nsslapd-dbcachesize"
+#define CONFIG_DBCACHESIZEUNIT "nsslapd-dbcachesizeunit"
 #define CONFIG_DBNCACHE "nsslapd-dbncache"
 #define CONFIG_MAXPASSBEFOREMERGE "nsslapd-maxpassbeforemerge"
 #define CONFIG_IMPORT_CACHE_AUTOSIZE	"nsslapd-import-cache-autosize"
 #define CONFIG_CACHE_AUTOSIZE		"nsslapd-cache-autosize"
 #define CONFIG_CACHE_AUTOSIZE_SPLIT	"nsslapd-cache-autosize-split"
 #define CONFIG_IMPORT_CACHESIZE         "nsslapd-import-cachesize"
+#define CONFIG_IMPORT_CACHESIZEUNIT     "nsslapd-import-cachesizeunit"
 #define CONFIG_INDEX_BUFFER_SIZE         "nsslapd-index-buffer-size"
 #define CONFIG_EXCLUDE_FROM_EXPORT		"nsslapd-exclude-from-export"
 #define CONFIG_EXCLUDE_FROM_EXPORT_DEFAULT_VALUE \
@@ -146,6 +148,7 @@ struct config_info {
 /* instance config options */
 #define CONFIG_INSTANCE_CACHESIZE       "nsslapd-cachesize"
 #define CONFIG_INSTANCE_CACHEMEMSIZE    "nsslapd-cachememsize"
+#define CONFIG_INSTANCE_CACHEMEMSIZEUNIT    "nsslapd-cachememsizeunit"
 #define CONFIG_INSTANCE_DNCACHEMEMSIZE  "nsslapd-dncachememsize"
 #define CONFIG_INSTANCE_SUFFIX          "nsslapd-suffix"
 #define CONFIG_INSTANCE_READONLY        "nsslapd-readonly"

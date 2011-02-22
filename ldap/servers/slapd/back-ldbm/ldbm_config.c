@@ -326,18 +326,27 @@ done:
     return retval;
 }
 
-static void *ldbm_config_dbcachesize_get(void *arg) 
+static void *
+ldbm_config_dbcachesize_get(void *arg) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     
+    if (NULL == li) {
+        return (void *)NULL;
+    }
+
     return (void *) (li->li_new_dbcachesize);
 }
 
-static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+static int 
+ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
-    int retval = LDAP_SUCCESS;
     size_t val = (size_t) value;
+
+    if (NULL == li) {
+        return LDAP_PARAM_ERROR;
+    }
 
     if (apply) {
         /* Stop the user configuring a stupidly small cache */
@@ -358,7 +367,69 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
         
     }
     
-    return retval;
+    return LDAP_SUCCESS;
+}
+
+static void *
+ldbm_config_dbcachesizeunit_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    
+    if (NULL == li) {
+        return (void *)NULL;
+    }
+    return (void *)slapi_ch_strdup(li->dbcache_display_unit);
+}
+
+static int 
+ldbm_config_dbcachesizeunit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    char *val = (char *)value;
+
+    if (NULL == li) {
+        return LDAP_PARAM_ERROR;
+    }
+
+    if (NULL == val) {
+        val = "bytes"; /* default unit */
+    } else if ((0 == strcasecmp(val, "bytes")) ||
+               (0 == strcasecmp(val, "KB")) ||
+               (0 == strcasecmp(val, "MB")) ||
+               (0 == strcasecmp(val, "GB"))) {
+        ;
+    } else {
+        if ((0 == strncasecmp(val, "KB", 2)) ||        /* Kbytes */
+            (0 == strncasecmp(val, "kilo", 4))) {
+            val = "KB";
+        } else if ((0 == strncasecmp(val, "MB", 2)) || /* Mbytes */
+                   (0 == strncasecmp(val, "mega", 4))) {
+            val = "MB";
+        } else if ((0 == strncasecmp(val, "GB", 2)) || /* Gbytes */
+                   (0 == strncasecmp(val, "giga", 4))) {
+            val = "GB";
+        } else {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                           "WARNING: \"%s: %s\" is not a correct unit. "
+                           "Replacing it with \"bytes\".\n", 
+                           CONFIG_DBCACHESIZEUNIT, val);
+            val = "bytes"; /* default unit */
+        }
+    }
+
+    if (apply) {
+        if (li->dbcache_display_unit) {
+            if (strcasecmp(li->dbcache_display_unit, val)) {
+                /* units do not match; replace it */
+                slapi_ch_free_string(&li->dbcache_display_unit);
+                li->dbcache_display_unit = slapi_ch_strdup(val);
+            }
+        } else {
+            li->dbcache_display_unit = slapi_ch_strdup(val);
+        }
+    }
+
+    return LDAP_SUCCESS;
 }
 
 static void *ldbm_config_maxpassbeforemerge_get(void *arg) 
@@ -973,16 +1044,89 @@ static void *ldbm_config_import_cachesize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
 
-    return (void *)(li->li_import_cachesize);
+    if (NULL == li) {
+        return (void *)NULL;
+    }
+
+    return (void *) (li->li_import_cachesize);
 }
 
 static int ldbm_config_import_cachesize_set(void *arg, void *value, char *errorbuf,
                                      int phase, int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
+    size_t val = (size_t) value;
 
-    if (apply)
-        li->li_import_cachesize = (size_t)value;
+    if (NULL == li) {
+        return LDAP_PARAM_ERROR;
+    }
+
+    if (apply) {
+        li->li_import_cachesize = val;
+    }
+    return LDAP_SUCCESS;
+}
+
+static void *
+ldbm_config_import_cachesizeunit_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    
+    if (NULL == li) {
+        return (void *)NULL;
+    }
+
+    return (void *)slapi_ch_strdup(li->importcache_display_unit);
+}
+
+static int 
+ldbm_config_import_cachesizeunit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    char *val = (char *)value;
+
+    if (NULL == li) {
+        return LDAP_PARAM_ERROR;
+    }
+
+    if (NULL == val) {
+        val = "bytes"; /* default unit */
+    } else if ((0 == strcasecmp(val, "bytes")) ||
+               (0 == strcasecmp(val, "KB")) ||
+               (0 == strcasecmp(val, "MB")) ||
+               (0 == strcasecmp(val, "GB"))) {
+        ;
+    } else {
+        if ((0 == strncasecmp(val, "KB", 2)) ||        /* Kbytes */
+            (0 == strncasecmp(val, "kilo", 4))) {
+            val = "KB";
+        } else if ((0 == strncasecmp(val, "MB", 2)) || /* Mbytes */
+                   (0 == strncasecmp(val, "mega", 4))) {
+            val = "MB";
+        } else if ((0 == strncasecmp(val, "GB", 2)) || /* Gbytes */
+                   (0 == strncasecmp(val, "giga", 4))) {
+            val = "GB";
+        } else {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                           "WARNING: \"%s: %s\" is not a correct unit. "
+                           "Replacing it with \"bytes\".\n", 
+                           CONFIG_IMPORT_CACHESIZEUNIT, val);
+            val = "bytes"; /* default unit */
+        }
+    }
+
+    if (apply) {
+        if (li->importcache_display_unit) {
+            if (strcasecmp(li->importcache_display_unit, val)) {
+                /* units do not match; replace it */
+                slapi_ch_free_string(&li->importcache_display_unit);
+                li->importcache_display_unit = slapi_ch_strdup(val);
+            }
+        } else {
+            li->importcache_display_unit = slapi_ch_strdup(val);
+        }
+    }
+
     return LDAP_SUCCESS;
 }
 
@@ -1233,6 +1377,8 @@ static config_info ldbm_config[] = {
     {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "4000", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE|CONFIG_FLAG_SKIP_DEFAULT_SETTING},
+	/* UNIT must be set before CONFIG_DBCACHESIZE is */
+    {CONFIG_DBCACHESIZEUNIT, CONFIG_TYPE_STRING, NULL, &ldbm_config_dbcachesizeunit_get, &ldbm_config_dbcachesizeunit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, "10000000", &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DBNCACHE, CONFIG_TYPE_INT, "0", &ldbm_config_dbncache_get, &ldbm_config_dbncache_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &ldbm_config_maxpassbeforemerge_get, &ldbm_config_maxpassbeforemerge_set, 0},
@@ -1264,6 +1410,8 @@ static config_info ldbm_config[] = {
     {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &ldbm_config_import_cache_autosize_get, &ldbm_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "0", &ldbm_config_cache_autosize_get, &ldbm_config_cache_autosize_set, 0},
     {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "50", &ldbm_config_cache_autosize_split_get, &ldbm_config_cache_autosize_split_set, 0},
+	/* UNIT must be set before CONFIG_IMPORT_CACHESIZE is */
+    {CONFIG_IMPORT_CACHESIZEUNIT, CONFIG_TYPE_STRING, NULL, &ldbm_config_import_cachesizeunit_get, &ldbm_config_import_cachesizeunit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_SIZE_T, "20000000", &ldbm_config_import_cachesize_get, &ldbm_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDL_SWITCH, CONFIG_TYPE_STRING, "new", &ldbm_config_idl_get_idl_new, &ldbm_config_idl_set_tune, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &ldbm_config_get_bypass_filter_test, &ldbm_config_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
