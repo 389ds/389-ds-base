@@ -634,6 +634,8 @@ struct ldbminfo {
     int li_fat_lock;         /* 608146 -- make this configurable, first */
     int li_legacy_errcode;   /* 615428 -- in case legacy err code is expected */
     Slapi_Counter *li_global_usn_counter; /* global USN counter */
+    char *dbcache_display_unit;     /* display unit for db cache */
+    char *importcache_display_unit; /* display unit for db import cache */
 };
 
 /* li_flags could store these bits defined in ../slapi-plugin.h
@@ -764,6 +766,7 @@ typedef struct ldbm_instance {
     int require_index;                /* set to 1 to require an index be used
                                        * in search */
     struct cache inst_dncache;        /* The dn cache for this instance. */
+    char   *cache_display_unit;       /* display unit for client */
 } ldbm_instance;
 
 /*

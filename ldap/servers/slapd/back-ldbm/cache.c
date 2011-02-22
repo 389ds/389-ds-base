@@ -667,10 +667,14 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
     struct backentry *eflushtemp = NULL;
 
     if (bytes < MINCACHESIZE) {
+       LDAPDebug2Args(LDAP_DEBUG_ANY,
+                      "WARNING -- Max entry cache size %lu is set; "
+                      "Minimum entry cache size is %lu -- rounding up\n",
+                      bytes, MINCACHESIZE);
        bytes = MINCACHESIZE;
-       LDAPDebug(LDAP_DEBUG_ANY,
-                "WARNING -- Minimum cache size is %lu -- rounding up\n",
-                MINCACHESIZE, 0, 0);
+    } else {
+       LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+                     "Max entry cache size is set to %lu\n", bytes);
     }
     PR_Lock(cache->c_mutex);
     cache->c_maxsize = bytes;
@@ -1497,14 +1501,18 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
     }
 
     if (bytes < MINCACHESIZE) {
+       LDAPDebug2Args(LDAP_DEBUG_ANY,
+                      "WARNING -- Max dn cache size %lu is set; "
+                      "Minimum dn cache size is %lu -- rounding up\n",
+                      bytes, MINCACHESIZE);
        bytes = MINCACHESIZE;
-       LDAPDebug(LDAP_DEBUG_ANY,
-                "WARNING -- Minimum cache size is %lu -- rounding up\n",
-                MINCACHESIZE, 0, 0);
+    } else {
+       LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+                     "Max dn cache size is set to %lu\n", bytes);
     }
     PR_Lock(cache->c_mutex);
     cache->c_maxsize = bytes;
-    LOG("entry cache size set to %lu\n", bytes, 0, 0);
+    LOG("dn cache size set to %lu\n", bytes, 0, 0);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {
        dnflush = dncache_flush(cache);
