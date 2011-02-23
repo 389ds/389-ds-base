@@ -511,32 +511,87 @@ sub process_suppliers
 	my ($ridx, $mid, $maxcsn);
 
 	$mid = "";
+	$ismaster = 0;
 
 	$last_sidx = -1;	# global variable for print html page
 
 	for ($ridx = 0; $ridx <= $#allreplicas; $ridx++) {
 
-		# Skip consumers and hubs
-		next if $allreplicas[$ridx] !~ /:master:(\d+):/i;
-		$mid = $1;
+		# Handle masters and hubs
+		if ($allreplicas[$ridx] =~ /:master:(\d+):/i) {
+			$mid = $1;
 
-		# Skip replicas without agreements defined yet
-		next if (! grep {$_->{ridx} == $ridx} @allagreements);
+			# Skip replicas without agreements defined yet
+			next if (! grep {$_->{ridx} == $ridx} @allagreements);
 
-		$maxcsn = &print_master_header ($ridx, $mid);
-		if ( "$maxcsn" != "none" ) {
-			&print_consumer_header ();
-			&print_consumers ($ridx, $mid);
+			$maxcsn = &print_master_header ($ridx, $mid);
+			if ( "$maxcsn" != "none" ) {
+				&print_consumer_header ();
+				&print_consumers ($ridx, $mid);
+			}
+			$ismaster = 1;
+		} elsif (($ismaster == 0) && ($allreplicas[$ridx] =~ /:hub:(\d+):/i)) {
+			$mid = $1;
+
+			# Skip replicas without agreements defined yet
+			next if (! grep {$_->{ridx} == $ridx} @allagreements);
+
+		    foreach $key (keys %allruvs) {
+				if ( $key =~ /$ridx:/) {
+					my ($myridx, $mymid) = split ( /:/, "$key" );
+					$maxcsn = &print_hub_header($myridx, $mymid);
+					&print_consumer_header ();
+					&print_consumers ($myridx, $mymid);
+				}
+			}
 		}
 		&print_supplier_end;
 	}
 
 	if ($mid eq "") {
-		print "<p>The server is not a master or it has no replication agreement\n";
+		print "<p>The server is not a master or a hub or it has no replication agreement\n";
 	}
 }
 
 sub print_master_header
+{
+	my ($ridx, $mid) = @_;
+	my ($myruv) = $allruvs {"$ridx:$mid"};
+	my ($maxcsnval) = split ( /;/, "$myruv" );
+	my ($maxcsn) = &to_string_csn ($maxcsnval);
+	my ($sidx, $replicaroot, $replicatype, $serverid) = split (/:/, $allreplicas[$ridx]);
+
+	if ( $maxcsn == "" ) {
+		return $maxcsn;
+	}
+
+	# Print the master name
+	if ( $last_sidx != $sidx ) {
+		my ($ldapurl) = &get_ldap_url ($sidx, $sidx);
+		&print_legend if ( $last_sidx < 0);
+		print "<p><p><hr><p>\n";
+		print "\n<p><center class=page-subtitle><font color=#0099cc>\n";
+		print "Master:&nbsp $ldapurl</center>\n";
+		$last_sidx = $sidx;
+	}
+
+	# Print the current replica info onthe master
+	print "\n<p><table border=0 cellspacing=1 cellpadding=6 cols=10 width=100% class=bgColor9>\n";
+
+	print "\n<tr><td colspan=10><center>\n";
+	print "<font class=areatitle>Replica ID:&nbsp;</font>";
+	print "<font class=text28>$serverid</font>\n";
+
+	print "<font class=areatitle>Replica Root:&nbsp;</font>";
+	print "<font class=text28>$replicaroot</font>\n";
+
+	print "<font class=areatitle>Max CSN:&nbsp;</font>";
+	print "<font class=text28>$maxcsn</font>\n";
+
+	return $maxcsn;
+}
+
+sub print_hub_header
 {
 	my ($ridx, $mid) = @_;
 	my ($myruv) = $allruvs {"$ridx:$mid"};
@@ -550,7 +605,7 @@ sub print_master_header
 		&print_legend if ( $last_sidx < 0);
 		print "<p><p><hr><p>\n";
 		print "\n<p><center class=page-subtitle><font color=#0099cc>\n";
-		print "Master:&nbsp $ldapurl</center>\n";
+		print "Hub:&nbsp $ldapurl</center>\n";
 		$last_sidx = $sidx;
 	}
 
