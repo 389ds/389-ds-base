@@ -71,7 +71,6 @@ int ldbm_instance_create(backend *be, char *name)
         rc = -1;
         goto error;
     }
-    inst->cache_display_unit = slapi_ch_strdup("bytes");
 
     /*
      * initialize the dn cache 

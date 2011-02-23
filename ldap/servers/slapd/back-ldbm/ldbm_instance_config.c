@@ -111,11 +111,7 @@ static void *
 ldbm_instance_config_cachememsize_get(void *arg) 
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
-
-    if (NULL == inst) {
-        return (void *)NULL;
-    }
-
+    
     return (void *) cache_get_max_size(&(inst->inst_cache));
 }
 
@@ -123,83 +119,16 @@ static int
 ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
+    int retval = LDAP_SUCCESS;
     size_t val = (size_t) value;
 
-    if (NULL == inst) {
-        return LDAP_PARAM_ERROR;
-    }
+    /* Do whatever we can to make sure the data is ok. */
 
     if (apply) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, "Instance %s: "
-                       "Max entry cache size is set to %lu (bytes)\n", 
-                       inst->inst_name, val);
         cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
     }
 
-    return LDAP_SUCCESS;
-}
-
-static void * 
-ldbm_instance_config_cachememsizeunit_get(void *arg) 
-{
-    ldbm_instance *inst = (ldbm_instance *) arg;
-    
-    if (NULL == inst) {
-        return (void *)NULL;
-    }
-    return (void *)slapi_ch_strdup(inst->cache_display_unit);
-}
-
-static int 
-ldbm_instance_config_cachememsizeunit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
-{
-    ldbm_instance *inst = (ldbm_instance *) arg;
-    char *val = (char *)value;
-    size_t cachememsize;
-
-    if (NULL == inst) {
-        return LDAP_PARAM_ERROR;
-    }
-
-    if (NULL == val) {
-        val = "bytes"; /* default unit */
-    } else if ((0 == strcasecmp(val, "bytes")) ||
-               (0 == strcasecmp(val, "KB")) ||
-               (0 == strcasecmp(val, "MB")) ||
-               (0 == strcasecmp(val, "GB"))) {
-        ;
-    } else {
-        if ((0 == strncasecmp(val, "KB", 2)) ||        /* Kbytes */
-            (0 == strncasecmp(val, "kilo", 4))) {
-            val = "KB";
-        } else if ((0 == strncasecmp(val, "MB", 2)) || /* Mbytes */
-                   (0 == strncasecmp(val, "mega", 4))) {
-            val = "MB";
-        } else if ((0 == strncasecmp(val, "GB", 2)) || /* Gbytes */
-                   (0 == strncasecmp(val, "giga", 4))) {
-            val = "GB";
-        } else {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
-                           "WARNING: \"%s: %s\" is not a correct unit. "
-                           "Replacing it with \"bytes\".\n", 
-                           CONFIG_INSTANCE_CACHEMEMSIZEUNIT, val);
-            val = "bytes"; /* default unit */
-        }
-    }
-
-    if (apply) {
-        if (inst->cache_display_unit) {
-            if (strcasecmp(inst->cache_display_unit, val)) {
-                /* units do not match; replace it */
-                slapi_ch_free_string(&inst->cache_display_unit);
-                inst->cache_display_unit = slapi_ch_strdup(val);
-            }
-        } else {
-            inst->cache_display_unit = slapi_ch_strdup(val);
-        }
-    }
-
-    return LDAP_SUCCESS;
+    return retval;
 }
 
 static void * 
@@ -359,8 +288,6 @@ ldbm_instance_config_require_index_set(void *arg, void *value, char *errorbuf, i
  *----------------------------------------------------------------------*/
 static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_CACHESIZE, CONFIG_TYPE_LONG, "-1", &ldbm_instance_config_cachesize_get, &ldbm_instance_config_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    /* UNIT must be set before CACHEMEMSIZE is */
-    {CONFIG_INSTANCE_CACHEMEMSIZEUNIT, CONFIG_TYPE_STRING, NULL, &ldbm_instance_config_cachememsizeunit_get, &ldbm_instance_config_cachememsizeunit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_CACHEMEMSIZE, CONFIG_TYPE_SIZE_T, "10485760", &ldbm_instance_config_cachememsize_get, &ldbm_instance_config_cachememsize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_READONLY, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_readonly_get, &ldbm_instance_config_readonly_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
