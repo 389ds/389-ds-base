@@ -50,6 +50,8 @@ def sighandler(signum, frame):
         #signal.signal(signal.SIGPIPE, signal.SIG_DFL)
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        if signum == signal.SIGALRM and debug:
+            print "script timed out waiting to open pipe"
         finish()
     else: printbuffer()
 
@@ -311,60 +313,65 @@ signal.signal(signal.SIGALRM, sighandler)
 
 if options.serverpidfile:
     # start the timer to wait for the pid file to be available
-    signal.alarm(options.servertimeout)
+    signal.setitimer(signal.ITIMER_REAL, options.servertimeout)
 
 done = False
 while not done:
     # open the pipe - will hang until
     # 1. something opens the other end
-    # 2. alarm goes off
+    # 2. alarm goes off - will just exit
     logf = open_pipe(logfname)
+    # if we get here, logf is not None
+    if debug:
+        print "opened pipe", logf
 
-    if serverpid:
-        if not is_proc_alive(serverpid):
-            done = True
-            if debug:
-                print "Server pid [%d] is not alive - exiting" % serverpid
-        else: # cancel the timer
-            signal.alarm(0) # cancel timer - got pid
+    if options.serverpidfile:
+        # cancel the timer - the open succeeded
+        signal.setitimer(signal.ITIMER_REAL, 0)
 
-    innerdone = False
     lines = 0
-    while not innerdone and not done:
-        # read and process the next line in the pipe
-        # if server exits while we are reading, we will get
-        # EOF and innerdone will be True
-        # we may have to read some number of lines until
-        # we can get the pid file
-        innerdone = read_and_process_line(logf, plgfuncs)
-        if not serverpid and options.serverpidfile:
-            serverpid = get_pid_from_file(options.serverpidfile)
-            if serverpid:
-                signal.alarm(0) # cancel timer - got pid
-        if not innerdone: lines += 1
+    # read and process the next line in the pipe
+    # if server exits while we are reading, we will get
+    # EOF and the func will return True - will also
+    # return True if a plugin returns failure
+    while not read_and_process_line(logf, plgfuncs):
+        lines += 1
 
-    if logf:
-        logf.close()
-        logf = None
+    # the other end of the pipe closed - we close our end too
+    logf.close()
+    logf = None
 
+    if not serverpid and not options.serverpidfile:
+        # no server to deal with - we're done
+        done = True;
+    elif not serverpid and options.serverpidfile:
+        # see if the server has written its server pid file yet
+        # it may take a "long time" for the server to actually
+        # write its pid file
+        serverpid = get_pid_from_file(options.serverpidfile)
+
+    # if the server is no longer running, just finish
+    if serverpid and not is_proc_alive(serverpid):
+        done = True
+            
     if not done:
-        if serverpid:
-            if not lines:
-                # the server will sometimes close the log and reopen it
-                # when it does this lines will be 0 - this means we need
-                # immediately attempt to reopen the log pipe and read it
-                # however, at shutdown, the server will close the log before
-                # the process has exited - so is_proc_alive will return
-                # true for a short time - if we then attempt to open the
-                # pipe, the open will hang forever - to avoid this situation
-                # we set the alarm again to wake up the open - use a short
-                # timeout so we don't wait a long time if the server
-                # really is exiting
-                signal.alarm(5)
-            else:
-                # pipe closed - usually when server shuts down
-                done = True
-        if not done and debug:
-            print "log pipe", logfname, "closed - reopening - read", totallines, "total lines"
+        if not lines:
+            # at startup the server will close the log and reopen it
+            # when it does this lines will be 0 - this means we need
+            # immediately attempt to reopen the log pipe and read it
+            # however, at shutdown, the server will close the log before
+            # the process has exited - so is_proc_alive will return
+            # true for a short time - if we then attempt to open the
+            # pipe, the open will hang forever - to avoid this situation
+            # we set the alarm again to wake up the open - use a short
+            # timeout so we don't wait a long time if the server
+            # really is exiting
+            signal.setitimer(signal.ITIMER_REAL, 0.25)
+        else: # we read something
+            # pipe closed - usually when server shuts down
+            done = True
+            
+    if not done and debug:
+        print "log pipe", logfname, "closed - reopening - read", totallines, "total lines"
 
 finish()
