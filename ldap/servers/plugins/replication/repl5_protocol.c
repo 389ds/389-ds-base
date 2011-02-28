@@ -68,6 +68,7 @@ typedef struct repl_protocol
 	Private_Repl_Protocol *prp_active_protocol; /* Pointer to active protocol */
 	Repl_Agmt *agmt; /* The replication agreement we're servicing */
 	Repl_Connection *conn; /* Connection to remote server */
+	void (*delete_conn)(Repl_Connection *conn); /* mmr conn is different than winsync conn */
 	Object *replica_object; /* Local replica. If non-NULL, replica object is acquired */
 	int state;
 	int next_state;
@@ -127,11 +128,13 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 	{
 	rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_5_INCREMENTAL);
 	rp->prp_total = private_protocol_factory(rp, PROTOCOL_5_TOTAL);
+	rp->delete_conn = conn_delete;
 	} 
 	else if  (get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS)
 	{
 	rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_WINDOWS_INCREMENTAL);
 	rp->prp_total = private_protocol_factory(rp, PROTOCOL_WINDOWS_TOTAL);
+	rp->delete_conn = windows_conn_delete;
 	}
 
 	/* XXXggood register callback handlers for entries updated, and
@@ -192,9 +195,10 @@ prot_free(Repl_Protocol **rpp)
     {
         object_release(rp->replica_object);
     }
-    if (NULL != rp->conn)
+    if ((NULL != rp->conn) && (NULL != rp->delete_conn))
     {
-        conn_delete(rp->conn);
+        rp->delete_conn(rp->conn);
+        rp->conn = NULL;
     }
     rp->prp_active_protocol = NULL;
     PR_Unlock(rp->lock);

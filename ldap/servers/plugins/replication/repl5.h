@@ -604,6 +604,7 @@ void windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
 int windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry *e);
 void windows_agreement_delete(Repl_Agmt *ra);
 Repl_Connection *windows_conn_new(Repl_Agmt *agmt);
+void windows_conn_delete(Repl_Connection *conn);
 
 /* repl_session_plugin.c */
 void repl_session_plugin_init();
