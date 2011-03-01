@@ -121,6 +121,10 @@ sub sanityCheckParams {
         return @errs;
     }
 
+    if (@errs = isValidGroup($inf->{General}->{SuiteSpotGroup})) {
+        return @errs;
+    }
+
     if (!isValidDN($inf->{slapd}->{Suffix})) {
         return ('dialog_dssuffix_error', $inf->{slapd}->{Suffix});
     }
@@ -793,6 +797,12 @@ sub setDefaults {
             $inf->{General}->{SuiteSpotUserID} = getLogin;
         }
         # otherwise, the uid must be specified
+    }
+
+    if (!$inf->{General}->{SuiteSpotGroup}) {
+        # If the group wasn't specified, use the primary group
+        # of the SuiteSpot user
+        $inf->{General}->{SuiteSpotGroup} = getGroup($inf->{General}->{SuiteSpotUserID});
     }
 
     if (!$inf->{slapd}->{RootDN}) {
