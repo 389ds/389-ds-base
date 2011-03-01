@@ -2178,7 +2178,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
 
     ret = slapi_mtn_get_first_be(node_list, &node, pb, &be, &index, &referral, errorbuf, scope);
 
-    while ((node) &&(index < BE_LIST_SIZE))
+    while ((node) && (be_index <= BE_LIST_SIZE))
     {
         if (ret != LDAP_SUCCESS)
         {
@@ -2204,7 +2204,15 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
         {
             if (be && !be_isdeleted(be))
             {
+                if (be_index == BE_LIST_SIZE) { /* error - too many backends */
+                    ret_code = LDAP_ADMINLIMIT_EXCEEDED;
+                    PR_snprintf(errorbuf, BUFSIZ-1,
+                                "Error: too many backends match search request - cannot proceed");
+                    slapi_log_error(SLAPI_LOG_FATAL, NULL, "%s\n", errorbuf);
+                    break;
+                } else {
                     be_list[be_index++]=be;
+                }
             }
 
             if (referral)

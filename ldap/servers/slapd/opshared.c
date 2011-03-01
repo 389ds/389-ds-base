@@ -192,8 +192,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   int             scope;
   Slapi_Backend   *be = NULL;
   Slapi_Backend   *be_single = NULL;
-  Slapi_Backend   *be_list[BE_LIST_SIZE];
-  Slapi_Entry     *referral_list[BE_LIST_SIZE];
+  Slapi_Backend   *be_list[BE_LIST_SIZE+1];
+  Slapi_Entry     *referral_list[BE_LIST_SIZE+1];
   char            ebuf[ BUFSIZ ];
   char            attrlistbuf[ 1024 ], *attrliststr, **attrs = NULL;
   int             rc = 0;

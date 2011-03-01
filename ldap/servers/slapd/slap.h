@@ -299,7 +299,7 @@ typedef void	(*VFP0)(void);
 #define EGG_OBJECT_CLASS		"directory-team-extensible-object"
 #define EGG_FILTER				"(objectclass=directory-team-extensible-object)"
 
-#define BE_LIST_SIZE 100 /* used by mapping tree code to hold be_list stuff */
+#define BE_LIST_SIZE 1000 /* used by mapping tree code to hold be_list stuff */
 
 #define	REPL_DBTYPE		"ldbm"
 #define	REPL_DBTAG		"repl"
