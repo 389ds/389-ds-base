@@ -2152,10 +2152,10 @@ valuearray_minus_valuearray(
     }
 
     /* determine length of a */
-    for (acnt = 0; a[acnt] != NULL; acnt++);
+    for (acnt = 0; a && a[acnt] != NULL; acnt++);
 
     /* determine length of b */
-    for (bcnt = 0; b[bcnt] != NULL; bcnt++);
+    for (bcnt = 0; b && b[bcnt] != NULL; bcnt++);
 
     /* allocate return array as big as a */
     c = (Slapi_Value**)slapi_ch_calloc(acnt+1, sizeof(Slapi_Value*));
