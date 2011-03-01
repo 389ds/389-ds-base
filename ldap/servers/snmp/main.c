@@ -248,7 +248,7 @@ load_config(char *conf_path)
     FILE *conf_file = NULL;
 #if defined(USE_OPENLDAP)
     LDIFFP *dse_fp = NULL;
-    int buflen;
+    int buflen = 0;
 #else
     FILE *dse_fp = NULL;
 #endif
