@@ -48,11 +48,13 @@ require Exporter;
 @EXPORT    = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
-                isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
+                isValidServerID isValidUser isValidGroup makePaths getLogin getGroup
+                remove_tree remove_pidfile);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
-                isValidServerID isValidUser makePaths getLogin remove_tree remove_pidfile);
+                isValidServerID isValidUser isValidGroup makePaths getLogin getGroup
+                remove_tree remove_pidfile);
 
 use strict;
 
@@ -124,6 +126,13 @@ sub getLogin {
     return (getpwuid($>))[0] || $ENV{USER} || confess "Error: could not determine the current user ID: $!";
 }
 
+# Look up the primary group name for the supplied user
+sub getGroup {
+    my $user = shift;
+    my $gid = (getpwnam($user))[3] || confess "Error: could not determine the current group ID: $!"; 
+    return (getgrgid($gid))[0] || confess "Error: could not determine the current group name: $!";
+}
+
 sub isValidUser {
     my $user = shift;
     # convert numeric uid to string
@@ -149,6 +158,26 @@ sub isValidUser {
         }
     }
 
+    return ();
+}
+
+sub isValidGroup {
+    my $group = shift;
+    my $ngid;
+    # convert numeric gid to string
+    my $strans = $group;
+    if ($group =~ /^\d+$/) { # numeric - convert to string
+        $strans = (getgrgid($group))[0];
+        if (!$strans) {
+            return ("dialog_ssgroup_error", $group);
+        }
+    }
+    # ensure the specified group is a defined group
+    $ngid = getgrnam $strans;
+    if (!defined($ngid)) {
+        return ("dialog_ssgroup_error", $group);
+    }
+    
     return ();
 }
 
