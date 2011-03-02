@@ -210,6 +210,7 @@ sub init {
     $self->{logfile} = $logfile;
     $self->{crossplatform} = $crossplatform;
     $self->{log} = new SetupLog($self->{logfile}, "migrate");
+    DSUtil::setDebugLog($self->{log});
     $self->{start_servers} = 1; # start servers as soon as they are migrated
     # if user supplied inf file, use that to initialize
     if (defined($inffile)) {

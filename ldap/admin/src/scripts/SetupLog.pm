@@ -92,6 +92,14 @@ sub logMessage {
     print { $self->{fh} } $string;
 }
 
+sub logDebug {
+    my ($self, @msg) = @_;
+    if (!$self->{fh}) {
+        return;
+    }
+    print { $self->{fh} } @msg;
+}
+
 sub levels {
     my $self = shift;
     return ($FATAL, $START, $SUCCESS, $WARN, $INFO, $DEBUG);
