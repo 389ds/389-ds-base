@@ -88,8 +88,7 @@ struct passwordpolicyarray *new_passwdPolicy ( Slapi_PBlock *pb, char *dn );
 void delete_passwdPolicy( struct passwordpolicyarray **pwpolicy);
 
 /* function for checking the values of fine grained password policy attributes */
-int check_pw_minage_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
-int check_pw_lockduration_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
+int check_pw_duration_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
 int check_pw_resetfailurecount_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
 int check_pw_storagescheme_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
 

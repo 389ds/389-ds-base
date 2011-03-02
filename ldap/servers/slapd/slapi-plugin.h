@@ -4174,6 +4174,24 @@ long long slapi_value_get_longlong(const Slapi_Value *value);
 unsigned long long slapi_value_get_ulonglong(const Slapi_Value *value);
 
 /**
+ * Retrieves the value of a \c Slapi_Value structure as a long integer.
+ *
+ * \param value Pointer to the value you wish to get as a long integer.
+ *        The value could end with D or d for days, H or h for hours,
+ *        M or m for minutes, S or s for seconds, or no extension.
+ * \return A long integer that corresponds to the value stored in the
+ *         \c Slapi_Value structure.
+ * \return \c 0 if there is no value.
+ * \return \c -1 if the given value is invalid.
+ * \see slapi_value_get_int()
+ * \see slapi_value_get_uint()
+ * \see slapi_value_get_ulong()
+ * \see slapi_value_get_longlong()
+ * \see slapi_value_get_ulonglong()
+ */
+long slapi_value_get_timelong(const Slapi_Value *value);
+
+/**
  * Gets the length of a value contained in a \c Slapi_Value structure.
  *
  * \param value Pointer to the value of which you wish to get the length.

@@ -109,15 +109,16 @@ static struct attr_value_check {
 	{CONFIG_PW_EXP_ATTRIBUTE, attr_check_onoff, 0, 0},
 	{CONFIG_PW_UNLOCK_ATTRIBUTE, attr_check_onoff, 0, 0},
 	{CONFIG_PW_HISTORY_ATTRIBUTE, attr_check_onoff, 0, 0},
-	{CONFIG_PW_MINAGE_ATTRIBUTE, check_pw_minage_value, -1, -1},
-	{CONFIG_PW_WARNING_ATTRIBUTE, attr_check_minmax, 0, -1},
+	{CONFIG_PW_MINAGE_ATTRIBUTE, check_pw_duration_value, -1, -1},
+	{CONFIG_PW_WARNING_ATTRIBUTE, check_pw_duration_value, 0, -1},
 	{CONFIG_PW_MINLENGTH_ATTRIBUTE, attr_check_minmax, 2, 512},
 	{CONFIG_PW_MAXFAILURE_ATTRIBUTE, attr_check_minmax, 1, 32767},
 	{CONFIG_PW_INHISTORY_ATTRIBUTE, attr_check_minmax, 2, 24},
-	{CONFIG_PW_LOCKDURATION_ATTRIBUTE, check_pw_lockduration_value, -1, -1},
+	{CONFIG_PW_LOCKDURATION_ATTRIBUTE, check_pw_duration_value, -1, -1},
 	{CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, check_pw_resetfailurecount_value, -1, -1},
 	{CONFIG_PW_GRACELIMIT_ATTRIBUTE, attr_check_minmax, 0, -1},
-	{CONFIG_PW_STORAGESCHEME_ATTRIBUTE, check_pw_storagescheme_value, -1, -1}
+	{CONFIG_PW_STORAGESCHEME_ATTRIBUTE, check_pw_storagescheme_value, -1, -1},
+	{CONFIG_PW_MAXAGE_ATTRIBUTE, check_pw_duration_value, -1, -1}
 };
 
 /* This function is called to process operation that come over external connections */
@@ -713,7 +714,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			while ( tmpmods && *tmpmods )
 			{
 				if ((*tmpmods)->mod_bvalues != NULL &&
-				!SLAPI_IS_MOD_DELETE((*tmpmods)->mod_op))
+				    !SLAPI_IS_MOD_DELETE((*tmpmods)->mod_op))
 				{
 					for (i=0; i < numattr; i++)
 					{

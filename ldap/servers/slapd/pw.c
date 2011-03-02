@@ -1604,19 +1604,37 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 				slapi_attr_get_type(attr, &attr_name);
 				if (!strcasecmp(attr_name, "passwordminage")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_minage = slapi_value_get_long(*sval);
+						pwdpolicy->pw_minage = slapi_value_get_timelong(*sval);
+						if (-1 == pwdpolicy->pw_minage) {
+							LDAPDebug2Args(LDAP_DEBUG_ANY, 
+								"Password Policy Entry%s: Invalid passwordMinAge: %s\n",
+								slapi_entry_get_dn_const(pw_entry),
+								slapi_value_get_string(*sval));
+						}
 					}
 				}
 				else
 				if (!strcasecmp(attr_name, "passwordmaxage")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_maxage = slapi_value_get_long(*sval);
+						pwdpolicy->pw_maxage = slapi_value_get_timelong(*sval);
+						if (-1 == pwdpolicy->pw_maxage) {
+							LDAPDebug2Args(LDAP_DEBUG_ANY, 
+								"Password Policy Entry%s: Invalid passwordMaxAge: %s\n",
+								slapi_entry_get_dn_const(pw_entry),
+								slapi_value_get_string(*sval));
+						}
 					}
 				}
 				else
 				if (!strcasecmp(attr_name, "passwordwarning")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_warning = slapi_value_get_long(*sval);
+						pwdpolicy->pw_warning = slapi_value_get_timelong(*sval);
+						if (-1 == pwdpolicy->pw_warning) {
+							LDAPDebug2Args(LDAP_DEBUG_ANY, 
+								"Password Policy Entry%s: Invalid passwordWarning: %s\n",
+								slapi_entry_get_dn_const(pw_entry),
+								slapi_value_get_string(*sval));
+						}
 					}
 				}
 				else
@@ -1899,40 +1917,35 @@ pw_boolean_str2value (const char *str)
 }
 
 int
-check_pw_minage_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf )
+check_pw_duration_value( const char *attr_name, char *value, 
+                       long minval, long maxval, char *errorbuf )
 {
 	int retVal = LDAP_SUCCESS;
-	int age;
-	char *endPtr = NULL;
+	long age;
 
-	age = strtol(value, &endPtr, 0 );
-	if ( (age < 0) || 
-		(age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
-		(endPtr == NULL) || (endPtr == value) || !isdigit(*(endPtr-1)) )
-	{
+	age = parse_duration(value);
+	if (-1 == age) {
 		PR_snprintf ( errorbuf, BUFSIZ, 
-				"password minimum age \"%s\" seconds is invalid. ",
-				value );
+		              "password minimum age \"%s\" is invalid. ", value );
 		retVal = LDAP_CONSTRAINT_VIOLATION;
-	}
-
-	return retVal;
-}
-
-int
-check_pw_lockduration_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf )
-{
-	int retVal = LDAP_SUCCESS;
-	long duration = 0; /* in minutes */
-
-	/* in seconds */
-	duration = strtol (value, NULL, 0);
-
-	if ( duration <= 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
-		PR_snprintf ( errorbuf, BUFSIZ, 
-			"password lockout duration \"%s\" seconds is invalid. ",
-			value );
-		retVal = LDAP_CONSTRAINT_VIOLATION;
+	} else if (0 == strcasecmp(CONFIG_PW_LOCKDURATION_ATTRIBUTE, attr_name)) {
+		if ( (age <= 0) ||
+			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
+			 ((-1 != minval) && (age < minval)) ||
+			 ((-1 != maxval) && (age > maxval))) {
+			PR_snprintf ( errorbuf, BUFSIZ, "%s: \"%s\" seconds is invalid. ",
+			              attr_name, value );
+			retVal = LDAP_CONSTRAINT_VIOLATION;
+		}
+	} else {
+		if ( (age < 0) ||
+			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
+			 ((-1 != minval) && (age < minval)) ||
+			 ((-1 != maxval) && (age > maxval))) {
+			PR_snprintf ( errorbuf, BUFSIZ, "%s: \"%s\" seconds is invalid. ",
+			              attr_name, value );
+			retVal = LDAP_CONSTRAINT_VIOLATION;
+		}
 	}
 
 	return retVal;
