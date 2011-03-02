@@ -509,6 +509,22 @@ slapi_value_get_ulonglong(const Slapi_Value *value)
         return r;
 }
 
+long 
+slapi_value_get_timelong(const Slapi_Value *value)
+{
+	long r= 0;
+	if(NULL!=value)
+	{
+		char *p;
+        p = slapi_ch_malloc(value->bv.bv_len + 1);
+        memcpy (p, value->bv.bv_val, value->bv.bv_len);
+        p [value->bv.bv_len] = '\0';
+        r = (long)parse_duration(p);
+        slapi_ch_free((void **)&p);
+	}
+	return r;
+}
+
 int
 slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Value *v2)
 {
