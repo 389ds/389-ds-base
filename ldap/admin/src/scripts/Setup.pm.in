@@ -142,6 +142,7 @@ sub init {
     $self->{force} = $force;
     $self->{logfile} = $logfile;
     $self->{log} = new SetupLog($self->{logfile});
+    DSUtil::setDebugLog($self->{log});
     # if user supplied inf file, use that to initialize
     if (defined($inffile)) {
         $self->{inf} = new Inf($inffile);
