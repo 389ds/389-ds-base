@@ -37,8 +37,6 @@ dialog_hostname_text = Enter the fully qualified domain name of the computer\non
 
 dialog_hostname_prompt = Computer name
 
-dialog_hostname_warning = The hostname %s does not look like a\nfully qualified host and domain name.\nIf you feel you have made a mistake,\nplease go back to this dialog and enter another name.\n\n
-
 # ----------- SSUser Dialog Resource  ----------------
 dialog_ssuser_text = The server must run as a specific user in a specific group.\nIt is strongly recommended that this user should have no privileges\non the computer (i.e. a non-root user).  The setup procedure\nwill give this user/group some permissions in specific paths/files\nto perform server-specific operations.\n\nIf you have not yet created a user and group for the server,\ncreate this user and group using your native operating\nsystem utilities.\n\n
 
@@ -192,3 +190,13 @@ error_invalid_dbinst_dir = Invalid database instance dir '%s'.\n
 error_cant_backup_db = Failed to back up backend instance '%s'.  Error: %s\n
 error_cant_convert_db = Failed to convert backend instance '%s'.  Error: %s\n
 error_missing_entrydn = Backend instance '%s' does not have database files to upgrade.\n
+warning_hostname_not_fully_qualified = The hostname '%s' does not look like a\nfully qualified host and domain name.\n
+warning_no_such_hostname = Could not find an address for hostname '%s'.\n
+warning_reverse_resolve = Hostname '%s' is valid, but none of the IP addresses\
+resolve back to %s\n
+warning_reverse_resolve_sub = - address %s resolves to host %s\n
+dialog_hostname_warning = \nWARNING: There are problems with the hostname.\n%s\
+Please check the spelling of the hostname and/or your network configuration.\
+If you proceed with this hostname, you may encounter problems.\
+\
+Do you want to proceed with hostname '%s'?

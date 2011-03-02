@@ -49,12 +49,12 @@ require Exporter;
                 process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser isValidGroup makePaths getLogin getGroup
-                remove_tree remove_pidfile setDebugLog);
+                remove_tree remove_pidfile setDebugLog checkHostname);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser isValidGroup makePaths getLogin getGroup
-                remove_tree remove_pidfile setDebugLog);
+                remove_tree remove_pidfile setDebugLog checkHostname);
 
 use strict;
 
@@ -188,6 +188,69 @@ sub isValidGroup {
     }
     
     return ();
+}
+
+# arguments
+# - hostname - the hostname to look for
+# - res - the Resource object to use to construct messages
+# returns - the error message string, or "" upon success
+sub checkHostname {
+    my $hn = shift;
+    my $res = shift;
+
+    # see if hostname is an fqdn
+    if ($hn !~ /\./) {
+        if ($res) {
+            return $res->getText('warning_hostname_not_fully_qualified', $hn);
+        } else {
+            return "Warning: hostname $hn is not a fully qualified host and domain name\n";
+        }
+    }
+
+    # see if we can resolve the hostname
+    my ($name, $aliases, $addrtype, $length, @addrs) = gethostbyname($hn);
+    if (!$name) {
+        if ($res) {
+            return $res->getText('warning_no_such_hostname', $hn);
+        } else {
+            return "Warning: could not resolve hostname $hn\n";
+        }
+    }
+    debug(1, "found for hostname $hn: name=$name\n");
+    debug(1, "aliases=$aliases\n");
+    debug(1, "addrtype=$addrtype\n");
+    my $found = 0;
+    my @hostip = ();
+    # see if reverse resolution works
+    foreach my $ii (@addrs) {
+        my $hn2 = gethostbyaddr($ii, $addrtype);
+        my $ip = join('.', unpack('C4', $ii));
+        debug(1, "\thost=$hn2 ip=$ip\n");
+        push @hostip, [$hn2, $ip];
+        if (lc($hn) eq lc($hn2)) {
+            $found = 1;
+            last;
+        }
+    }
+    if (!$found) {
+        my $retstr = "";
+        if ($res) {
+            $retstr = $res->getText('warning_reverse_resolve', $hn, $hn);
+        } else {
+            $retstr = "Warning: Hostname $hn is valid, but none of the IP addresses\nresolve back to $hn\n";
+        }
+        for my $ii (@hostip) {
+            if ($res) {
+                $retstr .= $res->getText('warning_reverse_resolve_sub', $ii->[1], $ii->[0]);
+            } else {
+                $retstr .= "\taddress $ii->[1] resolves to host $ii->[0]\n";
+            }
+        }
+        return $retstr;
+    }
+
+    debug(1, "hostname $hn resolves correctly\n");
+    return '';
 }
 
 # delete the subtree starting from the passed entry

@@ -134,8 +134,14 @@ my $hostdlg = new Dialog (
         my $self = shift;
         my $ans = shift;
         my $res = $DialogManager::NEXT;
-        if ($ans !~ /\./) {
-            $self->{manager}->alert("dialog_hostname_warning", $ans);
+        my $str;
+        if ($str = checkHostname($ans, $self->{manager}->{res})) {
+            my $promptary = ["dialog_hostname_warning", $str, $ans];
+            my $yesorno = $self->{manager}->showPrompt($promptary, $self->{manager}->getText("no"));
+            $res = DialogYesNo::handleResponse($self, $yesorno);
+            if ($res == $DialogManager::NEXT) {
+                $res = $DialogManager::SAME if (!DialogYesNo::isYes($self));
+            }
         }
         $self->{manager}->{inf}->{General}->{FullMachineName} = $ans;
         return $res;
