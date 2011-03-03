@@ -64,6 +64,7 @@ static void extract_guid_from_entry_bv(Slapi_Entry *e, const struct berval **bv)
 #endif
 static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password);
 static int is_subject_of_agreement_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
+static int is_dn_subject_of_agreement_local(const Slapi_DN *sdn, const Repl_Agmt *ra);
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
 static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry, int is_global);
@@ -1411,10 +1412,21 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			op->operation_type = SLAPI_OPERATION_DELETE;
 			is_ours_force = 1;
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: windows_replay_update: failed to fetch local entry for %s operation dn=\"%s\"\n",
-				agmt_get_long_name(prp->agmt),
-				op2string(op->operation_type), op->target_address.dn);
+			/* We only searched within the subtree in the agreement, so we should not print
+			 * an error if we didn't find the entry and the DN is outside of the agreement scope. */
+			if (is_dn_subject_of_agreement_local(local_dn, prp->agmt)) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"%s: windows_replay_update: failed to fetch local entry for %s operation dn=\"%s\"\n",
+					agmt_get_long_name(prp->agmt),
+					op2string(op->operation_type), op->target_address.dn);
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: windows_replay_update: Looking at %s operation local dn=\"%s\" (%s)\n",
+					agmt_get_long_name(prp->agmt),
+					op2string(op->operation_type), op->target_address.dn, is_ours ? "ours" : "not ours");
+			}
+			/* Just bail on this change.  We don't want to do any
+			 * further checks since we don't have a local entry. */
 			goto error;
 		}
 	}
@@ -3721,6 +3733,27 @@ is_subject_of_agreement_local(const Slapi_Entry *local_entry, const Repl_Agmt *r
 			retval = 0;
 		}
 	}
+error:
+	return retval;
+}
+
+/* Tests if a DN is within the scope of our agreement */
+static int
+is_dn_subject_of_agreement_local(const Slapi_DN *sdn, const Repl_Agmt *ra)
+{
+	int retval = 0;
+	const Slapi_DN *agreement_subtree = NULL;
+
+	/* Get the subtree from the agreement */
+	agreement_subtree = windows_private_get_directory_subtree(ra);
+	if (NULL == agreement_subtree)
+	{
+		goto error;
+	}
+
+	/* Check if the DN is within the subtree */
+	retval = slapi_sdn_scope_test(sdn, agreement_subtree, LDAP_SCOPE_SUBTREE);
+
 error:
 	return retval;
 }
