@@ -216,6 +216,7 @@ test_bind( Slapi_PBlock *pb )
 		break;
 	}
 
+	slapi_entry_free( e );
 	slapi_send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
 	return( 1 );
 }
