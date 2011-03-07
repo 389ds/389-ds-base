@@ -4162,14 +4162,26 @@ check_log_max_size( char *maxdiskspace_str,
     if ( maxdiskspace == -1 ) {
         maxdiskspace = current_maxdiskspace;
     }
-    maxdiskspaceB = (PRInt64)maxdiskspace * LOG_MB_IN_BYTES;
+
+    if ( maxdiskspace == -1 ) {
+        maxdiskspaceB = -1;
+    } else {
+        maxdiskspaceB = (PRInt64)maxdiskspace * LOG_MB_IN_BYTES;
+    }
 
     if ( mlogsize == -1 ) {
         mlogsize = current_mlogsize;
     }
-    mlogsizeB = (PRInt64)mlogsize * LOG_MB_IN_BYTES;
+
+    if ( mlogsize == -1 ) {
+        mlogsizeB = -1;
+    } else {
+        mlogsizeB = (PRInt64)mlogsize * LOG_MB_IN_BYTES;
+    }
  
-    if ( maxdiskspace < mlogsize )
+    /* If maxdiskspace is negative, it is unlimited.  There is
+     * no need to compate it to the logsize in this case. */
+    if (( maxdiskspace >= 0 ) && ( maxdiskspace < mlogsize ))
     {
         /* fail */
         PR_snprintf ( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
