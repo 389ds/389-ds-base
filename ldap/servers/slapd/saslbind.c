@@ -729,26 +729,26 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
 /*
  * Determine whether a given sasl mechanism is supported by
  * this sasl connection. Returns true/false.
+ * NOTE: caller must lock pb->pb_conn->c_mutex
  */
 static int
-ids_sasl_mech_supported(Slapi_PBlock *pb, sasl_conn_t *sasl_conn, const char *mech)
+ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
 {
   int i, ret = 0;
   char **mechs;
   char *dupstr;
   const char *str;
   int sasl_result = 0;
+  sasl_conn_t *sasl_conn = (sasl_conn_t *)pb->pb_conn->c_sasl_conn;
 
   LDAPDebug( LDAP_DEBUG_TRACE, "=> ids_sasl_mech_supported\n", 0, 0, 0 );
 
 
-  /* sasl_listmech is not thread-safe, so we lock here */
-  PR_Lock(pb->pb_conn->c_mutex);
+  /* sasl_listmech is not thread-safe - caller must lock pb_conn */
   sasl_result = sasl_listmech(sasl_conn, 
                     NULL,     /* username */
                     "", ",", "",
                     &str, NULL, NULL);
-  PR_Unlock(pb->pb_conn->c_mutex);
   if (sasl_result != SASL_OK) {
     return 0;
   }
@@ -800,13 +800,13 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     PR_ASSERT(pb);
     PR_ASSERT(pb->pb_conn);
 
-    PR_Lock(pb->pb_conn->c_mutex);
+    PR_Lock(pb->pb_conn->c_mutex); /* BIG LOCK */
     continuing = pb->pb_conn->c_flags & CONN_FLAG_SASL_CONTINUE;
     pb->pb_conn->c_flags &= ~CONN_FLAG_SASL_CONTINUE; /* reset flag */
 
     sasl_conn = (sasl_conn_t*)pb->pb_conn->c_sasl_conn;
-    PR_Unlock(pb->pb_conn->c_mutex);
     if (sasl_conn == NULL) {
+        PR_Unlock(pb->pb_conn->c_mutex);
         send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                           "sasl library unavailable", 0, NULL );
         return;
@@ -820,10 +820,10 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
     /* Work around a bug in the sasl library. We've told the
      * library that CRAM-MD5 is disabled, but it gives us a
-     * different error code to SASL_NOMECH.
+     * different error code to SASL_NOMECH.  Must be called
+     * while holding the pb_conn lock
      */
-    /* richm - this locks and unlocks pb->pb_conn */
-    if (!ids_sasl_mech_supported(pb, sasl_conn, mech)) {
+    if (!ids_sasl_mech_supported(pb, mech)) {
       rc = SASL_NOMECH;
       goto sasl_check_result;
     }
@@ -860,7 +860,6 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
      * using the new mechanism.  We also need to do this if the
      * mechanism changed in the middle of the SASL authentication
      * process. */
-    PR_Lock(pb->pb_conn->c_mutex);
     if ((pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
         Slapi_Operation *operation;
         slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
@@ -882,11 +881,10 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         if (sasl_conn == NULL) {
             send_ldap_result( pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                           "sasl library unavailable", 0, NULL );
-            PR_Unlock(pb->pb_conn->c_mutex);
+            PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
             return;
         }
     }
-    PR_Unlock(pb->pb_conn->c_mutex);
 
     rc = sasl_server_start(sasl_conn, mech, 
                            cred->bv_val, cred->bv_len, 
@@ -899,6 +897,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         /* retrieve the authenticated username */
         if (sasl_getprop(sasl_conn, SASL_USERNAME,
                          (const void**)&username) != SASL_OK) {
+            PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
             send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
                              "could not obtain sasl username", 0, NULL);
             break;
@@ -919,6 +918,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             }
         }
         if (dn == NULL) {
+            PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
             send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
                              "could not get auth dn from sasl", 0, NULL);
             break;
@@ -933,8 +933,6 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             *ssfp = 0;
         }
 
-        /* this is stuff we have to do inside the conn mutex */
-        PR_Lock(pb->pb_conn->c_mutex);
         /* Set a flag to signify that sasl bind is complete */
         pb->pb_conn->c_flags |= CONN_FLAG_SASL_COMPLETE;
         /* note - we set this here in case there are pre-bind
@@ -952,7 +950,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         bind_credentials_set_nolock(pb->pb_conn, authtype, dn, 
                                     NULL, NULL, NULL, bind_target_entry);
 
-        PR_Unlock(pb->pb_conn->c_mutex);
+        PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
 
         if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) != 0){
             break;
@@ -1042,6 +1040,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
     case SASL_CONTINUE:         /* another step needed */
         pb->pb_conn->c_flags |= CONN_FLAG_SASL_CONTINUE;
+        PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
 
         if (plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) != 0){
             break;
@@ -1063,6 +1062,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
     case SASL_NOMECH:
 
+        PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
         send_ldap_result(pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                          "sasl mechanism not supported", 0, NULL);
         break;
@@ -1070,6 +1070,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     default:                    /* other error */
         errstr = sasl_errdetail(sasl_conn);
 
+        PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
         send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL,
                          (char*)errstr, 0, NULL);
         break;
