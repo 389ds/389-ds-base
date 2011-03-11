@@ -1020,6 +1020,7 @@ conn_connect(Repl_Connection *conn)
 		conn->transport_flags = agmt_get_transport_flags(conn->agmt);
 		conn->timeout.tv_sec = agmt_get_timeout(conn->agmt);
 		conn->flag_agmt_changed = 0;
+		conn->port = agmt_get_port(conn->agmt); /* port could be updated */
 		slapi_ch_free((void **)&conn->plain);
 	}
 	PR_Unlock(conn->lock);

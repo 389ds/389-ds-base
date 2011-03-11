@@ -953,7 +953,7 @@ int
 agmt_set_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 {
 	Slapi_Attr *sattr = NULL;
-	int return_value = 0;
+	int return_value = -1;
 
 	PR_ASSERT(NULL != ra);
 	slapi_entry_attr_find(e, type_nsds5ReplicaCredentials, &sattr);
@@ -970,6 +970,7 @@ agmt_set_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 			ra->creds->bv_val = slapi_ch_calloc(1, bv->bv_len + 1);
 			memcpy(ra->creds->bv_val, bv->bv_val, bv->bv_len);
 			ra->creds->bv_len = bv->bv_len;
+			return_value = 0;
 		}
 	}
 	/* If no credentials set, set to zero-length string */
@@ -988,7 +989,7 @@ int
 agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 {
 	Slapi_Attr *sattr = NULL;
-	int return_value = 0;
+	int return_value = -1;
 
 	PR_ASSERT(NULL != ra);
 	slapi_entry_attr_find(e, type_nsds5ReplicaBindDN, &sattr);
@@ -1003,11 +1004,41 @@ agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 		{
 			const char *val = slapi_value_get_string(sval);
 			ra->binddn = slapi_ch_strdup(val);
+			return_value = 0;
 		}
 	}
 	/* If no BindDN set, set to zero-length string */
 	if (ra->binddn == NULL) {
 		ra->binddn = slapi_ch_strdup("");
+	}
+	PR_Unlock(ra->lock);
+	prot_notify_agmt_changed(ra->protocol, ra->long_name);
+	return return_value;
+}
+
+/*
+ * Reset the port number of the remote replica.
+ *
+ * Returns 0 if port set, or -1 if an error occurred.
+ */
+int
+agmt_set_port_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	Slapi_Attr *sattr = NULL;
+	int return_value = -1;
+
+	PR_ASSERT(NULL != ra);
+	slapi_entry_attr_find(e, type_nsds5ReplicaPort, &sattr);
+	PR_Lock(ra->lock);
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			ra->port = slapi_value_get_int(sval);
+			return_value = 0;
+		}
 	}
 	PR_Unlock(ra->lock);
 	prot_notify_agmt_changed(ra->protocol, ra->long_name);
