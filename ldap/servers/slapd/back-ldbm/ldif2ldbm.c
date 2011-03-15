@@ -708,21 +708,21 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
          * initialize the USN counter to get the next USN */
         if (plugin_enabled("USN", li->li_identity)) {
             /* close immediately; no need to run db threads */
-            int rc = dblayer_start(li,
+            ret = dblayer_start(li,
                                  DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
-            if (rc) {
+            if (ret) {
                 LDAPDebug2Args(LDAP_DEBUG_ANY,
                     "ldbm_back_ldif2ldbm: dblayer_start failed! %s (%d)\n",
-                    dblayer_strerror(rc), rc);
+                    dblayer_strerror(ret), ret);
                 goto fail;
             }
             /* initialize the USN counter */
             ldbm_usn_init(li);
-            rc = dblayer_close(li, DBLAYER_NORMAL_MODE);
-            if (rc) {
+            ret = dblayer_close(li, DBLAYER_NORMAL_MODE);
+            if (ret != 0) {
                 LDAPDebug2Args(LDAP_DEBUG_ANY,
                     "ldbm_back_ldif2ldbm: dblayer_close failed! %s (%d)\n",
-                    dblayer_strerror(rc), rc);
+                    dblayer_strerror(ret), ret);
             }
         }
 
