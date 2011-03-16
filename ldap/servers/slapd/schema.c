@@ -4805,7 +4805,7 @@ va_expand_one_oc( const char *dn, Slapi_Value ***vap, const char *ocs )
 	}
   
 	newva = (Slapi_Value **)slapi_ch_realloc( (char *)*vap,
-			( i + 2 )*sizeof(Slapi_Value **));
+			( i + 2 )*sizeof(Slapi_Value *));
   
 	newva[i] = slapi_value_new_string(sup_oc->oc_name);
 	newva[i+1] = NULL;
