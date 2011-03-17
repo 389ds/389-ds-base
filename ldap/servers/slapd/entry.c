@@ -2419,11 +2419,11 @@ slapi_entry_vattrcache_find_values_and_type_ex( const Slapi_Entry *e,
 				char *vattr_type=NULL;
 
 				r= SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
-				*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(*results));
+				*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(**results));
 				**results = valueset_dup(&(tmp_attr->a_present_values));
 
 				*actual_type_name =
-							(char**)slapi_ch_malloc(sizeof(*actual_type_name));
+							(char**)slapi_ch_malloc(sizeof(**actual_type_name));
 				slapi_attr_get_type( tmp_attr, &vattr_type );
 				**actual_type_name = slapi_ch_strdup(vattr_type);
 							
