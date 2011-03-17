@@ -1535,7 +1535,7 @@ add_internal_mapping_tree_node(const char *subtree, Slapi_Backend *be, mapping_t
 {
     Slapi_DN *dn;
     mapping_tree_node *node;
-    backend ** be_list = (backend **) slapi_ch_malloc(sizeof(backend **));
+    backend ** be_list = (backend **) slapi_ch_malloc(sizeof(backend *));
 
     be_list[0] = be;
 
