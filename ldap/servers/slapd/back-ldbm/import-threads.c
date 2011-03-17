@@ -2136,11 +2136,11 @@ import_foreman(void *param)
             goto error;
         }
 
-        if (! slapi_entry_flag_is_set(fi->entry->ep_entry,
-                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+        if (entryrdn_get_switch() ||
+            !slapi_entry_flag_is_set(fi->entry->ep_entry,
+                                     SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /*
-             * Only check for a parent and add to the entry2dn index if
-             * the entry is not a tombstone.
+             * Only check for a parent and add to the entry2dn index
              */
             if (job->flags & FLAG_ABORT) {       
                 goto error;
@@ -2864,6 +2864,50 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         else
             job->fifo.c_bsize = 0;
         backentry_free(&old_ep);
+    }
+    /* Is subtree-rename on? And is this a tombstone?
+     * If so, need a special treatment */
+    if (entryrdn_get_switch() &&
+        (ep->ep_entry->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+        char *tombstone_rdn =
+                slapi_ch_strdup(slapi_entry_get_dn_const(ep->ep_entry));
+        if ((0 == PL_strncasecmp(tombstone_rdn, SLAPI_ATTR_UNIQUEID,
+                                 sizeof(SLAPI_ATTR_UNIQUEID) - 1)) &&
+            /* dn starts with "nsuniqueid=" */
+            (NULL == PL_strstr(tombstone_rdn, RUV_STORAGE_ENTRY_UNIQUEID))) {
+            /* and this is not an RUV */
+            char *sepp = PL_strchr(tombstone_rdn, ',');
+            /* dn looks like this:
+             * nsuniqueid=042d8081-...-ca8fe9f7,uid=tuser,o=abc.com 
+             * create a new srdn for the original dn
+             * uid=tuser,o=abc.com
+             */
+            if (sepp) {
+                Slapi_RDN mysrdn = {0};
+                if (slapi_rdn_init_all_dn(&mysrdn, sepp + 1)) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "bulk_import_queue",
+                                "Failed to convert DN %s to RDN\n", sepp + 1);
+                    slapi_ch_free_string(&tombstone_rdn);
+                    /* entry is released in the frontend on failure*/
+                    backentry_clear_entry(ep);
+                    backentry_free( &ep );     /* release the backend wrapper */
+                    PR_Unlock(job->wire_lock);
+                    return -1;
+                }
+                sepp = PL_strchr(sepp + 1, ',');
+                if (sepp) {
+                    Slapi_RDN *srdn = slapi_entry_get_srdn(ep->ep_entry);
+                    /* nsuniqueid=042d8081-...-ca8fe9f7,uid=tuser, */
+                    /*                                           ^ */
+                    *sepp = '\0';
+                    slapi_rdn_replace_rdn(&mysrdn, tombstone_rdn);
+                    slapi_rdn_done(srdn);
+                    slapi_entry_set_srdn(ep->ep_entry, &mysrdn);
+                    slapi_rdn_done(&mysrdn);
+                }
+            }
+        }
+        slapi_ch_free_string(&tombstone_rdn);
     }
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
