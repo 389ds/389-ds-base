@@ -2259,4 +2259,7 @@ extern char	*attr_dataversion;
 #define LDAP_VIRTUAL_LIST_VIEW_ERROR    0x4C      /* 76 */
 #endif
 
+/* copied from replication/repl5.h */
+#define RUV_STORAGE_ENTRY_UNIQUEID "ffffffff-ffffffff-ffffffff-ffffffff"
+
 #endif /* _slap_h_ */

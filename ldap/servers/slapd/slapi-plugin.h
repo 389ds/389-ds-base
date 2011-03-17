@@ -3071,6 +3071,13 @@ int slapi_rdn_replace_rdn(Slapi_RDN *srdn, char *new_rdn);
 */
 int slapi_rdn_partial_dup(Slapi_RDN *from, Slapi_RDN **to, int idx);
 
+/**
+ * Return the size of the RDN
+ *
+ * \param srdn A pointer to Slapi_RDN to calculate the size
+ * \return The size of the given RDN.
+ */
+size_t slapi_rdn_get_size(Slapi_RDN *srdn);
 
 /*
  * utility routines for dealing with DNs
