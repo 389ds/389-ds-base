@@ -61,6 +61,9 @@
 #define DELETED_VALUE_STRING ";deleted"
 #define DELETED_VALUE_STRSIZE 8 /* sizeof(";deleted") */
 
+/* a helper function to set special rdn to a tombstone entry */
+static int _entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn);
+
 /*
  * An attribute name is of the form 'basename[;option]'.
  * The state informaion is encoded in options. For example:
@@ -519,6 +522,18 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 	/* release read lock of name2asi, per-entry lock */
 	attr_syntax_unlock_read();
 
+	/* If this is a tombstone, it requires a special treatment for rdn. */
+	if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+		/* tombstone */
+		if (_entry_set_tombstone_rdn(e, slapi_entry_get_dn_const(e))) {
+			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "str2entry_fast: "
+			               "tombstone entry has badly formatted dn: %s\n",
+			               slapi_entry_get_dn_const(e) );
+			slapi_entry_free( e ); e = NULL;
+			goto done;
+		}
+	}
+
 	/* check to make sure there was a dn: line */
 	if ( slapi_entry_get_dn_const(e)==NULL ) {
 		if (!(SLAPI_STR2ENTRY_INCLUDE_VERSION_STR & flags))
@@ -807,7 +822,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					normdn = slapi_create_dn_string("%s", rawdn);
 					if (NULL == normdn) {
 						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-							  	"str2entry_fast: Invalid DN: %s\n", rawdn);
+						         "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
 						slapi_entry_free( e );
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 						csn_free(&attributedeletioncsn);
@@ -1221,6 +1236,17 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     /* release read lock of name2asi, per-entry lock */
     attr_syntax_unlock_read();
 
+    /* If this is a tombstone, it requires a special treatment for rdn. */
+    if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+        /* tombstone */
+        if (_entry_set_tombstone_rdn(e, slapi_entry_get_dn_const(e))) {
+            LDAPDebug1Arg( LDAP_DEBUG_TRACE, "str2entry_dupcheck: "
+                           "tombstone entry has badly formatted dn: %s\n",
+                           slapi_entry_get_dn_const(e) );
+            slapi_entry_free( e ); e = NULL;
+            goto free_and_return;
+        }
+    }
 
     /* Add the RDN values, if asked, and if not already present */
     if ( flags & SLAPI_STR2ENTRY_ADDRDNVALS ) {
@@ -1974,8 +2000,8 @@ slapi_entry_size(Slapi_Entry *e)
     if (e->e_uniqueid) size += strlen(e->e_uniqueid) + 1;
     if (e->e_dncsnset) size += csnset_size(e->e_dncsnset);
     if (e->e_maxcsn) size += sizeof( CSN );
-    size += slapi_dn_size(&e->e_sdn); /* covers rdn format,
-                                         since (rdn length < dn length) */
+    size += slapi_dn_size(&e->e_sdn);
+    size += slapi_rdn_get_size(&e->e_srdn);
     size += slapi_attrlist_size(e->e_attrs);
     if (e->e_deleted_attrs) size += slapi_attrlist_size(e->e_deleted_attrs);
     if (e->e_virtual_attrs) size += slapi_attrlist_size(e->e_virtual_attrs);
@@ -3829,4 +3855,47 @@ out:
         slapi_ch_free_string(&my_logging_prestr);
 
     return rval;
+}
+
+/* a helper function to set special rdn to a tombstone entry */
+/* Since this a tombstone, it requires a special treatment for rdn*/
+static int
+_entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn)
+{
+    int rc = 0;
+    char *tombstone_rdn = slapi_ch_strdup(normdn);
+    if ((0 == PL_strncasecmp(tombstone_rdn, SLAPI_ATTR_UNIQUEID,
+                             sizeof(SLAPI_ATTR_UNIQUEID) - 1)) &&
+        (NULL == PL_strstr(tombstone_rdn, RUV_STORAGE_ENTRY_UNIQUEID))) {
+        /* dn starts with "nsuniqueid=" and this is not an RUV */
+        char *sepp = PL_strchr(tombstone_rdn, ',');
+        /* dn looks like this:
+         * nsuniqueid=042d8081-...-ca8fe9f7,uid=tuser,o=abc.com 
+         * create a new srdn for the original dn
+         * uid=tuser,o=abc.com
+         */
+        if (sepp) {
+            Slapi_RDN mysrdn = {0};
+            rc = slapi_rdn_init_all_dn(&mysrdn, sepp + 1);
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "str2entry",
+                                "Failed to convert DN %s to RDN\n", sepp + 1);
+                goto bail;
+            }
+            sepp = PL_strchr(sepp + 1, ',');
+            if (sepp) {
+                Slapi_RDN *srdn = slapi_entry_get_srdn(e);
+                /* nsuniqueid=042d8081-...-ca8fe9f7,uid=tuser, */
+                /*                                           ^ */
+                *sepp = '\0';
+                slapi_rdn_replace_rdn(&mysrdn, tombstone_rdn);
+                slapi_rdn_done(srdn);
+                slapi_entry_set_srdn(e, &mysrdn);
+                slapi_rdn_done(&mysrdn);
+            }
+        }
+    }
+bail:
+    slapi_ch_free_string(&tombstone_rdn);
+    return rc;
 }

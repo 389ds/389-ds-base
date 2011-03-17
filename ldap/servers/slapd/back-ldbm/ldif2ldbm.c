@@ -254,6 +254,28 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
             slapi_sdn_set_dn_byval(&sdn, pdn);
             err = entryrdn_index_read(be, &sdn, &pid, NULL);
             slapi_sdn_done(&sdn);
+            if (DB_NOTFOUND == err) {
+                /* 
+                 * Could be a tombstone. E.g.,
+                 * nsuniqueid=042d8081-..-ca8fe9f7,uid=tuser,o=abc,com
+                 * If so, need to get the grandparent of the leaf.
+                 */
+                if (slapi_entry_flag_is_set(ep->ep_entry,
+                                            SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+                    char *ppdn = slapi_dn_parent(pdn);
+                    slapi_ch_free_string(&pdn);
+                    if (NULL == ppdn) {
+                        if (NULL != status) {
+                            *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
+                            goto next;
+                        }
+                    }
+                    pdn = ppdn;
+                    slapi_sdn_set_dn_byval(&sdn, pdn);
+                    err = entryrdn_index_read(be, &sdn, &pid, NULL);
+                    slapi_sdn_done(&sdn);
+                }
+            }
             if (err) {
                 if (DB_NOTFOUND != err && 1 != err) {
                     LDAPDebug1Arg( LDAP_DEBUG_ANY, "database error %d\n", err );
@@ -291,7 +313,7 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
             *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
         }
     }
-
+next:
     /* Get rid of attributes you're not allowed to specify yourself */
     slapi_entry_delete_values( ep->ep_entry, hassubordinates, NULL );
     slapi_entry_delete_values( ep->ep_entry, numsubordinates, NULL );
