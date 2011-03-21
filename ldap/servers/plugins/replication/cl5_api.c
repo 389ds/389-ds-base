@@ -852,7 +852,7 @@ done:;
    Description:	imports ldif file into changelog; changelog must be in the closed state
    Parameters:  clDir - changelog dir
 				ldifFile - absolute path to the ldif file to import
-				replicas - optional list of replicas whose data should be imported.
+				replicas - list of replicas whose data should be imported.
    Return:		CL5_SUCCESS if function is successfull;
 				CL5_BAD_DATA if invalid parameter is passed;
 				CL5_BAD_STATE if changelog is open or not inititalized;
@@ -900,6 +900,13 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 						"cl5ImportLDIF: changelog is not initialized\n");
 		return CL5_BAD_STATE;	
+	}
+
+	if (replicas == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+						"cl5ImportLDIF: null list of replicas\n");
+		return CL5_BAD_DATA;
 	}
 
 	prim_replica_obj = replicas[0];
