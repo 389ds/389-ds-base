@@ -1673,7 +1673,7 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 				else
 				if (!strcasecmp(attr_name, "passwordlockoutduration")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_lockduration = slapi_value_get_long(*sval);
+						pwdpolicy->pw_lockduration = slapi_value_get_timelong(*sval);
 					}
 				}
 				else
