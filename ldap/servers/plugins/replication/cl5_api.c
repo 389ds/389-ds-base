@@ -1039,7 +1039,6 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
                         "failed to write operation to the changelog: "
                         "type: %lu, dn: %s\n",
                         op.operation_type, op.target_address.dn);
-                object_release (replica_obj);
                 slapi_ch_free_string(&replGen);
                 operation_parameters_done (&op);
                 goto done;
