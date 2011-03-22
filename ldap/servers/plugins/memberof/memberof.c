@@ -583,7 +583,9 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		/* It's possible that this is an entry who is a member
 		 * of other group entries.  We need to update any member
 		 * attributes to refer to the new name. */
-		memberof_replace_dn_from_groups(pb, &configCopy, pre_dn, post_dn);
+		if (pre_dn && post_dn) {
+			memberof_replace_dn_from_groups(pb, &configCopy, pre_dn, post_dn);
+		}
 
 		memberof_unlock();
 		memberof_free_config(&configCopy);
