@@ -3683,7 +3683,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
     for (oep = old_entries; oep != NULL && *oep != NULL; oep++)
         ;
 
-    qsort(old_entries, oep - old_entries, sizeof(Slapi_Entry **),
+    qsort(old_entries, oep - old_entries, sizeof(Slapi_Entry *),
           entry_cmp_with_dn);
 
 #ifdef ENTRY_DIFF_DEBUG
