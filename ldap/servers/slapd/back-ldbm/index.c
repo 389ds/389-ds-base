@@ -909,7 +909,6 @@ index_read_ext(
 		slapi_ch_free_string( &basetmp );
 		return( NULL );
 	}
-	slapi_ch_free_string( &basetmp );
 
 	if ( val != NULL ) {
 		size_t		plen, vlen;
@@ -959,6 +958,7 @@ index_read_ext(
 	} else if ( *err != 0 && *err != DB_NOTFOUND ) {
 	  ldbm_nasty(errmsg, 1050, *err);
 	}
+	slapi_ch_free_string( &basetmp );
 	slapi_ch_free_string(&tmpbuf);
 
 	dblayer_release_index_file( be, ai, db );
