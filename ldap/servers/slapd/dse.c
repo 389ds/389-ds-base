@@ -1071,9 +1071,7 @@ dse_write_entry( caddr_t data, caddr_t arg )
   
 /*
  * Adds an entry to the dse backend.  The passed in entry will be
- * free'd upon success.  If we don't return 0, the caller is responsible
- * for freeing the entry.
- */
+ * free'd always. */
 static int
 dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 {
@@ -2072,7 +2070,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     {
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
 		slapi_sdn_done(&sdn);
-		return dse_add_return(error, e_copy);
+		return dse_add_return(error, NULL);
     }
 	/* The postop must be called after the write lock is released. */
     dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, e, NULL, &returncode, returntext);
