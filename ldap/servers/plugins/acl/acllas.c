@@ -2376,7 +2376,7 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 {
 	struct eval_info	*info;
  	Slapi_Attr		*currAttr, *nextAttr;
-	char			*n_dn, *attrType;
+	char			*n_dn = NULL, *attrType;
 	int				n;
 	int				i;
 
@@ -2415,6 +2415,7 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 				if (n < 0) {
 					slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
 						  "acllas__handle_group_entry: last member index lu_idx is overflown:%d: Too many group ACL members\n", n);
+					slapi_ch_free_string(&n_dn);
 					return 0;
 				}
 				if (!(n % ACLLAS_MAX_GRP_MEMBER)) {
@@ -2428,6 +2429,7 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 										 "acllas__handle_group_entry: out of memory - could not allocate space for %d group members\n",
 										 n + ACLLAS_MAX_GRP_MEMBER );
 						info->memberInfo = orig_memberInfo;
+						slapi_ch_free_string(&n_dn);
 						return 0;
 					}
 				}
