@@ -1180,6 +1180,20 @@ dblayer_inst_exists(ldbm_instance *inst, char *dbname)
     return 0;
 }
 
+static void
+dblayer_free_env(struct dblayer_private_env **env)
+{
+    if (NULL == env || NULL == *env) {
+        return;
+    }
+    if ((*env)->dblayer_env_lock) {
+        PR_DestroyRWLock((*env)->dblayer_env_lock);
+        (*env)->dblayer_env_lock = NULL;
+    }
+    slapi_ch_free((void **)env);
+    return;
+}
+
 /*
  * create a new DB_ENV and fill it with the goodies from dblayer_private
  */
@@ -1206,8 +1220,9 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
 
     /* Here we overide various system functions called by libdb */
     ret = dblayer_override_libdb_functions(pEnv->dblayer_DB_ENV, priv);
-    if (ret != 0)
-        return ret;
+    if (ret != 0) {
+        goto fail;
+    }
 
     if (priv->dblayer_spin_count != 0) {
         DB_ENV_SET_TAS_SPINS(pEnv->dblayer_DB_ENV, priv->dblayer_spin_count);
@@ -1252,27 +1267,23 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
 
     if (pEnv->dblayer_env_lock) {
         *env = pEnv;
+        pEnv = NULL; /* do not free below */
     } else {
         LDAPDebug(LDAP_DEBUG_ANY,
             "ERROR -- Failed to create RWLock (returned: %d).\n", 
             ret, 0, 0);
     }
 
+fail:
+    if (pEnv) {
+        slapi_ch_array_free(priv->dblayer_data_directories);
+        priv->dblayer_data_directories = NULL;
+        if (pEnv->dblayer_DB_ENV) {
+            pEnv->dblayer_DB_ENV->close(pEnv->dblayer_DB_ENV, 0);
+        }
+        dblayer_free_env(&pEnv); /* pEnv is now garbage */
+    }
     return ret;
-}
-
-static void
-dblayer_free_env(struct dblayer_private_env **env)
-{
-    if (NULL == env || NULL == *env) {
-        return;
-    }
-    if ((*env)->dblayer_env_lock) {
-        PR_DestroyRWLock((*env)->dblayer_env_lock);
-        (*env)->dblayer_env_lock = NULL;
-    }
-    slapi_ch_free((void **)env);
-    return;
 }
 
 /* generate an absolute path if the given instance dir is not.  */
