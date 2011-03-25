@@ -1116,7 +1116,7 @@ back_crypt_encrypt_value(void *handle, struct berval *in, struct berval **out)
         goto bail;
     }
     *out = NULL;
-    if (!state_priv || !state_priv->acs_array) {
+    if (!state_priv) {
         goto bail;
     }
     invalue = slapi_value_new_berval(in);
@@ -1147,7 +1147,7 @@ back_crypt_decrypt_value(void *handle, struct berval *in, struct berval **out)
         goto bail;
     }
     *out = NULL;
-    if (!state_priv || !state_priv->acs_array) {
+    if (!state_priv) {
         goto bail;
     }
     invalue = slapi_value_new_berval(in);
