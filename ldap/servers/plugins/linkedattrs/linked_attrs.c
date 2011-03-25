@@ -1446,8 +1446,7 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
 {
     char *dn = 0;
     Slapi_Entry *e = 0;
-    Slapi_Mods *smods = 0;
-    LDAPMod **mods;
+    LDAPMod **mods = NULL;
     int free_entry = 0;
     char *errstr = NULL;
     int ret = 0;
@@ -1488,14 +1487,11 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
 
             /* Grab the mods. */
             slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
-            smods = slapi_mods_new();
-            slapi_mods_init_passin(smods, mods);
-
             /* Apply the  mods to create the resulting entry. */
             if (mods && (slapi_entry_apply_mods(e, mods) != LDAP_SUCCESS)) {
                 /* The mods don't apply cleanly, so we just let this op go
                  * to let the main server handle it. */
-                goto bailmod;
+                goto bail;
             }
         }
 
@@ -1508,14 +1504,6 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
                 errstr = slapi_ch_smprintf("Changes result in an invalid "
                                            "linked attribute configuration.");
             }
-        }
-
-      bailmod:
-        /* Clean up smods. */
-        if (LDAP_CHANGETYPE_MODIFY == modop) {
-            mods = slapi_mods_get_ldapmods_passout(smods);
-            slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
-            slapi_mods_free(&smods);
         }
     }
 
