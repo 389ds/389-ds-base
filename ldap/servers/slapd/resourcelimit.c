@@ -181,7 +181,6 @@ static void reslimit_connext_destructor( void *extension, void *object,
 		void *parent );
 static int reslimit_get_ext( Slapi_Connection *conn, const char *logname,
 		SLAPIResLimitConnData **rlcdpp );
-static int reslimit_bv2int( const struct berval *bvp );
 static char ** reslimit_get_registered_attributes();
 
 
@@ -327,38 +326,6 @@ reslimit_get_ext( Slapi_Connection *conn, const char *logname,
 }
 
 
-/*
- * utility function to convert a string-represented integer to an int.
- *
- * XXXmcs: wouldn't need this if slapi_value_get_int() returned a signed int!
- */
-static int
-reslimit_bv2int( const struct berval *bvp )
-{
-	int		rc = 0;
-	char	smallbuf[ 25 ], *buf;
-
-	if ( bvp != NULL ) {
-		/* make a copy to ensure it is zero-terminated */
-		if ( bvp->bv_len < sizeof( smallbuf )) {
-			buf = smallbuf;
-		} else {
-			buf = slapi_ch_malloc( bvp->bv_len + 1 );
-		}
-		memcpy( buf, bvp->bv_val, bvp->bv_len);
-		buf[ bvp->bv_len ] = '\0';
-
-		rc = atoi( buf );
-
-		if ( buf != smallbuf ) {
-			slapi_ch_free( (void **)&smallbuf );
-		}
-	}
-
-	return( rc );
-}
-
-
 /**** Semi-public functions start here ***********************************/
 /*
  * These functions are exposed to other parts of the server only, i.e.,
@@ -464,11 +431,10 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 				&actual_type_name, 0, &free_flags )) {
 			Slapi_Value			*v;
 			int					index;
-			const struct berval	*bvp;
 
-			if (( index = slapi_valueset_first_value( vs, &v )) != -1 &&
-					( bvp = slapi_value_get_berval( v )) != NULL ) {
-				rlcdp->rlcd_integer_value[ i ] = reslimit_bv2int( bvp );
+			if ((( index = slapi_valueset_first_value( vs, &v )) != -1) &&
+				( v != NULL )) {
+				rlcdp->rlcd_integer_value[ i ] = slapi_value_get_int( v );
 				rlcdp->rlcd_integer_available[ i ] = PR_TRUE;
 
 				LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL,
