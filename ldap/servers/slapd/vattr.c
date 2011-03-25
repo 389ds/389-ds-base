@@ -1705,7 +1705,7 @@ int vattr_call_sp_get_batch_values(vattr_sp_handle *handle, vattr_context *c, Sl
 	{
 		/* make our args look like the simple non-batched case */
 		*results = (Slapi_ValueSet**)slapi_ch_calloc(2, sizeof(**results)); /* 2 for null terminated list */
-		*type_name_disposition = (int *)slapi_ch_calloc(2, sizeof(*type_name_disposition));
+		*type_name_disposition = (int *)slapi_ch_calloc(2, sizeof(**type_name_disposition));
 		*actual_type_name = (char**)slapi_ch_calloc(2, sizeof(**actual_type_name));
 
 		ret =((handle->sp->sp_get_fn)(handle,c,e,*type,*results,*type_name_disposition,*actual_type_name,flags,buffer_flags, hint)); 
