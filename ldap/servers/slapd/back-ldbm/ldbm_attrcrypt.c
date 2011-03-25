@@ -161,13 +161,14 @@ attrcrypt_get_ssl_cert_name(char **cert_name)
 		if(!strcasecmp(token, "internal") ||
 		   !strcasecmp(token, "internal (software)")) {
 			*cert_name = personality;
+			personality = NULL; /* do not free below */
 		} else {
 			/* external PKCS #11 token - attach token name */
 			*cert_name = slapi_ch_smprintf("%s:%s", token, personality);
-			slapi_ch_free_string(&personality);
 		}
-		slapi_ch_free_string(&token);
 	}
+	slapi_ch_free_string(&personality);
+	slapi_ch_free_string(&token);
 	freeConfigEntry(&config_entry);
 	return 0;
 }
