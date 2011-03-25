@@ -1988,13 +1988,15 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 						char *first_purl = NULL;
 						ruv_get_first_id_and_purl(ruv, &first_rid, &first_purl);
 						/* if the local supplier is not first in the list . . . */
+						/* rid is from changelog; first_rid is from backend */
 						if (rid != first_rid)
 						{
 							/* . . . move the local supplier to the beginning of the list */
 							ruv_move_local_supplier_to_first(ruv, rid);
 							need_update = RUV_UPDATE_PARTIAL; /* must update tombstone also */
 						}
-						if (r->repl_rid != first_rid)
+						/* r->repl_rid is from config; rid is from changelog */
+						if (r->repl_rid != rid)
 						{
 						    /* Most likely, the replica was once deleted
 						     * and recreated with a different rid from the
