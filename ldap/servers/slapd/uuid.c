@@ -89,6 +89,7 @@
 #define MODULE				"uuid"		/* for logging */
 #define UPDATE_INTERVAL		60000		/* 1 minute */
 #define NEED_TIME_UPDATE    -1
+#define SEED_LENGTH			16
 
 /* generates uuid in singlethreaded environment */
 static int uuid_create_st(guid_t *uuid);
@@ -127,7 +128,7 @@ static void get_system_time(uuid_time_t *uuid_time);
 /* generates random value - used to set clock sequence */
 static unsigned16 true_random(void);
 /* generate random info buffer to generate nodeid */
-static void get_random_info(unsigned char seed[16]);
+static void get_random_info(unsigned char seed[], size_t arraylen);
 
 /* UUID generator state stored persistently */
 typedef struct 
@@ -890,7 +891,7 @@ static void format_uuid_v3(guid_t * uuid, unsigned char hash[16])
 */
 static int get_node_identifier (uuid_node_t *node) 
 {
-	unsigned char seed[16]= {0};
+	unsigned char seed[SEED_LENGTH]= {0};
 
 #ifdef USE_NIC
 	/* ONREPL - code to use NIC address would go here; Currently, we use 
@@ -899,7 +900,7 @@ static int get_node_identifier (uuid_node_t *node)
                 docs for more info.
 	 */				          
 #endif
-	get_random_info(seed);
+	get_random_info(seed, SEED_LENGTH);
 	seed[0] |= 0x80;
 	memcpy (node, seed, sizeof (uuid_node_t));
 	
@@ -938,7 +939,7 @@ static unsigned16 true_random(void)
 	return (slapi_rand_r(&uuid_seed));
 }
 
-static void get_random_info(unsigned char seed[16]) 
+static void get_random_info(unsigned char seed[], size_t arraylen) 
 {
-    slapi_rand_array(seed, sizeof(seed));
+    slapi_rand_array(seed, arraylen);
 }
