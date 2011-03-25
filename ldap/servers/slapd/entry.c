@@ -809,6 +809,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					slapi_entry_free( e );
 					if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 					csn_free(&attributedeletioncsn);
+					csn_free(&maxcsn);
 					return NULL;
 				}
 				/* normdn is consumed in e */
@@ -826,6 +827,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						slapi_entry_free( e );
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 						csn_free(&attributedeletioncsn);
+						csn_free(&maxcsn);
 						return NULL;
 					}
 					/* normdn is just referred in slapi_entry_set_rdn. */
@@ -879,6 +881,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		if ( (flags & SLAPI_STR2ENTRY_NO_ENTRYDN) &&
 		     strcasecmp( type, "entrydn" ) == 0 ) {
 			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
+			csn_free(&attributedeletioncsn);
 			continue;
 		}
 
@@ -939,6 +942,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						/* Something very bad happened */
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 						csn_free(&attributedeletioncsn);
+						csn_free(&maxcsn);
 						return NULL;
 					}
 					for ( i = 0; i < nattrs; i++ )
