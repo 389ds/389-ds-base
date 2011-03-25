@@ -338,7 +338,7 @@ void uuid_create_from_name(guid_t * uuid,      /* resulting UUID */
 		PK11_DestroyContext(c, PR_TRUE);
 	}
 	else { /* Probably desesperate but at least deterministic... */
-		memset(&uuid, 0, sizeof(uuid));
+		memset(uuid, 0, sizeof(*uuid));
 	}
 }  
 
