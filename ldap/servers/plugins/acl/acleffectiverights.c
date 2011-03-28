@@ -124,8 +124,7 @@ _ger_g_permission_granted (
 	/*
 	 * The requestor may be either the bind dn or a proxy dn
 	 */
-	proxyauth_get_dn ( pb, &proxydn, &errtext );
-	if ( proxydn != NULL )
+	if ((proxyauth_get_dn( pb, &proxydn, &errtext ) == LDAP_SUCCESS) && ( proxydn != NULL )) {
 	{
 		requestor_sdn = slapi_sdn_new_dn_passin ( proxydn );
 	}
