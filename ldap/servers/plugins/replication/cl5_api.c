@@ -6302,9 +6302,6 @@ cl5WriteRUV()
         }
         file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
     }
-    if (file_obj) {
-        object_release (file_obj);
-    }
 bail:
     if (closeit && (CL5_STATE_OPEN == s_cl5Desc.dbState)) {
         _cl5Close ();
