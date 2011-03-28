@@ -6401,10 +6401,10 @@ cl5DeleteRUV()
         }
         file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
     }
+bail:
     if (file_obj) {
         object_release (file_obj);
     }
-bail:
     if (closeit && (CL5_STATE_OPEN == s_cl5Desc.dbState)) {
         _cl5Close ();
         s_cl5Desc.dbState = CL5_STATE_CLOSED; /* force to change the state */
