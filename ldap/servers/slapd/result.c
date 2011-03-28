@@ -1045,6 +1045,11 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 				}
 
 			} else {
+				/* if we got here, then either values is NULL or values contains no elements
+				   either way we can free it */
+				slapi_ch_free((void**)&values);
+				slapi_ch_free((void**)&actual_type_name);
+				slapi_ch_free((void**)&type_name_disposition);
 				rc = 0;
 			}
 		}		
@@ -1177,6 +1182,11 @@ int send_specific_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PB
 				}
 
 			} else {
+				/* if we got here, then either values is NULL or values contains no elements
+				   either way we can free it */
+				slapi_ch_free((void**)&values);
+				slapi_ch_free((void**)&actual_type_name);
+				slapi_ch_free((void**)&type_name_disposition);
 				rc = 0;
 			}
         } 	
