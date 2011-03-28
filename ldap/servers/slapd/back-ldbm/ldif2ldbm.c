@@ -2760,7 +2760,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         else
         {
             rval = dblayer_delete_indices(inst);
-            if (rval);
+            if (rval)
             {
                 upgrade_rval += rval;
                 slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
