@@ -1423,7 +1423,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"%s: windows_replay_update: Looking at %s operation local dn=\"%s\" (%s)\n",
 					agmt_get_long_name(prp->agmt),
-					op2string(op->operation_type), op->target_address.dn, is_ours ? "ours" : "not ours");
+					op2string(op->operation_type), op->target_address.dn, "ours");
 			}
 			/* Just bail on this change.  We don't want to do any
 			 * further checks since we don't have a local entry. */
