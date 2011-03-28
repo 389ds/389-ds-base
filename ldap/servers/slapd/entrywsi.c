@@ -262,17 +262,18 @@ entry_add_rdn_csn(Slapi_Entry *e, const CSN *csn)
 	{
 		Slapi_Attr *a= NULL;
 		Slapi_Value *v= NULL;
-		entry_attr_find_wsi(e, type, &a);
-		if(a!=NULL)
+		if ((entry_attr_find_wsi(e, type, &a) == ATTRIBUTE_PRESENT) && (a!=NULL))
 		{
 			struct berval bv;
 			bv.bv_len= strlen(value);
 			bv.bv_val= (void*)value;
-			attr_value_find_wsi(a, &bv, &v);
+			if (attr_value_find_wsi(a, &bv, &v) == VALUE_DELETED) {
+				v = NULL;
+			}
 		}
 		if(v!=NULL)
 		{
-            value_update_csn(v,CSN_TYPE_VALUE_DISTINGUISHED,csn);
+			value_update_csn(v,CSN_TYPE_VALUE_DISTINGUISHED,csn);
 		}
 		else
 		{
