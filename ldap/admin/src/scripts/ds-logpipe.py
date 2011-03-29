@@ -311,9 +311,19 @@ signal.signal(signal.SIGINT, sighandler)
 signal.signal(signal.SIGTERM, sighandler)
 signal.signal(signal.SIGALRM, sighandler)
 
+timerisset = False
+neverdone = False
 if options.serverpidfile:
     # start the timer to wait for the pid file to be available
     signal.setitimer(signal.ITIMER_REAL, options.servertimeout)
+    timerisset = True
+
+# if we are tracking a server, we will be done
+# when the server exits
+# if not tracking a server, we will only be done
+# when we are killed
+if not serverpid and not options.serverpidfile:
+    neverdone = True
 
 done = False
 while not done:
@@ -325,9 +335,12 @@ while not done:
     if debug:
         print "opened pipe", logf
 
-    if options.serverpidfile:
+    if timerisset:
         # cancel the timer - the open succeeded
+        timerisset = False
         signal.setitimer(signal.ITIMER_REAL, 0)
+        if debug:
+            print "cancelled startup timer"
 
     lines = 0
     # read and process the next line in the pipe
@@ -338,13 +351,14 @@ while not done:
         lines += 1
 
     # the other end of the pipe closed - we close our end too
+    if debug:
+        print "read", lines, "lines"
     logf.close()
     logf = None
+    if debug:
+        print "closed log pipe", logfname
 
-    if not serverpid and not options.serverpidfile:
-        # no server to deal with - we're done
-        done = True;
-    elif not serverpid and options.serverpidfile:
+    if not serverpid and options.serverpidfile:
         # see if the server has written its server pid file yet
         # it may take a "long time" for the server to actually
         # write its pid file
@@ -353,8 +367,12 @@ while not done:
     # if the server is no longer running, just finish
     if serverpid and not is_proc_alive(serverpid):
         done = True
-            
-    if not done:
+        if debug:
+            print "server pid", serverpid, "exited - script exiting"
+
+    if neverdone:
+        done = False
+    elif not done:
         if not lines:
             # at startup the server will close the log and reopen it
             # when it does this lines will be 0 - this means we need
@@ -367,6 +385,9 @@ while not done:
             # timeout so we don't wait a long time if the server
             # really is exiting
             signal.setitimer(signal.ITIMER_REAL, 0.25)
+            timerisset = True
+            if debug:
+                print "set startup timer - see if server is really shut down"
         else: # we read something
             # pipe closed - usually when server shuts down
             done = True
