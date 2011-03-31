@@ -2001,6 +2001,7 @@ index_addordel_values_ext_sv(
                 {
                     Slapi_Value** keys = NULL;
                     matchrule_values_to_keys_sv(pb,vals,&keys);
+                    /* the matching rule indexer owns keys now */
                     if(keys != NULL && keys[0] != NULL)
             	    {
             	        /* we've computed keys */
@@ -2008,16 +2009,17 @@ index_addordel_values_ext_sv(
                         if ( err != 0 )
                         {
                             ldbm_nasty(errmsg, 1260, err);
-                            slapi_ch_free((void **)&keys);
-                            goto bad;
                         }
                     }
                     /*
                      * It would improve speed to save the indexer, for future use.
                      * But, for simplicity, we destroy it now:
                      */
+                    /* this will also free keys */
                     destroy_matchrule_indexer(pb);
-                    slapi_ch_free((void **)&keys);
+                    if ( err != 0 ) {
+                        goto bad;
+                    }
                 }
             }
         }

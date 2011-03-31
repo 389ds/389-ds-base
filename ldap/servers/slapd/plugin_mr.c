@@ -634,6 +634,8 @@ default_mr_indexer_destroy(Slapi_PBlock* pb)
 	mr_private_free(&mrpriv);
 	mrpriv = NULL;
 	slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrpriv);
+	/* keys destroyed in mr_private_free */
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, NULL);
 
 	return 0;
 }
