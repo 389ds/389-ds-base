@@ -118,6 +118,7 @@ create_matchrule_indexer(Slapi_PBlock **pb,char* matchrule,char* type)
 int 
 destroy_matchrule_indexer(Slapi_PBlock *pb)
 {
+	Slapi_Value **keys = NULL;
 	IFP mrDESTROY = NULL;
 	if (!slapi_pblock_get (pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY))
 	{
@@ -125,6 +126,18 @@ destroy_matchrule_indexer(Slapi_PBlock *pb)
         {
     		mrDESTROY (pb);
         }
+	}
+	/* matching rule indexers which handle Slapi_Value**
+	   directly will own the keys, free them, and set
+	   SLAPI_PLUGIN_MR_KEYS to NULL in the destroy
+	   function - the old style matching rule indexers
+	   which only deal with struct berval ** will not
+	   free the Slapi_Value** wrappers so we have to free
+	   them here */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &keys);
+	if (keys) {
+		valuearray_free(&keys);
+		slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, NULL);
 	}
 	return 0;
 }
@@ -158,6 +171,19 @@ matchrule_values_to_keys_sv(Slapi_PBlock *pb,Slapi_Value **input_values,Slapi_Va
 	IFP mrINDEX = NULL;
 
 	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &mrINDEX);
+	if (NULL == mrINDEX) { /* old school - does not have SV function */
+		int rc;
+		struct berval **bvi = NULL, **bvo = NULL;
+		valuearray_get_bervalarray(input_values, &bvi);
+		rc = matchrule_values_to_keys(pb, bvi, &bvo);
+		ber_bvecfree(bvi);
+		/* note - the indexer owns bvo and will free it when destroyed */
+		valuearray_init_bervalarray(bvo, output_values);
+		/* store output values in SV form - caller expects SLAPI_PLUGIN_MR_KEYS is Slapi_Value** */
+		slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, *output_values);
+		return rc;
+	}
+
 	slapi_pblock_set (pb, SLAPI_PLUGIN_MR_VALUES, input_values);
 	mrINDEX (pb);
 	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_KEYS, output_values);
