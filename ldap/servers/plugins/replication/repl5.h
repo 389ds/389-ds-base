@@ -306,6 +306,7 @@ int agmt_set_credentials_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_binddn_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_bind_method_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_transportinfo_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
+int agmt_set_port_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 const char *agmt_get_long_name(const Repl_Agmt *ra);
 int agmt_initialize_replica(const Repl_Agmt *agmt);
 void agmt_replica_init_done (const Repl_Agmt *agmt);

@@ -389,22 +389,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
 					type_nsds5TransportInfo))
 		{
-			/* do not allow GSSAPI if using TLS/SSL */
-			char *tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5TransportInfo);
-			/* if some value was set, and the value was not set to LDAP (i.e. was set to use security),
-			   and we're already using gssapi, deny the change */
-			if (tmpstr && PL_strcasecmp(tmpstr, "LDAP") && (BINDMETHOD_SASL_GSSAPI == agmt_get_bindmethod(agmt)))
-			{
-				/* Report the error to the client */
-				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use SASL/GSSAPI if using SSL or TLS - please change %s to a value other than SASL/GSSAPI before changing %s to use security", type_nsds5ReplicaBindMethod, type_nsds5TransportInfo);
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmtlist_modify_callback: " 
-								"%s", errortext);
-
-				*returncode = LDAP_UNWILLING_TO_PERFORM;
-				rc = SLAPI_DSE_CALLBACK_ERROR;
-			}
 			/* New Transport info */
-			else if (agmt_set_transportinfo_from_entry(agmt, e) != 0)
+			if (agmt_set_transportinfo_from_entry(agmt, e) != 0)
             {
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update transport info for agreement %s\n",
@@ -416,19 +402,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
 					type_nsds5ReplicaBindMethod))
 		{
-			/* do not allow GSSAPI if using TLS/SSL */
-			char *tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaBindMethod);
-			if (tmpstr && !PL_strcasecmp(tmpstr, "SASL/GSSAPI") && agmt_get_transport_flags(agmt))
-			{
-				/* Report the error to the client */
-				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use SASL/GSSAPI if using SSL or TLS - please change %s to LDAP before changing %s to use SASL/GSSAPI", type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmtlist_modify_callback: " 
-								"%s", errortext);
-
-				*returncode = LDAP_UNWILLING_TO_PERFORM;
-				rc = SLAPI_DSE_CALLBACK_ERROR;
-			}
-			else if (agmt_set_bind_method_from_entry(agmt, e) != 0)
+			if (agmt_set_bind_method_from_entry(agmt, e) != 0)
             {
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update bind method for agreement %s\n",
@@ -436,7 +410,6 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
-			slapi_ch_free_string(&tmpstr);
 		}
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
 					type_nsds5ReplicatedAttributeList))

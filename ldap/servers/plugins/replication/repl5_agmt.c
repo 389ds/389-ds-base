@@ -209,13 +209,6 @@ agmt_is_valid(Repl_Agmt *ra)
 			"is malformed: invalid pausetime %ld.\n", slapi_sdn_get_dn(ra->dn), ra->pausetime);
 		return_value = 0;
 	}
-	if ((0 != ra->transport_flags) && (BINDMETHOD_SASL_GSSAPI == ra->bindmethod)) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
-						" is malformed: cannot use SASL/GSSAPI if using SSL or TLS - please "
-						"change %s to LDAP before changing %s to use SASL/GSSAPI\n",
-						slapi_sdn_get_dn(ra->dn), type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
-		return_value = 0;
-	}
 	if ((0 == ra->transport_flags) && (BINDMETHOD_SSL_CLIENTAUTH == ra->bindmethod)) {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
 						" is malformed: cannot use SSLCLIENTAUTH if using plain LDAP - please "
@@ -279,7 +272,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	ra->transport_flags = 0;
 	agmt_set_transportinfo_no_lock(ra, e);
 
-	/* DN to use when binding. May be empty if cert-based auth is to be used. */
+	/* DN to use when binding. May be empty if certain SASL auth is to be used e.g. EXTERNAL GSSAPI. */
 	ra->binddn = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaBindDN);
 	if (NULL == ra->binddn)
 	{
@@ -953,7 +946,7 @@ int
 agmt_set_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 {
 	Slapi_Attr *sattr = NULL;
-	int return_value = -1;
+	int return_value = 0;
 
 	PR_ASSERT(NULL != ra);
 	slapi_entry_attr_find(e, type_nsds5ReplicaCredentials, &sattr);
@@ -970,7 +963,6 @@ agmt_set_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 			ra->creds->bv_val = slapi_ch_calloc(1, bv->bv_len + 1);
 			memcpy(ra->creds->bv_val, bv->bv_val, bv->bv_len);
 			ra->creds->bv_len = bv->bv_len;
-			return_value = 0;
 		}
 	}
 	/* If no credentials set, set to zero-length string */
@@ -989,7 +981,7 @@ int
 agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 {
 	Slapi_Attr *sattr = NULL;
-	int return_value = -1;
+	int return_value = 0;
 
 	PR_ASSERT(NULL != ra);
 	slapi_entry_attr_find(e, type_nsds5ReplicaBindDN, &sattr);
@@ -1004,7 +996,6 @@ agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 		{
 			const char *val = slapi_value_get_string(sval);
 			ra->binddn = slapi_ch_strdup(val);
-			return_value = 0;
 		}
 	}
 	/* If no BindDN set, set to zero-length string */
