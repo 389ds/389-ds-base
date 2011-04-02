@@ -4659,6 +4659,18 @@ int slapi_matchingrule_is_ordering(const char *oid_or_name, const char *syntax_o
  */
 int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_oid);
 
+/**
+ * In certain cases, we can just use a simple compare function to
+ * generate index keys.  The compare function is usually provided
+ * by the syntax plugin.  If this is the case, we can skip generating
+ * an indexer in the index config code.
+ * 
+ * \param mr_name_or_oid Name or OID of a matching rule
+ * \return \c TRUE if the matching rule can use a simple compare function
+ * \return \c FALSE otherwise 
+ */
+int slapi_matchingrule_can_use_compare_fn(const char *mr_oid_or_name);
+
 /*
  * access control
  */
