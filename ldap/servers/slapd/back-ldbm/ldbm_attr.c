@@ -293,6 +293,7 @@ attr_index_config(
 				/* check if this is a simple ordering specification
 				   for an attribute that has no ordering matching rule */
 				} else if (slapi_matchingrule_is_ordering(index_rules[j], attrsyntax_oid) &&
+						   slapi_matchingrule_can_use_compare_fn(index_rules[j]) &&
 						   !a->ai_sattr.a_mr_ord_plugin) { /* no ordering for this attribute */
 					need_compare_fn = 1; /* get compare func for this attr */
 					do_continue = 1; /* done with j - next j */

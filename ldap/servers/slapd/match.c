@@ -333,3 +333,42 @@ int slapi_matchingrule_is_compat(const char *mr_oid_or_name, const char *syntax_
 
     return 0;
 }
+
+/* the matching rules defined in the collation plugin
+   all start with this OID
+*/
+#define COLLATION_BASE_OID "2.16.840.1.113730.3.3.2."
+#define COLLATION_BASE_OID_LEN 24
+
+/*
+  See if a matching rule for this name or OID
+  can use a simple compare function for generating index entries
+*/
+int slapi_matchingrule_can_use_compare_fn(const char *mr_oid_or_name)
+{
+    struct matchingRuleList *mrl=NULL;
+    int found = 0;
+
+    for (mrl = g_get_global_mrl(); mrl != NULL; mrl = mrl->mrl_next) {
+        if (mrl->mr_entry->mr_name && !strcasecmp(mr_oid_or_name, mrl->mr_entry->mr_name)) {
+            found = 1;
+            break;
+        }
+        if (mrl->mr_entry->mr_oid && !strcmp(mr_oid_or_name, mrl->mr_entry->mr_oid)) {
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found) {
+        return 0;
+    }
+
+    if (!strncmp(mrl->mr_entry->mr_oid, COLLATION_BASE_OID, COLLATION_BASE_OID_LEN)) {
+        /* this OID is provided by the collation plugin so we can't just
+           use a simple compare function to generate index keys */
+        return 0;
+    }
+
+    return 1;
+}
