@@ -202,12 +202,11 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
     tmpBuf[0] = 0;
     /* Get the list of matching rules from the entry. */
     if (0 == slapi_entry_attr_find(e, "nsMatchingRule", &attr)) {
-        isFirst = 1;
         for (i = slapi_attr_first_value(attr, &sval); i != -1;
              i = slapi_attr_next_value(attr, i, &sval)) {
             attrValue = slapi_value_get_berval(sval);
             if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
-                if (isFirst) {
+                if (0 == tmpBuf[0]) {
                     ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
                 } else {
                     ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
