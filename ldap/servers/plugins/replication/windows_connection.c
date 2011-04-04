@@ -618,12 +618,12 @@ windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonl
 ConnResult
 windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry)
 {
-	return windows_search_entry_ext(conn, searchbase, filter, entry, NULL);
+	return windows_search_entry_ext(conn, searchbase, filter, entry, NULL, LDAP_SCOPE_SUBTREE);
 }
 
 /* Perform a simple search against Windows with optional controls */
 ConnResult
-windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls)
+windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls, int scope)
 {
 	ConnResult return_value = 0;
 
@@ -642,7 +642,6 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 		int ldap_rc = 0;
 		LDAPMessage *res = NULL;
 		char *searchbase_copy = slapi_ch_strdup(searchbase);
-		int scope = LDAP_SCOPE_SUBTREE;
 		char *filter_copy = slapi_ch_strdup(filter);
 		char **attrs = NULL;
 		LDAPControl **serverctrls_copy = NULL;

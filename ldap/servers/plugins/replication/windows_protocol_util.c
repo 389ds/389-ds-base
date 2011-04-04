@@ -2773,7 +2773,7 @@ windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,
 	Slapi_Entry *found_entry = NULL;
 
 	searchbase = slapi_sdn_get_dn(remote_dn);
-	cres = windows_search_entry(prp->conn, (char*)searchbase, filter, &found_entry);
+	cres = windows_search_entry_ext(prp->conn, (char*)searchbase, filter, &found_entry, NULL, LDAP_SCOPE_BASE);
 	if (cres)
 	{
 		retval = -1;
@@ -2806,7 +2806,7 @@ windows_get_remote_tombstone (Private_Repl_Protocol *prp, const Slapi_DN* remote
 
 	searchbase = slapi_sdn_get_dn(remote_dn);
 	cres = windows_search_entry_ext(prp->conn, (char*)searchbase, filter,
-				&found_entry, server_controls);
+									&found_entry, server_controls, LDAP_SCOPE_SUBTREE);
 	if (cres) {
 		retval = -1;
 	} else {
@@ -4791,8 +4791,8 @@ retry:
 				char *filter = "(objectclass=*)";
 
 				retried = 1;
-				cres = windows_search_entry(prp->conn, (char*)searchbase, 
-											filter, &found_entry);
+				cres = windows_search_entry_ext(prp->conn, (char*)searchbase, 
+												filter, &found_entry, NULL, LDAP_SCOPE_BASE);
 				if (0 == cres && found_entry) {
 					/* 
 					 * Entry e originally allocated in windows_dirsync_inc_run
