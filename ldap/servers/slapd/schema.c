@@ -3441,20 +3441,30 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
             status = invalid_syntax_error;
         /* We only want to use the parent syntax if a SYNTAX
          * wasn't explicitly specified for this attribute. */
-        } else if (NULL == pSyntax) {
+        } else if ((NULL == pSyntax) || (NULL == pMREquality) || (NULL == pMRSubstring) ||
+                   (NULL == pMROrdering)) {
             char *pso = asi_parent->asi_plugin->plg_syntax_oid;
             
-            if (pso) {
-                slapi_ch_free ((void **)&pSyntax);
+            if (pso && (NULL == pSyntax)) {
                 pSyntax = slapi_ch_strdup(pso);
                 LDAPDebug (LDAP_DEBUG_TRACE,
                     "Inheriting syntax %s from parent type %s\n",
                     pSyntax, pSuperior,NULL);
-            } else {
+            } else if (NULL == pSyntax) {
                 schema_create_errormsg( errorbuf, errorbufsize,
                     schema_errprefix_at, first_attr_name,
                     "Missing parent attribute syntax OID");
                 status = invalid_syntax_error;
+            }
+            
+            if (NULL == pMREquality) {
+                pMREquality = slapi_ch_strdup(asi_parent->asi_mr_equality);
+            }
+            if (NULL == pMRSubstring) {
+                pMRSubstring = slapi_ch_strdup(asi_parent->asi_mr_substring);
+            }
+            if (NULL == pMROrdering) {
+                pMROrdering = slapi_ch_strdup(asi_parent->asi_mr_ordering);
             }
             attr_syntax_return( asi_parent );
         }
