@@ -3107,65 +3107,6 @@ oc_free( struct objclass **ocp )
 	}
 }
 
-struct supargs{
-        char *sup, *oid;
-        unsigned long rc;
-};
-
-static int
-at_sup_dependency_callback(struct asyntaxinfo *asi, void *arg)
-{
-    struct supargs *aew = (struct supargs *)arg;
-    int rc=ATTR_SYNTAX_ENUM_NEXT;
-    
-    if (!asi) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Error: no attribute types in at_schema_attributes_callback\n",
-            0, 0, 0);
-    } 
-    else 
-    {
-        if (strcasecmp (asi->asi_oid, aew->oid ) == 0) {
-            rc=ATTR_SYNTAX_ENUM_STOP;
-        } else {
-            if(asi->asi_name != NULL) {
-                if (strcasecmp (asi->asi_name, aew->sup ) == 0) {
-                    aew->rc=0;
-                } else if (asi->asi_aliases) {
-                   int i = 0;
-
-                    /* Loop through aliases to see if any match */
-                   for (i=0; asi->asi_aliases[i] != NULL; i++) {
-                       if (strcasecmp (asi->asi_aliases[i], aew->sup ) == 0) {
-                           aew->rc=0;
-                       }
-                   }
-		}
-            }
-        }
-    }
-    return rc;
-}
-
-/* walks down attribute types and makes sure that the superior value is found in an attribute type
-   preceeding in the hash table. I have concerns about collisions messing with the order here but this
-   may be the best we can do.
-*/
-
-static int
-slapi_check_at_sup_dependency(char *sup, char *oid) 
-{
-    struct supargs aew;
-    
-    memset(&aew,0,sizeof(struct supargs));
-    aew.rc=LDAP_TYPE_OR_VALUE_EXISTS;
-    aew.sup=sup;
-    aew.oid=oid;
-    attr_syntax_enumerate_attrs(at_sup_dependency_callback, &aew, PR_FALSE);
-    return aew.rc;
-}
-
-
-
 /*
  * if asipp is NULL, the attribute type is added to the global set of schema.
  * if asipp is not NULL, the AT is not added but *asipp is set.  When you are
@@ -3467,24 +3408,6 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
                 pMROrdering = slapi_ch_strdup(asi_parent->asi_mr_ordering);
             }
             attr_syntax_return( asi_parent );
-        }
-    }
-    /* 
-       if we are remote (via modify_schema_dse) then check sup dependencies. Locally
-       was done in if statement above 
-    */
-    
-    if(!status) 
-    {
-        if(is_remote && (pSuperior != NULL))
-        {
-            status=slapi_check_at_sup_dependency(pSuperior, pOid);
-        }
-        if(LDAP_SUCCESS != status) {
-            schema_create_errormsg( errorbuf, errorbufsize,
-                schema_errprefix_at, first_attr_name,
-                "Missing parent attribute syntax OID");
-            status = LDAP_TYPE_OR_VALUE_EXISTS;
         }
     }
 
