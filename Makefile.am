@@ -443,6 +443,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
 	ldap/admin/src/scripts/50memberofindex.ldif \
 	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
+	ldap/admin/src/scripts/50managedentriesplugin.ldif \
 	ldap/admin/src/scripts/50memberofplugin.ldif \
 	ldap/admin/src/scripts/50deliverymethodsyntaxplugin.ldif \
 	ldap/admin/src/scripts/50nameuidsyntaxplugin.ldif \
