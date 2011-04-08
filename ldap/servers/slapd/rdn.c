@@ -614,6 +614,52 @@ slapi_rdn_get_rdn(const Slapi_RDN *srdn)
 	return srdn->rdn;
 }
 
+/*
+ * if src is set, make a copy and return in inplace
+ * if *inplace is set, try to use that in place, or
+ * free it and set to a new value
+ */
+static void
+normalize_case_helper(const char *copy, char **inplace)
+{
+    int rc;
+    char **newdnaddr = NULL;
+    char *newdn = NULL;
+    char *dest = NULL;
+    size_t dest_len = 0;
+
+    if (!inplace) { /* no place to put result */
+        return;
+    }
+
+    if (!copy && !*inplace) { /* no string to operate on */
+        return;
+    }
+
+    if (copy) {
+        newdn = slapi_ch_strdup(copy);
+        newdnaddr = &newdn;
+    } else {
+        newdnaddr = inplace;
+    }
+
+    rc = slapi_dn_normalize_case_ext(*newdnaddr, 0, &dest, &dest_len);
+    if (rc < 0) {
+        /* we give up, just case normalize in place */
+        slapi_dn_ignore_case(*newdnaddr); /* ignore case */
+    } else if (rc == 0) {
+        /* dest points to *newdnaddr - normalized in place */
+        *(dest + dest_len) = '\0';
+    } else {
+        /* dest is a new string */
+        slapi_ch_free_string(newdnaddr);
+        *newdnaddr = dest;
+    }
+
+    *inplace = *newdnaddr;
+    return;
+}
+
 /* srdn is updated in the function, it cannot be const */
 const char *
 slapi_rdn_get_nrdn(Slapi_RDN *srdn)
@@ -624,8 +670,7 @@ slapi_rdn_get_nrdn(Slapi_RDN *srdn)
 	}
 	if (NULL == srdn->nrdn)
 	{
-		srdn->nrdn = slapi_ch_strdup(srdn->rdn);
-		slapi_dn_normalize_case(srdn->nrdn);
+		normalize_case_helper(srdn->rdn, &srdn->nrdn);
 	}
 	return (const char *)srdn->nrdn;
 }
@@ -668,7 +713,7 @@ slapi_rdn_get_first_ext(Slapi_RDN *srdn, const char **firstrdn, int flag)
 			srdn->all_nrdns = charray_dup(srdn->all_rdns);
 			for (ptr = srdn->all_nrdns; ptr && *ptr; ptr++)
 			{
-				slapi_dn_normalize_case(*ptr);
+				normalize_case_helper(NULL, ptr);
 			}
 		}
 		ptr = srdn->all_nrdns;
@@ -720,7 +765,7 @@ slapi_rdn_get_last_ext(Slapi_RDN *srdn, const char **lastrdn, int flag)
 			srdn->all_nrdns = charray_dup(srdn->all_rdns);
 			for (ptr = srdn->all_nrdns; ptr && *ptr; ptr++)
 			{
-				slapi_dn_normalize_case(*ptr);
+				normalize_case_helper(NULL, ptr);
 			}
 		}
 		ptr = srdn->all_nrdns;
@@ -946,7 +991,6 @@ slapi_rdn_replace_rdn(Slapi_RDN *srdn, char *new_rdn)
 	slapi_ch_free_string(&(srdn->nrdn));
 	srdn->rdn = slapi_ch_strdup(new_rdn);
 	srdn->nrdn = slapi_ch_strdup(srdn->rdn);
-	slapi_dn_normalize_case(srdn->nrdn);
 
 	if (srdn->all_rdns)
 	{
@@ -985,7 +1029,7 @@ slapi_rdn_partial_dup(Slapi_RDN *from, Slapi_RDN **to, int rdnidx)
 		from->all_nrdns = charray_dup(from->all_rdns);
 		for (ptr = from->all_nrdns; ptr && *ptr; ptr++)
 		{
-			slapi_dn_normalize_case(*ptr);
+			normalize_case_helper(NULL, ptr);
 		}
 	}
 
