@@ -990,7 +990,7 @@ slapi_rdn_replace_rdn(Slapi_RDN *srdn, char *new_rdn)
 	slapi_ch_free_string(&(srdn->rdn));
 	slapi_ch_free_string(&(srdn->nrdn));
 	srdn->rdn = slapi_ch_strdup(new_rdn);
-	srdn->nrdn = slapi_ch_strdup(srdn->rdn);
+	normalize_case_helper(new_rdn, &srdn->nrdn);
 
 	if (srdn->all_rdns)
 	{
