@@ -316,6 +316,7 @@ do_bind( Slapi_PBlock *pb )
         {
             auto_bind = 1; /* flag the bind method */
             dn = slapi_ch_strdup(pb->pb_conn->c_dn);
+            slapi_sdn_done(&sdn);
             slapi_sdn_init_dn_passin(&sdn,dn);
         }
     }
