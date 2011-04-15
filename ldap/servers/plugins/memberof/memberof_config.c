@@ -471,6 +471,7 @@ memberof_free_config(MemberOfConfig *config)
 		{
 			slapi_attr_free(&config->group_slapiattrs[i]);
 		}
+		slapi_ch_free((void **)&config->group_slapiattrs);
 
 		slapi_ch_free_string(&config->memberof_attr);
 	}
