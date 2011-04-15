@@ -292,6 +292,7 @@ void g_log_init(int log_enabled)
 	loginfo.log_access_ctime = 0L;
 	loginfo.log_access_fdes = NULL;
 	loginfo.log_access_file = NULL;
+	loginfo.log_accessinfo_file = NULL;
 	loginfo.log_numof_access_logs = 1;
 	loginfo.log_access_logchain = NULL;
     loginfo.log_access_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
@@ -320,6 +321,7 @@ void g_log_init(int log_enabled)
 	loginfo.log_error_exptime_secs = -1;                  /* default: -1 */
 	loginfo.log_error_ctime = 0L;
 	loginfo.log_error_file = NULL;
+	loginfo.log_errorinfo_file = NULL;
 	loginfo.log_error_fdes = NULL;
 	loginfo.log_numof_error_logs = 1;
 	loginfo.log_error_logchain = NULL;
@@ -346,6 +348,7 @@ void g_log_init(int log_enabled)
 	loginfo.log_audit_exptime_secs = -1;                  /* default: -1 */
 	loginfo.log_audit_ctime = 0L;
 	loginfo.log_audit_file = NULL;
+	loginfo.log_auditinfo_file = NULL;
 	loginfo.log_numof_audit_logs = 1;
 	loginfo.log_audit_fdes = NULL;
 	loginfo.log_audit_logchain = NULL;
@@ -544,12 +547,12 @@ log_update_errorlogdir(char *pathname, int apply)
 		log__error_emergency(buffer, 0, 0);
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
+	LOG_CLOSE(fp);
 	
 	/* skip the rest if we aren't doing this for real */
 	if ( !apply ) {
 	  return LDAP_SUCCESS;
 	}
-	LOG_CLOSE(fp);
 
 	/* 
 	** The user has changed the error log directory. That means we
@@ -618,12 +621,12 @@ log_update_auditlogdir(char *pathname, int apply)
 		/* stay with the current log file */
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
+	LOG_CLOSE(fp);
 
 	/* skip the rest if we aren't doing this for real */
 	if ( !apply ) {
 	  return LDAP_SUCCESS;
 	}
-	LOG_CLOSE(fp);
 
 	/* 
 	** The user has changed the audit log directory. That means we
@@ -1673,17 +1676,15 @@ int error_log_openf( char *pathname, int locked)
 
 	int	rv = 0;
 	int	logfile_type =0;
-	char	buf[BUFSIZ];
 
 	if (!locked) LOG_ERROR_LOCK_WRITE ();
 	/* save the file name */
-	slapi_ch_free ((void**)&loginfo.log_error_file);
+	slapi_ch_free_string(&loginfo.log_error_file);
 	loginfo.log_error_file = slapi_ch_strdup(pathname); 		
 
 	/* store the rotation info fiel path name */
-	PR_snprintf (buf, sizeof(buf), "%s.rotationinfo",pathname);
-	slapi_ch_free ((void**)&loginfo.log_errorinfo_file);
-	loginfo.log_errorinfo_file = slapi_ch_strdup ( buf );
+	slapi_ch_free_string(&loginfo.log_errorinfo_file);
+	loginfo.log_errorinfo_file = slapi_ch_smprintf("%s.rotationinfo", pathname);
 
 	/*
 	** Check if we have a log file already. If we have it then
@@ -1712,16 +1713,16 @@ audit_log_openf( char *pathname, int locked)
 	
 	int	rv=0;
 	int	logfile_type = 0;
-	char	buf[BUFSIZ];
 
 	if (!locked) LOG_AUDIT_LOCK_WRITE( );
 
 	/* store the path name */
+	slapi_ch_free_string(&loginfo.log_audit_file);
 	loginfo.log_audit_file = slapi_ch_strdup ( pathname );
 
 	/* store the rotation info file path name */
-	PR_snprintf (buf, sizeof(buf), "%s.rotationinfo",pathname);
-	loginfo.log_auditinfo_file = slapi_ch_strdup ( buf );
+	slapi_ch_free_string(&loginfo.log_auditinfo_file);
+	loginfo.log_auditinfo_file = slapi_ch_smprintf("%s.rotationinfo", pathname);
 
 	/*
 	** Check if we have a log file already. If we have it then
@@ -2089,16 +2090,16 @@ int access_log_openf(char *pathname, int locked)
 {
 	int	rv=0;
 	int	logfile_type = 0;
-	char	buf[BUFSIZ];
 
 	if (!locked) LOG_ACCESS_LOCK_WRITE( );
 
 	/* store the path name */
+	slapi_ch_free_string(&loginfo.log_access_file);
 	loginfo.log_access_file = slapi_ch_strdup ( pathname );
 
 	/* store the rotation info fiel path name */
-	PR_snprintf (buf, sizeof(buf), "%s.rotationinfo",pathname);
-	loginfo.log_accessinfo_file = slapi_ch_strdup ( buf );
+	slapi_ch_free_string(&loginfo.log_accessinfo_file);
+	loginfo.log_accessinfo_file = slapi_ch_smprintf("%s.rotationinfo", pathname);
 
 	/*
 	** Check if we have a log file already. If we have it then
