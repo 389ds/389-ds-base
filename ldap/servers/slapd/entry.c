@@ -3877,21 +3877,20 @@ _entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn)
             Slapi_RDN mysrdn = {0};
             rc = slapi_rdn_init_all_dn(&mysrdn, sepp + 1);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "str2entry",
+                slapi_log_error(SLAPI_LOG_FATAL, "_entry_set_tombstone_rdn",
                                 "Failed to convert DN %s to RDN\n", sepp + 1);
+                slapi_rdn_done(&mysrdn);
                 goto bail;
             }
             sepp = PL_strchr(sepp + 1, ',');
             if (sepp) {
-                Slapi_RDN *srdn = slapi_entry_get_srdn(e);
                 /* nsuniqueid=042d8081-...-ca8fe9f7,uid=tuser, */
                 /*                                           ^ */
                 *sepp = '\0';
                 slapi_rdn_replace_rdn(&mysrdn, tombstone_rdn);
-                slapi_rdn_done(srdn);
                 slapi_entry_set_srdn(e, &mysrdn);
-                slapi_rdn_done(&mysrdn);
             }
+            slapi_rdn_done(&mysrdn);
         }
     }
 bail:
