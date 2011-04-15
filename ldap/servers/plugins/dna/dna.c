@@ -869,6 +869,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                             "dna_parse_config_entry: failed to normalize dn: "
                             "%s\n", value);
             ret = DNA_FAILURE;
+            slapi_ch_free_string(&value);
             goto bail;
         }
         entry->shared_cfg_base = normdn;
@@ -883,6 +884,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                             "%s=%s+%s=%s,%s", DNA_HOSTNAME,
                             hostname, DNA_PORTNUM, portnum, value);
             ret = DNA_FAILURE;
+            slapi_ch_free_string(&value);
             goto bail;
         }
         entry->shared_cfg_dn = normdn;
@@ -890,6 +892,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                         "----------> %s [%s]\n", DNA_SHARED_CFG_DN,
                         entry->shared_cfg_base);
+        slapi_ch_free_string(&value);
     }
 
     value = slapi_entry_attr_get_charptr(e, DNA_THRESHOLD);
@@ -3002,6 +3005,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                     errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
                                                config_entry->dn);
+                    slapi_ch_array_free(types_to_generate);
                     break;
                 }
 
@@ -3060,6 +3064,8 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                 slapi_ch_free_string(&value);
                 slapi_ch_free_string(&new_value);
                 slapi_ch_array_free(types_to_generate);
+            } else if (types_to_generate) {
+                slapi_ch_free((void **)&types_to_generate);
             }
           next:
             list = PR_NEXT_LINK(list);
