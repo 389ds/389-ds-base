@@ -735,6 +735,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 	int check_for_duplicate_values =
 			( 0 != ( flags & SLAPI_STR2ENTRY_REMOVEDUPVALS ));
 	Slapi_Value *value = 0;
+	CSN *attributedeletioncsn= NULL;
 	CSN *maxcsn= NULL;
 	char *normdn = NULL;
 	int strict = 0;
@@ -755,12 +756,13 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 	}
     while ( (s = ldif_getline( &next )) != NULL )
     {
-		CSN *attributedeletioncsn= NULL;
 		CSNSet *valuecsnset= NULL;
 		int value_state= VALUE_NOTFOUND;
 		int attr_state= VALUE_NOTFOUND;
 		int freeval = 0;
 		struct berval bv_null = {0, NULL};
+
+		csn_free(&attributedeletioncsn);
 
 		if ( *s == '\n' || *s == '\0' ) {
 		    break;
@@ -779,7 +781,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.
 		 */		
-		csn_free(&attributedeletioncsn);
 		csnset_free(&valuecsnset);
 		value_state= VALUE_NOTFOUND;
 		attr_state= VALUE_NOTFOUND;
@@ -792,7 +793,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				/* ignore deleted values and attributes */
 				/* the memory below was not allocated by the slapi_ch_ functions */
 				if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-				csn_free(&attributedeletioncsn);
 				continue;
 			}
 			/* Ignore CSNs */
@@ -848,7 +848,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					escape_string( valuecharptr, ebuf2 ), 0 );
 				/* the memory below was not allocated by the slapi_ch_ functions */
 				if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-				csn_free(&attributedeletioncsn);
 				continue;
 			}
 			normdn = slapi_create_dn_string("%s", valuecharptr);
@@ -863,7 +862,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			slapi_entry_set_dn(e, normdn);
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-			csn_free(&attributedeletioncsn);
 		    continue;
 		}
 
@@ -873,7 +871,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			}
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-			csn_free(&attributedeletioncsn);
 		    continue;
 		}
 
@@ -881,7 +878,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		if ( (flags & SLAPI_STR2ENTRY_NO_ENTRYDN) &&
 		     strcasecmp( type, "entrydn" ) == 0 ) {
 			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-			csn_free(&attributedeletioncsn);
 			continue;
 		}
 
@@ -898,7 +894,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			}
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-			csn_free(&attributedeletioncsn);
 			continue;
 		}
 
@@ -1028,7 +1023,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						type, valuecharptr);
 					slapi_entry_free( e ); e = NULL;
 					if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-					csn_free(&attributedeletioncsn);
 					goto free_and_return;
 				}
 			}
@@ -1143,7 +1137,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		    /* Failure adding to value tree */
 		    LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: unexpected failure %d constructing value tree\n", rc, 0, 0 );
 		    slapi_entry_free( e ); e = NULL;
-		    csn_free(&attributedeletioncsn);
 		    goto free_and_return;
 		}
 
@@ -1232,6 +1225,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				if(sa->sa_attributedeletioncsn!=NULL)
 				{
 					attr_set_deletion_csn(*a,sa->sa_attributedeletioncsn);
+					csn_free(&sa->sa_attributedeletioncsn);
 				}
 			}
 		}
@@ -1284,6 +1278,7 @@ free_and_return:
 	}
 	slapi_ch_free((void **) &dyn_attrs );
 	if (value) slapi_value_free(&value);
+	csn_free(&attributedeletioncsn);
 	csn_free(&maxcsn);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= str2entry_dupcheck 0x%x \"%s\"\n",
