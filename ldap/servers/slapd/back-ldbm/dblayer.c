@@ -5403,7 +5403,7 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             return_value = dblayer_copyfile(pathname1, pathname2,
                                             0, priv->dblayer_file_mode);
             slapi_ch_free_string(&pathname1);
-            slapi_ch_free_string(&pathname1);
+            slapi_ch_free_string(&pathname2);
             slapi_ch_free_string(&changelog_destdir);
         }
         if (priv->dblayer_enable_transactions) {
@@ -5700,8 +5700,8 @@ static int dblayer_copy_dirand_contents(char* src_dir, char* dst_dir, int mode, 
 	   }
        if (0 > return_value)
          break;
-                
     }
+    PR_CloseDir(dirhandle);
   }
   return return_value;
 }
