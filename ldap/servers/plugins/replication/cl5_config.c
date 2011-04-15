@@ -77,8 +77,11 @@ int changelog5_config_init()
 {
     /* The FE DSE *must* be initialised before we get here */
 
-	/* create the configuration lock */
-	s_configLock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "config_lock");
+	/* create the configuration lock, if not yet created. */
+	if (!s_configLock)
+	{
+		s_configLock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "config_lock");
+	}
 	if (s_configLock == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
