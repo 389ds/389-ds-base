@@ -399,6 +399,7 @@ valuearray_remove_value_atindex(Slapi_Value **va, int index)
  * Find the value in the array,
  * shunt up the array to cover it,
  * return a ptr to the value.
+ * The caller is responsible for freeing the value.
  */
 Slapi_Value *
 valuearray_remove_value(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v)
@@ -1043,9 +1044,13 @@ void
 valueset_remove_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s)
 {
 	Slapi_Value v;
+	Slapi_Value *removed;
 	value_init(&v,NULL,CSN_TYPE_NONE,NULL);
 	slapi_value_set_string(&v,s);
-    valuearray_remove_value(a,vs->va,&v);
+	removed = valuearray_remove_value(a, vs->va, &v);
+	if(removed) {
+		slapi_value_free(&removed);
+	}
 	value_done(&v);
 }
 
