@@ -642,6 +642,9 @@ static void erase_cache(struct cache *cache, int type)
 #ifdef UUIDCACHE_ON 
     slapi_ch_free((void **)&cache->c_uuidtable);
 #endif
+    slapi_counter_destroy(&cache->c_cursize);
+    slapi_counter_destroy(&cache->c_hits);
+    slapi_counter_destroy(&cache->c_tries);
 }
 
 /* to be used on shutdown or when destroying a backend instance */
