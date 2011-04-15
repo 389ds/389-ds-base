@@ -2990,6 +2990,7 @@ plugin_enabled(const char *plugin_name, void *identity)
 	slapi_search_internal_pb(search_pb);
 	slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 	if (LDAP_SUCCESS != rc) { /* plugin is not available */
+		rc = 0; /* disabled, by default */
 		goto bail;
 	}
 
