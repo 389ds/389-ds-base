@@ -189,9 +189,10 @@ enable_acctpolicy = 1
 endif
 
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
-	libback-ldbm.la libchainingdb-plugin.la libcollation-plugin.la \
-	libcos-plugin.la libderef-plugin.la libdes-plugin.la libdistrib-plugin.la \
-	libhttp-client-plugin.la liblinkedattrs-plugin.la libmanagedentries-plugin.la \
+	libautomember-plugin.la libback-ldbm.la libchainingdb-plugin.la \
+	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
+	libdes-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
+	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
@@ -267,6 +268,7 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/05rfc4523.ldif \
 	$(srcdir)/ldap/schema/05rfc4524.ldif \
 	$(srcdir)/ldap/schema/06inetorgperson.ldif \
+        $(srcdir)/ldap/schema/10automember-plugin.ldif \
 	$(srcdir)/ldap/schema/10mep-plugin.ldif \
 	$(srcdir)/ldap/schema/10rfc2307.ldif \
 	$(srcdir)/ldap/schema/20subscriber.ldif \
@@ -441,6 +443,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/10delautodnsuffix.pl \
 	ldap/admin/src/scripts/10fixrundir.pl \
 	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
+        ldap/admin/src/scripts/50automemberplugin.ldif \
 	ldap/admin/src/scripts/50memberofindex.ldif \
 	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
 	ldap/admin/src/scripts/50managedentriesplugin.ldif \
@@ -787,6 +790,15 @@ libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
 libacl_plugin_la_LIBADD = libslapd.la libns-dshttpd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
 libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
+
+#------------------------
+# libautomember-plugin
+#------------------------
+libautomember_plugin_la_SOURCES = ldap/servers/plugins/automember/automember.c
+
+libautomember_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libautomember_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libautomember_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libattr-unique-plugin

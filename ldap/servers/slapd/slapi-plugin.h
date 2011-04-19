@@ -5904,6 +5904,8 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_ENTRY_STORE_FUNC				814
 #define SLAPI_PLUGIN_ENABLED						815
 
+#define SLAPI_PLUGIN_CONFIG_AREA				816
+
 /*
  * Defined values of SLAPI_PLUGIN_SYNTAX_FLAGS:
  */

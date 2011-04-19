@@ -724,6 +724,7 @@ typedef struct _plugin_dep_config {
 	int total_type;
 	char **depends_named_list;
 	int total_named;
+	char *config_area;
 } plugin_dep_config;
 
 /* list of plugins which should be shutdown in reverse order */
@@ -993,6 +994,16 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 							 (void*)(slapi_entry_get_dn_const(plugin_entry)));
                         slapi_pblock_set(&(config[plugin_index].pb), SLAPI_ADD_ENTRY,
                                         plugin_entry );
+
+			/* Pass the plugin alternate config area DN in SLAPI_PLUGIN_CONFIG_AREA. */
+			value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_CONFIG_AREA);
+			if(value)
+			{
+                                config[plugin_index].config_area = value;
+                                value = NULL;
+				slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN_CONFIG_AREA,
+							config[plugin_index].config_area);
+			}
 
 			value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype");
 			if(value)

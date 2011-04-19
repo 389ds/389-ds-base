@@ -54,6 +54,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.228 NAME 'nsslapd-pluginVersion' DESC 'N
 attributeTypes: ( 2.16.840.1.113730.3.1.229 NAME 'nsslapd-pluginVendor' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.230 NAME 'nsslapd-pluginDescription' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.231 NAME 'nsslapd-pluginEnabled' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2104 NAME 'nsslapd-pluginConfigArea' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.232 NAME 'nsSNMPEnabled' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.233 NAME 'nsSNMPOrganization' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.234 NAME 'nsSNMPLocation' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
@@ -129,7 +130,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2095 NAME 'connection' DESC 'Netscape de
 # objectclasses
 #
 objectClasses: ( 2.16.840.1.113730.3.2.40 NAME 'directoryServerFeature' DESC 'Netscape defined objectclass' SUP top MAY ( oid $ cn $ multiLineDescription ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.41 NAME 'nsslapdPlugin' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsslapd-pluginPath $ nsslapd-pluginInitFunc $ nsslapd-pluginType $ nsslapd-pluginId $ nsslapd-pluginVersion $ nsslapd-pluginVendor $ nsslapd-pluginDescription $ nsslapd-pluginEnabled ) X-ORIGIN 'Netscape Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.41 NAME 'nsslapdPlugin' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsslapd-pluginPath $ nsslapd-pluginInitFunc $ nsslapd-pluginType $ nsslapd-pluginId $ nsslapd-pluginVersion $ nsslapd-pluginVendor $ nsslapd-pluginDescription $ nsslapd-pluginEnabled ) MAY ( nsslapd-pluginConfigArea ) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.44 NAME 'nsIndex' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsSystemIndex ) MAY ( description $ nsIndexType $ nsMatchingRule ) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.109 NAME 'nsBackendInstance' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.110 NAME 'nsMappingTree' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )

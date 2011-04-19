@@ -619,6 +619,17 @@ nsslapd-pluginarg3: ,
 nsslapd-pluginarg4: %ds_suffix%
 nsslapd-plugin-depends-on-type: database
 
+dn: cn=Auto Membership Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Auto Membership Plugin
+nsslapd-pluginpath: libautomember-plugin
+nsslapd-plugininitfunc: automember_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+
 dn: cn=deref,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
