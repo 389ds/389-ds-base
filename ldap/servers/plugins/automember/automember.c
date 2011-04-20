@@ -52,8 +52,8 @@ static PRCList *g_automember_config = NULL;
 static PRRWLock *g_automember_config_lock;
 
 static void *_PluginID = NULL;
-static char *_PluginDN = NULL;
-static char *_ConfigAreaDN = NULL;
+static Slapi_DN *_PluginDN = NULL;
+static Slapi_DN *_ConfigAreaDN = NULL;
 static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { AUTOMEMBER_FEATURE_DESC,
@@ -93,8 +93,8 @@ static void automember_free_config_entry(struct configEntry ** entry);
  * helpers
  */
 static char *automember_get_dn(Slapi_PBlock * pb);
-static char *automember_get_config_area();
-static void automember_set_config_area(char *dn);
+static Slapi_DN *automember_get_config_area();
+static void automember_set_config_area(Slapi_DN *sdn);
 static int automember_dn_is_config(char *dn);
 static int automember_oktodo(Slapi_PBlock *pb);
 static int automember_isrepl(Slapi_PBlock *pb);
@@ -144,13 +144,13 @@ automember_get_plugin_id()
 }
 
 void
-automember_set_plugin_dn(char *pluginDN)
+automember_set_plugin_sdn(Slapi_DN *pluginDN)
 {
     _PluginDN = pluginDN;
 }
 
-char *
-automember_get_plugin_dn()
+Slapi_DN *
+automember_get_plugin_sdn()
 {
     return _PluginDN;
 }
@@ -304,12 +304,12 @@ automember_start(Slapi_PBlock * pb)
         return -1;
     }
 
-    automember_set_plugin_dn(plugindn);
+    automember_set_plugin_sdn(slapi_sdn_new_dn_byref(plugindn));
 
     /* Set the alternate config area if one is defined. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
     if (config_area) {
-        automember_set_config_area(slapi_ch_strdup(config_area));
+        automember_set_config_area(slapi_sdn_new_dn_byval(config_area));
     }
 
     /*
@@ -352,7 +352,8 @@ automember_close(Slapi_PBlock * pb)
     automember_delete_config();
 
     slapi_ch_free((void **)&g_automember_config);
-    slapi_ch_free_string(&_ConfigAreaDN);
+    slapi_sdn_free(&_PluginDN);
+    slapi_sdn_free(&_ConfigAreaDN);
 
     if (g_automember_config_lock) {
         PR_DestroyRWLock(g_automember_config_lock);
@@ -399,11 +400,11 @@ automember_load_config()
 
     slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "automember_load_config: Looking for config entries "
-                    "beneath \"%s\".\n", automember_get_plugin_dn());
+                    "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_plugin_sdn()));
 
     /* Find the config entries beneath our plugin entry. */
     search_pb = slapi_pblock_new();
-    slapi_search_internal_set_pb(search_pb, automember_get_plugin_dn(),
+    slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_plugin_sdn()),
                                  LDAP_SCOPE_SUBTREE, "objectclass=*",
                                  NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
     slapi_search_internal_pb(search_pb);
@@ -438,9 +439,9 @@ automember_load_config()
 
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_load_config: Looking for config entries "
-                        "beneath \"%s\".\n", automember_get_config_area());
+                        "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_config_area()));
 
-        slapi_search_internal_set_pb(search_pb, automember_get_config_area(),
+        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_config_area()),
                                      LDAP_SCOPE_SUBTREE, "objectclass=*",
                                      NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
         slapi_search_internal_pb(search_pb);
@@ -504,9 +505,9 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
 
     /* If this is the main plug-in config entry or
      * the config area container, just bail. */
-    if ((strcasecmp(automember_get_plugin_dn(), slapi_entry_get_ndn(e)) == 0) ||
-        (automember_get_config_area() && (strcasecmp(automember_get_config_area(),
-        slapi_entry_get_ndn(e)) == 0))) {
+    if ((slapi_sdn_compare(automember_get_plugin_sdn(), slapi_entry_get_sdn(e)) == 0) ||
+        (automember_get_config_area() && (slapi_sdn_compare(automember_get_config_area(),
+        slapi_entry_get_sdn(e)) == 0))) {
         goto bail;
     }
 
@@ -594,8 +595,7 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
                     while (list != (PRCList *)entry->exclusive_rules) {
                         struct automemberRegexRule *curr_rule = (struct automemberRegexRule *)list;
                         /* Order rules by target group DN */
-                        if (strcmp(slapi_sdn_get_dn(rule->target_group_dn),
-                            slapi_sdn_get_dn(curr_rule->target_group_dn)) < 0) {
+                        if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
                             PR_INSERT_BEFORE(&(rule->list), list);
                             break;
                         }
@@ -647,8 +647,7 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
                     while (list != (PRCList *)entry->inclusive_rules) {
                         struct automemberRegexRule *curr_rule = (struct automemberRegexRule *)list;
                         /* Order rules by target group DN */
-                        if (strcmp(slapi_sdn_get_dn(rule->target_group_dn),
-                            slapi_sdn_get_dn(curr_rule->target_group_dn)) < 0) {
+                        if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
                             PR_INSERT_BEFORE(&(rule->list), list);
                             break;
                         }
@@ -887,12 +886,12 @@ automember_get_dn(Slapi_PBlock * pb)
 }
 
 void
-automember_set_config_area(char *dn)
+automember_set_config_area(Slapi_DN *sdn)
 {
-    _ConfigAreaDN = dn;
+    _ConfigAreaDN = sdn;
 }
 
-char *
+Slapi_DN *
 automember_get_config_area()
 {
     return _ConfigAreaDN;
@@ -907,20 +906,29 @@ static int
 automember_dn_is_config(char *dn)
 {
     int ret = 0;
+    Slapi_DN *sdn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_dn_is_config\n");
 
+    if (dn == NULL) {
+        goto bail;
+    }
+
+    sdn = slapi_sdn_new_dn_byref(dn);
+
     /* Return 1 if the passed in dn is a child of the main
      * plugin config entry, or if it is a child of the
      * container defined as a config area. */
-    if ((slapi_dn_issuffix(dn, automember_get_plugin_dn()) &&
-        strcasecmp(dn, automember_get_plugin_dn())) ||
-        (automember_get_config_area() && slapi_dn_issuffix(dn,
+    if ((slapi_sdn_issuffix(sdn, automember_get_plugin_sdn()) &&
+        slapi_sdn_compare(sdn, automember_get_plugin_sdn()))||
+        (automember_get_config_area() && slapi_sdn_issuffix(sdn,
         automember_get_config_area()))) {
         ret = 1;
     }
 
+bail:
+    slapi_sdn_free(&sdn);
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_dn_is_config\n");
 
@@ -1379,9 +1387,9 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e)
                  * until we find a target that is the same or comes after the 
                  * current rule. */
                 if (curr_exclusion) {
-                    while ((curr_exclusion != &exclusions) && (strcmp(slapi_sdn_get_ndn(
-                           ((struct automemberDNListItem *)curr_exclusion)->dn),
-                           slapi_sdn_get_ndn(curr_rule->target_group_dn)) < 0)) {
+                    while ((curr_exclusion != &exclusions) && (slapi_sdn_compare(
+                           ((struct automemberDNListItem *)curr_exclusion)->dn,
+                           curr_rule->target_group_dn) < 0)) {
                         curr_exclusion = PR_NEXT_LINK(curr_exclusion);
                     }
                 }
@@ -1810,7 +1818,7 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !automember_oktodo(pb))
-        return 0;;
+        return 0;
 
     /* Reload config if an existing config entry was renamed,
      * or if the new dn brings an entry into the scope of the
