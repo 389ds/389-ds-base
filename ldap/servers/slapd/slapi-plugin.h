@@ -1978,7 +1978,7 @@ int slapi_entry_delete_string(Slapi_Entry *e, const char *type, const char *valu
 void slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_ctrl);
 
 /**
- * Applies an array of \c LDAPMod modifications a Slapi_Entry.
+ * Applies an array of \c LDAPMod modifications to a Slapi_Entry.
  *
  * \param e Entry to which you want to apply the modifications.
  * \param mods \c NULL terminated array of \c LDAPMod modifications that you
@@ -1989,6 +1989,19 @@ void slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int d
  *          been applied.
  */
 int slapi_entry_apply_mods(Slapi_Entry *e, LDAPMod **mods);
+
+/**
+ * Applies a single \c LDAPMod modification to a Slapi_Entry.
+ *
+ * \param e Entry to which you want to apply the modification.
+ * \param mod A pointer to the \c LDAPMod modification that you
+ *             want to apply to the specified entry.
+ * \return \c LDAP_SUCCESS if the mod applied to the entry cleanly, otherwise
+ *         an LDAP error is returned.
+ * \warning It is up to the caller to free the \c LDAPMod after the mod has
+ *          been applied.
+ */
+int slapi_entry_apply_mod(Slapi_Entry *e, LDAPMod *mod);
 
 /**
  * Renames a Slapi_Entry.

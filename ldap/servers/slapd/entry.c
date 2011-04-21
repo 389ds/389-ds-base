@@ -3176,6 +3176,14 @@ slapi_entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 	return entry_apply_mods(e, mods);
 }
 
+/*
+ * Apply a single mod to an entry
+ */ 
+int slapi_entry_apply_mod( Slapi_Entry *e, LDAPMod *mod )
+{
+	return entry_apply_mod(e, mod);
+}
+
 int
 entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 {
