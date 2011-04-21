@@ -2063,12 +2063,11 @@ windows_delete_local_entry(Slapi_DN *sdn){
   error message to that effect.
 */
 static int
-mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod)
+mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod, Slapi_Entry *ad_entry)
 {
 	int retval = 0;
 	int op = 0;
 	const char *type = NULL;
-	const Slapi_Entry *ad_entry = windows_private_get_raw_entry(prp->agmt);
 
 	if (!slapi_mod_isvalid(smod)) { /* bogus */
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -2153,6 +2152,15 @@ mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod)
 						"%s: mod_already_made: "
 						"skipping mod op [%d]\n",
 						agmt_get_long_name(prp->agmt), op);
+	}
+
+	/* If the mod shouldn't be skipped, we should
+	 * apply it to the entry that was passed in.  This
+	 * allows a single modify operation with multiple
+	 * mods to take prior mods into account when
+	 * determining what can be skipped. */
+	if (retval == 0) {
+		slapi_entry_apply_mod(ad_entry, slapi_mod_get_ldapmod_byref(smod));
 	}
 
 	return retval;
@@ -2438,10 +2446,18 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 	LDAPMod *mod = NULL;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 	Slapi_Mod *mysmod = NULL;
+	const Slapi_Entry *ad_entry = NULL;
+	Slapi_Entry *ad_entry_copy = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
 
 	/* Iterate through the original mods, looking each attribute type up in the maps for either user or group */
+
+	/* Make a copy of the AD entry. */
+	ad_entry = windows_private_get_raw_entry(prp->agmt);
+	if (ad_entry) {
+		ad_entry_copy = slapi_entry_dup(ad_entry);
+	}
 	
 	slapi_mods_init_byref(&smods, original_mods);
 	slapi_mods_init(&mapped_smods,10);
@@ -2603,7 +2619,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 			}
 		}
 		/* Otherwise we do not copy this mod at all */
-		if (mysmod && !mod_already_made(prp, mysmod)) { /* make sure this mod is still valid to send */
+		if (mysmod && !mod_already_made(prp, mysmod, ad_entry_copy)) { /* make sure this mod is still valid to send */
 			slapi_mods_add_ldapmod(&mapped_smods, slapi_mod_get_ldapmod_passout(mysmod));
 		}
 		if (mysmod) {
@@ -2612,6 +2628,8 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 			
 		mod = slapi_mods_get_next_mod(&smods);
 	}
+
+	slapi_entry_free(ad_entry_copy);
 	slapi_mods_done (&smods);
 	/* Extract the mods for the caller */
 	*returned_mods = slapi_mods_get_ldapmods_passout(&mapped_smods);
