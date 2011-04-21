@@ -1160,6 +1160,13 @@ sub migrateDS {
             goto cleanup;
         }
 
+	# do the systemd stuff
+        @errs = DSCreate::updateSystemD($inf);
+        if (@errs) {
+            $mig->msg(@errs);
+            goto cleanup;
+        }
+
         # finally, start the server
         if ($mig->{start_servers}) {
             $inf->{slapd}->{start_server} = 1;

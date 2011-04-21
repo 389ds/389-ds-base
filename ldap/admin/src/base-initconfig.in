@@ -1,0 +1,44 @@
+# This file is sourced by @package_name@ upon startup to set
+# the default environment for all directory server instances.
+# To set instance specific defaults, use the file in the same
+# directory called @package_name@-instance where "instance"
+# is the name of your directory server instance e.g.
+# @package_name@-localhost for the slapd-localhost instance.
+
+@preamble@
+
+# In order to make more file descriptors available
+# to the directory server, first make sure the system
+# hard limits are raised, then use ulimit - uncomment
+# out the following line and change the value to the
+# desired value
+# ulimit -n 8192
+# note - if using systemd, ulimit won't work -  you must edit
+# the systemd unit file for directory server to add the 
+# LimitNOFILE option - see man systemd.exec for more info
+
+# A per instance keytab does not make much sense for servers.
+# Kerberos clients use the machine FQDN to obtain a ticket like ldap/FQDN, there
+# is nothing that can make a client understand how to get a per-instance ticket.
+# Therefore by default a keytab should be considered a per server option.
+
+# Also this file is sourced for all instances, so again all
+# instances would ultimately get the same keytab.
+
+# Finally a keytab is normally named either krb5.keytab or <service>.keytab
+
+# In order to use SASL/GSSAPI (Kerberos) the directory
+# server needs to know where to find its keytab
+# file - uncomment the following line and set
+# the path and filename appropriately
+# if using systemd, omit the "; export VARNAME" at the end
+# KRB5_KTNAME=@instconfigdir@/myname.keytab ; export KRB5_KTNAME
+
+# how many seconds to wait for the startpid file to show
+# up before we assume there is a problem and fail to start
+# if using systemd, omit the "; export VARNAME" at the end
+#STARTPID_TIME=10 ; export STARTPID_TIME
+# how many seconds to wait for the pid file to show
+# up before we assume there is a problem and fail to start
+# if using systemd, omit the "; export VARNAME" at the end
+#PID_TIME=600 ; export PID_TIME

@@ -1,33 +1,3 @@
-# This file is sourced by @package_name@ upon startup to set
-# the default environment for all directory server instances.
-# To set instance specific defaults, use the file in the same
-# directory called @package_name@-instance where "instance"
-# is the name of your directory server instance e.g.
-# @package_name@-localhost for the slapd-localhost instance.
-
-# In order to make more file descriptors available
-# to the directory server, first make sure the system
-# hard limits are raised, then use ulimit - uncomment
-# out the following line and change the value to the
-# desired value
-# ulimit -n 8192
-
-# A per instance keytab does not make much sense for servers.
-# Kerberos clients use the machine FQDN to obtain a ticket like ldap/FQDN, there
-# is nothing that can make a client understand how to get a per-instance ticket.
-# Therefore by default a keytab should be considered a per server option.
-
-# Also this file is sourced for all instances, so again all
-# instances would ultimately get the same keytab.
-
-# Finally a keytab is normally named either krb5.keytab or <service>.keytab
-
-# In order to use SASL/GSSAPI (Kerberos) the directory
-# server needs to know where to find its keytab
-# file - uncomment the following line and set
-# the path and filename appropriately
-# KRB5_KTNAME=@instconfigdir@/myname.keytab ; export KRB5_KTNAME
-
 # other environment settings can be added here too
 OS=`uname -s`
 # use the new mt slab memory allocator on Solaris
@@ -40,10 +10,3 @@ if [ "$OS" = "SunOS" -a -f /usr/lib/64/libumem.so ] ; then
     LD_PRELOAD_64=/usr/lib/64/libumem.so
     export LD_PRELOAD_64
 fi
-
-# how many seconds to wait for the startpid file to show
-# up before we assume there is a problem and fail to start
-#STARTPID_TIME=10 ; export STARTPID_TIME
-# how many seconds to wait for the pid file to show
-# up before we assume there is a problem and fail to start
-#PID_TIME=600 ; export PID_TIME

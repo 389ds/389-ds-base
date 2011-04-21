@@ -64,14 +64,25 @@ use Mozilla::LDAP::LDIF;
 
 use Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts makeDSDirs
-                makeOtherConfigFiles installSchema updateSelinuxPolicy updateTmpfilesDotD);
-@EXPORT_OK = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts makeDSDirs
-                makeOtherConfigFiles installSchema updateSelinuxPolicy updateTmpfilesDotD);
+@EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts
+                makeOtherConfigFiles installSchema updateSelinuxPolicy updateTmpfilesDotD
+                get_initconfigdir updateSystemD makeDSDirs);
+@EXPORT_OK = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts
+                makeOtherConfigFiles installSchema updateSelinuxPolicy updateTmpfilesDotD
+                get_initconfigdir updateSystemD makeDSDirs);
 
 use strict;
 
 use SetupLog;
+
+sub get_initconfigdir {
+    # determine initconfig_dir
+    if (getLogin eq 'root') {
+        return "@initconfigdir@";
+    } else {
+        return "$ENV{HOME}/.@package_name@";
+    }
+}
 
 sub checkPort {
     my $inf = shift;
@@ -277,14 +288,7 @@ sub createInstanceScripts {
     my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
 
     # determine initconfig_dir
-    my $initconfig_dir = $inf->{slapd}->{initconfig_dir};
-    if (!$initconfig_dir) {
-        if (getLogin eq 'root') {
-            $initconfig_dir = "$inf->{General}->{prefix}@initconfigdir@";
-        } else {
-            $initconfig_dir = "$ENV{HOME}/.@package_name@";
-        }
-    }
+    my $initconfig_dir = $inf->{slapd}->{initconfig_dir} || get_initconfigdir();
 
     my %maptable = (
         "DS-ROOT" => $inf->{General}->{prefix},
@@ -495,15 +499,7 @@ sub makeOtherConfigFiles {
     }
 
     # determine initconfig_dir
-    my $initconfig_dir = $inf->{slapd}->{initconfig_dir};
-    if (!$initconfig_dir) {
-        if (getLogin eq 'root') {
-            $initconfig_dir = "$inf->{General}->{prefix}@initconfigdir@";
-        } else {
-            $initconfig_dir = "$ENV{HOME}/.@package_name@";
-            mkpath $initconfig_dir unless -d $initconfig_dir;
-        }
-    }
+    my $initconfig_dir = $inf->{slapd}->{initconfig_dir} || get_initconfigdir();
 
     # install instance specific initconfig script
     $src = "$inf->{General}->{prefix}@configdir@/template-initconfig";
@@ -680,6 +676,9 @@ sub startServer {
     # get error log
     my $errLog = "$inf->{slapd}->{log_dir}/errors";
     my $startcmd = "$inf->{slapd}->{inst_dir}/start-slapd";
+    if ("@systemdsystemunitdir@" and (getLogin() eq 'root')) {
+        $startcmd = "/bin/systemctl start @package_name@\@$inf->{slapd}->{ServerIdentifier}.service";
+    }
 
     # emulate tail -f
     # if the last line we see does not contain "slapd started", try again
@@ -1061,6 +1060,73 @@ sub updateTmpfilesDotD {
     return ();
 }
 
+sub updateSystemD {
+    my $inf = shift;
+    my $unitdir = "@systemdsystemunitdir@";
+    my $confdir = "@systemdsystemconfdir@/@systemdgroupname@.wants";
+
+    if (!$unitdir or !$confdir or ! -d $unitdir or ! -d $confdir) {
+        debug(3, "no systemd - skipping\n");
+        return ();
+    }
+
+    my @errs = ();
+    my $initconfigdir = $inf->{slapd}->{initconfigdir} || get_initconfigdir();
+    debug(1, "updating systemd files in $unitdir and $confdir for all directory server instances in $initconfigdir\n");
+    my $pkgname = "@package_name@";
+    my $changes = 0;
+    # installation should already have put down the files and
+    # directories - we just need to update the symlinks
+    my $servicefile = "$unitdir/$pkgname\@.service";
+    # first, look for new instances
+    for my $file (glob("$initconfigdir/$pkgname-*")) {
+        my $inst = $file;
+        $inst =~ s/^.*$pkgname-//;
+        my $servicelink = "$confdir/$pkgname\@$inst.service";
+        if (! -l $servicelink) {
+            if (!symlink($servicefile, $servicelink)) {
+                debug(1, "error updating link $servicelink to $servicefile - $!\n");
+                push @errs, [ 'error_linking_file', $servicefile, $servicelink, $! ];
+            } else {
+                debug(2, "updated link $servicelink to $servicefile\n");
+            }
+            $changes++;
+        }
+    }
+    # next, look for instances that have been removed
+    for my $file (glob("$confdir/$pkgname\@*.service")) {
+        my $inst = $file;
+        $inst =~ s/^.*$pkgname\@(.*?).service$/$1/;
+        if (! -f "$initconfigdir/$pkgname-$inst") {
+            if (!unlink($file)) {
+                debug(1, "error removing $file - $!\n");
+                push @errs, [ 'error_removing_path', $file, $! ];
+            } else {
+                debug(2, "removed systemd file $file for removed instance $inst\n");
+            }
+            $changes++;
+        }
+    }
+    if ($changes > 0) {
+        $? = 0;
+        my $cmd = '/bin/systemctl --system daemon-reload';
+        # run the reload command
+        my $output = `$cmd 2>&1`;
+        my $status = $?;
+        if ($status) {
+            debug(1, "Error: $cmd failed - output $output: $!\n");
+            push @errs, [ 'error_running_command', $cmd, $output, $! ];
+        } else {
+            debug(2, "$cmd succeeded\n");
+        }
+    } else {
+        debug(1, "No changes to $unitdir or $confdir\n");
+    }
+ 
+
+    return @errs;
+}
+
 sub createDSInstance {
     my $inf = shift;
     my @errs;
@@ -1100,6 +1166,10 @@ sub createDSInstance {
     updateSelinuxPolicy($inf);
 
     if (@errs = updateTmpfilesDotD($inf)) {
+        return @errs;
+    }
+
+    if (@errs = updateSystemD($inf)) {
         return @errs;
     }
 
@@ -1143,22 +1213,13 @@ sub stopServer {
 sub removeDSInstance {
     my $inst = shift;
     my $force = shift;
-    my $initconfig_dir = shift;
+    my $initconfig_dir = shift || get_initconfigdir();
     my $baseconfigdir = $ENV{DS_CONFIG_DIR} || "@instconfigdir@";
     my $instname = "slapd-$inst";
     my $configdir;
     my $rundir;
     my $product_name;
     my @errs;
-
-    # determine initconfig_dir
-    if (!$initconfig_dir) {
-        if (getLogin eq 'root') {
-            $initconfig_dir = "@initconfigdir@";
-        } else {
-            $initconfig_dir = "$ENV{HOME}/.@package_name@";
-        }
-    }
 
     my $initconfig = "$initconfig_dir/@package_name@-$inst";
 
@@ -1171,9 +1232,15 @@ sub removeDSInstance {
     while($line = <INFILE>) {
         if ($line =~ /CONFIG_DIR=(.*) ; export CONFIG_DIR/) {
             $configdir = $1;
-        } elsif ($line =~ /RUN_DIR=(.*) ; export INST_DIR/) {
+        } elsif ($line =~ /CONFIG_DIR=(.*)$/) {
+            $configdir = $1;
+        } elsif ($line =~ /RUN_DIR=(.*) ; export RUN_DIR/) {
+            $rundir = $1;
+        } elsif ($line =~ /RUN_DIR=(.*)$/) {
             $rundir = $1;
         } elsif ($line =~ /PRODUCT_NAME=(.*) ; export PRODUCT_NAME/) {
+            $product_name = $1;
+        } elsif ($line =~ /PRODUCT_NAME=(.*)$/) {
             $product_name = $1;
         }
     }
@@ -1304,6 +1371,9 @@ sub removeDSInstance {
             }
         }
     }
+
+    # update systemd files
+    push @errs, updateSystemD();
 
     # if we got here, report success
     if (@errs) {

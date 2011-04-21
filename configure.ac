@@ -311,6 +311,68 @@ else
 fi
 AC_SUBST(with_tmpfiles_d)
 
+PKG_PROG_PKG_CONFIG
+if test -n "$PKG_CONFIG" ; then
+   default_systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
+   default_systemdsystemconfdir=`$PKG_CONFIG --variable=systemdsystemconfdir systemd`
+fi
+AC_MSG_CHECKING(for --with-systemdsystemunitdir)
+AC_ARG_WITH([systemdsystemunitdir],
+   AS_HELP_STRING([--with-systemdsystemunitdir=PATH],
+                  [Directory for systemd service files (default: $with_systemdsystemunitdir)])
+)
+if test "$with_systemdsystemunitdir" = yes ; then
+  if test -n "$default_systemdsystemunitdir" ; then
+    with_systemdsystemunitdir=$default_systemdsystemunitdir
+    AC_MSG_RESULT([$with_systemdsystemunitdir])
+  else
+    AC_MSG_ERROR([You must specify --with-systemdsystemconfdir=/full/path/to/systemd/system directory])
+  fi
+elif test "$with_systemdsystemunitdir" = no ; then
+  with_systemdsystemunitdir=
+else
+  AC_MSG_RESULT([$with_systemdsystemunitdir])
+fi
+AC_SUBST(with_systemdsystemunitdir)
+
+AC_MSG_CHECKING(for --with-systemdsystemconfdir)
+AC_ARG_WITH([systemdsystemconfdir],
+   AS_HELP_STRING([--with-systemdsystemconfdir=PATH],
+                  [Directory for systemd service files (default: $with_systemdsystemconfdir)])
+)
+if test "$with_systemdsystemconfdir" = yes ; then
+  if test -n "$default_systemdsystemconfdir" ; then
+    with_systemdsystemconfdir=$default_systemdsystemconfdir
+    AC_MSG_RESULT([$with_systemdsystemconfdir])
+  else
+    AC_MSG_ERROR([You must specify --with-systemdsystemconfdir=/full/path/to/systemd/system directory])
+  fi
+elif test "$with_systemdsystemconfdir" = no ; then
+  with_systemdsystemconfdir=
+else
+  AC_MSG_RESULT([$with_systemdsystemconfdir])
+fi
+AC_SUBST(with_systemdsystemconfdir)
+
+if test -n "$with_systemdsystemunitdir" -o -n "$with_systemdsystemconfdir" ; then
+   if test -z "$with_systemdgroupname" ; then
+      with_systemdgroupname=$PACKAGE_NAME.target
+   fi
+   AC_MSG_CHECKING(for --with-systemdgroupname)
+   AC_ARG_WITH([systemdgroupname],
+        AS_HELP_STRING([--with-systemdgroupname=NAME],
+                       [Name of group target for all instances (default: $with_systemdgroupname)])
+   )
+   if test "$with_systemdgroupname" = yes ; then
+      AC_MSG_ERROR([You must specify --with-systemdgroupname=name.of.group])
+   elif test "$with_systemdgroupname" = no ; then
+      AC_MSG_ERROR([You must specify --with-systemdgroupname=name.of.group])
+   else
+      AC_MSG_RESULT([$with_systemdgroupname])
+   fi
+   AC_SUBST(with_systemdgroupname)
+fi
+
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
@@ -354,6 +416,7 @@ AM_CONDITIONAL([WINNT], false)
 # Deal with platform dependent defines
 # initdir is the location for the SysV init scripts - very heavily platform
 # dependent and not specified in fhs or lsb
+# and not used if systemd is used
 initdir='$(sysconfdir)/rc.d'
 AC_MSG_CHECKING(for --with-initddir)
 AC_ARG_WITH(initddir,
@@ -501,6 +564,7 @@ esac
 if test -n "$with_initddir" ; then
    initdir="$with_initddir"
 fi
+# sysv init scripts not used when systemd is used
 AC_SUBST(initdir)
 AC_SUBST(perlexec)
 AC_SUBST(sttyexec)
@@ -518,8 +582,9 @@ if test -z "$initconfigdir" ; then
 fi
 AC_SUBST(initconfigdir)
 
-AM_CONDITIONAL(HPUX,test "$platform" = "hpux")
-AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
+AM_CONDITIONAL([HPUX],[test "$platform" = "hpux"])
+AM_CONDITIONAL([SOLARIS],[test "$platform" = "solaris"])
+AM_CONDITIONAL([SYSTEMD],[test -n "$with_systemdsystemunitdir" -o -n "$with_systemdsystemconfdir"])
 
 # Check for library dependencies
 m4_include(m4/nspr.m4)

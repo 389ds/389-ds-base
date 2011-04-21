@@ -132,6 +132,9 @@ schemadir = $(sysconfdir)@schemadir@
 serverdir = $(libdir)@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
 taskdir = $(datadir)@scripttemplatedir@
+systemdsystemunitdir = @with_systemdsystemunitdir@
+systemdsystemconfdir = @with_systemdsystemconfdir@
+systemdgroupname = @with_systemdgroupname@
 initdir = @initdir@
 initconfigdir = $(sysconfdir)@initconfigdir@
 instconfigdir = @instconfigdir@
@@ -374,8 +377,15 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
+if SYSTEMD
+# yes, that is an @ in the filename . . .
+systemdsystemunit_DATA = wrappers/$(PACKAGE_NAME)@.service \
+	wrappers/$(systemdgroupname) \
+	wrappers/$(PACKAGE_NAME)-snmp.service
+else
 init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
 	wrappers/$(PACKAGE_NAME)-snmp
+endif
 
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 
@@ -1421,7 +1431,10 @@ fixupcmd = sed \
 	-e 's,@initconfigdir\@,$(initconfigdir),g'\
 	-e 's,@updatedir\@,$(updatedir),g' \
 	-e 's,@ldaplib\@,$(ldaplib),g' \
-	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
+	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
+	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
+	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
+	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1484,7 +1497,10 @@ fixupcmd = sed \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \
 	-e 's,@updatedir\@,$(updatedir),g' \
 	-e 's,@ldaplib\@,$(ldaplib),g' \
-	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
+	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
+	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
+	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
+	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
 endif
 
 %: %.in
@@ -1495,15 +1511,41 @@ endif
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
-%/$(PACKAGE_NAME): %/initconfig.in
+%/$(PACKAGE_NAME): %/base-initconfig.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-	$(fixupcmd) $^ > $@
+if SYSTEMD
+	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
+else
+	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d}' -e '/^$$/{p;d}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
+	$(fixupcmd) $(srcdir)/ldap/admin/src/initconfig.in >> $@
+endif
+
+%/template-initconfig: %/template-initconfig.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+if SYSTEMD
+	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
+else
+	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d}' -e '/^$$/{p;d}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
+endif
 
 %/$(PACKAGE_NAME).pc: %/dirsrv.pc.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
 %/$(PACKAGE_NAME)-snmp: %/ldap-agent-initscript.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+# yes, that is an @ in the filename . . .
+%/$(PACKAGE_NAME)@.service: %/systemd.template.service.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(systemdgroupname): %/systemd.group.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME)-snmp.service: %/systemd-snmp.service.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 

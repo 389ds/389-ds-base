@@ -7,12 +7,16 @@
 # start-slapd scripts (as well as their associates stop
 # and restart scripts).  Do not edit them unless you know
 # what you are doing.
-SERVER_DIR={{SERVER-DIR}} ; export SERVER_DIR
-SERVERBIN_DIR={{SERVERBIN-DIR}} ; export SERVERBIN_DIR
-CONFIG_DIR={{CONFIG-DIR}} ; export CONFIG_DIR
-INST_DIR={{INST-DIR}} ; export INST_DIR
-RUN_DIR={{RUN-DIR}} ; export RUN_DIR
-DS_ROOT={{DS-ROOT}} ; export DS_ROOT
-PRODUCT_NAME={{PRODUCT-NAME}} ; export PRODUCT_NAME
+
+@preamble@
+
+SERVER_DIR={{SERVER-DIR}}
+SERVERBIN_DIR={{SERVERBIN-DIR}}
+CONFIG_DIR={{CONFIG-DIR}}
+INST_DIR={{INST-DIR}}
+RUN_DIR={{RUN-DIR}}
+DS_ROOT={{DS-ROOT}}
+PRODUCT_NAME={{PRODUCT-NAME}}
 
 # Put custom instance specific settings below here.
+# if using systemd, omit the "; export VARNAME" at the end

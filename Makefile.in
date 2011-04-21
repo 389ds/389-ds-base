@@ -123,7 +123,8 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" \
 	"$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" \
 	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" \
-	"$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"
+	"$(DESTDIR)$(systemdsystemunitdir)" "$(DESTDIR)$(updatedir)" \
+	"$(DESTDIR)$(serverincdir)"
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libacctpolicy_plugin_la_DEPENDENCIES = libslapd.la \
@@ -1051,7 +1052,7 @@ MANS = $(dist_man_MANS)
 DATA = $(config_DATA) $(inf_DATA) $(initconfig_DATA) $(mib_DATA) \
 	$(nodist_property_DATA) $(perl_DATA) $(pkgconfig_DATA) \
 	$(property_DATA) $(sampledata_DATA) $(schema_DATA) \
-	$(update_DATA)
+	$(systemdsystemunit_DATA) $(update_DATA)
 HEADERS = $(serverinc_HEADERS)
 ETAGS = etags
 CTAGS = ctags
@@ -1135,7 +1136,6 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
-PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
@@ -1216,6 +1216,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mibdir = $(datadir)@mibdir@
 mkdir_p = @mkdir_p@
@@ -1271,6 +1272,9 @@ updatedir = $(datadir)@updatedir@
 vendor = @vendor@
 with_fhs_opt = @with_fhs_opt@
 with_selinux = @with_selinux@
+with_systemdgroupname = @with_systemdgroupname@
+with_systemdsystemconfdir = @with_systemdsystemconfdir@
+with_systemdsystemunitdir = @with_systemdsystemunitdir@
 with_tmpfiles_d = @with_tmpfiles_d@
 
 # look for included m4 files in the ./m4/ directory
@@ -1373,6 +1377,9 @@ CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
 
 taskdir = $(datadir)@scripttemplatedir@
+systemdsystemunitdir = @with_systemdsystemunitdir@
+systemdsystemconfdir = @with_systemdsystemconfdir@
+systemdgroupname = @with_systemdgroupname@
 pkgconfigdir = $(libdir)/pkgconfig
 server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 
@@ -1576,8 +1583,14 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 	ldap/admin/src/scripts/template-verify-db.pl \
 	ldap/admin/src/scripts/template-dbverify
 
-init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
-	wrappers/$(PACKAGE_NAME)-snmp
+
+# yes, that is an @ in the filename . . .
+@SYSTEMD_TRUE@systemdsystemunit_DATA = wrappers/$(PACKAGE_NAME)@.service \
+@SYSTEMD_TRUE@	wrappers/$(systemdgroupname) \
+@SYSTEMD_TRUE@	wrappers/$(PACKAGE_NAME)-snmp.service
+
+@SYSTEMD_FALSE@init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
+@SYSTEMD_FALSE@	wrappers/$(PACKAGE_NAME)-snmp
 
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 inf_DATA = ldap/admin/src/slapd.inf \
@@ -2526,7 +2539,10 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@initconfigdir\@,$(initconfigdir),g' \
 @BUNDLE_FALSE@	-e 's,@updatedir\@,$(updatedir),g' \
 @BUNDLE_FALSE@	-e 's,@ldaplib\@,$(ldaplib),g' \
-@BUNDLE_FALSE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
+@BUNDLE_FALSE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
+@BUNDLE_FALSE@	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
+@BUNDLE_FALSE@	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
+@BUNDLE_FALSE@	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -2599,7 +2615,10 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@initconfigdir\@,$(initconfigdir),g'\
 @BUNDLE_TRUE@	-e 's,@updatedir\@,$(updatedir),g' \
 @BUNDLE_TRUE@	-e 's,@ldaplib\@,$(ldaplib),g' \
-@BUNDLE_TRUE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g'
+@BUNDLE_TRUE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
+@BUNDLE_TRUE@	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
+@BUNDLE_TRUE@	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
+@BUNDLE_TRUE@	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -10062,6 +10081,26 @@ uninstall-schemaDATA:
 	test -n "$$files" || exit 0; \
 	echo " ( cd '$(DESTDIR)$(schemadir)' && rm -f" $$files ")"; \
 	cd "$(DESTDIR)$(schemadir)" && rm -f $$files
+install-systemdsystemunitDATA: $(systemdsystemunit_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(systemdsystemunitdir)" || $(MKDIR_P) "$(DESTDIR)$(systemdsystemunitdir)"
+	@list='$(systemdsystemunit_DATA)'; test -n "$(systemdsystemunitdir)" || list=; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(systemdsystemunitdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(systemdsystemunitdir)" || exit $$?; \
+	done
+
+uninstall-systemdsystemunitDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(systemdsystemunit_DATA)'; test -n "$(systemdsystemunitdir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	test -n "$$files" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(systemdsystemunitdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(systemdsystemunitdir)" && rm -f $$files
 install-updateDATA: $(update_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(updatedir)" || $(MKDIR_P) "$(DESTDIR)$(updatedir)"
@@ -10320,7 +10359,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(MANS) $(DATA) $(HEADERS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" "$(DESTDIR)$(systemdsystemunitdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -10469,8 +10508,8 @@ install-data-am: install-configDATA install-infDATA \
 	install-pkgconfigDATA install-propertyDATA \
 	install-sampledataDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverincHEADERS \
-	install-serverpluginLTLIBRARIES install-taskSCRIPTS \
-	install-updateDATA install-updateSCRIPTS
+	install-serverpluginLTLIBRARIES install-systemdsystemunitDATA \
+	install-taskSCRIPTS install-updateDATA install-updateSCRIPTS
 
 install-dvi: install-dvi-am
 
@@ -10527,7 +10566,8 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverincHEADERS \
-	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS \
+	uninstall-serverpluginLTLIBRARIES \
+	uninstall-systemdsystemunitDATA uninstall-taskSCRIPTS \
 	uninstall-updateDATA uninstall-updateSCRIPTS
 
 uninstall-man: uninstall-man1 uninstall-man8
@@ -10555,8 +10595,9 @@ uninstall-man: uninstall-man1 uninstall-man8
 	install-sbinPROGRAMS install-sbinSCRIPTS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverincHEADERS \
 	install-serverpluginLTLIBRARIES install-strip \
-	install-taskSCRIPTS install-updateDATA install-updateSCRIPTS \
-	installcheck installcheck-am installdirs maintainer-clean \
+	install-systemdsystemunitDATA install-taskSCRIPTS \
+	install-updateDATA install-updateSCRIPTS installcheck \
+	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am uninstall-binPROGRAMS \
@@ -10568,7 +10609,8 @@ uninstall-man: uninstall-man1 uninstall-man8
 	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
 	uninstall-sbinSCRIPTS uninstall-schemaDATA \
 	uninstall-serverLTLIBRARIES uninstall-serverincHEADERS \
-	uninstall-serverpluginLTLIBRARIES uninstall-taskSCRIPTS \
+	uninstall-serverpluginLTLIBRARIES \
+	uninstall-systemdsystemunitDATA uninstall-taskSCRIPTS \
 	uninstall-updateDATA uninstall-updateSCRIPTS
 
 
@@ -10598,15 +10640,35 @@ ns-slapd.properties: makstrdb
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
-%/$(PACKAGE_NAME): %/initconfig.in
+%/$(PACKAGE_NAME): %/base-initconfig.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-	$(fixupcmd) $^ > $@
+@SYSTEMD_TRUE@	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
+@SYSTEMD_FALSE@	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d}' -e '/^$$/{p;d}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
+@SYSTEMD_FALSE@	$(fixupcmd) $(srcdir)/ldap/admin/src/initconfig.in >> $@
+
+%/template-initconfig: %/template-initconfig.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+@SYSTEMD_TRUE@	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
+@SYSTEMD_FALSE@	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d}' -e '/^$$/{p;d}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
 
 %/$(PACKAGE_NAME).pc: %/dirsrv.pc.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
 %/$(PACKAGE_NAME)-snmp: %/ldap-agent-initscript.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+# yes, that is an @ in the filename . . .
+%/$(PACKAGE_NAME)@.service: %/systemd.template.service.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(systemdgroupname): %/systemd.group.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME)-snmp.service: %/systemd-snmp.service.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 

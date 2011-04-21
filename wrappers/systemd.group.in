@@ -1,0 +1,6 @@
+[Unit]
+Description=@capbrand@ Directory Server
+After=syslog.target network.target
+
+[Install]
+WantedBy=multi-user.target
