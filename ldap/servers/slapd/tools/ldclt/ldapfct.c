@@ -2024,6 +2024,7 @@ createMissingNodes (
     }
     PR_smprintf_free(ldapurl);
     ldapurl = NULL;
+    cnx = tttctx->ldapCtx;
 #else /* !USE_OPENLDAP */
     /*
      * SSL is enabled ?
