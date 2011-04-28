@@ -352,11 +352,27 @@ linked_attrs_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_close\n");
 
+    if (!g_plugin_started) {
+        goto done;
+    }
+
+    linked_attrs_write_lock();
+    g_plugin_started = 0;
     linked_attrs_delete_config();
+    linked_attrs_unlock();
 
     slapi_ch_free((void **)&g_link_config);
     slapi_ch_free((void **)&g_managed_config_index);
 
+    /* We explicitly don't destroy the config lock here.  If we did,
+     * there is the slight possibility that another thread that just
+     * passed the g_plugin_started check is about to try to obtain
+     * a reader lock.  We leave the lock around so these threads
+     * don't crash the process.  If we always check the started
+     * flag again after obtaining a reader lock, no free'd resources
+     * will be used. */
+
+done:
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_close\n");
 
@@ -1584,6 +1600,13 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
 
             /* See if there is an applicable link configured. */
             linked_attrs_read_lock();
+
+            /* Bail out if the plug-in close function was just called. */
+            if (!g_plugin_started) {
+                linked_attrs_unlock();
+                return 0;
+            }
+
             linked_attrs_find_config(dn, type, &config);
 
             /* If we have a matching config entry, we have
@@ -1675,6 +1698,13 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
 
             /* See if there is an applicable link configured. */
             linked_attrs_read_lock();
+
+            /* Bail out if the plug-in close function was just called. */
+            if (!g_plugin_started) {
+                linked_attrs_unlock();
+                return 0;
+            }
+
             linked_attrs_find_config(dn, type, &config);
 
             /* If config was found, add the backpointers to this entry. */
@@ -1747,6 +1777,13 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
 
             /* See if there is an applicable link configured. */
             linked_attrs_read_lock();
+
+            /* Bail out if the plug-in close function was just called. */
+            if (!g_plugin_started) {
+                linked_attrs_unlock();
+                return 0;
+            }
+
             linked_attrs_find_config(dn, type, &config);
 
             /* If config was found, delete the backpointers to this entry. */
@@ -1866,6 +1903,13 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 
         /* See if there is an applicable link configured. */
         linked_attrs_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            linked_attrs_unlock();
+            return 0;
+        }
+
         linked_attrs_find_config(old_dn, type, &config);
 
         /* If config was found for the old dn, delete the backpointers
@@ -1969,6 +2013,10 @@ linked_attrs_dump_config()
 
     linked_attrs_read_lock();
 
+    /* Bail out if the plug-in close function was just called. */
+    if (!g_plugin_started)
+        goto bail;
+
     if (!PR_CLIST_IS_EMPTY(g_link_config)) {
         list = PR_LIST_HEAD(g_link_config);
         while (list != g_link_config) {
@@ -1977,6 +2025,7 @@ linked_attrs_dump_config()
         }
     }
 
+bail:
     linked_attrs_unlock();
 }
 
@@ -1987,6 +2036,10 @@ linked_attrs_dump_config_index()
 
     linked_attrs_read_lock();
 
+    /* Bail out if the plug-in close function was just called. */
+    if (!g_plugin_started)
+        goto bail;
+
     if (!PR_CLIST_IS_EMPTY(g_managed_config_index)) {
         list = PR_LIST_HEAD(g_managed_config_index);
         while (list != g_managed_config_index) {
@@ -1995,6 +2048,7 @@ linked_attrs_dump_config_index()
         }
     }
 
+bail:
     linked_attrs_unlock();
 }
 

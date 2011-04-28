@@ -349,15 +349,22 @@ automember_close(Slapi_PBlock * pb)
         goto done;
     }
 
+    automember_config_write_lock();
+    g_plugin_started = 0;
     automember_delete_config();
+    automember_config_unlock();
 
     slapi_ch_free((void **)&g_automember_config);
     slapi_sdn_free(&_PluginDN);
     slapi_sdn_free(&_ConfigAreaDN);
 
-    if (g_automember_config_lock) {
-        PR_DestroyRWLock(g_automember_config_lock);
-    }
+    /* We explicitly don't destroy the config lock here.  If we did,
+     * there is the slight possibility that another thread that just
+     * passed the g_plugin_started check is about to try to obtain
+     * a reader lock.  We leave the lock around so these threads
+     * don't crash the process.  If we always check the started
+     * flag again after obtaining a reader lock, no free'd resources
+     * will be used. */
 
 done:
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -1736,6 +1743,12 @@ automember_add_post_op(Slapi_PBlock *pb)
         /* Check if a config entry applies
          * to the entry being added. */
         automember_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            automember_config_unlock();
+            return 0;
+        }
 
         if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
             list = PR_LIST_HEAD(g_automember_config);

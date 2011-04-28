@@ -349,10 +349,26 @@ mep_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_close\n");
 
+    if (!g_plugin_started) {
+        goto done;
+    }
+
+    mep_config_write_lock();
+    g_plugin_started = 0;
     mep_delete_config();
+    mep_config_unlock();
 
     slapi_ch_free((void **)&g_mep_config);
 
+    /* We explicitly don't destroy the config lock here.  If we did,
+     * there is the slight possibility that another thread that just
+     * passed the g_plugin_started check is about to try to obtain
+     * a reader lock.  We leave the lock around so these threads
+     * don't crash the process.  If we always check the started
+     * flag again after obtaining a reader lock, no free'd resources
+     * will be used. */
+
+done:
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_close\n");
 
@@ -1739,6 +1755,13 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
     } else {
         /* Check if an active template entry is being updated.  If so, validate it. */
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            goto bail;
+        }
+
         mep_find_config_by_template_dn(dn, &config);
         if (config) {
             Slapi_Entry *test_entry = NULL;
@@ -1863,6 +1886,13 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                     if (origin_e) {
                         /* Fetch the config. */
                         mep_config_read_lock();
+
+                        /* Bail out if the plug-in close function was just called. */
+                        if (!g_plugin_started) {
+                            mep_config_unlock();
+                            goto bail;
+                        }
+
                         mep_find_config(origin_e, &config);
 
                         if (config) {
@@ -2019,6 +2049,13 @@ mep_mod_post_op(Slapi_PBlock *pb)
         managed_dn = slapi_entry_attr_get_charptr(e, MEP_MANAGED_ENTRY_TYPE);
         if (managed_dn) {
             mep_config_read_lock();
+
+            /* Bail out if the plug-in close function was just called. */
+            if (!g_plugin_started) {
+                mep_config_unlock();
+                goto bail;
+            }
+
             mep_find_config(e, &config);
             if (config) {
                 smods = mep_get_mapped_mods(config, e, &mapped_dn);
@@ -2123,6 +2160,13 @@ mep_add_post_op(Slapi_PBlock *pb)
         /* Check if a config entry applies
          * to the entry being added. */
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            return 0;
+        }
+
         mep_find_config(e, &config);
         if (config) {
             mep_add_managed_entry(config, e);
@@ -2273,6 +2317,14 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         Slapi_Mods *smods = NULL;
 
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            slapi_pblock_destroy(mep_pb);
+            return 0;
+        }
+
         mep_find_config(post_e, &config);
         if (!config) {
             LDAPMod mod2;
@@ -2410,6 +2462,13 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
          * If so, treat like an add and create the new managed
          * entry and links. */
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            return 0;
+        }
+
         mep_find_config(post_e, &config);
         if (config) {
             mep_add_managed_entry(config, post_e);
