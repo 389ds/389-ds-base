@@ -928,8 +928,12 @@ windows_entry_has_attr_and_value(Slapi_Entry *e, const char *attrname, char *val
 static void
 windows_is_local_entry_user_or_group(Slapi_Entry *e, int *is_user, int *is_group)
 {
-	*is_user = windows_entry_has_attr_and_value(e,"objectclass","ntuser");
-	*is_group = windows_entry_has_attr_and_value(e,"objectclass","ntgroup");
+	if (is_user) {
+		*is_user = windows_entry_has_attr_and_value(e, "objectclass", "ntuser");
+	}
+	if (is_group) {
+		*is_group = windows_entry_has_attr_and_value(e, "objectclass", "ntgroup");
+	}
 }
 
 static void
@@ -1621,8 +1625,10 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		 *   userAccountControl: 512
 		 * Or, if we added a new entry, we need to change the useraccountcontrol
 		 * to make the new user enabled by default
+		 * it is assumed that is_user is set for user entries and that only user entries need
+		 * accountcontrol values
 		 */
-		if ((return_value == CONN_OPERATION_SUCCESS) && remote_dn && (password || missing_entry)) {
+		if ((return_value == CONN_OPERATION_SUCCESS) && remote_dn && (password || missing_entry) && is_user) {
 			return_value = send_accountcontrol_modify(remote_dn, prp, missing_entry);
 		}
 	} else {
@@ -4510,6 +4516,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 	int can_add = winsync_plugin_call_can_add_entry_to_ad_cb(prp->agmt, e, remote_dn);
 	/* First map the entry */
 	local_dn = slapi_entry_get_sdn_const(e);
+	int is_user;
 	if (missing_entry) {
 		if (can_add) {
 			retval = windows_create_remote_entry(prp, e, remote_dn, &mapped_entry, &password);
@@ -4540,7 +4547,9 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			ldap_mods_free(entryattrs, 1);
 			entryattrs = NULL;
 
-			if (retval == 0) { /* set the account control bits */
+			windows_is_local_entry_user_or_group(e, &is_user, NULL);
+			if ((retval == 0) && is_user) {
+			    /* set the account control bits only for users */
 			    retval = send_accountcontrol_modify(remote_dn, prp, missing_entry);
 			}
 		}
