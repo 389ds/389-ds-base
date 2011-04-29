@@ -3316,8 +3316,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
 
         /* Bail out if the plug-in close function was just called. */
         if (!g_plugin_started) {
-            dna_unlock();
-            return 0;
+            goto bail;
         }
 
         /* Go through the config entries to see if we
