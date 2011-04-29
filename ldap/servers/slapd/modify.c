@@ -873,9 +873,11 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 
 		/* Remove the unhashed password pseudo-attribute prior */
 		/* to db access */
-		if (pw_change)
-		{
-			slapi_mods_init_passin (&smods, mods);
+		slapi_mods_init_passin (&smods, mods);
+		if (!unhashed_pw_attr) {
+			unhashed_pw_attr = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
+		}
+		if (slapi_mods_get_num_mods(&smods)) {
 			remove_mod (&smods, unhashed_pw_attr, &unhashed_pw_smod);
 			slapi_pblock_set (pb, SLAPI_MODIFY_MODS, 
 							  (void*)slapi_mods_get_ldapmods_passout (&smods));	
@@ -936,8 +938,9 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			}
 			slapi_pblock_set (pb, SLAPI_MODIFY_MODS, 
 							  (void*)slapi_mods_get_ldapmods_passout (&smods));
-			slapi_mods_done(&unhashed_pw_smod); /* can finalize now */
 		}
+		slapi_mods_done(&unhashed_pw_smod); /* can finalize now */
+
 
 		slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
 		plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN :
