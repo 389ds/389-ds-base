@@ -185,7 +185,7 @@ or use offline mode.\n\n
 error_offline_update = Could not read the server config file '%s'. Error: %s\n\n
 error_no_mapping_tree_entries = Could not find a mapping tree entry.  Error: %s\n
 error_no_configuration_entry = Could not find a configuration entry.  Error: %s\n
-error_no_configuration_entry = Could not find a backend entry.  Error: %s\n
+error_no_backend_entry = Could not find a backend entry.  Error: %s\n
 error_invalid_dbinst_dir = Invalid database instance dir '%s'.\n
 error_cant_backup_db = Failed to back up backend instance '%s'.  Error: %s\n
 error_cant_convert_db = Failed to convert backend instance '%s'.  Error: %s\n
@@ -200,3 +200,4 @@ Please check the spelling of the hostname and/or your network configuration.\
 If you proceed with this hostname, you may encounter problems.\
 \
 Do you want to proceed with hostname '%s'?
+error_import_check_log = Error: unable to import file '%s' for backend '%s' - %s.  Check the errrors log for additional information\n
