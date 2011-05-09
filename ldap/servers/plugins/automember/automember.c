@@ -409,17 +409,45 @@ automember_load_config()
                     "automember_load_config: Looking for config entries "
                     "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_plugin_sdn()));
 
-    /* Find the config entries beneath our plugin entry. */
     search_pb = slapi_pblock_new();
-    slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_plugin_sdn()),
-                                 LDAP_SCOPE_SUBTREE, "objectclass=*",
-                                 NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
+
+    /* If an alternate config area is configured, find
+     * the config entries that are beneath it, otherwise
+     * we load the entries beneath our top-level plug-in
+     * config entry. */
+    if (automember_get_config_area()) {
+        /* Find the config entries beneath the alternate config area. */
+        slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_load_config: Looking for config entries "
+                        "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_config_area()));
+
+        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_config_area()),
+                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
+    } else {
+        /* Find the config entries beneath our plugin entry. */
+        slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_load_config: Looking for config entries "
+                        "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_plugin_sdn()));
+
+        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_plugin_sdn()),
+                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
+    }
+
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
     if (LDAP_SUCCESS != result) {
-        status = -1;
-        goto cleanup;
+        if (automember_get_config_area() && (result == LDAP_NO_SUCH_OBJECT)) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                            "automember_load_config: Config container \"%s\" does "
+                            "not exist.\n", slapi_sdn_get_ndn(automember_get_config_area()));
+            goto cleanup;
+        } else {
+            status = -1;
+            goto cleanup;
+        }
     }
 
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
@@ -434,45 +462,6 @@ automember_load_config()
          * some invalid config entries, but we just want to continue
          * looking for valid ones. */
         automember_parse_config_entry(entries[i], 1);
-    }
-
-    /* If an alternate config area is configured, find
-     * the config entries that are beneath it. */
-    if (automember_get_config_area()) {
-        /* Clean up the previous search results
-         * and clear out the pblock for reuse. */
-        slapi_free_search_results_internal(search_pb);
-        slapi_pblock_init(search_pb);
-
-        slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_load_config: Looking for config entries "
-                        "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_config_area()));
-
-        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_config_area()),
-                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
-                                     NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
-        slapi_search_internal_pb(search_pb);
-        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
-
-        if ((LDAP_SUCCESS != result) && (LDAP_NO_SUCH_OBJECT != result)) {
-            status = -1;
-            goto cleanup;
-        }
-
-        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
-                         &entries);
-
-        /* Loop through all of the entries we found and parse them. */
-        for (i = 0; entries && (entries[i] != NULL); i++) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                            "automember_load_config: parsing config entry "
-                            "\"%s\".\n", slapi_entry_get_dn(entries[i]));
-
-            /* We don't care about the status here because we may have
-             * some invalid config entries, but we just want to continue
-             * looking for valid ones. */
-            automember_parse_config_entry(entries[i], 1);
-        }
     }
 
   cleanup:
@@ -924,14 +913,20 @@ automember_dn_is_config(char *dn)
 
     sdn = slapi_sdn_new_dn_byref(dn);
 
-    /* Return 1 if the passed in dn is a child of the main
-     * plugin config entry, or if it is a child of the
-     * container defined as a config area. */
-    if ((slapi_sdn_issuffix(sdn, automember_get_plugin_sdn()) &&
-        slapi_sdn_compare(sdn, automember_get_plugin_sdn()))||
-        (automember_get_config_area() && slapi_sdn_issuffix(sdn,
-        automember_get_config_area()))) {
-        ret = 1;
+    /* If an alternate config area is configured, treat it's child
+     * entries as config entries.  If the alternate config area is
+     * not configured, treat children of the top-level plug-in
+     * config entry as our config entries. */
+    if (automember_get_config_area()) {
+        if (slapi_sdn_issuffix(sdn, automember_get_config_area()) &&
+            slapi_sdn_compare(sdn, automember_get_config_area())) {
+            ret = 1;
+        }
+    } else {
+        if (slapi_sdn_issuffix(sdn, automember_get_plugin_sdn()) &&
+            slapi_sdn_compare(sdn, automember_get_plugin_sdn())) {
+            ret = 1;
+        }
     }
 
 bail:
