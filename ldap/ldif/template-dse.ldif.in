@@ -581,6 +581,7 @@ nsslapd-pluginpath: libreferint-plugin
 nsslapd-plugininitfunc: referint_postop_init
 nsslapd-plugintype: postoperation
 nsslapd-pluginenabled: off
+nsslapd-pluginprecedence: 40
 nsslapd-pluginArg0: 0
 nsslapd-pluginArg1: %log_dir%/referint
 nsslapd-pluginArg2: 0
