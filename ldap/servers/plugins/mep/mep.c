@@ -52,7 +52,8 @@ static PRCList *g_mep_config = NULL;
 static PRRWLock *g_mep_config_lock;
 
 static void *_PluginID = NULL;
-static char *_PluginDN = NULL;
+static Slapi_DN *_PluginDN = NULL;
+static Slapi_DN *_ConfigAreaDN = NULL;
 static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { MEP_FEATURE_DESC,
@@ -94,6 +95,8 @@ static void mep_free_config_entry(struct configEntry ** entry);
  * helpers
  */
 static char *mep_get_dn(Slapi_PBlock * pb);
+static Slapi_DN *mep_get_config_area();
+static void mep_set_config_area(Slapi_DN *sdn);
 static int mep_dn_is_config(char *dn);
 static int mep_dn_is_template(char *dn);
 static void mep_find_config(Slapi_Entry *e, struct configEntry **config);
@@ -152,13 +155,13 @@ mep_get_plugin_id()
 }
 
 void
-mep_set_plugin_dn(char *pluginDN)
+mep_set_plugin_sdn(Slapi_DN *pluginDN)
 {
     _PluginDN = pluginDN;
 }
 
-char *
-mep_get_plugin_dn()
+Slapi_DN *
+mep_get_plugin_sdn()
 {
     return _PluginDN;
 }
@@ -286,6 +289,7 @@ static int
 mep_start(Slapi_PBlock * pb)
 {
     char *plugindn = NULL;
+    char *config_area = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_start\n");
@@ -314,7 +318,13 @@ mep_start(Slapi_PBlock * pb)
         return -1;
     }
 
-    mep_set_plugin_dn(plugindn);
+    mep_set_plugin_sdn(slapi_sdn_new_dn_byref(plugindn));
+
+    /* Set the alternate config area if one is defined. */
+    slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
+    if (config_area) {
+        mep_set_config_area(slapi_sdn_new_dn_byval(config_area));
+    }
 
     /*
      * Load the config cache
@@ -359,6 +369,8 @@ mep_close(Slapi_PBlock * pb)
     mep_config_unlock();
 
     slapi_ch_free((void **)&g_mep_config);
+    slapi_sdn_free(&_PluginDN);
+    slapi_sdn_free(&_ConfigAreaDN);
 
     /* We explicitly don't destroy the config lock here.  If we did,
      * there is the slight possibility that another thread that just
@@ -403,28 +415,50 @@ mep_load_config()
     mep_config_write_lock();
     mep_delete_config();
 
-    /* Find the config entries beneath our plugin entry. */
     search_pb = slapi_pblock_new();
-    slapi_search_internal_set_pb(search_pb, mep_get_plugin_dn(),
-                                 LDAP_SCOPE_SUBTREE, "objectclass=*",
-                                 NULL, 0, NULL, NULL, mep_get_plugin_id(), 0);
+
+    /* If an alternate config area is configured, find
+     * the config entries that are beneath it, otherwise
+     * we load the entries beneath our top-level plug-in
+     * config entry. */
+    if (mep_get_config_area()) {
+        /* Find the config entries beneath the alternate config area. */
+        slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                        "mep_load_config: Looking for config entries "
+                        "beneath \"%s\".\n", slapi_sdn_get_ndn(mep_get_config_area()));
+        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(mep_get_config_area()),
+                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     NULL, 0, NULL, NULL, mep_get_plugin_id(), 0);
+    } else {
+        /* Find the config entries beneath our plugin entry. */
+        slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                        "mep_load_config: Looking for config entries "
+                        "beneath \"%s\".\n", slapi_sdn_get_ndn(mep_get_plugin_sdn()));
+        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(mep_get_plugin_sdn()),
+                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     NULL, 0, NULL, NULL, mep_get_plugin_id(), 0);
+    }
+
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
     if (LDAP_SUCCESS != result) {
-        status = -1;
-        goto cleanup;
+        if (mep_get_config_area() && (result == LDAP_NO_SUCH_OBJECT)) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                            "mep_load_config: Config container \"%s\" does "
+                            "not exist.\n", slapi_sdn_get_ndn(mep_get_config_area()));
+            goto cleanup;
+        } else {
+            status = -1;
+            goto cleanup;
+        }
     }
 
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
                      &entries);
-    if (NULL == entries || NULL == entries[0]) {
-        /* If there are no config entries, we're done. */
-        goto cleanup;
-    }
 
     /* Loop through all of the entries we found and parse them. */
-    for (i = 0; (entries[i] != NULL); i++) {
+    for (i = 0; entries && (entries[i] != NULL); i++) {
         /* We don't care about the status here because we may have
          * some invalid config entries, but we just want to continue
          * looking for valid ones. */
@@ -466,7 +500,9 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
 
     /* If this is the main plug-in
      * config entry, just bail. */
-    if (strcasecmp(mep_get_plugin_dn(), slapi_entry_get_ndn(e)) == 0) {
+    if ((slapi_sdn_compare(mep_get_plugin_sdn(), slapi_entry_get_sdn(e)) == 0) ||
+        (mep_get_config_area() && (slapi_sdn_compare(mep_get_config_area(),
+        slapi_entry_get_sdn(e)) == 0))) {
         ret = -1;
         goto bail;
     }
@@ -752,6 +788,18 @@ mep_get_dn(Slapi_PBlock * pb)
     return dn;
 }
 
+static void
+mep_set_config_area(Slapi_DN *sdn)
+{
+    _ConfigAreaDN = sdn;
+}
+
+static Slapi_DN *
+mep_get_config_area()
+{
+    return _ConfigAreaDN;
+}
+
 /*
  * mep_dn_is_config()
  *
@@ -761,17 +809,35 @@ static int
 mep_dn_is_config(char *dn)
 {
     int ret = 0;
+    Slapi_DN *sdn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_dn_is_config\n");
 
-    /* Return 1 if the passed in dn is a child of the main
-     * plugin config entry. */
-    if (slapi_dn_issuffix(dn, mep_get_plugin_dn()) &&
-        strcasecmp(dn, mep_get_plugin_dn())) {
-        ret = 1;
+    if (dn == NULL) {
+        goto bail;
     }
 
+    sdn = slapi_sdn_new_dn_byref(dn);
+
+    /* If an alternate config area is configured, treat it's child
+     * entries as config entries.  If the alternate config area is
+     * not configured, treat children of the top-level plug-in
+     * config entry as our config entries. */
+    if (mep_get_config_area()) {
+        if (slapi_sdn_issuffix(sdn, mep_get_config_area()) &&
+            slapi_sdn_compare(sdn, mep_get_config_area())) {
+            ret = 1;
+        }
+    } else {
+        if (slapi_sdn_issuffix(sdn, mep_get_plugin_sdn()) &&
+            slapi_sdn_compare(sdn, mep_get_plugin_sdn())) {
+            ret = 1;
+        }
+    }
+
+bail:
+    slapi_sdn_free(&sdn);
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_dn_is_config\n");
 
