@@ -405,10 +405,6 @@ automember_load_config()
     automember_config_write_lock();
     automember_delete_config();
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                    "automember_load_config: Looking for config entries "
-                    "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_plugin_sdn()));
-
     search_pb = slapi_pblock_new();
 
     /* If an alternate config area is configured, find
