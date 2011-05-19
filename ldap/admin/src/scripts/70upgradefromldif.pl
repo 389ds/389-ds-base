@@ -85,7 +85,7 @@ sub startTaskAndWait {
 }
 
 sub importLDIF {
-  my ($conn, $file, $be, $isrunning, $rc) = @_;
+  my ($conn, $file, $be, $isrunning, $instdir, $rc) = @_;
 
   if ($isrunning) {
       my $cn = "import" . time;
@@ -104,7 +104,7 @@ sub importLDIF {
       $? = 0; # clear
       if ($rc = system("$instdir/ldif2db -n $be -i $file > /dev/null 2>&1")) {
           debug(0, "Could not import $file to database $be - check errors log\n");
-          return ('error_import_check_log', $file, $be, $rc);
+          return ('error_import_check_log', $file, $be, $?);
       }
   }
 
