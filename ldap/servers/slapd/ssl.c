@@ -754,6 +754,10 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     int slapd_SSLclientAuth;
     char* tmpDir;
     Slapi_Entry *e = NULL;
+    PRBool enableSSL2 = PR_FALSE;
+    PRBool enableSSL3 = PR_TRUE;
+    PRBool enableTLS1 = PR_TRUE;
+    PRBool fipsMode = PR_FALSE;
 
     /* turn off the PKCS11 pin interactive mode */
 #ifndef _WIN32
@@ -803,6 +807,9 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                   errorCode, slapd_pr_strerror(errorCode));
                return -1;
             }
+            fipsMode = PR_TRUE;
+            /* FIPS does not like to use SSLv3 */
+            enableSSL3 = PR_FALSE;
         }
     
         slapd_pk11_setSlotPWValues(slot, 0, 0);
@@ -995,23 +1002,16 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         return -1;
     }
 
-    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL3, PR_TRUE);
-    if (sslStatus != SECSuccess) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Failed to enable SSLv3 "
-               "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-               errorCode, slapd_pr_strerror(errorCode));
-    }
-
-    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_TLS, PR_TRUE);
-    if (sslStatus != SECSuccess) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Failed to enable TLS "
-               "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-               errorCode, slapd_pr_strerror(errorCode));
-    }
 /* Explicitly disabling SSL2 - NGK */
-    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL2, PR_FALSE);
+    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL2, enableSSL2);
+    if (sslStatus != SECSuccess) {
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Failed to %s SSLv2 "
+               "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+               enableSSL2 ? "enable" : "disable",
+               errorCode, slapd_pr_strerror(errorCode));
+        return -1;
+    }
 
     /* Retrieve the SSL Client Authentication status from cn=config */
     /* Set a default value if no value found */
@@ -1056,6 +1056,55 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 	slapi_ch_free_string(&val);
     }
 
+    if ( e != NULL ) {
+        val = slapi_entry_attr_get_charptr( e, "nsSSL3" );
+        if ( val ) {
+            if ( !strcasecmp( val, "off" ) ) {
+                enableSSL3 = PR_FALSE;
+            } else if ( !strcasecmp( val, "on" ) ) {
+                enableSSL3 = PR_TRUE;
+            } else {
+                enableSSL3 = slapi_entry_attr_get_bool( e, "nsSSL3" );
+            }
+            if ( fipsMode && enableSSL3 ) {
+                slapd_SSL_warn("Security Initialization: FIPS mode is enabled and "
+                               "nsSSL3 explicitly set to on - SSLv3 is not approved "
+                               "for use in FIPS mode - SSLv3 will be disabled - if "
+                               "you want to use SSLv3, you must use modutil to "
+                               "disable FIPS in the internal token.\n");
+                enableSSL3 = PR_FALSE;
+            }
+        }
+        slapi_ch_free_string( &val );
+        val = slapi_entry_attr_get_charptr( e, "nsTLS1" );
+        if ( val ) {
+            if ( !strcasecmp( val, "off" ) ) {
+                enableTLS1 = PR_FALSE;
+            } else if ( !strcasecmp( val, "on" ) ) {
+                enableTLS1 = PR_TRUE;
+            } else {
+                enableTLS1 = slapi_entry_attr_get_bool( e, "nsTLS1" );
+            }
+        }
+        slapi_ch_free_string( &val );
+    }
+    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL3, enableSSL3);
+    if (sslStatus != SECSuccess) {
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Failed to %s SSLv3 "
+               "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+               enableSSL3 ? "enable" : "disable",
+               errorCode, slapd_pr_strerror(errorCode));
+    }
+
+    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_TLS, enableTLS1);
+    if (sslStatus != SECSuccess) {
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Failed to %s TLSv1 "
+               "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+               enableTLS1 ? "enable" : "disable",
+               errorCode, slapd_pr_strerror(errorCode));
+    }
     freeConfigEntry( &e );
 
     if(( slapd_SSLclientAuth = config_get_SSLclientAuth()) != SLAPD_SSLCLIENTAUTH_OFF ) {
