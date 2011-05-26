@@ -212,13 +212,13 @@ pagedresults_get_search_result(Connection *conn)
 }
 
 int
-pagedresults_set_search_result(Connection *conn, void *sr)
+pagedresults_set_search_result(Connection *conn, void *sr, int locked)
 {
     int rc = -1;
     if (conn) {
-        PR_Lock(conn->c_mutex);
+        if (!locked) PR_Lock(conn->c_mutex);
         conn->c_search_result_set = sr;
-        PR_Unlock(conn->c_mutex);
+        if (!locked) PR_Unlock(conn->c_mutex);
         rc = 0;
     }
     return rc;
