@@ -1209,27 +1209,33 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				if ((!c->c_gettingber)
 						 && (c->c_threadnumber < max_threads_per_conn))
 				{
-					ct->fd[count].fd = c->c_prfd;
-					ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
-					/* slot i of the connection table is mapped to slot
-					 * count of the fds array */
-					c->c_fdi = count;
-					count++;
+					int add_fd = 1;
+					/* check timeout for PAGED RESULTS */
+					if (c->c_current_be && (c->c_timelimit > 0))
+					{
+						time_t ctime = current_time();
+						if (ctime > c->c_timelimit)
+						{
+							/* Exceeded the timelimit; disconnect the client */
+							disconnect_server_nomutex(c, c->c_connid, -1,
+													  SLAPD_DISCONNECT_IO_TIMEOUT, 0);
+							connection_table_move_connection_out_of_active_list(ct,c);
+							add_fd = 0; /* do not poll on this fd */
+						}
+					}
+					if (add_fd)
+					{
+						ct->fd[count].fd = c->c_prfd;
+						ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
+						/* slot i of the connection table is mapped to slot
+						 * count of the fds array */
+						c->c_fdi = count;
+						count++;
+					}
 				}
 				else
 				{
 					c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
-				}
-			}
-			/* check timeout for PAGED RESULTS */
-			if (c->c_current_be && (c->c_timelimit > 0))
-			{
-				time_t ctime = current_time();
-				if (ctime > c->c_timelimit)
-				{
-					/* Exceeded the timelimit; disconnect the client */
-					disconnect_server_nomutex(c, c->c_connid, -1,
-												SLAPD_DISCONNECT_IO_TIMEOUT, 0);
 				}
 			}
 			PR_Unlock( c->c_mutex );
