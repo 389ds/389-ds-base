@@ -1083,8 +1083,8 @@ send_response:
 	{
 		ruv_destroy (&supplier_ruv);
 	}
-	/* referrals */
-	slapi_ch_free((void **)&referrals);
+	/* referrals (char **) */
+	slapi_ch_array_free(referrals);
 
 	/* replicacsnstr */
 	slapi_ch_free((void **)&replicacsnstr);
