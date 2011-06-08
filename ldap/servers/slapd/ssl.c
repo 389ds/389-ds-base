@@ -168,108 +168,6 @@ static cipherstruct _conf_ciphers[] = {
     {NULL, NULL, 0}
 };
 
-char ** getSupportedCiphers()
-{
-	SSLCipherSuiteInfo info;
-	char *sep = "::";
-	int number_of_ciphers = sizeof (_conf_ciphers) /sizeof(cipherstruct);
-	int i;
-	if (cipher_names == NULL ) {
-		cipher_names = (char **) slapi_ch_calloc ((number_of_ciphers +1 ) , sizeof(char *));
-		for (i = 0 ; _conf_ciphers[i].name != NULL; i++ ) {
-			SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[i].num,&info,sizeof(info));
-			cipher_names[i] = PR_smprintf("%s%s%s%s%s%s%s%s%d",_conf_ciphers[i].version,sep,_conf_ciphers[i].name,sep,info.symCipherName,sep,info.macAlgorithmName,sep,info.symKeyBits);
-		}
-		cipher_names[i] = NULL;
-	}
-	return cipher_names;
-}
-void
-_conf_setallciphers(int active)
-{
-    int x;
-
-    /* MLM - change: Because null_md5 is NOT encrypted at all, force
-     *       them to activate it by name. */
-    for(x = 0; _conf_ciphers[x].name; x++)  {
-        if(active && !strcmp(_conf_ciphers[x].name, "rsa_null_md5"))  {
-            continue;
-        }
-        SSL_CipherPrefSetDefault(_conf_ciphers[x].num, active ? PR_TRUE : PR_FALSE);
-    }
-}
-
-char *
-_conf_setciphers(char *ciphers)
-{
-    char *t, err[MAGNUS_ERROR_LEN];
-    int x, active;
-	char *raw = ciphers;
-
-    /* Default is to activate all of them */
-    if(!ciphers || ciphers[0] == '\0') {
-        _conf_setallciphers(1);
-        return NULL;
-    }
-/* Enable all the ciphers by default and the following while loop would disable the user disabled ones This is needed becuase we added a new set of ciphers in the table . Right now there is no support for this from the console */	
-    _conf_setallciphers(1);
-
-    t = ciphers;
-    while(t) {
-        while((*ciphers) && (isspace(*ciphers))) ++ciphers;
-
-        switch(*ciphers++) {
-          case '+':
-            active = 1; break;
-          case '-':
-            active = 0; break;
-          default:
-			PR_snprintf(err, sizeof(err), "invalid ciphers <%s>: format is "
-					"+cipher1,-cipher2...", raw);
-            return slapi_ch_strdup(err);
-        }
-        if( (t = strchr(ciphers, ',')) )
-            *t++ = '\0';
-
-        if(!strcasecmp(ciphers, "all"))
-            _conf_setallciphers(active);
-        else {
-            for(x = 0; _conf_ciphers[x].name; x++) {
-                if(!strcasecmp(ciphers, _conf_ciphers[x].name)) {
-		  SSL_CipherPrefSetDefault(_conf_ciphers[x].num, active ? PR_TRUE : PR_FALSE);
-                    break;
-                }
-            }
-            if(!_conf_ciphers[x].name) {
-                PR_snprintf(err, sizeof(err), "unknown cipher %s", ciphers);
-                return slapi_ch_strdup(err);
-            }
-        }
-        if(t)
-            ciphers = t;
-    }
-    return NULL;
-}
-
-/* SSL Policy stuff */
-
-/*
- * SSLPLCY_Install
- *
- * Call the SSL_CipherPolicySet function for each ciphersuite.
- */
-PRStatus
-SSLPLCY_Install(void)
-{
-
-  SECStatus s = 0;
-
-  s = NSS_SetDomesticPolicy();
-
-  return s?PR_FAILURE:PR_SUCCESS;
-
-}
-
 static void
 slapd_SSL_report(int degree, char *fmt, va_list args)
 {
@@ -296,6 +194,208 @@ slapd_SSL_warn(char *fmt, ...)
     va_start(args, fmt);
     slapd_SSL_report(LOG_WARN, fmt, args);
     va_end(args);
+}
+
+char ** getSupportedCiphers()
+{
+	SSLCipherSuiteInfo info;
+	char *sep = "::";
+	int number_of_ciphers = sizeof (_conf_ciphers) /sizeof(cipherstruct);
+	int i;
+	int idx = 0;
+	PRBool isFIPS = slapd_pk11_isFIPS();
+	if (cipher_names == NULL ) {
+		cipher_names = (char **) slapi_ch_calloc ((number_of_ciphers +1 ) , sizeof(char *));
+		for (i = 0 ; _conf_ciphers[i].name != NULL; i++ ) {
+			SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[i].num,&info,sizeof(info));
+			/* only support FIPS approved ciphers in FIPS mode */
+			if (!isFIPS || info.isFIPS) {
+				cipher_names[idx++] = PR_smprintf("%s%s%s%s%s%s%s%s%d",_conf_ciphers[i].version,sep,_conf_ciphers[i].name,sep,info.symCipherName,sep,info.macAlgorithmName,sep,info.symKeyBits);
+			}
+		}
+		cipher_names[idx] = NULL;
+	}
+	return cipher_names;
+}
+
+static PRBool
+cipher_check_fips(int idx, char ***suplist, char ***unsuplist)
+{
+    PRBool rc = PR_TRUE;
+
+    if (slapd_pk11_isFIPS()) {
+        SSLCipherSuiteInfo info;
+        if (SECFailure == SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[idx].num,
+                                                 &info, sizeof info)) {
+            PRErrorCode errorCode = PR_GetError();
+            if (slapi_is_loglevel_set(SLAPI_LOG_CONFIG)) {
+                slapd_SSL_warn("Security Initialization: no information for cipher suite [%s] "
+                               "error %d - %s", _conf_ciphers[idx].name,
+                               errorCode, slapd_pr_strerror(errorCode));
+            }
+            rc = PR_FALSE;
+        }
+        if (rc && !info.isFIPS) {
+            if (slapi_is_loglevel_set(SLAPI_LOG_CONFIG)) {
+                slapd_SSL_warn("Security Initialization: FIPS mode is enabled but "
+                               "cipher suite [%s] is not approved for FIPS - "
+                               "the cipher suite will be disabled - if "
+                               "you want to use this cipher suite, you must use modutil to "
+                               "disable FIPS in the internal token.",
+                               _conf_ciphers[idx].name);
+            }
+            rc = PR_FALSE;
+        }
+        if (!rc && unsuplist && !charray_inlist(*unsuplist, _conf_ciphers[idx].name)) {
+            charray_add(unsuplist, _conf_ciphers[idx].name);
+        }
+        if (rc && suplist && !charray_inlist(*suplist, _conf_ciphers[idx].name)) {
+            charray_add(suplist, _conf_ciphers[idx].name);
+        }
+    }
+    return rc;
+}
+
+void
+_conf_setallciphers(int active, char ***suplist, char ***unsuplist)
+{
+    int x;
+
+    /* MLM - change: Because null_md5 is NOT encrypted at all, force
+     *       them to activate it by name. */
+    for(x = 0; _conf_ciphers[x].name; x++)  {
+        PRBool enabled = active ? PR_TRUE : PR_FALSE;
+        if(active && !strcmp(_conf_ciphers[x].name, "rsa_null_md5"))  {
+            continue;
+        }
+        if (enabled) {
+            enabled = cipher_check_fips(x, suplist, unsuplist);
+        }
+        SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
+    }
+}
+
+static char *
+charray2str(char **ary, const char *delim)
+{
+    char *str = NULL;
+    while (ary && *ary) {
+        if (str) {
+            str = PR_sprintf_append(str, "%s%s", delim, *ary++);
+        } else {
+            str = PR_smprintf("%s", *ary++);
+        }
+    }
+
+    return str;
+}
+
+char *
+_conf_setciphers(char *ciphers)
+{
+    char *t, err[MAGNUS_ERROR_LEN];
+    int x, active;
+    char *raw = ciphers;
+    char **suplist = NULL;
+    char **unsuplist = NULL;
+
+    /* Default is to activate all of them */
+    if(!ciphers || ciphers[0] == '\0') {
+        _conf_setallciphers(1, &suplist, NULL);
+        if (suplist && *suplist) {
+            if (slapi_is_loglevel_set(SLAPI_LOG_CONFIG)) {
+                char *str = charray2str(suplist, ",");
+                slapd_SSL_warn("Security Initialization: FIPS mode is enabled - only the following "
+                               "cipher suites are approved for FIPS: [%s] - "
+                               "all other cipher suites are disabled - if "
+                               "you want to use other cipher suites, you must use modutil to "
+                               "disable FIPS in the internal token.",
+                               str ? str : "(none)");
+                slapi_ch_free_string(&str);
+            }
+        }
+        slapi_ch_free((void **)&suplist); /* strings inside are static */
+        return NULL;
+    }
+/* Enable all the ciphers by default and the following while loop would disable the user disabled ones This is needed becuase we added a new set of ciphers in the table . Right now there is no support for this from the console */	
+    _conf_setallciphers(1, &suplist, NULL);
+
+    t = ciphers;
+    while(t) {
+        while((*ciphers) && (isspace(*ciphers))) ++ciphers;
+
+        switch(*ciphers++) {
+          case '+':
+            active = 1; break;
+          case '-':
+            active = 0; break;
+          default:
+			PR_snprintf(err, sizeof(err), "invalid ciphers <%s>: format is "
+					"+cipher1,-cipher2...", raw);
+            return slapi_ch_strdup(err);
+        }
+        if( (t = strchr(ciphers, ',')) )
+            *t++ = '\0';
+
+        if(!strcasecmp(ciphers, "all"))
+            _conf_setallciphers(active, NULL, NULL);
+        else {
+            for(x = 0; _conf_ciphers[x].name; x++) {
+                if(!strcasecmp(ciphers, _conf_ciphers[x].name)) {
+                  PRBool enabled = active ? PR_TRUE : PR_FALSE;
+                  if (enabled) {
+                      enabled = cipher_check_fips(x, NULL, &unsuplist);
+                  }
+                  SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
+                  break;
+                }
+            }
+            if(!_conf_ciphers[x].name) {
+                PR_snprintf(err, sizeof(err), "unknown cipher %s", ciphers);
+                slapi_ch_free((void **)&suplist); /* strings inside are static */
+                slapi_ch_free((void **)&unsuplist); /* strings inside are static */
+                return slapi_ch_strdup(err);
+            }
+        }
+        if(t)
+            ciphers = t;
+    }
+    if (unsuplist && unsuplist) {
+        char *strsup = charray2str(suplist, ",");
+        char *strunsup = charray2str(unsuplist, ",");
+        slapd_SSL_warn("Security Initialization: FIPS mode is enabled - only the following "
+                       "cipher suites are approved for FIPS: [%s] - "
+                       "the specified cipher suites [%s] are disabled - if "
+                       "you want to use these unsupported cipher suites, you must use modutil to "
+                       "disable FIPS in the internal token.",
+                       strsup ? strsup : "(none)", strunsup ? strunsup : "(none)");
+        slapi_ch_free_string(&strsup);
+        slapi_ch_free_string(&strunsup);
+    }
+
+    slapi_ch_free((void **)&suplist); /* strings inside are static */
+    slapi_ch_free((void **)&unsuplist); /* strings inside are static */
+        
+    return NULL;
+}
+
+/* SSL Policy stuff */
+
+/*
+ * SSLPLCY_Install
+ *
+ * Call the SSL_CipherPolicySet function for each ciphersuite.
+ */
+PRStatus
+SSLPLCY_Install(void)
+{
+
+  SECStatus s = 0;
+
+  s = NSS_SetDomesticPolicy();
+
+  return s?PR_FAILURE:PR_SUCCESS;
+
 }
 
 /**
@@ -1079,7 +1179,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                                "nsSSL3 explicitly set to on - SSLv3 is not approved "
                                "for use in FIPS mode - SSLv3 will be disabled - if "
                                "you want to use SSLv3, you must use modutil to "
-                               "disable FIPS in the internal token.\n");
+                               "disable FIPS in the internal token.");
                 enableSSL3 = PR_FALSE;
             }
         }
