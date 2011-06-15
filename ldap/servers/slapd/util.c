@@ -295,16 +295,24 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
             pw_encodevals(vals);
         }
 
-		/* set entry uniqueid - also adds attribute to the list */
-		if (strcasecmp(normtype, SLAPI_ATTR_UNIQUEID) == 0)
-			slapi_entry_set_uniqueid (*e, slapi_ch_strdup (slapi_value_get_string(vals[0])));
-		else
-			rc = slapi_entry_add_values_sv(*e, normtype, vals);
+        /* set entry uniqueid - also adds attribute to the list */
+        if (strcasecmp(normtype, SLAPI_ATTR_UNIQUEID) == 0) {
+            if (vals) {
+                slapi_entry_set_uniqueid (*e,
+                            slapi_ch_strdup (slapi_value_get_string(vals[0])));
+            } else {
+                rc = LDAP_NO_SUCH_ATTRIBUTE;
+            }
+        } else {
+            rc = slapi_entry_add_values_sv(*e, normtype, vals);
+        }
 
         valuearray_free(&vals);
         if (rc != LDAP_SUCCESS)
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "slapi_add_internal: add_values for type %s failed\n", normtype, 0, 0 );
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                "slapi_add_internal: add_values for type %s failed (rc: %d)\n",
+                normtype, rc );
             slapi_entry_free (*e);
             *e = NULL;
         }
