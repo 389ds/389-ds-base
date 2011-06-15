@@ -4148,7 +4148,12 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 
 	switch (op->operation_type)
 	{
-		case SLAPI_OPERATION_ADD:	if (op->p.p_add.parentuniqueid)
+		case SLAPI_OPERATION_ADD:	if (NULL == op->p.p_add.target_entry) {
+										slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+											"_cl5Operation2LDIF(ADD): entry is NULL\n");
+										return CL5_BAD_FORMAT;
+									}
+									if (op->p.p_add.parentuniqueid)
 										len += LDIF_SIZE_NEEDED(strlen (T_PARENTIDSTR), 
 																strlen (op->p.p_add.parentuniqueid));
 									slapi_entry2mods (op->p.p_add.target_entry, &rawDN, &add_mods);				
@@ -4158,28 +4163,43 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 									ldap_mods_free (add_mods, 1);
 									break;
 
-		case SLAPI_OPERATION_MODIFY: len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
+		case SLAPI_OPERATION_MODIFY: if (NULL == op->p.p_modify.modify_mods) {
+										slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+											"_cl5Operation2LDIF(MODIFY): mods are NULL\n");
+										return CL5_BAD_FORMAT;
+									 }
+									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
 									 l = make_changes_string(op->p.p_modify.modify_mods, NULL);
 									 len += LDIF_SIZE_NEEDED(strlen (T_CHANGESTR), l->ls_len);
 									 break;
 
-		case SLAPI_OPERATION_MODRDN: len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
+		case SLAPI_OPERATION_MODRDN: if (NULL == op->p.p_modrdn.modrdn_mods) {
+										slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+											"_cl5Operation2LDIF(MODRDN): mods are NULL\n");
+										return CL5_BAD_FORMAT;
+									 }
+									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
 									 len += LDIF_SIZE_NEEDED(strlen (T_NEWRDNSTR), 
-						 				  					 strlen (op->p.p_modrdn.modrdn_newrdn));
+															 strlen (op->p.p_modrdn.modrdn_newrdn));
 									 strDeleteOldRDN = (op->p.p_modrdn.modrdn_deloldrdn ? "true" : "false");
 									 len += LDIF_SIZE_NEEDED(strlen (T_DRDNFLAGSTR),
-						 									 strlen (strDeleteOldRDN));
+															 strlen (strDeleteOldRDN));
 									 if (op->p.p_modrdn.modrdn_newsuperior_address.dn)
 										len += LDIF_SIZE_NEEDED(strlen (T_NEWSUPERIORDNSTR),
-						 							strlen (op->p.p_modrdn.modrdn_newsuperior_address.dn));
+													strlen (op->p.p_modrdn.modrdn_newsuperior_address.dn));
 									 if (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid)
 										len += LDIF_SIZE_NEEDED(strlen (T_NEWSUPERIORIDSTR),
-						 							strlen (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid));
+													strlen (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid));
 									 l = make_changes_string(op->p.p_modrdn.modrdn_mods, NULL);
 									 len += LDIF_SIZE_NEEDED(strlen (T_CHANGESTR), l->ls_len);
 									 break;		  
 
-		case SLAPI_OPERATION_DELETE: len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
+		case SLAPI_OPERATION_DELETE: if (NULL == op->target_address.dn) {
+										slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+											"_cl5Operation2LDIF(DELETE): target dn is NULL\n");
+										return CL5_BAD_FORMAT;
+									 }
+									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
 									 break;	
 		
 		default:					 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
