@@ -1015,11 +1015,16 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
                 }
             }
             slapi_ch_free_string(&buff);
+#if defined(USE_OPENLDAP)
+            buflen = 0;
+#endif
             goto next;
-		}
-		slapi_ch_free_string(&buff);
-
-		/* if we perform selective import, check if the operation should be wriiten to changelog */
+        }
+        slapi_ch_free_string(&buff);
+#if defined(USE_OPENLDAP)
+        buflen = 0;
+#endif
+        /* if we perform selective import, check if the operation should be wriiten to changelog */
         replica_obj = _cl5GetReplica (&op, replGen);
         if (replica_obj == NULL)
         {
