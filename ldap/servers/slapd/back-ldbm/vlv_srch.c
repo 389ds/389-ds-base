@@ -373,6 +373,9 @@ struct vlvIndex*
 vlvSearch_findindexname(const struct vlvSearch* plist, const char *name)
 {
     const struct vlvSearch* t= plist;
+    if (NULL == name) {
+        return NULL;
+    }
     for(; t!=NULL ; t= t->vlv_next)
     {
         struct vlvIndex *pi= t->vlv_index;
@@ -781,7 +784,7 @@ void vlvIndex_go_offline(struct vlvIndex *p, backend *be)
         return;
     p->vlv_online = 0;
     p->vlv_enabled = 0;
-	p->vlv_indexlength = 0;
+    p->vlv_indexlength = 0;
     p->vlv_attrinfo->ai_indexmask |= INDEX_OFFLINE;
     dblayer_erase_index_file_nolock(be, p->vlv_attrinfo, 1 /* chkpt if not busy */);
 }
