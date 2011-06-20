@@ -12,11 +12,6 @@ dialog_welcome_text = This program will set up the %s Directory Server.\n\nIt is
 
 dialog_welcome_prompt = Would you like to continue with set up?
 
-# ----------- License Dialog Resource  -----------
-dialog_license_text = BY SETTING UP AND USING THIS SOFTWARE YOU ARE CONSENTING TO BE BOUND BY\nAND ARE BECOMING A PARTY TO THE AGREEMENT FOUND IN THE\nLICENSE.TXT FILE. IF YOU DO NOT AGREE TO ALL OF THE TERMS\nOF THIS AGREEMENT, PLEASE DO NOT SET UP OR USE THIS SOFTWARE.\n\n
-
-dialog_license_prompt = Do you agree to the license terms?
-
 # ----------- dsktune Dialog Resource  -----------
 dialog_dsktune_text = Your system has been scanned for potential problems, missing patches,\
 etc.  The following output is a report of the items found that need to\
