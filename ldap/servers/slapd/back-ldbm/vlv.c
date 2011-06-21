@@ -116,6 +116,7 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
             vlvIndex_init(newVlvIndex, be, parent, entryBefore);
             vlvSearch_addIndex(parent, newVlvIndex);
         }
+        slapi_ch_free_string(&name);
     }
     PR_RWLock_Unlock(be->vlvSearchList_lock);
     slapi_sdn_done(&parentdn);
