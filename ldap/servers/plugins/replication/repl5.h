@@ -416,7 +416,7 @@ void conn_set_timeout(Repl_Connection *conn, long timeout);
 long conn_get_timeout(Repl_Connection *conn);
 void conn_set_agmt_changed(Repl_Connection *conn);
 ConnResult conn_read_result(Repl_Connection *conn, int *message_id);
-ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int *message_id, int noblock);
+ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int send_msgid, int *resp_msgid, int noblock);
 
 /* In repl5_protocol.c */
 typedef struct repl_protocol Repl_Protocol;
