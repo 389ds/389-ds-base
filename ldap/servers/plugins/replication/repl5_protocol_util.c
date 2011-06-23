@@ -212,6 +212,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 				current_csn = get_current_csn(replarea_sdn);
 				if (NULL != current_csn)
 				{
+					int send_msgid = 0;
 					struct berval *payload = NSDS50StartReplicationRequest_new(
 						prot_oid, slapi_sdn_get_ndn(replarea_sdn), 
 						NULL /* XXXggood need to provide referral(s) */, current_csn);
@@ -219,7 +220,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 					csn_free(&current_csn);
 					current_csn = NULL;
 					crc = conn_send_extended_operation(conn,
-						REPL_START_NSDS50_REPLICATION_REQUEST_OID, payload,  NULL /* update control */, NULL /* Message ID */);
+						REPL_START_NSDS50_REPLICATION_REQUEST_OID, payload,  NULL /* update control */, &send_msgid /* Message ID */);
 					if (CONN_OPERATION_SUCCESS != crc)
 					{
 						int operation, error;
@@ -234,7 +235,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							error ? ldap_err2string(error) : "unknown error");
 					}
 					/* Since the operation request is async, we need to wait for the response here */
-					crc = conn_read_result_ex(conn,&retoid,&retdata,NULL,NULL,1);
+					crc = conn_read_result_ex(conn,&retoid,&retdata,NULL,send_msgid,NULL,1);
 					ber_bvfree(payload);
 					payload = NULL;
 					/* Look at the response we got. */
@@ -482,7 +483,7 @@ release_replica(Private_Repl_Protocol *prp)
 		goto error;
 	}
 	/* Since the operation request is async, we need to wait for the response here */
-	conres = conn_read_result_ex(prp->conn,&retoid,&retdata,NULL,&ret_message_id,1);
+	conres = conn_read_result_ex(prp->conn,&retoid,&retdata,NULL,sent_message_id,&ret_message_id,1);
 	if (CONN_OPERATION_SUCCESS != conres)
 	{
 		int operation, error;

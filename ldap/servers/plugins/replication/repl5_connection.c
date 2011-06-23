@@ -284,7 +284,7 @@ conn_get_error_ex(Repl_Connection *conn, int *operation, int *error, char **erro
 /* The _ex version handles a bunch of parameters (retoidp et al) that were present in the original
  * sync operation functions, but were never actually used) */
 ConnResult
-conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int *message_id, int block)
+conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int send_msgid, int *resp_msgid, int block)
 {
 			LDAPMessage *res = NULL;
 			int setlevel = 0;
@@ -323,7 +323,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 					break;
 				}
 
-				rc = ldap_result(conn->ld, LDAP_RES_ANY , 1, &local_timeout, &res);
+				rc = ldap_result(conn->ld, send_msgid, 1, &local_timeout, &res);
 				PR_Unlock(conn->lock);
 
 				if (0 != rc)
@@ -412,9 +412,9 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				char **referrals = NULL;
 				char *matched = NULL;
 
-				if (message_id) 
+				if (resp_msgid) 
 				{
-					*message_id = ldap_msgid(res);
+					*resp_msgid = ldap_msgid(res);
 				}
 
 				rc = ldap_parse_result(conn->ld, res, &err, &matched,
@@ -483,7 +483,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 ConnResult
 conn_read_result(Repl_Connection *conn, int *message_id)
 {
-	return conn_read_result_ex(conn,NULL,NULL,NULL,message_id,1);
+	return conn_read_result_ex(conn,NULL,NULL,NULL,LDAP_RES_ANY,message_id,1);
 }
 
 /* Because the SDK isn't really thread-safe (it can deadlock between

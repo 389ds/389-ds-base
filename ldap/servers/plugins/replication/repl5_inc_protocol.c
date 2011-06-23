@@ -293,7 +293,7 @@ static void repl5_inc_result_threadmain(void *param)
 
 		while (!finished)
 		{
-			conres = conn_read_result_ex(conn, NULL, NULL, NULL, &message_id, 0);
+			conres = conn_read_result_ex(conn, NULL, NULL, NULL, LDAP_RES_ANY, &message_id, 0);
 			slapi_log_error(SLAPI_LOG_REPL, NULL, "repl5_inc_result_threadmain: read result for message_id %d\n", message_id);
 			/* Timeout here means that we didn't block, not a real timeout */
 			if (CONN_TIMEOUT == conres)

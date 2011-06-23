@@ -153,7 +153,7 @@ static void repl5_tot_result_threadmain(void *param)
 
 		while (!finished)
 		{
-			conres = conn_read_result_ex(conn, NULL, NULL, NULL, &message_id, 0);
+			conres = conn_read_result_ex(conn, NULL, NULL, NULL, LDAP_RES_ANY, &message_id, 0);
 			/* Timeout here means that we didn't block, not a real timeout */
 			if (CONN_TIMEOUT == conres)
 			{
