@@ -71,6 +71,13 @@
 #define AUTOMEMBER_DEFAULT_GROUP_TYPE "autoMemberDefaultGroup"
 #define AUTOMEMBER_GROUPING_ATTR_TYPE "autoMemberGroupingAttr"
 #define AUTOMEMBER_DISABLED_TYPE      "autoMemberDisabled"
+#define AUTOMEMBER_TARGET_GROUP_TYPE  "autoMemberTargetGroup"
+
+/*
+ * Config loading filters
+ */
+#define AUTOMEMBER_DEFINITION_FILTER  "objectclass=autoMemberDefinition"
+#define AUTOMEMBER_REGEX_RULE_FILTER  "objectclass=autoMemberRegexRule"
 
 /*
  * Helper defines
@@ -80,7 +87,6 @@
 struct automemberRegexRule {
     PRCList list;
     Slapi_DN *target_group_dn;
-    char *desc;
     char *attr;
     char *regex_str;
     Slapi_Regex *regex;

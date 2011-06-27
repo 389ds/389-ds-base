@@ -96,11 +96,28 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2103 NAME 'autoMemberDisabled'
 #
 ################################################################################
 #
+attributeTypes: ( 2.16.840.1.113730.3.1.2105  NAME 'autoMemberTargetGroup'
+  DESC 'Auto Membership target group'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
 objectClasses: ( 2.16.840.1.113730.3.2.322 NAME 'autoMemberDefinition'
   DESC 'Auto Membership Config Definition Entry'
   SUP top
   STRUCTURAL
   MUST ( cn $ autoMemberScope $ autoMemberFilter $ autoMemberGroupingAttr )
-  MAY ( autoMemberExclusiveRegex $ autoMemberInclusiveRegex $ autoMemberDefaultGroup
-        $ autoMemberDisabled )
+  MAY ( autoMemberDefaultGroup $ autoMemberDisabled )
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+objectClasses: ( 2.16.840.1.113730.3.2.323 NAME 'autoMemberRegexRule'
+  DESC 'Auto Membership Regex Rule Entry'
+  SUP top
+  STRUCTURAL
+  MUST ( cn $ autoMemberTargetGroup )
+  MAY ( autoMemberExclusiveRegex $ autoMemberInclusiveRegex $ description )
   X-ORIGIN '389 Directory Server' )

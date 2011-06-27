@@ -98,6 +98,7 @@ static void automember_set_config_area(Slapi_DN *sdn);
 static int automember_dn_is_config(char *dn);
 static int automember_oktodo(Slapi_PBlock *pb);
 static int automember_isrepl(Slapi_PBlock *pb);
+static void automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e);
 static struct automemberRegexRule *automember_parse_regex_rule(char *rule_string);
 static void automember_free_regex_rule(struct automemberRegexRule *rule);
 static int automember_parse_grouping_attr(char *value, char **grouping_attr,
@@ -418,7 +419,7 @@ automember_load_config()
                         "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_config_area()));
 
         slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_config_area()),
-                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     LDAP_SCOPE_SUBTREE, AUTOMEMBER_DEFINITION_FILTER,
                                      NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
     } else {
         /* Find the config entries beneath our plugin entry. */
@@ -427,7 +428,7 @@ automember_load_config()
                         "beneath \"%s\".\n", slapi_sdn_get_ndn(automember_get_plugin_sdn()));
 
         slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(automember_get_plugin_sdn()),
-                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     LDAP_SCOPE_SUBTREE, AUTOMEMBER_DEFINITION_FILTER,
                                      NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
     }
 
@@ -488,6 +489,11 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
     struct configEntry *entry = NULL;
     struct configEntry *config_entry;
     PRCList *list;
+    Slapi_PBlock *search_pb = NULL;
+    Slapi_Entry **rule_entries = NULL;
+    char *filter_str = NULL;
+    Slapi_Filter *filter = NULL;
+    int result;
     int entry_added = 0;
     int i = 0;
     int ret = 0;
@@ -500,6 +506,13 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
     if ((slapi_sdn_compare(automember_get_plugin_sdn(), slapi_entry_get_sdn(e)) == 0) ||
         (automember_get_config_area() && (slapi_sdn_compare(automember_get_config_area(),
         slapi_entry_get_sdn(e)) == 0))) {
+        goto bail;
+    }
+
+    /* If this entry is not an automember config definition entry, just bail. */
+    filter_str = slapi_ch_strdup(AUTOMEMBER_DEFINITION_FILTER);
+    filter = slapi_str2filter(filter_str);
+    if (slapi_filter_test_simple(e, filter) != 0) {
         goto bail;
     }
 
@@ -569,105 +582,6 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
         goto bail;
     }
 
-    /* Load exclusive regex rules */
-    values = slapi_entry_attr_get_charray(e, AUTOMEMBER_EXC_REGEX_TYPE);
-    if (values) {
-        struct automemberRegexRule *rule = NULL;
-
-        /* Create a list to hold our regex rules */
-        entry->exclusive_rules = (struct automemberRegexRule *)slapi_ch_calloc(1, sizeof(struct automemberRegexRule));
-        PR_INIT_CLIST((PRCList *)entry->exclusive_rules);
-
-        /* Parse each regex rule and add to the list */
-        for (i = 0; values && values[i]; ++i) {
-            rule = automember_parse_regex_rule(values[i]); 
-            if (rule) {
-                if (!PR_CLIST_IS_EMPTY((PRCList *)entry->exclusive_rules)) {
-                    list = PR_LIST_HEAD((PRCList *)entry->exclusive_rules);
-                    while (list != (PRCList *)entry->exclusive_rules) {
-                        struct automemberRegexRule *curr_rule = (struct automemberRegexRule *)list;
-                        /* Order rules by target group DN */
-                        if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
-                            PR_INSERT_BEFORE(&(rule->list), list);
-                            break;
-                        }
-
-                        list = PR_NEXT_LINK(list);
-
-                        /* If we hit the end of the list, add to the tail. */
-                        if ((PRCList *)entry->exclusive_rules == list) {
-                            PR_INSERT_BEFORE(&(rule->list), list);
-                            break;
-                        }
-                    }
-                } else {
-                    /* Add to head of list */
-                    PR_INSERT_LINK(&(rule->list), (PRCList *)entry->exclusive_rules);
-                }
-            } else {
-                slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                                "automember_parse_config_entry: Invalid exclusive "
-                                "regex rule in config entry \"%s\" (rule = \"%s\").\n",
-                                entry->dn, values[i]);
-                ret = -1;
-            }
-        }
-        slapi_ch_array_free(values);
-        values = NULL;
-
-        /* Bail if we had a bad regex rule */
-        if (ret == -1) {
-            goto bail;
-        }
-    }
-
-    /* Load inclusive regex rules */
-    values = slapi_entry_attr_get_charray(e, AUTOMEMBER_INC_REGEX_TYPE);
-    if (values) {
-        struct automemberRegexRule *rule = NULL;
-
-        /* Create a list to hold our regex rules */
-        entry->inclusive_rules = (struct automemberRegexRule *)slapi_ch_calloc(1, sizeof(struct automemberRegexRule));
-        PR_INIT_CLIST((PRCList *)entry->inclusive_rules);
-
-        /* Parse each regex rule and add to the list */
-        for (i = 0; values && values[i]; ++i) {
-            rule = automember_parse_regex_rule(values[i]);
-            if (rule) {
-                if (!PR_CLIST_IS_EMPTY((PRCList *)entry->inclusive_rules)) {
-                    list = PR_LIST_HEAD((PRCList *)entry->inclusive_rules);
-                    while (list != (PRCList *)entry->inclusive_rules) {
-                        struct automemberRegexRule *curr_rule = (struct automemberRegexRule *)list;
-                        /* Order rules by target group DN */
-                        if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
-                            PR_INSERT_BEFORE(&(rule->list), list);
-                            break;
-                        }
-
-                        list = PR_NEXT_LINK(list);
-
-                        /* If we hit the end of the list, add to the tail. */
-                        if ((PRCList *)entry->inclusive_rules == list) {
-                            PR_INSERT_BEFORE(&(rule->list), list);
-                            break;
-                        }
-                    }
-                } else {
-                    /* Add to head of list */
-                    PR_INSERT_LINK(&(rule->list), (PRCList *)entry->inclusive_rules);
-                }
-            } else {
-                slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                                "automember_parse_config_entry: Invalid inclusive "
-                                "regex rule in config entry \"%s\" (rule = \"%s\").\n",
-                                entry->dn, values[i]);
-                ret = -1;
-            }
-        }
-        slapi_ch_array_free(values);
-        values = NULL;
-    }
-
     /* Load the default groups */
     values = slapi_entry_attr_get_charray(e, AUTOMEMBER_DEFAULT_GROUP_TYPE);
     if (values) {
@@ -701,6 +615,35 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
         ret = -1;
         goto bail;
     }
+
+    /* Find all child regex rule entries */
+    search_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(search_pb, entry->dn, LDAP_SCOPE_SUBTREE,
+                                 AUTOMEMBER_REGEX_RULE_FILTER, NULL, 0, NULL,
+                                 NULL, automember_get_plugin_id(), 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+
+    if (LDAP_SUCCESS != result) {
+        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_parse_config_entry: Error searching "
+                        "for child rule entries for config \"%s\" (err=%d).",
+                        entry->dn, result);
+        ret = -1;
+        goto bail;
+    }
+
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
+                     &rule_entries);
+
+    /* Go through each child rule entry and parse it. */
+    for (i = 0; rule_entries && (rule_entries[i] != NULL); i++) {
+        slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_parse_config_entry: parsing regex rule entry "
+                        "\"%s\".\n", slapi_entry_get_dn(rule_entries[i]));
+        automember_parse_regex_entry(entry, rule_entries[i]);
+    }
+
 
     /* If we were only called to validate config, we can
      * just bail out before applying the config changes */
@@ -760,6 +703,11 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
     } else {
         ret = 0;
     }
+
+    slapi_ch_free_string(&filter_str);
+    slapi_filter_free(filter, 1);
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_parse_config_entry\n");
@@ -988,6 +936,158 @@ automember_isrepl(Slapi_PBlock *pb)
 }
 
 /*
+ * automember_parse_regex_entry()
+ *
+ * Parses a rule entry and adds the regex rules to the
+ * passed in config struct.  Invalid regex rules will
+ * be skipped and logged at the fatal log level.
+ */
+static void
+automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
+{
+    char *target_group = NULL;
+    char **values = NULL;
+    PRCList *list;
+    int i = 0;
+
+    slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                    "--> automember_parse_regex_entry\n");
+
+    /* Make sure the target group was specified. */
+    target_group = slapi_entry_attr_get_charptr(e, AUTOMEMBER_TARGET_GROUP_TYPE);
+    if (!target_group) {
+        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_parse_regex_entry: The %s config "
+                        "setting is required for rule entry \"%s\".\n",
+                        AUTOMEMBER_TARGET_GROUP_TYPE, slapi_entry_get_ndn(e));
+        goto bail;
+    }
+
+    /* Ensure that the target group DN is valid. */
+    if (slapi_dn_syntax_check(NULL, target_group, 1) != 0) {
+        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_parse_regex_entry: invalid target group DN "
+                        "in rule \"%s\" (dn=\"%s\").\n", slapi_entry_get_ndn(e),
+                        target_group);
+        goto bail;
+    }
+
+    /* Load inclusive rules */
+    values = slapi_entry_attr_get_charray(e, AUTOMEMBER_INC_REGEX_TYPE);
+    if (values) {
+        struct automemberRegexRule *rule = NULL;
+
+        /* If we haven't loaded any inclusive rules for
+         * this config definition yet, create a new list. */
+        if (config->inclusive_rules == NULL) {
+            /* Create a list to hold our regex rules */
+            config->inclusive_rules = (struct automemberRegexRule *)slapi_ch_calloc(1, sizeof(struct automemberRegexRule));
+            PR_INIT_CLIST((PRCList *)config->inclusive_rules);
+        }
+
+        for (i = 0; values && values[i]; ++i) {
+            rule = automember_parse_regex_rule(values[i]);
+
+            if (rule) {
+                /* Fill in the target group. */
+                rule->target_group_dn = slapi_sdn_new_dn_byval(target_group);
+
+                if (!PR_CLIST_IS_EMPTY((PRCList *)config->inclusive_rules)) {
+                    list = PR_LIST_HEAD((PRCList *)config->inclusive_rules);
+                    while (list != (PRCList *)config->inclusive_rules) {
+                        struct automemberRegexRule *curr_rule = (struct automemberRegexRule *)list;
+                        /* Order rules by target group DN */
+                        if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
+                            PR_INSERT_BEFORE(&(rule->list), list);
+                            break;
+                        }
+
+                        list = PR_NEXT_LINK(list);
+
+                        /* If we hit the end of the list, add to the tail. */
+                        if ((PRCList *)config->inclusive_rules == list) {
+                            PR_INSERT_BEFORE(&(rule->list), list);
+                            break;
+                        }
+                    }
+                } else {
+                    /* Add to head of list */
+                    PR_INSERT_LINK(&(rule->list), (PRCList *)config->inclusive_rules);
+                }
+            } else {
+                slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                                "automember_parse_regex_entry: Skipping invalid inclusive "
+                                "regex rule in rule entry \"%s\" (rule = \"%s\").\n",
+                                slapi_entry_get_ndn(e), values[i]);
+            }
+        }
+
+        slapi_ch_array_free(values);
+        values = NULL;
+    }
+
+    /* Load exclusive rules. */
+    values = slapi_entry_attr_get_charray(e, AUTOMEMBER_EXC_REGEX_TYPE);
+    if (values) {
+        struct automemberRegexRule *rule = NULL;
+
+        /* If we haven't loaded any exclusive rules for
+         * this config definition yet, create a new list. */
+        if (config->exclusive_rules == NULL) {
+            /* Create a list to hold our regex rules */
+            config->exclusive_rules = (struct automemberRegexRule *)slapi_ch_calloc(1, sizeof(struct automemberRegexRule));
+            PR_INIT_CLIST((PRCList *)config->exclusive_rules);
+        }
+
+        for (i = 0; values && values[i]; ++i) {
+            rule = automember_parse_regex_rule(values[i]);
+
+            if (rule) { 
+                /* Fill in the target group. */
+                rule->target_group_dn = slapi_sdn_new_dn_byval(target_group);
+
+                if (!PR_CLIST_IS_EMPTY((PRCList *)config->exclusive_rules)) {
+                    list = PR_LIST_HEAD((PRCList *)config->exclusive_rules);
+                    while (list != (PRCList *)config->exclusive_rules) {
+                        struct automemberRegexRule *curr_rule = (struct automemberRegexRule *)list;
+                        /* Order rules by target group DN */
+                        if (slapi_sdn_compare(rule->target_group_dn, curr_rule->target_group_dn) < 0) {
+                            PR_INSERT_BEFORE(&(rule->list), list);
+                            break; 
+                        }
+    
+                        list = PR_NEXT_LINK(list);
+    
+                        /* If we hit the end of the list, add to the tail. */
+                        if ((PRCList *)config->exclusive_rules == list) {
+                            PR_INSERT_BEFORE(&(rule->list), list);
+                            break;
+                        }
+                    }
+                } else {
+                    /* Add to head of list */
+                    PR_INSERT_LINK(&(rule->list), (PRCList *)config->exclusive_rules);
+                }
+            } else {
+                slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                                "automember_parse_regex_entry: Skipping invalid exclusive "
+                                "regex rule in rule entry \"%s\" (rule = \"%s\").\n",
+                                slapi_entry_get_ndn(e), values[i]);
+            }
+        }
+
+        slapi_ch_array_free(values);
+        values = NULL;
+    }
+
+bail:
+    slapi_ch_free_string(&target_group);
+
+    slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                    "<-- automember_parse_regex_entry\n");
+}
+
+/*
  * automember_parse_regex_rule()
  *
  * Parses a regex rule and returns a regex rule struct.  The caller
@@ -999,99 +1099,30 @@ static struct automemberRegexRule *
 automember_parse_regex_rule(char *rule_string)
 {
     struct automemberRegexRule *rule = NULL;
-    Slapi_DN *target_group_dn = NULL;
-    char *desc = NULL;
     char *attr = NULL;
     Slapi_Regex *regex = NULL;
     const char *recomp_result = NULL;
-    char *dn_string = NULL;
     char *p = NULL;
     char *p2 = NULL;
 
-    /* A rule is in the form "target:desc:attr=regex" */
-    /* Find the target group DN. */
-    if ((p = strchr(rule_string, ':')) == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_parse_regex_rule: Unable to parse "
-                        "regex rule (missing first ':' delimeter).\n");
-        goto bail;
-    }
-
-    /* Ensure the target group DN is not empty. */
-    if (p == rule_string) {
-        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_parse_regex_rule: Unable to parse "
-                        " regex rule (missing target group DN).\n");
-        goto bail;
-    }
-
-    if ((dn_string = strndup(rule_string, p - rule_string)) == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_parse_regex_rule: Error allocating "
-                        "memory.\n");
-        goto bail;
-    }
-
-    /* Ensure that the DN is valid. */
-    if (slapi_dn_syntax_check(NULL, dn_string, 1) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_parse_regex_rule: Unable to parse "
-                        " regex rule (invalid target group DN).\n");
-        slapi_cn_free_string(&dn_string);
-        goto bail;
-    }
-
-    /* Create a Slapi_DN. */
-    target_group_dn = slapi_sdn_new_dn_passin(dn_string);
-
-    /* Find the description. */
-    p++;
-    if (*p == '\0') {
-        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_parse_regex_rule: Unable to parse "
-                        "regex rule (missing description).\n");
-        goto bail;
-    }
-
-    p2 = p;
-    if ((p = strchr(p2, ':')) == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_parse_regex_rule: Unable to parse "
-                        "regex rule (missing second ':' delimeter).\n");
-        goto bail;
-    }
-
-    /* We allow an empty description. */
-    if (p == p2) {
-        desc = slapi_ch_strdup("");
-    } else {
-        if ((desc = strndup(p2, p - p2)) == NULL) {
-            slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                            "automember_parse_regex_rule: Unable to allocate "
-                            "memory.\n");
-            goto bail;
-        }
-    }
-
+    /* A rule is in the form "attr=regex". */
     /* Find the comparison attribute name. */
-    p++;
-    if (*p == '\0') {
-        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_parse_regex_rule: Unable to parse "
-                        "regex rule (missing comparison attribute).\n");
-        goto bail;
-    }
-
-    p2 = p;
-    if ((p = strchr(p2, '=')) == NULL) {
+    if ((p = strchr(rule_string, '=')) == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_parse_regex_rule: Unable to parse "
                         "regex rule (missing '=' delimeter).\n");
         goto bail;
     }
 
-    
-    if ((attr = strndup(p2, p - p2)) == NULL) {
+    /* Make sure the attribute name is not empty. */
+    if (p == rule_string) {
+        slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_parse_regex_rule: Unable to parse "
+                        " regex rule (missing comparison attribute).\n");
+        goto bail;
+    }
+
+    if ((attr = strndup(rule_string, p - rule_string)) == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_parse_regex_rule: Unable to allocate "
                         "memory.\n");
@@ -1130,8 +1161,6 @@ automember_parse_regex_rule(char *rule_string)
      * We hand off everything we have allocated.  All of this will be free'd
      * when the rule struct itself is freed. */
     rule = (struct automemberRegexRule *)slapi_ch_calloc(1, sizeof(struct automemberRegexRule));
-    rule->target_group_dn = target_group_dn;
-    rule->desc = desc;
     rule->attr = attr;
     rule->regex_str = slapi_ch_strdup(p);
     rule->regex = regex;
@@ -1139,8 +1168,6 @@ automember_parse_regex_rule(char *rule_string)
 bail:
     /* Cleanup if we didn't successfully create a rule. */
     if (!rule) {
-        slapi_sdn_free(&target_group_dn);
-        slapi_ch_free_string(&desc);
         slapi_ch_free_string(&attr);
         slapi_re_free(regex);
     }
@@ -1159,10 +1186,6 @@ automember_free_regex_rule(struct automemberRegexRule *rule)
     if (rule) {
         if (rule->target_group_dn) {
             slapi_sdn_free(&(rule->target_group_dn));
-        }
-
-        if (rule->desc) {
-            slapi_ch_free_string(&(rule->desc));
         }
 
         if (rule->attr) {
