@@ -45,7 +45,7 @@ endif
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
 if OPENLDAP
-LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ -lldif@ol_libver@ -llber@ol_libver@
+LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
 ldaplib = openldap
 ldaplib_defs = -DUSE_OPENLDAP
 else

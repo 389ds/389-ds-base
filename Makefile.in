@@ -49,7 +49,7 @@ noinst_PROGRAMS = makstrdb$(EXEEXT)
 @SOLARIS_TRUE@am__append_2 = -lrt
 @SOLARIS_TRUE@am__append_3 = ldap/servers/slapd/tools/ldclt/opCheck.c
 subdir = .
-DIST_COMMON = $(am__configure_deps) $(dist_man_MANS) \
+DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 	$(serverinc_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure compile config.guess config.sub \
@@ -1191,6 +1191,7 @@ instconfigdir = @instconfigdir@
 kerberos_inc = @kerberos_inc@
 kerberos_lib = @kerberos_lib@
 kerberos_libdir = @kerberos_libdir@
+ldap_lib_ldif = @ldap_lib_ldif@
 ldapsdk_bindir = @ldapsdk_bindir@
 ldapsdk_inc = @ldapsdk_inc@
 ldapsdk_lib = @ldapsdk_lib@
@@ -1305,7 +1306,7 @@ PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_in
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
 @OPENLDAP_FALSE@LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
-@OPENLDAP_TRUE@LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ -lldif@ol_libver@ -llber@ol_libver@
+@OPENLDAP_TRUE@LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
 @OPENLDAP_FALSE@ldaplib = mozldap
 @OPENLDAP_TRUE@ldaplib = openldap
 @OPENLDAP_FALSE@ldaplib_defs = 
