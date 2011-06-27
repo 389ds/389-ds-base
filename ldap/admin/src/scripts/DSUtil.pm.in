@@ -306,7 +306,7 @@ sub check_and_add_entry
     } else {
         debug(3, "check_and_add_entry: Entry not found " . $aentry->{dn} .
               " error " . $conn->getErrorString() . "\n");
-        if (@ctypes) { # uh oh - attempt to del/mod an entry that doesn't exist
+        if (@ctypes and !("add" eq lc($ctypes[0]))) { # uh oh - attempt to del/mod an entry that doesn't exist
             debug(3, "check_and_add_entry: attepting to @ctypes the entry " . $aentry->{dn} .
                   " that does not exist\n");
             return 1; # ignore - return success
@@ -323,7 +323,7 @@ sub check_and_add_entry
         my $OP_DEL = 3;
         # $op stores either of the above $OP_ values
         my $op = $OP_NONE;
-        if ( 0 > $#ctypes )    # aentry: complete entry
+        if ( (0 > $#ctypes) or ("add" eq lc($ctypes[0])) )    # aentry: complete entry
         {
             $op = $OP_ADD; # just add the entry
         }
@@ -351,6 +351,10 @@ sub check_and_add_entry
 
         if ( $OP_ADD == $op )
         {
+            if ("add" eq lc($ctypes[0])) {
+                # remove the changetype: add from the entry
+                $aentry->remove('changetype');
+            }
             $conn->add($aentry);
             my $rc = $conn->getErrorCode();
             if ( $rc != 0 )
