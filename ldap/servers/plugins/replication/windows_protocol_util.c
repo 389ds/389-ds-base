@@ -4485,7 +4485,8 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			if (rc) 
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-					"windows_update_local_entry: failed to modify entry %s\n", escape_string(dn, dnbuf));
+					"windows_update_local_entry: failed to modify entry %s - error %d:%s\n",
+					escape_string(dn, dnbuf), rc, ldap_err2string(rc));
 			}
 			slapi_pblock_destroy(pb);
 		} else 

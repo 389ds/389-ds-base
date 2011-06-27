@@ -673,6 +673,9 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 		ldap_controls_free(serverctrls_copy);
 		serverctrls_copy = NULL;
 
+		/* clear it here in case the search fails and
+		   we are left with a bogus old entry */
+		windows_private_set_raw_entry(conn->agmt, NULL);
 		if (LDAP_SUCCESS == ldap_rc)
 		{
 			LDAPMessage *message = ldap_first_entry(conn->ld, res);
