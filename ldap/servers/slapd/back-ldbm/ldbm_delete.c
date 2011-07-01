@@ -495,6 +495,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			if (cache_add_tentative( &inst->inst_cache, tombstone, NULL) == 0) {
 				tombstone_in_cache = 1;
+			} else if (!(tombstone->ep_state & ENTRY_STATE_NOTINCACHE)) {
+			    LDAPDebug1Arg(LDAP_DEBUG_CACHE,
+			                  "id2entry_add tombstone (%s) is in cache\n",
+			                  slapi_entry_get_dn(tombstone->ep_entry));
+			    tombstone_in_cache = 1;
 			}
 		}
 		else
