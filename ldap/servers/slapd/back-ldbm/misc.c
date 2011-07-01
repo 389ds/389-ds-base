@@ -199,9 +199,14 @@ int instance_set_busy_and_readonly(ldbm_instance *inst)
     } else {
         inst->inst_flags &= ~INST_FLAG_READONLY;
     }
+    /* 
+     * Normally, acquire rlock on be_lock, then lock inst_config_mutex.
+     * instance_set_busy_and_readonly should release inst_config_mutex
+     * before acquiring wlock on be_lock in slapi_mtn_be_set_readonly.
+     */
+    PR_Unlock(inst->inst_config_mutex);
     slapi_mtn_be_set_readonly(inst->inst_be, 1);
 
-    PR_Unlock(inst->inst_config_mutex);
     return 0;
 }
 
