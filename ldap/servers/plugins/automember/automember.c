@@ -1689,15 +1689,15 @@ automember_mod_pre_op(Slapi_PBlock * pb)
 static int
 automember_mod_post_op(Slapi_PBlock *pb)
 {
-    Slapi_Mods *smods = NULL;
     char *dn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_mod_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started)
-        return 0;
+    if (!g_plugin_started) {
+        goto bail;
+    }
 
     if (automember_oktodo(pb) && (dn = automember_get_dn(pb))) {
         /* Check if the config is being modified and reload if so. */
@@ -1749,8 +1749,12 @@ automember_add_post_op(Slapi_PBlock *pb)
 
     if (e) {
         /* If the entry is a tombstone, just bail. */
-        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+        Slapi_Value *tombstone =
+                        slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+        int rc = slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS,
+                                                   tombstone);
+        slapi_value_free(&tombstone);
+        if (rc) {
             return 0;
         }
 

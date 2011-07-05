@@ -986,6 +986,8 @@ done:
     return result;
 }
 
+#if 0
+/* defined but not used */
 /* 
  * Description:
  * A first attempt at walking over the mapping tree and making sure things
@@ -1018,6 +1020,7 @@ mapping_tree_node_validate(mapping_tree_node *node)
         }
     }
 }
+#endif
 
 static void
 mtn_free_referral_in_node (mapping_tree_node *node)

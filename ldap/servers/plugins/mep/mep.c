@@ -116,6 +116,7 @@ static int mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
     char **type, char **value);
 static int mep_is_managed_entry(Slapi_Entry *e);
 static int mep_is_mapped_attr(Slapi_Entry *template, char *type);
+static int mep_has_tombstone_value(Slapi_Entry * e);
 
 /*
  * Config cache locking functions
@@ -2096,7 +2097,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
         }
 
         /* Fetch the modified entry.  This will not be set for a chaining
-	 * backend, so don't treat the message as fatal. */
+         * backend, so don't treat the message as fatal. */
         slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
         if (e == NULL) {
             slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
@@ -2105,8 +2106,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
         }
 
         /* If the entry is a tombstone, just bail. */
-        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+        if (mep_has_tombstone_value(e)) {
             goto bail;
         }
 
@@ -2218,8 +2218,7 @@ mep_add_post_op(Slapi_PBlock *pb)
 
     if (e) {
         /* If the entry is a tombstone, just bail. */
-        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+        if (mep_has_tombstone_value(e)) {
             return 0;
         }
 
@@ -2287,8 +2286,7 @@ mep_del_post_op(Slapi_PBlock *pb)
         char *managed_dn = NULL;
 
         /* If the entry is a tombstone, just bail. */
-        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+        if (mep_has_tombstone_value(e)) {
             return 0;
         }
 
@@ -2365,8 +2363,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
     }
 
     /* If the entry is a tombstone, just bail. */
-    if (slapi_entry_attr_hasvalue(post_e, SLAPI_ATTR_OBJECTCLASS,
-                                  SLAPI_ATTR_VALUE_TOMBSTONE)) {
+    if (mep_has_tombstone_value(post_e)) {
         return 0;
     }
 
@@ -2549,3 +2546,12 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
     return 0;
 }
 
+static int
+mep_has_tombstone_value(Slapi_Entry * e)
+{
+    Slapi_Value *tombstone = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+    int rc = slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS,
+                                               tombstone);
+    slapi_value_free(&tombstone);
+    return rc;
+}

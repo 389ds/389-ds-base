@@ -2166,7 +2166,7 @@ mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod, Slapi_Entry *ad_en
 	 * mods to take prior mods into account when
 	 * determining what can be skipped. */
 	if (retval == 0) {
-		slapi_entry_apply_mod(ad_entry, slapi_mod_get_ldapmod_byref(smod));
+		slapi_entry_apply_mod(ad_entry, (LDAPMod *)slapi_mod_get_ldapmod_byref(smod));
 	}
 
 	return retval;

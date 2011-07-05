@@ -62,7 +62,7 @@
 #define DELETED_VALUE_STRSIZE 8 /* sizeof(";deleted") */
 
 /* a helper function to set special rdn to a tombstone entry */
-static int _entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn);
+static int _entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn);
 
 /*
  * An attribute name is of the form 'basename[;option]'.
@@ -3867,7 +3867,7 @@ out:
 /* a helper function to set special rdn to a tombstone entry */
 /* Since this a tombstone, it requires a special treatment for rdn*/
 static int
-_entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn)
+_entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn)
 {
     int rc = 0;
     char *tombstone_rdn = slapi_ch_strdup(normdn);
