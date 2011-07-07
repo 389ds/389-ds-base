@@ -625,6 +625,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       }
       pagedresults_set_search_result_set_size_estimate(pb->pb_conn, estimate);
       next_be = NULL; /* to break the loop */
+      if (curr_search_count == -1) {
+        pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+      }
     } else {
       /* be_suffix null means that we are searching the default backend
        * -> don't change the search parameters in pblock
@@ -766,6 +769,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                                               estimate, curr_search_count);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             next_be = NULL; /* to break the loop */
+            if (curr_search_count == -1) {
+                pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+            }
         }
   
         /* if rc != 0 an error occurred while sending back the entries

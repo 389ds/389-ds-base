@@ -152,7 +152,7 @@ do_abandon( Slapi_PBlock *pb )
 		    0 );
 	}
 
-	if (pagedresults_cleanup(pb->pb_conn)) {
+	if (pagedresults_cleanup(pb->pb_conn, 0 /* already locked */)) {
 		/* Cleaned up paged result connection */
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
 			" targetop=Simple Paged Results\n",
