@@ -200,16 +200,7 @@ connection_cleanup(Connection *conn)
 	/* destroy any sasl context */
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
 	/* PAGED_RESULTS */
-	if (conn->c_search_result_set) {
-		if (conn->c_current_be->be_search_results_release) {
-			conn->c_current_be->be_search_results_release(&(conn->c_search_result_set));
-		}
-		conn->c_search_result_set = NULL;
-	}
-	conn->c_current_be = NULL;
-	conn->c_search_result_count = 0;
-	conn->c_timelimit = 0;
-	/* PAGED_RESULTS ENDS */
+	pagedresults_cleanup(conn, 0 /* do not need to lock inside */);
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
@@ -2722,6 +2713,9 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 
 	conn->c_gettingber = 0;
 	connection_abandon_operations( conn );
+
+	pagedresults_cleanup(conn, 0 /* already locked */); /* In case the connection is on pagedresult.
+	                            Better to call it after the op is abandened. */
 
 	if (! config_check_referral_mode()) {
 	    /*

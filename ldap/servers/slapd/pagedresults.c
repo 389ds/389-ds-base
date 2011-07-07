@@ -314,6 +314,39 @@ pagedresults_set_timelimit(Connection *conn, time_t timelimit)
 }
 
 /*
+ * must be called with conn->c_mutex held
+ * return values
+ * 0: not a simple paged result connection
+ * 1: simple paged result and successfully abandoned
+ */
+int
+pagedresults_cleanup(Connection *conn, int needlock)
+{
+    int rc = 0;
+
+    if (needlock) {
+        PR_Lock(conn->c_mutex);
+    }
+    if (conn->c_current_be) {
+        if (conn->c_search_result_set) {
+            if (conn->c_current_be->be_search_results_release) {
+                conn->c_current_be->be_search_results_release(&(conn->c_search_result_set));
+            }
+            conn->c_search_result_set = NULL;
+        }
+        conn->c_current_be = 0;
+        rc = 1;
+    }
+    conn->c_search_result_count = 0;
+    conn->c_timelimit = 0;
+    conn->c_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
+    if (needlock) {
+        PR_Unlock(conn->c_mutex);
+    }
+    return rc;
+}
+
+/*
  * check to see if this connection is currently processing
  * a pagedresults search - if it is, return True - if not,
  * mark that it is processing, and return False

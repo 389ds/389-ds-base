@@ -587,6 +587,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         sort_make_sort_response_control(pb, CONN_GET_SORT_RESULT_CODE, NULL);
       }
       next_be = NULL; /* to break the loop */
+      if (curr_search_count == -1) {
+        pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+      }
     } else {
       /* be_suffix null means that we are searching the default backend
        * -> don't change the search parameters in pblock
@@ -725,6 +728,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                                               pagesize, curr_search_count);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             next_be = NULL; /* to break the loop */
+            if (curr_search_count == -1) {
+                pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+            }
         }
   
         /* if rc != 0 an error occurred while sending back the entries
