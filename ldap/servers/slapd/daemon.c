@@ -1716,9 +1716,12 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
                           SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           fd, prerr, slapd_pr_strerror( prerr ));
                 if ( !SLAPD_PR_WOULD_BLOCK_ERROR(prerr)) {
-                    LDAPDebug(LDAP_DEBUG_ANY, "PR_Write(%d) "
-                              SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                              fd, prerr, slapd_pr_strerror( prerr ));
+                    if (prerr != PR_CONNECT_RESET_ERROR) {
+                        /* 'TCP connection reset by peer': no need to log */
+                        LDAPDebug(LDAP_DEBUG_ANY, "PR_Write(%d) "
+                                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                                  fd, prerr, slapd_pr_strerror( prerr ));
+                    }
                     if (sentbytes < count) {
                         LDAPDebug(LDAP_DEBUG_CONNS,
                                   "PR_Write(%d) - wrote only %d bytes (expected %d bytes) - 0 (EOF)\n", /* disconnected */
