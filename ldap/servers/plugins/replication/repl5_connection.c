@@ -1799,7 +1799,8 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 	else 
 	{
 		ldap_controls_free( ctrls );
-		/* Do not report the same error over and over again */
+		/* Do not report the same error over and over again
+		 * unless replication level logging is enabled. */
 		if (conn->last_ldap_error != rc)
 		{
 			char *errmsg = NULL;
@@ -1807,6 +1808,15 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			/* errmsg is a pointer directly into the ld structure - do not free */
 			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
+							agmt_get_long_name(conn->agmt),
+							mech ? mech : "SIMPLE", rc,
+							ldap_err2string(rc), errmsg);
+		} else {
+			char *errmsg = NULL;
+			/* errmsg is a pointer directly into the ld structure - do not free */
+			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 							agmt_get_long_name(conn->agmt),
 							mech ? mech : "SIMPLE", rc,
