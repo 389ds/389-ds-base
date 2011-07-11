@@ -95,7 +95,7 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
         util_pb = slapi_pblock_new();
         PR_snprintf(entry_string, 512, entries[x], string1, string2, string3);
         e = slapi_str2entry(entry_string, 0);
-        PR_snprintf(ebuf, sizeof(ebuf), slapi_entry_get_dn_const(e)); /* for logging */
+        PL_strncpyz(ebuf, slapi_entry_get_dn_const(e), sizeof(ebuf)); /* for logging */
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, li->li_identity, 0);
         slapi_pblock_set(util_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, 
                          &dont_write_file);
