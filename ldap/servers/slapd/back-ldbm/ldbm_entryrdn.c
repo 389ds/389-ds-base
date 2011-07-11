@@ -1354,8 +1354,8 @@ _entryrdn_new_rdn_elem(backend *be,
     id_internal_to_stored(id, re->rdn_elem_id);
     sizeushort_internal_to_stored(nrdn_len, re->rdn_elem_nrdn_len);
     sizeushort_internal_to_stored(rdn_len, re->rdn_elem_rdn_len);
-    PR_snprintf(re->rdn_elem_nrdn_rdn, nrdn_len, nrdn);
-    PR_snprintf(RDN_ADDR(re), rdn_len, rdn);
+    PL_strncpyz(re->rdn_elem_nrdn_rdn, nrdn, nrdn_len);
+    PL_strncpyz(RDN_ADDR(re), rdn, rdn_len);
 
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                                      "<-- _entryrdn_new_rdn_elem\n");
