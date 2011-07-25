@@ -292,49 +292,12 @@ PRUint64 slapi_counter_set_value(Slapi_Counter *counter, PRUint64 newvalue)
     return newvalue;
 #else
 #ifdef LINUX
-/* Use our own inline assembly for an atomic set if
- * the builtins aren't available. */
-#if defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH
-    /*
-     * %0 = counter->value
-     * %1 = newvalue
-     */
-    __asm__ __volatile__(
-#ifdef CPU_x86
-        /* Save the PIC register */
-        " pushl %%ebx;"
-#endif /* CPU_x86 */
-        /* Put value of counter->value in EDX:EAX */
-        "retryset: movl %0, %%eax;"
-        " movl 4%0, %%edx;"
-        /* Put newval in ECX:EBX */
-        " movl %1, %%ebx;"
-        " movl 4+%1, %%ecx;"
-        /* If EDX:EAX and counter-> are the same,
-         * replace *ptr with ECX:EBX */
-        " lock; cmpxchg8b %0;"
-        " jnz retryset;"
-#ifdef CPU_x86
-        /* Restore the PIC register */
-        " popl %%ebx"
-#endif /* CPU_x86 */
-        : "+o" (counter->value)
-        : "m" (newvalue)
-#ifdef CPU_x86
-        : "memory", "eax", "ecx", "edx", "cc");
-#else
-        : "memory", "eax", "ebx", "ecx", "edx", "cc");
-#endif
-
-    return newvalue;
-#else
     while (1) {
         value = counter->value;
         if (__sync_bool_compare_and_swap(&(counter->value), value, newvalue)) {
             return newvalue;
         }
     }
-#endif /* CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH */
 #elif defined(SOLARIS)
     _sparcv9_AtomicSet(&(counter->value), newvalue);
     return newvalue;
@@ -368,50 +331,12 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
     slapi_unlock_mutex(counter->lock);
 #else
 #ifdef LINUX
-/* Use our own inline assembly for an atomic get if
- * the builtins aren't available. */
-#if defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH
-    /*
-     * %0 = counter->value
-     * %1 = value
-     */
-    __asm__ __volatile__(
-#ifdef CPU_x86
-        /* Save the PIC register */
-        " pushl %%ebx;"
-#endif /* CPU_x86 */
-        /* Put value of counter->value in EDX:EAX */
-        "retryget: movl %0, %%eax;"
-        " movl 4%0, %%edx;"
-        /* Copy EDX:EAX to ECX:EBX */
-        " movl %%eax, %%ebx;"
-        " movl %%edx, %%ecx;"
-        /* If EDX:EAX and counter->value are the same,
-         * replace *ptr with ECX:EBX */
-        " lock; cmpxchg8b %0;"
-        " jnz retryget;"
-        /* Put retreived value into value */
-        " movl %%ebx, %1;"
-        " movl %%ecx, 4%1;"
-#ifdef CPU_x86
-        /* Restore the PIC register */
-        " popl %%ebx"
-#endif /* CPU_x86 */
-        : "+o" (counter->value), "=m" (value)
-        : 
-#ifdef CPU_x86
-        : "memory", "eax", "ecx", "edx", "cc");
-#else
-        : "memory", "eax", "ebx", "ecx", "edx", "cc");
-#endif
-#else
     while (1) {
         value = counter->value;
         if (__sync_bool_compare_and_swap(&(counter->value), value, value)) {
             break;
         }
     }
-#endif /* CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH */
 #elif defined(SOLARIS)
     while (1) {
         value = counter->value;
