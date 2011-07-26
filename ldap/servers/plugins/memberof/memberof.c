@@ -77,7 +77,7 @@ static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
 	DS_PACKAGE_VERSION, "memberof plugin" };
 
 static void* _PluginID = NULL;
-static Slapi_Mutex *memberof_operation_lock = 0;
+static PRMonitor *memberof_operation_lock = 0;
 MemberOfConfig *qsortConfig = 0;
 static int g_plugin_started = 0;
 
@@ -278,7 +278,7 @@ int memberof_postop_start(Slapi_PBlock *pb)
 		goto bail;
 	}
 
-	memberof_operation_lock = slapi_new_mutex();
+	memberof_operation_lock = PR_NewMonitor();
 	if(0 == memberof_operation_lock)
 	{
 		rc = -1;
@@ -2147,12 +2147,12 @@ int memberof_qsort_compare(const void *a, const void *b)
 
 void memberof_lock()
 {
-	slapi_lock_mutex(memberof_operation_lock);
+	PR_EnterMonitor(memberof_operation_lock);
 }
 
 void memberof_unlock()
 {
-	slapi_unlock_mutex(memberof_operation_lock);
+	PR_ExitMonitor(memberof_operation_lock);
 }
 
 typedef struct _task_data
