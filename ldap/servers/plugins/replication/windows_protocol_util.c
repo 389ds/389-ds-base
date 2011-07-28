@@ -1128,7 +1128,7 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 
 				container_str = extract_container(slapi_entry_get_sdn_const(local_entry),
 					windows_private_get_directory_subtree(prp->agmt));
-				new_dn_string = PR_smprintf("cn=%s,%s%s", cn_string, container_str, suffix);
+				new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", cn_string, container_str, suffix);
 
 				if (new_dn_string) {
 					/* If the tombstone exists, reanimate it. If the tombstone
@@ -3273,7 +3273,7 @@ extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn)
 			slapi_rdn_get_first(rdn, &rdn_type, &rdn_str);
 			if (rdn_str)
 			{
-				result = PR_sprintf_append(result, "%s=%s,", rdn_type,rdn_str );	
+				result = PR_sprintf_append(result, "%s=\"%s\",", rdn_type,rdn_str );	
 			}
 			/* Don't free this until _after_ we've used the rdn_str */
 			slapi_rdn_free(&rdn);
@@ -3378,7 +3378,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 
 					container_str = extract_container(slapi_entry_get_sdn_const(e),
 						windows_private_get_directory_subtree(prp->agmt));
-					new_dn_string = PR_smprintf("cn=%s,%s%s", cn_string, container_str, suffix);
+					new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", cn_string, container_str, suffix);
 
 					if (new_dn_string) {
 						slapi_sdn_free(&new_dn);
@@ -3447,9 +3447,9 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 					
 						container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_directory_subtree(prp->agmt));
 						
-						rdnstr = is_nt4 ? "samaccountname=%s,%s%s" : "cn=%s,%s%s";
+						rdnstr = is_nt4 ? "samaccountname=\"%s\",%s%s" : "cn=\"%s\",%s%s";
 
-						new_dn_string = PR_smprintf(rdnstr,cn_string,container_str,suffix);
+						new_dn_string = slapi_create_dn_string(rdnstr,cn_string,container_str,suffix);
 						if (new_dn_string)
 						{
 							new_dn = slapi_sdn_new_dn_byval(new_dn_string);
@@ -3674,7 +3674,7 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 			/* Local DNs for users and groups are different */
 			if (is_user)
 			{
-				new_dn_string = PR_smprintf("uid=%s,%s%s",username,container_str,suffix);
+				new_dn_string = slapi_create_dn_string("uid=\"%s\",%s%s",username,container_str,suffix);
 				winsync_plugin_call_get_new_ds_user_dn_cb(ra,
 														  windows_private_get_raw_entry(ra),
 														  e,
@@ -3683,7 +3683,7 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 														  windows_private_get_windows_subtree(ra));
 			} else
 			{
-				new_dn_string = PR_smprintf("cn=%s,%s%s",username,container_str,suffix);
+				new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s",username,container_str,suffix);
 				if (is_group) {
 					winsync_plugin_call_get_new_ds_group_dn_cb(ra,
 															   windows_private_get_raw_entry(ra),
