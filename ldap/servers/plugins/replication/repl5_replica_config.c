@@ -79,6 +79,11 @@ static int replica_task_done(Replica *replica);
 												
 static multimaster_mtnode_extension * _replica_config_get_mtnode_ext (const Slapi_Entry *e);
 
+/*
+ * Note: internal add/modify/delete operations should not be run while
+ * s_configLock is held.  E.g., slapi_modify_internal_pb via replica_task_done
+ * in replica_config_post_modify.
+ */
 static PRLock *s_configLock;
 
 static int
@@ -480,6 +485,7 @@ replica_config_post_modify(Slapi_PBlock *pb,
     char *config_attr, *config_attr_value;
     Slapi_Operation *op;
     void *identity;
+    int flag_need_cleanup = 0;
 
     if (returntext)
     {
@@ -569,23 +575,29 @@ replica_config_post_modify(Slapi_PBlock *pb,
 
                 if (strcasecmp (config_attr, TASK_ATTR) == 0) 
                 {
-                    *returncode = replica_cleanup_task(mtnode_ext->replica,
-                                                       config_attr_value,
-                                                       errortext, apply_mods);
+                    flag_need_cleanup = 1;
                 }
             }
         }
     }
 
 done:
+    PR_Unlock (s_configLock);
+
+    /* slapi_ch_free accepts NULL pointer */
+    slapi_ch_free_string (&replica_root);
+
+    /* Call replica_cleanup_task after s_configLock is reliesed */
+    if (flag_need_cleanup)
+    {
+        *returncode = replica_cleanup_task(mtnode_ext->replica,
+                                           config_attr_value,
+                                           errortext, apply_mods);
+    }
+
     if (mtnode_ext->replica)
         object_release (mtnode_ext->replica);
     
-    /* slapi_ch_free accepts NULL pointer */
-    slapi_ch_free ((void**)&replica_root);
-
-    PR_Unlock (s_configLock);
-
     if (*returncode != LDAP_SUCCESS)
     {
         return SLAPI_DSE_CALLBACK_ERROR;
