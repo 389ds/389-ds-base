@@ -736,6 +736,7 @@ extern int	 setThreadStatus (thread_context *tttctx,	/*JLS 17-11-00*/
 				int status);			/*JLS 17-11-00*/
 extern void	*threadMain   (void *);
 	/* From ldapfct.c */
+extern LDAP* connectToLDAP (thread_context *tttctx, const char *bufBindDN, const char *bufPasswd, unsigned int mode, unsigned int mod2);
 extern int	 connectToServer (thread_context *tttctx);	/*JLS 14-03-01*/
 extern char	*dnFromMessage (thread_context *tttctx, LDAPMessage *res);
 extern int	 doAddEntry    (thread_context *tttctx);
