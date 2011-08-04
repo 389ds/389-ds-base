@@ -212,13 +212,13 @@ pagedresults_get_search_result(Connection *conn)
 }
 
 int
-pagedresults_set_search_result(Connection *conn, void *sr)
+pagedresults_set_search_result(Connection *conn, void *sr, int locked)
 {
     int rc = -1;
     if (conn) {
-        PR_Lock(conn->c_mutex);
+        if (!locked) PR_Lock(conn->c_mutex);
         conn->c_search_result_set = sr;
-        PR_Unlock(conn->c_mutex);
+        if (!locked) PR_Unlock(conn->c_mutex);
         rc = 0;
     }
     return rc;
@@ -370,10 +370,13 @@ pagedresults_set_timelimit(Connection *conn, time_t timelimit)
  * 1: simple paged result and successfully abandoned
  */
 int
-pagedresults_cleanup(Connection *conn)
+pagedresults_cleanup(Connection *conn, int needlock)
 {
     int rc = 0;
 
+    if (needlock) {
+        PR_Lock(conn->c_mutex);
+    }
     if (conn->c_current_be) {
         if (conn->c_search_result_set) {
             if (conn->c_current_be->be_search_results_release) {
@@ -387,6 +390,9 @@ pagedresults_cleanup(Connection *conn)
     conn->c_search_result_count = 0;
     conn->c_timelimit = 0;
     conn->c_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
+    if (needlock) {
+        PR_Unlock(conn->c_mutex);
+    }
     return rc;
 }
 

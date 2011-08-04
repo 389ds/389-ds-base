@@ -509,8 +509,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 	int rc;
 
 	/* get the sockbuf */
-	ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd);
-	if (fd <= 0) {
+	if ((ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd) != LDAP_OPT_SUCCESS) || (fd <= 0)) {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: invalid connection insee_if_write_available \n",
 						agmt_get_long_name(conn->agmt));
@@ -537,7 +536,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 						agmt_get_long_name(conn->agmt),
 						timeout);
 		return CONN_TIMEOUT;
-	} else if ((rc < 0) || ((polldesc.out_flags|PR_POLL_WRITE) == 0)) { /* error */
+	} else if ((rc < 0) || (!(polldesc.out_flags&PR_POLL_WRITE))) { /* error */
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"%s: error during poll attempt [%d:%s]\n",
 						agmt_get_long_name(conn->agmt),

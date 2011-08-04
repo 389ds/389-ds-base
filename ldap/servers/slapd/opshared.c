@@ -600,7 +600,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 
       /* search result could be reset in the backend/dse */
       slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-      pagedresults_set_search_result(pb->pb_conn, sr);
+      pagedresults_set_search_result(pb->pb_conn, sr, 0);
 
       if (PAGEDRESULTS_SEARCH_END == pr_stat) {
         /* no more entries to send in the backend */
@@ -625,6 +625,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       }
       pagedresults_set_search_result_set_size_estimate(pb->pb_conn, estimate);
       next_be = NULL; /* to break the loop */
+      if (curr_search_count == -1) {
+        pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+      }
     } else {
       /* be_suffix null means that we are searching the default backend
        * -> don't change the search parameters in pblock
@@ -753,7 +756,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
               slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
               if (pagedresults_set_current_be(pb->pb_conn, be) < 0 ||
-                  pagedresults_set_search_result(pb->pb_conn, sr) < 0 ||
+                  pagedresults_set_search_result(pb->pb_conn, sr, 0) < 0 ||
                   pagedresults_set_search_result_count(pb->pb_conn,
                                                    curr_search_count) < 0 ||
                   pagedresults_set_search_result_set_size_estimate(pb->pb_conn,
@@ -766,6 +769,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                                               estimate, curr_search_count);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             next_be = NULL; /* to break the loop */
+            if (curr_search_count == -1) {
+                pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+            }
         }
   
         /* if rc != 0 an error occurred while sending back the entries
@@ -1128,6 +1134,9 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
     char **attrs = NULL;
     unsigned int pr_stat = 0;
 
+    if ( NULL == pb ) {
+        return rval;
+    }
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
 
@@ -1137,8 +1146,23 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
     {
         Slapi_Entry *gerentry = NULL;
         Slapi_Operation *operation;
+        int is_paged = 0;
 
+        slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+        is_paged = operation->o_flags & OP_FLAG_PAGED_RESULTS;
+        /* 
+         * If it is paged results, the search result set could be released when
+         * it reaches the timelimit.  This lock protects the search result set
+         * not to be released while sending a next entry.
+         * (see pagedresults_cleanup called from disconnect_server_nomutex)
+         */
+        if ( is_paged && pb->pb_conn && pb->pb_conn->c_mutex ) {
+            PR_Lock( pb->pb_conn->c_mutex );
+        }
         rc = be->be_next_search_entry(pb);
+        if ( is_paged && pb->pb_conn && pb->pb_conn->c_mutex ) {
+            PR_Unlock( pb->pb_conn->c_mutex );
+        }
         if (rc < 0) 
         {
             /*
@@ -1159,7 +1183,6 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
 
         /* Check for possible get_effective_rights control */
-        slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
         if ( operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS )
         {
             char *errbuf = NULL;

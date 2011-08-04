@@ -278,7 +278,7 @@ SetUnicodeStringFromUTF_8 (UChar** U, int32_t* Ulen, int *isAlloced, const struc
     }	
 
     /* end now points at last non-null/non-space of val */
-    if (n < 0) { /* bogus */
+    if (n == 0) { /* bogus */
 	return U_INVALID_FORMAT_ERROR; /* don't know what else to use here */
     }
 

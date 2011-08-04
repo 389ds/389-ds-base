@@ -345,18 +345,23 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 			/* Is it the matching rule ? */
 			if (LDAP_TAG_SK_MATCHRULE == next_tag) {
 				/* If so, get it */
-				ber_scanf(ber,"a",&matchrule);
+				return_value = ber_scanf(ber,"a",&matchrule);
+				if (LBER_ERROR == return_value) {
+					rc = LDAP_PROTOCOL_ERROR;
+					goto err;
+				}
+
 				/* That can be followed by a reverse indicator */
 				len = -1; /* reset - not used here */
 				next_tag = ber_next_element(ber,&len, inner_last);
 				if (LDAP_TAG_SK_REVERSE == next_tag) {
 					/* Get the reverse sort indicator here */
-					ber_scanf(ber,"b",&reverse);
+					return_value = ber_scanf(ber,"b",&reverse);
 					/* The protocol police say--"You must have other than your default value" */
-					if (0 == reverse) {
+					if ((LBER_ERROR == return_value) || (0 == reverse)) {
 						/* Protocol error */
 						rc = LDAP_PROTOCOL_ERROR;
-                                                goto err;
+						goto err;
 					}
 				} else {
 					/* Perhaps we're done now ? */
@@ -372,7 +377,11 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 				/* Is it the reverse indicator ? */
 				if (LDAP_TAG_SK_REVERSE == next_tag) {
 					/* If so, get it */
-					ber_scanf(ber,"b",&reverse);
+					return_value = ber_scanf(ber,"b",&reverse);
+					if (LBER_ERROR == return_value) {
+						rc = LDAP_PROTOCOL_ERROR;
+						goto err;
+					}
 				} else {
 					/* Protocol error---tag which isn't either of the legal ones came first */
 					rc = LDAP_PROTOCOL_ERROR;

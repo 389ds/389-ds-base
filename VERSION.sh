@@ -10,11 +10,11 @@ vendor="389 Project"
 # PACKAGE_VERSION is constructed from these
 VERSION_MAJOR=1
 VERSION_MINOR=2
-VERSION_MAINT=8.7
+VERSION_MAINT=9.4
 # if this is a PRERELEASE, set VERSION_PREREL
 # otherwise, comment it out
 # be sure to include the dot prefix in the prerel
-#VERSION_PREREL=.rc5
+#VERSION_PREREL=.a3
 # NOTES on VERSION_PREREL
 # use aN for an alpha release e.g. a1, a2, etc.
 # use rcN for a release candidate e.g. rc1, rc2, etc.
@@ -50,4 +50,4 @@ PACKAGE_BUGREPORT="${PACKAGE_BUGREPORT}enter_bug.cgi?product=$brand"
 PACKAGE_STRING="$PACKAGE_TARNAME $PACKAGE_VERSION"
 # the version of the ds console package that this directory server
 # is compatible with
-CONSOLE_VERSION=$VERSION_MAJOR.$VERSION_MINOR.5
+CONSOLE_VERSION=$VERSION_MAJOR.$VERSION_MINOR.6

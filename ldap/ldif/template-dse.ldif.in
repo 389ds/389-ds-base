@@ -581,6 +581,7 @@ nsslapd-pluginpath: libreferint-plugin
 nsslapd-plugininitfunc: referint_postop_init
 nsslapd-plugintype: postoperation
 nsslapd-pluginenabled: off
+nsslapd-pluginprecedence: 40
 nsslapd-pluginArg0: 0
 nsslapd-pluginArg1: %log_dir%/referint
 nsslapd-pluginArg2: 0
@@ -617,6 +618,17 @@ nsslapd-pluginarg1: mail
 nsslapd-pluginarg2: userpassword
 nsslapd-pluginarg3: ,
 nsslapd-pluginarg4: %ds_suffix%
+nsslapd-plugin-depends-on-type: database
+
+dn: cn=Auto Membership Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Auto Membership Plugin
+nsslapd-pluginpath: libautomember-plugin
+nsslapd-plugininitfunc: automember_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
 dn: cn=deref,cn=plugins,cn=config

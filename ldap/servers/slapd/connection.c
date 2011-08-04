@@ -201,7 +201,7 @@ connection_cleanup(Connection *conn)
 	/* destroy any sasl context */
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
 	/* PAGED_RESULTS */
-	pagedresults_cleanup(conn);
+	pagedresults_cleanup(conn, 0 /* do not need to lock inside */);
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
@@ -2727,8 +2727,6 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) ) { 
 
-	pagedresults_cleanup(conn); /* In case the connection is on pagedresult */
-
 	/*
 	 * PR_Close must be called before anything else is done because
 	 * of NSPR problem on NT which requires that the socket on which
@@ -2768,6 +2766,9 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 
 	conn->c_gettingber = 0;
 	connection_abandon_operations( conn );
+
+	pagedresults_cleanup(conn, 0 /* already locked */); /* In case the connection is on pagedresult.
+	                            Better to call it after the op is abandened. */
 
 	if (! config_check_referral_mode()) {
 	    /*

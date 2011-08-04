@@ -709,6 +709,7 @@ struct matchingRuleList {
 #define ATTR_PLUGIN_DESC				"nsslapd-pluginDescription"
 #define ATTR_PLUGIN_ENABLED				"nsslapd-pluginEnabled"
 #define ATTR_PLUGIN_ARG					"nsslapd-pluginArg"
+#define ATTR_PLUGIN_CONFIG_AREA			"nsslapd-pluginConfigArea"
 #define ATTR_PLUGIN_BACKEND				"nsslapd-backend"
 #define ATTR_PLUGIN_SCHEMA_CHECK		"nsslapd-schemaCheck"
 #define ATTR_PLUGIN_LOG_ACCESS			"nsslapd-logAccess"
@@ -1515,6 +1516,7 @@ typedef struct slapi_pblock {
 	Slapi_Entry	**pb_plugin_internal_search_op_entries;
 	char		**pb_plugin_internal_search_op_referrals;
 	void		*pb_plugin_identity; /* identifies plugin for internal operation */
+	char		*pb_plugin_config_area; /* optional config area */
 	void		*pb_parent_txn;	/* parent transaction ID */
 	void		*pb_txn;		/* transaction ID */
 	IFP		pb_txn_ruv_mods_fn; /* Function to fetch RUV mods for txn */

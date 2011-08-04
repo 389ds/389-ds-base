@@ -995,6 +995,13 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 
 				for(iter=0; iter<item_count; iter++)
 				{
+					if ( rc != 0 ) {
+						/* we hit an error - we need to free all of the stuff allocated by
+						   slapi_vattr_namespace_values_get_sp */
+						slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
+						continue;
+					}
+
 					if (SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE == type_name_disposition[iter]) {
 						name_to_return = actual_type_name[iter]; 
 					}
@@ -1028,16 +1035,21 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 					}
 
 					slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
-    				if ( rc != 0 ) {
-						goto exit;
-    				}
 				}
 
 				slapi_ch_free((void**)&actual_type_name);
 				slapi_ch_free((void**)&type_name_disposition);
 				slapi_ch_free((void**)&values);
+				if ( rc != 0 ) {
+					goto exit;
+				}
 
 			} else {
+				/* if we got here, then either values is NULL or values contains no elements
+				   either way we can free it */
+				slapi_ch_free((void**)&values);
+				slapi_ch_free((void**)&actual_type_name);
+				slapi_ch_free((void**)&type_name_disposition);
 				rc = 0;
 			}
 		}		
@@ -1121,6 +1133,12 @@ int send_specific_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PB
 
 				for(iter=0; iter<item_count; iter++)
 				{
+					if ( rc != 0 ) {
+						/* we hit an error - we need to free all of the stuff allocated by
+						   slapi_vattr_namespace_values_get_sp */
+						slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
+						continue;
+					}
 					if (SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE == type_name_disposition[iter]) {
 						name_to_return = actual_type_name[iter]; 
 					} else {
@@ -1154,16 +1172,21 @@ int send_specific_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PB
 						rc = encode_attr_2( pb, ber, e, values[iter], attrsonly, current_type_name, name_to_return );
 					
 					slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
-    				if ( rc != 0 ) {
-						goto exit;
-    				}
 				}
 
 				slapi_ch_free((void**)&actual_type_name);
 				slapi_ch_free((void**)&type_name_disposition);
 				slapi_ch_free((void**)&values);
+				if ( rc != 0 ) {
+					goto exit;
+				}
 
 			} else {
+				/* if we got here, then either values is NULL or values contains no elements
+				   either way we can free it */
+				slapi_ch_free((void**)&values);
+				slapi_ch_free((void**)&actual_type_name);
+				slapi_ch_free((void**)&type_name_disposition);
 				rc = 0;
 			}
         } 	

@@ -96,9 +96,9 @@ void sdt_destroy(SDatTable *sdt)
 	        free(sdt->uids[i]);
 	}
     }
-    if (sdt->dns);
+    if (sdt->dns)
         free(sdt->dns);
-    if (sdt->uids);
+    if (sdt->uids)
         free(sdt->uids);
     free(sdt);
 }

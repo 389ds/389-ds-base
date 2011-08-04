@@ -92,25 +92,33 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 
 int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 { 
-	struct vlvSearch *parent;
-	backend *be= ((ldbm_instance*)arg)->inst_be;
-	Slapi_DN parentdn;
-	
-	slapi_sdn_init(&parentdn);
-	slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
+    struct vlvSearch *parent;
+    backend *be= ((ldbm_instance*)arg)->inst_be;
+    Slapi_DN parentdn;
+
+    slapi_sdn_init(&parentdn);
+    slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
+
+    /* vlvIndex list is modified; need Wlock */
+    PR_RWLock_Wlock(be->vlvSearchList_lock);
+    parent= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
+    if(parent!=NULL)
     {
-        /* vlvIndex list is modified; need Wlock */
-        PR_RWLock_Wlock(be->vlvSearchList_lock);
-        parent= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
-        if(parent!=NULL)
-        {
+        char *name = slapi_entry_attr_get_charptr(entryBefore, type_vlvName);
+        if (vlvSearch_findname(parent, name)) {
+            /* The vlvindex is already in the vlvSearchList. Skip adding it. */
+            LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+                          "vlv_AddIndexEntry: %s is already in vlvSearchList\n",
+                          slapi_entry_get_dn_const(entryBefore));
+        } else {
             struct vlvIndex* newVlvIndex= vlvIndex_new();
             newVlvIndex->vlv_be=be;
             vlvIndex_init(newVlvIndex, be, parent, entryBefore);
             vlvSearch_addIndex(parent, newVlvIndex);
         }
-        PR_RWLock_Unlock(be->vlvSearchList_lock);
+        slapi_ch_free_string(&name);
     }
+    PR_RWLock_Unlock(be->vlvSearchList_lock);
     slapi_sdn_done(&parentdn);
     return SLAPI_DSE_CALLBACK_OK;
 }

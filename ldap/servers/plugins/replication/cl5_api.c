@@ -852,7 +852,7 @@ done:;
    Description:	imports ldif file into changelog; changelog must be in the closed state
    Parameters:  clDir - changelog dir
 				ldifFile - absolute path to the ldif file to import
-				replicas - optional list of replicas whose data should be imported.
+				replicas - list of replicas whose data should be imported.
    Return:		CL5_SUCCESS if function is successfull;
 				CL5_BAD_DATA if invalid parameter is passed;
 				CL5_BAD_STATE if changelog is open or not inititalized;
@@ -883,8 +883,8 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 	struct berval **maxvals = NULL;
 	int purgeidx = 0;
 	int maxidx = 0;
-	int maxpurgesz = 8;
-	int maxmaxsz = 8;
+	int maxpurgesz = 0;
+	int maxmaxsz = 0;
 	int entryCount = 0;
 
 	/* validate params */
@@ -900,6 +900,13 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 						"cl5ImportLDIF: changelog is not initialized\n");
 		return CL5_BAD_STATE;	
+	}
+
+	if (replicas == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+						"cl5ImportLDIF: null list of replicas\n");
+		return CL5_BAD_DATA;
 	}
 
 	prim_replica_obj = replicas[0];
@@ -982,26 +989,31 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
             struct berval type, value;
             int freeval = 0;
 
-            purgevals = (struct berval **)slapi_ch_malloc(
-                                          sizeof(struct berval *) * maxpurgesz);
-            maxvals = (struct berval **)slapi_ch_malloc(
-                                          sizeof(struct berval *) * maxmaxsz);
             while ((line = ldif_getline(&next)) != NULL) {
                 rc = slapi_ldif_parse_line(line, &type, &value, &freeval);
                 /* ruv_dump (dbfile->purgeRUV, "clpurgeruv", prFile); */
                 if (0 == strcasecmp (type.bv_val, "clpurgeruv")) {
-                    if (maxpurgesz == purgeidx + 2) {
-                        maxpurgesz *= 2;
+                    if (maxpurgesz < purgeidx + 2) {
+                        if (!maxpurgesz) {
+                            maxpurgesz = 4 * (purgeidx + 2);
+                        } else {
+                            maxpurgesz *= 2;
+                        }
                         purgevals = (struct berval **)slapi_ch_realloc(
                                           (char *)purgevals,
                                           sizeof(struct berval *) * maxpurgesz);
                     }
                     purgevals[purgeidx++] = slapi_ch_bvdup(&value);
+                    purgevals[purgeidx] = NULL; /* make sure NULL terminated */
                 }
                 /* ruv_dump (dbfile->maxRUV, "clmaxruv", prFile); */
                 else if (0 == strcasecmp (type.bv_val, "clmaxruv")) {
-                    if (maxmaxsz == maxidx + 2) {
-                        maxmaxsz *= 2;
+                    if (maxmaxsz < maxidx + 2) {
+                        if (!maxmaxsz) {
+                            maxmaxsz = 4 * (maxidx + 2);
+                        } else {
+                            maxmaxsz *= 2;
+                        }
                         maxvals = (struct berval **)slapi_ch_realloc(
                                           (char *)maxvals,
                                           sizeof(struct berval *) * maxmaxsz);
@@ -1009,6 +1021,7 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
                     /* {replica #} min_csn csn [last_modified] */
                     /* get rid of last_modified, if any */
                     maxvals[maxidx++] = slapi_ch_bvdup(&value);
+                    maxvals[maxidx] = NULL; /* make sure NULL terminated */
                 }
                 if (freeval) {
                     slapi_ch_free_string(&value.bv_val);
@@ -1094,23 +1107,12 @@ next:
     if (dbfile) {
         if (purgeidx > 0) {
             ruv_destroy (&dbfile->purgeRUV);
-            purgevals[purgeidx] = NULL;
             rc = ruv_init_from_bervals(purgevals, &dbfile->purgeRUV);
         }
         if (maxidx > 0) {
             ruv_destroy (&dbfile->maxRUV);
-            maxvals[maxidx] = NULL;
             rc = ruv_init_from_bervals(maxvals, &dbfile->maxRUV);
         }
-
-        for (purgeidx = 0; purgevals && purgevals[purgeidx]; purgeidx++) {
-            slapi_ch_bvfree(&purgevals[purgeidx]);
-        }
-        slapi_ch_free((void **)&purgevals);
-        for (maxidx = 0; maxvals && maxvals[maxidx]; maxidx++) {
-            slapi_ch_bvfree(&maxvals[maxidx]);
-        }
-        slapi_ch_free((void **)&maxvals);
 
         dbfile->entryCount = entryCount;
     }
@@ -1119,6 +1121,15 @@ next:
     }
 
 done:
+    for (purgeidx = 0; purgevals && purgevals[purgeidx]; purgeidx++) {
+        slapi_ch_bvfree(&purgevals[purgeidx]);
+    }
+    slapi_ch_free((void **)&purgevals);
+    for (maxidx = 0; maxvals && maxvals[maxidx]; maxidx++) {
+        slapi_ch_bvfree(&maxvals[maxidx]);
+    }
+    slapi_ch_free((void **)&maxvals);
+
 	if (file) {
 #if defined(USE_OPENLDAP)
 		ldif_close(file);
@@ -6316,9 +6327,6 @@ cl5WriteRUV()
         }
         file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
     }
-    if (file_obj) {
-        object_release (file_obj);
-    }
 bail:
     if (closeit && (CL5_STATE_OPEN == s_cl5Desc.dbState)) {
         _cl5Close ();
@@ -6415,10 +6423,10 @@ cl5DeleteRUV()
         }
         file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
     }
+bail:
     if (file_obj) {
         object_release (file_obj);
     }
-bail:
     if (closeit && (CL5_STATE_OPEN == s_cl5Desc.dbState)) {
         _cl5Close ();
         s_cl5Desc.dbState = CL5_STATE_CLOSED; /* force to change the state */

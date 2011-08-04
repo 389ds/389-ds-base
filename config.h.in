@@ -67,8 +67,7 @@
    don't. */
 #undef HAVE_DECL_STRERROR_R
 
-/* Define to 1 if you have the declaration of `__sync_add_and_fetch', and to 0
-   if you don't. */
+/* do not have 64-bit atomic compare and swap functions provided by gcc */
 #undef HAVE_DECL___SYNC_ADD_AND_FETCH
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.

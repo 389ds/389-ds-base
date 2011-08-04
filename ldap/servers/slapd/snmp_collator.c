@@ -481,6 +481,10 @@ int snmp_collator_stop()
 {
 	int err;
 
+	if (snmp_collator_stopped) {
+		return 0;
+	}
+
 	/* Abort any pending events */
 	slapi_eq_cancel(snmp_eq_ctx);
 	snmp_collator_stopped = 1;
@@ -506,7 +510,9 @@ int snmp_collator_stop()
    sem_unlink(stats_sem_name);
 
    /* delete lock */
-   PR_DestroyLock(interaction_table_mutex);
+   if (interaction_table_mutex) {
+       PR_DestroyLock(interaction_table_mutex);
+   }
 
 #ifdef _WIN32
    /* send the event so server down trap gets set on NT */
@@ -569,6 +575,12 @@ snmp_collator_sem_wait()
 {
     int i = 0;
     int got_sem = 0;
+
+    if (SEM_FAILED == stats_sem) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+           "semaphore for stats file (%s) is not available.\n", szStatsFile);
+        return;
+    }
 
     for (i=0; i < SNMP_NUM_SEM_WAITS; i++) {
         if (sem_trywait(stats_sem) == 0) {

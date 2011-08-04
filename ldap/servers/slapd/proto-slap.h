@@ -1374,7 +1374,7 @@ void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, ber_int
 Slapi_Backend *pagedresults_get_current_be(Connection *conn);
 int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be);
 void *pagedresults_get_search_result(Connection *conn);
-int pagedresults_set_search_result(Connection *conn, void *sr);
+int pagedresults_set_search_result(Connection *conn, void *sr, int locked);
 int pagedresults_get_search_result_count(Connection *conn);
 int pagedresults_set_search_result_count(Connection *conn, int cnt);
 int pagedresults_get_search_result_set_size_estimate(Connection *conn);
@@ -1386,7 +1386,7 @@ int pagedresults_set_unindexed(Connection *conn);
 int pagedresults_get_sort_result_code(Connection *conn);
 int pagedresults_set_sort_result_code(Connection *conn, int code);
 int pagedresults_set_timelimit(Connection *conn, time_t timelimit);
-int pagedresults_cleanup(Connection *conn);
+int pagedresults_cleanup(Connection *conn, int needlock);
 int pagedresults_check_or_set_processing(Connection *conn);
 int pagedresults_reset_processing(Connection *conn);
 

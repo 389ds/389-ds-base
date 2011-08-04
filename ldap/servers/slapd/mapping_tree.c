@@ -986,6 +986,8 @@ done:
     return result;
 }
 
+#if 0
+/* defined but not used */
 /* 
  * Description:
  * A first attempt at walking over the mapping tree and making sure things
@@ -1018,6 +1020,7 @@ mapping_tree_node_validate(mapping_tree_node *node)
         }
     }
 }
+#endif
 
 static void
 mtn_free_referral_in_node (mapping_tree_node *node)
@@ -1535,7 +1538,7 @@ add_internal_mapping_tree_node(const char *subtree, Slapi_Backend *be, mapping_t
 {
     Slapi_DN *dn;
     mapping_tree_node *node;
-    backend ** be_list = (backend **) slapi_ch_malloc(sizeof(backend **));
+    backend ** be_list = (backend **) slapi_ch_malloc(sizeof(backend *));
 
     be_list[0] = be;
 
@@ -2905,7 +2908,7 @@ slapi_be_select( const Slapi_DN *sdn ) /* JCM - The name of this should change??
 {
     Slapi_Backend *be;
     mapping_tree_node *node= slapi_get_mapping_tree_node_by_dn(sdn);
-    if(node!=NULL)
+    if((node!=NULL) && (node->mtn_be!=NULL))
         be= node->mtn_be[0];
     else
         be = NULL;

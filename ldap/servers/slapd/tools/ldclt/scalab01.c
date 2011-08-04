@@ -532,134 +532,23 @@ done:
 int
 scalab01_connectSuperuser (void)
 {
-  int	 ret;				/* Return value */
-  int	 v2v3;				/* LDAP version used */
   char	 bindDN [MAX_DN_LENGTH] = {0};	/* To bind */
-  const char *mech = LDAP_SASL_SIMPLE;
-  struct berval cred = {0, NULL};
-  struct berval *servercredp = NULL;
-#if defined(USE_OPENLDAP)
-  char *ldapurl = NULL;
-#endif
+  unsigned int mode = mctx.mode;
+  unsigned int mod2 = mctx.mod2;
 
-#if defined(USE_OPENLDAP)
-  ldapurl = PR_smprintf("ldap%s://%s:%d/",
-			(mctx.mode & SSL) ? "s" : "",
-			mctx.hostname, mctx.port);
-  if ((ret = ldap_initialize(&s1ctx.ldapCtx, ldapurl))) {
-    printf ("ldclt[%d]: ctrl: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
-	    mctx.pid, ldapurl, errno, ret, my_ldap_err2string(ret));
-    fflush (stdout);
-    PR_smprintf_free(ldapurl);
-    return (-1);
-  }
-  PR_smprintf_free(ldapurl);
-  ldapurl = NULL;
-#else /* !USE_OPENLDAP */
-  /*
-   * Create the LDAP context
-   */
-  /*
-   * SSL is enabled ?
-   */
-  if (mctx.mode & SSL)
-  {
-    /*
-     * LDAP session initialization in SSL mode
-     */
-    s1ctx.ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: ldapssl_init (%s, %d), ldapCtx=0x%p\n",
-			mctx.pid, mctx.hostname, mctx.port, s1ctx.ldapCtx);
-    if (s1ctx.ldapCtx == NULL)
-    {
-      printf ("ldclt[%d]: ctrl: Cannot ldapssl_init (%s, %d), errno=%d\n",
-			mctx.pid, mctx.hostname, mctx.port, errno);
-      fflush (stdout);
-      return (-1);
-    }
-    /*
-     * Client authentication is used ?
-     */
-    if (mctx.mode & CLTAUTH)
-    {
-      ret = ldapssl_enable_clientauth(s1ctx.ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
-      if (mctx.mode & VERY_VERBOSE)
-	printf
-	    ("ldclt[%d]: ctrl: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-	     mctx.pid, s1ctx.ldapCtx, mctx.keydbpin, mctx.cltcertname);
-      if (ret < 0)
-      {
-	printf
-	    ("ldclt[%d]: ctrl: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-	     mctx.pid, s1ctx.ldapCtx, mctx.keydbpin, mctx.cltcertname);
-	ldap_perror(s1ctx.ldapCtx, "ldapssl_enable_clientauth");
-	fflush (stdout);
-	return (-1);
-      }
-    }
-  }
-  else
-  {
-    /*
-     * Connection initialization in normal, unencrypted mode
-     */
-    s1ctx.ldapCtx = ldap_init (mctx.hostname, mctx.port);
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: ctrl: After ldap_init (%s, %d), ldapCtx=0x%p\n",
-		mctx.pid, mctx.hostname, mctx.port, s1ctx.ldapCtx);
-    if (s1ctx.ldapCtx == NULL)
-    {
-      printf ("ldclt[%d]: ctrl: Cannot ldap_init (%s, %d), errno=%d\n",
-		mctx.pid, mctx.hostname, mctx.port, errno);
-      fflush (stdout);
-      return (-1);
-    }
-  }
-#endif /* !USE_OPENLDAP */
-
-  if (mctx.mode & CLTAUTH) {
-    mech = "EXTERNAL";
-  } else {
+  if (!(mode & CLTAUTH)) {
     strcpy (bindDN, SCALAB01_SUPER_USER_RDN);
     strcat (bindDN, ",");
     strcat (bindDN, mctx.baseDN);
-    cred.bv_val = SCALAB01_SUPER_USER_PASSWORD;
-    cred.bv_len = strlen(cred.bv_val);
   }
-
-  /*
-   * Set the LDAP version and other options...
-   */
-  if (mctx.mode & LDAP_V2)
-    v2v3 = LDAP_VERSION2;
-  else
-    v2v3 = LDAP_VERSION3;
-
-  ret = ldap_set_option (s1ctx.ldapCtx, LDAP_OPT_PROTOCOL_VERSION, &v2v3);
-  if (ret < 0)							/*JLS 14-03-01*/
-  {								/*JLS 14-03-01*/
-    printf ("ldclt[%d]: ctrl: Cannot ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)\n",
-             mctx.pid);
-    fflush (stdout);						/*JLS 14-03-01*/
-    return (-1);						/*JLS 14-03-01*/
-  }								/*JLS 14-03-01*/
-
-
-  if (mctx.mode & VERY_VERBOSE)
-    printf ("ldclt[%d]: ctrl: Before bind mech %s (%s , %s)\n",
-	    mctx.pid, mech ? mech : "SIMPLE", bindDN, SCALAB01_SUPER_USER_PASSWORD);
-  ret = ldap_sasl_bind_s (s1ctx.ldapCtx, bindDN, mech, &cred, NULL, NULL, &servercredp);
-  ber_bvfree(servercredp);
-  if (mctx.mode & VERY_VERBOSE)
-    printf ("ldclt[%d]: ctrl: After bind mech %s (%s, %s)\n",
-	    mctx.pid, mech ? mech : "SIMPLE", bindDN, SCALAB01_SUPER_USER_PASSWORD);
-  if (ret != LDAP_SUCCESS)
-  {
-    printf("ldclt[%d]: ctrl: Cannot bind mech %s (%s, %s), error=%d (%s)\n",
-	   mctx.pid, mech ? mech : "SIMPLE", bindDN, SCALAB01_SUPER_USER_PASSWORD,
-	   ret, my_ldap_err2string (ret));
-    fflush (stdout);
+  /* clear bits not applicable to this mode */
+  mod2 &= ~M2_RNDBINDFILE;
+  mod2 &= ~M2_SASLAUTH;
+  mod2 &= ~M2_RANDOM_SASLAUTHID;
+  /* force bind to happen */
+  mode |= BIND_EACH_OPER;
+  s1ctx.ldapCtx = connectToLDAP(NULL, bindDN, SCALAB01_SUPER_USER_PASSWORD, mode, mod2);
+  if (!s1ctx.ldapCtx) {
     return (-1);
   }
 
