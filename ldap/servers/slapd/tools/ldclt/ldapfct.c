@@ -641,11 +641,16 @@ ldclt_clientauth(thread_context	*tttctx, const char *path, const char *certname,
   char *token_name = NULL;
   PK11SlotInfo *slot = NULL;
   int rc = 0;
+  int thrdNum = 0;
+
+  if (tttctx) {
+      thrdNum = tttctx->thrdNum;
+  }
 
   rc = NSS_Initialize(path, "", "", SECMOD_DB, NSS_INIT_READONLY);
   if (rc != SECSuccess) {
     printf ("ldclt[%d]: T%03d: Cannot NSS_Initialize(%s) %d\n",
-	    mctx.pid, tttctx->thrdNum, path, PR_GetError());
+	    mctx.pid, thrdNum, path, PR_GetError());
     fflush(stdout);
     goto done;
   }
@@ -662,7 +667,7 @@ ldclt_clientauth(thread_context	*tttctx, const char *path, const char *certname,
 
   if (!slot) {
     printf ("ldclt[%d]: T%03d: Cannot find slot for token %s - %d\n",
-	    mctx.pid, tttctx->thrdNum,
+	    mctx.pid, thrdNum,
 	    token_name ? token_name : "internal", PR_GetError());
     fflush(stdout);
     goto done;
@@ -675,7 +680,7 @@ ldclt_clientauth(thread_context	*tttctx, const char *path, const char *certname,
   rc = PK11_Authenticate(slot, PR_FALSE, (void *)pwd);
   if (rc != SECSuccess) {
     printf ("ldclt[%d]: T%03d: Cannot authenticate to token %s - %d\n",
-	    mctx.pid, tttctx->thrdNum,
+	    mctx.pid, thrdNum,
 	    token_name ? token_name : "internal", PR_GetError());
     fflush(stdout);
     goto done;
@@ -683,14 +688,14 @@ ldclt_clientauth(thread_context	*tttctx, const char *path, const char *certname,
 
   if ((rc = ldap_set_option(tttctx->ldapCtx, LDAP_OPT_X_TLS_CERTFILE, certname))) {
     printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_CERTFILE, %s), errno=%d ldaperror=%d:%s\n",
-	    mctx.pid, tttctx->thrdNum, certname, errno, rc, my_ldap_err2string(rc));
+	    mctx.pid, thrdNum, certname, errno, rc, my_ldap_err2string(rc));
     fflush (stdout);
     goto done;
   }
 
   if ((rc = ldap_set_option(tttctx->ldapCtx, LDAP_OPT_X_TLS_KEYFILE, pwd))) {
     printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_KEYFILE, %s), errno=%d ldaperror=%d:%s\n",
-	    mctx.pid, tttctx->thrdNum, pwd, errno, rc, my_ldap_err2string(rc));
+	    mctx.pid, thrdNum, pwd, errno, rc, my_ldap_err2string(rc));
     fflush (stdout);
     goto done;
   }
