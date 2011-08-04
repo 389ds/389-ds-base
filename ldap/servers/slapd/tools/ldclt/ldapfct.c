@@ -603,6 +603,7 @@ referralSetup (
 
 
 
+#if defined(USE_OPENLDAP)
 /* ****************************************************************************
 	FUNCTION :	dirname
 	PURPOSE :	given a relative or absolute path name, return
@@ -702,6 +703,7 @@ done:
 
   return rc;
 }
+#endif /* USE_OPENLDAP */
 
 /* mctx is a global */
 LDAP *
@@ -1076,16 +1078,17 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
     }
   }
 
- done:
+done:
   if (ret) {
     ldap_unbind_ext(ld, NULL, NULL);
     ld = NULL;
   }
+#if defined(USE_OPENLDAP)
   if (ldapurl) {
     PR_smprintf_free(ldapurl);
     ldapurl = NULL;
   }
-
+#endif
   return ld;
 }
 
