@@ -122,7 +122,7 @@ void csnplFree (CSNPL **csnpl)
 	/* free all remaining nodes */
 	llistDestroy (&((*csnpl)->csnList), (FNFree)csnpldata_free);
 
-	if ((*csnpl)->csnLock);
+	if ((*csnpl)->csnLock)
 		PR_DestroyRWLock ((*csnpl)->csnLock);
 
 	slapi_ch_free ((void**)csnpl);	

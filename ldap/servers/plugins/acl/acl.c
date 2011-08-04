@@ -846,7 +846,9 @@ acl_read_access_allowed_on_entry (
 	Slapi_Attr			*currAttr;
 	Slapi_Attr			*nextAttr;
 	int					len;
+#ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
 	int					attr_index = -1;
+#endif
 	char				*attr_type = NULL;
 	int					rv, isRoot;
 	char				*clientDn;
@@ -1055,6 +1057,7 @@ acl_read_access_allowed_on_entry (
 				aclpb->aclpb_Evalattr = slapi_ch_malloc(len+1);
 			}
 			PL_strncpyz (aclpb->aclpb_Evalattr, attr_type, len);
+#ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
 			if ( attr_index >= 0 ) {
 				/*
 				 * access was granted to one of the user specified attributes
@@ -1064,13 +1067,16 @@ acl_read_access_allowed_on_entry (
 				aclpb->aclpb_state |= 
 					ACLPB_ACCESS_ALLOWED_USERATTR;
 			} else {
+#endif /* DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES */
 				/*
 				 * Access was granted to _an_ attribute in the entry and that
 				 * attribute is now in aclpb_Evalattr
 				*/
 				aclpb->aclpb_state |= 
 					ACLPB_ACCESS_ALLOWED_ON_A_ATTR;
+#ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
 			}
+#endif /* DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES */
 			TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_entry_end , "ACL","",
 						tnf_string,called_access_allowed,"");
 
@@ -1078,9 +1084,11 @@ acl_read_access_allowed_on_entry (
 		} else {
 			/* try the next one */
 			attr_type = NULL;
+#ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
 			if (attr_index >= 0) { 
 				attr_type = attrs[attr_index++];
 			} else {
+#endif /* DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES */
 				rv = slapi_entry_next_attr ( e, currAttr, &nextAttr );
 				if ( rv != 0 ) break;
 				currAttr = nextAttr;
@@ -1093,7 +1101,9 @@ acl_read_access_allowed_on_entry (
 				}
 				/* Get the attr type */
 				if ( currAttr ) slapi_attr_get_type ( currAttr , &attr_type );
+#ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
 			}
+#endif /* DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES */
 		}
 	}
 

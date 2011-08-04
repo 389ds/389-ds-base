@@ -306,6 +306,7 @@ int agmt_set_credentials_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_binddn_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_bind_method_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_transportinfo_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
+int agmt_set_port_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 const char *agmt_get_long_name(const Repl_Agmt *ra);
 int agmt_initialize_replica(const Repl_Agmt *agmt);
 void agmt_replica_init_done (const Repl_Agmt *agmt);
@@ -415,7 +416,7 @@ void conn_set_timeout(Repl_Connection *conn, long timeout);
 long conn_get_timeout(Repl_Connection *conn);
 void conn_set_agmt_changed(Repl_Connection *conn);
 ConnResult conn_read_result(Repl_Connection *conn, int *message_id);
-ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int *message_id, int noblock);
+ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int send_msgid, int *resp_msgid, int noblock);
 
 /* In repl5_protocol.c */
 typedef struct repl_protocol Repl_Protocol;

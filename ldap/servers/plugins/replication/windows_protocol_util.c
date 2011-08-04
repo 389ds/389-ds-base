@@ -64,6 +64,7 @@ static void extract_guid_from_entry_bv(Slapi_Entry *e, const struct berval **bv)
 #endif
 static void windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password);
 static int is_subject_of_agreement_local(const Slapi_Entry *local_entry,const Repl_Agmt *ra);
+static int is_dn_subject_of_agreement_local(const Slapi_DN *sdn, const Repl_Agmt *ra);
 static int windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_entry, Slapi_DN *remote_sdn, Slapi_Entry **remote_entry, char** password);
 static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry);
 static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry, int is_global);
@@ -927,8 +928,12 @@ windows_entry_has_attr_and_value(Slapi_Entry *e, const char *attrname, char *val
 static void
 windows_is_local_entry_user_or_group(Slapi_Entry *e, int *is_user, int *is_group)
 {
-	*is_user = windows_entry_has_attr_and_value(e,"objectclass","ntuser");
-	*is_group = windows_entry_has_attr_and_value(e,"objectclass","ntgroup");
+	if (is_user) {
+		*is_user = windows_entry_has_attr_and_value(e, "objectclass", "ntuser");
+	}
+	if (is_group) {
+		*is_group = windows_entry_has_attr_and_value(e, "objectclass", "ntgroup");
+	}
 }
 
 static void
@@ -1123,7 +1128,7 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 
 				container_str = extract_container(slapi_entry_get_sdn_const(local_entry),
 					windows_private_get_directory_subtree(prp->agmt));
-				new_dn_string = PR_smprintf("cn=%s,%s%s", cn_string, container_str, suffix);
+				new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", cn_string, container_str, suffix);
 
 				if (new_dn_string) {
 					/* If the tombstone exists, reanimate it. If the tombstone
@@ -1411,10 +1416,21 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			op->operation_type = SLAPI_OPERATION_DELETE;
 			is_ours_force = 1;
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: windows_replay_update: failed to fetch local entry for %s operation dn=\"%s\"\n",
-				agmt_get_long_name(prp->agmt),
-				op2string(op->operation_type), op->target_address.dn);
+			/* We only searched within the subtree in the agreement, so we should not print
+			 * an error if we didn't find the entry and the DN is outside of the agreement scope. */
+			if (is_dn_subject_of_agreement_local(local_dn, prp->agmt)) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"%s: windows_replay_update: failed to fetch local entry for %s operation dn=\"%s\"\n",
+					agmt_get_long_name(prp->agmt),
+					op2string(op->operation_type), op->target_address.dn);
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: windows_replay_update: Looking at %s operation local dn=\"%s\" (%s)\n",
+					agmt_get_long_name(prp->agmt),
+					op2string(op->operation_type), op->target_address.dn, "ours");
+			}
+			/* Just bail on this change.  We don't want to do any
+			 * further checks since we don't have a local entry. */
 			goto error;
 		}
 	}
@@ -1609,8 +1625,10 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		 *   userAccountControl: 512
 		 * Or, if we added a new entry, we need to change the useraccountcontrol
 		 * to make the new user enabled by default
+		 * it is assumed that is_user is set for user entries and that only user entries need
+		 * accountcontrol values
 		 */
-		if ((return_value == CONN_OPERATION_SUCCESS) && remote_dn && (password || missing_entry)) {
+		if ((return_value == CONN_OPERATION_SUCCESS) && remote_dn && (password || missing_entry) && is_user) {
 			return_value = send_accountcontrol_modify(remote_dn, prp, missing_entry);
 		}
 	} else {
@@ -2148,7 +2166,7 @@ mod_already_made(Private_Repl_Protocol *prp, Slapi_Mod *smod, Slapi_Entry *ad_en
 	 * mods to take prior mods into account when
 	 * determining what can be skipped. */
 	if (retval == 0) {
-		slapi_entry_apply_mod(ad_entry, slapi_mod_get_ldapmod_byref(smod));
+		slapi_entry_apply_mod(ad_entry, (LDAPMod *)slapi_mod_get_ldapmod_byref(smod));
 	}
 
 	return retval;
@@ -2779,7 +2797,7 @@ windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,
 	Slapi_Entry *found_entry = NULL;
 
 	searchbase = slapi_sdn_get_dn(remote_dn);
-	cres = windows_search_entry(prp->conn, (char*)searchbase, filter, &found_entry);
+	cres = windows_search_entry_ext(prp->conn, (char*)searchbase, filter, &found_entry, NULL, LDAP_SCOPE_BASE);
 	if (cres)
 	{
 		retval = -1;
@@ -2812,7 +2830,7 @@ windows_get_remote_tombstone (Private_Repl_Protocol *prp, const Slapi_DN* remote
 
 	searchbase = slapi_sdn_get_dn(remote_dn);
 	cres = windows_search_entry_ext(prp->conn, (char*)searchbase, filter,
-				&found_entry, server_controls);
+									&found_entry, server_controls, LDAP_SCOPE_SUBTREE);
 	if (cres) {
 		retval = -1;
 	} else {
@@ -3255,7 +3273,7 @@ extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn)
 			slapi_rdn_get_first(rdn, &rdn_type, &rdn_str);
 			if (rdn_str)
 			{
-				result = PR_sprintf_append(result, "%s=%s,", rdn_type,rdn_str );	
+				result = PR_sprintf_append(result, "%s=\"%s\",", rdn_type,rdn_str );	
 			}
 			/* Don't free this until _after_ we've used the rdn_str */
 			slapi_rdn_free(&rdn);
@@ -3360,7 +3378,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 
 					container_str = extract_container(slapi_entry_get_sdn_const(e),
 						windows_private_get_directory_subtree(prp->agmt));
-					new_dn_string = PR_smprintf("cn=%s,%s%s", cn_string, container_str, suffix);
+					new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", cn_string, container_str, suffix);
 
 					if (new_dn_string) {
 						slapi_sdn_free(&new_dn);
@@ -3429,9 +3447,9 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 					
 						container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_directory_subtree(prp->agmt));
 						
-						rdnstr = is_nt4 ? "samaccountname=%s,%s%s" : "cn=%s,%s%s";
+						rdnstr = is_nt4 ? "samaccountname=\"%s\",%s%s" : "cn=\"%s\",%s%s";
 
-						new_dn_string = PR_smprintf(rdnstr,cn_string,container_str,suffix);
+						new_dn_string = slapi_create_dn_string(rdnstr,cn_string,container_str,suffix);
 						if (new_dn_string)
 						{
 							new_dn = slapi_sdn_new_dn_byval(new_dn_string);
@@ -3656,7 +3674,7 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 			/* Local DNs for users and groups are different */
 			if (is_user)
 			{
-				new_dn_string = PR_smprintf("uid=%s,%s%s",username,container_str,suffix);
+				new_dn_string = slapi_create_dn_string("uid=\"%s\",%s%s",username,container_str,suffix);
 				winsync_plugin_call_get_new_ds_user_dn_cb(ra,
 														  windows_private_get_raw_entry(ra),
 														  e,
@@ -3665,7 +3683,7 @@ map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra)
 														  windows_private_get_windows_subtree(ra));
 			} else
 			{
-				new_dn_string = PR_smprintf("cn=%s,%s%s",username,container_str,suffix);
+				new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s",username,container_str,suffix);
 				if (is_group) {
 					winsync_plugin_call_get_new_ds_group_dn_cb(ra,
 															   windows_private_get_raw_entry(ra),
@@ -3739,6 +3757,27 @@ is_subject_of_agreement_local(const Slapi_Entry *local_entry, const Repl_Agmt *r
 			retval = 0;
 		}
 	}
+error:
+	return retval;
+}
+
+/* Tests if a DN is within the scope of our agreement */
+static int
+is_dn_subject_of_agreement_local(const Slapi_DN *sdn, const Repl_Agmt *ra)
+{
+	int retval = 0;
+	const Slapi_DN *agreement_subtree = NULL;
+
+	/* Get the subtree from the agreement */
+	agreement_subtree = windows_private_get_directory_subtree(ra);
+	if (NULL == agreement_subtree)
+	{
+		goto error;
+	}
+
+	/* Check if the DN is within the subtree */
+	retval = slapi_sdn_scope_test(sdn, agreement_subtree, LDAP_SCOPE_SUBTREE);
+
 error:
 	return retval;
 }
@@ -4446,7 +4485,8 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			if (rc) 
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-					"windows_update_local_entry: failed to modify entry %s\n", escape_string(dn, dnbuf));
+					"windows_update_local_entry: failed to modify entry %s - error %d:%s\n",
+					escape_string(dn, dnbuf), rc, ldap_err2string(rc));
 			}
 			slapi_pblock_destroy(pb);
 		} else 
@@ -4477,6 +4517,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 	int can_add = winsync_plugin_call_can_add_entry_to_ad_cb(prp->agmt, e, remote_dn);
 	/* First map the entry */
 	local_dn = slapi_entry_get_sdn_const(e);
+	int is_user;
 	if (missing_entry) {
 		if (can_add) {
 			retval = windows_create_remote_entry(prp, e, remote_dn, &mapped_entry, &password);
@@ -4507,7 +4548,9 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			ldap_mods_free(entryattrs, 1);
 			entryattrs = NULL;
 
-			if (retval == 0) { /* set the account control bits */
+			windows_is_local_entry_user_or_group(e, &is_user, NULL);
+			if ((retval == 0) && is_user) {
+			    /* set the account control bits only for users */
 			    retval = send_accountcontrol_modify(remote_dn, prp, missing_entry);
 			}
 		}
@@ -4776,8 +4819,8 @@ retry:
 				char *filter = "(objectclass=*)";
 
 				retried = 1;
-				cres = windows_search_entry(prp->conn, (char*)searchbase, 
-											filter, &found_entry);
+				cres = windows_search_entry_ext(prp->conn, (char*)searchbase, 
+												filter, &found_entry, NULL, LDAP_SCOPE_BASE);
 				if (0 == cres && found_entry) {
 					/* 
 					 * Entry e originally allocated in windows_dirsync_inc_run

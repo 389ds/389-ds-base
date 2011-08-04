@@ -850,32 +850,49 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	for (ii = 0; ii < be_count; ++ii)
 	{
 		Slapi_Backend *be = slapi_be_select_by_instance_name(mtn_be_names[ii]);
-		if (slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA))
-		{
-			chaining_backend = ii;
-		}
-		else
-		{
-			local_backend = ii;
-			if (mtn_be_states[ii] == SLAPI_BE_STATE_ON)
+		if (be) {
+			if (slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA))
 			{
-				local_online = PR_TRUE;
+				chaining_backend = ii;
 			}
-		}
+			else
+			{
+				local_backend = ii;
+				if (mtn_be_states[ii] == SLAPI_BE_STATE_ON)
+				{
+					local_online = PR_TRUE;
+				}
+			}
 #ifdef DEBUG_CHAIN_ON_UPDATE
-		if (is_internal) {
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d be "
-				"%s is the %s backend and is %s\n", opid,
-				mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
-				(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
-		} else {
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d be "
-				"%s is the %s backend and is %s\n", connid, opid,
-				mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
-				(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
+			if (is_internal) {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d be "
+					"%s is the %s backend and is %s\n", opid,
+					mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
+					(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d be "
+					"%s is the %s backend and is %s\n", connid, opid,
+					mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
+					(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
 
-		}
+			}
 #endif
+		} else {
+			/* A chaining backend will not be found during import.  We will just return the
+			 * local backend in this case, which seems like the right thing to do to allow
+			 * offline replication initialization. */
+#ifdef DEBUG_CHAIN_ON_UPDATE
+			if (is_internal) {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d be "
+					"%s not found.  Assuming it is the chaining backend and we are doing an import.\n",
+					opid, mtn_be_names[ii]);
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d be "
+					"%s not found.  Assuming it is the chaining backend and we are doing an import.\n",
+					connid, opid, mtn_be_names[ii]);
+			}
+#endif
+		}
 	}
 
 	/* if no chaining backends are defined, just use the local one */

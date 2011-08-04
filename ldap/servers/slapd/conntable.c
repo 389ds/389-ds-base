@@ -484,7 +484,8 @@ connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 			/* Find the connection we are referring to */
 			int j= c->c_fdi;
 			PR_Lock( c->c_mutex );
-			if ( c->c_sd != SLAPD_INVALID_SOCKET && c->c_prfd == ct->fd[j].fd )
+			if ( (c->c_sd != SLAPD_INVALID_SOCKET) && 
+			     (j >= 0) && (c->c_prfd == ct->fd[j].fd) )
 			{
 				int r = ct->fd[j].out_flags & SLAPD_POLL_FLAGS;
 				if ( r )

@@ -168,10 +168,18 @@ sub writeSection {
     if (ref($section) eq 'HASH') {
         print $fh "[$name]\n";
         for my $key (sort keys %{$section}) {
-            if (defined($section->{$key})) {
-                my $val = $section->{$key};
-                $val =~ s/\n/\\\n/g; # make continuation lines
-                print $fh "$key = $val\n";
+            if (exists($section->{$key}) and defined($section->{$key}) and
+                (length($section->{$key}) > 0)) {
+                my @vals = ();
+                if (ref($section->{$key})) {
+                    @vals = @{$section->{$key}};
+                } else {
+                    @vals = ($section->{$key});
+                }
+                for my $val (@vals) {
+                    $val =~ s/\n/\\\n/g; # make continuation lines
+                    print $fh "$key = $val\n";
+                }
             }
         }
     }
@@ -216,11 +224,9 @@ sub write {
     }
     # write General section first
     $self->writeSection('General', $fh);
-    print $fh "\n";
     for my $key (keys %{$self}) {
         next if ($key eq 'General');
         $self->writeSection($key, $fh);
-        print $fh "\n";
     }
     close $fh;
     umask($savemask);

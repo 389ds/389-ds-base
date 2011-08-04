@@ -499,6 +499,9 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_IDENTITY:
 		(*(void**)value) = pblock->pb_plugin_identity;
 		break;
+	case SLAPI_PLUGIN_CONFIG_AREA:
+		(*(char **)value) = pblock->pb_plugin_config_area;
+		break;
 	case SLAPI_PLUGIN_INTOP_RESULT:
         (*(int *)value) = pblock->pb_internal_op_result; 
         break;
@@ -1930,6 +1933,9 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_PLUGIN_IDENTITY:
 		pblock->pb_plugin_identity = (void*)value;
+		break;
+	case SLAPI_PLUGIN_CONFIG_AREA:
+		pblock->pb_plugin_config_area = (char *) value;
 		break;
 	case SLAPI_PLUGIN_DESTROY_FN:
 		pblock->pb_destroy_fn = (IFP) value;

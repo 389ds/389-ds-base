@@ -119,7 +119,7 @@ ldbm_back_init( Slapi_PBlock *pb )
 	/* initialize dblayer  */
 	if (dblayer_init(li)) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: dblayer_init failed\n",0, 0, 0 );
-		return (-1);
+		goto fail;
 	}
 
 	/* Fill in the fields of the ldbminfo and the dblayer_private
@@ -134,7 +134,7 @@ ldbm_back_init( Slapi_PBlock *pb )
             &li->li_bulk_import_object, &li->li_bulk_import_handle) != 0) {
             LDAPDebug(LDAP_DEBUG_ANY, "ldbm_back_init: "
                       "slapi_register_object_extension failed.\n", 0, 0, 0);
-            return (-1);
+            goto fail;
         }
 
 	/* add some private attributes */
@@ -146,24 +146,24 @@ ldbm_back_init( Slapi_PBlock *pb )
 	if ((li->li_dbcache_mutex = PR_NewLock()) == NULL ) {
             LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewLock failed\n",
 		0, 0, 0 );
-            return(-1);
+            goto fail;
         }
 
 	if ((li->li_shutdown_mutex = PR_NewLock()) == NULL ) {
             LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewLock failed\n",
 		0, 0, 0 );
-            return(-1);
+            goto fail;
         }
 
 	if ((li->li_config_mutex = PR_NewLock()) == NULL ) {
             LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewLock failed\n",
 		0, 0, 0 );
-            return(-1);
+            goto fail;
         }
 
 	if ((li->li_dbcache_cv = PR_NewCondVar( li->li_dbcache_mutex )) == NULL ) {
             LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewCondVar failed\n", 0, 0, 0 );
-            exit(-1);
+            goto fail;
         }
 
 	/* set all of the necessary database plugin callback functions */
@@ -251,7 +251,7 @@ ldbm_back_init( Slapi_PBlock *pb )
 
 	if ( rc != 0 ) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init failed\n", 0, 0, 0 );
-		return( -1 );
+		goto fail;
 	}
 	
 	/* register the IDL interface with the API broker */
@@ -264,7 +264,7 @@ ldbm_back_init( Slapi_PBlock *pb )
 		if( slapi_apib_register(IDL_v1_0_GUID, IDL_api) )
 		{
 			LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: failed to publish IDL interface\n", 0, 0, 0);
-			return( -1 );
+			goto fail;
 		}
 
 		interface_published = 1;
@@ -273,6 +273,12 @@ ldbm_back_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= ldbm_back_init\n", 0, 0, 0 );
 
 	return( 0 );
+
+fail:
+	dblayer_terminate( li );
+	slapi_ch_free((void **)&li);
+	slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, NULL );
+	return( -1 );
 }
 
 

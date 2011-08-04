@@ -219,6 +219,7 @@ operation_free( Slapi_Operation **op, Connection *conn )
 		if ( NULL != (*op)->o_results.result_controls ) {
 			ldap_controls_free( (*op)->o_results.result_controls );
 		}
+		slapi_ch_free_string(&(*op)->o_results.result_matched);
 		if(operation_is_flag_set(*op, OP_FLAG_INTERNAL))
 		{
 			slapi_ch_free((void**)op);

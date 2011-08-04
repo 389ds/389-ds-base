@@ -1434,6 +1434,7 @@ static void task_restore_thread(void *arg)
 
     slapi_task_finish(task, rv);
     slapi_ch_free((void **)&pb->pb_seq_val);
+    slapi_ch_free_string(&pb->pb_instance_name);
     slapi_pblock_destroy(pb);
     g_decr_active_threadcnt();
 }
@@ -1535,6 +1536,7 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_ch_free((void **)&mypb->pb_seq_val);
+        slapi_ch_free_string(&pb->pb_instance_name);
         slapi_pblock_destroy(mypb);
         goto out;
     }

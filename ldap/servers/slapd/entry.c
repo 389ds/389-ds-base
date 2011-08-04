@@ -62,7 +62,7 @@
 #define DELETED_VALUE_STRSIZE 8 /* sizeof(";deleted") */
 
 /* a helper function to set special rdn to a tombstone entry */
-static int _entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn);
+static int _entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn);
 
 /*
  * An attribute name is of the form 'basename[;option]'.
@@ -809,6 +809,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					slapi_entry_free( e );
 					if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 					csn_free(&attributedeletioncsn);
+					csn_free(&maxcsn);
 					return NULL;
 				}
 				/* normdn is consumed in e */
@@ -826,6 +827,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						slapi_entry_free( e );
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 						csn_free(&attributedeletioncsn);
+						csn_free(&maxcsn);
 						return NULL;
 					}
 					/* normdn is just referred in slapi_entry_set_rdn. */
@@ -935,6 +937,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						/* Something very bad happened */
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 						csn_free(&attributedeletioncsn);
+						csn_free(&maxcsn);
 						return NULL;
 					}
 					for ( i = 0; i < nattrs; i++ )
@@ -2415,11 +2418,11 @@ slapi_entry_vattrcache_find_values_and_type_ex( const Slapi_Entry *e,
 				char *vattr_type=NULL;
 
 				r= SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
-				*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(*results));
+				*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(**results));
 				**results = valueset_dup(&(tmp_attr->a_present_values));
 
 				*actual_type_name =
-							(char**)slapi_ch_malloc(sizeof(*actual_type_name));
+							(char**)slapi_ch_malloc(sizeof(**actual_type_name));
 				slapi_attr_get_type( tmp_attr, &vattr_type );
 				**actual_type_name = slapi_ch_strdup(vattr_type);
 							
@@ -3687,7 +3690,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
     for (oep = old_entries; oep != NULL && *oep != NULL; oep++)
         ;
 
-    qsort(old_entries, oep - old_entries, sizeof(Slapi_Entry **),
+    qsort(old_entries, oep - old_entries, sizeof(Slapi_Entry *),
           entry_cmp_with_dn);
 
 #ifdef ENTRY_DIFF_DEBUG
@@ -3701,7 +3704,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
     for (cep = curr_entries; cep != NULL && *cep != NULL; cep++)
         ;
 
-    qsort(curr_entries, cep - curr_entries, sizeof(Slapi_Entry **),
+    qsort(curr_entries, cep - curr_entries, sizeof(Slapi_Entry *),
           entry_cmp_with_dn);
 
 #ifdef ENTRY_DIFF_DEBUG
@@ -3864,7 +3867,7 @@ out:
 /* a helper function to set special rdn to a tombstone entry */
 /* Since this a tombstone, it requires a special treatment for rdn*/
 static int
-_entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn)
+_entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn)
 {
     int rc = 0;
     char *tombstone_rdn = slapi_ch_strdup(normdn);
@@ -3882,21 +3885,20 @@ _entry_set_tombstone_rdn(Slapi_Entry *e, char *normdn)
             Slapi_RDN mysrdn = {0};
             rc = slapi_rdn_init_all_dn(&mysrdn, sepp + 1);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "str2entry",
+                slapi_log_error(SLAPI_LOG_FATAL, "_entry_set_tombstone_rdn",
                                 "Failed to convert DN %s to RDN\n", sepp + 1);
+                slapi_rdn_done(&mysrdn);
                 goto bail;
             }
             sepp = PL_strchr(sepp + 1, ',');
             if (sepp) {
-                Slapi_RDN *srdn = slapi_entry_get_srdn(e);
                 /* nsuniqueid=042d8081-...-ca8fe9f7,uid=tuser, */
                 /*                                           ^ */
                 *sepp = '\0';
                 slapi_rdn_replace_rdn(&mysrdn, tombstone_rdn);
-                slapi_rdn_done(srdn);
                 slapi_entry_set_srdn(e, &mysrdn);
-                slapi_rdn_done(&mysrdn);
             }
+            slapi_rdn_done(&mysrdn);
         }
     }
 bail:

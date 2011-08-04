@@ -983,9 +983,9 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 		if(attr_count > 0)
 		{	
 
-			*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(*results) * attr_count);
+			*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(**results) * attr_count);
 			*type_name_disposition = (int *)slapi_ch_malloc(sizeof(**type_name_disposition)  * attr_count);
-			*actual_type_name = (char**)slapi_ch_malloc(sizeof(*actual_type_name)  * attr_count);
+			*actual_type_name = (char**)slapi_ch_malloc(sizeof(**actual_type_name)  * attr_count);
 
 			/* For attributes which are in the entry, we just need to get to the Slapi_Attr structure and yank out the slapi_value_set 
 			   structure. We either return a pointer directly to it, or we copy it, depending upon whether the caller asked us to try to 
@@ -1704,9 +1704,9 @@ int vattr_call_sp_get_batch_values(vattr_sp_handle *handle, vattr_context *c, Sl
 	else
 	{
 		/* make our args look like the simple non-batched case */
-		*results = (Slapi_ValueSet**)slapi_ch_calloc(2, sizeof(*results)); /* 2 for null terminated list */
-		*type_name_disposition = (int *)slapi_ch_calloc(2, sizeof(*type_name_disposition));
-		*actual_type_name = (char**)slapi_ch_calloc(2, sizeof(*actual_type_name));
+		*results = (Slapi_ValueSet**)slapi_ch_calloc(2, sizeof(**results)); /* 2 for null terminated list */
+		*type_name_disposition = (int *)slapi_ch_calloc(2, sizeof(**type_name_disposition));
+		*actual_type_name = (char**)slapi_ch_calloc(2, sizeof(**actual_type_name));
 
 		ret =((handle->sp->sp_get_fn)(handle,c,e,*type,*results,*type_name_disposition,*actual_type_name,flags,buffer_flags, hint)); 
 		if (ret)

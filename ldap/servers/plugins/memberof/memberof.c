@@ -79,6 +79,7 @@ static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
 static void* _PluginID = NULL;
 static PRMonitor *memberof_operation_lock = 0;
 MemberOfConfig *qsortConfig = 0;
+static int g_plugin_started = 0;
 
 typedef struct _memberofstringll
 {
@@ -97,6 +98,7 @@ typedef struct _memberof_get_groups_data
 
 /* exported functions */
 int memberof_postop_init(Slapi_PBlock *pb );
+static int memberof_internal_postop_init(Slapi_PBlock *pb);
 
 /* plugin callbacks */ 
 static int memberof_postop_del(Slapi_PBlock *pb ); 
@@ -213,7 +215,14 @@ memberof_postop_init(Slapi_PBlock *pb)
 		slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
 			(void *) memberof_postop_start ) != 0 ||
 		slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-			(void *) memberof_postop_close ) != 0)
+			(void *) memberof_postop_close ) != 0 ||
+		slapi_register_plugin("internalpostoperation",  /* op type */
+			1,        /* Enabled */
+			"memberof_postop_init",   /* this function desc */
+			memberof_internal_postop_init,  /* init func */
+			MEMBEROF_INT_PREOP_DESC,      /* plugin desc */
+			NULL,     /* ? */
+			memberof_plugin_identity   /* access control */))
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_postop_init failed\n" );
@@ -223,6 +232,31 @@ memberof_postop_init(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"<-- memberof_postop_init\n" );
 	return ret;
+}
+
+static int
+memberof_internal_postop_init(Slapi_PBlock *pb)
+{
+	int status = 0;
+
+	if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+			SLAPI_PLUGIN_VERSION_01) != 0 ||
+		slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+			(void *) &pdesc) != 0 ||
+		slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN,
+			(void *) memberof_postop_del) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN,
+			(void *) memberof_postop_modrdn ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN,
+			(void *) memberof_postop_modify ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_ADD_FN,
+			(void *) memberof_postop_add ) != 0) {
+		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_internal_postop_init: failed to register plugin\n");
+		status = -1;
+	}
+
+	return status;
 }
 
 /*
@@ -238,6 +272,11 @@ int memberof_postop_start(Slapi_PBlock *pb)
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"--> memberof_postop_start\n" );
+
+	/* Check if we're already started */
+	if (g_plugin_started) {
+		goto bail;
+	}
 
 	memberof_operation_lock = PR_NewMonitor();
 	if(0 == memberof_operation_lock)
@@ -264,6 +303,8 @@ int memberof_postop_start(Slapi_PBlock *pb)
 	{
 		goto bail;
 	}
+
+	g_plugin_started = 1;
 
 	/*
 	 * TODO: start up operation actor thread
@@ -293,7 +334,7 @@ int memberof_postop_close(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_close\n" );
 
-
+	g_plugin_started = 0;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_close\n" );
@@ -316,9 +357,18 @@ int memberof_postop_del(Slapi_PBlock *pb)
 	int ret = 0;
 	MemberOfConfig configCopy = {0, 0, 0, 0};
 	char *dn;
+	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_del\n" );
+
+	/* We don't want to process internal modify
+	 * operations that originate from this plugin. */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
+	if (caller_id == memberof_get_plugin_id()) {
+		/* Just return without processing */
+		return 0;
+	}
 
 	if(memberof_oktodo(pb) && (dn = memberof_getdn(pb)))
 	{
@@ -532,9 +582,18 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 int memberof_postop_modrdn(Slapi_PBlock *pb)
 {
 	int ret = 0;
+	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_modrdn\n" );
+
+	/* We don't want to process internal modify
+	 * operations that originate from this plugin. */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
+	if (caller_id == memberof_get_plugin_id()) {
+		/* Just return without processing */
+		return 0;
+	}
 
 	if(memberof_oktodo(pb))
 	{
@@ -583,7 +642,9 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		/* It's possible that this is an entry who is a member
 		 * of other group entries.  We need to update any member
 		 * attributes to refer to the new name. */
-		memberof_replace_dn_from_groups(pb, &configCopy, pre_dn, post_dn);
+		if (pre_dn && post_dn) {
+			memberof_replace_dn_from_groups(pb, &configCopy, pre_dn, post_dn);
+		}
 
 		memberof_unlock();
 		memberof_free_config(&configCopy);
@@ -696,9 +757,18 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 	Slapi_Mod *smod = 0;
 	LDAPMod **mods;
 	Slapi_Mod *next_mod = 0;
+	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_modify\n" );
+
+	/* We don't want to process internal modify
+	 * operations that originate from this plugin. */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
+	if (caller_id == memberof_get_plugin_id()) {
+		/* Just return without processing */
+		return 0;
+	}
 
 	if(memberof_oktodo(pb) &&
 		(dn = memberof_getdn(pb)))
@@ -829,9 +899,18 @@ int memberof_postop_add(Slapi_PBlock *pb)
 	int ret = 0;
 	int interested = 0;
 	char *dn = 0;
+	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_add\n" );
+
+	/* We don't want to process internal modify
+	 * operations that originate from this plugin. */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
+	if (caller_id == memberof_get_plugin_id()) {
+		/* Just return without processing */
+		return 0;
+	}
 
 	if(memberof_oktodo(pb) && (dn = memberof_getdn(pb)))
 	{
@@ -900,6 +979,11 @@ int memberof_oktodo(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_oktodo\n" );
 
+	if (!g_plugin_started) {
+		ret = 0;
+		goto bail;
+	}
+
 	if(slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0) 
         {
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -917,6 +1001,7 @@ int memberof_oktodo(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_oktodo\n" );
 
+bail:
 	return ret;
 }
 

@@ -381,9 +381,10 @@ ldbm_instance_destructor(void **arg)
     LDAPDebug(LDAP_DEBUG_ANY, "Destructor for instance %s called\n", 
               inst->inst_name, 0, 0);
 
-    slapi_ch_free((void **)&inst->inst_name);
+    slapi_ch_free_string(&inst->inst_name);
     PR_DestroyLock(inst->inst_config_mutex);
-    slapi_ch_free((void **)&inst->inst_dir_name);
+    slapi_ch_free_string(&inst->inst_dir_name);
+    slapi_ch_free_string(&inst->inst_parent_dir_name);
     PR_DestroyLock(inst->inst_db_mutex);
     PR_DestroyLock(inst->inst_handle_list_mutex);
     PR_DestroyLock(inst->inst_nextid_mutex);

@@ -52,7 +52,8 @@ static PRCList *g_mep_config = NULL;
 static PRRWLock *g_mep_config_lock;
 
 static void *_PluginID = NULL;
-static char *_PluginDN = NULL;
+static Slapi_DN *_PluginDN = NULL;
+static Slapi_DN *_ConfigAreaDN = NULL;
 static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { MEP_FEATURE_DESC,
@@ -94,6 +95,8 @@ static void mep_free_config_entry(struct configEntry ** entry);
  * helpers
  */
 static char *mep_get_dn(Slapi_PBlock * pb);
+static Slapi_DN *mep_get_config_area();
+static void mep_set_config_area(Slapi_DN *sdn);
 static int mep_dn_is_config(char *dn);
 static int mep_dn_is_template(char *dn);
 static void mep_find_config(Slapi_Entry *e, struct configEntry **config);
@@ -113,6 +116,7 @@ static int mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
     char **type, char **value);
 static int mep_is_managed_entry(Slapi_Entry *e);
 static int mep_is_mapped_attr(Slapi_Entry *template, char *type);
+static int mep_has_tombstone_value(Slapi_Entry * e);
 
 /*
  * Config cache locking functions
@@ -152,13 +156,13 @@ mep_get_plugin_id()
 }
 
 void
-mep_set_plugin_dn(char *pluginDN)
+mep_set_plugin_sdn(Slapi_DN *pluginDN)
 {
     _PluginDN = pluginDN;
 }
 
-char *
-mep_get_plugin_dn()
+Slapi_DN *
+mep_get_plugin_sdn()
 {
     return _PluginDN;
 }
@@ -286,6 +290,7 @@ static int
 mep_start(Slapi_PBlock * pb)
 {
     char *plugindn = NULL;
+    char *config_area = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_start\n");
@@ -314,7 +319,13 @@ mep_start(Slapi_PBlock * pb)
         return -1;
     }
 
-    mep_set_plugin_dn(plugindn);
+    mep_set_plugin_sdn(slapi_sdn_new_dn_byref(plugindn));
+
+    /* Set the alternate config area if one is defined. */
+    slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
+    if (config_area) {
+        mep_set_config_area(slapi_sdn_new_dn_byval(config_area));
+    }
 
     /*
      * Load the config cache
@@ -349,10 +360,28 @@ mep_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_close\n");
 
+    if (!g_plugin_started) {
+        goto done;
+    }
+
+    mep_config_write_lock();
+    g_plugin_started = 0;
     mep_delete_config();
+    mep_config_unlock();
 
     slapi_ch_free((void **)&g_mep_config);
+    slapi_sdn_free(&_PluginDN);
+    slapi_sdn_free(&_ConfigAreaDN);
 
+    /* We explicitly don't destroy the config lock here.  If we did,
+     * there is the slight possibility that another thread that just
+     * passed the g_plugin_started check is about to try to obtain
+     * a reader lock.  We leave the lock around so these threads
+     * don't crash the process.  If we always check the started
+     * flag again after obtaining a reader lock, no free'd resources
+     * will be used. */
+
+done:
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_close\n");
 
@@ -387,28 +416,50 @@ mep_load_config()
     mep_config_write_lock();
     mep_delete_config();
 
-    /* Find the config entries beneath our plugin entry. */
     search_pb = slapi_pblock_new();
-    slapi_search_internal_set_pb(search_pb, mep_get_plugin_dn(),
-                                 LDAP_SCOPE_SUBTREE, "objectclass=*",
-                                 NULL, 0, NULL, NULL, mep_get_plugin_id(), 0);
+
+    /* If an alternate config area is configured, find
+     * the config entries that are beneath it, otherwise
+     * we load the entries beneath our top-level plug-in
+     * config entry. */
+    if (mep_get_config_area()) {
+        /* Find the config entries beneath the alternate config area. */
+        slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                        "mep_load_config: Looking for config entries "
+                        "beneath \"%s\".\n", slapi_sdn_get_ndn(mep_get_config_area()));
+        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(mep_get_config_area()),
+                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     NULL, 0, NULL, NULL, mep_get_plugin_id(), 0);
+    } else {
+        /* Find the config entries beneath our plugin entry. */
+        slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                        "mep_load_config: Looking for config entries "
+                        "beneath \"%s\".\n", slapi_sdn_get_ndn(mep_get_plugin_sdn()));
+        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(mep_get_plugin_sdn()),
+                                     LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                     NULL, 0, NULL, NULL, mep_get_plugin_id(), 0);
+    }
+
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
     if (LDAP_SUCCESS != result) {
-        status = -1;
-        goto cleanup;
+        if (mep_get_config_area() && (result == LDAP_NO_SUCH_OBJECT)) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                            "mep_load_config: Config container \"%s\" does "
+                            "not exist.\n", slapi_sdn_get_ndn(mep_get_config_area()));
+            goto cleanup;
+        } else {
+            status = -1;
+            goto cleanup;
+        }
     }
 
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
                      &entries);
-    if (NULL == entries || NULL == entries[0]) {
-        /* If there are no config entries, we're done. */
-        goto cleanup;
-    }
 
     /* Loop through all of the entries we found and parse them. */
-    for (i = 0; (entries[i] != NULL); i++) {
+    for (i = 0; entries && (entries[i] != NULL); i++) {
         /* We don't care about the status here because we may have
          * some invalid config entries, but we just want to continue
          * looking for valid ones. */
@@ -450,7 +501,9 @@ mep_parse_config_entry(Slapi_Entry * e, int apply)
 
     /* If this is the main plug-in
      * config entry, just bail. */
-    if (strcasecmp(mep_get_plugin_dn(), slapi_entry_get_ndn(e)) == 0) {
+    if ((slapi_sdn_compare(mep_get_plugin_sdn(), slapi_entry_get_sdn(e)) == 0) ||
+        (mep_get_config_area() && (slapi_sdn_compare(mep_get_config_area(),
+        slapi_entry_get_sdn(e)) == 0))) {
         ret = -1;
         goto bail;
     }
@@ -736,6 +789,18 @@ mep_get_dn(Slapi_PBlock * pb)
     return dn;
 }
 
+static void
+mep_set_config_area(Slapi_DN *sdn)
+{
+    _ConfigAreaDN = sdn;
+}
+
+static Slapi_DN *
+mep_get_config_area()
+{
+    return _ConfigAreaDN;
+}
+
 /*
  * mep_dn_is_config()
  *
@@ -745,17 +810,35 @@ static int
 mep_dn_is_config(char *dn)
 {
     int ret = 0;
+    Slapi_DN *sdn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_dn_is_config\n");
 
-    /* Return 1 if the passed in dn is a child of the main
-     * plugin config entry. */
-    if (slapi_dn_issuffix(dn, mep_get_plugin_dn()) &&
-        strcasecmp(dn, mep_get_plugin_dn())) {
-        ret = 1;
+    if (dn == NULL) {
+        goto bail;
     }
 
+    sdn = slapi_sdn_new_dn_byref(dn);
+
+    /* If an alternate config area is configured, treat it's child
+     * entries as config entries.  If the alternate config area is
+     * not configured, treat children of the top-level plug-in
+     * config entry as our config entries. */
+    if (mep_get_config_area()) {
+        if (slapi_sdn_issuffix(sdn, mep_get_config_area()) &&
+            slapi_sdn_compare(sdn, mep_get_config_area())) {
+            ret = 1;
+        }
+    } else {
+        if (slapi_sdn_issuffix(sdn, mep_get_plugin_sdn()) &&
+            slapi_sdn_compare(sdn, mep_get_plugin_sdn())) {
+            ret = 1;
+        }
+    }
+
+bail:
+    slapi_sdn_free(&sdn);
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_dn_is_config\n");
 
@@ -1739,6 +1822,13 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
     } else {
         /* Check if an active template entry is being updated.  If so, validate it. */
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            goto bail;
+        }
+
         mep_find_config_by_template_dn(dn, &config);
         if (config) {
             Slapi_Entry *test_entry = NULL;
@@ -1863,6 +1953,13 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                     if (origin_e) {
                         /* Fetch the config. */
                         mep_config_read_lock();
+
+                        /* Bail out if the plug-in close function was just called. */
+                        if (!g_plugin_started) {
+                            mep_config_unlock();
+                            goto bail;
+                        }
+
                         mep_find_config(origin_e, &config);
 
                         if (config) {
@@ -2000,7 +2097,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
         }
 
         /* Fetch the modified entry.  This will not be set for a chaining
-	 * backend, so don't treat the message as fatal. */
+         * backend, so don't treat the message as fatal. */
         slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
         if (e == NULL) {
             slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
@@ -2009,8 +2106,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
         }
 
         /* If the entry is a tombstone, just bail. */
-        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+        if (mep_has_tombstone_value(e)) {
             goto bail;
         }
 
@@ -2019,6 +2115,13 @@ mep_mod_post_op(Slapi_PBlock *pb)
         managed_dn = slapi_entry_attr_get_charptr(e, MEP_MANAGED_ENTRY_TYPE);
         if (managed_dn) {
             mep_config_read_lock();
+
+            /* Bail out if the plug-in close function was just called. */
+            if (!g_plugin_started) {
+                mep_config_unlock();
+                goto bail;
+            }
+
             mep_find_config(e, &config);
             if (config) {
                 smods = mep_get_mapped_mods(config, e, &mapped_dn);
@@ -2115,14 +2218,20 @@ mep_add_post_op(Slapi_PBlock *pb)
 
     if (e) {
         /* If the entry is a tombstone, just bail. */
-        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+        if (mep_has_tombstone_value(e)) {
             return 0;
         }
 
         /* Check if a config entry applies
          * to the entry being added. */
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            return 0;
+        }
+
         mep_find_config(e, &config);
         if (config) {
             mep_add_managed_entry(config, e);
@@ -2177,8 +2286,7 @@ mep_del_post_op(Slapi_PBlock *pb)
         char *managed_dn = NULL;
 
         /* If the entry is a tombstone, just bail. */
-        if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                      SLAPI_ATTR_VALUE_TOMBSTONE)) {
+        if (mep_has_tombstone_value(e)) {
             return 0;
         }
 
@@ -2255,8 +2363,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
     }
 
     /* If the entry is a tombstone, just bail. */
-    if (slapi_entry_attr_hasvalue(post_e, SLAPI_ATTR_OBJECTCLASS,
-                                  SLAPI_ATTR_VALUE_TOMBSTONE)) {
+    if (mep_has_tombstone_value(post_e)) {
         return 0;
     }
 
@@ -2273,6 +2380,14 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         Slapi_Mods *smods = NULL;
 
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            slapi_pblock_destroy(mep_pb);
+            return 0;
+        }
+
         mep_find_config(post_e, &config);
         if (!config) {
             LDAPMod mod2;
@@ -2410,6 +2525,13 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
          * If so, treat like an add and create the new managed
          * entry and links. */
         mep_config_read_lock();
+
+        /* Bail out if the plug-in close function was just called. */
+        if (!g_plugin_started) {
+            mep_config_unlock();
+            return 0;
+        }
+
         mep_find_config(post_e, &config);
         if (config) {
             mep_add_managed_entry(config, post_e);
@@ -2424,3 +2546,12 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
     return 0;
 }
 
+static int
+mep_has_tombstone_value(Slapi_Entry * e)
+{
+    Slapi_Value *tombstone = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+    int rc = slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS,
+                                               tombstone);
+    slapi_value_free(&tombstone);
+    return rc;
+}

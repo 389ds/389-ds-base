@@ -1244,7 +1244,9 @@ hash_rootpw (LDAPMod **mods)
 		for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
 			char *val = mod->mod_bvalues[j]->bv_val;
 			char *hashedval = NULL;
-			if (pw_val2scheme (val, NULL, 0)) {
+			struct pw_scheme *pws = pw_val2scheme (val, NULL, 0);
+			if (pws) {
+				free_pw_scheme(pws);
 				/* Value is pre-hashed, no work to do for this value */
 				continue;
 			} else if (! slapd_nss_is_initialized() ) {

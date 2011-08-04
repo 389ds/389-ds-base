@@ -618,12 +618,12 @@ windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonl
 ConnResult
 windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry)
 {
-	return windows_search_entry_ext(conn, searchbase, filter, entry, NULL);
+	return windows_search_entry_ext(conn, searchbase, filter, entry, NULL, LDAP_SCOPE_SUBTREE);
 }
 
 /* Perform a simple search against Windows with optional controls */
 ConnResult
-windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls)
+windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls, int scope)
 {
 	ConnResult return_value = 0;
 
@@ -642,7 +642,6 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 		int ldap_rc = 0;
 		LDAPMessage *res = NULL;
 		char *searchbase_copy = slapi_ch_strdup(searchbase);
-		int scope = LDAP_SCOPE_SUBTREE;
 		char *filter_copy = slapi_ch_strdup(filter);
 		char **attrs = NULL;
 		LDAPControl **serverctrls_copy = NULL;
@@ -659,6 +658,14 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 			serverctrls_copy , NULL /* client controls */,
 			&conn->timeout, 0 /* sizelimit */, &res);
 
+		if ((LDAP_SUCCESS != ldap_rc) && !IS_DISCONNECT_ERROR(ldap_rc)) {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"Could not retrieve entry from Windows using search "
+							"base [%s] scope [%d] filter [%s]: error %d:%s\n",
+							searchbase_copy, scope, filter_copy, ldap_rc,
+							ldap_err2string(ldap_rc));
+		}
+
 		slapi_ch_free_string(&searchbase_copy);
 		slapi_ch_free_string(&filter_copy);
 		slapi_ch_array_free(attrs);
@@ -666,6 +673,9 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 		ldap_controls_free(serverctrls_copy);
 		serverctrls_copy = NULL;
 
+		/* clear it here in case the search fails and
+		   we are left with a bogus old entry */
+		windows_private_set_raw_entry(conn->agmt, NULL);
 		if (LDAP_SUCCESS == ldap_rc)
 		{
 			LDAPMessage *message = ldap_first_entry(conn->ld, res);

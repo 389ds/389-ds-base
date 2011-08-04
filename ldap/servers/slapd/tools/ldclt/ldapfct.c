@@ -261,6 +261,11 @@ dd/mm/yy | Author	| Comments
 #endif
 
 #include <prprf.h>
+#include <plstr.h>
+#include <nspr.h>
+#include <nss.h>
+#include <ssl.h>
+#include <pk11pub.h>
 
 #define LDCLT_DEREF_ATTR "secretary"
 int ldclt_create_deref_control( LDAP *ld, char *derefAttr, char **attrs, LDAPControl **ctrlp );
@@ -598,6 +603,499 @@ referralSetup (
 
 
 
+#if defined(USE_OPENLDAP)
+/* ****************************************************************************
+	FUNCTION :	dirname
+	PURPOSE :	given a relative or absolute path name, return
+			the name of the directory containing the path
+	INPUT :		path
+	OUTPUT :	none
+	RETURN :	directory part of path or "."
+	DESCRIPTION :   caller must free return value when done
+ *****************************************************************************/
+static char *
+ldclt_dirname(const char *path) {
+  char sep = PR_GetDirectorySeparator();
+  char *ptr = NULL;
+  char *ret = NULL;
+  if (path && ((ptr = strrchr(path, sep))) && *(ptr+1)) {
+    ret = PL_strndup(path, ptr-path);
+  } else {
+    ret = PL_strdup(".");
+  }
+
+  return ret;
+}
+
+static char *
+ldclt_get_sec_pwd(PK11SlotInfo *slot, PRBool retry, void *arg)
+{
+  char *pwd = (char *)arg;
+  return PL_strdup(pwd);
+}
+
+static int
+ldclt_clientauth(thread_context	*tttctx, const char *path, const char *certname, const char *pwd)
+{
+  const char *colon = NULL;
+  char *token_name = NULL;
+  PK11SlotInfo *slot = NULL;
+  int rc = 0;
+  int thrdNum = 0;
+
+  if (tttctx) {
+      thrdNum = tttctx->thrdNum;
+  }
+
+  rc = NSS_Initialize(path, "", "", SECMOD_DB, NSS_INIT_READONLY);
+  if (rc != SECSuccess) {
+    printf ("ldclt[%d]: T%03d: Cannot NSS_Initialize(%s) %d\n",
+	    mctx.pid, thrdNum, path, PR_GetError());
+    fflush(stdout);
+    goto done;
+  }
+
+  if ((colon = PL_strchr(certname, ':' ))) {
+    token_name = PL_strndup(certname, colon-certname);
+  }
+
+  if (token_name) {
+    slot = PK11_FindSlotByName(token_name);
+  } else {
+    slot = PK11_GetInternalKeySlot();
+  }
+
+  if (!slot) {
+    printf ("ldclt[%d]: T%03d: Cannot find slot for token %s - %d\n",
+	    mctx.pid, thrdNum,
+	    token_name ? token_name : "internal", PR_GetError());
+    fflush(stdout);
+    goto done;
+  }
+
+  NSS_SetDomesticPolicy();
+
+  PK11_SetPasswordFunc(ldclt_get_sec_pwd);
+
+  rc = PK11_Authenticate(slot, PR_FALSE, (void *)pwd);
+  if (rc != SECSuccess) {
+    printf ("ldclt[%d]: T%03d: Cannot authenticate to token %s - %d\n",
+	    mctx.pid, thrdNum,
+	    token_name ? token_name : "internal", PR_GetError());
+    fflush(stdout);
+    goto done;
+  }
+
+  if ((rc = ldap_set_option(tttctx->ldapCtx, LDAP_OPT_X_TLS_CERTFILE, certname))) {
+    printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_CERTFILE, %s), errno=%d ldaperror=%d:%s\n",
+	    mctx.pid, thrdNum, certname, errno, rc, my_ldap_err2string(rc));
+    fflush (stdout);
+    goto done;
+  }
+
+  if ((rc = ldap_set_option(tttctx->ldapCtx, LDAP_OPT_X_TLS_KEYFILE, pwd))) {
+    printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_KEYFILE, %s), errno=%d ldaperror=%d:%s\n",
+	    mctx.pid, thrdNum, pwd, errno, rc, my_ldap_err2string(rc));
+    fflush (stdout);
+    goto done;
+  }
+
+done:
+  PL_strfree(token_name);
+  if (slot) {
+    PK11_FreeSlot(slot);
+  }
+
+  return rc;
+}
+#endif /* USE_OPENLDAP */
+
+/* mctx is a global */
+LDAP *
+connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPasswd, unsigned int mode, unsigned int mod2)
+{
+  LDAP *ld = NULL;
+  const char *mech = LDAP_SASL_SIMPLE;
+  struct berval cred = {0, NULL};
+  int v2v3 = LDAP_VERSION3;
+  const char *binddn = NULL;
+  const char *passwd = NULL;
+#if defined(USE_OPENLDAP)
+  char *ldapurl = NULL;
+#endif
+  int thrdNum = 0;
+  int ret = -1;
+  int binded = 0;
+
+  if (tttctx) {
+    thrdNum = tttctx->thrdNum;
+  }
+
+#if defined(USE_OPENLDAP)
+  ldapurl = PR_smprintf("ldap%s://%s:%d/",
+			(mode & SSL) ? "s" : "",
+			mctx.hostname, mctx.port);
+  if ((ret = ldap_initialize(&ld, ldapurl))) {
+    printf ("ldclt[%d]: T%03d: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
+	    mctx.pid, thrdNum, ldapurl, errno, ret, my_ldap_err2string(ret));
+    fflush (stdout);
+    goto done;
+  }
+  PR_smprintf_free(ldapurl);
+  ldapurl = NULL;
+  if (mode & SSL) {
+    int optval = 0;
+    /* bad, but looks like the tools expect to be able to use an ip address
+       for the hostname, so have to defeat fqdn checking in cn of subject of server cert */
+    int ssl_strength = LDAP_OPT_X_TLS_NEVER;
+    char *certdir = ldclt_dirname(mctx.certfile);
+    if ((ret = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
+      printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX), errno=%d ldaperror=%d:%s\n",
+	      mctx.pid, thrdNum, errno, ret, my_ldap_err2string(ret));
+      fflush (stdout);
+      free(certdir);
+      goto done;
+    }
+    if ((ret = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
+      printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT), errno=%d ldaperror=%d:%s\n",
+	      mctx.pid, thrdNum, errno, ret, my_ldap_err2string(ret));
+      fflush (stdout);
+      free(certdir);
+      goto done;
+    }
+    /* tell it where our cert db is */
+    if ((ret = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
+      printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_CACERTDIR, %s), errno=%d ldaperror=%d:%s\n",
+	      mctx.pid, thrdNum, certdir, errno, ret, my_ldap_err2string(ret));
+      fflush (stdout);
+      free(certdir);
+      goto done;
+    }
+    if ((mode & CLTAUTH) &&
+	(ret = ldclt_clientauth(tttctx, certdir, mctx.cltcertname, mctx.keydbpin))) {
+      free(certdir);
+      goto done;
+    }
+    free(certdir);
+  }
+#else /* !USE_OPENLDAP */
+  /*
+   * SSL is enabled ?
+   */
+  if (mode & SSL) {
+    /*
+     * LDAP session initialization in SSL mode
+     * added by: B Kolics (11/10/00)
+     */
+    ld = ldapssl_init(mctx.hostname, mctx.port, 1);
+    if (mode & VERY_VERBOSE)
+      printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%p\n",
+	      mctx.pid, thrdNum, mctx.hostname, mctx.port,
+	      ld);
+    if (ld == NULL) {
+      printf ("ldclt[%d]: T%03d: Cannot ldapssl_init (%s, %d), errno=%d\n",
+	      mctx.pid, thrdNum, mctx.hostname, mctx.port, errno);
+      fflush (stdout);
+      ret = -1;
+      goto done;
+    }
+    /*
+     * Client authentication is used ?
+     */
+    if (mode & CLTAUTH) {
+      ret = ldapssl_enable_clientauth(ld, "", mctx.keydbpin, mctx.cltcertname);
+      if (mode & VERY_VERBOSE)
+	printf 
+	  ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	   mctx.pid, thrdNum, ld, mctx.keydbpin,
+	   mctx.cltcertname);
+      if (ret < 0) {
+	printf
+	  ("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
+	   mctx.pid, thrdNum, ld, mctx.keydbpin, mctx.cltcertname);
+	ldap_perror(ld, "ldapssl_enable_clientauth");
+	fflush (stdout);
+	goto done;
+      }
+    }
+  } else {
+    /*
+     * connection initialization in normal, unencrypted mode
+     */
+    ld = ldap_init (mctx.hostname, mctx.port);
+    if (mode & VERY_VERBOSE)
+      printf ("ldclt[%d]: T%03d: After ldap_init (%s, %d), ldapCtx=0x%p\n",
+	      mctx.pid, thrdNum, mctx.hostname, mctx.port,
+	      ld);
+    if (ld == NULL) {
+      printf ("ldclt[%d]: T%03d: Cannot ldap_init (%s, %d), errno=%d\n",
+	      mctx.pid, thrdNum, mctx.hostname, mctx.port, errno);
+      fflush (stdout);
+      ret = -1;
+      goto done;
+    }
+  }
+#endif /* !USE_OPENLDAP */
+
+  if (mode & CLTAUTH) {
+    mech = "EXTERNAL";
+    binddn = "";
+    passwd = NULL;
+  } else {
+    binddn = bufBindDN?bufBindDN:mctx.bindDN;
+    passwd = bufPasswd?bufPasswd:mctx.passwd;
+    if (passwd) {
+      cred.bv_val = (char *)passwd;
+      cred.bv_len = strlen(passwd);
+    }
+  }
+
+  if (mode & LDAP_V2)
+    v2v3 = LDAP_VERSION2;
+  else
+    v2v3 = LDAP_VERSION3;
+
+  ret = ldap_set_option (ld, LDAP_OPT_PROTOCOL_VERSION, &v2v3);
+  if (ret < 0) {
+    printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)\n",
+	    mctx.pid, thrdNum);
+    fflush (stdout);
+    ret = -1;
+    goto done;
+  }
+
+  /*
+   * Set the referral options...
+   */
+  if (tttctx && (referralSetup (tttctx) < 0)) {
+    ret = -1;
+    goto done;
+  }
+
+  /*
+   * Let's save some time here... If no bindDN is provided, the tool is
+   * working in anonymous mode, i.e. we may consider it is always
+   * binded.
+   * NOTE : maybe some cleanup is needed with the tests mctx.bindDN!=NULL
+   *        below in this function ?
+   *        03-05-01 : no cleanup I think, cf M2_RNDBINDFILE
+   */
+  if ((bufBindDN == NULL) && (mctx.bindDN == NULL) &&
+      ((!(mod2 & M2_RNDBINDFILE)) && (!(mod2 & M2_SASLAUTH)))) {/*JLS 05-03-01*/
+    if (tttctx) {
+      tttctx->binded = 1;					/*JLS 05-03-01*/
+    }
+    ret = 0;
+    goto done;
+  }								/*JLS 05-03-01*/
+
+  /*
+   * Maybe we should bind ?
+   */
+  /*
+   * for SSL client authentication, SASL BIND is used
+   */
+  if (tttctx) {
+    binded = tttctx->binded;
+  }
+  if ((mode & CLTAUTH) && ((!(binded)) ||
+			   (mode & BIND_EACH_OPER))) {
+    if (mode & VERY_VERBOSE)
+      printf ("ldclt[%d]: T%03d: Before ldap_sasl_bind_s\n",
+	      mctx.pid, thrdNum);
+    ret = ldap_sasl_bind_s (ld, "", "EXTERNAL", NULL, NULL, NULL,
+			    NULL);
+    if (mode & VERY_VERBOSE)
+      printf ("ldclt[%d]: T%03d: After ldap_sasl_bind_s\n",
+	      mctx.pid, thrdNum);
+    if (ret == LDAP_SUCCESS) {				/*JLS 18-12-00*/
+      if (tttctx) {
+	tttctx->binded = 1;					/*JLS 18-12-00*/
+      }
+    } else {						/*JLS 18-12-00*/
+      if (tttctx) {
+	tttctx->binded = 0;					/*JLS 18-12-00*/
+      }
+      if (ignoreError (ret)) {				/*JLS 18-12-00*/
+	if (!(mode & QUIET)) {			/*JLS 18-12-00*/
+	  printf ("ldclt[%d]: T%03d: Cannot ldap_sasl_bind_s, error=%d (%s)\n",
+		  mctx.pid, thrdNum, ret, my_ldap_err2string (ret));
+	  fflush (stdout);					/*JLS 18-12-00*/
+	}							/*JLS 18-12-00*/
+	if (addErrorStat (ret) < 0)				/*JLS 18-12-00*/
+	  ret = -1;
+	else
+	  ret = 0;
+	goto done;
+      } else {						/*JLS 18-12-00*/
+	printf ("ldclt[%d]: T%03d: Cannot ldap_sasl_bind_s, error=%d (%s)\n",
+		mctx.pid, thrdNum, ret, my_ldap_err2string (ret));
+	fflush (stdout);					/*JLS 18-12-00*/
+	if (tttctx)
+	  tttctx->exitStatus = EXIT_NOBIND;			/*JLS 18-12-00*/
+	(void)addErrorStat(ret);
+	ret = -1;
+	goto done;
+      }								/*JLS 18-12-00*/
+    }
+  } else if ((mod2 & M2_SASLAUTH) && ((!(binded)) ||
+				      (mode & BIND_EACH_OPER))) {
+    void *defaults;
+    char *my_saslauthid = NULL;
+
+    if ( mctx.sasl_mech == NULL) {
+      fprintf( stderr, "Please specify the SASL mechanism name when "
+	       "using SASL options\n");
+      ret = -1;
+      goto done;
+    }
+
+    if ( mctx.sasl_secprops != NULL) {
+      ret = ldap_set_option( ld, LDAP_OPT_X_SASL_SECPROPS,
+                             (void *) mctx.sasl_secprops );
+
+      if ( ret != LDAP_SUCCESS ) {
+        fprintf( stderr, "Unable to set LDAP_OPT_X_SASL_SECPROPS: %s\n",
+		 mctx.sasl_secprops );
+        goto done;
+      }
+    }
+
+    /*
+     * Generate the random authid if set up so
+     */
+    if ((mod2 & M2_RANDOM_SASLAUTHID) && tttctx) {
+      rnd (tttctx->buf2, mctx.sasl_authid_low, mctx.sasl_authid_high,
+	   mctx.sasl_authid_nbdigit);
+      strncpy (&(tttctx->bufSaslAuthid[tttctx->startSaslAuthid]),
+	       tttctx->buf2, mctx.sasl_authid_nbdigit);
+      my_saslauthid = tttctx->bufSaslAuthid;
+      if (mode & VERY_VERBOSE)
+	printf ("ldclt[%d]: T%03d: Sasl Authid=\"%s\"\n",
+		mctx.pid, thrdNum, tttctx->bufSaslAuthid);
+    } else {
+      my_saslauthid =  mctx.sasl_authid;
+    }
+
+    defaults = ldaptool_set_sasl_defaults( ld, mctx.sasl_flags, mctx.sasl_mech,
+					   my_saslauthid, mctx.sasl_username, mctx.passwd, mctx.sasl_realm );
+    if (defaults == NULL) {
+      perror ("malloc");
+      exit (LDAP_NO_MEMORY);
+    }
+#if defined(USE_OPENLDAP)
+    ret = ldap_sasl_interactive_bind_s( ld, mctx.bindDN, mctx.sasl_mech,
+					NULL, NULL, mctx.sasl_flags,
+					ldaptool_sasl_interact, defaults );
+#else
+    ret = ldap_sasl_interactive_bind_ext_s( ld, mctx.bindDN, mctx.sasl_mech,
+					    NULL, NULL, mctx.sasl_flags,
+					    ldaptool_sasl_interact, defaults, NULL );
+#endif
+    if (ret != LDAP_SUCCESS ) {
+      if (tttctx) {
+	tttctx->binded = 0;
+      }
+      if (!(mode & QUIET)) {
+	fprintf(stderr, "Error: could not bind: %d:%s\n",
+		ret, my_ldap_err2string(ret));
+      }
+      if (addErrorStat (ret) < 0)
+        goto done;
+    } else {
+      if (tttctx) {
+        tttctx->binded = 1;
+      }
+    }
+
+    ldaptool_free_defaults( defaults );
+  } else {
+    if (((mctx.bindDN != NULL) || (mod2 & M2_RNDBINDFILE)) &&  /*03-05-01*/
+	((!(binded)) || (mode & BIND_EACH_OPER))) {
+      struct berval *servercredp = NULL;
+      const char *binddn = NULL;
+      const char *passwd = NULL;
+
+      if (tttctx && (buildNewBindDN (tttctx) < 0)) { /*JLS 05-01-01*/
+	ret = -1;
+	goto done;
+      }
+      if (tttctx && tttctx->bufPasswd) {
+	binddn = tttctx->bufBindDN;
+	passwd = tttctx->bufPasswd;
+      } else if (bufPasswd) {
+	binddn = bufBindDN;
+	passwd = bufPasswd;
+      } else if (mctx.passwd) {
+	binddn = mctx.bindDN;
+	passwd = mctx.passwd;
+      }
+      if (passwd) {
+	cred.bv_val = (char *)passwd;
+	cred.bv_len = strlen(passwd);
+      }
+      if (mode & VERY_VERBOSE)
+	printf ("ldclt[%d]: T%03d: Before ldap_simple_bind_s (%s, %s)\n",
+		mctx.pid, thrdNum, binddn,
+		passwd?passwd:"NO PASSWORD PROVIDED");
+      ret = ldap_sasl_bind_s (ld, binddn,
+			      LDAP_SASL_SIMPLE, &cred, NULL, NULL, &servercredp);	/*JLS 05-01-01*/
+      ber_bvfree(servercredp);
+      if (mode & VERY_VERBOSE)
+	printf ("ldclt[%d]: T%03d: After ldap_simple_bind_s (%s, %s)\n",
+		mctx.pid, thrdNum, binddn,
+		passwd?passwd:"NO PASSWORD PROVIDED");
+      if (ret == LDAP_SUCCESS) {				/*JLS 18-12-00*/
+	if (tttctx) {
+	  tttctx->binded = 1;					/*JLS 18-12-00*/
+	}
+      } else {						/*JLS 18-12-00*/
+	if (tttctx) {
+	  tttctx->binded  = 0;					/*JLS 18-12-00*/
+	}
+	if (ignoreError (ret)) {				/*JLS 18-12-00*/
+	  if (!(mode & QUIET)) {			/*JLS 18-12-00*/
+	    printf("ldclt[%d]: T%03d: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
+		   mctx.pid, thrdNum, binddn,
+		   passwd?passwd:"NO PASSWORD PROVIDED",
+		   ret, my_ldap_err2string (ret));
+	    fflush (stdout);					/*JLS 18-12-00*/
+	  }							/*JLS 18-12-00*/
+	  if (addErrorStat (ret) < 0) {			/*JLS 18-12-00*/
+	    ret = -1;
+	  } else {
+	    ret = 0;
+	  }
+	  goto done;
+	} else {					/*JLS 18-12-00*/
+	  printf ("ldclt[%d]: T%03d: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
+		  mctx.pid, thrdNum, binddn,
+		  passwd?passwd:"NO PASSWORD PROVIDED",
+		  ret, my_ldap_err2string (ret));
+	  fflush (stdout);					/*JLS 18-12-00*/
+	  if (tttctx)
+	    tttctx->exitStatus = EXIT_NOBIND;			/*JLS 18-12-00*/
+	  (void)addErrorStat(ret);
+	  ret = -1;
+	  goto done;
+	}							/*JLS 18-12-00*/
+      }
+    }
+  }
+
+done:
+  if (ret) {
+    ldap_unbind_ext(ld, NULL, NULL);
+    ld = NULL;
+  }
+#if defined(USE_OPENLDAP)
+  if (ldapurl) {
+    PR_smprintf_free(ldapurl);
+    ldapurl = NULL;
+  }
+#endif
+  return ld;
+}
 
 /* ****************************************************************************
 	FUNCTION :	connectToServer
@@ -615,8 +1113,6 @@ connectToServer (
 {
   int	 ret;	/* Return value */
   LBER_SOCKET	 fd;	/* LDAP cnx's fd */
-  int	 v2v3;	/* LDAP version used */
-  struct berval cred = {0, NULL};
 
   /*
    * Maybe close the connection ?
@@ -688,316 +1184,10 @@ connectToServer (
    */
   if (tttctx->ldapCtx == NULL)
   {
-    const char *mech = LDAP_SASL_SIMPLE;
-    const char *binddn = NULL;
-    const char *passwd = NULL;
-#if defined(USE_OPENLDAP)
-    char *ldapurl = NULL;
-#endif
-
-#if defined(USE_OPENLDAP)
-    ldapurl = PR_smprintf("ldap%s://%s:%d/",
-			  (mctx.mode & SSL) ? "s" : "",
-			  mctx.hostname, mctx.port);
-    if ((ret = ldap_initialize(&tttctx->ldapCtx, ldapurl))) {
-	printf ("ldclt[%d]: T%03d: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
-		mctx.pid, tttctx->thrdNum, ldapurl, errno, ret, my_ldap_err2string(ret));
-	fflush (stdout);
-	PR_smprintf_free(ldapurl);
-	return (-1);
-    }
-    PR_smprintf_free(ldapurl);
-    ldapurl = NULL;
-#else /* !USE_OPENLDAP */
-    /*
-     * SSL is enabled ?
-     */
-    if (mctx.mode & SSL)
-    {
-      /*
-       * LDAP session initialization in SSL mode
-       * added by: B Kolics (11/10/00)
-       */
-      tttctx->ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
-      if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%p\n",
-		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
-		tttctx->ldapCtx);
-      if (tttctx->ldapCtx == NULL)
-      {
-	printf ("ldclt[%d]: T%03d: Cannot ldapssl_init (%s, %d), errno=%d\n",
-		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port, errno);
-	fflush (stdout);
-	return (-1);
-      }
-      /*
-       * Client authentication is used ?
-       */
-      if (mctx.mode & CLTAUTH)
-	{
-	 ret = ldapssl_enable_clientauth(tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
-	 if (mctx.mode & VERY_VERBOSE)
-	   printf 
-	    ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-	     mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
-	     mctx.cltcertname);
-	 if (ret < 0)
-	 {
-	   printf
-	    ("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-	     mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
-	     mctx.cltcertname);
-	   ldap_perror(tttctx->ldapCtx, "ldapssl_enable_clientauth");
-	   fflush (stdout);
-	   return (-1);
-	 }
-      }
-    } else {
-      /*
-       * connection initialization in normal, unencrypted mode
-       */
-      tttctx->ldapCtx = ldap_init (mctx.hostname, mctx.port);
-      if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: After ldap_init (%s, %d), ldapCtx=0x%p\n",
-		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
-		tttctx->ldapCtx);
-      if (tttctx->ldapCtx == NULL)
-      {
-	printf ("ldclt[%d]: T%03d: Cannot ldap_init (%s, %d), errno=%d\n",
-		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port, errno);
-	fflush (stdout);
-	return (-1);
-      }
-    }
-#endif /* !USE_OPENLDAP */
-
-    if (mctx.mode & CLTAUTH) {
-      mech = "EXTERNAL";
-      binddn = "";
-      passwd = NULL;
-    } else {
-      binddn = tttctx->bufBindDN?tttctx->bufBindDN:mctx.bindDN;
-      passwd = tttctx->bufPasswd?tttctx->bufPasswd:mctx.passwd;
-      if (passwd) {
-        cred.bv_val = (char *)passwd;
-        cred.bv_len = strlen(passwd);
-      }
-    }
-
-    if (mctx.mode & LDAP_V2)
-      v2v3 = LDAP_VERSION2;
-    else
-      v2v3 = LDAP_VERSION3;
-
-    ret = ldap_set_option (tttctx->ldapCtx, LDAP_OPT_PROTOCOL_VERSION, &v2v3);
-    if (ret < 0)
-    {
-      printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)\n",
-		mctx.pid, tttctx->thrdNum);
-      fflush (stdout);
+    tttctx->ldapCtx = connectToLDAP(tttctx, tttctx->bufBindDN, tttctx->bufPasswd,
+				    mctx.mode, mctx.mod2);
+    if (!tttctx->ldapCtx) {
       return (-1);
-    }
-
-    /*
-     * Set the referral options...
-     */
-    if (referralSetup (tttctx) < 0)
-      return (-1);
-  }
-
-  /*
-   * Let's save some time here... If no bindDN is provided, the tool is
-   * working in anonymous mode, i.e. we may consider it is always
-   * binded.
-   * NOTE : maybe some cleanup is needed with the tests mctx.bindDN!=NULL
-   *        below in this function ?
-   *        03-05-01 : no cleanup I think, cf M2_RNDBINDFILE
-   */
-  if ((mctx.bindDN == NULL) && ((!(mctx.mod2 & M2_RNDBINDFILE))
-       && (!(mctx.mod2 & M2_SASLAUTH))))
-  {								/*JLS 05-03-01*/
-    tttctx->binded = 1;						/*JLS 05-03-01*/
-    return (0);							/*JLS 05-03-01*/
-  }								/*JLS 05-03-01*/
-
-  /*
-   * Maybe we should bind ?
-   */
-  /*
-   * for SSL client authentication, SASL BIND is used
-   */
-  if ((mctx.mode & CLTAUTH) && ((!(tttctx->binded)) ||
-				(mctx.mode & BIND_EACH_OPER)))
-  {
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: T%03d: Before ldap_sasl_bind_s\n",
-               mctx.pid, tttctx->thrdNum);
-    ret = ldap_sasl_bind_s (tttctx->ldapCtx, "", "EXTERNAL", NULL, NULL, NULL,
-			    NULL);
-    if (mctx.mode & VERY_VERBOSE)
-      printf ("ldclt[%d]: T%03d: After ldap_sasl_bind_s\n",
-               mctx.pid, tttctx->thrdNum);
-    if (ret == LDAP_SUCCESS)					/*JLS 18-12-00*/
-      tttctx->binded = 1;					/*JLS 18-12-00*/
-    else							/*JLS 18-12-00*/
-    {								/*JLS 18-12-00*/
-      tttctx->binded  = 0;					/*JLS 18-12-00*/
-      if (ignoreError (ret))					/*JLS 18-12-00*/
-      {								/*JLS 18-12-00*/
-	if (!(mctx.mode & QUIET))				/*JLS 18-12-00*/
-	{							/*JLS 18-12-00*/
-	  printf ("ldclt[%d]: T%03d: Cannot ldap_sasl_bind_s, error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
-	  fflush (stdout);					/*JLS 18-12-00*/
-	}							/*JLS 18-12-00*/
-	if (addErrorStat (ret) < 0)				/*JLS 18-12-00*/
-	  return (-1);						/*JLS 18-12-00*/
-	return (0);						/*JLS 18-12-00*/
-      }								/*JLS 18-12-00*/
-      else							/*JLS 18-12-00*/
-      {								/*JLS 18-12-00*/
-	printf ("ldclt[%d]: T%03d: Cannot ldap_sasl_bind_s, error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, ret, my_ldap_err2string (ret));
-	fflush (stdout);					/*JLS 18-12-00*/
-	tttctx->exitStatus = EXIT_NOBIND;			/*JLS 18-12-00*/
-	if (addErrorStat (ret) < 0)				/*JLS 18-12-00*/
-	  return (-1);						/*JLS 18-12-00*/
-	return (-1);						/*JLS 18-12-00*/
-      }								/*JLS 18-12-00*/
-    }
-  } else if ((mctx.mod2 & M2_SASLAUTH) && ((!(tttctx->binded)) ||
-                                          (mctx.mode & BIND_EACH_OPER))) {
-    void *defaults;
-    char *my_saslauthid = NULL;
-
-    if ( mctx.sasl_mech == NULL) {
-      fprintf( stderr, "Please specify the SASL mechanism name when "
-                           "using SASL options\n");
-      return (-1);
-    }
-
-    if ( mctx.sasl_secprops != NULL) {
-      ret = ldap_set_option( tttctx->ldapCtx, LDAP_OPT_X_SASL_SECPROPS,
-                             (void *) mctx.sasl_secprops );
-
-      if ( ret != LDAP_SUCCESS ) {
-        fprintf( stderr, "Unable to set LDAP_OPT_X_SASL_SECPROPS: %s\n",
-                          mctx.sasl_secprops );
-        return (-1);
-      }
-    }
-
-  /*
-   * Generate the random authid if set up so
-   */
-    if (mctx.mod2 & M2_RANDOM_SASLAUTHID)
-    {
-      rnd (tttctx->buf2, mctx.sasl_authid_low, mctx.sasl_authid_high,
-                         mctx.sasl_authid_nbdigit);
-      strncpy (&(tttctx->bufSaslAuthid[tttctx->startSaslAuthid]),
-                         tttctx->buf2, mctx.sasl_authid_nbdigit);
-      my_saslauthid = tttctx->bufSaslAuthid;
-      if (mctx.mode & VERY_VERBOSE)
-        printf ("ldclt[%d]: T%03d: Sasl Authid=\"%s\"\n",
-             mctx.pid, tttctx->thrdNum, tttctx->bufSaslAuthid);
-    }
-    else
-    {
-      my_saslauthid =  mctx.sasl_authid;
-    }
-
-    defaults = ldaptool_set_sasl_defaults( tttctx->ldapCtx, mctx.sasl_flags, mctx.sasl_mech,
-              my_saslauthid, mctx.sasl_username, mctx.passwd, mctx.sasl_realm );
-    if (defaults == NULL) {
-      perror ("malloc");
-      exit (LDAP_NO_MEMORY);
-    }
-#if defined(USE_OPENLDAP)
-    ret = ldap_sasl_interactive_bind_s( tttctx->ldapCtx, mctx.bindDN, mctx.sasl_mech,
-                       NULL, NULL, mctx.sasl_flags,
-                       ldaptool_sasl_interact, defaults );
-#else
-    ret = ldap_sasl_interactive_bind_ext_s( tttctx->ldapCtx, mctx.bindDN, mctx.sasl_mech,
-                       NULL, NULL, mctx.sasl_flags,
-                       ldaptool_sasl_interact, defaults, NULL );
-#endif
-    if (ret != LDAP_SUCCESS ) {
-      tttctx->binded = 0;
-      if (!(mctx.mode & QUIET)) {
-	fprintf(stderr, "Error: could not bind: %d:%s\n",
-		ret, my_ldap_err2string(ret));
-      }
-      if (addErrorStat (ret) < 0)
-        return (-1);
-    } else {
-        tttctx->binded = 1;
-    }
-
-    ldaptool_free_defaults( defaults );
-  } else {
-    if (((mctx.bindDN != NULL) || (mctx.mod2 & M2_RNDBINDFILE)) &&  /*03-05-01*/
-	((!(tttctx->binded)) || (mctx.mode & BIND_EACH_OPER)))
-    {
-      struct berval *servercredp = NULL;
-      char *binddn = NULL;
-      char *passwd = NULL;
-
-      if (buildNewBindDN (tttctx) < 0)				/*JLS 05-01-01*/
-        return (-1);						/*JLS 05-01-01*/
-      if (tttctx->bufPasswd) {
-        binddn = tttctx->bufBindDN;
-        passwd = tttctx->bufPasswd;
-      } else if (mctx.passwd) {
-        binddn = mctx.bindDN;
-        passwd = mctx.passwd;
-      }
-      if (passwd) {
-        cred.bv_val = passwd;
-        cred.bv_len = strlen(passwd);
-      }
-      if (mctx.mode & VERY_VERBOSE)
-        printf ("ldclt[%d]: T%03d: Before ldap_simple_bind_s (%s, %s)\n",
-                mctx.pid, tttctx->thrdNum, binddn,
-                passwd?passwd:"NO PASSWORD PROVIDED");
-      ret = ldap_sasl_bind_s (tttctx->ldapCtx, binddn,
-            LDAP_SASL_SIMPLE, &cred, NULL, NULL, &servercredp);	/*JLS 05-01-01*/
-      ber_bvfree(servercredp);
-      if (mctx.mode & VERY_VERBOSE)
-        printf ("ldclt[%d]: T%03d: After ldap_simple_bind_s (%s, %s)\n",
-                mctx.pid, tttctx->thrdNum, binddn,
-                passwd?passwd:"NO PASSWORD PROVIDED");
-      if (ret == LDAP_SUCCESS)					/*JLS 18-12-00*/
-        tttctx->binded = 1;					/*JLS 18-12-00*/
-      else							/*JLS 18-12-00*/
-      {								/*JLS 18-12-00*/
-	tttctx->binded  = 0;					/*JLS 18-12-00*/
-	if (ignoreError (ret))					/*JLS 18-12-00*/
-	{							/*JLS 18-12-00*/
-	  if (!(mctx.mode & QUIET))				/*JLS 18-12-00*/
-	  {							/*JLS 18-12-00*/
-	    printf("ldclt[%d]: T%03d: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, tttctx->bufBindDN,
-		mctx.passwd?tttctx->bufPasswd:"NO PASSWORD PROVIDED",
-		ret, my_ldap_err2string (ret));
-	    fflush (stdout);					/*JLS 18-12-00*/
-	  }							/*JLS 18-12-00*/
-	  if (addErrorStat (ret) < 0)				/*JLS 18-12-00*/
-	    return (-1);					/*JLS 18-12-00*/
-	  return (0);						/*JLS 18-12-00*/
-	}							/*JLS 18-12-00*/
-	else							/*JLS 18-12-00*/
-	{							/*JLS 18-12-00*/
-	  printf ("ldclt[%d]: T%03d: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, tttctx->bufBindDN,
-		mctx.passwd?tttctx->bufPasswd:"NO PASSWORD PROVIDED",
-		ret, my_ldap_err2string (ret));
-	  fflush (stdout);					/*JLS 18-12-00*/
-	  tttctx->exitStatus = EXIT_NOBIND;			/*JLS 18-12-00*/
-	  if (addErrorStat (ret) < 0)				/*JLS 18-12-00*/
-	    return (-1);					/*JLS 18-12-00*/
-	  return (-1);						/*JLS 18-12-00*/
-	}							/*JLS 18-12-00*/
-      }
     }
   }
 
@@ -1006,8 +1196,6 @@ connectToServer (
    */
   return (0);
 }
-
-
 
 
 
@@ -1915,7 +2103,6 @@ createMissingNodes (
   int		 nbAttribs;	/* Nb of attributes */
   LDAPMod	 attribute;	/* To build the attributes */
   LDAPMod	*attrs[4];	/* Attributes of this entry */
-  int		 v2v3;		/* LDAP version used */
 
   /*
    * Skip the rdn of the given newDN, that was rejected.
@@ -2000,135 +2187,22 @@ createMissingNodes (
    */
   if (cnx == NULL)
   {
-    const char *mech = LDAP_SASL_SIMPLE;
-    const char *binddn = NULL;
-    const char *passwd = NULL;
-    struct berval cred = {0, NULL};
-#if defined(USE_OPENLDAP)
-    char *ldapurl = NULL;
-#endif
-
-    if (mctx.mode & VERY_VERBOSE)				/*JLS 14-12-00*/
+    unsigned int mode = mctx.mode;
+    unsigned int mod2 = mctx.mod2;
+    /* clear bits not applicable to this mode */
+    mod2 &= ~M2_RNDBINDFILE;
+    mod2 &= ~M2_SASLAUTH;
+    mod2 &= ~M2_RANDOM_SASLAUTHID;
+    /* force bind to happen */
+    mode |= BIND_EACH_OPER;
+    if (mode & VERY_VERBOSE)				/*JLS 14-12-00*/
       printf ("ldclt[%d]: T%03d: must connect to the server.\n",
                mctx.pid, tttctx->thrdNum);
-#if defined(USE_OPENLDAP)
-    ldapurl = PR_smprintf("ldap%s://%s:%d/",
-			  (mctx.mode & SSL) ? "s" : "",
-			  mctx.hostname, mctx.port);
-    if ((ret = ldap_initialize(&tttctx->ldapCtx, ldapurl))) {
-	printf ("ldclt[%d]: T%03d: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
-		mctx.pid, tttctx->thrdNum, ldapurl, errno, ret, my_ldap_err2string(ret));
-	fflush (stdout);
-	PR_smprintf_free(ldapurl);
-	return (-1);
+    tttctx->ldapCtx = connectToLDAP(tttctx, tttctx->bufBindDN, tttctx->bufPasswd, mode, mod2);
+    if (!tttctx->ldapCtx) {
+      return (-1);
     }
-    PR_smprintf_free(ldapurl);
-    ldapurl = NULL;
     cnx = tttctx->ldapCtx;
-#else /* !USE_OPENLDAP */
-    /*
-     * SSL is enabled ?
-     */
-    if (mctx.mode & SSL)
-    {
-      /*
-       * LDAP session initialization in SSL mode
-       * added by: B Kolics (11/10/00)
-       */
-      tttctx->ldapCtx = ldapssl_init(mctx.hostname, mctx.port, 1);
-      if (mctx.mode & VERY_VERBOSE)
-	printf ("ldclt[%d]: T%03d: After ldapssl_init (%s, %d), ldapCtx=0x%p\n",
-		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port,
-		tttctx->ldapCtx);
-      if (tttctx->ldapCtx == NULL)
-      {
-	printf ("ldclt[%d]: T%03d: Cannot ldapssl_init (%s, %d), errno=%d\n",
-		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port, errno);
-	fflush (stdout);
-	return (-1);
-      }
-      /*
-       * Client authentication is used ?
-       */
-      if (mctx.mode & CLTAUTH)
-	{
-	 ret = ldapssl_enable_clientauth(tttctx->ldapCtx, "", mctx.keydbpin, mctx.cltcertname);
-	 if (mctx.mode & VERY_VERBOSE)
-	   printf 
-	     ("ldclt[%d]: T%03d: After ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-	      mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
-	      mctx.cltcertname);
-	 if (ret < 0)
-	 {
-	   printf 
-	    ("ldclt[%d]: T%03d: Cannot ldapssl_enable_clientauth (ldapCtx=0x%p, %s, %s)",
-	     mctx.pid, tttctx->thrdNum, tttctx->ldapCtx, mctx.keydbpin,
-	     mctx.cltcertname);
-	   fflush (stdout);
-	   return (-1);
-	 }
-      }
-    } else {
-      /*
-       * connection initialization in normal, unencrypted mode
-       */
-      cnx = ldap_init (mctx.hostname, mctx.port);
-      if (cnx == NULL)
-      {
-	printf ("ldclt[%d]: T%03d: Cannot ldap_init (%s, %d), errno=%d\n",
-		mctx.pid, tttctx->thrdNum, mctx.hostname, mctx.port, errno);
-	fflush (stdout);
-	return (-1);
-      }
-    }
-#endif /* !USE_OPENLDAP */
-
-    if (mctx.mode & CLTAUTH) {
-      mech = "EXTERNAL";
-      binddn = "";
-      passwd = NULL;
-    } else {
-      binddn = tttctx->bufBindDN?tttctx->bufBindDN:mctx.bindDN;
-      passwd = tttctx->bufPasswd?tttctx->bufPasswd:mctx.passwd;
-      if (passwd) {
-        cred.bv_val = (char *)passwd;
-        cred.bv_len = strlen(passwd);
-      }
-    }
-
-    if (mctx.mode & LDAP_V2)
-      v2v3 = LDAP_VERSION2;
-    else
-      v2v3 = LDAP_VERSION3;
-
-    ret = ldap_set_option (cnx, LDAP_OPT_PROTOCOL_VERSION, &v2v3);
-    if (ret < 0)
-    {
-      printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)\n",
-		mctx.pid, tttctx->thrdNum);
-      fflush (stdout);
-      return (-1);
-    }
-
-    /*
-     * Bind to the server
-     */
-    ret = ldap_sasl_bind_s (tttctx->ldapCtx, binddn, mech, &cred, NULL, NULL,
-			    NULL);
-    if (ret != LDAP_SUCCESS)
-    {
-      printf ("ldclt[%d]: T%03d: Cannot bind using mech [%s] (%s, %s), error=%d (%s)\n",
-				mctx.pid, tttctx->thrdNum,
-				mech ? mech : "SIMPLE",
-				tttctx->bufBindDN ? tttctx->bufBindDN : "",
-				tttctx->bufPasswd ? tttctx->bufPasswd : "",
-				ret, my_ldap_err2string (ret));
-      fflush (stdout);
-      tttctx->exitStatus = EXIT_NOBIND;				/*JLS 25-08-00*/
-      if (addErrorStat (ret) < 0)
-	return (-1);
-      return (-1);
-    }
   }
 
   /*

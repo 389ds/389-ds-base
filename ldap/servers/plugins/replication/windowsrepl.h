@@ -51,7 +51,7 @@ const Slapi_DN* windows_private_get_directory_subtree (const Repl_Agmt *ra);
 LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra);
 ConnResult send_dirsync_search(Repl_Connection *conn);
 ConnResult windows_search_entry(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry);
-ConnResult windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls);
+ConnResult windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, Slapi_Entry **entry, LDAPControl **serverctrls, int scope);
 Slapi_Entry *windows_conn_get_search_result(Repl_Connection *conn );
 void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **controls );
 PRBool windows_private_dirsync_has_more(const Repl_Agmt *ra);

@@ -719,7 +719,7 @@ static int search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
     op->o_search_entry_handler    = internal_srch_entry_callback;
     op->o_search_referral_handler = internal_ref_entry_callback;
 	
-    filter = slapi_str2filter(ifstr ? (fstr = slapi_ch_strdup(ifstr)) : NULL);
+    filter = slapi_str2filter((fstr = slapi_ch_strdup(ifstr)));
     if(scope == LDAP_SCOPE_BASE) {
         filter->f_flags |= (SLAPI_FILTER_LDAPSUBENTRY |
                             SLAPI_FILTER_TOMBSTONE | SLAPI_FILTER_RUV);

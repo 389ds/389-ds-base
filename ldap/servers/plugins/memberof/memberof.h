@@ -62,6 +62,7 @@
  * macros
  */
 #define MEMBEROF_PLUGIN_SUBSYSTEM   "memberof-plugin"   /* used for logging */
+#define MEMBEROF_INT_PREOP_DESC "memberOf internal postop plugin"
 #define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"
 #define MEMBEROF_ATTR "memberOfAttr"
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"

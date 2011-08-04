@@ -519,14 +519,24 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
     LDAPDebug(LDAP_DEBUG_TRACE, "=> cache_init\n", 0, 0, 0);
     cache->c_maxsize = maxsize;
     cache->c_maxentries = maxentries;
-    cache->c_cursize = slapi_counter_new();
     cache->c_curentries = 0;
     if (config_get_slapi_counters()) {
+        if (cache->c_cursize) {
+            slapi_counter_destroy(&cache->c_cursize);
+        }
+        cache->c_cursize = slapi_counter_new();
+        if (cache->c_hits) {
+            slapi_counter_destroy(&cache->c_hits);
+        }
         cache->c_hits = slapi_counter_new();
+        if (cache->c_tries) {
+            slapi_counter_destroy(&cache->c_tries);
+        }
         cache->c_tries = slapi_counter_new();
     } else {
-        cache->c_hits = NULL;
-        cache->c_tries = NULL;
+        LDAPDebug0Args(LDAP_DEBUG_ANY, 
+                      "cache_init: slapi counter is not available.\n");
+        return 0;
     }
     cache->c_lruhead = cache->c_lrutail = NULL;
     cache_make_hashes(cache, type);
@@ -648,6 +658,9 @@ static void erase_cache(struct cache *cache, int type)
 void cache_destroy_please(struct cache *cache, int type)
 {
     erase_cache(cache, type);
+    slapi_counter_destroy(&cache->c_cursize);
+    slapi_counter_destroy(&cache->c_hits);
+    slapi_counter_destroy(&cache->c_tries);
     PR_DestroyLock(cache->c_mutex);
     PR_DestroyLock(cache->c_emutexalloc_mutex);
 }

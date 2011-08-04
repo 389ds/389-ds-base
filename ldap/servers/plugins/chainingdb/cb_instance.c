@@ -214,7 +214,7 @@ static cb_backend_instance * cb_instance_alloc(cb_backend * cb, char * name, cha
 	inst->monitor_availability.cpt              = 0 ;					 /* set up the failed conn counter to 0 */
 
 	/* create RW lock to protect the config */
-	inst->rwl_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, slapi_ch_strdup(name));
+	inst->rwl_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, name);
 
 	/* quick hack 				    */
 	/* put a ref to the config lock in the pool */
@@ -262,6 +262,10 @@ void cb_instance_free(cb_backend_instance * inst) {
 		{
         		cb_close_conn_pool(inst->pool);
 			slapi_destroy_condvar(inst->pool->conn.conn_list_cv);
+			slapi_ch_free_string(&inst->pool->password);
+			slapi_ch_free_string(&inst->pool->binddn);
+			slapi_ch_free_string(&inst->pool->binddn2);
+			slapi_ch_free_string(&inst->pool->url);
 			slapi_destroy_mutex(inst->pool->conn.conn_list_mutex);
 			slapi_ch_free((void **) &inst->pool);
 		}
@@ -1869,7 +1873,7 @@ int cb_instance_add_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entr
 
 		Slapi_PBlock 		*aPb=NULL;
 
-        	inst->inst_be = slapi_be_new(CB_CHAINING_BACKEND_TYPE,slapi_ch_strdup(inst->inst_name),0,0);
+        	inst->inst_be = slapi_be_new(CB_CHAINING_BACKEND_TYPE,inst->inst_name,0,0);
         	aPb=slapi_pblock_new();
         	slapi_pblock_set(aPb, SLAPI_PLUGIN, inst->backend_type->plugin);
         	slapi_be_setentrypoint(inst->inst_be,0,(void *)NULL,aPb);

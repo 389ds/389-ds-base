@@ -287,7 +287,7 @@ conn_get_error_ex(Repl_Connection *conn, int *operation, int *error, char **erro
 /* The _ex version handles a bunch of parameters (retoidp et al) that were present in the original
  * sync operation functions, but were never actually used) */
 ConnResult
-conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int *message_id, int block)
+conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int send_msgid, int *resp_msgid, int block)
 {
 			LDAPMessage *res = NULL;
 			int setlevel = 0;
@@ -326,7 +326,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 					break;
 				}
 
-				rc = ldap_result(conn->ld, LDAP_RES_ANY , 1, &local_timeout, &res);
+				rc = ldap_result(conn->ld, send_msgid, 1, &local_timeout, &res);
 				PR_Unlock(conn->lock);
 
 				if (0 != rc)
@@ -415,9 +415,9 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				char **referrals = NULL;
 				char *matched = NULL;
 
-				if (message_id) 
+				if (resp_msgid) 
 				{
-					*message_id = ldap_msgid(res);
+					*resp_msgid = ldap_msgid(res);
 				}
 
 				rc = ldap_parse_result(conn->ld, res, &err, &matched,
@@ -486,7 +486,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 ConnResult
 conn_read_result(Repl_Connection *conn, int *message_id)
 {
-	return conn_read_result_ex(conn,NULL,NULL,NULL,message_id,1);
+	return conn_read_result_ex(conn,NULL,NULL,NULL,LDAP_RES_ANY,message_id,1);
 }
 
 /* Because the SDK isn't really thread-safe (it can deadlock between
@@ -509,8 +509,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 	int rc;
 
 	/* get the sockbuf */
-	ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd);
-	if (fd <= 0) {
+	if ((ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd) != LDAP_OPT_SUCCESS) || (fd <= 0)) {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: invalid connection insee_if_write_available \n",
 						agmt_get_long_name(conn->agmt));
@@ -537,7 +536,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 						agmt_get_long_name(conn->agmt),
 						timeout);
 		return CONN_TIMEOUT;
-	} else if ((rc < 0) || ((polldesc.out_flags|PR_POLL_WRITE) == 0)) { /* error */
+	} else if ((rc < 0) || (!(polldesc.out_flags&PR_POLL_WRITE))) { /* error */
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"%s: error during poll attempt [%d:%s]\n",
 						agmt_get_long_name(conn->agmt),
@@ -1020,6 +1019,7 @@ conn_connect(Repl_Connection *conn)
 		conn->transport_flags = agmt_get_transport_flags(conn->agmt);
 		conn->timeout.tv_sec = agmt_get_timeout(conn->agmt);
 		conn->flag_agmt_changed = 0;
+		conn->port = agmt_get_port(conn->agmt); /* port could be updated */
 		slapi_ch_free((void **)&conn->plain);
 	}
 	PR_Unlock(conn->lock);

@@ -142,6 +142,13 @@ if test "$with_openldap" = yes ; then
   dnl look for ldap_url_parse_ext
   AC_CHECK_LIB([ldap$ol_libver], [ldap_url_parse_ext],
     [AC_DEFINE([HAVE_LDAP_URL_PARSE_EXT], [1], [have the function ldap_url_parse_ext])])
+  dnl look for separate libldif - newer versions of openldap have moved the
+  dnl ldif functionality into libldap
+  ldap_lib_ldif=""
+  LDFLAGS="$LDFLAGS"
+  AC_CHECK_LIB([ldap$ol_libver], [ldif_open], [ldap_lib_ldif=],
+               [ldap_lib_ldif=-lldif$ol_libver])
+  AC_SUBST([ldap_lib_ldif])
   LDFLAGS="$save_ldflags"
   CPPFLAGS="$save_cppflags"
 
