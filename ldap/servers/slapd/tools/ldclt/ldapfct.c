@@ -635,7 +635,7 @@ ldclt_get_sec_pwd(PK11SlotInfo *slot, PRBool retry, void *arg)
 }
 
 static int
-ldclt_clientauth(thread_context	*tttctx, const char *path, const char *certname, const char *pwd)
+ldclt_clientauth(thread_context	*tttctx, LDAP *ld, const char *path, const char *certname, const char *pwd)
 {
   const char *colon = NULL;
   char *token_name = NULL;
@@ -686,14 +686,14 @@ ldclt_clientauth(thread_context	*tttctx, const char *path, const char *certname,
     goto done;
   }
 
-  if ((rc = ldap_set_option(tttctx->ldapCtx, LDAP_OPT_X_TLS_CERTFILE, certname))) {
+  if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CERTFILE, certname))) {
     printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_CERTFILE, %s), errno=%d ldaperror=%d:%s\n",
 	    mctx.pid, thrdNum, certname, errno, rc, my_ldap_err2string(rc));
     fflush (stdout);
     goto done;
   }
 
-  if ((rc = ldap_set_option(tttctx->ldapCtx, LDAP_OPT_X_TLS_KEYFILE, pwd))) {
+  if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, pwd))) {
     printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_KEYFILE, %s), errno=%d ldaperror=%d:%s\n",
 	    mctx.pid, thrdNum, pwd, errno, rc, my_ldap_err2string(rc));
     fflush (stdout);
@@ -772,7 +772,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
       goto done;
     }
     if ((mode & CLTAUTH) &&
-	(ret = ldclt_clientauth(tttctx, certdir, mctx.cltcertname, mctx.keydbpin))) {
+        (ret = ldclt_clientauth(tttctx, ld, certdir, mctx.cltcertname, mctx.keydbpin))) {
       free(certdir);
       goto done;
     }
