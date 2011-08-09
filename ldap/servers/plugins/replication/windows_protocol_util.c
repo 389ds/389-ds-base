@@ -770,9 +770,13 @@ static int
 send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 {
 		ConnResult pw_return = 0;
-		int is_nt4 = windows_private_get_isnt4(prp->agmt);
 
-		if (is_nt4)
+		if (!sdn || !slapi_sdn_get_dn(sdn) || !password)
+		{
+			return CONN_OPERATION_FAILED;
+		}
+
+		if (windows_private_get_isnt4(prp->agmt))
 		{
 			/* NT4 just wants a plaintext password */
 			Slapi_Mods smods = {0};
