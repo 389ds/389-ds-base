@@ -1559,10 +1559,17 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		case SLAPI_OPERATION_DELETE:
 			if (delete_remote_entry_allowed(local_entry))
 			{
-				return_value = windows_conn_send_delete(prp->conn, slapi_sdn_get_dn(remote_dn), NULL, NULL /* returned controls */);
+				if (missing_entry) {
 					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-					"%s: windows_replay_update: deleted remote entry, dn=\"%s\", result=%d\n",
-					agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(remote_dn), return_value);
+						"%s: windows_replay_update: remote entry doesn't exist.  "
+						"Skipping operation, dn=\"%s\"\n", agmt_get_long_name(prp->agmt),
+						slapi_sdn_get_dn(remote_dn));
+				} else {
+					return_value = windows_conn_send_delete(prp->conn, slapi_sdn_get_dn(remote_dn), NULL, NULL /* returned controls */);
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: windows_replay_update: deleted remote entry, dn=\"%s\", result=%d\n",
+						agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(remote_dn), return_value);
+				}
 			} else 
 			{
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1632,7 +1639,8 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		 * it is assumed that is_user is set for user entries and that only user entries need
 		 * accountcontrol values
 		 */
-		if ((return_value == CONN_OPERATION_SUCCESS) && remote_dn && (password || missing_entry) && is_user) {
+		if ((op->operation_type != SLAPI_OPERATION_DELETE) && (return_value == CONN_OPERATION_SUCCESS)
+		    && remote_dn && (password || missing_entry) && is_user) {
 			return_value = send_accountcontrol_modify(remote_dn, prp, missing_entry);
 		}
 	} else {
