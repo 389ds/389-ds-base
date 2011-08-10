@@ -57,6 +57,12 @@
 /* enable the presence plugin */
 #undef ENABLE_PRESENCE
 
+/* have 64-bit atomic bool compare and swap function provided by gcc */
+#undef HAVE_64BIT_ATOMIC_CAS_FUNC
+
+/* have 64-bit atomic operation functions provided by gcc */
+#undef HAVE_64BIT_ATOMIC_OP_FUNCS
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -66,9 +72,6 @@
 /* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRERROR_R
-
-/* do not have 64-bit atomic compare and swap functions provided by gcc */
-#undef HAVE_DECL___SYNC_ADD_AND_FETCH
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */

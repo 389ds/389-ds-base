@@ -2652,12 +2652,20 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         inst = (ldbm_instance *)object_get_data(inst_obj);
         if (!(up_flags & SLAPI_UPGRADEDB_FORCE))
         { /* upgrade idl to new */
+            int need_upgrade = 0;
             li->li_flags |= LI_FORCE_MOD_CONFIG;
             /* set new idl */
             ldbm_config_internal_set(li, CONFIG_IDL_SWITCH, "new");
             /* First check the dbversion */
             rval = check_db_inst_version(inst);
-            if (!(DBVERSION_NEED_IDL_OLD2NEW & rval))
+            need_upgrade = (DBVERSION_NEED_IDL_OLD2NEW & rval);
+            if (!need_upgrade && (up_flags & SLAPI_UPGRADEDB_DN2RDN)) {
+                need_upgrade = (rval & DBVERSION_NEED_DN2RDN);
+            }
+            if (!need_upgrade) {
+                need_upgrade = (rval & (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_4));
+            }
+            if (!need_upgrade)
             {
                 slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
                                 "Index version is up-to-date\n");

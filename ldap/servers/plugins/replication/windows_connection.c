@@ -659,7 +659,7 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 			&conn->timeout, 0 /* sizelimit */, &res);
 
 		if ((LDAP_SUCCESS != ldap_rc) && !IS_DISCONNECT_ERROR(ldap_rc)) {
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 							"Could not retrieve entry from Windows using search "
 							"base [%s] scope [%d] filter [%s]: error %d:%s\n",
 							searchbase_copy, scope, filter_copy, ldap_rc,

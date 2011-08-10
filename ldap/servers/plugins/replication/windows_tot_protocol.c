@@ -241,6 +241,14 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		agmt_set_consumer_ruv(prp->agmt, starting_ruv );
 	}
 
+	/* Do another dirsync to ensure we get GUIDs for newly added entries. */
+	if ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_FROM_AD)) {
+		windows_dirsync_inc_run(prp);
+	}
+
+	/* Save the dirsync cookie. */
+	windows_private_save_dirsync_cookie(prp->agmt);
+
 	/* call end total update callback */
 	winsync_plugin_call_end_update_cb(prp->agmt,
 									  windows_private_get_directory_subtree(prp->agmt),
