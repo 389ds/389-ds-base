@@ -54,19 +54,11 @@ PRUint64 _sparcv9_AtomicSub(PRUint64 *address, PRUint64 val);
 #endif
 
 #ifdef ATOMIC_64BIT_OPERATIONS
-#if defined LINUX && (defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH)
+#if defined(LINUX) && !HAVE_64BIT_ATOMIC_OP_FUNCS
 /* On systems that don't have the 64-bit GCC atomic builtins, we need to
  * implement our own atomic functions using inline assembly code. */
 PRUint64 __sync_add_and_fetch_8(PRUint64 *ptr, PRUint64 addval);
 PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval);
-#endif
-
-#if defined LINUX && !HAVE_DECL___SYNC_ADD_AND_FETCH
-/* Systems that have the atomic builtins defined, but don't have
- * implementations for 64-bit values will automatically try to
- * call the __sync_*_8 versions we provide.  If the atomic builtins
- * are not defined at all, we define them here to use our local
- * functions. */
 #define __sync_add_and_fetch __sync_add_and_fetch_8
 #define __sync_sub_and_fetch __sync_sub_and_fetch_8
 #endif
@@ -294,7 +286,7 @@ PRUint64 slapi_counter_set_value(Slapi_Counter *counter, PRUint64 newvalue)
 #ifdef LINUX
 /* Use our own inline assembly for an atomic set if
  * the builtins aren't available. */
-#if defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH
+#if !HAVE_64BIT_ATOMIC_CAS_FUNC
     /*
      * %0 = counter->value
      * %1 = newvalue
@@ -370,7 +362,7 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
 #ifdef LINUX
 /* Use our own inline assembly for an atomic get if
  * the builtins aren't available. */
-#if defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH
+#if !HAVE_64BIT_ATOMIC_CAS_FUNC
     /*
      * %0 = counter->value
      * %1 = value
@@ -432,7 +424,7 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
 }
 
 #ifdef ATOMIC_64BIT_OPERATIONS
-#if defined LINUX && (defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH)
+#if defined(LINUX) && !HAVE_64BIT_ATOMIC_OP_FUNCS
 /* On systems that don't have the 64-bit GCC atomic builtins, we need to
  * implement our own atomic add and subtract functions using inline
  * assembly code. */
@@ -523,5 +515,5 @@ PRUint64 __sync_sub_and_fetch_8(PRUint64 *ptr, PRUint64 subval)
 
     return retval;
 }
-#endif /* LINUX && (defined CPU_x86 || !HAVE_DECL___SYNC_ADD_AND_FETCH) */
+#endif /* LINUX && !HAVE_64BIT_ATOMIC_OP_FUNCS */
 #endif /* ATOMIC_64BIT_OPERATIONS */

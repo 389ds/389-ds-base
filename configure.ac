@@ -407,17 +407,16 @@ case $host in
         AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
         ;;
     esac
-    dnl no headers to test for __sync_bool_compare_and_swap_8
-    AC_MSG_CHECKING([for GCC provided 64-bit atomic functions ...])
+    AC_MSG_CHECKING([for GCC provided 64-bit atomic bool cas function ...])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
                                     [[long long ptrval = 0, val = 0, newval = 1; (void)__sync_bool_compare_and_swap_8(&ptrval, val, newval);]])],
-                   [have_gcc_64bit_cas=1; AC_MSG_RESULT([yes])],
-                   [have_gcc_64bit_cas=; AC_MSG_RESULT([no])])
-    if test -n "$have_gcc_64bit_cas" ; then
-       AC_DEFINE([HAVE_DECL___SYNC_ADD_AND_FETCH], [1], [have 64-bit atomic compare and swap functions provided by gcc])
-    else
-       AC_DEFINE([HAVE_DECL___SYNC_ADD_AND_FETCH], [0], [do not have 64-bit atomic compare and swap functions provided by gcc])
-    fi
+                   [AC_DEFINE([HAVE_64BIT_ATOMIC_CAS_FUNC], [1], [have 64-bit atomic bool compare and swap function provided by gcc])AC_MSG_RESULT([yes])],
+                   [AC_MSG_RESULT([no])])
+    AC_MSG_CHECKING([for GCC provided 64-bit atomic ops functions ...])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
+                                    [[long long ptrval = 0, val = 0; (void)__sync_add_and_fetch_8(&ptrval, val);]])],
+                   [AC_DEFINE([HAVE_64BIT_ATOMIC_OP_FUNCS], [1], [have 64-bit atomic operation functions provided by gcc])AC_MSG_RESULT([yes])],
+                   [AC_MSG_RESULT([no])])
     # some programs use the native thread library directly
     THREADLIB=-lpthread
     AC_SUBST([THREADLIB], [$THREADLIB])
