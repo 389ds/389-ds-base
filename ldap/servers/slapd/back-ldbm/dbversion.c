@@ -122,7 +122,9 @@ dbversion_write(struct ldbminfo *li, const char *directory,
             len = strlen(buf);
             ptr = buf + len;
         }
-        len = strlen( buf );
+        /* end in a newline */
+        PL_strncpyz(ptr, "\n", sizeof(buf) - len);
+        len = strlen(buf);
         if ( slapi_write_buffer( prfd, buf, len ) != len )
         {
             LDAPDebug( LDAP_DEBUG_ANY, "Could not write to file \"%s\"\n", filename, 0, 0 );
