@@ -135,7 +135,7 @@ be_done(Slapi_Backend *be)
     PR_DestroyLock(be->be_state_lock);
     if (be->be_lock != NULL)
     {
-        PR_DestroyRWLock(be->be_lock);
+        slapi_destroy_rwlock(be->be_lock);
         be->be_lock = NULL;
     }
 }

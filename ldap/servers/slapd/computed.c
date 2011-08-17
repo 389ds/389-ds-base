@@ -62,7 +62,7 @@ struct _compute_evaluator {
 typedef struct _compute_evaluator compute_evaluator;
 
 static compute_evaluator *compute_evaluators = NULL;
-static PRRWLock *compute_evaluators_lock = NULL;
+static Slapi_RWLock *compute_evaluators_lock = NULL;
 
 static int
 compute_stock_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_compute_output_t outputfn);
@@ -74,7 +74,7 @@ struct _compute_rewriter {
 typedef struct _compute_rewriter compute_rewriter;
 
 static compute_rewriter *compute_rewriters = NULL;
-static PRRWLock *compute_rewriters_lock = NULL;
+static Slapi_RWLock *compute_rewriters_lock = NULL;
 
 /* Function called by evaluators to have the value output */
 static int
@@ -89,11 +89,11 @@ compute_call_evaluators(computed_attr_context *c,slapi_compute_output_t outfn,ch
 	int rc = -1;
 	compute_evaluator *current = NULL;
 	/* Walk along the list (locked) calling the evaluator functions util one says yes, an error happens, or we finish */
-	PR_RWLock_Rlock(compute_evaluators_lock);
+	slapi_rwlock_rdlock(compute_evaluators_lock);
 	for (current = compute_evaluators; (current != NULL) && (-1 == rc); current = current->next) {
 		rc = (*(current->function))(c,type,e,outfn);
 	}
-	PR_RWLock_Unlock(compute_evaluators_lock);
+	slapi_rwlock_unlock(compute_evaluators_lock);
 	return rc;
 }
 
@@ -138,7 +138,7 @@ int slapi_compute_add_evaluator(slapi_compute_callback_t function)
 	compute_evaluator *new_eval = NULL;
 	PR_ASSERT(NULL != function);
 	PR_ASSERT(NULL != compute_evaluators_lock);
-	PR_RWLock_Wlock(compute_evaluators_lock);
+	slapi_rwlock_wrlock(compute_evaluators_lock);
 	new_eval = (compute_evaluator *)slapi_ch_calloc(1,sizeof (compute_evaluator));
 	if (NULL == new_eval) {
 		rc = ENOMEM;
@@ -147,7 +147,7 @@ int slapi_compute_add_evaluator(slapi_compute_callback_t function)
 		new_eval->function = function;
 		compute_evaluators = new_eval;
 	}
-	PR_RWLock_Unlock(compute_evaluators_lock);
+	slapi_rwlock_unlock(compute_evaluators_lock);
 	return rc;
 }
 
@@ -155,12 +155,12 @@ int slapi_compute_add_evaluator(slapi_compute_callback_t function)
 int compute_init()
 {
 	/* Initialize the lock */
-	compute_evaluators_lock = PR_NewRWLock( PR_RWLOCK_RANK_NONE, "compute_attr_lock" );
+	compute_evaluators_lock = slapi_new_rwlock();
 	if (NULL == compute_evaluators_lock) {
 		/* Out of resources */
 		return ENOMEM;
 	}
-	compute_rewriters_lock = PR_NewRWLock( PR_RWLOCK_RANK_NONE, "compute_rewriters_lock" );
+	compute_rewriters_lock = slapi_new_rwlock();
 	if (NULL == compute_rewriters_lock) {
 		/* Out of resources */
 		return ENOMEM;
@@ -176,26 +176,26 @@ int compute_terminate()
 	/* Free the list */
 	if (NULL != compute_evaluators_lock) {
 		compute_evaluator *current = compute_evaluators;
-		PR_RWLock_Wlock(compute_evaluators_lock);
+		slapi_rwlock_wrlock(compute_evaluators_lock);
 		while (current != NULL) {
 			compute_evaluator *asabird = current;
 			current = current->next;
 			slapi_ch_free((void **)&asabird);
 		}
-		PR_RWLock_Unlock(compute_evaluators_lock);
+		slapi_rwlock_unlock(compute_evaluators_lock);
 		/* Free the lock */
-		PR_DestroyRWLock(compute_evaluators_lock);
+		slapi_destroy_rwlock(compute_evaluators_lock);
 	}
 	if (NULL != compute_rewriters_lock) {
 		compute_rewriter *current = compute_rewriters;
-		PR_RWLock_Wlock(compute_rewriters_lock);
+		slapi_rwlock_wrlock(compute_rewriters_lock);
 		while (current != NULL) {
 			compute_rewriter *asabird = current;
 			current = current->next;
 			slapi_ch_free((void **)&asabird);
 		}
-		PR_RWLock_Unlock(compute_rewriters_lock);
-		PR_DestroyRWLock(compute_rewriters_lock);
+		slapi_rwlock_unlock(compute_rewriters_lock);
+		slapi_destroy_rwlock(compute_rewriters_lock);
 	}	
 	return 0;
 }
@@ -212,11 +212,11 @@ int slapi_compute_add_search_rewriter(slapi_search_rewrite_callback_t function)
 	if (NULL == new_rewriter) {
 		rc = ENOMEM;
 	} else {
-		PR_RWLock_Wlock(compute_rewriters_lock);
+		slapi_rwlock_wrlock(compute_rewriters_lock);
 		new_rewriter->next = compute_rewriters;
 		new_rewriter->function = function;
 		compute_rewriters = new_rewriter;
-		PR_RWLock_Unlock(compute_rewriters_lock);
+		slapi_rwlock_unlock(compute_rewriters_lock);
 	}
 	return rc;
 }
@@ -227,7 +227,7 @@ int	compute_rewrite_search_filter(Slapi_PBlock *pb)
 	int rc = -1;
 	compute_rewriter *current = NULL;
 	/* Walk along the list (locked) calling the evaluator functions util one says yes, an error happens, or we finish */
-	PR_RWLock_Rlock(compute_rewriters_lock);
+	slapi_rwlock_rdlock(compute_rewriters_lock);
 	for (current = compute_rewriters; (current != NULL) && (-1 == rc); current = current->next) {
 		rc = (*(current->function))(pb);
 		/* Meaning of the return code :
@@ -237,7 +237,7 @@ int	compute_rewrite_search_filter(Slapi_PBlock *pb)
 		  2 : operations error
 		 */
 	}
-	PR_RWLock_Unlock(compute_rewriters_lock);
+	slapi_rwlock_unlock(compute_rewriters_lock);
 	return rc;
 
 }

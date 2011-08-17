@@ -1799,7 +1799,7 @@ typedef struct _vattr_map_entry vattr_map_entry;
 vattr_map_entry test_entry = {NULL};
 
 struct _vattr_map {
-	PRRWLock  *lock;
+	Slapi_RWLock  *lock;
 	PLHashTable *hashtable; /* Hash table */  
 };
 typedef struct _vattr_map vattr_map;
@@ -1848,7 +1848,7 @@ static int vattr_map_create()
 		return ENOMEM;
 	}
 
-	the_map->lock = PR_NewRWLock(0,SOURCEFILE "1");
+	the_map->lock = slapi_new_rwlock();
 	if (NULL == the_map) {
 		slapd_nasty(sourcefile,3,0);
 		return ENOMEM;
@@ -1863,7 +1863,7 @@ static void vattr_map_destroy()
 			PL_HashTableDestroy(the_map->hashtable);
 		}
 		if (the_map->lock) {
-			PR_DestroyRWLock(the_map->lock);
+			slapi_destroy_rwlock(the_map->lock);
 		}
 	}
 	slapi_ch_free ((void**)&the_map);
@@ -1897,11 +1897,11 @@ static int vattr_map_lookup(const char *type_to_find, vattr_map_entry **result)
 	}
 
 	/* Get the reader lock */
-	PR_RWLock_Rlock(the_map->lock);
+	slapi_rwlock_rdlock(the_map->lock);
     *result = (vattr_map_entry*)PL_HashTableLookupConst(the_map->hashtable,
 					      (void*)basetype);
 	/* Release ze lock */
-	PR_RWLock_Unlock(the_map->lock);
+	slapi_rwlock_unlock(the_map->lock);
 
 	if(tmp)
 	{
@@ -1926,13 +1926,13 @@ int vattr_map_insert(vattr_map_entry *vae)
 		return ENOMEM;
 	}
 	/* Get the writer lock */
-	PR_RWLock_Wlock(the_map->lock);
+	slapi_rwlock_wrlock(the_map->lock);
 	/* Insert the thing */
 	/* It's illegal to call this function if the entry is already there */
 	PR_ASSERT(NULL == PL_HashTableLookupConst(the_map->hashtable,(void*)copy_of_type_name));
     PL_HashTableAdd(the_map->hashtable,(void*)copy_of_type_name,(void*)vae);
 	/* Unlock and we're done */
-	PR_RWLock_Unlock(the_map->lock);
+	slapi_rwlock_unlock(the_map->lock);
 	return 0;
 }
 
@@ -2075,13 +2075,13 @@ static PRIntn vattr_map_entry_rebuild_schema(PLHashEntry *he, PRIntn i, void *ar
 void schema_changed_callback(Slapi_Entry *e, char *dn, int modtype, Slapi_PBlock *pb, void *caller_data)
 {
 	/* Get the writer lock */
-	PR_RWLock_Wlock(the_map->lock);
+	slapi_rwlock_wrlock(the_map->lock);
 
 	/* go through the list */
 	PL_HashTableEnumerateEntries(the_map->hashtable, vattr_map_entry_rebuild_schema, 0);
 
 	/* Unlock and we're done */
-	PR_RWLock_Unlock(the_map->lock);
+	slapi_rwlock_unlock(the_map->lock);
 }
 
 
@@ -2104,7 +2104,7 @@ int slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
 
 				if(0 == vattr_map_lookup(type, &map_entry))
 				{
-					PR_RWLock_Rlock(the_map->lock);
+					slapi_rwlock_rdlock(the_map->lock);
 
 					obj = map_entry->objectclasses;
 
@@ -2123,7 +2123,7 @@ int slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
 						obj = obj->pNext;
 					}
 
-					PR_RWLock_Unlock(the_map->lock);
+					slapi_rwlock_unlock(the_map->lock);
 				}
 
 				slapi_valueset_free(vs);
@@ -2333,19 +2333,19 @@ void slapi_vattrcache_cache_none()
 }
 
 void vattrcache_entry_READ_LOCK(const Slapi_Entry *e){
-	PR_RWLock_Rlock(e->e_virtual_lock);
+	slapi_rwlock_rdlock(e->e_virtual_lock);
 }
 
 void vattrcache_entry_READ_UNLOCK(const Slapi_Entry *e) {
-	PR_RWLock_Unlock(e->e_virtual_lock);
+	slapi_rwlock_unlock(e->e_virtual_lock);
 
 }
 void vattrcache_entry_WRITE_LOCK(const Slapi_Entry *e){
-	PR_RWLock_Wlock(e->e_virtual_lock);
+	slapi_rwlock_wrlock(e->e_virtual_lock);
 
 }
 void vattrcache_entry_WRITE_UNLOCK(const Slapi_Entry *e){
-	PR_RWLock_Unlock(e->e_virtual_lock);
+	slapi_rwlock_unlock(e->e_virtual_lock);
 }
 
 Slapi_PBlock *

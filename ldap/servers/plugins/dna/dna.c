@@ -169,7 +169,7 @@ struct configEntry {
 };
 
 static PRCList *dna_global_config = NULL;
-static PRRWLock *g_dna_cache_lock;
+static Slapi_RWLock *g_dna_cache_lock;
 
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
@@ -294,17 +294,17 @@ void plugin_init_debug_level(int *level_ptr)
  */
 void dna_read_lock()
 {
-    PR_RWLock_Rlock(g_dna_cache_lock);
+    slapi_rwlock_rdlock(g_dna_cache_lock);
 }
 
 void dna_write_lock()
 {
-    PR_RWLock_Wlock(g_dna_cache_lock);
+    slapi_rwlock_wrlock(g_dna_cache_lock);
 }
 
 void dna_unlock()
 {
-    PR_RWLock_Unlock(g_dna_cache_lock);
+    slapi_rwlock_unlock(g_dna_cache_lock);
 }
 
 /**
@@ -499,7 +499,7 @@ dna_start(Slapi_PBlock * pb)
         goto done;
     }
 
-    g_dna_cache_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "dna");
+    g_dna_cache_lock = slapi_new_rwlock();
 
     if (!g_dna_cache_lock) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,

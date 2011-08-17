@@ -188,7 +188,7 @@ static int schema_ignore_trailing_spaces =
 			SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES;
 
 /* R/W lock used to serialize access to the schema DSE */
-static PRRWLock	*schema_dse_lock = NULL;
+static Slapi_RWLock	*schema_dse_lock = NULL;
 
 /*
  * The schema_dse_mandatory_init_callonce structure is used by NSPR to ensure
@@ -201,10 +201,9 @@ static PRCallOnceType schema_dse_mandatory_init_callonce = { 0, 0, 0 };
 static PRStatus
 schema_dse_mandatory_init( void )
 {
-	if ( NULL == ( schema_dse_lock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,
-				"schema DSE rwlock" ))) {
+	if ( NULL == ( schema_dse_lock = slapi_new_rwlock())) {
 		slapi_log_error( SLAPI_LOG_FATAL, "schema_dse_mandatory_init",
-				"PR_NewRWLock() for schema DSE lock failed\n" );
+				"slapi_new_rwlock() for schema DSE lock failed\n" );
 		return PR_FAILURE;
 	}
 
@@ -219,7 +218,7 @@ schema_dse_lock_read( void )
 	if ( NULL != schema_dse_lock ||
 			PR_SUCCESS == PR_CallOnce( &schema_dse_mandatory_init_callonce,
 					schema_dse_mandatory_init )) {
-		PR_RWLock_Rlock( schema_dse_lock );
+		slapi_rwlock_rdlock( schema_dse_lock );
 	}
 }
 
@@ -230,7 +229,7 @@ schema_dse_lock_write( void )
 	if ( NULL != schema_dse_lock ||
 			PR_SUCCESS == PR_CallOnce( &schema_dse_mandatory_init_callonce,
 					schema_dse_mandatory_init )) {
-		PR_RWLock_Wlock( schema_dse_lock );
+		slapi_rwlock_wrlock( schema_dse_lock );
 	}
 }
 
@@ -239,7 +238,7 @@ static void
 schema_dse_unlock( void )
 {
 	if ( schema_dse_lock != NULL ) {
-		PR_RWLock_Unlock( schema_dse_lock );
+		slapi_rwlock_unlock( schema_dse_lock );
 	}
 }
 

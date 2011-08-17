@@ -142,7 +142,7 @@
  */
 /* Per-connection resource limits data */
 typedef struct slapi_reslimit_conndata {
-	PRRWLock	*rlcd_rwlock;			 /* to serialize access to the rest */
+	Slapi_RWLock	*rlcd_rwlock;			 /* to serialize access to the rest */
 	int			rlcd_integer_count;		 /* size of rlcd_integer_limit array */
 	PRBool		*rlcd_integer_available; /* array that says whether each */
 										 /*           value is available */
@@ -170,7 +170,7 @@ static struct slapi_componentid 				*reslimit_componentid=NULL;
  * reslimit_map_rwlock is used to serialize access to
  * reslimit_map and reslimit_map_count
  */
-static PRRWLock   					*reslimit_map_rwlock = NULL;
+static Slapi_RWLock   					*reslimit_map_rwlock = NULL;
 
 /*
  * Static functions.
@@ -206,10 +206,9 @@ reslimit_init( void )
 			return( -1 );
 		}
 
-		if (( reslimit_map_rwlock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,
-					"resourcelimit map rwlock" )) == NULL ) {
+		if (( reslimit_map_rwlock = slapi_new_rwlock()) == NULL ) {
 			slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
-					"reslimit_init: PR_NewRWLock() failed\n" );
+					"reslimit_init: slapi_new_rwlock() failed\n" );
 			return( -1 );
 		}
 
@@ -243,7 +242,7 @@ reslimit_cleanup( void )
 	}
 
 	if ( reslimit_map_rwlock != NULL ) {
-		PR_DestroyRWLock( reslimit_map_rwlock );
+		slapi_destroy_rwlock( reslimit_map_rwlock );
 	}
 
 	if ( reslimit_componentid != NULL ) {
@@ -259,12 +258,11 @@ static void *
 reslimit_connext_constructor( void *object, void *parent )
 {
 	SLAPIResLimitConnData	*rlcdp;
-	PRRWLock				*rwlock;
+	Slapi_RWLock				*rwlock;
 
-	if (( rwlock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,
-			"resource limit connection data rwlock" )) == NULL ) {
+	if (( rwlock = slapi_new_rwlock()) == NULL ) {
 		slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
-				"reslimit_connext_constructor: PR_NewRWLock() failed\n" );
+				"reslimit_connext_constructor: slapi_new_rwlock() failed\n" );
 		return( NULL );
 	}
 
@@ -290,7 +288,7 @@ reslimit_connext_destructor( void *extension, void *object, void *parent )
 	if ( rlcdp->rlcd_integer_value != NULL ) {
 			slapi_ch_free( (void **)&rlcdp->rlcd_integer_value );
 	}
-	PR_DestroyRWLock( rlcdp->rlcd_rwlock );
+	slapi_destroy_rwlock( rlcdp->rlcd_rwlock );
 	slapi_ch_free( (void **)&rlcdp );
 }
 
@@ -401,9 +399,9 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 	}
 
 	/* LOCK FOR READ -- map lock */
-	PR_RWLock_Rlock( reslimit_map_rwlock );
+	slapi_rwlock_rdlock( reslimit_map_rwlock );
 	/* LOCK FOR WRITE -- conn. data lock */
-	PR_RWLock_Wlock( rlcdp->rlcd_rwlock );
+	slapi_rwlock_wrlock( rlcdp->rlcd_rwlock );
 
 	if ( rlcdp->rlcd_integer_value == NULL ) {
 		rlcdp->rlcd_integer_count = reslimit_map_count;
@@ -456,9 +454,9 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 		}
 	}
 
-	PR_RWLock_Unlock( rlcdp->rlcd_rwlock );
+	slapi_rwlock_unlock( rlcdp->rlcd_rwlock );
 	/* UNLOCKED -- conn. data lock */
-	PR_RWLock_Unlock( reslimit_map_rwlock );
+	slapi_rwlock_unlock( reslimit_map_rwlock );
 	/* UNLOCKED -- map lock */
 
 log_and_return:
@@ -477,7 +475,7 @@ static char ** reslimit_get_registered_attributes()
 	char 		**attrs=NULL;
 
     	/* LOCK FOR READ -- map lock */
-        PR_RWLock_Rlock( reslimit_map_rwlock );
+        slapi_rwlock_rdlock( reslimit_map_rwlock );
 
         for ( i = 0; i < reslimit_map_count; ++i ) {
                 if ( reslimit_map[ i ].rlmap_at != NULL ) {
@@ -485,7 +483,7 @@ static char ** reslimit_get_registered_attributes()
                 }
         }
  
-        PR_RWLock_Unlock( reslimit_map_rwlock );
+        slapi_rwlock_unlock( reslimit_map_rwlock );
 
 	return attrs;
 }
@@ -535,7 +533,7 @@ slapi_reslimit_register( int type, const char *attrname, int *handlep )
 	}
 
 	/* LOCK FOR WRITE -- map lock */
-	PR_RWLock_Wlock( reslimit_map_rwlock );
+	slapi_rwlock_wrlock( reslimit_map_rwlock );
 
 	/*
 	 * check that attrname is not already registered
@@ -564,7 +562,7 @@ slapi_reslimit_register( int type, const char *attrname, int *handlep )
 	++reslimit_map_count;
 
 unlock_and_return:
-	PR_RWLock_Unlock( reslimit_map_rwlock );
+	slapi_rwlock_unlock( reslimit_map_rwlock );
 	/* UNLOCKED -- map lock */
 
 log_and_return:
@@ -621,7 +619,7 @@ slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 	if(rlcdp->rlcd_integer_count==0) { /* peek at it to avoid lock */
 		rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
 	} else {
-		PR_RWLock_Rlock( rlcdp->rlcd_rwlock );
+		slapi_rwlock_rdlock( rlcdp->rlcd_rwlock );
 		if(rlcdp->rlcd_integer_count==0) {
 			rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
 		} else if ( handle < 0 || handle >= rlcdp->rlcd_integer_count ) {
@@ -633,7 +631,7 @@ slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 		} else {
 			rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
 		}
-		PR_RWLock_Unlock( rlcdp->rlcd_rwlock );
+		slapi_rwlock_unlock( rlcdp->rlcd_rwlock );
 	}
 
 

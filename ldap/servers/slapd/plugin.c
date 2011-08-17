@@ -1486,7 +1486,7 @@ slapi_berval_cmp (const struct berval* L, const struct berval* R) /* JCM - This 
 
 
 static char **supported_saslmechanisms = NULL;
-static PRRWLock *supported_saslmechanisms_lock = NULL;
+static Slapi_RWLock *supported_saslmechanisms_lock = NULL;
 
 /*
  * register a supported SASL mechanism so it will be returned as part of the
@@ -1499,8 +1499,7 @@ slapi_register_supported_saslmechanism( char *mechanism )
 		if (NULL == supported_saslmechanisms_lock) {
 			/* This is thread safe, as it gets executed by
 			 * a single thread at init time (main->init_saslmechanisms) */
-			supported_saslmechanisms_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE,
-				"supported saslmechanisms rwlock");
+			supported_saslmechanisms_lock = slapi_new_rwlock();
 			if (NULL == supported_saslmechanisms_lock) {
 				/* Out of resources */
 				slapi_log_error(SLAPI_LOG_FATAL, "startup",
@@ -1508,9 +1507,9 @@ slapi_register_supported_saslmechanism( char *mechanism )
 				exit (1);
 			}
 		}
-		PR_RWLock_Wlock(supported_saslmechanisms_lock);
+		slapi_rwlock_wrlock(supported_saslmechanisms_lock);
 		charray_add( &supported_saslmechanisms, slapi_ch_strdup( mechanism ));
-		PR_RWLock_Unlock(supported_saslmechanisms_lock);
+		slapi_rwlock_unlock(supported_saslmechanisms_lock);
 	}
 }
 
@@ -1534,15 +1533,15 @@ char **
 slapi_get_supported_saslmechanisms_copy( void )
 {
     char ** ret = NULL;
-    PR_RWLock_Rlock(supported_saslmechanisms_lock);
+    slapi_rwlock_rdlock(supported_saslmechanisms_lock);
     ret = charray_dup(supported_saslmechanisms);
-    PR_RWLock_Unlock(supported_saslmechanisms_lock);
+    slapi_rwlock_unlock(supported_saslmechanisms_lock);
     return( ret );
 }
 
 
 static char **supported_extended_ops = NULL;
-static PRRWLock *extended_ops_lock = NULL;
+static Slapi_RWLock *extended_ops_lock = NULL;
 
 /*
  * register all of the LDAPv3 extended operations we know about.
@@ -1550,8 +1549,7 @@ static PRRWLock *extended_ops_lock = NULL;
 void
 ldapi_init_extended_ops( void )
 {
-	extended_ops_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE,
-		"supported extended ops rwlock");
+	extended_ops_lock = slapi_new_rwlock();
 	if (NULL == extended_ops_lock) {
 		/* Out of resources */
 		slapi_log_error(SLAPI_LOG_FATAL, "startup",
@@ -1559,13 +1557,13 @@ ldapi_init_extended_ops( void )
 		exit (1);
 	}
 
-	PR_RWLock_Wlock(extended_ops_lock);
+	slapi_rwlock_wrlock(extended_ops_lock);
 	charray_add(&supported_extended_ops,
 	slapi_ch_strdup(EXTOP_BULK_IMPORT_START_OID));
 	charray_add(&supported_extended_ops,
 	slapi_ch_strdup(EXTOP_BULK_IMPORT_DONE_OID));
 	/* add future supported extops here... */
-	PR_RWLock_Unlock(extended_ops_lock);
+	slapi_rwlock_unlock(extended_ops_lock);
 }
 
 
@@ -1577,13 +1575,13 @@ ldapi_register_extended_op( char **opoids )
 {
     int	i;
 
-    PR_RWLock_Wlock(extended_ops_lock);
+    slapi_rwlock_wrlock(extended_ops_lock);
     for ( i = 0; opoids != NULL && opoids[i] != NULL; ++i ) {
 	if ( !charray_inlist( supported_extended_ops, opoids[i] )) {
 	    charray_add( &supported_extended_ops, slapi_ch_strdup( opoids[i] ));
 	}
     }
-    PR_RWLock_Unlock(extended_ops_lock);
+    slapi_rwlock_unlock(extended_ops_lock);
 }
 
 
@@ -1608,9 +1606,9 @@ char **
 slapi_get_supported_extended_ops_copy( void )
 {
     char ** ret = NULL;
-    PR_RWLock_Rlock(extended_ops_lock);
+    slapi_rwlock_rdlock(extended_ops_lock);
     ret = charray_dup(supported_extended_ops);
-    PR_RWLock_Unlock(extended_ops_lock);
+    slapi_rwlock_unlock(extended_ops_lock);
     return( ret );
 }
 

@@ -95,7 +95,6 @@
 
 #include "back-ldbm.h"
 #include "dblayer.h"
-#include <prrwlock.h>
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
@@ -116,8 +115,8 @@
 #else /* older then db 41 */
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
     (rval) = (db)->open((db), (file), (database), (type), (flags), (mode))
-#define DB_CHECKPOINT_LOCK(use_lock, lock) if(use_lock) PR_RWLock_Wlock(lock);
-#define DB_CHECKPOINT_UNLOCK(use_lock, lock) if(use_lock) PR_RWLock_Unlock(lock);
+#define DB_CHECKPOINT_LOCK(use_lock, lock) if(use_lock) slapi_rwlock_wrlock(lock);
+#define DB_CHECKPOINT_UNLOCK(use_lock, lock) if(use_lock) slapi_rwlock_unlock(lock);
 #endif
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000
@@ -1187,7 +1186,7 @@ dblayer_free_env(struct dblayer_private_env **env)
         return;
     }
     if ((*env)->dblayer_env_lock) {
-        PR_DestroyRWLock((*env)->dblayer_env_lock);
+        slapi_destroy_rwlock((*env)->dblayer_env_lock);
         (*env)->dblayer_env_lock = NULL;
     }
     slapi_ch_free((void **)env);
@@ -1263,7 +1262,7 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     /* set up cache sizes */
     dblayer_init_dbenv(pEnv->dblayer_DB_ENV, priv);
 
-    pEnv->dblayer_env_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "checkpointer");
+    pEnv->dblayer_env_lock = slapi_new_rwlock();
 
     if (pEnv->dblayer_env_lock) {
         *env = pEnv;
@@ -2640,7 +2639,7 @@ int dblayer_instance_close(backend *be)
          if (inst_dirp != inst_dir)
            slapi_ch_free_string(&inst_dirp);
        }
-       PR_DestroyRWLock(inst->import_env->dblayer_env_lock);
+       slapi_destroy_rwlock(inst->import_env->dblayer_env_lock);
        slapi_ch_free((void **)&inst->import_env);
     } else {
        be->be_state = BE_STATE_STOPPED;
@@ -3213,7 +3212,7 @@ dblayer_db_remove_ex(dblayer_private_env *env, char const path[], char const dbN
   DB *db;
   
   if (env) {
-    if(use_lock) PR_RWLock_Wlock(env->dblayer_env_lock); /* We will be causing logging activity */
+    if(use_lock) slapi_rwlock_wrlock(env->dblayer_env_lock); /* We will be causing logging activity */
     db_env = env->dblayer_DB_ENV;
   }
   
@@ -3227,7 +3226,7 @@ dblayer_db_remove_ex(dblayer_private_env *env, char const path[], char const dbN
 
 done:
   if (env) {
-    if(use_lock) PR_RWLock_Unlock(env->dblayer_env_lock);
+    if(use_lock) slapi_rwlock_unlock(env->dblayer_env_lock);
   }
   
   return rc;
@@ -3393,14 +3392,14 @@ int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *
     if (priv->dblayer_enable_transactions)
     {
         dblayer_private_env *pEnv = priv->dblayer_env;
-        if(use_lock) PR_RWLock_Rlock(pEnv->dblayer_env_lock);
+        if(use_lock) slapi_rwlock_rdlock(pEnv->dblayer_env_lock);
         return_value = TXN_BEGIN(pEnv->dblayer_DB_ENV,
                                  (DB_TXN*)parent_txn,
                                  &txn->back_txn_txn,
                                  0);
         if (0 != return_value) 
         {
-            if(use_lock) PR_RWLock_Unlock(priv->dblayer_env->dblayer_env_lock);
+            if(use_lock) slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
             txn->back_txn_txn = NULL;
         }
     } else
@@ -3456,7 +3455,7 @@ int dblayer_txn_commit_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
                 LOG_FLUSH(priv->dblayer_env->dblayer_DB_ENV,0);
             }
         }
-        if(use_lock) PR_RWLock_Unlock(priv->dblayer_env->dblayer_env_lock);
+        if(use_lock) slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
     } else
     {
         return_value = 0;
@@ -3500,7 +3499,7 @@ int dblayer_txn_abort_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         priv->dblayer_enable_transactions)
     {
         return_value = TXN_ABORT(db_txn);
-        if(use_lock) PR_RWLock_Unlock(priv->dblayer_env->dblayer_env_lock);
+        if(use_lock) slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
     } else
     {
         return_value = 0;

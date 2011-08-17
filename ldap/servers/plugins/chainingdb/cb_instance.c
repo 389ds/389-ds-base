@@ -214,7 +214,7 @@ static cb_backend_instance * cb_instance_alloc(cb_backend * cb, char * name, cha
 	inst->monitor_availability.cpt              = 0 ;					 /* set up the failed conn counter to 0 */
 
 	/* create RW lock to protect the config */
-	inst->rwl_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, name);
+	inst->rwl_config_lock = slapi_new_rwlock();
 
 	/* quick hack 				    */
 	/* put a ref to the config lock in the pool */
@@ -242,7 +242,7 @@ static cb_backend_instance * cb_instance_alloc(cb_backend * cb, char * name, cha
 void cb_instance_free(cb_backend_instance * inst) {
 
 	if (inst) {
-		PR_RWLock_Wlock(inst->rwl_config_lock);
+		slapi_rwlock_wrlock(inst->rwl_config_lock);
 
 		if ( inst->eq_ctx != NULL )
 		{
@@ -278,8 +278,8 @@ void cb_instance_free(cb_backend_instance * inst) {
 		slapi_ch_free_string(&inst->inst_name);
 		charray_free(inst->every_attribute);
 
-		PR_RWLock_Unlock(inst->rwl_config_lock);
-		PR_DestroyRWLock(inst->rwl_config_lock);
+		slapi_rwlock_unlock(inst->rwl_config_lock);
+		slapi_destroy_rwlock(inst->rwl_config_lock);
 
 		slapi_ch_free((void **) &inst);
 	}
@@ -387,7 +387,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                        	int done=0;
 			int j;
 
-       			PR_RWLock_Wlock(inst->rwl_config_lock);
+       			slapi_rwlock_wrlock(inst->rwl_config_lock);
                         for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                	config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
                                	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
@@ -413,7 +413,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                                	charray_free(inst->illegal_attributes);
                                	inst->illegal_attributes=NULL;
                         }
-        		PR_RWLock_Unlock(inst->rwl_config_lock);
+        		slapi_rwlock_unlock(inst->rwl_config_lock);
                         continue;
 		} 
 		if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
@@ -421,7 +421,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                        	int done=0;
 			int j;
 
-        		PR_RWLock_Wlock(inst->rwl_config_lock);
+        		slapi_rwlock_wrlock(inst->rwl_config_lock);
                        	for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                	config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
                                	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
@@ -448,7 +448,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                                	charray_free(inst->chaining_components);
                                	inst->chaining_components=NULL;
                        	}
-        		PR_RWLock_Unlock(inst->rwl_config_lock);
+        		slapi_rwlock_unlock(inst->rwl_config_lock);
                         continue;
 		} 
 
@@ -594,7 +594,7 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 		if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
 
        			if (apply) {
-	                	PR_RWLock_Wlock(inst->rwl_config_lock);
+	                	slapi_rwlock_wrlock(inst->rwl_config_lock);
                                 i = slapi_attr_first_value(attr, &sval);
 				charray_free(inst->chaining_components);
 				inst->chaining_components=NULL;
@@ -604,14 +604,14 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 						slapi_dn_normalize(slapi_ch_strdup(bval->bv_val)));
                                         i = slapi_attr_next_value(attr, i, &sval);
                                 }
-	                	PR_RWLock_Unlock(inst->rwl_config_lock);
+	                	slapi_rwlock_unlock(inst->rwl_config_lock);
                         }
                         continue;
 		} else
 		if ( !strcasecmp ( attr_name, CB_CONFIG_ILLEGAL_ATTRS )) {
 
        			if (apply) {
-	                	PR_RWLock_Wlock(inst->rwl_config_lock);
+	                	slapi_rwlock_wrlock(inst->rwl_config_lock);
                                 i = slapi_attr_first_value(attr, &sval);
 				charray_free(inst->illegal_attributes);
 				inst->illegal_attributes=NULL;
@@ -621,7 +621,7 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 						slapi_ch_strdup(bval->bv_val));
                                         i = slapi_attr_next_value(attr, i, &sval);
                                 }
-	                	PR_RWLock_Unlock(inst->rwl_config_lock);
+	                	slapi_rwlock_unlock(inst->rwl_config_lock);
                         }
                         continue;
 		}
@@ -708,9 +708,9 @@ static void *cb_instance_hosturl_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	char * data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = slapi_ch_strdup(inst->pool->url);
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return data;
 }
 
@@ -738,9 +738,9 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
  
 	if (secure && inst->rwl_config_lock) {
 		int isgss = 0;
-		PR_RWLock_Rlock(inst->rwl_config_lock);
+		slapi_rwlock_rdlock(inst->rwl_config_lock);
 		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
-		PR_RWLock_Unlock(inst->rwl_config_lock);
+		slapi_rwlock_unlock(inst->rwl_config_lock);
 		if (isgss) {
 			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use LDAPS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use LDAPS", CB_CONFIG_BINDMECH);
 			rc = LDAP_UNWILLING_TO_PERFORM;
@@ -749,7 +749,7 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 
 	if ((LDAP_SUCCESS == rc) && apply) {
 
-               	PR_RWLock_Wlock(inst->rwl_config_lock);
+               	slapi_rwlock_wrlock(inst->rwl_config_lock);
 
 	        if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
        			( phase != CB_CONFIG_PHASE_STARTUP )) {
@@ -823,7 +823,7 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 		inst->bind_pool->secure=inst->pool->secure;
 		inst->bind_pool->hostname=slapi_ch_strdup(inst->pool->hostname);
 
-	        PR_RWLock_Unlock(inst->rwl_config_lock);
+	        slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 done:
     	if ( ludp != NULL ) {
@@ -837,9 +837,9 @@ static void *cb_instance_binduser_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	char * data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = slapi_ch_strdup(inst->pool->binddn2);	/* not normalized */	
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return data;
 }
 
@@ -850,7 +850,7 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 
 	if (apply) {
 
-	        PR_RWLock_Wlock(inst->rwl_config_lock);
+	        slapi_rwlock_wrlock(inst->rwl_config_lock);
 		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
 	    		( phase != CB_CONFIG_PHASE_STARTUP )) {
 
@@ -865,7 +865,7 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 		inst->pool->binddn=slapi_ch_strdup((char *) value);
 		inst->pool->binddn2=slapi_ch_strdup((char *) value);
 		slapi_dn_normalize_case(inst->pool->binddn);
-	        PR_RWLock_Unlock(inst->rwl_config_lock);
+	        slapi_rwlock_unlock(inst->rwl_config_lock);
 	} else {
 
 		/* Security check */
@@ -881,7 +881,7 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 			slapi_dn_normalize_case(theValueCopy);
 		}
 
-		PR_RWLock_Rlock(inst->rwl_config_lock);
+		slapi_rwlock_rdlock(inst->rwl_config_lock);
                 if (inst->impersonate && theValueCopy && 
                         !strcmp(theValueCopy,rootdn)) {	/* UTF8-aware. See cb_get_dn() */
                         rc=LDAP_UNWILLING_TO_PERFORM; 
@@ -889,7 +889,7 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 				PR_snprintf(errorbuf,SLAPI_DSE_RETURNTEXT_SIZE, "value %s not allowed",rootdn);
 			}
                 }
-                PR_RWLock_Unlock(inst->rwl_config_lock);
+                slapi_rwlock_unlock(inst->rwl_config_lock);
 
 		slapi_ch_free((void **)&theValueCopy);
 		slapi_ch_free((void **)&rootdn);
@@ -904,9 +904,9 @@ static void *cb_instance_userpassword_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	char * data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = slapi_ch_strdup(inst->pool->password);
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return data;
 }
 
@@ -916,7 +916,7 @@ static int cb_instance_userpassword_set(void *arg, void *value, char *errorbuf, 
 	int rc=LDAP_SUCCESS;
 
 	if (apply) {
-               	PR_RWLock_Wlock(inst->rwl_config_lock);
+               	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
     			( phase != CB_CONFIG_PHASE_STARTUP )) {
 
@@ -926,7 +926,7 @@ static int cb_instance_userpassword_set(void *arg, void *value, char *errorbuf, 
 		}
 
 		inst->pool->password=slapi_ch_strdup((char *) value);
-               	PR_RWLock_Unlock(inst->rwl_config_lock);
+               	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return rc;
 }
@@ -936,9 +936,9 @@ static void *cb_instance_sizelimit_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->sizelimit;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -946,9 +946,9 @@ static int cb_instance_sizelimit_set(void *arg, void *value, char *errorbuf, int
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
             inst->sizelimit=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 		if (inst->inst_be) 
 			be_set_sizelimit(inst->inst_be, (int) ((uintptr_t)value));
 	}
@@ -960,9 +960,9 @@ static void *cb_instance_timelimit_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->timelimit;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -970,9 +970,9 @@ static int cb_instance_timelimit_set(void *arg, void *value, char *errorbuf, int
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->timelimit=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 		if (inst->inst_be) 
 			be_set_timelimit(inst->inst_be, (int) ((uintptr_t)value));
 	}
@@ -984,9 +984,9 @@ static void *cb_instance_max_test_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->max_test_time;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -994,9 +994,9 @@ static int cb_instance_max_test_set(void *arg, void *value, char *errorbuf, int 
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->max_test_time=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1006,9 +1006,9 @@ static void *cb_instance_max_idle_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->max_idle_time;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -1016,9 +1016,9 @@ static int cb_instance_max_idle_set(void *arg, void *value, char *errorbuf, int 
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->max_idle_time=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1029,9 +1029,9 @@ static void *cb_instance_hoplimit_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->hoplimit;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -1039,9 +1039,9 @@ static int cb_instance_hoplimit_set(void *arg, void *value, char *errorbuf, int 
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->hoplimit=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1051,9 +1051,9 @@ static void *cb_instance_maxbconn_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->bind_pool->conn.maxconnections;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -1061,9 +1061,9 @@ static int cb_instance_maxbconn_set(void *arg, void *value, char *errorbuf, int 
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->bind_pool->conn.maxconnections=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1073,9 +1073,9 @@ static void *cb_instance_maxconn_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->pool->conn.maxconnections;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -1083,9 +1083,9 @@ static int cb_instance_maxconn_set(void *arg, void *value, char *errorbuf, int p
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->pool->conn.maxconnections=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1095,9 +1095,9 @@ static void *cb_instance_abandonto_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->abandon_timeout.tv_sec;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -1114,10 +1114,10 @@ static int cb_instance_abandonto_set(void *arg, void *value, char *errorbuf, int
 			return LDAP_SUCCESS;
 		}
 
-               	PR_RWLock_Wlock(inst->rwl_config_lock);
+               	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->abandon_timeout.tv_sec=(int) ((uintptr_t)value);
 		inst->abandon_timeout.tv_usec=0;
-               	PR_RWLock_Unlock(inst->rwl_config_lock);
+               	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1127,9 +1127,9 @@ static void *cb_instance_maxbconc_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->bind_pool->conn.maxconcurrency;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -1137,9 +1137,9 @@ static int cb_instance_maxbconc_set(void *arg, void *value, char *errorbuf, int 
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->bind_pool->conn.maxconcurrency=(int) ((uintptr_t)value);
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1149,9 +1149,9 @@ static void *cb_instance_maxconc_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = inst->pool->conn.maxconcurrency;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return (void *) data;
 }
 
@@ -1159,9 +1159,9 @@ static int cb_instance_maxconc_set(void *arg, void *value, char *errorbuf, int p
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-                PR_RWLock_Wlock(inst->rwl_config_lock);
+                slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->pool->conn.maxconcurrency=(int) ((uintptr_t)value);
-                PR_RWLock_Unlock(inst->rwl_config_lock);
+                slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
         return LDAP_SUCCESS;   
 }
@@ -1171,9 +1171,9 @@ static void *cb_instance_imperson_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
         uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
         data = inst->impersonate;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
         return (void *) data;
 }
 
@@ -1183,16 +1183,16 @@ static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int 
 	int rc=LDAP_SUCCESS;
 
 	if (apply) {
-                PR_RWLock_Wlock(inst->rwl_config_lock); 
+                slapi_rwlock_wrlock(inst->rwl_config_lock); 
 		inst->impersonate=(int) ((uintptr_t)value);
-                PR_RWLock_Unlock(inst->rwl_config_lock); 
+                slapi_rwlock_unlock(inst->rwl_config_lock); 
 	} else {
 		/* Security check: Make sure the proxing user is */
 		/* not the directory manager.			 */
 
 		char * rootdn=cb_get_rootdn();
 
-                PR_RWLock_Rlock(inst->rwl_config_lock); 
+                slapi_rwlock_rdlock(inst->rwl_config_lock); 
 		if (((int) ((uintptr_t)value)) && inst->pool && inst->pool->binddn &&
 	                !strcmp(inst->pool->binddn,rootdn)) {	/* UTF-8 aware */
 		  	rc=LDAP_UNWILLING_TO_PERFORM;
@@ -1200,7 +1200,7 @@ static int cb_instance_imperson_set(void *arg, void *value, char *errorbuf, int 
 				PR_snprintf(errorbuf,SLAPI_DSE_RETURNTEXT_SIZE, "Proxy mode incompatible with %s value (%s not allowed)",
 					CB_CONFIG_BINDUSER,rootdn);
 		}
-                PR_RWLock_Unlock(inst->rwl_config_lock); 
+                slapi_rwlock_unlock(inst->rwl_config_lock); 
 		slapi_ch_free((void **)&rootdn);
 	}
 
@@ -1212,9 +1212,9 @@ static void *cb_instance_connlife_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
         uintptr_t data; 
  
-        PR_RWLock_Rlock(inst->rwl_config_lock); 
+        slapi_rwlock_rdlock(inst->rwl_config_lock); 
         data=inst->pool->conn.connlifetime;
-        PR_RWLock_Unlock(inst->rwl_config_lock); 
+        slapi_rwlock_unlock(inst->rwl_config_lock); 
         return (void *) data; 
 }
 
@@ -1222,9 +1222,9 @@ static int cb_instance_connlife_set(void *arg, void *value, char *errorbuf, int 
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-                PR_RWLock_Wlock(inst->rwl_config_lock);  
+                slapi_rwlock_wrlock(inst->rwl_config_lock);  
 		inst->pool->conn.connlifetime=(int) ((uintptr_t)value);
-                PR_RWLock_Unlock(inst->rwl_config_lock);  
+                slapi_rwlock_unlock(inst->rwl_config_lock);  
 	}
         return LDAP_SUCCESS;     
 }
@@ -1234,9 +1234,9 @@ static void *cb_instance_bindto_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
         uintptr_t data;  
  
-        PR_RWLock_Rlock(inst->rwl_config_lock);  
+        slapi_rwlock_rdlock(inst->rwl_config_lock);  
         data=inst->bind_pool->conn.op_timeout.tv_sec;
-        PR_RWLock_Unlock(inst->rwl_config_lock);  
+        slapi_rwlock_unlock(inst->rwl_config_lock);  
         return (void *) data;   
 }
 
@@ -1244,7 +1244,7 @@ static int cb_instance_bindto_set(void *arg, void *value, char *errorbuf, int ph
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-                PR_RWLock_Wlock(inst->rwl_config_lock);   
+                slapi_rwlock_wrlock(inst->rwl_config_lock);   
 		inst->bind_pool->conn.op_timeout.tv_sec=(int) ((uintptr_t)value);
 		inst->bind_pool->conn.op_timeout.tv_usec=0;
 		inst->bind_pool->conn.bind_timeout.tv_sec=(int) ((uintptr_t)value);
@@ -1252,7 +1252,7 @@ static int cb_instance_bindto_set(void *arg, void *value, char *errorbuf, int ph
 		/* Used to bind to the farm server */
 		inst->pool->conn.bind_timeout.tv_sec=(int) ((uintptr_t)value);
 		inst->pool->conn.bind_timeout.tv_usec=0;
-                PR_RWLock_Unlock(inst->rwl_config_lock);   
+                slapi_rwlock_unlock(inst->rwl_config_lock);   
 	}
 	return LDAP_SUCCESS;
 }
@@ -1262,9 +1262,9 @@ static void *cb_instance_opto_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
         uintptr_t data;  
  
-        PR_RWLock_Rlock(inst->rwl_config_lock);  
+        slapi_rwlock_rdlock(inst->rwl_config_lock);  
         data=inst->pool->conn.op_timeout.tv_sec;
-        PR_RWLock_Unlock(inst->rwl_config_lock);  
+        slapi_rwlock_unlock(inst->rwl_config_lock);  
         return (void *) data;   
 }
 
@@ -1272,10 +1272,10 @@ static int cb_instance_opto_set(void *arg, void *value, char *errorbuf, int phas
 {
         cb_backend_instance * inst=(cb_backend_instance *) arg;
         if (apply) {
-                PR_RWLock_Wlock(inst->rwl_config_lock);
+                slapi_rwlock_wrlock(inst->rwl_config_lock);
                 inst->pool->conn.op_timeout.tv_sec=(int) ((uintptr_t)value);
                 inst->pool->conn.op_timeout.tv_usec=0;
-                PR_RWLock_Unlock(inst->rwl_config_lock);
+                slapi_rwlock_unlock(inst->rwl_config_lock);
         }
         return LDAP_SUCCESS;
 }
@@ -1285,9 +1285,9 @@ static void *cb_instance_ref_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
         uintptr_t data;   
   
-        PR_RWLock_Rlock(inst->rwl_config_lock);   
+        slapi_rwlock_rdlock(inst->rwl_config_lock);   
         data=inst->searchreferral;
-        PR_RWLock_Unlock(inst->rwl_config_lock);   
+        slapi_rwlock_unlock(inst->rwl_config_lock);   
         return (void *) data;    
 }
 
@@ -1295,9 +1295,9 @@ static int cb_instance_ref_set(void *arg, void *value, char *errorbuf, int phase
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-                PR_RWLock_Wlock(inst->rwl_config_lock);    
+                slapi_rwlock_wrlock(inst->rwl_config_lock);    
 		inst->searchreferral=(int) ((uintptr_t)value);
-                PR_RWLock_Unlock(inst->rwl_config_lock);    
+                slapi_rwlock_unlock(inst->rwl_config_lock);    
 	}
 	return LDAP_SUCCESS;
 }
@@ -1307,9 +1307,9 @@ static void *cb_instance_acl_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
         uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
         data=inst->local_acl;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
         return (void *) data;
 }
 
@@ -1325,9 +1325,9 @@ static int cb_instance_acl_set(void *arg, void *value, char *errorbuf, int phase
                         /* Stored in ldif only             */
                         return LDAP_SUCCESS;
                 }
-	        PR_RWLock_Wlock(inst->rwl_config_lock);
+	        slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->local_acl=(int) ((uintptr_t)value);
-	        PR_RWLock_Unlock(inst->rwl_config_lock);
+	        slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1337,9 +1337,9 @@ static void *cb_instance_bindretry_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock); 
+        slapi_rwlock_rdlock(inst->rwl_config_lock); 
         data=inst->bind_retry;
-        PR_RWLock_Unlock(inst->rwl_config_lock); 
+        slapi_rwlock_unlock(inst->rwl_config_lock); 
         return (void *) data; 
 }
 
@@ -1347,9 +1347,9 @@ static int cb_instance_bindretry_set(void *arg, void *value, char *errorbuf, int
 {
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	if (apply) {
-                PR_RWLock_Wlock(inst->rwl_config_lock);
+                slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->bind_retry=(int) ((uintptr_t)value);
-                PR_RWLock_Unlock(inst->rwl_config_lock);
+                slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1360,9 +1360,9 @@ static void *cb_instance_starttls_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
         uintptr_t data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
         data=inst->pool->starttls;
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
         return (void *) data;
 }
 
@@ -1379,9 +1379,9 @@ static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int 
 
 	if (value && inst->rwl_config_lock) {
 		int isgss = 0;
-		PR_RWLock_Rlock(inst->rwl_config_lock);
+		slapi_rwlock_rdlock(inst->rwl_config_lock);
 		isgss = inst->pool->mech && !PL_strcasecmp(inst->pool->mech, "GSSAPI");
-		PR_RWLock_Unlock(inst->rwl_config_lock);
+		slapi_rwlock_unlock(inst->rwl_config_lock);
 		if (isgss) {
 			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use startTLS if using GSSAPI - please change the %s to use something other than GSSAPI before changing connection to use startTLS", CB_CONFIG_BINDMECH);
 			rc = LDAP_UNWILLING_TO_PERFORM;
@@ -1389,9 +1389,9 @@ static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int 
 	}
 
 	if ((LDAP_SUCCESS == rc) && apply) {
-	        PR_RWLock_Wlock(inst->rwl_config_lock);
+	        slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->pool->starttls=(int) ((uintptr_t)value);
-	        PR_RWLock_Unlock(inst->rwl_config_lock);
+	        slapi_rwlock_unlock(inst->rwl_config_lock);
 		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
     			( phase != CB_CONFIG_PHASE_STARTUP )) {
 		    rc=CB_REOPEN_CONN; /* reconnect with the new starttls setting */
@@ -1406,9 +1406,9 @@ static void *cb_instance_bindmech_get(void *arg)
 	cb_backend_instance * inst=(cb_backend_instance *) arg;
 	char * data;
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	data = slapi_ch_strdup(inst->pool->mech);
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 	return data;
 }
 
@@ -1425,9 +1425,9 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 
 	if (value && !PL_strcasecmp((char *) value, "GSSAPI") && inst->rwl_config_lock) {
 		int secure = 0;
-		PR_RWLock_Rlock(inst->rwl_config_lock);
+		slapi_rwlock_rdlock(inst->rwl_config_lock);
 		secure = inst->pool->secure || inst->pool->starttls;
-		PR_RWLock_Unlock(inst->rwl_config_lock);
+		slapi_rwlock_unlock(inst->rwl_config_lock);
 		if (secure) {
 			PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot use SASL/GSSAPI if using SSL or TLS - please change the connection to use no security before changing %s to use GSSAPI", CB_CONFIG_BINDMECH);
 			rc = LDAP_UNWILLING_TO_PERFORM;
@@ -1435,7 +1435,7 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 	}
 
 	if ((LDAP_SUCCESS == rc) && apply) {
-               	PR_RWLock_Wlock(inst->rwl_config_lock);
+               	slapi_rwlock_wrlock(inst->rwl_config_lock);
 		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
     			( phase != CB_CONFIG_PHASE_STARTUP )) {
 
@@ -1451,7 +1451,7 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 		} else {
 		    inst->pool->mech=slapi_ch_strdup((char *) value);
 		}
-               	PR_RWLock_Unlock(inst->rwl_config_lock);
+               	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 done:
 	return rc;
@@ -1623,7 +1623,7 @@ int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 
         /* suffixes */
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 
         {
                 const Slapi_DN *aSuffix;
@@ -1665,7 +1665,7 @@ int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 		}
 	}
 
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 
 	/* standard attributes */
         for(config = cb_the_instance_config; config->config_name != NULL; config++) {
@@ -1749,7 +1749,7 @@ static void cb_instance_add_monitor_later(time_t when, void *arg) {
 
 	if ( inst != NULL )
 	{
-		PR_RWLock_Rlock(inst->rwl_config_lock);
+		slapi_rwlock_rdlock(inst->rwl_config_lock);
 
 		/* create the monitor entry if it is not there yet */
 		if (LDAP_SUCCESS == cb_config_add_dse_entries(inst->backend_type, cb_skeleton_entries,
@@ -1766,7 +1766,7 @@ static void cb_instance_add_monitor_later(time_t when, void *arg) {
 			slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP , inst->monitorDn, LDAP_SCOPE_BASE,
 					"(objectclass=*)", cb_delete_monitor_callback, (void *) inst);
 		}
-		PR_RWLock_Unlock(inst->rwl_config_lock);
+		slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 }
 

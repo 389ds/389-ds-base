@@ -57,7 +57,7 @@
 static char **supported_controls = NULL;
 static unsigned long *supported_controls_ops = NULL;
 static int supported_controls_count = 0;
-static PRRWLock *supported_controls_lock = NULL;
+static Slapi_RWLock *supported_controls_lock = NULL;
 
 /*
  * Register all of the LDAPv3 controls we know about "out of the box."
@@ -65,8 +65,7 @@ static PRRWLock *supported_controls_lock = NULL;
 void
 init_controls( void )
 {
-	supported_controls_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE,
-		"supported controls rwlock");
+	supported_controls_lock = slapi_new_rwlock();
 	if (NULL == supported_controls_lock) {
 		/* Out of resources */
 		slapi_log_error(SLAPI_LOG_FATAL, "startup", 
@@ -126,7 +125,7 @@ void
 slapi_register_supported_control( char *controloid, unsigned long controlops )
 {
 	if ( controloid != NULL ) {
-		PR_RWLock_Wlock(supported_controls_lock);
+		slapi_rwlock_wrlock(supported_controls_lock);
 		++supported_controls_count;
 		charray_add( &supported_controls, slapi_ch_strdup( controloid ));
 		supported_controls_ops = (unsigned long *)slapi_ch_realloc(
@@ -134,7 +133,7 @@ slapi_register_supported_control( char *controloid, unsigned long controlops )
 		    supported_controls_count * sizeof( unsigned long ));
 		supported_controls_ops[ supported_controls_count - 1 ] = 
 		    controlops;
-		PR_RWLock_Unlock(supported_controls_lock);
+		slapi_rwlock_unlock(supported_controls_lock);
 	}
 }
 
@@ -175,14 +174,14 @@ unsigned long *supported_controls_ops_dup(unsigned long *ctrlops)
 
 int slapi_get_supported_controls_copy( char ***ctrloidsp, unsigned long **ctrlopsp )
 {
-	PR_RWLock_Rlock(supported_controls_lock);
+	slapi_rwlock_rdlock(supported_controls_lock);
 	if ( ctrloidsp != NULL ) {
 		*ctrloidsp = charray_dup(supported_controls);
 	}
 	if ( ctrlopsp != NULL ) {
 		*ctrlopsp = supported_controls_ops_dup(supported_controls_ops);
 	}
-	PR_RWLock_Unlock(supported_controls_lock);
+	slapi_rwlock_unlock(supported_controls_lock);
 	return (0);
 }
 
@@ -322,7 +321,7 @@ get_ldapmessage_controls_ext(
 		if ( new->ldctl_iscritical ) {
 		    int		i;
 
-		    PR_RWLock_Rlock(supported_controls_lock);
+		    slapi_rwlock_rdlock(supported_controls_lock);
 		    for ( i = 0; supported_controls != NULL
 			&& supported_controls[i] != NULL; ++i ) {
 			    if ( strcmp( supported_controls[i],
@@ -336,10 +335,10 @@ get_ldapmessage_controls_ext(
 			( 0 == ( supported_controls_ops[i] &
 			operation_get_type(pb->pb_op) ))) {
 			    rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
-			    PR_RWLock_Unlock(supported_controls_lock);
+			    slapi_rwlock_unlock(supported_controls_lock);
 			    goto free_and_return;
 		    }
-		    PR_RWLock_Unlock(supported_controls_lock);
+		    slapi_rwlock_unlock(supported_controls_lock);
 		}
 
 		/* the control value is optional */

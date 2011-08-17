@@ -58,7 +58,7 @@ struct idl_private {
 	int			idl_maxindirect; /* Number of blocks allowed */
 	size_t		idl_allidslimit; /* Max number of IDs before it turns to allids */
 #ifdef IDL_LOCKING_ENABLE
-	PRRWLock	*idl_rwlock;
+	Slapi_RWLock	*idl_rwlock;
 #endif
 };
 
@@ -119,7 +119,7 @@ int idl_old_init_private(backend *be,struct attrinfo *a)
 	    priv->idl_maxindirect = 0;
 	}
 #ifdef IDL_LOCKING_ENABLE
-	priv->idl_rwlock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "idl lock");
+	priv->idl_rwlock = slapi_new_rwlock();
 
 	if (NULL == priv->idl_rwlock) {
 		slapi_ch_free((void**)&priv);
@@ -139,7 +139,7 @@ int idl_old_release_private(struct attrinfo *a)
 #ifdef IDL_LOCKING_ENABLE
 		idl_private *priv = a->ai_idl;
 		PR_ASSERT(NULL != priv->idl_rwlock);
-		PR_DestroyRWLock(priv->idl_rwlock);
+		slapi_destroy_rwlock(priv->idl_rwlock);
 #endif
 		slapi_ch_free( (void **)&(a->ai_idl) );
 	}
@@ -160,35 +160,35 @@ int idl_old_release_private(struct attrinfo *a)
 #ifdef IDL_LOCKING_ENABLE
 static void idl_Wlock_list(idl_private *priv, DBT *key)
 {
-	PRRWLock *lock = NULL;
+	Slapi_RWLock *lock = NULL;
 
 	PR_ASSERT(NULL != priv);
 	lock = priv->idl_rwlock;
 	PR_ASSERT(NULL != lock);
 
-	PR_RWLock_Wlock(lock);
+	slapi_rwlock_wrlock(lock);
 }
 
 static void idl_Rlock_list(idl_private *priv, DBT *key)
 {
-	PRRWLock *lock = NULL;
+	Slapi_RWLock *lock = NULL;
 
 	PR_ASSERT(NULL != priv);
 	lock = priv->idl_rwlock;
 	PR_ASSERT(NULL != lock);
 
-	PR_RWLock_Rlock(lock);
+	slapi_rwlock_rdlock(lock);
 }
 
 static void idl_unlock_list(idl_private *priv, DBT *key)
 {
-	PRRWLock *lock = NULL;
+	Slapi_RWLock *lock = NULL;
 
 	PR_ASSERT(NULL != priv);
 	lock = priv->idl_rwlock;
 	PR_ASSERT(NULL != lock);
 
-	PR_RWLock_Unlock(lock);
+	slapi_rwlock_unlock(lock);
 }
 #endif
 

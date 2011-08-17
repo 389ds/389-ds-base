@@ -58,7 +58,7 @@ static void     normalize_list( char **list );
 
 
 /* R/W lock used to protect the global objclass linked list. */
-static PRRWLock	*oc_lock = NULL;
+static Slapi_RWLock	*oc_lock = NULL;
 
 /*
  * The oc_init_lock_callonce structure is used by NSPR to ensure
@@ -71,10 +71,9 @@ static PRCallOnceType oc_init_lock_callonce = { 0, 0, 0 };
 static PRStatus
 oc_init_lock( void )
 {
-	if ( NULL == ( oc_lock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,
-				"objectclass rwlock" ))) {
+	if ( NULL == ( oc_lock = slapi_new_rwlock())) {
 		slapi_log_error( SLAPI_LOG_FATAL, "oc_init_lock",
-				"PR_NewRWLock() for objectclass lock failed\n" );
+				"slapi_new_rwlock() for objectclass lock failed\n" );
 		return PR_FAILURE;
 	}
 
@@ -87,7 +86,7 @@ oc_lock_read( void )
 {
 	if ( NULL != oc_lock ||
 			PR_SUCCESS == PR_CallOnce( &oc_init_lock_callonce, oc_init_lock )) {
-		PR_RWLock_Rlock( oc_lock );
+		slapi_rwlock_rdlock( oc_lock );
 	}
 }
 
@@ -97,7 +96,7 @@ oc_lock_write( void )
 {
 	if ( NULL != oc_lock ||
 			PR_SUCCESS == PR_CallOnce( &oc_init_lock_callonce, oc_init_lock )) {
-		PR_RWLock_Wlock( oc_lock );
+		slapi_rwlock_wrlock( oc_lock );
 	}
 }
 
@@ -106,7 +105,7 @@ void
 oc_unlock( void )
 {
 	if ( oc_lock != NULL ) {
-		PR_RWLock_Unlock( oc_lock );
+		slapi_rwlock_unlock( oc_lock );
 	}
 }
 

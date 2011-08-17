@@ -81,7 +81,7 @@ typedef struct callback_node
 
 typedef struct callback_list 
 {
-	PRRWLock *lock;
+	Slapi_RWLock *lock;
 	DataList *list;	/* list of callback_node structures */
 } callback_list;
 
@@ -100,7 +100,7 @@ struct csngen
 {
 	csngen_state  state;        /* persistent state of the generator */
 	callback_list callbacks;	/* list of callbacks registered with the generator */
-	PRRWLock	  *lock;		/* concurrency control */
+	Slapi_RWLock	  *lock;		/* concurrency control */
 };
 
 /*
@@ -155,7 +155,7 @@ csngen_new (ReplicaId rid, Slapi_Attr *state)
 	}
 
 	/* create lock to control the access to the state information */
-	gen->lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "state_lock");	
+	gen->lock = slapi_new_rwlock();	
 	if (gen->lock == NULL)
 	{
 		slapi_log_error (SLAPI_LOG_FATAL, NULL, "csngen_new: failed to create lock\n");
@@ -208,7 +208,7 @@ csngen_free (CSNGen **gen)
 	_csngen_free_callbacks (*gen);	
 	
 	if ((*gen)->lock)
-		PR_DestroyRWLock ((*gen)->lock);
+		slapi_destroy_rwlock ((*gen)->lock);
 
 	slapi_ch_free((void**)gen);
 }
@@ -233,7 +233,7 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
 		return CSN_MEMORY_ERROR;
 	}
 
-    PR_RWLock_Wlock (gen->lock);
+    slapi_rwlock_wrlock (gen->lock);
 
     if (g_sampled_time == 0)
         csngen_update_time ();
@@ -247,7 +247,7 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
         rc = _csngen_adjust_local_time (gen, cur_time);
         if (rc != CSN_SUCCESS)
         {
-            PR_RWLock_Unlock (gen->lock);
+            slapi_rwlock_unlock (gen->lock);
             return rc;
         }
     }
@@ -264,7 +264,7 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
         rc = _csngen_adjust_local_time (gen, gen->state.sampled_time+1);
         if (rc != CSN_SUCCESS)
         {
-            PR_RWLock_Unlock (gen->lock);
+            slapi_rwlock_unlock (gen->lock);
             return rc;
         }
 		
@@ -286,7 +286,7 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
     /* The lock is intentionally unlocked before callbacks are called.
        This is to prevent deadlocks. The callback management code has
        its own lock */
-    PR_RWLock_Unlock (gen->lock);
+    slapi_rwlock_unlock (gen->lock);
 
     /* notify modules that registered interest in csn generation */
     if (notify)
@@ -322,7 +322,7 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
     remote_time = csn_get_time (csn);
 	remote_seqnum = csn_get_seqnum (csn);
 
-    PR_RWLock_Wlock (gen->lock);
+    slapi_rwlock_wrlock (gen->lock);
 
     if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
         cur_time = CSN_CALC_TSTAMP(gen);
@@ -344,7 +344,7 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
         (CSN_SUCCESS != (rc = _csngen_adjust_local_time(gen, cur_time))))
     {
         /* _csngen_adjust_local_time will log error */
-        PR_RWLock_Unlock (gen->lock);
+        slapi_rwlock_unlock (gen->lock);
         csngen_dump_state(gen);
         return rc;
     }
@@ -378,7 +378,7 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
 				slapi_log_error (SLAPI_LOG_FATAL, NULL, "csngen_adjust_time: "
                             "adjustment limit exceeded; value - %ld, limit - %ld\n",
                              remote_offset, (long)CSN_MAX_TIME_ADJUST);
-				PR_RWLock_Unlock (gen->lock);
+				slapi_rwlock_unlock (gen->lock);
 				csngen_dump_state(gen);
 				return CSN_LIMIT_EXCEEDED;
 			}
@@ -417,7 +417,7 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
 		   generated? */
 	}
 
-    PR_RWLock_Unlock (gen->lock);
+    slapi_rwlock_unlock (gen->lock);
 
     return CSN_SUCCESS;
 }
@@ -437,7 +437,7 @@ int csngen_get_state (const CSNGen *gen, Slapi_Mod *state)
     if (gen == NULL || state == NULL)
         return CSN_INVALID_PARAMETER;
 
-    PR_RWLock_Rlock (gen->lock);
+    slapi_rwlock_rdlock (gen->lock);
 
     slapi_mod_init (state, 1);
     slapi_mod_set_type (state, ATTR_CSN_GENERATOR_STATE);
@@ -446,7 +446,7 @@ int csngen_get_state (const CSNGen *gen, Slapi_Mod *state)
     bval.bv_len = sizeof (gen->state);
     slapi_mod_add_value(state, &bval);
 
-    PR_RWLock_Unlock (gen->lock);
+    slapi_rwlock_unlock (gen->lock);
 
     return CSN_SUCCESS;
 }
@@ -465,9 +465,9 @@ void* csngen_register_callbacks(CSNGen *gen, GenCSNFn genFn, void *genArg,
     node->abort_fn = abortFn;
     node->abort_arg = abortArg;
 
-    PR_RWLock_Wlock (gen->callbacks.lock);
+    slapi_rwlock_wrlock (gen->callbacks.lock);
     dl_add (gen->callbacks.list, node);
-    PR_RWLock_Unlock (gen->callbacks.lock);
+    slapi_rwlock_unlock (gen->callbacks.lock);
 
     return node;
 }
@@ -477,9 +477,9 @@ void csngen_unregister_callbacks(CSNGen *gen, void *cookie)
 {
     if (gen && cookie)
     {
-        PR_RWLock_Wlock (gen->callbacks.lock);
+        slapi_rwlock_wrlock (gen->callbacks.lock);
         dl_delete (gen->callbacks.list, cookie, _csngen_cmp_callbacks, slapi_ch_free);
-        PR_RWLock_Unlock (gen->callbacks.lock);
+        slapi_rwlock_unlock (gen->callbacks.lock);
     }
 }
 
@@ -495,14 +495,14 @@ void csngen_dump_state (const CSNGen *gen)
 {
     if (gen)
     {
-        PR_RWLock_Rlock (gen->lock);
+        slapi_rwlock_rdlock (gen->lock);
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "CSN generator's state:\n");
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "\treplica id: %d\n", gen->state.rid);
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tsampled time: %ld\n", gen->state.sampled_time);
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tlocal offset: %ld\n", gen->state.local_offset);
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tremote offset: %ld\n", gen->state.remote_offset);
         slapi_log_error(SLAPI_LOG_FATAL, NULL, "\tsequence number: %d\n", gen->state.seq_num);
-        PR_RWLock_Unlock (gen->lock);
+        slapi_rwlock_unlock (gen->lock);
     }
 }
 
@@ -569,7 +569,7 @@ static int
 _csngen_init_callbacks (CSNGen *gen)
 {
 	/* create a lock to control access to the callback list */
-	gen->callbacks.lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "callback_lock");	
+	gen->callbacks.lock = slapi_new_rwlock();	
 	if (gen->callbacks.lock == NULL)
 	{
 		return CSN_NSPR_ERROR;
@@ -593,7 +593,7 @@ _csngen_free_callbacks (CSNGen *gen)
 	}
 
 	if (gen->callbacks.lock)
-		PR_DestroyRWLock (gen->callbacks.lock);
+		slapi_destroy_rwlock (gen->callbacks.lock);
 }
 
 static void 
@@ -604,7 +604,7 @@ _csngen_call_callbacks (const CSNGen *gen, const CSN *csn, PRBool abort)
 
 	PR_ASSERT (gen && csn);
 	
-	PR_RWLock_Rlock (gen->callbacks.lock);
+	slapi_rwlock_rdlock (gen->callbacks.lock);
 	node = (callback_node*)dl_get_first (gen->callbacks.list, &cookie);
 	while (node)
 	{
@@ -621,7 +621,7 @@ _csngen_call_callbacks (const CSNGen *gen, const CSN *csn, PRBool abort)
 		node = (callback_node*)dl_get_next (gen->callbacks.list, &cookie);
 	}
 
-	PR_RWLock_Unlock (gen->callbacks.lock);
+	slapi_rwlock_unlock (gen->callbacks.lock);
 }
 
 /* el1 is just a pointer to the callback_node */

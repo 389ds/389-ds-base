@@ -99,7 +99,7 @@ struct _globalIndexCache
 	indexPlugin *pPlugins;
 	indexEntry **ppIndexIndex; /* sorted list with key: indexEntry.indexedAttribute */
 	int index_count;
-	PRRWLock *cache_lock;
+	Slapi_RWLock *cache_lock;
 };
 typedef struct _globalIndexCache globalIndexCache;
 
@@ -123,17 +123,17 @@ static int index_subsys_index_matches_filter(indexEntry *index, Slapi_Filter *f)
 
 static void index_subsys_read_lock()
 {
-	PR_RWLock_Rlock(theCache->cache_lock);
+	slapi_rwlock_rdlock(theCache->cache_lock);
 }
 
 static void index_subsys_write_lock()
 {
-	PR_RWLock_Wlock(theCache->cache_lock);
+	slapi_rwlock_wrlock(theCache->cache_lock);
 }
 
 static void index_subsys_unlock()
 {
-	PR_RWLock_Unlock(theCache->cache_lock);
+	slapi_rwlock_unlock(theCache->cache_lock);
 }
 
 int slapi_index_entry_list_create(IndexEntryList **list)
@@ -962,7 +962,7 @@ int slapi_index_register_decoder(char *plugin_id, index_validate_callback valida
 			theCache->pPlugins = 0;
 			theCache->ppIndexIndex = 0;
 			theCache->index_count = 0;
-			theCache->cache_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "Index Plugins");;
+			theCache->cache_lock = slapi_new_rwlock();
 			firstTime = 0;
 
 			if(!gotIDLapi)

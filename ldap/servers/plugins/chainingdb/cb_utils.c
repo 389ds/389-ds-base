@@ -209,22 +209,22 @@ int cb_forward_operation(Slapi_PBlock * pb ) {
         cb = cb_get_instance(be);
 
 	/* Local policy */
-        PR_RWLock_Rlock(cb->rwl_config_lock);
+        slapi_rwlock_rdlock(cb->rwl_config_lock);
 	if ( cb->chaining_components != NULL ) {
 		retcode=charray_inlist(cb->chaining_components,pname);
-        	PR_RWLock_Unlock(cb->rwl_config_lock);
+        	slapi_rwlock_unlock(cb->rwl_config_lock);
 		if ( retcode )
 			retcode=LDAP_SUCCESS;
 		else
 			retcode=LDAP_UNWILLING_TO_PERFORM;
 		return retcode;
 	}
-       	PR_RWLock_Unlock(cb->rwl_config_lock);
+       	slapi_rwlock_unlock(cb->rwl_config_lock);
 
 	/* Global policy */
-        PR_RWLock_Rlock(cb->backend_type->config.rwl_config_lock);
+        slapi_rwlock_rdlock(cb->backend_type->config.rwl_config_lock);
 	retcode=charray_inlist(cb->backend_type->config.chaining_components,pname);
-       	PR_RWLock_Unlock(cb->backend_type->config.rwl_config_lock);
+       	slapi_rwlock_unlock(cb->backend_type->config.rwl_config_lock);
 
 	if ( retcode )
 		retcode=LDAP_SUCCESS;

@@ -235,7 +235,7 @@ typedef struct _cb_backend {
 		char ** chaining_components;	/* List of plugins that chains	   */
 		char ** chainable_components;	/* List of plugins allowed to chain*/
 						/* internal operations.            */
-		PRRWLock *rwl_config_lock;	/* Protect the global config	   */
+		Slapi_RWLock *rwl_config_lock;	/* Protect the global config	   */
 	} config;
 
 	int started;				/* TRUE when started		   */
@@ -293,7 +293,7 @@ typedef struct  {
 	cb_outgoing_conn  *connarray[MAX_CONN_ARRAY]; /* array of secure connections */
 
 	/* To protect the config set by LDAP */
-	PRRWLock	* rwl_config_lock;
+	Slapi_RWLock	* rwl_config_lock;
 	int		starttls; /* use starttls with connection */
 	char		*mech; /* plain, external, or a sasl mech */
 } cb_conn_pool;
@@ -310,7 +310,7 @@ typedef struct _cb_backend_instance {
 
 	/* configuration */
 
-	PRRWLock		*rwl_config_lock;	/* protect the config */
+	Slapi_RWLock		*rwl_config_lock;	/* protect the config */
 	char 			*configDn;		/* config entry dn */
 	char 			*monitorDn;		/* monitor entry dn */
 	int 		  	local_acl;		/* True if local acl evaluation */

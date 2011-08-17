@@ -49,7 +49,7 @@
  * Plug-in globals
  */
 static PRCList *g_mep_config = NULL;
-static PRRWLock *g_mep_config_lock;
+static Slapi_RWLock *g_mep_config_lock;
 
 static void *_PluginID = NULL;
 static Slapi_DN *_PluginDN = NULL;
@@ -124,19 +124,19 @@ static int mep_has_tombstone_value(Slapi_Entry * e);
 void
 mep_config_read_lock()
 {
-    PR_RWLock_Rlock(g_mep_config_lock);
+    slapi_rwlock_rdlock(g_mep_config_lock);
 }
 
 void
 mep_config_write_lock()
 {
-    PR_RWLock_Wlock(g_mep_config_lock);
+    slapi_rwlock_wrlock(g_mep_config_lock);
 }
 
 void
 mep_config_unlock()
 {
-    PR_RWLock_Unlock(g_mep_config_lock);
+    slapi_rwlock_unlock(g_mep_config_lock);
 }
 
 
@@ -300,7 +300,7 @@ mep_start(Slapi_PBlock * pb)
         goto done;
     }
 
-    g_mep_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "mep_config");
+    g_mep_config_lock = slapi_new_rwlock();
 
     if (!g_mep_config_lock) {
         slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,

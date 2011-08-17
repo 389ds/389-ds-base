@@ -80,7 +80,7 @@ static int memberof_search (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_En
  * config will be copied when it is used by the plug-in to prevent it
  * being changed out from under a running memberOf operation. */
 static MemberOfConfig theConfig;
-static PRRWLock *memberof_config_lock = 0;
+static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 
 
@@ -113,7 +113,7 @@ memberof_config(Slapi_Entry *config_e)
 	}
 
 	/* initialize the RW lock to protect the main config */
-	memberof_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "memberof_config_lock");
+	memberof_config_lock = slapi_new_rwlock();
 
 	/* initialize fields */
 	if (SLAPI_DSE_CALLBACK_OK == memberof_validate_config(NULL, NULL, config_e,
@@ -501,7 +501,7 @@ memberof_get_config()
 void
 memberof_rlock_config()
 {
-	PR_RWLock_Rlock(memberof_config_lock);
+	slapi_rwlock_rdlock(memberof_config_lock);
 }
 
 /*
@@ -513,7 +513,7 @@ memberof_rlock_config()
 void
 memberof_wlock_config()
 {
-	PR_RWLock_Wlock(memberof_config_lock);
+	slapi_rwlock_wrlock(memberof_config_lock);
 }
 
 /*
@@ -524,5 +524,5 @@ memberof_wlock_config()
 void
 memberof_unlock_config()
 {
-	PR_RWLock_Unlock(memberof_config_lock);
+	slapi_rwlock_unlock(memberof_config_lock);
 }

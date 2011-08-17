@@ -91,7 +91,7 @@ static int get_legacy_referral (Slapi_Entry *e, char **referral, char **state);
 static Slapi_DN *legacy_consumer_replicationdn = NULL;
 static char *legacy_consumer_replicationpw = NULL;
 /* Lock which protects the above config parameters */
-PRRWLock *legacy_consumer_config_lock = NULL;
+Slapi_RWLock *legacy_consumer_config_lock = NULL;
 
 static PRBool
 target_is_a_replica_root(Slapi_PBlock *pb, const Slapi_DN **root)
@@ -258,7 +258,7 @@ legacy_consumer_config_init()
     /* The FE DSE *must* be initialised before we get here */
 	int rc;
 
-	if ((legacy_consumer_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "legacy_consumer_config_lock")) == NULL) {
+	if ((legacy_consumer_config_lock = slapi_new_rwlock()) == NULL) {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 				"Failed to create legacy_consumer config read-write lock\n");
 		exit(1);
@@ -319,7 +319,7 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
 
 
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-	PR_RWLock_Wlock (legacy_consumer_config_lock);
+	slapi_rwlock_wrlock (legacy_consumer_config_lock);
 		
 	for (i = 0; (mods[i] && (!not_allowed)); i++)
 	{
@@ -395,7 +395,7 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
 		}
 	}
 
-	PR_RWLock_Unlock (legacy_consumer_config_lock);
+	slapi_rwlock_unlock (legacy_consumer_config_lock);
 
 
 	if (not_allowed)
@@ -416,7 +416,7 @@ static int
 legacy_consumer_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
 	
-	PR_RWLock_Wlock (legacy_consumer_config_lock);
+	slapi_rwlock_wrlock (legacy_consumer_config_lock);
     if (legacy_consumer_replicationdn)
         slapi_sdn_free (&legacy_consumer_replicationdn);
     if (legacy_consumer_replicationpw)
@@ -424,7 +424,7 @@ legacy_consumer_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* en
 
 	legacy_consumer_replicationdn = NULL;
     legacy_consumer_replicationpw = NULL;
-	PR_RWLock_Unlock (legacy_consumer_config_lock);
+	slapi_rwlock_unlock (legacy_consumer_config_lock);
 
 	*returncode = LDAP_SUCCESS;
 	return SLAPI_DSE_CALLBACK_OK;
@@ -439,7 +439,7 @@ legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext)
 	int rc = LDAP_SUCCESS; /* OK */
 	char *arg;
 
-  	PR_RWLock_Wlock (legacy_consumer_config_lock);
+  	slapi_rwlock_wrlock (legacy_consumer_config_lock);
 
     arg= slapi_entry_attr_get_charptr(entry,CONFIG_LEGACY_REPLICATIONDN_ATTRIBUTE);
     if (arg)
@@ -448,7 +448,7 @@ legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext)
     arg= slapi_entry_attr_get_charptr(entry,CONFIG_LEGACY_REPLICATIONPW_ATTRIBUTE);
     legacy_consumer_replicationpw = arg;
 
-	PR_RWLock_Unlock (legacy_consumer_config_lock);
+	slapi_rwlock_unlock (legacy_consumer_config_lock);
 
 	return rc;
 }

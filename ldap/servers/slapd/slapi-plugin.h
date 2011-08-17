@@ -5124,6 +5124,7 @@ int slapi_is_loglevel_set( const int loglevel );
  */
 typedef struct slapi_mutex	Slapi_Mutex;
 typedef struct slapi_condvar	Slapi_CondVar;
+typedef struct slapi_rwlock	Slapi_RWLock;
 Slapi_Mutex *slapi_new_mutex( void );
 void slapi_destroy_mutex( Slapi_Mutex *mutex );
 void slapi_lock_mutex( Slapi_Mutex *mutex );
@@ -5132,6 +5133,64 @@ Slapi_CondVar *slapi_new_condvar( Slapi_Mutex *mutex );
 void slapi_destroy_condvar( Slapi_CondVar *cvar );
 int slapi_wait_condvar( Slapi_CondVar *cvar, struct timeval *timeout );
 int slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all );
+
+/**
+ * Creates a new read/write lock.
+ *
+ * \return A pointer to a \c Slapi_RWLock
+ *
+ * \note Free the returned lock by calling slapi_destroy_rwlock() when finished
+ *
+ * \see slapi_destroy_rwlock()
+ * \see slapi_rwlock_rdlock()
+ * \see slapi_rwlock_wrlock()
+ * \see slapi_rwlock_unlock()
+ */
+Slapi_RWLock *slapi_new_rwlock( void );
+
+/**
+ * Free a read/write lock
+ *
+ * \see slapi_new_rwlock()
+ */
+void slapi_destroy_rwlock( Slapi_RWLock *rwlock );
+
+/**
+ * Acquires a reader lock
+ *
+ * \return 0 if successful
+ * \return Non-zero if an error occurred
+ *
+ * \note Release the acquired lock by calling slapi_rwlock_unlock()
+ * \note It is safe for a thread to hold multiple reader locks, but
+ *       you must call slapi_rwlock_unlock() for each aquired lock.
+ *
+ * \see slapi_rwlock_unlock()
+ */
+int slapi_rwlock_rdlock( Slapi_RWLock *rwlock );
+
+/**
+ * Acquires a writer lock
+ *
+ * \return 0 if successful
+ * \return Non-zero if an error occurred
+ *
+ * \note Release the acquired lock by calling slapi_rwlock_unlock()
+ *
+ * \see slapi_rwlock_unlock()
+ */
+int slapi_rwlock_wrlock( Slapi_RWLock *rwlock );
+
+/**
+ * Releases a reader or writer lock
+ *
+ * \return 0 if successful
+ * \return Non-zero if an error occurred
+ *
+ * \see slapi_rwlock_rdlock()
+ * \see slapi_rwlock_wrlock()
+ */
+int slapi_rwlock_unlock( Slapi_RWLock *rwlock );
 
 
 /*

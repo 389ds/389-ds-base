@@ -71,11 +71,11 @@
  */
 #include "acl.h"
 
-static PRRWLock *aci_rwlock = NULL;
-#define ACILIST_LOCK_READ()     PR_RWLock_Rlock  (aci_rwlock )
-#define ACILIST_UNLOCK_READ()   PR_RWLock_Unlock (aci_rwlock )
-#define ACILIST_LOCK_WRITE()    PR_RWLock_Wlock  (aci_rwlock )
-#define ACILIST_UNLOCK_WRITE()  PR_RWLock_Unlock (aci_rwlock )
+static Slapi_RWLock *aci_rwlock = NULL;
+#define ACILIST_LOCK_READ()     slapi_rwlock_rdlock  (aci_rwlock )
+#define ACILIST_UNLOCK_READ()   slapi_rwlock_unlock (aci_rwlock )
+#define ACILIST_LOCK_WRITE()    slapi_rwlock_wrlock  (aci_rwlock )
+#define ACILIST_UNLOCK_WRITE()  slapi_rwlock_unlock (aci_rwlock )
 
 
 /* Root of the TREE */
@@ -103,7 +103,7 @@ int
 acllist_init ()
 {
 
-	if (( aci_rwlock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,"ACLLIST LOCK") ) == NULL ) {
+	if (( aci_rwlock = slapi_new_rwlock() ) == NULL ) {
 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
 							"acllist_init:failed in getting the rwlock\n" );
 		return 1;

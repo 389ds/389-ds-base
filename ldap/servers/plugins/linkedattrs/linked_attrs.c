@@ -50,7 +50,7 @@
  */
 static PRCList *g_link_config = NULL;
 static PRCList *g_managed_config_index = NULL;
-static PRRWLock *g_config_lock;
+static Slapi_RWLock *g_config_lock;
 
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
@@ -120,19 +120,19 @@ static void linked_attrs_mod_backpointers(char *linkdn, char *type, char *scope,
 void
 linked_attrs_read_lock()
 {
-    PR_RWLock_Rlock(g_config_lock);
+    slapi_rwlock_rdlock(g_config_lock);
 }
 
 void
 linked_attrs_write_lock()
 {
-    PR_RWLock_Wlock(g_config_lock);
+    slapi_rwlock_wrlock(g_config_lock);
 }
 
 void
 linked_attrs_unlock()
 {
-    PR_RWLock_Unlock(g_config_lock);
+    slapi_rwlock_unlock(g_config_lock);
 }
 
 
@@ -291,7 +291,7 @@ linked_attrs_start(Slapi_PBlock * pb)
         goto done;
     }
 
-    g_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "linkedattrs");
+    g_config_lock = slapi_new_rwlock();
 
     if (!g_config_lock) {
         slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,

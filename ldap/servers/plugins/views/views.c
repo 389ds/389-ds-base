@@ -153,7 +153,7 @@ static Slapi_PluginDesc pdesc = { "views", VENDOR, DS_PACKAGE_VERSION,
 
 static void * view_plugin_identity = NULL;
 
-static PRRWLock *g_views_cache_lock;
+static Slapi_RWLock *g_views_cache_lock;
 
 #ifdef _WIN32
 int *module_ldap_debug = 0;
@@ -218,17 +218,17 @@ int views_init( Slapi_PBlock *pb )
 
 void views_read_lock()
 {
-	PR_RWLock_Rlock(g_views_cache_lock);
+	slapi_rwlock_rdlock(g_views_cache_lock);
 }
 
 void views_write_lock()
 {
-	PR_RWLock_Wlock(g_views_cache_lock);
+	slapi_rwlock_wrlock(g_views_cache_lock);
 }
 
 void views_unlock()
 {
-	PR_RWLock_Unlock(g_views_cache_lock);
+	slapi_rwlock_unlock(g_views_cache_lock);
 }
 
 /*
@@ -244,7 +244,7 @@ static int views_start( Slapi_PBlock *pb )
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_start\n");
 
 	theCache.cache_built = 0;
-	g_views_cache_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "views");
+	g_views_cache_lock = slapi_new_rwlock();
 
 	/* first register our backend state change func (we'll use func pointer as handle) */
 	slapi_register_backend_state_change((void *)views_cache_backend_state_change, views_cache_backend_state_change); 

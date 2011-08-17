@@ -63,11 +63,11 @@ struct anom_profile {
 
 static struct anom_profile *acl_anom_profile = NULL;
 
-static PRRWLock *anom_rwlock = NULL;
-#define ANOM_LOCK_READ()     PR_RWLock_Rlock  (anom_rwlock )
-#define ANOM_UNLOCK_READ()   PR_RWLock_Unlock (anom_rwlock )
-#define ANOM_LOCK_WRITE()    PR_RWLock_Wlock  (anom_rwlock )
-#define ANOM_UNLOCK_WRITE()  PR_RWLock_Unlock (anom_rwlock )
+static Slapi_RWLock *anom_rwlock = NULL;
+#define ANOM_LOCK_READ()     slapi_rwlock_rdlock  (anom_rwlock )
+#define ANOM_UNLOCK_READ()   slapi_rwlock_unlock (anom_rwlock )
+#define ANOM_LOCK_WRITE()    slapi_rwlock_wrlock  (anom_rwlock )
+#define ANOM_UNLOCK_WRITE()  slapi_rwlock_unlock (anom_rwlock )
 
 
 static void 	__aclanom__del_profile ();
@@ -92,7 +92,7 @@ aclanom_init ()
 	acl_anom_profile = (struct anom_profile * )
                 slapi_ch_calloc (1, sizeof ( struct anom_profile ) );
 
-	if (( anom_rwlock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,"ANOM LOCK") ) == NULL ) {
+	if (( anom_rwlock = slapi_new_rwlock()) == NULL ) {
 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
 				"Failed in getting the ANOM rwlock\n" );
 		return 1;

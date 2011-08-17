@@ -89,13 +89,13 @@ cb_search_monitor_callback(Slapi_PBlock * pb, Slapi_Entry * e, Slapi_Entry * ent
 	/* First make sure the backend instance is configured */
 	/* If not, don't return anything		      */
 
-        PR_RWLock_Rlock(inst->rwl_config_lock);
+        slapi_rwlock_rdlock(inst->rwl_config_lock);
 	if (!inst->isconfigured) {
 	        *returnCode= LDAP_NO_SUCH_OBJECT;
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 		return SLAPI_DSE_CALLBACK_ERROR;
 	}
-        PR_RWLock_Unlock(inst->rwl_config_lock);
+        slapi_rwlock_unlock(inst->rwl_config_lock);
 
   	vals[0] = &val;
   	vals[1] = NULL;

@@ -107,10 +107,10 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
 	
     /* Grab an LDAP connection to use for this bind. */
 
-    PR_RWLock_Rlock(pool->rwl_config_lock);
+    slapi_rwlock_rdlock(pool->rwl_config_lock);
     timeout_copy.tv_sec = pool->conn.bind_timeout.tv_sec;
     timeout_copy.tv_usec = pool->conn.bind_timeout.tv_usec;
-    PR_RWLock_Unlock(pool->rwl_config_lock);
+    slapi_rwlock_unlock(pool->rwl_config_lock);
 
 	rc = cb_get_connection(pool, &ld, &cnx, NULL, &cnxerrbuf);
 	if (LDAP_SUCCESS != rc) {
@@ -286,9 +286,9 @@ chainingdb_bind( Slapi_PBlock *pb ) {
 	  return -1;
         }
 
-        PR_RWLock_Rlock(cb->rwl_config_lock);
+        slapi_rwlock_rdlock(cb->rwl_config_lock);
 	bind_retry=cb->bind_retry;
-        PR_RWLock_Unlock(cb->rwl_config_lock);
+        slapi_rwlock_unlock(cb->rwl_config_lock);
 
 	rc = cb_sasl_bind_s(pb, cb->bind_pool, bind_retry, dn, method, 
 	                    mechanism, creds, reqctrls, &matcheddn, &errmsg, 

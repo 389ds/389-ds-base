@@ -49,7 +49,7 @@
  * Plug-in globals
  */
 static PRCList *g_automember_config = NULL;
-static PRRWLock *g_automember_config_lock;
+static Slapi_RWLock *g_automember_config_lock;
 
 static void *_PluginID = NULL;
 static Slapi_DN *_PluginDN = NULL;
@@ -113,19 +113,19 @@ static void automember_add_member_value(Slapi_Entry *member_e, const char *group
 void
 automember_config_read_lock()
 {
-    PR_RWLock_Rlock(g_automember_config_lock);
+    slapi_rwlock_rdlock(g_automember_config_lock);
 }
 
 void
 automember_config_write_lock()
 {
-    PR_RWLock_Wlock(g_automember_config_lock);
+    slapi_rwlock_wrlock(g_automember_config_lock);
 }
 
 void
 automember_config_unlock()
 {
-    PR_RWLock_Unlock(g_automember_config_lock);
+    slapi_rwlock_unlock(g_automember_config_lock);
 }
 
 
@@ -286,7 +286,7 @@ automember_start(Slapi_PBlock * pb)
         goto done;
     }
 
-    g_automember_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "automember_config");
+    g_automember_config_lock = slapi_new_rwlock();
 
     if (!g_automember_config_lock) {
         slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,

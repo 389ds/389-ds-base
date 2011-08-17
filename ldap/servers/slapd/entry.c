@@ -1921,7 +1921,7 @@ slapi_entry_init(Slapi_Entry *e, char *dn, Slapi_Attr *a)
 	e->e_deleted_attrs= NULL;
 	e->e_virtual_attrs= NULL;
 	e->e_virtual_watermark= 0;
-	e->e_virtual_lock= PR_NewRWLock(PR_RWLOCK_RANK_NONE, "vattrValueCache");
+	e->e_virtual_lock= slapi_new_rwlock();
 	e->e_flags= 0;
 }
 
@@ -1942,7 +1942,7 @@ slapi_entry_free( Slapi_Entry *e ) /* JCM - Should be ** so that we can NULL the
 		attrlist_free(e->e_deleted_attrs);
 		attrlist_free(e->e_virtual_attrs);
 		if(e->e_virtual_lock)
-            PR_DestroyRWLock(e->e_virtual_lock);
+            slapi_destroy_rwlock(e->e_virtual_lock);
 		slapi_ch_free((void**)&e);
 	    PR_INCREMENT_COUNTER(slapi_entry_counter_deleted);
 	    PR_DECREMENT_COUNTER(slapi_entry_counter_exist);

@@ -631,7 +631,7 @@ struct slapi_entry {
     Slapi_Attr *e_virtual_attrs; /* list of virtual attributes */
     time_t e_virtual_watermark;  /* indicates cache consistency when compared
                                     to global watermark */ 
-    PRRWLock *e_virtual_lock;    /* for access to cached vattrs */
+    Slapi_RWLock *e_virtual_lock;    /* for access to cached vattrs */
     void *e_extension;           /* A list of entry object extensions */
     unsigned char e_flags;
     Slapi_Attr *e_aux_attrs;     /* Attr list used for upgrade */
@@ -1189,8 +1189,8 @@ typedef struct backend {
 	PRLock *be_state_lock;		/* lock under which to modify the state */
 
     int     be_flags;		/* misc properties. See BE_FLAG_xxx defined in slapi-private.h */
-	PRRWLock    *be_lock;	
-	PRRWLock    *vlvSearchList_lock;
+	Slapi_RWLock    *be_lock;	
+	Slapi_RWLock    *vlvSearchList_lock;
 	void        *vlvSearchList;
 	Slapi_Counter *be_usn_counter; /* USN counter; one counter per backend */
 } backend;

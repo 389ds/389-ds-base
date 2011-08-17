@@ -241,7 +241,7 @@ typedef struct cl5desc
 	CL5DBConfig	dbConfig;	/* database configuration params					*/
 	CL5Trim     dbTrim;		/* trimming parameters								*/
 	CL5State	dbState;	/* changelog current state							*/
-	PRRWLock	*stLock;	/* lock that controls access to the changelog state	*/	
+	Slapi_RWLock	*stLock;	/* lock that controls access to the changelog state	*/	
 	PRBool      dbRmOnClose;/* indicates whether changelog should be removed when
 							   it is closed	*/
 	PRBool		fatalError; /* bad stuff happened like out of disk space; don't 
@@ -376,7 +376,7 @@ static void cl5_set_no_diskfull();
  */
 int cl5Init ()
 {
-	s_cl5Desc.stLock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "state_lock");
+	s_cl5Desc.stLock = slapi_new_rwlock();
 	if (s_cl5Desc.stLock == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
@@ -432,7 +432,7 @@ void cl5Cleanup ()
 	}
 
 	if (s_cl5Desc.stLock)
-		PR_DestroyRWLock (s_cl5Desc.stLock);
+		slapi_destroy_rwlock (s_cl5Desc.stLock);
 	s_cl5Desc.stLock = NULL;
 
 	if (cl5_diskfull_lock)
@@ -476,7 +476,7 @@ int cl5Open (const char *dir, const CL5DBConfig *config)
 	}
 
 	/* prevent state from changing */
-	PR_RWLock_Wlock (s_cl5Desc.stLock);
+	slapi_rwlock_wrlock (s_cl5Desc.stLock);
 
 	/* already open - ignore */
 	if (s_cl5Desc.dbState == CL5_STATE_OPEN)
@@ -521,7 +521,7 @@ int cl5Open (const char *dir, const CL5DBConfig *config)
 	}
 
 done:
-	PR_RWLock_Unlock (s_cl5Desc.stLock);
+	slapi_rwlock_unlock (s_cl5Desc.stLock);
 
 	return rc;
 }
@@ -546,21 +546,21 @@ int cl5Close ()
 		return CL5_BAD_STATE;	
 	}
 
-	PR_RWLock_Wlock (s_cl5Desc.stLock);
+	slapi_rwlock_wrlock (s_cl5Desc.stLock);
 
 	/* already closed - ignore */
 	if (s_cl5Desc.dbState == CL5_STATE_CLOSED)
 	{
 		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
 					"cl5Close: changelog closed; request ignored\n");
-		PR_RWLock_Unlock (s_cl5Desc.stLock);
+		slapi_rwlock_unlock (s_cl5Desc.stLock);
 		return CL5_SUCCESS;
 	}
 	else if (s_cl5Desc.dbState != CL5_STATE_OPEN)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 						"cl5Close: invalid state - %d\n", s_cl5Desc.dbState);
-		PR_RWLock_Unlock (s_cl5Desc.stLock);
+		slapi_rwlock_unlock (s_cl5Desc.stLock);
 		return CL5_BAD_STATE;
 	}
 
@@ -575,7 +575,7 @@ int cl5Close ()
 
 	s_cl5Desc.dbState = CL5_STATE_CLOSED;
 
-	PR_RWLock_Unlock (s_cl5Desc.stLock);
+	slapi_rwlock_unlock (s_cl5Desc.stLock);
 
 	return rc;
 }
@@ -605,13 +605,13 @@ int cl5Delete (const char *dir)
 		return CL5_BAD_STATE;	
 	}
 
-	PR_RWLock_Wlock (s_cl5Desc.stLock);
+	slapi_rwlock_wrlock (s_cl5Desc.stLock);
 
 	if (s_cl5Desc.dbState != CL5_STATE_CLOSED)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 						"cl5Delete: invalid state - %d\n", s_cl5Desc.dbState);
-		PR_RWLock_Unlock (s_cl5Desc.stLock);
+		slapi_rwlock_unlock (s_cl5Desc.stLock);
 		return CL5_BAD_STATE;
 	}
 
@@ -622,7 +622,7 @@ int cl5Delete (const char *dir)
 						"cl5Delete: failed to remove changelog\n");
 	}
 	 
-	PR_RWLock_Unlock (s_cl5Desc.stLock);
+	slapi_rwlock_unlock (s_cl5Desc.stLock);
 	return rc;
 } 
 
@@ -920,7 +920,7 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 	prim_replica = (Replica*)object_get_data(prim_replica_obj);
 
 	/* make sure that nobody change changelog state while import is in progress */
-	PR_RWLock_Wlock (s_cl5Desc.stLock);
+	slapi_rwlock_wrlock (s_cl5Desc.stLock);
 
 	/* make sure changelog is closed */
 	if (s_cl5Desc.dbState != CL5_STATE_CLOSED)
@@ -928,7 +928,7 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 						"cl5ImportLDIF: invalid state - %d \n", s_cl5Desc.dbState);
 
-		PR_RWLock_Unlock (s_cl5Desc.stLock);
+		slapi_rwlock_unlock (s_cl5Desc.stLock);
 		return CL5_BAD_STATE;
 	}
 	
@@ -1141,7 +1141,7 @@ done:
 		_cl5Close ();
 		s_cl5Desc.dbState = CL5_STATE_CLOSED; /* force to change the state */
 	}
-	PR_RWLock_Unlock (s_cl5Desc.stLock);
+	slapi_rwlock_unlock (s_cl5Desc.stLock);
     return rc;
 }
 
@@ -2351,18 +2351,18 @@ static int _cl5AddThread ()
 	/* lock the state lock so that nobody can change the state
 	   while backup is in progress 
 	 */
-	PR_RWLock_Rlock (s_cl5Desc.stLock);
+	slapi_rwlock_rdlock (s_cl5Desc.stLock);
 
 	/* open changelog if it is not already open */
 	if (s_cl5Desc.dbState != CL5_STATE_OPEN)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 				"_cl5AddThread: invalid changelog state - %d\n", s_cl5Desc.dbState);
-		PR_RWLock_Unlock (s_cl5Desc.stLock);
+		slapi_rwlock_unlock (s_cl5Desc.stLock);
 		return CL5_BAD_STATE;			
 	}
 
-	PR_RWLock_Unlock (s_cl5Desc.stLock);
+	slapi_rwlock_unlock (s_cl5Desc.stLock);
 
 	/* increment global thread count to make sure that changelog does not close while
 	   backup is in progress */

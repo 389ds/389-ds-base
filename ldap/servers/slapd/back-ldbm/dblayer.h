@@ -107,7 +107,7 @@
 
 struct dblayer_private_env {
 	DB_ENV	*dblayer_DB_ENV;
-	PRRWLock * dblayer_env_lock;
+	Slapi_RWLock * dblayer_env_lock;
 	int dblayer_openflags;
 	int dblayer_priv_flags;
 };

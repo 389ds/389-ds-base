@@ -55,10 +55,10 @@
 static aclGroupCache   *aclUserGroups;
 #define ACL_MAXCACHE_USERGROUPS 200
 
-#define ACLG_LOCK_GROUPCACHE_READ()      PR_RWLock_Rlock ( aclUserGroups->aclg_rwlock )
-#define ACLG_LOCK_GROUPCACHE_WRITE()     PR_RWLock_Wlock ( aclUserGroups->aclg_rwlock )
-#define ACLG_ULOCK_GROUPCACHE_WRITE()    PR_RWLock_Unlock ( aclUserGroups->aclg_rwlock )
-#define ACLG_ULOCK_GROUPCACHE_READ()     PR_RWLock_Unlock ( aclUserGroups->aclg_rwlock )
+#define ACLG_LOCK_GROUPCACHE_READ()      slapi_rwlock_rdlock ( aclUserGroups->aclg_rwlock )
+#define ACLG_LOCK_GROUPCACHE_WRITE()     slapi_rwlock_wrlock ( aclUserGroups->aclg_rwlock )
+#define ACLG_ULOCK_GROUPCACHE_WRITE()    slapi_rwlock_unlock ( aclUserGroups->aclg_rwlock )
+#define ACLG_ULOCK_GROUPCACHE_READ()     slapi_rwlock_unlock ( aclUserGroups->aclg_rwlock )
 
 
 static void		__aclg__delete_userGroup ( aclUserGroup *u_group );
@@ -69,7 +69,7 @@ aclgroup_init ()
 {
 
 	aclUserGroups = ( aclGroupCache * ) slapi_ch_calloc (1, sizeof ( aclGroupCache ) );
-	if ( NULL ==  (aclUserGroups->aclg_rwlock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,"Group LOCK"))) {
+	if ( NULL ==  (aclUserGroups->aclg_rwlock = slapi_new_rwlock())) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Unable to allocate RWLOCK for group cache\n");
 		return 1;
 	}

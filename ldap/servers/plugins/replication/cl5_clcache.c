@@ -142,7 +142,7 @@ struct clc_busy_list {
  * Each process has a buffer pool
  */ 
 struct clc_pool {
-	PRRWLock		*pl_lock;				/* cl writer and agreements */
+	Slapi_RWLock		*pl_lock;				/* cl writer and agreements */
 	DB_ENV			**pl_dbenv;				/* pointer to DB_ENV for all the changelog files */
 	CLC_Busy_List	*pl_busy_lists;			/* busy buffer lists, one list per changelog file */
 	int				 pl_buffer_cnt_now;		/* total number of buffers */
@@ -189,7 +189,7 @@ clcache_init ( DB_ENV **dbenv )
 	_pool->pl_buffer_cnt_min = DEFAULT_CLC_BUFFER_COUNT_MIN;
 	_pool->pl_buffer_cnt_max = DEFAULT_CLC_BUFFER_COUNT_MAX;
 	_pool->pl_buffer_default_pages = DEFAULT_CLC_BUFFER_COUNT_MAX;
-	_pool->pl_lock = PR_NewRWLock (PR_RWLOCK_RANK_NONE, "clcache_pl_lock");
+	_pool->pl_lock = slapi_new_rwlock ();
 	return 0;
 }
 
@@ -200,7 +200,7 @@ clcache_init ( DB_ENV **dbenv )
 void
 clcache_set_config ()
 {
-	PR_RWLock_Wlock ( _pool->pl_lock );
+	slapi_rwlock_wrlock ( _pool->pl_lock );
 
 	_pool->pl_buffer_cnt_max = CL5_DEFAULT_CONFIG_CACHESIZE;
 
@@ -215,7 +215,7 @@ clcache_set_config ()
 		_pool->pl_buffer_default_pages = DEFAULT_CLC_BUFFER_PAGE_COUNT;
 	}
 
-	PR_RWLock_Unlock ( _pool->pl_lock );
+	slapi_rwlock_unlock ( _pool->pl_lock );
 }
 
 /*
@@ -899,20 +899,20 @@ clcache_enqueue_busy_list ( DB *db, CLC_Buffer *buf )
 	CLC_Busy_List *bl;
 	int rc = 0;
 
-	PR_RWLock_Rlock ( _pool->pl_lock );
+	slapi_rwlock_rdlock ( _pool->pl_lock );
 	for ( bl = _pool->pl_busy_lists; bl && bl->bl_db != db; bl = bl->bl_next );
-	PR_RWLock_Unlock ( _pool->pl_lock );
+	slapi_rwlock_unlock ( _pool->pl_lock );
 
 	if ( NULL == bl ) {
 		if ( NULL == ( bl = clcache_new_busy_list ()) ) {
 			rc = CL5_MEMORY_ERROR;
 		}
 		else {
-			PR_RWLock_Wlock ( _pool->pl_lock );
+			slapi_rwlock_wrlock ( _pool->pl_lock );
 			bl->bl_db = db;
 			bl->bl_next = _pool->pl_busy_lists;
 			_pool->pl_busy_lists = bl;
-			PR_RWLock_Unlock ( _pool->pl_lock );
+			slapi_rwlock_unlock ( _pool->pl_lock );
 		}
 	}
 
@@ -1002,7 +1002,7 @@ clcache_destroy()
 	if (_pool) {
 		CLC_Busy_List *bl = NULL;
 		if (_pool->pl_lock) {
-			PR_RWLock_Wlock (_pool->pl_lock);
+			slapi_rwlock_wrlock (_pool->pl_lock);
 		}
 
 		bl = _pool->pl_busy_lists;
@@ -1014,8 +1014,8 @@ clcache_destroy()
 		_pool->pl_busy_lists = NULL;
 		_pool->pl_dbenv = NULL;
 		if (_pool->pl_lock) {
-			PR_RWLock_Unlock(_pool->pl_lock);
-			PR_DestroyRWLock(_pool->pl_lock);
+			slapi_rwlock_unlock(_pool->pl_lock);
+			slapi_destroy_rwlock(_pool->pl_lock);
 			_pool->pl_lock = NULL;
 		}
 		slapi_ch_free ( (void **) &_pool );

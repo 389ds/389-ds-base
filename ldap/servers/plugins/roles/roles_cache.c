@@ -103,7 +103,7 @@ typedef struct _roles_cache_def {
 	PRThread     *roles_tid;
 	int keeprunning;
 
-	PRRWLock *cache_lock;
+	Slapi_RWLock *cache_lock;
 	Slapi_Mutex *stop_lock;
 
 	Slapi_Mutex *change_lock;
@@ -132,7 +132,7 @@ typedef struct _roles_cache_def {
 /* Global list containing all the roles definitions per suffix */
 static roles_cache_def *roles_list = NULL;
 
-static PRRWLock *global_lock = NULL;
+static Slapi_RWLock *global_lock = NULL;
 
 /* Structure holding the nsrole values */
 typedef struct _roles_cache_build_result
@@ -215,7 +215,7 @@ int roles_cache_init()
 
 	if ( global_lock == NULL )
 	{
-		global_lock = PR_NewRWLock(0,"roles_cache");
+		global_lock = slapi_new_rwlock();
 	}
 
 	/* grab the views interface */
@@ -226,7 +226,7 @@ int roles_cache_init()
 	}
 
 	/* For each top suffix, get the roles definitions defined below it */
-	PR_RWLock_Wlock(global_lock);
+	slapi_rwlock_wrlock(global_lock);
 
 	sdn = slapi_get_first_suffix(&node, 0);
 	while (sdn)
@@ -234,7 +234,7 @@ int roles_cache_init()
 
 		if ( (new_suffix = roles_cache_create_suffix(sdn)) == NULL )
 		{
-			PR_DestroyRWLock(global_lock);
+			slapi_destroy_rwlock(global_lock);
 			global_lock = NULL;
 			return(-1);
 		}
@@ -245,7 +245,7 @@ int roles_cache_init()
 		}
 		sdn = slapi_get_next_suffix(&node, 0);
 	}
-	PR_RWLock_Unlock(global_lock);
+	slapi_rwlock_unlock(global_lock);
 
 	/* to expose roles_check to ACL plugin */
 	slapi_register_role_check(roles_check); 
@@ -262,7 +262,7 @@ int roles_cache_init()
         slapi_log_error( SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
                "roles_cache_init: slapi_vattrspi_register failed\n");
 
-		PR_DestroyRWLock(global_lock);
+		slapi_destroy_rwlock(global_lock);
 		global_lock = NULL;
         return(-1);
 	}
@@ -271,7 +271,7 @@ int roles_cache_init()
         slapi_log_error( SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
                "roles_cache_init: slapi_vattrspi_regattr failed\n");
 		slapi_ch_free((void **)&vattr_handle);
-		PR_DestroyRWLock(global_lock);
+		slapi_destroy_rwlock(global_lock);
 		global_lock = NULL;
 		return(-1);
 	}
@@ -303,7 +303,7 @@ static roles_cache_def *roles_cache_create_suffix(Slapi_DN *sdn)
 		return(NULL);
 	}
 
-	new_suffix->cache_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "roles_def_lock");
+	new_suffix->cache_lock = slapi_new_rwlock();
 	new_suffix->change_lock = slapi_new_mutex();
 	new_suffix->stop_lock = slapi_new_mutex();
 	new_suffix->create_lock = slapi_new_mutex();
@@ -461,7 +461,7 @@ static void roles_cache_trigger_update_suffix(void *handle, char *be_name, int o
 	Slapi_Backend *backend = NULL;
 	int found = 0;
 
-	PR_RWLock_Wlock(global_lock);
+	slapi_rwlock_wrlock(global_lock);
 
 	if ( (new_be_state == SLAPI_BE_STATE_DELETE) || (new_be_state == SLAPI_BE_STATE_OFFLINE) )
 	{
@@ -494,14 +494,14 @@ static void roles_cache_trigger_update_suffix(void *handle, char *be_name, int o
 
 			if ( (new_suffix = roles_cache_create_suffix(sdn)) == NULL )
 			{
-				PR_RWLock_Unlock(global_lock);
+				slapi_rwlock_unlock(global_lock);
 				return;
 			}
 
 			roles_cache_add_roles_from_suffix(sdn, new_suffix);
 			sdn = slapi_get_next_suffix(&node, 0);
 		}
-		PR_RWLock_Unlock(global_lock);
+		slapi_rwlock_unlock(global_lock);
 		return;
 	}
  
@@ -539,7 +539,7 @@ static void roles_cache_trigger_update_suffix(void *handle, char *be_name, int o
         slapi_sdn_free(&top_suffix_dn);
     }
 
-	PR_RWLock_Unlock(global_lock);
+	slapi_rwlock_unlock(global_lock);
 }
 
 /* roles_cache_trigger_update_role
@@ -552,7 +552,7 @@ static void roles_cache_trigger_update_role(char *dn, Slapi_Entry *roles_entry, 
 	int found = 0;
 	roles_cache_def *current_role = NULL;
 
-	PR_RWLock_Wlock(global_lock);
+	slapi_rwlock_wrlock(global_lock);
  
 	current_role = roles_list;
 
@@ -589,7 +589,7 @@ static void roles_cache_trigger_update_role(char *dn, Slapi_Entry *roles_entry, 
 		slapi_unlock_mutex(current_role->change_lock);
 	}
 
-	PR_RWLock_Unlock(global_lock);
+	slapi_rwlock_unlock(global_lock);
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_trigger_update_role: %p \n", roles_list);
 }
@@ -610,7 +610,7 @@ static int roles_cache_update(roles_cache_def *suffix_to_update)
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_update \n");
 
-	PR_RWLock_Wlock(suffix_to_update->cache_lock);
+	slapi_rwlock_wrlock(suffix_to_update->cache_lock);
 
 	operation = suffix_to_update->notified_operation;
 	entry = suffix_to_update->notified_entry;
@@ -654,7 +654,7 @@ static int roles_cache_update(roles_cache_def *suffix_to_update)
 
 	}
 done:
-	PR_RWLock_Unlock(suffix_to_update->cache_lock);
+	slapi_rwlock_unlock(suffix_to_update->cache_lock);
 	if ( dn != NULL )
 	{
 		slapi_sdn_free(&dn);
@@ -679,7 +679,7 @@ void roles_cache_stop()
     slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_stop\n");
 
 	/* Go through all the roles list and trigger the associated structure */
-	PR_RWLock_Wlock(global_lock);
+	slapi_rwlock_wrlock(global_lock);
 	current_role = roles_list;
 	while ( current_role )
 	{
@@ -691,7 +691,7 @@ void roles_cache_stop()
 
 		current_role = next_role;
 	}
-	PR_RWLock_Unlock(global_lock);
+	slapi_rwlock_unlock(global_lock);
 
     slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_stop\n");
 }
@@ -1504,11 +1504,11 @@ int roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_v
  
     /* First get a list of all the in-scope roles */
 	/* XXX really need a mutex for this read operation ? */
-	PR_RWLock_Rlock(global_lock);
+	slapi_rwlock_rdlock(global_lock);
 
     rc = roles_cache_find_roles_in_suffix( slapi_entry_get_sdn(entry),&roles_cache);
 
-	PR_RWLock_Unlock(global_lock);
+	slapi_rwlock_unlock(global_lock);
 
     /* Traverse the tree checking if the entry has any of the roles */
 	if ( roles_cache != NULL )
@@ -1522,11 +1522,11 @@ int roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_v
 			arg.context = c;
 
 			/* XXX really need a mutex for this read operation ? */
-			PR_RWLock_Rlock(roles_cache->cache_lock);
+			slapi_rwlock_rdlock(roles_cache->cache_lock);
 
 			avl_apply(roles_cache->avl_tree, (IFP)roles_cache_build_nsrole, &arg, -1, AVL_INORDER);
 
-			PR_RWLock_Unlock(roles_cache->cache_lock);
+			slapi_rwlock_unlock(roles_cache->cache_lock);
 	 
 			if( !arg.has_value )
 			{
@@ -1642,15 +1642,15 @@ int roles_check(Slapi_Entry *entry_to_check, Slapi_DN *role_dn, int *present)
 
     *present = 0;
 
-    PR_RWLock_Rlock(global_lock);
+    slapi_rwlock_rdlock(global_lock);
 
     if ( roles_cache_find_roles_in_suffix(slapi_entry_get_sdn(entry_to_check),
                                     &roles_cache) != 0 )
     {
-        PR_RWLock_Unlock(global_lock);
+        slapi_rwlock_unlock(global_lock);
         return -1;
     }
-    PR_RWLock_Unlock(global_lock);
+    slapi_rwlock_unlock(global_lock);
 
     this_role = (role_object *)avl_find(roles_cache->avl_tree, role_dn, (IFP)roles_cache_find_node);
 
@@ -2065,7 +2065,7 @@ static void roles_cache_role_def_free(roles_cache_def *role_def)
 
 	avl_free(role_def->avl_tree, (IFP)roles_cache_role_object_free);
 	slapi_sdn_free(&(role_def->suffix_dn));
-	PR_DestroyRWLock(role_def->cache_lock);
+	slapi_destroy_rwlock(role_def->cache_lock);
 	role_def->cache_lock = NULL;
 	slapi_destroy_mutex(role_def->change_lock);
 	role_def->change_lock = NULL;

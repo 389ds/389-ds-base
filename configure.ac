@@ -422,6 +422,7 @@ case $host in
     AC_SUBST([THREADLIB], [$THREADLIB])
     LIBCRYPT=-lcrypt
     AC_SUBST([LIBCRYPT], [$LIBCRYPT])
+    AC_DEFINE([USE_POSIX_RWLOCKS], [1], [POSIX rwlocks])
     ;;
   ia64-hp-hpux*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])

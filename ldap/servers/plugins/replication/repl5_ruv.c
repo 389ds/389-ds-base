@@ -89,7 +89,7 @@ struct _ruv
 	char	  *replGen;	    /* replicated area generation: identifies replica
 						       in space and in time */ 
 	DataList  *elements;    /* replicas */	
-	PRRWLock  *lock;	    /* concurrency control */
+	Slapi_RWLock  *lock;	    /* concurrency control */
 };
 
 /* forward declarations */
@@ -329,7 +329,7 @@ ruv_dup (const RUV *ruv)
 	if (ruv == NULL)
 		return NULL;
 
-	PR_RWLock_Rlock (ruv->lock);
+	slapi_rwlock_rdlock (ruv->lock);
 
 	rc = ruvInit (&dupRUV, dl_get_count (ruv->elements));
 	if (rc != RUV_SUCCESS || dupRUV == NULL)
@@ -357,7 +357,7 @@ ruv_dup (const RUV *ruv)
 	} 
 
 done:
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 	
 	return dupRUV;
 }
@@ -377,7 +377,7 @@ ruv_destroy (RUV **ruv)
 
 		if ((*ruv)->lock)
 		{
-			PR_DestroyRWLock ((*ruv)->lock);
+			slapi_destroy_rwlock ((*ruv)->lock);
 		}
         
 		slapi_ch_free ((void**)ruv);
@@ -408,7 +408,7 @@ ruv_copy_and_destroy (RUV **srcruv, RUV **destruv)
 	}
 	else
 	{
-		PR_RWLock_Wlock((*destruv)->lock);
+		slapi_rwlock_wrlock((*destruv)->lock);
 		elemp = (*destruv)->elements;
 		(*destruv)->elements = (*srcruv)->elements;
 		if (elemp)
@@ -424,11 +424,11 @@ ruv_copy_and_destroy (RUV **srcruv, RUV **destruv)
 
 		if ((*srcruv)->lock)
 		{
-			PR_DestroyRWLock ((*srcruv)->lock);
+			slapi_destroy_rwlock ((*srcruv)->lock);
 		}
 		slapi_ch_free ((void**)srcruv);
 
-		PR_RWLock_Unlock((*destruv)->lock);
+		slapi_rwlock_unlock((*destruv)->lock);
 	}
     PR_ASSERT (*destruv != NULL && *srcruv == NULL);
 }
@@ -445,9 +445,9 @@ ruv_delete_replica (RUV *ruv, ReplicaId rid)
 	else
 	{
 		/* check for duplicates */
-		PR_RWLock_Wlock (ruv->lock);
+		slapi_rwlock_wrlock (ruv->lock);
 		dl_delete (ruv->elements, (const void*)&rid, ruvReplicaCompare, ruvFreeReplica); 
-		PR_RWLock_Unlock (ruv->lock);
+		slapi_rwlock_unlock (ruv->lock);
 		return_value = RUV_SUCCESS;
 	}
 	return return_value;
@@ -460,14 +460,14 @@ ruv_add_replica (RUV *ruv, ReplicaId rid, const char *replica_purl)
 
     PR_ASSERT (ruv && replica_purl);
 
-    PR_RWLock_Wlock (ruv->lock);
+    slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, rid);
     if (replica == NULL)
     {
         replica = ruvAddReplicaNoCSN (ruv, rid, replica_purl);
     }
     
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
     if (replica)
         return RUV_SUCCESS;
@@ -483,7 +483,7 @@ ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl)
 	
     PR_ASSERT (ruv && replica_purl);
 
-    PR_RWLock_Wlock (ruv->lock);
+    slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, rid);
     if (replica != NULL)
     {
@@ -492,7 +492,7 @@ ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl)
         rc = RUV_SUCCESS;
 	}
 
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 	return rc;
 }
 
@@ -503,14 +503,14 @@ ruv_add_index_replica (RUV *ruv, ReplicaId rid, const char *replica_purl, int in
 
     PR_ASSERT (ruv && replica_purl);
 
-    PR_RWLock_Wlock (ruv->lock);
+    slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, rid);
     if (replica == NULL)
     {
         replica = ruvAddIndexReplicaNoCSN (ruv, rid, replica_purl, index);
     }
     
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
     if (replica)
         return RUV_SUCCESS;
@@ -527,9 +527,9 @@ ruv_contains_replica (const RUV *ruv, ReplicaId rid)
     if (ruv == NULL)
         return PR_FALSE;
 
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
 	replica = ruvGetReplica (ruv, rid);
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
     return replica != NULL;
 }
@@ -554,7 +554,7 @@ get_csn_internal(const RUV *ruv, ReplicaId rid, CSN **csn, int whichone)
 	{
 		*csn = NULL;
 		/* prevent element from being destroyed while we get its data */
-		PR_RWLock_Rlock (ruv->lock);
+		slapi_rwlock_rdlock (ruv->lock);
 
 		replica = ruvGetReplica (ruv, rid);
         /* replica without min csn is treated as a non-existent replica */
@@ -576,7 +576,7 @@ get_csn_internal(const RUV *ruv, ReplicaId rid, CSN **csn, int whichone)
 				*csn = NULL;
 			}
 		}
-		PR_RWLock_Unlock (ruv->lock);	
+		slapi_rwlock_unlock (ruv->lock);	
 	}
 	return return_value;
 }
@@ -600,7 +600,7 @@ ruv_get_purl_for_replica(const RUV *ruv, ReplicaId rid)
 	RUVElement *replica;
 	const char *return_value = NULL;
 
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
 
 	replica = ruvGetReplica (ruv, rid);
 	if (replica != NULL)
@@ -608,7 +608,7 @@ ruv_get_purl_for_replica(const RUV *ruv, ReplicaId rid)
 		return_value = replica->replica_purl;
 	}
 
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
 	return return_value;
 }
@@ -672,9 +672,9 @@ int
 ruv_set_min_csn(RUV *ruv, const CSN *min_csn, const char *replica_purl)
 {
 	int return_value;
-	PR_RWLock_Wlock (ruv->lock);
+	slapi_rwlock_wrlock (ruv->lock);
 	return_value = set_min_csn_nolock(ruv, min_csn, replica_purl);
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 	return return_value;
 }
 
@@ -683,9 +683,9 @@ int
 ruv_set_max_csn(RUV *ruv, const CSN *max_csn, const char *replica_purl)
 {
 	int return_value;
-	PR_RWLock_Wlock (ruv->lock);
+	slapi_rwlock_wrlock (ruv->lock);
 	return_value = set_max_csn_nolock(ruv, max_csn, replica_purl);
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 	return return_value;
 }
 
@@ -706,7 +706,7 @@ ruv_set_csns(RUV *ruv, const CSN *csn, const char *replica_purl)
 		rid = csn_get_replicaid (csn);
 
 		/* prevent element from being destroyed while we get its data */
-		PR_RWLock_Wlock (ruv->lock);
+		slapi_rwlock_wrlock (ruv->lock);
 
 		replica = ruvGetReplica (ruv, rid);
 		if (replica == NULL) /* add new replica */
@@ -748,7 +748,7 @@ ruv_set_csns(RUV *ruv, const CSN *csn, const char *replica_purl)
 			return_value = RUV_SUCCESS;
 		}
 
-		PR_RWLock_Unlock (ruv->lock);
+		slapi_rwlock_unlock (ruv->lock);
 	}
 	return return_value;
 }
@@ -774,7 +774,7 @@ ruv_set_csns_keep_smallest(RUV *ruv, const CSN *csn)
 		rid = csn_get_replicaid (csn);
 
 		/* prevent element from being destroyed while we get its data */
-		PR_RWLock_Wlock (ruv->lock);
+		slapi_rwlock_wrlock (ruv->lock);
 
 		replica = ruvGetReplica (ruv, rid);
 		if (replica == NULL) /* add new replica */
@@ -797,7 +797,7 @@ ruv_set_csns_keep_smallest(RUV *ruv, const CSN *csn)
 			return_value = RUV_SUCCESS;
 		}
 
-		PR_RWLock_Unlock (ruv->lock);
+		slapi_rwlock_unlock (ruv->lock);
 	}
 	return return_value;
 }
@@ -808,7 +808,7 @@ ruv_set_replica_generation(RUV *ruv, const char *csnstr)
 {
 	if (NULL != csnstr && NULL != ruv)
 	{
-        PR_RWLock_Wlock (ruv->lock);
+        slapi_rwlock_wrlock (ruv->lock);
 
 		if (NULL != ruv->replGen)
 		{
@@ -816,7 +816,7 @@ ruv_set_replica_generation(RUV *ruv, const char *csnstr)
 		}
 		ruv->replGen = slapi_ch_strdup(csnstr);
     
-        PR_RWLock_Unlock (ruv->lock);
+        slapi_rwlock_unlock (ruv->lock);
 	}
 }
 
@@ -830,14 +830,14 @@ ruv_get_replica_generation(const RUV *ruv)
 		return return_str;
 	}
 
-	PR_RWLock_Rlock (ruv->lock);
+	slapi_rwlock_rdlock (ruv->lock);
 
 	if (ruv != NULL && ruv->replGen != NULL)
 	{
 		return_str = slapi_ch_strdup(ruv->replGen);
 	}
 
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 
 	return return_str;
 }
@@ -883,9 +883,9 @@ ruv_covers_csn(const RUV *ruv, const CSN *csn)
 {
     PRBool rc;
 
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
 	rc = ruv_covers_csn_internal(ruv, csn, PR_FALSE);
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
     return rc;
 }
@@ -895,9 +895,9 @@ ruv_covers_csn_strict(const RUV *ruv, const CSN *csn)
 {
     PRBool rc;
 
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
 	rc = ruv_covers_csn_internal(ruv, csn, PR_TRUE);
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
     return rc;
 }
@@ -922,7 +922,7 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max)
 		CSN *found = NULL;
 		RUVElement *replica;
 		int cookie;
-		PR_RWLock_Rlock (ruv->lock);
+		slapi_rwlock_rdlock (ruv->lock);
 		for (replica = dl_get_first (ruv->elements, &cookie); replica;
 			 replica = dl_get_next (ruv->elements, &cookie))
 		{
@@ -954,7 +954,7 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max)
 		{
 			*csn = csn_dup (found);
 		}
-		PR_RWLock_Unlock (ruv->lock);
+		slapi_rwlock_unlock (ruv->lock);
 		return_value = RUV_SUCCESS;	
 	}
 	return return_value;
@@ -986,7 +986,7 @@ ruv_enumerate_elements (const RUV *ruv, FNEnumRUV fn, void *arg)
         return -1;
     }
 
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
     for (elem = (RUVElement*)dl_get_first (ruv->elements, &cookie); elem;
          elem = (RUVElement*)dl_get_next (ruv->elements, &cookie))
     {
@@ -1001,7 +1001,7 @@ ruv_enumerate_elements (const RUV *ruv, FNEnumRUV fn, void *arg)
         }
     }
     
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
     return rc;
 }
@@ -1028,7 +1028,7 @@ ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
 		char csnStr1 [CSN_STRSIZE];
 		char csnStr2 [CSN_STRSIZE];
 		int cookie;
-		PR_RWLock_Rlock (ruv->lock);
+		slapi_rwlock_rdlock (ruv->lock);
 		count = dl_get_count (ruv->elements) + 2;
 		returned_bervals = (struct berval **)slapi_ch_malloc(sizeof(struct berval *) * count);
 		returned_bervals[count - 1] = NULL;
@@ -1050,7 +1050,7 @@ ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
 				replica->csn == NULL ? "" : csn_as_string (replica->csn, PR_FALSE, csnStr2));
 			returned_bervals[i]->bv_len = strlen(returned_bervals[i]->bv_val);
 		}
-		PR_RWLock_Unlock (ruv->lock);
+		slapi_rwlock_unlock (ruv->lock);
 		return_value = RUV_SUCCESS;
 		*bvals = returned_bervals;
 	}
@@ -1076,7 +1076,7 @@ ruv_to_smod(const RUV *ruv, Slapi_Mod *smod)
 		char csnStr2 [CSN_STRSIZE];
 #define B_SIZ 1024
 		char buf[B_SIZ];
-		PR_RWLock_Rlock (ruv->lock);
+		slapi_rwlock_rdlock (ruv->lock);
 		slapi_mod_init (smod, dl_get_count (ruv->elements) + 1);
 		slapi_mod_set_type (smod, type_ruvElement);
 		slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
@@ -1098,7 +1098,7 @@ ruv_to_smod(const RUV *ruv, Slapi_Mod *smod)
 			val.bv_len = strlen(buf);
 			slapi_mod_add_value(smod, &val);
 		}
-		PR_RWLock_Unlock (ruv->lock);
+		slapi_rwlock_unlock (ruv->lock);
 		return_value = RUV_SUCCESS;
 	}
 	return return_value;
@@ -1120,7 +1120,7 @@ ruv_last_modified_to_smod(const RUV *ruv, Slapi_Mod *smod)
 		RUVElement *replica;
 		int cookie;
 		char buf[B_SIZ];
-		PR_RWLock_Rlock (ruv->lock);
+		slapi_rwlock_rdlock (ruv->lock);
 		slapi_mod_init (smod, dl_get_count (ruv->elements));
 		slapi_mod_set_type (smod, type_ruvElementUpdatetime);
 		slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
@@ -1135,7 +1135,7 @@ ruv_last_modified_to_smod(const RUV *ruv, Slapi_Mod *smod)
 			val.bv_len = strlen(buf);
 			slapi_mod_add_value(smod, &val);
 		}
-		PR_RWLock_Unlock (ruv->lock);
+		slapi_rwlock_unlock (ruv->lock);
 		return_value = RUV_SUCCESS;
 	}
 	return return_value;
@@ -1181,9 +1181,9 @@ ruv_replica_count (const RUV *ruv)
     {
         int count;
 
-        PR_RWLock_Rlock (ruv->lock);
+        slapi_rwlock_rdlock (ruv->lock);
         count = dl_get_count (ruv->elements);
-        PR_RWLock_Unlock (ruv->lock);
+        slapi_rwlock_unlock (ruv->lock);
         
         return count;
     }
@@ -1201,7 +1201,7 @@ ruv_get_referrals(const RUV *ruv)
     int n;
 	const char *mypurl = multimaster_get_local_purl();
 	
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
 
 	n = ruv_replica_count(ruv);
 	if(n>0)
@@ -1224,7 +1224,7 @@ ruv_get_referrals(const RUV *ruv)
 		}
 	}
 
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
 	return r; /* Caller must free this */
 }
@@ -1241,7 +1241,7 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 
 	PR_ASSERT(NULL != ruv);
 
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
 
 	PR_snprintf (buff, len, "%s: {replicageneration} %s\n",
 				ruv_name ? ruv_name : type_ruvElement,
@@ -1282,7 +1282,7 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 		}
 	}
 
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 }
 
 /* this function notifies the ruv that there are operations in progress so that
@@ -1296,7 +1296,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     PR_ASSERT (ruv && csn);
 
     /* locate ruvElement */
-    PR_RWLock_Wlock (ruv->lock);
+    slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
     if (replica == NULL)
     {
@@ -1342,7 +1342,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     }
       
 done:
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
     return rc;
 }
 
@@ -1354,7 +1354,7 @@ int ruv_cancel_csn_inprogress (RUV *ruv, const CSN *csn)
     PR_ASSERT (ruv && csn);
 
     /* locate ruvElement */
-    PR_RWLock_Wlock (ruv->lock);
+    slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
     if (replica == NULL)
     {
@@ -1370,7 +1370,7 @@ int ruv_cancel_csn_inprogress (RUV *ruv, const CSN *csn)
         rc = RUV_SUCCESS;
       
 done:
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
     return rc;
 }
 
@@ -1384,7 +1384,7 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
     
     PR_ASSERT (ruv && csn);
 
-    PR_RWLock_Wlock (ruv->lock);
+    slapi_rwlock_wrlock (ruv->lock);
 
     replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
     if (replica == NULL)
@@ -1434,7 +1434,7 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
 	}
 
 done:
-    PR_RWLock_Unlock (ruv->lock);
+    slapi_rwlock_unlock (ruv->lock);
 
     return rc;
 }
@@ -1459,7 +1459,7 @@ ruvInit (RUV **ruv, int initCount)
 	dl_init ((*ruv)->elements, initCount);
 
 	/* create lock */
-	(*ruv)->lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "ruv_lock");
+	(*ruv)->lock = slapi_new_rwlock();
 	if ((*ruv)->lock == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
@@ -1784,7 +1784,7 @@ ruv_move_local_supplier_to_first(RUV *ruv, ReplicaId aRid)
 	
 	PR_ASSERT(ruv);
 
-    PR_RWLock_Wlock (ruv->lock);
+    slapi_rwlock_wrlock (ruv->lock);
 	
 	elem = (RUVElement *)dl_delete(ruv->elements,(const void*)&aRid, ruvReplicaCompare, 0);
 	if (elem) {
@@ -1792,7 +1792,7 @@ ruv_move_local_supplier_to_first(RUV *ruv, ReplicaId aRid)
 		rc = RUV_SUCCESS;
 	}
 	
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 	
 	return rc;
 }
@@ -1807,7 +1807,7 @@ ruv_get_first_id_and_purl(RUV *ruv, ReplicaId *rid, char **replica_purl )
 	
 	PR_ASSERT(ruv);
 
-    PR_RWLock_Rlock (ruv->lock);
+    slapi_rwlock_rdlock (ruv->lock);
 	first = dl_get_first(ruv->elements, &cookie);
 	if ( first == NULL )
 	{
@@ -1819,7 +1819,7 @@ ruv_get_first_id_and_purl(RUV *ruv, ReplicaId *rid, char **replica_purl )
 		*replica_purl = first->replica_purl;
 		rc = RUV_SUCCESS;
 	}
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 	return rc;
 }
 
@@ -1830,17 +1830,17 @@ int ruv_local_contains_supplier(RUV *ruv, ReplicaId rid)
 
 	PR_ASSERT(ruv);
 
-    PR_RWLock_Rlock (ruv->lock);
+	slapi_rwlock_rdlock (ruv->lock);
 	for (elem = dl_get_first (ruv->elements, &cookie);
 		 elem;
 		 elem = dl_get_next (ruv->elements, &cookie))
 	{
 		if (elem->rid == rid){
-			PR_RWLock_Unlock (ruv->lock);
+			slapi_rwlock_unlock (ruv->lock);
 			return 1;
 		}
 	}
-	PR_RWLock_Unlock (ruv->lock);
+	slapi_rwlock_unlock (ruv->lock);
 	return 0;
 }
 

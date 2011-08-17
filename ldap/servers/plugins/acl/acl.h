@@ -632,7 +632,7 @@ struct acl_groupcache {
 	int				aclg_num_userGroups;
 	aclUserGroup	*aclg_first;
 	aclUserGroup	*aclg_last;
-	PRRWLock		*aclg_rwlock;		/* lock to monitor the group cache */	
+	Slapi_RWLock		*aclg_rwlock;		/* lock to monitor the group cache */	
 };
 typedef struct acl_groupcache	aclGroupCache;
 

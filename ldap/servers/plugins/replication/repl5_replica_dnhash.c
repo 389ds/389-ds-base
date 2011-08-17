@@ -47,7 +47,7 @@
 
 /* global data */
 static PLHashTable *s_hash;
-static PRRWLock *s_lock;
+static Slapi_RWLock *s_lock;
 
 /* Forward declarations */
 static PRIntn replica_destroy_hash_entry (PLHashEntry *he, PRIntn index, void *arg); 
@@ -66,7 +66,7 @@ int replica_init_dn_hash ()
     }
 
     /* create lock */
-    s_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "replica_dnhash_lock");
+    s_lock = slapi_new_rwlock();
     if (s_lock == NULL)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_init_dn_hash: "
@@ -88,7 +88,7 @@ void replica_destroy_dn_hash ()
         PL_HashTableDestroy(s_hash); 
 
     if (s_lock)
-        PR_DestroyRWLock (s_lock);
+        slapi_destroy_rwlock (s_lock);
 }
 
 int replica_add_by_dn (const char *dn)
@@ -108,14 +108,14 @@ int replica_add_by_dn (const char *dn)
         return -1;
     }
 
-    PR_RWLock_Wlock (s_lock);
+    slapi_rwlock_wrlock (s_lock);
    
     /* make sure that the dn is unique */
     if (PL_HashTableLookup(s_hash, dn) != NULL)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_add_by_dn: "
                         "replica with dn (%s) already in the hash\n", dn);
-        PR_RWLock_Unlock (s_lock);
+        slapi_rwlock_unlock (s_lock);
         return -1 ;    
     }
 
@@ -127,14 +127,14 @@ int replica_add_by_dn (const char *dn)
                         "failed to add dn (%s); NSPR error - %d\n",
                         dn_copy, PR_GetError ());
 		slapi_ch_free((void **)&dn_copy);
-        PR_RWLock_Unlock (s_lock);
+        slapi_rwlock_unlock (s_lock);
         return -1;
     }
 
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_add_by_dn: "
 					"added dn (%s)\n",
 					dn_copy);
-    PR_RWLock_Unlock (s_lock);
+    slapi_rwlock_unlock (s_lock);
     return 0;
 }
 
@@ -156,14 +156,14 @@ int replica_delete_by_dn (const char *dn)
         return -1;
     }
 
-    PR_RWLock_Wlock (s_lock);
+    slapi_rwlock_wrlock (s_lock);
 
     /* locate object */
     if (NULL == (dn_copy = (char *)PL_HashTableLookup(s_hash, dn)))
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_delete_by_dn: "
                         "dn (%s) is not in the hash.\n", dn);
-        PR_RWLock_Unlock (s_lock);
+        slapi_rwlock_unlock (s_lock);
         return -1;
     }
 
@@ -174,7 +174,7 @@ int replica_delete_by_dn (const char *dn)
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_delete_by_dn: "
 					"removed dn (%s)\n",
 					dn);
-    PR_RWLock_Unlock (s_lock);
+    slapi_rwlock_unlock (s_lock);
 
     return 0;
 }
@@ -195,16 +195,16 @@ int replica_is_being_configured (const char *dn)
         return 0;
     }
 
-    PR_RWLock_Wlock (s_lock);
+    slapi_rwlock_wrlock (s_lock);
 
     /* locate object */
     if (NULL == PL_HashTableLookup(s_hash, dn))
     {
-        PR_RWLock_Unlock (s_lock);
+        slapi_rwlock_unlock (s_lock);
         return 0;
     }
 
-    PR_RWLock_Unlock (s_lock);
+    slapi_rwlock_unlock (s_lock);
 
     return 1;
 }

@@ -58,7 +58,7 @@
 #define CONFIG_BASE		"cn=changelog5,cn=config" /*"cn=changelog,cn=supplier,cn=replication5.0,cn=replication,cn=config"*/
 #define CONFIG_FILTER	"(objectclass=*)"
 
-static PRRWLock *s_configLock; /* guarantees that only on thread at a time
+static Slapi_RWLock *s_configLock; /* guarantees that only on thread at a time
 								modifies changelog configuration */
 
 /* Forward Declartions */
@@ -80,7 +80,7 @@ int changelog5_config_init()
 	/* create the configuration lock, if not yet created. */
 	if (!s_configLock)
 	{
-		s_configLock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "config_lock");
+		s_configLock = slapi_new_rwlock();
 	}
 	if (s_configLock == NULL)
 	{
@@ -115,7 +115,7 @@ void changelog5_config_cleanup()
 
 	if (s_configLock)
 	{
-		PR_DestroyRWLock (s_configLock);
+		slapi_destroy_rwlock (s_configLock);
 		s_configLock = NULL;
 	}	
 }
@@ -176,7 +176,7 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 
 	*returncode = LDAP_SUCCESS;
 
-	PR_RWLock_Wlock (s_configLock);
+	slapi_rwlock_wrlock (s_configLock);
 
 	/* we already have a configured changelog - don't need to do anything
 	   since add operation will fail */
@@ -260,7 +260,7 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 #endif
 
 done:;
-	PR_RWLock_Unlock (s_configLock);
+	slapi_rwlock_unlock (s_configLock);
     changelog5_config_done (&config);
 	if (*returncode == LDAP_SUCCESS)
 	{
@@ -301,7 +301,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 		return SLAPI_DSE_CALLBACK_ERROR;
 	}
 
-	PR_RWLock_Wlock (s_configLock);
+	slapi_rwlock_wrlock (s_configLock);
 
 	/* changelog must be open before its parameters can be modified */
 	if (cl5GetState() != CL5_STATE_OPEN)
@@ -558,7 +558,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	}
 
 done:;						   
-	PR_RWLock_Unlock (s_configLock);
+	slapi_rwlock_unlock (s_configLock);
 
     changelog5_config_done (&config);
     changelog5_config_free (&originalConfig);
@@ -602,7 +602,7 @@ changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAf
 		return SLAPI_DSE_CALLBACK_ERROR;
 	}
 
-	PR_RWLock_Wlock (s_configLock);	
+	slapi_rwlock_wrlock (s_configLock);	
 
 	/* changelog must be open before it can be deleted */
 	if (cl5GetState () != CL5_STATE_OPEN)
@@ -665,7 +665,7 @@ changelog5_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAf
 	}
 
 done:;
-	PR_RWLock_Unlock (s_configLock);
+	slapi_rwlock_unlock (s_configLock);
 
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free ((void**)&currentDir);

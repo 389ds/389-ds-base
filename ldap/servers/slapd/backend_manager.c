@@ -75,7 +75,7 @@ slapi_be_new( const char *type, const char *name, int isprivate, int logchanges 
 	PR_ASSERT(i<maxbackends);
 
 	be = (Slapi_Backend *) slapi_ch_calloc(1, sizeof(Slapi_Backend));
-	be->be_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, name );
+	be->be_lock = slapi_new_rwlock();
 	be_init( be, type, name, isprivate, logchanges, defsize, deftime );
 
 	backends[i] = be;
@@ -102,7 +102,7 @@ slapi_be_stopping (Slapi_Backend *be)
 	be->be_state = BE_STATE_DELETED;
 	if (be->be_lock != NULL)
 	{
-		PR_DestroyRWLock(be->be_lock);
+		slapi_destroy_rwlock(be->be_lock);
 		be->be_lock = NULL;
 	}
 
@@ -427,19 +427,19 @@ be_nbackends_public()
 void 
 slapi_be_Rlock(Slapi_Backend * be)
 {
-	PR_RWLock_Rlock(be->be_lock);
+	slapi_rwlock_rdlock(be->be_lock);
 }
 
 void
 slapi_be_Wlock(Slapi_Backend * be)
 {
-	PR_RWLock_Wlock(be->be_lock);
+	slapi_rwlock_wrlock(be->be_lock);
 }
 
 void
 slapi_be_Unlock(Slapi_Backend * be)
 {
-	PR_RWLock_Unlock(be->be_lock);
+	slapi_rwlock_unlock(be->be_lock);
 }
 
 /*

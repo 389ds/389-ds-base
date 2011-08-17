@@ -183,7 +183,7 @@ cb_get_connection(cb_conn_pool * pool,
 	*/
 	*cc=NULL;
 
-	PR_RWLock_Rlock(pool->rwl_config_lock);
+	slapi_rwlock_rdlock(pool->rwl_config_lock);
 	maxconcurrency=pool->conn.maxconcurrency;
 	maxconnections=pool->conn.maxconnections;
 	bind_to.tv_sec = pool->conn.bind_timeout.tv_sec;
@@ -209,7 +209,7 @@ cb_get_connection(cb_conn_pool * pool,
 	}
 	mech=pool->mech;
 
-	PR_RWLock_Unlock(pool->rwl_config_lock);
+	slapi_rwlock_unlock(pool->rwl_config_lock);
 
 	if (secure) {
 		isMultiThread = DISABLE_MULTITHREAD_PER_CONN ;
@@ -637,9 +637,9 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 	int 			connlifetime;
 	int 			myself;
 
-       	PR_RWLock_Rlock(pool->rwl_config_lock);
+       	slapi_rwlock_rdlock(pool->rwl_config_lock);
 	connlifetime=pool->conn.connlifetime;
-       	PR_RWLock_Unlock(pool->rwl_config_lock);
+       	slapi_rwlock_unlock(pool->rwl_config_lock);
 	
        	connprev = NULL;
 	conn_next = NULL;

@@ -53,7 +53,7 @@ void cb_eliminate_illegal_attributes(cb_backend_instance * inst, Slapi_Entry * e
 
 	if (inst->illegal_attributes != NULL ) {       /* Unlikely to happen */
 
-		PR_RWLock_Wlock(inst->rwl_config_lock); 
+		slapi_rwlock_wrlock(inst->rwl_config_lock); 
  
                 for (j=0; inst->illegal_attributes[j]; j++) { 
 			char * aType=NULL;
@@ -77,6 +77,6 @@ void cb_eliminate_illegal_attributes(cb_backend_instance * inst, Slapi_Entry * e
 			}
 		}
 
-		PR_RWLock_Unlock(inst->rwl_config_lock); 
+		slapi_rwlock_unlock(inst->rwl_config_lock); 
 	}
 }

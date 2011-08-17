@@ -330,7 +330,7 @@ cb_config_search_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int
  
 	/* other attributes */
 
-        PR_RWLock_Rlock(cb->config.rwl_config_lock);
+        slapi_rwlock_rdlock(cb->config.rwl_config_lock);
 
 	for (i=0; cb->config.forward_ctrls && cb->config.forward_ctrls[i] ; i++) {
 		val.bv_val=cb->config.forward_ctrls[i];
@@ -364,7 +364,7 @@ cb_config_search_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int
         }
 
 
-        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+        slapi_rwlock_unlock(cb->config.rwl_config_lock);
 
         *returncode = LDAP_SUCCESS;
         return SLAPI_DSE_CALLBACK_OK;
@@ -461,7 +461,7 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
                         char * config_attr_value;
                         int done=0;
 
-                        PR_RWLock_Wlock(cb->config.rwl_config_lock);
+                        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
 
                         for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                 config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
@@ -490,13 +490,13 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				cb->config.chaining_components=NULL;
 			}
 
-                        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+                        slapi_rwlock_unlock(cb->config.rwl_config_lock);
 		} else
 		if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINABLE_COMPONENTS )) {
                         char * config_attr_value;
                         int done=0;
 
-                        PR_RWLock_Wlock(cb->config.rwl_config_lock);
+                        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
 
                         for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                 config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
@@ -527,7 +527,7 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
                                 cb->config.chainable_components=NULL;
                         }
 
-                        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+                        slapi_rwlock_unlock(cb->config.rwl_config_lock);
                 }
 
 
@@ -582,12 +582,12 @@ static int cb_parse_config_entry(cb_backend * cb, Slapi_Entry *e)
                 if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_FORWARD_CTRLS )) {
                 	i = slapi_attr_first_value(attr, &sval);
 
-		        PR_RWLock_Wlock(cb->config.rwl_config_lock);
+		        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
 			if (cb->config.forward_ctrls) {
 				charray_free(cb->config.forward_ctrls);
 				cb->config.forward_ctrls=NULL;
 			}
-		        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+		        slapi_rwlock_unlock(cb->config.rwl_config_lock);
 
                         while (i != -1 ) {
                         	bval = (struct berval *) slapi_value_get_berval(sval);
@@ -601,7 +601,7 @@ static int cb_parse_config_entry(cb_backend * cb, Slapi_Entry *e)
 		} else 
                 if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINING_COMPONENTS )) {
                 	i = slapi_attr_first_value(attr, &sval);
-		        PR_RWLock_Wlock(cb->config.rwl_config_lock);
+		        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
 			if (cb->config.chaining_components) {
 				charray_free(cb->config.chaining_components);
 				cb->config.chaining_components=NULL;
@@ -613,11 +613,11 @@ static int cb_parse_config_entry(cb_backend * cb, Slapi_Entry *e)
 					slapi_dn_normalize(slapi_ch_strdup(bval->bv_val)));
                                 i = slapi_attr_next_value(attr, i, &sval);
                         }
-		        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+		        slapi_rwlock_unlock(cb->config.rwl_config_lock);
 		} else
 		if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINABLE_COMPONENTS )) {
                         i = slapi_attr_first_value(attr, &sval);
-                        PR_RWLock_Wlock(cb->config.rwl_config_lock);
+                        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
                         if (cb->config.chainable_components) {
                                 charray_free(cb->config.chainable_components);
                                 cb->config.chainable_components=NULL;
@@ -628,7 +628,7 @@ static int cb_parse_config_entry(cb_backend * cb, Slapi_Entry *e)
                                         slapi_dn_normalize(slapi_ch_strdup(bval->bv_val)));
                                 i = slapi_attr_next_value(attr, i, &sval);
                         }
-                        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+                        slapi_rwlock_unlock(cb->config.rwl_config_lock);
                 } else
                 if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_DEBUG )) {
                         i = slapi_attr_first_value(attr, &sval);

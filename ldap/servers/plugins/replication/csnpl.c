@@ -48,7 +48,7 @@
 struct csnpl 
 {
 	LList*		csnList;	/* pending list */
-	PRRWLock*	csnLock;	/* lock to serialize access to PL */
+	Slapi_RWLock*	csnLock;	/* lock to serialize access to PL */
 };	
 
 typedef struct _csnpldata
@@ -84,7 +84,7 @@ CSNPL* csnplNew ()
 	}
 
 	/* ONREPL: do locks need different names */
-	csnpl->csnLock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "pl_lock");
+	csnpl->csnLock = slapi_new_rwlock();
 
 	if (csnpl->csnLock == NULL)
 	{
@@ -123,7 +123,7 @@ void csnplFree (CSNPL **csnpl)
 	llistDestroy (&((*csnpl)->csnList), (FNFree)csnpldata_free);
 
 	if ((*csnpl)->csnLock)
-		PR_DestroyRWLock ((*csnpl)->csnLock);
+		slapi_destroy_rwlock ((*csnpl)->csnLock);
 
 	slapi_ch_free ((void**)csnpl);	
 }
@@ -146,7 +146,7 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn)
 		return -1;
 	}
 	
-	PR_RWLock_Wlock (csnpl->csnLock);
+	slapi_rwlock_wrlock (csnpl->csnLock);
 
     /* check to see if this csn is larger than the last csn in the
        pending list. It has to be if we have not seen it since
@@ -154,7 +154,7 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn)
     csnplnode = llistGetTail (csnpl->csnList);
     if (csnplnode && csn_compare (csnplnode->csn, csn) >= 0)
     {
-        PR_RWLock_Unlock (csnpl->csnLock);
+        slapi_rwlock_unlock (csnpl->csnLock);
         return 1;
     }
 
@@ -168,7 +168,7 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn)
     _csnplDumpContentNoLock(csnpl, "csnplInsert");
 #endif
 
-	PR_RWLock_Unlock (csnpl->csnLock);
+	slapi_rwlock_unlock (csnpl->csnLock);
 	if (rc != 0)
 	{
 		char s[CSN_STRSIZE];		
@@ -193,12 +193,12 @@ int csnplRemove (CSNPL *csnpl, const CSN *csn)
 	}
 
 	csn_as_string(csn, PR_FALSE, csn_str);
-	PR_RWLock_Wlock (csnpl->csnLock);
+	slapi_rwlock_wrlock (csnpl->csnLock);
 
 	data = (csnpldata *)llistRemove (csnpl->csnList, csn_str);
 	if (data == NULL)
 	{
-		PR_RWLock_Unlock (csnpl->csnLock);
+		slapi_rwlock_unlock (csnpl->csnLock);
 		return -1;		
 	}
 
@@ -209,7 +209,7 @@ int csnplRemove (CSNPL *csnpl, const CSN *csn)
 	csn_free(&data->csn);
 	slapi_ch_free((void **)&data);
 
-	PR_RWLock_Unlock (csnpl->csnLock);
+	slapi_rwlock_unlock (csnpl->csnLock);
 
 	return 0;
 }
@@ -227,7 +227,7 @@ int csnplCommit (CSNPL *csnpl, const CSN *csn)
 	}
 	csn_as_string(csn, PR_FALSE, csn_str);
 
-	PR_RWLock_Wlock (csnpl->csnLock);
+	slapi_rwlock_wrlock (csnpl->csnLock);
 
 #ifdef DEBUG
     _csnplDumpContentNoLock(csnpl, "csnplCommit");
@@ -249,7 +249,7 @@ int csnplCommit (CSNPL *csnpl, const CSN *csn)
 	        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 			            "csnplCommit: can't find csn %s\n", csn_str);
 		}
-		PR_RWLock_Unlock (csnpl->csnLock);
+		slapi_rwlock_unlock (csnpl->csnLock);
 		return -1;		
 	}
 	else
@@ -257,7 +257,7 @@ int csnplCommit (CSNPL *csnpl, const CSN *csn)
 		data->committed = PR_TRUE;
 	}
 
-	PR_RWLock_Unlock (csnpl->csnLock);
+	slapi_rwlock_unlock (csnpl->csnLock);
 
 	return 0;
 }
@@ -268,7 +268,7 @@ CSN* csnplGetMinCSN (CSNPL *csnpl, PRBool *committed)
 {
 	csnpldata *data;
 	CSN *csn = NULL;
-	PR_RWLock_Rlock (csnpl->csnLock);
+	slapi_rwlock_rdlock (csnpl->csnLock);
 	if ((data = (csnpldata*)llistGetHead (csnpl->csnList)) != NULL)
 	{
 		csn = csn_dup(data->csn);
@@ -277,7 +277,7 @@ CSN* csnplGetMinCSN (CSNPL *csnpl, PRBool *committed)
 			*committed = data->committed;
 		}
 	}
-	PR_RWLock_Unlock (csnpl->csnLock);
+	slapi_rwlock_unlock (csnpl->csnLock);
 
 	return csn;
 }
@@ -297,7 +297,7 @@ csnplRollUp(CSNPL *csnpl, CSN **first_commited)
 	csnpldata *data;
 	PRBool freeit = PR_TRUE;
 
-	PR_RWLock_Wlock (csnpl->csnLock);
+	slapi_rwlock_wrlock (csnpl->csnLock);
 	if (first_commited) {
 	   /* Avoid non-initialization issues due to careless callers */
 	  *first_commited = NULL;
@@ -324,7 +324,7 @@ csnplRollUp(CSNPL *csnpl, CSN **first_commited)
     _csnplDumpContentNoLock(csnpl, "csnplRollUp");
 #endif
 
-	PR_RWLock_Unlock (csnpl->csnLock);
+	slapi_rwlock_unlock (csnpl->csnLock);
 	return largest_committed_csn;
 }
 
@@ -335,9 +335,9 @@ csnplDumpContent(CSNPL *csnpl, const char *caller)
 {
     if (csnpl)
     {
-        PR_RWLock_Rlock (csnpl->csnLock);
+        slapi_rwlock_rdlock (csnpl->csnLock);
         _csnplDumpContentNoLock (csnpl, caller);
-        PR_RWLock_Unlock (csnpl->csnLock);
+        slapi_rwlock_unlock (csnpl->csnLock);
     }   
 }
 

@@ -116,7 +116,7 @@ struct mt_node
  *      release backend lock 
  *
  */
-static PRRWLock    *myLock;    /* global lock on the mapping tree structures */
+static Slapi_RWLock    *myLock;    /* global lock on the mapping tree structures */
 
 
 static mapping_tree_node *mapping_tree_root = NULL;
@@ -1619,7 +1619,7 @@ mapping_tree_init()
     slapi_register_supported_control(MTN_CONTROL_USE_ONE_BACKEND_EXT_OID,
                      SLAPI_OPERATION_SEARCH);
 
-    myLock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "mapping tree");
+    myLock = slapi_new_rwlock();
 
     be= slapi_be_select_by_instance_name(DSE_BACKEND);
     mapping_tree_root= add_internal_mapping_tree_node("", be, NULL);
@@ -3563,7 +3563,7 @@ static int lock_count = 0;
 
 void mtn_wlock()
 {
-    PR_RWLock_Wlock(myLock);
+    slapi_rwlock_wrlock(myLock);
 #ifdef DEBUG
     lock_count--;
     LDAPDebug(LDAP_DEBUG_ARGS, "mtn_wlock : lock count : %d\n", lock_count, 0, 0);
@@ -3572,7 +3572,7 @@ void mtn_wlock()
 
 void mtn_lock()
 {
-    PR_RWLock_Rlock(myLock);
+    slapi_rwlock_rdlock(myLock);
 #ifdef DEBUG
     lock_count++;
     LDAPDebug(LDAP_DEBUG_ARGS, "mtn_lock : lock count : %d\n", lock_count, 0, 0);
@@ -3591,7 +3591,7 @@ void mtn_unlock()
         lock_count = (int) 11111111;   /* this happening means problems */
     LDAPDebug(LDAP_DEBUG_ARGS, "mtn_unlock : lock count : %d\n", lock_count, 0, 0);
 #endif
-    PR_RWLock_Unlock(myLock);
+    slapi_rwlock_unlock(myLock);
 }
 
 #ifdef TEST_FOR_REGISTER_CHANGE

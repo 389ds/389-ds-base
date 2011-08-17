@@ -81,7 +81,7 @@ chaining_back_init( Slapi_PBlock *pb )
         cb->plugin = p;
 
 	/* Initialize misc. fields */
-	cb->config.rwl_config_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, "chaining_db");
+	cb->config.rwl_config_lock = slapi_new_rwlock();
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, (void *) cb );
 
 	/* These DNs are already normalized */

@@ -57,9 +57,9 @@ cb_register_supported_control( cb_backend * cb, char *controloid, unsigned long 
 {
     /* For now, ignore controlops */
     if ( controloid != NULL ) {
-        PR_RWLock_Wlock(cb->config.rwl_config_lock);
+        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
                    charray_add( &cb->config.forward_ctrls,slapi_ch_strdup( controloid ));
-        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+        slapi_rwlock_unlock(cb->config.rwl_config_lock);
         }
 }
 
@@ -67,10 +67,10 @@ cb_register_supported_control( cb_backend * cb, char *controloid, unsigned long 
 void
 cb_unregister_all_supported_control( cb_backend * cb ) {
 
-    PR_RWLock_Wlock(cb->config.rwl_config_lock);
+    slapi_rwlock_wrlock(cb->config.rwl_config_lock);
     charray_free(cb->config.forward_ctrls);
     cb->config.forward_ctrls=NULL;
-    PR_RWLock_Unlock(cb->config.rwl_config_lock);
+    slapi_rwlock_unlock(cb->config.rwl_config_lock);
 }
 
 void
@@ -80,20 +80,20 @@ cb_unregister_supported_control( cb_backend * cb, char *controloid, unsigned lon
     /* For now, ignore controlops */
     if ( controloid != NULL ) {
         int i;
-        PR_RWLock_Wlock(cb->config.rwl_config_lock);
+        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
         for ( i = 0; cb->config.forward_ctrls != NULL && cb->config.forward_ctrls[i] != NULL; ++i ) {
             if ( strcmp( cb->config.forward_ctrls[i], controloid ) == 0 ) {
                 break;
             }
         }
         if ( cb->config.forward_ctrls == NULL || cb->config.forward_ctrls[i] == NULL) {
-            PR_RWLock_Unlock(cb->config.rwl_config_lock);
+            slapi_rwlock_unlock(cb->config.rwl_config_lock);
             return;
         }
         if ( controlops == 0 ) {
             charray_remove(cb->config.forward_ctrls,controloid,0/* free it */);
         }
-        PR_RWLock_Unlock(cb->config.rwl_config_lock);
+        slapi_rwlock_unlock(cb->config.rwl_config_lock);
     }
 }
 
@@ -174,7 +174,7 @@ int cb_update_controls( Slapi_PBlock * pb,
     for ( cCount=0; reqControls && reqControls[cCount]; cCount++ );
     ctrls = (LDAPControl **)slapi_ch_calloc(1,sizeof(LDAPControl *) * (cCount +3));
 
-    PR_RWLock_Rlock(cbb->config.rwl_config_lock);
+    slapi_rwlock_rdlock(cbb->config.rwl_config_lock);
 
     for ( cCount=0; reqControls && reqControls[cCount]; cCount++ ) {
 
@@ -262,7 +262,7 @@ int cb_update_controls( Slapi_PBlock * pb,
         }
     }
 
-    PR_RWLock_Unlock(cbb->config.rwl_config_lock);
+    slapi_rwlock_unlock(cbb->config.rwl_config_lock);
 
     if (LDAP_SUCCESS != rc) {
         ldap_controls_free(ctrls);

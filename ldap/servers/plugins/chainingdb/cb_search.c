@@ -148,7 +148,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 		bv.bv_len=strlen(bv.bv_val);
                 slapi_entry_add_values( anEntry, "objectclass", bvals);
 
-        	PR_RWLock_Rlock(cb->rwl_config_lock);
+        	slapi_rwlock_rdlock(cb->rwl_config_lock);
 		for (i=0; cb->url_array && cb->url_array[i]; i++) {
 			char * anUrl = slapi_ch_smprintf("%s%s",cb->url_array[i],target);
                 	bv.bv_val=anUrl;
@@ -156,7 +156,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
                 	slapi_entry_attr_merge( anEntry, "ref", bvals);
 			slapi_ch_free((void **)&anUrl);
 		}
-        	PR_RWLock_Unlock(cb->rwl_config_lock);
+        	slapi_rwlock_unlock(cb->rwl_config_lock);
 		
 		aciArray[0]=anEntry;
 		aciArray[1]=NULL;

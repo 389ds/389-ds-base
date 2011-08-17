@@ -285,7 +285,7 @@ cb_remove_illegal_mods(cb_backend_instance *inst, LDAPMod **mods)
 
 	if ( inst->illegal_attributes != NULL ) {	/* Unlikely to happen */
 
-        	PR_RWLock_Wlock(inst->rwl_config_lock);
+        	slapi_rwlock_wrlock(inst->rwl_config_lock);
 
 		for (j=0; inst->illegal_attributes[j]; j++) {
         		for ( i = 0; mods[i] != NULL; i++ ) {
@@ -304,6 +304,6 @@ cb_remove_illegal_mods(cb_backend_instance *inst, LDAPMod **mods)
 			}
 		}
 
-        	PR_RWLock_Unlock(inst->rwl_config_lock);
+        	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 }

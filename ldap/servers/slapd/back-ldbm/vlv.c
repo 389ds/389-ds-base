@@ -62,7 +62,7 @@ static PRUint32 vlv_trim_candidates_byvalue(backend *be, const IDList *candidate
 static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked);
 
 /* New mutex for vlv locking
-PRRWLock * vlvSearchList_lock=NULL;
+Slapi_RWLock * vlvSearchList_lock=NULL;
 static struct vlvSearch *vlvSearchList= NULL; 
 */
 
@@ -82,9 +82,9 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
     }
     vlvSearch_init(newVlvSearch, pb, entryBefore, inst);
     /* vlvSearchList is modified; need Wlock */
-    PR_RWLock_Wlock(be->vlvSearchList_lock);
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
     vlvSearch_addtolist(newVlvSearch, (struct vlvSearch **)&be->vlvSearchList);
-    PR_RWLock_Unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
     return SLAPI_DSE_CALLBACK_OK;
 }
 
@@ -100,7 +100,7 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
     slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
 
     /* vlvIndex list is modified; need Wlock */
-    PR_RWLock_Wlock(be->vlvSearchList_lock);
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
     parent= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
     if(parent!=NULL)
     {
@@ -118,7 +118,7 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
         }
         slapi_ch_free_string(&name);
     }
-    PR_RWLock_Unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
     slapi_sdn_done(&parentdn);
     return SLAPI_DSE_CALLBACK_OK;
 }
@@ -140,7 +140,7 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
         return SLAPI_DSE_CALLBACK_ERROR;
     }
     /* vlvSearchList is modified; need Wlock */
-    PR_RWLock_Wlock(be->vlvSearchList_lock);
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
     p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
     {
@@ -148,7 +148,7 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
         vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
         vlvSearch_delete(&p);
     }
-    PR_RWLock_Unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
     instance_set_not_busy(inst);
     return SLAPI_DSE_CALLBACK_OK;
 }
@@ -180,13 +180,13 @@ int vlv_ModifySearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	struct vlvSearch* p=NULL;
 	backend *be= ((ldbm_instance*)arg)->inst_be;
 	
-	PR_RWLock_Rlock(be->vlvSearchList_lock); 
+	slapi_rwlock_rdlock(be->vlvSearchList_lock); 
     p= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
     {
        	LDAPDebug( LDAP_DEBUG_ANY, "Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name, 0, 0);
     }
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
@@ -207,13 +207,13 @@ int vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_E
 	struct vlvSearch* p=NULL;
 	backend *be= ((ldbm_instance*)arg)->inst_be;
 	
-	PR_RWLock_Rlock(be->vlvSearchList_lock); 
+	slapi_rwlock_rdlock(be->vlvSearchList_lock); 
     p= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
     {
        	LDAPDebug( LDAP_DEBUG_ANY, "Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name, 0, 0);
     }
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
@@ -314,9 +314,9 @@ void vlv_grok_new_import_entry(const struct backentry *e, backend *be)
     int any_not_done = 0;
 
 
-    PR_RWLock_Wlock(be->vlvSearchList_lock); 
+    slapi_rwlock_wrlock(be->vlvSearchList_lock); 
     if (seen_them_all) {
-		PR_RWLock_Unlock(be->vlvSearchList_lock);
+		slapi_rwlock_unlock(be->vlvSearchList_lock);
         return;
     }
 	p=(struct vlvSearch *)be->vlvSearchList;
@@ -335,7 +335,7 @@ void vlv_grok_new_import_entry(const struct backentry *e, backend *be)
     if (!any_not_done) {
         seen_them_all = 1;
     }
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
 }
 
 /*
@@ -366,7 +366,7 @@ vlv_init(ldbm_instance *inst)
     /* Initialize lock first time through */
     if(be->vlvSearchList_lock == NULL) {
         char *rwlockname = slapi_ch_smprintf("vlvSearchList_%s", inst->inst_name);
-        be->vlvSearchList_lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, rwlockname);
+        be->vlvSearchList_lock = slapi_new_rwlock();
         slapi_ch_free((void**)&rwlockname);
     }
     if (NULL != (struct vlvSearch *)be->vlvSearchList)
@@ -374,7 +374,7 @@ vlv_init(ldbm_instance *inst)
         struct vlvSearch *t = NULL;
         struct vlvSearch *nt = NULL;
         /* vlvSearchList is modified; need Wlock */
-        PR_RWLock_Wlock(be->vlvSearchList_lock);
+        slapi_rwlock_wrlock(be->vlvSearchList_lock);
         for (t = (struct vlvSearch *)be->vlvSearchList; NULL != t; )
         {
             nt = t->vlv_next;
@@ -382,7 +382,7 @@ vlv_init(ldbm_instance *inst)
             t = nt;
         }
         be->vlvSearchList = NULL;
-        PR_RWLock_Unlock(be->vlvSearchList_lock);
+        slapi_rwlock_unlock(be->vlvSearchList_lock);
     }
 
     {
@@ -492,9 +492,9 @@ vlv_find_searchname(const char * name, backend *be)
 {
 	struct vlvIndex *p=NULL;
 
-	PR_RWLock_Rlock(be->vlvSearchList_lock);
+	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	p=vlvSearch_findname((struct vlvSearch *)be->vlvSearchList,name);
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
 	return p;
 }
 
@@ -506,9 +506,9 @@ vlv_find_indexname(const char * name, backend *be)
     
 	struct vlvIndex *p=NULL;
 
-	PR_RWLock_Rlock(be->vlvSearchList_lock);
+	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	p=vlvSearch_findindexname((struct vlvSearch *)be->vlvSearchList,name);
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
 	return p;
 }
 
@@ -520,9 +520,9 @@ vlv_getindexnames(backend *be)
 {
     char *n=NULL;
 
-	PR_RWLock_Rlock(be->vlvSearchList_lock);
+	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	n=vlvSearch_getnames((struct vlvSearch *)be->vlvSearchList);
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
 	return n;
 }
 
@@ -534,7 +534,7 @@ vlv_getindices(IFP callback_fn,void *param, backend *be)
     /* Traverse the list, calling the import code's callback function */
     struct vlvSearch* ps = NULL;
 	
-	PR_RWLock_Rlock(be->vlvSearchList_lock);
+	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	ps = (struct vlvSearch *)be->vlvSearchList;
     for(;ps!=NULL;ps= ps->vlv_next)
     {
@@ -544,7 +544,7 @@ vlv_getindices(IFP callback_fn,void *param, backend *be)
             callback_fn(pi->vlv_attrinfo,param);
         }
     }
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
 }
 
 /*
@@ -855,7 +855,7 @@ vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct back
     struct vlvSearch* ps=NULL;
 	struct ldbminfo *li = ((ldbm_instance *)be->be_instance_info)->inst_li;
 	
-	PR_RWLock_Rlock(be->vlvSearchList_lock);
+	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	ps = (struct vlvSearch *)be->vlvSearchList;
     for(;ps!=NULL;ps= ps->vlv_next)
     {
@@ -863,7 +863,7 @@ vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct back
 		for (return_value = LDAP_SUCCESS; return_value == LDAP_SUCCESS && pi!=NULL; pi=pi->vlv_next) 
 			return_value=vlv_update_index(pi, txn, li, pb, oldEntry, newEntry);
     }
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
     return return_value;
 }
 
@@ -1154,15 +1154,15 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
     slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
-	PR_RWLock_Rlock(be->vlvSearchList_lock);
+	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	if((pi=vlv_find_search(be, base, scope, fstr, sort_control)) == NULL) {
 	    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
-	    PR_RWLock_Unlock(be->vlvSearchList_lock);
+	    slapi_rwlock_unlock(be->vlvSearchList_lock);
 	    slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
 	    pagedresults_set_unindexed( pb->pb_conn );
 	    rc = VLV_FIND_SEARCH_FAILED;
 	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
-	    PR_RWLock_Unlock(be->vlvSearchList_lock);
+	    slapi_rwlock_unlock(be->vlvSearchList_lock);
 		rc = VLV_ACCESS_DENIED;
 	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,vlv_response_control, 1)) != LDAP_SUCCESS) {
 		rc = VLV_BLD_LIST_FAILED;
@@ -1203,7 +1203,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
               vlvIndex_getName(p));
     if (!vlvIndex_online(p)) {
         if (is_srchlist_locked) {
-            PR_RWLock_Unlock(be->vlvSearchList_lock);
+            slapi_rwlock_unlock(be->vlvSearchList_lock);
         }
         return -1;
     }
@@ -1213,7 +1213,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
         LDAPDebug(LDAP_DEBUG_ANY, "VLV: can't get index file '%s' (err %d)\n",
                   p->vlv_attrinfo->ai_type, rc, 0);
         if (is_srchlist_locked) {
-            PR_RWLock_Unlock(be->vlvSearchList_lock);
+            slapi_rwlock_unlock(be->vlvSearchList_lock);
         }
         return -1;
     }
@@ -1224,7 +1224,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     vlvIndex_incrementUsage(p);
 
     if (is_srchlist_locked) {
-        PR_RWLock_Unlock(be->vlvSearchList_lock);
+        slapi_rwlock_unlock(be->vlvSearchList_lock);
     }
     err = db->cursor(db, 0 /* txn */, &dbc, 0);
     if (err != 0) {
@@ -1956,7 +1956,7 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
     Slapi_Filter *vlv_f;
 
 	slapi_sdn_init_dn_byref(&base_sdn, base);
-	PR_RWLock_Rlock(be->vlvSearchList_lock);
+	slapi_rwlock_rdlock(be->vlvSearchList_lock);
 	for (t = (struct vlvSearch *)be->vlvSearchList; t; t = t->vlv_next) {
 		/* all vlv "filters" start with (|(xxx)(objectclass=referral)).
 		 * we only care about the (xxx) part.
@@ -1977,13 +1977,13 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
 				/* no match */
 				LDAPDebug(LDAP_DEBUG_TRACE, "vlv: no index online for %s\n",
 					t->vlv_filter, 0, 0);
-				PR_RWLock_Unlock(be->vlvSearchList_lock);
+				slapi_rwlock_unlock(be->vlvSearchList_lock);
 				return NULL;
 			}
 			
 			if (dblayer_get_index_file(be, vi->vlv_attrinfo, &db, 0) == 0) {
 				length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
-				PR_RWLock_Unlock(be->vlvSearchList_lock);
+				slapi_rwlock_unlock(be->vlvSearchList_lock);
 				err = db->cursor(db, 0 /* txn */, &dbc, 0);
 				if (err == 0) {
 					if (length == 0) /* 609377: index size could be 0 */
@@ -2009,7 +2009,7 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
 			}
 		}
     }
-    PR_RWLock_Unlock(be->vlvSearchList_lock);
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
     /* no match */
     slapi_sdn_done(&base_sdn);
     return NULL;
@@ -2080,7 +2080,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	}
 	newdn = slapi_sdn_new_dn_byval(base1);
 	/* vlvSearchList is modified; need Wlock */
-	PR_RWLock_Wlock(be->vlvSearchList_lock);
+	slapi_rwlock_wrlock(be->vlvSearchList_lock);
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
 	if(p!=NULL)
 	{
@@ -2095,12 +2095,12 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 					  tag2, inst->inst_li->li_plugin->plg_name, inst->inst_name); 
 			rc = LDAP_PARAM_ERROR;
 			slapi_ch_free((void **)&tag2);
-			PR_RWLock_Unlock(be->vlvSearchList_lock);
+			slapi_rwlock_unlock(be->vlvSearchList_lock);
 			goto bail;
 		}
 		vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
 		/* This line release lock to prevent recursive deadlock caused by slapi_internal_delete calling vlvDeleteSearchEntry */
-		PR_RWLock_Unlock(be->vlvSearchList_lock); 
+		slapi_rwlock_unlock(be->vlvSearchList_lock); 
 		vlvSearch_delete(&p);	
 		tmppb = slapi_pblock_new();
 		slapi_delete_internal_set_pb(tmppb, base2, NULL, NULL,
@@ -2123,7 +2123,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 		slapi_ch_free((void **)&tag2);
 		slapi_ch_free((void **)&base2);
     } else {
-		PR_RWLock_Unlock(be->vlvSearchList_lock);
+		slapi_rwlock_unlock(be->vlvSearchList_lock);
 	}
 bail:
 	instance_set_not_busy(inst);
@@ -2137,12 +2137,12 @@ void
 vlv_acquire_lock(backend *be)
 {
 	LDAPDebug(LDAP_DEBUG_TRACE, "vlv_acquire_lock => trying to acquire the lock\n", 0, 0, 0);
-	PR_RWLock_Wlock(be->vlvSearchList_lock);
+	slapi_rwlock_wrlock(be->vlvSearchList_lock);
 }
 
 void
 vlv_release_lock(backend *be)
 {
 	LDAPDebug(LDAP_DEBUG_TRACE, "vlv_release_lock => trying to release the lock\n", 0, 0, 0);
-	PR_RWLock_Unlock(be->vlvSearchList_lock);
+	slapi_rwlock_unlock(be->vlvSearchList_lock);
 }
