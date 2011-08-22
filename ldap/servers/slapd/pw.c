@@ -1505,7 +1505,7 @@ pw_add_allowchange_aci(Slapi_Entry *e, int pw_prohibit_change) {
  * returns the structure.
  */
 passwdPolicy *
-new_passwdPolicy(Slapi_PBlock *pb, char *dn)
+new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 {
 	Slapi_ValueSet *values = NULL;
 	Slapi_Entry *e = NULL, *pw_entry = NULL;
@@ -1519,7 +1519,6 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 	char *attr_name;
 	Slapi_Value **sval;
 	slapdFrontendConfig_t *slapdFrontendConfig;
-	Slapi_Operation *op;
 	char ebuf[ BUFSIZ ];
 	int optype = -1;
 
@@ -1527,14 +1526,15 @@ new_passwdPolicy(Slapi_PBlock *pb, char *dn)
 	pwdpolicy = (passwdPolicy *)slapi_ch_calloc(1, sizeof(passwdPolicy));
 
 	if (pb) {
-		slapi_pblock_get( pb, SLAPI_OPERATION, &op);
 		slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
 	}
 
-	if (pb && dn && (slapdFrontendConfig->pwpolicy_local == 1)) {
+	if (dn && (slapdFrontendConfig->pwpolicy_local == 1)) {
 		/*  If we're doing an add, COS does not apply yet so we check
 			parents for the pwdpolicysubentry.  We look only for virtual
 			attributes, because real ones are for single-target policy. */
+		/* NGK - is there a way to make this work for non-existent entries when we don't pass in pb?  We'll
+		 * need to do this if we add support for password policy plug-ins. */
 		if (optype == SLAPI_OPERATION_ADD) {
 			char *parentdn = slapi_ch_strdup(dn);
 			char *nextdn = NULL;
@@ -2152,4 +2152,158 @@ locked:
 		delete_passwdPolicy(&pwpolicy);
 	return (1);
 
+}
+
+/* The idea here is that these functions could allow us to have password
+ * policy plugins in the future.  The plugins would register callbacks for these
+ * slapi functions that would be used here if any pwpolicy plugin is configured to
+ * be used.  Right now, we just use the normal server password policy code since
+ * we don't have a pwpolicy plugin type. */
+Slapi_PWPolicy *
+slapi_get_pwpolicy(Slapi_DN *dn)
+{
+    return ((Slapi_PWPolicy *)new_passwdPolicy(NULL, slapi_sdn_get_ndn(dn)));
+}
+
+void
+slapi_pwpolicy_free(Slapi_PWPolicy *pwpolicy)
+{
+    delete_passwdPolicy((passwdPolicy **)&pwpolicy);
+}
+
+int
+slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expire_time, int *remaining_grace)
+{
+    int is_expired = 0;
+    time_t now = current_time();
+
+    if (pwpolicy && e) {
+        /* If password expiration is enabled in the policy,
+         * check if the password has expired. */
+        if (pwpolicy->pw_exp == 1) {
+            char *expiration_val = NULL;
+            time_t _expire_time;
+            double diff_t = 0;
+            char *cur_time_str = NULL;
+            time_t cur_time;
+
+            expiration_val = slapi_entry_attr_get_charptr(e, "passwordExpirationTime");
+            if (expiration_val) {
+                _expire_time = parse_genTime(expiration_val);
+
+                cur_time = current_time();
+                cur_time_str = format_genTime(cur_time);
+
+                if ((_expire_time != NO_TIME) && (_expire_time != NOT_FIRST_TIME) &&
+                    ((diff_t = difftime (_expire_time, parse_genTime(cur_time_str))) <= 0)) {
+                    is_expired = 1;
+                }
+
+                if (is_expired) {
+                    if (remaining_grace) {
+                        /* Fill in the number of remaining grace logins */
+                        int grace_attempts = 0;
+
+                        grace_attempts = slapi_entry_attr_get_int(e, "passwordGraceUserTime");
+                        if (pwpolicy->pw_gracelimit > grace_attempts) {
+                            *remaining_grace = pwpolicy->pw_gracelimit - grace_attempts;
+                        } else {
+                            *remaining_grace = 0;
+                        }
+                    }
+                } else if (expire_time) {
+                    /* Fill in the expiration time */
+                    if ((_expire_time != NO_TIME) && (_expire_time != NOT_FIRST_TIME)) {
+                        *expire_time = _expire_time;
+                    } else {
+                        *expire_time = (time_t)0;
+                    }
+                }
+
+                slapi_ch_free_string(&cur_time_str);
+            }
+        } else if (expire_time) {
+            /* Passwords never expire */
+            *expire_time = (time_t)0;
+        }
+    }
+
+    return is_expired;
+}
+
+int
+slapi_pwpolicy_is_locked(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *unlock_time)
+{
+    int is_locked = 0;
+
+    if (pwpolicy && e) {
+        /* Check if account is locked */
+        if ( pwpolicy->pw_lockout == 1) {
+            if (slapi_entry_attr_get_uint(e, "passwordRetryCount") >= pwpolicy->pw_maxfailure) {
+                is_locked = 1;
+            }
+        }
+
+        if (is_locked) {
+            /* See if it's time for the account to be unlocked */
+            char *unlock_time_str = NULL;
+            char *cur_time_str = NULL;
+            time_t _unlock_time = (time_t)0;
+            time_t cur_time;
+
+            unlock_time_str = slapi_entry_attr_get_charptr(e, "accountUnlockTime");
+            if (unlock_time_str) {
+                _unlock_time = parse_genTime(unlock_time_str);
+            }
+
+            if ((pwpolicy->pw_unlock == 0) && (_unlock_time == NO_TIME)) {
+                /* Account is locked forever */
+                if (unlock_time) {
+                    *unlock_time = (time_t)0;
+                }
+            } else {
+                cur_time = current_time();
+                cur_time_str = format_genTime(cur_time);
+
+                if (difftime(parse_genTime(cur_time_str), _unlock_time)  < 0) {
+                    /* Account is not due to be unlocked yet.
+                     * Fill in the unlock time. */
+                    if (unlock_time) {
+                        *unlock_time = _unlock_time;
+                    }
+                } else {
+                    /* Account is due to be unlocked */
+                    is_locked = 0;
+                }
+
+                slapi_ch_free_string(&cur_time_str);
+            }
+        }
+    }
+
+    return is_locked;
+}
+
+int
+slapi_pwpolicy_is_reset(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e)
+{
+    int is_reset = 0;
+
+    if (pwpolicy && e) {
+        /* Check if password was reset and needs to be changed */
+        if (pwpolicy->pw_must_change) {
+            char *expiration_val = 0;
+            time_t expire_time = (time_t)0;
+
+            expiration_val = slapi_entry_attr_get_charptr(e, "passwordExpirationTime");
+            if (expiration_val) {
+                expire_time = parse_genTime(expiration_val);
+                if (expire_time == NO_TIME) {
+                    is_reset = 1;
+                }
+            }
+        }
+    }
+
+    return is_reset;
 }

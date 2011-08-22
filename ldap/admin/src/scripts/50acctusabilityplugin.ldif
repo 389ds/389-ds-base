@@ -1,0 +1,21 @@
+dn: cn=Account Usability Plugin,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Account Usability Plugin
+nsslapd-pluginpath: libacctusability-plugin
+nsslapd-plugininitfunc: auc_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC
+
+dn: oid=1.3.6.1.4.1.42.2.27.9.5.8,cn=features,cn=config
+objectClass: top
+objectClass: directoryServerFeature
+oid: 1.3.6.1.4.1.42.2.27.9.5.8
+cn: Account Usable Request Control

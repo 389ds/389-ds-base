@@ -197,7 +197,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
-	$(LIBACCTPOLICY_PLUGIN) \
+	libacctusability-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
 
@@ -443,6 +443,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/10delautodnsuffix.pl \
 	ldap/admin/src/scripts/10fixrundir.pl \
 	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
+        ldap/admin/src/scripts/50acctusabilityplugin.ldif \
         ldap/admin/src/scripts/50automemberplugin.ldif \
 	ldap/admin/src/scripts/50memberofindex.ldif \
 	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
@@ -773,6 +774,15 @@ libacctpolicy_plugin_la_SOURCES = ldap/servers/plugins/acctpolicy/acct_config.c 
 libacctpolicy_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libacctpolicy_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
 libacctpolicy_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libacctusability-plugin
+#------------------------
+libacctusability_plugin_la_SOURCES = ldap/servers/plugins/acct_usability/acct_usability.c
+
+libacctusability_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libacctusability_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libacctusability_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libacl-plugin

@@ -199,15 +199,20 @@ void set_retry_cnt ( Slapi_PBlock *pb, int count) {
 
 Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 {
-    int             search_result = 0;
-    Slapi_Entry     *retentry = NULL;
+	int             search_result = 0;
+	Slapi_Entry     *retentry = NULL;
 	Slapi_DN		sdn;
 
-    if ( dn == NULL ) {
-    	char *t;
-        slapi_pblock_get( pb, SLAPI_TARGET_DN, &t );
+	if ((dn == NULL) && pb) {
+		char *t;
+		slapi_pblock_get( pb, SLAPI_TARGET_DN, &t );
 		dn= t;
-    }
+	}
+
+	if (dn == NULL) {
+		LDAPDebug (LDAP_DEBUG_TRACE, "WARNING: 'get_entry' - no dn specified.\n", 0, 0, 0);
+		goto bail;
+	}
 
 	slapi_sdn_init_dn_byref(&sdn, dn);
 
@@ -215,7 +220,8 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 		LDAPDebug (LDAP_DEBUG_TRACE, "WARNING: 'get_entry' can't find entry '%s', err %d\n", dn, search_result, 0);
 	}
 	slapi_sdn_done(&sdn);
-    return retentry;
+bail:
+	return retentry;
 }
 
 void pw_apply_mods(const char *dn, Slapi_Mods *mods) 

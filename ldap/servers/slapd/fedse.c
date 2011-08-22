@@ -83,11 +83,6 @@ static const char *internal_entries[] =
     "objectclass: top\n"
 	"aci: (targetattr != \"aci\")(version 3.0; aci \"rootdse anon read access\"; allow(read,search,compare) userdn=\"ldap:///anyone\";)\n",
 
-    "dn:cn=features,cn=config\n"
-    "objectclass:top\n"
-    "objectclass:nsContainer\n"
-    "cn:features\n",
-
     "dn:oid=2.16.840.1.113730.3.4.9,cn=features,cn=config\n"
     "objectclass:top\n"
     "objectclass:directoryServerFeature\n"

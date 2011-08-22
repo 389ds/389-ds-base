@@ -550,6 +550,8 @@ typedef struct slapi_counter		Slapi_Counter;
  */
 typedef struct slapi_task		Slapi_Task;
 
+typedef struct passwordpolicyarray	Slapi_PWPolicy;
+
 /**
  * Defines a callback used specifically by Slapi_Task structure cancel and
  * destructor functions.
@@ -4896,6 +4898,73 @@ int slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int log
 #define LDAP_PWPOLICY_PWDTOOYOUNG		7
 #define LDAP_PWPOLICY_PWDINHISTORY		8
 
+/*
+ * Password Policy API
+ */
+/**
+ * Gets the password policy object for a given entry
+ *
+ * \param dn The dn of the entry whose password policy object you
+ *        want returned
+ *
+ * \return A pointer to an opaque password policy object
+ * \return \c NULL if there is a problem getting the policy object
+ * \warning The caller should free the returned password policy
+ *          object when finished by calling the slapi_pwpolicy_free()
+ *          function.
+ * \see slapi_pwpolicy_free()
+ */
+Slapi_PWPolicy *slapi_get_pwpolicy(Slapi_DN *dn);
+
+/**
+ * Free a password policy object from memory
+ *
+ * \param pwpolicy The password policy object that you want to free
+ * \see slapi_get_pwpolicy()
+ */
+void slapi_pwpolicy_free(Slapi_PWPolicy *pwpolicy);
+
+/**
+ * Checks a password policy object to see if the password is expired
+ *
+ * \param pwpolicy The password policy object that you want to check
+ * \param e The entry that you want to check
+ * \param expire_time Fills in the expiration time if the password has not expired yet.
+ *        You can pass \c NULL if you are not interested in the expiration time.
+ * \param remaining_grace Fills in the number of grace logins remaining if the password
+ *        has already expired.  You can pass \c NULL if you are not interested in the
+ *        number of remaining grace logins.
+ *
+ * \return \c 1 if the password has expired
+ * \return \c 0 if the password has not expired
+ */
+int slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expire_time, int *remaining_grace);
+
+/**
+ * Checks a password policy to see if an account is locked
+ *
+ * \param pwpolicy The password policy object that you want to check
+ * \param e The entry that you want to check
+ * \param unlock_time Fills in the time the account will be unlocked if the account
+ *        is currently locked.  You can pass \c NULL if you are not interested in the
+ *        unlock time.
+ *
+ * \return \c 1 if the account is locked
+ * \return \c 0 if the account is not locked
+ */
+int slapi_pwpolicy_is_locked(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *unlock_time);
+
+/**
+ * Checks a password policy to see if a password has been reset
+ *
+ * \param pwpolicy The password policy object that you want to check
+ * \param e The entry that you want to check
+ *
+ * \return \c 1 if the password has been reset
+ * \return \c 0 if the password has not been reset
+ */
+int slapi_pwpolicy_is_reset(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e);
+
 /**
  * Free an array of strings from memory
  *
@@ -5656,6 +5725,12 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 		int *limitp );
 /* END of Binder-based resource limits API */
 
+/**
+ * Returns the current time
+ *
+ * \return The current time
+ */
+time_t slapi_current_time( void );
 
 
 /*

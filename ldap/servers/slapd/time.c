@@ -182,6 +182,12 @@ current_time( void )
 }
 
 time_t
+slapi_current_time( void )
+{
+    return current_time();
+}
+
+time_t
 time_plus_sec (time_t l, long r)
     /* return the point in time 'r' seconds after 'l'. */
 {
