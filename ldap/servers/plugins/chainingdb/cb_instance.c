@@ -1391,6 +1391,7 @@ static int cb_instance_starttls_set(void *arg, void *value, char *errorbuf, int 
 	if ((LDAP_SUCCESS == rc) && apply) {
 	        slapi_rwlock_wrlock(inst->rwl_config_lock);
 		inst->pool->starttls=(int) ((uintptr_t)value);
+		inst->bind_pool->starttls=inst->pool->starttls;
 	        slapi_rwlock_unlock(inst->rwl_config_lock);
 		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
     			( phase != CB_CONFIG_PHASE_STARTUP )) {
@@ -1443,6 +1444,9 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 			if (inst->pool->mech) {
 			    charray_add(&inst->pool->waste_basket,inst->pool->mech);
 			}
+			if (inst->bind_pool->mech) {
+			    charray_add(&inst->pool->waste_basket,inst->bind_pool->mech);
+			}
 			rc=CB_REOPEN_CONN;
 		}
 
@@ -1451,6 +1455,7 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 		} else {
 		    inst->pool->mech=slapi_ch_strdup((char *) value);
 		}
+		inst->bind_pool->mech = slapi_ch_strdup(inst->pool->mech);
                	slapi_rwlock_unlock(inst->rwl_config_lock);
 	}
 done:

@@ -458,6 +458,24 @@ cb_get_connection(cb_conn_pool * pool,
 					}	
 					ldap_controls_free(serverctrls);
 				}
+			} else if (secure == 2) {
+				int rc;
+				/* the start_tls operation is usually performed in slapi_ldap_bind, but
+				   since we are not binding we still need to start_tls */
+				if (cb_debug_on()) {
+                			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+							 "<= cb_get_connection doing start_tls on connection 0x%p\n", conn );
+				}
+				if ((rc = ldap_start_tls_s(ld, NULL, NULL))) {
+					PRErrorCode prerr = PR_GetError();
+					slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, 
+							"Unable to do start_tls on connection to %s:%d "
+							"LDAP error %d:%s NSS error %d:%s\n", hostname, port,
+							rc, ldap_err2string(rc), prerr,
+							slapd_pr_strerror(prerr));
+							
+					goto unlock_and_return;
+				}
 			}
 
 			conn = (cb_outgoing_conn *) slapi_ch_malloc(sizeof(cb_outgoing_conn));
