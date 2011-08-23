@@ -334,6 +334,11 @@ typedef void	(*VFP0)(void);
 #define SLAPD_ANON_ACCESS_ON            1
 #define SLAPD_ANON_ACCESS_ROOTDSE       2
 
+/* Server certificate validation */
+#define SLAPD_VALIDATE_CERT_OFF         0
+#define SLAPD_VALIDATE_CERT_ON          1
+#define SLAPD_VALIDATE_CERT_WARN        2
+
 struct subfilt {
 	char	*sf_type;
 	char	*sf_initial;
@@ -1829,6 +1834,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ANON_ACCESS_ATTRIBUTE "nsslapd-allow-anonymous-access"
 #define CONFIG_LOCALSSF_ATTRIBUTE "nsslapd-localssf"
 #define CONFIG_MINSSF_ATTRIBUTE "nsslapd-minssf"
+#define CONFIG_VALIDATE_CERT_ATTRIBUTE "nsslapd-validate-cert"
 #ifndef _WIN32
 #define CONFIG_LOCALUSER_ATTRIBUTE "nsslapd-localuser"
 #endif /* !_WIN32 */
@@ -2004,6 +2010,7 @@ typedef struct _slapdFrontendConfig {
   int security;
   int SSLclientAuth;
   int ssl_check_hostname;
+  int validate_cert;
   int sizelimit;
   int SNMPenabled;
   char *SNMPdescription;

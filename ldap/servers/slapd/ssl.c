@@ -1016,11 +1016,38 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             /* Step Six  -- Configure Secure Server Mode  */
             if(pr_sock) {
                 SECCertificateUsage returnedUsages;
-                rv = CERT_VerifyCertificateNow(
+
+                if (config_get_validate_cert_switch() == SLAPD_VALIDATE_CERT_OFF) {
+                    /* If we're set to ignore certificate verification issues,
+                     * just skip performing verification. */
+                    rv = SECSuccess;
+                } else {
+                    /* Check if the certificate is valid. */
+                    rv = CERT_VerifyCertificateNow(
                                     CERT_GetDefaultCertDB(), cert, PR_TRUE,
                                     certificateUsageSSLServer, 
                                     SSL_RevealPinArg(pr_sock),
                                     &returnedUsages);
+
+                    if (rv != SECSuccess) {
+                        /* Log warning */
+                        errorCode = PR_GetError();
+                        slapd_SSL_warn("CERT_VerifyCertificateNow: "
+                                       "verify certificate failed "
+                                       "for cert %s of family %s ("
+                                       SLAPI_COMPONENT_NAME_NSPR
+                                       " error %d - %s)",
+                                       cert_name, *family, errorCode,
+                                       slapd_pr_strerror(errorCode));
+
+                        /* If we're set to only warn, go ahead and
+                         * override rv to allow us to start up. */
+                        if (config_get_validate_cert_switch() == SLAPD_VALIDATE_CERT_WARN) {
+                            rv = SECSuccess;
+                        }
+                    }
+                }
+
                 if (SECSuccess == rv) {
                     if( slapd_pk11_fortezzaHasKEA(cert) == PR_TRUE ) {
                         rv = SSL_ConfigSecureServer(*fd, cert, key, kt_fortezza);
@@ -1037,19 +1064,6 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                                 cert_name, *family, errorCode, 
                                 slapd_pr_strerror(errorCode));
                     }
-                } else {
-                    /* verify certificate failed */
-                    /* If the common name in the subject DN for the certificate
-                     * is not identical to the domain name passed in the 
-                     * hostname parameter, SECFailure. */
-                    errorCode = PR_GetError();
-                    slapd_SSL_warn("CERT_VerifyCertificateNow: "
-                                   "verify certificate failed "
-                                   "for cert %s of family %s ("
-                                   SLAPI_COMPONENT_NAME_NSPR
-                                   " error %d - %s)",
-                                   cert_name, *family, errorCode, 
-                                   slapd_pr_strerror(errorCode));
                 }
             }
             if (cert) {

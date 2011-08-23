@@ -114,9 +114,10 @@ typedef enum {
 	CONFIG_CONSTANT_STRING, /* for #define values, e.g. */
 	CONFIG_SPECIAL_REFERRALLIST, /* this is a berval list */
 	CONFIG_SPECIAL_SSLCLIENTAUTH, /* maps strings to an enumeration */
-    CONFIG_SPECIAL_ERRORLOGLEVEL, /* requires & with LDAP_DEBUG_ANY */
+	CONFIG_SPECIAL_ERRORLOGLEVEL, /* requires & with LDAP_DEBUG_ANY */
 	CONFIG_STRING_OR_EMPTY, /* use an empty string */
-	CONFIG_SPECIAL_ANON_ACCESS_SWITCH /* maps strings to an enumeration */
+	CONFIG_SPECIAL_ANON_ACCESS_SWITCH, /* maps strings to an enumeration */
+	CONFIG_SPECIAL_VALIDATE_CERT_SWITCH /* maps strings to an enumeration */
 } ConfigVarType;
 
 static int config_set_onoff( const char *attrname, char *value,
@@ -640,7 +641,11 @@ static struct config_get_and_set {
 	{CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, config_set_allowed_to_delete_attrs,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allowed_to_delete_attrs,
-		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_to_delete_attrs}
+		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_to_delete_attrs},
+	{CONFIG_VALIDATE_CERT_ATTRIBUTE, config_set_validate_cert_switch,
+                NULL, 0,
+                (void**)&global_slapdFrontendConfig.validate_cert, CONFIG_SPECIAL_VALIDATE_CERT_SWITCH,
+                (ConfigGetFunc)config_get_validate_cert_switch}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -905,6 +910,7 @@ FrontendConfig_init () {
   cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
   cfg->localssf = SLAPD_DEFAULT_LOCAL_SSF;
   cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
+  cfg->validate_cert = SLAPD_VALIDATE_CERT_WARN;
 
 #ifdef _WIN32
   cfg->conntablesize = SLAPD_DEFAULT_CONNTABLESIZE;
@@ -4626,6 +4632,17 @@ config_get_anon_access_switch(void)
 }
 
 int
+config_get_validate_cert_switch(void)
+{
+	int retVal = 0;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = slapdFrontendConfig->validate_cert;
+	CFG_UNLOCK_READ(slapdFrontendConfig);
+	return retVal;
+}
+
+int
 config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int apply )
 {
   int retVal =  LDAP_SUCCESS;
@@ -5576,6 +5593,44 @@ config_set_anon_access_switch( const char *attrname, char *value,
 }
 
 int
+config_set_validate_cert_switch( const char *attrname, char *value,
+		char *errorbuf, int apply )
+{
+	int retVal = LDAP_SUCCESS;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+	if (config_value_is_null(attrname, value, errorbuf, 0)) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	if ((strcasecmp(value, "on") != 0) && (strcasecmp(value, "off") != 0) &&
+	    (strcasecmp(value, "warn") != 0)) {
+		PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+			"%s: invalid value \"%s\". Valid values are \"on\", "
+			"\"off\", or \"warn\".", attrname, value);
+		retVal = LDAP_OPERATIONS_ERROR;
+	}
+
+	if (!apply) {
+		/* we can return now if we aren't applying the changes */
+		return retVal;
+	}
+
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+
+	if (strcasecmp(value, "on") == 0 ) {
+		slapdFrontendConfig->validate_cert = SLAPD_VALIDATE_CERT_ON;
+	} else if (strcasecmp(value, "off") == 0 ) {
+		slapdFrontendConfig->validate_cert = SLAPD_VALIDATE_CERT_OFF;
+	} else if (strcasecmp(value, "warn") == 0) {
+		slapdFrontendConfig->validate_cert = SLAPD_VALIDATE_CERT_WARN;
+	}
+
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	return retVal;
+}
+
+int
 config_get_force_sasl_external(void)
 {
 	int retVal;
@@ -5882,6 +5937,23 @@ config_set_value(
             sval = "off";
         }
         slapi_entry_attr_set_charptr(e, cgas->attr_name, sval);
+        break;
+
+    case CONFIG_SPECIAL_VALIDATE_CERT_SWITCH:
+        if (!value) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "off");
+            break;
+        }
+
+        if (*((int *)value) == SLAPD_VALIDATE_CERT_ON) {
+            sval = "on";
+        } else if (*((int *)value) == SLAPD_VALIDATE_CERT_WARN) {
+            sval = "warn";
+        } else {
+            sval = "off";
+        }
+        slapi_entry_attr_set_charptr(e, cgas->attr_name, sval);
+
         break;
 
     default:
