@@ -29,6 +29,7 @@ nsslapd-dn-validate-strict: off
 nsslapd-rewrite-rfc1274: off
 nsslapd-return-exact-case: on
 nsslapd-ssl-check-hostname: on
+nsslapd-validate-cert: warn
 nsslapd-allow-unauthenticated-binds: off
 nsslapd-require-secure-binds: off
 nsslapd-allow-anonymous-access: on
