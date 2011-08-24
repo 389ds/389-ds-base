@@ -624,7 +624,10 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
-    if (LDAP_SUCCESS != result) {
+    /* If this is a new config entry being added, it won't exist yet
+     * when we are simply validating config.  We can just ignore no
+     * such object errors. */
+    if ((LDAP_SUCCESS != result) && (LDAP_NO_SUCH_OBJECT != result)) {
         slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_parse_config_entry: Error searching "
                         "for child rule entries for config \"%s\" (err=%d).",
