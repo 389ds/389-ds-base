@@ -1447,6 +1447,10 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val, char **errbuf)
 				}
 				slapi_ch_free_string(&errstr);
 				slapi_ch_free((void **)&attr);
+				/* NULL terminate the list - the realloc below does not NULL terminate
+				   the list, and the list is normally only NULL terminated when the
+				   function returns with success */
+				attrArray[numattr] = NULL;
 				return ACL_SYNTAX_ERR;
 			}
 		}
