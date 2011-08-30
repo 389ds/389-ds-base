@@ -47,7 +47,8 @@ package DSUpdate;
 use DSUtil;
 use Inf;
 use FileConn;
-use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles updateSelinuxPolicy updateTmpfilesDotD);
+use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles
+                makeDSDirs updateSelinuxPolicy updateTmpfilesDotD);
 
 use File::Basename qw(basename dirname);
 
@@ -311,6 +312,11 @@ sub updateDSInstance {
     # get the information we need from the instance
     delete $inf->{slapd}; # delete old data, if any
     if (@errs = initInfFromInst($inf, $dseldif, $configdir, $inst)) {
+        return @errs;
+    }
+
+    # create dirs if missing e.g. cross platform upgrade
+    if (@errs = makeDSDirs($inf)) {
         return @errs;
     }
 

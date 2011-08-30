@@ -64,9 +64,9 @@ use Mozilla::LDAP::LDIF;
 
 use Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts
+@EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts makeDSDirs
                 makeOtherConfigFiles installSchema updateSelinuxPolicy updateTmpfilesDotD);
-@EXPORT_OK = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts
+@EXPORT_OK = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts makeDSDirs
                 makeOtherConfigFiles installSchema updateSelinuxPolicy updateTmpfilesDotD);
 
 use strict;
