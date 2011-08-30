@@ -72,7 +72,7 @@ sub convert_uniqueid {
     my $maxdiff = 86400*365*10; # 10 years
     if (($tsdiff > $maxdiff) || (($last_update != 0) && ($last_update != 1))) {
         # try big endian
-        ($tslow, $tshigh, $node, $clockseq, $last_update) = unpack($bigfmt, $val);
+        ($tshigh, $tslow, $node, $clockseq, $last_update) = unpack($bigfmt, $val);
         $ts = convert_from_32bit($tshigh, $tslow);
         $tssecs = ($ts - 0x01B21DD213814000) / 10000000;
         $tsdiff = abs($curts - $tssecs);
@@ -120,7 +120,7 @@ sub convert_replica {
         $timefmt = 'V'; # timevals are unsigned 64-bit int
         $fmtstr = "vx" . $pad . $timefmt . "6vx" . $pad;
         $bigfmtstr = 'nx' . $pad . 'N' . '6nx' . $pad;
-        ($rid, $st_low, $st_high, $lo_low, $lo_high, $rt_low, $rt_high, $seq_num) = unpack($fmtstr, $val);
+        ($rid, $st_low, $st_high, $lo_low, $lo_high, $ro_low, $ro_high, $seq_num) = unpack($fmtstr, $val);
         $sampled_time = convert_from_32bit($st_high, $st_low);
         $local_offset = convert_from_32bit($lo_high, $lo_low);
         $remote_offset = convert_from_32bit($ro_high, $ro_low);
@@ -134,7 +134,7 @@ sub convert_replica {
         if ($len <= 20) {
             ($rid, $sampled_time, $local_offset, $remote_offset, $seq_num) = unpack($bigfmtstr, $val);
         } else {
-            ($rid, $st_low, $st_high, $lo_low, $lo_high, $rt_low, $rt_high, $seq_num) = unpack($bigfmtstr, $val);
+            ($rid, $st_high, $st_low, $lo_high, $lo_low, $ro_high, $ro_low, $seq_num) = unpack($bigfmtstr, $val);
             $sampled_time = convert_from_32bit($st_high, $st_low);
             $local_offset = convert_from_32bit($lo_high, $lo_low);
             $remote_offset = convert_from_32bit($ro_high, $ro_low);
@@ -222,13 +222,19 @@ sub testit {
 #my $testval = "00a43cb4d11db2018b7912fd0000a42e01000000";
 #my $testval = "0029B605D21DB201FEB70FFC00007EB301000000";
 #my $testval = "00E8FEB72B80E001EC359ED2F4D9F1670100000000000000";
-my $testval = "00123781D21DB201F74C95A90000862201000000";
+#my $testval = "00123781D21DB201F74C95A90000862201000000";
+my $testval = '01E0D2DA53198600A12C2D6BADF15D630100000000000000';
+my $testreplval = "\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00N\\\x8b5\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00\x00\x00";
 my $testdecval = $testval;
 # base16 decode
 $testdecval =~ s/(..)/chr(hex($1))/eg;
 my $ent = new Mozilla::LDAP::Entry;
 $ent->setDN("cn=uniqueid generator");
 my ($rc, $newval) = convert_uniqueid($ent, $testdecval);
+$ent->setDN('cn=replica');
+my ($rc, $newval2) = convert_replica($ent, $testreplval);
 }
+
+testit() unless caller();
 
 1;
