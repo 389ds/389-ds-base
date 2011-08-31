@@ -2590,16 +2590,19 @@ int dblayer_instance_close(backend *be)
     if (NULL == inst)
         return -1;
 
-#if defined(_USE_VALGRIND)
-    /* When running a memory leak checking tool (e.g., valgrind),
-       it reduces the noise by enabling this code. */
-    LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s: Cleaning up entry cache\n",
-                                  inst->inst_name);
-    cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
-    LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s: Cleaning up dn cache\n",
-                                  inst->inst_name);
-    cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
-#endif
+    if (getenv("USE_VALGRIND")) {
+        /* 
+         * if any string is set to an environment variable USE_VALGRIND,
+         * when running a memory leak checking tool (e.g., valgrind),
+         * it reduces the noise by enabling this code.
+         */
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s: Cleaning up entry cache\n",
+                                      inst->inst_name);
+        cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s: Cleaning up dn cache\n",
+                                      inst->inst_name);
+        cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
+    }
 
     if (attrcrypt_cleanup_private(inst)) {
         LDAPDebug(LDAP_DEBUG_ANY,
