@@ -1228,7 +1228,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         if ( slapi_op_abandoned( pb ) || (NULL == sr) )
         {
             /* in case paged results, clean up the conn */
-            pagedresults_set_search_result(pb->pb_conn, NULL, 1);
+            pagedresults_set_search_result(pb->pb_conn, NULL, 0);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
@@ -1245,7 +1245,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         if ( tlimit != -1 && curtime > stoptime )
         {
             /* in case paged results, clean up the conn */
-            pagedresults_set_search_result(pb->pb_conn, NULL, 1);
+            pagedresults_set_search_result(pb->pb_conn, NULL, 0);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
@@ -1262,7 +1262,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         if ( llimit != -1 && sr->sr_lookthroughcount >= llimit )
         {
             /* in case paged results, clean up the conn */
-            pagedresults_set_search_result(pb->pb_conn, NULL, 1);
+            pagedresults_set_search_result(pb->pb_conn, NULL, 0);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
@@ -1282,7 +1282,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* No more entries */
             /* destroy back_search_result_set */
             /* in case paged results, clean up the conn */
-            pagedresults_set_search_result(pb->pb_conn, NULL, 1);
+            pagedresults_set_search_result(pb->pb_conn, NULL, 0);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
@@ -1425,7 +1425,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                      if ( --slimit < 0 ) {
                          CACHE_RETURN( &inst->inst_cache, &e );
                          /* in case paged results, clean up the conn */
-                         pagedresults_set_search_result(pb->pb_conn, NULL, 1);
+                         pagedresults_set_search_result(pb->pb_conn, NULL, 0);
                          slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
                          slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
                          delete_search_result_set( &sr );
