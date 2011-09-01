@@ -4501,7 +4501,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 							newrdn ? newrdn:"NULL", newsuperior ? newsuperior:"NULL");
 			slapi_ch_free_string(&newsuperior);
 			slapi_rdn_done(&rdn);
-			return retval;
+			goto bail;
 		}
 		slapi_ch_free_string(&newsuperior);
 		slapi_rdn_done(&rdn);
@@ -4516,9 +4516,11 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 					"failed to get local entry \"%s\" after rename\n",
 					slapi_sdn_get_ndn(mapped_sdn));
 			local_entry = orig_local_entry;
-			return retval;
+			orig_local_entry = NULL;
+			goto bail;
 		}
 	}
+
 
 	slapi_mods_init (&smods, 0);
 
@@ -4558,6 +4560,9 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"no mods generated for local entry: %s\n", escape_string(dn, dnbuf));
 	}
+
+bail:
+	slapi_sdn_free(&mapped_sdn);
 	slapi_mods_done(&smods);
 	if (orig_local_entry) {
 		slapi_entry_free(local_entry);
