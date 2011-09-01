@@ -1150,19 +1150,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
 
         slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
         is_paged = operation->o_flags & OP_FLAG_PAGED_RESULTS;
-        /* 
-         * If it is paged results, the search result set could be released when
-         * it reaches the timelimit.  This lock protects the search result set
-         * not to be released while sending a next entry.
-         * (see pagedresults_cleanup called from disconnect_server_nomutex)
-         */
-        if ( is_paged && pb->pb_conn && pb->pb_conn->c_mutex ) {
-            PR_Lock( pb->pb_conn->c_mutex );
-        }
         rc = be->be_next_search_entry(pb);
-        if ( is_paged && pb->pb_conn && pb->pb_conn->c_mutex ) {
-            PR_Unlock( pb->pb_conn->c_mutex );
-        }
         if (rc < 0) 
         {
             /*
