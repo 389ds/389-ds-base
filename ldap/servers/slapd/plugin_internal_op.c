@@ -872,7 +872,8 @@ void set_common_params (Slapi_PBlock *pb)
 
 /*
  * Given a DN, find an entry by doing an internal search.  An LDAP error
- * code is returned.
+ * code is returned.  To check if an entry exists without returning a
+ * copy of the entry, NULL can be passed for ret_entry.
  */
 int
 slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrs, Slapi_Entry **ret_entry , void * component_identity)
@@ -881,7 +882,10 @@ slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrs, Slapi_Entry **ret_
     Slapi_PBlock *int_search_pb = NULL;
     int rc = 0;
     
-    *ret_entry = NULL;
+    if (ret_entry) {
+        *ret_entry = NULL;
+    }
+
     int_search_pb = slapi_pblock_new ();
 	slapi_search_internal_set_pb ( int_search_pb,  slapi_sdn_get_dn(dn), LDAP_SCOPE_BASE, "(|(objectclass=*)(objectclass=ldapsubentry))",
 								   attrs ,
@@ -893,9 +897,12 @@ slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrs, Slapi_Entry **ret_
     if ( LDAP_SUCCESS == rc ) {
 		slapi_pblock_get( int_search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries );
 		if ( NULL != entries && NULL != entries[ 0 ]) {
-			Slapi_Entry *temp_entry = NULL;
-			temp_entry = entries[ 0 ];
-			*ret_entry = slapi_entry_dup(temp_entry);
+			/* Only need to dup the entry if the caller passed ret_entry in. */
+			if (ret_entry) {
+				Slapi_Entry *temp_entry = NULL;
+				temp_entry = entries[ 0 ];
+				*ret_entry = slapi_entry_dup(temp_entry);
+			}
 		} else {
 			/* No entry there */
 			rc = LDAP_NO_SUCH_OBJECT;
