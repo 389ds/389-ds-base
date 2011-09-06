@@ -2378,6 +2378,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         Slapi_Entry *new_managed_entry = NULL;
         Slapi_DN *managed_sdn = NULL;
         Slapi_Mods *smods = NULL;
+        int free_managed_dn = 1;
 
         mep_config_read_lock();
 
@@ -2450,6 +2451,31 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
             mods[0] = &mod;
             mods[1] = 0;
 
+            /* Create a new managed entry to determine what changes
+             * we need to make to the existing managed entry. */
+            new_managed_entry = mep_create_managed_entry(config, post_e);
+            if (new_managed_entry == NULL) {
+                slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                        "mep_modrdn_post_op: Unable to create in-memory "
+                        "managed entry from origin entry \"%s\".\n", new_dn);
+                goto bailmod;
+            }
+
+            /* Check if the managed entry exists.  It is possible that
+             * it has already been renamed by another plug-in.  If it
+             * has already been renamed, we need to use the new DN to
+             * perform our updates. */
+            managed_sdn = slapi_sdn_new_dn_byref(managed_dn);
+
+            if (slapi_search_internal_get_entry(managed_sdn, 0,
+                    NULL, mep_get_plugin_id()) == LDAP_NO_SUCH_OBJECT) {
+                slapi_ch_free_string(&managed_dn);
+                /* This DN is not a copy, so we don't want to free it later. */
+                managed_dn = slapi_entry_get_dn(new_managed_entry);
+                slapi_sdn_set_dn_byref(managed_sdn, managed_dn);
+                free_managed_dn = 0;
+            }
+
             /* Perform the modify operation. */
             slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
                     "mep_modrdn_post_op: Updating %s pointer to \"%s\" "
@@ -2465,12 +2491,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                             "origin entry \"%s\" in managed entry \"%s\" "
                             "(%s).\n", new_dn, managed_dn, ldap_err2string(result));
             } else {
-                /* Create a new managed entry to determine what changes
-                 * we need to make to the existing managed entry. */
-                new_managed_entry = mep_create_managed_entry(config, post_e);
-
                 /* See if we need to rename the managed entry. */
-                managed_sdn = slapi_sdn_new_dn_byref(managed_dn);
                 if (slapi_sdn_compare(slapi_entry_get_sdn(new_managed_entry), managed_sdn) != 0) {
                     /* Rename the managed entry. */
                     slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
@@ -2510,14 +2531,17 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                     slapi_mods_free(&smods);
                 }
 
-                slapi_sdn_free(&managed_sdn);
-                slapi_entry_free(new_managed_entry);
             }
+bailmod:
+            slapi_entry_free(new_managed_entry);
+            slapi_sdn_free(&managed_sdn);
         }
 
         slapi_pblock_destroy(mep_pb);
 
-        slapi_ch_free_string(&managed_dn);
+        if (free_managed_dn) {
+            slapi_ch_free_string(&managed_dn);
+        }
 
         mep_config_unlock();
     } else {
