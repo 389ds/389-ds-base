@@ -69,6 +69,21 @@ enum
     RUV_COVERS_CSN
 };
 
+/* return values from ruv_compare_ruv */
+enum 
+{
+	RUV_COMP_SUCCESS=0,
+	RUV_COMP_NO_GENERATION, /* one or both of the RUVs is missing the replica generation */
+	RUV_COMP_GENERATION_DIFFERS, /* the RUVs have different replica generations */
+    /* one of the maxcsns in one of the RUVs is out of date with respect to the
+       corresponding maxcsn in the corresponding replica in the other RUV */
+	RUV_COMP_CSN_DIFFERS,
+	RUV_COMP_RUV1_MISSING, /* ruv2 contains replicas not in ruv1 - CLEANRUV */
+	RUV_COMP_RUV2_MISSING /* ruv1 contains replicas not in ruv2 */
+};
+
+#define RUV_COMP_IS_FATAL(ruvcomp) (ruvcomp && (ruvcomp < RUV_COMP_RUV1_MISSING))
+
 typedef struct ruv_enum_data
 {
     CSN *csn;
@@ -122,6 +137,7 @@ PRBool ruv_has_both_csns(const RUV *ruv);
 PRBool ruv_is_newer (Object *sruv, Object *cruv);
 void ruv_force_csn_update (RUV *ruv, CSN *csn);
 void ruv_insert_dummy_min_csn (RUV *ruv);
+int ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const char *ruv2name, int strict, int loglevel);
 #ifdef __cplusplus
 }
 #endif

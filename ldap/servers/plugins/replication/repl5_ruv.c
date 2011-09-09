@@ -1006,6 +1006,34 @@ ruv_enumerate_elements (const RUV *ruv, FNEnumRUV fn, void *arg)
     return rc;
 }
 
+void
+ruv_element_to_string(RUVElement *ruvelem, struct berval *bv, char *buf, size_t bufsize)
+{
+	char csnStr1[CSN_STRSIZE];
+	char csnStr2[CSN_STRSIZE];
+	const char *fmtstr = "%s%d%s%s}%s%s%s%s";
+	if (buf && bufsize) {
+		PR_snprintf(buf, bufsize, fmtstr,
+					prefix_ruvcsn, ruvelem->rid,
+					ruvelem->replica_purl == NULL ? "" : " ",
+					ruvelem->replica_purl == NULL ? "" : ruvelem->replica_purl,
+					ruvelem->min_csn == NULL ? "" : " ",
+					ruvelem->min_csn == NULL ? "" : csn_as_string (ruvelem->min_csn, PR_FALSE, csnStr1),
+					ruvelem->csn == NULL ? "" : " ",
+					ruvelem->csn == NULL ? "" : csn_as_string (ruvelem->csn, PR_FALSE, csnStr2));
+	} else {
+		bv->bv_val = slapi_ch_smprintf(fmtstr,
+									   prefix_ruvcsn, ruvelem->rid,
+									   ruvelem->replica_purl == NULL ? "" : " ",
+									   ruvelem->replica_purl == NULL ? "" : ruvelem->replica_purl,
+									   ruvelem->min_csn == NULL ? "" : " ",
+									   ruvelem->min_csn == NULL ? "" : csn_as_string (ruvelem->min_csn, PR_FALSE, csnStr1),
+									   ruvelem->csn == NULL ? "" : " ",
+									   ruvelem->csn == NULL ? "" : csn_as_string (ruvelem->csn, PR_FALSE, csnStr2));
+		bv->bv_len = strlen(bv->bv_val);
+	}
+}
+
 /*
  * Convert a replica update vector to a NULL-terminated array
  * of bervals. The caller is responsible for freeing the bervals.
@@ -1025,8 +1053,6 @@ ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
 		int count;
 		int i;
 		RUVElement *replica;
-		char csnStr1 [CSN_STRSIZE];
-		char csnStr2 [CSN_STRSIZE];
 		int cookie;
 		slapi_rwlock_rdlock (ruv->lock);
 		count = dl_get_count (ruv->elements) + 2;
@@ -1040,15 +1066,7 @@ ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
 			 i++, replica = dl_get_next (ruv->elements, &cookie))
 		{
 			returned_bervals[i] = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-			returned_bervals[i]->bv_val = slapi_ch_smprintf("%s%d%s%s}%s%s%s%s",
-				prefix_ruvcsn, replica->rid,
-				replica->replica_purl == NULL ? "" : " ",
-				replica->replica_purl == NULL ? "" : replica->replica_purl,
-                replica->min_csn == NULL ? "" : " ",
-				replica->min_csn == NULL ? "" : csn_as_string (replica->min_csn, PR_FALSE, csnStr1),
-                replica->csn == NULL ? "" : " ",
-				replica->csn == NULL ? "" : csn_as_string (replica->csn, PR_FALSE, csnStr2));
-			returned_bervals[i]->bv_len = strlen(returned_bervals[i]->bv_val);
+			ruv_element_to_string(replica, returned_bervals[i], NULL, 0);
 		}
 		slapi_rwlock_unlock (ruv->lock);
 		return_value = RUV_SUCCESS;
@@ -1072,29 +1090,21 @@ ruv_to_smod(const RUV *ruv, Slapi_Mod *smod)
 		struct berval val;
 		RUVElement *replica;
 		int cookie;
-		char csnStr1 [CSN_STRSIZE];
-		char csnStr2 [CSN_STRSIZE];
 #define B_SIZ 1024
 		char buf[B_SIZ];
 		slapi_rwlock_rdlock (ruv->lock);
 		slapi_mod_init (smod, dl_get_count (ruv->elements) + 1);
 		slapi_mod_set_type (smod, type_ruvElement);
 		slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
-		PR_snprintf(buf, B_SIZ, "%s %s", prefix_replicageneration, ruv->replGen);
+		PR_snprintf(buf, sizeof(buf), "%s %s", prefix_replicageneration, ruv->replGen);
 		val.bv_val = buf;
 		val.bv_len = strlen(buf);
 		slapi_mod_add_value(smod, &val);
 		for (replica = dl_get_first (ruv->elements, &cookie); replica;
 			 replica = dl_get_next (ruv->elements, &cookie))
 		{
-
-			PR_snprintf(buf, B_SIZ, "%s%d%s%s}%s%s%s%s", prefix_ruvcsn, replica->rid,
-			    replica->replica_purl == NULL ? "" : " ",
-			    replica->replica_purl == NULL ? "" : replica->replica_purl,
-                replica->min_csn == NULL ? "" : " ",
-			    replica->min_csn == NULL ? "" : csn_as_string (replica->min_csn, PR_FALSE, csnStr1),
-                replica->csn == NULL ? "" : " ",
-			    replica->csn == NULL ? "" : csn_as_string (replica->csn, PR_FALSE, csnStr2));
+			ruv_element_to_string(replica, NULL, buf, sizeof(buf));
+			val.bv_val = buf;
 			val.bv_len = strlen(buf);
 			slapi_mod_add_value(smod, &val);
 		}
@@ -1170,6 +1180,99 @@ ruv_covers_ruv(const RUV *covering_ruv, const RUV *covered_ruv)
 		}
 	}
 	return return_value;
+}
+
+/*
+ * This compares two ruvs to see if they are compatible.  This is
+ * used, for example, when the data is reloaded, to see if the ruv
+ * from the database is compatible with the ruv from the changelog.
+ * If the replica generation is empty or does not match, the data
+ * is not compatible.
+ * If the maxcsns are not compatible, the ruvs are not compatible.
+ * However, if the first ruv has replica IDs that the second RUV
+ * does not have, and this is the only difference, the application
+ * may allow that with a warning.
+ */
+int
+ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const char *ruv2name, int strict, int loglevel)
+{
+    int rc = 0;
+    int ii = 0;
+    const RUV *ruvalist[] = {ruv1, ruv2};
+    const RUV *ruvblist[] = {ruv2, ruv1};
+    int missinglist[2] = {0, 0};
+    const char *ruvanames[] = {ruv1name, ruv2name};
+    const char *ruvbnames[] = {ruv2name, ruv1name};
+    const int nitems = 2;
+
+    /* compare replica generations first */
+    if (ruv1->replGen == NULL || ruv2->replGen == NULL) {
+        slapi_log_error(loglevel, repl_plugin_name,
+                        "ruv_compare_ruv: RUV [%s] is missing the replica generation\n",
+                        ruv1->replGen ? ruv2name : ruv1name);
+        return RUV_COMP_NO_GENERATION;
+    }
+    
+    if (strcasecmp (ruv1->replGen, ruv2->replGen)) {
+        slapi_log_error(loglevel, repl_plugin_name,
+                        "ruv_compare_ruv: RUV [%s] replica generation [%s] does not match RUV [%s] [%s]\n",
+                        ruv1name, ruv1->replGen, ruv2name, ruv2->replGen);
+        return RUV_COMP_GENERATION_DIFFERS;
+    }
+
+    /* replica generation is the same, now compare element by element */
+    for (ii = 0; ii < nitems; ++ii) {
+        int cookie;
+        const RUV *ruva = ruvalist[ii];
+        const RUV *ruvb = ruvblist[ii];
+        int *missing = &missinglist[ii];
+        const char *ruvaname = ruvanames[ii];
+        const char *ruvbname = ruvbnames[ii];
+        RUVElement *replicab;
+
+        for (replicab = dl_get_first (ruvb->elements, &cookie);
+             NULL != replicab;
+             replicab = dl_get_next (ruvb->elements, &cookie)) {
+            if (replicab->csn) {
+                ReplicaId rid = csn_get_replicaid(replicab->csn);
+                RUVElement *replicaa = ruvGetReplica(ruva, rid);
+                char csnstra[CSN_STRSIZE];
+                char csnstrb[CSN_STRSIZE];
+                char ruvelem[1024];
+                ruv_element_to_string(replicab, NULL, ruvelem, sizeof(ruvelem));
+                csn_as_string(replicab->csn, PR_FALSE, csnstrb);
+                if (replicaa == NULL) {
+                    (*missing)++;
+                    slapi_log_error(loglevel, repl_plugin_name,
+                                    "ruv_compare_ruv: RUV [%s] does not contain element [%s] "
+                                    "which is present in RUV [%s]\n",
+                                    ruvaname, ruvelem, ruvbname);
+                } else if (strict && (csn_compare (replicab->csn, replicaa->csn) >= 0)) {
+                    csn_as_string(replicaa->csn, PR_FALSE, csnstra);
+                    slapi_log_error(loglevel, repl_plugin_name,
+                                    "ruv_compare_ruv: the max CSN [%s] from RUV [%s] is larger "
+                                    "than or equal to the max CSN [%s] from RUV [%s] for element [%s]\n",
+                                    csnstrb, ruvbname, csnstra, ruvaname, ruvelem);
+                    rc = RUV_COMP_CSN_DIFFERS;
+                } else if (csn_compare (replicab->csn, replicaa->csn) > 0) {
+                    csn_as_string(replicaa->csn, PR_FALSE, csnstra);
+                    slapi_log_error(loglevel, repl_plugin_name,
+                                    "ruv_compare_ruv: the max CSN [%s] from RUV [%s] is larger "
+                                    "than the max CSN [%s] from RUV [%s] for element [%s]\n",
+                                    csnstrb, ruvbname, csnstra, ruvaname, ruvelem);
+                    rc = RUV_COMP_CSN_DIFFERS;
+                }
+            }
+        }
+    }
+    if (!rc) {
+        if (missinglist[0]) {
+            rc = RUV_COMP_RUV1_MISSING;
+        } else if (missinglist[1]) {
+            rc = RUV_COMP_RUV2_MISSING;
+        }
+    }
+    return rc;
 }
 
 PRInt32 

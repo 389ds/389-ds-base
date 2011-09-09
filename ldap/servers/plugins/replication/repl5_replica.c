@@ -1431,7 +1431,6 @@ int replica_check_for_data_reload (Replica *r, void *arg)
     RUV *upper_bound_ruv = NULL;
     RUV *r_ruv = NULL;
     Object *r_obj, *ruv_obj;
-    int cl_cover_be, be_cover_cl;
 
     PR_ASSERT (r);
 
@@ -1452,6 +1451,7 @@ int replica_check_for_data_reload (Replica *r, void *arg)
 
         if (upper_bound_ruv)
         {
+            char ebuf[BUFSIZ];
             ruv_obj = replica_get_ruv (r);
             r_ruv = object_get_data (ruv_obj);
             PR_ASSERT (r_ruv);
@@ -1474,40 +1474,19 @@ int replica_check_for_data_reload (Replica *r, void *arg)
 			 * sessions.
 			 */
 
-            be_cover_cl = ruv_covers_ruv (r_ruv, upper_bound_ruv);
-            cl_cover_be = ruv_covers_ruv (upper_bound_ruv, r_ruv);
-            if (!cl_cover_be)
+            rc = ruv_compare_ruv(upper_bound_ruv, "changelog max RUV", r_ruv, "database RUV", 0, SLAPI_LOG_FATAL);
+            if (RUV_COMP_IS_FATAL(rc))
             {
-                /* the data was reloaded, or we had disorderly shutdown between
-                 * writing RUV and CL, and we can no longer use existing CL */
-                char ebuf[BUFSIZ];
-                char cl_csn_str[CSN_STRSIZE] = {0};
-                char be_csn_str[CSN_STRSIZE] = {0};
-                CSN *cl_csn = NULL;
-                CSN *be_csn = NULL;
- 
-                if (ruv_get_max_csn( r_ruv, &be_csn ) == RUV_SUCCESS) {
-                    csn_as_string( be_csn, PR_FALSE, be_csn_str );
-                    csn_free( &be_csn );
-                }
-
-                if (ruv_get_max_csn( upper_bound_ruv, &cl_csn ) == RUV_SUCCESS) {
-                    csn_as_string( cl_csn, PR_FALSE, cl_csn_str );
-                    csn_free( &cl_csn );
-                }
-
                 /* create a temporary replica object to conform to the interface */
                 r_obj = object_new (r, NULL);
 
                 /* We can't use existing changelog - remove existing file */
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
-                    "Warning: data for replica %s does not match the data in the changelog "
-                    "(replica data (%s) %s changelog (%s)). Recreating the changelog file. "
+                    "Warning: data for replica %s does not match the data in the changelog. "
+                    "Recreating the changelog file. "
                     "This could affect replication with replica's consumers in which case the "
                     "consumers should be reinitialized.\n",
-                    escape_string(slapi_sdn_get_dn(r->repl_root),ebuf),
-                    (*be_csn_str=='\0' ? "unknown" : be_csn_str),
-                    ((!be_cover_cl) ? "<>" : ">"), (*cl_csn_str=='\0' ? "unknown" : cl_csn_str));
+                    escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
 
                 rc = cl5DeleteDBSync (r_obj);
 
@@ -1518,6 +1497,17 @@ int replica_check_for_data_reload (Replica *r, void *arg)
                     /* log changes to mark starting point for replication */
                     rc = replica_log_ruv_elements (r);
                 }
+            }
+            else if (rc)
+            {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
+                    "Warning: for replica %s there were some differences between the changelog max RUV and the "
+                    "database RUV.  If there are obsolete elements in the database RUV, you "
+                    "should remove them using CLEANRUV task.  If they are not obsolete, "
+                    "you should check their status to see why there are no changes from those "
+                    "servers in the changelog.\n",
+                    escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+                rc = 0;
             }
 
             object_release (ruv_obj);
