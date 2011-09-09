@@ -2391,6 +2391,19 @@ replica_ruv_smods_for_op( Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods 
     Slapi_Mod smod;
     Slapi_Mod smod_last_modified;
     Slapi_Operation *op;
+    Slapi_Entry *target_entry = NULL;
+
+    slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &target_entry);
+    if (target_entry && is_ruv_tombstone_entry(target_entry)) {
+        char ebuf[BUFSIZ];
+        /* disallow direct modification of the RUV tombstone entry
+           must use the CLEANRUV task instead */
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "replica_ruv_smods_for_op: attempted to directly modify the tombstone RUV "
+                        "entry [%s] - use the CLEANRUV task instead\n",
+                        escape_string(slapi_entry_get_dn_const(target_entry),ebuf));
+        return (-1);
+    }
 
     replica_obj = replica_get_replica_for_op (pb);
     slapi_pblock_get( pb, SLAPI_OPERATION, &op );
