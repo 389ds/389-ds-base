@@ -5778,6 +5778,8 @@ time_t slapi_current_time( void );
 #define SLAPI_PLUGIN_REVER_PWD_STORAGE_SCHEME	16
 #define SLAPI_PLUGIN_LDBM_ENTRY_FETCH_STORE	17
 #define SLAPI_PLUGIN_INDEX			18
+#define	SLAPI_PLUGIN_BETXNPREOPERATION		19
+#define SLAPI_PLUGIN_BETXNPOSTOPERATION		20
 
 /*
  * special return values for extended operation plugins (zero or positive
@@ -5926,6 +5928,12 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_BE_PRE_CLOSE_FN		454
 #define SLAPI_PLUGIN_BE_PRE_BACKUP_FN		455
 
+/* preoperation plugin to the backend - just after transaction creation */
+#define SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN		460
+#define SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN		461
+#define SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN		462
+#define SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN		463
+
 /* postoperation plugin functions */
 #define SLAPI_PLUGIN_POST_BIND_FN		501
 #define SLAPI_PLUGIN_POST_UNBIND_FN		502
@@ -5954,6 +5962,12 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_BE_POST_DELETE_FN		553
 #define SLAPI_PLUGIN_BE_POST_OPEN_FN		554
 #define SLAPI_PLUGIN_BE_POST_BACKUP_FN		555
+
+/* postoperation plugin to the backend - just before transaction commit */
+#define SLAPI_PLUGIN_BE_TXN_POST_ADD_FN		560
+#define SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN		561
+#define SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN		562
+#define SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN		563
 
 /* matching rule plugin functions */
 #define SLAPI_PLUGIN_MR_FILTER_CREATE_FN	600

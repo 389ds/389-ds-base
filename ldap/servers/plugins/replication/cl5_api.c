@@ -93,7 +93,9 @@
 #define HASH_BACKETS_COUNT 16   /* number of buckets in a hash table */
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
-#define DEFAULT_DB_OP_FLAGS DB_AUTO_COMMIT
+#define USE_DB_TXN 1 /* use transactions */
+#define DEFAULT_DB_ENV_OP_FLAGS DB_AUTO_COMMIT
+#define DEFAULT_DB_OP_FLAGS 0
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
 {                                                                              \
 	if (((oflags) & DB_INIT_TXN) && ((oflags) & DB_INIT_LOG))                  \
@@ -303,6 +305,8 @@ static PRBool _cl5ReplicaInList (Object *replica, Object **replicas);
 static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len);
 static int _cl5WriteOperation(const char *replName, const char *replGen,
                               const slapi_operation_parameters *op, PRBool local);
+static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
+                                 const slapi_operation_parameters *op, PRBool local, void *txn);
 static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid);
 static int _cl5GetNextEntry (CL5Entry *entry, void *iterator);
 static int _cl5CurrentDeleteEntry (void *iterator);
@@ -1376,7 +1380,7 @@ void cl5DestroyIterator (void *iterator)
 	slapi_ch_free ((void**)&it);
 }
 
-/* Name:		cl5WriteOperation
+/* Name:		cl5WriteOperationTxn
    Description:	writes operation to changelog
    Parameters:  replName - name of the replica to which operation applies
                 replGen - replica generation for the operation
@@ -1385,14 +1389,15 @@ void cl5DestroyIterator (void *iterator)
                    is in progress (if the data is reloaded). !!!
                 op - operation to write
 				local - this is a non-replicated operation
+                txn - the transaction containing this operation
    Return:		CL5_SUCCESS if function is successfull;
 				CL5_BAD_DATA if invalid op is passed;
 				CL5_BAD_STATE if db has not been initialized;
 				CL5_MEMORY_ERROR if memory allocation failed;
 				CL5_DB_ERROR if any other db error occured;
  */
-int cl5WriteOperation(const char *replName, const char *replGen,
-                      const slapi_operation_parameters *op, PRBool local)
+int cl5WriteOperationTxn(const char *replName, const char *replGen,
+                         const slapi_operation_parameters *op, PRBool local, void *txn)
 {
 	int rc;
 
@@ -1421,7 +1426,7 @@ int cl5WriteOperation(const char *replName, const char *replGen,
 	if (rc != CL5_SUCCESS)
 		return rc;
 
-	rc = _cl5WriteOperation(replName, replGen, op, local);
+	rc = _cl5WriteOperationTxn(replName, replGen, op, local, txn);
 
     /* update the upper bound ruv vector */
     if (rc == CL5_SUCCESS)
@@ -1438,6 +1443,27 @@ int cl5WriteOperation(const char *replName, const char *replGen,
 	_cl5RemoveThread ();
 	
 	return rc;	
+}
+
+/* Name:		cl5WriteOperation
+   Description:	writes operation to changelog
+   Parameters:  replName - name of the replica to which operation applies
+                replGen - replica generation for the operation
+                !!!Note that we pass name and generation rather than
+                   replica object since generation can change while operation
+                   is in progress (if the data is reloaded). !!!
+                op - operation to write
+				local - this is a non-replicated operation
+   Return:		CL5_SUCCESS if function is successfull;
+				CL5_BAD_DATA if invalid op is passed;
+				CL5_BAD_STATE if db has not been initialized;
+				CL5_MEMORY_ERROR if memory allocation failed;
+				CL5_DB_ERROR if any other db error occured;
+ */
+int cl5WriteOperation(const char *replName, const char *replGen,
+                      const slapi_operation_parameters *op, PRBool local)
+{
+    return cl5WriteOperationTxn(replName, replGen, op, local, NULL);
 }
 
 /* Name:		cl5CreateReplayIterator
@@ -2050,7 +2076,7 @@ static int _cl5DBOpen ()
                 PR_snprintf(fullpathname, MAXPATHLEN, "%s/%s", s_cl5Desc.dbDir, entry->name);
                 rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv,
                                                0, fullpathname, 0,
-                                               DEFAULT_DB_OP_FLAGS);
+                                               DEFAULT_DB_ENV_OP_FLAGS);
                 if (rc != 0)
                 {
                     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
@@ -3248,7 +3274,7 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 		} else {
 			/* DB files */
 			rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, filename, 0,
-                                           DEFAULT_DB_OP_FLAGS);
+                                           DEFAULT_DB_ENV_OP_FLAGS);
 			if (rc) {
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 				                "_cl5Delete: failed to remove \"%s\"; "
@@ -4450,8 +4476,8 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 	return rval;
 }
 
-static int _cl5WriteOperation(const char *replName, const char *replGen, 
-                              const slapi_operation_parameters *op, PRBool local)
+static int _cl5WriteOperationTxn(const char *replName, const char *replGen, 
+                                 const slapi_operation_parameters *op, PRBool local, void *txn)
 {
 	int rc;
 	int cnt;
@@ -4463,6 +4489,7 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 	CL5DBFile *file = NULL;
 	Object *file_obj = NULL;
 	DB_TXN *txnid = NULL;
+	DB_TXN *parent_txnid = (DB_TXN *)txn;
 
 	rc = _cl5GetDBFileByReplicaName (replName, replGen, &file_obj);
 	if (rc == CL5_NOTFOUND)
@@ -4472,14 +4499,14 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 		if (rc != CL5_SUCCESS)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-							"_cl5WriteOperation: failed to find or open DB object for replica %s\n", replName);
+							"_cl5WriteOperationTxn: failed to find or open DB object for replica %s\n", replName);
 			return rc;
 		}
 	}
 	else if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"_cl5WriteOperation: failed to get db file for target dn (%s)", 
+						"_cl5WriteOperationTxn: failed to get db file for target dn (%s)", 
 						op->target_address.dn);
 		return CL5_OBJSET_ERROR;
 	}
@@ -4499,7 +4526,7 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 	{
 		char s[CSN_STRSIZE];		
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-						"_cl5WriteOperation: failed to convert entry with csn (%s) "
+						"_cl5WriteOperationTxn: failed to convert entry with csn (%s) "
                         "to db format\n", csn_as_string(op->csn,PR_FALSE,s));
 		goto done;
 	}
@@ -4514,7 +4541,7 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-				"_cl5WriteOperation: failed to write entry; db error - %d %s\n", 
+				"_cl5WriteOperationTxn: failed to write entry; db error - %d %s\n", 
 				rc, db_strerror(rc));
 			if (CL5_OS_ERR_IS_DISKFULL(rc))
 			{
@@ -4533,13 +4560,13 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 	{ 
 		if (cnt != 0)
 		{
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
+#if USE_DB_TXN
 			/* abort previous transaction */
-			rc = txn_abort (txnid);
+			rc = TXN_ABORT (txnid);
 			if (rc != 0)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-							"_cl5WriteOperation: failed to abort transaction; db error - %d %s\n",
+							"_cl5WriteOperationTxn: failed to abort transaction; db error - %d %s\n",
 							rc, db_strerror(rc));
 				rc = CL5_DB_ERROR;
 				goto done;
@@ -4549,13 +4576,13 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
     		interval = PR_MillisecondsToInterval(slapi_rand() % 100);
     		DS_Sleep(interval);		
 		}
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
+#if USE_DB_TXN
 		/* begin transaction */
-		rc = txn_begin(s_cl5Desc.dbEnv, NULL /*pid*/, &txnid, 0);
+		rc = TXN_BEGIN(s_cl5Desc.dbEnv, parent_txnid, &txnid, 0);
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-						"_cl5WriteOperation: failed to start transaction; db error - %d %s\n",
+						"_cl5WriteOperationTxn: failed to start transaction; db error - %d %s\n",
 						rc, db_strerror(rc));
 			rc = CL5_DB_ERROR;
 			goto done;
@@ -4574,7 +4601,7 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 		if (CL5_OS_ERR_IS_DISKFULL(rc))
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-				"_cl5WriteOperation: changelog (%s) DISK FULL; db error - %d %s\n",
+				"_cl5WriteOperationTxn: changelog (%s) DISK FULL; db error - %d %s\n",
 				s_cl5Desc.dbDir, rc, db_strerror(rc));
 			cl5_set_diskfull();
 			rc = CL5_DB_ERROR;
@@ -4584,11 +4611,11 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
 		{
 			if (rc == 0)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5WriteOperation: retry (%d) the transaction (csn=%s) succeeded\n", cnt, (char*)key.data);
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5WriteOperationTxn: retry (%d) the transaction (csn=%s) succeeded\n", cnt, (char*)key.data);
 			}
 			else if ((cnt + 1) >= MAX_TRIALS)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5WriteOperation: retry (%d) the transaction (csn=%s) failed (rc=%d (%s))\n", cnt, (char*)key.data, rc, db_strerror(rc));
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5WriteOperationTxn: retry (%d) the transaction (csn=%s) failed (rc=%d (%s))\n", cnt, (char*)key.data, rc, db_strerror(rc));
 			}
 		}
 		cnt ++;
@@ -4596,23 +4623,23 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
     
 	if (rc == 0) /* we successfully added entry */
 	{
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-		rc = txn_commit (txnid, 0);
+#if USE_DB_TXN
+		rc = TXN_COMMIT (txnid, 0);
 #endif
 	}
 	else	
 	{
 		char s[CSN_STRSIZE];		
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5WriteOperation: failed to write entry with csn (%s); "
+						"_cl5WriteOperationTxn: failed to write entry with csn (%s); "
 						"db error - %d %s\n", csn_as_string(op->csn,PR_FALSE,s), 
 						rc, db_strerror(rc));
-#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
-		rc = txn_abort (txnid);
+#if USE_DB_TXN
+		rc = TXN_ABORT (txnid);
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-							"_cl5WriteOperation: failed to abort transaction; db error - %d %s\n",
+							"_cl5WriteOperationTxn: failed to abort transaction; db error - %d %s\n",
 							rc, db_strerror(rc));
 		}
 #endif
@@ -4627,7 +4654,7 @@ static int _cl5WriteOperation(const char *replName, const char *replGen,
     _cl5UpdateRUV (file_obj, op->csn, PR_TRUE, PR_TRUE);
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name_cl, 
-			"cl5WriteOperation: successfully written entry with csn (%s)\n", csnStr);
+			"cl5WriteOperationTxn: successfully written entry with csn (%s)\n", csnStr);
 	rc = CL5_SUCCESS;
 done:
 	if (data->data)
@@ -4638,6 +4665,12 @@ done:
 		object_release (file_obj);
 
 	return rc;
+}
+
+static int _cl5WriteOperation(const char *replName, const char *replGen, 
+                              const slapi_operation_parameters *op, PRBool local)
+{
+    return _cl5WriteOperationTxn(replName, replGen, op, local, NULL);
 }
 
 static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid)
@@ -5861,9 +5894,9 @@ static void _cl5DBCloseFile (void **data)
 		 * run into problems when we try to checkpoint transactions later. */
 	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "
 						"removing the changelog %s (flag %d)\n",
-						file->name, DEFAULT_DB_OP_FLAGS);
+						file->name, DEFAULT_DB_ENV_OP_FLAGS);
 		rc = s_cl5Desc.dbEnv->dbremove(s_cl5Desc.dbEnv, 0, file->name, 0,
-                                       DEFAULT_DB_OP_FLAGS);
+                                       DEFAULT_DB_ENV_OP_FLAGS);
 		if (rc != 0)
 		{
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBCloseFile: "

@@ -133,6 +133,7 @@ static Slapi_PluginDesc multimasterinternalpreopdesc = {"replication-multimaster
 static Slapi_PluginDesc multimasterinternalpostopdesc = {"replication-multimaster-internalpostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication internal post-operation plugin"};
 static Slapi_PluginDesc multimasterbepreopdesc = {"replication-multimaster-bepreop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication bepre-operation plugin"};
 static Slapi_PluginDesc multimasterbepostopdesc = {"replication-multimaster-bepostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication bepost-operation plugin"};
+static Slapi_PluginDesc multimasterbetxnpostopdesc = {"replication-multimaster-betxnpostop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication be transaction post-operation plugin"};
 static Slapi_PluginDesc multimasterextopdesc = { "replication-multimaster-extop", VENDOR, DS_PACKAGE_VERSION, "Multimaster replication extended-operation plugin" };
 
 static int multimaster_stopped_flag; /* A flag which is set when all the plugin threads are to stop */
@@ -322,6 +323,25 @@ multimaster_bepostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN, (void *) cl5DeleteRUV ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepostop_init failed\n" );
+		rc= -1;
+	}
+
+	return rc;
+}
+
+int
+multimaster_betxnpostop_init( Slapi_PBlock *pb )
+{
+    int rc= 0; /* OK */
+  
+	if( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 || 
+		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbetxnpostopdesc ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN, (void *) multimaster_betxnpostop_modrdn ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN, (void *) multimaster_betxnpostop_delete ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN, (void *) multimaster_betxnpostop_modrdn ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN, (void *) multimaster_betxnpostop_delete ) != 0 )
+	{
+		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_betxnpostop_init failed\n" );
 		rc= -1;
 	}
 
@@ -591,6 +611,7 @@ int replication_multimaster_plugin_init(Slapi_PBlock *pb)
         rc= slapi_register_plugin("postoperation", 1 /* Enabled */, "multimaster_postop_init", multimaster_postop_init, "Multimaster replication postoperation plugin", NULL, identity);
         rc= slapi_register_plugin("bepreoperation", 1 /* Enabled */, "multimaster_bepreop_init", multimaster_bepreop_init, "Multimaster replication bepreoperation plugin", NULL, identity);
 		rc= slapi_register_plugin("bepostoperation", 1 /* Enabled */, "multimaster_bepostop_init", multimaster_bepostop_init, "Multimaster replication bepostoperation plugin", NULL, identity);
+		rc= slapi_register_plugin("betxnpostoperation", 1 /* Enabled */, "multimaster_betxnpostop_init", multimaster_betxnpostop_init, "Multimaster replication betxnpostoperation plugin", NULL, identity);
         rc= slapi_register_plugin("internalpreoperation", 1 /* Enabled */, "multimaster_internalpreop_init", multimaster_internalpreop_init, "Multimaster replication internal preoperation plugin", NULL, identity);
         rc= slapi_register_plugin("internalpostoperation", 1 /* Enabled */, "multimaster_internalpostop_init", multimaster_internalpostop_init, "Multimaster replication internal postoperation plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_start_extop_init", multimaster_start_extop_init, "Multimaster replication start extended operation plugin", NULL, identity);

@@ -199,6 +199,10 @@ int multimaster_postop_add (Slapi_PBlock *pb);
 int multimaster_postop_delete (Slapi_PBlock *pb);
 int multimaster_postop_modify (Slapi_PBlock *pb);
 int multimaster_postop_modrdn (Slapi_PBlock *pb);
+int multimaster_betxnpostop_modrdn (Slapi_PBlock *pb);
+int multimaster_betxnpostop_delete (Slapi_PBlock *pb);
+int multimaster_betxnpostop_add (Slapi_PBlock *pb);
+int multimaster_betxnpostop_modify (Slapi_PBlock *pb);
 
 /* In repl5_init.c */
 char* get_thread_private_agmtname ();

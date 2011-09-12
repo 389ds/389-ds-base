@@ -467,6 +467,18 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return;
 		}
+
+		/* stash the transaction */
+		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+
+		/* call the transaction pre delete plugins just after creating the transaction */
+		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN))) {
+			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
+						   "returned error code %d\n", retval );
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			goto error_return;
+		}
+
 		if(create_tombstone_entry)
 		{
 			/*
@@ -865,6 +877,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in delete\n", 0, 0, 0 );
 		ldap_result_code= LDAP_OPERATIONS_ERROR;
 		retval = -1;
+		goto error_return;
+	}
+
+	/* call the transaction post delete plugins just before the commit */
+	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN))) {
+		LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
+					   "returned error code %d\n", retval );
+		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 		goto error_return;
 	}
 

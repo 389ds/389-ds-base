@@ -1062,6 +1062,58 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(IFP *)value) = pblock->pb_plugin->plg_internal_post_delete;
 		break;
 
+	/* backend pre txn operation plugin */
+	case SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpremodify;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpremodrdn;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpreadd;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpredelete;
+		break;
+
+	/* backend post txn operation plugin */
+	case SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpostmodify;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpostmodrdn;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_ADD_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpostadd;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpostdelete;
+		break;
+
 	/* target address & controls for all operations should be normalized  */
 	case SLAPI_TARGET_ADDRESS:
 		if(pblock->pb_op!=NULL)
@@ -2497,6 +2549,58 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		pblock->pb_plugin->plg_internal_post_delete = (IFP) value;
 		break;
 		
+	/* backend preoperation plugin - called just after creating transaction */
+	case SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpremodify = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpremodrdn = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpreadd = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpredelete = (IFP) value;
+		break;
+
+	/* backend postoperation plugin - called just before committing transaction */
+	case SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpostmodify = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpostmodrdn = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_ADD_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpostadd = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPOSTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpostdelete = (IFP) value;
+		break;
+
 	/* syntax plugin functions */
 	case SLAPI_PLUGIN_SYNTAX_FILTER_AVA:
 		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {

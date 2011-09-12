@@ -422,6 +422,17 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			goto error_return;
 		}
 
+		/* stash the transaction */
+		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+
+		/* call the transaction pre modify plugins just after creating the transaction */
+		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN))) {
+			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN plugin "
+						   "returned error code %d\n", retval );
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			goto error_return;
+		}
+
 		/*
 		 * Update the ID to Entry index. 
 		 * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
@@ -537,6 +548,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 */
 	e = NULL;
 	
+	/* call the transaction post modify plugins just before the commit */
+	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
+		LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
+					   "returned error code %d\n", retval );
+		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		goto error_return;
+	}
+
 	retval = dblayer_txn_commit(li,&txn);
 	if (0 != retval) {
 		if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;

@@ -695,6 +695,17 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             goto error_return;
         }
 
+		/* stash the transaction */
+		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+
+		/* call the transaction pre modrdn plugins just after creating the transaction */
+		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN))) {
+			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN plugin "
+						   "returned error code %d\n", retval );
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			goto error_return;
+		}
+
         /*
          * Update the indexes for the entry.
          */
@@ -897,6 +908,14 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     {
         modify_switch_entries( &newparent_modify_context,be);
     }
+
+	/* call the transaction post modrdn plugins just before the commit */
+	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
+		LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
+					   "returned error code %d\n", retval );
+		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		goto error_return;
+	}
 
     retval = dblayer_txn_commit(li,&txn);
     if (0 != retval)

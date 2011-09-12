@@ -373,6 +373,20 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 	case SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN:
         plugin_list_number= PLUGIN_LIST_INTERNAL_POSTOPERATION;
 		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN:
+	case SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN:
+	case SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN:
+	case SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN:
+        plugin_list_number= PLUGIN_LIST_BETXNPREOPERATION;
+		do_op = 1; /* always allow backend callbacks (even during startup) */
+		break;
+	case SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN:
+	case SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN:
+	case SLAPI_PLUGIN_BE_TXN_POST_ADD_FN:
+	case SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN:
+        plugin_list_number= PLUGIN_LIST_BETXNPOSTOPERATION;
+		do_op = 1; /* always allow backend callbacks (even during startup) */
+		break;
 	}
 	if(plugin_list_number!=-1 && do_op)
 	{
@@ -1440,6 +1454,7 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 			{
 				if (SLAPI_PLUGIN_PREOPERATION == list->plg_type ||
 					SLAPI_PLUGIN_INTERNAL_PREOPERATION == list->plg_type ||
+					SLAPI_PLUGIN_BETXNPREOPERATION == list->plg_type ||
                     SLAPI_PLUGIN_START_FN == operation )
 				{
 					/*
@@ -1653,6 +1668,12 @@ plugin_get_type_and_list(
 	} else if ( strcasecmp( plugintype, "bepostoperation" ) == 0 ) {
 		*type = SLAPI_PLUGIN_BEPOSTOPERATION;
     	plugin_list_index= PLUGIN_LIST_BEPOSTOPERATION;
+	} else if ( strcasecmp( plugintype, "betxnpreoperation" ) == 0 ) {
+		*type = SLAPI_PLUGIN_BETXNPREOPERATION;
+    	plugin_list_index= PLUGIN_LIST_BETXNPREOPERATION;
+	} else if ( strcasecmp( plugintype, "betxnpostoperation" ) == 0 ) {
+		*type = SLAPI_PLUGIN_BETXNPOSTOPERATION;
+    	plugin_list_index= PLUGIN_LIST_BETXNPOSTOPERATION;
 	} else if ( strcasecmp( plugintype, "internalpreoperation" ) == 0 ) {
 		*type = SLAPI_PLUGIN_INTERNAL_PREOPERATION;
     	plugin_list_index= PLUGIN_LIST_INTERNAL_PREOPERATION;

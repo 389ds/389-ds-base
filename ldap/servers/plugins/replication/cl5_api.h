@@ -321,6 +321,25 @@ int cl5GetNextOperation (slapi_operation_parameters *op, void *iterator);
  */
 void cl5DestroyIterator (void *iterator);
 
+/* Name:		cl5WriteOperationTxn
+   Description:	writes operation to changelog as part of a containing transaction
+   Parameters:  repl_name - name of the replica to which operation applies
+                repl_gen - replica generation for the operation
+                !!!Note that we pass name and generation rather than
+                   replica object since generation can change while operation
+                   is in progress (if the data is reloaded). !!!
+                op - operation to write
+				local - this is a non-replicated operation
+                txn - the containing transaction
+   Return:		CL5_SUCCESS if function is successfull;
+				CL5_BAD_DATA if invalid op is passed;
+				CL5_BAD_STATE if db has not been initialized;
+				CL5_MEMORY_ERROR if memory allocation failed;
+				CL5_DB_ERROR if any other db error occured;
+ */
+int cl5WriteOperationTxn(const char *repl_name, const char *repl_gen,
+                         const slapi_operation_parameters *op, PRBool local, void *txn);
+
 /* Name:		cl5WriteOperation
    Description:	writes operation to changelog
    Parameters:  repl_name - name of the replica to which operation applies

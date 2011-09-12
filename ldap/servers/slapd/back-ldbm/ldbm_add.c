@@ -671,6 +671,18 @@ ldbm_back_add( Slapi_PBlock *pb )
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return; 
 		}
+
+		/* stash the transaction */
+		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+
+		/* call the transaction pre add plugins just after creating the transaction */
+		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN))) {
+			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin "
+						   "returned error code %d\n", retval );
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			goto error_return;
+		}
+
 		retval = id2entry_add( be, addingentry, &txn );
 		if (DB_LOCK_DEADLOCK == retval)
 		{
@@ -881,6 +893,14 @@ ldbm_back_add( Slapi_PBlock *pb )
 				"ldbm_back_add: modify_switch_entries failed\n", 0, 0, 0);
 			goto error_return;
 		}
+	}
+
+	/* call the transaction post add plugins just before the commit */
+	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN))) {
+		LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_ADD_FN plugin "
+					   "returned error code %d\n", retval );
+		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		goto error_return;
 	}
 
 	retval = dblayer_txn_commit(li,&txn);

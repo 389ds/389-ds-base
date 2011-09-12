@@ -702,7 +702,9 @@ struct matchingRuleList {
 #define PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME 16
 #define PLUGIN_LIST_LDBM_ENTRY_FETCH_STORE 17
 #define PLUGIN_LIST_INDEX 18
-#define PLUGIN_LIST_GLOBAL_MAX 19
+#define PLUGIN_LIST_BETXNPREOPERATION 19
+#define PLUGIN_LIST_BETXNPOSTOPERATION 20
+#define PLUGIN_LIST_GLOBAL_MAX 21
 
 /* plugin configuration attributes */
 #define ATTR_PLUGIN_PATH				"nsslapd-pluginPath"
@@ -1108,6 +1110,31 @@ struct slapdplugin {
 		} plg_un_entry_fetch_store;
 #define plg_entryfetchfunc plg_un.plg_un_entry_fetch_store.plg_un_entry_fetch_func
 #define plg_entrystorefunc plg_un.plg_un_entry_fetch_store.plg_un_entry_store_func
+
+        /* backend txn pre-operation plugin structure */
+		struct plg_un_betxnpre_operation {
+			IFP	plg_un_betxnpre_modify;	  /* modify */
+			IFP	plg_un_betxnpre_modrdn;	  /* modrdn */
+			IFP	plg_un_betxnpre_add;		  /* add */
+			IFP	plg_un_betxnpre_delete;	  /* delete */
+		} plg_un_betxnpre;
+#define plg_betxnpremodify	plg_un.plg_un_betxnpre.plg_un_betxnpre_modify
+#define plg_betxnpremodrdn	plg_un.plg_un_betxnpre.plg_un_betxnpre_modrdn
+#define plg_betxnpreadd	plg_un.plg_un_betxnpre.plg_un_betxnpre_add
+#define plg_betxnpredelete	plg_un.plg_un_betxnpre.plg_un_betxnpre_delete
+
+        /* backend txn post-operation plugin structure */
+		struct plg_un_betxnpost_operation {
+			IFP	plg_un_betxnpost_modify;	  /* modify */
+			IFP	plg_un_betxnpost_modrdn;	  /* modrdn */
+			IFP	plg_un_betxnpost_add;		  /* add */
+			IFP	plg_un_betxnpost_delete;	  /* delete */
+		} plg_un_betxnpost;
+#define plg_betxnpostmodify	plg_un.plg_un_betxnpost.plg_un_betxnpost_modify
+#define plg_betxnpostmodrdn	plg_un.plg_un_betxnpost.plg_un_betxnpost_modrdn
+#define plg_betxnpostadd	plg_un.plg_un_betxnpost.plg_un_betxnpost_add
+#define plg_betxnpostdelete	plg_un.plg_un_betxnpost.plg_un_betxnpost_delete
+
 	} plg_un;
 };
 

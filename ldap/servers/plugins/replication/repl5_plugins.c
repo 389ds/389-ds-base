@@ -851,6 +851,29 @@ multimaster_postop_modrdn (Slapi_PBlock *pb)
 	return process_postop(pb);
 }
 
+int
+multimaster_betxnpostop_delete (Slapi_PBlock *pb)
+{
+    return write_changelog_and_ruv(pb);
+}
+
+int
+multimaster_betxnpostop_modrdn (Slapi_PBlock *pb)
+{
+    return write_changelog_and_ruv(pb);
+}
+
+int
+multimaster_betxnpostop_add (Slapi_PBlock *pb)
+{
+    return write_changelog_and_ruv(pb);
+}
+
+int
+multimaster_betxnpostop_modify (Slapi_PBlock *pb)
+{
+    return write_changelog_and_ruv(pb);
+}
 
 /* Helper functions */
 
@@ -943,42 +966,63 @@ update_ruv_component(Replica *replica, CSN *opcsn, Slapi_PBlock *pb)
 static int
 write_changelog_and_ruv (Slapi_PBlock *pb)
 {	
+	Slapi_Operation *op = NULL;
 	int rc;
 	slapi_operation_parameters *op_params = NULL;
-    Object *repl_obj;
+	Object *repl_obj;
 	int return_value = 0;
-    Replica *r;
+	Replica *r;
+	Slapi_Backend *be;
+	int is_replicated_operation = 0;
 
-    /* we only log changes for operations applied to a replica */
+	/* we just let fixup operations through */
+	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+	if ((operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) ||
+		(operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)))
+	{
+		return 0;
+	}
+
+	/* ignore operations intended for chaining backends - they will be
+	   replicated back to us or should be ignored anyway
+	   replicated operations should be processed normally, as they should
+	   be going to a local backend */
+	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
+	slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+	if (!is_replicated_operation &&
+		slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA))
+	{
+		return 0;
+	}
+
+	/* we only log changes for operations applied to a replica */
 	repl_obj = replica_get_replica_for_op (pb);
-    if (repl_obj == NULL)
-        return 0;
+	if (repl_obj == NULL)
+		return 0;
  
-    r = (Replica*)object_get_data (repl_obj);
-    PR_ASSERT (r);
+	r = (Replica*)object_get_data (repl_obj);
+	PR_ASSERT (r);
 
 	if (replica_is_flag_set (r, REPLICA_LOG_CHANGES) &&
 		(cl5GetState () == CL5_STATE_OPEN))
 	{
-        supplier_operation_extension *opext = NULL;
-        const char *repl_name;
-        char *repl_gen;
-		Slapi_Operation *op;
+		supplier_operation_extension *opext = NULL;
+		const char *repl_name;
+		char *repl_gen;
 
-		slapi_pblock_get(pb, SLAPI_OPERATION, &op);  
 		opext = (supplier_operation_extension*) repl_sup_get_ext (REPL_SUP_EXT_OP, op);
 		PR_ASSERT (opext);
 
-        /* get replica generation and replica name to pass to the write function */
-        repl_name = replica_get_name (r);
-        repl_gen = opext->repl_gen;
-        PR_ASSERT (repl_name && repl_gen);
+		/* get replica generation and replica name to pass to the write function */
+		repl_name = replica_get_name (r);
+		repl_gen = opext->repl_gen;
+		PR_ASSERT (repl_name && repl_gen);
 
 		/* for replicated operations, we log the original, non-urp data which is
 		   saved in the operation extension */
 		if (operation_is_flag_set(op,OP_FLAG_REPLICATED))
 		{		
-            PR_ASSERT (opext->operation_parameters);
+			PR_ASSERT (opext->operation_parameters);
 			op_params = opext->operation_parameters;
 		}
 		else /* since client operations don't go through urp, we log the operation data in pblock */
@@ -1013,21 +1057,23 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			op_params->target_address.uniqueid = slapi_ch_strdup (uniqueid);
 		} 
 
-        /* we might have stripped all the mods - in that case we do not
-           log the operation */
-        if (op_params->operation_type != SLAPI_OPERATION_MODIFY ||
-            op_params->p.p_modify.modify_mods != NULL)
-        {
+		/* we might have stripped all the mods - in that case we do not
+		   log the operation */
+		if (op_params->operation_type != SLAPI_OPERATION_MODIFY ||
+			op_params->p.p_modify.modify_mods != NULL)
+		{
+			void *txn = NULL;
 			if (cl5_is_diskfull() && !cl5_diskspace_is_available()) 
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"write_changelog_and_ruv: Skipped due to DISKFULL\n");
+								"write_changelog_and_ruv: Skipped due to DISKFULL\n");
 				return 0;
 			}
-		    rc = cl5WriteOperation(repl_name, repl_gen, op_params, 
-							       !operation_is_flag_set(op, OP_FLAG_REPLICATED));
-            if (rc != CL5_SUCCESS)
-		    {
+			slapi_pblock_get(pb, SLAPI_TXN, &txn);
+			rc = cl5WriteOperationTxn(repl_name, repl_gen, op_params, 
+									  !operation_is_flag_set(op, OP_FLAG_REPLICATED), txn);
+			if (rc != CL5_SUCCESS)
+			{
     			char csn_str[CSN_STRSIZE];
 			    /* ONREPL - log error */
         		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -1036,10 +1082,10 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 					op_params->target_address.dn,
 					op_params->target_address.uniqueid,
 					op_params->operation_type,
-            		csn_as_string(op_params->csn, PR_FALSE, csn_str));
-			    return_value = 1;
-		    }
-        }
+					csn_as_string(op_params->csn, PR_FALSE, csn_str));
+				return_value = 1;
+			}
+		}
 
 		if (!operation_is_flag_set(op,OP_FLAG_REPLICATED))
 		{
@@ -1056,7 +1102,6 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	  just read from the changelog in either the supplier or consumer ruv
 	*/
 	if (0 == return_value) {
-		Slapi_Operation *op;
 		CSN *opcsn;
 
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
@@ -1107,24 +1152,9 @@ process_postop (Slapi_PBlock *pb)
 	get_repl_session_id (pb, sessionid, &opcsn);
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
-	/*
-	 * Don't abandon writing changelog since we'd do everything
-	 * possible to keep the changelog in sync with the backend
-	 * db which was committed before this function was called.
-	 *
-	 * if (rc == LDAP_SUCCESS && !slapi_op_abandoned(pb))
-	 */
 	if (rc == LDAP_SUCCESS)
 	{
-        rc = write_changelog_and_ruv(pb);
-        if (rc == 0)
-        {
-			agmtlist_notify_all(pb);
-		}
-        else
-        {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s process postop: error writing changelog and ruv\n", sessionid);
-        }
+        agmtlist_notify_all(pb);
 	}
     else if (opcsn)
 	{
