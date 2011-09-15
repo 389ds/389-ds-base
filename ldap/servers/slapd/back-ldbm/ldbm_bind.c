@@ -210,6 +210,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	Slapi_Attr		*attr;
 	Slapi_Value **bvals;
 	entry_address *addr;
+	back_txn txn = {NULL};
 
 	/* get parameters */
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
@@ -217,6 +218,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr );
 	slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method );
 	slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &cred );
+	slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
 	
 	inst = (ldbm_instance *) be->be_instance_info;
 
@@ -229,7 +231,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	 * find the target entry.  find_entry() takes care of referrals
 	 *   and sending errors if the entry does not exist.
 	 */
-	if (( e = find_entry( pb, be, addr, NULL /* no txn */ )) == NULL ) {
+	if (( e = find_entry( pb, be, addr, &txn )) == NULL ) {
 		return( SLAPI_BIND_FAIL );
 	}
 

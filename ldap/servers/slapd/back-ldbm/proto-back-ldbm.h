@@ -527,6 +527,7 @@ int vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int 
 int vlv_update_index(struct vlvIndex* p, back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry);
 int vlv_update_all_indexes(back_txn *txn, backend *be, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry);
 int vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, const Slapi_DN *base, int scope, Slapi_Filter *filter, IDList** filteredCandidates,int lookthrough_limit, time_t time_up);
+int vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** filteredCandidates,struct vlv_response *pResponse, back_txn *txn);
 int vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** filteredCandidates,struct vlv_response *pResponse);
 int vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct vlv_request* vlvp);
 int vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response* vlvp);
@@ -535,6 +536,8 @@ void vlv_print_access_log(Slapi_PBlock *pb,struct vlv_request* vlvi, struct vlv_
 void vlv_grok_new_import_entry(const struct backentry *e, backend *be);
 IDList *vlv_find_index_by_filter(struct backend *be, const char *base, 
                  Slapi_Filter *f);
+IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base, 
+                 Slapi_Filter *f, back_txn *txn);
 int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *inst); 
 void vlv_acquire_lock(backend *be);
 void vlv_release_lock(backend *be);

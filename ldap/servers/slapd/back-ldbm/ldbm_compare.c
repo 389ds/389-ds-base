@@ -59,6 +59,7 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	int result;
 	int ret = 0;
 	Slapi_DN *namespace_dn;
+	back_txn txn = {NULL};
 
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
@@ -66,12 +67,13 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr);
 	slapi_pblock_get( pb, SLAPI_COMPARE_TYPE, &type );
 	slapi_pblock_get( pb, SLAPI_COMPARE_VALUE, &bval );
+	slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
 	
 	inst = (ldbm_instance *) be->be_instance_info;
 	/* get the namespace dn */
 	namespace_dn = (Slapi_DN*)slapi_be_getsuffix(be, 0);
 
-	if ( (e = find_entry( pb, be, addr, NULL )) == NULL ) {
+	if ( (e = find_entry( pb, be, addr, &txn )) == NULL ) {
 		return( -1 );	/* error result sent by find_entry() */
 	}
 

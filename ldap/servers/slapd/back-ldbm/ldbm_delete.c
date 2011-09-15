@@ -99,7 +99,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_DELETE_TARGET, &dn );
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr);
-	slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent_txn );
+	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	
@@ -108,6 +108,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	/* dblayer_txn_init needs to be called before "goto error_return" */
 	dblayer_txn_init(li,&txn);
+	/* the calls to perform searches require the parent txn if any
+	   so set txn to the parent_txn until we begin the child transaction */
+	txn.back_txn_txn = parent_txn;
 
 	if (pb->pb_conn)
 	{
@@ -165,7 +168,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	}
 
 	/* find and lock the entry we are about to modify */
-	if ( (e = find_entry2modify( pb, be, addr, NULL )) == NULL )
+	if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL )
 	{
 		ldap_result_code= LDAP_NO_SUCH_OBJECT; 
 		/* retval is -1 */

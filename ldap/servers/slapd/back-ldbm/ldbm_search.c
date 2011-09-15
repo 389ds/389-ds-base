@@ -203,6 +203,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     int lookup_returned_allids = 0;
     int backend_count = 1;
     static int print_once = 1;
+    back_txn txn = {NULL};
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
@@ -212,7 +213,8 @@ ldbm_back_search( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
     slapi_pblock_get( pb, SLAPI_REQCONTROLS, &controls );
     slapi_pblock_get( pb, SLAPI_BACKEND_COUNT, &backend_count );
-    
+    slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
+
     inst = (ldbm_instance *) be->be_instance_info;
 
     slapi_sdn_init_dn_ndn_byref(&basesdn,base);  /* normalized by front end*/
@@ -401,7 +403,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     }
     else
     {
-        if ( ( e = find_entry( pb, be, addr, NULL )) == NULL )
+        if ( ( e = find_entry( pb, be, addr, &txn )) == NULL )
         {
             /* error or referral sent by find_entry */
             return ldbm_back_search_cleanup(pb, li, sort_control, 
@@ -431,9 +433,9 @@ ldbm_back_search( Slapi_PBlock *pb )
         if ((NULL != controls) && (sort) && (vlv)) {
             /* This candidate list is for vlv, no need for sort only. */
             switch (vlv_search_build_candidate_list(pb, &basesdn, &vlv_rc,
-                                          sort_control,
-                                          (vlv ? &vlv_request_control : NULL),
-                                          &candidates, &vlv_response_control)) {
+                                                    sort_control,
+                                                    (vlv ? &vlv_request_control : NULL),
+                                                    &candidates, &vlv_response_control)) {
             case VLV_ACCESS_DENIED:
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 vlv_rc, "VLV Control",
@@ -638,9 +640,11 @@ ldbm_back_search( Slapi_PBlock *pb )
                 if (NULL != candidates && candidates->b_nids>0)
                 {
                     IDList *idl= NULL;
+                    back_txn txn = {NULL};
+                    slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
                     vlv_response_control.result =
-                        vlv_trim_candidates(be, candidates, sort_control,
-                        &vlv_request_control, &idl, &vlv_response_control);
+                        vlv_trim_candidates_txn(be, candidates, sort_control,
+                        &vlv_request_control, &idl, &vlv_response_control, &txn);
                     if(vlv_response_control.result==0)
                     {
                         idl_free(candidates);
@@ -983,18 +987,20 @@ subtree_candidates(
      */
     if(candidates!=NULL && (idl_length(candidates)>FILTER_TEST_THRESHOLD)) {
         IDList *tmp = candidates, *descendants = NULL;
+        back_txn txn = {NULL};
 
+        slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
         if (entryrdn_get_noancestorid()) {
             /* subtree-rename: on && no ancestorid */
             *err = entryrdn_get_subordinates(be,
                                          slapi_entry_get_sdn_const(e->ep_entry),
-                                         e->ep_id, &descendants, NULL);
+                                         e->ep_id, &descendants, &txn);
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(tmp);
             idl_free(descendants);
         } else if (!has_tombstone_filter) {
-            *err = ldbm_ancestorid_read(be, NULL, e->ep_id, &descendants);
+            *err = ldbm_ancestorid_read(be, &txn, e->ep_id, &descendants);
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(tmp);
@@ -1164,6 +1170,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     char                   *target_uniqueid;
     int                    rc = 0; 
     int                    estimate = 0; /* estimated search result count */
+    back_txn               txn = {NULL};
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -1179,6 +1186,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     slapi_pblock_get( pb, SLAPI_SEARCH_REFERRALS, &urls );
     slapi_pblock_get( pb, SLAPI_TARGET_UNIQUEID, &target_uniqueid );
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
+    slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
 
     if (NULL == sr) {
         goto bail;
@@ -1297,7 +1305,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         ++sr->sr_lookthroughcount;    /* checked above */
 
         /* get the entry */
-        e = id2entry( be, id, NULL, &err );
+        e = id2entry( be, id, &txn, &err );
         if ( e == NULL )
         {
             if ( err != 0 && err != DB_NOTFOUND )

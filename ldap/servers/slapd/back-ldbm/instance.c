@@ -95,9 +95,9 @@ int ldbm_instance_create(backend *be, char *name)
     }
 
     /* Lock used to synchronize modify operations. */
-    inst->inst_db_mutex = PR_NewLock();
+    inst->inst_db_mutex = PR_NewMonitor();
     if (NULL == inst->inst_db_mutex) {
-        LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: PR_NewLock failed\n",
+        LDAPDebug(LDAP_DEBUG_ANY, "ldbm_instance_create: PR_NewMonitor failed\n",
                   0, 0, 0);
         rc = -1;
         goto error;
@@ -385,7 +385,7 @@ ldbm_instance_destructor(void **arg)
     PR_DestroyLock(inst->inst_config_mutex);
     slapi_ch_free_string(&inst->inst_dir_name);
     slapi_ch_free_string(&inst->inst_parent_dir_name);
-    PR_DestroyLock(inst->inst_db_mutex);
+    PR_DestroyMonitor(inst->inst_db_mutex);
     PR_DestroyLock(inst->inst_handle_list_mutex);
     PR_DestroyLock(inst->inst_nextid_mutex);
     PR_DestroyCondVar(inst->inst_indexer_cv);

@@ -58,8 +58,8 @@
 #include "vlv_key.h"
 
 static PRUint32 vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_request_control);
-static PRUint32 vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control);
-static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked);
+static PRUint32 vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, back_txn *txn);
+static int vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked, back_txn *txn);
 
 /* New mutex for vlv locking
 Slapi_RWLock * vlvSearchList_lock=NULL;
@@ -1150,7 +1150,9 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	backend *be;
 	int scope, rc=LDAP_SUCCESS;
 	char *fstr;
+    back_txn txn = {NULL};
 
+    slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
     slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
@@ -1164,7 +1166,8 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
 	    slapi_rwlock_unlock(be->vlvSearchList_lock);
 		rc = VLV_ACCESS_DENIED;
-	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,vlv_response_control, 1)) != LDAP_SUCCESS) {
+	} else if ((*vlv_rc=vlv_build_candidate_list(be,pi,vlv_request_control,candidates,
+                                                 vlv_response_control, 1, &txn)) != LDAP_SUCCESS) {
 		rc = VLV_BLD_LIST_FAILED;
 		vlv_response_control->result=*vlv_rc;
 	}
@@ -1187,7 +1190,7 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
  
 
 static int
-vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked)
+vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control, int is_srchlist_locked, back_txn *txn)
 {
     int return_value = LDAP_SUCCESS;
     DB *db = NULL;
@@ -1196,6 +1199,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     PRUint32 si = 0;       /* The Selected Index */
     PRUint32 length;
     int do_trim= 1;
+    DB_TXN *db_txn = NULL;
 
     LDAPDebug(LDAP_DEBUG_TRACE,
               "=> vlv_build_candidate_list: %s %s Using VLV Index %s\n",
@@ -1226,7 +1230,10 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     if (is_srchlist_locked) {
         slapi_rwlock_unlock(be->vlvSearchList_lock);
     }
-    err = db->cursor(db, 0 /* txn */, &dbc, 0);
+    if (txn) {
+        db_txn = txn->back_txn_txn;
+    }
+    err = db->cursor(db, db_txn, &dbc, 0);
     if (err != 0) {
         /* shouldn't happen */
         LDAPDebug(LDAP_DEBUG_ANY, "VLV: couldn't get cursor (err %d)\n",
@@ -1241,8 +1248,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
             si = vlv_trim_candidates_byindex(length, vlv_request_control);
             break;
         case 1: /* byValue */
-            si = vlv_build_candidate_list_byvalue(p, dbc, length,
-                                                     vlv_request_control);
+            si = vlv_build_candidate_list_byvalue(p, dbc, length, vlv_request_control);
             if (si==length) {
                 do_trim = 0;
                 /* minimum idl_alloc size should be 1; 0 is considered ALLID */
@@ -1314,8 +1320,10 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
         int done= 0;
         int counter= 0;
         ID id = NOID;
+        back_txn txn = {NULL};
     	idl_iterator current = idl_iterator_init(candidates);
         resultIdl= idl_alloc(candidates->b_nids);
+        slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
         do
         {
         	id = idl_iterator_dereference_increment(&current, candidates);
@@ -1323,7 +1331,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
         	{
                 int err= 0;
                 struct backentry *e= NULL;
-                e = id2entry( be, id, NULL, &err );
+                e = id2entry( be, id, &txn, &err );
             	if ( e == NULL )
             	{
                     /*
@@ -1393,7 +1401,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
  *       other (80)
  */
 int
-vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** trimmedCandidates,struct vlv_response *vlv_response_control)
+vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** trimmedCandidates,struct vlv_response *vlv_response_control, back_txn *txn)
 {
     IDList* resultIdl= NULL;
     int return_value= LDAP_SUCCESS;
@@ -1412,7 +1420,7 @@ vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort
         si= vlv_trim_candidates_byindex(candidates->b_nids, vlv_request_control);
         break;
     case 1: /* byValue */
-        si= vlv_trim_candidates_byvalue(be, candidates, sort_control, vlv_request_control);
+        si= vlv_trim_candidates_byvalue(be, candidates, sort_control, vlv_request_control, txn);
         /* Don't bother sending results if the attribute value wasn't found */
         if(si==candidates->b_nids)
         {
@@ -1455,6 +1463,12 @@ vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort
    	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates: Trimmed list contains %lu entries.\n", (u_long)(resultIdl ? resultIdl->b_nids : 0), 0, 0 );
     *trimmedCandidates= resultIdl;
     return return_value;
+}
+
+int
+vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, IDList** trimmedCandidates,struct vlv_response *vlv_response_control)
+{
+    return vlv_trim_candidates_txn(be, candidates, sort_control, vlv_request_control, trimmedCandidates, vlv_response_control, NULL);
 }
 
 /*
@@ -1523,7 +1537,7 @@ vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_reque
  * Iterate over the Candidate ID List looking for an entry >= the provided attribute value.
  */
 static PRUint32
-vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control)
+vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_spec* sort_control, const struct vlv_request *vlv_request_control, back_txn *txn)
 {
     PRUint32 si= 0; /* The Selected Index */
     PRUint32 low= 0;
@@ -1592,7 +1606,7 @@ retry:
             current = (1 + low + high)/2;
         }
         id= candidates->b_ids[current];
-        e = id2entry( be, id, NULL, &err );
+        e = id2entry( be, id, txn, &err );
         if ( e == NULL )
         {
             int rval;
@@ -1942,8 +1956,8 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
  * has the same search base and search filter.
  * added read lock */
 
-IDList *vlv_find_index_by_filter(struct backend *be, const char *base, 
-				 Slapi_Filter *f)
+IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base, 
+                                     Slapi_Filter *f, back_txn *txn)
 {
     struct vlvSearch *t = NULL;
     struct vlvIndex *vi;
@@ -1954,6 +1968,11 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
     DBC *dbc = NULL;
     IDList *idl;
     Slapi_Filter *vlv_f;
+    DB_TXN *db_txn = NULL;
+
+    if (txn) {
+        db_txn = txn->back_txn_txn;
+    }
 
 	slapi_sdn_init_dn_byref(&base_sdn, base);
 	slapi_rwlock_rdlock(be->vlvSearchList_lock);
@@ -1984,7 +2003,7 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
 			if (dblayer_get_index_file(be, vi->vlv_attrinfo, &db, 0) == 0) {
 				length = vlvIndex_get_indexlength(vi, db, 0 /* txn */);
 				slapi_rwlock_unlock(be->vlvSearchList_lock);
-				err = db->cursor(db, 0 /* txn */, &dbc, 0);
+				err = db->cursor(db, db_txn, &dbc, 0);
 				if (err == 0) {
 					if (length == 0) /* 609377: index size could be 0 */
 					{
@@ -2015,7 +2034,11 @@ IDList *vlv_find_index_by_filter(struct backend *be, const char *base,
     return NULL;
 }
 
-
+IDList *vlv_find_index_by_filter(struct backend *be, const char *base, 
+				 Slapi_Filter *f)
+{
+    return vlv_find_index_by_filter_txn(be, base, f, NULL);
+}
 
 /* replace c with c2 in string -- probably exists somewhere but I can't find it slapi maybe? */
 

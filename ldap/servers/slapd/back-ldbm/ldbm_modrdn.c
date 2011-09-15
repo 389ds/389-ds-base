@@ -120,7 +120,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &dn );
     slapi_pblock_get( pb, SLAPI_BACKEND, &be);
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-    slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent_txn );
+    slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
     slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
     slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
     slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
@@ -129,6 +129,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 
     /* dblayer_txn_init needs to be called before "goto error_return" */
     dblayer_txn_init(li,&txn);
+    /* the calls to search for entries require the parent txn if any
+       so set txn to the parent_txn until we begin the child transaction */
+    txn.back_txn_txn = parent_txn;
 
     if (pb->pb_conn)
     {
@@ -313,7 +316,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     /* find and lock the entry we are about to modify */
     /* JCMREPL - Argh, what happens about the stinking referrals? */
     slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
-    e = find_entry2modify( pb, be, old_addr, NULL );
+    e = find_entry2modify( pb, be, old_addr, &txn );
     if ( e == NULL )
     {
         ldap_result_code= -1;
@@ -336,14 +339,14 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     /* Fetch and lock the parent of the entry that is moving */
     oldparent_addr.dn = (char*)slapi_sdn_get_dn (&dn_parentdn);
     oldparent_addr.uniqueid = NULL;            
-    parententry = find_entry2modify_only( pb, be, &oldparent_addr, NULL );
+    parententry = find_entry2modify_only( pb, be, &oldparent_addr, &txn );
     modify_init(&parent_modify_context,parententry);
 
     /* Fetch and lock the new parent of the entry that is moving */            
     if(slapi_sdn_get_ndn(&dn_newsuperiordn)!=NULL)
     {
         slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS, &newsuperior_addr);
-        newparententry = find_entry2modify_only( pb, be, newsuperior_addr, NULL);
+        newparententry = find_entry2modify_only( pb, be, newsuperior_addr, &txn );
         modify_init(&newparent_modify_context,newparententry);
     }
 
@@ -680,11 +683,15 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
      * So, we believe that no code up till here actually added anything
      * to persistent store. From now on, we're transacted
      */
+	txn.back_txn_txn = NULL; /* ready to create the child transaction */
     for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++)
     {
         if (retry_count > 0)
         {
             dblayer_txn_abort(li,&txn);
+            /* txn is no longer valid - reset slapi_txn to the parent */
+            txn.back_txn_txn = NULL;
+            slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
             /* We're re-trying */
             LDAPDebug( LDAP_DEBUG_TRACE, "Modrdn Retrying Transaction\n", 0, 0, 0 );
         }
@@ -909,15 +916,18 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         modify_switch_entries( &newparent_modify_context,be);
     }
 
-	/* call the transaction post modrdn plugins just before the commit */
-	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
-		LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
-					   "returned error code %d\n", retval );
-		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-		goto error_return;
-	}
+    /* call the transaction post modrdn plugins just before the commit */
+    if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
+        LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
+                       "returned error code %d\n", retval );
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+        goto error_return;
+    }
 
     retval = dblayer_txn_commit(li,&txn);
+    /* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
+    txn.back_txn_txn = NULL;
+    slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
     if (0 != retval)
     {
         if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -1047,6 +1057,9 @@ error_return:
         /* It is safer not to abort when the transaction is not started. */
         if (retry_count > 0) {
             dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+            /* txn is no longer valid - reset the txn pointer to the parent */
+            txn.back_txn_txn = NULL;
+            slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
         }
         retval= SLAPI_FAIL_GENERAL;
     }
@@ -1737,7 +1750,7 @@ moddn_get_children(back_txn *ptxn,
             if ( id!=NOID )
             {
                 int err= 0;
-                e = id2entry( be, id, NULL, &err );
+                e = id2entry( be, id, ptxn, &err );
                 if (e!=NULL)
                 {
                     /* The subtree search will have included the parent 

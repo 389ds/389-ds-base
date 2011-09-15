@@ -223,7 +223,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr );
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-	slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent_txn );
+	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	if (NULL == operation)
@@ -237,6 +237,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	inst = (ldbm_instance *) be->be_instance_info;
 
 	dblayer_txn_init(li,&txn);
+	/* the calls to search for entries require the parent txn if any
+	   so set txn to the parent_txn until we begin the child transaction */
+	txn.back_txn_txn = parent_txn;
 	if (NULL == addr)
 	{
 		goto error_return;
@@ -263,7 +266,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	}
 
 	/* find and lock the entry we are about to modify */
-	if ( (e = find_entry2modify( pb, be, addr, NULL )) == NULL ) {
+	if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
 		ldap_result_code= -1;
 		goto error_return;	  /* error result sent by find_entry2modify() */
 	}
@@ -399,10 +402,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 	}
 
+	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 
 		if (retry_count > 0) {
 			dblayer_txn_abort(li,&txn);
+			/* txn is no longer valid - reset slapi_txn to the parent */
+			txn.back_txn_txn = NULL;
+			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 			LDAPDebug( LDAP_DEBUG_TRACE, "Modify Retrying Transaction\n", 0, 0, 0 );
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
@@ -422,8 +429,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			goto error_return;
 		}
 
-		/* stash the transaction */
-		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+		/* stash the transaction for plugins */
+		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 
 		/* call the transaction pre modify plugins just after creating the transaction */
 		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN))) {
@@ -557,6 +564,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	}
 
 	retval = dblayer_txn_commit(li,&txn);
+	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
+	txn.back_txn_txn = NULL;
+	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval) {
 		if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 		ldap_result_code= LDAP_OPERATIONS_ERROR;
@@ -599,6 +609,9 @@ error_return:
 		if (retry_count > 0) {
 			/* It is safer not to abort when the transaction is not started. */
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+			/* txn is no longer valid - reset the txn pointer to the parent */
+			txn.back_txn_txn = NULL;
+			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 		}
 	    rc= SLAPI_FAIL_GENERAL;
 	}

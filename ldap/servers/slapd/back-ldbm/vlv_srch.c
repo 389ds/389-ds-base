@@ -181,15 +181,17 @@ vlvSearch_init(struct vlvSearch* p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
     	if ( !slapi_sdn_isempty(p->vlv_base)) {
             Slapi_Backend *oldbe = NULL;
             entry_address addr;
+            back_txn txn = {NULL};
 
             /* switch context to the target backend */
             slapi_pblock_get(pb, SLAPI_BACKEND, &oldbe);
             slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
             slapi_pblock_set(pb, SLAPI_PLUGIN, inst->inst_be->be_database);
+            slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
 
             addr.dn = (char*)slapi_sdn_get_ndn (p->vlv_base);
             addr.uniqueid = NULL;
-            e = find_entry( pb, inst->inst_be, &addr, NULL );
+            e = find_entry( pb, inst->inst_be, &addr, &txn );
             /* Check to see if the entry is absent. If it is, mark this search
              * as not initialized */
             if (NULL == e) {

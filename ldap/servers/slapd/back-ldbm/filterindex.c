@@ -71,7 +71,8 @@ keys2idl(
     const char  *indextype,
     Slapi_Value **ivals,
     int         *err,
-    int         *unindexed
+    int         *unindexed,
+    back_txn    *txn
 );
 
 IDList *
@@ -100,11 +101,13 @@ filter_candidates(
     }
 
     if (li->li_use_vlv) {
+        back_txn      txn = {NULL};
         /* first, check to see if this particular filter node matches any
          * vlv indexes we're keeping.  if so, we can use that index
          * instead.
          */
-        result = vlv_find_index_by_filter(be, base, f);
+        slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
+        result = vlv_find_index_by_filter_txn(be, base, f, &txn);
         if (result) {
             LDAPDebug( LDAP_DEBUG_TRACE, "<= filter_candidates %lu (vlv)\n",
                     (u_long)IDL_NIDS(result), 0, 0 );
@@ -197,6 +200,7 @@ ava_candidates(
     IDList        *idl = NULL;
     int           unindexed = 0;
     Slapi_Attr    sattr;
+    back_txn      txn = {NULL};
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ava_candidates\n", 0, 0, 0 );
 
@@ -270,6 +274,7 @@ ava_candidates(
      * reset ivals[0]->bv.bv_val) or alloc an entirely new ivals array.
      */
 
+    slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
     if(ftype==LDAP_FILTER_EQUALITY) {
         Slapi_Value tmp, *ptr[2], fake;
         char buf[1024];
@@ -283,7 +288,7 @@ ava_candidates(
         ivals=ptr;
 
         slapi_attr_assertion2keys_ava_sv( &sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
-        idl = keys2idl( be, type, indextype, ivals, err, &unindexed );
+        idl = keys2idl( be, type, indextype, ivals, err, &unindexed, &txn );
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
@@ -315,7 +320,7 @@ ava_candidates(
             idl = idl_allids( be );
             goto done;
         }
-        idl = keys2idl( be, type, indextype, ivals, err, &unindexed );
+        idl = keys2idl( be, type, indextype, ivals, err, &unindexed, &txn );
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
@@ -341,6 +346,7 @@ presence_candidates(
     char    *type;
     IDList  *idl;
     int     unindexed = 0;
+    back_txn      txn = {NULL};
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> presence_candidates\n", 0, 0, 0 );
 
@@ -349,8 +355,9 @@ presence_candidates(
             0, 0, 0 );
         return( NULL );
     }
+    slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
     idl = index_read_ext( be, type, indextype_PRESENCE,
-                          NULL, NULL, err, &unindexed );
+                          NULL, &txn, err, &unindexed );
 
     if ( unindexed ) {
         unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
@@ -366,7 +373,7 @@ presence_candidates(
         idl_free(idl);
         idl = index_range_read(pb, be, type, indextype_EQUALITY,
                                    SLAPI_OP_GREATER_OR_EQUAL,
-                                   NULL, NULL, 0, NULL, err);
+                                   NULL, NULL, 0, &txn, err);
     }
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= presence_candidates %lu\n",
@@ -386,7 +393,9 @@ extensible_candidates(
     Slapi_PBlock* pb = slapi_pblock_new();
     int mrOP = 0;
     Slapi_Operation *op = NULL;
+    back_txn txn = {NULL};
     LDAPDebug (LDAP_DEBUG_TRACE, "=> extensible_candidates\n", 0, 0, 0);
+    slapi_pblock_get(glob_pb, SLAPI_TXN, &txn.back_txn_txn);
     if ( ! slapi_mr_filter_index (f, pb) &&    !slapi_pblock_get (pb, SLAPI_PLUGIN_MR_QUERY_OPERATOR, &mrOP))
     {
         switch (mrOP)
@@ -453,10 +462,10 @@ extensible_candidates(
                         {
                             int unindexed = 0;
                             IDList* idl3 = (mrOP == SLAPI_OP_EQUAL) ?
-                                index_read_ext(be, mrTYPE, mrOID, *key, NULL,
+                                index_read_ext(be, mrTYPE, mrOID, *key, &txn,
                                                           err, &unindexed) :
                                 index_range_read (pb, be, mrTYPE, mrOID, mrOP,
-                                                  *key, NULL, 0, NULL, err);
+                                                  *key, NULL, 0, &txn, err);
                             if ( unindexed ) {
                                 unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
                                 slapi_pblock_set( glob_pb,
@@ -534,8 +543,11 @@ range_candidates(
     IDList *idl = NULL;
     struct berval *low = NULL, *high = NULL;
     struct berval **lows = NULL, **highs = NULL;
+    back_txn txn = {NULL};
 
     LDAPDebug(LDAP_DEBUG_TRACE, "=> range_candidates attr=%s\n", type, 0, 0);
+
+    slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
 
     if (low_val != NULL) {
         slapi_attr_assertion2keys_ava(sattr, low_val, &lows, LDAP_FILTER_EQUALITY);
@@ -562,15 +574,15 @@ range_candidates(
     if (low == NULL) {
         idl = index_range_read(pb, be, type, (char*)indextype_EQUALITY,
                                SLAPI_OP_LESS_OR_EQUAL,
-                               high, NULL, 0, NULL, err);
+                               high, NULL, 0, &txn, err);
     } else if (high == NULL) {
         idl = index_range_read(pb, be, type, (char*)indextype_EQUALITY,
                                SLAPI_OP_GREATER_OR_EQUAL,
-                               low, NULL, 0, NULL, err);
+                               low, NULL, 0, &txn, err);
     } else {
         idl = index_range_read(pb, be, type, (char*)indextype_EQUALITY,
                                SLAPI_OP_GREATER_OR_EQUAL,
-                               low, high, 1, NULL, err);
+                               low, high, 1, &txn, err);
     }
 
 done:
@@ -850,6 +862,7 @@ substring_candidates(
     int          unindexed = 0;
     unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
     Slapi_Attr   sattr;
+    back_txn     txn = {NULL};
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> sub_candidates\n", 0, 0, 0 );
 
@@ -878,7 +891,8 @@ substring_candidates(
      * look up each key in the index, ANDing the resulting
      * IDLists together.
      */
-    idl = keys2idl( be, type, indextype_SUB, ivals, err, &unindexed );
+    slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
+    idl = keys2idl( be, type, indextype_SUB, ivals, err, &unindexed, &txn );
     if ( unindexed ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         pagedresults_set_unindexed( pb->pb_conn );
@@ -897,7 +911,8 @@ keys2idl(
     const char  *indextype,
     Slapi_Value **ivals,
     int         *err,
-    int         *unindexed
+    int         *unindexed,
+    back_txn    *txn
 )
 {
     IDList    *idl;
@@ -909,7 +924,7 @@ keys2idl(
     for ( i = 0; ivals[i] != NULL; i++ ) {
         IDList    *idl2;
 
-        idl2 = index_read_ext( be, type, indextype, slapi_value_get_berval(ivals[i]), NULL, err, unindexed );
+        idl2 = index_read_ext( be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed );
 
 #ifdef LDAP_DEBUG
         /* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE ) { XXX */

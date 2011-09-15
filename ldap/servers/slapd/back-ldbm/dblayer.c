@@ -639,7 +639,7 @@ int dblayer_terminate(struct ldbminfo *li)
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
         if (NULL != inst->inst_db_mutex) {
-            PR_DestroyLock(inst->inst_db_mutex);
+            PR_DestroyMonitor(inst->inst_db_mutex);
             inst->inst_db_mutex = NULL;
         }
         if (NULL != inst->inst_handle_list_mutex) {
@@ -3564,7 +3564,7 @@ void dblayer_lock_backend(backend *be)
     PR_ASSERT(NULL != inst);
     
     if (NULL != inst->inst_db_mutex) {
-        PR_Lock(inst->inst_db_mutex);
+        PR_EnterMonitor(inst->inst_db_mutex);
     }
 }
 
@@ -3577,7 +3577,7 @@ void dblayer_unlock_backend(backend *be)
     PR_ASSERT(NULL != inst);
     
     if (NULL != inst->inst_db_mutex) {
-        PR_Unlock(inst->inst_db_mutex);
+        PR_ExitMonitor(inst->inst_db_mutex);
     }
 }
 

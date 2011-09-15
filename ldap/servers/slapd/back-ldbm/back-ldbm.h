@@ -729,8 +729,10 @@ typedef struct ldbm_instance {
                                        * parent of the instance name dir */
     char *inst_parent_dir_name;       /* Absolute parent dir for this inst */
 
-    PRLock *inst_db_mutex;            /* Used to synchronize modify operations
-                                       * on this instance. */
+    PRMonitor *inst_db_mutex;            /* Used to synchronize write operations
+                                          * on this instance - the monitor is re-entrant
+                                          * which allows plugins in the same transaction
+                                          * to share the lock */
 
     dblayer_handle *inst_handle_head; /* These are used to maintain a list */
     dblayer_handle *inst_handle_tail; /* of open db handles for this instance */

@@ -121,7 +121,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
 	slapi_pblock_get( pb, SLAPI_MANAGEDSAIT, &managedsait );
-	slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent_txn );
+	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
@@ -142,6 +142,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 	slapi_entry_delete_values( e, numsubordinates, NULL );
 
 	dblayer_txn_init(li,&txn);
+	/* the calls to get_copy_of_entry require the parent txn if any
+	   so set txn to the parent_txn until we begin the child transaction */
+	txn.back_txn_txn = parent_txn;
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,
@@ -354,7 +357,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		 */
 		addr.dn = addr.udn = NULL;
 		addr.uniqueid = (char *)slapi_entry_get_uniqueid(e); /* jcm - cast away const */
-		tombstoneentry = find_entry2modify( pb, be, &addr, NULL );
+		tombstoneentry = find_entry2modify( pb, be, &addr, &txn );
 		if ( tombstoneentry==NULL )
 		{
 			ldap_result_code= -1;
@@ -647,10 +650,13 @@ ldbm_back_add( Slapi_PBlock *pb )
  	 * So, we believe that no code up till here actually added anything
 	 * to persistent store. From now on, we're transacted
 	 */
-	
+	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		if (retry_count > 0) {
 			dblayer_txn_abort(li,&txn);
+			/* txn is no longer valid - reset slapi_txn to the parent */
+			txn.back_txn_txn = NULL;
+			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 			/* We're re-trying */
 			LDAPDebug( LDAP_DEBUG_TRACE, "Add Retrying Transaction\n", 0, 0, 0 );
 #ifndef LDBM_NO_BACKOFF_DELAY
@@ -672,8 +678,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 			goto error_return; 
 		}
 
-		/* stash the transaction */
-		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+		/* stash the transaction for plugins */
+		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 
 		/* call the transaction pre add plugins just after creating the transaction */
 		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN))) {
@@ -904,6 +910,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 	}
 
 	retval = dblayer_txn_commit(li,&txn);
+	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
+	txn.back_txn_txn = NULL;
+	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval)
 	{
 		ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -950,6 +959,9 @@ diskfull_return:
 		/* It is safer not to abort when the transaction is not started. */
 		if (retry_count > 0) {
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+			/* txn is no longer valid - reset the txn pointer to the parent */
+			txn.back_txn_txn = NULL;
+			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 		}
 		rc= SLAPI_FAIL_GENERAL;
 	}

@@ -625,9 +625,11 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	backend *be = bc->be;
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	int err;
+    back_txn txn = {NULL};
 
+    slapi_pblock_get(bc->pb, SLAPI_TXN, &txn.back_txn_txn);
 	*error = 1;
-	a = id2entry(be,*id_a,NULL,&err);
+	a = id2entry(be,*id_a,&txn,&err);
 	if (NULL == a) {
 		if (0 != err ) {
 			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries db err %d\n",err,0,0);
@@ -636,7 +638,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 		/* Best to log error and set some flag */
 		return 0;
 	}
-	b = id2entry(be,*id_b,NULL,&err);
+	b = id2entry(be,*id_b,&txn,&err);
 	if (NULL == b) {
 		if (0 != err ) {
 			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries db err %d\n",err,0,0);
