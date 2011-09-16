@@ -425,13 +425,43 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
 			/* Check that there are no verboten attributes in the exclude list */
-			denied_attrs = agmt_validate_replicated_attributes(agmt);
+			denied_attrs = agmt_validate_replicated_attributes(agmt, 0 /* incremental */);
 			if (denied_attrs)
 			{
 				/* Report the error to the client */
 				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "attempt to exclude an illegal attribute in a fractional agreement");
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                             "attempt to exclude an illegal attribute in a fractional agreement\n");
+
+				*returncode = LDAP_UNWILLING_TO_PERFORM;
+				rc = SLAPI_DSE_CALLBACK_ERROR;
+				/* Free the deny list if we got one */
+				slapi_ch_array_free(denied_attrs);
+				break;
+			}
+		}
+		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+					type_nsds5ReplicatedAttributeListTotal))
+		{
+			char **denied_attrs = NULL;
+			/* New set of excluded attributes */
+			if (agmt_set_replicated_attributes_total_from_entry(agmt, e) != 0)
+			{
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+								"failed to update total update replicated attributes for agreement %s\n",
+								agmt_get_long_name(agmt));
+				*returncode = LDAP_OPERATIONS_ERROR;
+				rc = SLAPI_DSE_CALLBACK_ERROR;
+			}
+			/* Check that there are no verboten attributes in the exclude list */
+			denied_attrs = agmt_validate_replicated_attributes(agmt, 1 /* total */);
+			if (denied_attrs)
+			{
+				/* Report the error to the client */
+				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "attempt to exclude an illegal total update "
+						"attribute in a fractional agreement");
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+						"attempt to exclude an illegal total update attribute in a fractional agreement\n");
 
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
 				rc = SLAPI_DSE_CALLBACK_ERROR;

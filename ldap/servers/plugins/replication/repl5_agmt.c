@@ -104,6 +104,7 @@ typedef struct repl5agmt {
 	int bindmethod; /* Bind method - simple, SSL */
 	Slapi_DN *replarea; /* DN of replicated area */
 	char **frac_attrs; /* list of fractional attributes to be replicated */
+	char **frac_attrs_total; /* list of fractional attributes to be replicated for total update protocol */
 	Schedule *schedule; /* Scheduling information */
 	int auto_initialize; /* 1 = automatically re-initialize replica */
 	const Slapi_DN *dn; /* DN of replication agreement entry */
@@ -159,7 +160,8 @@ nsds5ReplicaBindDN
 nsds5ReplicaCredentials
 nsds5ReplicaBindMethod - "SIMPLE" or "SSLCLIENTAUTH".
 nsds5ReplicaRoot - Replicated suffix
-nsds5ReplicatedAttributeList - Unused so far (meant for fractional repl).
+nsds5ReplicatedAttributeList - Fractional attrs for incremental update protocol (and total if not separately defined)
+nsds5ReplicatedAttributeListTotal - Fractional attrs for total update protocol
 nsds5ReplicaUpdateSchedule
 nsds5ReplicaTimeout - Outbound repl operations timeout
 nsds50ruv - consumer's RUV
@@ -402,13 +404,35 @@ agmt_new_from_entry(Slapi_Entry *e)
 						agmt_get_long_name(ra));
 	}
 	/* Check that there are no verboten attributes in the exclude list */
-	denied_attrs = agmt_validate_replicated_attributes(ra);
+	denied_attrs = agmt_validate_replicated_attributes(ra, 0 /* incremental */);
 	if (denied_attrs)
 	{
 		/* Report the error to the client */
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 						"WARNING: Attempt to exclude illegal attributes "
 						"from a fractional agreement\n");
+		/* Free the list */
+		slapi_ch_array_free(denied_attrs);
+		goto loser;
+	}
+
+	/* Total update fractional attributes */
+	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeListTotal, &sattr);
+	if (sattr && agmt_set_replicated_attributes_total_from_attr(ra, sattr) != 0)
+	{
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"agmtlist_add_callback: failed to parse total "
+						"update replicated attributes for agreement %s\n",
+						agmt_get_long_name(ra));
+	}
+	/* Check that there are no verboten attributes in the exclude list */
+	denied_attrs = agmt_validate_replicated_attributes(ra, 1 /* total */);
+	if (denied_attrs)
+	{
+		/* Report the error to the client */
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						"WARNING: Attempt to exclude illegal attributes "
+						"from a fractional agreement for total update protocol\n");
 		/* Free the list */
 		slapi_ch_array_free(denied_attrs);
 		goto loser;
@@ -438,7 +462,6 @@ loser:
 	agmt_delete((void **)&ra);
 	return NULL;
 }
-
 
 
 Repl_Agmt *
@@ -492,6 +515,7 @@ agmt_delete(void **rap)
 	slapi_ch_free((void **)&(ra->binddn));
 
 	slapi_ch_array_free(ra->frac_attrs);
+	slapi_ch_array_free(ra->frac_attrs_total);
 
 	if (NULL != ra->creds)
 	{
@@ -790,6 +814,23 @@ agmt_get_fractional_attrs(const Repl_Agmt *ra)
 	PR_Unlock(ra->lock);
 	return return_value;
 }
+
+/* Returns a COPY of the attr list, remember to free it */
+char **
+agmt_get_fractional_attrs_total(const Repl_Agmt *ra)
+{
+	char ** return_value = NULL;
+	PR_ASSERT(NULL != ra);
+	if (NULL == ra->frac_attrs_total)
+	{
+		return agmt_get_fractional_attrs(ra);
+	}
+	PR_Lock(ra->lock);
+	return_value = charray_dup(ra->frac_attrs_total);
+	PR_Unlock(ra->lock);
+	return return_value;
+}
+
 int
 agmt_is_fractional_attr(const Repl_Agmt *ra, const char *attrname)
 {
@@ -802,6 +843,21 @@ agmt_is_fractional_attr(const Repl_Agmt *ra, const char *attrname)
 	PR_Lock(ra->lock);
 	/* Scan the list looking for a match */
 	return_value = charray_inlist(ra->frac_attrs,(char*)attrname);
+	PR_Unlock(ra->lock);
+	return return_value;
+}
+
+int agmt_is_fractional_attr_total(const Repl_Agmt *ra, const char *attrname)
+{
+	int return_value;
+	PR_ASSERT(NULL != ra);
+	if (NULL == ra->frac_attrs_total)
+	{
+		return agmt_is_fractional_attr(ra, attrname);
+	}
+	PR_Lock(ra->lock);
+	/* Scan the list looking for a match */
+	return_value = charray_inlist(ra->frac_attrs_total,(char*)attrname);
 	PR_Unlock(ra->lock);
 	return return_value;
 }
@@ -1258,6 +1314,40 @@ agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 }
 
 /*
+ * Set or reset the set of total update replicated attributes.
+ *
+ * Returns 0 if DN set, or -1 if an error occurred.
+ */
+int
+agmt_set_replicated_attributes_total_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	Slapi_Attr *sattr = NULL;
+	int return_value = 0;
+
+	PR_ASSERT(NULL != ra);
+	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeListTotal, &sattr);
+	PR_Lock(ra->lock);
+	if (ra->frac_attrs_total)
+	{
+		slapi_ch_array_free(ra->frac_attrs_total);
+		ra->frac_attrs_total = NULL;
+	}
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			const char *val = slapi_value_get_string(sval);
+			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs_total));
+		}
+	}
+	PR_Unlock(ra->lock);
+	prot_notify_agmt_changed(ra->protocol, ra->long_name);
+	return return_value;
+}
+
+/*
  * Set or reset the set of replicated attributes.
  *
  * Returns 0 if DN set, or -1 if an error occurred.
@@ -1289,8 +1379,39 @@ agmt_set_replicated_attributes_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
 	return return_value;
 }
 
+/*
+ * Set or reset the set of total update replicated attributes.
+ *
+ * Returns 0 if DN set, or -1 if an error occurred.
+ */
+int
+agmt_set_replicated_attributes_total_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
+{
+	int return_value = 0;
+
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	if (ra->frac_attrs_total)
+	{
+		slapi_ch_array_free(ra->frac_attrs_total);
+		ra->frac_attrs_total = NULL;
+	}
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			const char *val = slapi_value_get_string(sval);
+			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs_total));
+		}
+	}
+	PR_Unlock(ra->lock);
+	return return_value;
+}
+
 char **
-agmt_validate_replicated_attributes(Repl_Agmt *ra)
+agmt_validate_replicated_attributes(Repl_Agmt *ra, int total)
 {
 	
 	static char* verbotten_attrs[] = {
@@ -1302,7 +1423,19 @@ agmt_validate_replicated_attributes(Repl_Agmt *ra)
 	};
 
 	char **retval = NULL;
-	char **frac_attrs = ra->frac_attrs;
+	char **frac_attrs = NULL;
+
+	/* If checking for total update, use the total attr list
+	 * if it exists.  If oen is not set, use the incremental
+	 * attr list. */
+	if (total && ra->frac_attrs_total)
+	{
+		frac_attrs = ra->frac_attrs_total;
+	}
+	else
+	{
+		frac_attrs = ra->frac_attrs;
+	}
 
 	/* Iterate over the frac attrs */
 	if (frac_attrs) 

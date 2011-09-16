@@ -120,6 +120,7 @@ const char *type_nsds5ReplicaCredentials = "nsds5ReplicaCredentials";
 const char *type_nsds5ReplicaBindMethod = "nsds5ReplicaBindMethod";
 const char *type_nsds5ReplicaRoot = "nsds5ReplicaRoot";
 const char *type_nsds5ReplicatedAttributeList = "nsds5ReplicatedAttributeList";
+const char *type_nsds5ReplicatedAttributeListTotal = "nsds5ReplicatedAttributeListTotal";
 const char *type_nsds5ReplicaUpdateSchedule = "nsds5ReplicaUpdateSchedule";
 const char *type_nsds5ReplicaInitialize = "nsds5BeginReplicaRefresh";
 const char *type_nsds5ReplicaTimeout = "nsds5ReplicaTimeout";
