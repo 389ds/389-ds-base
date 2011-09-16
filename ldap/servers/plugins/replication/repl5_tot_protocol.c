@@ -673,7 +673,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 
 	if (agmt_is_fractional(prp->agmt))
 	{
-		frac_excluded_attrs = agmt_get_fractional_attrs(prp->agmt);
+		frac_excluded_attrs = agmt_get_fractional_attrs_total(prp->agmt);
 	}
 
     /* convert the entry to the on the wire format */
