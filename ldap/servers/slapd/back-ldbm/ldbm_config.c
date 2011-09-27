@@ -1288,7 +1288,7 @@ void ldbm_config_setup_default(struct ldbminfo *li)
     char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
     
     for (config = ldbm_config; config->config_name != NULL; config++) {
-        ldbm_config_set((void *)li, config->config_name, ldbm_config, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */);
+        ldbm_config_set((void *)li, config->config_name, ldbm_config, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
     }
 }
 
@@ -1583,7 +1583,7 @@ int ldbm_config_ignored_attr(char *attr_name)
 }
 
 /* Returns LDAP_SUCCESS on success */
-int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod)
+int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op)
 {
     config_info *config;
     int use_default;
@@ -1617,20 +1617,25 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         return LDAP_UNWILLING_TO_PERFORM;
     }
     
-    /* If the config phase is initialization or if bval is NULL, we will use
-     * the default value for the attribute. */
-    if (CONFIG_PHASE_INITIALIZATION == phase || NULL == bval) {
+    /* If the config phase is initialization or if bval is NULL or if we are deleting
+       the value, we will use the default value for the attribute. */
+    if ((CONFIG_PHASE_INITIALIZATION == phase) || (NULL == bval) || SLAPI_IS_MOD_DELETE(mod_op)) {
         if (CONFIG_FLAG_SKIP_DEFAULT_SETTING & config->config_flags) {
             return LDAP_SUCCESS; /* Skipping the default config setting */
         }
         use_default = 1;
     } else {
         use_default = 0;
-        
-        /* Since we are setting the value for the config attribute, we
-         * need to turn on the CONFIG_FLAG_PREVIOUSLY_SET flag to make
-         * sure this attribute is shown. */
-        config->config_flags |= CONFIG_FLAG_PREVIOUSLY_SET;
+
+        /* cannot use mod add on a single valued attribute if the attribute was
+           previously set to a non-default value */
+        if (SLAPI_IS_MOD_ADD(mod_op) && apply_mod &&
+            (config->config_flags & CONFIG_FLAG_PREVIOUSLY_SET)) {
+            PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "cannot add a value to single valued attribute %s.\n",
+                        attr_name);
+            return LDAP_OBJECT_CLASS_VIOLATION;
+        }
     }
     
     switch(config->config_type) {
@@ -1745,6 +1750,20 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         retval = config->config_set_fn(arg, (void *) ((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     }
+
+    /* operation was successful and we applied the value? */
+    if (!retval && apply_mod) {
+        /* Since we are setting the value for the config attribute, we
+         * need to turn on the CONFIG_FLAG_PREVIOUSLY_SET flag to make
+         * sure this attribute is shown. */
+        if (use_default) {
+            /* attr deleted or we are using the default value */
+            config->config_flags &= ~CONFIG_FLAG_PREVIOUSLY_SET;
+        } else {
+            /* attr set explicitly */
+            config->config_flags |= CONFIG_FLAG_PREVIOUSLY_SET;
+        }
+    }
     
     return retval;
 }
@@ -1769,7 +1788,7 @@ static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_i
         slapi_attr_first_value(attr, &sval);
         bval = (struct berval *) slapi_value_get_berval(sval);
         
-        if (ldbm_config_set(li, attr_name, config_array, bval, err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */) != LDAP_SUCCESS) {
+        if (ldbm_config_set(li, attr_name, config_array, bval, err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
             LDAPDebug(LDAP_DEBUG_ANY, "Error with config attribute %s : %s\n", attr_name, err_buf, 0);
             return 1;
         }
@@ -1811,21 +1830,19 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
             if (ldbm_config_ignored_attr(attr_name)) {
                 continue;
             }
-            
-            if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) || 
-                SLAPI_IS_MOD_ADD(mods[i]->mod_op)) { 
-                rc= LDAP_UNWILLING_TO_PERFORM; 
-                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed", 
-                        (mods[i]->mod_op & LDAP_MOD_DELETE) ? "Deleting" : "Adding"); 
-            } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
-                /* This assumes there is only one bval for this mod. */
-                rc = ldbm_config_set((void *) li, attr_name, ldbm_config,
-                            ( mods[i]->mod_bvalues == NULL ) ? NULL
-                            : mods[i]->mod_bvalues[0], returntext,
-                            ((li->li_flags&LI_FORCE_MOD_CONFIG)?
-                            CONFIG_PHASE_INTERNAL:CONFIG_PHASE_RUNNING),
-                            apply_mod); 
-            } 
+
+            /* when deleting a value, and this is the last or only value, set
+               the config param to its default value
+               when adding a value, if the value is set to its default value, replace
+               it with the new value - otherwise, if it is single valued, reject the
+               operation with TYPE_OR_VALUE_EXISTS */
+            /* This assumes there is only one bval for this mod. */
+            rc = ldbm_config_set((void *) li, attr_name, ldbm_config,
+                                 ( mods[i]->mod_bvalues == NULL ) ? NULL
+                                 : mods[i]->mod_bvalues[0], returntext,
+                                 ((li->li_flags&LI_FORCE_MOD_CONFIG)?
+                                  CONFIG_PHASE_INTERNAL:CONFIG_PHASE_RUNNING),
+                                 apply_mod, mods[i]->mod_op); 
         } 
     } 
     
@@ -1853,7 +1870,8 @@ void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value)
     bval.bv_len = strlen(value);
     
     if (ldbm_config_set((void *) li, attrname, ldbm_config, &bval, 
-                        err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */) != LDAP_SUCCESS) {
+                        err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */,
+                        LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
         LDAPDebug(LDAP_DEBUG_ANY, 
                   "Internal Error: Error setting instance config attr %s to %s: %s\n", 
                   attrname, value, err_buf);
