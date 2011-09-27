@@ -163,7 +163,7 @@ struct config_info {
 int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, char *string2, char *string3, int flags);
 int ldbm_config_add_dse_entry(struct ldbminfo *li, char *entry, int flags);
 void ldbm_config_get(void *arg, config_info *config, char *buf);
-int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod);
+int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
 int ldbm_config_ignored_attr(char *attr_name);
 
 /* Functions in ldbm_instance_config.c used in ldbm_config.c */

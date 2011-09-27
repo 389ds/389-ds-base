@@ -303,7 +303,7 @@ ldbm_instance_config_setup_default(ldbm_instance *inst)
     char err_buf[BUFSIZ];
 
     for (config = ldbm_instance_config; config->config_name != NULL; config++) {
-        ldbm_config_set((void *)inst, config->config_name, ldbm_instance_config, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */);
+        ldbm_config_set((void *)inst, config->config_name, ldbm_instance_config, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
     }
 }
 
@@ -462,7 +462,7 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
         bval = (struct berval *) slapi_value_get_berval(sval);
 
         if (ldbm_config_set((void *) inst, attr_name, config_array, bval,
-            err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */) != LDAP_SUCCESS) {
+            err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
             LDAPDebug(LDAP_DEBUG_ANY, "Error with config attribute %s : %s\n",
                       attr_name, err_buf, 0);
             return 1;
@@ -788,18 +788,10 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
                 continue;
             }
 
-            if ((mods[i]->mod_op & LDAP_MOD_DELETE) || 
-                (mods[i]->mod_op & LDAP_MOD_ADD)) { 
-                rc= LDAP_UNWILLING_TO_PERFORM; 
-                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "%s attributes is not allowed", 
-                        (mods[i]->mod_op & LDAP_MOD_DELETE) ?
-                        "Deleting" : "Adding"); 
-            } else if (mods[i]->mod_op & LDAP_MOD_REPLACE) {
         /* This assumes there is only one bval for this mod. */
-                rc = ldbm_config_set((void *) inst, attr_name,
-                    ldbm_instance_config, mods[i]->mod_bvalues[0], returntext,
-                    CONFIG_PHASE_RUNNING, apply_mod);
-            }
+            rc = ldbm_config_set((void *) inst, attr_name,
+                ldbm_instance_config, mods[i]->mod_bvalues[0], returntext,
+                CONFIG_PHASE_RUNNING, apply_mod, mods[i]->mod_op);
         }
     }
 
@@ -827,7 +819,7 @@ ldbm_instance_config_internal_set(ldbm_instance *inst, char *attrname, char *val
     bval.bv_len = strlen(value);
 
     if (ldbm_config_set((void *) inst, attrname, ldbm_instance_config, &bval, 
-        err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */) != LDAP_SUCCESS) {
+        err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
         LDAPDebug(LDAP_DEBUG_ANY, 
             "Internal Error: Error setting instance config attr %s to %s: %s\n", 
             attrname, value, err_buf);
