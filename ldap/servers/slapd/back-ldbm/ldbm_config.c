@@ -1637,6 +1637,19 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
             return LDAP_OBJECT_CLASS_VIOLATION;
         }
     }
+
+    /* if delete, and a specific value was provided to delete, the existing value must
+       match that value, or return LDAP_NO_SUCH_ATTRIBUTE */
+    if (SLAPI_IS_MOD_DELETE(mod_op) && bval && bval->bv_len && bval->bv_val) {
+        char buf[BUFSIZ];
+        ldbm_config_get(arg, config, buf);
+        if (PL_strncmp(buf, bval->bv_val, bval->bv_len)) {
+            PR_snprintf(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "value [%s] for attribute %s does not match existing value [%s].\n",
+                        bval->bv_val, attr_name, buf);
+            return LDAP_NO_SUCH_ATTRIBUTE;
+        }
+    }
     
     switch(config->config_type) {
     case CONFIG_TYPE_INT:
