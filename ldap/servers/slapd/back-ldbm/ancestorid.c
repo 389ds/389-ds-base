@@ -643,7 +643,7 @@ static IDList *idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDL
     if (!idl_get_idl_new()) {
         if (a != NULL && b != NULL) {
             if (ALLIDS( a ) || ALLIDS( b ) || 
-                (IDL_NIDS(a) + IDL_NIDS(b) > idl_get_allidslimit(ai))) {
+                (IDL_NIDS(a) + IDL_NIDS(b) > idl_get_allidslimit(ai, 0))) {
                 return( idl_allids( be ) );
             }
         }
@@ -975,11 +975,12 @@ int ldbm_ancestorid_move_subtree(
     return ret;
 }
 
-int ldbm_ancestorid_read(
+int ldbm_ancestorid_read_ext(
     backend		*be,
     back_txn		*txn,
     ID			id,
-    IDList		**idl
+    IDList		**idl,
+    int         allidslimit
 )
 {
     int ret = 0;
@@ -989,8 +990,17 @@ int ldbm_ancestorid_read(
     bv.bv_val = keybuf;
     bv.bv_len = PR_snprintf(keybuf, sizeof(keybuf), "%lu", (u_long)id);
 
-    *idl = index_read(be, LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret);
+    *idl = index_read_ext_allids(be, LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret, NULL, allidslimit);
 
     return ret;
 }
 
+int ldbm_ancestorid_read(
+    backend		*be,
+    back_txn		*txn,
+    ID			id,
+    IDList		**idl
+)
+{
+    return ldbm_ancestorid_read_ext(be, txn, id, idl, 0);
+}

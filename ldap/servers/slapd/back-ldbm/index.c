@@ -811,16 +811,21 @@ index_read(
  * The unindexed flag can be used to distinguish between a
  * return of allids due to the attr not being indexed or
  * the value really being allids.
+ * You can pass in the value of the allidslimit (aka idlistscanlimit)
+ * with this version of the function
+ * if the value is 0, it will use the old method of getting the value
+ * from the attrinfo*.
  */
 IDList *
-index_read_ext(
+index_read_ext_allids(
     backend *be,
     char		*type,
     const char		*indextype,
     const struct berval	*val,
     back_txn		*txn,
     int			*err,
-    int			*unindexed
+    int			*unindexed,
+    int         allidslimit
 )
 {
 	DB		*db = NULL;
@@ -945,7 +950,7 @@ index_read_ext(
 	}
 	for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
 	  *err = NEW_IDL_DEFAULT;
-	  idl = idl_fetch( be, db, &key, db_txn, ai, err );
+	  idl = idl_fetch_ext( be, db, &key, db_txn, ai, err, allidslimit );
 	  if(*err == DB_LOCK_DEADLOCK) {
 	    ldbm_nasty("index read retrying transaction", 1045, *err);
 	    continue;
@@ -972,6 +977,20 @@ index_read_ext(
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= index_read %lu candidates\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
 	return( idl );
+}
+
+IDList *
+index_read_ext(
+    backend *be,
+    char		*type,
+    const char		*indextype,
+    const struct berval	*val,
+    back_txn		*txn,
+    int			*err,
+    int			*unindexed
+)
+{
+    return index_read_ext_allids(be, type, indextype, val, txn, err, unindexed, 0);
 }
 
 /* This function compares two index keys.  It is assumed
@@ -1101,7 +1120,7 @@ error:
 }
 
 IDList *
-index_range_read(
+index_range_read_ext(
     Slapi_PBlock *pb,
     backend *be,
     char            *type,
@@ -1111,7 +1130,8 @@ index_range_read(
     struct berval   *nextval,
     int             range,
     back_txn        *txn,
-    int             *err
+    int             *err,
+    int             allidslimit
 )
 {
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
@@ -1427,7 +1447,7 @@ index_range_read(
         cur_key.flags = 0;
         for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
           *err = NEW_IDL_DEFAULT;
-          tmp = idl_fetch( be, db, &cur_key, NULL, ai, err );
+          tmp = idl_fetch_ext( be, db, &cur_key, NULL, ai, err, allidslimit );
           if(*err == DB_LOCK_DEADLOCK) {
             ldbm_nasty("index_range_read retrying transaction", 1090, *err);
             continue;
@@ -1492,6 +1512,23 @@ error:
     LDAPDebug( LDAP_DEBUG_TRACE, "<= index_range_read(%s,%s) %lu candidates\n",
                    type, prefix, (u_long)IDL_NIDS(idl) );
     return( idl );
+}
+
+IDList *
+index_range_read(
+    Slapi_PBlock *pb,
+    backend *be,
+    char            *type,
+    const char      *indextype,
+    int             operator,
+    struct berval   *val,
+    struct berval   *nextval,
+    int             range,
+    back_txn        *txn,
+    int             *err
+)
+{
+    return index_range_read_ext(pb, be, type, indextype, operator, val, nextval, range, txn, err, 0);
 }
 
 /* DBDB: this function is never actually called */

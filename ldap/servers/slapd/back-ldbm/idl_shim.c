@@ -62,8 +62,8 @@ void idl_new_set_tune(int val);
 int idl_new_get_tune();
 int idl_new_init_private(backend *be, struct attrinfo *a);
 int idl_new_release_private(struct attrinfo *a);
-size_t idl_new_get_allidslimit(struct attrinfo *a);
-IDList * idl_new_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err );
+size_t idl_new_get_allidslimit(struct attrinfo *a, int allidslimit);
+IDList * idl_new_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit );
 int idl_new_insert_key( backend *be, DB* db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a,int *disposition );
 int idl_new_delete_key( backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a );
 int idl_new_store_block( backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,struct attrinfo *a);
@@ -115,22 +115,27 @@ int idl_release_private(struct attrinfo *a)
 	}
 }
 
-size_t idl_get_allidslimit(struct attrinfo *a)
+size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit)
 {
 	if (idl_new) {
-		return idl_new_get_allidslimit(a);
+		return idl_new_get_allidslimit(a, allidslimit);
 	} else {
 		return idl_old_get_allidslimit(a);
 	}
 }
 
-IDList * idl_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err )
+IDList * idl_fetch_ext( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit )
 {
 	if (idl_new) {
-		return idl_new_fetch(be,db,key,txn,a,err);
+		return idl_new_fetch(be,db,key,txn,a,err,allidslimit);
 	} else {
 		return idl_old_fetch(be,db,key,txn,a,err);
 	}
+}
+
+IDList * idl_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err )
+{
+    return idl_fetch_ext(be, db, key, txn, a, err, 0);
 }
 
 int idl_insert_key( backend *be, DB* db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a,int *disposition )

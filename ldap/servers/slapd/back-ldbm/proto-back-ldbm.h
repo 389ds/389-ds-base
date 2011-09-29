@@ -198,6 +198,7 @@ struct backentry * uniqueid2entry(backend *be, const char *uniqueid,
  * filterindex.c
  */
 IDList * filter_candidates( Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *f, Slapi_Filter *nextf, int range, int *err );
+IDList * filter_candidates_ext( Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *f, Slapi_Filter *nextf, int range, int *err, int allidslimit );
 
 /*
  * findentry.c
@@ -242,6 +243,7 @@ void idl_insert(IDList **idl, ID id);
 int idl_delete( IDList **idl, ID id );
 IDList * idl_allids( backend *be );
 IDList * idl_fetch( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err );
+IDList * idl_fetch_ext( backend *be, DB* db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit );
 int idl_insert_key( backend *be, DB* db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a,int *disposition );
 int idl_delete_key( backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a );
 IDList * idl_intersection( backend *be, IDList *a, IDList *b );
@@ -262,7 +264,7 @@ size_t idl_sizeof(IDList *idl);
 int idl_store_block(backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,struct attrinfo *a);
 void idl_set_tune(int val);
 int idl_get_tune();
-size_t idl_get_allidslimit(struct attrinfo *a);
+size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit);
 int idl_get_idl_new();
 int idl_new_compare_dups(
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
@@ -284,7 +286,9 @@ int id_array_init(Id_Array *new_guy, int size);
 
 IDList* index_read( backend *be, char *type, const char* indextype, const struct berval* val, back_txn *txn, int *err );
 IDList* index_read_ext( backend *be, char *type, const char* indextype, const struct berval* val, back_txn *txn, int *err, int *unindexed );
+IDList* index_read_ext_allids( backend *be, char *type, const char* indextype, const struct berval* val, back_txn *txn, int *err, int *unindexed, int allidslimit );
 IDList* index_range_read( Slapi_PBlock *pb, backend *be, char *type, const char* indextype, int ftype, struct berval* val, struct berval* nextval, int range, back_txn *txn, int *err );
+IDList* index_range_read_ext( Slapi_PBlock *pb, backend *be, char *type, const char* indextype, int ftype, struct berval* val, struct berval* nextval, int range, back_txn *txn, int *err, int allidslimit );
 const char *encode( const struct berval* data, char buf[BUFSIZ] );
 
 extern const char* indextype_PRESENCE;
@@ -566,6 +570,7 @@ IDList* subtree_candidates(Slapi_PBlock *pb, backend *be, const char *base, cons
 void search_set_tune(struct ldbminfo *li,int val);
 int search_get_tune(struct ldbminfo *li);
 int compute_lookthrough_limit( Slapi_PBlock *pb, struct ldbminfo *li );
+int compute_allids_limit( Slapi_PBlock *pb, struct ldbminfo *li );
 
 
 /*
@@ -635,6 +640,7 @@ void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li);
 int ldbm_ancestorid_create_index(backend *be);
 int ldbm_ancestorid_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int ldbm_ancestorid_read(backend *be, back_txn *txn, ID id, IDList **idl);
+int ldbm_ancestorid_read_ext(backend *be, back_txn *txn, ID id, IDList **idl, int allidslimit);
 int ldbm_ancestorid_move_subtree(
     backend        *be,
     const Slapi_DN    *olddn,

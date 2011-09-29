@@ -81,7 +81,17 @@ ldbm_back_start( Slapi_PBlock *pb )
   if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             LDBM_LOOKTHROUGHLIMIT_AT, &li->li_reslimit_lookthrough_handle )
             != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      LDAPDebug( LDAP_DEBUG_ANY, "start: Resource limit registration failed\n",
+      LDAPDebug( LDAP_DEBUG_ANY, "start: Resource limit registration failed for lookthroughlimit\n",
+            0, 0, 0 );
+      return SLAPI_FAIL_GENERAL;
+  }
+
+  /* register with the binder-based resource limit subsystem so that    */
+  /* allidslimit (aka idlistscanlimit) can be supported on a per-connection basis.        */
+  if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
+            LDBM_ALLIDSLIMIT_AT, &li->li_reslimit_allids_handle )
+            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+      LDAPDebug( LDAP_DEBUG_ANY, "start: Resource limit registration failed for allidslimit\n",
             0, 0, 0 );
       return SLAPI_FAIL_GENERAL;
   }

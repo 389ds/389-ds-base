@@ -1931,7 +1931,7 @@ foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_ai)
 
             if (idl_disposition == IDL_INSERT_NOW_ALLIDS) {
                 import_subcount_mother_init(job->mothers, parent_id,
-                    idl_get_allidslimit(parentid_ai)+1);
+                    idl_get_allidslimit(parentid_ai, 0)+1);
             } else if (idl_disposition == IDL_INSERT_ALLIDS) {
                 import_subcount_mother_count(job->mothers, parent_id);
             }

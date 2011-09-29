@@ -634,6 +634,7 @@ struct ldbminfo {
     int li_fat_lock;         /* 608146 -- make this configurable, first */
     int li_legacy_errcode;   /* 615428 -- in case legacy err code is expected */
     Slapi_Counter *li_global_usn_counter; /* global USN counter */
+    int             li_reslimit_allids_handle; /* allids aka idlistscan */
 };
 
 /* li_flags could store these bits defined in ../slapi-plugin.h
@@ -799,6 +800,8 @@ typedef struct _back_search_result_set
 
 /* Name of attribute type used for binder-based look through limit */
 #define LDBM_LOOKTHROUGHLIMIT_AT	"nsLookThroughLimit"
+/* Name of attribute type used for binder-based look through limit */
+#define LDBM_ALLIDSLIMIT_AT	"nsIDListScanLimit"
 
 /* OIDs for attribute types used internally */
 #define LDBM_ENTRYDN_OID			"2.16.840.1.113730.3.1.602"
