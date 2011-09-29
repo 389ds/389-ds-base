@@ -96,6 +96,26 @@ compute_lookthrough_limit( Slapi_PBlock *pb, struct ldbminfo *li )
     return( limit );
 }
 
+int
+compute_allids_limit( Slapi_PBlock *pb, struct ldbminfo *li )
+{
+    Slapi_Connection    *conn = NULL;
+    int                 limit;
+
+    slapi_pblock_get( pb, SLAPI_CONNECTION, &conn);
+
+    if ( slapi_reslimit_get_integer_limit( conn,
+            li->li_reslimit_allids_handle, &limit )
+            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+        PR_Lock(li->li_config_mutex);
+        limit = li->li_allidsthreshold;
+        PR_Unlock(li->li_config_mutex);
+    }
+
+    return( limit );
+}
+
+
 /* don't free the berval, just clean it */
 static void
 berval_done(struct berval *val)
@@ -962,12 +982,14 @@ subtree_candidates(
     IDList *candidates;
     PRBool has_tombstone_filter;
     int isroot = 0;
+    struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
+    int allidslimit = compute_allids_limit(pb, li);
 
     /* make (|(originalfilter)(objectclass=referral)) */
     ftop= create_subtree_filter(filter, managedsait, &focref, &forr);
 
     /* Fetch a candidate list for the original filter */
-    candidates = filter_candidates( pb, be, base, ftop, NULL, 0, err );
+    candidates = filter_candidates_ext( pb, be, base, ftop, NULL, 0, err, allidslimit );
     slapi_filter_free( forr, 0 );
     slapi_filter_free( focref, 0 );
 
@@ -1000,7 +1022,7 @@ subtree_candidates(
             idl_free(tmp);
             idl_free(descendants);
         } else if (!has_tombstone_filter) {
-            *err = ldbm_ancestorid_read(be, &txn, e->ep_id, &descendants);
+            *err = ldbm_ancestorid_read_ext(be, &txn, e->ep_id, &descendants, allidslimit);
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(tmp);

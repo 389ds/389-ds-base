@@ -102,17 +102,28 @@ int idl_new_get_tune() {
   return idl_tune;
 }
 
-size_t idl_new_get_allidslimit(struct attrinfo *a)
+size_t idl_new_get_allidslimit(struct attrinfo *a, int allidslimit)
 {
     idl_private *priv = NULL;
+
+    if (allidslimit) {
+        return (size_t)allidslimit;
+    }
 
     PR_ASSERT(NULL != a);
     PR_ASSERT(NULL != a->ai_idl);
 
     priv = a->ai_idl;
-
+    
     return priv->idl_allidslimit;
 }
+
+int idl_new_exceeds_allidslimit(size_t count, struct attrinfo *a, int allidslimit)
+{
+    size_t limit = idl_new_get_allidslimit(a, allidslimit);
+    return (limit != (size_t)-1) && (count > limit);
+}
+
 
 /* routine to initialize the private data used by the IDL code per-attribute */
 int idl_new_init_private(backend *be,struct attrinfo *a)
@@ -127,7 +138,7 @@ int idl_new_init_private(backend *be,struct attrinfo *a)
 	if (NULL == priv) {
 		return -1; /* Memory allocation failure */
 	}
-	priv->idl_allidslimit = li->li_allidsthreshold;
+	priv->idl_allidslimit = (size_t)li->li_allidsthreshold;
 	/* Initialize the structure */
 	a->ai_idl = (void*)priv;
 	return 0;
@@ -150,7 +161,8 @@ IDList * idl_new_fetch(
     DBT *inkey, 
     DB_TXN *txn, 
     struct attrinfo *a, 
-    int *flag_err
+    int *flag_err,
+    int allidslimit
 )
 {
     int ret = 0;
@@ -261,7 +273,7 @@ IDList * idl_new_fetch(
 #if defined(DB_ALLIDS_ON_READ)	
 		/* enforce the allids read limit */
 		if (NEW_IDL_NO_ALLID != *flag_err &&
-			NULL != a && count > idl_new_get_allidslimit(a)) {
+			NULL != a && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
 			idl->b_nids = 1;
 			idl->b_ids[0] = ALLID;
 			ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
@@ -289,7 +301,7 @@ IDList * idl_new_fetch(
         }
 #if defined(DB_ALLIDS_ON_READ)	
 		/* enforce the allids read limit */
-		if (count > idl_new_get_allidslimit(a)) {
+		if (idl_new_exceeds_allidslimit(count, a, allidslimit)) {
 			idl->b_nids = 1;
 			idl->b_ids[0] = ALLID;
 			ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
@@ -392,7 +404,7 @@ int idl_new_insert_key(
                       key->data, 0, 0);
             goto error;
         }
-        if ((size_t)count > idl_new_get_allidslimit(a)) {
+        if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
             LDAPDebug(LDAP_DEBUG_TRACE, "allidslimit exceeded for key %s\n",
                       key->data, 0, 0);
             cursor->c_close(cursor);
@@ -589,7 +601,7 @@ int idl_new_store_block(
 	
 #if defined(DB_ALLIDS_ON_WRITE)
     /* allids check on input idl */
-    if (ALLIDS(idl) || (idl->b_nids > (ID)idl_new_get_allidslimit(a))) {
+    if (ALLIDS(idl) || (idl->b_nids > (ID)idl_new_get_allidslimit(a, 0))) {
         return idl_new_store_allids(be, db, key, txn);
     }
 #endif
@@ -638,7 +650,7 @@ int idl_new_store_block(
                   key->data, 0, 0);
         goto error;
     }
-    if ((size_t)count > idl_new_get_allidslimit(a)) {
+    if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
         LDAPDebug(LDAP_DEBUG_TRACE, "allidslimit exceeded for key %s\n",
                   key->data, 0, 0);
         cursor->c_close(cursor);

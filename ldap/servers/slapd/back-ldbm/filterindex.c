@@ -50,11 +50,11 @@ extern const char *indextype_EQUALITY;
 extern const char *indextype_APPROX;
 extern const char *indextype_SUB;
 
-static IDList    *ava_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int ftype, Slapi_Filter *nextf, int range, int *err);
-static IDList    *presence_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err);
-static IDList    *extensible_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err);
-static IDList    *list_candidates(Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *flist, int ftype, int *err);
-static IDList    *substring_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err);
+static IDList    *ava_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int ftype, Slapi_Filter *nextf, int range, int *err, int allidslimit);
+static IDList    *presence_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err, int allidslimit);
+static IDList    *extensible_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err, int allidslimit);
+static IDList    *list_candidates(Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *flist, int ftype, int *err, int allidslimit);
+static IDList    *substring_candidates(Slapi_PBlock *pb, backend *be, Slapi_Filter *f, int *err, int allidslimit);
 static IDList * range_candidates(
     Slapi_PBlock *pb,
     backend *be,
@@ -62,7 +62,8 @@ static IDList * range_candidates(
     struct berval *low_val,
     struct berval *high_val,
     int *err,
-    const Slapi_Attr *sattr
+    const Slapi_Attr *sattr,
+    int allidslimit
 );
 static IDList *
 keys2idl(
@@ -72,18 +73,20 @@ keys2idl(
     Slapi_Value **ivals,
     int         *err,
     int         *unindexed,
-    back_txn    *txn
+    back_txn    *txn,
+    int allidslimit
 );
 
 IDList *
-filter_candidates(
+filter_candidates_ext(
     Slapi_PBlock *pb,
     backend      *be,
     const char   *base,
     Slapi_Filter *f,
     Slapi_Filter *nextf,
     int          range,
-    int          *err
+    int          *err,
+    int          allidslimit
 )
 {
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
@@ -91,7 +94,11 @@ filter_candidates(
     int             ftype;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> filter_candidates\n", 0, 0, 0 );
-    
+
+    if (!allidslimit) {
+        allidslimit = compute_allids_limit(pb, li);
+    }
+
     /* check if this is to be serviced by a virtual index */
     if(INDEX_FILTER_EVALUTED == index_subsys_evaluate_filter(f, (Slapi_DN*)slapi_be_getsuffix(be, 0), (IndexEntryList**)&result))
     {
@@ -119,50 +126,50 @@ filter_candidates(
     switch ( (ftype = slapi_filter_get_choice( f )) ) {
     case LDAP_FILTER_EQUALITY:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tEQUALITY\n", 0, 0, 0 );
-        result = ava_candidates( pb, be, f, LDAP_FILTER_EQUALITY, nextf, range, err );
+        result = ava_candidates( pb, be, f, LDAP_FILTER_EQUALITY, nextf, range, err, allidslimit );
         break;
 
     case LDAP_FILTER_SUBSTRINGS:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tSUBSTRINGS\n", 0, 0, 0 );
-        result = substring_candidates( pb, be, f, err );
+        result = substring_candidates( pb, be, f, err, allidslimit );
         break;
 
     case LDAP_FILTER_GE:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tGE\n", 0, 0, 0 );
         result = ava_candidates( pb, be, f, LDAP_FILTER_GE, nextf, range,
-            err );
+            err, allidslimit );
         break;
 
     case LDAP_FILTER_LE:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tLE\n", 0, 0, 0 );
         result = ava_candidates( pb, be, f, LDAP_FILTER_LE, nextf, range,
-            err );
+            err, allidslimit );
         break;
 
     case LDAP_FILTER_PRESENT:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tPRESENT\n", 0, 0, 0 );
-        result = presence_candidates( pb, be, f, err );
+        result = presence_candidates( pb, be, f, err, allidslimit );
         break;
 
     case LDAP_FILTER_APPROX:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tAPPROX\n", 0, 0, 0 );
         result = ava_candidates( pb, be, f, LDAP_FILTER_APPROX, nextf,
-            range, err );
+            range, err, allidslimit );
         break;
 
     case LDAP_FILTER_EXTENDED:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tEXTENSIBLE\n", 0, 0, 0 );
-        result = extensible_candidates( pb, be, f, err );
+        result = extensible_candidates( pb, be, f, err, allidslimit );
         break;
 
     case LDAP_FILTER_AND:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tAND\n", 0, 0, 0 );
-        result = list_candidates( pb, be, base, f, LDAP_FILTER_AND, err );
+        result = list_candidates( pb, be, base, f, LDAP_FILTER_AND, err, allidslimit );
         break;
 
     case LDAP_FILTER_OR:
         LDAPDebug( LDAP_DEBUG_FILTER, "\tOR\n", 0, 0, 0 );
-        result = list_candidates( pb, be, base, f, LDAP_FILTER_OR, err );
+        result = list_candidates( pb, be, base, f, LDAP_FILTER_OR, err, allidslimit );
         break;
 
     case LDAP_FILTER_NOT:
@@ -182,6 +189,20 @@ filter_candidates(
     return( result );
 }
 
+IDList *
+filter_candidates(
+    Slapi_PBlock *pb,
+    backend      *be,
+    const char   *base,
+    Slapi_Filter *f,
+    Slapi_Filter *nextf,
+    int          range,
+    int          *err
+)
+{
+    return filter_candidates_ext(pb, be, base, f, nextf, range, err, 0);
+}
+
 static IDList *
 ava_candidates(
     Slapi_PBlock *pb,
@@ -190,7 +211,8 @@ ava_candidates(
     int             ftype,
     Slapi_Filter *nextf,
     int             range,
-    int             *err
+    int             *err,
+    int             allidslimit
 )
 {
     char          *type, *indextype = NULL;
@@ -238,13 +260,13 @@ ava_candidates(
 
     switch ( ftype ) {
         case LDAP_FILTER_GE:
-            idl = range_candidates(pb, be, type, bval, NULL, err, &sattr);
+            idl = range_candidates(pb, be, type, bval, NULL, err, &sattr, allidslimit);
             LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
                        (u_long)IDL_NIDS(idl), 0, 0 );
             goto done;
             break;
         case LDAP_FILTER_LE:
-            idl = range_candidates(pb, be, type, NULL, bval, err, &sattr);
+            idl = range_candidates(pb, be, type, NULL, bval, err, &sattr, allidslimit);
             LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
                        (u_long)IDL_NIDS(idl), 0, 0 );
             goto done;
@@ -288,7 +310,7 @@ ava_candidates(
         ivals=ptr;
 
         slapi_attr_assertion2keys_ava_sv( &sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
-        idl = keys2idl( be, type, indextype, ivals, err, &unindexed, &txn );
+        idl = keys2idl( be, type, indextype, ivals, err, &unindexed, &txn, allidslimit );
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
@@ -320,7 +342,7 @@ ava_candidates(
             idl = idl_allids( be );
             goto done;
         }
-        idl = keys2idl( be, type, indextype, ivals, err, &unindexed, &txn );
+        idl = keys2idl( be, type, indextype, ivals, err, &unindexed, &txn, allidslimit );
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
@@ -340,7 +362,8 @@ presence_candidates(
     Slapi_PBlock    *pb,
     backend *be,
     Slapi_Filter    *f,
-    int            *err
+    int            *err,
+    int            allidslimit
 )
 {
     char    *type;
@@ -356,8 +379,8 @@ presence_candidates(
         return( NULL );
     }
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-    idl = index_read_ext( be, type, indextype_PRESENCE,
-                          NULL, &txn, err, &unindexed );
+    idl = index_read_ext_allids( be, type, indextype_PRESENCE,
+                                 NULL, &txn, err, &unindexed, allidslimit );
 
     if ( unindexed ) {
         unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
@@ -371,9 +394,9 @@ presence_candidates(
                       "fallback to eq index as pres index gave allids\n", 
                       0, 0, 0);
         idl_free(idl);
-        idl = index_range_read(pb, be, type, indextype_EQUALITY,
+        idl = index_range_read_ext(pb, be, type, indextype_EQUALITY,
                                    SLAPI_OP_GREATER_OR_EQUAL,
-                                   NULL, NULL, 0, &txn, err);
+                                   NULL, NULL, 0, &txn, err, allidslimit);
     }
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= presence_candidates %lu\n",
@@ -386,7 +409,8 @@ extensible_candidates(
     Slapi_PBlock *glob_pb, 
     backend       *be,
     Slapi_Filter  *f,
-    int           *err
+    int           *err,
+    int           allidslimit
 )
 {
     IDList* idl = NULL;
@@ -462,10 +486,10 @@ extensible_candidates(
                         {
                             int unindexed = 0;
                             IDList* idl3 = (mrOP == SLAPI_OP_EQUAL) ?
-                                index_read_ext(be, mrTYPE, mrOID, *key, &txn,
-                                                          err, &unindexed) :
-                                index_range_read (pb, be, mrTYPE, mrOID, mrOP,
-                                                  *key, NULL, 0, &txn, err);
+                                index_read_ext_allids(be, mrTYPE, mrOID, *key, &txn,
+                                                      err, &unindexed, allidslimit) :
+                                index_range_read_ext(pb, be, mrTYPE, mrOID, mrOP,
+                                                     *key, NULL, 0, &txn, err, allidslimit);
                             if ( unindexed ) {
                                 unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
                                 slapi_pblock_set( glob_pb,
@@ -537,7 +561,8 @@ range_candidates(
     struct berval *low_val,
     struct berval *high_val,
     int *err,
-    const Slapi_Attr *sattr
+    const Slapi_Attr *sattr,
+    int allidslimit
 )
 {
     IDList *idl = NULL;
@@ -572,17 +597,17 @@ range_candidates(
     }
 
     if (low == NULL) {
-        idl = index_range_read(pb, be, type, (char*)indextype_EQUALITY,
-                               SLAPI_OP_LESS_OR_EQUAL,
-                               high, NULL, 0, &txn, err);
+        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY,
+                                   SLAPI_OP_LESS_OR_EQUAL,
+                                   high, NULL, 0, &txn, err, allidslimit);
     } else if (high == NULL) {
-        idl = index_range_read(pb, be, type, (char*)indextype_EQUALITY,
-                               SLAPI_OP_GREATER_OR_EQUAL,
-                               low, NULL, 0, &txn, err);
+        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY,
+                                   SLAPI_OP_GREATER_OR_EQUAL,
+                                   low, NULL, 0, &txn, err, allidslimit);
     } else {
-        idl = index_range_read(pb, be, type, (char*)indextype_EQUALITY,
-                               SLAPI_OP_GREATER_OR_EQUAL,
-                               low, high, 1, &txn, err);
+        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY,
+                                   SLAPI_OP_GREATER_OR_EQUAL,
+                                   low, high, 1, &txn, err, allidslimit);
     }
 
 done:
@@ -602,7 +627,8 @@ list_candidates(
     const char    *base,
     Slapi_Filter  *flist,
     int           ftype,
-    int           *err
+    int           *err,
+    int           allidslimit
 )
 {
     IDList        *idl, *tmp, *tmp2;
@@ -712,7 +738,7 @@ list_candidates(
         Slapi_Attr sattr;
 
         slapi_attr_init(&sattr, tpairs[0]);
-        idl = range_candidates(pb, be, tpairs[0], vpairs[0], vpairs[1], err, &sattr);
+        idl = range_candidates(pb, be, tpairs[0], vpairs[0], vpairs[1], err, &sattr, allidslimit);
         attr_done(&sattr);
         LDAPDebug( LDAP_DEBUG_TRACE, "<= list_candidates %lu\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
@@ -741,7 +767,7 @@ list_candidates(
             /* Fetch the IDL for foo */
             /* Later we'll remember to call idl_notin() */
             LDAPDebug( LDAP_DEBUG_TRACE,"NOT filter\n", 0, 0, 0 );
-            tmp = ava_candidates( pb, be, slapi_filter_list_first(f), LDAP_FILTER_EQUALITY, nextf, range, err );
+            tmp = ava_candidates( pb, be, slapi_filter_list_first(f), LDAP_FILTER_EQUALITY, nextf, range, err, allidslimit );
         } else {
             if (fpairs[0] == f)
             {
@@ -753,7 +779,7 @@ list_candidates(
 
                 slapi_attr_init(&sattr, tpairs[0]);
                 tmp = range_candidates(pb, be, tpairs[0],
-                                       vpairs[0], vpairs[1], err, &sattr);
+                                       vpairs[0], vpairs[1], err, &sattr, allidslimit);
                 attr_done(&sattr);
                 if (tmp == NULL && ftype == LDAP_FILTER_AND)
                 {
@@ -765,7 +791,7 @@ list_candidates(
                 }
             }
             /* Proceed as normal */
-            else if ( (tmp = filter_candidates( pb, be, base, f, nextf, range, err ))
+            else if ( (tmp = filter_candidates_ext( pb, be, base, f, nextf, range, err, allidslimit ))
                 == NULL && ftype == LDAP_FILTER_AND ) {
                     LDAPDebug( LDAP_DEBUG_TRACE,
                         "<= list_candidates NULL\n", 0, 0, 0 );
@@ -802,9 +828,7 @@ list_candidates(
                 break;
         } else {
             Slapi_Operation *operation;
-            struct ldbminfo *li;
             slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
-            slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 
             idl = idl_union( be, idl, tmp );
             idl_free( tmp );
@@ -812,13 +836,11 @@ list_candidates(
             /* stop if we're already committed to an exhaustive
              * search. :(
              */
-            /* PAGED RESULTS: if not Directory Manager, we strictly limit
-             *                the idlist size by the lookthrough limit.
+            /* PAGED RESULTS: we strictly limit the idlist size by the allids (aka idlistscan) limit.
              */
             if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
                 int nids = IDL_NIDS(idl);
-                int lookthroughlimits = compute_lookthrough_limit( pb, li );
-                if ( lookthroughlimits > 0 && nids > lookthroughlimits ) {
+                if ( allidslimit > 0 && nids > allidslimit ) {
                     idl_free( idl );
                     idl = idl_allids( be );
                 }
@@ -852,7 +874,8 @@ substring_candidates(
     Slapi_PBlock    *pb,
     backend *be,
     Slapi_Filter    *f,
-    int            *err
+    int            *err,
+    int            allidslimit
 )
 {
     char         *type, *initial, *final;
@@ -892,7 +915,7 @@ substring_candidates(
      * IDLists together.
      */
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-    idl = keys2idl( be, type, indextype_SUB, ivals, err, &unindexed, &txn );
+    idl = keys2idl( be, type, indextype_SUB, ivals, err, &unindexed, &txn, allidslimit );
     if ( unindexed ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         pagedresults_set_unindexed( pb->pb_conn );
@@ -912,7 +935,8 @@ keys2idl(
     Slapi_Value **ivals,
     int         *err,
     int         *unindexed,
-    back_txn    *txn
+    back_txn    *txn,
+    int         allidslimit
 )
 {
     IDList    *idl;
@@ -924,7 +948,7 @@ keys2idl(
     for ( i = 0; ivals[i] != NULL; i++ ) {
         IDList    *idl2;
 
-        idl2 = index_read_ext( be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed );
+        idl2 = index_read_ext_allids( be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit );
 
 #ifdef LDAP_DEBUG
         /* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE ) { XXX */
