@@ -74,6 +74,7 @@ be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, i
                        "plugin %s, instance %s\n", type, name);
     }
     be->be_sizelimit = sizelimit;
+    be->be_pagedsizelimit = config_get_pagedsizelimit();
     be->be_timelimit = timelimit;
     /* maximum group nesting level before giving up */
     be->be_maxnestlevel = SLAPD_DEFAULT_GROUPNESTLEVEL;
@@ -580,6 +581,11 @@ void be_set_sizelimit(Slapi_Backend * be, int sizelimit)
 void be_set_timelimit(Slapi_Backend * be, int timelimit)
 {
         be->be_timelimit = timelimit;
+}
+
+void be_set_pagedsizelimit(Slapi_Backend * be, int sizelimit)
+{
+        be->be_pagedsizelimit = sizelimit;
 }
 
 int
