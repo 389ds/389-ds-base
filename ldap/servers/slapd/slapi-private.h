@@ -655,6 +655,7 @@ typedef struct index_config
 }IndexConfig;
 
 void be_set_sizelimit(Slapi_Backend * be, int sizelimit);
+void be_set_pagedsizelimit(Slapi_Backend * be, int sizelimit);
 void be_set_timelimit(Slapi_Backend * be, int timelimit);
 int be_isdeleted( const Slapi_Backend *be );
 

@@ -1355,6 +1355,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
 
 static int        timelimit_reslimit_handle = -1;
 static int        sizelimit_reslimit_handle = -1;
+static int        pagedsizelimit_reslimit_handle = -1;
 
 /*
  * Register size and time limit with the binder-based resource limits
@@ -1363,18 +1364,17 @@ static int        sizelimit_reslimit_handle = -1;
 int
 search_register_reslimits( void )
 {
-    int        rc1, rc2;
+    int        rc1, rc2, rc3;
 
     rc1 = slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             "nsSizeLimit" , &sizelimit_reslimit_handle );
     rc2 = slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             "nsTimeLimit", &timelimit_reslimit_handle );
+    rc3 = slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
+            "nsPagedSizeLimit", &pagedsizelimit_reslimit_handle );
 
-    if ( rc1 != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-        return( rc1 );
-    } else {
-        return( rc2 );
-    }
+    return (rc1 != SLAPI_RESLIMIT_STATUS_SUCCESS) ? rc1 :
+        ((rc2 != SLAPI_RESLIMIT_STATUS_SUCCESS) ? rc2 : rc3);
 }
 
 
@@ -1397,11 +1397,13 @@ compute_limits (Slapi_PBlock *pb)
     int isCertAuth;
     Slapi_ComponentId *component_id = NULL;
     Slapi_Backend *be;
+    Slapi_Operation *op;
 
     slapi_pblock_get (pb, SLAPI_SEARCH_TIMELIMIT, &requested_timelimit);
     slapi_pblock_get (pb, SLAPI_SEARCH_SIZELIMIT, &requested_sizelimit);
     slapi_pblock_get (pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     slapi_pblock_get (pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get (pb, SLAPI_OPERATION, &op);
 
 
     /* If the search belongs to the client authentication process, take the value at
@@ -1468,6 +1470,21 @@ compute_limits (Slapi_PBlock *pb)
             max_sizelimit = -1;    /* no limit */
         } else {
             max_sizelimit = be->be_sizelimit;
+        }
+    }
+
+    if (op && (op->o_flags & OP_FLAG_PAGED_RESULTS)) {
+        if ( slapi_reslimit_get_integer_limit( pb->pb_conn,
+                pagedsizelimit_reslimit_handle, &max_sizelimit )
+                != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+            /*
+             * no limit associated with binder/connection or some other error
+             * occurred.  use the default maximum.
+             */
+            if ( be->be_pagedsizelimit ) {
+                max_sizelimit = be->be_pagedsizelimit;
+            }
+            /* else was already set above */
         }
     }
 

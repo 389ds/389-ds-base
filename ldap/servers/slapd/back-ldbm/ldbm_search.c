@@ -71,8 +71,10 @@ compute_lookthrough_limit( Slapi_PBlock *pb, struct ldbminfo *li )
 {
     Slapi_Connection    *conn = NULL;
     int                 limit;
+    Slapi_Operation *op;
 
     slapi_pblock_get( pb, SLAPI_CONNECTION, &conn);
+    slapi_pblock_get( pb, SLAPI_OPERATION, &op);
 
     if ( slapi_reslimit_get_integer_limit( conn,
             li->li_reslimit_lookthrough_handle, &limit )
@@ -93,6 +95,18 @@ compute_lookthrough_limit( Slapi_PBlock *pb, struct ldbminfo *li )
         }
     }
 
+    if (op && (op->o_flags & OP_FLAG_PAGED_RESULTS)) {
+        if ( slapi_reslimit_get_integer_limit( conn,
+                li->li_reslimit_pagedlookthrough_handle, &limit )
+                != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+            PR_Lock(li->li_config_mutex);
+            if (li->li_pagedlookthroughlimit) {
+                limit = li->li_pagedlookthroughlimit;
+            }
+            /* else set above */
+            PR_Unlock(li->li_config_mutex);
+        }
+    }
     return( limit );
 }
 
@@ -101,8 +115,10 @@ compute_allids_limit( Slapi_PBlock *pb, struct ldbminfo *li )
 {
     Slapi_Connection    *conn = NULL;
     int                 limit;
+    Slapi_Operation *op;
 
     slapi_pblock_get( pb, SLAPI_CONNECTION, &conn);
+    slapi_pblock_get( pb, SLAPI_OPERATION, &op);
 
     if ( slapi_reslimit_get_integer_limit( conn,
             li->li_reslimit_allids_handle, &limit )
@@ -111,7 +127,17 @@ compute_allids_limit( Slapi_PBlock *pb, struct ldbminfo *li )
         limit = li->li_allidsthreshold;
         PR_Unlock(li->li_config_mutex);
     }
-
+    if (op && (op->o_flags & OP_FLAG_PAGED_RESULTS)) {
+        if ( slapi_reslimit_get_integer_limit( conn,
+                li->li_reslimit_pagedallids_handle, &limit )
+             != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+            PR_Lock(li->li_config_mutex);
+            if (li->li_pagedallidsthreshold) {
+                limit = li->li_pagedallidsthreshold;
+            }
+            PR_Unlock(li->li_config_mutex);
+        }
+    }
     return( limit );
 }
 

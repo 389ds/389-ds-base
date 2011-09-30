@@ -165,6 +165,28 @@ static int ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorb
     return retval;
 }
 
+static void *ldbm_config_pagedlookthroughlimit_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    return (void *) ((uintptr_t)(li->li_pagedlookthroughlimit));
+}
+
+static int ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+
+    /* Do whatever we can to make sure the data is ok. */
+
+    if (apply) {
+        li->li_pagedlookthroughlimit = val;
+    }
+
+    return retval;
+}
+
 static void *ldbm_config_mode_get(void *arg) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
@@ -209,6 +231,34 @@ static int ldbm_config_allidsthreshold_set(void *arg, void *value, char *errorbu
 
     if (apply) {
         li->li_allidsthreshold = val;
+    }
+
+    return retval;
+}
+
+static void *ldbm_config_pagedallidsthreshold_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    return (void *) ((uintptr_t)(li->li_pagedallidsthreshold));
+}
+
+static int ldbm_config_pagedallidsthreshold_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+
+    /* Do whatever we can to make sure the data is ok. */
+
+    /* Catch attempts to configure a stupidly low pagedallidsthreshold */
+    /* value of 0 means turn off separate paged value and use regular allids value */
+    if ((val > 0) && (val < 100)) {
+        val = 100;
+    }
+
+    if (apply) {
+        li->li_pagedallidsthreshold = val;
     }
 
     return retval;
@@ -1279,6 +1329,8 @@ static config_info ldbm_config[] = {
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_legacy_errcode_get, &ldbm_config_legacy_errcode_set, 0},
     {CONFIG_ENTRYRDN_SWITCH, CONFIG_TYPE_ONOFF, "on", &ldbm_config_entryrdn_switch_get, &ldbm_config_entryrdn_switch_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_ENTRYRDN_NOANCESTORID, CONFIG_TYPE_ONOFF, "off", &ldbm_config_entryrdn_noancestorid_get, &ldbm_config_entryrdn_noancestorid_set, 0 /* no show */},
+    {CONFIG_PAGEDLOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedlookthroughlimit_get, &ldbm_config_pagedlookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 

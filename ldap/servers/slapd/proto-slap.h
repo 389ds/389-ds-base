@@ -280,6 +280,7 @@ int config_set_anon_limits_dn( const char *attrname, char *value, char *errorbuf
 int config_set_slapi_counters( const char *attrname, char *value, char *errorbuf, int apply );   
 int config_set_srvtab( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_pagedsizelimit( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_lastmod( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_nagle( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_accesscontrol( const char *attrname, char *value, char *errorbuf, int apply );
@@ -412,6 +413,7 @@ char *config_get_anon_limits_dn();
 int config_get_slapi_counters(); 
 char *config_get_srvtab();
 int config_get_sizelimit();
+int config_get_pagedsizelimit();
 char *config_get_pw_storagescheme();
 int config_get_pw_change();
 int config_get_pw_history();

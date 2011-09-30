@@ -1225,6 +1225,7 @@ typedef struct backend {
 	Slapi_RWLock    *vlvSearchList_lock;
 	void        *vlvSearchList;
 	Slapi_Counter *be_usn_counter; /* USN counter; one counter per backend */
+	int	be_pagedsizelimit;    /* size limit for this backend for simple paged result searches */
 } backend;
 
 enum
@@ -1792,6 +1793,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DATABASE_ATTRIBUTE       "nsslapd-database"
 #define CONFIG_PLUGIN_ATTRIBUTE         "nsslapd-plugin"
 #define CONFIG_SIZELIMIT_ATTRIBUTE      "nsslapd-sizelimit"
+#define CONFIG_PAGEDSIZELIMIT_ATTRIBUTE "nsslapd-pagedsizelimit"
 #define CONFIG_TIMELIMIT_ATTRIBUTE      "nsslapd-timelimit"
 #define CONFIG_SUFFIX_ATTRIBUTE         "nsslapd-suffix"
 #define CONFIG_READONLY_ATTRIBUTE       "nsslapd-readonly"
@@ -2182,6 +2184,7 @@ typedef struct _slapdFrontendConfig {
   int entryusn_global;          /* Entry USN: Use global counter */
   char *allowed_to_delete_attrs;/* list of config attrs allowed to delete */
   char *entryusn_import_init;   /* Entry USN: determine the initital value of import */
+  int pagedsizelimit;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

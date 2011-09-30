@@ -645,7 +645,10 @@ static struct config_get_and_set {
 	{CONFIG_VALIDATE_CERT_ATTRIBUTE, config_set_validate_cert_switch,
                 NULL, 0,
                 (void**)&global_slapdFrontendConfig.validate_cert, CONFIG_SPECIAL_VALIDATE_CERT_SWITCH,
-                (ConfigGetFunc)config_get_validate_cert_switch}
+                (ConfigGetFunc)config_get_validate_cert_switch},
+	{CONFIG_PAGEDSIZELIMIT_ATTRIBUTE, config_set_pagedsizelimit,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pagedsizelimit, CONFIG_INT, NULL},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -937,6 +940,7 @@ FrontendConfig_init () {
   cfg->slapd_type = 0;
   cfg->versionstring = SLAPD_VERSION_STR;
   cfg->sizelimit = SLAPD_DEFAULT_SIZELIMIT;
+  cfg->pagedsizelimit = 0;
   cfg->timelimit = SLAPD_DEFAULT_TIMELIMIT;
   cfg->anon_limits_dn = slapi_ch_strdup("");
   cfg->schemacheck = LDAP_ON;
@@ -1584,6 +1588,49 @@ config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int app
 	be = slapi_get_first_backend(&cookie);
 	while (be) {
 	  be->be_sizelimit = slapdFrontendConfig->sizelimit;
+	  be = slapi_get_next_backend(cookie);
+	}
+	
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+	slapi_ch_free ((void **)&cookie);
+
+  }
+  return retVal;  
+}
+
+int 
+config_set_pagedsizelimit( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  long pagedsizelimit;
+  char *endp = NULL;
+  Slapi_Backend *be;
+  char *cookie;
+
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+	return LDAP_OPERATIONS_ERROR;
+  }
+
+  errno = 0;
+  pagedsizelimit = strtol(value, &endp, 10);
+
+  if ( *endp != '\0' || errno == ERANGE || pagedsizelimit < -1 ) {
+	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, pagedsizelimit must range from -1 to %ld",
+			attrname, value, LONG_MAX );
+	retVal = LDAP_OPERATIONS_ERROR;
+	return retVal;
+  }
+
+  if (apply) {
+	
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+	
+	slapdFrontendConfig->pagedsizelimit= pagedsizelimit;
+	cookie = NULL;
+	be = slapi_get_first_backend(&cookie);
+	while (be) {
+	  be->be_pagedsizelimit = slapdFrontendConfig->pagedsizelimit;
 	  be = slapi_get_next_backend(cookie);
 	}
 	
@@ -3724,6 +3771,18 @@ config_get_sizelimit() {
 	
   CFG_LOCK_READ(slapdFrontendConfig);
   retVal = slapdFrontendConfig->sizelimit;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal; 
+}
+
+int
+config_get_pagedsizelimit() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+	
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->pagedsizelimit;
   CFG_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal; 
