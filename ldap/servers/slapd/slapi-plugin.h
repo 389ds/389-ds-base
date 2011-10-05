@@ -5118,6 +5118,9 @@ void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *ibase, int type,
  */
 int slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrlist,
 	Slapi_Entry **ret_entry , void *caller_identity);
+/* same as above but can pass in the txn to use */
+int slapi_search_internal_get_entry_ext( Slapi_DN *dn, char ** attrlist,
+	Slapi_Entry **ret_entry , void *caller_identity, void *txn );
 
 /* 
  * interface for registering object extensions.
@@ -6099,6 +6102,8 @@ typedef struct slapi_plugindesc {
 */
 #define	SLAPI_SEARCH_ENTRY_ORIG		SLAPI_ENTRY_PRE_OP
 #define	SLAPI_SEARCH_ENTRY_COPY		SLAPI_ENTRY_POST_OP
+/* for plugin init functions, this is the plugin config entry */
+#define SLAPI_PLUGIN_CONFIG_ENTRY   SLAPI_ENTRY_PRE_OP
 
 /* LDAPv3 controls to be sent with the operation result */
 #define SLAPI_RESCONTROLS			55
