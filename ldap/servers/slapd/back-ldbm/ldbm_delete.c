@@ -451,6 +451,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	 * to the persistent store. From now on, we're transacted
 	 */
 	
+	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		if (retry_count > 0) {
 			dblayer_txn_abort(li,&txn);
@@ -472,7 +473,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		}
 
 		/* stash the transaction */
-		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 
 		/* call the transaction pre delete plugins just after creating the transaction */
 		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN))) {
@@ -892,6 +893,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	}
 
 	retval = dblayer_txn_commit(li,&txn);
+	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
+	txn.back_txn_txn = NULL;
+	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval)
 	{
 		if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -955,6 +959,9 @@ error_return:
 	/* It is safer not to abort when the transaction is not started. */
 	if (retry_count > 0) {
 		dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		/* txn is no longer valid - reset the txn pointer to the parent */
+		txn.back_txn_txn = NULL;
+		slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	}
 	
 common_return:
