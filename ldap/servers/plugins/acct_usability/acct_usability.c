@@ -242,7 +242,7 @@ static LDAPControl *auc_create_response_ctrl(Slapi_Entry *e)
     }
 
     /* Fetch password policy info */
-    pwpolicy = slapi_get_pwpolicy(slapi_entry_get_ndn(e));
+    pwpolicy = slapi_get_pwpolicy(slapi_entry_get_sdn(e));
     if (pwpolicy) {
         expired = slapi_pwpolicy_is_expired(pwpolicy, e, &expire_time, &remaining_grace);
         inactive = slapi_pwpolicy_is_locked(pwpolicy, e, &unlock_time);
@@ -378,11 +378,9 @@ auc_pre_search(Slapi_PBlock *pb)
         /* Fetch the feature entry and see if the requestor is allowed access. */
         PR_snprintf(dn, sizeof(dn), "dn: oid=%s,cn=features,cn=config", AUC_OID);
         if ((feature = slapi_str2entry(dn,0)) != NULL) {
-            char *dummyAttr = "1.1";
-            char *dummyAttrs[2] = { NULL, NULL };
+            char *dummy_attr = "1.1";
 
-            dummyAttrs[0] = dummyAttr;
-            ldapcode = plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
+            ldapcode = slapi_access_allowed(pb, feature, dummy_attr, NULL, SLAPI_ACL_READ);
         }
 
         /* If the feature entry does not exist, deny use of the control.  Only
