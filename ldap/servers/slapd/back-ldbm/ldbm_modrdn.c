@@ -916,6 +916,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         modify_switch_entries( &newparent_modify_context,be);
     }
 
+    slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
     /* call the transaction post modrdn plugins just before the commit */
     if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
         LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
@@ -994,6 +995,8 @@ error_return:
     {
         slapi_entry_free( postentry );
         postentry= NULL;
+        /* make sure caller doesn't attempt to free this */
+        slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
     }
     if (e && entryrdn_get_switch())
     {
@@ -1117,7 +1120,6 @@ common_return:
     {
         slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, slapi_ch_strdup (dn));
     }
-    slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
     if (pb->pb_conn)
     {
         slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_modrdn", "leave conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
