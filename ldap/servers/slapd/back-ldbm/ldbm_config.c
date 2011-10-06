@@ -1861,6 +1861,15 @@ static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_i
     return 0;
 }
 
+/* helper for deleting mods (we do not want to be applied) from the mods array */
+static void
+mod_free(LDAPMod *mod)
+{
+	ber_bvecfree(mod->mod_bvalues);
+	slapi_ch_free((void**)&(mod->mod_type));
+	slapi_ch_free((void**)&mod);
+}
+
 /*
  * Returns:
  *   SLAPI_DSE_CALLBACK_ERROR on failure
@@ -1874,7 +1883,9 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
     int rc = LDAP_SUCCESS; 
     int apply_mod = 0; 
     struct ldbminfo *li= (struct ldbminfo *) arg;
-    
+    int reapply_mods = 0;
+    int idx = 0;
+
     /* This lock is probably way too conservative, but we don't expect much
      * contention for it. */
     PR_Lock(li->li_config_mutex);
@@ -1890,12 +1901,29 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
     for ( apply_mod = 0; apply_mod <= 1 && LDAP_SUCCESS == rc; apply_mod++ ) {
         for (i = 0; mods[i] && LDAP_SUCCESS == rc; i++) {
             attr_name = mods[i]->mod_type;
-            
+
             /* There are some attributes that we don't care about, like modifiersname. */
             if (ldbm_config_ignored_attr(attr_name)) {
+                if (apply_mod) {
+                    Slapi_Attr *origattr = NULL;
+                    Slapi_ValueSet *origvalues = NULL;
+                    mods[idx++] = mods[i];
+                    /* we also need to restore the entryAfter e to its original
+                       state, because the dse code will attempt to reapply
+                       the mods again */
+                    slapi_entry_attr_find(entryBefore, attr_name, &origattr);
+                    if (NULL != origattr) {
+                        slapi_attr_get_valueset(origattr, &origvalues);
+                        if (NULL != origvalues) {
+                            slapi_entry_add_valueset(e, attr_name, origvalues);
+                            slapi_valueset_free(origvalues);
+                        }
+                    }
+                }
                 continue;
             }
 
+            reapply_mods = 1; /* there is at least one mod we removed */
             /* when deleting a value, and this is the last or only value, set
                the config param to its default value
                when adding a value, if the value is set to its default value, replace
@@ -1908,10 +1936,19 @@ int ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore
                                  ((li->li_flags&LI_FORCE_MOD_CONFIG)?
                                   CONFIG_PHASE_INTERNAL:CONFIG_PHASE_RUNNING),
                                  apply_mod, mods[i]->mod_op); 
+            if (apply_mod) {
+                mod_free(mods[i]);
+                mods[i] = NULL;
+            }
         } 
     } 
     
     PR_Unlock(li->li_config_mutex);
+
+    if (reapply_mods) {
+        mods[idx] = NULL;
+        slapi_pblock_set(pb, SLAPI_DSE_REAPPLY_MODS, &reapply_mods);
+    }
     
     *returncode= rc; 
     if(LDAP_SUCCESS == rc) { 
