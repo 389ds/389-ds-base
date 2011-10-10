@@ -272,8 +272,8 @@ IDList * idl_new_fetch(
         LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
 #if defined(DB_ALLIDS_ON_READ)	
 		/* enforce the allids read limit */
-		if (NEW_IDL_NO_ALLID != *flag_err &&
-			NULL != a && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
+		if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
+		     (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
 			idl->b_nids = 1;
 			idl->b_ids[0] = ALLID;
 			ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
@@ -301,7 +301,7 @@ IDList * idl_new_fetch(
         }
 #if defined(DB_ALLIDS_ON_READ)	
 		/* enforce the allids read limit */
-		if (idl_new_exceeds_allidslimit(count, a, allidslimit)) {
+		if ((idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
 			idl->b_nids = 1;
 			idl->b_ids[0] = ALLID;
 			ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
