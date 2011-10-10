@@ -536,7 +536,9 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
     } else {
         LDAPDebug0Args(LDAP_DEBUG_ANY, 
                       "cache_init: slapi counter is not available.\n");
-        return 0;
+        cache->c_cursize = NULL;
+        cache->c_hits = NULL;
+        cache->c_tries = NULL;
     }
     cache->c_lruhead = cache->c_lrutail = NULL;
     cache_make_hashes(cache, type);
