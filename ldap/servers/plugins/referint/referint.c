@@ -109,6 +109,10 @@ void plugin_init_debug_level(int *level_ptr)
 int
 referint_postop_init( Slapi_PBlock *pb )
 {
+	Slapi_Entry *plugin_entry = NULL;
+	char *plugin_type = NULL;
+	int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
+	int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
 
 	/*
 	 * Get plugin identity and stored it for later use
@@ -118,13 +122,23 @@ referint_postop_init( Slapi_PBlock *pb )
     	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &referint_plugin_identity);
     	PR_ASSERT (referint_plugin_identity);
 
+	/* get args */ 
+	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+		plugin_entry &&
+		(plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+		plugin_type && strstr(plugin_type, "betxn")) {
+		delfn = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+		mdnfn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+	}
+	slapi_ch_free_string(&plugin_type);
+
 	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    			SLAPI_PLUGIN_VERSION_01 ) != 0 ||
 	  slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
                      (void *)&pdesc ) != 0 ||
-         slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN,
+         slapi_pblock_set( pb, delfn,
                      (void *) referint_postop_del ) != 0 ||
-         slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN,
+         slapi_pblock_set( pb, mdnfn,
                      (void *) referint_postop_modrdn ) != 0 ||
          slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
         	         (void *) referint_postop_start ) != 0 ||
