@@ -2291,6 +2291,8 @@ extern char	*attr_dataversion;
 #define MTN_CONTROL_USE_ONE_BACKEND_OID	"2.16.840.1.113730.3.4.14"
 #define MTN_CONTROL_USE_ONE_BACKEND_EXT_OID	"2.16.840.1.113730.3.4.20"
 
+#define PSEUDO_ATTR_UNHASHEDUSERPASSWORD_OID "2.16.840.1.113730.3.1.2110"
+
 /* virtualListViewError is a relatively new concept that was added long 
  * after we implemented VLV. Until added to LDAP SDK, we define 
  * virtualListViewError here.  Once it's added, this define would go away. */

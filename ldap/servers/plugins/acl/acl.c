@@ -1386,7 +1386,9 @@ acl_check_mods(
 			}
 			if (lastmod &&
 			    (strcmp (mod->mod_type, "modifiersname")== 0 ||
-			     strcmp (mod->mod_type, "modifytimestamp")== 0)) {
+			     strcmp (mod->mod_type, "modifytimestamp")== 0 ||
+			     strcmp (mod->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)== 0)
+				) {
 				continue; 
 			}
 

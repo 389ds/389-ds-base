@@ -374,6 +374,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_NSCP_ENTRYDN 		"nscpEntryDN"
 #define SLAPI_ATTR_ENTRYUSN 			"entryusn"
 #define SLAPI_ATTR_ENTRYUSN_PREV 		"preventryusn"
+#define SLAPI_ATTR_ENTRYDN 				"entrydn"
 
 
 /* opaque structures */

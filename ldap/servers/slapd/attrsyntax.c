@@ -1074,3 +1074,39 @@ slapi_attr_syntax_exists(const char *attr_name)
 {
     return attr_syntax_exists(attr_name);
 }
+
+/*
+ * Add an attribute syntax using some default flags, etc.
+ * Returns an LDAP error code (LDAP_SUCCESS if all goes well)
+ */
+int
+slapi_add_internal_attr_syntax( const char *name, const char *oid,
+		const char *syntax, const char *mr_equality, unsigned long extraflags )
+{
+	int rc = LDAP_SUCCESS;
+	struct asyntaxinfo	*asip;
+	char *names[2];
+	char *origins[2];
+	unsigned long std_flags = SLAPI_ATTR_FLAG_STD_ATTR | SLAPI_ATTR_FLAG_OPATTR;
+
+	names[0] = (char *)name;
+	names[1] = NULL;
+
+	origins[0] = SLAPD_VERSION_STR;
+	origins[1] = NULL;
+
+	rc = attr_syntax_create( oid, names, 1,
+			"internal server defined attribute type",
+			 NULL,						/* superior */
+			 mr_equality, NULL, NULL,	/* matching rules */
+			 origins, syntax,
+			 SLAPI_SYNTAXLENGTH_NONE,
+			 std_flags | extraflags,
+			 &asip );
+
+	if ( rc == LDAP_SUCCESS ) {
+		rc = attr_syntax_add( asip );
+	}
+
+	return rc;
+}

@@ -870,19 +870,6 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 
 		slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
 		set_db_default_result_handlers(pb);
-
-		/* Remove the unhashed password pseudo-attribute prior */
-		/* to db access */
-		slapi_mods_init_passin (&smods, mods);
-		if (!unhashed_pw_attr) {
-			unhashed_pw_attr = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
-		}
-		if (slapi_mods_get_num_mods(&smods)) {
-			remove_mod (&smods, unhashed_pw_attr, &unhashed_pw_smod);
-			slapi_pblock_set (pb, SLAPI_MODIFY_MODS, 
-							  (void*)slapi_mods_get_ldapmods_passout (&smods));	
-		}
-
 		if (be->be_modify != NULL)
 		{
 			if ((rc = (*be->be_modify)(pb)) == 0)
@@ -920,27 +907,6 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 							 "Function not implemented", 0, NULL);
 		}
-		/* Add the pseudo-attribute prior to calling the postop plugins */
-		if (pw_change)
-		{
-			LDAPMod *lc_mod = NULL;
-
-			slapi_pblock_get (pb, SLAPI_MODIFY_MODS, &mods);
-			slapi_mods_init_passin (&smods, mods);
-			for ( lc_mod = slapi_mods_get_first_mod(&unhashed_pw_smod); lc_mod; 
-				  lc_mod = slapi_mods_get_next_mod(&unhashed_pw_smod) )
-			{
-				Slapi_Mod lc_smod;
-				slapi_mod_init_byval(&lc_smod, lc_mod); /* copies lc_mod */
-				/* this extracts the copy of lc_mod and finalizes lc_smod too */
-				slapi_mods_add_ldapmod(&smods,
-									   slapi_mod_get_ldapmod_passout(&lc_smod));
-			}
-			slapi_pblock_set (pb, SLAPI_MODIFY_MODS, 
-							  (void*)slapi_mods_get_ldapmods_passout (&smods));
-		}
-		slapi_mods_done(&unhashed_pw_smod); /* can finalize now */
-
 
 		slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
 		plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN :
@@ -973,6 +939,7 @@ free_and_return:
 		slapi_be_Unlock(be);
     slapi_sdn_done(&sdn);
 
+	slapi_mods_done(&unhashed_pw_smod); /* can finalize now */
 	if (unhashed_pw_attr)
 		slapi_ch_free ((void**)&unhashed_pw_attr);
 

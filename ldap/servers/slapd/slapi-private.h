@@ -1235,6 +1235,8 @@ int plugin_enabled(const char *plugin_name, void *identity);
  */
 int is_slapd_running();
 
+/* attrsyntax.c */
+int slapi_add_internal_attr_syntax( const char *name, const char *oid, const char *syntax, const char *mr_equality, unsigned long extraflags );
 
 #ifdef __cplusplus
 }

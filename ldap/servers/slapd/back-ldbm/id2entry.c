@@ -46,10 +46,6 @@
 
 #define ID2ENTRY "id2entry"
 
-static char *protected_attrs_all [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
-                                       LDBM_ENTRYDN_STR,
-                                       NULL};
-
 /* 
  * The caller MUST check for DB_LOCK_DEADLOCK and DB_RUNRECOVERY returned
  */
@@ -64,7 +60,6 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
     int    len, rc;
     char   temp_id[sizeof(ID)];
     struct backentry *encrypted_entry = NULL;
-    char **paap = NULL;
     char *entrydn = NULL;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> id2entry_add( %lu, \"%s\" )\n",
@@ -125,16 +120,6 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
             LDAPDebug2Args( LDAP_DEBUG_TRACE,
                    "=> id2entry_add (dncache) ( %lu, \"%s\" )\n",
                    (u_long)e->ep_id, slapi_entry_get_dn_const(entry_to_use) );
-            /* 
-             * If protected attributes exist in the entry, 
-             * we have to remove them before writing the entry to the database.
-             */
-            for (paap = protected_attrs_all; paap && *paap; paap++) {
-                if (0 == slapi_entry_attr_find(entry_to_use, *paap, &eattr)) {
-                    /* a protected attr exists in the entry. removed it. */
-                    slapi_entry_delete_values(entry_to_use, *paap, NULL);
-                }
-            }
         }
         data.dptr = slapi_entry2str_with_options(entry_to_use, &len, options);
         data.dsize = len + 1;
