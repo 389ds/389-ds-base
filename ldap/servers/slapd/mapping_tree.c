@@ -245,7 +245,7 @@ Slapi_DN* slapi_mtn_get_dn(mapping_tree_node *node)
 
 /* this will turn an array of url into a referral entry */
 static Slapi_Entry *
-referral2entry(char ** url_array, const char *target)
+referral2entry(char ** url_array, Slapi_DN *target_sdn)
 {
     int i;
     struct berval bv0,bv1,*bvals[3];
@@ -255,7 +255,7 @@ referral2entry(char ** url_array, const char *target)
         return NULL;
         
     anEntry = slapi_entry_alloc();
-    slapi_entry_set_dn(anEntry,slapi_ch_strdup(target));
+    slapi_entry_set_sdn(anEntry, target_sdn);
 
     bvals[2]=NULL;
     bvals[1]=&bv1;
@@ -309,7 +309,7 @@ mapping_tree_node_new(Slapi_DN *dn, Slapi_Backend **be, char **backend_names, in
     node->mtn_be_states = be_states;
     node->mtn_backend_names = backend_names;
     node->mtn_referral = referral;
-    node->mtn_referral_entry = referral2entry(referral, slapi_sdn_get_dn(dn)) ;
+    node->mtn_referral_entry = referral2entry(referral, dn) ;
     node->mtn_parent = parent;
     node->mtn_children = NULL;
     node->mtn_brother = NULL;
@@ -386,8 +386,7 @@ get_parent_from_entry(Slapi_Entry * entry)
                 *ptr = '\0';
             }
         }
-        parent_sdn = 
-                slapi_sdn_new_dn_passin(slapi_create_dn_string("%s", parent));
+        parent_sdn = slapi_sdn_new_dn_passin(slapi_ch_smprintf("%s", parent));
         slapi_ch_free_string(&origparent);
     }
     
@@ -433,7 +432,7 @@ get_subtree_from_entry(Slapi_Entry * entry)
                 *ptr = '\0';
             }
         }
-        subtree = slapi_sdn_new_dn_passin(slapi_create_dn_string("%s", cn));
+        subtree = slapi_sdn_new_dn_passin(slapi_ch_smprintf("%s", cn));
         slapi_ch_free_string(&origcn);
     }
     
@@ -1240,8 +1239,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 mtn_free_referral_in_node(node);
                 referral = mtn_get_referral_from_entry(entryAfter);
                 node->mtn_referral = referral;
-                node->mtn_referral_entry =
-                     referral2entry(referral, slapi_sdn_get_dn(subtree));
+                node->mtn_referral_entry = referral2entry(referral, subtree);
             } else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
             {
                 /* it is not OK to delete the referrals if they are still
@@ -2128,8 +2126,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
     Slapi_Backend * be;
     Slapi_Entry * referral;
     int scope = LDAP_SCOPE_BASE;
-    Slapi_DN sdn;
-    char *base;
+    Slapi_DN *sdn = NULL;
     int flag_partial_result = 0;
     int op_type;
     
@@ -2142,8 +2139,11 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
     }
 
     /* get the operational parameters */
-    slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &base);
-    slapi_sdn_init_dn_ndn_byref(&sdn, base); /* normalized in opshared.c */
+    slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+    if (NULL == sdn) {
+        slapi_log_error(SLAPI_LOG_FATAL, NULL, "Error: Null target DN");
+        return LDAP_OPERATIONS_ERROR;
+    }
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     target_sdn = operation_get_target_spec (op);
     slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &op_type);
@@ -2188,8 +2188,8 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
             /* flag we have problems at least on part of the tree */
             flag_partial_result = 1;
         }
-        else if ( ( ((!slapi_sdn_issuffix(&sdn, slapi_mtn_get_dn(node))
-            && !slapi_sdn_issuffix(slapi_mtn_get_dn(node), &sdn))) 
+        else if ( ( ((!slapi_sdn_issuffix(sdn, slapi_mtn_get_dn(node))
+            && !slapi_sdn_issuffix(slapi_mtn_get_dn(node), sdn))) 
             || ((node_list == mapping_tree_root) && node->mtn_private
             && (scope != LDAP_SCOPE_BASE)) )
                     && (!be || strncmp(be->be_name, "default", 8)))
@@ -2238,7 +2238,6 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
                      &referral, errorbuf, scope);
     }
     mtn_unlock();
-    slapi_sdn_done(&sdn);
     be_list[be_index] = NULL;
     referral_list[referral_index] = NULL;
 
@@ -2839,8 +2838,8 @@ slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
         return NULL;
 
     /* This function converts the old DN style to the new one. */
-    dn = slapi_create_dn_string("cn=\"%s\",%s", 
-                                slapi_sdn_get_dn(root), MAPPING_TREE_BASE_DN);
+    dn = slapi_ch_smprintf("cn=\"%s\",%s", 
+                           slapi_sdn_get_ndn(root), MAPPING_TREE_BASE_DN);
     if (NULL == dn) {
         LDAPDebug1Arg(LDAP_DEBUG_ANY,
                       "slapi_get_mapping_tree_node_configdn: "
@@ -2850,6 +2849,35 @@ slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
     }
 
     return dn;
+}
+
+Slapi_DN *
+slapi_get_mapping_tree_node_configsdn (const Slapi_DN *root)
+{
+    char *dn = NULL;
+    Slapi_DN *sdn = NULL;
+
+    if(mapping_tree_freed){
+        /* shutdown detected */
+        return NULL;
+    }
+    if (root == NULL)
+        return NULL;
+
+    /* This function converts the old DN style to the new one. */
+    dn = slapi_ch_smprintf("cn=\"%s\",%s", 
+                           slapi_sdn_get_dn(root), MAPPING_TREE_BASE_DN);
+    if (NULL == dn) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "slapi_get_mapping_tree_node_configsdn: "
+                      "failed to crate mapping tree dn for %s\n", 
+                      slapi_sdn_get_dn(root));
+        return NULL;
+    }
+
+    sdn = slapi_sdn_new_dn_passin(dn);
+
+    return sdn;
 }
 
 /* 
@@ -3122,13 +3150,13 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
     Slapi_PBlock pb;
     Slapi_Mods smods;
     int rc = LDAP_SUCCESS,i = 0, j = 0;
-    char * node_dn;
+    Slapi_DN* node_sdn;
     char **values = NULL;
     int do_modify = 0;
 
     slapi_mods_init (&smods, 0);
-    node_dn = slapi_get_mapping_tree_node_configdn(sdn);
-    if(!node_dn){
+    node_sdn = slapi_get_mapping_tree_node_configsdn(sdn);
+    if(!node_sdn){
      /* shutdown has been detected */
         return LDAP_OPERATIONS_ERROR;
     }
@@ -3192,7 +3220,7 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
     if ( do_modify )
     {
         pblock_init (&pb);
-        slapi_modify_internal_set_pb (&pb, node_dn,
+        slapi_modify_internal_set_pb_ext (&pb, node_sdn,
                                 slapi_mods_get_ldapmods_byref(&smods), NULL,
                                 NULL, (void *) plugin_get_default_component_id(), 0);
         slapi_modify_internal_pb (&pb);
@@ -3202,7 +3230,7 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
     }
 
     slapi_mods_done(&smods);
-    slapi_ch_free_string(&node_dn);
+    slapi_sdn_free(&node_sdn);
 
     return rc;
 } 
@@ -3220,15 +3248,15 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
     Slapi_PBlock pb;
     Slapi_Mods smods;
     int rc = LDAP_SUCCESS;
-    char * node_dn;
+    Slapi_DN *node_sdn;
     char * value;
 
     if (NULL == state) {
         return LDAP_OPERATIONS_ERROR;
     }
 
-    node_dn = slapi_get_mapping_tree_node_configdn(sdn);
-    if(!node_dn){
+    node_sdn = slapi_get_mapping_tree_node_configsdn(sdn);
+    if(!node_sdn){
      /* shutdown has been detected */
         return LDAP_OPERATIONS_ERROR;
     }
@@ -3246,7 +3274,7 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
     slapi_mods_init (&smods, 1);
     slapi_mods_add(&smods, LDAP_MOD_REPLACE, "nsslapd-state", strlen(state), state);
     pblock_init (&pb);
-    slapi_modify_internal_set_pb (&pb, node_dn,
+    slapi_modify_internal_set_pb_ext (&pb, node_sdn,
                             slapi_mods_get_ldapmods_byref(&smods), NULL,
                             NULL, (void *) plugin_get_default_component_id(), 0);
     slapi_modify_internal_pb (&pb);
@@ -3257,7 +3285,7 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
     pblock_done(&pb);
 bail:
     slapi_ch_free_string(&value);
-    slapi_ch_free_string(&node_dn);
+    slapi_sdn_free(&node_sdn);
     return rc;
 }
 

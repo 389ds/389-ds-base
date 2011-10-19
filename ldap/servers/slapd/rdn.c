@@ -132,12 +132,14 @@ _slapi_rdn_init_all_dn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn)
 	char **dns = NULL;
 	int rc = 1;
 
-	if (NULL == rdn || NULL == sdn)
-	{
+	if (NULL == rdn || NULL == sdn) {
 		return -1;
 	}
 
 	dn = slapi_sdn_get_dn(sdn);
+	if (NULL == dn) {
+		return -1;
+	}
 	for (; isspace(*dn) ; dn++) ;
 
 	/* Suffix is a part of mapping tree. We should not free it */
@@ -227,13 +229,14 @@ int
 slapi_rdn_init_all_dn(Slapi_RDN *rdn, const char *dn)
 {
 	int rc = 0; /* success */
-	Slapi_DN sdn = {0};
+	Slapi_DN sdn;
 
 	if (NULL == rdn || NULL == dn)
 	{
 		return -1;
 	}
 	slapi_rdn_init(rdn);
+	slapi_sdn_init(&sdn);
 	slapi_sdn_set_dn_byval(&sdn, dn);
 	rc = _slapi_rdn_init_all_dn_ext(rdn, (const Slapi_DN *)&sdn);
 	slapi_sdn_done(&sdn);
@@ -670,7 +673,19 @@ slapi_rdn_get_nrdn(Slapi_RDN *srdn)
 	}
 	if (NULL == srdn->nrdn)
 	{
-		normalize_case_helper(srdn->rdn, &srdn->nrdn);
+		if (srdn->all_nrdns && srdn->all_nrdns[0])
+		{
+			srdn->nrdn = slapi_ch_strdup(srdn->all_nrdns[0]);
+		}
+		else if (srdn->all_rdns && srdn->all_rdns[0])
+		{
+			srdn->nrdn = slapi_ch_strdup(srdn->all_rdns[0]);
+			slapi_dn_ignore_case(srdn->nrdn);
+		}
+		else
+		{
+			normalize_case_helper(srdn->rdn, &srdn->nrdn);
+		}
 	}
 	return (const char *)srdn->nrdn;
 }

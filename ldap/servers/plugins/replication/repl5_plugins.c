@@ -1079,7 +1079,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
         		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"write_changelog_and_ruv: can't add a change for "
 					"%s (uniqid: %s, optype: %lu) to changelog csn %s\n",
-					op_params->target_address.dn,
+					REPL_GET_DN(&op_params->target_address),
 					op_params->target_address.uniqueid,
 					op_params->operation_type,
 					csn_as_string(op_params->csn, PR_FALSE, csn_str));

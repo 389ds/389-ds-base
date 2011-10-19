@@ -197,20 +197,19 @@ replica_get_replica_from_dn (const Slapi_DN *dn)
 
 Object *replica_get_replica_for_op (Slapi_PBlock *pb)
 {
-    char *dn;
-    Slapi_DN *sdn;
+    Slapi_DN *sdn = NULL;
     Object *repl_obj = NULL;
 
     if (pb)
     {
         /* get replica generation for this operation */
-        slapi_pblock_get (pb, SLAPI_TARGET_DN, &dn);
-        sdn = slapi_sdn_new_dn_byref(dn);
+        slapi_pblock_get (pb, SLAPI_TARGET_SDN, &sdn);
+        if (NULL == sdn) {
+            goto bail;
+        }
         repl_obj = replica_get_replica_from_dn (sdn);
-
-        slapi_sdn_free (&sdn);
     }
-
+bail:
     return repl_obj;
 }
 

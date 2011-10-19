@@ -65,51 +65,54 @@ chaining_back_modify ( Slapi_PBlock *pb )
 	char         		**referrals=NULL;
 	LDAPMod			** mods;
 	LDAPMessage		* res;
-	char 			*dn,* matched_msg, *error_msg;
+	const char 		*dn = NULL;
+	Slapi_DN		*sdn = NULL;
+	char 			*matched_msg, *error_msg;
 	char 			*cnxerrbuf=NULL;
-   	time_t 			endtime;
+	time_t 			endtime;
 	cb_outgoing_conn	*cnx;
 
-        if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
-                cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
-                return -1;
-        }
+	if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
+		cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
+		return -1;
+	}
 
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	cb = cb_get_instance(be);
 
-        cb_update_monitor_info(pb,cb,SLAPI_OPERATION_MODIFY);
+	cb_update_monitor_info(pb,cb,SLAPI_OPERATION_MODIFY);
 
 	/* Check wether the chaining BE is available or not */
-        if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
-                return -1;
-        }
+	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
+		return -1;
+	}
 
- 	slapi_pblock_get( pb, SLAPI_MODIFY_TARGET, &dn );
+	slapi_pblock_get( pb, SLAPI_MODIFY_TARGET_SDN, &sdn );
+	dn = slapi_sdn_get_dn(sdn);
 
 	if (cb_debug_on()) {
-        	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,"modify: target:<%s>\n",dn);
+		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,"modify: target:<%s>\n",dn);
 	}
 
 
 	ctrls=serverctrls=NULL;
-        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-        slapi_pblock_get( pb, SLAPI_REQCONTROLS, &ctrls );
+	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+	slapi_pblock_get( pb, SLAPI_REQCONTROLS, &ctrls );
 
 	/* Check acls				*/
 	
 	if ( cb->local_acl && !cb->associated_be_is_disabled ) {
-                char * errbuf=NULL;
-                Slapi_Entry *te = slapi_entry_alloc();
-                slapi_entry_set_dn(te,slapi_ch_strdup(dn));
-       		rc = slapi_acl_check_mods( pb, te, mods, &errbuf);
-                slapi_entry_free(te);
+		char * errbuf=NULL;
+		Slapi_Entry *te = slapi_entry_alloc();
+		slapi_entry_set_sdn(te, sdn); /* sdn: copied */
+		rc = slapi_acl_check_mods( pb, te, mods, &errbuf);
+		slapi_entry_free(te);
 
-                if ( rc != LDAP_SUCCESS ) {
-                        cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
-                        slapi_ch_free((void **)&errbuf);
-                        return -1;
-                }
+		if ( rc != LDAP_SUCCESS ) {
+			cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
+			slapi_ch_free((void **)&errbuf);
+			return -1;
+		}
 	}
 
 

@@ -96,13 +96,14 @@ Slapi_RWLock *legacy_consumer_config_lock = NULL;
 static PRBool
 target_is_a_replica_root(Slapi_PBlock *pb, const Slapi_DN **root)
 {
-	char *dn;
-	Slapi_DN *sdn;
-	PRBool return_value;
+	Slapi_DN *sdn = NULL;
+	PRBool return_value = PR_FALSE;
 	Object *repl_obj;
 
-	slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
-	sdn = slapi_sdn_new_dn_byref(dn);
+	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+	if (NULL == sdn) {
+		return return_value;
+	}
 	repl_obj = replica_get_replica_from_dn(sdn);
 	if (NULL != repl_obj)
 	{
@@ -116,7 +117,6 @@ target_is_a_replica_root(Slapi_PBlock *pb, const Slapi_DN **root)
 		*root = NULL;
 		return_value = PR_FALSE;
 	}
-	slapi_sdn_free(&sdn);
 	return return_value;
 }
 
@@ -492,7 +492,7 @@ legacy_consumer_read_config ()
 
 
 int
-legacy_consumer_is_replicationdn(char *dn)
+legacy_consumer_is_replicationdn(const char *dn)
 {
 	int return_value = 0; /* Assume not */
 

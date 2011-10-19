@@ -282,21 +282,58 @@ int slapi_seq_internal_callback_pb (Slapi_PBlock *pb, void *callback_data, plugi
 	return (seq_internal_callback_pb (pb, callback_data, res_callback, srch_callback, ref_callback));
 }
 
-void slapi_search_internal_set_pb (Slapi_PBlock *pb, const char *base, int scope, const char *filter, char **attrs, 
-							       int attrsonly, LDAPControl **controls, const char *uniqueid, 
-								   Slapi_ComponentId *plugin_identity, int operation_flags)
+void
+slapi_search_internal_set_pb (Slapi_PBlock *pb, const char *base, 
+                              int scope, const char *filter, char **attrs, 
+                              int attrsonly, LDAPControl **controls, 
+                              const char *uniqueid, 
+                              Slapi_ComponentId *plugin_identity,
+                              int operation_flags)
 {
 	Operation *op;
 	if (pb == NULL || base == NULL)
 	{
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, 
-						"slapi_search_internal_set_pb: NULL parameter\n");
+		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+		                "slapi_search_internal_set_pb: NULL parameter\n");
 		return;
 	}
 
-    op= internal_operation_new(SLAPI_OPERATION_SEARCH,operation_flags);
+	op= internal_operation_new(SLAPI_OPERATION_SEARCH,operation_flags);
 	slapi_pblock_set(pb, SLAPI_OPERATION, op);
-	slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, (void*)base);
+	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET_DN, (void *)base);
+	slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &scope);
+	slapi_pblock_set(pb, SLAPI_SEARCH_STRFILTER, (void*)filter);
+	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, attrs);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
+	if (uniqueid)
+	{
+		slapi_pblock_set(pb, SLAPI_TARGET_UNIQUEID, (void*)uniqueid);
+	}
+	slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, (void*)plugin_identity);
+}
+
+void
+slapi_search_internal_set_pb_ext (Slapi_PBlock *pb, Slapi_DN *sdn, 
+                                  int scope, const char *filter, char **attrs, 
+                                  int attrsonly, LDAPControl **controls, 
+                                  const char *uniqueid, 
+                                  Slapi_ComponentId *plugin_identity,
+                                  int operation_flags)
+{
+	Operation *op;
+	if (pb == NULL || sdn == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+		                "slapi_search_internal_set_pb: NULL parameter\n");
+		return;
+	}
+
+	op= internal_operation_new(SLAPI_OPERATION_SEARCH,operation_flags);
+	slapi_pblock_set(pb, SLAPI_OPERATION, op);
+	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET_DN,
+	                 (void *)slapi_sdn_get_udn(sdn));
+	slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void *)sdn);
 	slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &scope);
 	slapi_pblock_set(pb, SLAPI_SEARCH_STRFILTER, (void*)filter);
 	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
@@ -323,7 +360,7 @@ void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *base, int type, char *att
 
     op= internal_operation_new(SLAPI_OPERATION_SEARCH,operation_flags);
 	slapi_pblock_set(pb, SLAPI_OPERATION, op);
-	slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, base);
+	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET_DN, (void *)base );
 	slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &type);
 	slapi_pblock_set(pb, SLAPI_SEQ_ATTRNAME, attrname);
 	slapi_pblock_set(pb, SLAPI_SEQ_VAL, val);
@@ -343,19 +380,22 @@ static int seq_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	Operation *op;
     struct callback_fn_ptrs   callback_handler_data;
     Slapi_Backend *be;
-	Slapi_DN sdn;
 	char *base;
 	char *attrname, *val;
+	Slapi_DN *sdn = NULL;
 
-	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &base);
+	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, (void *)&base );
 	slapi_pblock_get(pb, SLAPI_CONTROLS_ARG, &controls);
 
-    if (base == NULL) {
-    	slapi_sdn_init_dn_byval(&sdn,"");
-    } else {
-    	slapi_sdn_init_dn_byval(&sdn, base);
-    }
-    be = slapi_be_select(&sdn);
+	if (base == NULL) {
+		sdn = slapi_sdn_new_dn_byval("");
+	} else {
+		sdn = slapi_sdn_new_dn_byref(base);
+	}
+
+	slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, sdn);
+
+    be = slapi_be_select(sdn);
 
     callback_handler_data.p_res_callback         = prc;
     callback_handler_data.p_srch_entry_callback  = psec;
@@ -369,8 +409,7 @@ static int seq_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
     op->o_search_referral_handler = internal_ref_entry_callback;
 		 
 	/* set target specification of the operation used to decide which plugins are called for the operation */  
-	operation_set_target_spec (op, &sdn);
-
+	operation_set_target_spec (op, sdn);
 
 	/* Normalize the attribute type and value */
 	slapi_pblock_get (pb, SLAPI_SEQ_ATTRNAME, &attrname);
@@ -396,14 +435,16 @@ static int seq_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	}
 	else
 	{
-    	send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Function not implemented", 0, NULL);
+		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Function not implemented", 0, NULL);
 		rc = 0;
     }
 
-	slapi_ch_free((void **) &attrname);
-    slapi_ch_free((void **) &val);
-
-	slapi_sdn_done(&sdn);    
+	slapi_ch_free_string(&attrname);
+	slapi_ch_free_string(&val);
+	/* slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &normbase); */
+	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+	slapi_sdn_free(&sdn);
+	slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, NULL);
 
 	return rc;
 }
@@ -675,10 +716,11 @@ static int search_internal_pb (Slapi_PBlock *pb)
 	return 0;
 }
 
-static int search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data, 
-									     plugin_result_callback prc, 
-									     plugin_search_entry_callback psec, 
-									     plugin_referral_entry_callback prec)
+static int
+search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data, 
+                             plugin_result_callback prc, 
+                             plugin_search_entry_callback psec, 
+                             plugin_referral_entry_callback prec)
 {
 	LDAPControl				  **controls;
 	Operation                 *op;
@@ -689,8 +731,6 @@ static int search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	char					  *ifstr;
 	int						  opresult;
 	int						  rc = 0;
-	char					  *original_base = 0;
-	char					  *new_base = 0;
 
 	PR_ASSERT (pb);
 
@@ -755,12 +795,8 @@ static int search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	 * memory so we need to keep track of
 	 * changed base search strings
 	 */
-	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &original_base);
-	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET_DN, slapi_ch_strdup(original_base));
-
 	op_shared_search (pb, 1);    
 
-	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &new_base);
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
 
 done:
@@ -770,24 +806,17 @@ done:
         slapi_filter_free(filter, 1 /* recurse */);
     }
 
-	if(original_base != new_base)
-		slapi_ch_free_string(&new_base);
-
-	/* we strdup'd this above - need to free */
-	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &original_base);
-	slapi_ch_free_string(&original_base);
-
     return(rc);
 }
 
 /* allow/disallow operation based of the plugin configuration */
 PRBool allow_operation (Slapi_PBlock *pb)
 {
-	char *dn = NULL;
 	struct slapdplugin *plugin = NULL;
+	Slapi_DN *sdnp = NULL;
 	Slapi_DN sdn;
 	PRBool allow;
-        struct slapi_componentid * cid=NULL;
+	struct slapi_componentid * cid=NULL;
 
 	PR_ASSERT (pb);
 	
@@ -805,17 +834,17 @@ PRBool allow_operation (Slapi_PBlock *pb)
 		return PR_FALSE;
 	}
 
-	slapi_pblock_get (pb, SLAPI_TARGET_DN, &dn);
-	if (dn == NULL) {
-    	slapi_sdn_init_dn_byval(&sdn,"");
-    } else {
-    	slapi_sdn_init_dn_byval(&sdn, dn);
-    }
+	slapi_sdn_init(&sdn);
+	slapi_pblock_get (pb, SLAPI_TARGET_SDN, &sdnp);
+	if (NULL == sdnp) {
+		slapi_sdn_init_dn_byval(&sdn,"");
+		sdnp = &sdn;
+	}
 
-	allow = plugin_allow_internal_op (&sdn, plugin);
+	allow = plugin_allow_internal_op (sdnp, plugin);
+
+	slapi_sdn_done(&sdn);
 	
-	slapi_sdn_done (&sdn);
-
 	return allow;
 }
 

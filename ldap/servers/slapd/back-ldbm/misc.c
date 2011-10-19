@@ -425,7 +425,8 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 
-    bentry_addr.dn = NULL;
+    bentry_addr.sdn = NULL;
+    bentry_addr.udn = NULL;
     bentry_addr.uniqueid = uniqueid;
 
     /* Note: if we find the bentry, it will stay locked until someone calls

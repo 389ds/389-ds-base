@@ -97,7 +97,7 @@ void consumer_connection_extension_destructor (void *ext, void *object, void *pa
 				if (NULL != repl_root_sdn)
 				{
 					slapi_pblock_set(pb, SLAPI_CONNECTION, connext->connection);
-					slapi_pblock_set(pb, SLAPI_TARGET_DN, (void*)slapi_sdn_get_dn(repl_root_sdn));
+					slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void*)repl_root_sdn);
 					slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
 					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 									"Aborting total update in progress for replicated "

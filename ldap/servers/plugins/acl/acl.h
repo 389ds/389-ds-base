@@ -838,7 +838,7 @@ void		aclutil_print_resource( struct acl_pblock *aclpb, char *right , char *attr
 char *		aclutil_expand_paramString ( char *str, Slapi_Entry *e );
 
 
-void		acllist_init_scan (Slapi_PBlock *pb, int scope, char *base);
+void		acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base);
 aci_t * 	acllist_get_first_aci (Acl_PBlock *aclpb, PRUint32 *cookie );
 aci_t * 	acllist_get_next_aci ( Acl_PBlock *aclpb, aci_t *curraci, PRUint32 *cookie );
 aci_t *		acllist_get_aci_new ();

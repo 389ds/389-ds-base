@@ -190,7 +190,6 @@ substr_dn_normalize_orig( char *dn, char *end )
 	char		*d = NULL;
 	char 		*s = NULL;
 	char		*typestart = NULL;
-	char		*rdnbegin = NULL;
 	char		*lastesc = NULL;
 	int		gotesc = 0;
 	int		state = B4TYPE;
@@ -231,7 +230,6 @@ substr_dn_normalize_orig( char *dn, char *end )
 				value_separator = NULL;
 				value = d;
 				state = ( *s == '"' ) ? INQUOTEDVALUE : INVALUE1ST;
-				rdnbegin = d;
 				lastesc = NULL;
 				*d++ = *s;
 			}
@@ -544,6 +542,9 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
             *dest = src; /* just removing spaces around separators */
             rc = 0;
         }
+    }
+    if (0 == src_len) { /* src == "" */
+        goto bail;
     }
 
     ends = src + src_len;
@@ -1041,7 +1042,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
             break;
         default:
             LDAPDebug( LDAP_DEBUG_ANY,
-                "slapi_dn_normalize - unknown state %d\n", state, 0, 0 );
+                "slapi_dn_normalize_ext - unknown state %d\n", state, 0, 0 );
             break;
         }
     }
@@ -1113,6 +1114,39 @@ slapi_create_dn_string(const char *fmt, ...)
     } else {
         slapi_ch_free_string(&src);
     }
+    return dest;
+}
+
+char *
+slapi_create_rdn_value(const char *fmt, ...)
+{
+    char *src = NULL;
+    char *dest = NULL;
+    size_t dest_len = 0;
+    va_list ap;
+    int rc = 0;
+    char *dnfmt;
+
+    if (NULL == fmt) {
+        return NULL;
+    }
+
+    dnfmt = slapi_ch_smprintf("cn=%s", fmt);
+    va_start(ap, fmt);
+    src = PR_vsmprintf(dnfmt, ap);
+    va_end(ap);
+    slapi_ch_free_string(&dnfmt);
+
+    rc = slapi_dn_normalize_ext(src, strlen(src), &dest, &dest_len);
+    if (rc == 0) { /* src is passed in. */
+        *(dest + dest_len) = '\0';
+        dest = slapi_ch_strdup(dest + 3);
+    } else if (rc > 0) {
+        char *odest = dest;
+        dest = slapi_ch_strdup(dest + 3);
+        slapi_ch_free_string(&odest);
+    }
+    slapi_ch_free_string(&src);
     return dest;
 }
 
@@ -1370,12 +1404,13 @@ dn_ignore_case_to_end( char *dn, char *end )
  * slapi_dn_normalize_case - put dn into a canonical form suitable for storing
  * in a hash database.  this involves normalizing the case as well as
  * the format.  the dn is normalized in place as well as returned.
+ * (DEPRECATED)
  */
 
 char *
 slapi_dn_normalize_case( char *dn )
 {
-	/* normalize format */
+	/* normalize format (DEPRECATED) noop */
 	slapi_dn_normalize( dn );
 
 	/* normalize case */
@@ -1698,6 +1733,9 @@ PR_DEFINE_COUNTER(slapi_sdn_counter_dn_exist);
 PR_DEFINE_COUNTER(slapi_sdn_counter_ndn_created);
 PR_DEFINE_COUNTER(slapi_sdn_counter_ndn_deleted);
 PR_DEFINE_COUNTER(slapi_sdn_counter_ndn_exist);
+PR_DEFINE_COUNTER(slapi_sdn_counter_udn_created);
+PR_DEFINE_COUNTER(slapi_sdn_counter_udn_deleted);
+PR_DEFINE_COUNTER(slapi_sdn_counter_udn_exist);
 
 static void
 sdn_create_counters()
@@ -1711,12 +1749,16 @@ sdn_create_counters()
 	PR_CREATE_COUNTER(slapi_sdn_counter_ndn_created,"Slapi_DN","internal_ndn_created","");
 	PR_CREATE_COUNTER(slapi_sdn_counter_ndn_deleted,"Slapi_DN","internal_ndn_deleted","");
 	PR_CREATE_COUNTER(slapi_sdn_counter_ndn_exist,"Slapi_DN","internal_ndn_exist","");
+	PR_CREATE_COUNTER(slapi_sdn_counter_udn_created,"Slapi_DN","internal_udn_created","");
+	PR_CREATE_COUNTER(slapi_sdn_counter_udn_deleted,"Slapi_DN","internal_udn_deleted","");
+	PR_CREATE_COUNTER(slapi_sdn_counter_udn_exist,"Slapi_DN","internal_udn_exist","");
 	counters_created= 1;
 }
 
 #define FLAG_ALLOCATED 0
 #define FLAG_DN 1
 #define FLAG_NDN 2
+#define FLAG_UDN 3
 
 Slapi_DN *
 slapi_sdn_new()
@@ -1730,10 +1772,18 @@ slapi_sdn_new()
     return sdn;
 }
 
+/*
+ * WARNING:
+ * Do not call slapi_sdn_init and its sibling APIs against Slapi_DN 
+ * allocated by slapi_sdn_new.  slapi_sdn_init clears all bits in the flag. 
+ * If sdn is allocated by slapi_sdn_new, the FLAG_ALLOCATED bit is cleared 
+ * and slapi_sdn_free won't free Slapi_DN.
+ */
 Slapi_DN *
 slapi_sdn_init(Slapi_DN *sdn)
 {
     sdn->flag= 0;
+    sdn->udn= NULL;
     sdn->dn= NULL;
     sdn->ndn= NULL;
 	sdn->ndn_len=0;
@@ -1748,7 +1798,7 @@ Slapi_DN *
 slapi_sdn_init_dn_byref(Slapi_DN *sdn,const char *dn)
 {
     slapi_sdn_init(sdn);
-    slapi_sdn_set_dn_byref(sdn,dn);
+    slapi_sdn_set_dn_byref(sdn, dn);
 	return sdn;
 }
 
@@ -1768,20 +1818,33 @@ slapi_sdn_init_dn_passin(Slapi_DN *sdn,const char *dn)
 	return sdn;
 }
 
-/* use when dn is normalized previously */
+/* use when dn is already normalized (but case is yet touched) */
 Slapi_DN *
-slapi_sdn_init_dn_ndn_byref(Slapi_DN *sdn,const char *dn) {
-	  slapi_sdn_init(sdn);
-	  slapi_sdn_set_dn_byref(sdn,dn);
-	  /* slapi_sdn_set_ndn_byref nulls out dn set in above statement */
-	  sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_NDN);
-      sdn->ndn= dn;
-	  if(dn == NULL) {
-		  sdn->ndn_len=0;
-	  } else {
-	   sdn->ndn_len=strlen(dn);
-	  }
-	  return sdn;
+slapi_sdn_init_normdn_byref(Slapi_DN *sdn, const char *dn)
+{
+    slapi_sdn_init(sdn);
+    if(dn == NULL) {
+        sdn->ndn_len = 0;
+    } else {
+        sdn->ndn_len = strlen(dn);
+        sdn->dn = dn;
+    }
+    return sdn;
+}
+
+/* use when dn is already normalized (but case is yet touched) */
+Slapi_DN *
+slapi_sdn_init_normdn_passin(Slapi_DN *sdn, const char *dn)
+{
+    slapi_sdn_init(sdn);
+    if(dn == NULL) {
+        sdn->ndn_len = 0;
+    } else {
+        sdn->ndn_len = strlen(dn);
+        sdn->dn = dn;
+        sdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
+    }
+    return sdn;
 }
 
 Slapi_DN *
@@ -1789,7 +1852,7 @@ slapi_sdn_init_ndn_byref(Slapi_DN *sdn,const char *dn)
 {
     slapi_sdn_init(sdn);
     slapi_sdn_set_ndn_byref(sdn,dn);
-	return sdn;
+    return sdn;
 }
 
 Slapi_DN *
@@ -1797,7 +1860,7 @@ slapi_sdn_init_ndn_byval(Slapi_DN *sdn,const char *dn)
 {
     slapi_sdn_init(sdn);
     slapi_sdn_set_ndn_byval(sdn,dn);
-	return sdn;
+    return sdn;
 }
 
 Slapi_DN *
@@ -1845,16 +1908,46 @@ slapi_sdn_new_ndn_byref(const char *ndn)
     return sdn;
 }
 
+/* use when dn is already normalized */
+Slapi_DN *
+slapi_sdn_new_normdn_byref(const char *normdn)
+{
+    Slapi_DN *sdn = slapi_sdn_new();
+    slapi_sdn_set_normdn_byref(sdn, normdn);
+    SDN_DUMP( sdn, "slapi_sdn_new_normdn_byref");
+    return sdn;
+}
+
+/* use when dn is already normalized */
+Slapi_DN *
+slapi_sdn_new_normdn_passin(const char *normdn)
+{
+    Slapi_DN *sdn = slapi_sdn_new();
+    slapi_sdn_set_normdn_passin(sdn, normdn);
+    SDN_DUMP( sdn, "slapi_sdn_new_normdn_passin");
+    return sdn;
+}
+
+/* use when dn is already normalized */
+Slapi_DN *
+slapi_sdn_new_normdn_byval(const char *normdn)
+{
+    Slapi_DN *sdn = slapi_sdn_new();
+    slapi_sdn_set_normdn_byval(sdn, normdn);
+    SDN_DUMP( sdn, "slapi_sdn_new_normdn_byval");
+    return sdn;
+}
+
 Slapi_DN *
 slapi_sdn_set_dn_byval(Slapi_DN *sdn, const char *dn)
 {
     slapi_sdn_done(sdn);
-    sdn->flag= slapi_setbit_uchar(sdn->flag,FLAG_DN);
+    sdn->flag= slapi_setbit_uchar(sdn->flag,FLAG_UDN);
 	if(dn!=NULL)
 	{
-		sdn->dn= slapi_ch_strdup(dn);
-	    PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
-	    PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);
+		sdn->udn= slapi_ch_strdup(dn);
+	    PR_INCREMENT_COUNTER(slapi_sdn_counter_udn_created);
+	    PR_INCREMENT_COUNTER(slapi_sdn_counter_udn_exist);
 	}
     return sdn;
 }
@@ -1863,8 +1956,8 @@ Slapi_DN *
 slapi_sdn_set_dn_byref(Slapi_DN *sdn, const char *dn)
 {
     slapi_sdn_done(sdn);
-    sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_DN);
-    sdn->dn= dn;
+    sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_UDN);
+    sdn->udn= dn;
     return sdn;
 }
 
@@ -1872,13 +1965,60 @@ Slapi_DN *
 slapi_sdn_set_dn_passin(Slapi_DN *sdn, const char *dn)
 {
     slapi_sdn_done(sdn);
-    sdn->flag= slapi_setbit_uchar(sdn->flag,FLAG_DN);
-    sdn->dn= dn;
+    sdn->flag= slapi_setbit_uchar(sdn->flag,FLAG_UDN);
+    sdn->udn= dn;
 	if(dn!=NULL)
 	{
-	    PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
-	    PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);
+	    PR_INCREMENT_COUNTER(slapi_sdn_counter_udn_created);
+	    PR_INCREMENT_COUNTER(slapi_sdn_counter_udn_exist);
 	}
+    return sdn;
+}
+
+Slapi_DN *
+slapi_sdn_set_normdn_byref(Slapi_DN *sdn, const char *normdn)
+{
+    slapi_sdn_done(sdn);
+    sdn->flag = slapi_unsetbit_uchar(sdn->flag, FLAG_DN);
+    sdn->dn = normdn;
+    if(normdn == NULL) {
+        sdn->ndn_len = 0;
+    } else {
+        sdn->ndn_len = strlen(normdn);
+    }
+    return sdn;
+}
+
+Slapi_DN *
+slapi_sdn_set_normdn_passin(Slapi_DN *sdn, const char *normdn)
+{
+    slapi_sdn_done(sdn);
+    sdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
+    sdn->dn = normdn;
+    if(normdn == NULL) {
+        sdn->ndn_len = 0;
+    } else {
+        sdn->ndn_len = strlen(normdn);
+        PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
+        PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);
+    }
+    return sdn;
+}
+
+Slapi_DN *
+slapi_sdn_set_normdn_byval(Slapi_DN *sdn, const char *normdn)
+{
+    slapi_sdn_done(sdn);
+    sdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
+    if(normdn == NULL) {
+        sdn->dn = slapi_ch_strdup(normdn);
+        sdn->ndn_len = 0;
+    } else {
+        sdn->dn = slapi_ch_strdup(normdn);
+        sdn->ndn_len = strlen(normdn);
+        PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
+        PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);
+    }
     return sdn;
 }
 
@@ -1925,7 +2065,7 @@ slapi_sdn_set_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn)
 	else
 	{
 		/* NewDN= NewRDN + OldParent */
-		char *parentdn= slapi_dn_parent(sdn->dn);
+		char *parentdn = slapi_dn_parent(slapi_sdn_get_dn(sdn));
 		char *newdn = slapi_ch_smprintf("%s,%s", rawrdn, parentdn);
 		slapi_ch_free((void**)&parentdn);
 		slapi_sdn_set_dn_passin(sdn,newdn);
@@ -1939,7 +2079,7 @@ slapi_sdn_set_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn)
 Slapi_DN *
 slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn)
 {
-	const char *rawrdn= slapi_rdn_get_rdn(rdn);
+	const char *rawrdn = slapi_rdn_get_rdn(rdn);
     if(slapi_sdn_isempty(sdn))
 	{
 		slapi_sdn_set_dn_byval(sdn,rawrdn);
@@ -1972,7 +2112,7 @@ slapi_sdn_set_parent(Slapi_DN *sdn, const Slapi_DN *parentdn)
 		/* NewDN= OldRDN + NewParent */
 		Slapi_RDN rdn;
 		const char *rawrdn;
-		slapi_rdn_init_dn(&rdn,sdn->dn);
+		slapi_rdn_init_dn(&rdn, slapi_sdn_get_dn(sdn));
 		rawrdn= slapi_rdn_get_rdn(&rdn);
 	    if(slapi_sdn_isempty(parentdn))
 		{
@@ -1980,12 +2120,9 @@ slapi_sdn_set_parent(Slapi_DN *sdn, const Slapi_DN *parentdn)
 		}
 		else
 		{
-			char *newdn;
-			newdn= slapi_ch_malloc(strlen(rawrdn)+1+strlen(parentdn->dn)+1);
-			strcpy( newdn, rawrdn );
-			strcat( newdn, "," );
-			strcat( newdn, parentdn->dn );
-			slapi_sdn_set_dn_passin(sdn,newdn);
+			char *newdn = 
+			    slapi_ch_smprintf("%s,%s", rawrdn, slapi_sdn_get_dn(parentdn));
+			slapi_sdn_set_dn_passin(sdn, newdn);
 		}
 		slapi_rdn_done(&rdn);
 	}
@@ -2005,7 +2142,6 @@ slapi_sdn_done(Slapi_DN *sdn)
         if(slapi_isbitset_uchar(sdn->flag,FLAG_DN))
         {
             slapi_ch_free((void**)&(sdn->dn));
-            sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_DN);
             PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_deleted);
             PR_DECREMENT_COUNTER(slapi_sdn_counter_dn_exist);
         }
@@ -2014,22 +2150,36 @@ slapi_sdn_done(Slapi_DN *sdn)
             sdn->dn= NULL;
         }
     }
+    sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_DN);
     if(sdn->ndn!=NULL)
     {
         if(slapi_isbitset_uchar(sdn->flag,FLAG_NDN))
         {
             slapi_ch_free((void**)&(sdn->ndn));
-            sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_NDN);
-			sdn->ndn_len=0;
             PR_INCREMENT_COUNTER(slapi_sdn_counter_ndn_deleted);
             PR_DECREMENT_COUNTER(slapi_sdn_counter_ndn_exist);
         }
         else
         {
             sdn->ndn= NULL;
-			sdn->ndn_len=0;
         }
     }
+    sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_NDN);
+    sdn->ndn_len=0;
+    if(sdn->udn!=NULL)
+    {
+        if(slapi_isbitset_uchar(sdn->flag,FLAG_UDN))
+        {
+            slapi_ch_free((void**)&(sdn->udn));
+            PR_INCREMENT_COUNTER(slapi_sdn_counter_udn_deleted);
+            PR_DECREMENT_COUNTER(slapi_sdn_counter_udn_exist);
+        }
+        else
+        {
+            sdn->udn= NULL;
+        }
+    }
+    sdn->flag= slapi_unsetbit_uchar(sdn->flag,FLAG_UDN);
 }
 
 void
@@ -2037,9 +2187,11 @@ slapi_sdn_free(Slapi_DN **sdn)
 {
 	if(sdn!=NULL && *sdn!=NULL)
 	{
+	    int is_allocated = 0;
 	    SDN_DUMP( *sdn, "slapi_sdn_free");
+	    is_allocated = slapi_isbitset_uchar((*sdn)->flag, FLAG_ALLOCATED);
 	    slapi_sdn_done(*sdn);
-	    if(slapi_isbitset_uchar((*sdn)->flag,FLAG_ALLOCATED))
+	    if(is_allocated)
 	    {
 	        slapi_ch_free((void**)sdn);
 	        PR_INCREMENT_COUNTER(slapi_sdn_counter_deleted);
@@ -2051,43 +2203,75 @@ slapi_sdn_free(Slapi_DN **sdn)
 const char *
 slapi_sdn_get_dn(const Slapi_DN *sdn)
 {
-    return (sdn->dn!=NULL ? sdn->dn : sdn->ndn);
+    if (NULL == sdn) {
+        return NULL;
+    }
+    if (sdn->dn) {
+        return sdn->dn;
+    } else if (sdn->ndn) {
+        return sdn->ndn;
+    } else if (sdn->udn) {
+        char *udn = slapi_ch_strdup(sdn->udn);
+        char *normed = NULL;
+        size_t dnlen = 0;
+        Slapi_DN *ncsdn = (Slapi_DN*)sdn; /* non-const Slapi_DN */
+        int rc = slapi_dn_normalize_ext(udn, 0, &normed, &dnlen);
+        if (rc == 0) { /* udn is passed in */
+            *(normed + dnlen) = '\0';
+            ncsdn->dn = normed;
+            ncsdn->ndn_len = dnlen;
+            ncsdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
+            PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
+            PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);
+        } else if (rc > 0) { /* rc > 0 */
+            slapi_ch_free_string(&udn);
+            ncsdn->dn = normed;
+            ncsdn->ndn_len = dnlen;
+            ncsdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
+            PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
+            PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);
+        }
+        /* else (rc < 0); normzlization failed. return NULL */
+        return sdn->dn;
+    } else {
+        return NULL;
+    }
 }
 
 const char *
 slapi_sdn_get_ndn(const Slapi_DN *sdn)
 {
-    if(sdn->ndn==NULL)
-    {
-        if(sdn->dn!=NULL)
-        {
-            char *p= slapi_ch_strdup(sdn->dn);
-            char *normed = NULL;
-            size_t dnlen = 0;
-            int rc = 0;
-
-            Slapi_DN *ncsdn= (Slapi_DN*)sdn; /* non-const Slapi_DN */
-            rc = slapi_dn_normalize_case_ext(p, 0, &normed, &dnlen);
-            if (rc < 0) {
-                /* we give up, just set dn to ndn */
-                slapi_dn_ignore_case(p); /* ignore case */
-                ncsdn->ndn = p;
-                ncsdn->ndn_len = strlen(p);
-            } else if (rc == 0) { /* p is passed in */
-                *(normed + dnlen) = '\0';
-                ncsdn->ndn = normed;
-                ncsdn->ndn_len = dnlen;
-            } else { /* rc > 0 */
-                slapi_ch_free_string(&p);
-                ncsdn->ndn = normed;
-                ncsdn->ndn_len = dnlen;
-            }
-            ncsdn->flag= slapi_setbit_uchar(sdn->flag,FLAG_NDN);
-            PR_INCREMENT_COUNTER(slapi_sdn_counter_ndn_created);
-            PR_INCREMENT_COUNTER(slapi_sdn_counter_ndn_exist);
-        }
+    if (NULL == sdn) {
+        return NULL;
     }
-    return sdn->ndn;
+    if (sdn->ndn) {
+        return sdn->ndn;
+    } else if (sdn->dn || sdn->udn) {
+        Slapi_DN *ncsdn = (Slapi_DN*)sdn; /* non-const Slapi_DN */
+        char *ndn = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+        slapi_dn_ignore_case(ndn); /* ignore case */
+        ncsdn->ndn = ndn;
+        ncsdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_NDN);
+        PR_INCREMENT_COUNTER(slapi_sdn_counter_ndn_created);
+        PR_INCREMENT_COUNTER(slapi_sdn_counter_ndn_exist);
+        return ndn;
+    } else {
+        return NULL;
+    }
+}
+
+const char *
+slapi_sdn_get_udn(const Slapi_DN *sdn)
+{
+    if (sdn->udn) {
+        return sdn->udn;
+    } else if (sdn->dn) {
+        return sdn->dn;
+    } else if (sdn->ndn) {
+        return sdn->ndn;
+    } else {
+        return NULL;
+    }
 }
 
 void
@@ -2123,52 +2307,45 @@ Slapi_DN *
 slapi_sdn_dup(const Slapi_DN *sdn)
 {
 	Slapi_DN *tmp;
-    SDN_DUMP( sdn, "slapi_sdn_dup");
-    tmp=slapi_sdn_new_dn_byval(slapi_sdn_get_dn(sdn));
-	/* can't use slapi_set_ndn_byval -- it nulls the dn */
-	tmp->flag= slapi_setbit_uchar(tmp->flag,FLAG_NDN);
-	if(sdn->ndn!=NULL)
-	{
-		tmp->ndn= slapi_ch_strdup(sdn->ndn);
-		tmp->ndn_len=sdn->ndn_len;
-	} else tmp->ndn=NULL;
+	SDN_DUMP( sdn, "slapi_sdn_dup");
+	tmp = slapi_sdn_new_normdn_byval(slapi_sdn_get_dn(sdn));
 	return tmp;
 }
 
 void
 slapi_sdn_copy(const Slapi_DN *from, Slapi_DN *to)
 {
-    SDN_DUMP( from, "slapi_sdn_copy from");
-    SDN_DUMP( to, "slapi_sdn_copy to");
+	SDN_DUMP( from, "slapi_sdn_copy from");
+	SDN_DUMP( to, "slapi_sdn_copy to");
 	slapi_sdn_done(to);
-	slapi_sdn_set_dn_byval(to,slapi_sdn_get_dn(from));
+	slapi_sdn_set_normdn_byval(to, slapi_sdn_get_dn(from));
 }
 
 int
 slapi_sdn_compare( const Slapi_DN *sdn1, const Slapi_DN *sdn2 )
 {
-    int rc;
-    const char *ndn1= slapi_sdn_get_ndn(sdn1);
-    const char *ndn2= slapi_sdn_get_ndn(sdn2);
+	int rc;
+	const char *ndn1= slapi_sdn_get_ndn(sdn1);
+	const char *ndn2= slapi_sdn_get_ndn(sdn2);
 	if(ndn1==ndn2)
 	{
 	    rc= 0;
 	}
 	else
 	{
-	    if(ndn1==NULL)
+		if(ndn1==NULL)
 		{
 		    rc= -1;
 		}
 		else
 		{
-    	    if(ndn2==NULL)
-    		{
-    		    rc= 1;
-    		}
-    		else
-    		{
-                rc= strcmp(ndn1,ndn2);
+			if(ndn2==NULL)
+			{
+				rc= 1;
+			}
+			else
+			{
+				rc= strcmp(ndn1,ndn2);
 			}
 		}
 	}
@@ -2176,22 +2353,25 @@ slapi_sdn_compare( const Slapi_DN *sdn1, const Slapi_DN *sdn2 )
 }
 
 int
-slapi_sdn_isempty( const Slapi_DN *sdn)
+slapi_sdn_isempty(const Slapi_DN *sdn)
 {
-    const char *dn= slapi_sdn_get_dn(sdn);
+	const char *dn = NULL;
+	if (sdn) {
+		dn = slapi_sdn_get_dn(sdn);
+	}
 	return (dn==NULL || dn[0]=='\0');
 }
 
 int
 slapi_sdn_issuffix(const Slapi_DN *sdn, const Slapi_DN *suffixsdn)
 {
-    int rc;
-    const char *dn= slapi_sdn_get_ndn(sdn);
+	int rc;
+	const char *dn= slapi_sdn_get_ndn(sdn);
 	const char *suffixdn= slapi_sdn_get_ndn(suffixsdn);
 	if(dn!=NULL && suffixdn!=NULL)
 	{
-    	int dnlen = slapi_sdn_get_ndn_len(sdn);
-        int suffixlen= slapi_sdn_get_ndn_len(suffixsdn);
+		int dnlen = slapi_sdn_get_ndn_len(sdn);
+		int suffixlen= slapi_sdn_get_ndn_len(suffixsdn);
 		if (dnlen<suffixlen)
 		{
 		    rc= 0;
@@ -2203,9 +2383,8 @@ slapi_sdn_issuffix(const Slapi_DN *sdn, const Slapi_DN *suffixsdn)
 				return ( 1 );
 			}
 
-        	rc= ( (strcasecmp(suffixdn, dn+dnlen-suffixlen)==0)
-					&& ( (dnlen == suffixlen)
-						 || DNSEPARATOR(dn[dnlen-suffixlen-1])) );
+			rc = (((dnlen == suffixlen) || DNSEPARATOR(dn[dnlen-suffixlen-1]))
+			      && (strcasecmp(suffixdn, dn+dnlen-suffixlen)==0));
 		}
 	}
 	else
@@ -2219,11 +2398,11 @@ slapi_sdn_issuffix(const Slapi_DN *sdn, const Slapi_DN *suffixsdn)
 int
 slapi_sdn_get_ndn_len(const Slapi_DN *sdn)
 {
-    int r= 0;
-	(void)slapi_sdn_get_ndn(sdn); /* does the normalization if needed */
-	if(sdn->ndn!=NULL)
+    int r = 0;
+	(void)slapi_sdn_get_dn(sdn); /* does the normalization if needed */
+	if(sdn->dn || sdn->ndn)
 	{
-		r= sdn->ndn_len;	
+		r = sdn->ndn_len;	
 	}
 	return r;
 }
@@ -2296,7 +2475,7 @@ slapi_sdn_scope_test( const Slapi_DN *dn, const Slapi_DN *base, int scope )
  * build the new dn of an entry for moddn operations
  */
 char *
-slapi_moddn_get_newdn(Slapi_DN *dn_olddn, char *newrdn, char *newsuperiordn)
+slapi_moddn_get_newdn(Slapi_DN *dn_olddn, const char *newrdn, const char *newsuperiordn)
 {
     char *newdn;
 	

@@ -358,40 +358,40 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
             /* data.dptr may not include rdn: ..., try "dn: ..." */
             ee = slapi_str2entry( data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN );
         } else {
-            char *dn = NULL;
+            char *normdn = NULL;
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
             if (bdn) {
-                dn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+                normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
                 slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
-                                "dncache_find_id returned: %s\n", dn);
+                                "dncache_find_id returned: %s\n", normdn);
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
             } else {
                 Slapi_DN *sdn = NULL;
-                rc = entryrdn_lookup_dn(be, rdn, id, &dn, txn);
+                rc = entryrdn_lookup_dn(be, rdn, id, &normdn, txn);
                 if (rc) {
                     slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
                                     "id2entry: entryrdn look up failed "
                                     "(rdn=%s, ID=%d)\n", rdn, id);
                     /* Try rdn as dn. Could be RUV. */
-                    dn = slapi_ch_strdup(rdn);
+                    normdn = slapi_ch_strdup(rdn);
                 }
-                sdn = slapi_sdn_new_dn_byval((const char *)dn);
+                sdn = slapi_sdn_new_normdn_byval((const char *)normdn);
                 bdn = backdn_init(sdn, id, 0);
                 if (CACHE_ADD( &inst->inst_dncache, bdn, NULL )) {
                     backdn_free(&bdn);
                     slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
-                                    "%s is already in the dn cache\n", dn);
+                                    "%s is already in the dn cache\n", normdn);
                 } else {
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                     slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
                                     "entryrdn_lookup_dn returned: %s, "
-                                    "and set to dn cache (id %d)\n", dn, id);
+                                    "and set to dn cache (id %d)\n", normdn, id);
                 }
             }
-            ee = slapi_str2entry_ext( (const char *)dn, data.dptr, 
+            ee = slapi_str2entry_ext( (const char *)normdn, data.dptr, 
                                       SLAPI_STR2ENTRY_NO_ENTRYDN );
             slapi_ch_free_string(&rdn);
-            slapi_ch_free_string(&dn);
+            slapi_ch_free_string(&normdn);
         }
     } else {
         ee = slapi_str2entry( data.dptr, 0 );

@@ -124,13 +124,15 @@ int update_pw_retry ( Slapi_PBlock *pb )
 
 static
 void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
-	char        *dn;
+	const char  *dn = NULL;
+	Slapi_DN    *sdn = NULL;
 	Slapi_Mods	smods;
 	time_t      reset_time;
 	char		*timestr;
 	passwdPolicy *pwpolicy = NULL;
 
-	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
+	dn = slapi_sdn_get_dn(sdn);
 	pwpolicy = new_passwdPolicy(pb, dn);
 
 	slapi_mods_init(&smods, 0);
@@ -144,7 +146,7 @@ void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 
 	set_retry_cnt_mods(pb, &smods, count);
 	
-	pw_apply_mods(dn, &smods);
+	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
 	delete_passwdPolicy(&pwpolicy);
 }
@@ -154,10 +156,12 @@ void set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 	char 		*timestr;
 	time_t		unlock_time;
 	char        retry_cnt[8]; /* 1-65535 */
-	char *dn = NULL; 
+	const char *dn = NULL; 
+	Slapi_DN *sdn = NULL; 
 	passwdPolicy *pwpolicy = NULL;
 
-	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
+	dn = slapi_sdn_get_dn(sdn);
 	pwpolicy = new_passwdPolicy(pb, dn);
 
 	if (smods) {
@@ -185,14 +189,15 @@ void set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 }
 
 static
-void set_retry_cnt ( Slapi_PBlock *pb, int count) {
-	char        *dn;
+void set_retry_cnt ( Slapi_PBlock *pb, int count)
+{
+	Slapi_DN *sdn = NULL; 
 	Slapi_Mods	smods;
 	
-	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_mods_init(&smods, 0);
 	set_retry_cnt_mods(pb, &smods, count);
-	pw_apply_mods(dn, &smods);
+	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
 }
 
@@ -201,12 +206,13 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 {
 	int             search_result = 0;
 	Slapi_Entry     *retentry = NULL;
-	Slapi_DN		sdn;
+	Slapi_DN        *target_sdn = NULL;
+	Slapi_DN        sdn;
+
+	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &target_sdn );
 
 	if ((dn == NULL) && pb) {
-		char *t;
-		slapi_pblock_get( pb, SLAPI_TARGET_DN, &t );
-		dn= t;
+		dn = slapi_sdn_get_dn(target_sdn);
 	}
 
 	if (dn == NULL) {
@@ -216,7 +222,14 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 
 	slapi_sdn_init_dn_byref(&sdn, dn);
 
-	if ((search_result = slapi_search_internal_get_entry(&sdn, NULL,  &retentry, pw_get_componentID())) != LDAP_SUCCESS){
+	if (slapi_sdn_compare(&sdn, target_sdn)) { /* does not match */
+	    target_sdn = &sdn;
+	}
+
+	search_result = slapi_search_internal_get_entry(target_sdn, NULL,
+	                                                &retentry, 
+	                                                pw_get_componentID());
+	if (search_result != LDAP_SUCCESS) {
 		LDAPDebug (LDAP_DEBUG_TRACE, "WARNING: 'get_entry' can't find entry '%s', err %d\n", dn, search_result, 0);
 	}
 	slapi_sdn_done(&sdn);
@@ -224,7 +237,8 @@ bail:
 	return retentry;
 }
 
-void pw_apply_mods(const char *dn, Slapi_Mods *mods) 
+void
+pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods) 
 {
 	Slapi_PBlock pb;
 	int res;
@@ -234,7 +248,7 @@ void pw_apply_mods(const char *dn, Slapi_Mods *mods)
 		pblock_init(&pb);
 		/* We don't want to overwrite the modifiersname, etc. attributes,
 		 * so we set a flag for this operation */
-		slapi_modify_internal_set_pb (&pb, dn, 
+		slapi_modify_internal_set_pb_ext (&pb, sdn, 
 					  slapi_mods_get_ldapmods_byref(mods),
 					  NULL, /* Controls */
 					  NULL, /* UniqueID */
@@ -244,8 +258,9 @@ void pw_apply_mods(const char *dn, Slapi_Mods *mods)
 		
 		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 		if (res != LDAP_SUCCESS){
-			LDAPDebug(LDAP_DEBUG_ANY, "WARNING: passwordPolicy modify error %d on entry '%s'\n",
-					  res, dn, 0);
+			LDAPDebug2Args(LDAP_DEBUG_ANY,
+			        "WARNING: passwordPolicy modify error %d on entry '%s'\n",
+					res, slapi_sdn_get_dn(sdn));
 		}
 		
 		pblock_done(&pb);

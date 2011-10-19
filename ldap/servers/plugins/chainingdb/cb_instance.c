@@ -850,9 +850,9 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 
 	if (apply) {
 
-	        slapi_rwlock_wrlock(inst->rwl_config_lock);
+		slapi_rwlock_wrlock(inst->rwl_config_lock);
 		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-	    		( phase != CB_CONFIG_PHASE_STARTUP )) {
+		    ( phase != CB_CONFIG_PHASE_STARTUP )) {
 
 			/* Dynamic modif   */
 			/* Free user later */
@@ -862,10 +862,11 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 			rc=CB_REOPEN_CONN;
 		}
 
-		inst->pool->binddn=slapi_ch_strdup((char *) value);
+		/* normalize and ignore the case */
+		inst->pool->binddn = slapi_create_dn_string_case("%s", (char *)value);
+		/* not normalized */
 		inst->pool->binddn2=slapi_ch_strdup((char *) value);
-		slapi_dn_normalize_case(inst->pool->binddn);
-	        slapi_rwlock_unlock(inst->rwl_config_lock);
+		slapi_rwlock_unlock(inst->rwl_config_lock);
 	} else {
 
 		/* Security check */
@@ -877,19 +878,18 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 		char * theValueCopy = NULL;
 
 		if (value) {
-			theValueCopy=slapi_ch_strdup((char *) value);
-			slapi_dn_normalize_case(theValueCopy);
+			theValueCopy = slapi_create_dn_string_case("%s", (char *) value);
 		}
 
 		slapi_rwlock_rdlock(inst->rwl_config_lock);
-                if (inst->impersonate && theValueCopy && 
-                        !strcmp(theValueCopy,rootdn)) {	/* UTF8-aware. See cb_get_dn() */
-                        rc=LDAP_UNWILLING_TO_PERFORM; 
+		if (inst->impersonate && theValueCopy && 
+		    !strcmp(theValueCopy,rootdn)) {	/* UTF8-aware. See cb_get_dn() */
+			rc=LDAP_UNWILLING_TO_PERFORM; 
 			if (errorbuf) {
 				PR_snprintf(errorbuf,SLAPI_DSE_RETURNTEXT_SIZE, "value %s not allowed",rootdn);
 			}
-                }
-                slapi_rwlock_unlock(inst->rwl_config_lock);
+		}
+		slapi_rwlock_unlock(inst->rwl_config_lock);
 
 		slapi_ch_free((void **)&theValueCopy);
 		slapi_ch_free((void **)&rootdn);

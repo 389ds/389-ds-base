@@ -785,7 +785,8 @@ static int roles_cache_is_role_entry(struct slapi_entry *entry)
 */
 void roles_cache_change_notify(Slapi_PBlock *pb)
 {
-	char *dn = NULL;
+	const char *dn = NULL;
+	Slapi_DN *sdn = NULL;
 	struct slapi_entry *e = NULL;
 	struct slapi_entry *pre = NULL;
 	struct slapi_entry *entry = NULL;
@@ -814,10 +815,10 @@ void roles_cache_change_notify(Slapi_PBlock *pb)
 		return;
 	}
 
-    slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
-    if( dn == NULL )
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    if( sdn == NULL )
     {
-		return;
+        return;
     }
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &pb_operation);
@@ -932,6 +933,7 @@ if ( e != NULL )
 
 		if ( top_suffix != NULL )
 		{
+			dn = slapi_sdn_get_dn(sdn);
 			roles_cache_trigger_update_role( slapi_ch_strdup(dn), entry,
 										top_suffix,
 										operation);

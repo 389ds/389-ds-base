@@ -79,7 +79,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	backend *be;
 	struct ldbminfo *li;
 	ldbm_instance *inst;
-	char *dn = NULL;
+	const char *dn = NULL;
 	Slapi_Entry	*e = NULL;
 	struct backentry *tombstoneentry = NULL;
 	struct backentry *addingentry = NULL;
@@ -105,7 +105,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int addingentry_id_assigned= 0;
 	int addingentry_in_cache= 0;
 	int tombstone_in_cache= 0;
-	Slapi_DN sdn;
+	Slapi_DN *sdn = NULL;
 	Slapi_DN parentsdn;
 	Slapi_Operation *operation;
 	int dblock_acquired= 0;
@@ -134,7 +134,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 	inst = (ldbm_instance *) be->be_instance_info;
 		
 	/* sdn & parentsdn need to be initialized before "goto *_return" */
-	slapi_sdn_init(&sdn);
 	slapi_sdn_init(&parentsdn);
 	
 	/* Get rid of ldbm backend attributes that you are not allowed to specify yourself */
@@ -195,17 +194,21 @@ ldbm_back_add( Slapi_PBlock *pb )
 		{
 			/* Check if an entry with the intended uniqueid already exists. */
 			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY); /* Could be through this multiple times */
-			addr.dn = addr.udn = NULL;
+			addr.udn = NULL;
+			addr.sdn = NULL;
 			addr.uniqueid = (char*)slapi_entry_get_uniqueid(e); /* jcm -  cast away const */
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_UNIQUEID_ENTRY, !is_replicated_operation);
 		}
 		if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
 		{
-			slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn );
-			if (NULL == dn)
+			slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn );
+			if (NULL == sdn)
 			{
+				LDAPDebug0Args(LDAP_DEBUG_ANY,
+				               "ldbm_back_add: Null target dn\n");
 				goto error_return;
 			}
+			dn = slapi_sdn_get_dn(sdn);
 			ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
 			if (ldap_result_code)
 			{
@@ -213,11 +216,10 @@ ldbm_back_add( Slapi_PBlock *pb )
 				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 				goto error_return;
 			}
-			slapi_sdn_set_dn_byref(&sdn, dn);
-			slapi_sdn_get_backend_parent(&sdn,&parentsdn,pb->pb_backend);
+			slapi_sdn_get_backend_parent(sdn, &parentsdn, pb->pb_backend);
 			/* Check if an entry with the intended DN already exists. */
 			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY); /* Could be through this multiple times */
-			addr.dn = dn;
+			addr.sdn = sdn;
 			addr.udn = NULL;
 			addr.uniqueid = NULL;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_DN_ENTRY, !is_replicated_operation);
@@ -233,7 +235,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		   slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY))
 		{
 			done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY); /* Could be through this multiple times */
-			addr.dn = (char*)slapi_sdn_get_dn (&parentsdn); /* get_copy_of_entry assumes the DN is not normalized */
+			addr.sdn = &parentsdn;
 			addr.udn = NULL;
 			addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_PARENT_ENTRY, !is_replicated_operation);
@@ -273,7 +275,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	 */
 	if(have_parent_address(&parentsdn, operation->o_params.p.p_add.parentuniqueid))
 	{
-		addr.dn = (char*)slapi_sdn_get_dn (&parentsdn);
+		addr.sdn = &parentsdn;
 		addr.udn = NULL;
 		addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
 		parententry = find_entry2modify_only(pb,be,&addr,&txn);
@@ -311,10 +313,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 			if ( !managedsait && !is_tombstone_operation )
 			{
 				int err= 0;
-				Slapi_DN ancestordn= {0};
+				Slapi_DN ancestorsdn;
 				struct backentry *ancestorentry;
-				ancestorentry= dn2ancestor(pb->pb_backend,&sdn,&ancestordn,&txn,&err);
-				slapi_sdn_done(&ancestordn);
+				slapi_sdn_init(&ancestorsdn);
+				ancestorentry= dn2ancestor(pb->pb_backend,sdn,&ancestorsdn,&txn,&err);
+				slapi_sdn_done(&ancestorsdn);
 				if ( ancestorentry != NULL )
 				{
 					int sentreferral= check_entry_for_referral(pb, ancestorentry->ep_entry, backentry_get_ndn(ancestorentry), "ldbm_back_add");
@@ -355,7 +358,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 		 * When we resurect a tombstone we must use its UniqueID
 		 * to find the tombstone entry and lock it down in the cache.
 		 */
-		addr.dn = addr.udn = NULL;
+		addr.udn = NULL;
+		addr.sdn = NULL;
 		addr.uniqueid = (char *)slapi_entry_get_uniqueid(e); /* jcm - cast away const */
 		tombstoneentry = find_entry2modify( pb, be, &addr, &txn );
 		if ( tombstoneentry==NULL )
@@ -368,7 +372,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		addingentry = backentry_dup( tombstoneentry );
 		if ( addingentry==NULL )
 		{
-		   	ldap_result_code= LDAP_OPERATIONS_ERROR;
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return;
 		}
 		/*
@@ -378,9 +382,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 		 * The entry comes back to life as a Glue entry, so we add the
 		 * magic objectclass.
 		 */
-		slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn );
-		slapi_sdn_set_dn_byref(&sdn, dn);
-		slapi_entry_set_dn(addingentry->ep_entry, slapi_ch_strdup(dn)); /* The DN is passed into the entry. */
+		if (NULL == sdn) {
+			LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_add: Null target dn\n");
+			goto error_return;
+		}
+		dn = slapi_sdn_get_dn(sdn);
+		slapi_entry_set_sdn(addingentry->ep_entry, sdn); /* The DN is passed into the entry. */
 		/* LPREPL: the DN is normalized...Somehow who should get a not normalized one */
 		addingentry->ep_id = slapi_entry_attr_get_ulong(addingentry->ep_entry,"entryid");
 		slapi_entry_attr_delete(addingentry->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID);
@@ -541,19 +548,20 @@ ldbm_back_add( Slapi_PBlock *pb )
 		{
 			/* Here means that we didn't find the parent */
 			int err = 0;
-			Slapi_DN ancestordn= {0};
+			Slapi_DN ancestorsdn;
 			struct backentry *ancestorentry;
 
 			LDAPDebug( LDAP_DEBUG_TRACE,
 				"parent does not exist, pdn = %s\n",
 				slapi_sdn_get_dn(&parentsdn), 0, 0 );
 
-			ancestorentry = dn2ancestor(be, &parentsdn, &ancestordn, &txn, &err );
+			slapi_sdn_init(&ancestorsdn);
+			ancestorentry = dn2ancestor(be, &parentsdn, &ancestorsdn, &txn, &err );
 			CACHE_RETURN( &inst->inst_cache, &ancestorentry );
 
 			ldap_result_code= LDAP_NO_SUCH_OBJECT;
-			ldap_result_matcheddn= slapi_ch_strdup((char *)slapi_sdn_get_dn(&ancestordn)); /* jcm - cast away const. */
-			slapi_sdn_done(&ancestordn);
+			ldap_result_matcheddn= slapi_ch_strdup((char *)slapi_sdn_get_dn(&ancestorsdn)); /* jcm - cast away const. */
+			slapi_sdn_done(&ancestorsdn);
 			goto error_return;
 		}
 		ldap_result_code = plugin_call_acl_plugin (pb, e, NULL, NULL, SLAPI_ACL_ADD, 
@@ -742,7 +750,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 				}
 				goto error_return; 
 			}
-			retval = index_addordel_string(be,SLAPI_ATTR_NSCP_ENTRYDN,slapi_sdn_get_ndn(&sdn),addingentry->ep_id,BE_INDEX_DEL,&txn);
+			retval = index_addordel_string(be,
+			                               SLAPI_ATTR_NSCP_ENTRYDN,
+			                               slapi_sdn_get_ndn(sdn),
+			                               addingentry->ep_id,
+			                               BE_INDEX_DEL, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS, "add 4 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
@@ -1011,7 +1023,6 @@ common_return:
 	{
 		slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
 	}
-	slapi_sdn_done(&sdn);
 	slapi_sdn_done(&parentsdn);
 	slapi_ch_free( (void**)&ldap_result_matcheddn );
 	slapi_ch_free( (void**)&errbuf );

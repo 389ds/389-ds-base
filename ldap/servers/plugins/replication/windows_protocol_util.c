@@ -1296,8 +1296,9 @@ process_replay_rename(Private_Repl_Protocol *prp,
 					remote_subtree?remote_subtree:"empty");
 		goto bail;
 	}
+	/* newparent is already normzlized; just ignore the case */
 	norm_newparent = slapi_ch_strdup(newparent);
-	slapi_dn_normalize_case(norm_newparent);
+	slapi_dn_ignore_case(norm_newparent);
 	p = strstr(norm_newparent, local_subtree);
 	if (NULL == p) {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
@@ -1389,7 +1390,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_replay_update\n", 0, 0, 0 );
 
-	local_dn = slapi_sdn_new_dn_byref( op->target_address.dn );
+	local_dn = slapi_sdn_dup( op->target_address.sdn );
 
 	/* Since we have the target uniqueid in the op structure, let's
 	 * fetch the local entry here using it. We do not want to search
@@ -1415,7 +1416,8 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 					"%s: windows_replay_update: failed to fetch local entry "
 					"for %s operation dn=\"%s\"\n",
 					agmt_get_long_name(prp->agmt),
-					op2string(op->operation_type), op->target_address.dn);
+					op2string(op->operation_type), 
+					REPL_GET_DN(&op->target_address));
 				goto error;
 			}
 			op->operation_type = SLAPI_OPERATION_DELETE;
@@ -1427,12 +1429,14 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"%s: windows_replay_update: failed to fetch local entry for %s operation dn=\"%s\"\n",
 					agmt_get_long_name(prp->agmt),
-					op2string(op->operation_type), op->target_address.dn);
+					op2string(op->operation_type), 
+					REPL_GET_DN(&op->target_address));
 			} else {
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"%s: windows_replay_update: Looking at %s operation local dn=\"%s\" (%s)\n",
 					agmt_get_long_name(prp->agmt),
-					op2string(op->operation_type), op->target_address.dn, "ours");
+					op2string(op->operation_type), 
+					REPL_GET_DN(&op->target_address), "ours");
 			}
 			/* Just bail on this change.  We don't want to do any
 			 * further checks since we don't have a local entry. */
@@ -1450,7 +1454,8 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 		"%s: windows_replay_update: Looking at %s operation local dn=\"%s\" (%s,%s,%s)\n",
 		agmt_get_long_name(prp->agmt),
-		op2string(op->operation_type), op->target_address.dn, is_ours ? "ours" : "not ours", 
+		op2string(op->operation_type), 
+		REPL_GET_DN(&op->target_address), is_ours ? "ours" : "not ours", 
 		is_user ? "user" : "not user", is_group ? "group" : "not group");
 
 	if (is_ours && (is_user || is_group) ) {
@@ -1463,14 +1468,16 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				"%s: windows_replay_update: failed map dn for %s operation dn=\"%s\""
 				"rc=%d remote_dn = [%s]\n",
 				agmt_get_long_name(prp->agmt),
-				op2string(op->operation_type), op->target_address.dn,
+				op2string(op->operation_type), 
+				REPL_GET_DN(&op->target_address),
 				rc, remote_dn ? slapi_sdn_get_dn(remote_dn) : "(null)");
 			goto error;
 		}
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 			"%s: windows_replay_update: Processing %s operation local dn=\"%s\" remote dn=\"%s\"\n",
 			agmt_get_long_name(prp->agmt),
-			op2string(op->operation_type), op->target_address.dn, slapi_sdn_get_dn(remote_dn));
+			op2string(op->operation_type), 
+			REPL_GET_DN(&op->target_address), slapi_sdn_get_dn(remote_dn));
 		switch (op->operation_type) {
 		case SLAPI_OPERATION_ADD:
 			return_value = process_replay_add(prp,op->p.p_add.target_entry,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
@@ -1584,7 +1591,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			{
 			return_value = process_replay_rename(prp, local_entry, local_dn,
 								op->p.p_modrdn.modrdn_newrdn,
-								op->p.p_modrdn.modrdn_newsuperior_address.dn,
+								REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address),
 								op->p.p_modrdn.modrdn_deloldrdn,
 								is_user, is_group);
 			if (CONN_OPERATION_FAILED == return_value) {
@@ -4446,6 +4453,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	Slapi_PBlock *pb = NULL;
 	int do_modify = 0;
 	char *newsuperior = NULL;
+	Slapi_DN newsuperior_sdn;
 	const char *newrdn = NULL;
 	int is_user = 0, is_group = 0;
 	const char *newdn = NULL;
@@ -4467,8 +4475,8 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 
 	/* Compare the local and mapped RDNs if it is a group */
 	/* If they don't match, set it to newrdn. */
-	if (is_group && strcmp(slapi_sdn_get_ndn(slapi_entry_get_sdn(local_entry)),
-					slapi_sdn_get_ndn(mapped_sdn))) {
+	if (is_group && strcmp(slapi_entry_get_ndn(local_entry),
+	                       slapi_sdn_get_ndn(mapped_sdn))) {
 		newdn = slapi_sdn_get_dn(mapped_sdn);
 		slapi_rdn_set_dn(&rdn, newdn);
 		newrdn = slapi_rdn_get_rdn(&rdn);
@@ -4494,13 +4502,15 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "renaming entry \"%s\" - "
 				"(newrdn: \"%s\", newsuperior: \"%s\"\n", newdn,
 				newrdn ? newrdn:"NULL", newsuperior ? newsuperior:"NULL");
-		slapi_rename_internal_set_pb (pb,
-				   slapi_sdn_get_dn(slapi_entry_get_sdn(local_entry)),
-				   newrdn, newsuperior, 1 /* delete old RDNS */,
+		slapi_sdn_init_dn_byref(&newsuperior_sdn, newsuperior);
+		slapi_rename_internal_set_pb_ext (pb,
+				   slapi_entry_get_sdn(local_entry),
+				   newrdn, &newsuperior_sdn, 1 /* delete old RDNS */,
 				   NULL /* controls */, NULL /* uniqueid */,
 				   repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
 		slapi_modrdn_internal_pb (pb);
 		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &retval);
+		slapi_sdn_done(&newsuperior_sdn);
 		slapi_pblock_destroy (pb);
 		if (LDAP_SUCCESS != retval) {
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
@@ -4541,12 +4551,14 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		if (pb)
 		{
 			char dnbuf[BUFSIZ];
-			const char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
+			const char *dn = slapi_entry_get_dn_const(local_entry);
 			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 				"modifying entry: %s\n", escape_string(dn, dnbuf));
-			slapi_modify_internal_set_pb (pb, slapi_entry_get_ndn(local_entry), slapi_mods_get_ldapmods_byref(&smods), NULL, NULL,
-					repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
-			slapi_modify_internal_pb (pb);		
+			slapi_modify_internal_set_pb_ext (pb,
+			    slapi_entry_get_sdn(local_entry),
+			    slapi_mods_get_ldapmods_byref(&smods), NULL, NULL,
+			    repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
+			slapi_modify_internal_pb (pb);
 			slapi_pblock_get (pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 			if (rc) 
 			{
@@ -4564,7 +4576,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	} else
 	{
 		char dnbuf[BUFSIZ];
-		const char *dn = slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry));
+		const char *dn = slapi_entry_get_dn_const(local_entry);
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"no mods generated for local entry: %s\n", escape_string(dn, dnbuf));
 	}

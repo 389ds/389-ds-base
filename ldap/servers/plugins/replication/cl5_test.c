@@ -838,7 +838,7 @@ static int  populateChangelogOp ()
     pb = slapi_pblock_new ();
     cur_time = time (NULL);
     PR_snprintf (newrdn, sizeof(newrdn), "cn=renamed%s", ctime(&cur_time));
-    slapi_rename_internal_set_pb (pb, dn, newrdn, NULL, 1, NULL, NULL,
+    slapi_rename_internal_set_pb_ext (pb, dn, newrdn, NULL, 1, NULL, NULL,
 	 					          repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_modrdn_internal_pb (pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);

@@ -772,7 +772,6 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp = NULL;
     Slapi_PBlock *pb = NULL;
-    const char* dn = NULL;
 	Slapi_DN* sdn = NULL;
 	int rc = 0;
 	Slapi_Mods *mods = NULL;
@@ -788,12 +787,12 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 
 	pb = slapi_pblock_new ();
   
-	mods = windows_private_get_cookie_mod(dp, LDAP_MOD_REPLACE);
-   	sdn = slapi_sdn_dup( agmt_get_dn_byref(ra) );
-	dn = slapi_sdn_get_dn(sdn);
+    mods = windows_private_get_cookie_mod(dp, LDAP_MOD_REPLACE);
+    sdn = slapi_sdn_dup( agmt_get_dn_byref(ra) );
 
-    slapi_modify_internal_set_pb (pb, dn, slapi_mods_get_ldapmods_byref(mods), NULL, NULL, 
-                                  repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+    slapi_modify_internal_set_pb_ext (pb, sdn, 
+            slapi_mods_get_ldapmods_byref(mods), NULL, NULL, 
+            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_modify_internal_pb (pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -802,8 +801,9 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
     {	/* try again, but as an add instead */
 		slapi_mods_free(&mods);
 		mods = windows_private_get_cookie_mod(dp, LDAP_MOD_ADD);
-		slapi_modify_internal_set_pb (pb, dn, slapi_mods_get_ldapmods_byref(mods), NULL, NULL, 
-                                      repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+		slapi_modify_internal_set_pb_ext (pb, sdn,
+		        slapi_mods_get_ldapmods_byref(mods), NULL, NULL, 
+		        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
 		slapi_modify_internal_pb (pb);
 	
 		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);

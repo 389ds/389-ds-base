@@ -494,8 +494,8 @@ int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
 	mod.mod_type = ((memberof_del_dn_data *)callback_data)->type;
 	mod.mod_values = val;
 
-	slapi_modify_internal_set_pb(
-		mod_pb, slapi_entry_get_dn(e),
+	slapi_modify_internal_set_pb_ext(
+		mod_pb, slapi_entry_get_sdn(e),
 		mods, 0, 0,
 		memberof_get_plugin_id(), 0);
 
@@ -752,8 +752,8 @@ int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
 	addmod.mod_type = ((replace_dn_data *)callback_data)->type;
 	addmod.mod_values = addval;
 
-	slapi_modify_internal_set_pb(
-		mod_pb, slapi_entry_get_dn(e),
+	slapi_modify_internal_set_pb_ext(
+		mod_pb, slapi_entry_get_sdn(e),
 		mods, 0, 0,
 		memberof_get_plugin_id(), 0);
 
@@ -1051,11 +1051,13 @@ bail:
  */
 char *memberof_getdn(Slapi_PBlock *pb)
 {
-	char *dn = 0;
+	const char *dn = 0;
+	Slapi_DN *sdn = NULL;
 
-	slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
-	
-	return dn;
+	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+	dn = slapi_sdn_get_dn(sdn);	
+
+	return (char *)dn;
 }
 
 /*
@@ -2385,6 +2387,7 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 {
 	int rc = 0;
 	char *dn = slapi_entry_get_dn(e);
+	Slapi_DN *sdn = slapi_entry_get_sdn(e);
 	struct fix_memberof_callback_data *cb_data = (struct fix_memberof_callback_data *)callback_data;
 	MemberOfConfig *config = cb_data->config;
 	memberof_del_dn_data del_data = {0, config->memberof_attr, cb_data->txn};
@@ -2420,8 +2423,8 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 		mods[0] = slapi_mod_get_ldapmod_passout(smod);
 		mods[1] = 0;
 
-		slapi_modify_internal_set_pb(
-			mod_pb, dn, mods, 0, 0,
+		slapi_modify_internal_set_pb_ext(
+			mod_pb, sdn, mods, 0, 0,
 			memberof_get_plugin_id(), 0);
 
 		slapi_pblock_set(mod_pb, SLAPI_TXN, cb_data->txn);

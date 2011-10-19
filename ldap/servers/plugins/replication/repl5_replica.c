@@ -1858,13 +1858,14 @@ static char*
 _replica_get_config_dn (const Slapi_DN *root)
 {
     char *dn;
+    /* "cn=mapping tree,cn=config" */
     const char *mp_base = slapi_get_mapping_tree_config_root ();
 
     PR_ASSERT (root);
 
     /* This function converts the old style DN to the new style. */
-    dn = slapi_create_dn_string("%s,cn=\"%s\",%s", 
-                                REPLICA_RDN, slapi_sdn_get_dn (root), mp_base);
+    dn = slapi_ch_smprintf("%s,cn=\"%s\",%s", 
+                           REPLICA_RDN, slapi_sdn_get_dn (root), mp_base);
     return dn;
 }
 
@@ -2328,9 +2329,9 @@ replica_write_ruv (Replica *r)
 	pb = slapi_pblock_new();
 
     /* replica name never changes so it is ok to reference it outside the lock */
-	slapi_modify_internal_set_pb(
+	slapi_modify_internal_set_pb_ext(
 		pb,
-		slapi_sdn_get_dn(r->repl_root), /* only used to select be */
+		r->repl_root, /* only used to select be */
 		mods,
 		NULL, /* controls */
 		RUV_STORAGE_ENTRY_UNIQUEID,
@@ -3079,11 +3080,11 @@ replica_remove_legacy_attr (const Slapi_DN *repl_root_sdn, const char *attr)
     ctrls[1] = NULL;
     
     /* remove copiedFrom/copyingFrom first */
-    slapi_modify_internal_set_pb (pb, slapi_sdn_get_dn (repl_root_sdn), 
-                                  slapi_mods_get_ldapmods_passout (&smods), ctrls, 
-								  NULL /*uniqueid */, 
-                                  repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION) , 
-                                  0 /* operation_flags */);
+    slapi_modify_internal_set_pb_ext (pb, repl_root_sdn, 
+                                      slapi_mods_get_ldapmods_passout (&smods),
+                                      ctrls, NULL /*uniqueid */, 
+                                      repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION) , 
+                                      0 /* operation_flags */);
  
     slapi_modify_internal_pb (pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -3120,7 +3121,7 @@ replica_log_ruv_elements_nolock (const Replica *r)
            special target dn */
         memset (&op_params, 0, sizeof (op_params));
         op_params.operation_type = SLAPI_OPERATION_DELETE;
-        op_params.target_address.dn = START_ITERATION_ENTRY_DN;
+        op_params.target_address.sdn = slapi_sdn_new_dn_byval(START_ITERATION_ENTRY_DN);
         op_params.target_address.uniqueid = START_ITERATION_ENTRY_UNIQUEID;
         op_params.csn = csn;
         repl_gen = ruv_get_replica_generation (ruv);
@@ -3132,6 +3133,7 @@ replica_log_ruv_elements_nolock (const Replica *r)
             rc = -1;
 
         slapi_ch_free ((void**)&repl_gen);
+        slapi_sdn_free(&op_params.target_address.sdn);
         csn_free (&csn);
     }
 
@@ -3221,9 +3223,9 @@ replica_replace_ruv_tombstone(Replica *r)
     mods [2] = NULL;
     pb = slapi_pblock_new();
 
-    slapi_modify_internal_set_pb(
+    slapi_modify_internal_set_pb_ext(
         pb,
-        (char*)slapi_sdn_get_dn (r->repl_root), /* only used to select be */
+        r->repl_root, /* only used to select be */
         mods,
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,

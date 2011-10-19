@@ -181,7 +181,7 @@ tombstone_to_glue (
 	 */
 	addingentry = slapi_entry_dup(tombstoneentry);
 	addingdn = slapi_sdn_get_dn(tombstonedn);
-	slapi_entry_set_dn(addingentry,slapi_ch_strdup(addingdn)); /* consumes DN */
+	slapi_entry_set_sdn(addingentry, tombstonedn);
 
 	if (!slapi_entry_attr_hasvalue(addingentry, ATTR_NSDS5_REPLCONFLICT, reason))
 	{
@@ -227,7 +227,9 @@ entry_to_tombstone ( Slapi_PBlock *pb, Slapi_Entry *entry )
 	 */
 	slapi_mods_add ( &smods, LDAP_MOD_DELETE, ATTR_NSDS5_REPLCONFLICT, 0, NULL );
 
-	op_result = urp_fixup_modify_entry (uniqueid, slapi_entry_get_dn_const (entry), opcsn, &smods, 0);
+	op_result = urp_fixup_modify_entry (uniqueid, 
+	                                    slapi_entry_get_sdn_const (entry),
+	                                    opcsn, &smods, 0);
 	slapi_mods_done ( &smods );
 
 	/*

@@ -91,7 +91,7 @@ struct my_pam_conv_str {
  * Get the PAM identity from the value of the leftmost RDN in the BIND DN.
  */
 static char *
-derive_from_bind_dn(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id)
+derive_from_bind_dn(Slapi_PBlock *pb, const char *binddn, MyStrBuf *pam_id)
 {
 	Slapi_RDN *rdn;
 	char *type = NULL;
@@ -106,7 +106,8 @@ derive_from_bind_dn(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id)
 }
 
 static char *
-derive_from_bind_entry(Slapi_PBlock *pb, char *binddn, MyStrBuf *pam_id, char *map_ident_attr, int *locked)
+derive_from_bind_entry(Slapi_PBlock *pb, const char *binddn, 
+                       MyStrBuf *pam_id, char *map_ident_attr, int *locked)
 {
 	char buf[BUFSIZ];
 	Slapi_Entry *entry = NULL;
@@ -264,7 +265,8 @@ do_one_pam_auth(
 )
 {
 	MyStrBuf pam_id;
-	char *binddn = NULL;
+	const char *binddn = NULL;
+	Slapi_DN *bindsdn = NULL;
 	int rc;
 	int retcode = LDAP_SUCCESS;
 	pam_handle_t *pam_handle;
@@ -274,7 +276,13 @@ do_one_pam_auth(
 	char *errmsg = NULL; /* free with PR_smprintf_free */
 	int locked = 0;
 
-	slapi_pblock_get( pb, SLAPI_BIND_TARGET, &binddn );
+	slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &bindsdn );
+	if (NULL == bindsdn) {
+		errmsg = PR_smprintf("Null bind dn");
+		retcode = LDAP_OPERATIONS_ERROR;
+		goto done; /* skip the pam stuff */
+	}
+	binddn = slapi_sdn_get_dn(bindsdn);
 
 	if (method == PAMPT_MAP_METHOD_RDN) {
 		derive_from_bind_dn(pb, binddn, &pam_id);

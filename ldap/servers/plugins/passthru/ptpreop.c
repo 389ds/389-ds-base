@@ -149,7 +149,9 @@ static int
 passthru_bindpreop( Slapi_PBlock *pb )
 {
     int			rc, method, freeresctrls=1;
-    char		*normbinddn, *matcheddn;
+    char		*matcheddn;
+    const char	*normbinddn = NULL;
+    Slapi_DN	*sdn = NULL;
     char		*libldap_errmsg, *pr_errmsg, *errmsg;
     PassThruConfig	*cfg;
     PassThruServer	*srvr;
@@ -165,14 +167,15 @@ passthru_bindpreop( Slapi_PBlock *pb )
      * retrieve parameters for bind operation
      */
     if ( slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_BIND_TARGET, &normbinddn ) != 0 ||
-	    slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds ) != 0 ) {
-	slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"<= not handled (unable to retrieve bind parameters)\n" );
-	return( PASSTHRU_OP_NOT_HANDLED );
+        slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &sdn ) != 0 ||
+        slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds ) != 0 ) {
+        slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                     "<= not handled (unable to retrieve bind parameters)\n" );
+        return( PASSTHRU_OP_NOT_HANDLED );
     }
+    normbinddn = slapi_sdn_get_dn(sdn);
     if ( normbinddn == NULL ) {
-	normbinddn = "";
+        normbinddn = "";
     }
 
     /*

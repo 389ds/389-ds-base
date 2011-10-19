@@ -232,7 +232,8 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 {
 	SCNotify *notify = head; 
 	int execute;
-	char *dn = NULL;
+	Slapi_DN *sdn = NULL;
+	char *ndn = NULL;
 	struct slapi_entry *e_before = NULL;
 	struct slapi_entry *e_after = NULL;
 
@@ -246,13 +247,13 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 	slapi_lock_mutex(buffer_lock);
 	if(head)
 	{
-		if(slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn ))
-		{
-			slapi_log_error( SLAPI_LOG_FATAL, SCN_PLUGIN_SUBSYSTEM, "statechange_post_op: failed to get dn of changed entry");
+		slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
+		if (NULL == sdn) {
+			slapi_log_error( SLAPI_LOG_FATAL, SCN_PLUGIN_SUBSYSTEM, 
+			         "statechange_post_op: failed to get dn of changed entry" );
 			goto bail;
 		}
-
-		slapi_dn_normalize( dn );
+		ndn = (char *)slapi_sdn_get_ndn(sdn);
 
 		slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e_before );
 		slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &e_after );
@@ -264,7 +265,7 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 			/* first dn */
 			if(notify->dn)
 			{
-				if(0 != slapi_dn_issuffix(dn, notify->dn))
+				if(0 != slapi_dn_issuffix(ndn, notify->dn))
 					execute = 1;
 			}
 			else
@@ -290,9 +291,9 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 			if(execute)
 			{
 				if(e_after)
-					(notify->func)(e_after, dn, modtype, pb, notify->caller_data);
+					(notify->func)(e_after, ndn, modtype, pb, notify->caller_data);
 				else
-					(notify->func)(e_before, dn, modtype, pb, notify->caller_data);
+					(notify->func)(e_before, ndn, modtype, pb, notify->caller_data);
 			}
 
 			notify = notify->next;

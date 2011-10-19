@@ -1644,14 +1644,22 @@ process_command_line(int argc, char **argv, char *myname,
 			break;
 		case 's':       /* which suffix to include in import/export */
 			{
-			    char *s=  slapi_dn_normalize ( slapi_ch_strdup(optarg_ext) );
-			    charray_add(&db2ldif_include,s);
+				int rc = charray_normdn_add(&db2ldif_include, optarg_ext, NULL);
+				if (rc < 0) {
+					fprintf(stderr, "Invalid dn: -s %s\n", optarg_ext);
+					usage(myname, *extraname);
+					exit(1);
+				}
 			}
 			break;
 		case 'x':       /* which suffix to exclude in import/export */
 			{
-			    char *s= slapi_dn_normalize ( slapi_ch_strdup(optarg_ext) );
-			    charray_add(&db2ldif_exclude,s);
+				int rc = charray_normdn_add(&db2ldif_exclude, optarg_ext, NULL);
+				if (rc < 0) {
+					fprintf(stderr, "Invalid dn: -x %s\n", optarg_ext);
+					usage(myname, *extraname);
+					exit(1);
+				}
 			}
 			break;
 		case 'r':       /* db2ldif for replication */

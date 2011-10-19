@@ -472,3 +472,24 @@ charray_get_index(char **array, char *s)
     }
     return -1;
 }
+
+int
+charray_normdn_add(char ***chararray, char *dn, char *errstr)
+{
+    int rc = 0;
+    size_t len = 0;
+    char *normdn = NULL;
+    rc = slapi_dn_normalize_ext(dn, 0, &normdn, &len);
+    if (rc < 0) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "Invalid dn: \"%s\" %s\n",
+                       dn, errstr?errstr:"");
+        return rc;
+    } else if (0 == rc) {
+        /* rc == 0; optarg_extawdn is passed in; 
+         * not null terminated */
+        *(dn + len) = '\0';
+        normdn = slapi_ch_strdup(dn);
+    }
+    charray_add(chararray, slapi_dn_ignore_case(normdn));
+    return rc;
+}

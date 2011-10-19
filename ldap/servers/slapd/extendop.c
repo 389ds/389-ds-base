@@ -54,8 +54,7 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
                                       struct berval *extval)
 {
     char *orig = NULL;
-    char *suffix = NULL;
-    size_t dnlen = 0;
+    const char *suffix = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_Backend *be = NULL;
     struct berval bv;
@@ -84,28 +83,16 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
             return;
         }
     }
-    ret = slapi_dn_normalize_ext(orig, 0, &suffix, &dnlen);
-    if (ret < 0) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                      "extop_handle_import_start: invalid suffix\n", orig);
-        send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
-                         "invalid suffix", 0, NULL);
-        return;
-    } else if (ret > 0) {
-        slapi_ch_free_string(&orig);
-    } else { /* ret == 0; orig is passed in; not null terminated */
-        *(suffix + dnlen) = '\0';
-    }
-    sdn = slapi_sdn_new_dn_byval(suffix);
+    sdn = slapi_sdn_new_dn_passin(orig);
     if (!sdn) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "extop_handle_import_start: out of memory\n", 0, 0, 0);
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
         return;
     }
+	suffix = slapi_sdn_get_dn(sdn);
     /*    be = slapi_be_select(sdn); */
     be = slapi_mapping_tree_find_backend_for_sdn(sdn);
-    slapi_sdn_free(&sdn);
     if (be == NULL || be == defbackend_get_backend()) {
         /* might be instance name instead of suffix */
         be = slapi_be_select_by_instance_name(suffix);
@@ -191,7 +178,7 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
               "Bulk import: begin import on '%s'.\n", suffix, 0, 0);
 
 out:
-    slapi_ch_free((void **)&suffix);
+    slapi_sdn_free(&sdn);
     return;
 }
 

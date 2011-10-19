@@ -172,7 +172,7 @@ static PRCList *dna_global_config = NULL;
 static Slapi_RWLock *g_dna_cache_lock;
 
 static void *_PluginID = NULL;
-static char *_PluginDN = NULL;
+static const char *_PluginDN = NULL;
 
 static int g_plugin_started = 0;
 
@@ -227,6 +227,7 @@ static int dna_load_host_port();
  *
  */
 static char *dna_get_dn(Slapi_PBlock * pb);
+static Slapi_DN *dna_get_sdn(Slapi_PBlock * pb);
 static int dna_dn_is_config(char *dn);
 static int dna_get_next_value(struct configEntry * config_entry,
                                  char **next_value_ret);
@@ -330,12 +331,12 @@ void *getPluginID()
     return _PluginID;
 }
 
-void setPluginDN(char *pluginDN)
+void setPluginDN(const char *pluginDN)
 {
     _PluginDN = pluginDN;
 }
 
-char *getPluginDN()
+const char *getPluginDN()
 {
     return _PluginDN;
 }
@@ -489,7 +490,8 @@ dna_exop_init(Slapi_PBlock * pb)
 static int
 dna_start(Slapi_PBlock * pb)
 {
-    char *plugindn = NULL;
+    Slapi_DN *pluginsdn = NULL;
+	const char *plugindn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_start\n");
@@ -513,12 +515,13 @@ dna_start(Slapi_PBlock * pb)
 	 *	and store it for future use. This should avoid
 	 *	hardcoding of DN's in the code.
 	 */
-    slapi_pblock_get(pb, SLAPI_TARGET_DN, &plugindn);
-    if (NULL == plugindn || 0 == strlen(plugindn)) {
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &pluginsdn);
+    if (NULL == pluginsdn || 0 == slapi_sdn_get_ndn_len(pluginsdn)) {
         slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                         "dna_start: had to use hard coded config dn\n");
         plugindn = DNA_DN;
     } else {
+        plugindn = slapi_sdn_get_dn(pluginsdn);
         slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                         "dna_start: config at %s\n", plugindn);
 
@@ -857,12 +860,17 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         Slapi_DN *sdn = NULL;
         char *normdn = NULL;
 
-        sdn = slapi_sdn_new_dn_byref(value);
+        sdn = slapi_sdn_new_dn_passin(value);
 
-        if (sdn) {
-            slapi_search_internal_get_entry(sdn, NULL, &shared_e, getPluginID());
-            slapi_sdn_free(&sdn);
+        if (!sdn) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry: Unable to create "
+                            "slapi_dn (%s)\n", value);
+            ret = DNA_FAILURE;
+            slapi_ch_free_string(&value);
+            goto bail;
         }
+        slapi_search_internal_get_entry(sdn, NULL, &shared_e, getPluginID());
 
         /* Make sure that the shared config entry exists. */
         if (!shared_e) {
@@ -872,23 +880,23 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                             "dna_parse_config_entry: Unable to locate "
                             "shared configuration entry (%s)\n", value);
             ret = DNA_FAILURE;
-            slapi_ch_free_string(&value);
+            slapi_sdn_free(&sdn);
             goto bail;
         } else {
             slapi_entry_free(shared_e);
             shared_e = NULL;
         }
 
-        normdn = slapi_create_dn_string("%s", value);
+        normdn = (char *)slapi_sdn_get_dn(sdn);
         if (NULL == normdn) {
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                             "dna_parse_config_entry: failed to normalize dn: "
                             "%s\n", value);
             ret = DNA_FAILURE;
-            slapi_ch_free_string(&value);
+            slapi_sdn_free(&sdn);
             goto bail;
         }
-        entry->shared_cfg_base = normdn;
+        entry->shared_cfg_base = slapi_ch_strdup(normdn);
 
         /* We prepend the host & port of this instance as a
          * multi-part RDN for the shared config entry. */
@@ -900,7 +908,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
                             "%s=%s+%s=%s,%s", DNA_HOSTNAME,
                             hostname, DNA_PORTNUM, portnum, value);
             ret = DNA_FAILURE;
-            slapi_ch_free_string(&value);
+            slapi_sdn_free(&sdn);
             goto bail;
         }
         entry->shared_cfg_dn = normdn;
@@ -908,7 +916,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                         "----------> %s [%s]\n", DNA_SHARED_CFG_DN,
                         entry->shared_cfg_base);
-        slapi_ch_free_string(&value);
+        slapi_sdn_free(&sdn);
     }
 
     value = slapi_entry_attr_get_charptr(e, DNA_THRESHOLD);
@@ -1725,11 +1733,11 @@ bail:
 
 static char *dna_get_dn(Slapi_PBlock * pb)
 {
-    char *dn = 0;
+    Slapi_DN *sdn = 0;
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_get_dn\n");
 
-    if (slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn)) {
+    if (slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn)) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_get_dn: failed to get dn of changed entry");
         goto bail;
@@ -1739,7 +1747,20 @@ static char *dna_get_dn(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_get_dn\n");
 
-    return dn;
+    return (char *)slapi_sdn_get_dn(sdn);
+}
+
+static Slapi_DN *
+dna_get_sdn(Slapi_PBlock * pb)
+{
+    Slapi_DN *sdn = 0;
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
+                    "--> dna_get_sdn\n");
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
+                    "<-- dna_get_sdn\n");
+
+    return sdn;
 }
 
 /* config check
@@ -2785,10 +2806,9 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
          *
          slapi_pblock_get( pb, SLAPI_MODIFY_EXISTING_ENTRY, &e);
          */
-        Slapi_DN *tmp_dn = slapi_sdn_new_dn_byref(dn);
+        Slapi_DN *tmp_dn = dna_get_sdn(pb);
         if (tmp_dn) {
             slapi_search_internal_get_entry(tmp_dn, 0, &e, getPluginID());
-            slapi_sdn_free(&tmp_dn);
             free_entry = 1;
         }
 

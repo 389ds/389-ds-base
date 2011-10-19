@@ -62,27 +62,30 @@ chaining_back_delete ( Slapi_PBlock *pb )
 	LDAP 			*ld=NULL;
 	char         		**referrals=NULL;
 	LDAPMessage		* res;
-	char 			*dn,* matched_msg, *error_msg;
+	const char 		*dn = NULL;
+	Slapi_DN		*sdn = NULL;
+	char 			*matched_msg, *error_msg;
 	char			*cnxerrbuf=NULL;
-   	time_t 			endtime;
+	time_t 			endtime;
 	cb_outgoing_conn	*cnx;
 
-        if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
-                cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
-                return -1;
-        }
+	if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
+		cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
+		return -1;
+	}
 
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	cb = cb_get_instance(be);
 
-        cb_update_monitor_info(pb,cb,SLAPI_OPERATION_DELETE);
+	cb_update_monitor_info(pb,cb,SLAPI_OPERATION_DELETE);
 
 	/* Check wether the chaining BE is available or not */
-        if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
-                return -1;
-        }
+	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
+		return -1;
+	}
 
- 	slapi_pblock_get( pb, SLAPI_DELETE_TARGET, &dn );
+	slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn );
+	dn = slapi_sdn_get_dn(sdn);
 
 	/* 
 	 * Check local acls
@@ -90,17 +93,17 @@ chaining_back_delete ( Slapi_PBlock *pb )
 
 	if (cb->local_acl && !cb->associated_be_is_disabled) {
 		char * errbuf=NULL;
-          	Slapi_Entry *te = slapi_entry_alloc();
-	  	slapi_entry_set_dn(te,slapi_ch_strdup(dn));
-       	  	rc = cb_access_allowed (pb, te, NULL, NULL, SLAPI_ACL_DELETE,&errbuf);
-	  	slapi_entry_free(te);
+		Slapi_Entry *te = slapi_entry_alloc();
+		slapi_entry_set_sdn(te, sdn); /* sdn: copied */
+		rc = cb_access_allowed (pb, te, NULL, NULL, SLAPI_ACL_DELETE,&errbuf);
+		slapi_entry_free(te);
 
-   		if ( rc != LDAP_SUCCESS ) {
-                	cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
-                	slapi_ch_free((void **)&errbuf);
+		if ( rc != LDAP_SUCCESS ) {
+			cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
+			slapi_ch_free((void **)&errbuf);
 			return -1;
 		}
-        }
+	}
 
 	/*
 	 * Grab a connection handle

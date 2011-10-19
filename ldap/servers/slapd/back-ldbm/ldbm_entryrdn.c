@@ -445,7 +445,7 @@ entryrdn_rename_subtree(backend *be,
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                 "entryrdn_rename_subtree: Param error: Empty %s\n",
                 NULL==be?"backend":NULL==oldsdn?"old dn":
-                (NULL==mynewsrdn&&NULL==mynewsupsdn)?"new dn and new superior":
+                (NULL==newsrdn&&NULL==newsupsdn)?"new dn and new superior":
                 0==id?"id":"unknown");
         goto bail;
     }
@@ -1015,7 +1015,6 @@ entryrdn_lookup_dn(backend *be,
     char *nrdn = NULL;
     size_t nrdn_len = 0;
     ID workid = id; /* starting from the given id */
-    ID previd = id;
     rdn_elem *elem = NULL;
     int maybesuffix = 0;
 
@@ -1111,7 +1110,6 @@ retry_get1:
         }
     
         /* Iterate over the duplicates to get the direct child's ID */
-        previd = workid;
         workid = 0;
         if (maybesuffix) {
             /* it is a suffix, indeed.  done. */

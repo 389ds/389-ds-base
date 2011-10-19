@@ -710,13 +710,13 @@ int slapi_pblock_get( Slapi_PBlock *pb, int arg, void *value );
  *          <tt>char **arrays</tt>, <tt>#Slapi_Backend *</tt>, etc.), you can pass
  *          in the value directly. For example:
  * \code
- *     char *target_dn = slapi_ch_strdup(some_dn);
- *     slapi_pblock_set(pb, SLAPI_TARGET_DN, target_dn);
+ *     Slapi_DN *target_sdn = slapi_sdn_dup(some_sdn);
+ *     slapi_pblock_set(pb, SLAPI_TARGET_SDN, target_sdn);
  * \endcode
  *
  * \warning or
  * \code
- *     slapi_pblock_set(pb, SLAPI_TARGET_DN, NULL);
+ *     slapi_pblock_set(pb, SLAPI_TARGET_SDN, NULL);
  * \endcode
  *
  * \warning With some compilers, you will have to cast the value argument to
@@ -802,6 +802,7 @@ void slapi_pblock_destroy( Slapi_PBlock *pb );
  *        \arg #SLAPI_STR2ENTRY_NO_SCHEMA_LOCK
  *        \arg #SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT
  *        \arg #SLAPI_STR2ENTRY_NO_ENTRYDN
+ *        \arg #SLAPI_STR2ENTRY_DN_NORMALIZED
  *
  * \return A pointer to the #Slapi_Entry structure representing the entry.
  * \return \c NULL if the string cannot be converted; for example, if no DN is
@@ -921,6 +922,15 @@ Slapi_Entry *slapi_str2entry_ext( const char *dn, char *s, int flags );
  * \see slapi_str2entry()
  */
 #define SLAPI_STR2ENTRY_NO_ENTRYDN 1024
+
+/**
+ * Passed DN is already normalized.
+ *
+ * If this flag is set, str2entry assumes passed DN is already normalized.
+ *
+ * \see slapi_str2entry()
+ */
+#define SLAPI_STR2ENTRY_DN_NORMALIZED 2048
 
 /**
  * Generates a description of an entry as an LDIF string.
@@ -1120,6 +1130,12 @@ Slapi_Entry *slapi_entry_alloc(void);
  */
 void slapi_entry_init(Slapi_Entry *e, char *dn, Slapi_Attr *a);
 
+/*
+ * Initializes the values of an entry with the Slapi_DN and attribute value 
+ * pairs you supply.
+ */
+void slapi_entry_init_ext(Slapi_Entry *e, Slapi_DN *sdn, Slapi_Attr *a);
+
 /**
  * Frees an entry, its DN, and its attributes from memory.
  *
@@ -1288,6 +1304,23 @@ const char *slapi_entry_get_nrdn_const( const Slapi_Entry *e );
  * \see slapi_entry_get_dn()
  */
 void slapi_entry_set_dn( Slapi_Entry *e, char *dn );
+
+/**
+ * Sets the normalized distinguished name (DN) of an entry.
+ *
+ * This function sets the DN pointer in the specified entry to the DN that you supply. The DN should have been normalized.
+ *
+ * \param e Entry to which you want to assign the DN.
+ * \param dn Distinguished name you want assigned to the entry.
+ * \warning The dn will be freed eventually when slapi_entry_free() is called.
+ * \warning A copy of dn should be passed. For example:
+ *
+ * \warning The old dn will be freed as a result of this call. Do not pass in
+ *          a \c NULL value.
+ * \see slapi_entry_free()
+ * \see slapi_entry_get_dn()
+ */
+void slapi_entry_set_normdn( Slapi_Entry *e, char *normdn );
 
 /**
  * Sets the relative distinguished name (RDN) of an entry.
@@ -1478,7 +1511,7 @@ int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
  *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
  *         set.   If that flag is present, no syntax checking is performed.
  */
-int slapi_dn_syntax_check( Slapi_PBlock *pb, char *dn, int override );
+int slapi_dn_syntax_check( Slapi_PBlock *pb, const char *dn, int override );
 
 /**
  * Determines if any values being added to an entry violate the syntax rules
@@ -2181,14 +2214,14 @@ Slapi_DN *slapi_sdn_new_ndn_byval(const char *ndn);
 Slapi_DN *slapi_sdn_new_dn_byref(const char *dn);
 
 /**
- * Creates a new \c Slapi_DN structure and intializes it's normalized DN to a requested value.
+ * Creates a new \c Slapi_DN structure and intializes it's normalized and case ignored DN to a requested value.
  *
- * The normalized DN of the new structure will point to the same string pointed to by \c ndn.
- * The normalized DN value is passed in to the parameter by reference.
+ * The normalized and case ignored DN of the new structure will point to the same string pointed to by \c ndn.
+ * The normalized and case ignored DN value is passed in to the parameter by reference.
  *
- * \param ndn The normalized DN value to be set in the new \c Slapi_DN structure.
+ * \param ndn The normalized and case ignored DN value to be set in the new \c Slapi_DN structure.
  * \return A pointer to the newly allocated \c Slapi_DN structure with
- *         the normalized DN value set to the content of \c ndn.
+ *         the normalized and case ignored DN value set to the content of \c ndn.
  * \warning The caller is still responsible for the memory used by \c ndn.  This
  *          memory should not be freed until the returned \c Slapi_DN has been
  *          disposed of or reinitialized.
@@ -2218,6 +2251,60 @@ Slapi_DN *slapi_sdn_new_ndn_byref(const char *ndn);
  * \see slapi_sdn_done()
  */
 Slapi_DN *slapi_sdn_new_dn_passin(const char *dn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's normalized DN to a requested value.
+ *
+ * The DN of the new structure will point to the same string pointed to by \c normdn.
+ * The normalized DN value is passed in to the parameter by reference.
+ *
+ * \param normdn The normalized DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         the normalized DN value set to the content of \c normdn.
+ * \warning The caller is still responsible for the memory used by \c normdn. 
+ *          This memory should not be freed until the returned \c Slapi_DN 
+ *          has been disposed of or reinitialized.
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
+Slapi_DN *slapi_sdn_new_normdn_byref(const char *normdn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's normalized DN to a requested value.
+ *
+ * The DN of the new structure will point to the same string pointed to by \c normdn.
+ * Ownership of the memory pointed to by \c normdn is tranferred to the Slapi_DN.
+ *
+ * \param normdn The DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         a DN value set to the content of \c dn.
+ * \warning The caller is no longer responsible for the memory used by \c dn.
+ *          This memory should not be freed directly.  It will be freed when
+ *          the \c Slapi_DN is properly disposed of.
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
+Slapi_DN *slapi_sdn_new_normdn_passin(const char *dn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's normalized DN to a requested value.
+ *
+ * The DN of the new structure will point to the duplicated string of \c normdn.
+ * Ownership of the memory pointed to by \c normdn is tranferred to the Slapi_DN.
+ *
+ * \param normdn The copy of the DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         a DN value set to the content of \c dn.
+ * \warning The caller is no longer responsible for the memory used by \c dn.
+ *          This memory should not be freed directly.  It will be freed when
+ *          the \c Slapi_DN is properly disposed of.
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
+Slapi_DN *slapi_sdn_new_normdn_byval(const char *dn);
 
 /**
  * Sets a DN value in a \c Slapi_DN structure.
@@ -2272,6 +2359,56 @@ Slapi_DN *slapi_sdn_set_dn_passin(Slapi_DN *sdn, const char *dn);
 /**
  * Sets a normalized DN value in a \c Slapi_DN structure.
  *
+ * The DN of the structure will point to the same string pointed to by \c normdn.
+ * The normalized DN value is passed in to the parameter by reference.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param normdn The normalized DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new DN value.
+ * \warning The caller is still responsible for the memory used by \c normdn.  
+ *          This memory should not be freed until the returned \c Slapi_DN 
+ *          has been disposed of or reinitialized.
+ * \see slapi_sdn_set_dn_byref()
+ */
+Slapi_DN *slapi_sdn_set_normdn_byref(Slapi_DN *sdn, const char *normdn);
+
+/**
+ * Sets a normalized DN value in a \c Slapi_DN structure.
+ *
+ * The DN of the structure will point to the same string pointed to by \c normdn.
+ * Ownership of the memory pointed to by \c normdn is tranferred to the Slapi_DN.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param normdn The normalized DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new DN value.
+ * \warning The caller is no longer responsible for the memory used by \c normdn.
+ *          This memory should not be freed directly.  It will be freed when
+ *          the \c Slapi_DN is properly disposed of.
+ * \see slapi_sdn_set_dn_passin()
+ */
+Slapi_DN *slapi_sdn_set_normdn_passin(Slapi_DN *sdn, const char *dn);
+
+/**
+ * Sets a normalized DN value in a \c Slapi_DN structure.
+ *
+ * The normalized DN of the structure will point to a copy of the string
+ * pointed to by \c dn.  The normalized DN value is passed in to the parameter
+ * by value.
+ * Ownership of the memory pointed to by \c normdn is tranferred to the Slapi_DN.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param normdn The normalized DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new DN value.
+ * \warning The caller is no longer responsible for the memory used by \c normdn.
+ *          This memory should not be freed directly.  It will be freed when
+ *          the \c Slapi_DN is properly disposed of.
+ * \see slapi_sdn_set_dn_passin()
+ */
+Slapi_DN *slapi_sdn_set_normdn_byval(Slapi_DN *sdn, const char *dn);
+
+/**
+ * Sets a normalized and case ignored DN value in a \c Slapi_DN structure.
+ *
  * The normalized DN of the structure will point to a copy of the string
  * pointed to by \c ndn.  The normalized DN value is passed in to the parameter
  * by value.
@@ -2325,7 +2462,39 @@ void slapi_sdn_done(Slapi_DN *sdn);
 void slapi_sdn_free(Slapi_DN **sdn);
 
 /**
- * Retrieves the DN value of a \c Slapi_DN structure.
+ * Retrieves the normalized DN value of a \c Slapi_DN structure.
+ *
+ * If the structure does not contain a normalized DN yet, it will normalize
+ * the un-normalized DN and set it in the structure.
+ *
+ * \param sdn The \c Slapi_DN strucure containing the DN value.
+ * \return A pointer to the DN value if one is set.
+ * \return A pointer to the normalized and case ignored DN value if one is set and no
+ *         DN value is set.
+ * \return \c NULL if no normalized DN or normalized and case ignored DN value is set.
+ * \warning The pointer returned is the actual value from the structure, not a copy.
+ * \see slapi_sdn_get_ndn()
+ * \see slapi_sdn_get_udn()
+ */
+const char * slapi_sdn_get_dn(const Slapi_DN *sdn);
+
+/**
+ * Retrieves the normalized and case ignored DN value of a \c Slapi_DN structure.
+ *
+ * If the structure does not contain a normalized and case ignored DN yet, 
+ * it will normalize and case ignore the DN and set it in the structure.
+ *
+ * \param sdn The \c Slapi_DN strucure containing the normalized and case ignored DN value.
+ * \return The normalized DN value.
+ * \return \c NULL if no DN or normalized DN value is set.
+ * \warning The pointer returned is the actual value from the structure, not a copy.
+ * \see slapi_sdn_get_dn()
+ * \see slapi_sdn_get_udn()
+ */
+const char * slapi_sdn_get_ndn(const Slapi_DN *sdn);
+
+/**
+ * Retrieves the un-normalized DN value of a \c Slapi_DN structure.
  *
  * \param sdn The \c Slapi_DN strucure containing the DN value.
  * \return A pointer to the DN value if one is set.
@@ -2333,23 +2502,10 @@ void slapi_sdn_free(Slapi_DN **sdn);
  *         DN value is set.
  * \return \c NULL if no DN or normalized DN value is set.
  * \warning The pointer returned is the actual value from the structure, not a copy.
+ * \see slapi_sdn_get_dn()
  * \see slapi_sdn_get_ndn()
  */
-const char * slapi_sdn_get_dn(const Slapi_DN *sdn);
-
-/**
- * Retrieves the normalized DN value of a \c Slapi_DN structure.
- *
- * If the structure does not contain a normalized DN yet, it will normalize
- * the DN and set it in the structure.
- *
- * \param sdn The \c Slapi_DN strucure containing the normalized DN value.
- * \return The normalized DN value.
- * \return \c NULL if no DN or normalized DN value is set.
- * \warning The pointer returned is the actual value from the structure, not a copy.
- * \see slapi_sdn_get_dn()
- */
-const char * slapi_sdn_get_ndn(const Slapi_DN *sdn);
+const char * slapi_sdn_get_udn(const Slapi_DN *sdn);
 
 /**
  * Fills in an existing \c Slapi_DN structure with the parent DN of the passed in \c Slapi_DN.
@@ -2555,7 +2711,7 @@ Slapi_DN *slapi_sdn_set_parent(Slapi_DN *sdn, const Slapi_DN *parentdn);
  *        in \c newrdn in front of the content of this parameter.
  * \return The new DN for the entry whose previous DN was \c dn_olddn.
  */
-char * slapi_moddn_get_newdn(Slapi_DN *dn_olddn, char *newrdn, char *newsuperiordn);
+char * slapi_moddn_get_newdn(Slapi_DN *dn_olddn, const char *newrdn, const char *newsuperiordn);
 Slapi_DN *slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn);
 
 
@@ -3165,6 +3321,16 @@ char *slapi_create_dn_string(const char *fmt, ...);
  * \return NULL if failed.
  */
 char *slapi_create_dn_string_case(const char *fmt, ...);
+
+/**
+ * Generates a valid value of RDN string
+ *
+ * \param fmt The format used to generate a value of RDN string.
+ * \param ... The arguments to generate an RDN string.
+ * \return A pointer to the generated RDN value.
+ * \return NULL if failed.
+ */
+char *slapi_create_rdn_value(const char *fmt, ...);
 
 /**
  * Converts a DN to lowercase.
@@ -5092,6 +5258,10 @@ void slapi_search_internal_set_pb(Slapi_PBlock *pb, const char *base,
 	int scope, const char *filter, char **attrs, int attrsonly,
 	LDAPControl **controls, const char *uniqueid,
 	Slapi_ComponentId *plugin_identity, int operation_flags);
+void slapi_search_internal_set_pb_ext(Slapi_PBlock *pb, Slapi_DN *sdn,
+	int scope, const char *filter, char **attrs, int attrsonly,
+	LDAPControl **controls, const char *uniqueid,
+	Slapi_ComponentId *plugin_identity, int operation_flags);
 void slapi_add_entry_internal_set_pb(Slapi_PBlock *pb, Slapi_Entry *e,
 	LDAPControl **controls, Slapi_ComponentId *plugin_identity,
 	int operation_flags);
@@ -5101,10 +5271,28 @@ int slapi_add_internal_set_pb(Slapi_PBlock *pb, const char *dn,
 void slapi_modify_internal_set_pb(Slapi_PBlock *pb, const char *dn,
 	LDAPMod **mods, LDAPControl **controls, const char *uniqueid,
 	Slapi_ComponentId *plugin_identity, int operation_flags);
-void slapi_rename_internal_set_pb(Slapi_PBlock *pb, const char *olddn,
-	const char *newrdn, const char *newsuperior, int deloldrdn,
+void slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn,
+	LDAPMod **mods, LDAPControl **controls, const char *uniqueid,
+	Slapi_ComponentId *plugin_identity, int operation_flags);
+/**
+ * Set \c Slapi_PBlock to perform modrdn/rename internally
+ *
+ * \param pblock - Slapi_PBlock to be set
+ * \param olddn - original dn to be renamed; it should have been normalized
+ * \param newrdn - new leaf rdn if any; it should have been normalized
+ * \param newsuperior - new parent dn if any; it should have been normalized
+ * \param deloldrdn \c 0 - keep original rdn \c non-zero - delete original rdn
+ * \param controls
+ * \param uniqueid
+ * \param plugin_identity
+ * \param operation_flags
+ */
+void slapi_rename_internal_set_pb_ext(Slapi_PBlock *pb,
+	const Slapi_DN *olddn, const char *newrdn,
+	const Slapi_DN *newsuperior, int deloldrdn,
 	LDAPControl **controls, const char *uniqueid,
 	Slapi_ComponentId *plugin_identity, int operation_flags);
+
 void slapi_delete_internal_set_pb(Slapi_PBlock *pb, const char *dn,
 	LDAPControl **controls, const char *uniqueid,
 	Slapi_ComponentId *plugin_identity, int operation_flags);
@@ -5811,6 +5999,7 @@ time_t slapi_current_time( void );
 /* operation */
 #define SLAPI_OPINITIATED_TIME			140
 #define SLAPI_REQUESTOR_DN			141
+#define SLAPI_REQUESTOR_NDN			156
 #define SLAPI_OPERATION_PARAMETERS		138
 #define SLAPI_OPERATION_TYPE			590
 #define SLAPI_OPERATION_AUTHTYPE		741
@@ -6084,7 +6273,10 @@ typedef struct slapi_plugindesc {
 /* arguments that are common to all operation */
 #define SLAPI_TARGET_ADDRESS			48	/* target address (dn + uniqueid) should be normalized */
 #define SLAPI_TARGET_UNIQUEID			49	/* target uniqueid of the operation */
-#define SLAPI_TARGET_DN				50	/* target dn of the operation should be normalized */
+#define SLAPI_TARGET_DN  50 /* DEPRECATED.  target dn of the operation.
+                               It actually points DN in SLAPI_TARGET_SDN. */
+#define SLAPI_TARGET_SDN 47 /* target sdn of the operation */
+
 #define SLAPI_REQCONTROLS			51	/* request controls */
 
 /* Copies of entry before and after add, mod, mod[r]dn operations */
@@ -6122,7 +6314,8 @@ typedef struct slapi_plugindesc {
 #define SLAPI_DESTROY_CONTENT       		59
 
 /* add arguments */
-#define SLAPI_ADD_TARGET			SLAPI_TARGET_DN
+#define SLAPI_ADD_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_ADD_TARGET_SDN		SLAPI_TARGET_SDN
 #define SLAPI_ADD_ENTRY				60
 #define SLAPI_ADD_EXISTING_DN_ENTRY		61
 #define SLAPI_ADD_PARENT_ENTRY      		62
@@ -6130,7 +6323,8 @@ typedef struct slapi_plugindesc {
 #define SLAPI_ADD_EXISTING_UNIQUEID_ENTRY	64
 
 /* bind arguments */
-#define SLAPI_BIND_TARGET			SLAPI_TARGET_DN
+#define SLAPI_BIND_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_BIND_TARGET_SDN		SLAPI_TARGET_SDN
 #define SLAPI_BIND_METHOD			70
 #define SLAPI_BIND_CREDENTIALS			71	/* v3 only */
 #define SLAPI_BIND_SASLMECHANISM		72	/* v3 only */
@@ -6138,27 +6332,32 @@ typedef struct slapi_plugindesc {
 #define SLAPI_BIND_RET_SASLCREDS		73	/* v3 only */
 
 /* compare arguments */
-#define SLAPI_COMPARE_TARGET			SLAPI_TARGET_DN
+#define SLAPI_COMPARE_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_COMPARE_TARGET_SDN		SLAPI_TARGET_SDN
 #define SLAPI_COMPARE_TYPE			80
 #define SLAPI_COMPARE_VALUE			81
 
 /* delete arguments */
-#define SLAPI_DELETE_TARGET			SLAPI_TARGET_DN
+#define SLAPI_DELETE_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_DELETE_TARGET_SDN		SLAPI_TARGET_SDN
 #define SLAPI_DELETE_EXISTING_ENTRY		SLAPI_ADD_EXISTING_DN_ENTRY
 #define SLAPI_DELETE_GLUE_PARENT_ENTRY	SLAPI_ADD_PARENT_ENTRY
 #define SLAPI_DELETE_BEPREOP_ENTRY			SLAPI_ENTRY_PRE_OP
 #define SLAPI_DELETE_BEPOSTOP_ENTRY			SLAPI_ENTRY_POST_OP
 
 /* modify arguments */
-#define SLAPI_MODIFY_TARGET			SLAPI_TARGET_DN
+#define SLAPI_MODIFY_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_MODIFY_TARGET_SDN		SLAPI_TARGET_SDN
 #define SLAPI_MODIFY_MODS			90
 #define SLAPI_MODIFY_EXISTING_ENTRY		SLAPI_ADD_EXISTING_DN_ENTRY
 
 /* modrdn arguments */
-#define SLAPI_MODRDN_TARGET			SLAPI_TARGET_DN
+#define SLAPI_MODRDN_TARGET			SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_MODRDN_TARGET_SDN		SLAPI_TARGET_SDN
 #define SLAPI_MODRDN_NEWRDN			100
 #define SLAPI_MODRDN_DELOLDRDN			101
 #define SLAPI_MODRDN_NEWSUPERIOR        	102	/* v3 only */
+#define SLAPI_MODRDN_NEWSUPERIOR_SDN        103	/* v3 only */
 #define SLAPI_MODRDN_EXISTING_ENTRY     	SLAPI_ADD_EXISTING_DN_ENTRY
 #define SLAPI_MODRDN_PARENT_ENTRY       	104
 #define SLAPI_MODRDN_NEWPARENT_ENTRY    	105
@@ -6173,7 +6372,8 @@ typedef struct slapi_plugindesc {
 #define SLAPI_ORIGINAL_TARGET			SLAPI_ORIGINAL_TARGET_DN
 
 /* search arguments */
-#define SLAPI_SEARCH_TARGET         SLAPI_TARGET_DN
+#define SLAPI_SEARCH_TARGET     	SLAPI_TARGET_DN /* DEPRECATED */
+#define SLAPI_SEARCH_TARGET_SDN     SLAPI_TARGET_SDN
 #define SLAPI_SEARCH_SCOPE          110
 #define SLAPI_SEARCH_DEREF          111
 #define SLAPI_SEARCH_SIZELIMIT      112

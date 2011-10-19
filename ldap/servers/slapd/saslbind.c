@@ -783,6 +783,8 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     sasl_ssf_t *ssfp;
     char *activemech = NULL, *mech = NULL;
     char *username, *dn = NULL;
+    const char *normdn = NULL;
+    Slapi_DN *sdn = NULL;
     const char *sdata, *errstr;
     unsigned slen;
     int continuing = 0;
@@ -914,7 +916,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         propctx = sasl_auxprop_getctx(sasl_conn);
         if (prop_getnames(propctx, dn_propnames, dnval) == 1) {
             if (dnval[0].values && dnval[0].values[0]) {
-                dn = slapi_ch_strdup(dnval[0].values[0]);
+                dn = slapi_ch_smprintf("%s", dnval[0].values[0]);
             }
         }
         if (dn == NULL) {
@@ -924,8 +926,15 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             break;
         }
 
-        slapi_pblock_set( pb, SLAPI_BIND_TARGET, slapi_ch_strdup( dn ) );
-        /* see if we negotiated a security layer */
+        /* clean up already set TARGET */
+        slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
+        slapi_sdn_free(&sdn);
+
+        sdn = slapi_sdn_new_dn_passin(dn);
+        normdn = slapi_sdn_get_dn(sdn);
+
+        slapi_pblock_set( pb, SLAPI_BIND_TARGET_SDN, sdn );
+
         if ((sasl_getprop(sasl_conn, SASL_SSF, 
                           (const void**)&ssfp) == SASL_OK) && (*ssfp > 0)) {
             LDAPDebug(LDAP_DEBUG_TRACE, "sasl ssf=%u\n", (unsigned)*ssfp, 0, 0);
@@ -947,7 +956,9 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
 
         /* set the connection bind credentials */
         PR_snprintf(authtype, sizeof(authtype), "%s%s", SLAPD_AUTH_SASL, mech);
-        bind_credentials_set_nolock(pb->pb_conn, authtype, dn, 
+        /* normdn is consumed by bind_credentials_set_nolock */
+        bind_credentials_set_nolock(pb->pb_conn, authtype, 
+                                    slapi_ch_strdup(normdn), 
                                     NULL, NULL, NULL, bind_target_entry);
 
         PR_Unlock(pb->pb_conn->c_mutex); /* BIG LOCK */
@@ -956,12 +967,12 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
             break;
         }
 
-        isroot = slapi_dn_isroot(dn);
+        isroot = slapi_dn_isroot(normdn);
 
         if (!isroot )
         {
             /* check if the account is locked */
-            bind_target_entry = get_entry(pb,  dn);
+            bind_target_entry = get_entry(pb,  normdn);
             if ( bind_target_entry == NULL )
             {
                 goto out;
@@ -975,7 +986,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_REQCONTROLS, &ctrls);
         if (slapi_control_present(ctrls, LDAP_CONTROL_AUTH_REQUEST, 
                                   NULL, NULL)) {
-            slapi_add_auth_response_control(pb, dn);
+            slapi_add_auth_response_control(pb, normdn);
         }
 
         if (slapi_mapping_tree_select(pb, &be, &referral, errorbuf) != LDAP_SUCCESS) {

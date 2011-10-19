@@ -1764,10 +1764,7 @@ error:
   }
 
 done:
-  /*
-   * Normal end
-   */
-  return (0);
+  return rc;
 }
 
 

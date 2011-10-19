@@ -1562,7 +1562,7 @@ internal_add_helper(Slapi_Entry *e, int dont_write_file)
 	slapi_add_entry_internal_set_pb(&newpb, e, NULL,
 									plugin_get_default_component_id(),
 									plugin_actions);
-	slapi_pblock_set(&newpb, SLAPI_TARGET_DN, (void*)slapi_entry_get_dn_const(e));
+	slapi_pblock_set(&newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(e));
 	slapi_pblock_set(&newpb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING,
 					 (void *)&dont_write_file);
 	slapi_pblock_get(&newpb, SLAPI_OPERATION, &op);

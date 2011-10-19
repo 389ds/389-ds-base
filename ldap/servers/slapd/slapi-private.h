@@ -376,7 +376,9 @@ Slapi_DN *slapi_sdn_init_dn_byval(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_dn_passin(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byref(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byval(Slapi_DN *sdn,const char *dn);
-Slapi_DN *slapi_sdn_init_dn_ndn_byref(Slapi_DN *sdn,const char *dn);
+Slapi_DN *slapi_sdn_init_normdn_byref(Slapi_DN *sdn, const char *dn);
+Slapi_DN *slapi_sdn_init_normdn_ndn_passin(Slapi_DN *sdn, const char *dn);
+Slapi_DN *slapi_sdn_init_normdn_passin(Slapi_DN *sdn, const char *dn);
 char *slapi_dn_normalize_original( char *dn );
 char *slapi_dn_normalize_case_original( char *dn );
 
@@ -520,10 +522,10 @@ int test_presence_filter( Slapi_PBlock *pb, Slapi_Entry *e, char *type,
 /* this structure allows to address entry by dn or uniqueid */
 typedef struct entry_address
 {
-	char *dn;
 	char *udn; /* unnormalized dn */	
 	char *uniqueid;	
-}entry_address;
+	Slapi_DN *sdn;
+} entry_address;
 
 /*
  * LDAP Operation input parameters.
@@ -671,6 +673,7 @@ void slapi_send_ldap_result_from_pb( Slapi_PBlock *pb);
 typedef struct mt_node mapping_tree_node;
 mapping_tree_node *slapi_get_mapping_tree_node_by_dn(const Slapi_DN *dn);
 char* slapi_get_mapping_tree_node_configdn(const Slapi_DN *root);
+Slapi_DN* slapi_get_mapping_tree_node_configsdn(const Slapi_DN *root);
 const Slapi_DN* slapi_get_mapping_tree_node_root(const mapping_tree_node *node);
 const char* slapi_get_mapping_tree_config_root ();
 Slapi_Backend *slapi_mapping_tree_find_backend_for_sdn(Slapi_DN *sdn);
@@ -812,7 +815,7 @@ char ** cool_charray_dup( char **a );
 void cool_charray_free( char **array );
 void charray_subtract( char **a, char **b, char ***c );
 int charray_get_index(char **array, char *s);
-
+int charray_normdn_add(char ***chararray, char *dn, char *errstr);
 
 /******************************************************************************
  * value array routines.

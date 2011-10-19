@@ -1423,7 +1423,7 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 			"%s: replay_update: Sending %s operation (dn=\"%s\" csn=%s)\n",
 			agmt_get_long_name(prp->agmt),
-			op2string(op->operation_type), op->target_address.dn, csn_str);
+			op2string(op->operation_type), REPL_GET_DN(&op->target_address), csn_str);
 		/* What type of operation is it? */
 		switch (op->operation_type)
 		{
@@ -1448,7 +1448,7 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 				{
 					repl5_strip_fractional_mods(prp->agmt,entryattrs);
 				}
-				return_value = conn_send_add(prp->conn, op->target_address.dn,
+				return_value = conn_send_add(prp->conn, REPL_GET_DN(&op->target_address),
 					entryattrs, update_control, message_id);
 				ldap_mods_free(entryattrs, 1);
 			}
@@ -1460,18 +1460,18 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 			{
 				repl5_strip_fractional_mods(prp->agmt,op->p.p_modify.modify_mods);
 			}
-			return_value = conn_send_modify(prp->conn, op->target_address.dn,
+			return_value = conn_send_modify(prp->conn, REPL_GET_DN(&op->target_address),
 				op->p.p_modify.modify_mods, update_control, message_id);
 			break;
 		case SLAPI_OPERATION_DELETE:
-			return_value = conn_send_delete(prp->conn, op->target_address.dn,
+			return_value = conn_send_delete(prp->conn, REPL_GET_DN(&op->target_address),
 				update_control, message_id);
 			break;
 		case SLAPI_OPERATION_MODRDN:
 			/* XXXggood need to pass modrdn mods in update control! */
-			return_value = conn_send_rename(prp->conn, op->target_address.dn,
+			return_value = conn_send_rename(prp->conn, REPL_GET_DN(&op->target_address),
 				op->p.p_modrdn.modrdn_newrdn,
-				op->p.p_modrdn.modrdn_newsuperior_address.dn,
+				REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address),
 				op->p.p_modrdn.modrdn_deloldrdn,
 				update_control, message_id);
 			break;

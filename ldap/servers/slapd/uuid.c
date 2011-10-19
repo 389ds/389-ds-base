@@ -655,14 +655,13 @@ static int add_state_entry ()
 	struct berval	val;
 	Slapi_Entry		*e;
 	Slapi_PBlock	*pb = NULL;
-	const char *dn = slapi_sdn_get_ndn (_state.configDN);
 	int rt;
 
 	vals[0] = &val;
 	vals[1] = NULL;
 
 	e = slapi_entry_alloc();
-	slapi_entry_set_dn(e, slapi_ch_strdup(dn));
+	slapi_entry_set_sdn(e, _state.configDN);
 
 	/* Set the objectclass attribute */
 	val.bv_val = "top";

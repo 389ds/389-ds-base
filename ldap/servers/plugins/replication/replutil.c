@@ -523,7 +523,7 @@ IsValidOperation (const slapi_operation_parameters *op)
         return PR_FALSE;
     }
 
-    if (op->target_address.dn == NULL)
+    if (op->target_address.sdn == NULL)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 						"IsValidOperation: NULL entry DN\n");
@@ -1007,7 +1007,7 @@ repl_enable_chain_on_update(Slapi_DN *suffix)
     slapi_mods smods;
 	int operation_result;
 	Slapi_PBlock *pb= slapi_pblock_new();
-	char *mtnnodedn;
+	Slapi_DN *mtnnodesdn;
 
 	slapi_mods_init(&smods,2);
 
@@ -1016,10 +1016,10 @@ repl_enable_chain_on_update(Slapi_DN *suffix)
 	slapi_mods_add_string(&smods, LDAP_MOD_ADD, "nsslapd-distribution-funct", "repl_chain_on_update");
 
 	/* need DN of mapping tree node here */
-	mtnnodedn = slapi_get_mapping_tree_node_configdn(suffix);
-	slapi_modify_internal_set_pb(
+	mtnnodesdn = slapi_get_mapping_tree_node_configsdn(suffix);
+	slapi_modify_internal_set_pb_ext(
 		pb,
-		mtnnodedn,
+		mtnnodesdn,
 		slapi_mods_get_ldapmods_byref(&smods), /* JCM cast */
 		NULL, /*Controls*/
 		NULL, /*uniqueid*/
@@ -1028,7 +1028,7 @@ repl_enable_chain_on_update(Slapi_DN *suffix)
 
 	slapi_modify_internal_pb(pb); 
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &operation_result);
-	slapi_ch_free_string(&mtnnodedn);
+	slapi_sdn_free(&mtnnodesdn);
 	slapi_pblock_destroy(pb);
 	switch(operation_result)
 	{
@@ -1051,7 +1051,7 @@ repl_disable_chain_on_update(Slapi_DN *suffix)
     slapi_mods smods;
 	int operation_result;
 	Slapi_PBlock *pb= slapi_pblock_new();
-	char *mtnnodedn;
+	Slapi_DN *mtnnodesdn;
 
 	slapi_mods_init(&smods,2);
 
@@ -1059,10 +1059,10 @@ repl_disable_chain_on_update(Slapi_DN *suffix)
 	slapi_mods_add_modbvps(&smods, LDAP_MOD_DELETE, "nsslapd-distribution-funct", NULL);
 
 	/* need DN of mapping tree node here */
-	mtnnodedn = slapi_get_mapping_tree_node_configdn(suffix);
-	slapi_modify_internal_set_pb(
+	mtnnodesdn = slapi_get_mapping_tree_node_configsdn(suffix);
+	slapi_modify_internal_set_pb_ext(
 		pb,
-		mtnnodedn,
+		mtnnodesdn,
 		slapi_mods_get_ldapmods_byref(&smods), /* JCM cast */
 		NULL, /*Controls*/
 		NULL, /*uniqueid*/
@@ -1071,7 +1071,7 @@ repl_disable_chain_on_update(Slapi_DN *suffix)
 
 	slapi_modify_internal_pb(pb); 
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &operation_result);
-	slapi_ch_free_string(&mtnnodedn);
+	slapi_sdn_free(&mtnnodesdn);
 	slapi_pblock_destroy(pb);
 	switch(operation_result)
 	{

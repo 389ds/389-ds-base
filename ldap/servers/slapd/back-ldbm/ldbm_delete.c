@@ -76,6 +76,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int ldap_result_code= LDAP_SUCCESS;
 	char *ldap_result_message= NULL;
 	Slapi_DN sdn;
+	Slapi_DN *sdnp = NULL;
 	char *e_uniqueid = NULL;
 	Slapi_DN *nscpEntrySDN = NULL;
 	int dblock_acquired= 0;
@@ -97,13 +98,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-	slapi_pblock_get( pb, SLAPI_DELETE_TARGET, &dn );
+	slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdnp );
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr);
 	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	
-	/* sdn & parentsdn need to be initialized before "goto *_return */
+	/* sdn needs to be initialized before "goto *_return */
 	slapi_sdn_init(&sdn);
 
 	/* dblayer_txn_init needs to be called before "goto error_return" */
@@ -122,7 +123,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		/* retval is -1 */
 		goto error_return;
 	}
-	ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
+	ldap_result_code = slapi_dn_syntax_check(pb, slapi_sdn_get_dn(sdnp), 1);
 	if (ldap_result_code)
 	{
 		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
@@ -137,7 +138,10 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	
 	inst = (ldbm_instance *) be->be_instance_info;
 
-	slapi_sdn_init_dn_byref(&sdn,dn);
+	if (NULL == sdnp) {
+		slapi_sdn_init_normdn_byref(&sdn, dn);
+		sdnp = &sdn;
+	}
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,
@@ -318,13 +322,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	    Slapi_DN parentsdn;
 
 		slapi_sdn_init(&parentsdn);
-		slapi_sdn_get_backend_parent(&sdn,&parentsdn,pb->pb_backend);
+		slapi_sdn_get_backend_parent(sdnp, &parentsdn, pb->pb_backend);
     	if ( !slapi_sdn_isempty(&parentsdn) )
 		{
     		struct backentry *parent = NULL;
 			entry_address parent_addr;
 
-			parent_addr.dn = (char*)slapi_sdn_get_dn (&parentsdn);
+			parent_addr.sdn = &parentsdn;
 			parent_addr.uniqueid = NULL;
     		parent = find_entry2modify_only(pb,be,&parent_addr,&txn);
     		if (NULL != parent) {

@@ -405,7 +405,7 @@ int modrdn2reple( Slapi_Entry *e, char *newrdn, int deloldrdn, LDAPMod **ldm );
 
 /* In legacy_consumer.c */
 void process_legacy_cf(Slapi_PBlock *pb);
-int legacy_consumer_is_replicationdn(char *dn);
+int legacy_consumer_is_replicationdn(const char *dn);
 int legacy_consumer_is_replicationpw(struct berval *creds);
 int legacy_consumer_config_init();
 

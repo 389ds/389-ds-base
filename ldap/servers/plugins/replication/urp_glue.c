@@ -96,11 +96,13 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 {
 	int op_result = 0;
 	const char *dn;
+	const Slapi_DN *sdn;
 	char ebuf[BUFSIZ];
     slapi_mods smods;
 	Slapi_Attr *attr;
 
 	dn = slapi_entry_get_dn_const (entry);
+	sdn = slapi_entry_get_sdn_const (entry);
 	slapi_mods_init(&smods, 4);
 	/*
 	  richm: sometimes the entry is already a glue entry (how did that happen?)
@@ -133,7 +135,7 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 
 	if (slapi_mods_get_num_mods(&smods) > 0)
 	{
-		op_result = urp_fixup_modify_entry (NULL, dn, opcsn, &smods, 0);
+		op_result = urp_fixup_modify_entry (NULL, sdn, opcsn, &smods, 0);
 		if (op_result == LDAP_SUCCESS)
 		{
 			slapi_log_error (slapi_log_urp, repl_plugin_name,

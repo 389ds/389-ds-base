@@ -32,7 +32,7 @@ Hewlett-Packard Development Company, L.P.
   login time plus the limit to decide whether to deny the bind.
 */
 static int
-acct_inact_limit( Slapi_PBlock *pb, char *dn, Slapi_Entry *target_entry, acctPolicy *policy )
+acct_inact_limit( Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, acctPolicy *policy )
 {
 	char *lasttimestr = NULL;
 	time_t lim_t, last_t, cur_t;
@@ -153,7 +153,7 @@ done:
 int
 acct_bind_preop( Slapi_PBlock *pb )
 {
-	char *dn = NULL;
+	const char *dn = NULL;
 	Slapi_DN *sdn = NULL;
 	Slapi_Entry *target_entry = NULL;
 	int rc = 0; /* Optimistic default */
@@ -167,19 +167,18 @@ acct_bind_preop( Slapi_PBlock *pb )
 	plugin_id = get_identity();
 
 	/* This does not give a copy, so don't free it */
-	if( slapi_pblock_get( pb, SLAPI_BIND_TARGET, &dn ) != 0 ) {
+	if( slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &sdn ) != 0 ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
 			"Error retrieving target DN\n" );
 		rc = -1;
 		goto done;
 	}
+	dn = slapi_sdn_get_dn(sdn);
 
 	/* The plugin wouldn't get called for anonymous binds but let's check */
 	if ( dn == NULL ) {
 		goto done;
 	}
-
-	sdn = slapi_sdn_new_dn_byref( dn );
 
 	ldrc = slapi_search_internal_get_entry( sdn, NULL, &target_entry,
 		plugin_id );
@@ -221,8 +220,6 @@ done:
 	}
 
 	slapi_entry_free( target_entry );
-
-	slapi_sdn_free( &sdn );
 
 	free_acctpolicy( &policy );
 

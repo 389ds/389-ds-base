@@ -538,7 +538,7 @@ pam_passthru_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
 }
 
 int
-pam_passthru_check_suffix(Pam_PassthruConfig *cfg, char *binddn)
+pam_passthru_check_suffix(Pam_PassthruConfig *cfg, const char *binddn)
 {
 	Slapi_DN *comp_dn;
 	Pam_PassthruSuffix *try;

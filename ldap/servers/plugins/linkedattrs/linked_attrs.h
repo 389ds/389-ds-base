@@ -127,7 +127,7 @@ void linked_attrs_unlock();
  */
 void linked_attrs_set_plugin_id(void *pluginID);
 void *linked_attrs_get_plugin_id();
-void linked_attrs_set_plugin_dn(char *pluginDN);
+void linked_attrs_set_plugin_dn(const char *pluginDN);
 char *linked_attrs_get_plugin_dn();
 
 /*

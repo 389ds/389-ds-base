@@ -50,7 +50,7 @@ char * cb_get_rootdn() {
 	if (ret == NULL) 
 		ret = slapi_ch_strdup(CB_DIRECTORY_MANAGER_DN);
 	if (ret)
-		slapi_dn_normalize_case(ret);	/* UTF8-aware */
+		slapi_dn_ignore_case(ret);	/* UTF8-aware */
 	return ret;
 }
 

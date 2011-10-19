@@ -201,9 +201,9 @@ int cb_update_controls( Slapi_PBlock * pb,
                 char * requestorCopy=NULL;
 
                 rootdn=cb_get_rootdn();
-                slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &requestor );
-                requestorCopy=slapi_ch_strdup(requestor);
-                slapi_dn_normalize_case(requestorCopy);
+                slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &requestor );
+                requestorCopy = slapi_ch_strdup(requestor);
+                slapi_dn_ignore_case(requestorCopy);
 
                 if (!strcmp( requestorCopy, rootdn )) {    /* UTF8- aware */
                     slapi_log_error( SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,

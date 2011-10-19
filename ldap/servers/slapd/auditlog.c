@@ -57,13 +57,14 @@ char	*attr_deleteoldrdn	= ATTR_DELETEOLDRDN;
 char	*attr_modifiersname = ATTR_MODIFIERSNAME;
 
 /* Forward Declarations */
-static void write_audit_file( int optype, char *dn, void *change, int flag, time_t curtime );
+static void write_audit_file( int optype, const char *dn, void *change, int flag, time_t curtime );
 
 void
 write_audit_log_entry( Slapi_PBlock *pb )
 {
     time_t curtime;
-    char *dn;
+    Slapi_DN *sdn;
+    const char *dn;
     void *change;
 	int flag = 0;
 	Operation *op;
@@ -75,26 +76,12 @@ write_audit_log_entry( Slapi_PBlock *pb )
 	}
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-    slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+    slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
+	dn = slapi_sdn_get_dn(sdn);
     switch ( operation_get_type(op) )
 	{
     case SLAPI_OPERATION_MODIFY:
 	    slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &change );
-    	break;
-    case SLAPI_OPERATION_ADD:
-	    {
-    	/*
-    	 * For adds, we want the unnormalized dn, so we can preserve
-    	 * spacing, case, when replicating it.
-    	 */
-        Slapi_Entry *te = NULL;
-    	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &change );
-    	te = (Slapi_Entry *)change;
-    	if ( NULL != te )
-		{
-    	    dn = slapi_entry_get_dn( te );
-    	}
-		}
     	break;
     case SLAPI_OPERATION_DELETE:
 		{
@@ -129,7 +116,7 @@ write_audit_log_entry( Slapi_PBlock *pb )
 static void
 write_audit_file(
     int			optype,
-    char		*dn,
+    const char	*dn,
     void		*change,
     int			flag,
     time_t		curtime

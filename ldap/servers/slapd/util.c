@@ -439,24 +439,18 @@ normalize_mods2bvals(const LDAPMod **mods)
                  mbvp && *mbvp; mbvp++, normmbvp++)
             {
                 if (is_dn_syntax) {
-                    int rc = 0;
-                    char *normed = NULL;
-                    size_t dnlen = 0;
-
-                    rc = slapi_dn_normalize_ext((*mbvp)->bv_val, 
-                                                (*mbvp)->bv_len,
-                                                &normed, &dnlen);
-                    if (rc < 0) { /* normalization failed; use the original */
-                        *normmbvp = ber_bvdup(*mbvp);
-                    } else if (rc == 0) { /* if rc == 0, value is passed in */
-                        *(normed + dnlen) = '\0';
-                        *normmbvp = ber_bvdup(*mbvp);
-                    } else {
+                    Slapi_DN *sdn = slapi_sdn_new_dn_byref((*mbvp)->bv_val);
+                    if (slapi_sdn_get_dn(sdn)) {
                         *normmbvp = 
                         (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-                        (*normmbvp)->bv_val = normed;
-                        (*normmbvp)->bv_len = dnlen;
+                        (*normmbvp)->bv_val = 
+                                  slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+                        (*normmbvp)->bv_len = slapi_sdn_get_ndn_len(sdn);
+                    } else {
+                        /* normalization failed; use the original */
+                        *normmbvp = ber_bvdup(*mbvp);
                     }
+                    slapi_sdn_free(&sdn);
                 } else {
                     *normmbvp = ber_bvdup(*mbvp);
                 }
@@ -474,26 +468,21 @@ normalize_mods2bvals(const LDAPMod **mods)
                 vlen = strlen(*mvp);
 
                 if (is_dn_syntax) {
-                    int rc = 0;
-                    char *normed = NULL;
-                    size_t dnlen = 0;
-                    rc = slapi_dn_normalize_ext(*mvp, vlen,
-                                                &normed, &dnlen);
-                    if (rc < 0) { /* normalization failed; use the original */
+                    Slapi_DN *sdn = slapi_sdn_new_dn_byref(*mvp);
+                    if (slapi_sdn_get_dn(sdn)) {
+                        *normmbvp = 
+                        (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+                        (*normmbvp)->bv_val = 
+                                  slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+                        (*normmbvp)->bv_len = slapi_sdn_get_ndn_len(sdn);
+                    } else {
+                         /* normalization failed; use the original */
                         (*normmbvp)->bv_val = slapi_ch_malloc(vlen + 1);
                         memcpy((*normmbvp)->bv_val, *mvp, vlen);
                         (*normmbvp)->bv_val[vlen] = '\0';
                         (*normmbvp)->bv_len = vlen;
-                    } else if (rc == 0) { /* if rc == 0, value is passed in */
-                        *(normed + dnlen) = '\0';
-                        (*normmbvp)->bv_val = slapi_ch_strdup(normed);
-                        (*normmbvp)->bv_len = dnlen;
-                    } else {
-                        *normmbvp = 
-                        (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-                        (*normmbvp)->bv_val = normed;
-                        (*normmbvp)->bv_len = dnlen;
                     }
+                    slapi_sdn_free(&sdn);
                 } else {
                     (*normmbvp)->bv_val = slapi_ch_malloc(vlen + 1);
                     memcpy((*normmbvp)->bv_val, *mvp, vlen);

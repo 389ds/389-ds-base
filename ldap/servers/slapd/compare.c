@@ -66,8 +66,7 @@ do_compare( Slapi_PBlock *pb )
 {
 	BerElement	*ber = pb->pb_op->o_ber;
 	char		*rawdn = NULL;
-	char		*dn = NULL;
-	size_t		 len = 0;
+	const char	*dn = NULL;
 	struct ava	ava = {0};
 	Slapi_Backend		*be = NULL;
 	int		err;
@@ -118,18 +117,16 @@ do_compare( Slapi_PBlock *pb )
 			return;
 		}
 	}
-	err = slapi_dn_normalize_ext(rawdn, 0, &dn, &len);
-	if (err < 0) {
-		op_shared_log_error_access(pb, "CMP", rawdn?rawdn:"", "invalid dn");
-		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-						 NULL, "invalid dn", 0, NULL);
-		slapi_ch_free((void **) &rawdn);
-		return;
-	} else if (err > 0) { /* if rc == 0, rawdn is passed in */
-		slapi_ch_free((void **) &rawdn);
-	} else { /* rc == 0; rawdn is passed in; not null terminated */
-		*(dn + len) = '\0';
-	}
+	slapi_sdn_init_dn_passin(&sdn, rawdn);
+	dn = slapi_sdn_get_dn(&sdn);
+    if (rawdn && (strlen(rawdn) > 0) && (NULL == dn)) {
+        /* normalization failed */
+        op_shared_log_error_access(pb, "CMP", rawdn, "invalid dn");
+        send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+                         "invalid dn", 0, NULL);
+        slapi_sdn_done(&sdn);
+        return;
+    }
 	/*
 	 * in LDAPv3 there can be optional control extensions on
 	 * the end of an LDAPMessage. we need to read them in and
@@ -139,19 +136,17 @@ do_compare( Slapi_PBlock *pb )
 		send_ldap_result( pb, err, NULL, NULL, 0, NULL );
 		goto free_and_return;
 	}
-	slapi_sdn_init_dn_passin(&sdn,dn);
-    dn = NULL; /* do not free - sdn owns it now */
 
 	/* target spec is used to decide which plugins are applicable for the operation */
 	operation_set_target_spec (pb->pb_op, &sdn);
 
 	LDAPDebug( LDAP_DEBUG_ARGS, "do_compare: dn (%s) attr (%s)\n",
-	    dn, ava.ava_type, 0 );
+	    rawdn, ava.ava_type, 0 );
 
 	slapi_log_access( LDAP_DEBUG_STATS,
 	    "conn=%" NSPRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
 	    pb->pb_conn->c_connid, pb->pb_op->o_opid,
-	    escape_string( dn, ebuf ), ava.ava_type );
+	    escape_string( rawdn, ebuf ), ava.ava_type );
 
 	/*
 	 * We could be serving multiple database backends.  Select the
@@ -188,7 +183,9 @@ do_compare( Slapi_PBlock *pb )
 		isroot = pb->pb_op->o_isroot;
 
 		slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
-		slapi_pblock_set( pb, SLAPI_COMPARE_TARGET, (void*)slapi_sdn_get_ndn(&sdn) );
+		/* EXCEPTION: compare target does not allocate memory. */
+		/* target never be modified by plugins. */
+		slapi_pblock_set( pb, SLAPI_COMPARE_TARGET_SDN, (void*)&sdn );
 		slapi_pblock_set( pb, SLAPI_COMPARE_TYPE, ava.ava_type);
 		slapi_pblock_set( pb, SLAPI_COMPARE_VALUE, &ava.ava_value );
 		/*
@@ -216,6 +213,5 @@ free_and_return:;
 	if (be)
 		slapi_be_Unlock(be);
 	slapi_sdn_done(&sdn);
-    slapi_ch_free_string(&dn);
 	ava_done( &ava );
 }

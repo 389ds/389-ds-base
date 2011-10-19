@@ -188,7 +188,9 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 void
 op_shared_search (Slapi_PBlock *pb, int send_result)
 {
-  char            *base, *fstr;
+  char            *base = NULL;
+  const char      *normbase = NULL;
+  char            *fstr;
   int             scope;
   Slapi_Backend   *be = NULL;
   Slapi_Backend   *be_single = NULL;
@@ -198,7 +200,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   char            attrlistbuf[ 1024 ], *attrliststr, **attrs = NULL;
   int             rc = 0;
   int             internal_op;
-  Slapi_DN        sdn;
+  Slapi_DN        *basesdn = NULL;
+  Slapi_DN        *sdn = NULL;
   Slapi_Operation *operation;
   Slapi_Entry     *referral = NULL;
   char            *proxydn = NULL; 
@@ -225,14 +228,30 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   int curr_search_count = 0;
   Slapi_Backend *pr_be = NULL;
   void *pr_search_result = NULL;
-  int pr_search_result_count = 0;
   int pr_reset_processing = 0;
 
   be_list[0] = NULL;
   referral_list[0] = NULL;
 
   /* get search parameters */
-  slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &base);
+  slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
+  slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+
+  if (NULL == sdn) {
+    sdn = slapi_sdn_new_dn_byval(base);
+    slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, sdn);
+  }
+  normbase = slapi_sdn_get_dn(sdn);
+
+  if (base && (strlen(base) > 0) && (NULL == normbase)) {
+    /* normalization failed */
+    op_shared_log_error_access(pb, "SRCH", base, "invalid dn");
+    send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, "invalid dn", 0, NULL);
+    rc = -1;
+    goto free_and_return_nolock;
+  }
+  basesdn = slapi_sdn_dup(sdn);
+
   slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
   slapi_pblock_get(pb, SLAPI_SEARCH_STRFILTER, &fstr);   
   slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);   
@@ -240,8 +259,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
   flag_psearch = operation_is_flag_set(operation, OP_FLAG_PS);
   
-  slapi_sdn_init_dn_byref(&sdn, base);
-
   /* get the proxy auth dn if the proxy auth control is present */
   proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
  
@@ -298,7 +315,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           slapi_log_access(LDAP_DEBUG_STATS, fmtstr,
                            pb->pb_conn->c_connid, 
                            pb->pb_op->o_opid, 
-                           escape_string(slapi_sdn_get_dn (&sdn), ebuf),
+                           escape_string(normbase, ebuf),
                            scope, fstr, attrliststr,
                            flag_psearch ? " options=persistent" : "",
                            proxystr ? proxystr : "");
@@ -308,7 +325,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           slapi_log_access(LDAP_DEBUG_ARGS, fmtstr,
                            LOG_INTERNAL_OP_CON_ID,
                            LOG_INTERNAL_OP_OP_ID,
-                           escape_string(slapi_sdn_get_dn (&sdn), ebuf),
+                           escape_string(normbase, ebuf),
                            scope, fstr, attrliststr,
                            flag_psearch ? " options=persistent" : "",
                            proxystr ? proxystr : "");
@@ -316,7 +333,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   }
 
   /* If we encountered an error parsing the proxy control, return an error
-   * to the client.  We do this here to ensure that we log the operation first. */
+   * to the client.  We do this here to ensure that we log the operation first.
+   */
   if (proxy_err != LDAP_SUCCESS)
   {
       rc = -1;
@@ -324,10 +342,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       goto free_and_return_nolock;
   }
         
-  slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, (void*)slapi_sdn_get_ndn (&sdn));
-
-  /* target spec is used to decide which plugins are applicable for the operation */
-  operation_set_target_spec (pb->pb_op, &sdn);
+  /* target spec is used to decide which plugins are applicable for 
+   * the operation.  basesdn is duplicated and set to target spec.
+   */
+  operation_set_target_spec (pb->pb_op, basesdn);
 
   /* this is time to check if mapping tree specific control
    * was used to specify that we want to parse only 
@@ -352,7 +370,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         else
         {
             /* we don't need no steenkin values */
-            Slapi_Backend *searchbe = slapi_be_select( &sdn );
+            Slapi_Backend *searchbe = slapi_be_select( sdn );
 
             if(searchbe && searchbe != defbackend_get_backend())
             {
@@ -406,8 +424,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               operation->o_flags |= OP_FLAG_PAGED_RESULTS;
               pr_be = pagedresults_get_current_be(pb->pb_conn);
               pr_search_result = pagedresults_get_search_result(pb->pb_conn);
-              pr_search_result_count =
-                             pagedresults_get_search_result_count(pb->pb_conn);
               estimate = 
                  pagedresults_get_search_result_set_size_estimate(pb->pb_conn);
               if (pagedresults_get_unindexed(pb->pb_conn)) {
@@ -501,11 +517,23 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           goto free_and_return;
 
         case -2: /* memory was allocated */
-            /* take note of any changes */
-          slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &base);
+          /* take note of any changes */
+          slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
           slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
-
-          slapi_sdn_set_dn_byref(&sdn, base);
+          if (NULL == sdn) {
+              send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                               "target dn is lost", 0, NULL);
+              rc = -1;
+              goto free_and_return;
+          }
+          if (slapi_sdn_compare(basesdn, sdn)) {
+              slapi_sdn_free(&basesdn);
+			  basesdn = operation_get_target_spec(pb->pb_op);
+              slapi_sdn_free(&basesdn);
+              basesdn = slapi_sdn_dup(sdn);
+              operation_set_target_spec (pb->pb_op, basesdn);
+          }
+          normbase = slapi_sdn_get_dn(sdn);
           break;
 
         case -1:
@@ -551,7 +579,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   rc = -1;            /* zero backends would mean failure */
   while (be) 
   {
-    const Slapi_DN * be_suffix;
+    const Slapi_DN *be_suffix;
     int err = 0;
     Slapi_Backend   *next_be = NULL;
 
@@ -570,7 +598,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
      * is below another backend because in that case the 
      * such searches should sometimes succeed 
      * To allow this we therefore have to change the 
-     * SLAPI_SEARCH_TARGET parameter in the pblock
+     * SLAPI_SEARCH_TARGET_SDN parameter in the pblock
      * 
      * Also when we climb down the mapping tree we have to 
      * change ONE-LEVEL searches to BASE 
@@ -636,25 +664,27 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       {
         if ((be_name == NULL) && (scope == LDAP_SCOPE_ONELEVEL))
         {
-                  /* one level searches 
-                   * - depending on the suffix of the backend we might have to
-                   *   do a one level search or a base search
-                   * - we might also have to change the search target 
-                   */
-          if (slapi_sdn_isparent(&sdn, be_suffix)
-              || (slapi_sdn_get_ndn_len(&sdn) == 0))
+          /* one level searches 
+           * - depending on the suffix of the backend we might have to
+           *   do a one level search or a base search
+           * - we might also have to change the search target 
+           */
+          if (slapi_sdn_isparent(basesdn, be_suffix) ||
+              (slapi_sdn_get_ndn_len(basesdn) == 0))
           {
             int tmp_scope = LDAP_SCOPE_BASE;
             slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
-                     (void *)slapi_sdn_get_ndn(be_suffix));
+
+            slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+            slapi_sdn_free(&sdn);
+            sdn = slapi_sdn_dup(be_suffix);
+            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, (void *)sdn);
+            normbase = slapi_sdn_get_dn(sdn);
           }
-          else if (slapi_sdn_issuffix(&sdn, be_suffix))
+          else if (slapi_sdn_issuffix(basesdn, be_suffix))
           {
             int tmp_scope = LDAP_SCOPE_ONELEVEL;
             slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
-                     (void *)slapi_sdn_get_ndn (&sdn));
           }
           else
             goto next_be;
@@ -662,19 +692,20 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       
         /* subtree searches :
          * if the search was started above the backend suffix 
-         * - temporarily set the SLAPI_SEARCH_TARGET to the 
+         * - temporarily set the SLAPI_SEARCH_TARGET_SDN to the 
          *   base of the node so that we don't get a NO SUCH OBJECT error
          * - do not change the scope
          */
         if (scope == LDAP_SCOPE_SUBTREE)
         {
-          if (slapi_sdn_issuffix(be_suffix, &sdn))
+          if (slapi_sdn_issuffix(be_suffix, basesdn))
           {
-            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET,
-                     (void *)slapi_sdn_get_ndn(be_suffix));
+            slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+            slapi_sdn_free(&sdn);
+            sdn = slapi_sdn_dup(be_suffix);
+            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, (void *)sdn);
+            normbase = slapi_sdn_get_dn(sdn);
           }
-          else
-              slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, (void *)slapi_sdn_get_ndn(&sdn));
         }
       }
       
@@ -886,11 +917,15 @@ free_and_return:
   else if (be_single)
     slapi_be_Unlock(be_single);
 
- free_and_return_nolock:
-  slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, base);
+free_and_return_nolock:
   slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
   index_subsys_filter_decoders_done(pb);
-  slapi_sdn_done(&sdn);
+  
+  slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+  slapi_sdn_free(&sdn);
+  slapi_sdn_free(&basesdn);
+  slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, NULL);
+
   slapi_ch_free_string(&proxydn);
   slapi_ch_free_string(&proxystr);
   if (pr_reset_processing) {
@@ -1146,10 +1181,8 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
     {
         Slapi_Entry *gerentry = NULL;
         Slapi_Operation *operation;
-        int is_paged = 0;
 
         slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
-        is_paged = operation->o_flags & OP_FLAG_PAGED_RESULTS;
         rc = be->be_next_search_entry(pb);
         if (rc < 0) 
         {

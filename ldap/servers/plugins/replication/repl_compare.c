@@ -48,16 +48,20 @@ int
 legacy_preop_compare( Slapi_PBlock *pb )
 {
 	int is_replicated_operation = 0;
-	char *compare_base = NULL;
 	struct berval **referral = NULL;
 	int return_code = 0;
-	Slapi_DN *basesdn;
+	Slapi_DN *basesdn = NULL;
 
 	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
-	slapi_pblock_get(pb, SLAPI_COMPARE_TARGET, &compare_base);
-	basesdn= slapi_sdn_new_dn_byref(compare_base);
-    referral = get_data_source(pb, basesdn, 1, NULL);
-	slapi_sdn_free(&basesdn);
+	slapi_pblock_get(pb, SLAPI_COMPARE_TARGET_SDN, &basesdn);
+	if (NULL == basesdn) {
+		slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
+				               "Null target DN", 0, NULL );
+
+		return_code = 1;	/* return 1 to prevent further search processing */
+		goto bail;
+	}
+	referral = get_data_source(pb, basesdn, 1, NULL);
 	if (NULL != referral && !is_replicated_operation)
 	{
 		/*
@@ -68,5 +72,6 @@ legacy_preop_compare( Slapi_PBlock *pb )
 		return_code = 1;	/* return 1 to prevent further search processing */
 	}
 	slapi_ch_free((void**)&referral);
+bail:
 	return return_code;
 }

@@ -291,6 +291,7 @@ ps_send_results( void *arg )
 	PSEQNode *peq, *peqnext;
 	struct slapi_filter *filter = 0;
 	char *base = NULL;
+	Slapi_DN *sdn = NULL;
 	char *fstr = NULL;
 	char **pbattrs = NULL;
 	int conn_acq_flag = 0;
@@ -392,15 +393,15 @@ ps_send_results( void *arg )
     plugin_call_plugins( ps->ps_pblock , SLAPI_PLUGIN_POST_SEARCH_FN );
 
 	/* free things from the pblock that were not free'd in do_search() */
-	/* Free SLAPI_SEARCH_* before deleting op since those are held by op */
-    slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_TARGET, &base );
-    slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_TARGET, NULL );
-	slapi_ch_free_string(&base);
-
 	/* we strdup'd this in search.c - need to free */
 	slapi_pblock_get( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, &base );
 	slapi_pblock_set( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, NULL );
 	slapi_ch_free_string(&base);
+
+	/* Free SLAPI_SEARCH_* before deleting op since those are held by op */
+	slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, &sdn );
+	slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, NULL );
+	slapi_sdn_free(&sdn);
 
     slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_STRFILTER, &fstr );
     slapi_pblock_set( ps->ps_pblock, SLAPI_SEARCH_STRFILTER, NULL );
@@ -525,8 +526,8 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 	ber_int_t chgnum )
 {
 	LDAPControl *ctrl = NULL;
-    PSearch	*ps = NULL;
-    PSEQNode *pe = NULL;
+	PSearch	*ps = NULL;
+	PSEQNode *pe = NULL;
 	int  matched = 0;
 	const char *edn;
 
@@ -534,24 +535,24 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		return;
 	}
 
-    if ( NULL == e ) {
+	if ( NULL == e ) {
 		/* For now, some backends such as the chaining backend do not provide a post-op entry */
 		return;
-    }
+	}
 
-   	PSL_LOCK_READ();
+	PSL_LOCK_READ();
 	edn = slapi_entry_get_dn_const(e);
 
 	for ( ps = psearch_list ? psearch_list->pl_head : NULL; NULL != ps; ps = ps->ps_next ) {
-		Slapi_DN base;
-	    Slapi_Filter	*f;
-	    char	*basedn;
-	    int		scope;
+		char *origbase = NULL;
+		Slapi_DN *base = NULL;
+		Slapi_Filter	*f;
+		int		scope;
 
 		/* Skip the node that doesn't meet the changetype,
 		 * or is unable to use the change in ps_send_results()
 		 */
-	    if (( ps->ps_changetypes & chgtype ) == 0 ||
+		if (( ps->ps_changetypes & chgtype ) == 0 ||
 				ps->ps_pblock->pb_op == NULL ||
 				slapi_op_abandoned( ps->ps_pblock ) ) {
 			continue;
@@ -560,14 +561,18 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
 						"conn=%" NSPRIu64 " op=%d entry %s with chgtype %d "
 						"matches the ps changetype %d\n",
-						ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid,
+						ps->ps_pblock->pb_conn->c_connid,
+						ps->ps_pblock->pb_op->o_opid,
 						edn, chgtype, ps->ps_changetypes);
 
 		slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_FILTER, &f );
-		slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_TARGET, &basedn );
+		slapi_pblock_get( ps->ps_pblock, SLAPI_ORIGINAL_TARGET_DN, &origbase );
+		slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, &base );
 		slapi_pblock_get( ps->ps_pblock, SLAPI_SEARCH_SCOPE, &scope );
-		slapi_sdn_init_dn_byref(&base,basedn);
-
+		if (NULL == base) {
+			base = slapi_sdn_new_dn_byref(origbase);
+			slapi_pblock_set(ps->ps_pblock, SLAPI_SEARCH_TARGET_SDN, base);
+		}
 
 		/*
 		 * See if the entry meets the scope and filter criteria.
@@ -582,7 +587,7 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		 * to the same pblock must be done carefully--there is currently no
 		 * generic satisfactory way to do this.
 		*/
-		if ( slapi_sdn_scope_test( slapi_entry_get_sdn_const(e), &base, scope ) &&
+		if ( slapi_sdn_scope_test( slapi_entry_get_sdn_const(e), base, scope ) &&
 			 slapi_vattr_filter_test( ps->ps_pblock, e, f, 0 /* verify_access */ ) == 0 ) {
 			PSEQNode *pOldtail;
 
@@ -601,11 +606,11 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 							eprev ? slapi_entry_get_dn_const(eprev) : NULL,
 							&ctrl );
 					if ( rc != LDAP_SUCCESS ) {
-				    	char ebuf[ BUFSIZ ];
+						char ebuf[ BUFSIZ ];
 		   				LDAPDebug( LDAP_DEBUG_ANY, "ps_service_persistent_searches:"
-				    	" unable to create EntryChangeNotification control for"
-				    	" entry \"%s\" -- control won't be sent.\n",
-				    	escape_string( slapi_entry_get_dn_const(e), ebuf), 0, 0 );
+						" unable to create EntryChangeNotification control for"
+						" entry \"%s\" -- control won't be sent.\n",
+						escape_string( slapi_entry_get_dn_const(e), ebuf), 0, 0 );
 					}
 				}
 				if ( ctrl ) {
@@ -618,29 +623,28 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 			pOldtail = ps->ps_eq_tail;
 			ps->ps_eq_tail = pe;
 			if ( NULL == ps->ps_eq_head ) {
-			    ps->ps_eq_head = ps->ps_eq_tail;
+				ps->ps_eq_head = ps->ps_eq_tail;
 			}
 			else {
 				pOldtail->pe_next = ps->ps_eq_tail;
 			}
 			PR_Unlock( ps->ps_lock );
 		}
-		slapi_sdn_done(&base);
 	}
 
    	PSL_UNLOCK_READ();
 
-    /* Were there any matches? */
-    if ( matched ) {
+	/* Were there any matches? */
+	if ( matched ) {
 		ldap_control_free( ctrl );
 		/* Turn 'em loose */
 		ps_wakeup_all();
 		LDAPDebug( LDAP_DEBUG_TRACE, "ps_service_persistent_searches: enqueued entry "
 			"\"%s\" on %d persistent search lists\n", slapi_entry_get_dn_const(e), matched, 0 );
-    } else {
+	} else {
 		LDAPDebug( LDAP_DEBUG_TRACE, "ps_service_persistent_searches: entry "
 			"\"%s\" not enqueued on any persistent search lists\n", slapi_entry_get_dn_const(e), 0, 0 );
-    }
+	}
 
 }
 

@@ -276,18 +276,22 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 					normdn = 
 						slapi_dn_normalize_original(slapi_ch_strdup(rawdn));
 				} else {
-					normdn = slapi_create_dn_string("%s", rawdn);
-					if (NULL == normdn) {
-						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-							  		"str2entry_fast: Invalid DN: %s\n", rawdn);
-						slapi_entry_free( e );
-						if (freeval) slapi_ch_free_string(&value.bv_val);
-						e = NULL;
-						goto done;
+					if (flags & SLAPI_STR2ENTRY_DN_NORMALIZED) {
+						normdn = slapi_ch_strdup(rawdn);
+					} else {
+						normdn = slapi_create_dn_string("%s", rawdn);
+						if (NULL == normdn) {
+							LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+							     "str2entry_fast: Invalid DN: %s\n", rawdn);
+							slapi_entry_free( e );
+							if (freeval) slapi_ch_free_string(&value.bv_val);
+							e = NULL;
+							goto done;
+						}
 					}
 				}
 				/* normdn is consumed in e */
-				slapi_entry_set_dn(e, normdn);
+				slapi_entry_set_normdn(e, normdn);
 			}
 			if ( NULL == slapi_entry_get_rdn_const( e )) {
 				if (normdn) {
@@ -298,14 +302,19 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 						normdn = 
 							slapi_dn_normalize_original(slapi_ch_strdup(rawdn));
 					} else {
-						normdn = slapi_create_dn_string("%s", rawdn);
-						if (NULL == normdn) {
-							LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-							  		"str2entry_fast: Invalid DN: %s\n", rawdn);
-							slapi_entry_free( e );
-							if (freeval) slapi_ch_free_string(&value.bv_val);
-							e = NULL;
-							goto done;
+						if (flags & SLAPI_STR2ENTRY_DN_NORMALIZED) {
+							normdn = slapi_ch_strdup(rawdn);
+						} else {
+							normdn = slapi_create_dn_string("%s", rawdn);
+							if (NULL == normdn) {
+								LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+								    "str2entry_fast: Invalid DN: %s\n", rawdn);
+								slapi_entry_free( e );
+								if (freeval) 
+								    slapi_ch_free_string(&value.bv_val);
+								e = NULL;
+								goto done;
+							}
 						}
 					}
 					/* normdn is just referred in slapi_entry_set_rdn. */
@@ -345,7 +354,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 				goto done;
 			}
 			/* normdn is consumed in e */
-			slapi_entry_set_dn(e, normdn);
+			slapi_entry_set_normdn(e, normdn);
 
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (freeval) slapi_ch_free_string(&value.bv_val);
@@ -429,7 +438,6 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 			if (slapi_attr_is_dn_syntax_attr(*a)) {
 				int rc = 0;
 				char *dn_aval = NULL;
-				size_t dnlen = 0;
 				if (strict) {
 					/* check that the dn is formatted correctly */
 					rc = slapi_dn_syntax_check(NULL, value.bv_val, 1);
@@ -447,23 +455,14 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 					dn_aval = slapi_dn_normalize_original(value.bv_val);
 					slapi_value_set(svalue, dn_aval, strlen(dn_aval));
 				} else {
-					rc = slapi_dn_normalize_ext(value.bv_val, 
-												value.bv_len, &dn_aval, &dnlen);
-					if 	(rc < 0) {
-						/* Give up normalizing the attribute value */
-						LDAPDebug2Args(LDAP_DEBUG_TRACE,
-							       "str2entry_fast: Invalid DN value: %s: %s\n",
-							       type.bv_val, value.bv_val);
-						dn_aval = value.bv_val;
-						dnlen = value.bv_len;
-					} else if (rc == 0) { /* rc == 0; valuecharptr is passed in;
-											 not null terminated */
-						*(dn_aval + dnlen) = '\0';
-					}
-					slapi_value_set(svalue, dn_aval, dnlen);
-					if (rc > 0) { /* if rc == 0, valuecharptr is passed in */
-						slapi_ch_free_string(&dn_aval);
-					}
+					Slapi_DN *sdn = slapi_sdn_new_dn_byref(value.bv_val);
+					/* Note: slapi_sdn_get_dn returns normalized DN with
+					 * case-intact. Thus, the length of dn_aval is 
+					 * slapi_sdn_get_ndn_len(sdn). */
+					dn_aval = (char *)slapi_sdn_get_dn(sdn);
+					slapi_value_set(svalue, (void *)dn_aval,
+					                slapi_sdn_get_ndn_len(sdn));
+					slapi_sdn_free(&sdn);
 				}
 			} else {
 				slapi_value_set_berval(svalue, &value);
@@ -809,33 +808,41 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 
 		if ( rawdn ) {
 			if ( NULL == slapi_entry_get_dn_const(e) ) {
-				normdn = slapi_create_dn_string("%s", rawdn);
-				if (NULL == normdn) {
-					LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-							  "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
-					slapi_entry_free( e );
-					if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-					csn_free(&attributedeletioncsn);
-					csn_free(&maxcsn);
-					return NULL;
+				if (flags & SLAPI_STR2ENTRY_DN_NORMALIZED) {
+					normdn = slapi_ch_strdup(rawdn);
+				} else {
+					normdn = slapi_create_dn_string("%s", rawdn);
+					if (NULL == normdn) {
+						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+						    "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
+						slapi_entry_free( e );
+						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
+						csn_free(&attributedeletioncsn);
+						csn_free(&maxcsn);
+						return NULL;
+					}
 				}
 				/* normdn is consumed in e */
-				slapi_entry_set_dn(e, normdn);
+				slapi_entry_set_normdn(e, normdn);
 			}
 			if ( NULL == slapi_entry_get_rdn_const(e) ) {
 				if (normdn) {
 					/* normdn is just referred in slapi_entry_set_rdn. */
 					slapi_entry_set_rdn(e, normdn);
 				} else {
-					normdn = slapi_create_dn_string("%s", rawdn);
-					if (NULL == normdn) {
+					if (flags & SLAPI_STR2ENTRY_DN_NORMALIZED) {
+						normdn = slapi_ch_strdup(rawdn);
+					} else {
+						normdn = slapi_create_dn_string("%s", rawdn);
+						if (NULL == normdn) {
 						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-						         "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
-						slapi_entry_free( e );
-						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
-						csn_free(&attributedeletioncsn);
-						csn_free(&maxcsn);
-						return NULL;
+							     "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
+							slapi_entry_free( e );
+							if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
+							csn_free(&attributedeletioncsn);
+							csn_free(&maxcsn);
+							return NULL;
+						}
 					}
 					/* normdn is just referred in slapi_entry_set_rdn. */
 					slapi_entry_set_rdn(e, normdn);
@@ -866,7 +873,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				goto free_and_return;
 			}
 			/* normdn is consumed in e */
-			slapi_entry_set_dn(e, normdn);
+			slapi_entry_set_normdn(e, normdn);
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 		    continue;
@@ -1019,8 +1026,8 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		sa = prev_attr;	/* For readability */
 		value= value_new(NULL, CSN_TYPE_NONE, NULL);
 		if (slapi_attr_is_dn_syntax_attr(&(sa->sa_attr))) {
-			char *dn_aval = NULL;
-			size_t dnlen = 0;
+			Slapi_DN *sdn = NULL;
+			const char *dn_aval = NULL;
 			if (strict) {
 				/* check that the dn is formatted correctly */
 				rc = slapi_dn_syntax_check(NULL, valuecharptr, 1);
@@ -1033,22 +1040,13 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					goto free_and_return;
 				}
 			}
-			rc = slapi_dn_normalize_ext(bvvalue.bv_val, bvvalue.bv_len, &dn_aval, &dnlen);
-			if (rc < 0) {
-				/* Give up normalizing the attribute value */
-				LDAPDebug2Args(LDAP_DEBUG_TRACE,
-							   "str2entry_dupcheck: Invalid DN value: %s: %s\n",
-							   type, valuecharptr);
-				dn_aval = valuecharptr;
-				dnlen = bvvalue.bv_len;
-			}
-			slapi_value_set(value, dn_aval, dnlen);
-			if (rc > 0) { /* if rc == 0, valuecharptr is passed in */
-				slapi_ch_free_string(&dn_aval);
-			} else if (rc == 0) { /* rc == 0; valuecharptr is passed in; 
-									 not null terminated */
-				*(dn_aval + dnlen) = '\0';
-			}
+			sdn = slapi_sdn_new_dn_byref(bvvalue.bv_val);
+			/* Note: slapi_sdn_get_dn returns the normalized DN 
+			 * with case-intact. Thus, the length of dn_aval is 
+			 * slapi_sdn_get_ndn_len(sdn). */
+			dn_aval = slapi_sdn_get_dn(sdn);
+			slapi_value_set(value, (void *)dn_aval, slapi_sdn_get_ndn_len(sdn));
+			slapi_sdn_free(&sdn);
 		} else {
 			slapi_value_set_berval(value, &bvvalue);
 		}
@@ -1381,19 +1379,19 @@ slapi_str2entry( char *s, int flags )
  * NOTE: the first arg "dn" should have been normalized before passing.
  */
 Slapi_Entry *
-slapi_str2entry_ext( const char *dn, char *s, int flags )
+slapi_str2entry_ext( const char *normdn, char *s, int flags )
 {
 	Slapi_Entry *e;
 	int read_stateinfo= ~( flags & SLAPI_STR2ENTRY_IGNORE_STATE );
 
-	if (NULL == dn)
+	if (NULL == normdn)
 	{
 		return slapi_str2entry( s, flags );
 	}
 
 	LDAPDebug( LDAP_DEBUG_ARGS,
 			"slapi_str2entry_ext: flags=0x%x, dn=\"%s\", entry=\"%.50s...\"\n",
-			flags, dn, s );
+			flags, normdn, s );
 
 
 	/*
@@ -1404,11 +1402,13 @@ slapi_str2entry_ext( const char *dn, char *s, int flags )
 	if ( 0 != ( flags & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ) ||
 			0 != ( flags & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST ))
 	{
-	    e= str2entry_dupcheck( dn, s, flags, read_stateinfo );
+	    e = str2entry_dupcheck( normdn, s, 
+	                    flags|SLAPI_STR2ENTRY_DN_NORMALIZED, read_stateinfo );
 	}
 	else
 	{
-	    e= str2entry_fast( dn, s, flags, read_stateinfo );
+	    e = str2entry_fast( normdn, s, 
+	                    flags|SLAPI_STR2ENTRY_DN_NORMALIZED, read_stateinfo );
 	}
 	if (!e)
 		return e;	/* e == NULL */
@@ -1941,15 +1941,30 @@ void
 slapi_entry_init(Slapi_Entry *e, char *dn, Slapi_Attr *a)
 {
     slapi_sdn_set_dn_passin(slapi_entry_get_sdn(e), dn);
-	e->e_uniqueid= NULL;
+    e->e_uniqueid= NULL;
     e->e_attrs= a;
     e->e_dncsnset= NULL;
     e->e_maxcsn= NULL;
-	e->e_deleted_attrs= NULL;
-	e->e_virtual_attrs= NULL;
-	e->e_virtual_watermark= 0;
-	e->e_virtual_lock= slapi_new_rwlock();
-	e->e_flags= 0;
+    e->e_deleted_attrs= NULL;
+    e->e_virtual_attrs= NULL;
+    e->e_virtual_watermark= 0;
+    e->e_virtual_lock= slapi_new_rwlock();
+    e->e_flags= 0;
+}
+
+void
+slapi_entry_init_ext(Slapi_Entry *e, Slapi_DN *sdn, Slapi_Attr *a)
+{
+	slapi_sdn_copy(sdn, slapi_entry_get_sdn(e));
+    e->e_uniqueid= NULL;
+    e->e_attrs= a;
+    e->e_dncsnset= NULL;
+    e->e_maxcsn= NULL;
+    e->e_deleted_attrs= NULL;
+    e->e_virtual_attrs= NULL;
+    e->e_virtual_watermark= 0;
+    e->e_virtual_lock= slapi_new_rwlock();
+    e->e_flags= 0;
 }
 
 void
@@ -2004,10 +2019,10 @@ static size_t slapi_dn_size(Slapi_DN *sdn)
     if (sdn == NULL) return 0;
 
     if (slapi_sdn_get_dn(sdn)) {
-        size += strlen(slapi_sdn_get_dn(sdn)) + 1;
+        size += slapi_sdn_get_ndn_len(sdn) + 1;
     }
     if (slapi_sdn_get_ndn(sdn)) {
-        size += strlen(slapi_sdn_get_ndn(sdn)) + 1;
+        size += slapi_sdn_get_ndn_len(sdn) + 1;
     }
 
     return size;
@@ -2180,6 +2195,12 @@ void
 slapi_entry_set_dn( Slapi_Entry *e, char *dn )
 {
     slapi_sdn_set_dn_passin(slapi_entry_get_sdn(e),dn);
+}
+
+void
+slapi_entry_set_normdn( Slapi_Entry *e, char *dn )
+{
+    slapi_sdn_set_normdn_passin(slapi_entry_get_sdn(e), dn);
 }
 
 /*
@@ -3166,18 +3187,18 @@ slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, const c
     /* Build new DN.  If newsuperior is set, just use "newrdn,newsuperior".  If
      * newsuperior is not set, need to add newrdn to old superior. */
     if (newsuperior) {
-        newdn = slapi_ch_smprintf("%s,%s", newrdn, newsuperior);
+        newdn = slapi_create_dn_string("%s,%s", newrdn, newsuperior);
     } else {
         char *oldsuperior = NULL;
 
         oldsuperior = slapi_dn_parent(olddn);
-        newdn = slapi_ch_smprintf("%s,%s", newrdn, oldsuperior);
+        newdn = slapi_create_dn_string("%s,%s", newrdn, oldsuperior);
 
         slapi_ch_free_string(&oldsuperior);
     }
 
     /* Set the new DN in the entry.  This hands off the memory used by newdn to the entry. */
-    slapi_entry_set_dn(e, newdn);
+    slapi_entry_set_normdn(e, newdn);
 
     /* Set the RDN in the entry. */
     slapi_entry_set_rdn(e, newdn);
@@ -3826,8 +3847,8 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                 }
                 if (0 == isfirst && force_update && testall)
                 {
-                    slapi_modify_internal_set_pb(&pb, 
-                                slapi_entry_get_dn_const(*oep),
+                    slapi_modify_internal_set_pb_ext(&pb, 
+                                slapi_entry_get_sdn_const(*oep),
                                 slapi_mods_get_ldapmods_byref(smods),
                                 NULL, NULL, plg_id, 0);
 

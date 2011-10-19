@@ -67,7 +67,7 @@ static int process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e);
    SLAPI_CONNECTION -- connection over which bulk import is coming
    SLAPI_BACKEND -- the backend being imported 
    or 
-   SLAPI_TARGET_DN that contains root of the imported area.   
+   SLAPI_TARGET_SDN that contains root of the imported area.   
    The function returns LDAP_SUCCESS or LDAP error code 
 */
 
@@ -80,7 +80,7 @@ int slapi_start_bulk_import (Slapi_PBlock *pb)
    SLAPI_CONNECTION -- connection over which bulk import is coming
    SLAPI_BACKEND -- the backend being imported 
    or 
-   SLAPI_TARGET_DN that contains root of the imported area.   
+   SLAPI_TARGET_SDN that contains root of the imported area.   
    The function returns LDAP_SUCCESS or LDAP error code 
 */
 int slapi_stop_bulk_import (Slapi_PBlock *pb)
@@ -103,9 +103,7 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
 {
     int rc;
     Slapi_Backend *be = NULL;
-    char *dn = NULL;
-    Slapi_DN sdn;
-    const Slapi_DN *target_sdn = NULL;
+    Slapi_DN *target_sdn = NULL;
 
     if (pb == NULL)
     {
@@ -125,29 +123,27 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
         /* try to get dn to select backend */
         if (e)
         {
-            target_sdn = slapi_entry_get_sdn_const (e);
-            be = slapi_be_select (target_sdn);
+            target_sdn = slapi_entry_get_sdn(e);
         }
         else
         {
-			slapi_sdn_init(&sdn);
-            slapi_pblock_get (pb, SLAPI_TARGET_DN, &dn);
-            if (dn)
-            {
-                slapi_sdn_init_dn_byref(&sdn, dn);
-                be = slapi_be_select (&sdn);
-				target_sdn = &sdn;
+            slapi_pblock_get (pb, SLAPI_TARGET_SDN, &target_sdn);
+            if (NULL == target_sdn) {
+                slapi_log_error(SLAPI_LOG_FATAL, NULL,
+                                "process_bulk_import_op: NULL target sdn\n");
+                return LDAP_OPERATIONS_ERROR;
             }
         }
+        be = slapi_be_select (target_sdn);
         
         if (be) 
         {
-			if (state == SLAPI_BI_STATE_START && (!slapi_be_issuffix(be, target_sdn)))
-			{
-            	slapi_log_error(SLAPI_LOG_FATAL, NULL,
-				 	"process_bulk_import_op: wrong backend suffix\n");
-            	return LDAP_OPERATIONS_ERROR;    
-			}
+            if (state == SLAPI_BI_STATE_START && (!slapi_be_issuffix(be, target_sdn)))
+            {
+                slapi_log_error(SLAPI_LOG_FATAL, NULL,
+                     "process_bulk_import_op: wrong backend suffix\n");
+                return LDAP_OPERATIONS_ERROR;    
+            }
             slapi_pblock_set (pb, SLAPI_BACKEND, be);
         }
         else
@@ -155,9 +151,6 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
             slapi_log_error(SLAPI_LOG_FATAL, NULL, "process_bulk_import_op: NULL backend\n");
             return LDAP_OPERATIONS_ERROR;    
         }        
-
-		if (NULL == e)
-            slapi_sdn_done (&sdn);
     }
 
     if (be->be_wire_import == NULL)

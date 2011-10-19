@@ -47,10 +47,11 @@ cb_free_bervals( struct berval **bvs );
 
 
 static int
-cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
-        struct berval *creds, LDAPControl **reqctrls,
-        char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
-        LDAPControl ***resctrlsp , int * status);
+cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, int method, 
+                     char * mechanism, struct berval *creds, 
+                     LDAPControl **reqctrls, char **matcheddnp, 
+                     char **errmsgp, struct berval ***refurlsp,
+                     LDAPControl ***resctrlsp , int * status);
 
 /*
  * Attempt to chain a bind request off to "srvr." We return an LDAP error
@@ -67,17 +68,18 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
 
 static int
 cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
-        char *dn, int method,char * mechanism, struct berval *creds, LDAPControl **reqctrls,
-        char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
-        LDAPControl ***resctrlsp ,int *status) {
-
+               const char *dn, int method,char * mechanism, 
+               struct berval *creds, LDAPControl **reqctrls,
+               char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
+               LDAPControl ***resctrlsp ,int *status)
+{
     int         rc;
  
     do {
          /* check to see if operation has been abandoned...*/
 
-	if (LDAP_AUTH_SIMPLE!=method)
-		return LDAP_AUTH_METHOD_NOT_SUPPORTED;
+    if (LDAP_AUTH_SIMPLE!=method)
+        return LDAP_AUTH_METHOD_NOT_SUPPORTED;
 
         if ( slapi_op_abandoned( pb )) {
             rc = LDAP_USER_CANCELLED;
@@ -91,10 +93,11 @@ cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
 }
 
 static int
-cb_sasl_bind_once_s( cb_conn_pool *pool, char *dn, int method, char * mechanism,
-        struct berval *creds, LDAPControl **reqctrls,
-        char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
-        LDAPControl ***resctrlsp , int * status )
+cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, int method, 
+                     char * mechanism, struct berval *creds, 
+                     LDAPControl **reqctrls, char **matcheddnp, 
+                     char **errmsgp, struct berval ***refurlsp,
+                     LDAPControl ***resctrlsp , int * status )
 {
     int                 rc, msgid;
     char                **referrals;
@@ -225,18 +228,20 @@ release_and_return:
 }
 
 int
-chainingdb_bind( Slapi_PBlock *pb ) {
+chainingdb_bind( Slapi_PBlock *pb )
+{
 
 	int 			status=LDAP_SUCCESS;
 	int 			allocated_errmsg;
 	int 			rc=LDAP_SUCCESS;
 	cb_backend_instance 	*cb;
 	Slapi_Backend		*be;
-	char                    *dn;
-        int                     method;
-        struct berval           *creds, **urls;
+	const char      *dn = NULL;
+	Slapi_DN        *sdn = NULL;
+	int                     method;
+	struct berval           *creds, **urls;
 	char 			*matcheddn,*errmsg;
-    	LDAPControl         	**reqctrls, **resctrls, **ctrls;
+	LDAPControl         	**reqctrls, **resctrls, **ctrls;
 	char 			* mechanism;
 	int 			freectrls=1;
 	int 			bind_retry;
@@ -258,16 +263,18 @@ chainingdb_bind( Slapi_PBlock *pb ) {
 	if (ctrls)
 		ldap_controls_free(ctrls);
 
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-        slapi_pblock_get( pb, SLAPI_BIND_TARGET, &dn );
-        slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method );
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &sdn );
+	slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method );
 	slapi_pblock_get( pb, SLAPI_BIND_SASLMECHANISM, &mechanism);
-        slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds );
-        slapi_pblock_get( pb, SLAPI_REQCONTROLS, &reqctrls );
-        cb = cb_get_instance(be);
+	slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds );
+	slapi_pblock_get( pb, SLAPI_REQCONTROLS, &reqctrls );
+	cb = cb_get_instance(be);
 
-	if ( NULL == dn ) 
-		dn="";
+	if ( NULL == sdn ) {
+		sdn = slapi_sdn_new_ndn_byval("");
+	}
+	dn = slapi_sdn_get_ndn(sdn);
 
         /* always allow noauth simple binds */
         if (( method == LDAP_AUTH_SIMPLE) && creds->bv_len == 0 ) {

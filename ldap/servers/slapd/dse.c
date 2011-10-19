@@ -1426,18 +1426,17 @@ dse_delete_entry(struct dse* pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
 int
 dse_bind( Slapi_PBlock *pb ) /* JCM There should only be one exit point from this function! */
 {
-	char *dn; /* The bind DN */
 	int	method; /* The bind method */
 	struct berval *cred; /* The bind credentials */
 	Slapi_Value **bvals; 
     struct dse* pdse;
 	Slapi_Attr *attr;
-	Slapi_DN sdn;
+	Slapi_DN *sdn = NULL;
 	Slapi_Entry *ec= NULL;
 
 	/*Get the parameters*/
 	if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
-		slapi_pblock_get( pb, SLAPI_BIND_TARGET, &dn ) < 0 ||
+		slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &sdn ) < 0 ||
 		slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) < 0 ||
 		slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &cred ) < 0){
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
@@ -1456,13 +1455,10 @@ dse_bind( Slapi_PBlock *pb ) /* JCM There should only be one exit point from thi
 		return( SLAPI_BIND_FAIL );
 	}
 
-	/* Find the entry that the person is attempting to bind as */
-	slapi_sdn_init_dn_byref(&sdn,dn);
-    ec = dse_get_entry_copy(pdse,&sdn,DSE_USE_LOCK);
+    ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
     if ( ec == NULL )
 	{
 		slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-		slapi_sdn_done(&sdn);
 		return( SLAPI_BIND_FAIL );
 	}
 
@@ -1475,7 +1471,6 @@ dse_bind( Slapi_PBlock *pb ) /* JCM There should only be one exit point from thi
 		{
 			slapi_send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL, NULL, 0, NULL );
 			slapi_entry_free(ec);
-			slapi_sdn_done(&sdn);
 			return SLAPI_BIND_FAIL;
 		}
 		bvals= attr_get_present_values( attr );
@@ -1485,7 +1480,6 @@ dse_bind( Slapi_PBlock *pb ) /* JCM There should only be one exit point from thi
 		{
 			slapi_send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL );
 			slapi_entry_free(ec);
-			slapi_sdn_done(&sdn);
 			value_done(&cv);
 			return SLAPI_BIND_FAIL;
 		}
@@ -1496,11 +1490,9 @@ dse_bind( Slapi_PBlock *pb ) /* JCM There should only be one exit point from thi
 	default:
 		slapi_send_ldap_result( pb, LDAP_STRONG_AUTH_NOT_SUPPORTED, NULL, "auth method not supported", 0, NULL );
 		slapi_entry_free(ec);
-		slapi_sdn_done(&sdn);
 		return SLAPI_BIND_FAIL;
 	}
 	slapi_entry_free(ec);
-	slapi_sdn_done(&sdn);
 	/* success:  front end will send result */
 	return SLAPI_BIND_SUCCESS;
 }
@@ -1647,7 +1639,6 @@ do_dse_search(struct dse* pdse, Slapi_PBlock *pb, int scope, const Slapi_DN *bas
 int
 dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from this function! */
 {
-    char *base; /*Base of the search*/
     int scope; /*Scope of the search*/
     Slapi_Filter *filter; /*The filter*/
     char **attrs; /*Attributes*/
@@ -1657,7 +1648,7 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int returncode= LDAP_SUCCESS;
     int isrootdse= 0;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
-	Slapi_DN basesdn;
+	Slapi_DN *basesdn = NULL;
 	int estimate = 0; /* estimated search result set size */
 
     /* 
@@ -1666,7 +1657,7 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
      * more or less directly from the client.
      */
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
-        slapi_pblock_get( pb, SLAPI_SEARCH_TARGET, &base ) < 0 ||
+        slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &basesdn ) < 0 ||
         slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope ) < 0 ||
         slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter ) < 0 ||
         slapi_pblock_get( pb, SLAPI_SEARCH_ATTRS, &attrs ) < 0 ||
@@ -1675,27 +1666,23 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
         return(-1);
     }
-
-	slapi_sdn_init_dn_byref(&basesdn,base);
-	
     /*
      * Sadly the root dse is still a special case.  We must not allow
      * acl checks on it, or allow onelevel or subtree searches on it.
      */
-    isrootdse= slapi_sdn_isempty(&basesdn);
+    isrootdse= slapi_sdn_isempty(basesdn);
 
     switch(scope)
     {
     case LDAP_SCOPE_BASE:
         {
 		Slapi_Entry *baseentry= NULL;
-	    baseentry = dse_get_entry_copy(pdse,&basesdn,DSE_USE_LOCK);
+	    baseentry = dse_get_entry_copy(pdse, basesdn, DSE_USE_LOCK);
         if ( baseentry == NULL )
         {
             slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
 			slapi_log_error(SLAPI_LOG_PLUGIN,"dse_search", "node %s was not found\n",
-								 slapi_sdn_get_dn(&basesdn));
-			slapi_sdn_done(&basesdn);
+								 slapi_sdn_get_dn(basesdn));
             return -1;
         }
         /* 
@@ -1726,14 +1713,13 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     case LDAP_SCOPE_SUBTREE:
         if(!isrootdse)
         {
-            estimate = do_dse_search(pdse, pb, scope, &basesdn, filter, attrs, attrsonly);
+            estimate = do_dse_search(pdse, pb, scope, basesdn, filter, attrs, attrsonly);
         }
         break;
     }
 	slapi_pblock_set (pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
 
     /* Search is done, send LDAP_SUCCESS */
-	slapi_sdn_done(&basesdn);
     return 0;
 }
 
@@ -1756,19 +1742,19 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 {
     int	err; /*House keeping stuff*/
     LDAPMod **mods; /*Used to apply the modifications*/
-    char *dn; /*Storage for the dn*/
     char *errbuf = NULL; /* To get error back */
     struct dse* pdse;
     Slapi_Entry *ec= NULL;
     Slapi_Entry *ecc= NULL;
     int returncode= LDAP_SUCCESS;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
-	Slapi_DN sdn;
+	Slapi_DN *sdn = NULL;
 	int dont_write_file = 0; /* default */
 
 	PR_ASSERT(pb);
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
-        slapi_pblock_get( pb, SLAPI_MODIFY_TARGET, &dn ) < 0 ||
+        /* slapi_pblock_get( pb, SLAPI_MODIFY_TARGET, &dn ) < 0 || */
+        slapi_pblock_get( pb, SLAPI_MODIFY_TARGET_SDN, &sdn ) < 0 ||
         slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods ) < 0 || (NULL == pdse))
     {
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
@@ -1780,14 +1766,11 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         return( -1 );
     }
 
-	slapi_sdn_init_dn_byref(&sdn,dn);
-
     /* Find the entry we are about to modify. */
-    ec = dse_get_entry_copy(pdse,&sdn,DSE_USE_LOCK);
+    ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
     if ( ec == NULL )
     {
         slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-		slapi_sdn_done(&sdn);
         return dse_modify_return( -1, ec, ecc );
     }
 
@@ -1797,7 +1780,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     {
         slapi_send_ldap_result( pb, err, NULL, errbuf, 0, NULL );
         if (errbuf)  slapi_ch_free ((void**)&errbuf);
-		slapi_sdn_done(&sdn);
         return dse_modify_return( -1, ec, ecc );
     }
 
@@ -1817,7 +1799,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         {
         /* Error occured in the callback -- return error code from callback */
         slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
-		slapi_sdn_done(&sdn);
 		return dse_modify_return( -1, ec, ecc );
         }
 
@@ -1825,7 +1806,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         {
         /* Callback says don't apply the changes -- return Success */
 		slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
-		slapi_sdn_done(&sdn);
 		return dse_modify_return( 0, ec, ecc );
         }
 
@@ -1861,7 +1841,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 		{
 			/* entry_apply_mods() failed above, so return an error now */
             slapi_send_ldap_result( pb, err, NULL, NULL, 0, NULL );
-			slapi_sdn_done(&sdn);
             return dse_modify_return( -1, ec, ecc );
 		}
         break;
@@ -1875,7 +1854,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 
 	slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         slapi_send_ldap_result( pb, LDAP_OBJECT_CLASS_VIOLATION, NULL, errtext, 0, NULL );
-		slapi_sdn_done(&sdn);
         return dse_modify_return( -1, ec, ecc );
     }
 
@@ -1886,7 +1864,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL );
-        slapi_sdn_done(&sdn);
         return dse_modify_return( -1, ec, ecc );
     }
 
@@ -1895,7 +1872,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     if (dse_replace_entry( pdse, ecc, !dont_write_file, DSE_USE_LOCK )!=0 )
     {
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-		slapi_sdn_done(&sdn);
         return dse_modify_return( -1, ec, ecc );
     }
     slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup(ecc) ); /* JCM - When does this get free'd? */
@@ -1904,7 +1880,6 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 
     slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
 
-	slapi_sdn_done(&sdn);
     return dse_modify_return(0, ec, ecc);
 }
 
@@ -1922,7 +1897,6 @@ dse_add_return( int rv, Slapi_Entry *e)
 int
 dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this function! */
 {
-    char *dn = NULL;
     Slapi_Entry *e; /*The new entry to add*/
 	Slapi_Entry *e_copy = NULL; /* copy of added entry */
     char *errbuf = NULL;
@@ -1932,14 +1906,14 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     struct dse* pdse;
     int returncode= LDAP_SUCCESS;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
-	Slapi_DN sdn;
+	Slapi_DN *sdn = NULL;
 	Slapi_DN parent;
 
     /*
      * Get the database, the dn and the entry to add
      */
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
-        slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn ) < 0 ||
+        slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn ) < 0 ||
         slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e ) < 0 || (NULL == pdse))
     {
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
@@ -1951,8 +1925,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         return( error );
     }
 
-	slapi_sdn_init_dn_byref(&sdn,dn);
-
     /*
      * Check to make sure the entry passes the schema check
      */
@@ -1963,7 +1935,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
 				"dse_add: entry failed schema check\n", 0, 0, 0 );
 	slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         slapi_send_ldap_result( pb, LDAP_OBJECT_CLASS_VIOLATION, NULL, errtext, 0, NULL );
-		slapi_sdn_done(&sdn);
         return error;
     }
 
@@ -1975,7 +1946,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
                                 "dse_add: entry failed syntax check\n", 0, 0, 0 );
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL );
-        slapi_sdn_done(&sdn);
         return error;
     }
 
@@ -1983,7 +1953,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
      * Attempt to find this dn.
      */
     {
-        Slapi_Entry *existingentry= dse_get_entry_copy( pdse, &sdn, DSE_USE_LOCK );
+        Slapi_Entry *existingentry= dse_get_entry_copy( pdse, sdn, DSE_USE_LOCK );
         if(existingentry!=NULL)
         {
             /*
@@ -1991,7 +1961,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
              * whose dn matches dn, so tell the user and return
              */
             slapi_send_ldap_result( pb, LDAP_ALREADY_EXISTS, NULL, NULL, 0, NULL );
-			slapi_sdn_done(&sdn);
 			slapi_entry_free(existingentry);
 			return dse_add_return(error, NULL);
         }
@@ -2003,7 +1972,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
      * add the entry.
      */
 	slapi_sdn_init(&parent);
-	slapi_sdn_get_parent(&sdn,&parent);
+	slapi_sdn_get_parent(sdn, &parent);
     if ( !slapi_sdn_isempty(&parent) )
     {
 	    Slapi_Entry *parententry= NULL;
@@ -2012,7 +1981,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         {
             slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
             LDAPDebug( SLAPI_DSE_TRACELEVEL, "dse_add: parent does not exist\n", 0, 0, 0 );
-			slapi_sdn_done(&sdn);
 			slapi_sdn_done(&parent);
 			return dse_add_return(error, NULL);
         }
@@ -2023,7 +1991,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
             LDAPDebug( SLAPI_DSE_TRACELEVEL, "dse_add: no access to parent\n", 0, 0, 0 );
             slapi_send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
             slapi_ch_free((void**)&errbuf);
-			slapi_sdn_done(&sdn);
 			slapi_sdn_done(&parent);
 			return dse_add_return(rc, NULL);
         }
@@ -2037,7 +2004,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         {
             LDAPDebug( SLAPI_DSE_TRACELEVEL, "dse_add: no parent and not root\n", 0, 0, 0 );
             slapi_send_ldap_result( pb, LDAP_INSUFFICIENT_ACCESS, NULL, NULL, 0, NULL );
-			slapi_sdn_done(&sdn);
 			slapi_sdn_done(&parent);
 			return dse_add_return(error, NULL);
         }
@@ -2060,7 +2026,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
 			NULL, &returncode, returntext)!=SLAPI_DSE_CALLBACK_OK)
     {
         slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
-		slapi_sdn_done(&sdn);
 		return dse_add_return(error, NULL);
     }
 
@@ -2069,7 +2034,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     if ( dse_add_entry_pb(pdse, e_copy, pb) != 0)
     {
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-		slapi_sdn_done(&sdn);
 		return dse_add_return(error, NULL);
     }
 	/* The postop must be called after the write lock is released. */
@@ -2082,9 +2046,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
 
 	/* entry has been freed, so make sure no one tries to use it later */
 	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
-
-    /* Free the dn, and return */
-	slapi_sdn_done(&sdn);
 
 	return dse_add_return(rc, e);
 }
@@ -2104,40 +2065,37 @@ dse_delete_return( int rv, Slapi_Entry *ec)
 int
 dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from this function! */
 {
-    char *dn = NULL;
     int rc= -1;
-	int dont_write_file = 0;	/* default */
+    int dont_write_file = 0;	/* default */
     struct dse* pdse = NULL;
     int returncode= LDAP_SUCCESS;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
     char *entry_str = "entry";
     char *errbuf = NULL;
-	char *attrs[2] =  { NULL, NULL };
-	Slapi_DN sdn;
-	Slapi_Entry *ec = NULL; /* copy of entry to delete */
+    char *attrs[2] =  { NULL, NULL };
+    Slapi_DN *sdn = NULL;
+    Slapi_Entry *ec = NULL; /* copy of entry to delete */
 
     /*
      * Get the database and the dn
      */
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
-        slapi_pblock_get( pb, SLAPI_DELETE_TARGET, &dn ) < 0 || (pdse == NULL))
+        slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn ) < 0 ||
+        (pdse == NULL))
     {
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
         return rc;
     }
 
-	slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
-	if ( !dont_write_file && dse_check_for_readonly_error(pb,pdse)) {
+    slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
+    if ( !dont_write_file && dse_check_for_readonly_error(pb,pdse)) {
         return( rc );
     }
 
-	slapi_sdn_init_dn_byref(&sdn,dn);
-
-    ec= dse_get_entry_copy( pdse, &sdn, DSE_USE_LOCK );
+    ec= dse_get_entry_copy( pdse, sdn, DSE_USE_LOCK );
     if (ec == NULL)
     {
         slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-		slapi_sdn_done(&sdn);
         return dse_delete_return( rc, ec );
     }
 
@@ -2147,7 +2105,6 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     if(dse_numsubordinates(ec)>0)
     {
         slapi_send_ldap_result( pb, LDAP_NOT_ALLOWED_ON_NONLEAF, NULL, NULL, 0, NULL );
-		slapi_sdn_done(&sdn);
         return dse_delete_return( rc, ec );
     }
 
@@ -2161,7 +2118,6 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     {
         slapi_send_ldap_result( pb, returncode, NULL, NULL, 0, NULL );
         slapi_ch_free ( (void**)&errbuf );
-		slapi_sdn_done(&sdn);
         return dse_delete_return( rc, ec );
     }
 
@@ -2175,7 +2131,6 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     else
     {
         slapi_send_ldap_result( pb, returncode, NULL, NULL, 0, NULL );
-        slapi_sdn_done(&sdn);
         return dse_delete_return( rc, ec );
     }
 
@@ -2183,7 +2138,6 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 
     slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
 	slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( ec ));
-	slapi_sdn_done(&sdn);
     return dse_delete_return(0, ec);
 }
 

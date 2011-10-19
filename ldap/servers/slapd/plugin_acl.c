@@ -138,12 +138,12 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 	int					rc = 0;
    	void				*change = NULL;
    	Slapi_Entry			*te = NULL;
-    Slapi_DN			sdn;
+    Slapi_DN			*sdn = NULL;
 	Operation			*operation;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
-	(void)slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
+	(void)slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 
 	switch ( optype ) {
  	  case SLAPI_OPERATION_MODIFY:
@@ -154,24 +154,29 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 		te = (Slapi_Entry *)change;
 		if(!slapi_sdn_isempty(slapi_entry_get_sdn(te)))
 		{
-		    dn= (char*)slapi_sdn_get_ndn(slapi_entry_get_sdn(te)); /* jcm - Had to cast away const */
+			sdn = slapi_entry_get_sdn(te);
 		}
 		break;
     	  case SLAPI_OPERATION_MODRDN:
 		(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
 		break;
-    	}
+	}
 	
-	slapi_sdn_init_dn_byref (&sdn, dn);
+	if (NULL == sdn) {
+		LDAPDebug0Args ( LDAP_DEBUG_ANY, 
+		                 "plugin_call_acl_mods_update: Null target DN\n" );
+		return LDAP_INVALID_DN_SYNTAX;
+	}
+
 	/* call the global plugins first and then the backend specific */
+	dn = (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
 	for ( p = get_plugin_list(PLUGIN_LIST_ACL); p != NULL; p = p->plg_next ) {
-		if (plugin_invoke_plugin_sdn (p, SLAPI_PLUGIN_ACL_MODS_UPDATE, pb, &sdn)){
+		if (plugin_invoke_plugin_sdn(p, SLAPI_PLUGIN_ACL_MODS_UPDATE, pb, sdn)){
 			rc = (*p->plg_acl_mods_update)(pb, optype, dn, change );
 			if ( rc != LDAP_SUCCESS ) break;
 		}
 	}
 
-	slapi_sdn_done (&sdn);
 	return rc;
 }
 

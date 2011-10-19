@@ -135,7 +135,8 @@ static int
 aclplugin_preop_search ( Slapi_PBlock *pb )
 {
 	int 		scope;
-	char		*base = NULL;
+	const char	*base = NULL;
+	Slapi_DN	*sdn = NULL;
 	int			optype;
 	int			isRoot;
 	int			rc = 0;
@@ -151,7 +152,8 @@ aclplugin_preop_search ( Slapi_PBlock *pb )
 		return rc;
 	}
 
-	slapi_pblock_get( pb, SLAPI_SEARCH_TARGET, &base );
+	slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &sdn );
+	base = slapi_sdn_get_dn(sdn);
 	/* For anonymous client  doing search nothing needs to be set up */
 	if ( optype == SLAPI_OPERATION_SEARCH && aclanom_is_client_anonymous ( pb )  &&
 			! slapi_dn_issuffix( base, "cn=monitor") ) {
@@ -244,7 +246,7 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 				"proxied authorization dn is (%s)\n", proxy_dn );
 		acl_init_aclpb ( pb, aclpb, proxy_dn, 1 );
-		aclpb = acl_new_proxy_aclpb (pb );
+		aclpb = acl_new_proxy_aclpb ( pb );
 		acl_init_aclpb ( pb, aclpb, dn, 0 );
 		slapi_ch_free ( (void **) &proxy_dn );
 		

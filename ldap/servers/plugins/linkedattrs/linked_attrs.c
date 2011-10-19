@@ -94,6 +94,7 @@ static void linked_attrs_free_config_entry(struct configEntry ** entry);
  * helpers
  */
 static char *linked_attrs_get_dn(Slapi_PBlock * pb);
+static Slapi_DN *linked_attrs_get_sdn(Slapi_PBlock * pb);
 static int linked_attrs_dn_is_config(char *dn);
 static void linked_attrs_find_config(const char *dn, const char *type,
     struct configEntry **config);
@@ -152,9 +153,9 @@ linked_attrs_get_plugin_id()
 }
 
 void
-linked_attrs_set_plugin_dn(char *pluginDN)
+linked_attrs_set_plugin_dn(const char *pluginDN)
 {
-    _PluginDN = pluginDN;
+    _PluginDN = (char *)pluginDN;
 }
 
 char *
@@ -281,7 +282,7 @@ linked_attrs_postop_init(Slapi_PBlock *pb)
 static int
 linked_attrs_start(Slapi_PBlock * pb)
 {
-    char *plugindn = NULL;
+    Slapi_DN *plugindn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_start\n");
@@ -303,14 +304,14 @@ linked_attrs_start(Slapi_PBlock * pb)
     /*
      * Get the plug-in target dn from the system
      * and store it for future use. */
-    slapi_pblock_get(pb, SLAPI_TARGET_DN, &plugindn);
-    if (NULL == plugindn || 0 == strlen(plugindn)) {
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &plugindn);
+    if (NULL == plugindn || 0 == slapi_sdn_get_ndn_len(plugindn)) {
         slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
                         "linked_attrs_start: unable to retrieve plugin dn\n");
         return -1;
     }
 
-    linked_attrs_set_plugin_dn(plugindn);
+    linked_attrs_set_plugin_dn(slapi_sdn_get_dn(plugindn));
 
     /*
      * Load the config cache
@@ -540,7 +541,7 @@ linked_attrs_parse_config_entry(Slapi_Entry * e, int apply)
         char *syntaxoid = NULL;
         Slapi_Attr *attr = slapi_attr_new();
 
-	/* Set this first so we free it if we encounter an error */
+        /* Set this first so we free it if we encounter an error */
         entry->managedtype = value;
 
         /* Gather some information about this attribute. */
@@ -816,21 +817,36 @@ linked_attrs_delete_config()
 static char *
 linked_attrs_get_dn(Slapi_PBlock * pb)
 {
-    char *dn = 0;
+    const char *dn = 0;
+    Slapi_DN *sdn = NULL;
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_get_dn\n");
 
-    if (slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn)) {
+    if (slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn)) {
         slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
                         "linked_attrs_get_dn: failed to get dn of changed entry");
         goto bail;
     }
+    dn = slapi_sdn_get_dn(sdn);
 
   bail:
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_get_dn\n");
 
-    return dn;
+    return (char *)dn;
+}
+
+static Slapi_DN *
+linked_attrs_get_sdn(Slapi_PBlock * pb)
+{
+    Slapi_DN *sdn = 0;
+    slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
+                    "--> linked_attrs_get_sdn\n");
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
+                    "<-- linked_attrs_get_sdn\n");
+
+    return sdn;
 }
 
 /*
@@ -1406,6 +1422,7 @@ linked_attrs_mod_backpointers(char *linkdn, char *type,
     {
         int perform_update = 0;
         const char *targetdn = slapi_value_get_string(targetval);
+        Slapi_DN *targetsdn = slapi_sdn_new_dn_byref(targetdn);
 
         /* If we have a scope, only update the target if it is within
          * the scope.  If we don't have a scope, only update the target
@@ -1415,14 +1432,12 @@ linked_attrs_mod_backpointers(char *linkdn, char *type,
         } else {
             Slapi_Backend *be = NULL;
             Slapi_DN *linksdn = slapi_sdn_new_dn_byref(linkdn);
-            Slapi_DN *targetsdn = slapi_sdn_new_dn_byref(targetdn);
 
             if ((be = slapi_be_select(linksdn))) {
                 perform_update = slapi_sdn_issuffix(targetsdn, slapi_be_getsuffix(be, 0));
             }
 
             slapi_sdn_free(&linksdn);
-            slapi_sdn_free(&targetsdn);
         }
 
         if (perform_update) {
@@ -1432,13 +1447,14 @@ linked_attrs_mod_backpointers(char *linkdn, char *type,
                             linkdn, targetdn);
 
             /* Perform the modify operation. */
-            slapi_modify_internal_set_pb(mod_pb, targetdn, mods, 0, 0,
-                                         linked_attrs_get_plugin_id(), 0);
+            slapi_modify_internal_set_pb_ext(mod_pb, targetsdn, mods, 0, 0,
+                                             linked_attrs_get_plugin_id(), 0);
             slapi_modify_internal_pb(mod_pb);
 
             /* Initialize the pblock so we can reuse it. */
             slapi_pblock_init(mod_pb);
         }
+        slapi_sdn_free(&targetsdn);
 
         i = slapi_valueset_next_value(targetvals, i, &targetval);
     }
@@ -1488,10 +1504,10 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
         } else {
             /* Fetch the entry being modified so we can
              * create the resulting entry for validation. */
-            Slapi_DN *tmp_dn = slapi_sdn_new_dn_byref(dn);
+            /* int free_sdn = 0; */
+            Slapi_DN *tmp_dn = linked_attrs_get_sdn(pb);
             if (tmp_dn) {
                 slapi_search_internal_get_entry(tmp_dn, 0, &e, linked_attrs_get_plugin_id());
-                slapi_sdn_free(&tmp_dn);
                 free_entry = 1;
             }
 

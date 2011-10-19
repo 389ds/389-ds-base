@@ -138,7 +138,7 @@ do_modify( Slapi_PBlock *pb )
 	int				ignored_some_mods = 0;
 	int				has_password_mod = 0; /* number of password mods */
 	char				*old_pw = NULL;	/* remember the old password */
-	char				*dn = NULL;
+	char				*rawdn = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modify\n", 0, 0, 0 );
 
@@ -168,8 +168,6 @@ do_modify( Slapi_PBlock *pb )
 	 */
 
     {
-		char *rawdn = NULL;
-		size_t dnlen = 0;
 		int rc = 0;
     	if ( ber_scanf( ber, "{a", &rawdn ) == LBER_ERROR )
     	{
@@ -193,24 +191,12 @@ do_modify( Slapi_PBlock *pb )
 				return;
 			}
 		}
-		rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
-		if (rc < 0) {
-			op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"", "invalid dn");
-			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-								 NULL, "invalid dn", 0, NULL);
-			slapi_ch_free((void **) &rawdn);
-			return;
-		} else if (rc > 0) { /* if rc == 0, rawdn is passed in */
-			slapi_ch_free_string(&rawdn);
-		} else { /* rc == 0; rawdn is passed in; not null terminated */
-			*(dn + dnlen) = '\0';
-		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_ARGS, "do_modify: dn (%s)\n", dn, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_ARGS, "do_modify: dn (%s)\n", rawdn, 0, 0 );
 
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
-	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, dn ); 
+	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, rawdn ); 
 
 	/* collect modifications & save for later */
 	slapi_mods_init(&smods, 0);
@@ -227,7 +213,7 @@ do_modify( Slapi_PBlock *pb )
 		if ( ber_scanf( ber, "{i{a[V]}}", &mod_op, &type,
 		    &mod->mod_bvalues ) == LBER_ERROR )
 		{
-			op_shared_log_error_access (pb, "MOD", dn, "decoding error");
+			op_shared_log_error_access (pb, "MOD", rawdn, "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 							  "decoding error", 0, NULL );
 			ber_bvecfree(mod->mod_bvalues);
@@ -240,7 +226,7 @@ do_modify( Slapi_PBlock *pb )
 		if ( !mod->mod_type || !*mod->mod_type ) {
 			char ebuf[BUFSIZ];
 			PR_snprintf (ebuf, BUFSIZ, "invalid type '%s'", type);
-			op_shared_log_error_access (pb, "MOD", dn, ebuf);
+			op_shared_log_error_access (pb, "MOD", rawdn, ebuf);
 			send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, ebuf, 0, NULL );
 			slapi_ch_free((void **)&type);
 			ber_bvecfree(mod->mod_bvalues);
@@ -254,7 +240,7 @@ do_modify( Slapi_PBlock *pb )
 		    mod->mod_op != LDAP_MOD_DELETE &&
 		    mod->mod_op != LDAP_MOD_REPLACE )
 		{
-			op_shared_log_error_access (pb, "MOD", dn, "unrecognized modify operation");
+			op_shared_log_error_access (pb, "MOD", rawdn, "unrecognized modify operation");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 							  "unrecognized modify operation", 0, NULL );
 			ber_bvecfree(mod->mod_bvalues);
@@ -267,7 +253,7 @@ do_modify( Slapi_PBlock *pb )
 		    && mod->mod_op != LDAP_MOD_DELETE
 		    && mod->mod_op != LDAP_MOD_REPLACE )
 		{
-			op_shared_log_error_access (pb, "MOD", dn, "no values given");
+			op_shared_log_error_access (pb, "MOD", rawdn, "no values given");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 							  "no values given", 0, NULL );
 			ber_bvecfree(mod->mod_bvalues);
@@ -317,7 +303,7 @@ do_modify( Slapi_PBlock *pb )
 		if ( ( len == 0 ) && ( 0 == smods.num_elements ) && !ignored_some_mods ) {
 			/* ok - empty modify - allow empty modifies */
 		} else if ( len != -1 ) {
-			op_shared_log_error_access (pb, "MOD", dn, "decoding error");
+			op_shared_log_error_access (pb, "MOD", rawdn, "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0, NULL );
 			goto free_and_return;
 		}
@@ -326,7 +312,7 @@ do_modify( Slapi_PBlock *pb )
 #else
 	if ( tag != LBER_END_OF_SEQORSET )
 	{
-		op_shared_log_error_access (pb, "MOD", dn, "decoding error");
+		op_shared_log_error_access (pb, "MOD", rawdn, "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0, NULL );
 		goto free_and_return;
 	} 
@@ -335,7 +321,7 @@ do_modify( Slapi_PBlock *pb )
 	/* decode the optional controls - put them in the pblock */
 	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 )
 	{
-		op_shared_log_error_access (pb, "MOD", dn, "failed to decode LDAP controls");
+		op_shared_log_error_access (pb, "MOD", rawdn, "failed to decode LDAP controls");
 		send_ldap_result( pb, err, NULL, NULL, 0, NULL );
 		goto free_and_return;
 	}
@@ -362,7 +348,7 @@ do_modify( Slapi_PBlock *pb )
 		pb->pb_conn->c_needpw && pw_change == 0 )
 	{
 		(void)slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
-		op_shared_log_error_access (pb, "MOD", dn, "need new password");
+		op_shared_log_error_access (pb, "MOD", rawdn, "need new password");
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
 		goto free_and_return;
 	}
@@ -387,7 +373,7 @@ do_modify( Slapi_PBlock *pb )
 	ldap_mods_free (mods, 1 /* Free the Array and the Elements */);
 
 free_and_return:;
-	slapi_ch_free ((void**)&dn);
+	slapi_ch_free ((void**)&rawdn);
 	slapi_mods_done(&smods);
 }
 
@@ -452,8 +438,12 @@ int slapi_modify_internal_pb (Slapi_PBlock *pb)
 }
 
 /* Initialize a pblock for a call to slapi_modify_internal_pb() */
-void slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPMod **mods, LDAPControl **controls, 
-								   const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags)
+void
+slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn, 
+                              LDAPMod **mods, LDAPControl **controls, 
+                              const char *uniqueid, 
+                              Slapi_ComponentId *plugin_identity, 
+                              int operation_flags)
 {
 	Operation *op;
 	PR_ASSERT (pb != NULL);
@@ -464,10 +454,40 @@ void slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPMod **m
 		return;
 	}
 
-    op= internal_operation_new(SLAPI_OPERATION_MODIFY,operation_flags);
+	op= internal_operation_new(SLAPI_OPERATION_MODIFY,operation_flags);
 	slapi_pblock_set(pb, SLAPI_OPERATION, op);       
 	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void*)dn);
-    slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
+	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
+	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
+	if (uniqueid)
+	{
+		slapi_pblock_set(pb, SLAPI_TARGET_UNIQUEID, (void*)uniqueid);
+	}
+	slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
+}
+
+/* Initialize a pblock for a call to slapi_modify_internal_pb() */
+void
+slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, 
+                              LDAPMod **mods, LDAPControl **controls, 
+                              const char *uniqueid, 
+                              Slapi_ComponentId *plugin_identity, 
+                              int operation_flags)
+{
+	Operation *op;
+	PR_ASSERT (pb != NULL);
+	if (pb == NULL || sdn == NULL || mods == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+						"slapi_modify_internal_set_pb: NULL parameter\n");
+		return;
+	}
+
+	op= internal_operation_new(SLAPI_OPERATION_MODIFY,operation_flags);
+	slapi_pblock_set(pb, SLAPI_OPERATION, op);       
+	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void *)slapi_sdn_get_dn(sdn));
+	slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void *)sdn);
+	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
 	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
 	if (uniqueid)
 	{
@@ -583,8 +603,10 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	Slapi_Entry *referral;
 	Slapi_Entry	*e = NULL;
 	char ebuf[BUFSIZ];
-	char *dn;
-	Slapi_DN sdn;
+	char *dn = NULL;
+	char *normdn = NULL;
+	Slapi_DN *sdn = NULL;
+	int passin_sdn = 0;
 	LDAPMod	**mods, *pw_mod, **tmpmods = NULL;
 	Slapi_Mods smods;
 	Slapi_Mods unhashed_pw_smod;	
@@ -601,6 +623,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	char *errtext = NULL;
 
 	slapi_pblock_get (pb, SLAPI_ORIGINAL_TARGET, &dn);
+	slapi_pblock_get (pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
 	slapi_pblock_get (pb, SLAPI_MODIFY_MODS, &mods);
 	slapi_pblock_get (pb, SLAPI_MODIFY_MODS, &tmpmods);
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
@@ -608,23 +631,27 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 	slapi_pblock_get (pb, SLAPI_SKIP_MODIFIED_ATTRS, &skip_modified_attrs);
 
-	if (dn == NULL)
-	{
-		slapi_sdn_init_dn_byref (&sdn, "");
+	if (sdn) {
+		passin_sdn = 1;
+	} else {
+		sdn = slapi_sdn_new_dn_byval(dn);
+		slapi_pblock_set(pb, SLAPI_MODIFY_TARGET_SDN, (void*)sdn);
 	}
-	else
-	{
-		slapi_sdn_init_dn_byref (&sdn, dn);
+	normdn = (char *)slapi_sdn_get_dn(sdn);
+	if (dn && (strlen(dn) > 0) && (NULL == normdn)) {
+		/* normalization failed */
+		op_shared_log_error_access(pb, "MOD", dn, "invalid dn");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+		                 "invalid dn", 0, NULL);
+		goto free_and_return;
 	}
 
-	slapi_pblock_set(pb, SLAPI_MODIFY_TARGET, (void*)slapi_sdn_get_ndn (&sdn));
-
-	slapi_mods_init_passin (&smods, mods);	
+	slapi_mods_init_passin (&smods, mods);
 
 	slapi_mods_init(&unhashed_pw_smod, 0);
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	operation_set_target_spec (pb->pb_op, &sdn);
+	operation_set_target_spec (pb->pb_op, sdn);
 
 	/* get the proxy auth dn if the proxy auth control is present */
 	proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
@@ -643,7 +670,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s\n",
 							 pb->pb_conn->c_connid, 
 							 pb->pb_op->o_opid,
-							 escape_string(slapi_sdn_get_dn(&sdn), ebuf),
+							 escape_string(slapi_sdn_get_dn(sdn), ebuf),
 							 proxystr ? proxystr : "");
 		}
 		else
@@ -651,7 +678,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s\n",
 							 LOG_INTERNAL_OP_CON_ID,
 							 LOG_INTERNAL_OP_OP_ID,
-							 escape_string(slapi_sdn_get_dn(&sdn), ebuf),
+							 escape_string(slapi_sdn_get_dn(sdn), ebuf),
 							 proxystr ? proxystr : "");
 		}
 
@@ -702,8 +729,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	 * 2. If yes, then if the mods contain any passwdpolicy specific attributes.
 	 * 3. If yes, then it invokes corrosponding checking function.
 	 */
-	if ( !repl_op && !internal_op && dn &&
-		(e = get_entry(pb, slapi_dn_normalize(dn))) )
+	if ( !repl_op && !internal_op && normdn && (e = get_entry(pb, normdn)) )
 	{
 		Slapi_Value target;
 		slapi_value_init(&target);
@@ -785,7 +811,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			valuearray_init_bervalarray(pw_mod->mod_bvalues, &va);
 
 			/* encode password */
-			pw_encodevals_ext(pb, &sdn, va);
+			pw_encodevals_ext(pb, sdn, va);
 
 			/* remove current clear value of userpassword */
 			ber_bvecfree(pw_mod->mod_bvalues);
@@ -937,13 +963,17 @@ free_and_return:
 	
 	if (be)
 		slapi_be_Unlock(be);
-    slapi_sdn_done(&sdn);
 
 	slapi_mods_done(&unhashed_pw_smod); /* can finalize now */
 	if (unhashed_pw_attr)
 		slapi_ch_free ((void**)&unhashed_pw_attr);
 
 	slapi_ch_free_string(&proxydn);
+
+	slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
+	if (!passin_sdn) {
+		slapi_sdn_free(&sdn);
+	}
 }
 
 static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_unhashed)

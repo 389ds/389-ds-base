@@ -79,9 +79,6 @@ do_search( Slapi_PBlock *pb )
 	int			send_entchg_controls;
 	int			changesonly = 0;
 	int			rc = -1;
-	char		*original_base = 0;
-	char		*new_base = 0;
-	size_t		baselen = 0;
 	int strict = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_search\n", 0, 0, 0 );
@@ -138,24 +135,12 @@ do_search( Slapi_PBlock *pb )
 			return;
 		}
 	}
-	rc = slapi_dn_normalize_ext(rawbase, 0, &base, &baselen);
-	if (rc < 0) {
-		op_shared_log_error_access(pb, "SRCH", 
-							rawbase?rawbase:"", "invalid dn");
-		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-							 NULL, "invalid dn", 0, NULL);
-		slapi_ch_free((void **) &rawbase);
-		return;
-	} else if (rc > 0) { /* if rc == 0, rawbase is passed in */
-		slapi_ch_free((void **) &rawbase);
-	} else { /* rc == 0; rawbase is passed in; not null terminated */
-		*(base + baselen) = '\0';
-	}
 
 	/* If anonymous access is only allowed for searching the root DSE,
 	 * we need to reject any other anonymous search attempts. */
-	if ((slapi_sdn_get_dn(&(operation->o_sdn)) == NULL) && ((baselen != 0) || (scope != LDAP_SCOPE_BASE))
-	    && (config_get_anon_access_switch() == SLAPD_ANON_ACCESS_ROOTDSE)) {
+	if ((slapi_sdn_get_dn(&(operation->o_sdn)) == NULL) &&
+	    (scope != LDAP_SCOPE_BASE) &&
+	    (config_get_anon_access_switch() == SLAPD_ANON_ACCESS_ROOTDSE)) {
 		op_shared_log_error_access(pb, "SRCH", base?base:"", "anonymous search not allowed");
 
 		send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
@@ -178,7 +163,7 @@ do_search( Slapi_PBlock *pb )
 	&& scope != LDAP_SCOPE_SUBTREE ) {
 		log_search_access (pb, base, scope, "???", "Unknown search scope");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
-		"Unknown search scope", 0, NULL );
+		                  "Unknown search scope", 0, NULL );
 		goto free_and_return;
 	}
 	/* check and record the scope for snmp */
@@ -370,8 +355,7 @@ do_search( Slapi_PBlock *pb )
 		}
 	}
 
-	slapi_pblock_set( pb, SLAPI_SEARCH_TARGET, base );
-	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET_DN, slapi_ch_strdup(base) );
+	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET_DN, rawbase );
 	slapi_pblock_set( pb, SLAPI_SEARCH_SCOPE, &scope );
 	slapi_pblock_set( pb, SLAPI_SEARCH_DEREF, &deref );
 	slapi_pblock_set( pb, SLAPI_SEARCH_FILTER, filter );
@@ -383,16 +367,8 @@ do_search( Slapi_PBlock *pb )
 	slapi_pblock_set( pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit );
 	slapi_pblock_set( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
 
-	/* plugins which play with the search may 
-	 * change the search params may allocate
-	 * memory so we need to keep track of
-	 * changed base search strings
-	 */
-	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &original_base);
-
 	op_shared_search (pb, psearch ? 0 : 1/* send result */);
 
-	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &new_base);
 	slapi_pblock_get (pb, SLAPI_PLUGIN_OPRETURN, &rc);
 	slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter );
 	
@@ -402,10 +378,6 @@ do_search( Slapi_PBlock *pb )
 
 free_and_return:;
 	if ( !psearch || rc < 0 ) {
-		if(original_base != new_base) {
-			slapi_ch_free_string(&new_base);
-		}
-		slapi_ch_free_string(&base);
 		slapi_ch_free_string(&fstr);
 		slapi_filter_free( filter, 1 );
 		charray_free( attrs );	/* passing NULL is fine */
@@ -418,8 +390,8 @@ free_and_return:;
 			operation->o_flags &= ~OP_FLAG_PS;
 		}
 		/* we strdup'd this above - need to free */
-		slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
-		slapi_ch_free_string(&base);
+		slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &rawbase);
+		slapi_ch_free_string(&rawbase);
 	}
 }
 

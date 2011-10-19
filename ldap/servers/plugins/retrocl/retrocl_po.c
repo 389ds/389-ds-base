@@ -567,7 +567,7 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     Slapi_Operation     *op = NULL;
     LDAPMod		**modrdn_mods = NULL;
     char *newrdn = NULL;
-    char *newsuperior = NULL;
+    Slapi_DN *newsuperior = NULL;
     Slapi_Backend *be = NULL;
     time_t curtime;
     int rc;
@@ -641,7 +641,7 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
     	(void)slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
     	(void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &modrdn_mods );
-	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR, &newsuperior); 
+    	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior ); 
     	break;
     }
 
@@ -649,9 +649,7 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     /* check if we should log change to retro changelog, and
      * if so, do it here */
     write_replog_db( pb, optype, dn, log_m, flag, curtime, te,
-		     newrdn, modrdn_mods, newsuperior );
+		     newrdn, modrdn_mods, slapi_sdn_get_dn(newsuperior) );
 
     return 0;
 }
-
-

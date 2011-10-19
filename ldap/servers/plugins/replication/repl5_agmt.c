@@ -1729,8 +1729,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 	if (NULL != pb)
 	{
 		/* Is the entry within our replicated area? */
-		char *target_dn;
-		Slapi_DN *target_sdn;
+		Slapi_DN *target_sdn = NULL;
 		int change_is_relevant = 0;
 
 		PR_ASSERT(NULL != agmt);
@@ -1741,8 +1740,11 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 			return;
 		}
 
-		slapi_pblock_get(pb, SLAPI_TARGET_DN, &target_dn);
-		target_sdn = slapi_sdn_new_dn_byref(target_dn); /* XXX see if you can avoid allocating this */
+		slapi_pblock_get(pb, SLAPI_TARGET_SDN, &target_sdn);
+		if (NULL == target_sdn) {
+			PR_Unlock(agmt->lock);
+			return;
+		}
 
 		if (slapi_sdn_issuffix(target_sdn, agmt->replarea))
 		{
@@ -1799,7 +1801,6 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 			}
 		}
 		PR_Unlock(agmt->lock);
-		slapi_sdn_free(&target_sdn);
 		if (change_is_relevant)
 		{
 			/* Notify the protocol that a change has occurred */
@@ -1856,7 +1857,7 @@ agmt_replica_init_done (const Repl_Agmt *agmt)
 	mod.mod_type = (char*)type_nsds5ReplicaInitialize;
     mod.mod_bvalues = NULL;
 	
-    slapi_modify_internal_set_pb(pb, slapi_sdn_get_dn (agmt->dn), mods, NULL/* controls */, 
+    slapi_modify_internal_set_pb_ext(pb, agmt->dn, mods, NULL/* controls */, 
           NULL/* uniqueid */, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0/* flags */);
     slapi_modify_internal_pb (pb);
 
@@ -1949,7 +1950,7 @@ agmt_update_consumer_ruv (Repl_Agmt *ra)
         mods[1] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_last_modified);
         mods[2] = NULL;
 
-        slapi_modify_internal_set_pb (pb, (char*)slapi_sdn_get_dn(ra->dn), mods, NULL, NULL, 
+        slapi_modify_internal_set_pb_ext (pb, ra->dn, mods, NULL, NULL, 
                                       repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
         slapi_modify_internal_pb (pb);
 

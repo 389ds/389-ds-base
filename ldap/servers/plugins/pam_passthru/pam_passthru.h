@@ -129,7 +129,7 @@ void * pam_passthruauth_get_plugin_identity();
  */
 int pam_passthru_config( Slapi_Entry *config_e );
 Pam_PassthruConfig *pam_passthru_get_config( void );
-int pam_passthru_check_suffix(Pam_PassthruConfig *cfg, char *binddn);
+int pam_passthru_check_suffix(Pam_PassthruConfig *cfg, const char *binddn);
 
 /*
  * pam_ptimpl.c

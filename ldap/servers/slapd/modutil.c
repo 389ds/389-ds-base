@@ -201,21 +201,12 @@ slapi_mods_insert_at(Slapi_Mods *smods, LDAPMod *mod, int pos)
 	slapi_attr_init(&a, mod->mod_type);
 	/* Check if the type of the to-be-added values has DN syntax or not. */
 	if (slapi_attr_is_dn_syntax_attr(&a)) {
-		int rc = 0;
 		struct berval **mbvp = NULL;
-		char *normed = NULL;
-		size_t len = 0;
 		for (mbvp = mod->mod_bvalues; mbvp && *mbvp; mbvp++) {
-			rc = slapi_dn_normalize_ext((*mbvp)->bv_val, (*mbvp)->bv_len,
-										&normed, &len);
-			if (rc > 0) {
-				slapi_ch_free((void **)&((*mbvp)->bv_val));
-			} else if (rc == 0) { 
-				/* original is passed in; not null terminated */
-				*(normed + len) = '\0';
-			}
-			(*mbvp)->bv_val = normed;
-			(*mbvp)->bv_len = len;
+			Slapi_DN *sdn = slapi_sdn_new_dn_byref((*mbvp)->bv_val);
+			(*mbvp)->bv_val = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+			(*mbvp)->bv_len = slapi_sdn_get_ndn_len(sdn);
+			slapi_sdn_free(&sdn);
 		}
 	}
 	attr_done(&a);

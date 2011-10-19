@@ -90,10 +90,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     IDList *children= NULL;
     struct backentry **child_entries = NULL;
     struct backdn **child_dns = NULL;
-    Slapi_DN dn_olddn = {0};
-    Slapi_DN dn_newdn = {0};
-    Slapi_DN dn_newrdn = {0};
-    Slapi_DN dn_newsuperiordn = {0};
+    Slapi_DN *sdn = NULL;
+    Slapi_DN dn_newdn;
+    Slapi_DN dn_newrdn;
+    Slapi_DN *dn_newsuperiordn = NULL;
     Slapi_DN dn_parentdn;
     int rc;
     int isroot;
@@ -109,15 +109,15 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     entry_address *old_addr;
     entry_address oldparent_addr;
     entry_address *newsuperior_addr;
-    char *dn;
     char ebuf[BUFSIZ];
     CSN *opcsn = NULL;
 
     /* sdn & parentsdn need to be initialized before "goto *_return" */
     slapi_sdn_init(&dn_newdn);
+    slapi_sdn_init(&dn_newrdn);
     slapi_sdn_init(&dn_parentdn);
     
-    slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &dn );
+    slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &sdn );
     slapi_pblock_get( pb, SLAPI_BACKEND, &be);
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
     slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
@@ -126,6 +126,12 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
+
+    if (NULL == sdn) {
+        slapi_send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL,
+                                "Null target DN", 0, NULL );
+        return( -1 );
+    } 
 
     /* dblayer_txn_init needs to be called before "goto error_return" */
     dblayer_txn_init(li,&txn);
@@ -140,23 +146,21 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 
     inst = (ldbm_instance *) be->be_instance_info;
     {
-        char *newrdn, *newsuperiordn;
+        char *newrdn/* , *newsuperiordn */;
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR, &newsuperiordn );
-        slapi_sdn_init_dn_byref(&dn_olddn,dn);
-        slapi_sdn_init_dn_byref(&dn_newrdn,newrdn);
-        slapi_sdn_init_dn_byref(&dn_newsuperiordn,newsuperiordn);
-        slapi_sdn_get_parent(&dn_olddn,&dn_parentdn);
+        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn );
+        slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
+        /* slapi_sdn_init_normdn_byref(&dn_newsuperiordn, newsuperiordn); */
+        slapi_sdn_get_parent(sdn, &dn_parentdn);
     }
     
     /* if old and new superior are equals, newsuperior should not be set
      * Here we have to reset newsuperiordn in order to save processing and 
      * avoid later deadlock when trying to fetch twice the same entry
      */
-    if (slapi_sdn_compare(&dn_newsuperiordn, &dn_parentdn) == 0)
+    if (slapi_sdn_compare(dn_newsuperiordn, &dn_parentdn) == 0)
     {
-        slapi_sdn_done(&dn_newsuperiordn);
-        slapi_sdn_init_dn_byref(&dn_newsuperiordn,NULL);
+        slapi_sdn_done(dn_newsuperiordn);
     }
 
     /* 
@@ -164,7 +168,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
      * Replicated Operations are allowed to change the superior
      */
     if ( !entryrdn_get_switch() &&
-         (!is_replicated_operation && !slapi_sdn_isempty(&dn_newsuperiordn))) 
+         (!is_replicated_operation && !slapi_sdn_isempty(dn_newsuperiordn))) 
     {
         slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                       "server does not support moving of entries", 0, NULL );
@@ -213,14 +217,15 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 
             /* see if an entry with the new name already exists */
             done_with_pblock_entry(pb,SLAPI_MODRDN_EXISTING_ENTRY); /* Could be through this multiple times */
-            slapi_sdn_done(&dn_newrdn);
             slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
-            slapi_sdn_init_dn_byref(&dn_newrdn,newrdn);
-            newdn= moddn_get_newdn(pb,&dn_olddn,&dn_newrdn,&dn_newsuperiordn);
+            slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
+            newdn= moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn);
             slapi_sdn_set_dn_passin(&dn_newdn,newdn);
-            new_addr.dn = (char*)slapi_sdn_get_ndn (&dn_newdn);
+            new_addr.sdn = &dn_newdn;
+            new_addr.udn = NULL;
             /* check dn syntax on newdn */
-            ldap_result_code = slapi_dn_syntax_check(pb, new_addr.dn, 1);
+            ldap_result_code = slapi_dn_syntax_check(pb,
+                                           (char *)slapi_sdn_get_ndn(&dn_newdn), 1);
             if (ldap_result_code)
             {
                 ldap_result_code = LDAP_INVALID_DN_SYNTAX;
@@ -241,23 +246,22 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             /* find and lock the old parent entry */
             done_with_pblock_entry(pb,SLAPI_MODRDN_PARENT_ENTRY); /* Could be through this multiple times */
-            oldparent_addr.dn = (char*)slapi_sdn_get_ndn (&dn_parentdn);
+            oldparent_addr.sdn = &dn_parentdn;
             oldparent_addr.uniqueid = NULL;            
             ldap_result_code= get_copy_of_entry(pb, &oldparent_addr, &txn, SLAPI_MODRDN_PARENT_ENTRY, !is_replicated_operation);
         }
 
         /* <new superior> */
-        if(slapi_sdn_get_ndn(&dn_newsuperiordn)!=NULL &&
+        if(slapi_sdn_get_ndn(dn_newsuperiordn)!=NULL &&
            slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_NEWPARENT_ENTRY))
         {
             /* find and lock the new parent entry */
             done_with_pblock_entry(pb,SLAPI_MODRDN_NEWPARENT_ENTRY); /* Could be through this multiple times */
             /* Check that this really is a new superior, 
              * and not the same old one. Compare parentdn & newsuperior */
-            if (slapi_sdn_compare(&dn_newsuperiordn, &dn_parentdn) == 0)
+            if (slapi_sdn_compare(dn_newsuperiordn, &dn_parentdn) == 0)
             {
-                slapi_sdn_done(&dn_newsuperiordn);
-                slapi_sdn_init_dn_byref(&dn_newsuperiordn,NULL);
+                slapi_sdn_done(dn_newsuperiordn);
             }
             else
             {
@@ -271,7 +275,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 }
                 else
                 {
-                    my_addr.dn = (char *)slapi_sdn_get_ndn (&dn_newsuperiordn);
+                    my_addr.sdn = dn_newsuperiordn;
                     my_addr.uniqueid = NULL;
                     newsuperior_addr = &my_addr;
                 }
@@ -329,7 +333,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         if((entry != NULL) && 
             /* allow modrdn even if the src dn and dest dn are identical */
            (0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
-                                   (const Slapi_DN *)&dn_olddn)))
+                                   (const Slapi_DN *)sdn)))
         {
             ldap_result_code= LDAP_ALREADY_EXISTS;
             goto error_return;
@@ -337,13 +341,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     }
 
     /* Fetch and lock the parent of the entry that is moving */
-    oldparent_addr.dn = (char*)slapi_sdn_get_dn (&dn_parentdn);
+    oldparent_addr.sdn = &dn_parentdn;
     oldparent_addr.uniqueid = NULL;            
     parententry = find_entry2modify_only( pb, be, &oldparent_addr, &txn );
     modify_init(&parent_modify_context,parententry);
 
     /* Fetch and lock the new parent of the entry that is moving */            
-    if(slapi_sdn_get_ndn(&dn_newsuperiordn)!=NULL)
+    if(slapi_sdn_get_ndn(dn_newsuperiordn) != NULL)
     {
         slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS, &newsuperior_addr);
         newparententry = find_entry2modify_only( pb, be, newsuperior_addr, &txn );
@@ -376,37 +380,46 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
      * instead.  Otherwise, a ModRDN operation will potentially change an
      * entry's entire DN (at least with respect to case and spacing).
      */
-    slapi_sdn_copy( slapi_entry_get_sdn_const( e->ep_entry ), &dn_olddn );
+    slapi_sdn_copy( slapi_entry_get_sdn_const( e->ep_entry ), sdn );
+    slapi_pblock_set( pb, SLAPI_MODRDN_TARGET_SDN, sdn );
     if (newparententry != NULL) {
         /* don't forget we also want to preserve case of new superior */
-        slapi_sdn_copy(slapi_entry_get_sdn_const(newparententry->ep_entry), &dn_newsuperiordn);
+        if (NULL == dn_newsuperiordn) {
+            dn_newsuperiordn = slapi_sdn_dup(
+                           slapi_entry_get_sdn_const(newparententry->ep_entry));
+        } else {
+            slapi_sdn_copy(slapi_entry_get_sdn_const(newparententry->ep_entry),
+                           dn_newsuperiordn);
+        }
+        slapi_pblock_set( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, dn_newsuperiordn );
     }
     slapi_sdn_set_dn_passin(&dn_newdn,
-            moddn_get_newdn(pb, &dn_olddn, &dn_newrdn, &dn_newsuperiordn));
+                        moddn_get_newdn(pb, sdn, &dn_newrdn, dn_newsuperiordn));
 
     /* Check that we're allowed to add an entry below the new superior */
     if ( newparententry == NULL )
     {
         /* There may not be a new parent because we don't intend there to be one. */
-        if(slapi_sdn_get_ndn(&dn_newsuperiordn)!=NULL)
+        if(slapi_sdn_get_ndn(dn_newsuperiordn)!=NULL)
         {
             /* If the new entry is to be a suffix, and we're root, then it's OK that the new parent doesn't exist */
-            if(!(slapi_dn_isbesuffix(pb,slapi_sdn_get_ndn(&dn_newdn)) && isroot))
+            if (!(slapi_be_issuffix(pb->pb_backend, &dn_newdn)) && isroot)
             {
                 /* Here means that we didn't find the parent */
                 int err = 0;
-                Slapi_DN ancestordn = {0};
+                Slapi_DN ancestorsdn;
                 struct backentry *ancestorentry;
-                ancestorentry= dn2ancestor(be,&dn_newdn,&ancestordn,&txn,&err);
+				slapi_sdn_init(&ancestorsdn);
+                ancestorentry= dn2ancestor(be,&dn_newdn,&ancestorsdn,&txn,&err);
                 CACHE_RETURN( &inst->inst_cache, &ancestorentry );
-                ldap_result_matcheddn= slapi_ch_strdup((char *) slapi_sdn_get_dn(&ancestordn));
+                ldap_result_matcheddn= slapi_ch_strdup((char *) slapi_sdn_get_dn(&ancestorsdn));
                 ldap_result_code= LDAP_NO_SUCH_OBJECT;
                 LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_back_modrdn: New superior "
                             "does not exist matched %s, newsuperior = %s\n", 
                             ldap_result_matcheddn == NULL ? "NULL" :
                             ldap_result_matcheddn,
-                            slapi_sdn_get_ndn(&dn_newsuperiordn), 0 );
-                slapi_sdn_done(&ancestordn);
+                            slapi_sdn_get_ndn(dn_newsuperiordn), 0 );
+                slapi_sdn_done(&ancestorsdn);
                 goto error_return;
                }
         }
@@ -426,7 +439,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     if ( parententry == NULL )
     {
         /* If the entry a suffix, and we're root, then it's OK that the parent doesn't exist */
-        if(!(slapi_dn_isbesuffix(pb,slapi_sdn_get_ndn(&dn_olddn)) && isroot))
+        if (!(slapi_be_issuffix(pb->pb_backend, sdn)) && isroot)
         {
             /* Here means that we didn't find the parent */
             ldap_result_matcheddn = "NULL";
@@ -485,7 +498,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     if (( cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0 ) &&
         /* allow modrdn even if the src dn and dest dn are identical */
         ( 0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
-                                 (const Slapi_DN *)&dn_olddn)) )
+                                 (const Slapi_DN *)sdn)) )
     {
         /* somebody must've created it between dn2entry() and here */
         /* JCMREPL - Hmm... we can't permit this to happen...? */
@@ -498,7 +511,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     {
         slapi_mods_init(&smods_generated,4);
         slapi_mods_init(&smods_generated_wsi,4);
-        ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(&dn_olddn),
+        ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(sdn),
                             ec, &smods_generated_wsi, is_replicated_operation);
         if (ldap_result_code != LDAP_SUCCESS) {
             if (ldap_result_code == LDAP_UNWILLING_TO_PERFORM)
@@ -519,7 +532,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         /*
          * Update parentid if we have a new superior.
          */
-        if(slapi_sdn_get_dn(&dn_newsuperiordn)!=NULL) {
+        if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL) {
             char buf[40]; /* Enough for an ID */
             
             if (parententry != NULL) {
@@ -619,7 +632,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
      * If the entry has a new superior then the subordinate count
      * of the parents must be updated.
      */    
-    if(slapi_sdn_get_dn(&dn_newsuperiordn)!=NULL)
+    if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL)
     {
         /* 
          * Update the subordinate count of the parents to reflect the moved child.
@@ -652,12 +665,12 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         /* JCM - This is where the subtree lock will appear */
         if (entryrdn_get_switch()) /* subtree-rename: on */
         {
-            children = moddn_get_children(&txn, pb, be, e, &dn_olddn,
+            children = moddn_get_children(&txn, pb, be, e, sdn,
                                           &child_entries, &child_dns);
         }
         else
         {
-            children = moddn_get_children(&txn, pb, be, e, &dn_olddn,
+            children = moddn_get_children(&txn, pb, be, e, sdn,
                                           &child_entries, NULL);
         }
 
@@ -781,7 +794,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 }
             }
         }
-        if (slapi_sdn_get_dn(&dn_newsuperiordn)!=NULL)
+        if (slapi_sdn_get_dn(dn_newsuperiordn)!=NULL)
         {
             /* Push out the db modifications from the parent entry */
             retval = modify_update_all(be, pb, &parent_modify_context, &txn);
@@ -826,8 +839,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         /*
          * Update ancestorid index.
          */
-        if (slapi_sdn_get_dn(&dn_newsuperiordn)!=NULL) {
-            retval = ldbm_ancestorid_move_subtree(be, &dn_olddn, &dn_newdn, e->ep_id, children, &txn);
+        if (slapi_sdn_get_dn(dn_newsuperiordn)!=NULL) {
+            retval = ldbm_ancestorid_move_subtree(be, sdn, &dn_newdn, e->ep_id, children, &txn);
             if (retval != 0) {
                 if (retval == DB_LOCK_DEADLOCK) continue;
                 if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
@@ -844,9 +857,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             Slapi_RDN newsrdn;
             slapi_rdn_init_sdn(&newsrdn, (const Slapi_DN *)&dn_newdn);
-            rc = entryrdn_rename_subtree(be,
-                                         (const Slapi_DN *)&dn_olddn, &newsrdn,
-                                         (const Slapi_DN *)&dn_newsuperiordn,
+            rc = entryrdn_rename_subtree(be, (const Slapi_DN *)sdn, &newsrdn,
+                                         (const Slapi_DN *)dn_newsuperiordn,
                                          e->ep_id, &txn);
             slapi_rdn_done(&newsrdn);
             if (rc) {
@@ -861,7 +873,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
          */
         if (!entryrdn_get_switch() && children) /* subtree-rename: off */
         {
-            retval= moddn_rename_children(&txn, pb, be, children, &dn_olddn,
+            retval= moddn_rename_children(&txn, pb, be, children, sdn,
                                          &dn_newdn, child_entries);
         }
         if (DB_LOCK_DEADLOCK == retval)
@@ -1100,10 +1112,8 @@ common_return:
     if (ldap_result_matcheddn && 0 != strcmp(ldap_result_matcheddn, "NULL"))
         slapi_ch_free((void**)&ldap_result_matcheddn);
     idl_free(children);
-    slapi_sdn_done(&dn_olddn);
     slapi_sdn_done(&dn_newdn);
     slapi_sdn_done(&dn_newrdn);
-    slapi_sdn_done(&dn_newsuperiordn);
     slapi_sdn_done(&dn_parentdn);
     modify_term(&parent_modify_context,be);
     modify_term(&newparent_modify_context,be);
@@ -1118,7 +1128,8 @@ common_return:
     slapi_ch_free((void**)&errbuf);
     if (retval == 0 && opcsn != NULL && !is_fixup_operation)
     {
-        slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, slapi_ch_strdup (dn));
+        slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, 
+                         slapi_ch_strdup(slapi_sdn_get_dn(sdn)));
     }
     if (pb->pb_conn)
     {

@@ -151,6 +151,7 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
 #else
     PRHostEnt *he, host;
 #endif
+    char *end_attr_pattern;
 
     if (attr_pattern == NULL) {
 	nserrGenerate(errp, ACLERRINVAL, ACLERR4770, ACL_Program, 1, 
@@ -172,6 +173,7 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
         return LAS_EVAL_INVALID;
     }
 
+    end_attr_pattern = attr_pattern + strlen(attr_pattern);
     do {
 		size_t maxsize = sizeof(token);
 	/*  Get a single hostname from the pattern string	*/
@@ -183,8 +185,10 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
         token[delimiter] = '\0';
 
         /*  Skip any white space after the token 		*/
-        attr_pattern     += delimiter;
-        attr_pattern    += strspn(attr_pattern, ", \t");
+        attr_pattern += delimiter;
+        if (attr_pattern < end_attr_pattern) {
+            attr_pattern += strspn(attr_pattern, ", \t");
+        }
 
         /*  If there's a wildcard, strip it off but leave the "."
 	 *  Can't have aliases for a wildcard pattern.

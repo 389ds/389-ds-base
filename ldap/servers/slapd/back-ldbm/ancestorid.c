@@ -717,8 +717,8 @@ static int ldbm_ancestorid_index_update(
 {
     DB *db = NULL;
     int allids = IDL_INSERT_NORMAL;
-    Slapi_DN dn = {0};
-    Slapi_DN nextdn = {0};
+    Slapi_DN sdn;
+    Slapi_DN nextsdn;
     struct attrinfo *ai = NULL;
     ID node_id, sub_id;
     idl_iterator iter;
@@ -733,36 +733,38 @@ static int ldbm_ancestorid_index_update(
         goto out;
     }
 
-    slapi_sdn_copy(low, &dn);
+    slapi_sdn_init(&sdn);
+    slapi_sdn_init(&nextsdn);
+    slapi_sdn_copy(low, &sdn);
 
     if (include_low == 0) {
-        if (slapi_sdn_compare(&dn, high) == 0) {
+        if (slapi_sdn_compare(&sdn, high) == 0) {
             goto out;
         }
         /* Get the next highest DN */
-        slapi_sdn_get_parent(&dn, &nextdn);
-        slapi_sdn_copy(&nextdn, &dn);
+        slapi_sdn_get_parent(&sdn, &nextsdn);
+        slapi_sdn_copy(&nextsdn, &sdn);
     }
 
     /* Iterate up through the tree */
     do {
-        if (slapi_sdn_isempty(&dn)) {
+        if (slapi_sdn_isempty(&sdn)) {
             break;
         }
 
         /* Have we reached the high node? */
-        if (include_high == 0 && slapi_sdn_compare(&dn, high) == 0) {
+        if (include_high == 0 && slapi_sdn_compare(&sdn, high) == 0) {
             break;
         }
 
         /* Get the id for that DN */
         if (entryrdn_get_switch()) { /* subtree-rename: on */
             node_id = 0;
-            err = entryrdn_index_read(be, &dn, &node_id, txn);
+            err = entryrdn_index_read(be, &sdn, &node_id, txn);
             if (err) {
                 if (DB_NOTFOUND != err) {
                     ldbm_nasty(sourcefile,13141,err);
-                    LDAPDebug1Arg(LDAP_DEBUG_ANY, "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&dn));
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY, "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
                     ret = err;
                 }
                 break;
@@ -770,8 +772,8 @@ static int ldbm_ancestorid_index_update(
         } else {
             IDList *idl = NULL;
             struct berval ndnv;
-            ndnv.bv_val = (void*)slapi_sdn_get_ndn(&dn);
-            ndnv.bv_len = slapi_sdn_get_ndn_len(&dn);
+            ndnv.bv_val = (void*)slapi_sdn_get_ndn(&sdn);
+            ndnv.bv_len = slapi_sdn_get_ndn_len(&sdn);
             err = 0;
             idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &ndnv, txn, &err);
             if (idl == NULL) {
@@ -807,19 +809,19 @@ static int ldbm_ancestorid_index_update(
         }
 
         /* Have we reached the high node? */
-        if (slapi_sdn_compare(&dn, high) == 0) {
+        if (slapi_sdn_compare(&sdn, high) == 0) {
             break;
         }
 
         /* Get the next highest DN */
-        slapi_sdn_get_parent(&dn, &nextdn);
-        slapi_sdn_copy(&nextdn, &dn);
+        slapi_sdn_get_parent(&sdn, &nextsdn);
+        slapi_sdn_copy(&nextsdn, &sdn);
 
     } while (ret == 0);
 
  out:
-    slapi_sdn_done(&dn);
-    slapi_sdn_done(&nextdn);
+    slapi_sdn_done(&sdn);
+    slapi_sdn_done(&nextsdn);
 
     /* Release the ancestorid file */
     if (db != NULL) {
@@ -856,7 +858,8 @@ int ldbm_ancestorid_index_entry(
  * If common is non-null then the common suffix of left and right
  * is returned in *common.
  */
-int slapi_sdn_suffix_cmp(
+static int 
+_sdn_suffix_cmp(
     const Slapi_DN *left, 
     const Slapi_DN *right, 
     Slapi_DN *common
@@ -870,12 +873,24 @@ int slapi_sdn_suffix_cmp(
     rdns1 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(left), 0);
     rdns2 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(right), 0);
 
-    for(count1 = 0; rdns1[count1]!=NULL; count1++){
+    if (NULL == rdns1) {
+        if (NULL == rdns2) {
+            ret = 0;
+        } else {
+            ret = 1;
+        }
+        goto out;
+    } else {
+        if (NULL == rdns2) {
+            ret = -1;
+            goto out;
+        }
     }
+
+    for(count1 = 0; rdns1[count1]!=NULL; count1++) ;
     count1--;
 
-    for(count2 = 0; rdns2[count2]!=NULL; count2++){
-    }
+    for(count2 = 0; rdns2[count2]!=NULL; count2++) ;
     count2--;
 
     while (count1 >= 0 && count2 >= 0) {
@@ -922,11 +937,11 @@ int slapi_sdn_suffix_cmp(
     LDAPDebug(LDAP_DEBUG_TRACE, "common suffix <%s>\n",
               slapi_sdn_get_dn(common), 0, 0);
 
- out:
+out:
     slapi_ldap_value_free(rdns1);
     slapi_ldap_value_free(rdns2);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "slapi_sdn_suffix_cmp(<%s>, <%s>) => %d\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "_sdn_suffix_cmp(<%s>, <%s>) => %d\n",
               slapi_sdn_get_dn(left), slapi_sdn_get_dn(right), ret);
 
     return ret;
@@ -942,15 +957,17 @@ int ldbm_ancestorid_move_subtree(
 )
 {
     int ret = 0;
-    Slapi_DN commondn = {0};
+    Slapi_DN commonsdn;
 
+
+    slapi_sdn_init(&commonsdn);
     /* Determine the common ancestor */
-    (void)slapi_sdn_suffix_cmp(olddn, newdn, &commondn);
+    (void)_sdn_suffix_cmp(olddn, newdn, &commonsdn);
 
     /* Delete from old ancestors */
     ret = ldbm_ancestorid_index_update(be, 
                                        olddn,
-                                       &commondn,
+                                       &commonsdn,
                                        0,
                                        0,
                                        id,
@@ -962,7 +979,7 @@ int ldbm_ancestorid_move_subtree(
     /* Add to new ancestors */
     ret = ldbm_ancestorid_index_update(be, 
                                        newdn,
-                                       &commondn,
+                                       &commonsdn,
                                        0,
                                        0,
                                        id,
@@ -971,7 +988,7 @@ int ldbm_ancestorid_move_subtree(
                                        txn);
 
  out:
-    slapi_sdn_done(&commondn);
+    slapi_sdn_done(&commonsdn);
     return ret;
 }
 

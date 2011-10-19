@@ -398,16 +398,16 @@ copy_mods(LDAPMod **orig_mods)
 struct slapi_operation_parameters *
 operation_parameters_dup(struct slapi_operation_parameters *sop)
 {
-	struct slapi_operation_parameters *sop_new= (struct slapi_operation_parameters *)
+	struct slapi_operation_parameters *sop_new = (struct slapi_operation_parameters *)
 		slapi_ch_malloc(sizeof(struct slapi_operation_parameters));
 	memcpy(sop_new,sop,sizeof(struct slapi_operation_parameters));
-	if(sop->target_address.dn!=NULL)
-	{
-		sop_new->target_address.dn= slapi_ch_strdup(sop->target_address.dn);
-	}
 	if(sop->target_address.uniqueid!=NULL)
 	{
 		sop_new->target_address.uniqueid= slapi_ch_strdup(sop->target_address.uniqueid); 
+	}
+	if(sop->target_address.sdn != NULL)
+	{
+		sop_new->target_address.sdn = slapi_sdn_dup(sop->target_address.sdn);
 	}
   
 	sop_new->csn= csn_dup(sop->csn);
@@ -429,10 +429,10 @@ operation_parameters_dup(struct slapi_operation_parameters *sop)
 		{
 			sop_new->p.p_modrdn.modrdn_newrdn= slapi_ch_strdup(sop->p.p_modrdn.modrdn_newrdn);
 		}
-		if(sop->p.p_modrdn.modrdn_newsuperior_address.dn!=NULL)
+		if(sop->p.p_modrdn.modrdn_newsuperior_address.sdn!=NULL)
 		{
-			sop_new->p.p_modrdn.modrdn_newsuperior_address.dn = 
-				slapi_ch_strdup(sop->p.p_modrdn.modrdn_newsuperior_address.dn);
+			sop_new->p.p_modrdn.modrdn_newsuperior_address.sdn = 
+				slapi_sdn_dup(sop->p.p_modrdn.modrdn_newsuperior_address.sdn);
 		}
 		if(sop->p.p_modrdn.modrdn_newsuperior_address.uniqueid!=NULL)
 		{
@@ -462,8 +462,9 @@ operation_parameters_done (struct slapi_operation_parameters *sop)
 {
 	if(sop!=NULL)
 	{
-		slapi_ch_free((void **)&sop->target_address.dn);
 		slapi_ch_free((void **)&sop->target_address.uniqueid);
+		slapi_sdn_free(&sop->target_address.sdn);
+
 		csn_free(&sop->csn);
 		
 		switch(sop->operation_type)
@@ -479,7 +480,6 @@ operation_parameters_done (struct slapi_operation_parameters *sop)
 			break;
 		case SLAPI_OPERATION_MODRDN:
 			slapi_ch_free((void **)&(sop->p.p_modrdn.modrdn_newrdn));
-			slapi_ch_free((void **)&(sop->p.p_modrdn.modrdn_newsuperior_address.dn));
 			slapi_ch_free((void **)&(sop->p.p_modrdn.modrdn_newsuperior_address.uniqueid));
 			ldap_mods_free(sop->p.p_modrdn.modrdn_mods, 1 /* Free the Array and the Elements */);
 			sop->p.p_modrdn.modrdn_mods= NULL;
@@ -504,8 +504,3 @@ void operation_parameters_free(struct slapi_operation_parameters **sop)
 		slapi_ch_free ((void**)sop);
 	}
 }
-
-
-
-
-

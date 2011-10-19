@@ -874,7 +874,7 @@ index_read_ext_allids(
 		(0 == PL_strcasecmp(basetype, LDBM_ENTRYDN_STR))) {
 		int rc = 0;
 		ID id = 0;
-		Slapi_DN sdn = {0};
+		Slapi_DN sdn;
 
 		/* We don't need these values... */
 		index_free_prefix( prefix );

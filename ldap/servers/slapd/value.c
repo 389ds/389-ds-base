@@ -313,7 +313,7 @@ slapi_value_set( Slapi_Value *value, void *val, unsigned long len)
 {
 	struct berval bv;
 	bv.bv_len= len;
-	bv.bv_val= (void*)val; /* We cast away the const, but we're not going to change anything */
+	bv.bv_val= val; /* We cast away the const, but we're not going to change anything */
 	slapi_value_set_berval( value, &bv);
 	return value;
 }
@@ -570,26 +570,21 @@ value_dump( const Slapi_Value *value, const char *text)
 int
 value_normalize_value(Slapi_Value *value)
 {
-	char *normval = NULL;
-	size_t len = 0;
+	Slapi_DN *sdn = NULL;
 	int rc = 0;
 
 	if (NULL == value) {
-		return 0;
+		return rc;
 	}
 
-	rc = slapi_dn_normalize_ext(value->bv.bv_val, value->bv.bv_len,
-								&normval, &len);
-	if (rc < 0) {
-		return 1;
-	} else if (rc > 0) {	/* if rc == 0, the original value is passed in */
-		slapi_ch_free_string(&value->bv.bv_val);
-	} else { /* rc == 0; original is passed in; not null terminated */
-		/* since bvalue, no need to terminate with null, tho */
-		*(normval + len) = '\0';
+	sdn = slapi_sdn_new_dn_passin(value->bv.bv_val);
+	if (slapi_sdn_get_dn(sdn)) {
+		value->bv.bv_val = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+		value->bv.bv_len = slapi_sdn_get_ndn_len(sdn);
+	} else {
+		rc = 1;
 	}
-	value->bv.bv_val = normval;
-	value->bv.bv_len = len;
+	slapi_sdn_free(&sdn);
 
-	return 0;
+	return rc;
 }

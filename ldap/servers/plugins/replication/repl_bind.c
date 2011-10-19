@@ -51,13 +51,15 @@ int
 legacy_preop_bind( Slapi_PBlock *pb )
 {
     int return_value = 0;
-	char *dn = NULL;
+	const char *dn = NULL;
+	Slapi_DN *sdn = NULL;
 	struct berval *cred = NULL;
 	int method;
     
 	slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
-	slapi_pblock_get(pb, SLAPI_BIND_TARGET, &dn);
+	slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
 	slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
+	dn = slapi_sdn_get_dn(sdn);
 
 	if (LDAP_AUTH_SIMPLE == method)
 	{

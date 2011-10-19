@@ -282,7 +282,7 @@ plugin_call_syntax_filter_sub_sv(
  */
 int
 slapi_dn_syntax_check(
-	Slapi_PBlock *pb, char *dn, int override
+	Slapi_PBlock *pb, const char *dn, int override
 )
 {
 	int ret = 0;
@@ -312,7 +312,7 @@ slapi_dn_syntax_check(
 	if (dn_plugin && dn_plugin->plg_syntax_validate != NULL) {
 		/* Create a berval to pass to the validate function. */
 		if (dn) {
-			dn_bval.bv_val = dn;
+			dn_bval.bv_val = (char *)dn;
 			dn_bval.bv_len = strlen(dn);
 
 			/* Validate the value. */
@@ -459,7 +459,8 @@ slapi_mods_syntax_check(
 	char errtext[ BUFSIZ ];
 	char *errp = &errtext[0];
 	size_t err_remaining = sizeof(errtext);
-	char *dn = NULL;
+	const char *dn = NULL;
+	Slapi_DN *sdn = NULL;
 	LDAPMod *mod = NULL;
 
 	if (mods == NULL) {
@@ -469,7 +470,8 @@ slapi_mods_syntax_check(
 
 	if (pb != NULL) {
 		slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
-		slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
+		slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+		dn = slapi_sdn_get_dn(sdn);
 	}
 
 	/* If syntax checking and logging are  off, or if this is a

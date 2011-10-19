@@ -133,7 +133,7 @@ idl_append_extend(IDList **orig_idl, ID id)
 	IDList *idl = *orig_idl;
 
 	if (idl == NULL) {
-		idl = idl_alloc(1);
+		idl = idl_alloc(32); /* used to be 0 */
 		idl_append(idl, id);
 
 		*orig_idl = idl;
@@ -151,9 +151,7 @@ idl_append_extend(IDList **orig_idl, ID id)
 		}
 		/* copy over the existing contents */
 		idl_new->b_nids = idl->b_nids;
-		for (x = 0; x < idl->b_nids;x++) {
-			idl_new->b_ids[x] = idl->b_ids[x];
-		}
+		memcpy(idl_new->b_ids, idl->b_ids, sizeof(ID) * idl->b_nids);
 		idl_free(idl);
 		idl = idl_new;
 	}

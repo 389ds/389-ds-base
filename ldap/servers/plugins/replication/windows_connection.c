@@ -552,7 +552,7 @@ windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonl
 		slapi_entry_free(e);
 		return NULL;
 	}
-	slapi_entry_set_dn( rawentry, slapi_ch_strdup(slapi_entry_get_dn(e)) );
+	slapi_entry_set_sdn( rawentry, slapi_entry_get_sdn(e) );
  
 	for ( a = ldap_first_attribute( ld, msg, &ber ); a!=NULL; a=ldap_next_attribute( ld, msg, ber ) ) 
 	{

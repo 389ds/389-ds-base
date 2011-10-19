@@ -1683,6 +1683,7 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb)
 	int scope = 0;
 	int set_scope = LDAP_SCOPE_SUBTREE;
 	viewEntry *theView = 0;
+	Slapi_DN *basesdn = NULL;
 
 #ifdef _VIEW_DEBUG_FILTERS
 	char outFilter_str[1024];
@@ -1711,7 +1712,8 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb)
 		goto end;
 
 	/* if base of the search is a view */
-	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET, &base);
+	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &basesdn);
+	base = (char *)slapi_sdn_get_dn(basesdn);
 
 	/* Read lock the cache */
 	views_read_lock();
@@ -1763,8 +1765,11 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb)
 	/* rewrite search scope and base*/
 	slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &set_scope);
 
-	base = slapi_ch_strdup(theView->pSearch_base);
-	slapi_pblock_set(pb, SLAPI_SEARCH_TARGET, base);
+	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &basesdn);
+	slapi_sdn_free(&basesdn);
+
+	basesdn = slapi_sdn_new_dn_byval(theView->pSearch_base);
+	slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, basesdn);
 
 	/* concatenate the filters */
 	

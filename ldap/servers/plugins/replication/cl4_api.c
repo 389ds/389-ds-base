@@ -533,7 +533,7 @@ static int _cl4ResolveTargetDN (Slapi_Entry *entry, Slapi_DN **newTargetDN)
 	if (strcasecmp (changetype, "add") == 0) /* this is add operation - we have rawdn */
 		slapi_sdn_set_dn_byref (targetSDN, targetdn);	
 	else
-		slapi_sdn_set_ndn_byref (targetSDN, targetdn);
+		slapi_sdn_set_normdn_byref (targetSDN, targetdn);
 
 	/* read the entry to which the change was applied */
 	rc = _cl4GetTargetEntry (targetSDN, uniqueid, &targetEntry);

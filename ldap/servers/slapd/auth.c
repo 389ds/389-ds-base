@@ -81,30 +81,17 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
     int err = LDAP_NO_SUCH_OBJECT;
     Slapi_PBlock* pb = NULL;
     LDAPControl **ctrls;
-    char *baseDN = slapi_ch_strdup(rawbaseDN);
-    char *normDN = NULL;
-    size_t dnlen = 0;
-
-    err = slapi_dn_normalize_ext(baseDN, 0, &normDN, &dnlen);
-    if (err < 0) {
-        err = LDAP_INVALID_DN_SYNTAX;
-        LDAPDebug (LDAP_DEBUG_TRACE, "<= slapu_search_s %i\n", err, 0, 0);
-        return err;
-    } else if (err == 0) { /* baseDN is passed in; not terminated */
-        *(normDN + dnlen) = '\0';
-    } else {
-        slapi_ch_free_string(&baseDN);
-        baseDN = normDN;
-    }
+    Slapi_DN *sdn = slapi_sdn_new_dn_byval(rawbaseDN);
+    char *baseDN = slapi_sdn_get_dn(sdn);
 
     if (ld != internal_ld) {
         err = ldap_search_ext_s(ld, baseDN, scope, filter, attrs, attrsonly,
                                 NULL, NULL, NULL, -1, result);
-        slapi_ch_free_string(&baseDN);
+        slapi_sdn_free(&sdn);
         return err;
     }
     LDAPDebug (LDAP_DEBUG_TRACE, "=> slapu_search_s (\"%s\", %i, %s)\n",
-	       baseDN, scope, filter);
+               baseDN, scope, filter);
     if (filter == NULL) filter = "objectclass=*";
 
     /* use new internal search API */
@@ -138,7 +125,7 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
 	LDAPDebug (LDAP_DEBUG_ANY, "slapi_search_internal (\"%s\", %i, %s) NULL\n",
 		   escape_string( (char*)baseDN, ebuf ), scope, escape_string( (char*)filter, fbuf ));
     }
-    slapi_ch_free_string(&baseDN);
+    slapi_sdn_free(&sdn);
     *result = (LDAPMessage*)pb;
     LDAPDebug (LDAP_DEBUG_TRACE, "<= slapu_search_s %i\n", err, 0, 0);
     return err;
@@ -534,19 +521,10 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 
     if (clientDN != NULL) {
         char ebuf[ BUFSIZ ];
-        int rc = 0;
-        char *normedDN = NULL;
-        size_t dnlen = 0;
-
-        rc = slapi_dn_normalize_ext(clientDN, 0, &normedDN, &dnlen);
-        if (rc < 0) {
-            /* ignoring the normalization error, use the pre normalized DN */
-        } else if (rc == 0) { /* clientDN is passed in; not terminated */
-            *(normedDN + dnlen) = '\0';
-        } else {
-            slapi_ch_free_string(&clientDN);
-            clientDN = normedDN;
-        }
+        Slapi_DN *sdn = NULL;
+        sdn = slapi_sdn_new_dn_passin(clientDN);
+        clientDN = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+        slapi_sdn_free(&sdn);
         slapi_log_access (LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " SSL client bound as %s\n",
                           conn->c_connid, escape_string( clientDN, ebuf ));

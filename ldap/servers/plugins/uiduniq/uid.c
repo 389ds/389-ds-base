@@ -340,28 +340,18 @@ search_one_berval(const char *baseDN, const char *attrName,
        */
       for(;*entries;entries++)
       {
-        char *dn = slapi_entry_get_dn(*entries);
-
-        /*
-         * DNs are returned in the original value used to insert
-         * the entry.  This must be "normalized" for comparison.
-         *
-         * This normalization is done "in-place" (modifying the value
-         * in the entry).  This is OK, since this is the only user
-         * of this copy of the entry.
-         */
-        slapi_dn_normalize_case(dn);
+        char *ndn = slapi_entry_get_ndn(*entries); /* get the normalized dn */
 
 #ifdef DEBUG
         slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
-          "SEARCH entry dn=%s\n", dn);
+          "SEARCH entry dn=%s\n", ndn);
 #endif
 
         /*
          * It is a Constraint Violation if any entry is found, unless
          * the entry is the target entry (if any).
          */
-        if (!target || strcmp(dn, target) != 0)
+        if (!target || strcmp(ndn, target) != 0)
         {
           result = LDAP_CONSTRAINT_VIOLATION;
           break;
@@ -557,7 +547,8 @@ preop_add(Slapi_PBlock *pb)
     int err;
     char *markerObjectClass = NULL;
     char *requiredObjectClass = NULL;
-    char *dn;
+    const char *dn = NULL;
+    Slapi_DN *sdn = NULL;
     int isupdatedn;
     Slapi_Entry *e;
     Slapi_Attr *attr;
@@ -582,7 +573,7 @@ preop_add(Slapi_PBlock *pb)
         if (UNTAGGED_PARAMETER == result)
         {
           slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, 
-		"ADD parameter untagged: %s\n", attrName);
+                          "ADD parameter untagged: %s\n", attrName);
           result = LDAP_SUCCESS;
           /* Statically defined subtrees to monitor */
           err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
@@ -599,8 +590,10 @@ preop_add(Slapi_PBlock *pb)
     /*
      * Get the target DN for this add operation
      */
-    err = slapi_pblock_get(pb, SLAPI_ADD_TARGET, &dn);
+    err = slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
     if (err) { result = uid_op_error(51); break; }
+
+    dn = slapi_sdn_get_dn(sdn);
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD target=%s\n", dn);
@@ -636,7 +629,7 @@ preop_add(Slapi_PBlock *pb)
         if (NULL != markerObjectClass)
         {
           /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(dn, attrName, attr, NULL,
+                result = findSubtreeAndSearch((char *)dn, attrName, attr, NULL,
                                               requiredObjectClass, dn,
                                               markerObjectClass);
         } else
@@ -710,7 +703,8 @@ preop_modify(Slapi_PBlock *pb)
     int modcount = 0;
     int ii;
     LDAPMod *mod;
-    char *dn;
+    const char *dn = NULL;
+    Slapi_DN *sdn = NULL;
     int isupdatedn;
     int argc;
     char **argv = NULL;
@@ -763,53 +757,57 @@ preop_modify(Slapi_PBlock *pb)
     /* find out how many mods meet this criteria */
     for(;*mods;mods++)
     {
-	mod = *mods;
-	if ((slapi_attr_type_cmp(mod->mod_type, attrName, 1) == 0) && /* mod contains target attr */
-	    (mod->mod_op & LDAP_MOD_BVALUES) && /* mod is bval encoded (not string val) */
-	    (mod->mod_bvalues && mod->mod_bvalues[0]) && /* mod actually contains some values */
-	    (SLAPI_IS_MOD_ADD(mod->mod_op) || /* mod is add */
-	     SLAPI_IS_MOD_REPLACE(mod->mod_op))) /* mod is replace */
-	{
-	  addMod(&checkmods, &checkmodsCapacity, &modcount, mod);
-	}
+        mod = *mods;
+        if ((slapi_attr_type_cmp(mod->mod_type, attrName, 1) == 0) && /* mod contains target attr */
+            (mod->mod_op & LDAP_MOD_BVALUES) && /* mod is bval encoded (not string val) */
+            (mod->mod_bvalues && mod->mod_bvalues[0]) && /* mod actually contains some values */
+            (SLAPI_IS_MOD_ADD(mod->mod_op) || /* mod is add */
+             SLAPI_IS_MOD_REPLACE(mod->mod_op))) /* mod is replace */
+        {
+          addMod(&checkmods, &checkmodsCapacity, &modcount, mod);
+        }
     }
     if (modcount == 0) {
-	break; /* no mods to check, we are done */
+        break; /* no mods to check, we are done */
     }
 
     /* Get the target DN */
-    err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET, &dn);
+    err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
     if (err) { result = uid_op_error(11); break; }
 
-        /*
-         * Check if it has the required object class
-         */
-        if (requiredObjectClass &&
-                !(spb = dnHasObjectClass(dn, requiredObjectClass))) { break; }
+    dn = slapi_sdn_get_dn(sdn);
+    /*
+     * Check if it has the required object class
+     */
+    if (requiredObjectClass &&
+        !(spb = dnHasObjectClass(dn, requiredObjectClass))) {
+        break;
+    }
 
-        /*
-         * Passed all the requirements - this is an operation we
-         * need to enforce uniqueness on. Now find all parent entries
-         * with the marker object class, and do a search for each one.
-         */
-		/*
-		 * stop checking at first mod that fails the check
-		 */
-		for (ii = 0; (result == 0) && (ii < modcount); ++ii)
-		{
-			mod = checkmods[ii];
-			if (NULL != markerObjectClass)
-			{
-				/* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(dn, attrName, NULL, mod->mod_bvalues,
-                                              requiredObjectClass, dn, markerObjectClass);
-			} else
-			{
-				/* Subtrees listed on invocation line */
-				result = searchAllSubtrees(argc, argv, attrName, NULL,
-                                                           mod->mod_bvalues, requiredObjectClass, dn);
-			}
-		}
+    /*
+     * Passed all the requirements - this is an operation we
+     * need to enforce uniqueness on. Now find all parent entries
+     * with the marker object class, and do a search for each one.
+     */
+    /*
+     * stop checking at first mod that fails the check
+     */
+    for (ii = 0; (result == 0) && (ii < modcount); ++ii)
+    {
+        mod = checkmods[ii];
+        if (NULL != markerObjectClass)
+        {
+            /* Subtree defined by location of marker object class */
+            result = findSubtreeAndSearch((char *)dn, attrName, NULL, 
+                                          mod->mod_bvalues, requiredObjectClass,
+                                          dn, markerObjectClass);
+        } else
+        {
+            /* Subtrees listed on invocation line */
+            result = searchAllSubtrees(argc, argv, attrName, NULL,
+                                       mod->mod_bvalues, requiredObjectClass, dn);
+        }
+    }
   END
 
   slapi_ch_free((void **)&checkmods);
@@ -846,7 +844,6 @@ preop_modrdn(Slapi_PBlock *pb)
 {
   int result = LDAP_SUCCESS;
   Slapi_Entry *e = NULL;
-  Slapi_DN *sdn = NULL;
   Slapi_Value *sv_requiredObjectClass = NULL;
   char *errtext = NULL;
   char *attrName = NULL;
@@ -860,8 +857,9 @@ preop_modrdn(Slapi_PBlock *pb)
     int err;
     char *markerObjectClass=NULL;
     char *requiredObjectClass=NULL;
-    char *dn;
-    char *superior;
+    const char *dn = NULL;
+    Slapi_DN *sdn = NULL;
+    Slapi_DN *superior;
     char *rdn;
     int deloldrdn = 0;
     int isupdatedn;
@@ -907,14 +905,13 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /* Get the DN of the entry being renamed */
-    err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET, &dn);
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sdn);
     if (err) { result = uid_op_error(31); break; }
 
-    /* Create a Slapi_DN to use for searching. */
-    sdn = slapi_sdn_new_dn_byref(dn);
+    dn = slapi_sdn_get_dn(sdn);
 
     /* Get superior value - unimplemented in 3.0/4.0/5.0 DS */
-    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR, &superior);
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &superior);
     if (err) { result = uid_op_error(32); break; }
 
     /*
@@ -922,7 +919,7 @@ preop_modrdn(Slapi_PBlock *pb)
      * its current level in the tree.  Use the target DN for
      * determining which managed tree this belongs to
      */
-    if (!superior) superior = dn;
+    if (!superior) superior = sdn;
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
@@ -949,7 +946,7 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /* Apply the rename operation to the dummy entry. */
-    err = slapi_entry_rename(e, rdn, deloldrdn, superior);
+    err = slapi_entry_rename(e, rdn, deloldrdn, slapi_sdn_get_dn(superior));
     if (err != LDAP_SUCCESS) { result = uid_op_error(36); break; }
 
         /*
@@ -983,7 +980,6 @@ preop_modrdn(Slapi_PBlock *pb)
         }
   END
   /* Clean-up */
-  slapi_sdn_free(&sdn);
   slapi_value_free(&sv_requiredObjectClass);
   if (e) slapi_entry_free(e);
 
@@ -1048,8 +1044,11 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
     if (argc < 1) { err = -1; break; }
     argv++; argc--;
 
-    for(;argc > 0;argc--, argv++)
-        slapi_dn_normalize_case(*argv);
+    for(;argc > 0;argc--, argv++) {
+        char *normdn = slapi_create_dn_string_case("%s", *argv);
+        slapi_ch_free_string(argv);
+        *argv = normdn;
+    }
 
     /* Provide descriptive information */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,

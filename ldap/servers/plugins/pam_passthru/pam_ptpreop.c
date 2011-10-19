@@ -165,10 +165,12 @@ static int
 pam_passthru_bindpreop( Slapi_PBlock *pb )
 {
     int rc, method;
-    char *normbinddn, *errmsg = NULL;
+    const char *normbinddn;
+    char *errmsg = NULL;
+    Slapi_DN *bindsdn = NULL;
     Pam_PassthruConfig	*cfg;
     struct berval	*creds;
-	int retcode = PAM_PASSTHRU_OP_NOT_HANDLED;
+    int retcode = PAM_PASSTHRU_OP_NOT_HANDLED;
 
     PAM_PASSTHRU_ASSERT( pb != NULL );
 
@@ -179,12 +181,13 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
      * retrieve parameters for bind operation
      */
     if ( slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) != 0 ||
-		 slapi_pblock_get( pb, SLAPI_BIND_TARGET, &normbinddn ) != 0 ||
+		 slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &bindsdn ) != 0 ||
 		 slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds ) != 0 ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						 "<= not handled (unable to retrieve bind parameters)\n" );
 		return retcode;
     }
+    normbinddn = slapi_sdn_get_dn(bindsdn);
 
     /*
      * We only handle simple bind requests that include non-NULL binddn and

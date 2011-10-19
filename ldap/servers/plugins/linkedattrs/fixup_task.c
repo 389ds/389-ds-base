@@ -279,7 +279,7 @@ static int
 linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
 {
     int rc = 0;
-    char *dn = slapi_entry_get_dn(e);
+    Slapi_DN *sdn = slapi_entry_get_sdn(e);
     char *type = (char *)callback_data;
     Slapi_PBlock *pb = slapi_pblock_new();
     char *val[1];
@@ -298,11 +298,11 @@ linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
 
     slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
                     "Removing backpointer attribute (%s) from entry (%s)\n",
-                    type, dn);
+                    type, slapi_sdn_get_dn(sdn));
 
     /* Perform the operation. */
-    slapi_modify_internal_set_pb(pb, dn, mods, 0, 0,
-                                 linked_attrs_get_plugin_id(), 0);
+    slapi_modify_internal_set_pb_ext(pb, sdn, mods, 0, 0,
+                                     linked_attrs_get_plugin_id(), 0);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_destroy(pb);
@@ -339,6 +339,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
     for (i = 0; targets && targets[i]; ++i) {
         char *targetdn = (char *)targets[i];
         int perform_update = 0;
+        Slapi_DN *targetsdn = slapi_sdn_new_dn_byref(targetdn);
 
         if (config->scope) {
             /* Check if the target is within the scope. */
@@ -348,14 +349,12 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
              * and see if the target is in the same backend. */
             Slapi_Backend *be = NULL;
             Slapi_DN *linksdn = slapi_sdn_new_dn_byref(linkdn);
-            Slapi_DN *targetsdn = slapi_sdn_new_dn_byref(targetdn);
 
             if ((be = slapi_be_select(linksdn))) {
                 perform_update = slapi_sdn_issuffix(targetsdn, slapi_be_getsuffix(be, 0));
             }
 
             slapi_sdn_free(&linksdn);
-            slapi_sdn_free(&targetsdn);
         }
 
         if (perform_update) {
@@ -364,13 +363,14 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
                             linkdn, targetdn);
 
             /* Perform the modify operation. */
-            slapi_modify_internal_set_pb(pb, targetdn, mods, 0, 0,
-                                         linked_attrs_get_plugin_id(), 0);
+            slapi_modify_internal_set_pb_ext(pb, targetsdn, mods, 0, 0,
+                                             linked_attrs_get_plugin_id(), 0);
             slapi_modify_internal_pb(pb);
 
             /* Initialize the pblock so we can reuse it. */
             slapi_pblock_init(pb);
         }
+        slapi_sdn_free(&targetsdn);
     }
 
     slapi_ch_array_free(targets);

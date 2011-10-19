@@ -779,13 +779,25 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     if (slapi_entry_attr_find(e, "nsIncludeSuffix", &attr) == 0) {
         for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
-            charray_add(&include, slapi_ch_strdup(slapi_value_get_string(val)));
+            rv = charray_normdn_add(&include,
+                                    (char *)slapi_value_get_string(val),
+                                    "nsIncludeSuffix");
+            if (0 != rv) {
+                *returncode = LDAP_PARAM_ERROR;
+                return SLAPI_DSE_CALLBACK_ERROR;
+            }
         }
     }
     if (slapi_entry_attr_find(e, "nsExcludeSuffix", &attr) == 0) {
         for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
-            charray_add(&exclude, slapi_ch_strdup(slapi_value_get_string(val)));
+            rv = charray_normdn_add(&exclude, 
+                                    (char *)slapi_value_get_string(val),
+                                    "nsExcludeSuffix");
+            if (0 != rv) {
+                *returncode = LDAP_PARAM_ERROR;
+                return SLAPI_DSE_CALLBACK_ERROR;
+            }
         }
     }
 
@@ -1090,13 +1102,25 @@ static int task_export_add(Slapi_PBlock *pb, Slapi_Entry *e,
     if (slapi_entry_attr_find(e, "nsIncludeSuffix", &attr) == 0) {
         for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
-            charray_add(&include, slapi_ch_strdup(slapi_value_get_string(val)));
+            rv = charray_normdn_add(&include, 
+                                    (char *)slapi_value_get_string(val),
+                                    "nsIncludeSuffix");
+            if (0 != rv) {
+                *returncode = LDAP_PARAM_ERROR;
+                goto out;
+            }
         }
     }
     if (slapi_entry_attr_find(e, "nsExcludeSuffix", &attr) == 0) {
         for (idx = slapi_attr_first_value(attr, &val);
              idx >= 0; idx = slapi_attr_next_value(attr, idx, &val)) {
-            charray_add(&exclude, slapi_ch_strdup(slapi_value_get_string(val)));
+            rv = charray_normdn_add(&exclude, 
+                                    (char *)slapi_value_get_string(val),
+                                    "nsExcludeSuffix");
+            if (0 != rv) {
+                *returncode = LDAP_PARAM_ERROR;
+                goto out;
+            }
         }
     }
 

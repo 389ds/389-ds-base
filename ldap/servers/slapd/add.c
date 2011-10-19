@@ -116,8 +116,7 @@ do_add( Slapi_PBlock *pb )
 	/* get the name */
 	{
 		char *rawdn = NULL;
-		char *dn = NULL;
-		size_t dnlen = 0;
+		Slapi_DN mysdn;
 		if ( ber_scanf( ber, "{a", &rawdn ) == LBER_ERROR ) {
 			slapi_ch_free_string(&rawdn);
 			LDAPDebug( LDAP_DEBUG_ANY,
@@ -140,20 +139,20 @@ do_add( Slapi_PBlock *pb )
 				return;
 			}
 		}
-		rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
-		if (rc < 0) {
-			op_shared_log_error_access(pb, "ADD", rawdn?rawdn:"", "invalid dn");
-			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-							 NULL, "invalid dn", 0, NULL);
-			slapi_ch_free_string(&rawdn);
+		slapi_sdn_init_dn_passin(&mysdn, rawdn);
+		if (rawdn && (strlen(rawdn) > 0) &&
+		    (NULL == slapi_sdn_get_dn(&mysdn))) {
+			/* normalization failed */
+			op_shared_log_error_access(pb, "ADD", rawdn, "invalid dn");
+			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+			                 "invalid dn", 0, NULL);
+			slapi_sdn_done(&mysdn);
 			return;
-		} else if (rc > 0) {
-			slapi_ch_free_string(&rawdn);
-		} else { /* rc == 0; rawdn is passed in; not null terminated */
-			*(dn + dnlen) = '\0';
 		}
 		e = slapi_entry_alloc();
-		slapi_entry_init(e,dn,NULL); /* Responsibility for DN is passed to the Entry. */
+		/* Responsibility for DN is passed to the Entry. */
+		slapi_entry_init_ext(e, &mysdn, NULL);
+		slapi_sdn_done(&mysdn);
 	}
 	LDAPDebug( LDAP_DEBUG_ARGS, "	do_add: dn (%s)\n", slapi_entry_get_dn_const(e), 0, 0 );
 
@@ -338,7 +337,7 @@ slapi_add_entry_internal(Slapi_Entry *e, LDAPControl **controls, int dummy)
 
 /*  This is new style API to issue internal add operation.
 	pblock should contain the following data (can be set via call to slapi_add_internal_set_pb):
-	SLAPI_TARGET_DN		set to dn of the new entry
+	SLAPI_TARGET_SDN	set to sdn of the new entry
 	SLAPI_CONTROLS_ARG	set to request controls if present
 	SLAPI_ADD_ENTRY		set to Slapi_Entry to add
 	Beware: The entry is consumed. */
@@ -458,6 +457,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 	char *proxystr = NULL;
 	int proxy_err = LDAP_SUCCESS;
 	char *errtext = NULL;
+	Slapi_DN *sdn = NULL;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get (pb, SLAPI_ADD_ENTRY, &e);
@@ -532,7 +532,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			goto done;
 		}
 	
-		slapi_pblock_set(pb, SLAPI_TARGET_DN, (void*)slapi_sdn_get_ndn(operation_get_target_spec (operation)));
+		slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void*)operation_get_target_spec (operation));
 		send_referrals_from_entry(pb,referral);
 		slapi_entry_free(referral);
 		goto done;
@@ -547,16 +547,16 @@ static void op_shared_add (Slapi_PBlock *pb)
 			present_values= attr_get_present_values(attr);
 
 			/* Set the backend in the pblock.  The slapi_access_allowed function
-                         * needs this set to work properly. */
-                        slapi_pblock_set( pb, SLAPI_BACKEND, slapi_be_select( slapi_entry_get_sdn_const(e) ) );
+			 * needs this set to work properly. */
+			slapi_pblock_set( pb, SLAPI_BACKEND, slapi_be_select( slapi_entry_get_sdn_const(e) ) );
 
 			/* Check ACI before checking password syntax */
 			if ( (err = slapi_access_allowed(pb, e, SLAPI_USERPWD_ATTR, NULL,
-                                     SLAPI_ACL_ADD)) != LDAP_SUCCESS) {
-                                send_ldap_result(pb, err, NULL,
-                                              "Insufficient 'add' privilege to the "
-                                              "'userPassword' attribute", 0, NULL);
-                                goto done;
+			                                 SLAPI_ACL_ADD)) != LDAP_SUCCESS) {
+			    send_ldap_result(pb, err, NULL,
+			                     "Insufficient 'add' privilege to the "
+			                     "'userPassword' attribute", 0, NULL);
+			    goto done;
 			}
 
 			/* check password syntax */
@@ -657,21 +657,23 @@ static void op_shared_add (Slapi_PBlock *pb)
 	 * plugins.
 	 */
 	
-	slapi_pblock_set(pb, SLAPI_ADD_TARGET, 
-					 (char*)slapi_sdn_get_ndn(slapi_entry_get_sdn_const(e)));
-	if (plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_PRE_ADD_FN : 
-							SLAPI_PLUGIN_PRE_ADD_FN) == 0)
+	sdn = slapi_sdn_dup(slapi_entry_get_sdn_const(e));
+	slapi_pblock_set(pb, SLAPI_ADD_TARGET_SDN, (void *)sdn);
+	if (plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_PRE_ADD_FN :
+	                        SLAPI_PLUGIN_PRE_ADD_FN) == 0)
 	{
 		int	rc;
 		Slapi_Entry	*ec;
-		char *add_target_dn;
+		Slapi_DN *add_target_sdn = NULL;
 
 		slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
 		set_db_default_result_handlers(pb);
 		/* because be_add frees the entry */
 		ec = slapi_entry_dup(e);
-		add_target_dn= slapi_ch_strdup(slapi_sdn_get_ndn(slapi_entry_get_sdn_const(ec)));
-    	slapi_pblock_set(pb, SLAPI_ADD_TARGET, add_target_dn);
+		add_target_sdn = slapi_sdn_dup(slapi_entry_get_sdn_const(ec));
+		slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
+		slapi_sdn_free(&sdn);
+		slapi_pblock_set(pb, SLAPI_ADD_TARGET_SDN, add_target_sdn);
 		
 		if (be->be_add != NULL)
 		{
@@ -717,9 +719,9 @@ static void op_shared_add (Slapi_PBlock *pb)
 		plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_POST_ADD_FN : 
 							SLAPI_PLUGIN_POST_ADD_FN);
 		slapi_entry_free(ec);
-    	slapi_pblock_get(pb, SLAPI_ADD_TARGET, &add_target_dn);
-		slapi_ch_free((void**)&add_target_dn);
 	}
+	slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
+	slapi_sdn_free(&sdn);
 
 done:
 	if (be)

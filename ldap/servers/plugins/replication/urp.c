@@ -55,11 +55,10 @@ extern int slapi_log_urp;
 static int urp_add_resolve_parententry (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, Slapi_Entry *parententry, CSN *opcsn);
 static int urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, const char *optype);
 static int urp_naming_conflict_removal (Slapi_PBlock *pb, char *sessionid, CSN *opcsn, const char *optype);
-static int mod_namingconflict_attr (const char *uniqueid, const char*entrydn, const char *conflictdn, CSN *opcsn);
+static int mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn, const Slapi_DN *conflictsdn, CSN *opcsn);
 static int del_replconflict_attr (Slapi_Entry *entry, CSN *opcsn, int opflags);
 static char *get_dn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
 static char *get_rdn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
-static void set_pblock_dn (Slapi_PBlock* pb,int pblock_parameter,char *newdn);
 static int is_suffix_entry (Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_DN **parenddn);
 
 /*
@@ -122,7 +121,8 @@ urp_add_operation( Slapi_PBlock *pb )
 	char sessionid[REPL_SESSION_ID_SIZE];
 	int r;
 	int op_result= 0;
-    int rc= 0; /* OK */
+	int rc= 0; /* OK */
+	Slapi_DN *sdn = NULL;
 
 	if ( slapi_op_abandoned(pb) )
 	{
@@ -206,8 +206,14 @@ urp_add_operation( Slapi_PBlock *pb )
 				 */
 				slapi_value_set_string (*vals, buf);
 			}
-			slapi_entry_set_dn (addentry,slapi_ch_strdup(newdn));
-			set_pblock_dn(pb,SLAPI_ADD_TARGET,newdn); /* consumes newdn */
+			/* slapi_pblock_get(pb, SLAPI_ADD_TARGET, &dn); */
+			slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
+			slapi_sdn_free(&sdn);
+
+			slapi_entry_set_normdn(addentry, newdn); /* dn: passin */
+
+			sdn = slapi_sdn_dup(slapi_entry_get_sdn_const(addentry));
+			slapi_pblock_set(pb, SLAPI_ADD_TARGET_SDN, sdn);
 
 			rdn = slapi_rdn_new_sdn ( slapi_entry_get_sdn_const(addentry) );
 			slapi_log_error (slapi_log_urp, sessionid,
@@ -265,7 +271,6 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 	Slapi_Entry *parent_entry;
     Slapi_Entry *new_parent_entry;
 	Slapi_DN *newsuperior = NULL;
-	char *newsuperiordn;
 	Slapi_DN *parentdn = NULL;
 	Slapi_Entry *target_entry;
     Slapi_Entry *existing_entry;
@@ -273,8 +278,8 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 	CSN *opcsn= NULL;
 	char *op_uniqueid = NULL;
 	const char *existing_uniqueid = NULL;
-	const char *target_dn;
-	const char *existing_dn;
+	const Slapi_DN *target_sdn;
+	const Slapi_DN *existing_sdn;
 	char *newrdn;
 	char sessionid[REPL_SESSION_ID_SIZE];
 	int r;
@@ -314,12 +319,12 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 	}
 
 	/* The DN CSN is older than the Operation CSN. Apply the operation */
-	target_dn = slapi_entry_get_dn_const ( target_entry);
+	target_sdn = slapi_entry_get_sdn_const (target_entry);
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
 	slapi_pblock_get(pb, SLAPI_TARGET_UNIQUEID, &op_uniqueid);
    	slapi_pblock_get(pb, SLAPI_MODRDN_PARENT_ENTRY, &parent_entry);
    	slapi_pblock_get(pb, SLAPI_MODRDN_NEWPARENT_ENTRY, &new_parent_entry);
-	slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR, &newsuperiordn);
+	slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior);
 
 	if ( is_tombstone_entry (target_entry) )
 	{
@@ -366,7 +371,7 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 	     */
 
 		existing_uniqueid = slapi_entry_get_uniqueid (existing_entry);
-		existing_dn = slapi_entry_get_dn_const ( existing_entry);
+		existing_sdn = slapi_entry_get_sdn_const ( existing_entry);
 
 		/*
 		 * Dismiss the operation if the existing entry is the same as the target one.
@@ -412,8 +417,8 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 								  Unique ID already in RDN - Change to Lost and Found entry */
 				goto bailout;
 			}
-			mod_namingconflict_attr (op_uniqueid, target_dn, existing_dn, opcsn);
-			set_pblock_dn (pb, SLAPI_MODRDN_NEWRDN, newrdn_with_uniqueid); 
+			mod_namingconflict_attr (op_uniqueid, target_sdn, existing_sdn, opcsn);
+			slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, newrdn_with_uniqueid); 
 			slapi_log_error(slapi_log_urp, sessionid,
 					"Naming conflict MODRDN. Rename target entry to %s\n",
 					newrdn_with_uniqueid );
@@ -474,12 +479,12 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 
 		/* The new superior entry doesn't exist */
 
-		slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR, &newsuperiordn);
-		if(newsuperiordn == NULL)
+		slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior);
+		if(newsuperior == NULL)
 		{
 			/* (new_parent_entry==NULL && newsuperiordn==NULL)
 			 * This is ok - SLAPI_MODRDN_NEWPARENT_ENTRY will
-			 * only be set if SLAPI_MODRDN_NEWSUPERIOR was
+			 * only be set if SLAPI_MODRDN_NEWSUPERIOR_SDN was
 			 * suplied by the client. If it wasn't, we're just
 			 * changing the RDN of the entry. In that case,
 			 * if the entry exists, its parent won't change
@@ -491,10 +496,9 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 			goto bailout;
 		}
 
-		newsuperior= slapi_sdn_new_dn_byval(newsuperiordn);
-
-		if((0 == slapi_sdn_compare (slapi_entry_get_sdn(parent_entry), newsuperior)) || 
-				is_suffix_dn (pb, newsuperior, &parentdn) )
+		if((0 == slapi_sdn_compare(slapi_entry_get_sdn(parent_entry),
+		                           newsuperior)) || 
+		   is_suffix_dn (pb, newsuperior, &parentdn) )
 		{
 			/*
 			 * The new superior is the same as the current one, or
@@ -521,7 +525,8 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 			 * admin intercession
 			 */
 			slapi_log_error( SLAPI_LOG_FATAL, sessionid,
-				 "Parent %s couldn't be found, nor recreated as a glue entry\n", newsuperiordn );
+				 "Parent %s couldn't be found, nor recreated as a glue entry\n",
+				 slapi_sdn_get_dn(newsuperior) );
 			op_result= LDAP_OPERATIONS_ERROR;
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
 			rc = -1;
@@ -542,8 +547,6 @@ bailout:
 	}
 	if ( parentdn )
 		slapi_sdn_free(&parentdn);
-	if ( newsuperior )
-		slapi_sdn_free(&newsuperior);
     return rc;
 }
 
@@ -761,9 +764,9 @@ urp_fixup_rename_entry (Slapi_Entry *entry, const char *newrdn, int opflags)
 	 * Must mark this operation as replicated,
 	 * so that the frontend doesn't add extra attributes.
 	 */
-	slapi_rename_internal_set_pb (
+	slapi_rename_internal_set_pb_ext (
 					newpb,
-					slapi_entry_get_dn_const (entry),
+					slapi_entry_get_sdn_const (entry),
 					newrdn, /*NewRDN*/
 					NULL, /*NewSuperior*/
 					0, /* !Delete Old RDNS */
@@ -815,7 +818,7 @@ urp_fixup_delete_entry (const char *uniqueid, const char *dn, CSN *opcsn, int op
 }
 
 int
-urp_fixup_modify_entry (const char *uniqueid, const char *dn, CSN *opcsn, Slapi_Mods *smods, int opflags)
+urp_fixup_modify_entry (const char *uniqueid, const Slapi_DN *sdn, CSN *opcsn, Slapi_Mods *smods, int opflags)
 {
 	Slapi_PBlock *newpb;
 	Slapi_Operation *op;
@@ -823,9 +826,9 @@ urp_fixup_modify_entry (const char *uniqueid, const char *dn, CSN *opcsn, Slapi_
 
 	newpb = slapi_pblock_new();
 			
-	slapi_modify_internal_set_pb (
+	slapi_modify_internal_set_pb_ext (
 			newpb,
-			dn,
+			sdn,
 			slapi_mods_get_ldapmods_byref (smods),
 			NULL, /* Controls */
 			uniqueid,
@@ -852,6 +855,7 @@ urp_add_resolve_parententry (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *ent
 	char *newdn = NULL;
 	int ldap_rc;
 	int rc = 0;
+	Slapi_DN *sdn = NULL;
 
 	if( is_suffix_entry (pb, entry, &parentdn) )
 	{
@@ -928,8 +932,15 @@ urp_add_resolve_parententry (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *ent
 	 */
 	add_rdn = slapi_rdn_new_dn(slapi_entry_get_dn_const (entry));
 	newdn = slapi_dn_plus_rdn(slapi_entry_get_dn_const (parententry), slapi_rdn_get_rdn(add_rdn));
-	slapi_entry_set_dn ( entry,slapi_ch_strdup(newdn));
-	set_pblock_dn (pb,SLAPI_ADD_TARGET,newdn); /* consumes newdn */
+	slapi_entry_set_normdn ( entry, newdn );
+
+	/* slapi_pblock_get(pb, SLAPI_ADD_TARGET, &dn); */
+	slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
+	slapi_sdn_free(&sdn);
+
+	sdn = slapi_sdn_dup(slapi_entry_get_sdn_const(entry));
+	slapi_pblock_set(pb, SLAPI_ADD_TARGET_SDN, sdn);
+
 	slapi_log_error ( slapi_log_urp, sessionid,
 			"Parent was renamed. Renamed the child to %s\n", newdn );
 	rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
@@ -957,15 +968,17 @@ urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, const char *op
 	int op_result;
 	char *newrdn;
 	const char *uniqueid;
+	const Slapi_DN *basesdn;
 	const char *basedn;
 	char ebuf[BUFSIZ];
 
 	uniqueid = slapi_entry_get_uniqueid (entry);
-	basedn = slapi_entry_get_ndn (entry);
+	basesdn = slapi_entry_get_sdn_const (entry);
+	basedn = slapi_entry_get_dn_const (entry);
 	newrdn = get_rdn_plus_uniqueid ( sessionid, basedn, uniqueid );
 	if(newrdn!=NULL)
 	{
-		mod_namingconflict_attr (uniqueid, basedn, basedn, opcsn);
+		mod_namingconflict_attr (uniqueid, basesdn, basesdn, opcsn);
 		op_result = urp_fixup_rename_entry ( entry, newrdn, 0 );
 		switch(op_result)
 		{
@@ -1094,7 +1107,7 @@ urp_get_min_naming_conflict_entry ( Slapi_PBlock *pb, char *sessionid, CSN *opcs
 	}
 
 done:
-	slapi_ch_free((void **)&parent_dn);
+	slapi_ch_free_string(&parent_dn);
 	if (filter) {
 		PR_smprintf_free(filter);
 	}
@@ -1240,15 +1253,6 @@ get_rdn_plus_uniqueid(char *sessionid, const char *olddn, const char *uniqueid)
 	return newrdn;
 }
 
-static void
-set_pblock_dn (Slapi_PBlock* pb,int pblock_parameter,char *newdn)
-{
-	char *olddn;
-	slapi_pblock_get( pb, pblock_parameter, &olddn );
-	slapi_ch_free((void**)&olddn);
-	slapi_pblock_set( pb, pblock_parameter, newdn );
-}
-
 static int
 is_suffix_entry ( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_DN **parentdn )
 {
@@ -1272,15 +1276,18 @@ is_suffix_dn ( Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parentdn )
 }
 
 static int
-mod_namingconflict_attr (const char *uniqueid, const char *entrydn, const char *conflictdn, CSN *opcsn)
+mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn,
+                         const Slapi_DN *conflictsdn, CSN *opcsn)
 {
 	Slapi_Mods smods;
 	char buf[BUFSIZ];
 	int op_result;
 
-	PR_snprintf (buf, sizeof(buf), "%s %s", REASON_ANNOTATE_DN, conflictdn);
+	PR_snprintf (buf, sizeof(buf), "%s %s",
+	             REASON_ANNOTATE_DN, slapi_sdn_get_dn(conflictsdn));
 	slapi_mods_init (&smods, 2);
-	if ( strncmp (entrydn, SLAPI_ATTR_UNIQUEID, strlen(SLAPI_ATTR_UNIQUEID)) != 0 )
+	if ( strncmp (slapi_sdn_get_dn(entrysdn), SLAPI_ATTR_UNIQUEID,
+	     strlen(SLAPI_ATTR_UNIQUEID)) != 0 )
 	{
 		slapi_mods_add (&smods, LDAP_MOD_ADD, ATTR_NSDS5_REPLCONFLICT, strlen(buf), buf);
 	}
@@ -1293,7 +1300,7 @@ mod_namingconflict_attr (const char *uniqueid, const char *entrydn, const char *
 		 */
 		slapi_mods_add (&smods, LDAP_MOD_REPLACE, ATTR_NSDS5_REPLCONFLICT, strlen(buf), buf);
 	}
-	op_result = urp_fixup_modify_entry (uniqueid, entrydn, opcsn, &smods, 0);
+	op_result = urp_fixup_modify_entry (uniqueid, entrysdn, opcsn, &smods, 0);
 	slapi_mods_done (&smods);
 	return op_result;
 }
@@ -1308,13 +1315,13 @@ del_replconflict_attr (Slapi_Entry *entry, CSN *opcsn, int opflags)
 	{
 		Slapi_Mods smods;
 		const char *uniqueid;
-		const char *entrydn;
+		const Slapi_DN *entrysdn;
 
 		uniqueid = slapi_entry_get_uniqueid (entry);
-		entrydn = slapi_entry_get_dn_const (entry);
+		entrysdn = slapi_entry_get_sdn_const (entry);
 		slapi_mods_init (&smods, 2);
 		slapi_mods_add (&smods, LDAP_MOD_DELETE, ATTR_NSDS5_REPLCONFLICT, 0, NULL);
-		op_result = urp_fixup_modify_entry (uniqueid, entrydn, opcsn, &smods, opflags);
+		op_result = urp_fixup_modify_entry (uniqueid, entrysdn, opcsn, &smods, opflags);
 		slapi_mods_done (&smods);
 	}
 	return op_result;

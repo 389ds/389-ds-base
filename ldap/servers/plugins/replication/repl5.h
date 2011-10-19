@@ -134,6 +134,9 @@
 #define MAX_NUM_OF_MASTERS		64
 #define REPL_SESSION_ID_SIZE	64
 
+#define REPL_GET_DN(addrp) slapi_sdn_get_dn((addrp)->sdn)
+#define REPL_GET_DN_LEN(addrp) slapi_sdn_get_ndn_len((addrp)->sdn)
+
 /* Attribute names for replication agreement attributes */
 extern const char *type_nsds5ReplicaHost;
 extern const char *type_nsds5ReplicaPort;

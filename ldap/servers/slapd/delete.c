@@ -72,8 +72,6 @@ do_delete( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement	*ber;
 	char	    *rawdn = NULL;
-	char	    *dn = NULL;
-	size_t		dnlen = 0;
 	int			err = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_delete\n", 0, 0, 0 );
@@ -107,21 +105,8 @@ do_delete( Slapi_PBlock *pb )
 							"strict: invalid dn");
 			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
 							 NULL, "invalid dn", 0, NULL);
-			slapi_ch_free_string(&rawdn);
 			goto free_and_return;
 		}
-	}
-	err = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
-	if (err < 0) {
-		op_shared_log_error_access(pb, "DEL", rawdn?rawdn:"", "invalid dn");
-		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-						 NULL, "invalid dn", 0, NULL);
-		slapi_ch_free_string(&rawdn);
-		goto free_and_return;
-	} else if (err > 0) { /* if err == 0, rawdn is passed in */
-		slapi_ch_free_string(&rawdn);
-	} else { /* err == 0; rawdn is passed in; not null terminated */
-		*(dn + dnlen) = '\0';
 	}
 
 	/*
@@ -130,20 +115,20 @@ do_delete( Slapi_PBlock *pb )
 	 * pass them to the backend.
 	 */
 	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 ) {
-		op_shared_log_error_access (pb, "DEL", dn, "decoding error");
+		op_shared_log_error_access (pb, "DEL", rawdn, "decoding error");
 		send_ldap_result( pb, err, NULL, NULL, 0, NULL );
 		goto free_and_return;
 	}
 
-	LDAPDebug( LDAP_DEBUG_ARGS, "do_delete: dn (%s)\n", dn, 0, 0 );
-			
+	LDAPDebug1Arg( LDAP_DEBUG_ARGS, "do_delete: dn (%s)\n", rawdn );
+
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
-	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, dn);
+	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, rawdn);
 
 	op_shared_delete (pb);
 
 free_and_return:;
-	slapi_ch_free ((void**)&dn);
+	slapi_ch_free ((void**)&rawdn);
 }
 
 /* This function is used to issue internal delete operation
@@ -158,7 +143,7 @@ slapi_delete_internal(const char *idn, LDAPControl **controls, int dummy)
     int             opresult;
 
     pblock_init (&pb);
-    	
+
     slapi_delete_internal_set_pb (&pb, idn, controls, NULL, plugin_get_default_component_id(), 0);
 
 	delete_internal_pb (&pb);
@@ -201,22 +186,26 @@ int slapi_delete_internal_pb (Slapi_PBlock *pb)
 }
 
 /* Initialize a pblock for a call to slapi_delete_internal_pb() */
-void slapi_delete_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPControl **controls, const char *uniqueid, 
-								   Slapi_ComponentId *plugin_identity, int operation_flags)
+void
+slapi_delete_internal_set_pb (Slapi_PBlock *pb,
+                              const char *rawdn,
+                              LDAPControl **controls, const char *uniqueid, 
+                              Slapi_ComponentId *plugin_identity, 
+                              int operation_flags)
 {  
 	Operation *op;
 	PR_ASSERT (pb != NULL);
-	if (pb == NULL || dn == NULL)
+	if (pb == NULL || rawdn == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
 						"slapi_delete_internal_set_pb: NULL parameter\n");
 		return;
 	}
 
-    op = internal_operation_new(SLAPI_OPERATION_DELETE,operation_flags);
+	op = internal_operation_new(SLAPI_OPERATION_DELETE,operation_flags);
 	slapi_pblock_set(pb, SLAPI_OPERATION, op);
-	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void*)dn);
-    slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
+	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void*)rawdn);
+	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
 	if (uniqueid)
 	{
 		slapi_pblock_set(pb, SLAPI_TARGET_UNIQUEID, (void*)uniqueid);
@@ -259,11 +248,12 @@ static int delete_internal_pb (Slapi_PBlock *pb)
 
 static void op_shared_delete (Slapi_PBlock *pb)
 {
-	char	      	*dn;
+	char			*rawdn = NULL;
+	const char		*dn = NULL;
 	Slapi_Backend	*be = NULL;
 	char			ebuf[ BUFSIZ ];
 	int				internal_op;
-	Slapi_DN		sdn;
+	Slapi_DN		*sdn = NULL;
 	Slapi_Operation *operation;
 	Slapi_Entry *referral;
 	Slapi_Entry	*ecopy = NULL;
@@ -274,15 +264,23 @@ static void op_shared_delete (Slapi_PBlock *pb)
 	int		proxy_err = LDAP_SUCCESS;
 	char		*errtext = NULL;
 
-	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
+	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &rawdn);
 	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
-	slapi_sdn_init_dn_byref(&sdn,dn);
-	slapi_pblock_set(pb, SLAPI_DELETE_TARGET, (void*)slapi_sdn_get_ndn (&sdn));
+	sdn = slapi_sdn_new_dn_byval(rawdn);
+	dn = slapi_sdn_get_dn(sdn);
+	slapi_pblock_set(pb, SLAPI_DELETE_TARGET_SDN, (void*)sdn);
+	if (rawdn && (strlen(rawdn) > 0) && (NULL == dn)) {
+		/* normalization failed */
+		op_shared_log_error_access(pb, "DEL", rawdn, "invalid dn");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
+		                 NULL, "invalid dn", 0, NULL);
+		goto free_and_return;
+	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	operation_set_target_spec (operation, &sdn);
+	operation_set_target_spec (operation, sdn);
 
 	/* get the proxy auth dn if the proxy auth control is present */
 	proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
@@ -299,7 +297,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d DEL dn=\"%s\"%s\n",
 							pb->pb_conn->c_connid, 
 							pb->pb_op->o_opid,
-							escape_string(dn, ebuf),
+							escape_string(slapi_sdn_get_dn(sdn), ebuf),
 							proxystr ? proxystr: "");
 		}
 		else
@@ -307,7 +305,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d DEL dn=\"%s\"%s\n",
 							LOG_INTERNAL_OP_CON_ID,
 							LOG_INTERNAL_OP_OP_ID,
-							escape_string(dn, ebuf),
+							escape_string(slapi_sdn_get_dn(sdn), ebuf),
 							proxystr ? proxystr: "");
 		}
 	}
@@ -398,6 +396,7 @@ free_and_return:
 		slapi_be_Unlock(be);
 	}
 	{
+		char *coldn = NULL;
 		Slapi_Entry *epre = NULL, *eparent = NULL;
 		slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &epre);
 		slapi_pblock_get(pb, SLAPI_DELETE_GLUE_PARENT_ENTRY, &eparent);
@@ -408,10 +407,12 @@ free_and_return:
 		}
 		slapi_entry_free(epre);
 		slapi_entry_free(eparent);
+		slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &coldn);
+		slapi_ch_free_string(&coldn);
 	}
-	slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &dn);
-	slapi_ch_free((void **)&dn);
-	slapi_sdn_done(&sdn);
+
+	slapi_pblock_get(pb, SLAPI_DELETE_TARGET_SDN, &sdn);
+	slapi_sdn_free(&sdn);
 	slapi_ch_free_string(&proxydn);
 	slapi_ch_free_string(&proxystr);
 }

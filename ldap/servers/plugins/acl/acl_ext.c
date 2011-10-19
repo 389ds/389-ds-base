@@ -658,7 +658,7 @@ error:
 
 /* Initializes the aclpb */
 void 
-acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *dn, int copy_from_aclcb)
+acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *ndn, int copy_from_aclcb)
 {
 	struct acl_cblock	*aclcb = NULL;
 	char				*authType;
@@ -685,8 +685,8 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *dn, int copy_
 	aclpb->aclpb_state = ACLPB_INITIALIZED;
 
 	/* We make an anonymous user a non null dn which is empty */
-	if (dn && *dn != '\0' ) 
-		slapi_sdn_set_ndn_byval ( aclpb->aclpb_authorization_sdn, dn );
+	if (ndn && *ndn != '\0' ) 
+		slapi_sdn_set_ndn_byval ( aclpb->aclpb_authorization_sdn, ndn );
 	else
 		slapi_sdn_set_ndn_byval ( aclpb->aclpb_authorization_sdn, "" );
 
@@ -716,7 +716,7 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *dn, int copy_
 	slapi_pblock_get ( pb, SLAPI_CONN_CERT, &aclpb->aclpb_clientcert );
 
 	/* See if the we have already a cached info about user's group */
-	aclg_init_userGroup ( aclpb, dn, 0 /* get lock */ );
+	aclg_init_userGroup ( aclpb, ndn, 0 /* get lock */ );
 
 	slapi_pblock_get( pb, SLAPI_BE_MAXNESTLEVEL, &aclpb->aclpb_max_nesting_level );
 	slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &aclpb->aclpb_max_member_sizelimit );

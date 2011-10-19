@@ -1121,11 +1121,31 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			(*(entry_address **)value) = &(pblock->pb_op->o_params.target_address);
 		}
 		break;
-        /* should be normalized */
-	case SLAPI_TARGET_DN:
+	case SLAPI_TARGET_DN: /* DEPRECATED */
+		/* The returned value refers SLAPI_TARGET_SDN.  
+		 * It should not be freed.*/
 		if(pblock->pb_op!=NULL)
 		{
-			(*(char **)value) = pblock->pb_op->o_params.target_address.dn;
+			Slapi_DN *sdn = pblock->pb_op->o_params.target_address.sdn;
+			if (sdn) {
+				(*(char **)value) = (char *)slapi_sdn_get_dn(sdn);
+			} else {
+				(*(char **)value) = NULL;
+			}
+		}
+		else
+		{
+			return( -1 );
+		}
+		break;
+	case SLAPI_TARGET_SDN:
+		if(pblock->pb_op!=NULL)
+		{
+			(*(Slapi_DN **)value) = pblock->pb_op->o_params.target_address.sdn;
+		}
+		else
+		{
+			return( -1 );
 		}
 		break;
 	case SLAPI_ORIGINAL_TARGET_DN:
@@ -1330,11 +1350,31 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			(*(int *)value) = pblock->pb_op->o_params.p.p_modrdn.modrdn_deloldrdn;
 		}
 		break;
-	case SLAPI_MODRDN_NEWSUPERIOR:
+	case SLAPI_MODRDN_NEWSUPERIOR: /* DEPRECATED */
 		if(pblock->pb_op!=NULL)
 		{
-			(*(char **)value) = 
-				pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address.dn;
+			Slapi_DN *sdn =
+			  pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address.sdn;
+			if (sdn) {
+				(*(char **)value) = (char *)slapi_sdn_get_dn(sdn);
+			} else {
+				(*(char **)value) = NULL;
+			}
+		}
+		else
+		{
+			return -1;
+		}
+		break;
+	case SLAPI_MODRDN_NEWSUPERIOR_SDN:
+		if(pblock->pb_op!=NULL)
+		{
+			(*(Slapi_DN **)value) = 
+			  pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address.sdn;
+		}
+		else
+		{
+			return -1;
 		}
 		break;
 	case SLAPI_MODRDN_PARENT_ENTRY:
@@ -1722,6 +1762,18 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
     				(*( char **)value ) = "";
 			else
     				(*( char **)value ) = dn;
+		}
+		break;
+
+	case SLAPI_REQUESTOR_NDN:
+		/* NOTE: It's not a copy of the DN */	
+		if (pblock->pb_op != NULL)
+		{
+			char *ndn = (char*)slapi_sdn_get_ndn(&pblock->pb_op->o_sdn);
+			if(ndn == NULL)
+    				(*( char **)value ) = "";
+			else
+    				(*( char **)value ) = ndn;
 		}
 		break;
 
@@ -2676,10 +2728,31 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_TARGET_ADDRESS:
 		PR_ASSERT (PR_FALSE);	/* can't do this */
 		break;
-	case SLAPI_TARGET_DN:
+	case SLAPI_TARGET_DN: /* DEPRECATED */
+		/* slapi_pblock_set(pb, SLAPI_TARGET_DN, val) automatically
+		 * replaces SLAPI_TARGET_SDN.  Caller should not free the 
+		 * original SLAPI_TARGET_SDN, but the reset one here by getting
+		 * the address using slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn). */
 		if(pblock->pb_op!=NULL)
 		{
-			pblock->pb_op->o_params.target_address.dn = (char *)value;
+			Slapi_DN *sdn = pblock->pb_op->o_params.target_address.sdn;
+			slapi_sdn_free(&sdn);
+			pblock->pb_op->o_params.target_address.sdn =
+			                              slapi_sdn_new_dn_byval((char *)value);
+		}
+		else
+		{
+			return( -1 );
+		}
+		break;
+	case SLAPI_TARGET_SDN:
+		if(pblock->pb_op!=NULL)
+		{
+			pblock->pb_op->o_params.target_address.sdn = (Slapi_DN *)value;
+		}
+		else
+		{
+			return( -1 );
 		}
 		break;
 	case SLAPI_ORIGINAL_TARGET_DN:
@@ -2830,10 +2903,29 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			pblock->pb_op->o_params.p.p_modrdn.modrdn_deloldrdn = *((int *) value);
 		}
 		break;
-	case SLAPI_MODRDN_NEWSUPERIOR:
+	case SLAPI_MODRDN_NEWSUPERIOR: /* DEPRECATED */
 		if(pblock->pb_op!=NULL)
 		{
-			pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address.dn = (char *) value;
+			Slapi_DN *sdn =
+			  pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address.sdn;
+			slapi_sdn_free(&sdn);
+			pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address.sdn = 
+			                              slapi_sdn_new_dn_byval((char *)value);
+		}
+		else
+		{
+			return -1;
+		}
+		break;
+	case SLAPI_MODRDN_NEWSUPERIOR_SDN:
+		if(pblock->pb_op!=NULL)
+		{
+			pblock->pb_op->o_params.p.p_modrdn.modrdn_newsuperior_address.sdn =
+			                                                 (Slapi_DN *) value;
+		}
+		else
+		{
+			return -1;
 		}
 		break;
 	case SLAPI_MODRDN_PARENT_ENTRY:
@@ -3456,9 +3548,7 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 		if ( conn->c_dn != NULL ) {
 			if ( bind_target_entry == NULL )
 			{
-				Slapi_DN        *sdn;
-
-				sdn = slapi_sdn_new_dn_byref( conn->c_dn );			/* set */
+				Slapi_DN *sdn = slapi_sdn_new_normdn_byref( conn->c_dn );
 				reslimit_update_from_dn( conn, sdn );
 				slapi_sdn_free( &sdn );
 			} else {
@@ -3466,11 +3556,9 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 			}
 		} else {
 			char *anon_dn = config_get_anon_limits_dn();
-			Slapi_DN *anon_sdn = NULL;
-
 			/* If an anonymous limits dn is set, use it to set the limits. */
 			if (anon_dn && (strlen(anon_dn) > 0)) {
-				anon_sdn = slapi_sdn_new_dn_byref( anon_dn );
+				Slapi_DN *anon_sdn = slapi_sdn_new_normdn_byref( anon_dn );
 				reslimit_update_from_dn( conn, anon_sdn );
 				slapi_sdn_free( &anon_sdn );
 			}

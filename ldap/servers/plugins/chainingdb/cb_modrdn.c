@@ -54,20 +54,25 @@
 int
 chaining_back_modrdn ( Slapi_PBlock *pb )
 {
-
-	Slapi_Backend		* be;
-	cb_backend_instance 	*cb;
-	LDAPControl 		**ctrls, **serverctrls;
-	int 			rc,parse_rc,msgid,i;
-	LDAP 			*ld=NULL;
-	char         		**referrals=NULL;
-	LDAPMessage		* res;
-	char 			* matched_msg, *error_msg,* pdn, *newdn, *dn;
-	int 			deleteoldrdn=0;
-	char 			* newsuperior, *newrdn;
-	char			* cnxerrbuf=NULL;
-   	time_t 			endtime;
-	cb_outgoing_conn	* cnx;
+        Slapi_Backend       * be;
+        cb_backend_instance *cb;
+        LDAPControl         **ctrls, **serverctrls;
+        int                 rc,parse_rc,msgid,i;
+        LDAP                *ld=NULL;
+        char                **referrals=NULL;
+        LDAPMessage         *res;
+        char                *matched_msg, *error_msg;
+        char                *newdn = NULL;
+        const char          *pdn = NULL;
+        char                *ndn = NULL;
+        Slapi_DN            *sdn = NULL;
+        Slapi_DN            *psdn = NULL;
+        int                 deleteoldrdn = 0;
+        Slapi_DN            *newsuperior = NULL;
+        char                *newrdn = NULL;
+        char                * cnxerrbuf=NULL;
+        time_t              endtime;
+        cb_outgoing_conn    *cnx;
 
         if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
                 cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
@@ -75,38 +80,36 @@ chaining_back_modrdn ( Slapi_PBlock *pb )
         }
 
         slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-	cb = cb_get_instance(be);
+        cb = cb_get_instance(be);
 
         cb_update_monitor_info(pb,cb,SLAPI_OPERATION_MODRDN);
 
-	/* Check wether the chaining BE is available or not */
+        /* Check wether the chaining BE is available or not */
         if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
                 return -1;
         }
 
-	newsuperior=newdn=newrdn=dn=NULL;
-  	slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &dn );
+        slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &sdn );
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR, &newsuperior );
+        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior );
         slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &deleteoldrdn );
 
-	/*
-	 * Construct the new dn
-	 */
+        ndn = (char *)slapi_sdn_get_ndn(sdn);
 
-	dn = slapi_dn_normalize_case(dn);
-        if ( (pdn = slapi_dn_parent( dn )) != NULL ) {
-                /* parent + rdn + separator(s) + null */
-                newdn = (char *) slapi_ch_malloc( strlen( pdn ) + strlen( newrdn ) + 3 );
-                strcpy( newdn, newrdn );
-                strcat( newdn, "," );
-                strcat( newdn, pdn );
+        /*
+         * Construct the new dn
+         */
+        psdn = slapi_sdn_new();
+        slapi_sdn_get_parent(sdn, psdn);
+        pdn = slapi_sdn_get_ndn(psdn);
 
-        	slapi_ch_free((void **)&pdn );
-
+        if ( pdn ) {
+            /* parent + rdn + separator(s) + null */
+            newdn = slapi_ch_smprintf("%s,%s", newrdn, pdn);
         } else {
-                newdn = slapi_ch_strdup( newrdn );
+            newdn = slapi_ch_strdup( newrdn );
         }
+        slapi_sdn_free(&psdn);
 
 	/*
 	 * Make sure the current backend is managing
@@ -119,19 +122,19 @@ chaining_back_modrdn ( Slapi_PBlock *pb )
 
 	if (cb->local_acl && !cb->associated_be_is_disabled) {
 		/* 
-	 	* Check local acls
-	 	* Keep in mind We don't have the entry for acl evaluation
-	 	*/
+		* Check local acls
+		* Keep in mind We don't have the entry for acl evaluation
+		*/
 
 		char * errbuf=NULL;
-          	Slapi_Entry *te = slapi_entry_alloc();
-          	slapi_entry_set_dn(te,slapi_ch_strdup(dn));
-       	  	rc = cb_access_allowed (pb, te, NULL, NULL, SLAPI_ACL_WRITE,&errbuf);
-          	slapi_entry_free(te);
+		Slapi_Entry *te = slapi_entry_alloc();
+		slapi_entry_set_sdn(te, sdn); /* sdn: copied */
+		rc = cb_access_allowed (pb, te, NULL, NULL, SLAPI_ACL_WRITE,&errbuf);
+		slapi_entry_free(te);
 
-   		if ( rc != LDAP_SUCCESS ) {
-                	cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
-                	slapi_ch_free((void **)&errbuf);
+		if ( rc != LDAP_SUCCESS ) {
+			cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
+			slapi_ch_free((void **)&errbuf);
 			return -1;
 		}
         }
@@ -183,7 +186,8 @@ chaining_back_modrdn ( Slapi_PBlock *pb )
 	 * Send LDAP operation to the remote host
 	 */
 
-	rc = ldap_rename ( ld,dn,newrdn,newsuperior,deleteoldrdn,ctrls,NULL,&msgid);
+	rc = ldap_rename ( ld, ndn, newrdn, slapi_sdn_get_dn(newsuperior),
+	                   deleteoldrdn, ctrls, NULL, &msgid );
 
 	if ( NULL != ctrls)
                 ldap_controls_free(ctrls);

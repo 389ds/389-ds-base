@@ -182,13 +182,11 @@ dn2ancestor(
         Slapi_DN ancestorndn;
         const char *ptr;
 
-        /* assign ancestordn to the parent of the given dn - ancestordn will contain
-           the "raw" unnormalized DN from the caller, so we can give back the DN
-           in the same format as we received it */
+        /* assign ancestordn to the parent of the given dn */
         ptr = slapi_dn_find_parent(slapi_sdn_get_dn(sdn));
         /* assign the ancestordn dn pointer to the parent of dn from sdn - sdn "owns"
            the memory, but ancestordn points to it */
-        slapi_sdn_set_dn_byref(ancestordn, ptr); /* free any previous contents */
+        slapi_sdn_set_normdn_byref(ancestordn, ptr); /* free any previous contents */
         /* now, do the same for the normalized version */
         /* ancestorndn holds the normalized version for iteration purposes and
            because dn2entry needs the normalized dn */
@@ -221,7 +219,7 @@ dn2ancestor(
                 slapi_sdn_set_ndn_byref(&ancestorndn, ptr); /* wipe out the previous contents */
                 /* now do the same for the unnormalized one */
                 ptr = slapi_dn_find_parent(slapi_sdn_get_dn(ancestordn));
-                slapi_sdn_set_dn_byref(ancestordn, ptr); /* wipe out the previous contents */
+                slapi_sdn_set_normdn_byref(ancestordn, ptr); /* wipe out the previous contents */
             }
         }
 
@@ -256,17 +254,20 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
 	}
 	else
 	{
-		Slapi_DN sdn;
-		slapi_sdn_init_dn_byref (&sdn, addr->dn); /* We assume that the DN is not normalized */
-		entry = dn2entry( be, &sdn, txn, &err );
-		slapi_sdn_done (&sdn);
+		if (addr->sdn) {
+			entry = dn2entry( be, addr->sdn, txn, &err );
+		} else {
+			err = 1;
+		}
 	}
 	if ( 0 != err && DB_NOTFOUND != err )
 	{
 		if(must_exist)
 		{
-			LDAPDebug( LDAP_DEBUG_ANY, "Operation error fetching %s (%s), error %d.\n", 
-				       addr->dn, (addr->uniqueid==NULL?"null":addr->uniqueid), err );
+			LDAPDebug( LDAP_DEBUG_ANY,
+			           "Operation error fetching %s (%s), error %d.\n", 
+			           addr->sdn?slapi_sdn_get_dn(addr->sdn):"Null DN",
+			           (addr->uniqueid==NULL?"null":addr->uniqueid), err );
 		}
 		if ( LDAP_INVALID_DN_SYNTAX == err ) {
 			rc = LDAP_INVALID_DN_SYNTAX; /* respect the error */
@@ -280,9 +281,9 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
 		if(entry!=NULL)
 		{
 			ldbm_instance *inst;
-	    	slapi_pblock_set( pb, plock_parameter, slapi_entry_dup(entry->ep_entry));
+			slapi_pblock_set( pb, plock_parameter, slapi_entry_dup(entry->ep_entry));
 			inst = (ldbm_instance *) be->be_instance_info;
-		    CACHE_RETURN( &inst->inst_cache, &entry );
+			CACHE_RETURN( &inst->inst_cache, &entry );
 		}
 	}
 	/* JCMREPL - Free the backentry? */

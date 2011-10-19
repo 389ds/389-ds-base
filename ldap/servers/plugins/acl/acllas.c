@@ -671,19 +671,17 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					break;
 				}
 				if (rc == ACL_ERR) {
-			   		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-			    			"DS_LASUserDnEval:Error in matching patteren(%s)\n",
-			     			user);
+					slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
+							"DS_LASUserDnEval:Error in matching patteren(%s)\n",
+							user);
 				}
 				slapi_filter_free(f,1);
 			} else {
 				/* Must be a simple dn then */
-				char *normed = NULL;
-				size_t dnlen = 0;
-				rc = slapi_dn_normalize_ext(user, 0, &normed, &dnlen);
-				if (rc == 0) { /* user passed in; not terminated */
-					*(normed + dnlen) = '\0';
-				} else if (rc < 0) { /* normalization failed, user the original */
+				char *normed = slapi_create_dn_string("%s", user);
+				if (NULL == normed) {
+					slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+						"DS_LASUserDnEval:Error in normalizing dn(%s)\n", user);
 					normed = user;
 				}
 				rc = slapi_utf8casecmp((ACLUCHP)lasinfo.clientDn, (ACLUCHP)normed);
@@ -2375,7 +2373,7 @@ static int
 acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 {
 	struct eval_info	*info;
- 	Slapi_Attr		*currAttr, *nextAttr;
+	Slapi_Attr		*currAttr, *nextAttr;
 	char			*n_dn = NULL, *attrType;
 	int				n;
 	int				i;
@@ -2383,7 +2381,7 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 	info = (struct eval_info *) callback_data;
 	info->result = ACL_FALSE;
  
- 	if (e == NULL) {
+	if (e == NULL) {
 		return 0;
 	}
 
@@ -2397,14 +2395,14 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 		Slapi_Value *sval = NULL;
 		const struct berval		*attrVal;
 
- 		if ((strcasecmp (attrType, type_member) == 0) ||
- 				(strcasecmp (attrType, type_uniquemember) == 0 ))  {
+		if ((strcasecmp (attrType, type_member) == 0) ||
+		    (strcasecmp (attrType, type_uniquemember) == 0 ))  {
 
 			i = slapi_attr_first_value ( currAttr,&sval );
 			while ( i != -1 ) {
 				struct member_info	*groupMember = NULL;
 				attrVal = slapi_value_get_berval ( sval );
-				n_dn = slapi_create_dn_string( attrVal->bv_val );
+				n_dn = slapi_create_dn_string( "%s", attrVal->bv_val );
 				if (NULL == n_dn) {
 					slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
 						"acllas__handle_group_entry: Invalid syntax: %s\n",
@@ -3496,7 +3494,6 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	Slapi_Filter	*f = NULL;
 	char *rawdn = NULL;
 	char *dn = NULL;
-	size_t dnlen = 0;
 	char *p = NULL;
 	char *normed = NULL;
 	/* ldap(s)://host:port/suffix?attrs?scope?filter */
@@ -3588,26 +3585,22 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		/* url has scope and/or filter: ldap(s):///suffix?attr?scope?filter */
 		*p = '\0'; /* null terminate the dn part of rawdn */
 	}
-	rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
-	if (rc < 0) {
+	dn = slapi_create_dn_string("%s", rawdn);
+	if (NULL == dn) {
 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
-						 "acllas__client_match_URL: error normalizing dn [%s] part of URL [%s]\n", rawdn, url);
+		                 "acllas__client_match_URL: error normalizing dn [%s] part of URL [%s]\n",
+		                 rawdn, url);
 		goto done;
-	} else if (rc == 0) { /* url is passed in and not terminated with NULL*/
-		*(dn + dnlen) = '\0';
 	}
-	/* else - rawdn normalized in place */
+
 	normed = slapi_ch_smprintf("%s%s%s%s%s", 
-			 (prefix_len==LDAP_URL_prefix_len)?
-			  LDAP_URL_prefix_core:LDAPS_URL_prefix_core,
-							   hostport?hostport:"", dn, p?"?":"",p?p+1:"");
+	                           (prefix_len==LDAP_URL_prefix_len)?
+	                           LDAP_URL_prefix_core:LDAPS_URL_prefix_core,
+	                           hostport?hostport:"", dn, p?"?":"",p?p+1:"");
 	if (p) {
 		*p = Q; /* put the Q back in rawdn which will un-null terminate the DN part */
 	}
-	if (rc > 0) {
-		/* dn was allocated in slapi_dn_normalize_ext */
-		slapi_ch_free_string(&dn);
-	}
+	slapi_ch_free_string(&dn);
 	rc = slapi_ldap_url_parse(normed, &ludp, 1, NULL);
 	if (rc) {
 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,

@@ -338,8 +338,8 @@ multimaster_betxnpostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbetxnpostopdesc ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN, (void *) multimaster_betxnpostop_modrdn ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN, (void *) multimaster_betxnpostop_delete ) != 0 ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN, (void *) multimaster_betxnpostop_modrdn ) != 0 ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN, (void *) multimaster_betxnpostop_delete ) != 0 )
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN, (void *) multimaster_betxnpostop_add ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN, (void *) multimaster_betxnpostop_modify ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_betxnpostop_init failed\n" );
 		rc= -1;

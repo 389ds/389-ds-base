@@ -186,12 +186,13 @@ ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
 	int is_reference )
 {
     int			i, len, scope;
+    Slapi_DN    *sdn = NULL;
     char		*p, *opdn_norm;
     struct berval	**urlscopy;
     Operation		*op;
 
     if ( NULL == urls || NULL == urls[0] ) {
-	return( NULL );
+        return( NULL );
     }
 
     PR_ASSERT( pb != NULL );
@@ -200,20 +201,20 @@ ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
      * grab the operation target DN and operation structure.
      * if the operation is a search, get the scope as well.
      */
-    if ( slapi_pblock_get( pb, SLAPI_TARGET_DN, &p ) != 0 || p == NULL ||
-	    slapi_pblock_get( pb, SLAPI_OPERATION, &op ) != 0 || op == NULL ||
-	    ( operation_get_type(op) == SLAPI_OPERATION_SEARCH && slapi_pblock_get( pb,
-	    SLAPI_SEARCH_SCOPE, &scope ) != 0 )) {
-	LDAPDebug( LDAP_DEBUG_ANY, "ref_adjust: referrals suppressed "
-		"(could not get target DN, operation, or scope from pblock)\n",
-		0, 0, 0 );
-	return( NULL );
+    if ( slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn ) != 0 || sdn == NULL ||
+         slapi_pblock_get( pb, SLAPI_OPERATION, &op ) != 0 || op == NULL ||
+         ( operation_get_type(op) == SLAPI_OPERATION_SEARCH && slapi_pblock_get( pb,
+        SLAPI_SEARCH_SCOPE, &scope ) != 0 )) {
+        LDAPDebug0Args( LDAP_DEBUG_ANY, "ref_adjust: referrals suppressed "
+                        "(could not get target DN, operation, "
+                        "or scope from pblock)\n" );
+        return( NULL );
     }
 
     /*
      * normalize the DNs we plan to compare with others later.
      */
-    opdn_norm = slapi_dn_normalize( slapi_ch_strdup( p ));
+    opdn_norm = slapi_ch_strdup( slapi_sdn_get_dn(sdn) );
 
 
     /*
@@ -355,7 +356,7 @@ adjust_referral_basedn( char **urlp, const Slapi_DN *refsdn,
 			 * Prepend the portion of the operation DN that does not match
 			 * the ref container DN to the referral baseDN.
 			 */
-			add_len = strlen( opdn_norm ) - strlen( slapi_sdn_get_ndn(refsdn) );
+			add_len = strlen( opdn_norm ) - slapi_sdn_get_ndn_len( refsdn );
 			cur_len = strlen( *urlp );
 			/* + 7 because we keep extra space in case we add ??base */
 			*urlp = slapi_ch_realloc( *urlp, cur_len + add_len + 7 );
@@ -377,7 +378,7 @@ adjust_referral_basedn( char **urlp, const Slapi_DN *refsdn,
 			add_len = strlen(opdn_norm);
 			p = opdn_norm;
 		} else {
-			add_len = strlen(slapi_sdn_get_ndn(refsdn));
+			add_len = slapi_sdn_get_ndn_len(refsdn);
 			p = (char *)slapi_sdn_get_ndn(refsdn);
 		}
 		

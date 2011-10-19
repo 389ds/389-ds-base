@@ -947,7 +947,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		 * But what do we do if mapping tree could not be updated ? */
 
 		/* start the bulk import */
-        slapi_pblock_set (pb, SLAPI_TARGET_DN, repl_root);
+        slapi_pblock_set (pb, SLAPI_TARGET_SDN, repl_root_sdn);
         rc = slapi_start_bulk_import (pb);
         if (rc != LDAP_SUCCESS)
         {
@@ -1090,10 +1090,8 @@ send_response:
 	slapi_ch_free((void **)&replicacsnstr);
 
 	/* repl_root_sdn */
-	if (NULL != repl_root_sdn)
-	{
-		slapi_sdn_free(&repl_root_sdn);
-	}
+	slapi_sdn_free(&repl_root_sdn);
+
 	if (NSDS50_REPL_REPLICA_READY != response)
 	{
 		/*
@@ -1163,6 +1161,7 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 {
 	int return_value = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
 	char *repl_root = NULL;
+	Slapi_DN *repl_root_sdn = NULL;
 	BerElement *resp_bere = NULL;
 	struct berval *resp_bval = NULL;
 	ber_int_t response;
@@ -1208,8 +1207,16 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 				   enabled again */
 				replica_set_state_flag(r, REPLICA_TOTAL_IN_PROGRESS, PR_TRUE /* clear  flag */);
 
-                slapi_pblock_set (pb, SLAPI_TARGET_DN, repl_root);
-				slapi_stop_bulk_import (pb); 
+                /* slapi_pblock_set (pb, SLAPI_TARGET_DN, repl_root); */
+                /* Verify that repl_root names a valid replicated area */
+                if ((repl_root_sdn = slapi_sdn_new_dn_byref(repl_root)) == NULL)
+                {
+                    response = NSDS50_REPL_INTERNAL_ERROR;
+                    goto send_response;
+                }
+                slapi_pblock_set (pb, SLAPI_TARGET_SDN, repl_root_sdn);
+
+                slapi_stop_bulk_import (pb); 
 
                 /* ONREPL - this is a bit of a hack. Once bulk import is finished,
                    the replication function that responds to backend state change 
@@ -1273,7 +1280,7 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			goto free_and_return; 
 		}
 	}
-
+send_response:
 	/* Send the response code */
 	if ((resp_bere = der_alloc()) == NULL)
 	{
@@ -1290,6 +1297,8 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 free_and_return:
 	/* repl_root */
 	slapi_ch_free((void **)&repl_root);
+
+	slapi_sdn_free(&repl_root_sdn);
 
 	/* BerElement */
 	if (NULL != resp_bere)

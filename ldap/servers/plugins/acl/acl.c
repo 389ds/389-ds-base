@@ -95,8 +95,8 @@ static void print_access_control_summary( char * source,
 									char *attr,
 									const char *edn,
 									aclResultReason_t *acl_reason);
-static int check_rdn_access( Slapi_PBlock *pb,Slapi_Entry *e, char * newrdn,
-						int access);
+static int check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, 
+                             const char * newrdn, int access);
 
 
 /*
@@ -117,7 +117,9 @@ acl_access_allowed_modrdn(
 	)
 {
 	int retCode ;
-	char *newrdn, *oldrdn;
+	char *newrdn;
+	const char *oldrdn;
+	Slapi_DN *target_sdn = NULL;
 	int deleteoldrdn = 0;
 
 	/*
@@ -134,9 +136,8 @@ acl_access_allowed_modrdn(
 	}
 
 	/* Now get the new rdn attribute name and value */
-
-	slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &oldrdn );
-    slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
+	slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &target_sdn );
+	slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
 
 	/* Check can add the new naming attribute */
 	retCode = check_rdn_access( pb, e, newrdn, ACLPB_SLAPI_ACL_WRITE_ADD) ;
@@ -149,6 +150,7 @@ acl_access_allowed_modrdn(
 	/* Check can delete the new naming attribute--if required */
 	slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &deleteoldrdn );
 	if ( deleteoldrdn ) {
+		oldrdn = slapi_sdn_get_dn(target_sdn);
 		retCode = check_rdn_access( pb, e, oldrdn, ACLPB_SLAPI_ACL_WRITE_DEL) ;
 		if ( retCode != LDAP_SUCCESS ) {
 			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
@@ -164,7 +166,7 @@ acl_access_allowed_modrdn(
  * Test if have access to make the first rdn of dn in entry e.
 */
  
-static int check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, char *dn,
+static int check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, const char *dn,
 						int access) {
 	
 	char **dns;
@@ -320,7 +322,7 @@ acl_access_allowed(
 	TNF_PROBE_0_DEBUG(acl_skipaccess_end,"ACL","");
 
 
-	/* Get the bindDN */
+	/* Get the bindDN (normalized & case-ignored) */
 	slapi_pblock_get ( pb, SLAPI_REQUESTOR_DN, &clientDn );
 
 	/* Initialize aclpb */
@@ -486,7 +488,7 @@ acl_access_allowed(
 		
 		TNF_PROBE_0_DEBUG(acl_aciscan_start,"ACL","");
 		slapi_sdn_done ( aclpb->aclpb_curr_entry_sdn );
-		slapi_sdn_set_dn_byval ( aclpb->aclpb_curr_entry_sdn, n_edn );
+		slapi_sdn_set_ndn_byval ( aclpb->aclpb_curr_entry_sdn, n_edn );
 		acllist_aciscan_update_scan ( aclpb, n_edn ); 
 		TNF_PROBE_0_DEBUG(acl_aciscan_end,"ACL","");
 
@@ -1064,16 +1066,14 @@ acl_read_access_allowed_on_entry (
 				 * which was found in the entry and that attribute is
 				 * now in aclpb_Evalattr
 				*/
-				aclpb->aclpb_state |= 
-					ACLPB_ACCESS_ALLOWED_USERATTR;
+				aclpb->aclpb_state |= ACLPB_ACCESS_ALLOWED_USERATTR;
 			} else {
 #endif /* DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES */
 				/*
 				 * Access was granted to _an_ attribute in the entry and that
 				 * attribute is now in aclpb_Evalattr
 				*/
-				aclpb->aclpb_state |= 
-					ACLPB_ACCESS_ALLOWED_ON_A_ATTR;
+				aclpb->aclpb_state |= ACLPB_ACCESS_ALLOWED_ON_A_ATTR;
 #ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
 			}
 #endif /* DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES */
@@ -1084,8 +1084,8 @@ acl_read_access_allowed_on_entry (
 		} else {
 			/* try the next one */
 			attr_type = NULL;
-#ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
-			if (attr_index >= 0) { 
+#ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES 
+			if (attr_index >= 0) {
 				attr_type = attrs[attr_index++];
 			} else {
 #endif /* DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES */
@@ -1546,7 +1546,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 	Slapi_DN		*e_sdn;
 	aclUserGroup	*ugroup = NULL;
 	
-	e_sdn = slapi_sdn_new_ndn_byval ( n_dn );
+	e_sdn = slapi_sdn_new_normdn_byval ( n_dn );
 	/* Before we proceed, Let's first check if we are changing any groups.
 	** If we are, then we need to change the signature
 	*/
@@ -1836,7 +1836,6 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 	int				allow_handle;
 	int				gen_allow_handle = ACI_MAX_ELEVEL+1;
 	int				gen_deny_handle = ACI_MAX_ELEVEL+1;
-	int				i;
 	PRUint32		cookie;
 	
 	TNF_PROBE_0_DEBUG(acl__scan_for_acis_start,"ACL","");
@@ -1849,20 +1848,18 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 			aclpb->aclpb_handles_index[0] != -1 ) {
 			int kk = 0;
 			while ( kk < ACLPB_MAX_SELECTED_ACLS && aclpb->aclpb_handles_index[kk] != -1 ) {
-				slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Using ACL Cointainer:%d for evaluation\n", kk);
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Using ACL Container:%d for evaluation\n", kk);
 				kk++;
 			}
 	}
-		
+
 	memset (&errp, 0, sizeof(NSErr_t));
 	*err = ACL_FALSE;
 	aclpb->aclpb_num_deny_handles = -1;
 	aclpb->aclpb_num_allow_handles = -1;
-	for (i=0; i <= ACI_MAX_ELEVEL; i++) {
-		aclpb->aclpb_deny_handles [i] = NULL;
-		aclpb->aclpb_allow_handles [i] = NULL;
-	}
-		
+	memset(aclpb->aclpb_deny_handles, 0, sizeof(aci_t *)*(ACI_MAX_ELEVEL+1));
+	memset(aclpb->aclpb_allow_handles, 0, sizeof(aci_t *)*(ACI_MAX_ELEVEL+1));
+
 	/* Check the signature. If it has changed, start fresh */
 	if ( aclpb->aclpb_signature != acl_signature ) {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
@@ -1873,7 +1870,6 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 	attr_matched = ACL_FALSE;
 	deny_handle = 0;
 	allow_handle = 0;
-	i = 0;
 
 	aclpb->aclpb_stat_acllist_scanned++;
 	aci = acllist_get_first_aci ( aclpb, &cookie );

@@ -50,7 +50,7 @@
 /*
  * function prototypes
  */
-static int dn_is_underneath_suffix( PassThruSuffix *suffix, char *normdn,
+static int dn_is_underneath_suffix( PassThruSuffix *suffix, const char *normdn,
     int dnlen );
 static void close_and_dispose_connection( PassThruConnection *conn );
 static void check_for_stale_connections( PassThruServer *srvr );
@@ -107,7 +107,7 @@ static void check_for_stale_connections( PassThruServer *srvr );
  *	LDAP_NO_SUCH_OBJECT	let this server handle the bind.
  */
 int
-passthru_dn2server( PassThruConfig *cfg, char *normdn, PassThruServer **srvrp )
+passthru_dn2server( PassThruConfig *cfg, const char *normdn, PassThruServer **srvrp )
 {
     PassThruServer	*ptsrvr;
     PassThruSuffix	*ptsuffix;
@@ -360,7 +360,7 @@ passthru_close_all_connections( PassThruConfig *cfg )
  * return non-zero value if normdn falls underneath a suffix
  */
 static int
-dn_is_underneath_suffix( PassThruSuffix *suffix, char *normdn, int dnlen )
+dn_is_underneath_suffix( PassThruSuffix *suffix, const char *normdn, int dnlen )
 {
     PASSTHRU_ASSERT( suffix != NULL );
     PASSTHRU_ASSERT( normdn != NULL );
@@ -368,7 +368,7 @@ dn_is_underneath_suffix( PassThruSuffix *suffix, char *normdn, int dnlen )
 
     return ( suffix->ptsuffix_len <= dnlen &&
 	    slapi_UTF8CASECMP( suffix->ptsuffix_normsuffix,
-	    normdn + ( dnlen - suffix->ptsuffix_len )) == 0 );
+	    (char *)normdn + ( dnlen - suffix->ptsuffix_len )) == 0 );
 }
 
 

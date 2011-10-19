@@ -189,7 +189,7 @@ vlvSearch_init(struct vlvSearch* p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
             slapi_pblock_set(pb, SLAPI_PLUGIN, inst->inst_be->be_database);
             slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
 
-            addr.dn = (char*)slapi_sdn_get_ndn (p->vlv_base);
+            addr.sdn = p->vlv_base;
             addr.uniqueid = NULL;
             e = find_entry( pb, inst->inst_be, &addr, &txn );
             /* Check to see if the entry is absent. If it is, mark this search

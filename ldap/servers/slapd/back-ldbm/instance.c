@@ -141,6 +141,7 @@ int ldbm_instance_create(backend *be, char *name)
     goto done;
 
 error:
+    slapi_ch_free_string(&inst->inst_name);
     slapi_ch_free((void**)&inst);
 
 done:

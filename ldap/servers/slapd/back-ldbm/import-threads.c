@@ -521,6 +521,7 @@ import_producer(void *param)
         if (!(str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR) &&
             entryrdn_get_switch()) { /* subtree-rename: on */
             char *dn = NULL;
+            char *normdn = NULL;
             int rc = 0; /* estr should start with "dn: " or "dn:: " */
             if (strncmp(estr, "dn: ", 4) &&
                 NULL == strstr(estr, "\ndn: ") && /* in case comments precedes
@@ -541,8 +542,11 @@ import_producer(void *param)
                 FREE(estr);
                 continue;
             }
-            e = slapi_str2entry_ext(dn, estr, flags|SLAPI_STR2ENTRY_NO_ENTRYDN);
+            normdn = slapi_create_dn_string("%s", dn);
             slapi_ch_free_string(&dn);
+            e = slapi_str2entry_ext(normdn, estr, 
+                                    flags|SLAPI_STR2ENTRY_NO_ENTRYDN);
+            slapi_ch_free_string(&normdn);
         } else {
             e = slapi_str2entry(estr, flags);
         }
@@ -1038,16 +1042,16 @@ index_producer(void *param)
                     }
                 }
             } else {
-                char *dn = NULL;
+                char *normdn = NULL;
                 struct backdn *bdn = 
                                   dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
                     /* don't free dn */
-                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
+                    normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                 } else {
                     Slapi_DN *sdn = NULL;
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL);
+                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &normdn, NULL);
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
@@ -1090,21 +1094,21 @@ index_producer(void *param)
                                 continue;
                             }
                         }
-                        dn = slapi_ch_smprintf("%s%s%s",
+                        normdn = slapi_ch_smprintf("%s%s%s",
                                                rdn, pdn?",":"", pdn?pdn:"");
                         slapi_ch_free_string(&pdn);
                     }
                     /* dn is not dup'ed in slapi_sdn_new_dn_byref.
                      * It's set to bdn and put in the dn cache. */
-                    sdn = slapi_sdn_new_dn_byref(dn);
+                    sdn = slapi_sdn_new_normdn_byref(normdn);
                     bdn = backdn_init(sdn, temp_id, 0);
                     CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                     slapi_log_error(SLAPI_LOG_CACHE, "ldbm2index",
                                     "entryrdn_lookup_dn returned: %s, "
-                                    "and set to dn cache\n", dn);
+                                    "and set to dn cache\n", normdn);
                 }
-                e = slapi_str2entry_ext(dn, data.dptr, 
+                e = slapi_str2entry_ext(normdn, data.dptr, 
                                         SLAPI_STR2ENTRY_NO_ENTRYDN);
                 slapi_ch_free_string(&rdn);
             }
@@ -1283,7 +1287,7 @@ upgradedn_producer(void *param)
     struct upgradedn_attr *ud_ptr = NULL;
     Slapi_Attr *ud_attr = NULL;
     char *ecopy = NULL;
-    char *dn = NULL;
+    const char *normdn = NULL;
 
     /* vars for Berkeley DB */
     DB_ENV *env = NULL;
@@ -1384,7 +1388,7 @@ upgradedn_producer(void *param)
         ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
         memcpy(ecopy, data.dptr, data.dsize);
         *(ecopy + data.dsize) = '\0';
-        dn = NULL;
+        normdn = NULL;
         doit = 0;
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
@@ -1400,10 +1404,11 @@ upgradedn_producer(void *param)
                                   dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
                     /* don't free dn */
-                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
+                    normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                 } else {
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL);
+                    rc = entryrdn_lookup_dn(be, rdn, temp_id,
+                                            (char **)&normdn, NULL);
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
@@ -1446,21 +1451,21 @@ upgradedn_producer(void *param)
                                 continue;
                             }
                         }
-                        dn = slapi_ch_smprintf("%s%s%s",
+                        normdn = slapi_ch_smprintf("%s%s%s",
                                                rdn, pdn?",":"", pdn?pdn:"");
                         slapi_ch_free_string(&pdn);
                     }
                     /* dn is not dup'ed in slapi_sdn_new_dn_byref.
                      * It's set to bdn and put in the dn cache. */
-                    sdn = slapi_sdn_new_dn_byref(dn);
+                    sdn = slapi_sdn_new_normdn_byref(normdn);
                     bdn = backdn_init(sdn, temp_id, 0);
                     CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                     slapi_log_error(SLAPI_LOG_CACHE, "ldbm2index",
                                     "entryrdn_lookup_dn returned: %s, "
-                                    "and set to dn cache\n", dn);
+                                    "and set to dn cache\n", normdn);
                 }
-                e = slapi_str2entry_ext(dn, data.dptr, 
+                e = slapi_str2entry_ext(normdn, data.dptr, 
                                         SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
                 slapi_ch_free_string(&rdn);
             }
@@ -1485,23 +1490,13 @@ upgradedn_producer(void *param)
          * SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT
          * -- normalize it with the new format
          */
-        if (!dn) {
-            get_value_from_string((const char *)ecopy, "dn", &dn);
+        if (!normdn) {
+            get_value_from_string((const char *)ecopy, "dn", (char **)&normdn);
         }
-        if (dn) {
-            char *dest = NULL;
-            size_t dest_len = 0;
-
-            rc = slapi_dn_normalize_ext(dn, strlen(dn), &dest, &dest_len);
-            if (rc > 0) {
-                slapi_ch_free_string(&dn);
-                dn = dest;
-            } else {
-                *(dn + dest_len) = '\0'; /* src is passed in; 
-                                             it's possible dn_len < dest_len */
-            }
+        if (normdn) {
             slapi_sdn_done(&(e->e_sdn));
-            slapi_sdn_init_dn_passin(&(e->e_sdn), dn);
+            slapi_sdn_init_dn_passin(&(e->e_sdn), normdn);
+            normdn = slapi_sdn_get_dn(&(e->e_sdn));
         }
 
         /* From here, e != NULL */
@@ -1559,7 +1554,7 @@ upgradedn_producer(void *param)
                 if (rc) {
                     LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to add rdn values "
                               "to an entry: %s (id %lu)\n",
-                              inst->inst_name, dn, (u_long)temp_id);
+                              inst->inst_name, normdn, (u_long)temp_id);
                     slapi_entry_free(e); e = NULL;
                     continue;
                 }
@@ -1636,7 +1631,7 @@ upgradedn_producer(void *param)
                                 LDAPDebug(LDAP_DEBUG_ANY,
                                           "%s: Failed to add rdn values "
                                           "to an entry: %s (id %lu)\n",
-                                          inst->inst_name, dn, (u_long)temp_id);
+                                          inst->inst_name, normdn, (u_long)temp_id);
                                 slapi_entry_free(e); e = NULL;
                                 continue;
                             }
@@ -2251,12 +2246,11 @@ import_foreman(void *param)
                 char *new_dn = NULL;
                 char *orig_dn = 
                       slapi_ch_strdup(slapi_entry_get_dn(fi->entry->ep_entry));
-                int rc = 0;
                 nsuniqueid = attrlist_find(fi->entry->ep_entry->e_attrs,
                                            "nsuniqueid");
                 if (nsuniqueid) {
                     Slapi_Value *uival = NULL;
-                    rc = slapi_attr_first_value(nsuniqueid, &uival);
+                    slapi_attr_first_value(nsuniqueid, &uival);
                     uuidstr = slapi_value_get_string(uival);
                 } else {
                     import_log_notice(job, "ERROR: Failed to get nsUniqueId "
@@ -3453,9 +3447,8 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
 {
     int rc = -1;
     struct backdn *bdn = NULL;
-    struct ldbminfo  *li = NULL;
     Slapi_Entry *e = NULL;
-    char *dn = NULL;
+    char *normdn = NULL;
 
     if (!entryrdn_get_switch()) { /* entryrdn specific function */
         return rc;
@@ -3466,7 +3459,6 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                         NULL==inst?"inst":"srdn");
         return rc;
     }
-    li = inst->inst_li;
 
     /* first, try the dn cache */
     bdn = dncache_find_id(&inst->inst_dncache, id);
@@ -3563,8 +3555,8 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
             }
         }
 
-        dn = NULL;
-        rc = slapi_rdn_get_dn(&mysrdn, &dn);
+        normdn = NULL;
+        rc = slapi_rdn_get_dn(&mysrdn, &normdn);
         if (rc) {
             LDAPDebug2Args( LDAP_DEBUG_ANY,
                                 "import_get_and_add_parent_rdns: "
@@ -3572,7 +3564,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                                 "from Slapi_RDN\n", rdn, id);
             goto bail;
         }
-        e = slapi_str2entry_ext(dn, data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+        e = slapi_str2entry_ext(normdn, data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
         (*curr_entry)++;
         rc = index_set_entry_to_fifo(info, e, id, total_id, *curr_entry);
         if (rc) {

@@ -65,41 +65,44 @@ chaining_back_add ( Slapi_PBlock *pb )
 	char         		**referrals=NULL;
 	LDAPMod			** mods;
 	LDAPMessage		* res;
-	char 			*dn,* matched_msg, *error_msg;
+	char 			* matched_msg, *error_msg;
+	const char		*dn = NULL;
+	Slapi_DN		*sdn = NULL;
 	char			*cnxerrbuf=NULL;
-   	time_t 			endtime;
+	time_t 			endtime;
 	cb_outgoing_conn	*cnx;
 	
 	if ( (rc=cb_forward_operation(pb)) != LDAP_SUCCESS ) {
-               	cb_send_ldap_result( pb, rc, NULL, "Remote data access disabled", 0, NULL );
+		cb_send_ldap_result( pb, rc, NULL, "Remote data access disabled", 0, NULL );
 		return -1;
 	}
 
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	cb = cb_get_instance(be);
 
 	/* Update monitor info */
 	cb_update_monitor_info(pb,cb,SLAPI_OPERATION_ADD);
 
 	/* Check wether the chaining BE is available or not */
-        if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
+	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
 	  return -1;
-        }
+	}
 
+	slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn );
+	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
 
- 	slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn );
-        slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
+	dn = slapi_sdn_get_dn(sdn);
 
 	/* Check local access controls */
 	if (cb->local_acl && !cb->associated_be_is_disabled) {
 		char * errbuf=NULL;
-        	rc = cb_access_allowed (pb, e, NULL, NULL, SLAPI_ACL_ADD, &errbuf);
-   		if ( rc != LDAP_SUCCESS ) {
-                	cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
-                	slapi_ch_free((void **)&errbuf);
+		rc = cb_access_allowed (pb, e, NULL, NULL, SLAPI_ACL_ADD, &errbuf);
+		if ( rc != LDAP_SUCCESS ) {
+			cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
+			slapi_ch_free((void **)&errbuf);
 			return -1;
 		}
-        }
+	}
 
 	/* Build LDAPMod from the SLapi_Entry */
 	cb_eliminate_illegal_attributes(cb,e);

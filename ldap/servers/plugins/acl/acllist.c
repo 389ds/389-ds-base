@@ -597,7 +597,7 @@ static void free_targetattrfilters( Targetattrfilter ***attrFilterArray) {
 
 /* SEARCH */
 void
-acllist_init_scan (Slapi_PBlock *pb, int scope, char *base)
+acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 {
 	Acl_PBlock			*aclpb;
 	int					i;
@@ -625,7 +625,7 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, char *base)
 
 	/* If base is NULL - it means we are going to go thru all the ACLs
 	 * This is needed when we do anonymous profile generation.
- 	 */
+	 */
 	if ( NULL == base ) {
 		return;
 	}
@@ -638,22 +638,28 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, char *base)
 	index = 0;
 	aclpb->aclpb_search_base = slapi_ch_strdup ( base );
 
-	while (basedn ) {
+	while (basedn) {
 		char		*tmp = NULL;
 		
-		slapi_sdn_set_ndn_byref ( aclpb->aclpb_aclContainer->acic_sdn, basedn );
+		slapi_sdn_set_normdn_byref(aclpb->aclpb_aclContainer->acic_sdn, basedn);
 
-		root = (AciContainer *) avl_find( acllistRoot, 
-									(caddr_t) aclpb->aclpb_aclContainer, 
-									(IFP) __acllist_aciContainer_node_cmp);
+		root = (AciContainer *) avl_find(acllistRoot, 
+		                                 (caddr_t) aclpb->aclpb_aclContainer, 
+		                                 (IFP) __acllist_aciContainer_node_cmp);
 		if ( index >= ACLPB_MAX_SELECTED_ACLS -2 ) {
 			aclpb->aclpb_handles_index[0] = -1;
 			slapi_ch_free ( (void **) &basedn);
 			break;
-		} else  if ( NULL != root ) {
+		} else if ( NULL != root ) {
 			aclpb->aclpb_base_handles_index[index++] = root->acic_index;
 			aclpb->aclpb_base_handles_index[index] = -1;
-		} 
+		} else if ( NULL == root ) {
+			/* slapi_dn_parent returns the "parent" dn syntactically.
+			 * Most likely, basedn is above suffix (e.g., dn=com).
+			 * Thus, no need to make it FATAL. */
+			slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
+			                  "Failed to find root for base: %s \n", basedn );
+		}
 		tmp = slapi_dn_parent ( basedn );
 		slapi_ch_free ( (void **) &basedn);
 		basedn = tmp;
@@ -679,11 +685,12 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, char *base)
  * the given operation.
 */
 
+/* edn is normalized & case-ignored */
 void 
 acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 {
 
-	int		i, index = 0;
+	int		index = 0;
 	char		*basedn = NULL;
 	AciContainer	*root;
 	int is_not_search_base = 1;
@@ -700,15 +707,13 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 	 * This stuff is only used if it's a search operation.
 	 */
 	if ( aclpb->aclpb_search_base ) {
-	 	while ( aclpb->aclpb_base_handles_index[index] != -1 &&
-				index < ACLPB_MAX_SELECTED_ACLS -2 ) {
-			aclpb->aclpb_handles_index[index] = 
-				aclpb->aclpb_base_handles_index[index];
-			index++;
-		}
 		if ( strcasecmp ( edn, aclpb->aclpb_search_base) == 0) {
 			is_not_search_base = 0;
 		}
+		for (index = 0; (aclpb->aclpb_base_handles_index[index] != -1) && 
+		                (index < ACLPB_MAX_SELECTED_ACLS - 2); index++) ;
+		memcpy(aclpb->aclpb_handles_index, aclpb->aclpb_base_handles_index,
+		       sizeof(*aclpb->aclpb_handles_index) * index);
 	}
 	aclpb->aclpb_handles_index[index] = -1;
 
@@ -760,11 +765,6 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 	}
 
 	acllist_done_aciContainer ( aclpb->aclpb_aclContainer );
-	i = 0;
-	while ( i < ACLPB_MAX_SELECTED_ACLS && aclpb->aclpb_handles_index[i]  != -1 ) {
-		i++;
-	}
-
 }
 
 aci_t *
@@ -889,6 +889,7 @@ acllist_acicache_WRITE_LOCK( )
 }
 
 /* This routine must be called with the acicache write lock taken */
+/* newdn is normalized & case-ignored */
 int
 acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
 {

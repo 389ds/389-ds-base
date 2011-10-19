@@ -1060,7 +1060,7 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
                         "cl5ImportLDIF: "
                         "failed to write operation to the changelog: "
                         "type: %lu, dn: %s\n",
-                        op.operation_type, op.target_address.dn);
+                        op.operation_type, REPL_GET_DN(&op.target_address));
                 slapi_ch_free_string(&replGen);
                 operation_parameters_done (&op);
                 goto done;
@@ -1080,7 +1080,7 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
                         "cl5ImportLDIF: "
                         "failed to write operation to the changelog: "
                         "type: %lu, dn: %s\n",
-                        op.operation_type, op.target_address.dn);
+                        op.operation_type, REPL_GET_DN(&op.target_address));
                 object_release (replica_obj);
                 slapi_ch_free_string(&replGen);
 				operation_parameters_done (&op);
@@ -2150,7 +2150,7 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 										}
 										break;
 
-		case SLAPI_OPERATION_MODIFY:	size += strlen (op->target_address.dn) + 1;
+		case SLAPI_OPERATION_MODIFY:	size += REPL_GET_DN_LEN(&op->target_address) + 1;
 										/* Need larger buffer for the encrypted changelog */
 										if (s_cl5Desc.clcrypt_handle) {
 											size += (_cl5GetModsSize (op->p.p_modify.modify_mods) * (1 + BACK_CRYPT_OUTBUFF_EXTLEN));
@@ -2159,11 +2159,11 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 										}
 										break;
 
-		case SLAPI_OPERATION_MODRDN:	size += strlen (op->target_address.dn) + 1;
+		case SLAPI_OPERATION_MODRDN:	size += REPL_GET_DN_LEN(&op->target_address) + 1;
 										/* 1 for deleteoldrdn */
 										size += strlen (op->p.p_modrdn.modrdn_newrdn) + 2; 
-										if (op->p.p_modrdn.modrdn_newsuperior_address.dn)
-											size += strlen (op->p.p_modrdn.modrdn_newsuperior_address.dn) + 1;
+										if (REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address))
+											size += REPL_GET_DN_LEN(&op->p.p_modrdn.modrdn_newsuperior_address) + 1;
 										else
 											size ++; /* for NULL char */
 										if (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid)
@@ -2178,7 +2178,7 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 										}
 										break;
 
-		case SLAPI_OPERATION_DELETE:	size += strlen (op->target_address.dn) + 1;
+		case SLAPI_OPERATION_DELETE:	size += REPL_GET_DN_LEN(&op->target_address) + 1;
 										break;
 	}	
 
@@ -2218,20 +2218,20 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 										ldap_mods_free (add_mods, 1);
 										break;
 
-		case SLAPI_OPERATION_MODIFY:	_cl5WriteString (op->target_address.dn, &pos);
+		case SLAPI_OPERATION_MODIFY:	_cl5WriteString (REPL_GET_DN(&op->target_address), &pos);
 										_cl5WriteMods (op->p.p_modify.modify_mods, &pos);
 										break;
 
-		case SLAPI_OPERATION_MODRDN:	_cl5WriteString (op->target_address.dn, &pos);
+		case SLAPI_OPERATION_MODRDN:	_cl5WriteString (REPL_GET_DN(&op->target_address), &pos);
 										_cl5WriteString (op->p.p_modrdn.modrdn_newrdn, &pos);
 										*pos = (PRUint8)op->p.p_modrdn.modrdn_deloldrdn;	 
 										pos ++;
-										_cl5WriteString (op->p.p_modrdn.modrdn_newsuperior_address.dn, &pos);
+										_cl5WriteString (REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address), &pos);
 										_cl5WriteString (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid, &pos);
 										_cl5WriteMods (op->p.p_modrdn.modrdn_mods, &pos);
 										break;
 
-		case SLAPI_OPERATION_DELETE:	_cl5WriteString (op->target_address.dn, &pos);
+		case SLAPI_OPERATION_DELETE:	_cl5WriteString (REPL_GET_DN(&op->target_address), &pos);
 										break;
 	}
 	
@@ -2319,27 +2319,31 @@ cl5DBData2Entry (const char *data, PRUint32 len, CL5Entry *entry)
 		case SLAPI_OPERATION_ADD:		_cl5ReadString (&op->p.p_add.parentuniqueid, &pos);
 			/* richm: need to free parentuniqueid */
 										_cl5ReadString (&rawDN, &pos);
-										op->target_address.dn = rawDN;
+										op->target_address.sdn = slapi_sdn_new_dn_passin(rawDN);
 										/* convert mods to entry */
 										rc = _cl5ReadMods (&add_mods, &pos);
 										slapi_mods2entry (&(op->p.p_add.target_entry), rawDN, add_mods);
 										ldap_mods_free (add_mods, 1);
 										break;
 
-		case SLAPI_OPERATION_MODIFY:    _cl5ReadString (&op->target_address.dn, &pos);
+		case SLAPI_OPERATION_MODIFY:    _cl5ReadString (&rawDN, &pos);
+										op->target_address.sdn = slapi_sdn_new_dn_passin(rawDN);
 										rc = _cl5ReadMods (&op->p.p_modify.modify_mods, &pos);
 										break;
 
-		case SLAPI_OPERATION_MODRDN:	_cl5ReadString (&op->target_address.dn, &pos);
+		case SLAPI_OPERATION_MODRDN:	_cl5ReadString (&rawDN, &pos);
+										op->target_address.sdn = slapi_sdn_new_dn_passin(rawDN);
 										_cl5ReadString (&op->p.p_modrdn.modrdn_newrdn, &pos);
 										op->p.p_modrdn.modrdn_deloldrdn = *pos;	 
 										pos ++;
-										_cl5ReadString (&op->p.p_modrdn.modrdn_newsuperior_address.dn, &pos);
+										_cl5ReadString (&rawDN, &pos);
+										op->p.p_modrdn.modrdn_newsuperior_address.sdn = slapi_sdn_new_dn_passin(rawDN);
 										_cl5ReadString (&op->p.p_modrdn.modrdn_newsuperior_address.uniqueid, &pos);
 										rc = _cl5ReadMods (&op->p.p_modrdn.modrdn_mods, &pos);
 										break;
 
-		case SLAPI_OPERATION_DELETE:	_cl5ReadString (&op->target_address.dn, &pos);
+		case SLAPI_OPERATION_DELETE:	_cl5ReadString (&rawDN, &pos);
+										op->target_address.sdn = slapi_sdn_new_dn_passin(rawDN);
 										rc = CL5_SUCCESS;
 										break;
 
@@ -4210,7 +4214,7 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 											"_cl5Operation2LDIF(MODIFY): mods are NULL\n");
 										return CL5_BAD_FORMAT;
 									 }
-									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
+									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), REPL_GET_DN_LEN(&op->target_address));
 									 l = make_changes_string(op->p.p_modify.modify_mods, NULL);
 									 len += LDIF_SIZE_NEEDED(strlen (T_CHANGESTR), l->ls_len);
 									 break;
@@ -4220,15 +4224,15 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 											"_cl5Operation2LDIF(MODRDN): mods are NULL\n");
 										return CL5_BAD_FORMAT;
 									 }
-									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
+									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), REPL_GET_DN_LEN(&op->target_address));
 									 len += LDIF_SIZE_NEEDED(strlen (T_NEWRDNSTR), 
 															 strlen (op->p.p_modrdn.modrdn_newrdn));
 									 strDeleteOldRDN = (op->p.p_modrdn.modrdn_deloldrdn ? "true" : "false");
 									 len += LDIF_SIZE_NEEDED(strlen (T_DRDNFLAGSTR),
 															 strlen (strDeleteOldRDN));
-									 if (op->p.p_modrdn.modrdn_newsuperior_address.dn)
+									 if (REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address))
 										len += LDIF_SIZE_NEEDED(strlen (T_NEWSUPERIORDNSTR),
-													strlen (op->p.p_modrdn.modrdn_newsuperior_address.dn));
+													REPL_GET_DN_LEN(&op->p.p_modrdn.modrdn_newsuperior_address));
 									 if (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid)
 										len += LDIF_SIZE_NEEDED(strlen (T_NEWSUPERIORIDSTR),
 													strlen (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid));
@@ -4236,12 +4240,12 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 									 len += LDIF_SIZE_NEEDED(strlen (T_CHANGESTR), l->ls_len);
 									 break;		  
 
-		case SLAPI_OPERATION_DELETE: if (NULL == op->target_address.dn) {
+		case SLAPI_OPERATION_DELETE: if (NULL == REPL_GET_DN(&op->target_address)) {
 										slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
 											"_cl5Operation2LDIF(DELETE): target dn is NULL\n");
 										return CL5_BAD_FORMAT;
 									 }
-									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (op->target_address.dn));
+									 len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), REPL_GET_DN_LEN(&op->target_address));
 									 break;	
 		
 		default:					 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -4277,21 +4281,21 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 										slapi_ch_free ((void**)&rawDN);
 										break;
 
-		case SLAPI_OPERATION_MODIFY:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, op->target_address.dn, 
-																strlen (op->target_address.dn), 0);
+		case SLAPI_OPERATION_MODIFY:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, REPL_GET_DN(&op->target_address), 
+																REPL_GET_DN_LEN(&op->target_address), 0);
 										slapi_ldif_put_type_and_value_with_options(&buff, T_CHANGESTR, l->ls_buf, l->ls_len, 0);
 										break;
 
-		case SLAPI_OPERATION_MODRDN:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, op->target_address.dn, 
-																strlen (op->target_address.dn), 0);
+		case SLAPI_OPERATION_MODRDN:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, REPL_GET_DN(&op->target_address), 
+																REPL_GET_DN_LEN(&op->target_address), 0);
 										slapi_ldif_put_type_and_value_with_options(&buff, T_NEWRDNSTR, op->p.p_modrdn.modrdn_newrdn,
 						  										strlen (op->p.p_modrdn.modrdn_newrdn), 0);
 										slapi_ldif_put_type_and_value_with_options(&buff, T_DRDNFLAGSTR, strDeleteOldRDN, 
 																strlen (strDeleteOldRDN), 0);
-										if (op->p.p_modrdn.modrdn_newsuperior_address.dn)							
+										if (REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address))
 											slapi_ldif_put_type_and_value_with_options(&buff, T_NEWSUPERIORDNSTR, 
-																op->p.p_modrdn.modrdn_newsuperior_address.dn, 
-																strlen (op->p.p_modrdn.modrdn_newsuperior_address.dn), 0);
+																REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address),
+																REPL_GET_DN_LEN(&op->p.p_modrdn.modrdn_newsuperior_address), 0);
 										if (op->p.p_modrdn.modrdn_newsuperior_address.uniqueid)							
 											slapi_ldif_put_type_and_value_with_options(&buff, T_NEWSUPERIORIDSTR, 
 																op->p.p_modrdn.modrdn_newsuperior_address.uniqueid, 
@@ -4299,8 +4303,8 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 										slapi_ldif_put_type_and_value_with_options(&buff, T_CHANGESTR, l->ls_buf, l->ls_len, 0);
 										break;	
 
-		case SLAPI_OPERATION_DELETE:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, op->target_address.dn, 
-										strlen (op->target_address.dn), 0);
+		case SLAPI_OPERATION_DELETE:	slapi_ldif_put_type_and_value_with_options(&buff, T_DNSTR, REPL_GET_DN(&op->target_address), 
+										REPL_GET_DN_LEN(&op->target_address), 0);
 										break;	  
 	}
 
@@ -4377,10 +4381,10 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 			if (op->operation_type == SLAPI_OPERATION_ADD)
 			{
 				rawDN = slapi_ch_strdup (value.bv_val);
-				op->target_address.dn = slapi_ch_strdup(rawDN);
+				op->target_address.sdn = slapi_sdn_new_dn_byval(rawDN);
 			}
 			else
-				op->target_address.dn = slapi_ch_strdup (value.bv_val);
+				op->target_address.sdn = slapi_sdn_new_dn_byval(value.bv_val);
 		}
 		else if (strncasecmp (type.bv_val, T_PARENTIDSTR, type.bv_len) == 0)
 		{
@@ -4396,7 +4400,7 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 		}
 		else if (strncasecmp (type.bv_val, T_NEWSUPERIORDNSTR, type.bv_len) == 0)
 		{
-			op->p.p_modrdn.modrdn_newsuperior_address.dn = slapi_ch_strdup (value.bv_val);
+			op->p.p_modrdn.modrdn_newsuperior_address.sdn = slapi_sdn_new_dn_byval(value.bv_val);
 		}		
 		else if (strncasecmp (type.bv_val, T_NEWSUPERIORIDSTR, type.bv_len) == 0)
 		{
@@ -4507,7 +4511,7 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 						"_cl5WriteOperationTxn: failed to get db file for target dn (%s)", 
-						op->target_address.dn);
+						REPL_GET_DN(&op->target_address));
 		return CL5_OBJSET_ERROR;
 	}
 
@@ -4907,7 +4911,7 @@ static int _cl5GetOperation (Object *replica, slapi_operation_parameters *op)
 
 		case DB_NOTFOUND:	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 									"_cl5GetOperation: operation for csn (%s) is not found in db that should contain dn (%s)\n",
-									csnStr, op->target_address.dn);
+									csnStr, REPL_GET_DN(&op->target_address));
 							rc = CL5_NOTFOUND;
 							goto done;
 
@@ -6151,7 +6155,7 @@ static Object* _cl5GetReplica (const slapi_operation_parameters *op, const char*
 
     PR_ASSERT (op && replGen);
 
-    sdn = slapi_sdn_new_dn_byref(op->target_address.dn);
+    sdn = op->target_address.sdn;
     
     replObj = replica_get_replica_from_dn (sdn);
     if (replObj)
@@ -6169,8 +6173,6 @@ static Object* _cl5GetReplica (const slapi_operation_parameters *op, const char*
 
         slapi_ch_free ((void**)&newGen);
     }
-
-    slapi_sdn_free (&sdn);
     
     return replObj;
 }

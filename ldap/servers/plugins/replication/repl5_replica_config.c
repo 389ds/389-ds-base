@@ -871,6 +871,7 @@ replica_task_done(Replica *replica)
 {
     int rc = LDAP_OPERATIONS_ERROR;
     char *replica_dn = NULL;
+    Slapi_DN *replica_sdn = NULL;
     Slapi_PBlock *pb = NULL;
     LDAPMod *mods [2];
     LDAPMod mod;
@@ -878,13 +879,14 @@ replica_task_done(Replica *replica)
         return rc;
     }
     /* dn: cn=replica,cn=dc\3Dexample\2Cdc\3Dcom,cn=mapping tree,cn=config */
-    replica_dn = slapi_create_dn_string("%s,cn=\"%s\",%s",
-                                    REPLICA_RDN,
-                                    slapi_sdn_get_dn(replica_get_root(replica)),
-                                    CONFIG_BASE);
+    replica_dn = slapi_ch_smprintf("%s,cn=\"%s\",%s",
+                                   REPLICA_RDN,
+                                   slapi_sdn_get_dn(replica_get_root(replica)),
+                                   CONFIG_BASE);
     if (NULL == replica_dn) {
         return rc;
     }
+	replica_sdn = slapi_sdn_new_dn_passin(replica_dn);
     pb = slapi_pblock_new();
     mods[0] = &mod;
     mods[1] = NULL;
@@ -892,7 +894,7 @@ replica_task_done(Replica *replica)
     mod.mod_type = (char *)TASK_ATTR;
     mod.mod_bvalues = NULL;
 
-    slapi_modify_internal_set_pb(pb, replica_dn, mods, NULL/* controls */, 
+    slapi_modify_internal_set_pb_ext(pb, replica_sdn, mods, NULL/* controls */, 
                       NULL/* uniqueid */, 
                       repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
                       0/* flags */);
@@ -908,7 +910,7 @@ replica_task_done(Replica *replica)
     }
 
     slapi_pblock_destroy (pb);
-    slapi_ch_free_string(&replica_dn);
+    slapi_sdn_free(&replica_sdn);
 
     return rc;
 }

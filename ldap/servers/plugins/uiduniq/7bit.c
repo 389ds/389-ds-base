@@ -233,13 +233,14 @@ preop_add(Slapi_PBlock *pb)
     int argc;
     char **argv;
     char **attrName;
-    char *dn;
+    const char *dn;
+    Slapi_DN *sdn = NULL;
     Slapi_Entry *e;
     Slapi_Attr *attr;
     char **firstSubtree;
     char **subtreeDN;
     int subtreeCnt;
-	int is_replicated_operation;
+    int is_replicated_operation;
 
     /*
      * Get the arguments
@@ -263,8 +264,10 @@ preop_add(Slapi_PBlock *pb)
     /*
      * Get the target DN for this add operation
      */
-    err = slapi_pblock_get(pb, SLAPI_ADD_TARGET, &dn);
+    err = slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
     if (err) { result = op_error(50); break; }
+
+    dn = slapi_sdn_get_dn(sdn);
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD target=%s\n", dn);
@@ -278,7 +281,7 @@ preop_add(Slapi_PBlock *pb)
     if (err) { result = op_error(51); break; }
 
     for ( firstSubtree = argv; strcmp(*firstSubtree, ",") != 0; 
-	firstSubtree++, argc--) {}
+          firstSubtree++, argc--) {}
     firstSubtree++;
     argc--;
 
@@ -304,7 +307,7 @@ preop_add(Slapi_PBlock *pb)
        * the target DN is a subnode in the tree.
        */
       for( subtreeDN=firstSubtree, subtreeCnt=argc ;subtreeCnt > 0;
-  	subtreeCnt--,subtreeDN++)
+           subtreeCnt--,subtreeDN++)
       {
         /*
          * issuffix determines whether the target is under the
@@ -378,7 +381,8 @@ preop_modify(Slapi_PBlock *pb)
     LDAPMod **mods;
     LDAPMod **firstMods;
     LDAPMod *mod;
-    char *target;
+    const char *target;
+	Slapi_DN *target_sdn = NULL;
     char **firstSubtree;
     char **subtreeDN;
     int subtreeCnt;
@@ -407,9 +411,10 @@ preop_modify(Slapi_PBlock *pb)
     if (err) { result = op_error(10); break; }
 
     /* Get the target DN */
-    err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET, &target);
+    err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &target_sdn);
     if (err) { result = op_error(11); break; }
 
+    target = slapi_sdn_get_dn(target_sdn);
     /*
      * Look for managed trees that include the target
      * Arguments before "," are the 7-bit clean attribute names.  Arguemnts
@@ -538,14 +543,14 @@ preop_modrdn(Slapi_PBlock *pb)
     int argc;
     char **argv;
     char **attrName;
-    char *target;
-    char *superior;
+    Slapi_DN *target_sdn = NULL;
+    Slapi_DN *superior;
     char *rdn; 
     Slapi_Attr *attr;
     char **firstSubtree;
     char **subtreeDN;
     int subtreeCnt;
-	int is_replicated_operation;
+    int is_replicated_operation;
 
     /*
      * Get the arguments
@@ -567,11 +572,11 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /* Get the DN of the entry being renamed */
-    err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET, &target);
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &target_sdn);
     if (err) { result = op_error(22); break; }
 
     /* Get superior value - unimplemented in 3.0 DS */
-    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR, &superior);
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &superior);
     if (err) { result = op_error(20); break; }
 
     /*
@@ -579,7 +584,7 @@ preop_modrdn(Slapi_PBlock *pb)
      * its current level in the tree.  Use the target DN for
      * determining which managed tree this belongs to
      */
-    if (!superior) superior = target;
+    if (!superior) superior = target_sdn;
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
@@ -649,7 +654,7 @@ preop_modrdn(Slapi_PBlock *pb)
          * issuffix determines whether the target is under the
          * subtree *subtreeDN
          */
-        if (slapi_dn_issuffix(superior, *subtreeDN))
+        if (slapi_dn_issuffix(slapi_sdn_get_dn(superior), *subtreeDN))
         {
 #ifdef DEBUG
           slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -692,6 +697,7 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
     int argc;
     char **argv;
 
+
     /* Declare plugin version */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
             SLAPI_PLUGIN_VERSION_01);
@@ -716,8 +722,11 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
     if (argc == 0) { err = -1; break; }
     argv++; argc--;
 
-    for(;argc > 0;argc--, argv++)
-        slapi_dn_normalize_case(*argv);
+    for(;argc > 0;argc--, argv++) {
+        char *normdn = slapi_create_dn_string_case("%s", *argv);
+        slapi_ch_free_string(argv);
+        *argv = normdn;
+    }
 
     /* Provide descriptive information */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,

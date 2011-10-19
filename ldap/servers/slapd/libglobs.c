@@ -1489,8 +1489,9 @@ int config_set_anon_limits_dn( const char *attrname, char *value, char *errorbuf
         CFG_LOCK_WRITE(slapdFrontendConfig);
 
         slapi_ch_free ( (void **) &(slapdFrontendConfig->anon_limits_dn) );
-        slapdFrontendConfig->anon_limits_dn = slapi_ch_strdup ( value );
-         CFG_UNLOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->anon_limits_dn = 
+                                       slapi_create_dn_string("%s", value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
 }

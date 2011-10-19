@@ -137,29 +137,18 @@ int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
                               char ***exclude)
 {
     char **pb_incl, **pb_excl;
-    char subtreeDn[BUFSIZ];
-    char *normSubtreeDn;
-    int i;
 
     slapi_pblock_get(pb, SLAPI_LDIF2DB_INCLUDE, &pb_incl);
     slapi_pblock_get(pb, SLAPI_LDIF2DB_EXCLUDE, &pb_excl);
+    if ((NULL == include) || (NULL == exclude)) {
+        return 0;
+    }
     *include = *exclude = NULL;
 
-    /* normalize */
-    if (pb_excl) {
-        for (i = 0; pb_excl[i]; i++) {
-            PL_strncpyz(subtreeDn, pb_excl[i], sizeof(subtreeDn));
-            normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
-            charray_add(exclude, slapi_ch_strdup(normSubtreeDn));
-        }
-    }
-    if (pb_incl) {
-        for (i = 0; pb_incl[i]; i++) {
-            PL_strncpyz(subtreeDn, pb_incl[i], sizeof(subtreeDn));
-            normSubtreeDn = slapi_dn_normalize_case(subtreeDn);
-            charray_add(include, slapi_ch_strdup(normSubtreeDn));
-        }
-    }
+    /* pb_incl/excl are both normalized */
+    *exclude = slapi_ch_array_dup(pb_excl);
+    *include = slapi_ch_array_dup(pb_incl);
+
     return (pb_incl || pb_excl);
 }
 
@@ -250,7 +239,8 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
          * caller via the status parameter.
          */
         if (entryrdn_get_switch()) { /* subtree-rename: on */
-            Slapi_DN sdn = {0};;
+            Slapi_DN sdn;
+            slapi_sdn_init(&sdn);
             slapi_sdn_set_dn_byval(&sdn, pdn);
             err = entryrdn_index_read(be, &sdn, &pid, NULL);
             slapi_sdn_done(&sdn);
@@ -656,8 +646,10 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
         /* initialize UniqueID generator - must be done once backends are started
            and event queue is initialized but before plugins are started */
         /* This dn is normalize. */
-        Slapi_DN *sdn = slapi_sdn_new_dn_byval ("cn=uniqueid generator,cn=config");
-        int rc = uniqueIDGenInit (NULL, sdn, 0 /* use single thread mode */);
+        Slapi_DN *sdn = 
+                 slapi_sdn_new_ndn_byref ("cn=uniqueid generator,cn=config");
+        int rc = uniqueIDGenInit (NULL, sdn /*const*/,
+                                  0 /* use single thread mode */);
         slapi_sdn_free (&sdn);
         if (rc != UID_SUCCESS) {
             LDAPDebug( LDAP_DEBUG_ANY,
@@ -783,9 +775,10 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
     IDList *idltotal = NULL, *idltmp;
     back_txn *txn = NULL;
     struct berval bv;
-    Slapi_DN sdn = {0}; /* Valid only if entryrdn_get_switch is true */
+    Slapi_DN sdn; /* Used only if entryrdn_get_switch is true */
 
     *err = 0;
+    slapi_sdn_init(&sdn);
     /* for each subtree spec... */
     for (i = 0; include[i]; i++) {
         IDList *idl = NULL;
@@ -794,6 +787,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         char *nextdn = NULL;
         int matched = 0;
         int issubsuffix = 0;
+
         /*
          * avoid a case that an include suffix is applied to the backend of 
          * its sub suffix 
@@ -848,7 +842,6 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         if (entryrdn_get_switch()) { /* subtree-rename: on */
             slapi_sdn_set_dn_byval(&sdn, include[i]);
             *err = entryrdn_index_read(be, &sdn, &id, NULL);
-            slapi_sdn_done(&sdn);
             if (*err) {
                 if (DB_NOTFOUND == *err) {
                     LDAPDebug2Args(LDAP_DEBUG_ANY,
@@ -861,6 +854,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
                                    "Reading %s failed on entryrdn; %d\n",
                                    include[i], *err );
                 }
+                slapi_sdn_done(&sdn);
                 continue;
             }
         } else {
@@ -895,6 +889,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         } else {
             *err = ldbm_ancestorid_read(be, txn, id, &idl);
         }
+        slapi_sdn_done(&sdn);
         if (idl == NULL) {
             if (DB_NOTFOUND == *err) {
                 LDAPDebug(LDAP_DEBUG_ANY,
@@ -924,7 +919,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
             idl_free(idl);
             idltotal = idltmp;
         }
-    }
+    } /* for (i = 0; include[i]; i++) */
     
     return idltotal;
 }
@@ -1423,7 +1418,6 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         ep = backentry_alloc();
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
-            int rc = 0;
     
             /* rdn is allocated in get_value_from_string */
             rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
@@ -1900,9 +1894,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
         /* create suffix list */
         for (vlvidx = 0; vlvidx < numvlv; vlvidx++) {
-            char *s = slapi_ch_strdup(slapi_sdn_get_dn(vlvIndex_getBase(pvlv[vlvidx])));
-
-            s = slapi_dn_normalize_case(s);
+            char *s = 
+             slapi_ch_strdup(slapi_sdn_get_ndn(vlvIndex_getBase(pvlv[vlvidx])));
+            /* 's' is passed in */
             charray_add(&suffix_list, s);
         }
         idl = ldbm_fetch_subtrees(be, suffix_list, &err);
@@ -3448,8 +3442,7 @@ bail:
  * Update old DN format in entrydn and the leaf attr value to the new one
  *
  * The implementation would be similar to the upgradedb for new idl.
- * Scan each entry, checking the entrydn value with the result of 
- * slapi_dn_normalize_ext_case(dn).
+ * Scan each entry, checking the entrydn value with the normalized dn.
  * If they don't match,
  *   replace the old entrydn value with the new one in the entry 
  *   in id2entry.db4.

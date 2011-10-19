@@ -533,8 +533,7 @@ __aclp__copy_normalized_str (char *src, char *endsrc, char *start,
 {
 	char *p = NULL;
 	int rc = -1; 
-	char *dn = NULL;
-	size_t dnlen = 0;
+	const char *dn = NULL;
 
 	p = PL_strnstr(src, LDAP_URL_prefix, endsrc - src);
 	if (p) {
@@ -553,6 +552,8 @@ __aclp__copy_normalized_str (char *src, char *endsrc, char *start,
 	rc = 0;
 	if (p && strlen(p) > 0) {
 		size_t len = 0;
+		Slapi_DN sdn;
+		char bak;
 		/* strip the string starting from ? */
 		char *q = PL_strnchr(p, '?', endsrc - p);
 		if (q) {
@@ -560,18 +561,17 @@ __aclp__copy_normalized_str (char *src, char *endsrc, char *start,
 		} else {
 			len = endsrc - p;
 		}
+		bak = *(p + len);
+		*(p + len) = '\0';
 		/* Normalize the value of userdn and append it to ret_str */
-		rc = slapi_dn_normalize_ext(p, len, &dn, &dnlen);
-		if (rc < 0) {
-			return rc;
-		}
+		slapi_sdn_init_dn_byref(&sdn, p);
+		dn = slapi_sdn_get_dn(&sdn);
 		/* append up to ldap(s):/// */
 		aclutil_str_append_ext(dest, destlen, start, p - start);
 		/* append the DN part */
-		aclutil_str_append_ext(dest, destlen, dn, dnlen);
-		if (rc > 0) { /* if rc == 0, p is passed in */
-			slapi_ch_free_string(&dn);
-		}
+		aclutil_str_append_ext(dest, destlen, dn, strlen(dn));
+		slapi_sdn_done(&sdn);
+		*(p + len) = bak;
 		if (q) {
 			/* append the rest from '?' */
 			aclutil_str_append_ext(dest, destlen, q, endsrc - q);

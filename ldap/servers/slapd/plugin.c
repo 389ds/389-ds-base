@@ -180,6 +180,7 @@ add_plugin_entries()
 		slapi_add_entry_internal_set_pb(&newpb, ep->e, NULL,
 										ep->plugin, plugin_actions);
 		slapi_pblock_set(&newpb, SLAPI_TARGET_DN, (void*)slapi_entry_get_dn_const(ep->e));
+		slapi_pblock_set(&newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(ep->e));
 		slapi_add_internal_pb(&newpb);
 		deleteep = ep;
 		ep = ep->next;
@@ -269,16 +270,13 @@ slapi_register_plugin_ext(
 	int ii = 0;
     int rc = 0;
 	Slapi_Entry *e = NULL;
-	char *dn = slapi_create_dn_string("cn=%s,%s", name, PLUGIN_BASE_DN);
-	if (NULL == dn) {
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
-					"slapi_register_plugin_ext: "
-					"failed to create plugin dn (plugin name: %s)\n", name);
-		return 1;
-	}
+	char *dn = slapi_ch_smprintf("cn=%s,%s", name, PLUGIN_BASE_DN);
+	Slapi_DN *sdn = slapi_sdn_new_dn_passin(dn);
+
 	e = slapi_entry_alloc();
 	/* this function consumes dn */
-	slapi_entry_init(e, dn, NULL);
+	slapi_entry_init_ext(e, sdn, NULL);
+	slapi_sdn_free(&sdn);
 
 	slapi_entry_attr_set_charptr(e, "cn", name);
 	slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_TYPE, plugintype);
@@ -518,9 +516,6 @@ plugin_extended_op_oid2string( const char *oid )
 							rval = p->plg_name;			/* RDN */
 						}
 					}
-					break;
-				}
-				if ( p->plg_exoids[i] != NULL ) {
 					break;
 				}
 			}
@@ -991,30 +986,30 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 
 		if(plugin_entry)
 		{
-                        /*
-                         * Pass the plugin DN in SLAPI_TARGET_DN and the plugin entry
-                         * in SLAPI_ADD_ENTRY.  For this to actually work, we need to
-                         * create an operation and include that in the pblock as well,
-                         * because these two items are stored in the operation parameters.
-                         */
-		        /* WARNING: memory leak here - op is only freed by a pblock_done,
+			/*
+			 * Pass the plugin DN in SLAPI_TARGET_SDN and the plugin entry
+			 * in SLAPI_ADD_ENTRY.  For this to actually work, we need to
+			 * create an operation and include that in the pblock as well,
+			 * because these two items are stored in the operation parameters.
+			 */
+			/* WARNING: memory leak here - op is only freed by a pblock_done,
 			   and this only happens below if the plugin is enabled - a short
 			   circuit goto bail may also cause a leak - however, since this
 			   only happens a few times at startup, this is not a very serious
 			   leak - just after the call to plugin_call_one */
-                        Operation *op = internal_operation_new(SLAPI_OPERATION_ADD, 0);
-                        slapi_pblock_set(&(config[plugin_index].pb), SLAPI_OPERATION, op);
-			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_TARGET_DN,
-							 (void*)(slapi_entry_get_dn_const(plugin_entry)));
-                        slapi_pblock_set(&(config[plugin_index].pb), SLAPI_ADD_ENTRY,
-                                        plugin_entry );
+			Operation *op = internal_operation_new(SLAPI_OPERATION_ADD, 0);
+			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_OPERATION, op);
+			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_TARGET_SDN,
+				(void*)(slapi_entry_get_sdn_const(plugin_entry)));
+			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_ADD_ENTRY,
+				plugin_entry );
 
 			/* Pass the plugin alternate config area DN in SLAPI_PLUGIN_CONFIG_AREA. */
 			value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_CONFIG_AREA);
 			if(value)
 			{
-                                config[plugin_index].config_area = value;
-                                value = NULL;
+				config[plugin_index].config_area = value;
+				value = NULL;
 				slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN_CONFIG_AREA,
 							config[plugin_index].config_area);
 			}
@@ -1191,7 +1186,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 					newe = slapi_entry_dup( config[plugin_index].e );
 					slapi_add_entry_internal_set_pb(&newpb, newe, NULL,
 									plugin_get_default_component_id(), plugin_actions);
-					slapi_pblock_set(&newpb, SLAPI_TARGET_DN, (void*)slapi_entry_get_dn_const(newe));
+					slapi_pblock_set(&newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(newe));
 					slapi_add_internal_pb(&newpb);
 					pblock_done(&newpb);
 					config[plugin_index].entry_created = 1;
@@ -1440,17 +1435,17 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 	int count= 0;
     for (; list != NULL; list = list->plg_next)
 	{
-    	IFP func = NULL;
+		IFP func = NULL;
 	
-    	slapi_pblock_set (pb, SLAPI_PLUGIN, list);
-    	set_db_default_result_handlers (pb); /* JCM: What's this do? Is it needed here? */
-    	if (slapi_pblock_get (pb, operation, &func) == 0 && func != NULL &&
+	slapi_pblock_set (pb, SLAPI_PLUGIN, list);
+	set_db_default_result_handlers (pb); /* JCM: What's this do? Is it needed here? */
+	if (slapi_pblock_get (pb, operation, &func) == 0 && func != NULL &&
 			plugin_invoke_plugin_pb (list, operation, pb))
 		{
 			char *n= list->plg_name;
 			LDAPDebug( LDAP_DEBUG_TRACE, "Calling plugin '%s' #%d type %d\n", (n==NULL?"noname":n), count, operation );
 			/* counters_to_errors_log("before plugin call"); */
-    		if (( rc = func (pb)) != 0 )
+			if (( rc = func (pb)) != 0 )
 			{
 				if (SLAPI_PLUGIN_PREOPERATION == list->plg_type ||
 					SLAPI_PLUGIN_INTERNAL_PREOPERATION == list->plg_type ||
@@ -1471,16 +1466,16 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 					/* OR the result into the return value for be pre/postops */
 					return_value |= rc;
 				}
-    		}
+			}
 			/* counters_to_errors_log("after plugin call"); */
-    	}
+		}
 
 		count++;
 
 		if(call_one)
 			break;
-    }
-    return( return_value );
+	}
+	return( return_value );
 }
 
 int
@@ -1574,9 +1569,9 @@ ldapi_init_extended_ops( void )
 
 	slapi_rwlock_wrlock(extended_ops_lock);
 	charray_add(&supported_extended_ops,
-	slapi_ch_strdup(EXTOP_BULK_IMPORT_START_OID));
+	            slapi_ch_strdup(EXTOP_BULK_IMPORT_START_OID));
 	charray_add(&supported_extended_ops,
-	slapi_ch_strdup(EXTOP_BULK_IMPORT_DONE_OID));
+	            slapi_ch_strdup(EXTOP_BULK_IMPORT_DONE_OID));
 	/* add future supported extops here... */
 	slapi_rwlock_unlock(extended_ops_lock);
 }
@@ -2147,7 +2142,9 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	}
 	else
 	{
-		plugin->plg_name = value; /* plugin owns value's memory now, don't free */
+		/* plg_name is normalized once here */
+		plugin->plg_name = slapi_create_rdn_value("%s", value);
+		slapi_ch_free((void**)&value);
 	}
 
 	if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_PRECEDENCE)))
@@ -2546,7 +2543,7 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBloc
 char* plugin_get_dn (const struct slapdplugin *plugin)
 {
 	char *plugindn = NULL;
-	char *pattern = "cn=%s," PLUGIN_BASE_DN;
+	char *pattern = "cn=%s," PLUGIN_BASE_DN; /* cn=plugins,cn=config */
 
 	if (plugin == NULL)	/* old plugin that does not pass identity - use default */
 		plugin = &global_default_plg;
@@ -2554,7 +2551,8 @@ char* plugin_get_dn (const struct slapdplugin *plugin)
 	if (plugin->plg_name == NULL)
 		return NULL;
 
-	plugindn = slapi_create_dn_string(pattern, plugin->plg_name);
+	/* plg_name is normalized in plugin_setup. So, we can use smprintf */
+	plugindn = slapi_ch_smprintf(pattern, plugin->plg_name);
 	if (NULL == plugindn) {
 		slapi_log_error(SLAPI_LOG_FATAL, NULL,
 					"plugin_get_dn: failed to create plugin dn "

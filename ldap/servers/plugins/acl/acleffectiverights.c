@@ -197,7 +197,6 @@ _ger_parse_control (
 	size_t subjectndnlen = 0;
 	char *orig = NULL;
 	char *normed = NULL;
-	int rc = 0;
 
 	if (NULL == subjectndn)
 	{
@@ -268,22 +267,17 @@ _ger_parse_control (
 	}
 
 	/* memmove is safe for overlapping copy */
-	rc = slapi_dn_normalize_ext(orig + 3, 0, &normed, &subjectndnlen);
-	if (rc < 0) {
-		aclutil_str_append ( errbuf, "get-effective-rights: failed to normalize dn: ");
-		aclutil_str_append ( errbuf, orig);
-		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
+	normed = slapi_create_dn_string("%s", orig + 3);
+	if (NULL == normed) {
+		aclutil_str_append (errbuf, "get-effective-rights: failed to normalize dn: ");
+		aclutil_str_append (errbuf, orig);
+		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf);
 		slapi_ch_free_string(&orig);
 		return LDAP_INVALID_SYNTAX;
 	}
-	if (rc == 0) { /* orig+3 is passed in; not terminated */
-		*(normed + subjectndnlen) = '\0';
-		*subjectndn = slapi_ch_strdup(normed);
-		slapi_ch_free_string(&orig);
-	} else {
-		slapi_ch_free_string(&orig);
-		*subjectndn = normed;
-	}
+	slapi_ch_free_string(&orig);
+	*subjectndn = normed;
+	slapi_dn_ignore_case(*subjectndn);
 	return LDAP_SUCCESS;
 }
 
@@ -839,7 +833,8 @@ _ger_generate_template_entry (
 	char *object = NULL;
 	char *superior = NULL;
 	char *p = NULL;
-	char *dn = NULL;
+	const char *dn = NULL;
+	Slapi_DN *sdn = NULL;
 	char *dntype = NULL;
 	int siz = 0;
 	int len = 0;
@@ -856,8 +851,6 @@ _ger_generate_template_entry (
 		rc = LDAP_SUCCESS;
 		goto bailout;
 	}
-	/* get the target dn where the template entry is located */
-	slapi_pblock_get( pb, SLAPI_TARGET_DN, &dn );
 	for (i = 0; gerattrs && gerattrs[i]; i++)
 	{
 		object = strchr(gerattrs[i], '@');
@@ -907,6 +900,9 @@ _ger_generate_template_entry (
 			siz += strlen(attrs[i]) + 4 + 20;
 		}
 	}
+	/* get the target dn where the template entry is located */
+	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
+	dn = slapi_sdn_get_dn(sdn);
 	if (dn)
 	{
 		/* dn: <attr>=<template_name>,<dn>\n\0 */

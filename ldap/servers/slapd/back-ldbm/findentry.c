@@ -170,14 +170,15 @@ find_entry_internal_dn(
 	 */
 	if (!really_internal) {
 		struct backentry *me;
-		Slapi_DN ancestordn= {0};
-		me= dn2ancestor(pb->pb_backend,sdn,&ancestordn,txn,&err);
+		Slapi_DN ancestorsdn;
+		slapi_sdn_init(&ancestorsdn);
+		me= dn2ancestor(pb->pb_backend,sdn,&ancestorsdn,txn,&err);
 		if ( !managedsait && me != NULL ) {
 			/* if the entry is a referral send the referral */
-			if(check_entry_for_referral(pb, me->ep_entry, (char*)slapi_sdn_get_dn(&ancestordn), "find_entry_internal_dn"))
+			if(check_entry_for_referral(pb, me->ep_entry, (char*)slapi_sdn_get_dn(&ancestorsdn), "find_entry_internal_dn"))
 			{
 				CACHE_RETURN( &inst->inst_cache, &me );
-				slapi_sdn_done(&ancestordn);
+				slapi_sdn_done(&ancestorsdn);
 				return( NULL );
 			}
 			/* else fall through to no such object */
@@ -187,8 +188,8 @@ find_entry_internal_dn(
 		slapi_send_ldap_result( pb, ( 0 == err || DB_NOTFOUND == err ) ?
 			LDAP_NO_SUCH_OBJECT : ( LDAP_INVALID_DN_SYNTAX == err ) ?
 			LDAP_INVALID_DN_SYNTAX : LDAP_OPERATIONS_ERROR,
-			(char*)slapi_sdn_get_dn(&ancestordn), NULL, 0, NULL );
-		slapi_sdn_done(&ancestordn);
+			(char*)slapi_sdn_get_dn(&ancestorsdn), NULL, 0, NULL );
+		slapi_sdn_done(&ancestorsdn);
 		CACHE_RETURN( &inst->inst_cache, &me );
 	}
 
@@ -276,17 +277,21 @@ find_entry_internal(
 	}
 	else
 	{
-		Slapi_DN sdn;
-		struct backentry *entry;
+		struct backentry *entry = NULL;
 
-		slapi_sdn_init_dn_ndn_byref (&sdn, addr->dn); /* normalized by front end */
 		LDAPDebug( LDAP_DEBUG_TRACE, "=> find_entry_internal (dn=%s) lock %d\n",
-				   addr->dn, lock, 0 );
-		entry = find_entry_internal_dn (pb, be, &sdn, lock, txn, really_internal);
-		slapi_sdn_done (&sdn);
+		           slapi_sdn_get_dn(addr->sdn), lock, 0 );
+		if (addr->sdn) {
+			entry = find_entry_internal_dn (pb, be, addr->sdn, 
+			                                lock, txn, really_internal);
+		} else {
+			LDAPDebug0Args( LDAP_DEBUG_ANY,
+			                "find_entry_internal: Null target dn\n" );
+		}
+
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= find_entry_internal\n" );
 		return entry;
 	}
-	
 }
 
 struct backentry *

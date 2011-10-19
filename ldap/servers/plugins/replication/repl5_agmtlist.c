@@ -184,10 +184,10 @@ agmtlist_add_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter,
 
 	rc = add_new_agreement(e);
 	if (0 != rc) {
-		char *dn;
-		slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
+		Slapi_DN *sdn = NULL;
+		slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmtlist_add_callback: "
-			"Can't start agreement \"%s\"\n", dn);
+			"Can't start agreement \"%s\"\n", slapi_sdn_get_dn(sdn));
 		*returncode = LDAP_UNWILLING_TO_PERFORM;
 		return SLAPI_DSE_CALLBACK_ERROR;
 	}
@@ -200,7 +200,6 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 	int *returncode, char *returntext, void *arg)
 {
 	int i;
-    char *dn;
 	Slapi_DN *sdn = NULL;
 	int start_initialize = 0, stop_initialize = 0, cancel_initialize = 0;
     int update_the_schedule = 0;	/* do we need to update the repl sched? */
@@ -224,13 +223,18 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
         goto done;
     }
 
-    slapi_pblock_get(pb, SLAPI_TARGET_DN, &dn);
-	sdn= slapi_sdn_new_dn_byref(dn);
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    if (NULL == sdn) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+                        "agmtlist_modify_callback: NULL target dn\n");
+        goto done;
+    }
 	agmt = agmtlist_get_by_agmt_name(sdn);
 	if (NULL == agmt)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmtlist_modify_callback: received "
-			"a modification for unknown replication agreement \"%s\"\n", dn);
+			"a modification for unknown replication agreement \"%s\"\n", 
+			slapi_sdn_get_dn(sdn));
 		goto done;
 	}
 
@@ -277,7 +281,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             
                 if (strcasecmp (val, "start") == 0)
                 {                        
-			        start_initialize = 1;
+                    start_initialize = 1;
                 }
                 else if (strcasecmp (val, "stop") == 0)
                 {
@@ -528,8 +532,6 @@ done:
 		agmtlist_release_agmt(agmt);
 	}
 
-    if (sdn)
-	    slapi_sdn_free(&sdn);
 	return rc;
 }
 

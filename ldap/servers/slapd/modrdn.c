@@ -73,17 +73,16 @@ do_modrdn( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement	*ber;
 	char		*rawdn = NULL, *rawnewsuperior = NULL;
-	char		*dn = NULL, *newsuperior = NULL;
+	const char	*dn = NULL, *newsuperior = NULL;
 	char		*rawnewrdn = NULL;
 	char		*newrdn = NULL;
 	int		err = 0, deloldrdn = 0;
 	ber_len_t	len = 0;
-	size_t		dnlen = 0;
 	char		*newdn = NULL;
 	char		*parent = NULL;
-	Slapi_DN	sdn = {0};
-	Slapi_DN	snewdn = {0};
-	Slapi_DN	snewsuperior = {0};
+	Slapi_DN	sdn;
+	Slapi_DN	snewdn;
+	Slapi_DN	*snewsuperior = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modrdn\n", 0, 0, 0 );
 
@@ -92,6 +91,9 @@ do_modrdn( Slapi_PBlock *pb )
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
+
+	slapi_sdn_init(&sdn);
+	slapi_sdn_init(&snewdn);
 
 	/*
 	 * Parse the modrdn request.  It looks like this:
@@ -169,34 +171,29 @@ do_modrdn( Slapi_PBlock *pb )
 			goto free_and_return;
 		}
 	}
-	err = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
-	if (err < 0) {
-		op_shared_log_error_access(pb, "MODRDN", rawdn?rawdn:"", "invalid dn");
-		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-							 NULL, "invalid dn", 0, NULL);
-		slapi_ch_free_string( &rawdn );
+	slapi_sdn_init_dn_passin(&sdn, rawdn);
+	dn = slapi_sdn_get_dn(&sdn);
+	if (rawdn && (strlen(rawdn) > 0) && (NULL == dn)) {
+		/* normalization failed */
+		op_shared_log_error_access(pb, "MODRDN", rawdn, "invalid dn");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, 
+		                 "invalid dn", 0, NULL);
 		slapi_ch_free_string( &rawnewrdn );
 		slapi_ch_free_string( &rawnewsuperior );
 		goto free_and_return;
-	} else if (err > 0) {
-		slapi_ch_free((void **) &rawdn);
-	} else { /* err == 0; rawdn is passed in; not null terminated */
-		*(dn + dnlen) = '\0';
 	}
-	err = slapi_dn_normalize_ext(rawnewrdn, 0, &newrdn, &dnlen);
-	if (err < 0) {
-		op_shared_log_error_access(pb, "MODRDN", rawnewrdn?rawnewrdn:"", 
-									"invalid new rdn");
-		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-						 NULL, "invalid new rdn", 0, NULL);
+	newrdn = slapi_create_dn_string("%s", rawnewrdn);
+	if (rawnewrdn && (NULL == newrdn)) {
+		op_shared_log_error_access(pb, "MODRDN", rawnewrdn, "invalid newrdn");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX,
+		                 NULL, "invalid newrdn", 0, NULL);
 		slapi_ch_free_string( &rawnewrdn );
 		slapi_ch_free_string( &rawnewsuperior );
 		goto free_and_return;
-	} else if (err > 0) {
-		slapi_ch_free((void **) &rawnewrdn);
-	} else { /* err == 0; rawnewdn is passed in; not null terminated */
-		*(newrdn + dnlen) = '\0';
 	}
+	slapi_dn_ignore_case( newrdn );
+	slapi_ch_free_string( &rawnewrdn );
+
 	if (rawnewsuperior) {
 		if (config_get_dn_validate_strict()) {
 			/* check that the dn is formatted correctly */
@@ -210,19 +207,8 @@ do_modrdn( Slapi_PBlock *pb )
 				goto free_and_return;
 			}
 		}
-		err = slapi_dn_normalize_ext(rawnewsuperior, 0, &newsuperior, &dnlen);
-		if (err < 0) {
-			op_shared_log_error_access(pb, "MODRDN", rawnewsuperior,
-							"invalid new superior");
-			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-							 NULL, "invalid new superior", 0, NULL);
-			slapi_ch_free_string( &rawnewsuperior);
-			goto free_and_return;
-		} else if (err > 0) {
-			slapi_ch_free((void **) &rawnewsuperior);
-		} else { /* err == 0; rawnewsuperior is passed in; not terminated */
-			*(newsuperior + dnlen) = '\0';
-		}
+		snewsuperior = slapi_sdn_new_dn_passin(rawnewsuperior);
+		newsuperior = slapi_sdn_get_dn(snewsuperior);
 	}
 
 	/*
@@ -230,27 +216,24 @@ do_modrdn( Slapi_PBlock *pb )
 	 * Note: need to check the case newrdn is given, and newsuperior
 	 * uses the newrdn, as well.
 	 */ 
-	/* Both newrdn and dn are already normalized. */
-	parent = slapi_dn_parent(dn);
+	parent = slapi_dn_parent(slapi_sdn_get_ndn(&sdn));
 	newdn = slapi_ch_smprintf("%s,%s", newrdn, parent);
-	slapi_sdn_set_dn_byref(&sdn, dn);
-	slapi_sdn_set_dn_byref(&snewdn, newdn);
-	slapi_sdn_set_dn_byref(&snewsuperior, newsuperior);
-	if (0 == slapi_sdn_compare(&sdn, &snewsuperior) ||
-	    0 == slapi_sdn_compare(&snewdn, &snewsuperior)) {
-		op_shared_log_error_access(pb, "MODRDN", rawnewsuperior,
+	slapi_sdn_init_normdn_passin(&snewdn, newdn); /* newdn is normalized */
+	if (0 == slapi_sdn_compare(&sdn, snewsuperior) ||
+	    0 == slapi_sdn_compare(&snewdn, snewsuperior)) {
+		op_shared_log_error_access(pb, "MODRDN", newsuperior,
 						 "new superior is identical to the entry dn");
 		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 						 "new superior is identical to the entry dn", 0, NULL);
 		goto free_and_return;
 	}
-	if (slapi_sdn_issuffix(&snewsuperior, &sdn) ||
-	    slapi_sdn_issuffix(&snewsuperior, &snewdn)) {
+	if (slapi_sdn_issuffix(snewsuperior, &sdn) ||
+	    slapi_sdn_issuffix(snewsuperior, &snewdn)) {
 		/* E.g.,
 		 * newsuperior: ou=sub,ou=people,dc=example,dc=com
 		 * dn: ou=people,dc=example,dc=com
 		 */
-		op_shared_log_error_access(pb, "MODRDN", rawnewsuperior,
+		op_shared_log_error_access(pb, "MODRDN", newsuperior,
 						 "new superior is descendent of the entry");
 		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 						 "new superior is descendent of the entry", 0, NULL);
@@ -273,24 +256,22 @@ do_modrdn( Slapi_PBlock *pb )
 			   deloldrdn );
 
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
-	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, dn );
-	slapi_pblock_set( pb, SLAPI_MODRDN_NEWRDN, newrdn );
-	slapi_pblock_set( pb, SLAPI_MODRDN_NEWSUPERIOR, newsuperior );
+	/* dn, newrdn and newsuperior are all normalized */
+	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET,
+	                  (void *)slapi_sdn_get_udn(&sdn) );
+	slapi_pblock_set( pb, SLAPI_MODRDN_TARGET_SDN, &sdn );
+	slapi_pblock_set( pb, SLAPI_MODRDN_NEWRDN, (void *)newrdn );
+	slapi_pblock_set( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, (void *)snewsuperior );
 	slapi_pblock_set( pb, SLAPI_MODRDN_DELOLDRDN, &deloldrdn );
 
-	op_shared_rename(pb, 1 /* pass in ownership of string arguments */ );
-	goto ok_return;
+	op_shared_rename(pb, 0 /* do not pass in ownership of string arguments */ );
 
 free_and_return:
-	slapi_ch_free_string( &dn );
-	slapi_ch_free_string( &newrdn );
-	slapi_ch_free_string( &newsuperior );
-ok_return:
 	slapi_sdn_done(&sdn);
+	slapi_ch_free_string(&newrdn);
+	slapi_sdn_free(&snewsuperior);
 	slapi_sdn_done(&snewdn);
-	slapi_sdn_done(&snewsuperior);
 	slapi_ch_free_string(&parent);
-	slapi_ch_free_string(&newdn);
 
 	return;
 }
@@ -311,20 +292,28 @@ slapi_rename_internal(const char *iodn, const char *inewrdn, const char *inewsup
     Slapi_PBlock    pb;
     Slapi_PBlock    *result_pb = NULL;
     int             opresult= 0;
+    Slapi_DN sdn;
+    Slapi_DN newsuperiorsdn;
 
     pblock_init (&pb);   
     
-	slapi_rename_internal_set_pb (&pb, iodn, inewrdn, inewsuperior, deloldrdn, 
-	  controls, NULL, plugin_get_default_component_id(), 0);
+    slapi_sdn_init_dn_byref(&sdn, iodn);
+    slapi_sdn_init_dn_byref(&newsuperiorsdn, inewsuperior);
+
+    slapi_rename_internal_set_pb_ext(&pb, &sdn, inewrdn, &newsuperiorsdn,
+                                     deloldrdn, controls, NULL, 
+                                     plugin_get_default_component_id(), 0);
     rename_internal_pb (&pb);
 
     result_pb = slapi_pblock_new();
-	if (result_pb)
-	{
-		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
-		slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+    if (result_pb) {
+        slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+        slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
     }
-	pblock_done(&pb);
+
+    slapi_sdn_done(&sdn);
+    slapi_sdn_done(&newsuperiorsdn);
+    pblock_done(&pb);
     
     return result_pb;
 }
@@ -352,32 +341,39 @@ int slapi_modrdn_internal_pb (Slapi_PBlock *pb)
 	return rename_internal_pb (pb);
 }
 
-/* Initialize a pblock for a call to slapi_modrdn_internal_pb() */
-void slapi_rename_internal_set_pb (Slapi_PBlock *pb, const char *olddn, const char *newrdn, const char *newsuperior, int deloldrdn, 
-								   LDAPControl **controls, const char *uniqueid, Slapi_ComponentId *plugin_identity, int operation_flags)
+void
+slapi_rename_internal_set_pb_ext(Slapi_PBlock *pb,
+                                 const Slapi_DN *olddn, 
+                                 const char *newrdn,  /* normalized */
+                                 const Slapi_DN *newsuperior, int deloldrdn, 
+                                 LDAPControl **controls, const char *uniqueid,
+                                 Slapi_ComponentId *plugin_identity, 
+                                 int operation_flags)
 {
-	Operation *op;
-	PR_ASSERT (pb != NULL);
-	if (pb == NULL || olddn == NULL || newrdn == NULL)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
-						"slapi_rename_internal_set_pb: NULL parameter\n");
-		return;
-	}
+    Operation *op;
+    PR_ASSERT (pb != NULL);
+    if (pb == NULL || olddn == NULL || newrdn == NULL)
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+                        "slapi_rename_internal_set_pb: NULL parameter\n");
+        return;
+    }
 
-    op= internal_operation_new(SLAPI_OPERATION_MODRDN,operation_flags); 
-	slapi_pblock_set(pb, SLAPI_OPERATION, op); 
-	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void*)olddn);
+    op = internal_operation_new(SLAPI_OPERATION_MODRDN,operation_flags); 
+    slapi_pblock_set(pb, SLAPI_OPERATION, op); 
+    slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, 
+                     (void*)slapi_sdn_get_dn(olddn));
+    slapi_pblock_set(pb, SLAPI_MODRDN_TARGET_SDN, (void*)olddn);
     slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, (void*)newrdn);
-    slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR, (void*)newsuperior);
+    slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, (void*)newsuperior);
     slapi_pblock_set(pb, SLAPI_MODRDN_DELOLDRDN, &deloldrdn);
-	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
-   	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, NULL);
-	if (uniqueid)
-	{
-		slapi_pblock_set(pb, SLAPI_TARGET_UNIQUEID, (void*)uniqueid);
-	}
-	slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
+    slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
+       slapi_pblock_set(pb, SLAPI_MODIFY_MODS, NULL);
+    if (uniqueid)
+    {
+        slapi_pblock_set(pb, SLAPI_TARGET_UNIQUEID, (void*)uniqueid);
+    }
+    slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
 }
 
 /* Helper functions */
@@ -418,18 +414,19 @@ static int rename_internal_pb (Slapi_PBlock *pb)
  * Beware: this function resets the following pblock elements that were
  * set by the caller:
  *
- *	SLAPI_MODRDN_TARGET
+ *	SLAPI_MODRDN_TARGET_SDN
  *	SLAPI_MODRDN_NEWRDN
- *	SLAPI_MODRDN_NEWSUPERIOR 
+ *	SLAPI_MODRDN_NEWSUPERIOR_SDN
  */
 static void
 op_shared_rename(Slapi_PBlock *pb, int passin_args)
 {
-	char			*dn, *newsuperior, *newrdn, *newdn = NULL;
+	char			*dn, *newrdn, *newdn = NULL;
+	const char		*newsuperior;
 	char			**rdns;
 	int				deloldrdn;
 	Slapi_Backend	*be = NULL;
-	Slapi_DN		sdn = {0};
+	Slapi_DN		*origsdn = NULL;
 	Slapi_Mods		smods;
 	char			dnbuf[BUFSIZ];
 	char			newrdnbuf[BUFSIZ];
@@ -443,13 +440,16 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	char			*proxystr = NULL;
 	int			proxy_err = LDAP_SUCCESS;
 	char			*errtext = NULL;
+	Slapi_DN *sdn = NULL;
+	Slapi_DN *newsuperiorsdn = NULL;
 
 	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
-	slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR, &newsuperior);
+	slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperiorsdn);
 	slapi_pblock_get(pb, SLAPI_MODRDN_DELOLDRDN, &deloldrdn);
 	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+	slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &origsdn);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
 	/*
@@ -462,26 +462,31 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	 * that we will not free these parameters... so if passin_args is
 	 * zero, we need to make copies.
 	 *
-	 * In the case of SLAPI_MODRDN_TARGET and SLAPI_MODRDN_NEWSUPERIOR, we
-	 * replace the existing values with normalized values (because plugins
+	 * In the case of SLAPI_MODRDN_TARGET_SDN and SLAPI_MODRDN_NEWSUPERIOR_SDN,
+	 * we replace the existing values with normalized values (because plugins
 	 * expect these DNs to be normalized).
 	 */
-	if ( passin_args ) {
-		slapi_sdn_init_dn_passin(&sdn,dn);	/* freed by slapi_sdn_done() */
+
+	if (NULL == origsdn) {
+		sdn = slapi_sdn_new_dn_byval(dn);
+		slapi_pblock_set(pb, SLAPI_MODRDN_TARGET_SDN, sdn);
+    }
+	if (passin_args) {
+		if (NULL == sdn) { /* origsdn is not NULL, so use it. */
+			sdn = origsdn;
+		}
 	} else {
-		slapi_sdn_init_dn_byref(&sdn,dn);
+		if (NULL == sdn) {
+			sdn = slapi_sdn_dup(origsdn);
+		}
+		newrdn = slapi_ch_strdup(newrdn);
+		newsuperiorsdn = slapi_sdn_dup(newsuperiorsdn);
+		slapi_pblock_set(pb, SLAPI_MODRDN_TARGET_SDN, sdn);
+		slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, (void *)newrdn);
+		slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, newsuperiorsdn);
 	}
-	if ( !passin_args ) {
-		newrdn = slapi_ch_strdup( newrdn );
-		newsuperior = slapi_ch_strdup( newsuperior );
-	}
-	if ( NULL != newsuperior ) {
-		slapi_dn_normalize_case( newsuperior );	/* normalize in place */
-	}
-	slapi_pblock_set (pb, SLAPI_MODRDN_TARGET,
-				(void*)slapi_ch_strdup(slapi_sdn_get_ndn (&sdn)));
-	slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, (void *)newrdn );
-	slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR, (void *)newsuperior);
+	/* normdn = slapi_sdn_get_dn(sdn); */
+	newsuperior = slapi_sdn_get_dn(newsuperiorsdn);
 
 	/* get the proxy auth dn if the proxy auth control is present */
 	proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
@@ -589,13 +594,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	operation_set_target_spec (pb->pb_op, &sdn);
+	operation_set_target_spec (pb->pb_op, sdn);
 
 	/*
-	 * Construct the new DN (code copied from backend
+	 * Construct the new DN (code sdn from backend
 	 * and modified to handle newsuperior)
 	 */
-	newdn = slapi_moddn_get_newdn(&sdn,newrdn,newsuperior);
+	newdn = slapi_moddn_get_newdn(sdn, newrdn, newsuperior);
 
 	/*
 	 * We could be serving multiple database backends.  Select the
@@ -695,8 +700,20 @@ free_and_return_nolock:
 		LDAPMod **mods;
 		char	*s;
 
-		slapi_ch_free((void **) &newdn);
-		slapi_sdn_done(&sdn);
+		if (passin_args) {
+			if (NULL == origsdn) {
+				slapi_sdn_free(&sdn);
+			}
+		} else {
+			slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sdn);
+			slapi_sdn_free(&sdn);
+			slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
+			slapi_ch_free_string(&newrdn);
+			slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperiorsdn);
+			slapi_sdn_free(&newsuperiorsdn);
+		}
+		slapi_ch_free_string(&newdn);
+
 		slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
 		slapi_entry_free(ecopy);
 		slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
@@ -706,13 +723,6 @@ free_and_return_nolock:
 		slapi_ch_free_string(&proxydn);
 		slapi_ch_free_string(&proxystr);
 
-		/* retrieve these in case a pre- or post-op plugin has changed them */
-		slapi_pblock_get(pb, SLAPI_MODRDN_TARGET, &s);
-		slapi_ch_free((void **)&s);
-		slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &s);
-		slapi_ch_free((void **)&s);
-		slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR, &s);
-		slapi_ch_free((void **)&s);
 		slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &s);
 		slapi_ch_free((void **)&s);
 	}

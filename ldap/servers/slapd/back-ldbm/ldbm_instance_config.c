@@ -773,8 +773,8 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
             if (strcasecmp(attr_name, CONFIG_INSTANCE_SUFFIX) == 0) {
                 /* naughty naughty, we don't allow this */
                 rc = LDAP_UNWILLING_TO_PERFORM;
-		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-			"Can't change the root suffix of a backend");
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "Can't change the root suffix of a backend");
                 LDAPDebug(LDAP_DEBUG_ANY,
                           "ldbm: modify attempted to change the root suffix "
                           "of a backend (which is not allowed)\n",
@@ -841,10 +841,13 @@ static int ldbm_instance_generate(struct ldbminfo *li, char *instance_name,
     new_be = slapi_be_new(LDBM_DATABASE_TYPE_NAME /* type */, instance_name, 
                           0 /* public */, 1 /* do log changes */);
     new_be->be_database = li->li_plugin;
-    ldbm_instance_create(new_be, instance_name);
+    rc = ldbm_instance_create(new_be, instance_name);
+    if (rc) {
+        goto bail;
+    }
 
     ldbm_instance_config_load_dse_info(new_be->be_instance_info);
-    rc = ldbm_instance_create_default_indexes(new_be);
+    ldbm_instance_create_default_indexes(new_be);
 
     /* if USN plugin is enabled, set slapi_counter */
     if (plugin_enabled("USN", li->li_identity) && ldbm_back_isinitialized()) {
@@ -867,7 +870,7 @@ static int ldbm_instance_generate(struct ldbminfo *li, char *instance_name,
     if (ret_be != NULL) {
         *ret_be = new_be;
     }
-
+bail:
     return rc;
 }
 
@@ -881,7 +884,13 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* ent
     int rval = 0;
 
     parse_ldbm_instance_entry(entryBefore, &instance_name);
-    ldbm_instance_generate(li, instance_name, &be);
+    rval = ldbm_instance_generate(li, instance_name, &be);
+    if (rval) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+            "ldbm_instance_postadd_instance_entry_callback: "
+            "ldbm_instance_generate (%s) failed (%d)\n",
+            instance_name, rval, 0);
+    }
 
     inst = ldbm_instance_find_by_name(li, instance_name);
 

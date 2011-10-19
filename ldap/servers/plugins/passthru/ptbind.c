@@ -48,7 +48,7 @@
 #include "passthru.h"
 
 static int
-passthru_simple_bind_once_s( PassThruServer *srvr, char *dn,
+passthru_simple_bind_once_s( PassThruServer *srvr, const char *dn,
 	struct berval *creds, LDAPControl **reqctrls, int *lderrnop,
 	char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
 	LDAPControl ***resctrlsp );
@@ -68,7 +68,7 @@ passthru_simple_bind_once_s( PassThruServer *srvr, char *dn,
  */
 int
 passthru_simple_bind_s( Slapi_PBlock *pb, PassThruServer *srvr, int tries,
-	char *dn, struct berval *creds, LDAPControl **reqctrls, int *lderrnop,
+	const char *dn, struct berval *creds, LDAPControl **reqctrls, int *lderrnop,
 	char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
 	LDAPControl ***resctrlsp )
 {
@@ -102,7 +102,7 @@ passthru_simple_bind_s( Slapi_PBlock *pb, PassThruServer *srvr, int tries,
  * like passthru_simple_bind_s() but only makes one attempt.
  */
 static int
-passthru_simple_bind_once_s( PassThruServer *srvr, char *dn,
+passthru_simple_bind_once_s( PassThruServer *srvr, const char *dn,
 	struct berval *creds, LDAPControl **reqctrls, int *lderrnop,
 	char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
 	LDAPControl ***resctrlsp )

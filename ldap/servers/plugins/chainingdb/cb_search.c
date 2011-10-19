@@ -58,41 +58,45 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 
 	Slapi_Backend		* be;
 	Slapi_Operation		* op;
-	char 			*target, *filter;
+	char 			*filter;
+	const char		*target = NULL;
+	Slapi_DN		*target_sdn = NULL;
 	int			scope,attrsonly,sizelimit,timelimit,rc,searchreferral;
 	char 			**attrs=NULL;
 	LDAPControl 		**controls=NULL;		
 	LDAPControl 		**ctrls=NULL;		
-        LDAP                    *ld=NULL;
-	cb_backend_instance 	*cb = NULL;
+	LDAP				*ld=NULL;
+	cb_backend_instance	*cb = NULL;
 	cb_searchContext 	*ctx=NULL;
 	struct timeval		timeout;
 	time_t			optime;
 	int 			doit,parse_rc;
- 	LDAPMessage 		*res=NULL;
-        char                    *matched_msg,*error_msg;
-        LDAPControl             **serverctrls=NULL;
-        char                    **referrals=NULL;
+	LDAPMessage 		*res=NULL;
+	char                    *matched_msg,*error_msg;
+	LDAPControl             **serverctrls=NULL;
+	char                    **referrals=NULL;
 	char			*cnxerrbuf=NULL;
 	time_t 			endbefore=0;
 	time_t			endtime;
 	cb_outgoing_conn	*cnx;
 
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	cb = cb_get_instance(be);
 
-        slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-        slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &filter );
-        slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
-        slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
-        slapi_pblock_get( pb, SLAPI_SEARCH_TARGET, &target );
+	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+	slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &filter );
+	slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
+	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+	slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &target_sdn );
 
-        if ( LDAP_SUCCESS != (parse_rc=cb_forward_operation(pb) )) {
+	target = slapi_sdn_get_dn(target_sdn);
+
+	if ( LDAP_SUCCESS != (parse_rc=cb_forward_operation(pb) )) {
 
 		/* Don't return errors */
 
 		if (cb_debug_on()) {
-        		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 			"local search: base:<%s> scope:<%s> filter:<%s>\n",target,
 			scope==LDAP_SCOPE_SUBTREE?"SUBTREE":scope==LDAP_SCOPE_ONELEVEL ? "ONE-LEVEL" : "BASE" , filter);
 		}
@@ -135,28 +139,28 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 
 	if (( scope != LDAP_SCOPE_BASE ) && ( searchreferral )) {
 
-		int 			i;
-                struct  berval          bv,*bvals[2];
-                Slapi_Entry 		** aciArray=(Slapi_Entry **) slapi_ch_malloc(2*sizeof(Slapi_Entry *));
-		Slapi_Entry 		*anEntry = slapi_entry_alloc();
+		int i;
+		struct berval bv,*bvals[2];
+		Slapi_Entry ** aciArray=(Slapi_Entry **) slapi_ch_malloc(2*sizeof(Slapi_Entry *));
+		Slapi_Entry *anEntry = slapi_entry_alloc();
 
-                slapi_entry_set_dn(anEntry,slapi_ch_strdup(target));
+		slapi_entry_set_sdn(anEntry, target_sdn);
 
-                bvals[1]=NULL;
-                bvals[0]=&bv;
-                bv.bv_val="referral";
+		bvals[1]=NULL;
+		bvals[0]=&bv;
+		bv.bv_val="referral";
 		bv.bv_len=strlen(bv.bv_val);
-                slapi_entry_add_values( anEntry, "objectclass", bvals);
+		slapi_entry_add_values( anEntry, "objectclass", bvals);
 
-        	slapi_rwlock_rdlock(cb->rwl_config_lock);
+		slapi_rwlock_rdlock(cb->rwl_config_lock);
 		for (i=0; cb->url_array && cb->url_array[i]; i++) {
 			char * anUrl = slapi_ch_smprintf("%s%s",cb->url_array[i],target);
-                	bv.bv_val=anUrl;
+			                                 bv.bv_val=anUrl;
 			bv.bv_len=strlen(bv.bv_val);
-                	slapi_entry_attr_merge( anEntry, "ref", bvals);
+			slapi_entry_attr_merge( anEntry, "ref", bvals);
 			slapi_ch_free((void **)&anUrl);
 		}
-        	slapi_rwlock_unlock(cb->rwl_config_lock);
+		slapi_rwlock_unlock(cb->rwl_config_lock);
 		
 		aciArray[0]=anEntry;
 		aciArray[1]=NULL;
@@ -442,12 +446,12 @@ int
 chainingdb_next_search_entry ( Slapi_PBlock *pb )
 { 
 
-	char 			*target;
+	Slapi_DN	*target_sdn = NULL;
 	int			sizelimit, timelimit;
 	int			rc, parse_rc, retcode;
 	int			i, attrsonly;
 	time_t			optime;
- 	LDAPMessage 		*res=NULL;
+	LDAPMessage 		*res=NULL;
 	char 			*matched_msg,*error_msg;
 	cb_searchContext 	*ctx=NULL;
 	Slapi_Entry 		*entry;
@@ -459,13 +463,13 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
 	matched_msg=error_msg=NULL;
 
-        slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &ctx );
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-    	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
-        slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit );
-        slapi_pblock_get( pb, SLAPI_SEARCH_TARGET, &target );
-        slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
-        slapi_pblock_get( pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
+	slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &ctx );
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
+	slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit );
+	slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &target_sdn );
+	slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+	slapi_pblock_get( pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
 
 	cb = cb_get_instance(be);
 
@@ -656,22 +660,22 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 		case LDAP_RES_SEARCH_REFERENCE:
 
 			/* The server sent a search reference encountered during the 
-            		 * search operation. 
+			 * search operation. 
 			 */
 		
 			/* heart-beat management */
-       			if (cb->max_idle_time>0)
-	       			endtime=current_time() + cb->max_idle_time;
+			if (cb->max_idle_time>0)
+				endtime=current_time() + cb->max_idle_time;
 
 			parse_rc = ldap_parse_reference( ctx->ld, res, &referrals, NULL, 1 );
-         		if ( parse_rc != LDAP_SUCCESS ) {
-	               		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
-					ldap_err2string( parse_rc ), 0, NULL);
+			if ( parse_rc != LDAP_SUCCESS ) {
+				cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
+				                     ldap_err2string( parse_rc ), 0, NULL);
 				cb_release_op_connection(cb->pool,ctx->ld,CB_LDAP_CONN_ERROR(parse_rc));
 				slapi_ch_free((void **)&ctx);
 
-        			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
-        			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
+				slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
+				slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
 				return -1;
 			}
 
@@ -681,27 +685,27 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
 			{
 
-   				struct  berval          bv;
+				struct  berval          bv;
 				int 			i;
-                		struct  berval          *bvals[2];
-                		Slapi_Entry *anEntry = slapi_entry_alloc();
-                		slapi_entry_set_dn(anEntry,slapi_ch_strdup(target));
+				struct  berval          *bvals[2];
+				Slapi_Entry *anEntry = slapi_entry_alloc();
+				slapi_entry_set_sdn(anEntry, target_sdn);
 
-                		bvals[1]=NULL;
-                		bvals[0]=&bv;
+				bvals[1]=NULL;
+				bvals[0]=&bv;
 
-                		bv.bv_val="referral";
-                		bv.bv_len=strlen(bv.bv_val);
-                		slapi_entry_add_values( anEntry, "objectclass", bvals);
+				bv.bv_val="referral";
+				bv.bv_len=strlen(bv.bv_val);
+				slapi_entry_add_values( anEntry, "objectclass", bvals);
 
 				for (i=0;referrals[i] != NULL; i++) {
-                			bv.bv_val=referrals[i];
+					bv.bv_val=referrals[i];
 					bv.bv_len=strlen(bv.bv_val);
-                			slapi_entry_add_values( anEntry, "ref", bvals);
+					slapi_entry_add_values( anEntry, "ref", bvals);
 				}
 
-        			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
-        			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,anEntry);
+				slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
+				slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,anEntry);
 				cb_set_acl_policy(pb);
 			}
 

@@ -136,7 +136,7 @@ typedef struct passthruconfig {
  * ptbind.c:
  */
 int passthru_simple_bind_s( Slapi_PBlock *pb, PassThruServer *srvr, int tries,
-	char *dn, struct berval *creds, LDAPControl **reqctrls, int *lderrnop,
+	const char *dn, struct berval *creds, LDAPControl **reqctrls, int *lderrnop,
 	char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
 	LDAPControl ***resctrlsp );
 
@@ -149,7 +149,7 @@ PassThruConfig *passthru_get_config( void );
 /*
  * ptconn.c:
  */
-int passthru_dn2server( PassThruConfig *cfg, char *normdn,
+int passthru_dn2server( PassThruConfig *cfg, const char *normdn,
 	PassThruServer **srvrp );
 int passthru_get_connection( PassThruServer *srvr, LDAP **ldp );
 void passthru_release_connection( PassThruServer *srvr, LDAP *ld, int dispose );

@@ -2815,7 +2815,6 @@ int
 dblayer_remove_env(struct ldbminfo *li)
 {
     DB_ENV *env = NULL;
-    dblayer_private *priv = NULL;
     char *home_dir = NULL;
     int rc = db_env_create(&env, 0);
     if (rc) {
@@ -2827,7 +2826,6 @@ dblayer_remove_env(struct ldbminfo *li)
         LDAPDebug0Args(LDAP_DEBUG_ANY, "ERROR -- No ldbm info is given\n");
         return -1;
     }
-    priv = (dblayer_private *)li->li_dblayer_private;
 
     home_dir = dblayer_get_home_dir(li, NULL);
     if (home_dir) {

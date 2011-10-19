@@ -87,9 +87,7 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
   LDAPProxyAuth *spec = NULL;
   BerElement *ber = NULL;
   char *errstring = "unable to parse proxied authorization control";
-  int rc = 0;
-  char *normed = NULL;
-  size_t dnlen = 0;
+  Slapi_DN *sdn = NULL;
 
   BEGIN
 	ber_tag_t tag;
@@ -143,14 +141,11 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 	}
 
 	lderr = LDAP_SUCCESS;	/* got it! */
-	rc = slapi_dn_normalize_ext(spec->auth_dn, 0, &normed, &dnlen);
-	if (rc < 0) {
+	sdn = slapi_sdn_new_dn_passin(spec->auth_dn);
+	spec->auth_dn = slapi_ch_strdup(slapi_sdn_get_ndn(sdn));
+	slapi_sdn_free(&sdn);
+	if (NULL == spec->auth_dn) {
 		lderr = LDAP_INVALID_SYNTAX;
-	} else if (rc == 0) { /* spec->auth_dn is passed in; not terminated */
-		*(normed + dnlen) = '\0';
-	} else {
-		slapi_ch_free_string(&spec->auth_dn);
-		spec->auth_dn = normed;
 	}
   END
 

@@ -63,29 +63,33 @@ chaining_back_compare ( Slapi_PBlock *pb )
 	LDAP 			*ld=NULL;
 	char         		**referrals=NULL;
 	LDAPMessage		* res;
-	char 			*type,*dn,* matched_msg, *error_msg;
+	char 			*type, *matched_msg, *error_msg;
+	const char 		*dn = NULL;
+	Slapi_DN		*sdn = NULL; 
 	char 			*cnxerrbuf=NULL;
-   	time_t 			endtime;
+	time_t 			endtime;
 	cb_outgoing_conn	*cnx;
 
-        if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
-        	cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
-                return -1;
-        }
+	if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
+		cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
+		return -1;
+	}
 
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	cb = cb_get_instance(be);
 
-        cb_update_monitor_info(pb,cb,SLAPI_OPERATION_COMPARE);
+	cb_update_monitor_info(pb,cb,SLAPI_OPERATION_COMPARE);
 
 	/* Check wether the chaining BE is available or not */
-        if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
-                return -1;
-        }
+	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
+		return -1;
+	}
 
-        slapi_pblock_get( pb, SLAPI_COMPARE_TARGET, &dn );
-        slapi_pblock_get( pb, SLAPI_COMPARE_TYPE, &type );
-        slapi_pblock_get( pb, SLAPI_COMPARE_VALUE, &bval );
+	slapi_pblock_get( pb, SLAPI_COMPARE_TARGET_SDN, &sdn );
+	slapi_pblock_get( pb, SLAPI_COMPARE_TYPE, &type );
+	slapi_pblock_get( pb, SLAPI_COMPARE_VALUE, &bval );
+
+	dn = slapi_sdn_get_dn(sdn);
 
 	/* 
 	 * Check local acls
@@ -96,17 +100,17 @@ chaining_back_compare ( Slapi_PBlock *pb )
 
 	if (checkacl) {
 		char * errbuf=NULL;
-          	Slapi_Entry *te = slapi_entry_alloc();
-          	slapi_entry_set_dn(te,slapi_ch_strdup(dn));
-          	rc = cb_access_allowed (pb, te, type, bval, SLAPI_ACL_COMPARE,&errbuf);
-          	slapi_entry_free(te);
+		Slapi_Entry *te = slapi_entry_alloc();
+		slapi_entry_set_sdn(te, sdn); /* sdn: copied */
+		rc = cb_access_allowed (pb, te, type, bval, SLAPI_ACL_COMPARE,&errbuf);
+		slapi_entry_free(te);
 
-   		if ( rc != LDAP_SUCCESS ) {
-                	cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
+		if ( rc != LDAP_SUCCESS ) {
+			cb_send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
 			slapi_ch_free((void **) &errbuf);
 			return 1;
 		}
-        }
+	}
 
 	/*
 	 * Grab a connection handle

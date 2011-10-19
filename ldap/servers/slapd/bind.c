@@ -124,12 +124,13 @@ do_bind( Slapi_PBlock *pb )
     int		auth_response_requested = 0;
     int		pw_response_requested = 0;
     char		*rawdn = NULL;
-    char		*dn = NULL, *saslmech = NULL;
+    const char	*dn = NULL;
+    char		*saslmech = NULL;
     struct berval	cred = {0};
     Slapi_Backend		*be = NULL;
     ber_tag_t ber_rc;
     int rc = 0;
-    Slapi_DN sdn;
+    Slapi_DN *sdn = NULL;
     Slapi_Entry *referral;
     char errorbuf[BUFSIZ];
     char **supported, **pmech;
@@ -137,8 +138,6 @@ do_bind( Slapi_PBlock *pb )
     Slapi_Entry *bind_target_entry = NULL;
     int auto_bind = 0;
     int minssf = 0;
-    char *test_bind_dn = NULL;
-    size_t dnlen = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "do_bind\n", 0, 0, 0 );
 
@@ -174,7 +173,7 @@ do_bind( Slapi_PBlock *pb )
         return;
     }
     /* Check if we should be performing strict validation. */
-    if (config_get_dn_validate_strict()) { 
+    if (rawdn && config_get_dn_validate_strict()) { 
         /* check that the dn is formatted correctly */
         rc = slapi_dn_syntax_check(pb, rawdn, 1);
         if (rc) { /* syntax check failed */
@@ -186,27 +185,21 @@ do_bind( Slapi_PBlock *pb )
             return;
         }
     }
-    rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
-    if (rc < 0) {
-        op_shared_log_error_access(pb, "BIND", rawdn?rawdn:"",
-                                   "invalid bind dn");
-        send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
-                         NULL, "invalid bind dn", 0, NULL);
-        slapi_ch_free_string(&rawdn);
+    sdn = slapi_sdn_new_dn_passin(rawdn);
+    dn = slapi_sdn_get_dn(sdn);
+    if (rawdn && (strlen(rawdn) > 0) && (NULL == dn)) {
+        /* normalization failed */
+        op_shared_log_error_access(pb, "BIND", rawdn, "invalid bind dn");
+        send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+                         "invalid bind dn", 0, NULL);
+        slapi_sdn_free(&sdn);
         return;
-    } else if (rc > 0) { /* if rc == 0, rawdn is passed in */
-        slapi_ch_free_string(&rawdn);
-    } else { /* rc == 0; rawdn is passed in; not null terminated */
-        *(dn + dnlen) = '\0';
     }
-
-    slapi_sdn_init_dn_passin(&sdn, dn);
-
     LDAPDebug( LDAP_DEBUG_TRACE, "BIND dn=\"%s\" method=%d version=%d\n",
-               dn, method, version );
+               dn?dn:"empty", method, version );
 
     /* target spec is used to decide which plugins are applicable for the operation */
-    operation_set_target_spec (pb->pb_op, &sdn);
+    operation_set_target_spec (pb->pb_op, sdn);
 
     switch ( method ) {
     case LDAP_AUTH_SASL:
@@ -214,7 +207,7 @@ do_bind( Slapi_PBlock *pb )
             LDAPDebug( LDAP_DEBUG_ANY,
                        "got SASL credentials from LDAPv2 client\n",
                        0, 0, 0 );
-            log_bind_access (pb, slapi_sdn_get_dn (&sdn), method, version, saslmech, "SASL credentials only in LDAPv3");
+            log_bind_access (pb, dn?dn:"empty", method, version, saslmech, "SASL credentials only in LDAPv3");
             send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                               "SASL credentials only in LDAPv3", 0, NULL );
             goto free_and_return;
@@ -243,7 +236,7 @@ do_bind( Slapi_PBlock *pb )
                 "LDAPv2-style kerberos authentication received "
                 "on LDAPv3 connection.";
             LDAPDebug( LDAP_DEBUG_ANY, kmsg, 0, 0, 0 );
-            log_bind_access (pb, slapi_sdn_get_dn (&sdn), method, version, saslmech, kmsg);
+            log_bind_access (pb, dn?dn:"empty", method, version, saslmech, kmsg);
             send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                               kmsg, 0, NULL );
             goto free_and_return;
@@ -256,7 +249,7 @@ do_bind( Slapi_PBlock *pb )
         }
         break;
     default:
-        log_bind_access (pb, slapi_sdn_get_dn (&sdn), method, version, saslmech, "Unknown bind method");
+        log_bind_access (pb, dn?dn:"empty", method, version, saslmech, "Unknown bind method");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                           "Unknown bind method", 0, NULL );
         goto free_and_return;
@@ -265,7 +258,7 @@ do_bind( Slapi_PBlock *pb )
         LDAPDebug( LDAP_DEBUG_ANY,
                    "ber_scanf failed (op=Bind; params=Credentials)\n",
                    0, 0, 0 );
-        log_bind_access (pb, slapi_sdn_get_dn (&sdn), method, version, saslmech, "decoding error");
+        log_bind_access (pb, dn?dn:"empty", method, version, saslmech, "decoding error");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                           "decoding error", 0, NULL );
         goto free_and_return;
@@ -284,7 +277,7 @@ do_bind( Slapi_PBlock *pb )
 
         if (( err = get_ldapmessage_controls( pb, ber, &reqctrls ))
             != 0 ) {
-            log_bind_access (pb, slapi_sdn_get_dn (&sdn), method,
+            log_bind_access (pb, dn?dn:"empty", method,
                              version, saslmech, "failed to parse LDAP controls");
             send_ldap_result( pb, err, NULL, NULL, 0, NULL );
             goto free_and_return;
@@ -316,8 +309,8 @@ do_bind( Slapi_PBlock *pb )
         {
             auto_bind = 1; /* flag the bind method */
             dn = slapi_ch_strdup(pb->pb_conn->c_dn);
-            slapi_sdn_done(&sdn);
-            slapi_sdn_init_dn_passin(&sdn,dn);
+            slapi_sdn_free(&sdn);
+            sdn = slapi_sdn_new_dn_passin(dn);
         }
     }
 #endif /* ENABLE_AUTOBIND */
@@ -330,7 +323,7 @@ do_bind( Slapi_PBlock *pb )
     pb->pb_conn->c_needpw = 0;
     PR_Unlock( pb->pb_conn->c_mutex );
 
-    log_bind_access(pb, dn, method, version, saslmech, NULL);
+    log_bind_access(pb, dn?dn:"empty", method, version, saslmech, NULL);
 
     switch ( version ) {
     case LDAP_VERSION2:
@@ -372,9 +365,9 @@ do_bind( Slapi_PBlock *pb )
                version, method, dn );
     pb->pb_conn->c_ldapversion = version;
 
-    isroot = slapi_dn_isroot( slapi_sdn_get_ndn(&sdn) );
+    isroot = slapi_dn_isroot( slapi_sdn_get_ndn(sdn) );
     slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
-    slapi_pblock_set( pb, SLAPI_BIND_TARGET, (void*)slapi_sdn_get_ndn(&sdn) );
+    slapi_pblock_set( pb, SLAPI_BIND_TARGET_SDN, (void*)sdn );
     slapi_pblock_set( pb, SLAPI_BIND_METHOD, &method );
     slapi_pblock_set( pb, SLAPI_BIND_SASLMECHANISM, saslmech );
     slapi_pblock_set( pb, SLAPI_BIND_CREDENTIALS, &cred );
@@ -613,9 +606,9 @@ do_bind( Slapi_PBlock *pb )
             slapi_value_init_berval(&cv,&cred);
 
             /* right dn and passwd - authorize */
-            if ( is_root_dn_pw( slapi_sdn_get_ndn(&sdn), &cv )) {
+            if ( is_root_dn_pw( slapi_sdn_get_ndn(sdn), &cv )) {
                 bind_credentials_set( pb->pb_conn, SLAPD_AUTH_SIMPLE,
-                                      slapi_ch_strdup( slapi_sdn_get_ndn(&sdn) ),
+                                      slapi_ch_strdup( slapi_sdn_get_ndn(sdn) ),
                                       NULL, NULL, NULL , NULL);
 
             /* right dn, wrong passwd - reject with invalid creds */
@@ -635,7 +628,7 @@ do_bind( Slapi_PBlock *pb )
             if ( auth_response_requested ) {
                 slapi_add_auth_response_control( pb,
                                            ( cred.bv_len == 0 ) ? "" :
-                                           slapi_sdn_get_ndn(&sdn));
+                                           slapi_sdn_get_ndn(sdn));
             }
             send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 
@@ -687,7 +680,7 @@ do_bind( Slapi_PBlock *pb )
 
             /* get the entry now, so that we can give it to slapi_check_account_lock and reslimit_update_from_dn */
             if (! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
-                bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(&sdn));
+                bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(sdn));
                 rc = slapi_check_account_lock ( pb, bind_target_entry, pw_response_requested, 1, 1);
             }
 
@@ -730,11 +723,11 @@ do_bind( Slapi_PBlock *pb )
                     if(!auto_bind)
                         bind_credentials_set( pb->pb_conn,
                                           authtype, slapi_ch_strdup(
-                                              slapi_sdn_get_ndn(&sdn)),
+                                              slapi_sdn_get_ndn(sdn)),
                                           NULL, NULL, NULL, bind_target_entry );
                     if ( auth_response_requested ) {
                         slapi_add_auth_response_control( pb,
-                                                   slapi_sdn_get_ndn(&sdn));
+                                                   slapi_sdn_get_ndn(sdn));
                     }
                 } else {	/* anonymous */
                     /* set bind creds here so anonymous limits are set */
@@ -803,16 +796,12 @@ do_bind( Slapi_PBlock *pb )
  free_and_return:;
     if (be)
         slapi_be_Unlock(be);
-    slapi_pblock_get(pb, SLAPI_BIND_TARGET, &test_bind_dn);
-    if (test_bind_dn != slapi_sdn_get_ndn(&sdn)) {
-        /* set in sasl bind or some other bind plugin */
-        slapi_ch_free_string(&test_bind_dn);
-    }
-    slapi_sdn_done(&sdn);
+    slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
+    slapi_sdn_free(&sdn);
     slapi_ch_free_string( &saslmech );
     slapi_ch_free( (void **)&cred.bv_val );
-	if ( bind_target_entry != NULL )
-		slapi_entry_free(bind_target_entry);
+    if ( bind_target_entry != NULL )
+        slapi_entry_free(bind_target_entry);
 }
 
 

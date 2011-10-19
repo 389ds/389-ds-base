@@ -244,7 +244,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	{
 		goto error_return;
 	}
-	ldap_result_code = slapi_dn_syntax_check(pb, addr->dn, 1);
+	ldap_result_code = slapi_dn_syntax_check(pb, slapi_sdn_get_dn(addr->sdn), 1);
 	if (ldap_result_code)
 	{
 		ldap_result_code = LDAP_INVALID_DN_SYNTAX;

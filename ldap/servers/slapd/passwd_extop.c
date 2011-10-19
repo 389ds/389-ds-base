@@ -145,7 +145,8 @@ passwd_modify_getEntry( const char *dn, Slapi_Entry **e2 ) {
 /* Construct Mods pblock and perform the modify operation 
  * Sets result of operation in SLAPI_PLUGIN_INTOP_RESULT 
  */
-static int passwd_apply_mods(Slapi_PBlock *pb_orig, const char *dn, Slapi_Mods *mods,
+static int 
+passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 	LDAPControl **req_controls, LDAPControl ***resp_controls) 
 {
 	Slapi_PBlock pb;
@@ -164,7 +165,7 @@ static int passwd_apply_mods(Slapi_PBlock *pb_orig, const char *dn, Slapi_Mods *
 		}
 
 		pblock_init(&pb);
-		slapi_modify_internal_set_pb (&pb, dn, 
+		slapi_modify_internal_set_pb_ext (&pb, sdn, 
 			slapi_mods_get_ldapmods_byref(mods),
 			req_controls_copy, NULL, /* UniqueID */
 			plugin_get_default_component_id(), /* PluginID */
@@ -195,7 +196,7 @@ static int passwd_apply_mods(Slapi_PBlock *pb_orig, const char *dn, Slapi_Mods *
 
 		if (ret != LDAP_SUCCESS){
 			LDAPDebug(LDAP_DEBUG_TRACE, "WARNING: passwordPolicy modify error %d on entry '%s'\n",
-				ret, dn, 0);
+				ret, slapi_sdn_get_dn(sdn), 0);
 		}
 
 		pblock_done(&pb);
@@ -212,18 +213,17 @@ static int passwd_apply_mods(Slapi_PBlock *pb_orig, const char *dn, Slapi_Mods *
 static int passwd_modify_userpassword(Slapi_PBlock *pb_orig, Slapi_Entry *targetEntry,
 	const char *newPasswd, LDAPControl **req_controls, LDAPControl ***resp_controls)
 {
-	char *dn = NULL;
 	int ret = 0;
 	Slapi_Mods smods;
 	
     LDAPDebug( LDAP_DEBUG_TRACE, "=> passwd_modify_userpassword\n", 0, 0, 0 );
 	
 	slapi_mods_init (&smods, 0);
-	dn = slapi_entry_get_ndn( targetEntry );
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, SLAPI_USERPWD_ATTR, newPasswd);
 
 
-	ret = passwd_apply_mods(pb_orig, dn, &smods, req_controls, resp_controls);
+	ret = passwd_apply_mods(pb_orig, slapi_entry_get_sdn_const(targetEntry),
+	                        &smods, req_controls, resp_controls);
  
 	slapi_mods_done(&smods);
 	
@@ -238,7 +238,6 @@ static int passwd_modify_generate_basic_passwd( int passlen, char **genpasswd )
 	char *data = NULL;
 	char *enc = NULL;
 	int datalen = LDAP_EXTOP_PASSMOD_RANDOM_BYTES;
-	int enclen = LDAP_EXTOP_PASSMOD_GEN_PASSWD_LEN + 1;
 
 	if ( genpasswd == NULL ) {
 		return LDAP_OPERATIONS_ERROR;
@@ -246,7 +245,6 @@ static int passwd_modify_generate_basic_passwd( int passlen, char **genpasswd )
 
 	if ( passlen > 0 ) {
 		datalen = passlen * 3 / 4 + 1;
-		enclen = datalen * 4; /* allocate the large enough space */
 	}
 
 	data = slapi_ch_calloc( datalen, 1 );
@@ -454,10 +452,10 @@ passwd_modify_extop( Slapi_PBlock *pb )
 {
 	char		*oid = NULL;
 	char 		*bindDN = NULL;
+	Slapi_DN	*bindSDN = NULL;
 	char		*authmethod = NULL;
 	char		*rawdn = NULL;
-	char		*dn = NULL;
-	size_t		dnlen = 0;
+	const char	*dn = NULL;
 	char		*otdn = NULL;
 	char		*oldPasswd = NULL;
 	char		*newPasswd = NULL;
@@ -582,15 +580,13 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if (tag == LDAP_EXTOP_PASSMOD_TAG_USERID )
 	{
 		int rc = 0;
-		if ( ber_scanf( ber, "a", &rawdn) == LBER_ERROR )
-    		{
-    		slapi_ch_free_string(&rawdn);
-    		LDAPDebug( LDAP_DEBUG_ANY,
-    		    "ber_scanf failed :{\n", 0, 0, 0 );
-    		errMesg = "ber_scanf failed at userID parse.\n";
-		rc = LDAP_PROTOCOL_ERROR;
-		goto free_and_return;
-    		}
+		if ( ber_scanf( ber, "a", &rawdn) == LBER_ERROR ) {
+			slapi_ch_free_string(&rawdn);
+			LDAPDebug( LDAP_DEBUG_ANY, "ber_scanf failed :{\n", 0, 0, 0 );
+			errMesg = "ber_scanf failed at userID parse.\n";
+			rc = LDAP_PROTOCOL_ERROR;
+			goto free_and_return;
+		}
 
 		/* Check if we should be performing strict validation. */
 		if (config_get_dn_validate_strict()) {
@@ -605,50 +601,31 @@ passwd_modify_extop( Slapi_PBlock *pb )
 				goto free_and_return;
 			}
 		}
-		rc = slapi_dn_normalize_ext(rawdn, 0, &dn, &dnlen);
-		if (rc < 0) {
-			op_shared_log_error_access(pb, "EXT", rawdn?rawdn:"",
-								"invalid target dn");
-			slapi_ch_free_string(&rawdn);
-			errMesg = "invalid target dn.\n";
-			rc = LDAP_INVALID_SYNTAX;
-			goto free_and_return;
-		} else if (rc == 0) { /* rawdn is passed in, not terminated */
-			*(dn + dnlen) = '\0';
-		} else {
-			slapi_ch_free_string(&rawdn);
-		}
-		tag = ber_peek_tag( ber, &len);
+		tag = ber_peek_tag(ber, &len);
 	} 
 	
-	
 	/* identify oldPasswd field by tags */
-	if (tag == LDAP_EXTOP_PASSMOD_TAG_OLDPWD )
-	{
-		if ( ber_scanf( ber, "a", &oldPasswd ) == LBER_ERROR )
-    		{
-    		slapi_ch_free_string(&oldPasswd);
-    		LDAPDebug( LDAP_DEBUG_ANY,
-    		    "ber_scanf failed :{\n", 0, 0, 0 );
-    		errMesg = "ber_scanf failed at oldPasswd parse.\n";
-		rc = LDAP_PROTOCOL_ERROR;
-		goto free_and_return;
-    		}
+	if (tag == LDAP_EXTOP_PASSMOD_TAG_OLDPWD ) {
+		if ( ber_scanf( ber, "a", &oldPasswd ) == LBER_ERROR ) {
+			slapi_ch_free_string(&oldPasswd);
+			LDAPDebug( LDAP_DEBUG_ANY, "ber_scanf failed :{\n", 0, 0, 0 );
+			errMesg = "ber_scanf failed at oldPasswd parse.\n";
+			rc = LDAP_PROTOCOL_ERROR;
+			goto free_and_return;
+		}
 		tag = ber_peek_tag( ber, &len);
 	}
 	
 	/* identify newPasswd field by tags */
 	if (tag ==  LDAP_EXTOP_PASSMOD_TAG_NEWPWD )
 	{
-		if ( ber_scanf( ber, "a", &newPasswd ) == LBER_ERROR )
-    		{
-    		slapi_ch_free_string(&newPasswd);
-    		LDAPDebug( LDAP_DEBUG_ANY,
-    		    "ber_scanf failed :{\n", 0, 0, 0 );
-    		errMesg = "ber_scanf failed at newPasswd parse.\n";
-		rc = LDAP_PROTOCOL_ERROR;
-		goto free_and_return;
-    		}
+		if ( ber_scanf( ber, "a", &newPasswd ) == LBER_ERROR ) {
+			slapi_ch_free_string(&newPasswd);
+			LDAPDebug( LDAP_DEBUG_ANY, "ber_scanf failed :{\n", 0, 0, 0 );
+			errMesg = "ber_scanf failed at newPasswd parse.\n";
+			rc = LDAP_PROTOCOL_ERROR;
+			goto free_and_return;
+		}
 	}
 
 parse_req_done:	
@@ -659,26 +636,32 @@ parse_req_done:
 	/* Get Bind DN */
 	slapi_pblock_get( pb, SLAPI_CONN_DN, &bindDN );
 
-	/* Find and set the target DN. */
-	if (dn && *dn != '\0') {
-		target_sdn = slapi_sdn_new_dn_byref(dn);
-		slapi_pblock_set(pb, SLAPI_TARGET_DN, dn);
-	} else if (bindDN && *bindDN != '\0') {
-		target_sdn = slapi_sdn_new_dn_byref(bindDN);
-		slapi_pblock_set(pb, SLAPI_TARGET_DN, bindDN);
+	/* If the connection is bound anonymously, we must refuse to process this operation. */
+	if (bindDN == NULL || *bindDN == '\0') {
+		/* Refuse the operation because they're bound anonymously */
+		errMesg = "Anonymous Binds are not allowed.\n";
+		rc = LDAP_INSUFFICIENT_ACCESS;
+		goto free_and_return;
 	}
+
+	/* Find and set the target DN. */
+	if (rawdn && *rawdn != '\0') {
+	    target_sdn = slapi_sdn_new_dn_passin(rawdn);
+	} else { /* We already checked (bindDN && *bindDN != '\0') above  */
+	    target_sdn = bindSDN = slapi_sdn_new_normdn_byref(bindDN);
+	}
+	dn = slapi_sdn_get_ndn(target_sdn);
+	if (dn == NULL || *dn == '\0') {
+		/* Refuse the operation because they're bound anonymously */
+		errMesg = "Invalid dn.\n";
+		rc = LDAP_INVALID_DN_SYNTAX;
+		goto free_and_return;
+	}
+	slapi_pblock_set(pb, SLAPI_TARGET_SDN, target_sdn);
 
 	/* Check if we need to send any referrals. */
 	if (slapi_dn_write_needs_referral(target_sdn, &referrals)) {
 		rc = LDAP_REFERRAL;
-		goto free_and_return;
-	}
-
-	/* If the connection is bound anonymously, we must refuse to process this operation. */
-	if (bindDN == NULL || *bindDN == '\0') {
-	 	/* Refuse the operation because they're bound anonymously */
-		errMesg = "Anonymous Binds are not allowed.\n";
-		rc = LDAP_INSUFFICIENT_ACCESS;
 		goto free_and_return;
 	}
 
@@ -746,19 +729,7 @@ parse_req_done:
 		ber_free( response_ber, 1 );
 	 }
 	 
-	 
-	 /* Determine the target DN for this operation */
-	 /* Did they give us a DN ? */
-	 if (dn == NULL || *dn == '\0') {
-	 	/* Get the DN from the bind identity on this connection */
-		slapi_ch_free_string(&dn);
-		dn = slapi_ch_strdup(bindDN);
-		LDAPDebug( LDAP_DEBUG_ANY,
-    		    "Missing userIdentity in request, using the bind DN instead.\n",
-		     0, 0, 0 );
-	 }
-
-	 slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, dn ); 
+	 slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, (void *)dn ); 
 
 	 /* Now we have the DN, look for the entry */
 	 ret = passwd_modify_getEntry(dn, &targetEntry);
@@ -826,7 +797,9 @@ parse_req_done:
 	 * this here since the normal modify code doesn't perform this check for
 	 * internal operations. */
 	if (!pb->pb_op->o_isroot && !pb->pb_conn->c_needpw && !pwpolicy->pw_change) {
-		Slapi_DN *bindSDN = slapi_sdn_new_dn_byref(bindDN);
+		if (NULL == bindSDN) {
+			bindSDN = slapi_sdn_new_normdn_byref(bindDN);
+		}
 		/* Is this a user modifying their own password? */
 		if (slapi_sdn_compare(bindSDN, slapi_entry_get_sdn(targetEntry))==0) {
 			if (need_pwpolicy_ctrl) {
@@ -834,10 +807,8 @@ parse_req_done:
 			}
 			errMesg = "User is not allowed to change password\n";
 			rc = LDAP_UNWILLING_TO_PERFORM;
-			slapi_sdn_free(&bindSDN);
 			goto free_and_return;
 		}
-		slapi_sdn_free(&bindSDN);
 	}
 
 	/* Fetch any present request controls so we can use them when
@@ -879,8 +850,6 @@ free_and_return:
 		send_ldap_result( pb, rc, NULL, errMesg, 0, NULL );
 	}
 
-	slapi_sdn_free(&target_sdn);
-	slapi_ch_free_string(&bindDN); /* slapi_pblock_get SLAPI_CONN_DN does strdup */
 	slapi_ch_free_string(&oldPasswd);
 	slapi_ch_free_string(&newPasswd);
 	/* Either this is the same pointer that we allocated and set above,
@@ -888,9 +857,16 @@ free_and_return:
 	 * value that we need to free here */
 	slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET, &otdn );
 	if (otdn != dn) {
-		slapi_ch_free_string(&dn);
+		slapi_ch_free_string(&otdn);
 	}
-	slapi_ch_free_string(&otdn);
+	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &target_sdn);
+	if (bindSDN != target_sdn) {
+		slapi_sdn_free(&bindSDN);
+	}
+	/* slapi_pblock_get SLAPI_CONN_DN does strdup */
+	slapi_ch_free_string(&bindDN);
+	slapi_sdn_free(&target_sdn);
+	slapi_pblock_set(pb, SLAPI_TARGET_SDN, NULL);
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
 	slapi_ch_free_string(&authmethod);
 	delete_passwdPolicy(&pwpolicy);
