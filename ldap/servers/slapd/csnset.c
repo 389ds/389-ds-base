@@ -374,11 +374,13 @@ CSNSet *
 csnset_dup(const CSNSet *csnset)
 {
 	CSNSet *newcsnset= NULL;
+	CSNSet **curnode = &newcsnset;
 	const CSNSet *n= csnset;
 	while(n!=NULL)
 	{
-		csnset_add_csn(&newcsnset,n->type,&n->csn);
+		csnset_add_csn(curnode,n->type,&n->csn);
 		n= n->next;
+		curnode = &((*curnode)->next);
 	}
 	return newcsnset;
 }

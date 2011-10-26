@@ -358,6 +358,7 @@ entry_purge_state_information(Slapi_Entry *e, const CSN *csnUpTo)
 		 */
 		attr_purge_state_information(e, a, csnUpTo);
 	}
+	csnset_purge(&e->e_dncsnset, csnUpTo);
 }
 
 /*
