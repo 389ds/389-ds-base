@@ -1437,19 +1437,28 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
     if (! e->ep_mutexp) {
        /* make sure only one thread does this */
        PR_Lock(cache->c_emutexalloc_mutex);
-       if (! e->ep_mutexp)
-           e->ep_mutexp = PR_NewLock();
+       if (! e->ep_mutexp) {
+           e->ep_mutexp = PR_NewMonitor();
+           if (!e->ep_mutexp) {
+               LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
+               LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                     "cache_lock_entry: failed to create a lock for %s\n",
+					 backentry_get_ndn(e));
+               LOG("<= cache_lock_entry (FAILED)\n", 0, 0, 0);
+               return 1;
+           }
+       }
        PR_Unlock(cache->c_emutexalloc_mutex);
     }
 
     /* wait on entry lock (done w/o holding the cache lock) */
-    PR_Lock(e->ep_mutexp);
+    PR_EnterMonitor(e->ep_mutexp);
 
     /* make sure entry hasn't been deleted now */
     PR_Lock(cache->c_mutex);
     if (e->ep_state & (ENTRY_STATE_DELETED|ENTRY_STATE_NOTINCACHE)) {
        PR_Unlock(cache->c_mutex);
-       PR_Unlock(e->ep_mutexp);
+       PR_ExitMonitor(e->ep_mutexp);
        LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
        return 1;
     }
@@ -1463,7 +1472,7 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
 void cache_unlock_entry(struct cache *cache, struct backentry *e)
 {
     LOG("=> cache_unlock_entry\n", 0, 0, 0);
-    PR_Unlock(e->ep_mutexp);
+    PR_ExitMonitor(e->ep_mutexp);
 }
 
 /* DN cache */

@@ -210,11 +210,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			goto error_return;
 		}
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-		/* have to unlock the entry here, in case the bepreop attempts
-		   to modify the same entry == deadlock */
-		cache_unlock_entry( &inst->inst_cache, e );
+
 		rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
-		cache_lock_entry( &inst->inst_cache, e );
+
 		if (rc == -1)
 		{
 			/* 

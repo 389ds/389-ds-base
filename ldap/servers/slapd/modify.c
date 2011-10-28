@@ -75,7 +75,9 @@
 /* Forward declarations */
 static int modify_internal_pb (Slapi_PBlock *pb);
 static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw);
+#if 0 /* not used */
 static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_unhashed);
+#endif
 static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods);
 static int hash_rootpw (LDAPMod **mods);
 
@@ -976,6 +978,7 @@ free_and_return:
 	}
 }
 
+#if 0 /* not used */
 static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_unhashed)
 {
 	LDAPMod *mod;
@@ -991,6 +994,7 @@ static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_un
 		}
 	}
 }
+#endif
 
 static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods)
 {

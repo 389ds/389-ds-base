@@ -307,11 +307,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	/* ec is the entry that our bepreop should get to mess with */
 	slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, ec->ep_entry );
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-	/* have to unlock the entry here, in case the bepreop attempts
-	   to modify the same entry == deadlock */
-	cache_unlock_entry( &inst->inst_cache, e );
+
 	plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
-	cache_lock_entry( &inst->inst_cache, e );
+
 	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );

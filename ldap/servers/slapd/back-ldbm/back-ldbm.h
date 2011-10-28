@@ -350,19 +350,19 @@ struct backcommon {
 
 /* From ep_type through ep_size MUST be identical to backcommon */
 struct backentry {
-    int               ep_type;       /* to distinguish backdn from backentry */
-    struct backcommon *ep_lrunext;   /* for the cache */
-    struct backcommon *ep_lruprev;   /* for the cache */
-    ID                ep_id;         /* entry id */
-    char              ep_state;      /* state in the cache */
-    int               ep_refcnt;     /* entry reference cnt */
+    int               ep_type;      /* to distinguish backdn from backentry */
+    struct backcommon *ep_lrunext;  /* for the cache */
+    struct backcommon *ep_lruprev;  /* for the cache */
+    ID                ep_id;        /* entry id */
+    char              ep_state;     /* state in the cache */
+    int               ep_refcnt;    /* entry reference cnt */
     size_t            ep_size;      /* for cache tracking */
-    Slapi_Entry       *ep_entry;     /* real entry */
+    Slapi_Entry       *ep_entry;    /* real entry */
     Slapi_Entry       *ep_vlventry;
-    void *            ep_dn_link;    /* linkage for the 3 hash */
-    void *            ep_id_link;    /*     tables used for */
-    void *            ep_uuid_link;  /*     looking up entries */
-    PRLock            *ep_mutexp;    /* protection for mods */
+    void *            ep_dn_link;   /* linkage for the 3 hash */
+    void *            ep_id_link;   /*     tables used for */
+    void *            ep_uuid_link; /*     looking up entries */
+    PRMonitor         *ep_mutexp;   /* protection for mods; make it reentrant */
 };
 
 /* From ep_type through ep_size MUST be identical to backcommon */

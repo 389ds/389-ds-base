@@ -95,7 +95,6 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
         memset(&data, 0, sizeof(data));
         if (entryrdn_get_switch())
         {
-            Slapi_Attr *eattr = NULL;
             struct backdn *oldbdn = NULL;
             Slapi_DN *sdn =
                          slapi_sdn_dup(slapi_entry_get_sdn_const(entry_to_use));
