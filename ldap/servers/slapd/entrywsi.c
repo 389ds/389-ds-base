@@ -184,10 +184,7 @@ int
 entry_add_dncsn(Slapi_Entry *entry, const CSN *csn)
 {
 	PR_ASSERT(entry!=NULL);
-	if(!csnset_contains(entry->e_dncsnset,csn))
-	{
-		csnset_add_csn(&entry->e_dncsnset, CSN_TYPE_VALUE_DISTINGUISHED, csn);
-	}
+	csnset_update_csn(&entry->e_dncsnset, CSN_TYPE_VALUE_DISTINGUISHED, csn);
 	return 0;
 }
 
@@ -204,17 +201,7 @@ int
 entry_add_dncsn_ext(Slapi_Entry *entry, const CSN *csn, PRUint32 flags)
 {
 	PR_ASSERT(entry!=NULL);
-	if(!csnset_contains(entry->e_dncsnset,csn))
-	{
-		if (flags & ENTRY_DNCSN_INCREASING)
-		{
-			csnset_insert_csn(&entry->e_dncsnset, CSN_TYPE_VALUE_DISTINGUISHED, csn);
-		}
-		else
-		{
-			csnset_add_csn(&entry->e_dncsnset, CSN_TYPE_VALUE_DISTINGUISHED, csn);
-		}
-	}
+	csnset_update_csn(&entry->e_dncsnset, CSN_TYPE_VALUE_DISTINGUISHED, csn);
 	return 0;
 }
 
