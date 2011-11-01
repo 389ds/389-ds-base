@@ -558,6 +558,8 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 					"sasl_map_check: slapi_re_subs failed: "
 					"subject: %s, subst str: %s (%d)\n",
 					sasl_user_and_realm, dp->template_base_dn, rc);
+				slapi_ch_free_string(ldap_search_base);
+				slapi_ch_free_string(ldap_search_filter);
 			} else {
 				/* Substitutes '&' and/or "\#" in template_search_filter */
 				rc = slapi_re_subs(re, sasl_user_and_realm,
@@ -568,6 +570,8 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 						"sasl_map_check: slapi_re_subs failed: "
 						"subject: %s, subst str: %s (%d)\n",
 						sasl_user_and_realm, dp->template_search_filter, rc);
+					slapi_ch_free_string(ldap_search_base);
+					slapi_ch_free_string(ldap_search_filter);
 				} else {
 					/* these values are internal regex representations with
 					 * lots of unprintable control chars - escape for logging */
