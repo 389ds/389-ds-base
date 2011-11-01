@@ -280,6 +280,7 @@ do_one_pam_auth(
 	if (NULL == bindsdn) {
 		errmsg = PR_smprintf("Null bind dn");
 		retcode = LDAP_OPERATIONS_ERROR;
+		pam_id.str = NULL; /* initialize pam_id.str */
 		goto done; /* skip the pam stuff */
 	}
 	binddn = slapi_sdn_get_dn(bindsdn);
