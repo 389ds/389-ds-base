@@ -209,9 +209,15 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 	Slapi_DN        *target_sdn = NULL;
 	Slapi_DN        sdn;
 
+	if (NULL == pb) {
+		LDAPDebug(LDAP_DEBUG_ANY, "get_entry - no pblock specified.\n",
+		          0, 0, 0);
+		goto bail;
+	}
+
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &target_sdn );
 
-	if ((dn == NULL) && pb) {
+	if (dn == NULL) {
 		dn = slapi_sdn_get_dn(target_sdn);
 	}
 
