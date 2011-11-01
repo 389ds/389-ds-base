@@ -753,6 +753,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
              LDAPDebug(LDAP_DEBUG_ANY,
                         "ERROR: default container has not been created for the NULL SUFFIX node.\n",
                          0, 0, 0);
+             slapi_sdn_free(&subtree);
              return -1;
         }
 
@@ -810,7 +811,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
                 "ERROR: node %s cannot find distribution plugin. "
                 SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                 slapi_entry_get_dn(entry), PR_GetError(), slapd_pr_strerror(PR_GetError()));
-                slapi_sdn_free(&subtree);
+            slapi_sdn_free(&subtree);
             slapi_ch_free((void **) &plugin_funct);
             slapi_ch_free((void **) &plugin_lib);
             free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
@@ -837,6 +838,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     }
         
     /* Now we can create the node for this mapping tree entry. */
+    /* subtree is consumed. */
     node= mapping_tree_node_new(subtree, be_list, be_names, be_states, be_list_count,
              be_list_size, referral, parent_node, state,
              0 /* Normal node. People can see and change it. */,
