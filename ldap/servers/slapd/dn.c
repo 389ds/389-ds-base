@@ -515,7 +515,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     int chkblank = 0;
     int is_dn_syntax = 0;
 
-    if (NULL == dest) {
+    if ((NULL == dest) || (NULL == dest_len)) {
         goto bail;
     }
     if (NULL == src) {
@@ -544,7 +544,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
         }
     }
     if (0 == src_len) { /* src == "" */
-        goto bail;
+        goto bail; /* need to bail after setting up *dest and rc */
     }
 
     ends = src + src_len;
@@ -1081,7 +1081,7 @@ bail:
             }
         }
         *dest_len = 0;
-    } else if (rc > 0) {
+    } else if (d && rc > 0) {
         /* We terminate the str with NULL only when we allocate the str */
         *d = '\0';
     }
