@@ -409,7 +409,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 int err = 0;
                 Slapi_DN ancestorsdn;
                 struct backentry *ancestorentry;
-				slapi_sdn_init(&ancestorsdn);
+                slapi_sdn_init(&ancestorsdn);
                 ancestorentry= dn2ancestor(be,&dn_newdn,&ancestorsdn,&txn,&err);
                 CACHE_RETURN( &inst->inst_cache, &ancestorentry );
                 ldap_result_matcheddn= slapi_ch_strdup((char *) slapi_sdn_get_dn(&ancestorsdn));
@@ -1534,7 +1534,7 @@ moddn_rename_child_entry(
      *
      * JCM - This was written before Slapi_RDN... so this could be made much neater.
      */
-    int retval;
+    int retval = 0;
     char *olddn;
     char *newdn;
     char **olddns;
@@ -1543,7 +1543,13 @@ moddn_rename_child_entry(
     int i;
 
     olddn = slapi_entry_get_dn(ec->ep_entry);
+    if (NULL == olddn) {
+        return retval;
+    }
     olddns = slapi_ldap_explode_dn( olddn, 0 );
+    if (NULL == olddns) {
+        return retval;
+    }
     for(;olddns[olddncomps]!=NULL;olddncomps++);
     for(i=0;i<olddncomps-parentdncomps;i++)
     {
