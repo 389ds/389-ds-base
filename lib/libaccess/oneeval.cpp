@@ -463,7 +463,7 @@ ACLEvalBuildContext(
                     	if (rv > 0) {
                             /*  First one for this ACE?  */
                             if (!new_ace->autharray) {
-                                new_ace->autharray = (PList_t *)PERM_CALLOC(sizeof(PList_t *) * ace->expr_term_index);
+                                new_ace->autharray = (PList_t *)PERM_CALLOC(sizeof(PList_t) * ace->expr_term_index);
                                 if (!new_ace->autharray) {
 				    nserrGenerate(errp, ACLERRNOMEM, ACLERR4040, ACL_Program, 1, XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPointerArray));
                                     goto error;
