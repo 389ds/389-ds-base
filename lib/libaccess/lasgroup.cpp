@@ -126,12 +126,14 @@ int LASGroupEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
         return LAS_EVAL_FAIL;
     }
 
+    /* Regardless of cache, req_time needs to be filled. */
+    req_time = acl_get_req_time(resource);
+    if (NULL == req_time) {
+        return LAS_EVAL_FAIL;
+    }
+
     rv = LAS_EVAL_FALSE;
-
     if (acl_usr_cache_enabled()) {
-	/* avoid unnecessary system call to get time if cache is disabled */
-	req_time = acl_get_req_time(resource);
-
 	/* Loop through all the groups and check if any is in the cache */
 	group = groups;
 	delim = ',';

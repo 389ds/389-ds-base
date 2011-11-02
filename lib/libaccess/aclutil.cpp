@@ -247,13 +247,16 @@ time_t *acl_get_req_time (PList_t resource)
 {
     time_t *req_time = 0;
     int rv = PListGetValue(resource, ACL_ATTR_TIME_INDEX, (void **)&req_time,
-			   NULL);
+                           NULL);
 
     if (rv < 0) {
-	req_time = (time_t *)pool_malloc(PListGetPool(resource), sizeof(time_t));
-	time(req_time);
-	PListInitProp(resource, ACL_ATTR_TIME_INDEX, ACL_ATTR_TIME,
-		      (void *)req_time, NULL);
+        req_time = (time_t *)pool_malloc(PListGetPool(resource), sizeof(time_t));
+        if (NULL == req_time) {
+            return NULL;
+        }
+        time(req_time);
+        PListInitProp(resource, ACL_ATTR_TIME_INDEX, ACL_ATTR_TIME,
+                      (void *)req_time, NULL);
     }
 
     return req_time;
