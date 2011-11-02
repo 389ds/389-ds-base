@@ -1593,6 +1593,11 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
         if (LDAP_CHANGETYPE_ADD == modop) {
             slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
 
+            /* If the entry doesn't exist, just bail and
+             * let the server handle it. */
+            if (e == NULL) {
+                goto bail;
+            }
         } else if (LDAP_CHANGETYPE_MODIFY == modop) {
             /* Fetch the entry being modified so we can
              * create the resulting entry for validation. */
