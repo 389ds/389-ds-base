@@ -389,7 +389,13 @@ int LASDnsEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
                 return LAS_EVAL_FAIL;
             }
             context->Table = NULL;
-            LASDnsBuild(errp, attr_pattern, context, aliasflg);
+            if (LASDnsBuild(errp, attr_pattern, context, aliasflg) ==
+                                                            LAS_EVAL_INVALID) {
+                /* Error is already printed in LASDnsBuild */
+                ACL_CritExit();
+                return LAS_EVAL_FAIL;
+            }
+            /* After this line, it is assured context->Table is not NULL. */
         } else {
             context = (LASDnsContext *) *LAS_cookie;
         }
