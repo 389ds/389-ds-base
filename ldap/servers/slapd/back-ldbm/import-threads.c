@@ -1148,9 +1148,8 @@ index_producer(void *param)
         tmp_db->close(tmp_db, 0);
         rc = db_create(&db, env, 0);
         if (rc) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
-                           "Creating db handle to rename %s to %s failed.\n",
-                           tmpid2entry, id2entry);
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                         "Creating db handle to remove %s failed.\n", id2entry);
             goto bail;
         }
         rc = db->remove(db, id2entry, NULL, 0);
@@ -1158,7 +1157,13 @@ index_producer(void *param)
             LDAPDebug1Arg(LDAP_DEBUG_ANY, "Removing %s failed.\n", id2entry);
             goto bail;
         }
-        db_create(&db, env, 0);
+        rc = db_create(&db, env, 0);
+        if (rc) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                           "Creating db handle to rename %s to %s failed.\n",
+                           tmpid2entry, id2entry);
+            goto bail;
+        }
         rc = db->rename(db, tmpid2entry, NULL, id2entry, 0);
         if (rc) {
             LDAPDebug2Args(LDAP_DEBUG_ANY, "Renaming %s to %s failed.\n",
