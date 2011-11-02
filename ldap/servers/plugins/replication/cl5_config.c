@@ -125,29 +125,35 @@ int changelog5_read_config (changelog5Config *config)
 	int rc = LDAP_SUCCESS;
 	Slapi_PBlock *pb;
 
-    pb = slapi_pblock_new ();
-	slapi_search_internal_set_pb (pb, CONFIG_BASE, LDAP_SCOPE_BASE, CONFIG_FILTER, NULL, 0, NULL,
-								  NULL, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
+	pb = slapi_pblock_new ();
+	slapi_search_internal_set_pb (pb, CONFIG_BASE, LDAP_SCOPE_BASE, 
+	              CONFIG_FILTER, NULL, 0, NULL, NULL,
+	              repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
 	slapi_search_internal_pb (pb);
-    slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
-    if ( LDAP_SUCCESS == rc )
+	slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
+	if ( LDAP_SUCCESS == rc )
 	{
-        Slapi_Entry **entries = NULL;
-        slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries );
-        if ( NULL != entries && NULL != entries[0])
+		Slapi_Entry **entries = NULL;
+		slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries );
+		if ( NULL != entries && NULL != entries[0])
 		{
-        	/* Extract the config info from the changelog entry */
+			/* Extract the config info from the changelog entry */
 			changelog5_extract_config(entries[0], config);
-        }
-    }
+		}
+		else
+		{
+			memset (config, 0, sizeof (*config));
+			rc = LDAP_SUCCESS;
+		}
+	}
 	else
 	{
 		memset (config, 0, sizeof (*config));
-        rc = LDAP_SUCCESS;
+		rc = LDAP_SUCCESS;
 	}
 
-    slapi_free_search_results_internal(pb);
-    slapi_pblock_destroy(pb);
+	slapi_free_search_results_internal(pb);
+	slapi_pblock_destroy(pb);
 
 	return rc;
 }
