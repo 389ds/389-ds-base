@@ -725,6 +725,9 @@ static int ldbm_ancestorid_index_update(
     int err = 0, ret = 0;
     DB_TXN *db_txn = txn != NULL ? txn->back_txn_txn : NULL;
 
+    slapi_sdn_init(&sdn);
+    slapi_sdn_init(&nextsdn);
+
     /* Open the ancestorid index */
     ainfo_get(be, LDBM_ANCESTORID_STR, &ai);
     ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
@@ -733,8 +736,6 @@ static int ldbm_ancestorid_index_update(
         goto out;
     }
 
-    slapi_sdn_init(&sdn);
-    slapi_sdn_init(&nextsdn);
     slapi_sdn_copy(low, &sdn);
 
     if (include_low == 0) {
@@ -819,7 +820,7 @@ static int ldbm_ancestorid_index_update(
 
     } while (ret == 0);
 
- out:
+out:
     slapi_sdn_done(&sdn);
     slapi_sdn_done(&nextsdn);
 
