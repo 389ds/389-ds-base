@@ -334,8 +334,9 @@ dse_callback_removefromlist(struct dse_callback **pplist, int operation, int fla
             if ((t->operation == operation) && (t->flags == flags) && 
                 (t->fn == fn) && (scope == t->scope) && 
                 (slapi_sdn_compare(base,t->base) == 0) &&
-                (( NULL == filter && NULL == t->filter ) ||
-				(strcasecmp(filter, t->filter) == 0))) {
+                ((NULL == filter && NULL == t->filter) || /* both are NULL OR */
+                 ((filter && t->filter) &&    /* both are not NULL AND match. */
+                  (strcasecmp(filter, t->filter) == 0)))) {
                 if (prev == NULL) {
                     *pplist= t->next;
                 } else {
