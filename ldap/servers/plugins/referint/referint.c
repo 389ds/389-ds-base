@@ -394,8 +394,19 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         int nval = 0;
         Slapi_Value *v = NULL;
 
+        if (NULL == origDN) {
+            slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                            "_update_one_value: NULL dn was passed\n");
+            goto bail;
+        }
         /* need to put together rdn into a dn */
         dnParts = slapi_ldap_explode_dn( origDN, 0 );
+        if (NULL == dnParts) {
+            slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                            "_update_one_value: failed to explode dn %s\n",
+                            origDN);
+            goto bail;
+        }
         if (NULL == newRDN) {
             newRDN = dnParts[0];
         }
@@ -510,7 +521,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         }
         slapi_ch_free_string(&newDN);
     }
-
+bail:
     return rc;
 }
 
@@ -554,7 +565,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         rc = _do_modify(mod_pb, entrySDN, mods, txn);
         if (rc) {
             slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                "_update_one_value: entry %s: deleting \"%s: %s\" failed (%d)"
+                "_update_all_per_mod: entry %s: deleting \"%s: %s\" failed (%d)"
                 "\n", slapi_sdn_get_dn(entrySDN), attrName, origDN, rc);
         }
     } else {
@@ -563,8 +574,19 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         int nval = 0;
         Slapi_Value *v = NULL;
 
+        if (NULL == origDN) {
+            slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                            "_update_all_per_mod: NULL dn was passed\n");
+            goto bail;
+        }
         /* need to put together rdn into a dn */
         dnParts = slapi_ldap_explode_dn( origDN, 0 );
+        if (NULL == dnParts) {
+            slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                            "_update_all_per_mod: failed to explode dn %s\n",
+                            origDN);
+            goto bail;
+        }
         if (NULL == newRDN) {
             newRDN = dnParts[0];
         }
@@ -635,7 +657,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         rc = _do_modify(mod_pb, entrySDN, slapi_mods_get_ldapmods_byref(smods), txn);
         if (rc) {
             slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                        "_update_all_value: entry %s failed (%d)\n",
+                        "_update_all_per_mod: entry %s failed (%d)\n",
                         slapi_sdn_get_dn(entrySDN), rc);
         }
 
@@ -647,7 +669,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         slapi_ch_free_string(&newDN);
         slapi_mods_free(&smods);
     }
-
+bail:
     return rc;
 }
 
