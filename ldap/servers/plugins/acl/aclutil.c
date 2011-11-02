@@ -555,9 +555,14 @@ aclutil_expand_paramString ( char *str, Slapi_Entry *e )
 	int			rc = -1;
 	char		*buf = NULL;
 
-
+	if ((NULL == slapi_entry_get_ndn ( e )) || (NULL == str)) {
+		return NULL;
+	}
 	e_dns = slapi_ldap_explode_dn ( slapi_entry_get_ndn ( e ), 0 );
 	a_dns = slapi_ldap_explode_dn ( str, 0 );
+	if ((NULL == e_dns) || (NULL == a_dns)) {
+		goto cleanup;
+	}
 
 	i = 0;
 	ncomponents = 0;
