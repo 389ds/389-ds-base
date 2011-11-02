@@ -1052,7 +1052,7 @@ static int replica_execute_ldif2cl_task (Object *r, char *returntext)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
             "replica_execute_ldif2cl_task: failed to start changelog at %s\n",
-            config.dir);
+            config.dir?config.dir:"null config dir");
         rc = LDAP_OPERATIONS_ERROR;    
     }
 bail:
