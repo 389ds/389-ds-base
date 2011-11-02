@@ -1026,7 +1026,7 @@ entryrdn_lookup_dn(backend *be,
                     "entryrdn_lookup_dn: Param error: Empty %s\n",
                     NULL==be?"backend":NULL==rdn?"rdn":0==id?"id":
                     NULL==dn?"dn container":"unknown");
-        goto bail;
+        return rc;
     }
 
     *dn = NULL;
@@ -1040,6 +1040,7 @@ entryrdn_lookup_dn(backend *be,
         return rc;
     }
 
+    memset(&data, 0, sizeof(data));
     /* Make a cursor */
     rc = db->cursor(db, db_txn, &cursor, 0);
     if (rc) {
@@ -1064,7 +1065,6 @@ entryrdn_lookup_dn(backend *be,
     }
 
     /* Setting the bulk fetch buffer */
-    memset(&data, 0, sizeof(data));
     data.flags = DB_DBT_MALLOC;
 
     do {
