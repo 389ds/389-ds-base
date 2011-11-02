@@ -66,37 +66,39 @@ write_audit_log_entry( Slapi_PBlock *pb )
     Slapi_DN *sdn;
     const char *dn;
     void *change;
-	int flag = 0;
-	Operation *op;
+    int flag = 0;
+    Operation *op;
 
-	/* if the audit log is not enabled, just skip all of
-	   this stuff */
-	if (!config_get_auditlog_logging_enabled()) {
-		return;
-	}
+    /* if the audit log is not enabled, just skip all of
+       this stuff */
+    if (!config_get_auditlog_logging_enabled()) {
+        return;
+    }
 
-	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+    slapi_pblock_get( pb, SLAPI_OPERATION, &op );
     slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
-	dn = slapi_sdn_get_dn(sdn);
     switch ( operation_get_type(op) )
-	{
+    {
     case SLAPI_OPERATION_MODIFY:
-	    slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &change );
-    	break;
+        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &change );
+        break;
     case SLAPI_OPERATION_DELETE:
-		{
-		char * deleterDN = NULL;
-		slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &deleterDN);
-    	change = deleterDN;
-		}
-    	break;
-	
+        {
+        char * deleterDN = NULL;
+        slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &deleterDN);
+        change = deleterDN;
+        }
+        break;
+    
     case SLAPI_OPERATION_MODDN:
-    	slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
-    	slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
-    	break;
+        slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
+        slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
+        break;
+    default:
+        return; /* Unsupported operation type. */
     }
     curtime = current_time();
+    dn = slapi_sdn_get_dn(sdn);
     write_audit_file( operation_get_type(op), dn, change, flag, curtime );
 }
 
