@@ -1985,7 +1985,8 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 
 	struct slapi_filter 	*f;			/* filter */
 	int						rv;			/* return value */
-	int						matches;
+	/* Assume that resource matches */
+	int						matches = ACL_TRUE;
 	int						attr_matched;
 	int						attr_matched_in_targetattrfilters = 0;
 	int						dn_matched;
@@ -2003,10 +2004,10 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 
 	TNF_PROBE_0_DEBUG(acl__resource_match_aci_start,"ACL","");
 
-	aclpb->aclpb_stat_aclres_matched++;
-
-	/* Assume that resource matches */
-	matches  = ACL_TRUE;
+	if (NULL == aclpb) {
+		matches = ACL_FALSE;
+		goto acl__resource_match_aci_EXIT;			
+	}
 
 	/* Figure out if the acl has the correct rights or not */
 	aci_right = aci->aci_access;
@@ -2634,7 +2635,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 	** be rare). In that case, just remember it. An entry test rule
 	** doesn't have "(targetattr)".
 	*/
-	if (aclpb && (aclpb->aclpb_state & ACLPB_EVALUATING_FIRST_ATTR) &&
+	if ((aclpb->aclpb_state & ACLPB_EVALUATING_FIRST_ATTR) &&
 		(!(aci->aci_type & ACI_TARGET_ATTR))) {
 		aclpb->aclpb_state |= ACLPB_FOUND_A_ENTRY_TEST_RULE;
 	}
@@ -2653,7 +2654,10 @@ acl__resource_match_aci_EXIT:
 	 * even if the aci did not finally match.
 	 * All the partial strings will be freed at aclpb
 	 * cleanup time.
-	*/
+	 */
+	if (ACL_TRUE == matches) {
+		aclpb->aclpb_stat_aclres_matched++;
+	}
 
 	TNF_PROBE_0_DEBUG(acl__resource_match_aci_end,"ACL","");
 
