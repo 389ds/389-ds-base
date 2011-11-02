@@ -2348,24 +2348,25 @@ getPending (
     expected = LDAP_RES_ADD;
     verb     = "ldap_add";
   }
+  else if (tttctx->mode & DELETE_ENTRIES)
+  {
+    expected = LDAP_RES_DELETE;
+    verb     = "ldap_delete";
+  }
+  else if (tttctx->mode & RENAME_ENTRIES)
+  {
+    expected = LDAP_RES_MODRDN;
+    verb     = "ldap_rename";
+  }
+  else if (tttctx->mode & ATTR_REPLACE) /*JLS 21-11-00*/
+  {
+    expected = LDAP_RES_MODIFY;         /*JLS 21-11-00*/
+    verb     = "ldap_modify";           /*JLS 21-11-00*/
+  }
   else
-    if (tttctx->mode & DELETE_ENTRIES)
-    {
-      expected = LDAP_RES_DELETE;
-      verb     = "ldap_delete";
-    }
-    else
-      if (tttctx->mode & RENAME_ENTRIES)
-      {
-	expected = LDAP_RES_MODRDN;
-	verb     = "ldap_rename";
-      }
-      else							/*JLS 21-11-00*/
-	if (tttctx->mode & ATTR_REPLACE)			/*JLS 21-11-00*/
-	{							/*JLS 21-11-00*/
-	  expected = LDAP_RES_MODIFY;				/*JLS 21-11-00*/
-	  verb     = "ldap_modify";				/*JLS 21-11-00*/
-	}							/*JLS 21-11-00*/
+  {
+    return (-1);
+  }
 
   /*
    * Here, we are in asynchronous mode...
