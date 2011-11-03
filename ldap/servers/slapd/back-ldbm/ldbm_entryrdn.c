@@ -205,7 +205,7 @@ entryrdn_index_entry(backend *be,
                      int flags, /* BE_INDEX_ADD or BE_INDEX_DEL */
                      back_txn *txn)
 {
-    int rc = 0;
+    int rc = -1;
     struct attrinfo *ai = NULL;
     DB *db = NULL;
     DBC *cursor = NULL;
@@ -219,12 +219,11 @@ entryrdn_index_entry(backend *be,
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                     "entryrdn_index_entry: Param error: Empty %s\n",
                     NULL==be?"backend":NULL==e?"entry":"unknown");
-        rc = -1;
-        goto bail;
+        return rc;
     }
     /* Open the entryrdn index */
     rc = _entryrdn_open_index(be, &ai, &db);
-    if (rc) {
+    if (rc || (NULL == db)) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "entryrdn_index_entry: Opening the index failed: "
                         "%s(%d)\n",
@@ -347,11 +346,12 @@ entryrdn_index_read(backend *be,
 
     /* Open the entryrdn index */
     rc = _entryrdn_open_index(be, &ai, &db);
-    if (rc) {
+    if (rc || (NULL == db)) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "entryrdn_index_read: Opening the index failed: "
                         "%s(%d)\n",
                         rc<0?dblayer_strerror(rc):"Invalid parameter", rc);
+        db = NULL;
         goto bail;
     }
 
@@ -508,11 +508,12 @@ entryrdn_rename_subtree(backend *be,
 
     /* Open the entryrdn index */
     rc = _entryrdn_open_index(be, &ai, &db);
-    if (rc) {
+    if (rc || (NULL == db)) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "entryrdn_rename_subtree: Opening the index failed: "
                         "%s(%d)\n",
                         rc<0?dblayer_strerror(rc):"Invalid parameter", rc);
+        db = NULL;
         return rc;
     }
 
@@ -915,11 +916,12 @@ entryrdn_get_subordinates(backend *be,
 
     /* Open the entryrdn index */
     rc = _entryrdn_open_index(be, &ai, &db);
-    if (rc) {
+    if (rc || (NULL == db)) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "entryrdn_get_subordinates: Opening the index failed: "
                         "%s(%d)\n",
                         rc<0?dblayer_strerror(rc):"Invalid parameter", rc);
+        db = NULL;
         goto bail;
     }
 
@@ -1003,7 +1005,7 @@ entryrdn_lookup_dn(backend *be,
                    char **dn,
                    back_txn *txn)
 {
-    int rc = 0;
+    int rc = -1;
     struct attrinfo *ai = NULL;
     DB *db = NULL;
     DBC *cursor = NULL;
@@ -1032,7 +1034,7 @@ entryrdn_lookup_dn(backend *be,
     *dn = NULL;
     /* Open the entryrdn index */
     rc = _entryrdn_open_index(be, &ai, &db);
-    if (rc) {
+    if (rc || (NULL == db)) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "entryrdn_lookup_dn: Opening the index failed: "
                         "%s(%d)\n",
@@ -1146,9 +1148,8 @@ bail:
                   dblayer_strerror(myrc), myrc);
         }
     }
-    if (db) {
-        dblayer_release_index_file(be, ai, db);
-    }
+	/* it is guaranteed that db is not NULL. */
+    dblayer_release_index_file(be, ai, db);
     slapi_rdn_free(&srdn);
     slapi_ch_free_string(&nrdn);
     slapi_ch_free_string(&keybuf);
@@ -1173,7 +1174,7 @@ entryrdn_get_parent(backend *be,
                     ID *pid,
                     back_txn *txn)
 {
-    int rc = 0;
+    int rc = -1;
     struct attrinfo *ai = NULL;
     DB *db = NULL;
     DBC *cursor = NULL;
@@ -1197,14 +1198,14 @@ entryrdn_get_parent(backend *be,
                     NULL==be?"backend":NULL==rdn?"rdn":0==id?"id":
                     NULL==rdn?"rdn container":
                     NULL==pid?"pid":"unknown");
-        goto bail;
+        return rc;
     }
     *prdn = NULL;
     *pid = 0;
 
     /* Open the entryrdn index */
     rc = _entryrdn_open_index(be, &ai, &db);
-    if (rc) {
+    if (rc || (NULL == db)) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "entryrdn_get_parent: Opening the index failed: "
                         "%s(%d)\n",
@@ -1294,9 +1295,8 @@ bail:
                   dblayer_strerror(rc), rc);
         }
     }
-    if (db) {
-        dblayer_release_index_file(be, ai, db);
-    }
+	/* it is guaranteed that db is not NULL. */
+    dblayer_release_index_file(be, ai, db);
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                                      "<-- entryrdn_get_parent\n");
     return rc;
@@ -1414,6 +1414,8 @@ _entryrdn_open_index(backend *be, struct attrinfo **ai, DB **dbp)
                         NULL==dbp?"db container":"unknown");
         goto bail;
     }
+	*ai = NULL;
+	*dbp = NULL;
     /* Open the entryrdn index */
     ainfo_get(be, LDBM_ENTRYRDN_STR, ai);
     if (NULL == *ai) {
