@@ -1080,7 +1080,9 @@ bail:
                 *dest = NULL;
             }
         }
-        *dest_len = 0;
+        if (dest_len != NULL) {
+            *dest_len = 0;
+        }
     } else if (d && rc > 0) {
         /* We terminate the str with NULL only when we allocate the str */
         *d = '\0';
