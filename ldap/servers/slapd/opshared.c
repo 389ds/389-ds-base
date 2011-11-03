@@ -679,7 +679,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
             slapi_sdn_free(&sdn);
             sdn = slapi_sdn_dup(be_suffix);
             slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, (void *)sdn);
-            normbase = slapi_sdn_get_dn(sdn);
           }
           else if (slapi_sdn_issuffix(basesdn, be_suffix))
           {
