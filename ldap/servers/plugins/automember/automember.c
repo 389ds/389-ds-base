@@ -1623,6 +1623,11 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
                  * to let the main server handle it. */
                 goto bailmod;
             }
+        } else {
+            errstr = slapi_ch_smprintf("automember_pre_op: invalid op type %d",
+                                       modop);
+            ret = LDAP_PARAM_ERROR;
+            goto bail;
         }
 
         if (automember_parse_config_entry(e, 0) != 0) {
