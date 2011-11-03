@@ -238,6 +238,7 @@ chainingdb_bind( Slapi_PBlock *pb )
 	Slapi_Backend		*be;
 	const char      *dn = NULL;
 	Slapi_DN        *sdn = NULL;
+	Slapi_DN        *mysdn = NULL;
 	int                     method;
 	struct berval           *creds, **urls;
 	char 			*matcheddn,*errmsg;
@@ -246,20 +247,20 @@ chainingdb_bind( Slapi_PBlock *pb )
 	int 			freectrls=1;
 	int 			bind_retry;
 	
-        if ( LDAP_SUCCESS != (rc = cb_forward_operation(pb) )) {
-        	cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
-                return SLAPI_BIND_FAIL;
-        }
+	if ( LDAP_SUCCESS != (rc = cb_forward_operation(pb) )) {
+		cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
+		return SLAPI_BIND_FAIL;
+	}
 
 	ctrls=NULL;
 	/* don't add proxy auth control. use this call to check for supported   */
 	/* controls only.							*/
-        if ( LDAP_SUCCESS != ( rc = cb_update_controls( pb, NULL, &ctrls, 0 )) ) {
-                cb_send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
+	if ( LDAP_SUCCESS != ( rc = cb_update_controls( pb, NULL, &ctrls, 0 )) ) {
+		cb_send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
 		if (ctrls)
 			ldap_controls_free(ctrls);
-                return SLAPI_BIND_FAIL;
-        }
+			return SLAPI_BIND_FAIL;
+	}
 	if (ctrls)
 		ldap_controls_free(ctrls);
 
@@ -272,30 +273,32 @@ chainingdb_bind( Slapi_PBlock *pb )
 	cb = cb_get_instance(be);
 
 	if ( NULL == sdn ) {
-		sdn = slapi_sdn_new_ndn_byval("");
+		sdn = mysdn = slapi_sdn_new_ndn_byval("");
 	}
 	dn = slapi_sdn_get_ndn(sdn);
 
-        /* always allow noauth simple binds */
-        if (( method == LDAP_AUTH_SIMPLE) && creds->bv_len == 0 ) {
-                return( SLAPI_BIND_ANONYMOUS );
-        }
+	/* always allow noauth simple binds */
+	if (( method == LDAP_AUTH_SIMPLE) && creds->bv_len == 0 ) {
+		slapi_sdn_free(&mysdn);
+		return( SLAPI_BIND_ANONYMOUS );
+	}
 
-        cb_update_monitor_info(pb,cb,SLAPI_OPERATION_BIND);
+	cb_update_monitor_info(pb,cb,SLAPI_OPERATION_BIND);
 
 	matcheddn=errmsg=NULL;
-    	allocated_errmsg = 0;
+	allocated_errmsg = 0;
 	resctrls=NULL;
 	urls=NULL;
 
 	/* Check wether the chaining BE is available or not */
-        if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
-	  return -1;
-        }
+	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
+		slapi_sdn_free(&mysdn);
+		return -1;
+	}
 
-        slapi_rwlock_rdlock(cb->rwl_config_lock);
+	slapi_rwlock_rdlock(cb->rwl_config_lock);
 	bind_retry=cb->bind_retry;
-        slapi_rwlock_unlock(cb->rwl_config_lock);
+	slapi_rwlock_unlock(cb->rwl_config_lock);
 
 	rc = cb_sasl_bind_s(pb, cb->bind_pool, bind_retry, dn, method, 
 	                    mechanism, creds, reqctrls, &matcheddn, &errmsg, 
@@ -322,17 +325,18 @@ chainingdb_bind( Slapi_PBlock *pb )
 		}
 	}
 
-    	if ( urls != NULL ) {
-        	cb_free_bervals( urls );
-    	}
-    	if ( freectrls && ( resctrls != NULL )) {
-        	ldap_controls_free( resctrls );
-    	}
-        slapi_ch_free((void **)& matcheddn );    	
-    	if ( allocated_errmsg && errmsg != NULL ) {
-        	slapi_ch_free((void **)& errmsg );
-    	}
+	if ( urls != NULL ) {
+		cb_free_bervals( urls );
+	}
+	if ( freectrls && ( resctrls != NULL )) {
+		ldap_controls_free( resctrls );
+	}
+	slapi_ch_free((void **)& matcheddn );
+	if ( allocated_errmsg && errmsg != NULL ) {
+		slapi_ch_free((void **)& errmsg );
+	}
 
+	slapi_sdn_free(&mysdn);
 	return ((rc == LDAP_SUCCESS ) ? SLAPI_BIND_SUCCESS : SLAPI_BIND_FAIL );
 }
 
