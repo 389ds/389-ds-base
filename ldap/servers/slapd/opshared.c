@@ -533,7 +533,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               basesdn = slapi_sdn_dup(sdn);
               operation_set_target_spec (pb->pb_op, basesdn);
           }
-          normbase = slapi_sdn_get_dn(sdn);
           break;
 
         case -1:
