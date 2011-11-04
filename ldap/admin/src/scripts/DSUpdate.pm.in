@@ -48,7 +48,7 @@ use DSUtil;
 use Inf;
 use FileConn;
 use DSCreate qw(setDefaults createInstanceScripts makeOtherConfigFiles
-                makeDSDirs updateSelinuxPolicy updateTmpfilesDotD);
+                makeDSDirs updateSelinuxPolicy updateTmpfilesDotD updateSystemD);
 
 use File::Basename qw(basename dirname);
 
