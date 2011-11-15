@@ -152,6 +152,7 @@ int slapi_uniqueIDCompareString(const char *uuid1, const char *uuid2)
 */
 int slapi_uniqueIDFormat (const Slapi_UniqueID *uId, char **buff){
 	guid_t uuid_tmp;
+	char *ptr;
 	
     if (uId == NULL || buff == NULL)
 	{
@@ -173,16 +174,26 @@ int slapi_uniqueIDFormat (const Slapi_UniqueID *uId, char **buff){
     uuid_tmp.time_mid = htons(uuid_tmp.time_mid);
     uuid_tmp.time_hi_and_version = htons(uuid_tmp.time_hi_and_version);
 
-	sprintf (*buff, "%2.2x%2.2x%2.2x%2.2x-%2.2x%2.2x%2.2x%2.2x-"
-			 "%2.2x%2.2x%2.2x%2.2x-%2.2x%2.2x%2.2x%2.2x", 
-			 ((PRUint8 *) &uuid_tmp.time_low)[0], ((PRUint8 *) &uuid_tmp.time_low)[1],
-			 ((PRUint8 *) &uuid_tmp.time_low)[2], ((PRUint8 *) &uuid_tmp.time_low)[3],
-			 ((PRUint8 *) &uuid_tmp.time_mid)[0], ((PRUint8 *) &uuid_tmp.time_mid)[1],
-			 ((PRUint8 *) &uuid_tmp.time_hi_and_version)[0],
-			 ((PRUint8 *) &uuid_tmp.time_hi_and_version)[1], 
-			 uuid_tmp.clock_seq_hi_and_reserved, uuid_tmp.clock_seq_low,
-			 uuid_tmp.node[0], uuid_tmp.node[1], uuid_tmp.node[2],
-			 uuid_tmp.node[3], uuid_tmp.node[4], uuid_tmp.node[5]);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_low)[0], *buff, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_low)[1], ptr, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_low)[2], ptr, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_low)[3], ptr, 0);
+	*ptr++ = '-';
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_mid)[0], ptr, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_mid)[1], ptr, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_high_and_version)[0], ptr, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_high_and_version)[1], ptr, 0);
+	*ptr++ = '-';
+	ptr = slapi_u8_to_hex(uuid_tmp.clock_seq_hi_and_reserved, ptr, 0);
+	ptr = slapi_u8_to_hex(uuid_tmp.clock_seq_low, ptr, 0);
+	ptr = slapi_u8_to_hex(uuid_tmp.node[0], ptr, 0);
+	ptr = slapi_u8_to_hex(uuid_tmp.node[1], ptr, 0);
+	*ptr++ = '-';
+	ptr = slapi_u8_to_hex(uuid_tmp.node[2], ptr, 0);
+	ptr = slapi_u8_to_hex(uuid_tmp.node[3], ptr, 0);
+	ptr = slapi_u8_to_hex(uuid_tmp.node[4], ptr, 0);
+	ptr = slapi_u8_to_hex(uuid_tmp.node[5], ptr, 0);
+	*ptr = 0;
 
 	return UID_SUCCESS;    
 }
