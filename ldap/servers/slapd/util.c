@@ -48,6 +48,7 @@
 #include <sys/param.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <stdint.h>
 #endif
 #include <libgen.h>
 #include <pk11func.h>
@@ -910,4 +911,96 @@ slapd_comp_path(char *p0, char *p1)
 	slapi_ch_free_string(&norm_p0);
 	slapi_ch_free_string(&norm_p1);
 	return rval;
+}
+
+/*
+  Takes an unsigned char value and converts it to a hex string.
+  The string s is written, and the caller must ensure s has enough
+  space.  For hex numbers, the upper argument says to use a-f or A-F. 
+  The return value is the address of the next char after the last one written.
+*/
+char *
+slapi_u8_to_hex(uint8_t val, char *s, uint8_t upper) {
+	static char ldigits[] = "0123456789abcdef";
+	static char udigits[] = "0123456789ABCDEF";
+	char *digits;
+
+	if (upper) {
+		digits = udigits;
+	} else {
+		digits = ldigits;
+	}
+	s[0] = digits[val >> 4];
+	s[1] = digits[val & 0xf];
+	return &s[2];
+}
+
+char *
+slapi_u16_to_hex(uint16_t val, char *s, uint8_t upper) {
+	static char ldigits[] = "0123456789abcdef";
+	static char udigits[] = "0123456789ABCDEF";
+	char *digits;
+
+	if (upper) {
+		digits = udigits;
+	} else {
+		digits = ldigits;
+	}
+	s[0] = digits[val >> 12];
+	s[1] = digits[(val >> 8) & 0xf];
+	s[2] = digits[(val >> 4) & 0xf];
+	s[3] = digits[val & 0xf];
+	return &s[4];
+}
+
+char *
+slapi_u32_to_hex(uint32_t val, char *s, uint8_t upper) {
+	static char ldigits[] = "0123456789abcdef";
+	static char udigits[] = "0123456789ABCDEF";
+	char *digits;
+
+	if (upper) {
+		digits = udigits;
+	} else {
+		digits = ldigits;
+	}
+	s[0] = digits[val >> 28];
+	s[1] = digits[(val >> 24) & 0xf];
+	s[2] = digits[(val >> 20) & 0xf];
+	s[3] = digits[(val >> 16) & 0xf];
+	s[4] = digits[(val >> 12) & 0xf];
+	s[5] = digits[(val >> 8) & 0xf];
+	s[6] = digits[(val >> 4) & 0xf];
+	s[7] = digits[val & 0xf];
+	return &s[8];
+}
+
+char *
+slapi_u64_to_hex(uint64_t val, char *s, uint8_t upper) {
+	static char ldigits[] = "0123456789abcdef";
+	static char udigits[] = "0123456789ABCDEF";
+	char *digits;
+
+	if (upper) {
+		digits = udigits;
+	} else {
+		digits = ldigits;
+	}
+	s[0] = digits[val >> 60];
+	s[1] = digits[(val >> 56) & 0xf];
+	s[2] = digits[(val >> 52) & 0xf];
+	s[3] = digits[(val >> 48) & 0xf];
+	s[4] = digits[(val >> 44) & 0xf];
+	s[5] = digits[(val >> 40) & 0xf];
+	s[6] = digits[(val >> 36) & 0xf];
+	s[7] = digits[(val >> 32) & 0xf];
+	s[8] = digits[(val >> 28) & 0xf];
+	s[9] = digits[(val >> 24) & 0xf];
+	s[10] = digits[(val >> 20) & 0xf];
+	s[11] = digits[(val >> 16) & 0xf];
+	s[12] = digits[(val >> 12) & 0xf];
+	s[13] = digits[(val >> 8) & 0xf];
+	s[14] = digits[(val >> 4) & 0xf];
+	s[15] = digits[val & 0xf];
+	return &s[16];
 }

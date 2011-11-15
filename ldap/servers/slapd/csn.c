@@ -249,9 +249,11 @@ csn_as_string(const CSN *csn, PRBool replicaIdOrder, char *ss)
 	}
 	else
 	{
-		/* JCM - hex2char would be quicker */
-		sprintf(s,"%08lx%04x%04x%04x",
-				csn->tstamp,csn->seqnum,csn->rid, csn->subseqnum);
+		char *ptr = slapi_u32_to_hex(csn->tstamp, s, 0);
+		ptr = slapi_u16_to_hex(csn->seqnum, ptr, 0);
+		ptr = slapi_u16_to_hex(csn->rid, ptr, 0);
+		ptr = slapi_u16_to_hex(csn->subseqnum, ptr, 0);
+		*ptr = 0;
 	}
 	return s;
 }

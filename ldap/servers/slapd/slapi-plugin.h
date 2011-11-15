@@ -6738,6 +6738,94 @@ typedef struct _back_info_crypt_value back_info_crypt_value;
 
 #define BACK_CRYPT_OUTBUFF_EXTLEN 16
 
+/**
+ * Convert unsigned char (8 bit) value to a hex string.  Writes to the string.
+ * The caller must ensure enough space to write 2 bytes.  If the upper parameter
+ * is TRUE, will use upper case A-F instead of lower case a-f for hex numbers.
+ * Returns the address after the last byte written to encourage usage like this:
+ * \code
+ * char *ptr = slapi_u_to_hex(val, buf, 0);
+ * ptr = slapi_u_to_hex(val2, ptr, 0);
+ * ...
+ * ptr = slapi_u_to_hex(valN, ptr, 0);
+ * *ptr = 0;
+ * \endcode
+ *
+ * \param val unsigned value to convert to string
+ * \param s string to write hex value into
+ * \param upper if TRUE use A-F otherwise use a-f
+ * \return address of next char after writing value to s
+ *
+ * \note Does not null terminate s - caller is responsible for that
+ */
+char *slapi_u8_to_hex(uint8_t val, char *s, uint8_t upper);
+
+/**
+ * Convert unsigned short (16 bit) value to a hex string.  Writes to the string.
+ * The caller must ensure enough space to write 4 bytes.  If the upper parameter
+ * is TRUE, will use upper case A-F instead of lower case a-f for hex numbers.
+ * Returns the address after the last byte written to encourage usage like this:
+ * \code
+ * char *ptr = slapi_u_to_hex(val, buf, 0);
+ * ptr = slapi_u_to_hex(val2, ptr, 0);
+ * ...
+ * ptr = slapi_u_to_hex(valN, ptr, 0);
+ * *ptr = 0;
+ * \endcode
+ *
+ * \param val unsigned value to convert to string
+ * \param s string to write hex value into
+ * \param upper if TRUE use A-F otherwise use a-f
+ * \return address of next char after writing value to s
+ *
+ * \note Does not null terminate s - caller is responsible for that
+ */
+char *slapi_u16_to_hex(uint16_t val, char *s, uint8_t upper);
+
+/**
+ * Convert unsigned int (32 bit) value to a hex string.  Writes to the string.
+ * The caller must ensure enough space to write 4 bytes.  If the upper parameter
+ * is TRUE, will use upper case A-F instead of lower case a-f for hex numbers.
+ * Returns the address after the last byte written to encourage usage like this:
+ * \code
+ * char *ptr = slapi_u_to_hex(val, buf, 0);
+ * ptr = slapi_u_to_hex(val2, ptr, 0);
+ * ...
+ * ptr = slapi_u_to_hex(valN, ptr, 0);
+ * *ptr = 0;
+ * \endcode
+ *
+ * \param val unsigned value to convert to string
+ * \param s string to write hex value into
+ * \param upper if TRUE use A-F otherwise use a-f
+ * \return address of next char after writing value to s
+ *
+ * \note Does not null terminate s - caller is responsible for that
+ */
+char *slapi_u32_to_hex(uint32_t val, char *s, uint8_t upper);
+
+/**
+ * Convert unsigned long long (64 bit) value to a hex string.  Writes to the string.
+ * The caller must ensure enough space to write 4 bytes.  If the upper parameter
+ * is TRUE, will use upper case A-F instead of lower case a-f for hex numbers.
+ * Returns the address after the last byte written to encourage usage like this:
+ * \code
+ * char *ptr = slapi_u_to_hex(val, buf, 0);
+ * ptr = slapi_u_to_hex(val2, ptr, 0);
+ * ...
+ * ptr = slapi_u_to_hex(valN, ptr, 0);
+ * *ptr = 0;
+ * \endcode
+ *
+ * \param val unsigned value to convert to string
+ * \param s string to write hex value into
+ * \param upper if TRUE use A-F otherwise use a-f
+ * \return address of next char after writing value to s
+ *
+ * \note Does not null terminate s - caller is responsible for that
+ */
+char *slapi_u64_to_hex(uint64_t val, char *s, uint8_t upper);
+
 #ifdef __cplusplus
 }
 #endif
