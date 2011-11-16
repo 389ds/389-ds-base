@@ -181,8 +181,8 @@ int slapi_uniqueIDFormat (const Slapi_UniqueID *uId, char **buff){
 	*ptr++ = '-';
 	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_mid)[0], ptr, 0);
 	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_mid)[1], ptr, 0);
-	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_high_and_version)[0], ptr, 0);
-	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_high_and_version)[1], ptr, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_hi_and_version)[0], ptr, 0);
+	ptr = slapi_u8_to_hex(((uint8_t *)&uuid_tmp.time_hi_and_version)[1], ptr, 0);
 	*ptr++ = '-';
 	ptr = slapi_u8_to_hex(uuid_tmp.clock_seq_hi_and_reserved, ptr, 0);
 	ptr = slapi_u8_to_hex(uuid_tmp.clock_seq_low, ptr, 0);
