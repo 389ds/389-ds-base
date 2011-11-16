@@ -674,13 +674,15 @@ purge_entry_state_information (Slapi_PBlock *pb)
 			}
 			if (NULL != e)
 			{
-				char csn_str[CSN_STRSIZE];
 				entry_purge_state_information(e, purge_csn);
 				/* conntion is always null */
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-					"Purged state information from entry %s up to "
-					"CSN %s\n", slapi_entry_get_dn(e),
-					csn_as_string(purge_csn, PR_FALSE, csn_str));
+                if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                    char csn_str[CSN_STRSIZE];
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                    "Purged state information from entry %s up to "
+                                    "CSN %s\n", slapi_entry_get_dn(e),
+                                    csn_as_string(purge_csn, PR_FALSE, csn_str));
+                }
 			}
 			csn_free(&purge_csn);
 		}

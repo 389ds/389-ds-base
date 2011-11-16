@@ -3532,9 +3532,11 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 				}
 				else
 				{
-					slapi_log_error (SLAPI_LOG_REPL, NULL,
-						"Changelog purge skipped anchor csn %s\n",
-						csn_as_string (maxcsn, PR_FALSE, strCSN));
+					if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+						slapi_log_error (SLAPI_LOG_REPL, NULL,
+										 "Changelog purge skipped anchor csn %s\n",
+										 csn_as_string (maxcsn, PR_FALSE, strCSN));
+					}
 
 					/* extra read to skip the current record */
 					cl5_operation_parameters_done (&op);
@@ -5020,10 +5022,13 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
     PR_ASSERT (supplierRuv);
 
 	agmt_name = get_thread_private_agmtname();
-    slapi_log_error(SLAPI_LOG_REPL, NULL, "_cl5PositionCursorForReplay (%s): Consumer RUV:\n", agmt_name);
-    ruv_dump (consumerRuv, agmt_name, NULL);
-    slapi_log_error(SLAPI_LOG_REPL, NULL, "_cl5PositionCursorForReplay (%s): Supplier RUV:\n", agmt_name);
-    ruv_dump (supplierRuv, agmt_name, NULL);
+
+	if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+		slapi_log_error(SLAPI_LOG_REPL, NULL, "_cl5PositionCursorForReplay (%s): Consumer RUV:\n", agmt_name);
+		ruv_dump (consumerRuv, agmt_name, NULL);
+		slapi_log_error(SLAPI_LOG_REPL, NULL, "_cl5PositionCursorForReplay (%s): Supplier RUV:\n", agmt_name);
+		ruv_dump (supplierRuv, agmt_name, NULL);
+	}
    
 	/*
 	 * get the sorted list of SupplierMinCSN (if no ConsumerMaxCSN)
@@ -5054,7 +5059,6 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
 			continue;
 
         startCSN = csns[i];
-        csn_as_string(startCSN, PR_FALSE, csnStr); 
 
 		rc = clcache_get_buffer ( &clcache, file->db, consumerRID, consumerRuv, supplierRuv );
 		if ( rc != 0 ) goto done;
@@ -5085,23 +5089,28 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
             if ((RUV_SUCCESS == ruv_get_min_csn(supplierRuv, &startCSN)) &&
                 startCSN)
             { /* must now free startCSN */
-                csn_as_string(startCSN, PR_FALSE, csnStr); 
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-                                "%s: CSN %s not found and no purging, probably a reinit\n",
-                                agmt_name, csnStr);
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-                                "%s: Will try to use supplier min CSN %s to load changelog\n",
-                                agmt_name, csnStr);
+                if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                    csn_as_string(startCSN, PR_FALSE, csnStr); 
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                                    "%s: CSN %s not found and no purging, probably a reinit\n",
+                                    agmt_name, csnStr);
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                                    "%s: Will try to use supplier min CSN %s to load changelog\n",
+                                    agmt_name, csnStr);
+                }
                 rc = clcache_load_buffer (clcache, startCSN, DB_SET);
             }
             else
             {
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-                                "%s: CSN %s not found and no purging, probably a reinit\n",
-                                agmt_name, csnStr);
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-                                "%s: Could not get the min csn from the supplier RUV\n",
-                                agmt_name);
+                if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                    csn_as_string(startCSN, PR_FALSE, csnStr); 
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+                                    "%s: CSN %s not found and no purging, probably a reinit\n",
+                                    agmt_name, csnStr);
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                                    "%s: Could not get the min csn from the supplier RUV\n",
+                                    agmt_name);
+                }
                 rc = CL5_RUV_ERROR;
                 goto done;
             }
@@ -5110,8 +5119,11 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
         if (rc == 0) {
             haveChanges = PR_TRUE;
             rc = CL5_SUCCESS;
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-                            "%s: CSN %s found, position set for replay\n", agmt_name, csnStr);
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                csn_as_string(startCSN, PR_FALSE, csnStr); 
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                                "%s: CSN %s found, position set for replay\n", agmt_name, csnStr);
+            }
             if (startCSN != csns[i]) {
                 csn_free(&startCSN);
             }
@@ -5121,33 +5133,44 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
         {
             /* check whether this csn should be present */
             rc = _cl5CheckMissingCSN (startCSN, supplierRuv, file);
+            if (rc == CL5_MISSING_DATA)  /* we should have had the change but we don't */
+            {
+                if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                    csn_as_string(startCSN, PR_FALSE, csnStr); 
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+                                    "%s: CSN %s not found, seems to be missing\n", agmt_name, csnStr);
+                }
+            }
+            else /* we are not as up to date or we purged */
+            {
+                csn_as_string(startCSN, PR_FALSE, csnStr); 
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+                                "%s: CSN %s not found, we aren't as up to date, or we purged\n", 
+                                agmt_name, csnStr);
+            }
             if (startCSN != csns[i]) {
                 csn_free(&startCSN);
             }
             if (rc == CL5_MISSING_DATA)  /* we should have had the change but we don't */
             {
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-                                "%s: CSN %s not found, seems to be missing\n", agmt_name, csnStr);
                 break;
             }
             else /* we are not as up to date or we purged */
             {
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-                                "%s: CSN %s not found, we aren't as up to date, or we purged\n", 
-						agmt_name, csnStr);
                 continue;
             } 
         }
         else
         {
-            if (startCSN != csns[i]) {
-                csn_free(&startCSN);
-            }
-
+            csn_as_string(startCSN, PR_FALSE, csnStr); 
             /* db error */
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
                             "%s: Failed to retrieve change with CSN %s; db error - %d %s\n", 
                             agmt_name, csnStr, rc, db_strerror(rc));
+            if (startCSN != csns[i]) {
+                csn_free(&startCSN);
+            }
+
             rc = CL5_DB_ERROR;
             break;
         }
@@ -5369,9 +5392,11 @@ static int _cl5CheckMissingCSN (const CSN *csn, const RUV *supplierRuv, CL5DBFil
     {
         /* we have not seen any changes from this replica so it is
            ok not to have this csn */
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
-                        "can't locate %s csn: we have not seen any changes for replica %d\n",
-						csn_as_string (csn, PR_FALSE, csnStr), rid);
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
+                            "can't locate %s csn: we have not seen any changes for replica %d\n",
+                            csn_as_string (csn, PR_FALSE, csnStr), rid);
+        }
         return CL5_SUCCESS;
     }
 
@@ -5381,18 +5406,22 @@ static int _cl5CheckMissingCSN (const CSN *csn, const RUV *supplierRuv, CL5DBFil
         /* changelog never contained any changes for this replica */
         if (csn_compare (csn, supplierCsn) <= 0)
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
-                    "the change with %s csn was never logged because it was imported "
-                    "during replica initialization\n", csn_as_string (csn, PR_FALSE, csnStr));
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
+                                "the change with %s csn was never logged because it was imported "
+                                "during replica initialization\n", csn_as_string (csn, PR_FALSE, csnStr));
+            }
             rc = CL5_PURGED_DATA; /* XXXggood is that the correct return value? */
         }
         else
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
-                    "change with %s csn has not yet been seen by this server; "
-                    " last csn seen from that replica is %s\n", 
-                    csn_as_string (csn, PR_FALSE, csnStr), 
-                    csn_as_string (supplierCsn, PR_FALSE, csnStr));                
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
+                                "change with %s csn has not yet been seen by this server; "
+                                " last csn seen from that replica is %s\n", 
+                                csn_as_string (csn, PR_FALSE, csnStr), 
+                                csn_as_string (supplierCsn, PR_FALSE, csnStr));                
+            }
             rc = CL5_SUCCESS;
         }
     }
@@ -5406,20 +5435,24 @@ static int _cl5CheckMissingCSN (const CSN *csn, const RUV *supplierRuv, CL5DBFil
         {
             if (csn_compare (csn, supplierCsn) <= 0) /* we should have the data but we don't */
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
-                    "change with %s csn has been purged by this server; "
-                    "the current purge point for that replica is %s\n", 
-                    csn_as_string (csn, PR_FALSE, csnStr), 
-                    csn_as_string (purgeCsn, PR_FALSE, csnStr));
-                    rc = CL5_MISSING_DATA;
+                if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
+                                    "change with %s csn has been purged by this server; "
+                                    "the current purge point for that replica is %s\n", 
+                                    csn_as_string (csn, PR_FALSE, csnStr), 
+                                    csn_as_string (purgeCsn, PR_FALSE, csnStr));
+                }
+                rc = CL5_MISSING_DATA;
             }
             else
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
-                    "change with %s csn has not yet been seen by this server; "
-                    " last csn seen from that replica is %s\n", 
-                    csn_as_string (csn, PR_FALSE, csnStr), 
-                    csn_as_string (supplierCsn, PR_FALSE, csnStr));
+                if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5CheckMissingCSN: "
+                                    "change with %s csn has not yet been seen by this server; "
+                                    " last csn seen from that replica is %s\n", 
+                                    csn_as_string (csn, PR_FALSE, csnStr), 
+                                    csn_as_string (supplierCsn, PR_FALSE, csnStr));
+                }
                 rc = CL5_SUCCESS;    
             }
         }
@@ -6065,8 +6098,10 @@ static int _cl5ExportFile (PRFileDesc *prFile, Object *obj)
     file = (CL5DBFile*)object_get_data (obj);
     PR_ASSERT (file);
 
-	ruv_dump (file->purgeRUV, "clpurgeruv", prFile);
-	ruv_dump (file->maxRUV, "clmaxruv", prFile);
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        ruv_dump (file->purgeRUV, "clpurgeruv", prFile);
+        ruv_dump (file->maxRUV, "clmaxruv", prFile);
+    }
 	slapi_write_buffer (prFile, "\n", strlen("\n"));
 
 	entry.op = &op;

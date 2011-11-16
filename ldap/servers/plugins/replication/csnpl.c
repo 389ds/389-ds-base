@@ -172,8 +172,10 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn)
 	if (rc != 0)
 	{
 		char s[CSN_STRSIZE];		
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-			"csnplInsert: failed to insert csn (%s) into pending list\n", csn_as_string(csn,PR_FALSE,s));	
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+                            "csnplInsert: failed to insert csn (%s) into pending list\n", csn_as_string(csn,PR_FALSE,s));
+        }
 		return -1;
 	}
 

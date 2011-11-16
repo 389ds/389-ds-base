@@ -1343,6 +1343,9 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 	int len = sizeof (buff);
 
 	PR_ASSERT(NULL != ruv);
+    if (!slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        return;
+    }
 
     slapi_rwlock_rdlock (ruv->lock);
 
@@ -1406,8 +1409,10 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
         replica = ruvAddReplicaNoCSN (ruv, csn_get_replicaid (csn), NULL/*purl*/);
         if (replica == NULL)
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to add replica"
-                            " that created csn %s\n", csn_as_string (csn, PR_FALSE, csn_str));
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to add replica"
+                                " that created csn %s\n", csn_as_string (csn, PR_FALSE, csn_str));
+            }
             rc = RUV_MEMORY_ERROR;
             goto done;
         }
@@ -1416,9 +1421,11 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     /* check first that this csn is not already covered by this RUV */
     if (ruv_covers_csn_internal(ruv, csn, PR_FALSE))
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
-                        "the csn %s has already be seen - ignoring\n",
-                        csn_as_string (csn, PR_FALSE, csn_str));
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
+                            "the csn %s has already be seen - ignoring\n",
+                            csn_as_string (csn, PR_FALSE, csn_str));
+        }
         rc = RUV_COVERS_CSN;
         goto done;
     }
@@ -1426,21 +1433,27 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     rc = csnplInsert (replica->csnpl, csn);
     if (rc == 1)    /* we already seen this csn */
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
-                        "the csn %s has already be seen - ignoring\n",
-                        csn_as_string (csn, PR_FALSE, csn_str));
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
+                            "the csn %s has already be seen - ignoring\n",
+                            csn_as_string (csn, PR_FALSE, csn_str));
+        }
         rc = RUV_COVERS_CSN;    
     }
     else if(rc != 0)
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to insert csn %s"
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to insert csn %s"
                             " into pending list\n", csn_as_string (csn, PR_FALSE, csn_str));
+        }
         rc = RUV_UNKNOWN_ERROR;
     }
     else
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: successfully inserted csn %s"
-                        " into pending list\n", csn_as_string (csn, PR_FALSE, csn_str));
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: successfully inserted csn %s"
+                            " into pending list\n", csn_as_string (csn, PR_FALSE, csn_str));
+        }
         rc = RUV_SUCCESS;
     }
       
@@ -1508,8 +1521,10 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
 	}
     else
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: "
-                "successfully committed csn %s\n", csn_as_string(csn, PR_FALSE, csn_str));
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: "
+                            "successfully committed csn %s\n", csn_as_string(csn, PR_FALSE, csn_str));
+        }
     }
 
 	if ((max_csn = csnplRollUp(replica->csnpl, &first_csn)) != NULL)

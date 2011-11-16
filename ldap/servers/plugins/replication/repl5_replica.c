@@ -2542,21 +2542,25 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 
 	if ((NULL == deletion_csn || csn_compare(deletion_csn, purge_csn) < 0) &&
 		(!is_ruv_tombstone_entry(entry))) {
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"_replica_reap_tombstones: removing tombstone %s "
-			"because its deletion csn (%s) is less than the "
-			"purge csn (%s).\n", 
-			escape_string(slapi_entry_get_dn(entry), ebuf),
-			csn_as_string(deletion_csn, PR_FALSE, deletion_csn_str),
-			csn_as_string(purge_csn, PR_FALSE, purge_csn_str));
+		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"_replica_reap_tombstones: removing tombstone %s "
+							"because its deletion csn (%s) is less than the "
+							"purge csn (%s).\n", 
+							escape_string(slapi_entry_get_dn(entry), ebuf),
+							csn_as_string(deletion_csn, PR_FALSE, deletion_csn_str),
+							csn_as_string(purge_csn, PR_FALSE, purge_csn_str));
+		}
 		_delete_tombstone(slapi_entry_get_dn(entry),
 			slapi_entry_get_uniqueid(entry), 0);
 		(*num_purged_entriesp)++;
 	}
 	else {
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-		"_replica_reap_tombstones: NOT removing tombstone "
-		"%s\n", escape_string(slapi_entry_get_dn(entry),ebuf));
+		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"_replica_reap_tombstones: NOT removing tombstone "
+							"%s\n", escape_string(slapi_entry_get_dn(entry),ebuf));
+		}
 	}
 	(*num_entriesp)++;
 
@@ -2939,10 +2943,12 @@ assign_csn_callback(const CSN *csn, void *data)
 			char ebuf[BUFSIZ];
 			char csn_str[CSN_STRSIZE]; /* For logging only */
 			/* Ack, we can't keep track of min csn. Punt. */
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "assign_csn_callback: "
-                "failed to insert csn %s for replica %s\n",
-				csn_as_string(csn, PR_FALSE, csn_str),
-				escape_string(slapi_sdn_get_dn(r->repl_root), ebuf));			
+			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "assign_csn_callback: "
+								"failed to insert csn %s for replica %s\n",
+								csn_as_string(csn, PR_FALSE, csn_str),
+								escape_string(slapi_sdn_get_dn(r->repl_root), ebuf));
+			}
 			csnplFree(&r->min_csn_pl);
 		}
 	}

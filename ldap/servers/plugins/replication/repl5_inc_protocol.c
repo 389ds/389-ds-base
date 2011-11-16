@@ -57,6 +57,7 @@ Stuff to do:
 
 Perhaps these events should be properties of the main protocol.
 */
+#include <plstr.h>
 
 #include "repl.h"
 #include "repl5.h"
@@ -80,12 +81,16 @@ typedef struct repl5_inc_private
 
 /* Structures used to communicate with the result reading thread */
 
+#ifndef UIDSTR_SIZE
+#define UIDSTR_SIZE 35 /* size of the string representation of the id */
+#endif
+
 typedef struct repl5_inc_operation 
 {
 	int ldap_message_id;
 	unsigned long operation_type;
-	char *csn_str;
-	char *uniqueid;
+	char csn_str[CSN_STRSIZE];
+	char uniqueid[UIDSTR_SIZE+1];
 	ReplicaId  replica_id;
 	struct repl5_inc_operation *next;
 } repl5_inc_operation;
@@ -214,15 +219,6 @@ static repl5_inc_operation *repl5_inc_pop_operation(result_data *rd)
 static void
 repl5_inc_op_free(repl5_inc_operation *op)
 {
-	/* First free any payload */
-	if (op->csn_str) 
-	{
-		slapi_ch_free((void **)&(op->csn_str));
-	}
-	if (op->uniqueid)
-	{
-		slapi_ch_free((void **)&(op->uniqueid));
-	}
 	slapi_ch_free((void**)&op);
 }
 
@@ -1389,8 +1385,6 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 	LDAPMod **modrdn_mods = NULL;
 	char csn_str[CSN_STRSIZE]; /* For logging only */
 
-	csn_as_string(op->csn, PR_FALSE, csn_str);
-
 	/* Construct the replication info control that accompanies the operation */
 	if (SLAPI_OPERATION_ADD == op->operation_type)
 	{
@@ -1416,14 +1410,17 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 			"%s: replay_update: Unable to create NSDS50ReplUpdateInfoControl "
 			"for operation with csn %s. Skipping update.\n",
-			agmt_get_long_name(prp->agmt), csn_str);
+			agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"%s: replay_update: Sending %s operation (dn=\"%s\" csn=%s)\n",
-			agmt_get_long_name(prp->agmt),
-			op2string(op->operation_type), REPL_GET_DN(&op->target_address), csn_str);
+		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: replay_update: Sending %s operation (dn=\"%s\" csn=%s)\n",
+							agmt_get_long_name(prp->agmt),
+							op2string(op->operation_type), REPL_GET_DN(&op->target_address),
+							csn_as_string(op->csn, PR_FALSE, csn_str));
+		}
 		/* What type of operation is it? */
 		switch (op->operation_type)
 		{
@@ -1486,15 +1483,19 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 
 	if (CONN_OPERATION_SUCCESS == return_value)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"%s: replay_update: Consumer successfully sent operation with csn %s\n",
-			agmt_get_long_name(prp->agmt), csn_str);
+		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: replay_update: Consumer successfully sent operation with csn %s\n",
+							agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
+		}
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"%s: replay_update: Consumer could not replay operation with csn %s\n",
-			agmt_get_long_name(prp->agmt), csn_str);
+		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: replay_update: Consumer could not replay operation with csn %s\n",
+							agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
+		}
 	}
 	return return_value;
 }
@@ -1884,11 +1885,11 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						/* Queue the details for pickup later in the response thread */
 						repl5_inc_operation *sop = NULL;
 						sop = repl5_inc_operation_new();
-						sop->csn_str = slapi_ch_strdup(csn_str);
+						PL_strncpyz(sop->csn_str, csn_str, sizeof(sop->csn_str));
 						sop->ldap_message_id = message_id;
 						sop->operation_type = entry.op->operation_type;
 						sop->replica_id = replica_id;
-						sop->uniqueid = slapi_ch_strdup(uniqueid);
+						PL_strncpyz(sop->uniqueid, uniqueid, sizeof(sop->uniqueid));
 						repl5_int_push_operation(rd,sop);
 					}
 				}
