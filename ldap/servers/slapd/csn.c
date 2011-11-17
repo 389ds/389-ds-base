@@ -47,19 +47,6 @@
 
 #include <string.h>
 #include "slap.h"
-#include <prcountr.h>
-
-#define _CSN_TSTAMP_STRSIZE_STR "8"
-#define _CSN_SEQNUM_STRSIZE_STR "4"
-#define _CSN_REPLID_STRSIZE_STR "4"
-#define _CSN_SUBSEQNUM_STRSIZE_STR "4"
-
-#define _CSN_TSTAMP_SCANSTR "%"_CSN_TSTAMP_STRSIZE_STR"lx"
-#define _CSN_SEQNUM_SCANSTR "%"_CSN_SEQNUM_STRSIZE_STR"hx"
-#define _CSN_REPLID_SCANSTR "%"_CSN_REPLID_STRSIZE_STR"hx"
-#define _CSN_SUBSEQNUM_SCANSTR "%"_CSN_SUBSEQNUM_STRSIZE_STR"hx" 
-
-#define _CSN_TSORDER_SPRINTSTR "%08x%04x%04x%04x"
 
 #define _CSN_TSORDER_TSTAMP_OFFSET 0
 #define _CSN_TSORDER_SEQNUM_OFFSET 8
@@ -71,10 +58,12 @@ static PRBool _csnIsValidString(const char *csnStr);
 /*
  * Debugging counters.
  */
+#ifdef DEBUG
 static int counters_created= 0;
-PR_DEFINE_COUNTER(slapi_csn_counter_created);
-PR_DEFINE_COUNTER(slapi_csn_counter_deleted);
-PR_DEFINE_COUNTER(slapi_csn_counter_exist);
+static Slapi_Counter *slapi_csn_counter_created;
+static Slapi_Counter *slapi_csn_counter_deleted;
+static Slapi_Counter *slapi_csn_counter_exist;
+#endif
 
 /*
  * **************************************************************************
@@ -82,23 +71,27 @@ PR_DEFINE_COUNTER(slapi_csn_counter_exist);
  * **************************************************************************
  */
 
+#ifdef DEBUG
 static void
 csn_create_counters()
 {
-	PR_CREATE_COUNTER(slapi_csn_counter_created,"Slapi_CSN","created","");
-	PR_CREATE_COUNTER(slapi_csn_counter_deleted,"Slapi_CSN","deleted","");
-	PR_CREATE_COUNTER(slapi_csn_counter_exist,"Slapi_CSN","exist","");
+	slapi_csn_counter_created = slapi_counter_new();
+	slapi_csn_counter_deleted = slapi_counter_new();
+	slapi_csn_counter_exist = slapi_counter_new();
 	counters_created= 1;
 }
+#endif
 
 CSN *csn_new()
 {
+#ifdef DEBUG
 	if(!counters_created)
 	{
 		csn_create_counters();
 	}
-	PR_INCREMENT_COUNTER(slapi_csn_counter_created);
-	PR_INCREMENT_COUNTER(slapi_csn_counter_exist);
+	slapi_counter_increment(slapi_csn_counter_created);
+	slapi_counter_increment(slapi_csn_counter_exist);
+#endif
 	return (CSN*)slapi_ch_calloc(sizeof(CSN),1);
 }
 
@@ -138,22 +131,13 @@ void csn_init_by_csn(CSN *csn1,const CSN *csn2)
 
 void csn_init_by_string(CSN *csn, const char *s)
 {
-	time_t csnTime= 0;
-	PRUint16 csnSeqNum= 0;
-	ReplicaId rid= 0;
-	PRUint16 csnSubSeqNum= 0;
-
-    if(_csnIsValidString(s))
-    {
-		/* JCM - char2hex faster */
-		sscanf((s+_CSN_TSORDER_TSTAMP_OFFSET), _CSN_TSTAMP_SCANSTR, &csnTime); /* JCM - scanf is very slow */
-		sscanf((s+_CSN_TSORDER_SEQNUM_OFFSET), _CSN_SEQNUM_SCANSTR, &csnSeqNum);/* JCM - scanf is very slow */
-		sscanf((s+_CSN_TSORDER_REPLID_OFFSET), _CSN_REPLID_SCANSTR, &rid);/* JCM - scanf is very slow */
-	    sscanf((s+_CSN_TSORDER_SUBSEQNUM_OFFSET), _CSN_SUBSEQNUM_SCANSTR, &csnSubSeqNum);/* JCM - scanf is very slow */
-	    csn->tstamp= csnTime;
-	    csn->seqnum= csnSeqNum;
-	    csn->rid= rid;
-		csn->subseqnum= csnSubSeqNum;
+	if(_csnIsValidString(s)) {
+		/* yes - time_t is long - but the CSN will only ever store the lowest 4 bytes of
+		   the timestamp */
+		csn->tstamp = slapi_str_to_u32(s+_CSN_TSORDER_TSTAMP_OFFSET);
+		csn->seqnum = slapi_str_to_u16(s+_CSN_TSORDER_SEQNUM_OFFSET);
+		csn->rid = slapi_str_to_u16(s+_CSN_TSORDER_REPLID_OFFSET);
+		csn->subseqnum = slapi_str_to_u16(s+_CSN_TSORDER_SUBSEQNUM_OFFSET);
 	}
 }
 
@@ -176,12 +160,14 @@ void csn_free(CSN **csn)
 {
 	if(csn!=NULL && *csn!=NULL)
 	{
+#ifdef DEBUG
 		if(!counters_created)
 		{
 			csn_create_counters();
 		}
-		PR_INCREMENT_COUNTER(slapi_csn_counter_deleted);
-		PR_DECREMENT_COUNTER(slapi_csn_counter_exist);
+		slapi_counter_increment(slapi_csn_counter_deleted);
+		slapi_counter_increment(slapi_csn_counter_exist);
+#endif
 	    slapi_ch_free((void **)csn);
 	}
     return;

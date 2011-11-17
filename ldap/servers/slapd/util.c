@@ -1004,3 +1004,86 @@ slapi_u64_to_hex(uint64_t val, char *s, uint8_t upper) {
 	s[15] = digits[val & 0xf];
 	return &s[16];
 }
+
+static const int char2intarray[] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1, -1, -1, -1,
+	-1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+};
+
+static const int char2intarray_size = sizeof(char2intarray)/sizeof(char2intarray[0]);
+
+int
+slapi_hexchar2int(char c)
+{
+	return char2intarray[(unsigned char)c];
+}
+    
+uint8_t
+slapi_str_to_u8(const char *s)
+{
+	uint8_t v0 = (uint8_t)slapi_hexchar2int(s[0]);
+	uint8_t v1 = (uint8_t)slapi_hexchar2int(s[1]);
+	return (v0 << 4) | v1;
+}
+
+uint16_t
+slapi_str_to_u16(const char *s)
+{
+	uint16_t v0 = (uint16_t)slapi_hexchar2int(s[0]);
+	uint16_t v1 = (uint16_t)slapi_hexchar2int(s[1]);
+	uint16_t v2 = (uint16_t)slapi_hexchar2int(s[2]);
+	uint16_t v3 = (uint16_t)slapi_hexchar2int(s[3]);
+	return (v0 << 12) | (v1 << 8) | (v2 << 4) | v3;
+}
+
+uint32_t
+slapi_str_to_u32(const char *s)
+{
+	uint32_t v0 = (uint32_t)slapi_hexchar2int(s[0]);
+	uint32_t v1 = (uint32_t)slapi_hexchar2int(s[1]);
+	uint32_t v2 = (uint32_t)slapi_hexchar2int(s[2]);
+	uint32_t v3 = (uint32_t)slapi_hexchar2int(s[3]);
+	uint32_t v4 = (uint32_t)slapi_hexchar2int(s[4]);
+	uint32_t v5 = (uint32_t)slapi_hexchar2int(s[5]);
+	uint32_t v6 = (uint32_t)slapi_hexchar2int(s[6]);
+	uint32_t v7 = (uint32_t)slapi_hexchar2int(s[7]);
+	return (v0 << 28) | (v1 << 24) | (v2 << 20) | (v3 << 16) | (v4 << 12) | (v5 << 8) | (v6 << 4) | v7;
+}
+
+uint64_t
+slapi_str_to_u64(const char *s)
+{
+	uint64_t v0 = (uint64_t)slapi_hexchar2int(s[0]);
+	uint64_t v1 = (uint64_t)slapi_hexchar2int(s[1]);
+	uint64_t v2 = (uint64_t)slapi_hexchar2int(s[2]);
+	uint64_t v3 = (uint64_t)slapi_hexchar2int(s[3]);
+	uint64_t v4 = (uint64_t)slapi_hexchar2int(s[4]);
+	uint64_t v5 = (uint64_t)slapi_hexchar2int(s[5]);
+	uint64_t v6 = (uint64_t)slapi_hexchar2int(s[6]);
+	uint64_t v7 = (uint64_t)slapi_hexchar2int(s[7]);
+	uint64_t v8 = (uint64_t)slapi_hexchar2int(s[8]);
+	uint64_t v9 = (uint64_t)slapi_hexchar2int(s[9]);
+	uint64_t v10 = (uint64_t)slapi_hexchar2int(s[10]);
+	uint64_t v11 = (uint64_t)slapi_hexchar2int(s[11]);
+	uint64_t v12 = (uint64_t)slapi_hexchar2int(s[12]);
+	uint64_t v13 = (uint64_t)slapi_hexchar2int(s[13]);
+	uint64_t v14 = (uint64_t)slapi_hexchar2int(s[14]);
+	uint64_t v15 = (uint64_t)slapi_hexchar2int(s[15]);
+	return (v0 << 60) | (v1 << 56) | (v2 << 52) | (v3 << 48) | (v4 << 44) | (v5 << 40) |
+		(v6 << 36) | (v7 << 32) | (v8 << 28) | (v9 << 24) | (v10 << 20) | (v11 << 16) |
+		(v12 << 12) | (v13 << 8) | (v14 << 4) | v15;
+}

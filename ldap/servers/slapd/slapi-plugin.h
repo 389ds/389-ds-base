@@ -6826,6 +6826,53 @@ char *slapi_u32_to_hex(uint32_t val, char *s, uint8_t upper);
  */
 char *slapi_u64_to_hex(uint64_t val, char *s, uint8_t upper);
 
+/**
+ * Convert a char to its integral hex value e.g. '0' -> 0 or 'a' -> 10.
+ * This only works on one caller at a time.  If you want to convert a string
+ * of decimal/hex numbers to its integral value, see slapi_str_to_u8 et. al.
+ * This uses a lookup table so it should be extremely fast.
+ *
+ * \param c character value to convert
+ * \return integral value of the given char or -1 if not a valid decimal/hex digit
+ */
+int slapi_hexchar2int(char c);
+
+/**
+ * Convert a string of 2 decimal/hex characters to a 1 byte (8-bit) unsigned value.
+ * This function does no checking - it assumes s is non-NULL and well-formed.
+ *
+ * \param s convert the first 2 chars of this decimal/hex char string to its integral value
+ * \return the integral value
+ */
+uint8_t slapi_str_to_u8(const char *s);
+
+/**
+ * Convert a string of 4 decimal/hex characters to a 2 byte (16-bit) unsigned value.
+ * This function does no checking - it assumes s is non-NULL and well-formed.
+ *
+ * \param s convert the first 4 chars of this decimal/hex char string to its integral value
+ * \return the integral value
+ */
+uint16_t slapi_str_to_u16(const char *s);
+
+/**
+ * Convert a string of 8 decimal/hex characters to a 4 byte (32-bit) unsigned value.
+ * This function does no checking - it assumes s is non-NULL and well-formed.
+ *
+ * \param s convert the first 8 chars of this decimal/hex char string to its integral value
+ * \return the integral value
+ */
+uint32_t slapi_str_to_u32(const char *s);
+
+/**
+ * Convert a string of 16 decimal/hex characters to a 8 byte (64-bit) unsigned value.
+ * This function does no checking - it assumes s is non-NULL and well-formed.
+ *
+ * \param s convert the first 16 chars of this decimal/hex char string to its integral value
+ * \return the integral value
+ */
+uint64_t slapi_str_to_u64(const char *s);
+
 #ifdef __cplusplus
 }
 #endif
