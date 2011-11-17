@@ -326,8 +326,6 @@ static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Sl
 static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags);
 static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Slapi_Entry *e, char *type, Slapi_ValueSet **out_attr, Slapi_Value *test_this, int *result, int *ops);
 
-static int hexchar2int( char c );
-
 /* 
 	compares s2 to s1 starting from end of string until the beginning of either
 	matches result in the s2 value being clipped from s1 with a NULL char
@@ -1986,8 +1984,8 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 						if ((index+2 <= lastindex) && isxdigit(dn->val[index+1]) && 
 							isxdigit(dn->val[index+2])) {
 							/* Convert ESC HEX HEX to a real char */
-							int n = hexchar2int(dn->val[index+1]);
-							int n2 = hexchar2int(dn->val[index+2]);
+							int n = slapi_hexchar2int(dn->val[index+1]);
+							int n2 = slapi_hexchar2int(dn->val[index+2]);
 							n = (n << 4) + n2;
 							if (n == 0) { /* don't change \00 */
 								grade[grade_index] = dn->val[index++]; /* '\\' */
@@ -3648,20 +3646,3 @@ static int cos_cache_entry_is_cos_related( Slapi_Entry *e) {
 	}
 	return(rc);
 }
-
-/* copied from dn.c */
-static int
-hexchar2int( char c )
-{
-    if ( '0' <= c && c <= '9' ) {
-        return( c - '0' );
-    }
-    if ( 'a' <= c && c <= 'f' ) {
-        return( c - 'a' + 10 );
-    }
-    if ( 'A' <= c && c <= 'F' ) {
-        return( c - 'A' + 10 );
-    }
-    return( -1 );
-}
-

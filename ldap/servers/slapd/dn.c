@@ -62,21 +62,6 @@ static int rdn_av_cmp( struct berval *av1, struct berval *av2 );
 static void rdn_av_swap( struct berval *av1, struct berval *av2, int escape );
 
 
-int
-hexchar2int( char c )
-{
-    if ( '0' <= c && c <= '9' ) {
-	return( c - '0' );
-    }
-    if ( 'a' <= c && c <= 'f' ) {
-	return( c - 'a' + 10 );
-    }
-    if ( 'A' <= c && c <= 'F' ) {
-	return( c - 'A' + 10 );
-    }
-    return( -1 );
-}
-
 #define ISBLANK(c)	((c) == ' ')
 #define ISBLANKSTR(s)	(((*(s)) == '2') && (*((s)+1) == '0'))
 #define ISSPACE(c)	(ISBLANK(c) || ((c) == '\n') || ((c) == '\r'))   /* XXX 518524 */
@@ -398,9 +383,9 @@ substr_dn_normalize_orig( char *dn, char *end )
 			} else {
 				gotesc = 1;
 				if ( s+2 < end ) {
-					int n = hexchar2int( s[1] );
+					int n = slapi_hexchar2int( s[1] );
 					if ( n >= 0 && n < 16 ) {
-						int n2 = hexchar2int( s[2] );
+						int n2 = slapi_hexchar2int( s[2] );
 						if ( n2 >= 0 ) {
 							n = (n << 4) + n2;
 							if (n == 0) { /* don't change \00 */
@@ -841,8 +826,8 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 } else if (s + 2 < ends &&
                            isxdigit(*(s+1)) && isxdigit(*(s+2))) {
                     /* esc hexpair ==> real character */
-                    int n = hexchar2int(*(s+1));
-                    int n2 = hexchar2int(*(s+2));
+                    int n = slapi_hexchar2int(*(s+1));
+                    int n2 = slapi_hexchar2int(*(s+2));
                     n = (n << 4) + n2;
                     if (n == 0) { /* don't change \00 */
                         *d++ = *++s;

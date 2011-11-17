@@ -231,9 +231,9 @@ strcpy_unescape_value( char *d, const char *s )
         case '\\':
             gotesc = 1;
             if ( s+2 < end ) {
-                int n = hexchar2int( s[1] );
+                int n = slapi_hexchar2int( s[1] );
                 if ( n >= 0 && n < 16 ) {
-                    int n2 = hexchar2int( s[2] );
+                    int n2 = slapi_hexchar2int( s[2] );
                     if ( n2 >= 0 ) {
                         n = (n << 4) + n2;
                         if (n == 0) { /* don't change \00 */
@@ -1023,8 +1023,6 @@ static const int char2intarray[] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
-
-static const int char2intarray_size = sizeof(char2intarray)/sizeof(char2intarray[0]);
 
 int
 slapi_hexchar2int(char c)

@@ -571,7 +571,6 @@ void raise_process_limits( void );
  * dn.c
  */
 char *substr_dn_normalize( char *dn, char *end );
-int hexchar2int( char c );
 
 
 /*

@@ -213,7 +213,7 @@ filt_unescape_str(const char *instr, char *outstr, size_t outsize, size_t* outle
         {
             if (! *(++inp))
                 return 0; /* fail */
-            if (((ival = hexchar2int(inp[0])) < 0) || (hexchar2int(inp[1]) < 0))
+            if (((ival = slapi_hexchar2int(inp[0])) < 0) || (slapi_hexchar2int(inp[1]) < 0))
             {
                 /* LDAPv2 (RFC1960) escape sequence */
                 *outp++ = *inp;
@@ -224,7 +224,7 @@ filt_unescape_str(const char *instr, char *outstr, size_t outsize, size_t* outle
                 /* LDAPv3 hex escape sequence */
                 if (! *(++inp))
                     return 0; /* fail */
-                *outp = (ival << 4) | hexchar2int(*inp);
+                *outp = (ival << 4) | slapi_hexchar2int(*inp);
                 if ((!binary) && (!*outp))
                     return 0;	/* fail: "\00" not allowed unless it's binary */
                 outp++;

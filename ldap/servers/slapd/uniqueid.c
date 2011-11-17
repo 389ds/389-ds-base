@@ -221,25 +221,25 @@ int slapi_uniqueIDScan (Slapi_UniqueID *uId, const char *buff){
 		return UID_BADDATA;
 	}
 	  
-	((PRUint8 *) &uId->time_low)[0] = str2Byte (&(buff[0]));
-	((PRUint8 *) &uId->time_low)[1] = str2Byte (&(buff[2]));
-	((PRUint8 *) &uId->time_low)[2] = str2Byte (&(buff[4]));
-	((PRUint8 *) &uId->time_low)[3] = str2Byte (&(buff[6]));
+	((PRUint8 *) &uId->time_low)[0] = slapi_str_to_u8 (&(buff[0]));
+	((PRUint8 *) &uId->time_low)[1] = slapi_str_to_u8 (&(buff[2]));
+	((PRUint8 *) &uId->time_low)[2] = slapi_str_to_u8 (&(buff[4]));
+	((PRUint8 *) &uId->time_low)[3] = slapi_str_to_u8 (&(buff[6]));
 	/* next field is at 9 because we skip the - */
-	((PRUint8 *) &uId->time_mid)[0] = str2Byte (&(buff[9]));
-	((PRUint8 *) &uId->time_mid)[1] = str2Byte (&(buff[11]));
-	((PRUint8 *) &uId->time_hi_and_version)[0] = str2Byte (&(buff[13]));
-	((PRUint8 *) &uId->time_hi_and_version)[1] = str2Byte (&(buff[15]));
+	((PRUint8 *) &uId->time_mid)[0] = slapi_str_to_u8 (&(buff[9]));
+	((PRUint8 *) &uId->time_mid)[1] = slapi_str_to_u8 (&(buff[11]));
+	((PRUint8 *) &uId->time_hi_and_version)[0] = slapi_str_to_u8 (&(buff[13]));
+	((PRUint8 *) &uId->time_hi_and_version)[1] = slapi_str_to_u8 (&(buff[15]));
 	/* next field is at 18 because we skip the - */
-	uId->clock_seq_hi_and_reserved = str2Byte (&(buff[18]));
-	uId->clock_seq_low = str2Byte (&(buff[20]));
-	uId->node[0] = str2Byte (&(buff[22]));
-	uId->node[1] = str2Byte (&(buff[24]));
+	uId->clock_seq_hi_and_reserved = slapi_str_to_u8 (&(buff[18]));
+	uId->clock_seq_low = slapi_str_to_u8 (&(buff[20]));
+	uId->node[0] = slapi_str_to_u8 (&(buff[22]));
+	uId->node[1] = slapi_str_to_u8 (&(buff[24]));
 	/* next field is at 27 because we skip the - */
-	uId->node[2] = str2Byte (&(buff[27]));
-	uId->node[3] = str2Byte (&(buff[29]));
-	uId->node[4] = str2Byte (&(buff[31]));
-	uId->node[5] = str2Byte (&(buff[33]));
+	uId->node[2] = slapi_str_to_u8 (&(buff[27]));
+	uId->node[3] = slapi_str_to_u8 (&(buff[29]));
+	uId->node[4] = slapi_str_to_u8 (&(buff[31]));
+	uId->node[5] = slapi_str_to_u8 (&(buff[33]));
 
 	uId->time_low = ntohl(uId->time_low);
     uId->time_mid = ntohs(uId->time_mid);
@@ -288,49 +288,18 @@ Slapi_UniqueID* slapi_uniqueIDDup (Slapi_UniqueID *uId)
 
 /* helper functions */
 
-static char hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7', 
-						   '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', '\0'};
-/* this function converts a string representation of a byte in hex into
-   an actual byte. For instance: "AB" -> 171 */
-static PRUint8 str2Byte (const char *str)
-{
-	char letter1 = str[0];
-	char letter2 = str[1];
-	PRUint8 num = 0;
-	int  i = 0;
-
-	while (hexDigits[i] != '\0')
-	{
-		if (letter1 == hexDigits[i] || toupper (letter1) == hexDigits[i])
-		{
-			num |= (i << 4);
-		}
-
-		if (letter2 == hexDigits[i] || toupper (letter2) == hexDigits[i])
-		{
-			num |= i;
-		}
-
-		i++;
-	} 	
-
-	return num;
-}
-
 static char* format = "XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX";
+static size_t format_len = 35;
 /* This function verifies that buff contains data in the correct
    format (specified above). */
 static int isValidFormat (const char * buff)
 {
-	int len;
 	int i;
 
 	if (strlen (buff) != strlen (format))
 		return UID_BADDATA;
 
-	len = strlen (format);
-
-	for (i = 0; i < len; i++)
+	for (i = 0; i < format_len; i++)
 	{
 		if (format[i] == '-' && buff [i] != '-')
 			return 0;
