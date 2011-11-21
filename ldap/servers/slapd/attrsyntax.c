@@ -55,7 +55,7 @@
  */
 static PLHashTable *oid2asi = NULL;
 /* read/write lock to protect table */
-static PRRWLock *oid2asi_lock = NULL;
+static Slapi_RWLock *oid2asi_lock = NULL;
 
 /*
  * This hashtable maps the name or alias of the attribute to the
@@ -65,12 +65,12 @@ static PRRWLock *oid2asi_lock = NULL;
  */
 static PLHashTable *name2asi = NULL;
 /* read/write lock to protect table */
-static PRRWLock *name2asi_lock = NULL;
+static Slapi_RWLock *name2asi_lock = NULL;
 
-#define AS_LOCK_READ(l)		PR_RWLock_Rlock(l)
-#define AS_LOCK_WRITE(l)	PR_RWLock_Wlock(l)
-#define AS_UNLOCK_READ(l)	PR_RWLock_Unlock(l)
-#define AS_UNLOCK_WRITE(l)	PR_RWLock_Unlock(l)
+#define AS_LOCK_READ(l)		slapi_rwlock_rdlock(l)
+#define AS_LOCK_WRITE(l)	slapi_rwlock_wrlock(l)
+#define AS_UNLOCK_READ(l)	slapi_rwlock_unlock(l)
+#define AS_UNLOCK_WRITE(l)	slapi_rwlock_unlock(l)
 
 
 
@@ -994,13 +994,12 @@ attr_syntax_init(void)
 		oid2asi = PL_NewHashTable(2047, hashNocaseString,
 								  hashNocaseCompare,
 								  PL_CompareValues, 0, 0);
-		if ( NULL == ( oid2asi_lock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,
-				"attrsyntax oid rwlock" ))) {
+		if ( NULL == ( oid2asi_lock = slapi_new_rwlock())) {
 			if(oid2asi) PL_HashTableDestroy(oid2asi);
 			oid2asi = NULL;
 
 			slapi_log_error( SLAPI_LOG_FATAL, "attr_syntax_init",
-					"PR_NewRWLock() for oid2asi lock failed\n" );
+					"slapi_new_rwlock() for oid2asi lock failed\n" );
 			return 1;
 		}
 	}
@@ -1010,13 +1009,12 @@ attr_syntax_init(void)
 		name2asi = PL_NewHashTable(2047, hashNocaseString,
 								   hashNocaseCompare,
 								   PL_CompareValues, 0, 0);
-		if ( NULL == ( name2asi_lock = PR_NewRWLock( PR_RWLOCK_RANK_NONE,
-				"attrsyntax name2asi rwlock"))) {
+		if ( NULL == ( name2asi_lock = slapi_new_rwlock())) {
 			if(name2asi) PL_HashTableDestroy(name2asi);
 			name2asi = NULL;
 
 			slapi_log_error( SLAPI_LOG_FATAL, "attr_syntax_init",
-					"PR_NewRWLock() for oid2asi lock failed\n" );
+					"slapi_new_rwlock() for oid2asi lock failed\n" );
 			return 1;
 		}
 	}

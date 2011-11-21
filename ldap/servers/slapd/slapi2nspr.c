@@ -210,3 +210,86 @@ slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all )
 
     return( prrc == PR_SUCCESS ? 1 : 0 );
 }
+
+#ifndef USE_POSIX_RWLOCKS
+#define USE_POSIX_RWLOCKS 1
+#endif
+
+Slapi_RWLock *
+slapi_new_rwlock(void)
+{
+#ifdef USE_POSIX_RWLOCKS
+    pthread_rwlock_t *rwlock = NULL;
+
+    rwlock = (pthread_rwlock_t *)slapi_ch_malloc(sizeof(pthread_rwlock_t));
+    if (rwlock) {
+        pthread_rwlock_init(rwlock, NULL);
+    }
+
+    return((Slapi_RWLock *)rwlock);
+#else
+    return((Slapi_RWLock *)PR_NewRWLock(PR_RWLOCK_RANK_NONE, "slapi_rwlock"));
+#endif
+}
+
+void
+slapi_destroy_rwlock(Slapi_RWLock *rwlock)
+{
+    if (rwlock != NULL) {
+#ifdef USE_POSIX_RWLOCKS
+        pthread_rwlock_destroy((pthread_rwlock_t *)rwlock);
+        slapi_ch_free((void **)&rwlock);
+#else
+        PR_DestroyLock((PRRWLock *)rwlock);
+#endif
+    }
+}
+
+int
+slapi_rwlock_rdlock( Slapi_RWLock *rwlock )
+{
+    int ret = 0;
+
+    if (rwlock != NULL) {
+#ifdef USE_POSIX_RWLOCKS
+        ret = pthread_rwlock_rdlock((pthread_rwlock_t *)rwlock);
+#else
+        PR_RWLock_Rlock((PRRWLock *)rwlock);
+#endif
+    }
+
+    return ret;
+}
+
+int
+slapi_rwlock_wrlock( Slapi_RWLock *rwlock )
+{
+    int ret = 0;
+
+    if (rwlock != NULL) {
+#ifdef USE_POSIX_RWLOCKS
+        ret = pthread_rwlock_wrlock((pthread_rwlock_t *)rwlock);
+#else
+        PR_RWLock_Wlock((PRRWLock *)rwlock);
+#endif
+    }
+
+    return ret;
+}
+
+int
+slapi_rwlock_unlock( Slapi_RWLock *rwlock )
+{
+    int ret = 0;
+
+    if (rwlock != NULL) {
+#ifdef USE_POSIX_RWLOCKS
+        ret = pthread_rwlock_unlock((pthread_rwlock_t *)rwlock);
+#else
+        PR_RWLock_Unlock((PRRWLock *)rwlock);
+#endif
+    }
+
+    return ret;
+}
+
