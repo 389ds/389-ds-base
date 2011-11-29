@@ -1432,7 +1432,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         /*
          * update the indexes: lastmod, rdn, etc.
          */
-        retval = index_add_mods( be, (const LDAPMod **)slapi_mods_get_ldapmods_byref(smods1), e, ec, ptxn );
+        retval = index_add_mods( be, slapi_mods_get_ldapmods_byref(smods1), e, ec, ptxn );
         if (DB_LOCK_DEADLOCK == retval)
         {
             /* Retry txn */
@@ -1455,7 +1455,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         /*
          * update the indexes: lastmod, rdn, etc.
          */
-        retval = index_add_mods( be, (const LDAPMod **)slapi_mods_get_ldapmods_byref(smods2), e, ec, ptxn );
+        retval = index_add_mods( be, slapi_mods_get_ldapmods_byref(smods2), e, ec, ptxn );
         if (DB_LOCK_DEADLOCK == retval)
         {
             /* Retry txn */
@@ -1472,7 +1472,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         /*
          * update the indexes: lastmod, rdn, etc.
          */
-        retval = index_add_mods( be, (const LDAPMod **)slapi_mods_get_ldapmods_byref(smods3), e, ec, ptxn );
+        retval = index_add_mods( be, slapi_mods_get_ldapmods_byref(smods3), e, ec, ptxn );
         if (DB_LOCK_DEADLOCK == retval)
         {
             /* Retry txn */

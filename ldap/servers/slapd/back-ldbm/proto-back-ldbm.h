@@ -278,7 +278,7 @@ int idl_new_compare_dups(
  * index.c
  */
 int index_addordel_entry( backend *be, struct backentry *e, int flags, back_txn *txn );
-int index_add_mods( backend *be, const LDAPMod**mods, struct backentry *olde, struct backentry *newe, back_txn *txn );
+int index_add_mods( backend *be, /*const*/LDAPMod**mods, struct backentry *olde, struct backentry *newe, back_txn *txn );
 int index_addordel_string(backend *be, const char *type, const char *s, ID id, int flags, back_txn *txn);
 int index_addordel_values_sv( backend *be, const char *type, Slapi_Value **vals, Slapi_Value **evals, ID id, int flags, back_txn *txn );
 int index_addordel_values_ext_sv( backend *be, const char *type, Slapi_Value **vals, Slapi_Value **evals, ID id, int flags, back_txn *txn,int *idl_disposition, void *buffer_handle );

@@ -719,11 +719,15 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 		retVal = entry_replace_present_values_wsi( e, mod->mod_type, mod->mod_bvalues, csn, urp );
 		break;
 	}
-	for ( i = 0; mod->mod_bvalues != NULL && mod->mod_bvalues[i] != NULL; i++ )
-	{
-		LDAPDebug( LDAP_DEBUG_ARGS, "   %s: %s\n", mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
+	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_ARGS )) {
+		for ( i = 0;
+		      mod->mod_bvalues != NULL && mod->mod_bvalues[i] != NULL;
+		      i++ ) {
+			LDAPDebug( LDAP_DEBUG_ARGS, "   %s: %s\n",
+			           mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
+		}
+		LDAPDebug( LDAP_DEBUG_ARGS, "   -\n", 0, 0, 0 );
 	}
-	LDAPDebug( LDAP_DEBUG_ARGS, "   -\n", 0, 0, 0 );
 
 	return retVal;
 }

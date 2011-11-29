@@ -159,7 +159,7 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 		}
 		goto error;
 	}
-	retval = index_add_mods( be, (const LDAPMod **)slapi_mods_get_ldapmods_byref(mc->smods), mc->old_entry, mc->new_entry, txn );
+	retval = index_add_mods( be, slapi_mods_get_ldapmods_byref(mc->smods), mc->old_entry, mc->new_entry, txn );
 	if ( 0 != retval ) {
 		if (DB_LOCK_DEADLOCK != retval)
 		{
@@ -456,7 +456,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			goto error_return;
 		}
 		ec_in_cache = 1;
-		retval = index_add_mods( be, (const LDAPMod**)mods, e, ec, &txn );
+		retval = index_add_mods( be, mods, e, ec, &txn );
 		if (DB_LOCK_DEADLOCK == retval)
 		{
 			/* Abort and re-try */

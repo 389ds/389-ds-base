@@ -440,8 +440,10 @@ unsigned long operation_get_type(Slapi_Operation *op);
  * #define LDAP_MOD_ADD            0x00
  * #define LDAP_MOD_DELETE         0x01
  * #define LDAP_MOD_REPLACE        0x02
+ * #define LDAP_MOD_INCREMENT      0x03 -- Openldap extension
+ * #define LDAP_MOD_BVALUES        0x80
  */
-#define LDAP_MOD_IGNORE 0x09
+#define LDAP_MOD_IGNORE 0x100
 
 
 /* dl.c */

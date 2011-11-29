@@ -485,7 +485,7 @@ index_addordel_entry(
 int 
 index_add_mods(
     backend *be,
-    const LDAPMod **mods,
+    LDAPMod **mods,
     struct backentry 	*olde,
     struct backentry 	*newe,
     back_txn *txn
@@ -580,10 +580,11 @@ index_add_mods(
                             flags |= BE_INDEX_EQUALITY;
                         }
                     } else {
-                        /* Remove duplicate value from deleted value array */
                         Slapi_Value *rval = valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
                         slapi_value_free( &rval );
                         j--;
+                        /* indicates there was some conflict */
+                        mods[i]->mod_op |= LDAP_MOD_IGNORE;
                     }
                 }
             } else {
@@ -604,16 +605,38 @@ index_add_mods(
             if ( mods_valueArray == NULL ) {
                 rc = 0;
             } else {
-                rc = index_addordel_values_sv( be,
+                /* Verify if the value is in newe.
+                 * If it is in, we will add the attr value to the index file. */
+                slapi_entry_attr_find( newe->ep_entry, 
+                                       mods[i]->mod_type, &curr_attr );
+                
+                for (j = 0; mods_valueArray[j] != NULL; j++) {
+                    /* mods_valueArray[j] is in curr_attr ==> return 0 */
+                    if (slapi_attr_value_find(curr_attr,
+                                slapi_value_get_berval(mods_valueArray[j]))) {
+                        /* The value is NOT in newe, remove it. */
+                        Slapi_Value *rval = valuearray_remove_value(curr_attr,
+                                                            mods_valueArray,
+                                                            mods_valueArray[j]);
+                        slapi_value_free( &rval );
+                        /* indicates there was some conflict */
+                        mods[i]->mod_op |= LDAP_MOD_IGNORE;
+                    }
+                }
+                if (mods_valueArray) {
+                    rc = index_addordel_values_sv( be,
                                             mods[i]->mod_type, 
                                             mods_valueArray, NULL,
                                             id, BE_INDEX_ADD, txn );
+                } else {
+                    rc = 0;
+                }
             }
             break;
 
         case LDAP_MOD_DELETE:
             if ( (mods[i]->mod_bvalues == NULL) ||
-					 (mods[i]->mod_bvalues[0] == NULL) ) {
+                 (mods[i]->mod_bvalues[0] == NULL) ) {
                 rc = 0;
                 flags = BE_INDEX_DEL;
 
@@ -713,7 +736,7 @@ index_add_mods(
             }
             rc = 0;
             break;
-        }
+        } /* switch ( mods[i]->mod_op & ~LDAP_MOD_BVALUES ) */
 
         /* free memory */
         slapi_ch_free((void **)&tmp);
@@ -724,7 +747,7 @@ index_add_mods(
             ldbm_nasty(errmsg, 1040, rc);
             return( rc );
         }
-    }
+    } /* for ( i = 0; mods[i] != NULL; i++ ) */
 
     return( 0 );
 }
