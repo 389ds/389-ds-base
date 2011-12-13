@@ -67,6 +67,7 @@ get_ava(
 	}
 	ava->ava_type = slapi_attr_syntax_normalize(type);
 	slapi_ch_free_string( &type );
+    ava->ava_private = NULL;
 
 	return( 0 );
 }
@@ -97,6 +98,7 @@ rdn2ava(
 	strcpy_unescape_value( s, s );
 	ava->ava_value.bv_val = s;
 	ava->ava_value.bv_len = strlen( s );
+	ava->ava_private = NULL;
 
 	return( 0 );
 }

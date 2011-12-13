@@ -60,6 +60,12 @@ static int teletex_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **a
 static int teletex_compare(struct berval	*v1, struct berval	*v2);
 static int teletex_validate(struct berval *val);
 static int ttx_param_validate(const char *start, const char *end);
+static void teletex_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Teletex Terminal Identifier", "teletextermid", TELETEXTERMID_SYNTAX_OID, 0 };
@@ -99,6 +105,8 @@ teletex_init( Slapi_PBlock *pb )
 	    (void *) teletex_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) teletex_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) teletex_normalize );
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= teletex_init %d\n", rc, 0, 0 );
 	return( rc );
@@ -113,7 +121,13 @@ teletex_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CIS;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
 	    ftype, retVal ) );
 }
 
@@ -339,4 +353,15 @@ ttx_param_validate(
 
 exit:
 	return rc;
+}
+
+static void teletex_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CIS, trim_spaces, alt);
+	return;
 }

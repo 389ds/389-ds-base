@@ -107,6 +107,10 @@ value_normalize_ext(
 	}
 	*alt = NULL;
 
+	if (NULL == s) {
+		return;
+	}
+
 	if ( ! (syntax & SYNTAX_CIS) && ! (syntax & SYNTAX_CES) ) {
 		return;
 	}

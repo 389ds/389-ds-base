@@ -4777,6 +4777,15 @@ Slapi_Filter *slapi_filter_dup(Slapi_Filter *f);
 int slapi_filter_changetype(Slapi_Filter *f, const char *newtype);
 
 /**
+ * Normalize in-place the given filter.  Normalizes the attribute types always.
+ * If norm_values is true, will also normalize the values.
+ *
+ * \param f the filter to normalize
+ * \param norm_values if true, normalize the values in addition to the type names
+ */
+void slapi_filter_normalize(Slapi_Filter *f, PRBool norm_values);
+
+/**
  * Check whether a given attribute type is defined in schema or not
  *
  * \param attribute type name to be checked
@@ -5259,6 +5268,30 @@ int slapi_attr_assertion2keys_ava_sv( const Slapi_Attr *sattr, Slapi_Value *val,
 int slapi_attr_assertion2keys_sub_sv( const Slapi_Attr *sattr, char *initial,
 	char **any, char *final, Slapi_Value ***ivals );
 
+/**
+ * Normalize the given value using the syntax associated with the
+ * given attribute.  It will attempt to normalize the value in place.
+ * If it cannot, it will return the normalized value in retval.  If
+ * trim_spaces is true, whitepace characters will be trimmed from the
+ * ends of the string.  If sattr is NULL, the type will be used to look
+ * up the attribute syntax.  If sattr is not NULL, type is ignored.  If
+ * retval is set, the caller is responsible for freeing it.
+ *
+ * \param pb Slapi_PBlock to use
+ * \param sattr attribute to get the syntax from 
+ * \param type attribute to get the syntax from if sattr is NULL
+ * \param val value to normalize in place - must be NULL terminated
+ * \param trim_spaces trim whitespace from ends of string
+ * \param retval if value could not be normalized in place, this is the malloc'd memory containg the new value - caller must free
+ */
+void slapi_attr_value_normalize(
+	Slapi_PBlock *pb,
+	const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
+	const char *type,
+	char *val,
+	int trim_spaces,
+	char **retval
+);
 
 /*
  * internal operation and plugin callback routines
@@ -6272,6 +6305,9 @@ typedef struct slapi_plugindesc {
 #define SLAPI_SYNTAX_SUBSTRLENS			709
 #define SLAPI_MR_SUBSTRLENS			SLAPI_SYNTAX_SUBSTRLENS /* alias */
 #define SLAPI_PLUGIN_SYNTAX_VALIDATE		710
+#define SLAPI_PLUGIN_SYNTAX_NORMALIZE		711
+#define SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED	712
+#define SLAPI_PLUGIN_SYNTAX_FILTER_DATA		713
 
 /* ACL plugin functions and arguments */
 #define SLAPI_PLUGIN_ACL_INIT			730

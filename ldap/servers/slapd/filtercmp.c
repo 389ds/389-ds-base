@@ -91,6 +91,7 @@ static Slapi_Value **get_normalized_value(const Slapi_Attr *sattr, struct ava *a
 
     sv.bv = ava->ava_value;
     sv.v_csnset = NULL;
+    sv.v_flags = 0;
     svlist[0] = &sv;
     svlist[1] = NULL;
     if ((slapi_attr_values2keys_sv(sattr, svlist, &keylist,

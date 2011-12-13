@@ -59,6 +59,12 @@ static int bitstring_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char *
 		char *final, Slapi_Value ***ivals );
 static int bitstring_compare(struct berval	*v1, struct berval	*v2);
 static int bitstring_validate(struct berval *val);
+static void bitstring_normalize(
+	Slapi_PBlock *pb,
+	char *s,
+	int trim_spaces,
+	char **alt
+);
 
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Bit String", "bitstring", BITSTRING_SYNTAX_OID, 0 };
@@ -133,6 +139,8 @@ bitstring_init( Slapi_PBlock *pb )
 	    (void *) bitstring_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) bitstring_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) bitstring_normalize );
 
 	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= bitstring_init %d\n", rc, 0, 0 );
@@ -148,7 +156,13 @@ bitstring_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CES,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CES;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
 	    ftype, retVal ) );
 }
 
@@ -229,3 +243,13 @@ exit:
 	return rc;
 }
 
+static void bitstring_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CES, trim_spaces, alt);
+	return;
+}

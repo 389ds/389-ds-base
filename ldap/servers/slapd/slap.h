@@ -214,6 +214,7 @@ typedef struct symbol_t {
 typedef void	(*VFP)(void *);
 typedef void	(*VFPP)(void **);
 typedef void	(*VFP0)(void);
+typedef void	(*VFPV)(); /* takes undefined arguments */
 #define LDAPI_INTERNAL	1
 #include "slapi-private.h"
 #include "pw.h"
@@ -1067,6 +1068,7 @@ struct slapdplugin {
 			char	*plg_un_syntax_oid;
 			IFP	plg_un_syntax_compare;
 			IFP	plg_un_syntax_validate;
+			VFPV plg_un_syntax_normalize;
 		} plg_un_syntax;
 #define plg_syntax_filter_ava		plg_un.plg_un_syntax.plg_un_syntax_filter_ava
 #define plg_syntax_filter_sub		plg_un.plg_un_syntax.plg_un_syntax_filter_sub
@@ -1078,6 +1080,7 @@ struct slapdplugin {
 #define plg_syntax_oid			plg_un.plg_un_syntax.plg_un_syntax_oid
 #define plg_syntax_compare		plg_un.plg_un_syntax.plg_un_syntax_compare
 #define plg_syntax_validate		plg_un.plg_un_syntax.plg_un_syntax_validate
+#define plg_syntax_normalize	plg_un.plg_un_syntax.plg_un_syntax_normalize
 
 		struct plg_un_acl_struct {
 			IFP	plg_un_acl_init;
@@ -1629,6 +1632,8 @@ typedef struct slapi_pblock {
 	LDAPControl	**pb_search_ctrls; /* for search operations, allows plugins to provide
 									  controls to pass for each entry or referral returned */
 	IFP		pb_mr_index_sv_fn; /* values and keys are Slapi_Value ** */
+	int		pb_syntax_filter_normalized; /* the syntax filter types/values are already normalized */
+	void		*pb_syntax_filter_data; /* extra data to pass to a syntax plugin function */
 } slapi_pblock;
 
 /* index if substrlens */

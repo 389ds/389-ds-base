@@ -143,6 +143,13 @@ plugin_call_syntax_filter_ava_sv(
 
 	pblock_init( &pipb );
 	slapi_pblock_set( &pipb, SLAPI_PLUGIN, (void *) a->a_plugin );
+	if (ava->ava_private) {
+		int filter_normalized = 0;
+		int f_flags = 0;
+		f_flags = *(int *)ava->ava_private;
+		filter_normalized = f_flags | SLAPI_FILTER_NORMALIZED_VALUE;
+		slapi_pblock_set( &pipb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	}
 
 	rc = -1;	/* does not match by default */
 	switch ( ftype ) {
@@ -230,6 +237,7 @@ plugin_call_syntax_filter_sub_sv(
 	Slapi_PBlock	pipb;
 	int		rc;
 	IFP sub_fn = NULL;
+	int filter_normalized = 0;
 
 	LDAPDebug( LDAP_DEBUG_FILTER,
 	    "=> plugin_call_syntax_filter_sub_sv\n", 0, 0, 0 );
@@ -242,6 +250,12 @@ plugin_call_syntax_filter_sub_sv(
 	}
 
 	pblock_init( &pipb );
+	if (pb) {
+		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+		slapi_pblock_set( &pipb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	}
+	slapi_pblock_set( &pipb, SLAPI_PLUGIN_SYNTAX_FILTER_DATA, fsub );
+
 	/* use the substr matching rule plugin if available, otherwise, use
 	   the syntax plugin */
 	if (a->a_mr_sub_plugin) {
@@ -912,4 +926,30 @@ slapi_attr_assertion2keys_sub( /* JCM SLOW FUNCTION */
 	valuearray_get_bervalarray(svout,ivals); /* JCM SLOW FUNCTION */
 	valuearray_free(&svout);
 	return rc;
+}
+
+void
+slapi_attr_value_normalize(
+	Slapi_PBlock *pb,
+	const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
+	const char *type,
+	char *val,
+	int trim_spaces,
+	char **retval
+)
+{
+	Slapi_Attr myattr;
+	VFPV norm_fn = NULL;
+
+	if (!sattr) {
+		sattr = slapi_attr_init(&myattr, type);
+	}
+	norm_fn = sattr->a_plugin->plg_syntax_normalize;
+	if (norm_fn) {
+		(*norm_fn)(pb, val, trim_spaces, retval);
+	}
+	if (sattr == &myattr) {
+		attr_done(&myattr);
+	}
+	return;
 }

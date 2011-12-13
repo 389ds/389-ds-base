@@ -59,6 +59,12 @@ static int tel_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
 		char *final, Slapi_Value ***ivals );
 static int tel_compare(struct berval	*v1, struct berval	*v2);
 static int tel_validate(struct berval *val);
+static void tel_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "TelephoneNumber", "tel", TELEPHONE_SYNTAX_OID, 0 };
@@ -159,6 +165,8 @@ tel_init( Slapi_PBlock *pb )
 	    (void *) tel_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) tel_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) tel_normalize );
 
 	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= tel_init %d\n", rc, 0, 0 );
@@ -174,7 +182,13 @@ tel_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_TEL | SYNTAX_CIS,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_TEL | SYNTAX_CIS;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
 	    ftype, retVal ) );
 }
 
@@ -266,4 +280,15 @@ tel_validate(
 
 exit:
 	return rc;
+}
+
+static void tel_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_TEL|SYNTAX_CIS, trim_spaces, alt);
+	return;
 }

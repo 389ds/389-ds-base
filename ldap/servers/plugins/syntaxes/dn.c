@@ -58,6 +58,12 @@ static int dn_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
 static int dn_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
 	char *final, Slapi_Value ***ivals );
 static int dn_validate( struct berval *val );
+static void dn_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "DN", DN_SYNTAX_OID, 0 };
@@ -133,6 +139,8 @@ dn_init( Slapi_PBlock *pb )
 	    (void *) DN_SYNTAX_OID );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) dn_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) dn_normalize );
 
 	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= dn_init %d\n", rc, 0, 0 );
@@ -143,8 +151,13 @@ static int
 dn_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
     Slapi_Value **bvals, int ftype, Slapi_Value **retVal )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS | SYNTAX_DN,
-	    ftype, retVal ) );
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CIS | SYNTAX_DN;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax, ftype, retVal ) );
 }
 
 static int
@@ -193,3 +206,13 @@ static int dn_validate( struct berval *val )
 	return rc;
 }
 
+static void dn_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_spaces, alt);
+	return;
+}

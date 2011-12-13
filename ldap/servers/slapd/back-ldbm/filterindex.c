@@ -303,6 +303,7 @@ ava_candidates(
 
         tmp.bv = *bval;
         tmp.v_csnset=NULL;
+        tmp.v_flags = 0;
         fake.bv.bv_val=buf;
         fake.bv.bv_len=sizeof(buf);
         ptr[0]=&fake;

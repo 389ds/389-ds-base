@@ -54,6 +54,7 @@
 #define SYNTAX_DN		8	/* distinguished name: used with SYNTAX_CIS */
 #define SYNTAX_SI		16	/* space insensitive: used with SYNTAX_CIS */
 #define SYNTAX_INT		32	/* INTEGER */
+#define SYNTAX_NORM_FILT	64	/* filter already normalized */
 
 #define SUBBEGIN	3
 #define SUBMIDDLE	3

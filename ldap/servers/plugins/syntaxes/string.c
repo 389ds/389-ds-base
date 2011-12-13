@@ -62,7 +62,8 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
     int ftype, Slapi_Value **retVal )
 {
 	int	i, rc;
-	struct berval bvfilter_norm;
+	struct berval bvfilter_norm = {0, NULL};
+	struct berval *pbvfilter_norm = &bvfilter_norm;
 	char *alt = NULL;
 
 	if(retVal) {
@@ -72,19 +73,32 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 		return( string_filter_approx( bvfilter, bvals, retVal ) );
 	}
 
-	bvfilter_norm.bv_val = slapi_ch_malloc( bvfilter->bv_len + 1 );
-	SAFEMEMCPY( bvfilter_norm.bv_val, bvfilter->bv_val, bvfilter->bv_len );
-	bvfilter_norm.bv_val[bvfilter->bv_len] = '\0';
-	/* 3rd arg: 1 - trim leading blanks */
-	value_normalize_ext( bvfilter_norm.bv_val, syntax, 1, &alt );
-	if (alt) {
-		slapi_ch_free_string(&bvfilter_norm.bv_val);
-		bvfilter_norm.bv_val = alt;
+	if (syntax & SYNTAX_NORM_FILT) {
+		pbvfilter_norm = bvfilter; /* already normalized */
+	} else {
+		bvfilter_norm.bv_val = slapi_ch_malloc( bvfilter->bv_len + 1 );
+		SAFEMEMCPY( bvfilter_norm.bv_val, bvfilter->bv_val, bvfilter->bv_len );
+		bvfilter_norm.bv_val[bvfilter->bv_len] = '\0';
+		/* 3rd arg: 1 - trim leading blanks */
+		value_normalize_ext( bvfilter_norm.bv_val, syntax, 1, &alt );
+		if (alt) {
+			slapi_ch_free_string(&bvfilter_norm.bv_val);
+			bvfilter_norm.bv_val = alt;
+			alt = NULL;
+		}
+		bvfilter_norm.bv_len = strlen(bvfilter_norm.bv_val);
 	}
-	bvfilter_norm.bv_len = strlen(bvfilter_norm.bv_val);
 
 	for ( i = 0; (bvals != NULL) && (bvals[i] != NULL); i++ ) {
-		rc = value_cmp( (struct berval*)slapi_value_get_berval(bvals[i]), &bvfilter_norm, syntax, 1/* Normalise the first value only */ );
+		int norm_val = 1; /* normalize the first value only */
+		/* if the NORMALIZED flag is set, skip normalizing */
+		if (slapi_value_get_flags(bvals[i]) & SLAPI_ATTR_FLAG_NORMALIZED) {
+			norm_val = 0;
+		}
+		/* note - do not return the normalized value in retVal - the
+		   caller will usually want the "raw" value, and can normalize it later
+		*/
+		rc = value_cmp( (struct berval*)slapi_value_get_berval(bvals[i]), pbvfilter_norm, syntax, norm_val );
                 switch ( ftype ) {
                 case LDAP_FILTER_GE:
                         if ( rc >= 0 ) {
@@ -205,7 +219,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
     Slapi_Value **bvals, int syntax )
 {
 	int		i, j, rc, size=0;
-	char		*p, *end, *realval, *tmpbuf, *bigpat = NULL;
+	char		*p, *end, *realval, *tmpbuf = NULL, *bigpat = NULL;
 	size_t		tmpbufsize;
 	char		pat[BUFSIZ];
 	char		buf[BUFSIZ];
@@ -218,6 +232,9 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	Slapi_Regex	*re = NULL;
 	const char  *re_result = NULL;
 	char *alt = NULL;
+	int filter_normalized = 0;
+	int free_re = 1;
+	struct subfilt *sf = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
 	    0, 0, 0 );
@@ -234,54 +251,85 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	 */
 	time_up = ( timelimit==-1 ? -1 : optime + timelimit);
 
-	/*
-	 * construct a regular expression corresponding to the
-	 * filter and let regex do the work for each value
-	 * XXX should do this once and save it somewhere XXX
-	 */
-	pat[0] = '\0';
-	p = pat;
-	end = pat + sizeof(pat) - 2;	/* leave room for null */
-
-	if ( initial != NULL ) {
-		size = strlen( initial ) + 1; /* add 1 for "^" */
-	}
-
-	if ( any != NULL ) {
-		i = 0;
-		while ( any[i] ) {
-			size += strlen(any[i++]) + 2; /* add 2 for ".*" */
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_DATA, &sf );
+	if ( sf ) {
+		re = (Slapi_Regex *)sf->sf_private;
+		if ( re ) {
+			free_re = 0;
 		}
 	}
 
-	if ( final != NULL ) {
-		 size += strlen( final ) + 3; /* add 3 for ".*" and "$" */
-	}
+	if (!re) {
+		/*
+		 * construct a regular expression corresponding to the
+		 * filter and let regex do the work for each value
+		 * XXX should do this once and save it somewhere XXX
+		 */
+		pat[0] = '\0';
+		p = pat;
+		end = pat + sizeof(pat) - 2;	/* leave room for null */
 
-	size *= 2; /* doubled in case all filter chars need escaping */
-	size++; /* add 1 for null */
-
-	if ( p + size > end ) {
-		bigpat = slapi_ch_malloc( size );
-		p = bigpat;
-	}
-
-	if ( initial != NULL ) {
-		/* 3rd arg: 1 - trim leading blanks */
-		value_normalize_ext( initial, syntax, 1, &alt );
-		*p++ = '^';
-		if (alt) {
-			filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
-			slapi_ch_free_string(&alt);
-		} else {
-			filter_strcpy_special_ext( p, initial, FILTER_STRCPY_ESCAPE_RECHARS );
+		if ( initial != NULL ) {
+			size = strlen( initial ) + 1; /* add 1 for "^" */
 		}
-		p = strchr( p, '\0' );
-	}
-	if ( any != NULL ) {
-		for ( i = 0; any[i] != NULL; i++ ) {
+
+		if ( any != NULL ) {
+			i = 0;
+			while ( any[i] ) {
+				size += strlen(any[i++]) + 2; /* add 2 for ".*" */
+			}
+		}
+
+		if ( final != NULL ) {
+			size += strlen( final ) + 3; /* add 3 for ".*" and "$" */
+		}
+
+		size *= 2; /* doubled in case all filter chars need escaping */
+		size++; /* add 1 for null */
+
+		if ( p + size > end ) {
+			bigpat = slapi_ch_malloc( size );
+			p = bigpat;
+		}
+
+		if ( initial != NULL ) {
+			/* 3rd arg: 1 - trim leading blanks */
+			if (!filter_normalized) {
+				value_normalize_ext( initial, syntax, 1, &alt );
+			}
+			*p++ = '^';
+			if (alt) {
+				filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
+				slapi_ch_free_string(&alt);
+			} else {
+				filter_strcpy_special_ext( p, initial, FILTER_STRCPY_ESCAPE_RECHARS );
+			}
+			p = strchr( p, '\0' );
+		}
+		if ( any != NULL ) {
+			for ( i = 0; any[i] != NULL; i++ ) {
+				/* 3rd arg: 0 - DO NOT trim leading blanks */
+				if (!filter_normalized) {
+					value_normalize_ext( any[i], syntax, 0, &alt );
+				}
+				/* ".*" + value */
+				*p++ = '.';
+				*p++ = '*';
+				if (alt) {
+					filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
+					slapi_ch_free_string(&alt);
+				} else {
+					filter_strcpy_special_ext( p, any[i], FILTER_STRCPY_ESCAPE_RECHARS );
+				}
+				p = strchr( p, '\0' );
+			}
+		}
+		if ( final != NULL ) {
 			/* 3rd arg: 0 - DO NOT trim leading blanks */
-			value_normalize_ext( any[i], syntax, 0, &alt );
+			if (!filter_normalized) {
+				value_normalize_ext( final, syntax, 0, &alt );
+			}
 			/* ".*" + value */
 			*p++ = '.';
 			*p++ = '*';
@@ -289,38 +337,24 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 				filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
 				slapi_ch_free_string(&alt);
 			} else {
-				filter_strcpy_special_ext( p, any[i], FILTER_STRCPY_ESCAPE_RECHARS );
+				filter_strcpy_special_ext( p, final, FILTER_STRCPY_ESCAPE_RECHARS );
 			}
-			p = strchr( p, '\0' );
+			strcat( p, "$" );
 		}
-	}
-	if ( final != NULL ) {
-		/* 3rd arg: 0 - DO NOT trim leading blanks */
-		value_normalize_ext( final, syntax, 0, &alt );
-		/* ".*" + value */
-		*p++ = '.';
-		*p++ = '*';
-		if (alt) {
-			filter_strcpy_special_ext( p, alt, FILTER_STRCPY_ESCAPE_RECHARS );
-			slapi_ch_free_string(&alt);
-		} else {
-			filter_strcpy_special_ext( p, final, FILTER_STRCPY_ESCAPE_RECHARS );
-		}
-		strcat( p, "$" );
-	}
 
-	/* compile the regex */
-	p = (bigpat) ? bigpat : pat;
-	tmpbuf = NULL;
-	re = slapi_re_comp( p, &re_result );
-	if (NULL == re) {
-		LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s): %s\n",
-		    pat, p, re_result?re_result:"unknown" );
-		rc = LDAP_OPERATIONS_ERROR;
-		goto bailout;
-	} else {
- 		LDAPDebug( LDAP_DEBUG_TRACE, "re_comp (%s)\n",
-				   escape_string( p, ebuf ), 0, 0 );
+		/* compile the regex */
+		p = (bigpat) ? bigpat : pat;
+		tmpbuf = NULL;
+		re = slapi_re_comp( p, &re_result );
+		if (NULL == re) {
+			LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s): %s\n",
+					   pat, p, re_result?re_result:"unknown" );
+			rc = LDAP_OPERATIONS_ERROR;
+			goto bailout;
+		} else {
+			LDAPDebug( LDAP_DEBUG_TRACE, "re_comp (%s)\n",
+					   escape_string( p, ebuf ), 0, 0 );
+		}
 	}
 
 	curtime = current_time();
@@ -353,8 +387,9 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 			strncpy( realval, bvp->bv_val, tmpbufsize );
 		}
 		/* 3rd arg: 1 - trim leading blanks */
-		value_normalize_ext( realval, syntax, 1, &alt );
-
+		if (!(slapi_value_get_flags(bvals[j]) & SLAPI_ATTR_FLAG_NORMALIZED)) {
+			value_normalize_ext( realval, syntax, 1, &alt );
+		}
 		if (alt) {
 			tmprc = slapi_re_exec( re, alt, time_up );
 			slapi_ch_free_string(&alt);
@@ -373,7 +408,9 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		}
 	}
 bailout:
-	slapi_re_free(re);
+	if (free_re) {
+		slapi_re_free(re);
+	}
 	slapi_ch_free((void**)&tmpbuf );	/* NULL is fine */
 	slapi_ch_free((void**)&bigpat );	/* NULL is fine */
 
@@ -419,9 +456,12 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 			if (alt) {
 				slapi_ch_free_string(&c);
 		    	*nbvlp = slapi_value_new_string_passin(alt);
+				alt = NULL;
 			} else {
 		    	*nbvlp = slapi_value_new_string_passin(c);
 			}
+			/* new value is normalized */
+			slapi_value_set_flags(*nbvlp, slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
 		}
 		*ivals = nbvals;
 		break;
@@ -529,17 +569,22 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 
 		bvdup= slapi_value_new(); 
 		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
-			c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
 			/* 3rd arg: 1 - trim leading blanks */
-			value_normalize_ext( c, syntax, 1, &alt );
-			if (alt) {
-				slapi_ch_free_string(&c);
-				slapi_value_set_string_passin(bvdup, alt);
+			if (!(slapi_value_get_flags(*bvlp) & SLAPI_ATTR_FLAG_NORMALIZED)) {
+				c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
+				value_normalize_ext( c, syntax, 1, &alt );
+				if (alt) {
+					slapi_ch_free_string(&c);
+					slapi_value_set_string_passin(bvdup, alt);
+					alt = NULL;
+				} else {
+					slapi_value_set_string_passin(bvdup, c);
+					c = NULL;
+				}
+				bvp = slapi_value_get_berval(bvdup);
 			} else {
-				slapi_value_set_string_passin(bvdup, c);
+				bvp = slapi_value_get_berval(*bvlp);
 			}
-
-			bvp = slapi_value_get_berval(bvdup);
 
 			/* leading */
 			if ( bvp->bv_len > substrlens[INDEX_SUBSTRBEGIN] - 2 ) {
@@ -549,6 +594,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 				}
 				buf[substrlens[INDEX_SUBSTRBEGIN]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
+				slapi_value_set_flags((*ivals)[n], slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
 				n++;
 			}
 
@@ -561,6 +607,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 				}
 				buf[substrlens[INDEX_SUBSTRMIDDLE]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
+				slapi_value_set_flags((*ivals)[n], slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
 				n++;
 			}
 
@@ -573,6 +620,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 				buf[substrlens[INDEX_SUBSTREND] - 1] = '$';
 				buf[substrlens[INDEX_SUBSTREND]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
+				slapi_value_set_flags((*ivals)[n], slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
 				n++;
 			}
 		}
@@ -602,6 +650,7 @@ string_assertion2keys_ava(
 	char		*w, *c;
     Slapi_Value *tmpval=NULL;
     char *alt = NULL;
+    unsigned long flags = val ? slapi_value_get_flags(val) : 0;
 
     switch ( ftype ) {
     case LDAP_FILTER_EQUALITY_FAST: 
@@ -613,26 +662,34 @@ string_assertion2keys_ava(
         }
         memcpy(tmpval->bv.bv_val,slapi_value_get_string(val),len);
         tmpval->bv.bv_val[len]='\0';
-        /* 3rd arg: 1 - trim leading blanks */
-        value_normalize_ext(tmpval->bv.bv_val, syntax, 1, &alt );
-        if (alt) {
-            if (len >=  tmpval->bv.bv_len) {
-                slapi_ch_free_string(&tmpval->bv.bv_val);
+        if (!(flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
+            /* 3rd arg: 1 - trim leading blanks */
+            value_normalize_ext(tmpval->bv.bv_val, syntax, 1, &alt );
+            if (alt) {
+                if (len >=  tmpval->bv.bv_len) {
+                    slapi_ch_free_string(&tmpval->bv.bv_val);
+                }
+                tmpval->bv.bv_val = alt;
+                alt = NULL;
             }
-            tmpval->bv.bv_val = alt;
+            tmpval->bv.bv_len=strlen(tmpval->bv.bv_val);
         }
-        tmpval->bv.bv_len=strlen(tmpval->bv.bv_val);
+        slapi_value_set_flags(tmpval, flags|SLAPI_ATTR_FLAG_NORMALIZED);
         break;
 	case LDAP_FILTER_EQUALITY:
 		(*ivals) = (Slapi_Value **) slapi_ch_malloc( 2 * sizeof(Slapi_Value *) );
 		(*ivals)[0] = slapi_value_dup( val );
-		/* 3rd arg: 1 - trim leading blanks */
-		value_normalize_ext( (*ivals)[0]->bv.bv_val, syntax, 1, &alt );
-		if (alt) {
-			slapi_ch_free_string(&(*ivals)[0]->bv.bv_val);
-			(*ivals)[0]->bv.bv_val = alt;
+		if (!(flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
+			/* 3rd arg: 1 - trim leading blanks */
+			value_normalize_ext( (*ivals)[0]->bv.bv_val, syntax, 1, &alt );
+			if (alt) {
+				slapi_ch_free_string(&(*ivals)[0]->bv.bv_val);
+				(*ivals)[0]->bv.bv_val = alt;
+				(*ivals)[0]->bv.bv_len = strlen( (*ivals)[0]->bv.bv_val );
+				alt = NULL;
+			}
+			slapi_value_set_flags((*ivals)[0], flags|SLAPI_ATTR_FLAG_NORMALIZED);
 		}
-		(*ivals)[0]->bv.bv_len = strlen( (*ivals)[0]->bv.bv_val );
 		(*ivals)[1] = NULL;
 		break;
 

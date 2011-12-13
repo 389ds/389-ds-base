@@ -870,7 +870,7 @@ slapi_utf8StrToLower(unsigned char *s)
     while ((np = (unsigned char *)ldap_utf8next((char *)p)) <= tail) {
         switch(sz = np - p) {
         case 1:
-            sprintf((char *)lp, "%c", tolower(*p));
+            *lp = tolower(*p);
             break;
         case 2:
             if (*p < UL2S || *p > UL2E) {	/* out of range */
@@ -1871,7 +1871,7 @@ slapi_utf8StrToUpper(unsigned char *s)
     while ((np = (unsigned char *)ldap_utf8next((char *)p)) <= tail) {
         switch(sz = np - p) {
         case 1:	/* ASCII */
-            sprintf((char *)up, "%c", toupper(*p));
+            *up = toupper(*p);
             break;
         case 2:	/* 2 bytes */
             if (*p < LU2S || *p > LU2E) {	/* out of range */

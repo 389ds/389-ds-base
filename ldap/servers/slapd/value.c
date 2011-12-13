@@ -159,6 +159,7 @@ slapi_value_dup(const Slapi_Value *v)
 {
 	Slapi_Value *newvalue= value_new(&v->bv,CSN_TYPE_UNKNOWN,NULL);
 	newvalue->v_csnset= csnset_dup(v->v_csnset);
+	newvalue->v_flags = v->v_flags;
 	return newvalue;
 
 }

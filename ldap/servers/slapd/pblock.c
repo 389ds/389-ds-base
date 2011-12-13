@@ -1244,6 +1244,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_syntax_validate;
 		break;
+	case SLAPI_PLUGIN_SYNTAX_NORMALIZE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {
+			return( -1 );
+		}
+		(*(VFPV *)value) = pblock->pb_plugin->plg_syntax_normalize;
+		break;
 
 	/* controls we know about */
 	case SLAPI_MANAGEDSAIT:
@@ -1903,6 +1909,14 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		
 	case SLAPI_SEARCH_CTRLS:
 		(*(LDAPControl ***)value) = pblock->pb_search_ctrls;
+		break;
+		
+	case SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED:
+		(*(int *)value) = pblock->pb_syntax_filter_normalized;
+		break;
+		
+	case SLAPI_PLUGIN_SYNTAX_FILTER_DATA:
+		(*(void **)value) = pblock->pb_syntax_filter_data;
 		break;
 		
 	default:
@@ -2717,6 +2731,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_plugin->plg_syntax_validate = (IFP) value;
 		break;
+	case SLAPI_PLUGIN_SYNTAX_NORMALIZE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_syntax_normalize = (VFPV) value;
+		break;
 	case SLAPI_ENTRY_PRE_OP:
 		pblock->pb_pre_op_entry = (Slapi_Entry *) value;
 		break;
@@ -3397,6 +3417,14 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	case SLAPI_SEARCH_CTRLS:
 		pblock->pb_search_ctrls = (LDAPControl **) value;
+		break;
+
+	case SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED:
+		pblock->pb_syntax_filter_normalized = *((int *)value);
+		break;
+
+	case SLAPI_PLUGIN_SYNTAX_FILTER_DATA:
+		pblock->pb_syntax_filter_data = (void *)value;
 		break;
 
 	default:

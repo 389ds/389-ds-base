@@ -198,6 +198,100 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     return function_result;
 }
 
+static int
+ldbm_search_compile_filter(Slapi_Filter *f, void *arg)
+{
+    int rc = SLAPI_FILTER_SCAN_CONTINUE;
+    if (f->f_choice == LDAP_FILTER_SUBSTRINGS) {
+        char pat[BUFSIZ];
+        char *p, *end, *tmpbuf, *bigpat = NULL;
+        size_t size = 0;
+        Slapi_Regex *re = NULL;
+        const char *re_result = NULL;
+        int i = 0;
+        char ebuf[BUFSIZ];
+
+        PR_ASSERT(NULL == f->f_un.f_un_sub.sf_private);
+        /*
+         * construct a regular expression corresponding to the filter
+         */
+        pat[0] = '\0';
+        p = pat;
+        end = pat + sizeof(pat) - 2; /* leave room for null */
+
+        if (f->f_sub_initial != NULL) {
+            size = strlen(f->f_sub_initial) + 1; /* add 1 for "^" */
+        }
+
+        while (f->f_sub_any && f->f_sub_any[i]) {
+            size += strlen(f->f_sub_any[i++]) + 2; /* add 2 for ".*" */
+        }
+
+        if (f->f_sub_final != NULL) {
+            size += strlen(f->f_sub_final) + 3; /* add 3 for ".*" and "$" */
+        }
+
+        size *= 2; /* doubled in case all filter chars need escaping (regex special chars) */
+        size++; /* add 1 for null */
+
+        if (p + size > end) {
+            bigpat = slapi_ch_malloc(size);
+            p = bigpat;
+        }
+        if (f->f_sub_initial != NULL) {
+            *p++ = '^';
+            p = filter_strcpy_special_ext(p, f->f_sub_initial, FILTER_STRCPY_ESCAPE_RECHARS);
+        }
+        for (i = 0; f->f_sub_any && f->f_sub_any[i]; i++) {
+            /* ".*" + value */
+            *p++ = '.';
+            *p++ = '*';
+            p = filter_strcpy_special_ext(p, f->f_sub_any[i], FILTER_STRCPY_ESCAPE_RECHARS);
+        }
+        if (f->f_sub_final != NULL) {
+            /* ".*" + value */
+            *p++ = '.';
+            *p++ = '*';
+            p = filter_strcpy_special_ext(p, f->f_sub_final, FILTER_STRCPY_ESCAPE_RECHARS);
+            strcat(p, "$");
+        }
+
+        /* compile the regex */
+        p = bigpat ? bigpat : pat;
+        tmpbuf = NULL;
+        re = slapi_re_comp(p, &re_result);
+        if (NULL == re) {
+            LDAPDebug(LDAP_DEBUG_ANY, "ldbm_search_compile_filter: re_comp (%s) failed (%s): %s\n",
+                      pat, p, re_result?re_result:"unknown" );
+            rc = SLAPI_FILTER_SCAN_ERROR;
+        } else {
+            LDAPDebug(LDAP_DEBUG_TRACE, "ldbm_search_compile_filter: re_comp (%s)\n",
+                      escape_string(p, ebuf), 0, 0);
+            f->f_un.f_un_sub.sf_private = (void *)re;
+        }
+    } else if (f->f_choice == LDAP_FILTER_EQUALITY) {
+        /* store the flags in the ava_private - should be ok - points
+           to itself - no dangling references */
+        f->f_un.f_un_ava.ava_private = &f->f_flags;
+    }
+    return rc;
+}
+
+static int
+ldbm_search_free_compiled_filter(Slapi_Filter *f, void *arg)
+{
+    int rc = SLAPI_FILTER_SCAN_CONTINUE;
+    if ((f->f_choice == LDAP_FILTER_SUBSTRINGS) &&
+        (f->f_un.f_un_sub.sf_private)) {
+        slapi_re_free((Slapi_Regex *)f->f_un.f_un_sub.sf_private);
+        f->f_un.f_un_sub.sf_private = NULL;
+    } else if (f->f_choice == LDAP_FILTER_EQUALITY) {
+        /* clear the flags in the ava_private */
+        f->f_un.f_un_ava.ava_private = NULL;
+    }
+    return rc;
+}
+
 /*
  * Return values from ldbm_back_search are:
  *
@@ -774,6 +868,32 @@ ldbm_back_search( Slapi_PBlock *pb )
         }
     }
 
+    /* if we need to perform the filter test, pre-digest the filter to
+       speed up the filter test */
+    if ( !(sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST) ||
+         li->li_filter_bypass_check ) {
+        int rc = 0, filt_errs = 0;
+        Slapi_Filter *filter= NULL;
+
+        slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
+        slapi_filter_free(sr->sr_norm_filter, 1);
+        sr->sr_norm_filter = slapi_filter_dup(filter);
+        /* step 1 - normalize all of the values used in the search filter */
+        slapi_filter_normalize(sr->sr_norm_filter, PR_TRUE /* normalize values too */);
+        /* step 2 - pre-compile the substr regex and the equality flags */
+        rc = slapi_filter_apply(sr->sr_norm_filter, ldbm_search_compile_filter,
+                                NULL, &filt_errs);
+        if (rc != SLAPI_FILTER_SCAN_NOMORE) {
+            LDAPDebug2Args(LDAP_DEBUG_ANY,
+                           "ERROR: could not pre-compile the search filter - error %d %d\n",
+                           rc, filt_errs);
+            if (rc == SLAPI_FILTER_SCAN_ERROR) {
+                tmp_err = LDAP_OPERATIONS_ERROR;
+                tmp_desc = "Could not compile regex for filter matching";
+            }
+        }
+    }
+
     /* Fix for bugid #394184, SD, 05 Jul 00 */
     /* tmp_err == -1: no error */
     return ldbm_back_search_cleanup(pb, li, sort_control, tmp_err, tmp_desc,
@@ -1234,6 +1354,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         goto bail;
     }
 
+    if (sr->sr_norm_filter) {
+        int val = 1;
+        slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &val );
+        filter = sr->sr_norm_filter;
+    }
+
     if (NULL == basesdn) {
         slapi_send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL,
                                "Null target DN", 0, NULL );
@@ -1602,6 +1728,7 @@ new_search_result_set(IDList *idl, int vlv, int lookthroughlimit)
 static void
 delete_search_result_set( back_search_result_set **sr )
 {
+    int rc = 0, filt_errs = 0;
     if ( NULL == sr || NULL == *sr)
     {
         return;
@@ -1610,6 +1737,14 @@ delete_search_result_set( back_search_result_set **sr )
     {
         idl_free( (*sr)->sr_candidates );
     }
+    rc = slapi_filter_apply((*sr)->sr_norm_filter, ldbm_search_free_compiled_filter,
+                            NULL, &filt_errs);
+    if (rc != SLAPI_FILTER_SCAN_NOMORE) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "ERROR: could not free the pre-compiled regexes in the search filter - error %d %d\n",
+                       rc, filt_errs);
+    }
+    slapi_filter_free((*sr)->sr_norm_filter, 1);
     memset( *sr, 0, sizeof( back_search_result_set ) );
     slapi_ch_free( (void**)sr );
 }

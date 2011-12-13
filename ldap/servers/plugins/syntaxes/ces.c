@@ -65,6 +65,12 @@ static int ces_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any,
 		char *final, Slapi_Value ***ivals );
 static int ces_compare(struct berval	*v1, struct berval	*v2);
 static int ia5_validate(struct berval *val);
+static void ces_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 2252 */
 static char *ia5_names[] = { "IA5String", "ces", "caseexactstring",
@@ -251,6 +257,8 @@ register_ces_like_plugin( Slapi_PBlock *pb, Slapi_PluginDesc *pdescp,
 		rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 		    (void *)validate_fn );
 	}
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+		    (void *)ces_normalize );
 
 	return( rc );
 }
@@ -292,7 +300,13 @@ ces_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CES, ftype,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CES;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax, ftype,
 									  retVal) );
 }
 
@@ -377,4 +391,15 @@ ia5_validate(
 
 exit:
 	return rc;
+}
+
+static void ces_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CES, trim_spaces, alt);
+	return;
 }

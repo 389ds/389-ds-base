@@ -461,39 +461,6 @@ ldbm_compute_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_
 	return -1; /* I see no ships */
 }
 
-/*
- * string_find(): case sensitive search for the substring str2 within str1.
- */
-static 
-char * string_find (
-        const char * str1,
-        const char * str2
-        )
-{
-        char *cp = (char *) str1;
-        char *s1, *s2;
-
-        if ( !*str2 )
-            return((char *)str1);
-
-        while (*cp)
-        {
-                s1 = cp;
-                s2 = (char *) str2;
-
-                while ( *s1 && *s2 && !(*s1-*s2) )
-                        s1++, s2++;
-
-                if (!*s2)
-                        return(cp);
-
-                cp++;
-        }
-
-        return(NULL);
-
-}
-
 /* What are we doing ?
 	The back-end can't search properly for the hasSubordinates and
 	numSubordinates attributes. The reason being that they're not
@@ -727,12 +694,10 @@ ldbm_compute_rewriter(Slapi_PBlock *pb)
 	slapi_pblock_get( pb, SLAPI_SEARCH_STRFILTER, &fstr );
 
 	if ( NULL != fstr ) {
-		char *lc_fstr = (char *)slapi_utf8StrToLower( (unsigned char *)fstr );
-
-		if (lc_fstr && string_find(lc_fstr,"subordinates")) {
+		if (PL_strcasestr(fstr, "subordinates")) {
 			Slapi_Filter	*f = NULL;
 			/* Look for special filters we want to leave alone */
-			if (0 == strcmp(lc_fstr, "(&(numsubordinates=*)(numsubordinates>=1))" )) {
+			if (0 == strcasecmp(fstr, "(&(numsubordinates=*)(numsubordinates>=1))" )) {
 				; /* Do nothing, this one works OK */
 			} else {
 				/* So let's grok the filter in detail and try to rewrite it */
@@ -744,8 +709,6 @@ ldbm_compute_rewriter(Slapi_PBlock *pb)
 				}
 			}
 		}
-
-		slapi_ch_free_string( &lc_fstr );
 	}
 	return rc; 
 }

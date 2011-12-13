@@ -70,6 +70,8 @@ extern "C" {
 #define SLAPI_FILTER_TOMBSTONE 2
 #define SLAPI_FILTER_RUV 4
 #define SLAPI_ENTRY_LDAPSUBENTRY 2
+#define SLAPI_FILTER_NORMALIZED_TYPE 8
+#define SLAPI_FILTER_NORMALIZED_VALUE 16
 
 /*
     Optimized filter path. For example the following code was lifted from int.c (syntaxes plugin):

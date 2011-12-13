@@ -63,6 +63,12 @@ static int sicis_assertion2keys_ava( Slapi_PBlock *pb, Slapi_Value *val,
 static int sicis_assertion2keys_sub( Slapi_PBlock *pb, char *initial,
 		char **any, char *final, Slapi_Value ***ivals );
 static int sicis_compare(struct berval	*v1, struct berval	*v2);
+static void sicis_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 2252 */
 static char *names[] = { "SpaceInsensitiveString",
@@ -102,6 +108,8 @@ sicis_init( Slapi_PBlock *pb )
 	    (void *) SPACE_INSENSITIVE_STRING_SYNTAX_OID );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_COMPARE,
 	    (void *) sicis_compare );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) sicis_normalize );
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= sicis_init %d\n", rc, 0, 0 );
 	return( rc );
@@ -116,7 +124,13 @@ sicis_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_SI | SYNTAX_CIS,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_SI | SYNTAX_CIS;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
 	    ftype, retVal ) );
 }
 
@@ -176,4 +190,15 @@ static int sicis_compare(
 )
 {
 	return value_cmp(v1, v2, SYNTAX_SI|SYNTAX_CIS, 3 /* Normalise both values */);
+}
+
+static void sicis_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_SI|SYNTAX_CIS, trim_spaces, alt);
+	return;
 }

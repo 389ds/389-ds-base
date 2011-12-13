@@ -59,6 +59,12 @@ static int numstr_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **an
 		char *final, Slapi_Value ***ivals );
 static int numstr_compare(struct berval	*v1, struct berval	*v2);
 static int numstr_validate(struct berval *val);
+static void numstr_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Numeric String", "numstr", NUMERICSTRING_SYNTAX_OID, 0 };
@@ -153,6 +159,8 @@ numstr_init( Slapi_PBlock *pb )
 	    (void *) numstr_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) numstr_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) numstr_normalize );
 
 	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= numstr_init %d\n", rc, 0, 0 );
@@ -163,7 +171,13 @@ static int
 numstr_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 	Slapi_Value **bvals, int ftype, Slapi_Value **retVal )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_SI | SYNTAX_CES,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_SI | SYNTAX_CES;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
                                ftype, retVal ) );
 }
 
@@ -239,4 +253,15 @@ static int numstr_validate(
 
 exit:
 	return(rc);
+}
+
+static void numstr_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_SI|SYNTAX_CES, trim_spaces, alt);
+	return;
 }

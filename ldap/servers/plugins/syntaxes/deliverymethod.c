@@ -60,6 +60,12 @@ static int delivery_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **
 static int delivery_compare(struct berval	*v1, struct berval	*v2);
 static int delivery_validate(struct berval *val);
 static int pdm_validate(const char *start, const char *end);
+static void delivery_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Delivery Method", "delivery", DELIVERYMETHOD_SYNTAX_OID, 0 };
@@ -99,6 +105,8 @@ delivery_init( Slapi_PBlock *pb )
 	    (void *) delivery_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) delivery_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) delivery_normalize );
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= delivery_init %d\n", rc, 0, 0 );
 	return( rc );
@@ -113,7 +121,13 @@ delivery_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CIS;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
 	    ftype, retVal ) );
 }
 
@@ -314,4 +328,15 @@ pdm_validate(const char *start, const char *end)
 
 exit:
 	return rc;
+}
+
+static void delivery_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CIS, trim_spaces, alt);
+	return;
 }

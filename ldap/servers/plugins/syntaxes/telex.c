@@ -59,6 +59,12 @@ static int telex_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char **any
 		char *final, Slapi_Value ***ivals );
 static int telex_compare(struct berval	*v1, struct berval	*v2);
 static int telex_validate(struct berval *val);
+static void telex_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Telex Number", "telexnumber", TELEXNUMBER_SYNTAX_OID, 0 };
@@ -98,6 +104,8 @@ telex_init( Slapi_PBlock *pb )
 	    (void *) telex_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) telex_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) telex_normalize );
 
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= telex_init %d\n", rc, 0, 0 );
 	return( rc );
@@ -112,8 +120,14 @@ telex_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS,
-	    ftype, retVal ) );
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CIS;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
+							   ftype, retVal ) );
 }
 
 
@@ -255,3 +269,13 @@ exit:
 	return rc;
 }
 
+static void telex_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CIS, trim_spaces, alt);
+	return;
+}

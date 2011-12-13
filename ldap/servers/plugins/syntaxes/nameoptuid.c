@@ -59,6 +59,12 @@ static int nameoptuid_assertion2keys_sub( Slapi_PBlock *pb, char *initial, char 
 		char *final, Slapi_Value ***ivals );
 static int nameoptuid_compare(struct berval	*v1, struct berval	*v2);
 static int nameoptuid_validate(struct berval *val);
+static void nameoptuid_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /* the first name is the official one from RFC 4517 */
 static char *names[] = { "Name And Optional UID", "nameoptuid", NAMEANDOPTIONALUID_SYNTAX_OID, 0 };
@@ -138,6 +144,8 @@ nameoptuid_init( Slapi_PBlock *pb )
 	    (void *) nameoptuid_compare );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 	    (void *) nameoptuid_validate );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) nameoptuid_normalize );
 
 	rc |= register_matching_rule_plugins();
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= nameoptuid_init %d\n", rc, 0, 0 );
@@ -153,7 +161,13 @@ nameoptuid_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS | SYNTAX_DN,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CIS | SYNTAX_DN;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax,
 	    ftype, retVal ) );
 }
 
@@ -272,3 +286,13 @@ exit:
 	return rc;
 }
 
+static void nameoptuid_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CIS | SYNTAX_DN, trim_spaces, alt);
+	return;
+}

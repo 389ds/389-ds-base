@@ -77,6 +77,12 @@ static int country_validate(struct berval *val);
 static int postal_validate(struct berval *val);
 static int oid_validate(struct berval *val);
 static int printable_validate(struct berval *val);
+static void cis_normalize(
+	Slapi_PBlock *pb,
+	char    *s,
+	int     trim_spaces,
+	char    **alt
+);
 
 /*
   Even though the official RFC 4517 says that the postal syntax
@@ -458,7 +464,8 @@ register_cis_like_plugin( Slapi_PBlock *pb, Slapi_PluginDesc *pdescp,
 		rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_VALIDATE,
 		    (void *)validate_fn );
 	}
-
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
+	    (void *) cis_normalize );
 	return( rc );
 }
 
@@ -557,7 +564,13 @@ cis_filter_ava(
 	Slapi_Value **retVal
 )
 {
-	return( string_filter_ava( bvfilter, bvals, SYNTAX_CIS, ftype,
+	int filter_normalized = 0;
+	int syntax = SYNTAX_CIS;
+	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+	if (filter_normalized) {
+		syntax |= SYNTAX_NORM_FILT;
+	}
+	return( string_filter_ava( bvfilter, bvals, syntax, ftype,
 									  retVal ) );
 }
 
@@ -1082,4 +1095,15 @@ static int printable_validate(
 
 exit:
 	return( rc );
+}
+
+static void cis_normalize(
+	Slapi_PBlock	*pb,
+	char	*s,
+	int		trim_spaces,
+	char	**alt
+)
+{
+	value_normalize_ext(s, SYNTAX_CIS, trim_spaces, alt);
+	return;
 }

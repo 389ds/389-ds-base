@@ -498,8 +498,9 @@ test_extensible_filter(
 				 */
 				struct ava a;
 				a.ava_type= mrf->mrf_type;
-        		a.ava_value.bv_len= mrf->mrf_value.bv_len;
+				a.ava_value.bv_len= mrf->mrf_value.bv_len;
 				a.ava_value.bv_val = mrf->mrf_value.bv_val;
+				a.ava_private = NULL;
 				rc= test_ava_filter( callers_pb, e, e->e_attrs, &a, LDAP_FILTER_EQUALITY, 0 /* Don't Verify Access */ , 0 /* don't just verify access */, access_check_done );
 				if(rc!=LDAP_SUCCESS && mrf->mrf_dnAttrs)
 				{
@@ -566,8 +567,9 @@ test_extensible_filter(
 				 */
 				struct ava a;
 				a.ava_type= mrf->mrf_type;
-        		a.ava_value.bv_len= mrf->mrf_value.bv_len;
+				a.ava_value.bv_len= mrf->mrf_value.bv_len;
 				a.ava_value.bv_val = mrf->mrf_value.bv_val;
+				a.ava_private = NULL;
 				rc= test_ava_filter( callers_pb, e, e->e_attrs, &a, LDAP_FILTER_EQUALITY, 0 /* Don't Verify Access */ , 0 /* don't just verify access */, access_check_done );
 				if(rc!=LDAP_SUCCESS && mrf->mrf_dnAttrs)
 				{
@@ -646,7 +648,7 @@ test_filter_list(
 	return( nomatch );
 }
 
-void
+char *
 filter_strcpy_special_ext( char *d, char *s, int flags )
 {
 	for ( ; *s; s++ ) {
@@ -677,12 +679,13 @@ filter_strcpy_special_ext( char *d, char *s, int flags )
 		*d++ = *s;
 	}
 	*d = '\0';
+	return d;
 }
 
-void
+char *
 filter_strcpy_special( char *d, char *s )
 {
-	filter_strcpy_special_ext(d, s, 0);
+	return filter_strcpy_special_ext(d, s, 0);
 }
 
 int test_substring_filter(

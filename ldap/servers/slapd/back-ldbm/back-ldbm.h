@@ -790,6 +790,7 @@ typedef struct _back_search_result_set
     Slapi_Entry*      sr_vlventry;          /* a special VLV Entry for when the ACL check fails */
     int               sr_flags;             /* Magic flags, defined below */
     int               sr_current_sizelimit; /* Current sizelimit */
+    Slapi_Filter*     sr_norm_filter;       /* search filter pre-normalized */
 } back_search_result_set;
 #define SR_FLAG_CAN_SKIP_FILTER_TEST 1 /* If set in sr_flags, means that we can safely skip the filter test */
 

@@ -689,6 +689,7 @@ slapi_filter_dup(Slapi_Filter *f)
 
 	out->f_choice = f->f_choice;
 	out->f_hash = f->f_hash;
+	out->f_flags = f->f_flags;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "slapi_filter_dup type 0x%lX\n", f->f_choice, 0, 0 );
 	switch ( f->f_choice ) {
@@ -719,9 +720,6 @@ slapi_filter_dup(Slapi_Filter *f)
 	case LDAP_FILTER_OR:
 	case LDAP_FILTER_NOT:
 		outl = &out->f_list;
-
-/*		out->f_list = slapi_filter_dup(f->f_list);
-*/
 		for (fl = f->f_list; fl != NULL; fl = fl->f_next) {
 			(*outl) = slapi_filter_dup( fl );
 			(*outl)->f_next = 0;
@@ -733,18 +731,15 @@ slapi_filter_dup(Slapi_Filter *f)
 		break;
 
 	case LDAP_FILTER_EXTENDED:
-		/* something needs to be done here, but Im not sure how to do it
-		slapi_ch_free((void**)&f->f_mr_oid);
-		slapi_ch_free((void**)&f->f_mr_type);
-		slapi_ch_free((void **)&f->f_mr_value.bv_val );
-		if (f->f_mr.mrf_destroy != NULL) {
-		    Slapi_PBlock pb;
-		    pblock_init (&pb);
-		    if ( ! slapi_pblock_set (&pb, SLAPI_PLUGIN_OBJECT, f->f_mr.mrf_object)) {
-			f->f_mr.mrf_destroy (&pb);
-		    }
+		out->f_mr_oid = slapi_ch_strdup(f->f_mr_oid);
+		out->f_mr_type = slapi_ch_strdup(f->f_mr_type);
+		out->f_mr_value.bv_val = slapi_ch_strdup(f->f_mr_value.bv_val);
+		out->f_mr_value.bv_len = f->f_mr_value.bv_len;
+		out->f_mr_dnAttrs = f->f_mr_dnAttrs;
+		if (f->f_mr.mrf_match) {
+			int rc = plugin_mr_filter_create(&out->f_mr);
+			LDAPDebug1Arg( LDAP_DEBUG_FILTER, "slapi_filter_dup plugin_mr_filter_create returned %d\n", rc );
 		}
-		*/
 		break;
 
 	default:
@@ -1043,33 +1038,91 @@ slapi_filter_get_subfilt(
 }
 
 static void
-filter_normalize_ava( struct ava *ava, int ftype )
+filter_normalize_ava( struct slapi_filter *f, PRBool norm_values )
 {
-    char	*tmp;
+    char *tmp;
+    struct ava *ava;
 
-    if ( ava == NULL ) {
-	return;
+    if ( f == NULL ) {
+        return;
     }
+
+    ava = &f->f_ava;
     tmp = ava->ava_type;
     ava->ava_type = slapi_attr_syntax_normalize(tmp);
     slapi_ch_free((void**)&tmp );
-    /* value will be normalized later */
+    f->f_flags |= SLAPI_FILTER_NORMALIZED_TYPE;
+    if (norm_values) {
+        char *newval = NULL;
+        /* NOTE: assumes ava->ava_value.bv_val is NULL terminated - get_ava/ber_scanf 'o'
+           will NULL terminate the string by default */
+        slapi_attr_value_normalize(NULL, NULL, ava->ava_type, ava->ava_value.bv_val, 1, &newval);
+        if (newval && (newval != ava->ava_value.bv_val)) {
+            slapi_ch_free_string(&ava->ava_value.bv_val);
+            ava->ava_value.bv_val = newval;
+            ava->ava_value.bv_len = strlen(newval);
+        }
+        f->f_flags |= SLAPI_FILTER_NORMALIZED_VALUE;
+    }
 }
 
+static void
+filter_normalize_subfilt( struct slapi_filter *f, PRBool norm_values )
+{
+	struct subfilt *sf;
 
-void filter_normalize( struct slapi_filter *f );
+	if ( f == NULL ) {
+	    return;
+	}
+
+	sf = &f->f_sub;
+	char *tmp = sf->sf_type;
+	sf->sf_type = slapi_attr_syntax_normalize(tmp);
+	slapi_ch_free((void**)&tmp );
+	f->f_flags |= SLAPI_FILTER_NORMALIZED_TYPE;
+	if (norm_values) {
+		char *newval = NULL;
+		Slapi_Attr attr;
+		int ii;
+
+		slapi_attr_init(&attr, sf->sf_type);
+		slapi_attr_value_normalize(NULL, &attr, NULL, sf->sf_initial, 1, &newval);
+		if (newval && (newval != sf->sf_initial)) {
+			slapi_ch_free_string(&sf->sf_initial);
+			sf->sf_initial = newval;
+		}
+		for (ii = 0; sf->sf_any && sf->sf_any[ii]; ++ii) {
+			newval = NULL;
+			/* do not trim spaces of sf_any values - see string_filter_sub() */
+			slapi_attr_value_normalize(NULL, &attr, NULL, sf->sf_any[ii], 0, &newval);
+			if (newval && (newval != sf->sf_any[ii])) {
+				slapi_ch_free_string(&sf->sf_any[ii]);
+				sf->sf_any[ii] = newval;
+			}
+		}
+		newval = NULL;
+		/* do not trim spaces of sf_final values - see string_filter_sub() */
+		slapi_attr_value_normalize(NULL, &attr, NULL, sf->sf_final, 0, &newval);
+		if (newval && (newval != sf->sf_final)) {
+			slapi_ch_free_string(&sf->sf_final);
+			sf->sf_final = newval;
+		}
+		attr_done(&attr);
+		f->f_flags |= SLAPI_FILTER_NORMALIZED_VALUE;
+	}
+}
+
+void filter_normalize_ext( struct slapi_filter *f, PRBool norm_values );
 
 static void
-filter_normalize_list( struct slapi_filter *flist )
+filter_normalize_list( struct slapi_filter *flist, PRBool norm_values )
 {
     struct slapi_filter *f;
 
     for ( f = flist; f != NULL; f = f->f_next ) {
-	filter_normalize( f );
+	filter_normalize_ext( f, norm_values );
     }
 }
-
-
 
 /*
  * Normalize all values and types in a filter.  This isn't necessary
@@ -1080,7 +1133,7 @@ filter_normalize_list( struct slapi_filter *flist )
  * normalized.
  */
 void
-filter_normalize( struct slapi_filter *f )
+filter_normalize_ext( struct slapi_filter *f, PRBool norm_values )
 {
     char	*tmp;
 
@@ -1093,38 +1146,49 @@ filter_normalize( struct slapi_filter *f )
     case LDAP_FILTER_LE:
     case LDAP_FILTER_APPROX:
     case LDAP_FILTER_EQUALITY:
-	filter_normalize_ava( &f->f_ava, f->f_choice );
+	filter_normalize_ava( f, norm_values );
 	break;
     case LDAP_FILTER_SUBSTRINGS:
-	tmp = f->f_sub_type;
-	f->f_sub_type = slapi_attr_syntax_normalize(tmp);
-	slapi_ch_free((void**)&tmp );
-	/* value will be normalized later */
+	filter_normalize_subfilt( f, norm_values );
 	break;
     case LDAP_FILTER_PRESENT:
 	tmp = f->f_type;
 	f->f_type = slapi_attr_syntax_normalize(tmp);
 	slapi_ch_free((void**)&tmp );
+	f->f_flags |= SLAPI_FILTER_NORMALIZED_TYPE;
 	break;
     case LDAP_FILTER_EXTENDED:
 	tmp = f->f_mr_type;
 	f->f_mr_type = slapi_attr_syntax_normalize(tmp);
 	slapi_ch_free((void**)&tmp );
+	f->f_flags |= SLAPI_FILTER_NORMALIZED_TYPE;
 	break;
     case LDAP_FILTER_AND:
-	filter_normalize_list( f->f_and );
+	filter_normalize_list( f->f_and, norm_values );
 	break;
     case LDAP_FILTER_OR:
-	filter_normalize_list( f->f_or );
+	filter_normalize_list( f->f_or, norm_values );
 	break;
     case LDAP_FILTER_NOT:
-	filter_normalize_list( f->f_not );
+	filter_normalize_list( f->f_not, norm_values );
 	break;
     default:
 	return;
     }
 }
-	
+
+void
+filter_normalize( struct slapi_filter *f )
+{
+    filter_normalize_ext(f, PR_FALSE);
+}
+
+void
+slapi_filter_normalize( struct slapi_filter *f, PRBool norm_values )
+{
+    filter_normalize_ext(f, norm_values);
+}
+
 void
 filter_print( struct slapi_filter *f )
 {

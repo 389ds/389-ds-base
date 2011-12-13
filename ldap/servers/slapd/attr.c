@@ -411,6 +411,7 @@ slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v )
 
 	ava.ava_type = a->a_type;
 	ava.ava_value = *v;
+	ava.ava_private = NULL;
 	return(plugin_call_syntax_filter_ava( a, LDAP_FILTER_EQUALITY, &ava ));
 }
 
@@ -553,10 +554,12 @@ slapi_attr_value_cmp( const Slapi_Attr *a, const struct berval *v1, const struct
 	    cvals[0] = &tmpcval;
    		cvals[0]->v_csnset = NULL;
    		cvals[0]->bv = *v1;
+   		cvals[0]->v_flags = 0;
    		cvals[1] = NULL;
    		a2.a_present_values.va = cvals; /* JCM - PUKE */
    		ava.ava_type = a->a_type;
    		ava.ava_value = *v2;
+    	ava.ava_private = NULL;
 		retVal = plugin_call_syntax_filter_ava(&a2, LDAP_FILTER_EQUALITY, &ava);
 	}
 	return retVal;
@@ -673,6 +676,7 @@ attr_value_find_wsi(Slapi_Attr *a, const struct berval *bval, Slapi_Value **valu
 	 */
 	ava.ava_type = a->a_type;
 	ava.ava_value = *bval;
+	ava.ava_private = NULL;
 	retVal = plugin_call_syntax_filter_ava_sv(a, LDAP_FILTER_EQUALITY, &ava, value, 0 /* Present */);
 	
 	if(retVal==0)
