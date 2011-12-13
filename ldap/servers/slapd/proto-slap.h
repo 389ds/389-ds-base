@@ -351,6 +351,7 @@ int config_set_minssf(const char *attrname, char *value, char *errorbuf, int app
 int config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_normalize_nested_dn( const char *attrname, char *value, char *errorbuf, int apply );
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -489,6 +490,7 @@ long config_get_system_page_size();
 int config_get_system_page_bits();
 #endif
 int config_get_force_sasl_external();
+int config_get_normalize_nested_dn(void);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );

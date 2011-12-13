@@ -624,7 +624,11 @@ static struct config_get_and_set {
 	{CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE, config_set_force_sasl_external,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.force_sasl_external, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_force_sasl_external}
+		(ConfigGetFunc)config_get_force_sasl_external},
+	{CONFIG_NORMALIZE_NESTED_DN, config_set_normalize_nested_dn,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.normalize_nested_dn, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_normalize_nested_dn}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1002,6 +1006,7 @@ FrontendConfig_init () {
   cfg->auditlog_exptime = 1;
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
 
+  cfg->normalize_nested_dn = LDAP_ON; /* normalize_nested_dn is on by default */
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -5525,6 +5530,32 @@ config_set_force_sasl_external( const char *attrname, char *value,
 	return retVal;
 }
 
+
+int
+config_get_normalize_nested_dn(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    /* disable locking for this value for performance */
+    /*CFG_LOCK_READ(slapdFrontendConfig);*/
+    retVal = slapdFrontendConfig->normalize_nested_dn;
+    /*CFG_UNLOCK_READ(slapdFrontendConfig);*/
+
+    return retVal;
+}
+
+int
+config_set_normalize_nested_dn( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->normalize_nested_dn),
+                              errorbuf, apply);
+    return retVal;
+}
 
 /*
  * This function is intended to be used from the dse code modify callback.  It

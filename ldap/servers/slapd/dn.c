@@ -60,6 +60,7 @@ static void reset_rdn_avs( struct berval **rdn_avsp, int *rdn_av_countp );
 static void sort_rdn_avs( struct berval *avs, int count, int escape );
 static int rdn_av_cmp( struct berval *av1, struct berval *av2 );
 static void rdn_av_swap( struct berval *av1, struct berval *av2, int escape );
+static int old_slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len);
 
 
 int
@@ -512,6 +513,11 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     int chkblank = 0;
     int avstat = 0;
     int is_dn_syntax = 0;
+    int normalize_nested_dn = config_get_normalize_nested_dn();
+
+    if (!normalize_nested_dn) {
+        return old_slapi_dn_normalize_ext(src, src_len, dest, dest_len);
+    }
 
     if (NULL == dest) {
         goto bail;
@@ -2324,3 +2330,491 @@ sdn_dump( const Slapi_DN *sdn, const char *text)
     LDAPDebug( LDAP_DEBUG_ANY, "SDN %s ptr=%lx dn=%s\n", text, sdn, (sdn->dn==NULL?"NULL":sdn->dn));
 }
 #endif
+
+/*
+ * This is the old version of slapi_dn_normalize_ext that does not correctly
+ * handle DNs nested within other DNs in all cases, but is required for
+ * backwards compatability
+ * set nsslapd-normalize-nested-dn: off to use this function
+ */
+static int
+old_slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
+{
+    int rc = -1;
+    int state = B4TYPE;
+    char *s = NULL; /* work pointer for src */
+    char *d = NULL; /* work pointer for dest */
+    char *ends = NULL;
+    char *endd = NULL;
+    char *lastesc = NULL;
+    /* rdn avs for the main DN */
+    char *typestart = NULL;
+    int rdn_av_count = 0;
+    struct berval *rdn_avs = NULL;
+    struct berval initial_rdn_av_stack[ SLAPI_DNNORM_INITIAL_RDN_AVS ];
+    /* rdn avs for the nested DN */
+    char *subtypestart = NULL; /* used for nested rdn avs */
+    int subrdn_av_count = 0;
+    struct berval *subrdn_avs = NULL;
+    struct berval subinitial_rdn_av_stack[ SLAPI_DNNORM_INITIAL_RDN_AVS ];
+    int chkblank = 0;
+
+    if (NULL == dest) {
+        goto bail;
+    }
+    if (NULL == src) {
+        *dest = NULL;
+        *dest_len = 0;
+        goto bail;
+    }
+    if (0 == src_len) {
+        src_len = strlen(src);
+    }
+    s = PL_strnchr(src, '\\', src_len);
+    if (s) {
+        *dest_len = src_len * 3;
+        *dest = slapi_ch_malloc(*dest_len); /* max length */
+        rc = 1;
+    } else {
+        s = PL_strnchr(src, '"', src_len);
+        if (s) {
+            *dest_len = src_len * 3;
+            *dest = slapi_ch_malloc(*dest_len); /* max length */
+            rc = 1;
+        } else {
+            *dest_len = src_len;
+            *dest = src; /* just removing spaces around separators */
+            rc = 0;
+        }
+    }
+
+    ends = src + src_len;
+    endd = *dest + *dest_len;
+    for (s = src, d = *dest; s < ends && d < endd; ) {
+        switch (state) {
+        case B4TYPE: /* before type; cn=... */
+                     /*             ^       */
+            if (ISSPACE(*s)) {
+                s++; /* skip leading spaces */
+            } else {
+                state = INTYPE;
+                typestart = d;
+                *d++ = *s++;
+            }
+            break;
+        case INTYPE: /* in type; cn=... */
+                     /*          ^      */
+            if (ISEQUAL(*s)) {
+                state = B4VALUE;
+                *d++ = *s++;
+            } else if (ISCLOSEBRACKET(*s)) { /* special care for ACL macro */
+                state = INVALUE; /* skip a trailing space */
+                *d++ = *s++;
+            } else if (ISSPACE(*s)) {
+                state = B4EQUAL; /* skip a trailing space */
+            } else {
+                *d++ = *s++;
+            }
+            break;
+        case B4EQUAL: /* before equal; cn =... */
+                      /*                 ^     */
+            if (ISEQUAL(*s)) {
+                state = B4VALUE;
+                *d++ = *s++;
+            } else if (ISSPACE(*s)) {
+                s++; /* skip trailing spaces */
+            } else {
+                /* type includes spaces; not a valid dn */
+                rc = -1;
+                goto bail;
+            }
+            break;
+        case B4VALUE: /* before value; cn= ABC */
+                      /*                  ^    */
+            if (ISSPACE(*s)) {
+                s++;
+            } else {
+                if (ISQUOTE(*s)) {
+                    s++; /* start with the first char in quotes */
+                    state = INQUOTEDVALUE1ST;
+                } else {
+                    state = INVALUE1ST;
+                }
+                lastesc = NULL;
+                /* process *s in INVALUE or INQUOTEDVALUE */
+            }
+            break;
+        case INVALUE1ST: /* 1st char in value; cn=ABC */
+                         /*                       ^   */
+            if (ISSPACE(*s)) { /* skip leading spaces */
+                s++;
+                continue;
+            } else if (SEPARATOR(*s)) {
+                /* 1st char in value is separator; invalid dn */
+                rc = -1;
+                goto bail;
+            } /* otherwise, go through */
+            if (ISESCAPE(*s)) {
+                subtypestart = NULL; /* if escaped, can't be multivalued dn */
+            } else {
+                subtypestart = d; /* prepare for '+' in the nested DN, if any */
+            }
+            subrdn_av_count = 0;
+        case INVALUE:    /* in value; cn=ABC */
+                         /*               ^  */
+            if (ISESCAPE(*s)) {
+                if (s + 1 >= ends) {
+                    /* DN ends with '\'; invalid dn */
+                    rc = -1;
+                    goto bail;
+                }
+                if (((state == INVALUE1ST) && LEADNEEDSESCAPE(*(s+1))) ||
+                           ((state == INVALUE) && NEEDSESCAPE(*(s+1)))) {
+                    if (d + 2 >= endd) {
+                        /* Not enough space for dest; this never happens! */
+                        rc = -1;
+                        goto bail;
+                    } else {
+                        if (ISEQUAL(*(s+1))) {
+                            while (ISSPACE(*(d-1))) {
+                                /* remove trailing spaces */
+                                d--;
+                            }
+                        } else if (SEPARATOR(*(s+1))) {
+                            /* separator is a subset of needsescape */
+                            while (ISSPACE(*(d-1))) {
+                                /* remove trailing spaces */
+                                d--;
+                                chkblank = 1;
+                            }
+                            if (chkblank && ISESCAPE(*(d-1)) && ISBLANK(*d)) {
+                                /* last space is escaped "cn=A\ ,ou=..." */
+                                /*                             ^         */
+                                PR_snprintf(d, 3, "%X", *d);    /* hexpair */
+                                d += 2;
+                                chkblank = 0;
+                            }
+                            /*
+                             * Track and sort attribute values within
+                             * multivalued RDNs.
+                             */
+                            if (subtypestart &&
+                                (ISPLUS(*(s+1)) || subrdn_av_count > 0)) {
+                                add_rdn_av(subtypestart, d, &subrdn_av_count,
+                                          &subrdn_avs, subinitial_rdn_av_stack);
+                            }
+                            if (!ISPLUS(*(s+1))) {    /* at end of this RDN */
+                                if (subrdn_av_count > 1) {
+                                    sort_rdn_avs( subrdn_avs, 
+                                                  subrdn_av_count, 1 );
+                                }
+                                if (subrdn_av_count > 0) {
+                                    reset_rdn_avs( &subrdn_avs,
+                                                   &subrdn_av_count );
+                                    subtypestart = NULL;
+                                }
+                            }
+                        }
+                        /* dn: cn=x\=x\,... -> dn: cn=x\3Dx\2C,... */
+                        *d++ = *s++;            /* '\\' */
+                        PR_snprintf(d, 3, "%X", *s);    /* hexpair */
+                        d += 2;
+                        if (ISPLUS(*s)) {
+                            /* next type start of multi values */
+                            /* should not be a escape char AND should be 
+                             * followed by \\= or \\3D */
+                            if (!ISESCAPE(*s) &&
+                                (PL_strnstr(s, "\\=", ends - s) ||
+                                 PL_strncaserstr(s, "\\3D", ends - s))) {
+                                subtypestart = d;
+                            } else {
+                                subtypestart = NULL;
+                            }
+                        }
+                        if (SEPARATOR(*s) || ISEQUAL(*s)) {
+                            while (ISSPACE(*(s+1)))
+                                s++; /* remove leading spaces */
+                            s++;
+                        } else {
+                            s++;
+                        }
+                    }
+                } else if (((state == INVALUE1ST) &&
+                            (s+2 < ends) && LEADNEEDSESCAPESTR(s+1)) ||
+                           ((state == INVALUE) && 
+                            (((s+2 < ends) && NEEDSESCAPESTR(s+1)) ||
+                             (ISEOV(s+3, ends) && ISBLANKSTR(s+1))))) {
+                             /* e.g., cn=abc\20 ,... */
+                             /*             ^        */
+                    if (ISEQUALSTR(s+1)) {
+                        while (ISSPACE(*(d-1))) {
+                            /* remove trailing spaces */
+                            d--;
+                        }
+                    } else if (SEPARATORSTR(s+1)) {
+                        /* separator is a subset of needsescape */
+                        while (ISSPACE(*(d-1))) {
+                            /* remove trailing spaces */
+                            d--;
+                            chkblank = 1;
+                        }
+                        if (chkblank && ISESCAPE(*(d-1)) && ISBLANK(*d)) {
+                            /* last space is escaped "cn=A\ ,ou=..." */
+                            /*                             ^         */
+                            PR_snprintf(d, 3, "%X", *d);    /* hexpair */
+                            d += 2;
+                            chkblank = 0;
+                        }
+                        /*
+                         * Track and sort attribute values within
+                         * multivalued RDNs.
+                         */
+                        if (subtypestart &&
+                            (ISPLUSSTR(s+1) || subrdn_av_count > 0)) {
+                            add_rdn_av(subtypestart, d, &subrdn_av_count,
+                                       &subrdn_avs, subinitial_rdn_av_stack);
+                        }
+                        if (!ISPLUSSTR(s+1)) {    /* at end of this RDN */
+                            if (subrdn_av_count > 1) {
+                                sort_rdn_avs( subrdn_avs, subrdn_av_count, 1 );
+                            }
+                            if (subrdn_av_count > 0) {
+                                reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
+                                subtypestart = NULL;
+                            }
+                        }
+                    }
+                    *d++ = *s++;            /* '\\' */
+                    *d++ = *s++;            /* HEX */
+                    *d++ = *s++;            /* HEX */
+                    if (ISPLUSSTR(s-2)) {
+                        /* next type start of multi values */
+                        /* should not be a escape char AND should be followed
+                         * by \\= or \\3D */
+                        if (!ISESCAPE(*s) && (PL_strnstr(s, "\\=", ends - s) ||
+                            PL_strncaserstr(s, "\\3D", ends - s))) {
+                            subtypestart = d;
+                        } else {
+                            subtypestart = NULL;
+                        }
+                    }
+                    if (SEPARATORSTR(s-2) || ISEQUALSTR(s-2)) {
+                        while (ISSPACE(*s)) /* remove leading spaces */
+                            s++;
+                    }
+                } else if (s + 2 < ends &&
+                           isxdigit(*(s+1)) && isxdigit(*(s+2))) {
+                    /* esc hexpair ==> real character */
+                    int n = slapi_hexchar2int(*(s+1));
+                    int n2 = slapi_hexchar2int(*(s+2));
+                    n = (n << 4) + n2;
+                    if (n == 0) { /* don't change \00 */
+                        *d++ = *++s;
+                        *d++ = *++s;
+                    } else {
+                        *d++ = n;
+                        s += 3;
+                    }
+                } else {
+                    /* ignore an escape for now */
+                    lastesc = d; /* position of the previous escape */
+                    s++;
+                }
+            } else if (SEPARATOR(*s)) { /* cn=ABC , ... */
+                                        /*        ^     */
+                /* handling a trailing escaped space */
+                /* assuming a space is the only an extra character which
+                 * is not escaped if it appears in the middle, but should
+                 * be if it does at the end of the RDN value */
+                /* e.g., ou=ABC  \   ,o=XYZ --> ou=ABC  \ ,o=XYZ */
+                if (lastesc) {
+                    while (ISSPACE(*(d-1)) && d > lastesc ) {
+                        d--;
+                    }
+                    if (d == lastesc) {
+                        /* esc hexpair of space: \20 */
+                        *d++ = '\\';
+                        *d++ = '2';
+                        *d++ = '0';
+                    }
+                } else {
+                    while (ISSPACE(*(d-1))) {
+                        d--;
+                    }
+                }
+                state = B4SEPARATOR;
+                break;
+            } else { /* else if (SEPARATOR(*s)) */
+                *d++ = *s++;
+            }
+            if (state == INVALUE1ST) {
+                state = INVALUE;
+            }
+            break;
+        case INQUOTEDVALUE1ST:
+            if (ISSPACE(*s) && (s+1 < ends && ISSPACE(*(s+1)))) {
+                /* skip leading spaces but need to leave one */
+                s++;
+                continue;
+            }
+            subtypestart = d; /* prepare for '+' in the quoted value, if any */
+            subrdn_av_count = 0;
+        case INQUOTEDVALUE:
+            if (ISQUOTE(*s)) {
+                if (ISESCAPE(*(d-1))) { /* the quote is escaped */
+                    PR_snprintf(d, 3, "%X", *(s++));    /* hexpair */
+                } else { /* end of INQUOTEVALUE */
+                    while (ISSPACE(*(d-1))) { /* eliminate trailing spaces */
+                        d--;
+                        chkblank = 1;
+                    }
+                    /* We have to keep the last ' ' of a value in quotes.
+                     * The same idea as the escaped last space:
+                     * "cn=A,ou=B " */
+                    /*           ^  */
+                    if (chkblank && ISBLANK(*d)) {
+                        PR_snprintf(d, 4, "\\%X", *d);    /* hexpair */
+                        d += 3;
+                        chkblank = 0;
+                    }
+                    state = B4SEPARATOR;
+                    s++;
+                }
+            } else if (((state == INQUOTEDVALUE1ST) && LEADNEEDSESCAPE(*s)) || 
+                        (state == INQUOTEDVALUE && NEEDSESCAPE(*s))) {
+                if (d + 2 >= endd) {
+                    /* Not enough space for dest; this never happens! */
+                    rc = -1;
+                    goto bail;
+                } else {
+                    if (ISEQUAL(*s)) {
+                        while (ISSPACE(*(d-1))) { /* remove trailing spaces */
+                            d--;
+                        }
+                    } else if (SEPARATOR(*s)) {
+                        /* separator is a subset of needsescape */
+                        while (ISSPACE(*(d-1))) { /* remove trailing spaces */
+                            d--;
+                            chkblank = 1;
+                        }
+                        /* We have to keep the last ' ' of a value in quotes.
+                         * The same idea as the escaped last space:
+                         * "cn=A\ ,ou=..." */
+                        /*       ^         */
+                        if (chkblank && ISBLANK(*d)) {
+                            PR_snprintf(d, 4, "\\%X", *d);    /* hexpair */
+                            d += 3;
+                            chkblank = 0;
+                        }
+                        /*
+                         * Track and sort attribute values within
+                         * multivalued RDNs.
+                         */
+                        if (subtypestart &&
+                            (ISPLUS(*s) || subrdn_av_count > 0)) {
+                            add_rdn_av(subtypestart, d, &subrdn_av_count,
+                                       &subrdn_avs, subinitial_rdn_av_stack);
+                        }
+                        if (!ISPLUS(*s)) {    /* at end of this RDN */
+                            if (subrdn_av_count > 1) {
+                                sort_rdn_avs( subrdn_avs, subrdn_av_count, 1 );
+                            }
+                            if (subrdn_av_count > 0) {
+                                reset_rdn_avs( &subrdn_avs, &subrdn_av_count );
+                                subtypestart = NULL;
+                            }
+                        }
+                    }
+                    
+                    /* dn: cn="x=x,..",... -> dn: cn=x\3Dx\2C,... */
+                    *d++ = '\\';
+                    PR_snprintf(d, 3, "%X", *s);    /* hexpair */
+                    d += 2;
+                    if (ISPLUS(*s++)) {
+                        subtypestart = d; /* next type start of multi values */
+                    }
+                    if (SEPARATOR(*(s-1)) || ISEQUAL(*(s-1))) {
+                        while (ISSPACE(*s)) /* remove leading spaces */
+                            s++;
+                    }
+                }
+            } else {
+                *d++ = *s++;
+            }
+            if (state == INQUOTEDVALUE1ST) {
+                state = INQUOTEDVALUE;
+            }
+            break;
+        case B4SEPARATOR:
+            if (SEPARATOR(*s)) {
+                state = B4TYPE;
+
+                /*
+                 * Track and sort attribute values within
+                 * multivalued RDNs.
+                 */
+                if (typestart &&
+                    (ISPLUS(*s) || rdn_av_count > 0)) {
+                    add_rdn_av(typestart, d, &rdn_av_count,
+                               &rdn_avs, initial_rdn_av_stack);
+                }
+                if (!ISPLUS(*s)) {    /* at end of this RDN */
+                    if (rdn_av_count > 1) {
+                        sort_rdn_avs( rdn_avs, rdn_av_count, 0 );
+                    }
+                    if (rdn_av_count > 0) {
+                        reset_rdn_avs( &rdn_avs, &rdn_av_count );
+                        typestart = NULL;
+                    }
+                }
+
+                *d++ = (ISPLUS(*s++)) ? '+' : ',';
+            } else {
+                s++;
+            }
+            break;
+        default:
+            LDAPDebug( LDAP_DEBUG_ANY,
+                "slapi_dn_normalize - unknown state %d\n", state, 0, 0 );
+            break;
+        }
+    }
+
+    /*
+     * Track and sort attribute values within multivalued RDNs.
+     */
+    /* We may still be in an unexpected state, such as B4TYPE if
+     * we encountered something odd like a '+' at the end of the
+     * rdn.  If this is the case, we don't want to add this bogus
+     * rdn to our list to sort.  We should only be in the INVALUE
+     * or B4SEPARATOR state if we have a valid rdn component to 
+     * be added. */
+    if (typestart && (rdn_av_count > 0) && ((state == INVALUE1ST) || 
+        (state == INVALUE) || (state == B4SEPARATOR))) {
+        add_rdn_av(typestart, d, &rdn_av_count, &rdn_avs, initial_rdn_av_stack);
+    }
+    if ( rdn_av_count > 1 ) {
+        sort_rdn_avs( rdn_avs, rdn_av_count, 0 );
+    }
+    if ( rdn_av_count > 0 ) {
+        reset_rdn_avs( &rdn_avs, &rdn_av_count );
+    }
+    /* Trim trailing spaces */
+    while (d > *dest && ISBLANK(*(d-1))) {
+        --d;  /* XXX 518524 */
+    }
+    *dest_len = d - *dest;
+bail:
+    if (rc < 0) {
+        if (*dest != src) {
+            slapi_ch_free_string(dest);
+        } else {
+            *dest = NULL;
+        }
+        *dest_len = 0;
+    } else if (rc > 0) {
+        /* We terminate the str with NULL only when we allocate the str */
+        *d = '\0';
+    }
+    return rc;
+}
