@@ -511,7 +511,6 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     struct berval *subrdn_avs = NULL;
     struct berval subinitial_rdn_av_stack[ SLAPI_DNNORM_INITIAL_RDN_AVS ];
     int chkblank = 0;
-    int avstat = 0;
     int is_dn_syntax = 0;
     int normalize_nested_dn = config_get_normalize_nested_dn();
 
@@ -2605,8 +2604,8 @@ old_slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_
                 } else if (s + 2 < ends &&
                            isxdigit(*(s+1)) && isxdigit(*(s+2))) {
                     /* esc hexpair ==> real character */
-                    int n = slapi_hexchar2int(*(s+1));
-                    int n2 = slapi_hexchar2int(*(s+2));
+                    int n = hexchar2int(*(s+1));
+                    int n2 = hexchar2int(*(s+2));
                     n = (n << 4) + n2;
                     if (n == 0) { /* don't change \00 */
                         *d++ = *++s;
