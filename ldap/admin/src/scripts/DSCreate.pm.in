@@ -1063,7 +1063,8 @@ sub updateTmpfilesDotD {
 sub updateSystemD {
     my $inf = shift;
     my $unitdir = "@systemdsystemunitdir@";
-    my $confdir = "@systemdsystemconfdir@/@systemdgroupname@.wants";
+    my $confbasedir = "@systemdsystemconfdir@";
+    my $confdir = "$confbasedir/@systemdgroupname@.wants";
 
     if (!$unitdir or !$confdir or ! -d $unitdir or ! -d $confdir) {
         debug(3, "no systemd - skipping\n");
@@ -1082,15 +1083,24 @@ sub updateSystemD {
     for my $file (glob("$initconfigdir/$pkgname-*")) {
         my $inst = $file;
         $inst =~ s/^.*$pkgname-//;
-        my $servicelink = "$confdir/$pkgname\@$inst.service";
-        if (! -l $servicelink) {
-            if (!symlink($servicefile, $servicelink)) {
-                debug(1, "error updating link $servicelink to $servicefile - $!\n");
-                push @errs, [ 'error_linking_file', $servicefile, $servicelink, $! ];
-            } else {
-                debug(2, "updated link $servicelink to $servicefile\n");
+        # see if this is the admin or snmp or some other service
+        if (-f "$unitdir/$pkgname-$inst.service") {
+            debug(1, "$unitdir/$pkgname-$inst.service already exists - skipping\n");
+            next;
+        } elsif (-f "$confbasedir/$pkgname-$inst.service") {
+            debug(1, "$confbasedir/$pkgname-$inst.service already exists - skipping\n");
+            next;
+        } else {
+            my $servicelink = "$confdir/$pkgname\@$inst.service";
+            if (! -l $servicelink) {
+                if (!symlink($servicefile, $servicelink)) {
+                    debug(1, "error updating link $servicelink to $servicefile - $!\n");
+                    push @errs, [ 'error_linking_file', $servicefile, $servicelink, $! ];
+                } else {
+                    debug(2, "updated link $servicelink to $servicefile\n");
+                }
+                $changes++;
             }
-            $changes++;
         }
     }
     # next, look for instances that have been removed
