@@ -825,7 +825,8 @@ am_ldap_agent_bin_OBJECTS =  \
 	ldap/servers/snmp/ldap_agent_bin-ldap-agent.$(OBJEXT) \
 	ldap/servers/slapd/ldap_agent_bin-agtmmap.$(OBJEXT)
 ldap_agent_bin_OBJECTS = $(am_ldap_agent_bin_OBJECTS)
-ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+@OPENLDAP_FALSE@am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
+ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_3) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
@@ -866,7 +867,7 @@ am_ldif_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/ldif_bin-ldif.$(OBJEXT)
 ldif_bin_OBJECTS = $(am_ldif_bin_OBJECTS)
 ldif_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1)
 am_makstrdb_OBJECTS = lib/libsi18n/makstrdb-makstrdb.$(OBJEXT)
 makstrdb_OBJECTS = $(am_makstrdb_OBJECTS)
 makstrdb_LDADD = $(LDADD)
@@ -880,7 +881,7 @@ am_mmldif_bin_OBJECTS =  \
 mmldif_bin_OBJECTS = $(am_mmldif_bin_OBJECTS)
 mmldif_bin_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1)
 am__ns_slapd_SOURCES_DIST = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c ldap/servers/slapd/bind.c \
 	ldap/servers/slapd/compare.c ldap/servers/slapd/config.c \
@@ -1322,8 +1323,12 @@ PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_in
 #------------------------
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
+@OPENLDAP_FALSE@LDAPSDK_LINK_NOTHR = $(LDAPSDK_LINK)
+# with recent versions of openldap - if you link with both ldap_r and ldap, the
+# shared lib _fini for one will stomp on the other, and the program will crash
+@OPENLDAP_TRUE@LDAPSDK_LINK_NOTHR = @openldap_lib@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
 @OPENLDAP_FALSE@LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
-@OPENLDAP_TRUE@LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
+@OPENLDAP_TRUE@LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
 @OPENLDAP_FALSE@ldaplib = mozldap
 @OPENLDAP_TRUE@ldaplib = openldap
 @OPENLDAP_FALSE@ldaplib_defs = 
@@ -2368,7 +2373,7 @@ ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/slapd/agtmmap.c
 
 ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldap_agent_bin_LDADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) \
+ldap_agent_bin_LDADD = $(LDAPSDK_LINK_NOTHR) $(SASL_LINK) $(NSS_LINK) \
 	$(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB) $(am__append_2)
 
 #------------------------
@@ -2394,7 +2399,7 @@ ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL
 #------------------------
 ldif_bin_SOURCES = ldap/servers/slapd/tools/ldif.c
 ldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 
 #------------------------
 # migratecred
@@ -2408,7 +2413,7 @@ migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(L
 #------------------------
 mmldif_bin_SOURCES = ldap/servers/slapd/tools/mmldif.c
 mmldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 
 #------------------------
 # ns-slapd

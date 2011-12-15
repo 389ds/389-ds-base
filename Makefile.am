@@ -45,11 +45,15 @@ endif
 NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
 if OPENLDAP
-LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
+# with recent versions of openldap - if you link with both ldap_r and ldap, the
+# shared lib _fini for one will stomp on the other, and the program will crash
+LDAPSDK_LINK_NOTHR = @openldap_lib@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
+LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
 ldaplib = openldap
 ldaplib_defs = -DUSE_OPENLDAP
 else
 LDAPSDK_LINK = @ldapsdk_lib@ -lssldap60 -lprldap60 -lldap60 -lldif60
+LDAPSDK_LINK_NOTHR = $(LDAPSDK_LINK)
 ldaplib = mozldap
 ldaplib_defs =
 endif
@@ -1229,7 +1233,7 @@ ldap_agent_bin_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/slapd/agtmmap.c
 
 ldap_agent_bin_CPPFLAGS = $(AM_CPPFLAGS) @netsnmp_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldap_agent_bin_LDADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB)
+ldap_agent_bin_LDADD = $(LDAPSDK_LINK_NOTHR) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB)
 if SOLARIS
 ldap_agent_bin_LDADD += -lrt
 endif
@@ -1264,7 +1268,7 @@ ldclt_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL
 ldif_bin_SOURCES = ldap/servers/slapd/tools/ldif.c
 
 ldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 
 #------------------------
 # migratecred
@@ -1280,7 +1284,7 @@ migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(L
 mmldif_bin_SOURCES = ldap/servers/slapd/tools/mmldif.c
 
 mmldif_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+mmldif_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 
 #------------------------
 # ns-slapd
