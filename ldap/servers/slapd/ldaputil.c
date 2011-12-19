@@ -726,6 +726,17 @@ slapi_ldap_init_ext(
     /* must explicitly set version to 3 */
     ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &ldap_version3);
 
+#if defined(USE_OPENLDAP)
+    if (getenv("HACK_SASL_NOCANON")) {
+	/* the NONCANON flag tells openldap to use the hostname specified in
+	   the ldap_initialize command, rather than looking up the 
+	   hostname using gethostname or similar - this allows running
+	   sasl/gssapi tests on machines that don't have a canonical
+	   hostname (such as localhost.localdomain)
+	*/
+	ldap_set_option(ld, LDAP_OPT_X_SASL_NOCANON, LDAP_OPT_ON);
+    }
+#endif /* !USE_OPENLDAP */
     /* Update snmp interaction table */
     if (hostname) {
 	if (ld == NULL) {
