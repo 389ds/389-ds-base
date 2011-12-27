@@ -339,8 +339,18 @@ typedef struct aci {
 #define ACI_MAX_ELEVEL				ACI_ELEVEL_GROUPDN +1
 #define ACI_DEFAULT_ELEVEL			ACI_MAX_ELEVEL
 
+#define ACL_PLUGIN_CONFIG_ENTRY_DN      "cn=ACL Plugin,cn=plugins,cn=config"
 
-#define ACLPB_MAX_SELECTED_ACLS			200
+/*
+ * In plugin config entry, set this attribute to change the value
+ * of aclpb_max_selected_acls and aclpb_max_cache_results.
+ * If not set, DEFAULT_ACLPB_MAX_SELECTED_ACLS will be used.
+ */
+#define ATTR_ACLPB_MAX_SELECTED_ACLS            "nsslapd-aclpb-max-selected-acls"
+#define DEFAULT_ACLPB_MAX_SELECTED_ACLS         200
+
+int aclpb_max_selected_acls;    /* initialized from plugin config entry */
+int aclpb_max_cache_results;    /* initialized from plugin config entry */
 
 typedef struct result_cache {
 	int				aci_index;
@@ -353,7 +363,7 @@ typedef struct result_cache {
 #define ACLPB_CACHE_SEARCH_RES_SKIP		(short)0x0010 /* used for both types */
 #define ACLPB_CACHE_READ_RES_SKIP		(short)0x0020 /* used for both types */
 }r_cache_t;
-#define ACLPB_MAX_CACHE_RESULTS			ACLPB_MAX_SELECTED_ACLS
+
 
 /*
  *  This is use to keep the result of the evaluation of the attr.
@@ -392,7 +402,7 @@ struct	acleval_context {
 
 	/* Handles information */
 	short		acle_numof_tmatched_handles;
-	int			acle_handles_matched_target[ACLPB_MAX_SELECTED_ACLS];	
+	int			*acle_handles_matched_target;
 };
 typedef struct acleval_context	aclEvalContext;
 
@@ -539,12 +549,12 @@ struct acl_pblock {
     /* To keep the results in the cache */
 
 	int						aclpb_last_cache_result;
-	struct	result_cache	aclpb_cache_result[ACLPB_MAX_CACHE_RESULTS];
+	struct	result_cache	*aclpb_cache_result;
 
 	/* Index numbers of ACLs selected  based on a locality search*/
 	char					*aclpb_search_base;
-	int						aclpb_base_handles_index[ACLPB_MAX_SELECTED_ACLS];
-	int						aclpb_handles_index[ACLPB_MAX_SELECTED_ACLS];
+	int						*aclpb_base_handles_index;
+	int						*aclpb_handles_index;
 
 	/* Evaluation context info
 	** 1) Context cached from aclcb ( from connection struct )
@@ -825,6 +835,7 @@ void 		acl_set_authorization_dn( Slapi_PBlock *pb, char *dn, int type );
 void 		acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, 
 								const char *dn, int copy_from_aclcb);
 int 		acl_create_aclpb_pool ();
+void        acl_destroy_aclpb_pool ();
 int			acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e );
 
 int			aclext_alloc_lockarray ();

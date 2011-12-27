@@ -50,6 +50,7 @@ static char * acl__get_aclpb_type ( Acl_PBlock *aclpb );
 static Acl_PBlock * acl__get_aclpb_from_pool ( );
 static int acl__put_aclpb_back_to_pool ( Acl_PBlock *aclpb );
 static Acl_PBlock * acl__malloc_aclpb ( );
+static void acl__free_aclpb ( Acl_PBlock **aclpb_ptr);
 static PRLock *aclext_get_lock ();
 
 
@@ -198,6 +199,9 @@ acl_conn_ext_constructor ( void *object, void *parent )
 	ext->aclcb_sdn = slapi_sdn_new ();
 	/* store the signatures */
 	ext->aclcb_aclsignature = acl_get_aclsignature();
+	/* eval_context */
+	ext->aclcb_eval_context.acle_handles_matched_target = (int *)
+                    slapi_ch_calloc (aclpb_max_selected_acls, sizeof (int));
 	ext->aclcb_state =  -1;
 	return ext;
 
@@ -215,6 +219,7 @@ acl_conn_ext_destructor ( void *ext, void *object, void *parent )
 	shared_lock = aclcb->aclcb_lock;
 	acl_clean_aclEval_context ( &aclcb->aclcb_eval_context, 0 /* clean*/ );
 	slapi_sdn_free ( &aclcb->aclcb_sdn );
+	slapi_ch_free ( (void **)&(aclcb->aclcb_eval_context.acle_handles_matched_target));
 	aclcb->aclcb_lock = NULL;
 	slapi_ch_free ( (void **) &aclcb );
 
@@ -419,6 +424,21 @@ acl__handle_config_entry (Slapi_Entry *e,  void *callback_data )
 	return 0;
 }
 
+static int
+acl__handle_plugin_config_entry (Slapi_Entry *e,  void *callback_data )
+{
+    int value = slapi_entry_attr_get_int(e, ATTR_ACLPB_MAX_SELECTED_ACLS);
+    if (value) {
+        aclpb_max_selected_acls = value;
+        aclpb_max_cache_results = value;
+    } else {
+        aclpb_max_selected_acls = DEFAULT_ACLPB_MAX_SELECTED_ACLS;
+        aclpb_max_cache_results = DEFAULT_ACLPB_MAX_SELECTED_ACLS;
+    }
+
+    return 0;
+}
+
 /*
  * Create a pool of acl pblock. Created during the  ACL plugin
  * initialization.
@@ -432,6 +452,7 @@ acl_create_aclpb_pool ()
 	Acl_PBlock			*first_aclpb;
 	int					i;
 	int maxThreads= 0;
+	int callbackData= 0;
 
 	slapi_search_internal_callback( "cn=config", LDAP_SCOPE_BASE, "(objectclass=*)",
                             NULL, 0 /* attrsonly */,
@@ -439,6 +460,14 @@ acl_create_aclpb_pool ()
                             NULL /* controls */,
                             NULL /* result_callback */,
                             acl__handle_config_entry,
+                            NULL /* referral_callback */);
+
+	slapi_search_internal_callback( ACL_PLUGIN_CONFIG_ENTRY_DN, LDAP_SCOPE_BASE, "(objectclass=*)",
+                            NULL, 0 /* attrsonly */,
+                            &callbackData /* callback_data, not used in this case */,
+                            NULL /* controls */,
+                            NULL /* result_callback */,
+                            acl__handle_plugin_config_entry,
                             NULL /* referral_callback */);
 
 	/* Create a pool pf aclpb */
@@ -468,6 +497,40 @@ acl_create_aclpb_pool ()
 
 	aclQueue->aclq_nfree = maxThreads;
 	return 0;
+}
+
+/*
+ * Destroys the Acl_PBlock pool. To be called at shutdown,
+ * from function registered as SLAPI_PLUGIN_CLOSE_FN
+ */
+void
+acl_destroy_aclpb_pool ()
+{
+    Acl_PBlock      *currentPbBlock;
+    Acl_PBlock      *nextPbBlock;
+
+    if (!aclQueue) {
+        /* Nothing to do */
+        return;
+    }
+
+    /* Free all busy pbBlocks in queue */
+    currentPbBlock = aclQueue->aclq_busy;
+    while (currentPbBlock) {
+        nextPbBlock = currentPbBlock->aclpb_next;
+        acl__free_aclpb(&currentPbBlock);
+        currentPbBlock = nextPbBlock;
+    }
+
+    /* Free all free pbBlocks in queue */
+    currentPbBlock = aclQueue->aclq_free;
+    while (currentPbBlock) {
+        nextPbBlock = currentPbBlock->aclpb_next;
+        acl__free_aclpb(&currentPbBlock);
+        currentPbBlock = nextPbBlock;
+    }
+
+    slapi_ch_free((void**)&aclQueue);
 }
 
 /*
@@ -646,14 +709,63 @@ acl__malloc_aclpb ( )
 	/* hash table to store macro matched values from targets */
 	aclpb->aclpb_macro_ht = acl_ht_new();
 
-	return aclpb;
+    /* allocate arrays for handles */
+    aclpb->aclpb_handles_index = (int *)
+                slapi_ch_calloc (aclpb_max_selected_acls, sizeof (int));
+    aclpb->aclpb_base_handles_index = (int *)
+                slapi_ch_calloc (aclpb_max_selected_acls, sizeof (int));
+
+    /* allocate arrays for result cache */
+    aclpb->aclpb_cache_result = (r_cache_t *)
+            slapi_ch_calloc (aclpb_max_cache_results, sizeof (r_cache_t));
+
+    /* allocate arrays for target handles in eval_context */
+    aclpb->aclpb_curr_entryEval_context.acle_handles_matched_target = (int *)
+                slapi_ch_calloc (aclpb_max_selected_acls, sizeof (int));
+    aclpb->aclpb_prev_entryEval_context.acle_handles_matched_target = (int *)
+                slapi_ch_calloc (aclpb_max_selected_acls, sizeof (int));
+    aclpb->aclpb_prev_opEval_context.acle_handles_matched_target = (int *)
+                slapi_ch_calloc (aclpb_max_selected_acls, sizeof (int));
+
+    return aclpb;
 
 error:
-	if (aclpb->aclpb_acleval) ACL_EvalDestroy(NULL, NULL, aclpb->aclpb_acleval);
-	if (aclpb->aclpb_proplist) PListDestroy(aclpb->aclpb_proplist);
-	slapi_ch_free((void**)&aclpb);
+    acl__free_aclpb(&aclpb);
 
 	return NULL;
+}
+
+/*
+ * Free the acl pb. To be used at shutdown (SLAPI_PLUGIN_CLOSE_FN)
+ * when we free the aclQueue
+ */
+static void
+acl__free_aclpb ( Acl_PBlock **aclpb_ptr)
+{
+    Acl_PBlock      *aclpb = NULL;
+
+    if (aclpb_ptr == NULL || *aclpb_ptr == NULL)
+        return; // Nothing to do
+
+    aclpb = *aclpb_ptr;
+
+    if (aclpb->aclpb_acleval)
+        ACL_EvalDestroy(NULL, NULL, aclpb->aclpb_acleval);
+
+    if (aclpb->aclpb_proplist)
+        PListDestroy(aclpb->aclpb_proplist);
+
+    slapi_ch_free((void**)&(aclpb->aclpb_handles_index));
+    slapi_ch_free((void**)&(aclpb->aclpb_base_handles_index));
+    slapi_ch_free((void**)&(aclpb->aclpb_cache_result));
+    slapi_ch_free((void**)
+           &(aclpb->aclpb_curr_entryEval_context.acle_handles_matched_target));
+    slapi_ch_free((void**)
+           &(aclpb->aclpb_prev_entryEval_context.acle_handles_matched_target));
+    slapi_ch_free((void**)
+           &(aclpb->aclpb_prev_opEval_context.acle_handles_matched_target));
+
+    slapi_ch_free((void**)aclpb_ptr);
 }
 
 /* Initializes the aclpb */
