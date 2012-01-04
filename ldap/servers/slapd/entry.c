@@ -3664,13 +3664,6 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
     return;
 }
 
-static int
-entry_cmp_with_dn(const void *e1, const void *e2)
-{
-    return slapi_sdn_compare(slapi_entry_get_sdn_const(*(Slapi_Entry **)e1),
-                             slapi_entry_get_sdn_const(*(Slapi_Entry **)e2));
-}
-
 /* delete the entry (and sub entries if any) specified with dn */
 static void
 delete_subtree(Slapi_PBlock *pb, const char *dn, void *plg_id)
@@ -3731,69 +3724,17 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
     Slapi_Entry **oep, **cep;
     int rval = 0;
     Slapi_PBlock pb;
-#ifdef ENTRY_DIFF_DEBUG
-    int i;
-#endif
-
-    for (oep = old_entries; oep != NULL && *oep != NULL; oep++)
-        ;
-
-    qsort(old_entries, oep - old_entries, sizeof(Slapi_Entry *),
-          entry_cmp_with_dn);
-
-#ifdef ENTRY_DIFF_DEBUG
-    LDAPDebug(LDAP_DEBUG_TRACE, "Old entries:\n", 0, 0, 0);
-    for (oep = old_entries, i = 0; oep != NULL && *oep != NULL; oep++, i++)
-    {
-        LDAPDebug(LDAP_DEBUG_TRACE, "%d: %s\n", i, slapi_entry_get_dn_const(*oep), 0);
-    }
-#endif
-
-    for (cep = curr_entries; cep != NULL && *cep != NULL; cep++)
-        ;
-
-    qsort(curr_entries, cep - curr_entries, sizeof(Slapi_Entry *),
-          entry_cmp_with_dn);
-
-#ifdef ENTRY_DIFF_DEBUG
-    LDAPDebug(LDAP_DEBUG_TRACE, "New entries:\n", 0, 0, 0);
-    for (cep = curr_entries, i = 0; cep != NULL && *cep != NULL; cep++, i++)
-    {
-        LDAPDebug(LDAP_DEBUG_TRACE, "%d: %s\n", i, slapi_entry_get_dn_const(*cep), 0);
-    }
-#endif
+#define SLAPI_ENTRY_FLAG_DIFF_IN_BOTH 0x80
 
     if (NULL != logging_prestr && '\0' != *logging_prestr)
     {
         my_logging_prestr = slapi_ch_smprintf("%s ", logging_prestr);
     }
 
-    for (oep = old_entries; oep != NULL && *oep != NULL; )
-    {
-        for (cep = curr_entries; cep != NULL && *cep != NULL; )
-        {
-            int dncmp;
-			if ((*oep != NULL) && (*cep !=NULL)) {
-				dncmp = slapi_sdn_compare(slapi_entry_get_sdn_const(*oep),
-                                          slapi_entry_get_sdn_const(*cep));
-			} 
-			else if (*oep==NULL) {
-				dncmp=-1; // OEP is empty, it does not have the entry.
-			}
-			else if (*cep==NULL) {
-				dncmp=1; // CEP is empty, it does not have the entry.
-			}
-			else {
-				continue; // Not sure what happened, but cannot proceed.
-			}
-
-            if (force_update)
-            {
-                pblock_init(&pb);
-            }
-
-            if (0 == dncmp)
-            {
+    for (oep = old_entries; oep != NULL && *oep != NULL; oep++) {
+        for (cep = curr_entries; cep != NULL && *cep != NULL; cep++) {
+            if (!slapi_sdn_compare(slapi_entry_get_sdn_const(*oep),
+                                   slapi_entry_get_sdn_const(*cep))) {
                 Slapi_Mods *smods = slapi_mods_new();
                 LDAPMod *mod;
                 int isfirst = 1;
@@ -3847,61 +3788,71 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                 }
                 if (0 == isfirst && force_update && testall)
                 {
+                    pblock_init(&pb);
                     slapi_modify_internal_set_pb_ext(&pb, 
                                 slapi_entry_get_sdn_const(*oep),
                                 slapi_mods_get_ldapmods_byref(smods),
                                 NULL, NULL, plg_id, 0);
 
                     slapi_modify_internal_pb(&pb);
+                    pblock_done(&pb);
                 }
 
                 slapi_mods_free(&smods);
-                oep++; cep++;
+                slapi_entry_set_flag(*oep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH);
+                slapi_entry_set_flag(*cep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH);
             }
-            else if (dncmp < 0)    /* old_entries does not have cep */
-            {
-                rval = 1;
-                          
-                LDAPDebug(LDAP_DEBUG_ANY, "Del %sEntry %s\n", 
-                          my_logging_prestr, slapi_entry_get_dn_const(*cep), 0);
+        }
+    }
 
-                if (testall)
-                {
-                    if (force_update)
-                        delete_subtree(&pb, slapi_entry_get_dn_const(*cep), plg_id);
-                }
-                else
-                {
-                    goto out;
-                }
-                cep++;
-            }
-            else /* if (dncmp > 0)    curr_entries does not have oep */
+    for (oep = old_entries; oep != NULL && *oep != NULL; oep++) {
+        if (slapi_entry_flag_is_set(*oep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH)) {
+            slapi_entry_clear_flag(*oep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH);
+        } else {
+            rval = 1;
+            LDAPDebug(LDAP_DEBUG_ANY, "Add %sEntry %s\n", 
+                      my_logging_prestr, slapi_entry_get_dn_const(*oep), 0);
+            if (testall)
             {
-                rval = 1;
-                LDAPDebug(LDAP_DEBUG_ANY, "Add %sEntry %s\n", 
-                          my_logging_prestr, slapi_entry_get_dn_const(*oep), 0);
-                if (testall)
+                if (force_update)
                 {
-                    if (force_update)
-                    {
-                        LDAPMod **mods;
-                        slapi_entry2mods(*oep, NULL, &mods);
-                        slapi_add_internal_set_pb(&pb, 
-                            slapi_entry_get_dn_const(*oep), mods, NULL, plg_id, 0);
-                        slapi_add_internal_pb(&pb);
-                        freepmods(mods);
-                    }
+                    LDAPMod **mods;
+                    slapi_entry2mods(*oep, NULL, &mods);
+                    pblock_init(&pb);
+                    slapi_add_internal_set_pb(&pb, 
+                                              slapi_entry_get_dn_const(*oep), mods, NULL, plg_id, 0);
+                    slapi_add_internal_pb(&pb);
+                    freepmods(mods);
+                    pblock_done(&pb);
                 }
-                else
-                {
-                    goto out;
-                }
-                oep++;
             }
-            if (force_update)
+            else
             {
-                pblock_done(&pb);
+                goto out;
+            }
+        }
+    }
+            
+    for (cep = curr_entries; cep != NULL && *cep != NULL; cep++) {
+        if (slapi_entry_flag_is_set(*cep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH)) {
+            slapi_entry_clear_flag(*cep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH);
+        } else {
+            rval = 1;
+                          
+            LDAPDebug(LDAP_DEBUG_ANY, "Del %sEntry %s\n", 
+                      my_logging_prestr, slapi_entry_get_dn_const(*cep), 0);
+
+            if (testall)
+            {
+                if (force_update) {
+                    pblock_init(&pb);
+                    delete_subtree(&pb, slapi_entry_get_dn_const(*cep), plg_id);
+                    pblock_done(&pb);
+                }
+            }
+            else
+            {
+                goto out;
             }
         }
     }
