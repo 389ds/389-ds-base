@@ -1485,10 +1485,11 @@ slapi_dn_beparent(
  * }
  */
 const char*
-slapi_dn_find_parent( const char *dn )
+slapi_dn_find_parent_ext( const char *dn, int is_tombstone )
 {
 	const char *s;
 	int	inquote;
+	char *head;
 
 	if ( dn == NULL || *dn == '\0' ) {
 		return( NULL );
@@ -1498,9 +1499,29 @@ slapi_dn_find_parent( const char *dn )
 	 * An X.500-style distinguished name looks like this:
 	 * foo=bar,sha=baz,...
 	 */
+	head = (char *)dn;
+	if (is_tombstone) {
+		/* if it's a tombstone entry's DN, 
+		 * skip nsuniqueid=* part and do the job. */
+		if (0 == strncasecmp(dn, SLAPI_ATTR_UNIQUEID, 10)) {
+			/* exception: RUV_STORAGE_ENTRY_UNIQUEID */
+			/* dn is normalized */
+			if (0 == strncasecmp(dn + 11, RUV_STORAGE_ENTRY_UNIQUEID,
+			                     sizeof(RUV_STORAGE_ENTRY_UNIQUEID) - 1)) {
+				head = (char *)dn;
+			} else {
+				head = strchr(dn, ',');
+				if (head) {
+					head++;
+				} else {
+					head = (char *)dn;
+				}
+			}
+		}
+	}
 
 	inquote = 0;
-	for ( s = dn; *s; s++ ) {
+	for ( s = head; *s; s++ ) {
 		if ( *s == '\\' ) {
 			if ( *(s + 1) )
 				s++;
@@ -1526,6 +1547,24 @@ slapi_dn_find_parent( const char *dn )
 	}
 
 	return( NULL );
+}
+
+const char*
+slapi_dn_find_parent( const char *dn )
+{
+	return slapi_dn_find_parent_ext(dn, 0);
+}
+
+char*
+slapi_dn_parent_ext( const char *dn, int is_tombstone )
+{
+	const char *s = slapi_dn_find_parent_ext(dn, is_tombstone);
+
+	if ( s == NULL || *s == '\0' ) {
+		return( NULL );
+	}
+
+    return( slapi_ch_strdup( s ) );
 }
 
 char*
@@ -2262,9 +2301,12 @@ slapi_sdn_get_udn(const Slapi_DN *sdn)
 }
 
 void
-slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent)
+slapi_sdn_get_parent_ext(const Slapi_DN *sdn,
+                         Slapi_DN *sdn_parent,
+                         int is_tombstone)
 {
-    const char *parentdn= slapi_dn_parent(slapi_sdn_get_dn(sdn));
+    const char *parentdn =
+                       slapi_dn_parent_ext(slapi_sdn_get_dn(sdn), is_tombstone);
     slapi_sdn_set_dn_passin(sdn_parent,parentdn);
     sdn_parent->flag= slapi_setbit_uchar(sdn_parent->flag,FLAG_DN);
     PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
@@ -2272,7 +2314,16 @@ slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent)
 }
 
 void
-slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend)
+slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent)
+{
+    slapi_sdn_get_parent_ext(sdn, sdn_parent, 0);
+}
+
+void
+slapi_sdn_get_backend_parent_ext(const Slapi_DN *sdn,
+                                 Slapi_DN *sdn_parent,
+                                 const Slapi_Backend *backend,
+                                 int is_tombstone)
 {
     if(slapi_sdn_isempty(sdn) || slapi_be_issuffix( backend, sdn ))
 	{
@@ -2280,8 +2331,14 @@ slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slap
 	}
 	else
 	{
-	    slapi_sdn_get_parent(sdn,sdn_parent);
+	    slapi_sdn_get_parent_ext(sdn, sdn_parent, is_tombstone);
 	}
+}
+
+void
+slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend)
+{
+	slapi_sdn_get_backend_parent_ext(sdn, sdn_parent, backend, 0);
 }
 
 void

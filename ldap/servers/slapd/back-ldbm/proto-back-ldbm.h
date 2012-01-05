@@ -183,6 +183,7 @@ int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
  * dn2entry.c
  */
 struct backentry *dn2entry(Slapi_Backend *be, const Slapi_DN *sdn, back_txn *txn, int    *err);
+struct backentry *dn2entry_ext(Slapi_Backend *be, const Slapi_DN *sdn, back_txn *txn, int flags, int *err);
 struct backentry *dn2entry_or_ancestor(Slapi_Backend *be, const Slapi_DN *sdn, Slapi_DN *ancestor, back_txn *txn, int *err);
 struct backentry *dn2ancestor(Slapi_Backend *be,const Slapi_DN *sdn,Slapi_DN *ancestordn,back_txn *txn,int *err);
 int get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, int plock_parameter, int must_exist);
@@ -206,6 +207,7 @@ IDList * filter_candidates_ext( Slapi_PBlock *pb, backend *be, const char *base,
 struct backentry * find_entry2modify( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn );
 struct backentry * find_entry( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn );
 struct backentry * find_entry2modify_only( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn);
+struct backentry * find_entry2modify_only_ext( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, int flags, back_txn *txn);
 struct backentry * find_entry_only( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn);
 int check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, const char *callingfn);
 
@@ -687,6 +689,8 @@ int entryrdn_get_noancestorid();
 int entryrdn_compare_dups(DB *db, const DBT *a, const DBT *b);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
+int
+entryrdn_index_read_ext(backend *be, const Slapi_DN *sdn, ID *id, int flags, back_txn *txn);
 int entryrdn_rename_subtree(backend *be, const Slapi_DN *oldsdn, Slapi_RDN *newsrdn, const Slapi_DN *newsupsdn, ID id, back_txn *txn);
 int entryrdn_get_subordinates(backend *be, const Slapi_DN *sdn, ID id, IDList **subordinates, back_txn *txn);
 int entryrdn_lookup_dn(backend *be, const char *rdn, ID id, char **dn, back_txn *txn);

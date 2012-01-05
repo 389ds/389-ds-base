@@ -309,8 +309,8 @@ slapi_mods_add_mod_values( Slapi_Mods *smods, int modtype, const char *type, Sla
     LDAPMod *mod= (LDAPMod *) slapi_ch_malloc( sizeof(LDAPMod) );
     mod->mod_type = slapi_ch_strdup( type );
     mod->mod_op = modtype | LDAP_MOD_BVALUES;
-	mod->mod_bvalues= NULL;
-	valuearray_get_bervalarray(va,&mod->mod_bvalues);
+    mod->mod_bvalues= NULL;
+    valuearray_get_bervalarray(va,&mod->mod_bvalues);
     slapi_mods_add_ldapmod(smods, mod);
 }
 
@@ -659,7 +659,7 @@ slapi_mod_add_value(Slapi_Mod *smod, const struct berval *val)
 	PR_ASSERT(val!=NULL);
 /*	PR_ASSERT(slapi_mod_get_operation(smod) & LDAP_MOD_BVALUES);*/
 	
-    bervalarray_add_berval_fast(&(smod->mod->mod_bvalues),(struct berval*)val,smod->num_values,&smod->num_elements);
+	bervalarray_add_berval_fast(&(smod->mod->mod_bvalues),(struct berval*)val,smod->num_values,&smod->num_elements);
 	smod->num_values++;
 }
 

@@ -528,7 +528,7 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
     for (bit=31; bit >=0; bit--) {
         value    = (ip & (IPAddr_t) (1<<bit)) ? 1 : 0;
-        if (LAS_IP_IS_CONSTANT(node->action[value]))
+        if (LAS_IP_IS_CONSTANT(node->action[value])) {
             /* Reached a result, so return it */
             if (comparator == CMP_OP_EQ)
                 return((int)(PRSize)node->action[value]);
@@ -537,7 +537,7 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
                     LAS_EVAL_TRUE) ? 
                     LAS_EVAL_FALSE : LAS_EVAL_TRUE);
 
-        else
+        } else
             /* Move on to the next bit */
             node = node->action[value];
     }

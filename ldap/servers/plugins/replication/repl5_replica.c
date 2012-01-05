@@ -2512,8 +2512,8 @@ void get_reap_result (int rc, void *cb_data)
 	((reap_callback_data*)cb_data)->rc = rc;
 }
 
-static
-int process_reap_entry (Slapi_Entry *entry, void *cb_data)
+static int
+process_reap_entry (Slapi_Entry *entry, void *cb_data)
 {
 	char ebuf[BUFSIZ];
 	char deletion_csn_str[CSN_STRSIZE];
@@ -2525,13 +2525,14 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 	   if the value is set in the replica, we will know about it immediately */
 	PRBool *tombstone_reap_stop = ((reap_callback_data *)cb_data)->tombstone_reap_stop;
 	const CSN *deletion_csn = NULL;
+	int rc = -1;
 
 	/* abort reaping if we've been told to stop or we're shutting down */
 	if (*tombstone_reap_stop || g_get_shutdown()) {
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-						"_replica_reap_tombstones: the tombstone reap process "
+						"process_reap_entry: the tombstone reap process "
 						" has been stopped\n");
-		return -1;
+		return rc;
 	}
 
 	/* we only ask for the objectclass in the search - the deletion csn is in the 
@@ -2544,21 +2545,23 @@ int process_reap_entry (Slapi_Entry *entry, void *cb_data)
 		(!is_ruv_tombstone_entry(entry))) {
 		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-							"_replica_reap_tombstones: removing tombstone %s "
+							"process_reap_entry: removing tombstone %s "
 							"because its deletion csn (%s) is less than the "
 							"purge csn (%s).\n", 
 							escape_string(slapi_entry_get_dn(entry), ebuf),
 							csn_as_string(deletion_csn, PR_FALSE, deletion_csn_str),
 							csn_as_string(purge_csn, PR_FALSE, purge_csn_str));
 		}
-		_delete_tombstone(slapi_entry_get_dn(entry),
-			slapi_entry_get_uniqueid(entry), 0);
-		(*num_purged_entriesp)++;
+		if (slapi_entry_attr_get_ulong(entry, "tombstonenumsubordinates") < 1) {
+			_delete_tombstone(slapi_entry_get_dn(entry),
+			                  slapi_entry_get_uniqueid(entry), 0);
+			(*num_purged_entriesp)++;
+		}
 	}
 	else {
 		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-							"_replica_reap_tombstones: NOT removing tombstone "
+							"process_reap_entry: NOT removing tombstone "
 							"%s\n", escape_string(slapi_entry_get_dn(entry),ebuf));
 		}
 	}
@@ -2633,10 +2636,12 @@ _replica_reap_tombstones(void *arg)
 
 		/* we just need the objectclass - for the deletion csn
 		   and the dn and nsuniqueid - for possible deletion
-		   saves time to return only 2 attrs
+		   and tombstonenumsubordinates to check if it has numsubordinates
+		   saves time to return only 3 attrs
 		*/
 		charray_add(&attrs, slapi_ch_strdup("objectclass"));
 		charray_add(&attrs, slapi_ch_strdup("nsuniqueid"));
+		charray_add(&attrs, slapi_ch_strdup("tombstonenumsubordinates"));
 
 		ctrls = (LDAPControl **)slapi_ch_calloc (3, sizeof (LDAPControl *));
 		ctrls[0] = create_managedsait_control();
@@ -2657,10 +2662,10 @@ _replica_reap_tombstones(void *arg)
 		   is set, the reap process will know about it immediately */
 		cb_data.tombstone_reap_stop = &(replica->tombstone_reap_stop);
 
-		slapi_search_internal_callback_pb (pb, &cb_data /* callback data */,
-										   get_reap_result /* result callback */,
-										   process_reap_entry /* entry callback */,
-										   NULL /* referral callback*/);
+		slapi_search_internal_callback_pb(pb, &cb_data /* callback data */,
+										  get_reap_result /* result callback */,
+										  process_reap_entry /* entry callback */,
+										  NULL /* referral callback*/);
 
 		charray_free(attrs);
 

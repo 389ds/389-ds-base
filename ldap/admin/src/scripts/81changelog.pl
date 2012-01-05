@@ -21,9 +21,9 @@ sub runinst {
     system("/usr/bin/db_checkpoint -h $changelogdir -1");
 
     # Remove old db region files and transaction logs
-    system("rm $changelogdir/__db.*");
-    system("rm $changelogdir/log.*");
-    system("rm $changelogdir/guardian");
+    system("rm -f $changelogdir/__db.*");
+    system("rm -f $changelogdir/log.*");
+    system("rm -f $changelogdir/guardian");
 
     return ();
 }

@@ -44,6 +44,13 @@
 
 #include "back-ldbm.h"
 
+
+static struct backentry *find_entry_internal_dn(Slapi_PBlock *pb, backend *be, const Slapi_DN *sdn, int lock, back_txn *txn, int flags);
+static struct backentry * find_entry_internal(Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, int lock, back_txn *txn, int flags);
+/* The flags take these values */
+#define FE_TOMBSTONE_INCLUDED TOMBSTONE_INCLUDED /* :1 defined in back-ldbm.h */
+#define FE_REALLY_INTERNAL 0x2
+
 int
 check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, const char *callingfn) /* JCM - Move somewhere more appropriate */
 {
@@ -107,7 +114,7 @@ find_entry_internal_dn(
     const Slapi_DN *sdn,
     int				lock,
 	back_txn		*txn,
-	int				really_internal
+	int				flags
 )
 { 
 	struct backentry *e;
@@ -120,7 +127,8 @@ find_entry_internal_dn(
 	slapi_pblock_get( pb, SLAPI_MANAGEDSAIT, &managedsait );
 
 	while ( (tries < LDBM_CACHE_RETRY_COUNT) && 
-	        (e = dn2entry( be, sdn, txn, &err )) != NULL )
+	        (e = dn2entry_ext( be, sdn, txn, flags & TOMBSTONE_INCLUDED, &err ))
+	        != NULL )
 	{
 		/*
 		 * we found the entry. if the managedsait control is set,
@@ -129,7 +137,7 @@ find_entry_internal_dn(
 		 * client a referral to the ref'ed entry if a ref is present,
 		 * returning the entry to the caller if not.
 		 */
-		if ( !managedsait && !really_internal) {
+		if ( !managedsait && !(flags & FE_REALLY_INTERNAL)) {
 			/* see if the entry is a referral */
 			if(check_entry_for_referral(pb, e->ep_entry, NULL, "find_entry_internal_dn"))
 			{
@@ -168,7 +176,7 @@ find_entry_internal_dn(
 	 * referral to the client. if it doesn't, or managedsait
 	 * is set, we return no such object.
 	 */
-	if (!really_internal) {
+	if (!(flags & FE_REALLY_INTERNAL)) {
 		struct backentry *me;
 		Slapi_DN ancestorsdn;
 		slapi_sdn_init(&ancestorsdn);
@@ -253,7 +261,7 @@ find_entry_internal_uniqueid(
 		LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
 		0, NULL );
 	LDAPDebug( LDAP_DEBUG_TRACE, 
-		"<= find_entry_internal not found; uniqueid = (%s)\n",
+		"<= find_entry_internal_uniqueid not found; uniqueid = (%s)\n",
 	    uniqueid, 0, 0 );
 	return( NULL );
 }
@@ -265,7 +273,7 @@ find_entry_internal(
     const entry_address *addr,
     int			lock,
 	back_txn *txn,
-	int really_internal
+	int flags
 )
 {
 	/* check if we should search based on uniqueid or dn */
@@ -283,7 +291,7 @@ find_entry_internal(
 		           slapi_sdn_get_dn(addr->sdn), lock, 0 );
 		if (addr->sdn) {
 			entry = find_entry_internal_dn (pb, be, addr->sdn, 
-			                                lock, txn, really_internal);
+			                                lock, txn, flags);
 		} else {
 			LDAPDebug0Args( LDAP_DEBUG_ANY,
 			                "find_entry_internal: Null target dn\n" );
@@ -302,7 +310,7 @@ find_entry(
 	back_txn *txn
 )
 {
-	return( find_entry_internal( pb, be, addr, 0/*!lock*/, txn, 0/*!really_internal*/ ) );
+	return( find_entry_internal( pb, be, addr, 0/*!lock*/, txn, 0/*flags*/ ) );
 }
 
 struct backentry *
@@ -313,7 +321,7 @@ find_entry2modify(
 	back_txn *txn
 )
 {
-	return( find_entry_internal( pb, be, addr, 1/*lock*/, txn, 0/*!really_internal*/ ) );
+	return( find_entry_internal( pb, be, addr, 1/*lock*/, txn, 0/*flags*/ ) );
 }
 
 /* New routines which do not do any referral stuff.
@@ -328,7 +336,7 @@ find_entry_only(
 	back_txn *txn
 )
 {
-	return( find_entry_internal( pb, be, addr, 0/*!lock*/, txn, 1/*really_internal*/ ) );
+	return( find_entry_internal( pb, be, addr, 0/*!lock*/, txn, FE_REALLY_INTERNAL ) );
 }
 
 struct backentry *
@@ -336,8 +344,22 @@ find_entry2modify_only(
     Slapi_PBlock		*pb,
     Slapi_Backend *be,
     const entry_address *addr,
-	back_txn *txn
+    back_txn *txn
 )
 {
-	return( find_entry_internal( pb, be, addr, 1/*lock*/, txn, 1/*really_internal*/ ) );
+	return( find_entry_internal( pb, be, addr, 1/*lock*/, txn, FE_REALLY_INTERNAL ) );
+}
+
+struct backentry *
+find_entry2modify_only_ext(
+    Slapi_PBlock		*pb,
+    Slapi_Backend *be,
+    const entry_address *addr,
+    int flags,
+    back_txn *txn
+
+)
+{
+	return( find_entry_internal( pb, be, addr, 1/*lock*/, txn, 
+		                         FE_REALLY_INTERNAL | flags ));
 }

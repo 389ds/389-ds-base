@@ -167,6 +167,7 @@ typedef unsigned short u_int16_t;
 #define BDB_BACKEND     "libback-ldbm" /* This backend plugin */
 #define BDB_NEWIDL      "newidl"       /* new idl format */
 #define BDB_RDNFORMAT   "rdn-format"   /* Subtree rename enabled */
+#define BDB_RDNFORMAT_VERSION   "1"    /* rdn-format version (by default, 0) */
 #define BDB_DNFORMAT    "dn-4514"      /* DN format RFC 4514 compliant */
 
 #define DBVERSION_NEWIDL      0x1
@@ -825,6 +826,7 @@ typedef struct _back_search_result_set
 #define LDBM_ENTRYDN_STR            "entrydn"
 #define LDBM_ENTRYRDN_STR           "entryrdn"
 #define LDBM_NUMSUBORDINATES_STR    "numsubordinates"
+#define LDBM_TOMBSTONE_NUMSUBORDINATES_STR    "tombstonenumsubordinates"
 #define LDBM_PARENTID_STR           "parentid"
 
 /* Name of psuedo attribute used to track default indexes */
@@ -858,5 +860,17 @@ typedef struct _back_search_result_set
 
 /* For dblayer_get_aux_id2entry_ext */
 #define DBLAYER_AUX_ID2ENTRY_TMP 0x1
+
+/* operation for parent_update_on_childchange */
+#define PARENTUPDATE_ADD       0x1
+#define PARENTUPDATE_DEL       0x2
+#define PARENTUPDATE_MASK      (PARENTUPDATE_ADD|PARENTUPDATE_DEL)
+
+#define PARENTUPDATE_CREATE_TOMBSTONE  0x10
+#define PARENTUPDATE_DELETE_TOMBSTONE  0x20
+#define PARENTUPDATE_TOMBSTONE_MASK    (PARENTUPDATE_CREATE_TOMBSTONE|PARENTUPDATE_DELETE_TOMBSTONE)
+
+#define TOMBSTONE_INCLUDED 0x1 /* used by find_entry2modify_only_ext and 
+                                  entryrdn_index_read */
 
 #endif /* _back_ldbm_h_ */

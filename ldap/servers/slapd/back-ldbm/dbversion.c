@@ -113,7 +113,8 @@ dbversion_write(struct ldbminfo *li, const char *directory,
             ptr = buf + len;
         }
         if (entryrdn_get_switch() && (flags & DBVERSION_RDNFORMAT)) {
-            PR_snprintf(ptr, sizeof(buf) - len, "/%s", BDB_RDNFORMAT);
+            PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s", 
+                        BDB_RDNFORMAT, BDB_RDNFORMAT_VERSION);
             len = strlen(buf);
             ptr = buf + len;
         }

@@ -639,7 +639,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
          */
         if ( parententry!=NULL )
         {
-            retval = parent_update_on_childchange(&parent_modify_context,2,NULL); /* 2==delete */
+            retval = parent_update_on_childchange(&parent_modify_context,
+                                                  PARENTUPDATE_DEL, NULL);
             /* The parent modify context now contains info needed later */
             if (0 != retval)
             {
@@ -648,7 +649,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         }
         if ( newparententry!=NULL )
         {
-            retval = parent_update_on_childchange(&newparent_modify_context,1,NULL); /* 1==add */
+            retval = parent_update_on_childchange(&newparent_modify_context,
+                                                  PARENTUPDATE_ADD, NULL);
             /* The newparent modify context now contains info needed later */
             if (0 != retval)
             {
@@ -696,7 +698,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
      * So, we believe that no code up till here actually added anything
      * to persistent store. From now on, we're transacted
      */
-	txn.back_txn_txn = NULL; /* ready to create the child transaction */
+    txn.back_txn_txn = NULL; /* ready to create the child transaction */
     for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++)
     {
         if (retry_count > 0)

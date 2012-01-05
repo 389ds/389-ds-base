@@ -631,10 +631,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 	   subordinate count specifically */
 	if (NULL != parententry)
 	{
-		retval = parent_update_on_childchange(&parent_modify_c,1,NULL); /* 1==add */\
+		retval = parent_update_on_childchange(&parent_modify_c,
+		                                      PARENTUPDATE_ADD, NULL);
 		/* The modify context now contains info needed later */
 		if (0 != retval) {
-	   		ldap_result_code= LDAP_OPERATIONS_ERROR;
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return;
 		}
 		parent_found = 1;

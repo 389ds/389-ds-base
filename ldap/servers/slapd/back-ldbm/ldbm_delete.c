@@ -95,6 +95,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	char *entryusn_str = NULL;
 	char *prev_entryusn_str = NULL;
 	Slapi_Entry *orig_entry = NULL;
+	Slapi_DN parentsdn;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -315,54 +316,58 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	 * seems to deadlock the database when dblayer_txn_begin is
 	 * called.
 	 */
-	if (!delete_tombstone_entry)
+	slapi_sdn_init(&parentsdn);
+	slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, pb->pb_backend, is_tombstone_entry);
+	if ( !slapi_sdn_isempty(&parentsdn) )
 	{
-	    Slapi_DN parentsdn;
+		struct backentry *parent = NULL;
+		entry_address parent_addr;
 
-		slapi_sdn_init(&parentsdn);
-		slapi_sdn_get_backend_parent(sdnp, &parentsdn, pb->pb_backend);
-    	if ( !slapi_sdn_isempty(&parentsdn) )
-		{
-    		struct backentry *parent = NULL;
-			entry_address parent_addr;
+		parent_addr.sdn = &parentsdn;
+		parent_addr.uniqueid = NULL;
+		parent = find_entry2modify_only_ext(pb, be, &parent_addr,
+		                                    TOMBSTONE_INCLUDED, &txn);
+		if (NULL != parent) {
+			int isglue;
+			size_t haschildren = 0;
+			int op = PARENTUPDATE_DEL;
 
-			parent_addr.sdn = &parentsdn;
-			parent_addr.uniqueid = NULL;
-    		parent = find_entry2modify_only(pb,be,&parent_addr,&txn);
-    		if (NULL != parent) {
-				int isglue;
-				size_t haschildren = 0;
+			/* Unfortunately findentry doesn't tell us whether it just 
+			 * didn't find the entry, or if there was an error, so we 
+			 * have to assume that the parent wasn't found */
+			parent_found = 1;
 
-    			/* Unfortunately findentry doesn't tell us whether it just didn't find the entry, or if
-    			   there was an error, so we have to assume that the parent wasn't found */
-    			parent_found = 1;
-
-				/* Modify the parent in memory */
-    			modify_init(&parent_modify_c,parent);
-    			retval = parent_update_on_childchange(&parent_modify_c,2,&haschildren); /* 2==delete */\
-    			/* The modify context now contains info needed later */
-    			if (0 != retval) {
-    				ldap_result_code= LDAP_OPERATIONS_ERROR;
-    				goto error_return;
-    			}
-				
-				/*
-				 * Replication urp_post_delete will delete the parent entry
-				 * if it is a glue entry without any more children.
-				 * Those urp condition checkings are done here to
-				 * save unnecessary entry dup.
-				 */
-				isglue = slapi_entry_attr_hasvalue (parent_modify_c.new_entry->ep_entry,
-							SLAPI_ATTR_OBJECTCLASS, "glue");
-				if ( opcsn && parent_modify_c.new_entry && !haschildren && isglue)
-				{
-					slapi_pblock_set ( pb, SLAPI_DELETE_GLUE_PARENT_ENTRY,
-						slapi_entry_dup (parent_modify_c.new_entry->ep_entry) );
-				}
-    		}		
-    	}
-		slapi_sdn_done(&parentsdn);
+			/* Modify the parent in memory */
+			modify_init(&parent_modify_c,parent);
+			if (create_tombstone_entry) {
+				op |= PARENTUPDATE_CREATE_TOMBSTONE;
+			} else if (delete_tombstone_entry) {
+				op |= PARENTUPDATE_DELETE_TOMBSTONE;
+			}
+			retval = parent_update_on_childchange(&parent_modify_c,
+			                                      op, &haschildren);
+			/* The modify context now contains info needed later */
+			if (0 != retval) {
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+			
+			/*
+			 * Replication urp_post_delete will delete the parent entry
+			 * if it is a glue entry without any more children.
+			 * Those urp condition checkings are done here to
+			 * save unnecessary entry dup.
+			 */
+			isglue = slapi_entry_attr_hasvalue (parent_modify_c.new_entry->ep_entry,
+						SLAPI_ATTR_OBJECTCLASS, "glue");
+			if ( opcsn && parent_modify_c.new_entry && !haschildren && isglue)
+			{
+				slapi_pblock_set ( pb, SLAPI_DELETE_GLUE_PARENT_ENTRY,
+					slapi_entry_dup (parent_modify_c.new_entry->ep_entry) );
+			}
+	    }		
 	}
+	slapi_sdn_done(&parentsdn);
     
 	if(create_tombstone_entry)
 	{
@@ -676,8 +681,31 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			if (entryrdn_get_switch()) /* subtree-rename: on */
 			{
+				Slapi_Attr *attr;
+				Slapi_Value **svals;
+				/* To maintain tombstonenumsubordinates,
+				 * parentid is needed for tombstone, as well. */
+				slapi_entry_attr_find(tombstone->ep_entry, LDBM_PARENTID_STR,
+                                      &attr);
+				if (attr) {
+					svals = attr_get_present_values(attr);
+					retval = index_addordel_values_sv(be, LDBM_PARENTID_STR, 
+					                                  svals, NULL, e->ep_id, 
+					                                  BE_INDEX_ADD, &txn);
+					if ( retval ) {
+						LDAPDebug( LDAP_DEBUG_TRACE, 
+								"delete (deleting %s) failed, err=%d %s\n",
+								LDBM_PARENTID_STR, retval,
+								(msg = dblayer_strerror( retval )) ? msg : "" );
+						if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+						DEL_SET_ERROR(ldap_result_code, 
+						              LDAP_OPERATIONS_ERROR, retry_count);
+						goto error_return;
+					}
+				}
+				entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
 				retval =
-						entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
+				        entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
 					LDAPDebug0Args( LDAP_DEBUG_ARGS,
 								"delete (adding entryrdn) DB_LOCK_DEADLOCK\n");

@@ -57,12 +57,24 @@ dn2entry(
     int			*err
 )
 {
+	return dn2entry_ext(be, sdn, txn, 0 /* flags */, err);
+}
+
+struct backentry *
+dn2entry_ext(
+    Slapi_Backend *be,
+    const Slapi_DN	*sdn,
+    back_txn		*txn,
+    int			flags,
+    int			*err
+)
+{
 	ldbm_instance *inst;
 	struct berval		ndnv;
 	struct backentry	*e = NULL;
 	char *indexname = "";
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dn2entry \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> dn2entry_ext \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
 
 	inst = (ldbm_instance *) be->be_instance_info;
 
@@ -77,13 +89,14 @@ dn2entry(
 		/* convert dn to entry id */
 		if (entryrdn_get_switch())
 		{ /* subtree-rename: on */
-			*err = entryrdn_index_read(be, sdn, &id, txn);
+			*err = entryrdn_index_read_ext(be, sdn, &id,
+			                               flags&TOMBSTONE_INCLUDED, txn);
 			if (*err)
 			{
 				if (DB_NOTFOUND != *err)
 				{
 					LDAPDebug2Args( LDAP_DEBUG_ANY,
-									"dn2entry: Failed to get id for %s "
+									"dn2entry_ext: Failed to get id for %s "
 									"from entryrdn index (%d)\n",
 									slapi_sdn_get_dn(sdn), *err);
 				}
@@ -135,14 +148,14 @@ dn2entry(
 				 * from the id2entry index. what should we do?
 				 */
 				LDAPDebug( LDAP_DEBUG_ANY,
-					    "dn2entry: the dn \"%s\" was in the %s index, "
+					    "dn2entry_ext: the dn \"%s\" was in the %s index, "
 					    "but it did not exist in id2entry of instance %s.\n",
 					    slapi_sdn_get_dn(sdn), indexname, inst->inst_name);
 			}
 		}
 	}
 bail:
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= dn2entry %p\n", e, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= dn2entry_ext %p\n", e, 0, 0 );
 	return( e );
 }
 
@@ -281,12 +294,11 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
 		if(entry!=NULL)
 		{
 			ldbm_instance *inst;
-			slapi_pblock_set( pb, plock_parameter, slapi_entry_dup(entry->ep_entry));
+			slapi_pblock_set( pb, plock_parameter, slapi_entry_dup(entry->ep_entry) );
 			inst = (ldbm_instance *) be->be_instance_info;
 			CACHE_RETURN( &inst->inst_cache, &entry );
 		}
 	}
-	/* JCMREPL - Free the backentry? */
 	return rc;
 }
 

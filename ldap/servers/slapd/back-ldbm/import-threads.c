@@ -2354,17 +2354,22 @@ import_foreman(void *param)
             goto error;
         }
 
-        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
+        if (entryrdn_get_switch() /* subtree-rename: on */ ||
+            !slapi_entry_flag_is_set(fi->entry->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* parentid index
              * (we have to do this here, because the parentID is dependent on
              * looking up by entrydn/entryrdn.)
-             * Only add to the parent index if the entry is not a tombstone.
+             * Only add to the parent index if the entry is not a tombstone &&
+             * subtree-rename is off.
              */
             ret = foreman_do_parentid(job, fi, parentid_ai);
             if (ret != 0)
                 goto error;
+        }
             
+        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
+                                     SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* Lastly, before we're finished with the entry, pass it to the 
                vlv code to see whether it's within the scope a VLV index. */
             vlv_grok_new_import_entry(fi->entry, be);

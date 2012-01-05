@@ -199,3 +199,5 @@ error_import_check_log = Error: unable to import file '%s' for backend '%s' - %s
 error_could_not_parse_nsstate = Error: could not parse nsState from %s.  Value: %s\n
 error_linking_file = Error: could not link '%s' to '%s': %s
 error_running_command = Error: command '%s' failed - output [%s] error [%s]
+error_opening_file = Opening file '%s' failed.  Error: %s\n
+error_format_error = '%s' has invalid format.\n

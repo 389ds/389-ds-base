@@ -1346,8 +1346,8 @@ int import_main_offline(void *arg)
         }
     }
 
-    /* Now do the numsubordinates attribute */
     import_log_notice(job, "Indexing complete.  Post-processing...");
+    /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
     if ( (!(job->flags & FLAG_REINDEXING) || (job->flags & FLAG_DN2RDN)) &&
          (ret = update_subordinatecounts(be, job->mothers, job->encrypt, NULL))
@@ -1355,6 +1355,7 @@ int import_main_offline(void *arg)
         import_log_notice(job, "Failed to update numsubordinates attributes");
         goto error;
     }
+    import_log_notice(job, "Generating numSubordinates complete.");
 
     if (!entryrdn_get_noancestorid()) {
         /* And the ancestorid index */

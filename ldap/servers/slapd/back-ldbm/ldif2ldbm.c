@@ -211,6 +211,7 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
     char *pdn;
     ID pid = 0;
     int save_old_pid = 0;
+    int is_tombstone = 0;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
@@ -225,8 +226,11 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
         *status = IMPORT_ADD_OP_ATTRS_OK;
     }
 
+    is_tombstone = slapi_entry_flag_is_set(ep->ep_entry,
+                                           SLAPI_ENTRY_FLAG_TOMBSTONE);
     /* parentid */
-    if ( (pdn = slapi_dn_parent( backentry_get_ndn(ep))) != NULL ) {
+    if ((pdn = slapi_dn_parent_ext(backentry_get_ndn(ep), is_tombstone))
+                                                                != NULL) {
         int err = 0;
 
         /*
@@ -242,7 +246,8 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
             Slapi_DN sdn;
             slapi_sdn_init(&sdn);
             slapi_sdn_set_dn_byval(&sdn, pdn);
-            err = entryrdn_index_read(be, &sdn, &pid, NULL);
+            err = entryrdn_index_read_ext(be, &sdn, &pid, 
+                                          TOMBSTONE_INCLUDED, NULL);
             slapi_sdn_done(&sdn);
             if (DB_NOTFOUND == err) {
                 /* 
@@ -378,6 +383,7 @@ static int import_update_entry_subcount(backend *be, ID parentid,
     char value_buffer[20]; /* enough digits for 2^64 children */
     struct backentry *e = NULL;
     int isreplace = 0;
+    char *numsub_str = numsubordinates;
 
     /* Get hold of the parent */
     e = id2entry(be,parentid,NULL,&ret);
@@ -391,14 +397,19 @@ static int import_update_entry_subcount(backend *be, ID parentid,
     modify_init(&mc,e);
     mc.attr_encrypt = isencrypted;
     sprintf(value_buffer,"%lu",sub_count);
-    /* attr numsubordinates could already exist in the entry,
-       let's check whether it's already there or not */
-    isreplace = (attrlist_find(e->ep_entry->e_attrs, numsubordinates) != NULL);
+    /* If it is a tombstone entry, add tombstonesubordinates instead of
+     * numsubordinates. */
+    if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+        numsub_str = tombstone_numsubordinates;
+    }
+    /* attr numsubordinates/tombstonenumsubordinates could already exist in 
+     * the entry, let's check whether it's already there or not */
+    isreplace = (attrlist_find(e->ep_entry->e_attrs, numsub_str) != NULL);
     {
         int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
         Slapi_Mods *smods= slapi_mods_new();
 
-        slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsubordinates,
+        slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsub_str,
                        strlen(value_buffer), value_buffer);
         ret = modify_apply_mods(&mc,smods); /* smods passed in */
     }
@@ -563,7 +574,7 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
                 idl = idl_fetch(be,db,&key,NULL,NULL,&ret);
                 if ( (NULL == idl) || (0 != ret)) {
                     ldbm_nasty(sourcefile,4,ret);
-                                        dblayer_release_index_file( be, ai, db );
+                               dblayer_release_index_file( be, ai, db );
                     return (0 == ret) ? -1 : ret;
                 }
                 /* The number of IDs in the IDL tells us the number of
@@ -1487,8 +1498,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                                       run_from_cmdline, NULL);
                                 if (rc) {
                                     LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                                          "ldbm2ldif: Failed to get dn of ID "
-                                          "%d\n", pid);
+                                                "ldbm2ldif: Skip ID %d\n", pid);
                                     slapi_ch_free_string(&rdn);
                                     slapi_rdn_done(&psrdn);
                                     backentry_free(&ep);
@@ -2054,8 +2064,15 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                                       run_from_cmdline, NULL);
                                 if (rc) {
                                     LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                                          "ldbm2ldif: Failed to get dn of ID "
-                                          "%d\n", pid);
+                                        "ldbm2index: Skip ID %d\n", pid);
+                                    LDAPDebug(LDAP_DEBUG_ANY,
+                                        "Parent entry (ID %d) of entry. "
+                                        "(ID %d, rdn: %s) does not exist.\n",
+                                        pid, temp_id, rdn);
+                                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                        "We recommend to export the backend "
+                                        "instance %s and reimport it.\n",
+                                        instance_name);
                                     slapi_ch_free_string(&rdn);
                                     slapi_rdn_done(&psrdn);
                                     backentry_free(&ep);
@@ -3186,7 +3203,7 @@ _get_and_add_parent_rdns(backend *be,
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                             "_get_and_add_parent_rdns: Failed to position "
-                            "at ID " ID_FMT "\n", id);
+                            "cursor at ID " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is allocated in get_value_from_string */

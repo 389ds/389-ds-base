@@ -66,6 +66,7 @@ static const int import_sleep_time = 200;	/* in millisecs */
 
 extern char *numsubordinates;
 extern char *hassubordinates;
+extern char *tombstone_numsubordinates;
 
 typedef struct _import_worker_info ImportWorkerInfo;
 typedef struct _import_index_info IndexInfo;

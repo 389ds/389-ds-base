@@ -802,7 +802,7 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent)
         printf("Can't create db cursor: %s\n", db_strerror(rc));
         exit(1);
     }
-    snprintf(buffer, sizeof(buffer), "%u:%s", id, nrdn);
+    snprintf(buffer, sizeof(buffer), "%u:", id);
     keybuf = strdup(buffer);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;
@@ -847,7 +847,7 @@ display_entryrdn_parent(DB *db, ID id, const char *nrdn, int indent)
         printf("Can't create db cursor: %s\n", db_strerror(rc));
         exit(1);
     }
-    snprintf(buffer, sizeof(buffer), "P%d:%s", id, nrdn);
+    snprintf(buffer, sizeof(buffer), "P%d:", id);
     keybuf = strdup(buffer);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;
@@ -889,7 +889,7 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent)
         exit(1);
     }
     indent += 2;
-    snprintf(buffer, sizeof(buffer), "C%d:%s", id, nrdn);
+    snprintf(buffer, sizeof(buffer), "C%d:", id);
     keybuf = strdup(buffer);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;

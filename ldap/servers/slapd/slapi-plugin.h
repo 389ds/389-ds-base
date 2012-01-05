@@ -2519,6 +2519,18 @@ const char * slapi_sdn_get_udn(const Slapi_DN *sdn);
 void slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent);
 
 /**
+ * Fills in an existing \c Slapi_DN structure with the parent DN of the passed in \c Slapi_DN.
+ *
+ * \param sdn Pointer to the \c Slapi_DN structure containing the DN whose parent is desired.
+ * \param sdn_parent Pointer to the \c Slapi_DN structure where the parent DN is returned.
+ *        The existing contents (if any) will be cleared before the new DN value is set.
+ * \param is_tombstone If non-zero, the special leaf rdn "nsuniqueid=.." is ignored.
+ * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
+ * \see slapi_sdn_get_backend_parent()
+ */
+void slapi_sdn_get_parent_ext(const Slapi_DN *sdn,Slapi_DN *sdn_parent,int is_tombstone);
+
+/**
  * Fills in an existing \c Slapi_DN structure with the parent DN of an entry within a specific backend.
  *
  * The parent DN is returned in \c sdn_parent, unless \c sdn is empty or is a suffix of the backend
@@ -2532,6 +2544,22 @@ void slapi_sdn_get_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent);
  * \see slapi_sdn_get_parent()
  */
 void slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend);
+
+/**
+ * Fills in an existing \c Slapi_DN structure with the parent DN of an entry within a specific backend.
+ *
+ * The parent DN is returned in \c sdn_parent, unless \c sdn is empty or is a suffix of the backend
+ * itself. In this case, \c sdn_parent is empty.
+ *
+ * \param sdn Pointer to the \c Slapi_DN structure containing the DN whose parent is desired.
+ * \param sdn_parent Pointer to the \c Slapi_DN structure where the parent DN is returned.
+ *        The existing contents (if any) will be cleared before the new DN value is set.
+ * \param backend Backend to search for the parent of \c sdn.
+ * \param is_tombstone If non-zero, the special leaf rdn "nsuniqueid=.." is ignored.
+ * \warning A \c Slapi_DN structure for \c sdn_parent must be allocated before calling this function.
+ * \see slapi_sdn_get_parent()
+ */
+void slapi_sdn_get_backend_parent_ext(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slapi_Backend *backend,int is_tombstone);
 
 /**
  * Return the size of a \c Slapi_DN structure.
@@ -3372,6 +3400,15 @@ char *slapi_dn_beparent( Slapi_PBlock *pb, const char *dn );
 const char *slapi_dn_find_parent( const char *dn );
 
 /**
+ * Finds the parent DN of a DN within the same string.
+ *
+ * \param dn The DN whose parent DN is desired.
+ * \param is_tombstone If non-zero, the special leaf rdn "nsuniqueid=.." is ignored.
+ * \return A pointer to the parent DN within \c dn.
+ */
+const char *slapi_dn_find_parent_ext( const char *dn, int is_tombstone );
+
+/**
  * Gets the parent DN of a given DN.
  *
  * \param dn The DN whose parent is desired.
@@ -3380,6 +3417,17 @@ const char *slapi_dn_find_parent( const char *dn );
  * \deprecated Use slapi_sdn_get_parent() instead.
  */
 char *slapi_dn_parent( const char *dn );
+
+/**
+ * Gets the parent DN of a given DN.
+ *
+ * \param dn The DN whose parent is desired.
+ * \param is_tombstone If non-zero, the special leaf rdn "nsuniqueid=.." is ignored.
+ * \return A pointer to the parent DN of \c dn.
+ * \warning The caller must free the returned DN when finished with it.
+ * \deprecated Use slapi_sdn_get_parent() instead.
+ */
+char *slapi_dn_parent_ext( const char *dn, int is_tombstone );
 
 /**
  * Checks if a DN belongs to a suffix.

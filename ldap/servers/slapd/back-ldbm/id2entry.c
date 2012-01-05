@@ -156,8 +156,11 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
                 if (parententry) {
                     parentdn = slapi_entry_get_dn_const(parententry->ep_entry);
                     if (parentdn) {
-                        myparentdn = 
-                         slapi_dn_parent(slapi_entry_get_dn_const(e->ep_entry));
+                        int is_tombstone = slapi_entry_flag_is_set(e->ep_entry,
+                                                    SLAPI_ENTRY_FLAG_TOMBSTONE);
+                        myparentdn = slapi_dn_parent_ext(
+                                          slapi_entry_get_dn_const(e->ep_entry),
+                                          is_tombstone);
                         if (myparentdn && PL_strcmp(parentdn, myparentdn)) {
                             Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
                             char *newdn = NULL;

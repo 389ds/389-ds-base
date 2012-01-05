@@ -417,12 +417,25 @@ index_addordel_entry(
         }
         slapi_sdn_done(&parent);
         if (entryrdn_get_switch()) { /* subtree-rename: on */
-            /* Even if this is a tombstone, we have to add it to entryrdn;
-             * This is needed for RUV.
+            Slapi_Attr* attr;
+            /* Even if this is a tombstone, we have to add it to entryrdn
+             * to maintain the full DN
              */ 
             result = entryrdn_index_entry(be, e, flags, txn);
             if ( result != 0 ) {
                 return( result );
+            }
+            /* To maintain tombstonenumsubordinates,
+             * parentid is needed for tombstone, as well. */
+            slapi_entry_attr_find(e->ep_entry, LDBM_PARENTID_STR, &attr);
+            if (attr) {
+                svals = attr_get_present_values(attr);
+                result = index_addordel_values_sv(be, type, svals, NULL,
+                                                  e->ep_id, flags, txn);
+                if ( result != 0 ) {
+                    ldbm_nasty(errmsg, 1020, result);
+                    return( result );
+                }
             }
         }
     }
@@ -430,11 +443,13 @@ index_addordel_entry(
     {   /* NOT a tombstone or delete a tombstone */
         /* add each attribute to the indexes */
         rc = 0, result = 0;
+        int entryrdn_done = 0;
         for ( rc = slapi_entry_first_attr( e->ep_entry, &attr ); rc == 0;
               rc = slapi_entry_next_attr( e->ep_entry, attr, &attr ) ) {
             slapi_attr_get_type( attr, &type );
             svals = attr_get_present_values(attr);
-            if ( 0 == strcmp( type, LDBM_ENTRYDN_STR )) {
+            if ( !entryrdn_done && (0 == strcmp( type, LDBM_ENTRYDN_STR ))) {
+                entryrdn_done = 1;
                 if (entryrdn_get_switch()) { /* subtree-rename: on */
                     /* skip "entrydn" */
                     continue;
