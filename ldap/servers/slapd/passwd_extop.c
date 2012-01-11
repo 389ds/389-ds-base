@@ -153,6 +153,7 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 	LDAPControl **req_controls_copy = NULL;
 	LDAPControl **pb_resp_controls = NULL;
 	int ret=0;
+	void *txn = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> passwd_apply_mods\n", 0, 0, 0 );
 
@@ -178,6 +179,9 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 		 * sent the extended operation instead of always assuming
 		 * that it was done by the root DN. */
 		pb.pb_conn = pb_orig->pb_conn;
+
+		slapi_pblock_get(pb_orig, SLAPI_TXN, &txn);
+		slapi_pblock_set(&pb, SLAPI_TXN, txn);
 
 		ret =slapi_modify_internal_pb (&pb);
 

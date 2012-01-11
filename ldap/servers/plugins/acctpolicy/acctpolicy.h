@@ -65,7 +65,7 @@ typedef struct accountpolicy {
 
 /* acct_util.c */
 int get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry,
-	void *plugin_id, acctPolicy **policy );
+	void *plugin_id, acctPolicy **policy, void *txn );
 void free_acctpolicy( acctPolicy **policy );
 int has_attr( Slapi_Entry* target_entry, char* attr_name,
 	char** val );

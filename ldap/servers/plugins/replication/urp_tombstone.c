@@ -94,6 +94,10 @@ tombstone_to_glue_resolve_parent (
 	{
 		int op_result;
 	    Slapi_PBlock *newpb= slapi_pblock_new();
+	    void *txn = NULL;
+
+	    slapi_pblock_get(pb, SLAPI_TXN, &txn);
+	    slapi_pblock_set(newpb, SLAPI_TXN, txn);
 	    slapi_search_internal_set_pb(
 	    			newpb,
 	    			slapi_sdn_get_dn(parentdn), /* JCM - This DN just identifies the backend to be searched. */
@@ -156,6 +160,7 @@ tombstone_to_glue (
 	Slapi_Entry *addingentry;
 	const char *addingdn;
 	int op_result;
+	void *txn = NULL;
 
 	/* JCMREPL
 	 * Nothing logged to the 5.0 Change Log
@@ -189,7 +194,8 @@ tombstone_to_glue (
 		slapi_entry_add_string(addingentry, ATTR_NSDS5_REPLCONFLICT, reason);
 	}
 	tombstoneuniqueid= slapi_entry_get_uniqueid(tombstoneentry);
-	op_result = urp_fixup_add_entry (addingentry, tombstoneuniqueid, parentuniqueid, opcsn, OP_FLAG_RESURECT_ENTRY);
+	slapi_pblock_get (pb, SLAPI_TXN, &txn);
+	op_result = urp_fixup_add_entry (addingentry, tombstoneuniqueid, parentuniqueid, opcsn, OP_FLAG_RESURECT_ENTRY, txn);
 	if (op_result == LDAP_SUCCESS)
 	{
 		slapi_log_error (slapi_log_urp, repl_plugin_name,
@@ -213,6 +219,7 @@ entry_to_tombstone ( Slapi_PBlock *pb, Slapi_Entry *entry )
 	CSN *opcsn;
 	const char *uniqueid;
 	int op_result = LDAP_SUCCESS;
+	void *txn = NULL;
 
 	slapi_pblock_get ( pb, SLAPI_OPERATION, &op );
 	opcsn = operation_get_csn ( op );
@@ -227,9 +234,10 @@ entry_to_tombstone ( Slapi_PBlock *pb, Slapi_Entry *entry )
 	 */
 	slapi_mods_add ( &smods, LDAP_MOD_DELETE, ATTR_NSDS5_REPLCONFLICT, 0, NULL );
 
+	slapi_pblock_get (pb, SLAPI_TXN, &txn);
 	op_result = urp_fixup_modify_entry (uniqueid, 
 	                                    slapi_entry_get_sdn_const (entry),
-	                                    opcsn, &smods, 0);
+	                                    opcsn, &smods, 0, txn);
 	slapi_mods_done ( &smods );
 
 	/*
@@ -242,7 +250,7 @@ entry_to_tombstone ( Slapi_PBlock *pb, Slapi_Entry *entry )
 		 * through the urp operations and trigger the recursive
 		 * fixup if applicable.
 		 */
-		op_result = urp_fixup_delete_entry (uniqueid, slapi_entry_get_dn_const (entry), opcsn, 0);
+		op_result = urp_fixup_delete_entry (uniqueid, slapi_entry_get_dn_const (entry), opcsn, 0, txn);
 	}
 
 	return op_result;

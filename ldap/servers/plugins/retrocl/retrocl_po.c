@@ -178,11 +178,14 @@ write_replog_db(
     changeNumber changenum;
     int			i;
     int			extensibleObject = 0;
+    void        *txn = NULL;
 
     if (!dn) {
         slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "write_replog_db: NULL dn\n");
 	return;
     }
+
+    slapi_pblock_get(pb, SLAPI_TXN, &txn);
 
     PR_Lock(retrocl_internal_lock);
     changenum = retrocl_assign_changenumber();
@@ -361,6 +364,7 @@ write_replog_db(
 	slapi_add_entry_internal_set_pb( newPb, e, NULL /* controls */, 
 					 g_plg_identity[PLUGIN_RETROCL], 
 					 0 /* actions */ );
+	slapi_pblock_set (newPb, SLAPI_TXN, txn);
 	slapi_add_internal_pb (newPb);
 	slapi_pblock_get( newPb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
 	slapi_pblock_destroy(newPb);

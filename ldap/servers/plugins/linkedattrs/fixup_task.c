@@ -48,7 +48,7 @@
  */
 static void linked_attrs_fixup_task_destructor(Slapi_Task *task);
 static void linked_attrs_fixup_task_thread(void *arg);
-static void linked_attrs_fixup_links(struct configEntry *config);
+static void linked_attrs_fixup_links(struct configEntry *config, void *txn);
 static int linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data);
 static int linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data);
 static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
@@ -163,7 +163,7 @@ linked_attrs_fixup_task_thread(void *arg)
                                "Fixing up linked attribute pair (%s)\n",
                                config_entry->dn);
 
-                        linked_attrs_fixup_links(config_entry);
+                        linked_attrs_fixup_links(config_entry, NULL);
                         break;
                     }
                 } else {
@@ -173,7 +173,7 @@ linked_attrs_fixup_task_thread(void *arg)
                     slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
                            "Fixing up linked attribute pair (%s)\n", config_entry->dn);
 
-                    linked_attrs_fixup_links(config_entry);
+                    linked_attrs_fixup_links(config_entry, NULL);
                 }
 
                 list = PR_NEXT_LINK(list);
@@ -200,12 +200,19 @@ linked_attrs_fixup_task_thread(void *arg)
 	slapi_task_finish(task, rc);
 }
 
+struct fixup_cb_data {
+    char *attrtype;
+    void *txn;
+    struct configEntry *config;
+};
+
 static void 
-linked_attrs_fixup_links(struct configEntry *config)
+linked_attrs_fixup_links(struct configEntry *config, void *txn)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     char *del_filter = NULL;
     char *add_filter = NULL;
+    struct fixup_cb_data cb_data = {NULL, NULL, NULL};
 
     del_filter = slapi_ch_smprintf("%s=*", config->managedtype);
     add_filter = slapi_ch_smprintf("%s=*", config->linktype);
@@ -218,8 +225,11 @@ linked_attrs_fixup_links(struct configEntry *config)
          * within the scope and remove the managed type. */
         slapi_search_internal_set_pb(pb, config->scope, LDAP_SCOPE_SUBTREE,
                 del_filter, 0, 0, 0, 0, linked_attrs_get_plugin_id(), 0);
+        slapi_pblock_set(pb, SLAPI_TXN, txn);
 
-        slapi_search_internal_callback_pb(pb, config->managedtype, 0,
+        cb_data.attrtype = config->managedtype;
+        cb_data.txn = txn;
+        slapi_search_internal_callback_pb(pb, &cb_data, 0,
                 linked_attrs_remove_backlinks_callback, 0);
 
         /* Clean out pblock for reuse. */
@@ -229,8 +239,12 @@ linked_attrs_fixup_links(struct configEntry *config)
          * scope and add backlinks to the entries they point to. */
         slapi_search_internal_set_pb(pb, config->scope, LDAP_SCOPE_SUBTREE,
                 add_filter, 0, 0, 0, 0, linked_attrs_get_plugin_id(), 0);
+        slapi_pblock_set(pb, SLAPI_TXN, txn);
 
-        slapi_search_internal_callback_pb(pb, config, 0,
+        cb_data.attrtype = NULL;
+        cb_data.txn = txn;
+        cb_data.config = config;
+        slapi_search_internal_callback_pb(pb, &cb_data, 0,
                 linked_attrs_add_backlinks_callback, 0);
     } else {
         /* Loop through all non-private backend suffixes and
@@ -245,7 +259,10 @@ linked_attrs_fixup_links(struct configEntry *config)
                                          LDAP_SCOPE_SUBTREE, del_filter,
                                          0, 0, 0, 0,
                                          linked_attrs_get_plugin_id(), 0);
+            slapi_pblock_set(pb, SLAPI_TXN, txn);
 
+            cb_data.attrtype = config->managedtype;
+            cb_data.txn = txn;
             slapi_search_internal_callback_pb(pb, config->managedtype, 0,
                     linked_attrs_remove_backlinks_callback, 0);
 
@@ -256,8 +273,11 @@ linked_attrs_fixup_links(struct configEntry *config)
                                          LDAP_SCOPE_SUBTREE, add_filter,
                                          0, 0, 0, 0,
                                          linked_attrs_get_plugin_id(), 0);
-
-            slapi_search_internal_callback_pb(pb, config, 0,
+            slapi_pblock_set(pb, SLAPI_TXN, txn);
+            cb_data.attrtype = NULL;
+            cb_data.txn = txn;
+            cb_data.config = config;
+            slapi_search_internal_callback_pb(pb, &cb_data, 0,
                     linked_attrs_add_backlinks_callback, 0);
 
             /* Clean out pblock for reuse. */
@@ -280,7 +300,8 @@ linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
 {
     int rc = 0;
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
-    char *type = (char *)callback_data;
+    struct fixup_cb_data *cb_data = (struct fixup_cb_data *)callback_data;
+    char *type = cb_data->attrtype;
     Slapi_PBlock *pb = slapi_pblock_new();
     char *val[1];
     LDAPMod mod;
@@ -303,6 +324,7 @@ linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
     /* Perform the operation. */
     slapi_modify_internal_set_pb_ext(pb, sdn, mods, 0, 0,
                                      linked_attrs_get_plugin_id(), 0);
+    slapi_pblock_set(pb, SLAPI_TXN, cb_data->txn);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_destroy(pb);
@@ -315,7 +337,8 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
 {
     int rc = 0;
     char *linkdn = slapi_entry_get_dn(e);
-    struct configEntry *config = (struct configEntry *)callback_data;
+    struct fixup_cb_data *cb_data = (struct fixup_cb_data *)callback_data;
+    struct configEntry *config = cb_data->config;
     Slapi_PBlock *pb = slapi_pblock_new();
     int i = 0;
     char **targets = NULL;
@@ -365,6 +388,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
             /* Perform the modify operation. */
             slapi_modify_internal_set_pb_ext(pb, targetsdn, mods, 0, 0,
                                              linked_attrs_get_plugin_id(), 0);
+            slapi_pblock_set(pb, SLAPI_TXN, cb_data->txn);
             slapi_modify_internal_pb(pb);
 
             /* Initialize the pblock so we can reuse it. */

@@ -90,7 +90,7 @@ done:
   with the current time.
 */
 static int
-acct_record_login( const char *dn )
+acct_record_login( const char *dn, void *txn )
 {
 	int ldrc;
 	int rc = 0; /* Optimistic default */
@@ -125,6 +125,7 @@ acct_record_login( const char *dn )
 	slapi_modify_internal_set_pb( modpb, dn, mods, NULL, NULL,
 	 	plugin_id, SLAPI_OP_FLAG_NO_ACCESS_CHECK |
 			SLAPI_OP_FLAG_BYPASS_REFERRALS );
+	slapi_pblock_set( modpb, SLAPI_TXN, txn );
 	slapi_modify_internal_pb( modpb );
 
 	slapi_pblock_get( modpb, SLAPI_PLUGIN_INTOP_RESULT, &ldrc );
@@ -160,6 +161,7 @@ acct_bind_preop( Slapi_PBlock *pb )
 	int ldrc;
 	acctPolicy *policy = NULL;
 	void *plugin_id;
+	void *txn = NULL;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
 		"=> acct_bind_preop\n" );
@@ -180,8 +182,9 @@ acct_bind_preop( Slapi_PBlock *pb )
 		goto done;
 	}
 
-	ldrc = slapi_search_internal_get_entry( sdn, NULL, &target_entry,
-		plugin_id );
+	slapi_pblock_get(pb, SLAPI_TXN, &txn);
+	ldrc = slapi_search_internal_get_entry_ext( sdn, NULL, &target_entry,
+		plugin_id, txn );
 
 	/* There was a problem retrieving the entry */
 	if( ldrc != LDAP_SUCCESS ) {
@@ -194,7 +197,7 @@ acct_bind_preop( Slapi_PBlock *pb )
 		goto done;
 	}
 
-	if( get_acctpolicy( pb, target_entry, plugin_id, &policy ) ) {
+	if( get_acctpolicy( pb, target_entry, plugin_id, &policy, txn ) ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
 			"Account Policy object for \"%s\" is missing\n", dn );
 		rc = -1;
@@ -244,6 +247,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 	Slapi_Entry *target_entry = NULL;
 	acctPluginCfg *cfg;
 	void *plugin_id;
+	void *txn = NULL;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
 		"=> acct_bind_postop\n" );
@@ -263,6 +267,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 		goto done;
 	}
 
+	slapi_pblock_get(pb, SLAPI_TXN, &txn);
 	cfg = get_config();
 	tracklogin = cfg->always_record_login;
 
@@ -270,8 +275,8 @@ acct_bind_postop( Slapi_PBlock *pb )
 	   covered by an account policy to decide whether we should track */
 	if( tracklogin == 0 ) {
 		sdn = slapi_sdn_new_dn_byref( dn );
-		ldrc = slapi_search_internal_get_entry( sdn, NULL, &target_entry,
-			plugin_id );
+		ldrc = slapi_search_internal_get_entry_ext( sdn, NULL, &target_entry,
+			plugin_id, txn );
 
 		if( ldrc != LDAP_SUCCESS ) {
 			slapi_log_error( SLAPI_LOG_FATAL, POST_PLUGIN_NAME,
@@ -288,7 +293,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 	}
 
 	if( tracklogin ) {
-		rc = acct_record_login( dn );
+		rc = acct_record_login( dn, txn );
 	}
 
 	/* ...Any additional account policy postops go here... */

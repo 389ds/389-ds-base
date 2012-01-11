@@ -92,7 +92,7 @@ get_glue_csn(const Slapi_Entry *entry, const CSN **gluecsn)
  * Submit a Modify operation to turn the Entry into Glue.
  */
 int
-entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN *opcsn)
+entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN *opcsn, void *txn)
 {
 	int op_result = 0;
 	const char *dn;
@@ -135,7 +135,7 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 
 	if (slapi_mods_get_num_mods(&smods) > 0)
 	{
-		op_result = urp_fixup_modify_entry (NULL, sdn, opcsn, &smods, 0);
+		op_result = urp_fixup_modify_entry (NULL, sdn, opcsn, &smods, 0, txn);
 		if (op_result == LDAP_SUCCESS)
 		{
 			slapi_log_error (slapi_log_urp, repl_plugin_name,
@@ -158,7 +158,7 @@ static const char *glue_entry =
 	"%s: %s\n"; /* Add why it's been created */
 
 static int
-do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const char *uniqueid, const char *reason, CSN *opcsn)
+do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const char *uniqueid, const char *reason, CSN *opcsn, void *txn)
 {
 	int op_result= LDAP_OPERATIONS_ERROR;
 	int rdnval_index = 0;
@@ -202,7 +202,7 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 	if ( e!=NULL )
 	{
 		slapi_entry_set_uniqueid (e, slapi_ch_strdup(uniqueid));
-		op_result = urp_fixup_add_entry (e, NULL, NULL, opcsn, 0);
+		op_result = urp_fixup_add_entry (e, NULL, NULL, opcsn, 0, txn);
 	}
 	slapi_ch_free_string(&estr);
 	slapi_sdn_free(&sdn);
@@ -214,12 +214,14 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 {
 	int op_result;
 	const char *dnstr;
+	void *txn = NULL;
 
 	if ( slapi_sdn_get_dn (dn) )
 		dnstr = slapi_sdn_get_dn (dn);
 	else
 		dnstr = "";
 
+	slapi_pblock_get(pb, SLAPI_TXN, &txn);
 	if ( NULL == uniqueid )
 	{
 		op_result = LDAP_OPERATIONS_ERROR;
@@ -239,7 +241,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 
 		while(!done)
 		{
-			op_result= do_create_glue_entry(rdn, superiordn, uniqueid, "missingEntry", opcsn);
+			op_result= do_create_glue_entry(rdn, superiordn, uniqueid, "missingEntry", opcsn, txn);
 			switch(op_result)
 			{
 				case LDAP_SUCCESS:

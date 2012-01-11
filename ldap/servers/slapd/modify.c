@@ -1013,6 +1013,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	char *proxydn = NULL;
 	char *proxystr = NULL;
 	char *errtext = NULL;
+	void *txn = NULL;
 
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 	if (repl_op) {
@@ -1027,6 +1028,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get (pb, SLAPI_PWPOLICY, &pwresponse_req);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
+	slapi_pblock_get (pb, SLAPI_TXN, &txn);
 
 	slapi_sdn_init_dn_byref (&sdn, dn);
 	pwpolicy = new_passwdPolicy(pb, (char *)slapi_sdn_get_ndn(&sdn));
@@ -1056,7 +1058,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		mods[1] = NULL;
 
 		/* We need to actually fetch the target here to use for ACI checking. */
-		slapi_search_internal_get_entry(&sdn, NULL, &e, (void *)plugin_get_default_component_id());
+		slapi_search_internal_get_entry_ext(&sdn, NULL, &e, (void *)plugin_get_default_component_id(), txn);
 
 		/* Create a bogus entry with just the target dn if we were unable to 
 		 * find the actual entry.  This will only be used for checking the ACIs. */

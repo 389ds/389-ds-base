@@ -130,7 +130,9 @@ void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 	time_t      reset_time;
 	char		*timestr;
 	passwdPolicy *pwpolicy = NULL;
+	void *txn = NULL;
 
+	slapi_pblock_get( pb, SLAPI_TXN, &txn );
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	dn = slapi_sdn_get_dn(sdn);
 	pwpolicy = new_passwdPolicy(pb, dn);
@@ -146,7 +148,7 @@ void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 
 	set_retry_cnt_mods(pb, &smods, count);
 	
-	pw_apply_mods(sdn, &smods);
+	pw_apply_mods_ext(sdn, &smods, txn);
 	slapi_mods_done(&smods);
 	delete_passwdPolicy(&pwpolicy);
 }
@@ -193,11 +195,13 @@ void set_retry_cnt ( Slapi_PBlock *pb, int count)
 {
 	Slapi_DN *sdn = NULL; 
 	Slapi_Mods	smods;
-	
+	void *txn = NULL;
+
+	slapi_pblock_get( pb, SLAPI_TXN, &txn );
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_mods_init(&smods, 0);
 	set_retry_cnt_mods(pb, &smods, count);
-	pw_apply_mods(sdn, &smods);
+	pw_apply_mods_ext(sdn, &smods, txn);
 	slapi_mods_done(&smods);
 }
 
@@ -208,6 +212,7 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 	Slapi_Entry     *retentry = NULL;
 	Slapi_DN        *target_sdn = NULL;
 	Slapi_DN        sdn;
+	void            *txn = NULL;
 
 	if (NULL == pb) {
 		LDAPDebug(LDAP_DEBUG_ANY, "get_entry - no pblock specified.\n",
@@ -216,6 +221,7 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 	}
 
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &target_sdn );
+	slapi_pblock_get( pb, SLAPI_TXN, &txn );
 
 	if (dn == NULL) {
 		dn = slapi_sdn_get_dn(target_sdn);
@@ -232,9 +238,9 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 	    target_sdn = &sdn;
 	}
 
-	search_result = slapi_search_internal_get_entry(target_sdn, NULL,
-	                                                &retentry, 
-	                                                pw_get_componentID());
+	search_result = slapi_search_internal_get_entry_ext(target_sdn, NULL,
+														&retentry,
+														pw_get_componentID(), txn);
 	if (search_result != LDAP_SUCCESS) {
 		LDAPDebug (LDAP_DEBUG_TRACE, "WARNING: 'get_entry' can't find entry '%s', err %d\n", dn, search_result, 0);
 	}
@@ -244,7 +250,7 @@ bail:
 }
 
 void
-pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods) 
+pw_apply_mods_ext(const Slapi_DN *sdn, Slapi_Mods *mods, void *txn) 
 {
 	Slapi_PBlock pb;
 	int res;
@@ -260,6 +266,7 @@ pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods)
 					  NULL, /* UniqueID */
 					  pw_get_componentID(), /* PluginID */
 					  OP_FLAG_SKIP_MODIFIED_ATTRS); /* Flags */
+		slapi_pblock_set(&pb, SLAPI_TXN, txn);
 		slapi_modify_internal_pb (&pb);
 		
 		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
@@ -275,6 +282,11 @@ pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods)
 	return;
 }
 
+void
+pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods)
+{
+	pw_apply_mods_ext(sdn, mods, NULL);
+}
 /* Handle the component ID for the password policy */
 
 static struct slapi_componentid * pw_componentid = NULL;

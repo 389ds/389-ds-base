@@ -230,15 +230,15 @@ static char *dna_get_dn(Slapi_PBlock * pb);
 static Slapi_DN *dna_get_sdn(Slapi_PBlock * pb);
 static int dna_dn_is_config(char *dn);
 static int dna_get_next_value(struct configEntry * config_entry,
-                                 char **next_value_ret);
+                              char **next_value_ret, void *txn);
 static int dna_first_free_value(struct configEntry *config_entry,
-                                PRUint64 *newval);
-static int dna_fix_maxval(struct configEntry *config_entry);
+                                PRUint64 *newval, void *txn);
+static int dna_fix_maxval(struct configEntry *config_entry, void *txn);
 static void dna_notice_allocation(struct configEntry *config_entry,
-                                  PRUint64 new, PRUint64 last, int fix);
-static int dna_update_shared_config(struct configEntry * config_entry);
+                                  PRUint64 new, PRUint64 last, int fix, void *txn);
+static int dna_update_shared_config(struct configEntry * config_entry, void *txn);
 static void dna_update_config_event(time_t event_time, void *arg);
-static int dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers);
+static int dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, void *txn);
 static void dna_free_shared_server(struct dnaServer **server);
 static void dna_delete_shared_servers(PRCList **servers);
 static int dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper);
@@ -247,8 +247,8 @@ static int dna_request_range(struct configEntry *config_entry,
                              PRUint64 *lower, PRUint64 *upper);
 static struct berval *dna_create_range_request(char *range_dn);
 static int dna_update_next_range(struct configEntry *config_entry,
-                                 PRUint64 lower, PRUint64 upper);
-static int dna_activate_next_range(struct configEntry *config_entry);
+                                 PRUint64 lower, PRUint64 upper, void *txn);
+static int dna_activate_next_range(struct configEntry *config_entry, void *txn);
 static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn);
 static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
                                       char **bind_dn, char **bind_passwd,
@@ -341,6 +341,8 @@ const char *getPluginDN()
     return _PluginDN;
 }
 
+static int plugin_is_betxn = 0;
+
 /*
 	dna_init
 	-------------
@@ -351,11 +353,25 @@ dna_init(Slapi_PBlock *pb)
 {
     int status = DNA_SUCCESS;
     char *plugin_identity = NULL;
+    Slapi_Entry *plugin_entry = NULL;
+    char *plugin_type = NULL;
+    int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
+    int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_init\n");
 
-        /**
+    if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+        plugin_entry &&
+        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        plugin_type && strstr(plugin_type, "betxn")) {
+        plugin_is_betxn = 1;
+        preadd = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
+        premod = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
+    }
+    slapi_ch_free_string(&plugin_type);
+
+    /**
 	 * Store the plugin identity for later use.
 	 * Used for internal operations
 	 */
@@ -372,10 +388,14 @@ dna_init(Slapi_PBlock *pb)
                          (void *) dna_close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                          (void *) &pdesc) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODIFY_FN,
-                         (void *) dna_mod_pre_op) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ADD_FN,
-                         (void *) dna_add_pre_op) != 0 ||
+        slapi_pblock_set(pb, premod, (void *) dna_mod_pre_op) != 0 ||
+        slapi_pblock_set(pb, preadd, (void *) dna_add_pre_op) != 0) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_init: failed to register plugin\n");
+        status = DNA_FAILURE;
+    }
+
+    if ((status == DNA_SUCCESS) && !plugin_is_betxn &&
         /* internal preoperation */
         slapi_register_plugin("internalpreoperation",  /* op type */
                               1,        /* Enabled */
@@ -384,16 +404,32 @@ dna_init(Slapi_PBlock *pb)
                               DNA_INT_PREOP_DESC,      /* plugin desc */
                               NULL,     /* ? */
                               plugin_identity   /* access control */
-        ) ||
+        )) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_init: failed to register internalpreoperation plugin\n");
+        status = DNA_FAILURE;
+    }
+    if (status == DNA_SUCCESS) {
+        plugin_type = "postoperation";
+        if (plugin_is_betxn) {
+            plugin_type = "betxnpostoperation";
+        }
         /* the config change checking post op */
-        slapi_register_plugin("postoperation",  /* op type */
-                              1,        /* Enabled */
-                              "dna_init",   /* this function desc */
-                              dna_postop_init,  /* init func for post op */
-                              DNA_POSTOP_DESC,      /* plugin desc */
-                              NULL,     /* ? */
-                              plugin_identity   /* access control */
-        ) ||
+        if (slapi_register_plugin(plugin_type,  /* op type */
+                                  1,        /* Enabled */
+                                  "dna_init",   /* this function desc */
+                                  dna_postop_init,  /* init func for post op */
+                                  DNA_POSTOP_DESC,      /* plugin desc */
+                                  NULL,     /* ? */
+                                  plugin_identity   /* access control */
+                                  )) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_init: failed to register postop plugin\n");
+            status = DNA_FAILURE;
+        }
+    }
+
+    if ((status == DNA_SUCCESS) &&
         /* the range extension extended operation */
         slapi_register_plugin("extendedop", /* op type */
                               1,        /* Enabled */
@@ -414,6 +450,7 @@ dna_init(Slapi_PBlock *pb)
     return status;
 }
 
+/* not used when using plugin as a betxn plugin - betxn plugins are called for both internal and external ops */
 static int
 dna_internal_preop_init(Slapi_PBlock *pb)
 {
@@ -437,19 +474,26 @@ static int
 dna_postop_init(Slapi_PBlock *pb)
 {
     int status = DNA_SUCCESS;
+    int addfn = SLAPI_PLUGIN_POST_ADD_FN;
+    int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
+    int modfn = SLAPI_PLUGIN_POST_MODIFY_FN;
+    int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
+
+    if (plugin_is_betxn) {
+        addfn = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
+        delfn = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+        modfn = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
+        mdnfn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+    }
 
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                          (void *) &pdesc) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN,
-                         (void *) dna_config_check_post_op) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN,
-                         (void *) dna_config_check_post_op) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN,
-                         (void *) dna_config_check_post_op) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN,
-                         (void *) dna_config_check_post_op) != 0) {
+        slapi_pblock_set(pb, addfn, (void *) dna_config_check_post_op) != 0 ||
+        slapi_pblock_set(pb, mdnfn, (void *) dna_config_check_post_op) != 0 ||
+        slapi_pblock_set(pb, delfn, (void *) dna_config_check_post_op) != 0 ||
+        slapi_pblock_set(pb, modfn, (void *) dna_config_check_post_op) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_postop_init: failed to register plugin\n");
         status = DNA_FAILURE;
@@ -1263,7 +1307,7 @@ dna_update_config_event(time_t event_time, void *arg)
                 slapi_delete_internal_pb(pb);
 
                 /* Now force the entry to be recreated */
-                dna_update_shared_config(config_entry);
+                dna_update_shared_config(config_entry, NULL);
 
                 slapi_unlock_mutex(config_entry->lock);
                 slapi_pblock_init(pb);
@@ -1291,7 +1335,7 @@ bail:
  * The lock for configEntry should be obtained
  * before calling this function.
  */
-static int dna_fix_maxval(struct configEntry *config_entry)
+static int dna_fix_maxval(struct configEntry *config_entry, void *txn)
 {
     PRCList *servers = NULL;
     PRCList *server = NULL;
@@ -1306,7 +1350,7 @@ static int dna_fix_maxval(struct configEntry *config_entry)
     /* If we already have a next range we only need
      * to activate it. */
     if (config_entry->next_range_lower != 0) {
-        ret = dna_activate_next_range(config_entry);
+        ret = dna_activate_next_range(config_entry, txn);
         if (ret != 0) {
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                             "dna_fix_maxval: Unable to activate the "
@@ -1315,7 +1359,7 @@ static int dna_fix_maxval(struct configEntry *config_entry)
     } else if (config_entry->shared_cfg_base) {
         /* Find out if there are any other servers to request
          * range from. */
-        dna_get_shared_servers(config_entry, &servers);
+        dna_get_shared_servers(config_entry, &servers, txn);
 
         if (servers) {
             /* We have other servers we can try to extend
@@ -1330,7 +1374,7 @@ static int dna_fix_maxval(struct configEntry *config_entry)
                 } else {
                     /* Someone provided us with a new range. Attempt 
                      * to update the config. */
-                    if ((ret = dna_update_next_range(config_entry, lower, upper)) == 0) {
+                    if ((ret = dna_update_next_range(config_entry, lower, upper, txn)) == 0) {
                         break;
                     }
                 }
@@ -1362,7 +1406,7 @@ bail:
  * this function. */
 static void
 dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
-                                  PRUint64 last, int fix)
+                      PRUint64 last, int fix, void *txn)
 {
     /* update our cached config entry */
     if ((new != 0) && (new <= (config_entry->maxval + config_entry->interval))) {
@@ -1376,7 +1420,7 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
          * new active range. */
         if (config_entry->next_range_lower != 0) {
             /* Make the next range active */
-            if (dna_activate_next_range(config_entry) != 0) {
+            if (dna_activate_next_range(config_entry, txn) != 0) {
                 slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                 "dna_notice_allocation: Unable to activate "
                                 "the next range for range %s.\n", config_entry->dn);
@@ -1384,7 +1428,7 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
         } else {
             config_entry->remaining = 0;
             /* update the shared configuration */
-            dna_update_shared_config(config_entry);
+            dna_update_shared_config(config_entry, txn);
         }
     } else {
         if (config_entry->next_range_lower != 0) {
@@ -1397,7 +1441,7 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
         }
 
         /* update the shared configuration */
-        dna_update_shared_config(config_entry);
+        dna_update_shared_config(config_entry, txn);
     }
 
     /* Check if we passed the threshold and try to fix maxval if so.  We
@@ -1409,7 +1453,7 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
                         config_entry->threshold, config_entry->dn, config_entry->remaining);
         /* Only attempt to fix maxval if the fix flag is set. */
         if (fix != 0) {
-            dna_fix_maxval(config_entry);
+            dna_fix_maxval(config_entry, txn);
         }
     }
 
@@ -1417,7 +1461,7 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
 }
 
 static int
-dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
+dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, void *txn)
 {
     int ret = LDAP_SUCCESS;
     Slapi_PBlock *pb = NULL;
@@ -1442,6 +1486,7 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
                                  LDAP_SCOPE_ONELEVEL, "objectclass=*",
                                  attrs, 0, NULL,
                                  NULL, getPluginID(), 0);
+    slapi_pblock_set(pb, SLAPI_TXN, txn);
     slapi_search_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -1826,7 +1871,7 @@ static LDAPControl *dna_build_sort_control(const char *attr)
  * maximum configured value for this range. */
 static int
 dna_first_free_value(struct configEntry *config_entry,
-                                PRUint64 *newval)
+                     PRUint64 *newval, void *txn)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *pb = NULL;
@@ -1894,6 +1939,7 @@ dna_first_free_value(struct configEntry *config_entry,
                                  LDAP_SCOPE_SUBTREE, filter,
                                  config_entry->types, 0, ctrls,
                                  NULL, getPluginID(), 0);
+    slapi_pblock_set(pb, SLAPI_TXN, txn);
     slapi_search_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
@@ -1933,6 +1979,7 @@ dna_first_free_value(struct configEntry *config_entry,
                                  config_entry->types, 0, 0,
                                  NULL, getPluginID(), 0);
 
+            slapi_pblock_set(pb, SLAPI_TXN, txn);
             slapi_search_internal_pb(pb);
 
             slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
@@ -2006,7 +2053,7 @@ cleanup:
  * Return the next value to be assigned
  */
 static int dna_get_next_value(struct configEntry *config_entry,
-                                 char **next_value_ret)
+                              char **next_value_ret, void *txn)
 {
     Slapi_PBlock *pb = NULL;
     LDAPMod mod_replace;
@@ -2026,12 +2073,12 @@ static int dna_get_next_value(struct configEntry *config_entry,
     slapi_lock_mutex(config_entry->lock);
 
     /* get the first value */
-    ret = dna_first_free_value(config_entry, &setval);
+    ret = dna_first_free_value(config_entry, &setval, txn);
     if (LDAP_SUCCESS != ret) {
         /* check if we overflowed the configured range */
         if (setval > config_entry->maxval) {
             /* try for a new range or fail */
-            ret = dna_fix_maxval(config_entry);
+            ret = dna_fix_maxval(config_entry, txn);
             if (LDAP_SUCCESS != ret) {
                 slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                 "dna_get_next_value: no more values available!!\n");
@@ -2039,7 +2086,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
             }
 
             /* get the first value from our newly extended range */
-            ret = dna_first_free_value(config_entry, &setval);
+            ret = dna_first_free_value(config_entry, &setval, txn);
             if (LDAP_SUCCESS != ret)
                 goto done;
         } else {
@@ -2076,6 +2123,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
         slapi_modify_internal_set_pb(pb, config_entry->dn,
                                      mods, 0, 0, getPluginID(), 0);
 
+        slapi_pblock_set(pb, SLAPI_TXN, txn);
         slapi_modify_internal_pb(pb);
 
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -2090,7 +2138,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
         }
 
         /* update our cached config */
-        dna_notice_allocation(config_entry, nextval, setval, 1);
+        dna_notice_allocation(config_entry, nextval, setval, 1, txn);
     }
 
   done:
@@ -2116,7 +2164,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
  * before calling this function.
  * */
 static int
-dna_update_shared_config(struct configEntry * config_entry)
+dna_update_shared_config(struct configEntry * config_entry, void *txn)
 {
     int ret = LDAP_SUCCESS;
 
@@ -2148,7 +2196,7 @@ dna_update_shared_config(struct configEntry * config_entry)
         } else {
             slapi_modify_internal_set_pb(pb, config_entry->shared_cfg_dn,
                                          mods, NULL, NULL, getPluginID(), 0);
-
+            slapi_pblock_set(pb, SLAPI_TXN, txn);
             slapi_modify_internal_pb(pb);
 
             slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -2176,6 +2224,7 @@ dna_update_shared_config(struct configEntry * config_entry)
 
                 /* e will be consumed by slapi_add_internal() */
                 slapi_add_entry_internal_set_pb(pb, e, NULL, getPluginID(), 0);
+                slapi_pblock_set(pb, SLAPI_TXN, txn);
                 slapi_add_internal_pb(pb);
                 slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
             }
@@ -2205,7 +2254,7 @@ dna_update_shared_config(struct configEntry * config_entry)
  */
 static int
 dna_update_next_range(struct configEntry *config_entry,
-                                 PRUint64 lower, PRUint64 upper)
+                      PRUint64 lower, PRUint64 upper, void *txn)
 {
     Slapi_PBlock *pb = NULL;
     LDAPMod mod_replace;
@@ -2236,7 +2285,7 @@ dna_update_next_range(struct configEntry *config_entry,
 
     slapi_modify_internal_set_pb(pb, config_entry->dn,
                                  mods, 0, 0, getPluginID(), 0);
-
+    slapi_pblock_set(pb, SLAPI_TXN, txn);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -2252,7 +2301,7 @@ dna_update_next_range(struct configEntry *config_entry,
         /* update the cached config and the shared config */
         config_entry->next_range_lower = lower;
         config_entry->next_range_upper = upper;
-        dna_notice_allocation(config_entry, 0, 0, 0);
+        dna_notice_allocation(config_entry, 0, 0, 0, txn);
     }
 
 bail:
@@ -2269,7 +2318,7 @@ bail:
  * be obtained before calling this function.
  */
 static int
-dna_activate_next_range(struct configEntry *config_entry)
+dna_activate_next_range(struct configEntry *config_entry, void *txn)
 {
     Slapi_PBlock *pb = NULL;
     LDAPMod mod_maxval;
@@ -2318,7 +2367,7 @@ dna_activate_next_range(struct configEntry *config_entry)
 
     slapi_modify_internal_set_pb(pb, config_entry->dn,
                                  mods, 0, 0, getPluginID(), 0);
-
+    slapi_pblock_set(pb, SLAPI_TXN, txn);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -2339,7 +2388,7 @@ dna_activate_next_range(struct configEntry *config_entry)
         config_entry->remaining = ((config_entry->maxval - config_entry->nextval + 1) /
                                     config_entry->interval);
         /* update the shared configuration */
-        dna_update_shared_config(config_entry);
+        dna_update_shared_config(config_entry, txn);
     }
 
 bail:
@@ -2781,6 +2830,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
     char *errstr = NULL;
     int i = 0;
     int ret = 0;
+    void *txn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_pre_op\n");
@@ -2792,6 +2842,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
     if (0 == (dn = dna_get_dn(pb)))
         goto bail;
 
+    slapi_pblock_get(pb, SLAPI_TXN, &txn);
     if (LDAP_CHANGETYPE_ADD == modtype) {
         slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
     } else {
@@ -2808,7 +2859,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
          */
         Slapi_DN *tmp_dn = dna_get_sdn(pb);
         if (tmp_dn) {
-            slapi_search_internal_get_entry(tmp_dn, 0, &e, getPluginID());
+            slapi_search_internal_get_entry_ext(tmp_dn, 0, &e, getPluginID(), txn);
             free_entry = 1;
         }
 
@@ -3047,7 +3098,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                 int len;
 
                 /* create the value to add */
-                ret = dna_get_next_value(config_entry, &value);
+                ret = dna_get_next_value(config_entry, &value, txn);
                 if (DNA_SUCCESS != ret) {
                     errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3420,7 +3471,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
 
                 /* Try to set the new next range in the config */
                 ret = dna_update_next_range(config_entry, config_entry->next_range_lower,
-                                          *lower - 1);
+                                            *lower - 1, NULL);
             } else {
                 /* We release up to half of our remaining values,
                  * but we'll only release a range that is a multiple
@@ -3457,7 +3508,6 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
 
                 slapi_modify_internal_set_pb(pb, config_entry->dn,
                                              mods, 0, 0, getPluginID(), 0);
-
                 slapi_modify_internal_pb(pb);
 
                 slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -3468,7 +3518,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                 if (ret == LDAP_SUCCESS) {
                     /* Adjust maxval in our cached config and shared config */
                     config_entry->maxval = *lower - 1;
-                    dna_notice_allocation(config_entry, config_entry->nextval, 0, 0);
+                    dna_notice_allocation(config_entry, config_entry->nextval, 0, 0, NULL);
                 }
             }
 
