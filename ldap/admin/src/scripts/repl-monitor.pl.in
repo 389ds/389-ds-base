@@ -836,6 +836,11 @@ sub add_server
 	my ($domainpattern) = '\.[^:]+';
 	my ($i);
 
+	for ($i = 0; $i <= $#servers; $i++) {
+		return $i if ($servers[$i] =~ /$host:\d*=$shadowport\D/i);
+		return $i if ($servers[$i] =~ /$host:$port\D/i);
+	}
+
 	# Remove the domain name from the host name
 	my ($hostnode) = $host;
 	$hostnode = $1 if $host =~ /^(.+?)\./;
@@ -870,11 +875,6 @@ sub add_server
 		}
 		$bindpwd = $w if ($bindpwd eq "" || $bindpwd eq "*");
 		$bindcert = $c if ($bindcert eq "" || $bindcert eq "*");
-	}
-
-	for ($i = 0; $i <= $#servers; $i++) {
-		return $i if ($servers[$i] =~ /$hostnode($domainpattern)*:\d*=$shadowport\D/i);
-		return $i if ($servers[$i] =~ /$hostnode($domainpattern)*:$port\D/i);
 	}
 
 	if ($shadowport) {
