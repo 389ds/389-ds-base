@@ -749,8 +749,9 @@ acl__free_aclpb ( Acl_PBlock **aclpb_ptr)
 
     aclpb = *aclpb_ptr;
 
-    if (aclpb->aclpb_acleval)
-        ACL_EvalDestroy(NULL, NULL, aclpb->aclpb_acleval);
+    if (aclpb->aclpb_acleval) {
+        ACL_EvalDestroyNoDecrement(NULL, NULL, aclpb->aclpb_acleval);
+    }
 
     if (aclpb->aclpb_proplist)
         PListDestroy(aclpb->aclpb_proplist);
