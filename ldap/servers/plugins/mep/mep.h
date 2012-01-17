@@ -99,11 +99,11 @@
  */
 struct configEntry {
     PRCList list;
-    char *dn;
+    Slapi_DN *sdn;
     char *origin_scope;
     Slapi_Filter *origin_filter;
     char *managed_base;
-    char *template_dn;
+    Slapi_DN *template_sdn;
     Slapi_Entry *template_entry;
 };
 
