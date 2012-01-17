@@ -161,8 +161,14 @@ read_root_dse( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *r
 		sdn = slapi_get_next_suffix(&node, 0);
 	}
 
+	val.bv_val = config_get_default_naming_context();
+	if (val.bv_val) {
+		val.bv_len = strlen(val.bv_val);
+		attrlist_replace( &e->e_attrs, "defaultnamingcontext", vals );
+	}
+
 	attrlist_delete( &e->e_attrs, "nsBackendSuffix");
-        for (be = slapi_get_first_backend(&cookie); be != NULL; 
+	for (be = slapi_get_first_backend(&cookie); be != NULL; 
              be = slapi_get_next_backend(cookie)) {
 
             char * base;                                               

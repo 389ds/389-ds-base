@@ -3279,6 +3279,14 @@ int slapi_rdn_partial_dup(Slapi_RDN *from, Slapi_RDN **to, int idx);
  */
 size_t slapi_rdn_get_size(Slapi_RDN *srdn);
 
+/**
+ * Return the value of the RDN
+ *
+ * \param rdn A pointer to rdn to get the value.
+ * \return The value of the given RDN.
+ */
+char * slapi_rdn_get_value(const char *rdn);
+
 /*
  * utility routines for dealing with DNs
  */
@@ -3334,7 +3342,7 @@ int slapi_dn_normalize_case_ext(char *src, size_t src_len, char **dest, size_t *
  *
  * \param fmt The format used to generate a DN string.
  * \param ... The arguments to generate a DN string.
- * \return A pointer to the generated DN.  The 
+ * \return A pointer to the generated DN.
  * \return NULL if failed.
  * \note When a DN needs to be internally created, this function is supposed to be called.  This function allocates the enough memory for the normalized DN and returns it filled with the normalized DN.
  */
@@ -5466,7 +5474,11 @@ int slapi_is_loglevel_set( const int loglevel );
  */
 typedef struct slapi_mutex	Slapi_Mutex;
 typedef struct slapi_condvar	Slapi_CondVar;
+#ifdef USE_POSIX_RWLOCKS
+typedef pthread_rwlock_t	Slapi_RWLock;
+#else
 typedef struct slapi_rwlock	Slapi_RWLock;
+#endif
 Slapi_Mutex *slapi_new_mutex( void );
 void slapi_destroy_mutex( Slapi_Mutex *mutex );
 void slapi_lock_mutex( Slapi_Mutex *mutex );

@@ -377,7 +377,7 @@ int config_set_force_sasl_external(const char *attrname, char *value, char *erro
 int config_set_entryusn_global( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_allowed_to_delete_attrs( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_entryusn_import_init( const char *attrname, char *value, char *errorbuf, int apply );
-
+int config_set_default_naming_context( const char *attrname, char *value, char *errorbuf, int apply );
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -522,6 +522,7 @@ int config_get_force_sasl_external();
 int config_get_entryusn_global(void);
 char *config_get_allowed_to_delete_attrs(void);
 char *config_get_entryusn_import_init(void);
+char *config_get_default_naming_context(void);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );

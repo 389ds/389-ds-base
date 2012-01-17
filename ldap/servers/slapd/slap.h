@@ -1969,6 +1969,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ENTRYUSN_GLOBAL	"nsslapd-entryusn-global"
 #define CONFIG_ENTRYUSN_IMPORT_INITVAL	"nsslapd-entryusn-import-initval"
 #define CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE	"nsslapd-allowed-to-delete-attrs"
+#define CONFIG_DEFAULT_NAMING_CONTEXT "nsslapd-defaultnamingcontext"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2191,6 +2192,7 @@ typedef struct _slapdFrontendConfig {
   char *allowed_to_delete_attrs;/* list of config attrs allowed to delete */
   char *entryusn_import_init;   /* Entry USN: determine the initital value of import */
   int pagedsizelimit;
+  char *default_naming_context; /* Default naming context (normalized) */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

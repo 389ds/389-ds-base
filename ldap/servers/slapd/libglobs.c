@@ -643,12 +643,17 @@ static struct config_get_and_set {
 		(void**)&global_slapdFrontendConfig.allowed_to_delete_attrs,
 		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_to_delete_attrs},
 	{CONFIG_VALIDATE_CERT_ATTRIBUTE, config_set_validate_cert_switch,
-                NULL, 0,
-                (void**)&global_slapdFrontendConfig.validate_cert, CONFIG_SPECIAL_VALIDATE_CERT_SWITCH,
-                (ConfigGetFunc)config_get_validate_cert_switch},
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.validate_cert,
+		CONFIG_SPECIAL_VALIDATE_CERT_SWITCH,
+		(ConfigGetFunc)config_get_validate_cert_switch},
 	{CONFIG_PAGEDSIZELIMIT_ATTRIBUTE, config_set_pagedsizelimit,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pagedsizelimit, CONFIG_INT, NULL},
+	{CONFIG_DEFAULT_NAMING_CONTEXT, config_set_default_naming_context,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.default_naming_context,
+		CONFIG_STRING, (ConfigGetFunc)config_get_default_naming_context},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1031,7 +1036,8 @@ FrontendConfig_init () {
 
   cfg->entryusn_global = LDAP_OFF; 
   cfg->entryusn_import_init = slapi_ch_strdup("0"); 
-  cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost");
+  cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
+  cfg->default_naming_context = NULL; /* store normalized dn */
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -5799,6 +5805,80 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
+}
+
+char *
+config_get_default_naming_context(void)
+{
+    char *retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->default_naming_context;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+  
+    return retVal;
+}
+
+int
+config_set_default_naming_context(const char *attrname, 
+                                  char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    void     *node;
+    Slapi_DN *sdn;
+    char     *suffix = NULL;
+
+    if (value && *value) {
+        int in_init = 0;
+        suffix = slapi_create_dn_string("%s", value);
+        if (NULL == suffix) {
+            if (errorbuf) {
+                PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                             "%s is not a valid suffix.", value);
+            }
+            return LDAP_INVALID_DN_SYNTAX;
+        }
+        sdn = slapi_get_first_suffix(&node, 0);
+        if (NULL == sdn) {
+            in_init = 1; /* at the startup time, no suffix is set yet */
+        }
+        while (sdn) {
+            if (0 == strcasecmp(suffix, slapi_sdn_get_dn(sdn))) {
+                /* matched */
+                break;
+            }
+            sdn = slapi_get_next_suffix(&node, 0);
+        }
+        if (!in_init && (NULL == sdn)) { /* not in startup && no match */
+            if (errorbuf) {
+                PR_snprintf (errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                             "%s is not an existing suffix.", value);
+            }
+            slapi_ch_free_string(&suffix);
+            return LDAP_NO_SUCH_OBJECT;
+        }
+    } else {
+        /* reset */
+        suffix = NULL;
+    }
+
+    if (!apply) {
+        return LDAP_SUCCESS;
+    }
+
+    if (errorbuf) {
+        *errorbuf = '\0';
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->default_naming_context);
+        /* normalized suffix*/
+        slapdFrontendConfig->default_naming_context = suffix;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return LDAP_SUCCESS;
 }
 
 /*

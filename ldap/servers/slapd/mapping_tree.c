@@ -155,6 +155,7 @@ static mapping_tree_node * mtn_get_first_node(mapping_tree_node * node,
     int scope);
 static mapping_tree_node *
     get_mapping_tree_node_by_name(mapping_tree_node * node, char * be_name);
+static int _mtn_update_config_param(int op, char *type, char *strvalue);
 
 #ifdef DEBUG
 static void dump_mapping_tree(mapping_tree_node *parent, int depth);
@@ -1419,6 +1420,32 @@ int mapping_tree_entry_add_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, 
 
     node->mtn_extension = factory_create_extension(mapping_tree_get_extension_type(), node, NULL);
 
+    /* 
+     * Check defaultNamingContext is set.
+     * If it is not set, set the to-be-added suffix to the config param.
+     */
+    if (NULL == config_get_default_naming_context()) {
+        char *suffix = 
+                slapi_rdn_get_value(slapi_entry_get_nrdn_const(entryBefore));
+        char *escaped = slapi_ch_strdup(suffix);
+        if (suffix && escaped) {
+            strcpy_unescape_value(escaped, suffix);
+        }
+        if (escaped) {
+            int rc = _mtn_update_config_param(LDAP_MOD_REPLACE,
+                                              CONFIG_DEFAULT_NAMING_CONTEXT,
+                                              escaped);
+            if (rc) {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                    "mapping_tree_entry_add_callback: "
+                    "setting %s to %s failed: RC=%d\n",
+                    escaped, CONFIG_DEFAULT_NAMING_CONTEXT, rc);
+            }
+        }
+        slapi_ch_free_string(&suffix);
+        slapi_ch_free_string(&escaped);
+    }
+
     return SLAPI_DSE_CALLBACK_OK;
 }
 
@@ -1443,7 +1470,7 @@ static void mtn_remove_node(mapping_tree_node * node)
 
 int mapping_tree_entry_delete_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg) 
 {
-    int result;
+    int result = SLAPI_DSE_CALLBACK_OK;
     mapping_tree_node *node = NULL;
     Slapi_DN * subtree;
     int i;
@@ -1499,9 +1526,51 @@ int mapping_tree_entry_delete_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 
     result = SLAPI_DSE_CALLBACK_OK;
     removed = 1;
-    
+
 done:
     mtn_unlock();
+
+    /* Remove defaultNamingContext if it is the to-be-deleted suffix.
+     * It should be done outside of mtn lock. */
+    if (SLAPI_DSE_CALLBACK_OK == result) {
+        char *default_naming_context = config_get_default_naming_context();
+        char *suffix, *escaped;
+        if (default_naming_context) {
+            suffix = 
+                  slapi_rdn_get_value(slapi_entry_get_nrdn_const(entryBefore));
+            escaped = slapi_ch_strdup(suffix);
+            if (suffix && escaped) {
+                strcpy_unescape_value(escaped, suffix);
+            }
+            if (escaped && (0 == strcasecmp(escaped, default_naming_context))) {
+                int rc = _mtn_update_config_param(LDAP_MOD_DELETE,
+                                                  CONFIG_DEFAULT_NAMING_CONTEXT,
+                                                  NULL);
+                if (rc) {
+                    LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                   "mapping_tree_entry_delete_callback: "
+                                   "deleting config param %s failed: RC=%d\n",
+                                   CONFIG_DEFAULT_NAMING_CONTEXT, rc);
+                }
+                if (LDAP_SUCCESS == rc) {
+                    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+                    /* Removing defaultNamingContext from cn=config entry
+                     * was successful.  The remove does not reset the
+                     * global parameter.  We need to reset it separately. */
+                    if (config_set_default_naming_context(
+                                                CONFIG_DEFAULT_NAMING_CONTEXT,
+                                                NULL, errorbuf, CONFIG_APPLY)) {
+                        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                       "mapping_tree_entry_delete_callback: "
+                                       "setting NULL to %s failed. %s\n",
+                                       CONFIG_DEFAULT_NAMING_CONTEXT, errorbuf);
+                    }
+                }
+            }
+            slapi_ch_free_string(&suffix);
+            slapi_ch_free_string(&escaped);
+        }
+    }
     slapi_sdn_free(&subtree);
     if (SLAPI_DSE_CALLBACK_OK == result && removed)
     {
@@ -2506,11 +2575,11 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
     target_sdn = operation_get_target_spec (op);
 
     if (target_node->mtn_state == MTN_DISABLED) {
-		if (errorbuf) {
-			PR_snprintf(errorbuf, BUFSIZ,
+        if (errorbuf) {
+            PR_snprintf(errorbuf, BUFSIZ,
                 "Warning: Operation attempted on a disabled node : %s\n",
-				slapi_sdn_get_dn(target_node->mtn_subtree));
-		}
+                slapi_sdn_get_dn(target_node->mtn_subtree));
+        }
         result = LDAP_OPERATIONS_ERROR;
         return result;
     }
@@ -3047,10 +3116,12 @@ slapi_be_exist(const Slapi_DN *sdn) /* JCM - The name of this should change??? *
 Slapi_DN *
 slapi_get_first_suffix(void ** node, int show_private)
 {
-    mapping_tree_node * first_node = mapping_tree_root->mtn_children;
-    if (NULL == node) {
+    mapping_tree_node *first_node;
+
+    if ((NULL == node) || (NULL == mapping_tree_root)) {
         return NULL;
     }
+    first_node = mapping_tree_root->mtn_children;
     *node = (void * ) first_node ;
     while (first_node && (first_node->mtn_private && (show_private == 0)))
             first_node = first_node->mtn_brother;
@@ -3060,9 +3131,9 @@ slapi_get_first_suffix(void ** node, int show_private)
 Slapi_DN * 
 slapi_get_next_suffix(void ** node, int show_private)
 {
-    mapping_tree_node * next_node = NULL;
+    mapping_tree_node *next_node;
 
-    if (NULL == node) {
+    if ((NULL == node) || (NULL == mapping_tree_root)) {
         return NULL;
     }
     next_node = *node;
@@ -3681,3 +3752,43 @@ static void dump_mapping_tree(mapping_tree_node *parent, int depth)
     return;
 }
 #endif
+
+/* helper function to set/remove the config param in cn=config */
+static int
+_mtn_update_config_param(int op, char *type, char *strvalue)
+{
+    Slapi_PBlock confpb;
+    Slapi_DN sdn;
+    Slapi_Mods smods;
+    LDAPMod **mods;
+    int rc = LDAP_PARAM_ERROR;
+
+    pblock_init (&confpb);
+    slapi_mods_init (&smods, 0);
+    switch (op) {
+    case LDAP_MOD_DELETE:
+        slapi_mods_add(&smods, op, type, 0, NULL);
+        break;
+    case LDAP_MOD_ADD:
+    case LDAP_MOD_REPLACE:
+        slapi_mods_add_string(&smods, op, type, strvalue);
+        break;
+    default:
+        return rc;
+    }
+    slapi_sdn_init_ndn_byref(&sdn, SLAPD_CONFIG_DN);
+    slapi_modify_internal_set_pb_ext(&confpb, &sdn,
+                                  slapi_mods_get_ldapmods_byref(&smods),
+                                  NULL, NULL,
+                                  (void *)plugin_get_default_component_id(), 0);
+    slapi_modify_internal_pb(&confpb);
+    slapi_pblock_get (&confpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_sdn_done(&sdn);
+    /* need to free passed out mods 
+     * since the internal modify could realloced mods. */
+    slapi_pblock_get(&confpb, SLAPI_MODIFY_MODS, &mods);
+    ldap_mods_free (mods, 1 /* Free the Array and the Elements */);
+    pblock_done(&confpb);
+
+    return rc;
+}

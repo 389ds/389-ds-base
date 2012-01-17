@@ -1092,3 +1092,15 @@ bail:
 	return sz;
 }
 
+char *
+slapi_rdn_get_value(const char *rdn)
+{
+    char *p = PL_strchr(rdn, '=');
+    if (p) {
+        p++;
+        while (isspace(*p)) p++;
+        p = slapi_ch_strdup(p);
+    }
+    return p;
+}
+

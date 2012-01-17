@@ -418,6 +418,7 @@ sub createConfigFile {
                 $ent->setValues("nsslapd-ldapiautodnsuffix", "cn=peercred,cn=external,cn=auth");
             }
         }
+        $ent->setValues("nsslapd-defaultNamingContext", $inf->{slapd}->{Suffix});
         if (!$conn->update($ent)) {
             $conn->close();
             return ("error_enabling_feature", "ldapi", $conn->getErrorString());
