@@ -757,7 +757,7 @@ mep_free_config_entry(struct configEntry ** entry)
     if (e->sdn) {
         slapi_log_error(SLAPI_LOG_CONFIG, MEP_PLUGIN_SUBSYSTEM,
                         "freeing config entry [%s]\n", slapi_sdn_get_dn(e->sdn));
-        slapi_sdn_free_string(&e->sdn);
+        slapi_sdn_free(&e->sdn);
     }
 
     if (e->origin_scope) {
@@ -773,7 +773,7 @@ mep_free_config_entry(struct configEntry ** entry)
     }
 
     if (e->template_sdn) {
-        slapi_sdn_free_(&e->template_sdn);
+        slapi_sdn_free(&e->template_sdn);
     }
 
     if (e->template_entry) {
