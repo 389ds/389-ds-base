@@ -77,17 +77,9 @@ usn_init(Slapi_PBlock *pb)
 {
     int rc = 0;
     void *identity = NULL;
-    int enabled = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_init\n");
-
-    slapi_pblock_get(pb, SLAPI_PLUGIN_ENABLED, &enabled);
-
-    if (!enabled) {
-        /* not enabled */
-        goto bail;
-    }
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &identity);
 

@@ -2293,7 +2293,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	slapi_pblock_set(&pb, SLAPI_PLUGIN_ENABLED, &enabled);
 	slapi_pblock_set(&pb, SLAPI_PLUGIN_CONFIG_ENTRY, plugin_entry);
 
-	if ((*initfunc)(&pb) != 0)
+	if (enabled && (*initfunc)(&pb) != 0)
 	{
         LDAPDebug(LDAP_DEBUG_ANY, "Init function \"%s\" for \"%s\" plugin"
 				 " in library \"%s\" failed\n",
