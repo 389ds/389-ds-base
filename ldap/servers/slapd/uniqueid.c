@@ -53,7 +53,6 @@
 #define MODULE "uniqueid" /* for logging */
 
 static int isValidFormat (const char * buff);
-static PRUint8 str2Byte (const char *str);
 
 /* All functions that strat with slapi_ are exposed to the plugins */
 

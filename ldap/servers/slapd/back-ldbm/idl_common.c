@@ -141,7 +141,6 @@ idl_append_extend(IDList **orig_idl, ID id)
 	}
 
 	if ( idl->b_nids == idl->b_nmax ) {
-		size_t x = 0;
 		/* No more room, need to extend */
 		/* Allocate new IDL with twice the space of this one */
 		IDList *idl_new = NULL;

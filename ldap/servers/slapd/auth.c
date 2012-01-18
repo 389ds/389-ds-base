@@ -82,7 +82,7 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
     Slapi_PBlock* pb = NULL;
     LDAPControl **ctrls;
     Slapi_DN *sdn = slapi_sdn_new_dn_byval(rawbaseDN);
-    char *baseDN = slapi_sdn_get_dn(sdn);
+    const char *baseDN = slapi_sdn_get_dn(sdn);
 
     if (ld != internal_ld) {
         err = ldap_search_ext_s(ld, baseDN, scope, filter, attrs, attrsonly,

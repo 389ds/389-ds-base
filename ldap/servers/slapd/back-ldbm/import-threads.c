@@ -1782,8 +1782,8 @@ upgradedn_producer(void *param)
             char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     escape_string(slapi_entry_get_dn(e), ebuf));
-            import_log_notice(job, "REASON: entry too large (%u bytes) for "
-                    "the buffer size (%u bytes)", newesize, job->fifo.bsize);
+            import_log_notice(job, "REASON: entry too large (%lu bytes) for "
+                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;

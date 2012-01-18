@@ -143,11 +143,12 @@ void rwlock_Unlock(RWLOCK lockP)
         rwLockP->write = 0;                              
     else                                                 
         rwLockP->numReaders--;                                 
-    if (rwLockP->numReaders == 0)                              
+    if (rwLockP->numReaders == 0) {
         if (rwLockP->numWriteWaiters != 0)                     
             condvar_notify(rwLockP->writeFree);             
         else                                             
             condvar_notifyAll(rwLockP->readFree);           
+    }
     crit_exit(rwLockP->crit);                 
 }
                                                          

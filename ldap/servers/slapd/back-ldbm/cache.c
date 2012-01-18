@@ -302,7 +302,7 @@ dump_hash(Hashtable *ht)
             }
             PR_snprintf(p, ids_size, "%s:", ep_id);
             p += len + 1; ids_size -= len + 1;
-        } while (e = HASH_NEXT(ht, e));
+        } while ((e = HASH_NEXT(ht, e)));
     }
     if (p != ep_ids) {
         LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", ep_ids);

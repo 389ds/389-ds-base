@@ -2190,7 +2190,8 @@ slapi_entry_get_nrdn_const( const Slapi_Entry *e )
 	if (NULL == nrdn) {
 		const char *dn = slapi_entry_get_dn_const(e);
 		if (dn) {
-			slapi_rdn_init_all_dn(&e->e_srdn, dn);
+			/* cast away const */
+			slapi_rdn_init_all_dn((Slapi_RDN *)&e->e_srdn, dn);
 			nrdn = slapi_rdn_get_nrdn(slapi_entry_get_srdn((Slapi_Entry *)e));
 		}
 	}

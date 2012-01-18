@@ -2190,7 +2190,6 @@ int
 slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expire_time, int *remaining_grace)
 {
     int is_expired = 0;
-    time_t now = current_time();
 
     if (pwpolicy && e) {
         /* If password expiration is enabled in the policy,
