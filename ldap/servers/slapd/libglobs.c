@@ -626,6 +626,11 @@ static struct config_get_and_set {
 	{CONFIG_MINSSF_ATTRIBUTE, config_set_minssf,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.minssf, CONFIG_INT, NULL},
+	{CONFIG_MINSSF_EXCLUDE_ROOTDSE, config_set_minssf_exclude_rootdse,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.minssf_exclude_rootdse,
+		CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_minssf_exclude_rootdse},
 	{CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE, config_set_force_sasl_external,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.force_sasl_external, CONFIG_ON_OFF,
@@ -918,6 +923,8 @@ FrontendConfig_init () {
   cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
   cfg->localssf = SLAPD_DEFAULT_LOCAL_SSF;
   cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
+  cfg->minssf_exclude_rootdse = LDAP_OFF; /* minssf is applied to rootdse,
+                                             by default */
   cfg->validate_cert = SLAPD_VALIDATE_CERT_WARN;
 
 #ifdef _WIN32
@@ -4881,6 +4888,22 @@ config_set_minssf( const char *attrname, char *value, char *errorbuf, int apply 
 }
 
 int
+config_set_minssf_exclude_rootdse( const char *attrname, char *value,
+                                   char *errorbuf, int apply )
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+                              value, 
+                              &(slapdFrontendConfig->minssf_exclude_rootdse),
+                              errorbuf,
+                              apply );
+  
+  return retVal;
+}
+
+int
 config_get_localssf()
 {
   int localssf;
@@ -4900,6 +4923,18 @@ config_get_minssf()
   minssf = slapdFrontendConfig->minssf;
 
   return minssf;
+}
+
+int
+config_get_minssf_exclude_rootdse()
+{
+  int retVal;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->minssf_exclude_rootdse;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
 }
 
 int

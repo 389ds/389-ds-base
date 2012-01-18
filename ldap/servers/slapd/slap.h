@@ -1869,6 +1869,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ANON_ACCESS_ATTRIBUTE "nsslapd-allow-anonymous-access"
 #define CONFIG_LOCALSSF_ATTRIBUTE "nsslapd-localssf"
 #define CONFIG_MINSSF_ATTRIBUTE "nsslapd-minssf"
+#define CONFIG_MINSSF_EXCLUDE_ROOTDSE "nsslapd-minssf-exclude-rootdse"
 #define CONFIG_VALIDATE_CERT_ATTRIBUTE "nsslapd-validate-cert"
 #ifndef _WIN32
 #define CONFIG_LOCALUSER_ATTRIBUTE "nsslapd-localuser"
@@ -2176,6 +2177,7 @@ typedef struct _slapdFrontendConfig {
   int allow_anon_access;	/* switch to enable/disable anonymous access */
   int localssf;			/* the security strength factor to assign to local conns (ldapi) */
   int minssf;			/* minimum security strength factor (for SASL and SSL/TLS) */
+  int minssf_exclude_rootdse; /* ON: minssf is ignored when searching rootdse */
   size_t maxsasliosize;         /* limit incoming SASL IO packet size */
   char *anon_limits_dn;		/* template entry for anonymous resource limits */
 #ifndef _WIN32

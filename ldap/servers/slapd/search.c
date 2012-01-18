@@ -80,6 +80,7 @@ do_search( Slapi_PBlock *pb )
 	int			changesonly = 0;
 	int			rc = -1;
 	int strict = 0;
+	int minssf_exclude_rootdse = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_search\n", 0, 0, 0 );
 
@@ -141,12 +142,38 @@ do_search( Slapi_PBlock *pb )
 	if ((slapi_sdn_get_dn(&(operation->o_sdn)) == NULL) &&
 	    (scope != LDAP_SCOPE_BASE) &&
 	    (config_get_anon_access_switch() == SLAPD_ANON_ACCESS_ROOTDSE)) {
-		op_shared_log_error_access(pb, "SRCH", base?base:"", "anonymous search not allowed");
+		op_shared_log_error_access(pb, "SRCH", rawbase?rawbase:"",
+		                           "anonymous search not allowed");
 
 		send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
 			"Anonymous access is not allowed.", 0, NULL );
 
 		goto free_and_return;
+	}
+
+	/* 
+	 * If nsslapd-minssf-exclude-rootdse is on, the minssf check has been
+	 * postponed till this moment since we need to know whether the basedn
+	 * is rootdse or not.
+	 *
+	 * If (minssf_exclude_rootdse && (basedn is rootdse),
+	 * then we allow accessing rootdse.
+	 * Otherwise, return Minimum SSF not met.
+	 */
+	minssf_exclude_rootdse = config_get_minssf_exclude_rootdse();
+	if (!minssf_exclude_rootdse || (rawbase && strlen(rawbase) > 0)) {
+		int minssf = 0;
+		/* Check if the minimum SSF requirement has been met. */
+		minssf = config_get_minssf();
+		if ((pb->pb_conn->c_sasl_ssf < minssf) &&
+		    (pb->pb_conn->c_ssl_ssf < minssf) &&
+		    (pb->pb_conn->c_local_ssf < minssf)) {
+			op_shared_log_error_access(pb, "SRCH", rawbase?rawbase:"",
+			                           "Minimum SSF not met");
+			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+			                 "Minimum SSF not met.", 0, NULL);
+			goto free_and_return;
+		}
 	}
 
 	/*

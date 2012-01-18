@@ -496,6 +496,7 @@ static void
 connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
 	int minssf = config_get_minssf();
+	int minssf_exclude_rootdse = 0;
 
 	/* Get the effective key length now since the first SSL handshake should be complete */
 	connection_set_ssl_ssf( conn );
@@ -508,7 +509,14 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	 * code will ensure that only SASL binds and startTLS are
 	 * allowed, which gives the connection a chance to meet the
 	 * SSF requirements.  We also allow UNBIND and ABANDON.*/
-	if ((conn->c_sasl_ssf < minssf) && (conn->c_ssl_ssf < minssf) &&
+	/* 
+	 * If nsslapd-minssf-exclude-rootdse is on, we have to go to the 
+	 * next step and check if the operation is against rootdse or not.
+	 * Once found it's not on rootdse, return LDAP_UNWILLING_TO_PERFORM there.
+	 */
+	minssf_exclude_rootdse = config_get_minssf_exclude_rootdse();
+	if (!minssf_exclude_rootdse &&
+	    (conn->c_sasl_ssf < minssf) && (conn->c_ssl_ssf < minssf) &&
 	    (conn->c_local_ssf < minssf) &&(op->o_tag != LDAP_REQ_BIND) &&
 	    (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
 	    (op->o_tag != LDAP_REQ_ABANDON)) {

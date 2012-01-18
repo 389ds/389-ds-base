@@ -141,6 +141,7 @@ do_modify( Slapi_PBlock *pb )
 	int				has_password_mod = 0; /* number of password mods */
 	char				*old_pw = NULL;	/* remember the old password */
 	char				*rawdn = NULL;
+	int				minssf_exclude_rootdse = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modify\n", 0, 0, 0 );
 
@@ -196,6 +197,27 @@ do_modify( Slapi_PBlock *pb )
 	}
 
 	LDAPDebug( LDAP_DEBUG_ARGS, "do_modify: dn (%s)\n", rawdn, 0, 0 );
+
+	/* 
+	 * If nsslapd-minssf-exclude-rootdse is on, the minssf check has been
+	 * postponed until here.  We should do it now.
+	 */
+	minssf_exclude_rootdse = config_get_minssf_exclude_rootdse();
+	if (minssf_exclude_rootdse) {
+		int minssf = 0;
+		/* Check if the minimum SSF requirement has been met. */
+		minssf = config_get_minssf();
+		if ((pb->pb_conn->c_sasl_ssf < minssf) &&
+		    (pb->pb_conn->c_ssl_ssf < minssf) &&
+		    (pb->pb_conn->c_local_ssf < minssf)) {
+			op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"",
+			                           "Minimum SSF not met");
+			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+			                 "Minimum SSF not met.", 0, NULL);
+			slapi_ch_free((void **) &rawdn);
+			return;
+		}
+	}
 
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, rawdn ); 

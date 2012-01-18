@@ -138,6 +138,7 @@ do_bind( Slapi_PBlock *pb )
     Slapi_Entry *bind_target_entry = NULL;
     int auto_bind = 0;
     int minssf = 0;
+    int minssf_exclude_rootdse = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "do_bind\n", 0, 0, 0 );
 
@@ -493,7 +494,15 @@ do_bind( Slapi_PBlock *pb )
 
         /* Check if the minimum SSF requirement has been met. */
         minssf = config_get_minssf();
-        if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf) &&
+        /* 
+         * If nsslapd-minssf-exclude-rootdse is on, we have to go to the 
+         * next step and check if the operation is against rootdse or not.
+         * Once found it's not on rootdse, return LDAP_UNWILLING_TO_PERFORM
+         * there.
+         */
+        minssf_exclude_rootdse = config_get_minssf_exclude_rootdse();
+        if (!minssf_exclude_rootdse && (pb->pb_conn->c_sasl_ssf < minssf) &&
+            (pb->pb_conn->c_ssl_ssf < minssf) &&
             (pb->pb_conn->c_local_ssf < minssf)) {
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "Minimum SSF not met.", 0, NULL);
@@ -560,7 +569,7 @@ do_bind( Slapi_PBlock *pb )
                 goto free_and_return;
             }
         /* Check if simple binds are allowed over an insecure channel.  We only check
-	 * this for authenticated binds. */
+         * this for authenticated binds. */
         } else if (config_get_require_secure_binds() == 1) {
                 Connection *conn = NULL;
                 int sasl_ssf = 0;
