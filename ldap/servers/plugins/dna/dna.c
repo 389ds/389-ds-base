@@ -74,7 +74,8 @@
 #define DNA_FAILURE -1
 
 /* Default range request timeout */
-#define DNA_DEFAULT_TIMEOUT 10
+/* use the default replication timeout */
+#define DNA_DEFAULT_TIMEOUT 600 * 1000 /* 600 seconds in milliseconds */
 
 /**
  * DNA config types

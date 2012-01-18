@@ -987,8 +987,8 @@ slapi_ldap_bind(
 	if (LDAP_SUCCESS != rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not send startTLS request: "
-			    "error %d (%s)\n",
-			    rc, ldap_err2string(rc));
+			    "error %d (%s) errno %d (%s)\n",
+			    rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
 	    goto done;
 	}
 	slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
@@ -1026,10 +1026,10 @@ slapi_ldap_bind(
 		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error reading bind response for id "
-				"[%s] mech [%s]: error %d (%s)\n",
+				"[%s] mech [%s]: error %d (%s) errno %d (%s)\n",
 				bindid ? bindid : "(anon)",
 				mech ? mech : "SIMPLE",
-				rc, ldap_err2string(rc));
+				rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
 		goto done;
 	    } else if (rc == 0) { /* timeout */
 		rc = LDAP_TIMEOUT;
@@ -1050,10 +1050,10 @@ slapi_ldap_bind(
 					    0)) != LDAP_SUCCESS) {
 		    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				    "Error: could not bind id "
-				    "[%s] mech [%s]: error %d (%s)\n",
+				    "[%s] mech [%s]: error %d (%s) errno %d (%s)\n",
 				    bindid ? bindid : "(anon)",
 				    mech ? mech : "SIMPLE",
-				    rc, ldap_err2string(rc));
+				    rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
 		    goto done;
 		}
 	    }
@@ -1064,10 +1064,10 @@ slapi_ldap_bind(
 		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error: could not read bind results for id "
-				"[%s] mech [%s]: error %d (%s)\n",
+				"[%s] mech [%s]: error %d (%s) errno %d (%s)\n",
 				bindid ? bindid : "(anon)",
 				mech ? mech : "SIMPLE",
-				rc, ldap_err2string(rc));
+				rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
 		goto done;
 	    }
 	}
@@ -1407,10 +1407,12 @@ slapd_ldap_sasl_interactive_bind(
             rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
             slapi_log_error(SLAPI_LOG_FATAL, "slapd_ldap_sasl_interactive_bind",
                             "Error: could not perform interactive bind for id "
-                            "[%s] mech [%s]: error %d (%s) (%s)\n",
+                            "[%s] mech [%s]: LDAP error %d (%s) (%s) "
+                            "errno %d (%s)\n",
                             bindid ? bindid : "(anon)",
                             mech ? mech : "SIMPLE",
-                            rc, ldap_err2string(rc), errmsg);
+                            rc, ldap_err2string(rc), errmsg,
+                            errno, slapd_system_strerror(errno));
             if (can_retry_bind(ld, mech, bindid, creds, rc, errmsg)) {
                 ; /* pass through to retry one time */
             } else {
