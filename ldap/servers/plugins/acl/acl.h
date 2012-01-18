@@ -85,7 +85,6 @@
 #include	"slap.h"
 #include	"slapi-private.h"
 #include	"portable.h"
-#include 	"prrwlock.h"
 #include	"avl.h"
 
 #include	"cert.h"

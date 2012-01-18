@@ -86,7 +86,7 @@ typedef struct _psearch {
  * A list of outstanding persistent searches.
  */
 typedef struct _psearch_list {
-    rwl		*pl_rwlock;	/* R/W lock struct to serialize access */
+    Slapi_RWLock		*pl_rwlock;	/* R/W lock struct to serialize access */
     PSearch	*pl_head;	/* Head of list */
     PRLock	*pl_cvarlock;	/* Lock for cvar */
     PRCondVar	*pl_cvar;	/* ps threads sleep on this */
@@ -95,10 +95,10 @@ typedef struct _psearch_list {
 /*
  * Convenience macros for locking the list of persistent searches
  */
-#define PSL_LOCK_READ()    psearch_list->pl_rwlock->rwl_acquire_read_lock( psearch_list->pl_rwlock)
-#define PSL_UNLOCK_READ()  psearch_list->pl_rwlock->rwl_relinquish_read_lock( psearch_list->pl_rwlock )
-#define PSL_LOCK_WRITE()   psearch_list->pl_rwlock->rwl_acquire_write_lock( psearch_list->pl_rwlock )
-#define PSL_UNLOCK_WRITE() psearch_list->pl_rwlock->rwl_relinquish_write_lock( psearch_list->pl_rwlock )
+#define PSL_LOCK_READ()    slapi_rwlock_rdlock(psearch_list->pl_rwlock)
+#define PSL_UNLOCK_READ()  slapi_rwlock_unlock(psearch_list->pl_rwlock)
+#define PSL_LOCK_WRITE()   slapi_rwlock_wrlock(psearch_list->pl_rwlock)
+#define PSL_UNLOCK_WRITE() slapi_rwlock_unlock(psearch_list->pl_rwlock)
     
 
 /*
@@ -130,7 +130,7 @@ ps_init_psearch_system()
 {
     if ( !PS_IS_INITIALIZED()) {
 	psearch_list = (PSearch_List *) slapi_ch_calloc( 1, sizeof( PSearch_List ));
-	if (( psearch_list->pl_rwlock = rwl_new()) == NULL ) {
+	if (( psearch_list->pl_rwlock = slapi_new_rwlock()) == NULL ) {
 	    LDAPDebug( LDAP_DEBUG_ANY, "init_psearch_list: cannot initialize lock structure. "
 		    "The server is terminating.\n", 0, 0, 0 );
 	    exit( -1 );

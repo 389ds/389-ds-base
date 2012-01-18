@@ -72,7 +72,7 @@ g_get_global_referrals(void)
     if (global_referrals.ra_rwlock == NULL)
 	{
         /* Make a new lock */
-        global_referrals.ra_rwlock = rwl_new();
+        global_referrals.ra_rwlock = slapi_new_rwlock();
       
         if (global_referrals.ra_rwlock == NULL) {
             LDAPDebug( LDAP_DEBUG_ANY,
@@ -139,7 +139,7 @@ referrals_free (void)
 
   GR_UNLOCK_WRITE();
 
-  rwl_free( &grefs->ra_rwlock );
+  slapi_destroy_rwlock( grefs->ra_rwlock );
 }
 
 /*

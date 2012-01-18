@@ -183,7 +183,7 @@ struct logging_opts {
 	time_t		log_error_ctime;	/* log creation time */
 	LogFileInfo	*log_error_logchain;	/* all the logs info */
 	char		*log_errorinfo_file;	/* error log rotation info file */
-	rwl		*log_error_rwlock;	/* lock on error*/
+	Slapi_RWLock		*log_error_rwlock;	/* lock on error*/
 
 	/* These are audit log specific */
 	int		log_audit_state;
@@ -209,7 +209,7 @@ struct logging_opts {
 	time_t		log_audit_ctime;	/* log creation time */
 	LogFileInfo	*log_audit_logchain;	/* all the logs info */
 	char		*log_auditinfo_file;	/* audit log rotation info file */
-	rwl		*log_audit_rwlock;	/* lock on audit*/
+	Slapi_RWLock		*log_audit_rwlock;	/* lock on audit*/
 
 };
 
@@ -222,13 +222,13 @@ struct logging_opts {
 #define LOG_ACCESS_LOCK_WRITE()   PR_Lock(loginfo.log_access_buffer->lock)
 #define LOG_ACCESS_UNLOCK_WRITE() PR_Unlock(loginfo.log_access_buffer->lock)
 
-#define LOG_ERROR_LOCK_READ()    loginfo.log_error_rwlock->rwl_acquire_read_lock(loginfo.log_error_rwlock)
-#define LOG_ERROR_UNLOCK_READ()  loginfo.log_error_rwlock->rwl_relinquish_read_lock(loginfo.log_error_rwlock)
-#define LOG_ERROR_LOCK_WRITE()    loginfo.log_error_rwlock->rwl_acquire_write_lock(loginfo.log_error_rwlock)
-#define LOG_ERROR_UNLOCK_WRITE()  loginfo.log_error_rwlock->rwl_relinquish_write_lock(loginfo.log_error_rwlock)
+#define LOG_ERROR_LOCK_READ()    slapi_rwlock_rdlock(loginfo.log_error_rwlock)
+#define LOG_ERROR_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_error_rwlock)
+#define LOG_ERROR_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_error_rwlock)
+#define LOG_ERROR_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_error_rwlock)
 
-#define LOG_AUDIT_LOCK_READ()    loginfo.log_audit_rwlock->rwl_acquire_read_lock(loginfo.log_audit_rwlock)
-#define LOG_AUDIT_UNLOCK_READ()  loginfo.log_audit_rwlock->rwl_relinquish_read_lock(loginfo.log_audit_rwlock)
-#define LOG_AUDIT_LOCK_WRITE()    loginfo.log_audit_rwlock->rwl_acquire_write_lock(loginfo.log_audit_rwlock)
-#define LOG_AUDIT_UNLOCK_WRITE()  loginfo.log_audit_rwlock->rwl_relinquish_write_lock(loginfo.log_audit_rwlock)
+#define LOG_AUDIT_LOCK_READ()    slapi_rwlock_rdlock(loginfo.log_audit_rwlock)
+#define LOG_AUDIT_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_audit_rwlock)
+#define LOG_AUDIT_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_audit_rwlock)
+#define LOG_AUDIT_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_audit_rwlock)
 

@@ -325,7 +325,7 @@ void g_log_init(int log_enabled)
 	loginfo.log_error_fdes = NULL;
 	loginfo.log_numof_error_logs = 1;
 	loginfo.log_error_logchain = NULL;
-	if ((loginfo.log_error_rwlock =rwl_new())== NULL ) {
+	if ((loginfo.log_error_rwlock =slapi_new_rwlock())== NULL ) {
 		exit (-1);
 	}
 
@@ -352,7 +352,7 @@ void g_log_init(int log_enabled)
 	loginfo.log_numof_audit_logs = 1;
 	loginfo.log_audit_fdes = NULL;
 	loginfo.log_audit_logchain = NULL;
-	if ((loginfo.log_audit_rwlock =rwl_new())== NULL ) {
+	if ((loginfo.log_audit_rwlock =slapi_new_rwlock())== NULL ) {
 		exit (-1);
 	}
 }

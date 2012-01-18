@@ -888,7 +888,7 @@ FrontendConfig_init () {
   slapdFrontendConfig_t *cfg = getFrontendConfig();
 
   /* initialize the read/write configuration lock */
-  if ( (cfg->cfg_rwlock = rwl_new()) == NULL ) {
+  if ( (cfg->cfg_rwlock = slapi_new_rwlock()) == NULL ) {
 	LDAPDebug ( LDAP_DEBUG_ANY, 
 				"FrontendConfig_init: failed to initialize cfg_rwlock. Exiting now.",
 				0,0,0 );

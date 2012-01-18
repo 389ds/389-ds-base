@@ -167,7 +167,6 @@ typedef struct symbol_t {
 #include "ldif.h"
 #include "ldaplog.h"
 #include "portable.h"
-#include "rwlock.h"
 #include "disconnect_errors.h"
 
 #include "csngen.h"
@@ -1652,17 +1651,17 @@ typedef struct ref {
 
 /* The head of the referral array. */
 typedef struct ref_array {
-    rwl	     *ra_rwlock;    /* Read-write lock struct to protect this thing */
+    Slapi_RWLock	     *ra_rwlock;    /* Read-write lock struct to protect this thing */
     int       ra_size;      /* The size of this puppy (NOT the number of entries)*/
     int       ra_nextindex; /* The next free index */
     int       ra_readcount; /* The number of copyingfroms in the list */
     Ref     **ra_refs;      /* The array of referrals*/
 } Ref_Array;
 
-#define GR_LOCK_READ()    grefs->ra_rwlock->rwl_acquire_read_lock( grefs->ra_rwlock)
-#define GR_UNLOCK_READ()  grefs->ra_rwlock->rwl_relinquish_read_lock( grefs->ra_rwlock )
-#define GR_LOCK_WRITE()   grefs->ra_rwlock->rwl_acquire_write_lock( grefs->ra_rwlock )
-#define GR_UNLOCK_WRITE() grefs->ra_rwlock->rwl_relinquish_write_lock( grefs->ra_rwlock )
+#define GR_LOCK_READ()    slapi_rwlock_rdlock(grefs->ra_rwlock)
+#define GR_UNLOCK_READ()  slapi_rwlock_unlock(grefs->ra_rwlock)
+#define GR_LOCK_WRITE()   slapi_rwlock_wrlock(grefs->ra_rwlock)
+#define GR_UNLOCK_WRITE() slapi_rwlock_unlock(grefs->ra_rwlock)
 
 /*
  * This structure is used to pass a pair of port numbers to the daemon
@@ -1980,10 +1979,10 @@ typedef struct _slapdEntryPoints {
 /* flag used to indicate that the change to the config parameter should be saved */
 #define CONFIG_APPLY 1
 
-#define CFG_LOCK_READ(cfg)   cfg->cfg_rwlock->rwl_acquire_read_lock( cfg->cfg_rwlock )
-#define CFG_UNLOCK_READ(cfg) cfg->cfg_rwlock->rwl_relinquish_read_lock( cfg->cfg_rwlock )
-#define CFG_LOCK_WRITE(cfg)   cfg->cfg_rwlock->rwl_acquire_write_lock( cfg->cfg_rwlock )
-#define CFG_UNLOCK_WRITE(cfg) cfg->cfg_rwlock->rwl_relinquish_write_lock( cfg->cfg_rwlock )
+#define CFG_LOCK_READ(cfg)   slapi_rwlock_rdlock(cfg->cfg_rwlock)
+#define CFG_UNLOCK_READ(cfg) slapi_rwlock_unlock(cfg->cfg_rwlock)
+#define CFG_LOCK_WRITE(cfg)   slapi_rwlock_wrlock(cfg->cfg_rwlock)
+#define CFG_UNLOCK_WRITE(cfg) slapi_rwlock_unlock(cfg->cfg_rwlock)
 
 #define REFER_MODE_OFF 0 
 #define REFER_MODE_ON 1
@@ -2020,7 +2019,7 @@ typedef struct passwordpolicyarray {
 } passwdPolicy;
 
 typedef struct _slapdFrontendConfig {
-  rwl    *cfg_rwlock;       /* read/write lock to serialize access */
+  Slapi_RWLock     *cfg_rwlock;       /* read/write lock to serialize access */
   struct pw_scheme *rootpwstoragescheme;
   int accesscontrol;
   int groupevalnestlevel;

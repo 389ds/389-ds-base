@@ -585,7 +585,6 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/base/nscperror.c \
 	lib/base/plist.cpp \
 	lib/base/pool.cpp \
-	lib/base/rwlock.cpp \
 	lib/base/shexp.cpp \
 	lib/base/system.cpp \
 	lib/base/systhr.cpp \
@@ -671,7 +670,6 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/regex.c \
 	ldap/servers/slapd/resourcelimit.c \
 	ldap/servers/slapd/result.c \
-	ldap/servers/slapd/rwlock.c \
 	ldap/servers/slapd/sasl_map.c \
 	ldap/servers/slapd/schema.c \
 	ldap/servers/slapd/schemaparse.c \

@@ -44,7 +44,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "rwlock.h"
 #include "slap.h"
 
 /*
