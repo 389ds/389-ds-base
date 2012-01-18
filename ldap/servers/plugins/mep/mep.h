@@ -105,6 +105,7 @@ struct configEntry {
     char *managed_base;
     Slapi_DN *template_sdn;
     Slapi_Entry *template_entry;
+    char **origin_attrs;
 };
 
 /*

@@ -43,6 +43,7 @@
  * Managed Entries Plug-in
  */
 #include "mep.h"
+#include "slapi-private.h"
 
 
 /*
@@ -117,6 +118,9 @@ static int mep_parse_mapped_attr(char *mapping, Slapi_Entry *origin,
 static int mep_is_managed_entry(Slapi_Entry *e);
 static int mep_is_mapped_attr(Slapi_Entry *template, char *type);
 static int mep_has_tombstone_value(Slapi_Entry * e);
+static int mep_parse_mapped_origin_attr(char *mapping, char **origin_type);
+static int mep_is_mapped_origin_attr(char **vals, char *type);
+static char** mep_extract_origin_attrs(Slapi_Entry *entry);
 
 /*
  * Config cache locking functions
@@ -657,6 +661,7 @@ mep_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb)
             goto bail;
         }
 
+        /* Check the schema */
         if (slapi_entry_schema_check(NULL, test_entry) != 0) {
             slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
                             "mep_parse_config_entry: Test managed "
@@ -668,6 +673,11 @@ mep_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb)
             ret = -1;
             goto bail;
         }
+
+        /*
+         * Extract the origin attrs from the template entry
+         */
+        entry->origin_attrs = mep_extract_origin_attrs(entry->template_entry);
 
         /* Dispose of the test entry */
         slapi_entry_free(test_entry);
@@ -780,6 +790,10 @@ mep_free_config_entry(struct configEntry ** entry)
         slapi_entry_free(e->template_entry);
     }
 
+    if(e->origin_attrs){
+        slapi_ch_array_free(e->origin_attrs);
+    }
+
     slapi_ch_free((void **) entry);
 }
 
@@ -808,6 +822,210 @@ mep_delete_config()
 /*
  * Helper functions
  */
+
+/*
+ * mep_parse_mapped_origin_attr()
+ *
+ * Parses a mapped attribute setting from a template and
+ * grabs the attribute name and places it in origin_type.
+ *
+ * This is used to determine if a modify operation needs
+ * to update the managed entry.
+ */
+static int
+mep_parse_mapped_origin_attr(char *mapping, char **origin_type)
+{
+    int ret = 0;
+    char *p = NULL;
+    char *end = NULL;
+    char *var_start = NULL;
+
+    /* reset the pointer for origin_type as this func is usually in a loop */
+    *origin_type = NULL;
+
+    /* split out the type from the value (use the first ':') */
+    if ((p = strchr(mapping, ':')) == NULL) {
+        slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                        "mep_parse_mapped_origin_attr: Value for mapped attribute "
+                        "is not in the correct format. (value: \"%s\").\n",
+                        mapping);
+        ret = 1;
+        goto bail;
+    }
+
+    /* Ensure the type is not empty. */
+    if (p == mapping) {
+        slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                        "mep_parse_mapped_origin_attr: Value for mapped attribute "
+                        "is not in the correct format. The type is missing. "
+                        "(value: \"%s\").\n",
+                        mapping);
+        ret = 1;
+        goto bail;
+    }
+
+    /* Terminate the type so we can use it as a string. */
+    *p = '\0';
+
+    /* Advance p to point to the beginning of the value. */
+    p++;
+    while (*p == ' ') {
+        p++;
+    }
+
+    /* Make end point to the last character that we want in the value. */
+    end = p + strlen(p) - 1;
+
+    /* Find the variable that we need to substitute. */
+    for (; p <= end; p++) {
+        if (*p == '$') {
+            if (p == end) {
+                slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                "mep_parse_mapped_origin_attr: Invalid mapped "
+                                "attribute value for type \"%s\".\n", mapping);
+                ret = 1;
+                goto bail;
+            }
+
+            if (*(p + 1) == '$') {
+                /* This is an escaped $.  Eliminate the escape character
+                 * to prevent if from being a part of the value. */
+                p++;
+                memmove(p, p+1, end-(p+1)+1);
+                *end = '\0';
+                end--;
+            } else {
+                int quoted = 0;
+
+                /* We found a variable.  Terminate the pre
+                 * string and process the variable. */
+                *p = '\0';
+                p++;
+
+                /* Check if the variable name is quoted.  If it is, we skip past
+                 * the quoting brace to avoid putting it in the mapped value. */
+                if (*p == '{') {
+                    quoted = 1;
+                    if (p < end) {
+                        p++;
+                    } else {
+                        slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                        "mep_parse_mapped_origin_attr: Invalid mapped "
+                                        "attribute value for type \"%s\".\n", mapping);
+                        ret = 1;
+                        goto bail;
+                    }
+                }
+
+                /* We should be pointing at the variable name now. */
+                var_start = p;
+
+                /* Move the pointer to the end of the variable name.  We
+                 * stop at the first character that is not legal for use
+                 * in an attribute description. */
+                while ((p < end) && IS_ATTRDESC_CHAR(*p)) {
+                    p++;
+                }
+
+                /* If the variable is quoted and this is not a closing
+                 * brace, there is a syntax error in the mapping rule. */
+                if (quoted && (*p != '}')) {
+                        slapi_log_error( SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                        "mep_parse_mapped_origin_attr: Invalid mapped "
+                                        "attribute value for type \"%s\".\n", mapping);
+                        ret = 1;
+                        goto bail;
+                }
+
+                /* Check for a missing variable name. */
+                if (p == var_start) {
+                    break;
+                }
+
+                if (p == end) {
+                    /* Set the map type.  In this case, p could be
+                     * pointing at either the last character of the
+                     * map type, or at the first character after the
+                     * map type.  If the character is valid for use
+                     * in an attribute description, we consider it
+                     * to be a part of the map type. */
+                    if (IS_ATTRDESC_CHAR(*p)) {
+                        *origin_type = strndup(var_start, p - var_start + 1);
+                        /* There is no post string. */
+                    } else {
+                        *origin_type = strndup(var_start, p - var_start);
+                    }
+                } else {
+                    /* Set the map type.  In this case, p is pointing
+                     * at the first character after the map type. */
+                    *origin_type = strndup(var_start, p - var_start);
+                }
+
+                /* We only support a single variable, so we're done. */
+                break;
+            }
+        }
+    }
+
+  bail:
+    if (ret != 0) {
+        slapi_ch_free_string(origin_type);
+    }
+
+    return ret;
+}
+
+/*
+ *  mep_extract_origin_attrs
+ *
+ *  Extract the attributes from the template that reside on
+ *  the origin entry that trigger updates to the managed entry.
+ */
+static char **
+mep_extract_origin_attrs(Slapi_Entry *template)
+{
+    char **vals = NULL;
+    char *origin_type = NULL;
+    char **origin_attrs = NULL;
+    int i;
+
+    if (template) {
+        vals = slapi_entry_attr_get_charray(template, MEP_MAPPED_ATTR_TYPE);
+        for (i = 0; vals && vals[i]; ++i) {
+            if (mep_parse_mapped_origin_attr(vals[i], &origin_type) == 0) {
+                slapi_ch_array_add(&origin_attrs,origin_type);
+            }
+        }
+        slapi_ch_array_free(vals);
+    }
+
+    return origin_attrs;
+}
+
+/*
+ * mep_is_mapped_origin_attr()
+ *
+ * Checks if type is a mapped origin attribute.
+ */
+static int
+mep_is_mapped_origin_attr(char **vals, char *type)
+{
+    int ret = 0;
+    int i;
+
+    if (type) {
+        for (i = 0; vals && vals[i]; ++i) {
+            if (slapi_attr_type_cmp(vals[i], type, SLAPI_TYPE_CMP_EXACT) == 0) {
+                /* Ok, we are modifying a attribute that affects the managed entry */
+                ret = 1;
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
 static Slapi_DN *
 mep_get_sdn(Slapi_PBlock * pb)
 {
@@ -2098,6 +2316,8 @@ mep_mod_post_op(Slapi_PBlock *pb)
     struct configEntry *config = NULL;
     int result = 0;
     void *txn = NULL;
+    LDAPMod	**mods = NULL;
+    int i, abort_mod = 1;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_mod_post_op\n");
@@ -2146,6 +2366,29 @@ mep_mod_post_op(Slapi_PBlock *pb)
 
             mep_find_config(e, &config);
             if (config) {
+                /*
+                 *  Check to see if the applied mods are mapped origin attributes.
+                 *  If they are not, then we don't need to modify the mapped entry
+                 *  as it has not changed.
+                 */
+                slapi_pblock_get (pb, SLAPI_MODIFY_MODS, &mods);
+                for(i = 0; mods && mods[i]; i++){
+                    if(mep_is_mapped_origin_attr(config->origin_attrs,mods[i]->mod_type)){
+                        /*
+                         * We are modifying a managed origin attr, so we can proceed with
+                         * modifying the managed entry.  Otherwise we would modify the
+                         * managed entry for no reason.
+                         */    
+                        abort_mod = 0;
+                        break;
+                    }
+                }
+
+                if(abort_mod){
+                    mep_config_unlock();
+                    goto bail;
+                }
+
                 smods = mep_get_mapped_mods(config, e, &mapped_dn);
                 if (smods) {
                     /* Clear out the pblock for reuse. */
@@ -2191,15 +2434,12 @@ mep_mod_post_op(Slapi_PBlock *pb)
                         "mep_mod_post_op: Unable to find config for origin "
                         "entry \"%s\".\n", slapi_sdn_get_dn(sdn));
             }
-
-            slapi_ch_free_string(&managed_dn);
-
             mep_config_unlock();
         }
-
     }
 
   bail:
+    slapi_ch_free_string(&managed_dn);
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_mod_post_op\n");
 
