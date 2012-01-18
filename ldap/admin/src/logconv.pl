@@ -1148,7 +1148,7 @@ if (m/ VLV /){
 if (m/ SORT /){$sortvlv++}
 if (m/ version=2/){$version2++}
 if (m/ version=3/){$version3++}
-if (m/ conn=0 fd=/){$restarts++}
+if (m/ conn=1 fd=/){$restarts++}
 if (m/ SSL connection from/){$sslconn++;}
 if (m/ connection from/){
      $exc = "no";
