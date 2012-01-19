@@ -799,7 +799,8 @@ struct slapdplugin {
 	struct pluginconfig plg_conf;		/* plugin configuration parameters */
 	IFP					plg_cleanup;	/* cleanup function */
 	IFP					plg_start;		/* start function */
-	IFP plg_poststart; /* poststart function */
+	IFP					plg_poststart;	/* poststart function */
+	int					plg_closed;		/* mark plugin as closed */
 
 /* NOTE: These LDIF2DB and DB2LDIF fn pointers are internal only for now.
    I don't believe you can get these functions from a plug-in and

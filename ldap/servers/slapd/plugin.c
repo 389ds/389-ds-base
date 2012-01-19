@@ -1360,6 +1360,8 @@ plugin_dependency_closeall()
 		{
 	   		pblock_init(&pb);
 		    plugin_call_one( global_plugin_shutdown_order[index].plugin, SLAPI_PLUGIN_CLOSE_FN, &pb );
+		    /* set plg_closed to 1 to prevent any further plugin pre/post op function calls */
+		    global_plugin_shutdown_order[index].plugin->plg_closed = 1;
 			plugins_closed++;
 		}
 
@@ -1440,7 +1442,7 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 	slapi_pblock_set (pb, SLAPI_PLUGIN, list);
 	set_db_default_result_handlers (pb); /* JCM: What's this do? Is it needed here? */
 	if (slapi_pblock_get (pb, operation, &func) == 0 && func != NULL &&
-			plugin_invoke_plugin_pb (list, operation, pb))
+			plugin_invoke_plugin_pb (list, operation, pb) && list->plg_closed == 0)
 		{
 			char *n= list->plg_name;
 			LDAPDebug( LDAP_DEBUG_TRACE, "Calling plugin '%s' #%d type %d\n", (n==NULL?"noname":n), count, operation );
@@ -2102,6 +2104,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	plugin = (struct slapdplugin *)slapi_ch_calloc(1, sizeof(struct slapdplugin));
 
 	plugin->plg_dn = slapi_ch_strdup(slapi_entry_get_dn_const(plugin_entry));
+	plugin->plg_closed = 0;
 
 	if (!(value = slapi_entry_attr_get_charptr(plugin_entry,
 											   ATTR_PLUGIN_TYPE)))

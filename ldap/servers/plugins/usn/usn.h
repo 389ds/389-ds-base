@@ -51,6 +51,7 @@
 /* usn.c */
 void usn_set_identity(void *identity);
 void *usn_get_identity();
+int usn_is_started();
 
 /* usn_cleanup.c */
 int usn_cleanup_start(Slapi_PBlock *pb);

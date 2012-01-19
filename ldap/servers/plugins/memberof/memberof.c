@@ -2295,6 +2295,15 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	const char *dn = 0;
 
 	*returncode = LDAP_SUCCESS;
+
+	/* make sure the plugin was not stopped from a shutdown */
+	if (!g_plugin_started)
+	{
+		*returncode = LDAP_OPERATIONS_ERROR;
+		rv = SLAPI_DSE_CALLBACK_ERROR;
+		goto out;
+	}
+
 	/* get arg(s) */
 	if ((dn = fetch_attr(e, "basedn", 0)) == NULL)
 	{

@@ -2135,3 +2135,8 @@ linked_attrs_dump_config_entry(struct configEntry * entry)
     slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
                     "<---- scope ---------------> %s\n", entry->scope);
 }
+
+int
+linked_attrs_is_started(){
+	return g_plugin_started;
+}

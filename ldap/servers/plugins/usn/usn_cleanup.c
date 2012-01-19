@@ -252,6 +252,14 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                     "--> usn_cleanup_add\n");
 
     *returncode = LDAP_SUCCESS;
+
+    /* make sure plugin is not closed*/
+    if(!usn_is_started()){
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto bail;
+    }
+
     cn = slapi_entry_attr_get_charptr(e, "cn");
     if (NULL == cn) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;

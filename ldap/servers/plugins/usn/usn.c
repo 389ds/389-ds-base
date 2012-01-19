@@ -68,6 +68,7 @@ static int usn_get_attr(Slapi_PBlock *pb, const char* type, void *value);
 static int usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e,
         Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 
+int g_plugin_started = 0;
 /*
  * Register USN plugin
  * Note: USN counter initialization is done in the backend (ldbm_usn_init).
@@ -237,6 +238,7 @@ usn_start(Slapi_PBlock *pb)
     value = slapi_value_new_string("(objectclass=*) $ EXCLUDE entryusn");
     rc = slapi_set_plugin_default_config("nsds5ReplicatedAttributeList", value);
     slapi_value_free(&value);
+    g_plugin_started = 1;
 bail:
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- usn_start (rc: %d)\n", rc);
@@ -252,6 +254,7 @@ usn_close(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "--> usn_close\n");
 
     csngen_free(&_usn_csngen);
+    g_plugin_started = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "<-- usn_close\n");
 
@@ -707,4 +710,10 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- usn_rootdse_search\n");
     return SLAPI_DSE_CALLBACK_OK;
+}
+
+int
+usn_is_started()
+{
+	return g_plugin_started;
 }
