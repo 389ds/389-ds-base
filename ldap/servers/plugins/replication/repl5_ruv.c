@@ -479,21 +479,26 @@ int
 ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl)
 {
     RUVElement* replica;
-	int rc = RUV_NOTFOUND;
-	
+    int rc = RUV_NOTFOUND;
+
     PR_ASSERT (ruv && replica_purl);
 
     slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, rid);
     if (replica != NULL)
     {
-		slapi_ch_free((void **)&(replica->replica_purl));
-		replica->replica_purl = slapi_ch_strdup(replica_purl);
+        if (strcmp(replica->replica_purl, replica_purl)) { /* purl updated */
+            /* Replace replica_purl in RUV since supplier has been updated. */
+            slapi_ch_free((void **)&(replica->replica_purl));
+            replica->replica_purl = slapi_ch_strdup(replica_purl);
+            /* Also, reset csn and min_csn. */
+            replica->csn = replica->min_csn = NULL;
+        }
         rc = RUV_SUCCESS;
-	}
+    }
 
-	slapi_rwlock_unlock (ruv->lock);
-	return rc;
+    slapi_rwlock_unlock (ruv->lock);
+    return rc;
 }
 
 int 
