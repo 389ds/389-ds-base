@@ -93,5 +93,6 @@ void memberof_rlock_config();
 void memberof_wlock_config();
 void memberof_unlock_config();
 
+int g_get_shutdown();		/* declared in proto-slap.h */
 
 #endif	/* _MEMBEROF_H_ */

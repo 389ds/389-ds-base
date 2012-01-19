@@ -2451,7 +2451,6 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 		memberof_del_dn_type_callback(e, &del_data);
 	}
 
-bail:
 	slapi_valueset_free(groups);
 	
 	return rc;
