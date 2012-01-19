@@ -667,7 +667,9 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 			{
 				if(0 == slapi_entry_attr_find(post_e, configCopy.groupattrs[i], &attr))
 				{
-					memberof_moddn_attr_list(pb, &configCopy, pre_dn, post_dn, attr, txn);
+					if(memberof_moddn_attr_list(pb, &configCopy, pre_dn, post_dn, attr, txn) != 0){
+						break;
+					}
 				}
 			}
 		}
@@ -1266,7 +1268,10 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			slapi_entry_attr_find( e, config->groupattrs[i], &members );
 			if(members)
 			{
-				memberof_mod_attr_list_r(pb, config, mod_op, group_dn, op_this, members, ll, txn);
+				if(memberof_mod_attr_list_r(pb, config, mod_op, group_dn, op_this, members, ll, txn) != 0){
+					rc = -1;
+					goto bail;
+				}
 			}
 		}
 
@@ -1667,6 +1672,11 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	Slapi_Value *group_dn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
 	int rc = 0;
+
+	if(g_get_shutdown()){
+		rc = -1;
+		goto bail;
+	}
 
 	if (!groupvals)
 	{
@@ -2441,6 +2451,7 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 		memberof_del_dn_type_callback(e, &del_data);
 	}
 
+bail:
 	slapi_valueset_free(groups);
 	
 	return rc;

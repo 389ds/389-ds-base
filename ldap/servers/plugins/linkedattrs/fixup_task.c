@@ -130,8 +130,8 @@ linked_attrs_fixup_task_thread(void *arg)
 	int rc = 0;
 	Slapi_Task *task = (Slapi_Task *)arg;
 	task_data *td = NULL;
-        PRCList *main_config = NULL;
-        int found_config = 0;
+	PRCList *main_config = NULL;
+	int found_config = 0;
 
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
@@ -144,51 +144,50 @@ linked_attrs_fixup_task_thread(void *arg)
 	                "Syntax validate task starting (link dn: \"%s\") ...\n",
                         td->linkdn ? td->linkdn : "");
 
-        linked_attrs_read_lock();
-        main_config = linked_attrs_get_config();
-        if (!PR_CLIST_IS_EMPTY(main_config)) {
-            struct configEntry *config_entry = NULL;
-            PRCList *list = PR_LIST_HEAD(main_config);
+    linked_attrs_read_lock();
+    main_config = linked_attrs_get_config();
+    if (!PR_CLIST_IS_EMPTY(main_config)) {
+       struct configEntry *config_entry = NULL;
+       PRCList *list = PR_LIST_HEAD(main_config);
 
-            while (list != main_config) {
-                config_entry = (struct configEntry *) list;
+        while (list != main_config) {
+            config_entry = (struct configEntry *) list;
 
-                /* See if this is the requested config and fix up if so. */
-                if (td->linkdn) {
-                    if  (strcasecmp(td->linkdn, config_entry->dn) == 0) {
-                        found_config = 1;
-                        slapi_task_log_notice(task, "Fixing up linked attribute pair (%s)\n",
-                               config_entry->dn);
-                        slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
-                               "Fixing up linked attribute pair (%s)\n",
-                               config_entry->dn);
-
-                        linked_attrs_fixup_links(config_entry, NULL);
-                        break;
-                    }
-                } else {
-                    /* No config DN was supplied, so fix up all configured links. */
+            /* See if this is the requested config and fix up if so. */
+            if (td->linkdn) {
+                if (strcasecmp(td->linkdn, config_entry->dn) == 0) {
+                    found_config = 1;
                     slapi_task_log_notice(task, "Fixing up linked attribute pair (%s)\n",
-                            config_entry->dn);
+                         config_entry->dn);
                     slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
-                           "Fixing up linked attribute pair (%s)\n", config_entry->dn);
+                         "Fixing up linked attribute pair (%s)\n", config_entry->dn);
 
                     linked_attrs_fixup_links(config_entry, NULL);
+                    break;
                 }
+            } else {
+                /* No config DN was supplied, so fix up all configured links. */
+                slapi_task_log_notice(task, "Fixing up linked attribute pair (%s)\n",
+                        config_entry->dn);
+                slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
+                       "Fixing up linked attribute pair (%s)\n", config_entry->dn);
 
-                list = PR_NEXT_LINK(list);
+                linked_attrs_fixup_links(config_entry, NULL);
             }
-        }
 
-        /* Log a message if we didn't find the requested attribute pair. */
-        if (td->linkdn && !found_config) {
-            slapi_task_log_notice(task, "Requested link config DN not found (%s)\n",
-                    td->linkdn);
-            slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
-                    "Requested link config DN not found (%s)\n", td->linkdn);
+            list = PR_NEXT_LINK(list);
         }
+    }
 
-        linked_attrs_unlock();
+    /* Log a message if we didn't find the requested attribute pair. */
+    if (td->linkdn && !found_config) {
+        slapi_task_log_notice(task, "Requested link config DN not found (%s)\n",
+                td->linkdn);
+        slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
+                "Requested link config DN not found (%s)\n", td->linkdn);
+    }
+
+    linked_attrs_unlock();
 
 	/* Log finished message. */
 	slapi_task_log_notice(task, "Linked attributes fixup task complete.\n");
@@ -363,6 +362,10 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
         char *targetdn = (char *)targets[i];
         int perform_update = 0;
         Slapi_DN *targetsdn = slapi_sdn_new_dn_byref(targetdn);
+
+        if (g_get_shutdown()) {
+            return -1;
+        }
 
         if (config->scope) {
             /* Check if the target is within the scope. */

@@ -46,7 +46,6 @@ struct usn_cleanup_data {
     char *maxusn_to_delete;
 };
 
-
 static int usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e,
             Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 
@@ -142,6 +141,15 @@ usn_cleanup_thread(void *arg)
     for (ep = entries; ep && *ep; ep++) {
         int delrv = 0;
         const Slapi_DN *sdn = slapi_entry_get_sdn_const(*ep);
+
+        /* check for shutdown */
+        if(g_get_shutdown()){
+            slapi_task_log_notice(task, "USN tombstone cleanup task aborted due to shutdown.");
+            slapi_task_log_status(task, "USN tombstone cleanup task aborted due to shutdown.");
+            slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
+                            "USN tombstone cleanup task aborted due to shutdown.\n");
+            goto bail;
+        }
 
         slapi_delete_internal_set_pb(delete_pb, slapi_sdn_get_dn(sdn),
                                      NULL, NULL, usn_get_identity(), 0);
