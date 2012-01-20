@@ -17,10 +17,10 @@ After=@systemdgroupname@
 
 [Service]
 Type=forking
-Environment=PIDDIR=@localstatedir@/run/@package_name@
 EnvironmentFile=@initconfigdir@/@package_name@
 EnvironmentFile=@initconfigdir@/@package_name@-%i
-ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i ${PIDDIR}/slapd-%i.pid -w ${PIDDIR}/slapd-%i.startpid
+ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid -w @localstatedir@/run/@package_name@/slapd-%i.startpid
+ExecStopPost=/bin/rm -f @localstatedir@/run/@package_name@/slapd-%i.pid
 # uncomment this line to raise the file descriptor limit - but do not edit this
 # file in /lib/systemd/system - see above for instructions
 # LimitNOFILE=8192
