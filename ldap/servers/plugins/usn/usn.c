@@ -68,7 +68,7 @@ static int usn_get_attr(Slapi_PBlock *pb, const char* type, void *value);
 static int usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e,
         Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 
-int g_plugin_started = 0;
+static int g_plugin_started = 0;
 /*
  * Register USN plugin
  * Note: USN counter initialization is done in the backend (ldbm_usn_init).
