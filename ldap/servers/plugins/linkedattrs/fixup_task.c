@@ -77,6 +77,13 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		goto out;
 	}
 
+	/* make sure the plugin is not closed */
+	if(!linked_attrs_is_started()){
+		*returncode = LDAP_OPERATIONS_ERROR;
+		rv = SLAPI_DSE_CALLBACK_ERROR;
+		goto out;
+	}
+
 	/* get arg(s) */
 	linkdn = fetch_attr(e, "linkdn", 0);
 
