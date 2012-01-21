@@ -42,6 +42,10 @@
 
 #include "cb.h"
 
+#ifndef USE_OPENLDAP
+#include "ldap_ssl.h" /* for start_tls */
+#endif
+
 /*
  * Most of the complicated connection-related code lives in this file.  Some
  * general notes about how we manage our connections to "remote" LDAP servers:

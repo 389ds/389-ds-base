@@ -342,6 +342,11 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define LBER_OVERFLOW           ((ber_tag_t) -3) /* 0xfffffffdU */
 #endif
 
+#ifndef LDAP_MAXINT
+/* RFC 4511:  maxInt INTEGER ::= 2147483647 -- (2^^31 - 1) -- */
+#define LDAP_MAXINT (2147483647)
+#endif
+
 /*
  * Sequential access types
  */
