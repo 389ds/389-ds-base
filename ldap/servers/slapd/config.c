@@ -250,7 +250,7 @@ slapd_bootstrap_config(const char *configdir)
 			dn_validate_strict[0] = '\0';
 
 			/* Convert LDIF to entry structures */
-			slapi_sdn_init_dn_byref(&plug_dn, PLUGIN_BASE_DN);
+			slapi_sdn_init_ndn_byref(&plug_dn, PLUGIN_BASE_DN);
 			while ((entrystr = dse_read_next_entry(buf, &lastp)) != NULL)
 			{
 				char errorbuf[BUFSIZ];

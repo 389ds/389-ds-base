@@ -156,7 +156,7 @@ aclinit_main()
 	 * rootdse entry so we search for acis in there explicitly here.
 	*/
 
-	sdn = slapi_sdn_new_dn_byval("");
+	sdn = slapi_sdn_new_ndn_byval("");
 	slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
 				"Searching for all acis(scope base) at suffix ''\n");
 	aclinit_search_and_update_aci ( 0,		/* thisbeonly */

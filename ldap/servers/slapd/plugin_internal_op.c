@@ -388,7 +388,7 @@ static int seq_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	slapi_pblock_get(pb, SLAPI_CONTROLS_ARG, &controls);
 
 	if (base == NULL) {
-		sdn = slapi_sdn_new_dn_byval("");
+		sdn = slapi_sdn_new_ndn_byval("");
 	} else {
 		sdn = slapi_sdn_new_dn_byref(base);
 	}
@@ -837,7 +837,7 @@ PRBool allow_operation (Slapi_PBlock *pb)
 	slapi_sdn_init(&sdn);
 	slapi_pblock_get (pb, SLAPI_TARGET_SDN, &sdnp);
 	if (NULL == sdnp) {
-		slapi_sdn_init_dn_byval(&sdn,"");
+		slapi_sdn_init_ndn_byval(&sdn,"");
 		sdnp = &sdn;
 	}
 

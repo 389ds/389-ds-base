@@ -1236,7 +1236,7 @@ dna_load_host_port()
     attrs[2] = "nsslapd-secureport";
     attrs[3] = NULL;
 
-    config_dn = slapi_sdn_new_dn_byref("cn=config");
+    config_dn = slapi_sdn_new_ndn_byref("cn=config");
     if (config_dn) {
         slapi_search_internal_get_entry(config_dn, attrs, &e, getPluginID());
         slapi_sdn_free(&config_dn);
@@ -1506,7 +1506,7 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, void
         Slapi_DN *cfg_sdn = NULL;
         int i;
 
-        cfg_sdn = slapi_sdn_new_dn_byref(config_entry->shared_cfg_dn);
+        cfg_sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
 
         /* We found some entries.  Go through them and
          * order them based off of remaining values. */
@@ -2206,11 +2206,14 @@ dna_update_shared_config(struct configEntry * config_entry, void *txn)
              * already exist, we add it. */
             if (ret == LDAP_NO_SUCH_OBJECT) {
                 Slapi_Entry *e = NULL;
+                Slapi_DN *sdn = 
+                        slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
 
                 /* Set up the new shared config entry */
                 e = slapi_entry_alloc();
                 /* the entry now owns the dup'd dn */
-                slapi_entry_init(e, slapi_ch_strdup(config_entry->shared_cfg_dn), NULL);
+                slapi_entry_init_ext(e, sdn, NULL); /* sdn is copied into e */
+                slapi_sdn_free(&sdn);
 
                 slapi_entry_add_string(e, SLAPI_ATTR_OBJECTCLASS, "extensibleObject");
                 slapi_entry_add_string(e, DNA_HOSTNAME, hostname);
@@ -2434,7 +2437,7 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
             ret = 1;
             goto done;
         }
-        replica_sdn = slapi_sdn_new_dn_passin(replica_dn);
+        replica_sdn = slapi_sdn_new_normdn_passin(replica_dn);
 
         attrs[0] = DNA_REPL_BIND_DN;
         attrs[1] = 0;
@@ -2479,7 +2482,7 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
     int ret = LDAP_OPERATIONS_ERROR;
 
     /* Find the backend suffix where the shared config is stored. */
-    range_sdn = slapi_sdn_new_dn_byref(range_dn);
+    range_sdn = slapi_sdn_new_normdn_byref(range_dn);
     if ((be = slapi_be_select(range_sdn)) != NULL) {
         be_suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be, 0));
     }
@@ -3398,7 +3401,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
             list = PR_LIST_HEAD(dna_global_config);
             while ((list != dna_global_config) && match != 1) {
                 config_entry = (struct configEntry *)list;
-                cfg_base_sdn = slapi_sdn_new_dn_byref(config_entry->shared_cfg_base);
+                cfg_base_sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_base);
                 
                 if (slapi_sdn_compare(cfg_base_sdn, range_sdn) == 0) {
                     /* We found a match.  Set match flag to

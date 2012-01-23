@@ -376,7 +376,7 @@ _ger_new_gerpb (
 		 */
 		gerop->o_extension = factory_create_extension ( get_operation_object_type(), (void *)gerop, (void *)conn );
 		slapi_pblock_set ( *gerpb, SLAPI_OPERATION, gerop );
-		slapi_sdn_set_dn_byval ( &gerop->o_sdn, subjectndn );
+		slapi_sdn_set_ndn_byval ( &gerop->o_sdn, subjectndn );
 		geraclpb = acl_get_ext ( ACL_EXT_OPERATION, (void *)gerop);
 		acl_init_aclpb ( *gerpb, geraclpb, subjectndn, 0 );
 		geraclpb->aclpb_res_type |= ACLPB_EFFECTIVE_RIGHTS;

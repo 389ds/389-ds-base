@@ -369,7 +369,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
     for (i = 0; targets && targets[i]; ++i) {
         char *targetdn = (char *)targets[i];
         int perform_update = 0;
-        Slapi_DN *targetsdn = slapi_sdn_new_dn_byref(targetdn);
+        Slapi_DN *targetsdn = slapi_sdn_new_normdn_byref(targetdn);
 
         if (g_get_shutdown()) {
             return -1;
@@ -382,7 +382,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
             /* Find out the root suffix that the linkdn is in
              * and see if the target is in the same backend. */
             Slapi_Backend *be = NULL;
-            Slapi_DN *linksdn = slapi_sdn_new_dn_byref(linkdn);
+            Slapi_DN *linksdn = slapi_sdn_new_normdn_byref(linkdn);
 
             if ((be = slapi_be_select(linksdn))) {
                 perform_update = slapi_sdn_issuffix(targetsdn, slapi_be_getsuffix(be, 0));

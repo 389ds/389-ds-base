@@ -4034,7 +4034,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 	}
 
 	*local_pschemadse = NULL;
-	slapi_sdn_init_dn_byref(&schema,"cn=schema");
+	slapi_sdn_init_ndn_byref(&schema,"cn=schema");
 
 	/* get schemadir if not given */
 	if (NULL == schemadir)

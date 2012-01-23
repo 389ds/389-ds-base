@@ -971,7 +971,7 @@ referint_thread_func(void *arg)
   
 	while( GetNextLine(thisline, MAX_LINE, prfd) ){
 	    ptoken = ldap_utf8strtok_r(thisline, delimiter, &iter);
-		sdn = slapi_sdn_new_dn_byref(ptoken);
+		sdn = slapi_sdn_new_normdn_byref(ptoken);
 
 	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
 	    if(!strcasecmp(ptoken, "NULL")) {
@@ -984,7 +984,7 @@ referint_thread_func(void *arg)
 	    if (!strcasecmp(ptoken, "NULL")) {
 	        tmpsuperior = NULL;
 	    } else {
-	        tmpsuperior = slapi_sdn_new_dn_byref(ptoken);
+	        tmpsuperior = slapi_sdn_new_normdn_byref(ptoken);
 	    }
       
 	    update_integrity(plugin_argv, sdn, tmprdn,

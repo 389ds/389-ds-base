@@ -1770,7 +1770,7 @@ setup_internal_backends(char *configdir)
     int rc = init_schema_dse(configdir);
 	Slapi_DN config;
 
-	slapi_sdn_init_dn_byref(&config,"cn=config");
+	slapi_sdn_init_ndn_byref(&config,"cn=config");
 
 	if (rc)
 	{
@@ -1787,13 +1787,13 @@ setup_internal_backends(char *configdir)
         Slapi_DN encryption;
         Slapi_DN saslmapping;
 
-		slapi_sdn_init_dn_byref(&monitor,"cn=monitor");
-		slapi_sdn_init_dn_byref(&counters,"cn=counters,cn=monitor");
-		slapi_sdn_init_dn_byref(&snmp,"cn=snmp,cn=monitor");
-		slapi_sdn_init_dn_byref(&root,"");
+		slapi_sdn_init_ndn_byref(&monitor,"cn=monitor");
+		slapi_sdn_init_ndn_byref(&counters,"cn=counters,cn=monitor");
+		slapi_sdn_init_ndn_byref(&snmp,"cn=snmp,cn=monitor");
+		slapi_sdn_init_ndn_byref(&root,"");
 
-		slapi_sdn_init_dn_byref(&encryption,"cn=encryption,cn=config");
-		slapi_sdn_init_dn_byref(&saslmapping,"cn=mapping,cn=sasl,cn=config");
+		slapi_sdn_init_ndn_byref(&encryption,"cn=encryption,cn=config");
+		slapi_sdn_init_ndn_byref(&saslmapping,"cn=mapping,cn=sasl,cn=config");
 
         /* Search */
     	dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",read_config_dse,NULL);

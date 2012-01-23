@@ -349,7 +349,7 @@ automember_start(Slapi_PBlock * pb)
     /* Set the alternate config area if one is defined. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
     if (config_area) {
-        automember_set_config_area(slapi_sdn_new_dn_byval(config_area));
+        automember_set_config_area(slapi_sdn_new_normdn_byval(config_area));
     }
 
     /*
@@ -1025,7 +1025,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
 
             if (rule) {
                 /* Fill in the target group. */
-                rule->target_group_dn = slapi_sdn_new_dn_byval(target_group);
+                rule->target_group_dn = slapi_sdn_new_normdn_byval(target_group);
 
                 if (!PR_CLIST_IS_EMPTY((PRCList *)config->inclusive_rules)) {
                     list = PR_LIST_HEAD((PRCList *)config->inclusive_rules);
@@ -1079,7 +1079,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
 
             if (rule) { 
                 /* Fill in the target group. */
-                rule->target_group_dn = slapi_sdn_new_dn_byval(target_group);
+                rule->target_group_dn = slapi_sdn_new_normdn_byval(target_group);
 
                 if (!PR_CLIST_IS_EMPTY((PRCList *)config->exclusive_rules)) {
                     list = PR_LIST_HEAD((PRCList *)config->exclusive_rules);

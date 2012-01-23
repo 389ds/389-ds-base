@@ -2307,7 +2307,7 @@ slapi_sdn_get_parent_ext(const Slapi_DN *sdn,
 {
     const char *parentdn =
                        slapi_dn_parent_ext(slapi_sdn_get_dn(sdn), is_tombstone);
-    slapi_sdn_set_dn_passin(sdn_parent,parentdn);
+    slapi_sdn_set_normdn_passin(sdn_parent,parentdn);
     sdn_parent->flag= slapi_setbit_uchar(sdn_parent->flag,FLAG_DN);
     PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
     PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);

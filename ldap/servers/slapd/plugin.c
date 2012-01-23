@@ -271,7 +271,7 @@ slapi_register_plugin_ext(
     int rc = 0;
 	Slapi_Entry *e = NULL;
 	char *dn = slapi_ch_smprintf("cn=%s,%s", name, PLUGIN_BASE_DN);
-	Slapi_DN *sdn = slapi_sdn_new_dn_passin(dn);
+	Slapi_DN *sdn = slapi_sdn_new_normdn_passin(dn);
 
 	e = slapi_entry_alloc();
 	/* this function consumes dn */
@@ -1947,7 +1947,7 @@ plugin_add_descriptive_attributes( Slapi_Entry *e, struct slapdplugin *plugin )
 			for ( plugtmp = global_plugin_list[i]; NULL == plugin && plugtmp;
 						plugtmp = plugtmp->plg_next)
 			{
-				slapi_sdn_init_dn_byref( &pdn, plugtmp->plg_dn );
+				slapi_sdn_init_normdn_byref( &pdn, plugtmp->plg_dn );
 				if ( 0 == slapi_sdn_compare( &pdn, ednp ))
 				{
 					plugin = plugtmp;

@@ -42,7 +42,7 @@ acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id ) {
 	int rc;
 
 	/* Retrieve the config entry */
-	config_sdn = slapi_sdn_new_dn_byref( PLUGIN_CONFIG_DN );
+	config_sdn = slapi_sdn_new_normdn_byref( PLUGIN_CONFIG_DN );
 	rc = slapi_search_internal_get_entry( config_sdn, NULL, &config_entry,
 		plugin_id);
 	slapi_sdn_free( &config_sdn );

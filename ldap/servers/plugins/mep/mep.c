@@ -365,7 +365,7 @@ mep_start(Slapi_PBlock * pb)
     /* Set the alternate config area if one is defined. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
     if (config_area) {
-        mep_set_config_area(slapi_sdn_new_dn_byval(config_area));
+        mep_set_config_area(slapi_sdn_new_normdn_byval(config_area));
     }
 
     /*
@@ -2182,7 +2182,7 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                     /* Fetch the origin entry so we can locate the config template. */
                     origin_dn = slapi_entry_attr_get_charptr(e, MEP_MANAGED_BY_TYPE);
                     if (origin_dn) {
-                        origin_sdn = slapi_sdn_new_dn_byref(origin_dn);
+                        origin_sdn = slapi_sdn_new_normdn_byref(origin_dn);
                         slapi_search_internal_get_entry_ext(origin_sdn, 0,
                                 &origin_e, mep_get_plugin_id(), txn);
                         slapi_sdn_free(&origin_sdn);
@@ -2419,8 +2419,8 @@ mep_mod_post_op(Slapi_PBlock *pb)
 
                 /* Check if we need to rename the managed entry. */
                 if (mapped_dn) {
-                    mapped_sdn = slapi_sdn_new_dn_passin(mapped_dn);
-                    managed_sdn = slapi_sdn_new_dn_byref(managed_dn);
+                    mapped_sdn = slapi_sdn_new_normdn_passin(mapped_dn);
+                    managed_sdn = slapi_sdn_new_normdn_byref(managed_dn);
 
                     if (slapi_sdn_compare(managed_sdn, mapped_sdn) != 0) {
                         mep_rename_managed_entry(e, mapped_sdn, managed_sdn, txn);
@@ -2739,14 +2739,14 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
              * it has already been renamed by another plug-in.  If it
              * has already been renamed, we need to use the new DN to
              * perform our updates. */
-            managed_sdn = slapi_sdn_new_dn_byref(managed_dn);
+            managed_sdn = slapi_sdn_new_normdn_byref(managed_dn);
 
             if (slapi_search_internal_get_entry_ext(managed_sdn, 0,
                     NULL, mep_get_plugin_id(), txn) == LDAP_NO_SUCH_OBJECT) {
                 slapi_ch_free_string(&managed_dn);
                 /* This DN is not a copy, so we don't want to free it later. */
                 managed_dn = slapi_entry_get_dn(new_managed_entry);
-                slapi_sdn_set_dn_byref(managed_sdn, managed_dn);
+                slapi_sdn_set_normdn_byref(managed_sdn, managed_dn);
                 free_managed_dn = 0;
             }
 

@@ -274,7 +274,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 	/* We're not always tracking logins, so check whether the entry is
 	   covered by an account policy to decide whether we should track */
 	if( tracklogin == 0 ) {
-		sdn = slapi_sdn_new_dn_byref( dn );
+		sdn = slapi_sdn_new_normdn_byref( dn );
 		ldrc = slapi_search_internal_get_entry_ext( sdn, NULL, &target_entry,
 			plugin_id, txn );
 

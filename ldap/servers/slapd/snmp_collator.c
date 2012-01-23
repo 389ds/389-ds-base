@@ -887,7 +887,7 @@ getConfigEntry( Slapi_Entry **e ) {
         Slapi_DN        sdn;
 
         /* SNMP_CONFIG_DN: no need to be normalized */
-        slapi_sdn_init_dn_byref( &sdn, SNMP_CONFIG_DN );
+        slapi_sdn_init_normdn_byref( &sdn, SNMP_CONFIG_DN );
         slapi_search_internal_get_entry( &sdn, NULL, e,
                         plugin_get_default_component_id());
         slapi_sdn_done( &sdn );

@@ -387,7 +387,7 @@ get_parent_from_entry(Slapi_Entry * entry)
                 *ptr = '\0';
             }
         }
-        parent_sdn = slapi_sdn_new_dn_passin(slapi_ch_smprintf("%s", parent));
+        parent_sdn = slapi_sdn_new_dn_byval(parent);
         slapi_ch_free_string(&origparent);
     }
     
@@ -433,7 +433,7 @@ get_subtree_from_entry(Slapi_Entry * entry)
                 *ptr = '\0';
             }
         }
-        subtree = slapi_sdn_new_dn_passin(slapi_ch_smprintf("%s", cn));
+        subtree = slapi_sdn_new_dn_byval(cn);
         slapi_ch_free_string(&origcn);
     }
     
@@ -2946,7 +2946,7 @@ slapi_get_mapping_tree_node_configsdn (const Slapi_DN *root)
         return NULL;
     }
 
-    sdn = slapi_sdn_new_dn_passin(dn);
+    sdn = slapi_sdn_new_normdn_passin(dn);
 
     return sdn;
 }

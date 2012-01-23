@@ -382,7 +382,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 {
 	int ret = 0;
 	MemberOfConfig configCopy = {0, 0, 0, 0};
-	char *dn;
+	char *normdn;
 	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -396,7 +396,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		return 0;
 	}
 
-	if(memberof_oktodo(pb) && (dn = memberof_getdn(pb)))
+	if(memberof_oktodo(pb) && (normdn = memberof_getdn(pb)))
 	{
 		struct slapi_entry *e = NULL;
 		void *txn = NULL;
@@ -418,7 +418,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		/* remove this DN from the
 		 * membership lists of groups
 		 */
-		memberof_del_dn_from_groups(pb, &configCopy, dn, txn);
+		memberof_del_dn_from_groups(pb, &configCopy, normdn, txn);
 
 		/* is the entry of interest as a group? */
 		if(e && configCopy.group_filter && !slapi_filter_test_simple(e, configCopy.group_filter))
@@ -431,7 +431,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 			{
 				if (0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
-					memberof_del_attr_list(pb, &configCopy, dn, attr, txn);
+					memberof_del_attr_list(pb, &configCopy, normdn, attr, txn);
 				}
 			}
 		}
@@ -536,7 +536,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	   (we don't support having members and groups in
            different backends - issues with offline / read only backends)
 	*/
-	sdn = slapi_sdn_new_dn_byref(dn);
+	sdn = slapi_sdn_new_normdn_byref(dn);
 	be = slapi_be_select(sdn);
 	if(be)
 	{
@@ -789,7 +789,7 @@ int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
 int memberof_postop_modify(Slapi_PBlock *pb)
 {
 	int ret = 0;
-	char *dn = 0;
+	char *normdn = 0;
 	Slapi_Mods *smods = 0;
 	Slapi_Mod *smod = 0;
 	LDAPMod **mods;
@@ -807,8 +807,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 		return 0;
 	}
 
-	if(memberof_oktodo(pb) &&
-		(dn = memberof_getdn(pb)))
+	if(memberof_oktodo(pb) && (normdn = memberof_getdn(pb)))
 	{
 		int config_copied = 0;
 		MemberOfConfig *mainConfig = 0;
@@ -866,7 +865,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				case LDAP_MOD_ADD:
 					{
 						/* add group DN to targets */
-						memberof_add_smod_list(pb, &configCopy, dn, smod, txn);
+						memberof_add_smod_list(pb, &configCopy, normdn, smod, txn);
 						break;
 					}
 				
@@ -878,12 +877,12 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 						 * entry, which the replace code deals with. */
 						if (slapi_mod_get_num_values(smod) == 0)
 						{
-							memberof_replace_list(pb, &configCopy, dn, txn);
+							memberof_replace_list(pb, &configCopy, normdn, txn);
 						}
 						else
 						{
 							/* remove group DN from target values in smod*/
-							memberof_del_smod_list(pb, &configCopy, dn, smod, txn);
+							memberof_del_smod_list(pb, &configCopy, normdn, smod, txn);
 						}
 						break;
 					}
@@ -891,7 +890,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				case LDAP_MOD_REPLACE:
 					{
 						/* replace current values */
-						memberof_replace_list(pb, &configCopy, dn, txn);
+						memberof_replace_list(pb, &configCopy, normdn, txn);
 						break;
 					}
 
@@ -937,7 +936,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 {
 	int ret = 0;
 	int interested = 0;
-	char *dn = 0;
+	char *normdn = 0;
 	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -951,7 +950,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 		return 0;
 	}
 
-	if(memberof_oktodo(pb) && (dn = memberof_getdn(pb)))
+	if(memberof_oktodo(pb) && (normdn = memberof_getdn(pb)))
 	{
 		MemberOfConfig *mainConfig = 0;
 		MemberOfConfig configCopy = {0, 0, 0, 0};
@@ -984,7 +983,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 			{
 				if(0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
-					memberof_add_attr_list(pb, &configCopy, dn, attr, txn);
+					memberof_add_attr_list(pb, &configCopy, normdn, attr, txn);
 				}
 			}
 
@@ -1049,6 +1048,7 @@ bail:
  * memberof_getdn()
  *
  * Get dn of target entry
+ * Note: slapi_sdn_get_dn returns normalized dn.
  *
  */
 char *memberof_getdn(Slapi_PBlock *pb)
@@ -1057,7 +1057,7 @@ char *memberof_getdn(Slapi_PBlock *pb)
 	Slapi_DN *sdn = NULL;
 
 	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-	dn = slapi_sdn_get_dn(sdn);	
+	dn = slapi_sdn_get_dn(sdn); /* returns norm dn */
 
 	return (char *)dn;
 }
@@ -1124,7 +1124,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	}
 
 	/* determine if this is a group op or single entry */
-	op_to_sdn = slapi_sdn_new_dn_byref(op_to);
+	op_to_sdn = slapi_sdn_new_normdn_byref(op_to);
 	slapi_search_internal_get_entry_ext( op_to_sdn, config->groupattrs,
 		&e, memberof_get_plugin_id(), txn);
 	if(!e)
@@ -1157,7 +1157,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			if(base_sdn)
 			{
 				filter_str = slapi_ch_smprintf("(%s=%s)",
-				config->memberof_attr, op_to);
+				                               config->memberof_attr, op_to);
 			}
 
 			if(filter_str)
@@ -1748,7 +1748,7 @@ int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 	Slapi_Attr *attr = 0;
 	int i = 0;
 
-	sdn = slapi_sdn_new_dn_byref(slapi_value_get_string(groupdn));
+	sdn = slapi_sdn_new_normdn_byref(slapi_value_get_string(groupdn));
 
 	slapi_search_internal_get_entry_ext(sdn, config->groupattrs,
 		&group_e, memberof_get_plugin_id(), txn);

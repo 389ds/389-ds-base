@@ -1116,7 +1116,7 @@ main( int argc, char **argv)
 		/* initialize UniqueID generator - must be done once backends are started
 		   and event queue is initialized but before plugins are started */
 		/* Note: This DN is no need to be normalized. */
-		sdn = slapi_sdn_new_dn_byval ("cn=uniqueid generator,cn=config");
+		sdn = slapi_sdn_new_ndn_byval ("cn=uniqueid generator,cn=config");
 		rc = uniqueIDGenInit (NULL, sdn, slapd_exemode == SLAPD_EXEMODE_SLAPD);
 		slapi_sdn_free (&sdn);
 		if (rc != UID_SUCCESS)

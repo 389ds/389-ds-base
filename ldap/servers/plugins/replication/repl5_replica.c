@@ -3132,7 +3132,7 @@ replica_log_ruv_elements_nolock (const Replica *r)
            special target dn */
         memset (&op_params, 0, sizeof (op_params));
         op_params.operation_type = SLAPI_OPERATION_DELETE;
-        op_params.target_address.sdn = slapi_sdn_new_dn_byval(START_ITERATION_ENTRY_DN);
+        op_params.target_address.sdn = slapi_sdn_new_ndn_byval(START_ITERATION_ENTRY_DN);
         op_params.target_address.uniqueid = START_ITERATION_ENTRY_UNIQUEID;
         op_params.csn = csn;
         repl_gen = ruv_get_replica_generation (ruv);
