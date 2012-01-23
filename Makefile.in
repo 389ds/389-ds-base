@@ -1594,7 +1594,10 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 @SYSTEMD_FALSE@init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
 @SYSTEMD_FALSE@	wrappers/$(PACKAGE_NAME)-snmp
 
-initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
+@SYSTEMD_FALSE@initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
+@SYSTEMD_TRUE@initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME) \
+@SYSTEMD_TRUE@	wrappers/$(PACKAGE_NAME).systemd
+
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
 	ldap/admin/src/scripts/dsupdate.map \
@@ -10637,6 +10640,10 @@ ns-slapd.properties: makstrdb
 
 # yes, that is an @ in the filename . . .
 %/$(PACKAGE_NAME)@.service: %/systemd.template.service.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME).systemd: %/systemd.template.sysconfig
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 

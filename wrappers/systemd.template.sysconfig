@@ -1,0 +1,3 @@
+[Service]
+# uncomment this line to raise the file descriptor limit
+# LimitNOFILE=8192

@@ -391,7 +391,12 @@ init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
 	wrappers/$(PACKAGE_NAME)-snmp
 endif
 
+if SYSTEMD
+initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME) \
+	wrappers/$(PACKAGE_NAME).systemd
+else
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
+endif
 
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
@@ -1541,6 +1546,10 @@ endif
 
 # yes, that is an @ in the filename . . .
 %/$(PACKAGE_NAME)@.service: %/systemd.template.service.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME).systemd: %/systemd.template.sysconfig
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
