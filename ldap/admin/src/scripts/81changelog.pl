@@ -1,4 +1,5 @@
 use Mozilla::LDAP::Conn;
+use DSUpdate qw(isOffline);
 
 # Cleanup local changelog db
 # If changelog db exists, run db_checkpoint to flush the transaction logs.
@@ -6,7 +7,7 @@ use Mozilla::LDAP::Conn;
 sub runinst {
     my ($inf, $inst, $dseldif, $conn) = @_;
 
-    my @errs;
+    my @errs, $rc;
 
     my $config = "cn=changelog5,cn=config";
     my $config_entry = $conn->search($config, "base", "(cn=*)");
@@ -15,6 +16,10 @@ sub runinst {
         return ();
     }
     # First, check if the server is up or down.
+    ($rc, @errs) = isOffline($inf, $inst, $conn);
+    if (!$rc) {
+        return @errs;
+    }
     my $changelogdir = $config_entry->getValues('nsslapd-changelogdir');
 
     # Run db_checkpoint

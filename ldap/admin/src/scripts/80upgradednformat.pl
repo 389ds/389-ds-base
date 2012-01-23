@@ -3,6 +3,7 @@ use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(:constant ldap_url_parse ldap_explode_dn);
 use File::Basename;
 use File::Copy;
+use DSUpdate qw(isOffline);
 
 # Upgrade DN format if needed.
 # For each backend instance, 
@@ -22,13 +23,12 @@ sub runinst {
     if (!$config_entry) {
         return ("error_no_configuration_entry", $!);
     }
-    # First, check if the server is up or down.
-    my $rundir = $config_entry->getValues('nsslapd-rundir');
 
     # Check if the server is up or not
-    my $pidfile = $rundir . "/" . $inst . ".pid";
-    if (-e $pidfile) {
-        return (); # server is running; do nothing.
+    my $rc;
+    ($rc, @errs) = isOffline($inf, $inst, $conn);
+    if (!$rc) {
+        return @errs;
     }
     my $mappingtree = "cn=mapping tree,cn=config";
     my $ldbmbase = "cn=ldbm database,cn=plugins,cn=config";

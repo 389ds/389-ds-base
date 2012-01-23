@@ -1,23 +1,22 @@
 use Mozilla::LDAP::Conn;
 use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(:constant ldap_url_parse ldap_explode_dn);
+use DSUpdate qw(isOffline);
 
 sub runinst {
     my ($inf, $inst, $dseldif, $conn) = @_;
 
-    my @errs;
+    my $rc, @errs;
+
+    ($rc, @errs) = isOffline($inf, $inst, $conn);
+    if (!$rc) {
+        return @errs;
+    }
 
     my $ent0 = $conn->search("cn=config", "base", "(objectclass=*)");
     if (!$ent0) {
         return ('error_finding_config_entry', 'cn=config',
                 $conn->getErrorString());
-    }
-    my $rundir = $ent0->getValues('nsslapd-rundir');
-
-    # Check if the server is up or not
-    my $pidfile = $rundir . "/" . $inst . ".pid";
-    if (-e $pidfile) {
-        return (); # server is running; do nothing.
     }
 
     my $ent1 = $conn->search("cn=config,cn=ldbm database,cn=plugins,cn=config",

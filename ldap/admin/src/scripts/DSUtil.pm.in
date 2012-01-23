@@ -49,12 +49,12 @@ require Exporter;
                 process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser isValidGroup makePaths getLogin getGroup
-                remove_tree remove_pidfile setDebugLog checkHostname);
+                remove_tree remove_pidfile setDebugLog checkHostname serverIsRunning);
 @EXPORT_OK = qw(portAvailable getAvailablePort isValidDN addSuffix getMappedEntries
                 process_maptbl check_and_add_entry getMappedEntries addErr
                 getHashedPassword debug createInfFromConfig shellEscape
                 isValidServerID isValidUser isValidGroup makePaths getLogin getGroup
-                remove_tree remove_pidfile setDebugLog checkHostname);
+                remove_tree remove_pidfile setDebugLog checkHostname serverIsRunning);
 
 use strict;
 
@@ -1053,6 +1053,34 @@ sub remove_pidfile
     {
         unlink($pidfile);
     }
+}
+
+sub serverIsRunning
+{
+    my ($run_dir, $inst) = @_;
+    my $pidfile = $run_dir . "/" . $inst . ".pid";
+    if ( -e $pidfile ) {
+        if (!open(PIDFILE, $pidfile)) {
+            debug(3, "Could not open pidfile $pidfile - $! - assume server is not running\n");
+            return 0; # could not open pid file - assume server is not running
+        }
+        my $pid = <PIDFILE>;
+        chomp($pid);
+        close(PIDFILE);
+        if (!$pid) {
+            debug(3, "Bogus pid $pid found in pidfile $pidfile - assume server is not running\n");
+            return 0; # could not open pid file - assume server is not running
+        }
+        if (kill(0, $pid)) {
+            debug(3, "pid $pid from file $pidfile is running\n");
+            return 1; # server is running
+        }
+        debug(3, "pid $pid from file $pidfile is not running - could not kill 0 - $!\n");
+    } else {
+        debug(3, "No such file pidfile $pidfile - $! - assume server is not running\n");
+    }
+
+    return 0; # no pid file - assume not running
 }
 
 1;

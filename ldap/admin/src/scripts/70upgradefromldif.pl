@@ -4,7 +4,7 @@ use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(:constant ldap_url_parse ldap_explode_dn);
 use File::Basename;
 use File::Copy;
-use DSUtil qw(debug);
+use DSUtil qw(debug serverIsRunning);
 
 # Used to upgrade from an older version whose database might not be
 # compatible - also for an upgrade from a machine of a different
@@ -32,12 +32,8 @@ sub runinst {
     }
     my $rundir = $config_entry->getValues('nsslapd-rundir');
     my $instdir = $config_entry->getValues('nsslapd-instancedir');
-    my $isrunning = 0;
     # Check if the server is up or not
-    my $pidfile = $rundir . "/" . $inst . ".pid";
-    if (-e $pidfile) {
-        $isrunning = 1;
-    }
+    my $isrunning = serverIsRunning($rundir, $inst);
 
     for my $file (glob("$ldifdir/*.upgrade.ldif")) {
         # assumes file name is backendname.upgrade.ldif

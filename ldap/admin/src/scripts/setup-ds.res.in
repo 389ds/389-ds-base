@@ -201,3 +201,4 @@ error_linking_file = Error: could not link '%s' to '%s': %s
 error_running_command = Error: command '%s' failed - output [%s] error [%s]
 error_opening_file = Opening file '%s' failed.  Error: %s\n
 error_format_error = '%s' has invalid format.\n
+error_update_not_offline = Error: offline mode selected but the server [%s] is still running.\n

@@ -60,8 +60,8 @@ use Mozilla::LDAP::LDIF;
 
 use Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(updateDS);
-@EXPORT_OK = qw(updateDS);
+@EXPORT    = qw(updateDS isOffline);
+@EXPORT_OK = qw(updateDS isOffline);
 
 use strict;
 
@@ -511,6 +511,30 @@ sub initInfFromInst {
     # set defaults for things we don't know how to find, after setting the values
     # we do know how to find
     return setDefaults($inf);
+}
+
+# check to see if the user has chosen offline mode and the server is really offline
+sub isOffline {
+    my ($inf, $inst, $conn) = @_;
+
+    if ($inf->{General}->{UpdateMode} !~ /offline/i) {
+        debug(3, "UpdateMode " . $inf->{General}->{UpdateMode} . " is not offline\n");
+        return 0;
+    }
+
+    # mode is offline - see if server is really offline
+    my $config = $conn->search("cn=config", "base", "(objectclass=*)");
+    if (!$config) {
+        return 0, ['error_finding_config_entry', 'cn=config',
+                   $conn->getErrorString()];
+    }
+    my $rundir = $config->getValues('nsslapd-rundir');
+
+    if (serverIsRunning($rundir, $inst)) {
+        return 0, ['error_update_not_offline', $inst];
+    }
+
+    return 1; # server is offline
 }
 
 1;
