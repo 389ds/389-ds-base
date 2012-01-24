@@ -2776,18 +2776,49 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 					slapd_pr_strerror(prerr));
 				rval = -1;
 			} else {
+				char **strnetaddrs = NULL;
 				*addr = (PRNetAddr **)slapi_ch_calloc(addrcnt + 1, sizeof (PRNetAddr *));
 				iter = NULL; /* from the beginning */
 				memset( netaddr, 0, sizeof( PRNetAddr ));
 				for  ( i = 0; i < addrcnt; i++ ) {
+					char abuf[256];
+					char *abp = abuf;
 					iter = PR_EnumerateAddrInfo( iter, infop, 0, netaddr );
 					if ( NULL == iter ) {
 						break;
 					}
-					(*addr)[i] = netaddr;
-					netaddr = (PRNetAddr *)slapi_ch_calloc(1, sizeof(PRNetAddr));
+					/* 
+					 * Check if the netaddr is duplicated or not.
+					 * IPv4 mapped IPv6 could be the identical to IPv4 addr.
+					 */
+					netaddr2string(netaddr, abuf, sizeof(abuf));
+					if (PR_IsNetAddrType(netaddr, PR_IpAddrV4Mapped)) {
+						/* IPv4 mapped IPv6; redundant to IPv4;
+						 * cut the "::ffff:" part. */
+						abp = strrchr(abuf, ':');
+						if (abp) {
+							abp++;
+						} else {
+							abp = abuf;
+						}
+					}
+					if (charray_inlist(strnetaddrs, abp)) {
+						LDAPDebug2Args(LDAP_DEBUG_ANY, 
+						               "slapd_listenhost2addr: "
+						               "detected duplicated address %s "
+						               "[%s]\n", abuf, abp);
+					} else {
+						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+						              "slapd_listenhost2addr: "
+						              "registering address %s\n", abp);
+						slapi_ch_array_add(&strnetaddrs, slapi_ch_strdup(abp));
+						(*addr)[i] = netaddr;
+						netaddr = 
+						    (PRNetAddr *)slapi_ch_calloc(1, sizeof(PRNetAddr));
+					}
 				}
 				slapi_ch_free((void **)&netaddr); /* not used */
+				slapi_ch_array_free(strnetaddrs);
 			}
 			PR_FreeAddrInfo( infop );
 		} else {
