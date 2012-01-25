@@ -725,6 +725,8 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
 
             if(!done)
             {
+                int lineno = 1;
+                int lines = 0;
                 int dont_check_dups = 0;
                 int str2entry_flags = SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES |
                             SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ;
@@ -741,16 +743,34 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                 rc= 1; /* assume we will succeed */
                 while (( entrystr = dse_read_next_entry( buf, &lastp )) != NULL )
                 {
+                    char *p, *q;
+                    char errbuf[256];
+                    size_t estrlen = strlen(entrystr);
+                    size_t cpylen =
+                              (estrlen<sizeof(errbuf))?estrlen:sizeof(errbuf)-1;
+    
+                    memcpy(errbuf, entrystr, cpylen);
+                    errbuf[cpylen] = '\0';
+
+                    lines = 1;
+                    p = entrystr;
+                    while ((q = strchr(p, '\n'))) {
+                        p = q + 1;
+                        lines++;
+                    }
+
                     e = slapi_str2entry( entrystr, str2entry_flags );
                     if ( e != NULL )
                     {
                         int returncode = 0;
                         char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= {0};
 
-                        LDAPDebug(SLAPI_DSE_TRACELEVEL, "dse_read_one_file"
-                                " processing entry \"%s\" in file %s%s\n",
+                        slapi_log_error(SLAPI_LOG_TRACE, "dse_read_one_file",
+                                " processing entry \"%s\" in file %s%s "
+                                "(lineno: %d)\n",
                                 slapi_entry_get_dn_const(e), filename,
-                                primary_file ? " (primary file)" : "" );
+                                primary_file ? " (primary file)" : "",
+                                lineno);
 
                         /* remove the numsubordinates attr, which may be bogus */
                         slapi_entry_attr_delete(e, subordinatecount);
@@ -767,20 +787,29 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                         }
                         else /* free entry if not used */
                         {
-                            slapi_log_error(SLAPI_LOG_FATAL, "dse",
-                                            "The entry %s in file %s is invalid, error code %d (%s) - %s\n",
+                            slapi_log_error(SLAPI_LOG_FATAL,
+                                            "dse_read_one_file",
+                                            "The entry %s in file %s "
+                                            "(lineno: %d) is invalid, "
+                                            "error code %d (%s) - %s\n",
                                             slapi_entry_get_dn_const(e),
-                                            filename, returncode,
+                                            filename, lineno, returncode,
                                             ldap_err2string(returncode),
                                             returntext);
                             slapi_entry_free(e);
                             rc = 0;    /* failure */
                         }
                     } else {
-                        slapi_log_error( SLAPI_LOG_FATAL, "dse",
-                                "parsing dse entry [%s]\n", entrystr );
+                        slapi_log_error( SLAPI_LOG_FATAL, "dse_read_one_file",
+                                         "Parsing entry (lineno: %d) "
+                                         "in file %s failed.\n",
+                                         lineno, filename );
+                        slapi_log_error( SLAPI_LOG_FATAL, "dse_read_one_file",
+                                         "Invalid section [%s%s]\n",
+                                         errbuf, cpylen==estrlen?"":" ..." );
                         rc = 0;    /* failure */
                     }
+                    lineno += lines + 1 /* 1 is for a blank line. */;
                 }
             }
             slapi_ch_free((void **)&buf);
