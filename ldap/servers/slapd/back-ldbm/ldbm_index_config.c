@@ -51,7 +51,7 @@
 int ldbm_instance_index_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg); 
 int ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg); 
 
-
+#define INDEXTYPE_NONE 1
 
 
 
@@ -104,50 +104,28 @@ static char *attrinfo2ConfIndexes (struct attrinfo *pai)
 }
 
 
-/* attrinfo2ConfMatchingRules: converts attrinfo into matching rule oids, as
- * seen in index entries within dse.ldif
+/*
+ *  attrinfo2ConfMatchingRules: returns an array of matching rules
  */
-static char *attrinfo2ConfMatchingRules (struct attrinfo *pai)
+static char **attrinfo2ConfMatchingRules (struct attrinfo *pai)
 { 
     int i;
-    char buffer[1024];
-
-    buffer[0] = '\0';
+    char **value = NULL;
 
     if (pai->ai_index_rules) {
-	strcat (buffer, "\t");
-	for (i = 0; pai->ai_index_rules[i]; i++) {
-            PL_strcatn (buffer, sizeof(buffer), pai->ai_index_rules[i]);
-            if (pai->ai_index_rules[i+1]) {
-		PL_strcatn (buffer, sizeof(buffer), ",");
-            }
-	}
+    	for (i = 0; pai->ai_index_rules[i]; i++) {
+    		charray_add(&value,slapi_ch_strdup(pai->ai_index_rules[i]));
+    	}
     }
-    return (slapi_ch_strdup (buffer) );
+    return (value);
 }
 
-
-/* used by the two callbacks below, to parse an index entry into something
- * awkward that we can pass to attr_index_config().
- */
-#define MAX_TMPBUF      1024
-#define ZCAT_SAFE(_buf, _x1, _x2) do { \
-    if (strlen(_buf) + strlen(_x1) + strlen(_x2) + 2 < MAX_TMPBUF) { \
-        strcat(_buf, _x1); \
-        strcat(_buf, _x2); \
-    } \
-} while (0)
 static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
-                                  const char *trace_string,
-                                  char **index_name)
+                                  const char *trace_string, char **index_name)
 {
-    char *arglist[] = { NULL, NULL, NULL, NULL };
-    int argc = 0, i;
-    int isFirst;
     Slapi_Attr *attr;
     const struct berval *attrValue;
     Slapi_Value *sval;
-    char tmpBuf[MAX_TMPBUF];
 
     /* Get the name of the attribute to index which will be the value
      * of the cn attribute. */
@@ -165,121 +143,28 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
                       slapi_entry_get_dn(e), 0, 0);
         return LDAP_OPERATIONS_ERROR;
     }
-    arglist[argc++] = slapi_ch_strdup(attrValue->bv_val);
-    if (index_name != NULL) {
-        *index_name = slapi_ch_strdup(attrValue->bv_val);
+
+    if(index_name != NULL){
+    	*index_name = slapi_ch_strdup(attrValue->bv_val);
     }
 
-    /* Get the list of index types from the entry. */
+    /* check and see if we have the required indexType */
     if (0 == slapi_entry_attr_find(e, "nsIndexType", &attr)) {
-        tmpBuf[0] = 0;
-        isFirst = 1;
-        for (i = slapi_attr_first_value(attr, &sval); i != -1;
-             i = slapi_attr_next_value(attr, i, &sval)) {
-            attrValue = slapi_value_get_berval(sval);
-            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
-                if (isFirst) {
-                    ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
-                    isFirst = 0;
-                } else {
-                    ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
-                }
-            }
-        }
-        if (0 == tmpBuf[0]) {
+    	slapi_attr_first_value(attr, &sval);
+    	attrValue = slapi_value_get_berval(sval);
+    	if (NULL == attrValue->bv_val || strlen(attrValue->bv_val) == 0) {
+    		/* missing the index type, error out */
             LDAPDebug(LDAP_DEBUG_ANY,
                      "Warning: malformed index entry %s -- empty nsIndexType\n",
                      slapi_entry_get_dn(e), 0, 0);
             slapi_ch_free_string(index_name);
-            for (i = 0; i < argc; i++) {
-                slapi_ch_free((void **)&arglist[i]);
-            }
             return LDAP_OPERATIONS_ERROR;
         }
-        arglist[argc++] = slapi_ch_strdup(tmpBuf);
     }
 
-    tmpBuf[0] = 0;
-    /* Get the list of matching rules from the entry. */
-    if (0 == slapi_entry_attr_find(e, "nsMatchingRule", &attr)) {
-        for (i = slapi_attr_first_value(attr, &sval); i != -1;
-             i = slapi_attr_next_value(attr, i, &sval)) {
-            attrValue = slapi_value_get_berval(sval);
-            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
-                if (0 == tmpBuf[0]) {
-                    ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
-                } else {
-                    ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
-                }
-            }
-        }
-    }
+    /* ok the entry is good to process, pass it to attr_index_config */
+    attr_index_config(inst->inst_be, (char *)trace_string, 0, e, 0, 0);
 
-    /* Get the substr begin length. note: pick the first value. */
-    if (0 == slapi_entry_attr_find(e, INDEX_ATTR_SUBSTRBEGIN, &attr)) {
-        i = slapi_attr_first_value(attr, &sval);
-        if (-1 != i) {
-            attrValue = slapi_value_get_berval(sval);
-            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
-                if (0 == tmpBuf[0]) {
-                    PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
-                                INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
-                } else {
-                    int tmpbuflen = strlen(tmpBuf);
-                    char *p = tmpBuf + tmpbuflen;
-                    PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
-                                INDEX_ATTR_SUBSTRBEGIN,  attrValue->bv_val);
-                }
-            }
-        }
-    }
-
-    /* Get the substr middle length. note: pick the first value. */
-    if (0 == slapi_entry_attr_find(e, INDEX_ATTR_SUBSTRMIDDLE, &attr)) {
-        i = slapi_attr_first_value(attr, &sval);
-        if (-1 != i) {
-            attrValue = slapi_value_get_berval(sval);
-            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
-                if (0 == tmpBuf[0]) {
-                    PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
-                                INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
-                } else {
-                    int tmpbuflen = strlen(tmpBuf);
-                    char *p = tmpBuf + tmpbuflen;
-                    PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
-                                INDEX_ATTR_SUBSTRMIDDLE,  attrValue->bv_val);
-                }
-            }
-        }
-    }
-
-    /* Get the substr end length. note: pick the first value. */
-    if (0 == slapi_entry_attr_find(e, INDEX_ATTR_SUBSTREND, &attr)) {
-        i = slapi_attr_first_value(attr, &sval);
-        if (-1 != i) {
-            attrValue = slapi_value_get_berval(sval);
-            if (NULL != attrValue->bv_val && strlen(attrValue->bv_val) > 0) {
-                if (0 == tmpBuf[0]) {
-                    PR_snprintf(tmpBuf, MAX_TMPBUF, "%s=%s",
-                                INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
-                } else {
-                    int tmpbuflen = strlen(tmpBuf);
-                    char *p = tmpBuf + tmpbuflen;
-                    PR_snprintf(p, MAX_TMPBUF - tmpbuflen, ",%s=%s",
-                                INDEX_ATTR_SUBSTREND,  attrValue->bv_val);
-                }
-            }
-        }
-    }
-    if (0 != tmpBuf[0]) {
-        arglist[argc++] = slapi_ch_strdup(tmpBuf);
-    }
-
-    arglist[argc] = NULL;
-    attr_index_config(inst->inst_be, (char *)trace_string, 0, argc, arglist, 0);
-    for (i = 0; i < argc; i++) {
-        slapi_ch_free((void **)&arglist[i]);
-    }
     return LDAP_SUCCESS;
 }
 
@@ -294,8 +179,7 @@ ldbm_index_init_entry_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* en
     ldbm_instance *inst = (ldbm_instance *) arg;
 
     returntext[0] = '\0';
-    *returncode = ldbm_index_parse_entry(inst, e, "from ldbm instance init",
-                                         NULL);
+    *returncode = ldbm_index_parse_entry(inst, e, "from ldbm instance init", NULL);
     if (*returncode == LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_OK;
     } else {
@@ -318,16 +202,15 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_
     *returncode = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name);
     if (*returncode == LDAP_SUCCESS) {
         struct attrinfo *ai = NULL;
-
         /* if the index is a "system" index, we assume it's being added by
          * by the server, and it's okay for the index to go online immediately.
          * if not, we set the index "offline" so it won't actually be used
          * until someone runs db2index on it.
          */
         if (! ldbm_attribute_always_indexed(index_name)) {
-            ainfo_get(inst->inst_be, index_name, &ai);
-            PR_ASSERT(ai != NULL);
-            ai->ai_indexmask |= INDEX_OFFLINE;
+        		ainfo_get(inst->inst_be, index_name, &ai);
+        		PR_ASSERT(ai != NULL);
+        		ai->ai_indexmask |= INDEX_OFFLINE;
         }
         slapi_ch_free((void **)&index_name);
         return SLAPI_DSE_CALLBACK_OK;
@@ -343,11 +226,9 @@ int
 ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg) 
 { 
   ldbm_instance *inst = (ldbm_instance *) arg;
-  char *arglist[4];
   Slapi_Attr *attr;
   Slapi_Value *sval;
   const struct berval *attrValue;
-  int argc = 0;
   int rc = SLAPI_DSE_CALLBACK_OK;
   struct attrinfo *ainfo = NULL;
   
@@ -358,12 +239,7 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sla
   slapi_attr_first_value(attr, &sval);
   attrValue = slapi_value_get_berval(sval);
   
-  arglist[argc++] = slapi_ch_strdup(attrValue->bv_val);
-  arglist[argc++] = slapi_ch_strdup("none");
-  arglist[argc] = NULL;
-  attr_index_config(inst->inst_be, "From DSE delete", 0, argc, arglist, 0);
-  slapi_ch_free((void **)&arglist[0]);
-  slapi_ch_free((void **)&arglist[1]);
+  attr_index_config(inst->inst_be, "From DSE delete", 0, e, 0, INDEXTYPE_NONE);
   
   ainfo_get(inst->inst_be, attrValue->bv_val, &ainfo);
   
@@ -390,15 +266,18 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
         Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
+    Slapi_Entry *modEntry;
+    Slapi_Attr *modAttr = NULL;
+    Slapi_Attr *indexTypeAttr;
+    Slapi_Attr *matchingRuleAttr;
     Slapi_Attr *attr;
+    Slapi_Value *modValue;
     Slapi_Value *sval;
     const struct berval *attrValue;
     struct attrinfo *ainfo = NULL;
     LDAPMod **mods;
-    char *arglist[4] = {0};
     char *config_attr;
     char *origIndexTypes = NULL;
-    char *origMatchingRules = NULL;
     char **origIndexTypesArray = NULL;
     char **origMatchingRulesArray = NULL;
     char **addIndexTypesArray = NULL;
@@ -407,7 +286,6 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     char **deleteMatchingRulesArray = NULL;
     int i, j;
     int dodeletes = 0;
-    char tmpBuf[MAX_TMPBUF];
     int rc = SLAPI_DSE_CALLBACK_OK;
 
     returntext[0] = '\0';
@@ -430,23 +308,13 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
         goto out;
     }
 
-    origMatchingRules = attrinfo2ConfMatchingRules(ainfo);
-    if (NULL == origMatchingRules) {
-        rc = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
-
     origIndexTypesArray = slapi_str2charray(origIndexTypes, ",");
     if (NULL == origIndexTypesArray) {
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
-    origMatchingRulesArray = slapi_str2charray(origMatchingRules, ",");
-    if (NULL == origMatchingRulesArray) {
-        rc = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
+    origMatchingRulesArray = attrinfo2ConfMatchingRules(ainfo);
 
     for (i = 0; mods[i] != NULL; i++) {
         config_attr = (char *)mods[i]->mod_type;
@@ -556,48 +424,53 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     if (dodeletes) {
-        i = 0;
-        arglist[i++] = slapi_ch_strdup(attrValue->bv_val);
-        arglist[i++] = slapi_ch_strdup("none");
-        arglist[i] = NULL;
-        attr_index_config(inst->inst_be, "from DSE modify", 0, i, arglist, 0);
-
-	/* Free args */
-	slapi_ch_free((void **)&arglist[0]);
-	slapi_ch_free((void **)&arglist[1]);
+        attr_index_config(inst->inst_be, "from DSE modify", 0, e, 0, INDEXTYPE_NONE);
     }
 
-    i = 0;
-    arglist[i++] = slapi_ch_strdup(attrValue->bv_val);
+    /* create a new entry with the correct attr values */
+    modEntry = slapi_entry_alloc();
+
+    /* index types */
     if (origIndexTypesArray && origIndexTypesArray[0]) {
-        tmpBuf[0] = 0;
-        ZCAT_SAFE(tmpBuf, "", origIndexTypesArray[0]);
-        for (j = 1; origIndexTypesArray[j] != NULL; j++) {
-            ZCAT_SAFE(tmpBuf, ",", origIndexTypesArray[j]);
-        }
-        arglist[i++] = slapi_ch_strdup(tmpBuf);
+    	indexTypeAttr = slapi_attr_new();
+    	slapi_attr_init(indexTypeAttr, "nsIndexType");
+    	for (j = 0; origIndexTypesArray[j] != NULL; j++) {
+    		/* add attr value */
+        	modValue = slapi_value_new_string(origIndexTypesArray[j]);
+        	slapi_attr_add_value(indexTypeAttr,modValue);
+        	slapi_value_free(&modValue);
+    	}
     } else {
-        arglist[i++] = slapi_ch_strdup("none");
+    	indexTypeAttr = slapi_attr_new();
+    	slapi_attr_init(indexTypeAttr, "nsIndexType");
+    	modValue = slapi_value_new_string("none");
+    	slapi_attr_add_value(indexTypeAttr,modValue);
+    	slapi_value_free(&modValue);
     }
 
+    /* add indexType attribute values */
+    attrlist_add(&modAttr,indexTypeAttr);
+
+    /* matching rules */
     if (origMatchingRulesArray && origMatchingRulesArray[0]) {
-        tmpBuf[0] = 0;
-        ZCAT_SAFE(tmpBuf, "", origMatchingRulesArray[0]);
-        for (j = 1; origMatchingRulesArray[j] != NULL; j++) {
-            ZCAT_SAFE(tmpBuf, ",", origMatchingRulesArray[j]);
+    	matchingRuleAttr = slapi_attr_new();
+    	slapi_attr_init(matchingRuleAttr, "nsMatchingRule");
+        for (j = 0; origMatchingRulesArray[j] != NULL; j++) {
+        	/* add attr value */
+        	modValue = slapi_value_new_string(origMatchingRulesArray[j]);
+        	slapi_attr_add_value(matchingRuleAttr,modValue);
+        	slapi_value_free(&modValue);
         }
-        arglist[i++] = slapi_ch_strdup(tmpBuf);
+
+        /* add the matchingRule attribute values */
+        attrlist_add(&modAttr,matchingRuleAttr);
     }
 
-    arglist[i] = NULL;
-    attr_index_config(inst->inst_be, "from DSE modify", 0, i, arglist, 0);
+    slapi_entry_init_ext(modEntry, NULL, modAttr);
+    attr_index_config(inst->inst_be, "from DSE modify", 0, modEntry, 0, 0);
+    slapi_entry_free(modEntry);
 
 out:
-    /* Free args */
-    for (i=0; arglist[i]; i++) {
-	slapi_ch_free((void **)&arglist[i]);
-    }
-
     if(origIndexTypesArray) {
 	charray_free(origIndexTypesArray);
     }
@@ -619,9 +492,6 @@ out:
     if (origIndexTypes) {
 	slapi_ch_free ((void **)&origIndexTypes);	
     }
-    if (origMatchingRules) {
-	slapi_ch_free ((void **)&origMatchingRules);	
-    }
 
     return rc;
 }
@@ -629,90 +499,92 @@ out:
 /* add index entries to the per-instance DSE (used only from instance.c) */
 int ldbm_instance_config_add_index_entry(
     ldbm_instance *inst, 
-    int argc, 
-    char **argv,
+    Slapi_Entry *e,
     int flags
 )
 {
-    char **attrs = NULL;
-    char **indexes = NULL;
-    char **matchingRules = NULL;
     char *eBuf;
-    int i = 0;
     int j = 0;
     char *basetype = NULL;
-    char tmpAttrsStr[256];
-    char tmpIndexesStr[256];
-    char tmpMatchingRulesStr[1024];
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
+    Slapi_Attr *attr;
+    const struct berval *attrValue;
+    Slapi_Value *sval;
     int rc = 0;
 
-    if ((argc < 2) || (NULL == argv) || (NULL == argv[0]) || 
-        (NULL == argv[1])) {
-        return(-1);
+    /* get the cn value */
+    if (slapi_entry_attr_find(e, "cn", &attr) != 0) {
+        LDAPDebug(LDAP_DEBUG_ANY, "Warning: malformed index entry %s\n",
+                  slapi_entry_get_dn(e), 0, 0);
+        return -1;
     }
 
-    PL_strncpyz(tmpAttrsStr,argv[0], sizeof(tmpAttrsStr));
-    attrs = slapi_str2charray( tmpAttrsStr, "," );
-    PL_strncpyz(tmpIndexesStr,argv[1], sizeof(tmpIndexesStr));
-    indexes = slapi_str2charray( tmpIndexesStr, ",");
-
-    if(argc > 2) {
-        PL_strncpyz(tmpMatchingRulesStr,argv[2], sizeof(tmpMatchingRulesStr));
-        matchingRules = slapi_str2charray( tmpMatchingRulesStr, ",");
+    slapi_attr_first_value(attr, &sval);
+    attrValue = slapi_value_get_berval(sval);
+    if (NULL == attrValue->bv_val || 0 == strlen(attrValue->bv_val)) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "Warning: malformed index entry %s -- empty index name\n",
+                      slapi_entry_get_dn(e), 0, 0);
+        return -1;
     }
 
-    for(i=0; attrs && attrs[i] !=NULL; i++)
-    {
-        if('\0' == attrs[i][0]) continue;
-        basetype = slapi_attr_basetype(attrs[i], NULL, 0);
-        dn = slapi_create_dn_string("cn=%s,cn=index,cn=%s,cn=%s,cn=plugins,cn=config", 
+	basetype = slapi_attr_basetype(attrValue->bv_val, NULL, 0);
+	dn = slapi_create_dn_string("cn=%s,cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                             basetype, inst->inst_name, li->li_plugin->plg_name);
-        if (NULL == dn) {
-            LDAPDebug(LDAP_DEBUG_ANY,
-                      "ldbm_instance_config_add_index_entry: "
-                      "failed create index dn with type %s for plugin %s, "
-                      "instance %s\n",
-                      basetype, inst->inst_li->li_plugin->plg_name,
-                      inst->inst_name);
-            slapi_ch_free((void**)&basetype);
-            rc = -1;
-            goto done;
-        }
-        eBuf = PR_smprintf(
-                "dn: %s\n"
-                "objectclass: top\n"
-                "objectclass: nsIndex\n"
-                "cn: %s\n"
-                "nsSystemIndex: %s\n",
+	if (NULL == dn) {
+		LDAPDebug(LDAP_DEBUG_ANY,
+				"ldbm_instance_config_add_index_entry: "
+				"failed create index dn with type %s for plugin %s, "
+				"instance %s\n",
+				basetype, inst->inst_li->li_plugin->plg_name,
+				inst->inst_name);
+		slapi_ch_free((void**)&basetype);
+		return -1;
+	}
+
+	eBuf = PR_smprintf(
+			"dn: %s\n"
+			"objectclass: top\n"
+			"objectclass: nsIndex\n"
+			"cn: %s\n"
+			"nsSystemIndex: %s\n",
                 dn, basetype,
                 (ldbm_attribute_always_indexed(basetype)?"true":"false"));
-        slapi_ch_free_string(&dn);
-        for(j=0; indexes && indexes[j] != NULL; j++)
-        {
-            eBuf = PR_sprintf_append(eBuf, "nsIndexType:%s\n", indexes[j]);
-        }
-        if((argc>2)&&(argv[2]))
-        {
-            for(j=0; matchingRules && matchingRules[j] != NULL; j++)
-            { 
-                eBuf = PR_sprintf_append(eBuf, "nsMatchingRule:%s\n", matchingRules[j]);
-            }
-        }
+	slapi_ch_free_string(&dn);
 
-        ldbm_config_add_dse_entry(li, eBuf, flags);
-        if (eBuf) {
-            PR_smprintf_free(eBuf);
-        }
+	/* get nsIndexType and its values, and add them */
+	if( 0 == slapi_entry_attr_find(e, "nsIndexType", &attr)){
+		for (j = slapi_attr_first_value(attr, &sval); j != -1;j = slapi_attr_next_value(attr, j, &sval)) {
+			attrValue = slapi_value_get_berval(sval);
+			eBuf = PR_sprintf_append(eBuf, "nsIndexType: %s\n", attrValue->bv_val);
+		}
+	} else {
+		LDAPDebug(LDAP_DEBUG_ANY,
+				"ldbm_instance_config_add_index_entry: "
+				"failed create index dn with type %s for plugin %s, "
+				"instance %s.  Missing nsIndexType\n",
+				basetype, inst->inst_li->li_plugin->plg_name,
+				inst->inst_name);
+		slapi_ch_free((void**)&basetype);
+		return -1;
+	}
 
-        slapi_ch_free((void**)&basetype);
-    }
+	/* get nsMatchingRule and its values, and add them */
+	if(0 == slapi_entry_attr_find(e, "nsMatchingRule", &attr)) {
+		for (j = slapi_attr_first_value(attr, &sval); j != -1;j = slapi_attr_next_value(attr, j, &sval)) {
+			attrValue = slapi_value_get_berval(sval);
+			eBuf = PR_sprintf_append(eBuf, "nsMatchingRule: %s\n", attrValue->bv_val);
+		}
+ 	}
 
-done:
-    charray_free(attrs);
-    charray_free(indexes);
-    charray_free(matchingRules);
+	ldbm_config_add_dse_entry(li, eBuf, flags);
+	if (eBuf) {
+		PR_smprintf_free(eBuf);
+	}
+
+	slapi_ch_free((void**)&basetype);
+
     return rc;
 }
 
@@ -724,9 +596,8 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry* e)
 
     rc=ldbm_index_parse_entry(inst, e, "from DSE add", &index_name);
     if (rc == LDAP_SUCCESS) {
+    	/* Assume the caller knows if it is OK to go online immediately */
         struct attrinfo *ai = NULL;
-
-        /* Assume the caller knows if it is OK to go online immediatly */
 
         ainfo_get(inst->inst_be, index_name, &ai);
         PR_ASSERT(ai != NULL);
@@ -736,30 +607,19 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry* e)
     return rc;
 }
 
-
 /*
-** create the default user-defined indexes
+** Create the default user-defined indexes
+**
+** Search for user-defined default indexes and add them
+** to the backend instance being created.
 */
 
 int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
 {
-
-    /*
-    ** Search for user-defined default indexes and add them
-    ** to the backend instance beeing created.
-    */
-
     Slapi_PBlock *aPb;
     Slapi_Entry **entries = NULL;
     Slapi_Attr *attr;
-    Slapi_Value *sval = NULL;
-    const struct berval *attrValue;
-    char *argv[ 8 ];
-    char tmpBuf[MAX_TMPBUF];
-    char tmpBuf2[MAX_TMPBUF];
-    int argc;
     char *basedn = NULL;
-
     struct ldbminfo *li;
 
     /* write the dse file only on the final index */
@@ -772,7 +632,6 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
     }
 
     li = inst->inst_li;
-    strcpy(tmpBuf,"");
 
     /* Construct the base dn of the subtree that holds the default user indexes. */
 	basedn = slapi_create_dn_string("cn=default indexes,cn=config,cn=%s,cn=plugins,cn=config", 
@@ -792,69 +651,27 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
     slapi_search_internal_pb (aPb);
     slapi_pblock_get(aPb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (entries!=NULL) {
-        int i,j;
+        int i;
         for (i=0; entries[i]!=NULL; i++) {
-
-                /* Get the name of the attribute to index which will be the value
-                 * of the cn attribute. */
-
+                /*
+                 * Get the name of the attribute to index which will be the value
+                 * of the cn attribute.
+                 */
                 if (slapi_entry_attr_find(entries[i], "cn", &attr) != 0) {
                         LDAPDebug(LDAP_DEBUG_ANY,"Warning: malformed index entry %s. Index ignored.\n",
                                 slapi_entry_get_dn(entries[i]), 0, 0);
                         continue;
                 }
-                slapi_attr_first_value(attr, &sval);
-                attrValue = slapi_value_get_berval(sval);
-                argv[0] = attrValue->bv_val;
-                argc=1;
-
-                /* Get the list of index types from the entry. */
-
-                if (0 == slapi_entry_attr_find(entries[i], "nsIndexType", &attr)) {
-                        for (j = slapi_attr_first_value(attr, &sval); j != -1;
-                                j = slapi_attr_next_value(attr, j, &sval)) {
-                                attrValue = slapi_value_get_berval(sval);
-                                if (0 == j) {
-                                        tmpBuf[0] = 0;
-                                        ZCAT_SAFE(tmpBuf, "", attrValue->bv_val);
-                                } else {
-                                        ZCAT_SAFE(tmpBuf, ",", attrValue->bv_val);
-                                }
-                        }
-                        argv[argc]=tmpBuf;
-                        argc++;
-                }
-
-                /* Get the list of matching rules from the entry. */
-
-                if (0 == slapi_entry_attr_find(entries[i], "nsMatchingRule", &attr)) {
-                        for (j = slapi_attr_first_value(attr, &sval); j != -1;
-                                j = slapi_attr_next_value(attr, j, &sval)) {
-                                attrValue = slapi_value_get_berval(sval);
-                                if (0 == j) {
-                                        tmpBuf2[0] = 0;
-                                        ZCAT_SAFE(tmpBuf2, "", attrValue->bv_val);
-                                } else {
-                                        ZCAT_SAFE(tmpBuf2, ",", attrValue->bv_val);
-                                }
-                        }
-                        argv[argc]=tmpBuf2;
-                        argc++;
-                }
-
-                argv[argc]=NULL;
 
                 /* Create the index entry in the backend */
-
                 if (entries[i+1] == NULL) {
                     /* write the dse file only on the final index */
                     flags = 0;
                 }
 
-                ldbm_instance_config_add_index_entry(inst, argc, argv, flags);
+                ldbm_instance_config_add_index_entry(inst, entries[i], flags);
 
                 /* put the index online */
-
                 ldbm_instance_index_config_enable_index(inst, entries[i]);
         }
     }
