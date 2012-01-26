@@ -101,7 +101,7 @@ static void init_shared_memory(perfctrs_private *priv)
 {
 	performance_counters *perf = (performance_counters*)priv->memory;
 	if (NULL != perf) {
-		memset(perf,0,sizeof(performance_counters));
+		memset(perf,sizeof(performance_counters),0);
 	}
 }
 
