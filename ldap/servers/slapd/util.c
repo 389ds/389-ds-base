@@ -50,6 +50,7 @@
 #include <pwd.h>
 #include <stdint.h>
 #endif
+#include <fcntl.h>
 #include <libgen.h>
 #include <pk11func.h>
 #include "slap.h"
@@ -876,21 +877,27 @@ strarray2str( char **a, char *buf, size_t buflen, int include_quotes )
 int
 slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 {
+        int fd = -1;
         struct stat statbuf;
         int result = 1;
         if (!filename)
                 return result;
 
+        fd = open(filename, O_RDONLY);
+        if (fd == -1) {
+                return result;
+        }
         memset(&statbuf, '\0', sizeof(statbuf));
-        if (!(result = stat(filename, &statbuf)))
+        if (!(result = fstat(fd, &statbuf)))
         {
                 if (((uid != -1) && (uid != statbuf.st_uid)) ||
                         ((gid != -1) && (gid != statbuf.st_gid)))
                 {
-                        result = chown(filename, uid, gid);
+                        result = fchown(fd, uid, gid);
                 }
         }
 
+        close(fd);
         return result;
 }
 #endif

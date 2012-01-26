@@ -678,8 +678,8 @@ string_assertion2keys_ava(
         break;
 	case LDAP_FILTER_EQUALITY:
 		(*ivals) = (Slapi_Value **) slapi_ch_malloc( 2 * sizeof(Slapi_Value *) );
-		(*ivals)[0] = slapi_value_dup( val );
-		if (!(flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
+		(*ivals)[0] = val ? slapi_value_dup( val ) : NULL;
+		if (val && !(flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
 			/* 3rd arg: 1 - trim leading blanks */
 			value_normalize_ext( (*ivals)[0]->bv.bv_val, syntax, 1, &alt );
 			if (alt) {

@@ -1497,7 +1497,6 @@ char* slapd_get_tmp_dir()
 	unsigned ilen;
 	char pch;
 #endif
-	struct stat ffinfo;
 
 	tmp[0] = '\0';
 
@@ -1535,25 +1534,32 @@ char* slapd_get_tmp_dir()
 	}
 #endif
 
-	if(stat(tmpdir, &ffinfo) == -1)
 #if defined( XP_WIN32 )
-		if(CreateDirectory(tmpdir, NULL) == 0)
-		{
-			slapi_log_error(
+	if(CreateDirectory(tmpdir, NULL) == 0)
+	{
+		slapi_log_error(
 			 SLAPI_LOG_FATAL,
 			 "slapd_get_tmp_dir",
 			 "CreateDirectory(%s, NULL) Error: %s\n",
 			 tmpdir, strerror(errno));	
-		}
+	}
 #else
-		if(mkdir(tmpdir, 00770) == -1)
-		{
+	if(mkdir(tmpdir, 00770) == -1)
+	{
+		if (errno == EEXIST) {
+			slapi_log_error(
+			 SLAPI_LOG_TRACE,
+			 "slapd_get_tmp_dir",
+			 "mkdir(%s, 00770) - already exists\n",
+			 tmpdir);
+		} else {
 			slapi_log_error(
 			 SLAPI_LOG_FATAL,
 			 "slapd_get_tmp_dir",
 			 "mkdir(%s, 00770) Error: %s\n",
-			 tmpdir, strerror(errno));	
+			 tmpdir, strerror(errno));
 		}
+	}
 #endif
 	return ( tmpdir );
 }

@@ -379,7 +379,7 @@ index_addordel_entry(
     back_txn		*txn
 )
 {
-    char		*type;
+    char		*type = NULL;
     Slapi_Value	**svals;
     int		rc, result;
     Slapi_Attr		*attr;
@@ -430,7 +430,7 @@ index_addordel_entry(
             slapi_entry_attr_find(e->ep_entry, LDBM_PARENTID_STR, &attr);
             if (attr) {
                 svals = attr_get_present_values(attr);
-                result = index_addordel_values_sv(be, type, svals, NULL,
+                result = index_addordel_values_sv(be, LDBM_PARENTID_STR, svals, NULL,
                                                   e->ep_id, flags, txn);
                 if ( result != 0 ) {
                     ldbm_nasty(errmsg, 1020, result);

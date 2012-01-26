@@ -369,12 +369,14 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
     for (i = 0; targets && targets[i]; ++i) {
         char *targetdn = (char *)targets[i];
         int perform_update = 0;
-        Slapi_DN *targetsdn = slapi_sdn_new_normdn_byref(targetdn);
+        Slapi_DN *targetsdn = NULL;
 
         if (g_get_shutdown()) {
-            return -1;
+            rc = -1;
+            goto done;
         }
 
+        targetsdn = slapi_sdn_new_normdn_byref(targetdn);
         if (config->scope) {
             /* Check if the target is within the scope. */
             perform_update = slapi_dn_issuffix(targetdn, config->scope);
@@ -408,6 +410,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
         slapi_sdn_free(&targetsdn);
     }
 
+done:
     slapi_ch_array_free(targets);
     slapi_pblock_destroy(pb);
 

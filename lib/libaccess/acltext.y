@@ -350,8 +350,8 @@ arg_v2: ACL_VARIABLE_TOK
                 
                 if (!use_generic_rights) {
 			acl_string_lower($<string>1);
-			strcpy(acl_tmp_arg, "http_");
-			strcat(acl_tmp_arg, $<string>1);
+			snprintf(acl_tmp_arg, sizeof(acl_tmp_arg), "http_%s", $<string>1);
+			acl_tmp_arg[sizeof(acl_tmp_arg)-1] = '\0';
 			PERM_FREE($<string>1);
 			acl_new_arg = PERM_STRDUP(acl_tmp_arg);
 			acl_add_arg(curr_args_list, acl_new_arg);

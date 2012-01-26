@@ -5899,6 +5899,7 @@ config_set_default_naming_context(const char *attrname,
     }
 
     if (!apply) {
+        slapi_ch_free_string(&suffix);
         return LDAP_SUCCESS;
     }
 

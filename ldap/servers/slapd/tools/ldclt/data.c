@@ -234,18 +234,8 @@ int loadImages (
       /*
        * Read the image size
        */
-      strcpy (name, dirpath);
-      strcat (name, "/");
-      strcat (name, fileName);
-      if (stat (name, &stat_buf) < 0)
-      {
-	perror (name);
-	fprintf (stderr, "Cannot stat(%s)\n", name);
-	fflush (stderr);
-	rc = -1;
-	goto exit;
-      }
-      mctx.images[mctx.imagesNb-1].length = stat_buf.st_size;
+      snprintf (name, sizeof(name), "%s/%s", dirpath, fileName);
+      name[sizeof(name)-1] = '\0';
 
       /*
        * Open the image
@@ -259,6 +249,16 @@ int loadImages (
 	rc = -1;
 	goto exit;
       }
+
+      if (fstat (fd, &stat_buf) < 0)
+      {
+	perror (name);
+	fprintf (stderr, "Cannot stat(%s)\n", name);
+	fflush (stderr);
+	rc = -1;
+	goto exit;
+      }
+      mctx.images[mctx.imagesNb-1].length = stat_buf.st_size;
 
 #ifdef _WIN32
       /*

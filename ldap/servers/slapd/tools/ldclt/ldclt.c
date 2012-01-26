@@ -1270,6 +1270,7 @@ basicInit (void)
   int		 ret;	/* Return value */
   int		 oflags;/* open() flags */			/*JLS 05-04-01*/
   struct stat file_st ; /* file status checker for attreplacefile option */
+  int fd = -1;
   FILE *attrF;		/* file pointer for attreplacefile option */
   char	buffer[BUFFERSIZE];	/* buffer used to read attreplacefile content */
 
@@ -1539,9 +1540,18 @@ basicInit (void)
       (3) save the content into mctx.attrplFileContent 
     */
 
+    fd = open(mctx.attrplFile, O_RDONLY);
+    if (fd == -1)
+    {
+      printf("ERROR reading attr file [%s]\n",mctx.attrplFile); 
+      return (-1);
+    }else{
+      printf("file opened for reading\n");
+    }
     /* determine file size here */
-    if (stat(mctx.attrplFile, &file_st) < 0){
+    if (fstat(fd, &file_st) < 0){
       printf ("attr replace file [%s] does not exist, exit\n", mctx.attrplFile);
+      close(fd);
       return (-1);
     }else{
       mctx.attrplFileSize = file_st.st_size;
@@ -1549,9 +1559,10 @@ basicInit (void)
     }   
    
     /* open file to read */ 
-    if ((attrF = fopen(mctx.attrplFile, "r")) == NULL )
+    if ((attrF = fdopen(fd, "r")) == NULL )
     {
       printf("ERROR reading attr file [%s]\n",mctx.attrplFile); 
+      close(fd);
       return (-1);
     }else{
       printf("file opened for reading\n");

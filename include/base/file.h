@@ -86,8 +86,6 @@ NSAPI_PUBLIC SYS_DIRENT *INTdir_read(SYS_DIR ds);
 NSAPI_PUBLIC void INTdir_close(SYS_DIR ds);
 #endif /* XP_WIN32 */
 
-NSAPI_PUBLIC int INTdir_create_all(char *dir);
-
 /* --- OBSOLETE ----------------------------------------------------------
  * The following macros/functions are obsolete and are only maintained for
  * compatibility.  Do not use them. 11-19-96
@@ -131,7 +129,6 @@ NSPR_END_EXTERN_C
 #define dir_read INTdir_read
 #define dir_close INTdir_close
 #endif /* XP_WIN32 */
-#define dir_create_all INTdir_create_all
 
 /* Obsolete */
 #ifdef XP_WIN32

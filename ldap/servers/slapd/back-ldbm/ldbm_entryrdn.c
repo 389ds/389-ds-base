@@ -2278,6 +2278,7 @@ _entryrdn_insert_key(backend *be,
                     goto bail;
                     /* done */
                 } else {
+                    ID currid = 0;
                     rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, &key,
                                                           childnrdn, &tmpelem);
                     if (rc || (NULL == tmpelem)) {
@@ -2296,41 +2297,14 @@ _entryrdn_insert_key(backend *be,
                         goto bail;
                     }
                     /* Node is a tombstone. */
-                    ID currid = 0;
                     slapi_ch_free((void **)&elem);
                     elem = tmpelem;
                     currid = id_stored_to_internal(elem->rdn_elem_id);
-                    if (0 == rdnidx) { /* Child is a Leaf RDN to be added */
-                        if (currid == id) {
-                            /* already in the file */
-                            /* do nothing and return. */
-                            rc = 0;
-                            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
-                                       "_entryrdn_insert_key: ID %d is already "
-                                       "in the index. NOOP.\n", currid);
-                        } else { /* different id, error return */
-                            char *dn  = NULL;
-                            int tmprc = slapi_rdn_get_dn(srdn, &dn);
-                            slapi_log_error(SLAPI_LOG_FATAL,
-                                  ENTRYRDN_TAG,
-                                  "_entryrdn_insert_key: Same DN (%s: %s) "
-                                  "is already in the %s file with different ID "
-                                  "%d.  Expected ID is %d.\n", 
-                                  tmprc?"rdn":"dn", tmprc?childnrdn:dn,
-                                  LDBM_ENTRYRDN_STR, currid, id);
-                            slapi_ch_free_string(&dn);
-                            /* returning special error code for the upgrade */
-                            rc = LDBM_ERROR_FOUND_DUPDN;
-                        }
-                        slapi_ch_free((void **)&tmpelem);
-                        goto bail;
-                    } else { /* if (0 != rdnidx) */
-                        nrdn = childnrdn;
-                        workid = currid;
-                        slapi_ch_free((void **)&parentelem);
-                        parentelem = elem;
-                        elem = NULL;
-                    }
+                    nrdn = childnrdn;
+                    workid = currid;
+                    slapi_ch_free((void **)&parentelem);
+                    parentelem = elem;
+                    elem = NULL;
                 }
             } else {
                 char *dn  = NULL;

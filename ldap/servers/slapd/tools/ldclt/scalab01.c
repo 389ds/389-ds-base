@@ -429,7 +429,8 @@ scalab01_addLogin (
     return -1;
   }
 
-  strcpy (new->dn, dn);
+  strncpy (new->dn, dn, sizeof(new->dn));
+  new->dn[sizeof(new->dn)-1] = '\0';
   new->cost = new->counter = duration;
   new->next = NULL;
 
@@ -537,9 +538,8 @@ scalab01_connectSuperuser (void)
   unsigned int mod2 = mctx.mod2;
 
   if (!(mode & CLTAUTH)) {
-    strcpy (bindDN, SCALAB01_SUPER_USER_RDN);
-    strcat (bindDN, ",");
-    strcat (bindDN, mctx.baseDN);
+    snprintf (bindDN, sizeof(bindDN), "%s,%s", SCALAB01_SUPER_USER_RDN, mctx.baseDN);
+    bindDN[sizeof(bindDN)-1] = '\0';
   }
   /* clear bits not applicable to this mode */
   mod2 &= ~M2_RNDBINDFILE;

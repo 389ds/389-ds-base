@@ -2731,7 +2731,8 @@ static int check_fs_options(char *reqdir,char mntbuf[MAXPATHLEN])
     if (mntdir_matches(reqdir,reqlen,mep->IDDS_MNTENT_DIRNAME,mntbuf) == 0) {
       found = 0;
 #if defined(IDDS_MNTENT_OPTIONS)
-      strcpy(optbuf,mep->IDDS_MNTENT_OPTIONS);
+      strncpy(optbuf,mep->IDDS_MNTENT_OPTIONS,sizeof(optbuf));
+      optbuf[sizeof(optbuf)-1] = '\0';
 #else
       strcpy(optbuf,"");
 #endif
@@ -3318,7 +3319,8 @@ int main(int argc,char *argv[])
       flag_carrier = 1;
       break;
     case 'i':
-      strcpy(install_dir,optarg);
+      strncpy(install_dir,optarg,sizeof(install_dir));
+      install_dir[sizeof(install_dir)-1] = '\0';
       break;
     default:
       usage(argv[0]);

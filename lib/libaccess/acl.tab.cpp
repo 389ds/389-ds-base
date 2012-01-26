@@ -1213,8 +1213,8 @@ case 13:
                 
                 if (!use_generic_rights) {
 			acl_string_lower(aclpvt[-0].string);
-			strcpy(acl_tmp_arg, "http_");
-			strcat(acl_tmp_arg, aclpvt[-0].string);
+			snprintf(acl_tmp_arg, sizeof(acl_tmp_arg), "http_%s", aclpvt[-0].string);
+			acl_tmp_arg[sizeof(acl_tmp_arg)-1] = '\0';
 			PERM_FREE(aclpvt[-0].string);
 			acl_new_arg = PERM_STRDUP(acl_tmp_arg);
 			acl_add_arg(curr_args_list, acl_new_arg);

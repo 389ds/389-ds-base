@@ -503,30 +503,6 @@ NSAPI_PUBLIC int file_notfound(void)
 #endif
 }
 
-NSAPI_PUBLIC int dir_create_all(char *dir)
-{
-    struct stat fi;
-    char *t;
-
-#ifdef XP_WIN32
-    t = dir + 3;
-#else /* XP_UNIX */
-    t = dir + 1;
-#endif
-    while(1) {
-        t = strchr(t, FILE_PATHSEP);
-        if(t) *t = '\0';
-        if(stat(dir, &fi) == -1) {
-            if(dir_create(dir) == -1)
-                return -1;
-        }
-        if(t) *t++ = FILE_PATHSEP;
-        else break;
-    }
-    return 0;
-}
-
-
 #ifdef XP_UNIX
 #if !defined(SNI) && !defined(LINUX)
 extern char *sys_errlist[];

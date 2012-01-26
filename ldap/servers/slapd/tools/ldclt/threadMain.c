@@ -627,7 +627,8 @@ msgIdAdd (
   tttctx->lastMsgId->next  = NULL;
   tttctx->lastMsgId->msgid = msgid;
   strcpy (tttctx->lastMsgId->str, str);
-  strcpy (tttctx->lastMsgId->dn, dn);
+  strncpy (tttctx->lastMsgId->dn, dn, sizeof(tttctx->lastMsgId->dn));
+  tttctx->lastMsgId->dn[sizeof(tttctx->lastMsgId->dn)-1] = '\0';
   tttctx->lastMsgId->attribs = attribs;
 
   return (0);

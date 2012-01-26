@@ -2624,9 +2624,8 @@ doRename (
    */
   if (buildRandomRdnOrFilter (tttctx) < 0)
     return (-1);
-  strcpy (oldDn, tttctx->bufFilter);
-  strcat (oldDn, ",");
-  strcat (oldDn, tttctx->bufBaseDN);
+  snprintf (oldDn, sizeof(oldDn), "%s,%s", tttctx->bufFilter, tttctx->bufBaseDN);
+  oldDn[sizeof(oldDn)-1] = '\0';
 
   /*
    * Now, build a random new name for this entry
@@ -3585,9 +3584,8 @@ doDeleteEntry (
      */
     if (buildRandomRdnOrFilter (tttctx) < 0)
       return (-1);
-    strcpy (delDn, tttctx->bufFilter);
-    strcat (delDn, ",");
-    strcat (delDn, tttctx->bufBaseDN);
+    snprintf(delDn, sizeof(delDn), "%s,%s", tttctx->bufFilter, tttctx->bufBaseDN);
+    delDn[sizeof(delDn)-1] = '\0';
 
     ret = ldap_delete_ext_s (tttctx->ldapCtx, delDn, NULL, NULL);
     if (ret != LDAP_SUCCESS)
