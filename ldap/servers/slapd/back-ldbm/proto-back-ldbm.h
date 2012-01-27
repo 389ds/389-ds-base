@@ -55,7 +55,7 @@ void attr_masks( backend *be, char *type, int *indexmask,
 void attr_masks_ex( backend *be, char *type, int *indexmask,
  int *syntaxmask, struct attrinfo **at );
 void attr_index_config( backend *be, char *fname, int lineno,
- Slapi_Entry *e, int init, int none );
+ int argc, char **argv, int init );
 int ldbm_compute_init();
 void attrinfo_deletetree(ldbm_instance *inst);
 void attr_create_empty(backend *be,char *type,struct attrinfo **ai);

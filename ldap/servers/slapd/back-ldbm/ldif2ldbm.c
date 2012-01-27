@@ -2474,56 +2474,32 @@ db2index_add_indexed_attr(backend *be, char *attrString)
 {
     char *iptr = NULL;
     char *mptr = NULL;
-    Slapi_Entry *e;
-    Slapi_Value *sval;
-    Slapi_Attr *indextype_attr;
-    Slapi_Attr *cn_attr;
-    Slapi_Attr *mr_attr;
-    Slapi_Attr *attrs;
+    char *nsslapd_index_value[4];
+    int argc = 0;
+    int i;
 
     if (NULL == (iptr = strchr(attrString, ':'))) {
         return(0);
     }
-    e = slapi_entry_alloc();
-    attrs = slapi_attr_new();
     iptr[0] = '\0';
     iptr++;
-
-    /* set the index name */
-    cn_attr = slapi_attr_new();
-    slapi_attr_init(cn_attr, "cn");
-    sval = slapi_value_new_string(slapi_ch_strdup(attrString+1));
-    slapi_attr_add_value(cn_attr,sval);
-    attrlist_add(&attrs,cn_attr);
-    slapi_value_free(&sval);
-
+    
+    nsslapd_index_value[argc++] = slapi_ch_strdup(attrString+1);
+    
     if (NULL != (mptr = strchr(iptr, ':'))) {
         mptr[0] = '\0';
         mptr++;
     }
-
-    /* set the index type */
-    indextype_attr = slapi_attr_new();
-    slapi_attr_init(indextype_attr, "nsIndexType");
-    sval = slapi_value_new_string(slapi_ch_strdup(iptr));
-    slapi_attr_add_value(indextype_attr,sval);
-    attrlist_add(&attrs,indextype_attr);
-    slapi_value_free(&sval);
-
+    nsslapd_index_value[argc++] = slapi_ch_strdup(iptr);
     if (NULL != mptr) {
-        /* set the matching rule */
-        mr_attr = slapi_attr_new();
-        slapi_attr_init(mr_attr, "nsMatchingRule");
-        sval = slapi_value_new_string(slapi_ch_strdup(mptr));
-        slapi_attr_add_value(mr_attr,sval);
-        attrlist_add(&attrs,mr_attr);
-        slapi_value_free(&sval);
+        nsslapd_index_value[argc++] = slapi_ch_strdup(mptr);
     }
+    nsslapd_index_value[argc] = NULL;
+    attr_index_config(be, "from db2index()", 0, argc, nsslapd_index_value, 0);
 
-    slapi_entry_init_ext(e, NULL, attrs);
-    attr_index_config(be, "from db2index()", 0, e, 0, 0);
-    slapi_entry_free(e);
-
+    for ( i=0; i<argc; i++ ) {
+        slapi_ch_free_string(&nsslapd_index_value[i]);
+    }
     return(0);
 }
 
