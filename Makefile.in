@@ -1469,6 +1469,7 @@ sampledata_DATA = ldap/admin/src/scripts/failedbinds.py \
 	$(srcdir)/ldap/schema/60rfc4876.ldif \
 	$(srcdir)/ldap/schema/60samba.ldif \
 	$(srcdir)/ldap/schema/60samba3.ldif \
+	$(srcdir)/ldap/schema/60sendmail.ldif \
 	$(LIBPRESENCE_SCHEMA)
 
 schema_DATA = $(srcdir)/ldap/schema/00core.ldif \

@@ -78,7 +78,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.43 NAME 'ntUserDeleteAccount' DESC 'Nets
 attributeTypes: ( 2.16.840.1.113730.3.1.44 NAME 'ntGroupDomainId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
 attributeTypes: ( 2.16.840.1.113730.3.1.45 NAME 'ntGroupCreateNewGroup' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
 attributeTypes: ( 2.16.840.1.113730.3.1.46 NAME 'ntGroupDeleteGroup' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
-attributeTypes: ( 2.16.840.1.113730.3.1.47 NAME 'ntGroupType' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2112 NAME 'ntGroupType' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
 attributeTypes: ( 2.16.840.1.113730.3.1.59 NAME 'ntUserPriv' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
 attributeTypes: ( 2.16.840.1.113730.3.1.60 NAME 'ntUserAuthFlags' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
 attributeTypes: ( 2.16.840.1.113730.3.1.61 NAME 'ntUserUsrComment' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape NT Synchronization' )
