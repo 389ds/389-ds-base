@@ -51,11 +51,14 @@ sub runinst {
                 if ($_ =~ /rdn-format-1/) {
                     $is_rdn_format = 2;
                 }
+                if ($_ =~ /rdn-format-2/) {
+                    $is_rdn_format = 3;
+                }
             }
         }
         close DBVERSION;
 
-        if (2 == $is_rdn_format) {
+        if (3 == $is_rdn_format) {
             return (); # DB already has the new rdn format.
         }
 
@@ -95,11 +98,14 @@ sub runinst {
                     if ($_ =~ /rdn-format-1/) {
                         $is_rdn_format = 2;
                     }
+                    if ($_ =~ /rdn-format-2/) {
+                        $is_rdn_format = 3;
+                    }
                 }
             }
             close DBVERSION;
     
-            if (2 == $is_rdn_format) {
+            if (3 == $is_rdn_format) {
                 # DB already has the new rdn format.
                 goto NEXT;
             }
@@ -117,7 +123,7 @@ sub runinst {
                 if (!open(DBVERSION, "> $dbversion1")) {
                     push @errs, ['error_opening_file', $dbversion1, $!];
                 } else {
-                    $versionstr =~ y/rdn\-format/rdn\-format\-1/;
+                    $versionstr =~ y/rdn\-format/rdn\-format\-2/;
                     print DBVERSION $versionstr . "\n";
                     close DBVERSION;
                 }
@@ -131,7 +137,7 @@ NEXT:
     if (!open(DBVERSION, "$dbversion0")) {
         push @errs, ['error_opening_file', $dbversion0, $!];
     } else {
-        $dbversionstr = y/rdn\-format/rdn\-format\-1/;
+        $dbversionstr = y/rdn\-format/rdn\-format\-2/;
         print DBVERSION $versionstr . "\n";
         close DBVERSION;
     }

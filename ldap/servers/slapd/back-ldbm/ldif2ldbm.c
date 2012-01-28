@@ -1678,6 +1678,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     int              index_ext = 0;
     struct vlvIndex  *vlvip = NULL;
     back_txn         txn;
+    ID               suffixid = NOID; /* holds the id of the suffix entry */
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ldbm_back_ldbm2index\n", 0, 0, 0 );
     if ( g_get_shutdown() || c_get_shutdown() ) {
@@ -2021,9 +2022,23 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 /* get a parent pid */
                 rc = get_value_from_string((const char *)data.dptr,
                                                    LDBM_PARENTID_STR, &pid_str);
-                if (rc) {
-                    rc = 0; /* assume this is a suffix */
-                } else {
+                if (rc || !pid_str) {
+                    /* see if this is a suffix or some entry without a parent id
+                       e.g. a tombstone entry */
+                    Slapi_DN sufdn;
+
+                    slapi_sdn_init_dn_byref(&sufdn, rdn);
+                    if (slapi_be_issuffix(be, &sufdn)) {
+                        rc = 0; /* is a suffix */
+                        suffixid = temp_id; /* this is the ID of a suffix entry */
+                    } else {
+                        /* assume the parent entry is the suffix entry for this backend
+                           set pid to the id of that entry */
+                        pid = suffixid;
+                    }
+                    slapi_sdn_done(&sufdn);
+                }
+                if (pid_str) {
                     pid = (ID)strtol(pid_str, (char **)NULL, 10);
                     slapi_ch_free_string(&pid_str);
                     /* if pid is larger than the current pid temp_id,
