@@ -526,7 +526,7 @@ index_add_mods(
                                                * should be deleted.
                                                */
 
-    for ( i = 0; mods[i] != NULL; i++ ) {
+    for ( i = 0; mods && mods[i] != NULL; i++ ) {
         /* Get base attribute type */
         basetype = buf;
         tmp = slapi_attr_basetype(mods[i]->mod_type, buf, sizeof(buf));

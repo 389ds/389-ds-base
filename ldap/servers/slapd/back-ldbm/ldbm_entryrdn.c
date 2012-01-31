@@ -1652,14 +1652,21 @@ retry_get0:
             childelem = (rdn_elem *)dataret.data;
             childnrdn = (char *)childelem->rdn_elem_nrdn_rdn;
             comma = strchr(childnrdn, ',');
-            if (NULL == comma) { /* This node is not a tombstone */
+            if (NULL == comma) { /* No comma; This node is not a tombstone */
                 continue;
             }
             if (strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
                             sizeof(SLAPI_ATTR_UNIQUEID) - 1)) {
+                /* Does not start w/ UNIQUEID; not a tombstone */
                 continue;
             }
             if (0 == strcmp(comma + 1, slapi_rdn_get_nrdn(srdn))) {
+                /* found and done */
+                _entryrdn_dup_rdn_elem((const void *)dataret.data, elem);
+                goto bail;
+            }
+            if (0 == strncmp(childnrdn, slapi_rdn_get_nrdn(srdn),
+                             comma - childnrdn)) {
                 /* found and done */
                 _entryrdn_dup_rdn_elem((const void *)dataret.data, elem);
                 goto bail;
@@ -2268,8 +2275,7 @@ _entryrdn_insert_key(backend *be,
             if (DB_NOTFOUND == rc) {
                 /* if 0 == rdnidx, Child is a Leaf RDN to be added */
                 if (0 == rdnidx) {
-                    /* keybuf (C#:<parent_rdn>) is consumed in
-                       _entryrdn_insert_key_elems */
+                    /* keybuf (C#) is consumed in _entryrdn_insert_key_elems */
                     /* set id to the elem to be added */
                     id_internal_to_stored(id, elem->rdn_elem_id);
                     rc = _entryrdn_insert_key_elems(be, cursor, srdn, &key,
@@ -2279,6 +2285,17 @@ _entryrdn_insert_key(backend *be,
                     /* done */
                 } else {
                     ID currid = 0;
+                    /*
+                     * In DIT cn=A,ou=B,o=C, cn=A and ou=B are removed and
+                     * turned to tombstone entries.  We need to support both:
+                     *   nsuniqueid=...,cn=A,ou=B,o=C and
+                     *   nsuniqueid=...,cn=A,nsuniqueid=...,ou=B,o=C
+                     * The former appears when cn=A is deleted;
+                     * the latter appears when the entryrdn is reindexed.
+                     * The former is taken care in _entryrdn_get_tombstone_elem;
+                     * the else clause to skip "nsuniqueid" is needed for the
+                     * latter case.
+                     */
                     rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, &key,
                                                           childnrdn, &tmpelem);
                     if (rc || (NULL == tmpelem)) {
@@ -2295,6 +2312,13 @@ _entryrdn_insert_key(backend *be,
                         }
                         slapi_ch_free_string(&dn);
                         goto bail;
+                    } else {
+                        int tmpidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
+                                                    &childnrdn, FLAG_ALL_NRDNS);
+                        if (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
+                                             sizeof(SLAPI_ATTR_UNIQUEID) - 1)) {
+                            rdnidx = tmpidx;
+                        }
                     }
                     /* Node is a tombstone. */
                     slapi_ch_free((void **)&elem);
@@ -2779,10 +2803,34 @@ _entryrdn_index_read(backend *be,
             slapi_ch_free((void **)&tmpelem);
             if (flags & TOMBSTONE_INCLUDED) {
                 /* Node might be a tombstone */
+                /*
+                 * In DIT cn=A,ou=B,o=C, cn=A and ou=B are removed and
+                 * turned to tombstone entries.  We need to support both:
+                 *   nsuniqueid=...,cn=A,ou=B,o=C and
+                 *   nsuniqueid=...,cn=A,nsuniqueid=...,ou=B,o=C
+                 */
                 rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, &key, 
                                                   childnrdn, &tmpelem);
-            }
-            if (rc || (NULL == tmpelem)) {
+                if (rc || (NULL == tmpelem)) {
+                    slapi_ch_free((void **)&tmpelem);
+                    slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+                                "_entryrdn_index_read: Child link \"%s\" of "
+                                "key \"%s\" not found: %s(%d)\n",
+                                childnrdn, keybuf, dblayer_strerror(rc), rc);
+                    rc = DB_NOTFOUND;
+                    if (tmpsrdn != srdn) {
+                        slapi_rdn_free(&tmpsrdn);
+                    }
+                    goto bail;
+                } else {
+                    int tmpidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
+                                                    &childnrdn, FLAG_ALL_NRDNS);
+                    if (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
+                                             sizeof(SLAPI_ATTR_UNIQUEID) - 1)) {
+                        rdnidx = tmpidx;
+                    }
+                }
+            } else {
                 slapi_ch_free((void **)&tmpelem);
                 slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                                 "_entryrdn_index_read: Child link \"%s\" of "
@@ -2790,7 +2838,7 @@ _entryrdn_index_read(backend *be,
                                 childnrdn, keybuf, dblayer_strerror(rc), rc);
                 rc = DB_NOTFOUND;
                 if (tmpsrdn != srdn) {
-                    slapi_rdn_free(&tmpsrdn);
+                        slapi_rdn_free(&tmpsrdn);
                 }
                 goto bail;
             }
