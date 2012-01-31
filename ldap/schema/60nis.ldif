@@ -31,6 +31,8 @@ attributeTypes: (
   NAME 'nisDomain'
   DESC 'NIS domain'
   SUP name
+  EQUALITY caseIgnoreIA5Match
+  SUBSTR caseIgnoreIA5SubstringsMatch
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
   )
 #
