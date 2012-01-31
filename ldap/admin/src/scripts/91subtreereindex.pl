@@ -123,8 +123,9 @@ sub runinst {
                 if (!open(DBVERSION, "> $dbversion1")) {
                     push @errs, ['error_opening_file', $dbversion1, $!];
                 } else {
-                    $versionstr =~ y/rdn\-format/rdn\-format\-2/;
-                    print DBVERSION $versionstr . "\n";
+                    $versionstr =~ s,rdn\-format\-1/,rdn\-format\-2/,;
+                    $versionstr =~ s,rdn\-format/,rdn\-format\-2/,;
+                    print DBVERSION $versionstr; # not chomp'd above, already has newline
                     close DBVERSION;
                 }
             }
@@ -134,11 +135,12 @@ NEXT:
     }
 
     # update main DBVERSION file
-    if (!open(DBVERSION, "$dbversion0")) {
+    if (!open(DBVERSION, "> $dbversion0")) {
         push @errs, ['error_opening_file', $dbversion0, $!];
     } else {
-        $dbversionstr = y/rdn\-format/rdn\-format\-2/;
-        print DBVERSION $versionstr . "\n";
+        $dbversionstr =~ s,rdn\-format\-1/,rdn\-format\-2/,;
+        $dbversionstr =~ s,rdn\-format/,rdn\-format\-2/,;
+        print DBVERSION $dbversionstr; # not chomp'd above, already has newline
         close DBVERSION;
     }
 
