@@ -3668,9 +3668,8 @@ doDeleteEntry (
      */
     if (buildRandomRdnOrFilter (tttctx) < 0)
       return (-1);
-    strcpy (delDn, tttctx->bufFilter);
-    strcat (delDn, ",");
-    strcat (delDn, tttctx->bufBaseDN);
+    snprintf (delDn, sizeof(delDn), "%s,%s", tttctx->bufFilter, tttctx->bufBaseDN);
+    delDn[sizeof(delDn)-1] = '\0';
 
     ret = ldap_delete_ext (tttctx->ldapCtx, delDn, NULL, NULL, &msgid);
     if (ret < 0)
