@@ -106,21 +106,25 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 		break;
 	}
 
-	ber = ber_init(spec_ber);
-	if (!ber) {
-		break;
-	}
-
-	if ( version == 1 ) {
-		tag = ber_scanf(ber, "{a}", &spec->auth_dn);
+	if (version == 2 && (spec_ber->bv_val[0] != CHAR_OCTETSTRING)) {
+		/* This doesn't start with an octet string, so just use the actual value */
+		spec->auth_dn = slapi_ch_strdup(spec_ber->bv_val);
 	} else {
-		tag = ber_scanf(ber, "a", &spec->auth_dn);
-	}
-	if (tag == LBER_ERROR) {
-		lderr = LDAP_PROTOCOL_ERROR;
-		break;
-	}
+		ber = ber_init(spec_ber);
+		if (!ber) {
+			break;
+		}
 
+		if ( version == 1 ) {
+			tag = ber_scanf(ber, "{a}", &spec->auth_dn);
+		} else {
+			tag = ber_scanf(ber, "a", &spec->auth_dn);
+		}
+		if (tag == LBER_ERROR) {
+			lderr = LDAP_PROTOCOL_ERROR;
+			break;
+		}
+	}
 	/*
 	 * In version 2 of the control, the control value is actually an
 	 * authorization ID (see section 9 of RFC 2829).  We only support
