@@ -18,13 +18,13 @@
 .SH NAME
 repl-monitor \- Directory Server replication monitor
 .SH SYNOPSIS
-.B repl-monitor
--f configuration-file [\fI-h host\fR] [\fI-p port\fR] [\fI-r\fR] 
-[\fI-u refresh-url\fR] [\fI-t refresh-interval\fR] [\fI-v\fR]
+.B repl\(hymonitor
+\-f configuration\(hyfile [\fI\(hyh host\fR] [\fI\-p port\fR] [\fI\-r\fR] 
+[\fI\-u refresh\(hyurl\fR] [\fI\-t refresh\(hyinterval\fR] [\fI\-v\fR]
 
 .SH DESCRIPTION
 Outputs the status of all of the configured Directory Servers
-participating in replication.  The servers to query for status
+participating in replication. The servers to query for status
 are specified in the configuration file.
 .PP
 .\" TeX users may be more comfortable with the \fB<whatever>\fP and
@@ -39,16 +39,16 @@ Hostname of DS server
 .B \-p port
 TCP port
 .TP
-.B \-f configuration\-file
+.B \-f configuration\(hyfile
 Configuration file 
 .TP
 .B \-r
 Removes extra HTML tags
 .TP
-.B \-u refresh\-url
+.B \-u refresh\(hyurl
 Refresh url
 .TP
-.B \-t refresh\-interval
+.B \-t refresh\(hyinterval
 Refresh interval
 .br
 .SH AUTHOR
@@ -66,4 +66,4 @@ for the Debian project (but may be used by others).
 This is free software.  You may redistribute copies of it under the terms of
 the Directory Server license found in the LICENSE file of this
 software distribution.  This license is essentially the GNU General Public
-License version 2 with an exception for plug-in distribution.
+License version 2 with an exception for plug\(hyin distribution.

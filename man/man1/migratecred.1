@@ -20,7 +20,7 @@ migratecred \- Migrate credentials from one instance of Directory Server
 to another
 .SH SYNOPSIS
 .B migratecred 
--o OldInstancePath -n NewInstancePath -c OldCredential [\fI-p NewPluginPath\fR]
+\-o OldInstancePath \-n NewInstancePath \-c OldCredential [\fI\-p NewPluginPath\fR]
 .SH DESCRIPTION
 migratecred migrates credentials from one Directory Server instance to the other.
 
@@ -30,7 +30,7 @@ New plugin path defaults to [\fBlibdir\fP/dirsrv/plugins] if not given
 .\" \fI<whatever>\fP escape sequences to invode bold face and italics, 
 .\" respectively.
 \fBmigratecred\fP is a program that migrates credentials used for
-replication and chaining - that is, the password used by the server
+replication and chaining. That is the password used by the server
 to perform the simple BIND operation for server to server communications.
 .SH OPTIONS
 A summary of options is included below:
@@ -62,4 +62,4 @@ for the Debian project (but may be used by others).
 This is free software.  You may redistribute copies of it under the terms of
 the Directory Server license found in the LICENSE file of this
 software distribution.  This license is essentially the GNU General Public
-License version 2 with an exception for plug-in distribution.
+License version 2 with an exception for plug\(hyin distribution.

@@ -19,7 +19,7 @@
 infadd \- infinite additions to LDAP server
 .SH SYNOPSIS
 .B infadd
-\fI-s suffix -u bindDN -w password \fR[\fIoptions\fR]
+\fI\-s suffix \-u bindDN \-w password \fR[\fIoptions\fR]
 .SH DESCRIPTION
 infadd is used
 to measure performance of the add operation. It can
@@ -38,13 +38,13 @@ port (default: 389)
 number of threads to spin (default: 1)
 .TP
 .B \-d
-use TCP no\-delay
+use TCP no\(hydelay
 .TP
 .B \-q
 quiet mode (no status updates)
 .TP
 .B \-v
-verbose mode (give per\-thread statistics)
+verbose mode (give per\(hythread statistics)
 .TP
 .B \-I num
 first uid (default: 0)
@@ -79,4 +79,4 @@ for the Debian project (but may be used by others).
 This is free software.  You may redistribute copies of it under the terms of
 the Directory Server license found in the LICENSE file of this
 software distribution.  This license is essentially the GNU General Public
-License version 2 with an exception for plug-in distribution.
+License version 2 with an exception for plug\(hyin distribution.

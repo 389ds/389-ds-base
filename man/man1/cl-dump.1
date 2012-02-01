@@ -19,12 +19,12 @@
 cl-dump \- Dump and decode Directory Server replication change log
 .SH SYNOPSIS
 .B cl\-dump
-[\fI-h host\fR] [\fI-p port\fR] [\fI-D bind-dn\fR] -w bind-password | -P bind-cert
-       [\fI-r replica-roots\fR] [\fI-o output-file\fR] [\fI-c\fR] [\fI-v\fR]
+[\fI\-h host\fR] [\fI\-p port\fR] [\fI\-D bind\(hydn\fR] \-w bind\(hypassword | \-P bind\(hycert
+       [\fI\-r replica\(hyroots\fR] [\fI\-o output\(hyfile\fR] [\fI\-c\fR] [\fI\-v\fR]
 
 .PP
 .B cl\-dump
-\-i changelog\-ldif\-file\-with\-base64encoding [\fI\-o output\-file\fR] [\fI\-c\fR]
+\-i changelog\(hyldif\(hyfile\(hywith\(hybase64encoding [\fI\-o output\(hyfile\fR] [\fI\-c\fR]
 .PP
 .SH DESCRIPTION
 Dump and decode Directory Server replication change log
@@ -37,7 +37,7 @@ A summary of options is included below.
 .TP
 .B \-c 
 Dump and interpret CSN only. This option can be used with or
-without -i option.
+without \-i option.
 .TP
 .B \-D bind\-dn
 Directory server's bind DN. Default to "cn=Directory Manager" if
@@ -47,21 +47,21 @@ the option is omitted.
 Directory server's host. Default to the server where the script
 is running.
 .TP
-.B \-i changelog\-ldif\-file\-with\-base64encoding
+.B \-i changelog\(hyldif\(hyfile\(hywith\(hybase64encoding
 If you already have a ldif-like changelog, but the changes
 in that file are encoded, you may use this option to
 decode that ldif-like changelog.
 .TP
-.B \-o output\-file
+.B \-o output\(hyfile
 Path name for the final result. Default to STDOUT if omitted.
 .TP
 .B \-p port
 Directory server's port. Default to 389.
 .TP
-.B \-P bind\-cert
+.B \-P bind\(hycert
 Pathname of binding certificate DB
 .TP
-.B \-r replica\-roots
+.B \-r replica\(hyroots
 Specify replica roots whose changelog you want to dump. The replica
 roots may be separated by comma. All the replica roots would be
 dumped if the option is omitted.
@@ -69,7 +69,7 @@ dumped if the option is omitted.
 .B \-v 
 Print the version of this script.
 .TP
-.B \-w bind\-password
+.B \-w bind\(hypassword
 Password for the bind DN
 .SH RESTRICTIONS
 If you are not using \-i option, the script should be run when the server
