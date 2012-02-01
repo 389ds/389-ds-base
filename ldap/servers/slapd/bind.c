@@ -796,6 +796,9 @@ do_bind( Slapi_PBlock *pb )
 
             slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &rc );
             plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
+        } else {
+            /* even though preop failed, we should still call the post-op plugins */
+            plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
         }
     } else {
         send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
