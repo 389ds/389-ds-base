@@ -170,8 +170,7 @@ int ldbm_config_ignored_attr(char *attr_name);
 
 /* Functions in ldbm_instance_config.c used in ldbm_config.c */
 int ldbm_instance_config_load_dse_info(ldbm_instance *inst);
-int ldbm_instance_config_add_index_entry(ldbm_instance *inst, int argc,
-                                         char **argv, int flags);
+int ldbm_instance_config_add_index_entry(ldbm_instance *inst, Slapi_Entry *e, int flags);
 int
 ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry* e);
 int ldbm_instance_create_default_user_indexes(ldbm_instance *inst);
