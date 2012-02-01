@@ -2361,11 +2361,10 @@ replica_write_ruv (Replica *r)
 	{
 		char ebuf[BUFSIZ];
 		
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 			"replica_write_ruv: failed to update RUV tombstone for %s; "
 			"LDAP error - %d\n", 
 			escape_string(slapi_sdn_get_dn(r->repl_root),ebuf), rc);
-		PR_ASSERT (0);
 	}
 
     PR_Unlock(r->repl_lock);	
