@@ -2910,7 +2910,7 @@ slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
 
     /* This function converts the old DN style to the new one. */
     dn = slapi_create_dn_string("cn=\"%s\",%s", 
-                                slapi_sdn_get_ndn(root), MAPPING_TREE_BASE_DN);
+                                slapi_sdn_get_udn(root), MAPPING_TREE_BASE_DN);
     if (NULL == dn) {
         LDAPDebug1Arg(LDAP_DEBUG_ANY,
                       "slapi_get_mapping_tree_node_configdn: "
@@ -2937,7 +2937,7 @@ slapi_get_mapping_tree_node_configsdn (const Slapi_DN *root)
 
     /* This function converts the old DN style to the new one. */
     dn = slapi_create_dn_string("cn=\"%s\",%s", 
-                                slapi_sdn_get_dn(root), MAPPING_TREE_BASE_DN);
+                                slapi_sdn_get_udn(root), MAPPING_TREE_BASE_DN);
     if (NULL == dn) {
         LDAPDebug1Arg(LDAP_DEBUG_ANY,
                       "slapi_get_mapping_tree_node_configsdn: "
