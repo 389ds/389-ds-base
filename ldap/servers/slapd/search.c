@@ -81,6 +81,7 @@ do_search( Slapi_PBlock *pb )
 	int			rc = -1;
 	int strict = 0;
 	int minssf_exclude_rootdse = 0;
+	int filter_normalized = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_search\n", 0, 0, 0 );
 
@@ -386,6 +387,8 @@ do_search( Slapi_PBlock *pb )
 	slapi_pblock_set( pb, SLAPI_SEARCH_SCOPE, &scope );
 	slapi_pblock_set( pb, SLAPI_SEARCH_DEREF, &deref );
 	slapi_pblock_set( pb, SLAPI_SEARCH_FILTER, filter );
+	slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED,
+	                  &filter_normalized );
 	slapi_pblock_set( pb, SLAPI_SEARCH_STRFILTER, fstr );
 	slapi_pblock_set( pb, SLAPI_SEARCH_ATTRS, attrs );
 	slapi_pblock_set( pb, SLAPI_SEARCH_GERATTRS, gerattrs );

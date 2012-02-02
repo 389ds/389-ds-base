@@ -69,7 +69,7 @@ static struct bitwise_match_cb *
 new_bitwise_match_cb(char *type, struct berval *val)
 {
     struct bitwise_match_cb *bmc = (struct bitwise_match_cb *)slapi_ch_calloc(1, sizeof(struct bitwise_match_cb));
-    bmc->type = type;
+    bmc->type = slapi_ch_strdup(type);
     bmc->val = val;
 
     return bmc;
@@ -78,6 +78,7 @@ new_bitwise_match_cb(char *type, struct berval *val)
 static void
 delete_bitwise_match_cb(struct bitwise_match_cb *bmc)
 {
+    slapi_ch_free_string(&bmc->type);
     slapi_ch_free((void **)&bmc);
 }
 

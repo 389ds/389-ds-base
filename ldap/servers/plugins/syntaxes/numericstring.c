@@ -173,9 +173,12 @@ numstr_filter_ava( Slapi_PBlock *pb, struct berval *bvfilter,
 {
 	int filter_normalized = 0;
 	int syntax = SYNTAX_SI | SYNTAX_CES;
-	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
-	if (filter_normalized) {
-		syntax |= SYNTAX_NORM_FILT;
+	if (pb) {
+		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED,
+		                  &filter_normalized );
+		if (filter_normalized) {
+			syntax |= SYNTAX_NORM_FILT;
+		}
 	}
 	return( string_filter_ava( bvfilter, bvals, syntax,
                                ftype, retVal ) );

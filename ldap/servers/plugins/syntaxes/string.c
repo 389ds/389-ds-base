@@ -236,9 +236,10 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	int free_re = 1;
 	struct subfilt *sf = NULL;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n",
-	    0, 0, 0 );
-	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n", 0, 0, 0 );
+	if (pb) {
+		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+	}
 	if (NULL != op) {
 		slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
 		slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
@@ -251,8 +252,10 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	 */
 	time_up = ( timelimit==-1 ? -1 : optime + timelimit);
 
-	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
-	slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_DATA, &sf );
+	if (pb) {
+		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &filter_normalized );
+		slapi_pblock_get( pb, SLAPI_PLUGIN_SYNTAX_FILTER_DATA, &sf );
+	}
 	if ( sf ) {
 		re = (Slapi_Regex *)sf->sf_private;
 		if ( re ) {
@@ -757,7 +760,9 @@ string_assertion2keys_sub(
 	char *oaltfinal = NULL;
 	int anysize = 0;
 
-	slapi_pblock_get(pb, SLAPI_SYNTAX_SUBSTRLENS, &substrlens);
+	if (pb) {
+		slapi_pblock_get(pb, SLAPI_SYNTAX_SUBSTRLENS, &substrlens);
+	}
 
 	if (NULL == substrlens) {
 		substrlens = localsublens;

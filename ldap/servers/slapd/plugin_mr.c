@@ -59,7 +59,7 @@ struct mr_private {
 	   below are not used */
 	const struct slapdplugin *pi; /* our plugin */
 	const char *oid; /* orig oid */
-	const char *type; /* orig type from filter */
+	char *type; /* orig type from filter */
 	const struct berval *value; /* orig value from filter */
 	int ftype; /* filter type */
 	int op; /* query op type */
@@ -244,7 +244,7 @@ mr_private_new(const struct slapdplugin *pi, const char *oid, const char *type, 
 	mrpriv = (struct mr_private *)slapi_ch_calloc(1, sizeof(struct mr_private));
 	mrpriv->pi = pi;
 	mrpriv->oid = oid; /* should be consistent for lifetime of usage - no copy necessary */
-	mrpriv->type = type; /* should be consistent for lifetime of usage - no copy necessary */
+	mrpriv->type = slapi_ch_strdup(type); /* should be consistent for lifetime of usage - copy it since it could be normalized in filter_normalize_ext */
 	mrpriv->value = value; /* should be consistent for lifetime of usage - no copy necessary */
 	mrpriv->ftype = ftype;
 	mrpriv->op = op;
@@ -271,7 +271,7 @@ mr_private_done(struct mr_private *mrpriv)
 	if (mrpriv) {
 		mrpriv->pi = NULL;
 		mrpriv->oid = NULL;
-		mrpriv->type = NULL;
+		slapi_ch_free_string(&mrpriv->type);
 		mrpriv->value = NULL;
 		mrpriv->ftype = 0;
 		mrpriv->op = 0;
@@ -388,7 +388,7 @@ default_mr_filter_match(void *obj, Slapi_Entry *e, Slapi_Attr *attr)
     for (; (rc == -1) && (attr != NULL); slapi_entry_next_attr(e, attr, &attr)) {
 		char* type = NULL;
 		if (!slapi_attr_get_type (attr, &type) && type != NULL &&
-			!slapi_attr_type_cmp (mrpriv->type, type, 2/*match subtypes*/)) {
+			!slapi_attr_type_cmp ((const char *)mrpriv->type, type, 2/*match subtypes*/)) {
 			Slapi_Value **vals = attr_get_present_values(attr);
 #ifdef SUPPORT_MR_SUBSTRING_MATCHING
 			if (mrpriv->ftype == LDAP_FILTER_SUBSTRINGS) {
