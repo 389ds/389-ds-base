@@ -207,7 +207,7 @@ int ldbm_instance_create_default_indexes(backend *be)
      * ACL routines.
      */
     if (entryrdn_get_switch()) { /* subtree-rename: on */
-        e = ldbm_instance_init_config_entry(LDBM_ENTRYDN_STR,"subtree", 0, 0, 0);
+        e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR,"subtree", 0, 0, 0);
         ldbm_instance_config_add_index_entry(inst, e, flags);
         slapi_entry_free(e);
     } else {
