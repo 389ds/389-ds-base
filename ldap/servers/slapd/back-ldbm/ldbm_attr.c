@@ -248,6 +248,7 @@ attr_index_config(
 		if(hasIndexType == 0){
 			/* indexType missing, error out */
 			LDAPDebug(LDAP_DEBUG_ANY, "attr_index_config: Missing index type\n", 0, 0, 0);
+			attrinfo_delete(&a);
 			return;
 		}
 	}
