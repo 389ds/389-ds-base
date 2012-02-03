@@ -749,13 +749,6 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
        for the hostname, so have to defeat fqdn checking in cn of subject of server cert */
     int ssl_strength = LDAP_OPT_X_TLS_NEVER;
     char *certdir = ldclt_dirname(mctx.certfile);
-    if ((ret = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
-      printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX), errno=%d ldaperror=%d:%s\n",
-	      mctx.pid, thrdNum, errno, ret, my_ldap_err2string(ret));
-      fflush (stdout);
-      free(certdir);
-      goto done;
-    }
     if ((ret = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
       printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT), errno=%d ldaperror=%d:%s\n",
 	      mctx.pid, thrdNum, errno, ret, my_ldap_err2string(ret));
@@ -773,6 +766,13 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
     }
     if ((mode & CLTAUTH) &&
         (ret = ldclt_clientauth(tttctx, ld, certdir, mctx.cltcertname, mctx.keydbpin))) {
+      free(certdir);
+      goto done;
+    }
+    if ((ret = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
+      printf ("ldclt[%d]: T%03d: Cannot ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX), errno=%d ldaperror=%d:%s\n",
+	      mctx.pid, thrdNum, errno, ret, my_ldap_err2string(ret));
+      fflush (stdout);
       free(certdir);
       goto done;
     }

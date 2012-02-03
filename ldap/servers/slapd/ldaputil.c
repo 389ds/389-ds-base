@@ -814,10 +814,6 @@ slapi_ldap_init_ext(
 	    }
 
 #if defined(USE_OPENLDAP)
-	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to create new TLS context\n");
-	    }
 	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
 				"failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
@@ -835,6 +831,10 @@ slapi_ldap_init_ext(
 				"failed: unable to set minimum TLS protocol level to SSL3\n");
 	    }
 #endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
+	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+				"failed: unable to create new TLS context\n");
+	    }
 #else  /* !USE_OPENLDAP */
 	    if ((rc = ldapssl_set_strength(myld, ssl_strength)) ||
 		(rc = ldapssl_set_option(myld, SSL_ENABLE_SSL2, PR_FALSE)) ||
