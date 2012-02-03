@@ -347,12 +347,7 @@ slapi_ch_bvdup0 (struct berval* val)
 {
     auto struct berval* result = (struct berval*)
       slapi_ch_malloc (sizeof (struct berval));
-    result->bv_len = val->bv_len;
-    result->bv_val = slapi_ch_malloc (result->bv_len + 1);
-    if (result->bv_len > 0) {
-	memcpy (result->bv_val, val->bv_val, result->bv_len);
-    }
-    result->bv_val[result->bv_len] = '\0';
+    slapi_ber_bvcpy(result, val);
     return result;
 }
 
@@ -398,12 +393,9 @@ ss_filter_values (struct berval* pattern, int* query_op)
     }
     if (n == 2) { /* no wildcards in pattern */
 	auto struct berval** pvec = (struct berval**) slapi_ch_malloc (sizeof (struct berval*) * 2);
-	auto struct berval* pv = (struct berval*) slapi_ch_malloc (sizeof (struct berval));
+	auto struct berval* pv = slapi_ch_bvdup(pattern);
 	pvec[0] = pv;
 	pvec[1] = NULL;
-	pv->bv_len = pattern->bv_len;
-	pv->bv_val = slapi_ch_malloc (pv->bv_len);
-	memcpy (pv->bv_val, pattern->bv_val, pv->bv_len);
 	ss_unescape (pv);
 	*query_op = SLAPI_OP_EQUAL;
 	return pvec;
@@ -448,6 +440,13 @@ ss_filter_key (indexer_t* ix, struct berval* val)
 	vals[1] = NULL;
 	keys = ix->ix_index (ix, vals, NULL);
 	if (keys && keys[0]) {
+	    /* why +1 in the len?  you need the +1 to old the trailing NULL,
+	       to guard against someone accidentally doing a strcmp or
+	       other str function, but a bvcmp is going to use the bv_len
+	       which includes the trailing NULL which the value being
+	       compared against might not have - not only are bervals
+	       not guaranteed to be properly NULL terminated, but they
+	       also contain binary data - see slapi_ber_bvcpy() */
 	    key->bv_len = keys[0]->bv_len + 1;
 	    key->bv_val = slapi_ch_malloc (key->bv_len);
 	    memcpy (key->bv_val, keys[0]->bv_val, keys[0]->bv_len);

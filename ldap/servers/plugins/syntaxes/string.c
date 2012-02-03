@@ -76,13 +76,11 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 	if (syntax & SYNTAX_NORM_FILT) {
 		pbvfilter_norm = bvfilter; /* already normalized */
 	} else {
-		bvfilter_norm.bv_val = slapi_ch_malloc( bvfilter->bv_len + 1 );
-		SAFEMEMCPY( bvfilter_norm.bv_val, bvfilter->bv_val, bvfilter->bv_len );
-		bvfilter_norm.bv_val[bvfilter->bv_len] = '\0';
+		slapi_ber_bvcpy(&bvfilter_norm, bvfilter);
 		/* 3rd arg: 1 - trim leading blanks */
 		value_normalize_ext( bvfilter_norm.bv_val, syntax, 1, &alt );
 		if (alt) {
-			slapi_ch_free_string(&bvfilter_norm.bv_val);
+			slapi_ber_bvdone(&bvfilter_norm);
 			bvfilter_norm.bv_val = alt;
 			alt = NULL;
 		}

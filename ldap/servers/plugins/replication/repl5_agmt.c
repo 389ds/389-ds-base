@@ -292,10 +292,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 			const struct berval *bv = slapi_value_get_berval(sval);
 			if (NULL != bv)
 			{
-				ra->creds->bv_val = slapi_ch_malloc(bv->bv_len + 1);
-				memcpy(ra->creds->bv_val, bv->bv_val, bv->bv_len);
-				ra->creds->bv_len = bv->bv_len;
-				ra->creds->bv_val[bv->bv_len] = '\0'; /* be safe */
+				slapi_ber_bvcpy(ra->creds, bv);
 			}
 		}
 	}
@@ -1007,8 +1004,7 @@ agmt_set_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 	PR_ASSERT(NULL != ra);
 	slapi_entry_attr_find(e, type_nsds5ReplicaCredentials, &sattr);
 	PR_Lock(ra->lock);
-	slapi_ch_free((void **)&ra->creds->bv_val);
-	ra->creds->bv_len = 0;
+	slapi_ber_bvdone(ra->creds);
 	if (NULL != sattr)
 	{
 		Slapi_Value *sval = NULL;
@@ -1016,9 +1012,7 @@ agmt_set_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 		if (NULL != sval)
 		{
 			const struct berval *bv = slapi_value_get_berval(sval);
-			ra->creds->bv_val = slapi_ch_calloc(1, bv->bv_len + 1);
-			memcpy(ra->creds->bv_val, bv->bv_val, bv->bv_len);
-			ra->creds->bv_len = bv->bv_len;
+			slapi_ber_bvcpy(ra->creds, bv);
 		}
 	}
 	/* If no credentials set, set to zero-length string */

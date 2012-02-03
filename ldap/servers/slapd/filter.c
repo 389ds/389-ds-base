@@ -698,10 +698,7 @@ slapi_filter_dup(Slapi_Filter *f)
 	case LDAP_FILTER_LE:
 	case LDAP_FILTER_APPROX:
 		out->f_ava.ava_type = slapi_ch_strdup(f->f_ava.ava_type);
-		out->f_ava.ava_value.bv_val = slapi_ch_malloc(f->f_ava.ava_value.bv_len+1);
-		memcpy(out->f_ava.ava_value.bv_val,f->f_ava.ava_value.bv_val,f->f_ava.ava_value.bv_len);
-		out->f_ava.ava_value.bv_val[f->f_ava.ava_value.bv_len] = 0; /* terminate */
-		out->f_ava.ava_value.bv_len = f->f_ava.ava_value.bv_len;
+		slapi_ber_bvcpy(&out->f_ava.ava_value, &f->f_ava.ava_value);
 		break;
 
 	case LDAP_FILTER_SUBSTRINGS:
@@ -733,8 +730,7 @@ slapi_filter_dup(Slapi_Filter *f)
 	case LDAP_FILTER_EXTENDED:
 		out->f_mr_oid = slapi_ch_strdup(f->f_mr_oid);
 		out->f_mr_type = slapi_ch_strdup(f->f_mr_type);
-		out->f_mr_value.bv_val = slapi_ch_strdup(f->f_mr_value.bv_val);
-		out->f_mr_value.bv_len = f->f_mr_value.bv_len;
+		slapi_ber_bvcpy(&out->f_mr_value, &f->f_mr_value);
 		out->f_mr_dnAttrs = f->f_mr_dnAttrs;
 		if (f->f_mr.mrf_match) {
 			int rc = plugin_mr_filter_create(&out->f_mr);
@@ -796,7 +792,7 @@ slapi_filter_free( struct slapi_filter *f, int recurse )
 	case LDAP_FILTER_EXTENDED:
 		slapi_ch_free((void**)&f->f_mr_oid);
 		slapi_ch_free((void**)&f->f_mr_type);
-		slapi_ch_free((void **)&f->f_mr_value.bv_val );
+		slapi_ber_bvdone(&f->f_mr_value);
 		if (f->f_mr.mrf_destroy != NULL) {
 		    Slapi_PBlock pb;
 		    pblock_init (&pb);

@@ -78,6 +78,18 @@ static void ber_bvcpy(struct berval *bvd, const struct berval *bvs)
     return;
 }
 
+void
+slapi_ber_bvdone(struct berval *bvp)
+{
+    ber_bvdone(bvp);
+}
+
+void
+slapi_ber_bvcpy(struct berval *bvd, const struct berval *bvs)
+{
+    ber_bvcpy(bvd, bvs);
+}
+
 /* <=========================== Slapi_Value ==========================> */
 
 #ifdef VALUE_DEBUG

@@ -4468,6 +4468,41 @@ size_t slapi_value_get_length(const Slapi_Value *value);
  */
 int slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Value *v2);
 
+/**
+ * Free and initialize the contents of the berval without freeing the
+ * struct berval * itself.  This is useful when you use struct berval
+ * which are allocated on the stack e.g.
+ * \code
+ * struct berval bv = {0, NULL};
+ * slapi_ber_bvcpy(&bv, someotherbvp);
+ * // use bv
+ * slapi_ber_bvdone(&bv);
+ * \endcode
+ * You must only call slapi_ber_bvdone() if the bv_val member has been 
+ * allocated with malloc() or is NULL.
+ *
+ * \param bvp A struct berval * you want to free the contents of
+ * \return \c void
+ */
+void slapi_ber_bvdone(struct berval *bvp);
+
+/**
+ * Copy the contents of the berval without allocating a new struct berval*
+ * This is useful when you use struct berval which are allocated on the stack e.g.
+ * \code
+ * struct berval bv = {0, NULL};
+ * slapi_ber_bvcpy(&bv, someotherbvp);
+ * // use bv
+ * slapi_ber_bvdone(&bv);
+ * \endcode
+ * The bvs source berval to copy from can either be allocated on the heap
+ * or the stack.
+ *
+ * \param bvd A struct berval * you want copy to
+ * \param bvs A struct berval * you want to copy from
+ * \return \c void
+ */
+void slapi_ber_bvcpy(struct berval *bvd, const struct berval *bvs);
 
 /*
  * Valueset functions.
