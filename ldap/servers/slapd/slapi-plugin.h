@@ -5306,6 +5306,40 @@ void slapi_attr_value_normalize(
 	char **retval
 );
 
+/**
+ * Normalize the given value using the matching rule associated with the
+ * given attribute and given filter type.  It will attempt to normalize
+ * the value in place. If it cannot, it will return the normalized value
+ * in retval.  If trim_spaces is true, whitepace characters will be trimmed
+ * from the ends of the string.  If sattr is NULL, the type will be used to look
+ * up the attribute syntax.  If sattr is not NULL, type is ignored.  If
+ * retval is set, the caller is responsible for freeing it.  The filter_type
+ * corresponds to the matching rule to use - LDAP_FILTER_GE or LDAP_FILTER_LE
+ * will use the ORDERING matching rule normalization function - LDAP_FILTER_EQUALITY
+ * will use the EQUALITY matching rule normalization function - LDAP_FILTER_SUBSTRINGS
+ * will use the SUBSTRINGS matching rule normalization function.  If the given
+ * filter_type is 0, or some other value other than specified above, or there is no
+ * matching rule corresponding to the given filter type, the default normalization
+ * function provided by the attribute syntax will be used.
+ *
+ * \param pb Slapi_PBlock to use
+ * \param sattr attribute to get the syntax from 
+ * \param type attribute to get the syntax from if sattr is NULL
+ * \param val value to normalize in place - must be NULL terminated
+ * \param trim_spaces trim whitespace from ends of string
+ * \param retval if value could not be normalized in place, this is the malloc'd memory containg the new value - caller must free
+ * \param filter_type one of the values specified above, or 0
+ */
+void slapi_attr_value_normalize_ext(
+	Slapi_PBlock *pb,
+	const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
+	const char *type,
+	char *val,
+	int trim_spaces,
+	char **retval,
+	unsigned long filter_type
+);
+
 /*
  * internal operation and plugin callback routines
  */
@@ -6287,6 +6321,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_MR_FLAGS		623
 #define SLAPI_PLUGIN_MR_NAMES		624
 #define SLAPI_PLUGIN_MR_COMPARE		625
+#define SLAPI_PLUGIN_MR_NORMALIZE	626
 
 /* Defined values of SLAPI_PLUGIN_MR_QUERY_OPERATOR: */
 #define SLAPI_OP_LESS					1

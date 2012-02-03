@@ -1056,7 +1056,8 @@ filter_normalize_ava( struct slapi_filter *f, PRBool norm_values )
         char *newval = NULL;
         /* NOTE: assumes ava->ava_value.bv_val is NULL terminated - get_ava/ber_scanf 'o'
            will NULL terminate the string by default */
-        slapi_attr_value_normalize(NULL, NULL, ava->ava_type, ava->ava_value.bv_val, 1, &newval);
+        slapi_attr_value_normalize_ext(NULL, NULL, ava->ava_type,
+                                       ava->ava_value.bv_val, 1, &newval, f->f_choice);
         if (newval && (newval != ava->ava_value.bv_val)) {
             slapi_ch_free_string(&ava->ava_value.bv_val);
             ava->ava_value.bv_val = newval;
@@ -1086,7 +1087,7 @@ filter_normalize_subfilt( struct slapi_filter *f, PRBool norm_values )
 		int ii;
 
 		slapi_attr_init(&attr, sf->sf_type);
-		slapi_attr_value_normalize(NULL, &attr, NULL, sf->sf_initial, 1, &newval);
+		slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_initial, 1, &newval, f->f_choice);
 		if (newval && (newval != sf->sf_initial)) {
 			slapi_ch_free_string(&sf->sf_initial);
 			sf->sf_initial = newval;
@@ -1094,7 +1095,7 @@ filter_normalize_subfilt( struct slapi_filter *f, PRBool norm_values )
 		for (ii = 0; sf->sf_any && sf->sf_any[ii]; ++ii) {
 			newval = NULL;
 			/* do not trim spaces of sf_any values - see string_filter_sub() */
-			slapi_attr_value_normalize(NULL, &attr, NULL, sf->sf_any[ii], 0, &newval);
+			slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_any[ii], 0, &newval, f->f_choice);
 			if (newval && (newval != sf->sf_any[ii])) {
 				slapi_ch_free_string(&sf->sf_any[ii]);
 				sf->sf_any[ii] = newval;
@@ -1102,7 +1103,7 @@ filter_normalize_subfilt( struct slapi_filter *f, PRBool norm_values )
 		}
 		newval = NULL;
 		/* do not trim spaces of sf_final values - see string_filter_sub() */
-		slapi_attr_value_normalize(NULL, &attr, NULL, sf->sf_final, 0, &newval);
+		slapi_attr_value_normalize_ext(NULL, &attr, NULL, sf->sf_final, 0, &newval, f->f_choice);
 		if (newval && (newval != sf->sf_final)) {
 			slapi_ch_free_string(&sf->sf_final);
 			sf->sf_final = newval;

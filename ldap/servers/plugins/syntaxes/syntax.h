@@ -143,6 +143,7 @@ struct mr_plugin_def {
     IFP	mr_assertion2keys_ava; /* SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA */
     IFP	mr_assertion2keys_sub; /* SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB */
     IFP	mr_compare; /* SLAPI_PLUGIN_MR_COMPARE - only for ORDERING */
+    VFPV	mr_normalize;
 };
 
 int syntax_register_matching_rule_plugins(struct mr_plugin_def mr_plugin_table[], size_t mr_plugin_table_size, IFP matching_rule_plugin_init);

@@ -1595,6 +1595,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_mr_compare;
 		break;
+	case SLAPI_PLUGIN_MR_NORMALIZE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		(*(VFPV *)value) = pblock->pb_plugin->plg_mr_normalize;
+		break;
 
 	/* seq arguments */
 	case SLAPI_SEQ_TYPE:
@@ -3156,6 +3162,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_mr_compare = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_MR_NORMALIZE:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_mr_normalize = (VFPV) value;
 		break;
 
 	/* seq arguments */

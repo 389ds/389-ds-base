@@ -929,6 +929,59 @@ slapi_attr_assertion2keys_sub( /* JCM SLOW FUNCTION */
 }
 
 void
+slapi_attr_value_normalize_ext(
+	Slapi_PBlock *pb,
+	const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
+	const char *type,
+	char *val,
+	int trim_spaces,
+	char **retval,
+	unsigned long filter_type
+)
+{
+	Slapi_Attr myattr;
+	VFPV norm_fn = NULL;
+
+	if (!sattr) {
+		sattr = slapi_attr_init(&myattr, type);
+	}
+
+	/* use the filter type to determine which matching rule to use */
+	switch (filter_type) {
+	case LDAP_FILTER_GE:
+	case LDAP_FILTER_LE:
+		if (sattr->a_mr_ord_plugin) {
+			norm_fn = sattr->a_mr_ord_plugin->plg_mr_normalize;
+		}
+		break;
+	case LDAP_FILTER_EQUALITY:
+		if (sattr->a_mr_eq_plugin) {
+			norm_fn = sattr->a_mr_eq_plugin->plg_mr_normalize;
+		}
+		break;
+	case LDAP_FILTER_SUBSTRINGS:
+		if (sattr->a_mr_sub_plugin) {
+			norm_fn = sattr->a_mr_sub_plugin->plg_mr_normalize;
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (!norm_fn) {
+		/* no matching rule specific normalizer specified - use syntax default */
+		norm_fn = sattr->a_plugin->plg_syntax_normalize;
+	}
+	if (norm_fn) {
+		(*norm_fn)(pb, val, trim_spaces, retval);
+	}
+	if (sattr == &myattr) {
+		attr_done(&myattr);
+	}
+	return;
+}
+
+void
 slapi_attr_value_normalize(
 	Slapi_PBlock *pb,
 	const Slapi_Attr *sattr, /* if sattr is NULL, type must be attr type name */
@@ -938,18 +991,5 @@ slapi_attr_value_normalize(
 	char **retval
 )
 {
-	Slapi_Attr myattr;
-	VFPV norm_fn = NULL;
-
-	if (!sattr) {
-		sattr = slapi_attr_init(&myattr, type);
-	}
-	norm_fn = sattr->a_plugin->plg_syntax_normalize;
-	if (norm_fn) {
-		(*norm_fn)(pb, val, trim_spaces, retval);
-	}
-	if (sattr == &myattr) {
-		attr_done(&myattr);
-	}
-	return;
+	return slapi_attr_value_normalize_ext(pb, sattr, type, val, trim_spaces, retval, 0);
 }

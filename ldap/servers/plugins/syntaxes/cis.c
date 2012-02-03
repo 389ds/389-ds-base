@@ -215,14 +215,14 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"generalizedTimeMatch-mr", VENDOR, DS_PACKAGE_VERSION, "generalizedTimeMatch matching rule plugin"}, /* plugin desc */
  generalizedTimeMatch_names, /* matching rule name/oid/aliases */
  NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
- cis_assertion2keys_ava, NULL, cis_compare},
+ cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 {{GENERALIZEDTIMEORDERINGMATCH_OID, NULL /* no alias? */,
   "generalizedTimeOrderingMatch", "The rule evaluates to TRUE if and only if the attribute value represents a universal coordinated time that is earlier than the universal coordinated time represented by the assertion value.",
   GENERALIZEDTIME_SYNTAX_OID, 0 /* not obsolete */, NULL /* no other syntaxes supported */ },
  {"generalizedTimeOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "generalizedTimeOrderingMatch matching rule plugin"}, /* plugin desc */
  generalizedTimeOrderingMatch_names, /* matching rule name/oid/aliases */
  NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
- cis_assertion2keys_ava, NULL, cis_compare},
+ cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 /* strictly speaking, boolean is case sensitive */
 {{"2.5.13.13", NULL, "booleanMatch", "The booleanMatch rule compares an assertion value of the Boolean "
 "syntax to an attribute value of a syntax (e.g., the Boolean syntax) "
@@ -232,7 +232,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"booleanMatch-mr", VENDOR, DS_PACKAGE_VERSION, "booleanMatch matching rule plugin"}, /* plugin desc */
    booleanMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
-   cis_assertion2keys_ava, NULL, cis_compare},
+   cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 {{"1.3.6.1.4.1.1466.109.114.2", NULL, "caseIgnoreIA5Match", "The caseIgnoreIA5Match rule compares an assertion value of the IA5 "
 "String syntax to an attribute value of a syntax (e.g., the IA5 String "
 "syntax) whose corresponding ASN.1 type is IA5String.  "
@@ -247,7 +247,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"caseIgnoreIA5Match-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreIA5Match matching rule plugin"}, /* plugin desc */
    caseIgnoreIA5Match_names, /* matching rule name/oid/aliases */
    NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
-   cis_assertion2keys_ava, NULL, cis_compare},
+   cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 {{"1.3.6.1.4.1.1466.109.114.3", NULL, "caseIgnoreIA5SubstringsMatch", "The caseIgnoreIA5SubstringsMatch rule compares an assertion value of "
 "the Substring Assertion syntax to an attribute value of a syntax "
 "(e.g., the IA5 String syntax) whose corresponding ASN.1 type is "
@@ -268,7 +268,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"caseIgnoreIA5SubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreIA5SubstringsMatch matching rule plugin"}, /* plugin desc */
    caseIgnoreIA5SubstringsMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, NULL, cis_filter_sub, cis_values2keys,
-   NULL, cis_assertion2keys_sub, NULL},
+   NULL, cis_assertion2keys_sub, NULL, cis_normalize},
 {{"2.5.13.2", NULL, "caseIgnoreMatch", "The caseIgnoreMatch rule compares an assertion value of the Directory "
 "String syntax to an attribute value of a syntax (e.g., the Directory "
 "String, Printable String, Country String, or Telephone Number syntax) "
@@ -285,7 +285,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"caseIgnoreMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreMatch matching rule plugin"}, /* plugin desc */
    caseIgnoreMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
-   cis_assertion2keys_ava, NULL, cis_compare},
+   cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 {{"2.5.13.3", NULL, "caseIgnoreOrderingMatch", "The caseIgnoreOrderingMatch rule compares an assertion value of the "
 "Directory String syntax to an attribute value of a syntax (e.g., the "
 "Directory String, Printable String, Country String, or Telephone "
@@ -302,7 +302,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"caseIgnoreOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreOrderingMatch matching rule plugin"}, /* plugin desc */
    caseIgnoreOrderingMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
-   cis_assertion2keys_ava, NULL, cis_compare},
+   cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 {{"2.5.13.4", NULL, "caseIgnoreSubstringsMatch", "The caseIgnoreSubstringsMatch rule compares an assertion value of the "
 "Substring Assertion syntax to an attribute value of a syntax (e.g., "
 "the Directory String, Printable String, Country String, or Telephone "
@@ -324,7 +324,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"caseIgnoreSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreSubstringsMatch matching rule plugin"}, /* plugin desc */
    caseIgnoreSubstringsMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, NULL, cis_filter_sub, cis_values2keys,
-   NULL, cis_assertion2keys_sub, cis_compare},
+   NULL, cis_assertion2keys_sub, cis_compare, cis_normalize},
 {{"2.5.13.11", NULL, "caseIgnoreListMatch", "The caseIgnoreListMatch rule compares an assertion value that is a "
 "sequence of strings to an attribute value of a syntax (e.g., the "
 "Postal Address syntax) whose corresponding ASN.1 type is a SEQUENCE "
@@ -344,7 +344,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"caseIgnoreListMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreListMatch matching rule plugin"}, /* plugin desc */
    caseIgnoreListMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
-   cis_assertion2keys_ava, NULL, cis_compare},
+   cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 {{"2.5.13.12", NULL, "caseIgnoreListSubstringsMatch", "The caseIgnoreListSubstringsMatch rule compares an assertion value of "
 "the Substring Assertion syntax to an attribute value of a syntax "
 "(e.g., the Postal Address syntax) whose corresponding ASN.1 type is a "
@@ -363,7 +363,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
  {"caseIgnoreListSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseIgnoreListSubstringsMatch matching rule plugin"}, /* plugin desc */
    caseIgnoreListSubstringsMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, NULL, cis_filter_sub, cis_values2keys,
-   NULL, cis_assertion2keys_sub, cis_compare},
+   NULL, cis_assertion2keys_sub, cis_compare, cis_normalize},
 {{"2.5.13.0", NULL, "objectIdentifierMatch", "The objectIdentifierMatch rule compares an assertion value of the OID "
 "syntax to an attribute value of a syntax (e.g., the OID syntax) whose "
 "corresponding ASN.1 type is OBJECT IDENTIFIER. "
@@ -379,7 +379,7 @@ OID_SYNTAX_OID, 0, NULL /* OID syntax only for now */}, /* matching rule desc */
  {"objectIdentifierMatch-mr", VENDOR, DS_PACKAGE_VERSION, "objectIdentifierMatch matching rule plugin"}, /* plugin desc */
  objectIdentifierMatch_names, /* matching rule name/oid/aliases */
  NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
- cis_assertion2keys_ava, NULL, cis_compare},
+ cis_assertion2keys_ava, NULL, cis_compare, cis_normalize},
 {{"2.5.13.31", NULL, "directoryStringFirstComponentMatch", "The directoryStringFirstComponentMatch rule compares an assertion "
 "value of the Directory String syntax to an attribute value of a "
 "syntax whose corresponding ASN.1 type is a SEQUENCE with a mandatory "
@@ -393,7 +393,7 @@ OID_SYNTAX_OID, 0, NULL /* OID syntax only for now */}, /* matching rule desc */
  {"directoryStringFirstComponentMatch-mr", VENDOR, DS_PACKAGE_VERSION, "directoryStringFirstComponentMatch matching rule plugin"}, /* plugin desc */
    directoryStringFirstComponentMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
-   cis_assertion2keys_ava, NULL, NULL},
+   cis_assertion2keys_ava, NULL, NULL, cis_normalize},
 {{"2.5.13.30", NULL, "objectIdentifierFirstComponentMatch",
 "The objectIdentifierFirstComponentMatch rule compares an assertion "
 "value of the OID syntax to an attribute value of a syntax (e.g., the "
@@ -411,7 +411,7 @@ OID_SYNTAX_OID, 0, NULL /* OID syntax only for now */}, /* matching rule desc */
  {"objectIdentifierFirstComponentMatch-mr", VENDOR, DS_PACKAGE_VERSION, "objectIdentifierFirstComponentMatch matching rule plugin"}, /* plugin desc */
    objectIdentifierFirstComponentMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, cis_filter_ava, NULL, cis_values2keys,
-   cis_assertion2keys_ava, NULL, NULL}
+   cis_assertion2keys_ava, NULL, NULL, cis_normalize}
 };
 
 static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);

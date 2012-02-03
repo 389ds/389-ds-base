@@ -1036,6 +1036,7 @@ struct slapdplugin {
 			int	plg_un_mr_flags;
 			char	**plg_un_mr_names;
 			IFP	plg_un_mr_compare; /* only for ORDERING */
+			VFPV	plg_un_mr_normalize;
 		} plg_un_mr;
 #define plg_mr_filter_create	plg_un.plg_un_mr.plg_un_mr_filter_create
 #define plg_mr_indexer_create	plg_un.plg_un_mr.plg_un_mr_indexer_create
@@ -1047,6 +1048,7 @@ struct slapdplugin {
 #define plg_mr_flags		plg_un.plg_un_mr.plg_un_mr_flags
 #define plg_mr_names		plg_un.plg_un_mr.plg_un_mr_names
 #define plg_mr_compare		plg_un.plg_un_mr.plg_un_mr_compare
+#define plg_mr_normalize	plg_un.plg_un_mr.plg_un_mr_normalize
 
 		/* syntax plugin structure */
 		struct plg_un_syntax_struct {

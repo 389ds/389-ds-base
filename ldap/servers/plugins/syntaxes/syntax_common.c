@@ -100,6 +100,7 @@ syntax_matching_rule_plugin_init(
 			rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB, mrpd->mr_assertion2keys_sub);
 			rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_MR_NAMES, mrpd->mr_names);
 			rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_MR_COMPARE, mrpd->mr_compare);
+			rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_MR_NORMALIZE, mrpd->mr_normalize);
 			break;
 		}
 	}

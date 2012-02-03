@@ -121,7 +121,7 @@ IA5STRING_SYNTAX_OID, 0, caseExactIA5Match_syntaxes}, /* matching rule desc */
  {"caseExactIA5Match-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactIA5Match matching rule plugin"}, /* plugin desc */
    caseExactIA5Match_names, /* matching rule name/oid/aliases */
    NULL, NULL, ces_filter_ava, NULL, ces_values2keys,
-   ces_assertion2keys_ava, NULL, ces_compare},
+   ces_assertion2keys_ava, NULL, ces_compare, ces_normalize},
 {{"2.5.13.5", NULL, "caseExactMatch", "The caseExactMatch rule compares an assertion value of the Directory "
 "String syntax to an attribute value of a syntax (e.g., the Directory "
 "String, Printable String, Country String, or Telephone Number syntax) "
@@ -141,7 +141,7 @@ DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
  {"caseExactMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactMatch matching rule plugin"}, /* plugin desc */
    caseExactMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, ces_filter_ava, NULL, ces_values2keys,
-   ces_assertion2keys_ava, NULL, ces_compare},
+   ces_assertion2keys_ava, NULL, ces_compare, ces_normalize},
 {{"2.5.13.6", NULL, "caseExactOrderingMatch", "The caseExactOrderingMatch rule compares an assertion value of the "
 "Directory String syntax to an attribute value of a syntax (e.g., the "
 "Directory String, Printable String, Country String, or Telephone "
@@ -159,7 +159,7 @@ DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
  {"caseExactOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactOrderingMatch matching rule plugin"}, /* plugin desc */
    caseExactOrderingMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, ces_filter_ava, NULL, ces_values2keys,
-   ces_assertion2keys_ava, NULL, ces_compare},
+   ces_assertion2keys_ava, NULL, ces_compare, ces_normalize},
 {{"2.5.13.7", NULL, "caseExactSubstringsMatch", "The caseExactSubstringsMatch rule compares an assertion value of the "
 "Substring Assertion syntax to an attribute value of a syntax (e.g., "
 "the Directory String, Printable String, Country String, or Telephone "
@@ -182,7 +182,7 @@ DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
  {"caseExactSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactSubstringsMatch matching rule plugin"}, /* plugin desc */
  caseExactSubstringsMatch_names, /* matching rule name/oid/aliases */
  NULL, NULL, NULL, ces_filter_sub, ces_values2keys,
- NULL, ces_assertion2keys_sub, ces_compare},
+ NULL, ces_assertion2keys_sub, ces_compare, ces_normalize},
 {{CASEEXACTIA5SUBSTRINGSMATCH_OID, NULL, "caseExactIA5SubstringsMatch", "The caseExactIA5SubstringsMatch rule compares an assertion value of the "
 "Substring Assertion syntax to an attribute value of a syntax (e.g., "
 "the IA5 syntax) whose corresponding ASN.1 type is IA5 String or "
@@ -204,7 +204,7 @@ DIRSTRING_SYNTAX_OID, 0, dirStringCompat_syntaxes}, /* matching rule desc */
  {"caseExactIA5SubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "caseExactIA5SubstringsMatch matching rule plugin"}, /* plugin desc */
    caseExactIA5SubstringsMatch_names, /* matching rule name/oid/aliases */
    NULL, NULL, NULL, ces_filter_sub, ces_values2keys,
-   NULL, ces_assertion2keys_sub, ces_compare}
+   NULL, ces_assertion2keys_sub, ces_compare, ces_normalize}
 };
 
 static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
