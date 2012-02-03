@@ -142,6 +142,7 @@ do_modify( Slapi_PBlock *pb )
 	char				*old_pw = NULL;	/* remember the old password */
 	char				*rawdn = NULL;
 	int				minssf_exclude_rootdse = 0;
+	LDAPMod         **normalized_mods = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modify\n", 0, 0, 0 );
 
@@ -389,12 +390,22 @@ do_modify( Slapi_PBlock *pb )
 	
 	mods = slapi_mods_get_ldapmods_passout (&smods);
 
-	slapi_pblock_set( pb, SLAPI_MODIFY_MODS, mods);
+	/* normalize the mods */
+	normalized_mods = normalize_mods2bvals((const LDAPMod**)mods);
+	ldap_mods_free (mods, 1 /* Free the Array and the Elements */);
+	if (normalized_mods == NULL) {
+		op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"",
+		                           "mod includes invalid dn format");
+		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+		                 "mod includes invalid dn format", 0, NULL);
+		goto free_and_return;
+	}
+	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, normalized_mods);
 
 	op_shared_modify ( pb, pw_change, old_pw );
 
-	slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
-	ldap_mods_free (mods, 1 /* Free the Array and the Elements */);
+	slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &normalized_mods);
+	ldap_mods_free (normalized_mods, 1 /* Free the Array and the Elements */);
 
 free_and_return:;
 	slapi_ch_free ((void**)&rawdn);

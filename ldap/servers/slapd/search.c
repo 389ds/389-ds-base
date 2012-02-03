@@ -407,7 +407,7 @@ do_search( Slapi_PBlock *pb )
 	}
 
 free_and_return:;
-	if ( !psearch || rc < 0 ) {
+	if ( !psearch || rc != 0 ) {
 		slapi_ch_free_string(&fstr);
 		slapi_filter_free( filter, 1 );
 		charray_free( attrs );	/* passing NULL is fine */

@@ -2256,8 +2256,9 @@ slapi_sdn_get_dn(const Slapi_DN *sdn)
             ncsdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
             PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_created);
             PR_INCREMENT_COUNTER(slapi_sdn_counter_dn_exist);
+        } else { /* else (rc < 0); normalization failed. return NULL */
+            slapi_ch_free_string(&udn);
         }
-        /* else (rc < 0); normzlization failed. return NULL */
         return sdn->dn;
     } else {
         return NULL;

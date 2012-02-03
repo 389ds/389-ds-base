@@ -1085,6 +1085,11 @@ conn_connect(Repl_Connection *conn)
 			secure ? "secure" : "non-secure",
 			(secure == 2) ? " startTLS" : "");
 		/* shared = 1 because we will read results from a second thread */
+		if (conn->ld) {
+			/* Since we call slapi_ldap_init, we must call slapi_ldap_unbind */
+			/* ldap_unbind internally calls ldap_ld_free */
+			slapi_ldap_unbind(conn->ld);
+		}
 		conn->ld = slapi_ldap_init_ext(NULL, conn->hostname, conn->port, secure, 1, NULL);
 		if (NULL == conn->ld)
 		{
@@ -1176,8 +1181,7 @@ close_connection_internal(Repl_Connection *conn)
 	   to use conn->ld */
 	if (NULL != conn->ld)
 	{
-		/* Since we call slapi_ldap_init, 
-		   we must call slapi_ldap_unbind */
+		/* Since we call slapi_ldap_init, we must call slapi_ldap_unbind */
 		slapi_ldap_unbind(conn->ld);
 	}
 	conn->ld = NULL;

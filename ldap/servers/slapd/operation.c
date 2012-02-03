@@ -481,6 +481,7 @@ operation_parameters_done (struct slapi_operation_parameters *sop)
 		case SLAPI_OPERATION_MODRDN:
 			slapi_ch_free((void **)&(sop->p.p_modrdn.modrdn_newrdn));
 			slapi_ch_free((void **)&(sop->p.p_modrdn.modrdn_newsuperior_address.uniqueid));
+			slapi_sdn_free(&sop->p.p_modrdn.modrdn_newsuperior_address.sdn);
 			ldap_mods_free(sop->p.p_modrdn.modrdn_mods, 1 /* Free the Array and the Elements */);
 			sop->p.p_modrdn.modrdn_mods= NULL;
 			break;
