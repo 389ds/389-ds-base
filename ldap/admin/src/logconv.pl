@@ -44,6 +44,7 @@
 # Check for usage
 #
 use Time::Local;
+use IO::File;
 
 if ($#ARGV < 0){;
 &displayUsage;
@@ -59,12 +60,15 @@ $x = "0";
 $fc = 0;
 $sn = 0;
 $manager = "cn=directory manager";
-$logversion = "6.0";
+$logversion = "6.1";
 $sizeCount = "20";
 $startFlag = 0;
 $startTime = 0;
 $endFlag = 0;
 $endTime = 0;
+$s_stats = new_stats_block( );
+$m_stats = new_stats_block( );
+
 
 while ($sn <= $#ARGV)
 {
@@ -96,6 +100,14 @@ while ($sn <= $#ARGV)
   elsif ("$ARGV[$sn]" eq "-E")
   {
 	$endTime = $ARGV[++$sn];
+  }
+  elsif ("$ARGV[$sn]" eq "-m")
+  {
+	$s_stats = new_stats_block( $ARGV[++$sn] );
+  }
+  elsif ("$ARGV[$sn]" eq "-M")
+  {
+	$m_stats = new_stats_block( $ARGV[++$sn] );
   }
   elsif ("$ARGV[$sn]" eq "-h")
   {
@@ -137,6 +149,9 @@ $mod = "0";
 $delete = "0";
 $add = "0";
 $modrdn = "0";
+$moddn = "0";
+$compare = "0";
+$proxiedAuth = "0";
 $restarts = "0";
 $resource = "0";
 $broken = "0";
@@ -179,13 +194,19 @@ $dconn = "0";
 $aconn = "0";
 $mconn = "0";
 $mdconn = "0";
+$mddconn = "0";
 $bconn = "0";
 $ubconn = "0";
 $econn = "0";
+$cconn = "0";
 $connectionCount = "0";
 $timerange = 0;
 $simConnection = 0;
 $maxsimConnection = 0;
+$firstFile = "1";
+$elapsedDays = "0";
+$logCount = "0";
+$limit = "10000"; # number of lines processed to trigger output
 
 $err[0] = "Successful Operations\n";
 $err[1] = "Operations Error(s)\n";
@@ -300,42 +321,170 @@ if ($files[$#files] =~ m/access.rotationinfo/) {  $fc--; }
 
 print "Processing $fc Access Log(s)...\n\n";
 
-print "Filename\t\t\tTotal Lines\tLines processed\n";
-print "---------------------------------------------------------------\n";
+print "Filename\t\t\t   Total Lines\n";
+print "--------------------------------------------------\n";
+
+$ofc = $fc;
+
+if ($fc > 1 && $files[0] =~ /\/access$/){
+        $files[$fc] = $files[0];
+        $fc++;
+        $skipFirstFile = "1";
+}
+
 for ($count=0; $count < $fc; $count++){
+	# we moved access to the end of the list, so if its the first file skip it
+        if($fc > 1 && $count == 0 && $skipFirstFile eq "1"){
+                next;
+        }
+        $logCount++;
         $logsize = `wc -l $files[$count]`;
         $logsize =~ /([0-9]+)/;
         $ff="";$iff="";
-        print sprintf "%-30s %7s",$files[$count],$1;
-open(LOG,"$files[$count]") || die "Error: Can't open file $infile: $!";
-
-$firstline = "yes";
-while (<LOG>) {
-	unless ($endFlag) {
-		if ($firstline eq "yes"){
-					if (/^\[/) {
-                        $tline = $_;
-                        $firstline = "no";
-					}
-					$ff++;$iff++;
-                } elsif (/^\[/ && $firstline eq "no"){
-                         &parseLine($tline);
-                         $tline = $_;
-                } else {
-                        $tline = $tline . $_;
-                        $tline =~ s/\n//;
-                }
+	if($logCount < 10 ){ 
+		# add a zero for formatting purposes
+		$lc = "0" . $logCount;
+	} else {
+		$lc = $logCount;
 	}
-}
-&parseLine($tline);
-close (LOG);
-print sprintf "\t\t%10s\n",--$ff;
+	print sprintf "[%s] %-30s %7s\n",$lc, $files[$count], $1;
+
+	open(LOG,"$files[$count]") || die "Error: Can't open file $infile: $!";
+
+	$firstline = "yes";
+	while (<LOG>) {
+		unless ($endFlag) {
+			if ($firstline eq "yes"){
+				if (/^\[/) {
+                        		$tline = $_;
+                        		$firstline = "no";
+				}
+				$ff++;$iff++;
+                	} elsif (/^\[/ && $firstline eq "no"){
+                         	&parseLine($tline);
+                         	$tline = $_;
+                	} else {
+                        	$tline = $tline . $_;
+                        	$tline =~ s/\n//;
+                	}
+		}
+	}
+	&parseLine($tline);
+	close (LOG);
+	print_stats_block( $s_stats );
+	print_stats_block( $m_stats );
+	$tlc = $tlc + $ff;
+	if($ff > $limit){print sprintf " %10s Lines Processed\n\n",--$ff;}
 }
 
-$notes = $notes - $vlvnotes;
-if ($notes < 0){ $notes = "0";}
+print "\n\nTotal Log Lines Analysed:  " . ($tlc - 1) . "\n";
 
 $allOps = $search + $mod + $add + $delete + $modrdn + $bind + $extendedop;
+
+##################################################################
+#                                                                #
+#  Calculate the total elapsed time of the processed access logs #
+#                                                                #
+##################################################################
+
+# if we are using startTime & endTime then we need to clean it up for our processing
+
+if($startTime){
+	if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
+}
+if($endTime){
+	if ($end =~ / *([0-9a-z:\/]+)/i){$end =$1;}
+}
+
+#
+#  Get the start time in seconds
+#  
+
+$logStart = $start;
+
+if ($logStart =~ / *([0-9A-Z\/]+)/i ){
+        $logDate = $1;
+        @dateComps = split /\//, $logDate;
+
+        $timeMonth = 1 +$monthname{$dateComps[1]};
+        $timeMonth = $timeMonth * 3600 *24 * 30; 
+        $timeDay= $dateComps[0] * 3600 *24;
+        $timeYear = $dateComps[2] *365 * 3600 * 24;
+        $dateTotal = $timeMonth + $timeDay + $timeYear;
+}
+
+if ($logStart =~ / *(:[0-9:]+)/i ){
+        $logTime = $1;
+        @timeComps = split /:/, $logTime;
+
+        $timeHour = $timeComps[1] * 3600;
+        $timeMinute = $timeComps[2] *60;
+        $timeSecond = $timeComps[3];
+        $timeTotal = $timeHour + $timeMinute + $timeSecond;
+}
+
+$startTotal = $timeTotal + $dateTotal;
+
+#
+#  Get the end time in seconds
+#
+
+$logEnd = $end;
+
+if ($logEnd =~ / *([0-9A-Z\/]+)/i ){
+        $logDate = $1;
+        @dateComps = split /\//, $logDate;
+
+        $endDay = $dateComps[0] *3600 * 24;
+        $endMonth = 1 + $monthname{$dateComps[1]};
+        $endMonth = $endMonth * 3600 * 24 * 30;
+        $endYear = $endTotal + $dateComps[2] *365 * 3600 * 24 ;
+        $dateTotal = $endDay + $endMonth + $endYear;
+}
+
+if ($logEnd =~ / *(:[0-9:]+)/i ){
+        $logTime = $1;
+        @timeComps = split /:/, $logTime;
+
+        $endHour = $timeComps[1] * 3600;
+        $endMinute = $timeComps[2] *60;
+        $endSecond = $timeComps[3];
+        $timeTotal = $endHour + $endMinute + $endSecond;	
+}
+
+$endTotal = $timeTotal +  $dateTotal;
+
+#
+#  Tally the numbers
+#
+$totalTimeInSecs = $endTotal - $startTotal;
+$remainingTimeInSecs = $totalTimeInSecs;
+
+#
+#  Calculate the elapsed time
+#
+
+# days
+while(($remainingTimeInSecs - 86400) > 0){
+	$elapsedDays++;
+	$remainingTimeInSecs =  $remainingTimeInSecs - 86400;
+
+}
+
+# hours
+while(($remainingTimeInSecs - 3600) > 0){
+	$elapsedHours++;
+	$remainingTimeInSecs = $remainingTimeInSecs - 3600;
+}
+
+#  minutes
+while($remainingTimeInSecs - 60 > 0){
+	$elapsedMinutes++;
+	$remainingTimeInSecs = $remainingTimeInSecs - 60;
+}
+
+#seconds
+$elapsedSeconds = $remainingTimeInSecs;
 
 #####################################
 #                                   #
@@ -345,11 +494,16 @@ $allOps = $search + $mod + $add + $delete + $modrdn + $bind + $extendedop;
 
 
 print "\n\n----------- Access Log Output ------------\n";
-if ($startTime) {print "\nStart of Log:  $start\n";}
-if ($endTime) {print "\nEnd of Log:    $end\n";}
-print "\nRestarts:                     $restarts\n";
-print "\n";
+print "\nStart of Log:    $start\n";
+print "End of Log:      $end\n\n";
+if($elapsedDays eq "0"){
+        print "Processed Log Time:  $elapsedHours Hours, $elapsedMinutes Minutes, $elapsedSeconds Seconds\n\n";
+} else {
+        print "Processed Log Time:  $elapsedDays Days, $elapsedHours Hours, $elapsedMinutes Minutes, $elapsedSeconds Seconds\n\n";
+}
+print "Restarts:                     $restarts\n";
 print "Total Connections:            $connectionCount\n";
+print "SSL Connections:              $sslconn\n";
 print "Peak Concurrent Connections:  $maxsimConnection\n";
 print "Total Operations:             $allOps\n";
 print "Total Results:                $allResults\n";
@@ -359,12 +513,38 @@ if ($allOps ne "0"){
 else {
  print "Overall Performance:          No Operations to evaluate\n\n";
 }
-print "Searches:                     $search\n";
-print "Modifications:                $mod\n";
-print "Adds:                         $add\n";
-print "Deletes:                      $delete\n";
-print "Mod RDNs:                     $modrdn\n";
+
+$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($search / $totalTimeInSecs), $search / ($totalTimeInSecs/60);
+$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$mod / $totalTimeInSecs, $mod/($totalTimeInSecs/60);
+$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$add/$totalTimeInSecs, $add/($totalTimeInSecs/60);
+$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delete/$totalTimeInSecs, $delete/($totalTimeInSecs/60);
+$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdn/$totalTimeInSecs, $modrdn/($totalTimeInSecs/60);
+$moddnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$moddn/$totalTimeInSecs, $moddn/($totalTimeInSecs/60);
+$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$compare/$totalTimeInSecs, $compare/($totalTimeInSecs/60);
+$bindStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bind/$totalTimeInSecs, $bind/($totalTimeInSecs/60);
+
+format STDOUT =
+Searches:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $search,        $searchStat
+Modifications:                @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $mod,           $modStat
+Adds:                         @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $add,           $addStat
+Deletes:                      @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $delete,        $deleteStat
+Mod RDNs:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $modrdn,        $modrdnStat
+Mod DNs:                      @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $moddn,         $moddnStat
+Compares:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $compare,       $compareStat
+Binds:                        @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
+                              $bind           $bindStat
+.
+write STDOUT;
+
 print "\n";
+print "Proxied Auth Operations:      $proxiedAuth\n";
 print "Persistent Searches:          $persistent\n";
 print "Internal Operations:          $internal\n";
 print "Entry Operations:             $entryOp\n";
@@ -375,7 +555,6 @@ print "\n";
 print "VLV Operations:               $vlv\n";
 print "VLV Unindexed Searches:       $vlvnotes\n";
 print "SORT Operations:              $sortvlv\n";
-print "SSL Connections:              $sslconn\n";
 print "\n";
 print "Entire Search Base Queries:   $objectclass\n";
 print "Unindexed Searches:           $notes\n";
@@ -858,7 +1037,7 @@ foreach $mostAttr (sort { $attr{$b} <=> $attr{$a} } (keys %attr) ){
 #################################
 
 if ($usage =~ /g/i || $verb eq "yes"){
-$acTotal = $sconn + $dconn + $mconn + $aconn + $mdconn + $bconn + $ubconn + $econn;
+$acTotal = $sconn + $dconn + $mconn + $aconn + $mdconn + $bconn + $ubconn + $econn + $mddconn + $cconn;
 if ($verb eq "yes" && $ac > 0 && $acTotal > 0){
 
 print "\n\n----- Abandon Request Stats -----\n\n";
@@ -883,6 +1062,16 @@ print "\n\n----- Abandon Request Stats -----\n\n";
 	if ($modConn[$mc] eq $targetConn[$g] && $modOp[$mc] eq $targetOp[$g]){
 		print " - MOD conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
 	}
+  }
+  for ($mddc = 0; $mddc < $mddconn; $mddc++){
+        if ($moddnConn[$mdc] eq $targetConn[$g] && $moddnOp[$mdc] eq $targetOp[$g]){
+                print " - MODDN conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+        }
+  }
+  for ($cc = 0; $cc < $cconn; $cc++){
+        if ($compConn[$mdc] eq $targetConn[$g] && $compOp[$mdc] eq $targetOp[$g]){
+                print " - CMP conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+        }
   }
   for ($mdc = 0; $mdc < $mdconn; $mdc++){
 	if ($modrdnConn[$mdc] eq $targetConn[$g] && $modrdnOp[$mdc] eq $targetOp[$g]){
@@ -997,34 +1186,36 @@ sub displayUsage {
 
 	print "- Commandline Switches:\n\n";
 
-        print "         -h help/usage\n";
-        print "         -d <Directory Managers DN>  DEFAULT -> cn=directory manager\n";
-        print "         -s <Number of results to return per catagory>  DEFAULT -> 20\n";
+	print "         -h help/usage\n";
+	print "         -d <Directory Managers DN>  DEFAULT -> cn=directory manager\n";
+	print "         -s <Number of results to return per catagory>  DEFAULT -> 20\n";
 	print "         -X <IP address to exclude from connection stats>  E.g. Load balancers\n";
-        print "         -v show version of tool\n"; 
-		print "         -S <time to begin analyzing logfile from>\n";
-		print "             E.g. [28/Mar/2002:13:14:22 -0800]\n";
-		print "         -E <time to stop analyzing logfile>\n";
-		print "             E.g. [28/Mar/2002:13:24:62 -0800]\n";
-        print "         -V <enable verbose output - includes all stats listed below>\n";
-        print "         -[efcibaltnxgju]\n\n";
+	print "         -v show version of tool\n"; 
+	print "         -S <time to begin analyzing logfile from>\n";
+	print "             E.g. [28/Mar/2002:13:14:22 -0800]\n";
+	print "         -E <time to stop analyzing logfile>\n";
+	print "             E.g. [28/Mar/2002:13:24:62 -0800]\n";
+	print "         -m <per second stats file>\n"; 
+	print "         -M <per minute stats file>\n";	
+	print "         -V <enable verbose output - includes all stats listed below>\n";
+	print "         -[efcibaltnxgju]\n\n";
 
-        print "                 e       Error Code stats\n";
-        print "                 f       Failed Login Stats\n";
-        print "                 c       Connection Code Stats\n";
-        print "                 i       Client Stats\n";
-        print "                 b       Bind Stats\n";
-        print "                 a       Search Base Stats\n";
-        print "                 l       Search Filter Stats\n";
-        print "                 t       Etime Stats\n";
-        print "                 n       Nentries Stats\n";
-        print "                 x       Extended Operations\n";
-        print "                 r       Most Requested Attribute Stats\n";
-        print "                 g       Abandoned Operation Stats\n";
-        print "                 j       Recommendations\n";
-        print "                 u       Unindexed Search Stats\n";
-        print "                 y       Connection Latency Stats\n";
-        print "                 p       Open Connection ID Stats\n\n";
+	print "                 e       Error Code stats\n";
+	print "                 f       Failed Login Stats\n";
+	print "                 c       Connection Code Stats\n";
+	print "                 i       Client Stats\n";
+	print "                 b       Bind Stats\n";
+	print "                 a       Search Base Stats\n";
+	print "                 l       Search Filter Stats\n";
+	print "                 t       Etime Stats\n";
+	print "                 n       Nentries Stats\n";
+	print "                 x       Extended Operations\n";
+	print "                 r       Most Requested Attribute Stats\n";
+	print "                 g       Abandoned Operation Stats\n";
+	print "                 j       Recommendations\n";
+	print "                 u       Unindexed Search Stats\n";
+	print "                 y       Connection Latency Stats\n";
+	print "                 p       Open Connection ID Stats\n\n";
 
 	print "  Examples:\n\n";
 
@@ -1034,7 +1225,7 @@ sub displayUsage {
 
 	print "         ./logconv.pl -s 50 -ibgju access*\n\n";
 
-	print "          ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" -E \"\[28/Mar/2002:13:50:05 -0800\]\" -e access\n\n";
+	print "         ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" -E \"\[28/Mar/2002:13:50:05 -0800\]\" -e access\n\n";
 
 	exit 1;
 }
@@ -1047,6 +1238,18 @@ sub displayUsage {
 
 sub parseLine {
 local $_ = $tline;
+
+# lines starting blank are restart
+return if $_ =~ /^\s/;
+
+if($firstFile eq "1" && $_ =~ /^\[/){
+	# if we are using startTime & endTime, this will get overwritten, which is ok
+	$start = $_;
+	if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
+	$firstFile = "0";
+}
+
+if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/]+)/i){$end =$1;}
 
 if ($startTime && !$startFlag) {
 	if (index($_, $startTime) == 0) {
@@ -1066,11 +1269,47 @@ if ($endTime && !$endFlag) {
 
 $ff++;
 $iff++;
-if ($iff >= 1000){ print STDERR sprintf" %10s Lines Processed\n",$ff; $iff="0";}
+if ($iff > $limit){ print STDERR sprintf" %10s Lines Processed\n",$ff; $iff="0";}
 
-if (m/ RESULT err/){$allResults++;}
+# Additional performance stats
+($time, $tzone) = split (' ', $_);
+if ($time ne $last_tm)
+{
+	$last_tm = $time;
+
+	$time =~ s/\[//;
+	$tzone =~ s/\].*//;
+
+	if($tzone ne $lastzone)
+	{
+	    # tz offset change
+	    $lastzone=$tzone;
+	    ($sign,$hr,$min) = $tzone =~ m/(?)(\d\d)(\d\d)/;
+	    $tzoff = $hr*3600 + $min*60;
+	    $tzoff *= -1
+		if $sign eq '-';
+	    # to be subtracted from converted values.
+	}
+
+	($date, $hr, $min, $sec) = split (':', $time);
+	($day, $mon, $yr) = split ('/', $date);
+	$newmin = timegm(0, $min, $hours, $day, $monthname{$mon}, $yr) - $tzoff;
+	$gmtime = $newmin + $sec;
+	print_stats_block( $s_stats );
+	reset_stats_block( $s_stats, $gmtime, $time.' '.$tzone );
+	if ($newmin != $last_min)
+	{
+	    print_stats_block( $m_stats );
+	    $time =~ s/\d\d$/00/;
+            reset_stats_block( $m_stats, $newmin, $time.' '.$tzone );
+            $last_min = $newmin;
+	}
+}
+
+if (m/ RESULT err/){$allResults++;inc_stats('results',$s_stats,$m_stats);}
 if (m/ SRCH/){
 	$search++;
+	inc_stats('srch',$s_stats,$m_stats);
 	if ($_ =~ / attrs=\"(.*)\"/i){
 		$anyAttrs++;
 		$attrs = $1 . " ";
@@ -1100,22 +1339,34 @@ if (m/ SRCH/){
 }
 if (m/ DEL/){
 	$delete++;
+	inc_stats('del',$s_stats,$m_stats);
 	if ($verb eq "yes"){
 		if ($_ =~ /conn= *([0-9]+)/i){ $delConn[$dconn] = $1;}
 		if ($_ =~ /op= *([0-9]+)/i){ $delOp[$dconn] = $1;}
 		$dconn++;
 	}
 }
-if (m/ MOD/){
+if (m/ MOD dn=/){
 	$mod++;
+	inc_stats('mod',$s_stats,$m_stats);
 	if ($verb eq "yes"){
                 if ($_ =~ /conn= *([0-9]+)/i){ $modConn[$mconn] = $1;}
 		if ($_ =~ /op= *([0-9]+)/i){ $modOp[$mconn] = $1; }
 		$mconn++;
 	}
 }
+if (m/ MODDN dn=/){
+        $moddn++;
+        inc_stats('moddn',$s_stats,$m_stats);
+        if ($verb eq "yes"){
+                if ($_ =~ /conn= *([0-9]+)/i){ $moddnConn[$mconn] = $1;}
+                if ($_ =~ /op= *([0-9]+)/i){ $moddnOp[$mconn] = $1; }
+                $mddconn++;
+        }
+}
 if (m/ ADD/){
 	$add++;
+	inc_stats('add',$s_stats,$m_stats);
 	if ($verb eq "yes"){
                 if ($_ =~ /conn= *([0-9]+)/i){ $addConn[$aconn] = $1; }
 		if ($_ =~ /op= *([0-9]+)/i){ $addOp[$aconn] = $1; }
@@ -1124,14 +1375,25 @@ if (m/ ADD/){
 }
 if (m/ MODRDN/){
 	$modrdn++;
+	inc_stats('modrdn',$s_stats,$m_stats);
 	if ($verb eq "yes"){
                 if ($_ =~ /conn= *([0-9]+)/i){ $modrdnConn[$mdconn] = $1; }
 		if ($_ =~ /op= *([0-9]+)/i){ $modrdnOp[$mdconn] = $1; }
 		$mdconn++;
 	}
 }
+if (m/ CMP dn=/){
+	$compare++;
+	inc_stats('cmp',$s_stats,$m_stats);	
+	if ($verb eq "yes"  || $usage =~ /g/i){
+		if ($_ =~ /conn= *([0-9]+)/i){ $compConn[$dconn] = $1;}
+		if ($_ =~ /op= *([0-9]+)/i){ $compOp[$dconn] = $1;}
+		$cconn++;
+	}
+}
 if (m/ ABANDON /){
 	$abandon++;
+	inc_stats('abandon',$s_stats,$m_stats);
 	$allResults++;
 	if ($_ =~ /targetop= *([0-9a-zA-Z]+)/i ){
 		$targetOp[$ac] = $1;
@@ -1144,6 +1406,9 @@ if (m/ VLV /){
         if ($_ =~ /conn= *([0-9]+)/i){ $vlvconn[$vlv] = $1;}
         if ($_ =~ /op= *([0-9]+)/i){ $vlvop[$vlv] = $1;}
         $vlv++;
+}
+if (m/ authzid=/){
+	$proxiedAuth++;
 }
 if (m/ SORT /){$sortvlv++}
 if (m/ version=2/){$version2++}
@@ -1181,11 +1446,7 @@ if (m/ fd=/ && m/closed/){
 
 	($connID) = $_ =~ /conn=(\d*)\s/;
 	$openConnection[$connID]--;
-	($time, $tzone) = split (' ', $_);
-	($date, $hr, $min, $sec) = split (':', $time);
-	($day, $mon, $yr) = split ('/', $date);
-	$day =~ s/\[//;
-	$end_time_of_connection[$connID] = timegm($sec, $min, $hours, $day, $monthname{$mon}, $yr);
+	$end_time_of_connection[$connID] = $gmtime;
 	$diff = $end_time_of_connection[$connID] - $start_time_of_connection[$connID];
 	$start_time_of_connection[$connID] =  $end_time_of_connection[$connID] = 0;
 	if ($diff <= 1) { $latency[0]++;}
@@ -1198,6 +1459,7 @@ if (m/ fd=/ && m/closed/){
 }
 if (m/ BIND/){
 	$bind++;
+	inc_stats('bind',$s_stats,$m_stats);
 	if ($verb eq "yes"){
                 if ($_ =~ /conn= *([0-9]+)/i){ $bindConn[$bconn] = $1; }
 		if ($_ =~ /op= *([0-9]+)/i){ $bindOp[$bconn] = $1; }
@@ -1205,7 +1467,7 @@ if (m/ BIND/){
 	}
 }
 if (m/ BIND/ && m/$manager/i){$dirmgr++}
-if (m/ BIND/ && m/dn=""/){$anony++; $bindlist{"Anonymous Binds"}++;}
+if (m/ BIND/ && m/dn=""/){$anony++; $bindlist{"Anonymous Binds"}++;inc_stats('anonbind',$s_stats,$m_stats);}
 if (m/ UNBIND/){
 	$unbind++;
 	if ($verb eq "yes"){
@@ -1222,8 +1484,13 @@ if (m/ notes=U/){
         for ($i=0; $i <= $vlv;$i++){
                 if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvnotes++; $v="1";}
         }
-        $notes++;
-	if ($usage =~ /u/ || $verb eq "yes"){
+        if($v ne "1"){
+		#  We don't want to record vlv unindexed searches for our regular "bad" 
+		#  unindexed search stat, as VLV unindexed searches aren't that bad
+		$notes++;
+		inc_stats('notesu',$s_stats,$m_stats);
+        }
+        if ($usage =~ /u/ || $verb eq "yes"){
         if ($v eq "0" ){
                 if ($_ =~ /etime= *([0-9]+)/i ) {
                         $notesEtime[$vet]=$1;
@@ -1541,34 +1808,37 @@ if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
 }
 
 if ($usage =~ /l/ || $verb eq "yes"){
-if (/ SRCH / && / attrs=/ && $_ =~ /filter=\"(.*)\" /i ){
-	$tmpp = $1;
-	$tmpp =~ tr/A-Z/a-z/;
-	$tmpp =~ s/\\22/\"/g;
-	$filter{$tmpp} = $filter{$tmpp} + 1; 
-	$filterInfo[$fcc][0] = $tmpp;
-	if ($_ =~ /conn= *([0-9]+)/i) { $filterInfo[$fcc][1] = $1; }
-	if ($_ =~ /op= *([0-9]+)/i) { $filterInfo[$fcc][2] = $1; }
-	$fcc++;
-} elsif (/ SRCH / && $_ =~ /filter=\"(.*)\"/i){
-        $tmpp = $1;
-        $tmpp =~ tr/A-Z/a-z/;
-        $tmpp =~ s/\\22/\"/g;
-        $filter{$tmpp} = $filter{$tmpp} + 1;
-        $filterInfo[$fcc][0] = $tmpp;
-        if ($_ =~ /conn= *([0-9]+)/i) { $filterInfo[$fcc][1] = $1; }
-        if ($_ =~ /op= *([0-9]+)/i) { $filterInfo[$fcc][2] = $1; }
-        $fcc++;
-}
+	if (/ SRCH / && / attrs=/ && $_ =~ /filter=\"(.*)\" /i ){
+		$tmpp = $1;
+		$tmpp =~ tr/A-Z/a-z/;
+		$tmpp =~ s/\\22/\"/g;
+		$filter{$tmpp} = $filter{$tmpp} + 1; 
+		$filterInfo[$fcc][0] = $tmpp;
+		if ($_ =~ /conn= *([0-9]+)/i) { $filterInfo[$fcc][1] = $1; }
+		if ($_ =~ /op= *([0-9]+)/i) { $filterInfo[$fcc][2] = $1; }
+		$fcc++;
+	} elsif (/ SRCH / && $_ =~ /filter=\"(.*)\"/i){
+        	$tmpp = $1;
+        	$tmpp =~ tr/A-Z/a-z/;
+        	$tmpp =~ s/\\22/\"/g;
+        	$filter{$tmpp} = $filter{$tmpp} + 1;
+        	$filterInfo[$fcc][0] = $tmpp;
+        	if ($_ =~ /conn= *([0-9]+)/i) { $filterInfo[$fcc][1] = $1; }
+        	if ($_ =~ /op= *([0-9]+)/i) { $filterInfo[$fcc][2] = $1; }
+        	$fcc++;
+	}
 }
 
 if ($usage =~ /a/ || $verb eq "yes"){
-if (/ SRCH /   && $_ =~ /base=\"(.*)\" scope/i ){
-	if ($1 eq ""){$tmpp = "Root DSE";}
-        else {$tmpp = $1;}
-        $tmpp =~ tr/A-Z/a-z/;
-        $base{$tmpp} = $base{$tmpp} + 1;
-}
+	if (/ SRCH /   && $_ =~ /base=\"(.*)\" scope/i ){
+		if ($1 eq ""){
+			$tmpp = "Root DSE";
+        	} else {
+			$tmpp = $1;
+		}
+        	$tmpp =~ tr/A-Z/a-z/;
+        	$base{$tmpp} = $base{$tmpp} + 1;
+	}
 }
 
 if ($_ =~ /fd= *([0-9]+)/i ) {
@@ -1579,25 +1849,25 @@ if ($_ =~ /fd= *([0-9]+)/i ) {
 
 
 if ($usage =~ /f/ || $verb eq "yes"){
-if (/ err=49 tag=/ && / dn=\"/){
-	if ($_ =~ /dn=\"(.*)\"/i ){
-		$ds6xbadpwd{$1}++;
-	}
-	$ds6x = "true";
-	$bpc++;
-
-} elsif (/ err=49 tag=/ ){
-	if ($_ =~ /conn= *([0-9]+)/i ){
-		$badPasswordConn[$bpc] = $1;
+	if (/ err=49 tag=/ && / dn=\"/){
+		if ($_ =~ /dn=\"(.*)\"/i ){
+			$ds6xbadpwd{$1}++;
+		}
+		$ds6x = "true";
 		$bpc++;
+
+	} elsif (/ err=49 tag=/ ){
+		if ($_ =~ /conn= *([0-9]+)/i ){
+			$badPasswordConn[$bpc] = $1;
+			$bpc++;
+		}
+		if ($_ =~ /op= *([0-9]+)/i ){
+			$badPasswordOp[$bpo] = $1;
+			$bpo++;
+		}
+		$badPasswordIp[$bpi] = $ip;
+		$bpi++;
 	}
-	if ($_ =~ /op= *([0-9]+)/i ){
-		$badPasswordOp[$bpo] = $1;
-		$bpo++;
-	}
-$badPasswordIp[$bpi] = $ip;
-$bpi++;
-}
 }
 
 if (/ BIND / && /method=sasl/i){
@@ -1617,6 +1887,126 @@ if (/ options=persistent/){$persistent++;}
 
 }
 
+ #######################################
+ # #                                     #
+ # +#          CSV Helper Routines        #
+ # +#                                     #
+#######################################
+#                                     #
+# To convert the CSV to chart in OO   #
+#                                     #
+#  * Select active rows and columns   #
+#  * Insert -> Chart                  #
+#  * Chart type "XY (Scatter)"        #
+#  *   sub-type "Lines Only"          #
+#  * select "Sort by X values"        #
+#  * "Next"                           #
+#  * select "Data series in columns"  #
+#  * select "First row as label"      #
+#  * select "First column as label"   #
+#  * "Next"                           #
+#  * "Next"                           #
+#  * "Finish"                         #
+#                                     #
+#######################################
+
+sub
+reset_stats_block
+{
+    my $stats = shift;
+
+    $stats->{'last'} = shift || 0;
+    $stats->{'last_str'} = shift || '';
+
+    $stats->{'results'}=0;
+    $stats->{'srch'}=0;
+    $stats->{'add'}=0;
+    $stats->{'mod'}=0;
+    $stats->{'modrdn'}=0;
+    $stats->{'moddn'}=0;
+    $stats->{'cmp'}=0;
+    $stats->{'del'}=0;
+    $stats->{'abandon'}=0;
+    $stats->{'conns'}=0;
+    $stats->{'sslconns'}=0;
+    $stats->{'bind'}=0;
+    $stats->{'anonbind'}=0;
+    $stats->{'unbind'}=0;
+    $stats->{'notesu'}=0;
+    return;
+}
+
+sub
+new_stats_block
+{
+    my $name = shift || '';
+    my $stats = {
+	'active' => 0,
+    };
+
+    if ($name)
+    {
+	$stats->{'filename'} = $name;
+	$stats->{'fh'} = new IO::File;
+	$stats->{'active'} = open($stats->{'fh'},">$name");
+    }
+
+    reset_stats_block( $stats );
+    return $stats;
+}
+
+sub
+print_stats_block
+{
+    foreach my $stats( @_ )
+    {
+	if ($stats->{'active'})
+	{
+	    if ($stats->{'last'})
+	    {
+		$stats->{'fh'}->print(
+		    join(',',
+			    $stats->{'last_str'},
+			    $stats->{'last'},
+			    $stats->{'results'},
+			    $stats->{'srch'},
+			    $stats->{'add'},
+			    $stats->{'mod'},
+			    $stats->{'modrdn'},
+			    $stats->{'moddn'},
+			    $stats->{'cmp'},
+			    $stats->{'del'},
+			    $stats->{'abandon'},
+			    $stats->{'conns'},
+			    $stats->{'sslconns'},
+			    $stats->{'bind'},
+			    $stats->{'anonbind'},
+			    $stats->{'unbind'},
+			    $stats->{'notesu'} ),
+		    "\n" );
+	    }else
+	    {
+		$stats->{'fh'}->print(
+		    "Time,time_t,Results,Search,Add,Mod,Modrdn,Delete,Abandon,".
+		    "Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed\n"
+		    );
+	    }
+	}
+    }
+    return;
+}
+
+sub
+inc_stats
+{
+    my $n = shift;
+    foreach(@_)
+    {
+	$_->{$n}++
+	    if exists $_->{$n};
+    }
+    return;
+}
 
 #######################################
 #                                     #
