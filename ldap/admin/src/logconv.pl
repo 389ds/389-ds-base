@@ -374,7 +374,7 @@ for ($count=0; $count < $fc; $count++){
 	print_stats_block( $s_stats );
 	print_stats_block( $m_stats );
 	$tlc = $tlc + $ff;
-	if($ff > $limit){print sprintf " %10s Lines Processed\n\n",--$ff;}
+	if($ff => $limit){print sprintf " %10s Lines Processed\n\n",--$ff;}
 }
 
 print "\n\nTotal Log Lines Analysed:  " . ($tlc - 1) . "\n";
@@ -1195,8 +1195,8 @@ sub displayUsage {
 	print "             E.g. [28/Mar/2002:13:14:22 -0800]\n";
 	print "         -E <time to stop analyzing logfile>\n";
 	print "             E.g. [28/Mar/2002:13:24:62 -0800]\n";
-	print "         -m <per second stats file>\n"; 
-	print "         -M <per minute stats file>\n";	
+	print "         -m <CSV output file - per second stats>\n"; 
+	print "         -M <CSV output file - per minute stats>\n";	
 	print "         -V <enable verbose output - includes all stats listed below>\n";
 	print "         -[efcibaltnxgju]\n\n";
 
@@ -1219,13 +1219,14 @@ sub displayUsage {
 
 	print "  Examples:\n\n";
 
-	print "         ./logconv.pl -s 10 -V access\n\n";
+	print "         ./logconv.pl -s 10 -V /logs/access*\n\n";
 
-	print "         ./logconv.pl -d cn=dm /export/server4/slapd-host/logs/access*\n\n";
+	print "         ./logconv.pl -d cn=dm /logs/access*\n\n";
 
-	print "         ./logconv.pl -s 50 -ibgju access*\n\n";
+	print "         ./logconv.pl -s 50 -ibgju /logs/access*\n\n";
 
-	print "         ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" -E \"\[28/Mar/2002:13:50:05 -0800\]\" -e access\n\n";
+	print "         ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" -E \"\[28/Mar/2002:13:50:05 -0800\]\" -e /logs/access*\n\n";
+	print "         ./logconv.pl -m log-minute-stats-csv.out /logs/access*\n\n";
 
 	exit 1;
 }
@@ -1269,7 +1270,7 @@ if ($endTime && !$endFlag) {
 
 $ff++;
 $iff++;
-if ($iff > $limit){ print STDERR sprintf" %10s Lines Processed\n",$ff; $iff="0";}
+if ($iff >= $limit){ print STDERR sprintf" %10s Lines Processed\n",$ff; $iff="0";}
 
 # Additional performance stats
 ($time, $tzone) = split (' ', $_);
