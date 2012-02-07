@@ -208,14 +208,19 @@ ldbm_back_add( Slapi_PBlock *pb )
 				               "ldbm_back_add: Null target dn\n");
 				goto error_return;
 			}
-			dn = slapi_sdn_get_dn(sdn);
-			ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
-			if (ldap_result_code)
-			{
-				ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-				goto error_return;
+
+			/* not need to check the dn syntax as this is a replicated op */
+			if(!is_replicated_operation){
+				dn = slapi_sdn_get_dn(sdn);
+				ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
+				if (ldap_result_code)
+				{
+					ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+					slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+					goto error_return;
+				}
 			}
+
 			slapi_sdn_get_backend_parent(sdn, &parentsdn, pb->pb_backend);
 			/* Check if an entry with the intended DN already exists. */
 			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY); /* Could be through this multiple times */
@@ -332,22 +337,24 @@ ldbm_back_add( Slapi_PBlock *pb )
 		}
 	}
 
+	/* no need to check the schema as this is a replication add */
+	if(!is_replicated_operation){
+		if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) && slapi_entry_schema_check(pb, e) != 0)
+		{
+			LDAPDebug(LDAP_DEBUG_TRACE, "entry failed schema check\n", 0, 0, 0);
+			ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+			goto error_return;
+		}
 
-	if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) && slapi_entry_schema_check(pb, e) != 0) 
-	{
-		LDAPDebug(LDAP_DEBUG_TRACE, "entry failed schema check\n", 0, 0, 0);
-		ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
-		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-		goto error_return;
-	} 
-
-	/* Check attribute syntax */
-	if (slapi_entry_syntax_check(pb, e, 0) != 0)
-	{
-		LDAPDebug(LDAP_DEBUG_TRACE, "entry failed syntax check\n", 0, 0, 0);
-		ldap_result_code = LDAP_INVALID_SYNTAX;
-		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-		goto error_return;
+		/* Check attribute syntax */
+		if (slapi_entry_syntax_check(pb, e, 0) != 0)
+		{
+			LDAPDebug(LDAP_DEBUG_TRACE, "entry failed syntax check\n", 0, 0, 0);
+			ldap_result_code = LDAP_INVALID_SYNTAX;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+			goto error_return;
+		}
 	}
 
 	opcsn = operation_get_csn (operation);

@@ -217,6 +217,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	int is_fixup_operation= 0;
 	int is_ruv = 0;                 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
+	int repl_op;
 	int i = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
@@ -224,6 +225,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr );
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
+	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	if (NULL == operation)
@@ -244,12 +246,16 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	{
 		goto error_return;
 	}
-	ldap_result_code = slapi_dn_syntax_check(pb, slapi_sdn_get_dn(addr->sdn), 1);
-	if (ldap_result_code)
-	{
-		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-		goto error_return;
+
+	/* no need to check the dn syntax as this is a replicated op */
+	if(!repl_op){
+		ldap_result_code = slapi_dn_syntax_check(pb, slapi_sdn_get_dn(addr->sdn), 1);
+		if (ldap_result_code)
+		{
+			ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+			goto error_return;
+		}
 	}
 
 	/* The dblock serializes writes to the database,
@@ -302,7 +308,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	remove_illegal_mods(mods);
+	if(!repl_op){
+	    remove_illegal_mods(mods);
+	}
 
 	/* ec is the entry that our bepreop should get to mess with */
 	slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, ec->ep_entry );
@@ -344,7 +352,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 * If the objectClass attribute type was modified in any way, expand
 	 * the objectClass values to reflect the inheritance hierarchy.
 	 */
-	for ( i = 0; mods[i] != NULL; ++i ) {
+	for ( i = 0; mods[i] != NULL && !repl_op; ++i ) {
 		if ( 0 == strcasecmp( SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type )) {
 			slapi_schema_expand_objectclasses( ec->ep_entry );
 			break;
@@ -362,29 +370,32 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	/* check that the entry still obeys the schema */
-	if ( (operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) && 
-		  slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
-		ldap_result_code= LDAP_OBJECT_CLASS_VIOLATION;
-		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-		goto error_return;
-	}
+	/* if this is a replicated op, we don't need to perform these checks */
+	if(!repl_op){
+		/* check that the entry still obeys the schema */
+		if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) &&
+			slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
+			ldap_result_code= LDAP_OBJECT_CLASS_VIOLATION;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+			goto error_return;
+		}
 
-	/* check attribute syntax for the new values */
-	if (slapi_mods_syntax_check(pb, mods, 0) != 0)
-	{
-		ldap_result_code = LDAP_INVALID_SYNTAX;
-		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-		goto error_return;
-	}
+		/* check attribute syntax for the new values */
+		if (slapi_mods_syntax_check(pb, mods, 0) != 0)
+		{
+			ldap_result_code = LDAP_INVALID_SYNTAX;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+			goto error_return;
+		}
 
-	/*
-	 * make sure the entry contains all values in the RDN.
-	 * if not, the modification must have removed them.
-	 */
-	if ( ! slapi_entry_rdn_values_present( ec->ep_entry ) ) {
-		ldap_result_code= LDAP_NOT_ALLOWED_ON_RDN;
-		goto error_return;
+		/*
+		 * make sure the entry contains all values in the RDN.
+		 * if not, the modification must have removed them.
+		 */
+		if ( ! slapi_entry_rdn_values_present( ec->ep_entry ) ) {
+			ldap_result_code= LDAP_NOT_ALLOWED_ON_RDN;
+			goto error_return;
+		}
 	}
 
 	if (!is_ruv && !is_fixup_operation) {
