@@ -580,7 +580,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 		}
 
        /* look for multiple backend local credentials or replication local credentials */
-        for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL;
+        for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL && !repl_op;
             p = p->plg_next )
         {
             char *L_attr = NULL;
@@ -626,30 +626,31 @@ static void op_shared_add (Slapi_PBlock *pb)
 							   !slapdFrontendConfig->pw_policy.pw_must_change);
 	}
 
-	/* can get lastmod only after backend is selected */
-	slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
-	if (!repl_op && lastmod)
+
+	if (!repl_op)
 	{
-		if (add_created_attrs(operation, e) != 0)
+		/* can get lastmod only after backend is selected */
+		slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
+
+		if (lastmod && add_created_attrs(operation, e) != 0)
 		{
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 				"cannot insert computed attributes", 0, NULL);
 			goto done;
 		}
+		/* expand objectClass values to reflect the inheritance hierarchy */
+		slapi_schema_expand_objectclasses( e );
 	}
-
-	/* expand objectClass values to reflect the inheritance hierarchy */
-	slapi_schema_expand_objectclasses( e );
-
 
     /* uniqueid needs to be generated for entries added during legacy replication */
-    if (legacy_op)
-	if (add_uniqueid(e) != UID_SUCCESS)
-	{
-		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
-			"cannot insert computed attributes", 0, NULL);
-		goto done;
-	}
+    if (legacy_op){
+    	if (add_uniqueid(e) != UID_SUCCESS)
+    	{
+    		send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+    				"cannot insert computed attributes", 0, NULL);
+    		goto done;
+    	}
+    }
 
 	/*
 	 * call the pre-add plugins. if they succeed, call

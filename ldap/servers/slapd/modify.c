@@ -825,7 +825,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	 * calling the preop plugins
 	 */
 
-	if (pw_change)
+	if (pw_change && !repl_op)
 	{
 		Slapi_Value **va= NULL;
 
@@ -856,7 +856,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			valuearray_free(&va);
 		}
 	}
-	for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL; p = p->plg_next )
+	for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL && !repl_op; p = p->plg_next )
     {
         char *L_attr = NULL;
         int i = 0;
