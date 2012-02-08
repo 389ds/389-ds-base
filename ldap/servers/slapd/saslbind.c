@@ -428,10 +428,14 @@ static int ids_sasl_canon_user(
         /* special case directory manager */
         dn = slapi_sdn_get_ndn(sdn);
         pw = config_get_rootpw();
+        *out_ulen = PR_snprintf(out_user, out_umax, "dn: %s", dn);
     } else if (strcasecmp(mech, "ANONYMOUS") == 0) {
         /* SASL doesn't allow us to set the username to an empty string,
-	 * so we just set it to anonymous. */
+         * so we just set it to anonymous. */
         dn = "anonymous";
+        PL_strncpyz(out_user, dn, out_umax);
+        /* the length of out_user needs to be set for Cyrus SASL */
+        *out_ulen = strlen(out_user);
     } else {
         /* map the sasl username into an entry */
         entry = ids_sasl_user_to_entry(conn, context, user, user_realm);
@@ -443,6 +447,7 @@ static int ids_sasl_canon_user(
         }
         dn = slapi_entry_get_ndn(entry);
         pw = slapi_entry_attr_get_charptr(entry, "userpassword");
+        *out_ulen = PR_snprintf(out_user, out_umax, "dn: %s", dn);
     }
 
     /* Need to set dn property to an empty string for the ANONYMOUS mechanism.  This
@@ -498,11 +503,6 @@ static int ids_sasl_canon_user(
         }
     }
 
-    /* TODO: canonicalize */
-    PL_strncpyz(out_user, dn, out_umax);
-    /* the length of out_user needs to be set for Cyrus SASL */
-    *out_ulen = strlen(out_user);
-
     slapi_entry_free(entry);
     slapi_ch_free((void**)&user);
     slapi_ch_free((void**)&pw);
@@ -510,7 +510,7 @@ static int ids_sasl_canon_user(
 
     return SASL_OK;
 
- fail:
+fail:
     slapi_entry_free(entry);
     slapi_ch_free((void**)&user);
     slapi_ch_free((void**)&pw);
