@@ -126,6 +126,7 @@ acct_record_login( const char *dn, void *txn )
 	 	plugin_id, SLAPI_OP_FLAG_NO_ACCESS_CHECK |
 			SLAPI_OP_FLAG_BYPASS_REFERRALS );
 	slapi_pblock_set( modpb, SLAPI_TXN, txn );
+	slapi_pblock_set( modpb, SLAPI_SKIP_MODIFIED_ATTRS, 1);
 	slapi_modify_internal_pb( modpb );
 
 	slapi_pblock_get( modpb, SLAPI_PLUGIN_INTOP_RESULT, &ldrc );

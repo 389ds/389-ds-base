@@ -2823,7 +2823,15 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			pblock->pb_operation_notes |= *((unsigned int *)value );
 		}
 		break;
-
+	case SLAPI_SKIP_MODIFIED_ATTRS:
+		if(pblock->pb_op == NULL)
+			break;
+		if(value == 0){
+			pblock->pb_op->o_flags &= ~OP_FLAG_SKIP_MODIFIED_ATTRS;
+		} else {
+			pblock->pb_op->o_flags |= OP_FLAG_SKIP_MODIFIED_ATTRS;
+		}
+		break;
 	/* controls we know about */
 	case SLAPI_MANAGEDSAIT:
 		pblock->pb_managedsait = *((int *) value);
