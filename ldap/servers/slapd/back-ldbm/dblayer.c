@@ -343,7 +343,7 @@ dblayer_get_batch_transactions(void *arg) {
 
 static int
 dblayer_txn_checkpoint(struct ldbminfo *li, struct dblayer_private_env *env,
-                       PRBool use_lock, PRBool busy_skip)
+                       PRBool use_lock, PRBool busy_skip, PRBool db_force)
 {
     int ret = 0;
     if (busy_skip && is_anyinstance_busy(li))
@@ -351,7 +351,7 @@ dblayer_txn_checkpoint(struct ldbminfo *li, struct dblayer_private_env *env,
         return ret;
     }
     DB_CHECKPOINT_LOCK(use_lock, env->dblayer_env_lock);
-    ret = TXN_CHECKPOINT(env->dblayer_DB_ENV, 0, 0, DB_FORCE);
+    ret = TXN_CHECKPOINT(env->dblayer_DB_ENV, 0, 0, db_force?DB_FORCE:0);
     DB_CHECKPOINT_UNLOCK(use_lock, env->dblayer_env_lock);
     return ret;
 }
@@ -3675,10 +3675,7 @@ static int deadlock_threadmain(void *param)
             if (dblayer_db_uses_locking(priv->dblayer_env->dblayer_DB_ENV)) {
                 int aborted;
                 if ((rval = LOCK_DETECT(priv->dblayer_env->dblayer_DB_ENV,
-                            0,
-                            DB_LOCK_YOUNGEST,
-                            &aborted))
-                    != 0) {
+                                        0, DB_LOCK_YOUNGEST, &aborted)) != 0) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                       "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
                       aborted, rval, dblayer_strerror(rval));
@@ -3852,7 +3849,8 @@ static int checkpoint_threadmain(void *param)
         /* now checkpoint */
         checkpoint_debug_message(debug_checkpointing,
                                  "Starting checkpoint\n", 0, 0, 0);
-        rval = dblayer_txn_checkpoint(li, priv->dblayer_env, PR_TRUE, PR_TRUE);
+        rval = dblayer_txn_checkpoint(li, priv->dblayer_env, 
+                                      PR_TRUE, PR_TRUE, PR_FALSE);
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
         if (DB_INCOMPLETE == rval) 
         {
@@ -3879,7 +3877,8 @@ static int checkpoint_threadmain(void *param)
 
         checkpoint_debug_message(debug_checkpointing,
                                  "Starting checkpoint\n", 0, 0, 0);
-        rval = dblayer_txn_checkpoint(li, priv->dblayer_env, PR_TRUE, PR_TRUE);
+        rval = dblayer_txn_checkpoint(li, priv->dblayer_env, 
+                                      PR_TRUE, PR_TRUE, PR_FALSE);
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
         if (DB_INCOMPLETE == rval) 
         {
@@ -3990,10 +3989,9 @@ static int trickle_threadmain(void *param)
                  (0 != priv->dblayer_trickle_percentage) )
             {
                 int pages_written = 0;
-                if ((rval = MEMP_TRICKLE(
-                                      priv->dblayer_env->dblayer_DB_ENV,
-                                      priv->dblayer_trickle_percentage,
-                                      &pages_written)) != 0)
+                if ((rval = MEMP_TRICKLE(priv->dblayer_env->dblayer_DB_ENV,
+                                         priv->dblayer_trickle_percentage,
+                                         &pages_written)) != 0)
                 {
                     LDAPDebug(LDAP_DEBUG_ANY,"Serious Error---Failed to trickle, err=%d (%s)\n",rval,dblayer_strerror(rval), 0);
                 }
@@ -4385,7 +4383,7 @@ static int dblayer_force_checkpoint(struct ldbminfo *li)
      */
     
     for (i = 0; i < 2; i++) {
-      ret = dblayer_txn_checkpoint(li, pEnv, PR_TRUE, PR_FALSE);
+      ret = dblayer_txn_checkpoint(li, pEnv, PR_TRUE, PR_FALSE, PR_TRUE);
       if (ret == 0) continue;
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
       if (ret != DB_INCOMPLETE)
@@ -4400,7 +4398,7 @@ static int dblayer_force_checkpoint(struct ldbminfo *li)
       LDAPDebug(LDAP_DEBUG_ANY, "Busy: retrying checkpoint\n", 0, 0, 0);
       
       /* teletubbies: "again! again!" */
-      ret = dblayer_txn_checkpoint(li, pEnv, PR_TRUE, PR_FALSE);
+      ret = dblayer_txn_checkpoint(li, pEnv, PR_TRUE, PR_FALSE, PR_TRUE);
       if (ret == DB_INCOMPLETE) {
         LDAPDebug(LDAP_DEBUG_ANY, "Busy: giving up on checkpoint\n", 0, 0, 0);
         break;
