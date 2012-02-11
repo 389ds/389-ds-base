@@ -89,6 +89,12 @@ if test -z "$db_inc"; then
     db_inc="-I/usr/include/db4"
     db_lib='-L$(libdir)'
     db_libdir='$(libdir)'
+  elif test -f "/usr/include/libdb/db.h"; then
+    AC_MSG_RESULT([using /usr/include/libdb/db.h])
+    db_incdir="/usr/include/libdb"
+    db_inc="-I/usr/include/libdb"
+    db_lib='-L$(libdir)'
+    db_libdir='$(libdir)'
   elif test -f "/usr/include/db.h"; then
     AC_MSG_RESULT([using /usr/include/db.h])
     db_incdir="/usr/include"

@@ -136,7 +136,7 @@
 #define LOG_FLUSH(env, lsn) (env)->log_flush((env), (lsn))
 #define LOCK_DETECT(env, flags, atype, aborted) \
     (env)->lock_detect((env), (flags), (atype), (aborted))
-#if DB_VERSION_MINOR >= 4 /* i.e. 4.4 or later */
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000 /* db4.4 or later */
 #define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
     (env)->mutex_set_tas_spins((env), (tas_spins))
 #else /* < 4.4 */
@@ -1418,7 +1418,8 @@ no_diskspace(struct ldbminfo *li)
 #define DBCONFLEN    3
 #define CATASTROPHIC (struct dblayer_private_env *)-1
 
-int dblayer_start(struct ldbminfo *li, int dbmode)
+int
+dblayer_start(struct ldbminfo *li, int dbmode)
 {
     /* 
      * So, here we open our DB_ENV session. We store it away for future use.
@@ -4444,12 +4445,11 @@ _dblayer_delete_aux_dir(struct ldbminfo *li, char *path)
             break;
         PR_snprintf(filename, sizeof(filename), "%s/%s", path, direntry->name);
         if (pEnv &&
-            strcmp(LDBM_FILENAME_SUFFIX , last_four_chars(direntry->name)) == 0)
-        {
+            /* PL_strcmp takes NULL arg */
+            (PL_strcmp(LDBM_FILENAME_SUFFIX , strrchr(direntry->name, '.'))
+             == 0)) {
             rc = dblayer_db_remove_ex(pEnv, filename, 0, PR_TRUE);
-        }
-        else
-        {
+        } else {
             rc = ldbm_delete_dirs(filename);
         }
     }
@@ -4549,12 +4549,11 @@ static int _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
             break;
         PR_snprintf(filename, MAXPATHLEN, "%s/%s", inst_dirp, direntry->name);
         if (pEnv &&
-            strcmp(LDBM_FILENAME_SUFFIX , last_four_chars(direntry->name)) == 0)
-        {
+            /* PL_strcmp takes NULL arg */
+            (PL_strcmp(LDBM_FILENAME_SUFFIX , strrchr(direntry->name, '.'))
+             == 0)) {
             rval = dblayer_db_remove_ex(pEnv, filename, 0, PR_TRUE);
-        }
-        else
-        {
+        } else {
             rval = ldbm_delete_dirs(filename);
         }
     }
@@ -4821,7 +4820,9 @@ static int count_dbfiles_in_dir(char *directory, int *count, int recurse)
 			if (direntry_name) {
 				PR_smprintf_free(direntry_name);
 			}
-            if (strcmp( LDBM_FILENAME_SUFFIX , last_four_chars(direntry->name)) == 0) {
+            /* PL_strcmp takes NULL arg */
+            if (PL_strcmp(LDBM_FILENAME_SUFFIX , strrchr(direntry->name, '.'))
+                == 0) {
                 (*count)++;
             }
         }
@@ -4981,6 +4982,7 @@ dblayer_copy_directory(struct ldbminfo *li,
     char            *inst_dirp = NULL;
     char            inst_dir[MAXPATHLEN];
     char            sep;
+    int             suffix_len = 0;
 
     if (!src_dir || '\0' == *src_dir)
     {
@@ -5045,6 +5047,7 @@ dblayer_copy_directory(struct ldbminfo *li,
         return return_value;
     }
 
+    suffix_len = sizeof(LDBM_SUFFIX) - 1;
     while (NULL != (direntry =
                     PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
     {
@@ -5060,15 +5063,16 @@ dblayer_copy_directory(struct ldbminfo *li,
 
         /* Look at the last three characters in the filename */
         filename_length = strlen(direntry->name);
-        if (filename_length > 4) {
-            offset = filename_length - 4;
+        if (filename_length > suffix_len) {
+            offset = filename_length - suffix_len;
         } else {
             offset = 0;
         }
         compare_piece = (char *)direntry->name + offset;
 
-        if (0 == strcmp(compare_piece, LDBM_FILENAME_SUFFIX) || /* .db4 */
-            0 == strcmp(compare_piece, LDBM_SUFFIX_OLD) || /* support .db3 */
+        /* rename .db3 -> .db4 or .db4 -> .db */
+        if (0 == strcmp(compare_piece, LDBM_FILENAME_SUFFIX) ||
+            0 == strcmp(compare_piece, LDBM_SUFFIX_OLD) ||
             0 == strcmp(direntry->name, DBVERSION_FILENAME)) {
             /* Found a database file.  Copy it. */
 
@@ -5135,7 +5139,10 @@ dblayer_copy_directory(struct ldbminfo *li,
 
             /* copy filename1 to filename2 */
             /* If the file is a database file, and resetlsns is set, then we need to do a key by key copy */
-            if (strcmp(LDBM_FILENAME_SUFFIX, last_four_chars(filename1)) == 0 && resetlsns) {
+            /* PL_strcmp takes NULL arg */
+            if (resetlsns &&
+                (PL_strcmp(LDBM_FILENAME_SUFFIX, strrchr(filename1, '.'))
+                 == 0)) {
                 return_value = dblayer_copy_file_resetlsns(src_dir, filename1, filename2,
                                             0, priv);
             } else {
@@ -6158,7 +6165,8 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     }
 
     return_value = check_db_version(li, &action);
-    if (action & (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_4))
+    if (action &
+        (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_4|DBVERSION_UPGRADE_4_5))
     {
         dbmode = DBLAYER_CLEAN_RECOVER_MODE;/* upgrade: remove logs & recover */
     }

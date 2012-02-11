@@ -121,13 +121,13 @@
 #define TXN_ABORT(txn) (txn)->abort(txn)
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) \
 	(env)->memp_stat((env), (gsp), (fsp), (flags))
-#if DB_VERSION_MINOR >= 4 /* i.e. 4.4 or later */
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400 /* db4.4 or later */
 #define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
     (env)->mutex_set_tas_spins((env), (tas_spins))
-#else /* < 4.4 */
+#else
 #define DB_ENV_SET_TAS_SPINS(env, tas_spins) \
     (env)->set_tas_spins((env), (tas_spins))
-#endif /* 4.4 or later */
+#endif
 
 #else	/* older than db 4.0 */
 #define DB_ENV_SET_REGION_INIT(env) db_env_set_region_init(1)

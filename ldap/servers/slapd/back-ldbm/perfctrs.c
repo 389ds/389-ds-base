@@ -53,7 +53,7 @@
 #define LOG_STAT(env, spp, flags, malloc) (env)->log_stat((env), (spp), (flags))
 #define LOCK_STAT(env, statp, flags, malloc) \
 	(env)->lock_stat((env), (statp), (flags))
-#if DB_VERSION_MINOR >= 4 /* i.e. 4.4 or later */
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400 /* db4.4 or later */
 #define GET_N_LOCK_WAITS(lockstat)   lockstat->st_lock_wait
 #else
 #define GET_N_LOCK_WAITS(lockstat)   lockstat->st_nconflicts

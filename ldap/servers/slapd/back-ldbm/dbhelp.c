@@ -309,9 +309,3 @@ error:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= dblayer_make_private_simple_env\n", 0, 0, 0 );
 	return retval;
 }
-
-char* last_four_chars(const char* s)
-{
-    size_t l = strlen(s);
-    return ((char*)s + (l - 4));
-}

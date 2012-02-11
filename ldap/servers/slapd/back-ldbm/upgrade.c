@@ -62,13 +62,13 @@ db_upgrade_info ldbm_version_suss[] = {
      */
     /* for bdb/#.#/..., we don't have to put the version number in the 2nd col
        since DBVERSION keeps it */
-    {BDB_IMPL,         0, 0, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
-    {LDBM_VERSION,     4, 2, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE},
-    {LDBM_VERSION_OLD, 4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
-    {LDBM_VERSION_62,  4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE}, 
-    {LDBM_VERSION_61,  3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
-    {LDBM_VERSION_60,  3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4}, 
-    {NULL,             0, 0, 0,                 0                    }
+    {BDB_IMPL,         4, 0, DBVERSION_NEW_IDL, DBVERSION_UPGRADE_4_5, 1},
+    {LDBM_VERSION,     4, 2, DBVERSION_NEW_IDL, DBVERSION_NO_UPGRADE,  0},
+    {LDBM_VERSION_OLD, 4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE,  0}, 
+    {LDBM_VERSION_62,  4, 2, DBVERSION_OLD_IDL, DBVERSION_NO_UPGRADE,  0}, 
+    {LDBM_VERSION_61,  3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4, 0}, 
+    {LDBM_VERSION_60,  3, 3, DBVERSION_OLD_IDL, DBVERSION_UPGRADE_3_4, 0}, 
+    {NULL,             0, 0, 0,                 0,                     0}
 };
 
 
@@ -105,7 +105,7 @@ lookup_dbversion(char *dbversion, int flag)
         if ( flag & DBVERSION_ACTION ) /* lookup request for action */
         {
             int dbmajor = 0, dbminor = 0;
-            if (0 == ldbm_version_suss[i].old_dbversion_major)
+            if (ldbm_version_suss[i].is_dbd)
             {
                 /* case of bdb/#.#/... */
                 char *p = strchr(dbversion, '/');
@@ -132,7 +132,7 @@ lookup_dbversion(char *dbversion, int flag)
             }
             if (dbmajor < DB_VERSION_MAJOR)
             {
-                /* 3.3 -> 4.x */
+                /* 3 -> 4 or 5 -> 6 */
                 rval |= ldbm_version_suss[i].action;
             }
             else if (dbminor < DB_VERSION_MINOR)
@@ -156,6 +156,7 @@ lookup_dbversion(char *dbversion, int flag)
  * action: 0: nothing is needed
  *         DBVERSION_UPGRADE_3_4: db3->db4 uprev is needed
  *         DBVERSION_UPGRADE_4_4: db4->db4 uprev is needed
+ *         DBVERSION_UPGRADE_4_5: db4->db  uprev is needed
  */
 int
 check_db_version( struct ldbminfo *li, int *action )
@@ -195,6 +196,11 @@ check_db_version( struct ldbminfo *li, int *action )
         dblayer_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_4_4;
     }
+    else if ( value & DBVERSION_UPGRADE_4_5 )
+    {
+        dblayer_set_recovery_required(li);
+        *action = DBVERSION_UPGRADE_4_5;
+    }
     if (value & DBVERSION_RDN_FORMAT) {
         if (entryrdn_get_switch()) {
             /* nothing to do */
@@ -228,6 +234,7 @@ check_db_version( struct ldbminfo *li, int *action )
  *
  *         DBVERSION_UPGRADE_3_4: db3->db4 uprev is needed
  *         DBVERSION_UPGRADE_4_4: db4->db4 uprev is needed
+ *         DBVERSION_UPGRADE_4_5: db4->db  uprev is needed
  */
 int
 check_db_inst_version( ldbm_instance *inst )
@@ -279,6 +286,10 @@ check_db_inst_version( ldbm_instance *inst )
     else if ( value & DBVERSION_UPGRADE_4_4 )
     {
         rval |= DBVERSION_UPGRADE_4_4;
+    }
+    else if ( value & DBVERSION_UPGRADE_4_5 )
+    {
+        rval |= DBVERSION_UPGRADE_4_5;
     }
     if (value & DBVERSION_RDN_FORMAT) {
         if (entryrdn_get_switch()) {
@@ -363,36 +374,25 @@ int ldbm_upgrade(ldbm_instance *inst, int action)
         return rval;
     }
 
-    if (action & DBVERSION_UPGRADE_3_4)    /* upgrade from db3 to db4 */
+    /* upgrade from db3 to db4 or db4 to db5 */
+    if (action & (DBVERSION_UPGRADE_3_4|DBVERSION_UPGRADE_4_5))
     {
-        /* basically, db4 supports db3.
-         * so, what we need to do is rename XXX.db3 to XXX.db4 */
-
-        int rval = dblayer_update_db_ext(inst, LDBM_SUFFIX_OLD, LDBM_SUFFIX);
+        rval = dblayer_update_db_ext(inst, LDBM_SUFFIX_OLD, LDBM_SUFFIX);
         if (0 == rval)
         {
-            if (idl_get_idl_new())
-            {
-                 LDAPDebug(LDAP_DEBUG_ANY, 
-                   "ldbm_upgrade: Upgrading instance %s to %s%s is successfully done.\n",
-                   inst->inst_name, LDBM_VERSION_BASE, DS_PACKAGE_VERSION);
-            }
-            else
-            {
-                 LDAPDebug(LDAP_DEBUG_ANY, 
-                   "ldbm_upgrade: Upgrading instance %s to %s%s is successfully done.\n",
-                   inst->inst_name, LDBM_VERSION_OLD, 0);
-            }
+            LDAPDebug(LDAP_DEBUG_ANY, "ldbm_upgrade: "
+                      "Upgrading instance %s supporting bdb %d.%d "
+                      "was successfully done.\n",
+                      inst->inst_name, DB_VERSION_MAJOR, DB_VERSION_MINOR);
         }
         else
         {
             /* recovery effort ... */
             dblayer_update_db_ext(inst, LDBM_SUFFIX, LDBM_SUFFIX_OLD);
-            return rval;
         }
     }
 
-    return 0; /* Means that the database is new */
+    return rval;
 }
 
 /* Here's the upgrade process : 

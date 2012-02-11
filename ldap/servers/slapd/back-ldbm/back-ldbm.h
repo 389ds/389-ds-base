@@ -126,8 +126,16 @@ typedef unsigned short u_int16_t;
 
 #define ID2ENTRY "id2entry"	/* main db file name: ID2ENTRY+LDBM_SUFFIX */
 
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 5000
+#define LDBM_SUFFIX_OLD	".db4"
+#define LDBM_SUFFIX	".db"
+#elif 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4000
 #define LDBM_SUFFIX_OLD	".db3"
 #define LDBM_SUFFIX	".db4"
+#else /* not supported anymore, though */
+#define LDBM_SUFFIX_OLD	".db2"
+#define LDBM_SUFFIX	".db3"
+#endif
 
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
@@ -193,7 +201,7 @@ typedef unsigned short u_int16_t;
 #define LDBM_VERSION_40          "Netscape-ldbm/4.0"
 #define LDBM_VERSION_30          "Netscape-ldbm/3.0"
 #define LDBM_VERSION_31          "Netscape-ldbm/3.1"
-#define LDBM_FILENAME_SUFFIX     ".db4"
+#define LDBM_FILENAME_SUFFIX     LDBM_SUFFIX
 #define    DBVERSION_FILENAME    "DBVERSION"
 #define DEFAULT_CACHE_SIZE       (size_t)10485760
 #define DEFAULT_CACHE_ENTRIES    -1        /* no limit */
@@ -520,6 +528,7 @@ struct _db_upgrade_info {
 	int old_dbversion_minor;
 	int type;
 	int action;
+	int is_dbd;
 };
 typedef struct _db_upgrade_info db_upgrade_info;
 /* Values for dbversion_stuff->type */
@@ -544,6 +553,7 @@ typedef struct _db_upgrade_info db_upgrade_info;
                                           * No database formats changed;
                                           * no db extention change
                                           */
+#define DBVERSION_UPGRADE_4_5      0x4000 /* bdb 4.X -> 5.X */
 #define DBVERSION_NEED_DN2RDN      0x1000/* DN to RDN (subtree-rename) format */
 #define DBVERSION_NEED_RDN2DN      0x2000/* RDN to DN (original) format */
 #define DBVERSION_NOT_SUPPORTED    0x10000000
