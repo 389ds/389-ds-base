@@ -1224,6 +1224,7 @@ sub stopServer {
 sub removeDSInstance {
     my $inst = shift;
     my $force = shift;
+    my $all = shift;
     my $initconfig_dir = shift || get_initconfigdir();
     my $baseconfigdir = $ENV{DS_CONFIG_DIR} || "@instconfigdir@";
     my $instname = "slapd-$inst";
@@ -1314,8 +1315,8 @@ sub removeDSInstance {
         push @errs, remove_tree($dbentry, "nsslapd-db-logdirectory", $instname, 1);
     }
     if ($entry) {
-        push @errs, remove_tree($entry, "nsslapd-lockdir", $instname);
-        push @errs, remove_tree($entry, "nsslapd-tmpdir", $instname);
+        push @errs, remove_tree($entry, "nsslapd-lockdir", $instname, 0);
+        push @errs, remove_tree($entry, "nsslapd-tmpdir", $instname, 0);
         push @errs, remove_tree($entry, "nsslapd-bakdir", $instname, 1);
         push @errs, remove_tree($entry, "nsslapd-errorlog", $instname, 1);
     }
@@ -1335,7 +1336,11 @@ sub removeDSInstance {
         }
     }
     # Finally, config dir
-    push @errs, remove_tree($entry, "nsslapd-schemadir", $instname, 1, "\.db\$");
+    if ($all) {
+        push @errs, remove_tree($entry, "nsslapd-schemadir", $instname, 1);
+    } else {
+        push @errs, remove_tree($entry, "nsslapd-schemadir", $instname, 1, "\.db\$");
+    }
 
     # Remove the instance specific initconfig script
     if ( -f $initconfig ) {

@@ -43,12 +43,14 @@ sub usage {
 my $force = "";
 my $instname = "";
 my $initconfig_dir = "";
+my $all = "";
 
 GetOptions('help|h|?' => sub { &usage; exit(1); },
            'debug|d+' => \$DSUtil::debuglevel,
            'instance|i=s' => \$instname,
            'initconfig_dir|c=s' => \$initconfig_dir,
-           'force|f' => \$force
+           'force|f' => \$force,
+           'all|a' => \$all
            );
 
 # Make sure the instance name option was provided.
@@ -63,7 +65,7 @@ unless ($inst) {
     exit 1;
 }
 
-my @errs = removeDSInstance($inst, $force, $initconfig_dir);
+my @errs = removeDSInstance($inst, $force, $all, $initconfig_dir);
 if (@errs) {
     print STDERR "The following errors occurred during removal:\n";
     for (@errs) {
