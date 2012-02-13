@@ -220,6 +220,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	CSN *opcsn = NULL;
 	int repl_op;
 	int i = 0;
+	int opreturn = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -323,9 +324,21 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, ec->ep_entry );
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 
-	plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
-
-	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+	if ((opreturn = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN)) ||
+		(slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code) && ldap_result_code) ||
+		(slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn) && opreturn)) {
+		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+		if (!ldap_result_code) {
+			LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_modify: SLAPI_PLUGIN_BE_PRE_MODIFY_FN "
+				       "returned error but did not set SLAPI_RESULT_CODE\n");
+			ldap_result_code = LDAP_OPERATIONS_ERROR;
+		}
+		if (!opreturn) {
+			opreturn = -1;
+			slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+		}
+	}
 	/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	slapi_mods_init_byref(&smods,mods);
@@ -475,9 +488,13 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 		/* call the transaction pre modify plugins just after creating the transaction */
 		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN))) {
-			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN plugin "
+			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN plugin "
 						   "returned error code %d\n", retval );
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+			if (!opreturn) {
+				slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
+			}
 			goto error_return;
 		}
 
@@ -601,9 +618,17 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	
 	/* call the transaction post modify plugins just before the commit */
 	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
-		LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
+		LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
 					   "returned error code %d\n", retval );
-		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		if (!ldap_result_code) {
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		}
+		if (!opreturn) {
+			slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+		}
+		if (!opreturn) {
+			slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
+		}
 		goto error_return;
 	}
 
@@ -650,6 +675,35 @@ error_return:
 	    rc= return_on_disk_full(li);
 	} else {
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
+			/* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
+			int val = 0;
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
+			if (!val) {
+				if (!ldap_result_code) {
+					ldap_result_code = LDAP_OPERATIONS_ERROR;
+				}
+				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			}
+			slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &val );
+			if (!val) {
+				opreturn = -1;
+				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+			}
+			/* call the transaction post modify plugins just before the abort */
+			/* plugins called before abort should check for the OPRETURN or RESULT_CODE
+			   and skip processing if they don't want do anything - some plugins that
+			   keep track of a counter (usn, dna) may want to "rollback" the counter
+			   in this case */
+			if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
+				LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
+							   "returned error code %d\n", retval );
+				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+				if (!opreturn) {
+					slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
+				}
+			}
+
 			/* It is safer not to abort when the transaction is not started. */
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 			/* txn is no longer valid - reset the txn pointer to the parent */

@@ -120,6 +120,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     CSN *opcsn = NULL;
     const char *newdn = NULL;
     char *newrdn = NULL;
+    int opreturn = 0;
 
     /* sdn & parentsdn need to be initialized before "goto *_return" */
     slapi_sdn_init(&dn_newdn);
@@ -318,7 +319,15 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
              * Plugin indicated some kind of failure,
              * or that this Operation became a No-Op.
              */
-            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+            if (!ldap_result_code) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+            }
+            if (!opreturn) {
+                slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+            }
+            if (!opreturn) {
+                slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc );
+            }
             goto error_return;
         }
         /*
@@ -806,9 +815,17 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 
         /* call the transaction pre modrdn plugins just after creating the transaction */
         if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN))) {
-            LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN plugin "
+            LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN plugin "
                            "returned error code %d\n", retval );
-            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+            if (!ldap_result_code) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+            }
+            if (!opreturn) {
+                slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+            }
+            if (!opreturn) {
+                slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval );
+            }
             goto error_return;
         }
 
@@ -1017,9 +1034,23 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
     /* call the transaction post modrdn plugins just before the commit */
     if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
-        LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
+        LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
                        "returned error code %d\n", retval );
-        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+        if (!ldap_result_code) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+        }
+        if (!ldap_result_code) {
+            LDAPDebug0Args( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
+                            "returned error but did not set SLAPI_RESULT_CODE\n" );
+            ldap_result_code = LDAP_OPERATIONS_ERROR;
+            slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+        }
+        if (!opreturn) {
+            slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+        }
+        if (!opreturn) {
+            slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval );
+        }
         goto error_return;
     }
 
@@ -1157,6 +1188,35 @@ error_return:
         /* It is safer not to abort when the transaction is not started. */
         if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn))
         {
+            /* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
+            int val = 0;
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
+            if (!val) {
+                if (!ldap_result_code) {
+                    ldap_result_code = LDAP_OPERATIONS_ERROR;
+                }
+                slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+            }
+            slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &val );
+            if (!val) {
+                opreturn = -1;
+                slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+            }
+            /* call the transaction post modrdn plugins just before the commit */
+            if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
+                LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
+                               "returned error code %d\n", retval );
+                if (!ldap_result_code) {
+                    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                }
+                if (!opreturn) {
+                    slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+                }
+                if (!opreturn) {
+                    slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval );
+                }
+            }
+
             dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
             /* txn is no longer valid - reset the txn pointer to the parent */
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);

@@ -233,11 +233,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 			addr.udn = NULL;
 			addr.uniqueid = NULL;
 			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_DN_ENTRY, !is_replicated_operation);
-            if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
-               ldap_result_code==LDAP_INVALID_DN_SYNTAX)
-            {
-                goto error_return;
-            }
+			if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+			   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+			{
+			    goto error_return;
+			}
 		}
 		/* if we can find the parent by dn or uniqueid, and the operation has requested the parent
 		   then get it */
@@ -257,11 +257,25 @@ ldbm_back_add( Slapi_PBlock *pb )
 		rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN);
 		if(rc==-1)
 		{
+			int opreturn = 0;
 			/* 
 			 * Plugin indicated some kind of failure,
 			 * or that this Operation became a No-Op.
 			 */
-			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			if (!ldap_result_code) {
+				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			}
+			if (!ldap_result_code) {
+				LDAPDebug0Args(LDAP_DEBUG_ANY,
+					       "ldbm_back_add: SLAPI_PLUGIN_BE_PRE_ADD_FN returned error but did not set SLAPI_RESULT_CODE\n");
+				ldap_result_code = LDAP_OPERATIONS_ERROR;
+			}
+			slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+			if (!opreturn) {
+				/* make sure opreturn is set for the postop plugins */
+				slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc);
+			}
+
 			goto error_return;
 		}
 		/*
@@ -715,9 +729,22 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 		/* call the transaction pre add plugins just after creating the transaction */
 		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN))) {
-			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin "
-						   "returned error code %d\n", retval );
-			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			int opreturn = 0;
+			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin "
+				       "returned error code %d\n", retval );
+			if (!ldap_result_code) {
+				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			}
+			if (!ldap_result_code) {
+				LDAPDebug0Args( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin "
+						"returned error but did not setSLAPI_RESULT_CODE \n" );
+				ldap_result_code = LDAP_OPERATIONS_ERROR;
+				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			}
+			slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+			if (!opreturn) {
+				slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
+			}
 			goto error_return;
 		}
 
@@ -939,9 +966,22 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 	/* call the transaction post add plugins just before the commit */
 	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN))) {
-		LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_ADD_FN plugin "
-					   "returned error code %d\n", retval );
-		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		int opreturn = 0;
+		LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_ADD_FN plugin "
+			       "returned error code %d\n", retval );
+		if (!ldap_result_code) {
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		}
+		if (!ldap_result_code) {
+			LDAPDebug0Args( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_ADD_FN plugin "
+					"returned error but did not set SLAPI_RESULT_CODE\n" );
+			ldap_result_code = LDAP_OPERATIONS_ERROR;
+			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		}
+		slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+		if (!opreturn) {
+			slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
+		}
 		goto error_return;
 	}
 
@@ -993,6 +1033,35 @@ diskfull_return:
 	} else {
 		/* It is safer not to abort when the transaction is not started. */
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
+			/* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
+			int val = 0;
+			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
+			if (!val) {
+				if (!ldap_result_code) {
+					ldap_result_code = LDAP_OPERATIONS_ERROR;
+				}
+				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			}
+			slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &val );
+			if (!val) {
+				val = -1;
+				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &val );
+			}
+			/* call the transaction post add plugins just before the abort */
+			if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN))) {
+				int opreturn = 0;
+				LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_ADD_FN plugin "
+					       "returned error code %d\n", retval );
+				if (!ldap_result_code) {
+					slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				}
+				slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+				if (!opreturn) {
+					opreturn = -1;
+					slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+				}
+			}
+
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 			/* txn is no longer valid - reset the txn pointer to the parent */
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
@@ -1002,7 +1071,7 @@ diskfull_return:
 	
 common_return:
     if (addingentry_in_cache && addingentry)
-    {
+	{
         if (entryrdn_get_switch()) { /* subtree-rename: on */
             /* since adding the entry to the entry cache was successful,
              * let's add the dn to dncache, if not yet done. */

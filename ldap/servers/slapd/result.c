@@ -297,6 +297,10 @@ send_ldap_result_ext(
 	
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
+	if (operation->o_status == SLAPI_OP_STATUS_RESULT_SENT) {
+		return; /* result already sent */
+	}
+
 	if ( ber != NULL ) {
 	    flush_ber_element = 0;
 	}

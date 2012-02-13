@@ -1778,139 +1778,216 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     Slapi_Entry *ecc= NULL;
     int returncode= LDAP_SUCCESS;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
-	Slapi_DN *sdn = NULL;
-	int dont_write_file = 0; /* default */
+    Slapi_DN *sdn = NULL;
+    int dont_write_file = 0; /* default */
+    int rc = SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
+    int retval = -1;
+    int need_be_postop = 0;
 
-	PR_ASSERT(pb);
+    PR_ASSERT(pb);
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
         /* slapi_pblock_get( pb, SLAPI_MODIFY_TARGET, &dn ) < 0 || */
         slapi_pblock_get( pb, SLAPI_MODIFY_TARGET_SDN, &sdn ) < 0 ||
-        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods ) < 0 || (NULL == pdse))
-    {
-        slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-        return( -1 );
+        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods ) < 0 || (NULL == pdse)) {
+        returncode = LDAP_OPERATIONS_ERROR;
+        goto done;
     }
 	
-	slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
-	if ( !dont_write_file && dse_check_for_readonly_error(pb,pdse)) {
-        return( -1 );
+    slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
+    if ( !dont_write_file && dse_check_for_readonly_error(pb,pdse)) {
+        /* already returned result */
+        return retval;
     }
 
     /* Find the entry we are about to modify. */
     ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
-    if ( ec == NULL )
-    {
-        slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-        return dse_modify_return( -1, ec, ecc );
+    if ( ec == NULL ) {
+        returncode = LDAP_NO_SUCH_OBJECT;
+        goto done;
     }
 
     /* Check acl */
     err = plugin_call_acl_mods_access ( pb, ec, mods, &errbuf );
-    if ( err != LDAP_SUCCESS )
-    {
-        slapi_send_ldap_result( pb, err, NULL, errbuf, 0, NULL );
-        if (errbuf)  slapi_ch_free ((void**)&errbuf);
-        return dse_modify_return( -1, ec, ecc );
+    if ( err != LDAP_SUCCESS ) {
+        returncode = err;
+        if (errbuf) {
+            PL_strncpyz(returntext, errbuf, sizeof(returntext));
+            slapi_ch_free_string(&errbuf);
+        }
+        goto done;
     }
 
-	/* Save away a copy of the entry, before modifications */
-	slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( ec )); /* JCM - When does this get free'd? */
-								/* richm - it is freed in modify.c */
+    /* Save away a copy of the entry, before modifications */
+    slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( ec )); /* JCM - When does this get free'd? */
+    /* richm - it is freed in modify.c */
 
     /* Modify a copy of the entry*/
     ecc = slapi_entry_dup( ec );
-	err = entry_apply_mods( ecc, mods );
+    err = entry_apply_mods( ecc, mods );
 
-	/* XXXmcs: should we expand objectclass values here?? */
+    /* XXXmcs: should we expand objectclass values here?? */
+    /* give the dse callbacks the first crack at the modify */
+    rc = dse_call_callback(pdse, pb, SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, ec, ecc, &returncode, returntext);
+    if (SLAPI_DSE_CALLBACK_OK == rc) {
+        /* next, give the be plugins a crack at it */
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
+        slapi_pblock_set(pb, SLAPI_MODIFY_EXISTING_ENTRY, ecc);
+        rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
+        need_be_postop = 1; /* if the be preops were called, have to call the be postops too */
+        if (!returncode) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+        }
+        if (!rc && !returncode) {
+            /* finally, give the betxn plugins a crack at it */
+            rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN);
+            if (!returncode) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+            }
+            if (rc || returncode) {
+                LDAPDebug( SLAPI_DSE_TRACELEVEL,
+                           "dse_modify: SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN failed - rc %d LDAP error %d:%s\n",
+                           rc, returncode, ldap_err2string(returncode));
+            }
+        } else {
+            LDAPDebug( SLAPI_DSE_TRACELEVEL,
+                       "dse_modify: SLAPI_PLUGIN_BE_PRE_MODIFY_FN failed - rc %d LDAP error %d:%s\n",
+                       rc, returncode, ldap_err2string(returncode));
+        }
+        if (rc || returncode) {
+            char *ldap_result_message = NULL;
+            rc = SLAPI_DSE_CALLBACK_ERROR;
+            if (!returncode) {
+                LDAPDebug0Args( SLAPI_DSE_TRACELEVEL,
+                                "dse_modify: PRE_MODIFY plugin returned non-zero but did not set an LDAP error\n");
+                returncode = LDAP_OPERATIONS_ERROR;
+            }
+            if (!returntext[0]) {
+                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                if (ldap_result_message && ldap_result_message[0]) {
+                    PL_strncpyz(returntext, ldap_result_message, sizeof(returntext));
+                }
+            }
+        } else {
+            rc = SLAPI_DSE_CALLBACK_OK;
+        }
+    }
 
-    switch(dse_call_callback(pdse, pb, SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, ec, ecc, &returncode, returntext))
-    {
+    switch(rc) {
     case SLAPI_DSE_CALLBACK_ERROR:
-        {
         /* Error occured in the callback -- return error code from callback */
-        slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
-		return dse_modify_return( -1, ec, ecc );
-        }
-
-    case SLAPI_DSE_CALLBACK_DO_NOT_APPLY:
-        {
-        /* Callback says don't apply the changes -- return Success */
-		slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
-		return dse_modify_return( 0, ec, ecc );
-        }
-
-    case SLAPI_DSE_CALLBACK_OK:
-        {
-		/* The callback may alter the mods in the pblock.  This happens
-		   for example in the schema code.  Since the schema attributes
-		   are managed exclusively by the schema code, we should not
-		   apply those mods.  However, for reasons unknown to me, we
-		   must in the general case call entry_apply_mods before calling
-		   the modify callback above.  In the case of schema, the schema
-		   code will remove the schema attributes from the mods.  So, we
-		   reapply the mods to the entry for the attributes we manage in
-		   the dse code (e.g. aci)
-		*/
-		int reapply_mods = 0; /* default is to not reapply entry_apply_mods */
-		slapi_pblock_get(pb, SLAPI_DSE_REAPPLY_MODS, &reapply_mods);
-        /* Callback says apply the changes */
-        if ( reapply_mods )
-        {
-			LDAPMod **modsagain = NULL; /*Used to apply the modifications*/
-			slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &modsagain );
-			if (NULL != modsagain)
-			{
-				/* the dse modify callback must have modified ecc back to it's
-				   original state, before the earlier apply_mods, but without the
-				   attributes it did not want us to apply mods to */
-				err = entry_apply_mods( ecc, modsagain );
-			}
-        }
-
-		if (err != 0)
-		{
-			/* entry_apply_mods() failed above, so return an error now */
-            slapi_send_ldap_result( pb, err, NULL, NULL, 0, NULL );
-            return dse_modify_return( -1, ec, ecc );
-		}
+        goto done;
         break;
+    case SLAPI_DSE_CALLBACK_DO_NOT_APPLY:
+        /* Callback says don't apply the changes -- return Success */
+        returncode = LDAP_SUCCESS;
+        returntext[0] = '\0';
+        retval = 0;
+        goto done;
+        break;
+    case SLAPI_DSE_CALLBACK_OK: {
+        /* The callback may alter the mods in the pblock.  This happens
+           for example in the schema code.  Since the schema attributes
+           are managed exclusively by the schema code, we should not
+           apply those mods.  However, for reasons unknown to me, we
+           must in the general case call entry_apply_mods before calling
+           the modify callback above.  In the case of schema, the schema
+           code will remove the schema attributes from the mods.  So, we
+           reapply the mods to the entry for the attributes we manage in
+           the dse code (e.g. aci)
+        */
+        int reapply_mods = 0; /* default is to not reapply entry_apply_mods */
+        slapi_pblock_get(pb, SLAPI_DSE_REAPPLY_MODS, &reapply_mods);
+        /* Callback says apply the changes */
+        if ( reapply_mods ) {
+            LDAPMod **modsagain = NULL; /*Used to apply the modifications*/
+            slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &modsagain );
+            if (NULL != modsagain) {
+                /* the dse modify callback must have modified ecc back to it's
+                   original state, before the earlier apply_mods, but without the
+                   attributes it did not want us to apply mods to */
+                err = entry_apply_mods( ecc, modsagain );
+            }
         }
+
+        if (err != 0) {
+            returncode = err;
+            returntext[0] = '\0';
+            retval = -1;
+            goto done;
+        }
+        break;
+    }
     }
 
     /* We're applying the mods... check that the entry still obeys the schema */
-    if ( slapi_entry_schema_check( pb, ecc ) != 0 )
-    {
-	char *errtext;
-
-	slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
-        slapi_send_ldap_result( pb, LDAP_OBJECT_CLASS_VIOLATION, NULL, errtext, 0, NULL );
-        return dse_modify_return( -1, ec, ecc );
-    }
-
-    /* Check if the attribute values in the mods obey the syntaxes */
-    if ( slapi_mods_syntax_check( pb, mods, 0 ) != 0 )
-    {
+    if ( slapi_entry_schema_check( pb, ecc ) != 0 ) {
         char *errtext;
 
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
-        slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL );
-        return dse_modify_return( -1, ec, ecc );
+        if (errtext) {
+            PL_strncpyz(returntext, errtext, sizeof(returntext));
+        }
+        returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        retval = -1;
+        goto done;
+    }
+
+    /* Check if the attribute values in the mods obey the syntaxes */
+    if ( slapi_mods_syntax_check( pb, mods, 0 ) != 0 ) {
+        char *errtext;
+
+        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
+        if (errtext) {
+            PL_strncpyz(returntext, errtext, sizeof(returntext));
+        }
+        returncode = LDAP_INVALID_SYNTAX;
+        retval = -1;
+        goto done;
     }
 
     /* Change the entry itself both on disk and in the AVL tree */
     /* dse_replace_entry free's the existing entry. */
-    if (dse_replace_entry( pdse, ecc, !dont_write_file, DSE_USE_LOCK )!=0 )
-    {
-        slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-        return dse_modify_return( -1, ec, ecc );
+    if (dse_replace_entry( pdse, ecc, !dont_write_file, DSE_USE_LOCK )!=0 ) {
+        returncode = LDAP_OPERATIONS_ERROR;
+        retval = -1;
+        goto done;
     }
+    retval = 0; /* so far, so good */
     slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup(ecc) ); /* JCM - When does this get free'd? */
-								/* richm - it is freed in modify.c */
-    dse_call_callback(pdse, pb, SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, ec, ecc, &returncode, returntext);
+    /* richm - it is freed in modify.c */
+	/* give the dse callbacks the first crack at the modify */
+    rc = dse_call_callback(pdse, pb, SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, ec, ecc, &returncode, returntext);
+ done:
+    if (rc != SLAPI_DSE_CALLBACK_DO_NOT_APPLY) {
+        /* make sure OPRETURN is set */
+        slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &err);
+        if ((retval || returncode) && !err) {
+            slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, retval ? &retval : &returncode);
+        }
+        /* next, give the betxn plugins a crack at it */
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
+        slapi_pblock_set(pb, SLAPI_MODIFY_EXISTING_ENTRY, ecc);
+        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
+        if (!returncode) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+        }
+        if (returncode && !returntext[0]) {
+            char *ldap_result_message = NULL;
+            slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+            if (ldap_result_message && ldap_result_message[0]) {
+                PL_strncpyz(returntext, ldap_result_message, sizeof(returntext));
+            }
+        }
+        if (need_be_postop) {
+            plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN);
+            if (!returncode) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+            }
+        }
+    }
+    slapi_send_ldap_result( pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL );
 
-    slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
-
-    return dse_modify_return(0, ec, ecc);
+    return dse_modify_return(retval, ec, ecc);
 }
 
 static int 
@@ -1927,56 +2004,62 @@ dse_add_return( int rv, Slapi_Entry *e)
 int
 dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this function! */
 {
-    Slapi_Entry *e; /*The new entry to add*/
-	Slapi_Entry *e_copy = NULL; /* copy of added entry */
+    Slapi_Entry *e = NULL; /*The new entry to add*/
+    Slapi_Entry *e_copy = NULL; /* copy of added entry */
     char *errbuf = NULL;
     int rc = LDAP_SUCCESS;
-	int error = -1;
-	int dont_write_file = 0;	/* default */
+    int error = -1;
+    int dont_write_file = 0;	/* default */
     struct dse* pdse;
     int returncode= LDAP_SUCCESS;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
-	Slapi_DN *sdn = NULL;
-	Slapi_DN parent;
+    Slapi_DN *sdn = NULL;
+    Slapi_DN parent;
+    int need_be_postop = 0;
 
     /*
      * Get the database, the dn and the entry to add
      */
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
         slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn ) < 0 ||
-        slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e ) < 0 || (NULL == pdse))
-    {
-        slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-        return error;
+        slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e ) < 0 || (NULL == pdse)) {
+        rc = LDAP_OPERATIONS_ERROR;
+        goto done;
     }
 
-	slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
-	if ( !dont_write_file && dse_check_for_readonly_error(pb,pdse)) {
-        return( error );
+    slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
+    if ( !dont_write_file && dse_check_for_readonly_error(pb,pdse)) {
+        return( error ); /* result already sent */
     }
 
     /*
      * Check to make sure the entry passes the schema check
      */
-    if ( slapi_entry_schema_check( pb, e ) != 0 )
-    {
-	char *errtext;
+    if ( slapi_entry_schema_check( pb, e ) != 0 ) {
+        char *errtext;
         LDAPDebug( SLAPI_DSE_TRACELEVEL,
-				"dse_add: entry failed schema check\n", 0, 0, 0 );
-	slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
-        slapi_send_ldap_result( pb, LDAP_OBJECT_CLASS_VIOLATION, NULL, errtext, 0, NULL );
-        return error;
+                   "dse_add: entry failed schema check\n", 0, 0, 0 );
+        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
+        if (errtext && errtext[0]) {
+            PL_strncpyz(returntext, errtext, sizeof(returntext));
+        }
+        rc = LDAP_OBJECT_CLASS_VIOLATION;
+        e = NULL; /* caller will free upon error */
+        goto done;
     }
 
     /* Check if the attribute values in the entry obey the syntaxes */
-    if ( slapi_entry_syntax_check( pb, e, 0 ) != 0 )
-    {
+    if ( slapi_entry_syntax_check( pb, e, 0 ) != 0 ) {
         char *errtext;
         LDAPDebug( SLAPI_DSE_TRACELEVEL,
-                                "dse_add: entry failed syntax check\n", 0, 0, 0 );
+                   "dse_add: entry failed syntax check\n", 0, 0, 0 );
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
-        slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL );
-        return error;
+        if (errtext && errtext[0]) {
+            PL_strncpyz(returntext, errtext, sizeof(returntext));
+        }
+        rc = LDAP_INVALID_SYNTAX;
+        e = NULL; /* caller will free upon error */
+        goto done;
     }
 
     /*
@@ -1984,15 +2067,15 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
      */
     {
         Slapi_Entry *existingentry= dse_get_entry_copy( pdse, sdn, DSE_USE_LOCK );
-        if(existingentry!=NULL)
-        {
+        if(existingentry!=NULL) {
             /*
              * If we've reached this code, there is an entry
              * whose dn matches dn, so tell the user and return
              */
-            slapi_send_ldap_result( pb, LDAP_ALREADY_EXISTS, NULL, NULL, 0, NULL );
-			slapi_entry_free(existingentry);
-			return dse_add_return(error, NULL);
+            slapi_entry_free(existingentry);
+            rc = LDAP_ALREADY_EXISTS;
+            e = NULL; /* caller will free upon error */
+            goto done;
         }
     }
 
@@ -2001,83 +2084,135 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
      * If the parent does not exist, only allow the "root" user to
      * add the entry.
      */
-	slapi_sdn_init(&parent);
-	slapi_sdn_get_parent(sdn, &parent);
-    if ( !slapi_sdn_isempty(&parent) )
-    {
-	    Slapi_Entry *parententry= NULL;
-	    parententry= dse_get_entry_copy( pdse, &parent, DSE_USE_LOCK );
-        if( parententry==NULL )
-        {
-            slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
+    slapi_sdn_init(&parent);
+    slapi_sdn_get_parent(sdn, &parent);
+    if ( !slapi_sdn_isempty(&parent) ) {
+        Slapi_Entry *parententry= NULL;
+        parententry= dse_get_entry_copy( pdse, &parent, DSE_USE_LOCK );
+        if( parententry==NULL ) {
+            rc = LDAP_NO_SUCH_OBJECT;
             LDAPDebug( SLAPI_DSE_TRACELEVEL, "dse_add: parent does not exist\n", 0, 0, 0 );
-			slapi_sdn_done(&parent);
-			return dse_add_return(error, NULL);
+            slapi_sdn_done(&parent);
+            e = NULL; /* caller will free upon error */
+            goto done;
         }
         rc= plugin_call_acl_plugin ( pb, parententry, NULL, NULL, SLAPI_ACL_ADD, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
-		slapi_entry_free(parententry);
-        if ( rc!=LDAP_SUCCESS )
-        {
+        slapi_entry_free(parententry);
+        if ( rc!=LDAP_SUCCESS ) {
             LDAPDebug( SLAPI_DSE_TRACELEVEL, "dse_add: no access to parent\n", 0, 0, 0 );
-            slapi_send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
-            slapi_ch_free((void**)&errbuf);
-			slapi_sdn_done(&parent);
-			return dse_add_return(rc, NULL);
+            if (errbuf && errbuf[0]) {
+                PL_strncpyz(returntext, errbuf, sizeof(returntext));
+            }
+            slapi_ch_free_string(&errbuf);
+            slapi_sdn_done(&parent);
+            e = NULL; /* caller will free upon error */
+            goto done;
         }
-    }
-    else
-    {
+    } else {
         /* no parent */
         int isroot;
         slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
-        if ( !isroot )
-        {
+        if ( !isroot ) {
             LDAPDebug( SLAPI_DSE_TRACELEVEL, "dse_add: no parent and not root\n", 0, 0, 0 );
-            slapi_send_ldap_result( pb, LDAP_INSUFFICIENT_ACCESS, NULL, NULL, 0, NULL );
-			slapi_sdn_done(&parent);
-			return dse_add_return(error, NULL);
+            rc = LDAP_INSUFFICIENT_ACCESS;
+            slapi_sdn_done(&parent);
+            e = NULL; /* caller will free upon error */
+            goto done;
         }
     }
-	slapi_sdn_done(&parent);
+    slapi_sdn_done(&parent);
 
     /*
      * Before we add the entry, find out if the syntax of the aci
      * aci attribute values are correct or not. We don't want to add
      * the entry if the syntax is incorrect.
      */
-    if ( plugin_call_acl_verify_syntax (pb, e, &errbuf) != 0 )
-    {
-        slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, errbuf, 0, NULL );
-        slapi_ch_free((void**)&errbuf);
-		return dse_add_return(error, NULL);
+    if ( plugin_call_acl_verify_syntax (pb, e, &errbuf) != 0 ) {
+        if (errbuf && errbuf[0]) {
+            PL_strncpyz(returntext, errbuf, sizeof(returntext));
+            slapi_ch_free_string(&errbuf);
+        }
+        rc = LDAP_INVALID_SYNTAX;
+        e = NULL; /* caller will free upon error */
+        goto done;
     }
 
     if(dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, e,
-			NULL, &returncode, returntext)!=SLAPI_DSE_CALLBACK_OK)
-    {
-        slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
-		return dse_add_return(error, NULL);
+                         NULL, &returncode, returntext)!=SLAPI_DSE_CALLBACK_OK) {
+        if (!returncode) {
+            LDAPDebug( LDAP_DEBUG_ANY, "dse_add: DSE PREOP callback returned error but did not set returncode\n", 0, 0, 0 );
+            returncode = LDAP_OPERATIONS_ERROR;
+        }
+        rc = returncode;
+        e = NULL; /* caller will free upon error */
+        goto done;
+    }
+    /* next, give the be plugins a crack at it */
+    slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
+    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN);
+    need_be_postop = 1; /* have to call be postops now */
+    if (!returncode) {
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+    }
+    if (!returncode) {
+        /* finally, give the betxn plugins a crack at it */
+        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN);
+        if (!returncode) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+        }
+    }
+    if (returncode) {
+        if (!returntext[0]) {
+            char *ldap_result_message = NULL;
+            slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+            if (ldap_result_message && ldap_result_message[0]) {
+                PL_strncpyz(returntext, ldap_result_message, sizeof(returntext));
+            }
+        }
+        rc = returncode;
+        e = NULL; /* caller will free upon error */
+        goto done;
     }
 
-	/* make copy for postop fns because add_entry_pb consumes the given entry */
-	e_copy = slapi_entry_dup(e);
-    if ( dse_add_entry_pb(pdse, e_copy, pb) != 0)
-    {
-        slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-		return dse_add_return(error, NULL);
+    /* make copy for postop fns because add_entry_pb consumes the given entry */
+    e_copy = slapi_entry_dup(e);
+    if ( dse_add_entry_pb(pdse, e_copy, pb) != 0) {
+        rc = LDAP_OPERATIONS_ERROR;
+        e = NULL; /* caller will free upon error */
+        goto done;
     }
-	/* The postop must be called after the write lock is released. */
+    /* The postop must be called after the write lock is released. */
     dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, e, NULL, &returncode, returntext);
+ done:
+    if (e) {
+        slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup( e ));
+    }
 
-    /* We have been successful. Tell the user */  
-    slapi_send_ldap_result( pb, returncode, NULL, NULL, 0, NULL );
+    /* make sure OPRETURN and RESULT_CODE are set */
+    slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &error);
+    if (rc || returncode) {
+        if (!error) {
+            slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, rc ? &rc : &returncode);
+        }
+        if (!returncode) {
+            returncode = rc;
+        }
+    }
+    /* next, give the be txn plugins a crack at it */
+    slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
+    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN);
+    if (need_be_postop) {
+        /* finally, give the be plugins a crack at it */
+        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_ADD_FN);
+        if (!returncode) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+        }
+    }
 
-	slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup( e ));
-
-	/* entry has been freed, so make sure no one tries to use it later */
-	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
-
-	return dse_add_return(rc, e);
+    /* entry has been freed, so make sure no one tries to use it later */
+    slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+    slapi_send_ldap_result(pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL );
+    return dse_add_return(rc, e);
 }
 
 /*
@@ -2105,70 +2240,115 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     char *attrs[2] =  { NULL, NULL };
     Slapi_DN *sdn = NULL;
     Slapi_Entry *ec = NULL; /* copy of entry to delete */
+    Slapi_Entry *orig_entry = NULL;
+    int need_be_postop = 0;
 
     /*
      * Get the database and the dn
      */
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
         slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn ) < 0 ||
-        (pdse == NULL))
-    {
-        slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
-        return rc;
+        (pdse == NULL)) {
+        returncode = LDAP_OPERATIONS_ERROR;
+        goto done;
     }
 
     slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
     if ( !dont_write_file && dse_check_for_readonly_error(pb,pdse)) {
-        return( rc );
+        return( rc ); /* result already sent */
     }
 
     ec= dse_get_entry_copy( pdse, sdn, DSE_USE_LOCK );
-    if (ec == NULL)
-    {
-        slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-        return dse_delete_return( rc, ec );
+    if (ec == NULL) {
+        returncode = LDAP_NO_SUCH_OBJECT;
+        goto done;
     }
 
     /*
      * Check if this node has any children.
      */
-    if(dse_numsubordinates(ec)>0)
-    {
-        slapi_send_ldap_result( pb, LDAP_NOT_ALLOWED_ON_NONLEAF, NULL, NULL, 0, NULL );
-        return dse_delete_return( rc, ec );
+    if(dse_numsubordinates(ec)>0) {
+        returncode = LDAP_NOT_ALLOWED_ON_NONLEAF;
+        goto done;
     }
 
     /*
      * Check the access
      */
-	attrs[0] = entry_str;
-	attrs[1] = NULL;
+    attrs[0] = entry_str;
+    attrs[1] = NULL;
     returncode= plugin_call_acl_plugin ( pb, ec, attrs, NULL, SLAPI_ACL_DELETE, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
-    if ( returncode!=LDAP_SUCCESS)
-    {
-        slapi_send_ldap_result( pb, returncode, NULL, NULL, 0, NULL );
-        slapi_ch_free ( (void**)&errbuf );
-        return dse_delete_return( rc, ec );
+    if ( returncode!=LDAP_SUCCESS) {
+        if (errbuf && errbuf[0]) {
+            PL_strncpyz(returntext, errbuf, sizeof(returntext));
+        }
+        slapi_ch_free_string(&errbuf);
+        goto done;
     }
 
-    if(dse_call_callback(pdse, pb, SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, ec, NULL, &returncode,returntext)==SLAPI_DSE_CALLBACK_OK)
-    {
-        if(dse_delete_entry(pdse, pb, ec)==0)
-        {
-            returncode= LDAP_OPERATIONS_ERROR;
+    if(dse_call_callback(pdse, pb, SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, ec, NULL, &returncode,returntext)==SLAPI_DSE_CALLBACK_OK) {
+        slapi_pblock_get(pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry);
+        slapi_pblock_set(pb, SLAPI_DELETE_BEPREOP_ENTRY, ec);
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
+        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
+        need_be_postop = 1;
+        if (!returncode) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
         }
-    }
-    else
-    {
-        slapi_send_ldap_result( pb, returncode, NULL, NULL, 0, NULL );
-        return dse_delete_return( rc, ec );
+        if (!returncode) {
+            plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
+            if (!returncode) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+            }
+            if (!returncode) {
+                if(dse_delete_entry(pdse, pb, ec)==0) {
+                    returncode= LDAP_OPERATIONS_ERROR;
+                }
+            }
+        }
+        slapi_pblock_set(pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry);
+    } else {
+        goto done;
     }
 
     dse_call_callback(pdse, pb, SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, ec, NULL, &returncode, returntext);
-
+ done:
+    slapi_pblock_get(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, &orig_entry);
+    slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, ec);
+    /* make sure OPRETURN and RESULT_CODE are set */
+    slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &rc);
+    if (returncode || rc) {
+        if (!rc) {
+            slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &returncode);
+        }
+        if (!returncode) {
+            returncode = rc;
+        }
+    }
+    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN);
+    if (!returncode) {
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+    }
+    if (need_be_postop) {
+        /* finally, give the be plugins a crack at it */
+        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
+        if (!returncode) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+        }
+    }
+    if (returncode && !returntext[0]) {
+        char *ldap_result_message = NULL;
+        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+        if (ldap_result_message && ldap_result_message[0]) {
+            PL_strncpyz(returntext, ldap_result_message, sizeof(returntext));
+        }
+    }
+    slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry);
     slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
-	slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( ec ));
-    return dse_delete_return(0, ec);
+    if (ec) {
+        slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( ec ));
+    }
+    return dse_delete_return(returncode, ec);
 }
 
 struct dse_callback *
