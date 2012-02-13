@@ -10,11 +10,11 @@ vendor="389 Project"
 # PACKAGE_VERSION is constructed from these
 VERSION_MAJOR=1
 VERSION_MINOR=2
-VERSION_MAINT=10
+VERSION_MAINT=11
 # if this is a PRERELEASE, set VERSION_PREREL
 # otherwise, comment it out
 # be sure to include the dot prefix in the prerel
-VERSION_PREREL=.rc2
+VERSION_PREREL=.a1
 # NOTES on VERSION_PREREL
 # use aN for an alpha release e.g. a1, a2, etc.
 # use rcN for a release candidate e.g. rc1, rc2, etc.
