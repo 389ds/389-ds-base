@@ -2314,9 +2314,10 @@ _entryrdn_insert_key(backend *be,
                         goto bail;
                     } else {
                         int tmpidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
-                                                    &childnrdn, FLAG_ALL_NRDNS);
-                        if (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
-                                             sizeof(SLAPI_ATTR_UNIQUEID) - 1)) {
+                                                            &childnrdn, FLAG_ALL_NRDNS);
+                        if (childnrdn &&
+                            (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
+                                              sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
                             rdnidx = tmpidx;
                         }
                     }
@@ -2824,9 +2825,10 @@ _entryrdn_index_read(backend *be,
                     goto bail;
                 } else {
                     int tmpidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
-                                                    &childnrdn, FLAG_ALL_NRDNS);
-                    if (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
-                                             sizeof(SLAPI_ATTR_UNIQUEID) - 1)) {
+                                                        &childnrdn, FLAG_ALL_NRDNS);
+                    if (childnrdn &&
+                        (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
+                                          sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
                         rdnidx = tmpidx;
                     }
                 }
