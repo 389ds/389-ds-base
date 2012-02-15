@@ -92,6 +92,7 @@ typedef struct _memberof_get_groups_data
         MemberOfConfig *config;
         Slapi_Value *memberdn_val;
         Slapi_ValueSet **groupvals;
+        Slapi_PBlock *pb;
         void *txn;
 } memberof_get_groups_data;
 
@@ -148,7 +149,7 @@ static int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 	Slapi_Value *memberdn, void *txn);
 static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
-static Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, char *memberdn, void *txn);
+static Slapi_ValueSet *memberof_get_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *memberdn, void *txn);
 static int memberof_get_groups_r(MemberOfConfig *config, char *memberdn,
 	memberof_get_groups_data *data, void *txn);
 static int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data);
@@ -169,7 +170,7 @@ static void memberof_task_destructor(Slapi_Task *task);
 static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
                                               const char *default_val);
 static void memberof_fixup_task_thread(void *arg);
-static int memberof_fix_memberof(MemberOfConfig *config, char *dn, char *filter_str, void *txn);
+static int memberof_fix_memberof(Slapi_PBlock *pb, MemberOfConfig *config, char *dn, char *filter_str, void *txn);
 static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
 
 
@@ -448,6 +449,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 
 typedef struct _memberof_del_dn_data
 {
+	Slapi_PBlock *pb;
 	char *dn;
 	char *type;
 	void *txn;
@@ -465,7 +467,7 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn, 
 	 * same grouping attribute. */
 	for (i = 0; config->groupattrs[i]; i++)
 	{
-		memberof_del_dn_data data = {dn, config->groupattrs[i], txn};
+		memberof_del_dn_data data = {pb, dn, config->groupattrs[i], txn};
 
 		groupattrs[0] = config->groupattrs[i];
 
@@ -482,7 +484,7 @@ int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
 	char *val[2];
 	Slapi_PBlock *mod_pb = 0;
 
-	mod_pb = slapi_pblock_new();
+	mod_pb = slapi_pblock_new_by_pb(((memberof_del_dn_data *)callback_data)->pb);
 
 	mods[0] = &mod;
 	mods[1] = 0;
@@ -521,7 +523,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	char **types, plugin_search_entry_callback callback, void *callback_data, void *txn)
 {
 	int rc = 0;
-	Slapi_PBlock *search_pb = slapi_pblock_new();
+	Slapi_PBlock *search_pb = slapi_pblock_new_by_pb(pb);
 	Slapi_Backend *be = 0;
 	Slapi_DN *sdn = 0;
 	Slapi_DN *base_sdn = 0;
@@ -693,6 +695,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 
 typedef struct _replace_dn_data
 {
+	Slapi_PBlock *pb;
 	char *pre_dn;
 	char *post_dn;
 	char *type;
@@ -714,7 +717,7 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	 * using the same grouping attribute. */
 	for (i = 0; config->groupattrs[i]; i++)
 	{
-		replace_dn_data data = {pre_dn, post_dn, config->groupattrs[i], txn};
+		replace_dn_data data = {pb, pre_dn, post_dn, config->groupattrs[i], txn};
 
 		groupattrs[0] = config->groupattrs[i];
 
@@ -734,7 +737,7 @@ int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
 	char *addval[2];
 	Slapi_PBlock *mod_pb = 0;
 
-	mod_pb = slapi_pblock_new();
+	mod_pb = slapi_pblock_new_by_pb(((replace_dn_data *)callback_data)->pb);
 
 	mods[0] = &delmod;
 	mods[1] = &addmod;
@@ -1091,6 +1094,7 @@ int memberof_modop_one_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op,
 }
 
 struct fix_memberof_callback_data {
+	Slapi_PBlock *pb;
 	MemberOfConfig *config;
 	void *txn;
 };
@@ -1309,11 +1313,11 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		if(LDAP_MOD_DELETE == mod_op || LDAP_MOD_ADD == mod_op)
 		{
 			/* find parent groups and replace our member attr */
-			struct fix_memberof_callback_data cb_data = {config, txn};
+			struct fix_memberof_callback_data cb_data = {pb, config, txn};
 			memberof_fix_memberof_callback(e, &cb_data);
 		} else {
 			/* single entry - do mod */
-			mod_pb = slapi_pblock_new();
+			mod_pb = slapi_pblock_new_by_pb(pb);
 
 			mods[0] = &mod;
 			if(LDAP_MOD_REPLACE == mod_op)
@@ -1641,11 +1645,11 @@ int memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
  * A Slapi_ValueSet* is returned.  It is up to the caller to
  * free it.
  */
-Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, char *memberdn, void *txn)
+Slapi_ValueSet *memberof_get_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *memberdn, void *txn)
 {
 	Slapi_Value *memberdn_val = slapi_value_new_string(memberdn);
 	Slapi_ValueSet *groupvals = slapi_valueset_new();
-	memberof_get_groups_data data = {config, memberdn_val, &groupvals, txn};
+	memberof_get_groups_data data = {config, memberdn_val, &groupvals, pb, txn};
 
 	memberof_get_groups_r(config, memberdn, &data, txn);
 
@@ -1658,7 +1662,7 @@ int memberof_get_groups_r(MemberOfConfig *config, char *memberdn, memberof_get_g
 {
 	/* Search for any grouping attributes that point to memberdn.
 	 * For each match, add it to the list, recurse and do same search */
-	return memberof_call_foreach_dn(NULL, memberdn, config->groupattrs,
+	return memberof_call_foreach_dn(data->pb, memberdn, config->groupattrs,
 		memberof_get_groups_callback, data, txn);
 }
 
@@ -2224,6 +2228,7 @@ typedef struct _task_data
 {
 	char *dn;
 	char *filter_str;
+	char *binddn;
 } task_data;
 
 void memberof_fixup_task_thread(void *arg)
@@ -2231,11 +2236,14 @@ void memberof_fixup_task_thread(void *arg)
 	MemberOfConfig configCopy = {0, 0, 0, 0};
 	Slapi_Task *task = (Slapi_Task *)arg;
 	task_data *td = NULL;
+	Slapi_PBlock *pb = slapi_pblock_new_by_pb(NULL);
 	int rc = 0;
 
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
 
+	/* construct our pblock for plugin bind tracking */
+	slapi_pblock_set(pb, SLAPI_REQUESTOR_DN, td->binddn);
 	slapi_task_begin(task, 1);
 	slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n", 
 								td->filter_str);
@@ -2252,7 +2260,7 @@ void memberof_fixup_task_thread(void *arg)
 	memberof_lock();
 
 	/* do real work */
-	rc = memberof_fix_memberof(&configCopy, td->dn, td->filter_str, NULL /* no txn? */);
+	rc = memberof_fix_memberof(pb, &configCopy, td->dn, td->filter_str, NULL /* no txn? */);
  
 	/* release the memberOf operation lock */
 	memberof_unlock();
@@ -2262,6 +2270,7 @@ void memberof_fixup_task_thread(void *arg)
 	slapi_task_log_notice(task, "Memberof task finished.");
 	slapi_task_log_status(task, "Memberof task finished.");
 	slapi_task_inc_progress(task);
+	slapi_pblock_destroy(pb);
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
@@ -2330,6 +2339,9 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	mytaskdata->dn = slapi_ch_strdup(dn);
 	mytaskdata->filter_str = slapi_ch_strdup(filter);
 
+	slapi_pblock_get(pb,SLAPI_REQUESTOR_DN, &dn);
+	mytaskdata->binddn = slapi_ch_strdup(dn);
+
 	/* allocate new task now */
 	task = slapi_new_task(slapi_entry_get_ndn(e));
 
@@ -2366,17 +2378,18 @@ memberof_task_destructor(Slapi_Task *task)
 		if (mydata) {
 			slapi_ch_free_string(&mydata->dn);
 			slapi_ch_free_string(&mydata->filter_str);
+			slapi_ch_free_string(&mydata->binddn);
 			/* Need to cast to avoid a compiler warning */
 			slapi_ch_free((void **)&mydata);
 		}
 	}
 }
 
-int memberof_fix_memberof(MemberOfConfig *config, char *dn, char *filter_str, void *txn)
+int memberof_fix_memberof(Slapi_PBlock *pb, MemberOfConfig *config, char *dn, char *filter_str, void *txn)
 {
 	int rc = 0;
-	struct fix_memberof_callback_data cb_data = {config, txn};
-	Slapi_PBlock *search_pb = slapi_pblock_new();
+	struct fix_memberof_callback_data cb_data = {pb, config, txn};
+	Slapi_PBlock *search_pb = slapi_pblock_new_by_pb(pb);
 
 	slapi_search_internal_set_pb(search_pb, dn,
 		LDAP_SCOPE_SUBTREE, filter_str, 0, 0,
@@ -2409,17 +2422,17 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	Slapi_DN *sdn = slapi_entry_get_sdn(e);
 	struct fix_memberof_callback_data *cb_data = (struct fix_memberof_callback_data *)callback_data;
 	MemberOfConfig *config = cb_data->config;
-	memberof_del_dn_data del_data = {0, config->memberof_attr, cb_data->txn};
+	memberof_del_dn_data del_data = {cb_data->pb, 0, config->memberof_attr, cb_data->txn};
 	Slapi_ValueSet *groups = 0;
 
 	/* get a list of all of the groups this user belongs to */
-	groups = memberof_get_groups(config, dn, cb_data->txn);
+	groups = memberof_get_groups(cb_data->pb, config, dn, cb_data->txn);
 
 	/* If we found some groups, replace the existing memberOf attribute
 	 * with the found values.  */
 	if (groups && slapi_valueset_count(groups))
 	{
-		Slapi_PBlock *mod_pb = slapi_pblock_new();
+		Slapi_PBlock *mod_pb = slapi_pblock_new_by_pb(cb_data->pb);
 		Slapi_Value *val = 0;
 		Slapi_Mod *smod;
 		LDAPMod **mods = (LDAPMod **) slapi_ch_malloc(2 * sizeof(LDAPMod *));

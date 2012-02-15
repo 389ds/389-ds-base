@@ -252,7 +252,7 @@ do_modrdn( Slapi_PBlock *pb )
 	}
 
 	LDAPDebug( LDAP_DEBUG_ARGS,
-			   "do_moddn: dn (%s) newrdn (%s) deloldrdn (%d)\n", dn, newrdn,
+			   "do_modrdn: dn (%s) newrdn (%s) deloldrdn (%d)\n", dn, newrdn,
 			   deloldrdn );
 
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
@@ -359,8 +359,14 @@ slapi_rename_internal_set_pb_ext(Slapi_PBlock *pb,
         return;
     }
 
-    op = internal_operation_new(SLAPI_OPERATION_MODRDN,operation_flags); 
-    slapi_pblock_set(pb, SLAPI_OPERATION, op); 
+    /* if we're tracking the plugin bind dn, then just set the type/flags */
+    if(pb->plugin_tracking){
+    	operation_set_flag(pb->pb_op, operation_flags);
+    	operation_set_type(pb->pb_op, SLAPI_OPERATION_MODRDN);
+    } else {
+        op = internal_operation_new(SLAPI_OPERATION_MODRDN,operation_flags);
+    	slapi_pblock_set(pb, SLAPI_OPERATION, op);
+    }
     slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, 
                      (void*)slapi_sdn_get_dn(olddn));
     slapi_pblock_set(pb, SLAPI_MODRDN_TARGET_SDN, (void*)olddn);

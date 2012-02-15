@@ -77,10 +77,10 @@ int referint_postop_del( Slapi_PBlock *pb );
 int referint_postop_modrdn( Slapi_PBlock *pb ); 
 int referint_postop_start( Slapi_PBlock *pb);
 int referint_postop_close( Slapi_PBlock *pb);
-int update_integrity(char **argv, Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior, int logChanges, void *txn);
+int update_integrity(Slapi_PBlock *pb, char **argv, Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior, int logChanges, void *txn);
 void referint_thread_func(void *arg);
 int  GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
-void writeintegritylog(char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior);
+void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior);
 int my_fgetc(PRFileDesc *stream);
 
 /* global thread control stuff */
@@ -215,10 +215,10 @@ referint_postop_del( Slapi_PBlock *pb )
 		}else if(delay == 0){
 		  /* no delay */
  		  /* call function to update references to entry */
-		  rc = update_integrity(argv, sdn, NULL, NULL, logChanges, txn);
+		  rc = update_integrity(pb, argv, sdn, NULL, NULL, logChanges, txn);
 		}else{
 		  /* write the entry to integrity log */
-		  writeintegritylog(argv[1], sdn, NULL, NULL);
+		  writeintegritylog(pb, argv[1], sdn, NULL, NULL);
 		  rc = 0;
 		}
 	} else {
@@ -300,11 +300,11 @@ referint_postop_modrdn( Slapi_PBlock *pb )
 	}else if(delay == 0){
 	  /* no delay */
 	  /* call function to update references to entry */
-	  rc = update_integrity(argv, sdn, newrdn,
+	  rc = update_integrity(pb, argv, sdn, newrdn,
 	                        newsuperior, logChanges, txn);
 	}else{
 	  /* write the entry to integrity log */
-	  writeintegritylog(argv[1], sdn, newrdn, newsuperior);
+	  writeintegritylog(pb, argv[1], sdn, newrdn, newsuperior);
 	  rc = 0;
 	}
 
@@ -674,12 +674,12 @@ bail:
 }
 
 int
-update_integrity(char **argv, Slapi_DN *origSDN,
+update_integrity(Slapi_PBlock *pb, char **argv, Slapi_DN *origSDN,
                  char *newrDN, Slapi_DN *newsuperior, 
                  int logChanges, void *txn)
 {
     Slapi_PBlock *search_result_pb = NULL;
-    Slapi_PBlock *mod_pb = slapi_pblock_new();
+    Slapi_PBlock *mod_pb = slapi_pblock_new_by_pb(pb);
     Slapi_Entry  **search_entries = NULL;
     int search_result;
     Slapi_DN *sdn = NULL;
@@ -912,8 +912,10 @@ referint_thread_func(void *arg)
 	Slapi_DN *sdn = NULL;
     char *tmprdn;
     Slapi_DN *tmpsuperior = NULL;
+    Slapi_DN *binddn = NULL;
     int logChanges=0;
 	char * iter = NULL;
+	Slapi_PBlock *pb = slapi_pblock_new_by_pb(NULL);
 
     if(plugin_argv == NULL){
       slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
@@ -972,6 +974,7 @@ referint_thread_func(void *arg)
 	while( GetNextLine(thisline, MAX_LINE, prfd) ){
 	    ptoken = ldap_utf8strtok_r(thisline, delimiter, &iter);
 		sdn = slapi_sdn_new_normdn_byref(ptoken);
+		slapi_pblock_init(pb);
 
 	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
 	    if(!strcasecmp(ptoken, "NULL")) {
@@ -986,8 +989,16 @@ referint_thread_func(void *arg)
 	    } else {
 	        tmpsuperior = slapi_sdn_new_normdn_byref(ptoken);
 	    }
+
+	    /* this should be the bind DN that performed the original delete */
+	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
+	    if (!strcasecmp(ptoken, "NULL")) {
+	        binddn = NULL;
+	    } else {
+	    	slapi_pblock_set(pb, SLAPI_REQUESTOR_DN, ptoken);
+	    }
       
-	    update_integrity(plugin_argv, sdn, tmprdn,
+	    update_integrity(pb, plugin_argv, sdn, tmprdn,
 	                     tmpsuperior, logChanges, NULL);
       
 	    slapi_sdn_free(&sdn);
@@ -1025,7 +1036,7 @@ referint_thread_func(void *arg)
 		PR_DestroyCondVar(keeprunning_cv);
 	}
 
-
+	slapi_pblock_destroy(pb);
 }
 
 int my_fgetc(PRFileDesc *stream)
@@ -1105,11 +1116,12 @@ GetNextLine(char *dest, int size_dest, PRFileDesc *stream) {
 }
 
 void
-writeintegritylog(char *logfilename, Slapi_DN *sdn, 
+writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
                   char *newrdn, Slapi_DN *newsuperior)
 {
     PRFileDesc *prfd;
     char buffer[MAX_LINE];
+    char *dn = NULL;
     int len_to_write = 0;
     int rc;
     /* write this record to the file */
@@ -1161,11 +1173,12 @@ writeintegritylog(char *logfilename, Slapi_DN *sdn,
                          " line length exceeded. It will not be able"
                          " to update references to this entry.\n");
     }else{
-       PR_snprintf(buffer, MAX_LINE, "%s\t%s\t%s\t\n", 
+       slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &dn);
+       PR_snprintf(buffer, MAX_LINE, "%s\t%s\t%s\t%s\t\n",
 				   slapi_sdn_get_dn(sdn),
 				   (newrdn != NULL) ? newrdn : "NULL",
-				   (newsuperior != NULL) ? slapi_sdn_get_dn(newsuperior) :
-				                           "NULL");
+				   (newsuperior != NULL) ? slapi_sdn_get_dn(newsuperior) : "NULL",
+				   dn );
         if (PR_Write(prfd,buffer,strlen(buffer)) < 0){
            slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
 	       " writeintegritylog: PR_Write failed : The disk"

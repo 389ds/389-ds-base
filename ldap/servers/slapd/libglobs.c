@@ -532,6 +532,9 @@ static struct config_get_and_set {
 	{CONFIG_RESULT_TWEAK_ATTRIBUTE, config_set_result_tweak,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.result_tweak, CONFIG_ON_OFF, NULL},
+	{CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE, config_set_plugin_tracking,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.plugin_track, CONFIG_ON_OFF, NULL},
 	{CONFIG_ATTRIBUTE_NAME_EXCEPTION_ATTRIBUTE, config_set_attrname_exceptions,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.attrname_exceptions, CONFIG_ON_OFF, NULL},
@@ -957,6 +960,7 @@ FrontendConfig_init () {
   cfg->anon_limits_dn = slapi_ch_strdup("");
   cfg->schemacheck = LDAP_ON;
   cfg->syntaxcheck = LDAP_OFF;
+  cfg->plugin_track = LDAP_OFF;
   cfg->syntaxlogging = LDAP_OFF;
   cfg->dn_validate_strict = LDAP_OFF;
   cfg->ds4_compatible_schema = LDAP_OFF;
@@ -2466,6 +2470,19 @@ config_set_result_tweak( const char *attrname, char *value, char *errorbuf, int 
   return retVal;
 }
 
+int
+config_set_plugin_tracking( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+							  value,
+							  &(slapdFrontendConfig->plugin_track),
+							  errorbuf,
+							  apply);
+
+  return retVal;
+}
 
 int
 config_set_security( const char *attrname, char *value, char *errorbuf, int apply ) {

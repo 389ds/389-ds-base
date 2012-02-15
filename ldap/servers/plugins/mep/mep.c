@@ -107,9 +107,9 @@ static int mep_oktodo(Slapi_PBlock *pb);
 static int mep_isrepl(Slapi_PBlock *pb);
 static Slapi_Entry *mep_create_managed_entry(struct configEntry *config,
     Slapi_Entry *origin);
-static void mep_add_managed_entry(struct configEntry *config,
+static void mep_add_managed_entry(Slapi_PBlock *pb, struct configEntry *config,
     Slapi_Entry *origin, void *txn);
-static void mep_rename_managed_entry(Slapi_Entry *origin,
+static void mep_rename_managed_entry(Slapi_PBlock *pb, Slapi_Entry *origin,
     Slapi_DN *new_dn, Slapi_DN *old_dn, void *txn);
 static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
     Slapi_Entry *origin, char **mapped_dn);
@@ -1422,12 +1422,12 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
  * newly created managed entry.
  */
 static void
-mep_add_managed_entry(struct configEntry *config,
+mep_add_managed_entry(Slapi_PBlock *pb, struct configEntry *config,
     Slapi_Entry *origin, void *txn)
 {
     Slapi_Entry *managed_entry = NULL;
     char *managed_dn = NULL;
-    Slapi_PBlock *mod_pb = slapi_pblock_new();
+    Slapi_PBlock *mod_pb = slapi_pblock_new_by_pb(pb);
     int result = LDAP_SUCCESS;
 
     /* Create the managed entry */
@@ -1523,11 +1523,11 @@ mep_add_managed_entry(struct configEntry *config,
  * origin entry.
  */
 static void
-mep_rename_managed_entry(Slapi_Entry *origin,
+mep_rename_managed_entry(Slapi_PBlock *pb, Slapi_Entry *origin,
                          Slapi_DN *new_dn, Slapi_DN *old_dn, void *txn)
 {
     Slapi_RDN *srdn = slapi_rdn_new();
-    Slapi_PBlock *mep_pb = slapi_pblock_new();
+    Slapi_PBlock *mep_pb = slapi_pblock_new_by_pb(pb);
     LDAPMod mod;
     LDAPMod *mods[2];
     char *vals[2];
@@ -2392,7 +2392,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
                 smods = mep_get_mapped_mods(config, e, &mapped_dn);
                 if (smods) {
                     /* Clear out the pblock for reuse. */
-                    mep_pb = slapi_pblock_new();
+                    mep_pb = slapi_pblock_new_by_pb(pb);
 
                     /* Perform the modify operation. */
                     slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
@@ -2423,7 +2423,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
                     managed_sdn = slapi_sdn_new_normdn_byref(managed_dn);
 
                     if (slapi_sdn_compare(managed_sdn, mapped_sdn) != 0) {
-                        mep_rename_managed_entry(e, mapped_sdn, managed_sdn, txn);
+                        mep_rename_managed_entry(pb, e, mapped_sdn, managed_sdn, txn);
                     }
 
                     slapi_sdn_free(&mapped_sdn);
@@ -2499,7 +2499,7 @@ mep_add_post_op(Slapi_PBlock *pb)
 
         mep_find_config(e, &config);
         if (config) {
-            mep_add_managed_entry(config, e, txn);
+            mep_add_managed_entry(pb, config, e, txn);
         }
 
         mep_config_unlock();
@@ -2646,7 +2646,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         LDAPMod *mods[3];
         char *vals[2];
         int result = LDAP_SUCCESS;
-        Slapi_PBlock *mep_pb = slapi_pblock_new();
+        Slapi_PBlock *mep_pb = slapi_pblock_new_by_pb(pb);
         Slapi_Entry *new_managed_entry = NULL;
         Slapi_DN *managed_sdn = NULL;
         Slapi_Mods *smods = NULL;
@@ -2775,7 +2775,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                                     "entry \"%s\".\n ", managed_dn,
                                     slapi_entry_get_dn(new_managed_entry),
                                     slapi_sdn_get_dn(old_sdn));
-                    mep_rename_managed_entry(post_e,
+                    mep_rename_managed_entry(pb, post_e,
                                     slapi_entry_get_sdn(new_managed_entry),
                                     managed_sdn, txn);
                 }
@@ -2838,7 +2838,7 @@ bailmod:
 
         mep_find_config(post_e, &config);
         if (config) {
-            mep_add_managed_entry(config, post_e, txn);
+            mep_add_managed_entry(pb, config, post_e, txn);
         }
 
         mep_config_unlock();

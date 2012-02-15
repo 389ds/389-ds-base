@@ -854,7 +854,8 @@ void set_config_params (Slapi_PBlock *pb)
 	Slapi_Operation *operation;
 	struct slapdplugin *plugin = NULL;
 	char *dn;
-        struct slapi_componentid * cid=NULL;
+	struct slapi_componentid * cid=NULL;
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
  	if (cid)
@@ -870,10 +871,16 @@ void set_config_params (Slapi_PBlock *pb)
 		operation_clear_flag(operation, OP_FLAG_ACTION_LOG_AUDIT | OP_FLAG_ACTION_LOG_CHANGES);
 	}
 	
-	/* set name to be used for creator's and modifiers attributes */
-	dn = plugin_get_dn (plugin);
-	if (dn)
-		slapi_sdn_init_dn_passin(&operation->o_sdn, dn);
+	/*
+	 *  if we are not tracking the bind dn, then use the plugin name as the
+	 *  modifiersname, otherwise, we have already set the op dn as the bind dn
+	 */
+	if(!slapdFrontendConfig->plugin_track || slapi_sdn_isempty(&operation->o_sdn)){
+		/* set name to be used for creator's and modifiers attributes */
+		dn = plugin_get_dn (plugin);
+		if (dn)
+			slapi_sdn_init_dn_passin(&operation->o_sdn, dn);
+	}
 }
 
 /* set parameters common for all internal operations */

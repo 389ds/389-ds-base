@@ -48,7 +48,7 @@
  */
 static void linked_attrs_fixup_task_destructor(Slapi_Task *task);
 static void linked_attrs_fixup_task_thread(void *arg);
-static void linked_attrs_fixup_links(struct configEntry *config, void *txn);
+static void linked_attrs_fixup_links(Slapi_PBlock *pb, struct configEntry *config, void *txn);
 static int linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data);
 static int linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data);
 static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
@@ -91,6 +91,7 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	if (linkdn) {
 	    mytaskdata->linkdn = slapi_dn_normalize(slapi_ch_strdup(linkdn));
 	}
+	mytaskdata->pb = pb;
 
 	/* allocate new task now */
 	task = slapi_new_task(slapi_entry_get_ndn(e));
@@ -139,10 +140,12 @@ linked_attrs_fixup_task_thread(void *arg)
 	Slapi_Task *task = (Slapi_Task *)arg;
 	task_data *td = NULL;
 	PRCList *main_config = NULL;
+	Slapi_PBlock *pb;
 	int found_config = 0;
 
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
+	pb = slapi_pblock_new_by_pb(td->pb);
 
 	/* Log started message. */
 	slapi_task_begin(task, 1);
@@ -170,7 +173,7 @@ linked_attrs_fixup_task_thread(void *arg)
                     slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
                          "Fixing up linked attribute pair (%s)\n", config_entry->dn);
 
-                    linked_attrs_fixup_links(config_entry, NULL);
+                    linked_attrs_fixup_links(pb, config_entry, NULL);
                     break;
                 }
             } else {
@@ -180,7 +183,7 @@ linked_attrs_fixup_task_thread(void *arg)
                 slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
                        "Fixing up linked attribute pair (%s)\n", config_entry->dn);
 
-                linked_attrs_fixup_links(config_entry, NULL);
+                linked_attrs_fixup_links(pb, config_entry, NULL);
             }
 
             list = PR_NEXT_LINK(list);
@@ -205,24 +208,27 @@ linked_attrs_fixup_task_thread(void *arg)
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
+	slapi_pblock_destroy(pb);
 }
 
 struct fixup_cb_data {
     char *attrtype;
     void *txn;
     struct configEntry *config;
+    Slapi_PBlock *pb;
 };
 
 static void 
-linked_attrs_fixup_links(struct configEntry *config, void *txn)
+linked_attrs_fixup_links(Slapi_PBlock *origpb, struct configEntry *config, void *txn)
 {
-    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *pb = slapi_pblock_new_by_pb(origpb);
     char *del_filter = NULL;
     char *add_filter = NULL;
-    struct fixup_cb_data cb_data = {NULL, NULL, NULL};
+    struct fixup_cb_data cb_data = {NULL, NULL, NULL, NULL};
 
     del_filter = slapi_ch_smprintf("%s=*", config->managedtype);
     add_filter = slapi_ch_smprintf("%s=*", config->linktype);
+    cb_data.pb = pb;
 
     /* Lock the attribute pair. */
     slapi_lock_mutex(config->lock);
@@ -309,7 +315,7 @@ linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
     struct fixup_cb_data *cb_data = (struct fixup_cb_data *)callback_data;
     char *type = cb_data->attrtype;
-    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *pb = slapi_pblock_new_by_pb(cb_data->pb);
     char *val[1];
     LDAPMod mod;
     LDAPMod *mods[2];
@@ -346,7 +352,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
     char *linkdn = slapi_entry_get_dn(e);
     struct fixup_cb_data *cb_data = (struct fixup_cb_data *)callback_data;
     struct configEntry *config = cb_data->config;
-    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *pb = slapi_pblock_new_by_pb(cb_data->pb);
     int i = 0;
     char **targets = NULL;
     char *val[2];

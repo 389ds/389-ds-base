@@ -1501,6 +1501,7 @@ typedef struct slapi_pblock {
 	int		pb_config_lineno;
 	int		pb_config_argc;
 	char		**pb_config_argv;
+	int		plugin_tracking;
 
 	/* [pre|post]add arguments */
 	struct slapi_entry	*pb_target_entry; /* JCM - Duplicated */
@@ -1953,6 +1954,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ERRORLOG_LIST_ATTRIBUTE "nsslapd-errorlog-list"
 #define CONFIG_AUDITLOG_LIST_ATTRIBUTE "nsslapd-auditlog-list"
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
+#define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
 
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
@@ -2078,6 +2080,7 @@ typedef struct _slapdFrontendConfig {
   char **backendconfig;
   char **include;
   char **plugin;
+  int plugin_track;
   struct pw_scheme *pw_storagescheme;
 
   int pwpolicy_local;

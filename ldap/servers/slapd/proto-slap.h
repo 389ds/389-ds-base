@@ -289,6 +289,7 @@ int config_set_readonly( const char *attrname, char *value, 	char *errorbuf, int
 int config_set_schemacheck( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_syntaxcheck( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_syntaxlogging( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_plugin_tracking( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_dn_validate_strict( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_ds4_compatible_schema( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_schema_ignore_trailing_spaces( const char *attrname, char *value, char *errorbuf, int apply );
@@ -1082,6 +1083,7 @@ void do_unbind( Slapi_PBlock *pb );
 void pblock_init( Slapi_PBlock *pb );
 void pblock_init_common( Slapi_PBlock *pb, Slapi_Backend *be, Connection *conn, Operation *op );
 void pblock_done( Slapi_PBlock *pb );
+void pblock_done_by_pb( Slapi_PBlock *pb );
 void bind_credentials_set( Connection *conn,
                 char *authtype, char *normdn,
                 char *extauthtype, char *externaldn, CERTCertificate *clientcert , Slapi_Entry * binded);

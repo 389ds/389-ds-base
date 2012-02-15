@@ -136,18 +136,39 @@ do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t c
 void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 {
     char        buf[20];
+    char        *plugin_dn = NULL;
     struct berval    bv;
     struct berval    *bvals[2];
     time_t        curtime;
     struct tm    utm;
     Operation    *op;
+    struct slapdplugin *plugin = NULL;
+    struct slapi_componentid *cid = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     LDAPDebug(LDAP_DEBUG_TRACE, "modify_update_last_modified_attr\n", 0, 0, 0);
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-
     bvals[0] = &bv;
     bvals[1] = NULL;
+
+    if(slapdFrontendConfig->plugin_track && !slapi_sdn_isempty(&op->o_sdn)){
+    	/* write to the new attribute the bind dn and plugin name */
+    	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
+    	if (cid)
+    		plugin=(struct slapdplugin *) cid->sci_plugin;
+    	if(plugin)
+    		plugin_dn = plugin_get_dn (plugin);
+    	if(plugin_dn){
+    		bv.bv_val = plugin_dn;
+    		bv.bv_len = strlen(bv.bv_val);
+    	} else {
+            bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
+            bv.bv_len = strlen(bv.bv_val);
+    	}
+    	slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
+    	                           "internalModifiersName", bvals);
+    }
 
     /* fill in modifiersname */
     if (slapi_sdn_isempty(&op->o_sdn)) {
