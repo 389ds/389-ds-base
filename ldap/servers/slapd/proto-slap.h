@@ -526,6 +526,8 @@ char *config_get_allowed_to_delete_attrs(void);
 char *config_get_entryusn_import_init(void);
 char *config_get_default_naming_context(void);
 
+int config_allowed_to_delete_attrs(const char *attr_type);
+
 int is_abspath(const char *);
 char* rel2abspath( char * );
 char* rel2abspath_ext( char *, char * );
