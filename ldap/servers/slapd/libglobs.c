@@ -1315,11 +1315,7 @@ int
 config_set_listenhost( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	
-  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
-	return LDAP_OPERATIONS_ERROR;
-  }
-  
+
   if ( apply) {
 	CFG_LOCK_WRITE(slapdFrontendConfig);
 	
@@ -1530,17 +1526,12 @@ int
 config_set_securelistenhost( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	
-  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
-	return LDAP_OPERATIONS_ERROR;
-  }
 
   if ( apply ) {
 	CFG_LOCK_WRITE(slapdFrontendConfig);
 	
 	slapi_ch_free (  (void **) &(slapdFrontendConfig->securelistenhost) );
 	slapdFrontendConfig->securelistenhost = slapi_ch_strdup ( value );
-	
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
@@ -1551,7 +1542,6 @@ config_set_srvtab( const char *attrname, char *value, char *errorbuf, int apply 
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-  
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
@@ -5804,6 +5794,10 @@ config_set_entryusn_import_init( const char *attrname, char *value,
     int retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
+    if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&(slapdFrontendConfig->entryusn_import_init));
@@ -5832,6 +5826,10 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
 {
     int retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
+        return LDAP_OPERATIONS_ERROR;
+    }
 
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
@@ -5963,6 +5961,20 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 		break;
 
 	default:
+		if ((NULL == values) &&
+			config_allowed_to_delete_attrs(cgas->attr_name)) {
+			if (cgas->setfunc) {
+				retval = (cgas->setfunc)(cgas->attr_name, NULL,
+				                         errorbuf, apply);
+			} else if (cgas->logsetfunc) {
+				retval = (cgas->logsetfunc)(cgas->attr_name, NULL,
+				                            cgas->whichlog, errorbuf, apply);
+			} else {
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+				              "config_set: the attribute %s is read only; "
+				              "ignoring setting NULL value\n", attr);
+			}
+		}
 		for (ii = 0; !retval && values && values[ii]; ++ii)
 		{
 			if (cgas->setfunc)
@@ -6230,3 +6242,25 @@ config_set_entry(Slapi_Entry *e)
 
     return 1;
 }
+
+/* these attr types are allowed to delete */
+int
+config_allowed_to_delete_attrs(const char *attr_type)
+{
+	int rc = 0;
+	if (attr_type) {
+		char *delattrs = config_get_allowed_to_delete_attrs();
+		char **allowed = slapi_str2charray_ext(delattrs, " ", 0);
+		char **ap;
+		for (ap = allowed; ap && *ap; ap++) {
+			if (strcasecmp (attr_type, *ap) == 0) {
+				rc = 1;
+				break;
+			}
+		}
+		slapi_ch_array_free(allowed);
+		slapi_ch_free_string(&delattrs);
+	}
+	return rc;
+}
+

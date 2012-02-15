@@ -123,27 +123,6 @@ ignore_attr_type(const char *attr_type)
 	return 0;
 }
 
-/* these attr types are allowed to delete */
-static int
-allowed_to_delete_attrs(const char *attr_type)
-{
-	int rc = 0;
-	if (attr_type) {
-		char *delattrs = config_get_allowed_to_delete_attrs();
-		char **allowed = slapi_str2charray_ext(delattrs, " ", 0);
-		char **ap;
-		for (ap = allowed; ap && *ap; ap++) {
-			if (strcasecmp (attr_type, *ap) == 0) {
-				rc = 1;
-				break;
-			}
-		}
-		slapi_ch_array_free(allowed);
-		slapi_ch_free_string(&delattrs);
-	}
-	return rc;
-}
-
 int 
 read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
@@ -436,7 +415,7 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 				}
 			} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
 				/* Need to allow deleting some configuration attrs */
-			    if (allowed_to_delete_attrs(config_attr)) {
+			    if (config_allowed_to_delete_attrs(config_attr)) {
 					rc = config_set(config_attr, mods[i]->mod_bvalues, 
 									returntext, apply_mods);
 					if (apply_mods) { /* log warning once */
