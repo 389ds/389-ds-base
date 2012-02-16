@@ -594,7 +594,6 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
     Slapi_PBlock *derefpb = NULL;
     Slapi_Entry **entries = NULL;
     int rc;
-    void *txn = NULL;
 
     if (deref_check_access(pb, NULL, derefdn, attrs, &retattrs,
                            (SLAPI_ACL_SEARCH|SLAPI_ACL_READ))) {
@@ -605,11 +604,10 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
     }
 
     derefpb = slapi_pblock_new();
-    slapi_pblock_get(pb, SLAPI_TXN, &txn);
     slapi_search_internal_set_pb(derefpb, derefdn, LDAP_SCOPE_BASE,
                                  "(objectclass=*)", retattrs, 0,
                                  NULL, NULL, deref_get_plugin_id(), 0);
-    slapi_pblock_set(derefpb, SLAPI_TXN, txn);
+
     slapi_search_internal_pb(derefpb);
     slapi_pblock_get(derefpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (LDAP_SUCCESS == rc) {

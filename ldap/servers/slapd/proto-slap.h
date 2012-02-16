@@ -868,7 +868,6 @@ void pw_add_allowchange_aci(Slapi_Entry *e, int pw_prohibit_change);
  */
 int update_pw_retry ( Slapi_PBlock *pb );
 void pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods);
-void pw_apply_mods_ext(const Slapi_DN *sdn, Slapi_Mods *mods, void *txn);
 void pw_set_componentID(struct slapi_componentid * cid);
 struct slapi_componentid * pw_get_componentID();
 

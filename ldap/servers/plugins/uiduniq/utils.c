@@ -82,22 +82,19 @@ op_error(int internal_error) {
  */
 Slapi_PBlock *
 readPblockAndEntry( const char *baseDN, const char *filter,
-					char *attrs[], void *txn, void *pluginid ) {
+					char *attrs[] ) {
 	Slapi_PBlock *spb = NULL;
 
 	BEGIN
         int sres;
 
-		spb = slapi_pblock_new();
-		if (!spb) {
+		/* Perform the search - the new pblock needs to be freed */
+		spb = slapi_search_internal((char *)baseDN, LDAP_SCOPE_BASE,
+									(char *)filter, NULL, attrs, 0);
+		if ( !spb ) {
 			op_error(20);
 			break;
 		}
-		slapi_search_internal_set_pb (spb, baseDN, LDAP_SCOPE_BASE, filter,
-									  attrs, 0, NULL, 
-									  NULL, pluginid, 0); 
-		slapi_pblock_set(spb, SLAPI_TXN, txn);
-		slapi_search_internal_pb (spb);
  
 		if ( slapi_pblock_get( spb, SLAPI_PLUGIN_INTOP_RESULT, &sres ) ) {
 			op_error(21);
@@ -153,7 +150,7 @@ entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e,
  *   A pblock containing the entry, or NULL
  */
 Slapi_PBlock *
-dnHasObjectClass( const char *baseDN, const char *objectClass, void *txn, void *pluginid ) {
+dnHasObjectClass( const char *baseDN, const char *objectClass ) {
 	char *filter = NULL;
 	Slapi_PBlock *spb = NULL;
 
@@ -165,7 +162,7 @@ dnHasObjectClass( const char *baseDN, const char *objectClass, void *txn, void *
 		attrs[0] = "objectclass";
 		attrs[1] = NULL;
 		filter = PR_smprintf("objectclass=%s", objectClass );
-		if ( !(spb = readPblockAndEntry( baseDN, filter, attrs, txn, pluginid ) ) ) {
+		if ( !(spb = readPblockAndEntry( baseDN, filter, attrs) ) ) {
 			break;
 		}
  
@@ -199,7 +196,7 @@ dnHasObjectClass( const char *baseDN, const char *objectClass, void *txn, void *
  *   The entry, or NULL
  */
 Slapi_PBlock *
-dnHasAttribute( const char *baseDN, const char *attrName, void *txn, void *pluginid ) {
+dnHasAttribute( const char *baseDN, const char *attrName ) {
 	Slapi_PBlock *spb = NULL;
 	char *filter = NULL;
 
@@ -212,16 +209,12 @@ dnHasAttribute( const char *baseDN, const char *attrName, void *txn, void *plugi
 		attrs[0] = (char *)attrName;
 		attrs[1] = NULL;
 		filter = PR_smprintf( "%s=*", attrName );
-		spb = slapi_pblock_new();
-		if (!spb) {
+		spb = slapi_search_internal((char *)baseDN, LDAP_SCOPE_BASE,
+									filter, NULL, attrs, 0);
+		if ( !spb ) {
 			op_error(20);
 			break;
 		}
-		slapi_search_internal_set_pb (spb, baseDN, LDAP_SCOPE_BASE, filter,
-                                      attrs, 0, NULL, 
-                                      NULL, pluginid, 0); 
-		slapi_pblock_set(spb, SLAPI_TXN, txn);
-		slapi_search_internal_pb (spb);
  
 		if ( slapi_pblock_get( spb, SLAPI_PLUGIN_INTOP_RESULT, &sres ) ) {
 			op_error(21);

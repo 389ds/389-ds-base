@@ -593,9 +593,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 	passwdPolicy *pwpolicy = NULL;
 	int internal_op = 0;
 	Slapi_Operation *operation = NULL;
-	void *txn = NULL;
 
-	slapi_pblock_get(pb, SLAPI_TXN, &txn);
 	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
@@ -668,7 +666,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 			}  else if (prev_exp_date == SLAPD_END_TIME) {
 			    /* Special entries' passwords never expire */
 			  slapi_ch_free((void**)&prev_exp_date_str);
-			  pw_apply_mods_ext(sdn, &smods, txn);
+			  pw_apply_mods(sdn, &smods);
 			  slapi_mods_done(&smods);
 			  delete_passwdPolicy(&pwpolicy);
 			  return 0;
@@ -685,7 +683,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 		 */
 		pw_exp_date = NOT_FIRST_TIME;
 	} else {
-		pw_apply_mods_ext(sdn, &smods, txn);
+		pw_apply_mods(sdn, &smods);
 		slapi_mods_done(&smods);
 		delete_passwdPolicy(&pwpolicy);
 		return 0;
@@ -699,7 +697,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 	
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpWarned", "0");
 
-	pw_apply_mods_ext(sdn, &smods, txn);
+	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
     if (pb->pb_conn) { /* no conn for internal op */
         /* reset c_needpw to 0 */
@@ -1082,7 +1080,6 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	char		*str;
 	passwdPolicy *pwpolicy = NULL;
 	const char *dn = slapi_sdn_get_dn(sdn);
-	void *txn = NULL;
 
 	pwpolicy = new_passwdPolicy(pb, dn);
 
@@ -1141,10 +1138,8 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	list_of_mods[1] = NULL;
 
 	pblock_init(&mod_pb);
-	slapi_pblock_get(pb, SLAPI_TXN, &txn);
 	slapi_modify_internal_set_pb_ext(&mod_pb, sdn, list_of_mods, NULL, NULL, 
 								 pw_get_componentID(), 0);
-	slapi_pblock_set(&mod_pb, SLAPI_TXN, txn);
 	slapi_modify_internal_pb(&mod_pb);
 	slapi_pblock_get(&mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	if (res != LDAP_SUCCESS){

@@ -84,9 +84,9 @@ static int automember_add_pre_op(Slapi_PBlock *pb);
 /*
  * Config cache management functions
  */
-static int automember_load_config(Slapi_PBlock *pb);
+static int automember_load_config();
 static void automember_delete_config();
-static int automember_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb);
+static int automember_parse_config_entry(Slapi_Entry * e, int apply);
 static void automember_free_config_entry(struct configEntry ** entry);
 
 /*
@@ -103,9 +103,9 @@ static struct automemberRegexRule *automember_parse_regex_rule(char *rule_string
 static void automember_free_regex_rule(struct automemberRegexRule *rule);
 static int automember_parse_grouping_attr(char *value, char **grouping_attr,
     char **grouping_value);
-static void automember_update_membership(struct configEntry *config, Slapi_Entry *e, void *txn);
+static void automember_update_membership(struct configEntry *config, Slapi_Entry *e);
 static void automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
-    char *grouping_attr, char *grouping_value, void *txn);
+    char *grouping_attr, char *grouping_value);
 
 /*
  * Config cache locking functions
@@ -358,7 +358,7 @@ automember_start(Slapi_PBlock * pb)
     g_automember_config = (PRCList *)slapi_ch_calloc(1, sizeof(struct configEntry));
     PR_INIT_CLIST(g_automember_config);
 
-    if (automember_load_config(pb) != 0) {
+    if (automember_load_config() != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_start: unable to load plug-in configuration\n");
         return -1;
@@ -430,14 +430,13 @@ automember_get_config()
  * Parse and load the config entries.
  */
 static int
-automember_load_config(Slapi_PBlock *pb)
+automember_load_config()
 {
     int status = 0;
     int result;
     int i;
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
-    void *txn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_load_config\n");
@@ -446,7 +445,6 @@ automember_load_config(Slapi_PBlock *pb)
     automember_config_write_lock();
     automember_delete_config();
 
-    slapi_pblock_get(pb, SLAPI_TXN, &txn);
     search_pb = slapi_pblock_new();
 
     /* If an alternate config area is configured, find
@@ -473,7 +471,6 @@ automember_load_config(Slapi_PBlock *pb)
                                      NULL, 0, NULL, NULL, automember_get_plugin_id(), 0);
     }
 
-    slapi_pblock_set(search_pb, SLAPI_TXN, txn);
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
@@ -500,7 +497,7 @@ automember_load_config(Slapi_PBlock *pb)
         /* We don't care about the status here because we may have
          * some invalid config entries, but we just want to continue
          * looking for valid ones. */
-        automember_parse_config_entry(entries[i], 1, pb);
+        automember_parse_config_entry(entries[i], 1);
     }
 
   cleanup:
@@ -524,7 +521,7 @@ automember_load_config(Slapi_PBlock *pb)
  * Returns 0 if the entry is valid and -1 if it is invalid.
  */
 static int
-automember_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb)
+automember_parse_config_entry(Slapi_Entry * e, int apply)
 {
     char *value = NULL;
     char **values = NULL;
@@ -539,7 +536,6 @@ automember_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb)
     int entry_added = 0;
     int i = 0;
     int ret = 0;
-    void *txn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_parse_config_entry\n");
@@ -572,7 +568,6 @@ automember_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb)
         goto bail;
     }
 
-    slapi_pblock_get(pb, SLAPI_TXN, &txn);
     value = slapi_entry_get_ndn(e);
     if (value) {
         entry->dn = slapi_ch_strdup(value);
@@ -665,7 +660,6 @@ automember_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb)
     slapi_search_internal_set_pb(search_pb, entry->dn, LDAP_SCOPE_SUBTREE,
                                  AUTOMEMBER_REGEX_RULE_FILTER, NULL, 0, NULL,
                                  NULL, automember_get_plugin_id(), 0);
-    slapi_pblock_set(search_pb, SLAPI_TXN, txn);
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
@@ -1347,7 +1341,7 @@ automember_parse_grouping_attr(char *value, char **grouping_attr, char **groupin
  * the rules in config, then performs the updates.
  */
 static void
-automember_update_membership(struct configEntry *config, Slapi_Entry *e, void *txn)
+automember_update_membership(struct configEntry *config, Slapi_Entry *e)
 {
     PRCList *rule = NULL;
     struct automemberRegexRule *curr_rule = NULL;
@@ -1501,14 +1495,14 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, void *t
         /* Add to each default group. */
         for (i = 0; config->default_groups && config->default_groups[i]; i++) {
             automember_add_member_value(e, config->default_groups[i],
-                                        config->grouping_attr, config->grouping_value, txn);
+                                        config->grouping_attr, config->grouping_value);
         }
     } else {
         /* Update the target groups. */
         dnitem = (struct automemberDNListItem *)PR_LIST_HEAD(&targets);
         while ((PRCList *)dnitem != &targets) {
             automember_add_member_value(e, slapi_sdn_get_dn(dnitem->dn),
-                                        config->grouping_attr, config->grouping_value, txn);
+                                        config->grouping_attr, config->grouping_value);
             dnitem = (struct automemberDNListItem *)PR_NEXT_LINK((PRCList *)dnitem);
         }
     }
@@ -1536,7 +1530,7 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, void *t
  */
 static void
 automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
-                            char *grouping_attr, char *grouping_value, void *txn)
+                            char *grouping_attr, char *grouping_value)
 {
     Slapi_PBlock *mod_pb = slapi_pblock_new();
     int result = LDAP_SUCCESS;
@@ -1572,7 +1566,6 @@ automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
 
         slapi_modify_internal_set_pb(mod_pb, group_dn,
                                      mods, 0, 0, automember_get_plugin_id(), 0);
-        slapi_pblock_set(mod_pb, SLAPI_TXN, txn);
         slapi_modify_internal_pb(mod_pb);
         slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
@@ -1619,7 +1612,6 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
     int free_entry = 0;
     char *errstr = NULL;
     int ret = 0;
-    void *txn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_pre_op\n");
@@ -1631,7 +1623,6 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
     if (0 == (sdn = automember_get_sdn(pb)))
         goto bail;
 
-    slapi_pblock_get(pb, SLAPI_TXN, &txn);
     if (automember_dn_is_config(sdn)) {
         /* Validate config changes, but don't apply them.
          * This allows us to reject invalid config changes
@@ -1650,7 +1641,7 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
             /* Fetch the entry being modified so we can
              * create the resulting entry for validation. */
             if (sdn) {
-                slapi_search_internal_get_entry_ext(sdn, 0, &e, automember_get_plugin_id(), txn);
+                slapi_search_internal_get_entry(sdn, 0, &e, automember_get_plugin_id());
                 free_entry = 1;
             }
 
@@ -1678,7 +1669,7 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
             goto bail;
         }
 
-        if (automember_parse_config_entry(e, 0, pb) != 0) {
+        if (automember_parse_config_entry(e, 0) != 0) {
             /* Refuse the operation if config parsing failed. */
             ret = LDAP_UNWILLING_TO_PERFORM;
             if (LDAP_CHANGETYPE_ADD == modop) {
@@ -1748,7 +1739,7 @@ automember_mod_post_op(Slapi_PBlock *pb)
     if (automember_oktodo(pb) && (sdn = automember_get_sdn(pb))) {
         /* Check if the config is being modified and reload if so. */
         if (automember_dn_is_config(sdn)) {
-            automember_load_config(pb);
+            automember_load_config();
         }
     }
 
@@ -1766,7 +1757,6 @@ automember_add_post_op(Slapi_PBlock *pb)
     Slapi_DN *sdn = NULL;
     struct configEntry *config = NULL;
     PRCList *list = NULL;
-    void *txn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_add_post_op\n");
@@ -1778,7 +1768,7 @@ automember_add_post_op(Slapi_PBlock *pb)
     /* Reload config if a config entry was added. */
     if ((sdn = automember_get_sdn(pb))) {
         if (automember_dn_is_config(sdn)) {
-            automember_load_config(pb);
+            automember_load_config();
         }
     } else {
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -1792,7 +1782,6 @@ automember_add_post_op(Slapi_PBlock *pb)
         return 0;
     }
 
-    slapi_pblock_get(pb, SLAPI_TXN, &txn);
     /* Get the newly added entry. */
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
 
@@ -1826,7 +1815,7 @@ automember_add_post_op(Slapi_PBlock *pb)
                 if (slapi_dn_issuffix(slapi_sdn_get_dn(sdn), config->scope) &&
                     (slapi_filter_test_simple(e, config->filter) == 0)) {
                     /* Find out what membership changes are needed and make them. */
-                    automember_update_membership(config, e, txn);
+                    automember_update_membership(config, e);
                 }
 
                 list = PR_NEXT_LINK(list);
@@ -1867,7 +1856,7 @@ automember_del_post_op(Slapi_PBlock *pb)
     /* Reload config if a config entry was deleted. */
     if ((sdn = automember_get_sdn(pb))) {
         if (automember_dn_is_config(sdn))
-            automember_load_config(pb);
+            automember_load_config();
     } else {
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_del_post_op: Error "
@@ -1915,7 +1904,7 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
 
     if ((old_sdn = automember_get_sdn(pb))) {
         if (automember_dn_is_config(old_sdn) || automember_dn_is_config(new_sdn))
-            automember_load_config(pb);
+            automember_load_config();
     } else {
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_modrdn_post_op: Error "

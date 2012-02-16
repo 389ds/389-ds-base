@@ -67,9 +67,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 	passwdPolicy *pwpolicy = NULL;
 	int	pwdGraceUserTime = 0;
 	char graceUserTime[8];
-	void *txn = NULL;
 
-	slapi_pblock_get(pb, SLAPI_TXN, &txn);
 	slapi_mods_init (&smods, 0);
 	sdn = slapi_entry_get_sdn_const( e );
 	dn = slapi_entry_get_ndn( e );
@@ -104,9 +102,9 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 			slapi_ch_free((void **)&timestring);
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpWarned", "0");
 			
-			pw_apply_mods_ext(sdn, &smods, txn);
+			pw_apply_mods(sdn, &smods);
 		} else if (pwpolicy->pw_lockout == 1) {
-			pw_apply_mods_ext(sdn, &smods, txn);
+			pw_apply_mods(sdn, &smods);
 		}
 		slapi_mods_done(&smods);
 		delete_passwdPolicy(&pwpolicy);
@@ -152,7 +150,7 @@ skip:
 			} 
 			slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		}
-		pw_apply_mods_ext(sdn, &smods, txn);
+		pw_apply_mods(sdn, &smods);
 		slapi_mods_done(&smods);
 		delete_passwdPolicy(&pwpolicy);
 		return ( 0 );
@@ -175,7 +173,7 @@ skip:
 			sprintf ( graceUserTime, "%d", pwdGraceUserTime );
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE,
 				"passwordGraceUserTime", graceUserTime);	
-			pw_apply_mods_ext(sdn, &smods, txn);
+			pw_apply_mods(sdn, &smods);
 			slapi_mods_done(&smods);
 			if (pwresponse_req) {
 				/* check for "changeafterreset" condition */
@@ -218,7 +216,7 @@ skip:
 				pb->pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
 		}
 		/* Apply current modifications */
-		pw_apply_mods_ext(sdn, &smods, txn);
+		pw_apply_mods(sdn, &smods);
 		slapi_mods_done(&smods);
 		delete_passwdPolicy(&pwpolicy);
 		return (-1);
@@ -265,7 +263,7 @@ skip:
 			*t = (long)diff_t; /* jcm: had to cast double to long */
 		}
 			
-		pw_apply_mods_ext(sdn, &smods, txn);
+		pw_apply_mods(sdn, &smods);
 		slapi_mods_done(&smods);
 		if (pwresponse_req) {
 			/* check for "changeafterreset" condition */
@@ -285,7 +283,7 @@ skip:
 		return (2);
 	}
 
-	pw_apply_mods_ext(sdn, &smods, txn);
+	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
 	/* Leftover from "changeafterreset" condition */
 	if (pb->pb_conn->c_needpw == 1) {
