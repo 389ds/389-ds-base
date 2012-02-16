@@ -920,6 +920,7 @@ referint_thread_func(void *arg)
     if(plugin_argv == NULL){
       slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
 		 "referint_thread_func not get args \n" );
+      slapi_pblock_destroy(pb);
       return;
     }
 

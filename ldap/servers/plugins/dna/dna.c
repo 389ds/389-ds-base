@@ -1271,7 +1271,7 @@ dna_load_host_port()
 static void
 dna_update_config_event(time_t event_time, void *arg)
 {
-    Slapi_PBlock *pb;
+    Slapi_PBlock *pb = NULL;
     struct configEntry *config_entry = NULL;
     PRCList *list = NULL;
     char *binddn = (char *)arg;
