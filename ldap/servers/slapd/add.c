@@ -73,7 +73,7 @@
 /* Forward declarations */
 static int add_internal_pb (Slapi_PBlock *pb);
 static void op_shared_add (Slapi_PBlock *pb);
-static int add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e);
+static int add_created_attrs(Operation *op, Slapi_Entry *e);
 static int check_rdn_for_created_attrs(Slapi_Entry *e);
 static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry);
 static int add_uniqueid (Slapi_Entry *e);
@@ -390,15 +390,8 @@ void slapi_add_entry_internal_set_pb (Slapi_PBlock *pb, Slapi_Entry *e, LDAPCont
 		return;
 	}
 
-	/* if the operation is not NULL, then it was already set */
-	if(pb->pb_op == NULL){
-		op = internal_operation_new(SLAPI_OPERATION_ADD,operation_flags);
-		slapi_pblock_set(pb, SLAPI_OPERATION, op);
-	} else {
-		/* we still want to set the flags & type though */
-		operation_set_flag(pb->pb_op, operation_flags);
-		operation_set_type(pb->pb_op, SLAPI_OPERATION_ADD);
-	}
+	op = internal_operation_new(SLAPI_OPERATION_ADD,operation_flags);
+	slapi_pblock_set(pb, SLAPI_OPERATION, op);
 	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, e);
 	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
@@ -639,7 +632,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 		/* can get lastmod only after backend is selected */
 		slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
 
-		if (lastmod && add_created_attrs(pb, e) != 0)
+		if (lastmod && add_created_attrs(operation, e) != 0)
 		{
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 				"cannot insert computed attributes", 0, NULL);
@@ -745,39 +738,24 @@ done:
 }
 
 static int 
-add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
+add_created_attrs(Operation *op, Slapi_Entry *e)
 {
 	char   buf[20];
 	struct berval	bv;
 	struct berval	*bvals[2];
 	time_t		curtime;
 	struct tm	ltm;
-	Operation    *op;
-	char *plugin_dn = NULL;
-	struct slapdplugin *plugin = NULL;
-	struct slapi_componentid *cid = NULL;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	LDAPDebug(LDAP_DEBUG_TRACE, "add_created_attrs\n", 0, 0, 0);
 
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 	bvals[0] = &bv;
 	bvals[1] = NULL;
 	
 	if(slapdFrontendConfig->plugin_track && !slapi_sdn_isempty(&op->o_sdn)){
-		/* write the bind dn and plugin name to the new attributes  */
-		slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
-		if (cid)
-			plugin=(struct slapdplugin *) cid->sci_plugin;
-		if(plugin)
-			plugin_dn = plugin_get_dn(plugin);
-		if(plugin_dn){
-			bv.bv_val = plugin_dn;
-			bv.bv_len = strlen(bv.bv_val);
-		} else {
-			bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
-			bv.bv_len = strlen(bv.bv_val);
-		}
+        /* assume op->o_sdn holds the plugin DN */
+        bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
+        bv.bv_len = strlen(bv.bv_val);
 		slapi_entry_attr_replace(e, "internalCreatorsName", bvals);
 		slapi_entry_attr_replace(e, "internalModifiersName", bvals);
 	}

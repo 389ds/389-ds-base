@@ -489,14 +489,8 @@ slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn,
 		return;
 	}
 
-	/* if we're tracking the plugin bind dn, then just set the type/flags */
-	if(pb->plugin_tracking){
-		operation_set_flag(pb->pb_op, operation_flags);
-		operation_set_type(pb->pb_op, SLAPI_OPERATION_MODIFY);
-	} else {
-		op = internal_operation_new(SLAPI_OPERATION_MODIFY,operation_flags);
-		slapi_pblock_set(pb, SLAPI_OPERATION, op);
-	}
+	op= internal_operation_new(SLAPI_OPERATION_MODIFY,operation_flags);
+	slapi_pblock_set(pb, SLAPI_OPERATION, op);       
 	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void*)dn);
 	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
 	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
@@ -524,14 +518,8 @@ slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn,
 		return;
 	}
 
-	/* if we're tracking the plugin bind dn, then just set the type/flags */
-	if(pb->plugin_tracking){
-		operation_set_flag(pb->pb_op, operation_flags);
-		operation_set_type(pb->pb_op, SLAPI_OPERATION_MODIFY);
-	} else {
-		op = internal_operation_new(SLAPI_OPERATION_MODIFY,operation_flags);
-		slapi_pblock_set(pb, SLAPI_OPERATION, op);
-	}
+	op= internal_operation_new(SLAPI_OPERATION_MODIFY,operation_flags);
+	slapi_pblock_set(pb, SLAPI_OPERATION, op);       
 	slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void *)slapi_sdn_get_dn(sdn));
 	slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void *)sdn);
 	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);

@@ -96,50 +96,13 @@ slapi_pblock_new()
 	return pb;
 }
 
-/* Use for internal operations by plugins, where we need to track the bind dn */
-Slapi_PBlock *
-slapi_pblock_new_by_pb(Slapi_PBlock *origpb)
-{
-	Slapi_PBlock	*pb;
-
-	pb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) );
-	pb->pb_op = operation_new(OP_FLAG_INTERNAL);
-	pb->plugin_tracking = 1;
-
-	if(origpb == NULL){
-		return pb;
-	}
-
-	if(origpb->pb_op != NULL){
-		slapi_sdn_set_normdn_byval((&pb->pb_op->o_sdn), slapi_sdn_get_dn(&origpb->pb_op->o_sdn));
-	} else {
-		/* No operation?  Have to use the plugin name */
-		if(origpb->pb_plugin->plg_name){
-			slapi_sdn_set_normdn_byval((&pb->pb_op->o_sdn), origpb->pb_plugin->plg_name);
-		}
-	}
-
-	return pb;
-}
-
 void
 slapi_pblock_init( Slapi_PBlock *pb )
 {
-	Slapi_Operation *op;
-
 	if(pb!=NULL)
 	{
-		if(pb->plugin_tracking){
-			/* preserve the op, and then reset everything */
-			op = pb->pb_op;
-			pblock_done_by_pb(pb);
-			pblock_init(pb);
-			pb->pb_op = op;
-			pb->plugin_tracking = 1;
-		} else {
-			pblock_done(pb);
-			pblock_init(pb);
-		}
+		pblock_done(pb);
+		pblock_init(pb);
 	}
 }
 
@@ -150,14 +113,6 @@ pblock_done( Slapi_PBlock *pb )
     {
 	    operation_free(&pb->pb_op,pb->pb_conn);
     }
-	slapi_ch_free((void**)&(pb->pb_vattr_context));
-	slapi_ch_free((void**)&(pb->pb_result_text));
-}
-
-void
-pblock_done_by_pb( Slapi_PBlock *pb )
-{
-	/* don't free the operation because we still want to use it */
 	slapi_ch_free((void**)&(pb->pb_vattr_context));
 	slapi_ch_free((void**)&(pb->pb_result_text));
 }

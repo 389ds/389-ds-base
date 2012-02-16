@@ -103,8 +103,8 @@ static struct automemberRegexRule *automember_parse_regex_rule(char *rule_string
 static void automember_free_regex_rule(struct automemberRegexRule *rule);
 static int automember_parse_grouping_attr(char *value, char **grouping_attr,
     char **grouping_value);
-static void automember_update_membership(Slapi_PBlock *pb, struct configEntry *config, Slapi_Entry *e, void *txn);
-static void automember_add_member_value(Slapi_PBlock *pb, Slapi_Entry *member_e, const char *group_dn,
+static void automember_update_membership(struct configEntry *config, Slapi_Entry *e, void *txn);
+static void automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
     char *grouping_attr, char *grouping_value, void *txn);
 
 /*
@@ -1347,7 +1347,7 @@ automember_parse_grouping_attr(char *value, char **grouping_attr, char **groupin
  * the rules in config, then performs the updates.
  */
 static void
-automember_update_membership(Slapi_PBlock *pb, struct configEntry *config, Slapi_Entry *e, void *txn)
+automember_update_membership(struct configEntry *config, Slapi_Entry *e, void *txn)
 {
     PRCList *rule = NULL;
     struct automemberRegexRule *curr_rule = NULL;
@@ -1500,14 +1500,14 @@ automember_update_membership(Slapi_PBlock *pb, struct configEntry *config, Slapi
     if (PR_CLIST_IS_EMPTY(&targets)) {
         /* Add to each default group. */
         for (i = 0; config->default_groups && config->default_groups[i]; i++) {
-            automember_add_member_value(pb, e, config->default_groups[i],
+            automember_add_member_value(e, config->default_groups[i],
                                         config->grouping_attr, config->grouping_value, txn);
         }
     } else {
         /* Update the target groups. */
         dnitem = (struct automemberDNListItem *)PR_LIST_HEAD(&targets);
         while ((PRCList *)dnitem != &targets) {
-            automember_add_member_value(pb, e, slapi_sdn_get_dn(dnitem->dn),
+            automember_add_member_value(e, slapi_sdn_get_dn(dnitem->dn),
                                         config->grouping_attr, config->grouping_value, txn);
             dnitem = (struct automemberDNListItem *)PR_NEXT_LINK((PRCList *)dnitem);
         }
@@ -1535,10 +1535,10 @@ automember_update_membership(Slapi_PBlock *pb, struct configEntry *config, Slapi
  * Adds a member entry to a group.
  */
 static void
-automember_add_member_value(Slapi_PBlock *pb, Slapi_Entry *member_e, const char *group_dn,
+automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
                             char *grouping_attr, char *grouping_value, void *txn)
 {
-    Slapi_PBlock *mod_pb = slapi_pblock_new_by_pb(pb);
+    Slapi_PBlock *mod_pb = slapi_pblock_new();
     int result = LDAP_SUCCESS;
     LDAPMod mod;
     LDAPMod *mods[2];
@@ -1826,7 +1826,7 @@ automember_add_post_op(Slapi_PBlock *pb)
                 if (slapi_dn_issuffix(slapi_sdn_get_dn(sdn), config->scope) &&
                     (slapi_filter_test_simple(e, config->filter) == 0)) {
                     /* Find out what membership changes are needed and make them. */
-                    automember_update_membership(pb, config, e, txn);
+                    automember_update_membership(config, e, txn);
                 }
 
                 list = PR_NEXT_LINK(list);

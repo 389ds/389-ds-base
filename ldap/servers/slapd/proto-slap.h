@@ -1083,7 +1083,6 @@ void do_unbind( Slapi_PBlock *pb );
 void pblock_init( Slapi_PBlock *pb );
 void pblock_init_common( Slapi_PBlock *pb, Slapi_Backend *be, Connection *conn, Operation *op );
 void pblock_done( Slapi_PBlock *pb );
-void pblock_done_by_pb( Slapi_PBlock *pb );
 void bind_credentials_set( Connection *conn,
                 char *authtype, char *normdn,
                 char *extauthtype, char *externaldn, CERTCertificate *clientcert , Slapi_Entry * binded);

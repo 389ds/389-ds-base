@@ -607,19 +607,6 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
 Slapi_PBlock *slapi_pblock_new( void ); /* allocate and initialize */
 
 /**
- * Creates a new parameter block.
- *
- * \return This function returns a pointer to the new parameter block.
- * \warning This function takes the original operation struct, and adds it the
- *          the new pb.  This is so we can track the original bind dn
- * \warning The pblock pointer allocated with this function must always be freed by
- *          slapi_pblock_destroy(). The use of other memory deallocators (for example,
- *          <tt>free()</tt>) is not supported and may lead to crashes or memory leaks.
- * \see slapi_pblock_destroy()
- */
-Slapi_PBlock *slapi_pblock_new_by_pb( Slapi_PBlock *pb ); /* allocate and initialize */
-
-/**
  * Initializes an existing parameter block for re-use.
  *
  * \param pb The parameter block to initialize.
