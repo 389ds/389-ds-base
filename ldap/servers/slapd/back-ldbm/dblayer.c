@@ -218,6 +218,10 @@ static int trans_batch_count=1;
 static int trans_batch_limit=0;
 static PRBool log_flush_thread=PR_FALSE;
 static int dblayer_db_remove_ex(dblayer_private_env *env, char const path[], char const dbName[], PRBool use_lock);
+static void dblayer_init_pvt_txn();
+static void dblayer_push_pvt_txn(back_txn *txn);
+static back_txn *dblayer_get_pvt_txn();
+static void dblayer_pop_pvt_txn();
 
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
@@ -1563,6 +1567,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
             if (!(dbmode & DBLAYER_NO_DBTHREADS_MODE))
                 dbmode = DBLAYER_NORMAL_MODE; /* to restart helper threads */
         }
+        dblayer_init_pvt_txn();
     }
 
     if (priv->dblayer_private_mem) {
@@ -3359,16 +3364,21 @@ int dblayer_erase_index_file(backend *be, struct attrinfo *a, int no_force_chkpt
  * know the transaction mechanism underneath (because the caller is
  * typically a few calls up the stack from any DB stuff).
  * Sadly, in slapd there was no handy structure associated with
- * an LDAP operation, and passed around evberywhere, so we had
+ * an LDAP operation, and passed around everywhere, so we had
  * to invent the back_txn structure.
  * The lower levels of the back-end look into this structure, and
  * take out the DB_TXN they need.
  */
 int dblayer_txn_init(struct ldbminfo *li, back_txn *txn)
 {
+    back_txn *cur_txn = dblayer_get_pvt_txn();
     PR_ASSERT(NULL != txn);
 
-    txn->back_txn_txn = NULL;
+    if (cur_txn && txn) {
+        txn->back_txn_txn = cur_txn->back_txn_txn;
+    } else if (txn) {
+        txn->back_txn_txn = NULL;
+    }
     return 0;
 }
 
@@ -3377,7 +3387,7 @@ int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *
 {
     int return_value = -1;
     dblayer_private *priv = NULL;
-    PR_ASSERT(NULL != txn);
+    back_txn new_txn = {NULL};
     PR_ASSERT(NULL != li);
     /*
      * When server is shutting down, some components need to
@@ -3391,18 +3401,38 @@ int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *
     priv = (dblayer_private*)li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
+    if (txn) {
+        txn->back_txn_txn = NULL;
+    }
+
     if (priv->dblayer_enable_transactions)
     {
         dblayer_private_env *pEnv = priv->dblayer_env;
         if(use_lock) slapi_rwlock_rdlock(pEnv->dblayer_env_lock);
+        if (!parent_txn)
+        {
+            /* see if we have a stored parent txn */
+            back_txn *par_txn_txn = dblayer_get_pvt_txn();
+            if (par_txn_txn) {
+                parent_txn = par_txn_txn->back_txn_txn;
+            }
+        }
         return_value = TXN_BEGIN(pEnv->dblayer_DB_ENV,
                                  (DB_TXN*)parent_txn,
-                                 &txn->back_txn_txn,
+                                 &new_txn.back_txn_txn,
                                  0);
         if (0 != return_value) 
         {
             if(use_lock) slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
-            txn->back_txn_txn = NULL;
+        }
+        else
+        {
+            /* this txn is now our current transaction for current operations
+               and new parent for any nested transactions created */
+            dblayer_push_pvt_txn(&new_txn);
+            if (txn) {
+                txn->back_txn_txn = new_txn.back_txn_txn;
+            }
         }
     } else
     {
@@ -3430,21 +3460,42 @@ int dblayer_txn_commit_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 {
     int return_value = -1;
     dblayer_private *priv = NULL;
-    DB_TXN *db_txn;
+    DB_TXN *db_txn = NULL;
+    back_txn *cur_txn = NULL;
 
-    PR_ASSERT(NULL != txn);
     PR_ASSERT(NULL != li);
 
     priv = (dblayer_private*)li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
-    db_txn = txn->back_txn_txn;
+    /* use the transaction we are given - if none, see if there
+       is a transaction in progress */
+    if (txn) {
+        db_txn = txn->back_txn_txn;
+    }
+    cur_txn = dblayer_get_pvt_txn();
+    if (!db_txn) {
+        if (cur_txn) {
+            db_txn = cur_txn->back_txn_txn;
+        }
+    }
     if (NULL != db_txn &&
         1 != priv->dblayer_stop_threads &&
         priv->dblayer_env &&
         priv->dblayer_enable_transactions)
     {
         return_value = TXN_COMMIT(db_txn, 0);
+        /* if we were given a transaction, and it is the same as the
+           current transaction in progress, pop it off the stack
+           or, if no transaction was given, we must be using the
+           current one - must pop it */
+        if (!txn || (cur_txn && (cur_txn->back_txn_txn == db_txn))) {
+            dblayer_pop_pvt_txn();
+        }
+        if (txn) {
+            /* this handle is no longer value - set it to NULL */
+            txn->back_txn_txn = NULL;
+        }
         if ((priv->dblayer_durable_transactions) && use_lock ) {
             if(trans_batch_limit > 0) {        
                 if(trans_batch_count % trans_batch_limit) {
@@ -3487,20 +3538,41 @@ int dblayer_txn_abort_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 {
     int return_value = -1;
     dblayer_private *priv = NULL;
-    DB_TXN *db_txn;
+    DB_TXN *db_txn = NULL;
+    back_txn *cur_txn = NULL;
 
-    PR_ASSERT(NULL != txn);
     PR_ASSERT(NULL != li);
 
     priv = (dblayer_private*)li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
-    db_txn = txn->back_txn_txn;
+    /* use the transaction we are given - if none, see if there
+       is a transaction in progress */
+    if (txn) {
+        db_txn = txn->back_txn_txn;
+    }
+    cur_txn = dblayer_get_pvt_txn();
+    if (!db_txn) {
+        if (cur_txn) {
+            db_txn = cur_txn->back_txn_txn;
+        }
+    }
     if (NULL != db_txn &&
         priv->dblayer_env &&
         priv->dblayer_enable_transactions)
     {
         return_value = TXN_ABORT(db_txn);
+        /* if we were given a transaction, and it is the same as the
+           current transaction in progress, pop it off the stack
+           or, if no transaction was given, we must be using the
+           current one - must pop it */
+        if (!txn || (cur_txn && (cur_txn->back_txn_txn == db_txn))) {
+            dblayer_pop_pvt_txn();
+        }
+        if (txn) {
+            /* this handle is no longer value - set it to NULL */
+            txn->back_txn_txn = NULL;
+        }
         if(use_lock) slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
     } else
     {
@@ -6598,4 +6670,75 @@ ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info)
     }
 
     return rc;
+}
+
+#include <prthread.h>
+#include <prclist.h>
+
+static PRUintn thread_private_txn_stack;
+
+typedef struct dblayer_txn_stack {
+    PRCList list;
+    back_txn txn;
+} dblayer_txn_stack;
+
+static void
+dblayer_cleanup_txn_stack(void *arg)
+{
+    dblayer_txn_stack *txn_stack =  (dblayer_txn_stack *)arg;
+    while (txn_stack && !PR_CLIST_IS_EMPTY(&txn_stack->list)) {
+        dblayer_txn_stack *elem = (dblayer_txn_stack *)PR_LIST_HEAD(&txn_stack->list);
+        PR_REMOVE_LINK(&elem->list);
+        slapi_ch_free((void **)&elem);
+    }
+    if (txn_stack) {
+        slapi_ch_free((void **)&txn_stack);
+    }
+    PR_SetThreadPrivate(thread_private_txn_stack, NULL);
+    return;
+}
+
+static void
+dblayer_init_pvt_txn()
+{
+    PR_NewThreadPrivateIndex(&thread_private_txn_stack, dblayer_cleanup_txn_stack);
+}
+
+static void
+dblayer_push_pvt_txn(back_txn *txn)
+{
+    dblayer_txn_stack *new_elem = NULL;
+    dblayer_txn_stack *txn_stack = PR_GetThreadPrivate(thread_private_txn_stack);
+    if (!txn_stack) {
+        txn_stack = (dblayer_txn_stack *)slapi_ch_calloc(1, sizeof(dblayer_txn_stack));
+        PR_INIT_CLIST(&txn_stack->list);
+        PR_SetThreadPrivate(thread_private_txn_stack, txn_stack);
+    }
+    new_elem = (dblayer_txn_stack *)slapi_ch_calloc(1, sizeof(dblayer_txn_stack));
+    new_elem->txn = *txn; /* copy contents */
+    PR_APPEND_LINK(&new_elem->list, &txn_stack->list);
+}
+
+static back_txn *
+dblayer_get_pvt_txn()
+{
+    back_txn *txn = NULL;
+    dblayer_txn_stack *txn_stack = PR_GetThreadPrivate(thread_private_txn_stack);
+    if (txn_stack && !PR_CLIST_IS_EMPTY(&txn_stack->list)) {
+        txn = &((dblayer_txn_stack *)PR_LIST_TAIL(&txn_stack->list))->txn;
+    }
+    return txn;
+}
+
+static void
+dblayer_pop_pvt_txn()
+{
+    dblayer_txn_stack *elem = NULL;
+    dblayer_txn_stack *txn_stack = PR_GetThreadPrivate(thread_private_txn_stack);
+    if (txn_stack && !PR_CLIST_IS_EMPTY(&txn_stack->list)) {
+        elem = (dblayer_txn_stack *)PR_LIST_TAIL(&txn_stack->list);
+        PR_REMOVE_LINK(&elem->list);
+        slapi_ch_free((void **)&elem);
+    }
+    return;
 }

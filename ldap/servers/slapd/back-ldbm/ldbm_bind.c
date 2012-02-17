@@ -219,6 +219,11 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method );
 	slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &cred );
 	slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
+
+	if ( !txn.back_txn_txn ) {
+		dblayer_txn_init( li, &txn );
+		slapi_pblock_set( pb, SLAPI_TXN, txn.back_txn_txn );
+	}
 	
 	inst = (ldbm_instance *) be->be_instance_info;
 

@@ -113,7 +113,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	dblayer_txn_init(li,&txn);
 	/* the calls to perform searches require the parent txn if any
 	   so set txn to the parent_txn until we begin the child transaction */
-	txn.back_txn_txn = parent_txn;
+	if (parent_txn) {
+		txn.back_txn_txn = parent_txn;
+	} else {
+		parent_txn = txn.back_txn_txn;
+		slapi_pblock_set( pb, SLAPI_TXN, parent_txn );
+	}
 
 	if (pb->pb_conn)
 	{
@@ -468,6 +473,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
+			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
 			backentry_free(&e);
 			slapi_pblock_set( pb, SLAPI_DELETE_EXISTING_ENTRY, original_entry->ep_entry );
@@ -938,7 +944,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	retval = dblayer_txn_commit(li,&txn);
 	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
-	txn.back_txn_txn = NULL;
 	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval)
 	{
@@ -1004,7 +1009,6 @@ error_return:
 	if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 		dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 		/* txn is no longer valid - reset the txn pointer to the parent */
-		txn.back_txn_txn = NULL;
 		slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	}
 	

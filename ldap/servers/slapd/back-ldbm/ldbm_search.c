@@ -353,6 +353,11 @@ ldbm_back_search( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_BACKEND_COUNT, &backend_count );
     slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
 
+    if ( !txn.back_txn_txn ) {
+        dblayer_txn_init( li, &txn );
+		slapi_pblock_set( pb, SLAPI_TXN, txn.back_txn_txn );
+	}
+
     inst = (ldbm_instance *) be->be_instance_info;
 
     if (NULL == basesdn) {
@@ -1349,6 +1354,11 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     slapi_pblock_get( pb, SLAPI_TARGET_UNIQUEID, &target_uniqueid );
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
     slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
+
+    if ( !txn.back_txn_txn ) {
+        dblayer_txn_init( li, &txn );
+        slapi_pblock_set( pb, SLAPI_TXN, txn.back_txn_txn );
+    }
 
     if (NULL == sr) {
         goto bail;

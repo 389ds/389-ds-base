@@ -142,9 +142,14 @@ ldbm_back_add( Slapi_PBlock *pb )
 	slapi_entry_delete_values( e, numsubordinates, NULL );
 
 	dblayer_txn_init(li,&txn);
-	/* the calls to get_copy_of_entry require the parent txn if any
+	/* the calls to perform searches require the parent txn if any
 	   so set txn to the parent_txn until we begin the child transaction */
-	txn.back_txn_txn = parent_txn;
+	if (parent_txn) {
+		txn.back_txn_txn = parent_txn;
+	} else {
+		parent_txn = txn.back_txn_txn;
+		slapi_pblock_set( pb, SLAPI_TXN, parent_txn );
+	}
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,
@@ -674,8 +679,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
-			/* txn is no longer valid - reset slapi_txn to the parent */
-			txn.back_txn_txn = NULL;
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
 			backentry_free(&addingentry);
@@ -944,7 +947,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 	retval = dblayer_txn_commit(li,&txn);
 	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
-	txn.back_txn_txn = NULL;
 	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval)
 	{
@@ -993,7 +995,6 @@ diskfull_return:
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 			/* txn is no longer valid - reset the txn pointer to the parent */
-			txn.back_txn_txn = NULL;
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 		}
 		rc= SLAPI_FAIL_GENERAL;

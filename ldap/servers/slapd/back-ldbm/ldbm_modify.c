@@ -230,6 +230,15 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	dblayer_txn_init(li,&txn); /* must do this before first goto error_return */
+	/* the calls to perform searches require the parent txn if any
+	   so set txn to the parent_txn until we begin the child transaction */
+	if (parent_txn) {
+		txn.back_txn_txn = parent_txn;
+	} else {
+		parent_txn = txn.back_txn_txn;
+		slapi_pblock_set( pb, SLAPI_TXN, parent_txn );
+	}
+
 	if (NULL == operation)
 	{
 		ldap_result_code = LDAP_OPERATIONS_ERROR;
@@ -245,9 +254,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	/* the calls to search for entries require the parent txn if any
-	   so set txn to the parent_txn until we begin the child transaction */
-	txn.back_txn_txn = parent_txn;
 	/* no need to check the dn syntax as this is a replicated op */
 	if(!repl_op){
 		ldap_result_code = slapi_dn_syntax_check(pb, slapi_sdn_get_dn(addr->sdn), 1);
@@ -428,8 +434,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
-			/* txn is no longer valid - reset slapi_txn to the parent */
-			txn.back_txn_txn = NULL;
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 			/*
 			 * Since be_txn_preop functions could have modified the entry/mods,
@@ -605,7 +609,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	retval = dblayer_txn_commit(li,&txn);
 	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
-	txn.back_txn_txn = NULL;
 	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval) {
 		if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -650,7 +653,6 @@ error_return:
 			/* It is safer not to abort when the transaction is not started. */
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 			/* txn is no longer valid - reset the txn pointer to the parent */
-			txn.back_txn_txn = NULL;
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 		}
 	    rc= SLAPI_FAIL_GENERAL;
