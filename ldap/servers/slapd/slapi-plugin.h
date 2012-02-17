@@ -5470,9 +5470,6 @@ void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *ibase, int type,
  */
 int slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrlist,
 	Slapi_Entry **ret_entry , void *caller_identity);
-/* same as above but can pass in the txn to use */
-int slapi_search_internal_get_entry_ext( Slapi_DN *dn, char ** attrlist,
-	Slapi_Entry **ret_entry , void *caller_identity, void *txn );
 
 /* 
  * interface for registering object extensions.

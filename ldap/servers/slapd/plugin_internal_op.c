@@ -912,7 +912,7 @@ void set_common_params (Slapi_PBlock *pb)
  * copy of the entry, NULL can be passed for ret_entry.
  */
 int
-slapi_search_internal_get_entry_ext( Slapi_DN *dn, char ** attrs, Slapi_Entry **ret_entry , void * component_identity, void *txn )
+slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrs, Slapi_Entry **ret_entry , void * component_identity)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *int_search_pb = NULL;
@@ -928,7 +928,6 @@ slapi_search_internal_get_entry_ext( Slapi_DN *dn, char ** attrs, Slapi_Entry **
 								   0 /* attrsonly */, NULL /* controls */,
 								   NULL /* uniqueid */,
 								   component_identity, 0 /* actions */ );
-	slapi_pblock_set( int_search_pb, SLAPI_TXN, txn );
 	slapi_search_internal_pb ( int_search_pb );
     slapi_pblock_get( int_search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
     if ( LDAP_SUCCESS == rc ) {
@@ -949,15 +948,4 @@ slapi_search_internal_get_entry_ext( Slapi_DN *dn, char ** attrs, Slapi_Entry **
     slapi_pblock_destroy(int_search_pb);
 	int_search_pb = NULL;
     return rc;
-}
-
-/*
- * Given a DN, find an entry by doing an internal search.  An LDAP error
- * code is returned.  To check if an entry exists without returning a
- * copy of the entry, NULL can be passed for ret_entry.
- */
-int
-slapi_search_internal_get_entry( Slapi_DN *dn, char ** attrs, Slapi_Entry **ret_entry , void * component_identity)
-{
-	return slapi_search_internal_get_entry_ext(dn, attrs, ret_entry, component_identity, NULL);
 }
