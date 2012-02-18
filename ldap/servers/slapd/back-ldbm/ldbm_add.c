@@ -176,8 +176,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	}
 
 
-	if (!is_tombstone_operation && !is_resurect_operation)
-	{
+	if (!is_tombstone_operation) {
 		rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
 	}
 	rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY);

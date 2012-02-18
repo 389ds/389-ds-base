@@ -256,7 +256,9 @@ int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
                  * If so, need to get the grandparent of the leaf.
                  */
                 if (slapi_entry_flag_is_set(ep->ep_entry,
-                                            SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+                                            SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+                    (0 == strncasecmp(pdn, SLAPI_ATTR_UNIQUEID,
+                                      sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
                     char *ppdn = slapi_dn_parent(pdn);
                     slapi_ch_free_string(&pdn);
                     if (NULL == ppdn) {
