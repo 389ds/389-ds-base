@@ -594,10 +594,11 @@ value_normalize_value(Slapi_Value *value)
 	if (slapi_sdn_get_dn(sdn)) {
 		value->bv.bv_val = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
 		value->bv.bv_len = slapi_sdn_get_ndn_len(sdn);
+		slapi_sdn_free(&sdn);
 	} else {
 		rc = 1;
+		slapi_ch_free((void **)&sdn); /* free just Slapi_DN */
 	}
-	slapi_sdn_free(&sdn);
 
 	return rc;
 }
