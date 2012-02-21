@@ -414,7 +414,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 
-		if (retry_count > 0) {
+		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
 			/* txn is no longer valid - reset slapi_txn to the parent */
 			txn.back_txn_txn = NULL;
@@ -614,8 +614,8 @@ error_return:
 
 	if (disk_full) {
 	    rc= return_on_disk_full(li);
-	} else if (ldap_result_code != LDAP_SUCCESS) {
-		if (retry_count > 0) {
+	} else {
+		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			/* It is safer not to abort when the transaction is not started. */
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 			/* txn is no longer valid - reset the txn pointer to the parent */

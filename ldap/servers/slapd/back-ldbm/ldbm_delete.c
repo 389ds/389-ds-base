@@ -460,7 +460,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
-		if (retry_count > 0) {
+		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
 			/* We're re-trying */
 			LDAPDebug( LDAP_DEBUG_TRACE, "Delete Retrying Transaction\n", 0, 0, 0 );
@@ -987,7 +987,7 @@ error_return:
 	    rc= SLAPI_FAIL_GENERAL;
 
 	/* It is safer not to abort when the transaction is not started. */
-	if (retry_count > 0) {
+	if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 		dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 		/* txn is no longer valid - reset the txn pointer to the parent */
 		txn.back_txn_txn = NULL;
