@@ -83,11 +83,14 @@ struct _import_index_info
 /* item on the entry FIFO */
 typedef struct {
     struct backentry *entry;
-    char *filename;		/* or NULL */
-    int line;			/* filename/line are used to report errors */
-    int bad;                    /* foreman did not like the entry */
-	size_t esize;		/* entry size */
+    char *filename;     /* or NULL */
+    int line;           /* filename/line are used to report errors */
+    int bad;            /* foreman did not like the entry */
+    size_t esize;       /* entry size */
 } FifoItem;
+
+#define FIFOITEM_BAD         1
+#define FIFOITEM_BAD_PRINTED 2
 
 typedef struct {
     FifoItem *item;

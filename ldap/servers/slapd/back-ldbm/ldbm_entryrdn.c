@@ -1584,8 +1584,7 @@ retry_get:
         slapi_ch_free(&ptr);
     }
 bail:
-    slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
-                                     "<-- _entryrdn_get_elem\n");
+    slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG, "<-- _entryrdn_get_elem\n");
     return rc;
 }
 
@@ -2231,6 +2230,12 @@ _entryrdn_insert_key(backend *be,
         /* Check the direct child in the RDN array, first */
         rdnidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
                                         &childnrdn, FLAG_ALL_NRDNS);
+        if ((rdnidx < 0) || (NULL == childnrdn)) {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "_entryrdn_insert_key: RDN list \"%s\" is broken: "
+                            "idx(%d)\n", slapi_rdn_get_rdn(srdn), rdnidx);
+            goto bail;
+        }
         /* Generate a key for child tree */
         /* E.g., C1 */
         keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_CHILD, workid);
@@ -2298,7 +2303,7 @@ _entryrdn_insert_key(backend *be,
                      */
                     rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, &key,
                                                           childnrdn, &tmpelem);
-                    if (rc || (NULL == tmpelem)) {
+                    if (rc) {
                         char *dn  = NULL;
                         slapi_rdn_get_dn(tmpsrdn, &dn);
                         if (DB_NOTFOUND == rc) {
@@ -2312,24 +2317,16 @@ _entryrdn_insert_key(backend *be,
                         }
                         slapi_ch_free_string(&dn);
                         goto bail;
-                    } else {
-                        int tmpidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
-                                                            &childnrdn, FLAG_ALL_NRDNS);
-                        if (childnrdn &&
-                            (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
-                                              sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
-                            rdnidx = tmpidx;
-                        }
                     }
                     /* Node is a tombstone. */
-                    slapi_ch_free((void **)&elem);
-                    elem = tmpelem;
-                    currid = id_stored_to_internal(elem->rdn_elem_id);
-                    nrdn = childnrdn;
-                    workid = currid;
-                    slapi_ch_free((void **)&parentelem);
-                    parentelem = elem;
-                    elem = NULL;
+                    if (tmpelem) {
+                        currid = id_stored_to_internal(tmpelem->rdn_elem_id);
+                        nrdn = childnrdn;
+                        workid = currid;
+                        slapi_ch_free((void **)&parentelem);
+                        parentelem = tmpelem;
+                        slapi_ch_free((void **)&elem);
+                    }
                 }
             } else {
                 char *dn  = NULL;
@@ -2823,14 +2820,6 @@ _entryrdn_index_read(backend *be,
                         slapi_rdn_free(&tmpsrdn);
                     }
                     goto bail;
-                } else {
-                    int tmpidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
-                                                        &childnrdn, FLAG_ALL_NRDNS);
-                    if (childnrdn &&
-                        (0 == strncasecmp(childnrdn, SLAPI_ATTR_UNIQUEID,
-                                          sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
-                        rdnidx = tmpidx;
-                    }
                 }
             } else {
                 slapi_ch_free((void **)&tmpelem);

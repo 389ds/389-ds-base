@@ -63,6 +63,7 @@ int urp_fixup_rename_entry (Slapi_Entry *entry, const char *newrdn, int opflags,
 int urp_fixup_modify_entry (const char *uniqueid, const Slapi_DN *sdn, CSN *opcsn, Slapi_Mods *smods, int opflags, void *txn);
 
 int is_suffix_dn (Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parenddn);
+int is_suffix_dn_ext (Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parenddn, int is_tombstone);
 
 /*
  * urp_glue.c

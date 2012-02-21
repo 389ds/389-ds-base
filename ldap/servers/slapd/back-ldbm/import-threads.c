@@ -2039,7 +2039,7 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
                               fi->line, fi->filename);
             idl_free(IDL);
             /* skip this one */
-            fi->bad = 1;
+            fi->bad = FIFOITEM_BAD;
             job->skipped++;
             return -1;      /* skip to next entry */
         }
@@ -2214,7 +2214,7 @@ import_foreman(void *param)
                                       slapi_entry_get_dn(fi->entry->ep_entry),
                                       fi->line, fi->filename);
                     /* skip this one */
-                    fi->bad = 1;
+                    fi->bad = FIFOITEM_BAD;
                     job->skipped++;
                     goto cont;      /* below */
                 }

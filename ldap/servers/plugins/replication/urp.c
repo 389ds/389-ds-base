@@ -732,7 +732,7 @@ urp_fixup_add_entry (Slapi_Entry *e, const char *target_uniqueid, const char *pa
 	 */
 	slapi_add_entry_internal_set_pb (
 			newpb,
-			e,
+			e, /* entry will be consumed */
 			NULL, /*Controls*/
 			repl_get_plugin_identity ( PLUGIN_MULTIMASTER_REPLICATION ),
 			OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
@@ -1276,19 +1276,26 @@ is_suffix_entry ( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_DN **parentdn )
 }
 
 int
-is_suffix_dn ( Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parentdn )
+is_suffix_dn_ext ( Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parentdn,
+                   int is_tombstone )
 {
 	Slapi_Backend *backend;
 	int rc;
 
 	*parentdn = slapi_sdn_new();
 	slapi_pblock_get( pb, SLAPI_BACKEND, &backend );
-	slapi_sdn_get_backend_parent (dn, *parentdn, backend);
+	slapi_sdn_get_backend_parent_ext (dn, *parentdn, backend, is_tombstone);
 
 	/* A suffix entry doesn't have parent dn */
 	rc = slapi_sdn_isempty (*parentdn) ? 1 : 0;
 
 	return rc;
+}
+
+int
+is_suffix_dn ( Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parentdn )
+{
+	return is_suffix_dn_ext ( pb, dn, parentdn, 0 );
 }
 
 static int

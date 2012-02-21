@@ -377,7 +377,7 @@ int slapi_add_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPMod **attrs
 	return rc;
 }
 	
-
+/* Note: Passed entry e is going to be consumed. */
 /* Initialize a pblock for a call to slapi_add_internal_pb() */
 void slapi_add_entry_internal_set_pb (Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **controls, 
 								Slapi_ComponentId *plugin_identity, int operation_flags)
@@ -415,12 +415,12 @@ static int add_internal_pb (Slapi_PBlock *pb)
 	{
 		opresult = LDAP_PARAM_ERROR;
 		slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
-		return 0;	
+		return 0;
 	}
 	
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    op->o_handler_data   = &opresult;
-    op->o_result_handler = internal_getresult_callback;
+	op->o_handler_data   = &opresult;
+	op->o_result_handler = internal_getresult_callback;
 
 	slapi_pblock_set(pb, SLAPI_REQCONTROLS, controls);
     
@@ -431,9 +431,9 @@ static int add_internal_pb (Slapi_PBlock *pb)
 	set_config_params (pb);
 
 	/* perform the add operation */
-    op_shared_add (pb);
+	op_shared_add (pb);
 	
-    slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 
 	return 0;
 }
@@ -730,6 +730,7 @@ done:
 	slapi_entry_free(pse);
 	slapi_ch_free((void **)&operation->o_params.p.p_add.parentuniqueid);
 	slapi_entry_free(e);
+	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
 	valuearray_free(&unhashed_password_vals);
 	slapi_ch_free((void**)&pwdtype);
 	slapi_ch_free_string(&proxydn);

@@ -174,7 +174,7 @@ tombstone_to_glue (
 	/* JCM - This DN calculation is odd. It could resolve to NULL
 	 * which won't help us identify the correct backend to search.
 	 */
-	is_suffix_dn (pb, tombstonedn, &parentdn);
+	is_suffix_dn_ext (pb, tombstonedn, &parentdn, 1 /* is_tombstone */);
 	parentuniqueid= slapi_entry_attr_get_charptr (tombstoneentry,
 			SLAPI_ATTR_VALUE_PARENT_UNIQUEID); /* Allocated */
 	tombstone_to_glue_resolve_parent (pb, sessionid, parentdn, parentuniqueid, opcsn);
@@ -207,7 +207,6 @@ tombstone_to_glue (
 			"%s: Can't resurrect tombstone %s to glue reason '%s', error=%d\n",
 			sessionid, addingdn, reason, op_result);
 	}
-	slapi_entry_free (addingentry);
 	return op_result;
 }
 
