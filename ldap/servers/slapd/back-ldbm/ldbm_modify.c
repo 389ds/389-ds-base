@@ -228,6 +228,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
+	dblayer_txn_init(li,&txn); /* must do this before first goto error_return */
 	if (NULL == operation)
 	{
 		ldap_result_code = LDAP_OPERATIONS_ERROR;
@@ -238,15 +239,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 	inst = (ldbm_instance *) be->be_instance_info;
 
-	dblayer_txn_init(li,&txn);
-	/* the calls to search for entries require the parent txn if any
-	   so set txn to the parent_txn until we begin the child transaction */
-	txn.back_txn_txn = parent_txn;
 	if (NULL == addr)
 	{
 		goto error_return;
 	}
 
+	/* the calls to search for entries require the parent txn if any
+	   so set txn to the parent_txn until we begin the child transaction */
+	txn.back_txn_txn = parent_txn;
 	/* no need to check the dn syntax as this is a replicated op */
 	if(!repl_op){
 		ldap_result_code = slapi_dn_syntax_check(pb, slapi_sdn_get_dn(addr->sdn), 1);
