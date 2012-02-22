@@ -557,6 +557,59 @@ slapi_ldif_parse_line(
     return rc;
 }
 
+#if defined(USE_OPENLDAP)
+static int
+setup_ol_tls_conn(LDAP *ld, int clientauth)
+{
+    char *certdir = config_get_certdir();
+    int optval = 0;
+    int ssl_strength = 0;
+    int rc = 0;
+
+    if (config_get_ssl_check_hostname()) {
+	ssl_strength = LDAP_OPT_X_TLS_HARD;
+    } else {
+	/* verify certificate only */
+	ssl_strength = LDAP_OPT_X_TLS_NEVER;
+    }
+
+    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
+	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+			"failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
+    }
+    /* tell it where our cert db is */
+    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
+	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+			"failed: unable to set CACERTDIR option to %s\n", certdir);
+    }
+    slapi_ch_free_string(&certdir);
+#if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
+    optval = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
+    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval))) {
+	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+			"failed: unable to set minimum TLS protocol level to SSL3\n");
+    }
+#endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
+    if (clientauth) {
+	rc = slapd_SSL_client_auth(ld);
+	if (rc) {
+	    slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+			    "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication - %d\n", rc);
+	}
+    }
+
+    /* have to do this last - this creates the new TLS handle and sets/copies
+       all of the parameters set above into that TLS handle context - note
+       that optval is ignored - what matters is that it is not NULL */
+    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
+	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+			"failed: unable to create new TLS context\n");
+    }
+
+    return rc;
+}
+#endif /* defined(USE_OPENLDAP) */
+
 /*
   Perform LDAP init and return an LDAP* handle.  If ldapurl is given,
   that is used as the basis for the protocol, host, port, and whether
@@ -784,9 +837,11 @@ slapi_ldap_init_ext(
 	 */
 	if (secure > 0) {
 #if defined(USE_OPENLDAP)
-	    char *certdir = config_get_certdir();
-	    int optval = 0;
-#endif /* !USE_OPENLDAP */
+	    if (setup_ol_tls_conn(ld, 0)) {
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+				"failed: unable to set SSL/TLS options\n");
+	    }
+#else
 	    int ssl_strength = 0;
 	    LDAP *myld = NULL;
 
@@ -799,43 +854,12 @@ slapi_ldap_init_ext(
 
 	    if (config_get_ssl_check_hostname()) {
 		/* check hostname against name in certificate */
-#if defined(USE_OPENLDAP)
-		ssl_strength = LDAP_OPT_X_TLS_HARD;
-#else /* !USE_OPENLDAP */
 		ssl_strength = LDAPSSL_AUTH_CNCHECK;
-#endif /* !USE_OPENLDAP */
 	    } else {
 		/* verify certificate only */
-#if defined(USE_OPENLDAP)
-		ssl_strength = LDAP_OPT_X_TLS_NEVER;
-#else /* !USE_OPENLDAP */
 		ssl_strength = LDAPSSL_AUTH_CERT;
-#endif /* !USE_OPENLDAP */
 	    }
 
-#if defined(USE_OPENLDAP)
-	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
-	    }
-	    /* tell it where our cert db is */
-	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set CACERTDIR option to %s\n", certdir);
-	    }
-	    slapi_ch_free_string(&certdir);
-#if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
-	    optval = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
-	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval))) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set minimum TLS protocol level to SSL3\n");
-	    }
-#endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
-	    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to create new TLS context\n");
-	    }
-#else  /* !USE_OPENLDAP */
 	    if ((rc = ldapssl_set_strength(myld, ssl_strength)) ||
 		(rc = ldapssl_set_option(myld, SSL_ENABLE_SSL2, PR_FALSE)) ||
 		(rc = ldapssl_set_option(myld, SSL_ENABLE_SSL3, PR_TRUE)) ||
@@ -960,10 +984,15 @@ slapi_ldap_bind(
     ldap_set_option(ld, LDAP_OPT_CLIENT_CONTROLS, NULL);
 
     if ((secure > 0) && mech && !strcmp(mech, LDAP_SASL_EXTERNAL)) {
+#if defined(USE_OPENLDAP)
+	/* we already set up a tls context in slapi_ldap_init_ext() - this will
+	   free those old settings and context and create a new one */
+	rc = setup_ol_tls_conn(ld, 1);
+#else
 	/* SSL connections will use the server's security context
 	   and cert for client auth */
 	rc = slapd_SSL_client_auth(ld);
-
+#endif
 	if (rc != 0) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not configure the server for cert "
@@ -973,7 +1002,7 @@ slapi_ldap_bind(
 	} else {
 	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
 			    "Set up conn to use client auth\n");
-        }
+	}
 	bvcreds.bv_val = NULL; /* ignore username and passed in creds */
 	bvcreds.bv_len = 0; /* for external auth */
 	bindid = NULL;
