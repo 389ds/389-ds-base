@@ -44,7 +44,7 @@
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *    Don't forget to update build_date when the patch sets are updated. 
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-static char *build_date = "10-AUGUST-2007";
+static char *build_date = "23-FEBRUARY-2012";
 
 #if defined(__FreeBSD__) || defined(__bsdi)
 #define IDDS_BSD_INCLUDE 1
@@ -1112,6 +1112,9 @@ linux_check_release(void)
   FILE *fp;
   char osl[128];
   char *cmd = strdup("/bin/uname -r");
+  int major = 0;
+  int minor = 0;
+  int revision = 0;
 
   if (cmd == NULL) {
     printf("ERROR: Unable to allocate memory\n");
@@ -1139,20 +1142,26 @@ linux_check_release(void)
 	printf("DEBUG  : %s\n",osl);
   }
 
-  if (atoi(strtok(osl, ".")) < 2) {
+  major = atoi(strtok(osl, "."));
+  minor = atoi(strtok(NULL, "."));
+  revision = atoi(strtok(NULL, "-"));
+
+  if (major < 2) {
 	printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
 	flag_os_bad = 1;
 	goto done;
-  }
-  if (atoi(strtok(NULL, ".")) < 4) {
-	printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
-	flag_os_bad = 1;
-	goto done;
-  }
-  if (atoi(strtok(NULL, "-")) < 7) {
-	printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
-	flag_os_bad = 1;
-	goto done;
+  } else if (major == 2) {
+	if (minor < 4) {
+		printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
+		flag_os_bad = 1;
+		goto done;
+	} else if (minor == 4) {
+		if (revision < 7) {
+			printf("ERROR: We support kernel version 2.4.7 and higher.\n\n");
+			flag_os_bad = 1;
+			goto done;
+		}
+	}
   }
 done:
   if (cmd) free(cmd);
