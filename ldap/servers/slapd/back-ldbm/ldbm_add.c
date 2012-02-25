@@ -84,6 +84,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	struct backentry *tombstoneentry = NULL;
 	struct backentry *addingentry = NULL;
 	struct backentry *parententry = NULL;
+	struct backentry *originalentry = NULL;
 	ID pid;
 	int	isroot;
 	char *errbuf= NULL;
@@ -661,6 +662,10 @@ ldbm_back_add( Slapi_PBlock *pb )
 		}
 	}
 
+	if ( (originalentry = backentry_dup(addingentry )) == NULL ) {
+		ldap_result_code= LDAP_OPERATIONS_ERROR;
+		goto error_return;
+	}
 	/*
  	 * So, we believe that no code up till here actually added anything
 	 * to persistent store. From now on, we're transacted
@@ -672,6 +677,15 @@ ldbm_back_add( Slapi_PBlock *pb )
 			/* txn is no longer valid - reset slapi_txn to the parent */
 			txn.back_txn_txn = NULL;
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
+
+			backentry_free(&addingentry);
+			slapi_pblock_set( pb, SLAPI_ADD_ENTRY, originalentry->ep_entry );
+			addingentry = originalentry;
+			if ( (originalentry = backentry_dup( addingentry )) == NULL ) {
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+
 			/* We're re-trying */
 			LDAPDebug( LDAP_DEBUG_TRACE, "Add Retrying Transaction\n", 0, 0, 0 );
 #ifndef LDBM_NO_BACKOFF_DELAY
@@ -1030,6 +1044,7 @@ common_return:
 	{
 		slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
 	}
+	backentry_free(&originalentry);
 	slapi_sdn_done(&parentsdn);
 	slapi_ch_free( (void**)&ldap_result_matcheddn );
 	slapi_ch_free( (void**)&errbuf );

@@ -436,6 +436,7 @@ void operation_set_flag(Slapi_Operation *op,int flag);
 void operation_clear_flag(Slapi_Operation *op,int flag);
 int operation_is_flag_set(Slapi_Operation *op,int flag);
 unsigned long operation_get_type(Slapi_Operation *op);
+LDAPMod **copy_mods(LDAPMod **orig_mods);
 
 /* 
  * From ldap.h

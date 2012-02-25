@@ -60,6 +60,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	struct ldbminfo	*li = NULL;
 	struct backentry *e = NULL;
 	struct backentry *tombstone = NULL;
+	struct backentry *original_entry = NULL;
 	char *dn = NULL;
 	back_txn txn;
 	back_txnid parent_txn;
@@ -453,6 +454,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		}
 	}
 
+	if ( (original_entry = backentry_dup( e )) == NULL ) {
+		ldap_result_code= LDAP_OPERATIONS_ERROR;
+		goto error_return;
+	}
+
 	/*
 	 * So, we believe that no code up till here actually added anything
 	 * to the persistent store. From now on, we're transacted
@@ -462,6 +468,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
+
+			backentry_free(&e);
+			slapi_pblock_set( pb, SLAPI_DELETE_EXISTING_ENTRY, original_entry->ep_entry );
+			e = original_entry;
+			if ( (original_entry = backentry_dup( e )) == NULL ) {
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
 			/* We're re-trying */
 			LDAPDebug( LDAP_DEBUG_TRACE, "Delete Retrying Transaction\n", 0, 0, 0 );
 #ifndef LDBM_NO_BACKOFF_DELAY
@@ -1057,6 +1071,7 @@ diskfull_return:
 		slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, slapi_ch_strdup (dn));
 	}
 	done_with_pblock_entry(pb, SLAPI_DELETE_EXISTING_ENTRY);
+	backentry_free(&original_entry);
 	slapi_ch_free((void**)&errbuf);
 	slapi_sdn_done(&sdn);
 	slapi_ch_free_string(&e_uniqueid);

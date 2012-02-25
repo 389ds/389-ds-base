@@ -193,9 +193,10 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	backend *be;
 	ldbm_instance *inst = NULL;
 	struct ldbminfo		*li;
-	struct backentry	*e = NULL, *ec = NULL;
+	struct backentry	*e = NULL, *ec = NULL, *original_entry = NULL;
 	Slapi_Entry		*postentry = NULL;
 	LDAPMod			**mods;
+	LDAPMod			**mods_original;
 	Slapi_Mods smods = {0};
 	back_txn txn;
 	back_txnid		parent_txn;
@@ -411,6 +412,17 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 	}
 
+	/*
+	 * Grab a copy of the mods and the entry in case the be_txn_preop changes
+	 * the them.  If we have a failure, then we need to reset the mods to their
+	 * their original state;
+	 */
+	mods_original = copy_mods(mods);
+	if ( (original_entry = backentry_dup( e )) == NULL ) {
+		ldap_result_code= LDAP_OPERATIONS_ERROR;
+		goto error_return;
+	}
+
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 
@@ -419,6 +431,22 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			/* txn is no longer valid - reset slapi_txn to the parent */
 			txn.back_txn_txn = NULL;
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
+			/*
+			 * Since be_txn_preop functions could have modified the entry/mods,
+			 * We need to grab the current mods, free them, and restore the
+			 * originals.  Same thing for the entry.
+			 */
+			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+			ldap_mods_free(mods, 1);
+			slapi_pblock_set(pb, SLAPI_MODIFY_MODS, copy_mods(mods_original));
+			backentry_free(&ec);
+			slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, original_entry->ep_entry );
+			ec = original_entry;
+			if ( (original_entry = backentry_dup( e )) == NULL ) {
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+
 			LDAPDebug( LDAP_DEBUG_TRACE, "Modify Retrying Transaction\n", 0, 0, 0 );
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
@@ -448,6 +476,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			goto error_return;
 		}
+
+		/* the mods might have been changed, so get the latest */
+		slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 
 		/*
 		 * Update the ID to Entry index. 
@@ -653,8 +684,12 @@ common_return:
 	{
 		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
-	
+
+	/* free our backups */
+	ldap_mods_free(mods_original, 1);
+	backentry_free(&original_entry);
 	slapi_ch_free_string(&errbuf);
+
 	return rc;
 }
 

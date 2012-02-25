@@ -82,6 +82,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     struct backentry *parententry= NULL;
     struct backentry *newparententry= NULL;
     struct backentry *existingentry= NULL;
+    struct backentry *original_entry = NULL;
+    struct backentry *original_parent = NULL;
+    struct backentry *original_newparent = NULL;
     modify_context parent_modify_context = {0};
     modify_context newparent_modify_context = {0};
     modify_context ruv_c = {0};
@@ -95,6 +98,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     Slapi_DN dn_newrdn;
     Slapi_DN *dn_newsuperiordn = NULL;
     Slapi_DN dn_parentdn;
+    Slapi_DN *orig_dn_newsuperiordn = NULL;
+    Slapi_Entry *target_entry = NULL;
+    Slapi_Entry *original_targetentry = NULL;
     int rc;
     int isroot;
     LDAPMod **mods;
@@ -110,7 +116,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     entry_address oldparent_addr;
     entry_address *newsuperior_addr;
     char ebuf[BUFSIZ];
+    char *original_newrdn = NULL;
     CSN *opcsn = NULL;
+    const char *newdn = NULL;
+    char *newrdn = NULL;
 
     /* sdn & parentsdn need to be initialized before "goto *_return" */
     slapi_sdn_init(&dn_newdn);
@@ -212,9 +221,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         /* <new rdn>,<new superior> */
         if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
         {
-            const char *newdn = NULL;
-            char * newrdn = NULL;
-
             /* see if an entry with the new name already exists */
             done_with_pblock_entry(pb,SLAPI_MODRDN_EXISTING_ENTRY); /* Could be through this multiple times */
             slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
@@ -694,6 +700,33 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         }
     }
 
+    /*
+     * make copies of the originals, no need to copy the mods because
+     * we have already copied them
+     */
+    if ( (original_entry = backentry_dup( ec )) == NULL ) {
+        ldap_result_code= LDAP_OPERATIONS_ERROR;
+        goto error_return;
+    }
+    if ( (original_parent = backentry_dup( parententry )) == NULL ) {
+        ldap_result_code= LDAP_OPERATIONS_ERROR;
+        goto error_return;
+    }
+    if ( (original_newparent = backentry_dup( newparententry )) == NULL ) {
+        ldap_result_code= LDAP_OPERATIONS_ERROR;
+        goto error_return;
+    }
+    slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_ENTRY, &target_entry);
+    if ( (original_targetentry = slapi_entry_dup(target_entry)) == NULL ) {
+        ldap_result_code= LDAP_OPERATIONS_ERROR;
+        goto error_return;
+    }
+
+    slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
+    original_newrdn = slapi_ch_strdup(newrdn);
+    slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn);
+    orig_dn_newsuperiordn = slapi_sdn_dup(dn_newsuperiordn);
+
     /* 
      * So, we believe that no code up till here actually added anything
      * to persistent store. From now on, we're transacted
@@ -707,6 +740,48 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             /* txn is no longer valid - reset slapi_txn to the parent */
             txn.back_txn_txn = NULL;
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
+
+            slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
+            slapi_ch_free_string(&newrdn);
+            slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, original_newrdn);
+            original_newrdn = slapi_ch_strdup(original_newrdn);
+
+            slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn);
+            slapi_sdn_free(&dn_newsuperiordn);
+            slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, orig_dn_newsuperiordn);
+            orig_dn_newsuperiordn = slapi_sdn_dup(orig_dn_newsuperiordn);
+
+            backentry_free(&ec);
+            slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, original_entry->ep_entry );
+            ec = original_entry;
+            if ( (original_entry = backentry_dup( ec )) == NULL ) {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
+
+            slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_ENTRY, &target_entry );
+            slapi_entry_free(target_entry);
+            slapi_pblock_set( pb, SLAPI_MODRDN_TARGET_ENTRY, original_targetentry );
+            if ( (original_targetentry = slapi_entry_dup( original_targetentry )) == NULL ) {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
+
+            backentry_free(&parententry);
+            slapi_pblock_set( pb, SLAPI_MODRDN_PARENT_ENTRY, original_parent->ep_entry );
+            parententry = original_parent;
+            if ( (original_entry = backentry_dup( parententry )) == NULL ) {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
+
+            backentry_free(&newparententry);
+            slapi_pblock_set( pb, SLAPI_MODRDN_NEWPARENT_ENTRY, original_newparent->ep_entry );
+            newparententry = original_entry;
+            if ( (original_entry = backentry_dup( newparententry )) == NULL ) {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
             /* We're re-trying */
             LDAPDebug( LDAP_DEBUG_TRACE, "Modrdn Retrying Transaction\n", 0, 0, 0 );
         }
@@ -1124,6 +1199,13 @@ common_return:
     done_with_pblock_entry(pb,SLAPI_MODRDN_PARENT_ENTRY);
     done_with_pblock_entry(pb,SLAPI_MODRDN_NEWPARENT_ENTRY);
     done_with_pblock_entry(pb,SLAPI_MODRDN_TARGET_ENTRY);
+    slapi_ch_free_string(&original_newrdn);
+    slapi_sdn_free(&orig_dn_newsuperiordn);
+    backentry_free(&original_entry);
+    backentry_free(&original_parent);
+    backentry_free(&original_newparent);
+    slapi_entry_free(original_targetentry);
+
     if(dblock_acquired)
     {
         dblayer_unlock_backend(be);

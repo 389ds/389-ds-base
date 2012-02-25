@@ -374,7 +374,7 @@ struct slapi_operation_parameters *operation_parameters_new()
 	return (slapi_operation_parameters *)slapi_ch_calloc (1, sizeof (slapi_operation_parameters));
 }
 
-static LDAPMod **
+LDAPMod **
 copy_mods(LDAPMod **orig_mods)
 {
 	LDAPMod **new_mods = NULL;
