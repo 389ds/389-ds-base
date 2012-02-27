@@ -2251,7 +2251,7 @@ dna_update_shared_config(struct configEntry * config_entry)
                 slapi_entry_init_ext(e, sdn, NULL); /* sdn is copied into e */
                 slapi_sdn_free(&sdn);
 
-                slapi_entry_add_string(e, SLAPI_ATTR_OBJECTCLASS, "extensibleObject");
+                slapi_entry_add_string(e, SLAPI_ATTR_OBJECTCLASS, "dnaSharedConfig");
                 slapi_entry_add_string(e, DNA_HOSTNAME, hostname);
                 slapi_entry_add_string(e, DNA_PORTNUM, portnum);
                 if (secureportnum) {

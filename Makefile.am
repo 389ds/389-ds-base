@@ -276,7 +276,8 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/05rfc4523.ldif \
 	$(srcdir)/ldap/schema/05rfc4524.ldif \
 	$(srcdir)/ldap/schema/06inetorgperson.ldif \
-        $(srcdir)/ldap/schema/10automember-plugin.ldif \
+	$(srcdir)/ldap/schema/10automember-plugin.ldif \
+	$(srcdir)/ldap/schema/10dna-plugin.ldif \
 	$(srcdir)/ldap/schema/10mep-plugin.ldif \
 	$(srcdir)/ldap/schema/10rfc2307.ldif \
 	$(srcdir)/ldap/schema/20subscriber.ldif \

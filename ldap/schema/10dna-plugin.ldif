@@ -1,0 +1,204 @@
+#
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# 
+# Copyright (C) 2012 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+#
+# Schema for Managed Entries Plugin
+#
+dn: cn=schema
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2115 NAME 'dnaType'
+  DESC 'DNA attribute type to maintain'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2116 NAME 'dnaPrefix'
+  DESC 'DNA string prefix for dna value'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2117 NAME 'dnaNextValue'
+  DESC 'DNA next available value for assignment'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2118 NAME 'dnaInterval'
+  DESC 'DNA interval between values'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2119 NAME 'dnaMagicRegen'
+  DESC 'DNA value that will trigger regeneration of attribute value'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2120 NAME 'dnaFilter'
+  DESC 'DNA filter for finding entries'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2121 NAME 'dnaScope'
+  DESC 'DNA base DN for finding entries'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2122 NAME 'dnaMaxValue'
+  DESC 'DNA maximum value to assign'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2123 NAME 'dnaSharedCfgDN'
+  DESC 'DNA shared configuration entry DN'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2124 NAME 'dnaRemainingValues'
+  DESC 'DNA remaining values left to assign'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2125 NAME 'dnaThreshold'
+  DESC 'DNA threshold for getting next range of values'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2126 NAME 'dnaHostname'
+  DESC 'DNA hostname of replica to get new range of values'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2127 NAME 'dnaPortNum'
+  DESC 'DNA port number of replica to get new range of values'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2128 NAME 'dnaSecurePortNum'
+  DESC 'DNA secure port number of replica to get new range of values'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2129 NAME 'dnaNextRange'
+  DESC 'DNA range of values to get from replica'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2130 NAME 'dnaRangeRequestTimeout'
+  DESC 'DNA timeout for querying replica for next range of values'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+objectClasses: ( 2.16.840.1.113730.3.2.324 NAME 'dnaPluginConfig'
+  DESC 'DNA plugin configuration'
+  SUP top
+  AUXILIARY
+  MAY ( dnaType $
+        dnaPrefix $
+        dnaNextValue $
+        dnaMaxValue $
+        dnaInterval $
+        dnaMagicRegen $
+        dnaFilter $
+        dnaScope $
+        dnaSharedCfgDN $
+        dnaThreshold $
+        dnaNextRange $
+        dnaRangeRequestTimeout $
+        cn
+ )
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+objectClasses: ( 2.16.840.1.113730.3.2.325 NAME 'dnaSharedConfig'
+  DESC 'DNA Shared Configuration'
+  SUP top
+  AUXILIARY
+  MAY ( dnaHostname $
+        dnaPortNum $
+        dnaSecurePortNum $
+        dnaRemainingValues
+ )
+  X-ORIGIN '389 Directory Server' )
