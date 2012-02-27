@@ -195,8 +195,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	struct ldbminfo		*li;
 	struct backentry	*e = NULL, *ec = NULL, *original_entry = NULL;
 	Slapi_Entry		*postentry = NULL;
-	LDAPMod			**mods;
-	LDAPMod			**mods_original;
+	LDAPMod			**mods = NULL;
+	LDAPMod			**mods_original = NULL;
 	Slapi_Mods smods = {0};
 	back_txn txn;
 	back_txnid		parent_txn;
