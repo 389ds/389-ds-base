@@ -91,13 +91,13 @@ struct my_pam_conv_str {
  * Get the PAM identity from the value of the leftmost RDN in the BIND DN.
  */
 static char *
-derive_from_bind_dn(Slapi_PBlock *pb, const char *binddn, MyStrBuf *pam_id)
+derive_from_bind_dn(Slapi_PBlock *pb, const Slapi_DN *bindsdn, MyStrBuf *pam_id)
 {
 	Slapi_RDN *rdn;
 	char *type = NULL;
 	char *value = NULL;
 
-	rdn = slapi_rdn_new_dn(binddn);
+	rdn = slapi_rdn_new_sdn(bindsdn);
 	slapi_rdn_get_first(rdn, &type, &value);
 	init_my_str_buf(pam_id, value);
 	slapi_rdn_free(&rdn);
@@ -106,33 +106,30 @@ derive_from_bind_dn(Slapi_PBlock *pb, const char *binddn, MyStrBuf *pam_id)
 }
 
 static char *
-derive_from_bind_entry(Slapi_PBlock *pb, const char *binddn, 
+derive_from_bind_entry(Slapi_PBlock *pb, const Slapi_DN *bindsdn, 
                        MyStrBuf *pam_id, char *map_ident_attr, int *locked)
 {
 	char buf[BUFSIZ];
 	Slapi_Entry *entry = NULL;
-	Slapi_DN *sdn = slapi_sdn_new_dn_byref(binddn);
 	char *attrs[] = { NULL, NULL };
 	attrs[0] = map_ident_attr;
-	int rc = slapi_search_internal_get_entry(sdn, attrs, &entry,
+	int rc = slapi_search_internal_get_entry(bindsdn, attrs, &entry,
 											 pam_passthruauth_get_plugin_identity());
-
-	slapi_sdn_free(&sdn);
 
 	if (rc != LDAP_SUCCESS) {
 		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"Could not find BIND dn %s (error %d - %s)\n",
-						escape_string(binddn, buf), rc, ldap_err2string(rc));
+						escape_string(slapi_sdn_get_ndn(bindsdn), buf), rc, ldap_err2string(rc));
 		init_my_str_buf(pam_id, NULL);
    	} else if (NULL == entry) {
 		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"Could not find entry for BIND dn %s\n",
-						escape_string(binddn, buf));
+						escape_string(slapi_sdn_get_ndn(bindsdn), buf));
 		init_my_str_buf(pam_id, NULL);
 	} else if (slapi_check_account_lock( pb, entry, 0, 0, 0 ) == 1) {
 		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"Account %s inactivated.\n",
-						escape_string(binddn, buf));
+						escape_string(slapi_sdn_get_ndn(bindsdn), buf));
 		init_my_str_buf(pam_id, NULL);
 		*locked = 1;
 	} else {
@@ -286,9 +283,9 @@ do_one_pam_auth(
 	binddn = slapi_sdn_get_dn(bindsdn);
 
 	if (method == PAMPT_MAP_METHOD_RDN) {
-		derive_from_bind_dn(pb, binddn, &pam_id);
+		derive_from_bind_dn(pb, bindsdn, &pam_id);
 	} else if (method == PAMPT_MAP_METHOD_ENTRY) {
-		derive_from_bind_entry(pb, binddn, &pam_id, map_ident_attr, &locked);
+		derive_from_bind_entry(pb, bindsdn, &pam_id, map_ident_attr, &locked);
 	} else {
 		init_my_str_buf(&pam_id, binddn);
 	}
@@ -451,10 +448,7 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
 	int pw_response_requested;
 	LDAPControl **reqctrls = NULL;
 
-	/* first lock and get the methods and other info */
-	/* we do this so we can acquire and release the lock quickly to
-	   avoid potential deadlocks */
-	slapi_lock_mutex(cfg->lock);
+	/* get the methods and other info */
 	method1 = cfg->pamptconfig_map_method1;
 	method2 = cfg->pamptconfig_map_method2;
 	method3 = cfg->pamptconfig_map_method3;
@@ -463,8 +457,6 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
 	init_my_str_buf(&pam_service, cfg->pamptconfig_service);
 
 	fallback = cfg->pamptconfig_fallback;
-
-	slapi_unlock_mutex(cfg->lock);
 
 	slapi_pblock_get (pb, SLAPI_REQCONTROLS, &reqctrls);
 	slapi_pblock_get (pb, SLAPI_PWPOLICY, &pw_response_requested);

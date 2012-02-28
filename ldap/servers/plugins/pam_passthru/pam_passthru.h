@@ -61,14 +61,24 @@
 /*
  * macros
  */
-#define PAM_PASSTHRU_PLUGIN_SUBSYSTEM	"pam_passthru-plugin"   /* for logging */
+#define PAM_PASSTHRU_PLUGIN_SUBSYSTEM   "pam_passthru-plugin"   /* for logging */
+#define PAM_PASSTHRU_INT_POSTOP_DESC    "PAM Passthru internal postop plugin"
+#define PAM_PASSTHRU_POSTOP_DESC        "PAM Passthru postop plugin"
 
 #define PAM_PASSTHRU_ASSERT( expr )		PR_ASSERT( expr )
 
 #define PAM_PASSTHRU_OP_NOT_HANDLED		0
 #define PAM_PASSTHRU_OP_HANDLED		1
+#define PAM_PASSTHRU_SUCCESS 0
+#define PAM_PASSTHRU_FAILURE -1
 
 /* #define	PAM_PASSTHRU_VERBOSE_LOGGING	*/
+
+/*
+ * Plug-in globals
+ */
+extern int g_plugin_started;
+extern PRCList *pam_passthru_global_config;
 
 /*
  * structs
@@ -87,21 +97,24 @@ typedef struct pam_passthrusuffix {
 #define PAMPT_MISSING_SUFFIX_IGNORE_STRING "IGNORE"
 
 typedef struct pam_passthruconfig {
-	Slapi_Mutex *lock; /* for config access */
+    PRCList list;
+    char *dn;
     Pam_PassthruSuffix *pamptconfig_includes; /* list of suffixes to include in this op */
     Pam_PassthruSuffix *pamptconfig_excludes; /* list of suffixes to exclude in this op */
-	PRBool pamptconfig_fallback; /* if false, failure here fails entire bind */
-	                             /* if true, failure here falls through to regular bind */
+    char *filter_str; /* search filter used to identify bind entries to include in this op */
+    Slapi_Filter *slapi_filter; /* a Slapi_Filter version of the above filter */
+    PRBool pamptconfig_fallback; /* if false, failure here fails entire bind */
+                                 /* if true, failure here falls through to regular bind */
     PRBool pamptconfig_secure; /* if true, plugin only operates on secure connections */
-	char *pamptconfig_pam_ident_attr; /* name of attribute in user entry for ENTRY map method */
-	int pamptconfig_map_method1; /* how to map the BIND DN to the PAM identity */
-	int pamptconfig_map_method2; /* how to map the BIND DN to the PAM identity */
-	int pamptconfig_map_method3; /* how to map the BIND DN to the PAM identity */
+    char *pamptconfig_pam_ident_attr; /* name of attribute in user entry for ENTRY map method */
+    int pamptconfig_map_method1; /* how to map the BIND DN to the PAM identity */
+    int pamptconfig_map_method2; /* how to map the BIND DN to the PAM identity */
+    int pamptconfig_map_method3; /* how to map the BIND DN to the PAM identity */
 #define PAMPT_MAP_METHOD_NONE -1 /* do not map */
 #define PAMPT_MAP_METHOD_DN 0 /* use the full DN as the PAM identity */
 #define PAMPT_MAP_METHOD_RDN 1 /* use the leftmost RDN value as the PAM identity */
 #define PAMPT_MAP_METHOD_ENTRY 2 /* use the PAM identity attribute in the entry */
-	char *pamptconfig_service; /* the PAM service name for pam_start() */
+    char *pamptconfig_service; /* the PAM service name for pam_start() */
 } Pam_PassthruConfig;
 
 #define PAMPT_MAP_METHOD_DN_STRING "DN"
@@ -116,6 +129,7 @@ typedef struct pam_passthruconfig {
 #define PAMPT_FALLBACK_ATTR "pamFallback" /* single */
 #define PAMPT_SECURE_ATTR "pamSecure" /* single */
 #define PAMPT_SERVICE_ATTR "pamService" /* single */
+#define PAMPT_FILTER_ATTR "pamFilter" /* single */
 
 /*
  * public functions
@@ -123,13 +137,23 @@ typedef struct pam_passthruconfig {
 
 void pam_passthruauth_set_plugin_identity(void * identity);
 void * pam_passthruauth_get_plugin_identity();
+void pam_passthruauth_set_plugin_sdn(const Slapi_DN *plugin_sdn);
+const Slapi_DN *pam_passthruauth_get_plugin_sdn();
+const char *pam_passthruauth_get_plugin_dn();
+void pam_passthru_read_lock();
+void pam_passthru_write_lock();
+void pam_passthru_unlock();
 
 /*
  * pam_ptconfig.c:
  */
-int pam_passthru_config( Slapi_Entry *config_e );
-Pam_PassthruConfig *pam_passthru_get_config( void );
-int pam_passthru_check_suffix(Pam_PassthruConfig *cfg, const char *binddn);
+int pam_passthru_load_config(int skip_validate);
+void pam_passthru_delete_config();
+Pam_PassthruConfig *pam_passthru_get_config( Slapi_DN *bind_sdn );
+int pam_passthru_validate_config (Slapi_Entry* e, char *returntext);
+int pam_passthru_dn_is_config(Slapi_DN *sdn);
+void pam_passthru_set_config_area(Slapi_DN *sdn);
+Slapi_DN* pam_passthru_get_config_area();
 
 /*
  * pam_ptimpl.c
