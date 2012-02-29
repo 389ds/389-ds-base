@@ -104,6 +104,10 @@ backentry_dup( struct backentry *e )
 {
 	struct backentry	*ec;
 
+	if (NULL == e) {
+		return NULL;
+	}
+
 	ec = (struct backentry *) slapi_ch_calloc( 1, sizeof(struct backentry) );
 	ec->ep_id = e->ep_id;
 	ec->ep_entry = slapi_entry_dup( e->ep_entry );

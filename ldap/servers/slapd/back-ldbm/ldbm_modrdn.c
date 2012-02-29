@@ -717,7 +717,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         ldap_result_code= LDAP_OPERATIONS_ERROR;
         goto error_return;
     }
-    if ( (original_newparent = backentry_dup( newparententry )) == NULL ) {
+    if ( newparententry &&
+         ((original_newparent = backentry_dup( newparententry )) == NULL) ) {
         ldap_result_code= LDAP_OPERATIONS_ERROR;
         goto error_return;
     }
@@ -780,9 +781,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             }
 
             backentry_free(&newparententry);
-            slapi_pblock_set( pb, SLAPI_MODRDN_NEWPARENT_ENTRY, original_newparent->ep_entry );
+            if (original_newparent) {
+                slapi_pblock_set( pb, SLAPI_MODRDN_NEWPARENT_ENTRY,
+                                  original_newparent->ep_entry );
+            }
             newparententry = original_entry;
-            if ( (original_entry = backentry_dup( newparententry )) == NULL ) {
+            if ( newparententry &&
+                 ((original_entry = backentry_dup(newparententry)) == NULL) ) {
                 ldap_result_code= LDAP_OPERATIONS_ERROR;
                 goto error_return;
             }
@@ -796,16 +801,16 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             goto error_return;
         }
 
-		/* stash the transaction */
-		slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+        /* stash the transaction */
+        slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
 
-		/* call the transaction pre modrdn plugins just after creating the transaction */
-		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN))) {
-			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN plugin "
-						   "returned error code %d\n", retval );
-			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-			goto error_return;
-		}
+        /* call the transaction pre modrdn plugins just after creating the transaction */
+        if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN))) {
+            LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN plugin "
+                           "returned error code %d\n", retval );
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+            goto error_return;
+        }
 
         /*
          * Update the indexes for the entry.

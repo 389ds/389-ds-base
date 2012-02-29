@@ -101,6 +101,9 @@ slapi_mods_new()
 void
 slapi_mods_init(Slapi_Mods *smods, int initCount)
 {    
+	if (NULL == smods) {
+		return;
+	}
 	memset (smods, 0, sizeof (*smods));
 	smods->free_mods = 1;
 	if (initCount > 0)
@@ -117,6 +120,9 @@ slapi_mods_init(Slapi_Mods *smods, int initCount)
 void
 slapi_mods_init_passin(Slapi_Mods *smods, LDAPMod **mods)
 {    
+	if (NULL == smods) {
+		return;
+	}
 	slapi_mods_init_byref(smods, mods);
 	smods->free_mods = 1;
 }
@@ -128,6 +134,9 @@ slapi_mods_init_passin(Slapi_Mods *smods, LDAPMod **mods)
 void
 slapi_mods_init_byref(Slapi_Mods *smods, LDAPMod **mods)
 {    
+	if (NULL == smods) {
+		return;
+	}
 	memset (smods, 0, sizeof (*smods));
 	if(mods!=NULL)
 	{
@@ -144,14 +153,16 @@ slapi_mods_free(Slapi_Mods **smods)
 	{
 		slapi_mods_done(*smods);
 		slapi_ch_free ((void**)smods);
-		*smods= NULL;
+
 	}
 }
 
 void 
 slapi_mods_done(Slapi_Mods *smods)
 {
-	PR_ASSERT(smods!=NULL);
+	if (NULL == smods) {
+		return;
+	}
 	if (smods->mods!=NULL)
 	{
 		if(smods->free_mods)
@@ -165,7 +176,11 @@ slapi_mods_done(Slapi_Mods *smods)
 static void
 slapi_mods_add_one_element(Slapi_Mods *smods)
 {
-	int	need = smods->num_mods + 2;
+	int	need;
+	if (NULL == smods) {
+		return;
+	}
+	need = smods->num_mods + 2;
 	if ( smods->num_elements == 0 )
 	{
 		PR_ASSERT(smods->mods==NULL);
@@ -189,7 +204,7 @@ slapi_mods_insert_at(Slapi_Mods *smods, LDAPMod *mod, int pos)
 {
 	int	i;
 
-	if (NULL == mod) {
+	if ((NULL == smods) || (NULL == mod)) {
 		return;
 	}
 	slapi_mods_add_one_element(smods);
@@ -205,6 +220,9 @@ slapi_mods_insert_at(Slapi_Mods *smods, LDAPMod *mod, int pos)
 void 
 slapi_mods_insert_smod_at(Slapi_Mods *smods, Slapi_Mod *smod, int pos)
 {
+	if ((NULL == smods) || (NULL == smod)) {
+		return;
+	}
 	slapi_mods_insert_at (smods, smod->mod, pos);	
 }
 
@@ -214,6 +232,9 @@ slapi_mods_insert_smod_at(Slapi_Mods *smods, Slapi_Mod *smod, int pos)
 void
 slapi_mods_insert_before(Slapi_Mods *smods, LDAPMod *mod)
 {
+	if ((NULL == smods) || (NULL == mod)) {
+		return;
+	}
     slapi_mods_insert_at(smods, mod, smods->iterator);
 	smods->iterator++;
 }
@@ -221,6 +242,9 @@ slapi_mods_insert_before(Slapi_Mods *smods, LDAPMod *mod)
 void 
 slapi_mods_insert_smod_before(Slapi_Mods *smods, Slapi_Mod *smod)
 {
+	if ((NULL == smods) || (NULL == smod)) {
+		return;
+	}
 	slapi_mods_insert_before(smods, smod->mod);
 }
 
@@ -230,6 +254,9 @@ slapi_mods_insert_smod_before(Slapi_Mods *smods, Slapi_Mod *smod)
 void
 slapi_mods_insert_after(Slapi_Mods *smods, LDAPMod *mod)
 {
+	if ((NULL == smods) || (NULL == mod)) {
+		return;
+	}
     slapi_mods_insert_at(smods, mod, smods->iterator+1);
 }
 
@@ -262,6 +289,9 @@ slapi_mods_add_modbvps( Slapi_Mods *smods, int modtype, const char *type, struct
 {
 	LDAPMod *mod;
 
+	if (NULL == smods) {
+		return;
+	}
 	mod = (LDAPMod *) slapi_ch_malloc(sizeof(LDAPMod));
 	mod->mod_type = slapi_ch_strdup( type );
 	mod->mod_op = modtype | LDAP_MOD_BVALUES;
@@ -293,7 +323,11 @@ slapi_mods_add_modbvps( Slapi_Mods *smods, int modtype, const char *type, struct
 void
 slapi_mods_add_mod_values( Slapi_Mods *smods, int modtype, const char *type, Slapi_Value **va )
 {
-    LDAPMod *mod= (LDAPMod *) slapi_ch_malloc( sizeof(LDAPMod) );
+    LDAPMod *mod;
+	if (NULL == smods) {
+		return;
+	}
+    mod = (LDAPMod *) slapi_ch_malloc( sizeof(LDAPMod) );
     mod->mod_type = slapi_ch_strdup( type );
     mod->mod_op = modtype | LDAP_MOD_BVALUES;
     mod->mod_bvalues= NULL;
@@ -309,6 +343,9 @@ slapi_mods_add( Slapi_Mods *smods, int modtype, const char *type, unsigned long 
 {
 	struct berval bv;
 	struct berval *bvps[2];
+	if (NULL == smods) {
+		return;
+	}
 	if(len>0)
 	{
 		bv.bv_len= len;
@@ -336,12 +373,18 @@ slapi_mods_add_string( Slapi_Mods *smods, int modtype, const char *type, const c
 void
 slapi_mods_remove(Slapi_Mods *smods)
 {
+	if (NULL == smods) {
+		return;
+	}
 	smods->mods[smods->iterator]->mod_op= LDAP_MOD_IGNORE;
 }
 
 LDAPMod *
 slapi_mods_get_first_mod(Slapi_Mods *smods)
 {
+	if (NULL == smods) {
+		return NULL;
+	}
     /* Reset the iterator in the mod structure */
     smods->iterator= -1;
 	return slapi_mods_get_next_mod(smods);
@@ -350,6 +393,9 @@ slapi_mods_get_first_mod(Slapi_Mods *smods)
 LDAPMod *
 slapi_mods_get_next_mod(Slapi_Mods *smods)
 {
+	if (NULL == smods) {
+		return NULL;
+	}
     /* Move the iterator forward */
     LDAPMod *r= NULL;
 	smods->iterator++;
@@ -370,6 +416,9 @@ slapi_mods_get_next_mod(Slapi_Mods *smods)
 static void 
 mod2smod (LDAPMod *mod, Slapi_Mod *smod)
 {
+	if ((NULL == smod) || (NULL == mod)){
+		return;
+	}
 	smod->mod = mod;
 	smod->iterator = 0;
 	smod->num_values = 0;
@@ -425,6 +474,9 @@ slapi_mods_get_next_smod(Slapi_Mods *smods, Slapi_Mod *smod)
 void
 slapi_mods_iterator_backone(Slapi_Mods *smods)
 {
+	if (NULL == smods) {
+		return;
+	}
     smods->iterator--;
 }
 
@@ -479,6 +531,9 @@ pack_mods(LDAPMod ***modsp)
 LDAPMod **
 slapi_mods_get_ldapmods_byref(Slapi_Mods *smods)
 {
+	if (NULL == smods) {
+		return NULL;
+	}
 	pack_mods(&smods->mods); /* XXXggood const gets in the way of this */
     return smods->mods;
 }
