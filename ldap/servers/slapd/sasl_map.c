@@ -562,9 +562,9 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 				slapi_ch_free_string(ldap_search_filter);
 			} else {
 				/* Substitutes '&' and/or "\#" in template_search_filter */
-				rc = slapi_re_subs(re, sasl_user_and_realm,
+				rc = slapi_re_subs_ext(re, sasl_user_and_realm,
 					dp->template_search_filter, ldap_search_filter,
-					ldap_search_filter_len);
+					ldap_search_filter_len, 1);
 				if (0 != rc) {
 					LDAPDebug( LDAP_DEBUG_ANY,
 						"sasl_map_check: slapi_re_subs failed: "

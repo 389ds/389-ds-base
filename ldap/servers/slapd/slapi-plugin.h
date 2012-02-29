@@ -6722,6 +6722,8 @@ int slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
  * \warning The regex handler should be released by slapi_re_free().
  */
 int slapi_re_subs( Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen );
+/* extension to handle search filters properly */
+int slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen, int filter );
 /**
  * Releases the regex handler which was returned from slapi_re_comp.
  *

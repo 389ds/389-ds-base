@@ -147,13 +147,21 @@ slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
  */
 int
 slapi_re_subs( Slapi_Regex *re_handle, const char *subject,
-               const char *src, char **dst, unsigned long dstlen )
+        const char *src, char **dst, unsigned long dstlen)
+{
+	return slapi_re_subs_ext(re_handle, subject, src, dst, dstlen, 0 /* not a filter */);
+}
+
+int
+slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
+               const char *src, char **dst, unsigned long dstlen, int filter )
 {
     int  thislen = 0;
     int  len = 0;
     int  pin;
     int  *ovector;
     char *mydst;
+    const char *prev, *next;
     const char *substring_start;
     const char *p;
 
@@ -166,16 +174,21 @@ slapi_re_subs( Slapi_Regex *re_handle, const char *subject,
 
     ovector = re_handle->re_ovector;
     mydst = *dst;
+    prev = src;
 
     for (p = src; *p != '\0'; p++) {
         if ('&' == *p) {
-            if (re_handle->re_oveccount <= 1) {
-                memset(*dst, '\0', dstlen);
-                return -1;
+            /* Don't replace '&' if it's a filter AND: "(&(cn=a)(sn=b))"  */
+            next = p;
+            if(!filter || (*prev != '(' && *next++ != '(')){
+                if (re_handle->re_oveccount <= 1) {
+                    memset(*dst, '\0', dstlen);
+                    return -1;
+                }
+                substring_start = subject + ovector[0];
+                thislen = ovector[1] - ovector[0];
+                len += thislen;
             }
-            substring_start = subject + ovector[0];
-            thislen = ovector[1] - ovector[0];
-            len += thislen;
         } else if (('\\' == *p) && ('0' <= *(p+1) && *(p+1) <= '9')) {
             pin = *(++p) - '0';
             if (re_handle->re_oveccount <= 2*pin+1) {
@@ -198,6 +211,7 @@ slapi_re_subs( Slapi_Regex *re_handle, const char *subject,
         }
         memcpy(mydst, substring_start, thislen);
         mydst += thislen;
+        prev = p;
     }
     *mydst = '\0';
     return 0;
