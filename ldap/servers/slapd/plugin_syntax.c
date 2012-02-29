@@ -991,5 +991,5 @@ slapi_attr_value_normalize(
 	char **retval
 )
 {
-	return slapi_attr_value_normalize_ext(pb, sattr, type, val, trim_spaces, retval, 0);
+	slapi_attr_value_normalize_ext(pb, sattr, type, val, trim_spaces, retval, 0);
 }
