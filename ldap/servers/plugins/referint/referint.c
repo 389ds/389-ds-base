@@ -80,7 +80,7 @@ int referint_postop_close( Slapi_PBlock *pb);
 int update_integrity(char **argv, Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior, int logChanges);
 void referint_thread_func(void *arg);
 int  GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
-void writeintegritylog(char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
+void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
 int my_fgetc(PRFileDesc *stream);
 
 /* global thread control stuff */
@@ -216,7 +216,7 @@ referint_postop_del( Slapi_PBlock *pb )
 		  rc = update_integrity(argv, sdn, NULL, NULL, logChanges);
 		}else{
 		  /* write the entry to integrity log */
-		  writeintegritylog(argv[1], sdn, NULL, NULL, NULL /* slapi_get_requestor_sdn(pb) */);
+		  writeintegritylog(pb, argv[1], sdn, NULL, NULL, NULL /* slapi_get_requestor_sdn(pb) */);
 		  rc = 0;
 		}
 	} else {
@@ -300,7 +300,7 @@ referint_postop_modrdn( Slapi_PBlock *pb )
 	                        newsuperior, logChanges);
 	}else{
 	  /* write the entry to integrity log */
-	  writeintegritylog(argv[1], sdn, newrdn, newsuperior, NULL /* slapi_get_requestor_sdn(pb) */);
+	  writeintegritylog(pb, argv[1], sdn, newrdn, newsuperior, NULL /* slapi_get_requestor_sdn(pb) */);
 	  rc = 0;
 	}
 
@@ -913,6 +913,11 @@ referint_thread_func(void *arg)
       return;
     }
 
+    /* initialize the thread data index
+    if(slapi_td_dn_init()){
+    	slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,"Failed to create thread data index\n");
+
+    } */
 
     delay = atoi(plugin_argv[0]);
     logfilename = plugin_argv[1]; 
@@ -977,6 +982,13 @@ referint_thread_func(void *arg)
 	        tmpsuperior = NULL;
 	    } else {
 	        tmpsuperior = slapi_sdn_new_normdn_byref(ptoken);
+	    }
+	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
+	    if (strcasecmp(ptoken, "NULL") != 0) {
+	    	/* Set the bind DN in the thread data */
+	        if(slapi_td_set_dn(slapi_ch_strdup(ptoken))){
+	        	slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,"Failed to set thread data\n");
+	        }
 	    }
       
 	    update_integrity(plugin_argv, sdn, tmprdn,
@@ -1097,7 +1109,7 @@ GetNextLine(char *dest, int size_dest, PRFileDesc *stream) {
 }
 
 void
-writeintegritylog(char *logfilename, Slapi_DN *sdn, 
+writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
                   char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn)
 {
     PRFileDesc *prfd;
@@ -1147,6 +1159,7 @@ writeintegritylog(char *logfilename, Slapi_DN *sdn,
         /* add the length of the newsuperior */
         len_to_write += slapi_sdn_get_ndn_len(newsuperior);
     }
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &requestordn);
     if (requestorsdn && (requestordn = slapi_sdn_get_udn(requestorsdn)) &&
         (reqdn_len = strlen(requestordn))) {
         len_to_write += reqdn_len;

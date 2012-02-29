@@ -44,6 +44,7 @@
 struct usn_cleanup_data {
     char *suffix;
     char *maxusn_to_delete;
+    char *bind_dn;
 };
 
 static int usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e,
@@ -85,6 +86,9 @@ usn_cleanup_thread(void *arg)
         filter = NULL; /* so we don't try to free it */
         goto bail;
     }
+
+    /*  Initialize and set the thread data */
+    slapi_td_set_dn(slapi_ch_strdup(cleanup_data->bind_dn));
 
     /* update task state to show it's running */
     slapi_task_begin(task, total_work);
@@ -184,6 +188,7 @@ bail:
     }
     slapi_ch_free_string(&cleanup_data->maxusn_to_delete);
     slapi_ch_free_string(&cleanup_data->suffix);
+    slapi_ch_free_string(&cleanup_data->bind_dn);
     slapi_ch_free((void **)&cleanup_data);
 
     /* this will queue the destruction of the task */
@@ -242,6 +247,7 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     char *suffix = NULL;
     char *backend = NULL;
     char *maxusn = NULL;
+    char *bind_dn;
     struct usn_cleanup_data *cleanup_data = NULL;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Task *task = NULL;
@@ -252,6 +258,9 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                     "--> usn_cleanup_add\n");
 
     *returncode = LDAP_SUCCESS;
+
+    /* get the requestor dn */
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 
     /* make sure plugin is not closed*/
     if(!usn_is_started()){
@@ -310,6 +319,7 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
       (struct usn_cleanup_data *)slapi_ch_malloc(sizeof(struct usn_cleanup_data));
     cleanup_data->suffix = slapi_ch_strdup(suffix);
     cleanup_data->maxusn_to_delete = slapi_ch_strdup(maxusn);
+    cleanup_data->bind_dn = slapi_ch_strdup(bind_dn);
 
     /* allocate new task now */
     task = slapi_new_task(slapi_entry_get_ndn(e));

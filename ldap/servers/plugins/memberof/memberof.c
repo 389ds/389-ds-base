@@ -2195,6 +2195,7 @@ void memberof_unlock()
 typedef struct _task_data
 {
 	char *dn;
+	char *bind_dn;
 	char *filter_str;
 } task_data;
 
@@ -2207,6 +2208,9 @@ void memberof_fixup_task_thread(void *arg)
 
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
+
+	/* set bind DN in the thread data */
+	slapi_td_set_dn(slapi_ch_strdup(td->bind_dn));
 
 	slapi_task_begin(task, 1);
 	slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n", 
@@ -2263,6 +2267,7 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	int rv = SLAPI_DSE_CALLBACK_OK;
 	task_data *mytaskdata = NULL;
 	Slapi_Task *task = NULL;
+	char *bind_dn;
 	const char *filter;
 	const char *dn = 0;
 
@@ -2292,6 +2297,7 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	}
 
 	/* setup our task data */
+	slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 	mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
 	if (mytaskdata == NULL)
 	{
@@ -2301,6 +2307,7 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	}
 	mytaskdata->dn = slapi_ch_strdup(dn);
 	mytaskdata->filter_str = slapi_ch_strdup(filter);
+	mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
 
 	/* allocate new task now */
 	task = slapi_new_task(slapi_entry_get_ndn(e));
@@ -2337,6 +2344,7 @@ memberof_task_destructor(Slapi_Task *task)
 		task_data *mydata = (task_data *)slapi_task_get_data(task);
 		if (mydata) {
 			slapi_ch_free_string(&mydata->dn);
+			slapi_ch_free_string(&mydata->bind_dn);
 			slapi_ch_free_string(&mydata->filter_str);
 			/* Need to cast to avoid a compiler warning */
 			slapi_ch_free((void **)&mydata);

@@ -121,6 +121,12 @@ schemareload_start(Slapi_PBlock *pb)
     return rc;
 }
 
+typedef struct _task_data
+{
+	char *schemadir;
+	char *bind_dn;
+} task_data;
+
 /*
  * Task thread
  * This is the heart of the reload-schema-file task:
@@ -134,16 +140,21 @@ schemareload_thread(void *arg)
     Slapi_Task *task = (Slapi_Task *)arg;
     int rv = 0;
     int total_work = 2;
-    /* fetch our argument from the task */
-    char *schemadir = (char *)slapi_task_get_data(task);
+    task_data *td = NULL;
+
+    /* Fetch our task data from the task */
+    td = (task_data *)slapi_task_get_data(task);
+
+    /* Initialize and set the bind dn in the thread data */
+    slapi_td_set_dn(slapi_ch_strdup(td->bind_dn));
 
     /* update task state to show it's running */
     slapi_task_begin(task, total_work);
     PR_Lock(schemareload_lock);    /* make schema reload serialized */
-    slapi_task_log_notice(task, "Schema reload task starts (schema dir: %s) ...\n", schemadir?schemadir:"default");
-    slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema reload task starts (schema dir: %s) ...\n", schemadir?schemadir:"default");
+    slapi_task_log_notice(task, "Schema reload task starts (schema dir: %s) ...\n", td->schemadir?td->schemadir:"default");
+    slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema reload task starts (schema dir: %s) ...\n", td->schemadir?td->schemadir:"default");
 
-    rv = slapi_validate_schema_files(schemadir);
+    rv = slapi_validate_schema_files(td->schemadir);
     slapi_task_inc_progress(task);
 
     if (LDAP_SUCCESS == rv) {
@@ -151,7 +162,7 @@ schemareload_thread(void *arg)
         slapi_task_log_status(task, "Schema validation passed.");
         slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema validation passed.\n");
 
-        rv = slapi_reload_schema_files(schemadir);
+        rv = slapi_reload_schema_files(td->schemadir);
         slapi_task_inc_progress(task);
 
         /* update task state to say we're finished */
@@ -196,8 +207,13 @@ static void
 schemareload_destructor(Slapi_Task *task)
 {
     if (task) {
-        char *schemadir = (char *)slapi_task_get_data(task);
-        slapi_ch_free_string(&schemadir);
+        task_data *mydata = (task_data *)slapi_task_get_data(task);
+        if (mydata) {
+	        slapi_ch_free_string(&mydata->schemadir);
+	        slapi_ch_free_string(&mydata->bind_dn);
+            /* Need to cast to avoid a compiler warning */
+            slapi_ch_free((void **)&mydata);
+        }
     }
 }
 
@@ -215,6 +231,9 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
     const char *schemadir = NULL;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Task *task = NULL;
+    task_data *mytaskdata = NULL;
+
+    char *bind_dn;
 
     *returncode = LDAP_SUCCESS;
     if (fetch_attr(e, "cn", NULL) == NULL) {
@@ -222,6 +241,9 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
+
+    /* get the requestor dn for our thread data*/
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 
     /* get arg(s) */
     schemadir = fetch_attr(e, "schemadir", NULL);
@@ -235,11 +257,14 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
         goto out;
     }
 
+    mytaskdata->schemadir = slapi_ch_strdup(schemadir);
+    mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
+
     /* set a destructor that will clean up schemadir for us when the task is complete */
     slapi_task_set_destructor_fn(task, schemareload_destructor);
 
-    /* Stash our argument in the task for use by the task thread */
-    slapi_task_set_data(task, slapi_ch_strdup(schemadir));
+    /* Stash our task_data for use by the task thread */
+    slapi_task_set_data(task, mytaskdata);
 
     /* start the schema reload task as a separate thread */
     thread = PR_CreateThread(PR_USER_THREAD, schemareload_thread,

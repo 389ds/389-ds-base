@@ -5096,6 +5096,16 @@ int slapi_apib_release(void **api);
 
 /**** End of API broker interface. *******************************************/
 
+/*  thread_data.c  */
+int slapi_td_init(int indexType);
+int slapi_td_set_val(int indexType, void *value);
+void slapi_td_get_val(int indexType, void **value);
+int slapi_td_dn_init();
+int slapi_td_set_dn(char *dn);
+void slapi_td_get_dn(char **dn);
+
+/*  Thread Local Storage Index Types  */
+#define SLAPI_TD_REQUESTOR_DN		1
 
 /*
  * routines for dealing with controls

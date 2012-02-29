@@ -644,12 +644,12 @@ am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/snmp_collator.c ldap/servers/slapd/sort.c \
 	ldap/servers/slapd/ssl.c ldap/servers/slapd/str2filter.c \
 	ldap/servers/slapd/subentry.c ldap/servers/slapd/task.c \
-	ldap/servers/slapd/time.c ldap/servers/slapd/uniqueid.c \
-	ldap/servers/slapd/uniqueidgen.c ldap/servers/slapd/utf8.c \
-	ldap/servers/slapd/utf8compare.c ldap/servers/slapd/util.c \
-	ldap/servers/slapd/uuid.c ldap/servers/slapd/value.c \
-	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
-	ldap/libraries/libavl/avl.c \
+	ldap/servers/slapd/time.c ldap/servers/slapd/thread_data.c \
+	ldap/servers/slapd/uniqueid.c ldap/servers/slapd/uniqueidgen.c \
+	ldap/servers/slapd/utf8.c ldap/servers/slapd/utf8compare.c \
+	ldap/servers/slapd/util.c ldap/servers/slapd/uuid.c \
+	ldap/servers/slapd/value.c ldap/servers/slapd/valueset.c \
+	ldap/servers/slapd/vattr.c ldap/libraries/libavl/avl.c \
 	ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 am__objects_2 = ldap/libraries/libavl/libslapd_la-avl.lo
 @SOLARIS_TRUE@am__objects_3 = ldap/servers/slapd/libslapd_la-slapi_counter_sunos_sparcv9.lo
@@ -737,6 +737,7 @@ am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-subentry.lo \
 	ldap/servers/slapd/libslapd_la-task.lo \
 	ldap/servers/slapd/libslapd_la-time.lo \
+	ldap/servers/slapd/libslapd_la-thread_data.lo \
 	ldap/servers/slapd/libslapd_la-uniqueid.lo \
 	ldap/servers/slapd/libslapd_la-uniqueidgen.lo \
 	ldap/servers/slapd/libslapd_la-utf8.lo \
@@ -1842,12 +1843,12 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/snmp_collator.c ldap/servers/slapd/sort.c \
 	ldap/servers/slapd/ssl.c ldap/servers/slapd/str2filter.c \
 	ldap/servers/slapd/subentry.c ldap/servers/slapd/task.c \
-	ldap/servers/slapd/time.c ldap/servers/slapd/uniqueid.c \
-	ldap/servers/slapd/uniqueidgen.c ldap/servers/slapd/utf8.c \
-	ldap/servers/slapd/utf8compare.c ldap/servers/slapd/util.c \
-	ldap/servers/slapd/uuid.c ldap/servers/slapd/value.c \
-	ldap/servers/slapd/valueset.c ldap/servers/slapd/vattr.c \
-	$(libavl_a_SOURCES) $(am__append_1)
+	ldap/servers/slapd/time.c ldap/servers/slapd/thread_data.c \
+	ldap/servers/slapd/uniqueid.c ldap/servers/slapd/uniqueidgen.c \
+	ldap/servers/slapd/utf8.c ldap/servers/slapd/utf8compare.c \
+	ldap/servers/slapd/util.c ldap/servers/slapd/uuid.c \
+	ldap/servers/slapd/value.c ldap/servers/slapd/valueset.c \
+	ldap/servers/slapd/vattr.c $(libavl_a_SOURCES) $(am__append_1)
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@ @pcre_inc@
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB)
 
@@ -4050,6 +4051,9 @@ ldap/servers/slapd/libslapd_la-task.lo:  \
 ldap/servers/slapd/libslapd_la-time.lo:  \
 	ldap/servers/slapd/$(am__dirstamp) \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/slapd/libslapd_la-thread_data.lo:  \
+	ldap/servers/slapd/$(am__dirstamp) \
+	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
 ldap/servers/slapd/libslapd_la-uniqueid.lo:  \
 	ldap/servers/slapd/$(am__dirstamp) \
 	ldap/servers/slapd/$(DEPDIR)/$(am__dirstamp)
@@ -5360,6 +5364,8 @@ mostlyclean-compile:
 	-rm -f ldap/servers/slapd/libslapd_la-subentry.lo
 	-rm -f ldap/servers/slapd/libslapd_la-task.$(OBJEXT)
 	-rm -f ldap/servers/slapd/libslapd_la-task.lo
+	-rm -f ldap/servers/slapd/libslapd_la-thread_data.$(OBJEXT)
+	-rm -f ldap/servers/slapd/libslapd_la-thread_data.lo
 	-rm -f ldap/servers/slapd/libslapd_la-time.$(OBJEXT)
 	-rm -f ldap/servers/slapd/libslapd_la-time.lo
 	-rm -f ldap/servers/slapd/libslapd_la-uniqueid.$(OBJEXT)
@@ -5821,6 +5827,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-str2filter.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-subentry.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-task.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-thread_data.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-time.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-uniqueid.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/slapd/$(DEPDIR)/libslapd_la-uniqueidgen.Plo@am__quote@
@@ -8343,6 +8350,13 @@ ldap/servers/slapd/libslapd_la-time.lo: ldap/servers/slapd/time.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/time.c' object='ldap/servers/slapd/libslapd_la-time.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/libslapd_la-time.lo `test -f 'ldap/servers/slapd/time.c' || echo '$(srcdir)/'`ldap/servers/slapd/time.c
+
+ldap/servers/slapd/libslapd_la-thread_data.lo: ldap/servers/slapd/thread_data.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/libslapd_la-thread_data.lo -MD -MP -MF ldap/servers/slapd/$(DEPDIR)/libslapd_la-thread_data.Tpo -c -o ldap/servers/slapd/libslapd_la-thread_data.lo `test -f 'ldap/servers/slapd/thread_data.c' || echo '$(srcdir)/'`ldap/servers/slapd/thread_data.c
+@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/slapd/$(DEPDIR)/libslapd_la-thread_data.Tpo ldap/servers/slapd/$(DEPDIR)/libslapd_la-thread_data.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/slapd/thread_data.c' object='ldap/servers/slapd/libslapd_la-thread_data.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/slapd/libslapd_la-thread_data.lo `test -f 'ldap/servers/slapd/thread_data.c' || echo '$(srcdir)/'`ldap/servers/slapd/thread_data.c
 
 ldap/servers/slapd/libslapd_la-uniqueid.lo: ldap/servers/slapd/uniqueid.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libslapd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/slapd/libslapd_la-uniqueid.lo -MD -MP -MF ldap/servers/slapd/$(DEPDIR)/libslapd_la-uniqueid.Tpo -c -o ldap/servers/slapd/libslapd_la-uniqueid.lo `test -f 'ldap/servers/slapd/uniqueid.c' || echo '$(srcdir)/'`ldap/servers/slapd/uniqueid.c

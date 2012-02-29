@@ -742,6 +742,7 @@ static int
 add_created_attrs(Operation *op, Slapi_Entry *e)
 {
 	char   buf[20];
+	char   *binddn = NULL;
 	struct berval	bv;
 	struct berval	*bvals[2];
 	time_t		curtime;
@@ -753,21 +754,39 @@ add_created_attrs(Operation *op, Slapi_Entry *e)
 	bvals[0] = &bv;
 	bvals[1] = NULL;
 	
-	if(slapdFrontendConfig->plugin_track && !slapi_sdn_isempty(&op->o_sdn)){
-        /* assume op->o_sdn holds the plugin DN */
-        bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
-        bv.bv_len = strlen(bv.bv_val);
+	if(slapdFrontendConfig->plugin_track){
+		/* plugin bindDN tracking is enabled, grab the dn from thread local storage */
+		if(slapi_sdn_isempty(&op->o_sdn)){
+			bv.bv_val = "";
+			bv.bv_len = strlen(bv.bv_val);
+		} else {
+			bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
+			bv.bv_len = strlen(bv.bv_val);
+		}
 		slapi_entry_attr_replace(e, "internalCreatorsName", bvals);
 		slapi_entry_attr_replace(e, "internalModifiersName", bvals);
+
+		/* Grab the thread data(binddn) */
+		slapi_td_get_dn(&binddn);
+
+		if(binddn == NULL){
+			/* anonymous bind */
+			bv.bv_val = "";
+			bv.bv_len = strlen(bv.bv_val);
+		} else {
+			bv.bv_val = binddn;
+			bv.bv_len = strlen(bv.bv_val);
+		}
+	} else {
+		if (slapi_sdn_isempty(&op->o_sdn)) {
+			bv.bv_val = "";
+			bv.bv_len = strlen(bv.bv_val);
+		} else {
+			bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
+			bv.bv_len = strlen(bv.bv_val);
+		}
 	}
 
-	if (slapi_sdn_isempty(&op->o_sdn)) {
-		bv.bv_val = "";
-		bv.bv_len = strlen(bv.bv_val);
-	} else {
-		bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
-		bv.bv_len = strlen(bv.bv_val);
-	}
 	slapi_entry_attr_replace(e, "creatorsname", bvals);
 	slapi_entry_attr_replace(e, "modifiersname", bvals);
 

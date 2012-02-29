@@ -2634,6 +2634,8 @@ op_copy_identity(Connection *conn, Operation *op)
     } else {
 	    slapi_sdn_set_dn_byval(&op->o_sdn,conn->c_dn);
         op->o_authtype = slapi_ch_strdup(conn->c_authtype);
+        /* set the thread data bind dn index */
+        slapi_td_set_dn(slapi_ch_strdup(conn->c_dn));
     }
     /* XXX We should also copy c_client_cert into *op here; it's
      * part of the authorization identity.  The operation's copy

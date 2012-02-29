@@ -685,6 +685,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/subentry.c \
 	ldap/servers/slapd/task.c \
 	ldap/servers/slapd/time.c \
+	ldap/servers/slapd/thread_data.c \
 	ldap/servers/slapd/uniqueid.c \
 	ldap/servers/slapd/uniqueidgen.c \
 	ldap/servers/slapd/utf8.c \

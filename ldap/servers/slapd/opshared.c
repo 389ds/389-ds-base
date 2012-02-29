@@ -137,6 +137,7 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 {
     char        buf[20];
     char        *plugin_dn = NULL;
+    char        *binddn = NULL;
     struct berval    bv;
     struct berval    *bvals[2];
     time_t        curtime;
@@ -152,35 +153,52 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
     bvals[0] = &bv;
     bvals[1] = NULL;
 
-    if(slapdFrontendConfig->plugin_track && !slapi_sdn_isempty(&op->o_sdn)){
-    	/* write to the new attribute the bind dn and plugin name */
-    	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
-    	if (cid)
-    		plugin=(struct slapdplugin *) cid->sci_plugin;
-    	if(plugin)
-    		plugin_dn = plugin_get_dn (plugin);
-    	if(plugin_dn){
-    		bv.bv_val = plugin_dn;
-    		bv.bv_len = strlen(bv.bv_val);
-    	} else {
+    if(slapdFrontendConfig->plugin_track){
+        /* plugin bindDN tracking is enabled, grab the bind dn from thread local storage */
+        if(slapi_sdn_isempty(&op->o_sdn)){
+            bv.bv_val = "";
+            bv.bv_len = strlen(bv.bv_val);
+        } else {
+            slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
+            if (cid)
+                plugin=(struct slapdplugin *) cid->sci_plugin;
+            if(plugin)
+                plugin_dn = plugin_get_dn (plugin);
+            if(plugin_dn){
+                bv.bv_val = plugin_dn;
+                bv.bv_len = strlen(bv.bv_val);
+            } else {
+                bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
+                bv.bv_len = strlen(bv.bv_val);
+            }
+        }
+        slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
+       	                           "internalModifiersName", bvals);
+
+        /* Grab the thread data(binddn) */
+        slapi_td_get_dn(&binddn);
+
+        if(binddn == NULL){
+            /* anonymous bind */
+            bv.bv_val = "";
+            bv.bv_len = strlen(bv.bv_val);
+   	    } else {
+            bv.bv_val = binddn;
+            bv.bv_len = strlen(bv.bv_val);
+        }
+    } else {
+        /* fill in modifiersname */
+        if (slapi_sdn_isempty(&op->o_sdn)) {
+            bv.bv_val = "";
+            bv.bv_len = strlen(bv.bv_val);
+        } else {
             bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
             bv.bv_len = strlen(bv.bv_val);
-    	}
-    	slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
-    	                           "internalModifiersName", bvals);
+        }
     }
 
-    /* fill in modifiersname */
-    if (slapi_sdn_isempty(&op->o_sdn)) {
-        bv.bv_val = "";
-        bv.bv_len = strlen(bv.bv_val);
-    } else {
-        bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
-        bv.bv_len = strlen(bv.bv_val);
-    }
-
-    slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, 
-                           "modifiersname", bvals);    
+   	slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
+   						   "modifiersname", bvals);
 
     /* fill in modifytimestamp */
     curtime = current_time();

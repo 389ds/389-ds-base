@@ -3593,6 +3593,8 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 	conn->c_dn = normdn;
 	conn->c_isroot = slapi_dn_isroot( normdn );
 
+	/* Set the thread data with the normalized dn */
+	slapi_td_set_dn(slapi_ch_strdup(normdn));
 
 	/* set external credentials if requested */
 	if ( extauthtype != NULL ) {

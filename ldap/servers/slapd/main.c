@@ -1150,6 +1150,9 @@ main( int argc, char **argv)
 		 */
 		task_cleanup();
 
+		/* init the thread data index for bind dn's */
+		slapi_td_dn_init();
+
 		plugin_print_lists();
 		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
 		if (housekeeping_start((time_t)0, NULL) == NULL) {

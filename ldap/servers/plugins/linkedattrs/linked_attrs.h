@@ -100,6 +100,7 @@ struct configIndex {
 typedef struct _task_data
 {
     char *linkdn;
+    char *bind_dn;
 } task_data;
 
 
