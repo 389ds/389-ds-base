@@ -117,6 +117,8 @@ connection_done(Connection *conn)
 	{
 		PR_DestroyLock(conn->c_pdumutex);
 	}
+	/* PAGED_RESULTS */
+	pagedresults_cleanup_all(conn, 0);
 }
 
 /*
@@ -2092,7 +2094,7 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 	PR_Lock(conn->c_mutex);
 	/* We can already be in turbo mode, or not */
 	current_mode = current_turbo_flag;
-	if (conn->c_search_result_set) {
+	if (pagedresults_in_use(conn)) {
 		/* PAGED_RESULTS does not need turbo mode */
 		new_mode = 0;
 	} else if (conn->c_private->operation_rate == 0) {
@@ -2776,7 +2778,9 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 
 	conn->c_gettingber = 0;
 	connection_abandon_operations( conn );
-	conn->c_timelimit = 0; /* needed here to ensure simple paged results timeout properly and don't impact subsequent ops */
+	/* needed here to ensure simple paged results timeout properly and 
+	 * don't impact subsequent ops */
+	pagedresults_reset_timedout(conn);
 
 	if (! config_check_referral_mode()) {
 	    /*

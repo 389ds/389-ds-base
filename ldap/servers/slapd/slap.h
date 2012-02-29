@@ -1351,6 +1351,26 @@ typedef struct op {
 												client (or we tried to do
 												so and failed) */
 
+
+/* simple paged structure */
+typedef struct _paged_results {
+    Slapi_Backend *pr_current_be;         /* backend being used */
+    void          *pr_search_result_set;  /* search result set for paging */
+    int           pr_search_result_count; /* search result count */
+    int           pr_search_result_set_size_estimate; /* estimated search result set size */
+    int           pr_sort_result_code;    /* sort result put in response */
+    time_t        pr_timelimit;           /* time limit for this request */
+    int           pr_flags;
+    ber_int_t     pr_msgid;               /* msgid of the request; to abandon */
+} PagedResults;
+
+/* array of simple paged structure stashed in connection */
+typedef struct _paged_results_list {
+    int prl_maxlen;          /* size of the PagedResults array */ 
+    int prl_count;           /* count of the list in use */ 
+    PagedResults *prl_list;  /* pointer to pr_maxlen length PageResults array */
+} PagedResultsList;
+
 /*
  * represents a connection from an ldap client
  */
@@ -1406,14 +1426,7 @@ typedef struct conn {
     int				c_local_valid; /* flag true if the uid/gid are valid */
     uid_t			c_local_uid;  /* uid of connecting process */
     gid_t			c_local_gid;  /* gid of connecting process */
-    /* PAGED_RESULTS */
-    Slapi_Backend   *c_current_be;         /* backend being used */
-    void            *c_search_result_set;  /* search result set for paging */
-    int             c_search_result_count; /* search result count */
-    int             c_search_result_set_size_estimate; /* estimated search result set size */
-    int             c_sort_result_code;    /* sort result put in response */
-    time_t          c_timelimit;           /* time limit for this connection */
-    /* PAGED_RESULTS ENDS */
+    PagedResultsList c_pagedresults; /* PAGED_RESULTS */
     /* IO layer push/pop */
     Conn_IO_Layer_cb c_push_io_layer_cb; /* callback to push an IO layer on the conn->c_prfd */
     Conn_IO_Layer_cb c_pop_io_layer_cb; /* callback to pop an IO layer off of the conn->c_prfd */
@@ -1637,6 +1650,7 @@ typedef struct slapi_pblock {
 	IFP		pb_mr_index_sv_fn; /* values and keys are Slapi_Value ** */
 	int		pb_syntax_filter_normalized; /* the syntax filter types/values are already normalized */
 	void		*pb_syntax_filter_data; /* extra data to pass to a syntax plugin function */
+	int	pb_paged_results_index;    /* stash SLAPI_PAGED_RESULTS_INDEX */
 } slapi_pblock;
 
 /* index if substrlens */

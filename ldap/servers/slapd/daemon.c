@@ -1211,17 +1211,15 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				{
 					int add_fd = 1;
 					/* check timeout for PAGED RESULTS */
-					if (c->c_current_be && (c->c_timelimit > 0))
+                    if (pagedresults_is_timedout(c))
 					{
-						time_t ctime = current_time();
-						if (ctime > c->c_timelimit)
-						{
-							/* Exceeded the timelimit; disconnect the client */
-							disconnect_server_nomutex(c, c->c_connid, -1,
-													  SLAPD_DISCONNECT_IO_TIMEOUT, 0);
-							connection_table_move_connection_out_of_active_list(ct,c);
-							add_fd = 0; /* do not poll on this fd */
-						}
+						/* Exceeded the timelimit; disconnect the client */
+						disconnect_server_nomutex(c, c->c_connid, -1,
+						                          SLAPD_DISCONNECT_IO_TIMEOUT,
+						                          0);
+						connection_table_move_connection_out_of_active_list(ct,
+						                                                    c);
+						add_fd = 0; /* do not poll on this fd */
 					}
 					if (add_fd)
 					{

@@ -6674,6 +6674,9 @@ typedef struct slapi_plugindesc {
 /* Size of the database, in kilobytes */
 #define SLAPI_DBSIZE				199
 
+/* Simple paged results index */
+#define SLAPI_PAGED_RESULTS_INDEX   1945
+
 /* convenience macros for checking modify operation types */
 #define SLAPI_IS_MOD_ADD(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
 #define SLAPI_IS_MOD_DELETE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)

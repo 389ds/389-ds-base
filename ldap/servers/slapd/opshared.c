@@ -268,6 +268,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   Slapi_Backend *pr_be = NULL;
   void *pr_search_result = NULL;
   int pr_reset_processing = 0;
+  int pr_idx = -1;
 
   be_list[0] = NULL;
   referral_list[0] = NULL;
@@ -450,28 +451,38 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       if ( slapi_control_present (ctrlp, LDAP_CONTROL_PAGEDRESULTS,
                                   &ctl_value, &iscritical) )
       {
-          rc = pagedresults_parse_control_value(ctl_value,
-                                               &pagesize, &curr_search_count);
+          rc = pagedresults_parse_control_value(pb, ctl_value,
+                                                &pagesize, &pr_idx);
+          /* Let's set pr_idx even if it fails; in case, pr_idx == -1. */
+          slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
           if (LDAP_SUCCESS == rc) {
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
-              if (pagedresults_check_or_set_processing(pb->pb_conn)) {
+              if (pagedresults_check_or_set_processing(pb->pb_conn, pr_idx)) {
                   send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM,
-                                   NULL, "Simple Paged Results Search already in progress on this connection", 0, NULL);
+                                   NULL, "Simple Paged Results Search "
+                                   "already in progress on this connection",
+                                   0, NULL);
                   goto free_and_return_nolock;
               }
-              pr_reset_processing = 1; /* need to reset after we are done with this op */
-              operation->o_flags |= OP_FLAG_PAGED_RESULTS;
-              pr_be = pagedresults_get_current_be(pb->pb_conn);
-              pr_search_result = pagedresults_get_search_result(pb->pb_conn);
+              /* need to reset after we are done with this op */
+              pr_reset_processing = 1;
+              op_set_pagedresults(operation);
+              pr_be = pagedresults_get_current_be(pb->pb_conn, pr_idx);
+              pr_search_result = pagedresults_get_search_result(pb->pb_conn,
+                                                                pr_idx);
               estimate = 
-                 pagedresults_get_search_result_set_size_estimate(pb->pb_conn);
-              if (pagedresults_get_unindexed(pb->pb_conn)) {
+                 pagedresults_get_search_result_set_size_estimate(pb->pb_conn,
+                                                                  pr_idx);
+              if (pagedresults_get_unindexed(pb->pb_conn, pr_idx)) {
                   opnote |= SLAPI_OP_NOTE_UNINDEXED;
               }
               slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
           } else {
               /* parse paged-results-control failed */
               if (iscritical) { /* return an error since it's critical */
+                  send_ldap_result(pb, rc, NULL,
+                                   "Simple Paged Results Search failed",
+                                   0, NULL);
                   goto free_and_return;
               }
           }
@@ -567,7 +578,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           }
           if (slapi_sdn_compare(basesdn, sdn)) {
               slapi_sdn_free(&basesdn);
-			  basesdn = operation_get_target_spec(pb->pb_op);
+              basesdn = operation_get_target_spec(pb->pb_op);
               slapi_sdn_free(&basesdn);
               basesdn = slapi_sdn_dup(sdn);
               operation_set_target_spec (pb->pb_op, basesdn);
@@ -601,13 +612,13 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   }
 
   /* set the timelimit to clean up the too-long-lived-paged results requests */
-  if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
+  if (op_is_pagedresults(operation)) {
     time_t optime, time_up;
     int tlimit;
     slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
     slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
     time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
-    pagedresults_set_timelimit(pb->pb_conn, time_up);
+    pagedresults_set_timelimit(pb->pb_conn, time_up, pr_idx);
   }
 
   /* PAR: now filters have been rewritten, we can assign plugins to work on them */
@@ -658,7 +669,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         next_be = NULL;
     }
         
-    if ((operation->o_flags & OP_FLAG_PAGED_RESULTS) && pr_search_result) {
+    if (op_is_pagedresults(operation) && pr_search_result) {
       void *sr = NULL;
       /* PAGED RESULTS and already have the search results from the prev op */
       slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
@@ -666,7 +677,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 
       /* search result could be reset in the backend/dse */
       slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-      pagedresults_set_search_result(pb->pb_conn, sr, 0);
+      pagedresults_set_search_result(pb->pb_conn, sr, 0, pr_idx);
 
       if (PAGEDRESULTS_SEARCH_END == pr_stat) {
         /* no more entries to send in the backend */
@@ -676,7 +687,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         } else {
           curr_search_count = pnentries;
           /* no more entries, but at least another backend */
-          if (pagedresults_set_current_be(pb->pb_conn, next_be) < 0) {
+          if (pagedresults_set_current_be(pb->pb_conn, next_be, pr_idx) < 0) {
               goto free_and_return;
           }
         }
@@ -685,14 +696,16 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         curr_search_count = pnentries;
         estimate -= estimate?curr_search_count:0;
       }
-      pagedresults_set_response_control(pb, 0, estimate, curr_search_count);
-      if (pagedresults_get_with_sort(pb->pb_conn)) {
+      pagedresults_set_response_control(pb, 0, estimate,
+                                        curr_search_count, pr_idx);
+      if (pagedresults_get_with_sort(pb->pb_conn, pr_idx)) {
         sort_make_sort_response_control(pb, CONN_GET_SORT_RESULT_CODE, NULL);
       }
-      pagedresults_set_search_result_set_size_estimate(pb->pb_conn, estimate);
+      pagedresults_set_search_result_set_size_estimate(pb->pb_conn, 
+                                                       estimate, pr_idx);
       next_be = NULL; /* to break the loop */
       if (curr_search_count == -1) {
-        pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+        pagedresults_free_one(pb->pb_conn, pr_idx);
       }
     } else {
       /* be_suffix null means that we are searching the default backend
@@ -803,7 +816,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
   
         /* PAGED RESULTS */
-        if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
+        if (op_is_pagedresults(operation)) {
             void *sr = NULL;
             int with_sort = operation->o_flags & OP_FLAG_SERVER_SIDE_SORTING;
   
@@ -814,7 +827,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                 curr_search_count = -1;
               } else {
                 /* no more entries, but at least another backend */
-                if (pagedresults_set_current_be(pb->pb_conn, next_be) < 0) {
+                if (pagedresults_set_current_be(pb->pb_conn, next_be, pr_idx) < 0) {
                   goto free_and_return;
                 }
               }
@@ -822,22 +835,22 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               curr_search_count = pnentries;
               slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
               slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-              if (pagedresults_set_current_be(pb->pb_conn, be) < 0 ||
-                  pagedresults_set_search_result(pb->pb_conn, sr, 0) < 0 ||
+              if (pagedresults_set_current_be(pb->pb_conn, be, pr_idx) < 0 ||
+                  pagedresults_set_search_result(pb->pb_conn, sr, 0, pr_idx) < 0 ||
                   pagedresults_set_search_result_count(pb->pb_conn,
-                                                   curr_search_count) < 0 ||
+                                                   curr_search_count, pr_idx) < 0 ||
                   pagedresults_set_search_result_set_size_estimate(pb->pb_conn,
-                                                   estimate) < 0 ||
-                  pagedresults_set_with_sort(pb->pb_conn, with_sort) < 0) {
+                                                   estimate, pr_idx) < 0 ||
+                  pagedresults_set_with_sort(pb->pb_conn, with_sort, pr_idx) < 0) {
                 goto free_and_return;
               }
             }
-            pagedresults_set_response_control(pb, 0,
-                                              estimate, curr_search_count);
+            pagedresults_set_response_control(pb, 0, estimate, 
+                                              curr_search_count, pr_idx);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             next_be = NULL; /* to break the loop */
             if (curr_search_count == -1) {
-                pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+                pagedresults_free_one(pb->pb_conn, pr_idx);
             }
         }
   
@@ -965,7 +978,7 @@ free_and_return_nolock:
   slapi_ch_free_string(&proxydn);
   slapi_ch_free_string(&proxystr);
   if (pr_reset_processing) {
-    pagedresults_reset_processing(pb->pb_conn);
+    pagedresults_reset_processing(pb->pb_conn, pr_idx);
   }
 }
 
@@ -1204,12 +1217,14 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
     Slapi_Entry *e = NULL;
     char **attrs = NULL;
     unsigned int pr_stat = 0;
+    int pr_idx = -1;
 
     if ( NULL == pb ) {
         return rval;
     }
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
+    slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
 
     *pnentries = 0;
     
@@ -1231,7 +1246,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                 operation_out_of_disk_space();
             }
             pr_stat = PAGEDRESULTS_SEARCH_END;
-            pagedresults_set_timelimit(pb->pb_conn, 0);
+            pagedresults_set_timelimit(pb->pb_conn, 0, pr_idx);
             rval = -1;
             done = 1;
             continue;
@@ -1542,7 +1557,7 @@ compute_limits (Slapi_PBlock *pb)
         }
     }
 
-    if (op && (op->o_flags & OP_FLAG_PAGED_RESULTS)) {
+    if (op_is_pagedresults(op)) {
         if ( slapi_reslimit_get_integer_limit( pb->pb_conn,
                 pagedsizelimit_reslimit_handle, &max_sizelimit )
                 != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
@@ -1633,7 +1648,7 @@ send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize,
                      */
                     break;    
 
-        case 1:        /* everything is ok - don't send the result */
+        case 1:     /* everything is ok - don't send the result */
                     rc = 0;
     }
     

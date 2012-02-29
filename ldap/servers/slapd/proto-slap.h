@@ -1378,26 +1378,40 @@ int slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
 /*
  * pagedresults.c
  */
-int pagedresults_parse_control_value(struct berval *psbvp, ber_int_t *pagesize, int *curr_search_count);
-void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, ber_int_t estimate, int curr_search_count);
-Slapi_Backend *pagedresults_get_current_be(Connection *conn);
-int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be);
-void *pagedresults_get_search_result(Connection *conn);
-int pagedresults_set_search_result(Connection *conn, void *sr, int locked);
-int pagedresults_get_search_result_count(Connection *conn);
-int pagedresults_set_search_result_count(Connection *conn, int cnt);
-int pagedresults_get_search_result_set_size_estimate(Connection *conn);
-int pagedresults_set_search_result_set_size_estimate(Connection *conn, int cnt);
-int pagedresults_get_with_sort(Connection *conn);
-int pagedresults_set_with_sort(Connection *conn, int flags);
-int pagedresults_get_unindexed(Connection *conn);
-int pagedresults_set_unindexed(Connection *conn);
-int pagedresults_get_sort_result_code(Connection *conn);
-int pagedresults_set_sort_result_code(Connection *conn, int code);
-int pagedresults_set_timelimit(Connection *conn, time_t timelimit);
+int pagedresults_parse_control_value(Slapi_PBlock *pb, struct berval *psbvp,
+                                     ber_int_t *pagesize, int *index);
+void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, 
+                                       ber_int_t estimate,
+                                       int curr_search_count, int index);
+Slapi_Backend *pagedresults_get_current_be(Connection *conn, int index);
+int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index);
+void *pagedresults_get_search_result(Connection *conn, int index);
+int pagedresults_set_search_result(Connection *conn, void *sr, 
+                                   int locked, int index);
+int pagedresults_get_search_result_count(Connection *conn, int index);
+int pagedresults_set_search_result_count(Connection *conn, int cnt, int index);
+int pagedresults_get_search_result_set_size_estimate(Connection *conn, 
+                                                     int index);
+int pagedresults_set_search_result_set_size_estimate(Connection *conn, int cnt, 
+                                                     int index);
+int pagedresults_get_with_sort(Connection *conn, int index);
+int pagedresults_set_with_sort(Connection *conn, int flags, int index);
+int pagedresults_get_unindexed(Connection *conn, int index);
+int pagedresults_set_unindexed(Connection *conn, int index);
+int pagedresults_get_sort_result_code(Connection *conn, int index);
+int pagedresults_set_sort_result_code(Connection *conn, int code, int index);
+int pagedresults_set_timelimit(Connection *conn, time_t timelimit, int index);
 int pagedresults_cleanup(Connection *conn, int needlock);
-int pagedresults_check_or_set_processing(Connection *conn);
-int pagedresults_reset_processing(Connection *conn);
+int pagedresults_check_or_set_processing(Connection *conn, int index);
+int pagedresults_reset_processing(Connection *conn, int index);
+int pagedresults_is_timedout(Connection *conn);
+int pagedresults_reset_timedout(Connection *conn);
+int pagedresults_in_use(Connection *conn);
+int pagedresults_free_one(Connection *conn, int index);
+int op_is_pagedresults(Operation *op);
+int pagedresults_cleanup_all(Connection *conn, int needlock);
+void op_set_pagedresults(Operation *op);
+
 
 /*
  * sort.c

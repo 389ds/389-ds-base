@@ -152,11 +152,12 @@ do_abandon( Slapi_PBlock *pb )
 		    0 );
 	}
 
-	if (pagedresults_cleanup(pb->pb_conn, 0 /* already locked */)) {
-		/* Cleaned up paged result connection */
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
-			" targetop=Simple Paged Results\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid );
+	if ( op_is_pagedresults(o) ) {
+		if ( 0 == pagedresults_free_one_msgid(pb->pb_conn, id) ) {
+			slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 
+			                  " op=%d ABANDON targetop=Simple Paged Results\n",
+			                  pb->pb_conn->c_connid, pb->pb_op->o_opid );
+		}
 	} else if ( NULL == o ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
 			" targetop=NOTFOUND msgid=%d\n",

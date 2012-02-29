@@ -53,14 +53,17 @@ sort_make_sort_response_control ( Slapi_PBlock *pb, int code, char *error_type)
     struct berval   *bvp = NULL;
     int             rc = -1;
     ber_int_t       control_code;
+    int             pr_idx = -1;
+
+    slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
 
     if (code == CONN_GET_SORT_RESULT_CODE) {
-        code = pagedresults_get_sort_result_code(pb->pb_conn);
+        code = pagedresults_get_sort_result_code(pb->pb_conn, pr_idx);
     } else {
         Slapi_Operation *operation;
         slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
-        if (operation->o_flags & OP_FLAG_PAGED_RESULTS) {
-            pagedresults_set_sort_result_code(pb->pb_conn, code);
+        if (op_is_pagedresults(operation)) {
+            pagedresults_set_sort_result_code(pb->pb_conn, code, pr_idx);
         }
     }
 

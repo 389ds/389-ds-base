@@ -1426,8 +1426,7 @@ send_ldap_search_entry_ext(
 	ber = NULL; /* flush_ber will always free the ber */
 
 log_and_return:
-	if ( logit && operation_is_flag_set(operation,
-		OP_FLAG_ACTION_LOG_ACCESS)){
+	if ( logit && operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
 
 	    log_entry( op, e );
 

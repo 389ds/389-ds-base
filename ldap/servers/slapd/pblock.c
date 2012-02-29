@@ -1925,6 +1925,14 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(void **)value) = pblock->pb_syntax_filter_data;
 		break;
 		
+	case SLAPI_PAGED_RESULTS_INDEX:
+		if (op_is_pagedresults(pblock->pb_op)) {
+			/* search req is simple paged results */
+			(*(int *)value) = pblock->pb_paged_results_index;
+		} else {
+			(*(int *)value) = -1;
+		}
+		break;
 	default:
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "Unknown parameter block argument %d\n", arg, 0, 0 );
@@ -3457,6 +3465,10 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	case SLAPI_PLUGIN_SYNTAX_FILTER_DATA:
 		pblock->pb_syntax_filter_data = (void *)value;
+		break;
+
+	case SLAPI_PAGED_RESULTS_INDEX:
+		pblock->pb_paged_results_index = *(int *)value;
 		break;
 
 	default:
