@@ -257,6 +257,14 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
         goto out;
     }
 
+    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
+    if (mytaskdata == NULL)
+    {
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
     mytaskdata->schemadir = slapi_ch_strdup(schemadir);
     mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
 
