@@ -3179,9 +3179,11 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
   bailmod:
     if (LDAP_CHANGETYPE_MODIFY == modtype) {
         /* Put the updated mods back into place. */
-        mods = slapi_mods_get_ldapmods_passout(smods);
-        slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
-        slapi_mods_free(&smods);
+        if (smods) { /* smods == NULL if we bailed before initializing it */
+            mods = slapi_mods_get_ldapmods_passout(smods);
+            slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
+            slapi_mods_free(&smods);
+        }
     }
 
   bail:
