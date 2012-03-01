@@ -267,8 +267,8 @@ pagedresults_free_one_msgid( Connection *conn, ber_int_t msgid )
     int i;
 
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_free_one: idx=%d\n", index);
-    if (conn && (index > -1)) {
+                  "--> pagedresults_free_one: msgid=%d\n", msgid);
+    if (conn && (msgid > -1)) {
         PR_Lock(conn->c_mutex);
         if (conn->c_pagedresults.prl_count <= 0) {
             LDAPDebug2Args(LDAP_DEBUG_TRACE, "pagedresults_free_one_msgid: "
