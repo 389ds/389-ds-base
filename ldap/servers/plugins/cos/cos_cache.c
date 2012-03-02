@@ -786,6 +786,7 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 	int valIndex = 0;
 	Slapi_Attr *dnAttr;
 	char *attrType = 0;
+	char *norm_dn = NULL;
 	info=(struct dn_defs_info *)callback_data;
 	
 			
@@ -807,9 +808,16 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 		pSneakyVal = 0;
 		if(!slapi_utf8casecmp((unsigned char*)attrType, (unsigned char*)"objectclass"))
 			pSneakyVal = &pObjectclass;
-		else if(!slapi_utf8casecmp((unsigned char*)attrType, (unsigned char*)"cosTargetTree"))
+		else if(!slapi_utf8casecmp((unsigned char*)attrType, (unsigned char*)"cosTargetTree")){
+			if(pCosTargetTree){
+				norm_dn = slapi_create_dn_string("%s", pCosTargetTree->val);
+				if(norm_dn){
+					slapi_ch_free_string(&pCosTargetTree->val);
+					pCosTargetTree->val = norm_dn;
+				}
+			}
 			pSneakyVal = &pCosTargetTree;
-		else if(!slapi_utf8casecmp((unsigned char*)attrType, (unsigned char*)"cosTemplateDn"))
+		} else if(!slapi_utf8casecmp((unsigned char*)attrType, (unsigned char*)"cosTemplateDn"))
 			pSneakyVal = &pCosTemplateDn;
 		else if(!slapi_utf8casecmp((unsigned char*)attrType, (unsigned char*)"cosSpecifier"))
 			pSneakyVal = &pCosSpecifier;
@@ -2387,18 +2395,6 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 		 * hits.  We only check if this entry is a child of the target tree(s). */
 		while((hit == 0 || merge_mode) && pTargetTree)
 		{
-			{
-				char *normed = slapi_create_dn_string("%s", pTargetTree->val);
-				if (normed) {
-					slapi_ch_free_string(&pTargetTree->val);
-					pTargetTree->val = normed;
-				} else {
-					LDAPDebug(LDAP_DEBUG_ANY, 
-						"cos_cache_query_attr: failed to normalize dn %s. "
-						"Processing the pre normalized dn.\n",
-						pTargetTree->val, 0, 0);
-				}
-			}
 			if(	pTargetTree->val == 0 || 
 				slapi_dn_issuffix(pDn, pTargetTree->val) != 0 || 
 				(views_api && views_entry_exists(views_api, pTargetTree->val, e)) /* might be in a view */
