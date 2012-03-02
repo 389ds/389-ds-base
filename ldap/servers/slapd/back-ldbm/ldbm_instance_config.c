@@ -1091,6 +1091,10 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
 
     LDAPDebug(LDAP_DEBUG_ANY, "ldbm: removing '%s'.\n", instance_name, 0, 0);
 
+    cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
+    if (entryrdn_get_switch()) { /* subtree-rename: on */
+        cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
+    }
     {
         struct ldbminfo *li = (struct ldbminfo *) inst->inst_be->be_database->plg_private;
         dblayer_private *priv = (dblayer_private*) li->li_dblayer_private;
@@ -1211,10 +1215,6 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
               instance_name, 0, 0);
     slapi_mtn_be_stopping(inst->inst_be);
     dblayer_instance_close(inst->inst_be);
-    cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) { /* subtree-rename: on */
-        cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
-    }
     slapi_ch_free((void **)&instance_name);
 
     return SLAPI_DSE_CALLBACK_OK;
