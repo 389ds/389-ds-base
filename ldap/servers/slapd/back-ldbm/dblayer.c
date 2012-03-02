@@ -1567,7 +1567,6 @@ dblayer_start(struct ldbminfo *li, int dbmode)
             if (!(dbmode & DBLAYER_NO_DBTHREADS_MODE))
                 dbmode = DBLAYER_NORMAL_MODE; /* to restart helper threads */
         }
-        dblayer_init_pvt_txn();
     }
 
     if (priv->dblayer_private_mem) {
@@ -1710,6 +1709,9 @@ dblayer_start(struct ldbminfo *li, int dbmode)
       open_flags |= DB_TXN_NOSYNC;
 #endif
     }
+    /* ldbm2index uses transactions but sets the transaction flag to off - we
+       need to dblayer_init_pvt_txn in that case */
+    dblayer_init_pvt_txn();
     if (!((DBLAYER_IMPORT_MODE|DBLAYER_INDEX_MODE) & dbmode))
     {
         pEnv->dblayer_openflags = open_flags;

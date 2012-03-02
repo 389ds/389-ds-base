@@ -1693,8 +1693,6 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
-    dblayer_txn_init(li, &txn);
-
     if (run_from_cmdline) {
         /* No ldbm backend exists until we process the config info. */
         li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
@@ -1944,6 +1942,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         /* don't need that cursor, we have a shopping list. */
         dbc->c_close(dbc);
     }
+
+    dblayer_txn_init(li, &txn);
 
     while (1) {
         if ( g_get_shutdown() || c_get_shutdown() ) {
