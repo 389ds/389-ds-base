@@ -464,16 +464,13 @@ normalize_mods2bvals(const LDAPMod **mods)
                  normmbvp = normalized_mods[w]->mod_bvalues; 
                  mvp && *mvp; mvp++, normmbvp++)
             {
-                *normmbvp = 
-                    (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-        
                 vlen = strlen(*mvp);
 
+                *normmbvp = 
+                    (struct berval *)slapi_ch_malloc(sizeof(struct berval));
                 if (is_dn_syntax) {
                     Slapi_DN *sdn = slapi_sdn_new_dn_byref(*mvp);
                     if (slapi_sdn_get_dn(sdn)) {
-                        *normmbvp = 
-                        (struct berval *)slapi_ch_malloc(sizeof(struct berval));
                         (*normmbvp)->bv_val = 
                                   slapi_ch_strdup(slapi_sdn_get_dn(sdn));
                         (*normmbvp)->bv_len = slapi_sdn_get_ndn_len(sdn);
