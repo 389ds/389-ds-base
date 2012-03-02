@@ -631,7 +631,8 @@ mep_parse_config_entry(Slapi_Entry * e, int apply, Slapi_PBlock *pb)
     if (value) {
         Slapi_Entry *test_entry = NULL;
 
-        entry->template_sdn = slapi_sdn_new_dn_byval(value); 
+        entry->template_sdn = slapi_sdn_new_dn_passin(value);
+        value = NULL; /* entry->template_sdn owns value now */
 
         /*  Fetch the managed entry template */
         slapi_search_internal_get_entry_ext(entry->template_sdn, 0,
