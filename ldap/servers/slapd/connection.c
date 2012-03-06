@@ -2713,9 +2713,7 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 
 	conn->c_gettingber = 0;
 	connection_abandon_operations( conn );
-
-	pagedresults_cleanup(conn, 0 /* already locked */); /* In case the connection is on pagedresult.
-	                            Better to call it after the op is abandened. */
+	conn->c_timelimit = 0; /* needed here to ensure simple paged results timeout properly and don't impact subsequent ops */
 
 	if (! config_check_referral_mode()) {
 	    /*
