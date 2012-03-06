@@ -642,10 +642,10 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, char *base)
 		
 		slapi_sdn_set_ndn_byref ( aclpb->aclpb_aclContainer->acic_sdn, basedn );
 
-		root = (AciContainer *) avl_find( acllistRoot, 
-									(caddr_t) aclpb->aclpb_aclContainer, 
-									(IFP) __acllist_aciContainer_node_cmp);
-		if ( index >= ACLPB_MAX_SELECTED_ACLS -2 ) {
+		root = (AciContainer *) avl_find(acllistRoot, 
+		                                 (caddr_t) aclpb->aclpb_aclContainer, 
+		                                 (IFP) __acllist_aciContainer_node_cmp);
+		if ( index >= aclpb_max_selected_acls -2 ) {
 			aclpb->aclpb_handles_index[0] = -1;
 			slapi_ch_free ( (void **) &basedn);
 			break;
@@ -666,7 +666,7 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, char *base)
 	acllist_acicache_READ_UNLOCK();
 
 	i = 0;
-	while ( i < ACLPB_MAX_SELECTED_ACLS && aclpb->aclpb_base_handles_index[i]  != -1 ) {
+	while ( i < aclpb_max_selected_acls && aclpb->aclpb_base_handles_index[i]  != -1 ) {
 		i++;
 	}
 }
@@ -703,6 +703,10 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 		if ( strcasecmp ( edn, aclpb->aclpb_search_base) == 0) {
 			is_not_search_base = 0;
 		}
+		for (index = 0; (aclpb->aclpb_base_handles_index[index] != -1) && 
+		                (index < aclpb_max_selected_acls - 2); index++) ;
+		memcpy(aclpb->aclpb_handles_index, aclpb->aclpb_base_handles_index,
+		       sizeof(*aclpb->aclpb_handles_index) * index);
 	}
 	aclpb->aclpb_handles_index[index] = -1;
 
@@ -734,7 +738,7 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 			slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
 						"Searching AVL tree for update:%s: container:%d\n", basedn ,
 					root ? root->acic_index: -1);	
-			if ( index >= ACLPB_MAX_SELECTED_ACLS -2 ) {
+			if ( index >= aclpb_max_selected_acls -2 ) {
 				aclpb->aclpb_handles_index[0] = -1;
 				slapi_ch_free ( (void **) &basedn);
 				break;
@@ -829,7 +833,7 @@ start:
 		return NULL;
 
 	/* reached the end of the array */   
-	if ((!scan_entire_list && (*cookie >= (ACLPB_MAX_SELECTED_ACLS-1))) ||        
+	if ((!scan_entire_list && (*cookie >= (aclpb_max_selected_acls-1))) ||
 		(*cookie >= currContainerIndex)) {
 		return NULL;
 	}

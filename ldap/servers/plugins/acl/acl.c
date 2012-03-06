@@ -1825,8 +1825,8 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 	if ( aclpb->aclpb_state & ACLPB_SEARCH_BASED_ON_LIST ||
 			aclpb->aclpb_handles_index[0] != -1 ) {
 			int kk = 0;
-			while ( kk < ACLPB_MAX_SELECTED_ACLS && aclpb->aclpb_handles_index[kk] != -1 ) {
-				slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Using ACL Cointainer:%d for evaluation\n", kk);
+			while ( kk < aclpb_max_selected_acls && aclpb->aclpb_handles_index[kk] != -1 ) {
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Using ACL Container:%d for evaluation\n", kk);
 				kk++;
 			}
 	}
@@ -2467,8 +2467,8 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		((aci->aci_access & SLAPI_ACL_READ) || (aci->aci_access & SLAPI_ACL_SEARCH))) {
 		int	kk=0;
 
-		while ( kk < ACLPB_MAX_SELECTED_ACLS && aclpb->aclpb_handles_index[kk] >=0 ) kk++;
-		if (kk >= ACLPB_MAX_SELECTED_ACLS)  {
+		while ( kk < aclpb_max_selected_acls && aclpb->aclpb_handles_index[kk] >=0 ) kk++;
+		if (kk >= aclpb_max_selected_acls)  {
 			aclpb->aclpb_state &= ~ACLPB_SEARCH_BASED_ON_ENTRY_LIST;
 		} else {
 			aclpb->aclpb_handles_index[kk++] = aci->aci_index;
@@ -2483,7 +2483,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		aclEvalContext		*c_evalContext = &aclpb->aclpb_curr_entryEval_context;
 		int			nhandle = c_evalContext->acle_numof_tmatched_handles;
 
-		if ( nhandle < ACLPB_MAX_SELECTED_ACLS) {
+		if ( nhandle < aclpb_max_selected_acls) {
 		   c_evalContext->acle_handles_matched_target[nhandle] = aci->aci_index;
 		   c_evalContext->acle_numof_tmatched_handles++;
 		}
@@ -2854,7 +2854,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 
 			if ( j < aclpb->aclpb_last_cache_result)  {
 				/* already in cache */
-			} else if ( j < ACLPB_MAX_CACHE_RESULTS ) {
+			} else if ( j < aclpb_max_cache_results ) {
 				/* j == aclpb->aclpb_last_cache_result  &&
 					j < ACLPB_MAX_CACHE_RESULTS */
 				aclpb->aclpb_last_cache_result++;
@@ -3054,7 +3054,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 
 			if ( j < aclpb->aclpb_last_cache_result)  {
 				/* already in cache */
-			} else if ( j < ACLPB_MAX_CACHE_RESULTS ) {
+			} else if ( j < aclpb_max_cache_results ) {
 				/* j == aclpb->aclpb_last_cache_result  &&
 					j < ACLPB_MAX_CACHE_RESULTS */
 				aclpb->aclpb_last_cache_result++;
@@ -4010,7 +4010,7 @@ acl__recompute_acl (  	Acl_PBlock 		*aclpb,
 
 	if ( j < aclpb->aclpb_last_cache_result)  {
 		/* already in cache */
-	} else if ( j < ACLPB_MAX_CACHE_RESULTS-1) {
+	} else if ( j < aclpb_max_cache_results-1) {
         /* rbyrneXXX: make this same as other last_cache_result code! */
 		j =  ++aclpb->aclpb_last_cache_result;
 		aclpb->aclpb_cache_result[j].aci_index = aci->aci_index;

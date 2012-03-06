@@ -292,7 +292,7 @@ aclplugin_stop ( Slapi_PBlock *pb )
 {
 	int rc = 0; /* OK */
 
-	/* nothing to be done now */
+	acl_destroy_aclpb_pool ();
 	return  rc;
 }
 
