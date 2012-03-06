@@ -3033,6 +3033,17 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 	}
 #endif /* !_WIN32 */
 
+	/* Set keep_alive to keep old connections from lingering */
+	pr_socketoption.option = PR_SockOpt_Keepalive;
+	pr_socketoption.value.keep_alive = 1;
+	if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE ) {
+		PRErrorCode prerr = PR_GetError();
+		LDAPDebug( LDAP_DEBUG_ANY,
+				"PR_SetSocketOption(PR_SockOpt_Keepalive failed, "
+				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+				prerr, slapd_pr_strerror(prerr), 0 );
+	}
+
 	if ( secure ) {
 	  
 		pr_socketoption.option = PR_SockOpt_Nonblocking;
