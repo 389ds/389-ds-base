@@ -3137,6 +3137,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                     /* free up */
                     slapi_ch_free_string(&value);
                     slapi_ch_array_free(types_to_generate);
+                    types_to_generate = NULL;
                 } else if (types_to_generate) {
                     slapi_ch_free((void **)&types_to_generate);
                 }
