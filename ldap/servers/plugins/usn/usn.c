@@ -78,11 +78,19 @@ usn_init(Slapi_PBlock *pb)
 {
     int rc = 0;
     void *identity = NULL;
+	Slapi_Entry *plugin_entry = NULL;
+	int is_betxn = 0;
+    const char *plugintype;
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_init\n");
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &identity);
+
+	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+		plugin_entry) {
+		is_betxn = slapi_entry_attr_get_bool(plugin_entry, "nsslapd-pluginbetxn");
+	}
 
     /* slapi_register_plugin always returns SUCCESS (0) */
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
@@ -104,13 +112,25 @@ usn_init(Slapi_PBlock *pb)
         goto bail;
     }
 
-    rc = slapi_register_plugin("preoperation", 1 /* Enabled */,
+    plugintype = "preoperation";
+    if (is_betxn) {
+        plugintype = "betxnpreoperation";
+    }
+    rc = slapi_register_plugin(plugintype, 1 /* Enabled */,
                                "usn_preop_init", usn_preop_init,
                                "USN preoperation plugin", NULL, identity);
-    rc |= slapi_register_plugin("bepreoperation", 1 /* Enabled */,
+    plugintype = "bepreoperation";
+    if (is_betxn) {
+        plugintype = "betxnpreoperation";
+    }
+    rc |= slapi_register_plugin(plugintype, 1 /* Enabled */,
                                "usn_bepreop_init", usn_bepreop_init,
                                "USN bepreoperation plugin", NULL, identity);
-    rc |= slapi_register_plugin("bepostoperation", 1 /* Enabled */,
+    plugintype = "bepostoperation";
+    if (is_betxn) {
+        plugintype = "betxnpostoperation";
+    }
+    rc |= slapi_register_plugin(plugintype, 1 /* Enabled */,
                                "usn_bepostop_init", usn_bepostop_init,
                                "USN bepostoperation plugin", NULL, identity);
     usn_set_identity(identity);
@@ -124,6 +144,17 @@ static int
 usn_preop_init(Slapi_PBlock *pb)
 {
     int rc = 0;
+    Slapi_Entry *plugin_entry = NULL;
+    char *plugin_type = NULL;
+    int predel = SLAPI_PLUGIN_PRE_DELETE_FN;
+
+	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+		plugin_entry &&
+		(plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+		plugin_type && strstr(plugin_type, "betxn")) {
+        predel = SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN;
+	}
+	slapi_ch_free_string(&plugin_type);
 
     /* set up csn generator for tombstone */
     _usn_csngen = csngen_new(USN_CSNGEN_ID, NULL);
@@ -133,8 +164,7 @@ usn_preop_init(Slapi_PBlock *pb)
         rc = -1;
     }
 
-    if (slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_DELETE_FN,
-                                 (void *)usn_preop_delete) != 0) {
+    if (slapi_pblock_set(pb, predel, (void *)usn_preop_delete) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
                         "usn_preop_init: failed to register preop plugin\n");
         rc = -1;
@@ -147,17 +177,30 @@ static int
 usn_bepreop_init(Slapi_PBlock *pb)
 {
     int rc = 0;
+    Slapi_Entry *plugin_entry = NULL;
+    char *plugin_type = NULL;
+    int preadd = SLAPI_PLUGIN_BE_PRE_ADD_FN;
+    int premod = SLAPI_PLUGIN_BE_PRE_MODIFY_FN;
+    int premdn = SLAPI_PLUGIN_BE_PRE_MODRDN_FN;
+    int predel = SLAPI_PLUGIN_BE_PRE_DELETE_FN;
 
-    if (slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN,
-                                 (void *)usn_bepreop_add) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN,
-                                 (void *)usn_bepreop_delete) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN,
-                                 (void *)usn_bepreop_modify) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN,
-                                 (void *)usn_bepreop_modify) != 0) {
+    if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+        plugin_entry &&
+        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        plugin_type && strstr(plugin_type, "betxn")) {
+        preadd = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
+        premod = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
+        premdn = SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN;
+        predel = SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN;
+    }
+    slapi_ch_free_string(&plugin_type);
+
+    if (slapi_pblock_set(pb, preadd, (void *)usn_bepreop_add) != 0 ||
+        slapi_pblock_set(pb, predel, (void *)usn_bepreop_delete) != 0 ||
+        slapi_pblock_set(pb, premod, (void *)usn_bepreop_modify) != 0 ||
+        slapi_pblock_set(pb, premdn, (void *)usn_bepreop_modify) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
-                    "usn_bepreop_init: failed to register bepreop plugin\n");
+                        "usn_bepreop_init: failed to register bepreop plugin\n");
         rc = -1;
     }
 
@@ -168,17 +211,30 @@ static int
 usn_bepostop_init(Slapi_PBlock *pb)
 {
     int rc = 0;
+    Slapi_Entry *plugin_entry = NULL;
+    char *plugin_type = NULL;
+    int postadd = SLAPI_PLUGIN_BE_POST_ADD_FN;
+    int postmod = SLAPI_PLUGIN_BE_POST_MODIFY_FN;
+    int postmdn = SLAPI_PLUGIN_BE_POST_MODRDN_FN;
+    int postdel = SLAPI_PLUGIN_BE_POST_DELETE_FN;
 
-    if (slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_ADD_FN,
-                                 (void *)usn_bepostop) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_DELETE_FN,
-                                 (void *)usn_bepostop_delete) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN,
-                                 (void *)usn_bepostop_modify) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_MODRDN_FN,
-                                 (void *)usn_bepostop) != 0) {
+    if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+        plugin_entry &&
+        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        plugin_type && strstr(plugin_type, "betxn")) {
+        postadd = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
+        postmod = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
+        postmdn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+        postdel = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+    }
+    slapi_ch_free_string(&plugin_type);
+
+    if (slapi_pblock_set(pb, postadd, (void *)usn_bepostop) != 0 ||
+        slapi_pblock_set(pb, postdel, (void *)usn_bepostop_delete) != 0 ||
+        slapi_pblock_set(pb, postmod, (void *)usn_bepostop_modify) != 0 ||
+        slapi_pblock_set(pb, postmdn, (void *)usn_bepostop) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
-                    "usn_bepostop_init: failed to register bepostop plugin\n");
+                        "usn_bepostop_init: failed to register bepostop plugin\n");
         rc = -1;
     }
 

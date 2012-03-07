@@ -118,14 +118,31 @@ int retrocl_postop_modrdn (Slapi_PBlock *pb) { return retrocl_postob(pb,OP_MODRD
 int
 retrocl_postop_init( Slapi_PBlock *pb )
 {
-    int rc= 0; /* OK */
+	int rc= 0; /* OK */
+	Slapi_Entry *plugin_entry = NULL;
+	char *plugin_type = NULL;
+	int postadd = SLAPI_PLUGIN_POST_ADD_FN;
+	int postmod = SLAPI_PLUGIN_POST_MODIFY_FN;
+	int postmdn = SLAPI_PLUGIN_POST_MODRDN_FN;
+	int postdel = SLAPI_PLUGIN_POST_DELETE_FN;
+
+	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+		plugin_entry &&
+		(plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+		plugin_type && strstr(plugin_type, "betxn")) {
+		postadd = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
+		postmod = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
+		postmdn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+		postdel = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+	}
+	slapi_ch_free_string(&plugin_type);
 
 	if( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,	SLAPI_PLUGIN_VERSION_01 ) != 0 || 
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retroclpostopdesc ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_ADD_FN, (void *) retrocl_postop_add ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_DELETE_FN, (void *) retrocl_postop_delete ) != 0 ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *) retrocl_postop_modify ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *) retrocl_postop_modrdn ) != 0 )
+		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retroclpostopdesc ) != 0 ||
+		slapi_pblock_set( pb, postadd, (void *) retrocl_postop_add ) != 0 ||
+		slapi_pblock_set( pb, postdel, (void *) retrocl_postop_delete ) != 0 ||
+		slapi_pblock_set( pb, postmod, (void *) retrocl_postop_modify ) != 0 ||
+		slapi_pblock_set( pb, postmdn, (void *) retrocl_postop_modrdn ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_postop_init failed\n" );
 		rc= -1;
@@ -417,9 +434,12 @@ int
 retrocl_plugin_init(Slapi_PBlock *pb)
 {
   	static int legacy_initialised= 0;
-    	int rc = 0;
+	int rc = 0;
 	int precedence = 0;
 	void *identity = NULL;
+	Slapi_Entry *plugin_entry = NULL;
+	int is_betxn = 0;
+	const char *plugintype = "postoperation";
 
 	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &identity);
 	PR_ASSERT (identity);
@@ -427,14 +447,24 @@ retrocl_plugin_init(Slapi_PBlock *pb)
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRECEDENCE, &precedence );
     
+	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+	  plugin_entry) {
+	  is_betxn = slapi_entry_attr_get_bool(plugin_entry, "nsslapd-pluginbetxn");
+	}
+
 	if (!legacy_initialised) {
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 );
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retrocldesc );
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void *) retrocl_start );
 	  rc= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) retrocl_stop );
 
-	  rc= slapi_register_plugin_ext("postoperation", 1 /* Enabled */, "retrocl_postop_init", retrocl_postop_init, "Retrocl postoperation plugin", NULL, identity, precedence);
-	  rc= slapi_register_plugin_ext("internalpostoperation", 1 /* Enabled */, "retrocl_internalpostop_init", retrocl_internalpostop_init, "Retrocl internal postoperation plugin", NULL, identity, precedence);
+	  if (is_betxn) {
+	    plugintype = "betxnpostoperation";
+	  }
+	  rc= slapi_register_plugin_ext(plugintype, 1 /* Enabled */, "retrocl_postop_init", retrocl_postop_init, "Retrocl postoperation plugin", NULL, identity, precedence);
+	  if (!is_betxn) {
+	    rc= slapi_register_plugin_ext("internalpostoperation", 1 /* Enabled */, "retrocl_internalpostop_init", retrocl_internalpostop_init, "Retrocl internal postoperation plugin", NULL, identity, precedence);
+	  }
 
 	  retrocl_internal_lock = PR_NewLock();
 	  if (retrocl_internal_lock == NULL) return -1;

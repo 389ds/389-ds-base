@@ -111,8 +111,25 @@ void plugin_init_debug_level(int *level_ptr)
 int statechange_init( Slapi_PBlock *pb )
 {
 	int ret = 0;
+	Slapi_Entry *plugin_entry = NULL;
+	char *plugin_type = NULL;
+	int postadd = SLAPI_PLUGIN_POST_ADD_FN;
+	int postmod = SLAPI_PLUGIN_POST_MODIFY_FN;
+	int postmdn = SLAPI_PLUGIN_POST_MODRDN_FN;
+	int postdel = SLAPI_PLUGIN_POST_DELETE_FN;
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_init\n");
+
+	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+		plugin_entry &&
+		(plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+		plugin_type && strstr(plugin_type, "betxn")) {
+		postadd = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
+		postmod = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
+		postmdn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+		postdel = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+	}
+	slapi_ch_free_string(&plugin_type);
 
 	head = 0;
 
@@ -120,14 +137,10 @@ int statechange_init( Slapi_PBlock *pb )
 	    			SLAPI_PLUGIN_VERSION_01 ) != 0 ||
 	        slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
         	         (void *) statechange_start ) != 0 ||
-	        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN,
-        	         (void *) statechange_mod_post_op ) != 0 ||
-	        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN,
-        	         (void *) statechange_modrdn_post_op ) != 0 ||
-	        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN,
-        	         (void *) statechange_add_post_op ) != 0 ||
-	        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN,
-        	         (void *) statechange_delete_post_op ) != 0 ||
+	        slapi_pblock_set(pb, postmod, (void *) statechange_mod_post_op ) != 0 ||
+	        slapi_pblock_set(pb, postmdn, (void *) statechange_modrdn_post_op ) != 0 ||
+	        slapi_pblock_set(pb, postadd, (void *) statechange_add_post_op ) != 0 ||
+	        slapi_pblock_set(pb, postdel, (void *) statechange_delete_post_op ) != 0 ||
 	        slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
         	         (void *) statechange_close ) != 0 ||
 			slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
