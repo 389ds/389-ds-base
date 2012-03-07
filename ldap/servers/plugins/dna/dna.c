@@ -238,9 +238,10 @@ static int dna_get_next_value(struct configEntry * config_entry,
                                  char **next_value_ret);
 static int dna_first_free_value(struct configEntry *config_entry,
                                 PRUint64 *newval);
-static int dna_fix_maxval(struct configEntry *config_entry);
+static int dna_fix_maxval(struct configEntry *config_entry,
+                          int skip_range_request);
 static void dna_notice_allocation(struct configEntry *config_entry,
-                                  PRUint64 new, PRUint64 last, int fix);
+                                  PRUint64 new, PRUint64 last);
 static int dna_update_shared_config(struct configEntry * config_entry);
 static void dna_update_config_event(time_t event_time, void *arg);
 static int dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers);
@@ -1371,12 +1372,16 @@ bail:
  * dna_fix_maxval()
  *
  * Attempts to extend the range represented by
- * config_entry.
+ * config_entry.  If skip_range_request is set,
+ * we will only attempt to activate the next
+ * range.  No attempt will be made to transfer
+ * range from another server.
  *
  * The lock for configEntry should be obtained
  * before calling this function.
  */
-static int dna_fix_maxval(struct configEntry *config_entry)
+static int dna_fix_maxval(struct configEntry *config_entry,
+        int skip_range_request)
 {
     PRCList *servers = NULL;
     PRCList *server = NULL;
@@ -1397,7 +1402,7 @@ static int dna_fix_maxval(struct configEntry *config_entry)
                             "dna_fix_maxval: Unable to activate the "
                             "next range for range %s.\n", config_entry->dn);
         }
-    } else if (config_entry->shared_cfg_base) {
+    } else if (!skip_range_request && config_entry->shared_cfg_base) {
         /* Find out if there are any other servers to request
          * range from. */
         dna_get_shared_servers(config_entry, &servers);
@@ -1447,7 +1452,7 @@ bail:
  * this function. */
 static void
 dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
-                                  PRUint64 last, int fix)
+                                  PRUint64 last)
 {
     /* update our cached config entry */
     if ((new != 0) && (new <= (config_entry->maxval + config_entry->interval))) {
@@ -1483,19 +1488,6 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
 
         /* update the shared configuration */
         dna_update_shared_config(config_entry);
-    }
-
-    /* Check if we passed the threshold and try to fix maxval if so.  We
-     * don't need to do this if we already have a next range on deck. */
-    if ((config_entry->next_range_lower == 0) && (config_entry->remaining <= config_entry->threshold)) {
-        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_notice_allocation: Passed threshold of %" NSPRIu64 " remaining values "
-                        "for range %s. (%" NSPRIu64 " values remain)\n",
-                        config_entry->threshold, config_entry->dn, config_entry->remaining);
-        /* Only attempt to fix maxval if the fix flag is set. */
-        if (fix != 0) {
-            dna_fix_maxval(config_entry);
-        }
     }
 
     return;
@@ -2115,8 +2107,12 @@ static int dna_get_next_value(struct configEntry *config_entry,
     if (LDAP_SUCCESS != ret) {
         /* check if we overflowed the configured range */
         if (setval > config_entry->maxval) {
-            /* this should not happen, as pre_op should of allocated the next range */
-            ret = dna_fix_maxval(config_entry);
+            /* This should not happen, as pre_op should of allocated the next range.
+             * In case this does occur, we will attempt to activate the next range if
+             * one is available.  We tell dna_fix_maxval() to skip sending a range
+             * transfer request, we we don't want to perform any network operations
+             * while within a transaction. */
+            ret = dna_fix_maxval(config_entry, 1 /* skip range transfer request */ );
             if (LDAP_SUCCESS != ret) {
                 slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                 "dna_get_next_value: no more values available!!\n");
@@ -2175,7 +2171,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
         }
 
         /* update our cached config */
-        dna_notice_allocation(config_entry, nextval, setval, 0);
+        dna_notice_allocation(config_entry, nextval, setval);
     }
 
   done:
@@ -2340,7 +2336,7 @@ dna_update_next_range(struct configEntry *config_entry,
         /* update the cached config and the shared config */
         config_entry->next_range_lower = lower;
         config_entry->next_range_upper = upper;
-        dna_notice_allocation(config_entry, 0, 0, 0);
+        dna_notice_allocation(config_entry, 0, 0);
     }
 
 bail:
@@ -3138,46 +3134,59 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype)
                     slapi_ch_free_string(&value);
                     slapi_ch_array_free(types_to_generate);
                     types_to_generate = NULL;
+
+                    /*
+                     *  Now grab the next value and see if we need to get the next range
+                     */
+                    slapi_lock_mutex(config_entry->lock);
+
+                    ret = dna_first_free_value(config_entry, &setval);
+                    if (LDAP_SUCCESS != ret) {
+                        /* check if we overflowed the configured range */
+                        if (setval > config_entry->maxval) {
+                            /* try for a new range or fail */
+                            ret = dna_fix_maxval(config_entry, 0);
+                            if (LDAP_SUCCESS != ret) {
+                                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                                "dna_pre_op: no more values available!!\n");
+                                slapi_unlock_mutex(config_entry->lock);
+                                break;
+                            }
+
+                            /* Make sure dna_first_free_value() doesn't error out */
+                            ret = dna_first_free_value(config_entry, &setval);
+                            if (LDAP_SUCCESS != ret){
+                                 slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                                 "dna_pre_op: failed to allocate a new ID\n");
+                                slapi_unlock_mutex(config_entry->lock);
+                                break;
+                            }
+                        } else {
+                            /* dna_first_free_value() failed for some unknown reason */
+                             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                             "dna_pre_op: failed to allocate a new ID!!\n");
+                             slapi_unlock_mutex(config_entry->lock);
+                             break;
+                        }
+                    }
+
+                    /* Check if we passed the threshold and try to fix maxval if so.  We
+                     * don't need to do this if we already have a next range on deck. 
+                     * We don't check the result of dna_fix_maxval() since we aren't
+                     * completely out of values yet.  Any failure here is really a
+                     * soft failure. */
+                    if ((config_entry->next_range_lower == 0) && (config_entry->remaining <= config_entry->threshold)) {
+                        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                        "dna_pre_op: Passed threshold of %" NSPRIu64 " remaining values "
+                                        "for range %s. (%" NSPRIu64 " values remain)\n",
+                                        config_entry->threshold, config_entry->dn, config_entry->remaining);
+                        dna_fix_maxval(config_entry, 0);
+                    }
+
+                    slapi_unlock_mutex(config_entry->lock);
                 } else if (types_to_generate) {
                     slapi_ch_free((void **)&types_to_generate);
                 }
-
-                /*
-                 *  Now grab the next value and see if we need to get the next range
-                 */
-                slapi_lock_mutex(config_entry->lock);
-
-                ret = dna_first_free_value(config_entry, &setval);
-                if (LDAP_SUCCESS != ret) {
-                    /* check if we overflowed the configured range */
-                    if (setval > config_entry->maxval) {
-                        /* try for a new range or fail */
-                        ret = dna_fix_maxval(config_entry);
-                        if (LDAP_SUCCESS != ret) {
-                            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                            "dna_pre_op: no more values available!!\n");
-                            slapi_unlock_mutex(config_entry->lock);
-                            break;
-                        }
-
-                        /* Make sure dna_first_free_value() doesn't error out */
-                        ret = dna_first_free_value(config_entry, &setval);
-                        if (LDAP_SUCCESS != ret){
-                             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                             "dna_pre_op: failed to allocate a new ID\n");
-                            slapi_unlock_mutex(config_entry->lock);
-                            break;
-                        }
-                    } else {
-                        /* dna_first_free_value() failed for some unknown reason */
-                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                         "dna_pre_op: failed to allocate a new ID!!\n");
-                         slapi_unlock_mutex(config_entry->lock);
-                         break;
-                    }
-                }
-
-                slapi_unlock_mutex(config_entry->lock);
 
               next:
                 list = PR_NEXT_LINK(list);
@@ -3824,7 +3833,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                 if (ret == LDAP_SUCCESS) {
                     /* Adjust maxval in our cached config and shared config */
                     config_entry->maxval = *lower - 1;
-                    dna_notice_allocation(config_entry, config_entry->nextval, 0, 0);
+                    dna_notice_allocation(config_entry, config_entry->nextval, 0);
                 }
             }
 
