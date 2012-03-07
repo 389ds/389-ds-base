@@ -174,6 +174,8 @@ $nt = "0";
 $nb = "0";
 $bc = "0";
 $fcc = "0";
+$bcc = "0";
+$scc = "0";
 $nent = "0";
 $allOps = "0";
 $allResults = "0";
@@ -519,7 +521,6 @@ $modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$mod / $totalTimeInSecs, $mod/($to
 $addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$add/$totalTimeInSecs, $add/($totalTimeInSecs/60);
 $deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delete/$totalTimeInSecs, $delete/($totalTimeInSecs/60);
 $modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdn/$totalTimeInSecs, $modrdn/($totalTimeInSecs/60);
-$moddnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$moddn/$totalTimeInSecs, $moddn/($totalTimeInSecs/60);
 $compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$compare/$totalTimeInSecs, $compare/($totalTimeInSecs/60);
 $bindStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bind/$totalTimeInSecs, $bind/($totalTimeInSecs/60);
 
@@ -534,8 +535,6 @@ Deletes:                      @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
                               $delete,        $deleteStat
 Mod RDNs:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
                               $modrdn,        $modrdnStat
-Mod DNs:                      @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $moddn,         $moddnStat
 Compares:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
                               $compare,       $compareStat
 Binds:                        @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
@@ -571,8 +570,6 @@ if ($notes > 0){
 		print "  -  Etime:                 $notesEtime[$n]\n";
 		print "  -  Nentries:              $notesNentries[$n]\n";
 		print "  -  IP Address:            $conn_hash{$notesConn[$n]}\n";
-		print "  -  Search Base:           $notesBase[$n]\n";
-		print "  -  Scope:                 $notesScope[$n]\n";
 		for ($nn = 0; $nn <= $bc; $nn++){
 			if ($notesConn[$n] eq $bindInfo[$nn][1]) {
 
@@ -589,6 +586,16 @@ if ($notes > 0){
 						print "  -  Bind DN:               $bindInfo[$nn][0]\n";
 						push @alreadyseenDN, $bindInfo[$nn][0];
 					}
+			}
+		}
+		for ($nnn = 0; $nnn <= $bcc; $nnn++){
+			if ($notesConn[$n] eq $baseInfo[$nnn][1] && $notesOp[$n] eq $baseInfo[$nnn][2]){
+				print "  -  Search Base:           $baseInfo[$nnn][0]\n";
+			}
+		}
+		for ($nnn = 0; $nnn <= $scc; $nnn++){
+			if ($notesConn[$n] eq $scopeInfo[$nnn][1] && $notesOp[$n] eq $scopeInfo[$nnn][2]){
+				print "  -  Search Scope:          $scopeInfo[$nnn][0]\n";
 			}
 		}
 		for ($nnn = 0; $nnn <= $fcc; $nnn++){	
@@ -1328,15 +1335,6 @@ if (m/ SRCH/){
 		if ($_ =~ /op= *([0-9]+)/i){ $srchOp[$sconn] = $1;}
 		$sconn++;
 	}
-		
-	##### This to get the Base and Scope value
-	##### just in case this happens to be an 
-	##### unindexed search....
-
-	if ($_ =~ /base=\"(.*)\" scope=(\d) filter/) {
-		$tmpBase = $1;
-		$tmpScope = $2;
-	}
 }
 if (m/ DEL/){
 	$delete++;
@@ -1492,27 +1490,24 @@ if (m/ notes=U/){
 		inc_stats('notesu',$s_stats,$m_stats);
         }
         if ($usage =~ /u/ || $verb eq "yes"){
-        if ($v eq "0" ){
-                if ($_ =~ /etime= *([0-9]+)/i ) {
-                        $notesEtime[$vet]=$1;
-                        $vet++;
-                }
-                if ($_ =~ /conn= *([0-9]+)/i){
-                        $notesConn[$nc]=$1;
-                        $nc++;
-                }
-                if ($_ =~ /op= *([0-9]+)/i){
-                        $notesOp[$no]=$1;
-                        $no++;
-                }
-                if ($_ =~ / *([0-9a-z:\/]+)/i){
-                        $notesTime[$nt] = $1;
-                        $nt++;
-                }
-				$notesBase[$nb] = $tmpBase;
-				$notesScope[$nb] = $tmpScope;
-				$nb++;
-				}
+        	if ($v eq "0" ){
+                	if ($_ =~ /etime= *([0-9]+)/i ) {
+                        	$notesEtime[$vet]=$1;
+                        	$vet++;
+                	}
+                	if ($_ =~ /conn= *([0-9]+)/i){
+                        	$notesConn[$nc]=$1;
+                        	$nc++;
+                	}
+                	if ($_ =~ /op= *([0-9]+)/i){
+                        	$notesOp[$no]=$1;
+                        	$no++;
+                	}
+                	if ($_ =~ / *([0-9a-z:\/]+)/i){
+                        	$notesTime[$nt] = $1;
+                        	$nt++;
+                	}
+		}
 		if ($_ =~ /nentries= *([0-9]+)/i ){
 			$notesNentries[$nent] = $1;
 			$nent++;
@@ -1839,6 +1834,25 @@ if ($usage =~ /a/ || $verb eq "yes"){
 		}
         	$tmpp =~ tr/A-Z/a-z/;
         	$base{$tmpp} = $base{$tmpp} + 1;
+
+		#
+		# grab the search bases & scope for potential unindexed searches
+		#
+		$baseInfo[$bcc][0] = $tmpp;
+		if ($_ =~ /scope= *([0-9]+)/i) { 
+			$scopeInfo[$scc][0] = $1; 
+		}
+		if ($_ =~ /conn= *([0-9]+)/i) { 
+			$baseInfo[$bcc][1] = $1; 
+			$scopeInfo[$scc][1] = $1;	
+		}
+		if ($_ =~ /op= *([0-9]+)/i) { 
+			$baseInfo[$bcc][2] = $1;
+			$scopeInfo[$scc][2] = $1;
+		}
+		$bcc++;
+		$scc++;
+
 	}
 }
 
