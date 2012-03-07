@@ -695,7 +695,7 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 	 */
 	if ( aclpb && aclpb->aclpb_search_base ) {
 	 	while ( aclpb->aclpb_base_handles_index[index] != -1 &&
-				index < ACLPB_MAX_SELECTED_ACLS -2 ) {
+				index < aclpb_max_selected_acls -2 ) {
 			aclpb->aclpb_handles_index[index] = 
 				aclpb->aclpb_base_handles_index[index];
 			index++;
@@ -758,11 +758,6 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 	}
 
 	acllist_done_aciContainer ( aclpb->aclpb_aclContainer );
-	i = 0;
-	while ( i < ACLPB_MAX_SELECTED_ACLS && aclpb->aclpb_handles_index[i]  != -1 ) {
-		i++;
-	}
-
 }
 
 aci_t *
