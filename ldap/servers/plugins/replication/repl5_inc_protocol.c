@@ -158,6 +158,9 @@ typedef struct result_data
  */
 #define PROTOCOL_IS_SHUTDOWN(prp) (event_occurred(prp, EVENT_PROTOCOL_SHUTDOWN) || prp->terminate)
 
+/* mods should be LDAPMod **mods */
+#define MODS_ARE_EMPTY(mods) ((mods == NULL) || (mods[0] == NULL))
+
 /* Forward declarations */
 static PRUint32 event_occurred(Private_Repl_Protocol *prp, PRUint32 event);
 static void reset_events (Private_Repl_Protocol *prp);
@@ -1389,6 +1392,11 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 	char csn_str[CSN_STRSIZE]; /* For logging only */
 
 	csn_as_string(op->csn, PR_FALSE, csn_str);
+	if (message_id) {
+		/* if we get out of this function without setting message_id, it means
+		   we didn't send an op, so no result needs to be processed */
+		*message_id = 0;
+	}
 
 	/* Construct the replication info control that accompanies the operation */
 	if (SLAPI_OPERATION_ADD == op->operation_type)
@@ -1447,8 +1455,17 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 				{
 					repl5_strip_fractional_mods(prp->agmt,entryattrs);
 				}
-				return_value = conn_send_add(prp->conn, op->target_address.dn,
-					entryattrs, update_control, message_id);
+				if (MODS_ARE_EMPTY(entryattrs)) {
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+									"%s: replay_update: %s operation (dn=\"%s\" csn=%s) "
+									"not sent - empty\n",
+									agmt_get_long_name(prp->agmt),
+									op2string(op->operation_type), op->target_address.dn, csn_str);
+					return_value = CONN_OPERATION_SUCCESS;
+				} else {
+					return_value = conn_send_add(prp->conn, op->target_address.dn,
+												 entryattrs, update_control, message_id);
+				}
 				ldap_mods_free(entryattrs, 1);
 			}
 			break;
@@ -1459,8 +1476,17 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 			{
 				repl5_strip_fractional_mods(prp->agmt,op->p.p_modify.modify_mods);
 			}
-			return_value = conn_send_modify(prp->conn, op->target_address.dn,
-				op->p.p_modify.modify_mods, update_control, message_id);
+			if (MODS_ARE_EMPTY(op->p.p_modify.modify_mods)) {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: replay_update: %ss operation (dn=\"%s\" csn=%s) "
+								"not sent - empty\n",
+								agmt_get_long_name(prp->agmt),
+								op2string(op->operation_type), op->target_address.dn, csn_str);
+				return_value = CONN_OPERATION_SUCCESS;
+			} else {
+				return_value = conn_send_modify(prp->conn, op->target_address.dn,
+												op->p.p_modify.modify_mods, update_control, message_id);
+			}
 			break;
 		case SLAPI_OPERATION_DELETE:
 			return_value = conn_send_delete(prp->conn, op->target_address.dn,
@@ -1867,7 +1893,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					replica_id = csn_get_replicaid(entry.op->csn);
 					uniqueid = entry.op->target_address.uniqueid;
 
-					if (prp->repl50consumer) 
+					if (prp->repl50consumer && message_id) 
 					{
 						int operation, error = 0;
 
@@ -1879,7 +1905,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						csn_as_string(entry.op->csn, PR_FALSE, csn_str);
 						return_value = repl5_inc_update_from_op_result(prp, replay_crc, error, csn_str, uniqueid, replica_id, &finished, num_changes_sent);
 					}
-					else {
+					else if (message_id) {
 						/* Queue the details for pickup later in the response thread */
 						repl5_inc_operation *sop = NULL;
 						sop = repl5_inc_operation_new();
@@ -1889,6 +1915,12 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						sop->replica_id = replica_id;
 						sop->uniqueid = slapi_ch_strdup(uniqueid);
 						repl5_int_push_operation(rd,sop);
+					} else {
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: Skipping update operation with no message_id (uniqueid %s, CSN %s):\n",
+							agmt_get_long_name(prp->agmt),
+							entry.op->target_address.uniqueid, csn_str);
+							agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
 					}
 				}
 				break;
