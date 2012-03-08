@@ -531,6 +531,7 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
     Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **rule_entries = NULL;
     char *filter_str = NULL;
+    Slapi_DN *dn = NULL;
     Slapi_Filter *filter = NULL;
     int result;
     int entry_added = 0;
@@ -626,6 +627,27 @@ automember_parse_config_entry(Slapi_Entry * e, int apply)
     if (values) {
         /* Just hand off the values */
         entry->default_groups = values;
+
+        /*
+         *  If we set the config area, we need to make sure that the default groups are not
+         *  in the config area, or else we could deadlock on updates.
+         */
+        if(automember_get_config_area()){
+            for(i = 0; values && values[i]; i++){
+            	dn = slapi_sdn_new_dn_byref(values[i]);
+            	if(slapi_sdn_issuffix(dn, automember_get_config_area())){
+                    /* The groups are under the config area - not good */
+                    slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                                    "automember_parse_config_entry: The default group \"%s\" can not be "
+                                    "a child of the plugin config area \"%s\".\n",
+                                    values[i], slapi_sdn_get_dn(automember_get_config_area()));
+                    slapi_sdn_free(&dn);
+                    ret = -1;
+                    goto bail;
+                }
+                slapi_sdn_free(&dn);
+            }
+        }
         values = NULL;
     }
 
@@ -976,6 +998,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
 {
     char *target_group = NULL;
     char **values = NULL;
+    Slapi_DN *group_dn = NULL;
     PRCList *list;
     int i = 0;
 
@@ -999,6 +1022,21 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                         "in rule \"%s\" (dn=\"%s\").\n", slapi_entry_get_ndn(e),
                         target_group);
         goto bail;
+    }
+
+    /* normalize the group dn and compare it to the configArea DN */
+    if(automember_get_config_area()){
+        group_dn = slapi_sdn_new_dn_byref(target_group);
+        if(slapi_sdn_issuffix(group_dn, automember_get_config_area())){
+            /* The target group is under the plugin config area - not good */
+            slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                "automember_parse_regex_entry: The target group \"%s\" can not be "
+                "a child of the plugin config area \"%s\".\n",
+                slapi_sdn_get_dn(group_dn), slapi_sdn_get_dn(automember_get_config_area()));
+            slapi_sdn_free(&group_dn);
+            goto bail;
+        }
+        slapi_sdn_free(&group_dn);
     }
 
     /* Load inclusive rules */
