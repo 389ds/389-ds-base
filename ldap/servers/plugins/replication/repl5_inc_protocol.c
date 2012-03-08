@@ -633,6 +633,11 @@ repl5_inc_run(Private_Repl_Protocol *prp)
   PRBool use_busy_backoff_timer = PR_FALSE;
   long pausetime = 0;
   long busywaittime = 0;
+  long loops = 0;
+  int optype, ldaprc;
+  time_t next_fire_time;
+  time_t now;
+
 
   prp->stopped = 0;
   prp->terminate = 0;
@@ -640,665 +645,529 @@ repl5_inc_run(Private_Repl_Protocol *prp)
   /* establish_protocol_callbacks(prp); */
   done = 0;
   do {
-    int rc;
+      int rc;
 
-    /* Take action, based on current state, and compute new state. */
-    switch (current_state)
+      /* Take action, based on current state, and compute new state. */
+      switch (current_state)
       {
-      case STATE_START:
+          case STATE_START:
+              dev_debug("repl5_inc_run(STATE_START)");
+              if (PROTOCOL_IS_SHUTDOWN(prp)){
+                  done = 1;
+                  break;
+              }
+              /*
+               * Our initial state. See if we're in a schedule window. If
+               * so, then we're ready to acquire the replica and see if it
+               * needs any updates from us. If not, then wait for the window
+               * to open.
+               */
+              if (agmt_schedule_in_window_now(prp->agmt)){
+                  next_state = STATE_READY_TO_ACQUIRE;
+              } else {
+                  next_state = STATE_WAIT_WINDOW_OPEN;
+              }
+              /*  we can get here from other states because some events happened and were
+               *  not cleared. For instance when we wake up in STATE_WAIT_CHANGES state.
+               *  Since this is a fresh start state, we should clear all events */
+              /*  ONREPL - this does not feel right - we should take another look
+               *  at this state machine */
+              reset_events (prp);
+              /* Cancel any linger timer that might be in effect... */
+              conn_cancel_linger(prp->conn);
+              /* ... and disconnect, if currently connected */
+              conn_disconnect(prp->conn);
+              /* get the new pause time, if any */
+              pausetime = agmt_get_pausetime(prp->agmt);
+              /* get the new busy wait time, if any */
+              busywaittime = agmt_get_busywaittime(prp->agmt);
+              if (pausetime || busywaittime){
+                  /* helper function to make sure they are set correctly */
+                  set_pause_and_busy_time(&pausetime, &busywaittime);
+              }
+              break;
 
-	dev_debug("repl5_inc_run(STATE_START)");
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    done = 1;
-	    break;
-	  }
+          case STATE_WAIT_WINDOW_OPEN:
+              /*
+               * We're waiting for a schedule window to open. If one did,
+               * or we receive a "replicate now" event, then start a protocol
+               * session immediately. If the replication schedule changed, go
+               * back to start.  Otherwise, go back to sleep.
+               */
+              dev_debug("repl5_inc_run(STATE_WAIT_WINDOW_OPEN)");
+              if (PROTOCOL_IS_SHUTDOWN(prp)){
+                  done = 1;
+                  break;
+              } else if (event_occurred(prp, EVENT_WINDOW_OPENED)){
+                  next_state = STATE_READY_TO_ACQUIRE;
+              } else if (event_occurred(prp, EVENT_REPLICATE_NOW)){
+                  next_state = STATE_READY_TO_ACQUIRE;
+              } else if (event_occurred(prp, EVENT_AGMT_CHANGED)){
+                  next_state = STATE_START;
+                  conn_set_agmt_changed(prp->conn);
+              } else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET)){ /* change available */
+                  /* just ignore it and go to sleep */
+                  protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+              } else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
+		                  event_occurred(prp, EVENT_BACKOFF_EXPIRED)){
+                  /* this events - should not occur - log a warning and go to sleep */
+                  slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                      "%s: Incremental protocol: "
+                      "event %s should not occur in state %s; going to sleep\n",
+                  agmt_get_long_name(prp->agmt), e1 ? event2name(EVENT_WINDOW_CLOSED) :
+                                     event2name(EVENT_BACKOFF_EXPIRED), state2name(current_state));
+                  protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+              } else {
+                  /* wait until window opens or an event occurs */
+            	  slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                      "%s: Incremental protocol: "
+                      "waiting for update window to open\n", agmt_get_long_name(prp->agmt));
+                  protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+              }
+              break;
 
-	/*
-	 * Our initial state. See if we're in a schedule window. If
-	 * so, then we're ready to acquire the replica and see if it
-	 * needs any updates from us. If not, then wait for the window
-	 * to open.
-	 */
-	if (agmt_schedule_in_window_now(prp->agmt))
-	  {
-	    next_state = STATE_READY_TO_ACQUIRE;
-	  }
-	else
-	  {
-	    next_state = STATE_WAIT_WINDOW_OPEN;
-	  }
-
-	/* we can get here from other states because some events happened and were
-	   not cleared. For instance when we wake up in STATE_WAIT_CHANGES state.
-	   Since this is a fresh start state, we should clear all events */
-	/* ONREPL - this does not feel right - we should take another look
-	   at this state machine */
-	reset_events (prp);
-
-	/* Cancel any linger timer that might be in effect... */
-	conn_cancel_linger(prp->conn);
-	/* ... and disconnect, if currently connected */
-	conn_disconnect(prp->conn);
-	/* get the new pause time, if any */
-	pausetime = agmt_get_pausetime(prp->agmt);
-	/* get the new busy wait time, if any */
-	busywaittime = agmt_get_busywaittime(prp->agmt);
-	if (pausetime || busywaittime)
-	  {
-	    /* helper function to make sure they are set correctly */
-	    set_pause_and_busy_time(&pausetime, &busywaittime);
-	  }
-	break;
-      case STATE_WAIT_WINDOW_OPEN:
-	/*
-	 * We're waiting for a schedule window to open. If one did,
-	 * or we receive a "replicate now" event, then start a protocol
-	 * session immediately. If the replication schedule changed, go
-	 * back to start.  Otherwise, go back to sleep.
-	 */
-	dev_debug("repl5_inc_run(STATE_WAIT_WINDOW_OPEN)");
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    done = 1;
-	    break;
-	  }
-	else if (event_occurred(prp, EVENT_WINDOW_OPENED))
-	  {
-	    next_state = STATE_READY_TO_ACQUIRE;
-	  }
-	else if (event_occurred(prp, EVENT_REPLICATE_NOW))
-	  {
-	    next_state = STATE_READY_TO_ACQUIRE;
-	  }
-	else if (event_occurred(prp, EVENT_AGMT_CHANGED))
-	  {
-	    next_state = STATE_START;
-	    conn_set_agmt_changed(prp->conn);
-	  }
-	else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET)) /* change available */
-	  {
-	    /* just ignore it and go to sleep */
-	    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-	  }
-	else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
-		 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
-	  {
-	    /* this events - should not occur - log a warning and go to sleep */
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Incremental protocol: "
-		    "event %s should not occur in state %s; going to sleep\n",
-			agmt_get_long_name(prp->agmt),
-		    e1 ? event2name(EVENT_WINDOW_CLOSED) : event2name(EVENT_BACKOFF_EXPIRED), 
-		    state2name(current_state));
-	    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-	  }
-	else
-	  {
-	    /* wait until window opens or an event occurs */
-	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			"%s: Incremental protocol: "
-		    "waiting for update window to open\n", agmt_get_long_name(prp->agmt));
-	    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-	  }
-	break;
       case STATE_WAIT_CHANGES:
-	/*
-	 * We're in a replication window, but we're waiting for more
-	 * changes to accumulate before we actually hook up and send
-	 * them.
-	 */
-	dev_debug("repl5_inc_run(STATE_WAIT_CHANGES)");
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): PROTOCOL_IS_SHUTING_DOWN -> end repl5_inc_run\n");
-	    done = 1;
-	    break;
-	  }
-	else if (event_occurred(prp, EVENT_REPLICATE_NOW))
-	  {
-	    dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_REPLICATE_NOW received -> STATE_READY_TO_ACQUIRE\n");
-	    next_state = STATE_READY_TO_ACQUIRE;
-	    wait_change_timer_set = 0;
-	  }
-	else if (event_occurred(prp, EVENT_AGMT_CHANGED))
-	  {
-	    dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_AGMT_CHANGED received -> STATE_START\n");
-	    next_state = STATE_START;
-	    conn_set_agmt_changed(prp->conn);
-	    wait_change_timer_set = 0;
-	  }
-	else if (event_occurred(prp, EVENT_WINDOW_CLOSED))
-	  {
-	    dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_WINDOW_CLOSED received -> STATE_WAIT_WINDOW_OPEN\n");
-	    next_state = STATE_WAIT_WINDOW_OPEN;
-	    wait_change_timer_set = 0;
-	  }
-	else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET))
-	  {
-	    dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_TRIGGERING_CRITERIA_MET received -> STATE_READY_TO_ACQUIRE\n");
-	    next_state = STATE_READY_TO_ACQUIRE;
-	    wait_change_timer_set = 0;
-	  }
-	else if ((e1 = event_occurred(prp, EVENT_WINDOW_OPENED)) ||
-		 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
-	  {
-	    /* this events - should not occur - log a warning and clear the event */
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "%s: Incremental protocol: "
-			    "event %s should not occur in state %s\n", 
-				agmt_get_long_name(prp->agmt),
-			    e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED), 
-			    state2name(current_state));
-	    wait_change_timer_set = 0;
-	  }			
-	else
-	  {
-		if (wait_change_timer_set)
-		{
-			/* We are here because our timer expired */
-		    dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): wait_change_timer_set expired -> STATE_START\n");
-			next_state = STATE_START;
-			wait_change_timer_set = 0;
-		}
-		else
-		{
-			/* We are here because the last replication session
-			 * finished or aborted.
-			 */
-			wait_change_timer_set = 1;
-			protocol_sleep(prp, MAX_WAIT_BETWEEN_SESSIONS);				
-      	}
-	  }
-	break;
+          /*
+           * We're in a replication window, but we're waiting for more
+           * changes to accumulate before we actually hook up and send
+           * them.
+           */
+          dev_debug("repl5_inc_run(STATE_WAIT_CHANGES)");
+          if (PROTOCOL_IS_SHUTDOWN(prp)){
+              dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): PROTOCOL_IS_SHUTING_DOWN -> end repl5_inc_run\n");
+              done = 1;
+              break;
+          } else if (event_occurred(prp, EVENT_REPLICATE_NOW)){
+              dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_REPLICATE_NOW received -> STATE_READY_TO_ACQUIRE\n");
+              next_state = STATE_READY_TO_ACQUIRE;
+              wait_change_timer_set = 0;
+          } else if (event_occurred(prp, EVENT_AGMT_CHANGED)){
+        	  dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_AGMT_CHANGED received -> STATE_START\n");
+        	  next_state = STATE_START;
+        	  conn_set_agmt_changed(prp->conn);
+        	  wait_change_timer_set = 0;
+          } else if (event_occurred(prp, EVENT_WINDOW_CLOSED)){
+        	  dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_WINDOW_CLOSED received -> STATE_WAIT_WINDOW_OPEN\n");
+        	  next_state = STATE_WAIT_WINDOW_OPEN;
+        	  wait_change_timer_set = 0;
+          } else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET)){
+              dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): EVENT_TRIGGERING_CRITERIA_MET received -> STATE_READY_TO_ACQUIRE\n");
+              next_state = STATE_READY_TO_ACQUIRE;
+              wait_change_timer_set = 0;
+          } else if ((e1 = event_occurred(prp, EVENT_WINDOW_OPENED)) || event_occurred(prp, EVENT_BACKOFF_EXPIRED)){
+              /* this events - should not occur - log a warning and clear the event */
+              slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "%s: Incremental protocol: "
+                  "event %s should not occur in state %s\n",agmt_get_long_name(prp->agmt),
+                  e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED),
+                  state2name(current_state));
+              wait_change_timer_set = 0;
+          } else {
+              if (wait_change_timer_set){
+                  /* We are here because our timer expired */
+                  dev_debug("repl5_inc_run(STATE_WAIT_CHANGES): wait_change_timer_set expired -> STATE_START\n");
+                  next_state = STATE_START;
+                  wait_change_timer_set = 0;
+              } else {
+                  /*
+                   * We are here because the last replication session
+                   * finished or aborted.
+                   */
+                  wait_change_timer_set = 1;
+                  protocol_sleep(prp, MAX_WAIT_BETWEEN_SESSIONS);
+              }
+          }
+          break;
+
       case STATE_READY_TO_ACQUIRE:
-		
-	dev_debug("repl5_inc_run(STATE_READY_TO_ACQUIRE)");
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    done = 1;
-	    break;
-	  }
+          dev_debug("repl5_inc_run(STATE_READY_TO_ACQUIRE)");
+          if (PROTOCOL_IS_SHUTDOWN(prp)){
+              done = 1;
+              break;
+          }
 
-	/* ONREPL - at this state we unconditionally acquire the replica
-	   ignoring all events. Not sure if this is good */
-	object_acquire(prp->replica_object);
-			
-	rc = acquire_replica(prp, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID, &ruv);
-	use_busy_backoff_timer = PR_FALSE; /* default */
-	if (rc == ACQUIRE_SUCCESS)
-	  {
-	    next_state = STATE_SENDING_UPDATES;
-	  }
-	else if (rc == ACQUIRE_REPLICA_BUSY)
-	  {
-	    next_state = STATE_BACKOFF_START;
-	    use_busy_backoff_timer = PR_TRUE;
-	  }
-	else if (rc == ACQUIRE_CONSUMER_WAS_UPTODATE)
-	  {
-	    next_state = STATE_WAIT_CHANGES;
-	  }
-	else if (rc == ACQUIRE_TRANSIENT_ERROR)
-	  {
-	    next_state = STATE_BACKOFF_START;
-	  }
-	else if (rc == ACQUIRE_FATAL_ERROR)
-	  {
-	    next_state = STATE_STOP_FATAL_ERROR;
-	  }
-	if (rc != ACQUIRE_SUCCESS)
-	  {
-	    int optype, ldaprc;
-	    conn_get_error(prp->conn, &optype, &ldaprc);
-	    agmt_set_last_update_status(prp->agmt, ldaprc,
-					prp->last_acquire_response_code, NULL);
-	  }
-			
-	object_release(prp->replica_object);
-	break;
+          /* ONREPL - at this state we unconditionally acquire the replica
+             ignoring all events. Not sure if this is good */
+          object_acquire(prp->replica_object);
+          rc = acquire_replica(prp, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID, &ruv);
+          use_busy_backoff_timer = PR_FALSE; /* default */
+          if (rc == ACQUIRE_SUCCESS){
+              next_state = STATE_SENDING_UPDATES;
+          } else if (rc == ACQUIRE_REPLICA_BUSY){
+              next_state = STATE_BACKOFF_START;
+              use_busy_backoff_timer = PR_TRUE;
+          } else if (rc == ACQUIRE_CONSUMER_WAS_UPTODATE){
+              next_state = STATE_WAIT_CHANGES;
+          } else if (rc == ACQUIRE_TRANSIENT_ERROR){
+              next_state = STATE_BACKOFF_START;
+          } else if (rc == ACQUIRE_FATAL_ERROR){
+              next_state = STATE_STOP_FATAL_ERROR;
+          }
+
+          if (rc != ACQUIRE_SUCCESS){
+              int optype, ldaprc;
+              conn_get_error(prp->conn, &optype, &ldaprc);
+              agmt_set_last_update_status(prp->agmt, ldaprc,
+                  prp->last_acquire_response_code, NULL);
+          }
+
+          object_release(prp->replica_object);
+          break;
+
       case STATE_BACKOFF_START:
-	dev_debug("repl5_inc_run(STATE_BACKOFF_START)");
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    done = 1;
-	    break;
-	  }
-	if (event_occurred(prp, EVENT_REPLICATE_NOW))
-	  {
-	    next_state = STATE_READY_TO_ACQUIRE;
-	  }
-	else if (event_occurred(prp, EVENT_AGMT_CHANGED))
-	  {
-	    next_state = STATE_START;
-	    conn_set_agmt_changed(prp->conn);
-	  }
-	else if (event_occurred (prp, EVENT_WINDOW_CLOSED))
-	  {
-	    next_state = STATE_WAIT_WINDOW_OPEN;
-	  }
-	else if (event_occurred (prp, EVENT_TRIGGERING_CRITERIA_MET))
-	  {
-	    /* consume and ignore */
-	  }
-	else if ((e1 = event_occurred (prp, EVENT_WINDOW_OPENED)) || 
-		 event_occurred (prp, EVENT_BACKOFF_EXPIRED))
-	  {
-	    /* This should never happen */
-	    /* this events - should not occur - log a warning and go to sleep */
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: Incremental protocol: event %s should not occur in state %s\n", 
-				agmt_get_long_name(prp->agmt),
-			    e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED), 
-			    state2name(current_state));
-	  }
-	else
-	  {
-				/* Set up the backoff timer to wake us up at the appropriate time */
-	    if (use_busy_backoff_timer)
-	    {
-	      /* we received a busy signal from the consumer, wait for a while */
-	      if (!busywaittime)
-	        {
-		  busywaittime = PROTOCOL_BUSY_BACKOFF_MINIMUM;
-	        }
-	      prp_priv->backoff = backoff_new(BACKOFF_FIXED, busywaittime,
-					      busywaittime);
-	    }
-	    else
-	    {
-	      prp_priv->backoff = backoff_new(BACKOFF_EXPONENTIAL, PROTOCOL_BACKOFF_MINIMUM,
-					      PROTOCOL_BACKOFF_MAXIMUM);
-	    }
-	    next_state = STATE_BACKOFF;
-	    backoff_reset(prp_priv->backoff, repl5_inc_backoff_expired, (void *)prp);
-	    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-	    use_busy_backoff_timer = PR_FALSE;
-	  }
-	break;
+          dev_debug("repl5_inc_run(STATE_BACKOFF_START)");
+          if (PROTOCOL_IS_SHUTDOWN(prp)){
+	          done = 1;
+              break;
+          }
+          if (event_occurred(prp, EVENT_REPLICATE_NOW)){
+              next_state = STATE_READY_TO_ACQUIRE;
+          } else if (event_occurred(prp, EVENT_AGMT_CHANGED)){
+              next_state = STATE_START;
+              conn_set_agmt_changed(prp->conn);
+          } else if (event_occurred (prp, EVENT_WINDOW_CLOSED)){
+              next_state = STATE_WAIT_WINDOW_OPEN;
+          } else if (event_occurred (prp, EVENT_TRIGGERING_CRITERIA_MET)){
+              /* consume and ignore */
+          } else if ((e1 = event_occurred (prp, EVENT_WINDOW_OPENED)) ||
+                      event_occurred (prp, EVENT_BACKOFF_EXPIRED)){
+              /* This should never happen */
+              /* this events - should not occur - log a warning and go to sleep */
+              slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                  "%s: Incremental protocol: event %s should not occur in state %s\n",
+                  agmt_get_long_name(prp->agmt),
+                  e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED),
+                  state2name(current_state));
+          } else {
+              /* Set up the backoff timer to wake us up at the appropriate time */
+              if (use_busy_backoff_timer){
+                  /* we received a busy signal from the consumer, wait for a while */
+                  if (!busywaittime){
+                      busywaittime = PROTOCOL_BUSY_BACKOFF_MINIMUM;
+                  }
+                  prp_priv->backoff = backoff_new(BACKOFF_FIXED, busywaittime, busywaittime);
+              } else {
+                  prp_priv->backoff = backoff_new(BACKOFF_EXPONENTIAL, PROTOCOL_BACKOFF_MINIMUM,
+					                              PROTOCOL_BACKOFF_MAXIMUM);
+              }
+              next_state = STATE_BACKOFF;
+              backoff_reset(prp_priv->backoff, repl5_inc_backoff_expired, (void *)prp);
+              protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+              use_busy_backoff_timer = PR_FALSE;
+          }
+          break;
+
       case STATE_BACKOFF:
-	/*
-	 * We're in a backoff state. 
-	 */
-	dev_debug("repl5_inc_run(STATE_BACKOFF)");
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    if (prp_priv->backoff)
-	      backoff_delete(&prp_priv->backoff);
-	    done = 1;
-	    break;
-	  }
-	else if (event_occurred(prp, EVENT_REPLICATE_NOW))
-	  {
-	    next_state = STATE_READY_TO_ACQUIRE;
-	  }
-	else if (event_occurred(prp, EVENT_AGMT_CHANGED))
-	  {
-	    next_state = STATE_START;
+          /*
+           * We're in a backoff state.
+           */
+          dev_debug("repl5_inc_run(STATE_BACKOFF)");
+          if (PROTOCOL_IS_SHUTDOWN(prp)){
+              if (prp_priv->backoff)
+                  backoff_delete(&prp_priv->backoff);
+              done = 1;
+              break;
+          } else if (event_occurred(prp, EVENT_REPLICATE_NOW)){
+              next_state = STATE_READY_TO_ACQUIRE;
+          } else if (event_occurred(prp, EVENT_AGMT_CHANGED)){
+              next_state = STATE_START;
+              conn_set_agmt_changed(prp->conn);
+              /* Destroy the backoff timer, since we won't need it anymore */
+              if (prp_priv->backoff)
+                  backoff_delete(&prp_priv->backoff);
+          } else if (event_occurred(prp, EVENT_WINDOW_CLOSED)){
+              next_state = STATE_WAIT_WINDOW_OPEN;
+              /* Destroy the backoff timer, since we won't need it anymore */
+              if (prp_priv->backoff)
+                  backoff_delete(&prp_priv->backoff);
+          } else if (event_occurred(prp, EVENT_BACKOFF_EXPIRED)){
+              rc = acquire_replica(prp, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID, &ruv);
+              use_busy_backoff_timer = PR_FALSE;
+              if (rc == ACQUIRE_SUCCESS){
+            	  next_state = STATE_SENDING_UPDATES;
+              } else if (rc == ACQUIRE_REPLICA_BUSY){
+                  next_state = STATE_BACKOFF;
+                  use_busy_backoff_timer = PR_TRUE;
+              } else if (rc == ACQUIRE_CONSUMER_WAS_UPTODATE){
+                  next_state = STATE_WAIT_CHANGES;
+              } else if (rc == ACQUIRE_TRANSIENT_ERROR){
+                  next_state = STATE_BACKOFF;
+              } else if (rc == ACQUIRE_FATAL_ERROR){
+                  next_state = STATE_STOP_FATAL_ERROR;
+              }
+              if (rc != ACQUIRE_SUCCESS){
+                  conn_get_error(prp->conn, &optype, &ldaprc);
+                  agmt_set_last_update_status(prp->agmt, ldaprc, prp->last_acquire_response_code, NULL);
+              }
+              /*
+               * We either need to step the backoff timer, or
+               * destroy it if we don't need it anymore
+               */
+              if (STATE_BACKOFF == next_state){
+                  /* Step the backoff timer */
+                  time(&now);
+                  next_fire_time = backoff_step(prp_priv->backoff);
+                  /* And go back to sleep */
+                  slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                      "%s: Replication session backing off for %ld seconds\n",
+                      agmt_get_long_name(prp->agmt),next_fire_time - now);
+                  protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+              } else {
+                  /* Destroy the backoff timer, since we won't need it anymore */
+                  backoff_delete(&prp_priv->backoff);
+              }
+              use_busy_backoff_timer = PR_FALSE;
+         } else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET)){
+             /* changes are available */
+             if ( prp_priv->backoff == NULL || backoff_expired (prp_priv->backoff, 60)){
+                 /*
+                  * Have seen cases that the agmt stuck here forever since
+                  * somehow the backoff timer was not in event queue anymore.
+                  * If the backoff timer has expired more than 60 seconds, destroy it.
+                  */
+                 if ( prp_priv->backoff )
+                     backoff_delete(&prp_priv->backoff);
+                 next_state = STATE_READY_TO_ACQUIRE;
+             } else {
+                 /* ignore changes and go to sleep */
+                 protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+             }
+         } else if (event_occurred(prp, EVENT_WINDOW_OPENED)){
+             /* this should never happen - log an error and go to sleep */
+             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "%s: Incremental protocol: "
+                 "event %s should not occur in state %s; going to sleep\n",
+                 agmt_get_long_name(prp->agmt), event2name(EVENT_WINDOW_OPENED),
+                 state2name(current_state));
+             protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+         }
+         break;
 
-	    conn_set_agmt_changed(prp->conn);
-				/* Destroy the backoff timer, since we won't need it anymore */ 
-	    if (prp_priv->backoff)   
-	      backoff_delete(&prp_priv->backoff);
-	  }
-	else if (event_occurred(prp, EVENT_WINDOW_CLOSED))
-	  {
-	    next_state = STATE_WAIT_WINDOW_OPEN;
-				/* Destroy the backoff timer, since we won't need it anymore */
-	    if (prp_priv->backoff)
-	      backoff_delete(&prp_priv->backoff);
-	  }
-	else if (event_occurred(prp, EVENT_BACKOFF_EXPIRED))
-	  {
-	    rc = acquire_replica(prp, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID, &ruv);
-	    use_busy_backoff_timer = PR_FALSE;
-	    if (rc == ACQUIRE_SUCCESS)
-	      {
-		next_state = STATE_SENDING_UPDATES;
-	      }
-	    else if (rc == ACQUIRE_REPLICA_BUSY)
-	      {
-		next_state = STATE_BACKOFF;
-		use_busy_backoff_timer = PR_TRUE;
-	      }
-		else if (rc == ACQUIRE_CONSUMER_WAS_UPTODATE)
-		  {
-		    next_state = STATE_WAIT_CHANGES;
-		  }
-	    else if (rc == ACQUIRE_TRANSIENT_ERROR)
-	      {
-		next_state = STATE_BACKOFF;
-	      }
-	    else if (rc == ACQUIRE_FATAL_ERROR)
-	      {
-		next_state = STATE_STOP_FATAL_ERROR;
-	      }
-	    if (rc != ACQUIRE_SUCCESS)
-	      {
-		int optype, ldaprc;
-		conn_get_error(prp->conn, &optype, &ldaprc);
-		agmt_set_last_update_status(prp->agmt, ldaprc,
-					    prp->last_acquire_response_code, NULL);
-	      }
-				/*
-				 * We either need to step the backoff timer, or
-				 * destroy it if we don't need it anymore.
-				 */
-	    if (STATE_BACKOFF == next_state)
-	      {
-		time_t next_fire_time;
-		time_t now;
-		/* Step the backoff timer */
-		time(&now);
-		next_fire_time = backoff_step(prp_priv->backoff);
-		/* And go back to sleep */
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"%s: Replication session backing off for %ld seconds\n",
-				agmt_get_long_name(prp->agmt),
-				next_fire_time - now);
-
-		protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-	      }
-	    else
-	      {
-		/* Destroy the backoff timer, since we won't need it anymore */
-		backoff_delete(&prp_priv->backoff);
-	      }            
-	    use_busy_backoff_timer = PR_FALSE;
-	  }
-	else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET))
-	  {
-		/* changes are available */
-		if ( prp_priv->backoff == NULL || backoff_expired (prp_priv->backoff, 60) )
-		{
-			/*
-			 * Have seen cases that the agmt stuck here forever since
-			 * somehow the backoff timer was not in event queue anymore.
-			 * If the backoff timer has expired more than 60 seconds,
-			 * destroy it.
-			 */
-			if ( prp_priv->backoff )
-				backoff_delete(&prp_priv->backoff);
-			next_state = STATE_READY_TO_ACQUIRE;
-		}
-		else
-		{
-			/* ignore changes and go to sleep */
-		    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-		}
-	  }
-	else if (event_occurred(prp, EVENT_WINDOW_OPENED))
-	  {
-	    /* this should never happen - log an error and go to sleep */
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "%s: Incremental protocol: "
-			    "event %s should not occur in state %s; going to sleep\n", 
-				agmt_get_long_name(prp->agmt),
-			    event2name(EVENT_WINDOW_OPENED), state2name(current_state));
-	    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-	  }
-	break;
       case STATE_SENDING_UPDATES:
-	dev_debug("repl5_inc_run(STATE_SENDING_UPDATES)");
-	agmt_set_update_in_progress(prp->agmt, PR_TRUE);
-	num_changes_sent = 0;
-	last_start_time = current_time();
-	agmt_set_last_update_start(prp->agmt, last_start_time);
-	/*
-	 * We've acquired the replica, and are ready to send any
-	 * needed updates.
-	 */
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    release_replica (prp);
-	    done = 1;
-	    agmt_set_update_in_progress(prp->agmt, PR_FALSE);
-	    agmt_set_last_update_end(prp->agmt, current_time());
-	    /* MAB: I don't find the following status correct. How do we know it has
-	       been stopped by an admin and not by a total update request, for instance?
-	       In any case, how is this protocol shutdown situation different from all the 
-	       other ones that are present in this state machine? */
-	    /* richm: We at least need to let monitors know that the protocol has been
-	       shutdown - maybe they can figure out why */
-	    agmt_set_last_update_status(prp->agmt, 0, 0, "Protocol stopped");
-	    break;
-	  } 
+          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES)");
+          agmt_set_update_in_progress(prp->agmt, PR_TRUE);
+          num_changes_sent = 0;
+          last_start_time = current_time();
+          agmt_set_last_update_start(prp->agmt, last_start_time);
+          /*
+           * We've acquired the replica, and are ready to send any needed updates.
+           */
+          if (PROTOCOL_IS_SHUTDOWN(prp)){
+              release_replica (prp);
+              done = 1;
+              agmt_set_update_in_progress(prp->agmt, PR_FALSE);
+              agmt_set_last_update_end(prp->agmt, current_time());
+              /* MAB: I don't find the following status correct. How do we know it has
+               * been stopped by an admin and not by a total update request, for instance?
+               * In any case, how is this protocol shutdown situation different from all the
+               * other ones that are present in this state machine? */
+              /* richm: We at least need to let monitors know that the protocol has been
+               * shutdown - maybe they can figure out why */
+              agmt_set_last_update_status(prp->agmt, 0, 0, "Protocol stopped");
+              break;
+          }
 
-	agmt_set_last_update_status(prp->agmt, 0, 0, "Incremental update started");
+          agmt_set_last_update_status(prp->agmt, 0, 0, "Incremental update started");
+          /* ONREPL - in this state we send changes no matter what other events occur.
+           * This is because we can get because of the REPLICATE_NOW event which
+           * has high priority. Is this ok? */
+          /* First, push new schema to the consumer if needed */
+          /* ONREPL - should we push schema after we examine the RUV? */
+          /*
+           * GGOOREPL - I don't see why we should wait until we've
+           * examined the RUV.  The schema entry has its own CSN that is
+           * used to decide if the remote schema needs to be updated.
+           */
+          cons_schema_csn = agmt_get_consumer_schema_csn ( prp->agmt );
+          rc = conn_push_schema(prp->conn, &cons_schema_csn);
+          if ( cons_schema_csn != agmt_get_consumer_schema_csn ( prp->agmt )){
+              agmt_set_consumer_schema_csn ( prp->agmt, cons_schema_csn );
+          }
+          if (CONN_SCHEMA_UPDATED != rc && CONN_SCHEMA_NO_UPDATE_NEEDED != rc){
+              slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                  "%s: Warning: unable to replicate schema: rc=%d\n", agmt_get_long_name(prp->agmt), rc);
+              /* But keep going */
+          }
+          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> examine_update_vector");
+          rc = examine_update_vector(prp, ruv);
+          /*
+           *  Decide what to do next - proceed with incremental, backoff, or total update
+           */
+          switch (rc){
+              case EXAMINE_RUV_PARAM_ERROR:
+                  /* this is really bad - we have NULL prp! */
+                  next_state = STATE_STOP_FATAL_ERROR;
+                  break;
+              case EXAMINE_RUV_PRISTINE_REPLICA:
+                  slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                      "%s: Replica has no update vector. It has never been initialized.\n",
+                      agmt_get_long_name(prp->agmt));
+                  next_state = STATE_BACKOFF_START;
+                  break;
+              case EXAMINE_RUV_GENERATION_MISMATCH:
+                  slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                      "%s: Replica has a different generation ID than the local data.\n",
+                      agmt_get_long_name(prp->agmt));
+                  next_state = STATE_BACKOFF_START;
+                  break;
+              case EXAMINE_RUV_REPLICA_TOO_OLD:
+                  slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                      "%s: Replica update vector is too out of date to bring "
+                      "into sync using the incremental protocol. The replica "
+                      "must be reinitialized.\n", agmt_get_long_name(prp->agmt));
+                  next_state = STATE_BACKOFF_START;
+                  break;
+              case EXAMINE_RUV_OK:
+                  /* update our csn generator state with the consumer's ruv data */
+                  dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> examine_update_vector OK");
+                  object_acquire(prp->replica_object);
+                  replica = object_get_data(prp->replica_object);
+                  rc = replica_update_csngen_state (replica, ruv);
+                  object_release (prp->replica_object);
+                  replica = NULL;
+                  if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */ {
+                      slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                          "%s: Incremental protocol: fatal error - too much time skew between replicas!\n",
+                          agmt_get_long_name(prp->agmt));
+                      next_state = STATE_STOP_FATAL_ERROR;
+                  } else if (rc != 0) /* internal error */ {
+                      slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                          "%s: Incremental protocol: fatal internal error updating the CSN generator!\n",
+                          agmt_get_long_name(prp->agmt));
+                      next_state = STATE_STOP_FATAL_ERROR;
+                  } else {
+                      rc = send_updates(prp, ruv, &num_changes_sent);
+                      if (rc == UPDATE_NO_MORE_UPDATES){
+                          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_NO_MORE_UPDATES -> STATE_WAIT_CHANGES");
+                          agmt_set_last_update_status(prp->agmt, 0, 0, "Incremental update succeeded");
+                          next_state = STATE_WAIT_CHANGES;
+                      } else if (rc == UPDATE_YIELD){
+                          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_YIELD -> STATE_BACKOFF_START");
+                          agmt_set_last_update_status(prp->agmt, 0, 0, "Incremental update succeeded and yielded");
+                          next_state = STATE_BACKOFF_START;
+                      } else if (rc == UPDATE_TRANSIENT_ERROR){
+                          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_TRANSIENT_ERROR -> STATE_BACKOFF_START");
+                          next_state = STATE_BACKOFF_START;
+                      } else if (rc == UPDATE_FATAL_ERROR){
+                          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_FATAL_ERROR -> STATE_STOP_FATAL_ERROR");
+                          next_state = STATE_STOP_FATAL_ERROR;
+                      } else if (rc == UPDATE_SCHEDULE_WINDOW_CLOSED){
+                          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_SCHEDULE_WINDOW_CLOSED -> STATE_WAIT_WINDOW_OPEN");
+                          /*
+                           * ONREPL - I don't think we should check this. We might be
+                           * here because of replicate_now event - so we don't care
+                           * about the schedule
+                           */
+                          next_state = STATE_WAIT_WINDOW_OPEN;
+                          /* ONREPL - do we need to release the replica here ? */
+                          conn_disconnect (prp->conn);
+                      } else if (rc == UPDATE_CONNECTION_LOST){
+                          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_CONNECTION_LOST -> STATE_BACKOFF_START");
+                          next_state = STATE_BACKOFF_START;
+                      } else if (rc == UPDATE_TIMEOUT){
+                          dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_TIMEOUT -> STATE_BACKOFF_START");
+                          next_state = STATE_BACKOFF_START;
+                      }
+                  }
+                  last_start_time = 0UL;
+                  break;
+          }
 
-	/* ONREPL - in this state we send changes no matter what other events occur.
-	   This is because we can get because of the REPLICATE_NOW event which
-	   has high priority. Is this ok? */
-	/* First, push new schema to the consumer if needed */
-	/* ONREPL - should we push schema after we examine the RUV? */
-	/*
-	 * GGOOREPL - I don't see why we should wait until we've
-	 * examined the RUV.  The schema entry has its own CSN that is
-	 * used to decide if the remote schema needs to be updated.
-	 */
-	cons_schema_csn = agmt_get_consumer_schema_csn ( prp->agmt );
-	rc = conn_push_schema(prp->conn, &cons_schema_csn);
-	if ( cons_schema_csn != agmt_get_consumer_schema_csn ( prp->agmt ))
-	{
-		agmt_set_consumer_schema_csn ( prp->agmt, cons_schema_csn );
-	}
-	if (CONN_SCHEMA_UPDATED != rc && CONN_SCHEMA_NO_UPDATE_NEEDED != rc)
-	  {
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: Warning: unable to replicate schema: rc=%d\n",
-			    agmt_get_long_name(prp->agmt), rc);
-				/* But keep going */
-	  }
-	dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> examine_update_vector");
-	rc = examine_update_vector(prp, ruv);
-	/*
-	 * Decide what to do next - proceed with incremental,
-	 * backoff, or total update
-	 */
-	switch (rc)
-	  {
-	  case EXAMINE_RUV_PARAM_ERROR:
-	    /* this is really bad - we have NULL prp! */
-	    next_state = STATE_STOP_FATAL_ERROR;
-	    break;
-	  case EXAMINE_RUV_PRISTINE_REPLICA:
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Replica has no update vector. It has never been initialized.\n",
-		   	 agmt_get_long_name(prp->agmt));
-	    next_state = STATE_BACKOFF_START;
-	    break;
-	  case EXAMINE_RUV_GENERATION_MISMATCH:
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Replica has a different generation ID than the local data.\n",
-		    agmt_get_long_name(prp->agmt));
-	    next_state = STATE_BACKOFF_START;
-	    break;
-	  case EXAMINE_RUV_REPLICA_TOO_OLD:
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Replica update vector is too out of date to bring "
-		    "into sync using the incremental protocol. The replica "
-		    "must be reinitialized.\n", agmt_get_long_name(prp->agmt));
-	    next_state = STATE_BACKOFF_START;
-	    break;
-	  case EXAMINE_RUV_OK:
-	    /* update our csn generator state with the consumer's ruv data */
-	    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> examine_update_vector OK");
-	    object_acquire(prp->replica_object);
-	    replica = object_get_data(prp->replica_object);
-	    rc = replica_update_csngen_state (replica, ruv); 
-	    object_release (prp->replica_object);
-	    replica = NULL;
-	    if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */
-	      {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Incremental protocol: fatal error - too much time skew between replicas!\n",
-			agmt_get_long_name(prp->agmt));
-		next_state = STATE_STOP_FATAL_ERROR;
-	      }   
-	    else if (rc != 0) /* internal error */
-	      {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Incremental protocol: fatal internal error updating the CSN generator!\n",
-			agmt_get_long_name(prp->agmt));
-		next_state = STATE_STOP_FATAL_ERROR;
-	      }   
-	    else
-	      {
-		rc = send_updates(prp, ruv, &num_changes_sent);
+          if (NULL != ruv){
+              ruv_destroy(&ruv); ruv = NULL;
+          }
+          agmt_set_last_update_end(prp->agmt, current_time());
+          agmt_set_update_in_progress(prp->agmt, PR_FALSE);
+          /* If timed out, close the connection after released the replica */
+          release_replica(prp);
+          if (rc == UPDATE_TIMEOUT) {
+              conn_disconnect(prp->conn);
+          }
+          if (rc == UPDATE_NO_MORE_UPDATES && num_changes_sent > 0){
+              if (pausetime > 0){
+                  /* richm - 20020219 - If we have acquired the consumer, and another master has gone
+                   * into backoff waiting for us to release it, we may acquire the replica sooner
+                   * than the other master has a chance to, and the other master may not be able
+                   * to acquire the consumer for a long time (hours, days?) if this server is
+                   * under a heavy load (see reliab06 et. al. system tests)
+                   * So, this sleep gives the other master(s) a chance to acquire the consumer replica */
+                  loops = pausetime;
+                  /* the while loop is so that we don't just sleep and sleep if an
+                   * event comes in that we should handle immediately (like shutdown) */
+                  slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                      "%s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
+                      agmt_get_long_name(prp->agmt), pausetime);
+                  while (loops-- && !(PROTOCOL_IS_SHUTDOWN(prp))){
+                      DS_Sleep(PR_SecondsToInterval(1));
+                  }
+              } else if (num_changes_sent > 10){
+                  /* wait for consumer to write its ruv if the replication was busy */
+                  /* When asked, consumer sends its ruv in cache to the supplier. */
+                  /* DS_Sleep ( PR_SecondsToInterval(1) ); */
+              }
+          }
+          break;
 
-		if (rc == UPDATE_NO_MORE_UPDATES)
-		  {
-		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_NO_MORE_UPDATES -> STATE_WAIT_CHANGES");
-		    agmt_set_last_update_status(prp->agmt, 0, 0, "Incremental update succeeded");
-		    next_state = STATE_WAIT_CHANGES;
-		  }
-		else if (rc == UPDATE_YIELD)
-		  {
-		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_YIELD -> STATE_BACKOFF_START");
-		    agmt_set_last_update_status(prp->agmt, 0, 0, "Incremental update succeeded and yielded");
-		    next_state = STATE_BACKOFF_START;
-		  }
-		else if (rc == UPDATE_TRANSIENT_ERROR)
-		  {
-		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_TRANSIENT_ERROR -> STATE_BACKOFF_START");
-		    next_state = STATE_BACKOFF_START;
-		  }
-		else if (rc == UPDATE_FATAL_ERROR)
-		  {
-		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_FATAL_ERROR -> STATE_STOP_FATAL_ERROR");
-		    next_state = STATE_STOP_FATAL_ERROR;
-		  }
-		else if (rc == UPDATE_SCHEDULE_WINDOW_CLOSED)
-		  {
-		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_SCHEDULE_WINDOW_CLOSED -> STATE_WAIT_WINDOW_OPEN");
-		    /* ONREPL - I don't think we should check this. We might be
-		       here because of replicate_now event - so we don't care
-		       about the schedule */
-		    next_state = STATE_WAIT_WINDOW_OPEN;
-		    /* ONREPL - do we need to release the replica here ? */
-		    conn_disconnect (prp->conn);
-		  }
-		else if (rc == UPDATE_CONNECTION_LOST)
-		  {
-		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_CONNECTION_LOST -> STATE_BACKOFF_START");
-		    next_state = STATE_BACKOFF_START;
-		  }
-		else if (rc == UPDATE_TIMEOUT)
-		  {
-		    dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_TIMEOUT -> STATE_BACKOFF_START");
-		    next_state = STATE_BACKOFF_START;
-		  }
-	      }
-	    last_start_time = 0UL;
-	    break;
-	  }
-	if (NULL != ruv)
-	  {
-	    ruv_destroy(&ruv); ruv = NULL;
-	  }
-	agmt_set_last_update_end(prp->agmt, current_time());
-	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
-	/* If timed out, close the connection after released the replica */
-	release_replica(prp);
-	if (rc == UPDATE_TIMEOUT) {
-		conn_disconnect(prp->conn);
-	}
-
-	if (rc == UPDATE_NO_MORE_UPDATES && num_changes_sent > 0)
-	{
-	  if (pausetime > 0)
-	  {
-	    /* richm - 20020219 - If we have acquired the consumer, and another master has gone
-	       into backoff waiting for us to release it, we may acquire the replica sooner
-	       than the other master has a chance to, and the other master may not be able
-	       to acquire the consumer for a long time (hours, days?) if this server is
-	       under a heavy load (see reliab06 et. al. system tests)
-	       So, this sleep gives the other master(s) a chance to acquire the consumer
-	       replica */
-	      long loops = pausetime;
-	      /* the while loop is so that we don't just sleep and sleep if an
-		 event comes in that we should handle immediately (like shutdown) */
-	      slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-			      "%s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
-			      agmt_get_long_name(prp->agmt), pausetime);
-	      while (loops-- && !(PROTOCOL_IS_SHUTDOWN(prp)))
-	        {
-		    DS_Sleep(PR_SecondsToInterval(1));
-		}
-	  }
-	  else if (num_changes_sent > 10)
-	  {
-		/* wait for consumer to write its ruv if the replication was busy */
-		/* When asked, consumer sends its ruv in cache to the supplier. */
-		/* DS_Sleep ( PR_SecondsToInterval(1) ); */
-	  }
-	}
-	break;
       case STATE_STOP_FATAL_ERROR:
-	/*
-	 * We encountered some sort of a fatal error. Suspend.
-	 */
-	/* XXXggood update state in replica */
-	agmt_set_last_update_status(prp->agmt, -1, 0, "Incremental update has failed and requires administrator action");
-	dev_debug("repl5_inc_run(STATE_STOP_FATAL_ERROR)");
-	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-		"%s: Incremental update failed and requires administrator action\n",
-		agmt_get_long_name(prp->agmt));
-	next_state = STATE_STOP_FATAL_ERROR_PART2;
-	break;
+          /*
+           * We encountered some sort of a fatal error. Suspend.
+           */
+          /* XXXggood update state in replica */
+          agmt_set_last_update_status(prp->agmt, -1, 0, "Incremental update has failed and requires administrator action");
+          dev_debug("repl5_inc_run(STATE_STOP_FATAL_ERROR)");
+          slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+              "%s: Incremental update failed and requires administrator action\n",
+              agmt_get_long_name(prp->agmt));
+          next_state = STATE_STOP_FATAL_ERROR_PART2;
+          break;
+
       case STATE_STOP_FATAL_ERROR_PART2:
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    done = 1;
-	    break;
-	  } 
+          if (PROTOCOL_IS_SHUTDOWN(prp)){
+              done = 1;
+              break;
+          }
+          /* MAB: This state is the FATAL state where we are supposed to get
+           * as a result of a FATAL error on send_updates. But, as bug
+           * states, send_updates was always returning TRANSIENT errors and never
+           * FATAL... In other words, this code has never been tested before...
+           *
+           * As of 01/16/01, this piece of code was in a very dangerous state. In particular,
+           * 1) it does not catch any events
+           * 2) it is a terminal state (once reached it never transitions to a different state)
+           *
+           * Both things combined make this state to become a consuming infinite loop
+           * that is useless after all (we are in a fatal place requiring manual admin jobs */
 
-	/* MAB: This state is the FATAL state where we are supposed to get
-	   as a result of a FATAL error on send_updates. But, as bug 
-	   states, send_updates was always returning TRANSIENT errors and never
-	   FATAL... In other words, this code has never been tested before...
+          /* MAB: The following lines fix problem number 1 above... When the code gets
+           * into this state, it should only get a chance to get out of it by an
+           * EVENT_AGMT_CHANGED event... All other events should be ignored */
+          else if (event_occurred(prp, EVENT_AGMT_CHANGED)){
+             dev_debug("repl5_inc_run(STATE_STOP_FATAL_ERROR): EVENT_AGMT_CHANGED received\n");
+             /* Chance to recover for the EVENT_AGMT_CHANGED event.
+              * This is not mandatory, but fixes problem 2 above */
+             next_state = STATE_STOP_NORMAL_TERMINATION;
+          } else {
+              dev_debug("repl5_inc_run(STATE_STOP_FATAL_ERROR): Event received. Clearing it\n");
+              reset_events (prp);
+          }
 
-	   As of 01/16/01, this piece of code was in a very dangerous state. In particular, 
-		1) it does not catch any events
-		2) it is a terminal state (once reached it never transitions to a different state)
+          protocol_sleep (prp, PR_INTERVAL_NO_TIMEOUT);
+          break;
 
-	   Both things combined make this state to become a consuming infinite loop
-	   that is useless after all (we are in a fatal place requiring manual admin jobs */
-
-	/* MAB: The following lines fix problem number 1 above... When the code gets
-	   into this state, it should only get a chance to get out of it by an
-	   EVENT_AGMT_CHANGED event... All other events should be ignored */
-	else if (event_occurred(prp, EVENT_AGMT_CHANGED))
-	  {
-	    dev_debug("repl5_inc_run(STATE_STOP_FATAL_ERROR): EVENT_AGMT_CHANGED received\n");
-	    /* Chance to recover for the EVENT_AGMT_CHANGED event. 
-	       This is not mandatory, but fixes problem 2 above */
-	    next_state = STATE_STOP_NORMAL_TERMINATION;
-	  }
-	else
-	  {
-	    dev_debug("repl5_inc_run(STATE_STOP_FATAL_ERROR): Event received. Clearing it\n");
-	    reset_events (prp);
-	  }
-
-	protocol_sleep (prp, PR_INTERVAL_NO_TIMEOUT);
-	break;
-		
       case STATE_STOP_NORMAL_TERMINATION:
-	/*
-	 * We encountered some sort of a fatal error. Return.
-	 */
-	/* XXXggood update state in replica */
-	dev_debug("repl5_inc_run(STATE_STOP_NORMAL_TERMINATION)");
-	done = 1;
-	break;
+          /*
+           * We encountered some sort of a fatal error. Return.
+           */
+          /* XXXggood update state in replica */
+          dev_debug("repl5_inc_run(STATE_STOP_NORMAL_TERMINATION)");
+          done = 1;
+          break;
       }
 
-    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-		"%s: State: %s -> %s\n",
-	    agmt_get_long_name(prp->agmt),
-	    state2name(current_state), state2name(next_state));
+      slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,"%s: State: %s -> %s\n",
+	      agmt_get_long_name(prp->agmt),state2name(current_state), state2name(next_state));
 
-    current_state = next_state;
+      current_state = next_state;
   } while (!done);
+
   /* remove_protocol_callbacks(prp); */
   prp->stopped = 1;
   /* Cancel any linger timer that might be in effect... */
@@ -1306,8 +1175,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
   /* ... and disconnect, if currently connected */
   conn_disconnect(prp->conn);
 }
-
-
 
 /*
  * Go to sleep until awakened.
