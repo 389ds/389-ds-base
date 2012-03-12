@@ -1907,7 +1907,7 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 	now = start;
 	while (!prp->stopped && ((now - start) < maxwait))
 	{
-		DS_Sleep(PR_SecondsToInterval(1));
+		DS_Sleep(PR_MillisecondsToInterval(100));
 		now = PR_IntervalNow();
 	}
 	if (!prp->stopped)
