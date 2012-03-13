@@ -1096,7 +1096,7 @@ int slapi_vattr_namespace_value_compare_sp(vattr_context *c,/* Entry we're inter
 	if (list) {
 		vattr_sp_handle *current_handle = NULL;
 		void *hint = NULL;
-		for (current_handle = vattr_map_sp_first(list,&hint); current_handle; current_handle = vattr_map_sp_next(list,&hint)) {
+		for (current_handle = vattr_map_sp_first(list,&hint); current_handle; current_handle = vattr_map_sp_next(current_handle,&hint)) {
 			/* call this SP */
 			rc = vattr_call_sp_compare_value(current_handle,c,e,my_get,type,test_this,result,flags, hint);
 			if (0 == rc) {
@@ -1117,17 +1117,19 @@ int slapi_vattr_namespace_value_compare_sp(vattr_context *c,/* Entry we're inter
 	
 			/* Put the required stuff in the fake attr */
 
+			rc = 0; /* found real attr - now see if we have the requested value*/
+			*result = 0;	/* return "compare false" by default */
 			for(i=0;i<attr_count;i++)
 			{
 				Dummy_value = slapi_valueset_find( my_get[i].get_attr, my_get[i].get_present_values, test_this );
 
 				if (Dummy_value) {
 					*result = 1;	/* return "compare true" */
-
 					break;
 				}
 			}
 		} else {
+			/* no such attribute */
 			rc = SLAPI_VIRTUALATTRS_NOT_FOUND;
 		}
 	}
