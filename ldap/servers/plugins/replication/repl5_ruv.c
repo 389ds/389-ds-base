@@ -1364,7 +1364,7 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, buff);
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s", buff);
 	}
 	for (replica = dl_get_first (ruv->elements, &cookie); replica;
 		 replica = dl_get_next (ruv->elements, &cookie))
@@ -1389,7 +1389,7 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 		}
 		else
 		{
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, buff);
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s", buff);
 		}
 	}
 

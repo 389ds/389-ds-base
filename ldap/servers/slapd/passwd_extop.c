@@ -485,7 +485,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		errMesg = "Could not get OID value from request.\n";
 		rc = LDAP_OPERATIONS_ERROR;
 		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
-				 errMesg );
+				"%s", errMesg );
 		goto free_and_return;
 	} else {
 	        slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
@@ -511,7 +511,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		errMesg = "Could not get SASL SSF from connection\n";
 		rc = LDAP_OPERATIONS_ERROR;
 		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-				 errMesg );
+				"%s", errMesg );
 		goto free_and_return;
 	}
 
@@ -519,7 +519,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		errMesg = "Could not get local SSF from connection\n";
 		rc = LDAP_OPERATIONS_ERROR;
 		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-				 errMesg );
+				"%s", errMesg );
 		goto free_and_return;
 	}
 
@@ -842,7 +842,7 @@ parse_req_done:
 	/* Free anything that we allocated above */
 free_and_return:
 	slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-		errMesg ? errMesg : "success" );
+		"%s", errMesg ? errMesg : "success" );
 
 	if ((rc == LDAP_REFERRAL) && (referrals)) {
 		send_referrals_from_entry(pb, referrals);

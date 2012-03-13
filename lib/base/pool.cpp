@@ -178,7 +178,7 @@ _create_block(int size)
 		crit_exit(freelist_lock);
 		if (((newblock = (block_t *)PERM_MALLOC(sizeof(block_t))) == NULL) || 
 		    ((newblock->data = (char *)PERM_MALLOC(bytes)) == NULL)) {
-			ereport(LOG_CATASTROPHE, XP_GetAdminStr(DBT_poolCreateBlockOutOfMemory_));
+			ereport(LOG_CATASTROPHE, "%s", XP_GetAdminStr(DBT_poolCreateBlockOutOfMemory_));
 			if (newblock)
 				PERM_FREE(newblock);
 			return NULL;
@@ -270,7 +270,7 @@ pool_create()
 		}
 
 		if ( (newpool->curr_block =_create_block(BLOCK_SIZE)) == NULL) {
-			ereport(LOG_CATASTROPHE, XP_GetAdminStr(DBT_poolCreateOutOfMemory_));
+			ereport(LOG_CATASTROPHE, "%s", XP_GetAdminStr(DBT_poolCreateOutOfMemory_));
 			PERM_FREE(newpool);
 			return NULL;
 		}
@@ -291,7 +291,7 @@ pool_create()
 		crit_exit(known_pools_lock);
 	}
 	else 
-		ereport(LOG_CATASTROPHE, XP_GetAdminStr(DBT_poolCreateOutOfMemory_1));
+		ereport(LOG_CATASTROPHE, "%s", XP_GetAdminStr(DBT_poolCreateOutOfMemory_1));
 
 	return (pool_handle_t *)newpool;
 }
@@ -388,7 +388,7 @@ pool_malloc(pool_handle_t *pool_handle, size_t size)
 		 */
 		blocksize = ( (size + BLOCK_SIZE-1) / BLOCK_SIZE ) * BLOCK_SIZE;
 		if ( (pool->curr_block = _create_block(blocksize)) == NULL) {
-			ereport(LOG_CATASTROPHE, XP_GetAdminStr(DBT_poolMallocOutOfMemory_));
+			ereport(LOG_CATASTROPHE, "%s", XP_GetAdminStr(DBT_poolMallocOutOfMemory_));
 #ifdef POOL_LOCKING
 			crit_exit(pool->lock);
 #endif
@@ -410,7 +410,7 @@ pool_malloc(pool_handle_t *pool_handle, size_t size)
 
 void _pool_free_error()
 {
-	ereport(LOG_WARN, XP_GetAdminStr(DBT_freeUsedWherePermFreeShouldHaveB_));
+	ereport(LOG_WARN, "%s", XP_GetAdminStr(DBT_freeUsedWherePermFreeShouldHaveB_));
 
 	return;
 }
