@@ -62,6 +62,15 @@ slapi_op_abandoned( Slapi_PBlock *pb )
 	return 0;
 }
 
+int
+slapi_op_internal( Slapi_PBlock *pb )
+{
+	if (pb && pb->pb_op) {
+		return operation_is_flag_set(pb->pb_op, OP_FLAG_INTERNAL);
+	}
+	return 0;
+}
+
 void
 operation_out_of_disk_space()
 {

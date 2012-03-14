@@ -758,11 +758,10 @@ pagedresults_reset_timedout(Connection *conn)
     int i;
     PagedResults *prp = NULL;
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_reset_timedout\n");
     if (NULL == conn) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_reset_timedout: -\n");
         return 0;
     }
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_reset_timedout\n");
 
     for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
         prp = conn->c_pagedresults.prl_list + i;

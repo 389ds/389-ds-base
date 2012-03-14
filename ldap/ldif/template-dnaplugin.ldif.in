@@ -5,7 +5,7 @@ objectclass: extensibleObject
 objectclass: nsContainer
 cn: Distributed Numeric Assignment Plugin
 nsslapd-plugininitfunc: dna_init
-nsslapd-plugintype: preoperation
+nsslapd-plugintype: bepreoperation
 nsslapd-pluginenabled: off
 nsslapd-pluginPath: libdna-plugin
 nsslapd-plugin-depends-on-type: database
