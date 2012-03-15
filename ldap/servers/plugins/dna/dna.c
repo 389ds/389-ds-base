@@ -3214,7 +3214,6 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
     char *dn = NULL;
     Slapi_Mods *smods = NULL;
     LDAPMod **mods;
-    int free_entry = 0;
     int ret = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
@@ -3308,9 +3307,6 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
         slapi_mods_free(&smods);
     }
 bail:
-    if (free_entry && e)
-        slapi_entry_free(e);
-
     if (resulting_e)
         slapi_entry_free(resulting_e);
 
