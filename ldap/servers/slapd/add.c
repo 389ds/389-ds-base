@@ -639,15 +639,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 
 		slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
 		set_db_default_result_handlers(pb);
-
-		/* Remove the unhashed password pseudo-attribute
-		   from the entry before duplicating the entry */
-
-		if (unhashed_password_vals)
-		{
-			slapi_entry_delete_values(e, pwdtype, NULL);			
-		}
-
 		/* because be_add frees the entry */
 		ec = slapi_entry_dup(e);
 		add_target_dn= slapi_ch_strdup(slapi_sdn_get_ndn(slapi_entry_get_sdn_const(ec)));
@@ -693,14 +684,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 							 "Function not implemented", 0, NULL);
 		}
-
-		/* Reattach the unhashed password pseudo-attribute
-		   to the entry copy (ec), before calling the postop plugin */
-		if(unhashed_password_vals)
-		{
-			slapi_entry_add_values_sv(ec, pwdtype, unhashed_password_vals);
-		}
-
 		slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
 		plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_POST_ADD_FN : 
 							SLAPI_PLUGIN_POST_ADD_FN);

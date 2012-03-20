@@ -300,6 +300,9 @@ pw_init ( void ) {
 	slapdFrontendConfig = getFrontendConfig();
 	pw_mod_allowchange_aci (!slapdFrontendConfig->pw_policy.pw_change && 
                             !slapdFrontendConfig->pw_policy.pw_must_change);
+	slapi_add_internal_attr_syntax( PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+	                                PSEUDO_ATTR_UNHASHEDUSERPASSWORD_OID,
+	                                OCTETSTRING_SYNTAX_OID, 0, 0 );
 }
 
 

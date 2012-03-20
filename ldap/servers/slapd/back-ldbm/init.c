@@ -51,9 +51,6 @@ static void *IDL_api[3];
 static Slapi_PluginDesc pdesc = { "ldbm-backend", VENDOR,
         DS_PACKAGE_VERSION, "high-performance LDAP backend database plugin" };
 
-static int add_ldbm_internal_attr_syntax( const char *name, const char *oid,
-		const char *syntax, const char *mr_equality, unsigned long extraflags );
-
 #ifdef _WIN32
 int *module_ldap_debug = 0;
 
@@ -68,23 +65,23 @@ plugin_init_debug_level(int *level_ptr)
 int
 ldbm_back_add_schema( Slapi_PBlock *pb )
 {
-	int rc = add_ldbm_internal_attr_syntax( "entrydn",
+	int rc = slapi_add_internal_attr_syntax( SLAPI_ATTR_ENTRYDN,
 			LDBM_ENTRYDN_OID, DN_SYNTAX_OID, DNMATCH_NAME,
-			SLAPI_ATTR_FLAG_SINGLE );
+			SLAPI_ATTR_FLAG_SINGLE|SLAPI_ATTR_FLAG_NOUSERMOD );
 
-	rc |= add_ldbm_internal_attr_syntax( "dncomp",
+	rc |= slapi_add_internal_attr_syntax( "dncomp",
 			LDBM_DNCOMP_OID, DN_SYNTAX_OID, DNMATCH_NAME,
-			0 );
+			SLAPI_ATTR_FLAG_NOUSERMOD );
 
-	rc |= add_ldbm_internal_attr_syntax( "parentid",
+	rc |= slapi_add_internal_attr_syntax( "parentid",
 			LDBM_PARENTID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
-			SLAPI_ATTR_FLAG_SINGLE );
+			SLAPI_ATTR_FLAG_SINGLE|SLAPI_ATTR_FLAG_NOUSERMOD );
 
-	rc |= add_ldbm_internal_attr_syntax( "entryid",
+	rc |= slapi_add_internal_attr_syntax( "entryid",
 			LDBM_ENTRYID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
-			SLAPI_ATTR_FLAG_SINGLE );
+			SLAPI_ATTR_FLAG_SINGLE|SLAPI_ATTR_FLAG_NOUSERMOD );
 
-	rc |= add_ldbm_internal_attr_syntax( "entryusn",
+	rc |= slapi_add_internal_attr_syntax( "entryusn",
 			LDBM_ENTRYUSN_OID, INTEGER_SYNTAX_OID, INTFIRSTCOMPMATCH_NAME,
 			SLAPI_ATTR_FLAG_SINGLE|SLAPI_ATTR_FLAG_NOUSERMOD );
 
@@ -272,42 +269,4 @@ ldbm_back_init( Slapi_PBlock *pb )
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= ldbm_back_init\n", 0, 0, 0 );
 
 	return( 0 );
-}
-
-
-/*
- * Add an attribute syntax using some default flags, etc.
- * Returns an LDAP error code (LDAP_SUCCESS if all goes well)
- */
-static int
-add_ldbm_internal_attr_syntax( const char *name, const char *oid,
-		const char *syntax, const char *mr_equality, unsigned long extraflags )
-{
-	int rc = LDAP_SUCCESS;
-	struct asyntaxinfo	*asip;
-	char *names[2];
-	char *origins[2];
-	unsigned long std_flags = SLAPI_ATTR_FLAG_STD_ATTR | SLAPI_ATTR_FLAG_OPATTR
-							| SLAPI_ATTR_FLAG_NOUSERMOD;
-
-	names[0] = (char *)name;
-	names[1] = NULL;
-
-	origins[0] = SLAPD_VERSION_STR;
-	origins[1] = NULL;
-
-	rc = attr_syntax_create( oid, names, 1,
-			"internal server defined attribute type",
-			 NULL,						/* superior */
-			 mr_equality, NULL, NULL,	/* matching rules */
-			 origins, syntax,
-			 SLAPI_SYNTAXLENGTH_NONE,
-			 std_flags | extraflags,
-			 &asip );
-
-	if ( rc == LDAP_SUCCESS ) {
-		rc = attr_syntax_add( asip );
-	}
-
-	return rc;
 }

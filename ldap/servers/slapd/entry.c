@@ -61,6 +61,13 @@
 #define DELETED_VALUE_STRING ";deleted"
 #define DELETED_VALUE_STRSIZE 8 /* sizeof(";deleted") */
 
+static int is_type_protected(const char *type);
+
+/* protected attributes which are not included in the flattened entry,
+ * which will be stored in the db. */
+static char *protected_attrs_all [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+                                       NULL};
+
 /*
  * An attribute name is of the form 'basename[;option]'.
  * The state informaion is encoded in options. For example:
@@ -1244,27 +1251,34 @@ slapi_str2entry( char *s, int flags )
 	return e;
 }
 
+/*
+ * If the attribute type is in the protected list, it returns size 0.
+ */
 static size_t
-entry2str_internal_size_value( const char *attrtype, const Slapi_Value *v, int entry2str_ctrl, int attribute_state, int value_state )
+entry2str_internal_size_value( const char *attrtype, const Slapi_Value *v,
+                               int entry2str_ctrl, int attribute_state,
+                               int value_state )
 {
-	size_t elen= 0;
-	if(attrtype!=NULL)
-	{
-		size_t attrtypelen= strlen(attrtype);
-		if(entry2str_ctrl & SLAPI_DUMP_STATEINFO)
-		{
-			attrtypelen+= csnset_string_size(v->v_csnset);
-			if (attribute_state==ATTRIBUTE_DELETED)
-			{
-				attrtypelen += DELETED_ATTR_STRSIZE;
-			}
-			if(value_state==VALUE_DELETED)
-			{
-				attrtypelen += DELETED_VALUE_STRSIZE;
-			}
-		}
-		elen = LDIF_SIZE_NEEDED(attrtypelen, slapi_value_get_berval(v)->bv_len);
+	size_t elen = 0;
+	size_t attrtypelen;
+	if((NULL == attrtype) || is_type_protected(attrtype)) {
+		goto bail;
 	}
+	attrtypelen = strlen(attrtype);
+	if(entry2str_ctrl & SLAPI_DUMP_STATEINFO)
+	{
+		attrtypelen+= csnset_string_size(v->v_csnset);
+		if (attribute_state==ATTRIBUTE_DELETED)
+		{
+			attrtypelen += DELETED_ATTR_STRSIZE;
+		}
+		if (value_state==VALUE_DELETED)
+		{
+			attrtypelen += DELETED_VALUE_STRSIZE;
+		}
+	}
+	elen = LDIF_SIZE_NEEDED(attrtypelen, slapi_value_get_berval(v)->bv_len);
+bail:
 	return elen;
 }
 
@@ -1412,6 +1426,18 @@ entry2str_internal_put_valueset( const char *attrtype, const CSN *attrcsn, CSNTy
 	}
 }
 
+static int
+is_type_protected(const char *type)
+{
+    char **paap = NULL;
+    for (paap = protected_attrs_all; paap && *paap; paap++) {
+        if (0 == strcasecmp(type, *paap)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static void
 entry2str_internal_put_attrlist( const Slapi_Attr *attrlist, int attr_state, int entry2str_ctrl, char **ecur, char **typebuf, size_t *typebuf_len)
 {
@@ -1427,7 +1453,8 @@ entry2str_internal_put_attrlist( const Slapi_Attr *attrlist, int attr_state, int
 
 		/* don't dump uniqueid if not asked */
 		if (!(strcasecmp(a->a_type, SLAPI_ATTR_UNIQUEID) == 0 &&
-			!(SLAPI_DUMP_UNIQUEID & entry2str_ctrl)))
+			!(SLAPI_DUMP_UNIQUEID & entry2str_ctrl)) &&
+			!is_type_protected(a->a_type))
 		{
 			/* Putting present attribute values */
 			/* put "<type>:[:] <value>" line for each value */

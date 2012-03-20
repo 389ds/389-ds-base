@@ -1213,6 +1213,9 @@ void    DS_Sleep(PRIntervalTime ticks);
 /* plugin.c */
 int plugin_enabled(const char *plugin_name, void *identity);
 
+/* attrsyntax.c */
+int slapi_add_internal_attr_syntax( const char *name, const char *oid, const char *syntax, const char *mr_equality, unsigned long extraflags );
+
 #ifdef __cplusplus
 }
 #endif
