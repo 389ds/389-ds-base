@@ -59,6 +59,8 @@ require Exporter;
 use strict;
 
 use Socket;
+use Socket::GetAddrInfo qw( :newapi getaddrinfo getnameinfo AI_CANONNAME );
+use NetAddr::IP::Util qw( ipv6_n2x );
 
 use File::Temp qw(tempfile tempdir);
 use File::Basename qw(dirname);
@@ -207,31 +209,36 @@ sub checkHostname {
         }
     }
 
-    # see if we can resolve the hostname
-    my ($name, $aliases, $addrtype, $length, @addrs) = gethostbyname($hn);
-    if (!$name) {
-        if ($res) {
-            return $res->getText('warning_no_such_hostname', $hn);
-        } else {
-            return "Warning: could not resolve hostname $hn\n";
-        }
+    # see if we can resolve the hostname (IPv6 supported)
+    my %hints = ( flags => AI_CANONNAME, socktype => SOCK_STREAM );
+    my ( $err, @aires ) = getaddrinfo( $hn, "ldap", \%hints );
+    if ($err) {
+        return $res->getText('warning_no_such_hostname', $hn);
     }
-    debug(1, "found for hostname $hn: name=$name\n");
-    debug(1, "aliases=$aliases\n");
-    debug(1, "addrtype=$addrtype\n");
     my $found = 0;
     my @hostip = ();
-    # see if reverse resolution works
-    foreach my $ii (@addrs) {
-        my $hn2 = gethostbyaddr($ii, $addrtype);
-        my $ip = join('.', unpack('C4', $ii));
-        debug(1, "\thost=$hn2 ip=$ip\n");
-        push @hostip, [$hn2, $ip];
-        if (lc($hn) eq lc($hn2)) {
-            $found = 1;
-            last;
+    while  ( my $ai = shift @aires ) {
+        debug(1, "found for hostname $hn: name=$ai->{canonname}\n");
+        my $ip;
+        if ($ai->{family} == AF_INET) {
+            my ( $port, $ipaddr ) = unpack_sockaddr_in( $ai->{addr} );
+            $ip = inet_ntoa($ipaddr);
+        } else {
+            my ( $port, $ipaddr ) = unpack_sockaddr_in6( $ai->{addr} );
+            $ip = ipv6_n2x($ipaddr);
+        }
+        debug(1, "ipaddr=", $ip, "\n");
+        # see if reverse resolution works
+        my ( $err, $hn2, $service ) = getnameinfo( $ai->{addr} );
+        if (!$err) {
+            push @hostip, [$hn2, $ip];
+            if (lc($hn) eq lc($hn2)) {
+                $found = 1;
+                last;
+            }
         }
     }
+
     if (!$found) {
         my $retstr = "";
         if ($res) {
