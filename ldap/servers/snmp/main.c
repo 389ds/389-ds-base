@@ -382,6 +382,7 @@ load_config(char *conf_path)
             /* Open dse.ldif */
 #if defined(USE_OPENLDAP)
             dse_fp = ldif_open(serv_p->dse_ldif, "r");
+            buflen = 0;
 #else
             dse_fp = fopen(serv_p->dse_ldif, "r");
 #endif
