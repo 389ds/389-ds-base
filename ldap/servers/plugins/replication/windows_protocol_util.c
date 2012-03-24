@@ -2794,9 +2794,8 @@ find_entry_by_attr_value_remote(const char *attribute, const char *value, Slapi_
 
 	vallen = value ? strlen(value) : 0;
 	filter_escaped_value = slapi_ch_calloc(sizeof(char), vallen*3+1);
-	escape_filter_value(value, vallen, filter_escaped_value);
 	/* should not have to escape attribute names */
-	filter = PR_smprintf("(%s=%s)",attribute,filter_escaped_value);
+	filter = PR_smprintf("(%s=%s)",attribute,escape_filter_value(value, vallen, filter_escaped_value));
 	slapi_ch_free_string(&filter_escaped_value);
 	searchbase = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
 	cres = windows_search_entry(prp->conn, (char*)searchbase, filter, &found_entry);
@@ -2930,9 +2929,8 @@ find_entry_by_attr_value(const char *attribute, const char *value, Slapi_Entry *
 
     vallen = value ? strlen(value) : 0;
     filter_escaped_value = slapi_ch_calloc(sizeof(char), vallen*3+1);
-    escape_filter_value(value, vallen, filter_escaped_value);
     /* should not have to escape attribute names */
-    query = slapi_ch_smprintf("(%s=%s)", attribute, filter_escaped_value);
+    query = slapi_ch_smprintf("(%s=%s)", attribute, escape_filter_value(value, vallen, filter_escaped_value));
     slapi_ch_free_string(&filter_escaped_value);
 
     if (query == NULL)
