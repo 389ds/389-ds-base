@@ -49,6 +49,7 @@
  * WinSync plug-in API
  */
 #define WINSYNC_v1_0_GUID "CDA8F029-A3C6-4EBB-80B8-A2E183DB0481"
+#define WINSYNC_v2_0_GUID "706B83AA-FC51-444A-ACC9-53DC73D641D4"
 
 /*
  * This callback is called when a winsync agreement is created.
@@ -60,6 +61,8 @@
  */
 typedef void * (*winsync_plugin_init_cb)(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
 #define WINSYNC_PLUGIN_INIT_CB 1
+#define WINSYNC_PLUGIN_VERSION_1_BEGIN WINSYNC_PLUGIN_INIT_CB
+
 /* agmt_dn - const - the original AD base dn from the winsync agreement
    scope - set directly e.g. *scope = 42;
    base, filter - malloced - to set, free first e.g.
@@ -184,12 +187,99 @@ typedef void (*winsync_plugin_update_cb)(void *cookie, const Slapi_DN *ds_subtre
  */
 typedef void (*winsync_plugin_destroy_agmt_cb)(void *cookie, const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
 #define WINSYNC_PLUGIN_DESTROY_AGMT_CB 19
+#define WINSYNC_PLUGIN_VERSION_1_END WINSYNC_PLUGIN_DESTROY_AGMT_CB
 
+/* Functions added for API version 2.0 */
+/*
+ * These callbacks are called after a modify operation.  They are called upon both
+ * success and failure of the modify operation.  The plugin is responsible for
+ * looking at the result code of the modify to decide what action to take.  The
+ * plugin may change the result code e.g. to force an error for an otherwise
+ * successful operation, or to ignore certain errors.
+ * rawentry  - the raw AD entry, read directly from AD - this is read only
+ * ad_entry  - the "cooked" AD entry - the entry passed to the pre_mod callback
+ * ds_entry  - the entry from the ds - the DS entry passed to the pre_mod callback
+ * smods     - the mods used in the modify operation
+ * result    - the result code from the modify operation - the plugin can change this
+ */
+typedef void (*winsync_post_mod_cb)(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result);
+#define WINSYNC_PLUGIN_POST_AD_MOD_USER_CB 20
+#define WINSYNC_PLUGIN_POST_AD_MOD_GROUP_CB 21
+#define WINSYNC_PLUGIN_POST_DS_MOD_USER_CB 22
+#define WINSYNC_PLUGIN_POST_DS_MOD_GROUP_CB 23
+
+#define WINSYNC_PLUGIN_VERSION_2_BEGIN WINSYNC_PLUGIN_POST_AD_MOD_USER_CB
+/*
+ * These callbacks are called after an attempt to add a new entry to the
+ * local directory server from AD.  They are called upon success or failure
+ * of the add attempt.  The result code tells if the operation succeeded.
+ * The plugin may change the result code e.g. to force an error for an
+ * otherwise successful operation, or to ignore certain errors.
+ * rawentry  - the raw AD entry, read directly from AD - this is read only
+ * ad_entry  - the "cooked" AD entry
+ * ds_entry  - the entry attempted to be added to the DS
+ * result    - the result code from the add operation - plugin may change this
+ */
+typedef void (*winsync_post_add_cb)(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result);
+#define WINSYNC_PLUGIN_POST_DS_ADD_USER_CB 24
+#define WINSYNC_PLUGIN_POST_DS_ADD_GROUP_CB 25
+
+/*
+ * These callbacks are called when a new entry is being added to AD from
+ * the local directory server.
+ * ds_entry  - the local DS entry
+ * ad_entry  - the entry to be added to AD - all modifications should
+ *             be made to this entry, including changing the DN if needed,
+ *             since the DN of this entry will be used as the ADD target DN
+ *             This entry will already have had the default schema mapping applied
+*/
+typedef void (*winsync_pre_ad_add_cb)(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry);
+#define WINSYNC_PLUGIN_PRE_AD_ADD_USER_CB 26
+#define WINSYNC_PLUGIN_PRE_AD_ADD_GROUP_CB 27
+
+/*
+ * These callbacks are called after an attempt to add a new entry to AD from
+ * the local directory server.  They are called upon success or failure
+ * of the add attempt.  The result code tells if the operation succeeded.
+ * The plugin may change the result code e.g. to force an error for an
+ * otherwise successful operation, or to ignore certain errors.
+ * ad_entry  - the AD entry
+ * ds_entry  - the DS entry
+ * result    - the result code from the add operation - plugin may change this
+ */
+typedef void (*winsync_post_ad_add_cb)(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result);
+#define WINSYNC_PLUGIN_POST_AD_ADD_USER_CB 28
+#define WINSYNC_PLUGIN_POST_AD_ADD_GROUP_CB 29
+
+/*
+ * These callbacks are called after a mod operation has been replayed
+ * to AD.  This case is different than the pre add or pre mod callbacks
+ * above because in this context, we may only have the list of modifications
+ * and the DN to which the mods were applied.  If the plugin wants the modified
+ * entry, the plugin can search for it from AD.  The plugin is called upon
+ * success or failure of the modify operation.  The result parameter gives
+ * the ldap result code of the operation.  The plugin may change the result code
+ * e.g. to force an error for an otherwise successful operation, or to ignore
+ * certain errors.
+ * rawentry - the raw AD entry, read directly from AD - may be NULL
+ * local_dn - the original local DN used in the modification
+ * ds_entry - the current DS entry that has the operation nsUniqueID
+ * origmods - the original mod list
+ * remote_dn - the DN of the AD entry
+ * modstosend - the mods sent to AD
+ * result   - the result code of the modify operation
+ * 
+ */
+typedef void (*winsync_post_ad_mod_mods_cb)(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod **modstosend, int *result);
+#define WINSYNC_PLUGIN_POST_AD_MOD_USER_MODS_CB 30
+#define WINSYNC_PLUGIN_POST_AD_MOD_GROUP_MODS_CB 31
+#define WINSYNC_PLUGIN_VERSION_2_END WINSYNC_PLUGIN_POST_AD_MOD_GROUP_MODS_CB
 /*
   The following are sample code stubs to show how to implement
   a plugin which uses this api
 */
 
+/* #define WINSYNC_SAMPLE_CODE */
 #ifdef WINSYNC_SAMPLE_CODE
 
 #include "slapi-plugin.h"
@@ -373,13 +463,13 @@ test_winsync_get_new_ds_user_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
 
     rdns = slapi_ldap_explode_dn(*new_dn_string, 0);
     if (!rdns || !rdns[0]) {
-        ldap_value_free(rdns);
+        slapi_ldap_value_free(rdns);
         return;
     }
 
     slapi_ch_free_string(new_dn_string);
     *new_dn_string = PR_smprintf("%s,%s", rdns[0], slapi_sdn_get_dn(ds_suffix));
-    ldap_value_free(rdns);
+    slapi_ldap_value_free(rdns);
 
     slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_get_new_ds_user_dn_cb -- new dn [%s] -- end\n",
@@ -442,7 +532,8 @@ test_winsync_can_add_entry_to_ad_cb(void *cbdata, const Slapi_Entry *local_entry
     slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_can_add_entry_to_ad_cb -- end\n");
 
-    return 0; /* false - do not allow entries to be added to ad */
+    /*    return 0;*/ /* false - do not allow entries to be added to ad */
+    return 1; /* true - allow entries to be added to ad */
 }
 
 static void
@@ -486,6 +577,200 @@ test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
     return;
 }
 
+static void
+test_winsync_post_ad_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_mod_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_mod_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_add_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_add_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_add_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_add_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_add_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Adding AD entry [%s] from add of DS entry [%s]\n",
+                    slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
+    /* make modifications to ad_entry here */
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_add_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Adding AD entry [%s] from add of DS entry [%s]\n",
+                    slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
+    /* make modifications to ad_entry here */
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_add_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_add_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_mod_user_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_user_mods_cb  -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_user_mods_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_mod_group_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_group_mods_cb  -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_group_mods_cb -- end\n");
+
+    return;
+}
+
 /**
  * Plugin identifiers
  */
@@ -498,7 +783,8 @@ static Slapi_PluginDesc test_winsync_pdesc = {
 
 static Slapi_ComponentId *test_winsync_plugin_id = NULL;
 
-static void *test_winsync_api[] = {
+#ifdef TEST_V1_WINSYNC_API
+static void *test_winsync_api_v1[] = {
     NULL, /* reserved for api broker use, must be zero */
     test_winsync_api_init,
     test_winsync_dirsync_search_params_cb,
@@ -520,6 +806,42 @@ static void *test_winsync_api[] = {
     test_winsync_end_update_cb,
     test_winsync_destroy_agmt_cb
 };
+#endif /* TEST_V1_WINSYNC_API */
+
+static void *test_winsync_api_v2[] = {
+    NULL, /* reserved for api broker use, must be zero */
+    test_winsync_api_init,
+    test_winsync_dirsync_search_params_cb,
+    test_winsync_pre_ad_search_cb,
+    test_winsync_pre_ds_search_entry_cb,
+    test_winsync_pre_ds_search_all_cb,
+    test_winsync_pre_ad_mod_user_cb,
+    test_winsync_pre_ad_mod_group_cb,
+    test_winsync_pre_ds_mod_user_cb,
+    test_winsync_pre_ds_mod_group_cb,
+    test_winsync_pre_ds_add_user_cb,
+    test_winsync_pre_ds_add_group_cb,
+    test_winsync_get_new_ds_user_dn_cb,
+    test_winsync_get_new_ds_group_dn_cb,
+    test_winsync_pre_ad_mod_user_mods_cb,
+    test_winsync_pre_ad_mod_group_mods_cb,
+    test_winsync_can_add_entry_to_ad_cb,
+    test_winsync_begin_update_cb,
+    test_winsync_end_update_cb,
+    test_winsync_destroy_agmt_cb,
+    test_winsync_post_ad_mod_user_cb,
+    test_winsync_post_ad_mod_group_cb,
+    test_winsync_post_ds_mod_user_cb,
+    test_winsync_post_ds_mod_group_cb,
+    test_winsync_post_ds_add_user_cb,
+    test_winsync_post_ds_add_group_cb,
+    test_winsync_pre_ad_add_user_cb,
+    test_winsync_pre_ad_add_group_cb,
+    test_winsync_post_ad_add_user_cb,
+    test_winsync_post_ad_add_group_cb,
+    test_winsync_post_ad_mod_user_mods_cb,
+    test_winsync_post_ad_mod_group_mods_cb
+};
 
 static int
 test_winsync_plugin_start(Slapi_PBlock *pb)
@@ -527,7 +849,7 @@ test_winsync_plugin_start(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_plugin_start -- begin\n");
 
-	if( slapi_apib_register(WINSYNC_v1_0_GUID, test_winsync_api) ) {
+	if( slapi_apib_register(WINSYNC_v2_0_GUID, test_winsync_api_v2) ) {
         slapi_log_error( SLAPI_LOG_FATAL, test_winsync_plugin_name,
                          "<-- test_winsync_plugin_start -- failed to register winsync api -- end\n");
         return -1;
@@ -544,7 +866,7 @@ test_winsync_plugin_close(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_plugin_close -- begin\n");
 
-	slapi_apib_unregister(WINSYNC_v1_0_GUID);
+	slapi_apib_unregister(WINSYNC_v2_0_GUID);
 
     slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_plugin_close -- end\n");

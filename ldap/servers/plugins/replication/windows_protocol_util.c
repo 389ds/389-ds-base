@@ -80,7 +80,7 @@ static const char* op2string (int op);
 static int is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra);
 static int map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra);
 static int map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int use_guid, int user_username);
-static int windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry);
+static int windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry,int is_user);
 static int is_guid_dn(Slapi_DN *remote_dn);
 static int map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *exists);
 static int windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original_mods, 
@@ -1184,6 +1184,13 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 			/* Convert entry to mods */
 			if (0 == rc && mapped_entry) 
 			{
+				if (is_user) {
+					winsync_plugin_call_pre_ad_add_user_cb(prp->agmt, mapped_entry, add_entry);
+				} else {
+					winsync_plugin_call_pre_ad_add_group_cb(prp->agmt, mapped_entry, add_entry);
+				}
+				/* plugin may reset DN */
+				slapi_sdn_copy(slapi_entry_get_sdn(mapped_entry), remote_dn);
 				(void)slapi_entry2mods (mapped_entry , NULL /* &entrydn : We don't need it */, &entryattrs);
 				slapi_entry_free(mapped_entry);
 				mapped_entry = NULL;
@@ -1196,9 +1203,29 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 				}
 				else
 				{
+					int ldap_op = 0;
+					int ldap_result_code = 0;
 					windows_log_add_entry_remote(local_dn, remote_dn);
 					return_value = windows_conn_send_add(prp->conn, slapi_sdn_get_dn(remote_dn),
 						entryattrs, NULL, NULL);
+					windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
+					if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+						/* op failed but no ldap error code ??? */
+						ldap_result_code = LDAP_OPERATIONS_ERROR;
+					}
+					if (is_user) {
+						winsync_plugin_call_post_ad_add_user_cb(prp->agmt, mapped_entry, add_entry, &ldap_result_code);
+					} else {
+						winsync_plugin_call_post_ad_add_group_cb(prp->agmt, mapped_entry, add_entry, &ldap_result_code);
+					}
+					/* see if plugin reset success/error condition */
+					if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+						return_value = CONN_OPERATION_SUCCESS;
+						windows_conn_set_error(prp->conn, ldap_result_code);
+					} else if ((return_value == CONN_OPERATION_SUCCESS) && ldap_result_code) {
+						return_value = CONN_OPERATION_FAILED;
+						windows_conn_set_error(prp->conn, ldap_result_code);
+					}
 					/* It's possible that the entry already exists in AD, in which
 					 * case we fall back to modify it */
 					/* NGK - This fallback doesn't seem to happen, at least not at this point
@@ -1229,7 +1256,7 @@ modify_fallback:
 		/* Fetch the remote entry */
 		rc = windows_get_remote_entry(prp, remote_dn,&remote_entry);
 		if (0 == rc && remote_entry) {
-			return_value = windows_update_remote_entry(prp,remote_entry,local_entry);
+			return_value = windows_update_remote_entry(prp,remote_entry,local_entry,is_user);
 		}
 		if (remote_entry)
 		{
@@ -1546,6 +1573,8 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 					return_value = CONN_OPERATION_SUCCESS;
 				} else 
 				{
+					int ldap_op = 0;
+					int ldap_result_code = 0;
 					if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
 					{
 						int i = 0;
@@ -1556,6 +1585,32 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 						}
 					}
 					return_value = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(remote_dn), mapped_mods, NULL, NULL /* returned controls */);
+					windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
+					if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+						/* op failed but no ldap error code ??? */
+						ldap_result_code = LDAP_OPERATIONS_ERROR;
+					}
+					if (is_user) {
+						winsync_plugin_call_post_ad_mod_user_mods_cb(prp->agmt,
+																windows_private_get_raw_entry(prp->agmt),
+																local_dn, local_entry,
+																op->p.p_modify.modify_mods,
+																remote_dn, mapped_mods, &ldap_result_code);
+					} else if (is_group) {
+						winsync_plugin_call_post_ad_mod_group_mods_cb(prp->agmt,
+																 windows_private_get_raw_entry(prp->agmt),
+																 local_dn, local_entry,
+																 op->p.p_modify.modify_mods,
+																 remote_dn, mapped_mods, &ldap_result_code);
+					}
+					/* see if plugin reset success/error condition */
+					if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+						return_value = CONN_OPERATION_SUCCESS;
+						windows_conn_set_error(prp->conn, ldap_result_code);
+					} else if ((return_value == CONN_OPERATION_SUCCESS) && ldap_result_code) {
+						return_value = CONN_OPERATION_FAILED;
+						windows_conn_set_error(prp->conn, ldap_result_code);
+					}
 				}
 				if (mapped_mods)
 				{
@@ -3872,6 +3927,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	int rc = 0;
 	char *guid_str = NULL;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
+	Slapi_Entry *post_entry = NULL;
 
 	char *local_user_entry_template = 
 		"dn: %s\n"
@@ -3996,10 +4052,22 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	/* Store it */
 	windows_dump_entry("Adding new local entry",local_entry);
 	pb = slapi_pblock_new();
-	slapi_add_entry_internal_set_pb(pb, local_entry, NULL,repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),0);  
+	slapi_add_entry_internal_set_pb(pb, local_entry, NULL,repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),0);
+	post_entry = slapi_entry_dup(local_entry);
 	slapi_add_internal_pb(pb);
 	local_entry = NULL; /* consumed by add */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &retval);
+
+	if (is_user) {
+	    winsync_plugin_call_post_ds_add_user_cb(prp->agmt,
+						   windows_private_get_raw_entry(prp->agmt),
+						   remote_entry, post_entry, &retval);
+	} else if (is_group) {
+	    winsync_plugin_call_post_ds_add_group_cb(prp->agmt,
+							windows_private_get_raw_entry(prp->agmt),
+						    remote_entry, post_entry, &retval);
+	}
+	slapi_entry_free(post_entry);
 
 	if (retval) {
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -4429,11 +4497,13 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 }
 
 static int
-windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry)
+windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry, int is_user)
 {
     Slapi_Mods smods = {0};
 	int retval = 0;
 	int do_modify = 0;
+	int ldap_op = 0;
+	int ldap_result_code = 0;
 
     slapi_mods_init (&smods, 0);
 	retval = windows_generate_update_mods(prp,local_entry,remote_entry,1,&smods,&do_modify);
@@ -4446,6 +4516,33 @@ windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry
 			"windows_update_remote_entry: modifying entry %s\n", escape_string(dn, dnbuf));
 
 		retval = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(slapi_entry_get_sdn_const(remote_entry)),slapi_mods_get_ldapmods_byref(&smods), NULL,NULL);
+
+		windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
+		if ((retval != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+			/* op failed but no ldap error code ??? */
+			ldap_result_code = LDAP_OPERATIONS_ERROR;
+		}
+		if (is_user) {
+			winsync_plugin_call_post_ad_mod_user_cb(prp->agmt,
+						       windows_private_get_raw_entry(prp->agmt),
+						       remote_entry, /* the cooked ad entry */
+						       local_entry, /* the ds entry */
+						       &smods, &ldap_result_code);
+		} else {
+			winsync_plugin_call_post_ad_mod_group_cb(prp->agmt,
+							windows_private_get_raw_entry(prp->agmt),
+							remote_entry, /* the cooked ad entry */
+							local_entry, /* the ds entry */
+							&smods, &ldap_result_code);
+		}
+		/* see if plugin reset success/error condition */
+		if ((retval != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+			retval = CONN_OPERATION_SUCCESS;
+			windows_conn_set_error(prp->conn, ldap_result_code);
+		} else if ((retval == CONN_OPERATION_SUCCESS) && ldap_result_code) {
+			retval = CONN_OPERATION_FAILED;
+			windows_conn_set_error(prp->conn, ldap_result_code);
+		}
 	} else
 	{
 		char dnbuf[BUFSIZ];
@@ -4453,7 +4550,8 @@ windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"no mods generated for remote entry: %s\n", escape_string(dn, dnbuf));
 	}
-    slapi_mods_done(&smods);
+
+	slapi_mods_done(&smods);
 	return retval;
 }
 
@@ -4572,6 +4670,19 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			    repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
 			slapi_modify_internal_pb (pb);
 			slapi_pblock_get (pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+			if (is_user) {
+				winsync_plugin_call_post_ds_mod_user_cb(prp->agmt,
+						windows_private_get_raw_entry(prp->agmt),
+						remote_entry, /* the cooked ad entry */
+						local_entry, /* the ds entry */
+						&smods, &rc);
+			} else if (is_group) {
+				winsync_plugin_call_post_ds_mod_group_cb(prp->agmt,
+						windows_private_get_raw_entry(prp->agmt),
+						remote_entry, /* the cooked ad entry */
+						local_entry, /* the ds entry */
+						&smods, &rc);
+			}
 			if (rc) 
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
@@ -4624,11 +4735,17 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 		}
 	}
 	/* Convert entry to mods */
+	windows_is_local_entry_user_or_group(e, &is_user, NULL);
 	if (0 == retval && mapped_entry) 
 	{
+		if (is_user) {
+			winsync_plugin_call_pre_ad_add_user_cb(prp->agmt, mapped_entry, e);
+		} else {
+			winsync_plugin_call_pre_ad_add_group_cb(prp->agmt, mapped_entry, e);
+		}
+		/* plugin may reset DN */
+		slapi_sdn_copy(slapi_entry_get_sdn(mapped_entry), remote_dn);
 		(void)slapi_entry2mods (mapped_entry , NULL /* &entrydn : We don't need it */, &entryattrs);
-		slapi_entry_free(mapped_entry);
-		mapped_entry = NULL;
 		if (NULL == entryattrs)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_replay_update: Cannot convert entry to LDAPMods.\n",agmt_get_long_name(prp->agmt));
@@ -4636,8 +4753,28 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 		}
 		else
 		{
+			int ldap_op = 0;
+			int ldap_result_code = 0;
 			windows_log_add_entry_remote(local_dn, remote_dn);
 			retval = windows_conn_send_add(prp->conn, slapi_sdn_get_dn(remote_dn), entryattrs, NULL, NULL /* returned controls */);
+			windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
+			if ((retval != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+				/* op failed but no ldap error code ??? */
+				ldap_result_code = LDAP_OPERATIONS_ERROR;
+			}
+			if (is_user) {
+				winsync_plugin_call_post_ad_add_user_cb(prp->agmt, mapped_entry, e, &ldap_result_code);
+			} else {
+				winsync_plugin_call_post_ad_add_group_cb(prp->agmt, mapped_entry, e, &ldap_result_code);
+			}
+			/* see if plugin reset success/error condition */
+			if ((retval != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+				retval = CONN_OPERATION_SUCCESS;
+				windows_conn_set_error(prp->conn, ldap_result_code);
+			} else if ((retval == CONN_OPERATION_SUCCESS) && ldap_result_code) {
+				retval = CONN_OPERATION_FAILED;
+				windows_conn_set_error(prp->conn, ldap_result_code);
+			}
 			/* It's possible that the entry already exists in AD, in which case we fall back to modify it */
 			if (retval)
 			{
@@ -4646,7 +4783,6 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			ldap_mods_free(entryattrs, 1);
 			entryattrs = NULL;
 
-			windows_is_local_entry_user_or_group(e, &is_user, NULL);
 			if ((retval == 0) && is_user) {
 			    /* set the account control bits only for users */
 			    retval = send_accountcontrol_modify(remote_dn, prp, missing_entry);
@@ -4660,7 +4796,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 		retval = windows_get_remote_entry(prp, remote_dn,&remote_entry);
 		if (0 == retval && remote_entry) 
 		{
-			retval = windows_update_remote_entry(prp,remote_entry,e);
+			retval = windows_update_remote_entry(prp,remote_entry,e,is_user);
 			/* Detect the case where the error is benign */
 			if (retval)
 			{
@@ -4679,6 +4815,8 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			slapi_entry_free(remote_entry);
 		}
 	}
+	slapi_entry_free(mapped_entry);
+	mapped_entry = NULL;
 	slapi_ch_free_string(&password);
 	return retval;
 }

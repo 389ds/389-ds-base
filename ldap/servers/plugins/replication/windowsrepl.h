@@ -179,6 +179,41 @@ void winsync_plugin_call_end_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_s
 void winsync_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra,
                                          const Slapi_DN *ds_subtree,
                                          const Slapi_DN *ad_subtree);
+void winsync_plugin_call_post_ad_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                             Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                             Slapi_Mods *smods, int *result);
+void winsync_plugin_call_post_ad_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                              Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                              Slapi_Mods *smods, int *result);
+void winsync_plugin_call_post_ds_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                             Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                             Slapi_Mods *smods, int *result);
+void winsync_plugin_call_post_ds_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                              Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                              Slapi_Mods *smods, int *result);
+void winsync_plugin_call_post_ds_add_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                             Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result);
+void winsync_plugin_call_post_ds_add_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                              Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result);
+void winsync_plugin_call_pre_ad_add_user_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
+                                            Slapi_Entry *ds_entry);
+void winsync_plugin_call_pre_ad_add_group_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
+                                             Slapi_Entry *ds_entry);
+void winsync_plugin_call_post_ad_add_user_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
+                                             Slapi_Entry *ds_entry, int *result);
+void winsync_plugin_call_post_ad_add_group_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
+                                              Slapi_Entry *ds_entry, int *result);
+void winsync_plugin_call_post_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                                  const Slapi_DN *local_dn,
+                                                  const Slapi_Entry *ds_entry,
+                                                  LDAPMod * const *origmods,
+                                                  Slapi_DN *remote_dn, LDAPMod **modstosend, int *result);
+void winsync_plugin_call_post_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
+                                                   const Slapi_DN *local_dn,
+                                                   const Slapi_Entry *ds_entry,
+                                                   LDAPMod * const *origmods,
+                                                   Slapi_DN *remote_dn, LDAPMod **modstosend, int *result);
+
 /*
   Call stack for all places where windows_LDAPMessage2Entry is called:
 
