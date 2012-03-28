@@ -95,7 +95,15 @@
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define USE_DB_TXN 1 /* use transactions */
 #define DEFAULT_DB_ENV_OP_FLAGS DB_AUTO_COMMIT
-#define DEFAULT_DB_OP_FLAGS 0
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR <= 4300
+/* we are enabling transactions everywhere - since we are opening databases
+   with DB_AUTO_COMMIT we must either open and pass a valid txn handle to
+   all operations that modify the database (put, del) or we must pass the
+   DB_AUTO_COMMIT flag to those operations */
+#define DEFAULT_DB_OP_FLAGS(txn) (txn ? 0 : DB_AUTO_COMMIT)
+#else
+#define DEFAULT_DB_OP_FLAGS(txn) 0
+#endif
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
 {                                                                              \
 	if (((oflags) & DB_INIT_TXN) && ((oflags) & DB_INIT_LOG))                  \
@@ -108,7 +116,7 @@
 	}                                                                          \
 }
 #else /* older then db 41 */
-#define DEFAULT_DB_OP_FLAGS 0
+#define DEFAULT_DB_OP_FLAGS(txn) 0
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
 	(rval) = (db)->open((db), (file), (database), (type), (flags), (mode))
 #endif
@@ -3676,7 +3684,7 @@ static int _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge)
 
                             /* delete the entry; it is re-added when file
 							   is successfully closed */
-							file->db->del (file->db, NULL, &key, DEFAULT_DB_OP_FLAGS);
+							file->db->del (file->db, NULL, &key, DEFAULT_DB_OP_FLAGS(NULL));
 							
 							rc = CL5_SUCCESS;
 							goto done;
@@ -3747,7 +3755,7 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 		return CL5_DB_ERROR;
 	}
 #endif
-	rc = file->db->put(file->db, txnid, &key, &data, DEFAULT_DB_OP_FLAGS);
+	rc = file->db->put(file->db, txnid, &key, &data, DEFAULT_DB_OP_FLAGS(txnid));
 
 	slapi_ch_free (&(data.data));
 	if ( rc == 0 )
@@ -4039,7 +4047,7 @@ static int _cl5GetEntryCount (CL5DBFile *file)
 
 							/* delete the entry. the entry is re-added when file
 							   is successfully closed */
-							file->db->del (file->db, NULL, &key, DEFAULT_DB_OP_FLAGS);
+							file->db->del (file->db, NULL, &key, DEFAULT_DB_OP_FLAGS(NULL));
                             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
 									"_cl5GetEntryCount: %d changes for replica %s\n", 
                                     file->entryCount, file->replName);
@@ -4103,7 +4111,7 @@ static int _cl5WriteEntryCount (CL5DBFile *file)
 		return CL5_DB_ERROR;
 	}
 #endif
-	rc = file->db->put(file->db, txnid, &key, &data, DEFAULT_DB_OP_FLAGS);
+	rc = file->db->put(file->db, txnid, &key, &data, DEFAULT_DB_OP_FLAGS(txnid));
 	if (rc == 0)
 	{
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR < 4100
@@ -4599,7 +4607,7 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 		{
 			PR_WaitSemaphore(file->sema);
 		}
-		rc = file->db->put(file->db, txnid, &key, data, DEFAULT_DB_OP_FLAGS);
+		rc = file->db->put(file->db, txnid, &key, data, DEFAULT_DB_OP_FLAGS(txnid));
 		if ( file->sema )
 		{
 			PR_PostSemaphore(file->sema);
