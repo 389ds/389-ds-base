@@ -45,7 +45,7 @@ bin_PROGRAMS = dbscan-bin$(EXEEXT) dsktune-bin$(EXEEXT) \
 	migratecred-bin$(EXEEXT) mmldif-bin$(EXEEXT) \
 	pwdhash-bin$(EXEEXT) rsearch-bin$(EXEEXT)
 noinst_PROGRAMS = makstrdb$(EXEEXT)
-@SOLARIS_TRUE@am__append_1 = ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
+@SPARC_TRUE@am__append_1 = ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 @SOLARIS_TRUE@am__append_2 = -lrt
 @SOLARIS_TRUE@am__append_3 = ldap/servers/slapd/tools/ldclt/opCheck.c
 subdir = .
@@ -652,7 +652,7 @@ am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/vattr.c ldap/libraries/libavl/avl.c \
 	ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 am__objects_2 = ldap/libraries/libavl/libslapd_la-avl.lo
-@SOLARIS_TRUE@am__objects_3 = ldap/servers/slapd/libslapd_la-slapi_counter_sunos_sparcv9.lo
+@SPARC_TRUE@am__objects_3 = ldap/servers/slapd/libslapd_la-slapi_counter_sunos_sparcv9.lo
 am_libslapd_la_OBJECTS = ldap/servers/slapd/libslapd_la-add.lo \
 	ldap/servers/slapd/libslapd_la-agtmmap.lo \
 	ldap/servers/slapd/libslapd_la-apibroker.lo \
@@ -2032,7 +2032,7 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
         ldap/servers/plugins/collation/config.c \
         ldap/servers/plugins/collation/orfilter.c
 
-libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
+libcollation_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@
 libcollation_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_LDFLAGS = -avoid-version
 libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version

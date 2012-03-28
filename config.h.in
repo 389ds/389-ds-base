@@ -104,6 +104,9 @@
 /* Define to 1 if you have the `getpagesize' function. */
 #undef HAVE_GETPAGESIZE
 
+/* have getpeerucred */
+#undef HAVE_GETPEERUCRED
+
 /* define if you have HEIMDAL Kerberos */
 #undef HAVE_HEIMDAL_KERBEROS
 

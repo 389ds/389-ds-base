@@ -698,7 +698,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@ @pcre_inc@
-if SOLARIS
+if SPARC
 libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 endif
 
@@ -888,7 +888,7 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
         ldap/servers/plugins/collation/config.c \
         ldap/servers/plugins/collation/orfilter.c
 
-libcollation_plugin_la_CPPFLAGS = @icu_inc@ $(PLUGIN_CPPFLAGS)
+libcollation_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @icu_inc@
 libcollation_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_LDFLAGS = -avoid-version
 libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version

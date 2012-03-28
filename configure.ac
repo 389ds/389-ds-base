@@ -524,20 +524,18 @@ case $host in
     # HPUX doesn't use /etc for this
     initdir=/init.d
     ;;
-  sparc-sun-solaris*)
+  *-*-solaris*)
     AC_DEFINE([XP_UNIX], [1], [UNIX])
     AC_DEFINE([SVR4], [1], [SVR4])
     AC_DEFINE([__svr4], [1], [SVR4])
     AC_DEFINE([__svr4__], [1], [SVR4])
     AC_DEFINE([_SVID_GETTOD], [1], [SVID_GETTOD])
     AC_DEFINE([SOLARIS], [1], [SOLARIS])
-    AC_DEFINE([CPU_sparc], [], [cpu type sparc])
     AC_DEFINE([OS_solaris], [1], [OS SOLARIS])
     AC_DEFINE([sunos5], [1], [SunOS5])
     AC_DEFINE([OSVERSION], [509], [OS version])
     AC_DEFINE([_REENTRANT], [1], [_REENTRANT])
     AC_DEFINE([NO_DOMAINNAME], [1], [no getdomainname])
-    AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
 dnl socket nsl and dl are required to link several programs and libdb
     LIBSOCKET=-lsocket
     AC_SUBST([LIBSOCKET], [$LIBSOCKET])
@@ -551,9 +549,19 @@ dnl Cstd and Crun are required to link any C++ related code
     LIBCRUN=-lCrun
     AC_SUBST([LIBCRUN], [$LIBCRUN])
     platform="solaris"
-    # assume 64 bit
-    perlexec='/usr/lib/sparcv9/dirsec/perl5x/bin/perl'
     initdir='$(sysconfdir)/init.d'
+    case $host in
+      i?86-*-solaris2.1[[0-9]]*)
+dnl I dont know why i386 need this explicit
+        AC_DEFINE([HAVE_GETPEERUCRED], [1], [have getpeerucred])
+        ;;
+      sparc-*-solaris*)
+dnl includes some assembler stuff in counter.o
+        AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
+        AC_DEFINE([CPU_sparc], [], [cpu type sparc])
+        TARGET='SPARC'
+        ;;
+    esac
     ;;
   *)
     platform=""
@@ -612,6 +620,8 @@ fi
 
 AM_CONDITIONAL(SELINUX,test "$with_selinux" = "yes")
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
+AM_CONDITIONAL(SOLARIS,test "$platform" = "solaris")
+AM_CONDITIONAL(SPARC,test "x$TARGET" = xSPARC)
 
 # write out paths for binary components
 AC_SUBST(nspr_inc)
