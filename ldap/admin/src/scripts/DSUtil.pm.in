@@ -269,7 +269,7 @@ sub checkHostname {
             debug(1, "ipaddr=", $ip, "\n");
             # see if reverse resolution works
             my ($hn2, $service) = getnameinfo($saddr);
-            if (!$hn2) {
+            if ($hn2) {
                 push @hostip, [$hn2, $ip];
                 if (lc($hn) eq lc($hn2)) {
                     $found = 1;
