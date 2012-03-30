@@ -15,7 +15,7 @@ attributeTypes: (
   DESC 'The URL of a sabayon profile'
   SUP labeledURI
   X-ORIGIN 'Sabayon'
-)
+ )
 # This attribute is used to store the name of a sabayon profile.
 # It can refer to either a local zipfile (which will be looked up
 # in /etc/desktop-profiles/$(name).zip), or it can be used to
@@ -29,7 +29,7 @@ attributeTypes: (
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 
   SINGLE-VALUE
   X-ORIGIN 'Sabayon'
-)
+ )
 # Simple example object to store profile information
 # If you use this or something similar instead of a direct URL
 # in your user object you get more flexibility.
@@ -42,7 +42,7 @@ objectClasses: (
   MUST cn
   MAY ( sabayonProfileURL $ description )
   X-ORIGIN 'Sabayon'
-)
+ )
 # Use these to put sabayonProfileName or sabayonProfileURL
 # attributes in an objetc
 objectClasses: (
@@ -53,7 +53,7 @@ objectClasses: (
   AUXILIARY
   MUST sabayonProfileName 
   X-ORIGIN 'Sabayon'
-)
+ )
 objectClasses: ( 
   1.3.6.1.4.1.2312.4.3.4.3  
   NAME 'sabayonProfileURLObject'
@@ -63,4 +63,4 @@ objectClasses: (
   MUST cn
   MAY sabayonProfileURL  
   X-ORIGIN 'Sabayon'
-)
+ )
