@@ -299,9 +299,8 @@ do_modify( Slapi_PBlock *pb )
             continue;
 		}
 		
-		/* check for password change */
-		if ( mod->mod_bvalues != NULL && 
-			 strcasecmp( mod->mod_type, SLAPI_USERPWD_ATTR ) == 0 ){
+		/* check for password change (including deletion) */
+		if ( strcasecmp( mod->mod_type, SLAPI_USERPWD_ATTR ) == 0 ){
 			has_password_mod++;
 		}
 
@@ -357,11 +356,11 @@ do_modify( Slapi_PBlock *pb )
 		for (mod = slapi_mods_get_first_mod(&smods);
 			 mod;
 			 mod = slapi_mods_get_next_mod(&smods)) {
-			if ( mod->mod_bvalues != NULL && 
-				 strcasecmp( mod->mod_type, SLAPI_USERPWD_ATTR ) == 0 ) {
+			/* check for password change (including deletion) */
+			if ( strcasecmp( mod->mod_type, SLAPI_USERPWD_ATTR ) == 0 ) {
 				/* assumes controls have already been decoded and placed
 				   in the pblock */
-				pw_change = op_shared_allow_pw_change (pb, mod, &old_pw, &smods);
+				pw_change = op_shared_allow_pw_change(pb, mod, &old_pw, &smods);
 				if (pw_change == -1) {
 					goto free_and_return;
 				}
@@ -821,8 +820,9 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	}
 			
 	/*
-	 * Add the unhashed password pseudo-attribute before
-	 * calling the preop plugins
+	 * Add the unhashed password pseudo-attribute (for add) OR
+	 * Delete the unhashed password pseudo-attribute (for delete)
+	 * before calling the preop plugins
 	 */
 
 	if (pw_change && !repl_op)
@@ -837,10 +837,20 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			if (strcasecmp (pw_mod->mod_type, SLAPI_USERPWD_ATTR) != 0)
 				continue;
 
-			/* add pseudo password attribute */
-			valuearray_init_bervalarray(pw_mod->mod_bvalues, &va);
-			slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
-			valuearray_free(&va);
+			if (LDAP_MOD_DELETE == pw_mod->mod_op) {
+				Slapi_Attr *a = NULL;
+				/* delete pseudo password attribute if it exists in the entry */
+				if (!slapi_entry_attr_find(e, unhashed_pw_attr, &a)) {
+					slapi_mods_add_mod_values(&smods, pw_mod->mod_op,
+					                          unhashed_pw_attr, va);
+				}
+			} else {
+				/* add pseudo password attribute */
+				valuearray_init_bervalarray(pw_mod->mod_bvalues, &va);
+				slapi_mods_add_mod_values(&smods, pw_mod->mod_op,
+				                          unhashed_pw_attr, va);
+				valuearray_free(&va);
+			}
 
 			/* Init new value array for hashed value */
 			valuearray_init_bervalarray(pw_mod->mod_bvalues, &va);
@@ -1199,7 +1209,8 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	/* check password syntax; remember the old password;
 	   error sent directly from check_pw_syntax function */
 	valuearray_init_bervalarray(mod->mod_bvalues, &values);
-	switch (check_pw_syntax_ext (pb, &sdn, values, old_pw, NULL, 1, smods)) 
+	switch (check_pw_syntax_ext (pb, &sdn, values, old_pw, NULL, 
+	                             mod->mod_op, smods)) 
 	{
 		case 0: /* success */
 				rc = 1;

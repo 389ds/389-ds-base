@@ -63,7 +63,6 @@
 
 /* a helper function to set special rdn to a tombstone entry */
 static int _entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn);
-static int is_type_protected(const char *type);
 
 /* protected attributes which are not included in the flattened entry,
  * which will be stored in the db. */
@@ -1613,7 +1612,7 @@ entry2str_internal_put_valueset( const char *attrtype, const CSN *attrcsn, CSNTy
 	}
 }
 
-static int
+int
 is_type_protected(const char *type)
 {
     char **paap = NULL;
@@ -3393,24 +3392,37 @@ slapi_entry_delete_values(
     return(rc);
 }
 
-
 static int
 delete_values_sv_internal(
     Slapi_Entry		*e,
     const char		*type,
     Slapi_Value		**valuestodelete,
-	int				flags
+    int				flags
 )
 {
 	Slapi_Attr *a;
 	int retVal= LDAP_SUCCESS;
 
+	/*
+	 * If type is in the protected_attrs_all list, we could ignore the failure,
+	 * as the attribute could only exist in the entry in the memory when the 
+	 * add/mod operation is done, while the retried entry from the db does not
+	 * contain the attribute.
+	 */
+	if (is_type_protected(type)) {
+		flags |= SLAPI_VALUE_FLAG_IGNOREERROR;
+	}
+
 	/* delete the entire attribute */
 	if ( valuestodelete == NULL || valuestodelete[0] == NULL ){
 		LDAPDebug( LDAP_DEBUG_ARGS, "removing entire attribute %s\n",
 		    type, 0, 0 );
-		return( attrlist_delete( &e->e_attrs, type) ?
-		    LDAP_NO_SUCH_ATTRIBUTE : LDAP_SUCCESS );
+		retVal = attrlist_delete( &e->e_attrs, type);
+		if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
+			return LDAP_SUCCESS;
+		} else {
+		}
+		return(retVal ? LDAP_NO_SUCH_ATTRIBUTE : LDAP_SUCCESS);
 	}
 
 	/* delete specific values - find the attribute first */

@@ -788,6 +788,20 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	passwdPolicy	*pwpolicy = NULL;
 	Slapi_Operation *operation = NULL;
 
+	/*
+	 * check_pw_syntax_ext could be called with mod_op == LDAP_MOD_DELETE.
+	 * In that case, no need to check the password syntax, but just returns 
+	 * PASS == 0.
+	 */
+	if (LDAP_MOD_DELETE == (mod_op & LDAP_MOD_OP)) {
+		return 0;
+	}
+	if (NULL == vals) {
+		slapi_log_error( SLAPI_LOG_FATAL, NULL, 
+		                 "check_pw_syntax_ext: no passwords to check\n" );
+		return -1;
+	}
+
 	pwpolicy = new_passwdPolicy(pb, dn);
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
 
@@ -967,7 +981,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	}
 
 	/* get the entry and check for the password history if this is called by a modify operation */
-	if ( mod_op ) { 
+	if ( mod_op ) {
 		/* retrieve the entry */
 		e = get_entry ( pb, dn );
 		if ( e == NULL ) {
