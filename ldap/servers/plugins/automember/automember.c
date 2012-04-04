@@ -103,9 +103,28 @@ static struct automemberRegexRule *automember_parse_regex_rule(char *rule_string
 static void automember_free_regex_rule(struct automemberRegexRule *rule);
 static int automember_parse_grouping_attr(char *value, char **grouping_attr,
     char **grouping_value);
-static void automember_update_membership(struct configEntry *config, Slapi_Entry *e);
+static void automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileDesc *ldif_fd);
 static void automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
-    char *grouping_attr, char *grouping_value);
+    char *grouping_attr, char *grouping_value, PRFileDesc *ldif_fd);
+const char *fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val);
+
+/*
+ * task functions
+ */
+static int automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                    int *returncode, char *returntext, void *arg);
+static int automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                    int *returncode, char *returntext, void *arg);
+static int automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                    int *returncode, char *returntext, void *arg);
+void automember_rebuild_task_thread(void *arg);
+void automember_export_task_thread(void *arg);
+void automember_map_task_thread(void *arg);
+void automember_task_destructor(Slapi_Task *task);
+void automember_task_export_destructor(Slapi_Task *task);
+void automember_task_map_destructor(Slapi_Task *task);
+
+#define DEFAULT_FILE_MODE PR_IRUSR | PR_IWUSR
 
 /*
  * Config cache locking functions
@@ -324,6 +343,10 @@ automember_start(Slapi_PBlock * pb)
     if (g_plugin_started) {
         goto done;
     }
+
+    slapi_task_register_handler("automember rebuild membership", automember_task_add);
+    slapi_task_register_handler("automember export updates", automember_task_add_export_updates);
+    slapi_task_register_handler("automember map updates", automember_task_add_map_entries);
 
     g_automember_config_lock = slapi_new_rwlock();
 
@@ -1379,7 +1402,7 @@ automember_parse_grouping_attr(char *value, char **grouping_attr, char **groupin
  * the rules in config, then performs the updates.
  */
 static void
-automember_update_membership(struct configEntry *config, Slapi_Entry *e)
+automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileDesc *ldif_fd)
 {
     PRCList *rule = NULL;
     struct automemberRegexRule *curr_rule = NULL;
@@ -1533,14 +1556,14 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e)
         /* Add to each default group. */
         for (i = 0; config->default_groups && config->default_groups[i]; i++) {
             automember_add_member_value(e, config->default_groups[i],
-                                        config->grouping_attr, config->grouping_value);
+                                        config->grouping_attr, config->grouping_value, ldif_fd);
         }
     } else {
         /* Update the target groups. */
         dnitem = (struct automemberDNListItem *)PR_LIST_HEAD(&targets);
         while ((PRCList *)dnitem != &targets) {
             automember_add_member_value(e, slapi_sdn_get_dn(dnitem->dn),
-                                        config->grouping_attr, config->grouping_value);
+                                        config->grouping_attr, config->grouping_value, ldif_fd);
             dnitem = (struct automemberDNListItem *)PR_NEXT_LINK((PRCList *)dnitem);
         }
     }
@@ -1567,8 +1590,8 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e)
  * Adds a member entry to a group.
  */
 static void
-automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
-                            char *grouping_attr, char *grouping_value)
+automember_add_member_value(Slapi_Entry *member_e, const char *group_dn, char *grouping_attr,
+                            char *grouping_value, PRFileDesc *ldif_fd)
 {
     Slapi_PBlock *mod_pb = slapi_pblock_new();
     int result = LDAP_SUCCESS;
@@ -1584,6 +1607,19 @@ automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
     } else {
         member_value = slapi_entry_attr_get_charptr(member_e, grouping_value);
         freeit = 1;
+    }
+
+    /*
+     *  If ldif_fd is set, we are performing an export task.  Write the changes to the
+     *  file instead of performing them
+     */
+    if(ldif_fd){
+        PR_fprintf(ldif_fd, "dn: %s\n", group_dn);
+        PR_fprintf(ldif_fd, "changetype: modify\n");
+        PR_fprintf(ldif_fd, "add: %s\n", grouping_attr);
+        PR_fprintf(ldif_fd, "%s: %s\n", grouping_attr, member_value);
+        PR_fprintf(ldif_fd, "\n");
+        goto out;
     }
 
     if (member_value) {
@@ -1621,6 +1657,7 @@ automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
                         grouping_value, slapi_entry_get_dn(member_e));
     }
 
+out:
     /* Cleanup */
     if (freeit) {
         slapi_ch_free_string(&member_value);
@@ -1853,7 +1890,7 @@ automember_add_post_op(Slapi_PBlock *pb)
                 if (slapi_dn_issuffix(slapi_sdn_get_dn(sdn), config->scope) &&
                     (slapi_filter_test_simple(e, config->filter) == 0)) {
                     /* Find out what membership changes are needed and make them. */
-                    automember_update_membership(config, e);
+                    automember_update_membership(config, e, NULL);
                 }
 
                 list = PR_NEXT_LINK(list);
@@ -1905,6 +1942,671 @@ automember_del_post_op(Slapi_PBlock *pb)
                     "<-- automember_del_post_op\n");
 
     return 0;
+}
+
+typedef struct _task_data
+{
+    char *filter_str;
+    char *ldif_out;
+    char *ldif_in;
+    Slapi_DN *base_dn;
+    char *bind_dn;
+    int scope;
+} task_data;
+
+/*
+ * extract a single value from the entry (as a string) -- if it's not in the
+ * entry, the default will be returned (which can be NULL).
+ * you do not need to free anything returned by this.
+ */
+const char *
+fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
+{
+    Slapi_Value *val = NULL;
+    Slapi_Attr *attr;
+
+    if(slapi_entry_attr_find(e, attrname, &attr) != 0){
+        return default_val;
+    }
+    slapi_attr_first_value(attr, &val);
+
+    return slapi_value_get_string(val);
+}
+
+void
+automember_task_destructor(Slapi_Task *task)
+{
+    if (task) {
+        task_data *mydata = (task_data *)slapi_task_get_data(task);
+        if (mydata) {
+            slapi_ch_free_string(&mydata->bind_dn);
+            slapi_sdn_free(&mydata->base_dn);
+            slapi_ch_free_string(&mydata->filter_str);
+            slapi_ch_free((void **)&mydata);
+        }
+    }
+}
+
+void
+automember_task_export_destructor(Slapi_Task *task)
+{
+    if (task) {
+        task_data *mydata = (task_data *)slapi_task_get_data(task);
+        if (mydata) {
+            slapi_ch_free_string(&mydata->ldif_out);
+            slapi_ch_free_string(&mydata->bind_dn);
+            slapi_sdn_free(&mydata->base_dn);
+            slapi_ch_free_string(&mydata->filter_str);
+            slapi_ch_free((void **)&mydata);
+        }
+    }
+}
+
+void
+automember_task_map_destructor(Slapi_Task *task)
+{
+    if (task) {
+        task_data *mydata = (task_data *)slapi_task_get_data(task);
+        if (mydata) {
+            slapi_ch_free_string(&mydata->ldif_out);
+            slapi_ch_free_string(&mydata->ldif_in);
+            slapi_ch_free_string(&mydata->bind_dn);
+            slapi_ch_free((void **)&mydata);
+        }
+    }
+}
+
+/*
+ *  automember_task_add
+ *
+ *  This task is designed to "retro-fit" entries that existed prior to
+ *  enabling this plugin.  This can be an expensive task to run, but it's
+ *  better than processing every modify operation in an attempt to catch
+ *  entries that have not been processed.
+ *
+ *  task entry:
+ *
+ *    dn: cn=my rebuild task, cn=automember rebuild membership,cn=tasks,cn=config
+ *    objectClass: top
+ *    objectClass: extensibleObject
+ *    cn: my rebuild task
+ *    basedn: dc=example,dc=com
+ *    filter: (uid=*)
+ *    scope: sub
+ *
+ *    basedn and filter are required. If scope is omitted, the default is sub
+ */
+static int
+automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                    int *returncode, char *returntext, void *arg)
+{
+    int rv = SLAPI_DSE_CALLBACK_OK;
+    task_data *mytaskdata = NULL;
+    Slapi_Task *task = NULL;
+    Slapi_DN *basedn = NULL;
+    PRThread *thread = NULL;
+    char *bind_dn = NULL;
+    const char *base_dn;
+    const char *filter;
+    const char *scope;
+
+    *returncode = LDAP_SUCCESS;
+
+    /*
+     *  Make sure the plugin is started
+     */
+    if(!g_plugin_started){
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    /*
+     *  Grab the task params
+     */
+    if((base_dn = fetch_attr(e, "basedn", 0)) == NULL){
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    } else {
+        /* convert the base_dn to a slapi dn */
+        basedn = slapi_sdn_new_dn_byval(base_dn);
+    }
+    if((filter = fetch_attr(e, "filter", 0)) == NULL){
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    scope = fetch_attr(e, "scope", "sub");
+    /*
+     *  setup our task data
+     */
+    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
+    if (mytaskdata == NULL){
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
+    mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
+    mytaskdata->base_dn = basedn;
+    mytaskdata->filter_str = slapi_ch_strdup(filter);
+    if(scope){
+        if(strcasecmp(scope,"sub")== 0){
+            mytaskdata->scope = 2;
+        } else if(strcasecmp(scope,"one")== 0){
+            mytaskdata->scope = 1;
+        } else if(strcasecmp(scope,"base")== 0){
+            mytaskdata->scope = 0;
+        } else {
+            /* Hmm, possible typo, use subtree */
+            mytaskdata->scope = 2;
+        }
+    } else {
+        /* subtree by default */
+        mytaskdata->scope = 2;
+    }
+    task = slapi_new_task(slapi_entry_get_ndn(e));
+    slapi_task_set_destructor_fn(task, automember_task_destructor);
+    slapi_task_set_data(task, mytaskdata);
+    /*
+     *  Start the task as a separate thread
+     */
+    thread = PR_CreateThread(PR_USER_THREAD, automember_rebuild_task_thread,
+             (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "unable to create task thread!\n");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        slapi_task_finish(task, *returncode);
+    } else {
+        rv = SLAPI_DSE_CALLBACK_OK;
+    }
+
+out:
+    return rv;
+}
+
+/*
+ *  automember_rebuild_task_thread()
+ *
+ *  Search using the basedn, filter, and scope provided from the task data.
+ *  Then loop of each entry, and apply the membership if applicable.
+ */
+void automember_rebuild_task_thread(void *arg){
+    Slapi_Task *task = (Slapi_Task *)arg;
+    struct configEntry *config = NULL;
+    Slapi_PBlock *search_pb = NULL;
+    Slapi_Entry **entries = NULL;
+    task_data *td = NULL;
+    PRCList *list = NULL;
+    int result = 0;
+    int i = 0;
+
+    /*
+     *  Fetch our task data from the task
+     */
+    td = (task_data *)slapi_task_get_data(task);
+    slapi_task_begin(task, 1);
+    slapi_task_log_notice(task, "Automember rebuild task starting (base dn: (%s) filter (%s)...\n",
+                          slapi_sdn_get_dn(td->base_dn),td->filter_str);
+    slapi_task_log_status(task, "Automember rebuild task starting (base dn: (%s) filter (%s)...\n",
+                          slapi_sdn_get_dn(td->base_dn),td->filter_str);
+    /*
+     *  Set the bind dn in the local thread data
+     */
+    slapi_td_set_dn(slapi_ch_strdup(td->bind_dn));
+    /*
+     *  Search the database
+     */
+    search_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb_ext(search_pb, td->base_dn, td->scope, td->filter_str, NULL,
+                                 0, NULL, NULL, automember_get_plugin_id(), 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+    if (LDAP_SUCCESS != result){
+        slapi_task_log_notice(task, "Automember rebuild membership task unable to search"
+                              " on base (%s) filter (%s) error (%d)\n", slapi_sdn_get_dn(td->base_dn),
+                              td->filter_str, result);
+        slapi_task_log_status(task, "Automember rebuild membership task unable to search"
+                              " on base (%s) filter (%s) error (%d)\n", slapi_sdn_get_dn(td->base_dn),
+                              td->filter_str, result);
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "Task: unable to search on base (%s) filter (%s) error (%d)\n",
+                        slapi_sdn_get_dn(td->base_dn), td->filter_str, result);
+        goto out;
+    }
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    /*
+     *  Grab the config read lock, and loop over the entries
+     */
+    automember_config_read_lock();
+    for (i = 0; entries && (entries[i] != NULL); i++){
+        /* make sure the plugin is still up, as this loop could run for awhile */
+        if (!g_plugin_started) {
+            automember_config_unlock();
+            result = -1;
+            goto out;
+        }
+        if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
+            list = PR_LIST_HEAD(g_automember_config);
+            while (list != g_automember_config) {
+                config = (struct configEntry *)list;
+                automember_update_membership(config, entries[i], NULL);
+                list = PR_NEXT_LINK(list);
+            }
+        }
+    }
+    automember_config_unlock();
+    slapi_free_search_results_internal(search_pb);
+
+out:
+    if(result){
+        /* error */
+        slapi_task_log_notice(task, "Automember rebuild task aborted.  Error (%d)", result);
+        slapi_task_log_status(task, "Automember rebuild task aborted.  Error (%d)", result);
+    } else {
+        slapi_task_log_notice(task, "Automember rebuild task finished. Processed (%d) entries.", i);
+        slapi_task_log_status(task, "Automember rebuild task finished. Processed (%d) entries.", i);
+    }
+    slapi_task_inc_progress(task);
+    slapi_task_finish(task, result);
+}
+
+/*
+ *  Export an ldif of the changes that would be made if we ran the automember rebuild membership task
+ *
+ *  task entry:
+ *
+ *    dn: cn=my export task, cn=automember export updates,cn=tasks,cn=config
+ *    objectClass: top
+ *    objectClass: extensibleObject
+ *    cn: my export task
+ *    basedn: dc=example,dc=com
+ *    filter: (uid=*)
+ *    scope: sub
+ *    ldif: /tmp/automem-updates.ldif
+ */
+static int
+automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                    int *returncode, char *returntext, void *arg)
+{
+    int rv = SLAPI_DSE_CALLBACK_OK;
+    task_data *mytaskdata = NULL;
+    Slapi_Task *task = NULL;
+    Slapi_DN *basedn = NULL;
+    PRThread *thread = NULL;
+    char *bind_dn = NULL;
+    const char *base_dn = NULL;
+    const char *filter = NULL;
+    const char *ldif = NULL;
+    const char *scope = NULL;
+
+    *returncode = LDAP_SUCCESS;
+
+    /*
+     *  Make sure the plugin is started
+     */
+    if(!g_plugin_started){
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
+    if((ldif = fetch_attr(e, "ldif", 0)) == NULL){
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    if((base_dn = fetch_attr(e, "basedn", 0)) == NULL){
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    } else {
+        /* convert the base dn to a slapi dn */
+        basedn = slapi_sdn_new_dn_byval(base_dn);
+    }
+    if((filter = fetch_attr(e, "filter", 0)) == NULL){
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    scope = fetch_attr(e, "scope", "sub");
+
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
+
+    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
+    if (mytaskdata == NULL){
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
+    mytaskdata->ldif_out = slapi_ch_strdup(ldif);
+    mytaskdata->base_dn = basedn;
+    mytaskdata->filter_str = slapi_ch_strdup(filter);
+    if(scope){
+        if(strcasecmp(scope,"sub")== 0){
+            mytaskdata->scope = 2;
+        } else if(strcasecmp(scope,"one")== 0){
+            mytaskdata->scope = 1;
+        } else if(strcasecmp(scope,"base")== 0){
+            mytaskdata->scope = 0;
+        } else {
+            /* Hmm, possible typo, use subtree */
+            mytaskdata->scope = 2;
+        }
+    } else {
+        /* subtree by default */
+        mytaskdata->scope = 2;
+    }
+
+    task = slapi_new_task(slapi_entry_get_ndn(e));
+    slapi_task_set_destructor_fn(task, automember_task_export_destructor);
+    slapi_task_set_data(task, mytaskdata);
+    /*
+     *  Start the task as a separate thread
+     */
+    thread = PR_CreateThread(PR_USER_THREAD, automember_export_task_thread,
+             (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "unable to create export task thread!\n");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        slapi_task_finish(task, *returncode);
+    } else {
+        rv = SLAPI_DSE_CALLBACK_OK;
+    }
+
+out:
+    return rv;
+}
+
+void automember_export_task_thread(void *arg){
+    Slapi_Task *task = (Slapi_Task *)arg;
+    Slapi_PBlock *search_pb = NULL;
+    Slapi_Entry **entries = NULL;
+    int result = SLAPI_DSE_CALLBACK_OK;
+    struct configEntry *config = NULL;
+    PRCList *list = NULL;
+    task_data *td = NULL;
+    PRFileDesc *ldif_fd;
+    int i = 0;
+
+    td = (task_data *)slapi_task_get_data(task);
+    slapi_task_begin(task, 1);
+    slapi_task_log_notice(task, "Automember export task starting.  Exporting changes to (%s)", td->ldif_out);
+    slapi_task_log_status(task, "Automember export task starting.  Exporting changes to (%s)", td->ldif_out);
+
+    /* make sure we can open the ldif file */
+    if (( ldif_fd = PR_Open( td->ldif_out, PR_CREATE_FILE | PR_WRONLY, DEFAULT_FILE_MODE )) == NULL ){
+        slapi_task_log_notice(task, "Automember export task could not open ldif file \"%s\" for writing %d\n",
+                              td->ldif_out, PR_GetError() );
+        slapi_task_log_status(task, "Automember export task could not open ldif file \"%s\" for writing %d\n",
+                              td->ldif_out, PR_GetError() );
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "Could not open ldif file \"%s\" for writing %d\n",
+                        td->ldif_out, PR_GetError() );
+        result = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
+    /*
+     *  Set the bind dn in the local thread data
+     */
+    slapi_td_set_dn(slapi_ch_strdup(td->bind_dn));
+    /*
+     *  Search the database
+     */
+    search_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb_ext(search_pb, td->base_dn, td->scope, td->filter_str, NULL,
+                                 0, NULL, NULL, automember_get_plugin_id(), 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+    if (LDAP_SUCCESS != result){
+        slapi_task_log_notice(task, "Automember task failed to search on base (%s) filter (%s) error (%d)\n",
+                              slapi_sdn_get_dn(td->base_dn), td->filter_str, result);
+        slapi_task_log_status(task, "Automember task failed to search on base (%s) filter (%s) error (%d)\n",
+                              slapi_sdn_get_dn(td->base_dn), td->filter_str, result);
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "Task: unable to search on base (%s) filter (%s) error (%d)\n",
+                        slapi_sdn_get_dn(td->base_dn), td->filter_str, result);
+        goto out;
+    }
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    /*
+     *  Grab the config read lock, and loop over the entries
+     */
+    automember_config_read_lock();
+    for (i = 0; entries && (entries[i] != NULL); i++){
+        /* make sure the plugin is still up, as this loop could run for awhile */
+        if (!g_plugin_started) {
+            automember_config_unlock();
+            result = -1;
+            goto out;
+        }
+        if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
+            list = PR_LIST_HEAD(g_automember_config);
+            while (list != g_automember_config) {
+                config = (struct configEntry *)list;
+                automember_update_membership(config, entries[i], ldif_fd);
+                list = PR_NEXT_LINK(list);
+            }
+        }
+    }
+    automember_config_unlock();
+    slapi_free_search_results_internal(search_pb);
+
+out:
+    if(ldif_fd){
+        PR_Close(ldif_fd);
+    }
+    if(result){
+        /* error */
+        slapi_task_log_notice(task, "Automember export task aborted.  Error (%d)", result);
+        slapi_task_log_status(task, "Automember export task aborted.  Error (%d)", result);
+    } else {
+        slapi_task_log_notice(task, "Automember export task finished. Processed (%d) entries.", i);
+        slapi_task_log_status(task, "Automember export task finished. Processed (%d) entries.", i);
+    }
+    slapi_task_inc_progress(task);
+    slapi_task_finish(task, result);
+}
+
+/*
+ *  Export an ldif of the changes that would be made from the entries
+ *  in the provided ldif file
+ *
+ *  task entry:
+ *
+ *    dn: cn=my map task, cn=automember map updates,cn=tasks,cn=config
+ *    objectClass: top
+ *    objectClass: extensibleObject
+ *    cn: my export task
+ *    ldif_in: /tmp/entries.ldif
+ *    ldif_out: /tmp/automem-updates.ldif
+ */
+static int
+automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                    int *returncode, char *returntext, void *arg)
+{
+    int rv = SLAPI_DSE_CALLBACK_OK;
+    task_data *mytaskdata = NULL;
+    Slapi_Task *task = NULL;
+    PRThread *thread = NULL;
+    char *bind_dn;
+    const char *ldif_out;
+    const char *ldif_in;
+
+    *returncode = LDAP_SUCCESS;
+    /*
+     *  Make sure the plugin is started
+     */
+    if(!g_plugin_started){
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    /*
+     *  Get the params
+     */
+    if((ldif_in = fetch_attr(e, "ldif_in", 0)) == NULL){
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    if((ldif_out = fetch_attr(e, "ldif_out", 0)) == NULL){
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    /*
+     *  Setup the task data
+     */
+    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
+    if (mytaskdata == NULL){
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
+    mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
+    mytaskdata->ldif_out = slapi_ch_strdup(ldif_out);
+    mytaskdata->ldif_in = slapi_ch_strdup(ldif_in);
+
+    task = slapi_new_task(slapi_entry_get_ndn(e));
+    slapi_task_set_destructor_fn(task, automember_task_map_destructor);
+    slapi_task_set_data(task, mytaskdata);
+    /*
+     *  Start the task as a separate thread
+     */
+    thread = PR_CreateThread(PR_USER_THREAD, automember_map_task_thread,
+                 (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "unable to create map task thread!\n");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        slapi_task_finish(task, *returncode);
+    } else {
+        rv = SLAPI_DSE_CALLBACK_OK;
+    }
+
+out:
+
+    return rv;
+}
+
+/*
+ *  Read in the text entries from ldif_in, and convert them to slapi_entries.
+ *  Then, write to ldif_out what the updates would be if these entries were added
+ */
+void automember_map_task_thread(void *arg){
+    Slapi_Task *task = (Slapi_Task *)arg;
+    Slapi_Entry *e = NULL;
+    int result = SLAPI_DSE_CALLBACK_OK;
+    struct configEntry *config = NULL;
+    PRCList *list = NULL;
+    task_data *td = NULL;
+    PRFileDesc *ldif_fd_out = NULL;
+    char *entrystr = NULL;
+#if defined(USE_OPENLDAP)
+    int buflen = 0;
+    LDIFFP *ldif_fd_in = NULL;
+#else
+    PRFileDesc *ldif_fd_in = NULL;
+#endif
+    int lineno = 0;
+    int rc = 0;
+
+    td = (task_data *)slapi_task_get_data(task);
+    slapi_task_begin(task, 1);
+    slapi_task_log_notice(task, "Automember map task starting...  Reading entries from (%s)"
+                                " and writing the updates to (%s)",td->ldif_in, td->ldif_out);
+    slapi_task_log_status(task, "Automember map task starting...  Reading entries from (%s)"
+                                " and writing the updates to (%s)",td->ldif_in, td->ldif_out);
+
+    /* make sure we can open the ldif files */
+    if(( ldif_fd_out = PR_Open( td->ldif_out, PR_CREATE_FILE | PR_WRONLY, DEFAULT_FILE_MODE  )) == NULL ){
+        slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
+                              td->ldif_out, rc);
+        slapi_task_log_status(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
+    	                      td->ldif_out, rc);
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "Could not open ldif file \"%s\" for writing %d\n",
+                        td->ldif_out, PR_GetError() );
+        result = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+
+#if defined(USE_OPENLDAP)
+    if(( ldif_fd_in = ldif_open(td->ldif_in, "r")) == NULL ){
+#else
+    if(( ldif_fd_in = PR_Open( td->ldif_in, PR_RDONLY, DEFAULT_FILE_MODE  )) == NULL ){
+#endif
+        slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
+                              td->ldif_in, rc);
+        slapi_task_log_status(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
+                              td->ldif_in, rc);
+        slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "Could not open ldif file \"%s\" for reading %d\n",
+                        td->ldif_out, PR_GetError() );
+        result = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    /*
+     *  Convert each LDIF entry to a slapi_entry
+     */
+    automember_config_read_lock();
+#if defined(USE_OPENLDAP)
+    while (ldif_read_record(ldif_fd_in, &lineno, &entrystr, &buflen)){
+    	buflen = 0;
+#else
+    while ((entrystr = ldif_get_entry(ldif_fd_in, &lineno)) != NULL){
+#endif
+        e = slapi_str2entry( entrystr, 0 );
+        if ( e != NULL ){
+            if (!g_plugin_started) {
+        	    automember_config_unlock();
+        	    result = -1;
+        	    goto out;
+            }
+            if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
+                list = PR_LIST_HEAD(g_automember_config);
+                while (list != g_automember_config) {
+                    config = (struct configEntry *)list;
+                    automember_update_membership(config, e, ldif_fd_out);
+                    list = PR_NEXT_LINK(list);
+                }
+            }
+            slapi_entry_free(e);
+        } else {
+            /* invalid entry */
+            slapi_task_log_notice(task, "Automember map task, skipping invalid entry.");
+            slapi_task_log_status(task, "Automember map task, skipping invalid entry.");
+        }
+        slapi_ch_free((void **)&entrystr);
+    }
+    automember_config_unlock();
+
+out:
+    if(ldif_fd_out){
+        PR_Close(ldif_fd_out);
+    }
+    if(ldif_fd_in){
+#if defined(USE_OPENLDAP)
+        ldif_close(ldif_fd_in);
+#else
+        PR_Close(ldif_fd_in);
+#endif
+    }
+    slapi_task_inc_progress(task);
+    slapi_task_finish(task, result);
 }
 
 /*
