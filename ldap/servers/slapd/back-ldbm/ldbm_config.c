@@ -469,7 +469,7 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
     return retval;
 }
 
-static void *ldbm_config_db_logdirectory_get(void *arg) 
+void *ldbm_config_db_logdirectory_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
 
@@ -483,7 +483,17 @@ static void *ldbm_config_db_logdirectory_get(void *arg)
         return (void *) slapi_ch_strdup(li->li_dblayer_private->dblayer_log_directory);
     else
         return (void *) slapi_ch_strdup(li->li_new_directory);
+}
 
+/* Does not return a copy of the string - used by disk space monitoring feature */
+void *ldbm_config_db_logdirectory_get_ext(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    if (strlen(li->li_dblayer_private->dblayer_log_directory) > 0)
+        return (void *)li->li_dblayer_private->dblayer_log_directory;
+    else
+        return (void *)li->li_new_directory;
 }
 
 static int ldbm_config_db_logdirectory_set(void *arg, void *value, char *errorbuf, int phase, int apply) 

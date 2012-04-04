@@ -380,6 +380,11 @@ int config_set_entryusn_global( const char *attrname, char *value, char *errorbu
 int config_set_allowed_to_delete_attrs( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_entryusn_import_init( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_default_naming_context( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_disk_monitoring( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_disk_preserve_logging( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_disk_logging_critical( const char *attrname, char *value, char *errorbuf, int apply );
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -526,8 +531,15 @@ int config_get_entryusn_global(void);
 char *config_get_allowed_to_delete_attrs(void);
 char *config_get_entryusn_import_init(void);
 char *config_get_default_naming_context(void);
-
 int config_allowed_to_delete_attrs(const char *attr_type);
+void config_set_accesslog_enabled(int value);
+void config_set_auditlog_enabled(int value);
+int config_get_accesslog_logging_enabled();
+int config_get_disk_monitoring();
+long config_get_disk_threshold();
+int config_get_disk_grace_period();
+int config_get_disk_preserve_logging();
+int config_get_disk_logging_critical();
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
@@ -737,7 +749,7 @@ int check_log_max_size(
  
 
 void g_set_accesslog_level(int val);
-
+void log__delete_rotated_logs();
 
 /*
  * util.c

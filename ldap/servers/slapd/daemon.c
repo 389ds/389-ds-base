@@ -59,6 +59,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <mntent.h>
 #endif
 #include <time.h>
 #include <signal.h>
@@ -81,15 +82,17 @@
 /* for some reason, linux tty stuff defines CTIME */
 #ifdef LINUX
 #undef CTIME
+#include <sys/statfs.h>
+#else
+#include <sys/statvfs.h>
+#include <sys/mnttab.h>
 #endif
 #include "slap.h"
 #include "slapi-plugin.h"
-
 #include "snmp_collator.h"
 #include <private/pprio.h>
-
 #include <ssl.h>
-
+#include <stdio.h>
 #include "fe.h"
 
 #if defined(ENABLE_LDAPI)
@@ -126,9 +129,12 @@ PRFileDesc*		signalpipe[2];
 static int writesignalpipe = SLAPD_INVALID_SOCKET;
 static int readsignalpipe = SLAPD_INVALID_SOCKET;
 
+static PRThread *disk_thread_p = NULL;
+static PRCondVar *diskmon_cvar = NULL;
+static PRLock *diskmon_mutex = NULL;
+void disk_monitoring_stop();
+
 #define FDS_SIGNAL_PIPE 0
-
-
 
 static int get_configured_connection_table_size();
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
@@ -154,7 +160,6 @@ HANDLE  hServDoneEvent = NULL;
 #endif
 
 static int createsignalpipe( void );
-
 
 #if defined( _WIN32 )
 /* Set an event to hook the NT Service termination */
@@ -470,6 +475,444 @@ time_thread(void *nothing)
     return(NULL);
 }
 
+/*
+ *  Return a copy of the mount point for the specified directory
+ */
+#ifdef SOLARIS
+char *
+disk_mon_get_mount_point(char *dir)
+{
+    struct mnttab *mnt;
+    struct stat s;
+    dev_t dev_id;
+    FILE *fp;
+
+    fp = fopen("/etc/mnttab", "r");
+
+    if (fp == NULL || stat(dir, &s) != 0) {
+        return NULL;
+    }
+
+    dev_id = s.st_dev;
+
+    while((mnt = getmntent(fp))){
+        if (stat(mnt->mnt_mountp, &s) != 0) {
+            continue;
+        }
+        if (s.st_dev == dev_id) {
+            return (slapi_ch_strdup(mnt->mnt_mountp));
+        }
+    }
+
+    return NULL;
+}
+#elif HPUX
+char *
+disk_mon_get_mount_point(char *dir)
+{
+    struct mntent *mnt;
+    struct stat s;
+    dev_t dev_id;
+    FILE *fp;
+
+    if ((fp = setmntent("/etc/mnttab", "r")) == NULL) {
+        return NULL;
+    }
+
+    if (stat(dir, &s) != 0) {
+        return NULL;
+    }
+
+    dev_id = s.st_dev;
+
+    while((mnt = getmntent(fp))){
+        if (stat(mnt->mnt_dir, &s) != 0) {
+            continue;
+        }
+        if (s.st_dev == dev_id) {
+            endmntent(fp);
+            return (slapi_ch_strdup(mnt->mnt_dir));
+        }
+    }
+    endmntent(fp);
+
+    return NULL;
+}
+#else /* Linux */
+char *
+disk_mon_get_mount_point(char *dir)
+{
+    struct mntent *mnt;
+    struct stat s;
+    dev_t dev_id;
+    FILE *fp;
+
+    if (stat(dir, &s) != 0) {
+        return NULL;
+    }
+
+    dev_id = s.st_dev;
+    if ((fp = setmntent("/proc/mounts", "r")) == NULL) {
+        return NULL;
+    }
+    while((mnt = getmntent(fp))){
+        if (stat(mnt->mnt_dir, &s) != 0) {
+            continue;
+        }
+        if (s.st_dev == dev_id) {
+            endmntent(fp);
+            return (slapi_ch_strdup(mnt->mnt_dir));
+        }
+    }
+    endmntent(fp);
+
+    return NULL;
+}
+#endif
+
+/*
+ *  Get the mount point of the directory, and add it to the
+ *  list.  Skip duplicate mount points.
+ */
+void
+disk_mon_add_dir(char ***list, char *directory)
+{
+    char *dir = disk_mon_get_mount_point(directory);
+
+    if(dir == NULL)
+        return;
+
+    if(!charray_inlist(*list,dir)){
+        slapi_ch_array_add(list, dir);
+    } else {
+        slapi_ch_free((void **)&dir);
+    }
+}
+
+/*
+ *  We gather all the log, txn log, config, and db directories
+ */
+void
+disk_mon_get_dirs(char ***list, int logs_critical){
+    slapdFrontendConfig_t *config = getFrontendConfig();
+    Slapi_Backend *be = NULL;
+    char *cookie = NULL;
+    char *dir = NULL;
+
+    if(logs_critical){
+        slapi_rwlock_rdlock(config->cfg_rwlock);
+        disk_mon_add_dir(list, config->accesslog);
+        disk_mon_add_dir(list, config->errorlog);
+        disk_mon_add_dir(list, config->auditlog);
+        slapi_rwlock_unlock(config->cfg_rwlock);
+    }
+
+    /* Add /var just to be safe */
+#ifdef LOCALSTATEDIR
+    disk_mon_add_dir(list, LOCALSTATEDIR);
+#else
+    disk_mon_add_dir(list, "/var");
+#endif
+
+    /* config and backend directories */
+    slapi_rwlock_rdlock(config->cfg_rwlock);
+    disk_mon_add_dir(list, config->configdir);
+    slapi_rwlock_unlock(config->cfg_rwlock);
+
+    be = slapi_get_first_backend (&cookie);
+    while (be) {
+        if(slapi_back_get_info(be, BACK_INFO_DIRECTORY, (void **)&dir) == LDAP_SUCCESS){  /* db directory */
+        	disk_mon_add_dir(list, dir);
+        }
+        if(slapi_back_get_info(be, BACK_INFO_LOG_DIRECTORY, (void **)&dir) == LDAP_SUCCESS){  /*  txn log dir */
+        	disk_mon_add_dir(list, dir);
+        }
+        be = (backend *)slapi_get_next_backend (cookie);
+    }
+}
+
+/*
+ *  This function checks the list of directories to see if any are below the
+ *  threshold.  We return the the directory/free disk space of the most critical
+ *  directory.
+ */
+char *
+disk_mon_check_diskspace(char **dirs, PRInt64 threshold, PRInt64 *disk_space)
+{
+#ifdef LINUX
+    struct statfs buf;
+#else
+    struct statvfs buf;
+#endif
+    PRInt64 worst_disk_space = threshold;
+    PRInt64 freeBytes = 0;
+    PRInt64 blockSize = 0;
+    char *worst_dir = NULL;
+    int hit_threshold = 0;
+    int i = 0;
+
+    for(i = 0; dirs && dirs[i]; i++){
+#ifndef LINUX
+        if (statvfs(dirs[i], &buf) != -1)
+#else
+        if (statfs(dirs[i], &buf) != -1)
+#endif
+        {
+            LL_UI2L(freeBytes, buf.f_bavail);
+            LL_UI2L(blockSize, buf.f_bsize);
+            LL_MUL(freeBytes, freeBytes, blockSize);
+
+            if(LL_UCMP(freeBytes, <, threshold)){
+                hit_threshold = 1;
+                if(LL_UCMP(freeBytes, <, worst_disk_space)){
+                    worst_disk_space = freeBytes;
+                    worst_dir = dirs[i];
+                }
+            }
+        }
+    }
+
+    if(hit_threshold){
+        *disk_space = worst_disk_space;
+        return worst_dir;
+    } else {
+        *disk_space = 0;
+        return NULL;
+    }
+}
+
+#define LOGGING_OFF 0
+#define LOGGING_ON 1
+/*
+ *  Disk Space Monitoring Thread
+ *
+ *  We need to monitor the free disk space of critical disks.
+ *
+ *  If we get below the free disk space threshold, start taking measures
+ *  to avoid additional disk space consumption by stopping verbose logging,
+ *  access/audit logging, and deleting rotated logs.
+ *
+ *  If this is not enough, then we need to shut slapd down to avoid
+ *  possibly corrupting the db.
+ *
+ *  Future - it would be nice to be able to email an alert.
+ */
+void
+disk_monitoring_thread(void *nothing)
+{
+    char errorbuf[BUFSIZ];
+    char **dirs = NULL;
+    char *dirstr = NULL;
+    PRInt64 previous_mark = 0;
+    PRInt64 disk_space = 0;
+    PRInt64 threshold = 0;
+    time_t start = 0;
+    time_t now = 0;
+    int deleted_rotated_logs = 0;
+    int logging_critical = 0;
+    int preserve_logging = 0;
+    int passed_threshold = 0;
+    int verbose_logging = 0;
+    int using_accesslog = 0;
+    int using_auditlog = 0;
+    int logs_disabled = 0;
+    int grace_period = 0;
+    int first_pass = 1;
+    int halfway = 0;
+    int ok_now = 0;
+
+    while(!g_get_shutdown()) {
+        if(!first_pass){
+            PR_Lock(diskmon_mutex);
+            PR_WaitCondVar(diskmon_cvar, PR_SecondsToInterval(10));
+            PR_Unlock(diskmon_mutex);
+            /*
+             *  We need to subtract from disk_space to account for the
+             *  logging we just did, it doesn't hurt if we subtract a
+             *  little more than necessary.
+             */
+            previous_mark = disk_space - 512;
+            ok_now = 0;
+        } else {
+            first_pass = 0;
+        }
+        /*
+         *  Get the config settings, as they could have changed
+         */
+        logging_critical = config_get_disk_logging_critical();
+        preserve_logging = config_get_disk_preserve_logging();
+        grace_period = 60 * config_get_disk_grace_period(); /* convert it to seconds */
+        verbose_logging = config_get_errorlog_level();
+        threshold = config_get_disk_threshold();
+        halfway = threshold / 2;
+
+        if(config_get_auditlog_logging_enabled()){
+            using_auditlog = 1;
+        }
+        if(config_get_accesslog_logging_enabled()){
+            using_accesslog = 1;
+        }
+        /*
+         *  Check the disk space.  Always refresh the list, as backends can be added
+         */
+        slapi_ch_array_free(dirs);
+        dirs = NULL;
+        disk_mon_get_dirs(&dirs, logging_critical);
+        dirstr = disk_mon_check_diskspace(dirs, threshold, &disk_space);
+        if(dirstr == NULL){
+            /*
+             *  Good, none of our disks are within the threshold,
+             *  reset the logging if we turned it off
+             */
+            if(passed_threshold){
+            	if(logs_disabled){
+            		LDAPDebug(LDAP_DEBUG_ANY, "Disk space is now within acceptable levels.  "
+                        "Restoring the log settings.\n",0,0,0);
+                    if(using_accesslog){
+                        config_set_accesslog_enabled(LOGGING_ON);
+                    }
+                    if(using_auditlog){
+                        config_set_auditlog_enabled(LOGGING_ON);
+                    }
+                } else {
+                	LDAPDebug(LDAP_DEBUG_ANY, "Disk space is now within acceptable levels.\n",0,0,0);
+                }
+            	deleted_rotated_logs = 0;
+            	passed_threshold = 0;
+            	previous_mark = 0;
+            	logs_disabled = 0;
+            }
+            continue;
+        } else {
+            passed_threshold = 1;
+        }
+        /*
+         *  Check if we are already critical
+         */
+        if(disk_space < 4096){ /* 4 k */
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %d Kb.  "
+                "Signaling slapd for shutdown...\n", dirstr , (disk_space / 1024), 0);
+            g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+            return;
+        }
+        /*
+         *  If we are low, see if we are using verbose error logging, and turn it off
+         */
+        if(verbose_logging){
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is low on disk (%s), remaining space: %d Kb, "
+                "setting error loglevel to zero.\n", dirstr, (disk_space / 1024), 0);
+            config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE, 0, errorbuf, CONFIG_APPLY);
+            continue;
+        }
+        /*
+         *  If we are low, there's no verbose logging, logs are not critical, then disable the
+         *  access/audit logs, log another error, and continue.
+         */
+        if(!logs_disabled && (!preserve_logging || !logging_critical)){
+            if(disk_space < previous_mark){
+                LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
+                    "disabling access and audit logging.\n", dirstr, (disk_space / 1024), 0);
+                config_set_accesslog_enabled(LOGGING_OFF);
+                config_set_auditlog_enabled(LOGGING_OFF);
+                logs_disabled = 1;
+            }
+            continue;
+        }
+        /*
+         *  If we are low, we turned off verbose logging, logs are not critical, and we disabled
+         *  access/audit logging, then delete the rotated logs, log another error, and continue.
+         */
+        if(!deleted_rotated_logs && (!preserve_logging || !logging_critical)){
+            if(disk_space < previous_mark){
+                LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
+                    "deleting rotated logs.\n", dirstr, (disk_space / 1024), 0);
+                log__delete_rotated_logs();
+                deleted_rotated_logs = 1;
+            }
+            continue;
+        }
+        /*
+         *  Ok, we've done what we can, log a message if we continue to lose available disk space
+         */
+        if(disk_space < previous_mark){
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb\n",
+                dirstr, (disk_space / 1024), 0);
+        }
+        /*
+         *
+         *  If we are below the halfway mark, and we did everything else,
+         *  go into shutdown mode. If the disk space doesn't get critical,
+         *  wait for the grace period before shutting down.  This gives an
+         *  admin the chance to clean things up.
+         *
+         */
+        if(disk_space < halfway){
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space on (%s) is too far below the threshold(%d bytes).  "
+                "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
+                dirstr, threshold, (grace_period / 60));
+            time(&start);
+            now = start;
+            while( (now - start) < grace_period ){
+                if(g_get_shutdown()){
+                    return;
+                }
+                /*
+                 *  Sleep for a little bit, but we don't want to run out of disk space
+                 *  while sleeping for the entire grace period
+                 */
+                DS_Sleep(PR_SecondsToInterval(1));
+                /*
+                 *  Now check disk space again in hopes some space was freed up
+                 */
+                dirstr = disk_mon_check_diskspace(dirs, threshold, &disk_space);
+                if(!dirstr){
+                    /*
+                     *  Excellent, we are back to acceptable levels, reset everything...
+                     */
+                    LDAPDebug(LDAP_DEBUG_ANY, "Available disk space is now acceptable (%d bytes).  Aborting"
+                                              " shutdown, and restoring the log settings.\n",disk_space,0,0);
+                    if(!preserve_logging && using_accesslog){
+                        config_set_accesslog_enabled(LOGGING_ON);
+                    }
+                    if(!preserve_logging && using_auditlog){
+                        config_set_auditlog_enabled(LOGGING_ON);
+                    }
+                    deleted_rotated_logs = 0;
+                    passed_threshold = 0;
+                    logs_disabled = 0;
+                    previous_mark = 0;
+                    ok_now = 1;
+                    start = 0;
+                    now = 0;
+                    break;
+                } else if(disk_space < 4096){ /* 4 k */
+                    /*
+                     *  Disk space is critical, log an error, and shut it down now!
+                     */
+                    LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %d Kb."
+                        "  Signaling slapd for shutdown...\n", dirstr, (disk_space / 1024), 0);
+                    g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+                    return;
+                }
+                time(&now);
+            }
+
+            if(ok_now){
+                /*
+                 *  Disk space is acceptable, resume normal processing
+                 */
+                continue;
+            }
+            /*
+             *  If disk space was freed up we would of detected in the above while loop.  So shut it down.
+             */
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is still too low (%d Kb).  Signaling slapd for shutdown...\n",
+                (disk_space / 1024), 0, 0);
+            g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+            return;
+        }
+    }
+}
 
 void slapd_daemon( daemon_ports_t *ports )
 {
@@ -563,7 +1006,44 @@ void slapd_daemon( daemon_ports_t *ports )
 		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 	}
 
-	/* We are now ready to accept imcoming connections */
+    /*
+     *  If we are monitoring disk space, then create the mutex, the cvar,
+     *  and the monitoring thread.
+     */
+    if( config_get_disk_monitoring() ){
+        if ( ( diskmon_mutex = PR_NewLock() ) == NULL ) {
+            slapi_log_error(SLAPI_LOG_FATAL, NULL,
+                "Cannot create new lock for disk space monitoring. "
+                SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                PR_GetError(), slapd_pr_strerror( PR_GetError() ));
+            g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+        }
+        if ( diskmon_mutex ){
+            if(( diskmon_cvar = PR_NewCondVar( diskmon_mutex )) == NULL ) {
+                slapi_log_error(SLAPI_LOG_FATAL, NULL,
+                    "Cannot create new condition variable for disk space monitoring. "
+                    SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                    PR_GetError(), slapd_pr_strerror( PR_GetError() ));
+                g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+            }
+        }
+        if( diskmon_mutex && diskmon_cvar ){
+            disk_thread_p = PR_CreateThread(PR_SYSTEM_THREAD,
+                (VFP) (void *) disk_monitoring_thread, NULL,
+                PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                PR_JOINABLE_THREAD,
+                SLAPD_DEFAULT_THREAD_STACKSIZE);
+            if ( NULL == disk_thread_p ) {
+                PRErrorCode errorCode = PR_GetError();
+                LDAPDebug(LDAP_DEBUG_ANY, "Unable to create disk monitoring thread - Shutting Down ("
+                    SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
+                    errorCode, slapd_pr_strerror(errorCode), 0);
+                g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+            }
+        }
+    }
+
+	/* We are now ready to accept incoming connections */
 #if defined( XP_WIN32 )
 	if ( n_tcps != SLAPD_INVALID_SOCKET
 				&& listen( n_tcps, DAEMON_LISTEN_SIZE ) == -1 ) {
@@ -807,6 +1287,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	be_flushall();
 	op_thread_cleanup();
 	housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
+	disk_monitoring_stop(disk_thread_p);
 
 #ifndef _WIN32
 	threads = g_get_active_threadcnt();
@@ -3128,10 +3609,10 @@ void configure_ns_socket( int * ns )
 	        on = 0;
 		setsockopt( *ns, IPPROTO_TCP, TCP_NODELAY, (char * ) &on, sizeof(on) );
 	} /* else (!enable_nagle) */
-		 
-	
+
+
 	return;
-	       
+
 }
 
 
@@ -3158,3 +3639,13 @@ get_loopback_by_addr( void )
 	    AF_INET, &hp, hbuf, sizeof(hbuf), &herrno );
 }
 #endif /* RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS */
+
+void
+disk_monitoring_stop()
+{
+	if ( disk_thread_p ) {
+		PR_Lock( diskmon_mutex );
+		PR_NotifyCondVar( diskmon_cvar );
+		PR_Unlock( diskmon_mutex );
+	}
+}

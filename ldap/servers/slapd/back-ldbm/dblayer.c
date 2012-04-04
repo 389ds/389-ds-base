@@ -6613,6 +6613,24 @@ ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
         }
         break;
     }
+    case BACK_INFO_DIRECTORY:
+    {
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        if (li) {
+            *(char **)info = li->li_directory;
+            rc = 0;
+        }
+        break;
+    }
+    case BACK_INFO_LOG_DIRECTORY:
+    {
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        if (li) {
+            *(char **)info = ldbm_config_db_logdirectory_get_ext((void *)li);
+            rc = 0;
+        }
+        break;
+    }
     default:
         break;
     }

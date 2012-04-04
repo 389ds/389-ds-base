@@ -662,6 +662,26 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.default_naming_context,
 		CONFIG_STRING, (ConfigGetFunc)config_get_default_naming_context},
+	{CONFIG_DISK_MONITORING, config_set_disk_monitoring,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.disk_monitoring, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_disk_monitoring},
+	{CONFIG_DISK_THRESHOLD, config_set_disk_threshold,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.disk_threshold, CONFIG_INT,
+		(ConfigGetFunc)config_get_disk_threshold},
+	{CONFIG_DISK_GRACE_PERIOD, config_set_disk_grace_period,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.disk_grace_period,
+		CONFIG_INT, (ConfigGetFunc)config_get_disk_grace_period},
+	{CONFIG_DISK_PRESERVE_LOGGING, config_set_disk_logging_critical,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.disk_logging_critical,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical},
+	{CONFIG_DISK_PRESERVE_LOGGING, config_set_disk_preserve_logging,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.disk_preserve_logging,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_preserve_logging},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1050,6 +1070,12 @@ FrontendConfig_init () {
   cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
   cfg->default_naming_context = NULL; /* store normalized dn */
 
+  cfg->disk_monitoring = LDAP_OFF;
+  cfg->disk_threshold = 2097152;  /* 2 mb */
+  cfg->disk_grace_period = 60; /* 1 hour */
+  cfg->disk_preserve_logging = LDAP_OFF;
+  cfg->disk_logging_critical = LDAP_OFF;
+
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -1159,7 +1185,98 @@ config_value_is_null( const char *attrname, const char *value, char *errorbuf,
 	return 0;
 }
 
+int
+config_set_disk_monitoring( const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
 
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->disk_monitoring),
+                                errorbuf, apply);
+    return retVal;
+}
+
+int
+config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+    long threshold = 0;
+    char *endp = NULL;
+
+    if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    threshold = strtol(value, &endp, 10);
+
+    if ( *endp != '\0' || threshold < 2048 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, threshold must be greater than 2048 and less then %ld",
+            attrname, value, LONG_MAX );
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->disk_threshold = threshold;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+
+int
+config_set_disk_preserve_logging( const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->disk_preserve_logging),
+                                errorbuf, apply);
+    return retVal;
+}
+
+int
+config_set_disk_logging_critical( const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->disk_logging_critical),
+                                errorbuf, apply);
+    return retVal;
+}
+
+int
+config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+    int period = 0;
+    char *endp = NULL;
+
+    if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    period = strtol(value, &endp, 10);
+
+    if ( *endp != '\0' || period < 1 ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, grace period must be at least 1 minute",
+                      attrname, value);
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->disk_grace_period = period;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
 
 int 
 config_set_port( const char *attrname, char *port, char *errorbuf, int apply ) {
@@ -3552,6 +3669,66 @@ config_get_port(){
 
 }
 
+int
+config_get_disk_monitoring(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->disk_monitoring;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_get_disk_preserve_logging(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->disk_preserve_logging;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_get_disk_logging_critical(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->disk_logging_critical;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_get_disk_grace_period(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->disk_grace_period;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+long
+config_get_disk_threshold(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    long retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->disk_threshold;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
 char *
 config_get_ldapi_filename(){
   char *retVal;
@@ -4008,8 +4185,6 @@ config_get_pw_maxfailure() {
 
 }
 
-
-
 int
 config_get_pw_inhistory() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4021,9 +4196,6 @@ config_get_pw_inhistory() {
   
   return retVal; 
 }
-
-
-
 
 long
 config_get_pw_lockduration() {
@@ -4037,7 +4209,6 @@ config_get_pw_lockduration() {
   return retVal; 
 
 }
-
 
 long
 config_get_pw_resetfailurecount() {
@@ -4088,7 +4259,6 @@ config_get_pw_unlock() {
   return retVal; 
 }
 
-
 int
 config_get_pw_lockout(){
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4100,7 +4270,6 @@ config_get_pw_lockout(){
 
   return retVal;
 }
-
 
 int
 config_get_pw_gracelimit() {
@@ -4115,7 +4284,6 @@ config_get_pw_gracelimit() {
 
 }
 
-
 int
 config_get_lastmod(){
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4127,7 +4295,6 @@ config_get_lastmod(){
 
   return retVal; 
 }
-
 
 int
 config_get_enquote_sup_oc(){
@@ -4141,7 +4308,6 @@ config_get_enquote_sup_oc(){
   return retVal; 
 }
 
-
 int
 config_get_nagle() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4150,8 +4316,8 @@ config_get_nagle() {
   CFG_LOCK_READ(slapdFrontendConfig);
   retVal = slapdFrontendConfig->nagle;
   CFG_UNLOCK_READ(slapdFrontendConfig);
-return retVal; }
-
+  return retVal;
+}
 
 int
 config_get_accesscontrol() {
@@ -4197,7 +4363,7 @@ config_get_security() {
   CFG_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal;
- }
+}
 			 
 int
 slapi_config_get_readonly() {
@@ -4209,8 +4375,7 @@ slapi_config_get_readonly() {
   CFG_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal;
- }
-
+}
 
 int
 config_get_schemacheck() {
@@ -4222,7 +4387,7 @@ config_get_schemacheck() {
   CFG_UNLOCK_READ(slapdFrontendConfig);
   
   return retVal;
- }
+}
 
 int
 config_get_syntaxcheck() {
@@ -4270,7 +4435,7 @@ config_get_ds4_compatible_schema() {
   CFG_UNLOCK_READ(slapdFrontendConfig);
   
   return retVal;
- }
+}
 
 int
 config_get_schema_ignore_trailing_spaces() {
@@ -4282,7 +4447,7 @@ config_get_schema_ignore_trailing_spaces() {
   CFG_UNLOCK_READ(slapdFrontendConfig);
   
   return retVal;
- }
+}
 
 char *
 config_get_rootdn() {
@@ -4324,7 +4489,6 @@ config_get_rootpwstoragescheme() {
 
   return retVal; 
 }
-
 
 #ifndef _WIN32
 
@@ -4406,8 +4570,6 @@ config_get_reservedescriptors(){
   return retVal; 
 }
 
-
-
 int
 config_get_ioblocktimeout(){
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4418,8 +4580,7 @@ config_get_ioblocktimeout(){
   CFG_UNLOCK_READ(slapdFrontendConfig);	
 
   return retVal;
- }
-
+}
 
 int
 config_get_idletimeout(){
@@ -4574,7 +4735,6 @@ config_get_pw_minage(){
   return retVal; 
 }
 
-
 long
 config_get_pw_warning() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4587,7 +4747,6 @@ config_get_pw_warning() {
   return retVal;
 }
 
-
 int
 config_get_errorlog_level(){
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4599,7 +4758,6 @@ config_get_errorlog_level(){
   
   return retVal; 
 }
-
 
 /*  return integer -- don't worry about locking similar to config_check_referral_mode 
     below */
@@ -4627,6 +4785,16 @@ config_get_auditlog_logging_enabled(){
   return retVal;
 }
 
+int
+config_get_accesslog_logging_enabled(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = slapdFrontendConfig->accesslog_logging_enabled;
+
+    return retVal;
+}
+
 char *config_get_referral_mode(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4649,8 +4817,7 @@ config_get_conntablesize(void){
   CFG_UNLOCK_READ(slapdFrontendConfig);	
 
   return retVal;
- }
-
+}
 
 /* return yes/no without actually copying the referral url
    we don't worry about another thread changing this value
@@ -4660,7 +4827,6 @@ int config_check_referral_mode(void)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     return(slapdFrontendConfig->refer_mode & REFER_MODE_ON);
 }
-
 
 int
 config_get_outbound_ldap_io_timeout(void)
@@ -4674,7 +4840,6 @@ config_get_outbound_ldap_io_timeout(void)
 	return retVal; 
 }
 
-
 int
 config_get_unauth_binds_switch(void)
 {
@@ -4686,7 +4851,6 @@ config_get_unauth_binds_switch(void)
 
 	return retVal;
 }
-
 
 int
 config_get_require_secure_binds(void)
@@ -6281,3 +6445,32 @@ config_allowed_to_delete_attrs(const char *attr_type)
 	return rc;
 }
 
+void
+config_set_accesslog_enabled(int value){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char errorbuf[BUFSIZ];
+
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->accesslog_logging_enabled = value;
+    if(value){
+        log_set_logging(CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_ACCESS_LOG, errorbuf, CONFIG_APPLY);
+    } else {
+        log_set_logging(CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_ACCESS_LOG, errorbuf, CONFIG_APPLY);
+    }
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+}
+
+void
+config_set_auditlog_enabled(int value){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char errorbuf[BUFSIZ];
+
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->auditlog_logging_enabled = value;
+    if(value){
+        log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
+    } else {
+        log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
+    }
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+}

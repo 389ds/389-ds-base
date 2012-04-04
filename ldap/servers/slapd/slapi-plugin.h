@@ -6903,7 +6903,9 @@ enum
     BACK_INFO_DBENV_OPENFLAGS,     /* Get the dbenv openflags */
     BACK_INFO_CRYPT_INIT,          /* Ctrl: clcrypt_init */
     BACK_INFO_CRYPT_ENCRYPT_VALUE, /* Ctrl: clcrypt_encrypt_value */
-    BACK_INFO_CRYPT_DECRYPT_VALUE  /* Ctrl: clcrypt_decrypt_value */
+    BACK_INFO_CRYPT_DECRYPT_VALUE, /* Ctrl: clcrypt_decrypt_value */
+    BACK_INFO_DIRECTORY,           /* Get the directory path */
+    BACK_INFO_LOG_DIRECTORY        /* Get the txn log directory */
 };
 
 struct _back_info_crypt_init {

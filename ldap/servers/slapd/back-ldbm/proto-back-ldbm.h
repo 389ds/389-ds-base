@@ -615,6 +615,7 @@ int dbversion_exists(struct ldbminfo *li, const char *directory);
 int ldbm_config_load_dse_info(struct ldbminfo *li);
 void ldbm_config_setup_default(struct ldbminfo *li);
 void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value);
+void *ldbm_config_db_logdirectory_get_ext(void *arg);
 void ldbm_instance_config_internal_set(ldbm_instance *inst, char *attrname, char *value);
 void ldbm_instance_config_setup_default(ldbm_instance *inst);
 int ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
