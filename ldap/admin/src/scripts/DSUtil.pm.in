@@ -58,17 +58,20 @@ require Exporter;
 
 use strict;
 
-use Socket;
+my $sockVersion;
 BEGIN {
-    if (eval {require Socket::addrinfo; 1}) {
-        import Socket qw (:addrinfo inet_ntoa 
-                          unpack_sockaddr_in unpack_sockaddr_in6 
-                          AF_INET INADDR_ANY 
-                          PF_INET SO_REUSEADDR SOCK_STREAM SOL_SOCKET);
+    use Socket;
+    $sockVersion = Socket->VERSION;
+    if ($sockVersion >= 2.000) {
+        import Socket qw ( :addrinfo inet_ntoa 
+                       unpack_sockaddr_in unpack_sockaddr_in6 
+                       AF_INET INADDR_ANY 
+                       PF_INET SO_REUSEADDR SOCK_STREAM SOL_SOCKET );
     } elsif (eval {require Socket6; 1}) {
         import Socket6 qw (getaddrinfo getnameinfo unpack_sockaddr_in6);
     }
 }
+$sockVersion = Socket->VERSION;
 use NetAddr::IP::Util qw( ipv6_n2x );
 
 use File::Temp qw(tempfile tempdir);
@@ -221,7 +224,8 @@ sub checkHostname {
     # see if we can resolve the hostname (IPv6 supported)
     my $found = 0;
     my @hostip = ();
-    if (eval {require Socket::addrinfo; 1}) {
+    if ($sockVersion >= 2.000) {
+        debug(1, "Socket version $sockVersion\n");
         my %hints = (socktype => SOCK_STREAM);
         my ($err, @aires) = getaddrinfo($hn, "ldap", \%hints);
         if ($err) {
@@ -249,6 +253,7 @@ sub checkHostname {
             }
         }
     } elsif (eval {require Socket6; 1}) {
+        debug(1, "Socket6\n");
         my @aires = getaddrinfo($hn, "ldap", AF_UNSPEC, SOCK_STREAM);
         if (scalar(@aires) < 5) {
             return $res->getText('warning_no_such_hostname', $hn);
@@ -256,7 +261,11 @@ sub checkHostname {
         my $ailen = scalar(@aires);
         while ($ailen >= 5) {
             debug(1, "found for hostname $hn\n");
-            my ($family, $socktype, $proto, $saddr, $canonname, @aires) = @aires;
+            my $family = shift @aires;
+            my $socktype = shift @aires;
+            my $proto = shift @aires;
+            my $saddr = shift @aires;
+            my $canonname = shift @aires;
             $ailen = scalar(@aires);
             my $ip;
             if ($family == AF_INET) {
@@ -277,6 +286,7 @@ sub checkHostname {
             }
         }
     } else {
+        debug(1, "gethostbyname ...\n");
         # see if we can resolve the hostname
         my ($name, $aliases, $addrtype, $length, @addrs) = gethostbyname($hn);
         if (!$name) {
