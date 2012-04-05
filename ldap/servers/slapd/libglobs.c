@@ -674,7 +674,7 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_grace_period,
 		CONFIG_INT, (ConfigGetFunc)config_get_disk_grace_period},
-	{CONFIG_DISK_PRESERVE_LOGGING, config_set_disk_logging_critical,
+	{CONFIG_DISK_LOGGING_CRITICAL, config_set_disk_logging_critical,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_logging_critical,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical},
