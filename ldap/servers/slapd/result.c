@@ -377,7 +377,15 @@ send_ldap_result_ext(
 		dn = slapi_sdn_get_dn(sdn);
 		pwpolicy = new_passwdPolicy(pb, dn);
 		if (pwpolicy && (pwpolicy->pw_lockout == 1)) {
-			update_pw_retry ( pb );
+			if(update_pw_retry( pb ) == LDAP_CONSTRAINT_VIOLATION && !pwpolicy->pw_is_legacy){
+				/*
+				 * If we are not using the legacy pw policy behavior,
+				 * convert the error 49 to 19 (constraint violation)
+				 * and log a message
+				 */
+				err = LDAP_CONSTRAINT_VIOLATION;
+				text = "Invalid credentials, you now have exceeded the password retry limit.";
+			}
 		}
 	}
         

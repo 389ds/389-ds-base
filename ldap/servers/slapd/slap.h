@@ -1952,6 +1952,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE "passwordResetFailureCount"
 #define CONFIG_PW_ISGLOBAL_ATTRIBUTE "passwordIsGlobalPolicy"
 #define CONFIG_PW_GRACELIMIT_ATTRIBUTE "passwordGraceLimit"
+#define CONFIG_PW_IS_LEGACY "passwordLegacyPolicy"
 #define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
 #define CONFIG_CSNLOGGING_ATTRIBUTE "nsslapd-csnlogging"
 #define CONFIG_RETURN_EXACT_CASE_ATTRIBUTE "nsslapd-return-exact-case"
@@ -2039,6 +2040,7 @@ typedef struct passwordpolicyarray {
   long pw_lockduration;
   long pw_resetfailurecount;
   int pw_gracelimit;
+  int pw_is_legacy;
   struct pw_scheme *pw_storagescheme;
 } passwdPolicy;
 

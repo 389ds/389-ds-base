@@ -96,6 +96,6 @@ int check_pw_storagescheme_value( const char *attr_name, char *value, long minva
  * Public functions from pw_retry.c:
  */
 Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn );
-void set_retry_cnt_mods ( Slapi_PBlock *pb, Slapi_Mods *smods, int count);
+int set_retry_cnt_mods ( Slapi_PBlock *pb, Slapi_Mods *smods, int count);
 
 #endif /* _SLAPD_PW_H_ */

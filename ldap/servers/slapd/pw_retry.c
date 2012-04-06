@@ -50,8 +50,8 @@
 /* prototypes                                                               */
 /****************************************************************************/
 /* Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn ); */
-static void set_retry_cnt ( Slapi_PBlock *pb, int count);
-static void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time);
+static int set_retry_cnt ( Slapi_PBlock *pb, int count);
+static int set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time);
 
 /*
  * update_pw_retry() is called when bind operation fails 
@@ -72,6 +72,7 @@ int update_pw_retry ( Slapi_PBlock *pb )
 	char            *cur_time_str = NULL;
 	char *retryCountResetTime;
 	int passwordRetryCount;
+	int rc = 0;
 
     /* get the entry */
     e = get_entry ( pb, NULL );
@@ -93,18 +94,18 @@ int update_pw_retry ( Slapi_PBlock *pb )
         {
             /* set passwordRetryCount to 1 */
             /* reset retryCountResetTime */
-			set_retry_cnt_and_time ( pb, 1, cur_time );
+			rc = set_retry_cnt_and_time ( pb, 1, cur_time );
 			slapi_ch_free((void **) &cur_time_str );
 			slapi_entry_free( e );
-            return ( 0 ); /* success */
+            return ( rc ); /* success */
         } else {
 			slapi_ch_free((void **) &cur_time_str );
 		}
     } else {
 		/* initialize passwordRetryCount and retryCountResetTime */
-		set_retry_cnt_and_time ( pb, 1, cur_time );
+		rc = set_retry_cnt_and_time ( pb, 1, cur_time );
 		slapi_entry_free( e );
-        return ( 0 ); /* success */
+        return ( rc ); /* success */
 	}
 	passwordRetryCount = slapi_entry_attr_get_int(e, "passwordRetryCount"); 
     if (passwordRetryCount >= 0)
@@ -112,24 +113,25 @@ int update_pw_retry ( Slapi_PBlock *pb )
         retry_cnt = passwordRetryCount + 1;
    		if ( retry_cnt == 1 ) {
         	/* set retryCountResetTime */
-        	set_retry_cnt_and_time ( pb, retry_cnt, cur_time );
+        	rc = set_retry_cnt_and_time ( pb, retry_cnt, cur_time );
 		} else {
 			/* set passwordRetryCount to retry_cnt */
-			set_retry_cnt ( pb, retry_cnt );
+			rc = set_retry_cnt ( pb, retry_cnt );
 		}
     }	
 	slapi_entry_free( e );
-	return 0; /* success */
+	return rc; /* success */
 }
 
 static
-void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
+int set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 	const char  *dn = NULL;
 	Slapi_DN    *sdn = NULL;
 	Slapi_Mods	smods;
 	time_t      reset_time;
 	char		*timestr;
 	passwdPolicy *pwpolicy = NULL;
+	int rc = 0;
 
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	dn = slapi_sdn_get_dn(sdn);
@@ -144,14 +146,16 @@ void set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "retryCountResetTime", timestr);
 	slapi_ch_free((void **)&timestr);
 
-	set_retry_cnt_mods(pb, &smods, count);
+	rc = set_retry_cnt_mods(pb, &smods, count);
 	
 	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
 	delete_passwdPolicy(&pwpolicy);
+
+	return rc;
 }
 
-void set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
+int set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 {
 	char 		*timestr;
 	time_t		unlock_time;
@@ -159,6 +163,7 @@ void set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 	const char *dn = NULL; 
 	Slapi_DN *sdn = NULL; 
 	passwdPolicy *pwpolicy = NULL;
+	int rc = 0;
 
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	dn = slapi_sdn_get_dn(sdn);
@@ -182,23 +187,26 @@ void set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 			timestr= format_genTime ( unlock_time );
 			slapi_mods_add_string(smods, LDAP_MOD_REPLACE, "accountUnlockTime", timestr);
 			slapi_ch_free((void **)&timestr);
+			rc = LDAP_CONSTRAINT_VIOLATION;
 		}
 	}
 	delete_passwdPolicy(&pwpolicy);
-	return;
+	return rc;
 }
 
 static
-void set_retry_cnt ( Slapi_PBlock *pb, int count)
+int set_retry_cnt ( Slapi_PBlock *pb, int count)
 {
 	Slapi_DN *sdn = NULL; 
 	Slapi_Mods	smods;
+	int rc = 0;
 	
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_mods_init(&smods, 0);
-	set_retry_cnt_mods(pb, &smods, count);
+	rc = set_retry_cnt_mods(pb, &smods, count);
 	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
+	return rc;
 }
 
 
