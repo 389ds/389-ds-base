@@ -280,9 +280,15 @@ bail:
     if (cursor) {
         int myrc = cursor->c_close(cursor);
         if (0 != myrc) {
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+            int loglevel = (myrc == DB_LOCK_DEADLOCK) ? SLAPI_LOG_TRACE : SLAPI_LOG_FATAL;
+            slapi_log_error(loglevel, ENTRYRDN_TAG,
                   "entryrdn_index_entry: Failed to close cursor: %s(%d)\n",
-                  dblayer_strerror(rc), rc);
+                  dblayer_strerror(myrc), myrc);
+            if (!rc) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                rc = myrc;
+            }
         }
     }
     if (db) {
@@ -388,9 +394,15 @@ bail:
     if (cursor) {
         int myrc = cursor->c_close(cursor);
         if (0 != myrc) {
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                            "entryrdn_index_read: Failed to close cursor: "
-                            "%s(%d)\n", dblayer_strerror(rc), rc);
+            int loglevel = (myrc == DB_LOCK_DEADLOCK) ? SLAPI_LOG_TRACE : SLAPI_LOG_FATAL;
+            slapi_log_error(loglevel, ENTRYRDN_TAG,
+                  "entryrdn_index_read: Failed to close cursor: %s(%d)\n",
+                  dblayer_strerror(myrc), myrc);
+            if (!rc) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                rc = myrc;
+            }
         }
     }
     if (db) {
@@ -841,9 +853,15 @@ bail:
     if (cursor) {
         int myrc = cursor->c_close(cursor);
         if (0 != myrc) {
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+            int loglevel = (myrc == DB_LOCK_DEADLOCK) ? SLAPI_LOG_TRACE : SLAPI_LOG_FATAL;
+            slapi_log_error(loglevel, ENTRYRDN_TAG,
                   "entryrdn_rename_subtree: Failed to close cursor: %s(%d)\n",
-                  dblayer_strerror(rc), rc);
+                  dblayer_strerror(myrc), myrc);
+            if (!rc) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                rc = myrc;
+            }
         }
     }
     if (db) {
@@ -983,9 +1001,15 @@ bail:
     if (cursor) {
         int myrc = cursor->c_close(cursor);
         if (0 != myrc) {
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+            int loglevel = (myrc == DB_LOCK_DEADLOCK) ? SLAPI_LOG_TRACE : SLAPI_LOG_FATAL;
+            slapi_log_error(loglevel, ENTRYRDN_TAG,
                   "entryrdn_get_subordinates: Failed to close cursor: %s(%d)\n",
-                  dblayer_strerror(rc), rc);
+                  dblayer_strerror(myrc), myrc);
+            if (!rc) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                rc = myrc;
+            }
         }
     }
     if (db) {
@@ -1147,9 +1171,15 @@ bail:
     if (cursor) {
         int myrc = cursor->c_close(cursor);
         if (0 != myrc) {
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+            int loglevel = (myrc == DB_LOCK_DEADLOCK) ? SLAPI_LOG_TRACE : SLAPI_LOG_FATAL;
+            slapi_log_error(loglevel, ENTRYRDN_TAG,
                   "entryrdn_lookup_dn: Failed to close cursor: %s(%d)\n",
                   dblayer_strerror(myrc), myrc);
+            if (!rc) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                rc = myrc;
+            }
         }
     }
     /* it is guaranteed that db is not NULL. */
@@ -1294,9 +1324,15 @@ bail:
     if (cursor) {
         int myrc = cursor->c_close(cursor);
         if (0 != myrc) {
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+            int loglevel = (myrc == DB_LOCK_DEADLOCK) ? SLAPI_LOG_TRACE : SLAPI_LOG_FATAL;
+            slapi_log_error(loglevel, ENTRYRDN_TAG,
                   "entryrdn_get_parent: Failed to close cursor: %s(%d)\n",
-                  dblayer_strerror(rc), rc);
+                  dblayer_strerror(myrc), myrc);
+            if (!rc) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                rc = myrc;
+            }
         }
     }
     /* it is guaranteed that db is not NULL. */
