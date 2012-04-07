@@ -1496,14 +1496,23 @@ index_range_read_ext(
         if(retry_count == IDL_FETCH_RETRY_COUNT) {
           ldbm_nasty("index_range_read retry count exceeded",1095,*err);
         }
-        tmp2 = idl_union( be, idl, tmp );
-        idl_free( idl );
-        idl_free( tmp );
-        idl = tmp2;
-        if (ALLIDS(idl)) {
-            LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read hit an allids value\n",
-                      0, 0, 0);
-            break;
+        if (!idl) {
+            if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
+                char encbuf[BUFSIZ];
+                LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                               "index_range_read_ext: cur_key=%s(%li bytes) was deleted - skipping\n",
+                               encoded(&cur_key, encbuf), (long)cur_key.dsize);
+            }
+        } else {
+            tmp2 = idl_union( be, idl, tmp );
+            idl_free( idl );
+            idl_free( tmp );
+            idl = tmp2;
+            if (ALLIDS(idl)) {
+                LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read hit an allids value\n",
+                          0, 0, 0);
+                break;
+            }
         }
         if (DBT_EQ (&cur_key, &upperkey)) { /* this is the last key */
             break;
