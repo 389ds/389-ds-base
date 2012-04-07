@@ -692,6 +692,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					retval = index_addordel_values_sv(be, LDBM_PARENTID_STR, 
 					                                  svals, NULL, e->ep_id, 
 					                                  BE_INDEX_ADD, &txn);
+					if (DB_LOCK_DEADLOCK == retval) {
+						LDAPDebug0Args( LDAP_DEBUG_ARGS,
+										"delete (updating " LDBM_PARENTID_STR ") DB_LOCK_DEADLOCK\n");
+						/* Retry txn */
+						continue;
+					}
 					if ( retval ) {
 						LDAPDebug( LDAP_DEBUG_TRACE, 
 								"delete (deleting %s) failed, err=%d %s\n",
@@ -703,18 +709,33 @@ ldbm_back_delete( Slapi_PBlock *pb )
 						goto error_return;
 					}
 				}
-				entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
-				retval =
-				        entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
+				retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
 					LDAPDebug0Args( LDAP_DEBUG_ARGS,
-								"delete (adding entryrdn) DB_LOCK_DEADLOCK\n");
+								"delete (deleting entryrdn) DB_LOCK_DEADLOCK\n");
 					/* Retry txn */
 					continue;
 				}
 				if (0 != retval) {
 					LDAPDebug2Args( LDAP_DEBUG_TRACE, 
-								"delete (adding entryrdn) failed, err=%d %s\n",
+								"delete (deleting entryrdn) failed, err=%d %s\n",
+								retval,
+								(msg = dblayer_strerror( retval )) ? msg : "" );
+					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+					DEL_SET_ERROR(ldap_result_code, 
+								  LDAP_OPERATIONS_ERROR, retry_count);
+					goto error_return;
+				}
+				retval = entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
+				if (DB_LOCK_DEADLOCK == retval) {
+					LDAPDebug0Args( LDAP_DEBUG_ARGS,
+								"adding (adding tombstone entryrdn) DB_LOCK_DEADLOCK\n");
+					/* Retry txn */
+					continue;
+				}
+				if (0 != retval) {
+					LDAPDebug2Args( LDAP_DEBUG_TRACE, 
+								"adding (adding tombstone entryrdn) failed, err=%d %s\n",
 								retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
 					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;

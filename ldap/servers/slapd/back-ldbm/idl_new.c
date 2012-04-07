@@ -333,8 +333,14 @@ IDList * idl_new_fetch(
 error:
     /* Close the cursor */
     if (NULL != cursor) {
-        if (0 != cursor->c_close(cursor)) {
-            ldbm_nasty(filename,3,ret);
+        int ret2 = cursor->c_close(cursor);
+        if (ret2) {
+            ldbm_nasty(filename,3,ret2);
+            if (!ret) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                ret = ret2;
+            }
         }
     }
     *flag_err = ret;
@@ -418,8 +424,9 @@ int idl_new_insert_key(
 error:
     /* Close the cursor */
     if (NULL != cursor) {
-        if (0 != cursor->c_close(cursor)) {
-            ldbm_nasty(filename,56,ret);
+        int ret2 = cursor->c_close(cursor);
+        if (ret2) {
+            ldbm_nasty(filename,56,ret2);
         }
     }
 #else
@@ -439,7 +446,7 @@ error:
             /* this is okay */
             ret = 0;
         } else {
-            ldbm_nasty(filename,50,ret);
+            ldbm_nasty(filename,60,ret);
         }
     }
 #endif
@@ -491,8 +498,14 @@ int idl_new_delete_key(
 error:
     /* Close the cursor */
     if (NULL != cursor) {
-        if (0 != cursor->c_close(cursor)) {
-            ldbm_nasty(filename,24,ret);
+        int ret2 = cursor->c_close(cursor);
+        if (ret2) {
+            ldbm_nasty(filename,24,ret2);
+            if (!ret) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                ret = ret2;
+            }
         }
     }
     return ret;
@@ -559,14 +572,17 @@ static int idl_new_store_allids(backend *be, DB *db, DBT *key, DB_TXN *txn)
 error:
     /* Close the cursor */
     if (NULL != cursor) {
-        if (0 != cursor->c_close(cursor)) {
-            ldbm_nasty(filename,33,ret);
+        int ret2 = cursor->c_close(cursor);
+        if (ret2) {
+            ldbm_nasty(filename,33,ret2);
         }
     }
     return ret;
+#ifdef KRAZY_K0DE
 	/* If this function is called in "no-allids" mode, then it's a bug */
 	ldbm_nasty(filename,63,0);
 	return -1;
+#endif
 }
 #endif
 
@@ -662,8 +678,14 @@ int idl_new_store_block(
 error:
     /* Close the cursor */
     if (NULL != cursor) {
-        if (0 != cursor->c_close(cursor)) {
-            ldbm_nasty(filename,49,ret);
+        int ret2 = cursor->c_close(cursor);
+        if (ret2) {
+            ldbm_nasty(filename,49,ret2);
+            if (!ret) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                ret = ret2;
+            }
         }
     }
     return ret;
