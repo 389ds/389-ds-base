@@ -2043,7 +2043,6 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     int rv = SLAPI_DSE_CALLBACK_OK;
     task_data *mytaskdata = NULL;
     Slapi_Task *task = NULL;
-    Slapi_DN *basedn = NULL;
     PRThread *thread = NULL;
     char *bind_dn = NULL;
     const char *base_dn;
@@ -2067,9 +2066,6 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
-    } else {
-        /* convert the base_dn to a slapi dn */
-        basedn = slapi_sdn_new_dn_byval(base_dn);
     }
     if((filter = fetch_attr(e, "filter", 0)) == NULL){
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -2089,7 +2085,7 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
 
     slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
     mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
-    mytaskdata->base_dn = basedn;
+    mytaskdata->base_dn = slapi_sdn_new_dn_byval(base_dn);
     mytaskdata->filter_str = slapi_ch_strdup(filter);
     if(scope){
         if(strcasecmp(scope,"sub")== 0){
@@ -2236,7 +2232,6 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
     int rv = SLAPI_DSE_CALLBACK_OK;
     task_data *mytaskdata = NULL;
     Slapi_Task *task = NULL;
-    Slapi_DN *basedn = NULL;
     PRThread *thread = NULL;
     char *bind_dn = NULL;
     const char *base_dn = NULL;
@@ -2264,9 +2259,6 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
-    } else {
-        /* convert the base dn to a slapi dn */
-        basedn = slapi_sdn_new_dn_byval(base_dn);
     }
     if((filter = fetch_attr(e, "filter", 0)) == NULL){
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -2285,7 +2277,7 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
     }
     mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
     mytaskdata->ldif_out = slapi_ch_strdup(ldif);
-    mytaskdata->base_dn = basedn;
+    mytaskdata->base_dn = slapi_sdn_new_dn_byval(base_dn);
     mytaskdata->filter_str = slapi_ch_strdup(filter);
     if(scope){
         if(strcasecmp(scope,"sub")== 0){

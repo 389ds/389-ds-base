@@ -629,6 +629,7 @@ disk_mon_get_dirs(char ***list, int logs_critical){
         }
         be = (backend *)slapi_get_next_backend (cookie);
     }
+    slapi_ch_free((void **)&cookie);
 }
 
 /*
