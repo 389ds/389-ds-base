@@ -90,6 +90,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int delete_tombstone_entry = 0;	/* We must remove the given tombstone entry from the DB	*/
 	int create_tombstone_entry = 0;	/* We perform a "regular" LDAP delete but since we use	*/
 									/* replication, we must create a new tombstone entry	*/
+	int e_in_cache = 0;
 	int tombstone_in_cache = 0;
 	entry_address *addr;
 	int addordel_flags = 0; /* passed to index_addordel */
@@ -186,6 +187,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		/* retval is -1 */
 		goto error_return; /* error result sent by find_entry2modify() */
 	}
+	e_in_cache = 1;
 
 	if ( slapi_entry_has_children( e->ep_entry ) )
 	{
@@ -481,8 +483,18 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
-
-			backentry_free(&e);
+			if (e_in_cache) {
+				/* entry 'e' is in the entry cache.  Since we reset 'e' to
+				 * the original_entry, remove it from the cache.  */
+				CACHE_REMOVE(&inst->inst_cache, e);
+				cache_unlock_entry(&inst->inst_cache, e);
+				CACHE_RETURN(&inst->inst_cache, &e);
+				/* As we are about to delete it, 
+				 * we don't put the entry back to cache */
+				e_in_cache = 0; 
+			} else {
+				backentry_free(&e);
+			}
 			slapi_pblock_set( pb, SLAPI_DELETE_EXISTING_ENTRY, original_entry->ep_entry );
 			e = original_entry;
 			if ( (original_entry = backentry_dup( e )) == NULL ) {
@@ -490,10 +502,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				goto error_return;
 			}
 			/* We're re-trying */
-			LDAPDebug( LDAP_DEBUG_TRACE, "Delete Retrying Transaction\n", 0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
+			               "Delete Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
-            {
-	        PRIntervalTime interval;
+			{
+			PRIntervalTime interval;
 			interval = PR_MillisecondsToInterval(slapi_rand() % 100);
 			DS_Sleep(interval);
 			}
@@ -1006,9 +1019,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	}
 
 	/* delete from cache and clean up */
-	CACHE_REMOVE(&inst->inst_cache, e);
-	cache_unlock_entry( &inst->inst_cache, e );
-	CACHE_RETURN( &inst->inst_cache, &e );
+	if (e_in_cache) {
+		CACHE_REMOVE(&inst->inst_cache, e);
+		cache_unlock_entry(&inst->inst_cache, e);
+		CACHE_RETURN(&inst->inst_cache, &e);
+	}
 	if (tombstone_in_cache) {
 		if (CACHE_ADD( &inst->inst_cache, tombstone, NULL ) == 0) {
 			tombstone_in_cache = 1;
@@ -1127,7 +1142,7 @@ common_return:
 
 	/* Need to return to cache after post op plugins are called */
 	if (retval) { /* error case */
-		if (e) {
+		if (e && e_in_cache) {
 			cache_unlock_entry( &inst->inst_cache, e );
 			CACHE_RETURN( &inst->inst_cache, &e );
 		}

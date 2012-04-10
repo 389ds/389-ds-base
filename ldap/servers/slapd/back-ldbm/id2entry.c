@@ -48,9 +48,12 @@
 
 /* 
  * The caller MUST check for DB_LOCK_DEADLOCK and DB_RUNRECOVERY returned
+ * If cache_res is not NULL, it stores the result of CACHE_ADD of the
+ * entry cache.
  */
 int
-id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  )
+id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, 
+                 int encrypt, int *cache_res)
 {
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
     DB     *db = NULL;
@@ -138,8 +141,8 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
 
     dblayer_release_id2entry( be, db );
 
-    if (0 == rc)
-    {
+    if (0 == rc) {
+        int cache_rc = 0;
         /* Putting the entry into the entry cache.  
          * We don't use the encrypted entry here. */
         if (entryrdn_get_switch()) {
@@ -200,7 +203,10 @@ id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt  
          * should be in the cache.  Thus, this entry e won't be put into the
          * entry cache.  It'll be added by cache_replace.
          */
-        (void) CACHE_ADD( &inst->inst_cache, e, NULL );
+        cache_rc = CACHE_ADD(&inst->inst_cache, e, NULL);
+        if (cache_res) {
+            *cache_res = cache_rc;
+        }
     }
 
 done:
@@ -217,7 +223,7 @@ done:
 int
 id2entry_add( backend *be, struct backentry *e, back_txn *txn  )
 {
-    return id2entry_add_ext(be,e,txn,1);
+    return id2entry_add_ext(be, e, txn, 1, NULL);
 }
 
 /* 

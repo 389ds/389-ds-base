@@ -220,7 +220,7 @@ int has_children( struct ldbminfo *li, struct backentry *p, back_txn *txn, int *
  * id2entry.c
  */
 int id2entry_add( backend *be, struct backentry *e, back_txn *txn );
-int id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt );
+int id2entry_add_ext( backend *be, struct backentry *e, back_txn *txn, int encrypt, int *cache_res );
 int id2entry_delete( backend *be, struct backentry *e, back_txn *txn );
 struct backentry * id2entry( backend *be, ID id, back_txn *txn, int *err );
 

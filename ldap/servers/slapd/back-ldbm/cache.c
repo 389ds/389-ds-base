@@ -1050,7 +1050,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     }
 #endif
     /* adjust cache meta info */
-    newe->ep_refcnt = 1;
+    newe->ep_refcnt++;
     newe->ep_size = cache_entry_size(newe);
     if (newe->ep_size > olde->ep_size) {
         slapi_counter_add(cache->c_cursize, newe->ep_size - olde->ep_size);

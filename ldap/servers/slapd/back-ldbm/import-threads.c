@@ -2328,7 +2328,7 @@ import_foreman(void *param)
             /* id2entry_add_ext replaces an entry if it already exists. 
              * therefore, the Entry ID stays the same.
              */
-            ret = id2entry_add_ext(be, fi->entry, NULL, job->encrypt);
+            ret = id2entry_add_ext(be, fi->entry, NULL, job->encrypt, NULL);
             if (ret) {
                 /* DB_RUNRECOVERY usually occurs if disk fills */
                 if (LDBM_OS_ERR_IS_DISKFULL(ret)) {

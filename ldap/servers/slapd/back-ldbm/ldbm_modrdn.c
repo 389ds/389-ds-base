@@ -764,12 +764,28 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             slapi_sdn_free(&dn_newsuperiordn);
             slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, orig_dn_newsuperiordn);
             orig_dn_newsuperiordn = slapi_sdn_dup(orig_dn_newsuperiordn);
-
-            backentry_free(&ec);
+            if (ec_in_cache) {
+                /* New entry 'ec' is in the entry cache.
+                 * Remove it from teh cache once. */
+                CACHE_REMOVE(&inst->inst_cache, ec);
+                cache_unlock_entry(&inst->inst_cache, e);
+                CACHE_RETURN(&inst->inst_cache, ec);
+            } else {
+                backentry_free(&ec);
+            }
             slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, original_entry->ep_entry );
             ec = original_entry;
             if ( (original_entry = backentry_dup( ec )) == NULL ) {
                 ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
+            if (ec_in_cache && 
+                /* Put the resetted entry 'ec' into the cache again. */
+                (cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0)) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+                              "ldbm_back_modrdn: adding %s to cache failed\n",
+                              slapi_entry_get_dn_const(ec->ep_entry));
+                ldap_result_code = LDAP_OPERATIONS_ERROR;
                 goto error_return;
             }
 
@@ -801,7 +817,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 goto error_return;
             }
             /* We're re-trying */
-            LDAPDebug( LDAP_DEBUG_TRACE, "Modrdn Retrying Transaction\n", 0, 0, 0 );
+            LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
+                           "Modrdn Retrying Transaction\n");
         }
         retval = dblayer_txn_begin(li,parent_txn,&txn);
         if (0 != retval) {

@@ -151,7 +151,7 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 	 * Update the ID to Entry index. 
 	 * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
 	 */
-	retval = id2entry_add_ext( be, mc->new_entry, txn, mc->attr_encrypt );
+	retval = id2entry_add_ext( be, mc->new_entry, txn, mc->attr_encrypt, NULL );
 	if ( 0 != retval ) {
 		if (DB_LOCK_DEADLOCK != retval)
 		{
@@ -444,7 +444,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
-
+		int cache_rc = 0;
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
@@ -456,15 +456,31 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 			ldap_mods_free(mods, 1);
 			slapi_pblock_set(pb, SLAPI_MODIFY_MODS, copy_mods(mods_original));
-			backentry_free(&ec);
+			if (ec_in_cache) {
+				/* New entry 'ec' is in the entry cache.
+				 * Remove it from the cache once. */
+				CACHE_REMOVE(&inst->inst_cache, ec);
+				cache_unlock_entry(&inst->inst_cache, e);
+				CACHE_RETURN(&inst->inst_cache, ec);
+			} else {
+				backentry_free(&ec);
+			}
 			slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, original_entry->ep_entry );
 			ec = original_entry;
 			if ( (original_entry = backentry_dup( e )) == NULL ) {
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
-
-			LDAPDebug( LDAP_DEBUG_TRACE, "Modify Retrying Transaction\n", 0, 0, 0 );
+			/* Put new entry 'ec' into the entry cache. */
+			if (ec_in_cache && CACHE_ADD(&inst->inst_cache, ec, NULL) < 0) {
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+				              "ldbm_back_modify: adding %s to cache failed\n",
+				              slapi_entry_get_dn_const(ec->ep_entry));
+				ldap_result_code = LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
+			               "Modify Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
 			PRIntervalTime interval;
@@ -503,9 +519,10 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 		/*
 		 * Update the ID to Entry index. 
-		 * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
+		 * Note that id2entry_add replaces the entry, so the Entry ID 
+		 * stays the same.
 		 */
-		retval = id2entry_add( be, ec, &txn ); 
+		retval = id2entry_add_ext( be, ec, &txn, 1, &cache_rc ); 
 		if (DB_LOCK_DEADLOCK == retval)
 		{
 			/* Abort and re-try */
@@ -518,7 +535,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
 		}
-		ec_in_cache = 1;
+		/* 
+		 * id2entry_add tries to put ec into the entry cache,
+		 * but due to the conflict with original 'e',
+		 * the cache_add (called vai id2entry_add) could fail.
+		 */
+		if (0 == cache_rc) {
+			ec_in_cache = 1;
+		}
 		retval = index_add_mods( be, mods, e, ec, &txn );
 		if (DB_LOCK_DEADLOCK == retval)
 		{
@@ -596,6 +620,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 		goto error_return;
 	}
+	ec_in_cache = 1;
 
 	postentry = slapi_entry_dup( ec->ep_entry );
 	slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );

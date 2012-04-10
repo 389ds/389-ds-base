@@ -550,8 +550,7 @@ index_add_mods(
         /* Get a list of all values specified in the operation.
          */
         if ( mods[i]->mod_bvalues != NULL ) {
-            valuearray_init_bervalarray(mods[i]->mod_bvalues,
-                                        &mods_valueArray);
+            valuearray_init_bervalarray(mods[i]->mod_bvalues, &mods_valueArray);
         }
 
         switch ( mods[i]->mod_op & ~LDAP_MOD_BVALUES ) {
@@ -622,20 +621,24 @@ index_add_mods(
             } else {
                 /* Verify if the value is in newe.
                  * If it is in, we will add the attr value to the index file. */
-                slapi_entry_attr_find( newe->ep_entry, 
-                                       mods[i]->mod_type, &curr_attr );
+                curr_attr = NULL;
+                slapi_entry_attr_find(newe->ep_entry, 
+                                      mods[i]->mod_type, &curr_attr);
                 
-                for (j = 0; mods_valueArray[j] != NULL; j++) {
-                    /* mods_valueArray[j] is in curr_attr ==> return 0 */
-                    if (slapi_attr_value_find(curr_attr,
+                if (curr_attr) { /* found the type */
+                    for (j = 0; mods_valueArray[j] != NULL; j++) {
+                        /* mods_valueArray[j] is in curr_attr ==> return 0 */
+                        if (slapi_attr_value_find(curr_attr,
                                 slapi_value_get_berval(mods_valueArray[j]))) {
-                        /* The value is NOT in newe, remove it. */
-                        Slapi_Value *rval = valuearray_remove_value(curr_attr,
-                                                            mods_valueArray,
-                                                            mods_valueArray[j]);
-                        slapi_value_free( &rval );
-                        /* indicates there was some conflict */
-                        mods[i]->mod_op |= LDAP_MOD_IGNORE;
+                            /* The value is NOT in newe, remove it. */
+                            Slapi_Value *rval;
+                            rval = valuearray_remove_value(curr_attr,
+                                                           mods_valueArray,
+                                                           mods_valueArray[j]);
+                            slapi_value_free( &rval );
+                            /* indicates there was some conflict */
+                            mods[i]->mod_op |= LDAP_MOD_IGNORE;
+                        }
                     }
                 }
                 if (mods_valueArray) {
@@ -724,7 +727,9 @@ index_add_mods(
                      * BE_INDEX_EQUALITY flag so the equality index is
                      * removed.
                      */
-                    slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr );
+                    curr_attr = NULL;
+                    slapi_entry_attr_find(olde->ep_entry,
+                                          mods[i]->mod_type, &curr_attr);
                     if (curr_attr) {
                         int found = 0;
                         for (j = 0; mods_valueArray[j] != NULL; j++ ) {

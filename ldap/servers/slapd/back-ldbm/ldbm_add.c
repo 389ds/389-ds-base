@@ -695,16 +695,32 @@ ldbm_back_add( Slapi_PBlock *pb )
 			dblayer_txn_abort(li,&txn);
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
-			backentry_free(&addingentry);
+			if (addingentry_in_cache) {
+				/* addingentry is in cache.  Remove it once. */
+				CACHE_REMOVE(&inst->inst_cache, addingentry);
+				CACHE_RETURN(&inst->inst_cache, &addingentry);
+			} else {
+				backentry_free(&addingentry);
+			}
 			slapi_pblock_set( pb, SLAPI_ADD_ENTRY, originalentry->ep_entry );
 			addingentry = originalentry;
 			if ( (originalentry = backentry_dup( addingentry )) == NULL ) {
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
+			if (addingentry_in_cache) {
+				/* Adding the resetted addingentry to the cache. */
+				if (cache_add_tentative(&inst->inst_cache,
+				                        addingentry, NULL) != 0) {
+					LDAPDebug0Args(LDAP_DEBUG_CACHE,
+					              "cache_add_tentative concurrency detected\n");
+					ldap_result_code = LDAP_ALREADY_EXISTS;
+					goto error_return;
+				}
+			}
 
 			/* We're re-trying */
-			LDAPDebug( LDAP_DEBUG_TRACE, "Add Retrying Transaction\n", 0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, "Add Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
 				PRIntervalTime interval;
