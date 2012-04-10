@@ -45,6 +45,10 @@
 #
 use Time::Local;
 use IO::File;
+use Getopt::Long;
+
+Getopt::Long::Configure ("bundling");
+Getopt::Long::Configure ("permute");
 
 if ($#ARGV < 0){;
 &displayUsage;
@@ -59,7 +63,6 @@ if ($#ARGV < 0){;
 $x = "0";
 $fc = 0;
 $sn = 0;
-$manager = "cn=directory manager";
 $logversion = "6.1";
 $sizeCount = "20";
 $startFlag = 0;
@@ -69,59 +72,50 @@ $endTime = 0;
 $s_stats = new_stats_block( );
 $m_stats = new_stats_block( );
 
+GetOptions(
+	'd|rootDN=s' => \$manager,
+	'v|version' => sub { print "Access Log Analyzer v$logversion\n"; exit (0); },
+	'V|verbose' => sub { $verb = "yes"; },
+	'X|excludeIP=s' => \$exclude[$xi++],
+	's|sizeLimit=s' => \$sizeCount,
+	'S|startTime=s' => \$startTime,
+	'E|endTime=s' => \$endTime,
+	'm|reportFileSecs=s' => sub { my ($opt,$value) = @_; $s_stats = new_stats_block($value); },
+	'M|reportFileMins=s' =>  sub { my ($opt,$value) = @_; $m_stats = new_stats_block($value); },
+	'h|help' => sub { displayUsage() },
+	# usage options '-efcibaltnxgjuiryp'
+	'e' => sub { $usage = $usage . "e"; },
+	'f' => sub { $usage = $usage . "f"; },
+	'c' => sub { $usage = $usage . "c"; },
+	'i' => sub { $usage = $usage . "i"; },
+	'b' => sub { $usage = $usage . "b"; },
+	'a' => sub { $usage = $usage . "a"; },
+	'l' => sub { $usage = $usage . "l"; },
+	't' => sub { $usage = $usage . "t"; },
+	'n' => sub { $usage = $usage . "n"; },
+	'x' => sub { $usage = $usage . "x"; },
+	'g' => sub { $usage = $usage . "g"; },
+	'j' => sub { $usage = $usage . "j"; },
+	'u' => sub { $usage = $usage . "u"; },
+	'r' => sub { $usage = $usage . "r"; },
+	'y' => sub { $usage = $usage . "y"; },
+	'p' => sub { $usage = $usage . "p"; }
+);
 
-while ($sn <= $#ARGV)
-{
-  if ("$ARGV[$sn]" eq "-d")
-  {
-    $manager = $ARGV[++$sn];
-  }
-  elsif ("$ARGV[$sn]" eq "-v")
-  {
-    print "Access Log Analyzer v$logversion\n";;
-    exit (0);
-  }
-  elsif ("$ARGV[$sn]" eq "-V")
-  {
-    $verb = "yes";
-  }
-  elsif ("$ARGV[$sn]" eq "-X"){
-	$exclude[$x] = $ARGV[++$sn];
-	$x++;
-  }
-  elsif ("$ARGV[$sn]" eq "-s")
-  {
-	$sizeCount = $ARGV[++$sn];
-  }
-  elsif ("$ARGV[$sn]" eq "-S")
-  {
-	$startTime = $ARGV[++$sn];
-  }
-  elsif ("$ARGV[$sn]" eq "-E")
-  {
-	$endTime = $ARGV[++$sn];
-  }
-  elsif ("$ARGV[$sn]" eq "-m")
-  {
-	$s_stats = new_stats_block( $ARGV[++$sn] );
-  }
-  elsif ("$ARGV[$sn]" eq "-M")
-  {
-	$m_stats = new_stats_block( $ARGV[++$sn] );
-  }
-  elsif ("$ARGV[$sn]" eq "-h")
-  {
-    &displayUsage;
-  }
-  elsif ("$ARGV[$sn]" =~ m/^-/){
-	$usage = $ARGV[$sn];
-  }
-  else
-  {
-    $files[$fc] = $ARGV[$sn];
-    $fc++;
-  }
-  $sn++;
+#
+# set the default root DN
+#
+if($manager eq ""){
+	$manager = "cn=directory manager";
+}
+
+#
+#  get the logs
+#
+while($sn <= $#ARGV){
+	$files[$fc] = $ARGV[$sn];
+	$fc++;
+	$sn++;
 }
 
 if ($sizeCount eq "all"){$sizeCount = "100000";}
@@ -208,7 +202,7 @@ $maxsimConnection = 0;
 $firstFile = "1";
 $elapsedDays = "0";
 $logCount = "0";
-$limit = "10000"; # number of lines processed to trigger output
+$limit = "25000"; # number of lines processed to trigger output
 
 $err[0] = "Successful Operations\n";
 $err[1] = "Operations Error(s)\n";
@@ -1187,25 +1181,25 @@ sub displayUsage {
 
 	print "Usage:\n\n";
 
-	print " ./logconv.pl [-h] [-d <rootDN>] [-s <size limit>] [-v] [-V]\n";
-	print " [-S <start time>] [-E <end time>]\n"; 
-	print " [-efcibaltnxgju] [ access log ... ... ]\n\n"; 
+	print " ./logconv.pl [-h] [-d|--rootdn <rootDN>] [-s|--sizeLimit <size limit>] [-v|verison] [-Vi|verbose]\n";
+	print " [-S|--startTime <start time>] [-E|--endTime <end time>] \n"; 
+	print " [-efcibaltnxrgjuyp] [ access log ... ... ]\n\n"; 
 
 	print "- Commandline Switches:\n\n";
 
-	print "         -h help/usage\n";
-	print "         -d <Directory Managers DN>  DEFAULT -> cn=directory manager\n";
-	print "         -s <Number of results to return per catagory>  DEFAULT -> 20\n";
-	print "         -X <IP address to exclude from connection stats>  E.g. Load balancers\n";
-	print "         -v show version of tool\n"; 
-	print "         -S <time to begin analyzing logfile from>\n";
-	print "             E.g. [28/Mar/2002:13:14:22 -0800]\n";
-	print "         -E <time to stop analyzing logfile>\n";
-	print "             E.g. [28/Mar/2002:13:24:62 -0800]\n";
-	print "         -m <CSV output file - per second stats>\n"; 
-	print "         -M <CSV output file - per minute stats>\n";	
-	print "         -V <enable verbose output - includes all stats listed below>\n";
-	print "         -[efcibaltnxgju]\n\n";
+	print "         -h, --help         help/usage\n";
+	print "         -d, --rootDN        <Directory Managers DN>  DEFAULT -> cn=directory manager\n";
+	print "         -s, --sizeLimit    <Number of results to return per catagory>  DEFAULT -> 20\n";
+	print "         -X, --excludeIP    <IP address to exclude from connection stats>  E.g. Load balancers\n";
+	print "         -v, --version      show version of tool\n"; 
+	print "         -S, --startTime    <time to begin analyzing logfile from>\n";
+	print "             E.g. \"[28/Mar/2002:13:14:22 -0800]\"\n";
+	print "         -E, --endTime      <time to stop analyzing logfile>\n";
+	print "             E.g. \"[28/Mar/2002:13:24:62 -0800]\"\n";
+	print "         -m, --reportFileSecs  <CSV output file - per second stats>\n"; 
+	print "         -M, --reportFileMins  <CSV output file - per minute stats>\n";	
+	print "         -V, --verbose         <enable verbose output - includes all stats listed below>\n";
+	print "         -[efcibaltnxrgjuyp]\n\n";
 
 	print "                 e       Error Code stats\n";
 	print "                 f       Failed Login Stats\n";
@@ -1228,11 +1222,11 @@ sub displayUsage {
 
 	print "         ./logconv.pl -s 10 -V /logs/access*\n\n";
 
-	print "         ./logconv.pl -d cn=dm /logs/access*\n\n";
+	print "         ./logconv.pl --rootDN cn=dm /logs/access*\n\n";
 
-	print "         ./logconv.pl -s 50 -ibgju /logs/access*\n\n";
+	print "         ./logconv.pl --sizeLimit 50 -ibgju /logs/access*\n\n";
 
-	print "         ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" -E \"\[28/Mar/2002:13:50:05 -0800\]\" -e /logs/access*\n\n";
+	print "         ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" --endTime \"\[28/Mar/2002:13:50:05 -0800\]\" -e /logs/access*\n\n";
 	print "         ./logconv.pl -m log-minute-stats-csv.out /logs/access*\n\n";
 
 	exit 1;
