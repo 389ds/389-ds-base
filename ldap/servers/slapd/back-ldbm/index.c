@@ -1496,7 +1496,7 @@ index_range_read_ext(
         if(retry_count == IDL_FETCH_RETRY_COUNT) {
           ldbm_nasty("index_range_read retry count exceeded",1095,*err);
         }
-        if (!idl) {
+        if (!tmp) {
             if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
                 char encbuf[BUFSIZ];
                 LDAPDebug2Args(LDAP_DEBUG_TRACE,
