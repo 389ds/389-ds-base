@@ -1622,6 +1622,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				goto done;
 			}
         
+			/* set the default passwordLegacyPolicy setting */
+			pwdpolicy->pw_is_legacy = 1;
+
 			for (slapi_entry_first_attr(pw_entry, &attr); attr;
 					slapi_entry_next_attr(pw_entry, attr, &attr))
 			{
@@ -1807,7 +1810,13 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 						pw_name2scheme((char*)slapi_value_get_string(*sval));
 					}
 				}
-                        
+				else
+				if (!strcasecmp(attr_name, "passwordLegacyPolicy")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_is_legacy =
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
 			} /* end of for() loop */
 			if (pw_entry) {
 				slapi_entry_free(pw_entry);
