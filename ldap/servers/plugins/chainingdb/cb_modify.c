@@ -69,7 +69,7 @@ chaining_back_modify ( Slapi_PBlock *pb )
 	Slapi_DN		*sdn = NULL;
 	char 			*matched_msg, *error_msg;
 	char 			*cnxerrbuf=NULL;
-	time_t 			endtime;
+	time_t 			endtime = 0;
 	cb_outgoing_conn	*cnx;
 
 	if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {

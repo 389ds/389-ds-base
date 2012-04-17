@@ -62,16 +62,13 @@ chaining_back_modrdn ( Slapi_PBlock *pb )
         char                **referrals=NULL;
         LDAPMessage         *res;
         char                *matched_msg, *error_msg;
-        char                *newdn = NULL;
-        const char          *pdn = NULL;
         char                *ndn = NULL;
         Slapi_DN            *sdn = NULL;
-        Slapi_DN            *psdn = NULL;
         int                 deleteoldrdn = 0;
         Slapi_DN            *newsuperior = NULL;
         char                *newrdn = NULL;
         char                * cnxerrbuf=NULL;
-        time_t              endtime;
+        time_t              endtime = 0;
         cb_outgoing_conn    *cnx;
 
         if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {
@@ -90,36 +87,13 @@ chaining_back_modrdn ( Slapi_PBlock *pb )
         }
 
         slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &sdn );
+        /* newrdn is passed to ldap_rename, which does not require case-ignored
+         * newrdn. */
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior );
         slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &deleteoldrdn );
 
         ndn = (char *)slapi_sdn_get_ndn(sdn);
-
-        /*
-         * Construct the new dn
-         */
-        psdn = slapi_sdn_new();
-        slapi_sdn_get_parent(sdn, psdn);
-        pdn = slapi_sdn_get_ndn(psdn);
-
-        if ( pdn ) {
-            /* parent + rdn + separator(s) + null */
-            newdn = slapi_ch_smprintf("%s,%s", newrdn, pdn);
-        } else {
-            newdn = slapi_ch_strdup( newrdn );
-        }
-        slapi_sdn_free(&psdn);
-
-	/*
-	 * Make sure the current backend is managing
-	 * the new dn. We won't support moving entries
-	 * across backend this way.
-	 * Done in the front-end.
-	 */
-
-	slapi_ch_free((void **)&newdn);
-
 	if (cb->local_acl && !cb->associated_be_is_disabled) {
 		/* 
 		* Check local acls

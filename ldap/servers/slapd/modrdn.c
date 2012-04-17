@@ -191,7 +191,6 @@ do_modrdn( Slapi_PBlock *pb )
 		slapi_ch_free_string( &rawnewsuperior );
 		goto free_and_return;
 	}
-	slapi_dn_ignore_case( newrdn );
 	slapi_ch_free_string( &rawnewrdn );
 
 	if (rawnewsuperior) {
@@ -218,6 +217,8 @@ do_modrdn( Slapi_PBlock *pb )
 	 */ 
 	parent = slapi_dn_parent(slapi_sdn_get_ndn(&sdn));
 	newdn = slapi_ch_smprintf("%s,%s", newrdn, parent);
+	/* slapi_sdn_init_normdn_passin expects normalized but NOT
+	 * decapitalized dn */
 	slapi_sdn_init_normdn_passin(&snewdn, newdn); /* newdn is normalized */
 	if (0 == slapi_sdn_compare(&sdn, snewsuperior) ||
 	    0 == slapi_sdn_compare(&snewdn, snewsuperior)) {
@@ -560,6 +561,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	}
 
 	/* check if created attributes are used in the new RDN */
+	/* check_rdn_for_created_attrs ignores the cases */
 	if (check_rdn_for_created_attrs((const char *)newrdn)) {
 		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, "invalid attribute in RDN", 0, NULL);
 		goto free_and_return_nolock;
@@ -607,6 +609,8 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	 * appropriate one, or send a referral to our "referral server"
 	 * if we don't hold it.
 	 */
+	/* slapi_mapping_tree_select_and_check ignores the case of newdn
+	 * which is generated using newrdn above. */
 	if ((err = slapi_mapping_tree_select_and_check(pb, newdn, &be, &referral, errorbuf)) != LDAP_SUCCESS)
 	{
 		send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
@@ -707,6 +711,7 @@ free_and_return_nolock:
 		} else {
 			slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sdn);
 			slapi_sdn_free(&sdn);
+			/* get newrdn to free the string */
 			slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
 			slapi_ch_free_string(&newrdn);
 			slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperiorsdn);

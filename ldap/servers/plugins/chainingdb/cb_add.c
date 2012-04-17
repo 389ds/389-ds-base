@@ -69,7 +69,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 	const char		*dn = NULL;
 	Slapi_DN		*sdn = NULL;
 	char			*cnxerrbuf=NULL;
-	time_t 			endtime;
+	time_t 			endtime = 0;
 	cb_outgoing_conn	*cnx;
 	
 	if ( (rc=cb_forward_operation(pb)) != LDAP_SUCCESS ) {

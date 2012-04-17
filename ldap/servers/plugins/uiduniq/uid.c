@@ -946,6 +946,7 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /* Apply the rename operation to the dummy entry. */
+    /* slapi_entry_rename does not expect rdn normalized */
     err = slapi_entry_rename(e, rdn, deloldrdn, slapi_sdn_get_dn(superior));
     if (err != LDAP_SUCCESS) { result = uid_op_error(36); break; }
 

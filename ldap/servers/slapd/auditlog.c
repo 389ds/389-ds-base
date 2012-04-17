@@ -91,6 +91,7 @@ write_audit_log_entry( Slapi_PBlock *pb )
         break;
     
     case SLAPI_OPERATION_MODDN:
+        /* newrdn: change is just for logging -- case does not matter. */
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
         slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
         break;

@@ -157,7 +157,10 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 			sdn = slapi_entry_get_sdn(te);
 		}
 		break;
-    	  case SLAPI_OPERATION_MODRDN:
+	  case SLAPI_OPERATION_MODRDN:
+		/* newrdn: "change" is normalized but not case-ignored */
+		/* The acl plugin expects normalized newrdn, but no need to be case-
+		 * ignored. */
 		(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
 		break;
 	}

@@ -638,6 +638,7 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     case OP_DELETE:
     	break;
     case OP_MODRDN:
+    	/* newrdn is used just for logging; no need to be normalized */
     	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
     	(void)slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
     	(void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &modrdn_mods );

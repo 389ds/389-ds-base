@@ -67,7 +67,7 @@ chaining_back_compare ( Slapi_PBlock *pb )
 	const char 		*dn = NULL;
 	Slapi_DN		*sdn = NULL; 
 	char 			*cnxerrbuf=NULL;
-	time_t 			endtime;
+	time_t 			endtime = 0;
 	cb_outgoing_conn	*cnx;
 
 	if ( LDAP_SUCCESS != (rc=cb_forward_operation(pb) )) {

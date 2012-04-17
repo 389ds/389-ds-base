@@ -162,6 +162,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     inst = (ldbm_instance *) be->be_instance_info;
     {
         char *newrdn/* , *newsuperiordn */;
+        /* newrdn is normalized, bu tno need to be case-ignored as 
+         * it's passed to slapi_sdn_init_normdn_byref */
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn );
         slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
@@ -229,6 +231,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             /* see if an entry with the new name already exists */
             done_with_pblock_entry(pb,SLAPI_MODRDN_EXISTING_ENTRY); /* Could be through this multiple times */
+            /* newrdn is normalized, bu tno need to be case-ignored as 
+             * it's passed to slapi_sdn_init_normdn_byref */
             slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
             slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
             newdn= moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn);

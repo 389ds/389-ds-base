@@ -296,8 +296,7 @@ referint_postop_modrdn( Slapi_PBlock *pb )
 	}else if(delay == 0){
 	  /* no delay */
 	  /* call function to update references to entry */
-	  rc = update_integrity(argv, sdn, newrdn,
-	                        newsuperior, logChanges);
+	  rc = update_integrity(argv, sdn, newrdn, newsuperior, logChanges);
 	}else{
 	  /* write the entry to integrity log */
 	  writeintegritylog(pb, argv[1], sdn, newrdn, newsuperior, NULL /* slapi_get_requestor_sdn(pb) */);
@@ -412,6 +411,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         }
         /* newRDN and superior are already normalized. */
         newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
+        slapi_dn_ignore_case(newDN);
         /* 
          * Compare the modified dn with the value of 
          * the target attribute of referint to find out
@@ -590,7 +590,9 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
             /* no need to free superior */
             superior = slapi_dn_find_parent(origDN);
         }
+        /* newRDN and superior are already normalized. */
         newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
+        slapi_dn_ignore_case(newDN);
         /* 
          * Compare the modified dn with the value of 
          * the target attribute of referint to find out

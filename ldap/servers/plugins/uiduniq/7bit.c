@@ -606,8 +606,8 @@ preop_modrdn(Slapi_PBlock *pb)
 
     /* NOTE: strdup on the rdn, since it will be freed when
      * the entry is freed */
-
-    slapi_entry_set_dn(e, slapi_ch_strdup(rdn));
+    /* slapi_entry_set_normdn expects rdn normalized, but not decapitalized */
+    slapi_entry_set_normdn(e, slapi_ch_strdup(rdn));
 
     err = slapi_entry_add_rdn_values(e);
     if (err)

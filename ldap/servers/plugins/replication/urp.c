@@ -320,6 +320,7 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 
 	/* The DN CSN is older than the Operation CSN. Apply the operation */
 	target_sdn = slapi_entry_get_sdn_const (target_entry);
+	/* newrdn is no need to be case-ignored (get_rdn_plus_uniqueid) */
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
 	slapi_pblock_get(pb, SLAPI_TARGET_UNIQUEID, &op_uniqueid);
    	slapi_pblock_get(pb, SLAPI_MODRDN_PARENT_ENTRY, &parent_entry);
