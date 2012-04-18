@@ -260,7 +260,6 @@ vlv_init_index_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* en
     struct vlvIndex* newVlvIndex;
     struct vlvSearch* pSearch;
     Slapi_Backend *be= ((ldbm_instance*)arg)->inst_be;
-    char ebuf[BUFSIZ];
 	
     if(be!=NULL)
     {
@@ -272,7 +271,7 @@ vlv_init_index_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* en
         pSearch= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
 		if (pSearch == NULL) { 
 			LDAPDebug( LDAP_DEBUG_ANY, "Parent doesn't exist for entry %s.\n",
-				escape_string(slapi_entry_get_dn(entryBefore), ebuf), 0, 0); 
+				slapi_entry_get_dn(entryBefore), 0, 0); 
 			vlvIndex_delete(&newVlvIndex);
 		} 
 		else { 

@@ -360,11 +360,9 @@ load_plugin_entry(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *r
 		 */
 		if(retval)
 		{
-			char dnbuf[ BUFSIZ ];
-
 			slapi_log_error( SLAPI_LOG_FATAL, NULL,
 					"Unable to load plugin \"%s\"\n",
-					escape_string( slapi_entry_get_dn_const( e ), dnbuf ));
+					slapi_entry_get_dn_const( e ));
 			exit(1);
 		}
 	}

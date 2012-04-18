@@ -149,10 +149,9 @@ replica_new(const Slapi_DN *root)
 
 	    if (NULL == r)
 	    {
-			char ebuf[BUFSIZ];
 		    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to "
 			    "configure replica %s: %s\n", 
-				escape_string(slapi_sdn_get_dn(root), ebuf),
+				slapi_sdn_get_dn(root),
 			    errorbuf);
 	    }
 
@@ -268,12 +267,10 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 
     if (r->legacy_consumer)
     {
-		char ebuf[BUFSIZ];
-		
         legacy_consumer_init_referrals (r);
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_new_from_entry: "
                         "replica for %s was configured as legacy consumer\n",
-                        escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+                        slapi_sdn_get_dn(r->repl_root));
     }
 
 done:
@@ -419,7 +416,6 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 							 const char *locking_purl,
 							 char **current_purl)
 {
-	char ebuf[BUFSIZ];
 	PRBool rval = PR_TRUE;
 
 	PR_ASSERT(r);
@@ -434,7 +430,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"Replica in use locking_purl=%s\n",
 				connid, opid,
-				escape_string(slapi_sdn_get_dn(r->repl_root),ebuf),
+				slapi_sdn_get_dn(r->repl_root),
 				r->locking_purl ? r->locking_purl : "unknown");
 		rval = PR_FALSE;
 		if (current_purl)
@@ -447,7 +443,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 						"conn=%" NSPRIu64 " op=%d repl=\"%s\": Acquired replica\n",
 						connid, opid,
-						escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+						slapi_sdn_get_dn(r->repl_root));
 		r->repl_state_flags |= REPLICA_IN_USE;
 		if (isInc && *isInc) 
 		{
@@ -475,7 +471,6 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 void
 replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 {
-	char ebuf[BUFSIZ];
 	PRBool isInc;
 
 	PR_ASSERT(r);
@@ -489,13 +484,13 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Replica not in use\n",
 					connid, opid,
-					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+					slapi_sdn_get_dn(r->repl_root));
 	} else {
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Released replica\n",
 					connid, opid,
-					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+					slapi_sdn_get_dn(r->repl_root));
 		slapi_ch_free_string(&r->locking_purl);
 		r->repl_state_flags &= ~(REPLICA_IN_USE);
 		if (isInc)
@@ -664,7 +659,6 @@ void
 replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 {
 	char csn_str[CSN_STRSIZE];
-	char ebuf[BUFSIZ];
 	
 	PR_ASSERT(NULL != r);
 	PR_ASSERT(NULL != updated_csn);
@@ -681,7 +675,7 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 	else if (NULL == updated_csn)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_update_ruv: csn "
-			"is NULL when updating replica %s\n", escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+			"is NULL when updating replica %s\n", slapi_sdn_get_dn(r->repl_root));
 	}
 	else
 	{
@@ -720,7 +714,7 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 					slapi_log_error(SLAPI_LOG_FATAL,
 						repl_plugin_name, "replica_update_ruv: unable "
 						"to update RUV for replica %s, csn = %s\n",
-						escape_string(slapi_sdn_get_dn(r->repl_root),ebuf),
+						slapi_sdn_get_dn(r->repl_root),
 						csn_as_string(updated_csn, PR_FALSE, csn_str));
 				}
 			
@@ -730,14 +724,14 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"replica_update_ruv: unable to get RUV object for replica "
-					"%s\n", escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+					"%s\n", slapi_sdn_get_dn(r->repl_root));
 			}
 		}
 		else
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_update_ruv: "
 				"unable to initialize RUV for replica %s\n",
-				escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+				slapi_sdn_get_dn(r->repl_root));
 		}
 		PR_Unlock(r->repl_lock);
 	}
@@ -1349,8 +1343,6 @@ replica_reload_ruv (Replica *r)
             if (!ruv_covers_ruv (new_ruv, upper_bound_ruv) ||
                 !ruv_covers_ruv (upper_bound_ruv, new_ruv))
             {                
-				char ebuf[BUFSIZ];
-
                 /* create a temporary replica object to conform to the interface */
                 r_obj = object_new (r, NULL);
 
@@ -1359,7 +1351,7 @@ replica_reload_ruv (Replica *r)
 			        "Warning: new data for replica %s does not match the data in the changelog.\n"
                     " Recreating the changelog file. This could affect replication with replica's "
                     " consumers in which case the consumers should be reinitialized.\n",
-                    escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+                    slapi_sdn_get_dn(r->repl_root));
                 rc = cl5DeleteDBSync (r_obj);
 
                 /* reinstate new ruv */
@@ -1451,7 +1443,6 @@ int replica_check_for_data_reload (Replica *r, void *arg)
 
         if (upper_bound_ruv)
         {
-            char ebuf[BUFSIZ];
             ruv_obj = replica_get_ruv (r);
             r_ruv = object_get_data (ruv_obj);
             PR_ASSERT (r_ruv);
@@ -1486,7 +1477,7 @@ int replica_check_for_data_reload (Replica *r, void *arg)
                     "Recreating the changelog file. "
                     "This could affect replication with replica's consumers in which case the "
                     "consumers should be reinitialized.\n",
-                    escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+                    slapi_sdn_get_dn(r->repl_root));
 
                 rc = cl5DeleteDBSync (r_obj);
 
@@ -1506,7 +1497,7 @@ int replica_check_for_data_reload (Replica *r, void *arg)
                     "should remove them using CLEANRUV task.  If they are not obsolete, "
                     "you should check their status to see why there are no changes from those "
                     "servers in the changelog.\n",
-                    escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+                    slapi_sdn_get_dn(r->repl_root));
                 rc = 0;
             }
 
@@ -1614,7 +1605,6 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     char buf [SLAPI_DSE_RETURNTEXT_SIZE];
     char *errormsg = errortext? errortext : buf;
 	Slapi_Attr *a = NULL;
-	char dnescape[BUFSIZ]; /* for escape_string */
 
 	PR_ASSERT (r && e);
 
@@ -1624,7 +1614,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     {
         PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE, "failed to retrieve %s attribute from (%s)\n", 
                  attr_replicaRoot,
-				 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e), dnescape));
+				 (char*)slapi_entry_get_dn ((Slapi_Entry*)e));
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "_replica_init_from_config: %s\n",
                         errormsg);
                         
@@ -1691,8 +1681,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 						 "attribute %s must have a value greater than 0 "
 						 "and less than %d: entry %s",
 						 attr_replicaId, READ_ONLY_REPLICA_ID,
-						 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e),
-									   dnescape));
+						 (char*)slapi_entry_get_dn ((Slapi_Entry*)e));
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 								"_replica_init_from_config: %s\n",
 								errormsg);
@@ -1708,8 +1697,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 			PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
 						 "failed to retrieve required %s attribute from %s",
 					 attr_replicaId,
-					 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e),
-								   dnescape));
+					 (char*)slapi_entry_get_dn ((Slapi_Entry*)e));
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"_replica_init_from_config: %s\n",
 							errormsg);
@@ -1724,8 +1712,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 	{
         PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
 					 "failed to create csn generator for replica (%s)",
-				 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e),
-							   dnescape));
+					 (char*)slapi_entry_get_dn ((Slapi_Entry*)e));
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"_replica_init_from_config: %s\n",
 						errormsg);
@@ -1752,7 +1739,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
             PR_snprintf (errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
 						 "failed to assign replica name for replica (%s); "
                      "uuid generator error - %d ",
-					 escape_string((char*)slapi_entry_get_dn ((Slapi_Entry*)e), dnescape),
+					 (char*)slapi_entry_get_dn ((Slapi_Entry*)e),
 					 rc);
             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "_replica_init_from_config: %s\n",
                             errormsg);
@@ -1889,7 +1876,6 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 	RUV *ruv = NULL;
     CSN *csn = NULL;
 	ReplicaId rid = 0;
-	char ebuf[BUFSIZ];
 	
 	/* read ruv state from the ruv tombstone entry */
 	pb = slapi_pblock_new();
@@ -1924,7 +1910,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 		    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 			    "_replica_configure_ruv: replica ruv tombstone entry for "
 			    "replica %s not found\n", 
-				escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+				slapi_sdn_get_dn(r->repl_root));
 		    goto done;
 	    }
 	
@@ -1934,7 +1920,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 			    "_replica_configure_ruv: replica ruv tombstone entry for "
 			    "replica %s does not contain %s\n", 
-				escape_string(slapi_sdn_get_dn(r->repl_root),ebuf), type_ruvElement);
+				slapi_sdn_get_dn(r->repl_root), type_ruvElement);
 		    goto done;
         }
 
@@ -2020,8 +2006,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 								"_replica_configure_ruv: "
 								"failed to recreate replica ruv tombstone entry"
 								" (%s); LDAP error - %d\n",
-								escape_string(slapi_sdn_get_dn(r->repl_root),
-								              ebuf), rc);
+								slapi_sdn_get_dn(r->repl_root), rc);
 							goto done;
 						}
 					}
@@ -2036,7 +2021,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
             {
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 								"RUV for replica %s is missing replica generation\n",
-								escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+								slapi_sdn_get_dn(r->repl_root));
                 goto done;
             }		
 	    }
@@ -2044,7 +2029,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 	    {
 		    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"Unable to convert %s attribute in entry %s to a replica update vector.\n",
-							type_ruvElement, escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+							type_ruvElement, slapi_sdn_get_dn(r->repl_root));
             goto done;
 	    }
 	
@@ -2071,7 +2056,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 					"_replica_configure_ruv: failed to create replica ruv tombstone "
 					"entry (%s); LDAP error - %d\n",
-					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf), rc);
+					slapi_sdn_get_dn(r->repl_root), rc);
 				goto done;
 			}
             else
@@ -2079,7 +2064,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"_replica_configure_ruv: No ruv tombstone found for replica %s. "
 					"Created a new one\n",
-					escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+					slapi_sdn_get_dn(r->repl_root));
                 return_value = 0;
             }
 		}
@@ -2092,7 +2077,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 								"_replica_configure_ruv: replication disabled for "
 								"entry (%s); LDAP error - %d\n",
-								escape_string(slapi_sdn_get_dn(r->repl_root),ebuf), rc);
+								slapi_sdn_get_dn(r->repl_root), rc);
 				slapi_ch_free_string(&state);
 				goto done;
 			}
@@ -2101,7 +2086,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 								"_replica_configure_ruv: replication broken for "
 								"entry (%s); LDAP error - %d\n",
-								escape_string(slapi_sdn_get_dn(r->repl_root),ebuf), rc);
+								slapi_sdn_get_dn(r->repl_root), rc);
 				slapi_ch_free_string(&state);
 				goto done;
 			}
@@ -2109,7 +2094,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 			{
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 								"_replica_configure_ruv: Error %d reading tombstone for replica %s.\n",
-								rc, escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+								rc, slapi_sdn_get_dn(r->repl_root));
                 return_value = 0;
 			}
 			slapi_ch_free_string(&state);
@@ -2269,11 +2254,9 @@ _replica_update_state (time_t when, void *arg)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 	if (rc != LDAP_SUCCESS) 
 	{
-		char ebuf[BUFSIZ];
-		
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "_replica_update_state: "
 			"failed to update state of csn generator for replica %s: LDAP "
-			"error - %d\n", escape_string(slapi_sdn_get_dn(r->repl_root),ebuf), rc);
+			"error - %d\n", slapi_sdn_get_dn(r->repl_root), rc);
 	}
 	else
 	{
@@ -2359,12 +2342,10 @@ replica_write_ruv (Replica *r)
     }
 	else /* error */
 	{
-		char ebuf[BUFSIZ];
-		
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 			"replica_write_ruv: failed to update RUV tombstone for %s; "
 			"LDAP error - %d\n", 
-			escape_string(slapi_sdn_get_dn(r->repl_root),ebuf), rc);
+			slapi_sdn_get_dn(r->repl_root), rc);
 	}
 
     PR_Unlock(r->repl_lock);	
@@ -2395,13 +2376,12 @@ replica_ruv_smods_for_op( Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods 
 
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &target_entry);
     if (target_entry && is_ruv_tombstone_entry(target_entry)) {
-        char ebuf[BUFSIZ];
         /* disallow direct modification of the RUV tombstone entry
            must use the CLEANRUV task instead */
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
                         "replica_ruv_smods_for_op: attempted to directly modify the tombstone RUV "
                         "entry [%s] - use the CLEANRUV task instead\n",
-                        escape_string(slapi_entry_get_dn_const(target_entry),ebuf));
+                        slapi_entry_get_dn_const(target_entry));
         return (-1);
     }
 
@@ -2514,7 +2494,6 @@ void get_reap_result (int rc, void *cb_data)
 static int
 process_reap_entry (Slapi_Entry *entry, void *cb_data)
 {
-	char ebuf[BUFSIZ];
 	char deletion_csn_str[CSN_STRSIZE];
 	char purge_csn_str[CSN_STRSIZE];
 	unsigned long *num_entriesp = &((reap_callback_data *)cb_data)->num_entries;
@@ -2547,7 +2526,7 @@ process_reap_entry (Slapi_Entry *entry, void *cb_data)
 							"process_reap_entry: removing tombstone %s "
 							"because its deletion csn (%s) is less than the "
 							"purge csn (%s).\n", 
-							escape_string(slapi_entry_get_dn(entry), ebuf),
+							slapi_entry_get_dn(entry),
 							csn_as_string(deletion_csn, PR_FALSE, deletion_csn_str),
 							csn_as_string(purge_csn, PR_FALSE, purge_csn_str));
 		}
@@ -2561,7 +2540,7 @@ process_reap_entry (Slapi_Entry *entry, void *cb_data)
 		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 							"process_reap_entry: NOT removing tombstone "
-							"%s\n", escape_string(slapi_entry_get_dn(entry),ebuf));
+							"%s\n", slapi_entry_get_dn(entry));
 		}
 	}
 	(*num_entriesp)++;
@@ -2583,7 +2562,6 @@ _replica_reap_tombstones(void *arg)
 	Object *replica_object = NULL;
 	Replica *replica = NULL;
 	CSN *purge_csn = NULL;
-	char ebuf[BUFSIZ];
 
 	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"Info: Beginning tombstone reap for replica %s.\n",
@@ -2675,7 +2653,7 @@ _replica_reap_tombstones(void *arg)
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"_replica_reap_tombstones: failed when searching for "
 							"tombstones in replica %s: %s. Will try again in %ld "
-							"seconds.\n", escape_string(slapi_sdn_get_dn(replica->repl_root),ebuf),
+							"seconds.\n", slapi_sdn_get_dn(replica->repl_root),
 							ldap_err2string(oprc), replica->tombstone_reap_interval);
 		}
 		else
@@ -2684,7 +2662,7 @@ _replica_reap_tombstones(void *arg)
 							"_replica_reap_tombstones: purged %ld of %ld tombstones "
 							"in replica %s. Will try again in %ld "
 							"seconds.\n", cb_data.num_purged_entries, cb_data.num_entries,
-							escape_string(slapi_sdn_get_dn(replica->repl_root),ebuf),
+							slapi_sdn_get_dn(replica->repl_root),
 							replica->tombstone_reap_interval);
 		}
 	}
@@ -2815,7 +2793,6 @@ replica_create_ruv_tombstone(Replica *r)
     struct berval **bvals = NULL;
     Slapi_PBlock *pb = NULL;
     int rc;
-	char ebuf[BUFSIZ];
 	
 	PR_ASSERT(NULL != r && NULL != r->repl_root);
 	root_entry_str = slapi_ch_smprintf(root_glue, slapi_sdn_get_ndn(r->repl_root),
@@ -2856,7 +2833,7 @@ replica_create_ruv_tombstone(Replica *r)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 								"Cannot create new replica update vector for %s\n",
-								escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+								slapi_sdn_get_dn(r->repl_root));
 				ruv_destroy(&ruv);
                 goto done;
 			}
@@ -2865,7 +2842,7 @@ replica_create_ruv_tombstone(Replica *r)
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"Cannot obtain CSN for new replica update vector for %s\n",
-							escape_string(slapi_sdn_get_dn(r->repl_root),ebuf));
+							slapi_sdn_get_dn(r->repl_root));
 			csn_free(&csn);
             goto done;
 		}
@@ -2944,14 +2921,13 @@ assign_csn_callback(const CSN *csn, void *data)
 	{
 		if (csnplInsert(r->min_csn_pl, csn) != 0)
 		{
-			char ebuf[BUFSIZ];
 			char csn_str[CSN_STRSIZE]; /* For logging only */
 			/* Ack, we can't keep track of min csn. Punt. */
 			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "assign_csn_callback: "
 								"failed to insert csn %s for replica %s\n",
 								csn_as_string(csn, PR_FALSE, csn_str),
-								escape_string(slapi_sdn_get_dn(r->repl_root), ebuf));
+								slapi_sdn_get_dn(r->repl_root));
 			}
 			csnplFree(&r->min_csn_pl);
 		}
@@ -3100,12 +3076,10 @@ replica_remove_legacy_attr (const Slapi_DN *repl_root_sdn, const char *attr)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS) 
 	{
-		char ebuf[BUFSIZ];
-		
         /* this is not a fatal error because the attribute may not be there */
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_remove_legacy_attr: "
 			"failed to remove legacy attribute %s for replica %s; LDAP error - %d\n", 
-            attr, escape_string(slapi_sdn_get_dn(repl_root_sdn),ebuf), rc);
+            attr, slapi_sdn_get_dn(repl_root_sdn), rc);
 	}
     
     slapi_mods_done (&smods);

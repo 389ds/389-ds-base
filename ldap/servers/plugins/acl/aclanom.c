@@ -454,7 +454,6 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 	int						result, i, k;
 	char					**destArray;
 	int						tmatched = 0;
-	char					ebuf[ BUFSIZ ];
 	int						loglevel;
 	struct scoped_entry_anominfo *s_e_anominfo =
 			&aclpb->aclpb_scoped_entry_anominfo;
@@ -546,16 +545,16 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 			slapi_log_error(loglevel, plugin_name, 
 				"conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
 				op->o_connid, op->o_opid,
-				escape_string_with_punctuation(ndn, ebuf),
+				ndn,
 				attr ? attr:"NULL",
-				escape_string_with_punctuation(aci_ndn, ebuf));
+				aci_ndn);
 		} else {
 			slapi_log_error(loglevel, plugin_name,
 				"conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
-		op->o_connid, op->o_opid,
-                escape_string_with_punctuation(ndn, ebuf), attr ? attr:"NULL" );
+				op->o_connid, op->o_opid,
+				ndn, attr ? attr:"NULL" );
 		}
-	}	
+	}
 
 	ANOM_UNLOCK_READ ();
 	if ( tmatched == 0) 

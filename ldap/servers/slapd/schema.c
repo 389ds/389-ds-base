@@ -470,10 +470,9 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
 
   /* find the object class attribute - could error out here */
   if ( (aoc = attrlist_find( e->e_attrs, "objectclass" )) == NULL ) {
-    char ebuf[ BUFSIZ ];
     LDAPDebug( LDAP_DEBUG_ANY,
 	       "Entry \"%s\" required attribute \"objectclass\" missing\n",
-	       escape_string( slapi_entry_get_dn_const(e), ebuf ), 0, 0 );
+	       slapi_entry_get_dn_const(e), 0, 0 );
 	if (pb) {
 		PR_snprintf( errtext, sizeof( errtext ),
 	       "missing required attribute \"objectclass\"\n" );
@@ -508,10 +507,9 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
     ocname = slapi_value_get_string(v);
 
     if ( !ocname ) {
-	char ebuf[ BUFSIZ ];
 	LDAPDebug( LDAP_DEBUG_ANY,
 	       "Entry \"%s\" \"objectclass\" value missing\n",
-	       escape_string( slapi_entry_get_dn_const(e), ebuf ), 0, 0 );
+	       slapi_entry_get_dn_const(e), 0, 0 );
 	if (pb) {
 		PR_snprintf( errtext, sizeof( errtext ),
 	       "missing \"objectclass\" value\n" );
@@ -536,7 +534,6 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
     } else {
       /* we don't know about the oc; return an appropriate error message */
       char			ebuf[ BUFSIZ ];
-      char			ebuf2[ BUFSIZ ];
 	  size_t		ocname_len = strlen( ocname );
 	  const char	*extra_msg = "";
 
@@ -550,12 +547,12 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
 
       LDAPDebug( LDAP_DEBUG_ANY,
 		 "Entry \"%s\" has unknown object class \"%s\"%s\n",
-		 escape_string( slapi_entry_get_dn_const(e), ebuf ),
-		 escape_string(ocname, ebuf2), extra_msg );
+		 slapi_entry_get_dn_const(e),
+		 escape_string(ocname, ebuf), extra_msg );
 	  if (pb) {
 		PR_snprintf( errtext, sizeof( errtext ),
 		"unknown object class \"%s\"%s\n",
-		 escape_string(ocname, ebuf2), extra_msg );
+		 escape_string(ocname, ebuf), extra_msg );
 		slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
 	  }
       unknown_class = 1;
@@ -611,10 +608,9 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
 	if ( slapi_attr_flag_is_set( a, SLAPI_ATTR_FLAG_SINGLE ) ) {
 	  if (slapi_valueset_count(&a->a_present_values) > 1)
 	    {
-	      char ebuf[ BUFSIZ ];
           LDAPDebug( LDAP_DEBUG_ANY,
 	         "Entry \"%s\" single-valued attribute \"%s\" has multiple values\n",
-			 escape_string( slapi_entry_get_dn_const(e), ebuf ),
+			 slapi_entry_get_dn_const(e),
 			 a->a_type, 0 );
 		  if (pb) {
 			PR_snprintf( errtext, sizeof( errtext ),
@@ -666,11 +662,10 @@ oc_check_required( Slapi_PBlock *pb, Slapi_Entry *e, struct objclass *oc )
         /* not there => schema violation */
         if ( a == NULL ) {
             char errtext[ BUFSIZ ];
-            char ebuf[ BUFSIZ ];
             LDAPDebug( LDAP_DEBUG_ANY,
                        "Entry \"%s\" missing attribute \"%s\" required"
                        " by object class \"%s\"\n",
-                       escape_string( slapi_entry_get_dn_const(e), ebuf ),
+                       slapi_entry_get_dn_const(e),
                        oc->oc_required[i], oc->oc_name);
             if (pb) {
                 PR_snprintf( errtext, sizeof( errtext ),
@@ -738,17 +733,16 @@ oc_check_allowed_sv(Slapi_PBlock *pb, Slapi_Entry *e, const char *type, struct o
     if ( 0 != rc ) {
       char errtext[ BUFSIZ ];
       char ebuf[ BUFSIZ ];
-      char ebuf2[ BUFSIZ ];
       LDAPDebug( LDAP_DEBUG_ANY,
          "Entry \"%s\" -- attribute \"%s\" not allowed\n",
-         escape_string( slapi_entry_get_dn_const(e), ebuf ),
-         escape_string( type, ebuf2 ),
+         slapi_entry_get_dn_const(e),
+         escape_string( type, ebuf ),
          0);
 
       if (pb) {
         PR_snprintf( errtext, sizeof( errtext ),
          "attribute \"%s\" not allowed\n",
-         escape_string( type, ebuf2 ) );
+         escape_string( type, ebuf ) );
         slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
       }
     }
@@ -4708,7 +4702,6 @@ va_expand_one_oc( const char *dn, Slapi_Value ***vap, const char *ocs )
 	struct objclass	*this_oc, *sup_oc;
 	int				p,i;
 	Slapi_Value		**newva;
-	char			ebuf[BUFSIZ];
 
 	this_oc = oc_find_nolock( ocs );
   
@@ -4750,7 +4743,7 @@ va_expand_one_oc( const char *dn, Slapi_Value ***vap, const char *ocs )
 	*vap = newva;
 	LDAPDebug( LDAP_DEBUG_TRACE,
 			"Entry \"%s\": added missing objectClass value %s\n",
-			escape_string( dn, ebuf ), sup_oc->oc_name, 0 );
+			dn, sup_oc->oc_name, 0 );
 }
 
 

@@ -326,12 +326,12 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 		}
 		if ( PL_strncasecmp( type.bv_val, "dn", type.bv_len ) == 0 ) {
 			if ( slapi_entry_get_dn_const(e)!=NULL ) {
-				char ebuf[ BUFSIZ ], ebuf2[ BUFSIZ ];
+				char ebuf[ BUFSIZ ];
 				LDAPDebug( LDAP_DEBUG_TRACE,
 					"str2entry_fast: entry has multiple dns \"%s\" and "
 					"\"%s\" (second ignored)\n",
-					escape_string( slapi_entry_get_dn_const(e), ebuf ),
-					escape_string( value.bv_val, ebuf2 ), 0 );
+					slapi_entry_get_dn_const(e),
+					escape_string( value.bv_val, ebuf ), 0 );
 				/* the memory below was not allocated by the slapi_ch_ functions */
 				if (freeval) slapi_ch_free_string(&value.bv_val);
 				continue;
@@ -853,12 +853,12 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		}
 		if ( strcasecmp( type, "dn" ) == 0 ) {
 			if ( slapi_entry_get_dn_const(e)!=NULL ) {
-				char ebuf[ BUFSIZ ], ebuf2[ BUFSIZ ];
+				char ebuf[ BUFSIZ ];
 				LDAPDebug( LDAP_DEBUG_TRACE,
 					"str2entry_dupcheck: entry has multiple dns \"%s\" "
 					"and \"%s\" (second ignored)\n",
-					escape_string( slapi_entry_get_dn_const(e), ebuf ),
-					escape_string( valuecharptr, ebuf2 ), 0 );
+					slapi_entry_get_dn_const(e),
+					escape_string( valuecharptr, ebuf ), 0 );
 				/* the memory below was not allocated by the slapi_ch_ functions */
 				if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 				continue;
@@ -3066,9 +3066,8 @@ slapi_entry_add_rdn_values( Slapi_Entry *e )
                 if ((ava.ava_value.bv_len != bv->bv_len) ||
                     (memcmp(ava.ava_value.bv_val, bv->bv_val, bv->bv_len) != 0)) {
                     /* bytes not identical so reject */
-                    char avdbuf[BUFSIZ];
                     LDAPDebug(LDAP_DEBUG_TRACE, "RDN value is not identical to entry value for type %s in entry %s\n", 
-                               type, dn ? escape_string(dn,avdbuf) : "<null>", 0 );
+                               type, dn ? dn : "<null>", 0 );
 #if 0
                     /* 
                      * This would be the right thing to do except that

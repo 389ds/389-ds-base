@@ -63,28 +63,23 @@ int cb_config_add_dse_entries(cb_backend *cb, char **entries, char *string1, cha
         Slapi_PBlock *util_pb = NULL;
         int res, rc = 0;
         char entry_string[CB_BUFSIZE];
-        char *dn = NULL;
 
         for(x = 0; strlen(entries[x]) > 0; x++) {
                 util_pb = slapi_pblock_new();
                 PR_snprintf(entry_string, sizeof(entry_string), entries[x], string1, string2, string3);
                 e = slapi_str2entry(entry_string, 0);
-                dn = slapi_ch_strdup(slapi_entry_get_dn(e)); /* for err msg */
                 slapi_add_entry_internal_set_pb(util_pb, e, NULL, cb->identity, 0);
 		slapi_add_internal_pb(util_pb);
 		slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 		if ( LDAP_SUCCESS != res && LDAP_ALREADY_EXISTS != res ) {
-		  char ebuf[ BUFSIZ ];
 		  slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, 
 				  "Unable to add config entry (%s) to the DSE: %s\n",
-				  escape_string(dn, ebuf),
+				  slapi_entry_get_dn(e),
 				  ldap_err2string(res));
 		  rc = res;
 		  slapi_pblock_destroy(util_pb);
-		  slapi_ch_free_string(&dn);
 		  break;
 		}
-		slapi_ch_free_string(&dn);
 		slapi_pblock_destroy(util_pb);
         }
         return rc;

@@ -606,11 +606,10 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 							eprev ? slapi_entry_get_dn_const(eprev) : NULL,
 							&ctrl );
 					if ( rc != LDAP_SUCCESS ) {
-						char ebuf[ BUFSIZ ];
 		   				LDAPDebug( LDAP_DEBUG_ANY, "ps_service_persistent_searches:"
 						" unable to create EntryChangeNotification control for"
 						" entry \"%s\" -- control won't be sent.\n",
-						escape_string( slapi_entry_get_dn_const(e), ebuf), 0, 0 );
+						slapi_entry_get_dn_const(e), 0, 0 );
 					}
 				}
 				if ( ctrl ) {

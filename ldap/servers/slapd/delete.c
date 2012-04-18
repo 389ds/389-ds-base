@@ -251,7 +251,6 @@ static void op_shared_delete (Slapi_PBlock *pb)
 	char			*rawdn = NULL;
 	const char		*dn = NULL;
 	Slapi_Backend	*be = NULL;
-	char			ebuf[ BUFSIZ ];
 	int				internal_op;
 	Slapi_DN		*sdn = NULL;
 	Slapi_Operation *operation;
@@ -297,7 +296,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d DEL dn=\"%s\"%s\n",
 							pb->pb_conn->c_connid, 
 							pb->pb_op->o_opid,
-							escape_string(slapi_sdn_get_dn(sdn), ebuf),
+							slapi_sdn_get_dn(sdn),
 							proxystr ? proxystr: "");
 		}
 		else
@@ -305,7 +304,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d DEL dn=\"%s\"%s\n",
 							LOG_INTERNAL_OP_CON_ID,
 							LOG_INTERNAL_OP_OP_ID,
-							escape_string(slapi_sdn_get_dn(sdn), ebuf),
+							slapi_sdn_get_dn(sdn),
 							proxystr ? proxystr: "");
 		}
 	}

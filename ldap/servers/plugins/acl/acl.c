@@ -187,10 +187,8 @@ static int check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, const char *dn,
 				struct berval bv;
 			
 				if ( slapi_rdn2typeval( rdns[i], &type, &bv ) != 0 ) {
-        			char ebuf[ BUFSIZ ];
         			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-							"modrdn: rdn2typeval (%s) failed\n",
-							 escape_string( rdns[i], ebuf ));
+							"modrdn: rdn2typeval (%s) failed\n", rdns[i]);
 					retCode = LDAP_INSUFFICIENT_ACCESS;
 					break;            	
 				} else {
@@ -254,7 +252,6 @@ acl_access_allowed(
 	AclAttrEval			*c_attrEval = NULL;
 	int					got_reader_locked = 0;
 	int					deallocate_attrEval = 0;
-	char				ebuf [ BUFSIZ ];
 	char				*clientDn;
 	Slapi_DN			*e_sdn;
 	Slapi_Operation		*op = NULL;
@@ -307,7 +304,7 @@ acl_access_allowed(
 				": readonly backend\n",
 				 op->o_connid, op->o_opid,
 				acl_access2str(access),
-				escape_string_with_punctuation(n_edn,ebuf));
+				n_edn);
 			return LDAP_UNWILLING_TO_PERFORM;
 		}
 	}
@@ -320,7 +317,7 @@ acl_access_allowed(
 				": root user\n",
 				op->o_connid, op->o_opid,
 				acl_access2str(access),
-				escape_string_with_punctuation(n_edn,ebuf));
+				n_edn);
 		return(LDAP_SUCCESS);
 	}
 	TNF_PROBE_0_DEBUG(acl_skipaccess_end,"ACL","");
@@ -586,7 +583,7 @@ acl_access_allowed(
 
 	slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 		   "Processed attr:%s for entry:%s\n", attr ? attr : "NULL",
-		   ACL_ESCAPE_STRING_WITH_PUNCTUATION ( n_edn, ebuf));
+		    n_edn);
 
 	/*
 	** Now evaluate the rights. 
@@ -648,9 +645,8 @@ cleanup_and_ret:
 	if ( aclpb ) aclpb->aclpb_curr_attrEval = NULL;
 
 	print_access_control_summary( "main", ret_val, clientDn, aclpb, right,
-									(attr ? attr : "NULL"),
-							escape_string_with_punctuation (n_edn, ebuf),
-							&decision_reason);
+	                              (attr ? attr : "NULL"), n_edn,
+	                              &decision_reason );
 	TNF_PROBE_0_DEBUG(acl_cleanup_end,"ACL","");
 	
 	TNF_PROBE_0_DEBUG(acl_access_allowed_end,"ACL","");
@@ -877,11 +873,10 @@ acl_read_access_allowed_on_entry (
 	*/
 	if ( acl_skip_access_check ( pb, e ) ) {
 		char   *n_edn =  slapi_entry_get_ndn ( e );
-		char	ebuf [ BUFSIZ ];
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			  "Root access (%s) allowed on entry(%s)\n",
 			   acl_access2str(access), 
-			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf));
+			   n_edn);
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_entry_end ,"ACL","",
 							tnf_string,skip_access,"");
 		return LDAP_SUCCESS;
@@ -1156,7 +1151,6 @@ acl_read_access_allowed_on_attr (
 {
 
 	struct	acl_pblock	*aclpb =  NULL;
-	char				ebuf [ BUFSIZ ];
 	char				*clientDn = NULL;
 	char				*n_edn;
 	aclResultReason_t	decision_reason;
@@ -1176,11 +1170,10 @@ acl_read_access_allowed_on_attr (
 
 	/* If it's the root or acl is off or rootdse, he has all the priv */
 	if ( acl_skip_access_check ( pb, e ) ) {
-		char	ebuf [ BUFSIZ ];
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			  "Root access (%s) allowed on entry(%s)\n",
 			   acl_access2str(access), 
-			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf));
+			   n_edn);
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_attr_end ,"ACL","",
 							tnf_string,skip_aclcheck,"");
 
@@ -1219,8 +1212,7 @@ acl_read_access_allowed_on_attr (
 		if (ret_val != -1 ) {
 			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
 				 "MATCHED HANDLE:dn:%s attr: %s val:%d\n", 
-				ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf), attr,
-																ret_val );
+				n_edn, attr, ret_val );
 			if ( ret_val == LDAP_SUCCESS) {
 				decision_reason.reason =
 						ACL_REASON_EVALCONTEXT_CACHED_ALLOW;
@@ -1249,9 +1241,8 @@ acl_read_access_allowed_on_attr (
 	if (aclpb->aclpb_state & ACLPB_ATTR_STAR_MATCHED) {
 		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
 		 	  "STAR Access allowed on attr:%s; entry:%s \n",
-		 	   attr, ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_edn, ebuf));
-		decision_reason.reason =
-						ACL_REASON_EVALCONTEXT_CACHED_ATTR_STAR_ALLOW;
+		 	   attr, n_edn);
+		decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_ATTR_STAR_ALLOW;
 		ret_val = LDAP_SUCCESS;
 		goto acl_access_allowed_on_attr_Exit;
 
@@ -1546,7 +1537,6 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 	int				j;
 	Slapi_Attr 		*attr = NULL;
 	Slapi_Entry		*e = NULL;
-	char			ebuf [ BUFSIZ];
 	Slapi_DN		*e_sdn;
 	aclUserGroup	*ugroup = NULL;
 	
@@ -1608,7 +1598,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		if ( group_change )  {
 			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 			"Group Change: Invalidating entire UserGroup Cache %s\n",
-			ACL_ESCAPE_STRING_WITH_PUNCTUATION(n_dn, ebuf));
+			n_dn);
 			aclg_regen_group_signature();
 			if (  (optype == SLAPI_OPERATION_MODIFY) || (optype == SLAPI_OPERATION_DELETE ) ) {
 				/* Then we need to invalidate the acl signature also */
@@ -1644,7 +1634,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		*/
 		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 			"Marking entry %s for removal from ACL user Group Cache\n",
-			ACL_ESCAPE_STRING_WITH_PUNCTUATION(n_dn, ebuf));
+			n_dn);
 		aclg_markUgroupForRemoval (ugroup);
 	}
 
@@ -1785,7 +1775,7 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		new_RDN = (char*) change;
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			   "acl_modified (MODRDN %s => \"%s\"\n", 
-			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_dn, ebuf), new_RDN);
+			   n_dn, new_RDN);
 
 		/* compute new_DN: */
 		parent_DN = slapi_dn_parent (n_dn);

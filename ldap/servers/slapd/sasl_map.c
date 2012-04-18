@@ -578,7 +578,7 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 					LDAPDebug( LDAP_DEBUG_TRACE,
 						"mapped base dn: %s, filter: %s\n",
 						escape_string( *ldap_search_base, escape_base ),
-					escape_string( *ldap_search_filter, escape_filt ), 0 );
+						escape_string( *ldap_search_filter, escape_filt ), 0 );
 					ret = 1;
 				}
 			}

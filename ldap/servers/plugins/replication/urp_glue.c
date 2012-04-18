@@ -97,7 +97,6 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 	int op_result = 0;
 	const char *dn;
 	const Slapi_DN *sdn;
-	char ebuf[BUFSIZ];
     slapi_mods smods;
 	Slapi_Attr *attr;
 
@@ -121,7 +120,7 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 				"%s: Target entry %s is already a glue entry reason %s\n",
-				sessionid, escape_string(dn, ebuf), reason);
+				sessionid, dn, reason);
 	}
 
 	if (slapi_entry_attr_find (entry, ATTR_NSDS5_REPLCONFLICT, &attr) == 0)
@@ -140,7 +139,7 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 		{
 			slapi_log_error (slapi_log_urp, repl_plugin_name,
 				"%s: Turned the entry %s to glue, reason %s\n",
-				sessionid, escape_string(dn, ebuf), reason);
+				sessionid, dn, reason);
 		}
     }
 

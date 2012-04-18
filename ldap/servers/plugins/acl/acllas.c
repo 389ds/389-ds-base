@@ -544,7 +544,7 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			char ebuf[ BUFSIZ ];
 			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
 			 	"DS_LASUserDnEval:Syntax error(%s)\n", 
-				 escape_string_with_punctuation( user, ebuf  ));
+				 escape_string_with_punctuation( user, ebuf ));
 			return LAS_EVAL_FAIL;
 		}
 

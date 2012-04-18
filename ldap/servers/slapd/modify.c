@@ -636,7 +636,6 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	Slapi_Entry	*pse;
 	Slapi_Entry *referral;
 	Slapi_Entry	*e = NULL;
-	char ebuf[BUFSIZ];
 	char *dn = NULL;
 	char *normdn = NULL;
 	Slapi_DN *sdn = NULL;
@@ -704,7 +703,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s\n",
 							 pb->pb_conn->c_connid, 
 							 pb->pb_op->o_opid,
-							 escape_string(slapi_sdn_get_dn(sdn), ebuf),
+							 slapi_sdn_get_dn(sdn),
 							 proxystr ? proxystr : "");
 		}
 		else
@@ -712,7 +711,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s\n",
 							 LOG_INTERNAL_OP_CON_ID,
 							 LOG_INTERNAL_OP_OP_ID,
-							 escape_string(slapi_sdn_get_dn(sdn), ebuf),
+							 slapi_sdn_get_dn(sdn),
 							 proxystr ? proxystr : "");
 		}
 
@@ -1049,7 +1048,6 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 	Slapi_Entry *e = NULL;
 	passwdPolicy *pwpolicy;
 	int rc = 0;
-	char ebuf[BUFSIZ];
 	Slapi_Value **values= NULL;
 	Slapi_Operation *operation;
 	int proxy_err = LDAP_SUCCESS;
@@ -1081,7 +1079,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"\n",
 					pb->pb_conn->c_connid, pb->pb_op->o_opid,
-					escape_string(slapi_sdn_get_dn(&sdn), ebuf));
+					slapi_sdn_get_dn(&sdn));
 		}
 
 		send_ldap_result(pb, proxy_err, NULL, errtext, 0, NULL);
@@ -1124,7 +1122,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s\n",
 						pb->pb_conn->c_connid, pb->pb_op->o_opid,
-						escape_string(slapi_sdn_get_dn(&sdn), ebuf),
+						slapi_sdn_get_dn(&sdn),
 						proxystr ? proxystr : "");
 			}
 
@@ -1158,8 +1156,8 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 				}
 
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-	    						 pb->pb_conn->c_connid, pb->pb_op->o_opid,
-	    						 escape_string(slapi_sdn_get_dn(&sdn), ebuf), 
+							 pb->pb_conn->c_connid, pb->pb_op->o_opid,
+							 slapi_sdn_get_dn(&sdn),
 							 proxystr ? proxystr : "",
 							 "user is not allowed to change password");
 			}
@@ -1186,7 +1184,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
 								 pb->pb_conn->c_connid, 
 								 pb->pb_op->o_opid,
-								 escape_string(slapi_sdn_get_dn(&sdn), ebuf), 
+								 slapi_sdn_get_dn(&sdn),
 								 proxystr ? proxystr : "",
 								 "within password minimum age");
 			}
@@ -1195,7 +1193,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 				slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
 								 LOG_INTERNAL_OP_CON_ID,
 								 LOG_INTERNAL_OP_OP_ID,
-								 escape_string(slapi_sdn_get_dn(&sdn), ebuf), 
+								 slapi_sdn_get_dn(&sdn),
 								 proxystr ? proxystr : "",
 								 "within password minimum age");
 			}
@@ -1229,7 +1227,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 						slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
 										 pb->pb_conn->c_connid, 
 										 pb->pb_op->o_opid,
-										 escape_string(slapi_sdn_get_dn(&sdn), ebuf),
+										 slapi_sdn_get_dn(&sdn),
 										 proxystr ? proxystr : "",
 										"invalid password syntax");
 					}
@@ -1238,7 +1236,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 						slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
 										LOG_INTERNAL_OP_CON_ID,
 										LOG_INTERNAL_OP_OP_ID,
-										escape_string(slapi_sdn_get_dn(&sdn), ebuf),
+										slapi_sdn_get_dn(&sdn),
 										proxystr ? proxystr : "",
 										"invalid password syntax");
 					}

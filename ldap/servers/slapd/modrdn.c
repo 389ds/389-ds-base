@@ -429,9 +429,6 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	Slapi_Backend	*be = NULL;
 	Slapi_DN		*origsdn = NULL;
 	Slapi_Mods		smods;
-	char			dnbuf[BUFSIZ];
-	char			newrdnbuf[BUFSIZ];
-	char			newsuperiorbuf[BUFSIZ];
 	int				internal_op, repl_op, lastmod;
 	Slapi_Operation *operation;
 	Slapi_Entry *referral;
@@ -510,9 +507,9 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 					 "conn=%" NSPRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
 					 pb->pb_conn->c_connid, 
 					 pb->pb_op->o_opid,
-					 escape_string(dn, dnbuf),
-					 (NULL == newrdn) ? "(null)" : escape_string(newrdn, newrdnbuf),
-					 (NULL == newsuperior) ? "(null)" : escape_string(newsuperior, newsuperiorbuf),
+					 dn,
+					 newrdn ? newrdn : "(null)",
+					 newsuperior ? newsuperior : "(null)",
 					 proxystr ? proxystr : "");
 		}
 		else
@@ -521,9 +518,9 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 					 "conn=%s op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
 					 LOG_INTERNAL_OP_CON_ID,
 					 LOG_INTERNAL_OP_OP_ID,
-					 escape_string(dn, dnbuf),
-					 (NULL == newrdn) ? "(null)" : escape_string(newrdn, newrdnbuf),
-					 (NULL == newsuperior) ? "(null)" : escape_string(newsuperior, newsuperiorbuf),
+					 dn,
+					 newrdn ? newrdn : "(null)",
+					 newsuperior ? newsuperior : "(null)",
 					 proxystr ? proxystr : "");
 		}
 	}
@@ -577,13 +574,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
-				 (NULL == newsuperior) ? "(null)" : newsuperiorbuf);
+				 newsuperior ? newsuperior : "(null)");
 		} else {
 			slapi_log_error(SLAPI_LOG_ARGS, NULL,
 				 "conn=%s op=%d MODRDN invalid new superior (\"%s\")",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
-				 (NULL == newsuperior) ? "(null)" : newsuperiorbuf);
+				 newsuperior ? newsuperior : "(null)");
 		}
 		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
 						 "newSuperior does not look like a DN", 0, NULL);

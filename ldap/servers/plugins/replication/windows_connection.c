@@ -461,14 +461,13 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 				 * enough information to allow them to fix the problem
 				 * and retry - bug 170350 */
 				if (conn->last_ldap_error == LDAP_CONSTRAINT_VIOLATION) {
-					char ebuf[BUFSIZ];
 					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Received error [%s] when attempting to %s"
 						" entry [%s]: Please correct the attribute specified "
 						"in the error message.  Refer to the Windows Active "
 						"Directory docs for more information.\n",
 						agmt_get_long_name(conn->agmt),
-						errmsg, op_string, escape_string(dn, ebuf));
+						errmsg, op_string, dn);
 				} else {
 					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"%s: Received result code %d (%s) for %s operation %s%s\n",

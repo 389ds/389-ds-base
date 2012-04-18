@@ -822,7 +822,6 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
      * LDAP_OPERATIONS_ERROR
      */
     else if ( duplicate_index >= 0 ) {
-        char avdbuf[BUFSIZ];
         char bvvalcopy[BUFSIZ];
         char *duplicate_string = "null or non-ASCII";
 
@@ -849,7 +848,7 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
                 "attribute type \"%s\" in entry \"%s\" failed: %s\n", 
                 duplicate_string,
                 a->a_type,
-                dn ? escape_string(dn,avdbuf) : "<null>", 
+                dn ? dn : "<null>", 
                 (was_present_null ? "duplicate new value" : "value exists"));
     }
     return( rc );

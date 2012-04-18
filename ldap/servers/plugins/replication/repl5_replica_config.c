@@ -622,8 +622,6 @@ replica_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 
     if (mtnode_ext->replica)
     {
-        char ebuf[BUFSIZ];
-
         /* remove object from the hash */
         r = (Replica*)object_get_data (mtnode_ext->replica);
         PR_ASSERT (r);
@@ -631,7 +629,7 @@ replica_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_delete: "
                         "Warning: The changelog for replica %s is no longer valid since "
                         "the replica config is being deleted.  Removing the changelog.\n",
-                        escape_string(slapi_sdn_get_dn(replica_get_root(r)),ebuf));
+                        slapi_sdn_get_dn(replica_get_root(r)));
         cl5DeleteDBSync(mtnode_ext->replica);
         replica_delete_by_name (replica_get_name (r));
         object_release (mtnode_ext->replica);
@@ -1068,7 +1066,6 @@ _replica_config_get_mtnode_ext (const Slapi_Entry *e)
     Slapi_DN *sdn = NULL;
     mapping_tree_node *mtnode;
     multimaster_mtnode_extension *ext = NULL;
-    char ebuf[BUFSIZ];
 
     /* retirve root of the tree for which replica is configured */
     replica_root = slapi_entry_attr_get_charptr (e, attr_replicaRoot);
@@ -1076,7 +1073,7 @@ _replica_config_get_mtnode_ext (const Slapi_Entry *e)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_add: "
                         "configuration entry %s missing %s attribute\n",
-                        escape_string(slapi_entry_get_dn((Slapi_Entry *)e), ebuf),
+                        slapi_entry_get_dn((Slapi_Entry *)e),
                         attr_replicaRoot);   
         return NULL;
     }
@@ -1089,7 +1086,7 @@ _replica_config_get_mtnode_ext (const Slapi_Entry *e)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_add: "
                         "failed to locate mapping tree node for dn %s\n",
-                        escape_string(slapi_sdn_get_dn(sdn), ebuf));        
+                        slapi_sdn_get_dn(sdn));        
     }
     else
     {

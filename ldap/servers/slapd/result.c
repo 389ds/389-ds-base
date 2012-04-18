@@ -1810,7 +1810,6 @@ static void
 log_entry( Operation *op, Slapi_Entry *e )
 {
 	int	internal_op;
-	char	ebuf[ BUFSIZ ];
 
 	internal_op = operation_is_flag_set( op, OP_FLAG_INTERNAL );
 
@@ -1818,7 +1817,7 @@ log_entry( Operation *op, Slapi_Entry *e )
 	{
 		slapi_log_access( LDAP_DEBUG_STATS2, "conn=%" NSPRIu64 " op=%d ENTRY dn=\"%s\"\n",
 			op->o_connid, op->o_opid,
-			escape_string( slapi_entry_get_dn_const(e), ebuf ));
+			slapi_entry_get_dn_const(e));
 	}
 	else
 	{
@@ -1826,7 +1825,7 @@ log_entry( Operation *op, Slapi_Entry *e )
 		{
 			slapi_log_access( LDAP_DEBUG_ARGS, "conn=%s op=%d ENTRY dn=\"%s\"\n",
 				LOG_INTERNAL_OP_CON_ID, LOG_INTERNAL_OP_OP_ID,
-				escape_string( slapi_entry_get_dn_const(e), ebuf ));
+				slapi_entry_get_dn_const(e));
 		}
 	}
 }

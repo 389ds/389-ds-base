@@ -206,12 +206,11 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg)
     int rc = SLAPI_FILTER_SCAN_CONTINUE;
     if (f->f_choice == LDAP_FILTER_SUBSTRINGS) {
         char pat[BUFSIZ];
-        char *p, *end, *tmpbuf, *bigpat = NULL;
+        char *p, *end, *bigpat = NULL;
         size_t size = 0;
         Slapi_Regex *re = NULL;
         const char *re_result = NULL;
         int i = 0;
-        char ebuf[BUFSIZ];
 
         PR_ASSERT(NULL == f->f_un.f_un_sub.sf_private);
         /*
@@ -260,13 +259,13 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg)
 
         /* compile the regex */
         p = bigpat ? bigpat : pat;
-        tmpbuf = NULL;
         re = slapi_re_comp(p, &re_result);
         if (NULL == re) {
             LDAPDebug(LDAP_DEBUG_ANY, "ldbm_search_compile_filter: re_comp (%s) failed (%s): %s\n",
                       pat, p, re_result?re_result:"unknown" );
             rc = SLAPI_FILTER_SCAN_ERROR;
         } else {
+            char ebuf[BUFSIZ];
             LDAPDebug(LDAP_DEBUG_TRACE, "ldbm_search_compile_filter: re_comp (%s)\n",
                       escape_string(p, ebuf), 0, 0);
             f->f_un.f_un_sub.sf_private = (void *)re;
@@ -1542,8 +1541,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             Slapi_Value **refs= attr_get_present_values(attr);
             if ( refs == NULL || refs[0] == NULL )
             {
-                char ebuf[ BUFSIZ ];
-                LDAPDebug( LDAP_DEBUG_ANY, "null ref in (%s)\n", escape_string( backentry_get_ndn(e), ebuf ), 0, 0 );
+                LDAPDebug( LDAP_DEBUG_ANY, "null ref in (%s)\n", backentry_get_ndn(e), 0, 0 );
             }
             else if ( slapi_sdn_scope_test( backentry_get_sdn(e), basesdn, scope ))
             {
@@ -1604,8 +1602,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                               ACL_CHECK_FLAG );
                       if (filter_test != ft_rc) {
                           /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
-                          char ebuf[ BUFSIZ ];
-                          LDAPDebug( LDAP_DEBUG_ANY, "Filter bypass ERROR on entry %s\n", escape_string( backentry_get_ndn(e), ebuf ), 0, 0 );
+                          LDAPDebug( LDAP_DEBUG_ANY, "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e), 0, 0 );
                           filter_test = ft_rc; /* Fix the error */
                       }
                   }

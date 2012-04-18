@@ -1539,7 +1539,6 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	char *attr_name;
 	Slapi_Value **sval;
 	slapdFrontendConfig_t *slapdFrontendConfig;
-	char ebuf[ BUFSIZ ];
 	int optype = -1;
 
 	/* RFE - is there a way to make this work for non-existent entries 
@@ -1617,8 +1616,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 			slapi_entry_free( e );
 
 			if ( pw_entry == NULL ) {
-				LDAPDebug(LDAP_DEBUG_ANY, "loading global password policy for %s"
-					"--local policy entry not found\n", escape_string(dn, ebuf),0,0);
+				LDAPDebug1Arg(LDAP_DEBUG_ANY,
+				              "loading global password policy for %s"
+				              "--local policy entry not found\n", dn);
 				goto done;
 			}
         

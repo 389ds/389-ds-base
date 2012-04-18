@@ -100,11 +100,10 @@ static int import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
         if (rc == UID_SUCCESS) {
             slapi_entry_set_uniqueid (e, newuniqueid);
         } else {
-            char ebuf[BUFSIZ];
             LDAPDebug( LDAP_DEBUG_ANY,
                        "import_generate_uniqueid: failed to generate "
                        "uniqueid for %s; error=%d.\n", 
-                       escape_string(slapi_entry_get_dn_const(e), ebuf), rc, 0 );
+                       slapi_entry_get_dn_const(e), rc, 0 );
         }                
     }
 
@@ -572,10 +571,9 @@ import_producer(void *param)
         }
 
         if (slapi_entry_schema_check(NULL, e) != 0) {
-            char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\" which "
                               "violates schema, ending line %d of file "
-                              "\"%s\"", escape_string(slapi_entry_get_dn(e), ebuf),
+                              "\"%s\"", slapi_entry_get_dn(e),
                               curr_lineno, curr_filename);
             slapi_entry_free(e);
 
@@ -626,10 +624,9 @@ import_producer(void *param)
         /* Check attribute syntax */
         if (syntax_err != 0)
         {
-            char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\" which "
                               "violates attribute syntax, ending line %d of "
-                              "file \"%s\"", escape_string(slapi_entry_get_dn(e), ebuf),
+                              "file \"%s\"", slapi_entry_get_dn(e),
                               curr_lineno, curr_filename);
             slapi_entry_free(e);
 
@@ -721,10 +718,9 @@ import_producer(void *param)
 
         newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
         if (newesize > job->fifo.bsize) {    /* entry too big */
-            char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\" "
                     "ending line %d of file \"%s\"",
-                    escape_string(slapi_entry_get_dn(e), ebuf),
+                    slapi_entry_get_dn(e),
                     curr_lineno, curr_filename);
             import_log_notice(job, "REASON: entry too large (%lu bytes) for "
                     "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
@@ -854,9 +850,8 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
     if (newesize > job->fifo.bsize) {    /* entry too big */
-        char ebuf[BUFSIZ];
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
-                    escape_string(slapi_entry_get_dn(e), ebuf));
+                    slapi_entry_get_dn(e));
         import_log_notice(job, "REASON: entry too large (%lu bytes) for "
                     "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
         backentry_free(&ep);
@@ -1779,9 +1774,8 @@ upgradedn_producer(void *param)
 
         newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
         if (newesize > job->fifo.bsize) {    /* entry too big */
-            char ebuf[BUFSIZ];
             import_log_notice(job, "WARNING: skipping entry \"%s\"",
-                    escape_string(slapi_entry_get_dn(e), ebuf));
+                    slapi_entry_get_dn(e));
             import_log_notice(job, "REASON: entry too large (%lu bytes) for "
                     "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
             backentry_free(&ep);
@@ -2970,9 +2964,8 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
     if (newesize > job->fifo.bsize) {    /* entry too big */
-        char ebuf[BUFSIZ];
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
-                    escape_string(slapi_entry_get_dn(ep->ep_entry), ebuf));
+                    slapi_entry_get_dn(ep->ep_entry));
         import_log_notice(job, "REASON: entry too large (%lu bytes) for "
                     "the import buffer size (%lu bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
         backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/

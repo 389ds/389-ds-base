@@ -70,7 +70,6 @@ do_compare( Slapi_PBlock *pb )
 	struct ava	ava = {0};
 	Slapi_Backend		*be = NULL;
 	int		err;
-	char		ebuf[ BUFSIZ ];
 	Slapi_DN sdn;
 	Slapi_Entry *referral = NULL;
 	char errorbuf[BUFSIZ];
@@ -145,8 +144,7 @@ do_compare( Slapi_PBlock *pb )
 
 	slapi_log_access( LDAP_DEBUG_STATS,
 	    "conn=%" NSPRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
-	    pb->pb_conn->c_connid, pb->pb_op->o_opid,
-	    escape_string( rawdn, ebuf ), ava.ava_type );
+	    pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, ava.ava_type );
 
 	/*
 	 * We could be serving multiple database backends.  Select the

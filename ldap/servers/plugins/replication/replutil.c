@@ -789,10 +789,9 @@ repl_set_mtn_state_and_referrals(
         }
 
         if (rc != LDAP_SUCCESS) {
-		char ebuf[BUFSIZ];
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "repl_set_mtn_referrals: could "
 						"not set referrals for replica %s: %d\n",
-						escape_string(slapi_sdn_get_dn(repl_root_sdn), ebuf), rc);
+						slapi_sdn_get_dn(repl_root_sdn), rc);
 	}
 
 	charray_free(referrals_to_set);

@@ -787,10 +787,9 @@ static void views_cache_create_applied_filter(viewEntry *pView)
 
 		pCurrentFilter = slapi_str2filter( buf );
 		if (!pCurrentFilter) {
-			char ebuf[BUFSIZ];
 			slapi_log_error(SLAPI_LOG_FATAL, VIEWS_PLUGIN_SUBSYSTEM,
 							"Error: the view filter [%s] in entry [%s] is not valid\n",
-							buf, escape_string(current->pDn, ebuf));
+							buf, current->pDn);
 		}
 		if(pBuiltFilter && pCurrentFilter)
 			pBuiltFilter = slapi_filter_join_ex( LDAP_FILTER_AND, pBuiltFilter, pCurrentFilter, 0 );
@@ -964,10 +963,9 @@ Slapi_Filter *views_cache_create_descendent_filter(viewEntry *ancestor, PRBool u
 		{
 			pCurrentFilter = slapi_str2filter( buf );
 			if (!pCurrentFilter) {
-				char ebuf[BUFSIZ];
 				slapi_log_error(SLAPI_LOG_FATAL, VIEWS_PLUGIN_SUBSYSTEM,
 								"Error: the view filter [%s] in entry [%s] is not valid\n",
-								buf, escape_string(currentChild->pDn, ebuf));
+								buf, currentChild->pDn);
 			}
 			if(pOrSubFilter && pCurrentFilter)
 				pOrSubFilter = slapi_filter_join_ex( LDAP_FILTER_OR, pOrSubFilter, pCurrentFilter, 0 );
@@ -1029,10 +1027,9 @@ static void views_cache_create_inclusion_filter(viewEntry *pView)
 		sprintf(buf, "(%s)", viewRDNstr );
 		viewSubFilter = slapi_str2filter( buf );
 		if (!viewSubFilter) {
-			char ebuf[BUFSIZ];
 			slapi_log_error(SLAPI_LOG_FATAL, VIEWS_PLUGIN_SUBSYSTEM,
 							"Error: the view filter [%s] in entry [%s] is not valid\n",
-							buf, escape_string(current->pDn, ebuf));
+							buf, current->pDn);
 		}
 
 		if(pView->includeChildViewsFilter && viewSubFilter)

@@ -971,7 +971,6 @@ urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, const char *op
 	const char *uniqueid;
 	const Slapi_DN *basesdn;
 	const char *basedn;
-	char ebuf[BUFSIZ];
 
 	uniqueid = slapi_entry_get_uniqueid (entry);
 	basesdn = slapi_entry_get_sdn_const (entry);
@@ -986,7 +985,7 @@ urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, const char *op
 		case LDAP_SUCCESS:
 			slapi_log_error(slapi_log_urp, sessionid,
 				"Naming conflict %s. Renamed existing entry to %s\n",
-				optype, escape_string (newrdn, ebuf));
+				optype, newrdn);
 			rc = 1;
 			break;
 		case LDAP_NO_SUCH_OBJECT:
@@ -1008,7 +1007,7 @@ urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, const char *op
 			 */
 			slapi_log_error( SLAPI_LOG_FATAL, sessionid,
 				"Entry %s exists in cache but not in DB\n",
-				escape_string (basedn, ebuf) );
+				basedn );
 			rc = LDAP_NO_SUCH_OBJECT;
 			break;
 		default:

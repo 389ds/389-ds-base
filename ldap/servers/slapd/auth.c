@@ -103,27 +103,28 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
     ctrls[0]->ldctl_value.bv_val = NULL;
     ctrls[0]->ldctl_value.bv_len = 0;
     ctrls[0]->ldctl_iscritical = '\0';
-    slapi_search_internal_set_pb(pb, baseDN, scope, (char *)filter, attrs, attrsonly, 
-	ctrls, NULL, auth_get_component_id(), 0 /* actions */);
+    slapi_search_internal_set_pb(pb, baseDN, scope, (char *)filter, attrs,
+                                 attrsonly, ctrls, NULL,
+                                 auth_get_component_id(), 0 /* actions */);
     slapi_search_internal_pb(pb);
 
     if (pb != NULL) {
-	if (slapi_pblock_get (pb, SLAPI_PLUGIN_INTOP_RESULT, &err)) {
-	    err = LDAP_LOCAL_ERROR;
-	}
-	if (err != LDAP_SUCCESS) {
-	    slapu_msgfree (ld, (LDAPMessage*)pb);
-	    pb = NULL;
-	    if (scope == LDAP_SCOPE_SUBTREE) {
-		char ebuf[ BUFSIZ ], fbuf[ BUFSIZ ];
-		LDAPDebug (LDAP_DEBUG_ANY, "slapi_search_internal (\"%s\", subtree, %s) err %i\n",
-			   escape_string( (char*)baseDN, ebuf ), escape_string( (char*)filter, fbuf ), err);
-	    }
-	}
+        if (slapi_pblock_get (pb, SLAPI_PLUGIN_INTOP_RESULT, &err)) {
+            err = LDAP_LOCAL_ERROR;
+        }
+        if (err != LDAP_SUCCESS) {
+            slapu_msgfree (ld, (LDAPMessage*)pb);
+            pb = NULL;
+            if (scope == LDAP_SCOPE_SUBTREE) {
+                char fbuf[ BUFSIZ ];
+                LDAPDebug (LDAP_DEBUG_ANY, "slapi_search_internal (\"%s\", subtree, %s) err %i\n",
+                           baseDN, escape_string( (char*)filter, fbuf ), err);
+            }
+        }
     } else {
-	char ebuf[ BUFSIZ ], fbuf[ BUFSIZ ];
-	LDAPDebug (LDAP_DEBUG_ANY, "slapi_search_internal (\"%s\", %i, %s) NULL\n",
-		   escape_string( (char*)baseDN, ebuf ), scope, escape_string( (char*)filter, fbuf ));
+        char fbuf[ BUFSIZ ];
+        LDAPDebug (LDAP_DEBUG_ANY, "slapi_search_internal (\"%s\", %i, %s) NULL\n",
+                   baseDN, scope, escape_string( (char*)filter, fbuf ));
     }
     slapi_sdn_free(&sdn);
     *result = (LDAPMessage*)pb;
@@ -520,14 +521,13 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
     }
 
     if (clientDN != NULL) {
-        char ebuf[ BUFSIZ ];
         Slapi_DN *sdn = NULL;
         sdn = slapi_sdn_new_dn_passin(clientDN);
         clientDN = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
         slapi_sdn_free(&sdn);
         slapi_log_access (LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " SSL client bound as %s\n",
-                          conn->c_connid, escape_string( clientDN, ebuf ));
+                          conn->c_connid, clientDN);
     } else if (clientCert != NULL) {
         slapi_log_access (LDAP_DEBUG_STATS,
                           "conn=%" NSPRIu64 " SSL failed to map client "

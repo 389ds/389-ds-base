@@ -182,8 +182,7 @@ aclutil_print_aci (aci_t *aci_item, char *type)
 		   "ACI RULE type:(%s)\n",str);
 	
 	dn = slapi_sdn_get_dn ( aci_item->aci_sdn );
-	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
-		"Slapi_Entry DN:%s\n", escape_string_with_punctuation (dn, str));
+	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "Slapi_Entry DN:%s\n", dn);
 
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name,
 		"***END ACL INFO*****************************\n");
@@ -512,7 +511,7 @@ aclutil_print_resource( struct acl_pblock *aclpb, char *right , char *attr, char
 
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ************ RESOURCE INFO STARTS *********\n");
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    Client DN: %s\n", 
-		   clientdn ? escape_string_with_punctuation (clientdn, str) : "NULL");
+		   clientdn ? clientdn : "NULL");
 	aclutil__access_str (aclpb->aclpb_access, str);
     aclutil__typestr (aclpb->aclpb_res_type, &str[strlen(str)]);
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    resource type:%d(%s)\n",
@@ -520,7 +519,7 @@ aclutil_print_resource( struct acl_pblock *aclpb, char *right , char *attr, char
 
 	dn = slapi_sdn_get_dn ( aclpb->aclpb_curr_entry_sdn );
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    Slapi_Entry DN: %s\n", 
-		   dn ? escape_string_with_punctuation ( dn , str) : "NULL");
+		   dn ? dn  : "NULL");
 
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    ATTR: %s\n", attr ? attr : "NULL");
 	slapi_log_error (SLAPI_LOG_ACL, plugin_name, "    rights:%s\n", right ? right: "NULL");

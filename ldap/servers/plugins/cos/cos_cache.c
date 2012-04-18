@@ -1018,7 +1018,6 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 	useless definition and we'll nag copiously later.
 		*/
 		char *pTmpDn = slapi_ch_strdup(pDn->val); /* because dn gets hosed on error */
-		char ebuf[ BUFSIZ ];
 		
 		if(!(rc = cos_cache_add_defn(info->pDefs, &pDn, cosType,
 								&pCosTargetTree, &pCosTemplateDn, 
@@ -1035,11 +1034,11 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 				LDAPDebug(LDAP_DEBUG_ANY, "Skipping CoS Definition %s"
 					"--no CoS Templates found, "
 					"which should be added before the CoS Definition.\n",
-					escape_string(pTmpDn, ebuf), 0, 0);
+					pTmpDn, 0, 0);
 			} else {
 				LDAPDebug(LDAP_DEBUG_ANY, "Skipping CoS Definition %s\n"
 					"--error(%d)\n",
-					escape_string(pTmpDn, ebuf), rc, 0);
+					pTmpDn, rc, 0);
 			}
 		}
 		

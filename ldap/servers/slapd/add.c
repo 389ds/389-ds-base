@@ -91,7 +91,6 @@ do_add( Slapi_PBlock *pb )
 	Slapi_Entry		*e = NULL;
 	int			err;
 	int			rc;
-	char			ebuf[ BUFSIZ ];
 	PRBool  searchsubentry=PR_TRUE;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_add\n", 0, 0, 0 );
@@ -183,6 +182,7 @@ do_add( Slapi_PBlock *pb )
 
 		normtype = slapi_attr_syntax_normalize(type);
 		if ( !normtype || !*normtype ) {
+			char ebuf[ BUFSIZ ];
 			rc = LDAP_INVALID_SYNTAX;
 			PR_snprintf (ebuf, BUFSIZ, "invalid type '%s'", type);
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), ebuf);
@@ -202,7 +202,7 @@ do_add( Slapi_PBlock *pb )
 				slapi_log_access( LDAP_DEBUG_STATS, 
 					"conn=%" NSPRIu64 " op=%d ADD dn=\"%s\", add values for type %s failed\n",
 					pb->pb_conn->c_connid, operation->o_opid, 
-					escape_string( slapi_entry_get_dn_const(e), ebuf ), normtype );
+					slapi_entry_get_dn_const(e), normtype );
 				send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
 
 				slapi_ch_free( (void**)&normtype );
@@ -445,7 +445,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 	Slapi_Entry	*e, *pse;
 	Slapi_Backend *be = NULL;
 	int	err;
-	char ebuf[BUFSIZ];
 	int internal_op, repl_op, legacy_op, lastmod;
 	char *pwdtype = NULL;
 	Slapi_Value **unhashed_password_vals = NULL;
@@ -489,7 +488,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ADD dn=\"%s\"%s\n",
 							 pb->pb_conn->c_connid, 
 							 operation->o_opid,
-							 escape_string(slapi_entry_get_dn_const(e), ebuf),
+							 slapi_entry_get_dn_const(e),
 							 proxystr ? proxystr : "");
 		}
 		else
@@ -497,7 +496,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d ADD dn=\"%s\"\n",
 							 LOG_INTERNAL_OP_CON_ID,
 							 LOG_INTERNAL_OP_OP_ID,
-							 escape_string(slapi_entry_get_dn_const(e), ebuf));
+							 slapi_entry_get_dn_const(e));
 		}
 	}
 

@@ -173,7 +173,7 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
             }
         }
         slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
-       	                           "internalModifiersName", bvals);
+                                  "internalModifiersName", bvals);
 
         /* Grab the thread data(binddn) */
         slapi_td_get_dn(&binddn);
@@ -235,7 +235,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   Slapi_Backend   *be_single = NULL;
   Slapi_Backend   *be_list[BE_LIST_SIZE+1];
   Slapi_Entry     *referral_list[BE_LIST_SIZE+1];
-  char            ebuf[ BUFSIZ ];
   char            attrlistbuf[ 1024 ], *attrliststr, **attrs = NULL;
   int             rc = 0;
   int             internal_op;
@@ -355,7 +354,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           slapi_log_access(LDAP_DEBUG_STATS, fmtstr,
                            pb->pb_conn->c_connid, 
                            pb->pb_op->o_opid, 
-                           escape_string(normbase, ebuf),
+                           normbase,
                            scope, fstr, attrliststr,
                            flag_psearch ? " options=persistent" : "",
                            proxystr ? proxystr : "");
@@ -365,7 +364,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           slapi_log_access(LDAP_DEBUG_ARGS, fmtstr,
                            LOG_INTERNAL_OP_CON_ID,
                            LOG_INTERNAL_OP_OP_ID,
-                           escape_string(normbase, ebuf),
+                           normbase,
                            scope, fstr, attrliststr,
                            flag_psearch ? " options=persistent" : "",
                            proxystr ? proxystr : "");
@@ -1020,9 +1019,8 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
         slapi_attr_get_numvalues(a, &numValues );
         if (numValues == 0) 
         {
-            char ebuf[ BUFSIZ ];
-            LDAPDebug(LDAP_DEBUG_ANY, "null ref in (%s)\n",
-                      escape_string(slapi_entry_get_dn_const(e), ebuf), 0, 0);
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "null ref in (%s)\n",
+                          slapi_entry_get_dn_const(e));
         }
         else 
         {
@@ -1657,7 +1655,6 @@ send_results_ext(Slapi_PBlock *pb, int send_result, int *nentries, int pagesize,
 
 void op_shared_log_error_access (Slapi_PBlock *pb, const char *type, const char *dn, const char *msg)
 {
-    char ebuf[BUFSIZ];
     char *proxydn = NULL;
     char *proxystr = NULL;
 
@@ -1669,7 +1666,7 @@ void op_shared_log_error_access (Slapi_PBlock *pb, const char *type, const char 
                       ( pb->pb_conn ? pb->pb_conn->c_connid : 0), 
                       ( pb->pb_op ? pb->pb_op->o_opid : 0), 
                       type, 
-                      escape_string( dn, ebuf ), 
+                      dn, 
                       proxystr ? proxystr : "",
                       msg ? msg : "" );
 

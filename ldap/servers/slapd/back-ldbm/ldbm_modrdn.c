@@ -115,7 +115,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     entry_address *old_addr;
     entry_address oldparent_addr;
     entry_address *newsuperior_addr;
-    char ebuf[BUFSIZ];
     char *original_newrdn = NULL;
     CSN *opcsn = NULL;
     const char *newdn = NULL;
@@ -593,7 +592,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     {
         ldap_result_code= LDAP_OPERATIONS_ERROR;
         LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods failed for entry %s\n",
-                   escape_string(slapi_entry_get_dn_const(ec->ep_entry), ebuf), 0, 0);
+                   slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
         goto error_return;
     }
 
@@ -606,7 +605,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             ldap_result_code= LDAP_OPERATIONS_ERROR;
             LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi failed for entry %s\n",
-                       escape_string(slapi_entry_get_dn_const(ec->ep_entry), ebuf), 0, 0);
+                       slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
             goto error_return;
         }
     }
@@ -624,7 +623,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             ldap_result_code= LDAP_OPERATIONS_ERROR;
             LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi (operational attributes) failed for entry %s\n",
-                       escape_string(slapi_entry_get_dn_const(ec->ep_entry), ebuf), 0, 0);
+                       slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
             goto error_return;
         }
     }
@@ -884,9 +883,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     memset(&sv,0,sizeof(Slapi_Value));
                     if ( slapi_rdn2typeval( rdns[i], &type, &sv.bv ) != 0 ) 
                     {
-                        char ebuf[ BUFSIZ ];
                         LDAPDebug( LDAP_DEBUG_ANY, "modrdn: rdn2typeval (%s) failed\n",
-                                   escape_string( rdns[i], ebuf ), 0, 0 );
+                                    rdns[i], 0, 0 );
                         if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
                         MOD_SET_ERROR(ldap_result_code, 
                                       LDAP_OPERATIONS_ERROR, retry_count);
@@ -1443,7 +1441,6 @@ moddn_rdn_add_needed (
 static int
 moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Slapi_Mods *smods_wsi, int is_repl_op)
 {
-    char ebuf[BUFSIZ];
     char **rdns = NULL;
     char **dns = NULL;
     int deleteoldrdn;
@@ -1514,7 +1511,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
     if ( baddn || badrdn )
     {
         LDAPDebug( LDAP_DEBUG_TRACE, "moddn_newrdn_mods failed: olddn=%s baddn=%d badrdn=%d\n",
-                   escape_string(olddn, ebuf), baddn, badrdn);
+                   olddn, baddn, badrdn);
         return LDAP_OPERATIONS_ERROR;
     }
     }
@@ -1544,7 +1541,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
     else
     {
     LDAPDebug( LDAP_DEBUG_TRACE, "moddn_newrdn_mods failed: could not parse new rdn %s\n",
-           escape_string(newrdn, ebuf), 0, 0);
+           newrdn, 0, 0);
         return LDAP_OPERATIONS_ERROR;
     }
     

@@ -837,34 +837,29 @@ log_bind_access (
     const char *msg
 )
 {
-    char ebuf[ BUFSIZ ];
-    const char *edn;
-
-    edn = escape_string( dn, ebuf );
-
     if (method == LDAP_AUTH_SASL && saslmech && msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
                           "method=sasl version=%d mech=%s, %s\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
+                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, 
                           version, saslmech, msg );
     } else if (method == LDAP_AUTH_SASL && saslmech) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
                           "method=sasl version=%d mech=%s\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
+                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, 
                           version, saslmech );
     } else if (msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
                           "method=%d version=%d, %s\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
+                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, 
                           method, version, msg );
     } else {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
                           "method=%d version=%d\n",
-                          pb->pb_conn->c_connid, pb->pb_op->o_opid, edn, 
+                          pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, 
                           method, version );
     }
 }
