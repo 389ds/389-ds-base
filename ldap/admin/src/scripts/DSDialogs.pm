@@ -66,7 +66,7 @@ my $dsport = new Dialog (
         my $res = $DialogManager::SAME;
         if ($ans !~ /^\d+$/) {
             $self->{manager}->alert("dialog_dsport_invalid", $ans);
-        } elsif (!portAvailable($ans)) {
+        } elsif (!portAvailable($ans) && !$self->{manager}->{setup}->{force}) {
             $self->{manager}->alert("dialog_dsport_error", $ans);
         } else {
             $res = $DialogManager::NEXT;
