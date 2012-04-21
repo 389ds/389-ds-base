@@ -242,6 +242,7 @@ IDList * idl_new_fetch(
     /* Iterate over the duplicates, amassing them into an IDL */
 #ifdef DB_USE_BULK_FETCH
     for (;;) {
+        ID lastid = 0;
 
         DB_MULTIPLE_INIT(ptr, &data);
 
@@ -250,6 +251,13 @@ IDList * idl_new_fetch(
             if (dataret.data == NULL) break;
             if (ptr == NULL) break;
 
+            if (*(int32_t *)ptr < -1) {
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "DB_MULTIPLE buffer is corrupt; "
+                              "next offset [%d] is less than zero\n",
+                              *(int32_t *)ptr);
+                /* retry the read */
+                break;
+            }
             if (dataret.size != sizeof(ID)) {
                 LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
                           "key %s has a data item with the wrong size (%d)\n", 
@@ -257,7 +265,14 @@ IDList * idl_new_fetch(
                 goto error;
             }
             memcpy(&id, dataret.data, sizeof(ID));
-
+            if (id == lastid) { /* dup */
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "Detedted duplicate id "
+                              "%d due to DB_MULTIPLE error - skipping\n",
+                              id);
+                continue; /* get next one */
+            }
+            /* note the last id read to check for dups */
+            lastid = id;
             /* we got another ID, add it to our IDL */
             idl_rc = idl_append_extend(&idl, id);
             if (idl_rc) {
