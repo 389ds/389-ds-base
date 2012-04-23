@@ -863,10 +863,27 @@ ruv_covers_csn_internal(const RUV *ruv, const CSN *csn, PRBool strict)
 	{
 		rid = csn_get_replicaid(csn);
 		replica = ruvGetReplica (ruv, rid);
+		if((is_released_rid(rid)) || (replica == NULL && is_already_released_rid()) ){
+			/* this is a released rid, so return true */
+			return PR_TRUE;
+		}
 		if (replica == NULL)
 		{
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn: replica for id %d not found\n", rid);
-			return_value = PR_FALSE;
+			/*
+			 *  We don't know anything about this replica change in the cl, mark it to be zapped.
+			 *  This could of been a previously cleaned ruv, but the server was restarted before
+			 *  the change could be trimmed.
+			 *
+			 *  Only the change log trimming calls this function with "strict" set.  So we'll return success
+			 *  if strict is set.
+			 */
+			if(strict){
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn: replica for id %d not found.\n", rid);
+				return_value = PR_TRUE;
+			} else {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "ruv_covers_csn: replica for id %d not found.\n", rid);
+				return_value = PR_FALSE;
+			}
 		}
 		else
 		{
@@ -1403,12 +1420,20 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     RUVElement* replica;
     char csn_str[CSN_STRSIZE];
     int rc = RUV_SUCCESS;
+    int rid = csn_get_replicaid (csn);
 
     PR_ASSERT (ruv && csn);
 
     /* locate ruvElement */
     slapi_rwlock_wrlock (ruv->lock);
-    replica = ruvGetReplica (ruv, csn_get_replicaid (csn));
+
+    if(is_cleaned_rid(rid)){
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: invalid replica ID"
+            "(%d), aborting update\n", rid);
+        /* return success because we want to consume the update, but not perform it */
+        goto done;
+    }
+    replica = ruvGetReplica (ruv, rid);
     if (replica == NULL)
     {
         replica = ruvAddReplicaNoCSN (ruv, csn_get_replicaid (csn), NULL/*purl*/);
@@ -1416,7 +1441,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
         {
             if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to add replica"
-                                " that created csn %s\n", csn_as_string (csn, PR_FALSE, csn_str));
+                    " that created csn %s\n", csn_as_string (csn, PR_FALSE, csn_str));
             }
             rc = RUV_MEMORY_ERROR;
             goto done;

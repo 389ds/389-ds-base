@@ -56,9 +56,15 @@
 #define LDIF2CL_TASK        "LDIF2CL"
 #define CLEANRUV            "CLEANRUV"
 #define CLEANRUVLEN         8
+#define CLEANALLRUV         "CLEANALLRUV"
+#define CLEANALLRUVLEN      11
+#define RELEASERUV          "RELEASERUV"
+#define RELEASERUVLEN       10
 #define REPLICA_RDN         "cn=replica"
 
 int slapi_log_urp = SLAPI_LOG_REPL;
+static ReplicaId cleaned_rid = 0;
+static int released_rid = 0;
 
 /* Forward Declartions */
 static int replica_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
@@ -74,6 +80,9 @@ static int replica_execute_task (Object *r, const char *task_name, char *returnt
 static int replica_execute_cl2ldif_task (Object *r, char *returntext);
 static int replica_execute_ldif2cl_task (Object *r, char *returntext);
 static int replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext);
+static int replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext);
+static int replica_execute_release_ruv_task(Object *r, ReplicaId rid, char *returntext);
+static struct berval *create_ruv_payload(char *value);
 static int replica_cleanup_task (Object *r, const char *task_name, char *returntext, int apply_mods);
 static int replica_task_done(Replica *replica);
 												
@@ -827,15 +836,43 @@ static int replica_execute_task (Object *r, const char *task_name, char *returnt
 	{
 		int temprid = atoi(&(task_name[CLEANRUVLEN]));
 		if (temprid <= 0 || temprid >= READ_ONLY_REPLICA_ID){
-			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-						"Invalid replica id for task - %s", task_name);
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"replica_execute_task: %s\n", returntext);
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id (%d) for task - %s", temprid, task_name);
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_execute_task: %s\n", returntext);
 			return LDAP_OPERATIONS_ERROR;
 		}
 		if (apply_mods)
 		{
 			return replica_execute_cleanruv_task (r, (ReplicaId)temprid, returntext);
+		}
+		else
+			return LDAP_SUCCESS;
+	}
+	else if (strncasecmp (task_name, CLEANALLRUV, CLEANALLRUVLEN) == 0)
+	{
+		int temprid = atoi(&(task_name[CLEANALLRUVLEN]));
+		if (temprid <= 0 || temprid >= READ_ONLY_REPLICA_ID){
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id (%d) for task - (%s)", temprid, task_name);
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_execute_task: %s\n", returntext);
+			return LDAP_OPERATIONS_ERROR;
+		}
+		if (apply_mods)
+		{
+			return replica_execute_cleanall_ruv_task(r, (ReplicaId)temprid, returntext);
+		}
+		else
+			return LDAP_SUCCESS;
+	}
+	else if (strncasecmp (task_name, RELEASERUV, RELEASERUVLEN) == 0)
+	{
+		int temprid = atoi(&(task_name[RELEASERUVLEN]));
+		if (temprid <= 0 || temprid >= READ_ONLY_REPLICA_ID){
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id for task - %s", task_name);
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,"replica_execute_task: %s\n", returntext);
+			return LDAP_OPERATIONS_ERROR;
+		}
+		if (apply_mods)
+		{
+			return replica_execute_release_ruv_task(r, (ReplicaId)temprid, returntext);
 		}
 		else
 			return LDAP_SUCCESS;
@@ -1102,16 +1139,24 @@ _replica_config_get_mtnode_ext (const Slapi_Entry *e)
     return ext;
 }
 
+int
+replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid)
+{
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanruv_extop: calling clean_ruv_ext\n");
+	return replica_execute_cleanruv_task(r, rid, NULL);
+}
+
 static int
-replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext)
+replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext /* not used */)
 {
 	int rc = 0;
 	Object *RUVObj;
 	RUV *local_ruv = NULL;
-    Replica *replica = (Replica*)object_get_data (r);
+	Replica *replica = (Replica*)object_get_data (r);
 
-    PR_ASSERT (replica);
+	PR_ASSERT (replica);
 
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanruv_task: cleaning rid (%d)...\n",(int)rid);
 	RUVObj = replica_get_ruv(replica);
 	PR_ASSERT(RUVObj);
 	local_ruv =  (RUV*)object_get_data (RUVObj);
@@ -1131,10 +1176,295 @@ replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext)
 	/* Update Mapping Tree to reflect RUV changes */
 	consumer5_set_mapping_tree_state_for_replica(replica, NULL);
 	
+	/*
+	 *  Clean the changelog RUV's, and set the rids
+	 */
+	cl5CleanRUV(rid);
+	set_cleaned_rid(rid);
+	delete_released_rid();
+
 	if (rc != RUV_SUCCESS){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanruv_task: task failed(%d)\n",rc);
 		return LDAP_OPERATIONS_ERROR;
 	}
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanruv_task: finished successfully\n");
 	return LDAP_SUCCESS;
 }
 
+static int
+replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext)
+{
+	Repl_Connection *conn;
+	Replica *replica = (Replica*)object_get_data (r);
+	Object *agmt_obj;
+	Repl_Agmt *agmt;
+	ConnResult crc;
+	const Slapi_DN *dn = NULL;
+	struct berval *payload = NULL;
+	char *ridstr = NULL;
+	int send_msgid = 0;
+	int rc = 0;
 
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_task: cleaning rid (%d)...\n",(int)rid);
+
+	/*
+	 *  Create payload
+	 */
+	ridstr = slapi_ch_smprintf("%d:%s", rid, slapi_sdn_get_dn(replica_get_root(replica)));
+	payload = create_ruv_payload(ridstr);
+	if(payload == NULL){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to create ext op payload, aborting task\n");
+		goto done;
+	}
+
+	agmt_obj = agmtlist_get_first_agreement_for_replica (replica);
+	while (agmt_obj)
+	{
+		agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+		dn = agmt_get_dn_byref(agmt);
+		conn = (Repl_Connection *)agmt_get_connection(agmt);
+		if(conn == NULL){
+			/* no connection for this agreement, and move on */
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: the replica (%s), is "
+				"missing the connection.  This replica will not be cleaned.\n", slapi_sdn_get_dn(dn));
+			agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+			continue;
+		}
+		crc = conn_connect(conn);
+		if (CONN_OPERATION_FAILED == crc ){
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to connect "
+				"to repl agreement connection (%s), error %d\n",slapi_sdn_get_dn(dn), ACQUIRE_TRANSIENT_ERROR);
+		} else if (CONN_SSL_NOT_ENABLED == crc){
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to acquire "
+				"repl agmt connection (%s), errror %d\n",slapi_sdn_get_dn(dn), ACQUIRE_FATAL_ERROR);
+		} else {
+			conn_cancel_linger(conn);
+			crc = conn_send_extended_operation(conn, REPL_CLEANRUV_OID, payload, NULL, &send_msgid);
+			if (CONN_OPERATION_SUCCESS != crc){
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to send "
+					"cleanruv extended op to repl agmt (%s), error %d\n", slapi_sdn_get_dn(dn), crc);
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_task: successfully sent "
+					"cleanruv extended op to (%s)\n",slapi_sdn_get_dn(dn));
+			}
+			conn_start_linger(conn);
+		}
+		if(crc){
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: replica (%s) has not "
+				"been cleaned.  You will need to rerun the CLEANALLRUV task on this replica.\n", slapi_sdn_get_dn(dn));
+			rc = crc;
+		}
+		agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+	}
+
+done:
+
+	if(payload)
+		ber_bvfree(payload);
+
+	slapi_ch_free_string(&ridstr);
+
+	/*
+	 *  Now run the cleanruv task
+	 */
+	replica_execute_cleanruv_task (r, rid, returntext);
+
+	if(rc == 0){
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_task: operation successful\n");
+	} else {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: operation failed (%d)\n",rc);
+	}
+
+	return rc;
+}
+
+static int
+replica_execute_release_ruv_task(Object *r, ReplicaId rid, char *returntext)
+{
+	Repl_Connection *conn;
+	Replica *replica = (Replica*)object_get_data (r);
+	Object *agmt_obj;
+	Repl_Agmt *agmt;
+	ConnResult crc;
+	const Slapi_DN *dn = NULL;
+	struct berval *payload = NULL;
+	char *ridstr = NULL;
+	int send_msgid = 0;
+	int rc = 0;
+
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "releaseRUV_task: releasing rid (%d)...\n", rid);
+
+	/*
+	 * Set the released rid, and trigger cl trimmming
+	 */
+	set_released_rid((int)rid);
+	trigger_cl_trimming();
+	/*
+	 *  Create payload
+	 */
+	ridstr = slapi_ch_smprintf("%d:%s", rid, slapi_sdn_get_dn(replica_get_root(replica)));
+	payload = create_ruv_payload(ridstr);
+	if(payload == NULL){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_task: failed to create ext op payload, aborting op\n");
+		rc = -1;
+		goto done;
+	}
+
+	agmt_obj = agmtlist_get_first_agreement_for_replica (replica);
+	while (agmt_obj)
+	{
+		agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+		dn = agmt_get_dn_byref(agmt);
+		conn = (Repl_Connection *)agmt_get_connection(agmt);
+		if(conn == NULL){
+			/* no connection for this agreement, log error, and move on */
+			agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+			continue;
+		}
+		crc = conn_connect(conn);
+		if (CONN_OPERATION_FAILED == crc ){
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_task: failed to connect "
+				"to repl agmt (%s), error %d\n",slapi_sdn_get_dn(dn), ACQUIRE_TRANSIENT_ERROR);
+			rc = LDAP_OPERATIONS_ERROR;
+		} else if (CONN_SSL_NOT_ENABLED == crc){
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_task: failed to acquire "
+				"repl agmt (%s), error %d\n",slapi_sdn_get_dn(dn), ACQUIRE_FATAL_ERROR);
+			rc = LDAP_OPERATIONS_ERROR;
+		} else {
+			conn_cancel_linger(conn);
+			crc = conn_send_extended_operation(conn, REPL_RELEASERUV_OID, payload, NULL, &send_msgid);
+			if (CONN_OPERATION_SUCCESS != crc){
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_task: failed to send "
+					"releaseruv extended op to repl agmt (%s), error %d\n", slapi_sdn_get_dn(dn), crc);
+				rc = LDAP_OPERATIONS_ERROR;
+			} else {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "releaseRUV_task: successfully sent "
+					"extended op to (%s)\n",slapi_sdn_get_dn(dn));
+			}
+			conn_start_linger(conn);
+		}
+		if(crc){
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_task: replica (%s) has not "
+					"been cleaned.  You will need to rerun the RELEASERUV task on this replica\n",
+					slapi_sdn_get_dn(dn));
+			rc = crc;
+		}
+		agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+	}
+
+done:
+	/*
+	 *  reset the released/clean rid
+	 */
+	if(rc == 0){
+		set_released_rid(ALREADY_RELEASED);
+		delete_cleaned_rid();
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "releaseRUV_task: Successfully released rid (%d)\n", rid);
+	} else {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_task: Failed to release rid (%d), error (%d)\n", rid, rc);
+	}
+
+	if(payload)
+		ber_bvfree(payload);
+
+	slapi_ch_free_string(&ridstr);
+
+	return rc;
+}
+
+static struct berval *
+create_ruv_payload(char *value){
+	struct berval *req_data = NULL;
+	BerElement *tmp_bere = NULL;
+
+	if ((tmp_bere = der_alloc()) == NULL){
+		goto error;
+	}
+	if (ber_printf(tmp_bere, "{s", value) == -1){
+		goto error;
+	}
+
+	if (ber_printf(tmp_bere, "}") == -1){
+		goto error;
+	}
+
+	if (ber_flatten(tmp_bere, &req_data) == -1){
+		goto error;
+	}
+
+	goto done;
+
+error:
+	if (NULL != req_data){
+		ber_bvfree(req_data);
+		req_data = NULL;
+	}
+
+done:
+	if (NULL != tmp_bere){
+		ber_free(tmp_bere, 1);
+		tmp_bere = NULL;
+	}
+
+	return req_data;
+}
+
+int
+is_cleaned_rid(ReplicaId rid)
+{
+	if(rid == cleaned_rid){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+void
+set_cleaned_rid( ReplicaId rid )
+{
+	cleaned_rid = rid;
+}
+
+void
+delete_cleaned_rid()
+{
+	cleaned_rid = 0;
+}
+
+int
+get_released_rid()
+{
+	return released_rid;
+}
+
+int
+is_released_rid(int rid)
+{
+	if(rid == released_rid){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+int
+is_already_released_rid()
+{
+	if(released_rid == ALREADY_RELEASED){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+void
+set_released_rid( int rid )
+{
+	released_rid = rid;
+}
+
+void
+delete_released_rid()
+{
+	released_rid = 0;
+}

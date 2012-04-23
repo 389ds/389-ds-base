@@ -2425,6 +2425,15 @@ ReplicaId agmt_get_consumerRID(Repl_Agmt *ra)
 	return ra->consumerRID;
 }
 
+void* agmt_get_connection(Repl_Agmt *ra)
+{
+	if(ra->protocol){
+		return (void *)prot_get_connection(ra->protocol);
+	} else {
+		return NULL;
+	}
+}
+
 int
 agmt_has_protocol(Repl_Agmt *agmt)
 {

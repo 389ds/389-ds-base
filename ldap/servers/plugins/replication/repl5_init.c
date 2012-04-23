@@ -118,6 +118,22 @@ static char *response_name_list[] = {
 		NSDS_REPL_NAME_PREFIX " Response",
 		NULL
 };
+static char *cleanruv_oid_list[] = {
+		REPL_CLEANRUV_OID,
+		NULL
+};
+static char *cleanruv_name_list[] = {
+		NSDS_REPL_NAME_PREFIX " Cleanruv",
+		NULL
+};
+static char *releaseruv_oid_list[] = {
+		REPL_RELEASERUV_OID,
+		NULL
+};
+static char *releaseruv_name_list[] = {
+		NSDS_REPL_NAME_PREFIX " Releaseruv",
+		NULL
+};
 
 /* List of plugin identities for every plugin registered. Plugin identity
    is passed by the server in the plugin init function and must be supplied 
@@ -434,6 +450,51 @@ multimaster_response_extop_init( Slapi_PBlock *pb )
     return rc;
 }
 
+int
+multimaster_cleanruv_extop_init( Slapi_PBlock *pb )
+{
+	int rc= 0; /* OK */
+	void *identity = NULL;
+
+	/* get plugin identity and store it to pass to internal operations */
+	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &identity);
+	PR_ASSERT (identity);
+
+	if (slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterextopdesc ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, (void *)cleanruv_oid_list ) != 0  ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_name_list ) != 0  ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_cleanruv ))
+	{
+		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_extop_init failed\n" );
+		rc= -1;
+	}
+
+	return rc;
+}
+
+int
+multimaster_releaseruv_extop_init( Slapi_PBlock *pb )
+{
+	int rc= 0; /* OK */
+	void *identity = NULL;
+
+	/* get plugin identity and store it to pass to internal operations */
+	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &identity);
+	PR_ASSERT (identity);
+
+	if (slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterextopdesc ) != 0 ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, (void *)releaseruv_oid_list ) != 0  ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)releaseruv_name_list ) != 0  ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_releaseruv ))
+	{
+		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_releaseruv_extop_init failed\n" );
+		rc= -1;
+	}
+
+	return rc;
+}
 
 static PRBool
 check_for_ldif_dump(Slapi_PBlock *pb)
@@ -618,6 +679,8 @@ int replication_multimaster_plugin_init(Slapi_PBlock *pb)
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_end_extop_init", multimaster_end_extop_init, "Multimaster replication end extended operation plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_total_extop_init", multimaster_total_extop_init, "Multimaster replication total update extended operation plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_response_extop_init", multimaster_response_extop_init, "Multimaster replication extended response plugin", NULL, identity);
+		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_cleanruv_extop_init", multimaster_cleanruv_extop_init, "Multimaster replication cleanruv extended operation plugin", NULL, identity);
+		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_releaseruv_extop_init", multimaster_releaseruv_extop_init, "Multimaster replication releaserid extended response plugin", NULL, identity);
 		if (0 == rc)
 		{
 			multimaster_initialised = 1;
