@@ -1005,6 +1005,15 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	r = (Replica*)object_get_data (repl_obj);
 	PR_ASSERT (r);
 
+	/*
+	 *  In case we had to run cleanruv, we don't want to continue to write
+	 *  updates to the changelog/database ruv from that replica(rid).
+	 */
+	if( is_cleaned_rid(replica_get_rid(r))){
+		/* this RID has been cleaned, just goto done */
+		goto done;
+	}
+
 	if (replica_is_flag_set (r, REPLICA_LOG_CHANGES) &&
 		(cl5GetState () == CL5_STATE_OPEN))
 	{
@@ -1111,6 +1120,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		update_ruv_component(r, opcsn, pb);
 	}
 
+done:
 	object_release (repl_obj);
 	return return_value;
 }

@@ -94,6 +94,9 @@
  * new set of start and response extops. */
 #define REPL_START_NSDS90_REPLICATION_REQUEST_OID "2.16.840.1.113730.3.5.12"
 #define REPL_NSDS90_REPLICATION_RESPONSE_OID "2.16.840.1.113730.3.5.13"
+/* cleanruv/releaseruv extended ops */
+#define REPL_CLEANRUV_OID "2.16.840.1.113730.3.6.5"
+#define REPL_RELEASERUV_OID "2.16.840.1.113730.3.6.6"
 
 
 /* DS 5.0 replication protocol error codes */
@@ -218,6 +221,8 @@ char* get_repl_session_id (Slapi_PBlock *pb, char *id, CSN **opcsn);
 /* In repl_extop.c */
 int multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb);
 int multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb);
+int multimaster_extop_cleanruv(Slapi_PBlock *pb);
+int multimaster_extop_releaseruv(Slapi_PBlock *pb);
 int extop_noop(Slapi_PBlock *pb);
 struct berval *NSDS50StartReplicationRequest_new(const char *protocol_oid,
 	const char *repl_root, char **extra_referrals, CSN *csn);
@@ -345,8 +350,8 @@ char **agmt_get_fractional_attrs_total(const Repl_Agmt *ra);
 char **agmt_validate_replicated_attributes(Repl_Agmt *ra, int total);
 void* agmt_get_priv (const Repl_Agmt *agmt);
 void agmt_set_priv (Repl_Agmt *agmt, void* priv);
-
 int get_agmt_agreement_type ( Repl_Agmt *agmt);
+void* agmt_get_connection( Repl_Agmt *ra);
 int agmt_has_protocol(Repl_Agmt *agmt);
 
 typedef struct replica Replica;
@@ -579,6 +584,17 @@ void multimaster_be_state_change (void *handle, char *be_name, int old_be_state,
 int replica_config_init();
 void replica_config_destroy ();
 int get_replica_type(Replica *r);
+int replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid);
+void set_cleaned_rid(ReplicaId rid);
+void delete_cleaned_rid();
+int is_cleaned_rid(ReplicaId rid);
+int get_released_rid();
+void set_released_rid(int rid);
+int is_released_rid(int rid);
+int is_already_released_rid();
+void delete_released_rid();
+
+#define ALREADY_RELEASED -1
 
 /* replutil.c */
 LDAPControl* create_managedsait_control ();

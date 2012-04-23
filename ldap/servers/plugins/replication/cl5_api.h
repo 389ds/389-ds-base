@@ -487,4 +487,8 @@ int cl5WriteRUV();
    Return:		TRUE
 */
 int cl5DeleteRUV();
+void cl5CleanRUV(ReplicaId rid);
+void cl5NotifyCleanup(int rid);
+void trigger_cl_trimming();
+
 #endif

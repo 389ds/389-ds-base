@@ -355,6 +355,7 @@ static int  _cl5WriteRUV (CL5DBFile *file, PRBool purge);
 static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge);
 static int  _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purge);
 static int  _cl5GetRUV2Purge2 (Object *fileObj, RUV **ruv);
+void trigger_cl_trimming_thread();
 
 /* bakup/recovery, import/export */
 static int _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op,
@@ -3477,6 +3478,7 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 		count = 0;
 		txnid = NULL;
 		abort = PR_FALSE;
+		ReplicaId rid;
 
 		/* DB txn lock accessed pages until the end of the transaction. */
 		
@@ -3497,13 +3499,14 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 			 * This change can be trimmed if it exceeds purge
 			 * parameters and has been seen by all consumers.
 			 */
+			rid = csn_get_replicaid (op.csn);
 			if ( (*numToTrim > 0 || _cl5CanTrim (entry.time, numToTrim)) &&
 				 ruv_covers_csn_strict (ruv, op.csn) )
-        	{
+			{
 				rc = _cl5CurrentDeleteEntry (it);
-				if ( rc == CL5_SUCCESS )
+				if ( rc == CL5_SUCCESS && !is_released_rid(rid))
 				{
-					/* update purge vector */
+					/* update purge vector, unless this is a released rid */
 					rc = _cl5UpdateRUV (obj, op.csn, PR_FALSE, PR_TRUE);				
 				}
 				if ( rc == CL5_SUCCESS)
@@ -3529,8 +3532,6 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 				 * the trim forever.
 				 */
 				CSN *maxcsn = NULL;
-				ReplicaId rid;
-
 				rid = csn_get_replicaid (op.csn);
 				ruv_get_largest_csn_for_replica (ruv, rid, &maxcsn);
 				if ( csn_compare (op.csn, maxcsn) != 0 )
@@ -3620,10 +3621,10 @@ static PRBool _cl5CanTrim (time_t time, long *numToTrim)
 		*numToTrim = cl5GetOperationCount (NULL) - s_cl5Desc.dbTrim.maxEntries;
 		return ( *numToTrim > 0 );
 	}
-    
+
     if (s_cl5Desc.dbTrim.maxEntries > 0 &&
 		(*numToTrim = cl5GetOperationCount (NULL) - s_cl5Desc.dbTrim.maxEntries) > 0)
-        return PR_TRUE;
+    	return PR_TRUE;
 
 	if (time)
 		return (current_time () - time > s_cl5Desc.dbTrim.maxAge);
@@ -3805,6 +3806,7 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
     void *iterator = NULL;
     slapi_operation_parameters op = {0};
     CL5DBFile *file;
+    ReplicaId rid;
 
     PR_ASSERT (replGen && obj);
 
@@ -3828,6 +3830,15 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
     rc = _cl5GetFirstEntry (obj, &entry, &iterator, NULL);
     while (rc == CL5_SUCCESS)
     {
+        rid = csn_get_replicaid (op.csn);
+        if(is_cleaned_rid(rid)){
+            /* skip this entry as the rid is invalid */
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUV: "
+                "skipping entry because its csn contains a cleaned rid(%d)\n", rid);
+            cl5_operation_parameters_done (&op);
+            rc = _cl5GetNextEntry (&entry, iterator);
+            continue;
+        }
         if (purge)
             rc = ruv_set_csns_keep_smallest(file->purgeRUV, op.csn); 
         else
@@ -3876,28 +3887,32 @@ static int _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purge
 
     file = (CL5DBFile*)object_get_data (obj);
 
-	/* if purge is TRUE, file->purgeRUV must be set;
-	   if purge is FALSE, maxRUV must be set */
+    /*
+     *  if purge is TRUE, file->purgeRUV must be set;
+     *  if purge is FALSE, maxRUV must be set
+     */
     PR_ASSERT (file && ((purge && file->purgeRUV) || (!purge && file->maxRUV)));
+    rid = csn_get_replicaid(csn);
 
     /* update vector only if this replica is not yet part of RUV */
     if (purge && newReplica)
     {
-        rid = csn_get_replicaid(csn);   
         if (ruv_contains_replica (file->purgeRUV, rid))
             return CL5_SUCCESS;
-        else
+        else if(is_cleaned_rid(rid))
         {
-	  /* if the replica is not part of the purgeRUV yet, add it */
-	  ruv_add_replica (file->purgeRUV, rid, multimaster_get_local_purl());               
+            /* if the replica is not part of the purgeRUV yet, add it unless it's from a cleaned rid */
+            ruv_add_replica (file->purgeRUV, rid, multimaster_get_local_purl());
         }
     }
     else
     {
         if (purge)
             rc = ruv_set_csns(file->purgeRUV, csn, NULL);
-        else
-            rc = ruv_set_csns(file->maxRUV, csn, NULL); 
+        else if(is_cleaned_rid(rid)){
+            /* don't update maxRuv is if rid is cleaned */
+            rc = ruv_set_csns(file->maxRUV, csn, NULL);
+        }
     }
  
     if (rc != RUV_SUCCESS)
@@ -4502,8 +4517,16 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 	CL5Entry entry;
 	CL5DBFile *file = NULL;
 	Object *file_obj = NULL;
+	ReplicaId rid = csn_get_replicaid (op->csn);
 	DB_TXN *txnid = NULL;
 	DB_TXN *parent_txnid = (DB_TXN *)txn;
+
+	/*
+	 *  If the op csn contains the cleaned rid, don't write it
+	 */
+	if(is_cleaned_rid(rid)){
+		return CL5_SUCCESS;
+	}
 
 	rc = _cl5GetDBFileByReplicaName (replName, replGen, &file_obj);
 	if (rc == CL5_NOTFOUND)
@@ -4770,7 +4793,7 @@ static int _cl5GetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_
 				rc, db_strerror(rc));
 	rc = CL5_DB_ERROR;
 
-done:;
+done:
 	/* error occured */
 	/* We didn't success in assigning this cursor to the iterator,
 	 * so we need to free the cursor here */
@@ -6511,4 +6534,53 @@ bail:
     }
     changelog5_config_done(&config);
     return rc;
+}
+
+/*
+ *  Clean the in memory RUV, at shutdown we will write the update to the db
+ */
+void
+cl5CleanRUV(ReplicaId rid){
+    CL5DBFile *file;
+    Object *obj;
+
+    obj = objset_first_obj(s_cl5Desc.dbFiles);
+    while (obj){
+        file = (CL5DBFile *)object_get_data(obj);
+        ruv_delete_replica(file->purgeRUV, rid);
+        ruv_delete_replica(file->maxRUV, rid);
+        obj = objset_next_obj(s_cl5Desc.dbFiles, obj);
+    }
+
+    if (obj)
+        object_release (obj);
+}
+
+void trigger_cl_trimming(){
+    PRThread *trim_tid = NULL;
+    ReplicaId rid = get_released_rid();
+
+    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "trigger_cl_trimming: rid (%d)\n",(int)rid);
+    trim_tid = PR_CreateThread(PR_USER_THREAD, (VFP)(void*)trigger_cl_trimming_thread,
+                   NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                   PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE);
+    if (NULL == trim_tid){
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+            "trigger_cl_trimming: failed to create trimming "
+            "thread; NSPR error - %d\n", PR_GetError ());
+    } else {
+        /* need a little time for the thread to get started */
+        DS_Sleep(PR_SecondsToInterval(1));
+    }
+}
+
+void
+trigger_cl_trimming_thread(){
+    /* make sure we have a change log, and we aren't closing it */
+    if(s_cl5Desc.dbState == CL5_STATE_CLOSED || s_cl5Desc.dbState == CL5_STATE_CLOSING){
+        return;
+    }
+    _cl5AddThread();
+    _cl5DoTrimming();
+    _cl5RemoveThread();
 }
