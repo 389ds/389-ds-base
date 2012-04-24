@@ -67,10 +67,8 @@
 #endif
 
 #include "slapi-plugin.h"
-
 #include "string.h"
 #include "nspr.h"
-
 #include "memberof.h"
 
 static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
@@ -507,94 +505,101 @@ int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
 }
 
 /*
- * Does a callback search of "type=dn" under the db suffix that "dn" is in.
- * If "dn" is a user, you'd want "type" to be "member".  If "dn" is a group,
- * you could want type to be either "member" or "memberOf" depending on the
- * case.
+ * Does a callback search of "type=dn" under the db suffix that "dn" is in,
+ * unless all_backends is set, then we look at all the backends.  If "dn"
+ * is a user, you'd want "type" to be "member".  If "dn" is a group, you
+ * could want type to be either "member" or "memberOf" depending on the case.
  */
 int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	char **types, plugin_search_entry_callback callback, void *callback_data)
 {
-	int rc = 0;
 	Slapi_PBlock *search_pb = slapi_pblock_new();
-	Slapi_Backend *be = 0;
-	Slapi_DN *sdn = 0;
-	Slapi_DN *base_sdn = 0;
-	char *filter_str = 0;
-	int num_types = 0;
+	Slapi_DN *base_sdn = NULL;
+	Slapi_Backend *be = NULL;
+	Slapi_DN *sdn = NULL;
+	char *filter_str = NULL;
+	char *cookie = NULL;
+	int all_backends = memberof_config_get_all_backends();
 	int types_name_len = 0;
-	int dn_len = 0;
+	int num_types = 0;
+	int dn_len = strlen(dn);
+	int rc = 0;
 	int i = 0;
 
-	/* get the base dn for the backend we are in
-	   (we don't support having members and groups in
-           different backends - issues with offline / read only backends)
-	*/
-	sdn = slapi_sdn_new_normdn_byref(dn);
-	be = slapi_be_select(sdn);
-	if(be)
+	/* Count the number of types. */
+	for (num_types = 0; types && types[num_types]; num_types++)
 	{
-		base_sdn = (Slapi_DN*)slapi_be_getsuffix(be,0);
+		/* Add up the total length of all attribute names.
+		 * We need to know this for building the filter. */
+		types_name_len += strlen(types[num_types]);
 	}
 
-	if(base_sdn)
+	/* Build the search filter. */
+	if (num_types > 1)
 	{
-		/* Find the length of the dn */
-		dn_len = strlen(dn);
+		int bytes_out = 0;
+		int filter_str_len = types_name_len + (num_types * (3 + dn_len)) + 4;
 
-		/* Count the number of types. */
-		for (num_types = 0; types && types[num_types]; num_types++)
+		/* Allocate enough space for the filter */
+		filter_str = slapi_ch_malloc(filter_str_len);
+
+		/* Add beginning of filter. */
+		bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
+
+		/* Add filter section for each type. */
+		for (i = 0; types[i]; i++)
 		{
-			/* Add up the total length of all attribute names.
-			 * We need to know this for building the filter. */
-			types_name_len += strlen(types[num_types]);
+			bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out,
+					"(%s=%s)", types[i], dn);
 		}
 
-		/* Build the search filter. */
-		if (num_types > 1)
-		{
-			int bytes_out = 0;
-			int filter_str_len = types_name_len + (num_types * (3 + dn_len)) + 4;
+		/* Add end of filter. */
+		snprintf(filter_str + bytes_out, filter_str_len - bytes_out, ")");
+	}
+	else if (num_types == 1)
+	{
+		filter_str = slapi_ch_smprintf("(%s=%s)", types[0], dn);
+	}
 
-			/* Allocate enough space for the filter */
-			filter_str = slapi_ch_malloc(filter_str_len);
+	if(filter_str == NULL){
+		return rc;
+	}
 
-			/* Add beginning of filter. */
-			bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
-
-			/* Add filter section for each type. */
-			for (i = 0; types[i]; i++)
-			{
-				bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out,
-						"(%s=%s)", types[i], dn);
+	be = slapi_get_first_backend(&cookie);
+	while(be){
+		if(!all_backends){
+			sdn = slapi_sdn_new_normdn_byref(dn);
+			be = slapi_be_select(sdn);
+			if(be == NULL){
+				break;
 			}
-
-			/* Add end of filter. */
-			snprintf(filter_str + bytes_out, filter_str_len - bytes_out, ")");
 		}
-		else if (num_types == 1)
-		{
-			filter_str = slapi_ch_smprintf("(%s=%s)", types[0], dn);
+		if((base_sdn = (Slapi_DN *)slapi_be_getsuffix(be,0)) == NULL){
+			if(!all_backends){
+				break;
+			} else {
+				/* its ok, goto the next backend */
+				be = slapi_get_next_backend(cookie);
+				continue;
+			}
 		}
-	}
 
-	if(filter_str)
-	{
 		slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
-			LDAP_SCOPE_SUBTREE, filter_str, 0, 0,
-			0, 0,
-			memberof_get_plugin_id(),
-			0);	
+			LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0, memberof_get_plugin_id(), 0);
+		slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
 
-		slapi_search_internal_callback_pb(search_pb,
-			callback_data,
-			0, callback,
-			0);
+		if(!all_backends){
+			break;
+		}
+		slapi_pblock_init(search_pb);
+		be = slapi_get_next_backend(cookie);
 	}
 
 	slapi_sdn_free(&sdn);
 	slapi_pblock_destroy(search_pb);
+	slapi_ch_free((void **)&cookie);
 	slapi_ch_free_string(&filter_str);
+
 	return rc;
 }
 
@@ -1123,60 +1128,72 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			Slapi_DN *base_sdn = 0;
 			Slapi_Backend *be = 0;
 			char *filter_str = 0;
+			char *cookie = NULL;
 			int n_entries = 0;
+			int all_backends = config->allBackends;
 
-			/* We can't tell for sure if the op_to entry is a
-			 * user or a group since the entry doesn't exist
-			 * anymore.  We can safely ignore the missing entry
-			 * if no other entries have a memberOf attribute that
-			 * points to the missing entry. */
-			be = slapi_be_select(op_to_sdn);
-			if(be)
-			{
-				base_sdn = (Slapi_DN*)slapi_be_getsuffix(be,0);
-			}
-
-			if(base_sdn)
-			{
-				filter_str = slapi_ch_smprintf("(%s=%s)",
-				                               config->memberof_attr, op_to);
-			}
-
-			if(filter_str)
-			{
-				slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
-					LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
-					memberof_get_plugin_id(), 0);
-
-				if (slapi_search_internal_pb(search_pb))
-				{
-					/* get result and log an error */
-					int res = 0;
-					slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
-					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-					"memberof_modop_one_replace_r: error searching for members: "
-					"%d", res);
-				} else {
-					slapi_pblock_get(search_pb, SLAPI_NENTRIES, &n_entries);
-
-					if(n_entries > 0)
-					{
-						/* We want to fixup the membership for the
-						 * entries that referred to the missing group
-						 * entry.  This will fix the references to
-						 * the missing group as well as the group
-						 * represented by op_this. */
-						memberof_test_membership(pb, config, op_to);
+			filter_str = slapi_ch_smprintf("(%s=%s)", config->memberof_attr, op_to);
+			be = slapi_get_first_backend(&cookie);
+			while(be){
+				/*
+				 * We can't tell for sure if the op_to entry is a
+				 * user or a group since the entry doesn't exist
+				 * anymore.  We can safely ignore the missing entry
+				 * if no other entries have a memberOf attribute that
+				 * points to the missing entry.
+				 */
+				if(!all_backends){
+					be = slapi_be_select(op_to_sdn);
+					if(be == NULL){
+						break;
 					}
 				}
+				if((base_sdn = (Slapi_DN*)slapi_be_getsuffix(be,0)) == NULL){
+					if(!all_backends){
+						break;
+					} else {
+						be = slapi_get_next_backend (cookie);
+						continue;
+					}
+				}
+				if(filter_str)
+				{
+					slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
+						LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
+						memberof_get_plugin_id(), 0);
 
-				slapi_free_search_results_internal(search_pb);
-				slapi_ch_free_string(&filter_str);
+					if (slapi_search_internal_pb(search_pb))
+					{
+						/* get result and log an error */
+						int res = 0;
+						slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						"memberof_modop_one_replace_r: error searching for members: "
+						"%d", res);
+					} else {
+						slapi_pblock_get(search_pb, SLAPI_NENTRIES, &n_entries);
+						if(n_entries > 0)
+						{
+							/* We want to fixup the membership for the
+							 * entries that referred to the missing group
+							 * entry.  This will fix the references to
+							 * the missing group as well as the group
+							 * represented by op_this. */
+							memberof_test_membership(pb, config, op_to);
+						}
+					}
+					slapi_free_search_results_internal(search_pb);
+				}
+				slapi_pblock_init(search_pb);
+				if(!all_backends){
+					break;
+				}
+				be = slapi_get_next_backend (cookie);
 			}
-
 			slapi_pblock_destroy(search_pb);
+			slapi_ch_free_string(&filter_str);
+			slapi_ch_free((void **)&cookie);
 		}
-
 		goto bail;
 	}
 

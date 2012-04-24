@@ -270,11 +270,13 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	char *filter_str = NULL;
 	int num_groupattrs = 0;
 	int groupattr_name_len = 0;
+	char *allBackends = NULL;
 
 	*returncode = LDAP_SUCCESS;
 
 	groupattrs = slapi_entry_attr_get_charray(e, MEMBEROF_GROUP_ATTR);
-        memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
+	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
+	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
 
 	/* We want to be sure we don't change the config in the middle of
 	 * a memberOf operation, so we obtain an exclusive lock here */
@@ -373,11 +375,23 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		memberof_attr = NULL; /* config now owns memory */
 	}
 
+	if (allBackends)
+	{
+		if(strcasecmp(allBackends,"on")==0){
+			theConfig.allBackends = 1;
+		} else {
+			theConfig.allBackends = 0;
+		}
+	} else {
+		theConfig.allBackends = 0;
+	}
+
 	/* release the lock */
 	memberof_unlock_config();
 
 	slapi_ch_array_free(groupattrs);
 	slapi_ch_free_string(&memberof_attr);
+	slapi_ch_free_string(&allBackends);
 
 	if (*returncode != LDAP_SUCCESS)
 	{
@@ -448,6 +462,11 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 		{
 			slapi_ch_free_string(&dest->memberof_attr);
 			dest->memberof_attr = slapi_ch_strdup(src->memberof_attr);
+		}
+
+		if(src->allBackends)
+		{
+			dest->allBackends = src->allBackends;
 		}
 	}
 }
@@ -525,4 +544,16 @@ void
 memberof_unlock_config()
 {
 	slapi_rwlock_unlock(memberof_config_lock);
+}
+
+int
+memberof_config_get_all_backends()
+{
+	int all_backends;
+
+	slapi_rwlock_rdlock(memberof_config_lock);
+	all_backends = theConfig.allBackends;
+	slapi_rwlock_unlock(memberof_config_lock);
+
+	return all_backends;
 }

@@ -65,6 +65,7 @@
 #define MEMBEROF_INT_PREOP_DESC "memberOf internal postop plugin"
 #define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"
 #define MEMBEROF_ATTR "memberOfAttr"
+#define MEMBEROF_BACKEND_ATTR "memberOfAllBackends"
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 #define NAME_OPT_UID_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.34"
 
@@ -75,6 +76,7 @@
 typedef struct memberofconfig {
 	char **groupattrs;
 	char *memberof_attr;
+	int allBackends;
 	Slapi_Filter *group_filter;
 	Slapi_Attr **group_slapiattrs;
 } MemberOfConfig;
@@ -92,6 +94,7 @@ void memberof_unlock();
 void memberof_rlock_config();
 void memberof_wlock_config();
 void memberof_unlock_config();
+int memberof_config_get_all_backends();
 
 int g_get_shutdown();		/* declared in proto-slap.h */
 
