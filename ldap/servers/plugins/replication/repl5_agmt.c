@@ -117,6 +117,7 @@ typedef struct repl5agmt {
 	time_t last_update_end_time; /* Local end time of last update session */
 	char last_update_status[STATUS_LEN]; /* Status of last update. Format = numeric code <space> textual description */
 	PRBool update_in_progress;
+	PRBool is_enabled;
 	time_t last_init_start_time; /* Local start time of last total init */
 	time_t last_init_end_time; /* Local end time of last total init */
 	char last_init_status[STATUS_LEN]; /* Status of last total init. Format = numeric code <space> textual description */
@@ -315,6 +316,19 @@ agmt_new_from_entry(Slapi_Entry *e)
 	if (NULL != tmpstr)
 	{
 		ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
+	}
+
+	/* Replica enabled */
+	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaEnabled);
+	if (NULL != tmpstr)
+	{
+		if(strcasecmp(tmpstr, "on") == 0){
+			ra->is_enabled = PR_TRUE;
+		} else {
+			ra->is_enabled = PR_FALSE;
+		}
+	} else {
+		ra->is_enabled = PR_TRUE;
 	}
 
 	/* Replication schedule */
@@ -2442,3 +2456,58 @@ agmt_has_protocol(Repl_Agmt *agmt)
 	}
 	return 0;
 }
+
+PRBool
+agmt_is_enabled(Repl_Agmt *ra)
+{
+	PRBool state;
+	PR_Lock(ra->lock);
+	state = ra->is_enabled;
+	PR_Unlock(ra->lock);
+
+	return state;
+}
+
+int
+agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
+	char *attr_val = NULL;
+	int rc = 0;
+
+	if(ra == NULL){
+		return -1;
+	}
+
+	PR_Lock(ra->lock);
+	attr_val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaEnabled);
+	if(attr_val){
+		if(strcasecmp(attr_val,"on") == 0){
+			if(!ra->is_enabled){
+				ra->is_enabled = PR_TRUE;
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmt_set_enabled_from_entry: "
+					"agreement is now enabled (%s)\n",ra->long_name);
+				PR_Unlock(ra->lock);
+				agmt_start(ra);
+				slapi_ch_free_string(&attr_val);
+				return rc;
+			}
+		} else {
+			if(ra->is_enabled){
+				ra->is_enabled = PR_FALSE;
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmt_set_enabled_from_entry: "
+					"agreement is now disabled (%s)\n",ra->long_name);
+				PR_Unlock(ra->lock);
+				agmt_stop(ra);
+				agmt_update_consumer_ruv(ra);
+				agmt_set_last_update_status(ra,0,0,"agreement disabled");
+				slapi_ch_free_string(&attr_val);
+				return rc;
+			}
+		}
+	} else {
+		rc = -1;
+	}
+	PR_Unlock(ra->lock);
+
+	return rc;
+}
+

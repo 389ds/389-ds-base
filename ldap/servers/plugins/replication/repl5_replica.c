@@ -3445,12 +3445,12 @@ start_agreements_for_replica (Replica *r, PRBool start)
     {
         agmt = (Repl_Agmt*)object_get_data (agmt_obj);
         PR_ASSERT (agmt);
-
-        if (start)
-            agmt_start (agmt);
-        else    /* stop */
-            agmt_stop (agmt);
-
+        if(agmt_is_enabled(agmt)){
+            if (start)
+                agmt_start (agmt);
+            else    /* stop */
+                agmt_stop (agmt);
+        }
         agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
     }
 }
@@ -3463,7 +3463,7 @@ int replica_start_agreement(Replica *r, Repl_Agmt *ra)
 
     PR_Lock(r->agmt_lock);
 
-    if (!replica_is_state_flag_set(r, REPLICA_AGREEMENTS_DISABLED)) {
+    if (!replica_is_state_flag_set(r, REPLICA_AGREEMENTS_DISABLED) && agmt_is_enabled(ra)) {
         ret = agmt_start(ra); /* Start the replication agreement */
     }
 

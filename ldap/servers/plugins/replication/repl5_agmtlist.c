@@ -154,7 +154,9 @@ add_new_agreement(Slapi_Entry *e)
     Object *repl_obj = NULL;
     Object *ro = NULL;
 
-    if (ra == NULL) return 1; /* tell search result handler callback this entry was not sent */
+    /* tell search result handler callback this entry was not sent */
+    if (ra == NULL)
+        return 1;
 
     ro = object_new((void *)ra, agmt_delete);
     objset_add_obj(agmt_set, ro);
@@ -487,6 +489,15 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
         {
             /* ignore modifier's name and timestamp attributes and the description. */
             continue;
+        }
+        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaEnabled))
+        {
+            if(agmt_set_enabled_from_entry(agmt, e) != 0){
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+                    "failed to set replica agmt state \"enabled/disabled\" for %s\n",agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
         }
         else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
         {

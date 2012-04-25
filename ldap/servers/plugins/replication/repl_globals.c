@@ -126,6 +126,7 @@ const char *type_nsds5ReplicaInitialize = "nsds5BeginReplicaRefresh";
 const char *type_nsds5ReplicaTimeout = "nsds5ReplicaTimeout";
 const char *type_nsds5ReplicaBusyWaitTime = "nsds5ReplicaBusyWaitTime";
 const char *type_nsds5ReplicaSessionPauseTime = "nsds5ReplicaSessionPauseTime";
+const char *type_nsds5ReplicaEnabled = "nsds5ReplicaEnabled";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";

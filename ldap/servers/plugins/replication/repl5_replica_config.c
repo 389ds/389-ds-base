@@ -1218,6 +1218,10 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext)
 	while (agmt_obj)
 	{
 		agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+		if(!agmt_is_enabled(agmt)){
+			agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+			continue;
+		}
 		dn = agmt_get_dn_byref(agmt);
 		conn = (Repl_Connection *)agmt_get_connection(agmt);
 		if(conn == NULL){
@@ -1311,6 +1315,10 @@ replica_execute_release_ruv_task(Object *r, ReplicaId rid, char *returntext)
 	while (agmt_obj)
 	{
 		agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+		if(!agmt_is_enabled(agmt)){
+			agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+			continue;
+		}
 		dn = agmt_get_dn_byref(agmt);
 		conn = (Repl_Connection *)agmt_get_connection(agmt);
 		if(conn == NULL){

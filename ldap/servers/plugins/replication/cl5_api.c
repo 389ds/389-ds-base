@@ -3998,6 +3998,11 @@ static int _cl5GetRUV2Purge2 (Object *fileObj, RUV **ruv)
         agmt = (Repl_Agmt*)object_get_data (agmtObj);
         PR_ASSERT (agmt);
 
+        if(!agmt_is_enabled(agmt)){
+        	agmtObj = agmtlist_get_next_agreement_for_replica(r, agmtObj);
+        	continue;
+        }
+
         consRUVObj = agmt_get_consumer_ruv (agmt);        
         if (consRUVObj)
         {
