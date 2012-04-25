@@ -375,6 +375,7 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 	case SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN:
 	case SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN:
 	case SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN:
+	case SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN:
         plugin_list_number= PLUGIN_LIST_BETXNPREOPERATION;
 		do_op = 1; /* always allow backend callbacks (even during startup) */
 		break;

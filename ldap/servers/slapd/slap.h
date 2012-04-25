@@ -971,6 +971,7 @@ struct slapdplugin {
 			IFP	plg_un_bepre_modrdn;	  /* modrdn */
 			IFP	plg_un_bepre_add;		  /* add */
 			IFP	plg_un_bepre_delete;	  /* delete */
+			IFP	plg_un_bepre_delete_tombstone;	  /* tombstone creation */
 			IFP	plg_un_bepre_close;		  /* close */
 			IFP	plg_un_bepre_backup;	  /* backup */
 		} plg_un_bepre;
@@ -1123,11 +1124,13 @@ struct slapdplugin {
 			IFP	plg_un_betxnpre_modrdn;	  /* modrdn */
 			IFP	plg_un_betxnpre_add;		  /* add */
 			IFP	plg_un_betxnpre_delete;	  /* delete */
+			IFP	plg_un_betxnpre_delete_tombstone;	  /* delete tombstone */
 		} plg_un_betxnpre;
 #define plg_betxnpremodify	plg_un.plg_un_betxnpre.plg_un_betxnpre_modify
 #define plg_betxnpremodrdn	plg_un.plg_un_betxnpre.plg_un_betxnpre_modrdn
 #define plg_betxnpreadd	plg_un.plg_un_betxnpre.plg_un_betxnpre_add
 #define plg_betxnpredelete	plg_un.plg_un_betxnpre.plg_un_betxnpre_delete
+#define plg_betxnpredeletetombstone	plg_un.plg_un_betxnpre.plg_un_betxnpre_delete_tombstone
 
         /* backend txn post-operation plugin structure */
 		struct plg_un_betxnpost_operation {

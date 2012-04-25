@@ -378,7 +378,6 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_VALUE_PARENT_UNIQUEID	"nsParentUniqueID"
 #define SLAPI_ATTR_NSCP_ENTRYDN 		"nscpEntryDN"
 #define SLAPI_ATTR_ENTRYUSN 			"entryusn"
-#define SLAPI_ATTR_ENTRYUSN_PREV 		"preventryusn"
 #define SLAPI_ATTR_ENTRYDN 				"entrydn"
 
 
@@ -6302,6 +6301,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN		461
 #define SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN		462
 #define SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN		463
+#define SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN		464
 
 /* postoperation plugin functions */
 #define SLAPI_PLUGIN_POST_BIND_FN		501

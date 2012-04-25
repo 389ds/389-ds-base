@@ -1087,6 +1087,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpredelete;
 		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_betxnpredeletetombstone;
+		break;
 
 	/* backend post txn operation plugin */
 	case SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN:
@@ -2665,6 +2671,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_betxnpredelete = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_betxnpredeletetombstone = (IFP) value;
 		break;
 
 	/* backend postoperation plugin - called just before committing transaction */

@@ -95,7 +95,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	entry_address *addr;
 	int addordel_flags = 0; /* passed to index_addordel */
 	char *entryusn_str = NULL;
-	char *prev_entryusn_str = NULL;
 	Slapi_Entry *orig_entry = NULL;
 	Slapi_DN parentsdn;
 	int opreturn = 0;
@@ -107,6 +106,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
+	slapi_pblock_get( pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry );
 	
 	/* sdn needs to be initialized before "goto *_return */
 	slapi_sdn_init(&sdn);
@@ -196,10 +196,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	/* set entry in case be-preop plugins need to work on it (e.g., USN) */
-	slapi_pblock_get( pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry );
-	slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, e->ep_entry );
-
 	/* Don't call pre-op for Tombstone entries */
 	if (!delete_tombstone_entry)
 	{
@@ -215,14 +211,15 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
 		{
 			/* restore original entry so the front-end delete code can free it */
-			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 			/* retval is -1 */
 			goto error_return;
 		}
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 
-		rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
+		/* set entry in case be-preop plugins need to work on it (e.g., USN) */
+		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, e->ep_entry );
 
+		rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
 		if (rc == -1)
 		{
 			/* 
@@ -233,7 +230,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			}
 			/* restore original entry so the front-end delete code can free it */
-			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 			slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
 			if (!opreturn) {
 				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc );
@@ -245,8 +241,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		delete_tombstone_entry = operation_is_flag_set(operation,
 									OP_FLAG_TOMBSTONE_ENTRY);
 	}
-
-	slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 
 	/*
 	 * Sanity check to avoid to delete a non-tombstone or to tombstone again
@@ -380,7 +374,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				slapi_pblock_set ( pb, SLAPI_DELETE_GLUE_PARENT_ENTRY,
 					slapi_entry_dup (parent_modify_c.new_entry->ep_entry) );
 			}
-	    }		
+		}
 	}
 	slapi_sdn_done(&parentsdn);
     
@@ -436,21 +430,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			operation_get_csn(operation));
 		slapi_entry_add_value(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, tomb_value);
 		slapi_value_free(&tomb_value);
-		
-		/* retrieve previous entry usn value, if any */
-		prev_entryusn_str = slapi_entry_attr_get_charptr(tombstone->ep_entry,
-												SLAPI_ATTR_ENTRYUSN_PREV);
-		if (prev_entryusn_str) {
-			/* discard the previous value from the tombstone entry */
-		    retval = slapi_entry_delete_string(tombstone->ep_entry,
-							SLAPI_ATTR_ENTRYUSN_PREV, prev_entryusn_str);
-			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_TRACE,
-							"delete (deleting %s) failed, err=%d\n",
-							SLAPI_ATTR_ENTRYUSN, retval, 0) ;
-			}
-		}
-
 		/* XXXggood above used to be: slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE); */
 		/* JCMREPL - Add a description of what's going on? */
 	}
@@ -522,10 +501,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		/* stash the transaction */
 		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 
-		/* call the transaction pre delete plugins just after creating the transaction */
-		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN))) {
-			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
-						   "returned error code %d\n", retval );
+		/* call the transaction pre delete plugins just after creating
+		 * the transaction */
+		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, e->ep_entry );
+		retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
+		if (retval) {
+			LDAPDebug1Arg( LDAP_DEBUG_TRACE,
+			               "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
+			               "returned error code %d\n", retval );
 			if (!ldap_result_code) {
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			}
@@ -533,13 +516,40 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
 			}
 			if (!opreturn) {
-				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval );
+				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN,
+				                  ldap_result_code ?
+				                  &ldap_result_code : &retval );
 			}
 			goto error_return;
 		}
 
 		if(create_tombstone_entry)
 		{
+
+			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY,
+			                  tombstone->ep_entry );
+			rc = plugin_call_plugins(pb,
+			                       SLAPI_PLUGIN_BE_TXN_PRE_DELETE_TOMBSTONE_FN);
+			if (rc == -1) {
+				/* 
+				* Plugin indicated some kind of failure,
+				 * or that this Operation became a No-Op.
+				 */
+				if (!ldap_result_code) {
+					slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				}
+				/* restore original entry so the front-end delete code 
+				 * can free it */
+				slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+				if (!opreturn) {
+					slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN,
+					                  ldap_result_code ?
+					                  &ldap_result_code : &rc );
+				}
+				/* retval is -1 */
+				goto error_return;
+			}
+
 			/*
 			 * The entry is not removed from the disk when we tombstone an
 			 * entry. We change the DN, add objectclass=tombstone, and record
@@ -695,30 +705,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				if (0 != retval) {
 					LDAPDebug( LDAP_DEBUG_TRACE, 
 								"delete (adding %s) failed, err=%d %s\n",
-								SLAPI_ATTR_ENTRYUSN, retval,
-								(msg = dblayer_strerror( retval )) ? msg : "" );
-					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-					DEL_SET_ERROR(ldap_result_code, 
-								  LDAP_OPERATIONS_ERROR, retry_count);
-					goto error_return;
-				}
-			}
-			/* delete a previous value (if it exists) from the entryusn index */
-			if (prev_entryusn_str) {
-				retval = index_addordel_string(be, SLAPI_ATTR_ENTRYUSN,
-								prev_entryusn_str, tombstone->ep_id,
-								BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
-				slapi_ch_free_string(&prev_entryusn_str);
-				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug( LDAP_DEBUG_ARGS,
-								"delete (deleting %s) DB_LOCK_DEADLOCK\n",
-								SLAPI_ATTR_ENTRYUSN, 0, 0 );
-					/* Retry txn */
-					continue;
-				}
-				if (0 != retval) {
-					LDAPDebug( LDAP_DEBUG_TRACE, 
-								"delete (deleting %s) failed, err=%d %s\n",
 								SLAPI_ATTR_ENTRYUSN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
 					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -1111,6 +1097,7 @@ error_return:
 	}
 	
 common_return:
+	slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 	if (tombstone_in_cache)
 	{
 		CACHE_RETURN( &inst->inst_cache, &tombstone );
@@ -1127,17 +1114,7 @@ common_return:
 	 * but not if the operation is purging tombstones.
 	 */
 	if (!delete_tombstone_entry) {
-		if (e) {
-			/* set entry in case be-postop plugins need to work on it
-			 * (e.g., USN) */
-			slapi_pblock_get( pb, SLAPI_DELETE_BEPOSTOP_ENTRY, &orig_entry );
-			slapi_pblock_set( pb, SLAPI_DELETE_BEPOSTOP_ENTRY, e->ep_entry );
-		}
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
-		/* set original entry back */
-		if (e) {
-			slapi_pblock_set( pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry );
-		}
 	}
 
 	/* Need to return to cache after post op plugins are called */
