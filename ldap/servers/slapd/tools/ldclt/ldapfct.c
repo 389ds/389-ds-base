@@ -708,6 +708,23 @@ done:
 
   return rc;
 }
+
+/* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
+static PRCallOnceType ol_init_callOnce = {0,0};
+static PRLock *ol_init_lock = NULL;
+
+static PRStatus
+internal_ol_init_init(void)
+{
+    PR_ASSERT(NULL == ol_init_lock);
+    if ((ol_init_lock = PR_NewLock()) == NULL) {
+        PRErrorCode errorCode = PR_GetError();
+        printf("internal_ol_init_init PR_NewLock failed %d\n", errorCode);
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
 #endif /* USE_OPENLDAP */
 
 /* mctx is a global */
@@ -735,12 +752,20 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
   ldapurl = PR_smprintf("ldap%s://%s:%d/",
 			(mode & SSL) ? "s" : "",
 			mctx.hostname, mctx.port);
+  if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+      printf("Could not perform internal ol_init init\n");
+      goto done;
+  }
+
+  PR_Lock(ol_init_lock);
   if ((ret = ldap_initialize(&ld, ldapurl))) {
+    PR_Unlock(ol_init_lock);
     printf ("ldclt[%d]: T%03d: Cannot ldap_initialize (%s), errno=%d ldaperror=%d:%s\n",
 	    mctx.pid, thrdNum, ldapurl, errno, ret, my_ldap_err2string(ret));
     fflush (stdout);
     goto done;
   }
+  PR_Unlock(ol_init_lock);
   PR_smprintf_free(ldapurl);
   ldapurl = NULL;
   if (mode & SSL) {
