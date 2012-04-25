@@ -99,6 +99,24 @@
 #if !defined(USE_OPENLDAP)
 #include <ldap_ssl.h>
 #include <ldappr.h>
+#else
+/* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
+static PRCallOnceType ol_init_callOnce = {0,0};
+static PRLock *ol_init_lock = NULL;
+
+static PRStatus
+internal_ol_init_init(void)
+{
+    PR_ASSERT(NULL == ol_init_lock);
+    if ((ol_init_lock = PR_NewLock()) == NULL) {
+        PRErrorCode errorCode = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, "internal_ol_init_init", "PR_NewLock failed %d:%s\n",
+                        errorCode, slapd_pr_strerror(errorCode));
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
 #endif
 
 /* the server depends on the old, deprecated ldap_explode behavior which openldap
@@ -737,7 +755,16 @@ slapi_ldap_init_ext(
 
 #if defined(USE_OPENLDAP)
     if (ldapurl) {
+	if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+			    "Could not perform internal ol_init init\n");
+	    rc = -1;
+	    goto done;
+	}
+
+	PR_Lock(ol_init_lock);
 	rc = ldap_initialize(&ld, ldapurl);
+	PR_Unlock(ol_init_lock);
 	if (rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
 			    "Could not initialize LDAP connection to [%s]: %d:%s\n",
@@ -751,7 +778,16 @@ slapi_ldap_init_ext(
 	} else { /* host port */
 	    makeurl = convert_to_openldap_uri(hostname, port, (secure == 1 ? "ldaps" : "ldap"));
 	}
+	if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+			    "Could not perform internal ol_init init\n");
+	    rc = -1;
+	    goto done;
+	}
+
+	PR_Lock(ol_init_lock);
 	rc = ldap_initialize(&ld, makeurl);
+	PR_Unlock(ol_init_lock);
 	if (rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
 			    "Could not initialize LDAP connection to [%s]: %d:%s\n",
