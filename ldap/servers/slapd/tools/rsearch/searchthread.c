@@ -180,6 +180,24 @@ static int st_bind_core(SearchThread *st, LDAP **ld, char *dn, char *pw)
 	return 1;
 }
 
+#if defined(USE_OPENLDAP)
+/* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
+static PRCallOnceType ol_init_callOnce = {0,0};
+static PRLock *ol_init_lock = NULL;
+
+static PRStatus
+internal_ol_init_init(void)
+{
+    PR_ASSERT(NULL == ol_init_lock);
+    if ((ol_init_lock = PR_NewLock()) == NULL) {
+        PRErrorCode errorCode = PR_GetError();
+        fprintf(stderr, "internal_ol_init_init PR_NewLock failed %d\n", errorCode);
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+#endif
 static int st_bind(SearchThread *st)
 {
     if (!st->ld) {
@@ -189,7 +207,14 @@ static int st_bind(SearchThread *st)
 
         st->ld = NULL;
         ldapurl = PR_smprintf("ldap://%s:%d", hostname, port);
+        if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+            fprintf(stderr, "Could not perform internal ol_init init\n");
+            return 0;
+        }
+
+        PR_Lock(ol_init_lock);
         ret = ldap_initialize(&st->ld, ldapurl);
+        PR_Unlock(ol_init_lock);
         PR_smprintf_free(ldapurl);
         ldapurl = NULL;
         if (ret) {
@@ -212,7 +237,14 @@ static int st_bind(SearchThread *st)
 
         st->ld2 = NULL;
         ldapurl = PR_smprintf("ldap://%s:%d", hostname, port);
+        if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+            fprintf(stderr, "Could not perform internal ol_init init\n");
+            return 0;
+        }
+
+        PR_Lock(ol_init_lock);
         ret = ldap_initialize(&st->ld2, ldapurl);
+        PR_Unlock(ol_init_lock);
         PR_smprintf_free(ldapurl);
         ldapurl = NULL;
         if (ret) {
