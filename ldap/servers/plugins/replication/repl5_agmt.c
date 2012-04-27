@@ -219,6 +219,26 @@ agmt_is_valid(Repl_Agmt *ra)
 						slapi_sdn_get_dn(ra->dn), type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
 		return_value = 0;
 	}
+	/*
+	 * If we are not using GSSAPI or SSL Client Auth, then a bind dn and password must be present
+	 */
+	if(BINDMETHOD_SASL_GSSAPI != ra->bindmethod && BINDMETHOD_SSL_CLIENTAUTH != ra->bindmethod){
+		if(strcmp(ra->binddn,"") == 0 || ra->creds->bv_val == NULL){
+			char *auth_mech;
+
+			if(ra->bindmethod == BINDMETHOD_SIMPLE_AUTH){
+				auth_mech = "SIMPLE";
+			} else if (ra->bindmethod == BINDMETHOD_SASL_DIGEST_MD5){
+				auth_mech = "SASL/DIGEST-MD5";
+			} else {
+				auth_mech = "Unknown";
+			}
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+				"is malformed: a bind DN and password must be supplied for authentication "
+				"method \"%s\"\n", slapi_sdn_get_dn(ra->dn), auth_mech);
+			return_value = 0;
+		}
+	}
 	return return_value;
 }
 
@@ -227,10 +247,9 @@ Repl_Agmt *
 agmt_new_from_entry(Slapi_Entry *e)
 {
 	Repl_Agmt *ra;
-	char *tmpstr;
 	Slapi_Attr *sattr;
+	char *tmpstr;
 	char **denied_attrs = NULL;
-
 	char *auto_initialize = NULL;
 	char *val_nsds5BeginReplicaRefresh = "start";
 
