@@ -376,6 +376,9 @@ static struct config_get_and_set {
 	{CONFIG_PW_IS_LEGACY, config_set_pw_is_legacy_policy,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_is_legacy, CONFIG_ON_OFF, NULL},
+	{CONFIG_PW_TRACK_LAST_UPDATE_TIME, config_set_pw_track_last_update_time,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_track_update_time, CONFIG_ON_OFF, NULL},
 	{CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_maxnumlogs, CONFIG_INT, NULL},
@@ -1021,6 +1024,7 @@ FrontendConfig_init () {
   cfg->pw_policy.pw_resetfailurecount = 600; /* 10 minutes   */ 
   cfg->pw_policy.pw_gracelimit = 0;
   cfg->pw_policy.pw_is_legacy = LDAP_ON;
+  cfg->pw_policy.pw_track_update_time = LDAP_OFF;
   cfg->pw_is_global_policy = LDAP_OFF;
 
   cfg->accesslog_logging_enabled = LDAP_ON;
@@ -2428,6 +2432,20 @@ config_set_pw_is_legacy_policy( const char *attrname, char *value, char *errorbu
   retVal = config_set_onoff ( attrname,
 							  value,
 							  &(slapdFrontendConfig->pw_policy.pw_is_legacy),
+							  errorbuf,
+							  apply);
+
+  return retVal;
+}
+
+int
+config_set_pw_track_last_update_time( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+							  value,
+							  &(slapdFrontendConfig->pw_policy.pw_track_update_time),
 							  errorbuf,
 							  apply);
 

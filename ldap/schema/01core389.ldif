@@ -132,6 +132,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2095 NAME 'connection' DESC 'Netscape de
 attributeTypes: ( 2.16.840.1.113730.3.1.2096 NAME 'entryusn' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2113 NAME 'internalModifiersName' DESC 'plugin dn' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  SINGLE-VALUE NO-USER-MODIFICATION  USAGE directoryOperation  X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2114 NAME 'internalCreatorsName' DESC 'plugin dn' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12  SINGLE-VALUE NO-USER-MODIFICATION  USAGE directoryOperation  X-ORIGIN '389 Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2133 NAME 'pwdUpdateTime' DESC 'Last password update time' SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE USAGE directoryOperation  X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2111 NAME 'tombstoneNumSubordinates'
   DESC 'count of immediate subordinates for tombstone entries'
   EQUALITY integerMatch

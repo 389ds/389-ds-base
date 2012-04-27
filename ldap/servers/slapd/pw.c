@@ -611,6 +611,13 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 
 	slapi_mods_init(&smods, 0);
 	
+	/* Update the "pwdUpdateTime" attribute */
+	if ( pwpolicy->pw_track_update_time ){
+		timestr = format_genTime(cur_time);
+		slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdUpdateTime",timestr);
+		slapi_ch_free((void **)&timestr);
+	}
+
 	/* update password allow change time */
 	if ( pwpolicy->pw_minage != 0) {
 		timestr = format_genTime( time_plus_sec( cur_time, 
@@ -1814,6 +1821,13 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				if (!strcasecmp(attr_name, "passwordLegacyPolicy")) {
 					if ((sval = attr_get_present_values(attr))) {
 						pwdpolicy->pw_is_legacy =
+						pw_boolean_str2value(slapi_value_get_string(*sval));
+					}
+				}
+				else
+				if (!strcasecmp(attr_name, "passwordTrackUpdateTime")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_track_update_time =
 						pw_boolean_str2value(slapi_value_get_string(*sval));
 					}
 				}
