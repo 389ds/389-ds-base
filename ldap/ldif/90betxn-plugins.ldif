@@ -1,0 +1,40 @@
+dn: cn=State Change Plugin,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-plugintype
+nsslapd-plugintype: betxnpostoperation
+
+dn: cn=MemberOf Plugin,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-plugintype
+nsslapd-plugintype: betxnpostoperation
+
+dn: cn=referential integrity postoperation,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-plugintype
+nsslapd-plugintype: betxnpostoperation
+
+dn: cn=attribute uniqueness,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-plugintype
+nsslapd-plugintype: betxnpreoperation
+
+dn: cn=Auto Membership Plugin,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-plugintype
+nsslapd-plugintype: betxnpreoperation
+
+dn: cn=Linked Attributes,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-plugintype
+nsslapd-plugintype: betxnpreoperation
+
+dn: cn=Managed Entries,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-plugintype
+nsslapd-plugintype: betxnpreoperation
+
+dn: cn=Retro Changelog Plugin,cn=plugins,cn=config
+changetype: modify
+replace: nsslapd-pluginbetxn
+nsslapd-pluginbetxn: TRUE
+

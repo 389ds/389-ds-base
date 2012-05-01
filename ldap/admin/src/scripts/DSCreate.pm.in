@@ -379,6 +379,10 @@ sub createConfigFile {
         push @ldiffiles, "$inf->{General}->{prefix}@updatedir@/50replication-plugins.ldif";
     }
 
+    if (-f "$inf->{General}->{prefix}@templatedir@/90betxn-plugins.ldif") {
+        push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/90betxn-plugins.ldif";
+    }
+
     # additional configuration LDIF files
     if (exists($inf->{slapd}->{ConfigFile})) {
         if (ref($inf->{slapd}->{ConfigFile})) {
