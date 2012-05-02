@@ -341,11 +341,14 @@ agmt_new_from_entry(Slapi_Entry *e)
 	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaEnabled);
 	if (NULL != tmpstr)
 	{
-		if(strcasecmp(tmpstr, "on") == 0){
+		if(strcasecmp(tmpstr, "off") == 0){
+			ra->is_enabled = PR_FALSE;
+		} else if(strcasecmp(tmpstr, "on") == 0){
 			ra->is_enabled = PR_TRUE;
 		} else {
-			ra->is_enabled = PR_FALSE;
+			ra->is_enabled = slapi_entry_attr_get_bool(e, type_nsds5ReplicaEnabled);
 		}
+		slapi_ch_free_string(&tmpstr);
 	} else {
 		ra->is_enabled = PR_TRUE;
 	}
@@ -2499,14 +2502,22 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
 	PR_Lock(ra->lock);
 	attr_val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaEnabled);
 	if(attr_val){
-		if(strcasecmp(attr_val,"on") == 0){
+		PRBool is_enabled = PR_TRUE;
+		if(strcasecmp(attr_val,"off") == 0){
+			is_enabled = PR_FALSE;
+		} else if(strcasecmp(attr_val,"on") == 0){
+			is_enabled = PR_TRUE;
+		} else {
+			is_enabled = slapi_entry_attr_get_bool(e, type_nsds5ReplicaEnabled);
+		}
+		slapi_ch_free_string(&attr_val);
+		if(is_enabled){
 			if(!ra->is_enabled){
 				ra->is_enabled = PR_TRUE;
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmt_set_enabled_from_entry: "
 					"agreement is now enabled (%s)\n",ra->long_name);
 				PR_Unlock(ra->lock);
 				agmt_start(ra);
-				slapi_ch_free_string(&attr_val);
 				return rc;
 			}
 		} else {
@@ -2518,7 +2529,6 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
 				agmt_stop(ra);
 				agmt_update_consumer_ruv(ra);
 				agmt_set_last_update_status(ra,0,0,"agreement disabled");
-				slapi_ch_free_string(&attr_val);
 				return rc;
 			}
 		}

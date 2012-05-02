@@ -513,7 +513,7 @@ int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
 int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	char **types, plugin_search_entry_callback callback, void *callback_data)
 {
-	Slapi_PBlock *search_pb = slapi_pblock_new();
+	Slapi_PBlock *search_pb = NULL;
 	Slapi_DN *base_sdn = NULL;
 	Slapi_Backend *be = NULL;
 	Slapi_DN *sdn = NULL;
@@ -565,6 +565,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 		return rc;
 	}
 
+	search_pb = slapi_pblock_new();
 	be = slapi_get_first_backend(&cookie);
 	while(be){
 		if(!all_backends){
