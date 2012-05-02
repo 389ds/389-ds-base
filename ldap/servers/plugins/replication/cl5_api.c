@@ -6543,9 +6543,6 @@ cl5CleanRUV(ReplicaId rid){
         ruv_delete_replica(file->maxRUV, rid);
         obj = objset_next_obj(s_cl5Desc.dbFiles, obj);
     }
-
-    if (obj)
-        object_release (obj);
 }
 
 void trigger_cl_trimming(){
@@ -6572,7 +6569,11 @@ trigger_cl_trimming_thread(){
     if(s_cl5Desc.dbState == CL5_STATE_CLOSED || s_cl5Desc.dbState == CL5_STATE_CLOSING){
         return;
     }
-    _cl5AddThread();
+    if (CL5_SUCCESS != _cl5AddThread()) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+            "trigger_cl_trimming: failed to increment thread count "
+            "NSPR error - %d\n", PR_GetError ());
+    }
     _cl5DoTrimming();
     _cl5RemoveThread();
 }
