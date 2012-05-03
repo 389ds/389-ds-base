@@ -295,6 +295,7 @@ dd/mm/yy | Author	| Comments
 #include <sys/time.h>		/* struct rlimit, etc... */
 #endif
 
+#include "nspr.h"
 #include "port.h"		/* Portability definitions */	/*JLS 29-11-00*/
 #include "ldclt.h"		/* This tool's include file */
 #include "utils.h"		/* Utilities functions */	/*JLS 16-11-00*/
@@ -2652,6 +2653,7 @@ main (
   int	  found;	/* General purpose variable */		/*JLS 18-12-00*/
   char	  verStr[40];	/* Version string */			/*JLS 13-03-01*/
 
+  PR_Init(PR_SYSTEM_THREAD, PR_PRIORITY_NORMAL, 0); /* for PR_CallOnce, others */
   /*
    * Build the argv list to keep track of it...
    * Print version.
