@@ -106,7 +106,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
-	slapi_pblock_get( pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry );
 	
 	/* sdn needs to be initialized before "goto *_return */
 	slapi_sdn_init(&sdn);
@@ -215,9 +214,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			goto error_return;
 		}
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-
-		/* set entry in case be-preop plugins need to work on it (e.g., USN) */
-		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, e->ep_entry );
 
 		rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
 		if (rc == -1)
@@ -503,6 +499,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 		/* call the transaction pre delete plugins just after creating
 		 * the transaction */
+		slapi_pblock_get( pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry );
 		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, e->ep_entry );
 		retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
 		if (retval) {
@@ -522,10 +519,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			goto error_return;
 		}
+		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
+		orig_entry = NULL;
 
 		if(create_tombstone_entry)
 		{
 
+			slapi_pblock_get( pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry );
 			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY,
 			                  tombstone->ep_entry );
 			rc = plugin_call_plugins(pb,
@@ -549,6 +549,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				/* retval is -1 */
 				goto error_return;
 			}
+			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
+			orig_entry = NULL;
 
 			/*
 			 * The entry is not removed from the disk when we tombstone an
@@ -1097,7 +1099,12 @@ error_return:
 	}
 	
 common_return:
-	slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
+	if (orig_entry) {
+		/* NOTE: #define SLAPI_DELETE_BEPREOP_ENTRY SLAPI_ENTRY_PRE_OP */
+		/* so if orig_entry is NULL, we will wipe out SLAPI_ENTRY_PRE_OP
+		   for the post op plugins */
+		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
+	}
 	if (tombstone_in_cache)
 	{
 		CACHE_RETURN( &inst->inst_cache, &tombstone );
