@@ -501,6 +501,7 @@ bail:
 /*
  * usn_bepreop_modify - add/replace next USN to the mods; 
  *                      shared by modify and modrdn
+ * Note: bepreop should not return other than LDAP_SUCCESS.
  */
 static int
 usn_bepreop_modify (Slapi_PBlock *pb)
@@ -516,7 +517,8 @@ usn_bepreop_modify (Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;    
+        slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
+                    "usn_bepreop_modify: no backend.\n");
         goto bail;
     }
     if (LDAP_SUCCESS == _usn_mod_next_usn(&mods, be)) {
