@@ -566,6 +566,11 @@ __aclp__copy_normalized_str (char *src, char *endsrc, char *start,
 		/* Normalize the value of userdn and append it to ret_str */
 		slapi_sdn_init_dn_byref(&sdn, p);
 		dn = slapi_sdn_get_dn(&sdn);
+		/* Normalization failed so return an error (-1) */
+		if (!dn) {
+			slapi_sdn_done(&sdn);
+			return -1;
+		}
 		/* append up to ldap(s):/// */
 		aclutil_str_append_ext(dest, destlen, start, p - start);
 		/* append the DN part */
