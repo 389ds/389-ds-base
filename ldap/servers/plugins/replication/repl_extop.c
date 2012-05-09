@@ -1542,7 +1542,7 @@ multimaster_extop_releaseruv(Slapi_PBlock *pb){
 	char *iter;
 	int send_msgid = 0;
 	int rid = 0;
-	int rc = -1;
+	int rc = 0;
 
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
