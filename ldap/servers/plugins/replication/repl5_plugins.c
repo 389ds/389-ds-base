@@ -133,7 +133,12 @@ multimaster_set_local_purl()
 			}
 			else
 			{
-				local_purl = slapi_ch_smprintf("ldap://%s:%s", host, port);
+				if(slapi_is_ipv6_addr(host)){
+					/* need to put brackets around the ipv6 address */
+					local_purl = slapi_ch_smprintf("ldap://[%s]:%s", host, port);
+				} else {
+					local_purl = slapi_ch_smprintf("ldap://%s:%s", host, port);
+				}
 			}
 
 			/* slapi_ch_free acceptS NULL pointer */
