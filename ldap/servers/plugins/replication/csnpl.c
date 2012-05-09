@@ -298,28 +298,31 @@ csnplRollUp(CSNPL *csnpl, CSN **first_commited)
 	CSN *largest_committed_csn = NULL;
 	csnpldata *data;
 	PRBool freeit = PR_TRUE;
+	void *iterator;
 
 	slapi_rwlock_wrlock (csnpl->csnLock);
 	if (first_commited) {
 	   /* Avoid non-initialization issues due to careless callers */
 	  *first_commited = NULL;
 	}
-	data = (csnpldata *)llistGetHead(csnpl->csnList);
-	while (NULL != data && data->committed)
+	data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
+	while (NULL != data)
 	{
 		if (NULL != largest_committed_csn && freeit)
 		{
 			csn_free(&largest_committed_csn);
 		}
-		freeit = PR_TRUE;
-		largest_committed_csn = data->csn; /* Save it */
-		if (first_commited && (*first_commited == NULL)) {
-			*first_commited = data->csn;
-			freeit = PR_FALSE;
+		if (data->committed) {
+			freeit = PR_TRUE;
+			largest_committed_csn = data->csn; /* Save it */
+			if (first_commited && (*first_commited == NULL)) {
+				*first_commited = data->csn;
+				freeit = PR_FALSE;
+			}
+			data = (csnpldata *)llistRemoveCurrentAndGetNext(csnpl->csnList, &iterator);
+		} else {
+			data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);
 		}
-		data = (csnpldata*)llistRemoveHead (csnpl->csnList);
-		slapi_ch_free((void **)&data);
-		data = (csnpldata *)llistGetHead(csnpl->csnList);
 	} 
 
 #ifdef DEBUG
