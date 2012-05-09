@@ -161,55 +161,59 @@ convert_to_openldap_uri(const char *hostname_or_uri, int port, const char *proto
     char *my_copy = NULL;
     char *start = NULL;
     char *iter = NULL;
+    char *ptr = NULL;
     char *s = NULL;
     const char *brkstr = " ";
+    int done = 0;
 
     if (!hostname_or_uri) {
-	return NULL;
+	    return NULL;
     }
 
-    my_copy = slapi_ch_strdup(hostname_or_uri);
+    if(slapi_is_ipv6_addr(hostname_or_uri)){
+        /* We need to encapsulate the ipv6 addr with brackets  */
+        my_copy = slapi_ch_smprintf("[%s]",hostname_or_uri);
+    } else {
+        my_copy = slapi_ch_strdup(hostname_or_uri);
+    }
+
     /* see if hostname_or_uri is an ldap uri */
     if (!proto && !PL_strncasecmp(my_copy, "ldap", 4)) {
-	start = my_copy + 4;
-	if ((*start == 's') || (*start == 'i')) {
-	    start++;
-	}
-	if (!PL_strncmp(start, "://", 3)) {
-	    *start = '\0';
-	    proto = my_copy;
-	    start += 3;
-	} else {
-	    slapi_log_error(SLAPI_LOG_FATAL, "convert_to_openldap_uri",
-			    "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
-	    goto end;
-	}
+        start = my_copy + 4;
+        if ((*start == 's') || (*start == 'i')) {
+            start++;
+        }
+        if (!PL_strncmp(start, "://", 3)) {
+            *start = '\0';
+            proto = my_copy;
+            start += 3;
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, "convert_to_openldap_uri",
+                "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
+            goto end;
+        }
     } else if (!proto) {
-	slapi_log_error(SLAPI_LOG_FATAL, "convert_to_openldap_uri",
-			"The given LDAP URI [%s] is not valid\n", hostname_or_uri);
-	goto end;
+	    slapi_log_error(SLAPI_LOG_FATAL, "convert_to_openldap_uri",
+            "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
+        goto end;
     } else {
-	start = my_copy; /* just assume it's not a uri */
+        start = my_copy; /* just assume it's not a uri */
     }
 	    
-    for (s = ldap_utf8strtok_r(my_copy, brkstr, &iter); s != NULL;
-	 s = ldap_utf8strtok_r(NULL, brkstr, &iter)) {
-	char *ptr;
-	int last = 0;
-	/* strtok will grab the '/' at the end of the uri, if any,
-	   so terminate parsing there */
-	if ((ptr = strchr(s, '/'))) {
-	    *ptr = '\0';
-	    last = 1;
-	}
-	if (retstr) {
-	    retstr = PR_sprintf_append(retstr, "/ %s://%s", proto, s);
-	} else {
-	    retstr = PR_smprintf("%s://%s", proto, s);
-	}
-	if (last) {
-	    break;
-	}
+    for (s = ldap_utf8strtok_r(my_copy, brkstr, &iter); s != NULL; s = ldap_utf8strtok_r(NULL, brkstr, &iter)) {
+        /* strtok will grab the '/' at the end of the uri, if any,  so terminate parsing there */
+        if ((ptr = strchr(s, '/'))) {
+            *ptr = '\0';
+            done = 1;
+        }
+        if (retstr) {
+            retstr = PR_sprintf_append(retstr, "/ %s://%s", proto, s);
+        } else {
+            retstr = PR_smprintf("%s://%s", proto, s);
+        }
+        if (done) {
+            break;
+        }
     }
 
     /* add the port on the last one */
@@ -2216,3 +2220,15 @@ mozldap_ldap_explode_rdn( const char *rdn, const int notypes )
 	return( mozldap_ldap_explode( rdn, notypes, LDAP_RDN ) );
 }
 
+int
+slapi_is_ipv6_addr( const char *hostname ){
+    PRNetAddr addr;
+
+    if(PR_StringToNetAddr(hostname, &addr) == PR_SUCCESS &&
+       !PR_IsNetAddrType(&addr, PR_IpAddrV4Mapped) &&
+       addr.raw.family == PR_AF_INET6)
+    {
+        return 1;
+    }
+    return 0;
+}

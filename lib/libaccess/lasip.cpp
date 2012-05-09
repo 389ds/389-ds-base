@@ -60,6 +60,8 @@
 #include "aclcache.h"
 #include <libaccess/dbtlibaccess.h>
 #include <libaccess/aclerror.h>
+#include <prio.h>
+#include "nspr.h"
 
 #define        LAS_IP_IS_CONSTANT(x)    (((x) == (LASIpTree_t *)LAS_EVAL_TRUE) || ((x) == (LASIpTree_t *)LAS_EVAL_FALSE))
 
@@ -67,8 +69,9 @@
 extern int LASIpGetIp();
 #endif
 
-static int
-LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop);
+static int colonhex_ipv6(char *ipstr, char *netmaskstr, PRIPv6Addr *ipv6, int *netmask);
+static int LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop);
+static int LASIpAddPatternIPv6(NSErr_t *errp, int netmask, PRIPv6Addr *ipv6, LASIpTree_t **treetop);
 
 /*    dotdecimal
  *    Takes netmask and ip strings and returns the numeric values,
@@ -259,68 +262,108 @@ LASIpTreeDealloc(LASIpTree_t *startnode)
  *    ret code    The usual LAS return codes.
  */
 static int
-LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_pattern, LASIpTree_t **treetop)
+LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_pattern, LASIpContext_t *context)
 {
     unsigned int delimiter;                /* length of valid token     */
     char        token[64], token2[64];    /* a single ip[+netmask]     */
     char        *curptr;                /* current place in attr_pattern */
-    int            netmask, ip;
+    int         netmask = 0;
+    int         ip = 0;
     char        *plusptr;
-    int            retcode;
+    int         retcode;
 
-    if (NULL == treetop) {
+    if (NULL == context) {
         return ACL_RES_ERROR;
     }
 
-    /* ip address can be delimited by space, tab, comma, or carriage return
-     * only.
+    /*
+     *  IP address can be delimited by space, tab, comma, or carriage return only.
      */
     curptr = attr_pattern;
     do {
         delimiter    = strcspn(curptr, ", \t");
         delimiter    = (delimiter <= strlen(curptr)) ? delimiter : strlen(curptr);
         strncpy(token, curptr, delimiter);
-		if (delimiter >= sizeof(token)) {
+        if (delimiter >= sizeof(token)) {
             return LAS_EVAL_INVALID;
-		}
+        }
 			
         token[delimiter] = '\0';
         /* skip all the white space after the token */
-        curptr = strpbrk((curptr+delimiter), "1234567890+.*");
+        curptr = strpbrk((curptr+delimiter), "1234567890+.*ABCDEFabcdef:/");
 
-        /* Is there a netmask?    */
-        plusptr    = strchr(token, '+');
-        if (plusptr == NULL) {
-            if (curptr && (*curptr == '+')) {
-                /* There was a space before (and possibly after) the plus sign*/
-                curptr = strpbrk((++curptr), "1234567890.*");
-                delimiter    = strcspn(curptr, ", \t");
-                delimiter    = (delimiter <= strlen(curptr)) ? delimiter : strlen(curptr);
-				if (delimiter >= sizeof(token2)) {
-					return LAS_EVAL_INVALID;
-				}
-                strncpy(token2, curptr, delimiter);
-                token2[delimiter] = '\0';
-                retcode = dotdecimal(token, token2, &ip, &netmask);
-                if (retcode)
-                    return (retcode);
-                curptr = strpbrk((++curptr), "1234567890+.*");
+        /*
+         *  IPv4 addresses do not have ":"
+         */
+        if( strstr(token,":") == NULL ){
+            /* Is there a netmask?    */
+            plusptr = strchr(token, '+');
+            if (plusptr == NULL) {
+                if (curptr && (*curptr == '+')) {
+                    /* There was a space before (and possibly after) the plus sign*/
+                    curptr = strpbrk((++curptr), "1234567890.*");
+                    delimiter = strcspn(curptr, ", \t");
+                    delimiter = (delimiter <= strlen(curptr)) ? delimiter : strlen(curptr);
+                    if (delimiter >= sizeof(token2)) {
+                        return LAS_EVAL_INVALID;
+                    }
+                    strncpy(token2, curptr, delimiter);
+                    token2[delimiter] = '\0';
+                    retcode = dotdecimal(token, token2, &ip, &netmask);
+                    if (retcode)
+                        return (retcode);
+                    curptr = strpbrk((++curptr), "1234567890+.*");
+                } else {
+                    retcode = dotdecimal(token, "255.255.255.255", &ip, &netmask);
+                    if (retcode)
+                        return (retcode);
+                }
             } else {
-                retcode =dotdecimal(token, "255.255.255.255", &ip, &netmask);
+                /* token is the IP addr string in both cases */
+                *plusptr ='\0';    /* truncate the string */
+                retcode =dotdecimal(token, ++plusptr, &ip, &netmask);
                 if (retcode)
                     return (retcode);
             }
+
+            if (LASIpAddPattern(errp, netmask, ip, &context->treetop) != 0)
+                return LAS_EVAL_INVALID;
         } else {
-            /* token is the IP addr string in both cases */
-            *plusptr ='\0';    /* truncate the string */
-            retcode =dotdecimal(token, ++plusptr, &ip, &netmask);
-            if (retcode)
-                return (retcode);
+            /*
+             *  IPv6
+             */
+            PRIPv6Addr ipv6;
+
+            plusptr = strchr(token, '/');
+            if (plusptr == NULL) {
+                if (curptr && (*curptr == '/')) {
+                    /* There was a space before (and possibly after) the plus sign */
+                    curptr = strpbrk((++curptr), "1234567890.*:ABCDEFabcdef");
+                    delimiter = strcspn(curptr, ", \t");
+                    delimiter = (delimiter <= strlen(curptr)) ?	delimiter : strlen(curptr);
+                    strncpy(token2, curptr, delimiter);
+                    token2[delimiter] = '\0';
+                    retcode = colonhex_ipv6(token, token2, &ipv6, &netmask);
+                    if (retcode)
+                        return (retcode);
+                    curptr = strpbrk((++curptr), "1234567890+.:ABCDEFabcdef*");
+                } else {
+                    retcode = colonhex_ipv6(token, "128", &ipv6, &netmask);
+                    if (retcode)
+                        return (retcode);
+                }
+            } else {
+                /* token is the IP addr string in both cases */
+                *plusptr ='\0';    /* truncate the string */
+                retcode = colonhex_ipv6(token, ++plusptr, &ipv6, &netmask);
+                if (retcode)
+                    return (retcode);
+            }
+
+            if (LASIpAddPatternIPv6(errp, netmask, &ipv6, &context->treetop_ipv6) != (int)NULL) {
+                return LAS_EVAL_INVALID;
+            }
         }
-
-        if (LASIpAddPattern(errp, netmask, ip, treetop) != 0)
-            return LAS_EVAL_INVALID;
-
     } while ((curptr != NULL) && (delimiter != 0));
 
     return 0;
@@ -361,13 +404,15 @@ LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop)
     if (*treetop == (LASIpTree_t *)NULL) {    /* No tree at all */
         curptr = LASIpTreeAllocNode(errp);
         if (curptr == NULL) {
-            nserrGenerate(errp, ACLERRFAIL, ACLERR5100, ACL_Program, 1, XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_));
+            nserrGenerate(errp, ACLERRFAIL, ACLERR5100, ACL_Program, 1,
+                XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_));
             return ACL_RES_ERROR;
         }
         *treetop = curptr;
     }
 
-    /* Special case if the netmask is 0.
+    /*
+     *  Special case if the netmask is 0.
      */
     if (stopbit > 31) {
         (*treetop)->action[0] = (LASIpTree_t *)LAS_EVAL_TRUE;
@@ -375,24 +420,18 @@ LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop)
         return 0;
     }
 
-
     /* follow the tree down the pattern path bit by bit until the
      * end of the tree is reached (i.e. a constant).
      */
     for (curbit=31,curptr=*treetop; curbit >= 0; curbit--) {
-
         /* Is the current bit ON?  If so set curval to 1 else 0    */
         curval = (pattern & (1<<curbit)) ? 1 : 0;
 
         /* Are we done, if so remove the rest of the tree     */
         if (curbit == stopbit) {
             LASIpTreeDealloc(curptr->action[curval]);
-            curptr->action[curval] = 
-                    (LASIpTree_t *)LAS_EVAL_TRUE;
-
-            /* This is the normal exit point.  Most other 
-             * exits must be due to errors.
-             */
+            curptr->action[curval] = (LASIpTree_t *)LAS_EVAL_TRUE;
+            /* This is the normal exit point.  Most other  exits must be due to errors. */
             return 0;
         }
 
@@ -401,7 +440,8 @@ LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop)
             newptr = LASIpTreeAllocNode(errp);
             if (newptr == NULL) {
                 LASIpTreeDealloc(*treetop);
-	        nserrGenerate(errp, ACLERRFAIL, ACLERR5110, ACL_Program, 1, XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_1));
+                nserrGenerate(errp, ACLERRFAIL, ACLERR5110, ACL_Program, 1,
+                    XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_1));
                 return ACL_RES_ERROR;
             }
             curptr->action[curval] = newptr;
@@ -451,51 +491,57 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
           PList_t subject, PList_t resource, PList_t auth_info,
           PList_t global_auth)
 {
-    int                bit;
-    int                value;
-    IPAddr_t           ip;
-    int                retcode;
-    LASIpTree_t        *node;
-    LASIpContext_t     *context = NULL;
-    int		       rv;
-    char	       ip_str[124];
+    LASIpContext_t *context = NULL;
+    LASIpTree_t *node = NULL;
+    IPAddr_t ip;
+    PRNetAddr *client_addr = NULL;
+    struct in_addr client_inaddr;
+    char ip_str[124];
+    int retcode;
+    int value;
+    int bit;
+    int rc = LAS_EVAL_INVALID;
+    int rv;
 
     *cachable = ACL_INDEF_CACHABLE;
 
     if (strcmp(attr_name, "ip") != 0) {
-	nserrGenerate(errp, ACLERRINVAL, ACLERR5200, ACL_Program, 2, XP_GetAdminStr(DBT_lasIpBuildReceivedRequestForAttr_), attr_name);
+        nserrGenerate(errp, ACLERRINVAL, ACLERR5200, ACL_Program, 2,
+            XP_GetAdminStr(DBT_lasIpBuildReceivedRequestForAttr_), attr_name);
         return LAS_EVAL_INVALID;
     }
 
     if ((comparator != CMP_OP_EQ) && (comparator != CMP_OP_NE)) {
-	nserrGenerate(errp, ACLERRINVAL, ACLERR5210, ACL_Program, 2, XP_GetAdminStr(DBT_lasipevalIllegalComparatorDN_), comparator_string(comparator));
+        nserrGenerate(errp, ACLERRINVAL, ACLERR5210, ACL_Program, 2,
+            XP_GetAdminStr(DBT_lasipevalIllegalComparatorDN_), comparator_string(comparator));
         return LAS_EVAL_INVALID;
     }
 
-    /* GET THE IP ADDR FROM THE SESSION CONTEXT AND STORE IT IN THE
-     * VARIABLE ip.
+    /*
+     *  Get the IP addr from the session context, and store it in "client_addr
      */
 #ifndef    UTEST
-    rv = ACL_GetAttribute(errp, ACL_ATTR_IP, (void **)&ip,
-			  subject, resource, auth_info, global_auth);
+    rv = ACL_GetAttribute(errp, ACL_ATTR_IP, (void **)&client_addr, subject, resource, auth_info, global_auth);
 
     if (rv != LAS_EVAL_TRUE) {
         if (subject || resource) {
             /* Don't ereport if called from ACL_CachableAclList */
-	    char rv_str[16];
-	    sprintf(rv_str, "%d", rv);
-	    nserrGenerate(errp, ACLERRINVAL, ACLERR5220, ACL_Program, 2, XP_GetAdminStr(DBT_lasipevalUnableToGetSessionAddre_), rv_str);
+            char rv_str[16];
+            sprintf(rv_str, "%d", rv);
+            nserrGenerate(errp, ACLERRINVAL, ACLERR5220, ACL_Program, 2,
+                XP_GetAdminStr(DBT_lasipevalUnableToGetSessionAddre_), rv_str);
         }
-	return LAS_EVAL_FAIL;
+        return LAS_EVAL_FAIL;
     }
 #else
     ip    = (IPAddr_t)LASIpGetIp();
 #endif
 
-    /* If this is the first time through, build the pattern tree first.
+    /*
+     *  If this is the first time through, build the pattern tree first.
      */
     if (*LAS_cookie == NULL) {
-        if (strcspn(attr_pattern, "0123456789.*,+ \t")) {
+        if (strcspn(attr_pattern, "0123456789.*,+ \tABCDEFabcdef:/")) {
             return LAS_EVAL_INVALID;
         }
         ACL_CritEnter();
@@ -503,13 +549,14 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
             *LAS_cookie = context = 
                 (LASIpContext_t *)PERM_MALLOC(sizeof(LASIpContext_t));
             if (context == NULL) {
-                nserrGenerate(errp, ACLERRNOMEM, ACLERR5230, ACL_Program, 1, XP_GetAdminStr(DBT_lasipevalUnableToAllocateContext_));
+                nserrGenerate(errp, ACLERRNOMEM, ACLERR5230, ACL_Program, 1,
+                    XP_GetAdminStr(DBT_lasipevalUnableToAllocateContext_));
                 ACL_CritExit();
                 return LAS_EVAL_FAIL;
             }
             context->treetop = NULL;
-            retcode = LASIpBuild(errp, attr_name, comparator, attr_pattern, 
-                                 &context->treetop);
+            context->treetop_ipv6 = NULL;
+            retcode = LASIpBuild(errp, attr_name, comparator, attr_pattern, context);
             if (retcode) {
                 ACL_CritExit();
                 return (retcode);
@@ -523,30 +570,194 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
         context = (LASIpContext *) *LAS_cookie;
         ACL_CritExit();
     }
+    /*
+     *  Check if IP is ipv4/ipv6
+     */
+     if ( PR_IsNetAddrType( client_addr, PR_IpAddrV4Mapped) || client_addr->raw.family == PR_AF_INET ) {
+         /*
+          *  IPv4
+          */
 
-    node    = context->treetop;
+         /* Set the appropriate s_addr for ipv4 or ipv4 mapped to ipv6 */
+         if (client_addr->raw.family == PR_AF_INET) {
+             client_inaddr.s_addr = client_addr->inet.ip;
+         } else {
+             client_inaddr.s_addr = client_addr->ipv6.ip._S6_un._S6_u32[3];
+         }
 
-    for (bit=31; bit >=0; bit--) {
-        value    = (ip & (IPAddr_t) (1<<bit)) ? 1 : 0;
-        if (LAS_IP_IS_CONSTANT(node->action[value])) {
-            /* Reached a result, so return it */
-            if (comparator == CMP_OP_EQ)
-                return((int)(PRSize)node->action[value]);
-            else
-                return(((int)(PRSize)node->action[value] == 
-                    LAS_EVAL_TRUE) ? 
-                    LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+         node = context->treetop;
+         ip = (IPAddr_t)PR_ntohl( client_inaddr.s_addr );
 
-        } else
-            /* Move on to the next bit */
-            node = node->action[value];
+         if(node == NULL){
+             rc = (comparator == CMP_OP_EQ ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+         } else {
+             for (bit = 31; bit >= 0; bit--) {
+                 value = (ip & (IPAddr_t) (1 << bit)) ? 1 : 0;
+                 if (LAS_IP_IS_CONSTANT(node->action[value])){
+                     /* Reached a result, so return it */
+                     if (comparator == CMP_OP_EQ){
+                         rc = (int)(PRSize)node->action[value];
+                         break;
+                     } else {
+                         rc = ((int)(PRSize)node->action[value] == LAS_EVAL_TRUE) ? LAS_EVAL_FALSE : LAS_EVAL_TRUE;
+                         break;
+                     }
+                 } else {
+                     /* Move on to the next bit */
+                     node = node->action[value];
+                 }
+             }
+         }
+         if(rc == LAS_EVAL_INVALID){
+             sprintf(ip_str, "%x", (unsigned int)ip);
+             nserrGenerate(errp, ACLERRINTERNAL, ACLERR5240, ACL_Program, 2,
+                 XP_GetAdminStr(DBT_lasipevalReach32BitsWithoutConcl_), ip_str);
+         }
+    } else {
+        /*
+         *  IPv6
+         */
+        PRIPv6Addr *ipv6 = &(client_addr->ipv6.ip);
+        LASIpTree_t *node;
+        int bit_position = 15;
+        int field = 0;
+        int addr = 0;
+        int value;
+
+        node = context->treetop_ipv6;
+        if ( node == NULL ) {
+            retcode = (comparator == CMP_OP_EQ ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+        } else {
+            addr = PR_ntohs( ipv6->_S6_un._S6_u16[field]);
+            for (bit = 127; bit >= 0 ; bit--, bit_position--) {
+                value = (addr & (1 << bit_position)) ? 1 : 0;
+                if (LAS_IP_IS_CONSTANT(node->action[value])) {
+                    /* Reached a result, so return it */
+                    if (comparator == CMP_OP_EQ){
+                        return(int)(long)node->action[value];
+                    } else {
+                        return(((int)(long)node->action[value] == LAS_EVAL_TRUE) ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+                    }
+                } else {
+                    node = node->action[value];
+                    if ( bit % 16 == 0) {
+                        /* Ok, move to the next field in the IPv6 addr:  f:f:next:f:f:f:f:f  */
+                        field++;
+                        addr = PR_ntohs( ipv6->_S6_un._S6_u16[field]);
+                        bit_position = 15;
+                    }
+                }
+            }
+            rc = LAS_EVAL_INVALID;
+        }
+    }
+    return rc;
+}
+
+/*
+ *  The ipv6 version of LASIpAddPattern
+ */
+static int
+LASIpAddPatternIPv6(NSErr_t *errp, int netmask, PRIPv6Addr *ipv6, LASIpTree_t **treetop)
+{
+    LASIpTree_t    *curptr;
+    LASIpTree_t    *newptr;
+    int stopbit;
+    int curbit;
+    int curval;
+    int field = 0; /* (8) 16 bit fields in a IPv6 address: x:x:x:x:x:x:x:x */
+    int addr = 0;
+    int curbit_position = 15; /* 16 bits: 0-15 */
+
+    /* stop at the first 1 in the netmask from low to high */
+    stopbit = 128 - netmask;
+
+    /* Special case if there's no tree.  Allocate the first node    */
+    if (*treetop == (LASIpTree_t *)NULL) {    /* No tree at all */
+        curptr = LASIpTreeAllocNode(errp);
+        if (curptr == NULL) {
+            nserrGenerate(errp, ACLERRFAIL, ACLERR5100, ACL_Program, 1,
+                XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_));
+            return ACL_RES_ERROR;
+        }
+        *treetop = curptr;
     }
 
-    /* Cannot reach here.  Even a 32 bit mismatch has a conclusion in 
-     * the pattern tree.
+    addr = PR_ntohs(ipv6->_S6_un._S6_u16[field]);
+    for (curbit = 127, curptr = *treetop; curbit >= 0; curbit--, curbit_position--){
+        /* Is the current bit ON?  If so set curval to 1 else 0 */
+        curval = (addr & (1 << curbit_position)) ? 1 : 0;
+
+        /* Are we done, if so remove the rest of the tree */
+        if (curbit == stopbit) {
+            LASIpTreeDealloc(curptr->action[curval]);
+            curptr->action[curval] = (LASIpTree_t *)LAS_EVAL_TRUE;
+            /* This is the normal exit point.  Most other exits must be due to errors. */
+            return 0;
+        }
+
+        /* Oops reached the end - must allocate  */
+        if (LAS_IP_IS_CONSTANT(curptr->action[curval])) {
+            newptr = LASIpTreeAllocNode(errp);
+            if (newptr == NULL) {
+                LASIpTreeDealloc(*treetop);
+                nserrGenerate(errp, ACLERRFAIL, ACLERR5110, ACL_Program, 1,
+                    XP_GetAdminStr(DBT_ipLasUnableToAllocateTreeNodeN_1));
+                return ACL_RES_ERROR;
+             }
+             curptr->action[curval] = newptr;
+         }
+
+         /* Keep going down the tree */
+         curptr = curptr->action[curval];
+
+         if ( curbit % 16 == 0) {
+             /* Ok, move to the next field in the addr */
+             field++;
+             addr = PR_ntohs(ipv6->_S6_un._S6_u16[field]);
+             curbit_position = 15;
+         }
+    }
+    return ACL_RES_ERROR;
+}
+
+/*
+ *  This is very similar to dotdecimal(), but for ipv6 addresses
+ */
+static int
+colonhex_ipv6(char *ipstr, char *netmaskstr, PRIPv6Addr *ipv6, int *netmask)
+{
+    PRNetAddr addr;
+    /*
+     *  Validate netmaskstr - can only be digits
      */
-    sprintf(ip_str, "%x", (unsigned int)ip);
-    nserrGenerate(errp, ACLERRINTERNAL, ACLERR5240, ACL_Program, 2, XP_GetAdminStr(DBT_lasipevalReach32BitsWithoutConcl_), ip_str);
-    return LAS_EVAL_INVALID;
+    if (strcspn(netmaskstr, "0123456789")){
+        return LAS_EVAL_INVALID;
+    }
+    /*
+     *  Validate ipstr - can only have digits, colons, hex chars, and dots
+     */
+    if(strcspn(ipstr, "0123456789:ABCDEFabcdef.")){
+        return LAS_EVAL_INVALID;
+    }
+    /*
+     *  validate the netmask - must be between 1 and 128
+     */
+    *netmask = atoi(netmaskstr);
+    if(*netmask < 1 || *netmask > 128){
+        return LAS_EVAL_INVALID;
+    }
+    /*
+     *  Get the net addr
+     */
+    if (PR_StringToNetAddr(ipstr, &addr) != PR_SUCCESS){
+        return LAS_EVAL_INVALID;
+    }
+    /*
+     *  Set the ipv6 addr
+     */
+    *ipv6 = addr.ipv6.ip;
+
+    return 0;
 }
 

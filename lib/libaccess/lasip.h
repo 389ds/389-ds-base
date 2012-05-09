@@ -46,5 +46,6 @@ typedef struct LASIpTree {
 } LASIpTree_t;
 
 typedef	struct LASIpContext {
-	LASIpTree_t	*treetop; /* Top of the pattern tree	*/
+	LASIpTree_t *treetop; /* Top of the pattern tree */
+	LASIpTree_t *treetop_ipv6; /* Top of the IPv6 pattern tree */
 } LASIpContext_t;

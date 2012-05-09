@@ -2913,6 +2913,15 @@ void slapi_rdn_set_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
 void slapi_rdn_free(Slapi_RDN **rdn);
 
 /**
+ * Checks if the value of ipAddress is a IPv6 address
+ *
+ * \param ipAddress is a string that is either an IPv4 or IPv6 address
+ * \return 1 if address is an IPv6 address
+ * \return 0 if address is an IPv4 address
+ */
+int slapi_is_ipv6_addr( const char *ipAddress);
+
+/**
  * Frees and clears the contents of a \c Slapi_RDN structure from memory.
  *
  * Both the RDN value and the array of split RDNs are freed. Those pointers

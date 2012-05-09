@@ -223,7 +223,12 @@ const char* windows_private_get_purl(const Repl_Agmt *ra)
 	char *hostname;
 
 	hostname = agmt_get_hostname(ra);
-	windows_purl = slapi_ch_smprintf("ldap://%s:%d", hostname, agmt_get_port(ra));
+	if(slapi_is_ipv6_addr(hostname)){
+		/* need to put brackets around the ipv6 address */
+		windows_purl = slapi_ch_smprintf("ldap://[%s]:%d", hostname, agmt_get_port(ra));
+	} else {
+		windows_purl = slapi_ch_smprintf("ldap://%s:%d", hostname, agmt_get_port(ra));
+	}
 	slapi_ch_free_string(&hostname);
 
 	return windows_purl;
