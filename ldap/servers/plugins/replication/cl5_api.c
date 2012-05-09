@@ -3899,7 +3899,7 @@ static int _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purge
     {
         if (ruv_contains_replica (file->purgeRUV, rid))
             return CL5_SUCCESS;
-        else if(is_cleaned_rid(rid))
+        else if(!is_cleaned_rid(rid))
         {
             /* if the replica is not part of the purgeRUV yet, add it unless it's from a cleaned rid */
             ruv_add_replica (file->purgeRUV, rid, multimaster_get_local_purl());
@@ -3909,8 +3909,8 @@ static int _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purge
     {
         if (purge)
             rc = ruv_set_csns(file->purgeRUV, csn, NULL);
-        else if(is_cleaned_rid(rid)){
-            /* don't update maxRuv is if rid is cleaned */
+        else if(!is_cleaned_rid(rid)){
+            /* don't update maxRuv if rid is cleaned */
             rc = ruv_set_csns(file->maxRUV, csn, NULL);
         }
     }
