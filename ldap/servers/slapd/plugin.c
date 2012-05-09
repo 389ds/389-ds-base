@@ -1465,8 +1465,14 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 				} else if (SLAPI_PLUGIN_BEPREOPERATION == list->plg_type ||
 					SLAPI_PLUGIN_BEPOSTOPERATION == list->plg_type)
 				{
-					/* OR the result into the return value for be pre/postops */
-					return_value |= rc;
+					/* respect fatal error (-1); should not OR it */
+					if (-1 == rc) {
+						return_value = rc;
+					} else if (-1 != return_value) {
+						/* OR the result into the return value 
+						 * for be pre/postops */
+						return_value |= rc;
+					}
 				}
 			}
 			/* counters_to_errors_log("after plugin call"); */
