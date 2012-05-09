@@ -63,7 +63,7 @@ if ($#ARGV < 0){;
 $x = "0";
 $fc = 0;
 $sn = 0;
-$logversion = "6.1";
+$logversion = "6.11";
 $sizeCount = "20";
 $startFlag = 0;
 $startTime = 0;
@@ -80,6 +80,7 @@ GetOptions(
 	's|sizeLimit=s' => \$sizeCount,
 	'S|startTime=s' => \$startTime,
 	'E|endTime=s' => \$endTime,
+	'B|bind=s' => sub { $reportBinds = "yes"; $bindReportDN=($_[1]) },
 	'm|reportFileSecs=s' => sub { my ($opt,$value) = @_; $s_stats = new_stats_block($value); },
 	'M|reportFileMins=s' =>  sub { my ($opt,$value) = @_; $m_stats = new_stats_block($value); },
 	'h|help' => sub { displayUsage() },
@@ -101,6 +102,19 @@ GetOptions(
 	'y' => sub { $usage = $usage . "y"; },
 	'p' => sub { $usage = $usage . "p"; }
 );
+
+#
+# setup the report Bind DN if any
+#
+if($reportBinds eq "yes"){
+	$bindReportDN =~ tr/A-Z/a-z/;
+	if($bindReportDN eq "all"){
+		$bindReportDN = "";
+	}
+	if($bindReportDN eq "anonymous"){
+		$bindReportDN = "Anonymous";
+	}
+}
 
 #
 # set the default root DN
@@ -490,13 +504,26 @@ $elapsedSeconds = $remainingTimeInSecs;
 
 
 print "\n\n----------- Access Log Output ------------\n";
-print "\nStart of Log:    $start\n";
-print "End of Log:      $end\n\n";
+print "\nStart of Logs:    $start\n";
+print "End of Logs:      $end\n\n";
 if($elapsedDays eq "0"){
         print "Processed Log Time:  $elapsedHours Hours, $elapsedMinutes Minutes, $elapsedSeconds Seconds\n\n";
 } else {
         print "Processed Log Time:  $elapsedDays Days, $elapsedHours Hours, $elapsedMinutes Minutes, $elapsedSeconds Seconds\n\n";
 }
+
+#
+#  Check here if we are producing any unqiue reports
+#
+
+if($reportBinds eq "yes"){
+	&displayBindReport();
+}
+
+#
+# Continue with standard report
+#
+
 print "Restarts:                     $restarts\n";
 print "Total Connections:            $connectionCount\n";
 print "SSL Connections:              $sslconn\n";
@@ -1198,7 +1225,8 @@ sub displayUsage {
 	print "             E.g. \"[28/Mar/2002:13:24:62 -0800]\"\n";
 	print "         -m, --reportFileSecs  <CSV output file - per second stats>\n"; 
 	print "         -M, --reportFileMins  <CSV output file - per minute stats>\n";	
-	print "         -V, --verbose         <enable verbose output - includes all stats listed below>\n";
+	print "         -B, --bind         <ALL | ANONYMOUS | \"Actual Bind DN\">\n";
+	print "         -V, --verbose      <enable verbose output - includes all stats listed below>\n";
 	print "         -[efcibaltnxrgjuyp]\n\n";
 
 	print "                 e       Error Code stats\n";
@@ -1221,24 +1249,162 @@ sub displayUsage {
 	print "  Examples:\n\n";
 
 	print "         ./logconv.pl -s 10 -V /logs/access*\n\n";
-
 	print "         ./logconv.pl --rootDN cn=dm /logs/access*\n\n";
-
 	print "         ./logconv.pl --sizeLimit 50 -ibgju /logs/access*\n\n";
-
 	print "         ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" --endTime \"\[28/Mar/2002:13:50:05 -0800\]\" -e /logs/access*\n\n";
 	print "         ./logconv.pl -m log-minute-stats-csv.out /logs/access*\n\n";
+	print "         ./logconv.pl -B ANONYMOUS /logs/access*\n\n";
+	print "         ./logconv.pl -B \"uid=mreynolds,dc=example,dc=com\" /logs/access*\n\n";
 
 	exit 1;
 }
 
 ######################################################
 #
-# Parsing Routine That Does The Actual Parsing Work
+# Parsing Routines That Do The Actual Parsing Work
 #
 ######################################################
 
-sub parseLine {
+sub
+parseLine {
+	if($reportBinds eq "yes"){
+		&parseLineBind();		
+	} else {
+		&parseLineNormal();
+	}
+}
+
+sub
+parseLineBind {
+	$ff++;
+	$iff++;
+	local $_ = $tline;
+
+	if ($iff >= $limit){
+		print STDERR sprintf" %10s Lines Processed\n",$ff;
+		$iff="0";
+	}
+
+	# skip blank lines
+	return if $_ =~ /^\s/;
+
+	if($firstFile eq "1" && $_ =~ /^\[/){
+        	$start = $_;
+        	if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
+        		$firstFile = "0";
+	}
+
+	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/]+)/i){
+		$end =$1;
+	}
+
+	if ($startTime && !$startFlag) {
+        	if (index($_, $startTime) == 0) {
+                	$startFlag = 1;
+                	($start) = $startTime =~ /\D*(\S*)/;
+        	} else {
+                	return;
+        	}
+	}
+
+	if ($endTime && !$endFlag) {
+        	if (index($_, $endTime) == 0) {
+                	$endFlag = 1;
+                	($end) = $endTime =~ /\D*(\S*)/;
+        	}
+	}
+
+	if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ) {
+		for ($excl =0; $excl <= $#exclude; $excl++){
+			if ($exclude[$excl] eq $1){
+				$skip = "yes";
+				last;
+			}
+                }
+                if ($skip eq "yes"){
+			return ;
+		}
+		$ip = $1;
+		if ($_ =~ /conn= *([0-9]+)/i ){
+			$connList{$ip} = $connList{$ip} . " $1 ";
+		}
+		return;
+	}
+
+ 	if (/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
+        	if ($1 eq ""){
+			$dn = "Anonymous";
+		} else {
+			$dn = $1;
+			$dn =~ tr/A-Z/a-z/;
+		}
+
+		if($bindReportDN ne ""){
+			if($dn ne $bindReportDN){
+				#  We are not looking for this DN, skip it
+				return;
+			}
+		}
+
+		$bindReport{$dn}{"binds"}++;
+        	if ($bindReport{$dn}{"binds"} eq 1){
+			# For hashes we need to init the counters
+			$bindReport{$dn}{"srch"} = 0;
+			$bindReport{$dn}{"add"} = 0;
+			$bindReport{$dn}{"mod"} = 0;
+			$bindReport{$dn}{"del"} = 0;
+			$bindReport{$dn}{"cmp"} = 0;
+			$bindReport{$dn}{"ext"} = 0;
+			$bindReport{$dn}{"modrdn"} = 0;
+			$bindReport{$dn}{"failedBind"} = 0;
+		}
+
+		if ($_ =~ /conn= *([0-9]+)/i) {
+			$bindReport{$dn}{"conn"} = $bindReport{$dn}{"conn"} . " $1 ";
+		}
+		return;
+ 	}
+
+	if (/ RESULT err=49 /){
+		processOpForBindReport("failedBind",$tline);
+	}
+
+	if (/ SRCH base=/){
+		processOpForBindReport("srch",$tline);
+	} elsif (/ ADD dn=/){
+		processOpForBindReport("add",$tline);
+	} elsif (/ MOD dn=/){
+		processOpForBindReport("mod",$tline);
+	} elsif (/ DEL dn=/){                
+		processOpForBindReport("del",$tline);
+	} elsif (/ MODRDN dn=/){
+		processOpForBindReport("modrdn",$tline);
+	} elsif (/ CMP dn=/){
+		processOpForBindReport("cmp",$tline);
+	} elsif (/ EXT oid=/){
+		processOpForBindReport("ext",$tline);
+	} 
+
+}
+
+sub
+processOpForBindReport
+{
+	$op = @_[0];
+	$data = @_[1];
+
+	if ($data =~ /conn= *([0-9]+)/i) {
+		foreach $dn (keys %bindReport){
+			if ($bindReport{$dn}{"conn"} =~ / $1 /){
+				$bindDN = $dn;
+				$bindReport{$bindDN}{$op}++;
+				return;
+			}
+		}
+	}
+}
+
+sub parseLineNormal {
 local $_ = $tline;
 
 # lines starting blank are restart
@@ -1410,7 +1576,7 @@ if (m/ conn=1 fd=/){$restarts++}
 if (m/ SSL connection from/){$sslconn++;}
 if (m/ connection from/){
      $exc = "no";
-     if ($_ =~ /connection from *([0-9\.]+)/i ){ 
+     if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ){ 
 	for ($xxx =0; $xxx <= $#exclude; $xxx++){
 		if ($exclude[$xxx] eq $1){$exc = "yes";}
 	}
@@ -1561,7 +1727,7 @@ if ($usage =~ /g/ || $usage =~ /c/ || $usage =~ /i/ || $verb eq "yes"){
 
 $exc = "no";
 
-if ($_ =~ /connection from *([0-9\.]+)/i ) {
+if ($_ =~ /connection from *([0-9A-fa-f\.\:]+)/i ) {
 	for ($xxx = 0; $xxx <= $#exclude; $xxx++){
 		if ($1 eq $exclude[$xxx]){
 			$exc = "yes";
@@ -2015,6 +2181,81 @@ inc_stats
 	    if exists $_->{$n};
     }
     return;
+}
+
+sub
+displayBindReport
+{
+    #
+    #  Loop for each DN - sort alphabetically
+    #
+    #  Display all the IP addresses, then counts of all the operations it did
+    #
+
+    print "\nBind Report\n";
+    print "====================================================================\n\n";
+    foreach $bindDN (sort { $bindReport{$a} <=> $bindReport{$b} } keys %bindReport) {
+        print("Bind DN: $bindDN\n");
+        print("--------------------------------------------------------------------\n");
+        print("   Client Addresses:\n\n");
+        &printClients($bindReport{$bindDN}{"conn"});
+        print("\n   Operations Performed:\n\n");
+        &printOpStats($bindDN);
+        print("\n");	
+    }
+    print "Done.\n";
+    exit (0);
+}
+
+sub
+printClients
+{ 
+    @bindConns = &cleanConns(split(' ', @_[0]));
+    $IPcount = "1";
+
+    foreach $ip ( keys %connList ){   # Loop over all the IP addresses
+        foreach $bc (@bindConns){ # Loop over each bind conn number and compare it 
+	    if($connList{$ip} =~ / $bc /){ 
+                print("        [$IPcount]  $ip\n");
+                $IPcount++;
+                last;
+            }
+        }
+    }
+}
+
+sub
+cleanConns
+{
+    @dirtyConns = @_;
+    $#cleanConns = -1;
+    $c = 0;
+
+    for ($i = 0; $i <=$#dirtyConns; $i++){
+        if($dirtyConns[$i] ne ""){
+            $cleanConns[$c++] = $dirtyConns[$i];
+        }
+    }	
+    return @cleanConns;
+}
+
+sub
+printOpStats
+{
+    $dn = @_[0];
+
+    if( $bindReport{$dn}{"failedBind"} eq "0" ){
+        print("        Binds:        " . $bindReport{$dn}{"binds"} . "\n");
+    } else {
+        print("        Binds:        " . $bindReport{$dn}{"binds"} . "  (Invalid Credentials: " . $bindReport{$dn}{"failedBind"} . ")\n");
+    }
+    print("        Searches:     " . $bindReport{$dn}{"srch"} . "\n");
+    print("        Modifies:     " . $bindReport{$dn}{"mod"} . "\n");
+    print("        Adds:         " . $bindReport{$dn}{"add"} . "\n");
+    print("        Deletes:      " . $bindReport{$dn}{"del"} . "\n");
+    print("        Compares:     " . $bindReport{$dn}{"cmp"} . "\n");
+    print("        ModRDNs:      " . $bindReport{$dn}{"modrdn"} . "\n");
+    print("        Ext Ops:      " . $bindReport{$dn}{"ext"} . "\n\n");
 }
 
 #######################################
