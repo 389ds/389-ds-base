@@ -117,6 +117,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int is_ruv = 0;				 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	entry_address addr = {0};
+	int val = 0;
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
@@ -1043,26 +1044,26 @@ error_return:
 		disk_full = 1;
 	}
 
+	/* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
+	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
+	if (!val) {
+		if (!ldap_result_code) {
+			ldap_result_code = LDAP_OPERATIONS_ERROR;
+		}
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+	}
+	slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &val );
+	if (!val) {
+		val = -1;
+		slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &val );
+	}
+
 diskfull_return:
 	if (disk_full) {
 		rc= return_on_disk_full(li);
 	} else {
 		/* It is safer not to abort when the transaction is not started. */
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
-			/* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
-			int val = 0;
-			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
-			if (!val) {
-				if (!ldap_result_code) {
-					ldap_result_code = LDAP_OPERATIONS_ERROR;
-				}
-				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-			}
-			slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &val );
-			if (!val) {
-				val = -1;
-				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &val );
-			}
 			/* call the transaction post add plugins just before the abort */
 			if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN))) {
 				int opreturn = 0;
