@@ -58,15 +58,13 @@
 #include <sys/stat.h>
 #endif
 
-#define REFERINT_PLUGIN_SUBSYSTEM   "referint-plugin"   /* used for logging */
-
 #ifdef _WIN32
 #define REFERINT_DEFAULT_FILE_MODE	0
 #else
 #define REFERINT_DEFAULT_FILE_MODE S_IRUSR | S_IWUSR
 #endif
 
-
+#define REFERINT_PLUGIN_SUBSYSTEM   "referint-plugin"   /* used for logging */
 #define MAX_LINE 2048
 #define READ_BUFSIZE  4096
 #define MY_EOF   0 
@@ -78,23 +76,21 @@ int referint_postop_modrdn( Slapi_PBlock *pb );
 int referint_postop_start( Slapi_PBlock *pb);
 int referint_postop_close( Slapi_PBlock *pb);
 int update_integrity(char **argv, Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior, int logChanges);
-void referint_thread_func(void *arg);
-int  GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
-void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
+int GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
 int my_fgetc(PRFileDesc *stream);
+void referint_thread_func(void *arg);
+void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn,
+    Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
 
 /* global thread control stuff */
-
 static PRLock 		*referint_mutex = NULL;       
 static PRThread		*referint_tid = NULL;
+static PRLock 		*keeprunning_mutex = NULL;
+static PRCondVar    *keeprunning_cv = NULL;
 int keeprunning = 0;
 
-static PRLock 		*keeprunning_mutex = NULL; 
-static PRCondVar        *keeprunning_cv = NULL; 
-
-static Slapi_PluginDesc pdesc = { "referint", VENDOR, DS_PACKAGE_VERSION,
-	"referential integrity plugin" };
-
+static Slapi_PluginDesc pdesc = { "referint", VENDOR, DS_PACKAGE_VERSION, "referential integrity plugin" };
+static int allow_repl = 0;
 static void* referint_plugin_identity = NULL;
 
 #ifdef _WIN32
@@ -109,221 +105,213 @@ void plugin_init_debug_level(int *level_ptr)
 int
 referint_postop_init( Slapi_PBlock *pb )
 {
-	Slapi_Entry *plugin_entry = NULL;
-	char *plugin_type = NULL;
-	int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
-	int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
+    Slapi_Entry *plugin_entry = NULL;
+    char *plugin_type = NULL;
+    int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
+    int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
 
-	/*
-	 * Get plugin identity and stored it for later use
-	 * Used for internal operations
-	 */
+    /*
+     *  Get plugin identity and stored it for later use.
+     *  Used for internal operations.
+     */
+    slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &referint_plugin_identity);
+    PR_ASSERT (referint_plugin_identity);
 
-    	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &referint_plugin_identity);
-    	PR_ASSERT (referint_plugin_identity);
+    /* get the args */
+    if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+         plugin_entry &&
+         (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+         plugin_type && strstr(plugin_type, "betxn"))
+    {
+        delfn = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+        mdnfn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+    }
+    if(plugin_entry){
+        char *allow_repl_updates;
 
-	/* get args */ 
-	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
-		plugin_entry &&
-		(plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
-		plugin_type && strstr(plugin_type, "betxn")) {
-		delfn = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
-		mdnfn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
-	}
-	slapi_ch_free_string(&plugin_type);
-
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-	    			SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-	  slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-                     (void *)&pdesc ) != 0 ||
-         slapi_pblock_set( pb, delfn,
-                     (void *) referint_postop_del ) != 0 ||
-         slapi_pblock_set( pb, mdnfn,
-                     (void *) referint_postop_modrdn ) != 0 ||
-         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-        	         (void *) referint_postop_start ) != 0 ||
-	     slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-			         (void *) referint_postop_close ) != 0)
-        {
-            slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                             "referint_postop_init failed\n" );
-            return( -1 );
+        allow_repl_updates = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-pluginAllowReplUpdates");
+        if(allow_repl_updates && strcasecmp(allow_repl_updates,"on")==0){
+            allow_repl = 1;
         }
+        slapi_ch_free_string(&allow_repl_updates);
+    }
+    slapi_ch_free_string(&plugin_type);
 
-        return( 0 );
+    if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+         slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc ) != 0 ||
+         slapi_pblock_set( pb, delfn, (void *) referint_postop_del ) != 0 ||
+         slapi_pblock_set( pb, mdnfn, (void *) referint_postop_modrdn ) != 0 ||
+         slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void *) referint_postop_start ) != 0 ||
+         slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) referint_postop_close ) != 0)
+    {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_init failed\n" );
+        return( -1 );
+    }
+
+    return( 0 );
 }
 
 
 int
 referint_postop_del( Slapi_PBlock *pb )
 {
-	Slapi_DN *sdn = NULL;
-	int rc;
-	int oprc;
-	char **argv;
-	int argc;
-	int delay;
-	int logChanges=0;
-	int isrepop = 0;
+    Slapi_DN *sdn = NULL;
+    char **argv;
+    int argc;
+    int delay;
+    int logChanges=0;
+    int isrepop = 0;
+    int oprc;
+    int rc;
 
-	if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
-	     slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn ) != 0  ||
-	     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0) 
-        {
-            slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                             "referint_postop_del: could not get parameters\n" );
-            return( -1 );
-        }
-
-        /* this plugin should only execute if the delete was successful
-		   and this is not a replicated op
-	    */
-        if(oprc != 0 || isrepop)
-        {
-            return( 0 );
-        }
-	/* get args */ 
-	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0) { 
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop failed to get argc\n" );
-	  return( -1 ); 
-	} 
-	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0) { 
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop failed to get argv\n" );
-	  return( -1 ); 
-	} 
+    if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
+         slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn ) != 0  ||
+         slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0)
+    {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop_del: could not get parameters\n" );
+        return( -1 );
+    }
+    /*
+     *  This plugin should only execute if the delete was successful
+     *  and this is not a replicated op(unless its allowed)
+     */
+    if(oprc != 0 || (isrepop && !allow_repl)){
+        return( 0 );
+    }
+    /* get the args */
+    if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0) {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop failed to get argc\n" );
+        return( -1 );
+    }
+    if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0) {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop failed to get argv\n" );
+        return( -1 );
+    }
 	
-	if(argv == NULL){
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop_modrdn, args are NULL\n" );
-	  return( -1 ); 
-	}
+    if(argv == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop_modrdn, args are NULL\n" );
+        return( -1 );
+    }
 	
-	if (argc >= 3) {
-		/* argv[0] will be the delay */
-		delay = atoi(argv[0]);
+    if (argc >= 3) {
+        /* argv[0] will be the delay */
+        delay = atoi(argv[0]);
 
-		/* argv[2] will be wether or not to log changes */
-		logChanges = atoi(argv[2]);
+        /* argv[2] will be wether or not to log changes */
+        logChanges = atoi(argv[2]);
 
-		if(delay == -1){
-		  /* integrity updating is off */
-		  rc = 0;
-		}else if(delay == 0){
-		  /* no delay */
- 		  /* call function to update references to entry */
-		  rc = update_integrity(argv, sdn, NULL, NULL, logChanges);
-		}else{
-		  /* write the entry to integrity log */
-		  writeintegritylog(pb, argv[1], sdn, NULL, NULL, NULL /* slapi_get_requestor_sdn(pb) */);
-		  rc = 0;
-		}
-	} else {
-		slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop insufficient arguments supplied\n" );
-		return( -1 ); 
-	}
+        if(delay == -1){
+            /* integrity updating is off */
+            rc = 0;
+        } else if(delay == 0){ /* no delay */
+            /* call function to update references to entry */
+            rc = update_integrity(argv, sdn, NULL, NULL, logChanges);
+        } else {
+            /* write the entry to integrity log */
+            writeintegritylog(pb, argv[1], sdn, NULL, NULL, NULL /* slapi_get_requestor_sdn(pb) */);
+            rc = 0;
+        }
+    } else {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop insufficient arguments supplied\n" );
+        return( -1 );
+    }
 
-	return( rc );
-
+    return( rc );
 }
 
 int
 referint_postop_modrdn( Slapi_PBlock *pb )
 {
-	Slapi_DN *sdn = NULL;
-	char	*newrdn;
-	Slapi_DN *newsuperior;
-	int oprc;
-	int rc;
-	char **argv;
-	int argc = 0;
-	int delay;
-	int logChanges=0;
-	int isrepop = 0;
+    Slapi_DN *sdn = NULL;
+    Slapi_DN *newsuperior;
+    char *newrdn;
+    char **argv;
+    int oprc;
+    int rc;
+    int argc = 0;
+    int delay;
+    int logChanges=0;
+    int isrepop = 0;
 
-	if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
-		 slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &sdn ) != 0 ||
-		 slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn ) != 0 ||
-		 slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior ) != 0 ||
-		 slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0 ){
+    if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
+         slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &sdn ) != 0 ||
+         slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn ) != 0 ||
+         slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior ) != 0 ||
+         slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0 )
+    {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop_modrdn: could not get parameters\n" );
+        return( -1 );
+    }
+    /*
+     *  This plugin should only execute if the delete was successful
+     *  and this is not a replicated op (unless its allowed)
+     */
+    if(oprc != 0 || (isrepop && !allow_repl)){
+        return( 0 );
+    }
+    /* get the args */
+    if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0) {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop failed to get argv\n" );
+        return( -1 );
+    }
+    if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0) {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop failed to get argv\n" );
+        return( -1 );
+    }
+    if(argv == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop_modrdn, args are NULL\n" );
+        return( -1 );
+    }
 
-		slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		    "referint_postop_modrdn: could not get parameters\n" );
-		return( -1 );
-	}
+    if (argc >= 3) {
+        /* argv[0] will always be the delay */
+        delay = atoi(argv[0]);
 
-	/* this plugin should only execute if the delete was successful 
-	   and this is not a replicated op
-	*/
-	if(oprc != 0 || isrepop){
-	  return( 0 );
-	}
-	/* get args */ 
-	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0) { 
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop failed to get argv\n" ); 
-	  return( -1 ); 
-	} 
-	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0) { 
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop failed to get argv\n" );
-	  return( -1 ); 
-	} 
-	
-	if(argv == NULL){
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop_modrdn, args are NULL\n" ); 
-	  return( -1 ); 
-	}
+        /* argv[2] will be wether or not to log changes */
+        logChanges = atoi(argv[2]);
+    } else {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop_modrdn insufficient arguments supplied\n" );
+        return( -1 );
+    }
 
-	if (argc >= 3) {
-		/* argv[0] will always be the delay */
-		delay = atoi(argv[0]);
+    if(delay == -1){
+        /* integrity updating is off */
+        rc = 0;
+    } else if(delay == 0){ /* no delay */
+        /* call function to update references to entry */
+        rc = update_integrity(argv, sdn, newrdn, newsuperior, logChanges);
+    } else {
+        /* write the entry to integrity log */
+        writeintegritylog(pb, argv[1], sdn, newrdn, newsuperior, NULL /* slapi_get_requestor_sdn(pb) */);
+        rc = 0;
+    }
 
-		/* argv[2] will be wether or not to log changes */
-		logChanges = atoi(argv[2]);
-	} else {
-		slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop_modrdn insufficient arguments supplied\n" );
-		return( -1 ); 
-	}
-
-	if(delay == -1){
-	  /* integrity updating is off */
-	  rc = 0;
-	}else if(delay == 0){
-	  /* no delay */
-	  /* call function to update references to entry */
-	  rc = update_integrity(argv, sdn, newrdn, newsuperior, logChanges);
-	}else{
-	  /* write the entry to integrity log */
-	  writeintegritylog(pb, argv[1], sdn, newrdn, newsuperior, NULL /* slapi_get_requestor_sdn(pb) */);
-	  rc = 0;
-	}
-
-	return( rc );
+    return( rc );
 }
 
 int isFatalSearchError(int search_result)
 {
-
     /*   Make sure search result is fatal 
      *   Some conditions that happen quite often are not fatal 
      *   for example if you have two suffixes and one is null, you will always
-     *   get no such object, howerever this is not a fatal error. 
+     *   get no such object, however this is not a fatal error.
      *   Add other conditions to the if statement as they are found
      */
-
-	/* NPCTE fix for bugid 531225, esc 0. <P.R> <30-May-2001> */
-	switch(search_result) {
-		case LDAP_REFERRAL: 
-		case LDAP_NO_SUCH_OBJECT: return 0 ;
-	}
-	return 1;
-	 /* end of NPCTE fix for bugid 531225 */
-
+    switch(search_result) {
+        case LDAP_REFERRAL:
+        case LDAP_NO_SUCH_OBJECT: return 0 ;
+    }
+    return 1;
 }
 
 static int
@@ -333,9 +321,14 @@ _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
 
     slapi_pblock_init(mod_pb);
 
-    /* Use internal operation API */
-    slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                     referint_plugin_identity, 0);
+    if(allow_repl){
+    	/* Must set as a replicated operation */
+    	slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
+                                         referint_plugin_identity, OP_FLAG_REPLICATED);
+    } else {
+    	slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
+                                         referint_plugin_identity, 0);
+    }
     slapi_modify_internal_pb(mod_pb);
     slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     
@@ -354,6 +347,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
                     const char *newsuperior, /* new superior from modrdn */
                     Slapi_PBlock *mod_pb)
 {
+    LDAPMod attribute1, attribute2;
     LDAPMod *list_of_mods[3];
     char *values_del[2];
     char *values_add[2];
@@ -361,7 +355,8 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
     char **dnParts = NULL;
     char *sval = NULL;
     char *newvalue = NULL;
-    LDAPMod attribute1, attribute2;
+    char *p = NULL;
+    size_t dnlen = 0;
     int rc = 0;
 
     if (NULL == newRDN && NULL == newsuperior) {
@@ -431,11 +426,11 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
          * member: uid=A,ou=B,ou=C --> uid=A,ou=B',ou=C
          *         (sval)              (sval' + newDN)
          */
-        for (nval = slapi_attr_first_value(attr, &v);
-             nval != -1;
+        for (nval = slapi_attr_first_value(attr, &v); nval != -1;
              nval = slapi_attr_next_value(attr, nval, &v)) {
-            char *p = NULL;
-            size_t dnlen = 0;
+            p = NULL;
+            dnlen = 0;
+
             /* DN syntax, which should be a string */
             sval = slapi_ch_strdup(slapi_value_get_string(v));
             rc = slapi_dn_normalize_case_ext(sval, 0,  &p, &dnlen);
@@ -536,6 +531,8 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
     char **dnParts = NULL;
     char *sval = NULL;
     char *newvalue = NULL;
+    char *p = NULL;
+    size_t dnlen = 0;
     int rc = 0;
     int nval = 0;
 
@@ -619,8 +616,9 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         for (nval = slapi_attr_first_value(attr, &v);
              nval != -1;
              nval = slapi_attr_next_value(attr, nval, &v)) {
-            char *p = NULL;
-            size_t dnlen = 0;
+            p = NULL;
+            dnlen = 0;
+
             /* DN syntax, which should be a string */
             sval = slapi_ch_strdup(slapi_value_get_string(v));
             rc = slapi_dn_normalize_case_ext(sval, 0,  &p, &dnlen);
@@ -665,6 +663,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         slapi_ch_free_string(&newDN);
         slapi_mods_free(&smods);
     }
+
 bail:
     return rc;
 }
@@ -677,25 +676,30 @@ update_integrity(char **argv, Slapi_DN *origSDN,
     Slapi_PBlock *search_result_pb = NULL;
     Slapi_PBlock *mod_pb = slapi_pblock_new();
     Slapi_Entry  **search_entries = NULL;
-    int search_result;
     Slapi_DN *sdn = NULL;
+    Slapi_Attr *attr = NULL;
     void *node = NULL;
-    char *filter = NULL;
-    int i, j;
-    const char *search_base = NULL;
-    int rc;
-    size_t len = slapi_sdn_get_ndn_len(origSDN);
     const char *origDN = slapi_sdn_get_dn(origSDN);
-   
-    if ( argv == NULL ) {
+    const char *search_base = NULL;
+    char *attrName = NULL;
+    char *filter = NULL;
+    char *attrs[2];
+    size_t len = slapi_sdn_get_ndn_len(origSDN);
+    int search_result;
+    int nval = 0;
+    int i, j;
+    int rc;
+
+    if ( argv == NULL ){
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop required config file arguments missing\n" );
         rc = -1;
         goto free_and_return;
     } 
-  
-    /* for now, just putting attributes to keep integrity on in conf file,
-       until resolve the other timing mode issue */
+    /*
+     *  For now, just putting attributes to keep integrity on in conf file,
+     *  until resolve the other timing mode issue
+     */
     search_result_pb = slapi_pblock_new();
 
     /* Search each namingContext in turn */
@@ -704,14 +708,12 @@ update_integrity(char **argv, Slapi_DN *origSDN,
     {
         search_base = slapi_sdn_get_dn( sdn );
 
-        for(i = 3; argv[i] != NULL; i++)
-        {
+        for(i = 3; argv[i] != NULL; i++){
             char buf[BUFSIZ];
             filter = slapi_ch_smprintf("(%s=*%s)", argv[i],
                                     escape_filter_value(origDN, len, buf));
             if ( filter ) {
                 /* Need only the current attribute and its subtypes */
-                char *attrs[2];
                 attrs[0] = argv[i];
                 attrs[1] = NULL;
 
@@ -722,35 +724,34 @@ update_integrity(char **argv, Slapi_DN *origSDN,
                     NULL, NULL, referint_plugin_identity, 0);
                 slapi_search_internal_pb(search_result_pb);
   
-                slapi_pblock_get( search_result_pb, SLAPI_PLUGIN_INTOP_RESULT, 
-                                  &search_result);
+                slapi_pblock_get( search_result_pb, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
 
                 /* if search successfull then do integrity update */
                 if(search_result == LDAP_SUCCESS)
                 {
-                    slapi_pblock_get(search_result_pb,
-                                     SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
+                    slapi_pblock_get(search_result_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
                                      &search_entries);
 
-                    for(j=0; search_entries[j] != NULL; j++)
-                    {
-                        Slapi_Attr *attr = NULL;
-                        char *attrName = NULL;
-
-                        /* Loop over all the attributes of the entry and search
-                         * for the integrity attribute and its subtypes */
+                    for(j = 0; search_entries[j] != NULL; j++){
+                        attr = NULL;
+                        attrName = NULL;
+                        /*
+                         *  Loop over all the attributes of the entry and search
+                         *  for the integrity attribute and its subtypes
+                         */
                         for (slapi_entry_first_attr(search_entries[j], &attr); attr; 
                              slapi_entry_next_attr(search_entries[j], attr, &attr))
                         {
-                            /* Take into account only the subtypes of the attribute 
-                             * in argv[i] having the necessary value  - origDN */
+                            /*
+                             *  Take into account only the subtypes of the attribute
+                             *  in argv[i] having the necessary value  - origDN
+                             */
                             slapi_attr_get_type(attr, &attrName);
                             if (slapi_attr_type_cmp(argv[i], attrName,
                                                     SLAPI_TYPE_CMP_SUBTYPE) == 0)
                             {
-                                int nval = 0;
+                                nval = 0;
                                 slapi_attr_get_numvalues(attr, &nval);
-
                                 /* 
                                  * We want to reduce the "modify" call as much as
                                  * possible. But if an entry contains 1000s of 
@@ -781,21 +782,16 @@ update_integrity(char **argv, Slapi_DN *origSDN,
                         }
                     }
                 } else {
-                    if (isFatalSearchError(search_result))
-                    {
-                        /* NPCTE fix for bugid 531225, esc 0. <P.R> <30-May-2001> */
+                    if (isFatalSearchError(search_result)){
                         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                             "update_integrity search (base=%s filter=%s) returned "
                             "error %d\n", search_base, filter, search_result);
-                        /* end of NPCTE fix for bugid 531225 */
                         rc = -1;
                         goto free_and_return;
                     }
                 }
-
                 slapi_ch_free_string(&filter);
             }
-  
             slapi_free_search_results_internal(search_result_pb);
         }
     }
@@ -817,221 +813,197 @@ free_and_return:
 
 int referint_postop_start( Slapi_PBlock *pb)
 {
-
     char **argv;
-	int argc = 0;
+    int argc = 0;
  
     /* get args */ 
     if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0 ) { 
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop failed to get argv\n" );
-	  return( -1 ); 
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop failed to get argv\n" );
+        return( -1 );
     } 
     if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0 ) { 
-	  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop failed to get argv\n" );
-	  return( -1 ); 
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop failed to get argv\n" );
+        return( -1 );
     } 
-
     if(argv == NULL){
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		  "args were null in referint_postop_start\n" );
-	return( -1  );
+            "args were null in referint_postop_start\n" );
+        return( -1  );
+    }
+    /*
+     *  Only bother to start the thread if you are in delay mode.
+     *     0  = no delay,
+     *     -1 = integrity off
+     */
+    if (argc >= 1) {
+        if(atoi(argv[0]) > 0){
+            /* initialize the cv and lock */
+            referint_mutex = PR_NewLock();
+            keeprunning_mutex = PR_NewLock();
+            keeprunning_cv = PR_NewCondVar(keeprunning_mutex);
+            keeprunning =1;
+			
+            referint_tid = PR_CreateThread (PR_USER_THREAD,
+                               referint_thread_func,
+                               (void *)argv,
+                               PR_PRIORITY_NORMAL,
+                               PR_GLOBAL_THREAD,
+                               PR_UNJOINABLE_THREAD,
+                               SLAPD_DEFAULT_THREAD_STACKSIZE);
+            if ( referint_tid == NULL ) {
+                slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                    "referint_postop_start PR_CreateThread failed\n" );
+                exit( 1 );
+            }
+        }
+    } else {
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_postop_start insufficient arguments supplied\n" );
+        return( -1 );
     }
 
-    /* only bother to start the thread if you are in delay mode. 
-       0  = no delay,
-       -1 = integrity off */
-
-	if (argc >= 1) {
-		if(atoi(argv[0]) > 0){
-
-		  /* initialize  cv and lock */
-			 
-		  referint_mutex = PR_NewLock();
-		  keeprunning_mutex = PR_NewLock();
-		  keeprunning_cv = PR_NewCondVar(keeprunning_mutex);
-		  keeprunning =1;
-			
-		  referint_tid = PR_CreateThread (PR_USER_THREAD, 
-							referint_thread_func, 
-							(void *)argv,
-							PR_PRIORITY_NORMAL, 
-							PR_GLOBAL_THREAD, 
-							PR_UNJOINABLE_THREAD, 
-							SLAPD_DEFAULT_THREAD_STACKSIZE);
-		  if ( referint_tid == NULL ) {
-			slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-				   "referint_postop_start PR_CreateThread failed\n" );
-			exit( 1 );
-		  }
-		}
-	} else {
-		slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		     "referint_postop_start insufficient arguments supplied\n" );
-		return( -1 ); 
-	}
-
     return(0);
-
 }
 
 int referint_postop_close( Slapi_PBlock *pb)
 {
+    /* signal the thread to exit */
+    if (NULL != keeprunning_mutex) {
+        PR_Lock(keeprunning_mutex);
+        keeprunning=0;
+        if (NULL != keeprunning_cv) {
+            PR_NotifyCondVar(keeprunning_cv);
+        }
+        PR_Unlock(keeprunning_mutex);
+    }
 
-	/* signal the thread to exit */
-	if (NULL != keeprunning_mutex) {
-		PR_Lock(keeprunning_mutex);  
-		keeprunning=0;
-		if (NULL != keeprunning_cv) {
-			PR_NotifyCondVar(keeprunning_cv);
-		}
-		PR_Unlock(keeprunning_mutex);  
-	}
-
-	return(0);
+    return(0);
 }
 
 void
 referint_thread_func(void *arg)
 {
-    char **plugin_argv = (char **)arg;
     PRFileDesc *prfd;
+    char **plugin_argv = (char **)arg;
     char *logfilename;
     char thisline[MAX_LINE];
-    int delay;
-    int no_changes;
     char delimiter[]="\t\n";
     char *ptoken;
-	Slapi_DN *sdn = NULL;
     char *tmprdn;
+    char *iter = NULL;
+    Slapi_DN *sdn = NULL;
     Slapi_DN *tmpsuperior = NULL;
-    int logChanges=0;
-	char * iter = NULL;
+    int logChanges = 0;
+    int delay;
+    int no_changes;
 
     if(plugin_argv == NULL){
-      slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-		 "referint_thread_func not get args \n" );
-      return;
+        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+            "referint_thread_func not get args \n" );
+        return;
     }
-
-    /* initialize the thread data index
-    if(slapi_td_dn_init()){
-    	slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,"Failed to create thread data index\n");
-
-    } */
 
     delay = atoi(plugin_argv[0]);
     logfilename = plugin_argv[1]; 
-	logChanges = atoi(plugin_argv[2]);
-
-    /* keep running this thread until plugin is signalled to close */
-
+    logChanges = atoi(plugin_argv[2]);
+    /*
+     * keep running this thread until plugin is signaled to close
+     */
     while(1){ 
-
         no_changes=1;
-
         while(no_changes){
-
-	    PR_Lock(keeprunning_mutex);
-	    if(keeprunning == 0){
-	        PR_Unlock(keeprunning_mutex);  
-	       break;
-	    }
-	    PR_Unlock(keeprunning_mutex);  
-
-
-	    PR_Lock(referint_mutex);
-        if (( prfd = PR_Open( logfilename, PR_RDONLY,
-	                          REFERINT_DEFAULT_FILE_MODE )) == NULL ) 
-        {
-            PR_Unlock(referint_mutex);	
-            /* go back to sleep and wait for this file */
-  	        PR_Lock(keeprunning_mutex);
-            PR_WaitCondVar(keeprunning_cv, PR_SecondsToInterval(delay));
+            PR_Lock(keeprunning_mutex);
+            if(keeprunning == 0){
+                PR_Unlock(keeprunning_mutex);
+                break;
+            }
             PR_Unlock(keeprunning_mutex);
-	    }else{
-	        no_changes = 0;
-	    }
-	}
 
-	/* check keep running here, because after break out of no
-	 * changes loop on shutdown, also need to break out of this
-	 * loop before trying to do the changes. The server
-	 * will pick them up on next startup as file still exists 
-	 */
+            PR_Lock(referint_mutex);
+            if (( prfd = PR_Open( logfilename, PR_RDONLY, REFERINT_DEFAULT_FILE_MODE )) == NULL ){
+                PR_Unlock(referint_mutex);
+                /* go back to sleep and wait for this file */
+                PR_Lock(keeprunning_mutex);
+                PR_WaitCondVar(keeprunning_cv, PR_SecondsToInterval(delay));
+                PR_Unlock(keeprunning_mutex);
+            } else {
+                no_changes = 0;
+            }
+        }
+        /*
+         *  Check keep running here, because after break out of no
+         *  changes loop on shutdown, also need to break out of this
+         *  loop before trying to do the changes. The server
+         *  will pick them up on next startup as file still exists
+         */
         PR_Lock(keeprunning_mutex);
         if(keeprunning == 0){
-	    PR_Unlock(keeprunning_mutex);  
-	    break;
+            PR_Unlock(keeprunning_mutex);
+            break;
         }
         PR_Unlock(keeprunning_mutex);  
-    
-  
-	while( GetNextLine(thisline, MAX_LINE, prfd) ){
-	    ptoken = ldap_utf8strtok_r(thisline, delimiter, &iter);
-		sdn = slapi_sdn_new_normdn_byref(ptoken);
 
-	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
-	    if(!strcasecmp(ptoken, "NULL")) {
-	        tmprdn = NULL;
-	    } else {
-	        tmprdn = slapi_ch_smprintf("%s", ptoken);
-	    }
+        while( GetNextLine(thisline, MAX_LINE, prfd) ){
+            ptoken = ldap_utf8strtok_r(thisline, delimiter, &iter);
+            sdn = slapi_sdn_new_normdn_byref(ptoken);
+            ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
 
-	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
-	    if (!strcasecmp(ptoken, "NULL")) {
-	        tmpsuperior = NULL;
-	    } else {
-	        tmpsuperior = slapi_sdn_new_normdn_byref(ptoken);
-	    }
-	    ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
-	    if (strcasecmp(ptoken, "NULL") != 0) {
-	    	/* Set the bind DN in the thread data */
-	        if(slapi_td_set_dn(slapi_ch_strdup(ptoken))){
-	        	slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,"Failed to set thread data\n");
-	        }
-	    }
-      
-	    update_integrity(plugin_argv, sdn, tmprdn,
-	                     tmpsuperior, logChanges);
-      
-	    slapi_sdn_free(&sdn);
-	    slapi_ch_free_string(&tmprdn);
-	    slapi_sdn_free(&tmpsuperior);
-	}
+            if(!strcasecmp(ptoken, "NULL")) {
+                tmprdn = NULL;
+            } else {
+                tmprdn = slapi_ch_smprintf("%s", ptoken);
+            }
 
-	PR_Close(prfd);
-      
-    /* remove the original file */
-    if( PR_SUCCESS != PR_Delete(logfilename) )
-    {
-        slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                         "referint_postop_close could not delete \"%s\"\n",
-                          logfilename );
+            ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
+            if (!strcasecmp(ptoken, "NULL")) {
+                tmpsuperior = NULL;
+            } else {
+                tmpsuperior = slapi_sdn_new_normdn_byref(ptoken);
+            }
+            ptoken = ldap_utf8strtok_r (NULL, delimiter, &iter);
+            if (strcasecmp(ptoken, "NULL") != 0) {
+                /* Set the bind DN in the thread data */
+                if(slapi_td_set_dn(slapi_ch_strdup(ptoken))){
+                    slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,"Failed to set thread data\n");
+                }
+            }
+
+            update_integrity(plugin_argv, sdn, tmprdn, tmpsuperior, logChanges);
+
+            slapi_sdn_free(&sdn);
+            slapi_ch_free_string(&tmprdn);
+            slapi_sdn_free(&tmpsuperior);
+        }
+
+        PR_Close(prfd);
+
+        /* remove the original file */
+        if( PR_SUCCESS != PR_Delete(logfilename) ){
+            slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                "referint_postop_close could not delete \"%s\"\n", logfilename );
+        }
+
+        /* unlock and let other writers back at the file */
+        PR_Unlock(referint_mutex);
+
+        /* wait on condition here */
+        PR_Lock(keeprunning_mutex);
+        PR_WaitCondVar(keeprunning_cv, PR_SecondsToInterval(delay));
+        PR_Unlock(keeprunning_mutex);
     }
 
-	/* unlock and let other writers back at the file */
-	PR_Unlock(referint_mutex);
-	
-	/* wait on condition here */
-	PR_Lock(keeprunning_mutex);
-	PR_WaitCondVar(keeprunning_cv, PR_SecondsToInterval(delay));
-	PR_Unlock(keeprunning_mutex);
+    /* cleanup resources allocated in start  */
+    if (NULL != keeprunning_mutex) {
+        PR_DestroyLock(keeprunning_mutex);
     }
-
-	/* cleanup resources allocated in start  */
-	if (NULL != keeprunning_mutex) {
-		PR_DestroyLock(keeprunning_mutex);
-	}
-	if (NULL != referint_mutex) {
-		PR_DestroyLock(referint_mutex);
-	}
-	if (NULL != keeprunning_cv) {
-		PR_DestroyCondVar(keeprunning_cv);
-	}
-
-
+    if (NULL != referint_mutex) {
+        PR_DestroyLock(referint_mutex);
+    }
+    if (NULL != keeprunning_cv) {
+        PR_DestroyCondVar(keeprunning_cv);
+    }
 }
 
 int my_fgetc(PRFileDesc *stream)
@@ -1042,7 +1014,6 @@ int my_fgetc(PRFileDesc *stream)
     int         err;
 
     /* check if we need to load the buffer */
-
     if( READ_BUFSIZE == position )
     {
         memset(buf, '\0', READ_BUFSIZE);
@@ -1055,7 +1026,7 @@ int my_fgetc(PRFileDesc *stream)
             return err;
         }
     }
-	
+
     /* try to read some data */
     if( '\0' == buf[position])
     {
@@ -1066,9 +1037,8 @@ int my_fgetc(PRFileDesc *stream)
         retval = buf[position];
         position++;
     }
-        
-    return retval;
 
+    return retval;
 }	
 
 int
@@ -1078,38 +1048,33 @@ GetNextLine(char *dest, int size_dest, PRFileDesc *stream) {
     int  done     = 0;
     int  i        = 0;
 	
-    while(!done)
-    {
-        if( ( nextchar = my_fgetc(stream) ) != 0)
-        {
-            if( i < (size_dest - 1) ) 
-            {
+    while(!done){
+        if( ( nextchar = my_fgetc(stream) ) != 0){
+            if( i < (size_dest - 1) ){
                 dest[i] = nextchar;
                 i++;
-
-                if(nextchar == '\n')
-                {
+                if(nextchar == '\n'){
                     /* end of line reached */
                     done = 1;
                 }
-		             
-            }else{
+            } else {
                 /* no more room in buffer */
                 done = 1;
             }
-		
-        }else{
+        } else {
             /* error or end of file */
             done = 1;
         }
     }
-
     dest[i] =  '\0';
     
     /* return size of string read */
     return i;
 }
 
+/*
+ *  Write this record to the log file
+ */
 void
 writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
                   char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn)
@@ -1120,44 +1085,40 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     int rc;
     const char *requestordn = NULL;
     size_t reqdn_len = 0;
-    /* write this record to the file */
-
-    /* use this lock to protect file data when update integrity is occuring */
-    /* should hopefully not be a big issue on concurrency */
     
+    /*
+     *  Use this lock to protect file data when update integrity is occuring
+     *  should hopefully not be a big issue on concurrency
+     */
     PR_Lock(referint_mutex);
     if (( prfd = PR_Open( logfilename, PR_WRONLY | PR_CREATE_FILE | PR_APPEND,
 	      REFERINT_DEFAULT_FILE_MODE )) == NULL ) 
     {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-	       "referint_postop could not write integrity log \"%s\" "
-		SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
-	       logfilename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
-        
+            "referint_postop could not write integrity log \"%s\" "
+        SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
+            logfilename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
+
         PR_Unlock(referint_mutex);
-	    return;
+        return;
     }
-
-    /* make sure we have enough room in our buffer
-       before trying to write it 
+    /*
+     *  Make sure we have enough room in our buffer before trying to write it.
+     *  add length of dn +  5(three tabs, a newline, and terminating \0)
      */
-
-	/* add length of dn +  5(three tabs, a newline, and terminating \0) */
     len_to_write = slapi_sdn_get_ndn_len(sdn) + 5;
 
-    if(newrdn == NULL)
-    {
+    if(newrdn == NULL){
         /* add the length of "NULL" */
         len_to_write += 4;
-    }else{
+    } else {
         /* add the length of the newrdn */
         len_to_write += strlen(newrdn);
     }
-    if(NULL == newsuperior)
-    {
+    if(NULL == newsuperior){
         /* add the length of "NULL" */
         len_to_write += 4;
-    }else{
+    } else {
         /* add the length of the newsuperior */
         len_to_write += slapi_sdn_get_ndn_len(newsuperior);
     }
@@ -1169,36 +1130,30 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
         len_to_write += 4; /* "NULL" */
     }
 
-    if(len_to_write > MAX_LINE )
-    {
+    if(len_to_write > MAX_LINE ){
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                          "referint_postop could not write integrity log:"
                          " line length exceeded. It will not be able"
                          " to update references to this entry.\n");
-    }else{
-       PR_snprintf(buffer, MAX_LINE, "%s\t%s\t%s\t%s\t\n", 
-				   slapi_sdn_get_dn(sdn),
-				   (newrdn != NULL) ? newrdn : "NULL",
-				   (newsuperior != NULL) ? slapi_sdn_get_dn(newsuperior) :
-				                           "NULL",
-                   requestordn ? requestordn : "NULL");
+    } else {
+        PR_snprintf(buffer, MAX_LINE, "%s\t%s\t%s\t%s\t\n", slapi_sdn_get_dn(sdn),
+                   (newrdn != NULL) ? newrdn : "NULL",
+                   (newsuperior != NULL) ? slapi_sdn_get_dn(newsuperior) : "NULL",
+                    requestordn ? requestordn : "NULL");
         if (PR_Write(prfd,buffer,strlen(buffer)) < 0){
-           slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
-	       " writeintegritylog: PR_Write failed : The disk"
-	       " may be full or the file is unwritable :: NSPR error - %d\n",
-	       PR_GetError());
-	    }
-   }
+            slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
+                " writeintegritylog: PR_Write failed : The disk"
+                " may be full or the file is unwritable :: NSPR error - %d\n",
+            PR_GetError());
+        }
+    }
 
     /* If file descriptor is closed successfully, PR_SUCCESS */
-    
     rc = PR_Close(prfd);
-	if (rc != PR_SUCCESS)
-	{
-		slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM, 
-				" writeintegritylog: failed to close the file"
-				" descriptor prfd; NSPR error - %d\n",
-				PR_GetError());
-	}
+    if (rc != PR_SUCCESS){
+        slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
+            " writeintegritylog: failed to close the file descriptor prfd; NSPR error - %d\n",
+            PR_GetError());
+    }
     PR_Unlock(referint_mutex);    
-  }
+}

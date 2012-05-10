@@ -479,7 +479,12 @@ multimaster_preop_modify (Slapi_PBlock *pb)
             }
             else
             {
-                PR_ASSERT(0); /* JCMREPL - A Replicated Operation with no Repl Baggage control... What does that mean? */
+                /*  PR_ASSERT(0); JCMREPL - A Replicated Operation with no Repl Baggage control... What does that mean? */
+                /*
+                 *  This could be RI plugin responding to a replicated update from AD or some other master that is not
+                 *  using the RI plugin, so don't PR_ASSERT here.  This only happens if we configure the RI plugin with
+                 *  "nsslapd-pluginAllowReplUpdates: on", also the RI plugin only issues "modifies".
+                 */
             }
         }
         else
