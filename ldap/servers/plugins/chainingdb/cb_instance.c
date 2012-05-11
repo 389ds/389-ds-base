@@ -511,15 +511,15 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 */
 
 int
-cb_parse_instance_config_entry(cb_backend * cb, Slapi_Entry * e) {
-
-	int rc 			=LDAP_SUCCESS;
-        Slapi_Attr 		*attr = NULL;
-        Slapi_Value 		*sval;
-    	const struct berval 	*attrValue;
-	cb_backend_instance 	*inst=NULL;
-	char			*instname;
-	char 			retmsg[CB_BUFSIZE];
+cb_parse_instance_config_entry(cb_backend * cb, Slapi_Entry * e)
+{
+	cb_backend_instance *inst = NULL;
+	Slapi_Attr *attr = NULL;
+	Slapi_Value *sval;
+	const struct berval *attrValue;
+	char *instname;
+	char retmsg[CB_BUFSIZE];
+	int rc = LDAP_SUCCESS;
 
 	CB_ASSERT(e!=NULL);
 	
@@ -529,17 +529,17 @@ cb_parse_instance_config_entry(cb_backend * cb, Slapi_Entry * e) {
 	*/
 	
 	if ( 0 == slapi_entry_attr_find( e, CB_CONFIG_INSTNAME, &attr )) {
-    		slapi_attr_first_value(attr, &sval);
-    		attrValue = slapi_value_get_berval(sval);
-		instname=attrValue->bv_val;
+		slapi_attr_first_value(attr, &sval);
+		attrValue = slapi_value_get_berval(sval);
+		instname = attrValue->bv_val;
 	} else {
 		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, 
 			"Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME); 
-		return LDAP_LOCAL_ERROR;
+		return -1;
 	}
 
-        /* Allocate a new backend internal data structure */
-        inst = cb_instance_alloc(cb,instname,slapi_entry_get_dn(e));
+	/* Allocate a new backend internal data structure */
+	inst = cb_instance_alloc(cb,instname,slapi_entry_get_dn(e));
 
 	/* Emulate a add config entry to configure */
 	/* this backend instance.		   */
@@ -556,99 +556,96 @@ cb_parse_instance_config_entry(cb_backend * cb, Slapi_Entry * e) {
 */
 
 static int 
-cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int phase, int apply) {
-
-        int rc                  =LDAP_SUCCESS;
-        Slapi_Attr              *attr = NULL;
-        Slapi_Value             *sval;
-	struct berval * 	 bval;
-	int 			using_def_connlifetime,i;
-        char 			err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
-	int 			urlfound=0;
-	char 			*rootdn;
+cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int phase, int apply)
+{
+	Slapi_Attr *attr = NULL;
+	Slapi_Value *sval;
+	Slapi_DN *suffix;
+	struct berval *bval;
+	char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
+	char *attr_name = NULL;
+	char *rootdn;
+	int using_def_connlifetime, i;
+	int urlfound = 0;
+	int rc = LDAP_SUCCESS;
 
 	using_def_connlifetime=1;
 
-        for (slapi_entry_first_attr(e, &attr); attr; slapi_entry_next_attr(e, attr, &attr)) {
-		char * attr_name=NULL;	
-                slapi_attr_get_type(attr, &attr_name);
+	for (slapi_entry_first_attr(e, &attr); attr; slapi_entry_next_attr(e, attr, &attr)) {
+		attr_name = NULL;
+		slapi_attr_get_type(attr, &attr_name);
 
 		if ( !strcasecmp ( attr_name, CB_CONFIG_SUFFIX )) {
 			if (apply && ( inst->inst_be != NULL )) {
-  				Slapi_DN *suffix;
 				suffix = slapi_sdn_new();
-                        	i = slapi_attr_first_value(attr, &sval);
-                        	while (i != -1 ) {
-                                	bval = (struct berval *) slapi_value_get_berval(sval);
-                                	slapi_sdn_set_dn_byref(suffix, bval->bv_val);
+				i = slapi_attr_first_value(attr, &sval);
+				while (i != -1 ) {
+					bval = (struct berval *) slapi_value_get_berval(sval);
+					slapi_sdn_set_dn_byref(suffix, bval->bv_val);
 
-                                	if (!slapi_be_issuffix(inst->inst_be, suffix)) {
-                                        	slapi_be_addsuffix(inst->inst_be, suffix);
-                                	}
-                                	i = slapi_attr_next_value(attr, i, &sval);
-                        	}
+					if (!slapi_be_issuffix(inst->inst_be, suffix)) {
+							slapi_be_addsuffix(inst->inst_be, suffix);
+					}
+					i = slapi_attr_next_value(attr, i, &sval);
+				}
 				slapi_sdn_free(&suffix);
 			}
-                        continue;
-		} else
-		if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
-
-       			if (apply) {
-	                	slapi_rwlock_wrlock(inst->rwl_config_lock);
-                                i = slapi_attr_first_value(attr, &sval);
+			continue;
+		} else if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
+			if (apply) {
+				slapi_rwlock_wrlock(inst->rwl_config_lock);
+				i = slapi_attr_first_value(attr, &sval);
 				charray_free(inst->chaining_components);
 				inst->chaining_components=NULL;
-                                while (i != -1 ) {
-                                        bval = (struct berval *) slapi_value_get_berval(sval);
+				while (i != -1 ) {
+					bval = (struct berval *) slapi_value_get_berval(sval);
 					charray_add(&inst->chaining_components,
-						slapi_dn_normalize(slapi_ch_strdup(bval->bv_val)));
-                                        i = slapi_attr_next_value(attr, i, &sval);
-                                }
-	                	slapi_rwlock_unlock(inst->rwl_config_lock);
-                        }
-                        continue;
-		} else
-		if ( !strcasecmp ( attr_name, CB_CONFIG_ILLEGAL_ATTRS )) {
-
-       			if (apply) {
-	                	slapi_rwlock_wrlock(inst->rwl_config_lock);
-                                i = slapi_attr_first_value(attr, &sval);
+					slapi_dn_normalize(slapi_ch_strdup(bval->bv_val)));
+					i = slapi_attr_next_value(attr, i, &sval);
+				}
+				slapi_rwlock_unlock(inst->rwl_config_lock);
+			}
+			continue;
+		} else if ( !strcasecmp ( attr_name, CB_CONFIG_ILLEGAL_ATTRS )) {
+			if (apply) {
+				slapi_rwlock_wrlock(inst->rwl_config_lock);
+				i = slapi_attr_first_value(attr, &sval);
 				charray_free(inst->illegal_attributes);
 				inst->illegal_attributes=NULL;
-                                while (i != -1 ) {
-                                        bval = (struct berval *) slapi_value_get_berval(sval);
+				while (i != -1 ) {
+					bval = (struct berval *) slapi_value_get_berval(sval);
 					charray_add(&inst->illegal_attributes,
-						slapi_ch_strdup(bval->bv_val));
-                                        i = slapi_attr_next_value(attr, i, &sval);
-                                }
-	                	slapi_rwlock_unlock(inst->rwl_config_lock);
-                        }
-                        continue;
+					slapi_ch_strdup(bval->bv_val));
+					i = slapi_attr_next_value(attr, i, &sval);
+				}
+				slapi_rwlock_unlock(inst->rwl_config_lock);
+			}
+			continue;
 		}
 
 
 		if ( !strcasecmp ( attr_name, CB_CONFIG_HOSTURL )) {
 			urlfound=1;
 		}
-			
 
-      		/* We are assuming that each of these attributes are to have
-                 * only one value.  If they have more than one value, like
-                 * the nsslapd-suffix attribute, then they need to be
-                 * handled differently. */
+		/*
+		 * We are assuming that each of these attributes are to have
+		 * only one value.  If they have more than one value, like
+		 * the nsslapd-suffix attribute, then they need to be
+		 * handled differently.
+		 */
 
-                slapi_attr_first_value(attr, &sval);
-                bval = (struct berval *) slapi_value_get_berval(sval);
- 
-                if (cb_instance_config_set((void *) inst, attr_name, 
+		slapi_attr_first_value(attr, &sval);
+		bval = (struct berval *) slapi_value_get_berval(sval);
+
+		if (cb_instance_config_set((void *) inst, attr_name,
 			cb_the_instance_config, bval, err_buf, phase, apply ) != LDAP_SUCCESS) {
-                        slapi_log_error( SLAPI_LOG_FATAL, 
-				CB_PLUGIN_SUBSYSTEM,"Error with config attribute %s : %s\n",
+			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,"Error with config attribute %s : %s\n",
 				attr_name, err_buf);
-			rc=LDAP_LOCAL_ERROR;
-                        break;
-                }
-                if ( !strcasecmp ( attr_name, CB_CONFIG_CONNLIFETIME )) {
+			rc = -1;
+			break;
+		}
+		if ( !strcasecmp ( attr_name, CB_CONFIG_CONNLIFETIME )) {
 			using_def_connlifetime=0;
 		}
 	}
@@ -661,20 +658,17 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 
 	if (LDAP_SUCCESS == rc) {
 		if (!urlfound) {
-       	 		slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-			"Malformed backend instance entry. Mandatory attr <%s> missing\n",
-			CB_CONFIG_HOSTURL);
-			rc= LDAP_LOCAL_ERROR;
+			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+				"Malformed backend instance entry. Mandatory attr <%s> missing\n",CB_CONFIG_HOSTURL);
+			rc = -1;
 		}
 
 		if (apply ) {
-    			if ( using_def_connlifetime &&
-                		strchr( inst->pool->hostname, ' ' ) != NULL ) {
-
-                		cb_instance_config_set((void *)inst, CB_CONFIG_CONNLIFETIME, 
-				cb_the_instance_config, NULL /* use default */, err_buf, 
+    		if ( using_def_connlifetime && strchr( inst->pool->hostname, ' ' ) != NULL ) {
+    			cb_instance_config_set((void *)inst, CB_CONFIG_CONNLIFETIME,
+    			cb_the_instance_config, NULL /* use default */, err_buf,
 					CB_CONFIG_PHASE_INITIALIZATION, 1 );
-        		}
+    		}
 		}
 	}
 
@@ -683,15 +677,13 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 	** It is forbidden to use directory manager as proxy user
 	** due to a bug in the acl check
 	*/
-
-	rootdn=cb_get_rootdn();
+	rootdn = cb_get_rootdn();
 
 	if (inst->impersonate && inst->pool && inst->pool->binddn && 
 		!strcmp(inst->pool->binddn,rootdn)) {	/* UTF8 aware */
-                slapi_log_error( SLAPI_LOG_FATAL,
-                	CB_PLUGIN_SUBSYSTEM,"Error with config attribute %s (%s: forbidden value)\n",
-                                CB_CONFIG_BINDUSER, rootdn);
-                        rc=LDAP_LOCAL_ERROR;
+		slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			"Error with config attribute %s (%s: forbidden value)\n", CB_CONFIG_BINDUSER, rootdn);
+		rc= -1;
 	}
 	slapi_ch_free((void **)&rootdn);
 
@@ -1494,7 +1486,7 @@ struct berval *bval, char *err_buf, int phase, int apply_mod)
         int use_default;
         int int_val;
         long long_val;
-        int retval=LDAP_LOCAL_ERROR;
+        int retval = -1;
 
         config = cb_get_config_info(config_array, attr_name);
         if (NULL == config) {
