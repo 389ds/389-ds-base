@@ -889,7 +889,7 @@ acllist_acicache_WRITE_LOCK( )
 }
 
 /* This routine must be called with the acicache write lock taken */
-/* newdn is normalized & case-ignored */
+/* newdn is normalized (no need to be case-ignored) */
 int
 acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
 {
@@ -919,7 +919,7 @@ acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
 
 	/* Now set the new DN */	
 	slapi_sdn_done ( head->acic_sdn );
- 	slapi_sdn_set_ndn_byval ( head->acic_sdn, newdn );
+ 	slapi_sdn_set_normdn_byval ( head->acic_sdn, newdn );
 
 	aciListHead->acic_sdn = NULL;
 	__acllist_free_aciContainer ( &aciListHead );
