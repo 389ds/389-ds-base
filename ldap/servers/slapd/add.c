@@ -665,6 +665,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 		int	rc;
 		Slapi_Entry	*ec;
 		Slapi_DN *add_target_sdn = NULL;
+		Slapi_Entry *save_e = NULL;
 
 		slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
 		set_db_default_result_handlers(pb);
@@ -678,6 +679,8 @@ static void op_shared_add (Slapi_PBlock *pb)
 		if (be->be_add != NULL)
 		{
 			rc = (*be->be_add)(pb);
+			/* backend may change this if errors and not consumed */
+			slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &save_e);
 			slapi_pblock_set(pb, SLAPI_ADD_ENTRY, ec);
 			if (rc == 0)
 			{
@@ -703,6 +706,10 @@ static void op_shared_add (Slapi_PBlock *pb)
 			}
 			else
 			{
+				/* restore e so we can free it below */
+				if (save_e) {
+					e = save_e;
+				}
 				if (rc == SLAPI_FAIL_DISKFULL)
 				{
 					operation_out_of_disk_space();

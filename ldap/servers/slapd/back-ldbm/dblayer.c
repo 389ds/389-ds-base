@@ -214,6 +214,7 @@ static int dblayer_start_deadlock_thread(struct ldbminfo *li);
 static int dblayer_start_checkpoint_thread(struct ldbminfo *li);
 static int dblayer_start_trickle_thread(struct ldbminfo *li);
 static int dblayer_start_perf_thread(struct ldbminfo *li);
+static int dblayer_start_txn_test_thread(struct ldbminfo *li);
 static int trans_batch_count=1;
 static int trans_batch_limit=0;
 static PRBool log_flush_thread=PR_FALSE;
@@ -226,6 +227,14 @@ static void dblayer_pop_pvt_txn();
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
 
+/* env. vars. you can set to stress txn handling */
+#define TXN_TESTING "TXN_TESTING" /* enables the txn test thread */
+#define TXN_TEST_HOLD_MSEC "TXN_TEST_HOLD_MSEC" /* time to hold open the db cursors */
+#define TXN_TEST_LOOP_MSEC "TXN_TEST_LOOP_MSEC" /* time to wait before looping again */
+#define TXN_TEST_USE_TXN "TXN_TEST_USE_TXN" /* use transactions or not */
+#define TXN_TEST_USE_RMW "TXN_TEST_USE_RMW" /* use DB_RMW for c_get flags or not */
+#define TXN_TEST_INDEXES "TXN_TEST_INDEXES" /* list of indexes to use - comma delimited - id2entry,entryrdn,etc. */
+#define TXN_TEST_VERBOSE "TXN_TEST_VERBOSE" /* be wordy */
 
 /* This function compares two index keys.  It is assumed
    that the values are already normalized, since they should have
@@ -1755,6 +1764,9 @@ dblayer_start(struct ldbminfo *li, int dbmode)
 
             /* Now open the performance counters stuff */
             perfctrs_init(li,&(priv->perf_private));
+            if (getenv(TXN_TESTING)) {
+                dblayer_start_txn_test_thread(li);
+            }
         }
         if (return_value != 0) {
             if (return_value == ENOMEM) {
@@ -2597,7 +2609,10 @@ int dblayer_instance_close(backend *be)
     if (NULL == inst)
         return -1;
 
-    if (getenv("USE_VALGRIND")) {
+    if (!inst->import_env) {
+        be->be_state = BE_STATE_STOPPING;
+    }
+    if (getenv("USE_VALGRIND") || slapi_is_loglevel_set(SLAPI_LOG_CACHE)) {
         /* 
          * if any string is set to an environment variable USE_VALGRIND,
          * when running a memory leak checking tool (e.g., valgrind),
@@ -3422,7 +3437,7 @@ int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *
         return_value = TXN_BEGIN(pEnv->dblayer_DB_ENV,
                                  (DB_TXN*)parent_txn,
                                  &new_txn.back_txn_txn,
-                                 0);
+                                 DB_TXN_NOWAIT);
         if (0 != return_value) 
         {
             if(use_lock) slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
@@ -3718,6 +3733,407 @@ dblayer_start_deadlock_thread(struct ldbminfo *li)
     {
         PRErrorCode prerr = PR_GetError();
         LDAPDebug(LDAP_DEBUG_ANY, "failed to create database deadlock thread, "
+                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                  prerr, slapd_pr_strerror(prerr), 0);
+        return_value = -1;
+    }
+    return return_value;
+}
+
+static const u_int32_t default_flags = DB_NEXT;
+
+/* this is the loop delay - how long after we release the db pages
+   until we acquire them again */
+#define TXN_TEST_LOOP_WAIT(msecs) do {                             \
+    if (msecs) {                                                   \
+        DS_Sleep(PR_MillisecondsToInterval(slapi_rand() % msecs)); \
+    }                                                              \
+} while (0)
+
+/* this is how long we hold the pages open until we close the cursors */
+#define TXN_TEST_PAGE_HOLD(msecs) do {                             \
+    if (msecs) {                                                   \
+        DS_Sleep(PR_MillisecondsToInterval(slapi_rand() % msecs)); \
+    }                                                              \
+} while (0)
+
+typedef struct txn_test_iter {
+    DB *db;
+    DBC *cur;
+    size_t cnt;
+    const char *attr;
+    u_int32_t flags;
+    backend *be;
+} txn_test_iter;
+
+typedef struct txn_test_cfg {
+    PRUint32 hold_msec;
+    PRUint32 loop_msec;
+    u_int32_t flags;
+    int use_txn;
+    char **indexes;
+    int verbose;
+} txn_test_cfg;
+
+static txn_test_iter *
+new_txn_test_iter(DB *db, const char *attr, backend *be, u_int32_t flags)
+{
+    txn_test_iter *tti = (txn_test_iter *)slapi_ch_malloc(sizeof(txn_test_iter));
+    tti->db = db;
+    tti->cur = NULL;
+    tti->cnt = 0;
+    tti->attr = attr;
+    tti->flags = default_flags|flags;
+    tti->be = be;
+    return tti;
+}
+
+static void
+init_txn_test_iter(txn_test_iter *tti)
+{
+    if (tti->cur) {
+        if (tti->cur->dbp && (tti->cur->dbp->open_flags == 0x58585858)) {
+            /* already closed? */
+        } else if (tti->be && (tti->be->be_state != BE_STATE_STARTED)) {
+            /* already closed? */
+        } else {
+            tti->cur->c_close(tti->cur);
+        }
+        tti->cur = NULL;
+    }
+    tti->cnt = 0;
+    tti->flags = default_flags;
+}
+
+static void
+free_txn_test_iter(txn_test_iter *tti)
+{
+    init_txn_test_iter(tti);
+    slapi_ch_free((void **)&tti);
+}
+
+static void
+free_ttilist(txn_test_iter ***ttilist, size_t *tticnt)
+{
+    if (!ttilist || !*ttilist || !**ttilist) {
+        return;
+    }
+    while (*tticnt > 0) {
+        (*tticnt)--;
+        free_txn_test_iter((*ttilist)[*tticnt]);
+    }
+    slapi_ch_free((void *)ttilist);
+}
+
+static void
+init_ttilist(txn_test_iter **ttilist, size_t tticnt)
+{
+    if (!ttilist || !*ttilist) {
+        return;
+    }
+    while (tticnt > 0) {
+        tticnt--;
+        init_txn_test_iter(ttilist[tticnt]);
+    }
+}
+
+static void
+print_ttilist(txn_test_iter **ttilist, size_t tticnt)
+{
+    while (tticnt > 0) {
+        tticnt--;
+        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                       "txn_test_threadmain: attr [%s] cnt [%lu]\n",
+                       ttilist[tticnt]->attr, ttilist[tticnt]->cnt);
+    }
+}
+
+#define TXN_TEST_IDX_OK_IF_NULL "nscpEntryDN"
+
+static void
+txn_test_init_cfg(txn_test_cfg *cfg)
+{
+    static char *indexlist = "aci,entryrdn,numsubordinates,uid,ancestorid,objectclass,uniquemember,cn,parentid,nsuniqueid,sn,id2entry," TXN_TEST_IDX_OK_IF_NULL;
+    char *indexlist_copy = NULL;
+
+    cfg->hold_msec = getenv(TXN_TEST_HOLD_MSEC) ? atoi(getenv(TXN_TEST_HOLD_MSEC)) : 200;
+    cfg->loop_msec = getenv(TXN_TEST_LOOP_MSEC) ? atoi(getenv(TXN_TEST_LOOP_MSEC)) : 10;
+    cfg->flags = getenv(TXN_TEST_USE_RMW) ? DB_RMW : 0;
+    cfg->use_txn = getenv(TXN_TEST_USE_TXN) ? 1 : 0;
+    if (getenv(TXN_TEST_INDEXES)) {
+        indexlist_copy = slapi_ch_strdup(getenv(TXN_TEST_INDEXES));
+    } else {
+        indexlist_copy = slapi_ch_strdup(indexlist);
+    }
+    cfg->indexes = slapi_str2charray(indexlist_copy, ",");
+    slapi_ch_free_string(&indexlist_copy);
+    cfg->verbose = getenv(TXN_TEST_VERBOSE) ? 1 : 0;
+
+    slapi_log_error(SLAPI_LOG_FATAL, "txn_test_threadmain",
+                    "Config hold_msec [%d] loop_msec [%d] rmw [%d] txn [%d] indexes [%s]\n",
+                    cfg->hold_msec, cfg->loop_msec, cfg->flags, cfg->use_txn,
+                    getenv(TXN_TEST_INDEXES) ? getenv(TXN_TEST_INDEXES) : indexlist);
+}
+
+static int txn_test_threadmain(void *param)
+{
+    dblayer_private *priv = NULL;
+    struct ldbminfo *li = NULL;
+    Object *inst_obj;
+    int rc = 0;
+    txn_test_iter **ttilist = NULL;
+    size_t tticnt = 0;
+    DB_TXN *txn = NULL;
+    txn_test_cfg cfg;
+    size_t counter = 0;
+    char keybuf[8192];
+    char databuf[8192];
+
+    PR_ASSERT(NULL != param);
+    li = (struct ldbminfo*)param;
+
+    priv = (dblayer_private*)li->li_dblayer_private;
+    PR_ASSERT(NULL != priv);
+
+    INCR_THREAD_COUNT(priv);
+
+    if (!priv->dblayer_enable_transactions) {
+        goto end;
+    }
+
+    txn_test_init_cfg(&cfg);
+
+wait_for_init:
+    free_ttilist(&ttilist, &tticnt);
+    DS_Sleep(PR_MillisecondsToInterval(1000));
+    if (priv->dblayer_stop_threads) {
+        goto end;
+    }
+    
+    for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+        char **idx = NULL;
+        ldbm_instance *inst = (ldbm_instance *)object_get_data(inst_obj);
+        backend *be = inst->inst_be;
+
+        if (be->be_state != BE_STATE_STARTED) {
+            object_release(inst_obj);
+            goto wait_for_init;
+        }
+
+        for (idx = cfg.indexes; idx && *idx; ++idx) {
+            DB *db = NULL;
+            if (be->be_state != BE_STATE_STARTED) {
+                object_release(inst_obj);
+                goto wait_for_init;
+            }
+
+            if (!strcmp(*idx, "id2entry")) {
+                dblayer_get_id2entry(be, &db);
+                if (db == NULL) {
+                    object_release(inst_obj);
+                    goto wait_for_init;
+                }
+            } else {
+                struct attrinfo *ai = NULL;
+                ainfo_get(be, *idx, &ai);
+                if (NULL == ai) {
+                    object_release(inst_obj);
+                    goto wait_for_init;
+                }
+                dblayer_get_index_file(be, ai, &db, 0);
+                if (NULL == db) {
+                    if (strcasecmp(*idx, TXN_TEST_IDX_OK_IF_NULL)) {
+                        object_release(inst_obj);
+                        goto wait_for_init;
+                    }
+                }
+            }
+            if (db) {
+                ttilist = (txn_test_iter **)slapi_ch_realloc((char *)ttilist, sizeof(txn_test_iter *) * (tticnt + 1));
+                ttilist[tticnt++] = new_txn_test_iter(db, *idx, be, cfg.flags);
+            }
+        }
+    }
+
+    while (!priv->dblayer_stop_threads) {
+retry_txn:
+        init_ttilist(ttilist, tticnt);
+        if (txn) {
+            TXN_ABORT(txn);
+            txn = NULL;
+        }
+        if (cfg.use_txn) {
+            rc = TXN_BEGIN(priv->dblayer_env->dblayer_DB_ENV, NULL, &txn, 0);
+            if (rc || !txn) {
+                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                               "txn_test_threadmain failed to create a new transaction, err=%d (%s)\n",
+                               rc, dblayer_strerror(rc));
+            }
+        } else {
+            rc = 0;
+        }
+        if (!rc) {
+            DBT key;
+            DBT data;
+            size_t ii;
+            size_t donecnt = 0;
+            size_t cnt = 0;
+
+            /* phase 1 - open a cursor to each db */
+            if (cfg.verbose) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "txn_test_threadmain: starting [%lu] indexes\n", tticnt);
+            }
+            for (ii = 0; ii < tticnt; ++ii) {
+                txn_test_iter *tti = ttilist[ii];
+
+retry_cursor:
+                if (priv->dblayer_stop_threads) {
+                    goto end;
+                }
+                if (tti->be->be_state != BE_STATE_STARTED) {
+                    if (txn) {
+                        TXN_ABORT(txn);
+                        txn = NULL;
+                    }
+                    goto wait_for_init;
+                }
+                if (tti->db->open_flags == 0xdbdbdbdb) {
+                    if (txn) {
+                        TXN_ABORT(txn);
+                        txn = NULL;
+                    }
+                    goto wait_for_init;
+                }
+                rc = tti->db->cursor(tti->db, txn, &tti->cur, 0);
+                if (DB_LOCK_DEADLOCK == rc) {
+                    if (cfg.verbose) {
+                        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                                       "txn_test_threadmain cursor create deadlock - retry\n");
+                    }
+                    if (cfg.use_txn) {
+                        goto retry_txn;
+                    } else {
+                        goto retry_cursor;
+                    }
+                } else if (rc) {
+                    LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                   "txn_test_threadmain failed to create a new cursor, err=%d (%s)\n",
+                                   rc, dblayer_strerror(rc));
+                }
+            }
+
+            memset(&key, 0, sizeof(key));
+            key.flags = DB_DBT_USERMEM;
+            key.data = keybuf;
+            key.ulen = sizeof(keybuf);
+            memset(&data, 0, sizeof(data));
+            data.flags = DB_DBT_USERMEM;
+            data.data = databuf;
+            data.ulen = sizeof(databuf);
+            /* phase 2 - iterate over each cursor at the same time until
+               1) get error
+               2) get deadlock
+               3) all cursors are exhausted
+            */
+            while (donecnt < tticnt) {
+                for (ii = 0; ii < tticnt; ++ii) {
+                    txn_test_iter *tti = ttilist[ii];
+                    if (tti->cur) {
+retry_get:
+                        if (priv->dblayer_stop_threads) {
+                            goto end;
+                        }
+                        if (tti->be->be_state != BE_STATE_STARTED) {
+                            if (txn) {
+                                TXN_ABORT(txn);
+                                txn = NULL;
+                            }
+                            goto wait_for_init;
+                        }
+                        if (tti->db->open_flags == 0xdbdbdbdb) {
+                            if (txn) {
+                                TXN_ABORT(txn);
+                                txn = NULL;
+                            }
+                            goto wait_for_init;
+                        }
+                        rc = tti->cur->c_get(tti->cur, &key, &data, tti->flags);
+                        if (DB_LOCK_DEADLOCK == rc) {
+                            if (cfg.verbose) {
+                                LDAPDebug0Args(LDAP_DEBUG_ANY,
+                                               "txn_test_threadmain cursor get deadlock - retry\n");
+                            }
+                            if (cfg.use_txn) {
+                                goto retry_txn;
+                            } else {
+                                goto retry_get;
+                            }
+                        } else if (DB_NOTFOUND == rc) {
+                            donecnt++; /* ran out of this one */
+                            tti->flags = DB_FIRST|cfg.flags; /* start over until all indexes are done */
+                        } else if (rc) {
+                            if ((DB_BUFFER_SMALL != rc) || cfg.verbose) {
+                                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                               "txn_test_threadmain failed to read a cursor, err=%d (%s)\n",
+                                               rc, dblayer_strerror(rc));
+                            }
+                            tti->cur->c_close(tti->cur);
+                            tti->cur = NULL;
+                            donecnt++;
+                        } else {
+                            tti->cnt++;
+                            tti->flags = default_flags|cfg.flags;
+                            cnt++;
+                        }
+                    }
+                }
+            }
+            TXN_TEST_PAGE_HOLD(cfg.hold_msec);
+            /*print_ttilist(ttilist, tticnt);*/
+            init_ttilist(ttilist, tticnt);
+            if (cfg.verbose) {
+                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                               "txn_test_threadmain: finished [%lu] indexes [%lu] records\n", tticnt, cnt);
+            }
+            TXN_TEST_LOOP_WAIT(cfg.loop_msec);
+        } else {
+            TXN_TEST_LOOP_WAIT(cfg.loop_msec);
+        }
+        counter++;
+        if (!(counter % 40)) {
+            /* some operations get completely stuck - so every once in a while,
+               pause to allow those ops to go through */
+            DS_Sleep(PR_SecondsToInterval(1));
+        }
+    }
+
+end:
+    slapi_ch_array_free(cfg.indexes);
+    free_ttilist(&ttilist, &tticnt);
+    if (txn) {
+        TXN_ABORT(txn);
+    }        
+    DECR_THREAD_COUNT(priv);
+    return 0;
+}
+
+/*
+ * create a thread for transaction deadlock testing
+ */
+static int
+dblayer_start_txn_test_thread(struct ldbminfo *li)
+{
+    int return_value = 0;
+    if (NULL == PR_CreateThread (PR_USER_THREAD,
+                                 (VFP) (void *) txn_test_threadmain, li,
+                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                                 PR_UNJOINABLE_THREAD,
+                                 SLAPD_DEFAULT_THREAD_STACKSIZE) )
+    {
+        PRErrorCode prerr = PR_GetError();
+        LDAPDebug(LDAP_DEBUG_ANY, "failed to create txn test thread, "
                   SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                   prerr, slapd_pr_strerror(prerr), 0);
         return_value = -1;

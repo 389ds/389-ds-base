@@ -460,23 +460,15 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				/* New entry 'ec' is in the entry cache.
 				 * Remove it from the cache once. */
 				CACHE_REMOVE(&inst->inst_cache, ec);
-				cache_unlock_entry(&inst->inst_cache, e);
-				CACHE_RETURN(&inst->inst_cache, ec);
+				CACHE_RETURN(&inst->inst_cache, &ec);
 			} else {
 				backentry_free(&ec);
 			}
+			ec_in_cache = 0; /* added to cache by id2entry - have to remove to try again */
 			slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, original_entry->ep_entry );
 			ec = original_entry;
 			if ( (original_entry = backentry_dup( e )) == NULL ) {
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				goto error_return;
-			}
-			/* Put new entry 'ec' into the entry cache. */
-			if (ec_in_cache && CACHE_ADD(&inst->inst_cache, ec, NULL) < 0) {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
-				              "ldbm_back_modify: adding %s to cache failed\n",
-				              slapi_entry_get_dn_const(ec->ep_entry));
-				ldap_result_code = LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
 			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
@@ -603,7 +595,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	}
 	if (retry_count == RETRY_TIMES) {
 		LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in modify\n", 0, 0, 0 );
-	   	ldap_result_code= LDAP_OPERATIONS_ERROR;
+	   	ldap_result_code= LDAP_BUSY;
 		goto error_return;
 	}
 
@@ -629,6 +621,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	ec->ep_entry->e_virtual_watermark = 0;
 
 	/* we must return both e (which has been deleted) and new entry ec */
+	/* cache_replace removes e from the caches */
 	cache_unlock_entry( &inst->inst_cache, e );
 	CACHE_RETURN( &inst->inst_cache, &e );
 	/* 

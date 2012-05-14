@@ -1242,7 +1242,8 @@ enum
 	BE_STATE_STOPPED = 1,	/* backend is initialized but not started */
 	BE_STATE_STARTED,		/* backend is started */
 	BE_STATE_CLEANED,		/* backend was cleaned up */
-	BE_STATE_DELETED		/* backend is removed */
+	BE_STATE_DELETED,		/* backend is removed */
+	BE_STATE_STOPPING       /* told to stop but not yet stopped */
 };
 
 struct conn;

@@ -115,8 +115,8 @@ static char *_entryrdn_decrypt_key(backend *be, const char *key, struct attrinfo
 #endif
 static int _entryrdn_get_elem(DBC *cursor, DBT *key, DBT *data, const char *comp_key, rdn_elem **elem);
 static int _entryrdn_get_tombstone_elem(DBC *cursor, Slapi_RDN *srdn, DBT *key, const char *comp_key, rdn_elem **elem);
-static int _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type);
-static int _entryrdn_del_data(DBC *cursor,  DBT *key, DBT *data);
+static int _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type, DB_TXN *db_txn);
+static int _entryrdn_del_data(DBC *cursor,  DBT *key, DBT *data, DB_TXN *db_txn);
 static int _entryrdn_insert_key(backend *be, DBC *cursor, Slapi_RDN *srdn, ID id, DB_TXN *db_txn);
 static int _entryrdn_insert_key_elems(backend *be, DBC *cursor, Slapi_RDN *srdn, DBT *key, rdn_elem *elem, rdn_elem *childelem, size_t childelemlen, DB_TXN *db_txn);
 static int _entryrdn_delete_key(backend *be, DBC *cursor, Slapi_RDN *srdn, ID id, DB_TXN *db_txn);
@@ -274,7 +274,7 @@ entryrdn_index_entry(backend *be,
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                     "entryrdn_index_entry: Failed to make a cursor: %s(%d)\n",
                     dblayer_strerror(rc), rc);
-            if (DB_LOCK_DEADLOCK == rc) {
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                 ENTRYRDN_DELAY;
                 continue;
             }
@@ -283,6 +283,12 @@ entryrdn_index_entry(backend *be,
         } else {
             break; /* success */
         }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "entryrdn_index_entry: cursor open failed after [%d] retries\n", db_retry);
+        rc = DB_LOCK_DEADLOCK;
+        goto bail;
     }
 
     if (flags & BE_INDEX_ADD) {
@@ -303,7 +309,7 @@ bail:
                 slapi_log_error(ENTRYRDN_LOGLEVEL(myrc), ENTRYRDN_TAG,
                        "entryrdn_index_entry: Failed to close cursor: %s(%d)\n",
                        dblayer_strerror(myrc), myrc);
-                if (DB_LOCK_DEADLOCK == myrc) {
+                if ((DB_LOCK_DEADLOCK == myrc) && !db_txn) {
                     ENTRYRDN_DELAY;
                     continue;
                 }
@@ -316,6 +322,11 @@ bail:
             } else {
                 break; /* success */
             }
+        }
+        if (RETRY_TIMES == db_retry) {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "entryrdn_index_entry: cursor close failed after [%d] retries\n", db_retry);
+            rc = DB_LOCK_DEADLOCK;
         }
     }
     if (db) {
@@ -407,7 +418,7 @@ entryrdn_index_read_ext(backend *be,
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                     "entryrdn_index_read: Failed to make a cursor: %s(%d)\n",
                     dblayer_strerror(rc), rc);
-            if (DB_LOCK_DEADLOCK == rc) {
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                 ENTRYRDN_DELAY;
                 continue;
             }
@@ -416,6 +427,13 @@ entryrdn_index_read_ext(backend *be,
         } else {
             break; /* success */
         }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "entryrdn_index_read: Failed to make a cursor after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
+        goto bail;
     }
 
     rc = _entryrdn_index_read(be, cursor, &srdn, &elem, NULL, NULL,
@@ -434,7 +452,7 @@ bail:
                 slapi_log_error(ENTRYRDN_LOGLEVEL(myrc), ENTRYRDN_TAG,
                        "entryrdn_index_read: Failed to close cursor: %s(%d)\n",
                        dblayer_strerror(myrc), myrc);
-                if (DB_LOCK_DEADLOCK == myrc) {
+                if ((DB_LOCK_DEADLOCK == myrc) && !db_txn) {
                     ENTRYRDN_DELAY;
                     continue;
                 }
@@ -447,6 +465,12 @@ bail:
             } else {
                 break; /* success */
             }
+        }
+        if (RETRY_TIMES == db_retry) {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "entryrdn_index_read: Failed to close cursor after [%d] retries\n",
+                            db_retry);
+            rc = rc ? rc : DB_LOCK_DEADLOCK;
         }
     }
     if (db) {
@@ -594,7 +618,7 @@ entryrdn_rename_subtree(backend *be,
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                    "entryrdn_rename_subtree: Failed to make a cursor: %s(%d)\n",
                    dblayer_strerror(rc), rc);
-            if (DB_LOCK_DEADLOCK == rc) {
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                 ENTRYRDN_DELAY;
                 continue;
             }
@@ -603,6 +627,13 @@ entryrdn_rename_subtree(backend *be,
         } else {
             break; /* success */
         }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "entryrdn_rename_subtree: create cursor failed after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
+        goto bail;
     }
 
     /* prepare the element for the newly renamed rdn, if any. */
@@ -680,7 +711,7 @@ entryrdn_rename_subtree(backend *be,
         renamedata.ulen = renamedata.size = targetelemlen;
         renamedata.data = (void *)targetelem;
         renamedata.flags = DB_DBT_USERMEM;
-        rc = _entryrdn_del_data(cursor, &key, &renamedata);
+        rc = _entryrdn_del_data(cursor, &key, &renamedata, db_txn);
         if (rc) {
             goto bail;
         }
@@ -697,7 +728,7 @@ entryrdn_rename_subtree(backend *be,
                                   _entryrdn_rdn_elem_size(*cep);
                 renamedata.data = (void *)(*cep);
                 renamedata.flags = DB_DBT_USERMEM;
-                rc = _entryrdn_del_data(cursor, &key, &renamedata);
+                rc = _entryrdn_del_data(cursor, &key, &renamedata, db_txn);
                 if (rc) {
                     goto bail;
                 }
@@ -715,7 +746,7 @@ entryrdn_rename_subtree(backend *be,
         renamedata.ulen = renamedata.size = newelemlen;
         renamedata.data = (void *)newelem;
         renamedata.flags = DB_DBT_USERMEM;
-        rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_SELF);
+        rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_SELF, db_txn);
         if (rc) {
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                 "entryrdn_rename_subtree: Adding %s failed; "
@@ -736,7 +767,7 @@ entryrdn_rename_subtree(backend *be,
                 renamedata.data = (void *)(*cep);
                 renamedata.flags = DB_DBT_USERMEM;
                 rc = _entryrdn_put_data(cursor, &key,
-                                        &renamedata, RDN_INDEX_CHILD);
+                                        &renamedata, RDN_INDEX_CHILD, db_txn);
                 if (rc) {
                     goto bail;
                 }
@@ -755,7 +786,7 @@ entryrdn_rename_subtree(backend *be,
         renamedata.ulen = renamedata.size = oldsupelemlen;
         renamedata.data = (void *)oldsupelem;
         renamedata.flags = DB_DBT_USERMEM;
-        rc = _entryrdn_del_data(cursor, &key, &renamedata);
+        rc = _entryrdn_del_data(cursor, &key, &renamedata, db_txn);
         if (rc) {
             goto bail;
         }
@@ -787,7 +818,7 @@ entryrdn_rename_subtree(backend *be,
                 goto bail;
             }
         }
-        rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_PARENT);
+        rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_PARENT, db_txn);
         if (rc) {
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                              "entryrdn_rename_subtree: Adding "
@@ -812,7 +843,7 @@ entryrdn_rename_subtree(backend *be,
             renamedata.ulen = renamedata.size = targetelemlen;
             renamedata.data = (void *)targetelem;
             renamedata.flags = DB_DBT_USERMEM;
-            rc = _entryrdn_del_data(cursor, &key, &renamedata);
+            rc = _entryrdn_del_data(cursor, &key, &renamedata, db_txn);
             if (rc) {
                 goto bail;
             }
@@ -822,7 +853,7 @@ entryrdn_rename_subtree(backend *be,
             renamedata.ulen = renamedata.size = newelemlen;
             renamedata.data = (void *)newelem;
             renamedata.flags = DB_DBT_USERMEM;
-            rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_SELF);
+            rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_SELF, db_txn);
             if (rc) {
                 slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                   "entryrdn_rename_subtree: Adding %s failed; "
@@ -846,7 +877,7 @@ entryrdn_rename_subtree(backend *be,
         renamedata.ulen = renamedata.size = targetelemlen;
         renamedata.data = (void *)targetelem;
         renamedata.flags = DB_DBT_USERMEM;
-        rc = _entryrdn_del_data(cursor, &key, &renamedata);
+        rc = _entryrdn_del_data(cursor, &key, &renamedata, db_txn);
         if (rc) {
             goto bail;
         }
@@ -881,7 +912,7 @@ entryrdn_rename_subtree(backend *be,
                 goto bail;
             }
         }
-        rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_CHILD);
+        rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_CHILD, db_txn);
         if (rc) {
             goto bail;
         }
@@ -911,7 +942,7 @@ bail:
                 slapi_log_error(ENTRYRDN_LOGLEVEL(myrc), ENTRYRDN_TAG,
                     "entryrdn_rename_subtree: Failed to close cursor: %s(%d)\n",
                     dblayer_strerror(myrc), myrc);
-                if (DB_LOCK_DEADLOCK == myrc) {
+                if ((DB_LOCK_DEADLOCK == myrc) && !db_txn) {
                     ENTRYRDN_DELAY;
                     continue;
                 }
@@ -924,6 +955,12 @@ bail:
             } else {
                 break; /* success */
             }
+        }
+        if (RETRY_TIMES == db_retry) {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "entryrdn_rename_subtree: Failed to close cursor after [%d] retries.\n",
+                            db_retry);
+            rc = rc ? rc : DB_LOCK_DEADLOCK;
         }
     }
     if (db) {
@@ -1017,7 +1054,7 @@ entryrdn_get_subordinates(backend *be,
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                  "entryrdn_get_subordinates: Failed to make a cursor: %s(%d)\n",
                  dblayer_strerror(rc), rc);
-            if (DB_LOCK_DEADLOCK == rc) {
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                 ENTRYRDN_DELAY;
                 continue;
             }
@@ -1026,6 +1063,13 @@ entryrdn_get_subordinates(backend *be,
         } else {
             break; /* success */
         }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "entryrdn_get_subordinates: Failed to make a cursor after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
+        goto bail;
     }
 
     rc = _entryrdn_index_read(be, cursor, &srdn, &elem,
@@ -1076,7 +1120,7 @@ bail:
                 slapi_log_error(ENTRYRDN_LOGLEVEL(myrc), ENTRYRDN_TAG,
                   "entryrdn_get_subordinates: Failed to close cursor: %s(%d)\n",
                   dblayer_strerror(myrc), myrc);
-                if (DB_LOCK_DEADLOCK == myrc) {
+                if ((DB_LOCK_DEADLOCK == myrc) && !db_txn) {
                     ENTRYRDN_DELAY;
                     continue;
                 }
@@ -1090,6 +1134,14 @@ bail:
                 break; /* success */
             }
         }
+        if (RETRY_TIMES == db_retry) {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "entryrdn_get_subordinates: Failed to close cursor after [%d] retries\n",
+                            db_retry);
+            rc = rc ? rc : DB_LOCK_DEADLOCK;
+            goto bail;
+        }
+
     }
     if (db) {
         dblayer_release_index_file(be, ai, db);
@@ -1159,6 +1211,9 @@ entryrdn_lookup_dn(backend *be,
                     "entryrdn_lookup_dn: Failed to make a cursor: %s(%d)\n",
                     dblayer_strerror(rc), rc);
             if (DB_LOCK_DEADLOCK == rc) {
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                 ENTRYRDN_DELAY;
                 continue;
             }
@@ -1199,6 +1254,11 @@ retry_get0:
         if (rc) {
             if (DB_LOCK_DEADLOCK == rc) {
                 /* try again */
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "entryrdn_get_parent: cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                 goto retry_get0;
             } else if (DB_NOTFOUND == rc) { /* could be a suffix or
                                                note: no parent for suffix */
@@ -1212,6 +1272,11 @@ retry_get1:
                 if (rc) {
                     if (DB_LOCK_DEADLOCK == rc) {
                         /* try again */
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
+                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                        "entryrdn_get_parent: retry cursor get deadlock\n");
                         goto retry_get1;
                     } else if (DB_NOTFOUND != rc) {
                         _entryrdn_cursor_print_error("entryrdn_lookup_dn",
@@ -1264,6 +1329,9 @@ bail:
                        "entryrdn_lookup_dn: Failed to close cursor: %s(%d)\n",
                        dblayer_strerror(myrc), myrc);
                 if (DB_LOCK_DEADLOCK == myrc) {
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                     ENTRYRDN_DELAY;
                     continue;
                 }
@@ -1352,6 +1420,9 @@ entryrdn_get_parent(backend *be,
                     "entryrdn_get_parent: Failed to make a cursor: %s(%d)\n",
                     dblayer_strerror(rc), rc);
             if (DB_LOCK_DEADLOCK == rc) {
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                 ENTRYRDN_DELAY;
                 continue;
             }
@@ -1388,6 +1459,11 @@ retry_get0:
     rc = cursor->c_get(cursor, &key, &data, DB_SET);
     if (rc) {
         if (DB_LOCK_DEADLOCK == rc) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "entryrdn_get_parent: cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
             /* try again */
             goto retry_get0;
         } else if (DB_NOTFOUND == rc) { /* could be a suffix
@@ -1402,6 +1478,11 @@ retry_get1:
             if (rc) {
                 if (DB_LOCK_DEADLOCK == rc) {
                     /* try again */
+                    slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                    "entryrdn_get_parent: retry cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                     goto retry_get1;
                 } else if (DB_NOTFOUND != rc) {
                     _entryrdn_cursor_print_error("entryrdn_get_parent",
@@ -1434,6 +1515,9 @@ bail:
                        "entryrdn_get_parent: Failed to close cursor: %s(%d)\n",
                        dblayer_strerror(myrc), myrc);
                 if (DB_LOCK_DEADLOCK == myrc) {
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                     ENTRYRDN_DELAY;
                     continue;
                 }
@@ -1705,7 +1789,12 @@ retry_get:
     *elem = (rdn_elem *)data->data;
     if (rc) {
         if (DB_LOCK_DEADLOCK == rc) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_get_elem: cursor get deadlock\n");
             /* try again */
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
             goto retry_get;
         } else if (DB_BUFFER_SMALL == rc) {
             /* try again */
@@ -1774,6 +1863,11 @@ retry_get0:
     rc = cursor->c_get(cursor, key, &data, DB_SET|DB_MULTIPLE);
     if (DB_LOCK_DEADLOCK == rc) {
         /* try again */
+        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_get_tombstone_elem: cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
         goto retry_get0;
     } else if (DB_NOTFOUND == rc) {
         rc = 0; /* Child not found is ok */
@@ -1824,6 +1918,11 @@ retry_get1:
         rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
         if (DB_LOCK_DEADLOCK == rc) {
             /* try again */
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_get_tombstone_elem: retry cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
             goto retry_get1;
         } else if (DB_NOTFOUND == rc) {
             rc = 0;
@@ -1842,7 +1941,7 @@ bail:
 }
 
 static int
-_entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type)
+_entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type, DB_TXN *db_txn)
 {
     int rc = -1;
     int db_retry = 0;
@@ -1866,6 +1965,8 @@ _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type)
                                 "_entryrdn_put_data: The same key (%s) and the "
                                 "data exists in index\n",
                                 (char *)key->data);
+                rc = 0;
+                break;
             } else {
                 char *keyword = NULL;
                 if (type == RDN_INDEX_CHILD) {
@@ -1879,7 +1980,7 @@ _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type)
                                 "_entryrdn_put_data: Adding the %s link (%s) "
                                 "failed: %s (%d)\n", keyword, (char *)key->data,
                                 dblayer_strerror(rc), rc);
-                if (DB_LOCK_DEADLOCK == rc) {
+                if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                     ENTRYRDN_DELAY;
                     continue;
                 }
@@ -1889,13 +1990,19 @@ _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type)
             break; /* success */
         }
     }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "_entryrdn_put_data: cursor put operation failed after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
+    }
 bail:
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG, "<-- _entryrdn_put_data\n");
     return rc;
 }
 
 static int
-_entryrdn_del_data(DBC *cursor,  DBT *key, DBT *data)
+_entryrdn_del_data(DBC *cursor,  DBT *key, DBT *data, DB_TXN *db_txn)
 {
     int rc = -1;
     int db_retry = 0;
@@ -1909,36 +2016,56 @@ _entryrdn_del_data(DBC *cursor,  DBT *key, DBT *data)
                     NULL==data?"data":"unknown");
         goto bail;
     }
-retry_get:
-    rc = cursor->c_get(cursor, key, data, DB_GET_BOTH);
-    if (rc) {
-        if (DB_LOCK_DEADLOCK == rc) {
-            /* try again */
-            goto retry_get;
-        } else if (DB_NOTFOUND == rc) {
-            rc = 0; /* not found is ok */
-        } else {
-            _entryrdn_cursor_print_error("_entryrdn_del_data",
-                                         key->data, data->size, data->ulen, rc);
-        }
-    } else {
-        /* We found it, so delete it */
-        for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
-            rc = cursor->c_del(cursor, 0);
-            if (rc) {
+
+    for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
+        rc = cursor->c_get(cursor, key, data, DB_GET_BOTH);
+        if (rc) {
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                 slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                    "_entryrdn_del_data: Deleting %s failed; "
-                                    "%s(%d)\n", (char *)key->data,
-                                    dblayer_strerror(rc), rc);
-                if (DB_LOCK_DEADLOCK == rc) {
-                    ENTRYRDN_DELAY;
-                    continue;
-                }
+                                "_entryrdn_del_data: cursor get deadlock\n");
+                /* try again */
+            } else if (DB_NOTFOUND == rc) {
+                rc = 0; /* not found is ok */
                 goto bail;
             } else {
-                break; /* success */
+                _entryrdn_cursor_print_error("_entryrdn_del_data",
+                                             key->data, data->size, data->ulen, rc);
+                goto bail;
             }
+        } else {
+            break; /* found it */
         }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "_entryrdn_del_data: cursor get failed after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
+        goto bail;
+    }
+
+    /* We found it, so delete it */
+    for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
+        rc = cursor->c_del(cursor, 0);
+        if (rc) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_del_data: Deleting %s failed; "
+                            "%s(%d)\n", (char *)key->data,
+                            dblayer_strerror(rc), rc);
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
+                ENTRYRDN_DELAY;
+                continue;
+            }
+            goto bail;
+        } else {
+            break; /* success */
+        }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "_entryrdn_del_data: cursor del failed after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
     }
 bail:
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
@@ -1985,7 +2112,7 @@ _entryrdn_insert_key_elems(backend *be,
     adddata.flags = DB_DBT_USERMEM;
 
     /* adding RDN to the child key */
-    rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_CHILD);
+    rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_CHILD, db_txn);
     keybuf = key->data;
     if (rc) { /* failed */
         goto bail;
@@ -2002,7 +2129,7 @@ _entryrdn_insert_key_elems(backend *be,
     key->size = key->ulen = strlen(keybuf) + 1;
     key->flags = DB_DBT_USERMEM;    
 
-    rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_SELF);
+    rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_SELF, db_txn);
     if (rc) { /* failed */
         goto bail;
     }
@@ -2022,7 +2149,7 @@ _entryrdn_insert_key_elems(backend *be,
     adddata.data = (void *)parentelem;
     adddata.flags = DB_DBT_USERMEM;
     /* adding RDN to the self key */
-    rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_PARENT);
+    rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_PARENT, db_txn);
     /* Succeeded or failed, it's done. */
 bail:
     slapi_ch_free_string(&keybuf);
@@ -2036,7 +2163,7 @@ bail:
  */
 static int
 _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
-                            ID id, const char *normsuffix)
+                            ID id, const char *normsuffix, DB_TXN *db_txn)
 {
     int rc = 0;
     char *keybuf = NULL;
@@ -2061,7 +2188,7 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                         "_entryrdn_replace_suffix_id: Adding suffix %s failed: "
                         "%s (%d)\n", normsuffix, dblayer_strerror(rc), rc);
-            if (DB_LOCK_DEADLOCK == rc) {
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                 ENTRYRDN_DELAY;
                 continue;
             }
@@ -2069,6 +2196,13 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
         } else {
             break; /* success */
         }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "_entryrdn_replace_suffix_id: cursor put failed after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
+        goto bail;
     }
 
     /*
@@ -2095,18 +2229,27 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
 
     memset(&moddata, 0, sizeof(moddata));
     moddata.flags = DB_DBT_USERMEM;
-retry_get0:
-    rc = cursor->c_get(cursor, key, &data, DB_SET|DB_MULTIPLE);
-    if (DB_LOCK_DEADLOCK == rc) {
-        /* try again */
-        goto retry_get0;
-    } else if (DB_NOTFOUND == rc) {
-        _entryrdn_cursor_print_error("_entryrdn_replace_suffix_id",
-                                     key->data, data.size, data.ulen, rc);
-        goto bail;
-    } else if (rc) {
-        _entryrdn_cursor_print_error("_entryrdn_replace_suffix_id",
-                                     key->data, data.size, data.ulen, rc);
+
+    for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
+        rc = cursor->c_get(cursor, key, &data, DB_SET|DB_MULTIPLE);
+        if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_replace_suffix_id: cursor get deadlock\n");
+            /* try again */
+            ENTRYRDN_DELAY;
+        } else if (rc) {
+            _entryrdn_cursor_print_error("_entryrdn_replace_suffix_id",
+                                         key->data, data.size, data.ulen, rc);
+            goto bail;
+        } else {
+            break; /* found */
+        }
+    }
+    if (RETRY_TIMES == db_retry) {
+        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                        "_entryrdn_replace_suffix_id: cursor get1 failed after [%d] retries\n",
+                        db_retry);
+        rc = DB_LOCK_DEADLOCK;
         goto bail;
     }
     childelems = (rdn_elem **)slapi_ch_calloc(childnum, sizeof(rdn_elem *));
@@ -2124,13 +2267,16 @@ retry_get0:
             moddata.data = childelem;
             moddata.ulen = moddata.size = _entryrdn_rdn_elem_size(childelem);
             /* Delete it first */
-            rc = _entryrdn_del_data(cursor, key, &moddata);
+            rc = _entryrdn_del_data(cursor, key, &moddata, db_txn);
             if (rc) {
                 goto bail0;
             }
             /* Add it back */
             rc = _entryrdn_put_data(cursor, &realkey, &moddata, 
-                                                RDN_INDEX_CHILD);
+                                                RDN_INDEX_CHILD, db_txn);
+            if (rc) {
+                goto bail0;
+            }
             if (curr_childnum + 1 == childnum) {
                 childnum *= 2;
                 childelems = (rdn_elem **)slapi_ch_realloc((char *)childelems,
@@ -2142,18 +2288,32 @@ retry_get0:
             /* We don't access the address with this variable any more */
             childelem = NULL;
         } while (NULL != dataret.data && NULL != ptr);
-retry_get1:
-        rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
-        if (DB_LOCK_DEADLOCK == rc) {
-            /* try again */
-            goto retry_get1;
-        } else if (DB_NOTFOUND == rc) {
-            rc = 0;
-            break; /* done */
-        } else if (rc) {
-            _entryrdn_cursor_print_error("_entryrdn_replace_suffix_id",
-                                         key->data, data.size, data.ulen, rc);
+
+        for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
+            rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
+            if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "_entryrdn_replace_suffix_id: retry cursor get deadlock\n");
+                /* try again */
+                ENTRYRDN_DELAY;
+            } else if (!rc || (DB_NOTFOUND == rc)) {
+                break; /* done */
+            } else {
+                _entryrdn_cursor_print_error("_entryrdn_replace_suffix_id",
+                                             key->data, data.size, data.ulen, rc);
+                goto bail0;
+            }
+        }
+        if (RETRY_TIMES == db_retry) {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "_entryrdn_replace_suffix_id: cursor get2 failed after [%d] retries\n",
+                            db_retry);
+            rc = DB_LOCK_DEADLOCK;
             goto bail0;
+        }
+        if (DB_NOTFOUND == rc) {
+            rc = 0; /* ok */
+            break; /* we're done */
         }
     } while (0 == rc);
 
@@ -2176,17 +2336,28 @@ retry_get1:
         moddata.flags = DB_DBT_MALLOC;
 
         /* Position cursor at the matching key */
-retry_get2:
-        rc = cursor->c_get(cursor, key, &moddata, DB_SET);
-        if (rc) {
-            if (DB_LOCK_DEADLOCK == rc) {
-                /* try again */
-                goto retry_get2;
-            } else if (rc) {
-                _entryrdn_cursor_print_error("_entryrdn_replace_suffix_id",
-                                           key->data, data.size, data.ulen, rc);
-                goto bail0;
+        for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
+            rc = cursor->c_get(cursor, key, &moddata, DB_SET);
+            if (rc) {
+                if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
+                    slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                    "_entryrdn_replace_suffix_id: retry2 cursor get deadlock\n");
+                    ENTRYRDN_DELAY;
+                } else {
+                    _entryrdn_cursor_print_error("_entryrdn_replace_suffix_id",
+                                                 key->data, data.size, data.ulen, rc);
+                    goto bail0;
+                }
+            } else {
+                break;
             }
+        }
+        if (RETRY_TIMES == db_retry) {
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "_entryrdn_replace_suffix_id: cursor get3 failed after [%d] retries\n",
+                            db_retry);
+            rc = DB_LOCK_DEADLOCK;
+            goto bail0;
         }
         pelem = (rdn_elem *)moddata.data;
         if (TMPID == id_stored_to_internal(pelem->rdn_elem_id)) {
@@ -2200,7 +2371,7 @@ retry_get2:
                                 "_entryrdn_replace_suffix_id: "
                                 "Fixing the parent link (%s) failed: %s (%d)\n",
                                 keybuf, dblayer_strerror(rc), rc);
-                    if (DB_LOCK_DEADLOCK == rc) {
+                    if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                         ENTRYRDN_DELAY;
                         continue;
                     }
@@ -2208,6 +2379,13 @@ retry_get2:
                 } else {
                     break; /* success */
                 }
+            }
+            if (RETRY_TIMES == db_retry) {
+                slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                                "_entryrdn_replace_suffix_id: cursor put failed after [%d] retries\n",
+                                db_retry);
+                rc = DB_LOCK_DEADLOCK;
+                goto bail0;
             }
         }
         slapi_ch_free((void **)&moddata.data);
@@ -2220,6 +2398,9 @@ bail0:
 bail:
     slapi_ch_free_string(&keybuf);
     slapi_ch_free_string(&realkeybuf);
+    if (moddata.data && (moddata.flags == DB_DBT_MALLOC)) {
+        slapi_ch_free((void **)&moddata.data);
+    }
     return rc;
 }
 
@@ -2294,7 +2475,7 @@ _entryrdn_insert_key(backend *be,
         adddata.data = (void *)elem;
         adddata.flags = DB_DBT_USERMEM;
 
-        rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF);
+        rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF, db_txn);
         if (DB_KEYEXIST == rc) {
             DBT existdata;
             rdn_elem *existelem = NULL;
@@ -2308,7 +2489,7 @@ _entryrdn_insert_key(backend *be,
                                 "_entryrdn_insert_key: Get existing suffix %s "
                                 "failed: %s (%d)\n",
                                 nrdn, dblayer_strerror(rc), rc);
-                    if (DB_LOCK_DEADLOCK == rc) {
+                    if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                         ENTRYRDN_DELAY;
                         continue;
                     }
@@ -2317,12 +2498,19 @@ _entryrdn_insert_key(backend *be,
                     break; /* success */
                 }
             }
+            if (RETRY_TIMES == db_retry) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "_entryrdn_insert_key: cursor get failed after [%d] retries\n",
+                                db_retry);
+                rc = DB_LOCK_DEADLOCK;
+                goto bail;
+            }
             existelem = (rdn_elem *)existdata.data;
             tmpid = id_stored_to_internal(existelem->rdn_elem_id);
             slapi_ch_free((void **)&existelem);
             if (TMPID == tmpid) {
                 rc = _entryrdn_replace_suffix_id(cursor, &key, &adddata, 
-                                                 id, nrdn);
+                                                 id, nrdn, db_txn);
                 if (rc) {
                     goto bail;
                 }
@@ -2401,10 +2589,13 @@ _entryrdn_insert_key(backend *be,
             adddata.data = (void *)elem;
             adddata.flags = DB_DBT_USERMEM;
 
-            rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF);
+            rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF, db_txn);
             slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "_entryrdn_insert_key: Suffix %s added: %d\n", 
                         slapi_rdn_get_rdn(tmpsrdn), rc);
+#ifdef FIX_TXN_DEADLOCKS
+#error no checking for rc here? - what if rc is deadlock?  should bail?
+#endif
         } else {
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                             "_entryrdn_insert_key: Suffix \"%s\" not found: "
@@ -2651,25 +2842,41 @@ _entryrdn_delete_key(backend *be,
     memset(&data, 0, sizeof(data));
     data.flags = DB_DBT_MALLOC;
 
-retry_get0:
-    rc = cursor->c_get(cursor, &key, &data, DB_SET);
-    if (rc) {
-        if (DB_LOCK_DEADLOCK == rc) {
-            /* try again */
-            goto retry_get0;
-        } else if (DB_NOTFOUND != rc) {
-            _entryrdn_cursor_print_error("_entryrdn_delete_key",
-                                         key.data, data.size, data.ulen, rc);
+    for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
+        rc = cursor->c_get(cursor, &key, &data, DB_SET);
+        if (rc) {
+            if (DB_LOCK_DEADLOCK == rc) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "_entryrdn_delete_key: cursor get deadlock\n");
+                /* try again */
+                if (db_txn) {
+                    goto bail; /* have to abort/retry the entire transaction */
+                } else {
+                    ENTRYRDN_DELAY; /* sleep for a bit then retry immediately */
+                }
+            } else if (DB_NOTFOUND != rc) {
+                _entryrdn_cursor_print_error("_entryrdn_delete_key",
+                                             key.data, data.size, data.ulen, rc);
+                goto bail;
+            } else {
+                break; /* DB_NOTFOUND - ok */
+            }
+        } else {
+            slapi_ch_free(&data.data);
+            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                            "_entryrdn_delete_key: Failed to remove %s; "
+                            "has children\n", nrdn);
+            rc = -1;
             goto bail;
         }
-    } else {
-        slapi_ch_free(&data.data);
+    }
+    if (RETRY_TIMES == db_retry) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                        "_entryrdn_delete_key: Failed to remove %s; "
-                        "has children\n", nrdn);
-        rc = -1;
+                        "_entryrdn_delete_key: failed after [%d] iterations\n", db_retry);
+        rc = DB_LOCK_DEADLOCK;
         goto bail;
     }
+
     workid = id;
 
     do {
@@ -2777,14 +2984,21 @@ retry_get0:
                                     "_entryrdn_delete_key: Deleting %s failed; "
                                     "%s(%d)\n", (char *)key.data,
                                     dblayer_strerror(rc), rc);
-                    if (DB_LOCK_DEADLOCK == rc) {
-                        ENTRYRDN_DELAY;
+                    if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
+                        ENTRYRDN_DELAY; /* sleep for a bit then retry immediately */
                         continue;
                     }
-                    goto bail;
+                    goto bail; /* if deadlock and txn, have to abort entire txn */
                 } else {
                     break; /* success */
                 }
+            }
+            if (RETRY_TIMES == db_retry) {
+                slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                                "_entryrdn_delete_key: delete parent link failed after [%d] retries\n",
+                                db_retry);
+                rc = DB_LOCK_DEADLOCK;
+                goto bail;
             }
         } else if (parentnrdn) {
 #ifdef LDAP_DEBUG_ENTRYRDN
@@ -2800,14 +3014,21 @@ retry_get0:
                                     "_entryrdn_delete_key: Deleting %s failed; "
                                     "%s(%d)\n", (char *)key.data,
                                     dblayer_strerror(rc), rc);
-                    if (DB_LOCK_DEADLOCK == rc) {
+                    if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                         ENTRYRDN_DELAY;
                         continue;
                     }
-                    goto bail;
+                    goto bail; /* if deadlock and txn, have to abort entire txn */
                 } else {
                     break; /* success */
                 }
+            }
+            if (RETRY_TIMES == db_retry) {
+                slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                                "_entryrdn_delete_key: delete parent's child link failed after [%d] retries\n",
+                                db_retry);
+                rc = DB_LOCK_DEADLOCK;
+                goto bail;
             }
             selfnrdn = nrdn;
             workid = id;
@@ -2824,20 +3045,27 @@ retry_get0:
                                     "_entryrdn_delete_key: Deleting %s failed; "
                                     "%s(%d)\n", (char *)key.data,
                                     dblayer_strerror(rc), rc);
-                    if (DB_LOCK_DEADLOCK == rc) {
+                    if ((DB_LOCK_DEADLOCK == rc) && !db_txn) {
                         ENTRYRDN_DELAY;
                         continue;
                     }
-                    goto bail;
+                    goto bail; /* if deadlock and txn, have to abort entire txn */
                 } else {
                     break; /* success */
                 }
+            }
+            if (RETRY_TIMES == db_retry) {
+                slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                                "_entryrdn_delete_key: delete self link failed after [%d] retries\n",
+                                db_retry);
+                rc = DB_LOCK_DEADLOCK;
             }
             goto bail; /* done */
         }
     } while (workid);
 
 bail:
+    slapi_ch_free_string(&parentnrdn);
     slapi_ch_free_string(&keybuf);
     slapi_ch_free((void **)&elem);
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
@@ -3107,6 +3335,11 @@ _entryrdn_index_read(backend *be,
 retry_get0:
         rc = cursor->c_get(cursor, &key, &data, DB_SET|DB_MULTIPLE);
         if (DB_LOCK_DEADLOCK == rc) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_index_read: cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
             /* try again */
             goto retry_get0;
         } else if (DB_NOTFOUND == rc) {
@@ -3146,6 +3379,11 @@ retry_get0:
 retry_get1:
             rc = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP|DB_MULTIPLE);
             if (DB_LOCK_DEADLOCK == rc) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "_entryrdn_index_read: retry cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                 /* try again */
                 goto retry_get1;
             } else if (DB_NOTFOUND == rc) {
@@ -3197,7 +3435,12 @@ retry_get0:
     rc = cursor->c_get(cursor, &key, &data, DB_SET|DB_MULTIPLE);
     if (rc) {
         if (DB_LOCK_DEADLOCK == rc) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_append_childidl: cursor get deadlock\n");
             /* try again */
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
             goto retry_get0;
         } else if (DB_NOTFOUND == rc) {
             rc = 0; /* okay not to have children */
@@ -3242,7 +3485,12 @@ retry_get1:
         rc = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP|DB_MULTIPLE);
         if (rc) {
             if (DB_LOCK_DEADLOCK == rc) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "_entryrdn_append_childidl: retry cursor get deadlock\n");
                 /* try again */
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                 goto retry_get1;
             } else if (DB_NOTFOUND == rc) {
                 rc = 0; /* okay not to have children */

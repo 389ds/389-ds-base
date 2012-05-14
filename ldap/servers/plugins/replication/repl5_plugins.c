@@ -1007,6 +1007,11 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		return 0;
 	}
 
+	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+	if (rc) { /* op failed - just return */
+		return 0;
+	}
+
 	/* we only log changes for operations applied to a replica */
 	repl_obj = replica_get_replica_for_op (pb);
 	if (repl_obj == NULL)

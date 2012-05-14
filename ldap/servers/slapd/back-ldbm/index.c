@@ -412,7 +412,7 @@ index_addordel_entry(
         }
         result = index_addordel_string(be, SLAPI_ATTR_NSCP_ENTRYDN, slapi_sdn_get_ndn(&parent), e->ep_id, flags, txn);
         if ( result != 0 ) {
-            ldbm_nasty(errmsg, 1020, result);
+            ldbm_nasty(errmsg, 1021, result);
             return( result );
         }
         slapi_sdn_done(&parent);
@@ -423,6 +423,7 @@ index_addordel_entry(
              */ 
             result = entryrdn_index_entry(be, e, flags, txn);
             if ( result != 0 ) {
+                ldbm_nasty(errmsg, 1023, result);
                 return( result );
             }
             /* To maintain tombstonenumsubordinates,
@@ -433,7 +434,7 @@ index_addordel_entry(
                 result = index_addordel_values_sv(be, LDBM_PARENTID_STR, svals, NULL,
                                                   e->ep_id, flags, txn);
                 if ( result != 0 ) {
-                    ldbm_nasty(errmsg, 1020, result);
+                    ldbm_nasty(errmsg, 1022, result);
                     return( result );
                 }
             }
@@ -481,6 +482,7 @@ index_addordel_entry(
         if (entryrdn_get_switch()) { /* subtree-rename: on */
             result = entryrdn_index_entry(be, e, flags, txn);
             if ( result != 0 ) {
+                ldbm_nasty(errmsg, 1031, result);
                 return( result );
             }
         }
@@ -608,13 +610,18 @@ index_add_mods(
             /* We need to first remove the old values from the 
              * index, if any. */
             if (deleted_valueArray) {
-                index_addordel_values_sv( be, mods[i]->mod_type,
-                                          deleted_valueArray, evals, id, 
-                                          flags, txn );
+                rc = index_addordel_values_sv( be, mods[i]->mod_type,
+                                               deleted_valueArray, evals, id, 
+                                               flags, txn );
+                if (rc) {
+                    ldbm_nasty(errmsg, 1041, rc);
+                    goto error;
+                }
             }
 
             /* Free valuearray */
             slapi_valueset_free(mod_vals);
+            mod_vals = NULL;
         case LDAP_MOD_ADD:
             if ( mods_valueArray == NULL ) {
                 rc = 0;
@@ -643,9 +650,13 @@ index_add_mods(
                 }
                 if (mods_valueArray) {
                     rc = index_addordel_values_sv( be,
-                                            mods[i]->mod_type, 
-                                            mods_valueArray, NULL,
-                                            id, BE_INDEX_ADD, txn );
+                                                   mods[i]->mod_type, 
+                                                   mods_valueArray, NULL,
+                                                   id, BE_INDEX_ADD, txn );
+                    if (rc) {
+                        ldbm_nasty(errmsg, 1042, rc);
+                        goto error;
+                    }
                 } else {
                     rc = 0;
                 }
@@ -702,12 +713,17 @@ index_add_mods(
 
                 /* Update the index, if necessary */
                 if (deleted_valueArray) {
-                    index_addordel_values_sv( be, mods[i]->mod_type,
-                                              deleted_valueArray, evals, id, 
-                                              flags, txn );
+                    rc = index_addordel_values_sv( be, mods[i]->mod_type,
+                                                   deleted_valueArray, evals, id, 
+                                                   flags, txn );
+                    if (rc) {
+                        ldbm_nasty(errmsg, 1043, rc);
+                        goto error;
+                    }
                 }
 
                 slapi_valueset_free(mod_vals);
+                mod_vals = NULL;
             } else {
 
                 /* determine if the presence key should be
@@ -753,15 +769,25 @@ index_add_mods(
                 rc = index_addordel_values_sv( be, basetype,
                                                mods_valueArray,
                                                evals, id, flags, txn );
+                if (rc) {
+                    ldbm_nasty(errmsg, 1044, rc);
+                    goto error;
+                }
             }
             rc = 0;
             break;
         } /* switch ( mods[i]->mod_op & ~LDAP_MOD_BVALUES ) */
 
+error:
         /* free memory */
         slapi_ch_free((void **)&tmp);
+        tmp = NULL;
         valuearray_free(&mods_valueArray);
+        mods_valueArray = NULL;
         slapi_valueset_free(all_vals);
+        all_vals = NULL;
+        slapi_valueset_free(mod_vals);
+        mod_vals = NULL;
 
         if ( rc != 0 ) {
             ldbm_nasty(errmsg, 1040, rc);
@@ -996,6 +1022,9 @@ index_read_ext_allids(
 	  idl = idl_fetch_ext( be, db, &key, db_txn, ai, err, allidslimit );
 	  if(*err == DB_LOCK_DEADLOCK) {
 	    ldbm_nasty("index read retrying transaction", 1045, *err);
+#ifdef FIX_TXN_DEADLOCKS
+#error can only retry here if txn == NULL - otherwise, have to abort and retry txn
+#endif
 	    continue;
 	  } else {
 	    break;
@@ -1124,6 +1153,9 @@ retry:
 			cursor->c_close(cursor);
 			cursor = NULL;
 			key->data = saved_key;
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to abort and retry the transaction, not just the cursor
+#endif
 			goto retry;
 		} else
 		{
@@ -1146,6 +1178,9 @@ retry:
 		cursor->c_close(cursor);
 		cursor = NULL;
 		key->data = saved_key;
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to abort and retry the transaction, not just the cursor
+#endif
 		goto retry;
 	}
 error:
@@ -1493,6 +1528,9 @@ index_range_read_ext(
           tmp = idl_fetch_ext( be, db, &cur_key, NULL, ai, err, allidslimit );
           if(*err == DB_LOCK_DEADLOCK) {
             ldbm_nasty("index_range_read retrying transaction", 1090, *err);
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to abort and retry the transaction, not just the fetch
+#endif
             continue;
           } else {
             break;
@@ -1641,7 +1679,7 @@ addordel_values(
 
 		if ( rc != 0)
 		{
-                        ldbm_nasty(errmsg, 1090, rc);
+                        ldbm_nasty(errmsg, 1096, rc);
 		}
 		index_free_prefix (prefix);
 		if (NULL != key.dptr && prefix != key.dptr)

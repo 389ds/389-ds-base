@@ -240,6 +240,9 @@ ldbm_back_seq( Slapi_PBlock *pb )
 				  idl = idl_fetch( be, db, &key, NULL, ai, &err );
 				  if(err == DB_LOCK_DEADLOCK) {
 				    ldbm_nasty("ldbm_back_seq deadlock retry", 1600, err);
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
 				    continue;
 				  } else {
 				    break;
