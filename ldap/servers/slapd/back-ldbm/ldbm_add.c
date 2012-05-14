@@ -116,7 +116,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int is_ruv = 0;				 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	entry_address addr = {0};
-	int val = 0;
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
@@ -963,20 +962,6 @@ error_return:
 		dblayer_remember_disk_filled(li);
 		ldbm_nasty("Add",80,rc);
 		disk_full = 1;
-	}
-
-	/* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
-	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
-	if (!val) {
-		if (!ldap_result_code) {
-			ldap_result_code = LDAP_OPERATIONS_ERROR;
-		}
-		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-	}
-	slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &val );
-	if (!val) {
-		val = -1;
-		slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &val );
 	}
 
 diskfull_return:
