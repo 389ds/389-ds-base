@@ -934,7 +934,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	if (retry_count == RETRY_TIMES) {
 		/* Failed */
 		LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in add\n", 0, 0, 0 );
-   		ldap_result_code= LDAP_OPERATIONS_ERROR;
+   		ldap_result_code= LDAP_BUSY;
 		goto error_return;
 	}
 

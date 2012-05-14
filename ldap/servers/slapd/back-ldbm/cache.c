@@ -294,7 +294,7 @@ dump_hash(Hashtable *ht)
             continue;
         }
         do {
-            PR_snprintf(ep_id, 16, "%u", ((struct backcommon *)e)->ep_id);
+            PR_snprintf(ep_id, 16, "%u-%u", ((struct backcommon *)e)->ep_id, ((struct backcommon *)e)->ep_refcnt);
             len = strlen(ep_id);
             if (ids_size < len + 1) {
                 LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", ep_ids);
@@ -857,7 +857,7 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
     const char *uuid;
 #endif
 
-    LOG("=> entrycache_remove_int (%s)\n", backentry_get_ndn(e), 0, 0);
+    LOG("=> entrycache_remove_int (%s) (%u) (%u)\n", backentry_get_ndn(e), e->ep_id, e->ep_refcnt);
     if (e->ep_state & ENTRY_STATE_NOTINCACHE)
     {
         return ret;
@@ -876,13 +876,22 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
     {
         LOG("remove %s from dn hash failed\n", ndn, 0, 0);
     }
-    if (remove_hash(cache->c_idtable, &(e->ep_id), sizeof(ID)))
+    /* if entry was added tentatively, it will be in the dntable
+       but not in the idtable - we cannot just remove it from
+       the idtable - in the case of modrdn, this will remove
+       the _real_ entry from the idtable, leading to a cache
+       imbalance
+    */
+    if (!(e->ep_state & ENTRY_STATE_CREATING))
     {
-       ret = 0;
-    }
-    else
-    {
-        LOG("remove %d from id hash failed\n", e->ep_id, 0, 0);
+        if (remove_hash(cache->c_idtable, &(e->ep_id), sizeof(ID)))
+        {
+            ret = 0;
+        }
+        else
+        {
+            LOG("remove %d from id hash failed\n", e->ep_id, 0, 0);
+        }
     }
 #ifdef UUIDCACHE_ON 
     uuid = slapi_entry_get_uniqueid(e->ep_entry);
@@ -907,6 +916,11 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
 
     /* mark for deletion (will be erased when refcount drops to zero) */
     e->ep_state |= ENTRY_STATE_DELETED;
+#if 0
+    if (slapi_is_loglevel_set(SLAPI_LOG_CACHE)) {
+        dump_hash(cache->c_idtable);
+    }
+#endif
     LOG("<= entrycache_remove_int: %d\n", ret, 0, 0);
     return ret;
 }
@@ -999,14 +1013,23 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
      * cache tables, operation error 
      */
     if ( (olde->ep_state & ENTRY_STATE_NOTINCACHE) == 0 ) {
-
-        found = remove_hash(cache->c_dntable, (void *)oldndn, strlen(oldndn));
-        found &= remove_hash(cache->c_idtable, &(olde->ep_id), sizeof(ID));
+        int found_in_dn = remove_hash(cache->c_dntable, (void *)oldndn, strlen(oldndn));
+        int found_in_id = remove_hash(cache->c_idtable, &(olde->ep_id), sizeof(ID));
 #ifdef UUIDCACHE_ON
-        found &= remove_hash(cache->c_uuidtable, (void *)olduuid, strlen(olduuid));
+        int found_in_uuid = remove_hash(cache->c_uuidtable, (void *)olduuid, strlen(olduuid));
+#endif
+        found = found_in_dn && found_in_id;
+#ifdef UUIDCACHE_ON
+        found = found && found_in_uuid;
 #endif
         if (!found) {
-            LOG("entry cache replace: cache index tables out of sync\n", 0, 0, 0);
+#ifdef UUIDCACHE_ON
+            LOG("entry cache replace: cache index tables out of sync - found dn [%d] id [%d] uuid [%d]\n",
+                found_in_dn, found_in_id, found_in_uuid);
+#else
+            LOG("entry cache replace: cache index tables out of sync - found dn [%d] id [%d]\n",
+                found_in_dn, found_in_id, 0);
+#endif
             PR_Unlock(cache->c_mutex);
             return 1;
         }
@@ -1472,7 +1495,9 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
 void cache_unlock_entry(struct cache *cache, struct backentry *e)
 {
     LOG("=> cache_unlock_entry\n", 0, 0, 0);
-    PR_ExitMonitor(e->ep_mutexp);
+    if (PR_ExitMonitor(e->ep_mutexp)) {
+        LOG("=> cache_unlock_entry - monitor was not entered!!!\n", 0, 0, 0);
+    }
 }
 
 /* DN cache */
