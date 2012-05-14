@@ -118,6 +118,7 @@ acl_access_allowed_modrdn(
 {
 	int retCode ;
 	char *newrdn;
+	char *ci_newrdn;
 	const char *oldrdn;
 	Slapi_DN *target_sdn = NULL;
 	int deleteoldrdn = 0;
@@ -139,8 +140,11 @@ acl_access_allowed_modrdn(
 	slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &target_sdn );
 	slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
 
+	ci_newrdn = slapi_ch_strdup(newrdn);
+	slapi_dn_ignore_case(ci_newrdn);
 	/* Check can add the new naming attribute */
-	retCode = check_rdn_access( pb, e, newrdn, ACLPB_SLAPI_ACL_WRITE_ADD) ;
+	retCode = check_rdn_access( pb, e, ci_newrdn, ACLPB_SLAPI_ACL_WRITE_ADD) ;
+	slapi_ch_free_string(&ci_newrdn);
 	if ( retCode != LDAP_SUCCESS ) {
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 			"modrdn:write permission to add new naming attribute not allowed\n");
@@ -150,7 +154,7 @@ acl_access_allowed_modrdn(
 	/* Check can delete the new naming attribute--if required */
 	slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &deleteoldrdn );
 	if ( deleteoldrdn ) {
-		oldrdn = slapi_sdn_get_dn(target_sdn);
+		oldrdn = slapi_sdn_get_ndn(target_sdn);
 		retCode = check_rdn_access( pb, e, oldrdn, ACLPB_SLAPI_ACL_WRITE_DEL) ;
 		if ( retCode != LDAP_SUCCESS ) {
 			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
@@ -1793,8 +1797,10 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 
 		/* Change the acls */
 		acllist_acicache_WRITE_LOCK();		
+		/* acllist_moddn_aci_needsLock expects normalized new_DN, 
+		 * which is no need to be case-ignored */
 		acllist_moddn_aci_needsLock ( e_sdn, new_DN );
-		acllist_acicache_WRITE_UNLOCK();		
+		acllist_acicache_WRITE_UNLOCK();
 
 		/* deallocat the parent_DN */
 		if (parent_DN != NULL)  {
@@ -1987,7 +1993,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 	int						rv;			/* return value */
 	/* Assume that resource matches */
 	int						matches = ACL_TRUE;
-	int						attr_matched;
+	int						attr_matched = ACL_TRUE;
 	int						attr_matched_in_targetattrfilters = 0;
 	int						dn_matched;
 	char					*res_attr;
@@ -2713,7 +2719,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 	char			*acl_tag;
 	int			expr_num;
 	char			*testRights[2];
-	aci_t			*aci;
+	aci_t			*aci = NULL;
 	int			numHandles = 0;
 	
 	TNF_PROBE_0_DEBUG(acl__TestRights_start,"ACL","");

@@ -77,7 +77,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	char                    **referrals=NULL;
 	char			*cnxerrbuf=NULL;
 	time_t 			endbefore=0;
-	time_t			endtime;
+	time_t			endtime = 0;
 	cb_outgoing_conn	*cnx;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
@@ -459,7 +459,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 	char 			**referrals=NULL;
 	cb_backend_instance 	* cb=NULL;
 	Slapi_Backend		* be;
-	time_t			endtime;
+	time_t			endtime = 0;
 
 	matched_msg=error_msg=NULL;
 

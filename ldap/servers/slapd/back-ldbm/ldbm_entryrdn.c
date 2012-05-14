@@ -497,7 +497,8 @@ entryrdn_rename_subtree(backend *be,
     if (newsrdn && slapi_rdn_get_rdn(newsrdn)) {
         /* if the new RDN value is identical to the old RDN,
          * we don't have to do "rename" */
-        if (strcmp(slapi_rdn_get_nrdn(newsrdn), slapi_rdn_get_nrdn(&oldsrdn))) {
+        /* Don't miss the case changes, too. */
+        if (strcmp(slapi_rdn_get_rdn(newsrdn), slapi_rdn_get_rdn(&oldsrdn))) {
             /* did not match; let's rename it */
             mynewsrdn = newsrdn;
         }
