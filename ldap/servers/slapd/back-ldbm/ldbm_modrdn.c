@@ -111,7 +111,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     entry_address *newsuperior_addr;
     char ebuf[BUFSIZ];
     CSN *opcsn = NULL;
-    int val = 0;
 
     /* sdn & parentsdn need to be initialized before "goto *_return" */
     slapi_sdn_init(&dn_newdn);
@@ -1064,20 +1063,6 @@ error_return:
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ModifyDN",82,retval);
         disk_full = 1;
-    }
-
-    /* make sure SLAPI_RESULT_CODE and SLAPI_PLUGIN_OPRETURN are set */
-    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &val);
-    if (!val) {
-        if (!ldap_result_code) {
-            ldap_result_code = LDAP_OPERATIONS_ERROR;
-        }
-        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-    }
-    slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &val);
-    if (!val) {
-        val = -1;
-        slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &val);
     }
 
     if (disk_full) 

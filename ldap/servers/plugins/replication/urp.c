@@ -139,7 +139,17 @@ urp_add_operation( Slapi_PBlock *pb )
 		 * - It could be a replay of the same Add, or
 		 * - It could be a UUID generation collision, or
 		 */
-		op_result = LDAP_SUCCESS;
+		/* 
+		 * This operation won't be replayed.  That is, this CSN won't update
+		 * the max csn in RUV. The CSN is left uncommitted in RUV unless an
+		 * error is set to op_result.  Just to get rid of this CSN from RUV,
+		 * setting an error to op_result
+		 */
+		/* op_result = LDAP_SUCCESS; */
+		slapi_log_error(slapi_log_urp, sessionid,
+		          "urp_add (%s): an entry with this uniqueid already exists.\n",
+		          slapi_entry_get_dn_const(existing_uniqueid_entry));
+		op_result= LDAP_UNWILLING_TO_PERFORM;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
 		rc= -1; /* Ignore this Operation */
 		PROFILE_POINT; /* Add Conflict; UniqueID Exists;  Ignore */
@@ -251,7 +261,17 @@ urp_add_operation( Slapi_PBlock *pb )
 		 * b) We've seen the Operation before.
 		 * Let's go with (b) and ignore the little bastard.
 		 */
-		op_result= LDAP_SUCCESS;
+		/* 
+		 * This operation won't be replayed.  That is, this CSN won't update
+		 * the max csn in RUV. The CSN is left uncommitted in RUV unless an
+		 * error is set to op_result.  Just to get rid of this CSN from RUV,
+		 * setting an error to op_result
+		 */
+		/* op_result = LDAP_SUCCESS; */
+		slapi_log_error(slapi_log_urp, sessionid,
+		"urp_add (%s): The CSN of the Operation and the Entry DN are the same.",
+		slapi_entry_get_dn_const(existing_dn_entry));
+		op_result= LDAP_UNWILLING_TO_PERFORM;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
 		rc= -1; /* Ignore this Operation */
 		PROFILE_POINT; /* Add Conflict; Entry Exists; Same CSN */
@@ -315,7 +335,17 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 		 * The Operation CSN is not newer than the DN CSN.
 		 * Either we're beaten by another ModRDN or we've applied the op.
 		 */
-		op_result= LDAP_SUCCESS;
+		/* op_result= LDAP_SUCCESS; */
+		/* 
+		 * This operation won't be replayed.  That is, this CSN won't update
+		 * the max csn in RUV. The CSN is left uncommitted in RUV unless an
+		 * error is set to op_result.  Just to get rid of this CSN from RUV,
+		 * setting an error to op_result
+		 */
+		slapi_log_error(slapi_log_urp, sessionid,
+		           "urp_modrdn (%s): operation CSN is newer than the DN CSN.\n",
+		           slapi_entry_get_dn_const(target_entry));
+		op_result= LDAP_UNWILLING_TO_PERFORM;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
 		rc= -1; /* Ignore the modrdn */
 		PROFILE_POINT; /* ModRDN Conflict; Entry with Target DN Exists; OPCSN is not newer. */
@@ -326,8 +356,8 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 	target_sdn = slapi_entry_get_sdn_const (target_entry);
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
 	slapi_pblock_get(pb, SLAPI_TARGET_UNIQUEID, &op_uniqueid);
-   	slapi_pblock_get(pb, SLAPI_MODRDN_PARENT_ENTRY, &parent_entry);
-   	slapi_pblock_get(pb, SLAPI_MODRDN_NEWPARENT_ENTRY, &new_parent_entry);
+	slapi_pblock_get(pb, SLAPI_MODRDN_PARENT_ENTRY, &parent_entry);
+	slapi_pblock_get(pb, SLAPI_MODRDN_NEWPARENT_ENTRY, &new_parent_entry);
 	slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior);
 
 	if ( is_tombstone_entry (target_entry) )
@@ -364,26 +394,29 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 		goto bailout;
 	}
 
-   	slapi_pblock_get(pb, SLAPI_MODRDN_EXISTING_ENTRY, &existing_entry);
-    if(existing_entry!=NULL) 
+	slapi_pblock_get(pb, SLAPI_MODRDN_EXISTING_ENTRY, &existing_entry);
+	if(existing_entry!=NULL) 
 	{
 	    /*
 	     * An entry with the target DN already exists.
-		 * The smaller dncsn wins. The loser changes its RDN to
-		 * uniqueid+baserdn, and adds operational attribute
-		 * ATTR_NSDS5_REPLCONFLIC
+	     * The smaller dncsn wins. The loser changes its RDN to
+	     * uniqueid+baserdn, and adds operational attribute
+	     * ATTR_NSDS5_REPLCONFLIC
 	     */
 
 		existing_uniqueid = slapi_entry_get_uniqueid (existing_entry);
 		existing_sdn = slapi_entry_get_sdn_const ( existing_entry);
 
 		/*
-		 * Dismiss the operation if the existing entry is the same as the target one.
+		 * It used to dismiss the operation if the existing entry is 
+		 * the same as the target one.
+		 * But renaming the RDN with the one which only cases are different,
+		 * cn=ABC --> cn=Abc, this case matches.  We should go forward the op.
 		 */
 		if (strcmp(op_uniqueid, existing_uniqueid) == 0) {
 			op_result= LDAP_SUCCESS;
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-			rc = -1; /* Ignore the op */
+			rc = 0; /* Don't ignore the op */
 			PROFILE_POINT; /* ModRDN Replay */
 			goto bailout;
 		}
