@@ -165,14 +165,14 @@ void* llistRemoveCurrentAndGetNext (LList *list, void **iterator)
 	if (node)
 	{
 		prevNode->next = node->next;	
+		if (list->tail == node) {
+			list->tail = prevNode;
+		}
 		_llistDestroyNode (&node, NULL);
 		node = prevNode->next;
 		if (node) {
 			return node->data;
 		} else {
-			if (list->head->next == NULL) {
-				list->tail = NULL;
-			}
 			return NULL;
 		}
 	}
