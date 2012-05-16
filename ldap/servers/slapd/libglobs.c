@@ -459,6 +459,9 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_logging_enabled, CONFIG_ON_OFF, NULL},
+	{CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW, config_set_auditlog_unhashed_pw,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.auditlog_logging_hide_unhashed_pw, CONFIG_ON_OFF, NULL},
 	{CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE, config_set_accesslogbuffering,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.accesslogbuffering, CONFIG_ON_OFF, NULL},
@@ -1072,6 +1075,7 @@ FrontendConfig_init () {
   cfg->auditlog_minfreespace = 5;
   cfg->auditlog_exptime = 1;
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
+  cfg->auditlog_logging_hide_unhashed_pw = LDAP_OFF;
 
   cfg->entryusn_global = LDAP_OFF; 
   cfg->entryusn_import_init = slapi_ch_strdup("0"); 
@@ -1171,6 +1175,21 @@ get_entry_point( int ep_name, caddr_t *ep_addr )
     return rc;
 }
 
+int
+config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply)
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	int retVal = LDAP_SUCCESS;
+
+	retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->auditlog_logging_hide_unhashed_pw),
+								errorbuf, apply);
+	if(strcasecmp(value,"on") == 0){
+		auditlog_hide_unhashed_pw();
+	} else {
+		auditlog_expose_unhashed_pw();
+	}
+	return retVal;
+}
 
 /*
  * Utility function called by many of the config_set_XXX() functions.

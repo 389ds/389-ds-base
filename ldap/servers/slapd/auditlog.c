@@ -55,6 +55,7 @@ char	*attr_changetype	= ATTR_CHANGETYPE;
 char	*attr_newrdn		= ATTR_NEWRDN;
 char	*attr_deleteoldrdn	= ATTR_DELETEOLDRDN;
 char	*attr_modifiersname = ATTR_MODIFIERSNAME;
+static int hide_unhashed_pw = 0;
 
 /* Forward Declarations */
 static void write_audit_file( int optype, const char *dn, void *change, int flag, time_t curtime );
@@ -156,6 +157,10 @@ write_audit_file(
     	for ( j = 0; mods[j] != NULL; j++ )
 		{
 			int operationtype= mods[j]->mod_op & ~LDAP_MOD_BVALUES;
+
+			if((strcmp(mods[j]->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD) == 0) && hide_unhashed_pw){
+				continue;
+			}
     	    switch ( operationtype )
 			{
     	    case LDAP_MOD_ADD:
@@ -249,4 +254,16 @@ write_audit_file(
     slapd_log_audit_proc (l->ls_buf, l->ls_len);
 
     lenstr_free( &l );
+}
+
+void
+auditlog_hide_unhashed_pw()
+{
+	hide_unhashed_pw = 1;
+}
+
+void
+auditlog_expose_unhashed_pw()
+{
+	hide_unhashed_pw = 0;
 }
