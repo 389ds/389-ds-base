@@ -439,6 +439,9 @@ long conn_get_timeout(Repl_Connection *conn);
 void conn_set_agmt_changed(Repl_Connection *conn);
 ConnResult conn_read_result(Repl_Connection *conn, int *message_id);
 ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int send_msgid, int *resp_msgid, int noblock);
+LDAP * conn_get_ldap(Repl_Connection *conn);
+void conn_lock(Repl_Connection *conn);
+void conn_unlock(Repl_Connection *conn);
 
 /* In repl5_protocol.c */
 typedef struct repl_protocol Repl_Protocol;
@@ -598,8 +601,15 @@ void set_released_rid(int rid);
 int is_released_rid(int rid);
 int is_already_released_rid();
 void delete_released_rid();
+void replica_cleanallruv_monitor_thread(void *arg);
 
 #define ALREADY_RELEASED -1
+
+typedef struct _cleanruv_data
+{
+	Object *repl_obj;
+	ReplicaId rid;
+} cleanruv_data;
 
 /* replutil.c */
 LDAPControl* create_managedsait_control ();

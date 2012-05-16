@@ -1710,6 +1710,16 @@ conn_get_timeout(Repl_Connection *conn)
 	return retval;
 }
 
+LDAP *
+conn_get_ldap(Repl_Connection *conn)
+{
+	if(conn){
+		return conn->ld;
+	} else {
+		return NULL;
+	}
+}
+
 void conn_set_agmt_changed(Repl_Connection *conn)
 {
 	PR_ASSERT(NULL != conn);
@@ -1907,4 +1917,20 @@ repl5_debug_timeout_callback(time_t when, void *arg)
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 		"repl5_debug_timeout_callback: set debug level to %d at %ld\n",
 		s_debug_level, when);
+}
+
+void
+conn_lock(Repl_Connection *conn)
+{
+	if(conn){
+		PR_Lock(conn->lock);
+	}
+}
+
+void
+conn_unlock(Repl_Connection *conn)
+{
+	if(conn){
+		PR_Unlock(conn->lock);
+	}
 }
