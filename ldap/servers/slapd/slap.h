@@ -1874,6 +1874,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-accesslog-logging-enabled"
 #define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
+#define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
 #define CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE "nsslapd-rootpwstoragescheme"
@@ -2163,6 +2164,7 @@ typedef struct _slapdFrontendConfig {
   int  auditlog_minfreespace;
   int  auditlog_exptime;
   char *auditlog_exptimeunit;
+  int  auditlog_logging_hide_unhashed_pw;
 
   int return_exact_case;	/* Return attribute names with the same case 
 				 * as they appear in at.conf */
