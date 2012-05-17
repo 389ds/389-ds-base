@@ -5291,6 +5291,15 @@ char ** slapi_ch_array_dup( char **array );
  */
 void slapi_ch_array_add( char ***array, char *string );
 
+/**
+ * Find a string in an array of strings
+ *
+ * \param array The array of strings
+ * \param string The string to look for in the array
+ * \return NULL if there is no match
+ * \return 1 if there is a match
+ */
+int slapi_ch_array_utf8_inlist(char **array, char *string);
 
 /*
  * checking routines for allocating and freeing memory

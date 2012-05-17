@@ -296,6 +296,11 @@ charray_utf8_inlist(
     return( 0 );
 }
 
+int slapi_ch_array_utf8_inlist(char **a, char *s)
+{
+	return charray_utf8_inlist(a,s);
+}
+
 char **
 charray_dup( char **a )
 {

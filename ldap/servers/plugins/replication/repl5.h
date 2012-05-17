@@ -156,6 +156,7 @@ extern const char *type_nsds5ReplicaTimeout;
 extern const char *type_nsds5ReplicaBusyWaitTime;
 extern const char *type_nsds5ReplicaSessionPauseTime;
 extern const char *type_nsds5ReplicaEnabled;
+extern const char *type_nsds5ReplicaStripAttrs;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -356,6 +357,7 @@ void* agmt_get_connection( Repl_Agmt *ra);
 int agmt_has_protocol(Repl_Agmt *agmt);
 PRBool agmt_is_enabled(Repl_Agmt *ra);
 int agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
+char **agmt_get_attrs_to_strip(Repl_Agmt *ra);
 
 typedef struct replica Replica;
 
