@@ -138,6 +138,8 @@ typedef struct repl5agmt {
 	void *priv; /* private data, used for windows-specific agreement data 
 	               for sync agreements or for replication session plug-in
 	               private data for normal replication agreements */
+	char **attrs_to_strip; /* for fractional replication, if a "mod" is empty, strip out these attributes:
+	                        * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
 	int agreement_type;
 } repl5agmt;
 
@@ -470,6 +472,16 @@ agmt_new_from_entry(Slapi_Entry *e)
 		slapi_ch_array_free(denied_attrs);
 		goto loser;
 	}
+	/*
+	 *  Extract the attributes to strip for "empty" mods
+	 */
+	ra->attrs_to_strip = NULL;
+	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaStripAttrs);
+	if (NULL != tmpstr)
+	{
+		ra->attrs_to_strip = slapi_str2charray_ext(tmpstr, " ", 0);
+		slapi_ch_free_string(&tmpstr);
+	}
 
 	if (!agmt_is_valid(ra))
 	{
@@ -573,6 +585,10 @@ agmt_delete(void **rap)
 	if (ra->agreement_type == REPLICA_TYPE_WINDOWS)
 	{
 		windows_agreement_delete(ra);
+	}
+
+	if(ra->attrs_to_strip){
+		slapi_ch_array_free(ra->attrs_to_strip);
 	}
 
 	schedule_destroy(ra->schedule);
@@ -2540,3 +2556,12 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
 	return rc;
 }
 
+char **
+agmt_get_attrs_to_strip(Repl_Agmt *ra)
+{
+	if(ra){
+		return ra->attrs_to_strip;
+	} else {
+		return NULL;
+	}
+}

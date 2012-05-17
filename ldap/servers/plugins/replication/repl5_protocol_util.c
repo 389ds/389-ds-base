@@ -689,25 +689,25 @@ protocol_response2string (int response)
 int
 repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod ** mods)
 {
-	int retval = 0;
-	int i = 0;
 	char **a = agmt_get_fractional_attrs(agmt);
+	char **attrs_to_strip;
+	int retval = 0;
+	int strip = 1;
+	int i, j, k;
+
 	if (a) {
 		/* Iterate through the fractional attr list */
 		for ( i = 0; a[i] != NULL; i++ ) 
 		{
-			char *this_excluded_attr = a[i];
-			int j = 0;
-
 			for ( j = 0; NULL != mods[ j ]; )
 			{
-				/* For each one iterate through the attrs in this mod list */
-				/* For any that match, remove the mod */
-				LDAPMod *this_mod = mods[j];
-				if (0 == slapi_attr_type_cmp(this_mod->mod_type,this_excluded_attr,SLAPI_TYPE_CMP_SUBTYPE))
+				/*
+				 *  Iterate through the attrs in this mod list.
+				 *  If any match the fractional attr then remove the mod.
+				 */
+				if (0 == slapi_attr_type_cmp(mods[j]->mod_type, a[i], SLAPI_TYPE_CMP_SUBTYPE))
 				{
 					/* Move down all subsequent mods */
-					int k = 0;
 					for (k = j; mods[k+1] ; k++)
 					{
 						mods[k] = mods[k+1];
@@ -716,12 +716,34 @@ repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod ** mods)
 					mods[k] = NULL;
 					/* Adjust value of j, implicit in not incrementing it */
 					/* Free this mod */
-					ber_bvecfree(this_mod->mod_bvalues);
-					slapi_ch_free((void **)&(this_mod->mod_type));
-					slapi_ch_free((void **)&this_mod);
-
+					ber_bvecfree(mods[j]->mod_bvalues);
+					slapi_ch_free((void **)&(mods[j]->mod_type));
+					slapi_ch_free((void **)&mods[j]);
 				} else {
 					j++;
+				}
+			}
+		}
+		/*
+		 *  Check if "all" the remaining mods are on attributes we want to strip from the update.
+		 *  If all the mods are on attrs_to_strip, then free them.
+		 */
+		if((attrs_to_strip = agmt_get_attrs_to_strip(agmt)) != NULL){
+			for(j = 0; mods[j] != NULL; j++)
+			{
+				if(slapi_ch_array_utf8_inlist(attrs_to_strip, mods[j]->mod_type) == 0){
+					/* at least one of the mods is "real", so don't strip anything */
+					strip = 0;
+					break;
+				}
+			}
+			if(strip){
+				/* free the remaining mods */
+				for(j = 0; mods[j] != NULL; j++)
+				{
+					ber_bvecfree(mods[j]->mod_bvalues);
+					slapi_ch_free((void **)&(mods[j]->mod_type));
+					slapi_ch_free((void **)&mods[j]);
 				}
 			}
 		}
