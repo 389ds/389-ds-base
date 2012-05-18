@@ -101,9 +101,8 @@ CSNPL* csnplNew ()
 
 
 void
-csnpldata_free(void **data)
+csnpldata_free(csnpldata **data_to_free)
 {
-	csnpldata **data_to_free = (csnpldata **)data;
 	if (NULL != data_to_free)
 	{
 		if (NULL != (*data_to_free)->csn)
@@ -319,6 +318,10 @@ csnplRollUp(CSNPL *csnpl, CSN **first_commited)
 				*first_commited = data->csn;
 				freeit = PR_FALSE;
 			}
+			/* llistRemoveCurrentAndGetNext will detach the current node
+			   so we have to free the data associated with it, but not the csn */
+			data->csn = NULL;
+			csnpldata_free(&data);
 			data = (csnpldata *)llistRemoveCurrentAndGetNext(csnpl->csnList, &iterator);
 		} else {
 			data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);
