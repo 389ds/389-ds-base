@@ -707,6 +707,11 @@ repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod ** mods)
 				 */
 				if (0 == slapi_attr_type_cmp(mods[j]->mod_type, a[i], SLAPI_TYPE_CMP_SUBTYPE))
 				{
+					/* Adjust value of j, implicit in not incrementing it */
+					/* Free this mod */
+					ber_bvecfree(mods[j]->mod_bvalues);
+					slapi_ch_free((void **)&(mods[j]->mod_type));
+					slapi_ch_free((void **)&mods[j]);
 					/* Move down all subsequent mods */
 					for (k = j; mods[k+1] ; k++)
 					{
@@ -714,11 +719,6 @@ repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod ** mods)
 					}
 					/* Zero the end of the array */
 					mods[k] = NULL;
-					/* Adjust value of j, implicit in not incrementing it */
-					/* Free this mod */
-					ber_bvecfree(mods[j]->mod_bvalues);
-					slapi_ch_free((void **)&(mods[j]->mod_type));
-					slapi_ch_free((void **)&mods[j]);
 				} else {
 					j++;
 				}
