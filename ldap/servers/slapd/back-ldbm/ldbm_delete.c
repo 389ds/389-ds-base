@@ -60,7 +60,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	struct ldbminfo	*li = NULL;
 	struct backentry *e = NULL;
 	struct backentry *tombstone = NULL;
-	Slapi_Entry *original_entry = NULL;
 	struct backentry *original_tombstone = NULL;
 	char *dn = NULL;
 	back_txn txn;
@@ -80,7 +79,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	Slapi_DN sdn;
 	Slapi_DN *sdnp = NULL;
 	char *e_uniqueid = NULL;
-	Slapi_DN *nscpEntrySDN = NULL;
+	Slapi_DN nscpEntrySDN;
 	int dblock_acquired= 0;
 	Slapi_Operation *operation;
 	CSN *opcsn = NULL;
@@ -110,6 +109,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	
 	/* sdn needs to be initialized before "goto *_return */
 	slapi_sdn_init(&sdn);
+	slapi_sdn_init(&nscpEntrySDN);
 
 	/* dblayer_txn_init needs to be called before "goto error_return" */
 	dblayer_txn_init(li,&txn);
@@ -388,7 +388,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			childuniqueid);
 		Slapi_Value *tomb_value;
 
-		nscpEntrySDN = slapi_entry_get_sdn(e->ep_entry);
+		slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
 
 		/* Copy the entry unique_id for URP conflict checking */
 		e_uniqueid = slapi_ch_strdup(childuniqueid);
@@ -418,10 +418,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			/* The suffix entry has no parent */
 			slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID, parentuniqueid);
 		}
-		if(nscpEntrySDN!=NULL)
-		{
-			slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN, slapi_sdn_get_ndn(nscpEntrySDN));
-		}
+		slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN, slapi_sdn_get_ndn(&nscpEntrySDN));
 		tomb_value = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
 		value_update_csn(tomb_value, CSN_TYPE_VALUE_UPDATED,
 			operation_get_csn(operation));
@@ -449,11 +446,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		}
 	}
 
-	if ( (original_entry = slapi_entry_dup( e->ep_entry )) == NULL ) {
-		ldap_result_code= LDAP_OPERATIONS_ERROR;
-		goto error_return;
-	}
-
 	/*
 	 * So, we believe that no code up till here actually added anything
 	 * to the persistent store. From now on, we're transacted
@@ -469,20 +461,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 			/* reset original entry */
 			slapi_pblock_get( pb, SLAPI_DELETE_EXISTING_ENTRY, &ent );
-			if (ent && (ent != original_entry) && free_delete_existing_entry) {
+			if (ent && free_delete_existing_entry) {
 				slapi_entry_free(ent);
 				slapi_pblock_set( pb, SLAPI_DELETE_EXISTING_ENTRY, NULL );
 			}
-			slapi_entry_free(e->ep_entry);
-			e->ep_entry = original_entry;
-			if ( (original_entry = slapi_entry_dup( e->ep_entry )) == NULL ) {
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				goto error_return;
-			}
-			slapi_pblock_set( pb, SLAPI_DELETE_EXISTING_ENTRY, original_entry );
-			free_delete_existing_entry = 0; /* owned by original_entry now */
-			if (nscpEntrySDN) {
-				nscpEntrySDN = slapi_entry_get_sdn(original_entry);
+			slapi_pblock_set( pb, SLAPI_DELETE_EXISTING_ENTRY, slapi_entry_dup( e->ep_entry ) );
+			free_delete_existing_entry = 1; /* must free the dup */
+			if (create_tombstone_entry) {
+				slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
 			}
 
 			/* reset tombstone entry */
@@ -524,8 +510,10 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 		/* call the transaction pre delete plugins just after creating
 		 * the transaction */
-		slapi_pblock_get( pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry );
-		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, e->ep_entry );
+		/* these should not need to modify the entry to be deleted -
+		   if for some reason they ever do, do not use e->ep_entry since
+		   it could be in the cache and referenced by other search threads -
+		   instead, have them modify a copy of the entry */
 		retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
 		if (retval) {
 			LDAPDebug1Arg( LDAP_DEBUG_TRACE,
@@ -544,13 +532,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			goto error_return;
 		}
-		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
-		orig_entry = NULL;
 
 		if(create_tombstone_entry)
 		{
-
 			slapi_pblock_get( pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry );
+			/* this is ok because no other threads should be accessing
+			   the tombstone entry */
 			slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY,
 			                  tombstone->ep_entry );
 			rc = plugin_call_plugins(pb,
@@ -696,7 +683,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				goto error_return;
 			}
 			retval = index_addordel_string(be, SLAPI_ATTR_NSCP_ENTRYDN,
-							slapi_sdn_get_ndn(nscpEntrySDN),
+							slapi_sdn_get_ndn(&nscpEntrySDN),
 							tombstone->ep_id, BE_INDEX_ADD, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS,
@@ -1183,13 +1170,13 @@ diskfull_return:
 	}
 	if (free_delete_existing_entry) {
 		done_with_pblock_entry(pb, SLAPI_DELETE_EXISTING_ENTRY);
-	} else { /* owned by original_entry */
+	} else { /* owned by someone else */
 		slapi_pblock_set(pb, SLAPI_DELETE_EXISTING_ENTRY, NULL);
 	}
-	slapi_entry_free(original_entry);
 	backentry_free(&original_tombstone);
 	slapi_ch_free((void**)&errbuf);
 	slapi_sdn_done(&sdn);
+	slapi_sdn_done(&nscpEntrySDN);
 	slapi_ch_free_string(&e_uniqueid);
 	if (pb->pb_conn)
 	{
