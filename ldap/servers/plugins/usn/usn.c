@@ -429,7 +429,7 @@ usn_bepreop_delete(Slapi_PBlock *pb)
                     "--> usn_bepreop_delete\n");
 
     /* add next USN to the entry; "be" contains the usn counter */
-    slapi_pblock_get(pb, SLAPI_DELETE_BEPREOP_ENTRY, &e);
+    slapi_pblock_get(pb, SLAPI_DELETE_EXISTING_ENTRY, &e);
     if (NULL == e) {
         rc = LDAP_NO_SUCH_OBJECT;    
         goto bail;
@@ -576,15 +576,6 @@ usn_bepostop_delete (Slapi_PBlock *pb)
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
-        Slapi_Entry *e = NULL;
-
-        slapi_pblock_get(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, &e);
-        if (NULL == e) {
-            rc = LDAP_NO_SUCH_OBJECT;    
-            goto bail;
-        }
-        /* okay to return the rc from slapi_entry_delete_values */
-        rc = slapi_entry_delete_values(e, SLAPI_ATTR_ENTRYUSN_PREV, NULL);
         goto bail;
     }
 
