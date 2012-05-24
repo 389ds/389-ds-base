@@ -267,12 +267,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	opcsn = operation_get_csn (operation);
 	if (!delete_tombstone_entry)
 	{
-		/* If both USN and replication is enabled, csn set by replication 
-		 * should be honored. */
-		if ((opcsn == NULL || ldbm_usn_enabled(be)) &&
-						!is_fixup_operation && operation->o_csngen_handler)
+		if ((opcsn == NULL) && !is_fixup_operation && operation->o_csngen_handler)
 		{
-			csn_free(&opcsn); /* free opcsn set by USN plugin, if any */
 			/*
 			 * Current op is a user request. Opcsn will be assigned
 			 * by entry_assign_operation_csn() if the dn is in an
@@ -286,14 +282,15 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			{
 				entry_set_maxcsn (e->ep_entry, opcsn);
 			}
-			/*
-			 * We are dealing with replication and if we haven't been called to
-			 * remove a tombstone, then it's because  we want to create a new one.
-			 */
-			if ( slapi_operation_get_replica_attr (pb, operation, "nsds5ReplicaTombstonePurgeInterval", &create_tombstone_entry) == 0)
-			{
-				create_tombstone_entry = (create_tombstone_entry < 0) ? 0 : 1;
-			}
+		}
+		/*
+		 * We are dealing with replication and if we haven't been called to
+		 * remove a tombstone, then it's because  we want to create a new one.
+		 */
+		if ( slapi_operation_get_replica_attr (pb, operation, "nsds5ReplicaTombstonePurgeInterval",
+											   &create_tombstone_entry) == 0 )
+		{
+			create_tombstone_entry = (create_tombstone_entry < 0) ? 0 : 1;
 		}
 	}
 
