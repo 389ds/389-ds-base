@@ -145,6 +145,7 @@ usn_cleanup_thread(void *arg)
     for (ep = entries; ep && *ep; ep++) {
         int delrv = 0;
         const Slapi_DN *sdn = slapi_entry_get_sdn_const(*ep);
+        int opflags = OP_FLAG_TOMBSTONE_ENTRY;
 
         /* check for shutdown */
         if(g_get_shutdown()){
@@ -156,7 +157,7 @@ usn_cleanup_thread(void *arg)
         }
 
         slapi_delete_internal_set_pb(delete_pb, slapi_sdn_get_dn(sdn),
-                                     NULL, NULL, usn_get_identity(), 0);
+                                     NULL, NULL, usn_get_identity(), opflags);
         slapi_delete_internal_pb(delete_pb);
         slapi_pblock_get(delete_pb, SLAPI_PLUGIN_INTOP_RESULT, &delrv);
         if (LDAP_SUCCESS != delrv) {

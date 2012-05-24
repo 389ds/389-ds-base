@@ -45,8 +45,6 @@ static Slapi_PluginDesc pdesc = {
         "USN", VENDOR, DS_PACKAGE_VERSION,
         "USN (Update Sequence Number) plugin" };
 
-static CSNGen *_usn_csngen = NULL;
-
 static void *_usn_identity = NULL;
 
 static int usn_preop_init(Slapi_PBlock *pb);
@@ -152,13 +150,6 @@ usn_preop_init(Slapi_PBlock *pb)
 {
     int rc = 0;
     int predel = SLAPI_PLUGIN_PRE_DELETE_FN;
-    /* set up csn generator for tombstone */
-    _usn_csngen = csngen_new(USN_CSNGEN_ID, NULL);
-    if (NULL == _usn_csngen) {
-        slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
-                        "usn_preop_init: csngen_new failed\n");
-        rc = -1;
-    }
 
     if (slapi_pblock_set(pb, predel, (void *)usn_preop_delete) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
@@ -302,15 +293,11 @@ bail:
     return rc;
 }
 
-/*
- * usn_close: release the csn generator used to convert an entry to tombstone
- */
 static int
 usn_close(Slapi_PBlock *pb)
 {
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "--> usn_close\n");
 
-    csngen_free(&_usn_csngen);
     g_plugin_started = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "<-- usn_close\n");
@@ -325,32 +312,14 @@ static int
 usn_preop_delete(Slapi_PBlock *pb)
 {
     int rc = 0;
-    CSN *csn = NULL;
-    CSN *orig_csn = NULL;
     Slapi_Operation *op = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_preop_delete\n");
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    orig_csn = operation_get_csn(op);
+    slapi_operation_set_replica_attr_handler(op, (void *)usn_get_attr);
 
-    if (NULL == orig_csn) {
-        /* 
-         * No other plugins hasn't set csn yet, so let's set USN's csn.
-         * If other plugin overrides csn and replica_attr_handler, that's fine.
-         */
-        rc = csngen_new_csn(_usn_csngen, &csn, PR_FALSE /* notify */);
-        if (CSN_SUCCESS != rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
-                            "usn_preop_delete: csngen_new failed (%d)\n", rc);
-            csn_free(&csn);
-            goto bail;
-        }
-        operation_set_csn(op, csn);
-        slapi_operation_set_replica_attr_handler(op, (void *)usn_get_attr);
-    }
-bail:
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- usn_preop_delete\n");
 
@@ -486,11 +455,6 @@ usn_betxnpreop_delete(Slapi_PBlock *pb)
         rc = LDAP_PARAM_ERROR;    
         goto bail;
     }
-    if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
-        Slapi_Operation *op = NULL;
-        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-        slapi_operation_set_flag(op, OP_FLAG_TOMBSTONE_ENTRY);
-    }
     _usn_add_next_usn(e, be);
 bail:
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
@@ -615,16 +579,9 @@ usn_bepostop_delete (Slapi_PBlock *pb)
 {
     int rc = -1;
     Slapi_Backend *be = NULL;
-    Slapi_Operation *op = NULL;
-    CSN *csn = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_bepostop\n");
-
-    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    csn = operation_get_csn(op);
-    csn_free(&csn);
-    operation_set_csn(op, NULL);
 
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
