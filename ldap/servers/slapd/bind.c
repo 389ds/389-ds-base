@@ -614,21 +614,41 @@ do_bind( Slapi_PBlock *pb )
             Slapi_Value cv;
             slapi_value_init_berval(&cv,&cred);
 
-            /* right dn and passwd - authorize */
+            /*
+             *  Call pre bind root dn plugin for checking root dn access control.
+             *
+             *  Do this before checking the password so that we give a consistent error,
+             *  regardless if the password is correct or not.  Or else it would still be
+             *  possible to brute force guess the password even though access would still
+             *  be denied.
+             */
+            if (plugin_call_plugins(pb, SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN) != 0){
+                send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                    "RootDN access control violation", 0, NULL );
+                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                value_done(&cv);
+                goto free_and_return;
+            }
+            /*
+             *  Check the dn and password
+             */
             if ( is_root_dn_pw( slapi_sdn_get_ndn(sdn), &cv )) {
-                bind_credentials_set( pb->pb_conn, SLAPD_AUTH_SIMPLE,
-                                      slapi_ch_strdup( slapi_sdn_get_ndn(sdn) ),
+                /*
+                 *  right dn and passwd - authorize
+                 */
+                bind_credentials_set( pb->pb_conn, SLAPD_AUTH_SIMPLE, slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
                                       NULL, NULL, NULL , NULL);
-
-            /* right dn, wrong passwd - reject with invalid creds */
             } else {
-                send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
-                                  NULL, 0, NULL );
+            	/*
+                 *  right dn, wrong passwd - reject with invalid credentials
+                 */
+                send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL );
                 /* increment BindSecurityErrorcount */
                 slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
                 goto free_and_return;
             }
+
             value_done(&cv);
         }
 

@@ -1004,11 +1004,13 @@ struct slapdplugin {
 			IFP	plg_un_internal_pre_modrdn;	  /* modrdn */
 			IFP	plg_un_internal_pre_add;		  /* add */
 			IFP	plg_un_internal_pre_delete;	  /* delete */
+			IFP	plg_un_internal_pre_bind;	  /* bind */
 		} plg_un_internal_pre;
 #define plg_internal_pre_modify	plg_un.plg_un_internal_pre.plg_un_internal_pre_modify
 #define plg_internal_pre_modrdn	plg_un.plg_un_internal_pre.plg_un_internal_pre_modrdn
 #define plg_internal_pre_add	plg_un.plg_un_internal_pre.plg_un_internal_pre_add
 #define plg_internal_pre_delete	plg_un.plg_un_internal_pre.plg_un_internal_pre_delete
+#define plg_internal_pre_bind	plg_un.plg_un_internal_pre.plg_un_internal_pre_bind
 
 		/* internal post-operation plugin structure */
 		struct plg_un_internal_post_operation {
