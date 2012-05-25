@@ -3897,11 +3897,11 @@ static int txn_test_threadmain(void *param)
 
     INCR_THREAD_COUNT(priv);
 
+    txn_test_init_cfg(&cfg);
+
     if (!priv->dblayer_enable_transactions) {
         goto end;
     }
-
-    txn_test_init_cfg(&cfg);
 
 wait_for_init:
     free_ttilist(&ttilist, &tticnt);
@@ -3941,7 +3941,7 @@ wait_for_init:
                     object_release(inst_obj);
                     goto wait_for_init;
                 }
-                if((dblayer_get_index_file(be, ai, &db, 0) != 0) || db == NULL){
+                if((dblayer_get_index_file(be, ai, &db, 0) != 0) || (db == NULL)){
                     if (strcasecmp(*idx, TXN_TEST_IDX_OK_IF_NULL)) {
                         object_release(inst_obj);
                         goto wait_for_init;

@@ -2179,6 +2179,7 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
     size_t curr_childnum = 0;
     int db_retry = 0;
 
+    memset(&moddata, 0, sizeof(moddata));
     /* temporary id added for the non exisiting suffix */
     /* Let's replace it with the real entry ID */
     /* SELF */
