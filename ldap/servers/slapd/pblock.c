@@ -1062,6 +1062,14 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		(*(IFP *)value) = pblock->pb_plugin->plg_internal_post_delete;
 		break;
 
+	/* rootDN pre bind operation plugin */
+	case SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_INTERNAL_PREOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_internal_pre_bind;
+		break;
+
 	/* backend pre txn operation plugin */
 	case SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN:
 		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNPREOPERATION) {
@@ -2619,6 +2627,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_internal_pre_delete = (IFP) value;
+		break;
+	case SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_INTERNAL_PREOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_internal_pre_bind = (IFP) value;
 		break;
 
 	/* internal postoperation plugin */

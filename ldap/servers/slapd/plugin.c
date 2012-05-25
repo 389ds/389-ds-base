@@ -363,6 +363,7 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 	case SLAPI_PLUGIN_INTERNAL_PRE_MODRDN_FN:
 	case SLAPI_PLUGIN_INTERNAL_PRE_ADD_FN:
 	case SLAPI_PLUGIN_INTERNAL_PRE_DELETE_FN:
+	case SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN:
         plugin_list_number= PLUGIN_LIST_INTERNAL_PREOPERATION;
 		break;
 	case SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN:
@@ -387,6 +388,7 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 		do_op = 1; /* always allow backend callbacks (even during startup) */
 		break;
 	}
+
 	if(plugin_list_number!=-1 && do_op)
 	{
 	    /* We stash the pblock plugin pointer to preserve the callers context */
@@ -1705,7 +1707,7 @@ plugin_get_type_and_list(
 	} else if ( strcasecmp( plugintype, "index" ) == 0 ) {
         *type = SLAPI_PLUGIN_INDEX;
         plugin_list_index= PLUGIN_LIST_INDEX;
-    } else {
+	} else {
 		return( 1 );	/* unknown plugin type - pass to backend */
 	}
 
@@ -3204,4 +3206,11 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
     charray_free(search_attrs);
 
     return rc;
+}
+
+void
+slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb){
+	struct pluginconfig *config = &pb->pb_plugin->plg_conf;
+
+	ptd_set_special_data(&(config->plgc_bind_subtrees), PLGC_DATA_BIND_ROOT);
 }

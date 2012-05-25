@@ -6305,6 +6305,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_INTERNAL_PRE_MODIFY_FN	421
 #define SLAPI_PLUGIN_INTERNAL_PRE_MODRDN_FN	422
 #define SLAPI_PLUGIN_INTERNAL_PRE_DELETE_FN	423
+#define SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN	424
 
 /* preoperation plugin to the backend */
 #define SLAPI_PLUGIN_BE_PRE_ADD_FN		450
@@ -7077,6 +7078,8 @@ uint32_t slapi_str_to_u32(const char *s);
  * \return the integral value
  */
 uint64_t slapi_str_to_u64(const char *s);
+
+void slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb);
 
 #ifdef __cplusplus
 }
