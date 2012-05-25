@@ -1058,7 +1058,9 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     }
     if (!add_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID), newe, NULL)) {
        LOG("entry cache replace: can't add id\n", 0, 0, 0);
-       remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn));
+       if (remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn))) {
+           LOG("entry cache replace: can't remove dn after add id failed\n", 0, 0, 0);
+       }
        PR_Unlock(cache->c_mutex);
        return 1;
     }
@@ -1357,7 +1359,9 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                 PR_Unlock(cache->c_mutex);
                 return 0;
             }
-            remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn));
+            if (remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn))) {
+                LOG("=>= entrycache_add_int could not remove existing id from dn cache\n", 0, 0, 0);
+            }
             e->ep_state |= ENTRY_STATE_NOTINCACHE;
             PR_Unlock(cache->c_mutex);
             return -1;
