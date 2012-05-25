@@ -55,6 +55,7 @@
 #include "pw.h"
 
 static int check_all_maxdiskspace_and_mlogsize(Slapi_PBlock *pb, LDAPMod **mod, char *returntext);
+static int is_delete_a_replace(LDAPMod **mods, int mod_count);
 static void get_log_max_size(   LDAPMod *mod,
                     char *maxdiskspace_str,
                     char *mlogsize_str,
@@ -423,9 +424,17 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 						  config_attr);
 					}
 				} else {
-					rc= LDAP_UNWILLING_TO_PERFORM;
-					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-								"Deleting attributes is not allowed");
+					/*
+					 *  Check if this delete is followed by an add of the same attribute, as some
+					 *  clients do a replace by deleting and adding the attribute.
+					 */
+					if(is_delete_a_replace(mods, i)){
+						rc = config_set(config_attr, mods[i]->mod_bvalues, returntext, apply_mods);
+					} else {
+						rc= LDAP_UNWILLING_TO_PERFORM;
+						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+							"Deleting attributes is not allowed");
+					}
 				}
 			} else if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
 				if (( checked_all_maxdiskspace_and_mlogsize == 0 ) && 
@@ -599,4 +608,27 @@ get_log_max_size(   LDAPMod *mod,
     {
         *mlogsize = atoi((char *) mod->mod_bvalues[0]->bv_val);
     }
+}
+
+/*
+ *  Loops through all the mods, if we add the attribute back, it's a replace, but we need
+ *  to keep looking through the mods in case it gets deleted again.
+ */
+static int
+is_delete_a_replace(LDAPMod **mods, int mod_count){
+	char *del_attr = mods[mod_count]->mod_type;
+	int rc = 0;
+	int i;
+
+	for(i = mod_count + 1; mods[i] != NULL; i++){
+		if(strcasecmp(mods[i]->mod_type, del_attr) == 0 && SLAPI_IS_MOD_ADD(mods[i]->mod_op)){
+			/* ok, we are adding this attribute back */
+			rc = 1;
+		} else if(strcasecmp(mods[i]->mod_type, del_attr) == 0 && SLAPI_IS_MOD_DELETE(mods[i]->mod_op)){
+			/* whoops we deleted it again */
+			rc = 0;
+		}
+	}
+
+	return rc;
 }
