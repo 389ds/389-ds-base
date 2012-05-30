@@ -664,13 +664,24 @@ clcache_skip_change ( CLC_Buffer *buf )
 		rid = csn_get_replicaid ( buf->buf_current_csn );
 
 		/*
-		 * Skip CSN that is originated from the consumer.
+		 * Skip CSN that is originated from the consumer,
+		 * unless the CSN is newer than the maxcsn.
 		 * If RID==65535, the CSN is originated from a
 		 * legacy consumer. In this case the supplier
 		 * and the consumer may have the same RID.
 		 */
-		if (rid == buf->buf_consumer_rid && rid != MAX_REPLICA_ID)
+		if (rid == buf->buf_consumer_rid && rid != MAX_REPLICA_ID){
+			CSN *cons_maxcsn = NULL;
+
+			ruv_get_max_csn(buf->buf_consumer_ruv, &cons_maxcsn);
+			if ( csn_compare ( buf->buf_current_csn, cons_maxcsn) > 0 ) {
+				/*
+				 *  The consumer must have been "restored" and needs this newer update.
+				 */
+				skip = 0;
+			}
 			break;
+		}
 
 		/* Skip helper entry (ENTRY_COUNT, PURGE_RUV and so on) */
 		if ( cl5HelperEntry ( NULL, buf->buf_current_csn ) == PR_TRUE ) {
