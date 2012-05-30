@@ -257,8 +257,6 @@ typedef struct cl5desc
 
 typedef void (*VFP)(void *);
 
-int g_get_shutdown();		/* declared in proto-slap.h */
-
 /***** Global Variables *****/
 static CL5Desc s_cl5Desc;
 
@@ -3464,7 +3462,7 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 
 	entry.op = &op;
 
-	while ( !finished && !g_get_shutdown() )
+	while ( !finished && !slapi_is_shutting_down() )
 	{
 		it = NULL;
 		count = 0;

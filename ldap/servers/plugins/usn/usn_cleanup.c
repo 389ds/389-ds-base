@@ -143,7 +143,7 @@ usn_cleanup_thread(void *arg)
         const Slapi_DN *sdn = slapi_entry_get_sdn_const(*ep);
 
         /* check for shutdown */
-        if(g_get_shutdown()){
+        if(slapi_is_shutting_down()){
             slapi_task_log_notice(task, "USN tombstone cleanup task aborted due to shutdown.");
             slapi_task_log_status(task, "USN tombstone cleanup task aborted due to shutdown.");
             slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,

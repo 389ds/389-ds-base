@@ -861,6 +861,11 @@ int g_get_shutdown()
     return slapd_shutdown;
 }
 
+int slapi_is_shutting_down()
+{
+	return slapd_shutdown;
+}
+
 
 static int cmd_shutdown;
 

@@ -5273,6 +5273,13 @@ char ** slapi_ch_array_dup( char **array );
 void slapi_ch_array_add( char ***array, char *string );
 
 
+/**
+ * Check if the server has started shutting down
+ *
+ * \return 1 if the server is shutting down
+ */
+int slapi_is_shutting_down();
+
 /*
  * checking routines for allocating and freeing memory
  */

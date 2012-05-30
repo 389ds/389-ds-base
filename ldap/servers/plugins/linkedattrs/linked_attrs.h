@@ -137,8 +137,6 @@ int linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
                            Slapi_Entry *eAfter, int *returncode,
                            char *returntext, void *arg);
 
-int g_get_shutdown();		/* declared in proto-slap.h */
-
 /*
  * misc
  */

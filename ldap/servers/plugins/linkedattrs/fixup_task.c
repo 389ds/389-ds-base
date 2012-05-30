@@ -371,7 +371,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
         int perform_update = 0;
         Slapi_DN *targetsdn = NULL;
 
-        if (g_get_shutdown()) {
+        if (slapi_is_shutting_down()) {
             rc = -1;
             goto done;
         }
