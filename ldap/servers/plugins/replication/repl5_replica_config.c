@@ -86,7 +86,6 @@ static struct berval *create_ruv_payload(char *value);
 static int replica_cleanup_task (Object *r, const char *task_name, char *returntext, int apply_mods);
 static int replica_task_done(Replica *replica);
 static multimaster_mtnode_extension * _replica_config_get_mtnode_ext (const Slapi_Entry *e);
-int g_get_shutdown();
 
 /*
  * Note: internal add/modify/delete operations should not be run while
@@ -1326,7 +1325,7 @@ replica_cleanallruv_monitor_thread(void *arg)
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: Waiting for all the replicas to get cleaned...\n");
 
-	while(!g_get_shutdown())
+	while(!slapi_is_shutting_down())
 	{
 		DS_Sleep(PR_SecondsToInterval(10));
 		found = 0;

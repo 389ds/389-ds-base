@@ -5301,6 +5301,13 @@ void slapi_ch_array_add( char ***array, char *string );
  */
 int slapi_ch_array_utf8_inlist(char **array, char *string);
 
+/**
+ * Check if the server has started shutting down
+ *
+ * \return 1 if the server is shutting down
+ */
+int slapi_is_shutting_down();
+
 /*
  * checking routines for allocating and freeing memory
  */
@@ -6742,7 +6749,20 @@ int slapi_re_exec( Slapi_Regex *re_handle, const char *subject, time_t time_up )
  * \warning The regex handler should be released by slapi_re_free().
  */
 int slapi_re_subs( Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen );
-/* extension to handle search filters properly */
+/**
+ * Substitutes '&' or '\#' in the param src with the matched string.  If the 'src' is a search filter
+ * do not remove & if it is part of a compound filter.
+ *
+ * \param re_handle The regex handler returned from slapi_re_comp.
+ * \param subject A string checked against the compiled pattern.
+ * \param src A given string which could contain the substitution symbols.
+ * \param dst A pointer pointing to the memory which stores the output string.
+ * \param dstlen Size of the memory dst.
+ * \param filter Set to 1 if the src is a ldap search filter
+ * \return This function returns 1 if the substitution was successful.
+ * \return This function returns 0 if the substitution failed.
+ * \warning The regex handler should be released by slapi_re_free().
+ */
 int slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen, int filter );
 /**
  * Releases the regex handler which was returned from slapi_re_comp.
