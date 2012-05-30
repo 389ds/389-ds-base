@@ -1700,7 +1700,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
 	int rc = 0;
 
-	if(g_get_shutdown()){
+	if(slapi_is_shutting_down()){
 		rc = -1;
 		goto bail;
 	}

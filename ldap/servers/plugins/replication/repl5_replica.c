@@ -50,9 +50,6 @@
 #include "csnpl.h"
 #include "cl5_api.h"
 
-/* from proto-slap.h */
-int g_get_shutdown();
-
 #define RUV_SAVE_INTERVAL (30 * 1000) /* 30 seconds */
 #define START_UPDATE_DELAY 2 /* 2 second */
 
@@ -2506,7 +2503,7 @@ process_reap_entry (Slapi_Entry *entry, void *cb_data)
 	int rc = -1;
 
 	/* abort reaping if we've been told to stop or we're shutting down */
-	if (*tombstone_reap_stop || g_get_shutdown()) {
+	if (*tombstone_reap_stop || slapi_is_shutting_down()) {
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"process_reap_entry: the tombstone reap process "
 						" has been stopped\n");
