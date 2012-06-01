@@ -83,6 +83,9 @@ write_audit_log_entry( Slapi_PBlock *pb )
     case SLAPI_OPERATION_MODIFY:
         slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &change );
         break;
+    case SLAPI_OPERATION_ADD:
+    	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &change );
+    	break;
     case SLAPI_OPERATION_DELETE:
         {
         char * deleterDN = NULL;
@@ -100,7 +103,8 @@ write_audit_log_entry( Slapi_PBlock *pb )
         return; /* Unsupported operation type. */
     }
     curtime = current_time();
-    dn = slapi_sdn_get_dn(sdn);
+    /* log the raw, unnormalized DN */
+    dn = slapi_sdn_get_udn(sdn);
     write_audit_file( operation_get_type(op), dn, change, flag, curtime );
 }
 
