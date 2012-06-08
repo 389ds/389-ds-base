@@ -352,6 +352,7 @@ int config_set_accesslogbuffering(const char *attrname, char *value, char *error
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_normalize_nested_dn( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -1136,6 +1137,8 @@ void factory_destroy_extension(int type,void *object,void *parent,void **extensi
  */
 
 void write_audit_log_entry( Slapi_PBlock *pb);
+void auditlog_hide_unhashed_pw();
+void auditlog_expose_unhashed_pw();
 
 /*
  * eventq.c
