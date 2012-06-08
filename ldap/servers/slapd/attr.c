@@ -805,7 +805,14 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
         for ( i = 0; vals[i] != NULL; ++i ) {
             if ( slapi_attr_value_find( a, slapi_value_get_berval(vals[i]) ) == 0 ) {
                 duplicate_index = i;
-                rc = LDAP_TYPE_OR_VALUE_EXISTS;
+                if (is_type_forbidden(a->a_type)) {
+                    /* If the attr is in the forbidden list
+                     * (e.g., unhashed password),
+                     * we don't return any useful info to the clients. */
+                    rc = LDAP_OTHER;
+                } else {
+                    rc = LDAP_TYPE_OR_VALUE_EXISTS;
+                }
                 break;
             }
         }
