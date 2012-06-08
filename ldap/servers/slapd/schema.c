@@ -1370,15 +1370,18 @@ schema_list_attributes_callback(struct asyntaxinfo *asi, void *arg)
                 return ATTR_SYNTAX_ENUM_NEXT;
         }
         if (aew->flag && (asi->asi_flags & aew->flag)) {
-				charray_add(&aew->attrs, slapi_ch_strdup(asi->asi_name));
+           /* skip unhashed password */
+           if (!is_type_forbidden(asi->asi_name)) {
+                charray_add(&aew->attrs, slapi_ch_strdup(asi->asi_name));
                 if (NULL != asi->asi_aliases) {
-					int		i;
+                    int		i;
 
-					for ( i = 0; asi->asi_aliases[i] != NULL; ++i ) {
+                    for ( i = 0; asi->asi_aliases[i] != NULL; ++i ) {
                         charray_add(&aew->attrs,
-									slapi_ch_strdup(asi->asi_aliases[i]));
-					}
-				}
+                                    slapi_ch_strdup(asi->asi_aliases[i]));
+                    }
+                }
+            }
         }
         return ATTR_SYNTAX_ENUM_NEXT;
 }

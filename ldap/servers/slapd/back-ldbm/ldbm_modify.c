@@ -325,6 +325,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 		if ( !change_entry || ldap_result_code != 0 ) {
 			/* change_entry == 0 is not an error, but we need to free lock etc */
+			if (LDAP_OTHER == ldap_result_code) {
+				/* We don't proceed the op,
+				 * but we don't want to return the reason.
+				 * E.g., unhashed password modify failed. */
+				ldap_result_code = 0;
+			}
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			goto error_return;
 		}
