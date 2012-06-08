@@ -70,6 +70,9 @@ static char *protected_attrs_all [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
                                        SLAPI_ATTR_ENTRYDN,
                                        NULL};
 
+static char *forbidden_attrs [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+                                   NULL};
+
 /*
  * An attribute name is of the form 'basename[;option]'.
  * The state informaion is encoded in options. For example:
@@ -1617,6 +1620,18 @@ is_type_protected(const char *type)
 {
     char **paap = NULL;
     for (paap = protected_attrs_all; paap && *paap; paap++) {
+        if (0 == strcasecmp(type, *paap)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int
+is_type_forbidden(const char *type)
+{
+    char **paap = NULL;
+    for (paap = forbidden_attrs; paap && *paap; paap++) {
         if (0 == strcasecmp(type, *paap)) {
             return 1;
         }
@@ -3408,7 +3423,7 @@ delete_values_sv_internal(
 	 * add/mod operation is done, while the retried entry from the db does not
 	 * contain the attribute.
 	 */
-	if (is_type_protected(type)) {
+	if (is_type_protected(type) || is_type_forbidden(type)) {
 		flags |= SLAPI_VALUE_FLAG_IGNOREERROR;
 	}
 
@@ -3419,7 +3434,6 @@ delete_values_sv_internal(
 		retVal = attrlist_delete( &e->e_attrs, type);
 		if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
 			return LDAP_SUCCESS;
-		} else {
 		}
 		return(retVal ? LDAP_NO_SUCH_ATTRIBUTE : LDAP_SUCCESS);
 	}
@@ -3429,6 +3443,9 @@ delete_values_sv_internal(
 	if ( a == NULL ) {
 		LDAPDebug( LDAP_DEBUG_ARGS, "could not find attribute %s\n",
 		    type, 0, 0 );
+		if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
+			return LDAP_SUCCESS;
+		}
 		return( LDAP_NO_SUCH_ATTRIBUTE );
 	}
 
@@ -3457,8 +3474,11 @@ delete_values_sv_internal(
 					"value for attribute type %s found in "
 					"entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
 			}
+			if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
+				retVal = LDAP_SUCCESS;
+			}
 		}
-	}	
+	}
 	
 	return( retVal );
 }

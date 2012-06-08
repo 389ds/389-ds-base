@@ -3060,6 +3060,22 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_SEARCH_ATTRS:
 		if(pblock->pb_op!=NULL)
 		{
+			char **attrs;
+			for (attrs = (char **)value; attrs && *attrs; attrs++) {
+				/* Get rid of forbidden attr, e.g.,
+				 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+				 * which never be returned. */
+				if (is_type_forbidden(*attrs)) {
+					char **ptr;
+					for (ptr = attrs; ptr && *ptr; ptr++) {
+						if (ptr == attrs) {
+							slapi_ch_free_string(ptr); /* free unhashed type */
+						}
+						*ptr = *(ptr + 1); /* attrs is NULL terminated;
+						                      the NULL is copied here. */
+					}
+				}
+			}
 			pblock->pb_op->o_params.p.p_search.search_attrs = (char **) value;
 		}
 		break;

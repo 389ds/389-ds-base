@@ -634,7 +634,13 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 	}
 	else if (attr_state==ATTRIBUTE_DELETED)
 	{
-		retVal= LDAP_NO_SUCH_ATTRIBUTE;
+		/* If the type is in the forbidden attr list (e.g., unhashed password),
+		 * we don't return the reason of the failure to the clients. */
+		if (is_type_forbidden(type)) {
+			retVal = LDAP_SUCCESS;
+		} else {
+			retVal= LDAP_NO_SUCH_ATTRIBUTE;
+		}
 	}
 	else if (attr_state==ATTRIBUTE_NOTFOUND)
 	{
@@ -643,8 +649,10 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 		 * failure, as the attribute could only exist in the entry in the 
 		 * memory when the add/mod operation is done, while the retried entry 
 		 * from the db does not contain the attribute.
+		 * So is in the forbidden_attrs list.  We don't return the reason
+		 * of the failure.
 		 */
-		if (is_type_protected(type)) {
+		if (is_type_protected(type) || is_type_forbidden(type)) {
 			retVal = LDAP_SUCCESS;
 		} else {
 			if (!urp) {
