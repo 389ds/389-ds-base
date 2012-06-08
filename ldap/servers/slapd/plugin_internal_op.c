@@ -291,6 +291,7 @@ slapi_search_internal_set_pb (Slapi_PBlock *pb, const char *base,
                               int operation_flags)
 {
 	Operation *op;
+	char **tmp_attrs = NULL;
 	if (pb == NULL || base == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
@@ -304,7 +305,9 @@ slapi_search_internal_set_pb (Slapi_PBlock *pb, const char *base,
 	slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &scope);
 	slapi_pblock_set(pb, SLAPI_SEARCH_STRFILTER, (void*)filter);
 	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
-	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, attrs);
+	/* forbidden attrs could be removed in slapi_pblock_set. */
+	tmp_attrs = slapi_ch_array_dup(attrs);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, tmp_attrs);
 	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
 	if (uniqueid)
 	{
@@ -322,6 +325,7 @@ slapi_search_internal_set_pb_ext (Slapi_PBlock *pb, Slapi_DN *sdn,
                                   int operation_flags)
 {
 	Operation *op;
+	char **tmp_attrs = NULL;
 	if (pb == NULL || sdn == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
@@ -337,7 +341,9 @@ slapi_search_internal_set_pb_ext (Slapi_PBlock *pb, Slapi_DN *sdn,
 	slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &scope);
 	slapi_pblock_set(pb, SLAPI_SEARCH_STRFILTER, (void*)filter);
 	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
-	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, attrs);
+	/* forbidden attrs could be removed in slapi_pblock_set. */
+	tmp_attrs = slapi_ch_array_dup(attrs);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, tmp_attrs);
 	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
 	if (uniqueid)
 	{
@@ -351,6 +357,7 @@ void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *base, int type, char *att
 							  Slapi_ComponentId *plugin_identity, int operation_flags)
 {
 	Operation *op;
+	char **tmp_attrs = NULL;
 	if (pb == NULL || base == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
@@ -364,8 +371,10 @@ void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *base, int type, char *att
 	slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &type);
 	slapi_pblock_set(pb, SLAPI_SEQ_ATTRNAME, attrname);
 	slapi_pblock_set(pb, SLAPI_SEQ_VAL, val);
-    slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, attrs);
-    slapi_pblock_set(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);        
+	/* forbidden attrs could be removed in slapi_pblock_set. */
+	tmp_attrs = slapi_ch_array_dup(attrs);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, tmp_attrs);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);        
 	slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
 }
@@ -383,6 +392,7 @@ static int seq_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	char *base;
 	char *attrname, *val;
 	Slapi_DN *sdn = NULL;
+	char **tmp_attrs = NULL;
 
 	slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, (void *)&base );
 	slapi_pblock_get(pb, SLAPI_CONTROLS_ARG, &controls);
@@ -445,6 +455,9 @@ static int seq_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
 	slapi_sdn_free(&sdn);
 	slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, NULL);
+	slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
+	slapi_ch_array_free(tmp_attrs);
+	slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, NULL);
 
 	return rc;
 }
@@ -731,6 +744,7 @@ search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 	char					  *ifstr;
 	int						  opresult;
 	int						  rc = 0;
+	char **tmp_attrs = NULL;
 
 	PR_ASSERT (pb);
 
@@ -801,10 +815,13 @@ search_internal_callback_pb (Slapi_PBlock *pb, void *callback_data,
 
 done:
     slapi_ch_free((void **) & fstr);
-	if (filter != NULL) 
+    if (filter != NULL) 
     {
         slapi_filter_free(filter, 1 /* recurse */);
     }
+    slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
+    slapi_ch_array_free(tmp_attrs);
+    slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, NULL);
 
     return(rc);
 }
