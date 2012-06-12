@@ -5302,6 +5302,15 @@ void slapi_ch_array_add( char ***array, char *string );
 int slapi_ch_array_utf8_inlist(char **array, char *string);
 
 /**
+ * Returns the error string of an ldap result code, but it can also handle
+ * library errors(negative result codes)
+ *
+ * \param result The result code
+ * \return The error text string of the result code
+ */
+char *slapi_err2string(int result);
+
+/**
  * Check if the server has started shutting down
  *
  * \return 1 if the server is shutting down
