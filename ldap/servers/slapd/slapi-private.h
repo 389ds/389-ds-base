@@ -327,7 +327,6 @@ int entry_next_deleted_attribute( const Slapi_Entry *e, Slapi_Attr **a);
 /* entry.c */
 int entry_apply_mods( Slapi_Entry *e, LDAPMod **mods );
 int is_type_protected(const char *type);
-int is_type_forbidden(const char *type);
 
 int slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **new_entries, int testall, const char *logging_prestr, const int force_update, void *plg_id);
 

@@ -589,7 +589,7 @@ int is_rootdse( const char *dn );
 int get_entry_object_type();
 int entry_computed_attr_init();
 void send_referrals_from_entry(Slapi_PBlock *pb, Slapi_Entry *referral);
-
+int is_type_forbidden(const char *type);
 
 /*
  * dse.c

@@ -626,6 +626,11 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                     int needpartialattr = 1; /* need PartialAttribute sequence? */
                     int needvalsset = 1;
 
+                    if (is_type_forbidden(retattrs[ii])) {
+                        slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                            "skip forbidden attribute [%s]\n", derefdn);
+                        continue;
+                    }
                     deref_get_values(entries[0], retattrs[ii], &results, &type_name_disposition,
                                      &actual_type_name, flags, &buffer_flags);
 
