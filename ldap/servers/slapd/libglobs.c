@@ -6546,3 +6546,61 @@ config_set_auditlog_enabled(int value){
     }
     CFG_UNLOCK_WRITE(slapdFrontendConfig);
 }
+
+char *
+slapi_err2string(int result)
+{
+    /*
+     *  If we are using openldap, then we can safely use ldap_err2string with
+     *  positive and negative result codes.  MozLDAP's ldap_err2string can
+     *  only handle positive result codes.
+     */
+#if defined (USE_OPENLDAP)
+    return ldap_err2string(result);
+#else
+    if(result >= 0){
+        return ldap_err2string(result);
+    }
+    switch (result)
+    {
+        case -1:
+            return ("Can't contact LDAP server");
+        case -2:
+            return ("Local error");
+        case -3:
+            return ("Encoding error");
+        case -4:
+            return ("Decoding error");
+        case -5:
+            return ("Timed out");
+        case -6:
+            return ("Unknown authentication method");
+        case -7:
+            return ("Bad search filter");
+        case -8:
+            return ("User canceled operation");
+        case -9:
+            return ("Bad parameter to an ldap routine");
+        case -10:
+            return ("Out of memory");
+        case -11:
+            return ("Connect error");
+        case -12:
+            return ("Not Supported");
+        case -13:
+            return ("Control not found");
+        case -14:
+            return ("No results returned");
+        case -15:
+            return ("More results to return");
+        case -16:
+            return ("Client Loop");
+        case -17:
+            return ("Referral Limit Exceeded");
+
+        default:
+            return ("Unknown system error");
+    }
+#endif
+}
+

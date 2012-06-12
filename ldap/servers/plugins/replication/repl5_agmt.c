@@ -2098,6 +2098,7 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 		else if (ldaprc != LDAP_SUCCESS)
 		{
 			char *replmsg = NULL;
+
 			if ( replrc ) {
 				replmsg = protocol_response2string(replrc);
 				/* Do not mix the unknown replication error with the known ldap one */
@@ -2105,19 +2106,9 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 					replmsg = NULL;
 				}
 			}
-			if (ldaprc > 0) {
-				PR_snprintf(ra->last_update_status, STATUS_LEN,
-							"%d %s%sLDAP error: %s%s%s",
-							ldaprc, 
-							message?message:"",message?"":" - ",
-							ldap_err2string(ldaprc),
-							replmsg ? " - " : "", replmsg ? replmsg : "");
-			} else { /* ldaprc is < 0 */
-				PR_snprintf(ra->last_update_status, STATUS_LEN,
-							"%d %s%sSystem error%s%s",
-							ldaprc,message?message:"",message?"":" - ",
-							replmsg ? " - " : "", replmsg ? replmsg : "");
-			}
+			PR_snprintf(ra->last_update_status, STATUS_LEN, "%d %s%sLDAP error: %s%s%s",
+				ldaprc, message?message:"",message?"":" - ",
+				slapi_err2string(ldaprc), replmsg ? " - " : "", replmsg ? replmsg : "");
 		}
 		/* ldaprc == LDAP_SUCCESS */
 		else if (replrc != 0)
@@ -2175,6 +2166,7 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 		if (ldaprc != LDAP_SUCCESS)
 		{
 			char *replmsg = NULL;
+
 			if ( replrc ) {
 				replmsg = protocol_response2string(replrc);
 				/* Do not mix the unknown replication error with the known ldap one */
@@ -2182,19 +2174,9 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 					replmsg = NULL;
 				}
 			}
-			if (ldaprc > 0) {
-				PR_snprintf(ra->last_init_status, STATUS_LEN,
-							"%d %s%sLDAP error: %s%s%s",
-							ldaprc, 
-							message?message:"",message?"":" - ",
-							ldap_err2string(ldaprc),
-							replmsg ? " - " : "", replmsg ? replmsg : "");
-			} else { /* ldaprc is < 0 */
-				PR_snprintf(ra->last_init_status, STATUS_LEN,
-							"%d %s%sSystem error%s%s",
-							ldaprc,message?message:"",message?"":" - ",
-							replmsg ? " - " : "", replmsg ? replmsg : "");
-			}
+			PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s%sLDAP error: %s%s%s",
+				ldaprc, message?message:"",message?"":" - ",
+				slapi_err2string(ldaprc), replmsg ? " - " : "", replmsg ? replmsg : "");
 		}
 		/* ldaprc == LDAP_SUCCESS */
 		else if (replrc != 0)
