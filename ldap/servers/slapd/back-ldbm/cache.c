@@ -1058,7 +1058,9 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     }
     if (!add_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID), newe, NULL)) {
        LOG("entry cache replace: can't add id\n", 0, 0, 0);
-       remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn));
+       if(remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn)) == 0){
+    	   LOG("entry cache replace: failed to remove dn table\n", 0, 0, 0);
+       }
        PR_Unlock(cache->c_mutex);
        return 1;
     }
@@ -1066,8 +1068,12 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     if (newuuid && !add_hash(cache->c_uuidtable, (void *)newuuid, strlen(newuuid),
                        newe, NULL)) {
        LOG("entry cache replace: can't add uuid\n", 0, 0, 0);
-       remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn));
-       remove_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID));
+       if(remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn)) == 0){
+    	   LOG("entry cache replace: failed to remove dn table(uuid cache)\n", 0, 0, 0);
+       }
+       if(remove_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID)) == 0){
+    	   LOG("entry cache replace: failed to remove id table(uuid cache)\n", 0, 0, 0);
+       }
        PR_Unlock(cache->c_mutex);
        return 1;
     }
@@ -1357,7 +1363,9 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                 PR_Unlock(cache->c_mutex);
                 return 0;
             }
-            remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn));
+            if(remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0){
+            	LOG("entrycache_add_int: failed to remove dn table\n", 0, 0, 0);
+            }
             e->ep_state |= ENTRY_STATE_NOTINCACHE;
             PR_Unlock(cache->c_mutex);
             return -1;
@@ -1369,8 +1377,12 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                    NULL)) {
                 LOG("entry %s already in uuid cache!\n", backentry_get_ndn(e),
                             0, 0);
-                remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn));
-                remove_hash(cache->c_idtable, &(e->ep_id), sizeof(ID));
+                if(remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0){
+                	LOG("entrycache_add_int: failed to remove dn table(uuid cache)\n", 0, 0, 0);
+                }
+                if(remove_hash(cache->c_idtable, &(e->ep_id), sizeof(ID)) == 0){
+                	LOG("entrycache_add_int: failed to remove id table(uuid cache)\n", 0, 0, 0);
+                }
                 e->ep_state |= ENTRY_STATE_NOTINCACHE;
                 PR_Unlock(cache->c_mutex);
                 return -1;

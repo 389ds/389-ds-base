@@ -3884,7 +3884,7 @@ static int txn_test_threadmain(void *param)
     txn_test_iter **ttilist = NULL;
     size_t tticnt = 0;
     DB_TXN *txn = NULL;
-    txn_test_cfg cfg;
+    txn_test_cfg cfg = {0};
     size_t counter = 0;
     char keybuf[8192];
     char databuf[8192];
@@ -3941,8 +3941,7 @@ wait_for_init:
                     object_release(inst_obj);
                     goto wait_for_init;
                 }
-                dblayer_get_index_file(be, ai, &db, 0);
-                if (NULL == db) {
+                if((dblayer_get_index_file(be, ai, &db, 0) != 0) || db == NULL){
                     if (strcasecmp(*idx, TXN_TEST_IDX_OK_IF_NULL)) {
                         object_release(inst_obj);
                         goto wait_for_init;

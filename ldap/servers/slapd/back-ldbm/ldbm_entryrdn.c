@@ -2170,8 +2170,8 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
     char *realkeybuf = NULL;
     DBT realkey;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
-    DBT data;
-    DBT moddata;
+    DBT data = {0};
+    DBT moddata = {0};
     rdn_elem **childelems = NULL;
     rdn_elem **cep = NULL;
     rdn_elem *childelem = NULL;
@@ -2216,7 +2216,6 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
     key->flags = DB_DBT_USERMEM;    
 
     /* Setting the bulk fetch buffer */
-    memset(&data, 0, sizeof(data));
     data.ulen = sizeof(buffer);
     data.size = sizeof(buffer);
     data.data = buffer;
@@ -2227,7 +2226,6 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
     realkey.size = realkey.ulen = strlen(realkeybuf) + 1;
     realkey.flags = DB_DBT_USERMEM;    
 
-    memset(&moddata, 0, sizeof(moddata));
     moddata.flags = DB_DBT_USERMEM;
 
     for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {

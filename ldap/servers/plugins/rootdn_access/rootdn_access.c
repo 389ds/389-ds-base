@@ -217,7 +217,8 @@ static int
 rootdn_load_config(Slapi_PBlock *pb)
 {
     Slapi_Entry *e = NULL;
-    char *openTime, *closeTime;
+    char *openTime = NULL;
+    char *closeTime = NULL;
     char hour[3], min[3];
     int result = 0;
     int i;
@@ -243,7 +244,8 @@ rootdn_load_config(Slapi_PBlock *pb)
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n",closeTime);
                 slapi_ch_free_string(&daysAllowed);
-                return -1;
+                result = -1;
+                goto free_and_return;
             }
             daysAllowed = strToLower(daysAllowed);
         }
@@ -251,14 +253,14 @@ rootdn_load_config(Slapi_PBlock *pb)
             if (strcspn(openTime, "0123456789")){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-open-time value (%s), must be all digits\n",openTime);
-                slapi_ch_free_string(&openTime);
-                return -1;
+                result = -1;
+                goto free_and_return;
             }
             if(strlen(openTime) != 4){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid format for rootdn-open-time value (%s).  Should be HHMM\n", openTime);
-                slapi_ch_free_string(&openTime);
-                return -1;
+                result = -1;
+                goto free_and_return;
             }
             /*
              *  convert the time to all seconds
@@ -271,14 +273,14 @@ rootdn_load_config(Slapi_PBlock *pb)
             if (strcspn(closeTime, "0123456789")){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-open-time value (%s), must be all digits, and should be HHMM\n",closeTime);
-                slapi_ch_free_string(&closeTime);
-                return -1;
+                result = -1;
+                goto free_and_return;
             }
             if(strlen(closeTime) != 4){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid format for rootdn-open-time value (%s), should be HHMM\n", closeTime);
-                slapi_ch_free_string(&closeTime);
-                return -1;
+                result = -1;
+                goto free_and_return;
             }
             /*
              *  convert the time to all seconds
@@ -294,13 +296,15 @@ rootdn_load_config(Slapi_PBlock *pb)
                 "there must be a open and a close time\n");
             slapi_ch_free_string(&closeTime);
             slapi_ch_free_string(&openTime);
-            return -1;
+            result = -1;
+            goto free_and_return;
         }
         if(close_time && open_time && close_time <= open_time){
             /* Make sure the closing time is greater than the open time */
             slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                 "the close time must be greater than the open time\n");
             result = -1;
+            goto free_and_return;
         }
         if(hosts){
             for(i = 0; hosts[i] != NULL; i++){
@@ -370,12 +374,14 @@ rootdn_load_config(Slapi_PBlock *pb)
                 }
             }
         }
-        slapi_ch_free_string(&openTime);
-        slapi_ch_free_string(&closeTime);
     } else {
         /* failed to get the plugin entry */
         result = -1;
     }
+
+free_and_return:
+    slapi_ch_free_string(&openTime);
+    slapi_ch_free_string(&closeTime);
 
     slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
 

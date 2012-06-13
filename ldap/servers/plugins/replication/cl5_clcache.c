@@ -680,6 +680,7 @@ clcache_skip_change ( CLC_Buffer *buf )
 				 */
 				skip = 0;
 			}
+			csn_free(&cons_maxcsn);
 			break;
 		}
 
