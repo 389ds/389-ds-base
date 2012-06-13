@@ -91,6 +91,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int create_tombstone_entry = 0;	/* We perform a "regular" LDAP delete but since we use	*/
 									/* replication, we must create a new tombstone entry	*/
 	int tombstone_in_cache = 0;
+	int e_in_cache = 0;
 	entry_address *addr;
 	int addordel_flags = 0; /* passed to index_addordel */
 	char *entryusn_str = NULL;
@@ -187,6 +188,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		/* retval is -1 */
 		goto error_return; /* error result sent by find_entry2modify() */
 	}
+	e_in_cache = 1; /* e is cached */
 
 	if ( slapi_entry_has_children( e->ep_entry ) )
 	{
@@ -468,6 +470,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
 			}
 
+			/* reset original entry in cache */
+			if (!e_in_cache) {
+				CACHE_ADD(&inst->inst_cache, e, NULL);
+				e_in_cache = 1;
+			}
+
 			/* reset tombstone entry */
 			if (original_tombstone) {
 				if (tombstone_in_cache) {
@@ -593,6 +601,19 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
+			if (cache_replace( &inst->inst_cache, e, tombstone ) != 0 ) {
+				LDAPDebug0Args( LDAP_DEBUG_BACKLDBM, "ldbm_back_delete cache_replace failed\n");
+				DEL_SET_ERROR(ldap_result_code, 
+							  LDAP_OPERATIONS_ERROR, retry_count);
+				retval= -1;
+				goto error_return;
+			} else {
+				e_in_cache = 0; /* e un-cached */
+			}
+			/* tombstone was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
+			   and/or id2entry_add - so it already had one refcount - cache_replace adds another refcount -
+			   drop the extra ref added by cache_replace */
+			CACHE_RETURN( &inst->inst_cache, &tombstone );
 		}
 		else
 		{
@@ -1017,7 +1038,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	/* delete from cache and clean up */
 	if (e) {
-		CACHE_REMOVE(&inst->inst_cache, e);
+		if (e_in_cache) {
+			CACHE_REMOVE(&inst->inst_cache, e);
+		}
 		cache_unlock_entry(&inst->inst_cache, e);
 		CACHE_RETURN(&inst->inst_cache, &e);
 		e = NULL;
