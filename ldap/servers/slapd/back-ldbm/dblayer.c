@@ -3909,7 +3909,7 @@ static int txn_test_threadmain(void *param)
     txn_test_iter **ttilist = NULL;
     size_t tticnt = 0;
     DB_TXN *txn = NULL;
-    txn_test_cfg cfg;
+    txn_test_cfg cfg = {0};
     size_t counter = 0;
     char keybuf[8192];
     char databuf[8192];

@@ -1176,7 +1176,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext)
 {
 	PRThread *thread = NULL;
 	Repl_Connection *conn;
-	Replica *replica = (Replica*)object_get_data (r);
+	Replica *replica;
 	Object *agmt_obj;
 	Repl_Agmt *agmt;
 	ConnResult crc;
@@ -1189,7 +1189,16 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext)
 	int rc = 0;
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: cleaning rid (%d)...\n",(int)rid);
-	set_cleaned_rid(rid);
+
+	/*
+	 *  Grab the replica
+	 */
+	if(r){
+		replica = (Replica*)object_get_data (r);
+	} else {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: replica is NULL, aborting task\n");
+		return -1;
+	}
 	/*
 	 *  Create payload
 	 */
@@ -1197,8 +1206,12 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext)
 	payload = create_ruv_payload(ridstr);
 	if(payload == NULL){
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to create ext op payload, aborting task\n");
-		goto done;
+		slapi_ch_free_string(&ridstr);
+		return -1;
 	}
+
+
+	set_cleaned_rid(rid);
 
 	agmt_obj = agmtlist_get_first_agreement_for_replica (replica);
 	while (agmt_obj)
@@ -1245,11 +1258,12 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext)
 		agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
 	}
 
-done:
-
-	if(payload)
+	/*
+	 *  We're done with the payload, free it.
+	 */
+	if(payload){
 		ber_bvfree(payload);
-
+	}
 	slapi_ch_free_string(&ridstr);
 
 	/*
