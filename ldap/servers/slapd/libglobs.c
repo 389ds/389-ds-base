@@ -1080,7 +1080,7 @@ FrontendConfig_init () {
   cfg->auditlog_minfreespace = 5;
   cfg->auditlog_exptime = 1;
   cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
-  cfg->auditlog_logging_hide_unhashed_pw = LDAP_OFF;
+  cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
 
   cfg->entryusn_global = LDAP_OFF; 
   cfg->entryusn_import_init = slapi_ch_strdup("0"); 

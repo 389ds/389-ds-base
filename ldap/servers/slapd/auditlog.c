@@ -55,7 +55,7 @@ char	*attr_changetype	= ATTR_CHANGETYPE;
 char	*attr_newrdn		= ATTR_NEWRDN;
 char	*attr_deleteoldrdn	= ATTR_DELETEOLDRDN;
 char	*attr_modifiersname = ATTR_MODIFIERSNAME;
-static int hide_unhashed_pw = 0;
+static int hide_unhashed_pw = 1;
 
 /* Forward Declarations */
 static void write_audit_file( int optype, const char *dn, void *change, int flag, time_t curtime );
