@@ -456,15 +456,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 			ldap_mods_free(mods, 1);
 			slapi_pblock_set(pb, SLAPI_MODIFY_MODS, copy_mods(mods_original));
-			if (ec_in_cache) {
-				/* New entry 'ec' is in the entry cache.
-				 * Remove it from the cache once. */
-				CACHE_REMOVE(&inst->inst_cache, ec);
-				CACHE_RETURN(&inst->inst_cache, &ec);
-			} else {
-				backentry_free(&ec);
-			}
-			ec_in_cache = 0; /* added to cache by id2entry - have to remove to try again */
+			/* ec is not really added to the cache until cache_replace, so we
+			   don't have to worry about the cache here */
+			backentry_free(&ec);
 			slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, original_entry->ep_entry );
 			ec = original_entry;
 			if ( (original_entry = backentry_dup( e )) == NULL ) {
@@ -526,14 +520,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
-		}
-		/* 
-		 * id2entry_add tries to put ec into the entry cache,
-		 * but due to the conflict with original 'e',
-		 * the cache_add (called vai id2entry_add) could fail.
-		 */
-		if (0 == cache_rc) {
-			ec_in_cache = 1;
 		}
 		retval = index_add_mods( be, mods, e, ec, &txn );
 		if (DB_LOCK_DEADLOCK == retval)
@@ -612,6 +598,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 		goto error_return;
 	}
+	/* lock new entry in cache to prevent usage until we are complete */
+	cache_lock_entry( &inst->inst_cache, ec );
 	ec_in_cache = 1;
 
 	postentry = slapi_entry_dup( ec->ep_entry );
@@ -663,26 +651,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	goto common_return;
 
 error_return:
-	if (ec_in_cache)
-	{
-		CACHE_REMOVE( &inst->inst_cache, ec );
-	}
-	else
-	{
-		backentry_free(&ec);
-	}
 	if ( postentry != NULL ) 
 	{
 		slapi_entry_free( postentry );
 		postentry = NULL;
 		slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, NULL );
 	}
-	
-	if (e!=NULL) {
-	    cache_unlock_entry( &inst->inst_cache, e);
-	    CACHE_RETURN( &inst->inst_cache, &e);
-	}
-
 	if (retval == DB_RUNRECOVERY) {
 	  dblayer_remember_disk_filled(li);
 	  ldbm_nasty("Modify",81,retval);
@@ -730,13 +704,32 @@ error_return:
 	    rc= SLAPI_FAIL_GENERAL;
 	}
 
-	
+	/* if ec is in cache, remove it, then add back e if we still have it */
+	if (ec_in_cache) {
+		CACHE_REMOVE( &inst->inst_cache, ec );
+		/* if ec was in cache, e was not - add back e */
+		if (e) {
+			CACHE_ADD( &inst->inst_cache, e, NULL );
+			cache_lock_entry( &inst->inst_cache, e );
+		}
+	}
+
 common_return:
 	slapi_mods_done(&smods);
 	
 	if (ec_in_cache)
 	{
+		cache_unlock_entry( &inst->inst_cache, ec);
 		CACHE_RETURN( &inst->inst_cache, &ec );
+	}
+	else
+	{
+		backentry_free(&ec);
+	}
+	
+	if (e!=NULL) {
+		cache_unlock_entry( &inst->inst_cache, e);
+		CACHE_RETURN( &inst->inst_cache, &e);
 	}
 
 	/* result code could be used in the bepost plugin functions. */
