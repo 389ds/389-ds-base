@@ -617,34 +617,34 @@ index_add_mods(
             /* Free valuearray */
             slapi_valueset_free(mod_vals);
         case LDAP_MOD_ADD:
-            if ( mods_valueArray == NULL ) {
-                rc = 0;
-            } else {
+            rc = 0;
+            if (mods_valueArray) {
                 /* Verify if the value is in newe.
                  * If it is in, we will add the attr value to the index file. */
                 slapi_entry_attr_find( newe->ep_entry, 
                                        mods[i]->mod_type, &curr_attr );
                 
-                for (j = 0; mods_valueArray[j] != NULL; j++) {
-                    /* mods_valueArray[j] is in curr_attr ==> return 0 */
-                    if (slapi_attr_value_find(curr_attr,
+                if (curr_attr) {
+                    for (j = 0; mods_valueArray[j] != NULL; j++) {
+                        /* mods_valueArray[j] is in curr_attr ==> return 0 */
+                        if (slapi_attr_value_find(curr_attr,
                                 slapi_value_get_berval(mods_valueArray[j]))) {
-                        /* The value is NOT in newe, remove it. */
-                        Slapi_Value *rval = valuearray_remove_value(curr_attr,
+                            /* The value is NOT in newe, remove it. */
+                            Slapi_Value *rval = 
+                                    valuearray_remove_value(curr_attr,
                                                             mods_valueArray,
                                                             mods_valueArray[j]);
-                        slapi_value_free( &rval );
-                        /* indicates there was some conflict */
-                        mods[i]->mod_op |= LDAP_MOD_IGNORE;
+                            slapi_value_free( &rval );
+                            /* indicates there was some conflict */
+                            mods[i]->mod_op |= LDAP_MOD_IGNORE;
+                        }
                     }
-                }
-                if (mods_valueArray) {
-                    rc = index_addordel_values_sv( be,
-                                            mods[i]->mod_type, 
-                                            mods_valueArray, NULL,
-                                            id, BE_INDEX_ADD, txn );
-                } else {
-                    rc = 0;
+                    if (mods_valueArray) {
+                        rc = index_addordel_values_sv( be,
+                                                    mods[i]->mod_type, 
+                                                    mods_valueArray, NULL,
+                                                    id, BE_INDEX_ADD, txn );
+                    }
                 }
             }
             break;
