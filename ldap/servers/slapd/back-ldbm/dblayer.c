@@ -3888,6 +3888,8 @@ static int txn_test_threadmain(void *param)
     size_t counter = 0;
     char keybuf[8192];
     char databuf[8192];
+    int dbattempts = 0;
+    int dbmaxretries = 3;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo*)param;
@@ -3909,7 +3911,7 @@ wait_for_init:
     if (priv->dblayer_stop_threads) {
         goto end;
     }
-    
+    dbattempts++;
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         char **idx = NULL;
@@ -3917,6 +3919,8 @@ wait_for_init:
         backend *be = inst->inst_be;
 
         if (be->be_state != BE_STATE_STARTED) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY,
+                           "txn_test_threadmain: backend not started, retrying\n");
             object_release(inst_obj);
             goto wait_for_init;
         }
@@ -3924,6 +3928,8 @@ wait_for_init:
         for (idx = cfg.indexes; idx && *idx; ++idx) {
             DB *db = NULL;
             if (be->be_state != BE_STATE_STARTED) {
+                LDAPDebug0Args(LDAP_DEBUG_ANY,
+                               "txn_test_threadmain: backend not started, retrying\n");
                 object_release(inst_obj);
                 goto wait_for_init;
             }
@@ -3931,6 +3937,8 @@ wait_for_init:
             if (!strcmp(*idx, "id2entry")) {
                 dblayer_get_id2entry(be, &db);
                 if (db == NULL) {
+                    LDAPDebug0Args(LDAP_DEBUG_ANY,
+                                   "txn_test_threadmain: id2entry database not found or not ready yet, retrying\n");
                     object_release(inst_obj);
                     goto wait_for_init;
                 }
@@ -3938,13 +3946,33 @@ wait_for_init:
                 struct attrinfo *ai = NULL;
                 ainfo_get(be, *idx, &ai);
                 if (NULL == ai) {
-                    object_release(inst_obj);
-                    goto wait_for_init;
+                    if (dbattempts >= dbmaxretries) {
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                      "txn_test_threadmain: index [%s] not found or not ready yet, skipping\n",
+                                  *idx);
+                        continue;
+                    } else {
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                      "txn_test_threadmain: index [%s] not found or not ready yet, retrying\n",
+                                      *idx);
+                        object_release(inst_obj);
+                        goto wait_for_init;
+                    }
                 }
                 if (dblayer_get_index_file(be, ai, &db, 0) || (NULL == db)) {
                     if ((NULL == db) && strcasecmp(*idx, TXN_TEST_IDX_OK_IF_NULL)) {
-                        object_release(inst_obj);
-                        goto wait_for_init;
+                        if (dbattempts >= dbmaxretries) {
+                            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                          "txn_test_threadmain: database file for index [%s] not found or not ready yet, skipping\n",
+                                          *idx);
+                            continue;
+                        } else {
+                            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                          "txn_test_threadmain: database file for index [%s] not found or not ready yet, retrying\n",
+                                          *idx);
+                            object_release(inst_obj);
+                            goto wait_for_init;
+                        }
                     }
                 }
             }
@@ -3954,6 +3982,9 @@ wait_for_init:
             }
         }
     }
+
+    LDAPDebug0Args(LDAP_DEBUG_ANY, "txn_test_threadmain: starting main txn stress loop\n");
+    print_ttilist(ttilist, tticnt);
 
     while (!priv->dblayer_stop_threads) {
 retry_txn:
