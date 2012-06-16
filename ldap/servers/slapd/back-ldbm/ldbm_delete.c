@@ -470,12 +470,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
 			}
 
-			/* reset original entry in cache */
-			if (!e_in_cache) {
-				CACHE_ADD(&inst->inst_cache, e, NULL);
-				e_in_cache = 1;
-			}
-
 			/* reset tombstone entry */
 			if (original_tombstone) {
 				if (tombstone_in_cache) {
@@ -490,6 +484,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto error_return;
 				}
+			}
+
+			/* reset original entry in cache */
+			if (!e_in_cache) {
+				CACHE_ADD(&inst->inst_cache, e, NULL);
+				e_in_cache = 1;
 			}
 
 			/* We're re-trying */
