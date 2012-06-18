@@ -239,7 +239,7 @@ def parse_options():
     parser.add_option("-s", "--serverpidfile", type='string', dest='serverpidfile',
                       help='name of file containing the pid of the server to monitor')
     parser.add_option("-t", "--servertimeout", dest="servertimeout", type='int',
-                      help="timeout in seconds to wait for the serverpid to be alive", default=60)
+                      help="timeout in seconds to wait for the serverpid to be alive. only applies when using -s or --serverpid", default=60)
     parser.add_option("--serverpid", dest="serverpid", type='int',
                       help="process id of server to monitor", default=0)
     parser.add_option("-u", "--user", type='string', dest='user',

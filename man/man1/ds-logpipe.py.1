@@ -52,7 +52,7 @@ The pipe and any other files created by the script will be chown()'d to this use
 If you want the script to exit when a particular directory server exists, specify the full path to the file containing the server pid.  The default is usually something like /var/run/dirsrv/slapd-<instancename>.pid where <instancename> is usually the hostname
 .TP
 .B \-t|\-\-servertimeout=N
-Since the serverpidfile may not exist yet when the script is run, the script will wait by default 60 seconds for the pid file to exist and the server to be started.  Use this option to specify a different timeout.
+Since the serverpidfile may not exist yet when the script is run, the script will wait by default 60 seconds for the pid file to exist and the server to be started.  Use this option to specify a different timeout. The -t option only applies when using -s or --serverpid - otherwise it does nothing.
 .TP
 .B \-\-serverpid=P
 IF the server you want to track is already running, you can specify it using this argument.  If the specified pid is not valid, the script will abort.
