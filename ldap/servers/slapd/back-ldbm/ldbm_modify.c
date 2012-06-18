@@ -187,6 +187,122 @@ error:
 	return retval;
 }
 
+/**
+   Apply the mods to the ec entry.  Check for syntax, schema problems.
+   Check for abandon.
+
+   Return code:
+   -1 - error - result code and message are set appropriately
+   0 - successfully applied and checked
+   1 - not an error - no mods to apply or op abandoned
+ */
+static int
+modify_apply_check_expand(
+	Slapi_PBlock *pb,
+	Slapi_Operation *operation,
+	LDAPMod **mods, /* list of mods to apply */
+	struct backentry *e, /* original "before" entry */
+	struct backentry *ec, /* "after" entry with mods applied */
+	Slapi_Entry **postentry,
+	int *ldap_result_code,
+	char **ldap_result_message
+)
+{
+	int rc = 0;
+	int i;
+	int repl_op;
+	int change_entry = 0;
+	Slapi_Mods smods = {0};
+	CSN *csn = operation_get_csn(operation);
+
+	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
+	slapi_mods_init_byref( &smods, mods );
+
+	if ( (change_entry = mods_have_effect (ec->ep_entry, &smods)) ) {
+		*ldap_result_code = entry_apply_mods_wsi(ec->ep_entry, &smods, csn,
+												 operation_is_flag_set(operation, OP_FLAG_REPLICATED));
+		/*
+		 * XXXmcs: it would be nice to get back an error message from
+		 * the above call so we could pass it along to the client, e.g.,
+		 * "duplicate value for attribute givenName."
+		 */
+	} else {
+		Slapi_Entry *epostop = NULL;
+		/* If the entry was not actually changed, we still need to
+		 * set the SLAPI_ENTRY_POST_OP field in the pblock (post-op
+		 * plugins expect that field to be present for all modify
+		 * operations that return LDAP_SUCCESS).
+		 */
+		slapi_pblock_get ( pb, SLAPI_ENTRY_POST_OP, &epostop );
+		slapi_entry_free ( epostop ); /* free existing one, if any */
+		slapi_pblock_set ( pb, SLAPI_ENTRY_POST_OP, slapi_entry_dup( e->ep_entry ) );
+		*postentry = NULL; /* to avoid free in main error cleanup code */
+	}
+	if ( !change_entry || *ldap_result_code != 0 ) {
+		/* change_entry == 0 is not an error just a no-op */
+		rc = change_entry ? -1 : 1;
+		goto done;
+	}
+
+	/*
+	 * If the objectClass attribute type was modified in any way, expand
+	 * the objectClass values to reflect the inheritance hierarchy.
+	 */
+	for ( i = 0; mods[i] != NULL && !repl_op; ++i ) {
+		if ( 0 == strcasecmp( SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type )) {
+			slapi_schema_expand_objectclasses( ec->ep_entry );
+			break;
+		}
+	}
+
+	/*
+	 * We are about to pass the last abandon test, so from now on we are
+	 * committed to finish this operation. Set status to "will complete"
+	 * before we make our last abandon check to avoid race conditions in
+	 * the code that processes abandon operations.
+	 */
+	operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
+	if ( slapi_op_abandoned( pb ) ) {
+		rc = 1;
+		goto done;
+	}
+
+	/* if this is a replicated op, we don't need to perform these checks */
+	if(!repl_op){
+		/* check that the entry still obeys the schema */
+		if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) &&
+			slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
+			*ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, ldap_result_message);
+			rc = -1;
+			goto done;
+		}
+
+		/* check attribute syntax for the new values */
+		if (slapi_mods_syntax_check(pb, mods, 0) != 0) {
+			*ldap_result_code = LDAP_INVALID_SYNTAX;
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, ldap_result_message);
+			rc = -1;
+			goto done;
+		}
+
+		/*
+		 * make sure the entry contains all values in the RDN.
+		 * if not, the modification must have removed them.
+		 */
+		if ( ! slapi_entry_rdn_values_present( ec->ep_entry ) ) {
+			*ldap_result_code= LDAP_NOT_ALLOWED_ON_RDN;
+			rc = -1;
+			goto done;
+		}
+	}
+
+done:
+	slapi_mods_done( &smods );
+
+	return rc;
+}
+
 int
 ldbm_back_modify( Slapi_PBlock *pb )
 {
@@ -213,14 +329,13 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	int dblock_acquired= 0;
 	entry_address *addr;
-	int change_entry = 0;
 	int ec_in_cache = 0;
 	int is_fixup_operation= 0;
 	int is_ruv = 0;                 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	int repl_op;
-	int i = 0;
 	int opreturn = 0;
+	int mod_count = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -342,80 +457,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	slapi_mods_init_byref(&smods,mods);
+	mod_count = slapi_mods_get_num_mods(&smods);
 
-	{
-		CSN *csn = operation_get_csn(operation);
-		if ( (change_entry = mods_have_effect (ec->ep_entry, &smods)) ) {
-			ldap_result_code = entry_apply_mods_wsi(ec->ep_entry, &smods, csn, operation_is_flag_set(operation,OP_FLAG_REPLICATED));
-			/*
-			 * XXXmcs: it would be nice to get back an error message from
-			 * the above call so we could pass it along to the client, e.g.,
-			 * "duplicate value for attribute givenName."
-			 */
-		} else {
-			 /* If the entry was not actually changed, we still need to
-			 * set the SLAPI_ENTRY_POST_OP field in the pblock (post-op
-			 * plugins expect that field to be present for all modify
-			 * operations that return LDAP_SUCCESS).
-			 */
-			postentry = slapi_entry_dup( e->ep_entry );
-			slapi_pblock_set ( pb, SLAPI_ENTRY_POST_OP, postentry );
-			postentry = NULL;	/* avoid removal/free in error_return code */
-		}
-		if ( !change_entry || ldap_result_code != 0 ) {
-			/* change_entry == 0 is not an error, but we need to free lock etc */
-			goto error_return;
-		}
-	}
-
-	/*
-	 * If the objectClass attribute type was modified in any way, expand
-	 * the objectClass values to reflect the inheritance hierarchy.
-	 */
-	for ( i = 0; mods[i] != NULL && !repl_op; ++i ) {
-		if ( 0 == strcasecmp( SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type )) {
-			slapi_schema_expand_objectclasses( ec->ep_entry );
-			break;
-		}
-	}
-
-	/*
-	 * We are about to pass the last abandon test, so from now on we are
-	 * committed to finish this operation. Set status to "will complete"
-	 * before we make our last abandon check to avoid race conditions in
-	 * the code that processes abandon operations.
-	 */
-	operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
-	if ( slapi_op_abandoned( pb ) ) {
+	/* apply the mods, check for syntax, schema problems, etc. */
+	if (modify_apply_check_expand(pb, operation, mods, e, ec, &postentry,
+								  &ldap_result_code, &ldap_result_message)) {
 		goto error_return;
-	}
-
-	/* if this is a replicated op, we don't need to perform these checks */
-	if(!repl_op){
-		/* check that the entry still obeys the schema */
-		if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) &&
-			slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
-			ldap_result_code= LDAP_OBJECT_CLASS_VIOLATION;
-			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-			goto error_return;
-		}
-
-		/* check attribute syntax for the new values */
-		if (slapi_mods_syntax_check(pb, mods, 0) != 0)
-		{
-			ldap_result_code = LDAP_INVALID_SYNTAX;
-			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-			goto error_return;
-		}
-
-		/*
-		 * make sure the entry contains all values in the RDN.
-		 * if not, the modification must have removed them.
-		 */
-		if ( ! slapi_entry_rdn_values_present( ec->ep_entry ) ) {
-			ldap_result_code= LDAP_NOT_ALLOWED_ON_RDN;
-			goto error_return;
-		}
 	}
 
 	if (!is_ruv && !is_fixup_operation) {
@@ -437,7 +484,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 * their original state;
 	 */
 	mods_original = copy_mods(mods);
-	if ( (original_entry = backentry_dup( e )) == NULL ) {
+	if ( (original_entry = backentry_dup( ec )) == NULL ) {
 		ldap_result_code= LDAP_OPERATIONS_ERROR;
 		goto error_return;
 	}
@@ -445,6 +492,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		int cache_rc = 0;
+		int new_mod_count = 0;
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
@@ -453,6 +501,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			 * We need to grab the current mods, free them, and restore the
 			 * originals.  Same thing for the entry.
 			 */
+			
 			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 			ldap_mods_free(mods, 1);
 			slapi_pblock_set(pb, SLAPI_MODIFY_MODS, copy_mods(mods_original));
@@ -461,10 +510,11 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			backentry_free(&ec);
 			slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, original_entry->ep_entry );
 			ec = original_entry;
-			if ( (original_entry = backentry_dup( e )) == NULL ) {
+			if ( (original_entry = backentry_dup( ec )) == NULL ) {
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
+
 			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
 			               "Modify Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
@@ -503,6 +553,25 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		/* the mods might have been changed, so get the latest */
 		slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 
+		/* make sure the betxnpreop did not alter any of the mods that
+		   had already previously been applied */
+		slapi_mods_done(&smods);
+		slapi_mods_init_byref(&smods,mods);
+		new_mod_count = slapi_mods_get_num_mods(&smods);
+		if (new_mod_count < mod_count) {
+			LDAPDebug2Args( LDAP_DEBUG_ANY, "Error: BE_TXN_PRE_MODIFY plugin has removed "
+							"mods from the original list - mod count was [%d] now [%d] "
+							"mods will not be applied - mods list changes must be done "
+							"in the BE_PRE_MODIFY plugin, not the BE_TXN_PRE_MODIFY\n",
+							mod_count, new_mod_count );
+		} else if (new_mod_count > mod_count) { /* apply the new betxnpremod mods */
+			/* apply the mods, check for syntax, schema problems, etc. */
+			if (modify_apply_check_expand(pb, operation, &mods[mod_count], e, ec, &postentry,
+										  &ldap_result_code, &ldap_result_message)) {
+				goto error_return;
+			}
+		} /* else if new_mod_count == mod_count then betxnpremod plugin did nothing */
+			
 		/*
 		 * Update the ID to Entry index. 
 		 * Note that id2entry_add replaces the entry, so the Entry ID 
