@@ -1291,7 +1291,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, char *returntext)
 			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: unable to create cleanAllRUV "
 				"monitoring thread.  Aborting task.\n");
 		}
-	} else if(r == 0){ /* success */
+	} else if(rc == 0){ /* success */
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: Successfully Finished.\n");
 	} else {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: Task failed (%d)\n",rc);
