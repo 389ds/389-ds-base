@@ -206,45 +206,52 @@ void set_retry_cnt ( Slapi_PBlock *pb, int count)
 }
 
 
+/* 
+ * If "dn" is passed, get_entry returns an entry which dn is "dn".
+ * If "dn" is not passed, it returns an entry which dn is set in 
+ * SLAPI_TARGET_SDN in pblock.
+ * Note: pblock is not mandatory for get_entry (e.g., new_passwdPolicy).
+ */
 Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 {
 	int             search_result = 0;
 	Slapi_Entry     *retentry = NULL;
 	Slapi_DN        *target_sdn = NULL;
+	char            *target_dn = (char *)dn;
 	Slapi_DN        sdn;
 	void            *txn = NULL;
 
-	if (NULL == pb) {
-		LDAPDebug(LDAP_DEBUG_ANY, "get_entry - no pblock specified.\n",
-		          0, 0, 0);
+	if (pb) {
+		slapi_pblock_get( pb, SLAPI_TARGET_SDN, &target_sdn );
+		slapi_pblock_get( pb, SLAPI_TXN, &txn );
+		if (target_dn == NULL) {
+			target_dn = slapi_sdn_get_dn(target_sdn);
+		}
+	}
+
+	if (target_dn == NULL) {
+		LDAPDebug0Args(LDAP_DEBUG_TRACE,
+		               "WARNING: 'get_entry' - no dn specified.\n");
 		goto bail;
 	}
 
-	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &target_sdn );
-	slapi_pblock_get( pb, SLAPI_TXN, &txn );
-
-	if (dn == NULL) {
-		dn = slapi_sdn_get_dn(target_sdn);
-	}
-
-	if (dn == NULL) {
-		LDAPDebug (LDAP_DEBUG_TRACE, "WARNING: 'get_entry' - no dn specified.\n", 0, 0, 0);
-		goto bail;
-	}
-
-	slapi_sdn_init_dn_byref(&sdn, dn);
-
-	if (slapi_sdn_compare(&sdn, target_sdn)) { /* does not match */
-	    target_sdn = &sdn;
+	if (target_dn == dn) { /* target_dn is NOT from target_sdn */
+		slapi_sdn_init_dn_byref(&sdn, target_dn);
+		target_sdn = &sdn;
 	}
 
 	search_result = slapi_search_internal_get_entry_ext(target_sdn, NULL,
-														&retentry,
-														pw_get_componentID(), txn);
+	                                                    &retentry,
+	                                                    pw_get_componentID(),
+	                                                    txn);
 	if (search_result != LDAP_SUCCESS) {
-		LDAPDebug (LDAP_DEBUG_TRACE, "WARNING: 'get_entry' can't find entry '%s', err %d\n", dn, search_result, 0);
+		LDAPDebug2Args(LDAP_DEBUG_TRACE,
+		               "WARNING: 'get_entry' can't find entry '%s', err %d\n",
+		               target_dn, search_result);
 	}
-	slapi_sdn_done(&sdn);
+	if (target_dn == dn) { /* target_dn is NOT from target_sdn */
+		slapi_sdn_done(&sdn);
+	}
 bail:
 	return retentry;
 }
