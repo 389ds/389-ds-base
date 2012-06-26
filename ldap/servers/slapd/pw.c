@@ -1533,23 +1533,20 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	char ebuf[ BUFSIZ ];
 	int optype = -1;
 
-	/* RFE - is there a way to make this work for non-existent entries 
-	 * when we don't pass in pb?  We'll need to do this if we add support 
-	 * for password policy plug-ins. */
-	if (NULL == pb) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, 
-		               "new_passwdPolicy: NULL pblock was passed.\n");
-		return NULL;
-	}
 	slapdFrontendConfig = getFrontendConfig();
 	pwdpolicy = (passwdPolicy *)slapi_ch_calloc(1, sizeof(passwdPolicy));
 
-	slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
+	if (pb) {
+		slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
+	}
 
 	if (dn && (slapdFrontendConfig->pwpolicy_local == 1)) {
 		/*  If we're doing an add, COS does not apply yet so we check
 			parents for the pwdpolicysubentry.  We look only for virtual
 			attributes, because real ones are for single-target policy. */
+		/* RFE - is there a way to make this work for non-existent entries 
+		 * when we don't pass in pb?  We'll need to do this if we add support 
+		 * for password policy plug-ins. */
 		if (optype == SLAPI_OPERATION_ADD) {
 			char *parentdn = slapi_ch_strdup(dn);
 			char *nextdn = NULL;
