@@ -46,6 +46,8 @@
 #include "deref.h"
 #include <nspr.h>
 
+int is_type_forbidden(const char *type); /* from proto-slap.h */
+
 #ifndef DN_SYNTAX_OID
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 #endif
