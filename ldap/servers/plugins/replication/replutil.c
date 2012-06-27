@@ -788,7 +788,7 @@ repl_set_mtn_state_and_referrals(
             }
         }
 
-        if (rc != LDAP_SUCCESS) {
+        if (rc != LDAP_SUCCESS && rc != LDAP_TYPE_OR_VALUE_EXISTS) {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "repl_set_mtn_referrals: could "
 						"not set referrals for replica %s: %d\n",
 						slapi_sdn_get_dn(repl_root_sdn), rc);
