@@ -126,6 +126,10 @@ static char **mozldap_ldap_explode( const char *dn, const int notypes, const int
 static char **mozldap_ldap_explode_dn( const char *dn, const int notypes );
 static char **mozldap_ldap_explode_rdn( const char *rdn, const int notypes );
 
+#ifdef HAVE_KRB5
+static void clear_krb5_ccache();
+#endif
+
 #ifdef MEMPOOL_EXPERIMENTAL
 void _free_wrapper(void *ptr)
 {
@@ -1159,6 +1163,12 @@ slapi_ldap_bind(
 			    bindid ? bindid : "(anon)",
 			    mech, /* mech cannot be SIMPLE here */
 			    rc, ldap_err2string(rc));
+#ifdef HAVE_KRB5
+        if(mech && !strcmp(mech, "GSSAPI") && rc == 49){
+            /* only on err 49 should we clear out the credential cache */
+            clear_krb5_ccache();
+        }
+#endif
 	}
     }
 
@@ -2060,6 +2070,43 @@ cleanup:
     PR_Unlock(krb5_lock);
 
     return;
+}
+
+static void
+clear_krb5_ccache()
+{
+    krb5_context ctx = NULL;
+    krb5_ccache cc = NULL;
+    int rc = 0;
+
+    PR_Lock(krb5_lock);
+
+    /* initialize the kerberos context */
+    if ((rc = krb5_init_context(&ctx))) {
+        slapi_log_error(SLAPI_LOG_FATAL, "clear_krb5_ccache", "Could not initialize kerberos context: %d (%s)\n",
+                        rc, error_message(rc));
+        goto done;
+    }
+    /* get the default ccache */
+    if ((rc = krb5_cc_default(ctx, &cc))) {
+        slapi_log_error(SLAPI_LOG_FATAL, "clear_krb5_ccache", "Could not get default kerberos ccache: %d (%s)\n",
+                        rc, error_message(rc));
+        goto done;
+    }
+    /* destroy the ccache */
+    if((rc = krb5_cc_destroy(ctx, cc))){
+        slapi_log_error(SLAPI_LOG_FATAL, "clear_krb5_ccache", "Could not destroy kerberos ccache: %d (%s)\n",
+                        rc, error_message(rc));
+    } else {
+        slapi_log_error(SLAPI_LOG_TRACE,"clear_krb5_ccache", "Successfully cleared kerberos ccache\n");
+    }
+
+done:
+    if(ctx){
+        krb5_free_context(ctx);
+    }
+
+    PR_Unlock(krb5_lock);
 }
 
 #endif /* HAVE_KRB5 */
