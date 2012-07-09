@@ -349,7 +349,7 @@ static int
 _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
                     Slapi_Attr *attr,        /* referred attribute */
                     char *attrName,
-                    const char *origDN,      /* original DN that was modified */
+                    Slapi_DN *origDN,        /* original DN that was modified */
                     char *newRDN,            /* new RDN from modrdn */
                     const char *newsuperior, /* new superior from modrdn */
                     Slapi_PBlock *mod_pb)
@@ -367,7 +367,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
     if (NULL == newRDN && NULL == newsuperior) {
         /* in delete mode */
         /* delete old dn so set that up */
-        values_del[0] = (char *)origDN;
+        values_del[0] = (char *)slapi_sdn_get_dn(origDN);
         values_del[1] = NULL;
         attribute1.mod_type = attrName;
         attribute1.mod_op = LDAP_MOD_DELETE;
@@ -379,7 +379,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         if (rc) {
             slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                 "_update_one_value: entry %s: deleting \"%s: %s\" failed (%d)"
-                "\n", slapi_sdn_get_dn(entrySDN), attrName, origDN, rc);
+                "\n", slapi_sdn_get_dn(entrySDN), attrName, slapi_sdn_get_dn(origDN), rc);
         }
     } else {
         /* in modrdn mode */
@@ -393,11 +393,11 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
             goto bail;
         }
         /* need to put together rdn into a dn */
-        dnParts = slapi_ldap_explode_dn( origDN, 0 );
+        dnParts = slapi_ldap_explode_dn( slapi_sdn_get_dn(origDN), 0 );
         if (NULL == dnParts) {
             slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                             "_update_one_value: failed to explode dn %s\n",
-                            origDN);
+                            slapi_sdn_get_dn(origDN));
             goto bail;
         }
         if (NULL == newRDN) {
@@ -406,8 +406,8 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         if (newsuperior) {
             superior = newsuperior;
         } else {
-            /* no need to free superior */
-            superior = slapi_dn_find_parent(origDN);
+            /* do not free superior */
+            superior = slapi_dn_find_parent(slapi_sdn_get_dn(origDN));
         }
         /* newRDN and superior are already normalized. */
         newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
@@ -448,7 +448,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
             }
             /* else: (rc < 0) Ignore the DN normalization error for now. */
 
-            p = PL_strstr(sval, origDN);
+            p = PL_strstr(sval, slapi_sdn_get_ndn(origDN));
             if (p == sval) {
                 /* (case 1) */
                 values_del[0] = sval;
@@ -471,7 +471,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
                         "_update_one_value: entry %s: replacing \"%s: %s\" "
                         "with \"%s: %s\" failed (%d)\n",
                         slapi_sdn_get_dn(entrySDN), attrName, 
-                        origDN, attrName, newDN, rc);
+                        slapi_sdn_get_dn(origDN), attrName, newDN, rc);
                 }
             } else if (p) {
                 char bak;
@@ -526,7 +526,7 @@ static int
 _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
                     Slapi_Attr *attr,        /* referred attribute */
                     char *attrName,
-                    const char *origDN,      /* original DN that was modified */
+                    Slapi_DN *origDN,        /* original DN that was modified */
                     char *newRDN,            /* new RDN from modrdn */
                     const char *newsuperior, /* new superior from modrdn */
                     Slapi_PBlock *mod_pb)
@@ -548,7 +548,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         LDAPMod attribute1;
 
         /* delete old dn so set that up */
-        values_del[0] = (char *)origDN;
+        values_del[0] = (char *)slapi_sdn_get_dn(origDN);
         values_del[1] = NULL;
         attribute1.mod_type = attrName;
         attribute1.mod_op = LDAP_MOD_DELETE;
@@ -560,7 +560,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         if (rc) {
             slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                 "_update_all_per_mod: entry %s: deleting \"%s: %s\" failed (%d)"
-                "\n", slapi_sdn_get_dn(entrySDN), attrName, origDN, rc);
+                "\n", slapi_sdn_get_dn(entrySDN), attrName, slapi_sdn_get_dn(origDN), rc);
         }
     } else {
         /* in modrdn mode */
@@ -574,11 +574,11 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
             goto bail;
         }
         /* need to put together rdn into a dn */
-        dnParts = slapi_ldap_explode_dn( origDN, 0 );
+        dnParts = slapi_ldap_explode_dn( slapi_sdn_get_dn(origDN), 0 );
         if (NULL == dnParts) {
             slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                             "_update_all_per_mod: failed to explode dn %s\n",
-                            origDN);
+                            slapi_sdn_get_dn(origDN));
             goto bail;
         }
         if (NULL == newRDN) {
@@ -587,8 +587,8 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         if (newsuperior) {
             superior = newsuperior;
         } else {
-            /* no need to free superior */
-            superior = slapi_dn_find_parent(origDN);
+            /* do not free superior */
+            superior = slapi_dn_find_parent(slapi_sdn_get_dn(origDN));
         }
         /* newRDN and superior are already normalized. */
         newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
@@ -633,7 +633,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
             }
             /* else: (rc < 0) Ignore the DN normalization error for now. */
 
-            p = PL_strstr(sval, origDN);
+            p = PL_strstr(sval, slapi_sdn_get_ndn(origDN));
             if (p == sval) {
                 /* (case 1) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
@@ -766,13 +766,13 @@ update_integrity(char **argv, Slapi_DN *origSDN,
                                 if (nval > 128) {
                                     rc = _update_one_per_mod(
                                          slapi_entry_get_sdn(search_entries[j]),
-                                         attr, attrName, origDN, newrDN, 
+                                         attr, attrName, origSDN, newrDN, 
                                          slapi_sdn_get_dn(newsuperior),
                                          mod_pb);
                                 } else {
                                     rc = _update_all_per_mod(
                                          slapi_entry_get_sdn(search_entries[j]),
-                                         attr, attrName, origDN, newrDN, 
+                                         attr, attrName, origSDN, newrDN, 
                                          slapi_sdn_get_dn(newsuperior),
                                          mod_pb);
                                 }
