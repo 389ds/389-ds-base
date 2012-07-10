@@ -2350,3 +2350,241 @@ slapi_pwpolicy_is_reset(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e)
 
     return is_reset;
 }
+
+/*
+ * Entry extension for unhashed password
+ */
+static int pw_entry_objtype = -1;
+static int pw_entry_handle = -1;
+
+struct slapi_pw_entry_ext {
+	Slapi_RWLock *pw_entry_lock;   /* necessary? */
+	Slapi_Value **pw_entry_values; /* stashed values */
+};
+
+/*
+ * constructor for the entry object extension.
+ */
+static void *
+pw_entry_constructor(void *object, void *parent)
+{
+	struct slapi_pw_entry_ext *pw_extp = NULL;
+	Slapi_RWLock *rwlock;
+	if ((rwlock = slapi_new_rwlock()) == NULL) {
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		                "pw_entry_constructor: slapi_new_rwlock() failed\n");
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		                "WARNING: the server cannot handle unhashed password.\n");
+		return NULL;
+	}
+	pw_extp = (struct slapi_pw_entry_ext *)slapi_ch_calloc(1,
+                                             sizeof(struct slapi_pw_entry_ext));
+	pw_extp->pw_entry_lock = rwlock;
+	return pw_extp;
+}
+
+/*
+ * destructor for the entry object extension.
+ */
+static void
+pw_entry_destructor(void *extension, void *object, void *parent)
+{
+	struct slapi_pw_entry_ext *pw_extp = (struct slapi_pw_entry_ext *)extension;
+
+	if (NULL == pw_extp) {
+		return;
+	}
+	
+	valuearray_free(&pw_extp->pw_entry_values);
+
+	if (pw_extp->pw_entry_lock) {
+		slapi_destroy_rwlock(pw_extp->pw_entry_lock);
+	}
+	slapi_ch_free((void **)&pw_extp);
+}
+
+/* Called once from main */
+void
+pw_exp_init ( void )
+{
+	if (slapi_register_object_extension(SLAPI_EXTMOD_PWPOLICY,
+	                                    SLAPI_EXT_ENTRY,
+	                                    pw_entry_constructor,
+	                                    pw_entry_destructor,
+	                                    &pw_entry_objtype,
+	                                    &pw_entry_handle) != 0) {
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		                "pw_init: slapi_register_object_extension failed; "
+		                "unhashed password is not able to access\n");
+	}
+}
+
+/* 
+ * The output value vals is not a copy.  
+ * Caller must duplicate it to use it for other than referring.
+ */
+int
+slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals)
+{
+	struct slapi_pw_entry_ext *extp = NULL;
+
+	if (NULL == vals) {
+		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		                "slapi_pw_get_entry_ext: output param vals is NULL.\n");
+		return LDAP_PARAM_ERROR;
+	}
+	*vals = NULL;
+
+	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "slapi_pw_get_entry_ext: pw_entry_extension is not "
+		                "registered\n");
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	extp = (struct slapi_pw_entry_ext *)slapi_get_object_extension(
+	                                                           pw_entry_objtype,
+	                                                           entry,
+	                                                           pw_entry_handle);
+	if ((NULL == extp) || (NULL == extp->pw_entry_values)) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "slapi_pw_get_entry_ext: "
+		                "pw_entry_extension is not set\n");
+		return LDAP_NO_SUCH_ATTRIBUTE;
+	}
+
+	slapi_rwlock_rdlock(extp->pw_entry_lock);
+	*vals = extp->pw_entry_values;
+	slapi_rwlock_unlock(extp->pw_entry_lock);
+	return LDAP_SUCCESS;
+}
+
+/* If vals is NULL, the stored extension is freed.  */
+/* If slapi_pw_set_entry_ext is successful, vals are consumed. */
+int
+slapi_pw_set_entry_ext(Slapi_Entry *entry, Slapi_Value **vals, int flags)
+{
+	struct slapi_pw_entry_ext *extp = NULL;
+
+	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "slapi_pw_set_entry_ext: "
+		                "pw_entry_extension is not registered\n");
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	extp = (struct slapi_pw_entry_ext *)slapi_get_object_extension(
+	                                                           pw_entry_objtype,
+	                                                           entry,
+	                                                           pw_entry_handle);
+	if (NULL == extp) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "slapi_pw_set_entry_ext: "
+		                "pw_entry_extension is not set\n");
+		return LDAP_NO_SUCH_ATTRIBUTE;
+	}
+
+	slapi_rwlock_wrlock(extp->pw_entry_lock);
+	if (NULL == vals) { /* Set NULL; used for delete. */
+		valuearray_free(&extp->pw_entry_values); /* Null is taken care */
+	} else {
+		if (SLAPI_EXT_SET_REPLACE == flags) {
+			valuearray_free(&extp->pw_entry_values); /* Null is taken care */
+		}
+		/* Each (Slapi_Value *) in vals is passed in. */
+		valuearray_add_valuearray(&extp->pw_entry_values, vals,
+		                          SLAPI_VALUE_FLAG_PASSIN);
+		/* To keep the word "consumed", free vals part, as well. */
+		slapi_ch_free((void **)&vals);
+	}
+	slapi_rwlock_unlock(extp->pw_entry_lock);
+	return LDAP_SUCCESS;
+}
+
+int
+pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
+{
+	struct slapi_pw_entry_ext *src_extp = NULL;
+	struct slapi_pw_entry_ext *dest_extp = NULL;
+
+	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "pw_copy_entry_ext: "
+		                "pw_entry_extension is not registered\n");
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	src_extp = (struct slapi_pw_entry_ext *)slapi_get_object_extension(
+	                                                           pw_entry_objtype,
+	                                                           src_e,
+	                                                           pw_entry_handle);
+	if (NULL == src_extp) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "pw_copy_entry_ext: source pw_entry_extension is "
+		                "not set\n");
+		return LDAP_NO_SUCH_ATTRIBUTE;
+	}
+
+	slapi_rwlock_rdlock(src_extp->pw_entry_lock);
+	dest_extp = (struct slapi_pw_entry_ext *)slapi_get_object_extension(
+	                                                           pw_entry_objtype,
+	                                                           dest_e,
+	                                                           pw_entry_handle);
+	if (NULL == dest_extp) {
+		slapi_rwlock_unlock(src_extp->pw_entry_lock);
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "pw_copy_entry_ext: "
+		                "dest pw_entry_extension is not set\n");
+		return LDAP_NO_SUCH_ATTRIBUTE;
+	}
+
+	slapi_rwlock_wrlock(dest_extp->pw_entry_lock);
+	valuearray_add_valuearray(&dest_extp->pw_entry_values,
+	                          src_extp->pw_entry_values, 0);
+	slapi_rwlock_unlock(dest_extp->pw_entry_lock);
+	slapi_rwlock_unlock(src_extp->pw_entry_lock);
+	return LDAP_SUCCESS;
+}
+
+/* 
+ * The returned string is a copy.  
+ * Caller must free it.
+ */
+char *
+slapi_get_first_clear_text_pw(Slapi_Entry *entry)
+{
+	struct slapi_pw_entry_ext *extp = NULL;
+	Slapi_Value **pwvals = NULL;
+	const char *password_str = NULL;
+
+	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "slapi_get_first_clear_text_pw: "
+		                "pw_entry_extension is not registered\n");
+		return NULL;
+	}
+
+	extp = (struct slapi_pw_entry_ext *)slapi_get_object_extension(
+	                                                           pw_entry_objtype,
+	                                                           entry,
+	                                                           pw_entry_handle);
+	if ((NULL == extp) || (NULL == extp->pw_entry_values)) {
+		slapi_log_error(SLAPI_LOG_TRACE, NULL,
+		                "slapi_get_first_clear_text_pw: "
+		                "pw_entry_extension is not set\n");
+		return NULL;
+	}
+
+	slapi_rwlock_rdlock(extp->pw_entry_lock);
+	pwvals = extp->pw_entry_values;
+	if (pwvals) {
+		Slapi_ValueSet vset;
+		Slapi_Value *value = NULL;
+		/* pwvals is passed in to vset; thus no need to free vset. */
+		valueset_set_valuearray_passin(&vset, pwvals);
+		slapi_valueset_first_value(&vset, &value);
+		password_str = slapi_value_get_string(value);
+	}
+	slapi_rwlock_unlock(extp->pw_entry_lock);
+	return slapi_ch_strdup(password_str); /* slapi_ch_strdup(NULL) is okay */
+}

@@ -191,7 +191,7 @@ int valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **vals);
 void valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated);
 void valueset_set_valuearray_byval(Slapi_ValueSet *vs, Slapi_Value **addvals);
 void valueset_set_valuearray_passin(Slapi_ValueSet *vs, Slapi_Value **addvals);
-
+int valuearray_subtract_bvalues(Slapi_Value **va, struct berval **bvals);
 
 /*
  * ava.c
@@ -639,7 +639,6 @@ int is_rootdse( const char *dn );
 int get_entry_object_type();
 int entry_computed_attr_init();
 void send_referrals_from_entry(Slapi_PBlock *pb, Slapi_Entry *referral);
-int is_type_forbidden(const char *type);
 
 /*
  * dse.c

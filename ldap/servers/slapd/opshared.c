@@ -52,9 +52,11 @@
 static void compute_limits (Slapi_PBlock *pb);
 
 /* attributes that no clients are allowed to add or modify */
+#if defined(USE_OLD_UNHASHED)
 /* PSEUDO_ATTR_UNHASHEDUSERPASSWORD used to be in protected_attrs_all. 
  * Now it's moved to back-ldbm/id2entry.c to share it among repl masters.
  * (bz 182507)*/
+#endif
 static char *protected_attrs_all [] = { NULL };
 static char *pwpolicy_lock_attrs_all [] = { "passwordRetryCount",
                                             "retryCountResetTime",

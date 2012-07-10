@@ -669,6 +669,7 @@ AC_SUBST(brand)
 AC_SUBST(capbrand)
 AC_SUBST(vendor)
 
+AC_DEFINE([USE_OLD_UNHASHED], [1], [Use old unhashed code])
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
 

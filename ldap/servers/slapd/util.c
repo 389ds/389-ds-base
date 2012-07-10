@@ -290,6 +290,27 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
         char *normtype;
         Slapi_Value **vals;
 
+        /*
+         * slapi_entry_apply_mod_extension applys mod and stores
+         * the result in the extension
+         * return value:  1 - mod is applied and stored in extension
+         *               -1 - mod is applied and failed
+         *                0 - mod is nothing to do with extension
+         */
+        rc = slapi_entry_apply_mod_extension(*e, attrs[i], -1);
+        if (rc) {
+            if (1 == rc) {
+                rc = LDAP_SUCCESS;
+            } else {
+                rc = LDAP_OPERATIONS_ERROR;
+            }
+#if !defined(USE_OLD_UNHASHED)
+            /* In case USE_OLD_UNHASHED,
+             * unhashed pw needs to be in attr, too. */
+            continue;
+#endif
+        }
+
         normtype = slapi_attr_syntax_normalize(attrs[ i ]->mod_type);
         valuearray_init_bervalarray(attrs[ i ]->mod_bvalues, &vals);
         if (strcasecmp(normtype, SLAPI_USERPWD_ATTR) == 0)
@@ -348,6 +369,17 @@ int slapi_entry2mods (const Slapi_Entry *e, char **dn, LDAPMod ***attrs)
 		}
 		rc = slapi_entry_next_attr(e, attr, &attr);
 	}
+
+#if !defined(USE_OLD_UNHASHED)
+	/* In case USE_OLD_UNHASHED, unhashed pw is already in mods */
+	/* add extension to mods */
+	rc = slapi_pw_get_entry_ext((Slapi_Entry *)e, &va);
+	if (LDAP_SUCCESS == rc) {
+		/* va is copied and set to smods */
+		slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD,
+		                          PSEUDO_ATTR_UNHASHEDUSERPASSWORD, va);
+	}
+#endif
 
 	*attrs = slapi_mods_get_ldapmods_passout (&smods);
 	slapi_mods_done (&smods);

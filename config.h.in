@@ -250,6 +250,9 @@
    */
 #undef HAVE_SYS_NDIR_H
 
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
+
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #undef HAVE_SYS_SOCKET_H
 
@@ -366,6 +369,9 @@
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
@@ -395,6 +401,9 @@
 
 /* If defined, using MozLDAP for LDAP SDK */
 #undef USE_MOZLDAP
+
+/* Use old unhashed code */
+#undef USE_OLD_UNHASHED
 
 /* If defined, using OpenLDAP for LDAP SDK */
 #undef USE_OPENLDAP

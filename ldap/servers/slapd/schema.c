@@ -1381,8 +1381,10 @@ schema_list_attributes_callback(struct asyntaxinfo *asi, void *arg)
                 return ATTR_SYNTAX_ENUM_NEXT;
         }
         if (aew->flag && (asi->asi_flags & aew->flag)) {
+#if defined(USE_OLD_UNHASHED)
            /* skip unhashed password */
            if (!is_type_forbidden(asi->asi_name)) {
+#endif
                 charray_add(&aew->attrs, slapi_ch_strdup(asi->asi_name));
                 if (NULL != asi->asi_aliases) {
                     int        i;
@@ -1392,7 +1394,9 @@ schema_list_attributes_callback(struct asyntaxinfo *asi, void *arg)
                                     slapi_ch_strdup(asi->asi_aliases[i]));
                     }
                 }
+#if defined(USE_OLD_UNHASHED)
             }
+#endif
         }
         return ATTR_SYNTAX_ENUM_NEXT;
 }

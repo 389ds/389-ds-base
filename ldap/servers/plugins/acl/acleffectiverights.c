@@ -615,6 +615,7 @@ _ger_get_attrs_rights (
 		int i = 0;
 		char **allattrs = NULL;
 		char **opattrs = NULL;
+		char **noexpattrs = NULL; /* attrs not to expose */
 		char **myattrs = NULL;
 		char **thisattr = NULL;
 		int hasstar = charray_inlist(attrs, "*");
@@ -667,6 +668,9 @@ _ger_get_attrs_rights (
 
 		/* get operational attrs */
 		opattrs = slapi_schema_list_attribute_names(SLAPI_ATTR_FLAG_OPATTR);
+		noexpattrs = slapi_schema_list_attribute_names(SLAPI_ATTR_FLAG_NOEXPOSE);
+		/* subtract no expose attrs from opattrs (e.g., unhashed pw) */
+		charray_subtract(opattrs, noexpattrs, NULL);
 
 		if (isextensibleobj)
 		{
@@ -704,7 +708,11 @@ _ger_get_attrs_rights (
 					if ('\0' == *attrs[i]) {
 						continue; /* skip an empty attr */
 					}
-					if (charray_inlist(allattrs, attrs[i]) ||
+					if (charray_inlist(noexpattrs, attrs[i]))
+					{
+						continue;
+					}
+					else if (charray_inlist(allattrs, attrs[i]) ||
 						charray_inlist(opattrs, attrs[i]) ||
 						(0 == strcasecmp(attrs[i], "dn")) ||
 						(0 == strcasecmp(attrs[i], "distinguishedName")))

@@ -66,12 +66,26 @@ static int _entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn);
 
 /* protected attributes which are not included in the flattened entry,
  * which will be stored in the db. */
+#if defined(USE_OLD_UNHASHED)
 static char *protected_attrs_all [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
                                        SLAPI_ATTR_ENTRYDN,
                                        NULL};
 
 static char *forbidden_attrs [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
                                    NULL};
+#else
+static char *protected_attrs_all [] = {SLAPI_ATTR_ENTRYDN,
+                                       NULL};
+#endif
+/* Attributes which are put into the entry extension */
+struct attrs_in_extension attrs_in_extension[] =
+{
+    {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+     slapi_pw_get_entry_ext,
+     slapi_pw_set_entry_ext,
+     pw_copy_entry_ext},
+    {NULL, NULL, NULL}
+};
 
 /*
  * An attribute name is of the form 'basename[;option]'.
@@ -1627,6 +1641,7 @@ is_type_protected(const char *type)
     return 0;
 }
 
+#if defined(USE_OLD_UNHASHED)
 int
 is_type_forbidden(const char *type)
 {
@@ -1638,6 +1653,7 @@ is_type_forbidden(const char *type)
     }
     return 0;
 }
+#endif
 
 static void
 entry2str_internal_put_attrlist( const Slapi_Attr *attrlist, int attr_state, int entry2str_ctrl, char **ecur, char **typebuf, size_t *typebuf_len)
@@ -2076,6 +2092,7 @@ slapi_entry_dup( const Slapi_Entry *e )
 	Slapi_Entry	*ec;
 	Slapi_Attr *a;
 	Slapi_Attr *lastattr= NULL;
+	struct attrs_in_extension *aiep;
 
 	PR_ASSERT( NULL != e );
 
@@ -2132,6 +2149,12 @@ slapi_entry_dup( const Slapi_Entry *e )
 
 	/* Copy flags as well */
 	ec->e_flags = e->e_flags;
+
+	/* Copy extension */
+	for (aiep = attrs_in_extension; aiep && aiep->ext_type; aiep++) {
+		aiep->ext_copy(e, ec);
+	}
+
 	
 	ENTRY_DUMP(ec,"slapi_entry_dup");
 	return( ec );
@@ -3276,12 +3299,146 @@ entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 }
 
 /*
+ * apply mod and store the result in the extension
+ * return value:  1 - mod is applied and stored in extension
+ *               -1 - mod is applied and failed
+ *                0 - mod is nothing to do with extension
+ */
+int
+slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
+{
+    Slapi_Value **vals = NULL;
+    struct attrs_in_extension *aiep;
+    int err = LDAP_SUCCESS;
+    int rc = 0; /* by default, mod is nothing to do with extension */
+
+    if ((NULL == e) || (NULL == mod)) {
+        return err;
+    }
+
+    if (modcnt < 0) {
+        int i;
+        for (i = 0; mod->mod_bvalues && mod->mod_bvalues[i]; i++) ;
+        modcnt = i;
+    }
+
+    for (aiep = attrs_in_extension; aiep && aiep->ext_type; aiep++) {
+        vals = NULL;
+        if (0 == strcasecmp(mod->mod_type, aiep->ext_type)) {
+            rc = 1;
+            switch (mod->mod_op & ~LDAP_MOD_BVALUES) {
+            case LDAP_MOD_ADD:
+                if (modcnt > 0) {
+                    valuearray_init_bervalarray(mod->mod_bvalues, &vals);
+                    if (vals) {
+                        /* vals is consumed if successful. */
+                        err = aiep->ext_set(e, vals, SLAPI_EXT_SET_ADD);
+                        if (err) {
+                            slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                                            "ADD: Failed to set %s to extension\n",
+                                            aiep->ext_type);
+                            valuearray_free(&vals);
+                            goto bail;
+                        }
+                    } else {
+                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                                        "ADD: %s has no values\n", 
+                                        aiep->ext_type);
+                        goto bail;
+                    }
+                }
+                break;
+            case LDAP_MOD_DELETE:
+                if (modcnt > 0) {
+                    err = aiep->ext_get(e, &vals);
+                    if (err) {
+                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                                        "DEL: Failed to get %s from extension\n",
+                                        aiep->ext_type);
+                        goto bail;
+                    }
+                    if (vals && *vals) {
+                        Slapi_Value **myvals = NULL;
+                        valuearray_add_valuearray(&myvals, vals, 0);
+                        err = valuearray_subtract_bvalues(myvals,
+                                                          mod->mod_bvalues);
+                        if (err > 0) { /* err values are subtracted */
+                            /* 
+                             * mvals contains original values minus
+                             * to-be-deleted value. ext_set replaces the
+                             * original value with the delta.
+                             */
+                            /* myvals is consumed if successful. */
+                            err = aiep->ext_set(e, myvals, SLAPI_EXT_SET_REPLACE);
+                            if (err) {
+                                slapi_log_error(SLAPI_LOG_FATAL,
+                                                "entry_apply_mod",
+                                                "DEL: Failed to set %s "
+                                                "to extension\n",
+                                                aiep->ext_type);
+                                valuearray_free(&myvals);
+                                goto bail;
+                            }
+                        }
+                    }
+                } else {
+                    /* ext_set replaces the existing value with NULL */
+                    err = aiep->ext_set(e, NULL, SLAPI_EXT_SET_REPLACE);
+                    if (err) {
+                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                                        "DEL: Failed to set %s to extension\n",
+                                        aiep->ext_type);
+                        goto bail;
+                    }
+                }
+                break;
+            case LDAP_MOD_REPLACE:
+                if (modcnt > 0) {
+                    /* ext_set replaces the existing value with the new value */
+                    valuearray_init_bervalarray(mod->mod_bvalues, &vals);
+                    if (vals) {
+                        /* vals is consumed if successful. */
+                        err = aiep->ext_set(e, vals, SLAPI_EXT_SET_REPLACE);
+                        if (err) {
+                            slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                                            "REPLACE: Failed to set %s to extension\n",
+                                            aiep->ext_type);
+                            valuearray_free(&vals);
+                            goto bail;
+                        }
+                    } else {
+                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                                        "REPLACE: %s has no values\n", 
+                                        aiep->ext_type);
+                        goto bail;
+                    }
+                }
+                break;
+            default:
+                rc = 0;
+                break;
+            }
+        }
+    }
+bail:
+    if (rc > 0) {
+        if (err) {
+            rc = -1;
+        } else {
+            rc = 1;
+        }
+    }
+    return rc;
+}
+
+/*
  * Apply a modification to an entry 
  */
 int
 entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod )
 {
 	int i;
+	int bvcnt;
 	int	err = LDAP_SUCCESS;
 	PRBool sawsubentry=PR_FALSE;
 
@@ -3290,6 +3447,22 @@ entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod )
               && (strncasecmp((const char *)mod->mod_bvalues[i]->bv_val,"ldapsubentry",mod->mod_bvalues[i]->bv_len) == 0)) 
 	    sawsubentry=PR_TRUE;
 	  LDAPDebug( LDAP_DEBUG_ARGS, "   %s: %s\n", mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
+	}
+	bvcnt = i;
+
+	/*
+	 * If err == 0, apply mod.
+	 * If err == 1, mod is successfully set to extension.
+	 * If err == -1, setting mod to extension failed.
+	 */ 
+	err = slapi_entry_apply_mod_extension(e, mod, bvcnt);
+	if (err) {
+		if (1 == err) {
+			err = LDAP_SUCCESS;
+		} else {
+			err = LDAP_OPERATIONS_ERROR;
+		}
+		goto done;
 	}
 
 	switch ( mod->mod_op & ~LDAP_MOD_BVALUES )
@@ -3311,6 +3484,7 @@ entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod )
 		err = entry_replace_values( e, mod->mod_type, mod->mod_bvalues );
 		break;
 	}
+done:
 	LDAPDebug( LDAP_DEBUG_ARGS, "   -\n", 0, 0, 0 );
 
 	return( err );
@@ -3423,7 +3597,12 @@ delete_values_sv_internal(
 	 * add/mod operation is done, while the retried entry from the db does not
 	 * contain the attribute.
 	 */
-	if (is_type_protected(type) || is_type_forbidden(type)) {
+#if defined(USE_OLD_UNHASHED)
+	if (is_type_protected(type) || is_type_forbidden(type))
+#else
+	if (is_type_protected(type))
+#endif
+	{
 		flags |= SLAPI_VALUE_FLAG_IGNOREERROR;
 	}
 

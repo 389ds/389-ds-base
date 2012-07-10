@@ -396,6 +396,38 @@ valuearray_remove_value_atindex(Slapi_Value **va, int index)
 }
 
 /*
+ * Subtract bvalues from value array
+ * return value: subtracted count
+ */
+int
+valuearray_subtract_bvalues(Slapi_Value **va, struct berval **bvals)
+{
+	Slapi_Value **vap;
+	struct berval **bvp;
+	int rv = 0;
+
+	if (NULL == va || NULL == *va || NULL == bvals || NULL == *bvals) {
+		return rv; /* No op */
+	}
+
+	for (vap = va; vap && *vap; vap++) {
+		for (bvp = bvals; bvp && *bvp; bvp++) {
+			if (0 == slapi_berval_cmp(&(*vap)->bv, *bvp)) {
+				Slapi_Value **vapp;
+				slapi_value_free(vap);
+				for (vapp = vap; vapp && *vapp; vapp++) {
+					*vapp = *(vapp + 1);
+				}
+				vapp++;
+				rv++;
+			}
+		}
+	}
+
+	return rv;
+}
+
+/*
  * Find the value in the array,
  * shunt up the array to cover it,
  * return a ptr to the value.

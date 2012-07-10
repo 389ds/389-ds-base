@@ -636,11 +636,15 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 	{
 		/* If the type is in the forbidden attr list (e.g., unhashed password),
 		 * we don't return the reason of the failure to the clients. */
+#if defined(USE_OLD_UNHASHED)
 		if (is_type_forbidden(type)) {
 			retVal = LDAP_SUCCESS;
 		} else {
 			retVal= LDAP_NO_SUCH_ATTRIBUTE;
 		}
+#else
+		retVal= LDAP_NO_SUCH_ATTRIBUTE;
+#endif
 	}
 	else if (attr_state==ATTRIBUTE_NOTFOUND)
 	{
@@ -652,7 +656,12 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 		 * So is in the forbidden_attrs list.  We don't return the reason
 		 * of the failure.
 		 */
-		if (is_type_protected(type) || is_type_forbidden(type)) {
+#if defined(USE_OLD_UNHASHED)
+		if (is_type_protected(type) || is_type_forbidden(type))
+#else
+		if (is_type_protected(type))
+#endif
+		{
 			retVal = LDAP_SUCCESS;
 		} else {
 			if (!urp) {
@@ -719,6 +728,7 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 {
 	int retVal= LDAP_SUCCESS;
 	int	i;
+	struct attrs_in_extension *aiep;
 
 	switch ( mod->mod_op & ~LDAP_MOD_BVALUES )
 	{
@@ -745,6 +755,41 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 			           mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
 		}
 		LDAPDebug( LDAP_DEBUG_ARGS, "   -\n", 0, 0, 0 );
+	}
+
+	/* 
+	 * Values to be stored in the extension are also processed considering
+	 * the conflicts above.  The psuedo attributes are removed from the
+	 * entry and the values (present value only) are put in the extension.
+	 */
+	for (aiep = attrs_in_extension; aiep && aiep->ext_type; aiep++) {
+		if (0 == strcasecmp(mod->mod_type, aiep->ext_type)) {
+			Slapi_Attr *a;
+			int rc;
+			Slapi_Value **ext_vals = NULL;
+			rc = slapi_pw_get_entry_ext(e, &ext_vals);
+			if (rc) {
+				continue; /* skip it. */
+			}
+
+			a = attrlist_remove(&e->e_attrs, mod->mod_type);
+			if (a && a->a_present_values.va) {
+				/* a->a_present_values.va is consumed if successful. */
+				rc = slapi_pw_set_entry_ext(e, a->a_present_values.va,
+				                            SLAPI_EXT_SET_REPLACE);
+				if (LDAP_SUCCESS == rc) {
+					/* va is set to entry extension; just release the rest */
+					a->a_present_values.va = NULL;
+				}
+				slapi_attr_free(&a);
+			} else {
+				if (ext_vals) {
+					/* slapi_pw_set_entry_ext frees the stored extension */
+					rc = slapi_pw_set_entry_ext(e, NULL, SLAPI_EXT_SET_REPLACE);
+					ext_vals = NULL;
+				}
+			}
+		}
 	}
 
 	return retVal;

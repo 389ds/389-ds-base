@@ -805,6 +805,7 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
         for ( i = 0; vals[i] != NULL; ++i ) {
             if ( slapi_attr_value_find( a, slapi_value_get_berval(vals[i]) ) == 0 ) {
                 duplicate_index = i;
+#if defined(USE_OLD_UNHASHED)
                 if (is_type_forbidden(a->a_type)) {
                     /* If the attr is in the forbidden list
                      * (e.g., unhashed password),
@@ -813,6 +814,9 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
                 } else {
                     rc = LDAP_TYPE_OR_VALUE_EXISTS;
                 }
+#else
+                rc = LDAP_TYPE_OR_VALUE_EXISTS;
+#endif
                 break;
             }
         }

@@ -643,6 +643,15 @@ struct slapi_entry {
     Slapi_Attr *e_aux_attrs;     /* Attr list used for upgrade */
 };
 
+struct attrs_in_extension {
+    char *ext_type;
+    IFP ext_get;
+    IFP ext_set;
+    IFP ext_copy;
+};
+
+extern struct attrs_in_extension attrs_in_extension[];
+
 /*
  * represents schema information for a database
  */

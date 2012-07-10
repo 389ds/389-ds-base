@@ -3060,6 +3060,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_SEARCH_ATTRS:
 		if(pblock->pb_op!=NULL)
 		{
+#if defined(USE_OLD_UNHASHED)
 			char **attrs;
 			for (attrs = (char **)value; attrs && *attrs; attrs++) {
 				/* Get rid of forbidden attr, e.g.,
@@ -3076,6 +3077,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 					}
 				}
 			}
+#endif
 			pblock->pb_op->o_params.p.p_search.search_attrs = (char **) value;
 		}
 		break;

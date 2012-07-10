@@ -447,7 +447,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 	int	err;
 	int internal_op, repl_op, legacy_op, lastmod;
 	char *pwdtype = NULL;
-	Slapi_Value **unhashed_password_vals = NULL;
 	Slapi_Attr *attr = NULL;
 	Slapi_Entry *referral;
 	char errorbuf[BUFSIZ];
@@ -538,47 +537,101 @@ static void op_shared_add (Slapi_PBlock *pb)
 	}
 
 	if (!slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA)) {
-		/* look for user password attribute */
-		slapi_entry_attr_find(e, SLAPI_USERPWD_ATTR, &attr);
-		if (attr && !repl_op)  
-		{
-			Slapi_Value **present_values;
-			present_values= attr_get_present_values(attr);
+		Slapi_Value **unhashed_password_vals = NULL;
+		Slapi_Value **present_values = NULL;
 
-			/* Set the backend in the pblock.  The slapi_access_allowed function
-			 * needs this set to work properly. */
-			slapi_pblock_set( pb, SLAPI_BACKEND, slapi_be_select( slapi_entry_get_sdn_const(e) ) );
-
-			/* Check ACI before checking password syntax */
-			if ( (err = slapi_access_allowed(pb, e, SLAPI_USERPWD_ATTR, NULL,
-			                                 SLAPI_ACL_ADD)) != LDAP_SUCCESS) {
-			    send_ldap_result(pb, err, NULL,
-			                     "Insufficient 'add' privilege to the "
-			                     "'userPassword' attribute", 0, NULL);
-			    goto done;
+		/* Setting unhashed password to the entry extension. */
+		if (repl_op) {
+			/* replicated add ==> get unhashed pw from entry, if any.
+			 * set it to the extension */
+			slapi_entry_attr_find(e, PSEUDO_ATTR_UNHASHEDUSERPASSWORD, &attr);
+			if (attr) {
+				present_values = attr_get_present_values(attr);
+				valuearray_add_valuearray(&unhashed_password_vals,
+				                          present_values, 0);
+#if !defined(USE_OLD_UNHASHED)
+			 	/* and remove it from the entry. */
+				slapi_entry_attr_delete(e, PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
+#endif
 			}
+		} else {
+			/* ordinary add ==>
+			 * get unhashed pw from userpassword before encrypting it */
+			/* look for user password attribute */
+			slapi_entry_attr_find(e, SLAPI_USERPWD_ATTR, &attr);
+			if (attr) {
+				Slapi_Value **vals = NULL;
 
-			/* check password syntax */
-			if (check_pw_syntax(pb, slapi_entry_get_sdn_const(e), present_values, NULL, e, 0) == 0)
-			{
-				Slapi_Value **vals= NULL;
-				valuearray_add_valuearray(&unhashed_password_vals, present_values, 0);
+				/* Set the backend in the pblock. 
+				 * The slapi_access_allowed function
+				 * needs this set to work properly. */
+				slapi_pblock_set(pb, SLAPI_BACKEND,
+				                 slapi_be_select(slapi_entry_get_sdn_const(e)));
+
+				/* Check ACI before checking password syntax */
+				if ((err = slapi_access_allowed(pb, e, SLAPI_USERPWD_ATTR, NULL,
+				                              SLAPI_ACL_ADD)) != LDAP_SUCCESS) {
+					send_ldap_result(pb, err, NULL,
+					                 "Insufficient 'add' privilege to the "
+					                 "'userPassword' attribute", 0, NULL);
+					goto done;
+				}
+
+				/* check password syntax */
+				present_values = attr_get_present_values(attr);
+				if (check_pw_syntax(pb, slapi_entry_get_sdn_const(e),
+				                    present_values, NULL, e, 0) != 0) {
+					/* error result is sent from check_pw_syntax */
+					goto done;
+				}
+				/* pw syntax is valid */
+				valuearray_add_valuearray(&unhashed_password_vals,
+				                          present_values, 0);
 				valuearray_add_valuearray(&vals, present_values, 0);
 				pw_encodevals_ext(pb, slapi_entry_get_sdn (e), vals);
 				add_password_attrs(pb, operation, e);
 				slapi_entry_attr_replace_sv(e, SLAPI_USERPWD_ATTR, vals);
 				valuearray_free(&vals);
-				
+#if defined(USE_OLD_UNHASHED)
 				/* Add the unhashed password pseudo-attribute to the entry */
-				pwdtype = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
+				pwdtype = 
+				  slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
 				slapi_entry_add_values_sv(e, pwdtype, unhashed_password_vals);
-			} else {
-				/* error result is sent from check_pw_syntax */
-				goto done;
+#endif
+			}
+		}
+		if (unhashed_password_vals) {
+			/* unhashed_password_vals is consumed if successful. */
+			err = slapi_pw_set_entry_ext(e, unhashed_password_vals,
+			                             SLAPI_EXT_SET_ADD);
+			if (err) {
+				valuearray_free(&unhashed_password_vals);
 			}
 		}
 
-       /* look for multiple backend local credentials or replication local credentials */
+#if defined(THISISTEST)
+		{
+			/* test code to retrieve an unhashed pw from the entry extention &
+			 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD attribute */
+			char *test_str = slapi_get_first_clear_text_pw(e);
+			if (test_str) {
+				LDAPDebug1Arg(LDAP_DEBUG_ANY,
+				              "Value from extension: %s\n", test_str);
+				slapi_ch_free_string(&test_str);
+			}
+#if defined(USE_OLD_UNHASHED)
+			test_str = slapi_entry_attr_get_charptr(e,
+			                                  PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
+			if (test_str) {
+				LDAPDebug1Arg(LDAP_DEBUG_ANY,
+				              "Value from attr: %s\n", test_str);
+				slapi_ch_free_string(&test_str);
+			}
+#endif /* USE_OLD_UNHASHED */
+		}
+#endif /* THISISTEST */
+
+        /* look for multiple backend local credentials or replication local credentials */
         for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL && !repl_op;
             p = p->plg_next )
         {
@@ -738,7 +791,6 @@ done:
 	slapi_ch_free((void **)&operation->o_params.p.p_add.parentuniqueid);
 	slapi_entry_free(e);
 	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
-	valuearray_free(&unhashed_password_vals);
 	slapi_ch_free((void**)&pwdtype);
 	slapi_ch_free_string(&proxydn);
 	slapi_ch_free_string(&proxystr);

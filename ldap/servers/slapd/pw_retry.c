@@ -221,7 +221,7 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 	int             search_result = 0;
 	Slapi_Entry     *retentry = NULL;
 	Slapi_DN        *target_sdn = NULL;
-	char            *target_dn = (char *)dn;
+	const char      *target_dn = dn;
 	Slapi_DN        sdn;
 
 	if (pb) {

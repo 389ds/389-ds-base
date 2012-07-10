@@ -46,8 +46,6 @@
 #include "deref.h"
 #include <nspr.h>
 
-int is_type_forbidden(const char *type); /* from proto-slap.h */
-
 #ifndef DN_SYNTAX_OID
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 #endif
@@ -634,12 +632,13 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                     int needpartialattr = 1; /* need PartialAttribute sequence? */
                     int needvalsset = 1;
 
+#if defined(USE_OLD_UNHASHED)
                     if (is_type_forbidden(retattrs[ii])) {
                         slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
                             "skip forbidden attribute [%s]\n", derefdn);
                         continue;
                     }
-
+#endif
                     deref_get_values(entries[0], retattrs[ii], &results, &type_name_disposition,
                                      &actual_type_name, flags, &buffer_flags);
 

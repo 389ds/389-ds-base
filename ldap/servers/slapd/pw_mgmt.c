@@ -294,8 +294,10 @@ skip:
 	return( 0 );
 }
 
+/* Called once from main */
 void
-pw_init ( void ) {
+pw_init ( void )
+{
 	slapdFrontendConfig_t *slapdFrontendConfig;
 
 	pw_set_componentID(generate_componentid(NULL, COMPONENT_PWPOLICY));
@@ -309,7 +311,11 @@ pw_init ( void ) {
 	                                OCTETSTRING_SYNTAX_OID, 0, 
 	                                /* Clients don't need to directly modify
 	                                 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD */
-	                                SLAPI_ATTR_FLAG_NOUSERMOD );
+	                                SLAPI_ATTR_FLAG_NOUSERMOD|
+	                                SLAPI_ATTR_FLAG_NOEXPOSE);
+
+	/* Initialize password storage in entry extension */
+	pw_exp_init ();
 }
 
 

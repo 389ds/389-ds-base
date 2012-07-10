@@ -1247,6 +1247,10 @@ int is_slapd_running();
 /* attrsyntax.c */
 int slapi_add_internal_attr_syntax( const char *name, const char *oid, const char *syntax, const char *mr_equality, unsigned long extraflags );
 
+/* pw.c */
+void pw_exp_init ( void );
+int pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e);
+
 #ifdef __cplusplus
 }
 #endif

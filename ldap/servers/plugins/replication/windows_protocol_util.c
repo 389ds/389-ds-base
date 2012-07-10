@@ -1812,6 +1812,54 @@ windows_map_attr_name(const char *original_type , int to_windows, int is_user, i
 	}
 }
 
+/* We need to check if the first character of password_value is an 
+ * opening brace since strstr will simply return it's first argument
+ * if it is an empty string. */
+/*
+ * return code:
+ * LDAP_SUCCESS: success
+ * LDAP_PARAM_ERROR: output value core_pw is NULL
+ * LDAP_INVALID_CREDENTIALS: password is already hashed
+ */
+int
+windows_get_core_pw(const char *password_value, char **core_pw)
+{
+	int rc = LDAP_SUCCESS;
+
+	if (NULL == core_pw) {
+		return LDAP_PARAM_ERROR;
+	}
+	*core_pw = NULL;
+
+	if (password_value && (*password_value == '{')) {
+		if (strchr( password_value, '}' )) {
+			/* A storage scheme is present.  
+			 * Check if it's the clear storage scheme. */
+			if ((strlen(password_value) >= PASSWD_CLEAR_PREFIX_LEN + 1) &&
+			    (strncasecmp(password_value, PASSWD_CLEAR_PREFIX,
+			                 PASSWD_CLEAR_PREFIX_LEN) == 0)) {
+				/* This password is in clear text.  Strip off the clear prefix
+				 * and sync it. */
+				*core_pw =
+				    slapi_ch_strdup(password_value + PASSWD_CLEAR_PREFIX_LEN);
+			} else {
+				/* the password is already hashed. */
+				rc = LDAP_INVALID_CREDENTIALS;
+			}
+		} else {
+			/* This password doesn't have a storage prefix but
+			 * just happens to start with the '{' character.  We'll
+			 * assume that it's just a cleartext password without
+			 * the proper storage prefix. */
+			*core_pw = slapi_ch_strdup(password_value);
+		}
+	} else {
+		/* This password has no storage prefix, or the password is empty */
+		*core_pw = slapi_ch_strdup(password_value);
+	}
+	return rc;
+}
+
 /* 
  * Make a new entry suitable for the sync destination (indicated by the to_windows argument).
  * Returns the new entry ready to be passed to an LDAP ADD operation, either remote or local.
@@ -1838,7 +1886,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 	char *remote_user_entry_template = 
 		"dn: %s\n"
 		"objectclass:top\n"
-   		"objectclass:person\n"
+		"objectclass:person\n"
 		"objectclass:organizationalperson\n"
 		"objectclass:user\n"
 		"userPrincipalName:%s\n";
@@ -1846,9 +1894,15 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 	char *remote_group_entry_template = 
 		"dn: %s\n"
 		"objectclass:top\n"
-   		"objectclass:group\n";
+		"objectclass:group\n";
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_create_remote_entry\n", 0, 0, 0 );
+
+	if (NULL == password) {
+		retval = LDAP_PARAM_ERROR;
+		goto error;
+	}
+	*password = NULL;
 
 	windows_is_local_entry_user_or_group(original_entry,&is_user,&is_group);
 
@@ -2000,52 +2054,67 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 				}
 				slapi_ch_free_string(&new_type);
 			}
+#if defined(USE_OLD_UNHASHED)
 			/* password mods are treated specially */
 			if (0 == slapi_attr_type_cmp(type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD, SLAPI_TYPE_CMP_SUBTYPE) )
 			{
 				const char *password_value = NULL;
 				Slapi_Value *value = NULL;
-
-				slapi_valueset_first_value(vs,&value);
+				slapi_valueset_first_value(vs, &value);
 				password_value = slapi_value_get_string(value);
-				/* We need to check if the first character of password_value is an 
-				 * opening brace since strstr will simply return it's first argument
-				 * if it is an empty string. */
-				if (password_value && (*password_value == '{')) {
-					if (strchr( password_value, '}' )) {
-						/* A storage scheme is present.  Check if it's the
-						 * clear storage scheme. */
-						if ((strlen(password_value) >= PASSWD_CLEAR_PREFIX_LEN + 1) &&
-						    (strncasecmp(password_value, PASSWD_CLEAR_PREFIX, PASSWD_CLEAR_PREFIX_LEN) == 0)) {
-							/* This password is in clear text.  Strip off the clear prefix
-							 * and sync it. */
-							*password = slapi_ch_strdup(password_value + PASSWD_CLEAR_PREFIX_LEN);
-						} else {
-							/* This password is stored in a non-cleartext format.
-							 * We can only sync cleartext passwords. */
-							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-								"%s: windows_create_remote_entry: "
-								"Password is already hashed.  Not syncing.\n",
-								agmt_get_long_name(prp->agmt));
-						}
-					} else {
-						/* This password doesn't have a storage prefix but
-						 * just happens to start with the '{' character.  We'll
-						 * assume that it's just a cleartext password without
-						 * the proper storage prefix. */
-						*password = slapi_ch_strdup(password_value);
+				rc = 0;
+				if (password_value) {
+					rc = windows_get_core_pw(password_value, password);
+					if (LDAP_INVALID_CREDENTIALS == rc) {
+						/* This password is stored in a non-cleartext format.
+						 * We can only sync cleartext passwords. */
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: windows_create_remote_entry: "
+							"Password is already hashed.  Not syncing.\n",
+							agmt_get_long_name(prp->agmt));
 					}
-				} else {
-					/* This password has no storage prefix, or the password is empty */
-					*password = slapi_ch_strdup(password_value);
+				}
+				if ((rc && (LDAP_INVALID_CREDENTIALS != rc)) ||
+				    (NULL == password_value)) {
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: windows_create_remote_entry: "
+						"Failed to retrieve clear text password.  "
+						"Not syncing.\n",
+						agmt_get_long_name(prp->agmt));
 				}
 			}
-
+#endif
 		}
 		if (vs) 
 		{
 			slapi_valueset_free(vs);
 			vs = NULL;
+		}
+	}
+
+	if (NULL == *password) {/* If the OLD_UNHASHED code fails to get password */
+		char *password_value = NULL;
+		/* Unhashed passwords are now stashed in the entry extension */
+		password_value = slapi_get_first_clear_text_pw(original_entry);
+		rc = 0;
+		if (password_value) {
+			rc = windows_get_core_pw(password_value, password);
+			if (LDAP_INVALID_CREDENTIALS == rc) {
+				/* This password is stored in a non-cleartext format.
+				 * We can only sync cleartext passwords. */
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: windows_create_remote_entry: "
+							"Password is already hashed.  Not syncing.\n",
+							agmt_get_long_name(prp->agmt));
+			}
+			slapi_ch_free_string(&password_value);
+		}
+		if ((rc && (LDAP_INVALID_CREDENTIALS != rc)) || (NULL == *password)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: windows_create_remote_entry: "
+						"Failed to retrieve clear text password.  "
+						"Not syncing.\n",
+						agmt_get_long_name(prp->agmt));
 		}
 	}
 	/* NT4 must have the groupType attribute set for groups.  If it is not present, we will
@@ -2686,7 +2755,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 								/* This password is stored in a non-cleartext format.
 								 * We can only sync cleartext passwords. */
 								slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-									"%s: windows_create_remote_entry: "
+									"%s: windows_map_mods_for_replay: "
 									"Password is already hashed.  Not syncing.\n",
 									agmt_get_long_name(prp->agmt));
 							}
