@@ -170,8 +170,7 @@ nameoptuid_filter_ava(
 			syntax |= SYNTAX_NORM_FILT;
 		}
 	}
-	return( string_filter_ava( bvfilter, bvals, syntax,
-	    ftype, retVal ) );
+	return( string_filter_ava( bvfilter, bvals, syntax, ftype, retVal ) );
 }
 
 

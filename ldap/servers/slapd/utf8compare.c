@@ -60,14 +60,27 @@ typedef struct sUpperLowerTbl {
 int
 slapi_has8thBit(unsigned char *s)
 {
-    unsigned char *p, *tail;
-    tail = s + strlen((char *)s);
-    for (p = s; p < tail; p++) {
+#define MY8THBITWIDTH 4 /* sizeof(PRUint32) */
+#define MY8THBITFILTER 0x80808080
+    unsigned char *p, *stail, *ltail;
+    PRUint32 *uip;
+    size_t len = strlen((const char *)s);
+    ltail = s + len;
+    stail = ltail - (len % MY8THBITWIDTH);
+    for (p = s; p < stail; p += MY8THBITWIDTH) {
+        uip = (PRUint32 *)p;
+        if (MY8THBITFILTER & *uip) {
+             return 1;
+        }
+    }
+    for (; p < ltail; p++) {
         if (0x80 & *p) {
              return 1;
         }
     }
     return 0;
+#undef MY8THBITWIDTH
+#undef MY8THBITFILTER
 }
 
 /*

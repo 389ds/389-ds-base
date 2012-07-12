@@ -369,7 +369,7 @@ const CSN *value_get_csn( const Slapi_Value *value, CSNType t );
 const CSNSet *value_get_csnset ( const Slapi_Value *value);
 Slapi_Value *value_remove_csn( Slapi_Value *value, CSNType t);
 int value_contains_csn( const Slapi_Value *value, CSN *csn);
-int value_normalize_value(Slapi_Value *value);
+int value_dn_normalize_value(Slapi_Value *value);
 
 /* dn.c */
 /* this functions should only be used for dns allocated on the stack */
@@ -835,7 +835,7 @@ void valuearray_add_value_fast(Slapi_Value ***vals, Slapi_Value *addval, int nva
 void valuearray_add_valuearray( Slapi_Value ***vals, Slapi_Value **addvals, PRUint32 flags );
 void valuearray_add_valuearray_fast( Slapi_Value ***vals, Slapi_Value **addvals, int nvals, int naddvals, int *maxvals, int exact, int passin );
 int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v);
-int valuearray_normalize_value(Slapi_Value **vals);
+int valuearray_dn_normalize_value(Slapi_Value **vals);
 
 /*
  * proxyauth.c

@@ -411,7 +411,11 @@ slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v )
 
 	ava.ava_type = a->a_type;
 	ava.ava_value = *v;
-	ava.ava_private = NULL;
+	if (a->a_flags & SLAPI_ATTR_FLAG_NORMALIZED) {
+	    ava.ava_private = &a->a_flags;
+	} else {
+	    ava.ava_private = NULL;
+	}
 	return(plugin_call_syntax_filter_ava( a, LDAP_FILTER_EQUALITY, &ava ));
 }
 

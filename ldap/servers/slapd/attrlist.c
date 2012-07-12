@@ -291,7 +291,8 @@ int attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals)
         attrlist_find_or_create(alist, type, &a);
         valuearray_init_bervalarray(vals, &values);
         if (slapi_attr_is_dn_syntax_attr(*a)) {
-            valuearray_normalize_value(values);
+            valuearray_dn_normalize_value(values);
+            (*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
         }
         rc = attr_replace(*a, values);
     }
@@ -317,7 +318,8 @@ int attrlist_replace_with_flags(Slapi_Attr **alist, const char *type, struct ber
         attrlist_find_or_create(alist, type, &a);
         valuearray_init_bervalarray_with_flags(vals, &values, flags);
         if (slapi_attr_is_dn_syntax_attr(*a)) {
-            valuearray_normalize_value(values);
+            valuearray_dn_normalize_value(values);
+            (*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
         }
         rc = attr_replace(*a, values);
     }

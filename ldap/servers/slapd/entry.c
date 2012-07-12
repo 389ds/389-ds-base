@@ -2084,7 +2084,7 @@ slapi_entry_size(Slapi_Entry *e)
 
 /*
  * return a complete copy of entry pointed to by "e"
- * LPXXX: entry extensions are not duplicated
+ * entry extensions are duplicated, as well.
  */
 Slapi_Entry *
 slapi_entry_dup( const Slapi_Entry *e )
@@ -2155,7 +2155,6 @@ slapi_entry_dup( const Slapi_Entry *e )
 		aiep->ext_copy(e, ec);
 	}
 
-	
 	ENTRY_DUMP(ec,"slapi_entry_dup");
 	return( ec );
 }
@@ -3530,7 +3529,8 @@ slapi_entry_add_values_sv(Slapi_Entry *e,
 		Slapi_Attr **alist= &e->e_attrs;
 		attrlist_find_or_create(alist, type, &a);
 		if (slapi_attr_is_dn_syntax_attr(*a)) {
-			valuearray_normalize_value(vals);
+			valuearray_dn_normalize_value(vals);
+			(*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
 		}
 		rc= attr_add_valuearray(*a,vals,slapi_entry_get_dn_const(e));
     }

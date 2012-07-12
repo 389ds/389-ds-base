@@ -441,7 +441,8 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 		a->a_flags |= flags;
 		/* Check if the type of the to-be-added values has DN syntax or not. */
 		if (slapi_attr_is_dn_syntax_attr(a)) {
-			valuearray_normalize_value(valuestoadd);
+			valuearray_dn_normalize_value(valuestoadd);
+			a->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
 		}
 		if(urp)
 		{
@@ -562,7 +563,8 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			/* Check if the type of the to-be-deleted values has DN syntax 
 			 * or not. */
 			if (slapi_attr_is_dn_syntax_attr(a)) {
-				valuearray_normalize_value(valuestodelete);
+				valuearray_dn_normalize_value(valuestodelete);
+				a->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
 			}
 			if(urp)
 			{
