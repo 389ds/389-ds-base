@@ -455,7 +455,9 @@ index_addordel_entry(
                     /* skip "entrydn" */
                     continue;
                 } else {
-                    slapi_values_set_flags(svals, SLAPI_ATTR_FLAG_NORMALIZED);
+                    /* entrydn is case-normalized */
+                    slapi_values_set_flags(svals,
+                                           SLAPI_ATTR_FLAG_NORMALIZED_CIS);
                 }
             }
             result = index_addordel_values_sv( be, type, svals, NULL,

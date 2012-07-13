@@ -448,21 +448,31 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 
 		for ( bvlp = bvals, nbvlp = nbvals; bvlp && *bvlp; bvlp++, nbvlp++ )
 		{
+			unsigned long value_flags = slapi_value_get_flags(*bvlp);
 			c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
 			/* if the NORMALIZED flag is set, skip normalizing */
-			if (!(slapi_value_get_flags(*bvlp) & SLAPI_ATTR_FLAG_NORMALIZED)) {
+			if (!(value_flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
 				/* 3rd arg: 1 - trim leading blanks */
 				value_normalize_ext( c, syntax, 1, &alt );
+				value_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
+			} else if ((syntax & SYNTAX_DN) &&
+			           (value_flags & SLAPI_ATTR_FLAG_NORMALIZED_CES)) {
+				/* This dn value is normalized, but not case-normalized. */
+				slapi_dn_ignore_case(c);
+				/* This dn value is case-normalized */
+				value_flags &= ~SLAPI_ATTR_FLAG_NORMALIZED_CES;
+				value_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CIS;
 			}
 			if (alt) {
 				slapi_ch_free_string(&c);
-		    	*nbvlp = slapi_value_new_string_passin(alt);
+				*nbvlp = slapi_value_new_string_passin(alt);
 				alt = NULL;
 			} else {
-		    	*nbvlp = slapi_value_new_string_passin(c);
+				*nbvlp = slapi_value_new_string_passin(c);
+				c = NULL;
 			}
 			/* new value is normalized */
-			slapi_value_set_flags(*nbvlp, slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
+			slapi_value_set_flags(*nbvlp, value_flags);
 		}
 		*ivals = nbvals;
 		break;
@@ -570,8 +580,9 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 
 		bvdup= slapi_value_new(); 
 		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
+			unsigned long value_flags = slapi_value_get_flags(*bvlp);
 			/* 3rd arg: 1 - trim leading blanks */
-			if (!(slapi_value_get_flags(*bvlp) & SLAPI_ATTR_FLAG_NORMALIZED)) {
+			if (!(value_flags & SLAPI_ATTR_FLAG_NORMALIZED)) {
 				c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
 				value_normalize_ext( c, syntax, 1, &alt );
 				if (alt) {
@@ -583,6 +594,17 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 					c = NULL;
 				}
 				bvp = slapi_value_get_berval(bvdup);
+				value_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
+			} else if ((syntax & SYNTAX_DN) &&
+			           (value_flags & SLAPI_ATTR_FLAG_NORMALIZED_CES)) {
+				/* This dn value is normalized, but not case-normalized. */
+				c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
+				slapi_dn_ignore_case(c);
+				slapi_value_set_string_passin(bvdup, c);
+				c = NULL;
+				/* This dn value is case-normalized */
+				value_flags &= ~SLAPI_ATTR_FLAG_NORMALIZED_CES;
+				value_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CIS;
 			} else {
 				bvp = slapi_value_get_berval(*bvlp);
 			}
@@ -595,7 +617,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 				}
 				buf[substrlens[INDEX_SUBSTRBEGIN]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
-				slapi_value_set_flags((*ivals)[n], slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
+				slapi_value_set_flags((*ivals)[n], value_flags);
 				n++;
 			}
 
@@ -608,7 +630,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 				}
 				buf[substrlens[INDEX_SUBSTRMIDDLE]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
-				slapi_value_set_flags((*ivals)[n], slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
+				slapi_value_set_flags((*ivals)[n], value_flags);
 				n++;
 			}
 
@@ -621,7 +643,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 				buf[substrlens[INDEX_SUBSTREND] - 1] = '$';
 				buf[substrlens[INDEX_SUBSTREND]] = '\0';
 				(*ivals)[n] = slapi_value_new_string(buf);
-				slapi_value_set_flags((*ivals)[n], slapi_value_get_flags(*bvlp)|SLAPI_ATTR_FLAG_NORMALIZED);
+				slapi_value_set_flags((*ivals)[n], value_flags);
 				n++;
 			}
 		}
@@ -674,8 +696,16 @@ string_assertion2keys_ava(
                 alt = NULL;
             }
             tmpval->bv.bv_len=strlen(tmpval->bv.bv_val);
+            flags |= SLAPI_ATTR_FLAG_NORMALIZED;
+        } else if ((syntax & SYNTAX_DN) &&
+                   (flags & SLAPI_ATTR_FLAG_NORMALIZED_CES)) {
+            /* This dn value is normalized, but not case-normalized. */
+            slapi_dn_ignore_case(tmpval->bv.bv_val);
+            /* This dn value is case-normalized */
+            flags &= ~SLAPI_ATTR_FLAG_NORMALIZED_CES;
+            flags |= SLAPI_ATTR_FLAG_NORMALIZED_CIS;
         }
-        slapi_value_set_flags(tmpval, flags|SLAPI_ATTR_FLAG_NORMALIZED);
+        slapi_value_set_flags(tmpval, flags);
         break;
 	case LDAP_FILTER_EQUALITY:
 		(*ivals) = (Slapi_Value **) slapi_ch_malloc( 2 * sizeof(Slapi_Value *) );
@@ -689,8 +719,16 @@ string_assertion2keys_ava(
 				(*ivals)[0]->bv.bv_len = strlen( (*ivals)[0]->bv.bv_val );
 				alt = NULL;
 			}
-			slapi_value_set_flags((*ivals)[0], flags|SLAPI_ATTR_FLAG_NORMALIZED);
+			flags |= SLAPI_ATTR_FLAG_NORMALIZED;
+		} else if ((syntax & SYNTAX_DN) &&
+		           (flags & SLAPI_ATTR_FLAG_NORMALIZED_CES)) {
+            /* This dn value is normalized, but not case-normalized. */
+			slapi_dn_ignore_case((*ivals)[0]->bv.bv_val);
+			/* This dn value is case-normalized */
+			flags &= ~SLAPI_ATTR_FLAG_NORMALIZED_CES;
+			flags |= SLAPI_ATTR_FLAG_NORMALIZED_CIS;
 		}
+		slapi_value_set_flags((*ivals)[0], flags);
 		(*ivals)[1] = NULL;
 		break;
 
