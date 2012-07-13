@@ -3533,7 +3533,7 @@ slapi_entry_add_values_sv(Slapi_Entry *e,
 		attrlist_find_or_create(alist, type, &a);
 		if (slapi_attr_is_dn_syntax_attr(*a)) {
 			valuearray_dn_normalize_value(vals);
-			(*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED;
+			(*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
 		}
 		rc= attr_add_valuearray(*a,vals,slapi_entry_get_dn_const(e));
     }

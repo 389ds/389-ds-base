@@ -177,7 +177,15 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * \see slapi_value_set_flags()
  * \see slapi_values_set_flags()
  */
-#define SLAPI_ATTR_FLAG_NORMALIZED	0x0200	/* the attr value is normalized */
+/* the attr value is normalized */
+#define SLAPI_ATTR_FLAG_NORMALIZED \
+        (SLAPI_ATTR_FLAG_NORMALIZED_CES|SLAPI_ATTR_FLAG_NORMALIZED_CIS)
+#define SLAPI_ATTR_FLAG_NORMALIZED_CES 0x0200 /* the attr value is normalized,
+                                                 but not case-normalized.
+                                                 Used for DN. */
+#define SLAPI_ATTR_FLAG_NORMALIZED_CIS 0x0400 /* the attr value is normalized 
+                                                 including case.
+                                                 Used for DN. */
 
 /**
  * Flag to indicate that the attribute value is not exposed if specified.

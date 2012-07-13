@@ -1189,7 +1189,7 @@ add_update_entrydn_operational_attributes(struct backentry *ep)
     bv.bv_val = (void*)backentry_get_ndn(ep);
     bv.bv_len = strlen( bv.bv_val );
     entry_replace_values_with_flags( ep->ep_entry, LDBM_ENTRYDN_STR, bvp,
-                                     SLAPI_ATTR_FLAG_NORMALIZED );
+                                     SLAPI_ATTR_FLAG_NORMALIZED_CIS );
 }
 
 /*
