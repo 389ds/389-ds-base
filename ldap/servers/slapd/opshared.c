@@ -268,6 +268,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   void *pr_search_result = NULL;
   int pr_reset_processing = 0;
   int pr_idx = -1;
+  Slapi_DN *orig_sdn = NULL;
+  int free_sdn = 0;
 
   be_list[0] = NULL;
   referral_list[0] = NULL;
@@ -279,6 +281,11 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   if (NULL == sdn) {
     sdn = slapi_sdn_new_dn_byval(base);
     slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, sdn);
+    free_sdn = 1;
+  } else {
+    /* save it so we can restore it later - may have to replace it internally
+       e.g. for onelevel and subtree searches, but need to restore it */
+    orig_sdn = sdn; 
   }
   normbase = slapi_sdn_get_dn(sdn);
 
@@ -725,10 +732,13 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
             int tmp_scope = LDAP_SCOPE_BASE;
             slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
 
-            slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
-            slapi_sdn_free(&sdn);
+            if (free_sdn) {
+              slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+              slapi_sdn_free(&sdn);
+            }
             sdn = slapi_sdn_dup(be_suffix);
             slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, (void *)sdn);
+            free_sdn = 1;
           }
           else if (slapi_sdn_issuffix(basesdn, be_suffix))
           {
@@ -749,10 +759,13 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         {
           if (slapi_sdn_issuffix(be_suffix, basesdn))
           {
-            slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
-            slapi_sdn_free(&sdn);
+            if (free_sdn) {
+              slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+              slapi_sdn_free(&sdn);
+            }
             sdn = slapi_sdn_dup(be_suffix);
             slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, (void *)sdn);
+            free_sdn = 1;
           }
         }
       }
@@ -968,11 +981,13 @@ free_and_return:
 free_and_return_nolock:
   slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
   index_subsys_filter_decoders_done(pb);
-  
-  slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
-  slapi_sdn_free(&sdn);
+
+  if (free_sdn) {
+    slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+    slapi_sdn_free(&sdn);
+  }
   slapi_sdn_free(&basesdn);
-  slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, NULL);
+  slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, orig_sdn);
 
   slapi_ch_free_string(&proxydn);
   slapi_ch_free_string(&proxystr);
