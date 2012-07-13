@@ -1396,10 +1396,6 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     
     inst = (ldbm_instance *) be->be_instance_info;
 
-    if (NULL == basesdn) {
-        basesdn = slapi_sdn_new_normdn_byref(base);
-        slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, basesdn);
-    }
     /* Return to the cache the entry we handed out last time */
     /* If we are using the extension, the front end will tell
      * us when to do this so we don't do it now */
