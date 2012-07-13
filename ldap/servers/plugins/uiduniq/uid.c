@@ -69,8 +69,8 @@ int ldap_quote_filter_value(
       int *outLen);
 
 
-static int search_one_berval(const char *baseDN, const char *attrName,
-		const struct berval *value, const char *requiredObjectClass, const char *target, void *txn);
+static int search_one_berval(Slapi_DN *baseDN, const char *attrName,
+		const struct berval *value, const char *requiredObjectClass, Slapi_DN *target, void *txn);
 
 /*
  * ISSUES:
@@ -224,16 +224,16 @@ create_filter(const char *attribute, const struct berval *value, const char *req
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-search(const char *baseDN, const char *attrName, Slapi_Attr *attr,
+search(Slapi_DN *baseDN, const char *attrName, Slapi_Attr *attr,
   struct berval **values, const char *requiredObjectClass,
-  const char *target, void *txn)
+  Slapi_DN *target, void *txn)
 {
   int result;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
-      "SEARCH baseDN=%s attr=%s target=%s\n", baseDN, attrName, 
-      target?target:"None");
+                    "SEARCH baseDN=%s attr=%s target=%s\n", slapi_sdn_get_dn(baseDN), attrName, 
+                    target?slapi_sdn_get_dn(target):"None");
 #endif
 
   result = LDAP_SUCCESS;
@@ -282,9 +282,9 @@ search(const char *baseDN, const char *attrName, Slapi_Attr *attr,
 
 
 static int
-search_one_berval(const char *baseDN, const char *attrName,
+search_one_berval(Slapi_DN *baseDN, const char *attrName,
 		const struct berval *value, const char *requiredObjectClass,
-		const char *target, void *txn)
+		Slapi_DN *target, void *txn)
 {
 	int result;
     char *filter;
@@ -317,7 +317,7 @@ search_one_berval(const char *baseDN, const char *attrName,
       spb = slapi_pblock_new();
       if (!spb) { result = uid_op_error(2); break; }
 
-      slapi_search_internal_set_pb(spb, baseDN, LDAP_SCOPE_SUBTREE,
+      slapi_search_internal_set_pb_ext(spb, baseDN, LDAP_SCOPE_SUBTREE,
       	filter, attrs, 0 /* attrs only */, NULL, NULL, plugin_identity, 0 /* actions */);
       slapi_pblock_set(spb, SLAPI_TXN, txn);
       slapi_search_internal_pb(spb);
@@ -341,18 +341,16 @@ search_one_berval(const char *baseDN, const char *attrName,
        */
       for(;*entries;entries++)
       {
-        char *ndn = slapi_entry_get_ndn(*entries); /* get the normalized dn */
-
 #ifdef DEBUG
         slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
-          "SEARCH entry dn=%s\n", ndn);
+                        "SEARCH entry dn=%s\n", slapi_entry_get_dn(*entries));
 #endif
 
         /*
          * It is a Constraint Violation if any entry is found, unless
          * the entry is the target entry (if any).
          */
-        if (!target || strcmp(ndn, target) != 0)
+        if (!target || slapi_sdn_compare(slapi_entry_get_sdn(*entries), target) != 0)
         {
           result = LDAP_CONSTRAINT_VIOLATION;
           break;
@@ -395,7 +393,7 @@ search_one_berval(const char *baseDN, const char *attrName,
 static int
 searchAllSubtrees(int argc, char *argv[], const char *attrName,
   Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass,
-  const char *dn, void *txn)
+  Slapi_DN *dn, void *txn)
 {
   int result = LDAP_SUCCESS;
 
@@ -405,13 +403,17 @@ searchAllSubtrees(int argc, char *argv[], const char *attrName,
    */
   for(;argc > 0;argc--,argv++)
   {
+    Slapi_DN *sufdn = slapi_sdn_new_dn_byref(*argv);
     /*
      * The DN should already be normalized, so we don't have to
      * worry about that here.
      */
-    if (slapi_dn_issuffix(dn, *argv)) {
-      result = search(*argv, attrName, attr, values, requiredObjectClass, dn, txn);
+    if (slapi_sdn_issuffix(dn, sufdn)) {
+      result = search(sufdn, attrName, attr, values, requiredObjectClass, dn, txn);
+      slapi_sdn_free(&sufdn);
       if (result) break;
+    } else {
+      slapi_sdn_free(&sufdn);
     }
   }
   return result;
@@ -498,27 +500,35 @@ getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass,
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-findSubtreeAndSearch(char *parentDN, const char *attrName, Slapi_Attr *attr,
-  struct berval **values, const char *requiredObjectClass, const char *target,
+findSubtreeAndSearch(Slapi_DN *parentDN, const char *attrName, Slapi_Attr *attr,
+  struct berval **values, const char *requiredObjectClass, Slapi_DN *target,
   const char *markerObjectClass, void *txn)
 {
   int result = LDAP_SUCCESS;
   Slapi_PBlock *spb = NULL;
+  Slapi_DN *curpar = slapi_sdn_new();
+  Slapi_DN *newpar = NULL;
 
-  while (NULL != (parentDN = slapi_dn_parent(parentDN)))
+  slapi_sdn_get_parent(parentDN, curpar);
+  while ((curpar != NULL) && (slapi_sdn_get_dn(curpar) != NULL))
   {
-        if ((spb = dnHasObjectClass(parentDN, markerObjectClass, txn, plugin_identity)))
+        if ((spb = dnHasObjectClass(curpar, markerObjectClass, txn, plugin_identity)))
         {
           freePblock(spb);
           /*
            * Do the search.   There is no entry that is allowed
            * to have the attribute already.
            */
-          result = search(parentDN, attrName, attr, values, requiredObjectClass,
+          result = search(curpar, attrName, attr, values, requiredObjectClass,
                           target, txn);
           break;
         }
+        newpar = slapi_sdn_new();
+        slapi_sdn_copy(curpar, newpar);
+        slapi_sdn_get_parent(newpar, curpar);
+        slapi_sdn_free(&newpar);
   }
+  slapi_sdn_free(&curpar);
   return result;
 }
 
@@ -548,7 +558,6 @@ preop_add(Slapi_PBlock *pb)
     int err;
     char *markerObjectClass = NULL;
     char *requiredObjectClass = NULL;
-    const char *dn = NULL;
     Slapi_DN *sdn = NULL;
     int isupdatedn;
     Slapi_Entry *e;
@@ -596,10 +605,8 @@ preop_add(Slapi_PBlock *pb)
     err = slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
     if (err) { result = uid_op_error(51); break; }
 
-    dn = slapi_sdn_get_dn(sdn);
-
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD target=%s\n", dn);
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD target=%s\n", slapi_sdn_get_dn(sdn));
 #endif
 
        /*
@@ -632,14 +639,14 @@ preop_add(Slapi_PBlock *pb)
         if (NULL != markerObjectClass)
         {
           /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch((char *)dn, attrName, attr, NULL,
-                                              requiredObjectClass, dn,
+                result = findSubtreeAndSearch(sdn, attrName, attr, NULL,
+                                              requiredObjectClass, sdn,
                                               markerObjectClass, txn);
         } else
         {
           /* Subtrees listed on invocation line */
           result = searchAllSubtrees(argc, argv, attrName, attr, NULL,
-                                     requiredObjectClass, dn, txn);
+                                     requiredObjectClass, sdn, txn);
         }
   END
 
@@ -706,7 +713,6 @@ preop_modify(Slapi_PBlock *pb)
     int modcount = 0;
     int ii;
     LDAPMod *mod;
-    const char *dn = NULL;
     Slapi_DN *sdn = NULL;
     int isupdatedn;
     int argc;
@@ -780,12 +786,11 @@ preop_modify(Slapi_PBlock *pb)
     err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
     if (err) { result = uid_op_error(11); break; }
 
-    dn = slapi_sdn_get_dn(sdn);
     /*
      * Check if it has the required object class
      */
     if (requiredObjectClass &&
-        !(spb = dnHasObjectClass(dn, requiredObjectClass, txn, plugin_identity))) {
+        !(spb = dnHasObjectClass(sdn, requiredObjectClass, txn, plugin_identity))) {
         break;
     }
 
@@ -803,14 +808,14 @@ preop_modify(Slapi_PBlock *pb)
         if (NULL != markerObjectClass)
         {
             /* Subtree defined by location of marker object class */
-            result = findSubtreeAndSearch((char *)dn, attrName, NULL, 
+            result = findSubtreeAndSearch(sdn, attrName, NULL, 
                                           mod->mod_bvalues, requiredObjectClass,
-                                          dn, markerObjectClass, txn);
+                                          sdn, markerObjectClass, txn);
         } else
         {
             /* Subtrees listed on invocation line */
             result = searchAllSubtrees(argc, argv, attrName, NULL,
-                                       mod->mod_bvalues, requiredObjectClass, dn, txn);
+                                       mod->mod_bvalues, requiredObjectClass, sdn, txn);
         }
     }
   END
@@ -953,7 +958,7 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /* Apply the rename operation to the dummy entry. */
-    err = slapi_entry_rename(e, rdn, deloldrdn, slapi_sdn_get_dn(superior));
+    err = slapi_entry_rename(e, rdn, deloldrdn, superior);
     if (err != LDAP_SUCCESS) { result = uid_op_error(36); break; }
 
         /*
@@ -976,14 +981,14 @@ preop_modrdn(Slapi_PBlock *pb)
         if (NULL != markerObjectClass)
         {
           /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(slapi_entry_get_dn(e), attrName, attr, NULL,
-                                              requiredObjectClass, dn,
+                result = findSubtreeAndSearch(slapi_entry_get_sdn(e), attrName, attr, NULL,
+                                              requiredObjectClass, sdn,
                                               markerObjectClass, txn);
         } else
         {
           /* Subtrees listed on invocation line */
           result = searchAllSubtrees(argc, argv, attrName, attr, NULL,
-                                     requiredObjectClass, dn, txn);
+                                     requiredObjectClass, sdn, txn);
         }
   END
   /* Clean-up */

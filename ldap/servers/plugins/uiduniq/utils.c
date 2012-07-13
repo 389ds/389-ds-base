@@ -81,7 +81,7 @@ op_error(int internal_error) {
  *   A pblock containing the entry, or NULL
  */
 Slapi_PBlock *
-readPblockAndEntry( const char *baseDN, const char *filter,
+readPblockAndEntry( Slapi_DN *baseDN, const char *filter,
 					char *attrs[], void *txn, void *pluginid ) {
 	Slapi_PBlock *spb = NULL;
 
@@ -93,9 +93,9 @@ readPblockAndEntry( const char *baseDN, const char *filter,
 			op_error(20);
 			break;
 		}
-		slapi_search_internal_set_pb (spb, baseDN, LDAP_SCOPE_BASE, filter,
-									  attrs, 0, NULL, 
-									  NULL, pluginid, 0); 
+		slapi_search_internal_set_pb_ext (spb, baseDN, LDAP_SCOPE_BASE, filter,
+										  attrs, 0, NULL, 
+										  NULL, pluginid, 0); 
 		slapi_pblock_set(spb, SLAPI_TXN, txn);
 		slapi_search_internal_pb (spb);
  
@@ -153,7 +153,7 @@ entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e,
  *   A pblock containing the entry, or NULL
  */
 Slapi_PBlock *
-dnHasObjectClass( const char *baseDN, const char *objectClass, void *txn, void *pluginid ) {
+dnHasObjectClass( Slapi_DN *baseDN, const char *objectClass, void *txn, void *pluginid ) {
 	char *filter = NULL;
 	Slapi_PBlock *spb = NULL;
 

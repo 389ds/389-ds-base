@@ -86,11 +86,11 @@
 #define END } while(0);
 
 int op_error(int internal_error);
-Slapi_PBlock *readPblockAndEntry( const char *baseDN, const char *filter,
+Slapi_PBlock *readPblockAndEntry( Slapi_DN *baseDN, const char *filter,
 								  char *attrs[], void *txn, void *pluginid );
 int entryHasObjectClass(Slapi_PBlock *pb, Slapi_Entry *e,
 						const char *objectClass);
-Slapi_PBlock *dnHasObjectClass( const char *baseDN, const char *objectClass, void *txn, void *pluginid );
+Slapi_PBlock *dnHasObjectClass( Slapi_DN *baseDN, const char *objectClass, void *txn, void *pluginid  );
 Slapi_PBlock *dnHasAttribute( const char *baseDN, const char *attrName, void *txn, void *pluginid );
 
 #endif /* _PLUGIN_UTILS_H_ */

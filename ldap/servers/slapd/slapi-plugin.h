@@ -2060,7 +2060,7 @@ int slapi_entry_apply_mod(Slapi_Entry *e, LDAPMod *mod);
  * \return \c LDAP_SUCCESS if the rename was successful, otherwise an LDAP error
  *         is returned.
  */
-int slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, const char *newsuperior);
+int slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, Slapi_DN *newsuperior);
 
 
 /*------------------------
