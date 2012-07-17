@@ -1327,7 +1327,6 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     int                    managedsait;
     Slapi_Attr             *attr;
     Slapi_Filter           *filter;
-    const char             *base;
     back_search_result_set *sr;
     ID                     id;
     struct backentry       *e;
@@ -1380,7 +1379,6 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                                "Null target DN", 0, NULL );
         return( -1 );
     }
-    base = slapi_sdn_get_dn(basesdn);
 
     if (sr->sr_current_sizelimit >= 0) {
         /* 

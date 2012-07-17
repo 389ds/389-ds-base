@@ -862,7 +862,6 @@ preop_modrdn(Slapi_PBlock *pb)
     int err;
     char *markerObjectClass=NULL;
     char *requiredObjectClass=NULL;
-    const char *dn = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_DN *superior;
     char *rdn;
@@ -912,8 +911,6 @@ preop_modrdn(Slapi_PBlock *pb)
     /* Get the DN of the entry being renamed */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sdn);
     if (err) { result = uid_op_error(31); break; }
-
-    dn = slapi_sdn_get_dn(sdn);
 
     /* Get superior value - unimplemented in 3.0/4.0/5.0 DS */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &superior);

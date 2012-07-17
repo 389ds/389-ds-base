@@ -605,6 +605,7 @@ string_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,
 				/* This dn value is case-normalized */
 				value_flags &= ~SLAPI_ATTR_FLAG_NORMALIZED_CES;
 				value_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CIS;
+				bvp = slapi_value_get_berval(bvdup);
 			} else {
 				bvp = slapi_value_get_berval(*bvlp);
 			}
