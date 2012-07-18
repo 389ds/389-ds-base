@@ -3766,7 +3766,7 @@ int slapi_attr_get_flags( const Slapi_Attr *attr, unsigned long *flags );
 int slapi_attr_flag_is_set( const Slapi_Attr *attr, unsigned long flag );
 
 /**
- * Comare two values for a given attribute.
+ * Comare two bervals for a given attribute.
  *
  * \param attr Attribute used to determine how these values are compared; for
  *        example, the syntax of the attribute may perform case-insensitive
@@ -3784,6 +3784,27 @@ int slapi_attr_flag_is_set( const Slapi_Attr *attr, unsigned long flag );
  * \see slapi_attr_value_find()
  */
 int slapi_attr_value_cmp( const Slapi_Attr *attr, const struct berval *v1, const struct berval *v2 );
+
+/**
+ * Comare two values for a given attribute.
+ *
+ * \param attr Attribute used to determine how these values are compared; for
+ *        example, the syntax of the attribute may perform case-insensitive
+ *        comparisons.
+ * \param v1 Pointer to the \c Slapi_Value structure containing the first value
+ *        that you want to compare.
+ * \param v2 Pointer to the \c Slapi_Value structure containing the second value
+ *        that you want to compare.
+ * \return \c 0 if the values are equal.
+ * \return \c -1 if the values are not equal.
+ * \see slapi_attr_add_value()
+ * \see slapi_attr_first_value()
+ * \see slapi_attr_next_value()
+ * \see slapi_attr_get_numvalues()
+ * \see slapi_attr_value_find()
+ * \see slapi_attr_value_cmp()
+ */
+int slapi_attr_value_cmp_ext(const Slapi_Attr *a, Slapi_Value *v1, Slapi_Value *v2);
 
 /**
  * Determine if an attribute contains a given value.
