@@ -1114,6 +1114,8 @@ writeintegritylog(char *logfilename, Slapi_DN *sdn,
     char buffer[MAX_LINE];
     int len_to_write = 0;
     int rc;
+    const char *newsuperiordn = NULL;
+
     /* write this record to the file */
 
     /* use this lock to protect file data when update integrity is occuring */
@@ -1147,7 +1149,8 @@ writeintegritylog(char *logfilename, Slapi_DN *sdn,
         /* add the length of the newrdn */
         len_to_write += strlen(newrdn);
     }
-    if(NULL == newsuperior)
+    newsuperiordn = slapi_sdn_get_dn(newsuperior);
+    if(NULL == newsuperiordn)
     {
         /* add the length of "NULL" */
         len_to_write += 4;
@@ -1166,8 +1169,7 @@ writeintegritylog(char *logfilename, Slapi_DN *sdn,
        PR_snprintf(buffer, MAX_LINE, "%s\t%s\t%s\t\n", 
 				   slapi_sdn_get_dn(sdn),
 				   (newrdn != NULL) ? newrdn : "NULL",
-				   (newsuperior != NULL) ? slapi_sdn_get_dn(newsuperior) :
-				                           "NULL");
+				   (newsuperiordn != NULL) ? newsuperiordn : "NULL");
         if (PR_Write(prfd,buffer,strlen(buffer)) < 0){
            slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
 	       " writeintegritylog: PR_Write failed : The disk"
