@@ -1084,6 +1084,7 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     int len_to_write = 0;
     int rc;
     const char *requestordn = NULL;
+    const char *newsuperiordn = NULL;
     size_t reqdn_len = 0;
     
     /*
@@ -1115,7 +1116,9 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
         /* add the length of the newrdn */
         len_to_write += strlen(newrdn);
     }
-    if(NULL == newsuperior){
+    newsuperiordn = slapi_sdn_get_dn(newsuperior);
+    if(NULL == newsuperiordn)
+    {
         /* add the length of "NULL" */
         len_to_write += 4;
     } else {
@@ -1137,8 +1140,8 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
                          " to update references to this entry.\n");
     } else {
         PR_snprintf(buffer, MAX_LINE, "%s\t%s\t%s\t%s\t\n", slapi_sdn_get_dn(sdn),
-                   (newrdn != NULL) ? newrdn : "NULL",
-                   (newsuperior != NULL) ? slapi_sdn_get_dn(newsuperior) : "NULL",
+                    (newrdn != NULL) ? newrdn : "NULL",
+                    (newsuperiordn != NULL) ? newsuperiordn : "NULL",
                     requestordn ? requestordn : "NULL");
         if (PR_Write(prfd,buffer,strlen(buffer)) < 0){
             slapi_log_error(SLAPI_LOG_FATAL,REFERINT_PLUGIN_SUBSYSTEM,
