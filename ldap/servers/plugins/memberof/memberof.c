@@ -108,57 +108,60 @@ static int memberof_postop_close(Slapi_PBlock *pb);
 
 /* supporting cast */
 static int memberof_oktodo(Slapi_PBlock *pb);
-static char *memberof_getdn(Slapi_PBlock *pb);
+static Slapi_DN *memberof_getsdn(Slapi_PBlock *pb);
 static int memberof_modop_one(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op,
-	char *op_this, char *op_to);
+	Slapi_DN *op_this_sdn, Slapi_DN *op_to_sdn);
 static int memberof_modop_one_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op,
-	char *group_dn, char *op_this, char *op_to, memberofstringll *stack);
-static int memberof_add_one(Slapi_PBlock *pb, MemberOfConfig *config, char *addthis,
-	char *addto);
-static int memberof_del_one(Slapi_PBlock *pb, MemberOfConfig *config, char *delthis,
-	char *delfrom);
-static int memberof_mod_smod_list(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
-	char *groupdn, Slapi_Mod *smod);
+	Slapi_DN *group_sdn, Slapi_DN *op_this_sdn, Slapi_DN *op_to_sdn,
+	memberofstringll *stack);
+static int memberof_add_one(Slapi_PBlock *pb, MemberOfConfig *config,
+				Slapi_DN *addthis_sdn, Slapi_DN *addto_sdn);
+static int memberof_del_one(Slapi_PBlock *pb, MemberOfConfig *config,
+				Slapi_DN *delthis_sdn, Slapi_DN *delfrom_sdn);
+static int memberof_mod_smod_list(Slapi_PBlock *pb, MemberOfConfig *config,
+	int mod, Slapi_DN *group_sdn, Slapi_Mod *smod);
 static int memberof_add_smod_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *groupdn, Slapi_Mod *smod);
+	Slapi_DN *group_sdn, Slapi_Mod *smod);
 static int memberof_del_smod_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *groupdn, Slapi_Mod *smod);
+	Slapi_DN *group_sdn, Slapi_Mod *smod);
 static int memberof_mod_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
-	char *groupdn, Slapi_Attr *attr);
+	Slapi_DN *group_sdn, Slapi_Attr *attr);
 static int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config,
-	int mod, char *group_dn, char *op_this, Slapi_Attr *attr, memberofstringll *stack);
+	int mod, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn, Slapi_Attr *attr,
+	memberofstringll *stack);
 static int memberof_add_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *groupdn, Slapi_Attr *attr);
+	Slapi_DN *group_sdn, Slapi_Attr *attr);
 static int memberof_del_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *groupdn, Slapi_Attr *attr);
+	Slapi_DN *group_sdn, Slapi_Attr *attr);
 static int memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *pre_dn, char *post_dn, Slapi_Attr *attr);
-static int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group_dn);
+	Slapi_DN *pre_sdn, Slapi_DN *post_sdn, Slapi_Attr *attr);
+static int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
+	Slapi_DN *group_sdn);
 static void memberof_set_plugin_id(void * plugin_id);
 static void *memberof_get_plugin_id();
 static int memberof_compare(MemberOfConfig *config, const void *a, const void *b);
 static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
-static void memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn);
-static int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
+static void memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn);
+static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	char **types, plugin_search_entry_callback callback,  void *callback_data);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
 	Slapi_Value *memberdn);
 static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
-static Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, char *memberdn);
-static int memberof_get_groups_r(MemberOfConfig *config, char *memberdn,
+static Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn);
+static int memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn,
 	memberof_get_groups_data *data);
 static int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *group_dn);
+	Slapi_DN *group_sdn);
 static int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data);
 static void memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *pre_dn, char *post_dn);
+	Slapi_DN *pre_sdn, Slapi_DN *post_sdn);
 static int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
-	int mod_op, char *group_dn, char *op_this, char *replace_with, char *op_to,
-	memberofstringll *stack);
+	int mod_op, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn,
+	Slapi_DN *replace_with_sdn, Slapi_DN *op_to_sdn, memberofstringll *stack);
 static int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
                     Slapi_Entry *eAfter, int *returncode, char *returntext,
                     void *arg);
@@ -379,7 +382,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 {
 	int ret = 0;
 	MemberOfConfig configCopy = {0, 0, 0, 0};
-	char *normdn;
+	Slapi_DN *sdn;
 	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -393,7 +396,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		return 0;
 	}
 
-	if(memberof_oktodo(pb) && (normdn = memberof_getdn(pb)))
+	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
 	{
 		struct slapi_entry *e = NULL;
 
@@ -413,7 +416,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		/* remove this DN from the
 		 * membership lists of groups
 		 */
-		memberof_del_dn_from_groups(pb, &configCopy, normdn);
+		memberof_del_dn_from_groups(pb, &configCopy, sdn);
 
 		/* is the entry of interest as a group? */
 		if(e && configCopy.group_filter && !slapi_filter_test_simple(e, configCopy.group_filter))
@@ -426,7 +429,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 			{
 				if (0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
-					memberof_del_attr_list(pb, &configCopy, normdn, attr);
+					memberof_del_attr_list(pb, &configCopy, sdn, attr);
 				}
 			}
 		}
@@ -449,7 +452,7 @@ typedef struct _memberof_del_dn_data
 
 /* Deletes a member dn from all groups that refer to it. */
 static void
-memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn)
+memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn)
 {
 	int i = 0;
 	char *groupattrs[2] = {0, 0};
@@ -459,12 +462,13 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, char *dn)
 	 * same grouping attribute. */
 	for (i = 0; config->groupattrs[i]; i++)
 	{
-		memberof_del_dn_data data = {dn, config->groupattrs[i]};
+		memberof_del_dn_data data = {(char *)slapi_sdn_get_dn(sdn),
+		                             config->groupattrs[i]};
 
 		groupattrs[0] = config->groupattrs[i];
 
-		memberof_call_foreach_dn(pb, dn, groupattrs,
-			memberof_del_dn_type_callback, &data);
+		memberof_call_foreach_dn(pb, sdn, groupattrs,
+		                         memberof_del_dn_type_callback, &data);
 	}
 }
 
@@ -510,19 +514,18 @@ int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
  * is a user, you'd want "type" to be "member".  If "dn" is a group, you
  * could want type to be either "member" or "memberOf" depending on the case.
  */
-int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
+int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	char **types, plugin_search_entry_callback callback, void *callback_data)
 {
 	Slapi_PBlock *search_pb = NULL;
 	Slapi_DN *base_sdn = NULL;
 	Slapi_Backend *be = NULL;
-	Slapi_DN *sdn = NULL;
 	char *filter_str = NULL;
 	char *cookie = NULL;
 	int all_backends = memberof_config_get_all_backends();
 	int types_name_len = 0;
 	int num_types = 0;
-	int dn_len = strlen(dn);
+	int dn_len = slapi_sdn_get_ndn_len(sdn);
 	int rc = 0;
 	int i = 0;
 
@@ -550,7 +553,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 		for (i = 0; types[i]; i++)
 		{
 			bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out,
-					"(%s=%s)", types[i], dn);
+					"(%s=%s)", types[i], slapi_sdn_get_ndn(sdn));
 		}
 
 		/* Add end of filter. */
@@ -558,7 +561,8 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	}
 	else if (num_types == 1)
 	{
-		filter_str = slapi_ch_smprintf("(%s=%s)", types[0], dn);
+		filter_str =
+		        slapi_ch_smprintf("(%s=%s)", types[0], slapi_sdn_get_ndn(sdn));
 	}
 
 	if(filter_str == NULL){
@@ -569,7 +573,6 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 	be = slapi_get_first_backend(&cookie);
 	while(be){
 		if(!all_backends){
-			sdn = slapi_sdn_new_normdn_byref(dn);
 			be = slapi_be_select(sdn);
 			if(be == NULL){
 				break;
@@ -596,7 +599,6 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, char *dn,
 		be = slapi_get_next_backend(cookie);
 	}
 
-	slapi_sdn_free(&sdn);
 	slapi_pblock_destroy(search_pb);
 	slapi_ch_free((void **)&cookie);
 	slapi_ch_free_string(&filter_str);
@@ -632,16 +634,16 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		MemberOfConfig configCopy = {0, 0, 0, 0};
 		struct slapi_entry *pre_e = NULL;
 		struct slapi_entry *post_e = NULL;
-		char *pre_dn = 0;
-		char *post_dn = 0;
+		Slapi_DN *pre_sdn = 0;
+		Slapi_DN *post_sdn = 0;
 
 		slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &pre_e );
 		slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &post_e );
 		
 		if(pre_e && post_e)
 		{
-			pre_dn = slapi_entry_get_ndn(pre_e);
-			post_dn = slapi_entry_get_ndn(post_e);
+			pre_sdn = slapi_entry_get_sdn(pre_e);
+			post_sdn = slapi_entry_get_sdn(post_e);
 		}
 
 		/* copy config so it doesn't change out from under us */
@@ -653,7 +655,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		memberof_lock();
 
 		/*  update any downstream members */
-		if(pre_dn && post_dn && configCopy.group_filter &&
+		if(pre_sdn && post_sdn && configCopy.group_filter &&
 			!slapi_filter_test_simple(post_e, configCopy.group_filter))
 		{
 			int i = 0;
@@ -665,7 +667,8 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 			{
 				if(0 == slapi_entry_attr_find(post_e, configCopy.groupattrs[i], &attr))
 				{
-					if(memberof_moddn_attr_list(pb, &configCopy, pre_dn, post_dn, attr) != 0){
+					if(memberof_moddn_attr_list(pb, &configCopy, pre_sdn,
+					                            post_sdn, attr) != 0){
 						break;
 					}
 				}
@@ -675,8 +678,8 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		/* It's possible that this is an entry who is a member
 		 * of other group entries.  We need to update any member
 		 * attributes to refer to the new name. */
-		if (pre_dn && post_dn) {
-			memberof_replace_dn_from_groups(pb, &configCopy, pre_dn, post_dn);
+		if (pre_sdn && post_sdn) {
+			memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn);
 		}
 
 		memberof_unlock();
@@ -701,7 +704,7 @@ typedef struct _replace_dn_data
  * to use post_dn instead. */
 static void
 memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *pre_dn, char *post_dn)
+	Slapi_DN *pre_sdn, Slapi_DN *post_sdn)
 {
 	int i = 0;
 	char *groupattrs[2] = {0, 0};
@@ -711,11 +714,13 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	 * using the same grouping attribute. */
 	for (i = 0; config->groupattrs[i]; i++)
 	{
-		replace_dn_data data = {pre_dn, post_dn, config->groupattrs[i]};
+		replace_dn_data data = {(char *)slapi_sdn_get_ndn(pre_sdn),
+		                        (char *)slapi_sdn_get_ndn(post_sdn),
+		                        config->groupattrs[i]};
 
 		groupattrs[0] = config->groupattrs[i];
 
-		memberof_call_foreach_dn(pb, pre_dn, groupattrs, 
+		memberof_call_foreach_dn(pb, pre_sdn, groupattrs, 
 			memberof_replace_dn_type_callback, &data);
 	}
 }
@@ -785,7 +790,7 @@ int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
 int memberof_postop_modify(Slapi_PBlock *pb)
 {
 	int ret = 0;
-	char *normdn = 0;
+	Slapi_DN *sdn = NULL;
 	Slapi_Mods *smods = 0;
 	Slapi_Mod *smod = 0;
 	LDAPMod **mods;
@@ -803,7 +808,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 		return 0;
 	}
 
-	if(memberof_oktodo(pb) && (normdn = memberof_getdn(pb)))
+	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
 	{
 		int config_copied = 0;
 		MemberOfConfig *mainConfig = 0;
@@ -859,7 +864,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				case LDAP_MOD_ADD:
 					{
 						/* add group DN to targets */
-						memberof_add_smod_list(pb, &configCopy, normdn, smod);
+						memberof_add_smod_list(pb, &configCopy, sdn, smod);
 						break;
 					}
 				
@@ -871,12 +876,12 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 						 * entry, which the replace code deals with. */
 						if (slapi_mod_get_num_values(smod) == 0)
 						{
-							memberof_replace_list(pb, &configCopy, normdn);
+							memberof_replace_list(pb, &configCopy, sdn);
 						}
 						else
 						{
 							/* remove group DN from target values in smod*/
-							memberof_del_smod_list(pb, &configCopy, normdn, smod);
+							memberof_del_smod_list(pb, &configCopy, sdn, smod);
 						}
 						break;
 					}
@@ -884,7 +889,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				case LDAP_MOD_REPLACE:
 					{
 						/* replace current values */
-						memberof_replace_list(pb, &configCopy, normdn);
+						memberof_replace_list(pb, &configCopy, sdn);
 						break;
 					}
 
@@ -930,7 +935,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 {
 	int ret = 0;
 	int interested = 0;
-	char *normdn = 0;
+	Slapi_DN *sdn = 0;
 	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -944,7 +949,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 		return 0;
 	}
 
-	if(memberof_oktodo(pb) && (normdn = memberof_getdn(pb)))
+	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
 	{
 		MemberOfConfig *mainConfig = 0;
 		MemberOfConfig configCopy = {0, 0, 0, 0};
@@ -976,7 +981,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 			{
 				if(0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
-					memberof_add_attr_list(pb, &configCopy, normdn, attr);
+					memberof_add_attr_list(pb, &configCopy, sdn, attr);
 				}
 			}
 
@@ -1037,22 +1042,14 @@ bail:
 	return ret;
 }
 
-/*
- * memberof_getdn()
- *
- * Get dn of target entry
- * Note: slapi_sdn_get_dn returns normalized dn.
- *
- */
-char *memberof_getdn(Slapi_PBlock *pb)
+static Slapi_DN *
+memberof_getsdn(Slapi_PBlock *pb)
 {
-	const char *dn = 0;
 	Slapi_DN *sdn = NULL;
 
 	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-	dn = slapi_sdn_get_dn(sdn); /* returns norm dn */
 
-	return (char *)dn;
+	return sdn;
 }
 
 /*
@@ -1066,9 +1063,10 @@ char *memberof_getdn(Slapi_PBlock *pb)
  * Also, we must not delete entries that are a member of the group
  */
 int memberof_modop_one(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op,
-	char *op_this, char *op_to)
+	Slapi_DN *op_this_sdn, Slapi_DN *op_to_sdn)
 {
-	return memberof_modop_one_r(pb, config, mod_op, op_this, op_this, op_to, 0);
+	return memberof_modop_one_r(pb, config, mod_op, op_this_sdn,
+	                            op_this_sdn, op_to_sdn, 0);
 }
 
 /* memberof_modop_one_r()
@@ -1077,19 +1075,21 @@ int memberof_modop_one(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op,
  */
 
 int memberof_modop_one_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op,
-	char *group_dn, char *op_this, char *op_to, memberofstringll *stack)
+	Slapi_DN *group_sdn, Slapi_DN *op_this_sdn, Slapi_DN *op_to_sdn,
+	memberofstringll *stack)
 {
 	return memberof_modop_one_replace_r(
-		pb, config, mod_op, group_dn, op_this, 0, op_to, stack);
+		pb, config, mod_op, group_sdn, op_this_sdn, 0, op_to_sdn, stack);
 }
 
 /* memberof_modop_one_replace_r()
  *
  * recursive function to perform above (with added replace arg)
  */
-int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
-	int mod_op, char *group_dn, char *op_this, char *replace_with,
-	char *op_to, memberofstringll *stack)
+int
+memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
+	int mod_op, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn,
+	Slapi_DN *replace_with_sdn, Slapi_DN *op_to_sdn, memberofstringll *stack)
 {
 	int rc = 0;
 	LDAPMod mod;
@@ -1098,12 +1098,16 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	char *val[2];
 	char *replace_val[2];
 	Slapi_PBlock *mod_pb = 0;
-	Slapi_DN *op_to_sdn = 0;
 	Slapi_Entry *e = 0; 
 	memberofstringll *ll = 0;
 	char *op_str = 0;
+	const char *op_to = slapi_sdn_get_ndn(op_to_sdn);
+	const char *op_this = slapi_sdn_get_ndn(op_this_sdn);
 	Slapi_Value *to_dn_val = slapi_value_new_string(op_to);
 	Slapi_Value *this_dn_val = slapi_value_new_string(op_this);
+	/* op_this and op_to are both case-normalized */
+	slapi_value_set_flags(this_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
+	slapi_value_set_flags(to_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	if (config == NULL) {
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -1112,7 +1116,6 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	}
 
 	/* determine if this is a group op or single entry */
-	op_to_sdn = slapi_sdn_new_normdn_byref(op_to);
 	slapi_search_internal_get_entry( op_to_sdn, config->groupattrs,
 		&e, memberof_get_plugin_id());
 	if(!e)
@@ -1180,7 +1183,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 							 * entry.  This will fix the references to
 							 * the missing group as well as the group
 							 * represented by op_this. */
-							memberof_test_membership(pb, config, op_to);
+							memberof_test_membership(pb, config, op_to_sdn);
 						}
 					}
 					slapi_free_search_results_internal(search_pb);
@@ -1232,6 +1235,8 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		while(ll)
 		{
 			ll_dn_val = slapi_value_new_string(ll->dn);
+			/* ll->dn is case-normalized */
+			slapi_value_set_flags(ll_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 			if(0 == memberof_compare(config, &ll_dn_val, &to_dn_val))
 			{
@@ -1267,7 +1272,8 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			slapi_entry_attr_find( e, config->groupattrs[i], &members );
 			if(members)
 			{
-				if(memberof_mod_attr_list_r(pb, config, mod_op, group_dn, op_this, members, ll) != 0){
+				if(memberof_mod_attr_list_r(pb, config, mod_op, group_sdn,
+				   op_this_sdn, members, ll) != 0){
 					rc = -1;
 					goto bail;
 				}
@@ -1324,7 +1330,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 				mods[1] = 0;
 			}
 
-			val[0] = op_this;
+			val[0] = (char *)op_this;
 			val[1] = 0;
 			mod.mod_op = LDAP_MOD_REPLACE == mod_op?LDAP_MOD_DELETE:mod_op;
 			mod.mod_type = config->memberof_attr;
@@ -1332,7 +1338,7 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 
 			if(LDAP_MOD_REPLACE == mod_op)
 			{
-				replace_val[0] = replace_with;
+				replace_val[0] = (char *)slapi_sdn_get_ndn(replace_with_sdn);
 				replace_val[1] = 0;
 
 				replace_mod.mod_op = LDAP_MOD_ADD;
@@ -1356,7 +1362,6 @@ int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	}
 
 bail:
-	slapi_sdn_free(&op_to_sdn);
 	slapi_value_free(&to_dn_val);
 	slapi_value_free(&this_dn_val);
 	slapi_entry_free(e);
@@ -1370,9 +1375,11 @@ bail:
  * Add addthis DN to the memberof attribute of addto
  *
  */
-int memberof_add_one(Slapi_PBlock *pb, MemberOfConfig *config, char *addthis, char *addto)
+int
+memberof_add_one(Slapi_PBlock *pb, MemberOfConfig *config,
+                 Slapi_DN *addthis_sdn, Slapi_DN *addto_sdn)
 {
-	return memberof_modop_one(pb, config, LDAP_MOD_ADD, addthis, addto);
+	return memberof_modop_one(pb, config, LDAP_MOD_ADD, addthis_sdn, addto_sdn);
 }
 
 /*
@@ -1381,9 +1388,11 @@ int memberof_add_one(Slapi_PBlock *pb, MemberOfConfig *config, char *addthis, ch
  * Delete delthis DN from the memberof attribute of delfrom
  *
  */
-int memberof_del_one(Slapi_PBlock *pb, MemberOfConfig *config, char *delthis, char *delfrom)
+int
+memberof_del_one(Slapi_PBlock *pb, MemberOfConfig *config,
+                 Slapi_DN *delthis_sdn, Slapi_DN *delfrom_sdn)
 {
-	return memberof_modop_one(pb, config, LDAP_MOD_DELETE, delthis, delfrom);
+	return memberof_modop_one(pb, config, LDAP_MOD_DELETE, delthis_sdn, delfrom_sdn);
 }
 
 /*
@@ -1393,12 +1402,13 @@ int memberof_del_one(Slapi_PBlock *pb, MemberOfConfig *config, char *delthis, ch
  *
  */
 int memberof_mod_smod_list(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
-	char *group_dn, Slapi_Mod *smod)
+	Slapi_DN *group_sdn, Slapi_Mod *smod)
 {
 	int rc = 0;
 	struct berval *bv = slapi_mod_get_first_value(smod);
 	int last_size = 0;
 	char *last_str = 0;
+	Slapi_DN *sdn = slapi_sdn_new();
 
 	while(bv)
 	{
@@ -1424,12 +1434,14 @@ int memberof_mod_smod_list(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 		memset(dn_str, 0, last_size);
 
 		strncpy(dn_str, bv->bv_val, (size_t)bv->bv_len);
+		slapi_sdn_set_dn_byref(sdn, dn_str);
 
-		memberof_modop_one(pb, config, mod, group_dn, dn_str);
+		memberof_modop_one(pb, config, mod, group_sdn, sdn);
 
 		bv = slapi_mod_get_next_value(smod);
 	}
 
+	slapi_sdn_free(&sdn);
 	if(last_str)
 		slapi_ch_free_string(&last_str);
 
@@ -1443,9 +1455,9 @@ int memberof_mod_smod_list(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
  *
  */
 int memberof_add_smod_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *groupdn, Slapi_Mod *smod)
+	Slapi_DN *group_sdn, Slapi_Mod *smod)
 {
-	return memberof_mod_smod_list(pb, config, LDAP_MOD_ADD, groupdn, smod);
+	return memberof_mod_smod_list(pb, config, LDAP_MOD_ADD, group_sdn, smod);
 }
 
 
@@ -1456,9 +1468,9 @@ int memberof_add_smod_list(Slapi_PBlock *pb, MemberOfConfig *config,
  *
  */
 int memberof_del_smod_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *groupdn, Slapi_Mod *smod)
+	Slapi_DN *group_sdn, Slapi_Mod *smod)
 {
-	return memberof_mod_smod_list(pb, config, LDAP_MOD_DELETE, groupdn, smod);
+	return memberof_mod_smod_list(pb, config, LDAP_MOD_DELETE, group_sdn, smod);
 }
 
 /**
@@ -1482,13 +1494,15 @@ void * memberof_get_plugin_id()
  *
  */
 int memberof_mod_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
-	char *group_dn, Slapi_Attr *attr)
+	Slapi_DN *group_sdn, Slapi_Attr *attr)
 {
-	return memberof_mod_attr_list_r(pb, config, mod, group_dn, group_dn, attr, 0);
+	return memberof_mod_attr_list_r(pb, config, mod, group_sdn, group_sdn,
+	                                attr, 0);
 }
 
 int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
-	char *group_dn, char *op_this, Slapi_Attr *attr, memberofstringll *stack)
+                             Slapi_DN *group_sdn, Slapi_DN *op_this_sdn,
+                             Slapi_Attr *attr, memberofstringll *stack)
 {
 	int rc = 0;
 	Slapi_Value *val = 0;
@@ -1496,8 +1510,10 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 	int last_size = 0;
 	char *last_str = 0;
 	int hint = slapi_attr_first_value(attr, &val);
+	Slapi_DN *sdn = slapi_sdn_new();
 
-	op_this_val = slapi_value_new_string(op_this);
+	op_this_val = slapi_value_new_string(slapi_sdn_get_ndn(op_this_sdn));
+	slapi_value_set_flags(op_this_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	while(val)
 	{
@@ -1532,14 +1548,17 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 
 			/* If we're doing a replace (as we would in the MODRDN case), we need
 			 * to specify the new group DN value */
+			slapi_sdn_set_normdn_byref(sdn, dn_str); /* dn_str is normalized */
 			if(mod == LDAP_MOD_REPLACE)
 			{
-				memberof_modop_one_replace_r(pb, config, mod, group_dn, op_this,
-						group_dn, dn_str, stack);
+				memberof_modop_one_replace_r(pb, config, mod, group_sdn,
+				                             op_this_sdn, group_sdn,
+				                             sdn, stack);
 			}
 			else
 			{
-				memberof_modop_one_r(pb, config, mod, group_dn, op_this, dn_str, stack);
+				memberof_modop_one_r(pb, config, mod, group_sdn, 
+				                     op_this_sdn, sdn, stack);
 			}
 		}
 
@@ -1548,6 +1567,7 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 
 	slapi_value_free(&op_this_val);
 
+	slapi_sdn_free(&sdn);
 	if(last_str)
 		slapi_ch_free_string(&last_str);
 
@@ -1560,10 +1580,10 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
  * Add group DN to the memberof attribute of the list of targets
  *
  */
-int memberof_add_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, char *groupdn,
-	Slapi_Attr *attr)
+int memberof_add_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, 
+	Slapi_DN *group_sdn, Slapi_Attr *attr)
 {
-	return memberof_mod_attr_list(pb, config, LDAP_MOD_ADD, groupdn, attr);
+	return memberof_mod_attr_list(pb, config, LDAP_MOD_ADD, group_sdn, attr);
 }
 
 /*
@@ -1572,10 +1592,10 @@ int memberof_add_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group
  * Remove group DN from the memberof attribute of the list of targets
  *
  */
-int memberof_del_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, char *groupdn,
-	Slapi_Attr *attr)
+int memberof_del_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, 
+                           Slapi_DN *group_sdn, Slapi_Attr *attr)
 {
-	return memberof_mod_attr_list(pb, config, LDAP_MOD_DELETE, groupdn, attr);
+	return memberof_mod_attr_list(pb, config, LDAP_MOD_DELETE, group_sdn, attr);
 }
 
 /*
@@ -1585,13 +1605,14 @@ int memberof_del_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group
  *
  */
 int memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
-	char *pre_dn, char *post_dn, Slapi_Attr *attr)
+	Slapi_DN *pre_sdn, Slapi_DN *post_sdn, Slapi_Attr *attr)
 {
 	int rc = 0;
 	Slapi_Value *val = 0;
 	int last_size = 0;
 	char *last_str = 0;
 	int hint = slapi_attr_first_value(attr, &val);
+	Slapi_DN *sdn = slapi_sdn_new();
 
 	while(val)
 	{
@@ -1619,12 +1640,14 @@ int memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
 
 		strncpy(dn_str, bv->bv_val, (size_t)bv->bv_len);
 
+		slapi_sdn_set_normdn_byref(sdn, dn_str); /* dn_str is normalized */
 		memberof_modop_one_replace_r(pb, config, LDAP_MOD_REPLACE,
-			post_dn, pre_dn, post_dn, dn_str, 0);
+		                             post_sdn, pre_sdn, post_sdn, sdn, 0);
 
 		hint = slapi_attr_next_value(attr, hint, &val);
 	}
 
+	slapi_sdn_free(&sdn);
 	if(last_str)
 		slapi_ch_free_string(&last_str);
 
@@ -1638,24 +1661,30 @@ int memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
  * A Slapi_ValueSet* is returned.  It is up to the caller to
  * free it.
  */
-Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, char *memberdn)
+Slapi_ValueSet *
+memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn)
 {
-	Slapi_Value *memberdn_val = slapi_value_new_string(memberdn);
 	Slapi_ValueSet *groupvals = slapi_valueset_new();
+	Slapi_Value *memberdn_val = 
+	                      slapi_value_new_string(slapi_sdn_get_ndn(member_sdn));
+	slapi_value_set_flags(memberdn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
+
 	memberof_get_groups_data data = {config, memberdn_val, &groupvals};
 
-	memberof_get_groups_r(config, memberdn, &data);
+	memberof_get_groups_r(config, member_sdn, &data);
 
 	slapi_value_free(&memberdn_val);
 
 	return groupvals;
 }
 
-int memberof_get_groups_r(MemberOfConfig *config, char *memberdn, memberof_get_groups_data *data)
+int
+memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn,
+                      memberof_get_groups_data *data)
 {
 	/* Search for any grouping attributes that point to memberdn.
 	 * For each match, add it to the list, recurse and do same search */
-	return memberof_call_foreach_dn(NULL, memberdn, config->groupattrs,
+	return memberof_call_foreach_dn(NULL, member_sdn, config->groupattrs,
 		memberof_get_groups_callback, data);
 }
 
@@ -1665,7 +1694,8 @@ int memberof_get_groups_r(MemberOfConfig *config, char *memberdn, memberof_get_g
  */
 int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 {
-	char *group_dn = slapi_entry_get_dn(e);
+	Slapi_DN *group_sdn = slapi_entry_get_sdn(e);
+	char *group_dn = slapi_entry_get_ndn(e);
 	Slapi_Value *group_dn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
 	int rc = 0;
@@ -1685,6 +1715,8 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	}
 	/* get the DN of the group */
 	group_dn_val = slapi_value_new_string(group_dn);
+	/* group_dn is case-normalized */
+	slapi_value_set_flags(group_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	/* check if e is the same as our original member entry */
 	if (0 == memberof_compare(((memberof_get_groups_data*)callback_data)->config,
@@ -1725,7 +1757,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 
 	/* now recurse to find parent groups of e */
 	memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
-		group_dn, callback_data);
+		group_sdn, callback_data);
 
 bail:
 	return rc;
@@ -1810,11 +1842,13 @@ static int memberof_is_grouping_attr(char *type, MemberOfConfig *config)
  * iterate until a pass fails to move a group over to member groups
  * remaining groups should be deleted 
  */
-int memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config, char *group_dn)
+int
+memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config,
+                         Slapi_DN *group_sdn)
 {
 	char *attrs[2] = {config->memberof_attr, 0};
 
-	return memberof_call_foreach_dn(pb, group_dn, attrs, 
+	return memberof_call_foreach_dn(pb, group_sdn, attrs, 
 		memberof_test_membership_callback , config);
 }
 
@@ -1833,9 +1867,13 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 	Slapi_Value **member_array = 0;
 	Slapi_Value **candidate_array = 0;
 	Slapi_Value *entry_dn = 0;
+	Slapi_DN *entry_sdn = 0;
 	MemberOfConfig *config = (MemberOfConfig *)callback_data;
+	Slapi_DN *sdn = slapi_sdn_new();
 
-	entry_dn = slapi_value_new_string(slapi_entry_get_dn(e));
+	entry_sdn = slapi_entry_get_sdn(e);
+	entry_dn = slapi_value_new_string(slapi_entry_get_ndn(e));
+	slapi_value_set_flags(entry_dn, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	if(0 == entry_dn)
 	{
@@ -1908,8 +1946,7 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 						/* Check for a special value in this position
 						 * that indicates that the candidate was moved
 						 * to the member array. */
-						if((void*)1 ==
-							candidate_array[inner_index])
+						if((void*)1 == candidate_array[inner_index])
 						{
 							/* was moved, skip */
 							inner_index++;
@@ -1955,11 +1992,9 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 					continue;
 				}
 
-				memberof_del_one(
-					0, config,
-					(char*)slapi_value_get_string(
-						candidate_array[outer_index]),
-					(char*)slapi_value_get_string(entry_dn));
+				slapi_sdn_set_normdn_byref(sdn,
+					      slapi_value_get_string(candidate_array[outer_index]));
+				memberof_del_one(0, config, sdn, entry_sdn);
 
 				outer_index++;
 			}
@@ -1980,6 +2015,7 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 	}
 
 bail:
+	slapi_sdn_free(&sdn);
 	slapi_value_free(&entry_dn);
 
 	return rc;
@@ -1991,7 +2027,9 @@ bail:
  * Perform replace the group DN list in the memberof attribute of the list of targets
  *
  */
-int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group_dn)
+int
+memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
+                      Slapi_DN *group_sdn)
 {
 	struct slapi_entry *pre_e = NULL;
 	struct slapi_entry *post_e = NULL;
@@ -2018,6 +2056,7 @@ int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group_
 			Slapi_Value **post_array = 0;
 			int pre_index = 0;
 			int post_index = 0;
+			Slapi_DN *sdn = slapi_sdn_new();
 
 			/* create arrays of values */
 			if(pre_attr)
@@ -2077,22 +2116,18 @@ int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group_
 				if(pre_index == pre_total)
 				{
 					/* add the rest of post */
-					memberof_add_one(
-						pb, config, 
-						group_dn, 
-						(char*)slapi_value_get_string(
-							post_array[post_index]));
+					slapi_sdn_set_normdn_byref(sdn,
+					            slapi_value_get_string(post_array[post_index]));
+					memberof_add_one(pb, config, group_sdn, sdn);
 
 					post_index++;
 				}
 				else if(post_index == post_total)
 				{
 					/* delete the rest of pre */
-					memberof_del_one(
-						pb, config,
-						group_dn, 
-						(char*)slapi_value_get_string(
-							pre_array[pre_index]));
+					slapi_sdn_set_normdn_byref(sdn,
+					            slapi_value_get_string(pre_array[pre_index]));
+					memberof_del_one(pb, config, group_sdn, sdn);
 
 					pre_index++;
 				}
@@ -2107,22 +2142,18 @@ int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group_
 					if(cmp < 0)
 					{
 						/* delete pre array */
-						memberof_del_one(
-							pb, config, 
-							group_dn, 
-							(char*)slapi_value_get_string(
-								pre_array[pre_index]));
+						slapi_sdn_set_normdn_byref(sdn,
+					            slapi_value_get_string(pre_array[pre_index]));
+						memberof_del_one(pb, config, group_sdn, sdn);
 
 						pre_index++;
 					}
 					else if(cmp > 0)
 					{
 						/* add post array */
-						memberof_add_one(
-							pb, config,
-							group_dn, 
-							(char*)slapi_value_get_string(
-								post_array[post_index]));
+						slapi_sdn_set_normdn_byref(sdn,
+					            slapi_value_get_string(post_array[post_index]));
+						memberof_add_one(pb, config, group_sdn, sdn);
 
 						post_index++;
 					}
@@ -2134,6 +2165,7 @@ int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, char *group_
 					}
 				}
 			}
+			slapi_sdn_free(&sdn);
 			slapi_ch_free((void **)&pre_array);
 			slapi_ch_free((void **)&post_array);
 		}
@@ -2171,10 +2203,7 @@ int memberof_compare(MemberOfConfig *config, const void *a, const void *b)
 	/* We only need to provide a Slapi_Attr here for it's syntax.  We
 	 * already validated all grouping attributes to use the Distinguished
 	 * Name syntax, so we can safely just use the first attr. */
-	return slapi_attr_value_cmp(
-		config->group_slapiattrs[0],
-		slapi_value_get_berval(val1),
-		slapi_value_get_berval(val2));
+	return slapi_attr_value_cmp_ext(config->group_slapiattrs[0], val1, val2);
 }
 
 /* memberof_qsort_compare()
@@ -2194,10 +2223,8 @@ int memberof_qsort_compare(const void *a, const void *b)
 	/* We only need to provide a Slapi_Attr here for it's syntax.  We
 	 * already validated all grouping attributes to use the Distinguished
 	 * Name syntax, so we can safely just use the first attr. */
-	return slapi_attr_value_cmp(
-		qsortConfig->group_slapiattrs[0], 
-		slapi_value_get_berval(val1), 
-		slapi_value_get_berval(val2));
+	return slapi_attr_value_cmp_ext(qsortConfig->group_slapiattrs[0],
+	                                val1, val2);
 }
 
 void memberof_lock()
@@ -2401,14 +2428,13 @@ int memberof_fix_memberof(MemberOfConfig *config, char *dn, char *filter_str)
 int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 {
 	int rc = 0;
-	char *dn = slapi_entry_get_dn(e);
 	Slapi_DN *sdn = slapi_entry_get_sdn(e);
 	MemberOfConfig *config = (MemberOfConfig *)callback_data;
 	memberof_del_dn_data del_data = {0, config->memberof_attr};
 	Slapi_ValueSet *groups = 0;
 
 	/* get a list of all of the groups this user belongs to */
-	groups = memberof_get_groups(config, dn);
+	groups = memberof_get_groups(config, sdn);
 
 	/* If we found some groups, replace the existing memberOf attribute
 	 * with the found values.  */

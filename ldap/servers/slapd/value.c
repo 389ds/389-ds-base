@@ -544,19 +544,19 @@ slapi_value_compare(const Slapi_Attr *a,const Slapi_Value *v1,const Slapi_Value 
 	int r= 0;
 	if(v1!=NULL && v2!=NULL)
 	{
-            r= slapi_attr_value_cmp( a, &v1->bv, &v2->bv);
+		r= slapi_attr_value_cmp_ext(a, (Slapi_Value *)v1, (Slapi_Value *)v2);
 	}
 	else if(v1!=NULL && v2==NULL)
 	{
-            r= 1; /* v1>v2 */
+		r= 1; /* v1>v2 */
 	}
 	else if (v1==NULL && v2!=NULL)
 	{
-            r= -1; /* v1<v2 */
+		r= -1; /* v1<v2 */
 	}
 	else /* (v1==NULL && v2==NULL) */
 	{
-            r= 0; /* The same */
+		r= 0; /* The same */
 	}
 	return r;
 }
