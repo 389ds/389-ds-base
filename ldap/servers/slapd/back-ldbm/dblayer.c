@@ -1892,6 +1892,30 @@ check_and_set_import_cache(struct ldbminfo *li)
     return 0;
 }
 
+size_t
+dblayer_get_id2entry_size(ldbm_instance *inst)
+{
+    struct ldbminfo *li = NULL;
+    char *id2entry_file = NULL;
+    PRFileInfo info;
+    int rc;
+    char inst_dir[MAXPATHLEN], *inst_dirp;
+
+    if (NULL == inst) {
+        return 0;
+    }
+    li = inst->inst_li;
+    inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
+    id2entry_file = slapi_ch_smprintf("%s/%s", inst_dirp,
+                                      ID2ENTRY LDBM_FILENAME_SUFFIX);
+    rc = PR_GetFileInfo(id2entry_file, &info);
+    slapi_ch_free_string(&id2entry_file);
+    if (rc) {
+        return 0;
+    }
+    return info.size;
+}
+
 /* mode is one of
  * DBLAYER_NORMAL_MODE,
  * DBLAYER_INDEX_MODE,
@@ -2254,7 +2278,7 @@ int dblayer_instance_start(backend *be, int mode)
         dbp->set_cache_priority(dbp, DB_PRIORITY_LOW);
 #endif
 out:
-        slapi_ch_free((void**)&id2entry_file);
+        slapi_ch_free_string(&id2entry_file);
     }
 
     if (0 == return_value) {
@@ -2511,16 +2535,17 @@ err:
        (*ppEnv)->close(*ppEnv, 0);
        *ppEnv = NULL;
     }
-    if (id2entry_file) {
-        slapi_ch_free_string(&id2entry_file);
-    }
     if (priv->dblayer_home_directory) {
         ldbm_delete_dirs(priv->dblayer_home_directory);
     }
 done:
-    if ((0 == rval) && path) { /* only when successfull */
-        *path = slapi_ch_smprintf("%s/%s",
-                                  inst->inst_parent_dir_name, id2entry_file);
+    if (path) {
+        if (0 == rval) { /* return the path only when successfull */
+            *path = slapi_ch_smprintf("%s/%s", inst->inst_parent_dir_name,
+                                      id2entry_file);
+        } else {
+            *path = NULL;
+        }
     }
     slapi_ch_free_string(&id2entry_file);
     if (priv) {
