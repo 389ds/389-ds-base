@@ -135,9 +135,7 @@ ldbm_back_start( Slapi_PBlock *pb )
       (li->li_cache_autosize + li->li_import_cache_autosize > 100))) {
       LDAPDebug( LDAP_DEBUG_ANY, "cache autosizing: bad settings, "
         "value or sum of values can not larger than 100.\n", 0, 0, 0 );
-  } else
-  /* if cache autosize was selected, select the cache sizes now */
-  if ((li->li_cache_autosize > 0) || (li->li_import_cache_autosize > 0)) {
+  } else {
       size_t pagesize, pages, procpages, availpages;
 
       dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
@@ -147,6 +145,38 @@ ldbm_back_start( Slapi_PBlock *pb )
           int zone_pages, db_pages, entry_pages, import_pages;
           Object *inst_obj;
           ldbm_instance *inst;   
+          size_t cache_size;
+          size_t db_size;
+          size_t total_cache_size = 0;
+          size_t memsize = pages * pagesize;
+          size_t extra = 0; /* e.g., dncache size */
+
+          for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
+               inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+              inst = (ldbm_instance *)object_get_data(inst_obj);
+              cache_size = cache_get_max_size(&(inst->inst_cache));
+              db_size = dblayer_get_id2entry_size(inst);
+              if (cache_size < db_size) {
+                  LDAPDebug(LDAP_DEBUG_ANY,
+                            "WARNING: %s: entry cache size %luB is "
+                            "less than db size %luB; "
+                            "We recommend to increase the entry cache size "
+                            "nsslapd-cachememsize.\n",
+                            inst->inst_name, cache_size, db_size);
+              } else {
+                  LDAPDebug(LDAP_DEBUG_BACKLDBM,
+                            "%s: entry cache size: %luB; db size: %luB\n",
+                            inst->inst_name, cache_size, db_size);
+              }
+              total_cache_size += cache_size;
+              /* estimated overhead: dncache size * 2 */
+              extra += cache_get_max_size(&(inst->inst_dncache)) * 2;
+          }
+          LDAPDebug(LDAP_DEBUG_BACKLDBM,
+                    "Total entry cache size: %luB; "
+                    "dbcache size: %luB; "
+                    "available memory size: %luB\n",
+                    total_cache_size, li->li_dbcachesize, memsize - extra);
           /* autosizing dbCache and entryCache */
           if (li->li_cache_autosize > 0) {
               zone_pages = (li->li_cache_autosize * pages) / 100;
