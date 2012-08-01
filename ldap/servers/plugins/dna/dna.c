@@ -3247,12 +3247,8 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
                             "dna_pre_op: no pre op entry set for modify\n");
             goto bail;
         }
-        /* grab the mods - we'll put them back later with
-         * our modifications appended
-         */
+        /* grab the mods - we'll put them back later with our modifications appended */
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
-        smods = slapi_mods_new();
-        slapi_mods_init_passin(smods, mods);
 
         /* We need the resulting entry after the mods are applied to
          * see if the entry is within the scope. */
@@ -3263,6 +3259,8 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
              * to let the main server handle it. */
             goto bail;
         }
+        smods = slapi_mods_new();
+        slapi_mods_init_passin(&smods, mods);
     }
 
     /* For a MOD, we need to check the resulting entry */
@@ -3292,7 +3290,9 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
         if (LDAP_CHANGETYPE_ADD == modtype) {
             ret = _dna_pre_op_add(pb, test_e);
         } else {
-            ret = _dna_pre_op_modify(pb, test_e, smods);
+            if((ret = _dna_pre_op_modify(pb, test_e, smods))){
+            	slapi_mods_free(&smods);
+            }
         }
         if (ret) {
             goto bail;
