@@ -487,9 +487,9 @@ ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl)
     replica = ruvGetReplica (ruv, rid);
     if (replica != NULL)
     {
-        if (strcmp(replica->replica_purl, replica_purl)) { /* purl updated */
+        if (replica->replica_purl == NULL || strcmp(replica->replica_purl, replica_purl)) { /* purl updated */
             /* Replace replica_purl in RUV since supplier has been updated. */
-            slapi_ch_free((void **)&(replica->replica_purl));
+            slapi_ch_free_string(&replica->replica_purl);
             replica->replica_purl = slapi_ch_strdup(replica_purl);
             /* Also, reset csn and min_csn. */
             replica->csn = replica->min_csn = NULL;
@@ -863,10 +863,6 @@ ruv_covers_csn_internal(const RUV *ruv, const CSN *csn, PRBool strict)
 	{
 		rid = csn_get_replicaid(csn);
 		replica = ruvGetReplica (ruv, rid);
-		if((is_released_rid(rid)) || (replica == NULL && is_already_released_rid()) ){
-			/* this is a released rid, so return true */
-			return PR_TRUE;
-		}
 		if (replica == NULL)
 		{
 			/*
@@ -930,7 +926,7 @@ ruv_covers_csn_strict(const RUV *ruv, const CSN *csn)
  * or max{maxcsns of all ruv elements} if get_the_max != 0.
  */
 static int
-ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max)
+ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max, ReplicaId rid)
 {
 	int return_value;
 
@@ -960,12 +956,18 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max)
 			{
 				continue;
 			}
-
-			if (found == NULL || 
-				(!get_the_max && csn_compare(found, replica->csn)>0) ||
-				( get_the_max && csn_compare(found, replica->csn)<0))
-			{
-				found = replica->csn;
+			if(rid){ /* we are only interested in this rid's maxcsn */
+				if(replica->rid == rid){
+					found = replica->csn;
+					break;
+				}
+			} else {
+				if (found == NULL ||
+					(!get_the_max && csn_compare(found, replica->csn)>0) ||
+					( get_the_max && csn_compare(found, replica->csn)<0))
+				{
+					found = replica->csn;
+				}
 			}
 		} 
 		if (found == NULL)
@@ -983,15 +985,20 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max)
 }
 
 int
+ruv_get_rid_max_csn(const RUV *ruv, CSN **csn, ReplicaId rid){
+	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */, rid);
+}
+
+int
 ruv_get_max_csn(const RUV *ruv, CSN **csn)
 {
-	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */);
+	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */, 0 /* rid */);
 }
 
 int
 ruv_get_min_csn(const RUV *ruv, CSN **csn)
 {
-	return ruv_get_min_or_max_csn(ruv, csn, 0 /* get the min */);
+	return ruv_get_min_or_max_csn(ruv, csn, 0 /* get the min */, 0 /* rid */);
 }
 
 int 
@@ -1095,6 +1102,22 @@ ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
 		*bvals = returned_bervals;
 	}
 	return return_value;
+}
+
+void
+ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids)
+{
+    RUVElement *replica;
+    int cookie;
+    int i = 0;
+
+    for (replica = dl_get_first (ruv->elements, &cookie); replica;
+         replica = dl_get_next (ruv->elements, &cookie))
+    {
+        if(is_cleaned_rid(replica->rid)){
+            rids[i++] = replica->rid;
+        }
+    }
 }
 
 int
@@ -1428,15 +1451,14 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     slapi_rwlock_wrlock (ruv->lock);
 
     if(is_cleaned_rid(rid)){
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: invalid replica ID"
-            "(%d), aborting update\n", rid);
         /* return success because we want to consume the update, but not perform it */
+        rc = RUV_COVERS_CSN;
         goto done;
     }
     replica = ruvGetReplica (ruv, rid);
     if (replica == NULL)
     {
-        replica = ruvAddReplicaNoCSN (ruv, csn_get_replicaid (csn), NULL/*purl*/);
+        replica = ruvAddReplicaNoCSN (ruv, rid, NULL/*purl*/);
         if (replica == NULL)
         {
             if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {

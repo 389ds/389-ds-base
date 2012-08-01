@@ -94,10 +94,11 @@
  * new set of start and response extops. */
 #define REPL_START_NSDS90_REPLICATION_REQUEST_OID "2.16.840.1.113730.3.5.12"
 #define REPL_NSDS90_REPLICATION_RESPONSE_OID "2.16.840.1.113730.3.5.13"
-/* cleanruv/releaseruv extended ops */
+/* cleanallruv extended ops */
 #define REPL_CLEANRUV_OID "2.16.840.1.113730.3.6.5"
-#define REPL_RELEASERUV_OID "2.16.840.1.113730.3.6.6"
-
+#define REPL_ABORT_CLEANRUV_OID "2.16.840.1.113730.3.6.6"
+#define CLEANRUV_NOTIFIED 0
+#define CLEANRUV_RELEASED 1
 
 /* DS 5.0 replication protocol error codes */
 #define NSDS50_REPL_REPLICA_READY 0x00 /* Replica ready, go ahead */
@@ -155,6 +156,7 @@ extern const char *type_nsds5ReplicaInitialize;
 extern const char *type_nsds5ReplicaTimeout;
 extern const char *type_nsds5ReplicaBusyWaitTime;
 extern const char *type_nsds5ReplicaSessionPauseTime;
+extern const char *type_nsds5ReplicaCleanRUVnotified;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -183,6 +185,8 @@ extern const char *type_replicaPurgeDelay;
 extern const char *type_replicaChangeCount;
 extern const char *type_replicaTombstonePurgeInterval;
 extern const char *type_replicaLegacyConsumer;
+extern const char *type_replicaCleanRUV;
+extern const char *type_replicaAbortCleanRUV;
 extern const char *type_ruvElementUpdatetime;
 
 /* multimaster plugin points */
@@ -222,7 +226,7 @@ char* get_repl_session_id (Slapi_PBlock *pb, char *id, CSN **opcsn);
 int multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb);
 int multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb);
 int multimaster_extop_cleanruv(Slapi_PBlock *pb);
-int multimaster_extop_releaseruv(Slapi_PBlock *pb);
+int multimaster_extop_abort_cleanruv(Slapi_PBlock *pb);
 int extop_noop(Slapi_PBlock *pb);
 struct berval *NSDS50StartReplicationRequest_new(const char *protocol_oid,
 	const char *repl_root, char **extra_referrals, CSN *csn);
@@ -353,6 +357,9 @@ void agmt_set_priv (Repl_Agmt *agmt, void* priv);
 int get_agmt_agreement_type ( Repl_Agmt *agmt);
 void* agmt_get_connection( Repl_Agmt *ra);
 int agmt_has_protocol(Repl_Agmt *agmt);
+void agmt_set_cleanruv_notified_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
+int agmt_set_cleanruv_data(Repl_Agmt *ra, ReplicaId rid, int op);
+int agmt_is_cleanruv_notified(Repl_Agmt *ra, ReplicaId rid);
 
 typedef struct replica Replica;
 
@@ -362,7 +369,6 @@ void agmtlist_shutdown();
 void agmtlist_notify_all(Slapi_PBlock *pb);
 Object* agmtlist_get_first_agreement_for_replica (Replica *r);
 Object* agmtlist_get_next_agreement_for_replica (Replica *r, Object *prev);
-
 
 /* In repl5_backoff.c */
 typedef struct backoff_timer Backoff_Timer;
@@ -437,6 +443,7 @@ ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct ber
 LDAP * conn_get_ldap(Repl_Connection *conn);
 void conn_lock(Repl_Connection *conn);
 void conn_unlock(Repl_Connection *conn);
+void conn_delete_internal_ext(Repl_Connection *conn);
 
 /* In repl5_protocol.c */
 typedef struct repl_protocol Repl_Protocol;
@@ -548,6 +555,9 @@ void replica_set_tombstone_reap_interval (Replica *r, long interval);
 void replica_update_ruv_consumer (Replica *r, RUV *supplier_ruv);
 void replica_set_ruv_dirty (Replica *r);
 void replica_write_ruv (Replica *r);
+char *replica_get_dn(Replica *r);
+void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
+
 /* The functions below handles the state flag */
 /* Current internal state flags */
 /* The replica can be busy and not other flag, 
@@ -588,22 +598,40 @@ int replica_config_init();
 void replica_config_destroy ();
 int get_replica_type(Replica *r);
 int replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid);
-void set_cleaned_rid(ReplicaId rid);
-void delete_cleaned_rid();
+void add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn);
 int is_cleaned_rid(ReplicaId rid);
-int get_released_rid();
-void set_released_rid(int rid);
-int is_released_rid(int rid);
-int is_already_released_rid();
-void delete_released_rid();
-void replica_cleanallruv_monitor_thread(void *arg);
+int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                               int *returncode, char *returntext, void *arg);
+void replica_cleanallruv_thread_ext(void *arg);
+void stop_ruv_cleaning();
+int task_aborted();
+void replica_abort_task_thread(void *arg);
+void delete_cleaned_rid(Replica *r, ReplicaId rid, CSN *maxcsn);
+int process_repl_agmts(Replica *replica, int *agmt_info, char *oid, Slapi_Task *task, struct berval *payload, int op);
+int decode_cleanruv_payload(struct berval *extop_value, char **payload);
+struct berval *create_ruv_payload(char *value);
+void replica_add_cleanruv_data(Replica *r, char *val);
+void replica_remove_cleanruv_data(Replica *r, char *val);
+CSN *replica_get_cleanruv_maxcsn(Replica *r, ReplicaId rid);
+void ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids);
+void add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root);
+int is_task_aborted(ReplicaId rid);
+void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root);
+void set_cleaned_rid(ReplicaId rid);
+void cleanruv_log(Slapi_Task *task, char *task_type, char *fmt, ...);
 
-#define ALREADY_RELEASED -1
+#define CLEANRIDSIZ 4 /* maximum number for concurrent CLEANALLRUV tasks */
 
 typedef struct _cleanruv_data
 {
 	Object *repl_obj;
+	Replica *replica;
 	ReplicaId rid;
+	Slapi_Task *task;
+	struct berval *payload;
+	CSN *maxcsn;
+	char *repl_root;
+	Slapi_DN *sdn;
 } cleanruv_data;
 
 /* replutil.c */

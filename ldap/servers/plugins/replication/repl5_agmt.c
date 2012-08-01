@@ -138,6 +138,7 @@ typedef struct repl5agmt {
 	               for sync agreements or for replication session plug-in
 	               private data for normal replication agreements */
 	int agreement_type;
+	int cleanruv_notified[CLEANRIDSIZ + 1]; /* specifies if the replica has been notified of a CLEANALLRUV task */
 } repl5agmt;
 
 /* Forward declarations */
@@ -228,6 +229,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	Repl_Agmt *ra;
 	char *tmpstr;
 	Slapi_Attr *sattr;
+	char **clean_vals = NULL;
 	char **denied_attrs = NULL;
 
 	char *auto_initialize = NULL;
@@ -387,6 +389,19 @@ agmt_new_from_entry(Slapi_Entry *e)
 	ra->last_init_start_time = 0UL;
 	ra->last_init_status[0] = '\0';
 	
+	/* cleanruv notification */
+	clean_vals = slapi_entry_attr_get_charray(e, type_nsds5ReplicaCleanRUVnotified);
+	if(clean_vals){
+		int i;
+		for (i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++){
+			ra->cleanruv_notified[i] = atoi(clean_vals[i]);
+		}
+		ra->cleanruv_notified[i + 1] = 0;
+		slapi_ch_array_free(clean_vals);
+	} else {
+		ra->cleanruv_notified[0] = 0;
+	}
+
 	/* Fractional attributes */
 	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr);
 
@@ -2441,4 +2456,85 @@ agmt_has_protocol(Repl_Agmt *agmt)
 		return NULL != agmt->protocol;
 	}
 	return 0;
+}
+
+int
+agmt_is_cleanruv_notified(Repl_Agmt *ra, ReplicaId rid){
+    int notified = 0;
+    int i;
+
+    PR_Lock(ra->lock);
+    for(i = 0; i < CLEANRIDSIZ && ra->cleanruv_notified[i]; i++){
+        if(ra->cleanruv_notified[i] == rid){
+            notified = 1;
+            break;
+        }
+    }
+    PR_Unlock(ra->lock);
+
+    return notified;
+}
+
+/*
+ *  This will trigger agmt_set_cleanruv_notified_from_entry() to be called,
+ *  which will update the in memory agmt.
+ *
+ *  op can be:  CLEANRUV_NOTIFIED or CLEANRUV_RELEASED
+ */
+int
+agmt_set_cleanruv_data(Repl_Agmt *ra, ReplicaId rid, int op){
+    Slapi_PBlock *pb;
+    LDAPMod *mods[2];
+    LDAPMod mod;
+    struct berval *vals[2];
+    struct berval val;
+    char data[6];
+    int rc = 0;
+
+    if(ra == NULL){
+        return -1;
+    }
+
+    if(op == CLEANRUV_NOTIFIED){
+        /* add the cleanruv data */
+    	mod.mod_op  = LDAP_MOD_ADD|LDAP_MOD_BVALUES;
+    } else {
+        /* remove the cleanruv data */
+    	mod.mod_op  = LDAP_MOD_DELETE|LDAP_MOD_BVALUES;
+    }
+
+    pb = slapi_pblock_new();
+    val.bv_len = PR_snprintf(data, sizeof(data), "%d", (int)rid);
+    mod.mod_type = (char *)type_nsds5ReplicaCleanRUVnotified;
+    mod.mod_bvalues = vals;
+    vals [0] = &val;
+    vals [1] = NULL;
+    val.bv_val = data;
+    mods[0] = &mod;
+    mods[1] = NULL;
+
+    slapi_modify_internal_set_pb_ext (pb, ra->dn, mods, NULL, NULL,
+        repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
+    slapi_modify_internal_pb (pb);
+    slapi_pblock_destroy(pb);
+
+    return rc;
+}
+
+void
+agmt_set_cleanruv_notified_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
+    char **attr_vals = NULL;
+    int i;
+
+    PR_Lock(ra->lock);
+    attr_vals = slapi_entry_attr_get_charray(e, type_nsds5ReplicaCleanRUVnotified);
+    if(attr_vals){
+        for (i = 0; i < CLEANRIDSIZ && attr_vals[i]; i++){
+            ra->cleanruv_notified[i] = atoi(attr_vals[i]);
+        }
+        ra->cleanruv_notified[i + 1] = 0;
+    } else {
+        ra->cleanruv_notified[0] = 0;
+    }
+    PR_Unlock(ra->lock);
 }

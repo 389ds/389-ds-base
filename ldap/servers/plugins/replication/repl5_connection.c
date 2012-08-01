@@ -140,7 +140,7 @@ static void repl5_debug_timeout_callback(time_t when, void *arg);
 static void close_connection_internal(Repl_Connection *conn);
 
 /*
- * Create a new conenction object. Returns a pointer to the object, or
+ * Create a new connection object. Returns a pointer to the object, or
  * NULL if an error occurs.
  */
 Repl_Connection *
@@ -214,6 +214,17 @@ conn_delete_internal(Repl_Connection *conn)
 	slapi_ch_free((void **)&conn->hostname);
 	slapi_ch_free((void **)&conn->binddn);
 	slapi_ch_free((void **)&conn->plain);
+}
+
+/*
+ *  Used by CLEANALLRUV - free it all!
+ */
+void
+conn_delete_internal_ext(Repl_Connection *conn)
+{
+    conn_delete_internal(conn);
+    PR_DestroyLock(conn->lock);
+    slapi_ch_free((void **)&conn);
 }
 
 /*

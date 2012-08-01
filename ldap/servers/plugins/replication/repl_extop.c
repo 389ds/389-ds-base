@@ -1338,7 +1338,7 @@ replica_config_get_mtnode_by_dn(const char *dn)
 /*
  * Decode the ber element passed to us by the cleanAllRUV task
  */
-static int
+int
 decode_cleanruv_payload(struct berval *extop_value, char **payload)
 {
 	BerElement *tmp_bere = NULL;
@@ -1373,10 +1373,117 @@ free_and_return:
 	return rc;
 }
 
+int
+multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
+{
+	multimaster_mtnode_extension *mtnode_ext;
+	PRThread *thread = NULL;
+	cleanruv_data *data;
+	Replica *r;
+	ReplicaId rid;
+	CSN *maxcsn;
+	struct berval *extop_payload;
+	char *extop_oid;
+	char *repl_root;
+	char *payload = NULL;
+	char *iter;
+	int rc = 0;
+
+	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
+	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_payload);
+
+	if (NULL == extop_oid || strcmp(extop_oid, REPL_CLEANRUV_OID) != 0 ||
+		NULL == extop_payload || NULL == extop_payload->bv_val){
+		/* something is wrong, error out */
+		return LDAP_OPERATIONS_ERROR;
+	}
+	/*
+	 *  Decode the payload, and grab our settings
+	 */
+	if(decode_cleanruv_payload(extop_payload, &payload)){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort cleanAllRUV task: failed to decode payload.  Aborting ext op\n");
+		return LDAP_OPERATIONS_ERROR;
+	}
+	rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
+	repl_root = ldap_utf8strtok_r(iter, ":", &iter);
+
+	if(!is_cleaned_rid(rid) || is_task_aborted(rid)){
+		/* This replica has already been aborted, or was never cleaned, or already finished cleaning */
+		goto out;
+	} else {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort cleanAllRUV task: aborting cleanallruv task for rid(%d)\n", rid);
+	}
+	/*
+	 *  Get the node, so we can get the replica and its agreements
+	 */
+	if((mtnode_ext = replica_config_get_mtnode_by_dn(repl_root)) == NULL){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort cleanAllRUV task: failed to get replication node "
+			"from (%s), aborting operation\n", repl_root);
+		rc = LDAP_OPERATIONS_ERROR;
+		goto out;
+	}
+	if (mtnode_ext->replica){
+		object_acquire (mtnode_ext->replica);
+	} else {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort cleanAllRUV task: replica is missing from (%s), "
+			"aborting operation\n",repl_root);
+		rc = LDAP_OPERATIONS_ERROR;
+		goto out;
+	}
+	r = (Replica*)object_get_data (mtnode_ext->replica);
+	if(r == NULL){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort cleanAllRUV task: replica is NULL, aborting task\n");
+		rc = LDAP_OPERATIONS_ERROR;
+		goto out;
+	}
+	/*
+	 *  Prepare the abort data
+	 */
+	data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
+	if (data == NULL) {
+		slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name, "Abort cleanAllRUV task: failed to allocate "
+			"abort_cleanruv_data.  Aborting task.\n");
+		rc = LDAP_OPERATIONS_ERROR;
+		goto out;
+	}
+	data->repl_obj = mtnode_ext->replica; /* released in replica_abort_task_thread() */
+	data->replica = r;
+	data->task = NULL;
+	data->payload = slapi_ch_bvdup(extop_payload);
+	data->rid = rid;
+	data->repl_root = slapi_ch_strdup(repl_root);
+	/*
+	 *  Stop the cleaning, and delete the rid
+	 */
+	maxcsn = replica_get_cleanruv_maxcsn(r, rid);
+	delete_cleaned_rid(r, rid, maxcsn);
+	csn_free(&maxcsn);
+	add_aborted_rid(rid, r, repl_root);
+	stop_ruv_cleaning();
+	/*
+	 *  Send out the extended ops to the replicas
+	 */
+	thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
+			(void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+			PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+	if (thread == NULL) {
+		if(mtnode_ext->replica){
+			object_release(mtnode_ext->replica);
+		}
+		slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name, "Abort cleanAllRUV task: unable to create abort "
+			"thread.  Aborting task.\n");
+		rc = LDAP_OPERATIONS_ERROR;
+	}
+
+out:
+    slapi_ch_free_string(&payload);
+
+	return rc;
+}
 /*
  *  Process the REPL_CLEANRUV_OID extended operation.
  *
- *  The payload consists of the replica ID, and the repl root dn.  Since this is
+ *  The payload consists of the replica ID, repl root dn, and the maxcsn.  Since this is
  *  basically a replication operation, it could of originated here and bounced
  *  back from another master.  So check the rid against the "cleaned_rid".  If
  *  it's a match, then we were already here, and we can just return success.
@@ -1386,292 +1493,193 @@ free_and_return:
  *  cleanruv_task on this replica.
  */
 int
-multimaster_extop_cleanruv(Slapi_PBlock *pb){
+multimaster_extop_cleanruv(Slapi_PBlock *pb)
+{
 	multimaster_mtnode_extension *mtnode_ext;
 	PRThread *thread = NULL;
-	Repl_Connection *conn;
-	const Slapi_DN *dn;
 	Replica *r = NULL;
-	Object *agmt_obj;
-	Repl_Agmt *agmt;
-	ConnResult crc;
 	cleanruv_data *data = NULL;
-	struct berval *extop_value;
+	CSN *maxcsn;
+	struct berval *extop_payload;
+	struct berval *resp_bval = NULL;
+	BerElement *resp_bere = NULL;
 	char *extop_oid;
 	char *repl_root;
 	char *payload = NULL;
+	char *csnstr = NULL;
 	char *iter;
-	int send_msgid = 0;
-	int agmt_count = 0;
+	int release_it = 0;
 	int rid = 0;
 	int rc = 0;
 
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
-	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
+	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_payload);
 
 	if (NULL == extop_oid || strcmp(extop_oid, REPL_CLEANRUV_OID) != 0 ||
-	    NULL == extop_value || NULL == extop_value->bv_val){
+	    NULL == extop_payload || NULL == extop_payload->bv_val){
 		/* something is wrong, error out */
-		return -1;
+		rc = -1;
+		goto free_and_return;
 	}
 	/*
-	 *  Extract the rid and repl_root from the payload
+	 *  Decode the payload
 	 */
-	if(decode_cleanruv_payload(extop_value, &payload)){
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: failed to decode payload.  Aborting ext op\n");
-		return -1;
+	if(decode_cleanruv_payload(extop_payload, &payload)){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to decode payload.  Aborting ext op\n");
+		rc = -1;
+		goto free_and_return;
 	}
 	rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
 	repl_root = ldap_utf8strtok_r(iter, ":", &iter);
-
+	csnstr = ldap_utf8strtok_r(iter, ":", &iter);
+	maxcsn = csn_new();
+	csn_init_by_string(maxcsn, csnstr);
 	/*
 	 *  If we already cleaned this server, just return success
 	 */
 	if(is_cleaned_rid(rid)){
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_extop: rid (%d) has already been cleaned, skipping\n",rid);
-		return rc;
+		csn_free(&maxcsn);
+		rc = 1;
+		goto free_and_return;
 	} else {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: cleaning rid (%d)...\n", rid);
-		set_cleaned_rid(rid);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: cleaning rid (%d)...\n", rid);
 	}
 
 	/*
 	 *  Get the node, so we can get the replica and its agreements
 	 */
 	if((mtnode_ext = replica_config_get_mtnode_by_dn(repl_root)) == NULL){
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: failed to get replication node "
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to get replication node "
 			"from (%s), aborting operation\n", repl_root);
-		return -1;
+		rc = -1;
+		goto free_and_return;
 	}
-	if (mtnode_ext->replica)
+
+	if (mtnode_ext->replica){
 		object_acquire (mtnode_ext->replica);
+		release_it = 1;
+	}
 	if (mtnode_ext->replica == NULL){
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: replica is missing from (%s), "
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: replica is missing from (%s), "
 			"aborting operation\n",repl_root);
 		rc = LDAP_OPERATIONS_ERROR;
 		goto free_and_return;
 	}
+
 	r = (Replica*)object_get_data (mtnode_ext->replica);
-	/*
-	 * Send out extended ops to each repl agreement
-	 */
-	agmt_obj = agmtlist_get_first_agreement_for_replica (r);
-	while (agmt_obj)
-	{
-		agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-		dn = agmt_get_dn_byref(agmt);
-		conn = (Repl_Connection *)agmt_get_connection(agmt);
-		if(conn == NULL){
-			/* no connection for this agreement, move on to the next agmt */
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: the replica (%s), is "
-				"missing the connection.  This replica will not be cleaned.\n", slapi_sdn_get_dn(dn));
-			agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
-			continue;
-		}
-		crc = conn_connect(conn);
-		if (CONN_OPERATION_FAILED == crc ){
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: failed to connect "
-				"to repl agreement connection (%s), error %d\n",slapi_sdn_get_dn(dn), ACQUIRE_TRANSIENT_ERROR);
-			rc = LDAP_OPERATIONS_ERROR;
-		} else if (CONN_SSL_NOT_ENABLED == crc){
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: failed to acquire "
-				"repl agmt connection (%s), error %d\n",slapi_sdn_get_dn(dn), ACQUIRE_FATAL_ERROR);
-			rc = LDAP_OPERATIONS_ERROR;
-		} else {
-			conn_cancel_linger(conn);
-			crc = conn_send_extended_operation(conn, REPL_CLEANRUV_OID, extop_value, NULL, &send_msgid);
-			if (CONN_OPERATION_SUCCESS != crc){
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: failed to send "
-					"clean_ruv extended op to repl agmt (%s), error %d\n", slapi_sdn_get_dn(dn), crc);
-				rc = LDAP_OPERATIONS_ERROR;
-			} else {
-				/* success */
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: successfully sent "
-					"extended op to (%s)\n",slapi_sdn_get_dn(dn) );
-				agmt_count++;
-			}
-			conn_start_linger(conn);
-		}
-		if(crc != CONN_OPERATION_SUCCESS){
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: replica (%s) has not "
-					        "been cleaned.  You will need to rerun the CLEANALLRUV task on this replica\n",
-					        slapi_sdn_get_dn(dn) );
-			rc = LDAP_OPERATIONS_ERROR;
-		}
-		agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+	if(r == NULL){
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: replica is NULL, aborting task\n");
+		rc = -1;
+		goto free_and_return;
 	}
 
-	/* now clean the ruv */
-	replica_execute_cleanruv_task_ext(mtnode_ext->replica, rid);
-
-free_and_return:
-
-	if(rc == 0 && agmt_count > 0){
+	if(replica_get_type(r) != REPLICA_TYPE_READONLY){
 		/*
 		 *  Launch the cleanruv monitoring thread.  Once all the replicas are cleaned it will release the rid
+		 *
+		 *  This will also release mtnode_ext->replica
 		 */
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: launching cleanAllRUV thread...\n");
 		data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
 		if (data == NULL) {
-			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: failed to allocate "
+			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: failed to allocate "
 				"cleanruv_Data\n");
-			return -1;
+			rc = -1;
+			goto free_and_return;
 		}
 		data->repl_obj = mtnode_ext->replica;
+		data->replica = r;
 		data->rid = rid;
+		data->task = NULL;
+		data->maxcsn = maxcsn;
+		data->payload = slapi_ch_bvdup(extop_payload);
 
-		thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_monitor_thread,
+		thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread_ext,
 				(void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 				PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 		if (thread == NULL) {
-			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: unable to create cleanAllRUV "
+		    rc = -1;
+			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: unable to create cleanAllRUV "
 				"monitoring thread.  Aborting task.\n");
 		}
-	} else if (rc == 0){
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: Successfully Finished.\n");
-	} else {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanALLRUV_extop: failed to clean rid (%d), error (%d)\n",rid, rc);
-	}
+	} else { /* this is a read-only consumer */
+		/*
+		 * wait for the maxcsn to be covered
+		 */
+		Object *ruv_obj;
+		const RUV *ruv;
 
-	if (mtnode_ext->replica)
-		object_release (mtnode_ext->replica);
+		ruv_obj = replica_get_ruv(r);
+		ruv = object_get_data (ruv_obj);
 
-	return rc;
-}
-
-/*
- *  Process the REPL_RELEASERUV_OID extended operation
- *
- *  Once, all the replicas in the replication farm have been cleaned, then
- *  we need to "release" the cleaned_rid, or else we will reject all updates
- *  that come from that rid until we restart the server.
- *
- *  We set the cleaned_ruv to zero(invalid rid), and then fire off extended
- *  operations to all of the replicas
- */
-int
-multimaster_extop_releaseruv(Slapi_PBlock *pb){
-	multimaster_mtnode_extension *mtnode_ext;
-	Repl_Connection *conn;
-	const Slapi_DN *dn;
-	Replica *r = NULL;
-	Object *agmt_obj;
-	Repl_Agmt *agmt;
-	ConnResult crc;
-	struct berval *extop_value;
-	char *payload = NULL;
-	char *extop_oid;
-	char *repl_root;
-	char *iter;
-	int send_msgid = 0;
-	int rid = 0;
-	int rc = 0;
-
-	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
-	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
-
-	if (NULL == extop_oid || strcmp(extop_oid, REPL_RELEASERUV_OID) != 0 ||
-		NULL == extop_value || NULL == extop_value->bv_val){
-		/* something is wrong, error out */
-		return -1;
-	}
-
-	if(decode_cleanruv_payload(extop_value, &payload)){
-		slapi_log_error(SLAPI_LOG_FATAL,repl_plugin_name, "releaseRUV_extop: failed to decode payload, aborting ext op.\n");
-		return -1;
-	}
-	rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
-	repl_root = ldap_utf8strtok_r(iter, ":", &iter);
-
-	/*
-	 *  If we already released this ruv, just return.
-	 */
-	if(is_released_rid(rid) || is_already_released_rid()){
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_extop: rid (%d) has already been released, skipping.\n",rid);
-		return 0;
-	} else {
-		/* set the released rid, and trigger trimming */
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: releasing rid (%d)...\n", rid);
-		set_released_rid((int)rid);
-		trigger_cl_trimming();
-	}
-
-	if((mtnode_ext = replica_config_get_mtnode_by_dn(repl_root)) == NULL){
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_extop: failed to get node "
-			"from replication root dn(%s), aborting operation.\n", repl_root);
-		return -1;
-	}
-	if (mtnode_ext->replica)
-		object_acquire (mtnode_ext->replica);
-	if (mtnode_ext->replica == NULL){
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_extop: replica is missing from (%s), "
-			"aborting operation.\n", repl_root);
-		rc = LDAP_OPERATIONS_ERROR;
-		goto free_and_return;
-	}
-	r = (Replica*)object_get_data (mtnode_ext->replica);
-	/*
-	 *  Loop over the agreements, and send out extended ops
-	 */
-	agmt_obj = agmtlist_get_first_agreement_for_replica (r);
-	while (agmt_obj)
-	{
-		agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-		dn = agmt_get_dn_byref(agmt);
-		conn = (Repl_Connection *)agmt_get_connection(agmt);
-		if(conn == NULL){
-			/* no connection for this agreement, log error, and move on */
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: the replica (%s), is "
-				"missing the connection.  This replica will not be released.\n", slapi_sdn_get_dn(dn));
-			agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
-			continue;
-		}
-		crc = conn_connect(conn);
-		if (CONN_OPERATION_FAILED == crc ){
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_extop: failed to connect "
-				"to repl agreement connection (%s), error %d\n",slapi_sdn_get_dn(dn), ACQUIRE_TRANSIENT_ERROR);
-			rc = LDAP_OPERATIONS_ERROR;
-		} else if (CONN_SSL_NOT_ENABLED == crc){
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "releaseRUV_extop: failed to acquire "
-				"repl agmt connection (%s), error %d\n",slapi_sdn_get_dn(dn), ACQUIRE_FATAL_ERROR);
-			rc = LDAP_OPERATIONS_ERROR;
-		} else {
-			conn_cancel_linger(conn);
-			crc = conn_send_extended_operation(conn, REPL_RELEASERUV_OID, extop_value, NULL, &send_msgid);
-			if (CONN_OPERATION_SUCCESS != crc){
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: failed to send "
-					"releaseRUV extended op to repl agmt (%s), error %d\n",	slapi_sdn_get_dn(dn), crc);
-				rc = LDAP_OPERATIONS_ERROR;
-			} else {
-				/* success */
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: successfully sent "
-					"releaseRUV extended op to (%s)\n",slapi_sdn_get_dn(dn) );
-				rc = 0;
+		while(!is_task_aborted(rid) && !slapi_is_shutting_down()){
+			if(!ruv_contains_replica(ruv, rid)){
+				/* we've already been cleaned */
+				break;
 			}
-			conn_start_linger(conn);
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: checking if we're caught up...\n");
+			if(ruv_covers_csn(ruv,maxcsn) || csn_get_replicaid(maxcsn) == 0){
+				/* We are caught up */
+				break;
+			} else {
+				char csnstr[CSN_STRSIZE];
+				csn_as_string(maxcsn, PR_FALSE, csnstr);
+				slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: not ruv caught up maxcsn(%s)\n", csnstr);
+			}
+			DS_Sleep(PR_SecondsToInterval(5));
 		}
-		if(crc){
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: replica (%s) has not "
-				"been released.  You will need to rerun the task.\n",
-				slapi_sdn_get_dn(dn) );
-		}
-		agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: we're caught up...\n");
+		/*
+		 *  Set cleaned rid in memory only - does not survive a server restart
+		 */
+		set_cleaned_rid(rid);
+		/*
+		 *  Clean the ruv
+		 */
+		replica_execute_cleanruv_task_ext(mtnode_ext->replica, rid);
+
+		/* free everything */
+		object_release(ruv_obj);
+		csn_free(&maxcsn);
+		if (mtnode_ext->replica && release_it)
+			object_release (mtnode_ext->replica);
+		/*
+		 *  This read-only replica has no easy way to tell when it's safe to release the rid.
+		 *  So we won't release it, not until a server restart.
+		 */
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: You must restart the server if you want to reuse rid(%d).\n", rid);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: Successfully cleaned rid(%d).\n", rid);
 	}
 
 free_and_return:
-	/*
-	 *  Set the rid as "ALREADY_RELEASED, and remove the cleaned ruv
-	 */
-	if(rc == 0){
-		set_released_rid(ALREADY_RELEASED);
-		delete_cleaned_rid();
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: Successfully released rid (%d)\n", rid);
-	} else {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_extop: Failed to release rid(%d), error (%d), "
-			"please retry the task.\n",rid, rc);
+	if(rc && release_it){
+		if (mtnode_ext->replica)
+			object_release (mtnode_ext->replica);
 	}
+	slapi_ch_free_string(&payload);
 
-	if(mtnode_ext->replica)
-		object_release (mtnode_ext->replica);
+	/*
+	 *   Craft a message so we know this replica supports the task
+	 */
+	if ((resp_bere = der_alloc())){
+
+		ber_int_t response = 1;
+
+		ber_printf(resp_bere, "{e}", response);
+		ber_flatten(resp_bere, &resp_bval);
+		slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
+		slapi_send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+		/* resp_bere */
+		if (NULL != resp_bere)
+		{
+			ber_free(resp_bere, 1);
+		}
+		/* resp_bval */
+		if (NULL != resp_bval)
+		{
+			ber_bvfree(resp_bval);
+		}
+	}
 
 	return rc;
 }

@@ -110,6 +110,8 @@ const char *type_replicaChangeCount = "nsds5ReplicaChangeCount";
 const char *type_replicaTombstonePurgeInterval = "nsds5ReplicaTombstonePurgeInterval";
 const char *type_replicaLegacyConsumer = "nsds5ReplicaLegacyConsumer";
 const char *type_ruvElementUpdatetime = "nsruvReplicaLastModified";
+const char *type_replicaCleanRUV = "nsds5ReplicaCleanRUV";
+const char *type_replicaAbortCleanRUV = "nsds5ReplicaAbortCleanRUV";
 
 /* Attribute names for replication agreement attributes */
 const char *type_nsds5ReplicaHost = "nsds5ReplicaHost";
@@ -126,6 +128,7 @@ const char *type_nsds5ReplicaInitialize = "nsds5BeginReplicaRefresh";
 const char *type_nsds5ReplicaTimeout = "nsds5ReplicaTimeout";
 const char *type_nsds5ReplicaBusyWaitTime = "nsds5ReplicaBusyWaitTime";
 const char *type_nsds5ReplicaSessionPauseTime = "nsds5ReplicaSessionPauseTime";
+const char *type_nsds5ReplicaCleanRUVnotified = "nsds5ReplicaCleanRUVNotified";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
@@ -137,7 +140,7 @@ const char *type_nsds7DirsyncCookie = "nsds7DirsyncCookie";
 const char *type_winSyncInterval = "winSyncInterval";
 const char *type_oneWaySync = "oneWaySync";
 
-/* To Allow Consumer Initialisation when adding an agreement - */
+/* To Allow Consumer Initialization when adding an agreement - */
 const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";
 
 static int repl_active_threads;
