@@ -358,6 +358,7 @@ int agmt_has_protocol(Repl_Agmt *agmt);
 PRBool agmt_is_enabled(Repl_Agmt *ra);
 int agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
 char **agmt_get_attrs_to_strip(Repl_Agmt *ra);
+int agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e);
 
 typedef struct replica Replica;
 

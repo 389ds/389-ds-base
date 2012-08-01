@@ -2547,3 +2547,27 @@ agmt_get_attrs_to_strip(Repl_Agmt *ra)
 		return NULL;
 	}
 }
+
+int
+agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e)
+{
+    char *tmpstr = NULL;
+
+    PR_Lock(ra->lock);
+
+    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaStripAttrs);
+    if (NULL != tmpstr){
+        if(ra->attrs_to_strip){
+            slapi_ch_array_free(&ra->attrs_to_strip);
+        }
+        ra->attrs_to_strip = slapi_str2charray_ext(tmpstr, " ", 0);
+        PR_Unlock(ra->lock);
+        prot_notify_agmt_changed(ra->protocol, ra->long_name);
+        slapi_ch_free_string(&tmpstr);
+        return 0;
+    }
+
+    PR_Unlock(ra->lock);
+
+    return -1;
+}
