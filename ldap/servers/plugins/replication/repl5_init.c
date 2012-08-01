@@ -126,12 +126,12 @@ static char *cleanruv_name_list[] = {
 		NSDS_REPL_NAME_PREFIX " Cleanruv",
 		NULL
 };
-static char *releaseruv_oid_list[] = {
-		REPL_RELEASERUV_OID,
+static char *cleanruv_abort_oid_list[] = {
+		REPL_ABORT_CLEANRUV_OID,
 		NULL
 };
-static char *releaseruv_name_list[] = {
-		NSDS_REPL_NAME_PREFIX " Releaseruv",
+static char *cleanruv_abort_name_list[] = {
+		NSDS_REPL_NAME_PREFIX " Cleanruv Abort",
 		NULL
 };
 
@@ -474,7 +474,7 @@ multimaster_cleanruv_extop_init( Slapi_PBlock *pb )
 }
 
 int
-multimaster_releaseruv_extop_init( Slapi_PBlock *pb )
+multimaster_cleanruv_abort_extop_init( Slapi_PBlock *pb )
 {
 	int rc= 0; /* OK */
 	void *identity = NULL;
@@ -485,11 +485,11 @@ multimaster_releaseruv_extop_init( Slapi_PBlock *pb )
 
 	if (slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterextopdesc ) != 0 ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, (void *)releaseruv_oid_list ) != 0  ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)releaseruv_name_list ) != 0  ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_releaseruv ))
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, (void *)cleanruv_abort_oid_list ) != 0  ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_abort_name_list ) != 0  ||
+		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_abort_cleanruv ))
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_releaseruv_extop_init failed\n" );
+		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_abort_extop_init failed\n" );
 		rc= -1;
 	}
 
@@ -605,24 +605,22 @@ multimaster_stop( Slapi_PBlock *pb )
     int rc= 0; /* OK */
 
     if (!multimaster_stopped_flag)
-	{
-		if (!is_ldif_dump)
-		{
-			agmtlist_shutdown(); /* Shut down replication agreements */
-		}
-
+    {
+        if (!is_ldif_dump)
+        {
+            /* Shut down replication agreements */
+            agmtlist_shutdown();
+        }
+        /* if we are cleaning a ruv, stop */
+        stop_ruv_cleaning();
         /* unregister backend state change notification */
         slapi_unregister_backend_state_change((void *)multimaster_be_state_change);
-
-		changelog5_cleanup(); /* Shut down the changelog */
-		multimaster_mtnode_extension_destroy(); /* Destroy mapping tree node exts */
+        changelog5_cleanup(); /* Shut down the changelog */
+        multimaster_mtnode_extension_destroy(); /* Destroy mapping tree node exts */
         replica_destroy_name_hash(); /* destroy the hash and its remaining content */
         replica_config_destroy (); /* Destroy replica config info */
-    	multimaster_stopped_flag = 1;
-		/* JCMREPL - Wait for all our threads to stop */
-		/* JCMREPL - Shut down the replication plugin */
-		/* JCMREPL - Mark all the replication plugin interfaces at not enabled. */
-	}
+        multimaster_stopped_flag = 1;
+    }
     return rc;
 }
 
@@ -680,7 +678,7 @@ int replication_multimaster_plugin_init(Slapi_PBlock *pb)
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_total_extop_init", multimaster_total_extop_init, "Multimaster replication total update extended operation plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_response_extop_init", multimaster_response_extop_init, "Multimaster replication extended response plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_cleanruv_extop_init", multimaster_cleanruv_extop_init, "Multimaster replication cleanruv extended operation plugin", NULL, identity);
-		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_releaseruv_extop_init", multimaster_releaseruv_extop_init, "Multimaster replication releaserid extended response plugin", NULL, identity);
+		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_cleanruv_abort_extop_init", multimaster_cleanruv_abort_extop_init, "Multimaster replication cleanruv abort extended operation plugin", NULL, identity);
 		if (0 == rc)
 		{
 			multimaster_initialised = 1;

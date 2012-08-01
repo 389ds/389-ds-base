@@ -466,7 +466,7 @@ repl5_inc_waitfor_async_results(result_data *rd)
 	int done = 0;
 	int loops = 0;
 	/* Keep pulling results off the LDAP connection until we catch up to the last message id stored in the rd */
-	while (!done) 
+	while (!done && !slapi_is_shutting_down())
 	{
 		/* Lock the structure to force memory barrier */
 		PR_Lock(rd->lock);
@@ -1473,10 +1473,10 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 							agmt_inc_last_update_changecount (prp->agmt, replica_id, 1 /*skipped*/);
 						}
 						slapi_log_error(*finished ? SLAPI_LOG_FATAL : slapi_log_urp, repl_plugin_name,
-							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): %s. %s.\n",
+							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): %s (%d). %s.\n",
 							agmt_get_long_name(prp->agmt),
 							uniqueid, csn_str,
-							ldap_err2string(connection_error),
+							ldap_err2string(connection_error), connection_error,
 							*finished ? "Will retry later" : "Skipping");
 					}
 					else if (CONN_NOT_CONNECTED == replay_crc)
@@ -1487,10 +1487,11 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 						*finished = 1;
 						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): "
-							"%s. Will retry later.\n",
+							"%s(%d). Will retry later.\n",
 							agmt_get_long_name(prp->agmt),
 							uniqueid, csn_str,
-							connection_error ? ldap_err2string(connection_error) : "Connection lost");
+							connection_error ? ldap_err2string(connection_error) : "Connection lost",
+							connection_error);
 					}
 					else if (CONN_TIMEOUT == replay_crc)
 					{
@@ -1533,7 +1534,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
  * has already been acquired, (2) that the consumer's update vector has
  * been checked and (3) that it's ok to send incremental updates.
  * Returns:
- * UPDATE_NO_MORE_UPDATES - all updates were sent succussfully
+ * UPDATE_NO_MORE_UPDATES - all updates were sent successfully
  * UPDATE_TRANSIENT_ERROR - some non-permanent error occurred. Try again later.
  * UPDATE_FATAL_ERROR - some bad, permanent error occurred.
  * UPDATE_SCHEDULE_WINDOW_CLOSED - the schedule window closed on us.
@@ -1603,7 +1604,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
-		case CL5_SYSTEM_ERROR:   /* NSPR error occurred: use PR_GetError for furhter info */
+		case CL5_SYSTEM_ERROR:   /* NSPR error occurred: use PR_GetError for further info */
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 				"%s: An NSPR error (%d) occurred\n",
 				agmt_get_long_name(prp->agmt), PR_GetError());
@@ -1642,7 +1643,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			break;
 		case CL5_UNKNOWN_ERROR:   /* unclassified error */
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-				"%s: An unknown error was ecountered\n",
+				"%s: An unknown error was encountered\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
@@ -1834,6 +1835,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					agmt_get_long_name(prp->agmt));
 				return_value = UPDATE_FATAL_ERROR;
 				break;
+			case CL5_IGNORE_OP:
+				break;
 			default:
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"%s: Unknown error code (%d) returned from cl5GetNextOperationToReplay\n",
@@ -1865,7 +1868,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		/* Terminate the results reading thread */
 		if (!prp->repl50consumer) 
 		{
-			/* We need to ensure that we wait until all the responses have been recived from our operations */
+			/* We need to ensure that we wait until all the responses have been received from our operations */
 			if (return_value != UPDATE_CONNECTION_LOST) {
 				/* if connection was lost/closed, there will be nothing to read */
 				repl5_inc_waitfor_async_results(rd);

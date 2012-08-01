@@ -345,15 +345,15 @@ static int _cl5CheckMissingCSN (const CSN *minCsn, const RUV *supplierRUV, CL5DB
 static int _cl5TrimInit ();
 static void _cl5TrimCleanup ();
 static int _cl5TrimMain (void *param);
-static void _cl5DoTrimming ();
-static void _cl5TrimFile (Object *obj, long *numToTrim);
+static void _cl5DoTrimming (ReplicaId rid);
+static void _cl5TrimFile (Object *obj, long *numToTrim, ReplicaId cleaned_rid);
 static PRBool _cl5CanTrim (time_t time, long *numToTrim);
 static int  _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge);
 static int  _cl5WriteRUV (CL5DBFile *file, PRBool purge);
 static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge);
 static int  _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purge);
 static int  _cl5GetRUV2Purge2 (Object *fileObj, RUV **ruv);
-void trigger_cl_trimming_thread();
+void trigger_cl_trimming_thread(void *rid);
 
 /* bakup/recovery, import/export */
 static int _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op,
@@ -699,12 +699,12 @@ int cl5DeleteDBSync (Object *replica)
 }
 
 /* Name:        cl5GetUpperBoundRUV
-   Description: retrieves vector for that represnts the upper bound of the changes for a replica. 
+   Description: retrieves vector for that represents the upper bound of the changes for a replica.
    Parameters:  r - replica for which the purge vector is requested
                 ruv - contains a copy of the purge ruv if function is successful; 
-                unchanged otherwise. It is responsobility pf the caller to free
+                unchanged otherwise. It is responsibility of the caller to free
                 the ruv when it is no longer is in use
-   Return:      CL5_SUCCESS if function is successfull
+   Return:      CL5_SUCCESS if function is successful
                 CL5_BAD_STATE if the changelog is not initialized;
 				CL5_BAD_DATA - if NULL id is supplied
                 CL5_NOTFOUND, if changelog file for replica is not found
@@ -1680,6 +1680,16 @@ cl5GetNextOperationToReplay (CL5ReplayIterator *iterator, CL5Entry *entry)
 		slapi_log_error(SLAPI_LOG_FATAL, NULL, "%s: cl5GetNextOperationToReplay: "
                    "failed to read next entry; DB error %d\n", agmt_name, rc);
 		return CL5_DB_ERROR;
+	}
+
+	if(is_cleaned_rid(csn_get_replicaid(csn))){
+		/*
+		 *  This operation is from a deleted replica.  During the cleanallruv task the
+		 *  replicas are cleaned first before this instance is.  This can cause the
+		 *  server to basically do a full update over and over.  So we have to watch for
+		 *  this, and not send these operations out.
+		 */
+		return CL5_IGNORE_OP;
 	}
 
 	/* there is an entry we should return */
@@ -3383,7 +3393,7 @@ static int _cl5TrimMain (void *param)
 		{
 			/* time to trim */
 			timePrev = timeNow; 
-			_cl5DoTrimming ();
+			_cl5DoTrimming (0 /* there's no cleaned rid */);
 		}
 		if (NULL == s_cl5Desc.clLock)
 		{
@@ -3417,7 +3427,7 @@ static int _cl5TrimMain (void *param)
     
  */
 
-static void _cl5DoTrimming ()
+static void _cl5DoTrimming (ReplicaId rid)
 {
 	Object *obj;
 	long numToTrim;
@@ -3430,7 +3440,7 @@ static void _cl5DoTrimming ()
 	obj = objset_first_obj (s_cl5Desc.dbFiles);
 	while (obj && _cl5CanTrim ((time_t)0, &numToTrim))
 	{	
-		_cl5TrimFile (obj, &numToTrim);
+		_cl5TrimFile (obj, &numToTrim, rid);
 		obj = objset_next_obj (s_cl5Desc.dbFiles, obj);	
 	}
 
@@ -3447,12 +3457,13 @@ static void _cl5DoTrimming ()
 */
 #define CL5_TRIM_MAX_PER_TRANSACTION 10
 
-static void _cl5TrimFile (Object *obj, long *numToTrim)
+static void _cl5TrimFile (Object *obj, long *numToTrim, ReplicaId cleaned_rid)
 {
 	DB_TXN *txnid;
 	RUV *ruv = NULL;
 	CL5Entry entry;
 	slapi_operation_parameters op = {0};
+	ReplicaId csn_rid;
 	void *it;
 	int finished = 0, totalTrimmed = 0, count;
 	PRBool abort;
@@ -3476,7 +3487,6 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 		count = 0;
 		txnid = NULL;
 		abort = PR_FALSE;
-		ReplicaId rid;
 
 		/* DB txn lock accessed pages until the end of the transaction. */
 		
@@ -3497,14 +3507,13 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 			 * This change can be trimmed if it exceeds purge
 			 * parameters and has been seen by all consumers.
 			 */
-			rid = csn_get_replicaid (op.csn);
+			csn_rid = csn_get_replicaid (op.csn);
 			if ( (*numToTrim > 0 || _cl5CanTrim (entry.time, numToTrim)) &&
 				 ruv_covers_csn_strict (ruv, op.csn) )
 			{
 				rc = _cl5CurrentDeleteEntry (it);
-				if ( rc == CL5_SUCCESS && !is_released_rid(rid))
+				if ( rc == CL5_SUCCESS && cleaned_rid != csn_rid)
 				{
-					/* update purge vector, unless this is a released rid */
 					rc = _cl5UpdateRUV (obj, op.csn, PR_FALSE, PR_TRUE);				
 				}
 				if ( rc == CL5_SUCCESS)
@@ -3530,8 +3539,7 @@ static void _cl5TrimFile (Object *obj, long *numToTrim)
 				 * the trim forever.
 				 */
 				CSN *maxcsn = NULL;
-				rid = csn_get_replicaid (op.csn);
-				ruv_get_largest_csn_for_replica (ruv, rid, &maxcsn);
+				ruv_get_largest_csn_for_replica (ruv, csn_rid, &maxcsn);
 				if ( csn_compare (op.csn, maxcsn) != 0 )
 				{
 					/* op.csn is not anchor CSN */
@@ -3895,20 +3903,18 @@ static int _cl5UpdateRUV (Object *obj, CSN *csn, PRBool newReplica, PRBool purge
     /* update vector only if this replica is not yet part of RUV */
     if (purge && newReplica)
     {
-        if (ruv_contains_replica (file->purgeRUV, rid))
+        if (ruv_contains_replica (file->purgeRUV, rid)){
             return CL5_SUCCESS;
-        else if(!is_cleaned_rid(rid))
-        {
+        } else {
             /* if the replica is not part of the purgeRUV yet, add it unless it's from a cleaned rid */
             ruv_add_replica (file->purgeRUV, rid, multimaster_get_local_purl());
         }
     }
     else
     {
-        if (purge)
+        if (purge){
             rc = ruv_set_csns(file->purgeRUV, csn, NULL);
-        else if(!is_cleaned_rid(rid)){
-            /* don't update maxRuv if rid is cleaned */
+        } else {
             rc = ruv_set_csns(file->maxRUV, csn, NULL);
         }
     }
@@ -4520,16 +4526,8 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 	CL5Entry entry;
 	CL5DBFile *file = NULL;
 	Object *file_obj = NULL;
-	ReplicaId rid = csn_get_replicaid (op->csn);
 	DB_TXN *txnid = NULL;
 	DB_TXN *parent_txnid = (DB_TXN *)txn;
-
-	/*
-	 *  If the op csn contains the cleaned rid, don't write it
-	 */
-	if(is_cleaned_rid(rid)){
-		return CL5_SUCCESS;
-	}
 
 	rc = _cl5GetDBFileByReplicaName (replName, replGen, &file_obj);
 	if (rc == CL5_NOTFOUND)
@@ -5089,7 +5087,7 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
 		 * legacy consumer. In this case the supplier
 		 * and the consumer may have the same RID.
 		 */
-		if (rid == consumerRID && rid != MAX_REPLICA_ID)
+		if ((rid == consumerRID && rid != MAX_REPLICA_ID) || (is_cleaned_rid(rid)) )
 			continue;
 
         startCSN = csns[i];
@@ -6556,13 +6554,12 @@ cl5CleanRUV(ReplicaId rid){
     }
 }
 
-void trigger_cl_trimming(){
+void trigger_cl_trimming(ReplicaId rid){
     PRThread *trim_tid = NULL;
-    ReplicaId rid = get_released_rid();
 
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "trigger_cl_trimming: rid (%d)\n",(int)rid);
     trim_tid = PR_CreateThread(PR_USER_THREAD, (VFP)(void*)trigger_cl_trimming_thread,
-                   NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                   (void *)&rid, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                    PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE);
     if (NULL == trim_tid){
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
@@ -6575,7 +6572,9 @@ void trigger_cl_trimming(){
 }
 
 void
-trigger_cl_trimming_thread(){
+trigger_cl_trimming_thread(void *arg){
+    ReplicaId rid = *(ReplicaId *)arg;
+
     /* make sure we have a change log, and we aren't closing it */
     if(s_cl5Desc.dbState == CL5_STATE_CLOSED || s_cl5Desc.dbState == CL5_STATE_CLOSING){
         return;
@@ -6585,6 +6584,6 @@ trigger_cl_trimming_thread(){
             "trigger_cl_trimming: failed to increment thread count "
             "NSPR error - %d\n", PR_GetError ());
     }
-    _cl5DoTrimming();
+    _cl5DoTrimming(rid);
     _cl5RemoveThread();
 }

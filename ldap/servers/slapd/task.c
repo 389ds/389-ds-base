@@ -215,6 +215,17 @@ void slapi_task_log_status(Slapi_Task *task, char *format, ...)
     slapi_task_status_changed(task);
 }
 
+void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list ap)
+{
+    if (! task->task_status)
+        task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
+    if (! task->task_status)
+        return;        /* out of memory? */
+
+    PR_vsnprintf(task->task_status, (10 * LOG_BUFFER), format, ap);
+    slapi_task_status_changed(task);
+}
+
 /* this adds a line to the 'nsTaskLog' value, which is cumulative (anything
  * logged here is added to the end)
  */
@@ -227,6 +238,51 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
     va_start(ap, format);
     PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
     va_end(ap);
+
+    if (task->task_log_lock) {
+        PR_Lock(task->task_log_lock);
+    }
+    len = 2 + strlen(buffer) + (task->task_log ? strlen(task->task_log) : 0);
+    if ((len > MAX_SCROLLBACK_BUFFER) && task->task_log) {
+        size_t i;
+        char *newbuf;
+
+        /* start from middle of buffer, and find next linefeed */
+        i = strlen(task->task_log)/2;
+        while (task->task_log[i] && (task->task_log[i] != '\n'))
+            i++;
+        if (task->task_log[i])
+            i++;
+        len = strlen(task->task_log) - i + 2 + strlen(buffer);
+        newbuf = (char *)slapi_ch_malloc(len);
+        strcpy(newbuf, task->task_log + i);
+        slapi_ch_free((void **)&task->task_log);
+        task->task_log = newbuf;
+    } else {
+        if (! task->task_log) {
+            task->task_log = (char *)slapi_ch_malloc(len);
+            task->task_log[0] = 0;
+        } else {
+            task->task_log = (char *)slapi_ch_realloc(task->task_log, len);
+        }
+    }
+
+    if (task->task_log[0])
+        strcat(task->task_log, "\n");
+    strcat(task->task_log, buffer);
+    if (task->task_log_lock) {
+        PR_Unlock(task->task_log_lock);
+    }
+
+    slapi_task_status_changed(task);
+}
+
+void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list ap)
+{
+    char buffer[LOG_BUFFER];
+    size_t len;
+
+    PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
 
     if (task->task_log_lock) {
         PR_Lock(task->task_log_lock);

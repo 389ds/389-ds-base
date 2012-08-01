@@ -508,6 +508,10 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
         }
+        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaCleanRUVnotified))
+        {
+            agmt_set_cleanruv_notified_from_entry(agmt, e);
+        }
         else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
         {
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 

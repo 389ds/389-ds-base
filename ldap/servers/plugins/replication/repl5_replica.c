@@ -61,20 +61,20 @@
  */
 struct replica {
 	Slapi_DN *repl_root;			/* top of the replicated area			*/
-    char *repl_name;                /* unique replica name                  */
-    PRBool new_name;                /* new name was generated - need to be saved */
+	char *repl_name;                /* unique replica name                  */
+	PRBool new_name;                /* new name was generated - need to be saved */
 	ReplicaUpdateDNList updatedn_list;	/* list of dns with which a supplier should bind
 										   to update this replica				*/
 	ReplicaType	 repl_type;			/* is this replica read-only ?			*/
-    PRBool  legacy_consumer;        /* if true, this replica is supplied by 4.0 consumer */
-    char*   legacy_purl;            /* partial url of the legacy supplier   */
+	PRBool  legacy_consumer;        /* if true, this replica is supplied by 4.0 consumer */
+	char*   legacy_purl;            /* partial url of the legacy supplier   */
 	ReplicaId repl_rid;				/* replicaID							*/
 	Object	*repl_ruv;				/* replica update vector				*/
 	PRBool repl_ruv_dirty;          /* Dirty flag for ruv                   */
 	CSNPL *min_csn_pl;              /* Pending list for minimal CSN         */
 	void *csn_pl_reg_id;            /* registration assignment for csn callbacks */
 	unsigned long repl_state_flags;	/* state flags							*/
-    PRUint32    repl_flags;         /* persistent, externally visible flags */
+	PRUint32    repl_flags;         /* persistent, externally visible flags */
 	PRLock	*repl_lock;				/* protects entire structure			*/
 	Slapi_Eq_Context repl_eqcxt_rs;	/* context to cancel event that saves ruv */	
 	Slapi_Eq_Context repl_eqcxt_tr;	/* context to cancel event that reaps tombstones */	
@@ -85,9 +85,10 @@ struct replica {
 	PRBool tombstone_reap_active;	/* TRUE when the tombstone reaper is running */
 	long tombstone_reap_interval; /* Time in seconds between tombstone reaping */
 	Slapi_ValueSet *repl_referral;  /* A list of administrator provided referral URLs */
-    PRBool state_update_inprogress; /* replica state is being updated */
-    PRLock *agmt_lock;          /* protects agreement creation, start and stop */
+	PRBool state_update_inprogress; /* replica state is being updated */
+	PRLock *agmt_lock;          /* protects agreement creation, start and stop */
 	char *locking_purl;			/* supplier who has exclusive access */
+	char *repl_cleanruv_data[CLEANRIDSIZ + 1];
 };
 
 
@@ -123,6 +124,7 @@ static int replica_log_ruv_elements_nolock (const Replica *r);
 static void replica_replace_ruv_tombstone(Replica *r);
 static void start_agreements_for_replica (Replica *r, PRBool start);
 static void _delete_tombstone(const char *tombstone_dn, const char *uniqueid, int ext_op_flags);
+static void replica_strip_cleaned_rids(Replica *r);
 
 /* Allocates new replica and reads its state and state of its component from
  * various parts of the DIT. 
@@ -270,6 +272,8 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
                         slapi_sdn_get_dn(r->repl_root));
     }
 
+    replica_check_for_tasks(r, e);
+
 done:
     if (rc != 0 && r)
 	{
@@ -306,6 +310,7 @@ replica_destroy(void **arg)
 {
 	Replica *r;
 	void *repl_name;
+	int i;
 
 	if (arg == NULL)
 		return;
@@ -390,6 +395,10 @@ replica_destroy(void **arg)
 	if (NULL != r->min_csn_pl)
 	{
 		csnplFree(&r->min_csn_pl);;
+	}
+
+	for(i = 0;r->repl_cleanruv_data[i] != NULL; i++){
+		slapi_ch_free_string(&r->repl_cleanruv_data[i]);
 	}
 
 	slapi_ch_free((void **)arg);
@@ -1302,7 +1311,7 @@ replica_reload_ruv (Replica *r)
     }
 
     /* check if there is a changelog and whether this replica logs changes */
-    if (cl5GetState () == CL5_STATE_OPEN && r->repl_flags & REPLICA_LOG_CHANGES)
+    if (cl5GetState () == CL5_STATE_OPEN && (r->repl_flags & REPLICA_LOG_CHANGES))
     {
 
         /* Compare new ruv to the changelog's upper bound ruv. We could only keep
@@ -1424,7 +1433,7 @@ int replica_check_for_data_reload (Replica *r, void *arg)
     PR_ASSERT (r);
 
     /* check that we have a changelog and if this replica logs changes */
-    if (cl5GetState () == CL5_STATE_OPEN && r->repl_flags & REPLICA_LOG_CHANGES)
+    if (cl5GetState () == CL5_STATE_OPEN && (r->repl_flags & REPLICA_LOG_CHANGES))
     {
         /* Compare new ruv to the purge ruv. If the new contains csns which
            are smaller than those in purge ruv, we need to remove old and
@@ -1556,6 +1565,12 @@ _replica_get_config_entry (const Slapi_DN *root)
 	slapi_ch_free_string(&dn);
 		
 	return e; 
+}
+
+char *
+replica_get_dn(Replica *r)
+{
+    return _replica_get_config_dn (r->repl_root);
 }
 
 static int 
@@ -1783,6 +1798,177 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 	r->tombstone_reap_stop = r->tombstone_reap_active = PR_FALSE;
 
     return (_replica_check_validity (r));
+}
+
+void
+replica_check_for_tasks(Replica *r, Slapi_Entry *e)
+{
+    char **clean_vals;
+
+    if(e == NULL){
+        return;
+    }
+    /*
+     *  check if we are in the middle of a CLEANALLRUV task,
+     *  if so set the cleaned rid, and fire off the thread
+     */
+    if ((clean_vals = slapi_entry_attr_get_charray(e, type_replicaCleanRUV)) != NULL)
+    {
+        PRThread *thread = NULL;
+        struct berval *payload = NULL;
+        CSN *maxcsn = NULL;
+        char *csnpart;
+        char *iter;
+        char csnstr[CSN_STRSIZE];
+        char *ridstr;
+        char *token = NULL;
+        ReplicaId rid;
+        int i;
+
+        for(i = 0; clean_vals[i]; i++){
+            cleanruv_data *data = NULL;
+
+            /*
+             *  Set the cleanruv data, and add the cleaned rid
+             */
+            r->repl_cleanruv_data[i] = slapi_ch_strdup(clean_vals[i]);
+            token = ldap_utf8strtok_r(clean_vals[i], ":", &iter);
+            if(token){
+                rid = atoi(token);
+                if(rid <= 0 || rid >= READ_ONLY_REPLICA_ID){
+                    slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: invalid replica id(%d) "
+                       "aborting task.\n", rid);
+                    goto done;
+                }
+            } else {
+                slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: unable to parse cleanallruv "
+                    "data (%s), aborting task.\n",clean_vals[i]);
+                goto done;
+            }
+            csnpart = ldap_utf8strtok_r(iter, ":", &iter);
+            maxcsn = csn_new();
+            csn_init_by_string(maxcsn, csnpart);
+            csn_as_string(maxcsn, PR_FALSE, csnstr);
+            add_cleaned_rid(rid, r, csnstr);
+
+            slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: cleanAllRUV task found, "
+                "resuming the cleaning of rid(%d)...\n", rid);
+            /*
+             *  Create payload
+             */
+            ridstr = slapi_ch_smprintf("%d:%s:%s", rid, slapi_sdn_get_dn(replica_get_root(r)), csnstr);
+            payload = create_ruv_payload(ridstr);
+            slapi_ch_free_string(&ridstr);
+
+            if(payload == NULL){
+                slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: Startup: Failed to "
+                    "create extended op payload, aborting task");
+                return;
+            }
+            /*
+             *  Setup the data struct, and fire off the thread.
+             */
+            data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
+            if (data == NULL) {
+                slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV: failed to allocate cleanruv_data.\n");
+                csn_free(&maxcsn);
+            } else {
+                /* setup our data */
+                data->repl_obj = NULL;
+                data->replica = NULL;
+                data->rid = rid;
+                data->task = NULL;
+                data->maxcsn = maxcsn;
+                data->sdn = slapi_sdn_dup(r->repl_root);
+                data->payload = payload;
+
+                thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread_ext,
+                        (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                        PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+                if (thread == NULL) {
+                    slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV: unable to create cleanAllRUV "
+                        "thread for rid(%d)\n", (int)data->rid);
+                }
+            }
+        }
+        r->repl_cleanruv_data[i] = NULL;
+    }
+
+    if ((clean_vals = slapi_entry_attr_get_charray(e, type_replicaAbortCleanRUV)) != NULL)
+    {
+        PRThread *thread = NULL;
+        struct berval *payload;
+        CSN *maxcsn = NULL;
+        char *iter;
+        char *ridstr = NULL;
+        char *repl_root;
+        char *token = NULL;
+        ReplicaId rid;
+        int i;
+
+        for(i = 0; clean_vals[i]; i++){
+            cleanruv_data *data = NULL;
+
+            token = ldap_utf8strtok_r(clean_vals[i], ":", &iter);
+            if(token){
+                rid = atoi(token);
+                if(rid <= 0 || rid >= READ_ONLY_REPLICA_ID){
+                    slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: invalid replica id(%d) "
+                        "aborting task.\n", rid);
+                    goto done;
+                }
+            } else {
+                slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: unable to parse cleanallruv "
+                    "data (%s), aborting task.\n",clean_vals[i]);
+                goto done;
+            }
+
+            repl_root = ldap_utf8strtok_r(iter, ":", &iter);
+            stop_ruv_cleaning();
+            maxcsn = replica_get_cleanruv_maxcsn(r, rid);
+            delete_cleaned_rid(r, rid, maxcsn);
+            csn_free(&maxcsn);
+
+            slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: abort task found, "
+                "resuming abort of rid(%d).\n", rid);
+            /*
+             *  Setup the data struct, and fire off the abort thread.
+             */
+            data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
+            if (data == NULL) {
+                slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: failed to allocate cleanruv_data.\n");
+            } else {
+                ridstr = slapi_ch_smprintf("%d:%s", rid, repl_root);
+                payload = create_ruv_payload(ridstr);
+                slapi_ch_free_string(&ridstr);
+
+                if(payload == NULL){
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: failed to create extended "
+                        "op payload\n");
+                } else {
+                    /* setup the data */
+                    data->repl_obj = NULL;
+                    data->replica = NULL;
+                    data->rid = rid;
+                    data->task = NULL;
+                    data->payload = payload;
+                    data->repl_root = slapi_ch_strdup(repl_root);
+                    data->sdn = slapi_sdn_dup(r->repl_root);
+
+                    thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
+                            (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                            PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+                    if (thread == NULL) {
+                        slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: unable to create abort cleanAllRUV "
+                            "thread for rid(%d)\n", (int)data->rid);
+                    }
+                }
+            }
+        }
+    }
+
+done:
+    slapi_ch_array_free(clean_vals);
 }
 
 /* This function updates the entry to contain information generated 
@@ -2782,26 +2968,25 @@ static const char *root_glue =
 static int
 replica_create_ruv_tombstone(Replica *r)
 {
-	int return_value = LDAP_LOCAL_ERROR;
-	char *root_entry_str;
-	Slapi_Entry *e = NULL;
+    int return_value = LDAP_LOCAL_ERROR;
+    char *root_entry_str;
+    Slapi_Entry *e = NULL;
     const char *purl = NULL;
     RUV *ruv;
     struct berval **bvals = NULL;
     Slapi_PBlock *pb = NULL;
     int rc;
 	
-	PR_ASSERT(NULL != r && NULL != r->repl_root);
-	root_entry_str = slapi_ch_smprintf(root_glue, slapi_sdn_get_ndn(r->repl_root),
-		RUV_STORAGE_ENTRY_UNIQUEID);
+    PR_ASSERT(NULL != r && NULL != r->repl_root);
 
-	e = slapi_str2entry(root_entry_str, SLAPI_STR2ENTRY_TOMBSTONE_CHECK);
+    root_entry_str = slapi_ch_smprintf(root_glue, slapi_sdn_get_ndn(r->repl_root), RUV_STORAGE_ENTRY_UNIQUEID);
+
+    e = slapi_str2entry(root_entry_str, SLAPI_STR2ENTRY_TOMBSTONE_CHECK);
     if (e == NULL)
         goto done;
 
     /* Add ruv */
-    if (r->repl_ruv == NULL)
-    {
+    if (r->repl_ruv == NULL){
         CSNGen *gen;
         CSN *csn;
         char csnstr [CSN_STRSIZE];
@@ -2810,42 +2995,34 @@ replica_create_ruv_tombstone(Replica *r)
         gen = (CSNGen *)object_get_data(r->repl_csngen);
         PR_ASSERT (gen);
 
-        if (csngen_new_csn(gen, &csn, PR_FALSE /* notify */) == CSN_SUCCESS)
-		{
-			(void)csn_as_string(csn, PR_FALSE, csnstr);
-			csn_free(&csn);
+        if (csngen_new_csn(gen, &csn, PR_FALSE /* notify */) == CSN_SUCCESS){
+            (void)csn_as_string(csn, PR_FALSE, csnstr);
+            csn_free(&csn);
 
-			/* if this is an updateable replica - add its own
-			   element to the RUV so that referrals work correctly */
-			if (r->repl_type == REPLICA_TYPE_UPDATABLE)
-				purl = multimaster_get_local_purl();
+            /*
+             * if this is an updateable replica - add its own
+             * element to the RUV so that referrals work correctly
+             */
+            if (r->repl_type == REPLICA_TYPE_UPDATABLE)
+                purl = multimaster_get_local_purl();
 
-			if (ruv_init_new(csnstr, r->repl_rid, purl, &ruv) == RUV_SUCCESS)
-			{
-				r->repl_ruv = object_new((void*)ruv, (FNFree)ruv_destroy);
-				r->repl_ruv_dirty = PR_TRUE;
-				return_value = LDAP_SUCCESS;
-			}
-			else
-			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-								"Cannot create new replica update vector for %s\n",
-								slapi_sdn_get_dn(r->repl_root));
-				ruv_destroy(&ruv);
+            if (ruv_init_new(csnstr, r->repl_rid, purl, &ruv) == RUV_SUCCESS){
+                r->repl_ruv = object_new((void*)ruv, (FNFree)ruv_destroy);
+                r->repl_ruv_dirty = PR_TRUE;
+                return_value = LDAP_SUCCESS;
+            } else {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Cannot create new replica update vector for %s\n",
+                    slapi_sdn_get_dn(r->repl_root));
+                ruv_destroy(&ruv);
                 goto done;
-			}
-		}
-		else
-		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"Cannot obtain CSN for new replica update vector for %s\n",
-							slapi_sdn_get_dn(r->repl_root));
-			csn_free(&csn);
+            }
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Cannot obtain CSN for new replica update vector for %s\n",
+                slapi_sdn_get_dn(r->repl_root));
+            csn_free(&csn);
             goto done;
-		}
-	}
-    else  /* failed to write the entry because DB was not initialized - retry */
-    {
+        }
+    } else { /* failed to write the entry because DB was not initialized - retry */
         ruv = (RUV*) object_get_data (r->repl_ruv);
         PR_ASSERT (ruv);
     }
@@ -2853,30 +3030,22 @@ replica_create_ruv_tombstone(Replica *r)
     PR_ASSERT (r->repl_ruv);
 
     rc = ruv_to_bervals(ruv, &bvals);
-    if (rc != RUV_SUCCESS)
-    {
+    if (rc != RUV_SUCCESS){
         goto done;
     }
         
     /* ONREPL this is depricated function but there is currently no better API to use */
     rc = slapi_entry_add_values(e, type_ruvElement, bvals);
-    if (rc != 0)
-    {
+    if (rc != 0){
         goto done;
     }        
-    
 
-	pb = slapi_pblock_new();
-	slapi_add_entry_internal_set_pb(
-		pb,
-		e,
-		NULL /* controls */,
-		repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
-		OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP |
-		OP_FLAG_REPL_RUV);
-	slapi_add_internal_pb(pb);
-	e = NULL; /* add consumes e, upon success or failure */
-	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
+    pb = slapi_pblock_new();
+    slapi_add_entry_internal_set_pb(pb, e, NULL /* controls */,	repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_REPL_RUV);
+    slapi_add_internal_pb(pb);
+    e = NULL; /* add consumes e, upon success or failure */
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
     if (return_value == LDAP_SUCCESS)
         r->repl_ruv_dirty = PR_FALSE;
 		
@@ -2889,50 +3058,50 @@ done:
     if (pb)
         slapi_pblock_destroy(pb);
 
-	slapi_ch_free((void **) &root_entry_str);
+    slapi_ch_free_string(&root_entry_str);
 
-	return return_value;
+    return return_value;
 }
 
 
 static void
 assign_csn_callback(const CSN *csn, void *data)
 {
-	Replica *r = (Replica *)data;
+    Replica *r = (Replica *)data;
     Object *ruv_obj;
     RUV *ruv;
 
-	PR_ASSERT(NULL != csn);
-	PR_ASSERT(NULL != r);
+    PR_ASSERT(NULL != csn);
+    PR_ASSERT(NULL != r);
 
     ruv_obj = replica_get_ruv (r);
     PR_ASSERT (ruv_obj);
     ruv = (RUV*)object_get_data (ruv_obj);
     PR_ASSERT (ruv);
 
-	PR_Lock(r->repl_lock);
+    PR_Lock(r->repl_lock);
 
-	r->repl_csn_assigned = PR_TRUE;
+    r->repl_csn_assigned = PR_TRUE;
 	
-	if (NULL != r->min_csn_pl)
-	{
-		if (csnplInsert(r->min_csn_pl, csn) != 0)
-		{
-			char csn_str[CSN_STRSIZE]; /* For logging only */
-			/* Ack, we can't keep track of min csn. Punt. */
-			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "assign_csn_callback: "
-								"failed to insert csn %s for replica %s\n",
-								csn_as_string(csn, PR_FALSE, csn_str),
-								slapi_sdn_get_dn(r->repl_root));
-			}
-			csnplFree(&r->min_csn_pl);
-		}
-	}
+    if (NULL != r->min_csn_pl)
+    {
+        if (csnplInsert(r->min_csn_pl, csn) != 0)
+        {
+            char csn_str[CSN_STRSIZE]; /* For logging only */
+            /* Ack, we can't keep track of min csn. Punt. */
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "assign_csn_callback: "
+                    "failed to insert csn %s for replica %s\n",
+                    csn_as_string(csn, PR_FALSE, csn_str),
+                    slapi_sdn_get_dn(r->repl_root));
+            }
+            csnplFree(&r->min_csn_pl);
+        }
+    }
 
     ruv_add_csn_inprogress (ruv, csn);
 
-	PR_Unlock(r->repl_lock);
+    PR_Unlock(r->repl_lock);
 
     object_release (ruv_obj);
 }
@@ -3167,19 +3336,41 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 	PR_Unlock(r->repl_lock);
 }
 
+static void
+replica_strip_cleaned_rids(Replica *r)
+{
+    Object *RUVObj;
+    RUV *ruv = NULL;
+    ReplicaId rid[32] = {0};
+    int i = 0;
+
+    RUVObj = replica_get_ruv(r);
+    ruv =  (RUV*)object_get_data (RUVObj);
+
+    ruv_get_cleaned_rids(ruv, rid);
+    while(rid[i] != 0){
+        ruv_delete_replica(ruv, rid[i]);
+        replica_set_ruv_dirty(r);
+        replica_write_ruv(r);
+        i++;
+    }
+    object_release(RUVObj);
+}
+
 /* Update the tombstone entry to reflect the content of the ruv */
 static void
 replica_replace_ruv_tombstone(Replica *r)
 {
     Slapi_PBlock *pb = NULL;
-	char *dn;
-	int rc;
-
     Slapi_Mod smod;
     Slapi_Mod smod_last_modified;
     LDAPMod *mods [3];
+    char *dn;
+    int rc;
 
-	PR_ASSERT(NULL != r && NULL != r->repl_root);
+    PR_ASSERT(NULL != r && NULL != r->repl_root);
+
+    replica_strip_cleaned_rids(r);
 
     PR_Lock(r->repl_lock);
 
@@ -3188,14 +3379,14 @@ replica_replace_ruv_tombstone(Replica *r)
     ruv_last_modified_to_smod ((RUV*)object_get_data(r->repl_ruv), &smod_last_modified);
 
     dn = _replica_get_config_dn (r->repl_root);
-	if (NULL == dn) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"replica_replace_ruv_tombstone: "
-			"failed to get the config dn for %s\n",
-			slapi_sdn_get_dn (r->repl_root));
-		PR_Unlock(r->repl_lock);
-		goto bail;
-	}
+    if (NULL == dn) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            "replica_replace_ruv_tombstone: "
+            "failed to get the config dn for %s\n",
+            slapi_sdn_get_dn (r->repl_root));
+        PR_Unlock(r->repl_lock);
+        goto bail;
+    }
     mods[0] = (LDAPMod*)slapi_mod_get_ldapmod_byref(&smod);
     mods[1] = (LDAPMod*)slapi_mod_get_ldapmod_byref(&smod_last_modified);
 
@@ -3219,12 +3410,12 @@ replica_replace_ruv_tombstone(Replica *r)
 
     if (rc != LDAP_SUCCESS)
     {
-		if ((rc != LDAP_NO_SUCH_OBJECT) || !replica_is_state_flag_set(r, REPLICA_IN_USE))
-		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_replace_ruv_tombstone: "
-				"failed to update replication update vector for replica %s: LDAP "
-							"error - %d\n", (char*)slapi_sdn_get_dn (r->repl_root), rc);
-		}
+        if ((rc != LDAP_NO_SUCH_OBJECT) || !replica_is_state_flag_set(r, REPLICA_IN_USE))
+        {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_replace_ruv_tombstone: "
+                "failed to update replication update vector for replica %s: LDAP "
+                "error - %d\n", (char*)slapi_sdn_get_dn (r->repl_root), rc);
+        }
     }
 
     slapi_ch_free ((void**)&dn);
@@ -3240,14 +3431,18 @@ replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv)
 	ReplicaId supplier_id = 0;
 	char *supplier_purl = NULL;
 
-	if ( ruv_get_first_id_and_purl(supplier_ruv, &supplier_id, &supplier_purl) == RUV_SUCCESS )
+	if ( ruv_get_first_id_and_purl(supplier_ruv, &supplier_id, &supplier_purl) == RUV_SUCCESS)
 	{
 		RUV *local_ruv = NULL;
 
 		PR_Lock(r->repl_lock);
 
 		local_ruv =  (RUV*)object_get_data (r->repl_ruv);
-		PR_ASSERT (local_ruv);
+
+		if(is_cleaned_rid(supplier_id) || local_ruv == NULL){
+			PR_Unlock(r->repl_lock);
+			return;
+		}
 
 		if ( ruv_local_contains_supplier(local_ruv, supplier_id) == 0 )
 		{
@@ -3578,4 +3773,68 @@ replica_get_attr ( Slapi_PBlock *pb, const char* type, void *value )
 	}
 
 	return rc;
+}
+
+void
+replica_add_cleanruv_data(Replica *r, char *val)
+{
+    int i;
+
+    PR_Lock(r->repl_lock);
+
+    for (i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i] != NULL; i++); /* goto the end of the list */
+    r->repl_cleanruv_data[i] = slapi_ch_strdup(val); /* append to list */
+    r->repl_cleanruv_data[i + 1] = NULL;
+
+    PR_Unlock(r->repl_lock);
+}
+
+void
+replica_remove_cleanruv_data(Replica *r, char *val)
+{
+    int i;
+
+    PR_Lock(r->repl_lock);
+
+    for(i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i] && strcmp(r->repl_cleanruv_data[i], val) != 0; i++);
+    if( i < CLEANRIDSIZ ){
+        slapi_ch_free_string(&r->repl_cleanruv_data[i]);
+        for(; i < CLEANRIDSIZ; i++){
+            /* rewrite entire array */
+            r->repl_cleanruv_data[i] = r->repl_cleanruv_data[i + 1];
+        }
+    }
+
+    PR_Unlock(r->repl_lock);
+}
+
+CSN *
+replica_get_cleanruv_maxcsn(Replica *r, ReplicaId rid)
+{
+    CSN *newcsn;
+    char *csnstr;
+    char *token;
+    char *iter;
+    int repl_rid = 0;
+    int i;
+
+    PR_Lock(r->repl_lock);
+
+    for(i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i]; i++){
+        token = ldap_utf8strtok_r(r->repl_cleanruv_data[i], ":", &iter);
+        if(token){
+            repl_rid = atoi(token);
+        }
+        csnstr = ldap_utf8strtok_r(iter, ":", &iter);
+        if(repl_rid == rid){
+            newcsn = csn_new();
+            csn_init_by_string(newcsn, csnstr);
+            PR_Unlock(r->repl_lock);
+            return newcsn;
+        }
+    }
+
+    PR_Unlock(r->repl_lock);
+
+    return NULL;
 }

@@ -1969,6 +1969,33 @@ slapi_log_error( int severity, char *subsystem, char *fmt, ... )
 }
 
 int
+slapi_log_error_ext(int severity, char *subsystem, char *fmt, va_list varg1, va_list varg2)
+{
+    int rc = 0;
+
+    if ( severity < SLAPI_LOG_MIN || severity > SLAPI_LOG_MAX ) {
+        (void)slapd_log_error_proc( subsystem, "slapi_log_error: invalid severity %d (message %s)\n",
+            severity, fmt );
+            return( -1 );
+    }
+
+    if (
+    #ifdef _WIN32
+        *module_ldap_debug
+    #else
+        slapd_ldap_debug
+    #endif
+        & slapi_log_map[ severity ] )
+    {
+	    rc = slapd_log_error_proc_internal( subsystem, fmt, varg1, varg2 );
+    } else {
+        rc = 0;        /* nothing to be logged --> always return success */
+    }
+
+    return( rc );
+}
+
+int
 slapi_is_loglevel_set ( const int loglevel )
 {
 

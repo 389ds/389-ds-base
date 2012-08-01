@@ -145,9 +145,10 @@ enum
 	CL5_CSN_ERROR,		/* CSN API failed */
 	CL5_RUV_ERROR,		/* RUV API failed */
 	CL5_OBJSET_ERROR,	/* namedobjset api failed */
-    CL5_PURGED_DATA,    /* requested data has been purged */
-    CL5_MISSING_DATA,   /* data should be in the changelog, but is missing */
-	CL5_UNKNOWN_ERROR	/* unclassified error */
+	CL5_PURGED_DATA,    /* requested data has been purged */
+	CL5_MISSING_DATA,   /* data should be in the changelog, but is missing */
+	CL5_UNKNOWN_ERROR,	/* unclassified error */
+	CL5_IGNORE_OP		/* ignore this updated - used by CLEANALLRUV task */
 };
 
 /***** Module APIs *****/
@@ -489,6 +490,6 @@ int cl5WriteRUV();
 int cl5DeleteRUV();
 void cl5CleanRUV(ReplicaId rid);
 void cl5NotifyCleanup(int rid);
-void trigger_cl_trimming();
+void trigger_cl_trimming(ReplicaId rid);
 
 #endif
