@@ -520,12 +520,14 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	Slapi_PBlock *search_pb = NULL;
 	Slapi_DN *base_sdn = NULL;
 	Slapi_Backend *be = NULL;
+	char *escaped_filter_val;
 	char *filter_str = NULL;
 	char *cookie = NULL;
 	int all_backends = memberof_config_get_all_backends();
 	int types_name_len = 0;
 	int num_types = 0;
 	int dn_len = slapi_sdn_get_ndn_len(sdn);
+	int free_it = 0;
 	int rc = 0;
 	int i = 0;
 
@@ -537,7 +539,15 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 		types_name_len += strlen(types[num_types]);
 	}
 
-	/* Build the search filter. */
+	/* Escape the dn, and build the search filter. */
+	escaped_filter_val = slapi_escape_filter_value((char *)slapi_sdn_get_dn(sdn), dn_len);
+	if(escaped_filter_val){
+		dn_len = strlen(escaped_filter_val);
+		free_it = 1;
+	} else {
+		escaped_filter_val = (char *)slapi_sdn_get_dn(sdn);
+	}
+
 	if (num_types > 1)
 	{
 		int bytes_out = 0;
@@ -553,7 +563,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 		for (i = 0; types[i]; i++)
 		{
 			bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out,
-					"(%s=%s)", types[i], slapi_sdn_get_ndn(sdn));
+					"(%s=%s)", types[i], escaped_filter_val);
 		}
 
 		/* Add end of filter. */
@@ -561,9 +571,11 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	}
 	else if (num_types == 1)
 	{
-		filter_str =
-		        slapi_ch_smprintf("(%s=%s)", types[0], slapi_sdn_get_ndn(sdn));
+		filter_str = slapi_ch_smprintf("(%s=%s)", types[0], escaped_filter_val);
 	}
+
+	if(free_it)
+		slapi_ch_free_string(&escaped_filter_val);
 
 	if(filter_str == NULL){
 		return rc;
@@ -1131,12 +1143,12 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			Slapi_PBlock *search_pb = slapi_pblock_new();
 			Slapi_DN *base_sdn = 0;
 			Slapi_Backend *be = 0;
-			char *filter_str = 0;
+			char *filter_str;
 			char *cookie = NULL;
 			int n_entries = 0;
 			int all_backends = config->allBackends;
 
-			filter_str = slapi_ch_smprintf("(%s=%s)", config->memberof_attr, op_to);
+			filter_str = slapi_filter_sprintf("(%s=%s%s)", config->memberof_attr, ESC_NEXT_VAL, op_to);
 			be = slapi_get_first_backend(&cookie);
 			while(be){
 				/*

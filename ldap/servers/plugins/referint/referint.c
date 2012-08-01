@@ -684,7 +684,6 @@ update_integrity(char **argv, Slapi_DN *origSDN,
     char *attrName = NULL;
     char *filter = NULL;
     char *attrs[2];
-    size_t len = slapi_sdn_get_ndn_len(origSDN);
     int search_result;
     int nval = 0;
     int i, j;
@@ -709,9 +708,7 @@ update_integrity(char **argv, Slapi_DN *origSDN,
         search_base = slapi_sdn_get_dn( sdn );
 
         for(i = 3; argv[i] != NULL; i++){
-            char buf[BUFSIZ];
-            filter = slapi_ch_smprintf("(%s=*%s)", argv[i],
-                                    escape_filter_value(origDN, len, buf));
+            filter = slapi_filter_sprintf("(%s=*%s%s)", argv[i], ESC_NEXT_VAL, origDN);
             if ( filter ) {
                 /* Need only the current attribute and its subtypes */
                 attrs[0] = argv[i];

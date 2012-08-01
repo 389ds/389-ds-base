@@ -124,11 +124,11 @@ get_filter( Connection *conn, BerElement *ber, int scope,
 }
 
 
-#define FILTER_EQ_FMT       "(%s=%s)"
-#define FILTER_GE_FMT       "(%s>=%s)"
-#define FILTER_LE_FMT       "(%s<=%s)"
-#define FILTER_APROX_FMT    "(%s~=%s)"
-#define FILTER_EXTENDED_FMT "(%s%s%s%s:=%s)"
+#define FILTER_EQ_FMT       "(%s=%s%s)"
+#define FILTER_GE_FMT       "(%s>=%s%s)"
+#define FILTER_LE_FMT       "(%s<=%s%s)"
+#define FILTER_APROX_FMT    "(%s~=%s%s)"
+#define FILTER_EXTENDED_FMT "(%s%s%s%s:=%s%s)"
 #define FILTER_EQ_LEN	4
 #define FILTER_GE_LEN	5
 #define FILTER_LE_LEN	5
@@ -140,16 +140,14 @@ get_filter( Connection *conn, BerElement *ber, int scope,
 static char *
 filter_escape_filter_value_extended(struct slapi_filter *f) 
 {
-    char ebuf[BUFSIZ], *ptr;
-    const char *estr;
+    char *ptr;
     
-    estr  = escape_filter_value( f->f_mr_value.bv_val, f->f_mr_value.bv_len, ebuf );
-	ptr = slapi_ch_smprintf(FILTER_EXTENDED_FMT,
+    ptr = slapi_filter_sprintf(FILTER_EXTENDED_FMT,
         f->f_mr_type ? f->f_mr_type : "",
         f->f_mr_dnAttrs ? ":dn" : "",
         f->f_mr_oid ? ":" : "",
         f->f_mr_oid ? f->f_mr_oid : "",
-        estr );
+        ESC_NEXT_VAL,  f->f_mr_value.bv_val);
     return ptr;
 }
 
@@ -158,12 +156,11 @@ filter_escape_filter_value_extended(struct slapi_filter *f)
 static char *
 filter_escape_filter_value(struct slapi_filter *f, const char *fmt, size_t len) 
 {
-    char ebuf[BUFSIZ], *ptr;
-    const char *estr;
+    char *ptr;
+
+    filter_compute_hash(f);
+    ptr = slapi_filter_sprintf(fmt, f->f_avtype, ESC_NEXT_VAL, f->f_avvalue.bv_val );
     
-	estr  = escape_filter_value( f->f_avvalue.bv_val, f->f_avvalue.bv_len, ebuf );
-	filter_compute_hash(f);
-    ptr = slapi_ch_smprintf(fmt, f->f_avtype, estr );
     return ptr;
 }
 
@@ -474,8 +471,7 @@ get_substring_filter(
 {
 	ber_tag_t	tag, rc;
 	ber_len_t	len = -1;
-	char		*val, *last, *type = NULL;
-	char		ebuf[BUFSIZ];
+	char		*val, *eval, *last, *type = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_substring_filter\n", 0, 0, 0 );
 
@@ -516,8 +512,11 @@ get_substring_filter(
 				return( LDAP_PROTOCOL_ERROR );
 			}
 			f->f_sub_initial = val;
-    	    /* jcm: Had to cast away a const */
-			val = (char*)escape_filter_value( val, -1, ebuf );
+			eval = (char*)slapi_escape_filter_value( val, -1);
+			if(eval){
+				slapi_ch_free_string(&val);
+				val = eval;
+			}
 			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
 			    strlen( val ) + 1 );
 			strcat( *fstr, val );
@@ -526,8 +525,11 @@ get_substring_filter(
 		case LDAP_SUBSTRING_ANY:
 			LDAPDebug( LDAP_DEBUG_FILTER, "  ANY\n", 0, 0, 0 );
 			charray_add( &f->f_sub_any, val );
-    	    /* jcm: Had to cast away a const */
-			val = (char*)escape_filter_value( val, -1, ebuf );
+			eval = (char*)slapi_escape_filter_value( val, -1);
+			if(eval){
+				slapi_ch_free_string(&val);
+				val = eval;
+			}
 			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
 			    strlen( val ) + 2 );
 			strcat( *fstr, "*" );
@@ -540,8 +542,11 @@ get_substring_filter(
 				return( LDAP_PROTOCOL_ERROR );
 			}
 			f->f_sub_final = val;
-    	    /* jcm: Had to cast away a const */
-			val = (char*)escape_filter_value( val, -1, ebuf );
+			eval = (char*)slapi_escape_filter_value( val, -1);
+			if(eval){
+				slapi_ch_free_string(&val);
+				val = eval;
+			}
 			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
 			    strlen( val ) + 2 );
 			strcat( *fstr, "*" );

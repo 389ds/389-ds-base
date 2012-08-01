@@ -2896,7 +2896,6 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	** client is a member of.
 	*/
 	if (enumerate_groups) {
-		char			filter_str[BUFSIZ];
 		char			*attrs[3];
 		struct eval_info	info = {0};
 		char			*curMemberDn;
@@ -2934,23 +2933,15 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 		curMemberDn = n_clientdn;
 
 		while (!Done) {
-			char *filter_str_ptr = &filter_str[0];
-			char *new_filter_str = NULL;
-			int lenf = strlen(curMemberDn)<<1;
-
-			if (lenf > (BUFSIZ - 28)) { /* 28 for "(|(uniquemember=%s)(member=%s))" */
-				new_filter_str = slapi_ch_malloc(lenf + 28);
-				filter_str_ptr = new_filter_str;
-			}
+			char *filter_str_ptr;
 
 			/*
 			** Search the db for groups that the client is a member of.
 			** Once found cache it. cache only unique groups.
 			*/
 			tt = info.lu_idx;
-			sprintf (filter_str_ptr,"(|(uniquemember=%s)(member=%s))", 
-						curMemberDn, curMemberDn); 
-
+			filter_str_ptr = slapi_filter_sprintf("(|(uniquemember=%s%s)(member=%s%s))",
+					ESC_AND_NORM_NEXT_VAL, curMemberDn, ESC_AND_NORM_NEXT_VAL ,curMemberDn);
 			/* Use new search internal API */
 			{
 				Slapi_PBlock *aPb = slapi_pblock_new ();
@@ -2976,7 +2967,7 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 				slapi_pblock_destroy (aPb);
 			}
 
-			if (new_filter_str) slapi_ch_free((void **) &new_filter_str);
+			slapi_ch_free_string(&filter_str_ptr);
 
 			if (tt == info.lu_idx) {
 				slapi_log_error( SLAPI_LOG_ACL, plugin_name, "currDn:(%s) \n\tNO MEMBER ADDED\n", 

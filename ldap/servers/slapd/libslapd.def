@@ -1097,8 +1097,8 @@ EXPORTS
 	slapi_mtn_get_dn			@1098
 	dl_add_index				@1099
 	dl_replace				@1100
-        send_referrals_from_entry               @1101
-	escape_filter_value			@1102
+	send_referrals_from_entry               @1101
+	slapi_escape_filter_value		@1102
 	slapd_pk11_destroyContext		@1103
 	secoid_destroyAlgorithmID		@1104
 	op_shared_is_allowed_attr		@1105

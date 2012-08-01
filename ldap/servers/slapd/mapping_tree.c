@@ -908,9 +908,9 @@ static int
 mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
 {
     Slapi_PBlock *pb;
-    char * filter = NULL;
-    int res;
     Slapi_Entry **entries = NULL;
+    char *filter = NULL;
+    int res;
     int x;
     int result = 0;
 
@@ -923,11 +923,11 @@ mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
         filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(!(%s=*)))",
                  MAPPING_TREE_PARENT_ATTRIBUTE);
     } else {
-        filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(|(%s=\"%s\")(%s=%s)))",
-            MAPPING_TREE_PARENT_ATTRIBUTE, 
-            slapi_sdn_get_dn(target->mtn_subtree),
-            MAPPING_TREE_PARENT_ATTRIBUTE, 
-            slapi_sdn_get_dn(target->mtn_subtree));
+        const char *filter_value = slapi_sdn_get_dn(target->mtn_subtree);
+
+        filter = slapi_filter_sprintf("(&(objectclass=nsMappingTree)(|(%s=\"%s%s\")(%s=%s%s)))",
+            MAPPING_TREE_PARENT_ATTRIBUTE, ESC_NEXT_VAL, filter_value,
+            MAPPING_TREE_PARENT_ATTRIBUTE, ESC_NEXT_VAL, filter_value );
     }
 
     slapi_search_internal_set_pb(pb, MAPPING_TREE_BASE_DN, LDAP_SCOPE_ONELEVEL,

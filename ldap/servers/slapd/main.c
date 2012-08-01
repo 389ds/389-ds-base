@@ -1929,7 +1929,8 @@ lookup_instance_name_by_suffix(char *suffix,
         goto done;
 
     if (isexact) {
-        query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=\"%s\")(cn=%s)))", suffix, suffix);
+        query = slapi_filter_sprintf("(&(objectclass=nsmappingtree)(|(cn=\"%s%s\")(cn=%s%s)))",
+                ESC_NEXT_VAL, suffix, ESC_NEXT_VAL, suffix);
         if (query == NULL)
             goto done;
     
@@ -1951,7 +1952,8 @@ lookup_instance_name_by_suffix(char *suffix,
     } else {
         char *suffixp = suffix;
         while (NULL != suffixp && strlen(suffixp) > 0) {
-            query = slapi_ch_smprintf("(&(objectclass=nsmappingtree)(|(cn=*%s\")(cn=*%s)))", suffixp, suffixp);
+            query = slapi_filter_sprintf("(&(objectclass=nsmappingtree)(|(cn=*%s%s\")(cn=*%s%s)))",
+                    ESC_NEXT_VAL, suffixp, ESC_NEXT_VAL, suffixp);
             if (query == NULL)
                 goto done;
             /* Note: This DN is no need to be normalized. */
@@ -2036,7 +2038,7 @@ static struct slapdplugin *lookup_plugin_by_instance_name(const char *name)
     if (pb == NULL)
         return NULL;
 
-    query = slapi_ch_smprintf("(&(cn=%s)(objectclass=nsBackendInstance))", name);
+    query = slapi_filter_sprintf("(&(cn=%s%s)(objectclass=nsBackendInstance))", ESC_AND_NORM_NEXT_VAL, name);
     if (query == NULL) {
         slapi_pblock_destroy(pb);
         return NULL;

@@ -2913,14 +2913,9 @@ find_entry_by_attr_value_remote(const char *attribute, const char *value, Slapi_
 	char *filter = NULL;
 	const char *searchbase = NULL;
 	Slapi_Entry *found_entry = NULL;
-	char *filter_escaped_value = NULL;
-	size_t vallen = 0;
 
-	vallen = value ? strlen(value) : 0;
-	filter_escaped_value = slapi_ch_calloc(sizeof(char), vallen*3+1);
 	/* should not have to escape attribute names */
-	filter = PR_smprintf("(%s=%s)",attribute,escape_filter_value(value, vallen, filter_escaped_value));
-	slapi_ch_free_string(&filter_escaped_value);
+	filter = slapi_filter_sprintf("(%s=%s%s)",attribute, ESC_NEXT_VAL, value);
 	searchbase = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
 	cres = windows_search_entry(prp->conn, (char*)searchbase, filter, &found_entry);
 	if (cres)
@@ -2935,7 +2930,7 @@ find_entry_by_attr_value_remote(const char *attribute, const char *value, Slapi_
 	}
 	if (filter)
 	{
-		PR_smprintf_free(filter);
+		slapi_ch_free_string(&filter);
 		filter = NULL;
 	}
 	return retval;
@@ -3035,33 +3030,28 @@ find_entry_by_attr_value(const char *attribute, const char *value, Slapi_Entry *
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     Slapi_Entry **entries = NULL, **ep = NULL;
-	Slapi_Entry *entry_found = NULL;
+    Slapi_Entry *entry_found = NULL;
+    LDAPControl **server_controls = NULL;
+    const char *subtree_dn = NULL;
+    char *subtree_dn_copy = NULL;
+    char **attrs = NULL;
     char *query = NULL;
-	int found_or_not = ENTRY_NOTFOUND;
-	int rval = 0;
-	const char *subtree_dn = NULL;
-	int not_unique = 0;
-	char *subtree_dn_copy = NULL;
-	int scope = LDAP_SCOPE_SUBTREE;
-	char **attrs = NULL;
-	LDAPControl **server_controls = NULL;
-	char *filter_escaped_value = NULL;
-	size_t vallen = 0;
+    int found_or_not = ENTRY_NOTFOUND;
+    int scope = LDAP_SCOPE_SUBTREE;
+    int not_unique = 0;
+    int rval = 0;
 
     if (pb == NULL)
         goto done;
 
-    vallen = value ? strlen(value) : 0;
-    filter_escaped_value = slapi_ch_calloc(sizeof(char), vallen*3+1);
     /* should not have to escape attribute names */
-    query = slapi_ch_smprintf("(%s=%s)", attribute, escape_filter_value(value, vallen, filter_escaped_value));
-    slapi_ch_free_string(&filter_escaped_value);
+    query = slapi_filter_sprintf("(%s=%s%s)", attribute, ESC_NEXT_VAL, value);
 
     if (query == NULL)
-		goto done;
+	    goto done;
 
-	subtree_dn = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
-	subtree_dn_copy = slapi_ch_strdup(subtree_dn);
+    subtree_dn = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
+    subtree_dn_copy = slapi_ch_strdup(subtree_dn);
 
     winsync_plugin_call_pre_ds_search_entry_cb(ra, NULL, &subtree_dn_copy, &scope, &query,
                                                &attrs, &server_controls);
@@ -3079,35 +3069,35 @@ find_entry_by_attr_value(const char *attribute, const char *value, Slapi_Entry *
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
     if (rval != LDAP_SUCCESS)
-	{
-		goto done;
-	}
+    {
+        goto done;
+    }
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if ((entries == NULL) || (entries[0] == NULL))
-	{
-		goto done;
-	}
-	entry_found = entries[0];
-	for (ep = entries; *ep; ep++) {
-		if (not_unique)
-		{
-			found_or_not = ENTRY_NOT_UNIQUE;
-		}
-		not_unique = 1;
-	}
+    {
+        goto done;
+    }
+    entry_found = entries[0];
+    for (ep = entries; *ep; ep++) {
+        if (not_unique)
+        {
+            found_or_not = ENTRY_NOT_UNIQUE;
+        }
+        not_unique = 1;
+    }
 done:
-	if (entry_found && (found_or_not != ENTRY_NOT_UNIQUE))
-	{
-		found_or_not = 0;
-		*e = slapi_entry_dup(entry_found);
-	}
-	if (pb)
-	{
-		slapi_free_search_results_internal(pb);
-		slapi_pblock_destroy(pb);
-	}
-	return found_or_not;
+    if (entry_found && (found_or_not != ENTRY_NOT_UNIQUE))
+    {
+        found_or_not = 0;
+        *e = slapi_entry_dup(entry_found);
+    }
+    if (pb)
+    {
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
+    }
+    return found_or_not;
 }
 
 static int

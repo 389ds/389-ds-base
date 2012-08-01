@@ -1082,7 +1082,8 @@ urp_get_min_naming_conflict_entry ( Slapi_PBlock *pb, char *sessionid, CSN *opcs
 	slapi_log_error ( SLAPI_LOG_REPL, sessionid,
 		"Enter urp_get_min_naming_conflict_entry for %s\n", basedn);
 
-	filter = PR_smprintf("(%s=%s %s)", ATTR_NSDS5_REPLCONFLICT, REASON_ANNOTATE_DN, basedn);
+	filter = slapi_filter_sprintf("(%s=%s %s%s)", ATTR_NSDS5_REPLCONFLICT, REASON_ANNOTATE_DN,
+			ESC_NEXT_VAL, basedn);
 
 	/* server_ctrls will be freed when newpb is destroyed */
 	server_ctrls = (LDAPControl **)slapi_ch_calloc (2, sizeof (LDAPControl *));

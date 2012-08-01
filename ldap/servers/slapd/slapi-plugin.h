@@ -3593,6 +3593,21 @@ void slapi_rand_array(void *randx, size_t len);
  */
 int slapi_rand();
 
+/**
+ * Escape special characters in a search filter value
+ *
+ * \param filter_str A ldap search filter value (cn=VALUE_TO_BE_ESCAPED)
+ * \param len length of the search filter value.  -1 indicates the string is null terminated
+ * \param buf the buffer to store the escaped filter value string
+ * \return the escaped filter value string
+ */
+char* slapi_escape_filter_value(char* filter_str, int len);
+
+#define ESC_NEXT_VAL "__ESC__NEXT__VAL__"
+#define NORM_NEXT_VAL "__NORM__NEXT__VAL__"
+#define ESC_AND_NORM_NEXT_VAL "__ESC__AND__NORM__NEXT__VAL__"
+
+char* slapi_filter_sprintf(const char *fmt, ...);
 
 /*
  * attribute routines

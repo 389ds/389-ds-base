@@ -72,6 +72,10 @@
 #define _CSEP '/'
 #endif
 
+/* slapi_filter_sprintf macros */
+#define ATTRSIZE 256   /* size allowed for an attr name */
+#define FILTER_BUF 128 /* initial buffer size for attr value */
+#define BUF_INCR 16    /* the amount to increase the FILTER_BUF once it fills up */
 
 static int special_np(unsigned char c)
 {
@@ -95,6 +99,7 @@ static int special_np_and_punct(unsigned char c)
     return UTIL_ESCAPE_NONE;
 }
 
+#ifndef USE_OPENLDAP
 static int special_filter(unsigned char c)
 {
     /*
@@ -109,6 +114,27 @@ static int special_filter(unsigned char c)
             c == ')' || 
             c == '\\' || 
             c == '"') ? UTIL_ESCAPE_HEX : UTIL_ESCAPE_NONE;
+}
+#endif
+
+/*
+ *  Used by filter_stuff_func to help extract an attribute so we know
+ *  how to normalize the value.
+ */
+static int
+special_attr_char(unsigned char c)
+{
+    return (c < 32 ||
+            c > 126 ||
+            c == '*' ||
+            c == '|' ||
+            c == '&' ||
+            c == '!' ||
+            c == '(' ||
+            c == ')' ||
+            c == '\\' ||
+            c == '=' ||
+            c == '"');
 }
 
 static const char*
@@ -180,7 +206,7 @@ do_escape_string (
 	    *bufNext = '\0';
 	    return buf;
 	}
-    } 
+    }
     return str;
 }
 
@@ -206,10 +232,254 @@ escape_string_with_punctuation(const char* str, char buf[BUFSIZ])
   return do_escape_string(str,-1,buf,special_np_and_punct);
 }
 
-const char*
-escape_filter_value(const char* str, int len, char buf[BUFSIZ])
+#define ESCAPE_FILTER 1
+#define NORM_FILTER 2
+
+struct filter_ctx {
+  char *buf;
+  char attr[ATTRSIZE];
+  int attr_position;
+  int attr_found;
+  int buf_size;
+  int buf_len;
+  int next_arg_needs_esc_norm;
+  int skip_escape;
+};
+
+/*
+ *  This function is called by slapi_filter_sprintf to escape/normalize certain values
+ */
+static PRIntn
+filter_stuff_func(void *arg, const char *val, PRUint32 slen)
 {
-    return do_escape_string(str,len,buf,special_filter);
+    struct filter_ctx *ctx = (struct filter_ctx *)arg;
+    struct berval escaped_filter;
+    struct berval raw_filter;
+    char *buf = (char *)val;
+    int extra_space;
+    int filter_len = slen;
+    int free_buf = 0;
+
+    /* look at val - if val is one of our special keywords, and make a note of it for the next pass */
+    if (strcmp(val, ESC_NEXT_VAL) == 0){
+        ctx->next_arg_needs_esc_norm |= ESCAPE_FILTER;
+        return 0;
+    }
+    if (strcmp(val, NORM_NEXT_VAL) == 0){
+        ctx->next_arg_needs_esc_norm |= NORM_FILTER;
+        return 0;
+    }
+    if (strcmp(val, ESC_AND_NORM_NEXT_VAL) == 0){
+        ctx->next_arg_needs_esc_norm = NORM_FILTER | ESCAPE_FILTER;
+        return 0;
+    }
+    /*
+     *  Start collecting the attribute name so we can use the correct
+     *  syntax normalization func.
+     */
+    if(ctx->attr_found == 0 && ctx->attr_position < (ATTRSIZE - 1)){
+        if(ctx->attr[0] == '\0'){
+            if(strstr(val,"=")){
+                /* we have an attr we need to record */
+                if(!special_attr_char(val[0])){
+                    memcpy(ctx->attr, val, 1);
+                    ctx->attr_position++;
+                }
+            } else {
+                /*
+                 *  We have passed in an attribute as a arg - so we can just set the
+                 *  attr with val.  The next pass should be '=', otherwise we will
+                 *  reset it.
+                 */
+                memcpy(ctx->attr, val, slen);
+                ctx->attr_position = slen;
+            }
+        } else {
+            if(val[0] == '='){ /* hit the end of the attribute name */
+                ctx->attr_found = 1;
+            } else {
+                if(special_attr_char(val[0])){
+                    /* this is not an attribute, we should not be collecting this, reset everything */
+                    memset(ctx->attr, '\0', ATTRSIZE);
+                    ctx->attr_position = 0;
+                } else {
+                    memcpy(ctx->attr + ctx->attr_position, val, 1);
+                    ctx->attr_position++;
+                }
+            }
+        }
+    }
+
+    if (ctx->next_arg_needs_esc_norm && !ctx->skip_escape){
+        /*
+         *  Normalize the filter value first
+         */
+        if(ctx->next_arg_needs_esc_norm & NORM_FILTER){
+            char *norm_val = NULL;
+
+            if(ctx->attr_found){
+                slapi_attr_value_normalize(NULL, NULL, ctx->attr , buf, 1, &norm_val );
+                if(norm_val){
+                    buf = norm_val;
+                    filter_len = strlen(buf);
+                }
+            }
+        }
+        /*
+         *  Escape the filter value
+         */
+        if(ctx->next_arg_needs_esc_norm & ESCAPE_FILTER){
+#if defined (USE_OPENLDAP)
+            raw_filter.bv_val = (char *)buf;
+            raw_filter.bv_len = filter_len;
+            if(ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0){
+                LDAPDebug(LDAP_DEBUG_TRACE, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
+                ctx->next_arg_needs_esc_norm = 0;
+                return -1;
+            } else {
+                filter_len = escaped_filter.bv_len;
+                buf = escaped_filter.bv_val;
+            }
+#else
+            buf = slapi_ch_calloc(sizeof(char), filter_len*3 + 1);
+            free_buf = 1;
+            if(do_escape_string(val, filter_len, buf, special_filter) == NULL){
+                LDAPDebug(LDAP_DEBUG_TRACE, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
+                ctx->next_arg_needs_esc_norm = 0;
+                slapi_ch_free_string(&buf);
+                return -1;
+            } else {
+                filter_len = strlen(buf);
+            }
+#endif
+        }
+
+        /*
+         *  Now add the new value to the buffer, and allocate more memory if needed
+         */
+        if (ctx->buf_size + filter_len >= ctx->buf_len){
+            /* increase buffer for this filter */
+            extra_space = (ctx->buf_len + filter_len + BUF_INCR);
+            slapi_ch_realloc(ctx->buf, sizeof(char) * extra_space);
+            ctx->buf_len = extra_space;
+        }
+
+        /* append the escaped value */
+        memcpy(ctx->buf + ctx->buf_size, buf, filter_len);
+        ctx->buf_size += filter_len;
+
+        /* done with the value, reset everything */
+        ctx->next_arg_needs_esc_norm = 0;
+        ctx->attr_found = 0;
+        ctx->attr_position = 0;
+        memset(ctx->attr, '\0', ATTRSIZE);
+        if(free_buf){
+            slapi_ch_free_string(&buf);
+        }
+
+        return filter_len;
+    } else { /* process arg as is */
+        /* check if we have enough room in our buffer */
+        if (ctx->buf_size + slen >= ctx->buf_len){
+            /* increase buffer for this filter */
+            extra_space = (ctx->buf_len + slen + BUF_INCR);
+            ctx->buf = slapi_ch_realloc((char *)ctx->buf, sizeof(char) * extra_space);
+            ctx->buf_len = extra_space;
+        }
+        memcpy(ctx->buf + ctx->buf_size, buf, slen);
+        ctx->buf_size += slen;
+
+        return slen;
+    }
+}
+
+/*
+ *  This is basically like slapi_ch_smprintf() except it can handle special
+ *  keywords that will cause the next value to be escaped and/or normalized.
+ *
+ *  ESC_NEXT_VAL - escape the next value
+ *  NORM_NEXT_VAL -  normalize the next value
+ *  ESC_AND_NORM_NEXT_VAL - escape and normalize the next value
+ *
+ *  Example:
+ *
+ *     slapi_filter_sprintf("cn=%s%s", ESC_NEXT_VAL, value);
+ *     slapi_filter_sprintf("(|(cn=%s%s)(sn=%s%s))", ESC_NEXT_VAL, value, NORM_NEXT_VAL, value);
+ *
+ *  Note: you need a string format specifier(%s) for each keyword
+ */
+char*
+slapi_filter_sprintf(const char *fmt, ...)
+{
+    struct filter_ctx ctx;
+    va_list args;
+    char *buf;
+    int rc;
+
+    buf = slapi_ch_calloc(sizeof(char), FILTER_BUF + 1);
+    ctx.buf = buf;
+    memset(ctx.attr,'\0', ATTRSIZE);
+    ctx.attr_position = 0;
+    ctx.attr_found = 0;
+    ctx.buf_len = FILTER_BUF;
+    ctx.buf_size = 0;
+    ctx.next_arg_needs_esc_norm = 0;
+    ctx.skip_escape = 0;
+
+    va_start(args, fmt);
+    rc = PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+    if(rc == -1){
+        /* transformation failed, just return non-normalized/escaped string */
+        ctx.skip_escape = 1;
+        PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+    }
+    va_end(args);
+
+    return buf;
+}
+
+/*
+ *  escape special characters in values used in search filters
+ *
+ *  caller must free the returned value
+ */
+char*
+slapi_escape_filter_value(char* filter_str, int len)
+{
+    struct berval *escaped_filter = NULL;
+    struct berval raw_filter;
+    int filter_len;
+
+    /*
+     *  Check the length for special cases
+     */
+    if(len == -1){
+        /* filter str is null terminated */
+        filter_len = strlen(filter_str);
+    } else if (len == 0){
+        /* return the filter as is */
+        return slapi_ch_strdup(filter_str);
+    } else {
+        /* the len is the length */
+        filter_len = len;
+    }
+#if defined (USE_OPENLDAP)
+    /*
+     *  Construct the berval and escape it
+     */
+    raw_filter.bv_val = filter_str;
+    raw_filter.bv_len = filter_len;
+    if(ldap_bv2escaped_filter_value(&raw_filter, escaped_filter) != 0){
+        LDAPDebug(LDAP_DEBUG_TRACE, "slapi_escape_filter_value: failed to escape filter value(%s)\n",filter_str,0,0);
+        return NULL;
+    } else {
+        return slapi_ch_strdup(escaped_filter->bv_val);
+    }
+#else
+    char *buf = slapi_ch_calloc(sizeof(char), filter_len*3+1);
+
+    return do_escape_string(filter_str, filter_len, buf, special_filter);
+#endif
 }
 
 /*

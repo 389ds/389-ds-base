@@ -3024,7 +3024,7 @@ plugin_enabled(const char *plugin_name, void *identity)
 	char *filter = NULL;
 	int rc = 0;	/* disabled, by default */
 
-	filter = slapi_ch_smprintf("cn=%s", plugin_name);
+	filter = slapi_filter_sprintf("cn=%s%s", ESC_NEXT_VAL, plugin_name);
 	search_pb = slapi_pblock_new();
 	slapi_search_internal_set_pb(search_pb, PLUGIN_BASE_DN, LDAP_SCOPE_ONELEVEL,
 								 filter, NULL, 0, NULL, NULL, identity, 0);

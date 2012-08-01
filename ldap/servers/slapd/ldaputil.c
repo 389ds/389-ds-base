@@ -304,53 +304,56 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
        replace all but the last colon with %3A
        Go to the 3rd '/' or to the end of the string (convert only the host:port part) */
     if (url) {
-	char *p = strstr(url, "://");
-	if (p) {
-	    int foundspace = 0;
-	    int coloncount = 0;
-	    char *lastcolon = NULL;
-	    p += 3;
-	    for (; *p && (*p != '/'); p++) {
-		if (*p == ' ') {
-		    foundspace = 1;
-		}
-		if (*p == ':') {
-		    coloncount++;
-		    lastcolon = p;
-		}
-	    }
-	    if (foundspace) {
-		char *src = NULL, *dest = NULL;
-		/* have to convert url */
-		/* len * 3 is way too much, but acceptable */
-		urlescaped = slapi_ch_calloc(strlen(url) * 3, sizeof(char));
-		dest = urlescaped;
-		/* copy the scheme */
-	        src = strstr(url, "://");
-		src += 3;
-		memcpy(dest, url, src-url);
-		dest += (src-url);
-		/* we have to convert all spaces to %20 - we have to convert
-		   all colons except the last one to %3A */
-		for (; *src; ++src) {
-		    if (src < p) {
-			if (*src == ' ') {
-			    memcpy(dest, "%20", 3);
-			    dest += 3;
-			} else if ((coloncount > 1) && (*src == ':') && (src != lastcolon)) {
-			    memcpy(dest, "%3A", 3);
-			    dest += 3;
-			} else {
-			    *dest++ = *src;
-			}
-		    } else {
-			*dest++ = *src;
-		    }
-		}
-		*dest = '\0';
-		url_to_use = urlescaped;
-	    }
-	}
+        char *p = strstr(url, "://");
+        if (p) {
+            int foundspace = 0;
+            int coloncount = 0;
+            char *lastcolon = NULL;
+
+            p += 3;
+            for (; *p && (*p != '/'); p++) {
+                if (*p == ' ') {
+                    foundspace = 1;
+                }
+                if (*p == ':') {
+                    coloncount++;
+                    lastcolon = p;
+                }
+            }
+            if (foundspace) {
+                char *src = NULL, *dest = NULL;
+
+                /* have to convert url, len * 3 is way too much, but acceptable */
+                urlescaped = slapi_ch_calloc(strlen(url) * 3, sizeof(char));
+                dest = urlescaped;
+                /* copy the scheme */
+                src = strstr(url, "://");
+                src += 3;
+                memcpy(dest, url, src-url);
+                dest += (src-url);
+                /*
+                 * we have to convert all spaces to %20 - we have to convert
+                 * all colons except the last one to %3A
+                 */
+                for (; *src; ++src) {
+                    if (src < p) {
+                        if (*src == ' ') {
+                            memcpy(dest, "%20", 3);
+                            dest += 3;
+                        } else if ((coloncount > 1) && (*src == ':') && (src != lastcolon)) {
+                            memcpy(dest, "%3A", 3);
+                            dest += 3;
+                        } else {
+                            *dest++ = *src;
+                        }
+                    } else {
+                        *dest++ = *src;
+                    }
+                }
+                *dest = '\0';
+                url_to_use = urlescaped;
+            }
+        }
     }
 #endif
 
@@ -388,30 +391,30 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
 
 #if defined(USE_OPENLDAP)
     if (urlescaped && (*ludpp) && (*ludpp)->lud_host) {
-	/* have to unescape lud_host - can unescape in place */
-	char *p = strstr((*ludpp)->lud_host, "://");
-	if (p) {
-	    char *dest = NULL;
-	    p += 3;
-	    dest = p;
-	    /* up to the first '/', unescape the host */
-	    for (; *p && (*p != '/'); p++) {
-		if (!strncmp(p, "%20", 3)) {
-		    *dest++ = ' ';
-		    p += 2;
-		} else if (!strncmp(p, "%3A", 3)) {
-		    *dest++ = ':';
-		    p += 2;
-		} else {
-		    *dest++ = *p;
-		}
-	    }
-	    /* just copy the remainder of the host, if any */
-	    while (*p) {
-		*dest++ = *p++;
-	    }
-	    *dest = '\0';
-	}
+        /* have to unescape lud_host - can unescape in place */
+        char *p = strstr((*ludpp)->lud_host, "://");
+        if (p) {
+            char *dest = NULL;
+            p += 3;
+            dest = p;
+            /* up to the first '/', unescape the host */
+            for (; *p && (*p != '/'); p++) {
+                if (!strncmp(p, "%20", 3)) {
+                    *dest++ = ' ';
+                    p += 2;
+                } else if (!strncmp(p, "%3A", 3)) {
+                    *dest++ = ':';
+                    p += 2;
+                } else {
+                    *dest++ = *p;
+                }
+            }
+            /* just copy the remainder of the host, if any */
+            while (*p) {
+                *dest++ = *p++;
+            }
+            *dest = '\0';
+        }
     }
     slapi_ch_free_string(&urlescaped);
 #endif
