@@ -1020,15 +1020,6 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	r = (Replica*)object_get_data (repl_obj);
 	PR_ASSERT (r);
 
-	/*
-	 *  In case we had to run cleanruv, we don't want to continue to write
-	 *  updates to the changelog/database ruv from that replica(rid).
-	 */
-	if( is_cleaned_rid(replica_get_rid(r))){
-		/* this RID has been cleaned, just goto done */
-		goto done;
-	}
-
 	if (replica_is_flag_set (r, REPLICA_LOG_CHANGES) &&
 		(cl5GetState () == CL5_STATE_OPEN))
 	{
@@ -1083,6 +1074,12 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			op_params->target_address.uniqueid = slapi_ch_strdup (uniqueid);
 		} 
 
+		if( is_cleaned_rid(csn_get_replicaid(op_params->csn))){
+			/* this RID has been cleaned */
+			object_release (repl_obj);
+			return 0;
+		}
+
 		/* we might have stripped all the mods - in that case we do not
 		   log the operation */
 		if (op_params->operation_type != SLAPI_OPERATION_MODIFY ||
@@ -1135,7 +1132,6 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		update_ruv_component(r, opcsn, pb);
 	}
 
-done:
 	object_release (repl_obj);
 	return return_value;
 }
@@ -1338,7 +1334,7 @@ process_operation (Slapi_PBlock *pb, const CSN *csn)
     ruv = (RUV*)object_get_data (ruv_obj);
     PR_ASSERT (ruv);
  
-    rc = ruv_add_csn_inprogress (ruv, csn);    
+    rc = ruv_add_csn_inprogress (ruv, csn);
 
     object_release (ruv_obj);
     object_release (r_obj);

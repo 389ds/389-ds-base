@@ -5636,6 +5636,7 @@ int slapi_log_error( int severity, char *subsystem, char *fmt, ... )
 #else
         ;
 #endif
+int slapi_log_error_ext( int severity, char *subsystem, char *fmt, va_list varg1, va_list varg2);
 
 /* allowed values for the "severity" parameter */
 #define SLAPI_LOG_FATAL          	0
@@ -6146,6 +6147,8 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
 #else
         ;
 #endif
+void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list varg);
+void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list varg);
 
 /*
  * slapi_new_task: create new task, fill in DN, and setup modify callback

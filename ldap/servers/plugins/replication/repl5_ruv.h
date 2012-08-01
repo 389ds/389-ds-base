@@ -117,6 +117,7 @@ PRBool ruv_covers_csn(const RUV *ruv, const CSN *csn);
 PRBool ruv_covers_csn_strict(const RUV *ruv, const CSN *csn);
 int ruv_get_min_csn(const RUV *ruv, CSN **csn);
 int ruv_get_max_csn(const RUV *ruv, CSN **csn);
+int ruv_get_rid_max_csn(const RUV *ruv, CSN **csn, ReplicaId rid);
 int ruv_enumerate_elements (const RUV *ruv, FNEnumRUV fn, void *arg);
 int ruv_to_smod(const RUV *ruv, Slapi_Mod *smod);
 int ruv_last_modified_to_smod(const RUV *ruv, Slapi_Mod *smod);
