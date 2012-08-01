@@ -499,6 +499,15 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
         }
+        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaStripAttrs))
+        {
+            if(agmt_set_attrs_to_strip(agmt, e) != 0){
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+                    "failed to set replica agmt attributes to strip for %s\n",agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        }
         else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
         {
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
