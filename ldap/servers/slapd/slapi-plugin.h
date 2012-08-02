@@ -5132,6 +5132,20 @@ int slapi_apib_unregister(char *guid); /* remove interface from published list *
 */
 int slapi_apib_get_interface(char *guid, void ***api); /* retrieve an interface for use */
 
+/* Function:	slapi_apib_get_interface_all
+   Description:	this function allows retrieval of a published interface,
+		    if the api reference counted, then the reference
+		    count is incremented
+            This will return all published interfaces for a given guid
+   Parameters:	guid - a string constant that uniquely identifies the
+		    interface requested
+		apilist - the retrieved list of vtables for the published api - caller
+            must free the apilist, but not the apilist elements
+   Return:	0 if function succeeds
+		non-zero otherwise
+*/
+int slapi_apib_get_interface_all(char *guid, void ****apilist); /* retrieve all interfaces for guid */
+
 
 /* Function:	slapi_apib_make_reference_counted
    Description:	this function makes an interface a reference counted interface

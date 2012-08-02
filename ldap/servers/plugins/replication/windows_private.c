@@ -263,6 +263,8 @@ void windows_agreement_delete(Repl_Agmt *ra)
 	winsync_plugin_call_destroy_agmt_cb(ra, dp->directory_subtree,
 										dp->windows_subtree);
 
+	windows_plugin_cleanup_agmt(ra);
+
 	slapi_sdn_free(&dp->directory_subtree);
 	slapi_sdn_free(&dp->windows_subtree);
 	slapi_filter_free(dp->directory_filter, 1);
@@ -1022,62 +1024,224 @@ windows_private_set_sync_interval(Repl_Agmt *ra, char *str)
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_sync_interval\n" );
 }
 
-/* an array of function pointers */
-static void **_WinSyncAPI = NULL;
-static int maxapiidx = WINSYNC_PLUGIN_VERSION_1_END;
-#define DECL_WINSYNC_API_FUNC(idx,thetype,thefunc) \
-    thetype thefunc = (_WinSyncAPI && (idx <= maxapiidx) && _WinSyncAPI[idx]) ? \
-        (thetype)_WinSyncAPI[idx] : NULL;
+static PRCallOnceType winsync_callOnce = {0,0};
+
+struct winsync_plugin {
+    struct winsync_plugin *next; /* see PRCList - declare here to avoid lots of casting */
+    struct winsync_plugin *prev; /* see PRCList - declare here to avoid lots of casting */
+    void **api; /* the api - array of function pointers */
+    int maxapi; /* the max index i.e. the api version */
+    int precedence; /* lower number == higher precedence */
+};
+static struct winsync_plugin winsync_plugin_list;
+
+#define DECL_WINSYNC_API_IDX_FUNC(theapi,idx,maxidx,thetype,thefunc)    \
+    thetype thefunc = (theapi && (idx <= maxidx) && theapi[idx]) ? \
+        (thetype)theapi[idx] : NULL;
+
+#define WINSYNC_PLUGIN_CALL_PLUGINS_BEGIN(idx,thetype,thefunc) \
+    struct winsync_plugin *elem; \
+    for (elem = PR_LIST_HEAD(&winsync_plugin_list); \
+         elem && (elem != &winsync_plugin_list); \
+         elem = PR_NEXT_LINK(elem)) { \
+        DECL_WINSYNC_API_IDX_FUNC(elem->api,idx,elem->maxapi,thetype,thefunc); \
+        if (thefunc) {
+
+#define WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(idx,thetype,thefunc) \
+    WINSYNC_PLUGIN_CALL_PLUGINS_BEGIN(idx,thetype,thefunc) \
+    void *cookie = winsync_plugin_cookie_find(ra, elem->api);
+
+#define WINSYNC_PLUGIN_CALL_PLUGINS_END } /* this one matches if thefunc */ } /* this one matches the for loop */
+
+/* this structure is per agreement - to store the cookie per agreement
+   for each winsync plugin */
+struct winsync_plugin_cookie {
+    struct winsync_plugin_cookie *next; /* see PRCList - declare here to avoid lots of casting */
+    struct winsync_plugin_cookie *prev; /* see PRCList - declare here to avoid lots of casting */
+    void **api; /* the api - array of function pointers */
+    void *cookie; /* plugin data */
+};
+
+static struct winsync_plugin *
+new_winsync_plugin(void **theapi, int maxapi, int precedence)
+{
+    struct winsync_plugin *wpi = (struct winsync_plugin *)slapi_ch_calloc(1, sizeof(struct winsync_plugin));
+    wpi->api = theapi;
+    wpi->maxapi = maxapi;
+    wpi->precedence = precedence;
+    return wpi;
+}
+
+static struct winsync_plugin *
+windows_plugin_find(void **theapi)
+{
+    struct winsync_plugin *elem = PR_LIST_HEAD(&winsync_plugin_list);
+    while (elem && (elem != &winsync_plugin_list)) {
+        if (theapi == elem->api) {
+            return elem;
+        }
+        elem = PR_NEXT_LINK(elem);
+    }
+    return NULL;
+}
+
+/* returns 0 for success - 1 means already added - -1 means some error */
+static int
+windows_plugin_add(void **theapi, int maxapi)
+{
+    int precedence = WINSYNC_PLUGIN_DEFAULT_PRECEDENCE;
+    DECL_WINSYNC_API_IDX_FUNC(theapi,WINSYNC_PLUGIN_PRECEDENCE_CB,maxapi,winsync_plugin_precedence_cb,thefunc);
+
+    if (thefunc) {
+        /* supports precedence */
+        precedence = (*thefunc)();
+    }
+    if (PR_CLIST_IS_EMPTY(&winsync_plugin_list)) {
+        struct winsync_plugin *wpi = new_winsync_plugin(theapi, maxapi, precedence);
+        PR_INSERT_LINK(wpi, &winsync_plugin_list);
+        return 0;
+    } else if (windows_plugin_find(theapi)) {
+        return 1; /* already in list */
+    } else {
+        struct winsync_plugin *wpi = new_winsync_plugin(theapi, maxapi, precedence);
+        struct winsync_plugin *elem = PR_LIST_HEAD(&winsync_plugin_list);
+        while (elem && (elem != &winsync_plugin_list)) {
+            if (precedence < elem->precedence) {
+                PR_INSERT_BEFORE(wpi, elem);
+                break;
+            }
+            elem = PR_NEXT_LINK(elem);
+        }
+        if (elem == &winsync_plugin_list) {
+            /* just add to end of list */
+            PR_INSERT_BEFORE(wpi, elem);
+        }
+        return 0;
+    }
+    return -1;
+}
+
+static PRStatus
+windows_plugin_callonce(void)
+{
+    char *guids[] = {WINSYNC_v3_0_GUID, WINSYNC_v2_0_GUID, WINSYNC_v1_0_GUID, NULL};
+    int maxapis[] = {WINSYNC_PLUGIN_VERSION_3_END, WINSYNC_PLUGIN_VERSION_2_END,
+                     WINSYNC_PLUGIN_VERSION_1_END, 0};
+    int ii;
+
+    PR_INIT_CLIST(&winsync_plugin_list);
+    /* loop through all of the registered winsync plugins - look for them in reverse
+       version order (e.g. look for v3 first) - if there are no plugins registered
+       for the given version, or we have already registered all plugins for a given
+       version, just go to the next lowest version */
+    for (ii = 0; guids[ii]; ++ii) {
+        char *guid = guids[ii];
+        int maxapi = maxapis[ii];
+        void ***theapis = NULL;
+        
+        if (slapi_apib_get_interface_all(guid, &theapis) || (NULL == theapis)) {
+            LDAPDebug1Arg(LDAP_DEBUG_PLUGIN,
+                          "<-- windows_plugin_callonce -- no more windows plugin APIs registered "
+                          "for GUID [%s] -- end\n",
+                          guid);
+        } else {
+            int idx;
+            for (idx = 0; theapis && theapis[idx]; ++idx) {
+                if (windows_plugin_add(theapis[idx], maxapi)) {
+                    LDAPDebug(LDAP_DEBUG_PLUGIN,
+                              "<-- windows_plugin_callonce -- already added windows plugin API "
+                              "[%d][0x%p] for GUID [%s] -- end\n",
+                              idx, theapis[idx], guid);
+                }
+            }
+        }
+        slapi_ch_free((void **)&theapis);
+    }
+    return PR_SUCCESS;
+}
+
+static struct winsync_plugin_cookie *
+new_winsync_plugin_cookie(void **theapi, void *cookie)
+{
+    struct winsync_plugin_cookie *wpc = (struct winsync_plugin_cookie *)slapi_ch_calloc(1, sizeof(struct winsync_plugin_cookie));
+    wpc->api = theapi;
+    wpc->cookie = cookie;
+    return wpc;
+}
+
+static void *
+winsync_plugin_cookie_find(const Repl_Agmt *ra, void **theapi)
+{
+    if (ra) {
+        struct winsync_plugin_cookie *list = (struct winsync_plugin_cookie *)windows_private_get_api_cookie(ra);
+        if (list) {
+            struct winsync_plugin_cookie *elem = PR_LIST_HEAD(list);
+            while (elem && (elem != list)) {
+                if (theapi == elem->api) {
+                    return elem->cookie;
+                }
+                elem = PR_NEXT_LINK(elem);
+            }
+        }
+    }
+    return NULL;
+}
+
+static void
+winsync_plugin_cookie_add(struct winsync_plugin_cookie **list, void **theapi, void *cookie)
+{
+    struct winsync_plugin_cookie *elem = NULL;
+    if (!*list) {
+        *list = new_winsync_plugin_cookie(NULL, NULL);
+        PR_INIT_CLIST(*list);
+    }
+    elem = new_winsync_plugin_cookie(theapi, cookie);
+    PR_INSERT_BEFORE(elem, *list);
+    return;
+}
 
 void
 windows_plugin_init(Repl_Agmt *ra)
 {
+    struct winsync_plugin_cookie *list = NULL;
     void *cookie = NULL;
-    winsync_plugin_init_cb initfunc = NULL;
+    PRStatus rv;
 
-	LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "--> windows_plugin_init_start -- begin\n");
+    LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "--> windows_plugin_init_start -- begin\n");
 
-    /* if the function pointer array is null, get the functions - we will
-       call init once per replication agreement, but will only grab the
-       api once */
-    if(NULL == _WinSyncAPI) {
-        if (slapi_apib_get_interface(WINSYNC_v2_0_GUID, &_WinSyncAPI) ||
-            (NULL == _WinSyncAPI))
-        {
-            LDAPDebug1Arg( LDAP_DEBUG_PLUGIN,
-                           "<-- windows_plugin_init_start -- no windows plugin API registered for GUID [%s] -- end\n",
-                           WINSYNC_v2_0_GUID);
-        } else if (_WinSyncAPI) {
-            LDAPDebug1Arg( LDAP_DEBUG_PLUGIN,
-                           "<-- windows_plugin_init_start -- found windows plugin API registered for GUID [%s] -- end\n",
-                           WINSYNC_v2_0_GUID);
-            maxapiidx = WINSYNC_PLUGIN_VERSION_2_END;
-        }
+    rv = PR_CallOnce(&winsync_callOnce, windows_plugin_callonce);
+
+    /* call each plugin init function in turn - store the returned cookie
+       indexed by the api */
+    {
+        WINSYNC_PLUGIN_CALL_PLUGINS_BEGIN(WINSYNC_PLUGIN_INIT_CB,winsync_plugin_init_cb,thefunc)
+            cookie = (*thefunc)(windows_private_get_directory_subtree(ra),
+                                windows_private_get_windows_subtree(ra));
+            if (cookie) {
+                winsync_plugin_cookie_add(&list, elem->api, cookie);
+            }
+        WINSYNC_PLUGIN_CALL_PLUGINS_END
     }
+       
+    windows_private_set_api_cookie(ra, list);
 
-    if (NULL == _WinSyncAPI) { /* no v2 interface - look for v1 */
-        if (slapi_apib_get_interface(WINSYNC_v1_0_GUID, &_WinSyncAPI) ||
-            (NULL == _WinSyncAPI))
-        {
-            LDAPDebug1Arg( LDAP_DEBUG_PLUGIN,
-                           "<-- windows_plugin_init_start -- no windows plugin API registered for GUID [%s] -- end\n",
-                           WINSYNC_v1_0_GUID);
-            return;
-        } else {
-            LDAPDebug1Arg( LDAP_DEBUG_PLUGIN,
-                           "<-- windows_plugin_init_start -- found windows plugin API registered for GUID [%s] -- end\n",
-                           WINSYNC_v1_0_GUID);
-        }
-	}
+    LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "<-- windows_plugin_init_start -- end\n");
+    return;
+}
 
-    initfunc = (winsync_plugin_init_cb)_WinSyncAPI[WINSYNC_PLUGIN_INIT_CB];
-    if (initfunc) {
-        cookie = (*initfunc)(windows_private_get_directory_subtree(ra),
-                             windows_private_get_windows_subtree(ra));
+void
+windows_plugin_cleanup_agmt(Repl_Agmt *ra)
+{
+    struct winsync_plugin_cookie *list = (struct winsync_plugin_cookie *)windows_private_get_api_cookie(ra);
+    struct winsync_plugin_cookie *elem = NULL;
+
+    while (list && !PR_CLIST_IS_EMPTY(list)) {
+        elem = PR_LIST_HEAD(list);
+        PR_REMOVE_LINK(elem);
+        slapi_ch_free((void **)&elem);
     }
-    windows_private_set_api_cookie(ra, cookie);
-
-	LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "<-- windows_plugin_init_start -- end\n");
+    slapi_ch_free((void **)&list);
+    windows_private_set_api_cookie(ra, NULL);
     return;
 }
 
@@ -1086,14 +1250,9 @@ winsync_plugin_call_dirsync_search_params_cb(const Repl_Agmt *ra, const char *ag
                                              char **base, int *scope, char **filter,
                                              char ***attrs, LDAPControl ***serverctrls)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_DIRSYNC_SEARCH_CB,winsync_search_params_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
-               attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_DIRSYNC_SEARCH_CB,winsync_search_params_cb,thefunc)
+        (*thefunc)(cookie, agmt_dn, base, scope, filter, attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1103,14 +1262,9 @@ winsync_plugin_call_pre_ad_search_cb(const Repl_Agmt *ra, const char *agmt_dn,
                                      char **base, int *scope, char **filter,
                                      char ***attrs, LDAPControl ***serverctrls)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_AD_SEARCH_CB,winsync_search_params_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
-               attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_AD_SEARCH_CB,winsync_search_params_cb,thefunc)
+        (*thefunc)(cookie, agmt_dn, base, scope, filter, attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1120,14 +1274,9 @@ winsync_plugin_call_pre_ds_search_entry_cb(const Repl_Agmt *ra, const char *agmt
                                            char **base, int *scope, char **filter,
                                            char ***attrs, LDAPControl ***serverctrls)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_DS_SEARCH_ENTRY_CB,winsync_search_params_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
-               attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_DS_SEARCH_ENTRY_CB,winsync_search_params_cb,thefunc)
+        (*thefunc)(cookie, agmt_dn, base, scope, filter, attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1137,14 +1286,9 @@ winsync_plugin_call_pre_ds_search_all_cb(const Repl_Agmt *ra, const char *agmt_d
                                          char **base, int *scope, char **filter,
                                          char ***attrs, LDAPControl ***serverctrls)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_DS_SEARCH_ALL_CB,winsync_search_params_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), agmt_dn, base, scope, filter,
-               attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_DS_SEARCH_ALL_CB,winsync_search_params_cb,thefunc)
+        (*thefunc)(cookie, agmt_dn, base, scope, filter, attrs, serverctrls);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1154,14 +1298,9 @@ winsync_plugin_call_pre_ad_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *r
                                        Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                        Slapi_Mods *smods, int *do_modify)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_AD_MOD_USER_CB,winsync_pre_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_AD_MOD_USER_CB,winsync_pre_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1171,14 +1310,9 @@ winsync_plugin_call_pre_ad_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry *
                                         Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                         Slapi_Mods *smods, int *do_modify)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_CB,winsync_pre_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_CB,winsync_pre_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1188,14 +1322,9 @@ winsync_plugin_call_pre_ds_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *r
                                        Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                        Slapi_Mods *smods, int *do_modify)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_DS_MOD_USER_CB,winsync_pre_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_DS_MOD_USER_CB,winsync_pre_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1205,14 +1334,9 @@ winsync_plugin_call_pre_ds_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry *
                                         Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                         Slapi_Mods *smods, int *do_modify)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_DS_MOD_GROUP_CB,winsync_pre_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_DS_MOD_GROUP_CB,winsync_pre_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, do_modify);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1221,14 +1345,9 @@ void
 winsync_plugin_call_pre_ds_add_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
                                        Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_DS_ADD_USER_CB,winsync_pre_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_DS_ADD_USER_CB,winsync_pre_add_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1237,14 +1356,9 @@ void
 winsync_plugin_call_pre_ds_add_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
                                         Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_DS_ADD_GROUP_CB,winsync_pre_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_DS_ADD_GROUP_CB,winsync_pre_add_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1254,14 +1368,9 @@ winsync_plugin_call_get_new_ds_user_dn_cb(const Repl_Agmt *ra, const Slapi_Entry
                                           Slapi_Entry *ad_entry, char **new_dn_string,
                                           const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_GET_NEW_DS_USER_DN_CB,winsync_get_new_dn_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               new_dn_string, ds_suffix, ad_suffix);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_GET_NEW_DS_USER_DN_CB,winsync_get_new_dn_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, new_dn_string, ds_suffix, ad_suffix);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1271,14 +1380,9 @@ winsync_plugin_call_get_new_ds_group_dn_cb(const Repl_Agmt *ra, const Slapi_Entr
                                            Slapi_Entry *ad_entry, char **new_dn_string,
                                            const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_GET_NEW_DS_GROUP_DN_CB,winsync_get_new_dn_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               new_dn_string, ds_suffix, ad_suffix);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_GET_NEW_DS_GROUP_DN_CB,winsync_get_new_dn_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, new_dn_string, ds_suffix, ad_suffix);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1290,14 +1394,9 @@ winsync_plugin_call_pre_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_Ent
                                             LDAPMod * const *origmods,
                                             Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_AD_MOD_USER_MODS_CB,winsync_pre_ad_mod_mods_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
-               ds_entry, origmods, remote_dn, modstosend);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_AD_MOD_USER_MODS_CB,winsync_pre_ad_mod_mods_cb,thefunc)
+        (*thefunc)(cookie, rawentry, local_dn, ds_entry, origmods, remote_dn, modstosend);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1309,14 +1408,9 @@ winsync_plugin_call_pre_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_En
                                              LDAPMod * const *origmods,
                                              Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_MODS_CB,winsync_pre_ad_mod_mods_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
-               ds_entry, origmods, remote_dn, modstosend);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_AD_MOD_GROUP_MODS_CB,winsync_pre_ad_mod_mods_cb,thefunc)
+        (*thefunc)(cookie, rawentry, local_dn, ds_entry, origmods, remote_dn, modstosend);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1325,26 +1419,22 @@ int
 winsync_plugin_call_can_add_entry_to_ad_cb(const Repl_Agmt *ra, const Slapi_Entry *local_entry,
                                            const Slapi_DN *remote_dn)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_CAN_ADD_ENTRY_TO_AD_CB,winsync_can_add_to_ad_cb,thefunc);
-
-    if (!thefunc) {
-        return 1; /* default is entry can be added to AD */
-    }
-
-    return (*thefunc)(windows_private_get_api_cookie(ra), local_entry, remote_dn);
+    int canadd = 1;
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_CAN_ADD_ENTRY_TO_AD_CB,winsync_can_add_to_ad_cb,thefunc)
+        if (canadd) {
+            canadd = (*thefunc)(cookie, local_entry, remote_dn);
+        }
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
+    return canadd;
 }
 
 void
 winsync_plugin_call_begin_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_subtree,
                                     const Slapi_DN *ad_subtree, int is_total)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_BEGIN_UPDATE_CB,winsync_plugin_update_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), ds_subtree, ad_subtree, is_total);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_BEGIN_UPDATE_CB,winsync_plugin_update_cb,thefunc)
+        (*thefunc)(cookie, ds_subtree, ad_subtree, is_total);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1353,13 +1443,9 @@ void
 winsync_plugin_call_end_update_cb(const Repl_Agmt *ra, const Slapi_DN *ds_subtree,
                                   const Slapi_DN *ad_subtree, int is_total)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_END_UPDATE_CB,winsync_plugin_update_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), ds_subtree, ad_subtree, is_total);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_END_UPDATE_CB,winsync_plugin_update_cb,thefunc)
+        (*thefunc)(cookie, ds_subtree, ad_subtree, is_total);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1369,11 +1455,9 @@ winsync_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra,
                                     const Slapi_DN *ds_subtree,
                                     const Slapi_DN *ad_subtree)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_DESTROY_AGMT_CB,winsync_plugin_destroy_agmt_cb,thefunc);
-
-    if (thefunc) {
-        (*thefunc)(windows_private_get_api_cookie(ra), ds_subtree, ad_subtree);
-    }
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_DESTROY_AGMT_CB,winsync_plugin_destroy_agmt_cb,thefunc)
+        (*thefunc)(cookie, ds_subtree, ad_subtree);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1383,14 +1467,9 @@ winsync_plugin_call_post_ad_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *
                                         Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                         Slapi_Mods *smods, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_AD_MOD_USER_CB,winsync_post_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_AD_MOD_USER_CB,winsync_post_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1400,14 +1479,9 @@ winsync_plugin_call_post_ad_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry 
                                          Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                          Slapi_Mods *smods, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_AD_MOD_GROUP_CB,winsync_post_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_AD_MOD_GROUP_CB,winsync_post_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1417,14 +1491,9 @@ winsync_plugin_call_post_ds_mod_user_cb(const Repl_Agmt *ra, const Slapi_Entry *
                                         Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                         Slapi_Mods *smods, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_DS_MOD_USER_CB,winsync_post_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_DS_MOD_USER_CB,winsync_post_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1434,14 +1503,9 @@ winsync_plugin_call_post_ds_mod_group_cb(const Repl_Agmt *ra, const Slapi_Entry 
                                          Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                          Slapi_Mods *smods, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_DS_MOD_GROUP_CB,winsync_post_mod_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_DS_MOD_GROUP_CB,winsync_post_mod_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, smods, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1450,14 +1514,9 @@ void
 winsync_plugin_call_post_ds_add_user_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
                                         Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_DS_ADD_USER_CB,winsync_post_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_DS_ADD_USER_CB,winsync_post_add_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1466,14 +1525,9 @@ void
 winsync_plugin_call_post_ds_add_group_cb(const Repl_Agmt *ra, const Slapi_Entry *rawentry,
                                          Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_DS_ADD_GROUP_CB,winsync_post_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, ad_entry,
-               ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_DS_ADD_GROUP_CB,winsync_post_add_cb,thefunc)
+        (*thefunc)(cookie, rawentry, ad_entry, ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1482,13 +1536,9 @@ void
 winsync_plugin_call_pre_ad_add_user_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
                                        Slapi_Entry *ds_entry)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_AD_ADD_USER_CB,winsync_pre_ad_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), ad_entry, ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_AD_ADD_USER_CB,winsync_pre_ad_add_cb,thefunc)
+        (*thefunc)(cookie, ad_entry, ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1497,13 +1547,9 @@ void
 winsync_plugin_call_pre_ad_add_group_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
                                         Slapi_Entry *ds_entry)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_PRE_AD_ADD_GROUP_CB,winsync_pre_ad_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), ad_entry, ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_PRE_AD_ADD_GROUP_CB,winsync_pre_ad_add_cb,thefunc)
+        (*thefunc)(cookie, ad_entry, ds_entry);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1512,13 +1558,9 @@ void
 winsync_plugin_call_post_ad_add_user_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
                                         Slapi_Entry *ds_entry, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_AD_ADD_USER_CB,winsync_post_ad_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), ad_entry, ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_AD_ADD_USER_CB,winsync_post_ad_add_cb,thefunc)
+        (*thefunc)(cookie, ad_entry, ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1527,13 +1569,9 @@ void
 winsync_plugin_call_post_ad_add_group_cb(const Repl_Agmt *ra, Slapi_Entry *ad_entry,
                                          Slapi_Entry *ds_entry, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_AD_ADD_GROUP_CB,winsync_post_ad_add_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), ad_entry, ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_AD_ADD_GROUP_CB,winsync_post_ad_add_cb,thefunc)
+        (*thefunc)(cookie, ad_entry, ds_entry, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1545,14 +1583,9 @@ winsync_plugin_call_post_ad_mod_user_mods_cb(const Repl_Agmt *ra, const Slapi_En
                                              LDAPMod * const *origmods,
                                              Slapi_DN *remote_dn, LDAPMod **modstosend, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_AD_MOD_USER_MODS_CB,winsync_post_ad_mod_mods_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
-               ds_entry, origmods, remote_dn, modstosend, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_AD_MOD_USER_MODS_CB,winsync_post_ad_mod_mods_cb,thefunc)
+        (*thefunc)(cookie, rawentry, local_dn, ds_entry, origmods, remote_dn, modstosend, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
@@ -1564,17 +1597,710 @@ winsync_plugin_call_post_ad_mod_group_mods_cb(const Repl_Agmt *ra, const Slapi_E
                                               LDAPMod * const *origmods,
                                               Slapi_DN *remote_dn, LDAPMod **modstosend, int *result)
 {
-    DECL_WINSYNC_API_FUNC(WINSYNC_PLUGIN_POST_AD_MOD_GROUP_MODS_CB,winsync_post_ad_mod_mods_cb,thefunc);
-
-    if (!thefunc) {
-        return;
-    }
-
-    (*thefunc)(windows_private_get_api_cookie(ra), rawentry, local_dn,
-               ds_entry, origmods, remote_dn, modstosend, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_COOKIE_BEGIN(WINSYNC_PLUGIN_POST_AD_MOD_GROUP_MODS_CB,winsync_post_ad_mod_mods_cb,thefunc)
+        (*thefunc)(cookie, rawentry, local_dn, ds_entry, origmods, remote_dn, modstosend, result);
+    WINSYNC_PLUGIN_CALL_PLUGINS_END;
 
     return;
 }
+
+
+/*
+  The following are sample code stubs to show how to implement
+  a plugin which uses this api
+*/
+
+#define WINSYNC_SAMPLE_CODE
+#ifdef WINSYNC_SAMPLE_CODE
+
+#include "slapi-plugin.h"
+#include "winsync-plugin.h"
+
+static char *test_winsync_plugin_name = "test_winsync_api";
+
+static void *
+test_winsync_api_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_init [%s] [%s] -- begin\n",
+                    slapi_sdn_get_dn(ds_subtree),
+                    slapi_sdn_get_dn(ad_subtree));
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_init -- end\n");
+
+    return NULL;
+}
+
+static void
+test_winsync_dirsync_search_params_cb(void *cbdata, const char *agmt_dn,
+                                      char **base, int *scope, char **filter,
+                                      char ***attrs, LDAPControl ***serverctrls)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_dirsync_search_params_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_dirsync_search_params_cb -- end\n");
+
+    return;
+}
+
+/* called before searching for a single entry from AD - agmt_dn will be NULL */
+static void
+test_winsync_pre_ad_search_cb(void *cbdata, const char *agmt_dn,
+                              char **base, int *scope, char **filter,
+                              char ***attrs, LDAPControl ***serverctrls)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_search_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_search_cb -- end\n");
+
+    return;
+}
+
+/* called before an internal search to get a single DS entry - agmt_dn will be NULL */
+static void
+test_winsync_pre_ds_search_entry_cb(void *cbdata, const char *agmt_dn,
+                                    char **base, int *scope, char **filter,
+                                    char ***attrs, LDAPControl ***serverctrls)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ds_search_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ds_search_cb -- end\n");
+
+    return;
+}
+
+/* called before the total update to get all entries from the DS to sync to AD */
+static void
+test_winsync_pre_ds_search_all_cb(void *cbdata, const char *agmt_dn,
+                                  char **base, int *scope, char **filter,
+                                  char ***attrs, LDAPControl ***serverctrls)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ds_search_all_cb -- orig filter [%s] -- begin\n",
+                    ((filter && *filter) ? *filter : "NULL"));
+
+    /* We only want to grab users from the ds side - no groups */
+    slapi_ch_free_string(filter);
+    /* maybe use ntUniqueId=* - only get users that have already been
+       synced with AD already - ntUniqueId and ntUserDomainId are
+       indexed for equality only - need to add presence? */
+    *filter = slapi_ch_strdup("(&(objectclass=ntuser)(ntUserDomainId=*))");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ds_search_all_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                Slapi_Mods *smods, int *do_modify)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_mod_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                Slapi_Mods *smods, int *do_modify)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_mod_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                Slapi_Mods *smods, int *do_modify)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ds_mod_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ds_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
+                                Slapi_Mods *smods, int *do_modify)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ds_mod_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ds_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ds_add_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ds_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ds_add_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ds_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_get_new_ds_user_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                   Slapi_Entry *ad_entry, char **new_dn_string,
+                                   const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
+{
+    char **rdns = NULL;
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_get_new_ds_user_dn_cb -- old dn [%s] -- begin\n",
+                    *new_dn_string);
+
+    rdns = slapi_ldap_explode_dn(*new_dn_string, 0);
+    if (!rdns || !rdns[0]) {
+        slapi_ldap_value_free(rdns);
+        return;
+    }
+
+    slapi_ch_free_string(new_dn_string);
+    *new_dn_string = PR_smprintf("%s,%s", rdns[0], slapi_sdn_get_dn(ds_suffix));
+    slapi_ldap_value_free(rdns);
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_get_new_ds_user_dn_cb -- new dn [%s] -- end\n",
+                    *new_dn_string);
+
+    return;
+}
+
+static void
+test_winsync_get_new_ds_group_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                   Slapi_Entry *ad_entry, char **new_dn_string,
+                                   const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_get_new_ds_group_dn_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_get_new_ds_group_dn_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                     const Slapi_Entry *ds_entry,
+                                     const Slapi_DN *local_dn, LDAPMod * const *origmods,
+                                     Slapi_DN *remote_dn, LDAPMod ***modstosend)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_mod_user_mods_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_mod_user_mods_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
+                                     const Slapi_Entry *ds_entry,
+                                     const Slapi_DN *local_dn, LDAPMod * const *origmods,
+                                     Slapi_DN *remote_dn, LDAPMod ***modstosend)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_mod_group_mods_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_mod_group_mods_cb -- end\n");
+
+    return;
+}
+
+static int
+test_winsync_can_add_entry_to_ad_cb(void *cbdata, const Slapi_Entry *local_entry,
+                                    const Slapi_DN *remote_dn)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_can_add_entry_to_ad_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_can_add_entry_to_ad_cb -- end\n");
+
+    /*    return 0;*/ /* false - do not allow entries to be added to ad */
+    return 1; /* true - allow entries to be added to ad */
+}
+
+static void
+test_winsync_begin_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
+                             const Slapi_DN *ad_subtree, int is_total)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_begin_update_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_begin_update_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
+                           const Slapi_DN *ad_subtree, int is_total)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_end_update_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_end_update_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
+                             const Slapi_DN *ad_subtree)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_destroy_agmt_cb -- begin\n");
+
+    /* free(cbdata); */
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_destroy_agmt_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_mod_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_mod_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_add_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_add_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ds_add_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ds_add_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ds_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_add_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Adding AD entry [%s] from add of DS entry [%s]\n",
+                    slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
+    /* make modifications to ad_entry here */
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_pre_ad_add_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Adding AD entry [%s] from add of DS entry [%s]\n",
+                    slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
+    /* make modifications to ad_entry here */
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_pre_ad_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_add_user_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_add_group_cb -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of adding AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_mod_user_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_user_mods_cb  -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_user_mods_cb -- end\n");
+
+    return;
+}
+
+static void
+test_winsync_post_ad_mod_group_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_post_ad_mod_group_mods_cb  -- begin\n");
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+    
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_post_ad_mod_group_mods_cb -- end\n");
+
+    return;
+}
+
+static int
+test_winsync_precedence(void)
+{
+    return 99;
+}
+
+/**
+ * Plugin identifiers
+ */
+static Slapi_PluginDesc test_winsync_pdesc = {
+    "test-winsync-plugin",
+    VENDOR,
+    DS_PACKAGE_VERSION,
+    "test winsync plugin"
+};
+
+static Slapi_ComponentId *test_winsync_plugin_id = NULL;
+
+#ifdef TEST_V1_WINSYNC_API
+static void *test_winsync_api_v1[] = {
+    NULL, /* reserved for api broker use, must be zero */
+    test_winsync_api_init,
+    test_winsync_dirsync_search_params_cb,
+    test_winsync_pre_ad_search_cb,
+    test_winsync_pre_ds_search_entry_cb,
+    test_winsync_pre_ds_search_all_cb,
+    test_winsync_pre_ad_mod_user_cb,
+    test_winsync_pre_ad_mod_group_cb,
+    test_winsync_pre_ds_mod_user_cb,
+    test_winsync_pre_ds_mod_group_cb,
+    test_winsync_pre_ds_add_user_cb,
+    test_winsync_pre_ds_add_group_cb,
+    test_winsync_get_new_ds_user_dn_cb,
+    test_winsync_get_new_ds_group_dn_cb,
+    test_winsync_pre_ad_mod_user_mods_cb,
+    test_winsync_pre_ad_mod_group_mods_cb,
+    test_winsync_can_add_entry_to_ad_cb,
+    test_winsync_begin_update_cb,
+    test_winsync_end_update_cb,
+    test_winsync_destroy_agmt_cb
+};
+#endif /* TEST_V1_WINSYNC_API */
+
+#ifdef TEST_V2_WINSYNC_API
+static void *test_winsync_api_v2[] = {
+    NULL, /* reserved for api broker use, must be zero */
+    test_winsync_api_init,
+    test_winsync_dirsync_search_params_cb,
+    test_winsync_pre_ad_search_cb,
+    test_winsync_pre_ds_search_entry_cb,
+    test_winsync_pre_ds_search_all_cb,
+    test_winsync_pre_ad_mod_user_cb,
+    test_winsync_pre_ad_mod_group_cb,
+    test_winsync_pre_ds_mod_user_cb,
+    test_winsync_pre_ds_mod_group_cb,
+    test_winsync_pre_ds_add_user_cb,
+    test_winsync_pre_ds_add_group_cb,
+    test_winsync_get_new_ds_user_dn_cb,
+    test_winsync_get_new_ds_group_dn_cb,
+    test_winsync_pre_ad_mod_user_mods_cb,
+    test_winsync_pre_ad_mod_group_mods_cb,
+    test_winsync_can_add_entry_to_ad_cb,
+    test_winsync_begin_update_cb,
+    test_winsync_end_update_cb,
+    test_winsync_destroy_agmt_cb,
+    test_winsync_post_ad_mod_user_cb,
+    test_winsync_post_ad_mod_group_cb,
+    test_winsync_post_ds_mod_user_cb,
+    test_winsync_post_ds_mod_group_cb,
+    test_winsync_post_ds_add_user_cb,
+    test_winsync_post_ds_add_group_cb,
+    test_winsync_pre_ad_add_user_cb,
+    test_winsync_pre_ad_add_group_cb,
+    test_winsync_post_ad_add_user_cb,
+    test_winsync_post_ad_add_group_cb,
+    test_winsync_post_ad_mod_user_mods_cb,
+    test_winsync_post_ad_mod_group_mods_cb
+};
+#endif /* TEST_V2_WINSYNC_API */
+
+static void *test_winsync_api_v3[] = {
+    NULL, /* reserved for api broker use, must be zero */
+    test_winsync_api_init,
+    test_winsync_dirsync_search_params_cb,
+    test_winsync_pre_ad_search_cb,
+    test_winsync_pre_ds_search_entry_cb,
+    test_winsync_pre_ds_search_all_cb,
+    test_winsync_pre_ad_mod_user_cb,
+    test_winsync_pre_ad_mod_group_cb,
+    test_winsync_pre_ds_mod_user_cb,
+    test_winsync_pre_ds_mod_group_cb,
+    test_winsync_pre_ds_add_user_cb,
+    test_winsync_pre_ds_add_group_cb,
+    test_winsync_get_new_ds_user_dn_cb,
+    test_winsync_get_new_ds_group_dn_cb,
+    test_winsync_pre_ad_mod_user_mods_cb,
+    test_winsync_pre_ad_mod_group_mods_cb,
+    test_winsync_can_add_entry_to_ad_cb,
+    test_winsync_begin_update_cb,
+    test_winsync_end_update_cb,
+    test_winsync_destroy_agmt_cb,
+    test_winsync_post_ad_mod_user_cb,
+    test_winsync_post_ad_mod_group_cb,
+    test_winsync_post_ds_mod_user_cb,
+    test_winsync_post_ds_mod_group_cb,
+    test_winsync_post_ds_add_user_cb,
+    test_winsync_post_ds_add_group_cb,
+    test_winsync_pre_ad_add_user_cb,
+    test_winsync_pre_ad_add_group_cb,
+    test_winsync_post_ad_add_user_cb,
+    test_winsync_post_ad_add_group_cb,
+    test_winsync_post_ad_mod_user_mods_cb,
+    test_winsync_post_ad_mod_group_mods_cb,
+    test_winsync_precedence
+};
+
+static int
+test_winsync_plugin_start(Slapi_PBlock *pb)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_plugin_start -- begin\n");
+
+	if( slapi_apib_register(WINSYNC_v3_0_GUID, test_winsync_api_v3) ) {
+        slapi_log_error( SLAPI_LOG_FATAL, test_winsync_plugin_name,
+                         "<-- test_winsync_plugin_start -- failed to register winsync api -- end\n");
+        return -1;
+	}
+	
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_plugin_start -- end\n");
+	return 0;
+}
+
+static int
+test_winsync_plugin_close(Slapi_PBlock *pb)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_plugin_close -- begin\n");
+
+	slapi_apib_unregister(WINSYNC_v3_0_GUID);
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "<-- test_winsync_plugin_close -- end\n");
+	return 0;
+}
+
+/* this is the slapi plugin init function,
+   not the one used by the winsync api
+*/
+int test_winsync_plugin_init(Slapi_PBlock *pb)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                    "--> test_winsync_plugin_init -- begin\n");
+
+    if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+                           SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
+                          (void *) test_winsync_plugin_start ) != 0 ||
+         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
+                          (void *) test_winsync_plugin_close ) != 0 ||
+         slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
+                           (void *)&test_winsync_pdesc ) != 0 )
+    {
+        slapi_log_error( SLAPI_LOG_FATAL, test_winsync_plugin_name,
+                         "<-- test_winsync_plugin_init -- failed to register plugin -- end\n");
+        return -1;
+    }
+
+    /* Retrieve and save the plugin identity to later pass to
+       internal operations */
+    if (slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &test_winsync_plugin_id) != 0) {
+        slapi_log_error(SLAPI_LOG_FATAL, test_winsync_plugin_name,
+                         "<-- test_winsync_plugin_init -- failed to retrieve plugin identity -- end\n");
+        return -1;
+    }
+
+    slapi_log_error( SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
+                     "<-- test_winsync_plugin_init -- end\n");
+    return 0;
+}
+
+/*
+dn: cn=Test Winsync API,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Test Winsync API
+nsslapd-pluginpath: libtestwinsync-plugin
+nsslapd-plugininitfunc: test_winsync_plugin_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+nsslapd-pluginDescription: Test Winsync
+nsslapd-pluginVendor: 389 project
+nsslapd-pluginId: test-winsync
+nsslapd-pluginVersion: 0.9
+*/
+
+#endif /* WINSYNC_SAMPLE_CODE */
 
 /* #define WINSYNC_TEST_IPA */
 #ifdef WINSYNC_TEST_IPA

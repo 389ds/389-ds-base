@@ -146,6 +146,7 @@ int windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *pass
    specific data
 */
 void windows_plugin_init(Repl_Agmt *ra);
+void windows_plugin_cleanup_agmt(Repl_Agmt *ra);
 
 void winsync_plugin_call_dirsync_search_params_cb(const Repl_Agmt *ra, const char *agmt_dn, char **base, int *scope, char **filter, char ***attrs, LDAPControl ***serverctrls);
 /* called before searching for a single entry from AD - agmt_dn will be NULL */

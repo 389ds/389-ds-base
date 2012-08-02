@@ -4376,11 +4376,40 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 							slapi_valueset_free(restricted_local_values);
 							restricted_local_values = NULL;
 						}
+						else
+						{
+							slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+											"windows_generate_update_mods: no restricted local values found for "
+											"local attribute %s in local entry %s for remote attribute "
+											"%s in remote entry %s\n",
+											local_type ? local_type : "NULL",
+											local_entry ? slapi_entry_get_dn(local_entry) : "NULL",
+											type ? type : "NULL",
+											remote_entry ? slapi_entry_get_dn(remote_entry) : "NULL");
+						}
 						slapi_valueset_free(local_values);
 						local_values = NULL;
+					} else {
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+										"windows_generate_update_mods: no local values found for "
+										"local attribute %s in local entry %s for remote attribute "
+										"%s in remote entry %s\n",
+										local_type ? local_type : "NULL",
+										local_entry ? slapi_entry_get_dn(local_entry) : "NULL",
+										type ? type : "NULL",
+										remote_entry ? slapi_entry_get_dn(remote_entry) : "NULL");
 					}
 					slapi_valueset_free(mapped_remote_values);
 					mapped_remote_values = NULL;
+				} else {
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+									"windows_generate_update_mods: could not map the values in "
+									"local attribute %s in local entry %s for remote attribute "
+									"%s in remote entry %s\n",
+									local_type ? local_type : "NULL",
+									local_entry ? slapi_entry_get_dn(local_entry) : "NULL",
+									type ? type : "NULL",
+									remote_entry ? slapi_entry_get_dn(remote_entry) : "NULL");
 				}
 			}
 		} else
