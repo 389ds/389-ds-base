@@ -72,6 +72,7 @@ typedef struct _API_FEATURES
 static ABAPI *head = NULL;
 
 static ABAPI **ABAPIBroker_FindInterface(char *guid);
+static void ***ABAPIBroker_FindInterface_All(char *guid);
 
 int slapi_apib_register(char *guid, void **api )
 {
@@ -188,6 +189,39 @@ int slapi_apib_get_interface(char *guid, void ***api)
 	return ret;
 }
 
+int slapi_apib_get_interface_all(char *guid, void ****api)
+{
+	void ***retapi = NULL;
+	int idx = 0;
+
+	if(buffer_lock == 0)
+		return -1;
+
+	if(buffer_lock == 0)
+	{
+		if(0 == (buffer_lock = slapi_new_mutex())) /* we never free this mutex */
+			/* badness */
+			return -1;
+	}
+
+	slapi_lock_mutex(buffer_lock);
+
+	retapi = ABAPIBroker_FindInterface_All(guid);
+	for (idx = 0; retapi && retapi[idx]; ++idx) {
+		void **theapi = retapi[idx];
+		if(theapi[0])
+		{
+			slapi_apib_addref(theapi);
+		}
+	}
+
+	*api = retapi;
+
+	slapi_unlock_mutex(buffer_lock);
+
+	return 0;
+}
+
 int slapi_apib_make_reference_counted(void **api, slapi_apib_callback_on_zero callback_on_zero)
 {
 	int ret = -1;
@@ -279,4 +313,28 @@ static ABAPI **ABAPIBroker_FindInterface(char *guid)
 	}
 
 	return 0;
+}
+
+static void ***ABAPIBroker_FindInterface_All(char *guid)
+{
+	ABAPI *api = NULL;
+	ABAPI *start_api = head;
+	void ***apilist = NULL;
+	int idx = 0;
+
+	api = start_api;
+	if (!api) {
+		return NULL;
+	}
+
+	do {
+		if(0 == strcmp(guid, api->guid)) {
+			apilist = (void ***)slapi_ch_realloc((char *)apilist, (idx+2)*sizeof(void **));
+			apilist[idx++] = api->api;
+			apilist[idx] = NULL;
+		}
+		api = api->next;
+	} while(api != start_api);
+
+	return apilist;
 }
