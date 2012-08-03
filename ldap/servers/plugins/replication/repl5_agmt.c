@@ -434,7 +434,8 @@ agmt_new_from_entry(Slapi_Entry *e)
 		for (i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++){
 			ra->cleanruv_notified[i] = atoi(clean_vals[i]);
 		}
-		ra->cleanruv_notified[i + 1] = 0;
+		if(i <= CLEANRIDSIZ)
+		    ra->cleanruv_notified[i + 1] = 0;
 		slapi_ch_array_free(clean_vals);
 	} else {
 		ra->cleanruv_notified[0] = 0;
@@ -2587,7 +2588,7 @@ agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e)
     tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaStripAttrs);
     if (NULL != tmpstr){
         if(ra->attrs_to_strip){
-            slapi_ch_array_free(&ra->attrs_to_strip);
+            slapi_ch_array_free(ra->attrs_to_strip);
         }
         ra->attrs_to_strip = slapi_str2charray_ext(tmpstr, " ", 0);
         PR_Unlock(ra->lock);
@@ -2675,7 +2676,9 @@ agmt_set_cleanruv_notified_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
         for (i = 0; i < CLEANRIDSIZ && attr_vals[i]; i++){
             ra->cleanruv_notified[i] = atoi(attr_vals[i]);
         }
-        ra->cleanruv_notified[i + 1] = 0;
+        if( i <= CLEANRIDSIZ )
+            ra->cleanruv_notified[i + 1] = 0;
+        slapi_ch_array_free(attr_vals);
     } else {
         ra->cleanruv_notified[0] = 0;
     }
