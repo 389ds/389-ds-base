@@ -1838,7 +1838,7 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
         ReplicaId rid;
         int i;
 
-        for(i = 0; clean_vals[i]; i++){
+        for(i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++){
             cleanruv_data *data = NULL;
 
             /*
@@ -1876,7 +1876,8 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
             if(payload == NULL){
                 slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: Startup: Failed to "
                     "create extended op payload, aborting task");
-                return;
+                csn_free(&maxcsn);
+                goto done;
             }
             /*
              *  Setup the data struct, and fire off the thread.
@@ -1899,12 +1900,20 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
                         (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                         PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
                 if (thread == NULL) {
+                    /* log an error and free everything */
                     slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV: unable to create cleanAllRUV "
                         "thread for rid(%d)\n", (int)data->rid);
+                    csn_free(&maxcsn);
+                    slapi_sdn_free(&data->sdn);
+                    ber_bvfree(data->payload);
+                    slapi_ch_free((void **)&data);
                 }
             }
         }
         r->repl_cleanruv_data[i] = NULL;
+
+done:
+        slapi_ch_array_free(clean_vals);
     }
 
     if ((clean_vals = slapi_entry_attr_get_charray(e, type_replicaAbortCleanRUV)) != NULL)
@@ -1928,12 +1937,12 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
                 if(rid <= 0 || rid >= READ_ONLY_REPLICA_ID){
                     slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: invalid replica id(%d) "
                         "aborting task.\n", rid);
-                    goto done;
+                    goto done2;
                 }
             } else {
                 slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: unable to parse cleanallruv "
                     "data (%s), aborting task.\n",clean_vals[i]);
-                goto done;
+                goto done2;
             }
 
             repl_root = ldap_utf8strtok_r(iter, ":", &iter);
@@ -1974,14 +1983,18 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
                     if (thread == NULL) {
                         slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: unable to create abort cleanAllRUV "
                             "thread for rid(%d)\n", (int)data->rid);
+                        slapi_sdn_free(&data->sdn);
+                        ber_bvfree(data->payload);
+                        slapi_ch_free_string(&data->repl_root);
+                        slapi_ch_free((void **)&data);
                     }
                 }
             }
         }
-    }
 
-done:
-    slapi_ch_array_free(clean_vals);
+done2:
+        slapi_ch_array_free(clean_vals);
+    }
 }
 
 /* This function updates the entry to contain information generated 
@@ -3816,8 +3829,10 @@ replica_add_cleanruv_data(Replica *r, char *val)
     PR_Lock(r->repl_lock);
 
     for (i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i] != NULL; i++); /* goto the end of the list */
-    r->repl_cleanruv_data[i] = slapi_ch_strdup(val); /* append to list */
-    r->repl_cleanruv_data[i + 1] = NULL;
+    if( i < CLEANRIDSIZ)
+        r->repl_cleanruv_data[i] = slapi_ch_strdup(val); /* append to list */
+    if(i <= CLEANRIDSIZ)
+        r->repl_cleanruv_data[i + 1] = NULL;
 
     PR_Unlock(r->repl_lock);
 }

@@ -1499,7 +1499,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 	PRThread *thread = NULL;
 	Replica *r = NULL;
 	cleanruv_data *data = NULL;
-	CSN *maxcsn;
+	CSN *maxcsn = NULL;
 	struct berval *extop_payload;
 	struct berval *resp_bval = NULL;
 	BerElement *resp_bere = NULL;
@@ -1656,6 +1656,8 @@ free_and_return:
 		if (mtnode_ext->replica)
 			object_release (mtnode_ext->replica);
 	}
+	if(rc)
+	    csn_free(&maxcsn);
 	slapi_ch_free_string(&payload);
 
 	/*

@@ -1322,21 +1322,13 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
         /* we are already running the maximum number of tasks */
         cleanruv_log(pre_task, CLEANALLRUV_ID,
     	    "Exceeded maximum number of active CLEANALLRUV tasks(%d)",CLEANRIDSIZ);
-        returntext = PR_smprintf("Exceeded maximum number of active CLEANALLRUV tasks(%d), "
-            "you must wait for one to finish.", CLEANRIDSIZ);
         return LDAP_UNWILLING_TO_PERFORM;
     }
 
     /*
      *  Grab the replica
      */
-    if(r){
-        replica = (Replica*)object_get_data (r);
-    } else {
-    	cleanruv_log(pre_task, CLEANALLRUV_ID, "Replica is NULL, aborting task");
-        rc = -1;
-        goto fail;
-    }
+    replica = (Replica*)object_get_data (r);
     /*
      *  Check if this is a consumer
      */
@@ -1422,7 +1414,8 @@ fail:
         ber_bvfree(payload);
     }
     csn_free(&maxcsn);
-    object_release (r);
+    if(task) /* only the task acquires the r obj */
+         object_release (r);
 
 done:
 
@@ -1479,7 +1472,7 @@ replica_cleanallruv_thread(void *arg)
     if(data->replica == NULL && data->repl_obj){
         data->replica = (Replica*)object_get_data(data->repl_obj);
     }
-    if( data->replica && data->repl_obj == NULL){
+    if( data->repl_obj == NULL){
         data->repl_obj = object_new(data->replica, NULL);
         free_obj = 1;
     }
@@ -1822,7 +1815,7 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, ReplicaId rid, Slapi_Task *task)
     Repl_Connection *conn;
     ConnResult crc = 0;
     LDAP *ld;
-    Slapi_DN *dn;
+    Slapi_DN *sdn;
     struct berval *vals[2];
     struct berval val;
     LDAPMod *mods[2];
@@ -1845,7 +1838,7 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, ReplicaId rid, Slapi_Task *task)
         return;
     }
     val.bv_len = PR_snprintf(data, sizeof(data), "CLEANRUV%d", rid);
-    dn = agmt_get_replarea(agmt);
+    sdn = agmt_get_replarea(agmt);
     mod.mod_op  = LDAP_MOD_ADD|LDAP_MOD_BVALUES;
     mod.mod_type = "nsds5task";
     mod.mod_bvalues = vals;
@@ -1854,7 +1847,7 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, ReplicaId rid, Slapi_Task *task)
     val.bv_val = data;
     mods[0] = &mod;
     mods[1] = NULL;
-    repl_dn = PR_smprintf("cn=replica,cn=\"%s\",cn=mapping tree,cn=config", slapi_sdn_get_dn(dn));
+    repl_dn = slapi_create_dn_string("cn=replica,cn=%s,cn=mapping tree,cn=config", slapi_sdn_get_dn(sdn));
     /*
      *  Add task to remote replica
      */
@@ -1866,6 +1859,7 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, ReplicaId rid, Slapi_Task *task)
             agmt_get_long_name(agmt), agmt_get_hostname(agmt), rc);
     }
     slapi_ch_free_string(&repl_dn);
+    slapi_sdn_free(&sdn);
     conn_delete_internal_ext(conn);
 }
 
@@ -1943,6 +1937,9 @@ add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn)
     char *dn;
     int rc;
 
+    if(r == NULL || maxcsn == NULL){
+        return;
+    }
     /*
      *  Write the rid & maxcsn to the config entry
      */
@@ -2071,13 +2068,12 @@ delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root){
 
     slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_modify_internal_pb (pb);
-    slapi_pblock_destroy (pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS){
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: failed to remove replica "
             "config (%d), rid (%d)\n", rc, rid);
     }
-
+    slapi_pblock_destroy (pb);
     slapi_ch_free_string(&dn);
     slapi_ch_free_string(&data);
 }
@@ -2169,7 +2165,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     Replica *replica;
     ReplicaId rid;
     cleanruv_data *data = NULL;
-    const Slapi_DN *dn;
+    Slapi_DN *sdn;
     Object *r;
     CSN *maxcsn;
     const char *base_dn;
@@ -2181,8 +2177,6 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
         /* we are already running the maximum number of tasks */
         cleanruv_log(task, ABORT_CLEANALLRUV_ID,
     	    "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",CLEANRIDSIZ);
-        returntext = PR_smprintf("Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d), "
-            "you must wait for one to finish.", CLEANRIDSIZ);
         *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -2219,8 +2213,8 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     /*
      *  Get the replica object
      */
-    dn = slapi_sdn_new_dn_byval(base_dn);
-    if((r = replica_get_replica_from_dn(dn)) == NULL){
+    sdn = slapi_sdn_new_dn_byval(base_dn);
+    if((r = replica_get_replica_from_dn(sdn)) == NULL){
         cleanruv_log(task, ABORT_CLEANALLRUV_ID,"Failed to find replica from dn(%s)", base_dn);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -2278,6 +2272,7 @@ out:
 
     csn_free(&maxcsn);
     slapi_ch_free_string(&ridstr);
+    slapi_sdn_free(&sdn);
 
     if(rc != SLAPI_DSE_CALLBACK_OK){
         cleanruv_log(task, ABORT_CLEANALLRUV_ID, "Abort Task failed (%d)", rc);
@@ -2480,7 +2475,7 @@ replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *rid_text, char *maxcsn, 
 {
     Repl_Connection *conn = NULL;
     LDAP *ld;
-    Slapi_DN *dn = agmt_get_replarea(agmt);
+    Slapi_DN *sdn;
     struct berval **vals;
     LDAPMessage *result = NULL, *entry = NULL;
     BerElement *ber;
@@ -2504,10 +2499,11 @@ replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *rid_text, char *maxcsn, 
             conn_delete_internal_ext(conn);
             return -1;
         }
-        rc = ldap_search_ext_s(ld, slapi_sdn_get_dn(dn), LDAP_SCOPE_SUBTREE,
+        sdn = agmt_get_replarea(agmt);
+        rc = ldap_search_ext_s(ld, slapi_sdn_get_dn(sdn), LDAP_SCOPE_SUBTREE,
             "(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))",
             attrs, 0, NULL, NULL, NULL, 0, &result);
-        slapi_sdn_free(&dn);
+        slapi_sdn_free(&sdn);
         if(rc != LDAP_SUCCESS){
         	cleanruv_log(task, CLEANALLRUV_ID,"Failed to contact "
                 "agmt (%s) error (%d), will retry later.", agmt_get_long_name(agmt), rc);
@@ -2533,7 +2529,7 @@ replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *rid_text, char *maxcsn, 
                             for(part_count = 1; ruv_part && part_count < 5; part_count++){
                                 ruv_part = ldap_utf8strtok_r(iter, " ", &iter);
                             }
-                            if(part_count == 5){
+                            if(part_count == 5 && ruv_part){
                                 /* we have the maxcsn */
                                 if(strcmp(ruv_part, maxcsn)){
                                     /* we are not caught up yet, free, and return */
@@ -2621,7 +2617,7 @@ replica_cleanallruv_check_ruv(Repl_Agmt *ra, char *rid_text, Slapi_Task *task)
     struct berval **vals = NULL;
     LDAPMessage *result = NULL, *entry = NULL;
     LDAP *ld = NULL;
-    Slapi_DN *dn = agmt_get_replarea(ra);
+    Slapi_DN *sdn;
     char *attrs[2];
     char *attr = NULL;
     int rc = 0, i;
@@ -2640,10 +2636,11 @@ replica_cleanallruv_check_ruv(Repl_Agmt *ra, char *rid_text, Slapi_Task *task)
             goto done;
         }
 
-        rc = ldap_search_ext_s(ld, slapi_sdn_get_dn(dn), LDAP_SCOPE_SUBTREE,
+        sdn = agmt_get_replarea(ra);
+        rc = ldap_search_ext_s(ld, slapi_sdn_get_dn(sdn), LDAP_SCOPE_SUBTREE,
             "(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))",
             attrs, 0, NULL, NULL, NULL, 0, &result);
-        slapi_sdn_free(&dn);
+        slapi_sdn_free(&sdn);
         if(rc != LDAP_SUCCESS){
             cleanruv_log(task, CLEANALLRUV_ID,"Failed to contact "
                 "agmt (%s) error (%d), will retry later.", agmt_get_long_name(ra), rc);
