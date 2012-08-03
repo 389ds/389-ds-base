@@ -1113,17 +1113,29 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	Slapi_Entry *e = 0; 
 	memberofstringll *ll = 0;
 	char *op_str = 0;
-	const char *op_to = slapi_sdn_get_ndn(op_to_sdn);
-	const char *op_this = slapi_sdn_get_ndn(op_this_sdn);
-	Slapi_Value *to_dn_val = slapi_value_new_string(op_to);
-	Slapi_Value *this_dn_val = slapi_value_new_string(op_this);
+	const char *op_to;
+	const char *op_this;
+	Slapi_Value *to_dn_val;
+	Slapi_Value *this_dn_val;
+
+	op_to = slapi_sdn_get_ndn(op_to_sdn);
+	op_this = slapi_sdn_get_ndn(op_this_sdn);
+	to_dn_val = slapi_value_new_string(op_to);
+	this_dn_val = slapi_value_new_string(op_this);
+
+	if(this_dn_val == NULL || to_dn_val == NULL){
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_modop_one_replace_r: failed to get DN values (NULL)\n");
+		goto bail;
+	}
+
 	/* op_this and op_to are both case-normalized */
 	slapi_value_set_flags(this_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 	slapi_value_set_flags(to_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	if (config == NULL) {
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-				"memberof_modop_one_replace_r: NULL config parameter");
+				"memberof_modop_one_replace_r: NULL config parameter\n");
 		goto bail;
 	}
 
@@ -1184,8 +1196,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 						int res = 0;
 						slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-						"memberof_modop_one_replace_r: error searching for members: "
-						"%d", res);
+						"memberof_modop_one_replace_r: error searching for members: %d\n", res);
 					} else {
 						slapi_pblock_get(search_pb, SLAPI_NENTRIES, &n_entries);
 						if(n_entries > 0)
@@ -1885,8 +1896,10 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 
 	entry_sdn = slapi_entry_get_sdn(e);
 	entry_dn = slapi_value_new_string(slapi_entry_get_ndn(e));
+	if(entry_dn == NULL){
+		goto bail;
+	}
 	slapi_value_set_flags(entry_dn, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
-
 	if(0 == entry_dn)
 	{
 		goto bail;

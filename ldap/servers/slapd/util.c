@@ -258,7 +258,6 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
     char *buf = (char *)val;
     int extra_space;
     int filter_len = slen;
-    int free_buf = 0;
 
     /* look at val - if val is one of our special keywords, and make a note of it for the next pass */
     if (strcmp(val, ESC_NEXT_VAL) == 0){
@@ -342,7 +341,6 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             }
 #else
             buf = slapi_ch_calloc(sizeof(char), filter_len*3 + 1);
-            free_buf = 1;
             if(do_escape_string(val, filter_len, buf, special_filter) == NULL){
                 LDAPDebug(LDAP_DEBUG_TRACE, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
                 ctx->next_arg_needs_esc_norm = 0;
@@ -360,7 +358,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         if (ctx->buf_size + filter_len >= ctx->buf_len){
             /* increase buffer for this filter */
             extra_space = (ctx->buf_len + filter_len + BUF_INCR);
-            slapi_ch_realloc(ctx->buf, sizeof(char) * extra_space);
+            ctx->buf = slapi_ch_realloc(ctx->buf, sizeof(char) * extra_space);
             ctx->buf_len = extra_space;
         }
 
@@ -373,9 +371,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         ctx->attr_found = 0;
         ctx->attr_position = 0;
         memset(ctx->attr, '\0', ATTRSIZE);
-        if(free_buf){
-            slapi_ch_free_string(&buf);
-        }
+        slapi_ch_free_string(&buf);
 
         return filter_len;
     } else { /* process arg as is */
@@ -446,7 +442,7 @@ slapi_filter_sprintf(const char *fmt, ...)
 char*
 slapi_escape_filter_value(char* filter_str, int len)
 {
-    struct berval *escaped_filter = NULL;
+    struct berval escaped_filter;
     struct berval raw_filter;
     int filter_len;
 
@@ -469,11 +465,11 @@ slapi_escape_filter_value(char* filter_str, int len)
      */
     raw_filter.bv_val = filter_str;
     raw_filter.bv_len = filter_len;
-    if(ldap_bv2escaped_filter_value(&raw_filter, escaped_filter) != 0){
+    if(ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0){
         LDAPDebug(LDAP_DEBUG_TRACE, "slapi_escape_filter_value: failed to escape filter value(%s)\n",filter_str,0,0);
         return NULL;
     } else {
-        return slapi_ch_strdup(escaped_filter->bv_val);
+        return escaped_filter.bv_val;
     }
 #else
     char *buf = slapi_ch_calloc(sizeof(char), filter_len*3+1);
