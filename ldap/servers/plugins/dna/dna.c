@@ -3260,7 +3260,7 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
             goto bail;
         }
         smods = slapi_mods_new();
-        slapi_mods_init_passin(&smods, mods);
+        slapi_mods_init_passin(smods, mods);
     }
 
     /* For a MOD, we need to check the resulting entry */
