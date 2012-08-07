@@ -516,6 +516,7 @@ get_substring_filter(
 			if(eval){
 				slapi_ch_free_string(&val);
 				val = eval;
+				f->f_sub_initial = val;
 			}
 			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
 			    strlen( val ) + 1 );
@@ -546,6 +547,7 @@ get_substring_filter(
 			if(eval){
 				slapi_ch_free_string(&val);
 				val = eval;
+				f->f_sub_final = val;
 			}
 			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
 			    strlen( val ) + 2 );

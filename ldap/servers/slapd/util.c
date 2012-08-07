@@ -431,7 +431,7 @@ slapi_filter_sprintf(const char *fmt, ...)
     }
     va_end(args);
 
-    return buf;
+    return ctx.buf;
 }
 
 /*
