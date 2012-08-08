@@ -525,12 +525,12 @@ get_substring_filter(
 
 		case LDAP_SUBSTRING_ANY:
 			LDAPDebug( LDAP_DEBUG_FILTER, "  ANY\n", 0, 0, 0 );
-			charray_add( &f->f_sub_any, val );
 			eval = (char*)slapi_escape_filter_value( val, -1);
 			if(eval){
 				slapi_ch_free_string(&val);
 				val = eval;
 			}
+			charray_add( &f->f_sub_any, val );
 			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
 			    strlen( val ) + 2 );
 			strcat( *fstr, "*" );
