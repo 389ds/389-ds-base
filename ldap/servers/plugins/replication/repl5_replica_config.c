@@ -1448,8 +1448,9 @@ replica_cleanallruv_thread(void *arg)
     char csnstr[CSN_STRSIZE];
     char *returntext = NULL;
     char *rid_text = NULL;
-    int found_dirty_rid = 1;
     int agmt_not_notified = 1;
+    int found_dirty_rid = 1;
+    int agmt_count = 0;
     int interval = 10;
     int free_obj = 0;
     int rc = 0;
@@ -1491,7 +1492,7 @@ replica_cleanallruv_thread(void *arg)
     ruv_obj = replica_get_ruv(data->replica);
     ruv = object_get_data (ruv_obj);
     while(data->maxcsn && !is_task_aborted(data->rid) && !is_cleaned_rid(data->rid) && !slapi_is_shutting_down()){
-        if(csn_get_replicaid(data->maxcsn) == 0 || ruv_covers_csn(ruv,data->maxcsn)){
+        if(csn_get_replicaid(data->maxcsn) == 0 || ruv_covers_csn_strict(ruv,data->maxcsn)){
             /* We are caught up, now we can clean the ruv's */
             break;
         }
@@ -1587,6 +1588,7 @@ replica_cleanallruv_thread(void *arg)
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
                 continue;
             }
+            agmt_count++;
             if(replica_cleanallruv_check_ruv(agmt, rid_text, data->task) == 0){
                 found_dirty_rid = 0;
             } else {
@@ -1622,7 +1624,7 @@ done:
     /*
      *  If the replicas are cleaned, release the rid, and trim the changelog
      */
-    if(!found_dirty_rid){
+    if(!found_dirty_rid || agmt_count == 0){
         trigger_cl_trimming(data->rid);
         delete_cleaned_rid(data->replica, data->rid, data->maxcsn);
         cleanruv_log(data->task, CLEANALLRUV_ID, "Successfully cleaned rid(%d).", data->rid);
