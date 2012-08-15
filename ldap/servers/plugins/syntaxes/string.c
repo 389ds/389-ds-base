@@ -390,6 +390,8 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		/* 3rd arg: 1 - trim leading blanks */
 		if (!(slapi_value_get_flags(bvals[j]) & SLAPI_ATTR_FLAG_NORMALIZED)) {
 			value_normalize_ext( realval, syntax, 1, &alt );
+		} else if (syntax & SYNTAX_DN) {
+			slapi_dn_ignore_case(realval);
 		}
 		if (alt) {
 			tmprc = slapi_re_exec( re, alt, time_up );
