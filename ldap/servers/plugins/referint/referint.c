@@ -193,7 +193,7 @@ referint_postop_del( Slapi_PBlock *pb )
 	
     if(argv == NULL){
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-            "referint_postop_modrdn, args are NULL\n" );
+            "referint_postop_del, args are NULL\n" );
         return( -1 );
     }
 	
