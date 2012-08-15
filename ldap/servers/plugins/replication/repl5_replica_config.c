@@ -1454,6 +1454,7 @@ replica_cleanallruv_thread(void *arg)
     int found_dirty_rid = 1;
     int agmt_not_notified = 1;
     int interval = 10;
+    int aborted = 0;
     int free_obj = 0;
     int rc = 0;
 
@@ -1494,7 +1495,7 @@ replica_cleanallruv_thread(void *arg)
     ruv_obj = replica_get_ruv(data->replica);
     ruv = object_get_data (ruv_obj);
     while(data->maxcsn && !is_task_aborted(data->rid) && !is_cleaned_rid(data->rid) && !slapi_is_shutting_down()){
-        if(csn_get_replicaid(data->maxcsn) == 0 || ruv_covers_csn(ruv,data->maxcsn)){
+        if(csn_get_replicaid(data->maxcsn) == 0 || ruv_covers_csn_strict(ruv,data->maxcsn)){
             /* We are caught up, now we can clean the ruv's */
             break;
         }
@@ -1507,6 +1508,7 @@ replica_cleanallruv_thread(void *arg)
     cleanruv_log(data->task, CLEANALLRUV_ID,"Waiting for all the replicas to be online...");
     if(check_agmts_are_alive(data->replica, data->rid, data->task)){
         /* error, aborted or shutdown */
+        aborted = 1;
         goto done;
     }
     /*
@@ -1515,6 +1517,7 @@ replica_cleanallruv_thread(void *arg)
     cleanruv_log(data->task, CLEANALLRUV_ID,"Waiting for all the replicas to receive all the deleted replica updates...");
     if(check_agmts_are_caught_up(data->replica, data->rid, csnstr, data->task)){
         /* error, aborted or shutdown */
+        aborted = 1;
         goto done;
     }
     /*
@@ -1548,6 +1551,7 @@ replica_cleanallruv_thread(void *arg)
         }
 
         if(is_task_aborted(data->rid)){
+            aborted = 1;
             goto done;
         }
         if(agmt_not_notified == 0){
@@ -1600,6 +1604,7 @@ replica_cleanallruv_thread(void *arg)
         }
         /* If the task is abort or everyone is cleaned, break out */
         if(is_task_aborted(data->rid)){
+            aborted = 1;
             goto done;
         }
         if(found_dirty_rid == 0){
@@ -1625,7 +1630,7 @@ done:
     /*
      *  If the replicas are cleaned, release the rid, and trim the changelog
      */
-    if(!found_dirty_rid){
+    if(!aborted){
         trigger_cl_trimming(data->rid);
         delete_cleaned_rid(data->replica, data->rid, data->maxcsn);
         cleanruv_log(data->task, CLEANALLRUV_ID, "Successfully cleaned rid(%d).", data->rid);
