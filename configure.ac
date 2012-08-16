@@ -209,6 +209,21 @@ else
 fi
 AM_CONDITIONAL(enable_acctpolicy,test "$enable_acctpolicy" = "yes")
 
+if test -z "$enable_posix_winsync" ; then
+   enable_posix_winsync=yes # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-posix-winsync)
+AC_ARG_ENABLE(posix_winsync,
+        AS_HELP_STRING([--enable-posix-winsync],
+                       [enable support for POSIX user/group attributes in winsync (default: yes)]))
+if test "$enable_posix_winsync" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_POSIX_WINSYNC], [1], [enable support for POSIX user/group attributes in winsync])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
+
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 

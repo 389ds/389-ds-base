@@ -54,6 +54,9 @@
 /* enable the pam passthru auth plugin */
 #undef ENABLE_PAM_PASSTHRU
 
+/* enable support for POSIX user/group attributes in winsync */
+#undef ENABLE_POSIX_WINSYNC
+
 /* enable the presence plugin */
 #undef ENABLE_PRESENCE
 

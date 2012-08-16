@@ -462,6 +462,20 @@ libpassthru_plugin_la_OBJECTS = $(am_libpassthru_plugin_la_OBJECTS)
 libpassthru_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libpassthru_plugin_la_LDFLAGS) $(LDFLAGS) -o $@
+libposix_winsync_plugin_la_DEPENDENCIES = libslapd.la \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+am_libposix_winsync_plugin_la_OBJECTS = ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo \
+	ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo \
+	ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo \
+	ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo
+libposix_winsync_plugin_la_OBJECTS =  \
+	$(am_libposix_winsync_plugin_la_OBJECTS)
+libposix_winsync_plugin_la_LINK = $(LIBTOOL) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(AM_CFLAGS) $(CFLAGS) $(libposix_winsync_plugin_la_LDFLAGS) \
+	$(LDFLAGS) -o $@
+@enable_posix_winsync_TRUE@am_libposix_winsync_plugin_la_rpath =  \
+@enable_posix_winsync_TRUE@	-rpath $(serverplugindir)
 libpresence_plugin_la_DEPENDENCIES = libslapd.la
 am_libpresence_plugin_la_OBJECTS = ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo
 libpresence_plugin_la_OBJECTS = $(am_libpresence_plugin_la_OBJECTS)
@@ -1005,6 +1019,7 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libmemberof_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
 	$(libpassthru_plugin_la_SOURCES) \
+	$(libposix_winsync_plugin_la_SOURCES) \
 	$(libpresence_plugin_la_SOURCES) \
 	$(libpwdstorage_plugin_la_SOURCES) \
 	$(libreferint_plugin_la_SOURCES) \
@@ -1038,6 +1053,7 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libmemberof_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
 	$(libpassthru_plugin_la_SOURCES) \
+	$(libposix_winsync_plugin_la_SOURCES) \
 	$(libpresence_plugin_la_SOURCES) \
 	$(libpwdstorage_plugin_la_SOURCES) \
 	$(libreferint_plugin_la_SOURCES) \
@@ -1357,6 +1373,8 @@ KERBEROS_LINK = $(kerberos_lib)
 BUILT_SOURCES = dberrstrs.h \
 	$(POLICY_FC)
 
+@enable_posix_winsync_TRUE@LIBPOSIX_WINSYNC_PLUGIN = libposix-winsync-plugin.la
+@enable_posix_winsync_TRUE@POSIX_WINSYNC_PLUGIN_LDIF = ldap/ldif/50posix-winsync-plugin.ldif
 CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-dbverify ldap/admin/src/template-initconfig \
 	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
@@ -1389,7 +1407,8 @@ CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
-	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
+	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif \
+	$(POSIX_WINSYNC_PLUGIN_LDIF)
 
 taskdir = $(datadir)@scripttemplatedir@
 systemdsystemunitdir = @with_systemdsystemunitdir@
@@ -1424,7 +1443,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
 	libacctusability-plugin.la librootdn-access-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
-	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
+	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 noinst_LIBRARIES = libavl.a libldaputil.a
@@ -1698,6 +1717,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/ldif/50replication-plugins.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
+	$(POSIX_WINSYNC_PLUGIN_LDIF) \
 	ldap/admin/src/scripts/50usnplugin.ldif \
 	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/50refintprecedence.ldif \
@@ -2167,6 +2187,20 @@ libpassthru_plugin_la_SOURCES = ldap/servers/plugins/passthru/ptbind.c \
 libpassthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpassthru_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libpassthru_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libposix-winsync-plugin
+#------------------------
+libposix_winsync_plugin_la_SOURCES = ldap/servers/plugins/posix-winsync/posix-winsync.c \
+	ldap/servers/plugins/posix-winsync/posix-group-func.c \
+	ldap/servers/plugins/posix-winsync/posix-group-task.c \
+	ldap/servers/plugins/posix-winsync/posix-winsync-config.c
+
+libposix_winsync_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) -DWINSYNC_TEST_POSIX \
+	-I$(srcdir)/ldap/servers/plugins/replication
+
+libposix_winsync_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libposix_winsync_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpresence-plugin
@@ -3529,6 +3563,26 @@ ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo:  \
 	ldap/servers/plugins/passthru/$(DEPDIR)/$(am__dirstamp)
 libpassthru-plugin.la: $(libpassthru_plugin_la_OBJECTS) $(libpassthru_plugin_la_DEPENDENCIES) 
 	$(libpassthru_plugin_la_LINK) -rpath $(serverplugindir) $(libpassthru_plugin_la_OBJECTS) $(libpassthru_plugin_la_LIBADD) $(LIBS)
+ldap/servers/plugins/posix-winsync/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/posix-winsync
+	@: > ldap/servers/plugins/posix-winsync/$(am__dirstamp)
+ldap/servers/plugins/posix-winsync/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/posix-winsync/$(DEPDIR)
+	@: > ldap/servers/plugins/posix-winsync/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo:  \
+	ldap/servers/plugins/posix-winsync/$(am__dirstamp) \
+	ldap/servers/plugins/posix-winsync/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo:  \
+	ldap/servers/plugins/posix-winsync/$(am__dirstamp) \
+	ldap/servers/plugins/posix-winsync/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo:  \
+	ldap/servers/plugins/posix-winsync/$(am__dirstamp) \
+	ldap/servers/plugins/posix-winsync/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo:  \
+	ldap/servers/plugins/posix-winsync/$(am__dirstamp) \
+	ldap/servers/plugins/posix-winsync/$(DEPDIR)/$(am__dirstamp)
+libposix-winsync-plugin.la: $(libposix_winsync_plugin_la_OBJECTS) $(libposix_winsync_plugin_la_DEPENDENCIES) 
+	$(libposix_winsync_plugin_la_LINK) $(am_libposix_winsync_plugin_la_rpath) $(libposix_winsync_plugin_la_OBJECTS) $(libposix_winsync_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/presence/$(am__dirstamp):
 	@$(MKDIR_P) ldap/servers/plugins/presence
 	@: > ldap/servers/plugins/presence/$(am__dirstamp)
@@ -4893,6 +4947,14 @@ mostlyclean-compile:
 	-rm -f ldap/servers/plugins/passthru/libpassthru_plugin_la-ptpreop.lo
 	-rm -f ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.$(OBJEXT)
 	-rm -f ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.$(OBJEXT)
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.$(OBJEXT)
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.$(OBJEXT)
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.$(OBJEXT)
+	-rm -f ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo
 	-rm -f ldap/servers/plugins/presence/libpresence_plugin_la-presence.$(OBJEXT)
 	-rm -f ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo
 	-rm -f ldap/servers/plugins/pwdstorage/libpwdstorage_plugin_la-clear_pwd.$(OBJEXT)
@@ -5670,6 +5732,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/passthru/$(DEPDIR)/libpassthru_plugin_la-ptdebug.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/passthru/$(DEPDIR)/libpassthru_plugin_la-ptpreop.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/passthru/$(DEPDIR)/libpassthru_plugin_la-ptutil.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-func.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-task.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync-config.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/presence/$(DEPDIR)/libpresence_plugin_la-presence.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-clear_pwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/pwdstorage/$(DEPDIR)/libpwdstorage_plugin_la-crypt_pwd.Plo@am__quote@
@@ -7260,6 +7326,34 @@ ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo: ldap/servers/plug
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/passthru/ptutil.c' object='ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpassthru_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo `test -f 'ldap/servers/plugins/passthru/ptutil.c' || echo '$(srcdir)/'`ldap/servers/plugins/passthru/ptutil.c
+
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo: ldap/servers/plugins/posix-winsync/posix-winsync.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo -MD -MP -MF ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync.Tpo -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-winsync.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-winsync.c
+@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync.Tpo ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/posix-winsync/posix-winsync.c' object='ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-winsync.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-winsync.c
+
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo: ldap/servers/plugins/posix-winsync/posix-group-func.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo -MD -MP -MF ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-func.Tpo -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-group-func.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-group-func.c
+@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-func.Tpo ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-func.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/posix-winsync/posix-group-func.c' object='ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-func.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-group-func.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-group-func.c
+
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo: ldap/servers/plugins/posix-winsync/posix-group-task.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo -MD -MP -MF ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-task.Tpo -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-group-task.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-group-task.c
+@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-task.Tpo ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-group-task.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/posix-winsync/posix-group-task.c' object='ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-group-task.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-group-task.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-group-task.c
+
+ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo: ldap/servers/plugins/posix-winsync/posix-winsync-config.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo -MD -MP -MF ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync-config.Tpo -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-winsync-config.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-winsync-config.c
+@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync-config.Tpo ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync-config.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/posix-winsync/posix-winsync-config.c' object='ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync-config.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-winsync-config.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-winsync-config.c
 
 ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo: ldap/servers/plugins/presence/presence.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpresence_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo -MD -MP -MF ldap/servers/plugins/presence/$(DEPDIR)/libpresence_plugin_la-presence.Tpo -c -o ldap/servers/plugins/presence/libpresence_plugin_la-presence.lo `test -f 'ldap/servers/plugins/presence/presence.c' || echo '$(srcdir)/'`ldap/servers/plugins/presence/presence.c
@@ -9814,6 +9908,7 @@ clean-libtool:
 	-rm -rf ldap/servers/plugins/mep/.libs ldap/servers/plugins/mep/_libs
 	-rm -rf ldap/servers/plugins/pam_passthru/.libs ldap/servers/plugins/pam_passthru/_libs
 	-rm -rf ldap/servers/plugins/passthru/.libs ldap/servers/plugins/passthru/_libs
+	-rm -rf ldap/servers/plugins/posix-winsync/.libs ldap/servers/plugins/posix-winsync/_libs
 	-rm -rf ldap/servers/plugins/presence/.libs ldap/servers/plugins/presence/_libs
 	-rm -rf ldap/servers/plugins/pwdstorage/.libs ldap/servers/plugins/pwdstorage/_libs
 	-rm -rf ldap/servers/plugins/referint/.libs ldap/servers/plugins/referint/_libs
@@ -10454,6 +10549,8 @@ distclean-generic:
 	-rm -f ldap/servers/plugins/pam_passthru/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/passthru/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/passthru/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/posix-winsync/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ldap/servers/plugins/posix-winsync/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/presence/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/presence/$(am__dirstamp)
 	-rm -f ldap/servers/plugins/pwdstorage/$(DEPDIR)/$(am__dirstamp)
@@ -10520,7 +10617,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libtool clean-local \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acct_usability/$(DEPDIR) ldap/servers/plugins/acctpolicy/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/automember/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/deref/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/mep/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/rootdn_access/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/usn/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acct_usability/$(DEPDIR) ldap/servers/plugins/acctpolicy/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/automember/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/deref/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/mep/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/posix-winsync/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/rootdn_access/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/usn/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-libtool distclean-tags
@@ -10576,7 +10673,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acct_usability/$(DEPDIR) ldap/servers/plugins/acctpolicy/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/automember/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/deref/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/mep/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/rootdn_access/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/usn/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
+	-rm -rf ldap/libraries/libavl/$(DEPDIR) ldap/servers/plugins/acct_usability/$(DEPDIR) ldap/servers/plugins/acctpolicy/$(DEPDIR) ldap/servers/plugins/acl/$(DEPDIR) ldap/servers/plugins/automember/$(DEPDIR) ldap/servers/plugins/bitwise/$(DEPDIR) ldap/servers/plugins/chainingdb/$(DEPDIR) ldap/servers/plugins/collation/$(DEPDIR) ldap/servers/plugins/cos/$(DEPDIR) ldap/servers/plugins/deref/$(DEPDIR) ldap/servers/plugins/distrib/$(DEPDIR) ldap/servers/plugins/dna/$(DEPDIR) ldap/servers/plugins/http/$(DEPDIR) ldap/servers/plugins/linkedattrs/$(DEPDIR) ldap/servers/plugins/memberof/$(DEPDIR) ldap/servers/plugins/mep/$(DEPDIR) ldap/servers/plugins/pam_passthru/$(DEPDIR) ldap/servers/plugins/passthru/$(DEPDIR) ldap/servers/plugins/posix-winsync/$(DEPDIR) ldap/servers/plugins/presence/$(DEPDIR) ldap/servers/plugins/pwdstorage/$(DEPDIR) ldap/servers/plugins/referint/$(DEPDIR) ldap/servers/plugins/replication/$(DEPDIR) ldap/servers/plugins/retrocl/$(DEPDIR) ldap/servers/plugins/rever/$(DEPDIR) ldap/servers/plugins/roles/$(DEPDIR) ldap/servers/plugins/rootdn_access/$(DEPDIR) ldap/servers/plugins/schema_reload/$(DEPDIR) ldap/servers/plugins/statechange/$(DEPDIR) ldap/servers/plugins/syntaxes/$(DEPDIR) ldap/servers/plugins/uiduniq/$(DEPDIR) ldap/servers/plugins/usn/$(DEPDIR) ldap/servers/plugins/views/$(DEPDIR) ldap/servers/slapd/$(DEPDIR) ldap/servers/slapd/back-ldbm/$(DEPDIR) ldap/servers/slapd/tools/$(DEPDIR) ldap/servers/slapd/tools/ldclt/$(DEPDIR) ldap/servers/slapd/tools/rsearch/$(DEPDIR) ldap/servers/snmp/$(DEPDIR) ldap/systools/$(DEPDIR) lib/base/$(DEPDIR) lib/ldaputil/$(DEPDIR) lib/libaccess/$(DEPDIR) lib/libadmin/$(DEPDIR) lib/libsi18n/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
