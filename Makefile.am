@@ -80,6 +80,11 @@ LIBCRYPT=@LIBCRYPT@
 BUILT_SOURCES = dberrstrs.h \
 	$(POLICY_FC)
 
+if enable_posix_winsync
+LIBPOSIX_WINSYNC_PLUGIN = libposix-winsync-plugin.la
+POSIX_WINSYNC_PLUGIN_LDIF = ldap/ldif/50posix-winsync-plugin.ldif
+endif
+
 CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-dbverify ldap/admin/src/template-initconfig \
 	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
@@ -112,7 +117,8 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
-	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif
+	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif \
+	$(POSIX_WINSYNC_PLUGIN_LDIF)
 
 clean-local:
 	-rm -rf selinux-built
@@ -207,7 +213,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
 	libacctusability-plugin.la librootdn-access-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
-	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN)
+	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
 
 nodist_property_DATA = ns-slapd.properties
 
@@ -485,6 +491,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/ldif/50replication-plugins.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
+	$(POSIX_WINSYNC_PLUGIN_LDIF) \
 	ldap/admin/src/scripts/50usnplugin.ldif \
 	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/50refintprecedence.ldif \
@@ -1018,6 +1025,19 @@ libpassthru_plugin_la_SOURCES = ldap/servers/plugins/passthru/ptbind.c \
 libpassthru_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpassthru_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libpassthru_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libposix-winsync-plugin
+#------------------------
+libposix_winsync_plugin_la_SOURCES = ldap/servers/plugins/posix-winsync/posix-winsync.c \
+	ldap/servers/plugins/posix-winsync/posix-group-func.c \
+	ldap/servers/plugins/posix-winsync/posix-group-task.c \
+	ldap/servers/plugins/posix-winsync/posix-winsync-config.c
+
+libposix_winsync_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) -DWINSYNC_TEST_POSIX \
+	-I$(srcdir)/ldap/servers/plugins/replication
+libposix_winsync_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libposix_winsync_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpresence-plugin
