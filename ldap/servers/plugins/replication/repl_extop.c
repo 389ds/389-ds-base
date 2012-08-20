@@ -1541,8 +1541,6 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 		csn_free(&maxcsn);
 		rc = 1;
 		goto free_and_return;
-	} else {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: cleaning rid (%d)...\n", rid);
 	}
 
 	/*
@@ -1618,7 +1616,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 				break;
 			}
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: checking if we're caught up...\n");
-			if(ruv_covers_csn_strict(ruv,maxcsn) || csn_get_replicaid(maxcsn) == 0){
+			if(ruv_covers_csn_cleanallruv(ruv,maxcsn) || csn_get_replicaid(maxcsn) == 0){
 				/* We are caught up */
 				break;
 			} else {

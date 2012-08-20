@@ -115,6 +115,7 @@ void ruv_set_replica_generation (RUV *ruv, const char *generation);
 PRBool ruv_covers_ruv(const RUV *covering_ruv, const RUV *covered_ruv);
 PRBool ruv_covers_csn(const RUV *ruv, const CSN *csn);
 PRBool ruv_covers_csn_strict(const RUV *ruv, const CSN *csn);
+PRBool ruv_covers_csn_cleanallruv(const RUV *ruv, const CSN *csn);
 int ruv_get_min_csn(const RUV *ruv, CSN **csn);
 int ruv_get_max_csn(const RUV *ruv, CSN **csn);
 int ruv_get_rid_max_csn(const RUV *ruv, CSN **csn, ReplicaId rid);
