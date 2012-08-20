@@ -1348,7 +1348,12 @@ slapd_SSL_client_auth (LDAP* ld)
 			 			 * the personality for internal tokens.
 			 			 */
 						token = slapi_ch_strdup(internalTokenName);
+#if defined(USE_OPENLDAP)
+						/* openldap needs tokenname:certnick */
+						PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
+#else
 						PL_strncpyz(cert_name, personality, sizeof(cert_name));
+#endif
 						slapi_ch_free((void **) &ssltoken);
 			  } else {
 						/* external PKCS #11 token - attach token name */
