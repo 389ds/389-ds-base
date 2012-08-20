@@ -920,6 +920,35 @@ ruv_covers_csn_strict(const RUV *ruv, const CSN *csn)
     return rc;
 }
 
+/*
+ *  Used by the cleanallruv task
+ *
+ *  We want to return TRUE if replica is NULL,
+ *  and we want to use "csn_compare() <="
+ */
+PRBool
+ruv_covers_csn_cleanallruv(const RUV *ruv, const CSN *csn)
+{
+	RUVElement *replica;
+	ReplicaId rid;
+	PRBool return_value;
+
+	if (ruv == NULL || csn == NULL){
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn_cleanallruv: NULL argument\n");
+		return_value = PR_FALSE;
+	} else {
+		rid = csn_get_replicaid(csn);
+		replica = ruvGetReplica (ruv, rid);
+		if (replica == NULL){
+			/* already cleaned */
+			return_value = PR_TRUE;
+		} else {
+			return_value = (csn_compare (csn, replica->csn) <= 0);
+		}
+	}
+
+	return return_value;
+}
 
 /*
  * The function gets min{maxcsns of all ruv elements} if get_the_max=0,

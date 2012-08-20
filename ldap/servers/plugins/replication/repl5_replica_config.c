@@ -1464,18 +1464,31 @@ replica_cleanallruv_thread(void *arg)
     if(data->replica == NULL && data->repl_obj == NULL){
         /*
          * This thread was initiated at startup because the process did not finish.  Due
-         * to timing issues, we need to wait to grab the replica obj until we get here.
+         * to startup timing issues, we need to wait before grabbing the replica obj, as
+         * the backends might not be online yet.
          */
+        PR_Lock( notify_lock );
+        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(5) );
+        PR_Unlock( notify_lock );
         data->repl_obj = replica_get_replica_from_dn(data->sdn);
+        if(data->repl_obj == NULL){
+        	cleanruv_log(data->task, CLEANALLRUV_ID, "Unable to retrieve repl object from dn(%s).", data->sdn);
+        	aborted = 1;
+        	goto done;
+        }
         data->replica = (Replica*)object_get_data(data->repl_obj);
         free_obj = 1;
-    }
-    if(data->replica == NULL && data->repl_obj){
+    } else if(data->replica == NULL && data->repl_obj){
         data->replica = (Replica*)object_get_data(data->repl_obj);
-    }
-    if( data->repl_obj == NULL){
+    } else if( data->repl_obj == NULL && data->replica){
         data->repl_obj = object_new(data->replica, NULL);
         free_obj = 1;
+    }
+    /* verify we have set our repl objects */
+    if(data->repl_obj == NULL || data->replica == NULL){
+    	cleanruv_log(data->task, CLEANALLRUV_ID, "Unable to set the replica objects.");
+    	aborted = 1;
+    	goto done;
     }
     if(data->task){
         slapi_task_begin(data->task, 1);
@@ -1495,11 +1508,13 @@ replica_cleanallruv_thread(void *arg)
     ruv_obj = replica_get_ruv(data->replica);
     ruv = object_get_data (ruv_obj);
     while(data->maxcsn && !is_task_aborted(data->rid) && !is_cleaned_rid(data->rid) && !slapi_is_shutting_down()){
-        if(csn_get_replicaid(data->maxcsn) == 0 || ruv_covers_csn_strict(ruv,data->maxcsn)){
+        if(csn_get_replicaid(data->maxcsn) == 0 || ruv_covers_csn_cleanallruv(ruv,data->maxcsn)){
             /* We are caught up, now we can clean the ruv's */
             break;
         }
-        DS_Sleep(PR_SecondsToInterval(5));
+        PR_Lock( notify_lock );
+        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(5) );
+        PR_Unlock( notify_lock );
     }
     object_release(ruv_obj);
     /*
@@ -1966,7 +1981,7 @@ add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn)
         repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_modify_internal_pb (pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-    if (rc != LDAP_SUCCESS){
+    if (rc != LDAP_SUCCESS && rc != LDAP_TYPE_OR_VALUE_EXISTS){
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: failed to update replica "
             "config (%d), rid (%d)\n", rc, rid);
     }
