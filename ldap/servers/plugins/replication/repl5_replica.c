@@ -1967,6 +1967,7 @@ done:
                 if(payload == NULL){
                     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: failed to create extended "
                         "op payload\n");
+                    slapi_ch_free((void **)&data);
                 } else {
                     /* setup the data */
                     data->repl_obj = NULL;
@@ -3829,10 +3830,10 @@ replica_add_cleanruv_data(Replica *r, char *val)
     PR_Lock(r->repl_lock);
 
     for (i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i] != NULL; i++); /* goto the end of the list */
-    if( i < CLEANRIDSIZ)
+    if( i < CLEANRIDSIZ){
         r->repl_cleanruv_data[i] = slapi_ch_strdup(val); /* append to list */
-    if(i <= CLEANRIDSIZ)
-        r->repl_cleanruv_data[i + 1] = NULL;
+        r->repl_cleanruv_data[i + 1] = 0;
+    }
 
     PR_Unlock(r->repl_lock);
 }

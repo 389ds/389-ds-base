@@ -396,7 +396,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 		for (i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++){
 			ra->cleanruv_notified[i] = atoi(clean_vals[i]);
 		}
-		if(i <= CLEANRIDSIZ)
+		if(i < CLEANRIDSIZ)
 		    ra->cleanruv_notified[i + 1] = 0;
 		slapi_ch_array_free(clean_vals);
 	} else {
@@ -2533,7 +2533,7 @@ agmt_set_cleanruv_notified_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
         for (i = 0; i < CLEANRIDSIZ && attr_vals[i]; i++){
             ra->cleanruv_notified[i] = atoi(attr_vals[i]);
         }
-        if( i <= CLEANRIDSIZ )
+        if( i < CLEANRIDSIZ )
             ra->cleanruv_notified[i + 1] = 0;
         slapi_ch_array_free(attr_vals);
     } else {
