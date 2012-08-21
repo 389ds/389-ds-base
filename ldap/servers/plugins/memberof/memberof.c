@@ -1873,12 +1873,11 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 
 	entry_sdn = slapi_entry_get_sdn(e);
 	entry_dn = slapi_value_new_string(slapi_entry_get_ndn(e));
-	slapi_value_set_flags(entry_dn, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
-
 	if(0 == entry_dn)
 	{
 		goto bail;
 	}
+	slapi_value_set_flags(entry_dn, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	/* divide groups into member and non-member lists */
 	slapi_entry_attr_find(e, config->memberof_attr, &attr );
