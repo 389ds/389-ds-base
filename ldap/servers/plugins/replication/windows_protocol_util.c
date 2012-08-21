@@ -4204,6 +4204,16 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_generate_update_mods\n", 0, 0, 0 );
 
 	*do_modify = 0;
+
+        if (!remote_entry || !local_entry) {
+            slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+                            "%s: windows_generate_update_mods: remote_entry is [%s] local_entry is [%s] "
+                            "cannot generate update mods\n", agmt_get_long_name(prp->agmt),
+                            remote_entry ? slapi_entry_get_dn_const(remote_entry) : "NULL",
+                            local_entry ? slapi_entry_get_dn_const(local_entry) : "NULL");
+            goto bail;
+        }
+
 	if (to_windows)
 	{
 		windows_is_local_entry_user_or_group(remote_entry,&is_user,&is_group);
@@ -4212,8 +4222,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
 	}
 
-    for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
-			rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
+        for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
+             rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
 	{
 		int is_present_local = 0;
 		char *type = NULL;
@@ -4383,9 +4393,9 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 											"local attribute %s in local entry %s for remote attribute "
 											"%s in remote entry %s\n",
 											local_type ? local_type : "NULL",
-											local_entry ? slapi_entry_get_dn(local_entry) : "NULL",
+											slapi_entry_get_dn(local_entry),
 											type ? type : "NULL",
-											remote_entry ? slapi_entry_get_dn(remote_entry) : "NULL");
+											slapi_entry_get_dn(remote_entry));
 						}
 						slapi_valueset_free(local_values);
 						local_values = NULL;
@@ -4395,9 +4405,9 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 										"local attribute %s in local entry %s for remote attribute "
 										"%s in remote entry %s\n",
 										local_type ? local_type : "NULL",
-										local_entry ? slapi_entry_get_dn(local_entry) : "NULL",
+										slapi_entry_get_dn(local_entry),
 										type ? type : "NULL",
-										remote_entry ? slapi_entry_get_dn(remote_entry) : "NULL");
+										slapi_entry_get_dn(remote_entry));
 					}
 					slapi_valueset_free(mapped_remote_values);
 					mapped_remote_values = NULL;
@@ -4407,9 +4417,9 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 									"local attribute %s in local entry %s for remote attribute "
 									"%s in remote entry %s\n",
 									local_type ? local_type : "NULL",
-									local_entry ? slapi_entry_get_dn(local_entry) : "NULL",
+									slapi_entry_get_dn(local_entry),
 									type ? type : "NULL",
-									remote_entry ? slapi_entry_get_dn(remote_entry) : "NULL");
+									slapi_entry_get_dn(remote_entry));
 				}
 			}
 		} else
@@ -4580,6 +4590,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	{
 		slapi_mods_dump(smods,"windows sync");
 	}
+bail:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_generate_update_mods: %d\n", retval, 0, 0 );
 	return retval;
 }
