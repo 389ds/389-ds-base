@@ -492,7 +492,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
         }
         else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaEnabled))
         {
-            if(agmt_set_enabled_from_entry(agmt, e) != 0){
+            if(agmt_set_enabled_from_entry(agmt, e, returntext) != 0){
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
                     "failed to set replica agmt state \"enabled/disabled\" for %s\n",agmt_get_long_name(agmt));
                 *returncode = LDAP_OPERATIONS_ERROR;

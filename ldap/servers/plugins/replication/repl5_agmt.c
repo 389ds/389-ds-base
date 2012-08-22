@@ -350,7 +350,11 @@ agmt_new_from_entry(Slapi_Entry *e)
 		} else if(strcasecmp(tmpstr, "on") == 0){
 			ra->is_enabled = PR_TRUE;
 		} else {
-			ra->is_enabled = slapi_entry_attr_get_bool(e, type_nsds5ReplicaEnabled);
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning invalid value "
+			    "for nsds5ReplicaEnabled (%s), value must be \"on\" or \"off\".  Ignoring "
+			    "this repl agreement.\n",tmpstr);
+			slapi_ch_free_string(&tmpstr);
+			goto loser;
 		}
 		slapi_ch_free_string(&tmpstr);
 	} else {
@@ -2519,7 +2523,7 @@ agmt_is_enabled(Repl_Agmt *ra)
 }
 
 int
-agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
+agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext){
 	char *attr_val = NULL;
 	int rc = 0;
 
@@ -2536,7 +2540,13 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
 		} else if(strcasecmp(attr_val,"on") == 0){
 			is_enabled = PR_TRUE;
 		} else {
-			is_enabled = slapi_entry_attr_get_bool(e, type_nsds5ReplicaEnabled);
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_enabled_from_entry: invalid "
+			    "value for nsds5ReplicaEnabled (%s), the value must be \"on\" or \"off\".\n", attr_val);
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for nsds5ReplicaEnabled, "
+			    "the value must be \"on\" or \"off\".\n");
+			slapi_ch_free_string(&attr_val);
+			PR_Unlock(ra->lock);
+			return -1;
 		}
 		slapi_ch_free_string(&attr_val);
 		if(is_enabled){
