@@ -2265,6 +2265,17 @@ agmt_set_update_in_progress (Repl_Agmt *ra, PRBool in_progress)
 	}
 }
 
+PRBool
+agmt_get_update_in_progress (const Repl_Agmt *ra)
+{
+	PR_ASSERT(NULL != ra);
+	if (NULL != ra)
+	{
+		return ra->update_in_progress;
+	}
+	return PR_FALSE;
+}
+
 void
 agmt_inc_last_update_changecount (Repl_Agmt *ra, ReplicaId rid, int skipped)
 {
@@ -2694,3 +2705,18 @@ agmt_set_cleanruv_notified_from_entry(Repl_Agmt *ra, Slapi_Entry *e){
     }
     PR_Unlock(ra->lock);
 }
+
+/* this is called whenever an update (total/incremental)
+   is completed */
+void 
+agmt_update_done(Repl_Agmt *agmt, int is_total)
+{
+    /* we could do a lot of stuff here - consolidate all of the other stuff that gets
+       done at the end of an update - setting status, times, etc.
+       but for now, all we want to do is "flush" any pending changes made
+       during the update into the proper structures so they are in place for the
+       next run
+    */
+    windows_update_done(agmt, is_total);
+}
+

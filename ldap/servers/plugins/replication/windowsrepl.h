@@ -86,6 +86,8 @@ time_t windows_private_get_sync_interval(const Repl_Agmt *ra);
 void windows_private_set_sync_interval(Repl_Agmt *ra, char *str);
 PRBool windows_private_get_one_way(const Repl_Agmt *ra);
 void windows_private_set_one_way(const Repl_Agmt *ra, PRBool value);
+int windows_private_get_move_action(const Repl_Agmt *ra);
+void windows_private_set_move_action(const Repl_Agmt *ra, int value);
 
 /* in windows_connection.c */
 ConnResult windows_conn_connect(Repl_Connection *conn);
@@ -140,6 +142,14 @@ int windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *pass
 #define ONE_WAY_SYNC_DISABLED 0
 #define ONE_WAY_SYNC_FROM_AD 1
 #define ONE_WAY_SYNC_TO_AD 2
+
+/*
+ * Specifies what action for sync to take if it detects an AD entry has
+ * moved out of scope
+ */
+#define MOVE_DOES_NOTHING 0
+#define MOVE_DOES_UNSYNC 1
+#define MOVE_DOES_DELETE 2
 
 /* called for each replication agreement - so the winsync
    plugin can be agreement specific and store agreement

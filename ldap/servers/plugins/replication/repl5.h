@@ -169,6 +169,7 @@ extern const char *type_nsds7DirsyncCookie;
 extern const char *type_nsds7WindowsDomain;
 extern const char *type_winSyncInterval;
 extern const char *type_oneWaySync;
+extern const char *type_winsyncMoveAction;
 
 /* To Allow Consumer Initialisation when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;
@@ -342,6 +343,7 @@ void agmt_set_last_update_start (Repl_Agmt *ra, time_t start_time);
 void agmt_set_last_update_end (Repl_Agmt *ra, time_t end_time);
 void agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *msg);
 void agmt_set_update_in_progress (Repl_Agmt *ra, PRBool in_progress);
+PRBool agmt_get_update_in_progress (const Repl_Agmt *ra);
 void agmt_set_last_init_start (Repl_Agmt *ra, time_t start_time);
 void agmt_set_last_init_end (Repl_Agmt *ra, time_t end_time);
 void agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *msg);
@@ -367,6 +369,7 @@ void agmt_set_cleanruv_notified_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
 int agmt_set_cleanruv_data(Repl_Agmt *ra, ReplicaId rid, int op);
 int agmt_is_cleanruv_notified(Repl_Agmt *ra, ReplicaId rid);
 int agmt_set_timeout(Repl_Agmt *ra, long timeout);
+void agmt_update_done(Repl_Agmt *ra, int is_total);
 
 typedef struct replica Replica;
 
@@ -679,6 +682,7 @@ int windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry
 void windows_agreement_delete(Repl_Agmt *ra);
 Repl_Connection *windows_conn_new(Repl_Agmt *agmt);
 void windows_conn_delete(Repl_Connection *conn);
+void windows_update_done(Repl_Agmt *ra, int is_total);
 
 /* repl_session_plugin.c */
 void repl_session_plugin_init();

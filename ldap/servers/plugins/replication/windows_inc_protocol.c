@@ -769,6 +769,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	    /* richm: We at least need to let monitors know that the protocol has been
 	       shutdown - maybe they can figure out why */
 	    agmt_set_last_update_status(prp->agmt, 0, 0, "Protocol stopped");
+	    agmt_update_done(prp->agmt, 0);
 	    break;
 	  } 
 
@@ -903,6 +904,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 
 	agmt_set_last_update_end(prp->agmt, current_time());
 	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
+	agmt_update_done(prp->agmt, 0);
 	/* If timed out, close the connection after released the replica */
 	windows_release_replica(prp);
 	if (rc == UPDATE_TIMEOUT) {

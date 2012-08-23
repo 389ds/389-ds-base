@@ -475,6 +475,8 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	slapi_pblock_destroy (pb);
 	agmt_set_last_init_end(prp->agmt, current_time());
 	rc = cb_data.rc;
+	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
+	agmt_update_done(prp->agmt, 1);
 	release_replica(prp);
 	
     if (rc != LDAP_SUCCESS)
