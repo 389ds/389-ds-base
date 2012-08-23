@@ -76,6 +76,7 @@ struct windowsprivate {
   void *api_cookie; /* private data used by api callbacks */
   time_t sync_interval; /* how often to run the dirsync search, in seconds */
   int one_way; /* Indicates if this is a one-way agreement and which direction it is */
+  int move_action; /* Indicates what to do with DS entry if AD entry is moved out of scope */
 };
 
 static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
@@ -93,11 +94,62 @@ true_value_from_string(char *val)
 	}
 }
 
+/* yech - can't declare a constant string array because type_nsds7XX variables
+   are not constant strings - so have to build a lookup table */
+static int
+get_next_disallow_attr_type(int *ii, const char **type)
+{
+	switch (*ii) {
+	case 0: *type = type_nsds7WindowsReplicaArea; break;
+	case 1: *type = type_nsds7DirectoryReplicaArea; break;
+	case 2: *type = type_nsds7WindowsDomain; break;
+	default: *type = NULL; break;
+	}
+
+	if (*type) {
+		(*ii)++;
+		return 1;
+	}
+	return 0;
+}
+
+static int
+check_update_allowed(Repl_Agmt *ra, const char *type, Slapi_Entry *e, int *retval)
+{
+	int rc = 1;
+
+	/* note - it is not an error to defer setting the value in the ra */
+	*retval = 1;
+	if (agmt_get_update_in_progress(ra)) {
+		const char *distype = NULL;
+		int ii = 0;
+		while (get_next_disallow_attr_type(&ii, &distype)) {
+			if (slapi_attr_types_equivalent(type, distype)) {
+				char *tmpstr = slapi_entry_attr_get_charptr(e, type);
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"windows_parse_config_entry: setting %s to %s will be "
+								"deferred until current update is completed\n",
+								type, tmpstr);
+				slapi_ch_free_string(&tmpstr);
+				rc = 0;
+				break;
+			}
+		}
+	}
+
+	return rc;
+}
+
 static int
 windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 {
 	char *tmpstr = NULL;
 	int retval = 0;
+
+	if (!check_update_allowed(ra, type, e, &retval))
+	{
+		return retval;
+	}
 	
 	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7WindowsReplicaArea))
 	{
@@ -190,6 +242,32 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 		slapi_ch_free((void**)&tmpstr);
 		retval = 1;
 	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_winsyncMoveAction))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_winsyncMoveAction);
+		if (NULL != tmpstr)
+		{
+			if (strcasecmp(tmpstr, "delete") == 0) {
+				windows_private_set_move_action(ra, MOVE_DOES_DELETE);
+			} else if (strcasecmp(tmpstr, "unsync") == 0) {
+				windows_private_set_move_action(ra, MOVE_DOES_UNSYNC);
+			} else if (strcasecmp(tmpstr, "none") == 0) {
+				windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
+			} else {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"Ignoring illegal setting for %s attribute in replication "
+					"agreement \"%s\".  Valid values are \"delete\" or "
+					"\"unsync\".\n", type_winsyncMoveAction, slapi_entry_get_dn(e));
+				windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
+			}
+		}
+		else
+		{
+			windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
+		}
+		slapi_ch_free((void**)&tmpstr);
+		retval = 1;
+	}
 	return retval;
 }
 
@@ -205,6 +283,26 @@ windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 	{
 		return 0;
 	}
+}
+
+void 
+windows_update_done(Repl_Agmt *agmt, int is_total)
+{
+	/* "flush" the changes made during the update to the agmt */
+	/* get the agmt entry */
+	Slapi_DN *agmtdn = slapi_sdn_dup(agmt_get_dn_byref(agmt));
+	Slapi_Entry *agmte = NULL;
+	int rc = slapi_search_internal_get_entry(agmtdn, NULL, &agmte,
+											 repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION));
+	if ((rc == 0) && agmte) {
+		int ii = 0;
+		const char *distype = NULL;
+		while (get_next_disallow_attr_type(&ii, &distype)) {
+			windows_handle_modify_agreement(agmt, distype, agmte);
+		}
+	}
+	slapi_entry_free(agmte);
+	slapi_sdn_free(&agmtdn);
 }
 
 void
@@ -1022,6 +1120,39 @@ windows_private_set_sync_interval(Repl_Agmt *ra, char *str)
 	}
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_sync_interval\n" );
+}
+
+int
+windows_private_get_move_action(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_move_action\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_move_action\n" );
+
+	return dp->move_action;	
+}
+
+void
+windows_private_set_move_action(const Repl_Agmt *ra, int value)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_move_action\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+	dp->move_action = value;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_move_action\n" );
 }
 
 static PRCallOnceType winsync_callOnce = {0,0};

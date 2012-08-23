@@ -5049,6 +5049,85 @@ windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_entry)
 	return retval;
 }
 
+static int
+windows_unsync_entry(Private_Repl_Protocol *prp, Slapi_Entry *e)
+{
+	/* remote the ntuser/ntgroup objectclass and all attributes whose
+	   name begins with "nt" - this will effectively cause the entry
+	   to become "unsynced" with the corresponding windows entry */
+	Slapi_Mods *smods = NULL;
+	Slapi_Value *ntu = NULL, *ntg = NULL;
+	Slapi_Value *va[2] = {NULL, NULL};
+	char **syncattrs = NULL;
+	PRUint32 ocflags = SLAPI_OC_FLAG_REQUIRED|SLAPI_OC_FLAG_ALLOWED;
+	Slapi_PBlock *pb = NULL;
+	int ii;
+	int rc = -1;
+
+	smods = slapi_mods_new();
+	ntu = slapi_value_new_string("ntuser");
+	ntg = slapi_value_new_string("ntgroup");
+
+	if (slapi_entry_attr_has_syntax_value(e, "objectclass", ntu)) {
+		syncattrs = slapi_schema_list_objectclass_attributes(slapi_value_get_string(ntu), ocflags);
+		va[0] = ntu;
+	} else if (slapi_entry_attr_has_syntax_value(e, "objectclass", ntg)) {
+		syncattrs = slapi_schema_list_objectclass_attributes(slapi_value_get_string(ntg), ocflags);
+		va[0] = ntg;
+	} else {
+		rc = 0; /* not an error */
+		goto done; /* nothing to see here, move along */
+	}
+	slapi_mods_add_mod_values(smods, LDAP_MOD_DELETE, "objectclass", va);
+	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"%s: windows_unsync_entry: removing objectclass %s from %s\n",
+					agmt_get_long_name(prp->agmt), slapi_value_get_string(va[0]),
+					slapi_entry_get_dn_const(e));
+
+	for (ii = 0; syncattrs && syncattrs[ii]; ++ii) {
+		const char *type = syncattrs[ii];
+		Slapi_Attr *attr = NULL;
+
+		if (!slapi_entry_attr_find(e, type, &attr) && attr) {
+			if (!PL_strncasecmp(type, "nt", 2)) { /* begins with "nt" */
+				slapi_mods_add_mod_values(smods, LDAP_MOD_DELETE, type, NULL);
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+								"%s: windows_unsync_entry: removing attribute %s from %s\n",
+								agmt_get_long_name(prp->agmt), type,
+								slapi_entry_get_dn_const(e));
+			}
+		}
+	}
+
+	pb = slapi_pblock_new();
+	if (!pb) {
+		goto done;
+	}
+	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"%s: windows_unsync_entry: modifying entry %s\n",
+					agmt_get_long_name(prp->agmt), slapi_entry_get_dn_const(e));
+	slapi_modify_internal_set_pb_ext(pb, slapi_entry_get_sdn(e),
+									 slapi_mods_get_ldapmods_byref(smods), NULL, NULL,
+									 repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
+	slapi_modify_internal_pb(pb);
+	slapi_pblock_get (pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+	if (rc) {
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+						"%s: windows_unsync_entry: failed to modify entry %s - error %d:%s\n",
+						agmt_get_long_name(prp->agmt), slapi_entry_get_dn_const(e),
+						rc, ldap_err2string(rc));
+	}
+	slapi_pblock_destroy(pb);
+
+done:
+	slapi_ch_array_free(syncattrs);
+	slapi_mods_free(&smods);
+	slapi_value_free(&ntu);
+	slapi_value_free(&ntg);
+
+	return rc;
+}
+
 static int 
 windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_total)
 {
@@ -5183,13 +5262,34 @@ retry:
 				rc = windows_get_local_entry(local_sdn, &local_entry);
 				if ((0 == rc) && local_entry) 
 				{
-					/* Need to delete the local entry since the remote counter
-					 * part is now moved out of scope of the agreement. */
-					/* Since map_Entry_dn_oubound returned local_sdn,
-					 * the entry is either user or group. */
-					rc = windows_delete_local_entry(local_sdn);
-					slapi_entry_free(local_entry);
+					if (windows_private_get_move_action(prp->agmt) == MOVE_DOES_DELETE) {
+						/* Need to delete the local entry since the remote counter
+						 * part is now moved out of scope of the agreement. */
+						/* Since map_Entry_dn_oubound returned local_sdn,
+						 * the entry is either user or group. */
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+										"%s: windows_process_dirsync_entry: deleting out of "
+										"scope entry %s\n", agmt_get_long_name(prp->agmt),
+										slapi_sdn_get_dn(local_sdn));
+						rc = windows_delete_local_entry(local_sdn);
+					} else if (windows_private_get_move_action(prp->agmt) == MOVE_DOES_UNSYNC) {
+						rc = windows_unsync_entry(prp, local_entry);
+					} else {
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+										"%s: windows_process_dirsync_entry: windows "
+										"inbound entry %s has the same name as local "
+										"entry %s but the windows entry is out of the "
+										"scope of the sync subtree [%s] - if you want "
+										"these entries to be in sync, add the ntUser/ntGroup "
+										"objectclass and required attributes to the local "
+										"entry, and move the windows entry into scope\n",
+										agmt_get_long_name(prp->agmt),
+										slapi_entry_get_dn_const(e),
+										slapi_sdn_get_dn(local_sdn),
+										slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt)));
+					}
 				}
+				slapi_entry_free(local_entry);
 				slapi_sdn_free(&local_sdn);
 			}
 		}

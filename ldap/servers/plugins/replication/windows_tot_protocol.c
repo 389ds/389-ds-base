@@ -151,6 +151,8 @@ windows_tot_run(Private_Repl_Protocol *prp)
 
 	agmt_set_last_init_status(prp->agmt, 0, 0, "Total update in progress");
 
+	agmt_set_update_in_progress(prp->agmt, PR_TRUE);
+
 	slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "Beginning total update of replica "
 		"\"%s\".\n", agmt_get_long_name(prp->agmt));
     
@@ -216,7 +218,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
     server_controls = NULL;
 
     slapi_pblock_destroy (pb);
-	agmt_set_last_init_end(prp->agmt, current_time());
 	rc = cb_data.rc;
 	windows_release_replica(prp);
 		
@@ -248,6 +249,10 @@ windows_tot_run(Private_Repl_Protocol *prp)
 
 	/* Save the dirsync cookie. */
 	windows_private_save_dirsync_cookie(prp->agmt);
+
+	agmt_set_last_init_end(prp->agmt, current_time());
+	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
+	agmt_update_done(prp->agmt, 1);
 
 	/* call end total update callback */
 	winsync_plugin_call_end_update_cb(prp->agmt,
