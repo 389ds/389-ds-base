@@ -414,6 +414,11 @@ windows_inc_run(Private_Repl_Protocol *prp)
 						state2name(current_state));
 					protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
 				  }
+				else if (event_occurred(prp, EVENT_RUN_DIRSYNC)) /* periodic_dirsync */
+				  {
+					/* just ignore it and go to sleep */
+					protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+				  }
 				else
 				  {
 					/* wait until window opens or an event occurs */
