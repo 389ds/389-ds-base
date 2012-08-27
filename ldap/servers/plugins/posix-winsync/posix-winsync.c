@@ -565,7 +565,7 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
         slapi_attr_get_type(attr, &type);
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "_pre_ad_mod_user_cb -- check modify type %s\n", type);
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
                 Slapi_Attr *ad_attr = NULL;
@@ -612,7 +612,6 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                                 slapi_entry_get_dn_const(ds_entry));
 
             }
-            i++;
         }
         if (0 == slapi_attr_type_cmp(type, "nsAccountLock", SLAPI_TYPE_CMP_SUBTYPE))
             sync_acct_disable(cbdata, rawentry, ds_entry, ACCT_DISABLE_TO_AD, NULL, smods,
@@ -654,7 +653,7 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
         slapi_attr_get_type(attr, &type);
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "_pre_ad_mod_group_cb -- check modify type %s\n", type);
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
                 Slapi_Attr *ad_attr = NULL;
@@ -701,7 +700,6 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                                 attr_map[i].windows_attribute_name,
                                 slapi_entry_get_dn_const(ds_entry));
             }
-            i++;
         }
     }
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "_pre_ad_mod_group_cb -- step\n");
@@ -741,7 +739,7 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
         size_t i = 0;
 
         slapi_attr_get_type(attr, &type);
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(type, attr_map[i].windows_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
                 Slapi_Attr *local_attr = NULL;
@@ -775,7 +773,6 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                 slapi_ch_free((void**) &local_type);
                 /* what about if delete all values on windows ????? */
             }
-            i++;
         }
     }
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
@@ -857,7 +854,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
         size_t i = 0;
 
         slapi_attr_get_type(attr, &type);
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(type, attr_map[i].windows_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
                 Slapi_Attr *local_attr = NULL;
@@ -895,7 +892,6 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                 slapi_valueset_free(vs);
                 /* what about if delete all values on windows ???? */
             }
-            i++;
         }
     }
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
@@ -978,7 +974,7 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
 
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "--> _pre_ds_add_user_cb -- "
             "look for [%s] to new entry [%s]\n", type, slapi_entry_get_dn_const(ds_entry));
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (slapi_attr_type_cmp(attr_map[i].windows_attribute_name, type,
                                     SLAPI_TYPE_CMP_SUBTYPE) == 0) {
                 Slapi_ValueSet *svs = NULL;
@@ -992,7 +988,6 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                                 slapi_entry_get_dn_const(ds_entry));
                 posixval = PR_TRUE;
             }
-            i++;
         }
     }
     if (posixval) {
@@ -1036,7 +1031,7 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
 
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "--> _pre_ds_add_group_cb -- "
             "look for [%s] to new entry [%s]\n", type, slapi_entry_get_dn_const(ds_entry));
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (slapi_attr_type_cmp(attr_map[i].windows_attribute_name, type,
                                     SLAPI_TYPE_CMP_SUBTYPE) == 0) {
                 Slapi_ValueSet *svs = NULL;
@@ -1050,7 +1045,6 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                                 slapi_entry_get_dn_const(ds_entry));
                 posixval = PR_TRUE;
             }
-            i++;
         }
     }
     if (posixval) {
@@ -1130,7 +1124,7 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
         size_t i = 0;
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "_pre_ad_mod_user_mods_cb -- check modify type %s\n", mod->mod_type);
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(mod->mod_type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
                 Slapi_Mod *mysmod = slapi_mod_new();
@@ -1151,7 +1145,6 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
                     slapi_mod_free(&ocsmod);
                 }
             }
-            i++;
         }
         if (0 == slapi_attr_type_cmp(mod->mod_type, "nsRoleDN", SLAPI_TYPE_CMP_SUBTYPE)) {
             int dummy = 0;
@@ -1198,7 +1191,7 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry
         size_t i = 0;
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "_pre_ad_mod_group_mods_cb -- check modify type %s\n", mod->mod_type);
-        while (attr_map[i].windows_attribute_name != NULL) {
+        for (; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(mod->mod_type, attr_map[i].ldap_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
                 Slapi_Mod *mysmod = slapi_mod_new();
@@ -1226,7 +1219,6 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry
                                 attr_map[i].windows_attribute_name,
                                 slapi_entry_get_dn_const(ds_entry));
             }
-            i++;
         }
     }
     *modstosend = slapi_mods_get_ldapmods_passout(new_smods);
