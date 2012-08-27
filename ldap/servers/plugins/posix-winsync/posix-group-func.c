@@ -230,7 +230,7 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
 
     Slapi_Mod *smod = NULL;
     Slapi_Mod *nextMod = slapi_mod_new();
-    int del_mod = 0;
+    int del_mod = 0; /* Bool: was there a delete mod? */
     char **smod_adduids = NULL;
     char **smod_deluids = NULL;
 
@@ -243,13 +243,13 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
         if (slapi_attr_types_equivalent(slapi_mod_get_type(smod), "uniqueMember")) {
             struct berval *bv;
 
-            del_mod = slapi_mod_get_operation(smod);
             for (bv = slapi_mod_get_first_value(smod); bv;
                  bv = slapi_mod_get_next_value(smod)) {
                 Slapi_Value *sv = slapi_value_new();
 
                 slapi_value_init_berval(sv, bv); /* copies bv_val */
                 if (SLAPI_IS_MOD_DELETE(slapi_mod_get_operation(smod))) {
+                    del_mod = 1;
                     slapi_ch_array_add(&smod_deluids,
                                        slapi_ch_strdup(slapi_value_get_string(sv)));
                     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
@@ -267,11 +267,6 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
         }
     }
     slapi_mod_free(&nextMod);
-    if (!del_mod) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "modGroupMembership: no uniquemember mod, nothing to do<==\n");
-        return 0;
-    }
 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "modGroupMembership: entry is posixGroup\n");
@@ -285,7 +280,7 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
     int doModify = false;
     int j = 0;
 
-    if (SLAPI_IS_MOD_DELETE(del_mod) || smod_deluids != NULL) {
+    if (del_mod || smod_deluids != NULL) {
         do { /* Create a context to "break" from */
             Slapi_Attr * mu_attr = NULL; /* Entry attributes        */
             rc = slapi_entry_attr_find(entry, "memberUid", &mu_attr);
