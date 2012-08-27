@@ -357,6 +357,7 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
                                     "modGroupMembership: no attribute memberUid, add with %s \n",
                                     uid_dn);
                     slapi_ch_array_add(&adduids, uid);
+                    uid = NULL; /* adduids now owns uid */
                     doModify = true;
                 } else { /* Found a memberUid list, so modify */
                     Slapi_ValueSet *vs = NULL;
@@ -372,9 +373,13 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
                         slapi_ch_array_add(&moduids, uid);
                         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                                         "modGroupMembership: add to modlist %s\n", uid);
+                        uid = NULL; /* adduids now owns uid */
+                        /* have to clear out v otherwise slapi_value_free will also free uid */
+                        slapi_value_init_berval(v, NULL);
                         doModify = true;
                     }
-                    /*                                slapi_value_free(&v); */
+                    slapi_value_free(&v); /* also frees uid since it was a passin */
+                    slapi_valueset_free(vs); vs = NULL;
                 }
             }
         }
