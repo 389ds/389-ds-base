@@ -1241,7 +1241,7 @@ windows_plugin_add(void **theapi, int maxapi)
             }
             elem = PR_NEXT_LINK(elem);
         }
-        if (wpi) { /* was not added - precedence too high */
+        if (elem && wpi) { /* was not added - precedence too high */
             /* just add to end of list */
             PR_INSERT_BEFORE(wpi, elem);
             wpi = NULL; /* owned by list now */
@@ -1367,10 +1367,8 @@ windows_plugin_cleanup_agmt(Repl_Agmt *ra)
 
     while (list && !PR_CLIST_IS_EMPTY(list)) {
         elem = PR_LIST_HEAD(list);
-        if (elem != list) {
-            PR_REMOVE_LINK(elem);
-            slapi_ch_free((void **)&elem);
-        }
+        PR_REMOVE_LINK(elem);
+        slapi_ch_free((void **)&elem);
     }
     slapi_ch_free((void **)&list);
     windows_private_set_api_cookie(ra, NULL);

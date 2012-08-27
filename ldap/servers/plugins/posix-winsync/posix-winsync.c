@@ -184,8 +184,8 @@ check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
         rc = 1; /* no attr == entry is enabled */
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "<-- check_account_lock - entry [%s] does not "
-                            "have attribute nsAccountLock - entry %s locked\n",
-                        slapi_entry_get_dn_const(ds_entry), rc ? "is not" : "is");
+                            "have attribute nsAccountLock - entry is not locked\n",
+                        slapi_entry_get_dn_const(ds_entry));
     }
 
     return rc;
@@ -918,7 +918,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
         slapi_value_init_string(voc, "posixGroup");
         slapi_entry_attr_find(ds_entry, "objectClass", &oc_attr);
         if (slapi_attr_value_find(oc_attr, slapi_value_get_berval(voc)) != 0) {
-            Slapi_ValueSet *oc_vs = slapi_valueset_new();
+            Slapi_ValueSet *oc_vs = NULL;
             Slapi_Value *oc_nv = slapi_value_new();
 
             slapi_attr_get_valueset(oc_attr, &oc_vs);
@@ -933,7 +933,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
             slapi_value_free(&oc_nv);
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                             "_pre_ds_mod_group_cb step\n");
-            /* slapi_valuset_free(oc_vs); */
+            slapi_valueset_free(oc_vs);
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                             "_pre_ds_mod_group_cb step\n");
         }
@@ -1292,6 +1292,7 @@ posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slap
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "--> posix_winsync_end_update_cb, create task %s\n", dn);
         if (NULL == dn) {
+            slapi_pblock_destroy(pb);
             slapi_log_error(SLAPI_LOG_FATAL, posix_winsync_plugin_name,
                             "posix_winsync_end_update_cb: "
                                 "failed to create task dn: cn=%s,%s,cn=tasks,cn=config\n",
