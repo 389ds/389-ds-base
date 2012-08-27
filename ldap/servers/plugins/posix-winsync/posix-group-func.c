@@ -86,7 +86,7 @@ searchUid(const char *udn)
             }
             slapi_free_search_results_internal(int_search_pb);
             slapi_pblock_destroy(int_search_pb);
-            if (posix_winsync_config_get_lowercase()) {
+            if (uid && posix_winsync_config_get_lowercase()) {
                 return slapi_dn_ignore_case(uid);
             }
             return uid;
@@ -103,11 +103,15 @@ int
 dn_in_set(const char* uid, char **uids)
 {
     int i;
-    Slapi_DN *sdn_uid = slapi_sdn_new_dn_byval(uid);
-    Slapi_DN *sdn_ul = slapi_sdn_new();
+    Slapi_DN *sdn_uid = NULL;
+    Slapi_DN *sdn_ul = NULL;
 
     if (uids == NULL || uid == NULL)
         return false;
+
+    sdn_uid = slapi_sdn_new_dn_byval(uid);
+    sdn_ul = slapi_sdn_new();
+
     for (i = 0; uids[i]; i++) {
         slapi_sdn_set_dn_byref(sdn_ul, uids[i]);
         if (slapi_sdn_compare(sdn_uid, sdn_ul) == 0) {
@@ -346,7 +350,9 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
                                                     "modGroupMembership: add to modlist %s\n", uid);
                                     doModify = true;
                                 }
-                                /*                                slapi_value_free(&v); */
+                                slapi_valueset_free(vs);
+                                slapi_value_init_berval(v, NULL); /* otherwise we will try to free memory we do not own */
+                                slapi_value_free(&v);
                             }
                         }
                     }
