@@ -363,6 +363,7 @@ void windows_agreement_delete(Repl_Agmt *ra)
 	slapi_filter_free(dp->directory_filter, 1);
 	slapi_filter_free(dp->deleted_filter, 1);
 	slapi_entry_free(dp->raw_entry);
+	slapi_ch_free_string(&dp->windows_domain);
 	dp->raw_entry = NULL;
 	dp->api_cookie = NULL;
 	slapi_ch_free((void **)dp);
@@ -529,6 +530,7 @@ windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 		dp = (Dirsync_Private *) agmt_get_priv(ra);
 		PR_ASSERT (dp);
 
+		slapi_ch_free_string(&dp->windows_domain);
 		dp->windows_domain = domain;
 		
 		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_domain\n" );
