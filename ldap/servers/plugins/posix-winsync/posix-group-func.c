@@ -479,11 +479,9 @@ addGroupMembership(Slapi_Entry *entry, Slapi_Entry *ad_entry)
         } else {
             v = slapi_value_new_string(uid);
             slapi_ch_free_string(&uid);
-            if (slapi_attr_value_find(muid_attr, slapi_value_get_berval(v)) == 0) {
-                slapi_value_free(&v);
-                continue;
+            if (slapi_attr_value_find(muid_attr, slapi_value_get_berval(v)) != 0) {
+                slapi_valueset_add_value(newvs, v);
             }
-            slapi_valueset_add_value(newvs, v);
             slapi_value_free(&v);
         }
     }
