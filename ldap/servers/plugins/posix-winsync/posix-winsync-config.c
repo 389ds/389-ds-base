@@ -81,8 +81,10 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
         sdn = slapi_get_next_suffix(&node, 0);
     }
     if (!sdn) {
+        char *pardn = slapi_dn_parent(slapi_sdn_get_dn(ds_subtree));
         slapi_log_error(SLAPI_LOG_FATAL, POSIX_WINSYNC_PLUGIN_NAME, "suffix not found for '%s'\n",
-                        slapi_dn_parent(slapi_sdn_get_dn(ds_subtree)));
+                        pardn);
+        slapi_ch_free_string(&pardn);
     }
 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
