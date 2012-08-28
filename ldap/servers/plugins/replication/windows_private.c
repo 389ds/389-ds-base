@@ -1251,6 +1251,8 @@ windows_plugin_add(void **theapi, int maxapi)
             PR_INSERT_BEFORE(wpi, elem);
             wpi = NULL; /* owned by list now */
         }
+        /* if we got here and wpi is not NULL we need to free wpi */
+        slapi_ch_free((void **)&wpi);
         return 0;
     }
     return -1;
