@@ -61,7 +61,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	struct backentry *e = NULL;
 	struct backentry *tombstone = NULL;
 	struct backentry *original_tombstone = NULL;
-	char *dn = NULL;
+	const char *dn = NULL;
 	back_txn txn;
 	back_txnid parent_txn;
 	int retval = -1;
@@ -76,7 +76,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int rc = 0;
 	int ldap_result_code= LDAP_SUCCESS;
 	char *ldap_result_message= NULL;
-	Slapi_DN sdn;
 	Slapi_DN *sdnp = NULL;
 	char *e_uniqueid = NULL;
 	Slapi_DN nscpEntrySDN;
@@ -108,8 +107,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	
-	/* sdn needs to be initialized before "goto *_return */
-	slapi_sdn_init(&sdn);
 	slapi_sdn_init(&nscpEntrySDN);
 
 	/* dblayer_txn_init needs to be called before "goto error_return" */
@@ -128,12 +125,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "enter conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
 	}
 
-	if (NULL == addr)
+	if ((NULL == addr) && (NULL == sdnp))
 	{
 		/* retval is -1 */
 		goto error_return;
 	}
-	ldap_result_code = slapi_dn_syntax_check(pb, slapi_sdn_get_dn(sdnp), 1);
+	dn = slapi_sdn_get_dn(sdnp);
+	ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
 	if (ldap_result_code)
 	{
 		ldap_result_code = LDAP_INVALID_DN_SYNTAX;
@@ -147,11 +145,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
 	
 	inst = (ldbm_instance *) be->be_instance_info;
-
-	if (NULL == sdnp) {
-		slapi_sdn_init_normdn_byref(&sdn, dn);
-		sdnp = &sdn;
-	}
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,
@@ -257,7 +250,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		PR_ASSERT(!is_tombstone_entry);
 		if (is_tombstone_entry) { 
 				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
-						"Attempt to Tombstone again a tombstone entry %s\n", dn);
+					"Attempt to Tombstone again a tombstone entry %s\n", dn);
 			delete_tombstone_entry = 1;
 		}
 	}
@@ -1186,7 +1179,7 @@ diskfull_return:
 		 * with this entry. Now that this name has been given up, one
 		 * of those entries can take over the name. 
 		 */
-		slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, slapi_ch_strdup (dn));
+		slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, slapi_ch_strdup(dn));
 	}
 	if (free_delete_existing_entry) {
 		done_with_pblock_entry(pb, SLAPI_DELETE_EXISTING_ENTRY);
@@ -1195,7 +1188,6 @@ diskfull_return:
 	}
 	backentry_free(&original_tombstone);
 	slapi_ch_free((void**)&errbuf);
-	slapi_sdn_done(&sdn);
 	slapi_sdn_done(&nscpEntrySDN);
 	slapi_ch_free_string(&e_uniqueid);
 	if (pb->pb_conn)
