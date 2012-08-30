@@ -125,9 +125,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "enter conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
 	}
 
-	if ((NULL == addr) && (NULL == sdnp))
+	if ((NULL == addr) || (NULL == sdnp))
 	{
 		/* retval is -1 */
+		slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+		            "Either of DELETE_TARGET_SDN or TARGET_ADDRESS is NULL.\n");
 		goto error_return;
 	}
 	dn = slapi_sdn_get_dn(sdnp);
