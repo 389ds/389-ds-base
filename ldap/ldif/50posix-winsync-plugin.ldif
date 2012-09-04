@@ -13,3 +13,8 @@ posixWinsyncMapMemberUID: true
 posixWinsyncCreateMemberOfTask: false
 posixWinsyncLowerCaseUID: false
 nsslapd-pluginprecedence: 25
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC

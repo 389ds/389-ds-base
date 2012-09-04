@@ -1333,6 +1333,232 @@ posix_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree, const Sl
     return;
 }
 
+static void
+posix_winsync_post_ad_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ad_mod_user_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ad_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ad_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ad_mod_group_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ad_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ds_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ds_mod_user_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of modifying DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ds_mod_user_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ds_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ds_mod_group_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of modifying DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ds_mod_group_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ds_add_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ds_add_user_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of adding DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ds_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ds_add_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ds_add_group_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of adding DS entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ds_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_pre_ad_add_user_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Adding AD entry [%s] from add of DS entry [%s]\n",
+                    slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
+    /* make modifications to ad_entry here */
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_pre_ad_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_pre_ad_add_group_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Adding AD entry [%s] from add of DS entry [%s]\n",
+                    slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
+    /* make modifications to ad_entry here */
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_pre_ad_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ad_add_user_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of adding AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ad_add_user_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ad_add_group_cb -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of adding AD entry [%s] was [%d:%s]\n",
+                    slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ad_add_group_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ad_mod_user_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ad_mod_user_mods_cb  -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ad_mod_user_mods_cb -- end\n");
+
+    return;
+}
+
+static void
+posix_winsync_post_ad_mod_group_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "--> posix_winsync_post_ad_mod_group_mods_cb  -- begin\n");
+
+#ifdef THIS_IS_JUST_AN_EXAMPLE
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "Result of modifying AD entry [%s] was [%d:%s]\n",
+                    slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
+#endif
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                    "<-- posix_winsync_post_ad_mod_group_mods_cb -- end\n");
+
+    return;
+}
+
+#define DEFAULT_PRECEDENCE 25
+static int precedence = DEFAULT_PRECEDENCE; /* default */
+
+static int posix_winsync_precedence(void)
+{
+    return precedence;
+}
+
 static void *posix_winsync_api[] = { NULL, /* reserved for api broker use, must be zero */
                                      posix_winsync_agmt_init,
                                      posix_winsync_dirsync_search_params_cb,
@@ -1352,7 +1578,21 @@ static void *posix_winsync_api[] = { NULL, /* reserved for api broker use, must 
                                      posix_winsync_can_add_entry_to_ad_cb,
                                      posix_winsync_begin_update_cb,
                                      posix_winsync_end_update_cb,
-                                     posix_winsync_destroy_agmt_cb };
+                                     posix_winsync_destroy_agmt_cb,
+                                     posix_winsync_post_ad_mod_user_cb,
+                                     posix_winsync_post_ad_mod_group_cb,
+                                     posix_winsync_post_ds_mod_user_cb,
+                                     posix_winsync_post_ds_mod_group_cb,
+                                     posix_winsync_post_ds_add_user_cb,
+                                     posix_winsync_post_ds_add_group_cb,
+                                     posix_winsync_pre_ad_add_user_cb,
+                                     posix_winsync_pre_ad_add_group_cb,
+                                     posix_winsync_post_ad_add_user_cb,
+                                     posix_winsync_post_ad_add_group_cb,
+                                     posix_winsync_post_ad_mod_user_mods_cb,
+                                     posix_winsync_post_ad_mod_group_mods_cb,
+                                     posix_winsync_precedence
+};
 
 static Slapi_ComponentId *posix_winsync_plugin_id = NULL;
 
@@ -1381,7 +1621,7 @@ posix_winsync_plugin_start(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> posix_winsync_plugin_start -- begin\n");
 
-    if (slapi_apib_register(WINSYNC_v1_0_GUID, posix_winsync_api)) {
+    if (slapi_apib_register(WINSYNC_v3_0_GUID, posix_winsync_api)) {
         slapi_log_error(SLAPI_LOG_FATAL, posix_winsync_plugin_name,
                         "<-- posix_winsync_plugin_start -- failed to register winsync api -- end\n");
         return -1;
@@ -1422,9 +1662,17 @@ int
 posix_winsync_plugin_init(Slapi_PBlock *pb)
 {
     void *plugin_id = NULL;
+    Slapi_Entry *confige = NULL;
 
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> posix_winsync_plugin_init -- begin\n");
+
+    if (slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &confige) && confige) {
+        precedence = slapi_entry_attr_get_int(confige, "nsslapd-pluginprecedence");
+        if (!precedence) {
+            precedence = DEFAULT_PRECEDENCE;
+        }
+    }
 
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0
         || slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *) posix_winsync_plugin_start) != 0
