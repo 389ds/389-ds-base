@@ -1,3 +1,7 @@
 autom4te.cache
 *~
 *.patch
+.autotools
+.cproject
+.project
+.settings
