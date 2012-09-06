@@ -1372,6 +1372,9 @@ static const char *replica_get_purl_for_op (const Replica *r, Slapi_PBlock *pb, 
 		Slapi_Connection *conn;
 		consumer_connection_extension *connext;
 		slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+		/* TEL 20120531: There is a slim chance we want to take exclusive access
+		 * to this instead.  However, it isn't clear to me that it is worth the 
+		 * risk of changing this working code. */
 		connext = (consumer_connection_extension *)repl_con_get_ext(
 			REPL_CON_EXT_CONN, conn);
 		if (NULL == connext || NULL == connext->supplier_ruv)
