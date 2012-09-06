@@ -660,12 +660,16 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	 * make sure it's there.
 	 */
 	slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
-	connext = (consumer_connection_extension *)repl_con_get_ext(
-			REPL_CON_EXT_CONN, conn);
+	connext = consumer_connection_extension_acquire_exclusive_access(conn, connid, opid);
 	if (NULL == connext)
 	{
-		/* Something bad happened. Don't go any further */
-		response = NSDS50_REPL_INTERNAL_ERROR;
+		/* TEL 20120531: This used to be a much worse and unexpected thing 
+		 * before acquiring exclusive access to the connext.  Now it should
+		 * be highly unusual, but not completely unheard of.  We don't want to
+		 * return an internal error here as before, because it will eventually
+		 * result in a fatal error on the other end.  Better to tell it
+		 * we are busy instead--which is also probably true. */
+		response = NSDS50_REPL_REPLICA_BUSY;
 		goto send_response;
 	}
 
@@ -733,7 +737,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		/* Stash info that this is a total update session */
 		if (NULL != connext)
 		{
-			connext->repl_protocol_version = REPL_PROTOCOL_71_TOTALUPDATE;
+			connext->repl_protocol_version = REPL_PROTOCOL_50_TOTALUPDATE;
 		}
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin 7.1 total protocol\n",
@@ -897,6 +901,28 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
         replica_object = NULL;
 	}
 
+	/* remove this code once ticket 374 is fixed */
+#define ENABLE_TEST_TICKET_374
+#ifdef ENABLE_TEST_TICKET_374
+	if (getenv("SLAPD_TEST_TICKET_374") && (opid > 20)) {
+		int i = 0;
+		int max = 480 * 5;
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"conn=%d op=%d repl=\"%s\": "
+						"374 - Starting sleep: connext->repl_protocol_version == %d\n",
+						connid, opid, repl_root, connext->repl_protocol_version);
+        
+		while (REPL_PROTOCOL_50_INCREMENTAL == connext->repl_protocol_version && i++ < max) {
+			usleep(200000);
+		}
+        
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"conn=%d op=%d repl=\"%s\": "
+						"374 - Finished sleep: connext->repl_protocol_version == %d\n",
+						connid, opid, repl_root, connext->repl_protocol_version);
+	}
+#endif
+
 	/* If this is incremental protocol get replica's ruv to return to the supplier */
     if (connext->repl_protocol_version == REPL_PROTOCOL_50_INCREMENTAL)
     {
@@ -921,12 +947,14 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	 */
 	ruv_copy_and_destroy(&supplier_ruv, (RUV **)&connext->supplier_ruv);
 
+    /* incremental update protocol */
     if (connext->repl_protocol_version == REPL_PROTOCOL_50_INCREMENTAL)
     {
 		/* The supplier ruv may have changed, so let's update the referrals */
 		consumer5_set_mapping_tree_state_for_replica(replica, connext->supplier_ruv);
     }
-    else /* full protocol */
+    /* total update protocol */
+    else if (connext->repl_protocol_version == REPL_PROTOCOL_50_TOTALUPDATE)
     {
 		char *mtnstate = slapi_mtn_get_state(repl_root_sdn);
 		char **mtnreferral = slapi_mtn_get_referral(repl_root_sdn);
@@ -968,6 +996,26 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		slapi_ch_free_string(&mtnstate);
 		charray_free(mtnreferral);
 		mtnreferral = NULL;
+    }
+    /* something unexpected at this point, like REPL_PROTOCOL_UNKNOWN */
+    else
+    {
+		/* TEL 20120529: This condition isn't supposed to happen, but it
+		 * has been observed in the past when the consumer is under such
+		 * stress that the supplier sends additional start extops before
+		 * the consumer has finished processing an earlier one.  Fixing
+		 * the underlying race should prevent this from happening in the
+		 * future at all, but just in case it is still worth testing the
+		 * requested protocol explictly and returning an error here rather
+		 * than assuming a total update was requested. 
+		 * https://fedorahosted.org/389/ticket/374 */
+		response = NSDS50_REPL_INTERNAL_ERROR;
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
+				"Unexpected update protocol received: %d.  "
+				"Expected incremental or total.\n",
+				connid, opid, repl_root, connext->repl_protocol_version);
+		goto send_response;
     }
 
 	response = NSDS50_REPL_REPLICA_READY;
@@ -1148,6 +1196,13 @@ send_response:
 	{
 		ber_bvecfree(ruv_bervals);
 	}
+	/* connext (our hold on it at least) */
+	if (NULL != connext)
+	{
+		/* don't free it, just let go of it */
+		consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
+		connext = NULL;
+	}
 
 	return return_value;
 }
@@ -1186,8 +1241,15 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		 */
 		/* Get a hold of the connection extension object */
 		slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
-		connext = (consumer_connection_extension *)repl_con_get_ext(
-				REPL_CON_EXT_CONN, conn);
+		slapi_pblock_get (pb, SLAPI_OPERATION_ID, &opid);
+		if (opid) slapi_pblock_get (pb, SLAPI_CONN_ID, &connid);
+        
+		/* TEL 20120531: unlike the replica, exclusive access to the connext should
+		 * have been dropped at the end of the 'start' op.  the only reason we couldn't
+		 * get access to it would be if some other start or end op currently has it.
+		 * if that is the case, the result of our getting it would be unpredictable anyway.
+		 */
+		connext = consumer_connection_extension_acquire_exclusive_access(conn, connid, opid);
 		if (NULL != connext && NULL != connext->replica_acquired)
 		{
 			int zero= 0;
@@ -1265,8 +1327,6 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			}
 
 			/* Relinquish control of the replica */
-			slapi_pblock_get (pb, SLAPI_OPERATION_ID, &opid);
-			if (opid) slapi_pblock_get (pb, SLAPI_CONN_ID, &connid);
 			replica_relinquish_exclusive_access(r, connid, opid);
 			object_release ((Object*)connext->replica_acquired);
 			connext->replica_acquired = NULL;
@@ -1309,6 +1369,13 @@ free_and_return:
 	if (NULL != resp_bval)
 	{
 		ber_bvfree(resp_bval);
+	}
+	/* connext (our hold on it at least) */
+	if (NULL != connext)
+	{
+		/* don't free it, just let go of it */
+		consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
+		connext = NULL;
 	}
 
 	return return_value;

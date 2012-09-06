@@ -494,9 +494,11 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 	} else {
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
-					"Released replica\n",
+					"Released replica held by locking_purl=%s\n",
 					connid, opid,
-					slapi_sdn_get_dn(r->repl_root));
+					slapi_sdn_get_dn(r->repl_root),
+					r->locking_purl);
+
 		slapi_ch_free_string(&r->locking_purl);
 		r->repl_state_flags &= ~(REPLICA_IN_USE);
 		if (isInc)

@@ -290,7 +290,13 @@ void ldapi_initialize_changenumbers(chglog4Info *cl4, changeNumber first, change
 #define REPL_PROTOCOL_40 1
 #define REPL_PROTOCOL_50_INCREMENTAL 2
 #define REPL_PROTOCOL_50_TOTALUPDATE 3
-#define REPL_PROTOCOL_71_TOTALUPDATE 4
+/* TEL 20120529: REPL_PROTOCOL_71_TOTALUPDATE is never used in the code, and the
+ * equivalent code checking the 7.1 OID for incremental updates assigns the 
+ * protocol version as REPL_PROTOCOL_50_INCREMENTAL. One or the other of these
+ * is wrong, but there are many tests for REPL_PROTOCOL_50_TOTALUPDATE that would
+ * need to be rewritten to to make use of REPL_PROTOCOL_71_TOTALUPDATE, so it 
+ * seems safer and simpler to take this definition out. */
+/* #define REPL_PROTOCOL_71_TOTALUPDATE 4 */
 
 /* In repl_globals.c */
 int decrement_repl_active_threads();
@@ -355,11 +361,17 @@ typedef struct consumer_connection_extension
     void *supplier_ruv;        /* RUV* */
 	int isreplicationsession;
 	Slapi_Connection *connection;
+	PRLock	*lock;		   /* protects entire structure */
+	int in_use_opid;       /* the id of the operation actively using this, else -1 */
 } consumer_connection_extension;
 
 /* extension construct/destructor */
 void* consumer_connection_extension_constructor (void *object,void *parent);	
 void consumer_connection_extension_destructor (void* ext,void *object,void *parent);
+
+/* extension helpers for managing exclusive access */
+consumer_connection_extension* consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 connid, int opid);
+int consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 connid, int opid, PRBool force);
 
 /* mapping tree extension - stores replica object */
 typedef struct multimaster_mtnode_extension
