@@ -40,7 +40,7 @@
 #  include <config.h>
 #endif
 
-
+#include <malloc.h>
 #include <ldap.h>
 #undef OFF
 #undef LITTLE_ENDIAN
@@ -662,6 +662,19 @@ main( int argc, char **argv)
 		ldap_set_option( 0x1, LDAP_OPT_MEMALLOC_FN_PTRS, &memalloc_fns );
 	}
 #endif
+
+#ifdef LINUX
+	char *m = getenv( "SLAPD_MXFAST" );
+	if(m){
+		int val = atoi(m);
+		int max = 80 * (sizeof(size_t) / 4);
+
+		if(val >= 0 && val <= max){
+			mallopt(M_MXFAST, val);
+		}
+	}
+#endif
+
 	/*
 	 * Initialize NSPR very early. NSPR supports implicit initialization,
 	 * but it is not bulletproof -- so it is better to be explicit.
