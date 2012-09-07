@@ -40,7 +40,7 @@
 #  include <config.h>
 #endif
 
-
+#include <malloc.h>
 #include <ldap.h>
 #undef OFF
 #undef LITTLE_ENDIAN
@@ -660,6 +660,17 @@ main( int argc, char **argv)
 		memalloc_fns.ldapmem_realloc = (LDAP_REALLOC_CALLBACK *)slapi_ch_realloc;
 		memalloc_fns.ldapmem_free = (LDAP_FREE_CALLBACK *)_free_wrapper;
 		ldap_set_option( 0x1, LDAP_OPT_MEMALLOC_FN_PTRS, &memalloc_fns );
+	}
+#endif
+#ifdef LINUX
+	char *m = getenv( "SLAPD_MXFAST" );
+	if(m){
+		int val = atoi(m);
+		int max = 80 * (sizeof(size_t) / 4);
+
+		if(val >= 0 && val <= max){
+			mallopt(M_MXFAST, val);
+		}
 	}
 #endif
 	/*
