@@ -1549,7 +1549,7 @@ replica_cleanallruv_thread(void *arg)
         }
         while (agmt_obj){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-            if(!agmt_is_enabled(agmt)){ /* skip disabled replicas */
+            if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
                 continue;
             }
@@ -1602,7 +1602,7 @@ replica_cleanallruv_thread(void *arg)
         }
         while (agmt_obj && !slapi_is_shutting_down()){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-            if(!agmt_is_enabled(agmt)){ /* skip disabled replicas */
+            if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
                 continue;
             }
@@ -1695,7 +1695,7 @@ check_agmts_are_caught_up(Replica *replica, ReplicaId rid, char *maxcsn, Slapi_T
         }
         while (agmt_obj){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-            if(!agmt_is_enabled(agmt)){ /* skip disabled replicas */
+            if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
                 continue;
             }
@@ -1750,7 +1750,7 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
         }
         while (agmt_obj){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-            if(!agmt_is_enabled(agmt)){ /* skip disabled replicas */
+            if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
                 continue;
             }
@@ -2160,7 +2160,7 @@ delete_cleaned_rid(Replica *r, ReplicaId rid, CSN *maxcsn)
     agmt_obj = agmtlist_get_first_agreement_for_replica (r);
     while (agmt_obj){
         agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-        if(!agmt_is_enabled(agmt)){
+        if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
             agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
             continue;
         }
@@ -2337,7 +2337,7 @@ replica_abort_task_thread(void *arg)
         agmt_obj = agmtlist_get_first_agreement_for_replica (data->replica);
         while (agmt_obj){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
-            if(!agmt_is_enabled(agmt)){ /* skip disabled replicas */
+            if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
                 continue;
             }
