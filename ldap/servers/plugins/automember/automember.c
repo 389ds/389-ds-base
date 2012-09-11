@@ -2190,7 +2190,12 @@ void automember_rebuild_task_thread(void *arg){
             list = PR_LIST_HEAD(g_automember_config);
             while (list != g_automember_config) {
                 config = (struct configEntry *)list;
-                automember_update_membership(config, entries[i], NULL);
+                /* Does the entry meet scope and filter requirements? */
+                if (slapi_dn_issuffix(slapi_sdn_get_dn(td->base_dn), config->scope) &&
+                    (slapi_filter_test_simple(entries[i], config->filter) == 0))
+                {		
+                    automember_update_membership(config, entries[i], NULL);
+                }
                 list = PR_NEXT_LINK(list);
             }
         }
@@ -2385,7 +2390,11 @@ void automember_export_task_thread(void *arg){
             list = PR_LIST_HEAD(g_automember_config);
             while (list != g_automember_config) {
                 config = (struct configEntry *)list;
-                automember_update_membership(config, entries[i], ldif_fd);
+                if (slapi_dn_issuffix(slapi_sdn_get_dn(td->base_dn), config->scope) &&
+                    (slapi_filter_test_simple(entries[i], config->filter) == 0))
+                { 
+                    automember_update_membership(config, entries[i], ldif_fd);
+                }
                 list = PR_NEXT_LINK(list);
             }
         }
@@ -2572,7 +2581,11 @@ void automember_map_task_thread(void *arg){
                 list = PR_LIST_HEAD(g_automember_config);
                 while (list != g_automember_config) {
                     config = (struct configEntry *)list;
-                    automember_update_membership(config, e, ldif_fd_out);
+                    if (slapi_dn_issuffix(slapi_entry_get_dn_const(e), config->scope) &&
+                        (slapi_filter_test_simple(e, config->filter) == 0))
+                    {
+                        automember_update_membership(config, e, ldif_fd_out);
+                    }
                     list = PR_NEXT_LINK(list);
                 }
             }
