@@ -1042,6 +1042,9 @@ main( int argc, char **argv)
 		}
 	}
 
+	/* initialize the normalized DN cache */
+	ndn_cache_init();
+
 	/*
 	 * Detach ourselves from the terminal (unless running in debug mode).
 	 * We must detach before we start any threads since detach forks() on

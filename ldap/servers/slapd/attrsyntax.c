@@ -202,29 +202,6 @@ attr_syntax_new()
 }
 
 /*
- * hashNocaseString - used for case insensitive hash lookups
- */
-static PLHashNumber
-hashNocaseString(const void *key)
-{
-    PLHashNumber h = 0;
-    const unsigned char *s;
- 
-    for (s = key; *s; s++)
-        h = (h >> 28) ^ (h << 4) ^ (tolower(*s));
-    return h;
-}
-
-/*
- * hashNocaseCompare - used for case insensitive hash key comparisons
- */
-static PRIntn
-hashNocaseCompare(const void *v1, const void *v2)
-{
-	return (strcasecmp((char *)v1, (char *)v2) == 0);
-}
-
-/*
  * Given an OID, return the syntax info.  If there is more than one
  * attribute syntax with the same OID (i.e. aliases), the first one
  * will be returned.  This is usually the "canonical" one, but it may

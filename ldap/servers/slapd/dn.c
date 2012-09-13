@@ -51,6 +51,7 @@
 #include <sys/socket.h>
 #endif
 #include "slap.h"
+#include <plhash.h>
 
 #undef SDN_DEBUG
 
@@ -61,6 +62,52 @@ static void sort_rdn_avs( struct berval *avs, int count, int escape );
 static int rdn_av_cmp( struct berval *av1, struct berval *av2 );
 static void rdn_av_swap( struct berval *av1, struct berval *av2, int escape );
 
+/* normalized dn cache related definitions*/
+struct
+ndn_cache_lru
+{
+    struct ndn_cache_lru *prev;
+    struct ndn_cache_lru *next;
+    char *key;
+};
+
+struct
+ndn_cache_ctx
+{
+    struct ndn_cache_lru *head;
+    struct ndn_cache_lru *tail;
+    Slapi_Counter *cache_hits;
+    Slapi_Counter *cache_tries;
+    Slapi_Counter *cache_misses;
+    size_t cache_size;
+    size_t cache_max_size;
+    long cache_count;
+};
+
+struct
+ndn_hash_val
+{
+    char *ndn;
+    size_t len;
+    int size;
+    struct ndn_cache_lru *lru_node; /* used to speed up lru shuffling */
+};
+
+#define NDN_FLUSH_COUNT 10000 /* number of DN's to remove when cache fills up */
+#define NDN_MIN_COUNT 1000 /* the minimum number of DN's to keep in the cache */
+#define NDN_CACHE_BUCKETS 2053 /* prime number */
+
+static PLHashNumber ndn_hash_string(const void *key);
+static int ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, int *rc);
+static void ndn_cache_update_lru(struct ndn_cache_lru **node);
+static void ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len);
+static void ndn_cache_delete(char *dn);
+static void ndn_cache_flush();
+static int ndn_started = 0;
+static PRLock *lru_lock = NULL;
+static Slapi_RWLock *ndn_cache_lock = NULL;
+static struct ndn_cache_ctx *ndn_cache = NULL;
+static PLHashTable *ndn_cache_hashtable = NULL;
 
 #define ISBLANK(c)	((c) == ' ')
 #define ISBLANKSTR(s)	(((*(s)) == '2') && (*((s)+1) == '0'))
@@ -487,6 +534,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     char *ends = NULL;
     char *endd = NULL;
     char *lastesc = NULL;
+    char *udn;
     /* rdn avs for the main DN */
     char *typestart = NULL;
     int rdn_av_count = 0;
@@ -511,6 +559,14 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     if (0 == src_len) {
         src_len = strlen(src);
     }
+    /*
+     *  Check the normalized dn cache
+     */
+    if(ndn_cache_lookup(src, src_len, dest, &udn, &rc)){
+        *dest_len = strlen(*dest);
+        return rc;
+    }
+
     s = PL_strnchr(src, '\\', src_len);
     if (s) {
         *dest_len = src_len * 3;
@@ -1072,6 +1128,10 @@ bail:
         /* We terminate the str with NULL only when we allocate the str */
         *d = '\0';
     }
+    /* add this dn to the normalized dn cache */
+    if(*dest)
+        ndn_cache_add(udn, src_len, *dest, *dest_len);
+
     return rc;
 }
 
@@ -2567,3 +2627,290 @@ slapi_sdn_get_size(const Slapi_DN *sdn)
     sz += strlen(sdn->dn) + 1;
     return sz;
 }
+
+/*
+ *
+ *  Normalized DN Cache
+ *
+ */
+
+/*
+ *  Hashing function using Bernstein's method
+ */
+static PLHashNumber
+ndn_hash_string(const void *key)
+{
+    PLHashNumber hash = 5381;
+    unsigned char *x = (unsigned char *)key;
+    int c;
+
+    while ((c = *x++)){
+        hash = ((hash << 5) + hash) ^ c;
+    }
+    return hash;
+}
+
+void
+ndn_cache_init()
+{
+    if(!config_get_ndn_cache_enabled()){
+        return;
+    }
+    ndn_cache_hashtable = PL_NewHashTable( NDN_CACHE_BUCKETS, ndn_hash_string, PL_CompareStrings, PL_CompareValues, 0, 0);
+    ndn_cache = (struct ndn_cache_ctx *)slapi_ch_malloc(sizeof(struct ndn_cache_ctx));
+    ndn_cache->cache_max_size = config_get_ndn_cache_size();
+    ndn_cache->cache_hits = slapi_counter_new();
+    ndn_cache->cache_tries = slapi_counter_new();
+    ndn_cache->cache_misses = slapi_counter_new();
+    ndn_cache->cache_count = 0;
+    ndn_cache->cache_size = sizeof(struct ndn_cache_ctx) + sizeof(PLHashTable) + sizeof(PLHashTable);
+    ndn_cache->head = NULL;
+    ndn_cache->tail = NULL;
+
+    if ( NULL == ( lru_lock = PR_NewLock()) ||  NULL == ( ndn_cache_lock = slapi_new_rwlock())) {
+        char *errorbuf = NULL;
+        if(ndn_cache_hashtable){
+            PL_HashTableDestroy(ndn_cache_hashtable);
+        }
+        ndn_cache_hashtable = NULL;
+        config_set_ndn_cache_enabled(CONFIG_NDN_CACHE, "off", errorbuf, 1 );
+        slapi_counter_destroy(&ndn_cache->cache_hits);
+        slapi_counter_destroy(&ndn_cache->cache_tries);
+        slapi_counter_destroy(&ndn_cache->cache_misses);
+        slapi_ch_free((void **)&ndn_cache);
+        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_init", "Failed to create locks.  Disabling cache.\n" );
+    } else {
+        ndn_started = 1;
+    }
+}
+
+/*
+ *  Look up this dn in the ndn cache
+ */
+static int
+ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, int *rc)
+{
+    struct ndn_hash_val *ndn_ht_val = NULL;
+    char *ndn, *key;
+    int rv = 0;
+
+    if(ndn_started == 0){
+        return rv;
+    }
+    if(dn_len == 0){
+        *result = dn;
+        *rc = 0;
+        return 1;
+    }
+    slapi_counter_increment(ndn_cache->cache_tries);
+    slapi_rwlock_rdlock(ndn_cache_lock);
+    ndn_ht_val = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
+    if(ndn_ht_val){
+    	ndn_cache_update_lru(&ndn_ht_val->lru_node);
+    	slapi_counter_increment(ndn_cache->cache_hits);
+    	if(ndn_ht_val->len == dn_len ){
+    	    /* the dn was already normalized, just return the dn as the result */
+    	    *result = dn;
+    	    *rc = 0;
+    	} else {
+    	    *rc = 1; /* free result */
+            ndn = slapi_ch_malloc(ndn_ht_val->len + 1);
+            memcpy(ndn, ndn_ht_val->ndn, ndn_ht_val->len);
+            ndn[ndn_ht_val->len] = '\0';
+            *result = ndn;
+        }
+        rv = 1;
+    } else {
+    	/* copy/preserve the udn, so we can use it as the key when we add dn's to the hashtable */
+    	key = slapi_ch_malloc(dn_len + 1);
+    	memcpy(key, dn, dn_len);
+    	key[dn_len] = '\0';
+    	*udn = key;
+    }
+    slapi_rwlock_unlock(ndn_cache_lock);
+
+    return rv;
+}
+
+/*
+ *  Move this lru node to the top of the list
+ */
+static void
+ndn_cache_update_lru(struct ndn_cache_lru **node)
+{
+    struct ndn_cache_lru *prev, *next, *curr_node = *node;
+
+    if(curr_node == NULL){
+        return;
+    }
+    PR_Lock(lru_lock);
+    if(curr_node->prev == NULL){
+        /* already the top node */
+        PR_Unlock(lru_lock);
+        return;
+    }
+    prev = curr_node->prev;
+    next = curr_node->next;
+    if(next){
+        next->prev = prev;
+        prev->next = next;
+    } else {
+        /* this was the tail, so reset the tail */
+        ndn_cache->tail = prev;
+        prev->next = NULL;
+    }
+    curr_node->prev = NULL;
+    curr_node->next = ndn_cache->head;
+    ndn_cache->head->prev = curr_node;
+    ndn_cache->head = curr_node;
+    PR_Unlock(lru_lock);
+}
+
+/*
+ *  Add a ndn to the cache.  Try and do as much as possible before taking the write lock.
+ */
+static void
+ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
+{
+    struct ndn_hash_val *ht_entry;
+    struct ndn_cache_lru *new_node = NULL;
+    PLHashEntry *he;
+    int size;
+
+    if(ndn_started == 0 || dn_len == 0){
+        return;
+    }
+    if(strlen(ndn) > ndn_len){
+        /* we need to null terminate the ndn */
+        *(ndn + ndn_len) = '\0';
+    }
+    /*
+     *  Calculate the approximate memory footprint of the hash entry, key, and lru entry.
+     */
+    size = (dn_len * 2) + ndn_len + sizeof(PLHashEntry) + sizeof(struct ndn_hash_val) + sizeof(struct ndn_cache_lru);
+    /*
+     *  Create our LRU node
+     */
+    new_node = (struct ndn_cache_lru *)slapi_ch_malloc(sizeof(struct ndn_cache_lru));
+    if(new_node == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_add", "Failed to allocate new lru node.\n");
+        return;
+    }
+    new_node->prev = NULL;
+    new_node->key = dn; /* dn has already been allocated */
+    /*
+     *  Its possible this dn was added to the hash by another thread.
+     */
+    slapi_rwlock_wrlock(ndn_cache_lock);
+    ht_entry = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
+    if(ht_entry){
+        /* already exists, free the node and return */
+        slapi_rwlock_unlock(ndn_cache_lock);
+        slapi_ch_free_string(&new_node->key);
+        slapi_ch_free((void **)&new_node);
+        return;
+    }
+    /*
+     *  Create the hash entry
+     */
+    ht_entry = (struct ndn_hash_val *)slapi_ch_malloc(sizeof(struct ndn_hash_val));
+    if(ht_entry == NULL){
+        slapi_rwlock_unlock(ndn_cache_lock);
+        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_add", "Failed to allocate new hash entry.\n");
+        slapi_ch_free_string(&new_node->key);
+        slapi_ch_free((void **)&new_node);
+        return;
+    }
+    ht_entry->ndn = slapi_ch_malloc(ndn_len + 1);
+    memcpy(ht_entry->ndn, ndn, ndn_len);
+    ht_entry->ndn[ndn_len] = '\0';
+    ht_entry->len = ndn_len;
+    ht_entry->size = size;
+    ht_entry->lru_node = new_node;
+    /*
+     *  Check if our cache is full
+     */
+    PR_Lock(lru_lock); /* grab the lru lock now, as ndn_cache_flush needs it */
+    if(ndn_cache->cache_max_size != 0 && ((ndn_cache->cache_size + size) > ndn_cache->cache_max_size)){
+        ndn_cache_flush();
+    }
+    /*
+     * Set the ndn cache lru nodes
+     */
+    if(ndn_cache->head == NULL && ndn_cache->tail == NULL){
+        /* this is the first node */
+        ndn_cache->head = new_node;
+        ndn_cache->tail = new_node;
+        new_node->next = NULL;
+    } else {
+        new_node->next = ndn_cache->head;
+        ndn_cache->head->prev = new_node;
+    }
+    ndn_cache->head = new_node;
+    PR_Unlock(lru_lock);
+    /*
+     *  Add the new object to the hashtable, and update our stats
+     */
+    he = PL_HashTableAdd(ndn_cache_hashtable, new_node->key, (void *)ht_entry);
+    if(he == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_add", "Failed to add new entry to hash(%s)\n",dn);
+    } else {
+        ndn_cache->cache_count++;
+        ndn_cache->cache_size += size;
+    }
+    slapi_rwlock_unlock(ndn_cache_lock);
+}
+
+/*
+ *  cache is full, remove the least used dn's.  lru_lock/ndn_cache write lock are already taken
+ */
+static void
+ndn_cache_flush()
+{
+    struct ndn_cache_lru *node, *next, *flush_node;
+    int i;
+
+    node = ndn_cache->tail;
+    for(i = 0; i < NDN_FLUSH_COUNT && ndn_cache->cache_count > NDN_MIN_COUNT; i++){
+        flush_node = node;
+        /* update the lru */
+        next = node->prev;
+        next->next = NULL;
+        ndn_cache->tail = next;
+        node = next;
+        /* now update the hash */
+        ndn_cache->cache_count--;
+        ndn_cache_delete(flush_node->key);
+        slapi_ch_free_string(&flush_node->key);
+        slapi_ch_free((void **)&flush_node);
+    }
+
+    slapi_log_error( SLAPI_LOG_CACHE, "ndn_cache_flush","Flushed cache.\n");
+}
+
+/* this is already "write" locked from ndn_cache_add */
+static void
+ndn_cache_delete(char *dn)
+{
+    struct ndn_hash_val *ht_val;
+
+    ht_val = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
+    if(ht_val){
+        ndn_cache->cache_size -= ht_val->size;
+        slapi_ch_free_string(&ht_val->ndn);
+        PL_HashTableRemove(ndn_cache_hashtable, dn);
+    }
+}
+/* stats for monitor */
+void
+ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, long *count)
+{
+    slapi_rwlock_rdlock(ndn_cache_lock);
+    *hits = slapi_counter_get_value(ndn_cache->cache_hits);
+    *tries = slapi_counter_get_value(ndn_cache->cache_tries);
+    *size = ndn_cache->cache_size;
+    *max_size = ndn_cache->cache_max_size;
+    *count = ndn_cache->cache_count;
+    slapi_rwlock_unlock(ndn_cache_lock);
+}
+

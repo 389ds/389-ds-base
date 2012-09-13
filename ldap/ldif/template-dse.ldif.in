@@ -53,9 +53,10 @@ nsslapd-auditlog-maxlogsize: 100
 nsslapd-auditlog-logrotationtime: 1
 nsslapd-auditlog-logrotationtimeunit: day
 nsslapd-rootdn: %rootdn%
+nsslapd-rootpw: %ds_passwd%
 nsslapd-maxdescriptors: 1024
 nsslapd-max-filter-nest-level: 40
-nsslapd-rootpw: %ds_passwd%
+nsslapd-ndn-cache-enabled: off
 
 dn: cn=features,cn=config
 objectclass: top

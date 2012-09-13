@@ -384,12 +384,14 @@ Slapi_DN *slapi_sdn_init_normdn_ndn_passin(Slapi_DN *sdn, const char *dn);
 Slapi_DN *slapi_sdn_init_normdn_passin(Slapi_DN *sdn, const char *dn);
 char *slapi_dn_normalize_original( char *dn );
 char *slapi_dn_normalize_case_original( char *dn );
+void ndn_cache_init();
+void ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, long *count);
+#define NDN_DEFAULT_SIZE 20971520 /* 20mb - size of normalized dn cache */
 
 /* filter.c */
 int filter_flag_is_set(const Slapi_Filter *f,unsigned char flag);
 char *slapi_filter_to_string(const Slapi_Filter *f, char *buffer, size_t bufsize);
-char *
-slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t *bufsize );
+char *slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t *bufsize );
 
 /* operation.c */
 

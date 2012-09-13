@@ -250,22 +250,6 @@ dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int 
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
-#if 0
-/*
- * hashNocaseString - used for case insensitive hash lookups
- */
-static PLHashNumber
-hashNocaseString(const void *key)
-{
-    PLHashNumber h = 0;
-    const unsigned char *s;
-
-    for (s = key; *s; s++)
-        h = (h >> 28) ^ (h << 4) ^ (tolower(*s));
-    return h;
-}
-#endif
-
 static const char *
 skipWS(const char *s)
 {
@@ -277,7 +261,6 @@ skipWS(const char *s)
 	}
 	return s;
 }
-
 
 /*
  * like strchr() but strings within single quotes are skipped.

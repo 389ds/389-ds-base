@@ -2012,6 +2012,8 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DISK_GRACE_PERIOD "nsslapd-disk-monitoring-grace-period"
 #define CONFIG_DISK_PRESERVE_LOGGING "nsslapd-disk-monitoring-preserve-logging"
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
+#define CONFIG_NDN_CACHE "nsslapd-ndn-cache-enabled"
+#define CONFIG_NDN_CACHE_SIZE "nsslapd-ndn-cache-max-size"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2247,6 +2249,10 @@ typedef struct _slapdFrontendConfig {
   int disk_grace_period;
   int disk_preserve_logging;
   int disk_logging_critical;
+
+  /* normalized dn cache */
+  int ndn_cache_enabled;
+  size_t ndn_cache_max_size;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

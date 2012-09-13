@@ -691,6 +691,14 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_preserve_logging,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_preserve_logging},
+	{CONFIG_NDN_CACHE, config_set_ndn_cache_enabled,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ndn_cache_enabled, CONFIG_INT,
+		(ConfigGetFunc)config_get_ndn_cache_enabled},
+	{CONFIG_NDN_CACHE_SIZE, config_set_ndn_cache_max_size,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ndn_cache_max_size,
+		CONFIG_INT, (ConfigGetFunc)config_get_ndn_cache_size},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -704,7 +712,7 @@ static struct config_get_and_set {
 /*
  * hashNocaseString - used for case insensitive hash lookups
  */
-static PLHashNumber
+PLHashNumber
 hashNocaseString(const void *key)
 {
     PLHashNumber h = 0;
@@ -718,7 +726,7 @@ hashNocaseString(const void *key)
 /*
  * hashNocaseCompare - used for case insensitive hash key comparisons
  */
-static PRIntn
+PRIntn
 hashNocaseCompare(const void *v1, const void *v2)
 {
 	return (strcasecmp((char *)v1, (char *)v2) == 0);
@@ -1092,6 +1100,8 @@ FrontendConfig_init () {
   cfg->disk_grace_period = 60; /* 1 hour */
   cfg->disk_preserve_logging = LDAP_OFF;
   cfg->disk_logging_critical = LDAP_OFF;
+  cfg->ndn_cache_enabled = LDAP_OFF;
+  cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -1304,6 +1314,42 @@ config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf,
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapdFrontendConfig->disk_grace_period = period;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+
+int
+config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->ndn_cache_enabled), errorbuf, apply);
+
+    return retVal;
+}
+
+int
+config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    long size;
+    int retVal = LDAP_SUCCESS;
+
+    size = atol(value);
+    if(size < 0){
+        size = 0; /* same as -1 */
+    }
+    if(size > 0 && size < 1024000){
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "ndn_cache_max_size too low(%d), changing to "
+            "%d bytes.\n",(int)size, NDN_DEFAULT_SIZE);
+        size = NDN_DEFAULT_SIZE;
+    }
+    if(apply){
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->ndn_cache_max_size = size;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
@@ -5213,6 +5259,27 @@ config_get_max_filter_nest_level()
 	return retVal;
 }
 
+size_t
+config_get_ndn_cache_size(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    size_t retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->ndn_cache_max_size;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+    return retVal;
+}
+
+int
+config_get_ndn_cache_enabled(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->ndn_cache_enabled;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+    return retVal;
+}
 
 char *
 config_get_basedn() {
