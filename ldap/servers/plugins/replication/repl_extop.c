@@ -46,7 +46,10 @@
 #include "repl5.h"
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
-
+#define ENABLE_TEST_TICKET_374
+#ifdef ENABLE_TEST_TICKET_374
+#include <unistd.h> /* for usleep */
+#endif
 
 /*
  * repl_extop.c - there are two types of functions in this file:
@@ -902,13 +905,12 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	}
 
 	/* remove this code once ticket 374 is fixed */
-#define ENABLE_TEST_TICKET_374
 #ifdef ENABLE_TEST_TICKET_374
 	if (getenv("SLAPD_TEST_TICKET_374") && (opid > 20)) {
 		int i = 0;
 		int max = 480 * 5;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-						"conn=%d op=%d repl=\"%s\": "
+						"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 						"374 - Starting sleep: connext->repl_protocol_version == %d\n",
 						connid, opid, repl_root, connext->repl_protocol_version);
         
@@ -917,7 +919,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		}
         
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-						"conn=%d op=%d repl=\"%s\": "
+						"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 						"374 - Finished sleep: connext->repl_protocol_version == %d\n",
 						connid, opid, repl_root, connext->repl_protocol_version);
 	}
