@@ -59,7 +59,9 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#if defined(HAVE_MNTENT_H)
 #include <mntent.h>
+#endif
 #endif
 #include <time.h>
 #include <signal.h>
