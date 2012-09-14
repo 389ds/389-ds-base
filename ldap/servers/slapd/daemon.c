@@ -82,6 +82,7 @@
 #endif /* NEED_FILIO */
 #endif /* !defined( _WIN32 ) */
 /* for some reason, linux tty stuff defines CTIME */
+#include <stdio.h>
 #ifdef LINUX
 #undef CTIME
 #include <sys/statfs.h>
@@ -94,7 +95,6 @@
 #include "snmp_collator.h"
 #include <private/pprio.h>
 #include <ssl.h>
-#include <stdio.h>
 #include "fe.h"
 
 #if defined(ENABLE_LDAPI)
@@ -484,7 +484,7 @@ time_thread(void *nothing)
 char *
 disk_mon_get_mount_point(char *dir)
 {
-    struct mnttab *mnt;
+    struct mnttab mnt;
     struct stat s;
     dev_t dev_id;
     FILE *fp;
@@ -497,12 +497,12 @@ disk_mon_get_mount_point(char *dir)
 
     dev_id = s.st_dev;
 
-    while((mnt = getmntent(fp))){
-        if (stat(mnt->mnt_mountp, &s) != 0) {
+    while((0 = getmntent(fp, &mnt))){
+        if (stat(mnt.mnt_mountp, &s) != 0) {
             continue;
         }
         if (s.st_dev == dev_id) {
-            return (slapi_ch_strdup(mnt->mnt_mountp));
+            return (slapi_ch_strdup(mnt.mnt_mountp));
         }
     }
 
