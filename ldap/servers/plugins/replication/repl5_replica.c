@@ -2829,7 +2829,7 @@ _replica_reap_tombstones(void *arg)
 		ctrls[2] = NULL;
 		pb = slapi_pblock_new();
 		slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(replica->repl_root),
-									 LDAP_SCOPE_SUBTREE, "(&(objectclass=nstombstone)(nscpentrydn=*))",
+									 LDAP_SCOPE_SUBTREE, "(objectclass=nstombstone)",
 									 attrs, 0, ctrls, NULL,
 									 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
 

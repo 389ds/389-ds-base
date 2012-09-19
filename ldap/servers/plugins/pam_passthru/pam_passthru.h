@@ -63,6 +63,7 @@
  */
 #define PAM_PASSTHRU_PLUGIN_SUBSYSTEM   "pam_passthru-plugin"   /* for logging */
 #define PAM_PASSTHRU_INT_POSTOP_DESC    "PAM Passthru internal postop plugin"
+#define PAM_PASSTHRU_PREOP_DESC         "PAM Passthru preop plugin"
 #define PAM_PASSTHRU_POSTOP_DESC        "PAM Passthru postop plugin"
 
 #define PAM_PASSTHRU_ASSERT( expr )		PR_ASSERT( expr )

@@ -108,7 +108,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     Slapi_Mods smods_generated = {0};
     Slapi_Mods smods_generated_wsi = {0};
     Slapi_Operation *operation;
-    int dblock_acquired= 0;
     int is_replicated_operation= 0;
     int is_fixup_operation = 0;
     entry_address new_addr;
@@ -204,7 +203,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
      * the backend has committed the change and released
      * the dblock. Acquire the dblock again for them
      * if OP_FLAG_ACTION_INVOKE_FOR_REPLOP is set.
-     */
+     *
+     * SERIALLOCK is moved to dblayer_txn_begin along with exposing be
+     * transaction to plugins (see slapi_back_transaction_* APIs).
+     *
     if(SERIALLOCK(li) &&
        (!operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP) ||
         operation_is_flag_set(operation,OP_FLAG_ACTION_INVOKE_FOR_REPLOP)))
@@ -212,536 +214,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         dblayer_lock_backend(be);
         dblock_acquired= 1;
     }
-
-    rc = 0;
-    rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
-    rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY);
-    rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_NEWPARENT_ENTRY);
-    rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_TARGET_ENTRY);
-    while(rc!=0)
-    {
-        /* JCM - copying entries can be expensive... should optimize */
-        /* 
-         * Some present state information is passed through the PBlock to the
-         * backend pre-op plugin. To ensure a consistent snapshot of this state
-         * we wrap the reading of the entry with the dblock.
-         */
-        /* <new rdn>,<new superior> */
-        if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
-        {
-            /* see if an entry with the new name already exists */
-            done_with_pblock_entry(pb,SLAPI_MODRDN_EXISTING_ENTRY); /* Could be through this multiple times */
-            /* newrdn is normalized, bu tno need to be case-ignored as 
-             * it's passed to slapi_sdn_init_normdn_byref */
-            slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
-            slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
-            newdn= moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn);
-            slapi_sdn_set_dn_passin(&dn_newdn,newdn);
-            new_addr.sdn = &dn_newdn;
-            new_addr.udn = NULL;
-            /* check dn syntax on newdn */
-            ldap_result_code = slapi_dn_syntax_check(pb,
-                                           (char *)slapi_sdn_get_ndn(&dn_newdn), 1);
-            if (ldap_result_code)
-            {
-                ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-                goto error_return;
-            }
-            new_addr.uniqueid = NULL;
-            ldap_result_code= get_copy_of_entry(pb, &new_addr, &txn, SLAPI_MODRDN_EXISTING_ENTRY, 0);
-            if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
-               ldap_result_code==LDAP_INVALID_DN_SYNTAX)
-            {
-                goto error_return;
-            }
-            free_modrdn_existing_entry = 1; /* need to free it */
-        }
-
-        /* <old superior> */
-        if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY))
-        {
-            /* find and lock the old parent entry */
-            done_with_pblock_entry(pb,SLAPI_MODRDN_PARENT_ENTRY); /* Could be through this multiple times */
-            oldparent_addr.sdn = &dn_parentdn;
-            oldparent_addr.uniqueid = NULL;            
-            ldap_result_code= get_copy_of_entry(pb, &oldparent_addr, &txn, SLAPI_MODRDN_PARENT_ENTRY, !is_replicated_operation);
-        }
-
-        /* <new superior> */
-        if(slapi_sdn_get_ndn(dn_newsuperiordn)!=NULL &&
-           slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_NEWPARENT_ENTRY))
-        {
-            /* find and lock the new parent entry */
-            done_with_pblock_entry(pb,SLAPI_MODRDN_NEWPARENT_ENTRY); /* Could be through this multiple times */
-            /* Check that this really is a new superior, 
-             * and not the same old one. Compare parentdn & newsuperior */
-            if (slapi_sdn_compare(dn_newsuperiordn, &dn_parentdn) == 0)
-            {
-                slapi_sdn_done(dn_newsuperiordn);
-            }
-            else
-            {
-                entry_address my_addr;
-                if (is_replicated_operation)
-                {
-                    /* If this is a replicated operation,
-                     * then should fetch new superior with uniqueid */
-                    slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS,
-                                                        &newsuperior_addr);
-                }
-                else
-                {
-                    my_addr.sdn = dn_newsuperiordn;
-                    my_addr.uniqueid = NULL;
-                    newsuperior_addr = &my_addr;
-                }
-                ldap_result_code= get_copy_of_entry(pb, newsuperior_addr, &txn, SLAPI_MODRDN_NEWPARENT_ENTRY, !is_replicated_operation);
-            }
-        }
-
-        /* <old rdn>,<old superior> */
-        if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_TARGET_ENTRY))
-        {
-            /* find and lock the entry we are about to modify */
-            done_with_pblock_entry(pb,SLAPI_MODRDN_TARGET_ENTRY); /* Could be through this multiple times */
-            slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
-            ldap_result_code= get_copy_of_entry(pb, old_addr, &txn, SLAPI_MODRDN_TARGET_ENTRY, !is_replicated_operation);
-            if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
-               ldap_result_code==LDAP_INVALID_DN_SYNTAX)
-            {
-                /* JCM - Usually the call to find_entry2modify would generate the result code. */
-                /* JCM !!! */
-                goto error_return;
-            }
-        }
-        /* Call the Backend Pre ModRDN plugins */
-        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-        rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN);
-        if(rc==-1)
-        {
-            /* 
-             * Plugin indicated some kind of failure,
-             * or that this Operation became a No-Op.
-             */
-            if (!ldap_result_code) {
-                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-            }
-            if (!opreturn) {
-                slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
-            }
-            if (!opreturn) {
-                slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc );
-            }
-            goto error_return;
-        }
-        /*
-         * (rc!=-1) means that the plugin changed things, so we go around
-         * the loop once again to get the new present state.
-         */
-        /* JCMREPL - Warning: A Plugin could cause an infinite loop by always returning a result code that requires some action. */
-    }
-
-    /* find and lock the entry we are about to modify */
-    /* JCMREPL - Argh, what happens about the stinking referrals? */
-    slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
-    e = find_entry2modify( pb, be, old_addr, &txn );
-    if ( e == NULL )
-    {
-        ldap_result_code= -1;
-        goto error_return; /* error result sent by find_entry2modify() */
-    }
-    e_in_cache = 1; /* e is in the cache and locked */
-    /* Check that an entry with the same DN doesn't already exist. */
-    {
-        Slapi_Entry *entry;
-        slapi_pblock_get( pb, SLAPI_MODRDN_EXISTING_ENTRY, &entry);
-        if((entry != NULL) && 
-            /* allow modrdn even if the src dn and dest dn are identical */
-           (0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
-                                   (const Slapi_DN *)sdn)))
-        {
-            ldap_result_code= LDAP_ALREADY_EXISTS;
-            goto error_return;
-        }
-    }
-
-    /* Fetch and lock the parent of the entry that is moving */
-    oldparent_addr.sdn = &dn_parentdn;
-    oldparent_addr.uniqueid = NULL;            
-    parententry = find_entry2modify_only( pb, be, &oldparent_addr, &txn );
-    modify_init(&parent_modify_context,parententry);
-
-    /* Fetch and lock the new parent of the entry that is moving */            
-    if(slapi_sdn_get_ndn(dn_newsuperiordn) != NULL)
-    {
-        slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS, &newsuperior_addr);
-        newparententry = find_entry2modify_only( pb, be, newsuperior_addr, &txn );
-        modify_init(&newparent_modify_context,newparententry);
-    }
-
-    opcsn = operation_get_csn (operation);
-    if (!is_fixup_operation)
-    {
-        if ( opcsn == NULL && operation->o_csngen_handler)
-        {
-            /*
-             * Current op is a user request. Opcsn will be assigned
-             * if the dn is in an updatable replica.
-             */
-            opcsn = entry_assign_operation_csn ( pb, e->ep_entry, parententry ? parententry->ep_entry : NULL );
-        }
-        if ( opcsn != NULL )
-        {
-            entry_set_maxcsn (e->ep_entry, opcsn);
-        }
-    }
-
-    /*
-     * Now that we have the old entry, we reset the old DN and recompute
-     * the new DN.  Why?  Because earlier when we computed the new DN, we did
-     * not have the old entry, so we used the DN that was presented as the
-     * target DN in the ModRDN operation itself, and we would prefer to
-     * preserve the case and spacing that are in the actual entry's DN
-     * instead.  Otherwise, a ModRDN operation will potentially change an
-     * entry's entire DN (at least with respect to case and spacing).
      */
-    slapi_sdn_copy( slapi_entry_get_sdn_const( e->ep_entry ), sdn );
-    slapi_pblock_set( pb, SLAPI_MODRDN_TARGET_SDN, sdn );
-    if (newparententry != NULL) {
-        /* don't forget we also want to preserve case of new superior */
-        if (NULL == dn_newsuperiordn) {
-            dn_newsuperiordn = slapi_sdn_dup(
-                           slapi_entry_get_sdn_const(newparententry->ep_entry));
-        } else {
-            slapi_sdn_copy(slapi_entry_get_sdn_const(newparententry->ep_entry),
-                           dn_newsuperiordn);
-        }
-        slapi_pblock_set( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, dn_newsuperiordn );
-    }
-    slapi_sdn_set_dn_passin(&dn_newdn,
-                        moddn_get_newdn(pb, sdn, &dn_newrdn, dn_newsuperiordn));
-
-    /* Check that we're allowed to add an entry below the new superior */
-    if ( newparententry == NULL )
-    {
-        /* There may not be a new parent because we don't intend there to be one. */
-        if(slapi_sdn_get_ndn(dn_newsuperiordn)!=NULL)
-        {
-            /* If the new entry is to be a suffix, and we're root, then it's OK that the new parent doesn't exist */
-            if (!(slapi_be_issuffix(pb->pb_backend, &dn_newdn)) && isroot)
-            {
-                /* Here means that we didn't find the parent */
-                int err = 0;
-                Slapi_DN ancestorsdn;
-                struct backentry *ancestorentry;
-                slapi_sdn_init(&ancestorsdn);
-                ancestorentry= dn2ancestor(be,&dn_newdn,&ancestorsdn,&txn,&err);
-                CACHE_RETURN( &inst->inst_cache, &ancestorentry );
-                ldap_result_matcheddn= slapi_ch_strdup((char *) slapi_sdn_get_dn(&ancestorsdn));
-                ldap_result_code= LDAP_NO_SUCH_OBJECT;
-                LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_back_modrdn: New superior "
-                            "does not exist matched %s, newsuperior = %s\n", 
-                            ldap_result_matcheddn == NULL ? "NULL" :
-                            ldap_result_matcheddn,
-                            slapi_sdn_get_ndn(dn_newsuperiordn), 0 );
-                slapi_sdn_done(&ancestorsdn);
-                goto error_return;
-               }
-        }
-    }
-    else
-    {
-        ldap_result_code= plugin_call_acl_plugin (pb, newparententry->ep_entry, NULL, NULL, SLAPI_ACL_ADD, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
-        if ( ldap_result_code != LDAP_SUCCESS )
-        {
-            ldap_result_message= errbuf;
-            LDAPDebug( LDAP_DEBUG_TRACE, "No access to new superior.\n", 0, 0, 0 );
-            goto error_return;
-        }
-    }
-
-    /* Check that the target entry has a parent */
-    if ( parententry == NULL )
-    {
-        /* If the entry a suffix, and we're root, then it's OK that the parent doesn't exist */
-        if (!(slapi_be_issuffix(pb->pb_backend, sdn)) && isroot)
-        {
-            /* Here means that we didn't find the parent */
-            ldap_result_matcheddn = "NULL";
-            ldap_result_code= LDAP_NO_SUCH_OBJECT;
-            LDAPDebug( LDAP_DEBUG_TRACE, "Parent does not exist matched %s, parentdn = %s\n", 
-                ldap_result_matcheddn, slapi_sdn_get_ndn(&dn_parentdn), 0 );
-            goto error_return;
-        }
-    }
-
-    /* If it is a replicated Operation or "subtree-rename" is on, 
-     * it's allowed to rename entries with children */
-    if ( !is_replicated_operation && !entryrdn_get_switch() &&
-         slapi_entry_has_children( e->ep_entry ))
-    {
-       ldap_result_code = LDAP_NOT_ALLOWED_ON_NONLEAF;
-       goto error_return;
-    } 
-     
-    /*
-     * JCM - All the child entries must be locked in the cache, so the size of
-     * subtree that can be renamed is limited by the cache size.
-     */
-
-    /* Save away a copy of the entry, before modifications */
-    slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( e->ep_entry ));
-    
-    /* create a copy of the entry and apply the changes to it */
-    if ( (ec = backentry_dup( e )) == NULL )
-    {
-        ldap_result_code= LDAP_OPERATIONS_ERROR;
-        goto error_return;
-    }
-
-    /* JCMACL - Should be performed before the child check. */
-    /* JCMACL - Why is the check performed against the copy, rather than the existing entry? */
-    ldap_result_code = plugin_call_acl_plugin (pb, ec->ep_entry,
-                            NULL /*attr*/, NULL /*value*/, SLAPI_ACL_WRITE,
-                            ACLPLUGIN_ACCESS_MODRDN,  &errbuf );
-    if ( ldap_result_code != LDAP_SUCCESS )
-    {
-        goto error_return;
-    }
-
-    /* Set the new dn to the copy of the entry */
-    slapi_entry_set_sdn( ec->ep_entry, &dn_newdn );
-    if (entryrdn_get_switch()) { /* subtree-rename: on */
-        Slapi_RDN srdn;
-        /* Set the new rdn to the copy of the entry; store full dn in e_srdn */
-        slapi_rdn_init_all_sdn(&srdn, &dn_newdn);
-        slapi_entry_set_srdn(ec->ep_entry, &srdn);
-        slapi_rdn_done(&srdn);
-    }
-
-    /* create it in the cache - prevents others from creating it */
-    if (( cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0 ) ) {
-        ec_in_cache = 0; /* not in cache */
-        /* allow modrdn even if the src dn and dest dn are identical */
-        if ( 0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
-                                    (const Slapi_DN *)sdn) ) {
-            /* somebody must've created it between dn2entry() and here */
-            /* JCMREPL - Hmm... we can't permit this to happen...? */
-            ldap_result_code= LDAP_ALREADY_EXISTS;
-            goto error_return;
-        }
-        /* so if the old dn is the same as the new dn, the entry will not be cached
-           until it is replaced with cache_replace */
-    } else {
-        ec_in_cache = 1;
-    }
-
-    /* Build the list of modifications required to the existing entry */
-    {
-        slapi_mods_init(&smods_generated,4);
-        slapi_mods_init(&smods_generated_wsi,4);
-        ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(sdn),
-                            ec, &smods_generated_wsi, is_replicated_operation);
-        if (ldap_result_code != LDAP_SUCCESS) {
-            if (ldap_result_code == LDAP_UNWILLING_TO_PERFORM)
-                ldap_result_message = "Modification of old rdn attribute type not allowed.";
-            goto error_return;
-        }
-        if (!entryrdn_get_switch()) /* subtree-rename: off */
-        {
-            /*
-            * Remove the old entrydn index entry, and add the new one.
-            */
-            slapi_mods_add( &smods_generated, LDAP_MOD_DELETE, LDBM_ENTRYDN_STR,
-                        strlen(backentry_get_ndn(e)), backentry_get_ndn(e));
-            slapi_mods_add( &smods_generated, LDAP_MOD_REPLACE, LDBM_ENTRYDN_STR,
-                        strlen(backentry_get_ndn(ec)), backentry_get_ndn(ec));
-        }
-
-        /*
-         * Update parentid if we have a new superior.
-         */
-        if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL) {
-            char buf[40]; /* Enough for an ID */
-            
-            if (parententry != NULL) {
-                sprintf( buf, "%lu", (u_long)parententry->ep_id );
-                slapi_mods_add_string(&smods_generated, LDAP_MOD_DELETE, LDBM_PARENTID_STR, buf);
-            }
-            if (newparententry != NULL) {
-                sprintf( buf, "%lu", (u_long)newparententry->ep_id );
-                slapi_mods_add_string(&smods_generated, LDAP_MOD_REPLACE, LDBM_PARENTID_STR, buf);
-            }
-        }
-    }
-
-       slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-       slapi_mods_init_byref(&smods_operation_wsi,mods);
-
-    /*
-     * We are about to pass the last abandon test, so from now on we are
-     * committed to finish this operation. Set status to "will complete"
-     * before we make our last abandon check to avoid race conditions in
-     * the code that processes abandon operations.
-     */
-    if (operation) {
-        operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
-    }
-    if ( slapi_op_abandoned( pb ) ) {
-        goto error_return;
-    }
-
-    /*
-     * First, we apply the generated mods that do not involve any state information.
-     */
-    if ( entry_apply_mods( ec->ep_entry, slapi_mods_get_ldapmods_byref(&smods_generated) ) != 0 )
-    {
-        ldap_result_code= LDAP_OPERATIONS_ERROR;
-        LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods failed for entry %s\n",
-                   slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
-        goto error_return;
-    }
-
-    /*
-     * Now we apply the generated mods that do involve state information.
-     */
-    if (slapi_mods_get_num_mods(&smods_generated_wsi)>0)
-    {
-        if (entry_apply_mods_wsi(ec->ep_entry, &smods_generated_wsi, operation_get_csn(operation), is_replicated_operation)!=0)
-        {
-            ldap_result_code= LDAP_OPERATIONS_ERROR;
-            LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi failed for entry %s\n",
-                       slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
-            goto error_return;
-        }
-    }
-
-    /*
-     * Now we apply the operation mods that do involve state information.
-     * (Operational attributes).
-     * The following block looks redundent to the one above. But it may
-     * be necessary - check the comment for version 1.3.16.22.2.76 of
-     * this file and compare that version with its previous one.
-     */
-    if (slapi_mods_get_num_mods(&smods_operation_wsi)>0)
-    {
-        if (entry_apply_mods_wsi(ec->ep_entry, &smods_operation_wsi, operation_get_csn(operation), is_replicated_operation)!=0)
-        {
-            ldap_result_code= LDAP_OPERATIONS_ERROR;
-            LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi (operational attributes) failed for entry %s\n",
-                       slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
-            goto error_return;
-        }
-    }
-    /* check that the entry still obeys the schema */
-    if ( slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
-        ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
-        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-        goto error_return;
-    }
-
-    /* Check attribute syntax if any new values are being added for the new RDN */
-    if (slapi_mods_get_num_mods(&smods_operation_wsi)>0)
-    {
-        if (slapi_mods_syntax_check(pb, smods_generated_wsi.mods, 0) != 0)
-        {
-            ldap_result_code = LDAP_INVALID_SYNTAX;
-            slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-            goto error_return;
-        }
-    }
-
-    /*
-     * Update the DN CSN of the entry.
-     */
-    entry_add_dncsn(ec->ep_entry,operation_get_csn(operation));
-    entry_add_rdn_csn(ec->ep_entry,operation_get_csn(operation));
-
-    /*
-     * If the entry has a new superior then the subordinate count
-     * of the parents must be updated.
-     */    
-    if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL)
-    {
-        /* 
-         * Update the subordinate count of the parents to reflect the moved child.
-         */
-        if ( parententry!=NULL )
-        {
-            retval = parent_update_on_childchange(&parent_modify_context,
-                                                  PARENTUPDATE_DEL, NULL);
-            /* The parent modify context now contains info needed later */
-            if (0 != retval)
-            {
-                goto error_return;
-            }
-        }
-        if ( newparententry!=NULL )
-        {
-            retval = parent_update_on_childchange(&newparent_modify_context,
-                                                  PARENTUPDATE_ADD, NULL);
-            /* The newparent modify context now contains info needed later */
-            if (0 != retval)
-            {
-                goto error_return;
-            }
-        }
-    }
-
-    /*
-     * If the entry has children then we're going to have to rename them all.
-     */
-    if (slapi_entry_has_children( e->ep_entry ))
-    {
-        /* JCM - This is where the subtree lock will appear */
-        if (entryrdn_get_switch()) /* subtree-rename: on */
-        {
-            children = moddn_get_children(&txn, pb, be, e, sdn,
-                                          &child_entries, &child_dns);
-        }
-        else
-        {
-            children = moddn_get_children(&txn, pb, be, e, sdn,
-                                          &child_entries, NULL);
-        }
-
-        /* JCM - Shouldn't we perform an access control check on all the children. */
-        /* JCMREPL - But, the replication client has total rights over its subtree, so no access check needed. */
-        /* JCM - A subtree move could break ACIs, static groups, and dynamic groups. */
-    }
-
-    if (!is_ruv && !is_fixup_operation) {
-        ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
-        if (-1 == ruv_c_init) {
-            LDAPDebug( LDAP_DEBUG_ANY,
-                "ldbm_back_modrdn: ldbm_txn_ruv_modify_context "
-                "failed to construct RUV modify context\n",
-                0, 0, 0);
-            ldap_result_code = LDAP_OPERATIONS_ERROR;
-            retval = 0;
-            goto error_return;
-        }
-    }
-
-    /*
-     * make copies of the originals, no need to copy the mods because
-     * we have already copied them
-     */
-    if ( (original_entry = backentry_dup( ec )) == NULL ) {
-        ldap_result_code= LDAP_OPERATIONS_ERROR;
-        goto error_return;
-    }
-    slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_ENTRY, &target_entry);
-    if ( (original_targetentry = slapi_entry_dup(target_entry)) == NULL ) {
-        ldap_result_code= LDAP_OPERATIONS_ERROR;
-        goto error_return;
-    }
-
-    slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
-    original_newrdn = slapi_ch_strdup(newrdn);
-    slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn);
-    orig_dn_newsuperiordn = slapi_sdn_dup(dn_newsuperiordn);
 
     /* 
      * So, we believe that no code up till here actually added anything
@@ -754,7 +227,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         {
             Slapi_Entry *ent = NULL;
 
-            dblayer_txn_abort(li,&txn);
+            /* don't release SERIAL LOCK */
+            dblayer_txn_abort_ext(li, &txn, PR_FALSE); 
             /* txn is no longer valid - reset slapi_txn to the parent */
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
@@ -836,7 +310,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             }
 #endif
         }
-        retval = dblayer_txn_begin(li,parent_txn,&txn);
+        if (0 == retry_count) {
+            /* First time, hold SERIAL LOCK */
+            retval = dblayer_txn_begin(be, parent_txn, &txn);
+        } else {
+            /* Otherwise, no SERIAL LOCK */
+            retval = dblayer_txn_begin_ext(li, parent_txn, &txn, PR_FALSE);
+        }
         if (0 != retval) {
             ldap_result_code= LDAP_OPERATIONS_ERROR;
             if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -845,6 +325,538 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 
         /* stash the transaction */
         slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
+
+        if (0 == retry_count) { /* just once */
+            rc = 0;
+            rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
+            rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY);
+            rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_NEWPARENT_ENTRY);
+            rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_TARGET_ENTRY);
+            while(rc!=0)
+            {
+                /* JCM - copying entries can be expensive... should optimize */
+                /* 
+                 * Some present state information is passed through the PBlock to the
+                 * backend pre-op plugin. To ensure a consistent snapshot of this state
+                 * we wrap the reading of the entry with the dblock.
+                 */
+                /* <new rdn>,<new superior> */
+                if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
+                {
+                    /* see if an entry with the new name already exists */
+                    done_with_pblock_entry(pb,SLAPI_MODRDN_EXISTING_ENTRY); /* Could be through this multiple times */
+                    /* newrdn is normalized, bu tno need to be case-ignored as 
+                     * it's passed to slapi_sdn_init_normdn_byref */
+                    slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
+                    slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
+                    newdn= moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn);
+                    slapi_sdn_set_dn_passin(&dn_newdn,newdn);
+                    new_addr.sdn = &dn_newdn;
+                    new_addr.udn = NULL;
+                    /* check dn syntax on newdn */
+                    ldap_result_code = slapi_dn_syntax_check(pb,
+                                                   (char *)slapi_sdn_get_ndn(&dn_newdn), 1);
+                    if (ldap_result_code)
+                    {
+                        ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+                        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                        goto error_return;
+                    }
+                    new_addr.uniqueid = NULL;
+                    ldap_result_code= get_copy_of_entry(pb, &new_addr, &txn, SLAPI_MODRDN_EXISTING_ENTRY, 0);
+                    if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+                       ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+                    {
+                        goto error_return;
+                    }
+                    free_modrdn_existing_entry = 1; /* need to free it */
+                }
+        
+                /* <old superior> */
+                if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY))
+                {
+                    /* find and lock the old parent entry */
+                    done_with_pblock_entry(pb,SLAPI_MODRDN_PARENT_ENTRY); /* Could be through this multiple times */
+                    oldparent_addr.sdn = &dn_parentdn;
+                    oldparent_addr.uniqueid = NULL;            
+                    ldap_result_code= get_copy_of_entry(pb, &oldparent_addr, &txn, SLAPI_MODRDN_PARENT_ENTRY, !is_replicated_operation);
+                }
+        
+                /* <new superior> */
+                if(slapi_sdn_get_ndn(dn_newsuperiordn)!=NULL &&
+                   slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_NEWPARENT_ENTRY))
+                {
+                    /* find and lock the new parent entry */
+                    done_with_pblock_entry(pb,SLAPI_MODRDN_NEWPARENT_ENTRY); /* Could be through this multiple times */
+                    /* Check that this really is a new superior, 
+                     * and not the same old one. Compare parentdn & newsuperior */
+                    if (slapi_sdn_compare(dn_newsuperiordn, &dn_parentdn) == 0)
+                    {
+                        slapi_sdn_done(dn_newsuperiordn);
+                    }
+                    else
+                    {
+                        entry_address my_addr;
+                        if (is_replicated_operation)
+                        {
+                            /* If this is a replicated operation,
+                             * then should fetch new superior with uniqueid */
+                            slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS,
+                                                                &newsuperior_addr);
+                        }
+                        else
+                        {
+                            my_addr.sdn = dn_newsuperiordn;
+                            my_addr.uniqueid = NULL;
+                            newsuperior_addr = &my_addr;
+                        }
+                        ldap_result_code= get_copy_of_entry(pb, newsuperior_addr, &txn, SLAPI_MODRDN_NEWPARENT_ENTRY, !is_replicated_operation);
+                    }
+                }
+        
+                /* <old rdn>,<old superior> */
+                if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_TARGET_ENTRY))
+                {
+                    /* find and lock the entry we are about to modify */
+                    done_with_pblock_entry(pb,SLAPI_MODRDN_TARGET_ENTRY); /* Could be through this multiple times */
+                    slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
+                    ldap_result_code= get_copy_of_entry(pb, old_addr, &txn, SLAPI_MODRDN_TARGET_ENTRY, !is_replicated_operation);
+                    if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+                       ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+                    {
+                        /* JCM - Usually the call to find_entry2modify would generate the result code. */
+                        /* JCM !!! */
+                        goto error_return;
+                    }
+                }
+                /* Call the Backend Pre ModRDN plugins */
+                slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN);
+                if(rc==-1)
+                {
+                    /* 
+                     * Plugin indicated some kind of failure,
+                     * or that this Operation became a No-Op.
+                     */
+                    if (!ldap_result_code) {
+                        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                    }
+                    if (!opreturn) {
+                        slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+                    }
+                    if (!opreturn) {
+                        slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc );
+                    }
+                    goto error_return;
+                }
+                /*
+                 * (rc!=-1) means that the plugin changed things, so we go around
+                 * the loop once again to get the new present state.
+                 */
+                /* JCMREPL - Warning: A Plugin could cause an infinite loop by always returning a result code that requires some action. */
+            }
+        
+            /* find and lock the entry we are about to modify */
+            /* JCMREPL - Argh, what happens about the stinking referrals? */
+            slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
+            e = find_entry2modify( pb, be, old_addr, &txn );
+            if ( e == NULL )
+            {
+                ldap_result_code= -1;
+                goto error_return; /* error result sent by find_entry2modify() */
+            }
+            e_in_cache = 1; /* e is in the cache and locked */
+            /* Check that an entry with the same DN doesn't already exist. */
+            {
+                Slapi_Entry *entry;
+                slapi_pblock_get( pb, SLAPI_MODRDN_EXISTING_ENTRY, &entry);
+                if((entry != NULL) && 
+                    /* allow modrdn even if the src dn and dest dn are identical */
+                   (0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
+                                           (const Slapi_DN *)sdn)))
+                {
+                    ldap_result_code= LDAP_ALREADY_EXISTS;
+                    goto error_return;
+                }
+            }
+        
+            /* Fetch and lock the parent of the entry that is moving */
+            oldparent_addr.sdn = &dn_parentdn;
+            oldparent_addr.uniqueid = NULL;            
+            parententry = find_entry2modify_only( pb, be, &oldparent_addr, &txn );
+            modify_init(&parent_modify_context,parententry);
+        
+            /* Fetch and lock the new parent of the entry that is moving */            
+            if(slapi_sdn_get_ndn(dn_newsuperiordn) != NULL)
+            {
+                slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS, &newsuperior_addr);
+                newparententry = find_entry2modify_only( pb, be, newsuperior_addr, &txn );
+                modify_init(&newparent_modify_context,newparententry);
+            }
+        
+            opcsn = operation_get_csn (operation);
+            if (!is_fixup_operation)
+            {
+                if ( opcsn == NULL && operation->o_csngen_handler)
+                {
+                    /*
+                     * Current op is a user request. Opcsn will be assigned
+                     * if the dn is in an updatable replica.
+                     */
+                    opcsn = entry_assign_operation_csn ( pb, e->ep_entry, parententry ? parententry->ep_entry : NULL );
+                }
+                if ( opcsn != NULL )
+                {
+                    entry_set_maxcsn (e->ep_entry, opcsn);
+                }
+            }
+        
+            /*
+             * Now that we have the old entry, we reset the old DN and recompute
+             * the new DN.  Why?  Because earlier when we computed the new DN, we did
+             * not have the old entry, so we used the DN that was presented as the
+             * target DN in the ModRDN operation itself, and we would prefer to
+             * preserve the case and spacing that are in the actual entry's DN
+             * instead.  Otherwise, a ModRDN operation will potentially change an
+             * entry's entire DN (at least with respect to case and spacing).
+             */
+            slapi_sdn_copy( slapi_entry_get_sdn_const( e->ep_entry ), sdn );
+            slapi_pblock_set( pb, SLAPI_MODRDN_TARGET_SDN, sdn );
+            if (newparententry != NULL) {
+                /* don't forget we also want to preserve case of new superior */
+                if (NULL == dn_newsuperiordn) {
+                    dn_newsuperiordn = slapi_sdn_dup(
+                                   slapi_entry_get_sdn_const(newparententry->ep_entry));
+                } else {
+                    slapi_sdn_copy(slapi_entry_get_sdn_const(newparententry->ep_entry),
+                                   dn_newsuperiordn);
+                }
+                slapi_pblock_set( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, dn_newsuperiordn );
+            }
+            slapi_sdn_set_dn_passin(&dn_newdn,
+                                moddn_get_newdn(pb, sdn, &dn_newrdn, dn_newsuperiordn));
+        
+            /* Check that we're allowed to add an entry below the new superior */
+            if ( newparententry == NULL )
+            {
+                /* There may not be a new parent because we don't intend there to be one. */
+                if(slapi_sdn_get_ndn(dn_newsuperiordn)!=NULL)
+                {
+                    /* If the new entry is to be a suffix, and we're root, then it's OK that the new parent doesn't exist */
+                    if (!(slapi_be_issuffix(pb->pb_backend, &dn_newdn)) && isroot)
+                    {
+                        /* Here means that we didn't find the parent */
+                        int err = 0;
+                        Slapi_DN ancestorsdn;
+                        struct backentry *ancestorentry;
+                        slapi_sdn_init(&ancestorsdn);
+                        ancestorentry= dn2ancestor(be,&dn_newdn,&ancestorsdn,&txn,&err);
+                        CACHE_RETURN( &inst->inst_cache, &ancestorentry );
+                        ldap_result_matcheddn= slapi_ch_strdup((char *) slapi_sdn_get_dn(&ancestorsdn));
+                        ldap_result_code= LDAP_NO_SUCH_OBJECT;
+                        LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_back_modrdn: New superior "
+                                    "does not exist matched %s, newsuperior = %s\n", 
+                                    ldap_result_matcheddn == NULL ? "NULL" :
+                                    ldap_result_matcheddn,
+                                    slapi_sdn_get_ndn(dn_newsuperiordn), 0 );
+                        slapi_sdn_done(&ancestorsdn);
+                        goto error_return;
+                       }
+                }
+            }
+            else
+            {
+                ldap_result_code= plugin_call_acl_plugin (pb, newparententry->ep_entry, NULL, NULL, SLAPI_ACL_ADD, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
+                if ( ldap_result_code != LDAP_SUCCESS )
+                {
+                    ldap_result_message= errbuf;
+                    LDAPDebug( LDAP_DEBUG_TRACE, "No access to new superior.\n", 0, 0, 0 );
+                    goto error_return;
+                }
+            }
+        
+            /* Check that the target entry has a parent */
+            if ( parententry == NULL )
+            {
+                /* If the entry a suffix, and we're root, then it's OK that the parent doesn't exist */
+                if (!(slapi_be_issuffix(pb->pb_backend, sdn)) && isroot)
+                {
+                    /* Here means that we didn't find the parent */
+                    ldap_result_matcheddn = "NULL";
+                    ldap_result_code= LDAP_NO_SUCH_OBJECT;
+                    LDAPDebug( LDAP_DEBUG_TRACE, "Parent does not exist matched %s, parentdn = %s\n", 
+                        ldap_result_matcheddn, slapi_sdn_get_ndn(&dn_parentdn), 0 );
+                    goto error_return;
+                }
+            }
+        
+            /* If it is a replicated Operation or "subtree-rename" is on, 
+             * it's allowed to rename entries with children */
+            if ( !is_replicated_operation && !entryrdn_get_switch() &&
+                 slapi_entry_has_children( e->ep_entry ))
+            {
+               ldap_result_code = LDAP_NOT_ALLOWED_ON_NONLEAF;
+               goto error_return;
+            } 
+             
+            /*
+             * JCM - All the child entries must be locked in the cache, so the size of
+             * subtree that can be renamed is limited by the cache size.
+             */
+        
+            /* Save away a copy of the entry, before modifications */
+            slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( e->ep_entry ));
+            
+            /* create a copy of the entry and apply the changes to it */
+            if ( (ec = backentry_dup( e )) == NULL )
+            {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
+        
+            /* JCMACL - Should be performed before the child check. */
+            /* JCMACL - Why is the check performed against the copy, rather than the existing entry? */
+            ldap_result_code = plugin_call_acl_plugin (pb, ec->ep_entry,
+                                    NULL /*attr*/, NULL /*value*/, SLAPI_ACL_WRITE,
+                                    ACLPLUGIN_ACCESS_MODRDN,  &errbuf );
+            if ( ldap_result_code != LDAP_SUCCESS )
+            {
+                goto error_return;
+            }
+        
+            /* Set the new dn to the copy of the entry */
+            slapi_entry_set_sdn( ec->ep_entry, &dn_newdn );
+            if (entryrdn_get_switch()) { /* subtree-rename: on */
+                Slapi_RDN srdn;
+                /* Set the new rdn to the copy of the entry; store full dn in e_srdn */
+                slapi_rdn_init_all_sdn(&srdn, &dn_newdn);
+                slapi_entry_set_srdn(ec->ep_entry, &srdn);
+                slapi_rdn_done(&srdn);
+            }
+        
+            /* create it in the cache - prevents others from creating it */
+            if (( cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0 ) ) {
+                ec_in_cache = 0; /* not in cache */
+                /* allow modrdn even if the src dn and dest dn are identical */
+                if ( 0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
+                                            (const Slapi_DN *)sdn) ) {
+                    /* somebody must've created it between dn2entry() and here */
+                    /* JCMREPL - Hmm... we can't permit this to happen...? */
+                    ldap_result_code= LDAP_ALREADY_EXISTS;
+                    goto error_return;
+                }
+                /* so if the old dn is the same as the new dn, the entry will not be cached
+                   until it is replaced with cache_replace */
+            } else {
+                ec_in_cache = 1;
+            }
+        
+            /* Build the list of modifications required to the existing entry */
+            {
+                slapi_mods_init(&smods_generated,4);
+                slapi_mods_init(&smods_generated_wsi,4);
+                ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(sdn),
+                                    ec, &smods_generated_wsi, is_replicated_operation);
+                if (ldap_result_code != LDAP_SUCCESS) {
+                    if (ldap_result_code == LDAP_UNWILLING_TO_PERFORM)
+                        ldap_result_message = "Modification of old rdn attribute type not allowed.";
+                    goto error_return;
+                }
+                if (!entryrdn_get_switch()) /* subtree-rename: off */
+                {
+                    /*
+                    * Remove the old entrydn index entry, and add the new one.
+                    */
+                    slapi_mods_add( &smods_generated, LDAP_MOD_DELETE, LDBM_ENTRYDN_STR,
+                                strlen(backentry_get_ndn(e)), backentry_get_ndn(e));
+                    slapi_mods_add( &smods_generated, LDAP_MOD_REPLACE, LDBM_ENTRYDN_STR,
+                                strlen(backentry_get_ndn(ec)), backentry_get_ndn(ec));
+                }
+        
+                /*
+                 * Update parentid if we have a new superior.
+                 */
+                if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL) {
+                    char buf[40]; /* Enough for an ID */
+                    
+                    if (parententry != NULL) {
+                        sprintf( buf, "%lu", (u_long)parententry->ep_id );
+                        slapi_mods_add_string(&smods_generated, LDAP_MOD_DELETE, LDBM_PARENTID_STR, buf);
+                    }
+                    if (newparententry != NULL) {
+                        sprintf( buf, "%lu", (u_long)newparententry->ep_id );
+                        slapi_mods_add_string(&smods_generated, LDAP_MOD_REPLACE, LDBM_PARENTID_STR, buf);
+                    }
+                }
+            }
+        
+               slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+               slapi_mods_init_byref(&smods_operation_wsi,mods);
+        
+            /*
+             * We are about to pass the last abandon test, so from now on we are
+             * committed to finish this operation. Set status to "will complete"
+             * before we make our last abandon check to avoid race conditions in
+             * the code that processes abandon operations.
+             */
+            if (operation) {
+                operation->o_status = SLAPI_OP_STATUS_WILL_COMPLETE;
+            }
+            if ( slapi_op_abandoned( pb ) ) {
+                goto error_return;
+            }
+        
+            /*
+             * First, we apply the generated mods that do not involve any state information.
+             */
+            if ( entry_apply_mods( ec->ep_entry, slapi_mods_get_ldapmods_byref(&smods_generated) ) != 0 )
+            {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods failed for entry %s\n",
+                           slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
+                goto error_return;
+            }
+        
+            /*
+             * Now we apply the generated mods that do involve state information.
+             */
+            if (slapi_mods_get_num_mods(&smods_generated_wsi)>0)
+            {
+                if (entry_apply_mods_wsi(ec->ep_entry, &smods_generated_wsi, operation_get_csn(operation), is_replicated_operation)!=0)
+                {
+                    ldap_result_code= LDAP_OPERATIONS_ERROR;
+                    LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi failed for entry %s\n",
+                               slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
+                    goto error_return;
+                }
+            }
+        
+            /*
+             * Now we apply the operation mods that do involve state information.
+             * (Operational attributes).
+             * The following block looks redundent to the one above. But it may
+             * be necessary - check the comment for version 1.3.16.22.2.76 of
+             * this file and compare that version with its previous one.
+             */
+            if (slapi_mods_get_num_mods(&smods_operation_wsi)>0)
+            {
+                if (entry_apply_mods_wsi(ec->ep_entry, &smods_operation_wsi, operation_get_csn(operation), is_replicated_operation)!=0)
+                {
+                    ldap_result_code= LDAP_OPERATIONS_ERROR;
+                    LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi (operational attributes) failed for entry %s\n",
+                               slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
+                    goto error_return;
+                }
+            }
+            /* check that the entry still obeys the schema */
+            if ( slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
+                ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
+                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                goto error_return;
+            }
+        
+            /* Check attribute syntax if any new values are being added for the new RDN */
+            if (slapi_mods_get_num_mods(&smods_operation_wsi)>0)
+            {
+                if (slapi_mods_syntax_check(pb, smods_generated_wsi.mods, 0) != 0)
+                {
+                    ldap_result_code = LDAP_INVALID_SYNTAX;
+                    slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                    goto error_return;
+                }
+            }
+        
+            /*
+             * Update the DN CSN of the entry.
+             */
+            entry_add_dncsn(ec->ep_entry,operation_get_csn(operation));
+            entry_add_rdn_csn(ec->ep_entry,operation_get_csn(operation));
+        
+            /*
+             * If the entry has a new superior then the subordinate count
+             * of the parents must be updated.
+             */    
+            if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL)
+            {
+                /* 
+                 * Update the subordinate count of the parents to reflect the moved child.
+                 */
+                if ( parententry!=NULL )
+                {
+                    retval = parent_update_on_childchange(&parent_modify_context,
+                                                          PARENTUPDATE_DEL, NULL);
+                    /* The parent modify context now contains info needed later */
+                    if (0 != retval)
+                    {
+                        goto error_return;
+                    }
+                }
+                if ( newparententry!=NULL )
+                {
+                    retval = parent_update_on_childchange(&newparent_modify_context,
+                                                          PARENTUPDATE_ADD, NULL);
+                    /* The newparent modify context now contains info needed later */
+                    if (0 != retval)
+                    {
+                        goto error_return;
+                    }
+                }
+            }
+        
+            /*
+             * If the entry has children then we're going to have to rename them all.
+             */
+            if (slapi_entry_has_children( e->ep_entry ))
+            {
+                /* JCM - This is where the subtree lock will appear */
+                if (entryrdn_get_switch()) /* subtree-rename: on */
+                {
+                    children = moddn_get_children(&txn, pb, be, e, sdn,
+                                                  &child_entries, &child_dns);
+                }
+                else
+                {
+                    children = moddn_get_children(&txn, pb, be, e, sdn,
+                                                  &child_entries, NULL);
+                }
+        
+                /* JCM - Shouldn't we perform an access control check on all the children. */
+                /* JCMREPL - But, the replication client has total rights over its subtree, so no access check needed. */
+                /* JCM - A subtree move could break ACIs, static groups, and dynamic groups. */
+            }
+        
+            if (!is_ruv && !is_fixup_operation) {
+                ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+                if (-1 == ruv_c_init) {
+                    LDAPDebug( LDAP_DEBUG_ANY,
+                        "ldbm_back_modrdn: ldbm_txn_ruv_modify_context "
+                        "failed to construct RUV modify context\n",
+                        0, 0, 0);
+                    ldap_result_code = LDAP_OPERATIONS_ERROR;
+                    retval = 0;
+                    goto error_return;
+                }
+            }
+        
+            /*
+             * make copies of the originals, no need to copy the mods because
+             * we have already copied them
+             */
+            if ( (original_entry = backentry_dup( ec )) == NULL ) {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
+            slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_ENTRY, &target_entry);
+            if ( (original_targetentry = slapi_entry_dup(target_entry)) == NULL ) {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
+            }
+        
+            slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
+            original_newrdn = slapi_ch_strdup(newrdn);
+            slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn);
+            orig_dn_newsuperiordn = slapi_sdn_dup(dn_newsuperiordn);
+        } /* if (0 == retry_count) just once */
 
         /* call the transaction pre modrdn plugins just after creating the transaction */
         if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN))) {
@@ -1089,7 +1101,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         goto error_return;
     }
 
-    retval = dblayer_txn_commit(li,&txn);
+    /* Release SERIAL LOCK */
+    retval = dblayer_txn_commit(be, &txn);
     /* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
     slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
     if (0 != retval)
@@ -1224,7 +1237,7 @@ error_return:
                 opreturn = -1;
                 slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
             }
-            /* call the transaction post modrdn plugins just before the commit */
+            /* call the transaction post modrdn plugins just before the abort */
             if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN))) {
                 LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN plugin "
                                "returned error code %d\n", retval );
@@ -1239,7 +1252,8 @@ error_return:
                 }
             }
 
-            dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+            /* Release SERIAL LOCK */
+            dblayer_txn_abort(be, &txn); /* abort crashes in case disk full */
             /* txn is no longer valid - reset the txn pointer to the parent */
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
         }
@@ -1317,11 +1331,6 @@ common_return:
     backentry_free(&original_parent);
     backentry_free(&original_newparent);
     slapi_entry_free(original_targetentry);
-
-    if(dblock_acquired)
-    {
-        dblayer_unlock_backend(be);
-    }
     slapi_ch_free((void**)&errbuf);
     if (retval == 0 && opcsn != NULL && !is_fixup_operation)
     {

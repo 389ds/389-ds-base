@@ -700,6 +700,7 @@ purge_entry_state_information (Slapi_PBlock *pb)
 	}
 }
 
+/* pure bepreop's -- should be done before transaction starts */
 int 
 multimaster_bepreop_add (Slapi_PBlock *pb)
 {
@@ -716,8 +717,9 @@ multimaster_bepreop_add (Slapi_PBlock *pb)
 	if (!is_fixup_operation)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
-			(void *)replica_ruv_smods_for_op);
-		if (is_replicated_operation) { 
+		                 (void *)replica_ruv_smods_for_op);
+		if (!repl5_is_betxn && is_replicated_operation) { 
+			/* if is_betxn is on, urp is called at betxn preop */
 			rc = urp_add_operation(pb);
 		}
 	}
@@ -741,8 +743,9 @@ multimaster_bepreop_delete (Slapi_PBlock *pb)
 	if(!is_fixup_operation)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
-			(void *)replica_ruv_smods_for_op);
-		if (is_replicated_operation) {
+		                 (void *)replica_ruv_smods_for_op);
+		if (!repl5_is_betxn && is_replicated_operation) { 
+			/* if is_betxn is on, urp is called at betxn preop */
 			rc = urp_delete_operation(pb);
 		}
 	}
@@ -766,8 +769,9 @@ multimaster_bepreop_modify (Slapi_PBlock *pb)
 	if(!is_fixup_operation)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
-			(void *)replica_ruv_smods_for_op);
-		if (is_replicated_operation) {
+		                 (void *)replica_ruv_smods_for_op);
+		if (!repl5_is_betxn && is_replicated_operation) { 
+			/* if is_betxn is on, urp is called at betxn preop */
 			rc = urp_modify_operation(pb);
 		}
 	}
@@ -794,14 +798,108 @@ multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 	if(!is_fixup_operation)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
-			(void *)replica_ruv_smods_for_op);
-		if (is_replicated_operation) {
+		                 (void *)replica_ruv_smods_for_op);
+		if (!repl5_is_betxn && is_replicated_operation) { 
+			/* if is_betxn is on, urp is called at betxn preop */
 			rc = urp_modrdn_operation(pb);
 		}
 	}
 
 	/* Clean up old state information */
 	purge_entry_state_information(pb);
+
+	return rc;
+}
+
+/* betxn preop's */
+int 
+multimaster_betxnpreop_add (Slapi_PBlock *pb)
+{
+	int rc= 0;
+	Slapi_Operation *op;
+	int is_replicated_operation;
+	int is_fixup_operation;
+
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
+	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
+
+	/* For replicated operations, apply URP algorithm */
+	if (!is_fixup_operation)
+	{
+		if (is_replicated_operation) { 
+			rc = urp_add_operation(pb);
+		}
+	}
+
+	return rc;
+}
+
+int 
+multimaster_betxnpreop_delete (Slapi_PBlock *pb)
+{
+	int rc= 0;
+	Slapi_Operation *op;
+	int is_replicated_operation;
+	int is_fixup_operation;
+
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
+	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
+
+	/* For replicated operations, apply URP algorithm */
+	if(!is_fixup_operation)
+	{
+		if (is_replicated_operation) {
+			rc = urp_delete_operation(pb);
+		}
+	}
+
+	return rc;
+}
+
+int 
+multimaster_betxnpreop_modify (Slapi_PBlock *pb)
+{
+	int rc= 0;
+	Slapi_Operation *op;
+	int is_replicated_operation;
+	int is_fixup_operation;
+
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
+	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
+
+	/* For replicated operations, apply URP algorithm */
+	if(!is_fixup_operation)
+	{
+		if (is_replicated_operation) {
+			rc = urp_modify_operation(pb);
+		}
+	}
+
+	return rc;
+}
+
+int 
+multimaster_betxnpreop_modrdn (Slapi_PBlock *pb)
+{
+	int rc= 0;
+	Slapi_Operation *op;
+	int is_replicated_operation;
+	int is_fixup_operation;
+
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
+	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
+
+	/* For replicated operations, apply URP algorithm */
+	if(!is_fixup_operation)
+	{
+		if (is_replicated_operation) {
+			rc = urp_modrdn_operation(pb);
+		}
+	}
 
 	return rc;
 }
@@ -885,6 +983,47 @@ int
 multimaster_betxnpostop_modify (Slapi_PBlock *pb)
 {
     return write_changelog_and_ruv(pb);
+}
+
+/* If nsslapd-pluginbetxn is on */
+int
+multimaster_be_betxnpostop_delete (Slapi_PBlock *pb)
+{
+    int rc = 0;
+    /* original betxnpost */
+    rc = write_changelog_and_ruv(pb);
+    /* original bepost */
+    rc |= multimaster_bepostop_delete(pb);
+    return rc;
+}
+
+int
+multimaster_be_betxnpostop_modrdn (Slapi_PBlock *pb)
+{
+    int rc = 0;
+    /* original betxnpost */
+    rc = write_changelog_and_ruv(pb);
+    /* original bepost */
+    rc |= multimaster_bepostop_modrdn(pb);
+    return rc;
+}
+
+int
+multimaster_be_betxnpostop_add (Slapi_PBlock *pb)
+{
+    int rc = 0;
+    /* original betxnpost */
+    rc = write_changelog_and_ruv(pb);
+    return rc;
+}
+
+int
+multimaster_be_betxnpostop_modify (Slapi_PBlock *pb)
+{
+    int rc = 0;
+    /* original betxnpost */
+    rc = write_changelog_and_ruv(pb);
+    return rc;
 }
 
 /* Helper functions */

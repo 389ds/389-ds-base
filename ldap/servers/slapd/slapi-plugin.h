@@ -5978,6 +5978,40 @@ int slapi_is_root_suffix(Slapi_DN * dn);
 const Slapi_DN *slapi_get_suffix_by_dn(const Slapi_DN *dn);
 const char * slapi_be_gettype(Slapi_Backend *be);
 
+/**
+ * Start database transaction
+ *
+ * \param pb Pblock which is supposed to set (Slapi_Backend *) to SLAPI_BACKEND
+ * \return 0 if successful
+ * \return Non-zero if an error occurred
+ *
+ * \see slapi_back_transaction_commit
+ * \see slapi_back_transaction_abort
+ */
+int slapi_back_transaction_begin(Slapi_PBlock *pb);
+/**
+ * Commit database transaction
+ *
+ * \param pb Pblock which is used to start transaction
+ * \return 0 if successful
+ * \return Non-zero if an error occurred
+ *
+ * \see slapi_back_transaction_start
+ * \see slapi_back_transaction_abort
+ */
+int slapi_back_transaction_commit(Slapi_PBlock *pb);
+/**
+ * Abort database transaction
+ *
+ * \param pb Pblock which is used to start transaction
+ * \return 0 if successful
+ * \return Non-zero if an error occurred
+ *
+ * \see slapi_back_transaction_commit
+ * \see slapi_back_transaction_abort
+ */
+int slapi_back_transaction_abort(Slapi_PBlock *pb);
+
 
 int slapi_be_is_flag_set(Slapi_Backend * be, int flag);
 void slapi_be_set_flag(Slapi_Backend * be, int flag);

@@ -295,16 +295,16 @@ idl_old_fetch(
 	dblayer_txn_init(li,&s_txn);
 	if (NULL != txn)
 	{
-		dblayer_read_txn_begin(li,txn,&s_txn);
+		dblayer_read_txn_begin(be, txn, &s_txn);
 	}
 	if ( (idl = idl_fetch_one( li, db, key, s_txn.back_txn_txn, err )) == NULL ) {
-		dblayer_read_txn_commit(li,&s_txn);
+		dblayer_read_txn_commit(be, &s_txn);
 		return( NULL );
 	}
 
 	/* regular block */
 	if ( ! INDIRECT_BLOCK( idl ) ) {
-		dblayer_read_txn_commit(li,&s_txn);
+		dblayer_read_txn_commit(be, &s_txn);
 		/* make sure we have the current value of highest id */
 		if ( ALLIDS(idl) ) {
 			idl_free( idl );
@@ -336,9 +336,9 @@ idl_old_fetch(
 
 		if ( (tmp[i] = idl_fetch_one( li, db, &k2, s_txn.back_txn_txn, err )) == NULL ) {
 		  if(*err == DB_LOCK_DEADLOCK) {
-		    dblayer_read_txn_abort(li,&s_txn);
+		    dblayer_read_txn_abort(be, &s_txn);
 		  } else {
-		    dblayer_read_txn_commit(li,&s_txn);
+		    dblayer_read_txn_commit(be, &s_txn);
 		  }
 		  slapi_ch_free((void**)&kstr );
 		  slapi_ch_free((void**)&tmp );
@@ -364,7 +364,7 @@ idl_old_fetch(
 		    }
 		}
 	}
-	dblayer_read_txn_commit(li,&s_txn);	
+	dblayer_read_txn_commit(be, &s_txn);	
 	tmp[i] = NULL;
 	slapi_ch_free((void**)&kstr );
 	idl_free( idl );

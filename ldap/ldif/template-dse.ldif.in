@@ -496,7 +496,7 @@ objectclass: extensibleObject
 cn: State Change Plugin
 nsslapd-pluginpath: libstatechange-plugin
 nsslapd-plugininitfunc: statechange_init
-nsslapd-plugintype: postoperation
+nsslapd-plugintype: betxnpostoperation
 nsslapd-pluginenabled: on
 
 dn: cn=Roles Plugin,cn=plugins,cn=config
@@ -507,6 +507,7 @@ cn: Roles Plugin
 nsslapd-pluginpath: libroles-plugin
 nsslapd-plugininitfunc: roles_init
 nsslapd-plugintype: object
+nsslapd-pluginbetxn: on
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 nsslapd-plugin-depends-on-named: State Change Plugin
@@ -541,7 +542,7 @@ objectClass: extensibleObject
 cn: MemberOf Plugin
 nsslapd-pluginpath: libmemberof-plugin
 nsslapd-plugininitfunc: memberof_postop_init
-nsslapd-plugintype: postoperation
+nsslapd-plugintype: betxnpostoperation
 nsslapd-pluginenabled: off
 nsslapd-plugin-depends-on-type: database
 memberOfGroupAttr: member
@@ -592,7 +593,7 @@ objectclass: extensibleObject
 cn: referential integrity postoperation
 nsslapd-pluginpath: libreferint-plugin
 nsslapd-plugininitfunc: referint_postop_init
-nsslapd-plugintype: postoperation
+nsslapd-plugintype: betxnpostoperation
 nsslapd-pluginenabled: off
 nsslapd-pluginprecedence: 40
 nsslapd-pluginArg0: 0
@@ -611,7 +612,7 @@ objectclass: extensibleObject
 cn: attribute uniqueness
 nsslapd-pluginpath: libattr-unique-plugin
 nsslapd-plugininitfunc: NSUniqueAttr_Init
-nsslapd-plugintype: preoperation
+nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: off
 nsslapd-pluginarg0: uid
 nsslapd-pluginarg1: %ds_suffix%
@@ -624,7 +625,7 @@ objectclass: extensibleObject
 cn: 7-bit check
 nsslapd-pluginpath: libattr-unique-plugin
 nsslapd-plugininitfunc: NS7bitAttr_Init
-nsslapd-plugintype: preoperation
+nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-pluginarg0: uid
 nsslapd-pluginarg1: mail
@@ -651,7 +652,7 @@ objectclass: extensibleObject
 cn: Auto Membership Plugin
 nsslapd-pluginpath: libautomember-plugin
 nsslapd-plugininitfunc: automember_init
-nsslapd-plugintype: preoperation
+nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
@@ -697,7 +698,7 @@ objectclass: nsContainer
 cn: Linked Attributes
 nsslapd-pluginpath: liblinkedattrs-plugin
 nsslapd-plugininitfunc: linked_attrs_init
-nsslapd-plugintype: preoperation
+nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
@@ -709,7 +710,7 @@ objectclass: nsContainer
 cn: Managed Entries
 nsslapd-pluginpath: libmanagedentries-plugin
 nsslapd-plugininitfunc: mep_init
-nsslapd-plugintype: preoperation
+nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
 
@@ -733,6 +734,7 @@ nsslapd-pluginpath: libusn-plugin
 nsslapd-plugininitfunc: usn_init
 nsslapd-plugintype: object
 nsslapd-pluginenabled: off
+nsslapd-pluginbetxn: on
 nsslapd-plugin-depends-on-type: database
 
 dn: cn=RootDN Access Control,cn=plugins,cn=config

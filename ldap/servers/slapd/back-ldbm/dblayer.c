@@ -3425,7 +3425,8 @@ int dblayer_txn_init(struct ldbminfo *li, back_txn *txn)
 }
 
 
-int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock)
+int
+dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock)
 {
     int return_value = -1;
     dblayer_private *priv = NULL;
@@ -3489,12 +3490,26 @@ int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *
     return return_value;
 }
 
-int dblayer_read_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn) {
-  return (dblayer_txn_begin_ext(li,parent_txn,txn,PR_FALSE));
+int
+dblayer_read_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    return (dblayer_txn_begin_ext(li,parent_txn,txn,PR_FALSE));
 }
 
-int dblayer_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn) {
-  return (dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE));
+int
+dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    int rc = 0;
+    if (SERIALLOCK(li)) {
+        dblayer_lock_backend(be);
+    }
+    rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
+    if (rc && SERIALLOCK(li)) {
+        dblayer_unlock_backend(be);
+    }
+    return rc;
 }
 
 
@@ -3568,12 +3583,22 @@ int dblayer_txn_commit_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
     return return_value;
 }
 
-int dblayer_read_txn_commit(struct ldbminfo *li, back_txn *txn) {
-  return(dblayer_txn_commit_ext(li,txn,PR_FALSE));
+int
+dblayer_read_txn_commit(backend *be, back_txn *txn)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    return(dblayer_txn_commit_ext(li,txn,PR_FALSE));
 }
 
-int dblayer_txn_commit(struct ldbminfo *li, back_txn *txn) {
-  return(dblayer_txn_commit_ext(li,txn,PR_TRUE));
+int
+dblayer_txn_commit(backend *be, back_txn *txn)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    int rc = dblayer_txn_commit_ext(li,txn,PR_TRUE);
+    if (SERIALLOCK(li)) {
+        dblayer_unlock_backend(be);
+    }
+    return rc;
 }
 
 int dblayer_txn_abort_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
@@ -3633,14 +3658,41 @@ int dblayer_txn_abort_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
     return return_value;                                         
 }
 
-int dblayer_read_txn_abort(struct ldbminfo *li, back_txn *txn){
-  return(dblayer_txn_abort_ext(li,txn,PR_FALSE));
+int
+dblayer_read_txn_abort(backend *be, back_txn *txn)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    return(dblayer_txn_abort_ext(li, txn, PR_FALSE));
 }
 
-int dblayer_txn_abort(struct ldbminfo *li, back_txn *txn){
-  return(dblayer_txn_abort_ext(li,txn,PR_TRUE));
+int
+dblayer_txn_abort(backend *be, back_txn *txn)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    int rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
+    if (SERIALLOCK(li)) {
+        dblayer_unlock_backend(be);
+    }
+    return rc;
 }
 
+int
+dblayer_txn_begin_all(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn)
+{
+    return (dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE));
+}
+
+int
+dblayer_txn_commit_all(struct ldbminfo *li, back_txn *txn)
+{
+    return(dblayer_txn_commit_ext(li, txn, PR_TRUE));
+}
+
+int
+dblayer_txn_abort_all(struct ldbminfo *li, back_txn *txn)
+{
+    return(dblayer_txn_abort_ext(li, txn, PR_TRUE));
+}
 
 size_t dblayer_get_optimal_block_size(struct ldbminfo *li)
 {
@@ -4663,15 +4715,27 @@ unsigned long db_strtoul(const char *str, int *err)
 int dblayer_plugin_begin(Slapi_PBlock *pb)
 {
     int return_value = -1;
-    struct ldbminfo *li = NULL;
     back_txnid    parent;
     back_txn    current;
+    Slapi_Backend *be;
 
-    slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     slapi_pblock_get( pb, SLAPI_PARENT_TXN, (void**)&parent );
 
+    if (NULL == be) {
+        Slapi_DN *sdn;
+        slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+        if (NULL == sdn) {
+            return return_value;
+        }
+        be = slapi_be_select(sdn);
+        if (NULL == be) {
+            return return_value;
+        }
+        slapi_pblock_set(pb, SLAPI_BACKEND, be);
+    }
     /* call begin, and put the result in the txnid parameter */
-    return_value = dblayer_txn_begin(li,parent,&current);
+    return_value = dblayer_txn_begin(be, parent, &current);
 
     if (0 == return_value) 
     {
@@ -4686,14 +4750,16 @@ int dblayer_plugin_commit(Slapi_PBlock *pb)
 {
     /* get the txnid and call commit */
     int return_value = -1;
-    struct ldbminfo *li = NULL;
     back_txn    current;
+    Slapi_Backend *be;
 
-    slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     slapi_pblock_get( pb, SLAPI_TXN, (void**)&(current.back_txn_txn) );
+    if (NULL == be) {
+        return return_value;
+    }
 
-    /* call begin, and put the result in the txnid parameter */
-    return_value = dblayer_txn_commit(li,&current);
+    return_value = dblayer_txn_commit(be, &current);
 
     return return_value;
 }
@@ -4702,7 +4768,19 @@ int dblayer_plugin_commit(Slapi_PBlock *pb)
 int dblayer_plugin_abort(Slapi_PBlock *pb)
 {
     /* get the txnid and call abort */
-    return 0;
+    int return_value = -1;
+    back_txn    current;
+    Slapi_Backend *be;
+
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get( pb, SLAPI_TXN, (void**)&(current.back_txn_txn) );
+    if (NULL == be) {
+        return return_value;
+    }
+
+    return_value = dblayer_txn_abort(be, &current);
+
+    return return_value;
 }
 
 
@@ -5847,7 +5925,7 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     /* do a quick checkpoint */
     dblayer_force_checkpoint(li);
     dblayer_txn_init(li,&txn);
-    return_value=dblayer_txn_begin(li,NULL,&txn);  
+    return_value = dblayer_txn_begin_all(li, NULL, &txn);
     if (return_value) {
         LDAPDebug0Args(LDAP_DEBUG_ANY, 
                        "Backup: transaction error\n");
@@ -6087,7 +6165,7 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 bail:
     slapi_ch_free((void **)&listA);
     slapi_ch_free((void **)&listB);
-    dblayer_txn_abort(li,&txn);
+    dblayer_txn_abort_all(li, &txn);
     slapi_ch_free_string(&changelogdir);
     return return_value;
 }

@@ -2174,7 +2174,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         svals = attr_get_present_values(attr);
 
                         if (!run_from_cmdline) {
-                            rc = dblayer_txn_begin(li, NULL, &txn);
+                            rc = dblayer_txn_begin(be, NULL, &txn);
                             if (0 != rc) {
                                 LDAPDebug(LDAP_DEBUG_ANY,
                                     "%s: ERROR: failed to begin txn for update "
@@ -2211,13 +2211,13 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                     indexAttrs[j], rc, dblayer_strerror(rc));
                             }
                             if (!run_from_cmdline) {
-                                dblayer_txn_abort(li, &txn);
+                                dblayer_txn_abort(be, &txn);
                             }
                             return_value = -2;
                             goto err_out;
                         }
                         if (!run_from_cmdline) {
-                            rc = dblayer_txn_commit(li, &txn);
+                            rc = dblayer_txn_commit(be, &txn);
                             if (0 != rc) {
                                 LDAPDebug(LDAP_DEBUG_ANY,
                                     "%s: ERROR: failed to commit txn for "
@@ -2250,7 +2250,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 goto err_out;
             }
             if (!run_from_cmdline) {
-                rc = dblayer_txn_begin(li, NULL, &txn);
+                rc = dblayer_txn_begin(be, NULL, &txn);
                 if (0 != rc) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: ERROR: failed to begin txn for update index '%s'\n",
@@ -2277,7 +2277,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             vlv_release_lock(be);
             if (!run_from_cmdline)
             {
-                rc = dblayer_txn_commit(li, &txn);
+                rc = dblayer_txn_commit(be, &txn);
                 if (0 != rc) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: ERROR: failed to commit txn for update index '%s'\n",
@@ -2322,7 +2322,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         if (index_ext & DB2INDEX_ENTRYRDN) {
             if (entryrdn_get_switch()) { /* subtree-rename: on */
                 if (!run_from_cmdline) {
-                    rc = dblayer_txn_begin(li, NULL, &txn);
+                    rc = dblayer_txn_begin(be, NULL, &txn);
                     if (0 != rc) {
                         LDAPDebug1Arg(LDAP_DEBUG_ANY,
                                     "%s: ERROR: failed to begin txn for update "
@@ -2355,13 +2355,13 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             rc, dblayer_strerror(rc));
                     }
                     if (!run_from_cmdline) {
-                        dblayer_txn_abort(li, &txn);
+                        dblayer_txn_abort(be, &txn);
                     }
                     return_value = -2;
                     goto err_out;
                 }
                 if (!run_from_cmdline) {
-                    rc = dblayer_txn_commit(li, &txn);
+                    rc = dblayer_txn_commit(be, &txn);
                     if (0 != rc) {
                         LDAPDebug1Arg(LDAP_DEBUG_ANY,
                                     "%s: ERROR: failed to commit txn for "
@@ -3314,7 +3314,7 @@ _get_and_add_parent_rdns(backend *be,
 
     if (index_ext & DB2INDEX_ENTRYRDN) {
         if (txn && !run_from_cmdline) {
-            rc = dblayer_txn_begin(li, NULL, txn);
+            rc = dblayer_txn_begin(be, NULL, txn);
             if (rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                                     "%s: ERROR: failed to begin txn for update "
@@ -3335,12 +3335,12 @@ _get_and_add_parent_rdns(backend *be,
                               "%s: Error %d: %s\n", inst->inst_name, rc,
                               dblayer_strerror(rc));
             if (txn && !run_from_cmdline) {
-                dblayer_txn_abort(li, txn);
+                dblayer_txn_abort(be, txn);
             }
             goto bail;
         }
         if (txn && !run_from_cmdline) {
-            rc = dblayer_txn_commit(li, txn);
+            rc = dblayer_txn_commit(be, txn);
             if (rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
                                     "%s: ERROR: failed to commit txn for "

@@ -146,7 +146,7 @@ int roles_init( Slapi_PBlock *pb )
 	void *plugin_identity = NULL; 
 	Slapi_Entry *plugin_entry = NULL;
 	int is_betxn = 0;
-	const char *plugintype = "postoperation";
+	const char *plugin_type = "postoperation";
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 						"=> roles_init\n" );
@@ -176,9 +176,9 @@ int roles_init( Slapi_PBlock *pb )
 	}
 
 	if (is_betxn) {
-		plugintype = "betxnpostoperation";
+		plugin_type = "betxnpostoperation";
 	}
-	rc = slapi_register_plugin(plugintype, 1 /* Enabled */,
+	rc = slapi_register_plugin(plugin_type, 1 /* Enabled */,
 					"roles_postop_init", roles_postop_init,
 					"Roles postoperation plugin", NULL,
 					plugin_identity);
