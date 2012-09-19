@@ -620,3 +620,31 @@ slapi_back_ctrl_info(Slapi_Backend *be, int cmd, void *info)
     rc = (*be->be_ctrl_info)(be, cmd, info);
     return rc;
 }
+
+/* API to expose DB transaction begin */
+/* See memberof.c for usage. */
+int
+slapi_back_transaction_begin(Slapi_PBlock *pb)
+{
+    IFP txn_begin;
+    slapi_pblock_get(pb, SLAPI_PLUGIN_DB_BEGIN_FN, (void*)&txn_begin);
+    return txn_begin(pb);
+}
+
+/* API to expose DB transaction commit */
+int
+slapi_back_transaction_commit(Slapi_PBlock *pb)
+{
+    IFP txn_commit;
+    slapi_pblock_get(pb, SLAPI_PLUGIN_DB_COMMIT_FN, (void*)&txn_commit);
+    return txn_commit(pb);
+}
+
+/* API to expose DB transaction abort */
+int
+slapi_back_transaction_abort(Slapi_PBlock *pb)
+{
+    IFP txn_abort;
+    slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ABORT_FN, (void*)&txn_abort);
+    return txn_abort(pb);
+}

@@ -40,6 +40,7 @@
 #  include <config.h>
 #endif
 
+#include "ldaplog.h"
 
 #if !defined( _COS_CACHE_H )
 #define _COS_CACHE_H

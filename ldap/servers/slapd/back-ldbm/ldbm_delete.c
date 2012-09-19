@@ -79,7 +79,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	Slapi_DN *sdnp = NULL;
 	char *e_uniqueid = NULL;
 	Slapi_DN nscpEntrySDN;
-	int dblock_acquired= 0;
 	Slapi_Operation *operation;
 	CSN *opcsn = NULL;
 	int is_fixup_operation = 0;
@@ -155,12 +154,16 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	 * But, this lock is re-enterant for the fixup
 	 * operations that the URP code in the Replication
 	 * plugin generates.
-	 */
+	 *
+	 * SERIALLOCK is moved to dblayer_txn_begin along with exposing be
+	 * transaction to plugins (see slapi_back_transaction_* APIs).
+	 *
 	if(SERIALLOCK(li) && !operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP))
 	{
 		dblayer_lock_backend(be);
 		dblock_acquired= 1;
 	}
+	 */
 
 	/*
 	 * We are about to pass the last abandon test, so from now on we are
@@ -176,281 +179,17 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	/* find and lock the entry we are about to modify */
-	if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL )
-	{
-		ldap_result_code= LDAP_NO_SUCH_OBJECT; 
-		/* retval is -1 */
-		goto error_return; /* error result sent by find_entry2modify() */
-	}
-	e_in_cache = 1; /* e is cached */
-
-	if ( slapi_entry_has_children( e->ep_entry ) )
-	{
-		ldap_result_code= LDAP_NOT_ALLOWED_ON_NONLEAF;
-		/* retval is -1 */
-		goto error_return;
-	}
-
-	/* Don't call pre-op for Tombstone entries */
-	if (!delete_tombstone_entry)
-	{
-		int rc = 0;
-		/* 
-		 * Some present state information is passed through the PBlock to the
-		 * backend pre-op plugin. To ensure a consistent snapshot of this state
-		 * we wrap the reading of the entry with the dblock.
-		 */
-		ldap_result_code= get_copy_of_entry(pb, addr, &txn,
-						SLAPI_DELETE_EXISTING_ENTRY, !is_replicated_operation);
-		free_delete_existing_entry = 1;
-		if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
-		   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
-		{
-			/* restore original entry so the front-end delete code can free it */
-			/* retval is -1 */
-			goto error_return;
-		}
-		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-
-		rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
-		if (rc == -1)
-		{
-			/* 
-			 * Plugin indicated some kind of failure,
-			 * or that this Operation became a No-Op.
-			 */
-			if (!ldap_result_code) {
-				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-			}
-			/* restore original entry so the front-end delete code can free it */
-			slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
-			if (!opreturn) {
-				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc );
-			}
-			/* retval is -1 */
-			goto error_return;
-		}
-		/* the flag could be set in a preop plugin (e.g., USN) */
-		delete_tombstone_entry = operation_is_flag_set(operation,
-									OP_FLAG_TOMBSTONE_ENTRY);
-	}
-
-	/*
-	 * Sanity check to avoid to delete a non-tombstone or to tombstone again
-	 * a tombstone entry. This should not happen (see bug 561003).
-	 */
-	is_tombstone_entry = slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
-	if (delete_tombstone_entry) {
-		PR_ASSERT(is_tombstone_entry);
-		if (!is_tombstone_entry) {
-			slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
-					"Attempt to delete a non-tombstone entry %s\n", dn);
-			delete_tombstone_entry = 0;
-		}
-	} else {
-		PR_ASSERT(!is_tombstone_entry);
-		if (is_tombstone_entry) { 
-				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
-					"Attempt to Tombstone again a tombstone entry %s\n", dn);
-			delete_tombstone_entry = 1;
-		}
-	}
-
-	/*
-	 * If a CSN is set, we need to tombstone the entry,
-	 * rather than deleting it outright.
-	 */
-	opcsn = operation_get_csn (operation);
-	if (!delete_tombstone_entry)
-	{
-		if ((opcsn == NULL) && !is_fixup_operation && operation->o_csngen_handler)
-		{
-			/*
-			 * Current op is a user request. Opcsn will be assigned
-			 * by entry_assign_operation_csn() if the dn is in an
-			 * updatable replica.
-			 */
-			opcsn = entry_assign_operation_csn ( pb, e->ep_entry, NULL );
-		}
-		if (opcsn != NULL)
-		{
-			if (!is_fixup_operation)
-			{
-				entry_set_maxcsn (e->ep_entry, opcsn);
-			}
-		}
-		/*
-		 * We are dealing with replication and if we haven't been called to
-		 * remove a tombstone, then it's because  we want to create a new one.
-		 */
-		if ( slapi_operation_get_replica_attr (pb, operation, "nsds5ReplicaTombstonePurgeInterval",
-											   &create_tombstone_entry) == 0 )
-		{
-			create_tombstone_entry = (create_tombstone_entry < 0) ? 0 : 1;
-		}
-	}
-
-#if DEBUG
-	slapi_log_error(SLAPI_LOG_REPL, "ldbm_back_delete",
-			"entry: %s  - flags: delete %d is_tombstone_entry %d create %d \n",
-			dn, delete_tombstone_entry, is_tombstone_entry, create_tombstone_entry);
-#endif
-
-	/* Save away a copy of the entry, before modifications */
-	slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( e->ep_entry ));
-
-    /* JCMACL - Shouldn't the access check be before the has children check... 	
-	 * otherwise we're revealing the fact that an entry exists and has children */
-	ldap_result_code = plugin_call_acl_plugin (pb, e->ep_entry, NULL, NULL, SLAPI_ACL_DELETE, 
-					ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
-	if ( ldap_result_code != LDAP_SUCCESS )
-	{
-		ldap_result_message= errbuf;
-		/* retval is -1 */
-		goto error_return;
-	}
-
-	/*
-	 * Get the entry's parent. We do this here because index_read
-	 * seems to deadlock the database when dblayer_txn_begin is
-	 * called.
-	 */
-	slapi_sdn_init(&parentsdn);
-	slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, pb->pb_backend, is_tombstone_entry);
-	if ( !slapi_sdn_isempty(&parentsdn) )
-	{
-		struct backentry *parent = NULL;
-		entry_address parent_addr;
-
-		parent_addr.sdn = &parentsdn;
-		parent_addr.uniqueid = NULL;
-		parent = find_entry2modify_only_ext(pb, be, &parent_addr,
-		                                    TOMBSTONE_INCLUDED, &txn);
-		if (NULL != parent) {
-			int isglue;
-			size_t haschildren = 0;
-			int op = PARENTUPDATE_DEL;
-
-			/* Unfortunately findentry doesn't tell us whether it just 
-			 * didn't find the entry, or if there was an error, so we 
-			 * have to assume that the parent wasn't found */
-			parent_found = 1;
-
-			/* Modify the parent in memory */
-			modify_init(&parent_modify_c,parent);
-			if (create_tombstone_entry) {
-				op |= PARENTUPDATE_CREATE_TOMBSTONE;
-			} else if (delete_tombstone_entry) {
-				op |= PARENTUPDATE_DELETE_TOMBSTONE;
-			}
-			retval = parent_update_on_childchange(&parent_modify_c,
-			                                      op, &haschildren);
-			/* The modify context now contains info needed later */
-			if (0 != retval) {
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				goto error_return;
-			}
-			
-			/*
-			 * Replication urp_post_delete will delete the parent entry
-			 * if it is a glue entry without any more children.
-			 * Those urp condition checkings are done here to
-			 * save unnecessary entry dup.
-			 */
-			isglue = slapi_entry_attr_hasvalue (parent_modify_c.new_entry->ep_entry,
-						SLAPI_ATTR_OBJECTCLASS, "glue");
-			if ( opcsn && parent_modify_c.new_entry && !haschildren && isglue)
-			{
-				slapi_pblock_set ( pb, SLAPI_DELETE_GLUE_PARENT_ENTRY,
-					slapi_entry_dup (parent_modify_c.new_entry->ep_entry) );
-			}
-		}
-	}
-	slapi_sdn_done(&parentsdn);
-    
-	if(create_tombstone_entry)
-	{
-		/*
-		 * The entry is not removed from the disk when we tombstone an
-		 * entry. We change the DN, add objectclass=tombstone, and record
-		 * the UniqueID of the parent entry.
-		 */
-		const char *childuniqueid= slapi_entry_get_uniqueid(e->ep_entry);
-		const char *parentuniqueid= NULL;
-		char *tombstone_dn = compute_entry_tombstone_dn(slapi_entry_get_dn(e->ep_entry),
-			childuniqueid);
-		Slapi_Value *tomb_value;
-
-		slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
-
-		/* Copy the entry unique_id for URP conflict checking */
-		e_uniqueid = slapi_ch_strdup(childuniqueid);
-
-		if(parent_modify_c.old_entry!=NULL)
-		{
-			/* The suffix entry has no parent */
-			parentuniqueid= slapi_entry_get_uniqueid(parent_modify_c.old_entry->ep_entry);
-		}
-		tombstone = backentry_dup( e );
-		slapi_entry_set_dn(tombstone->ep_entry,tombstone_dn); /* Consumes DN */
-		if (entryrdn_get_switch()) /* subtree-rename: on */
-		{
-			Slapi_RDN *srdn = slapi_entry_get_srdn(tombstone->ep_entry);
-			char *tombstone_rdn =
-			 compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(e->ep_entry),
-			 childuniqueid);
-			/* e_srdn has "uniaqueid=..., <ORIG RDN>" */
-			slapi_rdn_replace_rdn(srdn, tombstone_rdn);
-			slapi_ch_free_string(&tombstone_rdn);
-		}
-		/* Set tombstone flag on ep_entry */
-		slapi_entry_set_flag(tombstone->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
-		
-		if(parentuniqueid!=NULL)
-		{
-			/* The suffix entry has no parent */
-			slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID, parentuniqueid);
-		}
-		slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN, slapi_sdn_get_ndn(&nscpEntrySDN));
-		tomb_value = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
-		value_update_csn(tomb_value, CSN_TYPE_VALUE_UPDATED,
-			operation_get_csn(operation));
-		slapi_entry_add_value(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, tomb_value);
-		slapi_value_free(&tomb_value);
-		/* XXXggood above used to be: slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE); */
-		/* JCMREPL - Add a description of what's going on? */
-
-		if ( (original_tombstone = backentry_dup( tombstone )) == NULL ) {
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			goto error_return;
-		}
-	}
-
-	if (!is_ruv && !is_fixup_operation && !delete_tombstone_entry) {
-		ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
-		if (-1 == ruv_c_init) {
-			LDAPDebug( LDAP_DEBUG_ANY,
-				"ldbm_back_delete: ldbm_txn_ruv_modify_context "
-				"failed to construct RUV modify context\n",
-				0, 0, 0);
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			retval = 0;
-			goto error_return;
-		}
-	}
-
 	/*
 	 * So, we believe that no code up till here actually added anything
 	 * to the persistent store. From now on, we're transacted
 	 */
-	
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			Slapi_Entry *ent = NULL;
 
-			dblayer_txn_abort(li,&txn);
+			/* Don't release SERIAL LOCK */
+			dblayer_txn_abort_ext(li, &txn, PR_FALSE); 
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
 			/* reset original entry */
@@ -498,7 +237,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 #endif
 		}
-		retval = dblayer_txn_begin(li,parent_txn,&txn);
+		if (0 == retry_count) {
+			/* First time, hold SERIAL LOCK */
+			retval = dblayer_txn_begin(be, parent_txn, &txn);
+		} else {
+			/* Otherwise, no SERIAL LOCK */
+			retval = dblayer_txn_begin_ext(li, parent_txn, &txn, PR_FALSE);
+		}
 		if (0 != retval) {
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
@@ -508,29 +253,323 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		/* stash the transaction */
 		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 
-		/* call the transaction pre delete plugins just after creating
-		 * the transaction */
-		/* these should not need to modify the entry to be deleted -
-		   if for some reason they ever do, do not use e->ep_entry since
-		   it could be in the cache and referenced by other search threads -
-		   instead, have them modify a copy of the entry */
-		retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
-		if (retval) {
-			LDAPDebug1Arg( LDAP_DEBUG_TRACE,
-			               "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
-			               "returned error code %d\n", retval );
-			if (!ldap_result_code) {
-				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		if (0 == retry_count) { /* just once */
+			/* find and lock the entry we are about to modify */
+			if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL )
+			{
+				ldap_result_code= LDAP_NO_SUCH_OBJECT; 
+				retval = -1;
+				goto error_return; /* error result sent by find_entry2modify() */
 			}
-			if (!opreturn) {
-				slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+			e_in_cache = 1; /* e is cached */
+		
+			if ( slapi_entry_has_children( e->ep_entry ) )
+			{
+				ldap_result_code= LDAP_NOT_ALLOWED_ON_NONLEAF;
+				retval = -1;
+				goto error_return;
 			}
-			if (!opreturn) {
-				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN,
-				                  ldap_result_code ?
-				                  &ldap_result_code : &retval );
+		
+			/* Don't call pre-op for Tombstone entries */
+			if (!delete_tombstone_entry)
+			{
+				int rc = 0;
+				/* 
+				 * Some present state information is passed through the PBlock to the
+				 * backend pre-op plugin. To ensure a consistent snapshot of this state
+				 * we wrap the reading of the entry with the dblock.
+				 */
+				ldap_result_code= get_copy_of_entry(pb, addr, &txn,
+								SLAPI_DELETE_EXISTING_ENTRY, !is_replicated_operation);
+				free_delete_existing_entry = 1;
+				if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+				   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+				{
+					/* restore original entry so the front-end delete code can free it */
+					retval = -1;
+					goto error_return;
+				}
+				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		
+				rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
+				if (rc == -1)
+				{
+					/* 
+					 * Plugin indicated some kind of failure,
+					 * or that this Operation became a No-Op.
+					 */
+					if (!ldap_result_code) {
+						slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+					}
+					/* restore original entry so the front-end delete code can free it */
+					slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+					if (!opreturn) {
+						slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc );
+					}
+					retval = -1;
+					goto error_return;
+				}
+				/* the flag could be set in a preop plugin (e.g., USN) */
+				delete_tombstone_entry = operation_is_flag_set(operation,
+											OP_FLAG_TOMBSTONE_ENTRY);
 			}
-			goto error_return;
+
+			/* call the transaction pre delete plugins just after the 
+			 * to-be-deleted entry is prepared. */
+			/* these should not need to modify the entry to be deleted -
+			   if for some reason they ever do, do not use e->ep_entry since
+			   it could be in the cache and referenced by other search threads -
+			   instead, have them modify a copy of the entry */
+			retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
+			if (retval) {
+				LDAPDebug1Arg( LDAP_DEBUG_TRACE,
+							   "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
+							   "returned error code %d\n", retval );
+				if (!ldap_result_code) {
+					slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				}
+				if (!opreturn) {
+					slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+				}
+				if (!opreturn) {
+					slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN,
+									  ldap_result_code ?
+									  &ldap_result_code : &retval );
+				}
+				goto error_return;
+			}
+
+			/*
+			 * Sanity check to avoid to delete a non-tombstone or to tombstone again
+			 * a tombstone entry. This should not happen (see bug 561003).
+			 */
+			is_tombstone_entry = slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
+			if (delete_tombstone_entry) {
+				PR_ASSERT(is_tombstone_entry);
+				if (!is_tombstone_entry) {
+					slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+							"Attempt to delete a non-tombstone entry %s\n", dn);
+					delete_tombstone_entry = 0;
+				}
+			} else {
+				PR_ASSERT(!is_tombstone_entry);
+				if (is_tombstone_entry) { 
+						slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+							"Attempt to Tombstone again a tombstone entry %s\n", dn);
+					delete_tombstone_entry = 1;
+				}
+			}
+
+			/*
+			 * If a CSN is set, we need to tombstone the entry,
+			 * rather than deleting it outright.
+			 */
+			opcsn = operation_get_csn (operation);
+			if (!delete_tombstone_entry)
+			{
+				if ((opcsn == NULL) && !is_fixup_operation && operation->o_csngen_handler)
+				{
+					/*
+					 * Current op is a user request. Opcsn will be assigned
+					 * by entry_assign_operation_csn() if the dn is in an
+					 * updatable replica.
+					 */
+					opcsn = entry_assign_operation_csn ( pb, e->ep_entry, NULL );
+				}
+				if (opcsn != NULL)
+				{
+					if (!is_fixup_operation)
+					{
+						entry_set_maxcsn (e->ep_entry, opcsn);
+					}
+				}
+				/*
+				 * We are dealing with replication and if we haven't been called to
+				 * remove a tombstone, then it's because  we want to create a new one.
+				 */
+				if ( slapi_operation_get_replica_attr (pb, operation, "nsds5ReplicaTombstonePurgeInterval",
+													   &create_tombstone_entry) == 0 )
+				{
+					create_tombstone_entry = (create_tombstone_entry < 0) ? 0 : 1;
+				}
+			}
+		
+#ifdef DEBUG
+			slapi_log_error(SLAPI_LOG_REPL, "ldbm_back_delete",
+					"entry: %s  - flags: delete %d is_tombstone_entry %d create %d \n",
+					dn, delete_tombstone_entry, is_tombstone_entry, create_tombstone_entry);
+#endif
+
+			/* Save away a copy of the entry, before modifications */
+			slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( e->ep_entry ));
+
+		    /* JCMACL - Shouldn't the access check be before the has children check... 	
+			 * otherwise we're revealing the fact that an entry exists and has children */
+			ldap_result_code = plugin_call_acl_plugin (pb, e->ep_entry, NULL, NULL, SLAPI_ACL_DELETE, 
+							ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
+			if ( ldap_result_code != LDAP_SUCCESS )
+			{
+				ldap_result_message= errbuf;
+				retval = -1;
+				goto error_return;
+			}
+
+			/*
+			 * Get the entry's parent. We do this here because index_read
+			 * seems to deadlock the database when dblayer_txn_begin is
+			 * called.
+			 */
+			slapi_sdn_init(&parentsdn);
+			slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, pb->pb_backend, is_tombstone_entry);
+			if ( !slapi_sdn_isempty(&parentsdn) )
+			{
+				struct backentry *parent = NULL;
+				entry_address parent_addr;
+
+				parent_addr.sdn = &parentsdn;
+				parent_addr.uniqueid = NULL;
+				parent = find_entry2modify_only_ext(pb, be, &parent_addr,
+				                                    TOMBSTONE_INCLUDED, &txn);
+				if (NULL != parent) {
+					int isglue;
+					size_t haschildren = 0;
+					int op = PARENTUPDATE_DEL;
+
+					/* Unfortunately findentry doesn't tell us whether it just 
+					 * didn't find the entry, or if there was an error, so we 
+					 * have to assume that the parent wasn't found */
+					parent_found = 1;
+
+					/* Modify the parent in memory */
+					modify_init(&parent_modify_c,parent);
+					if (create_tombstone_entry) {
+						op |= PARENTUPDATE_CREATE_TOMBSTONE;
+					} else if (delete_tombstone_entry) {
+						op |= PARENTUPDATE_DELETE_TOMBSTONE;
+					}
+					retval = parent_update_on_childchange(&parent_modify_c,
+					                                      op, &haschildren);
+					/* The modify context now contains info needed later */
+					if (0 != retval) {
+						ldap_result_code= LDAP_OPERATIONS_ERROR;
+						retval = -1;
+						goto error_return;
+					}
+
+					/*
+					 * Replication urp_post_delete will delete the parent entry
+					 * if it is a glue entry without any more children.
+					 * Those urp condition checkings are done here to
+					 * save unnecessary entry dup.
+					 */
+					isglue = slapi_entry_attr_hasvalue (parent_modify_c.new_entry->ep_entry,
+								SLAPI_ATTR_OBJECTCLASS, "glue");
+					if ( opcsn && parent_modify_c.new_entry && !haschildren && isglue)
+					{
+						slapi_pblock_set ( pb, SLAPI_DELETE_GLUE_PARENT_ENTRY,
+							slapi_entry_dup (parent_modify_c.new_entry->ep_entry) );
+					}
+				}
+			}
+			slapi_sdn_done(&parentsdn);
+
+			if(create_tombstone_entry)
+			{
+				/*
+				 * The entry is not removed from the disk when we tombstone an
+				 * entry. We change the DN, add objectclass=tombstone, and record
+				 * the UniqueID of the parent entry.
+				 */
+				const char *childuniqueid= slapi_entry_get_uniqueid(e->ep_entry);
+				const char *parentuniqueid= NULL;
+				char *tombstone_dn = compute_entry_tombstone_dn(slapi_entry_get_dn(e->ep_entry),
+					childuniqueid);
+				Slapi_Value *tomb_value;
+
+				slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
+
+				/* Copy the entry unique_id for URP conflict checking */
+				e_uniqueid = slapi_ch_strdup(childuniqueid);
+
+				if(parent_modify_c.old_entry!=NULL)
+				{
+					/* The suffix entry has no parent */
+					parentuniqueid= slapi_entry_get_uniqueid(parent_modify_c.old_entry->ep_entry);
+				}
+				tombstone = backentry_dup( e );
+				slapi_entry_set_dn(tombstone->ep_entry,tombstone_dn); /* Consumes DN */
+				if (entryrdn_get_switch()) /* subtree-rename: on */
+				{
+					Slapi_RDN *srdn = slapi_entry_get_srdn(tombstone->ep_entry);
+					char *tombstone_rdn =
+					 compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(e->ep_entry),
+					 childuniqueid);
+					/* e_srdn has "uniaqueid=..., <ORIG RDN>" */
+					slapi_rdn_replace_rdn(srdn, tombstone_rdn);
+					slapi_ch_free_string(&tombstone_rdn);
+				}
+				/* Set tombstone flag on ep_entry */
+				slapi_entry_set_flag(tombstone->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
+				
+				if(parentuniqueid!=NULL)
+				{
+					/* The suffix entry has no parent */
+					slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID, parentuniqueid);
+				}
+				slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN, slapi_sdn_get_ndn(&nscpEntrySDN));
+				tomb_value = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+				value_update_csn(tomb_value, CSN_TYPE_VALUE_UPDATED,
+					operation_get_csn(operation));
+				slapi_entry_add_value(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, tomb_value);
+				slapi_value_free(&tomb_value);
+				/* XXXggood above used to be: slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE); */
+				/* JCMREPL - Add a description of what's going on? */
+		
+				if ( (original_tombstone = backentry_dup( tombstone )) == NULL ) {
+					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					retval = -1;
+					goto error_return;
+				}
+			}
+
+			if (!is_ruv && !is_fixup_operation && !delete_tombstone_entry) {
+				ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+				if (-1 == ruv_c_init) {
+					LDAPDebug( LDAP_DEBUG_ANY,
+						"ldbm_back_delete: ldbm_txn_ruv_modify_context "
+						"failed to construct RUV modify context\n",
+						0, 0, 0);
+					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					retval = 0;
+					goto error_return;
+				}
+			}
+		} /* if (0 == retry_count) just once */
+		else {
+			/* call the transaction pre delete plugins not just once
+			 * but every time transaction is restarted. */
+			/* these should not need to modify the entry to be deleted -
+			   if for some reason they ever do, do not use e->ep_entry since
+			   it could be in the cache and referenced by other search threads -
+			   instead, have them modify a copy of the entry */
+			retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
+			if (retval) {
+				LDAPDebug1Arg( LDAP_DEBUG_TRACE,
+				               "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
+				               "returned error code %d\n", retval );
+				if (!ldap_result_code) {
+					slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				}
+				if (!opreturn) {
+					slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+				}
+				if (!opreturn) {
+					slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN,
+					                  ldap_result_code ?
+					                  &ldap_result_code : &retval );
+				}
+				goto error_return;
+			}
 		}
 
 		if(create_tombstone_entry)
@@ -1021,7 +1060,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	retval = dblayer_txn_commit(li,&txn);
+	/* Release SERIAL LOCK */
+	retval = dblayer_txn_commit(be, &txn);
 	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
 	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval)
@@ -1103,7 +1143,7 @@ error_return:
 			slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &retval );
 		}
 
-		/* call the transaction post delete plugins just before the commit */
+		/* call the transaction post delete plugins just before the abort */
 		if (plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
 			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
 						   "returned error code %d\n", retval );
@@ -1118,7 +1158,8 @@ error_return:
 			}
 		}
 
-		dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+		/* Release SERIAL LOCK */
+		dblayer_txn_abort(be, &txn); /* abort crashes in case disk full */
 		/* txn is no longer valid - reset the txn pointer to the parent */
 		slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	}
@@ -1169,10 +1210,6 @@ diskfull_return:
     	slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
 	modify_term(&parent_modify_c,be);
-	if(dblock_acquired)
-	{
-		dblayer_unlock_backend(be);
-	}
 	if (rc == 0 && opcsn && !is_fixup_operation && !delete_tombstone_entry)
 	{
 		/* URP Naming Collision

@@ -6,7 +6,7 @@ objectclass: pamConfig
 cn: PAM Pass Through Auth
 nsslapd-pluginpath: libpam-passthru-plugin
 nsslapd-plugininitfunc: pam_passthruauth_init
-nsslapd-plugintype: preoperation
+nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: off
 nsslapd-pluginLoadGlobal: true
 nsslapd-plugin-depends-on-type: database

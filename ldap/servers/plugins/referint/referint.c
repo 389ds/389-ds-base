@@ -79,19 +79,21 @@ int update_integrity(char **argv, Slapi_DN *sDN, char *newrDN, Slapi_DN *newsupe
 int GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
 int my_fgetc(PRFileDesc *stream);
 void referint_thread_func(void *arg);
-void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn,
-    Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
+void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
 
 /* global thread control stuff */
 static PRLock 		*referint_mutex = NULL;       
 static PRThread		*referint_tid = NULL;
 static PRLock 		*keeprunning_mutex = NULL;
 static PRCondVar    *keeprunning_cv = NULL;
-int keeprunning = 0;
+static int keeprunning = 0;
+static int refint_started = 0;
 
 static Slapi_PluginDesc pdesc = { "referint", VENDOR, DS_PACKAGE_VERSION, "referential integrity plugin" };
 static int allow_repl = 0;
 static void* referint_plugin_identity = NULL;
+
+static int use_txn = 0;
 
 #ifdef _WIN32
 int *module_ldap_debug = 0;
@@ -101,6 +103,31 @@ void plugin_init_debug_level(int *level_ptr)
 	module_ldap_debug = level_ptr;
 }
 #endif
+
+static void
+referint_lock()
+{
+    if (use_txn) { /* no lock if betxn is enabled */
+        return;
+    }
+    if (NULL == referint_mutex) {
+        referint_mutex = PR_NewLock();
+    }
+    if (referint_mutex) {
+        PR_Lock(referint_mutex);
+    }
+}
+
+static void
+referint_unlock()
+{
+    if (use_txn) { /* no lock if betxn is enabled */
+        return;
+    }
+    if (referint_mutex) {
+        PR_Unlock(referint_mutex);
+    }
+}
 
 int
 referint_postop_init( Slapi_PBlock *pb )
@@ -125,6 +152,7 @@ referint_postop_init( Slapi_PBlock *pb )
     {
         delfn = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
         mdnfn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+        use_txn = 1;
     }
     if(plugin_entry){
         char *allow_repl_updates;
@@ -163,6 +191,11 @@ referint_postop_del( Slapi_PBlock *pb )
     int isrepop = 0;
     int oprc;
     int rc;
+
+    if (0 == refint_started) {
+        /* not initialized yet */
+        return 0;
+    }
 
     if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
          slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn ) != 0  ||
@@ -705,6 +738,7 @@ update_integrity(char **argv, Slapi_DN *origSDN,
     for ( sdn = slapi_get_first_suffix( &node, 0 ); sdn != NULL;
           sdn = slapi_get_next_suffix( &node, 0 ))
     {
+        Slapi_Backend *be = slapi_be_select(sdn);
         search_base = slapi_sdn_get_dn( sdn );
 
         for(i = 3; argv[i] != NULL; i++){
@@ -716,6 +750,7 @@ update_integrity(char **argv, Slapi_DN *origSDN,
 
                 /* Use new search API */
                 slapi_pblock_init(search_result_pb);
+                slapi_pblock_set(search_result_pb, SLAPI_BACKEND, be);
                 slapi_search_internal_set_pb(search_result_pb, search_base, 
                     LDAP_SCOPE_SUBTREE, filter, attrs, 0 /* attrs only */,
                     NULL, NULL, referint_plugin_identity, 0);
@@ -837,7 +872,9 @@ int referint_postop_start( Slapi_PBlock *pb)
     if (argc >= 1) {
         if(atoi(argv[0]) > 0){
             /* initialize the cv and lock */
-            referint_mutex = PR_NewLock();
+            if (!use_txn && (NULL == referint_mutex)) {
+                referint_mutex = PR_NewLock();
+            }
             keeprunning_mutex = PR_NewLock();
             keeprunning_cv = PR_NewCondVar(keeprunning_mutex);
             keeprunning =1;
@@ -861,6 +898,7 @@ int referint_postop_start( Slapi_PBlock *pb)
         return( -1 );
     }
 
+    refint_started = 1;
     return(0);
 }
 
@@ -876,6 +914,7 @@ int referint_postop_close( Slapi_PBlock *pb)
         PR_Unlock(keeprunning_mutex);
     }
 
+    refint_started = 0;
     return(0);
 }
 
@@ -918,9 +957,9 @@ referint_thread_func(void *arg)
             }
             PR_Unlock(keeprunning_mutex);
 
-            PR_Lock(referint_mutex);
+            referint_lock();
             if (( prfd = PR_Open( logfilename, PR_RDONLY, REFERINT_DEFAULT_FILE_MODE )) == NULL ){
-                PR_Unlock(referint_mutex);
+                referint_unlock();
                 /* go back to sleep and wait for this file */
                 PR_Lock(keeprunning_mutex);
                 PR_WaitCondVar(keeprunning_cv, PR_SecondsToInterval(delay));
@@ -983,7 +1022,7 @@ referint_thread_func(void *arg)
         }
 
         /* unlock and let other writers back at the file */
-        PR_Unlock(referint_mutex);
+        referint_unlock();
 
         /* wait on condition here */
         PR_Lock(keeprunning_mutex);
@@ -1085,12 +1124,13 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     size_t reqdn_len = 0;
     
     /*
-     *  Use this lock to protect file data when update integrity is occuring
-     *  should hopefully not be a big issue on concurrency
+     * Use this lock to protect file data when update integrity is occuring.
+     * If betxn is enabled, this mutex is ignored; transaction itself takes
+     * the role.
      */
-    PR_Lock(referint_mutex);
+    referint_lock();
     if (( prfd = PR_Open( logfilename, PR_WRONLY | PR_CREATE_FILE | PR_APPEND,
-	      REFERINT_DEFAULT_FILE_MODE )) == NULL ) 
+          REFERINT_DEFAULT_FILE_MODE )) == NULL ) 
     {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop could not write integrity log \"%s\" "
@@ -1098,6 +1138,7 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
             logfilename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
 
         PR_Unlock(referint_mutex);
+        referint_unlock();
         return;
     }
     /*
@@ -1155,5 +1196,5 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
             " writeintegritylog: failed to close the file descriptor prfd; NSPR error - %d\n",
             PR_GetError());
     }
-    PR_Unlock(referint_mutex);    
+    referint_unlock();
 }

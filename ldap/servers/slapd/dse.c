@@ -1967,18 +1967,19 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         /* next, give the betxn plugins a crack at it */
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
         slapi_pblock_set(pb, SLAPI_MODIFY_EXISTING_ENTRY, ecc);
-        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
-        if (!returncode) {
-            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
-        }
-        if (returncode && !returntext[0]) {
-            char *ldap_result_message = NULL;
-            slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-            if (ldap_result_message && ldap_result_message[0]) {
-                PL_strncpyz(returntext, ldap_result_message, sizeof(returntext));
-            }
-        }
         if (need_be_postop) {
+            plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
+            if (!returncode) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+            }
+            if (returncode && !returntext[0]) {
+                char *ldap_result_message = NULL;
+                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                if (ldap_result_message && ldap_result_message[0]) {
+                    PL_strncpyz(returntext, ldap_result_message, sizeof(returntext));
+                }
+            }
+
             plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN);
             if (!returncode) {
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
@@ -2198,10 +2199,11 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
             returncode = rc;
         }
     }
-    /* next, give the be txn plugins a crack at it */
-    slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
-    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN);
     if (need_be_postop) {
+        /* next, give the be txn plugins a crack at it */
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
+        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN);
+
         /* finally, give the be plugins a crack at it */
         plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_ADD_FN);
         if (!returncode) {
@@ -2287,7 +2289,6 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     }
 
     if(dse_call_callback(pdse, pb, SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, ec, NULL, &returncode,returntext)==SLAPI_DSE_CALLBACK_OK) {
-        slapi_pblock_get(pb, SLAPI_DELETE_BEPREOP_ENTRY, &orig_entry);
         slapi_pblock_set(pb, SLAPI_DELETE_BEPREOP_ENTRY, ec);
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
         plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
@@ -2306,13 +2307,15 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
                 }
             }
         }
-        slapi_pblock_set(pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry);
+        /* Setting SLAPI_ENTRY_PRE_OP here,
+         * since some betxn postop may need the pre op entry. */
+        slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup(ec));
     } else {
         goto done;
     }
 
     dse_call_callback(pdse, pb, SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, ec, NULL, &returncode, returntext);
- done:
+done:
     slapi_pblock_get(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, &orig_entry);
     slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, ec);
     /* make sure OPRETURN and RESULT_CODE are set */
@@ -2325,11 +2328,12 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
             returncode = rc;
         }
     }
-    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN);
-    if (!returncode) {
-        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
-    }
     if (need_be_postop) {
+        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN);
+        if (!returncode) {
+            slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+        }
+
         /* finally, give the be plugins a crack at it */
         plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
         if (!returncode) {
@@ -2345,9 +2349,6 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     }
     slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry);
     slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
-    if (ec) {
-        slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( ec ));
-    }
     return dse_delete_return(returncode, ec);
 }
 

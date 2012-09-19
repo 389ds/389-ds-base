@@ -174,16 +174,23 @@ IDList * idl_new_fetch(
     ID id = 0;
     size_t count = 0;
 #ifdef DB_USE_BULK_FETCH
-	/* beware that a large buffer on the stack might cause a stack overflow on some platforms */
+    /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
     char buffer[BULK_FETCH_BUFFER_SIZE]; 
     void *ptr;
     DBT dataret;
 #endif
+    back_txn s_txn;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
     if (NEW_IDL_NOOP == *flag_err)
     {
         *flag_err = 0;
         return NULL;
+    }
+
+    dblayer_txn_init(li, &s_txn);
+    if (txn) {
+        dblayer_read_txn_begin(be, txn, &s_txn);
     }
 
     /* Make a cursor */
@@ -286,14 +293,14 @@ IDList * idl_new_fetch(
 
         LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
 #if defined(DB_ALLIDS_ON_READ)	
-		/* enforce the allids read limit */
-		if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
-		     (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
-			idl->b_nids = 1;
-			idl->b_ids[0] = ALLID;
-			ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-			break;
-		}
+        /* enforce the allids read limit */
+        if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
+             (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
+            idl->b_nids = 1;
+            idl->b_ids[0] = ALLID;
+            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
+            break;
+        }
 #endif
         ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP|DB_MULTIPLE);
         if (0 != ret) {
@@ -303,7 +310,7 @@ IDList * idl_new_fetch(
 #else
     for (;;) {
         ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP);
-		count++;
+        count++;
         if (0 != ret) {
             break;
         }
@@ -314,14 +321,14 @@ IDList * idl_new_fetch(
             idl_free(idl); idl = NULL;
             goto error;
         }
-#if defined(DB_ALLIDS_ON_READ)	
-		/* enforce the allids read limit */
-		if ((idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
-			idl->b_nids = 1;
-			idl->b_ids[0] = ALLID;
-			ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-			break;
-		}
+#if defined(DB_ALLIDS_ON_READ)    
+        /* enforce the allids read limit */
+        if ((idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
+            idl->b_nids = 1;
+            idl->b_ids[0] = ALLID;
+            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
+            break;
+        }
 #endif
    }
 #endif
@@ -358,6 +365,7 @@ error:
             }
         }
     }
+    dblayer_read_txn_commit(be, &s_txn);
     *flag_err = ret;
     return idl;
 }
@@ -629,7 +637,6 @@ int idl_new_store_block(
      * inserts a list of duplicate keys. In the meantime, we'll
      * just do it by brute force. 
      */
-	
 #if defined(DB_ALLIDS_ON_WRITE)
     /* allids check on input idl */
     if (ALLIDS(idl) || (idl->b_nids > (ID)idl_new_get_allidslimit(a, 0))) {

@@ -327,7 +327,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	char *ldap_result_message= NULL;
 	int rc = 0;
 	Slapi_Operation *operation;
-	int dblock_acquired= 0;
 	entry_address *addr;
 	int ec_in_cache = 0;
 	int is_fixup_operation= 0;
@@ -388,113 +387,22 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 * But, this lock is re-enterant for the fixup
 	 * operations that the URP code in the Replication
 	 * plugin generates.
-	 */
+	 *
+	 * SERIALLOCK is moved to dblayer_txn_begin along with exposing be
+	 * transaction to plugins (see slapi_back_transaction_* APIs).
+	 *
 	if(SERIALLOCK(li) && !operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP)) {
 		dblayer_lock_backend(be);
 		dblock_acquired= 1;
 	}
-
-	/* find and lock the entry we are about to modify */
-	if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
-		ldap_result_code= -1;
-		goto error_return;	  /* error result sent by find_entry2modify() */
-	}
-
-	if ( !is_fixup_operation )
-	{
-		opcsn = operation_get_csn (operation);
-		if (NULL == opcsn && operation->o_csngen_handler)
-		{
-			/*
-			 * Current op is a user request. Opcsn will be assigned
-			 * if the dn is in an updatable replica.
-			 */
-			opcsn = entry_assign_operation_csn ( pb, e->ep_entry, NULL );
-		}
-		if (opcsn)
-		{
-			entry_set_maxcsn (e->ep_entry, opcsn);
-		}
-	}
-
-	/* Save away a copy of the entry, before modifications */
-	slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( e->ep_entry ));
-	
-	if ( (ldap_result_code = plugin_call_acl_mods_access( pb, e->ep_entry, mods, &errbuf)) != LDAP_SUCCESS ) {
-		ldap_result_message= errbuf;
-		goto error_return;
-	}
-
-	/* create a copy of the entry and apply the changes to it */
-	if ( (ec = backentry_dup( e )) == NULL ) {
-		ldap_result_code= LDAP_OPERATIONS_ERROR;
-		goto error_return;
-	}
-
-	if(!repl_op){
-	    remove_illegal_mods(mods);
-	}
-
-	/* ec is the entry that our bepreop should get to mess with */
-	slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, ec->ep_entry );
-	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-
-	if ((opreturn = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN)) ||
-		(slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code) && ldap_result_code) ||
-		(slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn) && opreturn)) {
-		slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-		slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
-		if (!ldap_result_code) {
-			LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_modify: SLAPI_PLUGIN_BE_PRE_MODIFY_FN "
-				       "returned error but did not set SLAPI_RESULT_CODE\n");
-			ldap_result_code = LDAP_OPERATIONS_ERROR;
-		}
-		if (!opreturn) {
-			opreturn = -1;
-			slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
-		}
-	}
-	/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
-	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-	slapi_mods_init_byref(&smods,mods);
-	mod_count = slapi_mods_get_num_mods(&smods);
-
-	/* apply the mods, check for syntax, schema problems, etc. */
-	if (modify_apply_check_expand(pb, operation, mods, e, ec, &postentry,
-								  &ldap_result_code, &ldap_result_message)) {
-		goto error_return;
-	}
-
-	if (!is_ruv && !is_fixup_operation) {
-		ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
-		if (-1 == ruv_c_init) {
-			LDAPDebug( LDAP_DEBUG_ANY,
-				"ldbm_back_modify: ldbm_txn_ruv_modify_context "
-				"failed to construct RUV modify context\n",
-				0, 0, 0);
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			retval = 0;
-			goto error_return;
-		}
-	}
-
-	/*
-	 * Grab a copy of the mods and the entry in case the be_txn_preop changes
-	 * the them.  If we have a failure, then we need to reset the mods to their
-	 * their original state;
 	 */
-	mods_original = copy_mods(mods);
-	if ( (original_entry = backentry_dup( ec )) == NULL ) {
-		ldap_result_code= LDAP_OPERATIONS_ERROR;
-		goto error_return;
-	}
-
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		int cache_rc = 0;
 		int new_mod_count = 0;
 		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
-			dblayer_txn_abort(li,&txn);
+			/* don't release SERIAL LOCK */
+			dblayer_txn_abort_ext(li, &txn, PR_FALSE); 
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 			/*
 			 * Since be_txn_preop functions could have modified the entry/mods,
@@ -527,16 +435,119 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 
 		/* Nothing above here modifies persistent store, everything after here is subject to the transaction */
-		retval = dblayer_txn_begin(li,parent_txn,&txn);
-
+		/* dblayer_txn_begin holds SERIAL lock, 
+		 * which should be outside of locking the entry (find_entry2modify) */
+		if (0 == retry_count) {
+			/* First time, hold SERIAL LOCK */
+			retval = dblayer_txn_begin(be, parent_txn, &txn);
+		} else {
+			/* Otherwise, no SERIAL LOCK */
+			retval = dblayer_txn_begin_ext(li, parent_txn, &txn, PR_FALSE);
+		}
 		if (0 != retval) {
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			goto error_return;
 		}
-
 		/* stash the transaction for plugins */
 		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
+
+		if (0 == retry_count) { /* just once */
+			/* find and lock the entry we are about to modify */
+			if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+				ldap_result_code= -1;
+				goto error_return;	  /* error result sent by find_entry2modify() */
+			}
+		
+			if ( !is_fixup_operation )
+			{
+				opcsn = operation_get_csn (operation);
+				if (NULL == opcsn && operation->o_csngen_handler)
+				{
+					/*
+					 * Current op is a user request. Opcsn will be assigned
+					 * if the dn is in an updatable replica.
+					 */
+					opcsn = entry_assign_operation_csn ( pb, e->ep_entry, NULL );
+				}
+				if (opcsn)
+				{
+					entry_set_maxcsn (e->ep_entry, opcsn);
+				}
+			}
+		
+			/* Save away a copy of the entry, before modifications */
+			slapi_pblock_set( pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup( e->ep_entry ));
+			
+			if ( (ldap_result_code = plugin_call_acl_mods_access( pb, e->ep_entry, mods, &errbuf)) != LDAP_SUCCESS ) {
+				ldap_result_message= errbuf;
+				goto error_return;
+			}
+		
+			/* create a copy of the entry and apply the changes to it */
+			if ( (ec = backentry_dup( e )) == NULL ) {
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+		
+			if(!repl_op){
+			    remove_illegal_mods(mods);
+			}
+		
+			/* ec is the entry that our bepreop should get to mess with */
+			slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, ec->ep_entry );
+			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+		
+			if ((opreturn = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN)) ||
+				(slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code) && ldap_result_code) ||
+				(slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn) && opreturn)) {
+				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+				if (!ldap_result_code) {
+					LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_modify: SLAPI_PLUGIN_BE_PRE_MODIFY_FN "
+						       "returned error but did not set SLAPI_RESULT_CODE\n");
+					ldap_result_code = LDAP_OPERATIONS_ERROR;
+				}
+				if (!opreturn) {
+					opreturn = -1;
+					slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+				}
+			}
+			/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
+			slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+			slapi_mods_init_byref(&smods,mods);
+			mod_count = slapi_mods_get_num_mods(&smods);
+		
+			/* apply the mods, check for syntax, schema problems, etc. */
+			if (modify_apply_check_expand(pb, operation, mods, e, ec, &postentry,
+										  &ldap_result_code, &ldap_result_message)) {
+				goto error_return;
+			}
+		
+			if (!is_ruv && !is_fixup_operation) {
+				ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+				if (-1 == ruv_c_init) {
+					LDAPDebug( LDAP_DEBUG_ANY,
+						"ldbm_back_modify: ldbm_txn_ruv_modify_context "
+						"failed to construct RUV modify context\n",
+						0, 0, 0);
+					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					retval = 0;
+					goto error_return;
+				}
+			}
+		
+			/*
+			 * Grab a copy of the mods and the entry in case the be_txn_preop changes
+			 * the them.  If we have a failure, then we need to reset the mods to their
+			 * their original state;
+			 */
+			mods_original = copy_mods(mods);
+			if ( (original_entry = backentry_dup( ec )) == NULL ) {
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+		} /* if (0 == retry_count) just once */
 
 		/* call the transaction pre modify plugins just after creating the transaction */
 		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN))) {
@@ -707,7 +718,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	retval = dblayer_txn_commit(li,&txn);
+	/* Release SERIAL LOCK */
+	retval = dblayer_txn_commit(be, &txn);
 	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
 	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	if (0 != retval) {
@@ -766,7 +778,8 @@ error_return:
 			}
 
 			/* It is safer not to abort when the transaction is not started. */
-			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
+			/* Release SERIAL LOCK */
+			dblayer_txn_abort(be, &txn); /* abort crashes in case disk full */
 			/* txn is no longer valid - reset the txn pointer to the parent */
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 		}
@@ -812,10 +825,6 @@ common_return:
 		modify_term(&ruv_c, be);
 	}
 
-	if(dblock_acquired)
-	{
-		dblayer_unlock_backend(be);
-	}
 	if(ldap_result_code!=-1)
 	{
 		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );

@@ -73,6 +73,7 @@ static int pam_passthru_modrdn_preop(Slapi_PBlock *pb);
 static int pam_passthru_postop(Slapi_PBlock *pb);
 static int pam_passthru_internal_postop_init(Slapi_PBlock *pb);
 static int pam_passthru_postop_init(Slapi_PBlock *pb);
+static int pam_passthru_preop_init(Slapi_PBlock *pb);
 
 /*
 ** Plugin identity mgmt
@@ -111,6 +112,13 @@ int
 pam_passthruauth_init( Slapi_PBlock *pb )
 {
     int status = 0;
+    Slapi_Entry *plugin_entry = NULL;
+    char *plugin_type = NULL;
+    int is_betxn = 0;
+    int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
+    int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
+    int predel = SLAPI_PLUGIN_PRE_DELETE_FN;
+    int premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
 
     PAM_PASSTHRU_ASSERT( pb != NULL );
 
@@ -120,47 +128,89 @@ pam_passthruauth_init( Slapi_PBlock *pb )
     slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &pam_passthruauth_plugin_identity);
     PR_ASSERT (pam_passthruauth_plugin_identity);
 
-    if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-            (void *)SLAPI_PLUGIN_VERSION_01 ) != 0
-            || slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-                    (void *)&pdesc ) != 0
-	    || slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
-                    (void *)pam_passthru_bindpreop_start ) != 0
-	    || slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN,
-                    (void *)pam_passthru_bindpreop ) != 0
-            || slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_ADD_FN,
-                    (void *)pam_passthru_add_preop ) != 0
-            || slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_MODIFY_FN,
-                    (void *)pam_passthru_mod_preop ) != 0
-            || slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_DELETE_FN,
-                    (void *)pam_passthru_del_preop ) != 0
-            || slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_MODRDN_FN,
-                    (void *)pam_passthru_modrdn_preop ) != 0
-	    || slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN,
-                    (void *)pam_passthru_bindpreop_close ) != 0  ) {
-        slapi_log_error( SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                         "pam_passthruauth_init failed\n" );
-        status = -1;
-        goto bail;
+    if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+        plugin_entry &&
+        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry,
+                                                    "nsslapd-plugintype")) &&
+        plugin_type && strstr(plugin_type, "betxn")) {
+        is_betxn = 1;
+        preadd = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
+        premod = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
+        predel = SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN;
+        premdn = SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN;
     }
+    slapi_ch_free_string(&plugin_type);
 
-    /* Register internal postop functions. */
-    if (slapi_register_plugin("internalpostoperation",  /* op type */
-                              1,        /* Enabled */
-                              "pam_passthruauth_init",   /* this function desc */
-                              pam_passthru_internal_postop_init,  /* init func */
-                              PAM_PASSTHRU_INT_POSTOP_DESC,      /* plugin desc */
-                              NULL,     /* ? */
-                              pam_passthruauth_plugin_identity   /* access control */
-    )) {
-        slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                        "pam_passthruauth_init: failed to register plugin\n");
-        status = -1;
-        goto bail;
+    if (is_betxn) {
+        if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+                               (void *)SLAPI_PLUGIN_VERSION_01 ) ||
+             slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc ) ||
+             slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
+                               (void *)pam_passthru_bindpreop_start ) ||
+             slapi_pblock_set( pb, preadd, (void *)pam_passthru_add_preop ) ||
+             slapi_pblock_set( pb, premod, (void *)pam_passthru_mod_preop ) ||
+             slapi_pblock_set( pb, predel, (void *)pam_passthru_del_preop ) ||
+             slapi_pblock_set( pb, premdn, (void *)pam_passthru_modrdn_preop )) {
+            slapi_log_error( SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                             "pam_passthruauth_init failed\n");
+            status = -1;
+            goto bail;
+        }
+
+        /* Register preop functions for the betxn enabled case */
+        if (slapi_register_plugin("preoperation",  /* op type */
+                                  1,        /* Enabled */
+                                  "pam_passthruauth_init",  /* this function desc */
+                                  pam_passthru_preop_init,  /* init func for pre op */
+                                  PAM_PASSTHRU_PREOP_DESC,  /* plugin desc */
+                                  NULL,     /* ? */
+                                  pam_passthruauth_plugin_identity   /* access control */
+            )) {
+            slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                            "pam_passthruauth_init: "
+                            "failed to register preop plugin\n");
+            status = -1;
+            goto bail;
+        }
+    } else {
+        if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
+                               (void *)SLAPI_PLUGIN_VERSION_01 ) ||
+             slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc ) ||
+             slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
+                               (void *)pam_passthru_bindpreop_start ) ||
+             slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN,
+                               (void *)pam_passthru_bindpreop ) ||
+             slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, 
+                               (void *)pam_passthru_bindpreop_close ) ||
+             slapi_pblock_set( pb, preadd, (void *)pam_passthru_add_preop ) ||
+             slapi_pblock_set( pb, premod, (void *)pam_passthru_mod_preop ) ||
+             slapi_pblock_set( pb, predel, (void *)pam_passthru_del_preop ) ||
+             slapi_pblock_set( pb, premdn, (void *)pam_passthru_modrdn_preop )) {
+            slapi_log_error( SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                             "pam_passthruauth_init failed\n");
+            status = -1;
+            goto bail;
+       }
+        /* Register internal postop functions. */
+        /* If betxn is enabled, internal op is a part of betxn */
+        if (slapi_register_plugin("internalpostoperation",  /* op type */
+                                  1,        /* Enabled */
+                                  "pam_passthruauth_init",   /* this function desc */
+                                  pam_passthru_internal_postop_init,  /* init func */
+                                  PAM_PASSTHRU_INT_POSTOP_DESC,      /* plugin desc */
+                                  NULL,     /* ? */
+                                  pam_passthruauth_plugin_identity   /* access control */
+        )) {
+            slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                            "pam_passthruauth_init: "
+                            "failed to register internal postop plugin\n");
+            status = -1;
+            goto bail;
+        }
     }
 
     /* Register postop functions */
-    if (slapi_register_plugin("postoperation",  /* op type */
+    if (slapi_register_plugin(is_betxn ? "postoperation" : "betxnpostoperation",  /* op type */
                               1,        /* Enabled */
                               "pam_passthruauth_init",   /* this function desc */
                               pam_passthru_postop_init,  /* init func for post op */
@@ -169,7 +219,9 @@ pam_passthruauth_init( Slapi_PBlock *pb )
                               pam_passthruauth_plugin_identity   /* access control */
     )) {
         slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                        "pam_passthruauth_init: failed to register plugin\n");
+                        "pam_passthruauth_init: "
+                        "failed to register (%s) plugin\n",
+                        is_betxn ? "postoperation" : "betxnpostoperation");
         status = -1;
         goto bail;
     }
@@ -178,6 +230,24 @@ pam_passthruauth_init( Slapi_PBlock *pb )
                      "<= pam_passthruauth_init\n" );
 
   bail:
+    return status;
+}
+
+/* 
+ * Only if betxn is on, register just pre bind and close as perop operation.
+ * The other preops (add/del/mod/mdn) are registered as betxn pre ops.
+ */
+static int
+pam_passthru_preop_init(Slapi_PBlock *pb)
+{
+    int status = 0;
+    if ( slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN,
+                           (void *)pam_passthru_bindpreop ) ||
+         slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *)pam_passthru_bindpreop_close )) {
+        slapi_log_error( SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                         "pam_passthruauth_preop_init failed\n");
+        status = -1;
+    }
     return status;
 }
 
@@ -210,21 +280,37 @@ static int
 pam_passthru_postop_init(Slapi_PBlock *pb)
 {
     int status = 0;
+    Slapi_Entry *plugin_entry = NULL;
+    char *plugin_type = NULL;
+    int is_betxn = 0;
+    int postadd = SLAPI_PLUGIN_POST_ADD_FN;
+    int postmod = SLAPI_PLUGIN_POST_MODIFY_FN;
+    int postmdn = SLAPI_PLUGIN_POST_MODRDN_FN;
+    int postdel = SLAPI_PLUGIN_POST_DELETE_FN;
 
-    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
-                         SLAPI_PLUGIN_VERSION_01) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *) &pdesc) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN,
-                         (void *) pam_passthru_postop) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN,
-                         (void *) pam_passthru_postop) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN,
-                         (void *) pam_passthru_postop) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN,
-                         (void *) pam_passthru_postop) != 0) {
+    if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
+        plugin_entry &&
+        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry,
+                                                    "nsslapd-plugintype")) &&
+        plugin_type && strstr(plugin_type, "betxn")) {
+        postadd = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
+        postmod = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
+        postmdn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+        postdel = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+        is_betxn = 1;
+    }
+    slapi_ch_free_string(&plugin_type);
+
+    if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *) &pdesc) ||
+        slapi_pblock_set(pb, postadd, (void *) pam_passthru_postop) ||
+        slapi_pblock_set(pb, postdel, (void *) pam_passthru_postop) ||
+        slapi_pblock_set(pb, postmod, (void *) pam_passthru_postop) ||
+        slapi_pblock_set(pb, postmdn, (void *) pam_passthru_postop) ) {
         slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                        "pam_passthru_postop_init: failed to register plugin\n");
+                        "pam_passthru_postop_init: "
+                        "failed to register (%s) plugin\n",
+                        is_betxn ? "betxn postop" : "postop");
         status = -1;
     }
 
@@ -329,7 +415,7 @@ pam_passthru_bindpreop_close( Slapi_PBlock *pb )
     PAM_PASSTHRU_ASSERT( pb != NULL );
 
     slapi_log_error( SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-	    "=> pam_passthru_bindpreop_close\n" );
+                     "=> pam_passthru_bindpreop_close\n" );
 
     if (!g_pam_plugin_started) {
         goto done;

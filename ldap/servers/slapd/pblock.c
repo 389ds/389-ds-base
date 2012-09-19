@@ -1966,6 +1966,11 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	switch ( arg ) {
 	case SLAPI_BACKEND:
 		pblock->pb_backend = (Slapi_Backend *) value;
+		if (pblock->pb_backend && (NULL == pblock->pb_plugin)) {
+			/* newly allocated pblock may not have backend plugin set. */
+			pblock->pb_plugin =
+			              (struct slapdplugin *)pblock->pb_backend->be_database;
+		}
 		break;
 	case SLAPI_BACKEND_COUNT:
 		pblock->pb_backend_count = *((int *) value);

@@ -2835,27 +2835,31 @@ slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type)
 {
     PRBool r = PR_FALSE; /* default if no attr */
     Slapi_Attr* attr;
-	slapi_entry_attr_find(e, type, &attr);
+    slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
-		Slapi_Value *v;
-		const struct berval *bvp;
+        Slapi_Value *v;
+        const struct berval *bvp;
 
-		slapi_valueset_first_value( &attr->a_present_values, &v);
-		bvp = slapi_value_get_berval(v);
-		if ((bvp == NULL) || (bvp->bv_len == 0)) { /* none or empty == false */
-			r = PR_FALSE;
-		} else if (!PL_strncasecmp(bvp->bv_val, "true", bvp->bv_len)) {
-			r = PR_TRUE;
-		} else if (!PL_strncasecmp(bvp->bv_val, "false", bvp->bv_len)) {
-			r = PR_FALSE;
-		} else if (!PL_strncasecmp(bvp->bv_val, "yes", bvp->bv_len)) {
-			r = PR_TRUE;
-		} else if (!PL_strncasecmp(bvp->bv_val, "no", bvp->bv_len)) {
-			r = PR_FALSE;
-		} else { /* assume numeric: 0 - false: non-zero - true */
-			r = (PRBool)slapi_value_get_ulong(v);
-		}
+        slapi_valueset_first_value( &attr->a_present_values, &v);
+        bvp = slapi_value_get_berval(v);
+        if ((bvp == NULL) || (bvp->bv_len == 0)) { /* none or empty == false */
+            r = PR_FALSE;
+        } else if (!PL_strncasecmp(bvp->bv_val, "on", bvp->bv_len)) {
+            r = PR_TRUE;
+        } else if (!PL_strncasecmp(bvp->bv_val, "off", bvp->bv_len)) {
+            r = PR_FALSE;
+        } else if (!PL_strncasecmp(bvp->bv_val, "true", bvp->bv_len)) {
+            r = PR_TRUE;
+        } else if (!PL_strncasecmp(bvp->bv_val, "false", bvp->bv_len)) {
+            r = PR_FALSE;
+        } else if (!PL_strncasecmp(bvp->bv_val, "yes", bvp->bv_len)) {
+            r = PR_TRUE;
+        } else if (!PL_strncasecmp(bvp->bv_val, "no", bvp->bv_len)) {
+            r = PR_FALSE;
+        } else { /* assume numeric: 0 - false: non-zero - true */
+            r = (PRBool)slapi_value_get_ulong(v);
+        }
     }
     return r;
 }

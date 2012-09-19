@@ -67,45 +67,6 @@
 
 int slapd_log_error_proc( char *subsystem, char *fmt, ... );
 
-/*** from ldaplog.h ***/
-
-/* edited ldaplog.h for LDAPDebug()*/
-#ifndef _LDAPLOG_H
-#define _LDAPLOG_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define LDAP_DEBUG_TRACE	0x00001		/*     1 */
-#define LDAP_DEBUG_ANY          0x04000		/* 16384 */
-#define LDAP_DEBUG_PLUGIN	0x10000		/* 65536 */
-
-/* debugging stuff */
-#    ifdef _WIN32
-       extern int	*module_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#    else /* _WIN32 */
-       extern int	slapd_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#    endif /* Win32 */
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _LDAP_H */
-
 /*** end secrets ***/
 
 #define COS_PLUGIN_SUBSYSTEM   "cos-plugin"   /* used for logging */
@@ -166,34 +127,23 @@ int cos_version()
 	return COS_VERSION;
 }
 
+/* 
+ * cos_postop_init: registering cos_post_op
+ * cos_post_op just calls cos_cache_change_notify, which does not have any
+ * backend operations.  Thus, no need to be in transaction.  Rather, it is
+ * harmful if putting in the transaction since tring to hold change_lock
+ * inside of transaction would cause a deadlock.
+ */
 int
 cos_postop_init ( Slapi_PBlock *pb )
 {
 	int rc = 0;
-	Slapi_Entry *plugin_entry = NULL;
-	char *plugin_type = NULL;
-	int postadd = SLAPI_PLUGIN_POST_ADD_FN;
-	int postmod = SLAPI_PLUGIN_POST_MODIFY_FN;
-	int postmdn = SLAPI_PLUGIN_POST_MODRDN_FN;
-	int postdel = SLAPI_PLUGIN_POST_DELETE_FN;
 
-	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
-		plugin_entry &&
-		(plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
-		plugin_type && strstr(plugin_type, "betxn")) {
-		postadd = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
-		postmod = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
-		postmdn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
-		postdel = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
-	}
-	slapi_ch_free_string(&plugin_type);
-
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, 
-							SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-		 slapi_pblock_set(pb, postmod, (void *)cos_post_op ) != 0 ||
-		 slapi_pblock_set(pb, postmdn, (void *)cos_post_op ) != 0 ||
-		 slapi_pblock_set(pb, postadd, (void *) cos_post_op ) != 0 ||
-		 slapi_pblock_set(pb, postdel, (void *) cos_post_op ) != 0 )
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN, (void *)cos_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN, (void *)cos_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *)cos_post_op ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *)cos_post_op ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
 						 "cos_postop_init: failed to register plugin\n" );
@@ -234,16 +184,8 @@ int cos_init( Slapi_PBlock *pb )
 {
 	int ret = 0;
 	void * plugin_identity=NULL;
-	Slapi_Entry *plugin_entry = NULL;
-	int is_betxn = 0;
-	const char *plugintype = "postoperation";
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_init\n",0,0,0);
-
-	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
-		plugin_entry) {
-		is_betxn = slapi_entry_attr_get_bool(plugin_entry, "nsslapd-pluginbetxn");
-	}
 
 	/*
 	** Store the plugin identity for later use.
@@ -254,25 +196,17 @@ int cos_init( Slapi_PBlock *pb )
 	PR_ASSERT (plugin_identity);
 	cos_set_plugin_identity(plugin_identity);
 	
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-							SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-		 slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-							(void *) cos_start ) != 0 ||
-		 slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-							(void *) cos_close ) != 0 ||
-		 slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-							(void *)&pdesc ) != 0 )
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *) cos_start ) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *) cos_close ) != 0 ||
+		 slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc ) != 0 )
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
 						 "cos_init: failed to register plugin\n" );
 		ret = -1;
 		goto bailout;
 	}
-
-	if (is_betxn) {
-		plugintype = "betxnpostoperation";
-	}
-	ret = slapi_register_plugin(plugintype, 1 /* Enabled */,
+	ret = slapi_register_plugin("postoperation", 1 /* Enabled */,
 					"cos_postop_init", cos_postop_init,
 					"Class of Service postoperation plugin", NULL,
 					plugin_identity);
@@ -280,12 +214,10 @@ int cos_init( Slapi_PBlock *pb )
 		goto bailout;
 	}
 
-	if (!is_betxn) {
-		ret = slapi_register_plugin("internalpostoperation", 1 /* Enabled */,
-									"cos_internalpostop_init", cos_internalpostop_init,
-									"Class of Service internalpostoperation plugin", NULL,
-									plugin_identity);
-	}
+	ret = slapi_register_plugin("internalpostoperation", 1 /* Enabled */,
+	                      "cos_internalpostop_init", cos_internalpostop_init,
+	                      "Class of Service internalpostoperation plugin", NULL,
+	                      plugin_identity);
 
 bailout:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_init\n",0,0,0);

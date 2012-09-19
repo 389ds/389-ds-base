@@ -124,48 +124,8 @@ void oc_unlock( void );
 struct objclass* g_get_global_oc_nolock();
 int slapd_log_error_proc( char *subsystem, char *fmt, ... );
 
-/*** from ldaplog.h ***/
-
-/* edited ldaplog.h for LDAPDebug()*/
-#ifndef _LDAPLOG_H
-#define _LDAPLOG_H
-
 /* defined in cos.c */
 void * cos_get_plugin_identity();
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define LDAP_DEBUG_TRACE	0x00001		/*     1 */
-#define LDAP_DEBUG_ANY          0x04000		/* 16384 */
-#define LDAP_DEBUG_PLUGIN	0x10000		/* 65536 */
-
-/* debugging stuff */
-#    ifdef _WIN32
-       extern int	*module_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#    else /* _WIN32 */
-       extern int	slapd_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#    endif /* Win32 */
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _LDAP_H */
 
 /*** end secrets ***/
 
@@ -3331,16 +3291,17 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_change_notify\n",0,0,0);
 
-	/* Don't update local cache when remote entries */
-	/* are updated.					*/
+	/* Don't update local cache when remote entries are updated. */
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
-	if ( ( be!=NULL ) && (slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA)))
+	if ((be && (slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA))) ||
+	    (NULL == be)) {
 		goto bail;
+	}
 
 	/* need to work out if a cache rebuild is necessary */
-	if(slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn ))
-	{
-		LDAPDebug( LDAP_DEBUG_ANY, "cos_cache_change_notify: failed to get dn of changed entry",0,0,0);
+	if(slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn )) {
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "cos_cache_change_notify: "
+		                               "failed to get dn of changed entry\n");
 		goto bail;
 	}
 	dn = slapi_sdn_get_dn(sdn);
@@ -3394,9 +3355,8 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 	 * stays lean in the face of errors.
 	*/
 	if( !do_update && cos_cache_template_index_bsearch(dn)) {
-			LDAPDebug( LDAP_DEBUG_PLUGIN, "cos_cache_change_notify:"
-				"updating due to indirect template change(%s)\n",
-				dn,0,0);
+			LDAPDebug1Arg(LDAP_DEBUG_PLUGIN, "cos_cache_change_notify: "
+			              "updating due to indirect template change(%s)\n", dn);
 		do_update = 1;
 	}
 
@@ -3591,30 +3551,29 @@ void cos_cache_backend_state_change(void *handle, char *be_name,
  * returns non-zero: entry is cos significant (note does not detect indirect
  *					template entries).
  * 			0	   : entry is not cos significant.
-*/
+ */
 static int cos_cache_entry_is_cos_related( Slapi_Entry *e) {
 
 	int rc = 0;
 	Slapi_Attr *pObjclasses = NULL;
 
 	if ( e == NULL ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "cos_cache_change_notify:"
-				"modified entry is NULL--updating cache just in case!",
-				0,0,0);
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "cos_cache_change_notify: "
+		               "modified entry is NULL--updating cache just in case\n");
 		rc = 1;
 	} else {
 
 		if(slapi_entry_attr_find( e, "objectclass", &pObjclasses ))
 		{
-			LDAPDebug( LDAP_DEBUG_ANY, "cos_cache_change_notify:"
-						" failed to get objectclass from %s",
-						slapi_entry_get_dn(e),0,0);
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, "cos_cache_change_notify: "
+			              " failed to get objectclass from %s\n",
+			              slapi_entry_get_dn(e));
 			rc = 0;
 		} else {
 
 			Slapi_Value *val = NULL;
-			int index = 0;		
-			char *pObj;	
+			int index = 0;
+			char *pObj;
 
 			/* check out the object classes to see if this was a cosDefinition */		
 

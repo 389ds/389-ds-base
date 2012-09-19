@@ -2643,11 +2643,11 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                                 target_node->mtn_backend_names[*index]);
                         *be = target_node->mtn_be[*index];
                         if(*be==NULL) {
-                            LDAPDebug(LDAP_DEBUG_ANY,
-             "Warning: Mapping tree node entry for %s point to "
-             "an unknown backend : %s\n",
-             slapi_sdn_get_dn(target_node->mtn_subtree),
-             target_node->mtn_backend_names[*index], 0);
+                            LDAPDebug(LDAP_DEBUG_BACKLDBM,
+                                "Warning: Mapping tree node entry for %s "
+                                "point to an unknown backend : %s\n",
+                                slapi_sdn_get_dn(target_node->mtn_subtree),
+                                target_node->mtn_backend_names[*index], 0);
                             /* Well there's still not backend instance for
                              * this MTN, so let's have the default backend
                              * deal with this.

@@ -203,9 +203,13 @@ int multimaster_preop_compare (Slapi_PBlock *pb);
 int multimaster_bepreop_add (Slapi_PBlock *pb);
 int multimaster_bepreop_delete (Slapi_PBlock *pb);
 int multimaster_bepreop_modify (Slapi_PBlock *pb);
+int multimaster_bepreop_modrdn (Slapi_PBlock *pb);
+int multimaster_betxnpreop_add (Slapi_PBlock *pb);
+int multimaster_betxnpreop_delete (Slapi_PBlock *pb);
+int multimaster_betxnpreop_modify (Slapi_PBlock *pb);
+int multimaster_betxnpreop_modrdn (Slapi_PBlock *pb);
 int replica_ruv_smods_for_op (Slapi_PBlock *pb, char **uniqueid,
 	Slapi_Mods **smods);
-int multimaster_bepreop_modrdn (Slapi_PBlock *pb);
 int multimaster_bepostop_modrdn (Slapi_PBlock *pb);
 int multimaster_bepostop_delete (Slapi_PBlock *pb);
 int multimaster_postop_bind (Slapi_PBlock *pb);
@@ -217,8 +221,13 @@ int multimaster_betxnpostop_modrdn (Slapi_PBlock *pb);
 int multimaster_betxnpostop_delete (Slapi_PBlock *pb);
 int multimaster_betxnpostop_add (Slapi_PBlock *pb);
 int multimaster_betxnpostop_modify (Slapi_PBlock *pb);
+int multimaster_be_betxnpostop_modrdn (Slapi_PBlock *pb);
+int multimaster_be_betxnpostop_delete (Slapi_PBlock *pb);
+int multimaster_be_betxnpostop_add (Slapi_PBlock *pb);
+int multimaster_be_betxnpostop_modify (Slapi_PBlock *pb);
 
 /* In repl5_init.c */
+extern int repl5_is_betxn;
 char* get_thread_private_agmtname ();
 void  set_thread_private_agmtname (const char *agmtname);
 void* get_thread_private_cache ();

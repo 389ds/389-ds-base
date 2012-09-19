@@ -78,6 +78,7 @@ static void* _PluginID = NULL;
 static PRMonitor *memberof_operation_lock = 0;
 MemberOfConfig *qsortConfig = 0;
 static int g_plugin_started = 0;
+static int usetxn = 0;
 
 typedef struct _memberofstringll
 {
@@ -191,7 +192,6 @@ memberof_postop_init(Slapi_PBlock *pb)
 	char *memberof_plugin_identity = 0;
 	Slapi_Entry *plugin_entry = NULL;
 	char *plugin_type = NULL;
-	int usetxn = 0;
 	int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
 	int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
 	int modfn = SLAPI_PLUGIN_POST_MODIFY_FN;
@@ -2248,14 +2248,20 @@ int memberof_qsort_compare(const void *a, const void *b)
 	                                val1, val2);
 }
 
+/* betxn: This locking mechanism is necessary to guarantee the memberof
+ * consistency */
 void memberof_lock()
 {
-	PR_EnterMonitor(memberof_operation_lock);
+	if (usetxn) {
+		PR_EnterMonitor(memberof_operation_lock);
+	}
 }
 
 void memberof_unlock()
 {
-	PR_ExitMonitor(memberof_operation_lock);
+	if (usetxn) {
+		PR_ExitMonitor(memberof_operation_lock);
+	}
 }
 
 typedef struct _task_data
@@ -2271,6 +2277,7 @@ void memberof_fixup_task_thread(void *arg)
 	Slapi_Task *task = (Slapi_Task *)arg;
 	task_data *td = NULL;
 	int rc = 0;
+	Slapi_PBlock *fixup_pb = NULL;
 
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
@@ -2280,7 +2287,9 @@ void memberof_fixup_task_thread(void *arg)
 
 	slapi_task_begin(task, 1);
 	slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n", 
-								td->filter_str);
+	                      td->filter_str);
+	slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+	                "Memberof task starts (arg: %s) ...\n", td->filter_str);
 
 	/* We need to get the config lock first.  Trying to get the
 	 * config lock after we already hold the op lock can cause
@@ -2289,6 +2298,25 @@ void memberof_fixup_task_thread(void *arg)
 	/* copy config so it doesn't change out from under us */
 	memberof_copy_config(&configCopy, memberof_get_config());
 	memberof_unlock_config();
+
+	if (usetxn) {
+		Slapi_DN *sdn = slapi_sdn_new_dn_byref(td->dn);
+		Slapi_Backend *be = slapi_be_select(sdn);
+		slapi_sdn_free(&sdn);
+		if (be) {
+			fixup_pb = slapi_pblock_new();
+			slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
+			rc = slapi_back_transaction_begin(fixup_pb);
+			if (rc) {
+				slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+				  "memberof_fixup_task_thread: failed to start transaction\n");
+			}
+		} else {
+			slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			  "memberof_fixup_task_thread: failed to get be backend from %s\n",
+			  td->dn);
+		}
+	}
 
 	/* get the memberOf operation lock */
 	memberof_lock();
@@ -2299,11 +2327,21 @@ void memberof_fixup_task_thread(void *arg)
 	/* release the memberOf operation lock */
 	memberof_unlock();
 
+	if (usetxn && fixup_pb) {
+		if (rc) { /* failes */
+			slapi_back_transaction_abort(fixup_pb);
+		} else {
+			slapi_back_transaction_commit(fixup_pb);
+		}
+		slapi_pblock_destroy(fixup_pb);
+	}
 	memberof_free_config(&configCopy);
 
 	slapi_task_log_notice(task, "Memberof task finished.");
 	slapi_task_log_status(task, "Memberof task finished.");
 	slapi_task_inc_progress(task);
+	slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+	                "Memberof task finished (arg: %s) ...\n", td->filter_str);
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);

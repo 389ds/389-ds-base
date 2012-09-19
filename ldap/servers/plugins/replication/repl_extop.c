@@ -906,6 +906,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 
 	/* remove this code once ticket 374 is fixed */
 #ifdef ENABLE_TEST_TICKET_374
+#include <unistd.h>
 	if (getenv("SLAPD_TEST_TICKET_374") && (opid > 20)) {
 		int i = 0;
 		int max = 480 * 5;
