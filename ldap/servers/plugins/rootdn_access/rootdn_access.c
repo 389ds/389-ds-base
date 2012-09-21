@@ -219,8 +219,10 @@ rootdn_load_config(Slapi_PBlock *pb)
     Slapi_Entry *e = NULL;
     char *openTime = NULL;
     char *closeTime = NULL;
+    char *token, *iter, *copy;
     char hour[3], min[3];
     int result = 0;
+    int time;
     int i;
 
     slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_load_config\n");
@@ -240,19 +242,41 @@ rootdn_load_config(Slapi_PBlock *pb)
          *  Validate out settings
          */
         if(daysAllowed){
-            if(strcspn(daysAllowed, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,")){
+            daysAllowed = strToLower(daysAllowed);
+            if(strcspn(daysAllowed, "abcdefghijklmnopqrstuvwxyz ,")){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                    "invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n",closeTime);
+                    "invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n", daysAllowed);
                 slapi_ch_free_string(&daysAllowed);
                 result = -1;
                 goto free_and_return;
             }
-            daysAllowed = strToLower(daysAllowed);
+            /* make sure the "days" are valid "days" */
+            copy = slapi_ch_strdup(daysAllowed);
+            token = ldap_utf8strtok_r(copy, ", ", &iter);
+            while(token){
+                if(strstr("mon tue wed thu fri sat sun",token) == 0){
+                    slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                        "invalid rootdn-days-allowed day value(%s), must be \"Mon, Tue, Wed, Thu, Fri, Sat, or Sun\".\n", token);
+                    slapi_ch_free_string(&daysAllowed);
+                    slapi_ch_free_string(&copy);
+                    result = -1;
+                    goto free_and_return;
+                }
+                token = ldap_utf8strtok_r(iter, ", ", &iter);
+            }
+            slapi_ch_free_string(&copy);
         }
         if(openTime){
             if (strcspn(openTime, "0123456789")){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                    "invalid rootdn-open-time value (%s), must be all digits\n",openTime);
+                    "invalid rootdn-open-time value (%s), must be all digits\n", openTime);
+                result = -1;
+                goto free_and_return;
+            }
+            time = atoi(openTime);
+            if(time > 2359 || time < 0){
+                slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                    "invalid value for rootdn-open-time value (%s), value must be between 0000-2359\n", openTime);
                 result = -1;
                 goto free_and_return;
             }
@@ -272,13 +296,20 @@ rootdn_load_config(Slapi_PBlock *pb)
         if(closeTime){
             if (strcspn(closeTime, "0123456789")){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                    "invalid rootdn-open-time value (%s), must be all digits, and should be HHMM\n",closeTime);
+                    "invalid rootdn-close-time value (%s), must be all digits, and should be HHMM\n",closeTime);
+                result = -1;
+                goto free_and_return;
+            }
+            time = atoi(closeTime);
+            if(time > 2359 || time < 0){
+            	slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                    "invalid value for rootdn-close-time value (%s), value must be between 0000-2359\n", closeTime);
                 result = -1;
                 goto free_and_return;
             }
             if(strlen(closeTime) != 4){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                    "invalid format for rootdn-open-time value (%s), should be HHMM\n", closeTime);
+                    "invalid format for rootdn-close-time value (%s), should be HHMM\n", closeTime);
                 result = -1;
                 goto free_and_return;
             }
@@ -661,7 +692,7 @@ char *
 strToLower(char *str){
     int i;
 
-    for(i = 0; i < strlen(str); i++){
+    for(i = 0; str && i < strlen(str); i++){
         str[i] = tolower(str[i]);
     }
     return str;
