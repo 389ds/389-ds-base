@@ -134,11 +134,10 @@ int
 plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 {
 	struct slapdplugin	*p;
-	char 				*dn;
 	int					rc = 0;
-   	void				*change = NULL;
-   	Slapi_Entry			*te = NULL;
-    Slapi_DN			*sdn = NULL;
+	void				*change = NULL;
+	Slapi_Entry			*te = NULL;
+	Slapi_DN			*sdn = NULL;
 	Operation			*operation;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
@@ -146,7 +145,7 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 	(void)slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 
 	switch ( optype ) {
- 	  case SLAPI_OPERATION_MODIFY:
+	  case SLAPI_OPERATION_MODIFY:
 		(void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &change );
 		break;
 	  case SLAPI_OPERATION_ADD:
@@ -157,9 +156,28 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 			sdn = slapi_entry_get_sdn(te);
 		}
 		break;
-    	  case SLAPI_OPERATION_MODRDN:
-		(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
+	  case SLAPI_OPERATION_MODRDN:
+	  {
+		void *mychange[2];
+		char *newrdn = NULL;
+		Slapi_DN *psdn = NULL;
+		char *pdn = NULL;
+
+		/* newrdn: "change" is normalized but not case-ignored */
+		/* The acl plugin expects normalized newrdn, but no need to be case-
+		 * ignored. */
+		(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
+		(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &psdn );
+		if (psdn) {
+			pdn = (char *)slapi_sdn_get_dn(psdn);
+		} else {
+			(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR, &pdn );
+		}
+		mychange[0] = newrdn;
+		mychange[1] = pdn;
+		change = mychange;
 		break;
+	  }
 	}
 	
 	if (NULL == sdn) {
@@ -169,10 +187,9 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 	}
 
 	/* call the global plugins first and then the backend specific */
-	dn = (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
 	for ( p = get_plugin_list(PLUGIN_LIST_ACL); p != NULL; p = p->plg_next ) {
 		if (plugin_invoke_plugin_sdn(p, SLAPI_PLUGIN_ACL_MODS_UPDATE, pb, sdn)){
-			rc = (*p->plg_acl_mods_update)(pb, optype, dn, change );
+			rc = (*p->plg_acl_mods_update)(pb, optype, sdn, change );
 			if ( rc != LDAP_SUCCESS ) break;
 		}
 	}

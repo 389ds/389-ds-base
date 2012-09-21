@@ -170,9 +170,9 @@ acl_access_allowed_modrdn(
  * Test if have access to make the first rdn of dn in entry e.
 */
  
-static int check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, const char *dn,
-						int access) {
-	
+static int
+check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, const char *dn, int access)
+{
 	char **dns;
 	char **rdns;
 	int retCode = LDAP_INSUFFICIENT_ACCESS;
@@ -659,7 +659,8 @@ cleanup_and_ret:
 	
 }
 
-static void print_access_control_summary( char *source, int ret_val, char *clientDn,
+static void
+print_access_control_summary( char *source, int ret_val, char *clientDn,
 									struct	acl_pblock	*aclpb,
 									char *right,
 									char *attr,
@@ -1533,11 +1534,12 @@ acl_check_mods(
 *
 **************************************************************************/
 extern void
-acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
+acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 {
 	struct  berval	**bvalue;
 	char			**value;
 	int				rv=0;		/* returned value */
+	const char*     n_dn;
 	char*          	new_RDN;
 	char*          	parent_DN;
 	char*          	new_DN;
@@ -1547,10 +1549,12 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 	Slapi_Attr 		*attr = NULL;
 	Slapi_Entry		*e = NULL;
 	char			ebuf [ BUFSIZ];
-	Slapi_DN		*e_sdn;
 	aclUserGroup	*ugroup = NULL;
 	
-	e_sdn = slapi_sdn_new_normdn_byval ( n_dn );
+	if (NULL == e_sdn) {
+		return;
+	}
+	n_dn = slapi_sdn_get_dn(e_sdn);
 	/* Before we proceed, Let's first check if we are changing any groups.
 	** If we are, then we need to change the signature
 	*/
@@ -1778,45 +1782,64 @@ acl_modified (Slapi_PBlock *pb, int optype, char *n_dn, void *change)
 		}
 
 		break;
-	   }/* case op is modify*/
+	    }/* case op is modify*/
 
-	   case SLAPI_OPERATION_MODRDN:
-
-		new_RDN = (char*) change;
-		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-			   "acl_modified (MODRDN %s => \"%s\"\n", 
-			   ACL_ESCAPE_STRING_WITH_PUNCTUATION (n_dn, ebuf), new_RDN);
+	    case SLAPI_OPERATION_MODRDN:
+	    {
+		char **rdn_parent;
+		rdn_parent = (char **)change;
+		new_RDN = rdn_parent[0];
+		parent_DN = rdn_parent[1];
 
 		/* compute new_DN: */
-		parent_DN = slapi_dn_parent (n_dn);
-		if (parent_DN == NULL) {
-			new_DN = new_RDN;
-		} else {
-			new_DN = slapi_create_dn_string("%s,%s", new_RDN, parent_DN);
+		if (NULL == parent_DN) {
+			parent_DN = slapi_dn_parent(n_dn);
 		}
+		if (NULL == parent_DN) {
+			if (NULL == new_RDN) {
+				slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
+				                 "acl_modified (MODRDN %s => \"no change\"\n", 
+				                 n_dn);
+				break;
+			} else {
+				new_DN = new_RDN;
+			}
+		} else {
+			if (NULL == new_RDN) {
+				Slapi_RDN *rdn= slapi_rdn_new();
+				slapi_sdn_get_rdn(e_sdn, rdn);
+				new_DN = slapi_create_dn_string("%s,%s", slapi_rdn_get_rdn(rdn),
+				                                parent_DN);
+				slapi_rdn_free(&rdn);
+			} else {
+				new_DN = slapi_create_dn_string("%s,%s", new_RDN, parent_DN);
+			}
+		}
+		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
+		                 "acl_modified (MODRDN %s => \"%s\"\n", n_dn, new_RDN);
 
 		/* Change the acls */
-		acllist_acicache_WRITE_LOCK();		
+		acllist_acicache_WRITE_LOCK();
 		/* acllist_moddn_aci_needsLock expects normalized new_DN, 
 		 * which is no need to be case-ignored */
 		acllist_moddn_aci_needsLock ( e_sdn, new_DN );
 		acllist_acicache_WRITE_UNLOCK();
 
 		/* deallocat the parent_DN */
-		if (parent_DN != NULL)  {
-			slapi_ch_free ( (void **) &new_DN );
-			slapi_ch_free ( (void **) &parent_DN );
+		if (parent_DN != NULL) {
+			slapi_ch_free_string(&new_DN);
+			if (parent_DN != rdn_parent[1]) {
+				slapi_ch_free_string(&parent_DN);
+			}
 		}
 		break;
-
-	   default:
+	    } /* case op is modrdn */
+	    default:
 		/* print ERROR */
 		break;
 	} /*optype switch */
-		
-	slapi_sdn_free ( &e_sdn );	
-
 }
+
 /***************************************************************************
 *
 * acl__scan_for_acis
