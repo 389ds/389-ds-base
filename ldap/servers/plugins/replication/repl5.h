@@ -632,6 +632,7 @@ typedef struct _cleanruv_data
 	CSN *maxcsn;
 	char *repl_root;
 	Slapi_DN *sdn;
+	char *certify;
 } cleanruv_data;
 
 /* replutil.c */

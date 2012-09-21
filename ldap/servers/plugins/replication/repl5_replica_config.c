@@ -1265,7 +1265,8 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id (%d) for task - (%s)",
             rid, slapi_sdn_get_dn(task_dn));
         cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
-        rc = LDAP_OPERATIONS_ERROR;
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
     /*
@@ -1273,7 +1274,9 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
      */
     dn = slapi_sdn_new_dn_byval(base_dn);
     if((r = replica_get_replica_from_dn(dn)) == NULL){
-        *returncode = LDAP_OPERATIONS_ERROR ;
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Could not find replica from dn(%s)",slapi_sdn_get_dn(dn));
+        cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
+        *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
@@ -1284,9 +1287,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
 out:
     if(rc){
         cleanruv_log(task, CLEANALLRUV_ID, "Task failed...(%d)", rc);
-        *returncode = rc;
         slapi_task_finish(task, *returncode);
-        rc = SLAPI_DSE_CALLBACK_ERROR;
     } else {
         rc = SLAPI_DSE_CALLBACK_OK;
     }
@@ -2185,18 +2186,19 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     Replica *replica;
     ReplicaId rid;
     cleanruv_data *data = NULL;
-    Slapi_DN *sdn;
+    Slapi_DN *sdn = NULL;
     Object *r;
-    CSN *maxcsn;
+    CSN *maxcsn = NULL;
     const char *base_dn;
     const char *rid_str;
-    char *ridstr;
+    const char *certify_all;
+    char *ridstr = NULL;
     int rc = SLAPI_DSE_CALLBACK_OK;
 
     if(get_abort_cleanruv_task_count() >= CLEANRIDSIZ){
         /* we are already running the maximum number of tasks */
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID,
-    	    "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",CLEANRIDSIZ);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",CLEANRIDSIZ);
+        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -2207,17 +2209,20 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
      *  Get our task settings
      */
     if ((rid_str = fetch_attr(e, "replica-id", 0)) == NULL){
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID,"Missing required attr \"replica-id\"");
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-id\"");
+        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
     if ((base_dn = fetch_attr(e, "replica-base-dn", 0)) == NULL){
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID,"Missing required attr \"replica-base-dn\"");
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-base-dn\"");
+        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
+    certify_all = fetch_attr(e, "replica-certify-all", 0);
     /*
      *  Check the rid
      */
@@ -2235,15 +2240,31 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
      */
     sdn = slapi_sdn_new_dn_byval(base_dn);
     if((r = replica_get_replica_from_dn(sdn)) == NULL){
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID,"Failed to find replica from dn(%s)", base_dn);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to find replica from dn(%s)", base_dn);
+        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
     /*
+     *  Check verify value
+     */
+    if(certify_all){
+        if(strcasecmp(certify_all,"yes") && strcasecmp(certify_all,"no")){
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for \"replica-certify-all\", the value "
+                "must be \"yes\" or \"no\".");
+            cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+            *returncode = LDAP_OPERATIONS_ERROR;
+            rc = SLAPI_DSE_CALLBACK_ERROR;
+            goto out;
+        }
+    } else {
+        certify_all = "no";
+    }
+    /*
      *  Create payload
      */
-    ridstr = slapi_ch_smprintf("%d:%s", rid, base_dn);
+    ridstr = slapi_ch_smprintf("%d:%s:%s", rid, base_dn, certify_all);
     payload = create_ruv_payload(ridstr);
 
     if(payload == NULL){
@@ -2277,6 +2298,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     data->rid = rid;
     data->repl_root = slapi_ch_strdup(base_dn);
     data->sdn = NULL;
+    data->certify = slapi_ch_strdup(certify_all);
 
     thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
                 (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
@@ -2289,7 +2311,6 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     }
 
 out:
-
     csn_free(&maxcsn);
     slapi_ch_free_string(&ridstr);
     slapi_sdn_free(&sdn);
@@ -2324,7 +2345,7 @@ replica_abort_task_thread(void *arg)
          * to timing issues, we need to wait to grab the replica obj until we get here.
          */
         if((data->repl_obj = replica_get_replica_from_dn(data->sdn)) == NULL){
-            cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Failed to get replica from dn (%s).", slapi_sdn_get_dn(data->sdn));
+            cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Failed to get replica object from dn (%s).", slapi_sdn_get_dn(data->sdn));
             goto done;
         }
         if(data->replica == NULL && data->repl_obj){
@@ -2338,6 +2359,10 @@ replica_abort_task_thread(void *arg)
      */
     while(agmt_not_notified && !slapi_is_shutting_down()){
         agmt_obj = agmtlist_get_first_agreement_for_replica (data->replica);
+        if(agmt_obj == NULL){
+        	agmt_not_notified = 0;
+        	break;
+        }
         while (agmt_obj){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
@@ -2345,8 +2370,14 @@ replica_abort_task_thread(void *arg)
                 continue;
             }
             if(replica_cleanallruv_send_abort_extop(agmt, data->task, data->payload)){
-                agmt_not_notified = 1;
-                break;
+                if(strcasecmp(data->certify,"yes") == 0){
+                    /* we are verifying all the replicas receive the abort task */
+                    agmt_not_notified = 1;
+                    break;
+                } else {
+                    /* we do not care if we could not reach a replica, just continue as if we did */
+                    agmt_not_notified = 0;
+                }
             } else {
                 /* success */
                 agmt_not_notified = 0;
@@ -2376,7 +2407,7 @@ replica_abort_task_thread(void *arg)
 done:
     if(agmt_not_notified){
         /* failure */
-    	cleanruv_log(data->task, ABORT_CLEANALLRUV_ID,"Abort task failed, will resume the task at the next server startup.");
+        cleanruv_log(data->task, ABORT_CLEANALLRUV_ID,"Abort task failed, will resume the task at the next server startup.");
     } else {
         /*
          *  Clean up the config
@@ -2393,6 +2424,7 @@ done:
         ber_bvfree(data->payload);
     }
     slapi_ch_free_string(&data->repl_root);
+    slapi_ch_free_string(&data->certify);
     slapi_sdn_free(&data->sdn);
     slapi_ch_free((void **)&data);
 }

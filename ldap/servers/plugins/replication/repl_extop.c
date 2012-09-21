@@ -1386,6 +1386,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 	char *extop_oid;
 	char *repl_root;
 	char *payload = NULL;
+	char *certify_all;
 	char *iter;
 	int rc = 0;
 
@@ -1406,6 +1407,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 	}
 	rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
 	repl_root = ldap_utf8strtok_r(iter, ":", &iter);
+	certify_all = ldap_utf8strtok_r(iter, ":", &iter);
 
 	if(!is_cleaned_rid(rid) || is_task_aborted(rid)){
 		/* This replica has already been aborted, or was never cleaned, or already finished cleaning */
@@ -1452,6 +1454,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 	data->payload = slapi_ch_bvdup(extop_payload);
 	data->rid = rid;
 	data->repl_root = slapi_ch_strdup(repl_root);
+	data->certify = slapi_ch_strdup(certify_all);
 	/*
 	 *  Stop the cleaning, and delete the rid
 	 */
@@ -1472,6 +1475,8 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 		}
 		slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name, "Abort cleanAllRUV task: unable to create abort "
 			"thread.  Aborting task.\n");
+		slapi_ch_free_string(&data->repl_root);
+		slapi_ch_free_string(&data->certify);
 		rc = LDAP_OPERATIONS_ERROR;
 	}
 

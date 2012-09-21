@@ -1925,6 +1925,7 @@ done:
         char *ridstr = NULL;
         char *repl_root;
         char *token = NULL;
+        char *certify = NULL;
         ReplicaId rid;
         int i;
 
@@ -1946,6 +1947,7 @@ done:
             }
 
             repl_root = ldap_utf8strtok_r(iter, ":", &iter);
+            certify = ldap_utf8strtok_r(iter, ":", &iter);
             stop_ruv_cleaning();
             maxcsn = replica_get_cleanruv_maxcsn(r, rid);
             delete_cleaned_rid(r, rid, maxcsn);
@@ -1977,6 +1979,7 @@ done:
                     data->payload = payload;
                     data->repl_root = slapi_ch_strdup(repl_root);
                     data->sdn = slapi_sdn_dup(r->repl_root);
+                    data->certify = slapi_ch_strdup(certify);
 
                     thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
                             (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
@@ -1987,6 +1990,7 @@ done:
                         slapi_sdn_free(&data->sdn);
                         ber_bvfree(data->payload);
                         slapi_ch_free_string(&data->repl_root);
+                        slapi_ch_free_string(&data->certify);
                         slapi_ch_free((void **)&data);
                     }
                 }
