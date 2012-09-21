@@ -51,4 +51,4 @@ PACKAGE_STRING="$PACKAGE_TARNAME $PACKAGE_VERSION"
 # the version of the ds console package that this directory server
 # is compatible with
 # console .2 is still compatible with 389 .3 for now
-CONSOLE_VERSION=$VERSION_MAJOR.2.6
+CONSOLE_VERSION=$VERSION_MAJOR.2
