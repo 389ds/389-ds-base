@@ -213,7 +213,7 @@ aclg_reset_userGroup ( struct acl_pblock *aclpb )
 */
 
 aclUserGroup*
-aclg_find_userGroup(char *n_dn)
+aclg_find_userGroup(const char *n_dn)
 {
 	aclUserGroup		*u_group = NULL;	
 	int			i;

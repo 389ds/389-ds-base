@@ -796,7 +796,8 @@ int  		acl_read_access_allowed_on_attr ( Slapi_PBlock *pb, Slapi_Entry *e, char 
                                   struct berval *val, int access);
 void 		acl_set_acllist (Slapi_PBlock *pb, int scope, char *base);
 void 		acl_gen_err_msg(int access, char *edn, char *attr, char **errbuf);
-void 		acl_modified ( Slapi_PBlock *pb, int optype, char *dn, void *change);
+void 		acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change);
+
 int 		acl_access_allowed_disjoint_resource( Slapi_PBlock *pb, Slapi_Entry *e,
 					char *attr, struct berval *val, int access );
 int 		acl_access_allowed_main ( Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, 
@@ -866,7 +867,7 @@ void		acllist_print_tree ( Avlnode *root, int *depth, char *start, char *side);
 AciContainer *acllist_get_aciContainer_new ( );
 void 		acllist_done_aciContainer (  AciContainer *);
 
-aclUserGroup* aclg_find_userGroup (char *n_dn);
+aclUserGroup* aclg_find_userGroup (const char *n_dn);
 void 		aclg_regen_ugroup_signature( aclUserGroup *ugroup);
 void		aclg_markUgroupForRemoval ( aclUserGroup *u_group );
 void		aclg_reader_incr_ugroup_refcnt(aclUserGroup* u_group);
