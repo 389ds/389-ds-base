@@ -313,9 +313,6 @@ pw_init ( void )
 	                                 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD */
 	                                SLAPI_ATTR_FLAG_NOUSERMOD|
 	                                SLAPI_ATTR_FLAG_NOEXPOSE);
-
-	/* Initialize password storage in entry extension */
-	pw_exp_init ();
 }
 
 
