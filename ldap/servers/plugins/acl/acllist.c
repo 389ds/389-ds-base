@@ -600,7 +600,6 @@ void
 acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 {
 	Acl_PBlock			*aclpb;
-	int					i;
 	AciContainer		*root;
 	char				*basedn = NULL;
 	int					index;
@@ -671,11 +670,6 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 		aclpb->aclpb_state &= ~ACLPB_SEARCH_BASED_ON_LIST ;
 
 	acllist_acicache_READ_UNLOCK();
-
-	i = 0;
-	while ( i < aclpb_max_selected_acls && aclpb->aclpb_base_handles_index[i]  != -1 ) {
-		i++;
-	}
 }
 
 /*
@@ -893,34 +887,50 @@ acllist_acicache_WRITE_LOCK( )
 int
 acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
 {
-
-
 	AciContainer		*aciListHead;
 	AciContainer		*head;
+	aci_t *acip;
+	const char *oldndn;
 
 	/* first get the container */
 
 	aciListHead =   acllist_get_aciContainer_new ( );
 	slapi_sdn_free(&aciListHead->acic_sdn);
-    aciListHead->acic_sdn = oldsdn;
-
+	aciListHead->acic_sdn = oldsdn;
 
 	if ( NULL == (head = (AciContainer *) avl_find( acllistRoot, aciListHead,
-									(IFP) __acllist_aciContainer_node_cmp ) ) ) {
+	     (IFP) __acllist_aciContainer_node_cmp ) ) ) {
 
 		slapi_log_error ( SLAPI_PLUGIN_ACL, plugin_name,
- 						"Can't find the acl in the tree for moddn operation:olddn%s\n",
-							slapi_sdn_get_ndn ( oldsdn ));
+		         "Can't find the acl in the tree for moddn operation:olddn%s\n",
+		         slapi_sdn_get_ndn ( oldsdn ));
 		aciListHead->acic_sdn = NULL;
 		__acllist_free_aciContainer ( &aciListHead );
- 		return 1;
+		return 1;
 	}
 
+	/* Now set the new DN */
+	slapi_sdn_set_normdn_byval(head->acic_sdn, newdn);
 
-	/* Now set the new DN */	
-	slapi_sdn_done ( head->acic_sdn );
- 	slapi_sdn_set_normdn_byval ( head->acic_sdn, newdn );
-
+	/* If necessary, reset the target DNs, as well. */
+	oldndn = slapi_sdn_get_ndn(oldsdn);
+	for (acip = head->acic_list; acip; acip = acip->aci_next) {
+		const char *ndn = slapi_sdn_get_ndn(acip->aci_sdn);
+		char *p = PL_strstr(ndn, oldndn);
+		if (p) {
+			if (p == ndn) {
+				/* target dn is identical, replace it with new DN*/
+				slapi_sdn_set_normdn_byval(acip->aci_sdn, newdn);
+			} else {
+				/* target dn is a descendent of olddn, merge it with new DN*/
+				char *mynewdn;
+				*p = '\0';
+				mynewdn = slapi_ch_smprintf("%s%s", ndn, newdn);
+				slapi_sdn_set_normdn_passin(acip->aci_sdn, mynewdn);
+			}
+		}
+	}
+    
 	aciListHead->acic_sdn = NULL;
 	__acllist_free_aciContainer ( &aciListHead );
 

@@ -2097,7 +2097,7 @@ slapi_sdn_set_normdn_byval(Slapi_DN *sdn, const char *normdn)
     slapi_sdn_done(sdn);
     sdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
     if(normdn == NULL) {
-        sdn->dn = slapi_ch_strdup(normdn);
+        sdn->dn = NULL;
         sdn->ndn_len = 0;
     } else {
         sdn->dn = slapi_ch_strdup(normdn);
