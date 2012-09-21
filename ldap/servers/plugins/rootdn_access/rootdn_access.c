@@ -440,8 +440,9 @@ rootdn_check_access(Slapi_PBlock *pb){
         memmove(day, timestr, 3); // we only want the day
         today = strToLower(today);
 
-        if(!strstr(today, daysAllowed)){
-            slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: bind not allowed for today\n");
+        if(!strstr(daysAllowed, today)){
+            slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: bind not allowed for today(%s), "
+                "only allowed on days: %s\n", today, daysAllowed);
             return -1;
         }
     }
