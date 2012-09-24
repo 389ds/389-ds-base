@@ -1552,6 +1552,7 @@ replica_cleanallruv_thread(void *arg)
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
+                agmt_not_notified = 0;
                 continue;
             }
             if(replica_cleanallruv_send_extop(agmt, data->rid, data->task, data->payload, 1) == 0){
@@ -1605,6 +1606,7 @@ replica_cleanallruv_thread(void *arg)
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
+                found_dirty_rid = 0;
                 continue;
             }
             if(replica_cleanallruv_check_ruv(agmt, rid_text, data->task) == 0){
@@ -1698,6 +1700,7 @@ check_agmts_are_caught_up(Replica *replica, ReplicaId rid, char *maxcsn, Slapi_T
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+                not_all_caughtup = 0;
                 continue;
             }
             if(replica_cleanallruv_check_maxcsn(agmt, rid_text, maxcsn, task) == 0){
@@ -1753,6 +1756,7 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
+                not_all_alive = 0;
                 continue;
             }
             if(replica_cleanallruv_replica_alive(agmt) == 0){
@@ -2364,6 +2368,7 @@ replica_abort_task_thread(void *arg)
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
+                agmt_not_notified = 0;
                 continue;
             }
             if(replica_cleanallruv_send_abort_extop(agmt, data->task, data->payload)){
