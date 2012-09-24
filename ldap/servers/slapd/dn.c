@@ -1129,8 +1129,9 @@ bail:
         *d = '\0';
     }
     /* add this dn to the normalized dn cache */
-    if(*dest)
+    if(dest && *dest && dest_len && *dest_len) {
         ndn_cache_add(udn, src_len, *dest, *dest_len);
+    }
 
     return rc;
 }
