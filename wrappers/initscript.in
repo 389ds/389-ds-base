@@ -264,7 +264,8 @@ start() {
         [ -x /sbin/restorecon ] && /sbin/restorecon $lockfile
     fi
     if [ $errors -ge 1 ]; then
-        echo "  *** Warning: $errors instance(s) failed to start"
+        echo "  *** Error: $errors instance(s) failed to start"
+        exit 1
     fi
 }
 
