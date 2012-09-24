@@ -309,8 +309,7 @@ pw_init ( void ) {
 	                                OCTETSTRING_SYNTAX_OID, 0, 
 	                                /* Clients don't need to directly modify
 	                                 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD */
-	                                SLAPI_ATTR_FLAG_NOUSERMOD|
-	                                SLAPI_ATTR_FLAG_NOEXPOSE);
+	                                SLAPI_ATTR_FLAG_NOUSERMOD);
 }
 
 

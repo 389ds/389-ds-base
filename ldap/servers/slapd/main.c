@@ -1164,13 +1164,6 @@ main( int argc, char **argv)
 		/* init the thread data index for bind dn's */
 		slapi_td_dn_init();
 
-		/* 
-		 * Initialize password storage in entry extension.
-		 * Need to be initialized before plugin_startall in case stucked
-		 * changes are replicated as soon as the replication plugin is started.
-		 */
-		pw_exp_init ();
-
 		plugin_print_lists();
 		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
