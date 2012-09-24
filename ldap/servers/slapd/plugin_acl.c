@@ -136,6 +136,7 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 	struct slapdplugin	*p;
 	int					rc = 0;
 	void				*change = NULL;
+	void				*mychange[2];
 	Slapi_Entry			*te = NULL;
 	Slapi_DN			*sdn = NULL;
 	Operation			*operation;
@@ -158,7 +159,6 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 		break;
 	  case SLAPI_OPERATION_MODRDN:
 	  {
-		void *mychange[2];
 		char *newrdn = NULL;
 		Slapi_DN *psdn = NULL;
 		char *pdn = NULL;
