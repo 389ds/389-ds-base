@@ -142,6 +142,12 @@ posix_winsync_config_get_msSFUSchema()
     return theConfig.mssfuSchema;
 }
 
+PRBool
+posix_winsync_config_get_mapNestedGrouping()
+{
+    return theConfig.mapNestedGrouping;
+}
+
 Slapi_DN *
 posix_winsync_config_get_suffix()
 {
@@ -182,6 +188,7 @@ posix_winsync_config(Slapi_Entry *config_e)
     theConfig.lowercase = PR_FALSE;
     theConfig.createMemberOfTask = PR_FALSE;
     theConfig.MOFTaskCreated = PR_FALSE;
+    theConfig.mapNestedGrouping = PR_FALSE;
 
     posix_winsync_apply_config(NULL, NULL, config_e, &returncode, returntext, NULL);
     /* config DSE must be initialized before we get here */
@@ -224,6 +231,7 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     PRBool createMemberOfTask = PR_FALSE;
     PRBool lowercase = PR_FALSE;
     Slapi_Attr *testattr = NULL;
+    PRBool mapNestedGrouping = PR_FALSE;
 
     *returncode = LDAP_UNWILLING_TO_PERFORM; /* be pessimistic */
 
@@ -257,6 +265,13 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
                         "_apply_config: Config paramter %s: %d\n", POSIX_WINSYNC_LOWER_CASE,
                         lowercase);
     }
+    /* propogate memberuids in nested grouping */
+    if (!slapi_entry_attr_find(e, POSIX_WINSYNC_MAP_NESTED_GROUPING, &testattr) && (NULL != testattr)) {
+        mapNestedGrouping = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_MAP_NESTED_GROUPING);
+        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+                        "_apply_config: Config paramter %s: %d\n", POSIX_WINSYNC_MAP_NESTED_GROUPING,
+                        mapNestedGrouping);
+    }
     /* if we got here, we have valid values for everything
      set the config entry */
     slapi_lock_mutex(theConfig.lock);
@@ -269,6 +284,7 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     theConfig.mapMemberUID = mapMemberUID;
     theConfig.createMemberOfTask = createMemberOfTask;
     theConfig.lowercase = lowercase;
+    theConfig.mapNestedGrouping = mapNestedGrouping;
 
     /* success */
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,

@@ -68,7 +68,7 @@
 #include "posix-wsp-ident.h"
 #include "posix-group-func.h"
 
-#define MEMBEROFTASK "memberof task"
+#define MEMBEROFTASK "memberuid task"
 Slapi_Value **
 valueset_get_valuearray(const Slapi_ValueSet *vs); /* stolen from proto-slap.h */
 void *
@@ -103,6 +103,7 @@ static windows_attribute_map user_mssfu_attribute_map[] =
       { "msSFU30gecos", "gecos" },
       { NULL, NULL } };
 
+/* memberUid must be first element or fixup in pre_ad_mod/add_group is required */
 static windows_attribute_map group_attribute_map[] = { { "memberUid", "memberUid" },
                                                        { "gidNumber", "gidNumber" },
                                                        { NULL, NULL } };
@@ -661,7 +662,34 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                 char *ad_type = NULL;
                 int is_present_local;
 
-                slapi_attr_get_valueset(attr, &vs);
+                if (i == 0) { /* memberUid */
+                    Slapi_Attr *dsmuid_attr = NULL;
+                    Slapi_Value *v = NULL;
+                    slapi_entry_attr_find(ds_entry, "dsonlymemberuid", &dsmuid_attr);
+
+                    if (dsmuid_attr) {
+                        Slapi_ValueSet *dsmuid_vs = NULL;
+                        slapi_attr_get_valueset(dsmuid_attr, &dsmuid_vs);
+                        if (dsmuid_vs) {
+                            vs = slapi_valueset_new();
+
+                            int j;
+                            for (j = slapi_attr_first_value(attr, &v); j != -1;
+                                 j = slapi_attr_next_value(attr, i, &v)) {
+                                if (!slapi_valueset_find(dsmuid_attr, dsmuid_vs, v)) {
+                                    slapi_valueset_add_value(vs, v);
+                                }
+                            }
+
+                            slapi_valueset_free(dsmuid_vs); dsmuid_vs = NULL;
+                        }
+                    }
+                }
+
+                if (!vs) {
+                    slapi_attr_get_valueset(attr, &vs);
+                }
+
                 ad_type = slapi_ch_strdup(attr_map[i].windows_attribute_name);
                 slapi_entry_attr_find(ad_entry, ad_type, &ad_attr);
                 is_present_local = (NULL == ad_attr) ? 0 : 1;
@@ -810,6 +838,12 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                                           valueset_get_valuearray(oc_vs));
                 slapi_value_free(&oc_nv);
                 slapi_valueset_free(oc_vs);
+
+                if (posix_winsync_config_get_mapNestedGrouping()) {
+                    memberUidLock();
+                    addUserToGroupMembership(ds_entry);
+                    memberUidUnlock();
+                }
             }
         }
         slapi_value_free(&voc);
@@ -897,7 +931,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "_pre_ds_mod_group_cb present %d modify %d before\n", is_present_local,
                     do_modify_local);
-    if (posix_winsync_config_get_mapMemberUid()) {
+    if (posix_winsync_config_get_mapMemberUid() || posix_winsync_config_get_mapNestedGrouping()) {
         memberUidLock();
         modGroupMembership(ds_entry, smods, do_modify);
         memberUidUnlock();
@@ -999,6 +1033,13 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                             "<-- _pre_ds_add_user_cb -- adding objectclass for new entry failed %d\n",
                             rc);
+        else {
+            if (posix_winsync_config_get_mapNestedGrouping()) {
+                memberUidLock();
+                addUserToGroupMembership(ds_entry);
+                memberUidUnlock();
+            }
+        }
     }
     sync_acct_disable(cbdata, rawentry, ds_entry, ACCT_DISABLE_TO_DS, ds_entry, NULL, NULL);
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "<-- _pre_ds_add_user_cb -- end\n");
@@ -1054,14 +1095,14 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                             "<-- _pre_ds_add_group_cb -- adding objectclass for new entry failed %d\n",
                             rc);
-        } else {
-            if (posix_winsync_config_get_mapMemberUid()) {
-                memberUidLock();
-                addGroupMembership(ds_entry, ad_entry);
-                memberUidUnlock();
-            }
         }
     }
+    if (posix_winsync_config_get_mapMemberUid() || posix_winsync_config_get_mapNestedGrouping()) {
+        memberUidLock();
+        addGroupMembership(ds_entry, ad_entry);
+        memberUidUnlock();
+    }
+
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- posix_winsync_pre_ds_add_group_cb -- end\n");
 
@@ -1274,7 +1315,7 @@ posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slap
                     "--> posix_winsync_end_update_cb -- begin %d %d\n",
                     posix_winsync_config_get_MOFTaskCreated(),
                     posix_winsync_config_get_createMOFTask());
-    if (posix_winsync_config_get_MOFTaskCreated() && posix_winsync_config_get_createMOFTask()) {
+    if (1 && posix_winsync_config_get_createMOFTask()) {
         /* add a task to schedule memberof Plugin for fix memebrof attributs */
         Slapi_PBlock *pb = slapi_pblock_new();
         Slapi_Entry *e_task = slapi_entry_alloc();
@@ -1291,13 +1332,24 @@ posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slap
                             posix_winsync_plugin_name, MEMBEROFTASK);
             return;
         }
+
+        slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                        "--> posix_winsync_end_update_cb, init'ing task\n");
+
         slapi_entry_init(e_task, slapi_ch_strdup(dn), NULL);
         slapi_entry_add_string(e_task, "cn", slapi_ch_strdup(posix_winsync_plugin_name));
         slapi_entry_add_string(e_task, "objectClass", "extensibleObject");
         slapi_entry_add_string(e_task, "basedn", slapi_sdn_get_dn(ds_subtree));
 
         slapi_add_entry_internal_set_pb(pb, e_task, NULL, posix_winsync_get_plugin_identity(), 0);
+
+
+        slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                        "--> posix_winsync_end_update_cb, adding task\n");
         slapi_add_internal_pb(pb);
+
+        slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                        "--> posix_winsync_end_update_cb, retrieving return code\n");
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
         if (rc != 0) {
             slapi_log_error(SLAPI_LOG_FATAL, posix_winsync_plugin_name,

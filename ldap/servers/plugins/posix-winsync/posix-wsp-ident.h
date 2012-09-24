@@ -17,7 +17,7 @@
 #define POSIX_WINSYNC_MAP_MEMBERUID "posixWinsyncMapMemberUID"
 #define POSIX_WINSYNC_CREATE_MEMBEROFTASK "posixWinsyncCreateMemberOfTask"
 #define POSIX_WINSYNC_LOWER_CASE "posixWinsyncLowerCaseUID"
-
+#define POSIX_WINSYNC_MAP_NESTED_GROUPING "posixWinsyncMapNestedGrouping"
 
 void * posix_winsync_get_plugin_identity();
 
@@ -29,6 +29,7 @@ typedef struct posix_winsync_config_struct {
     PRBool lowercase; /* store the uid in group memberuid in lower case */
     PRBool createMemberOfTask; /* should memberOf Plugin Task run after AD sync */
     PRBool MOFTaskCreated;
+    PRBool mapNestedGrouping;
     Slapi_DN *rep_suffix; /* namingContext in DS of the replicated suffix */  
 } POSIX_WinSync_Config;
 
@@ -42,6 +43,7 @@ Slapi_DN *posix_winsync_config_get_suffix();
 void posix_winsync_config_reset_MOFTaskCreated();
 void posix_winsync_config_set_MOFTaskCreated();
 PRBool posix_winsync_config_get_MOFTaskCreated();
+PRBool posix_winsync_config_get_mapNestedGrouping();
 
 int posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
     Slapi_Entry *eAfter, int *returncode, char *returntext,

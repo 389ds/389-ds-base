@@ -1527,6 +1527,7 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/50ns-value.ldif \
 	$(srcdir)/ldap/schema/50ns-web.ldif \
 	$(srcdir)/ldap/schema/60pam-plugin.ldif \
+	$(srcdir)/ldap/schema/60posix-winsync-plugin.ldif \
 	$(srcdir)/ldap/schema/60autofs.ldif \
 	$(srcdir)/ldap/schema/60eduperson.ldif \
 	$(srcdir)/ldap/schema/60mozilla.ldif \
