@@ -4871,6 +4871,15 @@ void slapi_filter_normalize(Slapi_Filter *f, PRBool norm_values);
  */
 int slapi_attr_syntax_exists(const char *type);
 
+/**
+ * Reload internally registered attribute syntaxes.
+ *
+ * \param none
+ * \return \c 0 if the reload was successful.
+ * \return non-0 if the reload failed.
+ */
+int slapi_reload_internal_attr_syntax();
+
 /*
  * slapi_filter_apply() is used to apply a function to each simple filter
  * component within a complex filter.  A 'simple filter' is anything other

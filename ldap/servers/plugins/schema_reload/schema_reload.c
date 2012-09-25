@@ -170,6 +170,13 @@ schemareload_thread(void *arg)
             slapi_task_log_notice(task, "Schema reload task finished.");
             slapi_task_log_status(task, "Schema reload task finished.");
             slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema reload task finished.\n");
+
+            slapi_log_error(SLAPI_LOG_FATAL, "schemareload",
+                            "Register internal schema.\n");
+            rv = slapi_reload_internal_attr_syntax();
+            slapi_log_error(SLAPI_LOG_FATAL, "schemareload",
+                            "Register internal schema finished.\n");
+
         } else {
             slapi_task_log_notice(task, "Schema reload task failed.");
             slapi_task_log_status(task, "Schema reload task failed.");
@@ -209,8 +216,8 @@ schemareload_destructor(Slapi_Task *task)
     if (task) {
         task_data *mydata = (task_data *)slapi_task_get_data(task);
         if (mydata) {
-	        slapi_ch_free_string(&mydata->schemadir);
-	        slapi_ch_free_string(&mydata->bind_dn);
+            slapi_ch_free_string(&mydata->schemadir);
+            slapi_ch_free_string(&mydata->bind_dn);
             /* Need to cast to avoid a compiler warning */
             slapi_ch_free((void **)&mydata);
         }

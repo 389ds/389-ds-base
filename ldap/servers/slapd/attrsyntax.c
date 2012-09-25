@@ -56,6 +56,7 @@
 static PLHashTable *oid2asi = NULL;
 /* read/write lock to protect table */
 static Slapi_RWLock *oid2asi_lock = NULL;
+static PLHashTable *internalasi = NULL;
 
 /*
  * This hashtable maps the name or alias of the attribute to the
@@ -911,13 +912,23 @@ attr_syntax_enumerate_internal(PLHashEntry *he, PRIntn i, void *arg)
 	return rc;
 }
 
-void
-attr_syntax_enumerate_attrs(AttrEnumFunc aef, void *arg, PRBool writelock )
+static void
+attr_syntax_enumerate_attrs_ext( PLHashTable *ht,
+                                 AttrEnumFunc aef, void *arg )
 {
 	struct enum_arg_wrapper eaw;
 	eaw.aef = aef;
 	eaw.arg = arg;
 
+	if (!ht)
+		return;
+
+	PL_HashTableEnumerateEntries(ht, attr_syntax_enumerate_internal, &eaw);
+}
+
+void
+attr_syntax_enumerate_attrs(AttrEnumFunc aef, void *arg, PRBool writelock )
+{
 	if (!oid2asi)
 		return;
 
@@ -929,7 +940,7 @@ attr_syntax_enumerate_attrs(AttrEnumFunc aef, void *arg, PRBool writelock )
 		AS_LOCK_READ(name2asi_lock);
 	}
 
-	PL_HashTableEnumerateEntries(oid2asi, attr_syntax_enumerate_internal, &eaw);
+	attr_syntax_enumerate_attrs_ext(oid2asi, aef, arg);
 
 	if ( writelock ) {
 		AS_UNLOCK_WRITE(oid2asi_lock);
@@ -1076,6 +1087,36 @@ slapi_attr_syntax_exists(const char *attr_name)
 }
 
 /*
+ * Keep the internally added schema in the hash table,
+ * which are re-added if the schema is reloaded.
+ */
+static int
+attr_syntax_internal_asi_add_ht(struct asyntaxinfo *asip)
+{
+	if (!internalasi) {
+		internalasi = PL_NewHashTable(64, hashNocaseString,
+		                              hashNocaseCompare,
+		                              PL_CompareValues, 0, 0);
+	}
+	if (!internalasi) {
+		slapi_log_error(SLAPI_LOG_FATAL, "attr_syntax_internal_asi_add_ht",
+		                "Failed to create HashTable.\n");
+		return 1;
+	}
+	if (!PL_HashTableLookup(internalasi, asip->asi_oid)) {
+		struct asyntaxinfo *asip_copy = attr_syntax_dup(asip);
+		if (!asip_copy) {
+			slapi_log_error(SLAPI_LOG_FATAL, "attr_syntax_internal_asi_add_ht",
+		                    "Failed to duplicate asyntaxinfo: %s.\n",
+		                    asip->asi_name);
+			return 1;
+		}
+		PL_HashTableAdd(internalasi, asip_copy->asi_oid, asip_copy);
+	}
+	return 0;
+}
+
+/*
  * Add an attribute syntax using some default flags, etc.
  * Returns an LDAP error code (LDAP_SUCCESS if all goes well)
  */
@@ -1106,7 +1147,43 @@ slapi_add_internal_attr_syntax( const char *name, const char *oid,
 
 	if ( rc == LDAP_SUCCESS ) {
 		rc = attr_syntax_add( asip );
+		if ( rc == LDAP_SUCCESS ) {
+			if (attr_syntax_internal_asi_add_ht(asip)) {
+				slapi_log_error(SLAPI_LOG_FATAL,
+				                "slapi_add_internal_attr_syntax",
+				                "Failed to stash internal asyntaxinfo: %s.\n",
+				                asip->asi_name);
+			}
+		}
 	}
 
+	return rc;
+}
+
+/* Adding internal asyncinfo via slapi_reload_internal_attr_syntax */
+static int
+attr_syntax_internal_asi_add(struct asyntaxinfo *asip, void *arg)
+{
+	struct asyntaxinfo *asip_copy;
+	if (!asip) {
+		return 1;
+	}
+	/* Copy is needed since when reloading the schema,
+	 * existing syntax info is cleaned up. */
+	asip_copy = attr_syntax_dup(asip);
+	return attr_syntax_add(asip_copy);
+}
+
+/* Reload internal attribute syntax stashed in the internalasi hashtable. */
+int
+slapi_reload_internal_attr_syntax()
+{
+	int rc = LDAP_SUCCESS;
+	if (!internalasi) {
+		slapi_log_error(SLAPI_LOG_TRACE, "attr_reload_internal_attr_syntax",
+		                "No internal attribute syntax to reload.\n");
+		return rc;
+	}
+	attr_syntax_enumerate_attrs_ext(internalasi, attr_syntax_internal_asi_add, NULL);
 	return rc;
 }
