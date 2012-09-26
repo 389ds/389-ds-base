@@ -534,7 +534,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
     char *ends = NULL;
     char *endd = NULL;
     char *lastesc = NULL;
-    char *udn;
+    char *udn = NULL;
     /* rdn avs for the main DN */
     char *typestart = NULL;
     int rdn_av_count = 0;
@@ -1129,8 +1129,12 @@ bail:
         *d = '\0';
     }
     /* add this dn to the normalized dn cache */
-    if(dest && *dest && dest_len && *dest_len) {
-        ndn_cache_add(udn, src_len, *dest, *dest_len);
+    if (udn) {
+        if(dest && *dest && dest_len && *dest_len) {
+            ndn_cache_add(udn, src_len, *dest, *dest_len);
+        } else {
+            slapi_ch_free_string(&udn);
+        }
     }
 
     return rc;
@@ -2695,6 +2699,10 @@ ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, int *rc)
     char *ndn, *key;
     int rv = 0;
 
+    if(NULL == udn){
+        return rv;
+    }
+    *udn = NULL;
     if(ndn_started == 0){
         return rv;
     }
