@@ -1625,9 +1625,12 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				              "--local policy entry not found\n", dn);
 				goto done;
 			}
-        
+
 			/* set the default passwordLegacyPolicy setting */
 			pwdpolicy->pw_is_legacy = 1;
+
+			/* set passwordTrackUpdateTime */
+			pwdpolicy->pw_track_update_time = slapdFrontendConfig->pw_policy.pw_track_update_time;
 
 			for (slapi_entry_first_attr(pw_entry, &attr); attr;
 					slapi_entry_next_attr(pw_entry, attr, &attr))
