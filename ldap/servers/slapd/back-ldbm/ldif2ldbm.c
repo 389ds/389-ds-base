@@ -2494,6 +2494,8 @@ db2index_add_indexed_attr(backend *be, char *attrString)
     Slapi_Entry *e;
     struct berval *vals[2];
     struct berval val;
+    char *ptr;
+    char *next;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -2508,6 +2510,7 @@ db2index_add_indexed_attr(backend *be, char *attrString)
     /* set the index name */
     val.bv_val = attrString+1;
     val.bv_len = strlen(attrString);
+    /* bv_val is copied into the entry. */
     slapi_entry_add_values(e,"cn",vals);
 
     if (NULL != (mptr = strchr(iptr, ':'))) {
@@ -2516,15 +2519,24 @@ db2index_add_indexed_attr(backend *be, char *attrString)
     }
 
     /* set the index type */
-    val.bv_val = iptr;
-    val.bv_len = strlen(iptr);
-    slapi_entry_add_values(e,"nsIndexType",vals);
+    for (ptr = strtok_r(iptr, ", ", &next);
+         ptr;
+         ptr = strtok_r(NULL, ", ", &next)) {
+        val.bv_val = ptr;
+        val.bv_len = strlen(ptr);
+        /* bv_val is copied into the entry. */
+        slapi_entry_add_values(e,"nsIndexType",vals);
+    }
 
     if (NULL != mptr) {
-        /* set the matching rule */
-        val.bv_val = mptr;
-        val.bv_len = strlen(mptr);
-        slapi_entry_add_values(e,"nsMatchingRule",vals);
+        for (ptr = strtok_r(mptr, ", ", &next);
+             ptr;
+             ptr = strtok_r(NULL, ", ", &next)) {
+            val.bv_val = ptr;
+            val.bv_len = strlen(ptr);
+            /* bv_val is copied into the entry. */
+            slapi_entry_add_values(e,"nsMatchingRule",vals);
+        }
     }
 
     attr_index_config(be, "from db2index()", 0, e, 0, 0);

@@ -23,7 +23,7 @@ if [ $# -eq 0 ]
 then
 	bak_dir={{BAK-DIR}}/reindex_`date +%Y_%m_%d_%H_%M_%S`
 	./ns-slapd upgradedb -D {{CONFIG-DIR}} -f -a "$bak_dir"
-elif [ $# -lt 4 ]
+elif [ $# -lt 2 ]
 then
 	echo "Usage: db2index [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
 	exit 1
