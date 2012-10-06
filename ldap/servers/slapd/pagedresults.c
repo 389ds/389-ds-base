@@ -64,6 +64,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     struct berval cookie = {0};
     Connection *conn = pb->pb_conn;
     Operation *op = pb->pb_op;
+    BerElement *ber = NULL;
 
     LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_parse_control_value\n");
     if ( NULL == conn || NULL == op || NULL == pagesize || NULL == index ) {
@@ -76,70 +77,71 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
 
     if ( psbvp->bv_len == 0 || psbvp->bv_val == NULL )
     {
-        rc = LDAP_PROTOCOL_ERROR;
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                    "<-- pagedresults_parse_control_value: no control value\n");
+        return LDAP_PROTOCOL_ERROR;
     }
-    else
+    ber = ber_init( psbvp );
+    if ( ber == NULL )
     {
-        BerElement *ber = ber_init( psbvp );
-        if ( ber == NULL )
-        {
-            rc = LDAP_OPERATIONS_ERROR;
-        }
-        else
-        {
-            if ( ber_scanf( ber, "{io}", pagesize, &cookie ) == LBER_ERROR )
-            {
-                rc = LDAP_PROTOCOL_ERROR;
-            }
-            /* the ber encoding is no longer needed */
-            ber_free(ber, 1);
-            if ( cookie.bv_len <= 0 ) {
-                int i;
-                int maxlen;
-                /* first time? */
-                PR_Lock(conn->c_mutex);
-                maxlen = conn->c_pagedresults.prl_maxlen;
-                if (conn->c_pagedresults.prl_count == maxlen) {
-                    if (0 == maxlen) { /* first time */
-                        conn->c_pagedresults.prl_maxlen = 1;
-                        conn->c_pagedresults.prl_list =
-                            (PagedResults *)slapi_ch_calloc(1,
-                                                        sizeof(PagedResults));
-                    } else {
-                        /* new max length */
-                        conn->c_pagedresults.prl_maxlen *= 2;
-                        conn->c_pagedresults.prl_list =
-                            (PagedResults *)slapi_ch_realloc(
-                                        (char *)conn->c_pagedresults.prl_list,
-                                        sizeof(PagedResults) *
-                                        conn->c_pagedresults.prl_maxlen);
-                        /* initialze newly allocated area */
-                        memset(conn->c_pagedresults.prl_list + maxlen, '\0',
-                                   sizeof(PagedResults) * maxlen);
-                    }
-                    *index = maxlen; /* the first position in the new area */
-                } else {
-                    for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
-                        if (!conn->c_pagedresults.prl_list[i].pr_current_be) {
-                            *index = i;
-                            break;
-                        }
-                    }
-                }
-                conn->c_pagedresults.prl_count++;
-                PR_Unlock(conn->c_mutex);
-            } else {
-                /* Repeated paged results request.
-                 * PagedResults is already allocated. */
-                char *ptr = slapi_ch_malloc(cookie.bv_len + 1);
-                memcpy(ptr, cookie.bv_val, cookie.bv_len);
-                *(ptr+cookie.bv_len) = '\0';
-                *index = strtol(ptr, NULL, 10);
-                slapi_ch_free_string(&ptr);
-            }
-            slapi_ch_free((void **)&cookie.bv_val);
-        }
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+                    "<-- pagedresults_parse_control_value: no control value\n");
+        return LDAP_PROTOCOL_ERROR;
     }
+    if ( ber_scanf( ber, "{io}", pagesize, &cookie ) == LBER_ERROR )
+    {
+        LDAPDebug0Args(LDAP_DEBUG_ANY,
+             "<-- pagedresults_parse_control_value: corrupted control value\n");
+        return LDAP_PROTOCOL_ERROR;
+    }
+
+    PR_Lock(conn->c_mutex);
+    /* the ber encoding is no longer needed */
+    ber_free(ber, 1);
+    if ( cookie.bv_len <= 0 ) {
+        int i;
+        int maxlen;
+        /* first time? */
+        maxlen = conn->c_pagedresults.prl_maxlen;
+        if (conn->c_pagedresults.prl_count == maxlen) {
+            if (0 == maxlen) { /* first time */
+                conn->c_pagedresults.prl_maxlen = 1;
+                conn->c_pagedresults.prl_list =
+                    (PagedResults *)slapi_ch_calloc(1,
+                                                sizeof(PagedResults));
+            } else {
+                /* new max length */
+                conn->c_pagedresults.prl_maxlen *= 2;
+                conn->c_pagedresults.prl_list =
+                    (PagedResults *)slapi_ch_realloc(
+                                (char *)conn->c_pagedresults.prl_list,
+                                sizeof(PagedResults) *
+                                conn->c_pagedresults.prl_maxlen);
+                /* initialze newly allocated area */
+                memset(conn->c_pagedresults.prl_list + maxlen, '\0',
+                           sizeof(PagedResults) * maxlen);
+            }
+            *index = maxlen; /* the first position in the new area */
+        } else {
+            for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
+                if (!conn->c_pagedresults.prl_list[i].pr_current_be) {
+                    *index = i;
+                    break;
+                }
+            }
+        }
+        conn->c_pagedresults.prl_count++;
+    } else {
+        /* Repeated paged results request.
+         * PagedResults is already allocated. */
+        char *ptr = slapi_ch_malloc(cookie.bv_len + 1);
+        memcpy(ptr, cookie.bv_val, cookie.bv_len);
+        *(ptr+cookie.bv_len) = '\0';
+        *index = strtol(ptr, NULL, 10);
+        slapi_ch_free_string(&ptr);
+    }
+    slapi_ch_free((void **)&cookie.bv_val);
+
     if ((*index > -1) && (*index < conn->c_pagedresults.prl_maxlen)) {
         /* Need to keep the latest msgid to prepare for the abandon. */
         conn->c_pagedresults.prl_list[*index].pr_msgid = op->o_msgid;
@@ -149,6 +151,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                       "pagedresults_parse_control_value: invalid cookie: %d\n",
                       *index);
     }
+    PR_Unlock(conn->c_mutex);
 
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
                   "<-- pagedresults_parse_control_value: idx %d\n", *index);
@@ -261,7 +264,7 @@ pagedresults_free_one( Connection *conn, int index )
 }
 
 int 
-pagedresults_free_one_msgid( Connection *conn, ber_int_t msgid )
+pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
 {
     int rc = -1;
     int i;
@@ -269,9 +272,9 @@ pagedresults_free_one_msgid( Connection *conn, ber_int_t msgid )
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
                   "--> pagedresults_free_one: msgid=%d\n", msgid);
     if (conn && (msgid > -1)) {
-        PR_Lock(conn->c_mutex);
         if (conn->c_pagedresults.prl_count <= 0) {
-            LDAPDebug2Args(LDAP_DEBUG_TRACE, "pagedresults_free_one_msgid: "
+            LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                           "pagedresults_free_one_msgid_nolock: "
                            "conn=%d paged requests list count is %d\n",
                            conn->c_connid, conn->c_pagedresults.prl_count);
         } else {
@@ -285,7 +288,6 @@ pagedresults_free_one_msgid( Connection *conn, ber_int_t msgid )
                 }
             }
         }
-        PR_Unlock(conn->c_mutex);
     }
 
     LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_free_one: %d\n", rc);
@@ -720,7 +722,7 @@ pagedresults_reset_processing(Connection *conn, int index)
 
 /* Are all the paged results requests timed out? */
 int
-pagedresults_is_timedout(Connection *conn)
+pagedresults_is_timedout_nolock(Connection *conn)
 {
     int i;
     PagedResults *prp = NULL;
@@ -753,7 +755,7 @@ pagedresults_is_timedout(Connection *conn)
 
 /* reset all timeout */
 int
-pagedresults_reset_timedout(Connection *conn)
+pagedresults_reset_timedout_nolock(Connection *conn)
 {
     int i;
     PagedResults *prp = NULL;
@@ -773,7 +775,7 @@ pagedresults_reset_timedout(Connection *conn)
 
 /* paged results requests are in progress. */
 int
-pagedresults_in_use(Connection *conn)
+pagedresults_in_use_nolock(Connection *conn)
 {
     LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_in_use\n");
     if (NULL == conn) {
