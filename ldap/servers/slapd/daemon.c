@@ -1695,7 +1695,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				{
 					int add_fd = 1;
 					/* check timeout for PAGED RESULTS */
-                    if (pagedresults_is_timedout(c))
+                    if (pagedresults_is_timedout_nolock(c))
 					{
 						/* Exceeded the timelimit; disconnect the client */
 						disconnect_server_nomutex(c, c->c_connid, -1,

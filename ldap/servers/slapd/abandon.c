@@ -153,7 +153,7 @@ do_abandon( Slapi_PBlock *pb )
 	}
 
 	if ( op_is_pagedresults(o) ) {
-		if ( 0 == pagedresults_free_one_msgid(pb->pb_conn, id) ) {
+		if ( 0 == pagedresults_free_one_msgid_nolock(pb->pb_conn, id) ) {
 			slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 
 			                  " op=%d ABANDON targetop=Simple Paged Results\n",
 			                  pb->pb_conn->c_connid, pb->pb_op->o_opid );
