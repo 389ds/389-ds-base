@@ -1361,6 +1361,10 @@ acl_check_mods(
 		switch (mod->mod_op & ~LDAP_MOD_BVALUES ) {
 
 		   case LDAP_MOD_DELETE:
+			if (strcmp (mod->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD) == 0) {
+				/* skip pseudo attr(s)  */
+				continue; 
+			}
 			if (mod->mod_bvalues != NULL ) {
 				break;
 			}
@@ -1368,7 +1372,7 @@ acl_check_mods(
 			/*
 			 * Here, check that we have the right to delete all 
 			 * the values of the attribute in the entry.
-			*/
+			 */
 
 		   case LDAP_MOD_REPLACE:
 			if ( !lastmod ) {
@@ -1385,6 +1389,7 @@ acl_check_mods(
 			     strcmp (mod->mod_type, "modifytimestamp")== 0 ||
 			     strcmp (mod->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)== 0)
 				) {
+				/* skip pseudo attr(s)  */
 				continue; 
 			}
 
