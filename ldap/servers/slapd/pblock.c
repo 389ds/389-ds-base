@@ -3639,7 +3639,7 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 {
 	/* clear credentials */
 	bind_credentials_clear( conn, PR_FALSE /* conn is already locked */,
-			( extauthtype != NULL ) /* clear external creds. if requested */ );
+		( extauthtype != NULL ) /* clear external creds. if requested */ );
 
 	/* set primary credentials */
 	slapi_ch_free((void**)&conn->c_authtype);
@@ -3656,7 +3656,6 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 		conn->c_external_dn = externaldn;
 		conn->c_client_cert = clientcert;
 	}
-
 
 	/* notify binder-based resource limit subsystem about the change in DN */
 	if ( !conn->c_isroot )
@@ -3681,5 +3680,8 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 
 			slapi_ch_free_string( &anon_dn );
 		}
+	} else {
+		/* For root dn clear about the resource limits */
+		reslimit_update_from_entry( conn, NULL );
 	}
 }
