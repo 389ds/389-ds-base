@@ -414,20 +414,20 @@ usage( char *name, char *extraname )
     case SLAPD_EXEMODE_DB2LDIF:
 	usagestr = "usage: %s %s%s-D configdir [-n backend-instance-name] [-d debuglevel] "
 		"[-N] [-a outputfile] [-r] [-C] [{-s includesuffix}*] "
-		"[{-x excludesuffix}*] [-u] [-U] [-m] [-M] [-E]\n"
+		"[{-x excludesuffix}*] [-u] [-U] [-m] [-M] [-E] [-q]\n"
 		"Note: either \"-n backend_instance_name\" or \"-s includesuffix\" is required.\n";
 	break;
     case SLAPD_EXEMODE_LDIF2DB:
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] "
 		"[-n backend_instance_name] [-O] [-g uniqueid_type] [--namespaceid uniqueID]"
-		"[{-s includesuffix}*] [{-x excludesuffix}*]  [-E] {-i ldif-file}*\n"
+		"[{-s includesuffix}*] [{-x excludesuffix}*]  [-E] [-q] {-i ldif-file}*\n"
 		"Note: either \"-n backend_instance_name\" or \"-s includesuffix\" is required.\n";
 	break;
     case SLAPD_EXEMODE_DB2ARCHIVE:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] -a archivedir\n";
+	usagestr = "usage: %s %s%s-D configdir [-q] [-d debuglevel] -a archivedir\n";
 	break;
     case SLAPD_EXEMODE_ARCHIVE2DB:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] -a archivedir\n";
+	usagestr = "usage: %s %s%s-D configdir [-q] [-d debuglevel] -a archivedir\n";
 	break;
     case SLAPD_EXEMODE_DB2INDEX:
 	usagestr = "usage: %s %s%s-D configdir -n backend-instance-name "
@@ -490,6 +490,7 @@ static char *ldif2db_namespaceid = NULL;
 int importexport_encrypt = 0;
 static int upgradedb_flags = 0;
 static int upgradednformat_dryrun = 0;
+static int is_quiet = 0;
 
 /* taken from idsktune */
 #if defined(__sun)
@@ -740,7 +741,7 @@ main( int argc, char **argv)
 
 	/* display debugging level if it is anything other than the default */
 	if ( 0 != ( slapd_ldap_debug & ~LDAP_DEBUG_ANY )) {
-			slapd_debug_level_log( slapd_ldap_debug );
+		slapd_debug_level_log( slapd_ldap_debug );
 	}
 
 #ifndef LDAP_DONT_USE_SMARTHEAP
@@ -1354,7 +1355,7 @@ process_command_line(int argc, char **argv, char *myname,
 	 *
 	 */
 
-	char *opts_db2ldif = "vd:D:ENa:rs:x:CSut:n:UmMo1";
+	char *opts_db2ldif = "vd:D:ENa:rs:x:CSut:n:UmMo1q";
 	struct opt_ext long_options_db2ldif[] = {
 		{"version",ArgNone,'v'},
 		{"debug",ArgRequired,'d'},
@@ -1373,9 +1374,10 @@ process_command_line(int argc, char **argv, char *myname,
 		{"oneOutputFile",ArgNone,'o'},
 		{"multipleOutputFile",ArgNone,'M'},
 		{"noVersionNum",ArgNone,'1'},
+		{"quiet",ArgNone,'q'},
 		{0,0,0}};
 	
-	char *opts_ldif2db = "vd:i:g:G:n:s:x:NOCc:St:D:E"; 
+	char *opts_ldif2db = "vd:i:g:G:n:s:x:NOCc:St:D:Eq"; 
 	struct opt_ext long_options_ldif2db[] = {
 		{"version",ArgNone,'v'},
 		{"debug",ArgRequired,'d'},
@@ -1392,9 +1394,10 @@ process_command_line(int argc, char **argv, char *myname,
 		{"nostate",ArgNone,'Z'},
 		{"configDir",ArgRequired,'D'},
 		{"encrypt",ArgOptional,'E'},
+		{"quiet",ArgNone,'q'},
 		{0,0,0}};
 
-	char *opts_archive2db = "vd:i:a:n:SD:";
+	char *opts_archive2db = "vd:i:a:n:SD:q";
 	struct opt_ext long_options_archive2db[] = {
 		{"version",ArgNone,'v'},
 		{"debug",ArgRequired,'d'},
@@ -1403,10 +1406,11 @@ process_command_line(int argc, char **argv, char *myname,
 		{"backEndInstName",ArgRequired,'n'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
 		{"configDir",ArgRequired,'D'},
+		{"quiet",ArgNone,'q'},
 		{0,0,0}};
 
 
-	char *opts_db2archive = "vd:i:a:SD:";
+	char *opts_db2archive = "vd:i:a:SD:q";
 	struct opt_ext long_options_db2archive[] = {
 		{"version",ArgNone,'v'},
 		{"debug",ArgRequired,'d'},
@@ -1414,6 +1418,7 @@ process_command_line(int argc, char **argv, char *myname,
 		{"archive",ArgRequired,'a'},
 		{"allowMultipleProcesses",ArgNone,'S'},		
 		{"configDir",ArgRequired,'D'},
+		{"quiet",ArgNone,'q'},
 		{0,0,0}};
 
 	char *opts_db2index = "vd:a:t:T:SD:n:s:x:"; 
@@ -1913,6 +1918,9 @@ process_command_line(int argc, char **argv, char *myname,
 			ldif_printkey |= EXPORT_NOVERSION;
 
 			break;
+		case 'q':	/* quiet option for db2ldif, ldif2db, db2bak, bak2db */
+			is_quiet = 1;
+			break;
 		default:
 			usage( myname, *extraname );
 			exit( 1 );
@@ -2224,7 +2232,12 @@ slapd_exemode_ldif2db()
                   plugin->plg_name, 0, 0);
         return 1;
     }
-
+    if (!is_quiet) {
+        slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
+    }
+    if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
+        g_set_detached(1);
+    }
     memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
     pb.pb_plugin = plugin;
@@ -2352,6 +2365,12 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	        return 1;
 	    }
 	
+	    if (!is_quiet) {
+	        slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
+	    }
+	    if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
+	        g_set_detached(1);
+	    }
 	    memset( &pb, '\0', sizeof(pb) );
 	    pb.pb_backend = NULL;
 	    pb.pb_plugin = plugin;
@@ -2411,13 +2430,15 @@ slapd_exemode_db2ldif(int argc, char** argv)
 				}
 			}
 
-			fprintf(stderr, "ldiffile: %s\n", my_ldiffile);
+	        if (!is_quiet) {
+	            fprintf(stderr, "ldiffile: %s\n", my_ldiffile);
+	        }
 	        /* just send the filename to the backend and let
 	         * the backend open it (so they can do special
 	         * stuff for 64-bit fs)
 	         */
 	        pb.pb_ldif_file = my_ldiffile;
-	    	pb.pb_ldif_printkey = ldif_printkey;
+	        pb.pb_ldif_printkey = ldif_printkey;
 	    }
 	
 	    return_value = (plugin->plg_db2ldif)( &pb );
@@ -2583,10 +2604,10 @@ slapd_exemode_db2archive()
 
 	/* Make sure we aren't going to run slapd in 
 	 * a mode that is going to conflict with other
- 	 * slapd processes that are currently running
- 	 */
- 	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-				   skip_db_protect_check) == -1 )  {
+	 * slapd processes that are currently running
+	 */
+	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
+	                           skip_db_protect_check) == -1 )  {
 	    LDAPDebug( LDAP_DEBUG_ANY, 
 		       "Shutting down due to possible conflicts with other slapd processes\n",
 		       0, 0, 0 );
@@ -2595,6 +2616,9 @@ slapd_exemode_db2archive()
 	if (compute_init()) {
 		LDAPDebug(LDAP_DEBUG_ANY, "Initialization Failed 0 %d\n",return_value,0,0);
 		return 1;
+	}
+	if (!is_quiet) {
+		slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
 	}
 	if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
 		g_set_detached(1);
@@ -2636,10 +2660,10 @@ slapd_exemode_archive2db()
 	
 	/* Make sure we aren't going to run slapd in 
 	 * a mode that is going to conflict with other
- 	 * slapd processes that are currently running
- 	 */
- 	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-				   skip_db_protect_check) == -1 )  {
+	 * slapd processes that are currently running
+	 */
+	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
+	                           skip_db_protect_check) == -1 )  {
 	    LDAPDebug( LDAP_DEBUG_ANY, 
 		       "Shutting down due to possible conflicts with other slapd processes\n",
 		       0, 0, 0 );
@@ -2650,6 +2674,9 @@ slapd_exemode_archive2db()
 		return 1;
 	}
 
+	if (!is_quiet) {
+		slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
+	}
 	if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
 		g_set_detached(1);
 	}

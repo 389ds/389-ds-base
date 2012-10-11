@@ -69,7 +69,7 @@ if [ "$#" -lt 2 ];
 then
     echo "Usage: db2ldif {-n backend_instance}* | {-s includesuffix}*"
     echo "               [{-x excludesuffix}*] [-a outputfile]"
-    echo "               [-N] [-r] [-C] [-u] [-U] [-m] [-M] [-1]"
+    echo "               [-N] [-r] [-C] [-u] [-U] [-m] [-M] [-1] [-q]"
     echo "Note: either \"-n backend_instance\" or \"-s includesuffix\" is required."
     exit 1
 fi

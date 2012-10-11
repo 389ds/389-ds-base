@@ -259,7 +259,7 @@ entryrdn_index_entry(backend *be,
             rc = LDAP_INVALID_DN_SYNTAX;
             goto bail;
         } else if (rc > 0) {
-            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                             "entryrdn_index_entry: %s does not belong to "
                             "the db\n", slapi_sdn_get_dn(sdn));
             rc = DB_NOTFOUND;
@@ -393,7 +393,7 @@ entryrdn_index_read_ext(backend *be,
         rc = LDAP_INVALID_DN_SYNTAX;
         goto bail;
     } else if (rc > 0) {
-        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+        slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                         "entryrdn_index_read: %s does not belong to the db\n",
                         slapi_sdn_get_dn(sdn));
         rc = DB_NOTFOUND;
@@ -551,7 +551,7 @@ entryrdn_rename_subtree(backend *be,
         rc = LDAP_INVALID_DN_SYNTAX;
         goto bail;
     } else if (rc > 0) {
-        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+        slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                         "entryrdn_rename_subtree: %s does not belong to "
                         "the db\n", slapi_sdn_get_dn(oldsdn));
         rc = DB_NOTFOUND;
@@ -1020,7 +1020,7 @@ entryrdn_get_subordinates(backend *be,
                             "\"%s\" to Slapi_RDN\n", slapi_sdn_get_dn(sdn));
             rc = LDAP_INVALID_DN_SYNTAX;
         } else if (rc > 0) {
-            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                             "entryrdn_get_subordinates: %s does not belong to "
                             "the db\n", slapi_sdn_get_dn(sdn));
             rc = DB_NOTFOUND;
@@ -2516,7 +2516,7 @@ _entryrdn_insert_key(backend *be,
             } /* if (TMPID == tmpid) */
             rc = 0;
         } /* if (DB_KEYEXIST == rc) */
-        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+        slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                         "_entryrdn_insert_key: Suffix %s added: %d\n", 
                         nrdn, rc);
         goto bail; /* succeeded or failed, it's done */
@@ -2589,7 +2589,7 @@ _entryrdn_insert_key(backend *be,
             adddata.flags = DB_DBT_USERMEM;
 
             rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF, db_txn);
-            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+            slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                         "_entryrdn_insert_key: Suffix %s added: %d\n", 
                         slapi_rdn_get_rdn(tmpsrdn), rc);
 #ifdef FIX_TXN_DEADLOCKS

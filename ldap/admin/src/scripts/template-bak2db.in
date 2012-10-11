@@ -44,13 +44,6 @@ do
         d) dlevel=$OPTARG;;
     esac
 done
-if [ $quiet -eq 0 ]
-then
-  if [ $dlevel -ne 524288 ]
-  then
-    dlevel=`expr $dlevel + 524288`
-  fi
-fi
 
 if [ 1 = `expr $archivedir : "\/"` ]
 then
@@ -61,4 +54,8 @@ else
 fi
 
 cd {{SERVERBIN-DIR}}
-./ns-slapd archive2db -D {{CONFIG-DIR}} -a $archivedir $benameopt -d $dlevel
+if [ $quiet -eq 0 ]; then
+    ./ns-slapd archive2db -D {{CONFIG-DIR}} -a $archivedir $benameopt -d $dlevel
+else
+    ./ns-slapd archive2db -D {{CONFIG-DIR}} -a $archivedir $benameopt -d $dlevel -q
+fi

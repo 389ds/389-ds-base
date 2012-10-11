@@ -46,14 +46,10 @@ then
     esac
   done
 fi
-# If not quiet, set LDAP_DEBUG_BACKLDBM to debug level
-if [ $quiet -eq 0 ]
-then
-  if [ $dlevel -ne 524288 ]
-  then
-    dlevel=`expr $dlevel + 524288`
-  fi
-fi
 
 echo "Back up directory: $bak_dir"
-./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir -d $dlevel
+if [ $quiet -eq 0 ]; then
+    ./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir -d $dlevel
+else
+    ./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir -d $dlevel -q
+fi
