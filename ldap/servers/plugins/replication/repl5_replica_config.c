@@ -1329,7 +1329,12 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
     /*
      *  Grab the replica
      */
-    replica = (Replica*)object_get_data (r);
+    if(r){
+        replica = (Replica*)object_get_data (r);
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanAllRUV_task: replica is NULL, aborting task\n");
+        return -1;
+    }
     /*
      *  Check if this is a consumer
      */
