@@ -2029,6 +2029,11 @@ void connection_make_readable(Connection *conn)
 	signal_listner();
 }
 
+void connection_make_readable_nolock(Connection *conn)
+{
+	conn->c_gettingber = 0;
+}
+
 /*
  * Figure out the operation completion rate for this connection
  */
@@ -2166,7 +2171,8 @@ connection_threadmain()
 	Connection	*conn = NULL;
 	Operation	*op;
 	ber_tag_t	tag = 0;
-	int need_wakeup;
+	int need_wakeup = 0;
+	int need_conn_release = 0;
 	int thread_turbo_flag = 0;
 	int ret = 0;
 	int more_data = 0;
@@ -2303,7 +2309,7 @@ connection_threadmain()
 		 * they are received off the wire.
 		 */
 		replication_connection = conn->c_isreplication_session;
-		if (tag != LDAP_REQ_UNBIND && (!thread_turbo_flag) && !more_data && !replication_connection) {
+		if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !more_data && !replication_connection) {
 			connection_make_readable(conn);
 		}
 
@@ -2350,53 +2356,75 @@ done:
 		/* total number of ops for the server */
 		slapi_counter_increment(ops_completed);
 		/* If this op isn't a persistent search, remove it */
+		need_conn_release = 0;
 		if ( !( pb->pb_op->o_flags & OP_FLAG_PS )) {
 		    /* delete from connection operation queue & decr refcnt */
 		    PR_Lock( conn->c_mutex );
 		    connection_remove_operation( conn, op );
-			/* destroying the pblock will cause destruction of the operation
-			 * so this must happend before releasing the connection
-			 */
+		    /* destroying the pblock will cause destruction of the operation
+		     * so this must happend before releasing the connection
+		     */
 		    slapi_pblock_destroy( pb );
 
-			/* If we're in turbo mode, we keep our reference to the connection 
-			   alive */
+		    /* If we're in turbo mode, we keep our reference to the connection 
+		       alive */
 		    if (!thread_turbo_flag && !more_data) {
-				connection_release_nolock (conn);
-			}
+		        /*
+		         * Don't release the connection now.
+		         * But note down what to do.
+		         */
+		        need_conn_release = 1;
+		    }
 		    PR_Unlock( conn->c_mutex );
 		} else { /* the ps code acquires a ref to the conn - we need to release ours here */
 		    PR_Lock( conn->c_mutex );
-			connection_release_nolock (conn);
+		    connection_release_nolock (conn);
 		    PR_Unlock( conn->c_mutex );
 		}
-		/* Since we didn't do so earlier, we need to make a replication connection readable again here */
-		if ( ((1 == is_timedout) || (replication_connection && !thread_turbo_flag)) && !more_data)
-			connection_make_readable(conn);
 		pb = NULL;
 		if (doshutdown) {
+			PR_Lock(conn->c_mutex);
+			connection_make_readable_nolock(conn);
+			conn->c_threadnumber--;
+			connection_release_nolock(conn);
+			PR_Unlock(conn->c_mutex);
+			signal_listner();
 			return;
 		}
 
-		if (!thread_turbo_flag && !more_data) { /* Don't do this in turbo mode */
-			PR_Lock( conn->c_mutex );
-			/* if the threadnumber of now below the maximum, wakeup
-			 * the listener thread so that we start polling on this 
-			 * connection again
-			 */
-			/* DBDB I think this code is bogus -- we already signaled the listener above here */
-			if (conn->c_threadnumber == config_get_maxthreadsperconn())
-				need_wakeup = 1;
-			else
-				need_wakeup = 0;
-			conn->c_threadnumber--;
-			PR_Unlock( conn->c_mutex );
-	
-			if (need_wakeup)
-				signal_listner();
+		if (!more_data) { /* no more data in the buffer */
+			if (!thread_turbo_flag) { /* Don't do this in turbo mode */
+				/* Since we didn't do so earlier, we need to make a 
+				 * replication connection readable again here */
+				PR_Lock( conn->c_mutex );
+				if (replication_connection || (1 == is_timedout)) {
+					connection_make_readable_nolock(conn);
+					need_wakeup = 1;
+				}
+				/* if the threadnumber of now below the maximum, wakeup
+				 * the listener thread so that we start polling on this 
+				 * connection again
+				 */
+				if (!need_wakeup) {
+					if (conn->c_threadnumber == config_get_maxthreadsperconn())
+						need_wakeup = 1;
+					else
+						need_wakeup = 0;
+				}
+				conn->c_threadnumber--;
+				if (need_conn_release) {
+					connection_release_nolock(conn);
+				}
+				PR_Unlock( conn->c_mutex );
+				/* Call signal_listner after releasing the 
+				 * connection if required. */
+				if (need_wakeup) {
+					signal_listner();
+				}
+			} else if (1 == is_timedout) {
+				connection_make_readable(conn);
+			}
 		}
-		
-		
 	} /* while (1) */
 }
 
