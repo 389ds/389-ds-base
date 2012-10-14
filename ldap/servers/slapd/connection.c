@@ -2132,6 +2132,11 @@ void connection_make_readable(Connection *conn)
 	signal_listner();
 }
 
+void connection_make_readable_nolock(Connection *conn)
+{
+	conn->c_gettingber = 0;
+}
+
 /*
  * Figure out the operation completion rate for this connection
  */
