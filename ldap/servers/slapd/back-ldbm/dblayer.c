@@ -414,7 +414,7 @@ dblayer_get_home_dir(struct ldbminfo *li, int *dbhome)
     if (NULL == home_dir)
     {
         LDAPDebug(LDAP_DEBUG_ANY,"Db home directory is not set. "
-            "Possibly %s (optinally %s) is missing in the config file.\n",
+            "Possibly %s (optionally %s) is missing in the config file.\n",
             CONFIG_DIRECTORY, CONFIG_DB_HOME_DIRECTORY, 0);
     }
     return home_dir;
