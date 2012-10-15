@@ -97,6 +97,8 @@ AC_ARG_ENABLE(pam-passthru,
         AS_HELP_STRING([--enable-pam-passthru],
                        [enable the PAM passthrough auth plugin (default: yes)]))
 if test "$enable_pam_passthru" = yes ; then
+  # check for pam header file used by plugins/pass_passthru/pam_ptimpl.c
+  AC_CHECK_HEADER([security/pam_appl.h], [], [AC_MSG_ERROR([Missing header file security/pam_appl.h])])
   AC_MSG_RESULT(yes)
   AC_DEFINE([ENABLE_PAM_PASSTHRU], [1], [enable the pam passthru auth plugin])
 else
