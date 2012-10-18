@@ -616,8 +616,10 @@ CSN *replica_get_cleanruv_maxcsn(Replica *r, ReplicaId rid);
 void ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids);
 void add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root);
 int is_task_aborted(ReplicaId rid);
+int is_pre_cleaned_rid(ReplicaId rid);
 void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root);
 void set_cleaned_rid(ReplicaId rid);
+void set_aborted_rid(ReplicaId rid);
 void cleanruv_log(Slapi_Task *task, char *task_type, char *fmt, ...);
 
 #define CLEANRIDSIZ 4 /* maximum number for concurrent CLEANALLRUV tasks */
@@ -633,6 +635,7 @@ typedef struct _cleanruv_data
 	char *repl_root;
 	Slapi_DN *sdn;
 	char *certify;
+	char *force;
 } cleanruv_data;
 
 /* replutil.c */

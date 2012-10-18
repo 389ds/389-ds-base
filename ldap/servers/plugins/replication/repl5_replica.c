@@ -1863,6 +1863,7 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
             csn_init_by_string(maxcsn, csnpart);
             csn_as_string(maxcsn, PR_FALSE, csnstr);
             add_cleaned_rid(rid, r, csnstr);
+            set_cleaned_rid(rid);
 
             slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: cleanAllRUV task found, "
                 "resuming the cleaning of rid(%d)...\n", rid);
@@ -1951,6 +1952,7 @@ done:
             stop_ruv_cleaning();
             maxcsn = replica_get_cleanruv_maxcsn(r, rid);
             delete_cleaned_rid(r, rid, maxcsn);
+            set_aborted_rid(rid);
             csn_free(&maxcsn);
 
             slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: abort task found, "
