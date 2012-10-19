@@ -135,7 +135,8 @@ do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t c
     (ps_service_fn)(e, eprev, chgtype, chgnum);
 }
 
-void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
+void
+modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 {
     char        buf[20];
     char        *plugin_dn = NULL;
@@ -159,11 +160,14 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
         /* plugin bindDN tracking is enabled, grab the bind dn from thread local storage */
         if(slapi_sdn_isempty(&op->o_sdn)){
             bv.bv_val = "";
-            bv.bv_len = strlen(bv.bv_val);
+            bv.bv_len = 0;
         } else {
             slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
-            if (cid)
+            if (cid){
                 plugin=(struct slapdplugin *) cid->sci_plugin;
+            } else {
+                slapi_pblock_get (pb, SLAPI_PLUGIN, &plugin);
+            }
             if(plugin)
                 plugin_dn = plugin_get_dn (plugin);
             if(plugin_dn){
@@ -176,6 +180,7 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
         }
         slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
                                   "internalModifiersName", bvals);
+        slapi_ch_free_string(&plugin_dn);
 
         /* Grab the thread data(binddn) */
         slapi_td_get_dn(&binddn);
@@ -183,7 +188,7 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
         if(binddn == NULL){
             /* anonymous bind */
             bv.bv_val = "";
-            bv.bv_len = strlen(bv.bv_val);
+            bv.bv_len = 0;
    	    } else {
             bv.bv_val = binddn;
             bv.bv_len = strlen(bv.bv_val);
@@ -192,7 +197,7 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
         /* fill in modifiersname */
         if (slapi_sdn_isempty(&op->o_sdn)) {
             bv.bv_val = "";
-            bv.bv_len = strlen(bv.bv_val);
+            bv.bv_len = 0;
         } else {
             bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
             bv.bv_len = strlen(bv.bv_val);

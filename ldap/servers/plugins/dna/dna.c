@@ -2853,6 +2853,8 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e)
                                                  /* no need to dup */
                                                  DNA_NEEDS_UPDATE);
                 }
+                /* Update the internalModifiersname for this add op */
+                add_internal_modifiersname(pb, e);
 
                 /* Make sure we don't generate for this
                  * type again by keeping a list of types
@@ -3106,6 +3108,8 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods)
                                           /* no need to dup */
                                           DNA_NEEDS_UPDATE); 
                 }
+                /* Update the internalModifersname for this mod op */
+                modify_update_last_modified_attr(pb, smods);
 
                 /* Make sure we don't generate for this
                  * type again by keeping a list of types
