@@ -1284,7 +1284,6 @@ void set_config_params (Slapi_PBlock *pb);
 /* set parameters common for all internal operations */
 void set_common_params (Slapi_PBlock *pb);
 void do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t chgnum);
-void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods);
 
 /*
  * debugdump.cpp
