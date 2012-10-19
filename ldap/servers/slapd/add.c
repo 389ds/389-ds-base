@@ -73,7 +73,7 @@
 /* Forward declarations */
 static int add_internal_pb (Slapi_PBlock *pb);
 static void op_shared_add (Slapi_PBlock *pb);
-static int add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e);
+static int add_created_attrs(Operation *op, Slapi_Entry *e);
 static int check_rdn_for_created_attrs(Slapi_Entry *e);
 static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry);
 static int add_uniqueid (Slapi_Entry *e);
@@ -684,7 +684,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 		/* can get lastmod only after backend is selected */
 		slapi_pblock_get(pb, SLAPI_BE_LASTMOD, &lastmod);
 
-		if (lastmod && add_created_attrs(pb, e) != 0)
+		if (lastmod && add_created_attrs(operation, e) != 0)
 		{
 			send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 				"cannot insert computed attributes", 0, NULL);
@@ -797,25 +797,20 @@ done:
 }
 
 static int 
-add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
+add_created_attrs(Operation *op, Slapi_Entry *e)
 {
 	char   buf[20];
 	char   *binddn = NULL;
-	char   *plugin_dn = NULL;
 	struct berval	bv;
 	struct berval	*bvals[2];
 	time_t		curtime;
 	struct tm	ltm;
-	Operation *op;
-	struct slapdplugin *plugin = NULL;
-	struct slapi_componentid *cid = NULL;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	LDAPDebug(LDAP_DEBUG_TRACE, "add_created_attrs\n", 0, 0, 0);
 
 	bvals[0] = &bv;
 	bvals[1] = NULL;
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 	
 	if(slapdFrontendConfig->plugin_track){
 		/* plugin bindDN tracking is enabled, grab the dn from thread local storage */
@@ -823,21 +818,8 @@ add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
 			bv.bv_val = "";
 			bv.bv_len = strlen(bv.bv_val);
 		} else {
-			slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
-			if (cid){
-				plugin=(struct slapdplugin *) cid->sci_plugin;
-			} else {
-				slapi_pblock_get (pb, SLAPI_PLUGIN, &plugin);
-			}
-			if(plugin)
-				plugin_dn = plugin_get_dn (plugin);
-			if(plugin_dn){
-				bv.bv_val = plugin_dn;
-				bv.bv_len = strlen(bv.bv_val);
-			} else {
-				bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
-				bv.bv_len = strlen(bv.bv_val);
-			}
+			bv.bv_val = (char*)slapi_sdn_get_dn(&op->o_sdn);
+			bv.bv_len = strlen(bv.bv_val);
 		}
 		slapi_entry_attr_replace(e, "internalCreatorsName", bvals);
 		slapi_entry_attr_replace(e, "internalModifiersName", bvals);
@@ -1040,32 +1022,4 @@ check_oc_subentry(Slapi_Entry *e, struct berval	**vals, char *normtype) {
     }
   }
   return subentry;
-}
-
-/*
- *  Used by plugins that modify entries on add operations, otherwise the internalModifiersname
- *  would be incorrect.
- */
-void
-add_internal_modifiersname(Slapi_PBlock *pb, Slapi_Entry *e)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    struct slapi_componentid *cid = NULL;
-    struct slapdplugin *plugin = NULL;
-    char *plugin_dn = NULL;
-
-    if(slapdFrontendConfig->plugin_track){
-        /* plugin bindDN tracking is enabled, grab the bind dn from thread local storage */
-        slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
-        if (cid){
-           plugin=(struct slapdplugin *) cid->sci_plugin;
-        } else {
-           slapi_pblock_get (pb, SLAPI_PLUGIN, &plugin);
-        }
-        if(plugin)
-            plugin_dn = plugin_get_dn (plugin);
-        if(plugin_dn){
-            slapi_entry_attr_set_charptr(e, "internalModifiersname", plugin_dn);
-        }
-    }
 }

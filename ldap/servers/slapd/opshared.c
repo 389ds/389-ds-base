@@ -135,8 +135,7 @@ do_ps_service(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype, ber_int_t c
     (ps_service_fn)(e, eprev, chgtype, chgnum);
 }
 
-void
-modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
+void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 {
     char        buf[20];
     char        *plugin_dn = NULL;
@@ -163,11 +162,8 @@ modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
             bv.bv_len = strlen(bv.bv_val);
         } else {
             slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
-            if (cid){
+            if (cid)
                 plugin=(struct slapdplugin *) cid->sci_plugin;
-            } else {
-                slapi_pblock_get (pb, SLAPI_PLUGIN, &plugin);
-            }
             if(plugin)
                 plugin_dn = plugin_get_dn (plugin);
             if(plugin_dn){

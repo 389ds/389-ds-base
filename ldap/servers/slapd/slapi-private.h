@@ -1252,12 +1252,6 @@ int slapi_add_internal_attr_syntax( const char *name, const char *oid, const cha
 void pw_exp_init ( void );
 int pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e);
 
-/* op_shared.c */
-void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods);
-
-/* add.c */
-void add_internal_modifiersname(Slapi_PBlock *pb, Slapi_Entry *e);
-
 #ifdef __cplusplus
 }
 #endif
