@@ -555,7 +555,6 @@ log_and_return:
 		log_result( pb, operation, err, tag, nentries );
 	}
 
-	delete_passwdPolicy (&pwpolicy);
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_ldap_result\n", 0, 0, 0 );
 }
 

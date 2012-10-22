@@ -869,7 +869,6 @@ free_and_return:
 	slapi_pblock_set(pb, SLAPI_TARGET_SDN, NULL);
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, NULL );
 	slapi_ch_free_string(&authmethod);
-	delete_passwdPolicy(&pwpolicy);
 	slapi_entry_free(referrals);
 
 	if ( targetEntry != NULL ){

@@ -1514,6 +1514,37 @@ struct slapi_task {
 } slapi_task;
 /* End of interface to support online tasks **********************************/
 
+typedef struct passwordpolicyarray {
+  int pw_change;        /* 1 - indicates that users are allowed to change the pwd */
+  int pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
+  int pw_syntax;
+  int pw_minlength;
+  int pw_mindigits;
+  int pw_minalphas;
+  int pw_minuppers;
+  int pw_minlowers;
+  int pw_minspecials;
+  int pw_min8bit;
+  int pw_maxrepeats;
+  int pw_mincategories;
+  int pw_mintokenlength;
+  int pw_exp;
+  long pw_maxage;
+  long pw_minage;
+  long pw_warning;
+  int pw_history;
+  int pw_inhistory;
+  int pw_lockout;
+  int pw_maxfailure;
+  int pw_unlock;
+  long pw_lockduration;
+  long pw_resetfailurecount;
+  int pw_gracelimit;
+  int pw_is_legacy;
+  int pw_track_update_time;
+  struct pw_scheme *pw_storagescheme;
+} passwdPolicy;
+
 typedef struct slapi_pblock {
 	/* common */
 	Slapi_Backend		*pb_backend;
@@ -1666,6 +1697,7 @@ typedef struct slapi_pblock {
 	int		pb_syntax_filter_normalized; /* the syntax filter types/values are already normalized */
 	void		*pb_syntax_filter_data; /* extra data to pass to a syntax plugin function */
 	int	pb_paged_results_index;    /* stash SLAPI_PAGED_RESULTS_INDEX */
+	passwdPolicy *pwdpolicy;
 } slapi_pblock;
 
 /* index if substrlens */
@@ -2032,37 +2064,6 @@ typedef struct _slapdEntryPoints {
 #define REFER_MODE_ON 1
 
 #define MAX_ALLOWED_TIME_IN_SECS	2147483647
-
-typedef struct passwordpolicyarray {
-  int pw_change;        /* 1 - indicates that users are allowed to change the pwd */
-  int pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
-  int pw_syntax;
-  int pw_minlength;
-  int pw_mindigits;
-  int pw_minalphas;
-  int pw_minuppers;
-  int pw_minlowers;
-  int pw_minspecials;
-  int pw_min8bit;
-  int pw_maxrepeats;
-  int pw_mincategories;
-  int pw_mintokenlength;
-  int pw_exp;
-  long pw_maxage;
-  long pw_minage;
-  long pw_warning;
-  int pw_history;
-  int pw_inhistory;
-  int pw_lockout;
-  int pw_maxfailure;
-  int pw_unlock;
-  long pw_lockduration;
-  long pw_resetfailurecount;
-  int pw_gracelimit;
-  int pw_is_legacy;
-  int pw_track_update_time;
-  struct pw_scheme *pw_storagescheme;
-} passwdPolicy;
 
 typedef struct _slapdFrontendConfig {
   Slapi_RWLock     *cfg_rwlock;       /* read/write lock to serialize access */

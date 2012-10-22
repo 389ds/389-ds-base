@@ -1256,7 +1256,6 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 done:
 	slapi_entry_free( e );
 	slapi_sdn_done (&sdn);
-	delete_passwdPolicy(&pwpolicy);
 	slapi_ch_free_string(&proxydn);
 	slapi_ch_free_string(&proxystr);
 	return rc;

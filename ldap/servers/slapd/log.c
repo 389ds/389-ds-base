@@ -2581,7 +2581,7 @@ log__delete_rotated_logs()
 		log_convert_time (logp->l_ctime, tbuf, 1);
 		PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
 
-		LDAPDebug(LDAP_DEBUG_ANY,"Deleted Rotated Log: %s\n",buffer,0,0);  /* MARK */
+		LDAPDebug(LDAP_DEBUG_ANY,"Deleted Rotated Log: %s\n",buffer,0,0);
 
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			logp = logp->l_next;

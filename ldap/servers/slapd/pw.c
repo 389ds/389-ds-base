@@ -200,7 +200,6 @@ char* slapi_encode_ext (Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char
 	{
 		pwpolicy = new_passwdPolicy(pb, (char*)slapi_sdn_get_ndn(sdn) );
 		pws_enc = pwpolicy->pw_storagescheme->pws_enc;
-		delete_passwdPolicy(&pwpolicy);
 
 		if (pws_enc == NULL)
 		{
@@ -357,8 +356,6 @@ pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals )
 		if (pwpolicy->pw_storagescheme) {
 			pws_enc = pwpolicy->pw_storagescheme->pws_enc;
 		}
-
-		delete_passwdPolicy(&pwpolicy);
 	}
 
 	/* Password scheme encryption function was not found */
@@ -678,7 +675,6 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 			  slapi_ch_free((void**)&prev_exp_date_str);
 			  pw_apply_mods(sdn, &smods);
 			  slapi_mods_done(&smods);
-			  delete_passwdPolicy(&pwpolicy);
 			  return 0;
 			}
 			
@@ -695,11 +691,8 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 	} else {
 		pw_apply_mods(sdn, &smods);
 		slapi_mods_done(&smods);
-		delete_passwdPolicy(&pwpolicy);
 		return 0;
 	}
-
-	delete_passwdPolicy(&pwpolicy);
 
 	timestr = format_genTime ( pw_exp_date );
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpirationTime", timestr);
@@ -735,7 +728,6 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
 		/* retrieve the entry */
 		e = get_entry ( pb, dn );
 		if ( e == NULL ) {
-			delete_passwdPolicy(&pwpolicy);
 			return ( -1 );
 		}
 		/* get passwordAllowChangeTime attribute */
@@ -763,14 +755,12 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
                         "within password minimum age", 0, NULL );
 				slapi_entry_free( e );
 				slapi_ch_free((void **) &cur_time_str );
-				delete_passwdPolicy(&pwpolicy);
 				return ( 1 );
 			}
         	slapi_ch_free((void **) &cur_time_str );
 		}
         slapi_entry_free( e );
 	}
-	delete_passwdPolicy(&pwpolicy);
 	return ( 0 );
 }
 
@@ -847,12 +837,10 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 								LDAP_PWPOLICY_INVALIDPWDSYNTAX );
 					}
 					pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
-					delete_passwdPolicy(&pwpolicy);
 					return( 1 );
 				} else {
 					/* We want to skip syntax checking since this is a pre-hashed
 					 * password from replication or the root DN. */
-					delete_passwdPolicy(&pwpolicy);
 					return( 0 );
 				}
 			}
@@ -869,7 +857,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 							LDAP_PWPOLICY_PWDTOOSHORT );
 				}
 				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
-				delete_passwdPolicy(&pwpolicy);
 				return ( 1 );
 			}
 
@@ -984,7 +971,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 					    LDAP_PWPOLICY_INVALIDPWDSYNTAX );
 				}
 				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
-				delete_passwdPolicy(&pwpolicy);
 				return ( 1 );
 			}
 		}
@@ -995,7 +981,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 		/* retrieve the entry */
 		e = get_entry ( pb, dn );
 		if ( e == NULL ) {
-			delete_passwdPolicy(&pwpolicy);
 			return ( -1 );
 		}
 
@@ -1015,7 +1000,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 						LDAP_CONSTRAINT_VIOLATION, NULL,
 						"password in history", 0, NULL );
 					slapi_entry_free( e ); 
-					delete_passwdPolicy(&pwpolicy);
 					return ( 1 );
 				}
 			}
@@ -1033,7 +1017,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 										   LDAP_CONSTRAINT_VIOLATION ,NULL,
 										   "password in history", 0, NULL);
 						slapi_entry_free( e ); 
-						delete_passwdPolicy(&pwpolicy);
 						return ( 1 );
 					}
 				} else 
@@ -1044,7 +1027,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 										   LDAP_CONSTRAINT_VIOLATION ,NULL,
 										   "password in history", 0, NULL);
 						slapi_entry_free( e ); 
-						delete_passwdPolicy(&pwpolicy);
 						return ( 1 );
 					}
 				}
@@ -1073,12 +1055,9 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 				slapi_entry_free( e );
 			}
 
-			delete_passwdPolicy(&pwpolicy);
 			return 1;
 		}
 	}
-
-	delete_passwdPolicy(&pwpolicy);
 
 	if ( mod_op ) {
 		/* free e only when called by modify operation */
@@ -1110,7 +1089,6 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	/* retrieve the entry */
 	e = get_entry ( pb, dn );
 	if ( e == NULL ) {
-		delete_passwdPolicy(&pwpolicy);
 		return ( 1 );
 	}
 
@@ -1176,7 +1154,6 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	slapi_ch_free((void **) &str );
 	slapi_ch_free((void **) &history_str );
 	slapi_entry_free( e );
-	delete_passwdPolicy(&pwpolicy);
 	return 0;
 }
 
@@ -1415,8 +1392,6 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 		slapi_entry_attr_merge( e, "passwordallowchangetime", bvals );
 		slapi_ch_free((void **) &bv.bv_val );
 	}
-	
-	delete_passwdPolicy(&pwpolicy);
 }
 
 static int
@@ -1550,6 +1525,11 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	Slapi_Value **sval;
 	slapdFrontendConfig_t *slapdFrontendConfig;
 	int optype = -1;
+
+	/* If we already allocated a pw policy, return it */
+	if(pb && pb->pwdpolicy){
+		return pb->pwdpolicy;
+	}
 
 	slapdFrontendConfig = getFrontendConfig();
 	pwdpolicy = (passwdPolicy *)slapi_ch_calloc(1, sizeof(passwdPolicy));
@@ -1838,6 +1818,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 			if (pw_entry) {
 				slapi_entry_free(pw_entry);
 			}
+			if(pb){
+				pb->pwdpolicy = pwdpolicy;
+			}
 			return pwdpolicy;
 		} else if ( e ) { 
 			slapi_entry_free( e );
@@ -1845,15 +1828,18 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	}
 
 done:
-	/* If we are here, that means we need to load the passwdPolicy
+	/*
+	 * If we are here, that means we need to load the passwdPolicy
 	 * structure from slapdFrontendconfig
 	 */
-
 	*pwdpolicy = slapdFrontendConfig->pw_policy;
 	pwdscheme = (struct pw_scheme *)slapi_ch_calloc(1, sizeof(struct pw_scheme));
 	*pwdscheme = *slapdFrontendConfig->pw_storagescheme;
 	pwdscheme->pws_name = strdup( slapdFrontendConfig->pw_storagescheme->pws_name );
 	pwdpolicy->pw_storagescheme = pwdscheme;
+	if(pb){
+		pb->pwdpolicy = pwdpolicy;
+	}
 
 	return pwdpolicy;
 
@@ -2194,14 +2180,9 @@ slapi_check_account_lock ( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, in
 
 notlocked:
 	/* account is not locked. */
-        if(check_password_policy)
-		delete_passwdPolicy(&pwpolicy);
-	return ( 0 );	
+	return (0);
 locked:
-	if(check_password_policy)
-		delete_passwdPolicy(&pwpolicy);
 	return (1);
-
 }
 
 /* The idea here is that these functions could allow us to have password

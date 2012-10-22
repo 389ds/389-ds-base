@@ -136,7 +136,6 @@ int set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	dn = slapi_sdn_get_dn(sdn);
 	pwpolicy = new_passwdPolicy(pb, dn);
-
 	slapi_mods_init(&smods, 0);
 
 	reset_time = time_plus_sec ( cur_time, 
@@ -150,7 +149,6 @@ int set_retry_cnt_and_time ( Slapi_PBlock *pb, int count, time_t cur_time ) {
 	
 	pw_apply_mods(sdn, &smods);
 	slapi_mods_done(&smods);
-	delete_passwdPolicy(&pwpolicy);
 
 	return rc;
 }
@@ -190,7 +188,6 @@ int set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 			rc = LDAP_CONSTRAINT_VIOLATION;
 		}
 	}
-	delete_passwdPolicy(&pwpolicy);
 	return rc;
 }
 
