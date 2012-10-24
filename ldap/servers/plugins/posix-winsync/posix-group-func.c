@@ -473,15 +473,15 @@ propogateMembershipUpward(Slapi_Entry *entry, Slapi_ValueSet *muid_vs, int depth
             muid_here_vs = muid_vs;
         }
         else {
+            int i = 0;
+            Slapi_Value *v = NULL;
             /* Eliminate duplicates */
             muid_upward_vs = slapi_valueset_new();
             muid_here_vs = slapi_valueset_new();
 
+            slapi_attr_get_valueset(muid_old_attr, &muid_old_vs);
             slapi_valueset_set_valueset(muid_upward_vs, muid_old_vs);
 
-            slapi_attr_get_valueset(muid_old_attr, &muid_old_vs);
-            int i = 0;
-            Slapi_Value *v = NULL;
             for (i = slapi_valueset_first_value(muid_vs, &v); i != -1;
                  i = slapi_valueset_next_value(muid_vs, i, &v)) {
                 
@@ -542,6 +542,7 @@ propogateDeletionsUpwardCallback(Slapi_Entry *entry, void *callback_data)
 {
     struct propogateDeletionsUpwardArgs *args = (struct propogateDeletionsUpwardArgs *)(callback_data);
     propogateDeletionsUpward(entry, args->base_sdn, args->smod_deluids, args->del_nested_vs, args->depth);
+    return 0;
 }
 
 void
@@ -920,6 +921,7 @@ addUserToGroupMembership(Slapi_Entry *entry)
     propogateMembershipUpward(entry, muid_vs, 0);
 
     slapi_valueset_free(muid_vs); muid_vs = NULL;
+    return 0;
 }
 
 int

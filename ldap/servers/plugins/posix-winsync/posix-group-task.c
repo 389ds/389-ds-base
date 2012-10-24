@@ -152,9 +152,9 @@ posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int 
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 
-    out: 
+out: 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "posix_group_task_add: <==\n", filter);
+                    "posix_group_task_add: <==\n");
 
     return rv;
 }
