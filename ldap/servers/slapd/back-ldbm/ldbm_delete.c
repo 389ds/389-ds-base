@@ -393,6 +393,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					create_tombstone_entry = (create_tombstone_entry < 0) ? 0 : 1;
 				}
 			}
+			if (create_tombstone_entry && is_tombstone_entry) {
+				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+				    "Attempt to convert a tombstone entry %s to tombstone\n", dn);
+				retval = -1;
+				ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
+				goto error_return;
+			}
 		
 #ifdef DEBUG
 			slapi_log_error(SLAPI_LOG_REPL, "ldbm_back_delete",
