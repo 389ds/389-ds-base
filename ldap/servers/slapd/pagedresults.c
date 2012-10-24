@@ -217,7 +217,11 @@ pagedresults_set_search_result(Connection *conn, void *sr, int locked)
     int rc = -1;
     if (conn) {
         if (!locked) PR_Lock(conn->c_mutex);
-        conn->c_search_result_set = sr;
+        /* In case abandoned (CONN_FLAG_PAGEDRESULTS_PROCESSING is reset),
+         * stop setting the search result set. */
+        if (conn->c_flags & CONN_FLAG_PAGEDRESULTS_PROCESSING) {
+            conn->c_search_result_set = sr;
+        }
         if (!locked) PR_Unlock(conn->c_mutex);
         rc = 0;
     }
@@ -370,7 +374,7 @@ pagedresults_set_timelimit(Connection *conn, time_t timelimit)
  * 1: simple paged result and successfully abandoned
  */
 int
-pagedresults_cleanup(Connection *conn, int needlock)
+pagedresults_cleanup(Connection *conn, int flags, int needlock)
 {
     int rc = 0;
 
@@ -389,7 +393,15 @@ pagedresults_cleanup(Connection *conn, int needlock)
     }
     conn->c_search_result_count = 0;
     conn->c_timelimit = 0;
-    conn->c_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
+    if (flags == PAGEDRESULTS_CLEANALL) {
+        conn->c_flags &= ~CONN_FLAG_PAGEDRESULTS_ALL;
+    } else {
+        conn->c_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
+        if (flags == PAGEDRESULTS_ABANDONED) {
+            conn->c_flags |= CONN_FLAG_PAGEDRESULTS_ABANDONED;
+        }
+    }
+
     if (needlock) {
         PR_Unlock(conn->c_mutex);
     }
@@ -407,9 +419,12 @@ pagedresults_check_or_set_processing(Connection *conn)
     int ret = 0;
     if (conn) {
         PR_Lock(conn->c_mutex);
-        ret = conn->c_flags&CONN_FLAG_PAGEDRESULTS_PROCESSING;
-        /* if ret is true, the following doesn't do anything */
-        conn->c_flags |= CONN_FLAG_PAGEDRESULTS_PROCESSING;
+        ret = conn->c_flags & (CONN_FLAG_PAGEDRESULTS_PROCESSING |
+                               CONN_FLAG_PAGEDRESULTS_ABANDONED);
+        /* if ret is true, don't set the flag. */
+        if (!ret) {
+            conn->c_flags |= CONN_FLAG_PAGEDRESULTS_PROCESSING;
+        }
         PR_Unlock(conn->c_mutex);
     }
     return ret;

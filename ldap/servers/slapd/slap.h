@@ -1446,12 +1446,16 @@ typedef struct conn {
                                              * sent with server side sorting
                                              */
 
-#define CONN_FLAG_PAGEDRESULTS_UNINDEXED 128 /* If the search is unindexed,
+#define CONN_FLAG_PAGEDRESULTS_UNINDEXED  128/* If the search is unindexed,
                                               * store the info in c_flags
                                               */
-#define CONN_FLAG_PAGEDRESULTS_PROCESSING 256 /* there is an operation
-					       * processing a pagedresults search
-					       */
+#define CONN_FLAG_PAGEDRESULTS_PROCESSING 256/* there is an operation
+                                              * processing a pagedresults search
+                                              */
+#define CONN_FLAG_PAGEDRESULTS_ABANDONED  512/* paged results op is abandoned */
+#define CONN_FLAG_PAGEDRESULTS_ALL        (CONN_FLAG_PAGEDRESULTS_UNINDEXED| \
+                                           CONN_FLAG_PAGEDRESULTS_PROCESSING| \
+                                           CONN_FLAG_PAGEDRESULTS_ABANDONED)
 #define CONN_GET_SORT_RESULT_CODE (-1)
 
 #define START_TLS_OID    "1.3.6.1.4.1.1466.20037"
@@ -2318,5 +2322,9 @@ extern char	*attr_dataversion;
 
 /* copied from replication/repl5.h */
 #define RUV_STORAGE_ENTRY_UNIQUEID "ffffffff-ffffffff-ffffffff-ffffffff"
+
+/* Flags for pagedresults_cleanup */
+#define PAGEDRESULTS_ABANDONED 1
+#define PAGEDRESULTS_CLEANALL  2
 
 #endif /* _slap_h_ */

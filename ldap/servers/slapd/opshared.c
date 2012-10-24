@@ -422,9 +422,17 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                                                &pagesize, &curr_search_count);
           if (LDAP_SUCCESS == rc) {
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
-              if (pagedresults_check_or_set_processing(pb->pb_conn)) {
-                  send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM,
-                                   NULL, "Simple Paged Results Search already in progress on this connection", 0, NULL);
+              int myrc = pagedresults_check_or_set_processing(pb->pb_conn);
+              if ((0 == pagesize) || (myrc & CONN_FLAG_PAGEDRESULTS_ABANDONED)) {
+                  send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                                   "Simple Paged Results Search is abandoned",
+                                   0, NULL);
+                  goto free_and_return_nolock;
+              } else if (myrc) {
+                  send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                                   "Simple Paged Results Search is "
+                                   "already in progress on this connection",
+                                   0, NULL);
                   goto free_and_return_nolock;
               }
               pr_reset_processing = 1; /* need to reset after we are done with this op */
@@ -535,7 +543,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           }
           if (slapi_sdn_compare(basesdn, sdn)) {
               slapi_sdn_free(&basesdn);
-			  basesdn = operation_get_target_spec(pb->pb_op);
+              basesdn = operation_get_target_spec(pb->pb_op);
               slapi_sdn_free(&basesdn);
               basesdn = slapi_sdn_dup(sdn);
               operation_set_target_spec (pb->pb_op, basesdn);
@@ -660,7 +668,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       pagedresults_set_search_result_set_size_estimate(pb->pb_conn, estimate);
       next_be = NULL; /* to break the loop */
       if (curr_search_count == -1) {
-        pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+        pagedresults_cleanup(pb->pb_conn, 0, 1 /* need to lock */);
       }
     } else {
       /* be_suffix null means that we are searching the default backend
@@ -811,7 +819,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             next_be = NULL; /* to break the loop */
             if (curr_search_count == -1) {
-                pagedresults_cleanup(pb->pb_conn, 1 /* need to lock */);
+                pagedresults_cleanup(pb->pb_conn, 0, 1 /* need to lock */);
             }
         }
   
