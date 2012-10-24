@@ -1,4 +1,5 @@
 #include "slapi-plugin.h"
+#include "slapi-private.h"
 #include "nspr.h"
 
 #include "posix-wsp-ident.h"

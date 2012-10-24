@@ -28,6 +28,8 @@
 
 Slapi_Value **
 valueset_get_valuearray(const Slapi_ValueSet *vs); /* stolen from proto-slap.h */
+static int hasObjectClass(Slapi_Entry *entry, const char *objectClass);
+
 static PRMonitor *memberuid_operation_lock = 0;
 
 void
@@ -133,13 +135,13 @@ searchUid(const char *udn)
         }
 
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "searchUid: About to free entry\n", udn);
+                        "searchUid: About to free entry (%s)\n", udn);
         
         slapi_entry_free(entry);
     }
 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                    "searchUid: <==\n", udn);
+                    "searchUid(%s): <==\n", udn);
         
     return uid;
 }
@@ -260,7 +262,7 @@ smods_has_mod(Slapi_Mods *smods, int modtype, const char *type, const char *val)
     return rc;
 }
 
-int
+static int
 hasObjectClass(Slapi_Entry *entry, const char *objectClass)
 {
     int rc = 0;
@@ -704,7 +706,6 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
 
             if (smod_deluids == NULL) { /* deletion of the last value, deletes the Attribut from entry complete, this operation has no value, so we must look by self */
                 Slapi_Attr * um_attr = NULL; /* Entry attributes        */
-                Slapi_Value * uid_dn_value = NULL; /* Attribute values        */
                 int rc = slapi_entry_attr_find(entry, "uniquemember", &um_attr);
                 
                 if (rc != 0 || um_attr == NULL) {
