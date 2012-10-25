@@ -271,15 +271,15 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         int i;
         for (i = slapi_attr_first_value(muid_attr, &v); i != -1;
              i = slapi_attr_next_value(muid_attr, i, &v)) {
-            const char *muid = slapi_value_get_string(v);
+            char *muid = (char *)slapi_value_get_string(v);
 
             slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                             "_fix_memberuid iterating memberuid: %s\n",
                             muid);
 
             size_t vallen = muid ? strlen(muid) : 0;
-            char *filter_escaped_value = slapi_ch_calloc(sizeof(char), vallen*3+1);
-            char *filter = slapi_ch_smprintf("(uid=%s)", escape_filter_value(muid, vallen, filter_escaped_value));
+            char *filter_escaped_value = slapi_escape_filter_value(muid, vallen);
+            char *filter = slapi_ch_smprintf("(uid=%s)", filter_escaped_value);
             slapi_ch_free_string(&filter_escaped_value);
 
             Slapi_Entry **search_entries = NULL;

@@ -17,5 +17,7 @@ char * searchUid(const char *udn);
 void memberUidLock();
 void memberUidUnlock();
 int memberUidLockInit();
+int addUserToGroupMembership(Slapi_Entry *entry);
+void propogateDeletionsUpward(Slapi_Entry *, const Slapi_DN *, Slapi_ValueSet*, Slapi_ValueSet *, int);
 
 #endif
