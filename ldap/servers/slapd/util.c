@@ -340,12 +340,16 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
                 buf = escaped_filter.bv_val;
             }
 #else
+            char *val2 = NULL;
             buf = slapi_ch_calloc(sizeof(char), filter_len*3 + 1);
-            if(do_escape_string(val, filter_len, buf, special_filter) == NULL){
+            val2 = do_escape_string(val, filter_len, buf, special_filter);
+            if(val2 == NULL){
                 LDAPDebug(LDAP_DEBUG_TRACE, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
                 ctx->next_arg_needs_esc_norm = 0;
                 slapi_ch_free_string(&buf);
                 return -1;
+            } else if (val == val2) { /* value did not need escaping and was just returned */
+                strcpy(buf, val); /* just use value as-is - len did not change */
             } else {
                 filter_len = strlen(buf);
             }
