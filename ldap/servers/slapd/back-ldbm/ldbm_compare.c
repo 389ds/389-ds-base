@@ -61,7 +61,6 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	Slapi_DN *namespace_dn;
 	back_txn txn = {NULL};
 
-
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr);
@@ -75,16 +74,25 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	}
 
 	inst = (ldbm_instance *) be->be_instance_info;
+	if (inst->inst_ref_count) {
+		slapi_counter_increment(inst->inst_ref_count);
+	} else {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		              "ldbm_compare: instance %s does not exist.\n",
+		              inst->inst_name);
+		return -1;
+	}
 	/* get the namespace dn */
 	namespace_dn = (Slapi_DN*)slapi_be_getsuffix(be, 0);
 
 	if ( (e = find_entry( pb, be, addr, &txn )) == NULL ) {
-		return( -1 );	/* error result sent by find_entry() */
+		ret = -1;	/* error result sent by find_entry() */
+		goto bail;
 	}
 
 	err = slapi_access_allowed (pb, e->ep_entry, type, bval, SLAPI_ACL_COMPARE);
 	if ( err != LDAP_SUCCESS ) {
-		slapi_send_ldap_result( pb, err, NULL, NULL, 0, NULL );								
+		slapi_send_ldap_result( pb, err, NULL, NULL, 0, NULL );
 		ret = 1;
 	} else {
 
@@ -117,5 +125,9 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	}
 
 	CACHE_RETURN( &inst->inst_cache, &e );
+bail:
+	if (inst->inst_ref_count) {
+		slapi_counter_decrement(inst->inst_ref_count);
+	}
 	return( ret );
 }

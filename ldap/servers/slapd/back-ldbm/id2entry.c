@@ -382,6 +382,12 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
                                     "(rdn=%s, ID=%d)\n", rdn, id);
                     /* Try rdn as dn. Could be RUV. */
                     normdn = slapi_ch_strdup(rdn);
+                } else if (NULL == normdn) {
+                    slapi_log_error(SLAPI_LOG_FATAL, ID2ENTRY, 
+                        "<= id2entry( %lu ) entryrdn_lookup_dn returned NULL. "
+                        "Index file may be deleted or corrupted.\n",
+                        (u_long)id);
+                    goto bail;
                 }
                 sdn = slapi_sdn_new_normdn_byval((const char *)normdn);
                 bdn = backdn_init(sdn, id, 0);

@@ -167,6 +167,13 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sla
   
   returntext[0] = '\0';
   *returncode = LDAP_SUCCESS;
+
+  if (slapi_counter_get_value(inst->inst_ref_count) > 0) {
+    *returncode = LDAP_UNAVAILABLE;
+    rc = SLAPI_DSE_CALLBACK_ERROR;
+  }
+
+  *returncode = LDAP_SUCCESS;
   
   slapi_entry_attr_find(e, "cn", &attr);
   slapi_attr_first_value(attr, &sval);
@@ -184,7 +191,6 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sla
       rc = SLAPI_DSE_CALLBACK_ERROR;
     }
   }
-  
   return rc;
 }
 

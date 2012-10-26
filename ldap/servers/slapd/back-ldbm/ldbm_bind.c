@@ -50,7 +50,7 @@ typedef enum LDAPWAEnum {
 	LDAPWA_NoDomainAttr = -3,
 	LDAPWA_InvalidCredentials = -2,
 	LDAPWA_Failure = -1,
-    LDAPWA_Success= 0
+	LDAPWA_Success= 0
 } LDAPWAStatus;
 
 int
@@ -211,6 +211,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	Slapi_Value **bvals;
 	entry_address *addr;
 	back_txn txn = {NULL};
+	int rc = SLAPI_BIND_SUCCESS;
 
 	/* get parameters */
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
@@ -226,10 +227,19 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	}
 	
 	inst = (ldbm_instance *) be->be_instance_info;
+	if (inst->inst_ref_count) {
+		slapi_counter_increment(inst->inst_ref_count);
+	} else {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		              "ldbm_bind: instance %s does not exist.\n",
+		              inst->inst_name);
+		return( SLAPI_BIND_FAIL );
+	}
 
 	/* always allow noauth simple binds (front end will send the result) */
 	if ( method == LDAP_AUTH_SIMPLE && cred->bv_len == 0 ) {
-		return( SLAPI_BIND_ANONYMOUS );
+		rc = SLAPI_BIND_ANONYMOUS;
+		goto bail;
 	}
 
 	/*
@@ -237,7 +247,8 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	 *   and sending errors if the entry does not exist.
 	 */
 	if (( e = find_entry( pb, be, addr, &txn )) == NULL ) {
-		return( SLAPI_BIND_FAIL );
+		rc = SLAPI_BIND_FAIL;
+		goto bail;
 	}
 
 	switch ( method ) {
@@ -253,7 +264,8 @@ ldbm_back_bind( Slapi_PBlock *pb )
 			slapi_send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
 			    NULL, 0, NULL );
 			CACHE_RETURN( &inst->inst_cache, &e );
-			return( SLAPI_BIND_FAIL );
+			rc = SLAPI_BIND_FAIL;
+			goto bail;
 		}
 		bvals= attr_get_present_values(attr);
 		slapi_value_init_berval(&cv,cred);
@@ -269,7 +281,8 @@ ldbm_back_bind( Slapi_PBlock *pb )
 			    NULL, 0, NULL );
 			CACHE_RETURN( &inst->inst_cache, &e );
 			value_done(&cv);
-			return( SLAPI_BIND_FAIL );
+			rc = SLAPI_BIND_FAIL;
+			goto bail;
 		}
 		value_done(&cv);
 		}
@@ -279,11 +292,15 @@ ldbm_back_bind( Slapi_PBlock *pb )
 		slapi_send_ldap_result( pb, LDAP_STRONG_AUTH_NOT_SUPPORTED, NULL,
 		    "auth method not supported", 0, NULL );
 		CACHE_RETURN( &inst->inst_cache, &e );
-		return( SLAPI_BIND_FAIL );
+		rc = SLAPI_BIND_FAIL;
+		goto bail;
 	}
 
 	CACHE_RETURN( &inst->inst_cache, &e );
-
+bail:
+	if (inst->inst_ref_count) {
+		slapi_counter_decrement(inst->inst_ref_count);
+	}
 	/* success:  front end will send result */
-	return( SLAPI_BIND_SUCCESS );
+	return rc;
 }

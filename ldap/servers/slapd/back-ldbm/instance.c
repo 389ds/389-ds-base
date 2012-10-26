@@ -123,6 +123,9 @@ int ldbm_instance_create(backend *be, char *name)
         goto error;
     }
 
+    /* Keeps track of how many operations are currently using this instance */
+    inst->inst_ref_count = slapi_counter_new();
+
     inst->inst_be = be;
     inst->inst_li = li;
     be->be_instance_info = inst;
@@ -411,6 +414,7 @@ ldbm_instance_destructor(void **arg)
     LDAPDebug(LDAP_DEBUG_ANY, "Destructor for instance %s called\n", 
               inst->inst_name, 0, 0);
 
+    slapi_counter_destroy(&(inst->inst_ref_count));
     slapi_ch_free_string(&inst->inst_name);
     PR_DestroyLock(inst->inst_config_mutex);
     slapi_ch_free_string(&inst->inst_dir_name);

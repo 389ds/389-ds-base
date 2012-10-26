@@ -684,7 +684,8 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
     }
 
     /* check if an import/restore is already ongoing... */
-    if (instance_set_busy(inst) != 0) {
+    if ((instance_set_busy(inst) != 0) ||
+        (slapi_counter_get_value(inst->inst_ref_count) > 0)) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm: '%s' is already in the middle of "
                   "another task and cannot be disturbed.\n",
                   inst->inst_name, 0, 0);

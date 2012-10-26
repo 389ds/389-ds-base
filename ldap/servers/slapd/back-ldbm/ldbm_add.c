@@ -132,7 +132,15 @@ ldbm_back_add( Slapi_PBlock *pb )
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 
 	inst = (ldbm_instance *) be->be_instance_info;
-		
+	if (inst->inst_ref_count) {
+		slapi_counter_increment(inst->inst_ref_count);
+	} else {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		              "ldbm_add: instance %s does not exist.\n",
+		              inst->inst_name);
+		goto error_return;
+	}
+
 	/* sdn & parentsdn need to be initialized before "goto *_return" */
 	slapi_sdn_init(&parentsdn);
 	
@@ -878,8 +886,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 			continue;
 		}
 		if (retval != 0) {
-			LDAPDebug( LDAP_DEBUG_ANY, "add: attempt to index %lu failed\n",
-								   (u_long)addingentry->ep_id, 0, 0 );
+			LDAPDebug2Args(LDAP_DEBUG_ANY,
+			               "add: attempt to index %lu failed (rc=%d)\n",
+			               (u_long)addingentry->ep_id, retval);
 			ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
 				disk_full = 1;
@@ -1137,6 +1146,9 @@ common_return:
         }
         CACHE_RETURN( &inst->inst_cache, &addingentry );
     }
+	if (inst->inst_ref_count) {
+		slapi_counter_decrement(inst->inst_ref_count);
+	}
 	/* bepost op needs to know this result */
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 	/* JCMREPL - The bepostop is called even if the operation fails. */

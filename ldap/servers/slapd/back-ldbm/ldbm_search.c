@@ -169,6 +169,9 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     inst = (ldbm_instance *) be->be_instance_info;
     CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
+    if (inst->inst_ref_count) {
+        slapi_counter_decrement(inst->inst_ref_count);
+    }
 
     if(sort_control!=NULL)
     {
@@ -343,6 +346,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     int backend_count = 1;
     static int print_once = 1;
     back_txn txn = {NULL};
+    int rc = 0;
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
@@ -366,6 +370,14 @@ ldbm_back_search( Slapi_PBlock *pb )
                                "Null target DN", 0, NULL );
         return( -1 );
     }
+    if (inst->inst_ref_count) {
+        slapi_counter_increment(inst->inst_ref_count);
+    } else {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ldbm_search: instance %s does not exist.\n",
+                      inst->inst_name);
+        return( -1 );
+    }
     base = slapi_sdn_get_dn(basesdn);
 
     /* Initialize the result set structure here because we need to use it during search processing */
@@ -383,9 +395,8 @@ ldbm_back_search( Slapi_PBlock *pb )
         sort = slapi_control_present( controls, LDAP_CONTROL_SORTREQUEST, &sort_spec, &is_sorting_critical_orig );
         if(sort)
         {
-            int r= parse_sort_spec(sort_spec, &sort_control);
-            if(r!=0)
-            {
+            rc = parse_sort_spec(sort_spec, &sort_control);
+            if (rc) {
                 /* Badly formed SORT control */
                 return ldbm_back_search_cleanup(pb, li, sort_control, 
                                 LDAP_PROTOCOL_ERROR, "Sort Control", 
@@ -401,12 +412,11 @@ ldbm_back_search( Slapi_PBlock *pb )
         {
             if(sort)
             {
-                int r = vlv_parse_request_control( be, vlv_spec, &vlv_request_control );
-                if(r!=LDAP_SUCCESS)
-                {
+                rc = vlv_parse_request_control( be, vlv_spec, &vlv_request_control );
+                if (rc != LDAP_SUCCESS) {
                     /* Badly formed VLV control */
                     return ldbm_back_search_cleanup(pb, li, sort_control,
-                                r, "VLV Control", SLAPI_FAIL_GENERAL, 
+                                rc, "VLV Control", SLAPI_FAIL_GENERAL, 
                                 &vlv_request_control, NULL);
                 }
                 {
@@ -421,13 +431,12 @@ ldbm_back_search( Slapi_PBlock *pb )
                     /* This dn is normalized. */
                     PR_snprintf(dn,sizeof(dn),"dn: oid=%s,cn=features,cn=config",LDAP_CONTROL_VLVREQUEST);
                     feature= slapi_str2entry(dn,0);
-                    r= plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
+                    rc = plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
                     slapi_entry_free(feature);
-                    if(r!=LDAP_SUCCESS)
-                    {
+                    if (rc != LDAP_SUCCESS) {
                         /* Client isn't allowed to do this. */
                         return ldbm_back_search_cleanup(pb, li, sort_control, 
-                                    r, "VLV Control", SLAPI_FAIL_GENERAL, 
+                                    rc, "VLV Control", SLAPI_FAIL_GENERAL, 
                                     &vlv_request_control, NULL);
                     }
                 }
@@ -650,22 +659,20 @@ ldbm_back_search( Slapi_PBlock *pb )
              */
             if (virtual_list_view && (NULL != candidates))
             {
-                int r = 0;
                 IDList *idl = NULL;
                 Slapi_Filter *filter = NULL;
                 slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter );
-                r = vlv_filter_candidates(be, pb, candidates, basesdn,
+                rc = vlv_filter_candidates(be, pb, candidates, basesdn,
                                           scope, filter, &idl,
                                           lookthrough_limit, time_up);
-                if(r == 0)
-                {
+                if (rc == 0) {
                     idl_free(candidates);
                     candidates= idl;
                 }
                 else
                 {
                     return ldbm_back_search_cleanup(pb, li, sort_control,
-                                                    r, NULL, -1, 
+                                                    rc, NULL, -1, 
                                                     &vlv_request_control, e);
                 }
             }

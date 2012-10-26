@@ -146,6 +146,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
 	
 	inst = (ldbm_instance *) be->be_instance_info;
+	if (inst->inst_ref_count) {
+		slapi_counter_increment(inst->inst_ref_count);
+	} else {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		              "ldbm_delete: instance %s does not exist.\n",
+		              inst->inst_name);
+		goto error_return;
+	}
 
 	/* The dblock serializes writes to the database,
 	 * which reduces deadlocking in the db code,
@@ -1206,6 +1214,9 @@ common_return:
 			CACHE_RETURN( &inst->inst_cache, &e );
 		}
 	}
+	if (inst->inst_ref_count) {
+		slapi_counter_decrement(inst->inst_ref_count);
+	}
 	
 	if (ruv_c_init) {
 		modify_term(&ruv_c, be);
@@ -1214,7 +1225,7 @@ common_return:
 diskfull_return:
     if(ldap_result_code!=-1)
 	{
-    	slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
 	modify_term(&parent_modify_c,be);
 	if (rc == 0 && opcsn && !is_fixup_operation && !delete_tombstone_entry)

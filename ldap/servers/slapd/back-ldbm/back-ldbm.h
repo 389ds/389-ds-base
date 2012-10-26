@@ -735,10 +735,8 @@ typedef struct ldbm_instance {
     int inst_flags;                   /* see above */
 
     PRLock *inst_config_mutex;
-
-    PRInt32 *inst_ref_count;          /* Keeps track of how many operations 
+    Slapi_Counter *inst_ref_count;    /* Keeps track of how many operations 
                                        * are currently using this instance */
-
     char *inst_dir_name;              /* The name of the directory in the db
                                        * directory that holds the index files
                                        * for this instance. Relative to the

@@ -191,6 +191,15 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         return( -1 );
     } 
 
+    if (inst->inst_ref_count) {
+        slapi_counter_increment(inst->inst_ref_count);
+    } else {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "ldbm_modrdn: instance %s does not exist.\n",
+                      inst->inst_name);
+        return( -1 );
+    }
+
     /* The dblock serializes writes to the database,
      * which reduces deadlocking in the db code,
      * which means that we run faster.
@@ -1291,6 +1300,9 @@ common_return:
             CACHE_ADD(&inst->inst_cache, e, NULL);
             e_in_cache = 1;
         }
+    }
+    if (inst->inst_ref_count) {
+        slapi_counter_decrement(inst->inst_ref_count);
     }
 
     moddn_unlock_and_return_entry(be,&e);

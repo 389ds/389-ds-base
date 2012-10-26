@@ -593,7 +593,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	}
 	preclose_ret = ret;
 	/* Now close the files */
-	dblayer_close_file(output_file);
+	dblayer_close_file(&output_file);
 	/* Close the cursors */
 	/* Close and delete the files */
 	for (i = 0; i < passes; i++) {
@@ -605,7 +605,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 		if (0 != ret) {
 		    import_log_notice(worker->job, "MERGE FAIL 4");
 		} 
-		ret = dblayer_close_file(db);
+		ret = dblayer_close_file(&db);
 		if (0 != ret) {
 		    import_log_notice(worker->job, "MERGE FAIL 5");
 		}

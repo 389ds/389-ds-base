@@ -368,6 +368,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	{
 		goto error_return;
 	}
+	if (inst->inst_ref_count) {
+		slapi_counter_increment(inst->inst_ref_count);
+	} else {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		              "ldbm_modify: instance %s does not exist.\n",
+		              inst->inst_name);
+		goto error_return;
+	}
 
 	/* no need to check the dn syntax as this is a replicated op */
 	if(!repl_op){
@@ -812,6 +820,9 @@ common_return:
 	if (e!=NULL) {
 		cache_unlock_entry( &inst->inst_cache, e);
 		CACHE_RETURN( &inst->inst_cache, &e);
+	}
+	if (inst->inst_ref_count) {
+		slapi_counter_decrement(inst->inst_ref_count);
 	}
 
 	/* result code could be used in the bepost plugin functions. */

@@ -159,7 +159,7 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 int vlv_DeleteIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
     ldbm_instance *inst = (ldbm_instance*)arg;
-    if (inst && (inst->inst_flags & INST_FLAG_BUSY)) {
+    if (inst && is_instance_busy(inst)) {
         LDAPDebug( LDAP_DEBUG_ANY,
                        "Backend instance: '%s' is already in the middle of "
                        "another task and cannot be disturbed.\n",

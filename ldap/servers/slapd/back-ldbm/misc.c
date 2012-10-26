@@ -174,7 +174,7 @@ compute_entry_tombstone_rdn(const char *entryrdn, const char *uniqueid)
 int instance_set_busy(ldbm_instance *inst)
 {
     PR_Lock(inst->inst_config_mutex);
-    if (inst->inst_flags & INST_FLAG_BUSY) {
+    if (is_instance_busy(inst)) {
         PR_Unlock(inst->inst_config_mutex);
         return -1;
     }
@@ -187,7 +187,7 @@ int instance_set_busy(ldbm_instance *inst)
 int instance_set_busy_and_readonly(ldbm_instance *inst)
 {
     PR_Lock(inst->inst_config_mutex);
-    if (inst->inst_flags & INST_FLAG_BUSY) {
+    if (is_instance_busy(inst)) {
         PR_Unlock(inst->inst_config_mutex);
         return -1;
     }
@@ -278,6 +278,12 @@ is_anyinstance_busy(struct ldbminfo *li)
     if (inst_obj)
         object_release(inst_obj);
     return rval;
+}
+
+int
+is_instance_busy(ldbm_instance *inst)
+{
+    return inst->inst_flags & INST_FLAG_BUSY;
 }
 
 /*

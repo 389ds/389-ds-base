@@ -3103,14 +3103,20 @@ out:
     slapi_ch_free((void**)&rel_path);
     /* close the database handle to avoid handle leak */
     if (dbp && (return_value != 0)) {
-        dblayer_close_file(dbp);
+        dblayer_close_file(&dbp);
     }
     return return_value;
 }
 
-int dblayer_close_file(DB *db)
+int 
+dblayer_close_file(DB **db)
 {
-    return db->close(db,0);
+    if (db) {
+        DB *dbp = *db;
+        *db = NULL; /* To avoid to leave stale DB, set NULL before closing. */
+        return dbp->close(dbp, 0);
+    }
+    return 1;
 }
 
 /*
@@ -3163,7 +3169,7 @@ int dblayer_get_index_file(backend *be, struct attrinfo *a, DB** ppDB, int open_
    */
   PR_AtomicIncrement(&a->ai_dblayer_count);
   
-  if (NULL != a->ai_dblayer) {
+  if (a->ai_dblayer && ((dblayer_handle*)(a->ai_dblayer))->dblayer_dbp) {
     /* This means that the pointer is valid, so we should return it. */
     *ppDB = ((dblayer_handle*)(a->ai_dblayer))->dblayer_dbp;
     return 0;
@@ -3173,7 +3179,7 @@ int dblayer_get_index_file(backend *be, struct attrinfo *a, DB** ppDB, int open_
    * again.
    */
   PR_Lock(inst->inst_handle_list_mutex);
-  if (NULL != a->ai_dblayer) {
+  if (a->ai_dblayer && ((dblayer_handle*)(a->ai_dblayer))->dblayer_dbp) {
     /* another thread set the handle while we were waiting on the lock */
     *ppDB = ((dblayer_handle*)(a->ai_dblayer))->dblayer_dbp;
     PR_Unlock(inst->inst_handle_list_mutex);
@@ -3316,6 +3322,7 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
 
   if (0 == dblayer_get_index_file(be, a, &db, 0 /* Don't create an index file
                                                    if it does not exist. */)) {
+    if(use_lock) slapi_rwlock_wrlock(pEnv->dblayer_env_lock); /* We will be causing logging activity */
     /* first, remove the file handle for this index, if we have it open */
     PR_Lock(inst->inst_handle_list_mutex);
     if (a->ai_dblayer) {
@@ -3340,7 +3347,7 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
         DS_Sleep(DBLAYER_CACHE_DELAY);
         PR_Lock(inst->inst_handle_list_mutex);
       }
-      dblayer_close_file(handle->dblayer_dbp);
+      dblayer_close_file(&(handle->dblayer_dbp));
       
       /* remove handle from handle-list */
       if (inst->inst_handle_head == handle) {
@@ -3372,7 +3379,7 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
         p = dbNamep + dbbasenamelen;
         sprintf(p, "%c%s%s",
                    get_sep(dbNamep), a->ai_type, LDBM_FILENAME_SUFFIX);
-        rc = dblayer_db_remove_ex(pEnv, dbNamep, 0, use_lock);
+        rc = dblayer_db_remove_ex(pEnv, dbNamep, 0, 0);
         a->ai_dblayer = NULL;
         if (dbNamep != dbName)
           slapi_ch_free_string(&dbNamep);
@@ -3386,6 +3393,7 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
       /* no handle to close */
     }
     PR_Unlock(inst->inst_handle_list_mutex);
+    if(use_lock) slapi_rwlock_unlock(pEnv->dblayer_env_lock);
 
   }
   

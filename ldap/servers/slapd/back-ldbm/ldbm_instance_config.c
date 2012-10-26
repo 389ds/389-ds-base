@@ -1194,7 +1194,8 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
     }
 
     /* check if some online task is happening */
-    if (instance_set_busy(inst) != 0) {
+    if ((instance_set_busy(inst) != 0) ||
+        (slapi_counter_get_value(inst->inst_ref_count) > 0)) {
         LDAPDebug(LDAP_DEBUG_ANY, "ldbm: '%s' is in the middle of a task. "
                   "Cancel the task or wait for it to finish, "
                   "then try again.\n", instance_name, 0, 0);
