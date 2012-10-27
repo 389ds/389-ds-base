@@ -497,6 +497,7 @@ propogateMembershipUpward(Slapi_Entry *entry, Slapi_ValueSet *muid_vs, int depth
                     slapi_valueset_add_value(muid_upward_vs, v);
                 }
             }
+            slapi_valueset_free(muid_old_vs);
         }
 
         /* Update this group's membership */
