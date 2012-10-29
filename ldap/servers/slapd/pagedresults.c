@@ -143,8 +143,13 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     slapi_ch_free((void **)&cookie.bv_val);
 
     if ((*index > -1) && (*index < conn->c_pagedresults.prl_maxlen)) {
-        /* Need to keep the latest msgid to prepare for the abandon. */
-        conn->c_pagedresults.prl_list[*index].pr_msgid = op->o_msgid;
+        if (conn->c_pagedresults.prl_list[*index].pr_flags &
+            CONN_FLAG_PAGEDRESULTS_ABANDONED) {
+            rc = LDAP_CANCELLED;
+        } else {
+            /* Need to keep the latest msgid to prepare for the abandon. */
+            conn->c_pagedresults.prl_list[*index].pr_msgid = op->o_msgid;
+        }
     } else {
         rc = LDAP_PROTOCOL_ERROR;
         LDAPDebug1Arg(LDAP_DEBUG_ANY,
@@ -251,8 +256,13 @@ pagedresults_free_one( Connection *conn, int index )
                            "conn=%d paged requests list count is %d\n",
                            conn->c_connid, conn->c_pagedresults.prl_count);
         } else if (index < conn->c_pagedresults.prl_maxlen) {
-            memset(&conn->c_pagedresults.prl_list[index],
-                   '\0', sizeof(PagedResults));
+            PagedResults *prp = conn->c_pagedresults.prl_list + index;
+            if (prp && prp->pr_current_be &&
+                prp->pr_current_be->be_search_results_release &&
+                prp->pr_search_result_set) {
+                prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
+            }
+            memset(prp, '\0', sizeof(PagedResults));
             conn->c_pagedresults.prl_count--;
             rc = 0;
         }
@@ -263,34 +273,39 @@ pagedresults_free_one( Connection *conn, int index )
     return rc;
 }
 
+/* Used for abandoning */
 int 
 pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
 {
     int rc = -1;
     int i;
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_free_one: msgid=%d\n", msgid);
     if (conn && (msgid > -1)) {
         if (conn->c_pagedresults.prl_count <= 0) {
-            LDAPDebug2Args(LDAP_DEBUG_TRACE,
-                           "pagedresults_free_one_msgid_nolock: "
-                           "conn=%d paged requests list count is %d\n",
-                           conn->c_connid, conn->c_pagedresults.prl_count);
+            ; /* Not a paged result. */
         } else {
+            LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+                          "--> pagedresults_free_one: msgid=%d\n", msgid);
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (conn->c_pagedresults.prl_list[i].pr_msgid == msgid) {
-                    memset(&conn->c_pagedresults.prl_list[i],
-                           '\0', sizeof(PagedResults));
+                    PagedResults *prp = conn->c_pagedresults.prl_list + i;
+                    if (prp && prp->pr_current_be &&
+                        prp->pr_current_be->be_search_results_release &&
+                        prp->pr_search_result_set) {
+                        prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
+                    }
+                    prp->pr_flags |= CONN_FLAG_PAGEDRESULTS_ABANDONED;
+                    prp->pr_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
                     conn->c_pagedresults.prl_count--;
                     rc = 0;
                     break;
                 }
             }
+            LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+                          "<-- pagedresults_free_one: %d\n", rc);
         }
     }
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_free_one: %d\n", rc);
     return rc;
 }
 
