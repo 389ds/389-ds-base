@@ -197,8 +197,8 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
         }
     }
 
-   	slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
-   						   "modifiersname", bvals);
+    slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
+                           "modifiersname", bvals);
 
     /* fill in modifytimestamp */
     curtime = current_time();
@@ -461,7 +461,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                                                 &pagesize, &pr_idx);
           /* Let's set pr_idx even if it fails; in case, pr_idx == -1. */
           slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
-          if (LDAP_SUCCESS == rc) {
+          if ((LDAP_SUCCESS == rc) ||
+              (LDAP_CANCELLED == rc) || (0 == pagesize)) {
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
               if (pagedresults_check_or_set_processing(pb->pb_conn, pr_idx)) {
                   send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM,
@@ -483,6 +484,16 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                   opnote |= SLAPI_OP_NOTE_UNINDEXED;
               }
               slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
+              if ((LDAP_CANCELLED == rc) || (0 == pagesize)) {
+                  /* paged-results-request was abandoned */
+                  pagedresults_set_response_control(pb, 0, estimate, 
+                                                    curr_search_count, pr_idx);
+                  send_ldap_result(pb, 0, NULL,
+                                   "Simple Paged Results Search abandoned",
+                                   0, NULL);
+                  rc = LDAP_SUCCESS;
+                  goto free_and_return;
+              }
           } else {
               /* parse paged-results-control failed */
               if (iscritical) { /* return an error since it's critical */
