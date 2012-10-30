@@ -141,15 +141,16 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 		*/
 		f = aci_item->target;
 		if (aci_item->aci_type & ACI_TARGET_DN) {
-				char           *avaType;
-				struct berval   *avaValue;
-				const char      *dn;
+			char           *avaType;
+			struct berval   *avaValue;
+			const char      *dn;
 
-				dn = slapi_sdn_get_ndn ( aci_item->aci_sdn );
-				slapi_filter_get_ava ( f, &avaType, &avaValue );
+			dn = slapi_sdn_get_ndn(aci_item->aci_sdn);
+			slapi_filter_get_ava(f, &avaType, &avaValue);
 
-				if (!slapi_dn_issuffix( avaValue->bv_val, dn)) 
-					return ACL_INVALID_TARGET;
+			if (!slapi_dn_issuffix(avaValue->bv_val, dn)) {
+				return ACL_INVALID_TARGET;
+			}
 		}
 	}
 
@@ -159,9 +160,9 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 	** We need to keep it for macros too as it needs to be expnaded at eval time.
 	** 
 	*/
-	if ( (aci_item->aci_elevel != ACI_ELEVEL_USERDN_ANYONE) &&
-		 !(aci_item->aci_type & ACI_TARGET_MACRO_DN) ) {
-		slapi_ch_free ( (void **) & aci_item->targetFilterStr );		
+	if ((aci_item->aci_elevel != ACI_ELEVEL_USERDN_ANYONE) &&
+	    !(aci_item->aci_type & ACI_TARGET_MACRO_DN)) {
+		slapi_ch_free((void **)&aci_item->targetFilterStr);
 	}
 
 	/*
@@ -176,7 +177,7 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 		"acl_parse: A macro in a subject ($dn) must have a macro in the target.\n");
 		return(ACL_INVALID_TARGET);
 	}
-		
+
 	return 0;
 }
 
@@ -225,15 +226,14 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 	switch(*str) {
 	   case 'v':
 		type = ACI_ACLTXT;
-
-		if ( 0 != (rv= __aclp__sanity_check_acltxt(aci_item, str ) ) ) {
-
+		rv = __aclp__sanity_check_acltxt(aci_item, str);
+		if (rv) {
 			return rv;
 		}
 		break;
 
 	   case 't':
-       if (strncmp(str, aci_targetattrfilters,targetattrfilterslen ) == 0) {	
+       if (strncmp(str, aci_targetattrfilters,targetattrfilterslen ) == 0) {
 			type = ACI_TARGET_ATTR;
 
 		
@@ -245,7 +245,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			if (0 != (rv = __acl__init_targetattrfilters(aci_item, str))) {
 				return  rv;
 			}
-		} else if (strncmp(str, aci_targetattr,targetattrlen ) == 0) {	
+		} else if (strncmp(str, aci_targetattr,targetattrlen ) == 0) {
 			type = ACI_TARGET_ATTR;
 
 			if ( (s = strstr( str, "!=" )) != NULL ) {
@@ -459,12 +459,14 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 static int 
 __aclp__sanity_check_acltxt (aci_t *aci_item, char *str) 
 {
-	NSErr_t				errp;
-	char				*s;
-	ACLListHandle_t		*handle = NULL;
-	char				*newstr = NULL;
-	char				*word;
-	char				*next;
+	NSErr_t         errp;
+	char            *s;
+	ACLListHandle_t *handle = NULL;
+	char            *newstr = NULL;
+	char            *word;
+	char            *next;
+	const char      *brkstr = " ;";
+	int             checkversion = 0;
 
 	memset (&errp, 0, sizeof(NSErr_t));
 	newstr = str;
@@ -484,14 +486,28 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 	}
 
 	newstr = slapi_ch_strdup (str);
-	word = ldap_utf8strtok_r(newstr, " ", &next);
-	if (strcasecmp (word, "version") == 0) {
-		word = ldap_utf8strtok_r(NULL, " ", &next);
-		if (atoi(word) != 3) {
-			slapi_ch_free ( (void **) &newstr );
-			return ACL_INCORRECT_ACI_VERSION;
+	for (word = ldap_utf8strtok_r(newstr, brkstr, &next); word;
+	     word = ldap_utf8strtok_r(NULL, brkstr, &next)) {
+		if (0 == strcasecmp(word, "version")) {
+			checkversion = 1;
+		} else if (checkversion) {
+			checkversion = 0;
+			if ('3' != *word) {
+				slapi_ch_free ( (void **) &newstr );
+				return ACL_INCORRECT_ACI_VERSION;
+			}
+		} else if ((s = strstr(word, "($")) || (s = strstr(word, "[$"))) {
+			if ((0 != strncasecmp(s, ACL_RULE_MACRO_DN_KEY,
+			                      sizeof(ACL_RULE_MACRO_DN_KEY) - 1)) &&
+			    (0 != strncasecmp(s, ACL_RULE_MACRO_DN_LEVELS_KEY,
+			                      sizeof(ACL_RULE_MACRO_DN_LEVELS_KEY) - 1)) &&
+			    (0 != strncasecmp(s, ACL_RULE_MACRO_ATTR_KEY,
+			                      sizeof(ACL_RULE_MACRO_ATTR_KEY) - 1))) {
+				slapi_ch_free ( (void **) &newstr );
+				return ACL_SYNTAX_ERR;
+			}
 		}
-	} 
+	}
 	slapi_ch_free ( (void **) &newstr );
 
 	/* We need to normalize the DNs in the userdn and group dn
