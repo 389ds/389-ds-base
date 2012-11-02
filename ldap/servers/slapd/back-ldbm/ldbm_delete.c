@@ -146,12 +146,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
 	
 	inst = (ldbm_instance *) be->be_instance_info;
-	if (inst->inst_ref_count) {
+	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
 		LDAPDebug1Arg(LDAP_DEBUG_ANY,
-		              "ldbm_delete: instance %s does not exist.\n",
-		              inst->inst_name);
+		              "ldbm_delete: instance \"%s\" does not exist.\n",
+		              inst ? inst->inst_name : "null instance");
 		goto error_return;
 	}
 
@@ -1116,7 +1116,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	goto common_return;
 
 error_return:
-	if (tombstone_in_cache)
+	if (inst && tombstone_in_cache)
 	{
 		CACHE_REMOVE( &inst->inst_cache, tombstone );
 		CACHE_RETURN( &inst->inst_cache, &tombstone );
@@ -1186,7 +1186,7 @@ common_return:
 		   for the post op plugins */
 		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 	}
-	if (tombstone_in_cache)
+	if (inst && tombstone_in_cache)
 	{
 		CACHE_RETURN( &inst->inst_cache, &tombstone );
 		tombstone = NULL;
@@ -1208,14 +1208,14 @@ common_return:
 	}
 
 	/* Need to return to cache after post op plugins are called */
-	if (retval) { /* error case */
-		if (e) {
+	if (inst) {
+		if (retval && e) { /* error case */
 			cache_unlock_entry( &inst->inst_cache, e );
 			CACHE_RETURN( &inst->inst_cache, &e );
 		}
-	}
-	if (inst->inst_ref_count) {
-		slapi_counter_decrement(inst->inst_ref_count);
+		if (inst->inst_ref_count) {
+			slapi_counter_decrement(inst->inst_ref_count);
+		}
 	}
 	
 	if (ruv_c_init) {

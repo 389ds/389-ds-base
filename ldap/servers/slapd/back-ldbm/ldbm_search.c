@@ -363,19 +363,18 @@ ldbm_back_search( Slapi_PBlock *pb )
         slapi_pblock_set( pb, SLAPI_TXN, txn.back_txn_txn );
     }
 
-    inst = (ldbm_instance *) be->be_instance_info;
-
     if (NULL == basesdn) {
         slapi_send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL,
                                "Null target DN", 0, NULL );
         return( -1 );
     }
-    if (inst->inst_ref_count) {
+    inst = (ldbm_instance *) be->be_instance_info;
+    if (inst && inst->inst_ref_count) {
         slapi_counter_increment(inst->inst_ref_count);
     } else {
         LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                      "ldbm_search: instance %s does not exist.\n",
-                      inst->inst_name);
+                      "ldbm_search: instance \"%s\" does not exist.\n",
+                      inst ? inst->inst_name : "null instance");
         return( -1 );
     }
     base = slapi_sdn_get_dn(basesdn);

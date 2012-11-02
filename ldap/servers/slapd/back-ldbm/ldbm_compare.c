@@ -74,12 +74,12 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	}
 
 	inst = (ldbm_instance *) be->be_instance_info;
-	if (inst->inst_ref_count) {
+	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
 		LDAPDebug1Arg(LDAP_DEBUG_ANY,
-		              "ldbm_compare: instance %s does not exist.\n",
-		              inst->inst_name);
+		              "ldbm_compare: instance \"%s\" does not exist.\n",
+		              inst ? inst->inst_name : "null instance");
 		return -1;
 	}
 	/* get the namespace dn */

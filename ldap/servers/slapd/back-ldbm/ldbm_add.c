@@ -78,7 +78,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 {
 	backend *be;
 	struct ldbminfo *li;
-	ldbm_instance *inst;
+	ldbm_instance *inst = NULL;
 	const char *dn = NULL;
 	Slapi_Entry	*e = NULL;
 	struct backentry *tombstoneentry = NULL;
@@ -102,7 +102,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	modify_context ruv_c = {0};
 	int parent_found = 0;
 	int ruv_c_init = 0;
-	int rc;
+	int rc = 0;
 	int addingentry_id_assigned= 0;
 	int addingentry_in_cache= 0;
 	int tombstone_in_cache= 0;
@@ -132,12 +132,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
 
 	inst = (ldbm_instance *) be->be_instance_info;
-	if (inst->inst_ref_count) {
+	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
 		LDAPDebug1Arg(LDAP_DEBUG_ANY,
-		              "ldbm_add: instance %s does not exist.\n",
-		              inst->inst_name);
+		              "ldbm_add: instance \"%s\" does not exist.\n",
+		              inst ? inst->inst_name : "null instance");
 		goto error_return;
 	}
 
@@ -1060,13 +1060,15 @@ error_return:
 	{
 		if ( addingentry_in_cache )
 		{
-			CACHE_REMOVE(&inst->inst_cache, addingentry);
+			if (inst) {
+				CACHE_REMOVE(&inst->inst_cache, addingentry);
+			}
 			addingentry_in_cache = 0;
 		}
 		backentry_clear_entry(addingentry); /* e is released in the frontend */
 		backentry_free( &addingentry ); /* release the backend wrapper, here */
 	}
-	if(tombstone_in_cache)
+	if(tombstone_in_cache && inst)
 	{
 		CACHE_RETURN(&inst->inst_cache, &tombstoneentry);
 	}
@@ -1075,8 +1077,9 @@ error_return:
 		dblayer_remember_disk_filled(li);
 		ldbm_nasty("Add",80,rc);
 		disk_full = 1;
+	} else if (0 == rc) {
+		rc = SLAPI_FAIL_GENERAL;
 	}
-
 diskfull_return:
 	if (disk_full) {
 		rc= return_on_disk_full(li);
@@ -1121,33 +1124,34 @@ diskfull_return:
 	}
 	
 common_return:
-    if (addingentry_in_cache && addingentry)
-	{
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            /* since adding the entry to the entry cache was successful,
-             * let's add the dn to dncache, if not yet done. */
-            struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
-                                                 addingentry->ep_id);
-            if (bdn) { /* already in the dncache */
-                CACHE_RETURN(&inst->inst_dncache, &bdn);
-            } else { /* not in the dncache yet */
-                Slapi_DN *addingsdn = 
-                      slapi_sdn_dup(slapi_entry_get_sdn(addingentry->ep_entry));
-                if (addingsdn) {
-                    bdn = backdn_init(addingsdn, addingentry->ep_id, 0);
-                    if (bdn) {
-                        CACHE_ADD( &inst->inst_dncache, bdn, NULL );
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_add",
-                                                    "set %s to dn cache\n", dn);
-                    }
-                }
-            }
-        }
-        CACHE_RETURN( &inst->inst_cache, &addingentry );
-    }
-	if (inst->inst_ref_count) {
-		slapi_counter_decrement(inst->inst_ref_count);
+	if (inst) {
+		if (addingentry_in_cache && addingentry) {
+			if (entryrdn_get_switch()) { /* subtree-rename: on */
+				/* since adding the entry to the entry cache was successful,
+				 * let's add the dn to dncache, if not yet done. */
+				struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
+				                                     addingentry->ep_id);
+				if (bdn) { /* already in the dncache */
+					CACHE_RETURN(&inst->inst_dncache, &bdn);
+				} else { /* not in the dncache yet */
+					Slapi_DN *addingsdn = 
+					  slapi_sdn_dup(slapi_entry_get_sdn(addingentry->ep_entry));
+					if (addingsdn) {
+						bdn = backdn_init(addingsdn, addingentry->ep_id, 0);
+						if (bdn) {
+							CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+							CACHE_RETURN(&inst->inst_dncache, &bdn);
+							slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_add",
+							                "set %s to dn cache\n", dn);
+						}
+					}
+				}
+			}
+			CACHE_RETURN( &inst->inst_cache, &addingentry );
+		}
+		if (inst->inst_ref_count) {
+			slapi_counter_decrement(inst->inst_ref_count);
+		}
 	}
 	/* bepost op needs to know this result */
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);

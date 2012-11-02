@@ -368,12 +368,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	{
 		goto error_return;
 	}
-	if (inst->inst_ref_count) {
+	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
 		LDAPDebug1Arg(LDAP_DEBUG_ANY,
-		              "ldbm_modify: instance %s does not exist.\n",
-		              inst->inst_name);
+		              "ldbm_modify: instance \"%s\" does not exist.\n",
+		              inst ? inst->inst_name : "null instance");
 		goto error_return;
 	}
 
@@ -795,7 +795,7 @@ error_return:
 	}
 
 	/* if ec is in cache, remove it, then add back e if we still have it */
-	if (ec_in_cache) {
+	if (inst && ec_in_cache) {
 		CACHE_REMOVE( &inst->inst_cache, ec );
 		/* if ec was in cache, e was not - add back e */
 		if (e) {
@@ -807,7 +807,7 @@ error_return:
 common_return:
 	slapi_mods_done(&smods);
 	
-	if (ec_in_cache)
+	if (inst && ec_in_cache)
 	{
 		cache_unlock_entry( &inst->inst_cache, ec);
 		CACHE_RETURN( &inst->inst_cache, &ec );
@@ -817,12 +817,14 @@ common_return:
 		backentry_free(&ec);
 	}
 	
-	if (e!=NULL) {
-		cache_unlock_entry( &inst->inst_cache, e);
-		CACHE_RETURN( &inst->inst_cache, &e);
-	}
-	if (inst->inst_ref_count) {
-		slapi_counter_decrement(inst->inst_ref_count);
+	if (inst) {
+		if (e) {
+			cache_unlock_entry( &inst->inst_cache, e);
+			CACHE_RETURN( &inst->inst_cache, &e);
+		}
+		if (inst->inst_ref_count) {
+			slapi_counter_decrement(inst->inst_ref_count);
+		}
 	}
 
 	/* result code could be used in the bepost plugin functions. */

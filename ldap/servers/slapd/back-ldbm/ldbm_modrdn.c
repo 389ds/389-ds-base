@@ -63,7 +63,7 @@ int
 ldbm_back_modrdn( Slapi_PBlock *pb )
 {
     backend *be;
-    ldbm_instance *inst;
+    ldbm_instance *inst = NULL;
     struct ldbminfo  *li;
     struct backentry *e= NULL;
     struct backentry *ec= NULL;
@@ -191,12 +191,12 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         return( -1 );
     } 
 
-    if (inst->inst_ref_count) {
+    if (inst && inst->inst_ref_count) {
         slapi_counter_increment(inst->inst_ref_count);
     } else {
         LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                      "ldbm_modrdn: instance %s does not exist.\n",
-                      inst->inst_name);
+                      "ldbm_modrdn: instance \"%s\" does not exist.\n",
+                      inst ? inst->inst_name : "null instance");
         return( -1 );
     }
 
@@ -1177,7 +1177,7 @@ error_return:
         /* make sure caller doesn't attempt to free this */
         slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
     }
-    if (e && entryrdn_get_switch())
+    if (e && entryrdn_get_switch() && inst)
     {
         struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
         CACHE_REMOVE(&inst->inst_dncache, bdn);
@@ -1186,7 +1186,7 @@ error_return:
     if(children)
     {
         int i = 0;
-        if (child_entries && *child_entries)
+        if (child_entries && *child_entries && inst)
         {
             if (entryrdn_get_switch()) /* subtree-rename: on */
             {
@@ -1208,7 +1208,7 @@ error_return:
                 }
             }
         }
-        if (entryrdn_get_switch() && child_dns && *child_dns)
+        if (entryrdn_get_switch() && child_dns && *child_dns && inst)
         {
             for (i = 0; child_dns[i] != NULL; i++) {
                 CACHE_REMOVE( &inst->inst_dncache, child_dns[i] );
@@ -1282,10 +1282,10 @@ common_return:
     if (ec) {
         /* remove the new entry from the cache if the op failed -
            otherwise, leave it in */
-        if (ec_in_cache && retval) {
-            CACHE_REMOVE( &inst->inst_cache, ec );
-        }
-        if (ec_in_cache) {
+        if (ec_in_cache && inst) {
+            if (retval) {
+                CACHE_REMOVE( &inst->inst_cache, ec );
+            }
             CACHE_RETURN( &inst->inst_cache, &ec );
         } else {
             backentry_free( &ec );
@@ -1296,12 +1296,12 @@ common_return:
 
     /* put e back in the cache if the modrdn failed */
     if (e) {
-        if (!e_in_cache && retval) {
+        if (!e_in_cache && retval && inst) {
             CACHE_ADD(&inst->inst_cache, e, NULL);
             e_in_cache = 1;
         }
     }
-    if (inst->inst_ref_count) {
+    if (inst && inst->inst_ref_count) {
         slapi_counter_decrement(inst->inst_ref_count);
     }
 
