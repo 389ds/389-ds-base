@@ -1083,15 +1083,42 @@ slapi_ldap_bind(
 			mech ? mech : "SIMPLE",
 			bindid, creds);
 	if ((rc = ldap_sasl_bind(ld, bindid, mech, &bvcreds, serverctrls,
-				 NULL /* clientctrls */, &mymsgid))) {
+	                         NULL /* clientctrls */, &mymsgid))) {
+	    char *myhostname = NULL;
+	    char *copy = NULL;
+	    char *ptr = NULL;
+	    int myerrno = errno;
+	    int gaierr;
+
+	    ldap_get_option(ld, LDAP_OPT_HOST_NAME, &myhostname);
+	    if (myhostname) {
+	        ptr = strchr(myhostname, ':');
+	        if (ptr) {
+	            copy = slapi_ch_strdup(myhostname);
+	            *(copy + (ptr - myhostname)) = '\0';
+	            myhostname = copy;
+	        }
+	    }
+
+	    if (0 == myerrno) {
+	        struct addrinfo *result = NULL;
+	        gaierr = getaddrinfo(myhostname, NULL, NULL, &result);
+	        myerrno = errno;
+	        if (result) {
+	            freeaddrinfo(result);
+	        }
+	    }
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not send bind request for id "
-			    "[%s] mech [%s]: error %d (%s) %d (%s) %d (%s)\n",
+			    "[%s] mech [%s]: error %d (%s) %d (%s) %d (%s \"%s\")\n",
 			    bindid ? bindid : "(anon)",
 			    mech ? mech : "SIMPLE",
 			    rc, ldap_err2string(rc),
 			    PR_GetError(), slapd_pr_strerror(PR_GetError()),
-			    errno, slapd_system_strerror(errno));
+			    myerrno ? myerrno : gaierr,
+			    myerrno ? slapd_system_strerror(myerrno) : gai_strerror(gaierr),
+			    myhostname ? myhostname : "unknown host");
+	    slapi_ch_free_string(&copy);
 	    goto done;
 	}
 
