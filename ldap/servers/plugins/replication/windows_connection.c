@@ -1333,7 +1333,7 @@ windows_conn_connect(Repl_Connection *conn)
 		if (CONN_IS_WIN2K3 == supports)
 		{
 			windows_private_set_iswin2k3(conn->agmt,1);
-			LDAPDebug( LDAP_DEBUG_REPL, "windows_conn_connect : detected Win2k3 peer\n", 0, 0, 0 );
+			LDAPDebug( LDAP_DEBUG_REPL, "windows_conn_connect : detected Win2k3 or later peer\n", 0, 0, 0 );
 		} else
 		{
 			windows_private_set_iswin2k3(conn->agmt,0);
