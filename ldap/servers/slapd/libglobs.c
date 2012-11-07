@@ -125,6 +125,139 @@ static int config_set_onoff( const char *attrname, char *value,
 static int config_set_schemareplace ( const char *attrname, char *value,
 		char *errorbuf, int apply );
 
+/* Keeping the initial values */
+/* CONFIG_INT/CONFIG_LONG */
+#define DEFAULT_LOG_ROTATIONSYNCHOUR "0"
+#define DEFAULT_LOG_ROTATIONSYNCMIN "0"
+#define DEFAULT_LOG_ROTATIONTIME "1"
+#define DEFAULT_LOG_ACCESS_MAXNUMLOGS "10"
+#define DEFAULT_LOG_MAXNUMLOGS "1"
+#define DEFAULT_LOG_EXPTIME "1"
+#define DEFAULT_LOG_ACCESS_MAXDISKSPACE "500"
+#define DEFAULT_LOG_MAXDISKSPACE "100"
+#define DEFAULT_LOG_MAXLOGSIZE "100"
+#define DEFAULT_LOG_MINFREESPACE "5"
+#define DEFAULT_ACCESSLOGLEVEL "256"
+#define DEFAULT_SIZELIMIT "2000"
+#define DEFAULT_TIMELIMIT "3600"
+#define DEFAULT_PAGEDSIZELIMIT "0"
+#define DEFAULT_IDLE_TIMEOUT "0"
+#define DEFAULT_MAXDESCRIPTORS "1024"
+#define DEFAULT_RESERVE_FDS "64"
+#define DEFAULT_MAX_BERSIZE "0"
+#define DEFAULT_MAX_THREADS "30"
+#define DEFAULT_MAX_THREADS_PER_CONN "5"
+#define DEFAULT_IOBLOCK_TIMEOUT "1800000"
+#define DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT "300000"
+#define DEFAULT_MAX_FILTER_NEST_LEVEL "40"
+#define DEFAULT_GROUPEVALNESTLEVEL "0"
+#define DEFAULT_MAX_SASLIO_SIZE "2097152"
+#define DEFAULT_DISK_THRESHOLD "2097152"
+#define DEFAULT_DISK_GRACE_PERIOD "60"
+#define DEFAULT_LOCAL_SSF "71"
+#define DEFAULT_MIN_SSF "0"
+#define DEFAULT_PW_INHISTORY "6"
+#define DEFAULT_PW_GRACELIMIT "0"
+#define DEFAULT_PW_MINLENGTH "0"
+#define DEFAULT_PW_MINDIGITS "0"
+#define DEFAULT_PW_MINALPHAS "0"
+#define DEFAULT_PW_MINUPPERS "0"
+#define DEFAULT_PW_MINLOWERS "0"
+#define DEFAULT_PW_MINSPECIALS "0"
+#define DEFAULT_PW_MIN8BIT "0"
+#define DEFAULT_PW_MAXREPEATS "0"
+#define DEFAULT_PW_MINCATEGORIES "3"
+#define DEFAULT_PW_MINTOKENLENGTH "3"
+#define DEFAULT_PW_MAXAGE "8640000"
+#define DEFAULT_PW_MINAGE "0"
+#define DEFAULT_PW_WARNING "86400"
+#define DEFAULT_PW_MAXFAILURE "3"
+#define DEFAULT_PW_RESETFAILURECOUNT "600"
+#define DEFAULT_PW_LOCKDURATION "3600"
+#define DEFAULT_NDN_SIZE "20971520"
+#ifdef MEMPOOL_EXPERIMENTAL
+#define DEFAULT_MEMPOOL_MAXFREELIST "1024"
+#endif
+
+/* CONFIG_STRING... */
+#define INIT_ACCESSLOG_MODE "600"
+#define INIT_ERRORLOG_MODE "600"
+#define INIT_AUDITLOG_MODE "600"
+#define INIT_ACCESSLOG_ROTATIONUNIT "day"
+#define INIT_ERRORLOG_ROTATIONUNIT "week"
+#define INIT_AUDITLOG_ROTATIONUNIT "week"
+#define INIT_ACCESSLOG_EXPTIMEUNIT "month"
+#define INIT_ERRORLOG_EXPTIMEUNIT "month"
+#define INIT_AUDITLOG_EXPTIMEUNIT "month"
+#define DEFAULT_DIRECTORY_MANAGER "cn=Directory Manager"
+#define DEFAULT_UIDNUM_TYPE "uidNumber"
+#define DEFAULT_GIDNUM_TYPE "gidNumber"
+#define DEFAULT_LDAPI_SEARCH_BASE "dc=example,dc=com"
+#define DEFAULT_LDAPI_AUTO_DN "cn=peercred,cn=external,cn=auth"
+#define ENTRYUSN_IMPORT_INIT "0"
+#define DEFAULT_ALLOWED_TO_DELETE_ATTRS "nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext"
+#define SALTED_SHA1_SCHEME_NAME "SSHA"
+
+/* CONFIG_ON_OFF */
+int init_accesslog_rotationsync_enabled;
+int init_errorlog_rotationsync_enabled;
+int init_auditlog_rotationsync_enabled;
+int init_accesslog_logging_enabled;
+int init_accesslogbuffering;
+int init_errorlog_logging_enabled;
+int init_auditlog_logging_enabled;
+int init_auditlog_logging_hide_unhashed_pw;
+int init_csnlogging;
+int init_pw_unlock;
+int init_pw_must_change;
+int init_pwpolicy_local;
+int init_pw_lockout;
+int init_pw_history;
+int init_pw_is_global_policy;
+int init_pw_is_legacy;
+int init_pw_track_update_time;
+int init_pw_change;
+int init_pw_exp;
+int init_pw_syntax;
+int init_schemacheck;
+int init_ds4_compatible_schema;
+int init_schema_ignore_trailing_spaces;
+int init_enquote_sup_oc;
+int init_rewrite_rfc1274;
+int init_syntaxcheck;
+int init_syntaxlogging;
+int init_dn_validate_strict;
+int init_attrname_exceptions;
+int init_return_exact_case;
+int init_result_tweak;
+int init_plugin_track;
+int init_lastmod;
+int init_readonly;
+int init_accesscontrol;
+int init_nagle;
+int init_security;
+int init_ssl_check_hostname;
+int init_ldapi_switch;
+int init_ldapi_bind_switch;
+int init_ldapi_map_entries;
+int init_allow_unauth_binds;
+int init_require_secure_binds;
+int init_minssf_exclude_rootdse;
+int init_force_sasl_external;
+int init_slapi_counters;
+int init_entryusn_global;
+int init_disk_monitoring;
+int init_disk_logging_critical;
+int init_disk_preserve_logging;
+int init_ndn_cache_enabled;
+#ifdef MEMPOOL_EXPERIMENTAL
+int init_mempool_switch;
+#endif
+
+#define DEFAULT_SSLCLIENTAPTH "off"
+#define DEFAULT_ALLOW_ANON_ACCESS "on"
+#define DEFAULT_VALIDATE_CERT "warn"
+
 static int
 isInt(ConfigVarType type)
 {
@@ -145,567 +278,740 @@ static struct config_get_and_set {
 	void** config_var_addr; /* address of member of slapdFrontendConfig struct */
 	ConfigVarType config_var_type; /* cast to this type when getting */
 	ConfigGetFunc getfunc; /* for special handling */
+	void *initvalue;
 } ConfigList[] = {
 	{CONFIG_AUDITLOG_MODE_ATTRIBUTE, NULL,
 		log_set_mode, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_mode, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_mode,
+		CONFIG_STRING, NULL, INIT_AUDITLOG_MODE},
 	{CONFIG_AUDITLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_rotationsync_enabled, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_rotationsync_enabled,
+		CONFIG_ON_OFF, NULL, &init_auditlog_rotationsync_enabled},
 	{CONFIG_AUDITLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
 		log_set_rotationsynchour, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_rotationsynchour, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_rotationsynchour,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
 	{CONFIG_AUDITLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
 		log_set_rotationsyncmin, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_rotationsyncmin, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_rotationsyncmin,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
 	{CONFIG_AUDITLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
 		log_set_rotationtime, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_rotationtime, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_rotationtime,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
 	{CONFIG_ACCESSLOG_MODE_ATTRIBUTE, NULL,
 		log_set_mode, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_mode, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_mode,
+		CONFIG_STRING, NULL, INIT_ACCESSLOG_MODE},
 	{CONFIG_ACCESSLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_maxnumlogs, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_maxnumlogs,
+		CONFIG_INT, NULL, DEFAULT_LOG_ACCESS_MAXNUMLOGS},
 	{CONFIG_LOGLEVEL_ATTRIBUTE, config_set_errorlog_level,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.errorloglevel,
-		CONFIG_SPECIAL_ERRORLOGLEVEL, NULL},
+		CONFIG_SPECIAL_ERRORLOGLEVEL, NULL, NULL},
 	{CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_logging_enabled, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_logging_enabled,
+		CONFIG_ON_OFF, NULL, &init_errorlog_logging_enabled},
 	{CONFIG_ERRORLOG_MODE_ATTRIBUTE, NULL,
 		log_set_mode, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_mode, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_mode,
+		CONFIG_STRING, NULL, INIT_ERRORLOG_MODE},
 	{CONFIG_ERRORLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
 		log_set_expirationtime, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_exptime, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_exptime,
+		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
 	{CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_logging_enabled, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_logging_enabled,
+		CONFIG_ON_OFF, NULL, &init_accesslog_logging_enabled},
 	{CONFIG_PORT_ATTRIBUTE, config_set_port,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.port, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.port,
+		CONFIG_INT, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_WORKINGDIR_ATTRIBUTE, config_set_workingdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.workingdir, CONFIG_STRING_OR_EMPTY, NULL},
+		(void**)&global_slapdFrontendConfig.workingdir,
+		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_MAXTHREADSPERCONN_ATTRIBUTE, config_set_maxthreadsperconn,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.maxthreadsperconn, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.maxthreadsperconn,
+		CONFIG_INT, NULL, DEFAULT_MAX_THREADS_PER_CONN},
 	{CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
 		log_set_expirationtime, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_exptime, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_exptime,
+		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
 #ifndef _WIN32
 	{CONFIG_LOCALUSER_ATTRIBUTE, config_set_localuser,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.localuser, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.localuser,
+		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
 #endif
 	{CONFIG_ERRORLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_rotationsync_enabled, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_rotationsync_enabled,
+		CONFIG_ON_OFF, NULL, &init_errorlog_rotationsync_enabled},
 	{CONFIG_ERRORLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
 		log_set_rotationsynchour, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_rotationsynchour, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_rotationsynchour,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
 	{CONFIG_ERRORLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
 		log_set_rotationsyncmin, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_rotationsyncmin, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_rotationsyncmin,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
 	{CONFIG_ERRORLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
 		log_set_rotationtime, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_rotationtime, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_rotationtime,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
 	{CONFIG_PW_INHISTORY_ATTRIBUTE, config_set_pw_inhistory,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_inhistory, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_inhistory,
+		CONFIG_INT, NULL, DEFAULT_PW_INHISTORY},
 	{CONFIG_PW_STORAGESCHEME_ATTRIBUTE, config_set_pw_storagescheme,
-		NULL, 0, NULL, CONFIG_STRING, (ConfigGetFunc)config_get_pw_storagescheme},
+		NULL, 0, NULL,
+		CONFIG_STRING, (ConfigGetFunc)config_get_pw_storagescheme,
+		SALTED_SHA1_SCHEME_NAME},
 	{CONFIG_PW_UNLOCK_ATTRIBUTE, config_set_pw_unlock,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_unlock, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_unlock,
+		CONFIG_ON_OFF, NULL, &init_pw_unlock},
 	{CONFIG_PW_GRACELIMIT_ATTRIBUTE, config_set_pw_gracelimit,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_gracelimit, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_gracelimit,
+		CONFIG_INT, NULL, DEFAULT_PW_GRACELIMIT},
 	{CONFIG_ACCESSLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_rotationsync_enabled, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_rotationsync_enabled,
+		CONFIG_ON_OFF, NULL, &init_accesslog_rotationsync_enabled},
 	{CONFIG_ACCESSLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
 		log_set_rotationsynchour, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_rotationsynchour, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_rotationsynchour,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
 	{CONFIG_ACCESSLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
 		log_set_rotationsyncmin, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_rotationsyncmin, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_rotationsyncmin,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
 	{CONFIG_ACCESSLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
 		log_set_rotationtime, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_rotationtime, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_rotationtime,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
 	{CONFIG_PW_MUSTCHANGE_ATTRIBUTE, config_set_pw_must_change,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_must_change, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_must_change,
+		CONFIG_ON_OFF, NULL, &init_pw_must_change},
 	{CONFIG_PWPOLICY_LOCAL_ATTRIBUTE, config_set_pwpolicy_local,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pwpolicy_local, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pwpolicy_local,
+		CONFIG_ON_OFF, NULL, &init_pwpolicy_local},
 	{CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_maxdiskspace, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_maxdiskspace,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXDISKSPACE},
 	{CONFIG_SIZELIMIT_ATTRIBUTE, config_set_sizelimit,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.sizelimit, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.sizelimit,
+		CONFIG_INT, NULL, DEFAULT_SIZELIMIT},
 	{CONFIG_AUDITLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
 		log_set_logsize, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_maxlogsize, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_maxlogsize,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
 	{CONFIG_PW_WARNING_ATTRIBUTE, config_set_pw_warning,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_warning, CONFIG_LONG, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_warning,
+		CONFIG_LONG, NULL, DEFAULT_PW_WARNING},
 	{CONFIG_READONLY_ATTRIBUTE, config_set_readonly,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.readonly, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.readonly,
+		CONFIG_ON_OFF, NULL, &init_readonly},
 	{CONFIG_THREADNUMBER_ATTRIBUTE, config_set_threadnumber,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.threadnumber, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.threadnumber,
+		CONFIG_INT, NULL, DEFAULT_MAX_THREADS},
 	{CONFIG_PW_LOCKOUT_ATTRIBUTE, config_set_pw_lockout,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_lockout, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_lockout,
+		CONFIG_ON_OFF, NULL, &init_pw_lockout},
 	{CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, config_set_enquote_sup_oc,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.enquote_sup_oc, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.enquote_sup_oc,
+		CONFIG_ON_OFF, NULL, &init_enquote_sup_oc},
 	{CONFIG_LOCALHOST_ATTRIBUTE, config_set_localhost,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.localhost, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.localhost,
+		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_IOBLOCKTIMEOUT_ATTRIBUTE, config_set_ioblocktimeout,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.ioblocktimeout, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.ioblocktimeout,
+		CONFIG_INT, NULL, DEFAULT_IOBLOCK_TIMEOUT},
 	{CONFIG_MAX_FILTER_NEST_LEVEL_ATTRIBUTE, config_set_max_filter_nest_level,
-		NULL, 0, (void**)&global_slapdFrontendConfig.max_filter_nest_level,
-		CONFIG_INT, NULL},
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.max_filter_nest_level,
+		CONFIG_INT, NULL, DEFAULT_MAX_FILTER_NEST_LEVEL},
 	{CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_maxdiskspace, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_maxdiskspace,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXDISKSPACE},
 	{CONFIG_PW_MINLENGTH_ATTRIBUTE, config_set_pw_minlength,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlength, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlength,
+		CONFIG_INT, NULL, DEFAULT_PW_MINLENGTH},
 	{CONFIG_PW_MINDIGITS_ATTRIBUTE, config_set_pw_mindigits,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_mindigits, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_mindigits,
+		CONFIG_INT, NULL, DEFAULT_PW_MINDIGITS},
 	{CONFIG_PW_MINALPHAS_ATTRIBUTE, config_set_pw_minalphas,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_minalphas, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minalphas,
+		CONFIG_INT, NULL, DEFAULT_PW_MINALPHAS},
 	{CONFIG_PW_MINUPPERS_ATTRIBUTE, config_set_pw_minuppers,
 		NULL, 0,
-                (void**)&global_slapdFrontendConfig.pw_policy.pw_minuppers, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minuppers,
+		CONFIG_INT, NULL, DEFAULT_PW_MINUPPERS},
 	{CONFIG_PW_MINLOWERS_ATTRIBUTE, config_set_pw_minlowers,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlowers, CONFIG_INT, NULL},
-        {CONFIG_PW_MINSPECIALS_ATTRIBUTE, config_set_pw_minspecials,
-                NULL, 0,
-                (void**)&global_slapdFrontendConfig.pw_policy.pw_minspecials, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlowers,
+		CONFIG_INT, NULL, DEFAULT_PW_MINLOWERS},
+	{CONFIG_PW_MINSPECIALS_ATTRIBUTE, config_set_pw_minspecials,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minspecials,
+		CONFIG_INT, NULL, DEFAULT_PW_MINSPECIALS},
 	{CONFIG_PW_MIN8BIT_ATTRIBUTE, config_set_pw_min8bit,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_min8bit, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_min8bit,
+		CONFIG_INT, NULL, DEFAULT_PW_MIN8BIT},
 	{CONFIG_PW_MAXREPEATS_ATTRIBUTE, config_set_pw_maxrepeats,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxrepeats, CONFIG_INT, NULL},
-        {CONFIG_PW_MINCATEGORIES_ATTRIBUTE, config_set_pw_mincategories,
-                NULL, 0,
-                (void**)&global_slapdFrontendConfig.pw_policy.pw_mincategories, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxrepeats,
+		CONFIG_INT, NULL, DEFAULT_PW_MAXREPEATS},
+	{CONFIG_PW_MINCATEGORIES_ATTRIBUTE, config_set_pw_mincategories,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_mincategories,
+		CONFIG_INT, NULL, DEFAULT_PW_MINCATEGORIES},
 	{CONFIG_PW_MINTOKENLENGTH_ATTRIBUTE, config_set_pw_mintokenlength,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_mintokenlength, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_mintokenlength,
+		CONFIG_INT, NULL, DEFAULT_PW_MINTOKENLENGTH},
 	{CONFIG_ERRORLOG_ATTRIBUTE, config_set_errorlog,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.errorlog, CONFIG_STRING_OR_EMPTY, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog,
+		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_AUDITLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
 		log_set_expirationtime, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_exptime, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_exptime,
+		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
 	{CONFIG_SCHEMACHECK_ATTRIBUTE, config_set_schemacheck,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.schemacheck, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.schemacheck,
+		CONFIG_ON_OFF, NULL, &init_schemacheck},
 	{CONFIG_SYNTAXCHECK_ATTRIBUTE, config_set_syntaxcheck,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.syntaxcheck, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.syntaxcheck,
+		CONFIG_ON_OFF, NULL, &init_syntaxcheck},
 	{CONFIG_SYNTAXLOGGING_ATTRIBUTE, config_set_syntaxlogging,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.syntaxlogging, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.syntaxlogging,
+		CONFIG_ON_OFF, NULL, &init_syntaxlogging},
 	{CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE, config_set_dn_validate_strict,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.dn_validate_strict, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.dn_validate_strict,
+		CONFIG_ON_OFF, NULL, &init_dn_validate_strict},
 	{CONFIG_DS4_COMPATIBLE_SCHEMA_ATTRIBUTE, config_set_ds4_compatible_schema,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ds4_compatible_schema,
-		CONFIG_ON_OFF, NULL},
+		CONFIG_ON_OFF, NULL, &init_ds4_compatible_schema},
 	{CONFIG_SCHEMA_IGNORE_TRAILING_SPACES,
 		config_set_schema_ignore_trailing_spaces, NULL, 0,
 		(void**)&global_slapdFrontendConfig.schema_ignore_trailing_spaces,
-		CONFIG_ON_OFF, NULL},
+		CONFIG_ON_OFF, NULL, &init_schema_ignore_trailing_spaces},
 	{CONFIG_SCHEMAREPLACE_ATTRIBUTE, config_set_schemareplace, NULL, 0,
 		(void**)&global_slapdFrontendConfig.schemareplace,
-		CONFIG_STRING_OR_OFF, NULL},
+		CONFIG_STRING_OR_OFF, NULL, CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY},
 	{CONFIG_ACCESSLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_maxdiskspace, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_maxdiskspace,
+		CONFIG_INT, NULL, DEFAULT_LOG_ACCESS_MAXDISKSPACE},
 	{CONFIG_REFERRAL_ATTRIBUTE, (ConfigSetFunc)config_set_defaultreferral,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.defaultreferral,
-		CONFIG_SPECIAL_REFERRALLIST, NULL},
+		CONFIG_SPECIAL_REFERRALLIST, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_PW_MAXFAILURE_ATTRIBUTE, config_set_pw_maxfailure,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxfailure, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxfailure,
+		CONFIG_INT, NULL, DEFAULT_PW_MAXFAILURE},
 	{CONFIG_ACCESSLOG_ATTRIBUTE, config_set_accesslog,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.accesslog, CONFIG_STRING_OR_EMPTY, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog,
+		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_LASTMOD_ATTRIBUTE, config_set_lastmod,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.lastmod, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.lastmod,
+		CONFIG_ON_OFF, NULL, &init_lastmod},
 	{CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE, config_set_rootpwstoragescheme,
-		NULL, 0, NULL, CONFIG_STRING, (ConfigGetFunc)config_get_rootpwstoragescheme},
+		NULL, 0, NULL,
+		CONFIG_STRING, (ConfigGetFunc)config_get_rootpwstoragescheme,
+		SALTED_SHA1_SCHEME_NAME},
 	{CONFIG_PW_HISTORY_ATTRIBUTE, config_set_pw_history,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_history, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_history,
+		CONFIG_ON_OFF, NULL, &init_pw_history},
 	{CONFIG_SECURITY_ATTRIBUTE, config_set_security,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.security, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.security,
+		CONFIG_ON_OFF, NULL, &init_security},
 	{CONFIG_PW_MAXAGE_ATTRIBUTE, config_set_pw_maxage,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxage, CONFIG_LONG, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxage,
+		CONFIG_LONG, NULL, DEFAULT_PW_MAXAGE},
 	{CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_rotationunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL},
+		CONFIG_STRING_OR_UNKNOWN, INIT_AUDITLOG_ROTATIONUNIT},
 	{CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, config_set_pw_resetfailurecount,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_resetfailurecount, CONFIG_LONG, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_resetfailurecount,
+		CONFIG_LONG, NULL, DEFAULT_PW_RESETFAILURECOUNT},
 	{CONFIG_PW_ISGLOBAL_ATTRIBUTE, config_set_pw_is_global_policy,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_is_global_policy, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_is_global_policy,
+		CONFIG_ON_OFF, NULL, &init_pw_is_global_policy},
 	{CONFIG_PW_IS_LEGACY, config_set_pw_is_legacy_policy,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_is_legacy, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_is_legacy,
+		CONFIG_ON_OFF, NULL, &init_pw_is_legacy},
 	{CONFIG_PW_TRACK_LAST_UPDATE_TIME, config_set_pw_track_last_update_time,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_track_update_time, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_track_update_time,
+		CONFIG_ON_OFF, NULL, &init_pw_track_update_time},
 	{CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_maxnumlogs, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_maxnumlogs,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXNUMLOGS},
 	{CONFIG_ERRORLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_expirationtimeunit, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_exptimeunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL},
+		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_ERRORLOG_EXPTIMEUNIT},
 	/* errorlog list is read only, so no set func and no config var addr */
-	{CONFIG_ERRORLOG_LIST_ATTRIBUTE, NULL, NULL, 0, NULL,
-		CONFIG_CHARRAY, (ConfigGetFunc)config_get_errorlog_list},
+	{CONFIG_ERRORLOG_LIST_ATTRIBUTE, NULL,
+		NULL, 0, NULL,
+		CONFIG_CHARRAY, (ConfigGetFunc)config_get_errorlog_list, NULL},
 	{CONFIG_GROUPEVALNESTLEVEL_ATTRIBUTE, config_set_groupevalnestlevel,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.groupevalnestlevel, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.groupevalnestlevel,
+		CONFIG_INT, NULL, DEFAULT_GROUPEVALNESTLEVEL},
 	{CONFIG_ACCESSLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_expirationtimeunit, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_exptimeunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL},
+		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_ACCESSLOG_EXPTIMEUNIT},
 	{CONFIG_ROOTPW_ATTRIBUTE, config_set_rootpw,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.rootpw, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.rootpw,
+		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_PW_CHANGE_ATTRIBUTE, config_set_pw_change,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_change, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_change,
+		CONFIG_ON_OFF, NULL, &init_pw_change},
 	{CONFIG_ACCESSLOGLEVEL_ATTRIBUTE, config_set_accesslog_level,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.accessloglevel, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accessloglevel,
+		CONFIG_INT, NULL, DEFAULT_ACCESSLOGLEVEL},
 	{CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_rotationunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL},
+		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_ERRORLOG_ROTATIONUNIT},
 	{CONFIG_SECUREPORT_ATTRIBUTE, config_set_secureport,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.secureport, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.secureport,
+		CONFIG_INT, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_BASEDN_ATTRIBUTE, config_set_basedn,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.certmap_basedn, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.certmap_basedn,
+		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_TIMELIMIT_ATTRIBUTE, config_set_timelimit,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.timelimit, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.timelimit,
+		CONFIG_INT, NULL, DEFAULT_TIMELIMIT},
 	{CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
 		log_set_logsize, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_maxlogsize, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_maxlogsize,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
 	{CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE, config_set_reservedescriptors,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.reservedescriptors, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.reservedescriptors,
+		CONFIG_INT, NULL, DEFAULT_RESERVE_FDS},
 	/* access log list is read only, no set func, no config var addr */
-	{CONFIG_ACCESSLOG_LIST_ATTRIBUTE, NULL, NULL, 0,
-		NULL, CONFIG_CHARRAY, (ConfigGetFunc)config_get_accesslog_list},
+	{CONFIG_ACCESSLOG_LIST_ATTRIBUTE, NULL,
+		NULL, 0, NULL,
+		CONFIG_CHARRAY, (ConfigGetFunc)config_get_accesslog_list, NULL},
 	{CONFIG_SVRTAB_ATTRIBUTE, config_set_srvtab,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.srvtab, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.srvtab,
+		CONFIG_STRING, NULL, ""},
 	{CONFIG_PW_EXP_ATTRIBUTE, config_set_pw_exp,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_exp, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_exp,
+		CONFIG_ON_OFF, NULL, &init_pw_exp},
 	{CONFIG_ACCESSCONTROL_ATTRIBUTE, config_set_accesscontrol,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.accesscontrol, CONFIG_ON_OFF, NULL},
-	{CONFIG_AUDITLOG_LIST_ATTRIBUTE, NULL, NULL, 0,
-		NULL, CONFIG_CHARRAY, (ConfigGetFunc)config_get_auditlog_list},
+		(void**)&global_slapdFrontendConfig.accesscontrol,
+		CONFIG_ON_OFF, NULL, &init_accesscontrol},
+	{CONFIG_AUDITLOG_LIST_ATTRIBUTE, NULL,
+		NULL, 0, NULL,
+		CONFIG_CHARRAY, (ConfigGetFunc)config_get_auditlog_list, NULL},
 	{CONFIG_ACCESSLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_rotationunit, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_rotationunit,
+		CONFIG_STRING, NULL, INIT_ACCESSLOG_ROTATIONUNIT},
 	{CONFIG_PW_LOCKDURATION_ATTRIBUTE, config_set_pw_lockduration,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_lockduration, CONFIG_LONG, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_lockduration,
+		CONFIG_LONG, NULL, DEFAULT_PW_LOCKDURATION},
 	{CONFIG_ACCESSLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
 		log_set_logsize, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_maxlogsize, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_maxlogsize,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
 	{CONFIG_IDLETIMEOUT_ATTRIBUTE, config_set_idletimeout,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.idletimeout, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.idletimeout,
+		CONFIG_INT, NULL, DEFAULT_IDLE_TIMEOUT},
 	{CONFIG_NAGLE_ATTRIBUTE, config_set_nagle,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.nagle, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.nagle,
+		CONFIG_ON_OFF, NULL, &init_nagle},
 	{CONFIG_ERRORLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_minfreespace, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_minfreespace,
+		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
 	{CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_logging_enabled, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_logging_enabled,
+		CONFIG_ON_OFF, NULL, &init_auditlog_logging_enabled},
 	{CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW, config_set_auditlog_unhashed_pw,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.auditlog_logging_hide_unhashed_pw, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_logging_hide_unhashed_pw,
+		CONFIG_ON_OFF, NULL, &init_auditlog_logging_hide_unhashed_pw},
 	{CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE, config_set_accesslogbuffering,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.accesslogbuffering, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.accesslogbuffering,
+		CONFIG_ON_OFF, NULL, &init_accesslogbuffering},
 	{CONFIG_CSNLOGGING_ATTRIBUTE, config_set_csnlogging,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.csnlogging, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.csnlogging,
+		CONFIG_ON_OFF, NULL, &init_csnlogging},
 	{CONFIG_AUDITLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_expirationtimeunit, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_exptimeunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL},
+		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITLOG_EXPTIMEUNIT},
 	{CONFIG_PW_SYNTAX_ATTRIBUTE, config_set_pw_syntax,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_syntax, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_syntax,
+		CONFIG_ON_OFF, NULL, &init_pw_syntax},
 	{CONFIG_LISTENHOST_ATTRIBUTE, config_set_listenhost,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.listenhost, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.listenhost,
+		CONFIG_STRING, NULL, NULL/* NULL value is allowed */},
 	{CONFIG_LDAPI_FILENAME_ATTRIBUTE, config_set_ldapi_filename,
-                NULL, 0,
-                (void**)&global_slapdFrontendConfig.ldapi_filename, CONFIG_STRING, NULL},
-        {CONFIG_LDAPI_SWITCH_ATTRIBUTE, config_set_ldapi_switch,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_switch, CONFIG_ON_OFF, NULL},
-        {CONFIG_LDAPI_BIND_SWITCH_ATTRIBUTE, config_set_ldapi_bind_switch,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_bind_switch, CONFIG_ON_OFF, NULL},
-        {CONFIG_LDAPI_ROOT_DN_ATTRIBUTE, config_set_ldapi_root_dn,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_root_dn, CONFIG_STRING, NULL},
-        {CONFIG_LDAPI_MAP_ENTRIES_ATTRIBUTE, config_set_ldapi_map_entries,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_map_entries, CONFIG_ON_OFF, NULL},
-        {CONFIG_LDAPI_UIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_uidnumber_type,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_uidnumber_type, CONFIG_STRING, NULL},
-        {CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_gidnumber_type,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_gidnumber_type, CONFIG_STRING, NULL},
-        {CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE, config_set_ldapi_search_base_dn,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_search_base_dn, CONFIG_STRING, NULL},
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_filename,
+		CONFIG_STRING, NULL, SLAPD_LDAPI_DEFAULT_FILENAME},
+	{CONFIG_LDAPI_SWITCH_ATTRIBUTE, config_set_ldapi_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_switch,
+		CONFIG_ON_OFF, NULL, &init_ldapi_switch},
+	{CONFIG_LDAPI_BIND_SWITCH_ATTRIBUTE, config_set_ldapi_bind_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_bind_switch,
+		CONFIG_ON_OFF, NULL, &init_ldapi_bind_switch},
+	{CONFIG_LDAPI_ROOT_DN_ATTRIBUTE, config_set_ldapi_root_dn,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_root_dn,
+		CONFIG_STRING, NULL, DEFAULT_DIRECTORY_MANAGER},
+	{CONFIG_LDAPI_MAP_ENTRIES_ATTRIBUTE, config_set_ldapi_map_entries,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_map_entries,
+		CONFIG_ON_OFF, NULL, &init_ldapi_map_entries},
+	{CONFIG_LDAPI_UIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_uidnumber_type,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_uidnumber_type,
+		CONFIG_STRING, NULL, DEFAULT_UIDNUM_TYPE},
+	{CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_gidnumber_type,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_gidnumber_type,
+		CONFIG_STRING, NULL, DEFAULT_GIDNUM_TYPE},
+	{CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE, config_set_ldapi_search_base_dn,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_search_base_dn,
+		CONFIG_STRING, NULL, DEFAULT_LDAPI_SEARCH_BASE},
 #if defined(ENABLE_AUTO_DN_SUFFIX)
-        {CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE, config_set_ldapi_auto_dn_suffix,
-                NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldapi_auto_dn_suffix, CONFIG_STRING, NULL},
+	{CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE, config_set_ldapi_auto_dn_suffix,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ldapi_auto_dn_suffix,
+		CONFIG_STRING, NULL, DEFAULT_LDAPI_AUTO_DN},
 #endif
 	{CONFIG_ANON_LIMITS_DN_ATTRIBUTE, config_set_anon_limits_dn,
-                NULL, 0,
-                (void**)&global_slapdFrontendConfig.anon_limits_dn, CONFIG_STRING, NULL},
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.anon_limits_dn,
+		CONFIG_STRING, NULL, ""},
 	{CONFIG_SLAPI_COUNTER_ATTRIBUTE, config_set_slapi_counters,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.slapi_counters, CONFIG_ON_OFF, 
-		(ConfigGetFunc)config_get_slapi_counters},
+		(void**)&global_slapdFrontendConfig.slapi_counters,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_slapi_counters,
+		&init_slapi_counters},
 	{CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ACCESS_LOG,
-		(void**)&global_slapdFrontendConfig.accesslog_minfreespace, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.accesslog_minfreespace,
+		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
 	{CONFIG_ERRORLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_ERROR_LOG,
-		(void**)&global_slapdFrontendConfig.errorlog_maxnumlogs, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.errorlog_maxnumlogs,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXNUMLOGS},
 	{CONFIG_SECURELISTENHOST_ATTRIBUTE, config_set_securelistenhost,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.securelistenhost, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.securelistenhost,
+		CONFIG_STRING, NULL, NULL/* NULL value is allowed */},
 	{CONFIG_AUDITLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_AUDIT_LOG,
-		(void**)&global_slapdFrontendConfig.auditlog_minfreespace, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog_minfreespace,
+		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
 	{CONFIG_ROOTDN_ATTRIBUTE, config_set_rootdn,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.rootdn, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.rootdn,
+		CONFIG_STRING, NULL, DEFAULT_DIRECTORY_MANAGER},
 	{CONFIG_PW_MINAGE_ATTRIBUTE, config_set_pw_minage,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_minage, CONFIG_LONG, NULL},
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_minage,
+		CONFIG_LONG, NULL, DEFAULT_PW_MINAGE},
 	{CONFIG_AUDITFILE_ATTRIBUTE, config_set_auditlog,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.auditlog, CONFIG_STRING_OR_EMPTY, NULL},
+		(void**)&global_slapdFrontendConfig.auditlog,
+		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_RETURN_EXACT_CASE_ATTRIBUTE, config_set_return_exact_case,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.return_exact_case, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.return_exact_case,
+		CONFIG_ON_OFF, NULL, &init_return_exact_case},
 	{CONFIG_RESULT_TWEAK_ATTRIBUTE, config_set_result_tweak,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.result_tweak, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.result_tweak,
+		CONFIG_ON_OFF, NULL, &init_result_tweak},
 	{CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE, config_set_plugin_tracking,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.plugin_track, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.plugin_track,
+		CONFIG_ON_OFF, NULL, &init_plugin_track},
 	{CONFIG_ATTRIBUTE_NAME_EXCEPTION_ATTRIBUTE, config_set_attrname_exceptions,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.attrname_exceptions, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.attrname_exceptions,
+		CONFIG_ON_OFF, NULL, &init_attrname_exceptions},
 	{CONFIG_MAXBERSIZE_ATTRIBUTE, config_set_maxbersize,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.maxbersize, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.maxbersize,
+		CONFIG_INT, NULL, DEFAULT_MAX_BERSIZE},
 	{CONFIG_MAXSASLIOSIZE_ATTRIBUTE, config_set_maxsasliosize,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.maxsasliosize, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.maxsasliosize,
+		CONFIG_INT, NULL, DEFAULT_MAX_SASLIO_SIZE},
 	{CONFIG_VERSIONSTRING_ATTRIBUTE, config_set_versionstring,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.versionstring, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.versionstring,
+		CONFIG_STRING, NULL, SLAPD_VERSION_STR},
 	{CONFIG_REFERRAL_MODE_ATTRIBUTE, config_set_referral_mode,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.refer_url, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.refer_url,
+		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
 #if !defined(_WIN32) && !defined(AIX)
 	{CONFIG_MAXDESCRIPTORS_ATTRIBUTE, config_set_maxdescriptors,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.maxdescriptors, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.maxdescriptors,
+		CONFIG_INT, NULL, DEFAULT_MAXDESCRIPTORS},
 #endif
 	{CONFIG_CONNTABLESIZE_ATTRIBUTE, config_set_conntablesize,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.conntablesize, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.conntablesize,
+		CONFIG_INT, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_SSLCLIENTAUTH_ATTRIBUTE, config_set_SSLclientAuth,
 		NULL, 0,
-		(void **)&global_slapdFrontendConfig.SSLclientAuth, CONFIG_SPECIAL_SSLCLIENTAUTH, NULL},
+		(void **)&global_slapdFrontendConfig.SSLclientAuth,
+		CONFIG_SPECIAL_SSLCLIENTAUTH, NULL, DEFAULT_SSLCLIENTAPTH},
 	{CONFIG_SSL_CHECK_HOSTNAME_ATTRIBUTE, config_set_ssl_check_hostname,
-		NULL, 0, NULL, CONFIG_ON_OFF, (ConfigGetFunc)config_get_ssl_check_hostname},
-	{CONFIG_CONFIG_ATTRIBUTE, 0, NULL, 0, (void**)SLAPD_CONFIG_DN,
-		CONFIG_CONSTANT_STRING, NULL},
+		NULL, 0, NULL,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ssl_check_hostname,
+		&init_ssl_check_hostname},
+	{CONFIG_CONFIG_ATTRIBUTE, 0,
+		NULL, 0, (void**)SLAPD_CONFIG_DN,
+		CONFIG_CONSTANT_STRING, NULL, NULL/* deletion is not allowed */},
 	{CONFIG_HASH_FILTERS_ATTRIBUTE, config_set_hash_filters,
-		NULL, 0, NULL, CONFIG_ON_OFF, (ConfigGetFunc)config_get_hash_filters},
+		NULL, 0, NULL,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_hash_filters,
+		NULL/* deletion is not allowed */},
 	/* instance dir; used by admin tasks */
 	{CONFIG_INSTDIR_ATTRIBUTE, config_set_instancedir,
 		NULL, 0, 
-		(void**)&global_slapdFrontendConfig.instancedir, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.instancedir,
+		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
 	/* parameterizing schema dir */
 	{CONFIG_SCHEMADIR_ATTRIBUTE, config_set_schemadir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.schemadir, CONFIG_STRING, NULL},
+		(void**)&global_slapdFrontendConfig.schemadir,
+		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
 	/* parameterizing lock dir */
 	{CONFIG_LOCKDIR_ATTRIBUTE, config_set_lockdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.lockdir, CONFIG_STRING, (ConfigGetFunc)config_get_lockdir},
+		(void**)&global_slapdFrontendConfig.lockdir,
+		CONFIG_STRING, (ConfigGetFunc)config_get_lockdir,
+		NULL/* deletion is not allowed */},
 	/* parameterizing tmp dir */
 	{CONFIG_TMPDIR_ATTRIBUTE, config_set_tmpdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.tmpdir, CONFIG_STRING, (ConfigGetFunc)config_get_tmpdir},
+		(void**)&global_slapdFrontendConfig.tmpdir,
+		CONFIG_STRING, (ConfigGetFunc)config_get_tmpdir,
+		NULL/* deletion is not allowed */},
 	/* parameterizing cert dir */
 	{CONFIG_CERTDIR_ATTRIBUTE, config_set_certdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.certdir, CONFIG_STRING, (ConfigGetFunc)config_get_certdir},
+		(void**)&global_slapdFrontendConfig.certdir,
+		CONFIG_STRING, (ConfigGetFunc)config_get_certdir,
+		NULL/* deletion is not allowed */},
 	/* parameterizing ldif dir */
 	{CONFIG_LDIFDIR_ATTRIBUTE, config_set_ldifdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.ldifdir, CONFIG_STRING, (ConfigGetFunc)config_get_ldifdir},
+		(void**)&global_slapdFrontendConfig.ldifdir,
+		CONFIG_STRING, (ConfigGetFunc)config_get_ldifdir,
+		NULL/* deletion is not allowed */},
 	/* parameterizing bak dir */
 	{CONFIG_BAKDIR_ATTRIBUTE, config_set_bakdir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.bakdir, CONFIG_STRING, (ConfigGetFunc)config_get_bakdir},
+		(void**)&global_slapdFrontendConfig.bakdir,
+		CONFIG_STRING, (ConfigGetFunc)config_get_bakdir, 
+		NULL/* deletion is not allowed */},
 	/* parameterizing sasl plugin path */
 	{CONFIG_SASLPATH_ATTRIBUTE, config_set_saslpath,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.saslpath, CONFIG_STRING, (ConfigGetFunc)config_get_saslpath},
+		(void**)&global_slapdFrontendConfig.saslpath,
+		CONFIG_STRING, (ConfigGetFunc)config_get_saslpath, 
+		NULL/* deletion is not allowed */},
 	/* parameterizing run dir */
 	{CONFIG_RUNDIR_ATTRIBUTE, config_set_rundir,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.rundir, CONFIG_STRING, (ConfigGetFunc)config_get_rundir},
+		(void**)&global_slapdFrontendConfig.rundir,
+		CONFIG_STRING, (ConfigGetFunc)config_get_rundir,
+		NULL/* deletion is not allowed */},
 	{CONFIG_REWRITE_RFC1274_ATTRIBUTE, config_set_rewrite_rfc1274,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.rewrite_rfc1274, CONFIG_ON_OFF, NULL},
+		(void**)&global_slapdFrontendConfig.rewrite_rfc1274,
+		CONFIG_ON_OFF, NULL, &init_rewrite_rfc1274},
 	{CONFIG_OUTBOUND_LDAP_IO_TIMEOUT_ATTRIBUTE,
 		config_set_outbound_ldap_io_timeout,
 		NULL, 0,
 		(void **)&global_slapdFrontendConfig.outbound_ldap_io_timeout,
-		CONFIG_INT, NULL},
+		CONFIG_INT, NULL, DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT},
 	{CONFIG_UNAUTH_BINDS_ATTRIBUTE, config_set_unauth_binds_switch,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.allow_unauth_binds, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_unauth_binds_switch},
+		(void**)&global_slapdFrontendConfig.allow_unauth_binds,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_unauth_binds_switch,
+		&init_allow_unauth_binds},
 	{CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE, config_set_require_secure_binds,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.require_secure_binds, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_require_secure_binds},
+		(void**)&global_slapdFrontendConfig.require_secure_binds,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_require_secure_binds,
+		&init_require_secure_binds},
 	{CONFIG_ANON_ACCESS_ATTRIBUTE, config_set_anon_access_switch,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.allow_anon_access, CONFIG_SPECIAL_ANON_ACCESS_SWITCH,
-		(ConfigGetFunc)config_get_anon_access_switch},
+		(void**)&global_slapdFrontendConfig.allow_anon_access,
+		CONFIG_SPECIAL_ANON_ACCESS_SWITCH,
+		(ConfigGetFunc)config_get_anon_access_switch,
+		DEFAULT_ALLOW_ANON_ACCESS},
 	{CONFIG_LOCALSSF_ATTRIBUTE, config_set_localssf,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.localssf, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.localssf,
+		CONFIG_INT, NULL, DEFAULT_LOCAL_SSF},
 	{CONFIG_MINSSF_ATTRIBUTE, config_set_minssf,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.minssf, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.minssf,
+		CONFIG_INT, NULL, DEFAULT_MIN_SSF},
 	{CONFIG_MINSSF_EXCLUDE_ROOTDSE, config_set_minssf_exclude_rootdse,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.minssf_exclude_rootdse,
-		CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_minssf_exclude_rootdse},
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_minssf_exclude_rootdse, 
+		&init_minssf_exclude_rootdse},
 	{CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE, config_set_force_sasl_external,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.force_sasl_external, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_force_sasl_external},
+		(void**)&global_slapdFrontendConfig.force_sasl_external,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_force_sasl_external, 
+		&init_force_sasl_external},
 	{CONFIG_ENTRYUSN_GLOBAL, config_set_entryusn_global,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.entryusn_global, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_entryusn_global},
+		(void**)&global_slapdFrontendConfig.entryusn_global,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_entryusn_global,
+		&init_entryusn_global},
 	{CONFIG_ENTRYUSN_IMPORT_INITVAL, config_set_entryusn_import_init,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.entryusn_import_init,
-		CONFIG_STRING, (ConfigGetFunc)config_get_entryusn_import_init},
+		CONFIG_STRING, (ConfigGetFunc)config_get_entryusn_import_init,
+		ENTRYUSN_IMPORT_INIT},
 	{CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, config_set_allowed_to_delete_attrs,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allowed_to_delete_attrs,
-		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_to_delete_attrs},
+		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_to_delete_attrs, 
+		DEFAULT_ALLOWED_TO_DELETE_ATTRS },
 	{CONFIG_VALIDATE_CERT_ATTRIBUTE, config_set_validate_cert_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.validate_cert,
 		CONFIG_SPECIAL_VALIDATE_CERT_SWITCH,
-		(ConfigGetFunc)config_get_validate_cert_switch},
+		(ConfigGetFunc)config_get_validate_cert_switch, DEFAULT_VALIDATE_CERT},
 	{CONFIG_PAGEDSIZELIMIT_ATTRIBUTE, config_set_pagedsizelimit,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pagedsizelimit, CONFIG_INT, NULL},
+		(void**)&global_slapdFrontendConfig.pagedsizelimit,
+		CONFIG_INT, NULL, DEFAULT_PAGEDSIZELIMIT},
 	{CONFIG_DEFAULT_NAMING_CONTEXT, config_set_default_naming_context,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.default_naming_context,
-		CONFIG_STRING, (ConfigGetFunc)config_get_default_naming_context},
+		CONFIG_STRING, (ConfigGetFunc)config_get_default_naming_context, NULL},
 	{CONFIG_DISK_MONITORING, config_set_disk_monitoring,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.disk_monitoring, CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_disk_monitoring},
+		(void**)&global_slapdFrontendConfig.disk_monitoring,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_monitoring,
+		&init_disk_monitoring},
 	{CONFIG_DISK_THRESHOLD, config_set_disk_threshold,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.disk_threshold, CONFIG_INT,
-		(ConfigGetFunc)config_get_disk_threshold},
+		(void**)&global_slapdFrontendConfig.disk_threshold,
+		CONFIG_INT, (ConfigGetFunc)config_get_disk_threshold,
+		DEFAULT_DISK_THRESHOLD},
 	{CONFIG_DISK_GRACE_PERIOD, config_set_disk_grace_period,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_grace_period,
-		CONFIG_INT, (ConfigGetFunc)config_get_disk_grace_period},
+		CONFIG_INT, (ConfigGetFunc)config_get_disk_grace_period,
+		DEFAULT_DISK_GRACE_PERIOD},
 	{CONFIG_DISK_LOGGING_CRITICAL, config_set_disk_logging_critical,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_logging_critical,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical},
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical,
+		&init_disk_logging_critical},
 	{CONFIG_DISK_PRESERVE_LOGGING, config_set_disk_preserve_logging,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_preserve_logging,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_preserve_logging},
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_preserve_logging,
+		&init_disk_preserve_logging},
 	{CONFIG_NDN_CACHE, config_set_ndn_cache_enabled,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.ndn_cache_enabled, CONFIG_INT,
-		(ConfigGetFunc)config_get_ndn_cache_enabled},
+		(void**)&global_slapdFrontendConfig.ndn_cache_enabled,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ndn_cache_enabled,
+		&init_ndn_cache_enabled},
 	{CONFIG_NDN_CACHE_SIZE, config_set_ndn_cache_max_size,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ndn_cache_max_size,
-		CONFIG_INT, (ConfigGetFunc)config_get_ndn_cache_size},
+		CONFIG_INT, (ConfigGetFunc)config_get_ndn_cache_size, DEFAULT_NDN_SIZE},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.mempool_switch, CONFIG_ON_OFF, (ConfigGetFunc)config_get_mempool_switch},
+		(void**)&global_slapdFrontendConfig.mempool_switch,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_mempool_switch,
+		&init_mempool_switch},
 	{CONFIG_MEMPOOL_MAXFREELIST_ATTRIBUTE, config_set_mempool_maxfreelist,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.mempool_maxfreelist, CONFIG_INT, (ConfigGetFunc)config_get_mempool_maxfreelist}
+		(void**)&global_slapdFrontendConfig.mempool_maxfreelist,
+		CONFIG_INT, (ConfigGetFunc)config_get_mempool_maxfreelist,
+		DEFAULT_MEMPOOL_MAXFREELIST}
 #endif /* MEMPOOL_EXPERIMENTAL */
 };
 
@@ -943,21 +1249,21 @@ FrontendConfig_init () {
   cfg->port = LDAP_PORT;
   cfg->secureport = LDAPS_PORT;
   cfg->ldapi_filename = slapi_ch_strdup(SLAPD_LDAPI_DEFAULT_FILENAME);
-  cfg->ldapi_switch = LDAP_OFF;
-  cfg->ldapi_bind_switch = LDAP_OFF;
-  cfg->ldapi_root_dn = slapi_ch_strdup("cn=Directory Manager");
-  cfg->ldapi_map_entries = LDAP_OFF;
-  cfg->ldapi_uidnumber_type = slapi_ch_strdup("uidNumber");
-  cfg->ldapi_gidnumber_type = slapi_ch_strdup("gidNumber");
+  init_ldapi_switch = cfg->ldapi_switch = LDAP_OFF;
+  init_ldapi_bind_switch = cfg->ldapi_bind_switch = LDAP_OFF;
+  cfg->ldapi_root_dn = slapi_ch_strdup(DEFAULT_DIRECTORY_MANAGER);
+  init_ldapi_map_entries = cfg->ldapi_map_entries = LDAP_OFF;
+  cfg->ldapi_uidnumber_type = slapi_ch_strdup(DEFAULT_UIDNUM_TYPE);
+  cfg->ldapi_gidnumber_type = slapi_ch_strdup(DEFAULT_GIDNUM_TYPE);
   /* These DNs are no need to be normalized. */
-  cfg->ldapi_search_base_dn = slapi_ch_strdup("dc=example,dc=com");
+  cfg->ldapi_search_base_dn = slapi_ch_strdup(DEFAULT_LDAPI_SEARCH_BASE);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
-  cfg->ldapi_auto_dn_suffix = slapi_ch_strdup("cn=peercred,cn=external,cn=auth");
+  cfg->ldapi_auto_dn_suffix = slapi_ch_strdup(DEFAULT_LDAPI_AUTO_DN);
 #endif
-  cfg->allow_unauth_binds = LDAP_OFF;
-  cfg->require_secure_binds = LDAP_OFF;
+  init_allow_unauth_binds = cfg->allow_unauth_binds = LDAP_OFF;
+  init_require_secure_binds = cfg->require_secure_binds = LDAP_OFF;
   cfg->allow_anon_access = SLAPD_ANON_ACCESS_ON;
-  cfg->slapi_counters = LDAP_ON;
+  init_slapi_counters = cfg->slapi_counters = LDAP_ON;
   cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
   cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
   cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
@@ -968,8 +1274,8 @@ FrontendConfig_init () {
   cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
   cfg->localssf = SLAPD_DEFAULT_LOCAL_SSF;
   cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
-  cfg->minssf_exclude_rootdse = LDAP_OFF; /* minssf is applied to rootdse,
-                                             by default */
+  /* minssf is applied to rootdse, by default */
+  init_minssf_exclude_rootdse = cfg->minssf_exclude_rootdse = LDAP_OFF;
   cfg->validate_cert = SLAPD_VALIDATE_CERT_WARN;
 
 #ifdef _WIN32
@@ -982,17 +1288,19 @@ FrontendConfig_init () {
 #endif /* USE_SYSCONF */
 #endif /* _WIN32 */
 
-  cfg->accesscontrol = LDAP_ON;
-  cfg->security = LDAP_OFF;
-  cfg->ssl_check_hostname = LDAP_ON;
-  cfg->return_exact_case = LDAP_ON;
-  cfg->result_tweak = LDAP_OFF;
+  init_accesscontrol = cfg->accesscontrol = LDAP_ON;
+  init_nagle = cfg->nagle = LDAP_OFF;
+  init_security = cfg->security = LDAP_OFF;
+  init_ssl_check_hostname = cfg->ssl_check_hostname = LDAP_ON;
+  init_return_exact_case = cfg->return_exact_case = LDAP_ON;
+  init_result_tweak = cfg->result_tweak = LDAP_OFF;
+  init_attrname_exceptions = cfg->attrname_exceptions = LDAP_OFF;
   cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
   cfg->useroc = slapi_ch_strdup ( "" );
   cfg->userat = slapi_ch_strdup ( "" );
 /* kexcoff: should not be initialized by default here
-  cfg->rootpwstoragescheme = pw_name2scheme( SHA1_SCHEME_NAME );
-  cfg->pw_storagescheme = pw_name2scheme( SHA1_SCHEME_NAME );
+  cfg->rootpwstoragescheme = pw_name2scheme( SALTED_SHA1_SCHEME_NAME );
+  cfg->pw_storagescheme = pw_name2scheme( SALTED_SHA1_SCHEME_NAME );
 */
   cfg->slapd_type = 0;
   cfg->versionstring = SLAPD_VERSION_STR;
@@ -1000,24 +1308,29 @@ FrontendConfig_init () {
   cfg->pagedsizelimit = 0;
   cfg->timelimit = SLAPD_DEFAULT_TIMELIMIT;
   cfg->anon_limits_dn = slapi_ch_strdup("");
-  cfg->schemacheck = LDAP_ON;
-  cfg->syntaxcheck = LDAP_OFF;
-  cfg->plugin_track = LDAP_OFF;
-  cfg->syntaxlogging = LDAP_OFF;
-  cfg->dn_validate_strict = LDAP_OFF;
-  cfg->ds4_compatible_schema = LDAP_OFF;
-  cfg->enquote_sup_oc = LDAP_OFF;
-  cfg->lastmod = LDAP_ON;
-  cfg->rewrite_rfc1274 = LDAP_OFF;
+  init_schemacheck = cfg->schemacheck = LDAP_ON;
+  init_syntaxcheck = cfg->syntaxcheck = LDAP_OFF;
+  init_plugin_track = cfg->plugin_track = LDAP_OFF;
+  init_syntaxlogging = cfg->syntaxlogging = LDAP_OFF;
+  init_dn_validate_strict = cfg->dn_validate_strict = LDAP_OFF;
+  init_ds4_compatible_schema = cfg->ds4_compatible_schema = LDAP_OFF;
+  init_enquote_sup_oc = cfg->enquote_sup_oc = LDAP_OFF;
+  init_lastmod = cfg->lastmod = LDAP_ON;
+  init_rewrite_rfc1274 = cfg->rewrite_rfc1274 = LDAP_OFF;
   cfg->schemareplace = slapi_ch_strdup( CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY );
-  cfg->schema_ignore_trailing_spaces = SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES;
-  cfg->force_sasl_external = LDAP_OFF; /* do not force sasl external by default - let clients abide by the LDAP standards and send us a SASL/EXTERNAL bind if that's what they want to do */
+  init_schema_ignore_trailing_spaces = cfg->schema_ignore_trailing_spaces =
+    SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES;
+  /* do not force sasl external by default - 
+   * let clients abide by the LDAP standards and send us a SASL/EXTERNAL bind
+   * if that's what they want to do */
+  init_force_sasl_external = cfg->force_sasl_external = LDAP_OFF;
 
-  cfg->pwpolicy_local = LDAP_OFF;
-  cfg->pw_policy.pw_change = LDAP_ON;
-  cfg->pw_policy.pw_must_change = LDAP_OFF;
-  cfg->pw_policy.pw_syntax = LDAP_OFF;
-  cfg->pw_policy.pw_exp = LDAP_OFF;
+  init_readonly = cfg->readonly = LDAP_OFF;
+  init_pwpolicy_local = cfg->pwpolicy_local = LDAP_OFF;
+  init_pw_change = cfg->pw_policy.pw_change = LDAP_ON;
+  init_pw_must_change = cfg->pw_policy.pw_must_change = LDAP_OFF;
+  init_pw_syntax = cfg->pw_policy.pw_syntax = LDAP_OFF;
+  init_pw_exp = cfg->pw_policy.pw_exp = LDAP_OFF;
   cfg->pw_policy.pw_minlength = 8;
   cfg->pw_policy.pw_mindigits = 0;
   cfg->pw_policy.pw_minalphas = 0;
@@ -1031,80 +1344,84 @@ FrontendConfig_init () {
   cfg->pw_policy.pw_maxage = 8640000; /* 100 days     */
   cfg->pw_policy.pw_minage = 0;
   cfg->pw_policy.pw_warning = 86400; /* 1 day        */
-  cfg->pw_policy.pw_history = LDAP_OFF;
+  init_pw_history = cfg->pw_policy.pw_history = LDAP_OFF;
   cfg->pw_policy.pw_inhistory = 6;
-  cfg->pw_policy.pw_lockout = LDAP_OFF;
+  init_pw_lockout = cfg->pw_policy.pw_lockout = LDAP_OFF;
   cfg->pw_policy.pw_maxfailure = 3;
-  cfg->pw_policy.pw_unlock = LDAP_ON;
+  init_pw_unlock = cfg->pw_policy.pw_unlock = LDAP_ON;
   cfg->pw_policy.pw_lockduration = 3600;     /* 60 minutes   */
   cfg->pw_policy.pw_resetfailurecount = 600; /* 10 minutes   */ 
   cfg->pw_policy.pw_gracelimit = 0;
-  cfg->pw_policy.pw_is_legacy = LDAP_ON;
-  cfg->pw_policy.pw_track_update_time = LDAP_OFF;
-  cfg->pw_is_global_policy = LDAP_OFF;
+  init_pw_is_legacy = cfg->pw_policy.pw_is_legacy = LDAP_ON;
+  init_pw_track_update_time = cfg->pw_policy.pw_track_update_time = LDAP_OFF;
+  init_pw_is_global_policy = cfg->pw_is_global_policy = LDAP_OFF;
 
-  cfg->accesslog_logging_enabled = LDAP_ON;
-  cfg->accesslog_mode = slapi_ch_strdup("600");
+  init_accesslog_logging_enabled = cfg->accesslog_logging_enabled = LDAP_ON;
+  cfg->accesslog_mode = slapi_ch_strdup(INIT_ACCESSLOG_MODE);
   cfg->accesslog_maxnumlogs = 10;
   cfg->accesslog_maxlogsize = 100;
   cfg->accesslog_rotationtime = 1;
-  cfg->accesslog_rotationunit = slapi_ch_strdup("day");
-  cfg->accesslog_rotationsync_enabled = LDAP_OFF;
+  cfg->accesslog_rotationunit = slapi_ch_strdup(INIT_ACCESSLOG_ROTATIONUNIT);
+  init_accesslog_rotationsync_enabled =
+    cfg->accesslog_rotationsync_enabled = LDAP_OFF;
   cfg->accesslog_rotationsynchour = 0;
   cfg->accesslog_rotationsyncmin = 0;
   cfg->accesslog_maxdiskspace = 500;
   cfg->accesslog_minfreespace = 5;
   cfg->accesslog_exptime = 1;
-  cfg->accesslog_exptimeunit = slapi_ch_strdup("month");
+  cfg->accesslog_exptimeunit = slapi_ch_strdup(INIT_ACCESSLOG_EXPTIMEUNIT);
   cfg->accessloglevel = 256;
-  cfg->accesslogbuffering = LDAP_ON;
-  cfg->csnlogging = LDAP_ON;
+  init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
+  init_csnlogging = cfg->csnlogging = LDAP_ON;
 
-  cfg->errorlog_logging_enabled = LDAP_ON;
-  cfg->errorlog_mode = slapi_ch_strdup("600");
+  init_errorlog_logging_enabled = cfg->errorlog_logging_enabled = LDAP_ON;
+  cfg->errorlog_mode = slapi_ch_strdup(INIT_ERRORLOG_MODE);
   cfg->errorlog_maxnumlogs = 1;
   cfg->errorlog_maxlogsize = 100;
   cfg->errorlog_rotationtime = 1;
-  cfg->errorlog_rotationunit = slapi_ch_strdup ("week");
-  cfg->errorlog_rotationsync_enabled = LDAP_OFF;
+  cfg->errorlog_rotationunit = slapi_ch_strdup (INIT_ERRORLOG_ROTATIONUNIT);
+  init_errorlog_rotationsync_enabled =
+    cfg->errorlog_rotationsync_enabled = LDAP_OFF;
   cfg->errorlog_rotationsynchour = 0;
   cfg->errorlog_rotationsyncmin = 0;
   cfg->errorlog_maxdiskspace = 100;
   cfg->errorlog_minfreespace = 5;
   cfg->errorlog_exptime = 1;
-  cfg->errorlog_exptimeunit = slapi_ch_strdup("month");
+  cfg->errorlog_exptimeunit = slapi_ch_strdup(INIT_ERRORLOG_EXPTIMEUNIT);
   cfg->errorloglevel = 0;
 
-  cfg->auditlog_logging_enabled = LDAP_OFF;
-  cfg->auditlog_mode = slapi_ch_strdup("600");
+  init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
+  cfg->auditlog_mode = slapi_ch_strdup(INIT_AUDITLOG_MODE);
   cfg->auditlog_maxnumlogs = 1;
   cfg->auditlog_maxlogsize = 100;
   cfg->auditlog_rotationtime = 1;
-  cfg->auditlog_rotationunit = slapi_ch_strdup ("week");
-  cfg->auditlog_rotationsync_enabled = LDAP_OFF;
+  cfg->auditlog_rotationunit = slapi_ch_strdup(INIT_AUDITLOG_ROTATIONUNIT);
+  init_auditlog_rotationsync_enabled =
+    cfg->auditlog_rotationsync_enabled = LDAP_OFF;
   cfg->auditlog_rotationsynchour = 0;
   cfg->auditlog_rotationsyncmin = 0;
   cfg->auditlog_maxdiskspace = 100;
   cfg->auditlog_minfreespace = 5;
   cfg->auditlog_exptime = 1;
-  cfg->auditlog_exptimeunit = slapi_ch_strdup("month");
-  cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
+  cfg->auditlog_exptimeunit = slapi_ch_strdup(INIT_AUDITLOG_EXPTIMEUNIT);
+  init_auditlog_logging_hide_unhashed_pw = 
+    cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
 
-  cfg->entryusn_global = LDAP_OFF; 
-  cfg->entryusn_import_init = slapi_ch_strdup("0"); 
+  init_entryusn_global = cfg->entryusn_global = LDAP_OFF; 
+  cfg->entryusn_import_init = slapi_ch_strdup(ENTRYUSN_IMPORT_INIT); 
   cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
   cfg->default_naming_context = NULL; /* store normalized dn */
 
-  cfg->disk_monitoring = LDAP_OFF;
+  init_disk_monitoring = cfg->disk_monitoring = LDAP_OFF;
   cfg->disk_threshold = 2097152;  /* 2 mb */
   cfg->disk_grace_period = 60; /* 1 hour */
-  cfg->disk_preserve_logging = LDAP_OFF;
-  cfg->disk_logging_critical = LDAP_OFF;
-  cfg->ndn_cache_enabled = LDAP_OFF;
+  init_disk_preserve_logging = cfg->disk_preserve_logging = LDAP_OFF;
+  init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
+  init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
 
 #ifdef MEMPOOL_EXPERIMENTAL
-  cfg->mempool_switch = LDAP_ON;
+  init_mempool_switch = cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
   cfg->system_page_size = sysconf(_SC_PAGE_SIZE);	/* not to get every time; no set, get only */
   {
@@ -1219,8 +1536,8 @@ config_value_is_null( const char *attrname, const char *value, char *errorbuf,
 		int or_zero_length )
 {
 	if ( NULL == value || ( or_zero_length && *value == '\0' )) {
-		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: NULL value",
-				attrname );
+		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+		             "%s: deleting the value is not allowed.", attrname );
 		return 1;
 	}
 
@@ -2721,7 +3038,6 @@ config_set_security( const char *attrname, char *value, char *errorbuf, int appl
   return retVal;
 }
 
-
 static int 
 config_set_onoff ( const char *attrname, char *value, int *configvalue,
 		char *errorbuf, int apply )
@@ -2734,7 +3050,10 @@ config_set_onoff ( const char *attrname, char *value, int *configvalue,
   }
   
   if ( strcasecmp ( value, "on" ) != 0 &&
-	   strcasecmp ( value, "off") != 0 ) {
+	   strcasecmp ( value, "off") != 0 && 
+	   /* initializing the value */
+	   (*(int *)value != LDAP_ON) &&
+	   (*(int *)value != LDAP_OFF)) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 			"%s: invalid value \"%s\". Valid values are \"on\" or \"off\".",
 			attrname, value );
@@ -2750,9 +3069,10 @@ config_set_onoff ( const char *attrname, char *value, int *configvalue,
   
   if ( strcasecmp ( value, "on" ) == 0 ) {
 	*configvalue = LDAP_ON;
-  }
-  else if ( strcasecmp ( value, "off" ) == 0 ) {
+  } else if ( strcasecmp ( value, "off" ) == 0 ) {
 	*configvalue = LDAP_OFF;
+  } else {
+	*configvalue = *(int *)value;
   }
   
   CFG_UNLOCK_WRITE(slapdFrontendConfig);
@@ -3691,7 +4011,8 @@ config_set_errorlog_level( const char *attrname, char *value, char *errorbuf, in
 
 
 int
-config_set_accesslog_level( const char *attrname, char *value, char *errorbuf, int apply ) {
+config_set_accesslog_level( const char *attrname, char *value, char *errorbuf, int apply )
+{
   int retVal = LDAP_SUCCESS;
   long level = 0;
   char *endp = NULL;
@@ -4805,7 +5126,7 @@ config_get_accesslog(){
 }
 
 char *
-config_get_errorlog(  ){
+config_get_errorlog(){
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -6284,10 +6605,10 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 		if ((NULL == values) &&
 			config_allowed_to_delete_attrs(cgas->attr_name)) {
 			if (cgas->setfunc) {
-				retval = (cgas->setfunc)(cgas->attr_name, NULL,
+				retval = (cgas->setfunc)(cgas->attr_name, cgas->initvalue,
 				                         errorbuf, apply);
 			} else if (cgas->logsetfunc) {
-				retval = (cgas->logsetfunc)(cgas->attr_name, NULL,
+				retval = (cgas->logsetfunc)(cgas->attr_name, cgas->initvalue,
 				                            cgas->whichlog, errorbuf, apply);
 			} else {
 				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
