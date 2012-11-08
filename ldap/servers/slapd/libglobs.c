@@ -568,7 +568,7 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_rotationunit,
-		CONFIG_STRING_OR_UNKNOWN, INIT_AUDITLOG_ROTATIONUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITLOG_ROTATIONUNIT},
 	{CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, config_set_pw_resetfailurecount,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_resetfailurecount,
@@ -6473,9 +6473,44 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
     }
 
     if (apply) {
+        char *vcopy = slapi_ch_strdup(value);
+        char **allowed = NULL, **s, *d;
+        struct config_get_and_set *cgas = 0;
+        int needcopy = 0;
+        allowed = slapi_str2charray_ext(vcopy, " ", 0);
+        for (s = allowed; s && *s; s++) ;
+        for (--s; s && *s && (s >= allowed); s--) {
+            cgas = (struct config_get_and_set *)PL_HashTableLookup(confighash,
+                                                                   *s);
+            if (!cgas && PL_strcasecmp(*s, "aci") /* aci is an exception */) {
+                slapi_log_error(SLAPI_LOG_FATAL, "config",
+                        "%s: Unknown attribute %s will be ignored\n",
+                        CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, *s);
+                charray_remove(allowed, *s, 1);
+                needcopy = 1;
+                s--;
+            }
+        }
+        if (needcopy) {
+            /* given value included unknown attribute,
+             * we need to re-create a value. */
+            /* reuse the duplicated string for the new attr value. */
+            for (s = allowed, d = vcopy; s && *s; s++) {
+                size_t slen = strlen(*s);
+                memmove(d, *s, slen);
+                d += slen;
+                memmove(d, " ", 1);
+                d++;
+            }
+            *(d-1) = '\0';
+            strcpy(value, vcopy); /* original value needs to be refreshed */
+        } else {
+            slapi_ch_free_string(&vcopy);
+            vcopy = slapi_ch_strdup(value);
+        }
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&(slapdFrontendConfig->allowed_to_delete_attrs));
-        slapdFrontendConfig->allowed_to_delete_attrs = slapi_ch_strdup(value);
+        slapdFrontendConfig->allowed_to_delete_attrs = vcopy;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
@@ -6618,17 +6653,19 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 		}
 		for (ii = 0; !retval && values && values[ii]; ++ii)
 		{
-			if (cgas->setfunc)
+			if (cgas->setfunc) {
 				retval = (cgas->setfunc)(cgas->attr_name,
 							(char *)values[ii]->bv_val, errorbuf, apply);
-			else if (cgas->logsetfunc)
+			} else if (cgas->logsetfunc) {
 				retval = (cgas->logsetfunc)(cgas->attr_name,
 							(char *)values[ii]->bv_val, cgas->whichlog,
 							errorbuf, apply);
-			else
+			} else {
 				LDAPDebug(LDAP_DEBUG_ANY, 
 						  "config_set: the attribute %s is read only; ignoring new value %s\n",
 						  attr, values[ii]->bv_val, 0);
+			}
+			values[ii]->bv_len = strlen((char *)values[ii]->bv_val);
 		}
 		break;
 	} 
