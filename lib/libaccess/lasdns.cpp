@@ -137,14 +137,13 @@ LASDnsMatch(char *token, LASDnsContext_t *context)
 int
 LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int aliasflg)
 {
-    size_t	delimiter;    	/* length of valid token	*/
-    char	token[256];    	/* max length dns name		*/
-    int		i;
-    int		ipcnt = 0;
-    char	**p;
-    unsigned long	*ipaddrs=0;
+    size_t delimiter; /* length of valid tokeni */
+    char token[256];  /* max length dns name */
+    int i;
+    int ipcnt = 0;
+    char **p;
     pool_handle_t *pool;
-    PRStatus	error=PR_SUCCESS;
+    PRStatus error=PR_SUCCESS;
     char	buffer[PR_NETDB_BUF_SIZE];
 #ifdef	UTEST
     struct hostent *he, host;
@@ -154,164 +153,146 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
     char *end_attr_pattern;
 
     if (attr_pattern == NULL) {
-	nserrGenerate(errp, ACLERRINVAL, ACLERR4770, ACL_Program, 1, 
-		      XP_GetAdminStr(DBT_lasdnsbuildInvalidAttributePattern_));
+        nserrGenerate(errp, ACLERRINVAL, ACLERR4770, ACL_Program, 1, 
+                      XP_GetAdminStr(DBT_lasdnsbuildInvalidAttributePattern_));
         return LAS_EVAL_INVALID;
     }
 
     context->Table = PR_NewHashTable(0,
-				     PR_HashCaseString,
-				     PR_CompareCaseStrings,
-				     PR_CompareValues,
-				     &ACLPermAllocOps,
-				     NULL);
+                                     PR_HashCaseString,
+                                     PR_CompareCaseStrings,
+                                     PR_CompareValues,
+                                     &ACLPermAllocOps,
+                                     NULL);
     pool = pool_create();
     context->pool = pool;
     if ((!context->Table) || (!context->pool)) {
-	nserrGenerate(errp, ACLERRNOMEM, ACLERR4700, ACL_Program, 1, 
-		      XP_GetAdminStr(DBT_lasdnsbuildUnableToAllocateHashT_));
+        nserrGenerate(errp, ACLERRNOMEM, ACLERR4700, ACL_Program, 1, 
+                      XP_GetAdminStr(DBT_lasdnsbuildUnableToAllocateHashT_));
         return LAS_EVAL_INVALID;
     }
 
     end_attr_pattern = attr_pattern + strlen(attr_pattern);
     do {
-		size_t maxsize = sizeof(token);
-	/*  Get a single hostname from the pattern string	*/
-        delimiter    = strcspn(attr_pattern, ", \t");
-		if (delimiter >= maxsize) {
-			delimiter = maxsize-1;
-		}
+        size_t maxsize = sizeof(token);
+        /*  Get a single hostname from the pattern string        */
+        delimiter = strcspn(attr_pattern, ", \t");
+        if (delimiter >= maxsize) {
+            delimiter = maxsize-1;
+        }
         PL_strncpyz(token, attr_pattern, delimiter + 1);
         token[delimiter] = '\0';
 
-        /*  Skip any white space after the token 		*/
+        /*  Skip any white space after the token                 */
         attr_pattern += delimiter;
         if (attr_pattern < end_attr_pattern) {
             attr_pattern += strspn(attr_pattern, ", \t");
         }
 
         /*  If there's a wildcard, strip it off but leave the "."
-	 *  Can't have aliases for a wildcard pattern.
-	 *  Treat "*" as a special case.  If so, go ahead and hash it.
-	 */
+         *  Can't have aliases for a wildcard pattern.
+         *  Treat "*" as a special case.  If so, go ahead and hash it.
+         */
         if (token[0] == '*') {
-	    if (token[1] != '\0') {
-	        if (!PR_HashTableAdd(context->Table, pool_strdup(pool, &token[1]), (void *)-1)) {
-		    nserrGenerate(errp, ACLERRFAIL, ACLERR4710, ACL_Program, 2, 
-				  XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), token);
-	            return LAS_EVAL_INVALID;
-	        }
-	    } else {
-	        if (!PR_HashTableAdd(context->Table, pool_strdup(pool, token), (void *)-1)) {
-		    nserrGenerate(errp, ACLERRFAIL, ACLERR4720, ACL_Program, 2, XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), token);
-	            return LAS_EVAL_INVALID;
-	        }
-	    }
-	} else  {
-	/*  This is a single hostname add it to the hash table	*/
-	  if (!PR_HashTableAdd(context->Table, pool_strdup(pool, &token[0]), (void *)-1)) {
-	    nserrGenerate(errp, ACLERRFAIL, ACLERR4730, ACL_Program, 2, XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), token);
-	    return LAS_EVAL_INVALID;
-	  }
+            if (token[1] != '\0') {
+                if (!PR_HashTableAdd(context->Table, pool_strdup(pool, &token[1]), (void *)-1)) {
+                    nserrGenerate(errp, ACLERRFAIL, ACLERR4710, ACL_Program, 2, 
+                                  XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), token);
+                    return LAS_EVAL_INVALID;
+                }
+            } else {
+                if (!PR_HashTableAdd(context->Table, pool_strdup(pool, token), (void *)-1)) {
+                    nserrGenerate(errp, ACLERRFAIL, ACLERR4720, ACL_Program, 2, XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), token);
+                    return LAS_EVAL_INVALID;
+                }
+            }
+        } else  {
+        /*  This is a single hostname add it to the hash table        */
+          if (!PR_HashTableAdd(context->Table, pool_strdup(pool, &token[0]), (void *)-1)) {
+            nserrGenerate(errp, ACLERRFAIL, ACLERR4730, ACL_Program, 2, XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), token);
+            return LAS_EVAL_INVALID;
+          }
 
-	  if (aliasflg) {
-	    /*		memset(buffer, '\0', PR_NETDB_BUF_SIZE);
-	     */
-#ifdef	UTEST
-	    he = gethostbyname(token);
-#else
-	    error = PR_GetHostByName(token, 
-				     buffer, 
-				     PR_NETDB_BUF_SIZE, 
-				     &host);
-	    if (error == PR_SUCCESS) he = &host;
-	    else he = NULL;
-#endif
-	    if (he) {
-	      /* Make a copy of the list of IP addresses if any */
-	      if (he->h_addr_list && he->h_addr_list[0]) {
- 
-		/* Count the IP addresses */
-		for (p = he->h_addr_list, ipcnt = 0; *p; ++p) {
-		  ++ipcnt;
-		}
+          if (aliasflg) {
+            void *iter = NULL;
+            int addrcnt = 0;
+            PRNetAddr *netaddr = (PRNetAddr *)PERM_CALLOC(sizeof(PRNetAddr));
+            PRAddrInfo *infop = PR_GetAddrInfoByName(token,
+                            PR_AF_UNSPEC, (PR_AI_ADDRCONFIG|PR_AI_NOCANONNAME));
+            if (!netaddr) {
+                if (infop) {
+                    PR_FreeAddrInfo(infop);
+                }
+                return LAS_EVAL_NEED_MORE_INFO; /* hostname not known to dns? */
+            }
+            if (!infop) {
+                if (netaddr) {
+                    PERM_FREE(netaddr);
+                }
+                return LAS_EVAL_NEED_MORE_INFO; /* hostname not known to dns? */
+            }
+            /* need to count the address, first */
+            while ((iter = PR_EnumerateAddrInfo(iter, infop, 0, netaddr))) {
+                addrcnt++;
+            }
+            if (0 == addrcnt) {
+                PERM_FREE(netaddr);
+                PR_FreeAddrInfo(infop);
+                return LAS_EVAL_NEED_MORE_INFO; /* hostname not known to dns? */
+            }
+            iter = NULL; /* from the beginning */
+            memset(netaddr, 0, sizeof(PRNetAddr));
+            for (i = 0; i < addrcnt; i++) {
+                iter = PR_EnumerateAddrInfo( iter, infop, 0, netaddr );
+                if (NULL == iter) {
+                    break;
+                }
+                error = PR_GetHostByAddr(netaddr, buffer, 
+                                         PR_NETDB_BUF_SIZE, &host);
+                if (error == PR_SUCCESS) {
+                    he = &host;
+                } else {
+                    continue;
+                }
+                if (he->h_name) {
+                    /* Add it to the hash table */
+                    if (!PR_HashTableAdd(context->Table, 
+                                         pool_strdup(pool, he->h_name),
+                                         (void *)-1)) {
+                        nserrGenerate(errp, ACLERRFAIL, ACLERR4750, 
+                               ACL_Program, 2, 
+                               XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_),
+                               he->h_name);
+                        PERM_FREE(netaddr);
+                        PR_FreeAddrInfo(infop);
+                        return LAS_EVAL_INVALID;
+                    }
+                }
                  
-		/* Allocate space */
-		ipaddrs = (unsigned long *)PERM_MALLOC(ipcnt * sizeof(unsigned long));
- 
-		/* Copy IP addresses */
-		for (i = 0; i < ipcnt; ++i) {
-		  ipaddrs[i] = 0;
-		  memcpy((void *)&ipaddrs[i], he->h_addr_list[i], 4);
-		}
-	      }
-                 
-	      /* Add each of the aliases to the list */
-	      if (he->h_aliases && he->h_aliases[0]) {
-                 
-		for (p = he->h_aliases; *p; ++p) {
-		  /*  Add it to the hash table			*/
-		  if (!PR_HashTableAdd(context->Table, pool_strdup(pool, *p), (void*)-1)) {
-		    nserrGenerate(errp, ACLERRFAIL, ACLERR4740, ACL_Program, 2, 
-				  XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), *p);
-		    PERM_FREE(ipaddrs);
-		    return LAS_EVAL_INVALID;
-		  }
-		}
-	      }
-                 
-	      for (i = 0; i < ipcnt; ++i) {
-
-#ifdef UTEST
-		he = gethostbyaddr((char *)&ipaddrs[i], 4, AF_INET);
-#else
-		error = PR_GetHostByAddr((PRNetAddr *)&ipaddrs[i], 
-					    buffer, 
-					    PR_NETDB_BUF_SIZE, 
-					    &host);
-		if (error == PR_SUCCESS) he = &host;
-		else he = NULL;
-#endif
-		if (he) {
-		  if (he->h_name) {
-		    /*  Add it to the hash table			*/
-		    if (!PR_HashTableAdd(context->Table, pool_strdup(pool, he->h_name),
-					 (void *)-1)) {
-		      nserrGenerate(errp, ACLERRFAIL, ACLERR4750, ACL_Program, 2, 
-				    XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), he->h_name);
-		      PERM_FREE(ipaddrs);
-		      return LAS_EVAL_INVALID;
-		    }
-		  }
-                 
-		  if (he->h_aliases && he->h_aliases[0]) {
-		    for (p = he->h_aliases; *p; ++p) {
-		      /*  Add it to the hash table			*/
-		      if (!PR_HashTableAdd(context->Table, pool_strdup(pool, *p), (void *)-1)) {
-			nserrGenerate(errp, ACLERRFAIL, ACLERR4760, ACL_Program, 2,
-				      XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_), *p);
-			PERM_FREE(ipaddrs);
-			return LAS_EVAL_INVALID;
-		      }
-		    }
-		  }
-		}
-	      }
-
-	      PERM_FREE(ipaddrs);
-	      ipaddrs = NULL;
-
-	    }	/* if he */
-
-
-	  }	/* if aliasflg */
-
-	}	/* else - single hostname */
-
-
+                if (he->h_aliases && he->h_aliases[0]) {
+                    for (p = he->h_aliases; *p; ++p) {
+                        /* Add it to the hash table */
+                        if (!PR_HashTableAdd(context->Table,
+                                             pool_strdup(pool, *p),
+                                             (void *)-1)) {
+                            nserrGenerate(errp, ACLERRFAIL, ACLERR4760,
+                               ACL_Program, 2,
+                               XP_GetAdminStr(DBT_lasdnsbuildUnableToAddKeySN_),
+                               *p);
+                            PERM_FREE(netaddr);
+                            PR_FreeAddrInfo(infop);
+                            return LAS_EVAL_INVALID;
+                        }
+                    }
+                }
+            } /* for (i = 0; i < addrcnt; i++) */
+            PERM_FREE(netaddr);
+            PR_FreeAddrInfo(infop);
+          } /* if aliasflg */
+        } /* else - single hostname */
     } while ((attr_pattern != NULL) && 
-	     (attr_pattern[0] != '\0') && 
-	     (delimiter != 0));
+             (attr_pattern[0] != '\0') && 
+             (delimiter != 0));
 
     return 0;
 }
@@ -363,18 +344,20 @@ int LASDnsEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
     *cachable = ACL_INDEF_CACHABLE;
 
-    if (strcmp(attr_name, "dns") == 0) 
-	aliasflg = 0;
-    else if (strcmp(attr_name, "dnsalias") == 0)
-	aliasflg = 1;
-    else {
-	nserrGenerate(errp, ACLERRINVAL, ACLERR4800, ACL_Program, 2, XP_GetAdminStr(DBT_lasDnsBuildReceivedRequestForAtt_), attr_name);
-    	return LAS_EVAL_INVALID;
+    if (strcmp(attr_name, "dns") == 0) {
+        /* Enable aliasflg for "dns", which allows "dns" hostname to look up
+         * DSN hash table using the primary hostname. */
+        aliasflg = 1;
+    } else if (strcmp(attr_name, "dnsalias") == 0) {
+        aliasflg = 1;
+    } else {
+        nserrGenerate(errp, ACLERRINVAL, ACLERR4800, ACL_Program, 2, XP_GetAdminStr(DBT_lasDnsBuildReceivedRequestForAtt_), attr_name);
+        return LAS_EVAL_INVALID;
     }
 
     if ((comparator != CMP_OP_EQ) && (comparator != CMP_OP_NE)) {
-	nserrGenerate(errp, ACLERRINVAL, ACLERR4810, ACL_Program, 2, XP_GetAdminStr(DBT_lasdnsevalIllegalComparatorDN_), comparator_string(comparator));
-    	return LAS_EVAL_INVALID;
+        nserrGenerate(errp, ACLERRINVAL, ACLERR4810, ACL_Program, 2, XP_GetAdminStr(DBT_lasdnsevalIllegalComparatorDN_), comparator_string(comparator));
+        return LAS_EVAL_INVALID;
     }
 
     /* If this is the first time through, build the pattern tree first.  */
