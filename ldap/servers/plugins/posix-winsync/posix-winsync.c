@@ -86,14 +86,17 @@ typedef struct _windows_attr_map
 {
     char *windows_attribute_name;
     char *ldap_attribute_name;
+    int isMUST; /* schema: required attribute */
 } windows_attribute_map;
 
-static windows_attribute_map user_attribute_map[] = { { "unixHomeDirectory", "homeDirectory" },
-                                                      { "loginShell", "loginShell" },
-                                                      { "uidNumber", "uidNumber" },
-                                                      { "gidNumber", "gidNumber" },
-                                                      { "gecos", "gecos" },
-                                                      { NULL, NULL } };
+static windows_attribute_map user_attribute_map[] = {
+    { "unixHomeDirectory", "homeDirectory", 1 },
+    { "loginShell", "loginShell", 0 },
+    { "uidNumber", "uidNumber", 1 },
+    { "gidNumber", "gidNumber", 1 },
+    { "gecos", "gecos", 0 },
+    { NULL, NULL, 0 }
+};
 
 static windows_attribute_map user_mssfu_attribute_map[] =
     { { "msSFU30homedirectory", "homeDirectory" },
@@ -751,7 +754,9 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     int is_present_local = 0;
     int do_modify_local = 0;
     int rc;
+    int i;
     windows_attribute_map *attr_map = user_attribute_map;
+    PRBool posixval = PR_TRUE;
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = user_mssfu_attribute_map;
@@ -759,15 +764,33 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> _pre_ds_mod_user_cb -- begin\n");
 
+    /* check all of the required attributes are in the ad_entry:
+     * MUST (cn $ uid $ uidNumber $ gidNumber $ homeDirectory).
+     * If any of the required attributes are missing, drop them before adding
+     * the entry to the DS. */
+    for (i = 0; attr_map[i].windows_attribute_name != NULL; i++) {
+        Slapi_Attr *pa_attr;
+        if (attr_map[i].isMUST &&
+            slapi_entry_attr_find(ad_entry,
+                                  attr_map[i].windows_attribute_name,
+                                  &pa_attr)) {
+            /* required attribute does not exist */
+            posixval = PR_FALSE;
+            slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                            "AD entry %s does not have required attribute %s for posixAccount objectclass.\n",
+                            slapi_entry_get_dn_const(ad_entry),
+                            attr_map[i].ldap_attribute_name);
+        }
+    }
+
     /* add objectclass: posixAccount, uidnumber ,gidnumber ,homeDirectory, loginshell */
     /* in the ad to ds case we have no changelog, so we have to compare the entries */
     for (rc = slapi_entry_first_attr(ad_entry, &attr); rc == 0;
          rc = slapi_entry_next_attr(ad_entry, attr, &attr)) {
         char *type = NULL;
-        size_t i = 0;
 
         slapi_attr_get_type(attr, &type);
-        for (; attr_map[i].windows_attribute_name != NULL; i++) {
+        for (i = 0; attr_map[i].windows_attribute_name != NULL; i++) {
             if (0 == slapi_attr_type_cmp(type, attr_map[i].windows_attribute_name,
                                          SLAPI_TYPE_CMP_SUBTYPE)) {
                 Slapi_Attr *local_attr = NULL;
@@ -779,7 +802,10 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                 slapi_entry_attr_find(ds_entry, local_type, &local_attr);
                 is_present_local = (NULL == local_attr) ? 0 : 1;
                 if (is_present_local) {
+                    /* DS entry has the posix attrs.
+                     * I.e., it is a posix account*/
                     int values_equal = 0;
+                    posixval = PR_TRUE;
                     values_equal = attr_compare_equal(attr, local_attr);
                     if (!values_equal) {
                         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
@@ -791,8 +817,8 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
                                                   valueset_get_valuearray(vs));
                         *do_modify = 1;
                     }
-                } else {
-
+                } else if (posixval) {
+                    /* only if AD provides the all necessary attributes */
                     slapi_mods_add_mod_values(smods, LDAP_MOD_ADD, local_type,
                                               valueset_get_valuearray(vs));
                     *do_modify = do_modify_local = 1;
@@ -804,10 +830,11 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
         }
     }
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                    "<-- _pre_ds_mod_user_cb present %d modify %d\n", is_present_local,
-                    do_modify_local);
+                    "<-- _pre_ds_mod_user_cb present %d modify %d isPosixaccount %s\n",
+                    is_present_local, do_modify_local,
+                    posixval?"yes":"no");
 
-    if (!is_present_local && do_modify_local) {
+    if (!is_present_local && do_modify_local && posixval) {
         Slapi_Attr *oc_attr = NULL;
         Slapi_Value *voc = slapi_value_new();
 
@@ -988,8 +1015,9 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
 {
     Slapi_Attr *attr = NULL;
     char *type = NULL;
-    PRBool posixval = PR_FALSE;
+    PRBool posixval = PR_TRUE;
     windows_attribute_map *attr_map = user_attribute_map;
+    int i = 0;
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = user_mssfu_attribute_map;
@@ -998,42 +1026,65 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> _pre_ds_add_user_cb -- begin\n");
 
-    for (slapi_entry_first_attr(ad_entry, &attr); attr; slapi_entry_next_attr(ad_entry, attr, &attr)) {
-        size_t i = 0;
-
-        slapi_attr_get_type(attr, &type);
-        if (!type) {
-            continue;
-        }
-
-        slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "--> _pre_ds_add_user_cb -- "
-            "look for [%s] to new entry [%s]\n", type, slapi_entry_get_dn_const(ds_entry));
-        for (; attr_map[i].windows_attribute_name != NULL; i++) {
-            if (slapi_attr_type_cmp(attr_map[i].windows_attribute_name, type,
-                                    SLAPI_TYPE_CMP_SUBTYPE) == 0) {
-                Slapi_ValueSet *svs = NULL;
-                slapi_attr_get_valueset(attr, &svs);
-                slapi_entry_add_valueset(ds_entry, attr_map[i].ldap_attribute_name, svs);
-                slapi_valueset_free(svs);
-
-                slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                                "--> _pre_ds_add_user_cb -- "
-                                    "adding val for [%s] to new entry [%s]\n", type,
-                                slapi_entry_get_dn_const(ds_entry));
-                posixval = PR_TRUE;
-            }
+    /* check all of the required attributes are in the ad_entry:
+     * MUST (cn $ uid $ uidNumber $ gidNumber $ homeDirectory).
+     * If any of the required attributes are missing, drop them before adding
+     * the entry to the DS. */
+    for (i = 0; attr_map[i].windows_attribute_name != NULL; i++) {
+        Slapi_Attr *pa_attr;
+        if (attr_map[i].isMUST &&
+            slapi_entry_attr_find(ad_entry,
+                                  attr_map[i].windows_attribute_name,
+                                  &pa_attr)) {
+            /* required attribute does not exist */
+            posixval = PR_FALSE;
+            slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                            "AD entry %s does not have required attribute %s for posixAccount objectclass.\n",
+                            slapi_entry_get_dn_const(ad_entry),
+                            attr_map[i].ldap_attribute_name);
         }
     }
+
+    /* converts the AD attributes to DS posix attribute if all the posix
+     * required attributes are available */
     if (posixval) {
         int rc;
+        for (slapi_entry_first_attr(ad_entry, &attr); attr;
+             slapi_entry_next_attr(ad_entry, attr, &attr)) {
+
+            slapi_attr_get_type(attr, &type);
+            if (!type) {
+                continue;
+            }
+
+            slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                            "--> _pre_ds_add_user_cb -- "
+                            "look for [%s] to new entry [%s]\n",
+                            type, slapi_entry_get_dn_const(ds_entry));
+            for (i = 0; attr_map[i].windows_attribute_name != NULL; i++) {
+                if (slapi_attr_type_cmp(attr_map[i].windows_attribute_name,
+                                        type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
+                    Slapi_ValueSet *svs = NULL;
+                    slapi_attr_get_valueset(attr, &svs);
+                    slapi_entry_add_valueset(ds_entry,
+                                          attr_map[i].ldap_attribute_name, svs);
+                    slapi_valueset_free(svs);
+
+                    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                                    "--> _pre_ds_add_user_cb -- "
+                                    "adding val for [%s] to new entry [%s]\n",
+                                    type, slapi_entry_get_dn_const(ds_entry));
+                }
+            }
+        }
         rc = slapi_entry_add_string(ds_entry, "objectClass", "posixAccount");
         rc |= slapi_entry_add_string(ds_entry, "objectClass", "shadowAccount");
         rc |= slapi_entry_add_string(ds_entry, "objectClass", "inetUser");
-        if (rc != 0)
+        if (rc != 0) {
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                             "<-- _pre_ds_add_user_cb -- adding objectclass for new entry failed %d\n",
                             rc);
-        else {
+        } else {
             if (posix_winsync_config_get_mapNestedGrouping()) {
                 memberUidLock();
                 addUserToGroupMembership(ds_entry);

@@ -2451,7 +2451,7 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
             {
                 ret = LDAP_AFFECTS_MULTIPLE_DSAS;
                 PR_snprintf(errorbuf, BUFSIZ,
-                                "Cannot move entries accross backends\n");
+                                "Cannot move entries across backends\n");
                 goto unlock_and_return;
             }
         }
