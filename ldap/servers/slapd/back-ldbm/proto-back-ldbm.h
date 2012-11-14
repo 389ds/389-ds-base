@@ -235,6 +235,7 @@ int idl_is_allids(IDList *idl);
 int idl_append(IDList *idl, ID id);
 int idl_append_extend(IDList **idl, ID id);
 void idl_insert(IDList **idl, ID id);
+int idl_sort_cmp(const void *x, const void *y);
 /*
  * idl_delete - delete an id from an id list.
  * returns  0   id deleted

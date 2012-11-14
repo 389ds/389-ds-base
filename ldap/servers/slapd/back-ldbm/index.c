@@ -1236,6 +1236,7 @@ index_range_read_ext(
     time_t curtime, stoptime, optime;
     int timelimit = -1;
     back_search_result_set *sr = NULL;
+    int isroot = 0;
 
     if (!pb) {
         LDAPDebug(LDAP_DEBUG_ANY, "index_range_read: NULL pblock\n",
@@ -1270,11 +1271,11 @@ index_range_read_ext(
     if (sr != NULL) {
         /* the normal case */
         lookthrough_limit = sr->sr_lookthroughlimit;
-    } else {
-        int isroot = 0;
-        slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
-        if (!isroot) {
-            lookthrough_limit = li->li_lookthroughlimit; 
+    }
+    slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
+    if (!isroot) {
+        if (lookthrough_limit > li->li_rangelookthroughlimit) {
+            lookthrough_limit = li->li_rangelookthroughlimit; 
         }
     }
 
@@ -1478,7 +1479,7 @@ index_range_read_ext(
         /* exit the loop when we either run off the end of the table,
          * fail to read a key, or read a key that's out of range.
          */
-        IDList *tmp, *tmp2;
+        IDList *tmp;
         /*
         char encbuf [BUFSIZ];
         LDAPDebug( LDAP_DEBUG_FILTER, "   cur_key=%s(%li bytes)\n",
@@ -1549,10 +1550,22 @@ index_range_read_ext(
                                encoded(&cur_key, encbuf), (long)cur_key.dsize);
             }
         } else {
-            tmp2 = idl_union( be, idl, tmp );
-            idl_free( idl );
-            idl_free( tmp );
-            idl = tmp2;
+            /* idl tmp only contains one id */
+            /* append it at the end here; sort idlist at the end */
+            if (ALLIDS(tmp)) {
+                idl_free(idl);
+                idl = tmp;
+            } else {
+                ID id;
+                for (id = idl_firstid(tmp); id != NOID; id = idl_nextid(tmp, id)) {
+                    *err = idl_append_extend(&idl, id);
+                    if (*err) {
+                        ldbm_nasty("index_range_read - failed to generate idlist",
+                                   1097, *err);
+                    }
+                }
+                idl_free(tmp);
+            }
             if (ALLIDS(idl)) {
                 LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read hit an allids value\n",
                           0, 0, 0);
@@ -1600,6 +1613,12 @@ error:
     DBT_FREE_PAYLOAD(upperkey);
 
     dblayer_release_index_file( be, ai, db );
+
+    /* sort idl */
+    if (idl && !ALLIDS(idl)) {
+        qsort((void *)&idl->b_ids[0], idl->b_nids,
+              (size_t)sizeof(ID), idl_sort_cmp);
+    }
 
     LDAPDebug( LDAP_DEBUG_TRACE, "<= index_range_read(%s,%s) %lu candidates\n",
                    type, prefix, (u_long)IDL_NIDS(idl) );
