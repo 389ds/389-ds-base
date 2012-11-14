@@ -549,10 +549,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             if ( newparententry == NULL )
             {
                 /* There may not be a new parent because we don't intend there to be one. */
-                if(slapi_sdn_get_ndn(dn_newsuperiordn)!=NULL)
+                if (slapi_sdn_get_dn(dn_newsuperiordn))
                 {
-                    /* If the new entry is to be a suffix, and we're root, then it's OK that the new parent doesn't exist */
-                    if (!(slapi_be_issuffix(pb->pb_backend, &dn_newdn)) && isroot)
+                    /* If the new entry is not to be a suffix, 
+                     * return an error no matter who requested this modrdn */
+                    if (!slapi_be_issuffix(pb->pb_backend, &dn_newdn))
                     {
                         /* Here means that we didn't find the parent */
                         int err = 0;
@@ -570,7 +571,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                                     slapi_sdn_get_ndn(dn_newsuperiordn), 0 );
                         slapi_sdn_done(&ancestorsdn);
                         goto error_return;
-                       }
+                    }
                 }
             }
             else
@@ -588,7 +589,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             if ( parententry == NULL )
             {
                 /* If the entry a suffix, and we're root, then it's OK that the parent doesn't exist */
-                if (!(slapi_be_issuffix(pb->pb_backend, sdn)) && isroot)
+                if (!(slapi_be_issuffix(pb->pb_backend, sdn)) && !isroot)
                 {
                     /* Here means that we didn't find the parent */
                     ldap_result_matcheddn = "NULL";
