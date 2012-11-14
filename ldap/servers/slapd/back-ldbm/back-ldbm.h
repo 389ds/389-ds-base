@@ -210,7 +210,6 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_DBCACHE_SIZE     1000000
 #define DEFAULT_MODE             0600
 #define DEFAULT_ALLIDSTHRESHOLD  4000
-#define DEFAULT_LOOKTHROUGHLIMIT 5000
 #define DEFAULT_IDL_TUNE         1
 #define DEFAULT_SEARCH_TUNE      0
 #define DEFAULT_IMPORT_INDEX_BUFFER_SIZE  0
@@ -650,6 +649,8 @@ struct ldbminfo {
     int             li_pagedallidsthreshold;
     int             li_reslimit_pagedlookthrough_handle;
     int             li_reslimit_pagedallids_handle; /* allids aka idlistscan */
+    int             li_rangelookthroughlimit;
+    int             li_reslimit_rangelookthrough_handle;
 };
 
 /* li_flags could store these bits defined in ../slapi-plugin.h
@@ -816,6 +817,8 @@ typedef struct _back_search_result_set
 
 /* Name of attribute type used for binder-based look through limit */
 #define LDBM_LOOKTHROUGHLIMIT_AT	"nsLookThroughLimit"
+/* Name of attribute type used for binder-based look through limit */
+#define LDBM_RANGELOOKTHROUGHLIMIT_AT	"nsRangeSearchLookThroughLimit"
 /* Name of attribute type used for binder-based look through limit */
 #define LDBM_ALLIDSLIMIT_AT	"nsIDListScanLimit"
 /* Name of attribute type used for binder-based look through simple paged limit */
