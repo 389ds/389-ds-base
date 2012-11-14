@@ -6508,6 +6508,7 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
             slapi_ch_free_string(&vcopy);
             vcopy = slapi_ch_strdup(value);
         }
+        slapi_ch_array_free(allowed);
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&(slapdFrontendConfig->allowed_to_delete_attrs));
         slapdFrontendConfig->allowed_to_delete_attrs = vcopy;
