@@ -804,10 +804,9 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     value = slapi_entry_attr_get_charptr(e, DNA_GENERATE);
     if (value) {
         entry->generate = value;
-    }
-
-    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> %s [%s]\n", DNA_GENERATE, entry->generate);
+    }
 
     value = slapi_entry_attr_get_charptr(e, DNA_FILTER);
     if (value) {
@@ -2809,8 +2808,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e)
 
             /* does the entry match the filter? */
             if (config_entry->slapi_filter) {
-                ret = slapi_vattr_filter_test(pb, e, config_entry->slapi_filter,
-                                              0);
+                ret = slapi_vattr_filter_test(pb, e, config_entry->slapi_filter, 0);
                 if (LDAP_SUCCESS != ret) {
                         goto next;
                 }
@@ -2820,28 +2818,23 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e)
                 /* For a multi-type range, we only generate a value
                  * for types where the magic value is set.  We do not
                  * generate a value for missing types. */
-                for (i = 0; config_entry->types && config_entry->types[i];
-                     i++) {
-                    value = slapi_entry_attr_get_charptr(e,
-                                                       config_entry->types[i]);
-
-                    if (value &&
-                        !slapi_UTF8CASECMP(config_entry->generate, value)) {
-                        slapi_ch_array_add(&types_to_generate, 
-                                       slapi_ch_strdup(config_entry->types[i]));
+                for (i = 0; config_entry->types && config_entry->types[i]; i++) {
+                    value = slapi_entry_attr_get_charptr(e, config_entry->types[i]);
+                    if (value){
+                        if(config_entry->generate == NULL || !slapi_UTF8CASECMP(config_entry->generate, value)){
+                            slapi_ch_array_add(&types_to_generate, slapi_ch_strdup(config_entry->types[i]));
+                        }
+                        slapi_ch_free_string(&value);
                     }
-                    slapi_ch_free_string(&value);
                 }
             } else {
                 /* For a single type range, we generate the value if
                  * the magic value is set or if the type is missing. */
                 value = slapi_entry_attr_get_charptr(e, config_entry->types[0]);
 
-                if ((value &&
-                     !slapi_UTF8CASECMP(config_entry->generate, value)) ||
-                    (0 == value)) {
-                    slapi_ch_array_add(&types_to_generate,
-                                       slapi_ch_strdup(config_entry->types[0]));
+                if((config_entry->generate == NULL) || (0 == value) ||
+                   (value && !slapi_UTF8CASECMP(config_entry->generate, value))){
+                    slapi_ch_array_add(&types_to_generate, slapi_ch_strdup(config_entry->types[0]));
                 }
                 slapi_ch_free_string(&value);
             }
@@ -3060,13 +3053,15 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods)
 
                         /* If we have a value, see if it's the magic value. */
                         if (bv) {
-                            len = strlen(config_entry->generate);
-                            if (len == bv->bv_len) {
-                                if (!slapi_UTF8NCASECMP(bv->bv_val,
-                                                        config_entry->generate,
-                                                        len)) {
-                                    slapi_ch_array_add(&types_to_generate,
-                                                       slapi_ch_strdup(type));
+                            if(config_entry->generate == NULL){
+                                /* we don't have a magic number set, so apply the update */
+                                slapi_ch_array_add(&types_to_generate, slapi_ch_strdup(type));
+                            } else {
+                                len = strlen(config_entry->generate);
+                                if (len == bv->bv_len) {
+                                    if (!slapi_UTF8NCASECMP(bv->bv_val, config_entry->generate,len)){
+                                        slapi_ch_array_add(&types_to_generate, slapi_ch_strdup(type));
+                                    }
                                 }
                             }
                         } else if (!dna_is_multitype_range(config_entry)) {
