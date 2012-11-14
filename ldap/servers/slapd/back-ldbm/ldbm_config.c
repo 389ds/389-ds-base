@@ -187,6 +187,28 @@ static int ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *e
     return retval;
 }
 
+static void *ldbm_config_rangelookthroughlimit_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    return (void *) ((uintptr_t)(li->li_rangelookthroughlimit));
+}
+
+static int ldbm_config_rangelookthroughlimit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+
+    /* Do whatever we can to make sure the data is ok. */
+
+    if (apply) {
+        li->li_rangelookthroughlimit = val;
+    }
+
+    return retval;
+}
+
 static void *ldbm_config_mode_get(void *arg) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
@@ -1341,6 +1363,7 @@ static config_info ldbm_config[] = {
     {CONFIG_ENTRYRDN_NOANCESTORID, CONFIG_TYPE_ONOFF, "off", &ldbm_config_entryrdn_noancestorid_get, &ldbm_config_entryrdn_noancestorid_set, 0 /* no show */},
     {CONFIG_PAGEDLOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedlookthroughlimit_get, &ldbm_config_pagedlookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 

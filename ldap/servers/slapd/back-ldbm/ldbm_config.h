@@ -85,6 +85,7 @@ struct config_info {
 
 #define CONFIG_INSTANCE "nsslapd-instance"
 #define CONFIG_LOOKTHROUGHLIMIT "nsslapd-lookthroughlimit"
+#define CONFIG_RANGELOOKTHROUGHLIMIT "nsslapd-rangelookthroughlimit"
 #define CONFIG_PAGEDLOOKTHROUGHLIMIT "nsslapd-pagedlookthroughlimit"
 #define CONFIG_IDLISTSCANLIMIT "nsslapd-idlistscanlimit"
 #define CONFIG_PAGEDIDLISTSCANLIMIT "nsslapd-pagedidlistscanlimit"

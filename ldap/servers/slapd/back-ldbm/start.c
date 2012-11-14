@@ -116,6 +116,15 @@ ldbm_back_start( Slapi_PBlock *pb )
       return SLAPI_FAIL_GENERAL;
   }
 
+  /* lookthrough limit for the rangesearch */
+  if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
+            LDBM_RANGELOOKTHROUGHLIMIT_AT, &li->li_reslimit_rangelookthrough_handle )
+            != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
+      LDAPDebug( LDAP_DEBUG_ANY, "start: Resource limit registration failed for rangelookthroughlimit\n",
+            0, 0, 0 );
+      return SLAPI_FAIL_GENERAL;
+  }
+
   /* If the db directory hasn't been set yet, we need to set it to 
    * the default. */
   if (NULL == li->li_directory || '\0' == li->li_directory[0]) {
