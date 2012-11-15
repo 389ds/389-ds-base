@@ -2056,10 +2056,18 @@ typedef struct _slapdEntryPoints {
 /* flag used to indicate that the change to the config parameter should be saved */
 #define CONFIG_APPLY 1
 
-#define CFG_LOCK_READ(cfg)   slapi_rwlock_rdlock(cfg->cfg_rwlock)
-#define CFG_UNLOCK_READ(cfg) slapi_rwlock_unlock(cfg->cfg_rwlock)
+#define SLAPI_CFG_USE_RWLOCK 0
+#if SLAPI_CFG_USE_RWLOCK == 0
+#define CFG_LOCK_READ(cfg)    PR_Lock(cfg->cfg_lock)
+#define CFG_UNLOCK_READ(cfg)  PR_Unlock(cfg->cfg_lock)
+#define CFG_LOCK_WRITE(cfg)   PR_Lock(cfg->cfg_lock)
+#define CFG_UNLOCK_WRITE(cfg) PR_Unlock(cfg->cfg_lock)
+#else
+#define CFG_LOCK_READ(cfg)    slapi_rwlock_rdlock(cfg->cfg_rwlock)
+#define CFG_UNLOCK_READ(cfg)  slapi_rwlock_unlock(cfg->cfg_rwlock)
 #define CFG_LOCK_WRITE(cfg)   slapi_rwlock_wrlock(cfg->cfg_rwlock)
 #define CFG_UNLOCK_WRITE(cfg) slapi_rwlock_unlock(cfg->cfg_rwlock)
+#endif
 
 #define REFER_MODE_OFF 0 
 #define REFER_MODE_ON 1
@@ -2067,7 +2075,11 @@ typedef struct _slapdEntryPoints {
 #define MAX_ALLOWED_TIME_IN_SECS	2147483647
 
 typedef struct _slapdFrontendConfig {
+#if SLAPI_CFG_USE_RWLOCK == 1
   Slapi_RWLock     *cfg_rwlock;       /* read/write lock to serialize access */
+#else
+  PRLock           *cfg_lock;
+#endif
   struct pw_scheme *rootpwstoragescheme;
   int accesscontrol;
   int groupevalnestlevel;

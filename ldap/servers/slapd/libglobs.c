@@ -1238,14 +1238,20 @@ void
 FrontendConfig_init () {
   slapdFrontendConfig_t *cfg = getFrontendConfig();
 
+#if SLAPI_CFG_USE_RWLOCK == 1
   /* initialize the read/write configuration lock */
   if ( (cfg->cfg_rwlock = slapi_new_rwlock()) == NULL ) {
-	LDAPDebug ( LDAP_DEBUG_ANY, 
-				"FrontendConfig_init: failed to initialize cfg_rwlock. Exiting now.",
-				0,0,0 );
+	LDAPDebug ( LDAP_DEBUG_ANY, "FrontendConfig_init: "
+	  "failed to initialize cfg_rwlock. Exiting now.",0,0,0);
 	exit(-1);
   }
-				
+#else
+  if ((cfg->cfg_lock = PR_NewLock()) == NULL){
+	LDAPDebug(LDAP_DEBUG_ANY, "FrontendConfig_init: "
+	  "failed to initialize cfg_lock. Exiting now.",0,0,0);
+	exit(-1);
+  }
+#endif
   cfg->port = LDAP_PORT;
   cfg->secureport = LDAPS_PORT;
   cfg->ldapi_filename = slapi_ch_strdup(SLAPD_LDAPI_DEFAULT_FILENAME);
