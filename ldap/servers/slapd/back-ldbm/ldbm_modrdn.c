@@ -120,6 +120,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     char *newrdn = NULL;
     int opreturn = 0;
     int free_modrdn_existing_entry = 0;
+    int not_an_error = 0;
 
     /* sdn & parentsdn need to be initialized before "goto *_return" */
     slapi_sdn_init(&dn_newdn);
@@ -441,8 +442,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 /* Call the Backend Pre ModRDN plugins */
                 slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
                 rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN);
-                if(rc==-1)
-                {
+                if (rc) {
+                    if (SLAPI_PLUGIN_NOOP == rc) {
+                        not_an_error = 1;
+                        rc = LDAP_SUCCESS;
+                    }
                     /* 
                      * Plugin indicated some kind of failure,
                      * or that this Operation became a No-Op.
@@ -869,9 +873,14 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         } /* if (0 == retry_count) just once */
 
         /* call the transaction pre modrdn plugins just after creating the transaction */
-        if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN))) {
+        retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN);
+        if (retval) {
             LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN plugin "
                            "returned error code %d\n", retval );
+            if (SLAPI_PLUGIN_NOOP == retval) {
+                not_an_error = 1;
+                rc = retval = LDAP_SUCCESS;
+            }
             if (!ldap_result_code) {
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
             }
@@ -1267,7 +1276,9 @@ error_return:
             /* txn is no longer valid - reset the txn pointer to the parent */
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
         }
-        retval= SLAPI_FAIL_GENERAL;
+        if (!not_an_error) {
+            retval = SLAPI_FAIL_GENERAL;
+        }
     }
 
 common_return:
@@ -1314,6 +1325,11 @@ common_return:
 
     if (ldap_result_code!=-1)
     {
+		if (not_an_error) {
+			/* This is mainly used by urp.  Solved conflict is not an error.
+			 * And we don't want the supplier to halt sending the updates. */
+			ldap_result_code = LDAP_SUCCESS;
+		}
         slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn,
                     ldap_result_message, 0,NULL );
     }

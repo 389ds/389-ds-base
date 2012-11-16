@@ -97,6 +97,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	Slapi_DN parentsdn;
 	int opreturn = 0;
 	int free_delete_existing_entry = 0;
+	int not_an_error = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -300,8 +301,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 		
 				rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_DELETE_FN);
-				if (rc == -1)
+				if (rc)
 				{
+					if (SLAPI_PLUGIN_NOOP == rc) {
+						not_an_error = 1;
+					}
 					/* 
 					 * Plugin indicated some kind of failure,
 					 * or that this Operation became a No-Op.
@@ -569,6 +573,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			   instead, have them modify a copy of the entry */
 			retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
 			if (retval) {
+				if (SLAPI_PLUGIN_NOOP == retval) {
+					not_an_error = 1;
+				}
 				LDAPDebug1Arg( LDAP_DEBUG_TRACE,
 				               "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
 				               "returned error code %d\n", retval );
@@ -1223,8 +1230,12 @@ common_return:
 	}
 
 diskfull_return:
-    if(ldap_result_code!=-1)
-	{
+	if(ldap_result_code!=-1) {
+		if (not_an_error) {
+			/* This is mainly used by urp.  Solved conflict is not an error.
+			 * And we don't want the supplier to halt sending the updates. */
+			ldap_result_code = LDAP_SUCCESS;
+		}
 		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
 	modify_term(&parent_modify_c,be);

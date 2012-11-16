@@ -116,6 +116,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int is_ruv = 0;				 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	entry_address addr = {0};
+	int not_an_error = 0;
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
@@ -266,9 +267,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 		/* Call the Backend Pre Add plugins */
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 		rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN);
-		if(rc==-1)
-		{
+		if (rc) {
 			int opreturn = 0;
+			if (SLAPI_PLUGIN_NOOP == rc) {
+				not_an_error = 1;
+				rc = LDAP_SUCCESS;
+			}
 			/* 
 			 * Plugin indicated some kind of failure,
 			 * or that this Operation became a No-Op.
@@ -776,8 +780,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 		/* call the transaction pre add plugins just after the to-be-added entry
 		 * is prepared. */
-		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN))) {
+		retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN);
+		if (retval) {
 			int opreturn = 0;
+			if (SLAPI_PLUGIN_NOOP == retval) {
+				not_an_error = 1;
+				rc = retval = LDAP_SUCCESS;
+			}
 			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin "
 				       "returned error code %d\n", retval );
 			if (!ldap_result_code) {
@@ -1120,7 +1129,9 @@ diskfull_return:
 			/* txn is no longer valid - reset the txn pointer to the parent */
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 		}
-		rc= SLAPI_FAIL_GENERAL;
+		if (!not_an_error) {
+			rc = SLAPI_FAIL_GENERAL;
+		}
 	}
 	
 common_return:
@@ -1166,6 +1177,11 @@ common_return:
 	done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY);
 	if(ldap_result_code!=-1)
 	{
+		if (not_an_error) {
+			/* This is mainly used by urp.  Solved conflict is not an error.
+			 * And we don't want the supplier to halt sending the updates. */
+			ldap_result_code = LDAP_SUCCESS;
+		}
 		slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
 	}
 	backentry_free(&originalentry);

@@ -6327,6 +6327,16 @@ time_t slapi_current_time( void );
 #define SLAPI_PLUGIN_EXTENDED_NOT_HANDLED	-2
 
 /*
+ * Return values of plugins:
+ */
+#define SLAPI_PLUGIN_SUCCESS  0  /* 0 is treated as success implicitely */
+#define SLAPI_PLUGIN_FAILURE -1  /* common failure */
+#define SLAPI_PLUGIN_NOOP    -2  /* Special in be_pre_op/be_txn_pre_op.
+                                  * Treat as SUCCESS, but skip the backend op.
+                                  * Also, return SUCCESS to the client/supplier.
+                                  * Necessary for the replication conflicts. */
+
+/*
  * the following can be used as the second argument to the
  * slapi_pblock_get() and slapi_pblock_set() calls.
  */

@@ -59,7 +59,7 @@ int urp_post_modrdn_operation( Slapi_PBlock *pb );
 /* urp internal ops */
 int urp_fixup_add_entry (Slapi_Entry *e, const char *target_uniqueid, const char *parentuniqueid, CSN *opcsn, int opflags);
 int urp_fixup_delete_entry (const char *uniqueid, const char *dn, CSN *opcsn, int opflags);
-int urp_fixup_rename_entry (Slapi_Entry *entry, const char *newrdn, int opflags);
+int urp_fixup_rename_entry (const Slapi_Entry *entry, const char *newrdn, int opflags);
 int urp_fixup_modify_entry (const char *uniqueid, const Slapi_DN *sdn, CSN *opcsn, Slapi_Mods *smods, int opflags);
 
 int is_suffix_dn (Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parenddn);

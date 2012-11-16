@@ -53,10 +53,10 @@
 extern int slapi_log_urp;
 
 static int urp_add_resolve_parententry (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, Slapi_Entry *parententry, CSN *opcsn);
-static int urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, const char *optype);
+static int urp_annotate_dn (char *sessionid, const Slapi_Entry *entry, CSN *opcsn, const char *optype);
 static int urp_naming_conflict_removal (Slapi_PBlock *pb, char *sessionid, CSN *opcsn, const char *optype);
 static int mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn, const Slapi_DN *conflictsdn, CSN *opcsn);
-static int del_replconflict_attr (Slapi_Entry *entry, CSN *opcsn, int opflags);
+static int del_replconflict_attr (const Slapi_Entry *entry, CSN *opcsn, int opflags);
 static char *get_dn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
 static char *get_rdn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
 static int is_suffix_entry (Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_DN **parenddn);
@@ -69,19 +69,21 @@ urp_modify_operation( Slapi_PBlock *pb )
 {
 	Slapi_Entry *modifyentry= NULL;
 	int op_result= 0;
-    int rc= 0; /* OK */
+	int rc= 0; /* OK */
+	char sessionid[REPL_SESSION_ID_SIZE];
+	CSN *opcsn;
 
 	if ( slapi_op_abandoned(pb) )
 	{
 		return rc;
 	}
 
-   	slapi_pblock_get( pb, SLAPI_MODIFY_EXISTING_ENTRY, &modifyentry );
-
+	get_repl_session_id (pb, sessionid, &opcsn);
+	slapi_pblock_get( pb, SLAPI_MODIFY_EXISTING_ENTRY, &modifyentry );
 	if(modifyentry!=NULL)
 	{
-	    /*
-	     * The entry to be modified exists.
+		/*
+		 * The entry to be modified exists.
 		 * - the entry could be a tombstone... but that's OK.
 		 * - the entry could be glue... that may not be OK. JCMREPL
 		 */
@@ -90,12 +92,14 @@ urp_modify_operation( Slapi_PBlock *pb )
 	}
 	else
 	{
-	    /*
-	     * The entry to be modified could not be found.
-	     */ 
+		/*
+		 * The entry to be modified could not be found.
+		 */ 
 		op_result= LDAP_NO_SUCH_OBJECT;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-		rc= -1; /* Must discard this Modification */
+		rc = SLAPI_PLUGIN_NOOP; /* Must discard this Modification */
+		slapi_log_error (slapi_log_urp, sessionid,
+		                 "urp_modify: No such entry\n");
 		PROFILE_POINT; /* Modify Conflict; Entry Does Not Exist; Discard Modification */
 	}
 	return rc;
@@ -129,6 +133,7 @@ urp_add_operation( Slapi_PBlock *pb )
 		return rc;
 	}
 
+	get_repl_session_id (pb, sessionid, &opcsn);
 	slapi_pblock_get( pb, SLAPI_ADD_EXISTING_UNIQUEID_ENTRY, &existing_uniqueid_entry );
 	if (existing_uniqueid_entry!=NULL)
 	{
@@ -149,12 +154,11 @@ urp_add_operation( Slapi_PBlock *pb )
 		          slapi_entry_get_dn_const(existing_uniqueid_entry));
 		op_result= LDAP_UNWILLING_TO_PERFORM;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-		rc= -1; /* Ignore this Operation */
+		rc = SLAPI_PLUGIN_NOOP; /* Ignore this Operation */
 		PROFILE_POINT; /* Add Conflict; UniqueID Exists;  Ignore */
 		goto bailout;
 	}
 
-	get_repl_session_id (pb, sessionid, &opcsn);
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &addentry );
 	slapi_pblock_get( pb, SLAPI_ADD_EXISTING_DN_ENTRY, &existing_dn_entry );
 	if (existing_dn_entry==NULL) /* The target DN does not exist */
@@ -185,7 +189,10 @@ urp_add_operation( Slapi_PBlock *pb )
 		{
 			op_result= LDAP_OPERATIONS_ERROR;
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-			rc= -1; /* Abort this Operation */
+			rc = SLAPI_PLUGIN_NOOP; /* Abort this Operation */
+			slapi_log_error(slapi_log_urp, sessionid,
+			      "urp_add (%s): Add conflict; Unique ID (%s) already in RDN\n",
+			      basedn, adduniqueid);
 			PROFILE_POINT; /* Add Conflict; Entry Exists; Unique ID already in RDN - Abort this update. */
 		}
 		else
@@ -200,7 +207,8 @@ urp_add_operation( Slapi_PBlock *pb )
 			if (slapi_entry_attr_find (addentry, ATTR_NSDS5_REPLCONFLICT, &attr) == 0)
 			{
 				/* ATTR_NSDS5_REPLCONFLICT exists */
-				slapi_log_error (SLAPI_LOG_FATAL, sessionid, "New entry has nsds5ReplConflict already\n");
+				slapi_log_error(SLAPI_LOG_FATAL, sessionid,
+				          "urp_add: New entry has nsds5ReplConflict already\n");
 				vals = attr_get_present_values (attr); /* this returns a pointer to the contents */
 			}
 			if ( vals == NULL || *vals == NULL )
@@ -227,7 +235,8 @@ urp_add_operation( Slapi_PBlock *pb )
 
 			rdn = slapi_rdn_new_sdn ( slapi_entry_get_sdn_const(addentry) );
 			slapi_log_error (slapi_log_urp, sessionid,
-					"Naming conflict ADD. Add %s instead\n", slapi_rdn_get_rdn(rdn) );
+			                 "urp_add: Naming conflict ADD. Add %s instead\n",
+			                 slapi_rdn_get_rdn(rdn));
 			slapi_rdn_free(&rdn);
 
 			rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
@@ -241,7 +250,10 @@ urp_add_operation( Slapi_PBlock *pb )
 		{
 			op_result= LDAP_OPERATIONS_ERROR;
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-			rc= -1; /* Ignore this Operation */
+			slapi_log_error(slapi_log_urp, sessionid,
+			                "urp_add (%s): Entry to be added is a loser; "
+			                "urp_annotate_dn failed.\n", basedn);
+			rc = SLAPI_PLUGIN_NOOP; /* Ignore this Operation */
 		}
 		else
 		{
@@ -271,12 +283,12 @@ urp_add_operation( Slapi_PBlock *pb )
 		slapi_entry_get_dn_const(existing_dn_entry));
 		op_result= LDAP_UNWILLING_TO_PERFORM;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-		rc= -1; /* Ignore this Operation */
+		rc = SLAPI_PLUGIN_NOOP; /* Ignore this Operation */
 		PROFILE_POINT; /* Add Conflict; Entry Exists; Same CSN */
 	}
 
 bailout:
-    return rc;
+	return rc;
 }
 
 /*
@@ -289,11 +301,11 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 {
 	slapi_operation_parameters *op_params = NULL;
 	Slapi_Entry *parent_entry;
-    Slapi_Entry *new_parent_entry;
+	Slapi_Entry *new_parent_entry;
 	Slapi_DN *newsuperior = NULL;
 	Slapi_DN *parentdn = NULL;
-	Slapi_Entry *target_entry;
-    Slapi_Entry *existing_entry;
+	const Slapi_Entry *target_entry;
+	Slapi_Entry *existing_entry;
 	const CSN *target_entry_dncsn;
 	CSN *opcsn= NULL;
 	char *op_uniqueid = NULL;
@@ -304,7 +316,7 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 	char sessionid[REPL_SESSION_ID_SIZE];
 	int r;
 	int op_result= 0;
-    int rc= 0; /* OK */
+	int rc= 0; /* OK */
 	int del_old_replconflict_attr = 0;
 
 	if ( slapi_op_abandoned(pb) )
@@ -312,7 +324,7 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 		return rc;
 	}
 
-   	slapi_pblock_get (pb, SLAPI_MODRDN_TARGET_ENTRY, &target_entry);
+	slapi_pblock_get (pb, SLAPI_MODRDN_TARGET_ENTRY, &target_entry);
 	if(target_entry==NULL)
 	{
 		/* An entry can't be found for the Unique Identifier */
@@ -323,7 +335,7 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 		goto bailout;
 	}
 
-   	get_repl_session_id (pb, sessionid, &opcsn);
+	get_repl_session_id (pb, sessionid, &opcsn);
 	target_entry_dncsn = entry_get_dncsn (target_entry);
 	if ( csn_compare (target_entry_dncsn, opcsn) >= 0 )
 	{
@@ -343,7 +355,7 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 		           slapi_entry_get_dn_const(target_entry));
 		op_result= LDAP_UNWILLING_TO_PERFORM;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-		rc= -1; /* Ignore the modrdn */
+		rc = SLAPI_PLUGIN_NOOP; /* Ignore the modrdn */
 		PROFILE_POINT; /* ModRDN Conflict; Entry with Target DN Exists; OPCSN is not newer. */
 		goto bailout;
 	}
@@ -385,7 +397,10 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 		}
 		else
 		{
-			rc = -1;
+			slapi_log_error(slapi_log_urp, sessionid,
+			                "urp_modrdn (%s): target entry is a tombstone.\n",
+			                slapi_entry_get_dn_const(target_entry));
+			rc = SLAPI_PLUGIN_NOOP; /* Ignore the modrdn */
 		}
 		PROFILE_POINT; /* ModRDN Conflict; Entry with Target DN Exists; OPCSN is not newer. */
 		goto bailout;
@@ -426,12 +441,12 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 			 * but the uniqueids are not.
 			 * There might be two replicas with the same ReplicaID.
 			 */
-			slapi_log_error(SLAPI_LOG_FATAL, sessionid,
-				"Duplicated CSN for different uniqueids [%s][%s]",
+			slapi_log_error(slapi_log_urp, sessionid,
+				"urp_modrdn: Duplicated CSN for different uniqueids [%s][%s]",
 				existing_uniqueid, op_uniqueid);
 			op_result= LDAP_OPERATIONS_ERROR;
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-			rc= -1; /* Abort */
+			rc = SLAPI_PLUGIN_NOOP; /* Ignore this Operation */
 			PROFILE_POINT; /* ModRDN Conflict; Duplicated CSN for Different Entries */
 			goto bailout;
 		}
@@ -454,8 +469,8 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 			mod_namingconflict_attr (op_uniqueid, target_sdn, existing_sdn, opcsn);
 			slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, newrdn_with_uniqueid); 
 			slapi_log_error(slapi_log_urp, sessionid,
-					"Naming conflict MODRDN. Rename target entry to %s\n",
-					newrdn_with_uniqueid );
+			  "urp_modrdn: Naming conflict MODRDN. Rename target entry to %s\n",
+			  newrdn_with_uniqueid );
 
 			rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
 			PROFILE_POINT; /* ModRDN Conflict; Entry with Target DN Exists; Rename Operation Entry */
@@ -559,11 +574,11 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 			 * admin intercession
 			 */
 			slapi_log_error( SLAPI_LOG_FATAL, sessionid,
-				 "Parent %s couldn't be found, nor recreated as a glue entry\n",
+				 "urp_modrdn: Parent %s couldn't be found, nor recreated as a glue entry\n",
 				 slapi_sdn_get_dn(newsuperior) );
 			op_result= LDAP_OPERATIONS_ERROR;
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-			rc = -1;
+			rc = SLAPI_PLUGIN_FAILURE; /* Ignore this Operation */
 			PROFILE_POINT;
 			goto bailout;
 		}
@@ -590,24 +605,25 @@ bailout:
 int 
 urp_delete_operation( Slapi_PBlock *pb )
 {
-  	Slapi_Entry *deleteentry;
+	const Slapi_Entry *deleteentry;
 	CSN *opcsn= NULL;
 	char sessionid[REPL_SESSION_ID_SIZE];
 	int op_result= 0;
-    int rc= 0; /* OK */
+    int rc = SLAPI_PLUGIN_SUCCESS; /* OK */
 
 	if ( slapi_op_abandoned(pb) )
 	{
 		return rc;
 	}
 
-   	slapi_pblock_get(pb, SLAPI_DELETE_EXISTING_ENTRY, &deleteentry);
+	slapi_pblock_get(pb, SLAPI_DELETE_EXISTING_ENTRY, &deleteentry);
 
+	get_repl_session_id (pb, sessionid, &opcsn);
 	if(deleteentry==NULL) /* uniqueid can't be found */
 	{
 		op_result= LDAP_NO_SUCH_OBJECT;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-		rc= -1; /* Don't apply the Delete */
+		rc = SLAPI_PLUGIN_FAILURE; /* Don't apply the Delete */
 		PROFILE_POINT; /* Delete Operation; Entry not exist. */
 	}
 	else if(is_tombstone_entry(deleteentry))
@@ -615,7 +631,10 @@ urp_delete_operation( Slapi_PBlock *pb )
 		/* The entry is already a Tombstone, ignore this delete. */
 		op_result= LDAP_SUCCESS;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-		rc = -1; /* Don't apply the Delete */
+		rc = SLAPI_PLUGIN_NOOP; /* Don't apply the Delete */
+		slapi_log_error(slapi_log_urp, sessionid,
+		                "urp_delete: Entry \"%s\" is already a Tombstone.\n",
+		                slapi_entry_get_dn_const(deleteentry));
 		PROFILE_POINT; /* Delete Operation; Already a Tombstone. */
 	}
 	else /* The entry to be deleted exists and is not a tombstone */
@@ -627,7 +646,7 @@ urp_delete_operation( Slapi_PBlock *pb )
 		{
 			/* Remove possible conflict attributes */
 			del_replconflict_attr (deleteentry, opcsn, 0);
-			rc= 0; /* OK, to delete the entry */
+			rc = SLAPI_PLUGIN_SUCCESS; /* OK, to delete the entry */
 			PROFILE_POINT; /* Delete Operation; OK. */
 		}
 		else
@@ -638,8 +657,11 @@ urp_delete_operation( Slapi_PBlock *pb )
 			/* Turn the Delete into a No-Op */
 			op_result= LDAP_SUCCESS;
 			slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
-			rc = -1; /* Don't apply the Delete */
-		    PROFILE_POINT; /* Delete Operation; Entry has children. */
+			rc = SLAPI_PLUGIN_NOOP; /* Don't apply the Delete */
+			slapi_log_error(slapi_log_urp, sessionid,
+			 "urp_delete: Turn entry \"%s\" into a glue_absent_parent entry.\n",
+		     slapi_entry_get_dn_const(deleteentry));
+			PROFILE_POINT; /* Delete Operation; Entry has children. */
 		}
 	}
 	return rc;
@@ -785,7 +807,7 @@ urp_fixup_add_entry (Slapi_Entry *e, const char *target_uniqueid, const char *pa
 }
 
 int
-urp_fixup_rename_entry (Slapi_Entry *entry, const char *newrdn, int opflags)
+urp_fixup_rename_entry (const Slapi_Entry *entry, const char *newrdn, int opflags)
 {
 	Slapi_PBlock *newpb;
     Slapi_Operation *op;
@@ -996,7 +1018,7 @@ bailout:
  * a new entry (the operation entry) see urp_add_operation.
  */
 static int
-urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, const char *optype)
+urp_annotate_dn (char *sessionid, const Slapi_Entry *entry, CSN *opcsn, const char *optype)
 {
 	int rc = 0; /* Fail */
 	int op_result;
@@ -1179,7 +1201,7 @@ urp_naming_conflict_removal ( Slapi_PBlock *pb, char *sessionid, CSN *opcsn, con
 
 	/* Step 1: Restore the entry's original DN */
 
-	oldrdn = slapi_rdn_new_sdn ( slapi_entry_get_sdn (min_naming_conflict_entry) );
+	oldrdn = slapi_rdn_new_sdn(slapi_entry_get_sdn_const(min_naming_conflict_entry));
 	oldrdnstr = slapi_rdn_get_rdn ( oldrdn );
 
 	/* newrdnstr is the old rdn of the entry minus the nsuniqueid part */
@@ -1192,7 +1214,7 @@ urp_naming_conflict_removal ( Slapi_PBlock *pb, char *sessionid, CSN *opcsn, con
 	 * is done after DB lock was released. The backend modrdn
 	 * will acquire the DB lock if it sees this flag.
 	 */
-	op_result = urp_fixup_rename_entry (min_naming_conflict_entry, newrdnstr, OP_FLAG_ACTION_INVOKE_FOR_REPLOP);
+	op_result = urp_fixup_rename_entry((const Slapi_Entry *)min_naming_conflict_entry, newrdnstr, OP_FLAG_ACTION_INVOKE_FOR_REPLOP);
 	if ( op_result != LDAP_SUCCESS )
 	{
 	    slapi_log_error (slapi_log_urp, sessionid,
@@ -1215,7 +1237,7 @@ urp_naming_conflict_removal ( Slapi_PBlock *pb, char *sessionid, CSN *opcsn, con
 	}
 
 bailout:
-	slapi_entry_free (min_naming_conflict_entry);
+	slapi_entry_free(min_naming_conflict_entry);
 	slapi_rdn_free(&oldrdn);
 	slapi_rdn_free(&newrdn);
 	return op_result;
@@ -1347,7 +1369,7 @@ mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn,
 }
 
 static int
-del_replconflict_attr (Slapi_Entry *entry, CSN *opcsn, int opflags)
+del_replconflict_attr (const Slapi_Entry *entry, CSN *opcsn, int opflags)
 {
 	Slapi_Attr *attr;
 	int op_result = 0;
