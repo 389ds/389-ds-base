@@ -88,7 +88,6 @@ struct replica {
 	PRBool state_update_inprogress; /* replica state is being updated */
 	PRLock *agmt_lock;          /* protects agreement creation, start and stop */
 	char *locking_purl;			/* supplier who has exclusive access */
-	char *repl_cleanruv_data[CLEANRIDSIZ + 1];
 };
 
 
@@ -313,7 +312,6 @@ replica_destroy(void **arg)
 {
 	Replica *r;
 	void *repl_name;
-	int i;
 
 	if (arg == NULL)
 		return;
@@ -398,10 +396,6 @@ replica_destroy(void **arg)
 	if (NULL != r->min_csn_pl)
 	{
 		csnplFree(&r->min_csn_pl);;
-	}
-
-	for(i = 0;r->repl_cleanruv_data[i] != NULL; i++){
-		slapi_ch_free_string(&r->repl_cleanruv_data[i]);
 	}
 
 	slapi_ch_free((void **)arg);
@@ -1830,12 +1824,13 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
         PRThread *thread = NULL;
         struct berval *payload = NULL;
         CSN *maxcsn = NULL;
-        char *csnpart;
-        char *iter;
-        char csnstr[CSN_STRSIZE];
-        char *ridstr;
-        char *token = NULL;
         ReplicaId rid;
+        char csnstr[CSN_STRSIZE];
+        char *forcing = NULL;
+        char *token = NULL;
+        char *csnpart;
+        char *ridstr;
+        char *iter;
         int i;
 
         for(i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++){
@@ -1844,7 +1839,6 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
             /*
              *  Set the cleanruv data, and add the cleaned rid
              */
-            r->repl_cleanruv_data[i] = slapi_ch_strdup(clean_vals[i]);
             token = ldap_utf8strtok_r(clean_vals[i], ":", &iter);
             if(token){
                 rid = atoi(token);
@@ -1862,16 +1856,18 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
             maxcsn = csn_new();
             csn_init_by_string(maxcsn, csnpart);
             csn_as_string(maxcsn, PR_FALSE, csnstr);
-            add_cleaned_rid(rid, r, csnstr);
-            set_cleaned_rid(rid);
+            forcing = ldap_utf8strtok_r(iter, ":", &iter);
+            if(forcing == NULL){
+                forcing = "no";
+            }
 
             slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: cleanAllRUV task found, "
                 "resuming the cleaning of rid(%d)...\n", rid);
             /*
              *  Create payload
              */
-            ridstr = slapi_ch_smprintf("%d:%s:%s", rid, slapi_sdn_get_dn(replica_get_root(r)), csnstr);
-            payload = create_ruv_payload(ridstr);
+            ridstr = slapi_ch_smprintf("%d:%s:%s:%s", rid, slapi_sdn_get_dn(replica_get_root(r)), csnstr, forcing);
+            payload = create_cleanruv_payload(ridstr);
             slapi_ch_free_string(&ridstr);
 
             if(payload == NULL){
@@ -1894,8 +1890,10 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
                 data->rid = rid;
                 data->task = NULL;
                 data->maxcsn = maxcsn;
-                data->sdn = slapi_sdn_dup(r->repl_root);
                 data->payload = payload;
+                data->sdn = slapi_sdn_dup(r->repl_root);
+                data->force = slapi_ch_strdup(forcing);
+                data->repl_root = NULL;
 
                 thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread_ext,
                         (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
@@ -1906,12 +1904,12 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
                         "thread for rid(%d)\n", (int)data->rid);
                     csn_free(&maxcsn);
                     slapi_sdn_free(&data->sdn);
+                    slapi_ch_free_string(&data->force);
                     ber_bvfree(data->payload);
                     slapi_ch_free((void **)&data);
                 }
             }
         }
-        r->repl_cleanruv_data[i] = NULL;
 
 done:
         slapi_ch_array_free(clean_vals);
@@ -1921,13 +1919,12 @@ done:
     {
         PRThread *thread = NULL;
         struct berval *payload;
-        CSN *maxcsn = NULL;
-        char *iter;
-        char *ridstr = NULL;
-        char *repl_root;
-        char *token = NULL;
-        char *certify = NULL;
         ReplicaId rid;
+        char *certify = NULL;
+        char *ridstr = NULL;
+        char *token = NULL;
+        char *repl_root;
+        char *iter;
         int i;
 
         for(i = 0; clean_vals[i]; i++){
@@ -1938,23 +1935,27 @@ done:
                 rid = atoi(token);
                 if(rid <= 0 || rid >= READ_ONLY_REPLICA_ID){
                     slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: invalid replica id(%d) "
-                        "aborting task.\n", rid);
+                        "aborting abort task.\n", rid);
                     goto done2;
                 }
             } else {
                 slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: unable to parse cleanallruv "
-                    "data (%s), aborting task.\n",clean_vals[i]);
+                    "data (%s), aborting abort task.\n",clean_vals[i]);
                 goto done2;
             }
 
             repl_root = ldap_utf8strtok_r(iter, ":", &iter);
             certify = ldap_utf8strtok_r(iter, ":", &iter);
-            stop_ruv_cleaning();
-            maxcsn = replica_get_cleanruv_maxcsn(r, rid);
-            delete_cleaned_rid(r, rid, maxcsn);
-            set_aborted_rid(rid);
-            csn_free(&maxcsn);
 
+            if(!is_cleaned_rid(rid)){
+                slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: replica id(%d) is not "
+                    "being cleaned, nothing to abort.  Aborting abort task.\n", rid);
+                delete_aborted_rid(r, rid, repl_root, 0);
+                goto done2;
+            }
+
+            add_aborted_rid(rid, r, repl_root);
+            stop_ruv_cleaning();
             slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: abort task found, "
                 "resuming abort of rid(%d).\n", rid);
             /*
@@ -1964,8 +1965,8 @@ done:
             if (data == NULL) {
                 slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Abort CleanAllRUV Task: failed to allocate cleanruv_data.\n");
             } else {
-                ridstr = slapi_ch_smprintf("%d:%s", rid, repl_root);
-                payload = create_ruv_payload(ridstr);
+                ridstr = slapi_ch_smprintf("%d:%s:%s", rid, repl_root, certify);
+                payload = create_cleanruv_payload(ridstr);
                 slapi_ch_free_string(&ridstr);
 
                 if(payload == NULL){
@@ -3463,7 +3464,7 @@ replica_replace_ruv_tombstone(Replica *r)
 
     if (rc != LDAP_SUCCESS)
     {
-        if ((rc != LDAP_NO_SUCH_OBJECT) || !replica_is_state_flag_set(r, REPLICA_IN_USE))
+        if ((rc != LDAP_NO_SUCH_OBJECT && rc != LDAP_TYPE_OR_VALUE_EXISTS) || !replica_is_state_flag_set(r, REPLICA_IN_USE))
         {
             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_replace_ruv_tombstone: "
                 "failed to update replication update vector for replica %s: LDAP "
@@ -3826,70 +3827,4 @@ replica_get_attr ( Slapi_PBlock *pb, const char* type, void *value )
 	}
 
 	return rc;
-}
-
-void
-replica_add_cleanruv_data(Replica *r, char *val)
-{
-    int i;
-
-    PR_Lock(r->repl_lock);
-
-    for (i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i] != NULL; i++); /* goto the end of the list */
-    if( i < CLEANRIDSIZ){
-        r->repl_cleanruv_data[i] = slapi_ch_strdup(val); /* append to list */
-        r->repl_cleanruv_data[i + 1] = 0;
-    }
-
-    PR_Unlock(r->repl_lock);
-}
-
-void
-replica_remove_cleanruv_data(Replica *r, char *val)
-{
-    int i;
-
-    PR_Lock(r->repl_lock);
-
-    for(i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i] && strcmp(r->repl_cleanruv_data[i], val) != 0; i++);
-    if( i < CLEANRIDSIZ ){
-        slapi_ch_free_string(&r->repl_cleanruv_data[i]);
-        for(; i < CLEANRIDSIZ; i++){
-            /* rewrite entire array */
-            r->repl_cleanruv_data[i] = r->repl_cleanruv_data[i + 1];
-        }
-    }
-
-    PR_Unlock(r->repl_lock);
-}
-
-CSN *
-replica_get_cleanruv_maxcsn(Replica *r, ReplicaId rid)
-{
-    CSN *newcsn;
-    char *csnstr;
-    char *token;
-    char *iter;
-    int repl_rid = 0;
-    int i;
-
-    PR_Lock(r->repl_lock);
-
-    for(i = 0; i < CLEANRIDSIZ && r->repl_cleanruv_data[i]; i++){
-        token = ldap_utf8strtok_r(r->repl_cleanruv_data[i], ":", &iter);
-        if(token){
-            repl_rid = atoi(token);
-        }
-        csnstr = ldap_utf8strtok_r(iter, ":", &iter);
-        if(repl_rid == rid){
-            newcsn = csn_new();
-            csn_init_by_string(newcsn, csnstr);
-            PR_Unlock(r->repl_lock);
-            return newcsn;
-        }
-    }
-
-    PR_Unlock(r->repl_lock);
-
-    return NULL;
 }

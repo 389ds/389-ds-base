@@ -444,9 +444,9 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
 
     modify_init( mc, bentry );
 
-    if (modify_apply_mods( mc, smods )) {
-        LDAPDebug( LDAP_DEBUG_ANY, "Error: ldbm_txn_ruv_modify_context failed to apply updates to RUV entry\n",
-            0, 0, 0 );
+    if (modify_apply_mods_ignore_error( mc, smods, LDAP_TYPE_OR_VALUE_EXISTS )) {
+        LDAPDebug( LDAP_DEBUG_ANY, "Error: ldbm_txn_ruv_modify_context failed to apply updates to RUV entry(%s)\n",
+            backentry_get_ndn(mc->old_entry), 0 , 0 );
         rc = -1;
         modify_term( mc, be );
     }

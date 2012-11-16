@@ -97,8 +97,14 @@
 /* cleanallruv extended ops */
 #define REPL_CLEANRUV_OID "2.16.840.1.113730.3.6.5"
 #define REPL_ABORT_CLEANRUV_OID "2.16.840.1.113730.3.6.6"
-#define CLEANRUV_NOTIFIED 0
-#define CLEANRUV_RELEASED 1
+#define REPL_CLEANRUV_GET_MAXCSN_OID "2.16.840.1.113730.3.6.7"
+#define REPL_CLEANRUV_CHECK_STATUS_OID "2.16.840.1.113730.3.6.8"
+
+#define CLEANRUV_ACCEPTED "accepted"
+#define CLEANRUV_REJECTED "rejected"
+#define CLEANRUV_FINISHED "finished"
+#define CLEANRUV_CLEANING "cleaning"
+#define CLEANRUV_NO_MAXCSN "no maxcsn"
 
 /* DS 5.0 replication protocol error codes */
 #define NSDS50_REPL_REPLICA_READY 0x00 /* Replica ready, go ahead */
@@ -227,6 +233,9 @@ int multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb);
 int multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb);
 int multimaster_extop_cleanruv(Slapi_PBlock *pb);
 int multimaster_extop_abort_cleanruv(Slapi_PBlock *pb);
+int multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb);
+int multimaster_extop_cleanruv_check_status(Slapi_PBlock *pb);
+
 int extop_noop(Slapi_PBlock *pb);
 struct berval *NSDS50StartReplicationRequest_new(const char *protocol_oid,
 	const char *repl_root, char **extra_referrals, CSN *csn);
@@ -309,6 +318,7 @@ char *agmt_get_binddn(const Repl_Agmt *ra);
 struct berval *agmt_get_credentials(const Repl_Agmt *ra);
 int agmt_get_bindmethod(const Repl_Agmt *ra);
 Slapi_DN *agmt_get_replarea(const Repl_Agmt *ra);
+Slapi_DN *agmt_get_replarea_by_ref(const Repl_Agmt *ra);
 int agmt_is_fractional(const Repl_Agmt *ra);
 int agmt_is_fractional_attr(const Repl_Agmt *ra, const char *attrname);
 int agmt_is_fractional_attr_total(const Repl_Agmt *ra, const char *attrname);
@@ -357,9 +367,6 @@ void agmt_set_priv (Repl_Agmt *agmt, void* priv);
 int get_agmt_agreement_type ( Repl_Agmt *agmt);
 void* agmt_get_connection( Repl_Agmt *ra);
 int agmt_has_protocol(Repl_Agmt *agmt);
-void agmt_set_cleanruv_notified_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
-int agmt_set_cleanruv_data(Repl_Agmt *ra, ReplicaId rid, int op);
-int agmt_is_cleanruv_notified(Repl_Agmt *ra, ReplicaId rid);
 
 typedef struct replica Replica;
 
@@ -444,6 +451,7 @@ LDAP * conn_get_ldap(Repl_Connection *conn);
 void conn_lock(Repl_Connection *conn);
 void conn_unlock(Repl_Connection *conn);
 void conn_delete_internal_ext(Repl_Connection *conn);
+const char* conn_get_bindmethod(Repl_Connection *conn);
 
 /* In repl5_protocol.c */
 typedef struct repl_protocol Repl_Protocol;
@@ -598,7 +606,7 @@ int replica_config_init();
 void replica_config_destroy ();
 int get_replica_type(Replica *r);
 int replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid);
-void add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn);
+void add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn, char *forcing);
 int is_cleaned_rid(ReplicaId rid);
 int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                                int *returncode, char *returntext, void *arg);
@@ -606,18 +614,15 @@ void replica_cleanallruv_thread_ext(void *arg);
 void stop_ruv_cleaning();
 int task_aborted();
 void replica_abort_task_thread(void *arg);
-void delete_cleaned_rid(Replica *r, ReplicaId rid, CSN *maxcsn);
+void remove_cleaned_rid(ReplicaId rid);
 int process_repl_agmts(Replica *replica, int *agmt_info, char *oid, Slapi_Task *task, struct berval *payload, int op);
 int decode_cleanruv_payload(struct berval *extop_value, char **payload);
-struct berval *create_ruv_payload(char *value);
-void replica_add_cleanruv_data(Replica *r, char *val);
-void replica_remove_cleanruv_data(Replica *r, char *val);
-CSN *replica_get_cleanruv_maxcsn(Replica *r, ReplicaId rid);
+struct berval *create_cleanruv_payload(char *value);
 void ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids);
 void add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root);
 int is_task_aborted(ReplicaId rid);
 int is_pre_cleaned_rid(ReplicaId rid);
-void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root);
+void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root, int skip);
 void set_cleaned_rid(ReplicaId rid);
 void set_aborted_rid(ReplicaId rid);
 void cleanruv_log(Slapi_Task *task, char *task_type, char *fmt, ...);

@@ -246,7 +246,11 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             /* we don't allow delete attribute operations unless it was issued by
                the replication plugin - handled above */
             if (mods[i]->mod_op & LDAP_MOD_DELETE)
-            {                
+            {
+                if(strcasecmp (mods[i]->mod_type, type_nsds5ReplicaCleanRUVnotified) == 0){
+                    /* allow the deletion of cleanallruv agmt attr */
+                    continue;
+                }
                 slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "deletion of %s attribute is not allowed\n", type_nsds5ReplicaInitialize);	
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -485,12 +489,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                  strcasecmp (mods[i]->mod_type, "modifiersname") == 0 ||
                  strcasecmp (mods[i]->mod_type, "description") == 0)
         {
-            /* ignore modifier's name and timestamp attributes and the description. */
+            /* ignore last mod attrs, and the description. */
             continue;
-        }
-        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaCleanRUVnotified))
-        {
-            agmt_set_cleanruv_notified_from_entry(agmt, e);
         }
         else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
         {

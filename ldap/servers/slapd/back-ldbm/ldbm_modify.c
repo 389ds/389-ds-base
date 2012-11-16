@@ -71,6 +71,11 @@ void modify_init(modify_context *mc,struct backentry *old_entry)
 
 int modify_apply_mods(modify_context *mc, Slapi_Mods *smods)
 {
+	return modify_apply_mods_ignore_error(mc, smods, -1);
+}
+
+int modify_apply_mods_ignore_error(modify_context *mc, Slapi_Mods *smods, int error)
+{
 	int ret = 0;
 	/* Make a copy of the entry */
 	PR_ASSERT(mc->old_entry != NULL);
@@ -78,9 +83,10 @@ int modify_apply_mods(modify_context *mc, Slapi_Mods *smods)
 	mc->new_entry = backentry_dup(mc->old_entry);
 	PR_ASSERT(smods!=NULL);
 	if ( mods_have_effect (mc->new_entry->ep_entry, smods) ) {
-		ret = entry_apply_mods( mc->new_entry->ep_entry, slapi_mods_get_ldapmods_byref(smods));
+		ret = entry_apply_mods_ignore_error( mc->new_entry->ep_entry, slapi_mods_get_ldapmods_byref(smods), error);
 	}
 	mc->smods= smods;
+
 	return ret;
 }
 

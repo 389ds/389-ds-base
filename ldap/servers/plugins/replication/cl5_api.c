@@ -1466,13 +1466,13 @@ int cl5WriteOperation(const char *replName, const char *replGen,
 }
 
 /* Name:		cl5CreateReplayIterator
-   Description:	creates an iterator that allows to retireve changes that should
-				to be sent to the consumer identified by ruv. The iteration is peformed by 
+   Description:	creates an iterator that allows to retrieve changes that should
+				to be sent to the consumer identified by ruv. The iteration is performed by
                 repeated calls to cl5GetNextOperationToReplay.
    Parameters:  replica - replica whose data we wish to iterate;
 				ruv - consumer ruv;
 				iterator - iterator to be passed to cl5GetNextOperationToReplay call
-   Return:		CL5_SUCCESS, if function is successfull;
+   Return:		CL5_SUCCESS, if function is successful;
                 CL5_MISSING_DATA, if data that should be in the changelog is missing
                 CL5_PURGED_DATA, if some data that consumer needs has been purged.
                 Note that the iterator can be non null if the supplier contains
@@ -1480,7 +1480,7 @@ int cl5WriteOperation(const char *replName, const char *replGen,
                 CL5_NOTFOUND if the consumer is up to data with respect to the supplier
 				CL5_BAD_DATA if invalid parameter is passed;
 				CL5_BAD_STATE  if db has not been open;
-				CL5_DB_ERROR if any other db error occured;
+				CL5_DB_ERROR if any other db error occurred;
 				CL5_MEMORY_ERROR if memory allocation fails.
    Algorithm:   Build a list of csns from consumer's and supplier's ruv. For each element
                 of the consumer's ruv put max csn into the csn list. For each element
@@ -1495,7 +1495,7 @@ int cl5WriteOperation(const char *replName, const char *replGen,
                 we can bring the consumer up to date.
                 Position the db cursor on the change entry that corresponds to this csn.
                 Hash entries are created for each replica traversed so far. sendChanges
-                flag is set to FALSE for all repolicas except the last traversed.
+                flag is set to FALSE for all replicas except the last traversed.
                 
  */
 int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRuv, 
@@ -6532,6 +6532,8 @@ cl5CleanRUV(ReplicaId rid){
     CL5DBFile *file;
     Object *obj;
 
+    slapi_rwlock_wrlock (s_cl5Desc.stLock);
+
     obj = objset_first_obj(s_cl5Desc.dbFiles);
     while (obj){
         file = (CL5DBFile *)object_get_data(obj);
@@ -6539,6 +6541,11 @@ cl5CleanRUV(ReplicaId rid){
         ruv_delete_replica(file->maxRUV, rid);
         obj = objset_next_obj(s_cl5Desc.dbFiles, obj);
     }
+    if (obj) {
+        object_release (obj);
+    }
+
+    slapi_rwlock_unlock (s_cl5Desc.stLock);
 }
 
 void trigger_cl_trimming(ReplicaId rid){

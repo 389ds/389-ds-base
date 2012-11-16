@@ -263,7 +263,6 @@ conn_delete(Repl_Connection *conn)
 	}
 }
 
-
 /*
  * Return the last operation type processed by the connection
  * object, and the LDAP error encountered.
@@ -1758,6 +1757,12 @@ bind_method_to_mech(int bindmethod)
 	}
 
 	return LDAP_SASL_SIMPLE;
+}
+
+const char*
+conn_get_bindmethod(Repl_Connection *conn)
+{
+    return (bind_method_to_mech(conn->bindmethod));
 }
 
 /*
