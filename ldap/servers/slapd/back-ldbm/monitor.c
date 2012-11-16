@@ -196,6 +196,8 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         if (strncmp(mpfstat[i]->file_name, inst->inst_dir_name,
                     strlen(inst->inst_dir_name)) != 0)
             continue;
+        if (mpfstat[i]->file_name[strlen(inst->inst_dir_name)] != get_sep(mpfstat[i]->file_name))
+            continue;
 
 	/* Since the filenames are now relative, we need to construct an absolute version
 	 * for the purpose of stat() etc below...
