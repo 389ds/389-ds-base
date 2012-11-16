@@ -3738,6 +3738,7 @@ int slapi_attr_get_syntax_oid_copy( const Slapi_Attr *a, char **oidp );
  * \return \c 0 if the attribute does not use a DN syntax.
  */
 int slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr);
+int slapi_attr_is_dn_syntax_type(char *type);
 
 /**
  * Get the flags associated with a particular attribute.

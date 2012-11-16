@@ -608,7 +608,6 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 /* See if the type is defined to use
                  * the Distinguished Name syntax. */
                 char savechar;
-                Slapi_Attr test_attr;
 
                 /* We need typestart to be a string containing only
                  * the type.  We terminate the type and then reset
@@ -616,9 +615,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 savechar = *d;
                 *d = '\0'; 
 
-                slapi_attr_init(&test_attr, typestart);
-                is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
-                attr_done(&test_attr);
+                is_dn_syntax = slapi_attr_is_dn_syntax_type(typestart);
 
                 /* Reset the character we modified. */
                 *d = savechar;
@@ -629,7 +626,6 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 /* See if the type is defined to use
                  * the Distinguished Name syntax. */
                 char savechar;
-                Slapi_Attr test_attr;
 
                 /* We need typestart to be a string containing only
                  * the type.  We terminate the type and then reset
@@ -637,9 +633,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 savechar = *d;
                 *d = '\0';
 
-                slapi_attr_init(&test_attr, typestart);
-                is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
-                attr_done(&test_attr);
+                is_dn_syntax = slapi_attr_is_dn_syntax_type(typestart);
 
                 /* Reset the character we modified. */
                 *d = savechar;
@@ -650,7 +644,6 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 /* See if the type is defined to use
                  * the Distinguished Name syntax. */
                 char savechar;
-                Slapi_Attr test_attr;
 
                 /* We need typestart to be a string containing only
                  * the type.  We terminate the type and then reset
@@ -658,9 +651,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 savechar = *d;
                 *d = '\0';
 
-                slapi_attr_init(&test_attr, typestart);
-                is_dn_syntax = slapi_attr_is_dn_syntax_attr(&test_attr);
-                attr_done(&test_attr);
+                is_dn_syntax = slapi_attr_is_dn_syntax_type(typestart);
 
                 /* Reset the character we modified. */
                 *d = savechar;

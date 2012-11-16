@@ -812,6 +812,24 @@ slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr)
 	return dn_syntax;
 }
 
+int
+slapi_attr_is_dn_syntax_type(char *type)
+{
+	const char *syntaxoid = NULL;
+	int dn_syntax = 0; /* not DN, by default */
+	struct asyntaxinfo * asi;
+
+	asi = attr_syntax_get_by_name(type);
+
+	if (asi && asi->asi_plugin) { /* If not set, there is no way to get the info */
+		if (syntaxoid = asi->asi_plugin->plg_syntax_oid) {
+			dn_syntax = ((0 == strcmp(syntaxoid, NAMEANDOPTIONALUID_SYNTAX_OID))
+						 || (0 == strcmp(syntaxoid, DN_SYNTAX_OID)));
+		}
+	}
+	return dn_syntax;
+}
+
 #ifdef ATTR_LDAP_DEBUG
 
 PRIntn
