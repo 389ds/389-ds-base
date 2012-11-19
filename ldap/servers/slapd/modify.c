@@ -80,6 +80,7 @@ static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_un
 #endif
 static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods);
 static int hash_rootpw (LDAPMod **mods);
+static int valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***cvals);
 
 #ifdef LDAP_DEBUG
 static const char*
@@ -836,19 +837,137 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			if (strcasecmp (pw_mod->mod_type, SLAPI_USERPWD_ATTR) != 0)
 				continue;
 
-			if (LDAP_MOD_DELETE == pw_mod->mod_op) {
+			if (SLAPI_IS_MOD_DELETE(pw_mod->mod_op)) {
 				Slapi_Attr *a = NULL;
-				/* delete pseudo password attribute if it exists in the entry */
-				if (!slapi_entry_attr_find(e, unhashed_pw_attr, &a)) {
-					slapi_mods_add_mod_values(&smods, pw_mod->mod_op,
-					                          unhashed_pw_attr, va);
+				struct pw_scheme *pwsp = NULL;
+				int remove_unhashed_pw = 1;
+				char *password = NULL;
+				char *valpwd = NULL;
+
+				/* if there are mod values, we need to delete a specific userpassword */
+				for ( i = 0; pw_mod->mod_bvalues != NULL && pw_mod->mod_bvalues[i] != NULL; i++ ) {
+					password = slapi_ch_strdup(pw_mod->mod_bvalues[i]->bv_val);
+					pwsp = pw_val2scheme( password, &valpwd, 1 );
+					if(strcmp(pwsp->pws_name, "CLEAR") == 0){
+						/*
+						 *  CLEAR password
+						 *
+						 *  Ok, so now we to check the entry's userpassword values.
+						 *  First, find out the password encoding of the entry's pw.
+						 *  Then compare our clear text password to the encoded userpassword
+						 *  using the proper scheme.  If we have a match, we know which
+						 *  userpassword value to delete.
+						 */
+						Slapi_Attr *pw = NULL;
+						struct berval bval, *bv[2];
+
+						if(slapi_entry_attr_find(e, SLAPI_USERPWD_ATTR, &pw) == 0 && pw){
+							struct pw_scheme *pass_scheme = NULL;
+							Slapi_Value **present_values = NULL;
+							char *pval = NULL;
+							int ii;
+
+							present_values = attr_get_present_values(pw);
+							for(ii = 0; present_values && present_values[ii]; ii++){
+								const char *userpwd = slapi_value_get_string(present_values[ii]);
+
+								pass_scheme = pw_val2scheme( (char *)userpwd, &pval, 1 );
+								if(strcmp(pass_scheme->pws_name,"CLEAR")){
+									/* its encoded, so compare it */
+									if((*(pass_scheme->pws_cmp))( valpwd, pval ) == 0 ){
+									    /*
+									     *  Match, replace the mod value with the encoded password
+									     */
+									    slapi_ch_free_string(&pw_mod->mod_bvalues[i]->bv_val);
+									    pw_mod->mod_bvalues[i]->bv_val = strdup(userpwd);
+									    pw_mod->mod_bvalues[i]->bv_len = strlen(userpwd);
+									    free_pw_scheme( pass_scheme );
+									    break;
+									}
+								} else {
+									/* userpassword is already clear text, nothing to do */
+									free_pw_scheme( pass_scheme );
+									break;
+								}
+								free_pw_scheme( pass_scheme );
+							}
+						}
+						/*
+						 *  Finally, delete the unhashed userpassword
+						 *  (this will update the password entry extension)
+						 */
+						bval.bv_val = password;
+						bval.bv_len = strlen(password);
+						bv[0] = &bval;
+						bv[1] = NULL;
+						valuearray_init_bervalarray(bv, &va);
+						slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
+						valuearray_free(&va);
+					} else {
+						/*
+						 *  Password is encoded, try and find a matching unhashed_password to delete
+						 */
+						Slapi_Value **vals;
+
+						/*
+						 *  Grab the current unhashed passwords from the password entry extension,
+						 *  as the "attribute" is no longer present in the entry.
+						 */
+						if(slapi_pw_get_entry_ext(e, &vals) == LDAP_SUCCESS){
+							int ii;
+
+							for(ii = 0; vals && vals[ii]; ii++){
+								const char *unhashed_pwd = slapi_value_get_string(vals[ii]);
+								struct pw_scheme *unhashed_pwsp = NULL;
+								struct berval bval, *bv[2];
+
+								/* prepare the value to delete from the list of unhashed userpasswords */
+								bval.bv_val = (char *)unhashed_pwd;
+								bval.bv_len = strlen(unhashed_pwd);
+								bv[0] = &bval;
+								bv[1] = NULL;
+								/*
+								 *  Compare the clear text unhashed password, to the encoded password
+								 *  provided by the client.
+								 */
+								unhashed_pwsp = pw_val2scheme( (char *)unhashed_pwd, NULL, 1 );
+								if(strcmp(unhashed_pwsp->pws_name, "CLEAR") == 0){
+									if((*(pwsp->pws_cmp))((char *)unhashed_pwd , valpwd) == 0 ){
+										/* match, add the delete mod for this particular unhashed userpassword */
+										valuearray_init_bervalarray(bv, &va);
+										slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
+										valuearray_free(&va);
+										free_pw_scheme( unhashed_pwsp );
+										break;
+									}
+								} else {
+									/*
+									 *  We have a hashed unhashed_userpassword!  We must delete it.
+									 */
+									valuearray_init_bervalarray(bv, &va);
+									slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
+									valuearray_free(&va);
+								}
+								free_pw_scheme( unhashed_pwsp );
+							}
+						} else {
+
+						}
+					}
+					remove_unhashed_pw = 0; /* mark that we already removed the unhashed userpassword */
+					slapi_ch_free_string(&password);
+					free_pw_scheme( pwsp );
+				}
+				if (remove_unhashed_pw && !slapi_entry_attr_find(e, unhashed_pw_attr, &a)){
+					slapi_mods_add_mod_values(&smods, pw_mod->mod_op,unhashed_pw_attr, va);
 				}
 			} else {
 				/* add pseudo password attribute */
-				valuearray_init_bervalarray(pw_mod->mod_bvalues, &va);
-				slapi_mods_add_mod_values(&smods, pw_mod->mod_op,
-				                          unhashed_pw_attr, va);
-				valuearray_free(&va);
+				valuearray_init_bervalarray_unhashed_only(pw_mod->mod_bvalues, &va);
+				if(va){
+					slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
+					valuearray_free(&va);
+				}
 			}
 
 			/* Init new value array for hashed value */
@@ -859,6 +978,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 
 			/* remove current clear value of userpassword */
 			ber_bvecfree(pw_mod->mod_bvalues);
+
 			/* add the cipher in the structure */
 			valuearray_get_bervalarray(va, &pw_mod->mod_bvalues);
 
@@ -1018,6 +1138,38 @@ free_and_return:
 	if (!passin_sdn) {
 		slapi_sdn_free(&sdn);
 	}
+}
+
+/*
+ *  Only add password mods that are in clear text.  The console likes to send two mods:
+ *    - Already encoded password
+ *    - Clear text password
+ *
+ *  We don't want to add the encoded value to the unhashed_userpassword attr
+ */
+static int
+valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***cvals)
+{
+	int n;
+
+	for(n=0; bvals != NULL && bvals[n] != NULL; n++);
+	if(n==0){
+		*cvals = NULL;
+	} else {
+		struct pw_scheme *pwsp = NULL;
+		int i,p;
+
+		*cvals = (Slapi_Value **) slapi_ch_malloc((n + 1) * sizeof(Slapi_Value *));
+		for(i=0,p=0;i<n;i++){
+			pwsp = pw_val2scheme( bvals[i]->bv_val, NULL, 1 );
+			if(strcmp(pwsp->pws_name, "CLEAR") == 0){
+				(*cvals)[p++] = slapi_value_new_berval(bvals[i]);
+			}
+			free_pw_scheme( pwsp );
+		}
+		(*cvals)[p] = NULL;
+	}
+	return n;
 }
 
 #if 0 /* not used */
