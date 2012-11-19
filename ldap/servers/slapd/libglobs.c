@@ -220,6 +220,7 @@ int init_pw_change;
 int init_pw_exp;
 int init_pw_syntax;
 int init_schemacheck;
+int init_schemamod;
 int init_ds4_compatible_schema;
 int init_schema_ignore_trailing_spaces;
 int init_enquote_sup_oc;
@@ -506,6 +507,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.schemacheck,
 		CONFIG_ON_OFF, NULL, &init_schemacheck},
+	{CONFIG_SCHEMAMOD_ATTRIBUTE, config_set_schemamod,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.schemamod, 
+		CONFIG_ON_OFF, NULL, &init_schemamod},
 	{CONFIG_SYNTAXCHECK_ATTRIBUTE, config_set_syntaxcheck,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.syntaxcheck,
@@ -1315,6 +1320,7 @@ FrontendConfig_init () {
   cfg->timelimit = SLAPD_DEFAULT_TIMELIMIT;
   cfg->anon_limits_dn = slapi_ch_strdup("");
   init_schemacheck = cfg->schemacheck = LDAP_ON;
+  init_schemamod = cfg->schemamod = LDAP_ON;
   init_syntaxcheck = cfg->syntaxcheck = LDAP_OFF;
   init_plugin_track = cfg->plugin_track = LDAP_OFF;
   init_syntaxlogging = cfg->syntaxlogging = LDAP_OFF;
@@ -3115,6 +3121,20 @@ config_set_schemacheck( const char *attrname, char *value, char *errorbuf, int a
 }
 
 int
+config_set_schemamod( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+							  value, 
+							  &(slapdFrontendConfig->schemamod),
+							  errorbuf,
+							  apply);
+  
+  return retVal;
+}
+
+int
 config_set_syntaxcheck( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4829,6 +4849,18 @@ config_get_schemacheck() {
   
   CFG_LOCK_READ(slapdFrontendConfig);
   retVal = slapdFrontendConfig->schemacheck;
+  CFG_UNLOCK_READ(slapdFrontendConfig);
+  
+  return retVal;
+}
+
+int
+config_get_schemamod() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+  
+  CFG_LOCK_READ(slapdFrontendConfig);
+  retVal = slapdFrontendConfig->schemamod;
   CFG_UNLOCK_READ(slapdFrontendConfig);
   
   return retVal;

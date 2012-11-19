@@ -1648,8 +1648,17 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
   LDAPMod **mods = NULL;
   int num_mods = 0; /* count the number of mods */
   int schema_ds4x_compat = config_get_ds4_compatible_schema();
+  int schema_modify_enabled = config_get_schemamod();
   int reapply_mods = 0;
   int is_replicated_operation = 0;
+
+  if (!schema_modify_enabled) {
+	*returncode = LDAP_UNWILLING_TO_PERFORM;
+	schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+				schema_errprefix_generic, "Generic", 
+				"schema update is disabled" );
+	return (SLAPI_DSE_CALLBACK_ERROR);
+  }
 
   slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
   slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);

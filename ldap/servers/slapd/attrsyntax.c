@@ -67,11 +67,12 @@ static PLHashTable *internalasi = NULL;
 static PLHashTable *name2asi = NULL;
 /* read/write lock to protect table */
 static Slapi_RWLock *name2asi_lock = NULL;
+static int asi_locking = 1;
 
-#define AS_LOCK_READ(l)		slapi_rwlock_rdlock(l)
-#define AS_LOCK_WRITE(l)	slapi_rwlock_wrlock(l)
-#define AS_UNLOCK_READ(l)	slapi_rwlock_unlock(l)
-#define AS_UNLOCK_WRITE(l)	slapi_rwlock_unlock(l)
+#define AS_LOCK_READ(l)		if (asi_locking) { slapi_rwlock_rdlock(l); }
+#define AS_LOCK_WRITE(l)	if (asi_locking) { slapi_rwlock_wrlock(l); }
+#define AS_UNLOCK_READ(l)	if (asi_locking) { slapi_rwlock_unlock(l); }
+#define AS_UNLOCK_WRITE(l)	if (asi_locking) { slapi_rwlock_unlock(l); }
 
 
 
@@ -1043,12 +1044,15 @@ attr_syntax_delete_all()
 static int
 attr_syntax_init(void)
 {
+	int schema_modify_enabled = config_get_schemamod();
+	if (!schema_modify_enabled) asi_locking = 0;
+
 	if (!oid2asi)
 	{
 		oid2asi = PL_NewHashTable(2047, hashNocaseString,
 								  hashNocaseCompare,
 								  PL_CompareValues, 0, 0);
-		if ( NULL == ( oid2asi_lock = slapi_new_rwlock())) {
+		if ( asi_locking && NULL == ( oid2asi_lock = slapi_new_rwlock())) {
 			if(oid2asi) PL_HashTableDestroy(oid2asi);
 			oid2asi = NULL;
 
@@ -1063,7 +1067,7 @@ attr_syntax_init(void)
 		name2asi = PL_NewHashTable(2047, hashNocaseString,
 								   hashNocaseCompare,
 								   PL_CompareValues, 0, 0);
-		if ( NULL == ( name2asi_lock = slapi_new_rwlock())) {
+		if ( asi_locking && NULL == ( name2asi_lock = slapi_new_rwlock())) {
 			if(name2asi) PL_HashTableDestroy(name2asi);
 			name2asi = NULL;
 

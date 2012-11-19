@@ -1872,6 +1872,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_OBJECTCLASS_ATTRIBUTE    "nsslapd-objectclass"
 #define CONFIG_ATTRIBUTE_ATTRIBUTE      "nsslapd-attribute"
 #define CONFIG_SCHEMACHECK_ATTRIBUTE    "nsslapd-schemacheck"
+#define CONFIG_SCHEMAMOD_ATTRIBUTE      "nsslapd-schemamod"
 #define CONFIG_SYNTAXCHECK_ATTRIBUTE	"nsslapd-syntaxcheck"
 #define CONFIG_SYNTAXLOGGING_ATTRIBUTE	"nsslapd-syntaxlogging"
 #define CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE     "nsslapd-dn-validate-strict"
@@ -2097,6 +2098,7 @@ typedef struct _slapdFrontendConfig {
   int readonly;
   int reservedescriptors;
   int schemacheck;
+  int schemamod;
   int syntaxcheck;
   int syntaxlogging;
   int dn_validate_strict;
