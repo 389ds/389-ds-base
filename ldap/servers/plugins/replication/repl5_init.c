@@ -123,7 +123,7 @@ static char *cleanruv_oid_list[] = {
 		NULL
 };
 static char *cleanruv_name_list[] = {
-		NSDS_REPL_NAME_PREFIX " Cleanruv",
+		NSDS_REPL_NAME_PREFIX " CleanAllRUV",
 		NULL
 };
 static char *cleanruv_abort_oid_list[] = {
@@ -131,9 +131,26 @@ static char *cleanruv_abort_oid_list[] = {
 		NULL
 };
 static char *cleanruv_abort_name_list[] = {
-		NSDS_REPL_NAME_PREFIX " Cleanruv Abort",
+		NSDS_REPL_NAME_PREFIX " CleanAllRUV Abort",
 		NULL
 };
+static char *cleanruv_maxcsn_oid_list[] = {
+               REPL_CLEANRUV_GET_MAXCSN_OID,
+               NULL
+};
+static char *cleanruv_maxcsn_name_list[] = {
+               NSDS_REPL_NAME_PREFIX " CleanAllRUV Retrieve MaxCSN",
+               NULL
+};
+static char *cleanruv_status_oid_list[] = {
+               REPL_CLEANRUV_CHECK_STATUS_OID,
+               NULL
+};
+static char *cleanruv_status_name_list[] = {
+               NSDS_REPL_NAME_PREFIX " CleanAllRUV Check Status",
+               NULL
+};
+
 
 /* List of plugin identities for every plugin registered. Plugin identity
    is passed by the server in the plugin init function and must be supplied 
@@ -401,6 +418,52 @@ multimaster_end_extop_init( Slapi_PBlock *pb )
 	}
 
     return rc;
+}
+
+int
+multimaster_cleanruv_maxcsn_extop_init( Slapi_PBlock *pb )
+{
+	int rc= 0; /* OK */
+	void *identity = NULL;
+
+	/* get plugin identity and store it to pass to internal operations */
+	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &identity);
+	PR_ASSERT (identity);
+
+	if (slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterextopdesc ) != 0 ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, (void *)cleanruv_maxcsn_oid_list ) != 0  ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_maxcsn_name_list ) != 0  ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_cleanruv_get_maxcsn ))
+	{
+		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_extop_init failed\n" );
+		rc= -1;
+	}
+
+	return rc;
+}
+
+int
+multimaster_cleanruv_status_extop_init( Slapi_PBlock *pb )
+{
+	int rc= 0; /* OK */
+	void *identity = NULL;
+
+	/* get plugin identity and store it to pass to internal operations */
+	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &identity);
+	PR_ASSERT (identity);
+
+	if (slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterextopdesc ) != 0 ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, (void *)cleanruv_status_oid_list ) != 0  ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_status_name_list ) != 0  ||
+			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_cleanruv_check_status ))
+	{
+		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_extop_init failed\n" );
+		rc= -1;
+	}
+
+	return rc;
 }
 
 
@@ -679,6 +742,8 @@ int replication_multimaster_plugin_init(Slapi_PBlock *pb)
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_response_extop_init", multimaster_response_extop_init, "Multimaster replication extended response plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_cleanruv_extop_init", multimaster_cleanruv_extop_init, "Multimaster replication cleanruv extended operation plugin", NULL, identity);
 		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_cleanruv_abort_extop_init", multimaster_cleanruv_abort_extop_init, "Multimaster replication cleanruv abort extended operation plugin", NULL, identity);
+		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_cleanruv_maxcsn_extop_init", multimaster_cleanruv_maxcsn_extop_init, "Multimaster replication cleanruv maxcsn extended operation plugin", NULL, identity);
+		rc= slapi_register_plugin("extendedop", 1 /* Enabled */, "multimaster_cleanruv_status_extop_init", multimaster_cleanruv_status_extop_init, "Multimaster replication cleanruv status extended operation plugin", NULL, identity);
 		if (0 == rc)
 		{
 			multimaster_initialised = 1;

@@ -1760,6 +1760,12 @@ bind_method_to_mech(int bindmethod)
 	return LDAP_SASL_SIMPLE;
 }
 
+const char*
+conn_get_bindmethod(Repl_Connection *conn)
+{
+    return (bind_method_to_mech(conn->bindmethod));
+}
+
 /*
  * Check the result of an ldap BIND operation to see we it
  * contains the expiration controls
