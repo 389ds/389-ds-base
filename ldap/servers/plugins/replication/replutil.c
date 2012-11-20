@@ -765,33 +765,32 @@ repl_set_mtn_state_and_referrals(
 			ldap_free_urldesc(lud);
 	}
 
-        if (!referrals_to_set) { /* deleting referrals */
-            /* Set state before */
-			if (!chain_on_update) {
-				slapi_mtn_set_state(repl_root_sdn, (char *)mtn_state);
+	if (!referrals_to_set) { /* deleting referrals */
+		/* Set state before */
+		if (!chain_on_update) {
+			slapi_mtn_set_state(repl_root_sdn, (char *)mtn_state);
+		}
+		/* We should delete referral only if we want to set the
+		   replica database in backend state mode */
+		/* if chain on update mode, go ahead and set the referrals anyway */
+		if (strcasecmp(mtn_state, STATE_BACKEND) == 0 || chain_on_update) {
+			rc = slapi_mtn_set_referral(repl_root_sdn, referrals_to_set);
+			if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
+				/* we will get no such attribute (16) if we try to set the referrals to NULL if
+				   there are no referrals - not an error */
+				rc = LDAP_SUCCESS;
 			}
-            /* We should delete referral only if we want to set the 
-               replica database in backend state mode */
-			/* if chain on update mode, go ahead and set the referrals anyway */
-            if (strcasecmp(mtn_state, STATE_BACKEND) == 0 || chain_on_update) {
-                rc = slapi_mtn_set_referral(repl_root_sdn, referrals_to_set);
-                if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
-                    /* we will get no such attribute (16) if we try to set the referrals to NULL if
-                       there are no referrals - not an error */
-                    rc = LDAP_SUCCESS;
-                }
-            }
-        } else { /* Replacing */
-            rc = slapi_mtn_set_referral(repl_root_sdn, referrals_to_set);
-            if (rc == LDAP_SUCCESS && !chain_on_update){
-                slapi_mtn_set_state(repl_root_sdn, (char *)mtn_state);
-            }
-        }
+		}
+	} else { /* Replacing */
+		rc = slapi_mtn_set_referral(repl_root_sdn, referrals_to_set);
+		if (rc == LDAP_SUCCESS && !chain_on_update){
+			slapi_mtn_set_state(repl_root_sdn, (char *)mtn_state);
+		}
+	}
 
-        if (rc != LDAP_SUCCESS && rc != LDAP_TYPE_OR_VALUE_EXISTS) {
+	if (rc != LDAP_SUCCESS && rc != LDAP_TYPE_OR_VALUE_EXISTS) {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "repl_set_mtn_referrals: could "
-						"not set referrals for replica %s: %d\n",
-						slapi_sdn_get_dn(repl_root_sdn), rc);
+			"not set referrals for replica %s: %d\n", slapi_sdn_get_dn(repl_root_sdn), rc);
 	}
 
 	charray_free(referrals_to_set);

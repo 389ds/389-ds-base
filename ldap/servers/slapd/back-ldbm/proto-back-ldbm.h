@@ -347,6 +347,7 @@ void modify_init(modify_context *mc,struct backentry *old_entry);
 int modify_apply_mods(modify_context *mc, Slapi_Mods *smods);
 int modify_term(modify_context *mc,backend *be);
 int modify_switch_entries(modify_context *mc,backend *be);
+int modify_apply_mods_ignore_error(modify_context *mc, Slapi_Mods *smods, int error);
 
 /*
  * add.c
