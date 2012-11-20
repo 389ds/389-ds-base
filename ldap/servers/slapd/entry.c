@@ -3286,6 +3286,12 @@ int slapi_entry_apply_mod( Slapi_Entry *e, LDAPMod *mod )
 int
 entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 {
+	return entry_apply_mods_ignore_error(e, mods, -1);
+}
+
+int
+entry_apply_mods_ignore_error( Slapi_Entry *e, LDAPMod **mods, int ignore_error )
+{
 	int	err;
 	LDAPMod **mp = NULL;
 
@@ -3295,7 +3301,9 @@ entry_apply_mods( Slapi_Entry *e, LDAPMod **mods )
 	for ( mp = mods; mp && *mp; mp++ )
 	{
 		err = entry_apply_mod( e, *mp );
-		if ( err != LDAP_SUCCESS ) {
+		if(err == ignore_error){
+			(*mp)->mod_op = LDAP_MOD_IGNORE;
+		} else if ( err != LDAP_SUCCESS ) {
 			break;
 		}
 	}
