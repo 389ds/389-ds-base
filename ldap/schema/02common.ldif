@@ -148,7 +148,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.1100 NAME 'oneWaySync' DESC 'Netscape de
 attributeTypes: ( 2.16.840.1.113730.3.1.2139 NAME 'winSyncMoveAction' DESC 'Netscape defined attribute type'  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 1.3.6.1.1.4 NAME 'vendorName' EQUALITY 1.3.6.1.4.1.1466.109.114.1 SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE dSAOperation X-ORIGIN 'RFC 3045' )
 attributeTypes: ( 1.3.6.1.1.5 NAME 'vendorVersion' EQUALITY 1.3.6.1.4.1.1466.109.114.1 SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE dSAOperation X-ORIGIN 'RFC 3045' )
-attributeTypes: ( 2.16.840.1.113730.3.1.3023 NAME 'nsViewFilter' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.3023 NAME 'nsViewFilter' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2063 NAME 'nsEncryptionAlgorithm' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2093 NAME 'nsslapd-changelogsuffix' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2094 NAME 'nsslapd-parent-suffix' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape' )
