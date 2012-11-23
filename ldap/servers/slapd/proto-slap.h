@@ -654,6 +654,7 @@ struct dse *dse_new( char *filename, char *tmpfilename, char *backfilename, char
 struct dse *dse_new_with_filelist(char *filename, char *tmpfilename, char *backfilename, char *startokfilename, const char *configdir, char **filelist);
 int dse_deletedse(Slapi_PBlock *pb);
 int dse_destroy(struct dse *pdse);
+int dse_check_file(char *filename, char *backupname);
 int dse_read_file(struct dse *pdse, Slapi_PBlock *pb);
 int dse_bind( Slapi_PBlock *pb );
 int dse_unbind( Slapi_PBlock *pb );
