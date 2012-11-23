@@ -165,6 +165,7 @@ slapd_bootstrap_config(const char *configdir)
 	char *buf = 0;
 	char *lastp = 0;
 	char *entrystr = 0;
+	char tmpfile[MAXPATHLEN+1];
 
 	if (NULL == configdir) {
 		slapi_log_error(SLAPI_LOG_FATAL,
@@ -173,33 +174,14 @@ slapd_bootstrap_config(const char *configdir)
 	}
 	PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir,
 				CONFIG_FILENAME);
-	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
-	{
-		/* the "real" file does not exist; see if there is a tmpfile */
-		char tmpfile[MAXPATHLEN+1];
-		slapi_log_error(SLAPI_LOG_FATAL, "config",
-					"The configuration file %s does not exist\n", configfile);
-		PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.tmp", configdir,
+	PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.tmp", configdir,
 					CONFIG_FILENAME);
-		if ( PR_GetFileInfo( tmpfile, &prfinfo ) == PR_SUCCESS ) {
-			rc = PR_Rename(tmpfile, configfile);
-			if (rc == PR_SUCCESS) {
-				slapi_log_error(SLAPI_LOG_FATAL, "config",
-								"The configuration file %s was restored from backup %s\n",
-								configfile, tmpfile);
-			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, "config",
-								"The configuration file %s was not restored from backup %s, error %d\n",
-								configfile, tmpfile, rc);
-				return rc; /* Fail */
-			}
-		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, "config",
-				"The backup configuration file %s does not exist, either.\n",
-				tmpfile);
-			return rc; /* Fail */
-		}
+	if ( (rc = dse_check_file(configfile, tmpfile)) == 0 ) {
+		PR_snprintf(tmpfile, sizeof(tmpfile), "%s/%s.bak", configdir,
+					CONFIG_FILENAME);
+		rc = dse_check_file(configfile, tmpfile);
 	}
+
 	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
 	{
 		PRErrorCode prerr = PR_GetError();

@@ -651,6 +651,40 @@ dse_updateNumSubOfParent(struct dse *pdse, const Slapi_DN *child, int op)
 	slapi_sdn_done(&parent);
 }
 
+/* check if a file is valid, or if a provided backup file can be used.
+ * there is no way to determine if the file contents is usable, the only
+ * checks that can be done is that the file exists and that it is not size 0
+ */
+int
+dse_check_file(char *filename, char *backupname)
+{
+    int rc= 0; /* Fail */
+    PRFileInfo prfinfo;
+
+    if (PR_GetFileInfo( filename, &prfinfo ) == PR_SUCCESS) {
+	if ( prfinfo.size > 0)
+		return (1);
+	else {
+		rc = PR_Delete (filename);
+	}
+    }
+
+    if (backupname) 
+	rc = PR_Rename (backupname, filename);
+    else 
+	return (0);
+
+    if ( PR_GetFileInfo( filename, &prfinfo ) == PR_SUCCESS && prfinfo.size > 0 ) {
+	slapi_log_error(SLAPI_LOG_FATAL, "dse",
+             "The configuration file %s was restored from backup %s\n", filename, backupname);
+	return (1);
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, "dse",
+              "The configuration file %s was not restored from backup %s, error %d\n",
+                                    filename, backupname, rc);
+	return (0);
+   }
+}
 static int
 dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
         int primary_file )
@@ -669,27 +703,11 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
 
     if ( (NULL != pdse) && (NULL != filename) )
     {
-        if ( (rc = PR_GetFileInfo( filename, &prfinfo )) != PR_SUCCESS )
-        {
-            /* the "real" file does not exist; see if there is a tmpfile */
-            if ( pdse->dse_tmpfile &&
-                 PR_GetFileInfo( pdse->dse_tmpfile, &prfinfo ) == PR_SUCCESS ) {
-                rc = PR_Rename(pdse->dse_tmpfile, filename);
-                if (rc == PR_SUCCESS) {
-                    slapi_log_error(SLAPI_LOG_FATAL, "dse",
-                                    "The configuration file %s was restored from backup %s\n",
-                                    filename, pdse->dse_tmpfile);
-                    rc = 1;
-                } else {
-                    slapi_log_error(SLAPI_LOG_FATAL, "dse",
-                                    "The configuration file %s was not restored from backup %s, error %d\n",
-                                    filename, pdse->dse_tmpfile, rc);
-                    rc = 0;
-                }
-            } else {
-                rc = 0; /* fail */
-            }
-        }
+        /* check if the "real" file exists and cam be used, if not try tmp as backup */
+	rc = dse_check_file(filename, pdse->dse_tmpfile);
+	if (!rc) 
+	    rc = dse_check_file(filename, pdse->dse_fileback);
+
         if ( (rc = PR_GetFileInfo( filename, &prfinfo )) != PR_SUCCESS )
         {
             slapi_log_error(SLAPI_LOG_FATAL, "dse",
