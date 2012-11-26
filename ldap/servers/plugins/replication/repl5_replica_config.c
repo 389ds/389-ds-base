@@ -1743,7 +1743,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
 {
     Object *agmt_obj;
     Repl_Agmt *agmt;
-    char csnstr[CSN_STRSIZE];
+    char *csnstr = NULL;
     char *filter = NULL;
     int not_all_cleaned = 1;
     int interval = 10;
@@ -1786,6 +1786,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
             interval = 14400;
         }
     }
+    slapi_ch_free_string(&csnstr);
     slapi_ch_free_string(&filter);
 }
 
@@ -2356,7 +2357,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     struct berval *vals[2];
     struct berval val;
     char data[CSN_STRSIZE + 15];
-    char csnstr[CSN_STRSIZE];
+    char *csnstr = NULL;
     char *dn;
     int rc;
 
@@ -2399,6 +2400,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
      }
      slapi_pblock_destroy (pb);
      slapi_ch_free_string(&dn);
+     slapi_ch_free_string(&csnstr);
  }
 
 /*

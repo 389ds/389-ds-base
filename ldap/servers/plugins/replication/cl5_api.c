@@ -6554,9 +6554,6 @@ cl5CleanRUV(ReplicaId rid){
         ruv_delete_replica(file->maxRUV, rid);
         obj = objset_next_obj(s_cl5Desc.dbFiles, obj);
     }
-    if(obj){
-        object_release (obj);
-    }
 
     slapi_rwlock_unlock (s_cl5Desc.stLock);
 }
