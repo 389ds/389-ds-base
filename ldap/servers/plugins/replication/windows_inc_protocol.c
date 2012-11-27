@@ -147,7 +147,7 @@ static const char* event2name (int event);
 static const char* acquire2name (int code);
 static void periodic_dirsync(time_t when, void *arg);
 
-static Slapi_Eq_Context dirsync;
+static Slapi_Eq_Context dirsync = NULL;
 /*
  * It's specifically ok to delete a protocol instance that
  * is currently running. The instance will be shut down, and
@@ -292,8 +292,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	PRBool use_busy_backoff_timer = PR_FALSE;
 	long pausetime = 0;
 	long busywaittime = 0;
-	/* Some operations should only be done the first time STATE_START is true. */
-	static PRBool is_first_start = PR_TRUE;
+	unsigned long current_interval = 0;
+	unsigned long interval = 0;
 	int one_way;
  
 	PRBool run_dirsync = PR_FALSE;
@@ -357,17 +357,16 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					w_set_pause_and_busy_time(&pausetime, &busywaittime);
 				}
 
-
-				if (is_first_start) {
-					unsigned long interval = windows_private_get_sync_interval(prp->agmt) * 1000;
-					/*
-					 * The function, the arguments, the time (hence) when it is first to be called, 
-					 * and the repeat interval. 
-					 */ 
-					/* DBDB: we should probably make this polling interval configurable */
+				/* Check if the interval changed */
+				interval = windows_private_get_sync_interval(prp->agmt) * 1000;
+				if(interval != current_interval){
+					current_interval = interval;
+					if(dirsync){
+						slapi_eq_cancel(dirsync);
+					}
 					dirsync = slapi_eq_repeat(periodic_dirsync, (void*) prp, (time_t)0 , interval);
-					is_first_start = PR_FALSE;
 				}
+
 				break;
 
 			case STATE_WAIT_WINDOW_OPEN:

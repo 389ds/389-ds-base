@@ -2497,6 +2497,16 @@ void* agmt_get_connection(Repl_Agmt *ra)
 	}
 }
 
+Repl_Protocol *
+agmt_get_protocol(Repl_Agmt *ra)
+{
+	if(ra){
+		return ra->protocol;
+	} else {
+		return NULL;
+	}
+}
+
 int
 agmt_has_protocol(Repl_Agmt *agmt)
 {

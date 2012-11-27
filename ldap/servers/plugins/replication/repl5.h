@@ -492,6 +492,8 @@ void prot_notify_window_closed (Repl_Protocol *rp);
 Object *prot_get_replica_object(Repl_Protocol *rp);
 void prot_replicate_now(Repl_Protocol *rp);
 
+Repl_Protocol *agmt_get_protocol(Repl_Agmt *ra);
+
 /* In repl5_replica.c */
 typedef enum
 {   
