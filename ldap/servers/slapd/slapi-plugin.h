@@ -65,6 +65,7 @@ extern "C" {
 #include "prtypes.h"
 #include "ldap.h"
 #include "prprf.h"
+#include "nspr.h"
 NSPR_API(PRUint32) PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...)
 #ifdef __GNUC__ 
         __attribute__ ((format (printf, 3, 4)));
@@ -7155,6 +7156,80 @@ uint32_t slapi_str_to_u32(const char *s);
 uint64_t slapi_str_to_u64(const char *s);
 
 void slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb);
+
+/* 
+ * Public entry extension getter/setter functions
+ *
+ * Currently, only slapi_pw_get/set_entry_ext is implemented.
+ * The functions are in pw.c.  Detailed usage of the factory 
+ * is found in the comments at the top of factory.c.
+ *
+ * When you plan to add other entry extension code AND
+ * the type-value pair is managed via ordinary mod,
+ * setter, getter and copy function having the same API
+ * are supposed to be implemented, then add the set to
+ * attrs_in_extension list in entry.c.  The set is called
+ * in slapi_entry_apply_mod_extension.
+ *
+ * Note: setter and getter are public, but copy function
+ * is not. (for the copy function, see pw_copy_entry_ext in pw.c)
+ */
+/* operation used in the entry extension setter */
+#define SLAPI_EXT_SET_ADD     0
+#define SLAPI_EXT_SET_REPLACE 1
+
+/**
+ * Get entry extension
+ *
+ * \param entry is the entry to retrieve the extension from
+ * \param vals is the array of (Slapi_Value *), which directly refers the extension.  Caller must duplicate it to use it for other than referring.
+ *
+ * \return LDAP_SUCCESS if successful.
+ * \return non-zero otherwise.
+ */
+int slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals);
+
+/**
+ * Set entry extension
+ *
+ * \param entry is the entry to set the extension to
+ * \param vals is the array of (Slapi_Value *), which is consumed in slapi_pw_set_ext if the call is successful. 
+ * \param flags: SLAPI_EXT_SET_ADD -- add vals to the existing extension if any.
+ *               SLAPI_EXT_SET_REPLACE -- replace vals with the existing extension if any.
+ * No difference if there is no extension in the entry.
+ *
+ * \return LDAP_SUCCESS if successful.
+ * \return non-zero otherwise.
+ */
+int slapi_pw_set_entry_ext(Slapi_Entry *entry, Slapi_Value **vals, int flags);
+
+/**
+ * Get stashed clear password.
+ * If multiple of them are in the extension, the first one is returned.
+ *
+ * \param entry is the entry to retrieve the extension from
+ *
+ * \return a pointer to the clear password string.  Caller is responsible to free the string.
+ */
+char *slapi_get_first_clear_text_pw(Slapi_Entry *entry);
+
+/**
+ * Return the string equivalent of an NSPR error
+ *  *
+ * \param a NSPR error code
+ *
+ * \return a pointer to the error code string.
+ */
+char *slapi_pr_strerror( const PRErrorCode prerrno );
+
+/**
+ * Return the string equivalent of an OS error
+ *
+ * \param a OS error code
+ *
+ * \return a pointer to the system error code string.
+ */
+const char *slapi_system_strerror( const int syserrno );
 
 #ifdef __cplusplus
 }

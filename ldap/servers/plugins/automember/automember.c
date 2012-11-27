@@ -2333,6 +2333,7 @@ void automember_export_task_thread(void *arg){
     task_data *td = NULL;
     PRFileDesc *ldif_fd;
     int i = 0;
+    int rc = 0;
 
     td = (task_data *)slapi_task_get_data(task);
     slapi_task_begin(task, 1);
@@ -2341,13 +2342,14 @@ void automember_export_task_thread(void *arg){
 
     /* make sure we can open the ldif file */
     if (( ldif_fd = PR_Open( td->ldif_out, PR_CREATE_FILE | PR_WRONLY, DEFAULT_FILE_MODE )) == NULL ){
-        slapi_task_log_notice(task, "Automember export task could not open ldif file \"%s\" for writing %d\n",
-                              td->ldif_out, PR_GetError() );
-        slapi_task_log_status(task, "Automember export task could not open ldif file \"%s\" for writing %d\n",
-                              td->ldif_out, PR_GetError() );
+        rc = PR_GetOSError();
+        slapi_task_log_notice(task, "Automember export task could not open ldif file \"%s\" for writing, error %d (%s)\n",
+                              td->ldif_out, rc, slapi_system_strerror(rc));
+        slapi_task_log_status(task, "Automember export task could not open ldif file \"%s\" for writing, error %d (%s)\n",
+                              td->ldif_out, rc, slapi_system_strerror(rc) );
         slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "Could not open ldif file \"%s\" for writing %d\n",
-                        td->ldif_out, PR_GetError() );
+                        "Could not open ldif file \"%s\" for writing, error %d (%s)\n",
+                        td->ldif_out, rc, slapi_system_strerror(rc) );
         result = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
@@ -2516,6 +2518,7 @@ void automember_map_task_thread(void *arg){
     task_data *td = NULL;
     PRFileDesc *ldif_fd_out = NULL;
     char *entrystr = NULL;
+    char *errstr = NULL;
 #if defined(USE_OPENLDAP)
     int buflen = 0;
     LDIFFP *ldif_fd_in = NULL;
@@ -2534,29 +2537,34 @@ void automember_map_task_thread(void *arg){
 
     /* make sure we can open the ldif files */
     if(( ldif_fd_out = PR_Open( td->ldif_out, PR_CREATE_FILE | PR_WRONLY, DEFAULT_FILE_MODE  )) == NULL ){
-        slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
-                              td->ldif_out, rc);
-        slapi_task_log_status(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
-    	                      td->ldif_out, rc);
+        rc = PR_GetOSError();
+        slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d (%s).  Aborting task.\n",
+                              td->ldif_out, rc, slapi_system_strerror(rc));
+        slapi_task_log_status(task, "The ldif file %s could not be accessed, error %d (%s).  Aborting task.\n",
+                              td->ldif_out, rc, slapi_system_strerror(rc));
         slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "Could not open ldif file \"%s\" for writing %d\n",
-                        td->ldif_out, PR_GetError() );
+                        "Could not open ldif file \"%s\" for writing, error %d (%s)\n",
+                        td->ldif_out, rc, slapi_system_strerror(rc) );
         result = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
 #if defined(USE_OPENLDAP)
     if(( ldif_fd_in = ldif_open(td->ldif_in, "r")) == NULL ){
+        rc = errno;
+        errstr = strerror(rc);
 #else
     if(( ldif_fd_in = PR_Open( td->ldif_in, PR_RDONLY, DEFAULT_FILE_MODE  )) == NULL ){
+        rc = PR_GetOSError();
+        errstr = slapi_system_strerror(rc);
 #endif
-        slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
-                              td->ldif_in, rc);
-        slapi_task_log_status(task, "The ldif file %s could not be accessed, error %d.  Aborting task.\n",
-                              td->ldif_in, rc);
+        slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d (%s).  Aborting task.\n",
+                              td->ldif_in, rc, errstr);
+        slapi_task_log_status(task, "The ldif file %s could not be accessed, error %d (%s).  Aborting task.\n",
+                              td->ldif_in, rc, errstr);
         slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "Could not open ldif file \"%s\" for reading %d\n",
-                        td->ldif_out, PR_GetError() );
+                        "Could not open ldif file \"%s\" for reading, error %d (%s)\n",
+                        td->ldif_in, rc, errstr );
         result = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
