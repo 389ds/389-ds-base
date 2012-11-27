@@ -65,6 +65,7 @@ extern "C" {
 #include "prtypes.h"
 #include "ldap.h"
 #include "prprf.h"
+#include "nspr.h"
 NSPR_API(PRUint32) PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...)
 #ifdef __GNUC__ 
         __attribute__ ((format (printf, 3, 4)));
@@ -7302,6 +7303,24 @@ int slapi_pw_set_entry_ext(Slapi_Entry *entry, Slapi_Value **vals, int flags);
  * \return a pointer to the clear password string.  Caller is responsible to free the string.
  */
 char *slapi_get_first_clear_text_pw(Slapi_Entry *entry);
+
+/**
+ * Return the string equivalent of an NSPR error
+ *  *
+ * \param a NSPR error code
+ *
+ * \return a pointer to the error code string.
+ */
+char *slapi_pr_strerror( const PRErrorCode prerrno );
+
+/**
+ * Return the string equivalent of an OS error
+ *
+ * \param a OS error code
+ *
+ * \return a pointer to the system error code string.
+ */
+const char *slapi_system_strerror( const int syserrno );
 
 #ifdef __cplusplus
 }

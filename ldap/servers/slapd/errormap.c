@@ -73,6 +73,11 @@ slapd_pr_strerror( const int prerrno )
     return( s );
 }
 
+char *
+slapi_pr_strerror( const int prerrno )
+{
+    return slapd_pr_strerror(prerrno);
+}
 
 /*
  * return the string equivalent of a system error
@@ -92,6 +97,11 @@ slapd_system_strerror( const int syserrno )
     return( s );
 }
 
+const char *
+slapi_system_strerror( const int syserrno )
+{
+    return slapd_system_strerror(syserrno);
+}
 
 /*
  * return the string equivalent of an NSPR error.  If "prerrno" is not
