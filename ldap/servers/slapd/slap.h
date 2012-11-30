@@ -339,6 +339,20 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define SLAPD_VALIDATE_CERT_ON          1
 #define SLAPD_VALIDATE_CERT_WARN        2
 
+/* if the use of atomic get/set for config parameters is enabled, enable the use for the specific parameters defined below */
+#define USE_ATOMIC_GETSET 1
+#ifdef USE_ATOMIC_GETSET
+#define ATOMIC_GETSET_MAXTHREADSPERCONN 1
+#define ATOMIC_GETSET_IOBLOCKTIMEOUT 1
+#define ATOMIC_GETSET_FILTER_NEST_LEVEL 1
+#define ATOMIC_GETSET_ONOFF 1
+typedef PRInt32 slapi_onoff_t;
+typedef PRInt32 slapi_int_t;
+#else
+typedef int slapi_onoff_t;
+typedef int slapi_int_t;
+#endif
+
 struct subfilt {
 	char	*sf_type;
 	char	*sf_initial;
@@ -1509,6 +1523,37 @@ struct slapi_task {
 } slapi_task;
 /* End of interface to support online tasks **********************************/
 
+typedef struct passwordpolicyarray {
+  slapi_onoff_t pw_change;        /* 1 - indicates that users are allowed to change the pwd */
+  slapi_onoff_t pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
+  slapi_onoff_t pw_syntax;
+  int pw_minlength;
+  int pw_mindigits;
+  int pw_minalphas;
+  int pw_minuppers;
+  int pw_minlowers;
+  int pw_minspecials;
+  int pw_min8bit;
+  int pw_maxrepeats;
+  int pw_mincategories;
+  int pw_mintokenlength;
+  slapi_onoff_t pw_exp;
+  long pw_maxage;
+  long pw_minage;
+  long pw_warning;
+  slapi_onoff_t pw_history;
+  int pw_inhistory;
+  slapi_onoff_t pw_lockout;
+  int pw_maxfailure;
+  slapi_onoff_t pw_unlock;
+  long pw_lockduration;
+  long pw_resetfailurecount;
+  int pw_gracelimit;
+  slapi_onoff_t pw_is_legacy;
+  slapi_onoff_t pw_track_update_time;
+  struct pw_scheme *pw_storagescheme;
+} passwdPolicy;
+
 typedef struct slapi_pblock {
 	/* common */
 	Slapi_Backend		*pb_backend;
@@ -2023,70 +2068,51 @@ typedef struct _slapdEntryPoints {
 #define CFG_LOCK_WRITE(cfg)   slapi_rwlock_wrlock(cfg->cfg_rwlock)
 #define CFG_UNLOCK_WRITE(cfg) slapi_rwlock_unlock(cfg->cfg_rwlock)
 
+#ifdef ATOMIC_GETSET_ONOFF
+#define CFG_ONOFF_LOCK_READ(cfg)
+#define CFG_ONOFF_UNLOCK_READ(cfg)
+#define CFG_ONOFF_LOCK_WRITE(cfg)
+#define CFG_ONOFF_UNLOCK_WRITE(cfg)
+#else
+#define CFG_ONOFF_LOCK_READ(cfg) CFG_LOCK_READ(cfg)
+#define CFG_ONOFF_UNLOCK_READ(cfg) CFG_UNLOCK_READ(cfg)
+#define CFG_ONOFF_LOCK_WRITE(cfg) CFG_LOCK_WRITE(cfg)
+#define CFG_ONOFF_UNLOCK_WRITE(cfg) CFG_UNLOCK_WRITE(cfg)
+#endif
+
 #define REFER_MODE_OFF 0 
 #define REFER_MODE_ON 1
 
 #define MAX_ALLOWED_TIME_IN_SECS	2147483647
 
-typedef struct passwordpolicyarray {
-  int pw_change;        /* 1 - indicates that users are allowed to change the pwd */
-  int pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
-  int pw_syntax;
-  int pw_minlength;
-  int pw_mindigits;
-  int pw_minalphas;
-  int pw_minuppers;
-  int pw_minlowers;
-  int pw_minspecials;
-  int pw_min8bit;
-  int pw_maxrepeats;
-  int pw_mincategories;
-  int pw_mintokenlength;
-  int pw_exp;
-  long pw_maxage;
-  long pw_minage;
-  long pw_warning;
-  int pw_history;
-  int pw_inhistory;
-  int pw_lockout;
-  int pw_maxfailure;
-  int pw_unlock;
-  long pw_lockduration;
-  long pw_resetfailurecount;
-  int pw_gracelimit;
-  int pw_is_legacy;
-  int pw_track_update_time;
-  struct pw_scheme *pw_storagescheme;
-} passwdPolicy;
-
 typedef struct _slapdFrontendConfig {
   Slapi_RWLock     *cfg_rwlock;       /* read/write lock to serialize access */
   struct pw_scheme *rootpwstoragescheme;
-  int accesscontrol;
+  slapi_onoff_t accesscontrol;
   int groupevalnestlevel;
   int idletimeout;
-  int ioblocktimeout;
-  int lastmod;
+  slapi_int_t ioblocktimeout;
+  slapi_onoff_t lastmod;
 #if !defined(_WIN32) && !defined(AIX) 
   int maxdescriptors;
 #endif /* !_WIN32 && !AIX */
   int conntablesize;
-  int maxthreadsperconn;
+  slapi_int_t maxthreadsperconn;
   int outbound_ldap_io_timeout;
-  int nagle;
+  slapi_onoff_t nagle;
   int port;
-  int readonly;
+  slapi_onoff_t readonly;
   int reservedescriptors;
-  int schemacheck;
-  int syntaxcheck;
-  int syntaxlogging;
-  int dn_validate_strict;
-  int ds4_compatible_schema;
-  int schema_ignore_trailing_spaces;
+  slapi_onoff_t schemacheck;
+  slapi_onoff_t syntaxcheck;
+  slapi_onoff_t syntaxlogging;
+  slapi_onoff_t dn_validate_strict;
+  slapi_onoff_t ds4_compatible_schema;
+  slapi_onoff_t schema_ignore_trailing_spaces;
   int secureport;
-  int security;
+  slapi_onoff_t security;
   int SSLclientAuth;
-  int ssl_check_hostname;
+  slapi_onoff_t ssl_check_hostname;
   int validate_cert;
   int sizelimit;
   int SNMPenabled;
@@ -2116,19 +2142,19 @@ typedef struct _slapdFrontendConfig {
   char **backendconfig;
   char **include;
   char **plugin;
-  int plugin_track;
+  slapi_onoff_t plugin_track;
   struct pw_scheme *pw_storagescheme;
 
-  int pwpolicy_local;
-  int pw_is_global_policy;
+  slapi_onoff_t pwpolicy_local;
+  slapi_onoff_t pw_is_global_policy;
   passwdPolicy pw_policy;
 
   /* ACCESS LOG */
-  int  accesslog_logging_enabled;
+  slapi_onoff_t accesslog_logging_enabled;
   char *accesslog_mode;
   int  accesslog_maxnumlogs;
   int  accesslog_maxlogsize;
-  int  accesslog_rotationsync_enabled;
+  slapi_onoff_t accesslog_rotationsync_enabled;
   int  accesslog_rotationsynchour;
   int  accesslog_rotationsyncmin;
   int  accesslog_rotationtime;
@@ -2138,15 +2164,15 @@ typedef struct _slapdFrontendConfig {
   int  accesslog_exptime;
   char *accesslog_exptimeunit;
   int	accessloglevel;
-  int  accesslogbuffering;
-  int  csnlogging;
+  slapi_onoff_t accesslogbuffering;
+  slapi_onoff_t csnlogging;
 
    /* ERROR LOG */
-  int errorlog_logging_enabled;
+  slapi_onoff_t errorlog_logging_enabled;
   char *errorlog_mode;
   int  errorlog_maxnumlogs;
   int  errorlog_maxlogsize;
-  int  errorlog_rotationsync_enabled;
+  slapi_onoff_t errorlog_rotationsync_enabled;
   int  errorlog_rotationsynchour;
   int  errorlog_rotationsyncmin;
   int  errorlog_rotationtime;
@@ -2160,11 +2186,11 @@ typedef struct _slapdFrontendConfig {
   /* AUDIT LOG */
   char *auditlog;		/* replication audit file */
   int  auditloglevel;
-  int  auditlog_logging_enabled;
+  slapi_onoff_t auditlog_logging_enabled;
   char *auditlog_mode;
   int  auditlog_maxnumlogs;
   int  auditlog_maxlogsize;
-  int  auditlog_rotationsync_enabled;
+  slapi_onoff_t auditlog_rotationsync_enabled;
   int  auditlog_rotationsynchour;
   int  auditlog_rotationsyncmin;
   int  auditlog_rotationtime;
@@ -2173,20 +2199,20 @@ typedef struct _slapdFrontendConfig {
   int  auditlog_minfreespace;
   int  auditlog_exptime;
   char *auditlog_exptimeunit;
-  int  auditlog_logging_hide_unhashed_pw;
+  slapi_onoff_t auditlog_logging_hide_unhashed_pw;
 
-  int return_exact_case;	/* Return attribute names with the same case 
-				 * as they appear in at.conf */
+  slapi_onoff_t return_exact_case;	/* Return attribute names with the same case
+                                       as they appear in at.conf */
 
-  int result_tweak;
+  slapi_onoff_t result_tweak;
   char *refer_url;		/* for referral mode */
   int refer_mode;       /* for quick test */
   int	slapd_type;		/* Directory type; Full or Lite */
   
   ber_len_t maxbersize; /* Maximum BER element size we'll accept */
-  int max_filter_nest_level;/* deepest nested filter we will accept */
-  int enquote_sup_oc;       /* put single quotes around an oc's 
-                               superior oc in cn=schema */
+  slapi_int_t max_filter_nest_level;/* deepest nested filter we will accept */
+  slapi_onoff_t enquote_sup_oc;       /* put single quotes around an oc's
+                                         superior oc in cn=schema */
 
   char *certmap_basedn;	    /* Default Base DN for certmap */
 
@@ -2201,38 +2227,38 @@ typedef struct _slapdFrontendConfig {
   char *bakdir;     /* full path name of directory containing bakup files */
   char *rundir;     /* where pid, snmp stats, and ldapi files go */
   char *saslpath;   /* full path name of directory containing sasl plugins */
-  int attrname_exceptions;  /* if true, allow questionable attribute names */
-  int rewrite_rfc1274;		/* return attrs for both v2 and v3 names */
+  slapi_onoff_t attrname_exceptions;  /* if true, allow questionable attribute names */
+  slapi_onoff_t rewrite_rfc1274;		/* return attrs for both v2 and v3 names */
   char *schemareplace;		/* see CONFIG_SCHEMAREPLACE_* #defines below */
   char *ldapi_filename;		/* filename for ldapi socket */
-  int ldapi_switch;             /* switch to turn ldapi on/off */
-  int ldapi_bind_switch;        /* switch to turn ldapi auto binding on/off */
+  slapi_onoff_t ldapi_switch;             /* switch to turn ldapi on/off */
+  slapi_onoff_t ldapi_bind_switch;        /* switch to turn ldapi auto binding on/off */
   char *ldapi_root_dn;          /* DN to map root to over LDAPI */
-  int ldapi_map_entries;        /* turns ldapi entry bind mapping on/off */
+  slapi_onoff_t ldapi_map_entries;        /* turns ldapi entry bind mapping on/off */
   char *ldapi_uidnumber_type;   /* type that contains uid number */
   char *ldapi_gidnumber_type;   /* type that contains gid number */
   char *ldapi_search_base_dn;   /* base dn to search for mapped entries */
   char *ldapi_auto_dn_suffix;   /* suffix to be appended to auto gen DNs */
-  int slapi_counters;           /* switch to turn slapi_counters on/off */
-  int allow_unauth_binds;       /* switch to enable/disable unauthenticated binds */
-  int require_secure_binds;	/* switch to require simple binds to use a secure channel */
-  int allow_anon_access;	/* switch to enable/disable anonymous access */
+  slapi_onoff_t slapi_counters;           /* switch to turn slapi_counters on/off */
+  slapi_onoff_t allow_unauth_binds;       /* switch to enable/disable unauthenticated binds */
+  slapi_onoff_t require_secure_binds;	/* switch to require simple binds to use a secure channel */
+  slapi_onoff_t allow_anon_access;	/* switch to enable/disable anonymous access */
   int localssf;			/* the security strength factor to assign to local conns (ldapi) */
   int minssf;			/* minimum security strength factor (for SASL and SSL/TLS) */
-  int minssf_exclude_rootdse; /* ON: minssf is ignored when searching rootdse */
+  slapi_onoff_t minssf_exclude_rootdse; /* ON: minssf is ignored when searching rootdse */
   size_t maxsasliosize;         /* limit incoming SASL IO packet size */
   char *anon_limits_dn;		/* template entry for anonymous resource limits */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
 #endif /* _WIN32 */
 #ifdef MEMPOOL_EXPERIMENTAL
-  int mempool_switch;           /* switch to turn memory pool on/off */
+  slapi_onoff_t mempool_switch;           /* switch to turn memory pool on/off */
   int mempool_maxfreelist;      /* max free list length per memory pool item */
   long system_page_size;		/* system page size */
   int system_page_bits;			/* bit count to shift the system page size */
 #endif /* MEMPOOL_EXPERIMENTAL */
-  int force_sasl_external;      /* force SIMPLE bind to be SASL/EXTERNAL if client cert credentials were supplied */
-  int entryusn_global;          /* Entry USN: Use global counter */
+  slapi_onoff_t force_sasl_external;      /* force SIMPLE bind to be SASL/EXTERNAL if client cert credentials were supplied */
+  slapi_onoff_t entryusn_global;          /* Entry USN: Use global counter */
   char *allowed_to_delete_attrs;/* list of config attrs allowed to delete */
   char *entryusn_import_init;   /* Entry USN: determine the initital value of import */
   int pagedsizelimit;
@@ -2240,11 +2266,11 @@ typedef struct _slapdFrontendConfig {
   int sasl_max_bufsize;         /* The max receive buffer size for SASL */
 
   /* disk monitoring */
-  int disk_monitoring;
+  slapi_onoff_t disk_monitoring;
   int disk_threshold;
   int disk_grace_period;
-  int disk_preserve_logging;
-  int disk_logging_critical;
+  slapi_onoff_t disk_preserve_logging;
+  slapi_onoff_t disk_logging_critical;
 
   /* atomic settings */
   Slapi_Counter *ignore_vattrs;
