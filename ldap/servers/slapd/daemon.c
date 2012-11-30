@@ -1796,27 +1796,28 @@ compute_idletimeout( slapdFrontendConfig_t *fecfg, Connection *conn )
 		 * this is not an anonymous user and no bind-based limits are set,
 		 * use the default idle timeout.
 	 	 */
-		char *anon_dn = config_get_anon_limits_dn();
 
-		if ((conn->c_dn == NULL) && anon_dn && (strlen(anon_dn) > 0)) {
-			Slapi_DN *anon_sdn = slapi_sdn_new_dn_byref( anon_dn );
+		if (conn->c_dn == NULL) {
+			char *anon_dn = config_get_anon_limits_dn();
+			if (anon_dn && (strlen(anon_dn) > 0)) {
+				Slapi_DN *anon_sdn = slapi_sdn_new_dn_byref(anon_dn);
 
-			reslimit_update_from_dn( conn, anon_sdn );
+				reslimit_update_from_dn(conn, anon_sdn);
 
-			if ( slapi_reslimit_get_integer_limit( conn,
-			    idletimeout_reslimit_handle, &idletimeout ) !=
-			    SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-				idletimeout = fecfg->idletimeout;
+				if (slapi_reslimit_get_integer_limit(conn, idletimeout_reslimit_handle,
+													 &idletimeout)
+					!= SLAPI_RESLIMIT_STATUS_SUCCESS) {
+					idletimeout = fecfg->idletimeout;
+				}
+
+				slapi_sdn_free(&anon_sdn);
 			}
-
-			slapi_sdn_free( &anon_sdn );
+			slapi_ch_free_string(&anon_dn);
 		} else if ( conn->c_isroot ) {
 			idletimeout = 0;	/* no limit for Directory Manager */
 		} else {
 			idletimeout = fecfg->idletimeout;
 		}
-
-		slapi_ch_free_string( &anon_dn );
 	}
 
 	return( idletimeout );
