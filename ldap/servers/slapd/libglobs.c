@@ -1006,6 +1006,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ndn_cache_max_size,
 		CONFIG_INT, (ConfigGetFunc)config_get_ndn_cache_size, DEFAULT_NDN_SIZE},
+	{CONFIG_ALLOWED_SASL_MECHS, config_set_allowed_sasl_mechs,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.allowed_sasl_mechs,
+		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_sasl_mechs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1423,6 +1427,7 @@ FrontendConfig_init () {
   cfg->entryusn_import_init = slapi_ch_strdup(ENTRYUSN_IMPORT_INIT); 
   cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
   cfg->default_naming_context = NULL; /* store normalized dn */
+  cfg->allowed_sasl_mechs = NULL;
 
   init_disk_monitoring = cfg->disk_monitoring = LDAP_OFF;
   cfg->disk_threshold = 2097152;  /* 2 mb */
@@ -6553,6 +6558,37 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
+}
+
+char *
+config_get_allowed_sasl_mechs()
+{
+    char *retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->allowed_sasl_mechs;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+/* separated list of sasl mechs to allow */
+int
+config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if(!apply || slapdFrontendConfig->allowed_sasl_mechs){
+        /* we only set this at startup, if we try again just return SUCCESS */
+        return LDAP_SUCCESS;
+    }
+
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->allowed_sasl_mechs = slapi_ch_strdup(value);
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+
+    return LDAP_SUCCESS;
 }
 
 char *

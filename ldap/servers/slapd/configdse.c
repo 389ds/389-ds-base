@@ -81,6 +81,7 @@ static const char *requires_restart[] = {
 #endif
     "cn=config:" CONFIG_RETURN_EXACT_CASE_ATTRIBUTE,
     "cn=config:" CONFIG_SCHEMA_IGNORE_TRAILING_SPACES,
+    "cn=config:nsslapd-allowed-sasl-mechanisms",
     "cn=config,cn=ldbm:nsslapd-idlistscanlimit",
     "cn=config,cn=ldbm:nsslapd-parentcheck",
     "cn=config,cn=ldbm:nsslapd-dbcachesize",

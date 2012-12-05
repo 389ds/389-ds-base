@@ -184,6 +184,8 @@ static int ids_sasl_getopt(
         }
     } else if (strcasecmp(option, "auxprop_plugin") == 0) {
         *result = "iDS";
+    } else if (strcasecmp(option, "mech_list") == 0){
+        *result = config_get_allowed_sasl_mechs();
     }
 
     if (*result) *len = strlen(*result);
