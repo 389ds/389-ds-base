@@ -1910,6 +1910,8 @@ dblayer_get_id2entry_size(ldbm_instance *inst)
                                       ID2ENTRY LDBM_FILENAME_SUFFIX);
     rc = PR_GetFileInfo(id2entry_file, &info);
     slapi_ch_free_string(&id2entry_file);
+    if (inst_dirp != inst_dir)
+        slapi_ch_free_string(&inst_dirp);
     if (rc) {
         return 0;
     }
