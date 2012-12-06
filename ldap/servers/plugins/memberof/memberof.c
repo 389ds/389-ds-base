@@ -1105,6 +1105,13 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	const char *op_this = slapi_sdn_get_ndn(op_this_sdn);
 	Slapi_Value *to_dn_val = slapi_value_new_string(op_to);
 	Slapi_Value *this_dn_val = slapi_value_new_string(op_this);
+
+	if(this_dn_val == NULL || to_dn_val == NULL){
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+				"memberof_modop_one_replace_r: failed to get DN values (NULL)\n");
+		goto bail;
+	}
+
 	/* op_this and op_to are both case-normalized */
 	slapi_value_set_flags(this_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 	slapi_value_set_flags(to_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);

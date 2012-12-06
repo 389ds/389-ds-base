@@ -1415,6 +1415,7 @@ char			*errmsg;
             eid = ACLERR1500;
             errmsg = system_errmsg();
             nserrGenerate(errp, rv, eid, ACL_Program, 2, "buffer", errmsg);
+            PERM_FREE(errmsg);
         }
 
     }
