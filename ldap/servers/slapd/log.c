@@ -138,6 +138,7 @@ static void	log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_
 static void	log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now);
 static void	log_write_title(LOGFD fp);
 static void log__error_emergency(const char *errstr, int reopen, int locked);
+static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 
 static int
 slapd_log_error_proc_internal(
@@ -1834,6 +1835,57 @@ slapd_log_error_proc_internal(
 	return( rc );
 }
 
+/*
+ *  Directly write the already formatted message to the error log
+ */
+static void
+vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
+{
+    time_t    tnl;
+    long      tz;
+    struct tm *tmsp, tms;
+    char      tbuf[ TBUFSIZE ];
+    char      buffer[SLAPI_LOG_BUFSIZ];
+    char      sign;
+    int       size;
+
+    tnl = current_time();
+#ifdef _WIN32
+    {
+        struct tm *pt = localtime( &tnl );
+        tmsp = &tms;
+        memcpy(&tms, pt, sizeof(struct tm) );
+    }
+#else
+    (void)localtime_r( &tnl, &tms );
+    tmsp = &tms;
+#endif
+#ifdef BSD_TIME
+    tz = tmsp->tm_gmtoff;
+#else /* BSD_TIME */
+    tz = - timezone;
+    if ( tmsp->tm_isdst ) {
+        tz += 3600;
+    }
+#endif /* BSD_TIME */
+    sign = ( tz >= 0 ? '+' : '-' );
+    if ( tz < 0 ) {
+        tz = -tz;
+    }
+    (void)strftime( tbuf, (size_t)TBUFSIZE, "%d/%b/%Y:%H:%M:%S", tmsp);
+    sprintf( buffer, "[%s %c%02d%02d] - %s", tbuf, sign, (int)( tz / 3600 ), (int)( tz % 3600 ), msg);
+    size = strlen(buffer);
+
+    if(!locked)
+        LOG_ERROR_LOCK_WRITE();
+
+    slapi_write_buffer((fp), (buffer), (size));
+    PR_Sync(fp);
+
+    if(!locked)
+        LOG_ERROR_UNLOCK_WRITE();
+}
+
 static int
 vslapd_log_error(
     LOGFD	fp,
@@ -3102,9 +3154,6 @@ char rootpath[4];
 		PR_snprintf(buffer, sizeof(buffer),
 			  		"log__enough_freespace: Unable to get the free space (errno:%d)\n",
 					errno);
-		/* This function could be called in the ERROR WRITE LOCK,
-		 * which causes the self deadlock if you call LDAPDebug for logging.
-		 * Thus, instead of LDAPDebug, call log__error_emergency with locked == 1. */
 		log__error_emergency(buffer, 0, 1);
 		return 1;
 	} else {
@@ -3351,9 +3400,6 @@ delete_logfile:
 	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
-		/* This function could be called in the ERROR WRITE LOCK,
-		 * which causes the self deadlock if you call LDAPDebug for logging.
-		 * Thus, instead of LDAPDebug, call log__error_emergency with locked == 1. */
 		PR_snprintf(buffer, sizeof(buffer),
 				"LOGINFO:Unable to remove file:%s.%s error %d (%s)\n",
 				loginfo.log_error_file, tbuf, prerr, slapd_pr_strerror(prerr));
@@ -3713,10 +3759,7 @@ log__error_emergency(const char *errstr, int reopen, int locked)
 		PRErrorCode prerr = PR_GetError();
 		syslog(LOG_ERR, "Failed to reopen errors log file, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", prerr, slapd_pr_strerror(prerr));
 	} else {
-		/* LDAPDebug locks ERROR_LOCK_WRITE internally */
-		if (locked) LOG_ERROR_UNLOCK_WRITE();
-		LDAPDebug(LDAP_DEBUG_ANY, "%s\n", errstr, 0, 0);
-		if (locked) LOG_ERROR_LOCK_WRITE( );
+		vslapd_log_emergency_error(loginfo.log_error_fdes, errstr, locked);
 	}
 	return;
 }
