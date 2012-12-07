@@ -991,6 +991,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     const char *olduuid;
     const char *newuuid;
 #endif
+    size_t entry_size = 0;
 
     LOG("=> entrycache_replace (%s) -> (%s)\n", backentry_get_ndn(olde),
         backentry_get_ndn(newe), 0);
@@ -1005,6 +1006,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     newuuid = slapi_entry_get_uniqueid(newe->ep_entry);
 #endif
     newndn = slapi_sdn_get_ndn(backentry_get_sdn(newe));
+    entry_size = cache_entry_size(newe);
     PR_Lock(cache->c_mutex);
 
     /*
@@ -1080,7 +1082,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
 #endif
     /* adjust cache meta info */
     newe->ep_refcnt++;
-    newe->ep_size = cache_entry_size(newe);
+    newe->ep_size = entry_size;
     if (newe->ep_size > olde->ep_size) {
         slapi_counter_add(cache->c_cursize, newe->ep_size - olde->ep_size);
     } else if (newe->ep_size < olde->ep_size) {
@@ -1261,10 +1263,21 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
     const char *uuid = slapi_entry_get_uniqueid(e->ep_entry);
 #endif
     struct backentry *my_alt;
+    size_t entry_size = 0;
     int already_in = 0;
 
     LOG("=> entrycache_add_int( \"%s\", %ld )\n", backentry_get_ndn(e),
         e->ep_id, 0);
+
+    if(e->ep_size == 0){
+        /*
+         *  This entry has not yet been assigned its size, as it's not in
+         *  the cache yet.  Calculate it outside of the cache lock
+         */
+        entry_size = cache_entry_size(e);
+    } else {
+        entry_size = e->ep_size;
+    }
 
     PR_Lock(cache->c_mutex);
     if (! add_hash(cache->c_dntable, (void *)ndn, strlen(ndn), e,
@@ -1395,8 +1408,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
 
     if (! already_in) {
         e->ep_refcnt = 1;
-        e->ep_size = cache_entry_size(e);
-    
+        e->ep_size = entry_size;
         slapi_counter_add(cache->c_cursize, e->ep_size);
         cache->c_curentries++;
         /* don't add to lru since refcnt = 1 */
