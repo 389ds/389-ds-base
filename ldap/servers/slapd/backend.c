@@ -49,8 +49,8 @@ be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, i
 {
     slapdFrontendConfig_t *fecfg;
     be->be_suffix = NULL;
-    be->be_suffixlock= PR_NewLock();
-    be->be_suffixcount= 0;
+    be->be_suffixlock = PR_NewLock();
+    be->be_suffixcounter = slapi_counter_new();
     /* e.g. dn: cn=config,cn=NetscapeRoot,cn=ldbm database,cn=plugins,cn=config */
     be->be_basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                                            name, type);
@@ -116,13 +116,13 @@ void
 be_done(Slapi_Backend *be)
 {
     int i;
+    int count = slapi_counter_get_value(be->be_suffixcounter);
 
-    for(i=0;i<be->be_suffixcount;i++)
+    for(i=0; i < count; i++)
     {
         slapi_sdn_free(&be->be_suffix[i]);
     }
     slapi_ch_free((void**)&be->be_suffix);
-    PR_DestroyLock(be->be_suffixlock);
     slapi_ch_free((void **)&be->be_basedn);
     slapi_ch_free((void **)&be->be_configdn);
     slapi_ch_free((void **)&be->be_monitordn);
@@ -133,6 +133,8 @@ be_done(Slapi_Backend *be)
     if (!config_get_entryusn_global()) {
         slapi_counter_destroy(&be->be_usn_counter);
     }
+    slapi_counter_destroy(&be->be_suffixcounter);
+    PR_DestroyLock(be->be_suffixlock);
     PR_DestroyLock(be->be_state_lock);
     if (be->be_lock != NULL)
     {
@@ -170,9 +172,9 @@ slapi_be_issuffix( const Slapi_Backend *be, const Slapi_DN *suffix )
 	/* this backend is no longer valid */
 	if (be->be_state != BE_STATE_DELETED)
 	{
-    	int	i;
-        PR_Lock(be->be_suffixlock);
-    	for ( i = 0; be->be_suffix != NULL && i<be->be_suffixcount; i++ )
+    	int	i, count;
+    	count = slapi_counter_get_value(be->be_suffixcounter);
+    	for ( i = 0; be->be_suffix != NULL && i < count; i++ )
 		{
     		if ( slapi_sdn_compare( be->be_suffix[i], suffix ) == 0)
 		    {
@@ -180,7 +182,6 @@ slapi_be_issuffix( const Slapi_Backend *be, const Slapi_DN *suffix )
 				break;
     		}
     	}
-        PR_Unlock(be->be_suffixlock);
 	}
 	return r;
 }
@@ -196,18 +197,21 @@ be_addsuffix(Slapi_Backend *be,const Slapi_DN *suffix)
 {
 	if (be->be_state != BE_STATE_DELETED)
 	{
-        PR_Lock(be->be_suffixlock);
+		int count;
+
+		PR_Lock(be->be_suffixlock);
+		count = slapi_counter_get_value(be->be_suffixcounter);
 		if(be->be_suffix==NULL)
 		{
 		    be->be_suffix= (Slapi_DN **)slapi_ch_malloc(sizeof(Slapi_DN *));
 		}
 		else
 		{
-		    be->be_suffix= (Slapi_DN **)slapi_ch_realloc((char*)be->be_suffix,(be->be_suffixcount+1)*sizeof(Slapi_DN *));
+		    be->be_suffix= (Slapi_DN **)slapi_ch_realloc((char*)be->be_suffix,(count+1)*sizeof(Slapi_DN *));
 		}
-		be->be_suffix[be->be_suffixcount]= slapi_sdn_dup(suffix);
-        be->be_suffixcount++;
-        PR_Unlock(be->be_suffixlock);
+		be->be_suffix[count]= slapi_sdn_dup(suffix);
+		slapi_counter_increment(be->be_suffixcounter);
+		PR_Unlock(be->be_suffixlock);
 	}
 }
 
@@ -231,11 +235,9 @@ slapi_be_getsuffix(Slapi_Backend *be,int n)
 		return NULL;
 
     if(be->be_state != BE_STATE_DELETED) {
-        PR_Lock(be->be_suffixlock);
-        if (be->be_suffix !=NULL && n<be->be_suffixcount) {
+        if (be->be_suffix !=NULL && n < slapi_counter_get_value(be->be_suffixcounter)) {
             sdn =  be->be_suffix[n];
         }
-        PR_Unlock(be->be_suffixlock);
     }
     return sdn;
 }
