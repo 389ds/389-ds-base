@@ -461,11 +461,12 @@ int
 slapi_lookup_instance_name_by_suffix(char *suffix,
 							char ***suffixes, char ***instances, int isexact)
 {
-    Slapi_Backend *be = NULL;
-    char *cookie = NULL;
+	Slapi_Backend *be = NULL;
+	char *cookie = NULL;
 	const char *thisdn;
 	int thisdnlen;
 	int suffixlen;
+	int count;
 	int i;
 	int rval = -1;
 
@@ -476,17 +477,17 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
 
 	rval = 0;
 	suffixlen = strlen(suffix);
-    cookie = NULL;
-    be = slapi_get_first_backend (&cookie);
-    while (be) {
-       	if (NULL == be->be_suffix) {
-       		be = (backend *)slapi_get_next_backend (cookie);
+	cookie = NULL;
+	be = slapi_get_first_backend (&cookie);
+	while (be) {
+		if (NULL == be->be_suffix) {
+			be = (backend *)slapi_get_next_backend (cookie);
 			continue;
 		}
-        PR_Lock(be->be_suffixlock);
-    	for (i = 0; be->be_suffix && i < be->be_suffixcount; i++) {
-    		thisdn = slapi_sdn_get_ndn(be->be_suffix[i]);
-    		thisdnlen = slapi_sdn_get_ndn_len(be->be_suffix[i]);
+		count = slapi_counter_get_value(be->be_suffixcounter);
+		for (i = 0; be->be_suffix && i < count; i++) {
+			thisdn = slapi_sdn_get_ndn(be->be_suffix[i]);
+			thisdnlen = slapi_sdn_get_ndn_len(be->be_suffix[i]);
 			if (isexact?suffixlen!=thisdnlen:suffixlen>thisdnlen)
 				continue;
 			if (isexact?(!slapi_UTF8CASECMP(suffix, (char *)thisdn)):
@@ -497,10 +498,9 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
 					charray_add(suffixes, slapi_ch_strdup(thisdn));
 			}
 		}
-        PR_Unlock(be->be_suffixlock);
-       	be = (backend *)slapi_get_next_backend (cookie);
-    }
-    slapi_ch_free((void **)&cookie);
+		be = (backend *)slapi_get_next_backend (cookie);
+	}
+	slapi_ch_free((void **)&cookie);
 	
 	return rval;
 }

@@ -1165,7 +1165,7 @@ struct slapdplugin {
 typedef struct backend {
 	Slapi_DN **be_suffix;    /* the DN suffixes of data in this backend */
     PRLock *be_suffixlock;
-    int be_suffixcount;
+    Slapi_Counter *be_suffixcounter;
     char *be_basedn;     /* The base dn for the config & monitor dns */
 	char *be_configdn;   /* The config dn for this backend          */
 	char *be_monitordn;  /* The monitor dn for this backend          */
