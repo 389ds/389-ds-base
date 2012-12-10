@@ -1328,14 +1328,24 @@ free_and_return:
 			( SLAPI_STR2ENTRY_IGNORE_STATE							\
 			| SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES					\
 			| SLAPI_STR2ENTRY_TOMBSTONE_CHECK						\
-			| SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT 				\
+			| SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT					\
+			| SLAPI_STR2ENTRY_NO_ENTRYDN							\
+			| SLAPI_STR2ENTRY_DN_NORMALIZED							\
 			)
 
 #define SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST				\
- 			( SLAPI_STR2ENTRY_INCLUDE_VERSION_STR					\
- 			| SLAPI_STRENTRY_FLAGS_HANDLED_IN_SLAPI_STR2ENTRY		\
- 			)
+			( SLAPI_STR2ENTRY_INCLUDE_VERSION_STR					\
+			| SLAPI_STRENTRY_FLAGS_HANDLED_IN_SLAPI_STR2ENTRY		\
+			)
 
+/*
+ * If well-formed LDIF has not been provided OR if a flag that is
+ * not handled by str2entry_fast() has been passed in, call the
+ * slower but more forgiving str2entry_dupcheck() function.
+ */
+#define str2entry_can_use_fast(flags) \
+			(((flags) & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF) || \
+			 ((flags) & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST))
 
 Slapi_Entry *
 slapi_str2entry( char *s, int flags )
@@ -1353,17 +1363,16 @@ slapi_str2entry( char *s, int flags )
 	 * not handled by str2entry_fast() has been passed in, call the
 	 * slower but more forgiving str2entry_dupcheck() function.
 	 */
-	if ( 0 != ( flags & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ) ||
-		 0 != ( flags & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST ))
-    {
+	if (str2entry_can_use_fast(flags))
+	{
 	    e= str2entry_dupcheck( NULL/*dn*/, s, flags, read_stateinfo );
-    }
-    else
-    {
+	}
+	else
+	{
 	    e= str2entry_fast( NULL/*dn*/, s, flags, read_stateinfo );
-    }
-    if (!e)
-       return e;	/* e == NULL */
+	}
+	if (!e)
+	   return e;	/* e == NULL */
 
 	if ( flags & SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES )
 	{
@@ -1415,8 +1424,7 @@ slapi_str2entry_ext( const char *normdn, char *s, int flags )
 	 * not handled by str2entry_fast() has been passed in, call the
 	 * slower but more forgiving str2entry_dupcheck() function.
 	 */
-	if ( 0 != ( flags & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF ) ||
-			0 != ( flags & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST ))
+	if (str2entry_can_use_fast(flags))
 	{
 	    e = str2entry_dupcheck( normdn, s, 
 	                    flags|SLAPI_STR2ENTRY_DN_NORMALIZED, read_stateinfo );
