@@ -1343,7 +1343,7 @@ free_and_return:
  * not handled by str2entry_fast() has been passed in, call the
  * slower but more forgiving str2entry_dupcheck() function.
  */
-#define str2entry_can_use_fast(flags) \
+#define STR2ENTRY_CANNOT_USE_FAST(flags) \
 			(((flags) & SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF) || \
 			 ((flags) & ~SLAPI_STRENTRY_FLAGS_HANDLED_BY_STR2ENTRY_FAST))
 
@@ -1363,7 +1363,7 @@ slapi_str2entry( char *s, int flags )
 	 * not handled by str2entry_fast() has been passed in, call the
 	 * slower but more forgiving str2entry_dupcheck() function.
 	 */
-	if (str2entry_can_use_fast(flags))
+	if (STR2ENTRY_CANNOT_USE_FAST(flags))
 	{
 	    e= str2entry_dupcheck( NULL/*dn*/, s, flags, read_stateinfo );
 	}
@@ -1424,7 +1424,7 @@ slapi_str2entry_ext( const char *normdn, char *s, int flags )
 	 * not handled by str2entry_fast() has been passed in, call the
 	 * slower but more forgiving str2entry_dupcheck() function.
 	 */
-	if (str2entry_can_use_fast(flags))
+	if (STR2ENTRY_CANNOT_USE_FAST(flags))
 	{
 	    e = str2entry_dupcheck( normdn, s, 
 	                    flags|SLAPI_STR2ENTRY_DN_NORMALIZED, read_stateinfo );
