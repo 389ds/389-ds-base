@@ -551,6 +551,8 @@ size_t config_get_ndn_cache_size();
 int config_get_ndn_cache_enabled();
 char *config_get_allowed_sasl_mechs();
 int config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_schemamod();
+
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
 
