@@ -1148,12 +1148,16 @@ struct slapdplugin {
 	} plg_un;
 };
 
+struct suffixlist {
+	Slapi_DN *be_suffix;
+	struct suffixlist *next;
+};
+
 /*
  * represents a "database"
  */
-
 typedef struct backend {
-	Slapi_DN **be_suffix;    /* the DN suffixes of data in this backend */
+    struct suffixlist *be_suffixlist; /* linked list of DN suffixes in this backend */
     PRLock *be_suffixlock;
     Slapi_Counter *be_suffixcounter;
     char *be_basedn;     /* The base dn for the config & monitor dns */

@@ -462,6 +462,7 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
 							char ***suffixes, char ***instances, int isexact)
 {
 	Slapi_Backend *be = NULL;
+	struct suffixlist *list;
 	char *cookie = NULL;
 	const char *thisdn;
 	int thisdnlen;
@@ -480,23 +481,27 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
 	cookie = NULL;
 	be = slapi_get_first_backend (&cookie);
 	while (be) {
-		if (NULL == be->be_suffix) {
+		if (NULL == be->be_suffixlist) {
 			be = (backend *)slapi_get_next_backend (cookie);
 			continue;
 		}
 		count = slapi_counter_get_value(be->be_suffixcounter);
-		for (i = 0; be->be_suffix && i < count; i++) {
-			thisdn = slapi_sdn_get_ndn(be->be_suffix[i]);
-			thisdnlen = slapi_sdn_get_ndn_len(be->be_suffix[i]);
-			if (isexact?suffixlen!=thisdnlen:suffixlen>thisdnlen)
+		list = be->be_suffixlist;
+		for (i = 0; list && i < count; i++) {
+			thisdn = slapi_sdn_get_ndn(list->be_suffix);
+			thisdnlen = slapi_sdn_get_ndn_len(list->be_suffix);
+			if (isexact?suffixlen!=thisdnlen:suffixlen>thisdnlen){
+				list = list->next;
 				continue;
+			}
 			if (isexact?(!slapi_UTF8CASECMP(suffix, (char *)thisdn)):
-				(!slapi_UTF8CASECMP(suffix,
-									(char *)thisdn+thisdnlen-suffixlen))) {
+				(!slapi_UTF8CASECMP(suffix,	(char *)thisdn+thisdnlen-suffixlen)))
+			{
 				charray_add(instances, slapi_ch_strdup(be->be_name));
 				if (suffixes)
 					charray_add(suffixes, slapi_ch_strdup(thisdn));
 			}
+			list = list->next;
 		}
 		be = (backend *)slapi_get_next_backend (cookie);
 	}

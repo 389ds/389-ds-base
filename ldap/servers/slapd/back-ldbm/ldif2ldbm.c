@@ -795,7 +795,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
     /* for each subtree spec... */
     for (i = 0; include[i]; i++) {
         IDList *idl = NULL;
-        const char *suffix = slapi_sdn_get_ndn(*be->be_suffix);
+        const char *suffix = slapi_sdn_get_ndn(slapi_be_getsuffix(be, 0));
         char *parentdn = slapi_ch_strdup(suffix);
         char *nextdn = NULL;
         int matched = 0;
