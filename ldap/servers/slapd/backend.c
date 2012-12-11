@@ -48,7 +48,7 @@ void
 be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, int logchanges, int sizelimit, int timelimit )
 {
     slapdFrontendConfig_t *fecfg;
-    be->be_suffix = NULL;
+    be->be_suffixlist = NULL;
     be->be_suffixlock = PR_NewLock();
     be->be_suffixcounter = slapi_counter_new();
     /* e.g. dn: cn=config,cn=NetscapeRoot,cn=ldbm database,cn=plugins,cn=config */
@@ -117,12 +117,16 @@ be_done(Slapi_Backend *be)
 {
     int i;
     int count = slapi_counter_get_value(be->be_suffixcounter);
+    struct suffixlist *list, *next;
 
-    for(i=0; i < count; i++)
+    list = be->be_suffixlist;
+    for(i=0; i < count && list; i++)
     {
-        slapi_sdn_free(&be->be_suffix[i]);
+        next = list->next;
+        slapi_sdn_free(&list->be_suffix);
+        slapi_ch_free((void **)&list);
+        list = next;
     }
-    slapi_ch_free((void**)&be->be_suffix);
     slapi_ch_free((void **)&be->be_basedn);
     slapi_ch_free((void **)&be->be_configdn);
     slapi_ch_free((void **)&be->be_monitordn);
@@ -168,20 +172,23 @@ slapi_be_get_readonly(Slapi_Backend *be)
 int
 slapi_be_issuffix( const Slapi_Backend *be, const Slapi_DN *suffix )
 {
+	struct suffixlist *list;
 	int r= 0;
 	/* this backend is no longer valid */
 	if (be->be_state != BE_STATE_DELETED)
 	{
-    	int	i, count;
-    	count = slapi_counter_get_value(be->be_suffixcounter);
-    	for ( i = 0; be->be_suffix != NULL && i < count; i++ )
-		{
-    		if ( slapi_sdn_compare( be->be_suffix[i], suffix ) == 0)
-		    {
-    			r= 1;
+		int	i = 0, count;
+
+		count = slapi_counter_get_value(be->be_suffixcounter);
+		list = be->be_suffixlist;
+		while(list && i < count){
+			if ( slapi_sdn_compare( list->be_suffix, suffix ) == 0){
+				r = 1;
 				break;
-    		}
-    	}
+			}
+			i++;
+			list = list->next;
+		}
 	}
 	return r;
 }
@@ -197,20 +204,25 @@ be_addsuffix(Slapi_Backend *be,const Slapi_DN *suffix)
 {
 	if (be->be_state != BE_STATE_DELETED)
 	{
-		int count;
+		struct suffixlist *new_suffix, *list;
+
+		new_suffix = (struct suffixlist *)slapi_ch_malloc(sizeof(struct suffixlist *));
+		new_suffix->be_suffix = slapi_sdn_dup(suffix);
+		new_suffix->next = NULL;
 
 		PR_Lock(be->be_suffixlock);
-		count = slapi_counter_get_value(be->be_suffixcounter);
-		if(be->be_suffix==NULL)
-		{
-		    be->be_suffix= (Slapi_DN **)slapi_ch_malloc(sizeof(Slapi_DN *));
+
+		if(be->be_suffixlist == NULL){
+			be->be_suffixlist = new_suffix;
+		} else {
+			list = be->be_suffixlist;
+			while(list->next != NULL){
+				list = list->next;
+			}
+			list->next = new_suffix;
 		}
-		else
-		{
-		    be->be_suffix= (Slapi_DN **)slapi_ch_realloc((char*)be->be_suffix,(count+1)*sizeof(Slapi_DN *));
-		}
-		be->be_suffix[count]= slapi_sdn_dup(suffix);
 		slapi_counter_increment(be->be_suffixcounter);
+
 		PR_Unlock(be->be_suffixlock);
 	}
 }
@@ -221,25 +233,32 @@ void slapi_be_addsuffix(Slapi_Backend *be,const Slapi_DN *suffix)
 }
 
 /* 
- * The caller may use the returned pointer without holding the
- * be_suffixlock since we never remove suffixes from the array.
  * The Slapi_DN pointer will always be valid even though the array
  * itself may be changing due to the addition of a suffix.
  */
 const Slapi_DN *
 slapi_be_getsuffix(Slapi_Backend *be,int n)
 {
-    Slapi_DN *sdn = NULL;
+    struct suffixlist *list;
 
-	if(NULL == be)
-		return NULL;
+    if(NULL == be)
+        return NULL;
 
     if(be->be_state != BE_STATE_DELETED) {
-        if (be->be_suffix !=NULL && n < slapi_counter_get_value(be->be_suffixcounter)) {
-            sdn =  be->be_suffix[n];
+        if (be->be_suffixlist !=NULL && n < slapi_counter_get_value(be->be_suffixcounter)) {
+            int i = 0;
+
+            list = be->be_suffixlist;
+            while(list != NULL && i <= n){
+                if(i == n){
+                    return list->be_suffix;
+                }
+                list = list->next;
+                i++;
+            }
         }
     }
-    return sdn;
+    return NULL;
 }
 
 const char *

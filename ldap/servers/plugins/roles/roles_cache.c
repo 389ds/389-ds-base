@@ -929,7 +929,7 @@ if ( e != NULL )
 			}
 }
 #endif
-		Slapi_DN *top_suffix =  roles_cache_get_top_suffix(*(be->be_suffix));	
+		Slapi_DN *top_suffix =  roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(be, 0));
 
 		if ( top_suffix != NULL )
 		{
@@ -1714,7 +1714,7 @@ static int roles_cache_find_roles_in_suffix(Slapi_DN *target_entry_dn, roles_cac
 	backend = slapi_mapping_tree_find_backend_for_sdn(target_entry_dn);
 	if ( (backend != NULL) && !slapi_be_is_flag_set(backend,SLAPI_BE_FLAG_REMOTE_DATA) )
 	{
-		Slapi_DN *suffix = roles_cache_get_top_suffix(*(backend->be_suffix));
+		Slapi_DN *suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(backend, 0));
 		roles_cache_def *current_role = roles_list;
 
 		/* Go through all the roles list and trigger the associated structure */
