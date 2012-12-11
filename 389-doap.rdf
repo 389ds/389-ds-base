@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl"?>
+<rdf:RDF xml:lang="en"
+         xmlns="http://usefulinc.com/ns/doap#" 
+         xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" 
+         xmlns:foaf="http://xmlns.com/foaf/0.1/">
+  <Project rdf:about="http://port389.org">
+    <created>2005-06-01</created>
+    <name>389 Project</name>
+    <shortname>389</shortname>
+    <homepage rdf:resource="http://port389.org" />
+    <shortdesc>Directory Server, Admin Server, Graphical Management Console, web based tools</shortdesc>
+    <description>The 389 Project provides an LDAPv3 compliant directory server, HTTP based administration server, graphical management console, and web based tools.</description>
+    <implements>LDAPv3 - IETF RFC 4511-4518</implements>
+    <bug-database rdf:resource="https://fedorahosted.org/389/report" />
+    <mailing-list rdf:resource="http://port389.org/wiki/Mailing_Lists" />
+    <mailing-list>389-devel@lists.fedoraproject.org</mailing-list>
+    <mailing-list>389-users@lists.fedoraproject.org</mailing-list>
+    <mailing-list>389-announce@lists.fedoraproject.org</mailing-list>
+    <mailing-list>389-commits@lists.fedoraproject.org</mailing-list>
+    <license rdf:resource="http://port389.org/wiki/Licensing" />
+    <download-page rdf:resource="http://port389.org/wiki/Download" />
+    <programming-language>C</programming-language>
+    <programming-language>Perl</programming-language>
+    <programming-language>Java</programming-language>
+    <release>
+      <Version>
+        <name>stable</name>
+	<branch>389-ds-base-1.2.11</branch>
+        <created>2012-10-09</created>
+        <revision>1.2.11.16</revision>
+      </Version>
+    </release>
+    <repository>
+      <GitRepository>
+        <location rdf:resource="git://git.fedorahosted.org/389/ds.git"/>
+        <browse rdf:resource="http://git.fedorahosted.org/cgit/389/ds.git/"/>
+      </GitRepository>
+    </repository>
+    <maintainer>
+      <foaf:Person>
+        <foaf:name>Rich Megginson</foaf:name>
+          <foaf:mbox rdf:resource="mailto:rmeggins@redhat.com"/>
+      </foaf:Person>
+    </maintainer>
+  </Project>
+</rdf:RDF>
