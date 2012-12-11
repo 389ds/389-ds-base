@@ -14,7 +14,7 @@ VERSION_MAINT=0
 # if this is a PRERELEASE, set VERSION_PREREL
 # otherwise, comment it out
 # be sure to include the dot prefix in the prerel
-VERSION_PREREL=.a1
+VERSION_PREREL=.rc1
 # NOTES on VERSION_PREREL
 # use aN for an alpha release e.g. a1, a2, etc.
 # use rcN for a release candidate e.g. rc1, rc2, etc.
