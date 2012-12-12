@@ -549,6 +549,8 @@ int config_get_disk_grace_period();
 int config_get_disk_preserve_logging();
 int config_get_disk_logging_critical();
 int config_get_sasl_maxbufsize();
+int config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_ignore_vattrs();
 
 int is_abspath(const char *);
 char* rel2abspath( char * );

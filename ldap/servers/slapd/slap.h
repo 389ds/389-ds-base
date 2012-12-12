@@ -2008,6 +2008,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DISK_PRESERVE_LOGGING "nsslapd-disk-monitoring-preserve-logging"
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
+#define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2244,6 +2245,9 @@ typedef struct _slapdFrontendConfig {
   int disk_grace_period;
   int disk_preserve_logging;
   int disk_logging_critical;
+
+  /* atomic settings */
+  Slapi_Counter *ignore_vattrs;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

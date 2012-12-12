@@ -697,6 +697,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.sasl_max_bufsize,
 		CONFIG_INT, (ConfigGetFunc)config_get_sasl_maxbufsize},
+	{CONFIG_IGNORE_VATTRS, config_set_ignore_vattrs,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ignore_vattrs,
+		CONFIG_STRING, (ConfigGetFunc)config_get_ignore_vattrs}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1099,6 +1103,7 @@ FrontendConfig_init () {
   cfg->disk_preserve_logging = LDAP_OFF;
   cfg->disk_logging_critical = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
+  cfg->ignore_vattrs = slapi_counter_new();
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -1222,6 +1227,20 @@ config_value_is_null( const char *attrname, const char *value, char *errorbuf,
 	}
 
 	return 0;
+}
+
+int
+config_set_ignore_vattrs (const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+    int val;
+
+    retVal = config_set_onoff ( attrname, value, &val, errorbuf, apply);
+    if(retVal == LDAP_SUCCESS){
+        slapi_counter_set_value(slapdFrontendConfig->ignore_vattrs, val);
+    }
+    return retVal;
 }
 
 int
@@ -3770,6 +3789,14 @@ config_get_sasl_maxbufsize()
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;
+}
+
+int
+config_get_ignore_vattrs()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    return slapi_counter_get_value(slapdFrontendConfig->ignore_vattrs);
 }
 
 int
