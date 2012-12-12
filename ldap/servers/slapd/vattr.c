@@ -850,21 +850,26 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 	vattr_sp_handle_list *list = NULL;
 	vattr_get_thang *my_get = NULL;
 	int attr_count = 0;
+	int ignore_vattrs;
 
-	rc = vattr_context_grok(&c);
-	if (0 != rc) {
-		/* Print a handy error log message */
-		if(!vattr_context_is_loop_msg_displayed(&c))
-		{
-			LDAPDebug(LDAP_DEBUG_ANY,"Detected virtual attribute loop in get on entry %s, attribute %s\n", slapi_entry_get_dn_const(e), type, 0);
-			vattr_context_set_loop_msg_displayed(&c);
+	ignore_vattrs = config_get_ignore_vattrs();
+
+	if(!ignore_vattrs){
+		rc = vattr_context_grok(&c);
+		if (0 != rc) {
+			/* Print a handy error log message */
+			if(!vattr_context_is_loop_msg_displayed(&c))
+			{
+				LDAPDebug(LDAP_DEBUG_ANY,"Detected virtual attribute loop in get on entry %s, attribute %s\n", slapi_entry_get_dn_const(e), type, 0);
+				vattr_context_set_loop_msg_displayed(&c);
+			}
+			return rc;
 		}
-		return rc;
 	}
 
 	/* Having done that, we now consult the attribute map to find service providers who are interested */
 	/* Look for attribute in the map */
-	if(!(flags & SLAPI_REALATTRS_ONLY))
+	if(!(flags & SLAPI_REALATTRS_ONLY) && !ignore_vattrs)
 	{
 		/* we use the vattr namespace aware version of this */
 		list = vattr_map_namespace_sp_getlist(namespace_dn, type);
@@ -2184,6 +2189,11 @@ vattr_sp_handle_list *vattr_map_namespace_sp_getlist(Slapi_DN *dn, const char *t
 	int ret = 0;
 	vattr_map_entry *result = NULL;
 	vattr_sp_handle_list* return_list = 0;
+
+	if(config_get_ignore_vattrs()){
+		/* we don't care about vattrs */
+		return NULL;
+	}
 
 	ret = vattr_map_lookup(type_to_find,&result);
 	if (0 == ret) {

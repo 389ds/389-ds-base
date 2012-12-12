@@ -2053,6 +2053,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_NDN_CACHE "nsslapd-ndn-cache-enabled"
 #define CONFIG_NDN_CACHE_SIZE "nsslapd-ndn-cache-max-size"
 #define CONFIG_ALLOWED_SASL_MECHS "nsslapd-allowed-sasl-mechanisms"
+#define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2275,6 +2276,9 @@ typedef struct _slapdFrontendConfig {
   /* normalized dn cache */
   int ndn_cache_enabled;
   size_t ndn_cache_max_size;
+
+  /* atomic settings */
+  Slapi_Counter *ignore_vattrs;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
