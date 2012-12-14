@@ -472,11 +472,12 @@ get_substring_filter(
 	ber_tag_t	tag, rc;
 	ber_len_t	len = -1;
 	char		*val, *eval, *last, *type = NULL;
+	size_t fstr_len;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_substring_filter\n", 0, 0, 0 );
 
 	if ( ber_scanf( ber, "{a", &type ) == LBER_ERROR ) {
-        slapi_ch_free_string(&type);
+		slapi_ch_free_string(&type);
 		return( LDAP_PROTOCOL_ERROR );
 	}
 	f->f_sub_type = slapi_attr_syntax_normalize( type );
@@ -485,7 +486,9 @@ get_substring_filter(
 	f->f_sub_any = NULL;
 	f->f_sub_final = NULL;
 
-	*fstr = slapi_ch_malloc( strlen( f->f_sub_type ) + 3 );
+	/* borrowing the handy macro: 256 */
+	fstr_len = strlen( f->f_sub_type ) + SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH;
+	*fstr = slapi_ch_malloc(fstr_len);
 	sprintf( *fstr, "(%s=", f->f_sub_type );
 	for ( tag = ber_first_element( ber, &len, &last );
 	    tag != LBER_ERROR && tag != LBER_END_OF_SEQORSET;
@@ -512,29 +515,30 @@ get_substring_filter(
 				return( LDAP_PROTOCOL_ERROR );
 			}
 			f->f_sub_initial = val;
-			eval = (char*)slapi_escape_filter_value( val, -1);
-			if(eval){
-				slapi_ch_free_string(&val);
-				val = eval;
-				f->f_sub_initial = val;
+			eval = (char*)slapi_escape_filter_value(val, -1);
+			if(eval) {
+				if (fstr_len < strlen(*fstr) + strlen(eval) + 1) {
+				    fstr_len += (strlen(eval) + 1) * 2;
+				    *fstr = slapi_ch_realloc(*fstr, fstr_len);
+				}
+				strcat(*fstr, eval);
+				slapi_ch_free_string(&eval);
 			}
-			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
-			    strlen( val ) + 1 );
-			strcat( *fstr, val );
 			break;
 
 		case LDAP_SUBSTRING_ANY:
 			LDAPDebug( LDAP_DEBUG_FILTER, "  ANY\n", 0, 0, 0 );
-			eval = (char*)slapi_escape_filter_value( val, -1);
+			charray_add(&f->f_sub_any, val);
+			eval = (char*)slapi_escape_filter_value(val, -1);
 			if(eval){
-				slapi_ch_free_string(&val);
-				val = eval;
+				if (fstr_len < strlen(*fstr) + strlen(eval) + 1) {
+				    fstr_len += (strlen(eval) + 1) * 2;
+				    *fstr = slapi_ch_realloc(*fstr, fstr_len);
+				}
+				strcat(*fstr, "*");
+				strcat(*fstr, eval);
+				slapi_ch_free_string(&eval);
 			}
-			charray_add( &f->f_sub_any, val );
-			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
-			    strlen( val ) + 2 );
-			strcat( *fstr, "*" );
-			strcat( *fstr, val );
 			break;
 
 		case LDAP_SUBSTRING_FINAL:
@@ -545,14 +549,14 @@ get_substring_filter(
 			f->f_sub_final = val;
 			eval = (char*)slapi_escape_filter_value( val, -1);
 			if(eval){
-				slapi_ch_free_string(&val);
-				val = eval;
-				f->f_sub_final = val;
+				if (fstr_len < strlen(*fstr) + strlen(eval) + 1) {
+				    fstr_len += (strlen(eval) + 1) * 2;
+				    *fstr = slapi_ch_realloc(*fstr, fstr_len);
+				}
+				strcat(*fstr, "*");
+				strcat(*fstr, eval);
+				slapi_ch_free_string(&eval);
 			}
-			*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) +
-			    strlen( val ) + 2 );
-			strcat( *fstr, "*" );
-			strcat( *fstr, val );
 			break;
 
 		default:
@@ -571,7 +575,10 @@ get_substring_filter(
 	}
 
 	filter_compute_hash(f);
-	*fstr = slapi_ch_realloc( *fstr, strlen( *fstr ) + 3 );
+	if (fstr_len < strlen(*fstr) + 3) {
+		fstr_len += 3;
+		*fstr = slapi_ch_realloc(*fstr, fstr_len);
+	}
 	if ( f->f_sub_final == NULL ) {
 		strcat( *fstr, "*" );
 	}
