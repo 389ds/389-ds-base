@@ -206,7 +206,7 @@ be_addsuffix(Slapi_Backend *be,const Slapi_DN *suffix)
 	{
 		struct suffixlist *new_suffix, *list;
 
-		new_suffix = (struct suffixlist *)slapi_ch_malloc(sizeof(struct suffixlist *));
+		new_suffix = (struct suffixlist *)slapi_ch_malloc(sizeof(struct suffixlist));
 		new_suffix->be_suffix = slapi_sdn_dup(suffix);
 		new_suffix->next = NULL;
 
