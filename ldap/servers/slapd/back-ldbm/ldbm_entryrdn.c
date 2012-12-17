@@ -1162,6 +1162,7 @@ entryrdn_lookup_dn(backend *be,
                    const char *rdn,
                    ID id,
                    char **dn,
+		   Slapi_RDN **psrdn,
                    back_txn *txn)
 {
     int rc = -1;
@@ -1192,6 +1193,7 @@ entryrdn_lookup_dn(backend *be,
     }
 
     *dn = NULL;
+    if (psrdn) *psrdn = NULL;
     /* Open the entryrdn index */
     rc = _entryrdn_open_index(be, &ai, &db);
     if (rc || (NULL == db)) {
@@ -1348,7 +1350,11 @@ bail:
     }
     /* it is guaranteed that db is not NULL. */
     dblayer_release_index_file(be, ai, db);
-    slapi_rdn_free(&srdn);
+    if (psrdn) {
+	*psrdn = srdn;
+    } else {
+    	slapi_rdn_free(&srdn);
+    }
     slapi_ch_free_string(&nrdn);
     slapi_ch_free_string(&keybuf);
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,

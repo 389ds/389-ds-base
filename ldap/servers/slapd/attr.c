@@ -251,7 +251,7 @@ slapi_attr_init_syntax(Slapi_Attr    *a)
 		a->a_mr_eq_plugin = asi->asi_mr_eq_plugin;
 		a->a_mr_ord_plugin = asi->asi_mr_ord_plugin;
 		a->a_mr_sub_plugin = asi->asi_mr_sub_plugin;
-	}
+	} 
 	if (tmp)
 		slapi_ch_free_string(&tmp);
 	return rc;
@@ -348,6 +348,20 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 }
 
 Slapi_Attr *
+slapi_attr_init_nosyntax(Slapi_Attr *a, const char *type)
+{
+
+	a->a_type = slapi_ch_strdup(type);
+	slapi_valueset_init(&a->a_present_values);
+	slapi_valueset_init(&a->a_deleted_values);
+	a->a_listtofree= NULL;
+	a->a_deletioncsn= NULL;
+	a->a_next= NULL;
+
+	return a;
+}
+
+Slapi_Attr *
 slapi_attr_dup(const Slapi_Attr *attr)
 {
 	Slapi_Attr *newattr= slapi_attr_new();
@@ -438,6 +452,9 @@ slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v )
 		return( -1 );
 	}
 
+	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
+	    slapi_attr_init_syntax (a);
+	}
 	ava.ava_type = a->a_type;
 	ava.ava_value = *v;
 	if (a->a_flags & SLAPI_ATTR_FLAG_NORMALIZED) {
@@ -549,6 +566,9 @@ attr_get_present_values(const Slapi_Attr *a)
 int
 slapi_attr_get_flags( const Slapi_Attr *a, unsigned long *flags )
 {
+	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
+	    slapi_attr_init_syntax (a);
+	}
 	*flags = a->a_flags;
 	return( 0 );
 }
@@ -556,6 +576,9 @@ slapi_attr_get_flags( const Slapi_Attr *a, unsigned long *flags )
 int
 slapi_attr_flag_is_set( const Slapi_Attr *a, unsigned long flag )
 {
+	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
+	    slapi_attr_init_syntax (a);
+	}
 	return( a->a_flags & flag );
 }
 
@@ -567,6 +590,9 @@ slapi_attr_value_cmp( const Slapi_Attr *a, const struct berval *v1, const struct
     Slapi_Value *cvals[2];
     Slapi_Value tmpcval;
 
+    if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
+        slapi_attr_init_syntax ((Slapi_Attr *)a);
+    }
     cvals[0] = &tmpcval;
     cvals[0]->v_csnset = NULL;
     cvals[0]->bv = *v1;
@@ -589,6 +615,9 @@ slapi_attr_value_cmp_ext(const Slapi_Attr *a, Slapi_Value *v1, Slapi_Value *v2)
     unsigned long v2_flags = v2->v_flags;
     const struct berval *bv2 = slapi_value_get_berval(v2);
 
+    if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
+        slapi_attr_init_syntax((Slapi_Attr *)a);
+    }
     cvals[0] = v1;
     cvals[1] = NULL;
     a2.a_present_values.va = cvals;

@@ -543,7 +543,7 @@ import_producer(void *param)
             }
             normdn = slapi_create_dn_string("%s", dn);
             slapi_ch_free_string(&dn);
-            e = slapi_str2entry_ext(normdn, estr, 
+            e = slapi_str2entry_ext(normdn, NULL, estr, 
                                     flags|SLAPI_STR2ENTRY_NO_ENTRYDN);
             slapi_ch_free_string(&normdn);
         } else {
@@ -1046,7 +1046,7 @@ index_producer(void *param)
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                 } else {
                     Slapi_DN *sdn = NULL;
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &normdn, NULL);
+                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &normdn, NULL, NULL);
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
@@ -1103,7 +1103,7 @@ index_producer(void *param)
                                     "entryrdn_lookup_dn returned: %s, "
                                     "and set to dn cache\n", normdn);
                 }
-                e = slapi_str2entry_ext(normdn, data.dptr, 
+                e = slapi_str2entry_ext(normdn, NULL, data.dptr, 
                                         SLAPI_STR2ENTRY_NO_ENTRYDN);
                 slapi_ch_free_string(&rdn);
             }
@@ -1408,7 +1408,7 @@ upgradedn_producer(void *param)
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
                 } else {
                     rc = entryrdn_lookup_dn(be, rdn, temp_id,
-                                            (char **)&normdn, NULL);
+                                            (char **)&normdn, NULL, NULL);
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
@@ -1465,7 +1465,7 @@ upgradedn_producer(void *param)
                                     "entryrdn_lookup_dn returned: %s, "
                                     "and set to dn cache\n", normdn);
                 }
-                e = slapi_str2entry_ext(normdn, data.dptr, 
+                e = slapi_str2entry_ext(normdn, NULL, data.dptr, 
                                         SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
                 slapi_ch_free_string(&rdn);
             }
@@ -3567,7 +3567,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                                 "from Slapi_RDN\n", rdn, id);
             goto bail;
         }
-        e = slapi_str2entry_ext(normdn, data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+        e = slapi_str2entry_ext(normdn, NULL, data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
         (*curr_entry)++;
         rc = index_set_entry_to_fifo(info, e, id, total_id, *curr_entry);
         if (rc) {

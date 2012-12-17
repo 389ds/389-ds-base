@@ -1483,7 +1483,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                 } else {
                     int myrc = 0;
                     Slapi_DN *sdn = NULL;
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL);
+                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
@@ -1543,7 +1543,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                         "and set to dn cache\n", dn);
                     }
                 }
-                ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 
+                ep->ep_entry = slapi_str2entry_ext( dn, NULL, data.dptr, 
                                str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN );
                 slapi_ch_free_string(&rdn);
             }
@@ -2064,7 +2064,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 } else {
                     int myrc = 0;
                     Slapi_DN *sdn = NULL;
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL);
+                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
@@ -2132,7 +2132,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     }
                 }
                 slapi_rdn_done(&psrdn);
-                ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 
+                ep->ep_entry = slapi_str2entry_ext( dn, NULL, data.dptr, 
                                                    SLAPI_STR2ENTRY_NO_ENTRYDN );
                 slapi_ch_free_string(&rdn);
             }
@@ -3294,7 +3294,7 @@ _get_and_add_parent_rdns(backend *be,
                            "(rdn: %s, ID: %d) from Slapi_RDN\n", rdn, id);
             goto bail;
         }
-        ep->ep_entry = slapi_str2entry_ext( dn, data.dptr, 
+        ep->ep_entry = slapi_str2entry_ext( dn, NULL, data.dptr, 
                                             SLAPI_STR2ENTRY_NO_ENTRYDN );
         ep->ep_id = id;
         slapi_ch_free_string(&dn);
@@ -3424,7 +3424,7 @@ _export_or_index_parents(ldbm_instance *inst,
             if (!bdn) {
                 /* we put pdn to dn cache, which could be used
                  * in _get_and_add_parent_rdns */
-                rc = entryrdn_lookup_dn(be, prdn, pid, &pdn, NULL);
+                rc = entryrdn_lookup_dn(be, prdn, pid, &pdn, NULL, NULL);
                 if (0 == rc) {
                     int myrc = 0;
                     /* pdn is put in DN cache.  No need to free it here,

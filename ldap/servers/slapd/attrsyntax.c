@@ -326,7 +326,7 @@ attr_syntax_get_by_name(const char *name)
 struct asyntaxinfo *
 attr_syntax_get_by_name_with_default(const char *name)
 {
-	struct asyntaxinfo *asi = NULL;
+struct asyntaxinfo *asi = NULL;
 	asi = attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
 	if (asi == NULL)
 		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
@@ -870,6 +870,9 @@ slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr)
 	const char *syntaxoid = NULL;
 	int dn_syntax = 0; /* not DN, by default */
 
+	if ( attr->a_plugin == NULL ) { 
+ 	    slapi_attr_init_syntax (attr);
+ 	}
 	if (attr && attr->a_plugin) { /* If not set, there is no way to get the info */
 		if ((syntaxoid = attr_get_syntax_oid(attr))) {
 			dn_syntax = ((0 == strcmp(syntaxoid, NAMEANDOPTIONALUID_SYNTAX_OID))
