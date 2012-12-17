@@ -367,6 +367,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
             ee = slapi_str2entry( data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN );
         } else {
             char *normdn = NULL;
+	    Slapi_RDN * srdn = NULL;
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
             if (bdn) {
                 normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
@@ -375,7 +376,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
             } else {
                 Slapi_DN *sdn = NULL;
-                rc = entryrdn_lookup_dn(be, rdn, id, &normdn, txn);
+                rc = entryrdn_lookup_dn(be, rdn, id, &normdn, &srdn, txn);
                 if (rc) {
                     slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
                                     "id2entry: entryrdn look up failed "
@@ -402,10 +403,11 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
                                     "and set to dn cache (id %d)\n", normdn, id);
                 }
             }
-            ee = slapi_str2entry_ext( (const char *)normdn, data.dptr, 
+            ee = slapi_str2entry_ext( (const char *)normdn, (const Slapi_RDN *)srdn, data.dptr, 
                                       SLAPI_STR2ENTRY_NO_ENTRYDN );
             slapi_ch_free_string(&rdn);
             slapi_ch_free_string(&normdn);
+	    slapi_rdn_free(&srdn);
         }
     } else {
         ee = slapi_str2entry( data.dptr, 0 );

@@ -844,9 +844,9 @@ void slapi_pblock_destroy( Slapi_PBlock *pb );
 Slapi_Entry *slapi_str2entry( char *s, int flags );
 
 /*
- * Same as slapi_str2entry except passing dn as an argument
+ * Same as slapi_str2entry except passing optional dn and rdn structure as argument
  */
-Slapi_Entry *slapi_str2entry_ext( const char *dn, char *s, int flags );
+Slapi_Entry *slapi_str2entry_ext( const char *dn, const Slapi_RDN *srdn, char *s, int flags );
 
 
 /*-----------------------------

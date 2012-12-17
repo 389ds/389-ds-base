@@ -704,6 +704,6 @@ int
 entryrdn_index_read_ext(backend *be, const Slapi_DN *sdn, ID *id, int flags, back_txn *txn);
 int entryrdn_rename_subtree(backend *be, const Slapi_DN *oldsdn, Slapi_RDN *newsrdn, const Slapi_DN *newsupsdn, ID id, back_txn *txn);
 int entryrdn_get_subordinates(backend *be, const Slapi_DN *sdn, ID id, IDList **subordinates, back_txn *txn);
-int entryrdn_lookup_dn(backend *be, const char *rdn, ID id, char **dn, back_txn *txn);
+int entryrdn_lookup_dn(backend *be, const char *rdn, ID id, char **dn, Slapi_RDN **psrdn, back_txn *txn);
 int entryrdn_get_parent(backend *be, const char *rdn, ID id, char **prdn, ID *pid, back_txn *txn);
 #endif

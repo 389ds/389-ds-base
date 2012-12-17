@@ -98,6 +98,7 @@ const char *attr_get_syntax_oid(const Slapi_Attr *attr);
 void attrlist_free(Slapi_Attr *alist);
 int attrlist_find_or_create(Slapi_Attr **alist, const char *type, Slapi_Attr ***a);
 int attrlist_find_or_create_locking_optional(Slapi_Attr **alist, const char *type, Slapi_Attr ***a, PRBool use_lock);
+int attrlist_append_nosyntax_init(Slapi_Attr **alist, const char *type, Slapi_Attr ***a);
 void attrlist_merge( Slapi_Attr **alist, const char *type, struct berval **vals );
 void attrlist_merge_valuearray( Slapi_Attr **alist, const char *type, Slapi_Value **vals );
 int attrlist_delete( Slapi_Attr **attrs, const char *type );
@@ -131,6 +132,7 @@ void attr_syntax_all_clear_flag( unsigned long flag );
 void attr_syntax_delete_all_not_flagged( unsigned long flag );
 struct asyntaxinfo *attr_syntax_get_by_oid ( const char *oid );
 struct asyntaxinfo *attr_syntax_get_by_name ( const char *name );
+struct asyntaxinfo *attr_syntax_get_by_name_with_default ( const char *name );
 struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name, PRBool use_lock );
 /*
  * Call attr_syntax_return() when you are done using a value returned

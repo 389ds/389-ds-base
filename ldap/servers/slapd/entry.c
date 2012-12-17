@@ -178,7 +178,7 @@ str2entry_state_information_from_type(char *s,CSNSet **csnset,CSN **attributedel
 
 /* rawdn is not consumed.  Caller needs to free it. */
 static Slapi_Entry *
-str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
+str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, int read_stateinfo )
 {
 	Slapi_Entry	*e;
 	char		*next, *ptype=NULL;
@@ -227,7 +227,9 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 	/* get the read lock of name2asi for performance purpose.
 	   It reduces read locking by per-entry lock, instead of per-attribute.
 	*/
-	attr_syntax_read_lock();
+	/* attr_syntax_read_lock();
+ 	 * no longer needed since attr syntax is not initialized
+ 	 */     
 
 	while ( (s = ldif_getline( &next )) != NULL &&
 	         attr_val_cnt < ENTRY_MAX_ATTRIBUTE_VALUE_COUNT )
@@ -310,7 +312,10 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 				slapi_entry_set_normdn(e, normdn);
 			}
 			if ( NULL == slapi_entry_get_rdn_const( e )) {
-				if (normdn) {
+				if (srdn) {
+					/* we can use the rdn generated in entryrdn_lookup_dn */
+					slapi_entry_set_srdn ( e, srdn );
+				}else if (normdn) {
 					/* normdn is just referred in slapi_entry_set_rdn. */
 					slapi_entry_set_rdn(e, normdn);
 				} else {
@@ -403,9 +408,9 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 						   e->e_uniqueid, value.bv_val, 0);
 			}else{
 				/* name2asi will be locked in slapi_entry_set_uniqueid */
-				attr_syntax_unlock_read(); 
+				/* attr_syntax_unlock_read(); */
 				slapi_entry_set_uniqueid (e, PL_strndup(value.bv_val, value.bv_len));
-				attr_syntax_read_lock();
+				/* attr_syntax_read_lock();*/
 			}
 			/* the memory below was not allocated by the slapi_ch_ functions */
 			if (freeval) slapi_ch_free_string(&value.bv_val);
@@ -426,7 +431,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 				switch(attr_state)
 				{
 				case ATTRIBUTE_PRESENT:
-					if(attrlist_find_or_create_locking_optional(&e->e_attrs, type.bv_val, &a, PR_FALSE)==0 /* Found */)
+					if(attrlist_append_nosyntax_init(&e->e_attrs, type.bv_val, &a)==0 /* Found */)
 					{
 						LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: Error. Non-contiguous attribute values for %s\n", type.bv_val, 0, 0);
 						PR_ASSERT(0);
@@ -434,7 +439,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 					}
 					break;
 				case ATTRIBUTE_DELETED:
-					if(attrlist_find_or_create_locking_optional(&e->e_deleted_attrs, type.bv_val, &a, PR_FALSE)==0 /* Found */)
+					if(attrlist_append_nosyntax_init(&e->e_deleted_attrs, type.bv_val, &a)==0 /* Found */)
 					{
 						LDAPDebug (LDAP_DEBUG_ANY, "str2entry_fast: Error. Non-contiguous deleted attribute values for %s\n", type.bv_val, 0, 0);
 						PR_ASSERT(0);
@@ -451,6 +456,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 			/* moved the value setting code here to check Slapi_Attr 'a'
 			 * to retrieve the attribute syntax info */
 			svalue = value_new(NULL, CSN_TYPE_NONE, NULL);
+#if 0
 			if (slapi_attr_is_dn_syntax_attr(*a)) {
 				int rc = 0;
 				char *dn_aval = NULL;
@@ -483,6 +489,8 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 			} else {
 				slapi_value_set_berval(svalue, &value);
 			}
+#endif
+			slapi_value_set_berval(svalue, &value);
 			/* the memory below was not allocated by the slapi_ch_ functions */	
 			if (freeval) slapi_ch_free_string(&value.bv_val);
 			svalue->v_csnset = valuecsnset;
@@ -542,7 +550,9 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 	}
 
 	/* release read lock of name2asi, per-entry lock */
-	attr_syntax_unlock_read();
+	/* attr_syntax_unlock_read();
+ 	 * no longer locked since attr syntax is not initialized
+ 	 */     
 
 	/* If this is a tombstone, it requires a special treatment for rdn. */
 	if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
@@ -1369,7 +1379,7 @@ slapi_str2entry( char *s, int flags )
 	}
 	else
 	{
-	    e= str2entry_fast( NULL/*dn*/, s, flags, read_stateinfo );
+	    e= str2entry_fast( NULL/*dn*/, NULL/*rdn*/, s, flags, read_stateinfo );
 	}
 	if (!e)
 	   return e;	/* e == NULL */
@@ -1404,7 +1414,7 @@ slapi_str2entry( char *s, int flags )
  * NOTE: the first arg "dn" should have been normalized before passing.
  */
 Slapi_Entry *
-slapi_str2entry_ext( const char *normdn, char *s, int flags )
+slapi_str2entry_ext( const char *normdn, const Slapi_RDN *srdn, char *s, int flags )
 {
 	Slapi_Entry *e;
 	int read_stateinfo= ~( flags & SLAPI_STR2ENTRY_IGNORE_STATE );
@@ -1431,7 +1441,7 @@ slapi_str2entry_ext( const char *normdn, char *s, int flags )
 	}
 	else
 	{
-	    e = str2entry_fast( normdn, s, 
+	    e = str2entry_fast( normdn, srdn, s, 
 	                    flags|SLAPI_STR2ENTRY_DN_NORMALIZED, read_stateinfo );
 	}
 	if (!e)

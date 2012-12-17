@@ -87,6 +87,23 @@ attrlist_find_or_create_locking_optional(Slapi_Attr **alist, const char *type, S
 	}
 	return rc;
 }
+int
+attrlist_append_nosyntax_init(Slapi_Attr **alist, const char *type, Slapi_Attr ***a)
+{
+	int rc= 0; /* found */
+	if ( *a==NULL )
+	{
+		for ( *a = alist; **a != NULL; *a = &(**a)->a_next );
+	}
+
+	if( **a==NULL )
+	{
+		**a = slapi_attr_new();
+		slapi_attr_init_nosyntax(**a, type);
+		rc= 1; /* created */
+	}
+	return rc;
+}
 
 /*
  * attrlist_merge - merge the given type and value with the list of

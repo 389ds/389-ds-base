@@ -135,6 +135,12 @@ plugin_call_syntax_filter_ava_sv(
 	    ava->ava_value.bv_val, 0 );
 
 	if ( ( a->a_mr_eq_plugin == NULL ) && ( a->a_mr_ord_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
+		/* could be lazy plugin initialization, get it now */
+		Slapi_Attr *t = a;
+		slapi_attr_init_syntax(t);
+	}
+
+	if ( ( a->a_mr_eq_plugin == NULL ) && ( a->a_mr_ord_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
 		LDAPDebug( LDAP_DEBUG_FILTER,
 		    "<= plugin_call_syntax_filter_ava no plugin for attr (%s)\n",
 		    a->a_type, 0, 0 );
@@ -242,6 +248,10 @@ plugin_call_syntax_filter_sub_sv(
 	LDAPDebug( LDAP_DEBUG_FILTER,
 	    "=> plugin_call_syntax_filter_sub_sv\n", 0, 0, 0 );
 
+	if ( ( a->a_mr_sub_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
+		/* could be lazy plugin initialization, get it now */
+		slapi_attr_init_syntax(a);
+	}
 	if ( ( a->a_mr_sub_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
 		LDAPDebug( LDAP_DEBUG_FILTER,
 				   "<= plugin_call_syntax_filter_sub_sv attribute (%s) has no substring matching rule or syntax plugin\n",
@@ -397,7 +407,11 @@ slapi_entry_syntax_check(
 	}
 
 	i = slapi_entry_first_attr(e, &a);
-
+  
+	if ( a && ( a->a_plugin == NULL ) ) {
+		/* could be lazy plugin initialization, get it now */
+		slapi_attr_init_syntax(a);
+	}
 	while ((-1 != i) && a && (a->a_plugin != NULL)) {
 		/* If no validate function is available for this type, just
 		 * assume that the value is valid. */
@@ -438,6 +452,10 @@ slapi_entry_syntax_check(
 
 		prevattr = a;
 		i = slapi_entry_next_attr(e, prevattr, &a);
+		if ( a && ( a->a_plugin == NULL ) ) {
+			/* could be lazy plugin initialization, get it now */
+			slapi_attr_init_syntax(a);
+		}	
 	}
 
 	/* See if we need to set the error text in the pblock. */
@@ -605,6 +623,10 @@ slapi_attr_values2keys_sv_pb(
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> slapi_attr_values2keys_sv\n",
 	    0, 0, 0 );
+	if ( ( sattr->a_plugin == NULL ) ) {
+		/* could be lazy plugin initialization, get it now */
+		slapi_attr_init_syntax(sattr);
+	}
 
 	switch (ftype) {
 	case LDAP_FILTER_EQUALITY:
@@ -773,6 +795,10 @@ slapi_attr_assertion2keys_ava_sv(
 
 	LDAPDebug( LDAP_DEBUG_FILTER,
 	    "=> slapi_attr_assertion2keys_ava_sv\n", 0, 0, 0 );
+	if ( ( sattr->a_plugin == NULL ) ) {
+		/* could be lazy plugin initialization, get it now */
+		slapi_attr_init_syntax(sattr);
+	}
 
 	switch (ftype) {
 	case LDAP_FILTER_EQUALITY:
@@ -889,6 +915,10 @@ slapi_attr_assertion2keys_sub_sv(
 
 	LDAPDebug( LDAP_DEBUG_FILTER,
 	    "=> slapi_attr_assertion2keys_sub_sv\n", 0, 0, 0 );
+	if ( ( sattr->a_plugin == NULL ) ) {
+		/* could be lazy plugin initialization, get it now */
+		slapi_attr_init_syntax(sattr);
+	}
 
 	if (sattr->a_mr_sub_plugin) {
 		pi = sattr->a_mr_sub_plugin;
@@ -944,6 +974,10 @@ slapi_attr_value_normalize_ext(
 
 	if (!sattr) {
 		sattr = slapi_attr_init(&myattr, type);
+	}
+	if ( ( sattr->a_plugin == NULL ) ) {
+		/* could be lazy plugin initialization, get it now */
+		slapi_attr_init_syntax(sattr);
 	}
 
 	/* use the filter type to determine which matching rule to use */
