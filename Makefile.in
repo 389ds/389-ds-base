@@ -1715,6 +1715,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50faxsyntaxplugin.ldif \
 	ldap/admin/src/scripts/50fixNsState.pl \
 	ldap/admin/src/scripts/50telexnumbersyntaxplugin.ldif \
+	ldap/admin/src/scripts/50rootdnaccesscontrolplugin.ldif \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
 	ldap/ldif/50replication-plugins.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
