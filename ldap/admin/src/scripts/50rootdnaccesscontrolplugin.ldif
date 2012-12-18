@@ -1,0 +1,16 @@
+dn: cn=RootDN Access Control,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: RootDN Access Control
+nsslapd-pluginpath: librootdn-access-plugin.so
+nsslapd-plugininitfunc: rootdn_init
+nsslapd-plugintype: internalpreoperation
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC
+
