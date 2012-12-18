@@ -498,6 +498,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/50refintprecedence.ldif \
 	ldap/admin/src/scripts/50retroclprecedence.ldif \
+	ldap/admin/src/scripts/50rootdnaccesscontrolplugin.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
 	ldap/admin/src/scripts/70upgradefromldif.pl \
 	ldap/admin/src/scripts/80upgradednformat.pl \
