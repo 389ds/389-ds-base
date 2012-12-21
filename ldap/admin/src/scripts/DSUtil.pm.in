@@ -207,7 +207,8 @@ sub isValidGroup {
 # arguments
 # - hostname - the hostname to look for
 # - res - the Resource object to use to construct messages
-# returns - the error message string, or "" upon success
+# returns - the error message string, or "" upon success if $res exists
+#         - the error message array, or () upon success otherwise
 sub checkHostname {
     my $hn = shift;
     my $res = shift;
@@ -217,7 +218,7 @@ sub checkHostname {
         if ($res) {
             return $res->getText('warning_hostname_not_fully_qualified', $hn);
         } else {
-            return "Warning: hostname $hn is not a fully qualified host and domain name\n";
+            return ('warning_hostname_not_fully_qualified', $hn);
         }
     }
 
@@ -229,7 +230,11 @@ sub checkHostname {
         my %hints = (socktype => SOCK_STREAM);
         my ($err, @aires) = getaddrinfo($hn, "ldap", \%hints);
         if ($err) {
-            return $res->getText('warning_no_such_hostname', $hn);
+            if ($res) {
+                return $res->getText('warning_no_such_hostname', $hn);
+            } else {
+                return ('warning_no_such_hostname', $hn);
+            }
         }
         while (my $ai = shift @aires) {
             debug(1, "found for hostname $hn\n");
@@ -256,7 +261,11 @@ sub checkHostname {
         debug(1, "Socket6\n");
         my @aires = getaddrinfo($hn, "ldap", AF_UNSPEC, SOCK_STREAM);
         if (scalar(@aires) < 5) {
-            return $res->getText('warning_no_such_hostname', $hn);
+            if ($res) {
+                return $res->getText('warning_no_such_hostname', $hn);
+            } else {
+                return ('warning_no_such_hostname', $hn);
+            }
         }
         my $ailen = scalar(@aires);
         while ($ailen >= 5) {
@@ -293,7 +302,7 @@ sub checkHostname {
             if ($res) {
                 return $res->getText('warning_no_such_hostname', $hn);
             } else {
-                return "Warning: could not resolve hostname $hn\n";
+                return ('warning_no_such_hostname', $hn);
             }
         }
         debug(1, "found for hostname $hn: name=$name\n");
@@ -313,24 +322,29 @@ sub checkHostname {
     }
 
     if (!$found) {
-        my $retstr = "";
         if ($res) {
+            my $retstr = "";
             $retstr = $res->getText('warning_reverse_resolve', $hn, $hn);
-        } else {
-            $retstr = "Warning: Hostname $hn is valid, but none of the IP addresses\nresolve back to $hn\n";
-        }
-        for my $ii (@hostip) {
-            if ($res) {
+            for my $ii (@hostip) {
                 $retstr .= $res->getText('warning_reverse_resolve_sub', $ii->[1], $ii->[0]);
-            } else {
-                $retstr .= "\taddress $ii->[1] resolves to host $ii->[0]\n";
             }
+            return $retstr;
+        } else {
+            my @reterrs = ();
+            push @reterrs, [ 'warning_reverse_resolve', $hn, $hn ];
+            for my $ii (@hostip) {
+                push @reterrs, [ 'warning_reverse_resolve_sub', $ii->[1], $ii->[0] ];
+            }
+            return @reterrs;
         }
-        return $retstr;
     }
 
     debug(1, "hostname $hn resolves correctly\n");
-    return '';
+    if ($res) {
+        return '';
+    } else {
+        return ();
+    }
 }
 
 # delete the subtree starting from the passed entry
