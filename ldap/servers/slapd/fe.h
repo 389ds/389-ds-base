@@ -190,10 +190,29 @@ int sasl_io_cleanup(Connection *c, void *data);
 /*
  * sasl_map.c
  */
+typedef struct sasl_map_data_ sasl_map_data;
+struct sasl_map_data_ {
+	char *name;
+	char *regular_expression;
+	char *template_base_dn;
+	char *template_search_filter;
+	int priority;
+	sasl_map_data *next; /* For linked list */
+	sasl_map_data *prev;
+};
+
+typedef struct _sasl_map_private {
+	Slapi_RWLock *lock;
+	sasl_map_data *map_data_list;
+} sasl_map_private;
+
 int sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
 int sasl_map_config_delete(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
-int sasl_map_domap(char *sasl_user, char *sasl_realm, char **ldap_search_base, char **ldap_search_filter);
+int sasl_map_config_modify(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
+int sasl_map_domap(sasl_map_data **map, char *sasl_user, char *sasl_realm, char **ldap_search_base, char **ldap_search_filter);
 int sasl_map_init();
 int sasl_map_done();
+void sasl_map_read_lock();
+void sasl_map_read_unlock();
 
 #endif

@@ -1767,7 +1767,7 @@ search_snmp(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *ret
 int
 setup_internal_backends(char *configdir)
 {
-    int rc = init_schema_dse(configdir);
+	int rc = init_schema_dse(configdir);
 	Slapi_DN config;
 
 	slapi_sdn_init_ndn_byref(&config,"cn=config");
@@ -1777,15 +1777,15 @@ setup_internal_backends(char *configdir)
 		rc= init_dse_file(configdir, &config);
 	}
 
-    if(rc)
-    {
+	if(rc)
+	{
 		Slapi_DN monitor;
 		Slapi_DN counters;
 		Slapi_DN snmp;
 		Slapi_DN root;
-        Slapi_Backend *be;
-        Slapi_DN encryption;
-        Slapi_DN saslmapping;
+		Slapi_Backend *be;
+		Slapi_DN encryption;
+		Slapi_DN saslmapping;
 
 		slapi_sdn_init_ndn_byref(&monitor,"cn=monitor");
 		slapi_sdn_init_ndn_byref(&counters,"cn=counters,cn=monitor");
@@ -1795,50 +1795,51 @@ setup_internal_backends(char *configdir)
 		slapi_sdn_init_ndn_byref(&encryption,"cn=encryption,cn=config");
 		slapi_sdn_init_ndn_byref(&saslmapping,"cn=mapping,cn=sasl,cn=config");
 
-        /* Search */
-    	dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",read_config_dse,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_BASE,"(objectclass=*)",monitor_info,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",read_root_dse,NULL);
-        dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_SUBTREE,EGG_FILTER,search_easter_egg,NULL); /* Egg */
-        dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&counters,LDAP_SCOPE_BASE,"(objectclass=*)",search_counters,NULL);
-        dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&snmp,LDAP_SCOPE_BASE,"(objectclass=*)",search_snmp,NULL);
+		/* Search */
+		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",read_config_dse,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_BASE,"(objectclass=*)",monitor_info,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",read_root_dse,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_SUBTREE,EGG_FILTER,search_easter_egg,NULL); /* Egg */
+		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&counters,LDAP_SCOPE_BASE,"(objectclass=*)",search_counters,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&snmp,LDAP_SCOPE_BASE,"(objectclass=*)",search_snmp,NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&encryption,LDAP_SCOPE_BASE,"(objectclass=*)",search_encryption,NULL);
 
-        /* Modify */
-    	dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",modify_config_dse,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_POSTOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",postop_modify_config_dse,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",modify_root_dse,NULL);
+		/* Modify */
+		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",modify_config_dse,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_POSTOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",postop_modify_config_dse,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",modify_root_dse,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&saslmapping,LDAP_SCOPE_SUBTREE,"(objectclass=nsSaslMapping)",sasl_map_config_modify,NULL);
 		
-        /* Delete */
-    	dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&counters,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&snmp,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
-    	dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
+		/* Delete */
+		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&counters,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&snmp,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&encryption,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
-
 		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&saslmapping,LDAP_SCOPE_SUBTREE,"(objectclass=nsSaslMapping)",sasl_map_config_delete,NULL);
 
-        /* Write */
-        dse_register_callback(pfedse,DSE_OPERATION_WRITE,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_SUBTREE,EGG_FILTER,dont_allow_that,NULL); /* Egg */
+		/* Write */
+		dse_register_callback(pfedse,DSE_OPERATION_WRITE,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_SUBTREE,EGG_FILTER,dont_allow_that,NULL); /* Egg */
 
+		/* Add */
 		dse_register_callback(pfedse,SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,&saslmapping,LDAP_SCOPE_SUBTREE,"(objectclass=nsSaslMapping)",sasl_map_config_add,NULL);
 
-    	be= be_new_internal(pfedse, "DSE", DSE_BACKEND);
-        be_addsuffix(be,&root);
-        be_addsuffix(be,&monitor);
-        be_addsuffix(be,&config);
+		be = be_new_internal(pfedse, "DSE", DSE_BACKEND);
+		be_addsuffix(be,&root);
+		be_addsuffix(be,&monitor);
+		be_addsuffix(be,&config);
 
 		add_internal_entries();
 
-        add_easter_egg_entry();
+		add_easter_egg_entry();
 		
 		slapi_sdn_done(&monitor);
 		slapi_sdn_done(&counters);
 		slapi_sdn_done(&snmp);
 		slapi_sdn_done(&root);
 		slapi_sdn_done(&saslmapping);
-    } else {
+	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "dse",
 				"Please edit the file to correct the reported problems"
 				" and then restart the server.\n" );
@@ -1846,7 +1847,7 @@ setup_internal_backends(char *configdir)
 	}
 
 	slapi_sdn_done(&config);
-    return rc;
+	return rc;
 }
 
 int fedse_create_startOK(char *filename,  char *startokfilename, const char *configdir)

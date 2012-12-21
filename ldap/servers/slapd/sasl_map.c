@@ -48,25 +48,9 @@
  * Map SASL identities to LDAP searches
  */
 
-/* 
- * We maintain a list of mappings to consult
- */
-
-typedef struct sasl_map_data_ sasl_map_data;
-struct sasl_map_data_ {
-	char *name;
-	char *regular_expression;
-	char *template_base_dn;
-	char *template_search_filter;
-	sasl_map_data *next; /* For linked list */
-}; 
-
-typedef struct _sasl_map_private {
-	PRLock *lock;
-	sasl_map_data *map_data_list;
-} sasl_map_private;
-
 static char * configDN = "cn=mapping,cn=sasl,cn=config";
+#define LOW_PRIORITY 100
+#define LOW_PRIORITY_STR "100"
 
 /*
  * DBDB: this is ugly, but right now there is _no_ server-wide
@@ -87,7 +71,7 @@ sasl_map_private *sasl_map_get_global_priv()
 static 
 sasl_map_private *sasl_map_new_private()
 {
-	PRLock *new_lock = PR_NewLock();
+	Slapi_RWLock *new_lock =  slapi_new_rwlock();
 	sasl_map_private *new_priv = NULL;
 	if (NULL == new_lock) {
 		return NULL;
@@ -100,20 +84,23 @@ sasl_map_private *sasl_map_new_private()
 static void 
 sasl_map_free_private(sasl_map_private **priv)
 {
-	PR_DestroyLock((*priv)->lock);
+	slapi_destroy_rwlock((*priv)->lock);
 	slapi_ch_free((void**)priv);
 	*priv = NULL;
 }
 
 /* This function does a shallow copy on the payload data supplied, so the caller should not free it, and it needs to be allocated using slapi_ch_malloc() */
 static 
-sasl_map_data *sasl_map_new_data(char *name, char *regex, char *dntemplate, char *filtertemplate)
+sasl_map_data *sasl_map_new_data(char *name, char *regex, char *dntemplate, char *filtertemplate, int priority)
 {
 	sasl_map_data *new_dp = (sasl_map_data *) slapi_ch_calloc(1,sizeof(sasl_map_data));
 	new_dp->name = name;
 	new_dp->regular_expression = regex;
 	new_dp->template_base_dn = dntemplate;
 	new_dp->template_search_filter = filtertemplate;
+	new_dp->priority = priority;
+	new_dp->next = NULL;
+	new_dp->prev = NULL;
 	return new_dp;
 }
 
@@ -139,31 +126,39 @@ sasl_map_remove_list_entry(sasl_map_private *priv, char *removeme)
 	int ret = 0;
 	int foundit = 0;
 	sasl_map_data *current = NULL;
-	sasl_map_data *previous = NULL;
-	PR_Lock(priv->lock);
+	sasl_map_data *prev = NULL;
+	sasl_map_data *next = NULL;
+
+	slapi_rwlock_wrlock(priv->lock);
 	current = priv->map_data_list;
 	while (current) {
+		next = current->next;
 		if (0 == strcmp(current->name,removeme)) {
 			foundit = 1;
-			if (previous) {
+			prev = current->prev;
+			if (prev) {
 				/* Unlink it */
-				previous->next = current->next;
+				if(next){
+				   next->prev = prev;
+				}
+				prev->next = next;
 			} else {
 				/* That was the first list entry */
 				priv->map_data_list = current->next;
+				priv->map_data_list->prev = NULL;
 			}
 			/* Payload free */
 			sasl_map_free_data(&current);
 			/* And no need to look further */
 			break;
 		}
-		previous = current;
-		current = current->next;
+		current = next;
 	}
+	slapi_rwlock_unlock(priv->lock);
 	if (!foundit) {
 		ret = -1;
 	}
-	PR_Unlock(priv->lock);
+
 	return ret;
 }
 
@@ -208,15 +203,21 @@ sasl_map_insert_list_entry(sasl_map_private *priv, sasl_map_data *dp)
 	int ret = 0;
 	int ishere = 0;
 	sasl_map_data *current = NULL;
+	sasl_map_data *last = NULL;
+	sasl_map_data *prev = NULL;
+
 	if (NULL == dp) {
 		return ret;
 	}
-	PR_Lock(priv->lock);
+
+	slapi_rwlock_wrlock(priv->lock);
+
 	/* Check to see if it's here already */
 	current = priv->map_data_list;
 	while (current) {
 		if (0 == sasl_map_cmp_data(current, dp)) {
 			ishere = 1;
+			break;
 		}
 		if (current->next) {
 			current = current->next;
@@ -225,15 +226,39 @@ sasl_map_insert_list_entry(sasl_map_private *priv, sasl_map_data *dp)
 		}
 	}
 	if (ishere) {
+		slapi_rwlock_unlock(priv->lock);
 		return -1;
 	}
-	/* current now points to the end of the list or NULL */
+
+	/* insert the map in its proper place */
 	if (NULL == priv->map_data_list) {
 		priv->map_data_list = dp;
 	} else {
-		current->next = dp;
+		current = priv->map_data_list;
+		while (current) {
+			last = current;
+			if(current->priority > dp->priority){
+				prev = current->prev;
+				if(prev){
+				    prev->next = dp;
+				    dp->prev = prev;
+				} else {
+					/* this is now the head of the list */
+					priv->map_data_list = dp;
+				}
+				current->prev = dp;
+				dp->next = current;
+				slapi_rwlock_unlock(priv->lock);
+				return ret;
+			}
+			current = current->next;
+		}
+		/* add the map at the end of the list */
+		last->next = dp;
+		dp->prev = last;
 	}
-	PR_Unlock(priv->lock);
+	slapi_rwlock_unlock(priv->lock);
+
 	return ret;
 }
 
@@ -342,9 +367,11 @@ static int
 sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 {
 	int ret = 0;
+	int priority;
 	char *regex = NULL;
 	char *basedntemplate = NULL;
 	char *filtertemplate = NULL;
+	char *priority_str = NULL;
 	char *map_name = NULL;
 
 	*new_dp = NULL;
@@ -352,21 +379,43 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 	basedntemplate = slapi_entry_attr_get_charptr( entry, "nsSaslMapBaseDNTemplate" );
 	filtertemplate = slapi_entry_attr_get_charptr( entry, "nsSaslMapFilterTemplate" );
 	map_name = slapi_entry_attr_get_charptr( entry, "cn" );
+	priority_str = slapi_entry_attr_get_charptr( entry, "nsSaslMapPriority" );
 
+	if(priority_str){
+		priority = atoi(priority_str);
+	} else {
+		priority = LOW_PRIORITY;
+	}
+	if(priority == 0 || priority > LOW_PRIORITY){
+		struct berval desc;
+		struct berval *newval[2] = {0, 0};
+
+		desc.bv_val = LOW_PRIORITY_STR;
+		desc.bv_len = strlen(desc.bv_val);
+		newval[0] = &desc;
+		if (entry_replace_values(entry, "nsSaslMapPriority", newval) != 0){
+			LDAPDebug( LDAP_DEBUG_TRACE, "sasl_map_config_parse_entry: failed to reset priority to (%d)\n",
+					LOW_PRIORITY,0,0);
+		} else {
+			LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_config_parse_entry: resetting nsSaslMapPriority to lowest priority(%d)\n",
+					LOW_PRIORITY,0,0);
+		}
+		priority = LOW_PRIORITY;
+	}
 	if ( (NULL == map_name) || (NULL == regex) ||
 		 (NULL == basedntemplate) || (NULL == filtertemplate) ) {
 		/* Invalid entry */
 		ret = -1;
 	} else {
 		/* Make the new dp */
-		*new_dp = sasl_map_new_data(map_name, regex, basedntemplate, filtertemplate);
+		*new_dp = sasl_map_new_data(map_name, regex, basedntemplate, filtertemplate, priority);
 	}
 
 	if (ret) {
-		slapi_ch_free((void **) &map_name);
-		slapi_ch_free((void **) &regex);
-		slapi_ch_free((void **) &basedntemplate);
-		slapi_ch_free((void **) &filtertemplate);
+		slapi_ch_free_string(&map_name);
+		slapi_ch_free_string(&regex);
+		slapi_ch_free_string(&basedntemplate);
+		slapi_ch_free_string(&filtertemplate);
 	}
 	return ret;
 }
@@ -431,6 +480,35 @@ sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
 }
 
 int
+sasl_map_config_modify(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
+{
+	sasl_map_private *priv = sasl_map_get_global_priv();
+	sasl_map_data *dp;
+	char *map_name = NULL;
+	int ret = SLAPI_DSE_CALLBACK_ERROR;
+
+	if((map_name = slapi_entry_attr_get_charptr( entryBefore, "cn" )) == NULL){
+		LDAPDebug( LDAP_DEBUG_TRACE, "sasl_map_config_modify: could not find name of map\n",0,0,0);
+		return ret;
+	}
+	if(sasl_map_remove_list_entry(priv, map_name) == 0){
+		ret = sasl_map_config_parse_entry(e, &dp);
+		if (!ret && dp) {
+			ret = sasl_map_insert_list_entry(priv, dp);
+			if(ret == 0){
+				ret = SLAPI_DSE_CALLBACK_OK;
+			}
+		}
+	}
+	if(ret == SLAPI_DSE_CALLBACK_ERROR){
+		LDAPDebug( LDAP_DEBUG_TRACE, "sasl_map_config_modify: failed to update map(%s)\n",map_name,0,0);
+	}
+	slapi_ch_free_string(&map_name);
+
+	return ret;
+}
+
+int
 sasl_map_config_delete(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg)
 {
 	int ret = 0;
@@ -485,28 +563,18 @@ int sasl_map_done()
 	}
 
 	/* Free the map list */
-	PR_Lock(priv->lock);
+	slapi_rwlock_wrlock(priv->lock);
 	dp = priv->map_data_list;
 	while (dp) {
 		sasl_map_data *dp_next = dp->next;
 		sasl_map_free_data(&dp);
 		dp = dp_next;
 	}
-	PR_Unlock(priv->lock);
+	slapi_rwlock_unlock(priv->lock);
 
 	/* Free the private structure */
 	sasl_map_free_private(&priv);
 	return ret;
-}
-
-static sasl_map_data*
-sasl_map_first(sasl_map_private *priv)
-{
-	sasl_map_data *result = NULL;
-	PR_Lock(priv->lock);
-	result = priv->map_data_list;
-	PR_Unlock(priv->lock);
-	return result;
 }
 
 static int
@@ -610,28 +678,31 @@ sasl_map_str_concat(char *s1, char *s2)
  * returns 1 if matched, 0 otherwise
  */
 int
-sasl_map_domap(char *sasl_user, char *sasl_realm, char **ldap_search_base, char **ldap_search_filter)
+sasl_map_domap(sasl_map_data **map, char *sasl_user, char *sasl_realm, char **ldap_search_base, char **ldap_search_filter)
 {
-	int ret = 0;
-	sasl_map_data *this_map = NULL;
-	char *sasl_user_and_realm = NULL;
 	sasl_map_private *priv = sasl_map_get_global_priv();
+	char *sasl_user_and_realm = NULL;
+	int ret = 0;
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_domap\n", 0, 0, 0 );
+	if(map == NULL){
+		LDAPDebug( LDAP_DEBUG_TRACE, "<- sasl_map_domap: Internal error, mapping is NULL\n",0,0,0);
+		return ret;
+	}
 	*ldap_search_base = NULL;
 	*ldap_search_filter = NULL;
-	LDAPDebug( LDAP_DEBUG_TRACE, "-> sasl_map_domap\n", 0, 0, 0 );
 	sasl_user_and_realm = sasl_map_str_concat(sasl_user,sasl_realm);
 	/* Walk the list of maps */
-	this_map = sasl_map_first(priv);
-	while (this_map) {
-		int matched = 0;
+	if(*map == NULL)
+		*map = priv->map_data_list;
+	while (*map) {
 		/* If one matches, then make the search params */
-		LDAPDebug( LDAP_DEBUG_TRACE, "sasl_map_domap - trying map [%s]\n", this_map->name, 0, 0 );
-		matched = sasl_map_check(this_map, sasl_user_and_realm, ldap_search_base, ldap_search_filter);
-		if (1 == matched) {
-			ret = 1;
+		LDAPDebug( LDAP_DEBUG_TRACE, "sasl_map_domap - trying map [%s]\n", (*map)->name, 0, 0 );
+		if((ret = sasl_map_check(*map, sasl_user_and_realm, ldap_search_base, ldap_search_filter))){
+			*map = sasl_map_next(*map);
 			break;
 		}
-		this_map = sasl_map_next(this_map);
+		*map = sasl_map_next(*map);
 	}
 	if (sasl_user_and_realm) {
 		slapi_ch_free((void**)&sasl_user_and_realm);
@@ -640,3 +711,16 @@ sasl_map_domap(char *sasl_user, char *sasl_realm, char **ldap_search_base, char 
 	return ret;
 }
 
+void
+sasl_map_read_lock()
+{
+	sasl_map_private *priv = sasl_map_get_global_priv();
+	slapi_rwlock_rdlock(priv->lock);
+}
+
+void
+sasl_map_read_unlock()
+{
+	sasl_map_private *priv = sasl_map_get_global_priv();
+	slapi_rwlock_unlock(priv->lock);
+}

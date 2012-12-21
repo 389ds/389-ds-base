@@ -323,14 +323,15 @@ static Slapi_Entry *ids_sasl_user_to_entry(
     const char *user_realm
 )
 {
-    int found = 0;
-    int attrsonly = 0, scope = LDAP_SCOPE_SUBTREE;
     LDAPControl **ctrls = NULL;
+    sasl_map_data *map = NULL;
     Slapi_Entry *entry = NULL;
     char **attrs = NULL;
-    int regexmatch = 0;
     char *base = NULL;
     char *filter = NULL;
+    int attrsonly = 0, scope = LDAP_SCOPE_SUBTREE;
+    int regexmatch = 0;
+    int found = 0;
 
     /* Check for wildcards in the authid and realm. If we encounter one,
      * just fail the mapping without performing a costly internal search. */
@@ -345,31 +346,42 @@ static Slapi_Entry *ids_sasl_user_to_entry(
     }
 
     /* New regex-based identity mapping */
-    regexmatch = sasl_map_domap((char*)user, (char*)user_realm, &base, &filter);
-    if (regexmatch) {
-        ids_sasl_user_search(base, scope, filter, 
-                             ctrls, attrs, attrsonly,
-                             &entry, &found);
+    sasl_map_read_lock();
+    while(1){
+        regexmatch = sasl_map_domap(&map, (char*)user, (char*)user_realm, &base, &filter);
+        if (regexmatch) {
+            ids_sasl_user_search(base, scope, filter,
+                                 ctrls, attrs, attrsonly,
+                                 &entry, &found);
+            if (found == 1) {
+                LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found this entry: dn:%s, "
+                    "matching filter=%s\n", entry->e_sdn.dn, filter, 0);
+            } else if (found == 0) {
+                LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found no entries matching "
+                    "filter=%s\n", filter, 0, 0);
+            } else {
+                LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found more than one entry "
+                    "matching filter=%s\n", filter, 0, 0);
+                if (entry) {
+                    slapi_entry_free(entry);
+                    entry = NULL;
+                }
+            }
 
-        if (found == 1) {
-            LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found this entry: dn:%s, "
-                "matching filter=%s\n", entry->e_sdn.dn, filter, 0);
-        } else if (found == 0) {
-            LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found no entries matching "
-                "filter=%s\n", filter, 0, 0);
-        } else {
-            LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found more than one entry "
-                "matching filter=%s\n", filter, 0, 0);
-            if (entry) {
-                slapi_entry_free(entry);
-                entry = NULL;
+            /* Free the filter etc */
+            slapi_ch_free_string(&base);
+            slapi_ch_free_string(&filter);
+
+            /* If we didn't find an entry, look at the other maps */
+            if(found){
+                break;
             }
         }
-
-        /* Free the filter etc */
-        slapi_ch_free_string(&base);
-        slapi_ch_free_string(&filter);
+        if(map == NULL){
+            break;
+        }
     }
+    sasl_map_read_unlock();
 
     return entry;
 }
