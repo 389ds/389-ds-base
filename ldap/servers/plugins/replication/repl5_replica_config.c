@@ -500,8 +500,12 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		if (new_repl_id || new_repl_type)
 		{
 			*returncode = replica_config_change_type_and_id(r, new_repl_type, new_repl_id, errortext, apply_mods);
+			PR_Unlock (s_configLock);
+			replica_update_state(0, (void *)replica_get_name(r));
+			PR_Lock (s_configLock);
 			slapi_ch_free_string(&new_repl_id);
 			slapi_ch_free_string(&new_repl_type);
+			agmtlist_notify_all(pb);
 		}
 	}
 
@@ -808,10 +812,35 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
 
     if (apply_mods)
     {
-        replica_set_type (r, type);
-		replica_set_rid(r, rid);
+        Object *ruv_obj, *gen_obj;
+        RUV *ruv;
+        CSNGen *gen;
 
-		/* Set the mapping tree node, and the list of referrals */
+        ruv_obj = replica_get_ruv(r);
+        if(ruv_obj){
+            /* we need to rewrite the repl_csngen with the new rid */
+            ruv = object_get_data (ruv_obj);
+            gen_obj = replica_get_csngen (r);
+            if(gen_obj){
+                const char *purl = multimaster_get_local_purl();
+
+                gen = (CSNGen*) object_get_data (gen_obj);
+                csngen_rewrite_rid(gen, rid);
+                if(purl && type == REPLICA_TYPE_UPDATABLE){
+                    ruv_add_replica(ruv, rid, purl);
+                    replica_reset_csn_pl(r);
+                }
+                ruv_delete_replica(ruv, oldrid);
+                replica_set_ruv_dirty(r);
+                cl5CleanRUV(oldrid);
+                replica_set_csn_assigned(r);
+            }
+            object_release(ruv_obj);
+        }
+        replica_set_type (r, type);
+        replica_set_rid(r, rid);
+
+        /* Set the mapping tree node, and the list of referrals */
         /* if this server is a 4.0 consumer the referrals are set by legacy plugin */
         if (!replica_is_legacy_consumer(r))
 		    consumer5_set_mapping_tree_state_for_replica(r, NULL);

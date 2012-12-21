@@ -306,11 +306,22 @@ void csngen_abort_csn (CSNGen *gen, const CSN *csn)
     _csngen_call_callbacks (gen, csn, 1);
 }
 
+void csngen_rewrite_rid(CSNGen *gen, ReplicaId rid)
+{
+    if (gen == NULL){
+        return;
+    }
+    slapi_rwlock_wrlock (gen->lock);
+    gen->state.rid = rid;
+    slapi_rwlock_unlock (gen->lock);
+
+}
+
 /* this function should be called when a remote CSN for the same part of
    the dit becomes known to the server (for instance, as part of RUV during
    replication session. In response, the generator would adjust its notion
    of time so that it does not generate smaller csns */
-int csngen_adjust_time (CSNGen *gen, const CSN* csn)
+int csngen_adjust_time(CSNGen *gen, const CSN* csn)
 {
     time_t remote_time, remote_offset, cur_time;
 	PRUint16 remote_seqnum;

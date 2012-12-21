@@ -466,7 +466,7 @@ ruv_add_replica (RUV *ruv, ReplicaId rid, const char *replica_purl)
     {
         replica = ruvAddReplicaNoCSN (ruv, rid, replica_purl);
     }
-    
+
     slapi_rwlock_unlock (ruv->lock);
 
     if (replica)
@@ -514,7 +514,7 @@ ruv_add_index_replica (RUV *ruv, ReplicaId rid, const char *replica_purl, int in
     {
         replica = ruvAddIndexReplicaNoCSN (ruv, rid, replica_purl, index);
     }
-    
+
     slapi_rwlock_unlock (ruv->lock);
 
     if (replica)
@@ -1983,14 +1983,14 @@ ruv_move_local_supplier_to_first(RUV *ruv, ReplicaId aRid)
 	
 	PR_ASSERT(ruv);
 
-    slapi_rwlock_wrlock (ruv->lock);
-	
+	slapi_rwlock_wrlock (ruv->lock);
+
 	elem = (RUVElement *)dl_delete(ruv->elements,(const void*)&aRid, ruvReplicaCompare, 0);
 	if (elem) {
 		dl_add_index(ruv->elements, elem, 1);
 		rc = RUV_SUCCESS;
 	}
-	
+
 	slapi_rwlock_unlock (ruv->lock);
 	
 	return rc;

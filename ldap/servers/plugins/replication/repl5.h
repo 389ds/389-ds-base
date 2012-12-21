@@ -61,6 +61,7 @@
 #include "repl5_ruv.h"
 #include "cl4.h"
 
+#define START_UPDATE_DELAY 2 /* 2 second */
 #define REPLICA_TYPE_WINDOWS 1
 #define REPLICA_TYPE_MULTIMASTER 0
 #define REPL_DIRSYNC_CONTROL_OID "1.2.840.113556.1.4.841"
@@ -558,6 +559,7 @@ int replica_add_by_name (const char *name, Object *replica);
 int replica_delete_by_name (const char *name);
 Object* replica_get_by_name (const char *name);
 void replica_flush(Replica *r);
+void replica_set_csn_assigned(Replica *r);
 void replica_get_referrals(const Replica *r, char ***referrals);
 void replica_set_referrals(Replica *r,const Slapi_ValueSet *vs);
 int replica_update_csngen_state (Replica *r, const RUV *ruv);
@@ -584,6 +586,8 @@ void replica_set_ruv_dirty (Replica *r);
 void replica_write_ruv (Replica *r);
 char *replica_get_dn(Replica *r);
 void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
+void replica_update_state (time_t when, void *arg);
+void replica_reset_csn_pl(Replica *r);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */

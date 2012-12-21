@@ -51,7 +51,6 @@
 #include "cl5_api.h"
 
 #define RUV_SAVE_INTERVAL (30 * 1000) /* 30 seconds */
-#define START_UPDATE_DELAY 2 /* 2 second */
 
 #define REPLICA_RDN				 "cn=replica"
 #define CHANGELOG_RDN            "cn=legacy changelog"
@@ -107,7 +106,6 @@ static int _replica_check_validity (const Replica *r);
 static int _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext);
 static int _replica_update_entry (Replica *r, Slapi_Entry *e, char *errortext);
 static int _replica_configure_ruv (Replica *r, PRBool isLocked);
-static void _replica_update_state (time_t when, void *arg);
 static char * _replica_get_config_dn (const Slapi_DN *root);
 static char * _replica_type_as_string (const Replica *r);
 /* DBDB, I think this is probably bogus : */
@@ -248,7 +246,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
        In that case the updated would fail but nothing bad would happen. The next
        scheduled update would save the state */
 	repl_name = slapi_ch_strdup (r->repl_name);
-	r->repl_eqcxt_rs = slapi_eq_repeat(_replica_update_state, repl_name, 
+	r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, repl_name,
                                        current_time () + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
 
 	if (r->tombstone_reap_interval > 0)
@@ -295,10 +293,17 @@ replica_flush(Replica *r)
 		PR_Unlock(r->repl_lock);
 		/* This function take the Lock Inside */
 		/* And also write the RUV */
-		_replica_update_state((time_t)0, r->repl_name);
+		replica_update_state((time_t)0, r->repl_name);
 	}
 }
 
+void
+replica_set_csn_assigned(Replica *r)
+{
+    PR_Lock(r->repl_lock);
+    r->repl_csn_assigned = PR_TRUE;
+    PR_Unlock(r->repl_lock);
+}
 
 /* 
  * Deallocate a replica. arg should point to the address of a
@@ -928,6 +933,19 @@ replica_set_updatedn (Replica *r, const Slapi_ValueSet *vs, int mod_op)
 	PR_Unlock(r->repl_lock);
 }
 
+void
+replica_reset_csn_pl(Replica *r)
+{
+    PR_Lock(r->repl_lock);
+
+    if (NULL != r->min_csn_pl){
+        csnplFree (&r->min_csn_pl);
+    }
+    r->min_csn_pl = csnplNew();
+
+    PR_Unlock(r->repl_lock);
+}
+
 /* gets current replica generation for this replica */
 char *replica_get_generation (const Replica *r)
 {
@@ -1251,8 +1269,8 @@ replica_set_enabled (Replica *r, PRBool enable)
     {
         if (r->repl_eqcxt_rs == NULL)   /* event is not already registered */
         {
-			repl_name = slapi_ch_strdup (r->repl_name);
-            r->repl_eqcxt_rs = slapi_eq_repeat(_replica_update_state, repl_name, 
+            repl_name = slapi_ch_strdup (r->repl_name);
+            r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, repl_name,
                                                current_time() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);  
         }
     }
@@ -2349,8 +2367,8 @@ done:
 
 /* NOTE - this is the only non-api function that performs locking because
    it is called by the event queue */
-static void 
-_replica_update_state (time_t when, void *arg)
+void
+replica_update_state (time_t when, void *arg)
 {
 	int rc;
 	const char *replica_name = (const char *)arg;
@@ -2420,7 +2438,7 @@ _replica_update_state (time_t when, void *arg)
 	dn = _replica_get_config_dn (r->repl_root);
 	if (NULL == dn) {
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"_replica_update_state: failed to get the config dn for %s\n",
+			"replica_update_state: failed to get the config dn for %s\n",
 			slapi_sdn_get_dn (r->repl_root));
 		PR_Unlock(r->repl_lock);
 		goto done;
@@ -2461,7 +2479,7 @@ _replica_update_state (time_t when, void *arg)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 	if (rc != LDAP_SUCCESS) 
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "_replica_update_state: "
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_update_state: "
 			"failed to update state of csn generator for replica %s: LDAP "
 			"error - %d\n", slapi_sdn_get_dn(r->repl_root), rc);
 	}
