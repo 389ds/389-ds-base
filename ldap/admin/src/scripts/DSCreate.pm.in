@@ -150,9 +150,9 @@ sub sanityCheckParams {
         debug(0, "WARNING: The root password is less than 8 characters long.  You should choose a longer one.\n");
     }
 
-    my $str = checkHostname($inf->{General}->{FullMachineName});
-    if ($str) {
-        debug(0, $str);
+    if (@errs = checkHostname($inf->{General}->{FullMachineName}, 0)) {
+        debug(1, @errs);
+        return @errs;
     }
 
     return ();
