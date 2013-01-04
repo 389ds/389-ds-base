@@ -2759,7 +2759,7 @@ dna_create_valcheck_filter(struct configEntry *config_entry, PRUint64 value, cha
 /* This function is called at BEPREOP timing to add uid/gidNumber 
  * if modtype is missing */
 static int
-_dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e)
+_dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
 {
     int ret = 0;
     PRCList *list = NULL;
@@ -2886,6 +2886,10 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e)
                         if (LDAP_SUCCESS != ret) {
                             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                             "dna_pre_op: no more values available!!\n");
+                            /* Set an error string to be returned to the client. */
+                            *errstr = slapi_ch_smprintf("Allocation of a new value for range"
+                                               " %s failed! Unable to proceed.",
+                                               config_entry->dn);
                             slapi_unlock_mutex(config_entry->lock);
                             break;
                         }
@@ -2895,6 +2899,10 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e)
                         if (LDAP_SUCCESS != ret){
                             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                             "dna_pre_op: failed to allocate a new ID\n");
+                            /* Set an error string to be returned to the client. */
+                            *errstr = slapi_ch_smprintf("Allocation of a new value for range"
+                                               " %s failed! Unable to proceed.",
+                                               config_entry->dn);
                             slapi_unlock_mutex(config_entry->lock);
                             break;
                         }
@@ -2902,6 +2910,10 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e)
                         /* dna_first_free_value() failed for some unknown reason */
                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                         "dna_pre_op: failed to allocate a new ID!!\n");
+                        /* Set an error string to be returned to the client. */
+                        *errstr = slapi_ch_smprintf("Allocation of a new value for range"
+                                               " %s failed! Unable to proceed.",
+                                               config_entry->dn);
                         slapi_unlock_mutex(config_entry->lock);
                         break;
                     }
@@ -2943,7 +2955,7 @@ bail:
 /* This function is called at BEPREOP timing to add uid/gidNumber 
  * if modtype is missing */
 static int
-_dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods)
+_dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **errstr)
 {
     int ret = 0;
     PRCList *list = NULL;
@@ -3144,6 +3156,10 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods)
                         if (LDAP_SUCCESS != ret) {
                             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                             "dna_pre_op: no more values available!!\n");
+                            /* Set an error string to be returned to the client. */
+                            *errstr = slapi_ch_smprintf("Allocation of a new value for range"
+                                               " %s failed! Unable to proceed.",
+                                               config_entry->dn);
                             slapi_unlock_mutex(config_entry->lock);
                             break;
                         }
@@ -3153,6 +3169,10 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods)
                         if (LDAP_SUCCESS != ret){
                             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                             "dna_pre_op: failed to allocate a new ID\n");
+                            /* Set an error string to be returned to the client. */
+                            *errstr = slapi_ch_smprintf("Allocation of a new value for range"
+                                               " %s failed! Unable to proceed.",
+                                               config_entry->dn);
                             slapi_unlock_mutex(config_entry->lock);
                             break;
                         }
@@ -3160,6 +3180,10 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods)
                         /* dna_first_free_value() failed for some unknown reason */
                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                         "dna_pre_op: failed to allocate a new ID!!\n");
+                        /* Set an error string to be returned to the client. */
+                        *errstr = slapi_ch_smprintf("Allocation of a new value for range"
+                                           " %s failed! Unable to proceed.",
+                                           config_entry->dn);
                         slapi_unlock_mutex(config_entry->lock);
                         break;
                     }
@@ -3287,9 +3311,9 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
         }
     } else {
         if (LDAP_CHANGETYPE_ADD == modtype) {
-            ret = _dna_pre_op_add(pb, test_e);
+            ret = _dna_pre_op_add(pb, test_e, &errstr);
         } else {
-            if((ret = _dna_pre_op_modify(pb, test_e, smods))){
+            if((ret = _dna_pre_op_modify(pb, test_e, smods, &errstr))){
             	slapi_mods_free(&smods);
             }
         }
