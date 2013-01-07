@@ -377,7 +377,8 @@ static Slapi_Entry *ids_sasl_user_to_entry(
                 break;
             }
         }
-        if(map == NULL){
+        /* break if the next map is NULL, or we are not checking all the mappings */
+        if(map == NULL || !config_get_sasl_mapping_fallback()){
             break;
         }
     }

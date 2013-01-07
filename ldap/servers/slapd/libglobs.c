@@ -251,6 +251,7 @@ int init_disk_monitoring;
 int init_disk_logging_critical;
 int init_disk_preserve_logging;
 int init_ndn_cache_enabled;
+int init_sasl_mapping_fallback;
 #ifdef MEMPOOL_EXPERIMENTAL
 int init_mempool_switch;
 #endif
@@ -427,6 +428,11 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.readonly,
 		CONFIG_ON_OFF, NULL, &init_readonly},
+	{CONFIG_SASL_MAPPING_FALLBACK, config_set_sasl_mapping_fallback,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.sasl_mapping_fallback,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_sasl_mapping_fallback,
+		&init_sasl_mapping_fallback},
 	{CONFIG_THREADNUMBER_ATTRIBUTE, config_set_threadnumber,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.threadnumber,
@@ -1441,6 +1447,8 @@ FrontendConfig_init () {
   init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
   cfg->ignore_vattrs = slapi_counter_new();
+  cfg->sasl_mapping_fallback = slapi_counter_new();
+  init_sasl_mapping_fallback = LDAP_OFF;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
@@ -1576,6 +1584,20 @@ config_set_ignore_vattrs (const char *attrname, char *value, char *errorbuf, int
     retVal = config_set_onoff ( attrname, value, &val, errorbuf, apply);
     if(retVal == LDAP_SUCCESS){
         slapi_counter_set_value(slapdFrontendConfig->ignore_vattrs, val);
+    }
+    return retVal;
+}
+
+int
+config_set_sasl_mapping_fallback (const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+    int val;
+
+    retVal = config_set_onoff ( attrname, value, &val, errorbuf, apply);
+    if(retVal == LDAP_SUCCESS){
+        slapi_counter_set_value(slapdFrontendConfig->sasl_mapping_fallback, val);
     }
     return retVal;
 }
@@ -3129,7 +3151,6 @@ config_set_readonly( const char *attrname, char *value, char *errorbuf, int appl
   return retVal;
 }
 
-
 int
 config_set_schemacheck( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
@@ -4152,6 +4173,14 @@ config_get_ignore_vattrs()
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     return slapi_counter_get_value(slapdFrontendConfig->ignore_vattrs);
+}
+
+int
+config_get_sasl_mapping_fallback()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    return slapi_counter_get_value(slapdFrontendConfig->sasl_mapping_fallback);
 }
 
 int

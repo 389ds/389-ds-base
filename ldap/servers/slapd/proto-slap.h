@@ -556,6 +556,8 @@ int config_set_allowed_sasl_mechs(const char *attrname, char *value, char *error
 int config_get_schemamod();
 int config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_ignore_vattrs();
+int config_set_sasl_mapping_fallback(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_sasl_mapping_fallback();
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
