@@ -417,6 +417,8 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 		slapi_ch_free_string(&basedntemplate);
 		slapi_ch_free_string(&filtertemplate);
 	}
+	slapi_ch_free_string(&priority_str);
+
 	return ret;
 }
 
