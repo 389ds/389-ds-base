@@ -2788,16 +2788,19 @@ ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, int *rc)
     if(ndn_ht_val){
         ndn_cache_update_lru(&ndn_ht_val->lru_node);
         slapi_counter_increment(ndn_cache->cache_hits);
-        if(ndn_ht_val->len == dn_len ){
-            /* the dn was already normalized, just return the dn as the result */
-            *result = dn;
-            *rc = 0;
-        } else {
+        if ((ndn_ht_val->len != dn_len) || 
+            /* even if the lengths match, dn may not be normalized yet.
+             * (e.g., 'cn="o=ABC",o=XYZ' vs. 'cn=o\3DABC,o=XYZ') */
+            (memcmp(dn, ndn_ht_val->ndn, dn_len))){
             *rc = 1; /* free result */
             ndn = slapi_ch_malloc(ndn_ht_val->len + 1);
             memcpy(ndn, ndn_ht_val->ndn, ndn_ht_val->len);
             ndn[ndn_ht_val->len] = '\0';
             *result = ndn;
+        } else {
+            /* the dn was already normalized, just return the dn as the result */
+            *result = dn;
+            *rc = 0;
         }
         rv = 1;
     } else {
