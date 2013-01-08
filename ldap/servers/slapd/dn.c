@@ -2706,26 +2706,29 @@ ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, int *rc)
     slapi_rwlock_rdlock(ndn_cache_lock);
     ndn_ht_val = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
     if(ndn_ht_val){
-    	ndn_cache_update_lru(&ndn_ht_val->lru_node);
-    	slapi_counter_increment(ndn_cache->cache_hits);
-    	if(ndn_ht_val->len == dn_len ){
-    	    /* the dn was already normalized, just return the dn as the result */
-    	    *result = dn;
-    	    *rc = 0;
-    	} else {
-    	    *rc = 1; /* free result */
+        ndn_cache_update_lru(&ndn_ht_val->lru_node);
+        slapi_counter_increment(ndn_cache->cache_hits);
+        if ((ndn_ht_val->len != dn_len) || 
+            /* even if the lengths match, dn may not be normalized yet.
+             * (e.g., 'cn="o=ABC",o=XYZ' vs. 'cn=o\3DABC,o=XYZ') */
+            (memcmp(dn, ndn_ht_val->ndn, dn_len))){
+            *rc = 1; /* free result */
             ndn = slapi_ch_malloc(ndn_ht_val->len + 1);
             memcpy(ndn, ndn_ht_val->ndn, ndn_ht_val->len);
             ndn[ndn_ht_val->len] = '\0';
             *result = ndn;
+        } else {
+            /* the dn was already normalized, just return the dn as the result */
+            *result = dn;
+            *rc = 0;
         }
         rv = 1;
     } else {
-    	/* copy/preserve the udn, so we can use it as the key when we add dn's to the hashtable */
-    	key = slapi_ch_malloc(dn_len + 1);
-    	memcpy(key, dn, dn_len);
-    	key[dn_len] = '\0';
-    	*udn = key;
+        /* copy/preserve the udn, so we can use it as the key when we add dn's to the hashtable */
+        key = slapi_ch_malloc(dn_len + 1);
+        memcpy(key, dn, dn_len);
+        key[dn_len] = '\0';
+        *udn = key;
     }
     slapi_rwlock_unlock(ndn_cache_lock);
 
