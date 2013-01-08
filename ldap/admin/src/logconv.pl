@@ -71,6 +71,7 @@ $endFlag = 0;
 $endTime = 0;
 $s_stats = new_stats_block( );
 $m_stats = new_stats_block( );
+$report_opt = "";
 
 GetOptions(
 	'd|rootDN=s' => \$manager,
@@ -81,8 +82,8 @@ GetOptions(
 	'S|startTime=s' => \$startTime,
 	'E|endTime=s' => \$endTime,
 	'B|bind=s' => sub { $reportBinds = "yes"; $bindReportDN=($_[1]) },
-	'm|reportFileSecs=s' => sub { my ($opt,$value) = @_; $s_stats = new_stats_block($value); },
-	'M|reportFileMins=s' =>  sub { my ($opt,$value) = @_; $m_stats = new_stats_block($value); },
+	'm|reportFileSecs=s' => sub { my ($opt,$value) = @_; $s_stats = new_stats_block($value); $report_opt = "-m"; },
+	'M|reportFileMins=s' =>  sub { my ($opt,$value) = @_; $m_stats = new_stats_block($value); $report_opt = "-M"; },
 	'h|help' => sub { displayUsage() },
 	# usage options '-efcibaltnxgjuiryp'
 	'e' => sub { $usage = $usage . "e"; },
@@ -130,6 +131,15 @@ while($sn <= $#ARGV){
 	$files[$fc] = $ARGV[$sn];
 	$fc++;
 	$sn++;
+}
+
+if($fc == 0){
+	if($report_opt ne ""){
+		print "Usage error for option $report_opt, either the output file or access log is missing!\n\n";
+	} else {
+		print "There are no access logs specified!\n\n";
+	}
+	exit 1;
 }
 
 if ($sizeCount eq "all"){$sizeCount = "100000";}
@@ -261,7 +271,7 @@ $err[68] = "Already Exists\n";
 $err[69] = "No Objectclass Mods\n";
 $err[70] = "Results Too Large\n";
 $err[71] = "Effect Multiple DSA's\n";
-$err[80] = "Other :-)\n";
+$err[80] = "Other\n";
 $err[81] = "Server Down\n";
 $err[82] = "Local Error\n";
 $err[83] = "Encoding Error\n";
