@@ -948,36 +948,31 @@ if ($filter_count > 0){
 #                                       # 
 #########################################
 
-
-#
-# print most often etimes
-#
-
 if ($usage =~ /t/i || $verb eq "yes"){
-print "\n\n----- Top $sizeCount Most Frequent etimes -----\n\n";
-$eloop = 0;
-foreach $et (sort { $etime{$b} <=> $etime{$a} } keys %etime) {
-        if ($eloop == $sizeCount) { last; }
-	if ($retime ne "2"){
-		$first = $et;
-		$retime = "2";
+	#
+	# print most often etimes
+	#
+	print "\n\n----- Top $sizeCount Most Frequent etimes -----\n\n";
+	$eloop = 0;
+	foreach $et (sort { $etime{$b} <=> $etime{$a} } keys %etime) {
+		if ($eloop == $sizeCount) { last; }
+		if ($retime ne "2"){
+			$first = $et;
+			$retime = "2";
+		}
+		printf "%-8s        %-12s\n", $etime{ $et }, "etime=$et";
+		$eloop++;
 	}
-        printf "%-8s        %-12s\n", $etime{ $et }, "etime=$et";
-        $eloop++;
-}
-
-#
-# print longest etimes
-#
-
-print "\n\n----- Top $sizeCount Longest etimes -----\n\n";
-$eloop = 0;
-foreach $et (sort { $b <=> $a } (keys %etime)) {
-        if ($eloop == $sizeCount) { last; }
-        printf "%-12s    %-10s\n","etime=$et",$etime{ $et };
-        $eloop++;
-}
-        
+	#
+	# print longest etimes
+	#
+	print "\n\n----- Top $sizeCount Longest etimes -----\n\n";
+	$eloop = 0;
+	foreach $et (sort { $b <=> $a } (keys %etime)) {
+		if ($eloop == $sizeCount) { last; }
+		printf "%-12s    %-10s\n","etime=$et",$etime{ $et };
+		$eloop++;
+	}   
 }
 
 #######################################
@@ -1651,7 +1646,7 @@ if (m/ notes=U/){
         }
         if ($usage =~ /u/ || $verb eq "yes"){
         	if ($v eq "0" ){
-                	if ($_ =~ /etime= *([0-9]+)/i ) {
+                	if ($_ =~ /etime= *([0-9.]+)/i ) {
                         	$notesEtime[$vet]=$1;
                         	$vet++;
                 	}
@@ -1931,7 +1926,7 @@ if ($_ =~ /err= *([0-9]+)/i){
         if ($1 ne "0"){ $errorck++;}
         else { $errorsucc++;}
 }
-if ($_ =~ /etime= *([0-9]+)/i ) { $etime{$1}++;}
+if ($_ =~ /etime= *([0-9.]+)/ ) { $etime{$1}++;}
 if ($_ =~ / tag=101 nentries= *([0-9]+)/i ) {$nentries{$1}++}
 if ($_ =~ / tag=111 nentries= *([0-9]+)/i ) {$nentries{$1}++}
 if ($_ =~ / tag=100 nentries= *([0-9]+)/i ) {$nentries{$1}++}
