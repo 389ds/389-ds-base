@@ -49,7 +49,7 @@ connection_table_new(int table_size)
 {
 	Connection_Table *ct;
 	int i = 0;
-
+	ber_len_t maxbersize = config_get_maxbersize();
 
 	ct= (Connection_Table*)slapi_ch_calloc( 1, sizeof(Connection_Table) );
 	ct->size= table_size;
@@ -63,7 +63,6 @@ connection_table_new(int table_size)
 	for ( i = 0; i < table_size; i++ )
 	{
 		LBER_SOCKET invalid_socket;
-		ber_len_t maxbersize = config_get_maxbersize();
 		/* DBDB---move this out of here once everything works */
 		ct->c[i].c_sb = ber_sockbuf_alloc();
 		invalid_socket = SLAPD_INVALID_SOCKET;

@@ -1794,10 +1794,12 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 		}
 		else if (errno == ERANGE)
 		{
+			ber_len_t maxbersize = config_get_maxbersize();
 			/* openldap does not differentiate between length == 0
 			   and length > max - all we know is that there was a
 			   problem with the length - assume too big */
 			err = SLAPD_DISCONNECT_BER_TOO_BIG;
+			log_ber_too_big_error(conn, 0, maxbersize);
 		}
 		else
 		{
@@ -1998,8 +2000,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
 		return CONN_DONE;
 	}
-	if(is_ber_too_big(conn,len))
-	{
+	if(is_ber_too_big(conn,len)) {
 		disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_TOO_BIG, 0 );
 		return CONN_DONE;
 	}
@@ -2706,7 +2707,7 @@ connection_set_ssl_ssf(Connection *conn)
 static int
 is_ber_too_big(const Connection *conn, ber_len_t ber_len)
 {
-    ber_len_t maxbersize= config_get_maxbersize();
+    ber_len_t maxbersize = config_get_maxbersize();
     if(ber_len > maxbersize)
 	{
 		log_ber_too_big_error(conn, ber_len, maxbersize);
@@ -2726,7 +2727,7 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 		ber_len_t maxbersize)
 {
 	if (0 == maxbersize) {
-		maxbersize= config_get_maxbersize();
+		maxbersize = config_get_maxbersize();
 	}
 	if (0 == ber_len) {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
