@@ -2590,6 +2590,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	/*	struct sockaddr_in	from;*/
 	PRNetAddr from;
 	PRFileDesc *pr_clonefd = NULL;
+	ber_len_t maxbersize;
 
 	memset(&from, 0, sizeof(from)); /* reset to nulls so we can see what was set */
 	if ( (ns = accept_and_configure( tcps, pr_acceptfd, &from,
@@ -2646,14 +2647,16 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		func_pointers.lbextiofn_write = write_function;
 		func_pointers.lbextiofn_writev = NULL;
 #ifdef _WIN32
-		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) ns;	
+		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) ns;
 #else
-		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;	
+		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;
 #endif
-		ber_sockbuf_set_option( conn->c_sb,
-			LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);	
+		ber_sockbuf_set_option(conn->c_sb,
+		                       LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
 	}
 #endif /* !USE_OPENLDAP */
+	maxbersize = config_get_maxbersize();
+	ber_sockbuf_ctrl( conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize );
 
 	if( secure && config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF ) { 
 	    /* Prepare to handle the client's certificate (if any): */
