@@ -803,8 +803,8 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		bvtype = bv_null;
 		bvvalue = bv_null;
 		if ( slapi_ldif_parse_line( s, &bvtype, &bvvalue, &freeval ) < 0 ) {
-		    LDAPDebug( LDAP_DEBUG_TRACE,
-			    "<= str2entry_dupcheck NULL (parse_line)\n", 0, 0, 0 );
+		    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		                  "Warning: ignoring invalid line \"%s\"...\n", s);
 		    continue;
 		}
 		type = bvtype.bv_val;
@@ -1047,6 +1047,17 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			}
 			prev_attr = &attrs[nattrs];
 			nattrs++;
+		} else { /* prev_attr != NULL */
+			if ( check_for_duplicate_values ) {
+				/*
+				 * If the compare function wasn't available,
+				 * we have to revert to AVL-tree-based dup checking,
+				 * which uses index keys for comparisons
+				 */
+				if (NULL == prev_attr->sa_comparefn) {
+					fast_dup_check = 0;
+				}
+			}
 		}
 
 		sa = prev_attr;	/* For readability */
