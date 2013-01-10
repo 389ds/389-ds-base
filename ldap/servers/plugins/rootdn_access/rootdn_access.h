@@ -49,9 +49,7 @@
 #include <ctype.h>
 
 #define ROOTDN_PLUGIN_SUBSYSTEM  "rootdn-access-control-plugin"
-#define ROOTDN_FEATURE_DESC      "Root DN Access Control"
-#define ROOTDN_PLUGIN_DESC       "Root DN Access Control plugin"
-#define ROOTDN_PLUGIN_TYPE_DESC  "Root DN Access Control plugin"
-
-
-
+#define ROOTDN_FEATURE_DESC      "RootDN Access Control"
+#define ROOTDN_PLUGIN_DESC       "RootDN Access Control plugin"
+#define ROOTDN_PLUGIN_TYPE_DESC  "RootDN Access Control plugin"
+#define ROOTDN_PLUGIN_DN         "cn=RootDN Access Control,cn=plugins,cn=config"

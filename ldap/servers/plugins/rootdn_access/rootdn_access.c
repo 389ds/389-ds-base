@@ -198,7 +198,8 @@ rootdn_preop_bind_init(Slapi_PBlock *pb)
 }
 
 static int
-rootdn_start(Slapi_PBlock *pb){
+rootdn_start(Slapi_PBlock *pb)
+{
     /* Check if we're already started */
     if (g_plugin_started) {
         goto done;
@@ -207,6 +208,7 @@ rootdn_start(Slapi_PBlock *pb){
     slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_start\n");
 
     g_plugin_started = 1;
+    rootdn_set_plugin_dn(ROOTDN_PLUGIN_DN);
 
     slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_start\n");
 
@@ -317,7 +319,6 @@ rootdn_load_config(Slapi_PBlock *pb)
             /*
              *  convert the time to all seconds
              */
-
             strncpy(hour, closeTime,2);
             strncpy(min, closeTime+2,2);
             close_time = (atoi(hour) * 3600) + (atoi(min) * 60);
@@ -325,11 +326,11 @@ rootdn_load_config(Slapi_PBlock *pb)
         if((openTime && closeTime == NULL) || (openTime == NULL && closeTime)){
             /* If you are using TOD access control, you must have a open and close time */
             slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                "there must be a open and a close time\n");
+                "there must be a open and a close time.  Ignoring time based settings.\n");
             slapi_ch_free_string(&closeTime);
             slapi_ch_free_string(&openTime);
-            result = -1;
-            goto free_and_return;
+            open_time = 0;
+            close_time = 0;
         }
         if(close_time && open_time && close_time <= open_time){
             /* Make sure the closing time is greater than the open time */
