@@ -81,6 +81,7 @@
 #define SLAPI_DSE_TRACELEVEL	LDAP_DEBUG_TRACE
 #endif /* SLAPI_DSE_DEBUG */
 
+#define SCHEMA_VIOLATION -2
 #define STOP_TRAVERSAL -2
 
 /* This is returned by dupentry_replace if the duplicate entry was found and
@@ -704,9 +705,9 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
     if ( (NULL != pdse) && (NULL != filename) )
     {
         /* check if the "real" file exists and cam be used, if not try tmp as backup */
-	rc = dse_check_file((char *)filename, pdse->dse_tmpfile);
-	if (!rc) 
-	    rc = dse_check_file((char *)filename, pdse->dse_fileback);
+        rc = dse_check_file((char *)filename, pdse->dse_tmpfile);
+        if (!rc)
+            rc = dse_check_file((char *)filename, pdse->dse_fileback);
 
         if ( (rc = PR_GetFileInfo( filename, &prfinfo )) != PR_SUCCESS )
         {
@@ -799,9 +800,14 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                                     DSE_FLAG_PREOP, e, NULL, &returncode,
                                     returntext) == SLAPI_DSE_CALLBACK_OK)
                         {
-                            /* this will free the entry if not added, so it is
-                               definitely consumed by this call */
-                            dse_add_entry_pb(pdse, e, pb);
+                            /*
+                             * This will free the entry if not added, so it is
+                             * definitely consumed by this call
+                             */
+                            if(dse_add_entry_pb(pdse, e, pb) == SCHEMA_VIOLATION){
+                                /* schema violation, return failure */
+                                rc = 0;
+                            }
                         }
                         else /* free entry if not used */
                         {
@@ -1119,7 +1125,11 @@ dse_write_entry( caddr_t data, caddr_t arg )
   
 /*
  * Adds an entry to the dse backend.  The passed in entry will be
- * free'd always. */
+ * free'd always.
+ *
+ * return -1 for duplicate entry
+ * return -2 for schema violation (SCHEMA_VIOLATION)
+ */
 static int
 dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 {
@@ -1190,7 +1200,9 @@ dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb)
 		 * Verify that the new or merged entry conforms to the schema.
 		 *		Errors are logged by slapi_entry_schema_check().
 		 */
-		(void)slapi_entry_schema_check( pb, schemacheckentry );
+		if(slapi_entry_schema_check( pb, schemacheckentry )){
+			rc = SCHEMA_VIOLATION;
+		}
 		slapi_entry_free(schemacheckentry);
 	}
 
