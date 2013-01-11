@@ -155,7 +155,8 @@ int idl_new_release_private(struct attrinfo *a)
 	return 0;
 }
 
-IDList * idl_new_fetch(
+IDList *
+idl_new_fetch(
     backend *be, 
     DB* db, 
     DBT *inkey, 
@@ -292,7 +293,7 @@ IDList * idl_new_fetch(
         }
 
         LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
-#if defined(DB_ALLIDS_ON_READ)	
+#if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
              (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
@@ -317,13 +318,14 @@ IDList * idl_new_fetch(
         /* we got another ID, add it to our IDL */
         idl_rc = idl_append_extend(&idl, id);
         if (idl_rc) {
-            LDAPDebug(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc);
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "unable to extend id list (err=%d)\n", idl_rc);
             idl_free(idl); idl = NULL;
             goto error;
         }
 #if defined(DB_ALLIDS_ON_READ)    
         /* enforce the allids read limit */
-        if ((idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
+        if (idl && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
             idl->b_nids = 1;
             idl->b_ids[0] = ALLID;
             ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
@@ -365,8 +367,349 @@ error:
             }
         }
     }
-    dblayer_read_txn_commit(be, &s_txn);
+    if (ret) {
+        dblayer_read_txn_abort(be, &s_txn);
+    } else {
+        dblayer_read_txn_commit(be, &s_txn);
+    }
     *flag_err = ret;
+    return idl;
+}
+
+/* 
+ * Perform the range search in the idl layer instead of the index layer
+ * to improve the performance.
+ */
+IDList *
+idl_new_range_fetch(
+    backend *be, 
+    DB* db, 
+    DBT *lowerkey, 
+    DBT *upperkey,
+    DB_TXN *txn, 
+    struct attrinfo *ai,
+    int *flag_err,
+    int allidslimit,
+    int sizelimit,
+    time_t stoptime,
+    int lookthrough_limit,
+    int operator
+)
+{
+    int ret = 0;
+    int idl_rc = 0;
+    DBC *cursor = NULL;
+    IDList *idl = NULL;
+    DBT cur_key;
+    DBT data;
+    ID id = 0;
+    size_t count = 0;
+#ifdef DB_USE_BULK_FETCH
+    /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
+    char buffer[BULK_FETCH_BUFFER_SIZE]; 
+    void *ptr;
+    DBT dataret;
+#endif
+    back_txn s_txn;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    time_t curtime;
+    void *saved_key = NULL;
+
+    if (NEW_IDL_NOOP == *flag_err)
+    {
+        *flag_err = 0;
+        return NULL;
+    }
+
+    dblayer_txn_init(li, &s_txn);
+    if (txn) {
+        dblayer_read_txn_begin(be, txn, &s_txn);
+    }
+
+    /* Make a cursor */
+    ret = db->cursor(db, txn, &cursor, 0);
+    if (0 != ret) {
+        ldbm_nasty(filename,1,ret);
+        cursor = NULL;
+        goto error;
+    }
+    memset(&data, 0, sizeof(data));
+#ifdef DB_USE_BULK_FETCH
+    data.ulen = sizeof(buffer);
+    data.size = sizeof(buffer);
+    data.data = buffer;
+    data.flags = DB_DBT_USERMEM;
+    memset(&dataret, 0, sizeof(dataret));
+#else
+    data.ulen = sizeof(id);
+    data.size = sizeof(id);
+    data.data = &id;
+    data.flags = DB_DBT_USERMEM;
+#endif
+
+    /*
+     * We're not expecting the key to change in value
+     * so we can just use the input key as a buffer.
+     * This avoids memory management of the key.
+     */
+    memset(&cur_key, 0, sizeof(cur_key));
+    cur_key.ulen = lowerkey->size;
+    cur_key.size = lowerkey->size;
+    saved_key = cur_key.data = slapi_ch_malloc(lowerkey->size);
+    memcpy(cur_key.data, lowerkey->data, lowerkey->size);
+    cur_key.flags = DB_DBT_MALLOC;
+
+    /* Position cursor at the first matching key */
+#ifdef DB_USE_BULK_FETCH
+    ret = cursor->c_get(cursor, &cur_key, &data, DB_SET|DB_MULTIPLE);
+#else
+    ret = cursor->c_get(cursor, &cur_key, &data, DB_SET);
+#endif
+    if (0 != ret) {
+        if (DB_NOTFOUND != ret) {
+#ifdef DB_USE_BULK_FETCH
+            if (ret == DB_BUFFER_SMALL) {
+                LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
+                          "data item for key %s is too large for our buffer "
+                          "(need=%d actual=%d)\n",
+                          cur_key.data, data.size, data.ulen);
+            }
+#endif
+            ldbm_nasty(filename,2,ret);
+        }
+        goto error; /* Not found is OK, return NULL IDL */
+    }
+
+    /* Iterate over the duplicates, amassing them into an IDL */
+#ifdef DB_USE_BULK_FETCH
+    while (cur_key.data &&
+           (upperkey->data ?
+            ((operator == SLAPI_OP_LESS) ?
+             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
+             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
+            PR_TRUE /* e.g., (x > a) */)) {
+        ID lastid = 0;
+
+        DB_MULTIPLE_INIT(ptr, &data);
+
+        /* lookthrough limit & sizelimit check */
+        if (idl) {
+            if ((lookthrough_limit != -1) &&
+                (idl->b_nids > (ID)lookthrough_limit)) {
+                idl_free(idl);
+                idl = idl_allids( be );
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                          "idl_new_range_fetch - lookthrough_limit exceeded\n");
+                *flag_err = LDAP_ADMINLIMIT_EXCEEDED;
+                goto error;
+            }
+            if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                               "idl_new_range_fetch - sizelimit exceeded\n");
+                *flag_err = LDAP_SIZELIMIT_EXCEEDED;
+                goto error;
+            }
+        }
+        /* timelimit check */
+        if (stoptime > 0) { /* timelimit is set */
+            curtime = current_time();
+            if (curtime >= stoptime) {
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                              "idl_new_range_fetch - timelimit exceeded\n");
+                *flag_err = LDAP_TIMELIMIT_EXCEEDED;
+                goto error;
+            }
+        }
+        while (PR_TRUE) {
+            DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
+            if (dataret.data == NULL) break;
+            if (ptr == NULL) break;
+
+            if (*(int32_t *)ptr < -1) {
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "DB_MULTIPLE buffer is corrupt; "
+                              "next offset [%d] is less than zero\n",
+                              *(int32_t *)ptr);
+                /* retry the read */
+                break;
+            }
+            if (dataret.size != sizeof(ID)) {
+                LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
+                          "key %s has a data item with the wrong size (%d)\n", 
+                          cur_key.data, dataret.size, 0);
+                goto error;
+            }
+            memcpy(&id, dataret.data, sizeof(ID));
+            if (id == lastid) { /* dup */
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "Detedted duplicate id "
+                              "%d due to DB_MULTIPLE error - skipping\n",
+                              id);
+                continue; /* get next one */
+            }
+            /* note the last id read to check for dups */
+            lastid = id;
+            /* we got another ID, add it to our IDL */
+            idl_rc = idl_append_extend(&idl, id);
+            if (idl_rc) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "unable to extend id list (err=%d)\n", idl_rc);
+                idl_free(idl); idl = NULL;
+                goto error;
+            }
+
+            count++;
+        }
+
+        LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
+#if defined(DB_ALLIDS_ON_READ)
+        /* enforce the allids read limit */
+        if ((NEW_IDL_NO_ALLID != *flag_err) && ai && (idl != NULL) &&
+            idl_new_exceeds_allidslimit(count, ai, allidslimit)) {
+            idl->b_nids = 1;
+            idl->b_ids[0] = ALLID;
+            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
+            break;
+        }
+#endif
+        ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_DUP|DB_MULTIPLE);
+        if (ret) {
+            if (DBT_EQ(&cur_key, upperkey)) { /* this is the last key */
+                break;
+            }
+            /* First set the cursor (DB_NEXT_NODUP does not take DB_MULTIPLE) */
+            ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_NODUP);
+            if (ret) {
+                break;
+            }
+            /* Read the dup data */
+            ret = cursor->c_get(cursor, &cur_key, &data, DB_SET|DB_MULTIPLE);
+            if (saved_key != cur_key.data) {
+                /* key was allocated in c_get */
+                slapi_ch_free(&saved_key);
+                saved_key = cur_key.data;
+            }
+            if (ret) {
+                break;
+            }
+        }
+    }
+#else
+    while (upperkey->data ?
+           ((operator == SLAPI_OP_LESS) ?
+            DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
+            DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
+           PR_TRUE /* e.g., (x > a) */) {
+        /* lookthrough limit & sizelimit check */
+        if (idl) {
+            if ((lookthrough_limit != -1) &&
+                (idl->b_nids > (ID)lookthrough_limit)) {
+                idl_free(idl);
+                idl = idl_allids( be );
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                          "idl_new_range_fetch - lookthrough_limit exceeded\n");
+                *flag_err = LDAP_ADMINLIMIT_EXCEEDED;
+                goto error;
+            }
+            if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                               "idl_new_range_fetch - sizelimit exceeded\n");
+                *flag_err = LDAP_SIZELIMIT_EXCEEDED;
+                goto error;
+            }
+        }
+        /* timelimit check */
+        if (stoptime > 0) { /* timelimit is set */
+            curtime = current_time();
+            if (curtime >= stoptime) {
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                              "idl_new_range_fetch - timelimit exceeded\n");
+                *flag_err = LDAP_TIMELIMIT_EXCEEDED;
+                goto error;
+            }
+        }
+        ret = cursor->c_get(cursor,&cur_key,&data,DB_NEXT_DUP);
+        count++;
+        if (ret) {
+            if (DBT_EQ(&cur_key, upperkey)) { /* this is the last key */
+                break;
+            }
+            DBT_FREE_PAYLOAD(cur_key);
+            ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_NODUP);
+            if (saved_key != cur_key.data) {
+                /* key was allocated in c_get */
+                slapi_ch_free(&saved_key);
+                saved_key = cur_key.data;
+            }
+            if (ret) {
+                break;
+            }
+        }
+        /* we got another ID, add it to our IDL */
+        idl_rc = idl_append_extend(&idl, id);
+        if (idl_rc) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "unable to extend id list (err=%d)\n", idl_rc);
+            idl_free(idl); idl = NULL;
+            goto error;
+        }
+#if defined(DB_ALLIDS_ON_READ)    
+        /* enforce the allids read limit */
+        if (idl && idl_new_exceeds_allidslimit(count, ai, allidslimit)) {
+            idl->b_nids = 1;
+            idl->b_ids[0] = ALLID;
+            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
+            break;
+        }
+#endif
+    }
+#endif
+
+    if (ret) {
+        if (ret == DB_NOTFOUND) {
+            ret = 0; /* normal case */
+        } else {
+            idl_free(idl); idl = NULL;
+            ldbm_nasty(filename,59,ret);
+            goto error;
+        }
+    }
+
+    /* check for allids value */
+    if (idl && (idl->b_nids == 1) && (idl->b_ids[0] == ALLID)) {
+        idl_free(idl);
+        idl = idl_allids(be);
+        LDAPDebug1Arg(LDAP_DEBUG_TRACE, "idl_new_fetch %s returns allids\n", 
+                      cur_key.data);
+    } else {
+        LDAPDebug2Args(LDAP_DEBUG_TRACE, "idl_new_fetch %s returns nids=%lu\n", 
+                       cur_key.data, (u_long)IDL_NIDS(idl));
+    }
+
+error:
+    DBT_FREE_PAYLOAD(cur_key);
+    /* Close the cursor */
+    if (NULL != cursor) {
+        int ret2 = cursor->c_close(cursor);
+        if (ret2) {
+            ldbm_nasty(filename,3,ret2);
+            if (!ret) {
+                /* if cursor close returns DEADLOCK, we must bubble that up
+                   to the higher layers for retries */
+                ret = ret2;
+            }
+        }
+    }
+    if (ret) {
+        dblayer_read_txn_abort(be, &s_txn);
+    } else {
+        dblayer_read_txn_commit(be, &s_txn);
+    }
+    *flag_err = ret;
+
+    /* sort idl */
+    if (idl && !ALLIDS(idl)) {
+        qsort((void *)&idl->b_ids[0], idl->b_nids,
+              (size_t)sizeof(ID), idl_sort_cmp);
+    }
     return idl;
 }
 
@@ -405,7 +748,7 @@ int idl_new_insert_key(
             if (NULL != disposition) {
                 *disposition = IDL_INSERT_ALLIDS;
             }
-            goto error;	/* allid: don't bother inserting any more */
+            goto error;  /* allid: don't bother inserting any more */
         }
     } else if (DB_NOTFOUND != ret) {
         ldbm_nasty(filename,12,ret);
@@ -506,7 +849,7 @@ int idl_new_delete_key(
     ret = cursor->c_get(cursor,key,&data,DB_GET_BOTH);
     if (0 == ret) {
         if (id == ALLID) {
-            goto error;	/* allid: never delete it */
+            goto error;  /* allid: never delete it */
         }
     } else {
         if (DB_NOTFOUND == ret) {
@@ -557,19 +900,19 @@ static int idl_new_store_allids(backend *be, DB *db, DBT *key, DB_TXN *txn)
     /* Position cursor at the key */
     ret = cursor->c_get(cursor,key,&data,DB_SET);
     if (ret == 0) {
-	/* We found it, so delete all duplicates */
-	ret = cursor->c_del(cursor,0);
-	while (0 == ret) {
-		ret = cursor->c_get(cursor,key,&data,DB_NEXT_DUP);
-		if (0 != ret) {
-			break;
-		}
-		ret = cursor->c_del(cursor,0);
-	}
-	if (0 != ret && DB_NOTFOUND != ret) {
+        /* We found it, so delete all duplicates */
+        ret = cursor->c_del(cursor,0);
+        while (0 == ret) {
+            ret = cursor->c_get(cursor,key,&data,DB_NEXT_DUP);
+            if (0 != ret) {
+                break;
+            }
+            ret = cursor->c_del(cursor,0);
+        }
+        if (0 != ret && DB_NOTFOUND != ret) {
             ldbm_nasty(filename,54,ret);
             goto error; 
-	} else {
+        } else {
             ret = 0;
         }
     } else {
@@ -602,9 +945,9 @@ error:
     }
     return ret;
 #ifdef KRAZY_K0DE
-	/* If this function is called in "no-allids" mode, then it's a bug */
-	ldbm_nasty(filename,63,0);
-	return -1;
+    /* If this function is called in "no-allids" mode, then it's a bug */
+    ldbm_nasty(filename,63,0);
+    return -1;
 #endif
 }
 #endif
@@ -674,7 +1017,7 @@ int idl_new_store_block(
         ret = cursor->c_put(cursor, key, &data, DB_NODUPDATA);
         if (0 != ret) {
             if (DB_KEYEXIST == ret) {
-                ret = 0;	/* exist is okay */
+                ret = 0;   /* exist is okay */
             } else {
                 ldbm_nasty(filename,48,ret);
                 goto error;

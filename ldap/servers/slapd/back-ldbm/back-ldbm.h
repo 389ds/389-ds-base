@@ -885,4 +885,12 @@ typedef struct _back_search_result_set
 #define TOMBSTONE_INCLUDED 0x1 /* used by find_entry2modify_only_ext and 
                                   entryrdn_index_read */
 
+#define DBT_FREE_PAYLOAD(d) slapi_ch_free(&((d).data))
+/* 
+ * This only works with normalized keys, which should be ok because
+ * at this point both L and R should have already been normalized.
+ */
+#define DBT_EQ(L,R) \
+    ((L)->dsize == (R)->dsize && !memcmp ((L)->dptr, (R)->dptr, (L)->dsize))
+
 #endif /* _back_ldbm_h_ */

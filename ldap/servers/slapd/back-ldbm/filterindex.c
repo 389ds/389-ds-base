@@ -616,7 +616,7 @@ range_candidates(
                                    low, NULL, 0, &txn, err, allidslimit);
     } else {
         idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY,
-                                   SLAPI_OP_GREATER_OR_EQUAL,
+                                   SLAPI_OP_LESS_OR_EQUAL,
                                    low, high, 1, &txn, err, allidslimit);
     }
 

@@ -1086,7 +1086,7 @@ index_read_ext(
 
    see also dblayer_bt_compare
 */
-static int
+int
 DBTcmp (DBT* L, DBT* R, value_compare_fn_type cmp_fn)
 {
     struct berval Lv;
@@ -1106,16 +1106,6 @@ DBTcmp (DBT* L, DBT* R, value_compare_fn_type cmp_fn)
     }
     return cmp_fn(&Lv, &Rv);
 }
-
-/* This only works with normalized keys, which
-   should be ok because at this point both L and R
-   should have already been normalized
-*/
-#define DBT_EQ(L,R) ((L)->dsize == (R)->dsize &&\
- ! memcmp ((L)->dptr, (R)->dptr, (L)->dsize))
-
-
-#define DBT_FREE_PAYLOAD(d) if ((d).data) {free((d).data);(d).data=NULL;}
 
 /* Steps to the next key without keeping a cursor open */
 /* Returns the new key value in the DBT */
@@ -1222,7 +1212,7 @@ index_range_read_ext(
     DBT    upperkey = {0};
     DBT    cur_key = {0};
     DBT    data = {0} ;
-    IDList *idl= NULL;
+    IDList *idl = NULL;
     char   *prefix = NULL;
     char   *realbuf, *nextrealbuf;
     size_t reallen, nextreallen;
@@ -1230,10 +1220,9 @@ index_range_read_ext(
     ID     i;
     struct attrinfo    *ai = NULL;
     int lookthrough_limit = -1; /* default no limit */
-    int retry_count = 0;
     int is_and = 0;
     int sizelimit = 0;
-    time_t curtime, stoptime, optime;
+    time_t curtime, stoptime = 0;
     int timelimit = -1;
     back_search_result_set *sr = NULL;
     int isroot = 0;
@@ -1254,19 +1243,20 @@ index_range_read_ext(
 
     plen = strlen(prefix);
     slapi_pblock_get(pb, SLAPI_SEARCH_IS_AND, &is_and);
-    if (!is_and)
-    {
+    if (!is_and) {
         slapi_pblock_get(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
     }
-    slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
     slapi_pblock_get(pb, SLAPI_SEARCH_TIMELIMIT, &timelimit);
-    stoptime = optime + timelimit;
+    if (timelimit != -1) {
+        time_t optime;
+        slapi_pblock_get(pb, SLAPI_OPINITIATED_TIME, &optime);
+        stoptime = optime + timelimit;
+    }
 
     /*
      * Determine the lookthrough_limit from the PBlock.
      * No limit if there is no search result set and the requestor is root.
      */
-
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
     if (sr != NULL) {
         /* the normal case */
@@ -1279,8 +1269,8 @@ index_range_read_ext(
         }
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read lookthrough_limit=%d\n",
-              lookthrough_limit, 0, 0);
+    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "index_range_read lookthrough_limit=%d\n",
+                  lookthrough_limit);
 
     switch( operator ) {
       case SLAPI_OP_LESS:
@@ -1323,7 +1313,7 @@ index_range_read_ext(
     /* get a cursor so we can walk over the table */
     *err = db->cursor(db,db_txn,&dbc,0);
     if (0 != *err ) {
-                ldbm_nasty(errmsg, 1060, *err);
+        ldbm_nasty(errmsg, 1060, *err);
         LDAPDebug( LDAP_DEBUG_ANY,
             "<= index_range_read(%s,%s) NULL: db->cursor() == %i\n",
             type, prefix, *err );
@@ -1344,7 +1334,7 @@ index_range_read_ext(
         reallen = plen + 1; /* include 0 terminator */
         realbuf = slapi_ch_strdup(prefix);
     }
-    if (range != 1) {
+    if (range != 1) { /* open range search */
         char *tmpbuf = NULL;
         /* this is a search with only one boundary value */
         switch( operator ) {
@@ -1390,12 +1380,12 @@ index_range_read_ext(
                 tmpbuf = slapi_ch_realloc (tmpbuf, cur_key.dsize);
                 memcpy (tmpbuf, cur_key.dptr, cur_key.dsize);
                 DBT_FREE_PAYLOAD(upperkey);
-                upperkey.dptr = tmpbuf;
-                upperkey.dsize = cur_key.dsize;
+                upperkey.dptr = NULL; /* x >= a :no need to check upper bound */
+                upperkey.dsize = 0;
             }
             break;
         }
-    } else {
+    } else { /* closed range search: e.g., (&(x >= a)(x <= b)) */
         /* this is a search with two boundary values (starting and ending) */
         if ( nextval != NULL ) { /* compute a key from nextval */
             const size_t vlen = nextval->bv_len;
@@ -1409,22 +1399,10 @@ index_range_read_ext(
             nextrealbuf = slapi_ch_strdup(prefix);
         }
         /* set up the starting and ending keys for search */ 
-        switch( operator ) {
-          case SLAPI_OP_LESS:
-          case SLAPI_OP_LESS_OR_EQUAL:
-            lowerkey.dptr = nextrealbuf;
-            lowerkey.dsize = nextreallen;
-            upperkey.dptr = realbuf;
-            upperkey.dsize = reallen;
-            break;
-          case SLAPI_OP_GREATER_OR_EQUAL:
-          case SLAPI_OP_GREATER:
-            lowerkey.dptr = realbuf;
-            lowerkey.dsize = reallen;
-            upperkey.dptr = nextrealbuf;
-            upperkey.dsize = nextreallen;
-            break;
-        }
+        lowerkey.dptr = realbuf;
+        lowerkey.dsize = reallen;
+        upperkey.dptr = nextrealbuf;
+        upperkey.dsize = nextreallen;
     }
     /* if (LDAP_DEBUG_FILTER)  {
         char encbuf [BUFSIZ];
@@ -1472,140 +1450,159 @@ index_range_read_ext(
     if (operator == SLAPI_OP_GREATER) {
         *err = index_range_next_key(db,&cur_key,db_txn);
     }
-    while (*err == 0 &&
-           (operator == SLAPI_OP_LESS) ?
-           DBTcmp(&cur_key, &upperkey, ai->ai_key_cmp_fn) < 0 :
-           DBTcmp(&cur_key, &upperkey, ai->ai_key_cmp_fn) <= 0) {
-        /* exit the loop when we either run off the end of the table,
-         * fail to read a key, or read a key that's out of range.
-         */
-        IDList *tmp;
-        /*
-        char encbuf [BUFSIZ];
-        LDAPDebug( LDAP_DEBUG_FILTER, "   cur_key=%s(%li bytes)\n",
-               encoded (&cur_key, encbuf), (long)cur_key.dsize, 0 );
-        */
-        /* Check to see if we've already looked too hard */
-        if (idl != NULL && lookthrough_limit != -1 && idl->b_nids > (ID)lookthrough_limit) {
-            if (NULL != idl) {
-                idl_free(idl);
+    if (idl_get_idl_new()) { /* new idl */
+        idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
+                                  ai, err, allidslimit, sizelimit, stoptime,
+                                  lookthrough_limit, operator);
+    } else { /* old idl */
+        int retry_count = 0;
+        while (*err == 0 &&
+               (upperkey.data &&
+                (operator == SLAPI_OP_LESS) ?
+                DBTcmp(&cur_key, &upperkey, ai->ai_key_cmp_fn) < 0 :
+                DBTcmp(&cur_key, &upperkey, ai->ai_key_cmp_fn) <= 0)) {
+            /* exit the loop when we either run off the end of the table,
+             * fail to read a key, or read a key that's out of range.
+             */
+            IDList *tmp;
+            /*
+            char encbuf [BUFSIZ];
+            LDAPDebug( LDAP_DEBUG_FILTER, "   cur_key=%s(%li bytes)\n",
+                   encoded (&cur_key, encbuf), (long)cur_key.dsize, 0 );
+            */
+            /* lookthrough limit and size limit check */
+            if (idl) {
+                if ((lookthrough_limit != -1) && 
+                    (idl->b_nids > (ID)lookthrough_limit)) {
+                    idl_free(idl);
+                    idl = idl_allids( be );
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                               "index_range_read lookthrough_limit exceeded\n");
+                    *err = LDAP_ADMINLIMIT_EXCEEDED;
+                    break;
+                }
+                if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read sizelimit exceeded\n");
+                    *err = LDAP_SIZELIMIT_EXCEEDED;
+                    break;
+                }
             }
-            idl = idl_allids( be );
-            LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read lookthrough_limit exceeded\n",
-                                  0, 0, 0);
-            break;
-        }
-        if (idl != NULL && sizelimit > 0 && idl->b_nids > (ID)sizelimit)
-        {
-            LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read sizelimit exceeded\n",
-                                  0, 0, 0);
-            break;
-        }
-        /* check time limit */
-        curtime = current_time();
-        if ( timelimit != -1 && curtime >= stoptime )
-        {
-            LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read timelimit exceeded\n",
-                                  0, 0, 0);
-            break;
-        }
-
-        /* Check to see if the operation has been abandoned (also happens
-         * when the connection is closed by the client).
-         */
-        if ( slapi_op_abandoned( pb )) {
-            if (NULL != idl) {
-                idl_free(idl);
-                idl = NULL;
+            /* check time limit */
+            if (timelimit != -1) {
+                curtime = current_time();
+                if (curtime >= stoptime) {
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read timelimit exceeded\n");
+                    *err = LDAP_TIMELIMIT_EXCEEDED;
+                    break;
+                }
             }
-            LDAPDebug(LDAP_DEBUG_TRACE,
-                    "index_range_read - operation abandoned\n", 0, 0, 0);
-            break;    /* clean up happens outside the while() loop */
-        }
-
-        /* the cur_key DBT already has the first entry in it when we enter the loop */
-        /* so we process the entry then step to the next one */
-        cur_key.flags = 0;
-        for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
-          *err = NEW_IDL_DEFAULT;
-          tmp = idl_fetch_ext( be, db, &cur_key, NULL, ai, err, allidslimit );
-          if(*err == DB_LOCK_DEADLOCK) {
-            ldbm_nasty("index_range_read retrying transaction", 1090, *err);
+            /* Check to see if the operation has been abandoned (also happens
+             * when the connection is closed by the client).
+             */
+            if ( slapi_op_abandoned( pb )) {
+                if (NULL != idl) {
+                    idl_free(idl);
+                    idl = NULL;
+                }
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                               "index_range_read - operation abandoned\n");
+                break;    /* clean up happens outside the while() loop */
+            }
+    
+            /* the cur_key DBT already has the first entry in it when we enter
+             * the loop, so we process the entry then step to the next one */
+            cur_key.flags = 0;
+            for (retry_count = 0;
+                 retry_count < IDL_FETCH_RETRY_COUNT;
+                 retry_count++) {
+              *err = NEW_IDL_DEFAULT;
+              tmp = idl_fetch_ext(be, db, &cur_key, NULL, ai, err, allidslimit);
+              if(*err == DB_LOCK_DEADLOCK) {
+                ldbm_nasty("index_range_read retrying transaction", 1090, *err);
 #ifdef FIX_TXN_DEADLOCKS
 #error if txn != NULL, have to abort and retry the transaction, not just the fetch
 #endif
-            continue;
-          } else {
-            break;
-          }
-        }
-        if(retry_count == IDL_FETCH_RETRY_COUNT) {
-          ldbm_nasty("index_range_read retry count exceeded",1095,*err);
-        }
-        if (!tmp) {
-            if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
-                char encbuf[BUFSIZ];
-                LDAPDebug2Args(LDAP_DEBUG_TRACE,
-                               "index_range_read_ext: cur_key=%s(%li bytes) was deleted - skipping\n",
-                               encoded(&cur_key, encbuf), (long)cur_key.dsize);
+                continue;
+              } else {
+                break;
+              }
             }
-        } else {
-            /* idl tmp only contains one id */
-            /* append it at the end here; sort idlist at the end */
-            if (ALLIDS(tmp)) {
-                idl_free(idl);
-                idl = tmp;
-            } else {
-                ID id;
-                for (id = idl_firstid(tmp); id != NOID; id = idl_nextid(tmp, id)) {
-                    *err = idl_append_extend(&idl, id);
-                    if (*err) {
-                        ldbm_nasty("index_range_read - failed to generate idlist",
-                                   1097, *err);
-                    }
+            if(retry_count == IDL_FETCH_RETRY_COUNT) {
+              ldbm_nasty("index_range_read retry count exceeded",1095,*err);
+            }
+            if (!tmp) {
+                if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
+                    char encbuf[BUFSIZ];
+                    LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read_ext: cur_key=%s(%li bytes) was deleted - skipping\n",
+                                   encoded(&cur_key, encbuf), (long)cur_key.dsize);
                 }
-                idl_free(tmp);
+            } else {
+                /* idl tmp only contains one id */
+                /* append it at the end here; sort idlist at the end */
+                if (ALLIDS(tmp)) {
+                    idl_free(idl);
+                    idl = tmp;
+                } else {
+                    ID id;
+                    for (id = idl_firstid(tmp);
+                         id != NOID; id = idl_nextid(tmp, id)) {
+                        *err = idl_append_extend(&idl, id);
+                        if (*err) {
+                            ldbm_nasty("index_range_read - failed to generate idlist",
+                                       1097, *err);
+                        }
+                    }
+                    idl_free(tmp);
+                }
+                if (ALLIDS(idl)) {
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read hit an allids value\n");
+                    break;
+                }
             }
-            if (ALLIDS(idl)) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read hit an allids value\n",
-                          0, 0, 0);
+            if (DBT_EQ (&cur_key, &upperkey)) { /* this is the last key */
+                break;
+                /* Another c_get would return the same key, with no error. */
+            }
+            data.flags = DB_DBT_MALLOC;
+            cur_key.flags = DB_DBT_MALLOC;
+            *err = index_range_next_key(db,&cur_key,db_txn);
+            /* *err = dbc->c_get(dbc,&cur_key,&data,DB_NEXT); */
+            if (*err == DB_NOTFOUND) {
+                *err = 0;
                 break;
             }
         }
-        if (DBT_EQ (&cur_key, &upperkey)) { /* this is the last key */
-            break;
-            /* Another c_get would return the same key, with no error. */
-        }
-        data.flags = DB_DBT_MALLOC;
-        cur_key.flags = DB_DBT_MALLOC;
-        *err = index_range_next_key(db,&cur_key,db_txn);
-        /* *err = dbc->c_get(dbc,&cur_key,&data,DB_NEXT); */
-        if (*err == DB_NOTFOUND) {
-            *err = 0;
-            break;
+        /* sort idl */
+        if (idl && !ALLIDS(idl)) {
+            qsort((void *)&idl->b_ids[0], idl->b_nids,
+                  (size_t)sizeof(ID), idl_sort_cmp);
         }
     }
-    if (*err) LDAPDebug( LDAP_DEBUG_FILTER, "   dbc->c_get(...DB_NEXT) == %i\n", *err, 0, 0);
+    if (*err) {
+        LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+                      "   dbc->c_get(...DB_NEXT) == %i\n", *err);
+    }
 #ifdef LDAP_DEBUG
-        /* this is for debugging only */
-        if (idl != NULL)
-        {
-            if (ALLIDS(idl)) {
-                LDAPDebug( LDAP_DEBUG_FILTER,
-                        "   idl=ALLIDS\n", 0, 0, 0 );
-            } else {
-                LDAPDebug( LDAP_DEBUG_FILTER,
-                        "   idl->b_nids=%d\n", idl->b_nids, 0, 0 );
-                LDAPDebug( LDAP_DEBUG_FILTER,
-                        "   idl->b_nmax=%d\n", idl->b_nmax, 0, 0 );
+    /* this is for debugging only */
+    if (idl != NULL) {
+        if (ALLIDS(idl)) {
+            LDAPDebug0Args(LDAP_DEBUG_FILTER, "   idl=ALLIDS\n");
+        } else {
+            LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+                          "   idl->b_nids=%d\n", idl->b_nids);
+            LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+                          "   idl->b_nmax=%d\n", idl->b_nmax);
 
-                for ( i= 0; i< idl->b_nids; i++)
-                {
-                    LDAPDebug( LDAP_DEBUG_FILTER,
-                                "   idl->b_ids[%d]=%d\n", i, idl->b_ids[i], 0);
-                }
+            for (i = 0; i < idl->b_nids; i++) {
+                LDAPDebug2Args(LDAP_DEBUG_FILTER,
+                               "   idl->b_ids[%d]=%d\n", i, idl->b_ids[i]);
             }
         }
+    }
 #endif
 error:
     index_free_prefix(prefix);
@@ -1613,13 +1610,6 @@ error:
     DBT_FREE_PAYLOAD(upperkey);
 
     dblayer_release_index_file( be, ai, db );
-
-    /* sort idl */
-    if (idl && !ALLIDS(idl)) {
-        qsort((void *)&idl->b_ids[0], idl->b_nids,
-              (size_t)sizeof(ID), idl_sort_cmp);
-    }
-
     LDAPDebug( LDAP_DEBUG_TRACE, "<= index_range_read(%s,%s) %lu candidates\n",
                    type, prefix, (u_long)IDL_NIDS(idl) );
     return( idl );

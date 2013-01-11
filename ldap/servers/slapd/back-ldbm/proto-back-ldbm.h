@@ -283,6 +283,10 @@ int idl_new_compare_dups(
     const DBT *a, 
     const DBT *b
 );
+IDList *idl_new_range_fetch(backend *be, DB* db, DBT *lowerkey, DBT *upperkey,
+                            DB_TXN *txn, struct attrinfo *a, int *flag_err,
+                            int allidslimit, int sizelimit, time_t stoptime,
+                            int lookthrough_limit, int operator);
 
 /*
  * index.c
@@ -300,6 +304,7 @@ IDList* index_read_ext_allids( backend *be, char *type, const char* indextype, c
 IDList* index_range_read( Slapi_PBlock *pb, backend *be, char *type, const char* indextype, int ftype, struct berval* val, struct berval* nextval, int range, back_txn *txn, int *err );
 IDList* index_range_read_ext( Slapi_PBlock *pb, backend *be, char *type, const char* indextype, int ftype, struct berval* val, struct berval* nextval, int range, back_txn *txn, int *err, int allidslimit );
 const char *encode( const struct berval* data, char buf[BUFSIZ] );
+int DBTcmp(DBT* L, DBT* R, value_compare_fn_type cmp_fn);
 
 extern const char* indextype_PRESENCE;
 extern const char* indextype_EQUALITY;
