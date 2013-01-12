@@ -60,8 +60,14 @@ sub PrintUsage {
     print STDERR 
     	"Usage: $0 [options] -o output_file  -n number\n",
 	"\t Where options are:\n",
+	"\t -o filename output file\n",
 	"\t -s suffix, default is 'dc=example,dc=com'\n",
 	"\t -c for CN naming style RDN's : default is UID\n",
+	"\t -z extra objectclasses to add to base used in -O - should be AUXILIARY or SUB\n",
+	"\t -j 0 pad numbers used in RDN to this many digits e.g. with 4 1 becomes 0001\n",
+	"\t -m naming attribute for RDN\n",
+	"\t -n number of entries to generate\n",
+	"\t -b beginning number for RDN (default 1 - ending number is -n value)\n",
 	"\t -O for organizationalPersons, default is inetOrgPerson\n",
 	"\t -p for piranha style aci's, default is barracuda\n",
 	"\t -r seed---seed number for random number generator\n",
@@ -529,7 +535,7 @@ my $mycert =
 
 require "flush.pl";
 require "getopts.pl";
-&Getopts('n:o:s:r:cOvpqgxyl:');
+&Getopts('n:o:s:r:cOvpqgxyl:z:m:b:j:');
 
 $Number_To_Generate = $opt_n;
 $Verbose = $opt_v;
@@ -541,9 +547,16 @@ $debug = $opt_d;
 $Suffix = $opt_s || 'dc=example,dc=com';
 $NamingType = "cn" if ($opt_c);
 $NamingType = "uid" if (!$opt_c);
+$NamingType = $opt_m if ($opt_m);
 $inetOrgPerson = "objectClass: inetOrgPerson\n" if (!$opt_O);
 $PrintOrgChartDat = $opt_g;
 $DataDir = $opt_l || "@templatedir@";
+$ExtraObjClasses = "";
+if ($opt_z) {
+    $ExtraObjClasses = join "\n", map { "objectClass: $_" } split(/ /, $opt_z);
+    $ExtraObjClasses .= "\n";
+}
+$BeginNum = $opt_b || 0;
 $printpreamble = 1;
 if ("" != $opt_x)
 {
@@ -554,6 +567,7 @@ if ("" != $opt_y)
 {
     $printorgunit = 0;
 }
+$ZeroPad = $opt_j;
 
 if ($Suffix =~ /o=/) {
     ($Organization) = $Suffix =~ /o=([^,]+)/;
@@ -580,6 +594,13 @@ if ( (!$Number_To_Generate) || (!$Output_File_Name)) {
     &PrintUsage;
 }
 
+if ($Output_File_Name eq '-') {
+    *OUTPUT_FILE = *STDOUT;
+} else {
+    open (OUTPUT_FILE, ">>$Output_File_Name") || 
+        die "Error---Can't open output file $Output_File_Name\n";
+}
+
 srand($Random_Seed);
 
 print "Loading Name Data...\n" if $Verbose;
@@ -603,9 +624,6 @@ if ($printpreamble)
     	&PrintPreAmbleBarracuda($Output_File_Name);
 	}
 }
-
-open (OUTPUT_FILE, ">>$Output_File_Name") || 
-    die "Error---Can't open output file $Output_File_Name\n";
 
 if ($printorgunit)
 {
@@ -655,9 +673,9 @@ if ($PrintOrgChartDat)
 	}
 }
 
-print "Generating $Number_To_Generate entries, please wait\n";
+print "Generating $Number_To_Generate entries, please wait\n" if $Verbose;
 
-print "Progress: ";
+print "Progress: " if $Verbose;
 # We don't want people with duplicate names, so for each name generated,
 # add it to "TheMap", which is an associative array with the
 # name as the key. If there's a duplicate, throw the name out and
@@ -670,7 +688,7 @@ $dups = 0;
 
 
 # CHANGED: updated to allow for uid naming style or cn style. Check the RDN for uniqueness
-for ($x= 0; $x < $Number_To_Generate; $x++) {
+for ($x= $BeginNum; $x < ($Number_To_Generate+$BeginNum); $x++) {
 
     ($givenName, $sn, $cn, $uid, $rdn,) = &MakeRandomName;
     if (&AddAndCheck($rdn)) {
@@ -729,10 +747,10 @@ for ($x= 0; $x < $Number_To_Generate; $x++) {
         $userPassword      = "$uid\n";
     }
     
- if ($PrintOrgChartDat) {
-   $dnstr = "dn: $NamingType=$rdn, ou=People, $Suffix\n",
+ if ($PrintOrgChartDat or !$printorgunit) {
+   $dnstr = "dn: $NamingType=$rdn,ou=People,$Suffix\n",
  } else {
-   $dnstr = "dn: $NamingType=$rdn, ou=$OrgUnit, $Suffix\n";
+   $dnstr = "dn: $NamingType=$rdn,ou=$OrgUnit,$Suffix\n";
  }
 
  print OUTPUT_FILE
@@ -740,7 +758,7 @@ for ($x= 0; $x < $Number_To_Generate; $x++) {
              "objectClass: top\n",
              "objectClass: person\n",
              "objectClass: organizationalPerson\n",
-             $inetOrgPerson, 
+             $inetOrgPerson, $ExtraObjClasses,
              "cn: $cn\n",
              "sn: $sn\n",
              "uid: $uid\n",
@@ -769,15 +787,15 @@ for ($x= 0; $x < $Number_To_Generate; $x++) {
     
     if (!$Quiet) {
         if ($x % 1000  == 0) {
-            print ".";
+            print "." if $Verbose;
             &flush(STDOUT);
         }
     }
   
 }
 
-print "\n";
-print "Generated $x entries\n";
+print "\n" if $Verbose;
+print "Generated $x entries\n" if $Verbose;
 
 if ($Verbose) {
     print "$dups duplicates skipped\n";
@@ -825,7 +843,6 @@ sub ReadFamilyNames {
 sub PrintPreAmblePiranha {
     local($output_file) = @_;
 
-    open (OUTPUT_FILE, ">$output_file") || die "Can't open $output_file for writing $!\n";
     print OUTPUT_FILE<<End_Of_File
 dn: $Suffix
 objectClass: top
@@ -836,17 +853,12 @@ subtreeaci: +(privilege=compare)
 subtreeaci: +(|(privilege=search)(privilege=read))
 
 End_Of_File
-    ;
-    
-    close (OUTPUT_FILE);
-    
+    ;    
 }
 
 sub PrintPreAmbleBarracuda {
     local($output_file) = @_;
 
-    open (OUTPUT_FILE, ">$output_file") || die "Can't open $output_file for writing $!\n";
-    
     print OUTPUT_FILE<<End_Of_File
 dn: $Suffix
 objectClass: top
@@ -858,14 +870,11 @@ aci: (target=ldap:///$Suffix)(targetattr=*)(version 3.0; acl "acl3"; allow(read,
 
 End_Of_File
     ;
-    close (OUTPUT_FILE);
 }
 
 sub PrintPreAmbleNoACI {
     local($output_file) = @_;
 
-    open (OUTPUT_FILE, ">$output_file") || die "Can't open $output_file for writing $!\n";
- 
     print OUTPUT_FILE<<End_Of_File
 dn: $Suffix
 objectClass: top
@@ -874,8 +883,6 @@ o: $Organization
 
 End_Of_File
     ;
-    close (OUTPUT_FILE);
-    
 }
 
 
@@ -883,14 +890,14 @@ End_Of_File
 sub PrintOrganizationalUnits {
     foreach $ou (@OrganizationalUnits) {
         print OUTPUT_FILE 
-            "dn: ou=$ou, $Suffix\n",
+            "dn: ou=$ou,$Suffix\n",
             "objectClass: top\n",
             "objectClass: organizationalUnit\n",
             "ou: $ou\n\n";
     }
 	if ($PrintOrgChartDat) {
         print OUTPUT_FILE 
-            "dn: ou=People, $Suffix\n",
+            "dn: ou=People,$Suffix\n",
             "objectClass: top\n",
             "objectClass: organizationalUnit\n",
             "ou: People\n\n";
@@ -938,7 +945,7 @@ sub PrintManagers {
         $userPassword      = "$uid\n";
     }
     
-    $dnstr = "dn: $NamingType=$rdn, ou=People, $Suffix\n";
+    $dnstr = "dn: $NamingType=$rdn,ou=People,$Suffix\n";
     if ("" ne $orgUnit) {
         $oustr = "ou: $orgUnit\n";
     }
@@ -997,22 +1004,22 @@ sub MakeRandomName {
     $Given_Name   = $given_names[rand @given_names];
     $Surname      = $family_names[rand @family_names];
     $Full_Name = "$Given_Name $Surname";
+    $first = substr($Given_Name, 0,1);
+    $last = substr($Surname, 0,8);
+    $UID = $first . $last . "$uniq";
     
     # Create the uid based on the DN naming type defined
-    if ($NamingType eq "uid") {
-	    $first = substr($Given_Name, 0,1);
-	    $last = substr($Surname, 0,8);
-	    $UID = $first . $last . "$uniq";
+    if ($opt_b) { # use a uniquenumber for the RDN value
+        if ($ZeroPad) {
+            $RDN = sprintf "%0.${ZeroPad}d", $x;
+        } else {
+            $RDN = $x;
+        }
+    } elsif ($NamingType eq "uid") {
 	    $RDN = $UID;
+    } else {
+        $RDN = $Full_Name;
     }
-    else
-    {
-	    $first = substr($Given_Name, 0,1);
-	    $last = substr($Surname, 0,8);
-	    $UID = $first . $last . "$uniq";
-    	    $RDN = $Full_Name;
-    }
-
     
     return ($Given_Name, $Surname, $Full_Name, $UID, $RDN);
 }
@@ -1098,6 +1105,3 @@ sub MakeInitials {
     ($last)  = $sn        =~ /^(\w).*/;
     return "$first" . ". " . "$last" . ".";
 }
-
-
-
