@@ -343,17 +343,17 @@ incrementCommonCounter (
   /*
    * Compute next value
    */
-  if ((mctx.mode & NOLOOP) && (mctx.lastVal == mctx.randomHigh))
+  if ((mctx.mode & NOLOOP) && (mctx.lastVal >= mctx.randomHigh))
     val = -1;
   else
   {
-    mctx.lastVal++;
+    mctx.lastVal += mctx.incr;
     if (mctx.lastVal > mctx.randomHigh)
     {
       if (mctx.mode & NOLOOP)
 	val = -1;
       else
-	mctx.lastVal = mctx.randomLow;
+	mctx.lastVal -= (mctx.randomHigh-mctx.incr) + mctx.randomLow;
     }
     val = mctx.lastVal;
   }

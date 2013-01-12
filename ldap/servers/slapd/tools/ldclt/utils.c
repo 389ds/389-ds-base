@@ -199,10 +199,10 @@ rndlim (
 			arguments. The string is returned in the buffer.
 	INPUT :		low	= low limit
 			high	= high limit
-			ndigits	= number of digits
+			ndigits	= number of digits - 0 means no zero pad
 	OUTPUT :	buf	= buffer to write the random string. Note that
 				  it is generated with fixed number of digits,
-				  completed with leading '0'.
+				  completed with leading '0', if ndigits > 0
 	RETURN :	None.
 	DESCRIPTION :
  *****************************************************************************/

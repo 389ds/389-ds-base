@@ -277,9 +277,10 @@ dd/mm/yy | Author	| Comments
 #define M2_BINDONLY	0x00000020 /* -e bindonly */		/*JLS 04-05-01*/
 #define M2_SASLAUTH     0x00000040 /* -o : SASL authentication */
 #define M2_RANDOM_SASLAUTHID     0x00000080 /* -e randomauthid */
-#define M2_ABANDON     0x00000100 /* -e abandon */
-#define M2_DEREF     0x00000200 /* -e deref */
+#define M2_ABANDON      0x00000100 /* -e abandon */
+#define M2_DEREF        0x00000200 /* -e deref */
 #define M2_ATTR_REPLACE_FILE	 0x00000400 /* -e attreplacefile */
+#define M2_NOZEROPAD    0x00000800 /* -e nozeropad */
 
 /*
  * Combinatory defines
@@ -511,7 +512,7 @@ typedef struct main_context {
 	char		*attrpl;	/* Attrib argument */	/*JLS 21-11-00*/
 	char		*attrplFile;	/* Attrib file to get value from */
 	char		*attrplFileContent;	/* Attrib file content */
-	int		attrplFileSize;		/* Attrib file size*/
+	int		 attrplFileSize;	/* Attrib file size*/
 	char		*attrplHead;	/* Attrib value head */	/*JLS 21-11-00*/
 	char		*attrplName;	/* Attrib name */	/*JLS 21-11-00*/
 	int		 attrplNbDigit;	/* Attrib nb digits */	/*JLS 21-11-00*/
@@ -549,8 +550,9 @@ typedef struct main_context {
 	int		 imagesLast;	/* Last selected image */
 	ldclt_mutex_t	 imagesLast_mutex; /* Protect imagesLast */
 	int		 inactivMax;	/* Allowed inactivity */
-        char            *keydbfile;     /* key DB file */       /* BK 23-11-00*/
-        char            *keydbpin;      /* key DB password */   /* BK 23-11-00*/
+	int              incr;          /* in incremental mode, number to use to increment (default 1) */
+	char            *keydbfile;     /* key DB file */       /* BK 23-11-00*/
+	char            *keydbpin;      /* key DB password */   /* BK 23-11-00*/
 	int		 lastVal;	/* To build filters */	/*JLS 14-03-01*/
 	ldclt_mutex_t	 lastVal_mutex;	/* Protect lastVal */	/*JLS 14-03-01*/
 	int		 ldapauth;	/* Used to indicate auth type */
@@ -593,12 +595,15 @@ typedef struct main_context {
 	int		 slaveConn;	/* Slave has connected */
 	char		*slaves[MAX_SLAVES]; /* Slaves list */
 	int		 slavesNb;	/* Number of slaves */
+	int              srch_nentries; /* number of entries that must be returned by each search op */
 	int		 timeout;	/* LDAP op. t.o. */
 	struct timeval	 timeval;	/* Timeval structure */
 	struct timeval	 timevalZero;	/* Timeout of zero */
 	int		 totalReq;	/* Total requested */
 	int		 totNbOpers;	/* Total opers number */
 	int		 totNbSamples;	/* Total samples nb */
+#define DEFAULT_TIMESTAMP_FMT "%s"
+	char            *tsfmt;         /* if non-null, use this strftime format to print timestamps for status updates */
 	int		 waitSec;	/* Wait between two operations */
 } main_context;
 

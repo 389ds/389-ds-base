@@ -777,10 +777,21 @@ monitorThem (void)
   int	 nbOpersTot;	/* Total nb of operations */
   int	 allDead = 0;	/* All threads are dead */
   int	 status;	/* Thread's status */			/*JLS 17-11-00*/
+  time_t t;
+  struct tm *tmstr;
+  char   timestamp[128];
 
   while (!allDead)
   {
     ldclt_sleep (mctx.sampling);
+    if (mctx.tsfmt) {
+      t = time(NULL);
+      tmstr = localtime(&t);
+      strftime(timestamp, sizeof(timestamp), mctx.tsfmt, tmstr);
+    } else {
+      timestamp[0] = '\0';
+    }
+
     nbOpersTot = 0;
     allDead    = 1;	/* Assume all threads are dead */
 
@@ -853,7 +864,8 @@ monitorThem (void)
     /*
      * Summary of operations
      */
-    printf ("ldclt[%d]: Average rate: %7.2f/thr  (%7.2f/sec), total: %6d\n",
+    printf ("%s%sldclt[%d]: Average rate: %7.2f/thr  (%7.2f/sec), total: %6d\n",
+                timestamp, mctx.tsfmt ? "|" : "",
 		mctx.pid, (float)nbOpersTot/(float)mctx.nbThreads,
 		(float)nbOpersTot/(float)mctx.sampling, nbOpersTot);
     fflush (stdout);
@@ -1355,7 +1367,7 @@ basicInit (void)
       fflush (stderr);						/*JLS 14-03-01*/
       return (-1);						/*JLS 14-03-01*/
     }								/*JLS 14-03-01*/
-    mctx.lastVal = mctx.randomLow-1;				/*JLS 14-03-01*/
+    mctx.lastVal = mctx.randomLow-mctx.incr;			/*JLS 14-03-01*/
   }								/*JLS 14-03-01*/
 
   /*
@@ -2251,6 +2263,14 @@ char *execParams[] = {
 	"deref",
 #define EP_ATT_REPLACE_FILE		51
 	"attreplacefile",
+#define EP_SRCH_NENTRIES                52 /* number of entries that must be returned by each search */
+        "srchnentries",
+#define EP_SAMP_INTERVAL                53 /* sampling interval */
+        "sampinterval",
+#define EP_TIMESTAMP                    54 /* show timestamp when reporting progress */
+        "timestamp",
+#define EP_NOZEROPAD                    55 /* do not zero pad numbers created by XXX patterns in values and RDNs */
+        "nozeropad",
 	NULL
 };
 
@@ -2357,6 +2377,8 @@ decodeExecParams (
 	break;							/*JLS 16-11-00*/
       case EP_INCREMENTAL:
 	mctx.mode |= INCREMENTAL;
+	if (subvalue)
+	  mctx.incr = atoi (subvalue);
 	break;
       case EP_KEYDB_FILE:					/* BK 23-11-00*/
 	mctx.mode |= CLTAUTH;				        /* BK 23-11-00*/
@@ -2385,6 +2407,9 @@ decodeExecParams (
       case EP_NOLOOP:
 	mctx.mode |= NOLOOP;
 	break;
+      case EP_NOZEROPAD:
+        mctx.mod2 |= M2_NOZEROPAD;
+        break;
       case EP_OBJECT:						/*JLS 19-03-01*/
 	mctx.mod2 |= M2_OBJECT;				        /*JLS 19-03-01*/
 	if (subvalue == NULL)					/*JLS 19-03-01*/
@@ -2554,6 +2579,19 @@ decodeExecParams (
 		mctx.attrpl = NULL;
 	}
 	break;
+      case EP_SRCH_NENTRIES:
+        mctx.srch_nentries = atoi (subvalue);
+        break;
+      case EP_SAMP_INTERVAL:
+        mctx.sampling = atoi (subvalue);
+        break;
+      case EP_TIMESTAMP:
+        if (subvalue) {
+          mctx.tsfmt = strdup (subvalue);
+        } else {
+          mctx.tsfmt = strdup (DEFAULT_TIMESTAMP_FMT);
+        }
+        break;
       default:
 	fprintf (stderr, "Error: illegal option -e %s\n", subvalue);
 	return (-1);
@@ -2683,6 +2721,7 @@ main (
   mctx.images	     = NULL;					/*JLS 17-11-00*/
   mctx.imagesDir     = DEF_IMAGES_PATH;				/*JLS 16-11-00*/
   mctx.inactivMax    = DEF_INACTIV_MAX;
+  mctx.incr          = 1;
   mctx.maxErrors     = DEF_MAX_ERRORS;
   mctx.mode	     = NOTHING;
   mctx.mod2	     = NOTHING;
@@ -2706,6 +2745,7 @@ main (
   mctx.scope	     = DEF_SCOPE;
   mctx.slaveConn     = 0;
   mctx.slavesNb      = 0;
+  mctx.srch_nentries = -1;
   mctx.timeout	     = DEF_TIMEOUT;
   mctx.totalReq	     = -1;
   mctx.waitSec       = 0;

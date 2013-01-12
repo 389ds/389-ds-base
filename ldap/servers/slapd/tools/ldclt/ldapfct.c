@@ -442,7 +442,7 @@ buildNewBindDN (
   if (mctx.mode & STRING)
     (void) randomString (tttctx, mctx.bindDNNbDigit);
   else
-    rnd (tttctx->buf2, mctx.bindDNLow, mctx.bindDNHigh, mctx.bindDNNbDigit);
+    rnd (tttctx->buf2, mctx.bindDNLow, mctx.bindDNHigh, (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.bindDNNbDigit);
 
   /*
    * First, randomize the bind DN.
@@ -991,7 +991,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
      */
     if ((mod2 & M2_RANDOM_SASLAUTHID) && tttctx) {
       rnd (tttctx->buf2, mctx.sasl_authid_low, mctx.sasl_authid_high,
-	   mctx.sasl_authid_nbdigit);
+	   (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.sasl_authid_nbdigit);
       strncpy (&(tttctx->bufSaslAuthid[tttctx->startSaslAuthid]),
 	       tttctx->buf2, mctx.sasl_authid_nbdigit);
       my_saslauthid = tttctx->bufSaslAuthid;
@@ -1324,7 +1324,7 @@ buildVersatileAttribute (
 	  num = field->cnt;
 	  field->cnt++;	/* Next value for next loop */
 	}
-	sprintf (tttctx->buf2, "%0*d", field->nb, num);
+	sprintf (tttctx->buf2, "%0*d", (mctx.mod2 & M2_NOZEROPAD) ? 0 : field->nb, num);
 	strcat (attrib->buf, tttctx->buf2);
 	if (field->var != -1)
 	  strcpy (object->var[field->var], tttctx->buf2);
@@ -1347,7 +1347,7 @@ buildVersatileAttribute (
 	  num = field->cnt;
 	  field->cnt++;	/* Next value for next loop */
 	}
-	sprintf (tttctx->buf2, "%0*d", field->nb, num);
+	sprintf (tttctx->buf2, "%0*d", (mctx.mod2 & M2_NOZEROPAD) ? 0 : field->nb, num);
 	strcat (attrib->buf, tttctx->buf2);
 	if (field->var != -1)
 	  strcpy (object->var[field->var], tttctx->buf2);
@@ -1359,7 +1359,7 @@ buildVersatileAttribute (
 	  strcpy (object->var[field->var], field->dlf->str[num]);
 	break;
       case HOW_RND_NUMBER:
-	rnd (tttctx->buf2, field->low, field->high, field->nb);
+	rnd (tttctx->buf2, field->low, field->high, (mctx.mod2 & M2_NOZEROPAD) ? 0 : field->nb);
 	strcat (attrib->buf, tttctx->buf2);
 	if (field->var != -1)
 	  strcpy (object->var[field->var], tttctx->buf2);
@@ -1430,7 +1430,7 @@ buildRandomRdnOrFilter (
       (void) randomString (tttctx, mctx.baseDNNbDigit);
     else
       rnd (tttctx->buf2, mctx.baseDNLow, mctx.baseDNHigh,	/*JLS 14-11-00*/
-					mctx.baseDNNbDigit);	/*JLS 14-11-00*/
+           (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.baseDNNbDigit);	/*JLS 14-11-00*/
     strncpy (&(tttctx->bufBaseDN[tttctx->startBaseDN]), 
 			tttctx->buf2, mctx.baseDNNbDigit);
     if (mctx.mode & VERY_VERBOSE)
@@ -1481,9 +1481,12 @@ buildRandomRdnOrFilter (
 	(void) randomString (tttctx, mctx.randomNbDigit);
       else
 	rnd (tttctx->buf2, mctx.randomLow, mctx.randomHigh,	/*JLS 14-11-00*/
-			mctx.randomNbDigit);			/*JLS 14-11-00*/
+	     (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.randomNbDigit);			/*JLS 14-11-00*/
       strncpy (&(tttctx->bufFilter[tttctx->startRandom]), 
-			tttctx->buf2, mctx.randomNbDigit);
+               tttctx->buf2, mctx.randomNbDigit);
+      if ((mctx.mod2 & M2_NOZEROPAD) && mctx.randomTail) {
+        strcat(tttctx->bufFilter, mctx.randomTail);
+      }
       if (mctx.mode & VERY_VERBOSE)
 	printf ("ldclt[%d]: %s: random mode:filter=\"%s\"\n",
                  mctx.pid, tttctx->thrdId, tttctx->bufFilter);
@@ -1496,11 +1499,11 @@ buildRandomRdnOrFilter (
 	val = incrementCommonCounter (tttctx);			/*JLS 14-03-01*/
 	if (val == -1)						/*JLS 14-03-01*/
 	  return (-1);						/*JLS 14-03-01*/
-	sprintf (tttctx->buf2, "%0*d", mctx.randomNbDigit, val);/*JLS 14-03-01*/
+	sprintf (tttctx->buf2, "%0*d", (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.randomNbDigit, val);/*JLS 14-03-01*/
       }								/*JLS 14-03-01*/
       else							/*JLS 14-03-01*/
       {								/*JLS 14-03-01*/
-	tttctx->lastVal++;
+	tttctx->lastVal += mctx.incr;
 	if (tttctx->lastVal > mctx.randomHigh)
 	{
 	  if (!(mctx.mode & NOLOOP))
@@ -1511,16 +1514,19 @@ buildRandomRdnOrFilter (
 	     * Well, there is no clean way to exit. Let's use the error
 	     * condition and hope all will be ok.
 	     */
-	    printf ("ldclt[%d]: %s: Hit top incrementeal value\n",
+	    printf ("ldclt[%d]: %s: Hit top incremental value\n",
                      mctx.pid, tttctx->thrdId);
 	    return (-1);
 	  }
 	}
-	sprintf (tttctx->buf2, "%0*d", mctx.randomNbDigit, tttctx->lastVal);
+	sprintf (tttctx->buf2, "%0*d", (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.randomNbDigit, tttctx->lastVal);
       }								/*JLS 14-03-01*/
 
       strncpy (&(tttctx->bufFilter[tttctx->startRandom]), tttctx->buf2,
 			mctx.randomNbDigit);
+      if ((mctx.mod2 & M2_NOZEROPAD) && mctx.randomTail) {
+        strcat(tttctx->bufFilter, mctx.randomTail);
+      }
       if (mctx.mode & VERY_VERBOSE)
 	printf ("ldclt[%d]: %s: incremental mode:filter=\"%s\"\n",
                  mctx.pid, tttctx->thrdId, tttctx->bufFilter);
@@ -3919,6 +3925,7 @@ doExactSearch (
     }
     else
     { /* if search success & we are in verbose mode */
+      int nentries = 0;
       if (mctx.mode & VERBOSE)
       {
         for (e = ldap_first_message (tttctx->ldapCtx, res); e != NULL ; e = ldap_next_message (tttctx->ldapCtx, e) )
@@ -3928,6 +3935,7 @@ doExactSearch (
           {
             /* if this is an entry that returned */
             case LDAP_RES_SEARCH_ENTRY:
+              nentries++;
               /* get dereferenced value into resctrls:  deref parsing  */
               parse_rc = ldap_get_entry_controls ( tttctx->ldapCtx, e, &resctrls );
               if ( resctrls != NULL ) 
@@ -3974,6 +3982,11 @@ doExactSearch (
           }
         } /*end of message retriving */
       } /* end of verbose mode */
+
+      if ((mctx.srch_nentries > -1) && (mctx.srch_nentries != nentries)) {
+        printf ("Error: search returned %d entries not the requested %d entries\n", nentries, mctx.srch_nentries);
+        goto bail;
+      }
 
       if (incrementNbOpers (tttctx) < 0)/* Memorize operation */
       {
