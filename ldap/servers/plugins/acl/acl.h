@@ -361,6 +361,7 @@ typedef struct result_cache {
 #define ACLPB_CACHE_SEARCH_RES_DENY		(short)0x0008 /* used for DENY handles only */
 #define ACLPB_CACHE_SEARCH_RES_SKIP		(short)0x0010 /* used for both types */
 #define ACLPB_CACHE_READ_RES_SKIP		(short)0x0020 /* used for both types */
+#define ACLPB_CACHE_ERROR_REPORTED		(short)0x8000 /* error is reported */
 }r_cache_t;
 
 

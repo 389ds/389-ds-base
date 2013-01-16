@@ -3108,17 +3108,33 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 				}
 			}
 
-			if ( j < aclpb->aclpb_last_cache_result)  {
+			if (j < aclpb->aclpb_last_cache_result)  {
 				/* already in cache */
-			} else if ( j < aclpb_max_cache_results ) {
-				/* j == aclpb->aclpb_last_cache_result  &&
-					j < ACLPB_MAX_CACHE_RESULTS */
+				aclpb->aclpb_cache_result[j].result &= 
+				        ~ACLPB_CACHE_ERROR_REPORTED;
+			} else if (j < aclpb_max_cache_results) {
+				/* j == aclpb->aclpb_last_cache_result &&
+				   j < ACLPB_MAX_CACHE_RESULTS */
 				aclpb->aclpb_last_cache_result++;
 				aclpb->aclpb_cache_result[j].aci_index = index;
 				aclpb->aclpb_cache_result[j].aci_ruleType = aci->aci_ruleType;
+				aclpb->aclpb_cache_result[j].result &= 
+				        ~ACLPB_CACHE_ERROR_REPORTED;
 			} else {  /* cache overflow */
-				slapi_log_error (SLAPI_LOG_FATAL, "acl__TestRights", "cache overflown\n");
-				if (  rights_rv == ACL_RES_ALLOW) {
+				if (!(aclpb->aclpb_cache_result[j].result &
+				      ACLPB_CACHE_ERROR_REPORTED)) {
+					slapi_log_error (SLAPI_LOG_FATAL, "acl__TestRights",
+					    "Your ACL cache of %d slots has overflowed. "
+					    "This can happen when you have many ACIs. "
+					    "This ACI evaluation requires %d slots to cache. "
+					    "You can increase your max value by setting the attribute "
+					    "%s in cn=ACL Plugin,cn=plugins,cn=config to a value higher. "
+					    "A server restart is required.\n",
+					    j, aclpb_max_cache_results, ATTR_ACLPB_MAX_SELECTED_ACLS);
+					aclpb->aclpb_cache_result[j].result |=
+					            ACLPB_CACHE_ERROR_REPORTED;
+				}
+				if (rights_rv == ACL_RES_ALLOW) {
 					result_reason->deciding_aci = aci;
 					result_reason->reason = ACL_REASON_EVALUATED_ALLOW;
 					TNF_PROBE_1_DEBUG(acl__TestRights_end,"ACL","",
