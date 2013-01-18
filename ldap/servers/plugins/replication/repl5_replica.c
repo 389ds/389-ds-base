@@ -87,6 +87,7 @@ struct replica {
 	PRBool state_update_inprogress; /* replica state is being updated */
 	PRLock *agmt_lock;          /* protects agreement creation, start and stop */
 	char *locking_purl;			/* supplier who has exclusive access */
+	PRUint64 protocol_timeout;           /* protocol shutdown timeout */
 };
 
 
@@ -773,6 +774,12 @@ replica_get_type (const Replica *r)
 {
 	PR_ASSERT(r);
 	return r->repl_type;
+}
+
+int
+replica_get_protocol_timeout(Replica *r)
+{
+	return (int)r->protocol_timeout;
 }
 
 /* 
@@ -1680,6 +1687,11 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     else
     {
         r->legacy_consumer = PR_FALSE;
+    }
+
+    r->protocol_timeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
+    if(r->protocol_timeout == 0){
+        r->protocol_timeout = DEFAULT_PROTOCOL_TIMEOUT;
     }
 
     /* get replica flags */

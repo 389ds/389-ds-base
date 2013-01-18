@@ -564,9 +564,10 @@ Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
 	prp->status = repl5_tot_status;
 	prp->notify_update = repl5_tot_noop;
 	prp->notify_agmt_changed = repl5_tot_noop;
-    prp->notify_window_opened = repl5_tot_noop;
-    prp->notify_window_closed = repl5_tot_noop;
+	prp->notify_window_opened = repl5_tot_noop;
+	prp->notify_window_closed = repl5_tot_noop;
 	prp->update_now = repl5_tot_noop;
+	prp->timeout = DEFAULT_PROTOCOL_TIMEOUT;
 	if ((prp->lock = PR_NewLock()) == NULL)
 	{
 		goto loser;

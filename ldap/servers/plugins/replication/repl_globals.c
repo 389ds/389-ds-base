@@ -112,6 +112,7 @@ const char *type_replicaLegacyConsumer = "nsds5ReplicaLegacyConsumer";
 const char *type_ruvElementUpdatetime = "nsruvReplicaLastModified";
 const char *type_replicaCleanRUV = "nsds5ReplicaCleanRUV";
 const char *type_replicaAbortCleanRUV = "nsds5ReplicaAbortCleanRUV";
+const char *type_replicaProtocolTimeout = "nsds5ReplicaProtocolTimeout";
 
 /* Attribute names for replication agreement attributes */
 const char *type_nsds5ReplicaHost = "nsds5ReplicaHost";

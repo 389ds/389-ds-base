@@ -40,7 +40,6 @@
 #  include <config.h>
 #endif
 
-
 /* repl5_protocol.c */
 /*
 
@@ -72,6 +71,7 @@ typedef struct repl_protocol
 	Object *replica_object; /* Local replica. If non-NULL, replica object is acquired */
 	int state;
 	int next_state;
+	PRUint64 protocol_timeout;
 	PRLock *lock;
 } repl_protocol;
 
@@ -82,9 +82,6 @@ typedef struct repl_protocol
 
 /* Forward declarations */
 static Private_Repl_Protocol *private_protocol_factory(Repl_Protocol *rp, int type);
-
-
-
 
 /*
  * Create a new protocol instance.
@@ -126,16 +123,17 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 
 	if (get_agmt_agreement_type(agmt) == REPLICA_TYPE_MULTIMASTER)
 	{
-	rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_5_INCREMENTAL);
-	rp->prp_total = private_protocol_factory(rp, PROTOCOL_5_TOTAL);
-	rp->delete_conn = conn_delete;
+		rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_5_INCREMENTAL);
+		rp->prp_total = private_protocol_factory(rp, PROTOCOL_5_TOTAL);
+		rp->delete_conn = conn_delete;
 	} 
 	else if  (get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS)
 	{
-	rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_WINDOWS_INCREMENTAL);
-	rp->prp_total = private_protocol_factory(rp, PROTOCOL_WINDOWS_TOTAL);
-	rp->delete_conn = windows_conn_delete;
+		rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_WINDOWS_INCREMENTAL);
+		rp->prp_total = private_protocol_factory(rp, PROTOCOL_WINDOWS_TOTAL);
+		rp->delete_conn = windows_conn_delete;
 	}
+	rp->protocol_timeout = agmt_get_protocol_timeout(agmt);
 
 	/* XXXggood register callback handlers for entries updated, and
 		schedule window enter/leave. */
@@ -148,20 +146,12 @@ done:
 	return rp;
 }
 
-
-
-
-
 Object *
 prot_get_replica_object(Repl_Protocol *rp)
 {
 	PR_ASSERT(NULL != rp);
 	return rp->replica_object;
 }
-
-
-
-
 
 Repl_Agmt *
 prot_get_agreement(Repl_Protocol *rp)
@@ -170,8 +160,6 @@ prot_get_agreement(Repl_Protocol *rp)
 	if (NULL == rp) return NULL;
 	return rp->agmt;
 }
-
-
 
 void
 prot_free(Repl_Protocol **rpp)
@@ -224,10 +212,6 @@ prot_delete(Repl_Protocol **rpp)
 	}
 }
 
-
-
-
-
 /*
  * Get the connection object.
  */
@@ -242,9 +226,6 @@ prot_get_connection(Repl_Protocol *rp)
 	PR_Unlock(rp->lock);
 	return return_value;
 }
-
-
-
 
 /*
  * This function causes the total protocol to start.
@@ -266,10 +247,6 @@ prot_initialize_replica(Repl_Protocol *rp)
     PR_Unlock(rp->lock);
 }
 
-
-
-
-
 /*
  * Main thread for protocol manager.
 
@@ -286,7 +263,6 @@ total update            update complete         incremental update
 finished                (any)                   finished
 
 */
-
 static void
 prot_thread_main(void *arg)
 {
@@ -381,7 +357,6 @@ prot_thread_main(void *arg)
 	  }
 }
 
-
 /*
  * Start a thread to handle the replication protocol.
  */
@@ -412,10 +387,6 @@ prot_start(Repl_Protocol *rp)
 			"protocol object - NULL protocol object passed to prot_start.\n");
 	}
 }
-
-
-
-
 
 /*
  * Stop a protocol instance. 
@@ -457,10 +428,6 @@ prot_stop(Repl_Protocol *rp)
 	}
 }
 
-
-
-
-
 /*
  * Call the notify_update method of the incremental or total update
  * protocol, is either is active.
@@ -478,7 +445,6 @@ prot_notify_update(Repl_Protocol *rp)
 	}
 	PR_Unlock(rp->lock);
 }
-
 
 /*
  * Call the notify_agmt_changed method of the incremental or total update
@@ -504,7 +470,6 @@ prot_notify_agmt_changed(Repl_Protocol *rp, char * agmt_name)
 	PR_Unlock(rp->lock);
 }
 
-
 void 
 prot_notify_window_opened (Repl_Protocol *rp)
 {
@@ -519,7 +484,6 @@ prot_notify_window_opened (Repl_Protocol *rp)
 	PR_Unlock(rp->lock);
 }
 
-
 void 
 prot_notify_window_closed (Repl_Protocol *rp)
 {
@@ -533,7 +497,6 @@ prot_notify_window_closed (Repl_Protocol *rp)
 	}
 	PR_Unlock(rp->lock);
 }
-
 
 int
 prot_status(Repl_Protocol *rp)
@@ -552,7 +515,6 @@ prot_status(Repl_Protocol *rp)
 	}
 	return return_status;
 }
-
 
 /*
  * Start an incremental protocol session, even if we're not
@@ -622,4 +584,10 @@ private_protocol_factory(Repl_Protocol *rp, int type)
 			break;
 	}
 	return prp;
+}
+
+int
+prot_get_timeout(Repl_Protocol *rp)
+{
+	return (int)rp->protocol_timeout;
 }

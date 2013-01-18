@@ -324,7 +324,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 			 * keep getting results quickly then we won't spend much time sleeping.
 			 */
 
-			while (1) 
+			while (!slapi_is_shutting_down())
 			{
 				/* we have to make sure the update sending thread does not
 				   attempt to call conn_disconnect while we are reading

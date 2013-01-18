@@ -138,6 +138,8 @@
 #define PROTOCOL_STATUS_TOTAL_RELEASING_REPLICA 710
 #define PROTOCOL_STATUS_TOTAL_SENDING_DATA 711
 
+#define DEFAULT_PROTOCOL_TIMEOUT 120
+
 /* To Allow Consumer Initialisation when adding an agreement - */
 #define STATE_PERFORMING_TOTAL_UPDATE 501
 #define STATE_PERFORMING_INCREMENTAL_UPDATE 502
@@ -166,6 +168,7 @@ extern const char *type_nsds5ReplicaSessionPauseTime;
 extern const char *type_nsds5ReplicaEnabled;
 extern const char *type_nsds5ReplicaStripAttrs;
 extern const char *type_nsds5ReplicaCleanRUVnotified;
+extern const char *type_replicaProtocolTimeout;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -385,6 +388,7 @@ char **agmt_get_attrs_to_strip(Repl_Agmt *ra);
 int agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e);
 int agmt_set_timeout(Repl_Agmt *ra, long timeout);
 void agmt_update_done(Repl_Agmt *ra, int is_total);
+int agmt_get_protocol_timeout(Repl_Agmt *agmt);
 
 typedef struct replica Replica;
 
@@ -492,6 +496,7 @@ void prot_notify_window_opened (Repl_Protocol *rp);
 void prot_notify_window_closed (Repl_Protocol *rp);
 Object *prot_get_replica_object(Repl_Protocol *rp);
 void prot_replicate_now(Repl_Protocol *rp);
+int prot_get_timeout(Repl_Protocol *rp);
 
 Repl_Protocol *agmt_get_protocol(Repl_Agmt *ra);
 
@@ -588,6 +593,7 @@ char *replica_get_dn(Replica *r);
 void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
 void replica_update_state (time_t when, void *arg);
 void replica_reset_csn_pl(Replica *r);
+int replica_get_protocol_timeout(Replica *r);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */

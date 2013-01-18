@@ -1199,7 +1199,6 @@ protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 	PR_Unlock(prp->lock);
 }
 
-
 /*
  * Notify the protocol about some event. Signal the condition
  * variable in case the protocol is sleeping. Multiple occurences
@@ -1215,7 +1214,6 @@ event_notify(Private_Repl_Protocol *prp, PRUint32 event)
 	PR_NotifyCondVar(prp->cvar);
 	PR_Unlock(prp->lock);
 }
-
 
 /*
  * Test to see if an event occurred. The event is cleared when
@@ -1241,7 +1239,6 @@ reset_events (Private_Repl_Protocol *prp)
 	prp->eventbits = 0;
 	PR_Unlock(prp->lock);
 }
-
 
 /*
  * Replay the actual update to the consumer. Construct an appropriate LDAP
@@ -1409,8 +1406,6 @@ is_dummy_operation (const slapi_operation_parameters *op)
 {
     return (strcmp (op->target_address.uniqueid, START_ITERATION_ENTRY_UNIQUEID) == 0);
 }
-
-
 
 void
 cl5_operation_parameters_done (struct slapi_operation_parameters *sop)
@@ -1892,8 +1887,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 	return return_value;
 }
 
-
-
 /*
  * XXXggood this should probably be in the superclass, since the full update
  * protocol is going to need it too.
@@ -1903,9 +1896,8 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 {
 	int return_value;
 	PRIntervalTime start, maxwait, now;
-	int seconds = 1200;
 
-	maxwait = PR_SecondsToInterval(seconds);
+	maxwait = PR_SecondsToInterval(prp->timeout);
 	prp->terminate = 1;
 	event_notify(prp, EVENT_PROTOCOL_SHUTDOWN);
 	start = PR_IntervalNow();
@@ -1921,7 +1913,7 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 		return_value = -1;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 				"%s: repl5_inc_stop: protocol does not stop after %d seconds\n",
-				agmt_get_long_name(prp->agmt), seconds);
+				agmt_get_long_name(prp->agmt), (int)prp->timeout);
 	}
 	else
 	{
@@ -1934,8 +1926,6 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 	return return_value;
 }
 
-
-
 static int
 repl5_inc_status(Private_Repl_Protocol *prp)
 {
@@ -1944,21 +1934,17 @@ repl5_inc_status(Private_Repl_Protocol *prp)
 	return return_value;
 }
 
-
-
 static void
 repl5_inc_notify_update(Private_Repl_Protocol *prp)
 {
 	event_notify(prp, EVENT_TRIGGERING_CRITERIA_MET);
 }
 
-
 static void
 repl5_inc_update_now(Private_Repl_Protocol *prp)
 {
 	event_notify(prp, EVENT_REPLICATE_NOW);
 }
-
 
 static void
 repl5_inc_notify_agmt_changed(Private_Repl_Protocol *prp)
@@ -1993,6 +1979,7 @@ Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_closed = repl5_inc_notify_window_closed;
 	prp->update_now = repl5_inc_update_now;
 	prp->replica_object = prot_get_replica_object(rp);
+	prp->timeout = prot_get_timeout(rp);
 	if ((prp->lock = PR_NewLock()) == NULL)
 	{
 		goto loser;
@@ -2022,9 +2009,6 @@ loser:
 	return NULL;
 }
 
-
-
-
 static void
 repl5_inc_backoff_expired(time_t timer_fire_time, void *arg)
 {
@@ -2032,8 +2016,6 @@ repl5_inc_backoff_expired(time_t timer_fire_time, void *arg)
 	PR_ASSERT(NULL != prp);
 	event_notify(prp, EVENT_BACKOFF_EXPIRED);
 }
-
-
 
 /*
  * Examine the update vector and determine our course of action.
@@ -2097,7 +2079,6 @@ examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 	}
 	return return_value;
 }
-
 
 /* 
  * When we get an error from an LDAP operation, we call this

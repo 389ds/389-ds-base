@@ -141,6 +141,7 @@ typedef struct repl5agmt {
 	char **attrs_to_strip; /* for fractional replication, if a "mod" is empty, strip out these attributes:
 	                        * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
 	int agreement_type;
+	PRUint64 protocol_timeout;
 } repl5agmt;
 
 /* Forward declarations */
@@ -337,6 +338,19 @@ agmt_new_from_entry(Slapi_Entry *e)
 	if (NULL != tmpstr)
 	{
 		ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
+
+		/* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
+		ra->protocol_timeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
+		if(ra->protocol_timeout == 0){
+			/* grab the replica protocol timeout */
+			Object *replobj = replica_get_replica_from_dn(ra->replarea);
+			if(replobj){
+				Replica *replica =(Replica*)object_get_data (replobj);
+				ra->protocol_timeout = replica_get_protocol_timeout(replica);
+			} else {
+				ra->protocol_timeout = DEFAULT_PROTOCOL_TIMEOUT;
+			}
+		}
 	}
 
 	/* Replica enabled */
@@ -2629,5 +2643,11 @@ agmt_update_done(Repl_Agmt *agmt, int is_total)
        next run
     */
     windows_update_done(agmt, is_total);
+}
+
+int
+agmt_get_protocol_timeout(Repl_Agmt *agmt)
+{
+    return (int)agmt->protocol_timeout;
 }
 

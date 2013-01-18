@@ -75,6 +75,7 @@ typedef struct private_repl_protocol
 	int repl50consumer; /* Flag to tell us if this is a 5.0-style consumer we're talking to */
 	int repl71consumer; /* Flag to tell us if this is a 7.1-style consumer we're talking to */
 	int repl90consumer; /* Flag to tell us if this is a 9.0-style consumer we're talking to */
+	PRUint64 timeout;
 } Private_Repl_Protocol;
 
 extern Private_Repl_Protocol *Repl_5_Inc_Protocol_new();
