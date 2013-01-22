@@ -582,35 +582,33 @@ pw_rever_encode(Slapi_Value **vals, char * attr_name)
 /* SLAPI_ENTRY_POST_OP must be set */
 
 int
-update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
-
-	Slapi_Mods	smods;
-	char *timestr;
-	time_t 		pw_exp_date;
-	time_t      cur_time;
-	const char 	*dn;
-	Slapi_DN *sdn = NULL;
-	passwdPolicy *pwpolicy = NULL;
-	int internal_op = 0;
+update_pw_info ( Slapi_PBlock *pb , char *old_pw)
+{
 	Slapi_Operation *operation = NULL;
+	Slapi_DN *sdn = NULL;
+	Slapi_Mods	smods;
+	passwdPolicy *pwpolicy = NULL;
+	time_t pw_exp_date;
+	time_t cur_time;
+	const char 	*target_dn, *bind_dn;
+	char *timestr;
+	int internal_op = 0;
 
 	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
-	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
-
-	cur_time = current_time();
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
-	dn = slapi_sdn_get_dn(sdn);
+	slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &bind_dn);
+	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
+	target_dn = slapi_sdn_get_ndn(sdn);
+	pwpolicy = new_passwdPolicy(pb, target_dn);
+	cur_time = current_time();
+	slapi_mods_init(&smods, 0);
 	
-	pwpolicy = new_passwdPolicy(pb, dn);
-
 	/* update passwordHistory */
 	if ( old_pw != NULL && pwpolicy->pw_history == 1 ) {
 		update_pw_history(pb, sdn, old_pw);
 		slapi_ch_free ( (void**)&old_pw );
 	}
 
-	slapi_mods_init(&smods, 0);
-	
 	/* Update the "pwdUpdateTime" attribute */
 	if ( pwpolicy->pw_track_update_time ){
 		timestr = format_genTime(cur_time);
@@ -620,68 +618,63 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 
 	/* update password allow change time */
 	if ( pwpolicy->pw_minage != 0) {
-		timestr = format_genTime( time_plus_sec( cur_time, 
-			pwpolicy->pw_minage ));
+		timestr = format_genTime( time_plus_sec( cur_time, pwpolicy->pw_minage ));
 		slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordAllowChangeTime", timestr);
 		slapi_ch_free((void **)&timestr);
 	}
 
-		/* Fix for Bug 560707
-		   Removed the restriction that the lock variables (retry count) will
-		   be set only when root resets the passwd.
-		   Now admins will also have these privileges.
-		*/
-        if (pwpolicy->pw_lockout) {
-                set_retry_cnt_mods (pb, &smods, 0 );
-        }
+	/*
+	 * Fix for Bug 560707
+	 * Removed the restriction that the lock variables (retry count) will
+	 * be set only when root resets the password.
+	 * Now admins will also have these privileges.
+	 */
+	if (pwpolicy->pw_lockout) {
+		set_retry_cnt_mods (pb, &smods, 0 );
+	}
 
 	/* Clear the passwordgraceusertime from the user entry */
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordgraceusertime", "0");
 
-	/* If the password is reset by root, mark it the first time logon.  If this is an internal
+	/*
+	 * If the password is reset by a different user, mark it the first time logon.  If this is an internal
 	 * operation, we have a special case for the password modify extended operation where
 	 * we stuff the actual user who initiated the password change in pb_conn.  We check
-	 * for this special case to ensure we reset the expiration date properly. */
-	if ((internal_op && pwpolicy->pw_must_change && (!pb->pb_conn || slapi_dn_isroot(pb->pb_conn->c_dn))) ||
-		(!internal_op && pwpolicy->pw_must_change && (pb->pb_requestor_isroot == 1))) {
+	 * for this special case to ensure we reset the expiration date properly.
+	 */
+	if ((internal_op && pwpolicy->pw_must_change && (!pb->pb_conn || strcasecmp(target_dn, pb->pb_conn->c_dn))) ||
+	    (!internal_op && pwpolicy->pw_must_change && (target_dn && bind_dn && strcasecmp(target_dn, bind_dn))))
+	{
 		pw_exp_date = NO_TIME;
 	} else if ( pwpolicy->pw_exp == 1 ) {
 		Slapi_Entry *pse = NULL;
 
 		/* update password expiration date */
-		pw_exp_date = time_plus_sec ( cur_time, 
-			pwpolicy->pw_maxage );
-		
+		pw_exp_date = time_plus_sec ( cur_time, pwpolicy->pw_maxage );
 		slapi_pblock_get(pb,SLAPI_ENTRY_POST_OP,&pse);
-
 		if (pse) {
 		    char *prev_exp_date_str; 
-		  
-		    /* if the password expiry time is SLAPD_END_TIME, 
+		    /*
+		     * if the password expiry time is SLAPD_END_TIME,
 		     * don't roll it back 
 		     */
 		    prev_exp_date_str = slapi_entry_attr_get_charptr(pse,"passwordExpirationTime");
-		  
 		    if (prev_exp_date_str) {
 		        time_t prev_exp_date;
 
-			prev_exp_date = parse_genTime(prev_exp_date_str);
-			
-			if (prev_exp_date == NO_TIME || 
-			    prev_exp_date == NOT_FIRST_TIME) {
-			  /* ignore as will replace */
-			}  else if (prev_exp_date == SLAPD_END_TIME) {
-			    /* Special entries' passwords never expire */
-			  slapi_ch_free((void**)&prev_exp_date_str);
-			  pw_apply_mods(sdn, &smods);
-			  slapi_mods_done(&smods);
-			  return 0;
-			}
-			
-			slapi_ch_free((void**)&prev_exp_date_str);	
+				prev_exp_date = parse_genTime(prev_exp_date_str);
+				if (prev_exp_date == NO_TIME || prev_exp_date == NOT_FIRST_TIME) {
+					/* ignore as will replace */
+				} else if (prev_exp_date == SLAPD_END_TIME) {
+					/* Special entries' passwords never expire */
+					slapi_ch_free((void**)&prev_exp_date_str);
+					pw_apply_mods(sdn, &smods);
+					slapi_mods_done(&smods);
+					return 0;
+				}
+				slapi_ch_free((void**)&prev_exp_date_str);
 		    }
 		} /* post op entry */
-
 	} else if (pwpolicy->pw_must_change) {
 		/*
 		 * pw is not changed by root, and must change pw first time 
