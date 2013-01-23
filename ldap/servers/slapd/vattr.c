@@ -1256,6 +1256,10 @@ int slapi_vattr_list_attrs(/* Entry we're interested in */ Slapi_Entry *e,
 				mypointer = slapi_ch_strdup(current_attr->a_type);
 				list_is_copies = 1;
 			}
+			if (NULL == current_attr->a_plugin) {
+				/* could be lazy plugin initialization, get it now */ 
+				slapi_attr_init_syntax(current_attr);
+			}
 			result_array[i].type_flags = current_attr->a_flags;
 			result_array[i++].type_name = mypointer;
 		}
