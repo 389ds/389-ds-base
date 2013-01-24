@@ -244,11 +244,10 @@ check_missing_suffix_flag(int val) {
 	return PR_FALSE;
 }
 
-#define MAKE_STR(x) #x
 static char *get_missing_suffix_values()
 {
-	return MAKE_STR(PAMPT_MISSING_SUFFIX_ERROR) ", " MAKE_STR(PAMPT_MISSING_SUFFIX_ALLOW) ", "
-		MAKE_STR(PAMPT_MISSING_SUFFIX_IGNORE);
+	return PAMPT_MISSING_SUFFIX_ERROR_STRING ", " PAMPT_MISSING_SUFFIX_ALLOW_STRING ", "
+		PAMPT_MISSING_SUFFIX_IGNORE_STRING;
 }
 
 static char *get_map_method_values()
