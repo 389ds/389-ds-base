@@ -2396,31 +2396,27 @@ dse_call_callback(struct dse* pdse, Slapi_PBlock *pb, int operation, int flags, 
     /* ONREPL callbacks can potentially modify pblock parameters like backend
      * which would cause problems during request processing. We need to save 
      * "important" fields before calls and restoring them afterwards */
-    int r = SLAPI_DSE_CALLBACK_OK;
+    int rc = SLAPI_DSE_CALLBACK_OK;
+
     if (pdse->dse_callback != NULL) {
-        struct dse_callback *p;
-        p=pdse->dse_callback; 
-		while (p!=NULL) {
-			struct dse_callback *p_next = p->next;
+        struct dse_callback *p = pdse->dse_callback;
+        int result;
+
+        while (p != NULL) {
             if ((p->operation & operation) && (p->flags & flags)) {
-                if(slapi_sdn_scope_test(slapi_entry_get_sdn_const(entryBefore), p->base, p->scope))
-                {
-                    if(NULL == p->slapifilter ||
-							slapi_vattr_filter_test(pb, entryBefore, p->slapifilter,
-									0 /* !verify access */ )==0)
-                    {
-                        int result= (*p->fn)(pb, entryBefore,entryAfter,returncode,returntext,p->fn_arg);
-                        if(result<r)
-                        {
-                            r= result;
+                if(slapi_sdn_scope_test(slapi_entry_get_sdn_const(entryBefore), p->base, p->scope)){
+                    if(NULL == p->slapifilter || slapi_vattr_filter_test(pb, entryBefore, p->slapifilter, 0) == 0){
+                        result = (*p->fn)(pb, entryBefore,entryAfter,returncode,returntext,p->fn_arg);
+                        if(result < rc){
+                            rc = result;
                         }
-					}
+                    }
                 }
             }
-			p = p_next;
+            p = p->next;
         }
     }
-    return r;
+    return rc;
 }
 
 int
