@@ -74,7 +74,6 @@ do_modrdn( Slapi_PBlock *pb )
 	BerElement	*ber;
 	char		*rawdn = NULL, *rawnewsuperior = NULL;
 	const char	*dn = NULL, *newsuperior = NULL;
-	char		*rawnewrdn = NULL;
 	char		*newrdn = NULL;
 	int		err = 0, deloldrdn = 0;
 	ber_len_t	len = 0;
@@ -106,8 +105,7 @@ do_modrdn( Slapi_PBlock *pb )
 	 *	}
 	 */
 
-	if ( ber_scanf( ber, "{aab", &rawdn, &rawnewrdn, &deloldrdn )
-	    == LBER_ERROR ) {
+	if (ber_scanf(ber, "{aab", &rawdn, &newrdn, &deloldrdn) == LBER_ERROR) {
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "ber_scanf failed (op=ModRDN; params=DN,newRDN,deleteOldRDN)\n",
 		    0, 0, 0 );
@@ -128,7 +126,7 @@ do_modrdn( Slapi_PBlock *pb )
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 			    "received newSuperior in LDAPv2 modrdn", 0, NULL );
 			slapi_ch_free_string( &rawdn );
-			slapi_ch_free_string( &rawnewrdn );
+			slapi_ch_free_string( &newrdn );
 			goto free_and_return;
 		}
 		if ( ber_scanf( ber, "a", &rawnewsuperior ) == LBER_ERROR ) {
@@ -139,7 +137,7 @@ do_modrdn( Slapi_PBlock *pb )
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 			    "unable to decode newSuperior parameter", 0, NULL );
 			slapi_ch_free_string( &rawdn );
-			slapi_ch_free_string( &rawnewrdn );
+			slapi_ch_free_string( &newrdn );
 			goto free_and_return;
 		}
 	}
@@ -154,19 +152,19 @@ do_modrdn( Slapi_PBlock *pb )
 			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
 							 NULL, "invalid dn", 0, NULL);
 			slapi_ch_free_string( &rawdn );
-			slapi_ch_free_string( &rawnewrdn );
+			slapi_ch_free_string( &newrdn );
 			slapi_ch_free_string( &rawnewsuperior );
 			goto free_and_return;
 		}
 		/* check that the new rdn is formatted correctly */
-		err = slapi_dn_syntax_check(pb, rawnewrdn, 1);
+		err = slapi_dn_syntax_check(pb, newrdn, 1);
 		if (err) { /* syntax check failed */
-			op_shared_log_error_access(pb, "MODRDN", rawnewrdn?rawnewrdn:"", 
+			op_shared_log_error_access(pb, "MODRDN", newrdn?newrdn:"", 
 							"strict: invalid new rdn");
 			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
 							 NULL, "invalid new rdn", 0, NULL);
 			slapi_ch_free_string( &rawdn );
-			slapi_ch_free_string( &rawnewrdn );
+			slapi_ch_free_string( &newrdn );
 			slapi_ch_free_string( &rawnewsuperior );
 			goto free_and_return;
 		}
@@ -178,20 +176,10 @@ do_modrdn( Slapi_PBlock *pb )
 		op_shared_log_error_access(pb, "MODRDN", rawdn, "invalid dn");
 		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, 
 		                 "invalid dn", 0, NULL);
-		slapi_ch_free_string( &rawnewrdn );
+		slapi_ch_free_string( &newrdn );
 		slapi_ch_free_string( &rawnewsuperior );
 		goto free_and_return;
 	}
-	newrdn = slapi_create_dn_string("%s", rawnewrdn);
-	if (rawnewrdn && (NULL == newrdn)) {
-		op_shared_log_error_access(pb, "MODRDN", rawnewrdn, "invalid newrdn");
-		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX,
-		                 NULL, "invalid newrdn", 0, NULL);
-		slapi_ch_free_string( &rawnewrdn );
-		slapi_ch_free_string( &rawnewsuperior );
-		goto free_and_return;
-	}
-	slapi_ch_free_string( &rawnewrdn );
 
 	if (rawnewsuperior) {
 		if (config_get_dn_validate_strict()) {
@@ -219,7 +207,7 @@ do_modrdn( Slapi_PBlock *pb )
 	newdn = slapi_ch_smprintf("%s,%s", newrdn, parent);
 	/* slapi_sdn_init_normdn_passin expects normalized but NOT
 	 * decapitalized dn */
-	slapi_sdn_init_normdn_passin(&snewdn, newdn); /* newdn is normalized */
+	slapi_sdn_init_dn_passin(&snewdn, newdn);
 	if (0 == slapi_sdn_compare(&sdn, snewsuperior) ||
 	    0 == slapi_sdn_compare(&snewdn, snewsuperior)) {
 		op_shared_log_error_access(pb, "MODRDN", newsuperior,
