@@ -82,6 +82,10 @@ enum
 	RUV_COMP_RUV2_MISSING /* ruv1 contains replicas not in ruv2 */
 };
 
+/* used by ruv_replace_replica_purl_nolock */
+#define RUV_LOCK 1
+#define RUV_DONT_LOCK 0
+
 #define RUV_COMP_IS_FATAL(ruvcomp) (ruvcomp && (ruvcomp < RUV_COMP_RUV1_MISSING))
 
 typedef struct ruv_enum_data
@@ -99,6 +103,7 @@ RUV* ruv_dup (const RUV *ruv);
 void ruv_destroy (RUV **ruv);
 void ruv_copy_and_destroy (RUV **srcruv, RUV **destruv);
 int ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl);
+int ruv_replace_replica_purl_nolock(RUV *ruv, ReplicaId rid, const char *replica_purl, int lock);
 int ruv_delete_replica (RUV *ruv, ReplicaId rid); 
 int ruv_add_replica (RUV *ruv, ReplicaId rid, const char *replica_purl);
 int ruv_add_index_replica (RUV *ruv, ReplicaId rid, const char *replica_purl, int index);

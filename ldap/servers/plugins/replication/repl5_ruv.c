@@ -462,11 +462,13 @@ ruv_add_replica (RUV *ruv, ReplicaId rid, const char *replica_purl)
 
     slapi_rwlock_wrlock (ruv->lock);
     replica = ruvGetReplica (ruv, rid);
-    if (replica == NULL)
-    {
+    if (replica == NULL){
         replica = ruvAddReplicaNoCSN (ruv, rid, replica_purl);
+    } else {
+        if(strcasecmp(replica->replica_purl, replica_purl )){ /* purls are different - replace it */
+            ruv_replace_replica_purl_nolock(ruv, rid, replica_purl, RUV_DONT_LOCK);
+        }
     }
-
     slapi_rwlock_unlock (ruv->lock);
 
     if (replica)
@@ -478,12 +480,20 @@ ruv_add_replica (RUV *ruv, ReplicaId rid, const char *replica_purl)
 int 
 ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl)
 {
+	return ruv_replace_replica_purl_nolock(ruv, rid, replica_purl, RUV_LOCK);
+}
+
+int
+ruv_replace_replica_purl_nolock(RUV *ruv, ReplicaId rid, const char *replica_purl, int lock)
+{
     RUVElement* replica;
     int rc = RUV_NOTFOUND;
 
     PR_ASSERT (ruv && replica_purl);
 
-    slapi_rwlock_wrlock (ruv->lock);
+    if(lock)
+        slapi_rwlock_wrlock (ruv->lock);
+
     replica = ruvGetReplica (ruv, rid);
     if (replica != NULL)
     {
@@ -497,7 +507,9 @@ ruv_replace_replica_purl (RUV *ruv, ReplicaId rid, const char *replica_purl)
         rc = RUV_SUCCESS;
     }
 
-    slapi_rwlock_unlock (ruv->lock);
+    if(lock)
+        slapi_rwlock_unlock (ruv->lock);
+
     return rc;
 }
 
