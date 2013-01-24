@@ -573,7 +573,8 @@ entryrdn_rename_subtree(backend *be,
         }
     }
     if (NULL == mynewsrdn && NULL == mynewsupsdn) {
-        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+        /* E.g., rename dn: cn=ABC    DEF,... --> cn=ABC DEF,... */
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "entryrdn_rename_subtree: No new superior is given "
                         "and new rdn %s is identical to the original\n",
                         slapi_rdn_get_rdn(&oldsrdn));
@@ -1162,7 +1163,7 @@ entryrdn_lookup_dn(backend *be,
                    const char *rdn,
                    ID id,
                    char **dn,
-		   Slapi_RDN **psrdn,
+                   Slapi_RDN **psrdn,
                    back_txn *txn)
 {
     int rc = -1;
@@ -1351,9 +1352,9 @@ bail:
     /* it is guaranteed that db is not NULL. */
     dblayer_release_index_file(be, ai, db);
     if (psrdn) {
-	*psrdn = srdn;
+        *psrdn = srdn;
     } else {
-    	slapi_rdn_free(&srdn);
+        slapi_rdn_free(&srdn);
     }
     slapi_ch_free_string(&nrdn);
     slapi_ch_free_string(&keybuf);

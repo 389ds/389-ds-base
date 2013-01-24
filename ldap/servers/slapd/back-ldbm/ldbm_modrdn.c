@@ -166,7 +166,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
          * it's passed to slapi_sdn_init_normdn_byref */
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn );
-        slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
+        slapi_sdn_init_dn_byref(&dn_newrdn, newrdn);
         /* slapi_sdn_init_normdn_byref(&dn_newsuperiordn, newsuperiordn); */
         slapi_sdn_get_parent(sdn, &dn_parentdn);
     }
@@ -245,7 +245,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
             slapi_ch_free_string(&newrdn);
             slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, original_newrdn);
-            slapi_sdn_set_normdn_byref(&dn_newrdn, original_newrdn);
+            slapi_sdn_set_dn_byref(&dn_newrdn, original_newrdn);
             original_newrdn = slapi_ch_strdup(original_newrdn);
 
             slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn);
@@ -358,8 +358,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     /* newrdn is normalized, bu tno need to be case-ignored as 
                      * it's passed to slapi_sdn_init_normdn_byref */
                     slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
-                    slapi_sdn_init_normdn_byref(&dn_newrdn, newrdn);
-                    newdn= moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn);
+                    slapi_sdn_init_dn_byref(&dn_newrdn, newrdn);
+                    newdn = moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn);
                     slapi_sdn_set_dn_passin(&dn_newdn,newdn);
                     new_addr.sdn = &dn_newdn;
                     new_addr.udn = NULL;

@@ -189,11 +189,13 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 	CSNSet *valuecsnset= NULL; /* Moved to this level so that the JCM csn_free call below gets useful */
 	CSN *maxcsn = NULL;
 	char *normdn = NULL;
-	int strict = 0;
 	Slapi_Attr **a = NULL;
 
-    /* Check if we should be performing strict validation. */
-    strict = config_get_dn_validate_strict();
+#ifdef OBSOLETE_DN_SYNTAX_CHECK
+	int strict = 0;
+	/* Check if we should be performing strict validation. */
+	strict = config_get_dn_validate_strict();
+#endif
 
 	/*
 	 * In string format, an entry looks like either of these:
@@ -456,7 +458,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			/* moved the value setting code here to check Slapi_Attr 'a'
 			 * to retrieve the attribute syntax info */
 			svalue = value_new(NULL, CSN_TYPE_NONE, NULL);
-#if 0
+#ifdef OBSOLETE_DN_SYNTAX_CHECK
 			if (slapi_attr_is_dn_syntax_attr(*a)) {
 				int rc = 0;
 				char *dn_aval = NULL;
@@ -3085,14 +3087,18 @@ slapi_entry_add_rdn_values( Slapi_Entry *e )
 {
     const char *dn;
     char	**dns, **rdns;
+    const Slapi_DN *sdn;
     int	i, rc = LDAP_SUCCESS;
     Slapi_Value *foundVal;
     Slapi_Attr *attr;
 
-    if ( NULL == e || (dn = slapi_entry_get_dn_const(e))==NULL ) {
+    if (NULL == e || NULL == (sdn = slapi_entry_get_sdn_const(e))) {
         return( LDAP_SUCCESS );
     }
 
+    /* Preserve the original in case the RDN is missing as an attr-val pair
+     * in the entry. */
+    dn = slapi_sdn_get_udn(sdn);
     if (slapi_is_rootdse(dn)) {
         return( LDAP_SUCCESS );
     }
