@@ -1013,6 +1013,7 @@ sub updateSelinuxPolicy {
                 my $semanage_err;
                 my $rc;
                 my $retry = 60;
+                $ENV{LANG} = "C";
                 while (($retry > 0) && ($semanage_err = `semanage port -a -t ldap_port_t -p tcp $inf->{slapd}->{ServerPort} 2>&1`) && ($rc = $?)) {
                     debug(1, "Adding port $inf->{slapd}->{ServerPort} to selinux policy failed - $semanage_err (return code: $rc).\n");
                     debug(1, "Retrying in 5 seconds\n");
@@ -1393,6 +1394,7 @@ sub removeDSInstance {
             my $semanage_err;
             my $rc;
             my $retry = 60;
+            $ENV{LANG} = "C";
             while (($retry > 0) && ($semanage_err = `semanage port -d -t ldap_port_t -p tcp $port 2>&1`) && ($rc = $?)) {
                 if (($semanage_err =~ /defined in policy, cannot be deleted/) || ($semanage_err =~ /is not defined/)) {
                     $retry = -1;
@@ -1415,6 +1417,7 @@ sub removeDSInstance {
             my $semanage_err;
             my $rc;
             my $retry = 60;
+            $ENV{LANG} = "C";
             while (($retry > 0) && ($semanage_err = `semanage port -d -t ldap_port_t -p tcp $secureport 2>&1`) && ($rc = $?)) {
                 if (($semanage_err =~ /defined in policy, cannot be deleted/) || ($semanage_err =~ /is not defined/)) {
                     $retry = -1;
