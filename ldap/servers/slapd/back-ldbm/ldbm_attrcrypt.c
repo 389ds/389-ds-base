@@ -818,6 +818,15 @@ attrcrypt_decrypt_entry(backend *be, struct backentry *e)
 	int rc = 0;
 	Slapi_Attr *attr = NULL;
 	char *type = NULL;
+	ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+
+	if (!inst->attrcrypt_configured) {
+		/* 
+		 * No encryption is enabled in this backend at all. 
+		 * There's no need to scan the attributes to decrypt them.
+		 */
+		return ret;
+	}
 
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_decrypt_entry\n", 0, 0, 0);
 	/* Scan through the entry's attributes, looking to see if any are configured for crypto */
@@ -870,6 +879,15 @@ attrcrypt_encrypt_entry_inplace(backend *be, const struct backentry *inout)
 	char *type = NULL;
 	Slapi_Attr *attr = NULL;
 	Slapi_Value	**svals = NULL;
+	ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+
+	if (!inst->attrcrypt_configured) {
+		/* 
+		 * No encryption is enabled in this backend at all. 
+		 * There's no need to scan the attributes to encrypt them.
+		 */
+		return ret;
+	}
 
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_encrypt_entry_inplace\n", 0, 0, 0);
 	/* Scan the entry's attributes looking for any that are configured for encryption */
@@ -906,6 +924,15 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 	struct backentry *new_entry = NULL;
 	char *type = NULL;
 	Slapi_Attr *attr = NULL;
+	ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+
+	if (!inst->attrcrypt_configured) {
+		/* 
+		 * No encryption is enabled in this backend at all. 
+		 * There's no need to scan the attributes to encrypt them.
+		 */
+		return ret;
+	}
 
 	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_encrypt_entry\n", 0, 0, 0);
 	*out = NULL;
@@ -959,6 +986,12 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
 	char *out_data = NULL;
 	size_t out_size = 0;
 	struct berval *out_berval = NULL;
+	ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+
+	if (!inst->attrcrypt_configured) {
+		/* No encryption is enabled in this backend at all. */
+		return ret;
+	}
 
 	if (ai->ai_attrcrypt) {
 		LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_encrypt_index_key\n", 0, 0, 0);
@@ -990,6 +1023,12 @@ attrcrypt_decrypt_index_key(backend *be,
 							struct berval **out)
 {
 	int rc = 0; /* success */
+	ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+
+	if (!inst->attrcrypt_configured) {
+		/* No encryption is enabled in this backend at all. */
+		return rc;
+	}
 
 	if (ai->ai_attrcrypt) {
 		Slapi_Value *value = NULL;
