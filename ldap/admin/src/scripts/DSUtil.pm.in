@@ -137,7 +137,12 @@ sub isValidDN {
 sub isValidServerID {
     my $servid = shift;
     my $validchars = '#%:\w@_-';
-    return $servid =~ /^[$validchars]+$/o;
+    if($servid eq "admin"){
+        # "admin" is reserved for the admin server
+        return 0;
+    } else {
+        return $servid =~ /^[$validchars]+$/o;
+    }
 }
 
 # we want the name of the effective user id of this process e.g. if someone did

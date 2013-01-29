@@ -122,7 +122,9 @@ sub sanityCheckParams {
         }
     }
 
-    if (!isValidServerID($inf->{slapd}->{ServerIdentifier})) {
+    if($inf->{slapd}->{ServerIdentifier} eq "admin"){
+        return ('error_invalid_serverid - "admin" is reserved for the Admininstration Server, please choose a different server identifier');
+    } elsif (!isValidServerID($inf->{slapd}->{ServerIdentifier})) {
         return ('error_invalid_serverid', $inf->{slapd}->{ServerIdentifier});
     } elsif (-d $inf->{slapd}->{config_dir}) {
         return ('error_server_already_exists', $inf->{slapd}->{config_dir});

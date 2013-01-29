@@ -127,6 +127,10 @@ if [ "$#" -eq 0 ]; then
     for i in $initconfig_dir/@package_name@-*; do
         regex=s,$initconfig_dir/@package_name@-,,g
         inst=`echo $i | sed -e $regex`
+        # check for admin server ID used by 389-admin pkg, and ignore it
+        if [ "$inst" = "admin" ]; then
+            continue
+        fi
         echo Starting instance \"$inst\"
         start_instance $inst
         if [ "$?" -ne 0 ]; then

@@ -99,7 +99,11 @@ my $dsserverid = new Dialog (
         my $res = $DialogManager::SAME;
         my $path = $self->{manager}->{setup}->{configdir} . "/slapd-" . $ans;
         if (!isValidServerID($ans)) {
-            $self->{manager}->alert("error_invalid_serverid", $ans);
+            if($ans eq "admin"){
+                $self->{manager}->alert("error_reserved_serverid", $ans);
+            } else {
+                $self->{manager}->alert("error_invalid_serverid", $ans);
+            }
         } elsif (-d $path) {
             $self->{manager}->alert("error_server_already_exists", $path);
         } else {
