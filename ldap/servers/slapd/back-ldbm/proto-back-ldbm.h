@@ -224,6 +224,7 @@ NIDS idl_length(IDList *idl);
 int idl_is_allids(IDList *idl);
 int idl_append( IDList *idl, ID id);
 void idl_insert(IDList **idl, ID id);
+int idl_sort_cmp(const void *x, const void *y);
 /*
  * idl_delete - delete an id from an id list.
  * returns  0   id deleted
@@ -257,6 +258,7 @@ int idl_get_tune();
 size_t idl_get_allidslimit(struct attrinfo *a);
 int idl_get_idl_new();
 int idl_new_compare_dups(
+int idl_append_extend(IDList **idl, ID id);
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
     DB *db,
 #endif

@@ -165,6 +165,50 @@ static int ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorb
     return retval;
 }
 
+static void *ldbm_config_pagedlookthroughlimit_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    return (void *) ((uintptr_t)(li->li_pagedlookthroughlimit));
+}
+
+static int ldbm_config_pagedlookthroughlimit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+
+    /* Do whatever we can to make sure the data is ok. */
+
+    if (apply) {
+        li->li_pagedlookthroughlimit = val;
+    }
+
+    return retval;
+}
+
+static void *ldbm_config_rangelookthroughlimit_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    return (void *) ((uintptr_t)(li->li_rangelookthroughlimit));
+}
+
+static int ldbm_config_rangelookthroughlimit_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+
+    /* Do whatever we can to make sure the data is ok. */
+
+    if (apply) {
+        li->li_rangelookthroughlimit = val;
+    }
+
+    return retval;
+}
+
 static void *ldbm_config_mode_get(void *arg) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
@@ -1249,6 +1293,8 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_TX_MAX, CONFIG_TYPE_INT, "200", &ldbm_config_db_tx_max_get, &ldbm_config_db_tx_max_set, 0},
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &ldbm_config_serial_lock_get, &ldbm_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_legacy_errcode_get, &ldbm_config_legacy_errcode_set, 0},
+    {CONFIG_PAGEDLOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedlookthroughlimit_get, &ldbm_config_pagedlookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 

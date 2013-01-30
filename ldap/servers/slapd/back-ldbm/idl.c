@@ -1617,3 +1617,10 @@ make_cont_key( DBT *contkey, DBT *key, ID id )
 	sprintf( contkey->dptr, "%c%s%lu", CONT_PREFIX, (char *)key->dptr, (u_long)id );
 	contkey->dsize = strlen( contkey->dptr ) + 1;
 }
+
+int
+idl_sort_cmp(const void *x, const void *y)
+{
+    return *(ID *)x - *(ID *)y;
+}
+

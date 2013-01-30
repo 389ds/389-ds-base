@@ -175,28 +175,29 @@ typedef unsigned short u_int16_t;
  * When we drop the old idl code, we eliminate LDBM_VERSION_OLD.
  * bug #604922
  */
-#define LDBM_VERSION_BASE       "Netscape-ldbm/"
-#define LDBM_VERSION            "Netscape-ldbm/7.0" /* db42: new idl -> old */
-#define LDBM_VERSION_NEW        "Netscape-ldbm/7.0_NEW"     /* db42: new idl */
-#define LDBM_VERSION_OLD        "Netscape-ldbm/7.0_CLASSIC" /* db42: old idl */
-#define LDBM_VERSION_62         "Netscape-ldbm/6.2" /* db42: old idl */
-#define LDBM_VERSION_61         "Netscape-ldbm/6.1" /* db33: old idl */
-#define LDBM_VERSION_60         "Netscape-ldbm/6.0" /* db33: old idl */
+#define LDBM_VERSION_BASE        "Netscape-ldbm/"
+#define LDBM_VERSION             "Netscape-ldbm/7.0" /* db42: new idl -> old */
+#define LDBM_VERSION_NEW         "Netscape-ldbm/7.0_NEW"     /* db42: new idl */
+#define LDBM_VERSION_OLD         "Netscape-ldbm/7.0_CLASSIC" /* db42: old idl */
+#define LDBM_VERSION_62          "Netscape-ldbm/6.2" /* db42: old idl */
+#define LDBM_VERSION_61          "Netscape-ldbm/6.1" /* db33: old idl */
+#define LDBM_VERSION_60          "Netscape-ldbm/6.0" /* db33: old idl */
 
-#define LDBM_VERSION_50			"Netscape-ldbm/5.0"
-#define LDBM_VERSION_40			"Netscape-ldbm/4.0"
-#define LDBM_VERSION_30			"Netscape-ldbm/3.0"
-#define LDBM_VERSION_31			"Netscape-ldbm/3.1"
-#define LDBM_FILENAME_SUFFIX		".db4"
-#define	DBVERSION_FILENAME		"DBVERSION"
-#define DEFAULT_CACHE_SIZE		(size_t)10485760
-#define DEFAULT_CACHE_ENTRIES		-1		/* no limit */
-#define DEFAULT_DBCACHE_SIZE		1000000
-#define DEFAULT_MODE			0600
-#define DEFAULT_ALLIDSTHRESHOLD		4000
-#define DEFAULT_LOOKTHROUGHLIMIT	5000
-#define DEFAULT_IDL_TUNE		1
-#define DEFAULT_SEARCH_TUNE		0
+#define LDBM_VERSION_50          "Netscape-ldbm/5.0"
+#define LDBM_VERSION_40          "Netscape-ldbm/4.0"
+#define LDBM_VERSION_30          "Netscape-ldbm/3.0"
+#define LDBM_VERSION_31          "Netscape-ldbm/3.1"
+#define LDBM_FILENAME_SUFFIX     LDBM_SUFFIX
+#define    DBVERSION_FILENAME    "DBVERSION"
+#define DEFAULT_CACHE_SIZE       (size_t)10485760
+#define DEFAULT_CACHE_ENTRIES    -1        /* no limit */
+#define DEFAULT_DNCACHE_SIZE     (size_t)10485760
+#define DEFAULT_DNCACHE_MAXCOUNT -1        /* no limit */
+#define DEFAULT_DBCACHE_SIZE     1000000
+#define DEFAULT_MODE             0600
+#define DEFAULT_ALLIDSTHRESHOLD  4000
+#define DEFAULT_IDL_TUNE         1
+#define DEFAULT_SEARCH_TUNE      0
 #define DEFAULT_IMPORT_INDEX_BUFFER_SIZE  0
 #define SUBLEN			3
 #define LDBM_CACHE_RETRY_COUNT 1000 /* Number of times we re-try a cache operation */
@@ -576,6 +577,14 @@ struct ldbminfo {
     int li_flags;
     int li_fat_lock;         /* 608146 -- make this configurable, first */
     int li_legacy_errcode;   /* 615428 -- in case legacy err code is expected */
+    Slapi_Counter *li_global_usn_counter; /* global USN counter */
+    int             li_reslimit_allids_handle; /* allids aka idlistscan */
+    int             li_pagedlookthroughlimit;
+    int             li_pagedallidsthreshold;
+    int             li_reslimit_pagedlookthrough_handle;
+    int             li_reslimit_pagedallids_handle; /* allids aka idlistscan */
+    int             li_rangelookthroughlimit;
+    int             li_reslimit_rangelookthrough_handle;
 };
 
 /* li_flags could store these bits defined in ../slapi-plugin.h
@@ -739,6 +748,14 @@ typedef struct _back_search_result_set
 
 /* Name of attribute type used for binder-based look through limit */
 #define LDBM_LOOKTHROUGHLIMIT_AT	"nsLookThroughLimit"
+/* Name of attribute type used for binder-based look through limit */
+#define LDBM_RANGELOOKTHROUGHLIMIT_AT	"nsRangeSearchLookThroughLimit"
+/* Name of attribute type used for binder-based look through limit */
+#define LDBM_ALLIDSLIMIT_AT	"nsIDListScanLimit"
+/* Name of attribute type used for binder-based look through simple paged limit */
+#define LDBM_PAGEDLOOKTHROUGHLIMIT_AT	"nsPagedLookThroughLimit"
+/* Name of attribute type used for binder-based look through simple paged limit */
+#define LDBM_PAGEDALLIDSLIMIT_AT	"nsPagedIDListScanLimit"
 
 /* OIDs for attribute types used internally */
 #define LDBM_ENTRYDN_OID			"2.16.840.1.113730.3.1.602"

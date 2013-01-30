@@ -1012,12 +1012,6 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
     return si;
 }
 
-static int
-vlv_idl_sort_cmp(const void *x, const void *y)
-{
-	return *(ID *)x - *(ID *)y;
-}
-
 /* build a candidate list (IDL) from a VLV index, given the starting index
  * and the ending index (as an inclusive list).
  * returns 0 on success, or an LDAP error code.
@@ -1060,6 +1054,8 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
         if (err == ENOMEM)
             LDAPDebug(LDAP_DEBUG_ANY, "   nomem: wants %d key, %d data\n",
                       key.size, data.size, 0);
+        if(idl)
+            idl_free(idl);
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -1070,12 +1066,13 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
             if (dosort)
             {
                 qsort((void *)&idl->b_ids[0], idl->b_nids,
-                      (size_t)sizeof(ID), vlv_idl_sort_cmp);
+                      (size_t)sizeof(ID), idl_sort_cmp);
             }
             *candidates = idl;
+        } else {
+            if(idl)
+                idl_free(idl);
         }
-        else
-            idl_free(idl);        /* ??? */
     }
     return LDAP_SUCCESS;
 }
