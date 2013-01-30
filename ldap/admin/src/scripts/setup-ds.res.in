@@ -105,7 +105,7 @@ program, or low port restriction.  Please choose another value for\
 ServerPort.  Error: $!\n
 error_invalid_serverid = The ServerIdentifier '%s' contains invalid characters.  It must\
 contain only alphanumeric characters and the following: #%:@_-\n\n
-error_reserved_serverid = The ServerIdentifier '%s" is reserved for the Administration Server, please choose a different server identifier.\n
+error_reserved_serverid = The ServerIdentifier '%s' is reserved for the Administration Server, please choose a different server identifier.\n
 error_opening_scripttmpl = Could not open the script template file '%s'.  Error: %s\n
 error_creating_directory = Could not create directory '%s'.  Error: %s\n
 error_chowning_directory = Could not change ownership of directory '%s' to userid '%s': Error: %s\n

@@ -123,7 +123,7 @@ sub sanityCheckParams {
     }
 
     if($inf->{slapd}->{ServerIdentifier} eq "admin"){
-        return ('error_invalid_serverid - "admin" is reserved for the Admininstration Server, please choose a different server identifier');
+        return ('error_reserved_serverid' ,"admin");
     } elsif (!isValidServerID($inf->{slapd}->{ServerIdentifier})) {
         return ('error_invalid_serverid', $inf->{slapd}->{ServerIdentifier});
     } elsif (-d $inf->{slapd}->{config_dir}) {
