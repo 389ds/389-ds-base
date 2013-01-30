@@ -104,7 +104,7 @@ int idl_new_get_tune() {
 
 /* Append an ID to an IDL, realloc-ing the space if needs be */
 /* ID presented is not to be already in the IDL. */
-static int
+int
 idl_append_extend( IDList **orig_idl, ID id)
 {
 	IDList *idl = *orig_idl;
