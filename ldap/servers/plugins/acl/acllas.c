@@ -2444,7 +2444,9 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 		} else if (strcasecmp ( attrType, type_memberURL) == 0) {
 			char		*memberURL, *savURL;
 
-			if (!info->userDN) continue;
+			if (!info->userDN){
+				goto nextattr;
+			}
 
 			i= slapi_attr_first_value ( currAttr,&sval );
 			while ( i != -1 ) {
@@ -2481,13 +2483,13 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 				}
 				i = slapi_attr_next_value ( currAttr, i, &sval );
 			}
-		/* Evaluate Fortezza groups */
+		/* Evaluate Certificate groups */
 		} else if ((strcasecmp (attrType, type_memberCert) == 0) ) {
 			/* Do we have the certificate around */
 			if (!info->clientCert) {
 			      slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 				" acllas__handle_group_entry:Client Cert missing\n" );
-				continue;
+				goto nextattr;
 			}
 			i = slapi_attr_first_value ( currAttr,&sval );
 			while ( i != -1 ) {
@@ -2501,7 +2503,7 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 				i = slapi_attr_next_value ( currAttr, i, &sval );
 			}
 		}
-	
+nextattr:
 		attrType = NULL;	
 		/* get the next attr */
 		slapi_entry_next_attr ( e, currAttr, &nextAttr );
