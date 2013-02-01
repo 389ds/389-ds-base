@@ -688,7 +688,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 		 * doesn't try to free them. We need to note at the right place that
 		 * we're on the matchrule path, and accordingly free the keys---this turns out
 		 * to be when we free the indexer */ 
-		if (NULL == s->matchrule) {
+		if (NULL == this_one->matchrule) {
 			/* Non-match rule case */
 		    valuearray_get_bervalarray(valueset_get_valuearray(&attr_a->a_present_values),&value_a);
 		    valuearray_get_bervalarray(valueset_get_valuearray(&attr_b->a_present_values),&value_b);
@@ -700,22 +700,22 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 
 			valuearray_get_bervalarray(valueset_get_valuearray(&attr_a->a_present_values),&actual_value_a);
 			valuearray_get_bervalarray(valueset_get_valuearray(&attr_b->a_present_values),&actual_value_b);
-			matchrule_values_to_keys(s->mr_pb,actual_value_a,&temp_value);
+			matchrule_values_to_keys(this_one->mr_pb,actual_value_a,&temp_value);
 			/* Now copy it, so the second call doesn't crap on it */
 			value_a = slapi_ch_bvecdup(temp_value); /* Really, we'd prefer to not call the chXXX variant...*/
-			matchrule_values_to_keys(s->mr_pb,actual_value_b,&value_b);
+			matchrule_values_to_keys(this_one->mr_pb,actual_value_b,&value_b);
 			if (actual_value_a) ber_bvecfree(actual_value_a);
 			if (actual_value_b) ber_bvecfree(actual_value_b);
 		}
 		/* Compare them */
 		if (!order) {
-			result = sort_attr_compare(value_a, value_b, s->compare_fn);
+			result = sort_attr_compare(value_a, value_b, this_one->compare_fn);
 		} else {
 			/* If reverse, invert the sense of the comparison */
-			result = sort_attr_compare(value_b, value_a, s->compare_fn);
+			result = sort_attr_compare(value_b, value_a, this_one->compare_fn);
 		}
 		/* Time to free up the attributes allocated above */
-		if (NULL != s->matchrule) {
+		if (NULL != this_one->matchrule) {
 			ber_bvecfree(value_a);
 		} else {
 			ber_bvecfree(value_a);
