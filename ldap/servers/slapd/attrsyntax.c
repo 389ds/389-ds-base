@@ -101,7 +101,15 @@ attr_syntax_unlock_read(void)
 	if(oid2asi_lock) AS_UNLOCK_READ(oid2asi_lock);
 }
 
-
+struct asyntaxinfo *
+attr_syntax_get_by_name_with_default(const char *name)
+{
+	struct asyntaxinfo *asi = NULL;
+	asi = attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
+	if (asi == NULL)
+		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
+	return asi;
+}
 
 #if 0
 static int 

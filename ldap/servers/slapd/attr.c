@@ -519,40 +519,52 @@ slapi_attr_flag_is_set( const Slapi_Attr *a, unsigned long flag )
 }
 
 int
+slapi_attr_init_syntax(Slapi_Attr    *a)
+{
+	int rc = 1;
+	struct asyntaxinfo *asi = NULL;
+	char *tmp = 0;
+	const char *basetype= NULL;
+	char buf[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
+
+	basetype = buf;
+	tmp = slapi_attr_basetype(a->a_type, buf, sizeof(buf));
+	if (tmp) {
+		basetype = buf;
+	}
+	asi = attr_syntax_get_by_name_with_default (basetype);
+	if (asi) {
+		rc = 0;
+		a->a_plugin = asi->asi_plugin;
+		a->a_flags = asi->asi_flags;
+	} 
+	if (tmp)
+		slapi_ch_free_string(&tmp);
+	return rc;
+}
+
+int
 slapi_attr_value_cmp( const Slapi_Attr *a, const struct berval *v1, const struct berval *v2 )
 {
 	int retVal;
+	Slapi_Attr a2;
+	struct ava ava;
+   	Slapi_Value *cvals[2];
+	Slapi_Value tmpcval;
 
-	if ( a->a_flags & SLAPI_ATTR_FLAG_CMP_BITBYBIT )
-	{
-		int cmplen = ( v1->bv_len <= v2->bv_len ? v1->bv_len : v2->bv_len );
-		retVal = memcmp(v1->bv_val, v2->bv_val, cmplen);
-		if ( retVal == 0 && v1->bv_len < v2->bv_len )
-		{
-			retVal = -1;
-		}
-		else if ( retVal == 0 && v1->bv_len > v2->bv_len )
-		{
-			retVal = 1;
-		}
+	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
+	    slapi_attr_init_syntax ((Slapi_Attr *)a);
 	}
-	else
-	{
-	    Slapi_Attr a2;
-	    struct ava ava;
-   		Slapi_Value *cvals[2];
-	    Slapi_Value tmpcval;
-
     	a2 = *a;
-	    cvals[0] = &tmpcval;
-   		cvals[0]->v_csnset = NULL;
-   		cvals[0]->bv = *v1;
-   		cvals[1] = NULL;
-   		a2.a_present_values.va = cvals; /* JCM - PUKE */
-   		ava.ava_type = a->a_type;
-   		ava.ava_value = *v2;
-		retVal = plugin_call_syntax_filter_ava(&a2, LDAP_FILTER_EQUALITY, &ava);
-	}
+	cvals[0] = &tmpcval;
+   	cvals[0]->v_csnset = NULL;
+   	cvals[0]->bv = *v1;
+   	cvals[1] = NULL;
+   	a2.a_present_values.va = cvals; /* JCM - PUKE */
+   	ava.ava_type = a->a_type;
+   	ava.ava_value = *v2;
+	retVal = plugin_call_syntax_filter_ava(&a2, LDAP_FILTER_EQUALITY, &ava);
+
 	return retVal;
 }
 

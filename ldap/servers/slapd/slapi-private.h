@@ -354,6 +354,7 @@ int attr_next_deleted_value( Slapi_Attr *a, int hint, Slapi_Value **v);
 void attr_purge_state_information(Slapi_Entry *entry, Slapi_Attr *attr, const CSN *csnUpto);
 Slapi_Value **attr_get_present_values(const Slapi_Attr *a);
 int attr_add_deleted_value(Slapi_Attr *a, const Slapi_Value *v);
+int slapi_attr_init_syntax(Slapi_Attr *a);
 
 /* value.c */
 Slapi_Value *value_new(const struct berval *bval, CSNType t, const CSN *csn);

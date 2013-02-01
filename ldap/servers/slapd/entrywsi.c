@@ -707,7 +707,7 @@ entry_replace_present_values_wsi(Slapi_Entry *e, const char *type, struct berval
 	 * slapi_entry_add_values() returns LDAP_SUCCESS and so the
 	 * attribute remains deleted (which is the correct outcome).
 	 */
-	return( entry_add_present_values_wsi( e, type, vals, csn, urp, SLAPI_ATTR_FLAG_CMP_BITBYBIT ));
+	return( entry_add_present_values_wsi( e, type, vals, csn, urp, 0 ));
 }
 
 /*
