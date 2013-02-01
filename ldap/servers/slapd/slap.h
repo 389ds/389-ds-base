@@ -524,7 +524,6 @@ typedef struct asyntaxinfo {
 											   if any */
 #define SLAPI_ATTR_FLAG_NOLOCKING	0x0020	/* the init code doesn't lock the
 											   tables */
-#define SLAPI_ATTR_FLAG_CMP_BITBYBIT	0x4000	/* do memcmp, not syntax cmp */
 #define SLAPI_ATTR_FLAG_KEEP		0x8000 /* keep when replacing all */
 
 /* This is the type of the function passed into attr_syntax_enumerate_attrs */

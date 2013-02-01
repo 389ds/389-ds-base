@@ -453,7 +453,7 @@ slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v )
 	}
 
 	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
-	    slapi_attr_init_syntax (a);
+	    slapi_attr_init_syntax ((Slapi_Attr *)a);
 	}
 	ava.ava_type = a->a_type;
 	ava.ava_value = *v;
@@ -567,7 +567,7 @@ int
 slapi_attr_get_flags( const Slapi_Attr *a, unsigned long *flags )
 {
 	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
-	    slapi_attr_init_syntax (a);
+	    slapi_attr_init_syntax ((Slapi_Attr *)a);
 	}
 	*flags = a->a_flags;
 	return( 0 );
@@ -577,7 +577,7 @@ int
 slapi_attr_flag_is_set( const Slapi_Attr *a, unsigned long flag )
 {
 	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
-	    slapi_attr_init_syntax (a);
+	    slapi_attr_init_syntax ((Slapi_Attr *)a);
 	}
 	return( a->a_flags & flag );
 }
@@ -585,82 +585,51 @@ slapi_attr_flag_is_set( const Slapi_Attr *a, unsigned long flag )
 int
 slapi_attr_value_cmp( const Slapi_Attr *a, const struct berval *v1, const struct berval *v2 )
 {
-	int retVal;
+    Slapi_Attr a2 = *a;
+    struct ava ava;
+    Slapi_Value *cvals[2];
+    Slapi_Value tmpcval;
 
-	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
-	    slapi_attr_init_syntax (a);
-	}
-	if ( a->a_flags & SLAPI_ATTR_FLAG_CMP_BITBYBIT )
-	{
-		int cmplen = ( v1->bv_len <= v2->bv_len ? v1->bv_len : v2->bv_len );
-		retVal = memcmp(v1->bv_val, v2->bv_val, cmplen);
-		if ( retVal == 0 && v1->bv_len < v2->bv_len )
-		{
-			retVal = -1;
-		}
-		else if ( retVal == 0 && v1->bv_len > v2->bv_len )
-		{
-			retVal = 1;
-		}
-	}
-	else
-	{
-		Slapi_Attr a2;
-		struct ava ava;
-		Slapi_Value *cvals[2];
-		Slapi_Value tmpcval;
+    if ( a->a_flags == 0 && a->a_plugin == NULL ) {
+        slapi_attr_init_syntax ((Slapi_Attr *)a);
+    }
+    cvals[0] = &tmpcval;
+    cvals[0]->v_csnset = NULL;
+    cvals[0]->bv = *v1;
+    cvals[0]->v_flags = 0;
+    cvals[1] = NULL;
+    a2.a_present_values.va = cvals; /* JCM - PUKE */
+    ava.ava_type = a->a_type;
+    ava.ava_value = *v2;
+    ava.ava_private = NULL;
 
-		a2 = *a;
-		cvals[0] = &tmpcval;
-		cvals[0]->v_csnset = NULL;
-		cvals[0]->bv = *v1;
-		cvals[0]->v_flags = 0;
-		cvals[1] = NULL;
-		a2.a_present_values.va = cvals; /* JCM - PUKE */
-		ava.ava_type = a->a_type;
-		ava.ava_value = *v2;
-		ava.ava_private = NULL;
-		retVal = plugin_call_syntax_filter_ava(&a2, LDAP_FILTER_EQUALITY, &ava);
-	}
-	return retVal;
+    return( plugin_call_syntax_filter_ava(&a2, LDAP_FILTER_EQUALITY, &ava));
 }
 
 int
 slapi_attr_value_cmp_ext(const Slapi_Attr *a, Slapi_Value *v1, Slapi_Value *v2)
 {
-        int retVal;
-        const struct berval *bv2 = slapi_value_get_berval(v2);
+    struct ava ava;
+    Slapi_Attr a2 = *a;
+    Slapi_Value *cvals[2];
+    unsigned long v2_flags = v2->v_flags;
+    const struct berval *bv2 = slapi_value_get_berval(v2);
 
-	if ( a->a_flags == 0 && a->a_plugin == NULL ) { 
-	    slapi_attr_init_syntax (a);
-	}
-        if ( a->a_flags & SLAPI_ATTR_FLAG_CMP_BITBYBIT )
-        {
-                const struct berval *bv1 = slapi_value_get_berval(v1);
-                return slapi_attr_value_cmp(a, bv1, bv2);
-        }
-        else
-        {
-                Slapi_Attr a2;
-                struct ava ava;
-                Slapi_Value *cvals[2];
-                unsigned long v2_flags = v2->v_flags;
+    if ( a->a_flags == 0 && a->a_plugin == NULL ) {
+       slapi_attr_init_syntax ((Slapi_Attr *)a);
+    }
+    cvals[0] = v1;
+    cvals[1] = NULL;
+    a2.a_present_values.va = cvals;
+    ava.ava_type = a->a_type;
+    ava.ava_value = *bv2;
+    if (v2_flags) {
+        ava.ava_private = &v2_flags;
+    } else {
+        ava.ava_private = NULL;
+    }
 
-                a2 = *a;
-                cvals[0] = v1;
-                cvals[1] = NULL;
-                a2.a_present_values.va = cvals; /* JCM - PUKE */
-
-                ava.ava_type = a->a_type;
-                ava.ava_value = *bv2;
-                if (v2_flags) {
-                        ava.ava_private = &v2_flags;
-                } else {
-                        ava.ava_private = NULL;
-                }
-                retVal = plugin_call_syntax_filter_ava(&a2, LDAP_FILTER_EQUALITY, &ava);
-        }
-        return retVal;
+    return (plugin_call_syntax_filter_ava(&a2, LDAP_FILTER_EQUALITY, &ava));
 }
 
 /*
