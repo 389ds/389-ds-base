@@ -178,6 +178,7 @@ modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
         }
         slapi_mods_add_modbvps(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES,
                                   "internalModifiersName", bvals);
+        slapi_ch_free_string(&plugin_dn);
 
         /* Grab the thread data(binddn) */
         slapi_td_get_dn(&binddn);
