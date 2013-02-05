@@ -789,6 +789,7 @@ add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
 		}
 		slapi_entry_attr_replace(e, "internalCreatorsName", bvals);
 		slapi_entry_attr_replace(e, "internalModifiersName", bvals);
+		slapi_ch_free_string(&plugin_dn);
 
 		/* Grab the thread data(binddn) */
 		slapi_td_get_dn(&binddn);
@@ -1014,6 +1015,7 @@ add_internal_modifiersname(Slapi_PBlock *pb, Slapi_Entry *e)
             plugin_dn = plugin_get_dn (plugin);
         if(plugin_dn){
             slapi_entry_attr_set_charptr(e, "internalModifiersname", plugin_dn);
+            slapi_ch_free_string(&plugin_dn);
         }
     }
 }
