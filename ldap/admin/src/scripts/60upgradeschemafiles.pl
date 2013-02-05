@@ -11,7 +11,7 @@ sub runinst {
 
     # these schema files are obsolete, or we want to replace
     # them with newer versions
-    my @toremove = qw(00core.ldif 01core389.ldif 01common.ldif 02common.ldif 05rfc2247.ldif 05rfc4523.ldif 05rfc4524.ldif 06inetorgperson.ldif 10presence.ldif 28pilot.ldif 30ns-common.ldif 50ns-directory.ldif 60mozilla.ldif 60sudo.ldif);
+    my @toremove = qw(00core.ldif 01core389.ldif 01common.ldif 02common.ldif 05rfc2247.ldif 05rfc4523.ldif 05rfc4524.ldif 06inetorgperson.ldif 10presence.ldif 28pilot.ldif 30ns-common.ldif 50ns-directory.ldif 60mozilla.ldif 60pam-plugin.ldif 60sudo.ldif);
 
     # these hashes will be used to check for obsolete schema
     # in 99user.ldif
