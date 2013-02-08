@@ -93,6 +93,7 @@
 #define DNA_SHARED_CFG_DN   "dnaSharedCfgDN"
 
 /* Shared Config */
+#define DNA_SHAREDCONFIG    "dnaSharedConfig"
 #define DNA_REMAINING       "dnaRemainingValues"
 #define DNA_THRESHOLD       "dnaThreshold"
 #define DNA_HOSTNAME        "dnaHostname"
@@ -219,7 +220,7 @@ static int dna_be_txn_preop_init(Slapi_PBlock *pb);
  * Local operation functions
  *
  */
-static int dna_load_plugin_config();
+static int dna_load_plugin_config(int use_eventq);
 static int dna_parse_config_entry(Slapi_Entry * e, int apply);
 static void dna_delete_config();
 static void dna_free_config_entry(struct configEntry ** entry);
@@ -571,7 +572,7 @@ dna_start(Slapi_PBlock * pb)
         slapi_ch_calloc(1, sizeof(struct configEntry));
     PR_INIT_CLIST(dna_global_config);
 
-    if (dna_load_plugin_config() != DNA_SUCCESS) {
+    if (dna_load_plugin_config(1/* use eventq */) != DNA_SUCCESS) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_start: unable to load plug-in configuration\n");
         return DNA_FAILURE;
@@ -639,7 +640,7 @@ done:
  * ------ cn=etc etc
  */
 static int
-dna_load_plugin_config()
+dna_load_plugin_config(int use_eventq)
 {
     int status = DNA_SUCCESS;
     int result;
@@ -649,7 +650,8 @@ dna_load_plugin_config()
     Slapi_Entry **entries = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
-                    "--> dna_load_plugin_config\n");
+                    "--> dna_load_plugin_config %s\n",
+                    use_eventq?"using event queue":"");
 
     dna_write_lock();
     dna_delete_config();
@@ -681,13 +683,18 @@ dna_load_plugin_config()
         dna_parse_config_entry(entries[i], 1);
     }
 
-    /* Setup an event to update the shared config 30
-     * seconds from now.  We need to do this since
-     * performing the operation at this point when
-     * starting up  would cause the change to not
-     * get changelogged. */
-    time(&now);
-    slapi_eq_once(dna_update_config_event, NULL, now + 30);
+    if (use_eventq) {
+        /* Setup an event to update the shared config 30
+         * seconds from now.  We need to do this since
+         * performing the operation at this point when
+         * starting up  would cause the change to not
+         * get changelogged. */
+        time(&now);
+        slapi_eq_once(dna_update_config_event, NULL, now + 30);
+    } else {
+        int nolock = 1; /* no need to lock since dna write lock is held. */
+        dna_update_config_event(0, &nolock);
+    }
 
 cleanup:
     slapi_free_search_results_internal(search_pb);
@@ -1240,9 +1247,15 @@ dna_update_config_event(time_t event_time, void *arg)
     Slapi_PBlock *pb = NULL;
     struct configEntry *config_entry = NULL;
     PRCList *list = NULL;
+    int nolock = 0;
 
-    /* Get read lock to prevent config changes */
-    dna_read_lock();
+    if (arg) {
+        nolock = *(int *)arg;
+    }
+    if (!nolock) {
+        /* Get read lock to prevent config changes */
+        dna_read_lock();
+    }
 
     /* Bail out if the plug-in close function was just called. */
     if (!g_plugin_started) {
@@ -1287,7 +1300,9 @@ dna_update_config_event(time_t event_time, void *arg)
     }
 
 bail:
-    dna_unlock();
+    if (!nolock) {
+        dna_unlock();
+    }
     slapi_pblock_destroy(pb);
 }
 
@@ -2161,7 +2176,7 @@ dna_update_shared_config(struct configEntry * config_entry)
                 slapi_entry_init_ext(e, sdn, NULL); /* sdn is copied into e */
                 slapi_sdn_free(&sdn);
 
-                slapi_entry_add_string(e, SLAPI_ATTR_OBJECTCLASS, "dnaSharedConfig");
+                slapi_entry_add_string(e, SLAPI_ATTR_OBJECTCLASS, DNA_SHAREDCONFIG);
                 slapi_entry_add_string(e, DNA_HOSTNAME, hostname);
                 slapi_entry_add_string(e, DNA_PORTNUM, portnum);
                 if (secureportnum) {
@@ -2770,6 +2785,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
     char **generated_types = NULL;
     PRUint64 setval = 0;
     int i;
+    int issharedconfig = 0;
 
     /* Bail out if the plug-in close function was just called. */
     if (!g_plugin_started) {
@@ -2787,7 +2803,12 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
      *  We also check if we need to get the next range of values, and grab them.
      *  We do this here so we don't have to do it in the be_txn_preop.
      */
-    dna_read_lock();
+    /* Has write lock for config entries. */
+    issharedconfig = slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
+                                               DNA_SHAREDCONFIG);
+    if (!issharedconfig) {
+        dna_read_lock();
+    }
 
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
@@ -2945,7 +2966,9 @@ next:
         }
     }
 
-    dna_unlock();
+    if (!issharedconfig) {
+        dna_unlock();
+    }
 
     slapi_ch_array_free(generated_types);
 bail:
@@ -3314,7 +3337,7 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
             ret = _dna_pre_op_add(pb, test_e, &errstr);
         } else {
             if((ret = _dna_pre_op_modify(pb, test_e, smods, &errstr))){
-            	slapi_mods_free(&smods);
+                slapi_mods_free(&smods);
             }
         }
         if (ret) {
@@ -3404,6 +3427,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
     char *type = NULL;
     int numvals, e_numvals = 0;
     int i, len, ret = 0;
+    int issharedconfig = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_be_txn_pre_op\n");
@@ -3439,7 +3463,12 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
         slapi_mods_init_passin(smods, mods);
     }
 
-    dna_read_lock();
+    /* Has write lock for config entries. */
+    issharedconfig = slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
+                                               DNA_SHAREDCONFIG);
+    if (!issharedconfig) {
+        dna_read_lock();
+    }
 
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
@@ -3449,7 +3478,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
 
             /* Did we already service all of these configured types? */
             if (dna_list_contains_types(generated_types, config_entry->types)) {
-                    goto next;
+                goto next;
             }
 
             /* is the entry in scope? */
@@ -3626,12 +3655,13 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
             } else if (types_to_generate) {
                 slapi_ch_free((void **)&types_to_generate);
             }
-          next:
+next:
             list = PR_NEXT_LINK(list);
         }
     }
-    dna_unlock();
-
+    if (!issharedconfig) {
+        dna_unlock();
+    }
 bail:
 
     if (LDAP_CHANGETYPE_MODIFY == modtype) {
@@ -3669,7 +3699,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
     if (!slapi_op_internal(pb)) { /* If internal, no need to check. */
         if ((dn = dna_get_dn(pb))) {
             if (dna_dn_is_config(dn)) {
-                dna_load_plugin_config();
+                dna_load_plugin_config(0);
             }
         }
     }
