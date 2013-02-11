@@ -249,6 +249,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
 
     char *dn = slapi_entry_get_dn(e);
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
+    LDAPMod **mods = NULL;
 
 /* Clean out memberuids and dsonlymemberuids without a valid referant */
     rc = slapi_entry_attr_find(e, "memberuid", &muid_attr);
@@ -379,17 +380,19 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         }
     }
 
-    Slapi_PBlock *mod_pb = slapi_pblock_new();
+    mods = slapi_mods_get_ldapmods_passout(smods);
+    if (mods) {
+        Slapi_PBlock *mod_pb = NULL;
+        mod_pb = slapi_pblock_new();
+        slapi_modify_internal_set_pb_ext(mod_pb, sdn, mods, 0, 0,
+                                        posix_winsync_get_plugin_identity(), 0);
 
-    slapi_modify_internal_set_pb_ext(mod_pb, sdn, slapi_mods_get_ldapmods_passout(smods), 0, 0,
-                                     posix_winsync_get_plugin_identity(), 0);
+        slapi_pblock_set(mod_pb, SLAPI_TXN, the_cb_data->txn);
+        slapi_modify_internal_pb(mod_pb);
 
-    slapi_pblock_set(mod_pb, SLAPI_TXN, the_cb_data->txn);
-    slapi_modify_internal_pb(mod_pb);
-
-    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-    slapi_pblock_destroy(mod_pb);
-
+        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        slapi_pblock_destroy(mod_pb);
+    }
     slapi_mods_free(&smods);
 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
