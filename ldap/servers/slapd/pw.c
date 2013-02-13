@@ -777,7 +777,7 @@ int
 check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods)
 {
-   	Slapi_Attr		*attr;
+	Slapi_Attr		*attr;
 	int 			i, pwresponse_req = 0;
 	int				is_replication = 0;
 	int				internal_op = 0;
@@ -794,6 +794,12 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	 * PASS == 0.
 	 */
 	if (LDAP_MOD_DELETE == (mod_op & LDAP_MOD_OP)) {
+		/* check if the entry exists or not */
+		e = get_entry(pb, dn);
+		if (e == NULL) {
+			return -1;
+		}
+		slapi_entry_free(e); 
 		return 0;
 	}
 	if (NULL == vals) {
