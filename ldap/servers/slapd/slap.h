@@ -2054,6 +2054,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
+#define CONFIG_ENABLE_TURBO_MODE "nsslapd-enable-turbo-mode"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2274,6 +2275,7 @@ typedef struct _slapdFrontendConfig {
 
   /* atomic settings */
   Slapi_Counter *ignore_vattrs;
+  slapi_onoff_t enable_turbo_mode;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

@@ -700,7 +700,11 @@ static struct config_get_and_set {
 	{CONFIG_IGNORE_VATTRS, config_set_ignore_vattrs,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ignore_vattrs,
-		CONFIG_STRING, (ConfigGetFunc)config_get_ignore_vattrs}
+		CONFIG_STRING, (ConfigGetFunc)config_get_ignore_vattrs},
+	{CONFIG_ENABLE_TURBO_MODE, config_set_enable_turbo_mode,
+	        NULL, 0,
+	        (void**)&global_slapdFrontendConfig.enable_turbo_mode,
+	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_turbo_mode}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1104,6 +1108,7 @@ FrontendConfig_init () {
   cfg->disk_logging_critical = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
   cfg->ignore_vattrs = slapi_counter_new();
+  cfg->enable_turbo_mode = LDAP_ON;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -6262,6 +6267,31 @@ config_set_default_naming_context(const char *attrname,
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return LDAP_SUCCESS;
+}
+
+int
+config_get_enable_turbo_mode(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+    retVal = (int)slapdFrontendConfig->enable_turbo_mode;
+    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_enable_turbo_mode( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->enable_turbo_mode),
+                              errorbuf, apply);
+    return retVal;
 }
 
 /*

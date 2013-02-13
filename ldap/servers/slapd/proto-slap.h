@@ -554,6 +554,8 @@ int config_get_disk_logging_critical();
 int config_get_sasl_maxbufsize();
 int config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_ignore_vattrs();
+int config_get_enable_turbo_mode();
+int config_set_enable_turbo_mode(const char *attrname, char *value, char *errorbuf, int apply);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
