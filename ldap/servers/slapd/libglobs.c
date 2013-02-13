@@ -256,6 +256,7 @@ slapi_onoff_t init_disk_preserve_logging;
 slapi_onoff_t init_ndn_cache_enabled;
 slapi_onoff_t init_sasl_mapping_fallback;
 slapi_onoff_t init_return_orig_type;
+slapi_onoff_t init_enable_turbo_mode;
 #ifdef MEMPOOL_EXPERIMENTAL
 slapi_onoff_t init_mempool_switch;
 #endif
@@ -1043,7 +1044,11 @@ static struct config_get_and_set {
 	{CONFIG_SEARCH_RETURN_ORIGINAL_TYPE, config_set_return_orig_type_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.return_orig_type,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_type_switch, &init_return_orig_type}
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_type_switch, &init_return_orig_type},
+	{CONFIG_ENABLE_TURBO_MODE, config_set_enable_turbo_mode,
+	        NULL, 0,
+	        (void**)&global_slapdFrontendConfig.enable_turbo_mode,
+	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_turbo_mode, &init_enable_turbo_mode}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1478,6 +1483,7 @@ FrontendConfig_init () {
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
   cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
   init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
+  init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
@@ -6886,6 +6892,19 @@ config_set_unhashed_pw_switch(const char *attrname, char *value,
     }
 
     CFG_UNLOCK_WRITE(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_get_enable_turbo_mode(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+    retVal = (int)slapdFrontendConfig->enable_turbo_mode;
+    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
     return retVal;
 }
 
@@ -6904,6 +6923,19 @@ config_get_unhashed_pw_switch()
     retVal = slapdFrontendConfig->unhashed_pw_switch;
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
+    return retVal;
+}
+
+int
+config_set_enable_turbo_mode( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->enable_turbo_mode),
+                              errorbuf, apply);
     return retVal;
 }
 

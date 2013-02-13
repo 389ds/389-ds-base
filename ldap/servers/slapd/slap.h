@@ -2075,6 +2075,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SASL_MAPPING_FALLBACK "nsslapd-sasl-mapping-fallback"
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_SEARCH_RETURN_ORIGINAL_TYPE "nsslapd-search-return-original-type-switch"
+#define CONFIG_ENABLE_TURBO_MODE "nsslapd-enable-turbo-mode"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2317,6 +2318,7 @@ typedef struct _slapdFrontendConfig {
   Slapi_Counter *ignore_vattrs;
   Slapi_Counter *sasl_mapping_fallback;
   slapi_onoff_t unhashed_pw_switch;	/* switch to on/off/nolog unhashed pw */
+  slapi_onoff_t enable_turbo_mode;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

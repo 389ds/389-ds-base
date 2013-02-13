@@ -2253,12 +2253,16 @@ connection_threadmain()
 #if defined(DB_PERF_TURBO)
 		/* If it's been a while since we last did it ... */
 		if (curtime - conn->c_private->previous_count_check_time > CONN_TURBO_CHECK_INTERVAL) {
-			int new_turbo_flag = 0;
-			/* Check the connection's activity level */
-			connection_check_activity_level(conn);
-			/* And if appropriate, change into or out of turbo mode */
-			connection_enter_leave_turbo(conn,thread_turbo_flag,&new_turbo_flag);
-			thread_turbo_flag = new_turbo_flag;
+			if (config_get_enable_turbo_mode()) {
+				int new_turbo_flag = 0;
+				/* Check the connection's activity level */
+				connection_check_activity_level(conn);
+				/* And if appropriate, change into or out of turbo mode */
+				connection_enter_leave_turbo(conn,thread_turbo_flag,&new_turbo_flag);
+				thread_turbo_flag = new_turbo_flag;
+			} else {
+				thread_turbo_flag = 0;
+			}
 		}
 
 		/* turn off turbo mode immediately if any pb waiting in global queue */

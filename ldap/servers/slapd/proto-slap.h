@@ -567,6 +567,8 @@ int config_set_sasl_mapping_fallback(const char *attrname, char *value, char *er
 int config_get_sasl_mapping_fallback();
 int config_get_unhashed_pw_switch();
 int config_get_sasl_maxbufsize();
+int config_get_enable_turbo_mode();
+int config_set_enable_turbo_mode(const char *attrname, char *value, char *errorbuf, int apply);
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
