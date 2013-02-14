@@ -600,6 +600,7 @@ slapi_ldap_bind(
     struct berval bvcreds = {0, NULL};
     LDAPMessage *result = NULL;
     struct berval *servercredp = NULL;
+    int err;
 
     /* do starttls if requested
        NOTE - starttls is an extop, not a control, but we don't have
@@ -712,18 +713,24 @@ slapi_ldap_bind(
 	    }
 	    /* if we got here, we were able to read success result */
 	    /* Get the controls sent by the server if requested */
-	    if (returnedctrls) {
-                if ((rc = ldap_parse_result(ld, result, &rc, NULL, NULL,
-					    NULL, returnedctrls,
-					    0)) != LDAP_SUCCESS) {
-		    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-				    "Error: could not bind id "
-				    "[%s] mech [%s]: error %d (%s)\n",
-				    bindid ? bindid : "(anon)",
-				    mech ? mech : "SIMPLE",
-				    rc, ldap_err2string(rc));
-		    goto done;
-		}
+	    if ((rc = ldap_parse_result(ld, result, &err, NULL, NULL,
+                      NULL, returnedctrls, 0)) != LDAP_SUCCESS) {
+	        slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                    "Error: could not parse bind result: error %d (%s) errno %d (%s)\n",
+                    rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+	        goto done;
+	    }
+
+	    /* check the result code from the bind operation */
+	    if(err){
+		rc = err;
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                            "Error: could not bind id "
+                            "[%s] mech [%s]: error %d (%s) errno %d (%s)\n",
+                            bindid ? bindid : "(anon)",
+                            mech ? mech : "SIMPLE",
+                            rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+		goto done;
 	    }
 
 	    /* parse the bind result and get the ldap error code */
