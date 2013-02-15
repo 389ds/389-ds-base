@@ -1601,6 +1601,7 @@ struct Conn_private
 	char *c_buffer;			/* pointer to the socket read buffer */
 	size_t c_buffer_bytes; /* number of bytes currently stored in the buffer */
 	size_t c_buffer_offset; /* offset to the location of new data in the buffer */
+	int use_buffer; /* if true, use the buffer - if false, ber_get_next reads directly from socket */
 };
 
 #if defined(USE_OPENLDAP)
@@ -1621,6 +1622,11 @@ openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 	PR_ASSERT(sbiod->sbiod_pvt);
 
 	conn = (Connection *)sbiod->sbiod_pvt;
+
+	if (CONNECTION_BUFFER_OFF == conn->c_private->use_buffer) {
+		bytes_to_copy = PR_Recv(conn->c_prfd,buf,len,0,PR_INTERVAL_NO_WAIT);
+		goto done;
+	}
 
 	PR_ASSERT(conn->c_private->c_buffer);
 
@@ -1649,6 +1655,7 @@ openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 		SAFEMEMCPY(buf, readbuf + offset, bytes_to_copy);
 		conn->c_private->c_buffer_offset += bytes_to_copy;
 	}
+done:
 	return bytes_to_copy;
 }
 #endif
@@ -1663,11 +1670,12 @@ connection_new_private(Connection *conn)
 			return -1;
 		}
 		conn->c_private = new_private;
+		conn->c_private->use_buffer = config_get_connection_buffer();
 	}
 
 	/* The c_buffer is supposed to be NULL here, cleaned by connection_cleanup, 
 	   double check to avoid memory leak */
-	if (NULL == conn->c_private->c_buffer) {
+	if ((CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) && (NULL == conn->c_private->c_buffer)) {
 		conn->c_private->c_buffer = (char*)slapi_ch_malloc(LDAP_SOCKET_IO_BUFFER_SIZE);
 		if (NULL == conn->c_private->c_buffer) {
 			/* memory allocation failure */
@@ -1682,11 +1690,13 @@ connection_new_private(Connection *conn)
 	 */
 	{
 		char	*c_buffer = conn->c_private->c_buffer;
-		size_t	c_buffer_size = conn->c_private->c_buffer_size;;
+		size_t	c_buffer_size = conn->c_private->c_buffer_size;
+		int use_buffer = conn->c_private->use_buffer;
 
 		memset( conn->c_private, 0, sizeof(Conn_private));
 		conn->c_private->c_buffer = c_buffer;
 		conn->c_private->c_buffer_size = c_buffer_size;
+		conn->c_private->use_buffer = use_buffer;
 	}
 
 	return 0;
@@ -1862,15 +1872,21 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 		/* drop connection */
 		disconnect_server( conn, conn->c_connid, -1, err, syserr );
 		return -1;
-	}
-
-	/* openldap_read_function will advance c_buffer_offset */
+	} else if (CONNECTION_BUFFER_OFF == conn->c_private->use_buffer) {
+		*lenp = bytes_scanned;
+		if ((LBER_OVERFLOW == *tagp || LBER_DEFAULT == *tagp) && 0 == bytes_scanned &&
+		    SLAPD_SYSTEM_WOULD_BLOCK_ERROR(errno)) {
+			return -2; /* tells connection_read_operation we need to try again */
+		}
+	} else {
+		/* openldap_read_function will advance c_buffer_offset */
 #if !defined(USE_OPENLDAP)
-	/* success, or need to wait for more data */
-	/* if openldap could not read a whole pdu, bytes_scanned will be zero -
-	   it does not return partial results */
-	conn->c_private->c_buffer_offset += bytes_scanned;
+		/* success, or need to wait for more data */
+		/* if openldap could not read a whole pdu, bytes_scanned will be zero -
+	   	   it does not return partial results */
+		conn->c_private->c_buffer_offset += bytes_scanned;
 #endif
+	}
 	return 0;
 }
 
@@ -1879,10 +1895,20 @@ static int
 connection_read_ldap_data(Connection *conn, PRInt32 *err)
 {
 	int ret = 0;
-    ret = PR_Recv(conn->c_prfd,conn->c_private->c_buffer,conn->c_private->c_buffer_size,0,PR_INTERVAL_NO_WAIT);
-    if (ret < 0) {
-        *err = PR_GetError();
-    }
+	ret = PR_Recv(conn->c_prfd,conn->c_private->c_buffer,conn->c_private->c_buffer_size,0,PR_INTERVAL_NO_WAIT);
+	if (ret < 0) {
+		*err = PR_GetError();
+	} else if (CONNECTION_BUFFER_ADAPT == conn->c_private->use_buffer) {
+		if ((ret == conn->c_private->c_buffer_size) && (conn->c_private->c_buffer_size < BUFSIZ)) {
+			/* we read exactly what we requested - there could be more that we could have read */
+			/* so increase the buffer size */
+			conn->c_private->c_buffer_size *= 2;
+			if (conn->c_private->c_buffer_size > BUFSIZ) {
+				conn->c_private->c_buffer_size = BUFSIZ;
+			}
+			conn->c_private->c_buffer = slapi_ch_realloc(conn->c_private->c_buffer, conn->c_private->c_buffer_size);
+		}
+	}
 	return ret;
 }
 
@@ -1935,7 +1961,17 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		/* We should never get here with data remaining in the buffer */
 		PR_ASSERT( !new_operation || 0 == (conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset) );
 		/* We make a non-blocking read call */
-		ret = connection_read_ldap_data(conn,&err);
+		if (CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) {
+			ret = connection_read_ldap_data(conn,&err);
+		} else {
+			ret = get_next_from_buffer( NULL, 0, &len, tag, op->o_ber, conn );
+			if (ret == -1) {
+				return CONN_DONE; /* get_next_from_buffer does the disconnect stuff */
+			} else if (ret == 0) {
+				ret = len;
+			}
+			*remaining_data = 0;
+		}
 		if (ret <= 0) {
 			if (0 == ret) {
 				/* Connection is closed */
@@ -2007,18 +2043,20 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 			}
 		} else {
 			/* We read some data off the network, do something with it */
-			conn->c_private->c_buffer_bytes = ret;
-			conn->c_private->c_buffer_offset = 0;
+			if (CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) {
+				conn->c_private->c_buffer_bytes = ret;
+				conn->c_private->c_buffer_offset = 0;
 
-			if ( get_next_from_buffer( buffer,
-						conn->c_private->c_buffer_bytes
-						- conn->c_private->c_buffer_offset,
-						&len, tag, op->o_ber, conn ) != 0 ) {
-				return CONN_DONE;
+				if ( get_next_from_buffer( buffer,
+				                           conn->c_private->c_buffer_bytes
+				                           - conn->c_private->c_buffer_offset,
+				                           &len, tag, op->o_ber, conn ) != 0 ) {
+					return CONN_DONE;
+				}
 			}
 
 			new_operation = 0;
-			ret = 0;
+			ret = CONN_FOUND_WORK_TO_DO;
 			waits_done = 0;	/* got some data: reset counter */
 		}
 	}

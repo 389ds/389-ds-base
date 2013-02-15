@@ -2056,6 +2056,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
 #define CONFIG_ENABLE_TURBO_MODE "nsslapd-enable-turbo-mode"
+#define CONFIG_CONNECTION_BUFFER "nsslapd-connection-buffer"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2277,12 +2278,17 @@ typedef struct _slapdFrontendConfig {
   /* atomic settings */
   Slapi_Counter *ignore_vattrs;
   slapi_onoff_t enable_turbo_mode;
+  slapi_int_t connection_buffer; /* values are CONNECTION_BUFFER_* below */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
 #define CONFIG_SCHEMAREPLACE_STR_OFF				"off"
 #define CONFIG_SCHEMAREPLACE_STR_ON					"on"
 #define CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY	"replication-only"
+
+#define CONNECTION_BUFFER_OFF 0
+#define CONNECTION_BUFFER_ON 1
+#define CONNECTION_BUFFER_ADAPT 2
 
  
 slapdFrontendConfig_t *getFrontendConfig();

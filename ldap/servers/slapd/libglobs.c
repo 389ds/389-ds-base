@@ -704,7 +704,11 @@ static struct config_get_and_set {
 	{CONFIG_ENABLE_TURBO_MODE, config_set_enable_turbo_mode,
 	        NULL, 0,
 	        (void**)&global_slapdFrontendConfig.enable_turbo_mode,
-	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_turbo_mode}
+	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_turbo_mode},
+	{CONFIG_CONNECTION_BUFFER, config_set_connection_buffer,
+	        NULL, 0,
+	        (void**)&global_slapdFrontendConfig.connection_buffer,
+	        CONFIG_INT, (ConfigGetFunc)config_get_connection_buffer}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1115,6 +1119,7 @@ FrontendConfig_init () {
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
   cfg->ignore_vattrs = slapi_counter_new();
   cfg->enable_turbo_mode = LDAP_ON;
+  cfg->connection_buffer = CONNECTION_BUFFER_ON;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -6297,6 +6302,43 @@ config_set_enable_turbo_mode( const char *attrname, char *value,
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->enable_turbo_mode),
                               errorbuf, apply);
+    return retVal;
+}
+
+int
+config_get_connection_buffer(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    retVal = (int)slapdFrontendConfig->connection_buffer;
+
+    return retVal;
+}
+
+int
+config_set_connection_buffer( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal =  LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+	return LDAP_OPERATIONS_ERROR;
+    }
+
+    if ((strcasecmp(value, "0") != 0) && (strcasecmp(value, "1") != 0) &&
+        (strcasecmp(value, "2") != 0)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+            "%s: invalid value \"%s\". Valid values are \"0\", "
+            "\"1\", or \"2\".", attrname, value);
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    if ( !apply ) {
+	return retVal;
+    }
+
+    PR_AtomicSet(&slapdFrontendConfig->connection_buffer, atoi(value));
     return retVal;
 }
 

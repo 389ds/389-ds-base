@@ -556,6 +556,8 @@ int config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, 
 int config_get_ignore_vattrs();
 int config_get_enable_turbo_mode();
 int config_set_enable_turbo_mode(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_connection_buffer();
+int config_set_connection_buffer(const char *attrname, char *value, char *errorbuf, int apply);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
