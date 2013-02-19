@@ -31,7 +31,7 @@
 # exception. 
 # 
 # 
-# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2013 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
@@ -1180,7 +1180,7 @@ sub migrateDS {
 
 cleanup:
         if (-d "$mig->{configdir}/$inst") {
-            @errs = removeDSInstance($inf->{slapd}->{ServerIdentifier}, 1);
+            @errs = removeDSInstance($inf->{slapd}->{ServerIdentifier}, 1, "" ,"", $mig->{inf}->{General}->{prefix} );
             if (@errs) {
                 $mig->msg(@errs);
             }

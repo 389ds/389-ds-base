@@ -1,0 +1,303 @@
+#!@perlexec@
+#
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# 
+# Copyright (C) 2013 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+use lib qw(@perlpath@);
+use DSUtil;
+
+sub usage
+{
+  print "Usage: $0 [-Z serverID] [ -a <fullpath_to_db_dir> ]\n";
+}
+
+# getDbDir checks up to 4 levels of db dirs
+# e.g., <server_inst_dir>/db/<backend_instance_dir>/<subdir>
+sub getDbDir
+{
+  (my $here) = @_;
+  my @dbdirs = ();
+
+  opendir(DIR0, $here) or die "can't opendir $here : $!";
+  while (defined(my $file0 = readdir(DIR0)))
+  {
+    if ( "$file0" eq "\." || "$file0" eq "\.\." ) 
+    {
+      ;
+    }
+    elsif ( "$file0" eq "DBVERSION" )
+    {
+      $#dbdirs++;
+      $dbdirs[$#dbdirs] = $here;
+    }
+    elsif ( -d $here . "/" . $file0 )
+    {
+      opendir(DIR1, $here . "/" . $file0) or die "can't opendir $file0 : $!";
+      while (defined(my $file1 = readdir(DIR1)))
+      {
+        if ( "$file1" eq "\." || "$file1" eq "\.\." ) 
+        {
+          ;
+        }
+        elsif ( "$file1" eq "DBVERSION" )
+        {
+          $#dbdirs++;
+          $dbdirs[$#dbdirs] = $here . "/" . $file0;
+        }
+        elsif ( -d $here . "/" . $file0 . "/" . $file1 )
+        {
+          opendir(DIR2, $here . "/" . $file0 . "/" . $file1) or die "can't opendir $file1 : $!";
+          while (defined(my $file2 = readdir(DIR2)))
+          {
+            if ( "$file2" eq "\." || "$file2" eq "\.\." ) 
+            {
+              ;
+            }
+            elsif ("$file2" eq "DBVERSION")
+            {
+              $#dbdirs++;
+              $dbdirs[$#dbdirs] = $here . "/" . $file0 . "/" . $file1;
+            }
+            elsif ( -d $here . "/" . $file0 . "/" . $file1 . "/" . $file2 )
+            {
+              opendir(DIR3, $here . "/" . $file0 . "/" . $file1 . "/" . $file2) or die "can't opendir $file1 : $!";
+              while (defined(my $file3 = readdir(DIR3)))
+              {
+                if ( "$file3" eq "\." || "$file3" eq "\.\." ) 
+                {
+                  ;
+                }
+                elsif ("$file3" eq "DBVERSION")
+                {
+                  $#dbdirs++;
+                  $dbdirs[$#dbdirs] = $here . "/" . $file0 . "/" . $file1 . "/" . $file2;
+                }
+              }
+              closedir(DIR3);
+            }
+          }
+          closedir(DIR2);
+        }
+      }
+      closedir(DIR1);
+    }
+  }
+  closedir(DIR0);
+
+  return \@dbdirs;
+}
+
+sub getLastLogfile
+{
+  (my $here) = @_;
+  my $logfile = "";
+
+  opendir(DIR, $here) or die "can't opendir $here : $!";
+  while (defined($file = readdir(DIR)))
+  {
+    if ($file =~ /log./)
+    {
+      $logfile = $file;
+    }
+  }
+  closedir(DIR);
+
+  return \$logfile;
+}
+
+$isWin = -d '\\';
+if ($isWin) {
+  $NULL = "nul";
+} else {
+  $NULL = "/dev/null";
+}
+
+my $i = 0;
+$startpoint = "";
+$prefix = DSUtil::get_prefix();
+
+while ($i <= $#ARGV) {
+  if ( "$ARGV[$i]" eq "-a" ) {  # path to search the db files
+    $i++; $startpoint = $ARGV[$i];
+  } elsif ( "$ARGV[$i]" eq "-Z" ) {  # server instance identifier
+    $i++; $servid = $ARGV[$i];
+  } elsif ("$ARGV[$i]" eq "-h") { # help
+    &usage; exit(0);
+  } else {
+    &usage; exit(1);
+  }
+  $i++;
+}
+
+$first = "yes";
+if($servid eq ""){
+    opendir(DIR, "$prefix/etc/sysconfig");
+    @files = readdir(DIR);
+    foreach $file (@files){
+        if($file =~ /^dirsrv-/ && $file ne "dirsrv-admin"){
+            $instance_count++;
+            if($file =~ /dirsrv-(.*)/){
+                if($first eq "yes"){
+                    $instances=$1;
+                    $first = "no";
+                } else {
+                    $instances=$instances . ", $1";
+                }
+                $name = $1;
+            }
+        }
+    }
+    if ($instance_count == 1){
+        $servid = $name;
+    } else {
+        &usage;
+        print "You must supply a server instance identifier.  Use -Z to specify instance name\n";
+        print "Available instances: $instances\n";
+        exit (1);
+    }
+} elsif ($servid =~ /^dirsrv-/){
+    # strip off "dirsrv-"
+    $servid =~ s/^dirsrv-//;
+} elsif ($servid =~ /^slapd-/){
+    # strip off "slapd-"
+    $servid =~ s/^slapd-//;
+}
+
+print("*****************************************************************\n");
+print("verify-db: This tool should only be run if recovery start fails\n" .
+      "and the server is down.  If you run this tool while the server is\n" .
+      "running, you may get false reports of corrupted files or other\n" .
+      "false errors.\n");
+print("*****************************************************************\n");
+
+if ( "$startpoint" eq "" ) {
+  $startpoint = "$prefix/var/lib/dirsrv/slapd-$servid/db";
+}
+# get dirs having DBVERSION
+my $dbdirs = getDbDir($startpoint);
+
+$ENV{'PATH'} = "@libdir@/dirsrv/slapd-$servid:$prefix@db_bindir@:$prefix/usr/bin:@db_bindir@:/usr/bin";
+
+DSUtil::libpath_add("@db_libdir@");
+DSUtil::libpath_add("@libdir@");
+
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
+
+# Check transaction logs by db_printlog
+for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
+{
+  my $logfile = getLastLogfile($$dbdirs[$i]);
+
+  if ( "$$logfile" ne "" )
+  {
+    # run db_printlog -h <dbdir> for each <dbdir>
+    print "Verify log files in $$dbdirs[$i] ... ";
+    open(PRINTLOG, "db_printlog -h $$dbdirs[$i] 2>&1 1> $NULL |");
+    sleep 1;
+    my $haserr = 0;
+    while ($l = <PRINTLOG>)
+    {
+      if ("$l" ne "")
+      {
+        if ($haserr == 0)
+        {
+          print "\n";
+        }
+        print "LOG ERROR: $l";
+        $haserr++;
+      }
+    }
+    close(PRINTLOG);
+    if ($haserr == 0 && $? == 0)
+    {
+      print "Good\n";
+    }
+    else
+    {
+      print "Log file(s) in $$dbdirs[$i] could be corrupted.\n";
+      print "Please delete a log file $$logfile, and try restarting the server.\n";
+    }
+  }
+}
+
+# Check db files by db_verify
+print "Verify db files ... ";
+open(DBVERIFY, "dbverify -Z $servid 2>&1 1> $NULL |");
+sleep 1;
+my $bad_index = 0;
+my $bad_id2entry = 0;
+my $isfirst = 1;
+while ($l = <DBVERIFY>)
+{
+    if ($isfirst)
+    {
+        print "\n";
+        $isfirst = 0;
+    }
+    if ("$l" =~ /verify failed/)
+    {
+        if ("$l" =~ /id2entry.db/)
+        {
+            $bad_id2entry++;
+        }
+        else
+        {
+            $bad_index++;
+        }
+    }
+    print "$l";
+}
+close(DBVERIFY);
+
+if ($bad_id2entry > 0)
+{
+    print "\nFound the db was corrupted\n";
+    print "Please restore your backup and recover the database.\n";
+    exit(1);
+}
+elsif ($bad_index > 0)
+{
+    print "\nFound the index file(s) was corrupted\n";
+    print "Please run db2index on the corrupted index\n";
+    exit(1);
+}
+else
+{
+    print "Good\n";
+    exit(0);
+}

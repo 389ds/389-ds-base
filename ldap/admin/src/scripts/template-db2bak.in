@@ -1,55 +1,5 @@
 #!/bin/sh
 
-prefix="{{DS-ROOT}}"
-if [ "$prefix" = "/" ] ; then
-    prefix=""
-fi
-
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
-
-libpath_add "$prefix{{SERVER-DIR}}"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "$prefix@pcre_libdir@"
-
-export LD_LIBRARY_PATH
-SHLIB_PATH=$LD_LIBRARY_PATH
-export SHLIB_PATH
-
-if [ $# -gt 4 ]
-then
-    echo "Usage: db2bak [archivedir] [-q] [-h]"
-    exit 1
-fi
-
-bak_dir={{BAK-DIR}}/{{SERV-ID}}-`date +%Y_%m_%d_%H_%M_%S`
-dlevel=0
-quiet=0
 cd {{SERVERBIN-DIR}}
-if [ "$#" -gt 0 ]
-then
-  if [ "$1" != "-q" ] && [ "$1" != "-d" ] && [ "$1" != "-h" ]
-  then
-    bak_dir=$1
-    shift
-  fi
-  while getopts "hqd:" flag
-  do
-    case $flag in
-        h) echo "Usage: db2bak [archivedir] [-q] [-h]"
-           exit 0;;
-        q) quiet=1;;
-        d) dlevel=$OPTARG;;
-    esac
-  done
-fi
-
-echo "Back up directory: $bak_dir"
-if [ $quiet -eq 0 ]; then
-    ./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir -d $dlevel
-else
-    ./ns-slapd db2archive -D {{CONFIG-DIR}} -a $bak_dir -d $dlevel -q
-fi
+./db2bak "$@" -Z {{SERV-ID}}
+exit $?

@@ -1,28 +1,5 @@
 #!/bin/sh
 
-prefix="{{DS-ROOT}}"
-
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
-
-libpath_add "$prefix{{SERVER-DIR}}"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "@nss_libdir@"
-libpath_add "$prefix@pcre_libdir@"
-
-export LD_LIBRARY_PATH
-SHLIB_PATH=$LD_LIBRARY_PATH
-export SHLIB_PATH
-
 cd {{SERVERBIN-DIR}}
-if [ $# -lt 4 ]
-then
-	echo "Usage: vlvindex -n backend_instance | {-s includesuffix}* -T attribute"
-	echo Note: either \"-n backend_instance\" or \"-s includesuffix\" are required.
-	exit 1
-fi
-
-./ns-slapd db2index -D {{CONFIG-DIR}} "$@"
+./vlvindex "$@" -Z {{SERV-ID}}
+exit $?

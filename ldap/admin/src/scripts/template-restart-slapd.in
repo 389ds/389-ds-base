@@ -1,11 +1,5 @@
 #!/bin/sh
 
-# Script that restarts the ns-slapd server.
-# Exit status can be:
-#       0: Server restarted successfully
-#       1: Server could not be started
-#       2: Server started successfully (was not running)
-#       3: Server could not be stopped
-
-@sbindir@/restart-dirsrv -d {{INITCONFIG-DIR}} {{SERV-ID}} "$@"
+cd {{SERVERBIN-DIR}}
+./restart-slapd "$@" -Z {{SERV-ID}}
 exit $?

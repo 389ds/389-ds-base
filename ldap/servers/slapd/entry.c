@@ -4108,8 +4108,8 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
             slapi_entry_clear_flag(*cep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH);
         } else {
             rval = 1;
-                          
-            LDAPDebug(LDAP_DEBUG_ANY, "Del %sEntry %s\n", 
+
+            LDAPDebug(LDAP_DEBUG_ANY, "Del %sEntry %s\n",
                       my_logging_prestr, slapi_entry_get_dn_const(*cep), 0);
 
             if (testall)

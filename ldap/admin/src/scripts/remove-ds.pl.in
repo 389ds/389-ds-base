@@ -12,19 +12,15 @@
 # this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
 # Place, Suite 330, Boston, MA 02111-1307 USA.
 # 
-# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2013 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
 
-use lib qw(@perlpath@);
-
 use strict;
 
-use File::Basename;
-use File::Path;
+use lib qw(@perlpath@);
 use Getopt::Long;
-use DSUtil;
 use Resource;
 use DSCreate qw(removeDSInstance);
 
@@ -45,7 +41,7 @@ my $instname = "";
 my $initconfig_dir = "";
 my $all = "";
 
-GetOptions('help|h|?' => sub { &usage; exit(1); },
+GetOptions('help|h|?' => sub { &usage; exit(0); },
            'debug|d+' => \$DSUtil::debuglevel,
            'instance|i=s' => \$instname,
            'initconfig_dir|c=s' => \$initconfig_dir,

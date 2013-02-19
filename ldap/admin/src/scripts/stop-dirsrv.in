@@ -6,6 +6,11 @@
 #       1: Server could not be stopped
 #       2: Server was not running
 
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
 stop_instance() {
     SERV_ID=$1
 

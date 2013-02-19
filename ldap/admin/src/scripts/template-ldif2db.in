@@ -1,58 +1,5 @@
 #!/bin/sh
 
-prefix="{{DS-ROOT}}"
-if [ "$prefix" = "/" ] ; then
-    prefix=""
-fi
-
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
-
-libpath_add "$prefix{{SERVER-DIR}}"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "$prefix@pcre_libdir@"
-
-export LD_LIBRARY_PATH
-SHLIB_PATH=$LD_LIBRARY_PATH
-export SHLIB_PATH
-
-usage()
-{
-    echo "Usage: ldif2db -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]"
-    echo "               {-i ldiffile}* [-O] [-q]"
-    echo "Note: either \"-n backend_instance\" or \"-s includesuffix\" and \"-i ldiffile\" are required."
-}
-
-handleopts()
-{
-    while [ "$1" != "" ]
-    do
-        if [ "$1" = "-q" ]; then
-            return 1
-        elif [ "$1" = "-h" ]; then
-            usage
-            exit 1
-        fi
-        shift
-    done
-    return 0
-}
-
 cd {{SERVERBIN-DIR}}
-if [ $# -lt 4 ]
-then
-    usage
-    exit 1
-fi
-
-handleopts $@
-quiet=$?
-
-if [ $quiet -eq 0 ]; then
-    echo importing data ...
-fi
-./ns-slapd ldif2db -D {{CONFIG-DIR}} "$@" 2>&1
+./ldif2db "$@" -Z {{SERV-ID}}
 exit $?

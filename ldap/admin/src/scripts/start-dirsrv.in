@@ -41,6 +41,7 @@ start_instance() {
     DS_CONFIG_DIR=$CONFIG_DIR
     export DS_CONFIG_DIR
     PIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.pid
+    
     STARTPIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.startpid
     if test -f $STARTPIDFILE ; then
         PID=`cat $STARTPIDFILE`

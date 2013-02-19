@@ -1,10 +1,5 @@
 #!/bin/sh
 
-# Script that stops the ns-slapd server.
-# Exit status can be:
-#       0: Server stopped successfully
-#       1: Server could not be stopped
-#       2: Server was not running
-
-@sbindir@/stop-dirsrv -d {{INITCONFIG-DIR}} {{SERV-ID}} "$@"
+cd {{SERVERBIN-DIR}}
+./stop-slapd "$@" -Z {{SERV-ID}}
 exit $?

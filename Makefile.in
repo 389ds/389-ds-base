@@ -1408,6 +1408,23 @@ CLEANFILES = dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif \
+	ldap/admin/src/scripts/bak2db ldap/admin/src/scripts/db2bak ldap/admin/src/scripts/upgradedb \
+	ldap/admin/src/scripts/db2index ldap/admin/src/scripts/db2ldif \
+	ldap/admin/src/scripts/dn2rdn ldap/admin/src/scripts/ldif2db \
+	ldap/admin/src/scripts/ldif2ldap ldap/admin/src/scripts/monitor \
+	ldap/admin/src/scripts/restart-slapd ldap/admin/src/scripts/restoreconfig \
+	ldap/admin/src/scripts/saveconfig ldap/admin/src/scripts/start-slapd \
+	ldap/admin/src/scripts/stop-slapd ldap/admin/src/scripts/suffix2instance \
+	ldap/admin/src/scripts/upgradednformat ldap/admin/src/scripts/vlvindex \
+	ldap/admin/src/scripts/bak2db.pl ldap/admin/src/scripts/db2bak.pl \
+	ldap/admin/src/scripts/db2index.pl ldap/admin/src/scripts/db2ldif.pl \
+	ldap/admin/src/scripts/fixup-linkedattrs.pl ldap/admin/src/scripts/fixup-memberof.pl \
+	ldap/admin/src/scripts/cleanallruv.pl ldap/admin/src/scripts/ldif2db.pl \
+	ldap/admin/src/scripts/ns-accountstatus.pl ldap/admin/src/scripts/ns-activate.pl \
+	ldap/admin/src/scripts/ns-inactivate.pl ldap/admin/src/scripts/ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/schema-reload.pl ldap/admin/src/scripts/syntax-validate.pl \
+	ldap/admin/src/scripts/usn-tombstone-cleanup.pl ldap/admin/src/scripts/verify-db.pl \
+	ldap/admin/src/scripts/dbverify \
 	$(POSIX_WINSYNC_PLUGIN_LDIF)
 
 taskdir = $(datadir)@scripttemplatedir@
@@ -1547,7 +1564,41 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/start-dirsrv \
 	ldap/admin/src/scripts/stop-dirsrv \
 	ldap/admin/src/scripts/restart-dirsrv \
-        wrappers/ldap-agent
+	ldap/admin/src/scripts/bak2db \
+	ldap/admin/src/scripts/db2bak \
+	ldap/admin/src/scripts/db2index \
+	ldap/admin/src/scripts/db2ldif \
+	ldap/admin/src/scripts/dn2rdn \
+	ldap/admin/src/scripts/ldif2db \
+	ldap/admin/src/scripts/ldif2ldap \
+	ldap/admin/src/scripts/monitor \
+	ldap/admin/src/scripts/restart-slapd \
+	ldap/admin/src/scripts/restoreconfig \
+	ldap/admin/src/scripts/saveconfig \
+	ldap/admin/src/scripts/start-slapd \
+	ldap/admin/src/scripts/stop-slapd \
+	ldap/admin/src/scripts/suffix2instance \
+	ldap/admin/src/scripts/upgradednformat \
+	ldap/admin/src/scripts/vlvindex \
+	ldap/admin/src/scripts/bak2db.pl \
+	ldap/admin/src/scripts/db2bak.pl \
+	ldap/admin/src/scripts/db2index.pl \
+	ldap/admin/src/scripts/db2ldif.pl \
+	ldap/admin/src/scripts/fixup-linkedattrs.pl \
+	ldap/admin/src/scripts/fixup-memberof.pl \
+	ldap/admin/src/scripts/cleanallruv.pl \
+	ldap/admin/src/scripts/ldif2db.pl \
+	ldap/admin/src/scripts/ns-accountstatus.pl \
+	ldap/admin/src/scripts/ns-activate.pl \
+	ldap/admin/src/scripts/ns-inactivate.pl \
+	ldap/admin/src/scripts/ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/schema-reload.pl \
+	ldap/admin/src/scripts/syntax-validate.pl \
+	ldap/admin/src/scripts/usn-tombstone-cleanup.pl \
+	ldap/admin/src/scripts/verify-db.pl \
+	ldap/admin/src/scripts/dbverify \
+	ldap/admin/src/scripts/upgradedb \
+    wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \

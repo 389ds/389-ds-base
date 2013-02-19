@@ -1,0 +1,106 @@
+#!/bin/sh
+
+libpath_add() {
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
+server_dir="@libdir@/dirsrv/"
+SCRIPT=$(readlink -f $0)
+SCRIPTPATH=$(dirname $SCRIPT)
+if [ $SCRIPTPATH == "/usr/sbin" ]
+then
+    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/usr\/sbin//'`
+    server_sbin="/usr/sbin"
+else
+    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/sbin//'`
+    server_sbin=$prefix"/sbin"
+fi
+
+libpath_add "$prefix@ldapsdk_libdir@"
+libpath_add "@ldapsdk_libdir@"
+libpath_add "$prefix@nss_libdir@"
+libpath_add "$prefix@libdir@"
+libpath_add "@nss_libdir@"
+libpath_add "$server_dir"
+
+export LD_LIBRARY_PATH
+SHLIB_PATH=$LD_LIBRARY_PATH
+export SHLIB_PATH
+
+PATH=$PATH:$prefix@ldaptool_bindir@:@ldaptool_bindir@
+
+first="yes"
+args=""
+while getopts "Z:D:w:f:h" flag
+do
+    case $flag in
+        Z) servid=$OPTARG;;
+        D) args=$args" -D $OPTARG"
+           binddn=$OPTARG;;
+        w) args=$args" -w $OPTARG"
+           passwd=$OPTARG;;
+        f) args=$args" -f $OPTARG"
+           input_file=$OPTARG;;
+        h) echo "Usage: ldif2ldap [-Z serverID] -D <bind dn> -w <password> -f <file>"
+           exit 0;;
+        ?) echo "Usage: ldif2ldap [-Z serverID] -D <bind dn> -w <password> -f <file>"
+           exit 1;;
+    esac
+done
+
+if [ "$binddn" == "" ] || [ "$passwd" == "" ] || [ "$input_file" == "" ]
+then 
+    echo "Usage: ldif2ldap -D <bind dn> -w <password> -f <file>"
+    exit 1
+fi
+
+# server id not provided, check if there is only one instance
+inst_count=0
+for i in `ls $prefix/etc/sysconfig/dirsrv-* 2>/dev/null`
+do
+    if [ $i != '$prefix/etc/sysconfig/dirsrv-admin' ]
+    then
+        inst_count=`expr $inst_count + 1`
+        id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
+        if  [ $first == "yes" ]
+        then
+            instances=$id
+            first="no"
+        else
+            instances=$instances", $id"
+        fi
+        name=$id
+    fi
+done 
+    
+if [ -z $servid ]
+then
+    if [ $inst_count -eq 1 ]
+    then
+        servid=$name
+    else 
+        # error
+        echo "Usage: ldif2ldap [-Z serverID] -D <bind dn> -w <password> -f <file>"
+        echo "You must supply a server instance identifier.  Use -Z to specify instance name"
+        echo "Available instances: $instances"
+        exit 1
+    fi
+elif [ $servid == slapd-* ]
+then
+    servid=`echo "$servid" | sed -e 's/slapd-//'`
+elif [ $servid == dirsrv-* ]
+then
+    servid=`echo "$servid" | sed -e 's/dirsrv-//'`
+fi
+if ! [ -a "$prefix/etc/dirsrv/slapd-$servid/dse.ldif" ]
+then
+    echo "Invalid server identifier: $servid"
+    echo "Available instances: $instances"
+    exit 1
+fi
+
+port=$(grep 'nsslapd-port' $prefix/etc/dirsrv/slapd-$servid/dse.ldif | awk '{print $2}' )
+host=$(grep 'nsslapd-localhost' $prefix/etc/dirsrv/slapd-$servid/dse.ldif | awk '{print $2}' )
+
+ldapmodify @ldaptool_opts@ -a -p $port -h $host $args

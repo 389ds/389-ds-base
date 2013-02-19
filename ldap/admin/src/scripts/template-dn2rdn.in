@@ -1,23 +1,5 @@
 #!/bin/sh
 
-prefix="{{DS-ROOT}}"
-if [ "$prefix" = "/" ] ; then
-    prefix=""
-fi
-
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
-
-libpath_add "$prefix{{SERVER-DIR}}"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-
-export LD_LIBRARY_PATH
-SHLIB_PATH=$LD_LIBRARY_PATH
-export SHLIB_PATH
-
 cd {{SERVERBIN-DIR}}
-bak_dir={{BAK-DIR}}/reindex_`date +%Y_%m_%d_%H_%M_%S`
-./ns-slapd upgradedb -D {{CONFIG-DIR}} -r -a "$bak_dir" "$@"
+./dn2rdn "$@" -Z {{SERV-ID}}
+exit $?

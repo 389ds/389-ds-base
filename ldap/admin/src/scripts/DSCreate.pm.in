@@ -31,7 +31,7 @@
 # exception. 
 # 
 # 
-# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2013 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
@@ -76,9 +76,11 @@ use strict;
 use SetupLog;
 
 sub get_initconfigdir {
+    my $prefix = shift;
+    
     # determine initconfig_dir
     if (getLogin eq 'root') {
-        return "@initconfigdir@";
+        return "$prefix@initconfigdir@";
     } else {
         return "$ENV{HOME}/.@package_name@";
     }
@@ -290,7 +292,7 @@ sub createInstanceScripts {
     my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
 
     # determine initconfig_dir
-    my $initconfig_dir = $inf->{slapd}->{initconfig_dir} || get_initconfigdir();
+    my $initconfig_dir = $inf->{slapd}->{initconfig_dir} || get_initconfigdir($inf->{General}->{prefix});
 
     my %maptable = (
         "DS-ROOT" => $inf->{General}->{prefix},
@@ -513,7 +515,7 @@ sub makeOtherConfigFiles {
     }
 
     # determine initconfig_dir
-    my $initconfig_dir = $inf->{slapd}->{initconfig_dir} || get_initconfigdir();
+    my $initconfig_dir = $inf->{slapd}->{initconfig_dir} || get_initconfigdir($inf->{General}->{prefix});
 
     # install instance specific initconfig script
     $src = "$inf->{General}->{prefix}@configdir@/template-initconfig";
@@ -1099,7 +1101,7 @@ sub updateSystemD {
     }
 
     my @errs = ();
-    my $initconfigdir = $inf->{slapd}->{initconfigdir} || get_initconfigdir();
+    my $initconfigdir = $inf->{slapd}->{initconfigdir} || get_initconfigdir($inf->{General}->{prefix});
     debug(1, "updating systemd files in $unitdir and $confdir for all directory server instances in $initconfigdir\n");
     my $pkgname = "@package_name@";
     my $changes = 0;

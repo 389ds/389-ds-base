@@ -34,147 +34,19 @@
 # 
 # 
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2013 Red Hat, Inc.
 # All rights reserved.
 # END COPYRIGHT BLOCK
 #
 
-sub usage {
-    print(STDERR "Usage: $0 [-v] -D rootdn { -w password | -w - | -j filename } \n");
-    print(STDERR "        -b baseDN [-f filter]\n");
-    print(STDERR " Opts: -D rootdn           - Directory Manager\n");
-    print(STDERR "     : -w password         - Directory Manager's password\n");
-    print(STDERR "     : -w -                - Prompt for Directory Manager's password\n");
-    print(STDERR "     : -j filename         - Read Directory Manager's password from file\n");
-    print(STDERR "     : -b baseDN           - Base DN that contains entries to fix up.\n");
-    print(STDERR "     : -f filter           - Filter for entries to fix up\n");
-    print(STDERR "                             If omitted, all entries under the specified\n");
-    print(STDERR "                             base will have their memberOf attribute\n");
-    print(STDERR "                             regenerated.\n");
-    print(STDERR "     : -v                  - verbose\n");
-}
-
-$rootdn = "";
-$passwd = "";
-$passwdfile = "";
-$basedn_arg = "";
-$filter_arg = "";
-$filter = "";
-$verbose = 0;
-
-$prefix = "{{DS-ROOT}}";
-
-$ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
-
-libpath_add("$prefix@nss_libdir@");
-libpath_add("$prefix/usr/lib");
-libpath_add("@nss_libdir@");
-libpath_add("/usr/lib");
-
-$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
-
-$i = 0;
-while ($i <= $#ARGV) 
-{
-    if ("$ARGV[$i]" eq "-b")
-    {
-        # base DN
-        $i++; $basedn_arg = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-f")
-    {    
-        # filter 
-        $i++; $filter_arg = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-D") 
-    {    
-        # Directory Manager
-        $i++; $rootdn = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-w") 
-    {    
-        # Directory Manager's password
-        $i++; $passwd = $ARGV[$i];
-    } 
-    elsif ("$ARGV[$i]" eq "-j")
-    {
-         # Read Directory Manager's password from a file
-        $i++; $passwdfile = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-v") 
-    {    
-        # verbose
-        $verbose = 1;
-    }
-    else
-    {
-        &usage; exit(1);
-    }
-    $i++;
-}
-
-if ($passwdfile ne ""){
-# Open file and get the password
-    unless (open (RPASS, $passwdfile)) {
-        die "Error, cannot open password file $passwdfile\n";
-    }
-    $passwd = <RPASS>;
-    chomp($passwd);
-    close(RPASS);
-} elsif ($passwd eq "-"){
-# Read the password from terminal
-	print "Bind Password: ";
-	# Disable console echo
-	system("@sttyexec@ -echo") if -t STDIN;
-	# read the answer
-	$passwd = <STDIN>;
-	# Enable console echo
-	system("@sttyexec@ echo") if -t STDIN;
-	print "\n";
-	chop($passwd); # trim trailing newline
-}
-
-if ( $rootdn eq "" || $passwd eq "" || $basedn_arg eq "" ) 
-{ 
-    &usage; 
-    exit(1); 
-}
-
-$vstr = "";
-if ($verbose != 0) 
-{ 
-    $vstr = "-v"; 
-}
-
-# Use a timestamp as part of the task entry name
-($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
-$mn++; $yr += 1900;
-$taskname = "memberOf_fixup_${yr}_${mn}_${dy}_${h}_${m}_${s}";
-
-# Build the task entry to add
-$dn = "dn: cn=$taskname, cn=memberOf task, cn=tasks, cn=config\n";
-$misc = "changetype: add\nobjectclass: top\nobjectclass: extensibleObject\n";
-$cn =  "cn: $taskname\n";
-$basedn = "basedn: $basedn_arg\n";
-
-if ( $filter_arg ne "" )
-{
-    $filter = "filter: $filter_arg\n";
-}
-
-$entry = "${dn}${misc}${cn}${basedn}${filter}";
-open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
-print(FOO "$entry");
-close(FOO);
-
-sub libpath_add {
-    my $libpath = shift;
-
-    if ($libpath) {
-        if ($ENV{'LD_LIBRARY_PATH'}) {
-            $ENV{'LD_LIBRARY_PATH'} = "$ENV{'LD_LIBRARY_PATH'}:$libpath";
+# We lose args that are quoted when passing ARGV to a wrapper
+while ($i <= $#ARGV) {
+        if($ARGV[$i] =~ /^-/){
+                $wrapperArgs[$i] = $ARGV[$i];
         } else {
-            $ENV{'LD_LIBRARY_PATH'} = "$libpath";
+                $wrapperArgs[$i] = "\"$ARGV[$i]\"";
         }
-    }
+        $i++;
 }
+
+exec "{{SERVERBIN-DIR}}/fixup-memberof.pl @wrapperArgs -Z {{SERV-ID}}";

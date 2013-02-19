@@ -42,6 +42,8 @@ use Mozilla::LDAP::Conn;
 use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(:constant ldap_explode_dn ldap_err2string) ; # Direct access to C API
 use Mozilla::LDAP::LDIF;
+use File::Spec::Functions qw(rel2abs);
+use File::Basename;
 
 require Exporter;
 @ISA       = qw(Exporter);
@@ -1180,6 +1182,63 @@ sub serverIsRunning
     }
 
     return 0; # no pid file - assume not running
+}
+
+sub libpath_add {
+    my $libpath = shift;
+
+    if ($libpath) {
+        if ($ENV{'LD_LIBRARY_PATH'}) {
+            $ENV{'LD_LIBRARY_PATH'} = "$ENV{'LD_LIBRARY_PATH'}:$libpath";
+        } else {
+            $ENV{'LD_LIBRARY_PATH'} = "$libpath";
+        }
+    }
+}
+
+# Get the installation prefix
+sub get_prefix {
+    my $prefix = dirname(rel2abs($0));
+    
+    if ($prefix eq "/usr/sbin"){
+        $prefix = "";
+    } else {
+        $prefix =~ s/\/sbin//;
+    }
+    
+    return $prefix;
+}
+
+# Grab the host, port, and rootDN from the config file of the server instance
+# if the values are missing
+sub get_missing_info {
+    my $prefix = shift;
+    my $servID = shift;
+    my $instances = shift;
+    my $host = shift;
+    my $port = shift; 
+    my $rootdn = shift;
+    
+    unless ( -e "$prefix/etc/dirsrv/slapd-$servID/dse.ldif" ){
+        print (STDERR "Invalid server identifer: $servID\n");
+        print (STDERR "Available instances: $instances\n");
+        exit (1);
+    }
+    
+    open (DSE, "<$prefix/etc/dirsrv/slapd-$servID/dse.ldif") || die "Failed to open config file $prefix/etc/dirsrv/slapd-$servID/dse.ldif $!\n";
+        while(<DSE>){
+        if ($host eq "" && $_ =~ /^nsslapd-localhost: (.*)/){
+                $host = $1;
+        }
+        if ($port eq "" && $_ =~ /^nsslapd-port: (.*)/){
+                $port = $1;
+        }
+        if ($rootdn eq "" && $_ =~ /^nsslapd-rootdn: (.*)/){
+                $rootdn = $1;
+        }
+    }
+    close (DSE);
+    return $host, $port, $rootdn;
 }
 
 1;

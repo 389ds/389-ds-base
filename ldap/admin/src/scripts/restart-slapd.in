@@ -1,0 +1,92 @@
+#!/bin/sh
+
+# Script that restarts the ns-slapd server.
+# Exit status can be:
+#       0: Server restarted successfully
+#       1: Server could not be started
+#       2: Server started successfully (was not running)
+#       3: Server could not be stopped
+
+first="yes"
+args=""
+while getopts "Z:SvVhi:d:w:" flag
+do
+    case $flag in
+        Z) servid=$OPTARG;;
+        d) args=$args" -d $OPTARG";;
+        v) args=$args" -v";;
+        V) args=$args" -V";;
+        i) args=$args" -i $OPTARG";;
+        w) args=$args" -w $OPTARG";;
+        S) args=$args" -S";; 
+        h) echo "Usage: restart-slapd [-Z serverID]"
+           exit 0;;
+        ?) echo "Usage: restart-slapd [-Z serverID]"
+           exit 1;;
+    esac
+done
+
+SCRIPT=$(readlink -f $0)
+SCRIPTPATH=$(dirname $SCRIPT)
+if [ $SCRIPTPATH == "/usr/sbin" ]
+then
+    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/usr\/sbin//'`
+else
+    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/sbin//'`
+fi
+
+# server id not provided, check if there is only one instance
+inst_count=0
+for i in `ls $prefix/etc/sysconfig/dirsrv-* 2>/dev/null`
+do
+    if [ $i != '$prefix/etc/sysconfig/dirsrv-admin' ]
+    then
+        inst_count=`expr $inst_count + 1`
+        id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
+        if  [ $first == "yes" ]
+        then
+            instances=$id
+            first="no"
+        else
+            instances=$instances", $id"
+        fi
+        name=$id
+    fi
+done 
+    
+if [ -z $servid ]
+then
+    if [ $inst_count -eq 1 ]
+    then
+        servid=$name
+    else 
+        # error
+        echo "Usage: restart-slapd [-Z serverID]"
+        echo "You must supply a server instance identifier.  Use -Z to specify instance name"
+        echo "Available instances: $instances"
+        exit 1
+    fi
+elif [ $servid == slapd-* ]
+then
+    servid=`echo "$servid" | sed -e 's/slapd-//'`
+elif [ $servid == dirsrv-* ]
+then
+    servid=`echo "$servid" | sed -e 's/dirsrv-//'`
+fi
+
+
+if ! [ -a "$prefix/etc/dirsrv/slapd-$servid/dse.ldif" ]
+then
+    echo "Invalid server identifier: $servid"
+    echo "Available instances: $instances"
+    exit 1
+fi
+
+@sbindir@/restart-dirsrv -d $prefix/etc/sysconfig $servid $args
+if [ $? == 0 ]
+then
+    echo Sucessfully restarted instance $servid
+else
+    echo Failed to restart instance $servid
+fi
+exit $?

@@ -1,0 +1,884 @@
+#!@perlexec@
+#
+# BEGIN COPYRIGHT BLOCK
+# This Program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This Program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this Program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA.
+# 
+# In addition, as a special exception, Red Hat, Inc. gives You the additional
+# right to link the code of this Program with code not covered under the GNU
+# General Public License ("Non-GPL Code") and to distribute linked combinations
+# including the two, subject to the limitations in this paragraph. Non-GPL Code
+# permitted under this exception must only link to the code of this Program
+# through those well defined interfaces identified in the file named EXCEPTION
+# found in the source code files (the "Approved Interfaces"). The files of
+# Non-GPL Code may instantiate templates or use macros or inline functions from
+# the Approved Interfaces without causing the resulting work to be covered by
+# the GNU General Public License. Only Red Hat, Inc. may make changes or
+# additions to the list of Approved Interfaces. You must obey the GNU General
+# Public License in all respects for all of the Program code and other code used
+# in conjunction with the Program except the Non-GPL Code covered by this
+# exception. If you modify this file, you may extend this exception to your
+# version of the file, but you are not obligated to do so. If you do not wish to
+# provide this exception without modification, you must delete this exception
+# statement from your version and license this file solely under the GPL without
+# exception. 
+# 
+# 
+# Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
+# Copyright (C) 2013 Red Hat, Inc.
+# All rights reserved.
+# END COPYRIGHT BLOCK
+#
+
+use lib qw(@perlpath@);
+use DSUtil;
+
+###############################
+# SUB-ROUTINES
+###############################
+
+sub usage
+{
+	print (STDERR "$cmd [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
+	print (STDERR "     [-p port] [-h host] -I DN-to-$operation\n\n");
+	print (STDERR "May be used to $operation a user or a domain of users\n\n");
+	print (STDERR "Arguments:\n");
+	print (STDERR "          -?                   - help\n");
+	print (STDERR "          -D rootdn            - Provide a Directory Manager DN\n");
+	print (STDERR "          -w password          - Provide a password for the Directory Manager DN\n");
+	print (STDERR "          -w -                 - Prompt for the Directory Manager's password\n");
+	print (STDERR "          -Z serverID          - Server instance identifier\n");
+	print (STDERR "          -j filename          - Read the Directory Manager's password from file\n");
+	print (STDERR "          -p port              - Provide a port\n");
+	print (STDERR "          -h host              - Provide a host name'\n");
+	print (STDERR "          -I DN-to-$operation  - Single entry DN or role DN to $operation\n");
+}
+
+sub debug
+{
+#	print " ==> @_";
+}
+
+sub out
+{
+	print "@_";
+}
+
+# --------------------------
+# Check if the entry is part of a locked role:
+# i.e.: for each role member (nsroledn) of nsdisabledrole, check if
+# 	* it is the same as the entry
+# 	* the entry is member of role (==has nsroledn attributes), compare each of
+#		them with the nsroledn of nsdisabledrole
+#	* if nsroledn of nsdisabledrole are complex, go through each of them
+# argv[0] is the local file handler
+# argv[1] is the entry (may be a single entry DN or a role DN)
+# argv[2] is the base for the search
+# --------------------------
+
+$throughRole="";
+
+sub indirectLock
+{
+	# For recursivity, file handler must be local
+	my $L_filehandle=$_[0];
+	$L_filehandle++;
+
+	my $L_entry=$_[1];
+	# Remove useless space
+    my @L_intern=split /([,])/,$L_entry;
+    my $L_result="";
+    foreach $L_part (@L_intern)
+    {
+        $L_part=~s/^ +//;
+        $L_part=~ tr/A-Z/a-z/;
+        $L_result="$L_result$L_part";
+    }
+    $L_entry=$L_result;
+
+	my $L_base=$_[2];
+	
+	my $L_search;
+	my $L_currentrole;
+	my $L_retCode;
+
+	my $L_local;
+
+`$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s base -b \"$L_base\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsroledn >> /dev/null 2>&1 `;
+$retCode=$?;
+if ( $retCode != 0 )
+{
+    $retCode=$?>>8;
+    return 1;
+}
+
+	# Check if the role is a nested role
+	@L_Nested="$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s base -b \"$L_base\" \"(|(objectclass=nsNestedRoleDefinition)(objectclass=ldapsubentry))\"  ";
+	# L_isNested == 1 means that we are going through a nested role, so for each member of that
+	# nested role, check that the member is below the scope of the nested
+	$L_isNested=@L_Nested;
+
+	# Not Direct Lock, Go through roles if any
+	$L_search="$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s base -b \"$L_base\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsroledn ";
+
+	debug("\t-->indirectLock: check if $L_entry is part of a locked role from base $L_base\n\n");
+
+	unless (open ($L_filehandle, "$L_search |")) 
+	{
+		out("Can't open file $L_filehandle\n");
+		exit;
+	}
+	while (<$L_filehandle>) {
+
+		s/\n //g;
+		if (/^nsroledn: (.*)\n/) {
+			$L_currentrole = $1;
+
+			# Remove useless space
+			my @L_intern=split /([,])/,$L_currentrole;
+			my $L_result="";
+			foreach $L_part (@L_intern)
+			{
+				$L_part=~s/^ +//;
+				$L_part=~ tr/A-Z/a-z/;
+				$L_result="$L_result$L_part";
+			}
+			$L_currentrole=$L_result;
+
+			debug("\t-- indirectLock loop: current nsroledn $L_currentrole of base $L_base\n");
+			if ( $L_isNested == 1 )
+			{
+				if ( checkScope($L_currentrole, $L_base) == 0 )
+				{
+					# Scope problem probably a bad conf, skip the currentrole
+					next;	
+				}
+			}
+
+			if ( $L_currentrole eq $L_entry )
+			{
+				# the entry is a role that is directly locked
+				# i.e, nsroledn of nsdisabledrole contains the entry
+				$throughRole=$L_base;
+				$throughRole=~ tr/A-Z/a-z/;
+
+				# skipDisabled means that we've just found that the entry (which is a role)
+				# is locked directly (==its DN is part of nsroledn attributes)
+				# we just want to know now, if it is locked through another role
+				# at least, one
+				if ( $skipDisabled == 1 )
+				{
+					# direct inactivation
+					$directLocked=1;
+					# just go through that test once
+					$skipDisabled=0;
+					next;
+				}
+				debug("\t-- 1 indirectLock: $L_currentrole locked throughRole == $throughRole\n");
+				return 0;
+			}
+
+			$L_retCode=memberOf($L_currentrole, $L_entry);
+			if ( $L_retCode == 0 && $single == 1 )
+			{
+				$throughRole=$L_currentrole;
+				$throughRole=~ tr/A-Z/a-z/;
+				if ( $skipManaged == 1 )
+				{
+					if ( $L_currentrole eq $nsManagedDisabledRole)
+					{
+						# Try next nsroledn
+						$directLocked=1;
+						$skipManaged=0;
+						next;
+					}
+				} 
+				debug("\t-- 2 indirectLock: $L_currentrole locked throughRole == $throughRole\n");
+				return 0;
+			}
+
+			# Only for the first iteration
+			# the first iteration is with nsdisabledrole as base, other
+			# loops are deeper
+			$L_local=$skipDisabled;
+			$skipDisabled=0;
+	
+			# the current nsroledn may be a complex role, just go through
+			# its won nsroledn
+			$L_retCode=indirectLock($L_filehandle,$L_entry, $L_currentrole);
+
+			# Because of recursivity, to keep the initial value for the first level
+			$skipDisabled=$L_local;
+
+			if ( $L_retCode == 0 )
+			{
+				$throughRole=$L_currentrole;
+				$throughRole=~ tr/A-Z/a-z/;
+				debug("\t-- 3 indirectLock: $L_entry locked throughRole == $throughRole\n");
+				return 0;
+			}
+		}
+	}
+
+	close($L_filehandle);
+
+	debug("\t<--indirectLock: no more nsroledn to process\n");
+	return 1;
+}
+
+# --------------------------
+# Check if nsroledn is part of the entry attributes
+# argv[0] is a role DN (nsroledn attribute)
+# argv[1] is the entry
+# --------------------------
+sub memberOf
+{
+	my $L_nsroledn=$_[0];
+	$L_nsroledn=~ tr/A-Z/a-z/;
+
+	my $L_entry=$_[1];
+
+	my $L_search;
+	my $L_currentrole;
+
+	$L_search="$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s base -b \"$L_entry\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsrole";
+
+	debug("\t\t-->memberOf: $L_search: check if $L_entry has $L_nsroledn as nsroledn attribute\n");
+
+	open (LDAP2, "$L_search |");
+	while (<LDAP2>) {
+		s/\n //g;
+		if (/^nsrole: (.*)\n/) {
+			$L_currentrole = $1;
+			$L_currentrole=~ tr/A-Z/a-z/;
+			if ( $L_currentrole eq $L_nsroledn )
+			{
+				# the parm is part of the $L_entry nsroledn
+				debug("\t\t<--memberOf: $L_entry locked through $L_nsroledn\n");
+				return 0;
+			}
+		}
+	}
+	close(LDAP2);
+
+	# the parm is not part of the $L_entry nsroledn
+	debug("\t\t<--memberOf: $L_entry not locked through $L_nsroledn\n");
+	return 1;
+}
+
+
+# --------------------------
+# Remove the rdn of a DN
+# argv[0] is a DN
+# --------------------------
+sub removeRdn
+{
+    $L_entry=$_[0];
+
+    @L_entryToTest=split /([,])/,$L_entry;
+    debug("removeRdn: entry to split: $L_entry**@L_entryToTest\n");
+
+    $newDN="";
+    $removeRDN=1;
+    foreach $part (@L_entryToTest)
+    {
+        $part=~ s/^ +//;
+        $part=~ tr/A-Z/a-z/;
+        if ( $removeRDN <= 2 )
+        {
+            $removeRDN=$removeRDN+1;
+        }
+        else
+        {
+            $newDN="$newDN$part";
+        }
+    }
+
+    debug("removeRdn: new DN **$newDN**\n");
+}
+
+# --------------------------
+# Check if L_current is below the scope of 
+# L_nestedRole
+# argv[0] is a role
+# argv[1] is the nested role
+# --------------------------
+sub checkScope
+{
+    $L_current=$_[0];
+    $L_nestedRole=$_[1];
+
+    debug("checkScope: check if $L_current is below $L_nestedRole\n");
+
+    removeRdn($L_nestedRole);
+    $L_nestedRoleSuffix=$newDN;
+    debug("checkScope: nested role based:  $L_nestedRoleSuffix\n");
+
+    $cont=1;
+    while ( ($cont == 1) && ($L_current ne "") )
+    {
+        removeRdn($L_current);
+        $currentDn=$newDN;
+        debug("checkScope: current DN to check: $currentDn\n");
+ 
+        if ( $currentDn eq $L_nestedRoleSuffix )
+        {
+            debug("checkScope: DN match!!!\n");
+            $cont = 0;
+        }
+        else
+        {
+            $L_current=$currentDn;
+        }
+    }
+ 
+    if ( $cont == 1 )
+    {
+        debug("checkScope: $_[0] and $_[1] are not compatible\n");
+        return 0;
+    }
+    else
+    {
+        debug("checkScope: $_[0] and $_[1] are compatible\n");
+        return 1;
+    }
+}
+
+
+###############################
+# MAIN ROUTINE
+###############################
+
+# Generated variable
+$prefix = DSUtil::get_prefix();
+
+# Determine which command we are running
+if ( $0 =~ /ns-inactivate(.pl)?$/ )
+{
+	$cmd="ns-inactivate.pl";
+	$operation="inactivate";
+	$state="inactivated";
+	$modrole="add";
+	$already="already";
+}
+elsif ( $0 =~ /ns-activate(.pl)?$/ )
+{
+	$cmd="ns-activate.pl";
+	$operation="activate";
+	$state="activated";
+	$modrole="delete";
+	$already="already";
+}
+elsif ( $0 =~ /ns-accountstatus(.pl)?$/ )
+{
+	$cmd="ns-accountstatus.pl";
+	$operation="get status of";
+	$state="activated";
+	# no need for $modrole as no operation is performed
+	$already="";
+
+}
+else
+{
+	out("$0: unknown command\n");
+	exit 100;
+}
+
+debug("Running ** $cmd ** $operation\n");
+
+$ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
+
+DSUtil::libpath_add("$prefix@nss_libdir@");
+DSUtil::libpath_add("$prefix/usr/lib");
+DSUtil::libpath_add("@nss_libdir@");
+DSUtil::libpath_add("/usr/lib");
+
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
+
+$ldapsearch="ldapsearch @ldaptool_opts@ @plainldif_opts@";
+$ldapmodify="ldapmodify @ldaptool_opts@";
+
+# User values
+$rootdn = "";
+$port = "";
+$host = "";
+$rootpw = "";
+$pwfile = "";
+$entry = "";
+$first = "yes";
+$single = 0;
+$role = 0;
+
+# Process the command line arguments
+while( $arg = shift)
+{
+    if($arg eq "-?")
+    {
+        usage();
+        exit(0);
+    }
+    elsif($arg eq "-D")
+    {
+        $rootdn= shift @ARGV;
+    }
+    elsif($arg eq "-w")
+    {
+        $rootpw= shift @ARGV;
+    }
+    elsif($arg eq "-j")
+    {
+        $pwfile= shift @ARGV;
+    }
+    elsif($arg eq "-p")
+    {
+        $port= shift @ARGV;
+    }
+    elsif($arg eq "-h")
+    {
+        $host= shift @ARGV;
+    }
+    elsif($arg eq "-I")
+    {
+        $entry= shift @ARGV;
+    }
+    elsif($arg eq "-Z")
+    {
+        $servid= shift @ARGV;
+    }
+	else
+	{
+		print "$arg: Unknown command line argument.\n";
+		usage();
+		exit(1);
+	}
+}
+
+opendir(DIR, "$prefix/etc/sysconfig");
+@files = readdir(DIR);
+foreach $file (@files){
+    if($file =~ /^dirsrv-/ && $file ne "dirsrv-admin"){
+        $instance_count++;
+        if($file =~ /dirsrv-(.*)/){
+            if($first eq "yes"){
+                $instances=$1;
+                $first = "no";
+            } else {
+                $instances=$instances . ", $1";
+            }
+            $name = $1;
+        }
+    }
+}
+    
+if($servid eq ""){
+    if ($instance_count == 1){
+        $servid = $name;
+    } else {
+        &usage;
+        print "You must supply a server instance identifier.  Use -Z to specify instance name\n";
+        print "Available instances: $instances\n";
+        exit (1);
+    }
+} elsif ($servid =~ /^dirsrv-/){
+    # strip off "dirsrv-"
+    $servid =~ s/^dirsrv-//;
+} elsif ($servid =~ /^slapd-/){
+    # strip off "slapd-"
+    $servid =~ s/^slapd-//;
+}
+@info = DSUtil::get_missing_info($prefix, $servid, $instances, $host, $port, $rootdn);
+
+if ($pwfile ne ""){
+# Open file and get the password
+	unless (open (RPASS, $pwfile)) {
+		die "Error, cannot open password file $passwdfile\n";
+	}
+	$rootpw = <RPASS>;
+	chomp($rootpw);
+	close(RPASS);
+} elsif ($rootpw eq "-"){
+# Read the password from terminal
+	print "Bind Password: ";
+	# Disable console echo
+	system("@sttyexec@ -echo") if -t STDIN;
+	# read the answer
+	$rootpw = <STDIN>;
+	# Enable console echo
+	system("@sttyexec@ echo") if -t STDIN;
+	print "\n";
+	chop($rootpw); # trim trailing newline
+}
+
+if( $rootpw eq "" || $entry eq "")
+{
+	usage();
+	exit(1);
+}
+
+#
+# Check the actual existence of the entry to inactivate/activate
+# and at the same time, validate the various parm: port, host, rootdn, rootpw
+#
+@exist=`$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s base -b \"$entry\" \"(objectclass=*)\" dn`;
+$retCode1=$?;
+if ( $retCode1 != 0 )
+{
+	$retCode1=$?>>8;
+	exit $retCode1;
+}
+
+@isRole=`$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s base -b \"$entry\" \"(&(objectclass=LDAPsubentry)(objectclass=nsRoleDefinition))\" dn`;
+$nbLineRole=@isRole;
+$retCode2=$?;
+if ( $retCode2 != 0 )
+{
+	$retCode2=$?>>8;
+	exit $retCode2;
+}
+
+if ( $nbLineRole > 0 )
+{
+	debug("Groups of users\n");
+	$role=1;
+}
+else
+{
+	debug("Single user\n");
+	$single=1;
+}
+
+#
+# First of all, check the existence of the nsaccountlock attribute in the entry
+#
+$isLocked=0;
+if ( $single == 1 )
+{
+	$searchAccountLock="$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s base -b \"$entry\" \"(objectclass=*)\" nsaccountlock";
+	open (LDAP1, "$searchAccountLock |");
+	while (<LDAP1>) {
+		s/\n //g;
+		if (/^nsaccountlock: (.*)\n/) {
+			$L_currentvalue = $1;
+			$L_currentvalue=~ tr/A-Z/a-z/;
+			if ( $L_currentvalue eq "true")
+			{
+				$isLocked=1;
+			}
+			elsif ( $L_currentvalue eq "false" )
+			{
+				$isLocked=0;
+			}
+		}
+	}
+	close(LDAP1);
+}
+debug("Is the entry already locked? ==> $isLocked\n");
+
+#
+# Get the suffix name of that entry
+#
+
+# Remove the space at the beginning (just in case...)
+#	-I "uid=jvedder , ou=People , o=sun.com"
+@suffix=split /([,])/,$entry;
+$result="";
+foreach $part (@suffix)
+{
+	$part=~s/^ +//;
+	$part=~ tr/A-Z/a-z/;
+	$result="$result$part";
+}
+@suffixN=$result;
+
+debug("Entry to $operation: #@suffix#\n");
+debug("Entry to $operation: #@suffixN#\n");
+
+# Get the suffix
+$cont=0;
+while ($cont == 0)
+{
+	# Look if suffix is the suffix of the entry
+	#	ldapsearch -s one -b "cn=mapping tree,cn=config" "cn=\"uid=jvedder,ou=People,o=sun.com\""
+	#
+	debug("\tSuffix from the entry: #@suffixN#\n");
+	@mapping=`$ldapsearch -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -s one -b \"cn=mapping tree, cn=config\" \"cn=\\"@suffixN\\"\" cn `;
+
+	$retCode=$?;
+	if ( $retCode != 0 )
+	{
+		$retCode=$?>>8;
+		exit $retCode;
+	}
+
+	# If we get a result, remove the dn:
+	#	dn: cn="o=sun.com",cn=mapping tree,cn=config
+	#	cn: "o=sun.com"
+	#
+	shift @mapping;
+
+	foreach $res (@mapping)
+	{
+		# Break the string cn: "o=sun.com" into pieces
+		@cn= split(/ /,$res);
+
+		# And remove the cn: part
+		shift @cn;
+
+		# Now compare the suffix we extract from the mapping tree 
+		# with the suffix derived from the entry
+		debug("\tSuffix from mapping tree: #@cn#\n");
+		if ( @cn eq @suffixN ) {
+			debug("Found matching suffix\n");
+			$cont=1;
+		}
+	}
+
+	if ( $cont == 0 )
+	{
+		# Remove the current rdn to try another suffix
+		shift @suffix;
+
+		$result="";
+		foreach $part (@suffix)
+		{
+			$part=~ s/^ +//;
+			$part=~ tr/A-Z/a-z/;
+			$result="$result$part";
+		}
+		@suffixN=$result;
+
+		debug("\t\tNothing found => go up one level in rdn #@suffix#\n");
+		$len=@suffix;
+		if ( $len == 0 )
+		{
+			debug("Can not find suffix. Problem\n");
+			$cont=2;
+		}
+	}
+}
+if ( $cont == 2)
+{
+	out("Can not find suffix for entry $entry\n");
+	exit 100;
+}
+
+if ( $operation eq "inactivate" )
+{
+	#
+	# Now that we have the suffix and we know if we deal with a single entry or
+	# a role, just try to create the COS and roles associated.
+	#
+	@base=(
+		"cn=nsManagedDisabledRole,@suffixN",
+		"cn=nsDisabledRole,@suffixN",
+		"cn=nsAccountInactivationTmp,@suffixN",
+		"\'cn=\"cn=nsDisabledRole,@suffixN\",cn=nsAccountInactivationTmp,@suffixN\'",
+		"cn=nsAccountInactivation_cos,@suffixN" );
+
+	$addrolescos="$ldapmodify -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -c -a >> /dev/null 2>&1 ";
+	@role1=(
+		"dn: cn=nsManagedDisabledRole,@suffixN\n",
+		"objectclass: LDAPsubentry\n",
+		"objectclass: nsRoleDefinition\n",
+		"objectclass: nsSimpleRoleDefinition\n",
+		"objectclass: nsManagedRoleDefinition\n",
+		"cn: nsManagedDisabledRole\n\n" );
+	@role2=(
+		"dn: cn=nsDisabledRole,@suffixN\n",
+		"objectclass: top\n",
+		"objectclass: LDAPsubentry\n",
+		"objectclass: nsRoleDefinition\n",
+		"objectclass: nsComplexRoleDefinition\n",
+		"objectclass: nsNestedRoleDefinition\n",
+		"nsRoleDN: cn=nsManagedDisabledRole,@suffixN\n",
+		"cn: nsDisabledRole\n\n" );
+	@cos1=(
+		"dn: cn=nsAccountInactivationTmp,@suffixN\n",
+		"objectclass: top\n",
+		"objectclass: nsContainer\n\n" );
+	@cos2=(
+		"dn: cn=\"cn=nsDisabledRole,@suffixN\",cn=nsAccountInactivationTmp,@suffixN\n",
+		"objectclass: top\n",
+		"objectclass: extensibleObject\n",
+		"objectclass: costemplate\n",
+		"objectclass: ldapsubentry\n",
+		"cosPriority: 1\n",
+		"nsAccountLock: true\n\n" );
+	@cos3=(
+		"dn: cn=nsAccountInactivation_cos,@suffixN\n",
+		"objectclass: top\n",
+		"objectclass: LDAPsubentry\n",
+		"objectclass: cosSuperDefinition\n",
+		"objectclass: cosClassicDefinition\n",
+		"cosTemplateDn: cn=nsAccountInactivationTmp,@suffixN\n",
+		"cosSpecifier: nsRole\n",
+		"cosAttribute: nsAccountLock operational\n\n" );
+
+	@all=(\@role1, \@role2, \@cos1, \@cos2, \@cos3);
+
+	$i=0;
+
+	foreach $current (@base)
+	{
+		debug("Creating $current ??\n");
+		open(FD,"| $addrolescos ");
+		print FD @{$all[$i]};
+		close(FD);
+		if ( $? != 0 )
+		{
+			$retCode=$?>>8;
+			if ( $retCode == 68 )
+			{
+				debug("Entry $current already exists, ignore error\n");
+			}
+			else
+			{
+				# Probably a more serious problem.
+				# Exit with LDAP error
+				exit $retCode;
+			}
+		}
+		else
+		{
+			debug("Entry $current created\n");
+		}
+		$i=$i+1;
+	}
+}
+
+$skipManaged=0;
+$skipDisabled=0;
+$directLocked=0;
+
+$nsDisabledRole="cn=nsDisabledRole,@suffixN";
+$nsDisabledRole=~ tr/A-Z/a-z/;
+
+$nsManagedDisabledRole="cn=nsManagedDisabledRole,@suffixN";
+$nsManagedDisabledRole=~ tr/A-Z/a-z/;
+
+if ( $operation eq "inactivate" )
+{
+	# Go through all the roles part of nsdisabledrole to check if the entry
+	# is a member of one of those roles
+	$ret=indirectLock("LDAP00", $entry, $nsDisabledRole);
+	if ( $ret == 0 )
+	{
+		if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole )
+		{
+			# indirect lock
+			out("$entry already $state through $throughRole.\n");
+		}
+		else
+		{
+			# direct lock
+			out("$entry already $state.\n");
+		}
+		exit 100;
+	}
+	elsif ( $isLocked == 1 )
+	{
+		# the entry is not locked through a role, may be nsaccountlock is "hardcoded" ?
+		out("$entry already $state (probably directly).\n");
+		exit 103;
+	}
+}
+elsif ( $operation eq "activate" || $operation eq "get status of" )
+{
+	$skipManaged=$single;
+	$skipDisabled=$role;
+
+	$ret=indirectLock("LDAP00",$entry, $nsDisabledRole);
+
+	if ( $ret == 0 )
+	{
+		# undirectly locked
+		if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole )
+		{
+			if ( $operation eq "activate" )
+			{
+				out("$entry inactivated through $throughRole. Can not activate it individually.\n");
+				exit 100;
+			}
+			else
+			{
+				out("$entry inactivated through $throughRole.\n");
+				exit 104;
+			}
+		}
+		debug("$entry locked individually\n");
+
+		if ( $operation ne "activate" )
+		{
+			out("$entry inactivated.\n");
+			exit 103;
+		}
+	}
+	elsif ( $directLocked == 0 )
+	{
+		if ( $operation eq "activate" && $isLocked != 1 )
+		{
+			out("$entry $already $state.\n");
+			exit 100;
+		}
+		elsif ( $isLocked != 1 )
+		{
+			out("$entry $already $state.\n");
+			exit 102;
+		}
+		else
+		{
+			# not locked using our schema, but nsaccountlock is probably present
+			out("$entry inactivated (probably directly).\n");
+			exit 103;
+		}
+	}
+	elsif ( $operation ne "activate" )
+	{
+		out("$entry inactivated.\n");
+		exit 103;
+	}
+	# else Locked directly, juste unlock it!
+	debug("$entry locked individually\n");
+}
+
+#
+# Inactivate/activate the entry
+#
+$action="$ldapmodify -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$rootpw\" -c >> /dev/null 2>&1";
+if ( $single == 1 )
+{
+	@record=(
+		"dn: $entry\n",
+		"changetype: modify\n",
+		"$modrole: nsRoleDN\n",
+		"nsRoleDN: cn=nsManagedDisabledRole,@suffixN\n\n" );
+}
+else
+{
+	@record=(
+		"dn: cn=nsDisabledRole,@suffixN\n",
+		"changetype: modify\n",
+		"$modrole: nsRoleDN\n",
+		"nsRoleDN: $entry\n\n" );
+}
+open(FD,"| $action ");
+print FD @record;
+close(FD);
+if ( $? != 0 )
+{
+debug("$modrole, $entry\n");
+	$retCode=$?>>8;
+	exit $retCode;
+}
+
+out("$entry $state.\n");
+exit 0;

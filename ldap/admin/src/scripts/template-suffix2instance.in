@@ -1,27 +1,5 @@
 #!/bin/sh
 
-prefix="{{DS-ROOT}}"
-
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
-
-libpath_add "$prefix{{SERVER-DIR}}"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "@nss_libdir@"
-libpath_add "$prefix@pcre_libdir@"
-
-export LD_LIBRARY_PATH
-SHLIB_PATH=$LD_LIBRARY_PATH
-export SHLIB_PATH
-
 cd {{SERVERBIN-DIR}}
-if [ $# -lt 2 ]
-then
-	echo Usage: suffix2instance {-s includesuffix}*
-	exit 1
-fi
-
-./ns-slapd suffix2instance -D {{CONFIG-DIR}} "$@" 2>&1
+./suffix2instance "$@" -Z {{SERV-ID}}
+exit $?

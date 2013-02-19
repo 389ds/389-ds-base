@@ -1,29 +1,5 @@
 #!/bin/sh
 
-prefix="{{DS-ROOT}}"
-
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
-
-libpath_add "$prefix{{SERVER-DIR}}"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "@nss_libdir@"
-libpath_add "$prefix@pcre_libdir@"
-
-export LD_LIBRARY_PATH
-SHLIB_PATH=$LD_LIBRARY_PATH
-export SHLIB_PATH
-
 cd {{SERVERBIN-DIR}}
-echo saving configuration ...
-conf_ldif={{BAK-DIR}}/{{SERV-ID}}-`date +%Y_%m_%d_%H%M%S`.ldif
-./ns-slapd db2ldif -N -D {{CONFIG-DIR}} -s "o=NetscapeRoot" -a $conf_ldif -n NetscapeRoot 2>&1
-if [ "$?" -ge 1 ] 
-then
-    echo Error occurred while saving configuration
-    exit 1
-fi
-exit 0
+./saveconfig "$@" -Z {{SERV-ID}}
+exit $?
