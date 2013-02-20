@@ -1213,7 +1213,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			op_params->target_address.uniqueid = slapi_ch_strdup (uniqueid);
 		} 
 
-		if( is_cleaned_rid(csn_get_replicaid(op_params->csn))){
+		if( op_params->csn && is_cleaned_rid(csn_get_replicaid(op_params->csn))){
 			/* this RID has been cleaned */
 			object_release (repl_obj);
 			return 0;
