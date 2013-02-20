@@ -813,7 +813,7 @@ slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr)
 	const char *syntaxoid = NULL;
 	int dn_syntax = 0; /* not DN, by default */
 
-	if ( attr->a_plugin == NULL ) { 
+	if (attr && attr->a_plugin == NULL) {
  	    slapi_attr_init_syntax (attr);
  	}
 	if (attr && attr->a_plugin) { /* If not set, there is no way to get the info */

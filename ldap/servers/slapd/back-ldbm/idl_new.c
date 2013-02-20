@@ -400,8 +400,8 @@ idl_new_range_fetch(
     int idl_rc = 0;
     DBC *cursor = NULL;
     IDList *idl = NULL;
-    DBT cur_key;
-    DBT data;
+    DBT cur_key = {0};
+    DBT data = {0};
     ID id = 0;
     size_t count = 0;
 #ifdef DB_USE_BULK_FETCH
@@ -420,7 +420,10 @@ idl_new_range_fetch(
         *flag_err = 0;
         return NULL;
     }
-
+    if(upperkey == NULL){
+        LDAPDebug(LDAP_DEBUG_ANY, "idl_new_range_fetch: upperkey is NULL\n",0,0,0);
+        return ret;
+    }
     dblayer_txn_init(li, &s_txn);
     if (txn) {
         dblayer_read_txn_begin(be, txn, &s_txn);

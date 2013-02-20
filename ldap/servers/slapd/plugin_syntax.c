@@ -136,7 +136,7 @@ plugin_call_syntax_filter_ava_sv(
 
 	if ( ( a->a_mr_eq_plugin == NULL ) && ( a->a_mr_ord_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
-		Slapi_Attr *t = a;
+		Slapi_Attr *t = (Slapi_Attr *)a;
 		slapi_attr_init_syntax(t);
 	}
 
@@ -625,7 +625,7 @@ slapi_attr_values2keys_sv_pb(
 	    0, 0, 0 );
 	if ( ( sattr->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
-		slapi_attr_init_syntax(sattr);
+		slapi_attr_init_syntax((Slapi_Attr *)sattr);
 	}
 
 	switch (ftype) {
@@ -797,7 +797,7 @@ slapi_attr_assertion2keys_ava_sv(
 	    "=> slapi_attr_assertion2keys_ava_sv\n", 0, 0, 0 );
 	if ( ( sattr->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
-		slapi_attr_init_syntax(sattr);
+		slapi_attr_init_syntax((Slapi_Attr *)sattr);
 	}
 
 	switch (ftype) {
@@ -917,7 +917,7 @@ slapi_attr_assertion2keys_sub_sv(
 	    "=> slapi_attr_assertion2keys_sub_sv\n", 0, 0, 0 );
 	if ( ( sattr->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
-		slapi_attr_init_syntax(sattr);
+		slapi_attr_init_syntax((Slapi_Attr *)sattr);
 	}
 
 	if (sattr->a_mr_sub_plugin) {
@@ -974,10 +974,14 @@ slapi_attr_value_normalize_ext(
 
 	if (!sattr) {
 		sattr = slapi_attr_init(&myattr, type);
+		if(!sattr){
+			attr_done(&myattr);
+			return;
+		}
 	}
 	if ( ( sattr->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
-		slapi_attr_init_syntax(sattr);
+		slapi_attr_init_syntax((Slapi_Attr *)sattr);
 	}
 
 	/* use the filter type to determine which matching rule to use */
@@ -1002,7 +1006,7 @@ slapi_attr_value_normalize_ext(
 		break;
 	}
 
-	if (!norm_fn) {
+	if (!norm_fn && sattr->a_plugin) {
 		/* no matching rule specific normalizer specified - use syntax default */
 		norm_fn = sattr->a_plugin->plg_syntax_normalize;
 	}

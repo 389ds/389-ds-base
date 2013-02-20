@@ -3111,12 +3111,15 @@ config_set_onoff ( const char *attrname, char *value, int *configvalue,
 {
   int retVal = LDAP_SUCCESS;
   slapi_onoff_t newval = -1;
+#ifndef ATOMIC_GETSET_ONOFF
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+#endif 
   
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
   
+  CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
   if ( strcasecmp ( value, "on" ) != 0 &&
 	   strcasecmp ( value, "off") != 0 && 
 	   /* initializing the value */
@@ -3132,8 +3135,6 @@ config_set_onoff ( const char *attrname, char *value, int *configvalue,
 	/* we can return now if we aren't applying the changes */
 	return retVal;
   }
-
-  CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
   
   if ( strcasecmp ( value, "on" ) == 0 ) {
 	newval = LDAP_ON;
@@ -3148,7 +3149,8 @@ config_set_onoff ( const char *attrname, char *value, int *configvalue,
 #else
   *configvalue = newval;
 #endif
-  CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+  CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig); 
+
   return retVal;
 }
 			 
