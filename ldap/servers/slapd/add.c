@@ -600,7 +600,8 @@ static void op_shared_add (Slapi_PBlock *pb)
 #endif
 			}
 		}
-		if (unhashed_password_vals) {
+		if (unhashed_password_vals &&
+		    (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch())) {
 			/* unhashed_password_vals is consumed if successful. */
 			err = slapi_pw_set_entry_ext(e, unhashed_password_vals,
 			                             SLAPI_EXT_SET_ADD);

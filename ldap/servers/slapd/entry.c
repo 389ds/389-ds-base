@@ -66,16 +66,12 @@ static int _entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn);
 
 /* protected attributes which are not included in the flattened entry,
  * which will be stored in the db. */
-#if defined(USE_OLD_UNHASHED)
 static char *protected_attrs_all [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
                                        SLAPI_ATTR_ENTRYDN,
                                        NULL};
-
+#if defined(USE_OLD_UNHASHED)
 static char *forbidden_attrs [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
                                    NULL};
-#else
-static char *protected_attrs_all [] = {SLAPI_ATTR_ENTRYDN,
-                                       NULL};
 #endif
 /* Attributes which are put into the entry extension */
 struct attrs_in_extension attrs_in_extension[] =

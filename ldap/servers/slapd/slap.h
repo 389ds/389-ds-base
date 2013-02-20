@@ -306,9 +306,6 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 
 #define ATTR_NETSCAPEMDSUFFIX "netscapemdsuffix"
 
-/* Used to make unhashed passwords available to plugins. */
-#define	PSEUDO_ATTR_UNHASHEDUSERPASSWORD	"unhashed#user#password"
-
 #define REFERRAL_REMOVE_CMD "remove"
 
 /* Filenames for DSE storage */
@@ -1938,6 +1935,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
+#define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
 #define CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE "nsslapd-rootpwstoragescheme"
@@ -2306,6 +2304,7 @@ typedef struct _slapdFrontendConfig {
   /* atomic settings */
   Slapi_Counter *ignore_vattrs;
   Slapi_Counter *sasl_mapping_fallback;
+  slapi_onoff_t unhashed_pw_switch;	/* switch to on/off/nolog unhashed pw */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
@@ -2411,8 +2410,9 @@ extern char	*attr_dataversion;
 
 #define MTN_CONTROL_USE_ONE_BACKEND_OID	"2.16.840.1.113730.3.4.14"
 #define MTN_CONTROL_USE_ONE_BACKEND_EXT_OID	"2.16.840.1.113730.3.4.20"
-
+#if defined(USE_OLD_UNHASHED)
 #define PSEUDO_ATTR_UNHASHEDUSERPASSWORD_OID "2.16.840.1.113730.3.1.2110"
+#endif
 
 /* virtualListViewError is a relatively new concept that was added long 
  * after we implemented VLV. Until added to LDAP SDK, we define 

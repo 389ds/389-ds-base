@@ -117,7 +117,8 @@ typedef enum {
 	CONFIG_SPECIAL_ERRORLOGLEVEL, /* requires & with LDAP_DEBUG_ANY */
 	CONFIG_STRING_OR_EMPTY, /* use an empty string */
 	CONFIG_SPECIAL_ANON_ACCESS_SWITCH, /* maps strings to an enumeration */
-	CONFIG_SPECIAL_VALIDATE_CERT_SWITCH /* maps strings to an enumeration */
+	CONFIG_SPECIAL_VALIDATE_CERT_SWITCH, /* maps strings to an enumeration */
+	CONFIG_SPECIAL_UNHASHED_PW_SWITCH /* unhashed pw: on/off/nolog */
 } ConfigVarType;
 
 static int config_set_onoff( const char *attrname, char *value,
@@ -259,6 +260,7 @@ slapi_onoff_t init_mempool_switch;
 #define DEFAULT_SSLCLIENTAPTH "off"
 #define DEFAULT_ALLOW_ANON_ACCESS "on"
 #define DEFAULT_VALIDATE_CERT "warn"
+#define DEFAULT_UNHASHED_PW_SWITCH "on"
 
 static int
 isInt(ConfigVarType type)
@@ -1020,6 +1022,12 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ignore_vattrs,
 		CONFIG_STRING, (ConfigGetFunc)config_get_ignore_vattrs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
+	{CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE, config_set_unhashed_pw_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.unhashed_pw_switch,
+		CONFIG_SPECIAL_UNHASHED_PW_SWITCH,
+		(ConfigGetFunc)config_get_unhashed_pw_switch, 
+		DEFAULT_UNHASHED_PW_SWITCH},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1449,6 +1457,7 @@ FrontendConfig_init () {
   cfg->ignore_vattrs = slapi_counter_new();
   cfg->sasl_mapping_fallback = slapi_counter_new();
   init_sasl_mapping_fallback = LDAP_OFF;
+  cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
@@ -6585,7 +6594,6 @@ config_get_allowed_to_delete_attrs(void)
     return retVal;
 }
 
-
 int
 config_set_allowed_to_delete_attrs( const char *attrname, char *value,
                                     char *errorbuf, int apply )
@@ -6746,6 +6754,56 @@ config_set_default_naming_context(const char *attrname,
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return LDAP_SUCCESS;
+}
+
+int
+config_set_unhashed_pw_switch(const char *attrname, char *value,
+                              char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if ((strcasecmp(value, "on") != 0) && (strcasecmp(value, "off") != 0) &&
+        (strcasecmp(value, "nolog") != 0)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+            "%s: invalid value \"%s\". Valid values are \"on\", "
+            "\"off\", or \"nolog\".", attrname, value);
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    if (!apply) {
+        /* we can return now if we aren't applying the changes */
+        return retVal;
+    }
+
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+
+    if (strcasecmp(value, "on") == 0 ) {
+        slapdFrontendConfig->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
+    } else if (strcasecmp(value, "off") == 0 ) {
+        slapdFrontendConfig->unhashed_pw_switch = SLAPD_UNHASHED_PW_OFF;
+    } else if (strcasecmp(value, "nolog") == 0) {
+        slapdFrontendConfig->unhashed_pw_switch = SLAPD_UNHASHED_PW_NOLOG;
+    }
+
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    return retVal;
+}
+
+int
+config_get_unhashed_pw_switch()
+{
+	int retVal = 0;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+	retVal = slapdFrontendConfig->unhashed_pw_switch;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 /*
@@ -6960,6 +7018,23 @@ config_set_value(
             sval = "off";
         }
         slapi_entry_attr_set_charptr(e, cgas->attr_name, sval);
+        break;
+
+    case CONFIG_SPECIAL_UNHASHED_PW_SWITCH:
+        if (!value) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "on");
+            break;
+        }
+
+        if (*((int *)value) == SLAPD_UNHASHED_PW_OFF) {
+            sval = "off";
+        } else if (*((int *)value) == SLAPD_UNHASHED_PW_NOLOG) {
+            sval = "nolog";
+        } else {
+            sval = "on";
+        }
+        slapi_entry_attr_set_charptr(e, cgas->attr_name, sval);
+
         break;
 
     case CONFIG_SPECIAL_VALIDATE_CERT_SWITCH:

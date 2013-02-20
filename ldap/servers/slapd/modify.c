@@ -825,9 +825,9 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	 * before calling the preop plugins
 	 */
 
-	if (pw_change && !repl_op)
-	{
-		Slapi_Value **va= NULL;
+	if (pw_change && !repl_op &&
+	    (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch())) {
+		Slapi_Value **va = NULL;
 
 		unhashed_pw_attr = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
 

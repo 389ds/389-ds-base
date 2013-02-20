@@ -52,12 +52,7 @@
 static void compute_limits (Slapi_PBlock *pb);
 
 /* attributes that no clients are allowed to add or modify */
-#if defined(USE_OLD_UNHASHED)
-/* PSEUDO_ATTR_UNHASHEDUSERPASSWORD used to be in protected_attrs_all. 
- * Now it's moved to back-ldbm/id2entry.c to share it among repl masters.
- * (bz 182507)*/
-#endif
-static char *protected_attrs_all [] = { NULL };
+static char *protected_attrs_all [] = { PSEUDO_ATTR_UNHASHEDUSERPASSWORD };
 static char *pwpolicy_lock_attrs_all [] = { "passwordRetryCount",
                                             "retryCountResetTime",
                                             "accountUnlockTime",
@@ -72,31 +67,27 @@ int op_shared_is_allowed_attr (const char *attr_name, int replicated_op)
     int                 i;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    /* check list of attributes that no client is allowed to specify */
-    for (i = 0; protected_attrs_all[i]; i ++)
-    {
-        if (strcasecmp (attr_name, protected_attrs_all[i]) == 0)
-        {
-            /* this attribute is not allowed */
-            return 0;
-        }
-    }
-
     /* ONREPL - should allow backends to plugin here to specify 
                 attributes that are not allowed */
 
-    if (!replicated_op)
-    {
-        /*
-         * check to see if attribute is marked as one clients can't modify
-         */
+    if (!replicated_op) {
         struct asyntaxinfo    *asi;
         int                    no_user_mod = 0;
 
+        /* check list of attributes that no client is allowed to specify */
+        for (i = 0; protected_attrs_all[i]; i ++) {
+            if (strcasecmp (attr_name, protected_attrs_all[i]) == 0) {
+                /* this attribute is not allowed */
+                return 0;
+            }
+        }
+        /*
+         * check to see if attribute is marked as one clients can't modify
+         */
+
         asi = attr_syntax_get_by_name( attr_name );
         if ( NULL != asi &&
-                0 != ( asi->asi_flags & SLAPI_ATTR_FLAG_NOUSERMOD ))
-        {
+             0 != ( asi->asi_flags & SLAPI_ATTR_FLAG_NOUSERMOD )) {
             /* this attribute is not allowed */
             no_user_mod = 1;
         }

@@ -323,7 +323,7 @@ static int _cl5Str2OperationType (const char *str);
 static void _cl5WriteString (const char *str, char **buff);
 static void _cl5ReadString (char **str, char **buff);
 static void _cl5WriteMods (LDAPMod **mods, char **buff);
-static void _cl5WriteMod (LDAPMod *mod, char **buff);
+static int _cl5WriteMod (LDAPMod *mod, char **buff);
 static int _cl5ReadMods (LDAPMod ***mods, char **buff);
 static int _cl5ReadMod (Slapi_Mod *mod, char **buff);
 static int _cl5GetModsSize (LDAPMod **mods);
@@ -2475,7 +2475,7 @@ static void _cl5WriteMods (LDAPMod **mods, char **buff)
 {	
 	PRInt32 i;
 	char *mod_start;
-	PRInt32 count;
+	PRInt32 count = 0;
 
 	if (mods == NULL)
 		return;
@@ -2484,30 +2484,49 @@ static void _cl5WriteMods (LDAPMod **mods, char **buff)
 	mod_start = (*buff) + sizeof (count);
 
 	/* write mods*/
-	for (i=0; mods[i]; i++)
-	{
-		_cl5WriteMod (mods[i], &mod_start);
+	for (i = 0; mods[i]; i++) {
+		if (0 <= _cl5WriteMod (mods[i], &mod_start)) {
+			count++;
+		}
 	}
 
-	count = PR_htonl(i);
+	count = PR_htonl(count);
 	memcpy (*buff, &count, sizeof (count));	
 	
 	(*buff) = mod_start;
 }
 
-static void _cl5WriteMod (LDAPMod *mod, char **buff)
+/*
+ * return values:
+ *     positive: no need to encrypt && succeeded to write a mod
+ *            0: succeeded to encrypt && write a mod
+ *     netative: failed to encrypt && no write to the changelog
+ */
+static int
+_cl5WriteMod (LDAPMod *mod, char **buff)
 {
+	char *orig_pos;
 	char *pos;
 	PRInt32 count;
 	struct berval *bv;
 	struct berval *encbv;
 	struct berval *bv_to_use;
 	Slapi_Mod smod;
-	int rc = 0;
+	int rc = -1;
+
+	if (NULL == mod) {
+		return rc;
+	}
+	if (SLAPD_UNHASHED_PW_NOLOG == config_get_unhashed_pw_switch()) {
+		if (0 == strcasecmp(mod->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)) {
+			/* If nsslapd-unhashed-pw-switch == nolog, skip writing it to cl. */
+			return rc;
+		}
+	}
 
 	slapi_mod_init_byref(&smod, mod);
 
-	pos = *buff;
+	orig_pos = pos = *buff;
 	/* write mod op */
 	*pos = (PRUint8)slapi_mod_get_operation (&smod);
 	pos ++;
@@ -2517,7 +2536,7 @@ static void _cl5WriteMod (LDAPMod *mod, char **buff)
 	/* write value count */
 	count = PR_htonl(slapi_mod_get_num_values(&smod));
 	memcpy (pos, &count, sizeof (count));
-	pos += sizeof (PRInt32);	
+	pos += sizeof (PRInt32);
 
 	bv = slapi_mod_get_first_value (&smod);
 	while (bv)
@@ -2537,6 +2556,8 @@ static void _cl5WriteMod (LDAPMod *mod, char **buff)
 						"_cl5WriteMod: encrypting \"%s: %s\" failed\n",
 						slapi_mod_get_type(&smod), bv->bv_val);
 			bv_to_use = NULL;
+			rc = -1;
+			break;
 		}
 		if (bv_to_use) {
 			_cl5WriteBerval (bv_to_use, &pos);
@@ -2545,9 +2566,14 @@ static void _cl5WriteMod (LDAPMod *mod, char **buff)
 		bv = slapi_mod_get_next_value (&smod);
 	}
 
-	(*buff) = pos;
+	if (rc < 0) {
+		(*buff) = orig_pos;
+	} else {
+		(*buff) = pos;
+	}
 
 	slapi_mod_done (&smod);
+	return rc;
 }
 
 /* mods format:

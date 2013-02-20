@@ -7020,6 +7020,14 @@ char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
 #endif
 #endif
 
+/* Used to make unhashed passwords available to plugins. */
+#define	PSEUDO_ATTR_UNHASHEDUSERPASSWORD	"unhashed#user#password"
+
+/* Unhashed password */
+#define SLAPD_UNHASHED_PW_OFF           0
+#define SLAPD_UNHASHED_PW_ON            1
+#define SLAPD_UNHASHED_PW_NOLOG         2
+
 /**
  * Set given "type: value" to the plugin default config entry
  * (cn=plugin default config,cn=config) unless the same "type: value" pair
