@@ -415,14 +415,13 @@ idl_new_range_fetch(
     time_t curtime;
     void *saved_key = NULL;
 
-    if (NEW_IDL_NOOP == *flag_err)
-    {
-        *flag_err = 0;
+    if (NULL == flag_err) {
         return NULL;
     }
-    if(upperkey == NULL){
-        LDAPDebug(LDAP_DEBUG_ANY, "idl_new_range_fetch: upperkey is NULL\n",0,0,0);
-        return ret;
+
+    *flag_err = 0;
+    if (NEW_IDL_NOOP == *flag_err) {
+        return NULL;
     }
     dblayer_txn_init(li, &s_txn);
     if (txn) {
@@ -486,7 +485,7 @@ idl_new_range_fetch(
     /* Iterate over the duplicates, amassing them into an IDL */
 #ifdef DB_USE_BULK_FETCH
     while (cur_key.data &&
-           (upperkey->data ?
+           (upperkey && upperkey->data ?
             ((operator == SLAPI_OP_LESS) ?
              DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
              DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
@@ -575,7 +574,8 @@ idl_new_range_fetch(
 #endif
         ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_DUP|DB_MULTIPLE);
         if (ret) {
-            if (DBT_EQ(&cur_key, upperkey)) { /* this is the last key */
+            if (upperkey && upperkey->data && DBT_EQ(&cur_key, upperkey)) {
+                /* this is the last key */
                 break;
             }
             /* First set the cursor (DB_NEXT_NODUP does not take DB_MULTIPLE) */
@@ -596,7 +596,7 @@ idl_new_range_fetch(
         }
     }
 #else
-    while (upperkey->data ?
+    while (upperkey && upperkey->data ?
            ((operator == SLAPI_OP_LESS) ?
             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
@@ -632,7 +632,8 @@ idl_new_range_fetch(
         ret = cursor->c_get(cursor,&cur_key,&data,DB_NEXT_DUP);
         count++;
         if (ret) {
-            if (DBT_EQ(&cur_key, upperkey)) { /* this is the last key */
+            if (upperkey && upperkey->data && DBT_EQ(&cur_key, upperkey)) {
+                /* this is the last key */
                 break;
             }
             DBT_FREE_PAYLOAD(cur_key);
