@@ -1,101 +1,47 @@
 #!/bin/sh
 
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
+source ./DSSharedLib
 
-server_dir="@libdir@/dirsrv/"
-SCRIPT=$(readlink -f $0)
-SCRIPTPATH=$(dirname $SCRIPT)
-if [ $SCRIPTPATH == "/usr/sbin" ]
-then
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/usr\/sbin//'`
-    server_sbin="/usr/sbin"
-else
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/sbin//'`
-    server_sbin=$prefix"/sbin"
-fi
-
-libpath_add "$server_dir"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "@libdir@"
+libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
-libpath_add "$prefix@pcre_libdir@"
+libpath_add "@libdir@"
+libpath_add "@pcre_libdir@"
 
 export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
+usage ()
+{
+    echo "Usage: restoreconfig [-Z serverID]"
+    echo "   -Z      - Server instance identifier"
+}
+
 while getopts "Z:h" flag
 do
     case $flag in
         Z) servid=$OPTARG;;
-        h) echo "Usage: restoreconfig [-Z serverID]"
-           echo "   -Z      - Server instance identifier"
+        h) usage
            exit 0;;
-        ?) echo "Usage: restoreconfig [-Z serverID]"
-           echo "   -Z      - Server instance identifier"
+        ?) usage
            exit 1;;
-           
     esac
 done
 
-first="yes"
-
-# server id not provided, check if there is only one instance
-inst_count=0
-for i in `ls $prefix/etc/sysconfig/dirsrv-* 2>/dev/null`
-do
-    if [ $i != '$prefix/etc/sysconfig/dirsrv-admin' ]
-    then
-        inst_count=`expr $inst_count + 1`
-        id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
-        if  [ $first == "yes" ]
-        then
-            instances=$id
-            first="no"
-        else
-            instances=$instances", $id"
-        fi
-        name=$id
-    fi
-done 
-    
-if [ -z $servid ]
+servid=$(get_server_id "@initconfigdir@" $servid)
+if [ $? == 1 ]
 then
-    if [ $inst_count -eq 1 ]
-    then
-        servid=$name
-    else 
-        # error
-        echo "Usage: restoreconfig [-Z serverID]"
-        echo "You must supply a server instance identifier.  Use -Z to specify instance name"
-        echo "Available instances: $instances"
-        exit 1
-    fi
-elif [ $servid == slapd-* ]
-then
-    servid=`echo "$servid" | sed -e 's/slapd-//'`
-elif [ $servid == dirsrv-* ]
-then
-    servid=`echo "$servid" | sed -e 's/dirsrv-//'`
-fi
-configdir="$prefix/etc/dirsrv/slapd-$servid"
-if ! [ -a $configdir ]
-then
-    echo "Invalid server identifier: $servid"
-    echo "Available instances: $instances"
+    usage
+    echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
+    echo "Available instances: $servid"
     exit 1
 fi
 
-cd $server_sbin
-conf_ldif=`ls -1t $prefix/var/lib/dirsrv/slapd-$servid/bak/$servid-*.ldif 2>/dev/null | head -1 `
+conf_ldif=`ls -1t @localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/$servid-*.ldif 2>/dev/null | head -1 `
 if [ -z "$conf_ldif" ]
 then
-    echo No configuration to restore in $prefix/var/lib/dirsrv/slapd-$servid/bak/ ; exit 1
+    echo No configuration to restore in @localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/ ; exit 1
 fi
 echo Restoring $conf_ldif...
-./ns-slapd ldif2db -D $configdir -i $conf_ldif -n NetscapeRoot 2>&1
+@sbindir@/ns-slapd ldif2db -D $configdir -i $conf_ldif -n NetscapeRoot 2>&1
 exit $?

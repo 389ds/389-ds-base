@@ -108,8 +108,6 @@ $excli = 0;
 $encrypt_on_import = 0;
 $host = "";
 $port = "";
-$first = "yes";
-$prefix = DSUtil::get_prefix();
 
 while ($i <= $#ARGV) {
 	if ( "$ARGV[$i]" eq "-i" ) {	# ldiffiles
@@ -169,68 +167,16 @@ while ($i <= $#ARGV) {
 	}
 	$i++;
 }
+$servid = DSUtil::get_server_id($servid, "@initconfigdir@");
+@info = DSUtil::get_missing_info("@instconfigdir@", $servid, $host, $port, $rootdn);
+$passwd = DSUtil::get_password_from_file($passwd, $passwdfile);
 
-opendir(DIR, "$prefix/etc/sysconfig");
-@files = readdir(DIR);
-foreach $file (@files){
-    if($file =~ /^dirsrv-/ && $file ne "dirsrv-admin"){
-        $instance_count++;
-        if($file =~ /dirsrv-(.*)/){
-            if($first eq "yes"){
-                $instances=$1;
-                $first = "no";
-            } else {
-                $instances=$instances . ", $1";
-            }
-            $name = $1;
-        }
-    }
-}
-    
-if($servid eq ""){
-    if ($instance_count == 1){
-        $servid = $name;
-    } else {
-        &usage;
-        print (STDERR "You must supply a server instance identifier.  Use -Z to specify instance name\n");
-        print "Available instances: $instances\n";
-        exit (1);
-    }
-} elsif ($servid =~ /^dirsrv-/){
-    # strip off "dirsrv-"
-    $servid =~ s/^dirsrv-//;
-} elsif ($servid =~ /^slapd-/){
-    # strip off "slapd-"
-    $servid =~ s/^slapd-//;
-}
-@info = DSUtil::get_missing_info($prefix, $servid, $instances, $host, $port, $rootdn);
-
-if ($passwdfile ne ""){
-# Open file and get the password
-	unless (open (RPASS, $passwdfile)) {
-		die "Error, cannot open password file $passwdfile\n";
-	}
-	$passwd = <RPASS>;
-	chomp($passwd);
-	close(RPASS);
-} elsif ($passwd eq "-"){
-# Read the password from terminal
-	print "Bind Password: ";
-	# Disable console echo
-	system("@sttyexec@ -echo") if -t STDIN;
-	# read the answer
-	$passwd = <STDIN>;
-	# Enable console echo
-	system("@sttyexec@ echo") if -t STDIN;
-	print "\n";
-	chop($passwd); # trim trailing newline
-}
 if (($instance eq "" && $included[0] eq "") || $ldiffiles[0] eq "" || $info[2] eq "" || $passwd eq "") { &usage; exit(1); }
 ($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
 $mn++; $yr += 1900;
 $taskname = "import_${yr}_${mn}_${dy}_${h}_${m}_${s}";
 $dn = "dn: cn=$taskname, cn=import, cn=tasks, cn=config\n";
-$misc = "changetype: add\nobjectclass: top\nobjectclass: extensibleObject\n";
+$misc = "objectclass: top\nobjectclass: extensibleObject\n";
 $cn =  "cn: $taskname\n";
 if ($instance ne "") {
 	$nsinstance = "nsInstance: ${instance}\n";
@@ -264,12 +210,11 @@ if ($uniqidname ne "") { $nsuniqidname = "nsUniqueIdGeneratorNamespace: ${uniqid
 $entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsldiffiles}${nsnoattrindexes}${nsimportencrypt}${nsmergechunksiz}${nsgenuniqid}${nsuniqidname}";
 $vstr = "";
 if ($verbose != 0) { $vstr = "-v"; }
-$ENV{'PATH'} = "$prefix@ldaptool_bindir@:$prefix/usr/bin:@ldaptool_bindir@:/usr/bin";
+$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:@ldaptool_bindir@:/usr/bin";
 
-DSUtil::libpath_add("$prefix@nss_libdir@");
-DSUtil::libpath_add("$prefix/usr/lib");
 DSUtil::libpath_add("@nss_libdir@");
 DSUtil::libpath_add("/usr/lib");
+DSUtil::libpath_add("/usr/lib64");
 
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$passwd\" -a" );

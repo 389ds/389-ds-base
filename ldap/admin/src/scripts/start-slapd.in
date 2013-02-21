@@ -1,12 +1,18 @@
 #!/bin/sh
 
+source ./DSSharedLib
+
 # Script that starts the ns-slapd server.
 # Exit status can be:
 #       0: Server started successfully
 #       1: Server could not be started
 #       2: Server already running
 
-args=""
+usage ()
+{
+    echo "Usage: start-slapd [-Z serverID]"
+}
+
 while getopts "Z:SvVhi:d:w:" flag
 do
     case $flag in
@@ -17,66 +23,28 @@ do
         i) args=$args" -i $OPTARG";;
         w) args=$args" -w $OPTARG";;
         S) args=$args" -S";;
-        h) echo "Usage: start-slapd [-Z serverID]"
+        h) usage
            exit 0;;
-        ?) echo "Usage: start-slapd [-Z serverID]"
+        ?) usage
            exit 1;;
     esac
 done
 
-SCRIPT=$(readlink -f $0)
-SCRIPTPATH=$(dirname $SCRIPT)
-if [ $SCRIPTPATH == "/usr/sbin" ]
+servid=$(get_server_id "@initconfigdir@" $servid)
+if [ $? == 1 ]
 then
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/usr\/sbin//'`
-else
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/sbin//'`
+    usage
+    echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
+    echo "Available instances: $servid"
+    exit 1
 fi
 
-first="yes"
-if [ -z $servid ]
-then
-    # server id not provided, check if there is only one instance
-    inst_count=0
-    for i in `ls $prefix/etc/sysconfig/dirsrv-* 2>/dev/null`
-    do
-        if [ $i != '$prefix/etc/sysconfig/dirsrv-admin' ]
-        then
-            inst_count=`expr $inst_count + 1`
-            id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
-            if  [ $first == "yes" ]
-            then
-                instances=$id
-                first="no"
-            else
-                instances=$instances", $id"
-            fi
-            name=$id
-        fi
-    done 
-    if [ $inst_count -eq 1 ]
-    then
-        servid=$name
-    else 
-        # error
-        echo "Usage: start-slapd [-Z serverID]"
-        echo "You must supply a server instance identifier.  Use -Z to specify instance name"
-        echo "Available instances: $instances"
-        exit 1
-    fi
-elif [ $servid == slapd-* ]
-then
-    servid=`echo "$servid" | sed -e 's/slapd-//'`
-elif [ $servid == dirsrv-* ]
-then
-    servid=`echo "$servid" | sed -e 's/dirsrv-//'`
-fi
-
-@sbindir@/start-dirsrv -d $prefix/etc/sysconfig $servid $args
+@sbindir@/start-dirsrv -d @initconfigdir@ $servid $args
 if [ $? == 0 ]
 then
     echo Sucessfully started instance $servid
 else
     echo Failed to start instance $servid
 fi
+
 exit $?

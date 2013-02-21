@@ -117,7 +117,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
-	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif \
+	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif ldap/admin/src/scripts/DSSharedLib \
 	ldap/admin/src/scripts/bak2db ldap/admin/src/scripts/db2bak ldap/admin/src/scripts/upgradedb \
 	ldap/admin/src/scripts/db2index ldap/admin/src/scripts/db2ldif \
 	ldap/admin/src/scripts/dn2rdn ldap/admin/src/scripts/ldif2db \
@@ -370,6 +370,7 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/dbverify \
 	ldap/admin/src/scripts/upgradedb \
+	ldap/admin/src/scripts/DSSharedLib \
     wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \

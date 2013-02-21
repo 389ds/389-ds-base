@@ -1,0 +1,68 @@
+libpath_add()
+{
+    [ -z "$1" ] && return
+    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
+}
+
+#
+#  get_server_id()
+#
+#  First grab all the server instances
+#  Then check if a server id was provided, if not, set
+#  the server id if there is only one instance. 
+#  If a servid was provided, make sure its a valid instance name.
+#
+get_server_id()
+{
+    dir=$1
+    servid=$2
+    first="yes"
+    inst_count=0
+    rc=0
+    
+    for i in `ls $dir/dirsrv-* 2>/dev/null`
+    do
+        if [ $i != '$dir/dirsrv-admin' ]
+        then
+            inst_count=`expr $inst_count + 1`
+            id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
+            if  [ $first == "yes" ]
+            then
+                instances=$id
+                first="no"
+            else
+                instances=$instances", $id"
+            fi
+            name=$id
+        fi
+    done
+    
+    if [ -z $servid ]
+    then
+        # server id not provided, check if there is only one instance
+        if [ $inst_count -eq 1 ]
+        then
+            servid=$name
+        else 
+            # multiple instances, can not set server id.  Return list of instances
+            servid=$instances
+            rc=1
+        fi
+    elif [ $servid == slapd-* ]
+    then
+        servid=`echo "$servid" | sed -e 's/slapd-//'`
+    elif [ $servid == dirsrv-* ]
+    then
+        servid=`echo "$servid" | sed -e 's/dirsrv-//'`
+    fi
+    
+    if ! [ -a $dir/dirsrv-$servid ]
+    then
+        # invalid instance name, return the "valid" instance names
+        servid=$instances
+        rc=1
+    fi
+
+    echo $servid
+    exit $rc
+}

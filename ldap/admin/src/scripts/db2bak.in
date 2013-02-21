@@ -1,41 +1,27 @@
 #!/bin/sh
 
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
+source ./DSSharedLib
 
-server_dir="@libdir@/dirsrv/"
-SCRIPT=$(readlink -f $0)
-SCRIPTPATH=$(dirname $SCRIPT)
-if [ $SCRIPTPATH == "/usr/sbin" ]
-then
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/usr\/sbin//'`
-    server_sbin="/usr/sbin"
-else
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/sbin//'`
-    server_sbin=$prefix"/sbin"
-fi
-
-libpath_add "$server_dir"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "$prefix@pcre_libdir@"
+libpath_add "@libdir@/dirsrv/"
+libpath_add "@nss_libdir@"
+libpath_add "@libdir@"
+libpath_add "@pcre_libdir@"
 
 export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
+usage()
+{
+    echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-h]"
+}
+
 if [ $# -gt 4 ]
 then
-    echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-h]"
+    usage
     exit 1
 fi
 
-first="yes"
-bak_dir=""
-args=""
-cd $server_sbin
 if [ "$#" -gt 0 ]
 then
   if ["$1" != "-*" ] 
@@ -47,7 +33,7 @@ then
   while getopts "hqd:Z:vi:a:SD" flag
   do
     case $flag in
-        h) echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-h]"
+        h) usage
            exit 0;;
         q) args=$args" -g";;
         v) args=$args" -v";;
@@ -57,62 +43,27 @@ then
         a) $bakdir=$OPTARG;;
         d) args=$args" -d $OPTARG";;
         Z) servid=$OPTARG;;
-        ?) echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-h]"
+        ?) usage
            exit 1;;
     esac
   done
 fi
 
-# server id not provided, check if there is only one instance
-inst_count=0
-for i in `ls $prefix/etc/sysconfig/dirsrv-* 2>/dev/null`
-do
-    if [ $i != '$prefix/etc/sysconfig/dirsrv-admin' ]
-    then
-        inst_count=`expr $inst_count + 1`
-        id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
-        if  [ $first == "yes" ]
-        then
-            instances=$id
-            first="no"
-        else
-            instances=$instances", $id"
-        fi
-        name=$id
-    fi
-done 
-    
-if [ -z $servid ]
+servid=$(get_server_id "@initconfigdir@" $servid)
+if [ $? == 1 ]
 then
-    if [ $inst_count -eq 1 ]
-    then
-        servid=$name
-    else 
-        # error
-        echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-h]"
-        echo "You must supply a server instance identifier.  Use -Z to specify instance name"
-        echo "Available instances: $instances"
-        exit 1
-    fi
-elif [ $servid == slapd-* ]
-then
-    servid=`echo "$servid" | sed -e 's/slapd-//'`
-elif [ $servid == dirsrv-* ]
-then
-    servid=`echo "$servid" | sed -e 's/dirsrv-//'`
-fi
-configdir="$prefix/etc/dirsrv/slapd-$servid"
-if ! [ -a $configdir ]
-then
-    echo "Invalid server identifier: $servid"
-    echo "Available instances: $instances"
+    usage
+    echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
+    echo "Available instances: $servid"
     exit 1
 fi
 
+configdir="@instconfigdir@/slapd-$servid"
+
 if [ -z $bak_dir ]
 then
-    bak_dir=$prefix/var/lib/dirsrv/slapd-$servid/bak/$servid-`date +%Y_%m_%d_%H_%M_%S`
+    bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/$servid-`date +%Y_%m_%d_%H_%M_%S`
 fi
 
 echo "Back up directory: $bak_dir"
-./ns-slapd db2archive -D $configdir -a $bak_dir $args
+@sbindir@/ns-slapd db2archive -D $configdir -a $bak_dir $args

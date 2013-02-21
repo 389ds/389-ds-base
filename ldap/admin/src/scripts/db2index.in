@@ -1,37 +1,25 @@
 #!/bin/sh
 
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
+source ./DSSharedLib
 
-server_dir="@libdir@/dirsrv/"
-SCRIPT=$(readlink -f $0)
-SCRIPTPATH=$(dirname $SCRIPT)
-if [ $SCRIPTPATH == "/usr/sbin" ]
-then
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/usr\/sbin//'`
-    server_sbin="/usr/sbin"
-else
-    prefix=`echo "$SCRIPTPATH" | sed -e 's/\/sbin//'`
-    server_sbin=$prefix"/sbin"
-fi
-
-libpath_add "$server_dir"
-libpath_add "$prefix@nss_libdir@"
-libpath_add "$prefix@libdir@"
-libpath_add "$prefix@pcre_libdir@"
+libpath_add "@libdir@/dirsrv/"
+libpath_add "@nss_libdir@"
+libpath_add "@libdir@"
+libpath_add "@pcre_libdir@"
 
 export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
-first="yes"
-args=""
+usage ()
+{
+    echo "Usage: db2index [-Z serverID] [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
+}
+
 while getopts "hZ:n:s:t:T:vd:a:SD:x:" flag
 do
     case $flag in
-        h) echo "Usage: db2index [-Z serverID] [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
+        h) usage
            exit 0;;
         Z) servid=$OPTARG;; 
         n) args=$args" -n $OPTARG"
@@ -46,72 +34,36 @@ do
         v) args=$args=" -v";;
         S) args=$args=" -S";;
         D) args=$args" -D $OPTARG";;
-        ?) echo "Usage: db2index [-Z serverID] [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
+        ?) usage
            exit 1;;
     esac
 done
 
 if [ -z $benameopt ] && [ -z $includeSuffix ]
 then
-    echo "Usage: db2index [-Z serverID] [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
+    usage
     exit 1;
 fi
 
-# server id not provided, check if there is only one instance
-inst_count=0
-for i in `ls $prefix/etc/sysconfig/dirsrv-* 2>/dev/null`
-do
-    if [ $i != '$prefix/etc/sysconfig/dirsrv-admin' ]
-    then
-        inst_count=`expr $inst_count + 1`
-        id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
-        if  [ $first == "yes" ]
-        then
-            instances=$id
-            first="no"
-        else
-            instances=$instances", $id"
-        fi
-        name=$id
-    fi
-done 
-    
-if [ -z $servid ]
+servid=$(get_server_id "@initconfigdir@" $servid)
+if [ $? == 1 ]
 then
-    if [ $inst_count -eq 1 ]
-    then
-        servid=$name
-    else 
-        # error
-        echo "Usage: db2index [-Z serverID] [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
-        echo "You must supply a server instance identifier.  Use -Z to specify instance name"
-        echo "Available instances: $instances"
-        exit 1
-    fi
-elif [ $servid == slapd-* ]
-then
-    servid=`echo "$servid" | sed -e 's/slapd-//'`
-elif [ $servid == dirsrv-* ]
-then
-    servid=`echo "$servid" | sed -e 's/dirsrv-//'`
-fi
-configdir="$prefix/etc/dirsrv/slapd-$servid"
-if ! [ -a $configdir ]
-then
-    echo "Invalid server identifier: $servid"
-    echo "Available instances: $instances"
+    usage
+    echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
+    echo "Available instances: $servid"
     exit 1
 fi
 
-cd $server_sbin
+configdir="@instconfigdir@/slapd-$servid"
+
 if [ $# -eq 0 ]
 then
-	bak_dir=$prefix/var/lib/dirsrv/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
-	./ns-slapd upgradedb -D $configdir -a "$bak_dir"
+	bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
+	@sbindir@/ns-slapd upgradedb -D $configdir -a "$bak_dir"
 elif [ $# -lt 2 ]
 then
-	echo "Usage: db2index [-Z instance-name] [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
+	usage
 	exit 1
 else
-	./ns-slapd db2index -D $configdir $args
+	@sbindir@/ns-slapd db2index -D $configdir $args
 fi
