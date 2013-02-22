@@ -343,10 +343,10 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root,
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
 
-	if (NULL == extop_oid ||
+	if ((NULL == extop_oid) ||
 		((strcmp(extop_oid, REPL_START_NSDS50_REPLICATION_REQUEST_OID) != 0) &&
-		(strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) != 0)) ||
-		NULL == extop_value || NULL == extop_value->bv_val)
+		 (strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) != 0)) ||
+		!BV_HAS_DATA(extop_value))
 	{
 		/* bogus */
 		rc = -1;
@@ -480,9 +480,9 @@ decode_endrepl_extop(Slapi_PBlock *pb, char **repl_root)
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
 
-	if (NULL == extop_oid ||
-		strcmp(extop_oid, REPL_END_NSDS50_REPLICATION_REQUEST_OID) != 0 ||
-		NULL == extop_value || NULL == extop_value->bv_val)
+	if ((NULL == extop_oid) || 
+	    (strcmp(extop_oid, REPL_END_NSDS50_REPLICATION_REQUEST_OID) != 0) ||
+	    !BV_HAS_DATA(extop_value))
 	{
 		/* bogus */
 		rc = -1;
@@ -545,8 +545,8 @@ decode_repl_ext_response(struct berval *bvdata, int *response_code,
 	PR_ASSERT(NULL != response_code);
 	PR_ASSERT(NULL != ruv_bervals);
 
-	if (NULL == bvdata || NULL == response_code || NULL == ruv_bervals ||
-		NULL == data_guid || NULL == data || NULL == bvdata->bv_val)
+	if ((NULL == response_code) || (NULL == ruv_bervals) ||
+	    (NULL == data_guid) || (NULL == data) || !BV_HAS_DATA(bvdata))
 	{
 		return_value = -1;
 	}
@@ -1412,6 +1412,11 @@ decode_cleanruv_payload(struct berval *extop_value, char **payload)
 {
 	BerElement *tmp_bere = NULL;
 	int rc = 0;
+        
+	if (!BV_HAS_DATA(extop_value)) {
+		rc = -1;
+		goto free_and_return;                    
+	}
 
 	if ((tmp_bere = ber_init(extop_value)) == NULL){
 		rc = -1;

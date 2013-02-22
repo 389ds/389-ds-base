@@ -96,7 +96,7 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 		break;
 	}
 
-	if ( !spec_ber || !spec_ber->bv_val ) {
+	if (!BV_HAS_DATA(spec_ber)) {
 		break;
 	}
 
