@@ -340,7 +340,7 @@ str2simple( char *str , int unescape_filter)
 				f->f_flags |= SLAPI_FILTER_RUV;
 		}
 
-	} if ( !unescape_filter ) {
+	} else if ( !unescape_filter ) {
 		f->f_avtype = slapi_ch_strdup( str );
 		f->f_avvalue.bv_val = slapi_ch_strdup ( value );
 		f->f_avvalue.bv_len = strlen ( f->f_avvalue.bv_val );
