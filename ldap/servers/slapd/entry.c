@@ -2429,9 +2429,9 @@ void slapi_entrycache_vattrcache_watermark_invalidate()
 
 int
 slapi_entry_vattrcache_findAndTest( const Slapi_Entry *e, const char *type,
-								Slapi_Filter *f,
-								filter_type_t filter_type,
-								int *rc )
+                                    Slapi_Filter *f,
+                                    filter_type_t filter_type,
+                                    int *rc )
 {
 	Slapi_Attr *tmp_attr = NULL;
 
@@ -2439,44 +2439,43 @@ slapi_entry_vattrcache_findAndTest( const Slapi_Entry *e, const char *type,
 	*rc = -1;
 
 	if( slapi_vattrcache_iscacheable(type) &&
-		slapi_entry_vattrcache_watermark_isvalid(e) && e->e_virtual_attrs)
-	{
+	    slapi_entry_vattrcache_watermark_isvalid(e) ) {
 
 		if(e->e_virtual_lock == NULL) {
-            return r;
+			return r;
 		}
 
 		vattrcache_entry_READ_LOCK(e);
-		tmp_attr = attrlist_find( e->e_virtual_attrs, type );
-		if (tmp_attr != NULL)
-		{
-			if(valueset_isempty(&(tmp_attr->a_present_values)))
-			{
-				/*
-				 * this is a vattr that has been
-				 * cached already but does not exist
-				 */
-				r= SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; /* hard coded for prototype */				
-			}
-			else
-			{
-				/*
-				 * this is a cached vattr--test the filter on it.
-				 * 
-				*/
-				r= SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
-				if ( filter_type == FILTER_TYPE_AVA ) {
-					*rc = plugin_call_syntax_filter_ava( tmp_attr,
-														f->f_choice,
-														&f->f_ava );
-				} else if ( filter_type == FILTER_TYPE_SUBSTRING) {
-					*rc = plugin_call_syntax_filter_sub( NULL, tmp_attr,
-															&f->f_sub);
-				} else if ( filter_type == FILTER_TYPE_PRES ) {
-					/* type is there, that's all we need to know. */
-					*rc = 0;
+		if (e->e_virtual_attrs) {
+			tmp_attr = attrlist_find( e->e_virtual_attrs, type );
+			if (tmp_attr != NULL) {
+				if(valueset_isempty(&(tmp_attr->a_present_values))) {
+					/*
+					 * this is a vattr that has been
+					 * cached already but does not exist
+					 */
+					/* hard coded for prototype */
+					r= SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; 
+				} else {
+					/*
+					 * this is a cached vattr--test the filter on it.
+					 */
+					r= SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
+					if ( filter_type == FILTER_TYPE_AVA ) {
+						*rc = plugin_call_syntax_filter_ava(tmp_attr,
+						                                    f->f_choice,
+						                                    &f->f_ava);
+					} else if ( filter_type == FILTER_TYPE_SUBSTRING) {
+						*rc = plugin_call_syntax_filter_sub(NULL, tmp_attr,
+						                                    &f->f_sub);
+					} else if ( filter_type == FILTER_TYPE_PRES ) {
+						/* type is there, that's all we need to know. */
+						*rc = 0;
+					}
 				}
 			}
+		} else {
+			r= SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; 
 		}
 		vattrcache_entry_READ_UNLOCK(e);
 	}
