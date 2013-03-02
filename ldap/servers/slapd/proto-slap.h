@@ -127,6 +127,7 @@ int attr_syntax_create( const char *attr_oid, char *const*attr_names,
 void attr_syntax_free( struct asyntaxinfo *a );
 int attr_syntax_add( struct asyntaxinfo *asip );
 char *attr_syntax_normalize_no_lookup( const char *s );
+char *attr_syntax_normalize_no_lookup_ext( char *s, int flags );
 void attr_syntax_enumerate_attrs(AttrEnumFunc aef, void *arg, PRBool writelock);
 void attr_syntax_all_clear_flag( unsigned long flag );
 void attr_syntax_delete_all_not_flagged( unsigned long flag );
@@ -394,6 +395,7 @@ int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *err
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_unhashed_pw_switch(const char *attrname, char *value, char *errorbuf, int apply); 
+int config_set_return_orig_type_switch(const char *attrname, char *value, char *errorbuf, int apply);
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -552,6 +554,7 @@ int config_get_disk_logging_critical();
 int config_get_ndn_cache_count();
 size_t config_get_ndn_cache_size();
 int config_get_ndn_cache_enabled();
+int config_get_return_orig_type_switch();
 char *config_get_allowed_sasl_mechs();
 int config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_schemamod();

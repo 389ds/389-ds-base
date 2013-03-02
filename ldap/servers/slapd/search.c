@@ -329,16 +329,29 @@ do_search( Slapi_PBlock *pb )
 			gerattrs[gerattridx] = NULL;
 		}
 
-		operation->o_searchattrs = cool_charray_dup( attrs );
-		for ( i = 0; attrs[i] != NULL; i++ ) {
-			char	*type;
-
-			type = slapi_attr_syntax_normalize(attrs[i]);
-			slapi_ch_free( (void**)&(attrs[i]) );
-			attrs[i] = type;
+		if (config_get_return_orig_type_switch()) {
+			/* return the original type, e.g., "sn (surname)" */
+			operation->o_searchattrs = charray_dup( attrs );
+			for ( i = 0; attrs[i] != NULL; i++ ) {
+				char	*type;
+				type = slapi_attr_syntax_normalize(attrs[i]);
+				slapi_ch_free( (void**)&(attrs[i]) );
+				attrs[i] = type;
+			}
+		} else {
+			/* return the chopped type, e.g., "sn" */
+			operation->o_searchattrs = NULL;
+			for ( i = 0; attrs[i] != NULL; i++ ) {
+				char *type;
+				type = slapi_attr_syntax_normalize_ext(attrs[i], 
+				                                    ATTR_SYNTAX_NORM_ORIG_ATTR);
+				/* attrs[i] is consumed */
+				charray_add(&operation->o_searchattrs, attrs[i]);
+				attrs[i] = type;
+			}
 		}
 	}
-   if ( slapd_ldap_debug & LDAP_DEBUG_ARGS ) {
+	if ( slapd_ldap_debug & LDAP_DEBUG_ARGS ) {
 		char abuf[ 1024 ], *astr;
 
 		if ( NULL == attrs ) {

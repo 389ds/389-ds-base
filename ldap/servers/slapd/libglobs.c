@@ -253,6 +253,7 @@ slapi_onoff_t init_disk_logging_critical;
 slapi_onoff_t init_disk_preserve_logging;
 slapi_onoff_t init_ndn_cache_enabled;
 slapi_onoff_t init_sasl_mapping_fallback;
+slapi_onoff_t init_return_orig_type;
 #ifdef MEMPOOL_EXPERIMENTAL
 slapi_onoff_t init_mempool_switch;
 #endif
@@ -1028,6 +1029,10 @@ static struct config_get_and_set {
 		CONFIG_SPECIAL_UNHASHED_PW_SWITCH,
 		(ConfigGetFunc)config_get_unhashed_pw_switch, 
 		DEFAULT_UNHASHED_PW_SWITCH},
+	{CONFIG_SEARCH_RETURN_ORIGINAL_TYPE, config_set_return_orig_type_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.return_orig_type,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_type_switch, &init_return_orig_type}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1458,6 +1463,7 @@ FrontendConfig_init () {
   cfg->sasl_mapping_fallback = slapi_counter_new();
   init_sasl_mapping_fallback = LDAP_OFF;
   cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
+  init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
@@ -1736,6 +1742,17 @@ config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf,
         slapdFrontendConfig->ndn_cache_max_size = size;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
+
+    return retVal;
+}
+
+int
+config_set_return_orig_type_switch(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->return_orig_type), errorbuf, apply);
 
     return retVal;
 }
@@ -5734,6 +5751,18 @@ config_get_ndn_cache_enabled(){
 
     CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
     retVal = (int)slapdFrontendConfig->ndn_cache_enabled;
+    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+    return retVal;
+}
+
+int
+config_get_return_orig_type_switch()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+    retVal = (int)slapdFrontendConfig->return_orig_type;
     CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
     return retVal;
 }

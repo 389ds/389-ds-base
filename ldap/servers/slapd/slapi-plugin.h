@@ -4037,6 +4037,24 @@ int slapi_attr_get_bervals_copy( Slapi_Attr *a, struct berval ***vals );
  */
 char * slapi_attr_syntax_normalize( const char *s );
 
+/**
+ * Normalize an attribute type.
+ *
+ * The attribute type will be looked up in the defined syntaxes to
+ * get the normalized form.  If it is not found, the passed in type
+ * will be normalized.  If ATTR_SYNTAX_NORM_ORIG_ATTR is set to flags,
+ * the upper and lower cases are kept but trailing spaces are chopped
+ * from the original attribute type.
+ *
+ * \param s The attribute type that you want to normalize.
+ * \param flags 0 or ATTR_SYNTAX_NORM_ORIG_ATTR
+ * \return A normalized copy of the passed in attribute type.
+ * \warning You should free the returned string using slapi_ch_free_string().
+ * \see slapi_ch_free_string()
+ */
+char * slapi_attr_syntax_normalize_ext( char *s, int flags );
+
+
 /*
  * value routines
  */

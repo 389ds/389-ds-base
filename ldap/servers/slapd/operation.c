@@ -220,7 +220,7 @@ operation_free( Slapi_Operation **op, Connection *conn )
 		slapi_sdn_free(&(*op)->o_target_spec);
 		slapi_ch_free_string( &(*op)->o_authtype );
 		if ( (*op)->o_searchattrs != NULL ) {
-			cool_charray_free( (*op)->o_searchattrs );
+			charray_free( (*op)->o_searchattrs );
 		}
 		if ( NULL != (*op)->o_params.request_controls ) {
 			ldap_controls_free( (*op)->o_params.request_controls );

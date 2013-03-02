@@ -530,6 +530,10 @@ typedef int (*AttrEnumFunc)(struct asyntaxinfo *asi, void *arg);
 #define ATTR_SYNTAX_ENUM_STOP	1	/* halt the enumeration */
 #define ATTR_SYNTAX_ENUM_REMOVE	2	/* unhash current node and continue */
 
+/* flags for slapi_attr_syntax_normalize_ext */
+#define ATTR_SYNTAX_NORM_ORIG_ATTR 0x1 /* a space and following characters are
+                                          removed from the given string */
+
 /* This is the type of the function passed into plugin_syntax_enumerate */
 typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc,
 							void *arg);
@@ -2066,6 +2070,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ALLOWED_SASL_MECHS "nsslapd-allowed-sasl-mechanisms"
 #define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
 #define CONFIG_SASL_MAPPING_FALLBACK "nsslapd-sasl-mapping-fallback"
+#define CONFIG_SEARCH_RETURN_ORIGINAL_TYPE "nsslapd-search-return-original-type-switch"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2300,6 +2305,8 @@ typedef struct _slapdFrontendConfig {
   /* normalized dn cache */
   slapi_onoff_t ndn_cache_enabled;
   size_t ndn_cache_max_size;
+
+  slapi_onoff_t return_orig_type; /* if on, search returns original type set in attr list */
 
   /* atomic settings */
   Slapi_Counter *ignore_vattrs;

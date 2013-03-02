@@ -450,9 +450,6 @@ attr_syntax_delete_no_lock( struct asyntaxinfo *asi,
  *
  * Warning: The caller must free the returned string.
  */
-
-
-
 char *
 slapi_attr_syntax_normalize( const char *s )
 {
@@ -470,6 +467,29 @@ slapi_attr_syntax_normalize( const char *s )
 	return r;
 }
 
+/* 
+ * flags: 
+ * 0 -- same as slapi_attr_syntax_normalize
+ * ATTR_SYNTAX_NORM_ORIG_ATTR -- In addition to slapi_attr_syntax_normalize,
+ *                               a space and following characters are removed
+ *                               from the given string 's'.
+ */
+char *
+slapi_attr_syntax_normalize_ext( char *s, int flags )
+{
+	struct asyntaxinfo *asi = NULL;
+	char *r = NULL;
+
+	if((asi=attr_syntax_get_by_name(s)) != NULL ) {
+		r = slapi_ch_strdup(asi->asi_name);
+		attr_syntax_return( asi );
+	}
+	if ( NULL == asi ) {
+		slapi_ch_free_string( &r );
+		r = attr_syntax_normalize_no_lookup_ext( s, flags );
+	}
+	return r;
+}
 
 /*
  * attr_syntax_exists: return 1 if attr_name exists, 0 otherwise
@@ -883,14 +903,33 @@ attr_syntax_print()
 /* lowercase the attr name and chop trailing spaces */
 /* note that s may contain options also, e.g., userCertificate;binary */
 char *
+attr_syntax_normalize_no_lookup_ext( char *s, int flags )
+{
+	char	*save, *tmps;
+
+	tmps = slapi_ch_strdup(s);
+	for ( save = tmps; (*tmps != '\0') && (*tmps != ' '); tmps++ )
+	{
+		*tmps = TOLOWER( *tmps );
+	}
+	*tmps = '\0';
+	if (flags & ATTR_SYNTAX_NORM_ORIG_ATTR) {
+		/* Chop trailing spaces + following strings */
+		*(s + (tmps - save)) = '\0';
+	}
+
+	return save;
+}
+
+char *
 attr_syntax_normalize_no_lookup( const char *s )
 {
 	char	*save, *tmps;
 
-    tmps = slapi_ch_strdup(s);
-    for ( save = tmps; (*tmps != '\0') && (*tmps != ' '); tmps++ )
+	tmps = slapi_ch_strdup(s);
+	for ( save = tmps; (*tmps != '\0') && (*tmps != ' '); tmps++ )
 	{
-	  *tmps = TOLOWER( *tmps );
+		*tmps = TOLOWER( *tmps );
 	}
 	*tmps = '\0';
 
