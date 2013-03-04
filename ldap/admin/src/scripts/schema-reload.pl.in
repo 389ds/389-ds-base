@@ -42,99 +42,81 @@
 use lib qw(@perlpath@);
 use DSUtil;
 
-sub usage {
-    print(STDERR "Usage: $0 [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
-    print(STDERR "        [-d schemadir]\n");
-    print(STDERR " Opts: -D rootdn           - Directory Manager\n");
-    print(STDERR "     : -w password         - Directory Manager's password\n");
-    print(STDERR "     : -w -                - Prompt for Directory Manager's password\n");
-    print(STDERR "     : -Z serverID         - Server instance identifier\n");
-    print(STDERR "     : -j filename         - Read Directory Manager's password from file\n");
-    print(STDERR "     : -d schemadir        - Directory where schema files are located\n");
-    print(STDERR "     : -v                  - verbose\n");
-}
-
-$rootdn = "";
-$passwd = "";
-$passwdfile = "";
-$schemadir = "";
-$verbose = 0;
-$host = "";
-$port = "";
-
-$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
-$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:@ldaptool_bindir@:/usr/bin";
-
 DSUtil::libpath_add("@nss_libdir@");
 DSUtil::libpath_add("/usr/lib");
 DSUtil::libpath_add("/usr/lib64");
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
+$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
 
 $i = 0;
+
+sub usage {
+    print(STDERR "Usage: schema-reload.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-P protocol] [-d schemadir] [-v] [-h]\n");
+    print(STDERR "Options:\n");
+    print(STDERR "        -D rootdn     - Directory Manager\n");
+    print(STDERR "        -w password   - Directory Manager's password\n");
+    print(STDERR "        -w -          - Prompt for Directory Manager's password\n");
+    print(STDERR "        -Z serverID   - Server instance identifier\n");
+    print(STDERR "        -j filename   - Read Directory Manager's password from file\n");
+    print(STDERR "        -d schemadir  - Directory where schema files are located\n");
+    print(STDERR "        -P protocol   - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
+    print(STDERR "        -v            - Verbose output\n");
+    print(STDERR "        -h            - Display usage\n");
+}
+
 while ($i <= $#ARGV) 
 {
-    if ("$ARGV[$i]" eq "-d")
-    {
+    if ("$ARGV[$i]" eq "-d"){
         # schemadir
         $i++; $schemadir = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-D") 
-    {    
+    } elsif ("$ARGV[$i]" eq "-D"){    
         # Directory Manager
         $i++; $rootdn = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-w") 
-    {    
+    } elsif ("$ARGV[$i]" eq "-w"){    
         # Directory Manager's password
         $i++; $passwd = $ARGV[$i];
-    } 
-    elsif ("$ARGV[$i]" eq "-j")
-    {
+    } elsif ("$ARGV[$i]" eq "-j"){
         # Read Directory Manager's password from a file
         $i++; $passwdfile = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-Z")
-    {
+    } elsif ("$ARGV[$i]" eq "-Z"){
         # server instance identifier
         $i++; $servid = $ARGV[$i];
-    }
-    elsif ("$ARGV[$i]" eq "-h") 
-    { 
+    } elsif ("$ARGV[$i]" eq "-h"){ 
         # help
-        &usage; exit(0);
-    }
-    elsif ("$ARGV[$i]" eq "-v") 
-    {    
+        &usage;
+        exit(0);
+    } elsif ("$ARGV[$i]" eq "-v"){    
         # verbose
         $verbose = 1;
-    }
-    else
-    {
-        &usage; exit(1);
+    } elsif ("$ARGV[$i]" eq "-P") { 
+        # protocol preference
+        $i++; $protocol = $ARGV[$i];
+    } else {
+        &usage;
+        exit(1);
     }
     $i++;
 }
+
+#
+# Gather all our config settings
+#
 $servid = DSUtil::get_server_id($servid, "@initconfigdir@");
-@info = DSUtil::get_missing_info("@instconfigdir@", $servid, $host, $port, $rootdn);
-$passwd = DSUtil::get_password_from_file($passwd, $passwdfile);
-
-if ( $info[2] eq "" || $passwd eq "" )
-{ 
-    &usage; 
-    exit(1); 
+%info = DSUtil::get_info("@instconfigdir@", $servid, $host, $port, $rootdn);
+$info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
+$info{protocol} = $protocol; 
+if ($verbose == 1){
+    $info{args} = "-v -a";
+} else {
+    $info{args} = "-a";
 }
 
-$vstr = "";
-if ($verbose != 0) 
-{ 
-    $vstr = "-v"; 
-}
-
-# Use a timestamp as part of the task entry name
+#
+# Construct the task entry
+#
 ($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
 $mn++; $yr += 1900;
 $taskname = "schema_reload_${yr}_${mn}_${dy}_${h}_${m}_${s}";
-
-# Build the task entry to add
 $dn = "dn: cn=$taskname, cn=schema reload task, cn=tasks, cn=config\n";
 $misc = "objectclass: top\nobjectclass: extensibleObject\n";
 $cn =  "cn: $taskname\n";
@@ -144,6 +126,14 @@ if ( $schemadir ne "" )
 }
 $entry = "${dn}${misc}${cn}${schemadir}";
 
-open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$passwd\" -a" );
-print(FOO "$entry");
-close(FOO);
+$rc = DSUtil::ldapmod($entry, %info);
+
+$dn =~ s/^dn: //;
+$dn =~ s/\n//;
+if($rc == 0){
+    print "Successfully added task entry \"$dn\"\n";
+} else {
+    print "Failed to add task entry \"$dn\" error ($rc)\n";
+}
+
+exit($rc);

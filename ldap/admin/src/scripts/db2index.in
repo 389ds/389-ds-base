@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -13,7 +13,20 @@ export SHLIB_PATH
 
 usage ()
 {
-    echo "Usage: db2index [-Z serverID] [-n backend_instance | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]] -T vlvattribute]"
+    echo "Usage: db2index [-Z serverID] [-n backend | {-s includesuffix}* -t attribute[:indextypes[:matchingrules]]"
+    echo "                -T vlvTag] [-h]"
+    echo "Options:"
+    echo "        -Z serverID       - Server instance identifier"
+    echo "        -n backend        - Backend database name.  Example: userRoot"
+    echo "        -s includeSuffix  - The suffix to index"
+    echo "        -t attribute[:indextypes[:matchingrules]]"
+    echo "                          - attributeName: name of the attribute to be indexed";
+    echo "                            If omitted, all the indexes defined for that instance are generated."
+    echo "                          - indextypes: comma separated index types"
+    echo "                          - matchingrules: comma separated matrules"
+    echo "                                 Example: -t foo:eq,pres"
+    echo "        -T vlvTag         - VLV index name"
+    echo "        -h                - Display usage" 
 }
 
 while getopts "hZ:n:s:t:T:vd:a:SD:x:" flag
@@ -58,12 +71,12 @@ configdir="@instconfigdir@/slapd-$servid"
 
 if [ $# -eq 0 ]
 then
-	bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
-	@sbindir@/ns-slapd upgradedb -D $configdir -a "$bak_dir"
+    bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
+    @sbindir@/ns-slapd upgradedb -D $configdir -a "$bak_dir"
 elif [ $# -lt 2 ]
 then
-	usage
-	exit 1
+    usage
+    exit 1
 else
-	@sbindir@/ns-slapd db2index -D $configdir $args
+    @sbindir@/ns-slapd db2index -D $configdir $args
 fi

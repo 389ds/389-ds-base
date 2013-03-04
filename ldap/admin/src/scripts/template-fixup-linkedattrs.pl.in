@@ -50,3 +50,5 @@ while ($i <= $#ARGV) {
 }
 
 exec "{{SERVERBIN-DIR}}/fixup-linkedattrs.pl @wrapperArgs -Z {{SERV-ID}}";
+
+exit ($?);

@@ -41,9 +41,16 @@
 use lib qw(@perlpath@);
 use DSUtil;
 
+DSUtil::libpath_add("@db_libdir@");
+DSUtil::libpath_add("@libdir@");
+$ENV{'PATH'} = "@libdir@/dirsrv/slapd-$servid:@db_bindir@:/usr/bin:/";
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
+
+my $i = 0;
+
 sub usage
 {
-  print "Usage: $0 [-Z serverID] [ -a <fullpath_to_db_dir> ]\n";
+  print "Usage: $0 [-Z serverID] [ -a <fullpath_to_db_dir> ] [-h]\n";
 }
 
 # getDbDir checks up to 4 levels of db dirs
@@ -147,9 +154,6 @@ if ($isWin) {
   $NULL = "/dev/null";
 }
 
-my $i = 0;
-$startpoint = "";
-
 while ($i <= $#ARGV) {
   if ( "$ARGV[$i]" eq "-a" ) {  # path to search the db files
     $i++; $startpoint = $ARGV[$i];
@@ -177,13 +181,6 @@ if ( "$startpoint" eq "" ) {
 }
 # get dirs having DBVERSION
 my $dbdirs = getDbDir($startpoint);
-
-$ENV{'PATH'} = "@libdir@/dirsrv/slapd-$servid:@db_bindir@:/usr/bin:@db_bindir@:/usr/bin";
-
-DSUtil::libpath_add("@db_libdir@");
-DSUtil::libpath_add("@libdir@");
-
-$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
 # Check transaction logs by db_printlog
 for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
@@ -224,7 +221,7 @@ for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
 
 # Check db files by db_verify
 print "Verify db files ... ";
-open(DBVERIFY, "dbverify -Z $servid 2>&1 1> $NULL |");
+open(DBVERIFY, "@sbindir@/dbverify -Z $servid 2>&1 1> $NULL |");
 sleep 1;
 my $bad_index = 0;
 my $bad_id2entry = 0;

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 # Script that starts the ns-slapd server.
 # Exit status can be:
@@ -42,9 +42,9 @@ fi
 @sbindir@/start-dirsrv -d @initconfigdir@ $servid $args
 if [ $? == 0 ]
 then
-    echo Sucessfully started instance $servid
+    echo Sucessfully started instance \"$servid\"
 else
-    echo Failed to start instance $servid
+    echo Failed to start instance \"$servid\"
 fi
 
 exit $?

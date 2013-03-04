@@ -117,7 +117,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
-	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif ldap/admin/src/scripts/DSSharedLib \
+	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif \
 	ldap/admin/src/scripts/bak2db ldap/admin/src/scripts/db2bak ldap/admin/src/scripts/upgradedb \
 	ldap/admin/src/scripts/db2index ldap/admin/src/scripts/db2ldif \
 	ldap/admin/src/scripts/dn2rdn ldap/admin/src/scripts/ldif2db \
@@ -252,6 +252,7 @@ config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 # considerable overlap of 60changelog.ldif and 01common.ldif
 # and 60inetmail.ldif and 50ns-mail.ldif among others
 sampledata_DATA = ldap/admin/src/scripts/failedbinds.py \
+	ldap/admin/src/scripts/DSSharedLib \
 	ldap/admin/src/scripts/logregex.py \
 	$(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
@@ -370,7 +371,6 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/dbverify \
 	ldap/admin/src/scripts/upgradedb \
-	ldap/admin/src/scripts/DSSharedLib \
     wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \

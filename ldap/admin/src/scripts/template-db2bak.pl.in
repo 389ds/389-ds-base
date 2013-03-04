@@ -50,3 +50,6 @@ while ($i <= $#ARGV) {
 }
 
 exec "{{SERVERBIN-DIR}}/db2bak.pl @wrapperArgs -Z {{SERV-ID}}";
+
+exit ($?);
+

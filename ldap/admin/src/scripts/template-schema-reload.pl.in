@@ -50,3 +50,5 @@ while ($i <= $#ARGV) {
 }
 
 exec "{{SERVERBIN-DIR}}/schema-reload.pl @wrapperArgs -Z {{SERV-ID}}";
+
+exit ($?);

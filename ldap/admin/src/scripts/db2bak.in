@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -14,6 +14,11 @@ export SHLIB_PATH
 usage()
 {
     echo "Usage: db2bak [archivedir] [-Z serverID] [-q] [-h]"
+    echo "Options:"
+    echo "        archivedir   - Directory where the backup should be stored"
+    echo "        -Z serverID  - Server instance identifier"
+    echo "        -q           - Quiet mode - suppresses output"
+    echo "        -h           - Display usage"  
 }
 
 if [ $# -gt 4 ]
@@ -24,18 +29,19 @@ fi
 
 if [ "$#" -gt 0 ]
 then
-  if ["$1" != "-*" ] 
-  then
-    bak_dir=$1
-    shift
-  fi
+    if [[ $1 != -* ]]
+    then
+        bak_dir=$1
+        shift
+    fi
+fi
 
-  while getopts "hqd:Z:vi:a:SD" flag
-  do
+while getopts "hqd:Z:vi:a:SD" flag
+do
     case $flag in
         h) usage
            exit 0;;
-        q) args=$args" -g";;
+        q) args=$args" -q";;
         v) args=$args" -v";;
         S) args=$args" -S";;
         D) args=$args" -D $OPTARG";;
@@ -46,8 +52,8 @@ then
         ?) usage
            exit 1;;
     esac
-  done
-fi
+done
+
 
 servid=$(get_server_id "@initconfigdir@" $servid)
 if [ $? == 1 ]

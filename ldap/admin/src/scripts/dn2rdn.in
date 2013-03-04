@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -12,7 +12,13 @@ export SHLIB_PATH
       
 usage ()
 {
-    echo "Usage: db2rdn [-Z serverID]"
+    echo "Usage: db2rdn [-Z serverID] [-h] [-f] [-v] [-d debuglevel]"
+    echo "Options:"
+    echo "        -Z serverID    - Server instance identifier"
+    echo "        -f             - Force upgrade"
+    echo "        -v             - Display version"
+    echo "        -d debuglevel  - Debugging level"
+    echo "        -h             - Display usage"
 }
     
 while getopts "Z:d:ha:vfr:D:" flag
@@ -22,10 +28,10 @@ do
            exit 0;;
         Z) servid=$OPTARG;;
         d) arg=$arg" -d $OPTARG";;
-        a) arg=$arg" -a $OPTARG";;
+        a) arg=$arg" -a $OPTARG"
+           archive="provided";;
         v) arg=$arg" -v";;
         f) arg=$arg" -f";;
-        r) arg=$arg" -r";;
         D) arg=$arg" -D $OPTARG";;
         ?) usage
            exit 1;;
@@ -43,5 +49,9 @@ fi
 
 configdir="@instconfigdir@/slapd-$servid"
 
-bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
-@sbindir@/ns-slapd upgradedb -D $configdir -r -a "$bak_dir" $arg
+if [ "$archive" != "provided" ]; then
+    bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
+    args=$args"-a $bak_dir"
+fi
+
+@sbindir@/ns-slapd upgradedb -D $configdir -r $args

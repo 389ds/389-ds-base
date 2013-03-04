@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 # upgradednformat -- upgrade DN format to the new style (RFC 4514)
 # Usgae: upgradednformat [-N] -n backend_instance -a db_instance_directory
@@ -21,10 +21,16 @@ export SHLIB_PATH
 
 usage ()
 {
-    echo "Usage: $0 [-N] [-Z serverID] -n backend_instance -a db_instance_directory"
+    echo "Usage: $0 -n backendname -a database_directory [-Z serverID] [-N] [-h]"
+    echo "Options:"
+    echo "        -n backendname         - Backend name"
+    echo "        -a database_directory  - Path to database directory"
+    echo "        -Z serverID            - Server instance identifier"
+    echo "        -N                     - Only checks if database has any DNs that need to be upgraded"
+    echo "        -h                     - Display usage"
 }
  
-while getopts "vhd:a:n:D:N" flag
+while getopts "vhd:a:n:D:NZ:" flag
 do
     case $flag in
         Z) servid=$OPTARG;;

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 # Script that stops the ns-slapd server.
 # Exit status can be:
@@ -42,9 +42,9 @@ fi
 @sbindir@/stop-dirsrv -d @initconfigdir@ $servid $args
 if [ $? == 0 ]
 then
-    echo Sucessfully stopped instance $servid
+    echo Sucessfully stopped instance \"$servid\"
 else
-    echo Failed to stop instance $servid
+    echo Failed to stop instance \"$servid\"
 fi
 
 exit $?

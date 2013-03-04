@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@libdir@"
@@ -11,7 +11,18 @@ export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
-while getopts "Z:vfrd:" flag
+usage ()
+{
+    echo "Usage: upgradedb [-a archivedir] [-Z serverID] [-f] [-v] [-d debuglevel] [-h]"
+    echo "Options:"
+    echo "        -a archivedir  - Location of database backup"
+    echo "        -Z serverID    - Server instance identifier"
+    echo "        -f             - Force upgrade"
+    echo "        -v             - Display version"
+    echo "        -d debuglevel  - Debugging level"
+    echo "        -h             - Display usage"
+}
+while getopts "Z:vfrd:h" flag
 do
     case $flag in
         Z) servid=$OPTARG;;
@@ -19,8 +30,11 @@ do
         f) args=$args" -f";;
         r) args=$args" -r";;
         d) args=$args" -d $OPTARG";;
-        a) args=$args" -a $OPTARG";;
+        a) args=$args" -a $OPTARG"
+           archive_provided="yes";;
         D) args=$args" -D $OPTARG";;
+        h) usage
+           exit 0;;
     esac
 done
 
@@ -34,12 +48,11 @@ fi
 
 configdir="@instconfigdir@/slapd-$servid"
 
-if [ "$#" -eq 1 ]
+if [ "$archive_provided" != "yes" ]
 then
-	bak_dir=$1
-else
-	bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/upgradedb_`date +%Y_%m_%d_%H_%M_%S`
+    bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/upgradedb_`date +%Y_%m_%d_%H_%M_%S`
+    args=$args" -a $bak_dir"
 fi
 
 echo upgrade index files ...
-@sbindir@/ns-slapd upgradedb -D $configdir -a $bak_dir $args
+@sbindir@/ns-slapd upgradedb -D $configdir $args

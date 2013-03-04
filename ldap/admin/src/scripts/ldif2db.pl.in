@@ -42,136 +42,156 @@
 use lib qw(@perlpath@);
 use DSUtil;
 
-sub usage {
-	print(STDERR "Usage: $0 [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
-	print(STDERR "        -n instance | {-s include}* [{-x exclude}*] [-O] [-c]\n");
-	print(STDERR "        [-g [string]] [-G namespace_id] {-i filename}*\n");
-	print(STDERR " Opts: -D rootdn     - Directory Manager\n");
-	print(STDERR "     : -w password   - Directory Manager's password\n");
-	print(STDERR "     : -w -          - Prompt for Directory Manager's password\n");
-	print(STDERR "     : -Z serverID   - Server instance identifier\n");
-	print(STDERR "     : -j filename   - Read Directory Manager's password from file\n");
-	print(STDERR "     : -n instance   - instance to be imported to\n");
-	print(STDERR "     : -i filename   - input ldif file(s)\n");
-	print(STDERR "     : -s include    - included suffix\n");
-	print(STDERR "     : -x exclude    - excluded suffix(es)\n");
-	print(STDERR "     : -O            - only create core db, no attr indexes\n");
-	print(STDERR "     : -c size       - merge chunk size\n");
-	print(STDERR "     : -g [string]   - string is \"none\" or \"deterministic\"\n");
-	print(STDERR "     :          none - unique id is not generated\n");
-	print(STDERR "     : deterministic - generate name based unique id (-G name)\n");
-	print(STDERR "     :    by default - generate time based unique id\n");
-	print(STDERR "     : -G name       - namespace id for name based uniqueid (-g deterministic)\n");
-	print(STDERR "     : -E            - Encrypt data when importing\n");
-	print(STDERR "     : -v            - verbose\n");
-}
+DSUtil::libpath_add("@nss_libdir@");
+DSUtil::libpath_add("/usr/lib");
+DSUtil::libpath_add("/usr/lib64");
+$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
+$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
-@ldiffiles = (
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	""
-);
-@included = (
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	""
-);
-@excluded = (
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "",
-	""
-);
 $maxidx = 50;
-$instance = "";
 $noattrindexes = 0;
 $mergechunksiz = 0;
 $genuniqid = "time";
-$uniqidname = "";
-$taskname = "";
-$verbose = 0;
-$rootdn = "";
-$passwd = "";
-$passwdfile = "";
 $i = 0;
 $ldifi = 0;
 $incli = 0;
 $excli = 0;
 $encrypt_on_import = 0;
-$host = "";
-$port = "";
+
+sub usage {
+    print(STDERR "Usage: ldif2db.pl -n backend [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }\n");
+    print(STDERR "                  [-P protocol] {-s include}* [{-x exclude}*] [-O] [-c] [-v] [-h] [-g [string]]\n");
+    print(STDERR "                  [-G namespace_id] {-i filename}*\n");
+    print(STDERR "Note: either \"-n backend\", \"-s includesuffix\", and \"-i ldiffile\" are required.\n");
+    print(STDERR "Options:\n");
+    print(STDERR "        -D rootdn     - Directory Manager\n");
+    print(STDERR "        -w password   - Directory Manager's password\n");
+    print(STDERR "        -w -          - Prompt for Directory Manager's password\n");
+    print(STDERR "        -Z serverID   - Server instance identifier\n");
+    print(STDERR "        -j filename   - Read Directory Manager's password from file\n");
+    print(STDERR "        -n backend    - Backend database name.  Example: userRoot\n");
+    print(STDERR "        -i filename   - Input ldif file(s)\n");
+    print(STDERR "        -s include    - Included suffix\n");
+    print(STDERR "        -x exclude    - Excluded suffix(es)\n");
+    print(STDERR "        -O            - Only create core db, no attr indexes\n");
+    print(STDERR "        -c size       - Merge chunk size\n");
+    print(STDERR "        -g [string]   - String is \"none\" or \"deterministic\"\n");
+    print(STDERR "                        \"none\" - unique id is not generated\n");
+    print(STDERR "                        \"deterministic\" - generate name based unique id (-G name)\n");
+    print(STDERR "                        By default - generate time based unique id\n");
+    print(STDERR "        -G name      - Namespace id for name based uniqueid (-g deterministic)\n");
+    print(STDERR "        -E           - Encrypt data when importing\n");
+    print(STDERR "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
+    print(STDERR "        -v           - Verbose output\n");
+    print(STDERR "        -h           - Display usage\n");
+}
+
+@ldiffiles = (
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    ""
+);
+@included = (
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    ""
+);
+@excluded = (
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "",
+    ""
+);
 
 while ($i <= $#ARGV) {
-	if ( "$ARGV[$i]" eq "-i" ) {	# ldiffiles
-		$i++;
-		if ($ldifi < $maxidx) {
-			$ldiffiles[$ldifi] = $ARGV[$i]; $ldifi++;
-		} else {
-			&usage; exit(1);
-		}
-	} elsif ("$ARGV[$i]" eq "-s") {	# included suffix
-		$i++;
-		if ($incli < $maxidx) {
-			$included[$incli] = $ARGV[$i]; $incli++;
-		} else {
-			&usage; exit(1);
-		}
-	} elsif ("$ARGV[$i]" eq "-x") {	# excluded suffix
-		$i++;
-		if ($excli < $maxidx) {
-			$excluded[$excli] = $ARGV[$i]; $excli++;
-		} else {
-			&usage; exit(1);
-		}
-	} elsif ("$ARGV[$i]" eq "-n") {	# instance
-		$i++; $instance = $ARGV[$i];
-	} elsif ("$ARGV[$i]" eq "-D") {	# Directory Manager
-		$i++; $rootdn = $ARGV[$i];
-	} elsif ("$ARGV[$i]" eq "-w") {	# Directory Manager's password
-		$i++; $passwd = $ARGV[$i];
-	} elsif ("$ARGV[$i]" eq "-j") { # Read Directory Manager's password from a file
-		$i++; $passwdfile = $ARGV[$i];
-	} elsif ("$ARGV[$i]" eq "-O") {	# no attr indexes
-		$noattrindexes = 1;
-	} elsif ("$ARGV[$i]" eq "-c") {	# merge chunk size
-		$i++; $mergechunksiz = $ARGV[$i];
-	} elsif ("$ARGV[$i]" eq "-g") {	# generate uniqueid
-		if (("$ARGV[$i+1]" ne "") && !("$ARGV[$i+1]" =~ /^-/)) {
-			$i++;
-			if ("$ARGV[$i]" eq "none") {
-				$genuniqid = $ARGV[$i];
-			} elsif ("$ARGV[$i]" eq "deterministic") {
-				$genuniqid = $ARGV[$i];
-			}
-		}
-	} elsif ("$ARGV[$i]" eq "-G") {	# namespace id
-		$i++; $uniqidname = $ARGV[$i];
-	} elsif ("$ARGV[$i]" eq "-Z") { # server id
+    if ( "$ARGV[$i]" eq "-i" ) {    # ldiffiles
+        $i++;
+        if ($ldifi < $maxidx) {
+            $ldiffiles[$ldifi] = $ARGV[$i]; $ldifi++;
+        } else {
+            &usage; exit(1);
+        }
+    } elsif ("$ARGV[$i]" eq "-s") {    # included suffix
+        $i++;
+        if ($incli < $maxidx) {
+            $included[$incli] = $ARGV[$i]; $incli++;
+        } else {
+            &usage; exit(1);
+        }
+    } elsif ("$ARGV[$i]" eq "-x") {    # excluded suffix
+        $i++;
+        if ($excli < $maxidx) {
+            $excluded[$excli] = $ARGV[$i]; $excli++;
+        } else {
+            &usage; exit(1);
+        }
+    } elsif ("$ARGV[$i]" eq "-n") {    # instance
+        $i++; $instance = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-D") {    # Directory Manager
+        $i++; $rootdn = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-w") {    # Directory Manager's password
+        $i++; $passwd = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-j") { # Read Directory Manager's password from a file
+        $i++; $passwdfile = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-O") {    # no attr indexes
+        $noattrindexes = 1;
+    } elsif ("$ARGV[$i]" eq "-c") {    # merge chunk size
+        $i++; $mergechunksiz = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-g") {    # generate uniqueid
+        if (("$ARGV[$i+1]" ne "") && !("$ARGV[$i+1]" =~ /^-/)) {
+            $i++;
+            if ("$ARGV[$i]" eq "none") {
+                $genuniqid = $ARGV[$i];
+            } elsif ("$ARGV[$i]" eq "deterministic") {
+                $genuniqid = $ARGV[$i];
+            }
+        }
+    } elsif ("$ARGV[$i]" eq "-G") {    # namespace id
+        $i++; $uniqidname = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-Z") { # server id
         $i++; $servid = $ARGV[$i];
-	} elsif ("$ARGV[$i]" eq "-v") {	# verbose
-		$verbose = 1;
-	} elsif ("$ARGV[$i]" eq "-h") { # help
+    } elsif ("$ARGV[$i]" eq "-v") {    # verbose
+        $verbose = 1;
+    } elsif ("$ARGV[$i]" eq "-h") { # help
         &usage; exit(0);
-	} elsif ("$ARGV[$i]" eq "-E") {	# encrypt on import
-		$encrypt_on_import = 1;
-	} else {
-		&usage; exit(1);
-	}
-	$i++;
+    } elsif ("$ARGV[$i]" eq "-E") {    # encrypt on import
+        $encrypt_on_import = 1;
+    } elsif ("$ARGV[$i]" eq "-P") { # protocol preference
+        $i++; $protocol = $ARGV[$i];
+    } else {
+        &usage; exit(1);
+    }
+    $i++;
 }
-$servid = DSUtil::get_server_id($servid, "@initconfigdir@");
-@info = DSUtil::get_missing_info("@instconfigdir@", $servid, $host, $port, $rootdn);
-$passwd = DSUtil::get_password_from_file($passwd, $passwdfile);
 
-if (($instance eq "" && $included[0] eq "") || $ldiffiles[0] eq "" || $info[2] eq "" || $passwd eq "") { &usage; exit(1); }
+#
+# Gather all our config settings
+#
+$servid = DSUtil::get_server_id($servid, "@initconfigdir@");
+%info = DSUtil::get_info("@instconfigdir@", $servid, $host, $port, $rootdn);
+$info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
+$info{protocol} = $protocol;
+if ($verbose == 1){
+    $info{args} = "-v -a";
+} else {
+    $info{args} = "-a";
+}
+if (($instance eq "" && $included[0] eq "") || $ldiffiles[0] eq "" ){
+    &usage;
+    exit(1);
+}
+
+# 
+# Construct the task entry
+#
 ($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
 $mn++; $yr += 1900;
 $taskname = "import_${yr}_${mn}_${dy}_${h}_${m}_${s}";
@@ -179,25 +199,25 @@ $dn = "dn: cn=$taskname, cn=import, cn=tasks, cn=config\n";
 $misc = "objectclass: top\nobjectclass: extensibleObject\n";
 $cn =  "cn: $taskname\n";
 if ($instance ne "") {
-	$nsinstance = "nsInstance: ${instance}\n";
+    $nsinstance = "nsInstance: ${instance}\n";
 }
 $i = 0;
 $nsldiffiles = "";
 while ("" ne "$ldiffiles[$i]") {
-	$nsldiffiles = "${nsldiffiles}nsFilename: $ldiffiles[$i]\n";
-	$i++;
+    $nsldiffiles = "${nsldiffiles}nsFilename: $ldiffiles[$i]\n";
+    $i++;
 }
 $i = 0;
 $nsincluded = "";
 while ("" ne "$included[$i]") {
-	$nsincluded = "${nsincluded}nsIncludeSuffix: $included[$i]\n";
-	$i++;
+    $nsincluded = "${nsincluded}nsIncludeSuffix: $included[$i]\n";
+    $i++;
 }
 $i = 0;
 $nsexcluded = "";
 while ("" ne "$excluded[$i]") {
-	$nsexcluded = "${nsexcluded}nsExcludeSuffix: $excluded[$i]\n";
-	$i++;
+    $nsexcluded = "${nsexcluded}nsExcludeSuffix: $excluded[$i]\n";
+    $i++;
 }
 $nsnoattrindexes = "";
 if ($noattrindexes != 0) { $nsnoattrindexes = "nsImportIndexAttrs: false\n"; }
@@ -208,15 +228,16 @@ $nsgenuniqid = "nsUniqueIdGenerator: ${genuniqid}\n";
 $nsuniqidname = "";
 if ($uniqidname ne "") { $nsuniqidname = "nsUniqueIdGeneratorNamespace: ${uniqidname}\n"; }
 $entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsldiffiles}${nsnoattrindexes}${nsimportencrypt}${nsmergechunksiz}${nsgenuniqid}${nsuniqidname}";
-$vstr = "";
-if ($verbose != 0) { $vstr = "-v"; }
-$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:@ldaptool_bindir@:/usr/bin";
 
-DSUtil::libpath_add("@nss_libdir@");
-DSUtil::libpath_add("/usr/lib");
-DSUtil::libpath_add("/usr/lib64");
+$rc = DSUtil::ldapmod($entry, %info);
 
-$ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
-open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$passwd\" -a" );
-print(FOO "$entry");
-close(FOO);
+$dn =~ s/^dn: //;
+$dn =~ s/\n//;
+if($rc == 0){
+    print "Successfully added task entry \"$dn\"\n";
+} else {
+    print "Failed to add task entry \"$dn\" error ($rc)\n";
+}
+
+exit($rc);
+

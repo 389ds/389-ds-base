@@ -43,6 +43,7 @@ use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(:constant ldap_explode_dn ldap_err2string) ; # Direct access to C API
 use Mozilla::LDAP::LDIF;
 use File::Spec::Functions qw(rel2abs);
+use File::Spec;
 use File::Basename;
 
 require Exporter;
@@ -1196,51 +1197,95 @@ sub libpath_add {
     }
 }
 
-# Get the installation prefix
-sub get_prefix {
-    my $prefix = dirname(rel2abs($0));
-    
-    if ($prefix eq "/usr/sbin"){
-        $prefix = "";
-    } else {
-        $prefix =~ s/\/sbin//;
-    }
-    
-    return $prefix;
-}
-
-# Grab the host, port, and rootDN from the config file of the server instance
-# if the values are missing
-sub get_missing_info {
+# 
+# get_info()
+#
+# Grab all the config settings we need from the dse.ldif
+#
+sub get_info {
+    my %info = ();
     my $dir = shift;
     my $servID = shift;
-    my $host = shift;
-    my $port = shift; 
-    my $rootdn = shift;
+    $info{host} = shift;
+    $info{port} = shift; 
+    $info{rootdn} = shift;
+    my $dse_file = "$dir/slapd-$servID/dse.ldif";
+    my $foundcfg = "no";
+    my $value;
+    my $entry;
+    my $ldif;
     
-    open (DSE, "<$dir/slapd-$servID/dse.ldif") || die "Failed to open config file $dir/slapd-$servID/dse.ldif $!\n";
-        while(<DSE>){
-        if ($host eq "" && $_ =~ /^nsslapd-localhost: (.*)/){
-                $host = $1;
-        }
-        if ($port eq "" && $_ =~ /^nsslapd-port: (.*)/){
-                $port = $1;
-        }
-        if ($rootdn eq "" && $_ =~ /^nsslapd-rootdn: (.*)/){
-                $rootdn = $1;
+    #
+    # Are we using openLDAP or Mozilla?
+    #
+    my $toollib = `ldapsearch -V 2>&1`;
+    if ($toollib =~ /OpenLDAP/) { 
+        $info{openldap} = "yes";
+    } else {
+        $info{openldap} = "no";
+    }
+    
+    #
+    # Open dse.ldif and grab the cn=config entry
+    #
+    open(DSE, "$dse_file") || die "Failed to open config file $dse_file $!\n";
+    $ldif = new Mozilla::LDAP::LDIF(*DSE);
+    while($entry = readOneEntry $ldif){
+        if($entry->getDN() eq "cn=config"){
+            $foundcfg = "yes";
+            last;
         }
     }
+    if($foundcfg eq "no"){
+        print (STDERR "Failed to find \"cn=config\" entry from $dse_file\n");
+        close (DSE);
+        exit 1;
+    }
+
+    #
+    # Get missing info
+    #
+    if($info{host} eq ""){
+        $info{host} = $entry->getValues("nsslapd-localhost");
+    }
+    if($info{port} eq ""){
+        $info{port} = $entry->getValues("nsslapd-port");
+    }
+    if($info{rootdn} eq ""){
+        $info{rootdn} = $entry->getValues("nsslapd-rootdn");
+    }
+    
+    # 
+    # Get SSL and LDAPI settings
+    #
+    $info{certdir} = $entry->getValues("nsslapd-certdir");
+    if($info{openldap} eq "yes"){
+        $ENV{LDAPTLS_CACERTDIR}=$info{certdir};
+    }
+    $info{security} = $entry->getValues("nsslapd-security");
+    $info{secure_port} = $entry->getValues("nsslapd-securePort");
+    $info{ldapi} = $entry->getValues("nsslapd-ldapilisten");
+    $info{autobind} = $entry->getValues("nsslapd-ldapiautobind");
+    $value = $entry->getValues("nsslapd-ldapifilepath");
+    if ($value){
+        $value =~ s/\//%2f/g;
+        $info{ldapiURL} = "ldapi://" . $value;
+    }
+
     close (DSE);
-    return $host, $port, $rootdn;
+    return %info;
 }
 
+#
+# Grab the server instance ID
+#
 sub get_server_id {
     my $servid = shift;
     my $dir = shift;
-    my $first = "yes";
     my $instance_count = 0;
-    my $instances = "";
-    my $name = "";
+    my $first = "yes";
+    my $instances = "<none>";
+    my $name;
     my $file;
     
     opendir(DIR, "$dir");
@@ -1276,7 +1321,6 @@ sub get_server_id {
     }
     
     unless ( -e "$dir/dirsrv-$servid" ){
-        print (STDERR "instance dir: $dir/dirsrv-$servid\n");
         print (STDERR "Invalid server identifer: $servid\n");
         print (STDERR "Available instances: $instances\n");
         exit (1);
@@ -1285,6 +1329,9 @@ sub get_server_id {
     return $servid;
 }
 
+#
+# Get the root DN password from the file, or command line input
+#
 sub get_password_from_file {
     my $passwd = shift;
     my $passwdfile = shift;
@@ -1311,6 +1358,275 @@ sub get_password_from_file {
     }
     
     return $passwd;
+}
+
+#
+# Execute the ldapmodify
+#
+sub ldapmod {
+    my $entry = shift;
+    my %info = @_;
+    my $file = "/tmp/DSUtil-$$.txt";
+    my $protocol_error;
+    my $result;
+    my $rc;
+    
+    # 
+    # write the entry to file so we can grab the result code after running ldapmodify(-f)
+    #
+    if(!open (FILE, ">$file") ){
+        print (STDERR "DSUtil::ldapmod() failed to create tmp file ($!)\n");
+        return 1;
+    } else {
+        print (FILE "$entry\n");
+        close (FILE);
+    }
+
+    #
+    # Check the protocol, and reset it if it's invalid
+    #
+    $result = check_protocol(%info);
+    if($result == 1){
+        $protocol_error = "yes";
+        $info{protocol} = "";
+    } elsif( $result == 2){
+        unlink ($file);
+        return 1;
+    }
+    
+    #
+    # Execute ldapmodify using the specified/most secure protocol
+    #
+    if (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/STARTTLS/i) ){
+        # 
+        # STARTTLS
+        #
+        if($protocol_error eq "yes"){
+            print "STARTTLS)\n";
+        }
+        if($info{openldap} eq "yes"){
+            system "ldapmodify -x -ZZ -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+        } else {
+            system "ldapmodify -ZZZ -P \"$info{certdir}\" -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+        }
+    } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
+        # 
+        # LDAPS
+        #
+        if($protocol_error eq "yes"){
+            print "LDAPS)\n";
+        }
+        if($info{openldap} eq "yes"){
+            system "ldapmodify -x -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+        } else {
+            system "ldapmodify -Z -P \"$info{certdir}\" -p $info{secure_port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+        }
+    } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
+        #
+        # LDAPI
+        #
+        if ($< == 0 && $info{autobind} eq "on"){
+            if($protocol_error eq "yes"){
+                print "LDAPI/AUTOBIND)\n";
+            }
+            system "ldapmodify -H \"$info{ldapiURL}\" -Y EXTERNAL $info{args} -f \"$file\" > /dev/null 2>&1";
+        } else {
+            if($protocol_error eq "yes"){
+                print "LDAPI)\n";
+            }
+            system "ldapmodify -x -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+        }
+    } else {
+        # 
+        # LDAP
+        #
+        if($protocol_error eq "yes"){
+            print "LDAP)\n";
+        }
+        if($info{openldap} eq "yes"){
+            system "ldapmodify -x -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+        } else {
+            system "ldapmodify -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+        }
+    }
+    unlink ($file);
+    if ($? != 0){
+        my $retCode=$?>>8;
+        return $retCode;
+    }
+    return 0;
+}
+
+#
+# Build the ldapsearch
+#
+sub ldapsrch {
+    my %info = @_;
+    my $protocol_error;
+    my $search;
+    my $result;
+    
+    $result = check_protocol(%info);
+    if($result == 1){
+        $protocol_error = "yes";
+        $info{protocol} = "";
+    } elsif( $result == 2){
+        return "";
+    }
+    if (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/STARTTLS/i) ){
+        #
+        # STARTTLS
+        #
+        if($protocol_error eq "yes"){
+            print "STARTTLS)\n";
+        }
+        if($info{openldap} eq "yes"){
+            $search = "ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
+                      "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";   
+        } else {
+            $search = "ldapsearch -ZZZ -P \"$info{certdir}\" -p $info{port} -h $info{host} -D \"$info{rootdn}\" " .
+                      "-w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";  
+        }  
+    } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
+        # 
+        # LDAPS
+        #
+        if($protocol_error eq "yes"){
+            print "LDAPS)\n";
+        }
+        if($info{openldap} eq "yes"){
+            $search = "ldapsearch -x -LLL -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" " . 
+                      "-w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
+        } else {
+            $search = "ldapsearch -Z -P \"$info{certdir}\" -p $info{secure_port} -h $info{host} -D \"$info{rootdn}\" " .
+                      "-w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";  
+        } 
+    } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
+        # 
+        # LDAPI
+        #
+        if ($< == 0 && $info{autobind} eq "on"){
+            $search = "ldapsearch  -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL " .
+                  "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} 2>/dev/null";
+        } else {
+            $search = "ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
+                  "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
+        }
+    } else {
+        # 
+        # LDAP
+        #
+        if($protocol_error eq "yes"){
+            print "LDAP)\n";
+        }
+        if($info{openldap} eq "yes"){
+            $search = "ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
+                  "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
+        } else {
+            $search = "ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
+                  "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
+        }
+    }
+    return $search;
+}
+
+#
+# Execute the search
+#
+sub ldapsrch_ext {
+    my %info = @_;
+    my $protocol_error;
+    my $result;
+    my $txt;
+    
+    $result = check_protocol(%info);
+    if($result == 1){
+        $protocol_error = "yes";
+        $info{protocol} = "";
+    } elsif($result == 2){
+        return 1;
+    }
+    if (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/STARTTLS/i) ){
+        # 
+        # STARTTLS
+        #
+        if($protocol_error eq "yes"){
+            print "STARTTLS)\n";
+        }
+        if($info{openldap} eq "yes"){
+            return `ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+        } else {
+            return `ldapsearch -ZZZ -P $info{certdir} -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+        }     
+    } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
+        # 
+        # LDAPS
+        #
+        if($protocol_error eq "yes"){
+            print "LDAPS)\n";
+        }
+        if($info{openldap} eq "yes"){
+            return `ldapsearch -x -LLL -H ldaps://$info{host}:$info{secure_port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+        } else {
+            return `ldapsearch -Z -P $info{certdir} -p $info{secure_port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+        }
+    } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
+        # 
+        # LDAPI
+        #
+        if ($< == 0 && $info{autobind} eq "on"){
+            return `ldapsearch -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect} 2>/dev/null`;
+        } else {
+            return `ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+        }
+    } else {
+        # 
+        # LDAP
+        #
+        if($protocol_error eq "yes"){
+            print "LDAP)\n";
+        }
+        if($info{openldap} eq "yes"){
+            return `ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+        } else {
+            return `ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+        }
+    }
+}
+
+#
+# Check to see if the protocol is supported.  
+#
+# If it's not supported, start logging the error message - the
+# message will be completed by the calling function.
+#
+sub check_protocol {
+    my %info = @_;
+    my $txt;
+    
+    if(($info{protocol} eq "LDAPI" && $info{openldap} eq "no") ||
+       ($info{protocol} eq "LDAPI" && $info{ldapi} eq "off") ||
+       ($info{protocol} eq "STARTTLS" && ($info{security} eq "" || $info{security} eq "off")) ||
+       ($info{protocol} eq "LDAPS" && ($info{security} eq "" || $info{security} eq "off"))
+    ){
+        if($info{protocol} eq "LDAPI" && $info{openldap} eq "no"){
+            $txt = " by the Mozilla LDAP client";
+        } else {
+            $txt = " by the Directory Server";
+        }
+        print (STDERR "Protocol $info{protocol} requested, but this protocol is not supported" . $txt . ".\n" .
+                      "Using the next most secure protocol (" ); # completed by the caller
+        return 1;
+    }
+    if( ($info{protocol} ne "") && ($info{protocol} ne "STARTTLS" && 
+                                    $info{protocol} ne "LDAPS" &&
+                                    $info{protocol} ne "LDAPI" && 
+                                    $info{protocol} ne "LDAP") )
+    {
+        print (STDERR "Unknown protocol: $info{protocol}\n");
+        return 2;                       
+    }
+    return 0;
 }
 
 1;

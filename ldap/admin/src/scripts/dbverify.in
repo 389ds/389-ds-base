@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -14,10 +14,15 @@ PATH=$PATH:/bin
 
 usage()
 {
-    echo "Usage: dbverify [-Z serverID] [-n backend_instance] [-V]"
-    echo "Note : if \"-n backend_instance\" is not passed, verify all DBs."
-    echo "  -Z : Server instance identifier"
-    echo "  -V : verbose"
+    echo "Usage: dbverify [-Z serverID] [-n backend_instance] [-V] [-v] [-d debuglevel] [-h]"
+    echo "Note if \"-n backend\" is not passed, verify all DBs."
+    echo "Options:"
+    echo "        -Z             - Server instance identifier"
+    echo "        -n backend     - Backend database name.  Example: userRoot"
+    echo "        -V             - Verbose output"
+    echo "        -d debuglevel  - Debugging level"
+    echo "        -v             - Display version"
+    echo "        -h             - Display usage"
 }
 
 while getopts "Z:n:hVfd:n:D:" flag

@@ -49,3 +49,5 @@ while ($i <= $#ARGV) {
 }
 
 exec "{{SERVERBIN-DIR}}/usn-tombstone-cleanup.pl @wrapperArgs -Z {{SERV-ID}}";
+
+exit ($?);

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@ldapsdk_libdir@"
@@ -10,18 +10,29 @@ libpath_add "@nss_libdir@"
 export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
-PATH=$PATH:@ldaptool_bindir@:@ldaptool_bindir@
+PATH=$PATH:@ldaptool_bindir@:@ldaptool_bindir@:/usr/bin/:/usr/lib64/mozldap
+
+protocol=""
 
 usage ()
 {
-    echo "Usage: monitor [ -Z serverID ] [ -b basedn ]"
+    echo "Usage: monitor [ -Z serverID ] [ -D rootdn ] [ -w password ] [ -b basedn ] [-P protocol] [-h]"
+    echo "Options:"
+    echo "        -Z serverID  - Server instance identifier"
+    echo "        -D rootdn    - Directory Manager DN"
+    echo "        -w passwd    - Directory Manager password"
+    echo "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP"
+    echo "        -h           - Display usage"
 }
 
-while getopts "Z:b:h" flag
+while getopts "Z:b:hP:D:w:" flag
 do
     case $flag in
         Z) servid=$OPTARG;;
+        P) protocol=$OPTARG;;
         b) MDN=$OPTARG;;
+        D) rootdn=$OPTARG;;
+        w) passwd=$OPTARG;;
         h) usage
            exit 0;;
         ?) usage
@@ -38,12 +49,118 @@ then
     exit 1
 fi
 
-port=$(grep 'nsslapd-port' @instconfigdir@/slapd-$servid/dse.ldif | awk '{print $2}' )
-host=$(grep 'nsslapd-localhost' @instconfigdir@/slapd-$servid/dse.ldif | awk '{print $2}' )
-
-if [ -z $MDN ]
+if [ -z "$MDN" ]
 then
-    MDN="cn=monitor";
+    MDN="cn=monitor"
 fi
 
-ldapsearch @ldaptool_opts@ -LLL -p $port -h $host -b "$MDN" -s base "objectClass=*"
+
+process_dse $servid $$
+file="/tmp/DSSharedLib.$$"
+port=$(grep -i 'nsslapd-port' $file | awk '{print $2}' )
+host=$(grep -i 'nsslapd-localhost' $file | awk '{print $2}' )
+security=$(grep -i 'nsslapd-security' $file | awk '{print $2}' )
+secure_port=$(grep -i 'nsslapd-secureport' $file | awk '{print $2}' )
+ldapi=$(grep -i 'nsslapd-ldapilisten' $file | awk '{print $2}' )
+ldapiURL=$(grep -i 'nsslapd-ldapifilepath' $file | awk '{print $2}' )
+certdir=$(grep -i 'nsslapd-certdir' $file | awk '{print $2}' )
+autobind=$(grep -i 'nsslapd-ldapiautobind' $file | awk '{print $2}' )
+if [ "$rootdn" == "" ]; then
+    value=$(grep -i 'nsslapd-rootdn' $file)
+    rootdn=`echo "$value" | sed -e 's/nsslapd-rootdn: //i'`
+fi
+rm $file
+
+if [ "$passwd" != "" ]; then
+    dn="-D $rootdn"
+    passwd="-w$passwd"
+fi
+if [ "$ldapiURL" != "" ]
+then
+    ldapiURL=`echo "$ldapiURL" | sed -e 's/\//%2f/g'`
+    ldapiURL="ldapi://"$ldapiURL
+fi
+
+client_type=`ldapsearch -V 2>&1`;
+echo "$client_type" | grep -q "OpenLDAP"
+if  [ $? -eq 0 ]
+then
+    openldap="yes"
+    export LDAPTLS_CACERTDIR=$certdir
+fi
+
+if [ -z $security ]; then
+    security="off"
+fi
+revised_protocol=$(check_protocol $protocol $security $ldapi $openldap)
+if [ "$revised_protocol" != "$protocol" ]; then
+    echo Protocol $protocol requested, but this protocol is not supported
+    error="yes"
+fi
+protocol=$revised_protocol
+
+#
+# STARTTLS
+#
+if [ "$security" == "on" ]; then
+    if [ "$protocol" == "STARTTLS" ] || [ "$protocol" == "" ]; then
+        if [ $error == "yes" ]; then 
+            echo "Using the next most secure protocol(STARTTLS)"
+        fi
+        if [ "$openldap" == "yes" ]; then
+            ldapsearch -x -LLL -ZZ -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
+        else
+            ldapsearch -ZZZ -P $certdir  -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
+        fi
+        exit $?
+    fi
+fi
+
+#
+# LDAPS
+#
+if [ "$security" == "on" ]; then
+    if [ "$protocol" == "LDAPS" ] || [ "$protocol" == "" ]; then
+        if [ $error == "yes" ]; then 
+            echo "Using the next most secure protocol(LDAPS)"
+        fi
+        if [ "$openldap" == "yes" ]; then
+            ldapsearch -x -LLL -H "ldaps://$host:$secure_port" -b "$MDN" -s base $dn $passwd "objectClass=*"
+        else 
+            ldapsearch -Z -P $certdir -p $secure_port -b "$MDN" -s base $dn $passwd "objectClass=*"
+        fi
+        exit $?
+    fi
+fi
+
+#
+# LDAPI
+#
+if [ "$ldapi" == "on" ] && [ "$openldap" == "yes" ]; then
+    if [ "$protocol" == "LDAPI" ] || [ "$protocol" == "" ]; then
+        if [ "$(id -u)" == "0" ] && [ "$autobind" == "on" ]; then
+            if [ $error == "yes" ]; then 
+                echo "Using the next most secure protocol(LDAPI/AUTOBIND)"
+            fi
+            ldapsearch -LLL -H "$ldapiURL" -b "$MDN" -s base -Y EXTERNAL "objectClass=*" 2>/dev/null
+        else
+            ldapsearch -x -LLL -H "$ldapiURL" -b "$MDN" -s base $dn $passwd "objectClass=*"
+        fi
+        exit $?
+    fi
+fi
+
+#
+# LDAP
+#
+if [ "$protocol" == "LDAP" ] || [ "$protocol" == "" ]; then
+    if [ $error == "yes" ]; then 
+        echo "Using the next most secure protocol(LDAP)"
+    fi
+    if [ "$openldap" == "yes" ]; then
+        ldapsearch -x -LLL -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
+    else
+        ldapsearch -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
+    fi   
+    exit $?
+fi

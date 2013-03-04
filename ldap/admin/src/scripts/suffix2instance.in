@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@libdir@"
@@ -13,7 +13,11 @@ export SHLIB_PATH
 
 usage ()
 {
-    echo "Usage: suffix2index [-Z serverID] -s <suffix>"
+    echo "Usage: suffix2instance [-Z serverID] -s suffix [-h]"
+    echo "Options:"
+    echo "        -Z serverID  - Server instance identifier"
+    echo "        -s suffix    - Suffix used to map to backend instance"
+    echo "        -h           - Display usage"
 }
 
 while getopts "Z:s:h" flag
@@ -47,8 +51,8 @@ configdir="@instconfigdir@/slapd-$servid"
 
 if [ $# -lt 2 ]
 then
-	echo Usage: suffix2instance [-Z serverID] {-s includesuffix}*
-	exit 1
+    echo Usage: suffix2instance [-Z serverID] {-s includesuffix}*
+    exit 1
 fi
 
 @sbindir@/ns-slapd suffix2instance -D $configdir $args 2>&1

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@libdir@"
@@ -13,11 +13,18 @@ export SHLIB_PATH
 
 usage ()
 {
-    echo "Usage: vlvindex [-Z serverID] -n backend_instance | {-s includesuffix}* -T attribute"
-    echo Note: either \"-n backend_instance\" or \"-s includesuffix\" are required.
+    echo "Usage: vlvindex [-Z serverID] -n backendname | {-s includesuffix}* -T vlvTag [-d debuglevel] [-h]"
+    echo "Note: either \"-n backend\" or \"-s includesuffix\" are required."
+    echo "Options:"
+    echo "        -Z serverID        - Server instance identifier"
+    echo "        -n backend         - Backend database name.  Example: userRoot"
+    echo "        -s includessuffix  - Suffix to index"
+    echo "        -T vlvTag          - VLV index name"
+    echo "        -d debuglevel      - Debugging level"
+    echo "        -h                 - Display usage"
 }
 
-while getopts "Z:vd:a:t:T:Sn:s:x:hD:" flag
+while getopts "Z:vd:a:T:Sn:s:x:hD:" flag
 do
     case $flag in
         Z) servid=$OPTARG;;
@@ -25,7 +32,6 @@ do
         s) args=$args" -s $OPTARG";;
         d) args=$args" -d $OPTARG";;
         a) args=$args" -a $OPTARG";;
-        t) args=$args" -t $OPTARG";;
         T) args=$args" -T $OPTARG";;
         S) args=$args" -S";;
         n) args=$args" -n $OPTARG";;
@@ -51,8 +57,8 @@ configdir="@instconfigdir@/slapd-$servid"
 
 if [ $# -lt 4 ]
 then
-	usage
-	exit 1
+    usage
+    exit 1
 fi
 
 @sbindir@/ns-slapd db2index -D $configdir $args

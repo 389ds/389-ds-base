@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -13,9 +13,19 @@ export SHLIB_PATH
 
 usage()
 {
-    echo "Usage: ldif2db [-Z serverID] -n backend_instance | {-s includesuffix}* [{-x excludesuffix}*]"
-    echo "               {-i ldiffile}* [-O] [-q]"
-    echo "Note: either \"-Z serverID\", \"-n backend_instance\", \"-s includesuffix\" and \"-i ldiffile\" are required."
+    echo "Usage: ldif2db [-Z serverID] -n backendname {-s includesuffix}* [{-x excludesuffix}*] {-i ldiffile}*"
+    echo "               [-O] [-E] [-q] [-h]"
+    echo "Note: either \"-n backend\", \"-s includesuffix\", and \"-i ldiffile\" are required."
+    echo "Options:"
+    echo "        -Z serverID       - The server instance identifier"
+    echo "        -n backend        - Backend database name.  Example: userRoot"
+    echo "        -s inclduesuffix  - Suffix to include"
+    echo "        -x excludesuffix  - Suffix to exclude"
+    echo "        -i ldiffile       - LDIF file name"
+    echo "        -O                - Do not index the attributes"
+    echo "        -E                - Encrypt attributes"
+    echo "        -q                - Quiet mode - suppresses output"
+    echo "        -h                - Display usage" 
 }
 
 handleopts()
@@ -36,7 +46,7 @@ handleopts()
     return 0
 }
 
-while getopts "Z:vd:i:g:G:n:s:x:NOCc:St:D:Eq" flag
+while getopts "Z:vhd:i:g:G:n:s:x:NOCc:St:D:Eq" flag
 do
     case $flag in
         h) usage

@@ -50,3 +50,5 @@ while ($i <= $#ARGV) {
 }
 
 exec "{{SERVERBIN-DIR}}/syntax-validate.pl @wrapperArgs -Z {{SERV-ID}}";
+
+exit ($?);

@@ -43,110 +43,99 @@ use lib qw(@perlpath@);
 use DSUtil;
 use Getopt::Std;
 
-sub usage {
-    print(STDERR "Usage: $0 [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
-    print(STDERR "        -n instance [-t attributeName[:indextypes[:matchingrules]]]\n");
-    print(STDERR " Opts: -D rootdn           - Directory Manager\n");
-    print(STDERR "     : -w password         - Directory Manager's password\n");
-    print(STDERR "     : -w -                - Prompt for Directory Manager's password\n");
-    print(STDERR "     : -j filename         - Read Directory Manager's password from file\n");
-    print(STDERR "     : -Z serverID         - Name of the server instance\n");
-    print(STDERR "     : -n backend name     - instance to be indexed\n");
-    print(STDERR "     : -t attributeName[:indextypes[:matchingrules]]\n");
-    print(STDERR "                           - attributeName: name of the attribute to be indexed\n");
-    print(STDERR "                             If omitted, all the indexes defined \n");
-    print(STDERR "                             for that instance are generated.\n");
-    print(STDERR "                           - indextypes: comma separated index types\n");
-    print(STDERR "                           - matchingrules: comma separated matrules\n");
-    print(STDERR "                           Example: -t foo:eq,pres\n");
-    print(STDERR "     : -T vlvAttributeName - vlvAttributeName: name of the vlv attribute to be indexed\n");
-    print(STDERR "     : -v                  - verbose\n");
-}
-
-$opt_v = 0;
-$instance = "";
-$rootdn = "";
-$passwd = "";
-$passwdfile = "";
-$attribute_arg = "";
-$vlvattribute_arg = "";
-$verbose = 0;
-$host = "";
-$port = "";
-
-$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:@ldaptool_bindir@:/usr/bin";
-
 DSUtil::libpath_add("@nss_libdir@");
 DSUtil::libpath_add("/usr/lib");
 DSUtil::libpath_add("/usr/lib64");
-
+$ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
-usage() if (!getopts('n:D:w:T:t:j:Z:vh'));
+$i = 0;
+$attr_count = 0;
+$vlv_count = 0;
 
-if ($opt_j ne ""){
-    die "Error, cannot open password file $opt_j\n" unless (open (RPASS, $opt_j));
-    $opt_w = <RPASS>;
-    chomp($opt_w);
-    close(RPASS);
+sub usage {
+    print(STDERR "Usage: db2index.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-n] [-P protocol]\n");
+    print(STDERR "                   -n backendname [-t attributeName[:indextypes[:matchingrules]]] [-T vlvTag] [-v] [-h]\n");
+    print(STDERR "Options:\n");
+    print(STDERR "        -D rootdn       - Directory Manager\n");
+    print(STDERR "        -w password     - Directory Manager's password\n");
+    print(STDERR "        -w -            - Prompt for Directory Manager's password\n");
+    print(STDERR "        -j filename     - Read Directory Manager's password from file\n");
+    print(STDERR "        -Z serverID     - Server instance identifer\n");
+    print(STDERR "        -n backendname  - Backend database name.  Example: userRoot\n");
+    print(STDERR "        -t attributeName[:indextypes[:matchingrules]]\n");
+    print(STDERR "                        - attributeName: name of the attribute to be indexed\n");
+    print(STDERR "                          If omitted, all the indexes defined for that instance are generated.\n");
+    print(STDERR "                        - indextypes: comma separated index types\n");
+    print(STDERR "                        - matchingrules: comma separated matrules\n");
+    print(STDERR "                              Example: -t foo:eq,pres\n");
+    print(STDERR "        -T vlvTag       - VLV index name\n");
+    print(STDERR "        -P protocol     - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
+    print(STDERR "        -v              - Verbose\n");
+    print(STDERR "        -h              - Display usage\n");
 }
 
-if( $opt_w eq "" || $#ARGV ge 0){
-    usage();
-    exit (1);
-}
-if( $opt_h ){
-    usage();
-    exit (0);
+while ($i <= $#ARGV) {
+    if ("$ARGV[$i]" eq "-t") {         # attribute
+        $i++; $attr[$attr_count] = $ARGV[$i]; $attr_count++;
+    } elsif ("$ARGV[$i]" eq "-T") {    # VLV index
+        $i++; $vlv_attr[$vlv_count] = $ARGV[$i]; $vlv_count++;
+    } elsif ("$ARGV[$i]" eq "-D") {    # Directory Manager
+        $i++; $rootdn = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-w") {    # Directory Manager's password
+        $i++; $passwd = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-j") {    # Read Directory Manager's password from a file
+        $i++; $passwdfile = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-n") {    # backend instance name
+        $i++; $instance = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-Z") {    # server instance name
+        $i++; $servid = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-P") {    # protocol preference
+        $i++; $protocol = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-h") {    # help
+        &usage; exit(0);
+    } elsif ("$ARGV[$i]" eq "-v") {    # verbose
+        $verbose = 1;
+    } else {
+        &usage; exit(1);
+    }
+    $i++;
 }
 
-$instance = $opt_n;
-$rootdn = $opt_D;
-$passwd = $opt_w;
-$attribute_arg = $opt_t;
-$vlvattribute_arg = $opt_T;
-$verbose = $opt_v;
-$servid = $opt_Z;
-$passwdfile = $opt_j;
-
+#
+# Gather all our config settings
+#
 $servid = DSUtil::get_server_id($servid, "@initconfigdir@");
-@info = DSUtil::get_missing_info("@instconfigdir@", $servid, $host, $port, $rootdn);
-$passwd = DSUtil::get_password_from_file($passwd, $passwdfile);
-
-if ( $info[2] eq "" || $passwd eq "" ) 
-{ 
+%info = DSUtil::get_info("@instconfigdir@", $servid, $host, $port, $rootdn);
+$info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
+$info{protocol} = $protocol;
+if ($verbose){
+    $info{args} = "-v -a";
+} else {
+    $info{args} = "-a";
+}
+if ($instance eq ""){ 
     &usage; 
+    exit(1);
 }
 
-$vstr = "";
-if ($verbose != 0) 
-{ 
-    $vstr = "-v"; 
-}
-
-($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
-$mn++; $yr += 1900;
-$taskname = "db2index_${yr}_${mn}_${dy}_${h}_${m}_${s}";
-
-if ( $instance eq "" )
-{
-    &usage;
-}
-
+# 
 # No attribute name has been specified: let's get them from the configuration
-$attribute="";
-$indexes_list="";
-$vlvattribute="";
-$vlvindexes_list="";
+#
 chdir("/usr/bin");
-if ( $attribute_arg eq "" && $vlvattribute_arg eq "" )
+if ( $#attr == -1 && $#vlv_attr == -1 )
 {
     # Get the list of indexes from the entry
-    $indexes_list="ldapsearch @ldaptool_opts@ $vstr -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$passwd\" -s one " .
-    "-b \"cn=index,cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"(&(objectclass=*)(nsSystemIndex=false))\" cn";
+    $info{base} = "cn=index,cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config";
+    $info{filter} = "(&(objectclass=*)(nsSystemIndex=false))";
+    $info{scope} = "one";
+    $info{attrs} = "cn";
+    $info{srch_args} = $vstr;
+    $indexes_list=DSUtil::ldapsrch(%info);
+    
     # build the values of the attribute nsIndexAttribute
     open(LDAP1, "$indexes_list |");
-    while (<LDAP1>) {
+    while (<LDAP1>){
         s/\n //g;
         if (/^cn: (.*)\n/) {
             $IndexAttribute="nsIndexAttribute";
@@ -154,14 +143,24 @@ if ( $attribute_arg eq "" && $vlvattribute_arg eq "" )
         }
     }
     close(LDAP1);
-    if ( $attribute eq "" )
-    {
+    if($? != 0){
+        $ret=$?>>8;
+        print(STDERR "Failed to search the server for indexes, error ($ret)\n");
+        exit($ret);
+    }
+    if ( $attribute eq "" ){
         # No attribute to index, just exit
-        exit(0);
+        print "Failed to add task entry - no attributes found for backend \"$instance\"\n";
+        exit(1);
     }
 
     # Get the list of indexes from the entry
-    $vlvindexes_list="ldapsearch @ldaptool_opts@ $vstr -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$passwd\" -s sub -b \"cn=\"$instance\", cn=ldbm database,cn=plugins,cn=config\" \"objectclass=vlvIndex\" cn";
+    $info{base} = "cn=\"$instance\",cn=ldbm database,cn=plugins,cn=config";
+    $info{filter} = "objectclass=vlvIndex";
+    $info{scope} = "sub";
+    $info{attrs} = "cn";
+    $info{srch_args} = $vstr;
+    $vlvindexes_list=DSUtil::ldapsrch(%info);
 
     # build the values of the attribute nsIndexVlvAttribute
     open(LDAP1, "$vlvindexes_list |");
@@ -173,27 +172,42 @@ if ( $attribute_arg eq "" && $vlvattribute_arg eq "" )
         }
     }
     close(LDAP1);
+    if($? != 0){
+        $ret=$?>>8;
+        print(STDERR "Failed to search the server for VLV indexes, error ($ret)\n");
+        exit($ret);
+    }
 }
 else
 {
-    if ( $attribute_arg ne "" )
-    {
-        $attribute="nsIndexAttribute: $attribute_arg\n";
+    foreach $arg (@attr){
+        $attribute = $attribute . "nsIndexAttribute: $arg\n";
     }
-    if ( $vlvattribute_arg ne "" )
-    {
-        $vlvattribute="nsIndexVlvAttribute: $vlvattribute_arg\n";
+    foreach $arg (@vlv_attr){
+        $vlvattribute = $vlvattribute . "nsIndexVlvAttribute: $arg\n";
     }
 }
 
-# Build the task entry to add
-
+# 
+# Construct the task entry
+#
+($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
+$mn++; $yr += 1900;
+$taskname = "db2index_${yr}_${mn}_${dy}_${h}_${m}_${s}";
 $dn = "dn: cn=$taskname, cn=index, cn=tasks, cn=config\n";
 $misc = "objectclass: top\nobjectclass: extensibleObject\n";
 $cn =  "cn: $taskname\n";
 $nsinstance = "nsInstance: ${instance}\n";
-
 $entry = "${dn}${misc}${cn}${nsinstance}${attribute}${vlvattribute}";
-open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h $info[0] -p $info[1] -D \"$info[2]\" -w \"$passwd\" -a" );
-print(FOO "$entry");
-close(FOO);
+
+$rc = DSUtil::ldapmod($entry, %info);
+
+$dn =~ s/^dn: //;
+$dn =~ s/\n//;
+if($rc == 0){
+    print "Successfully added task entry \"$dn\"\n";
+} else {
+    print "Failed to add task entry \"$dn\" error ($rc)\n";
+}
+
+exit($rc);

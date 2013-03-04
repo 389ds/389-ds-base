@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -13,10 +13,23 @@ export SHLIB_PATH
 
 usage()
 {
-    echo "Usage: db2ldif [-Z serverID] {-n backend_instance}* | {-s includesuffix}*"
-    echo "               [{-x excludesuffix}*] [-a outputfile]"
-    echo "               [-N] [-r] [-C] [-u] [-U] [-m] [-M] [-1] [-q]"
-    echo "Note: either \"-n backend_instance\" or \"-s includesuffix\" is required."
+    echo "Usage: db2ldif [-Z serverID] {-n backend_instance}* | {-s includesuffix}* [{-x excludesuffix}*] [-a outputfile]"
+    echo "               [-E] [-r] [-u] [-U] [-m] [-1] [-q] [-h]"
+    echo "Note: either \"-n backend\" or \"-s includesuffix\" is required."
+    echo "Options:"
+    echo "        -Z serverID       - Server instance identifier"
+    echo "        -n backend        - Backend database name.  Example: userRoot"
+    echo "        -s inclduesuffix  - Suffix to include"
+    echo "        -x                - Suffix to exclude"
+    echo "        -a outputfile     - Name of the exported LDIF file"
+    echo "        -r                - Include replication data"
+    echo "        -E                - Decrypt attributes"
+    echo "        -u                - Do not export the nsUniqueId attribute"
+    echo "        -U                - Do not wrap long lines"
+    echo "        -m                - Do not base64 encode values"
+    echo "        -1                - Do not include version text"
+    echo "        -q                - Quiet mode - suppresses output"
+    echo "        -h                - Display usage" 
 }
 
 make_ldiffile()

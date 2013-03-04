@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -13,8 +13,10 @@ export SHLIB_PATH
 
 usage ()
 {
-    echo "Usage: restoreconfig [-Z serverID]"
-    echo "   -Z      - Server instance identifier"
+    echo "Usage: restoreconfig [-Z serverID] [-h]"
+    echo "Options:"
+    echo "        -Z serverID  - Server instance identifier"
+    echo "        -h           - Display usage"
 }
 
 while getopts "Z:h" flag

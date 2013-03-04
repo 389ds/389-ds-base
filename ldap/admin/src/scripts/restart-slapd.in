@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 # Script that restarts the ns-slapd server.
 # Exit status can be:
@@ -43,8 +43,8 @@ fi
 @sbindir@/restart-dirsrv -d @initconfigdir@ $servid $args
 if [ $? == 0 ]
 then
-    echo Sucessfully restarted instance $servid
+    echo Sucessfully restarted instance \"$servid\"
 else
-    echo Failed to restart instance $servid
+    echo Failed to restart instance \"$servid\"
 fi
 exit $?

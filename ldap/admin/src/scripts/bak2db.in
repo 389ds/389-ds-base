@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@libdir@/dirsrv/"
 libpath_add "@nss_libdir@"
@@ -13,14 +13,20 @@ export SHLIB_PATH
 
 usage()
 {
-    echo "Usage: bak2db archivedir [-Z serverID] [-n backendname] [-q] | [-h]"
+    echo "Usage: bak2db archivedir [-Z serverID] [-n backend] [-q] [-h]"
+    echo "Options:"
+    echo "        archivedir   - Directory where the archived backup is located"
+    echo "        -n backend   - Backend database name.  Example: userRoot"
+    echo "        -Z serverID  - Server instance identifier"
+    echo "        -q           - Quiet mode - suppresses output"
+    echo "        -h           - Display usage"  
 }
 
 if [ $# -lt 1 ] || [ $# -gt 7 ]
 then
     usage
     exit 1
-elif [ "$1" == "-*" ]
+elif [[ $1 == -* ]]
 then
     usage
     exit 1

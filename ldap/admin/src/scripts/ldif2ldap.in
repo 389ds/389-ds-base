@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ./DSSharedLib
+source @datadir@/dirsrv/data/DSSharedLib
 
 libpath_add "@ldapsdk_libdir@"
 libpath_add "@libdir@"
@@ -10,22 +10,28 @@ libpath_add "@libdir@/dirsrv/"
 export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
-PATH=$PATH:@ldaptool_bindir@:@ldaptool_bindir@
+PATH=$PATH:@ldaptool_bindir@:@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap
 
 usage ()
 {
-    echo "Usage: ldif2ldap [-Z serverID] -D <bind dn> -w <password> -f <file>"
+    echo "Usage: ldif2ldap [-Z serverID] [-D <rootdn>] -w <password> -f <file> [-P protocol] [-h]"
+    echo "Options:"
+    echo "        -Z serverID  - Server instance identifier"
+    echo "        -D rootdn    - Directory Manager DN"
+    echo "        -w passwd    - Directory Manager password"
+    echo "        -f file      - File containing LDAP entries to add to the server"
+    echo "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP"
+    echo "        -h           - Display usage"
 }
 
-while getopts "Z:D:w:f:h" flag
+while getopts "Z:D:w:f:hP:" flag
 do
     case $flag in
         Z) servid=$OPTARG;;
-        D) args=$args" -D $OPTARG"
-           binddn=$OPTARG;;
-        w) args=$args" -w $OPTARG"
-           passwd=$OPTARG;;
-        f) args=$args" -f $OPTARG"
+        P) protocol=$OPTARG;;
+        D) rootdn=$OPTARG;;
+        w) passwd=$OPTARG;;
+        f) args=$args"-f $OPTARG"
            input_file=$OPTARG;;
         h) usage
            exit 0;;
@@ -34,7 +40,7 @@ do
     esac
 done
 
-if [ "$binddn" == "" ] || [ "$passwd" == "" ] || [ "$input_file" == "" ]
+if [ "$input_file" == "" ]
 then 
     usage
     exit 1
@@ -49,7 +55,117 @@ then
     exit 1
 fi
 
-port=$(grep 'nsslapd-port' @instconfigdir@/slapd-$servid/dse.ldif | awk '{print $2}' )
-host=$(grep 'nsslapd-localhost' @instconfigdir@/slapd-$servid/dse.ldif | awk '{print $2}' )
+process_dse $servid $$
+file="/tmp/DSSharedLib.$$"
+port=$(grep -i 'nsslapd-port' $file | awk '{print $2}' )
+host=$(grep -i 'nsslapd-localhost' $file | awk '{print $2}' )
+security=$(grep -i 'nsslapd-security' $file | awk '{print $2}' )
+secure_port=$(grep -i 'nsslapd-secureport' $file | awk '{print $2}' )
+ldapi=$(grep -i 'nsslapd-ldapilisten' $file | awk '{print $2}' )
+ldapiURL=$(grep -i 'nsslapd-ldapifilepath' $file | awk '{print $2}' )
+certdir=$(grep -i 'nsslapd-certdir' $file | awk '{print $2}' )
+autobind=$(grep -i 'nsslapd-ldapiautobind' $file | awk '{print $2}' )
+if [ "$rootdn" == "" ]; then
+    value=$(grep -i 'nsslapd-rootdn' $file)
+    rootdn=`echo "$value" | sed -e 's/nsslapd-rootdn: //i'`
+fi
+rm $file
 
-ldapmodify @ldaptool_opts@ -a -p $port -h $host $args
+if [ "$ldapiURL" != "" ]; then
+    ldapiURL=`echo "$ldapiURL" | sed -e 's/\//%2f/g'`
+    ldapiURL="ldapi://"$ldapiURL
+fi
+
+client_type=`ldapmodify -V 2>&1`;
+echo "$client_type" | grep -q "OpenLDAP"
+if  [ $? -eq 0 ]
+then
+    openldap="yes"
+    export LDAPTLS_CACERTDIR=$certdir
+fi
+
+if [ -z $security ]; then
+    security="off"
+fi
+revised_protocol=$(check_protocol $protocol $security $ldapi $openldap)
+if [ "$revised_protocol" != "$protocol" ]; then
+    echo Protocol $protocol requested, but this protocol is not supported
+    error="yes"
+fi
+protocol=$revised_protocol
+
+#
+# STARTTLS
+#
+if [ "$security" == "on" ]; then
+    if [ "$protocol" == "STARTTLS" ] || [ "$protocol" == "" ]; then
+        if [ $error == "yes" ]; then 
+            echo "Using the next most secure protocol(STARTTLS)"
+        fi
+        if [ "$openldap" == "yes" ]; then
+            ldapmodify -x -ZZ -p $port -h $host -D $rootdn -w $passwd -a -f $input_file
+        else
+            ldapmodify -ZZZ -P $certdir -p $port -h $host -D $rootdn -w $passwd -a -f $input_file
+        fi
+        exit $?
+    fi
+fi
+
+#
+# LDAPS
+#
+if [ "$security" == "on" ]; then
+    if [ "$protocol" == "LDAPS" ] || [ "$protocol" == "" ]; then
+        if [ $error == "yes" ]; then 
+            echo "Using the next most secure protocol(LDAPS)"
+        fi
+        if [ "$openldap" == "yes" ]; then
+            ldapmodify -x -H "ldaps://$host:$secure_port" -D $rootdn -w $passwd -a -f $input_file
+        else
+            ldapmodify -Z -P $certdir -p $secure_port -h $host -D $rootdn -w $passwd -a -f $input_file 
+        fi
+        exit $?
+    fi
+fi
+
+#
+# LDAPI
+#
+if [ "$ldapi" == "on" ] && [ "$openldap" == "yes" ]; then
+    if [ "$protocol" == "LDAPI" ] || [ "$protocol" == "" ]; then
+        if [ "$(id -u)" == "0" ] && [ "$autobind" == "on" ]; then
+            if [ $error == "yes" ]; then 
+                echo "Using the next most secure protocol(LDAPI/AUTOBIND)"
+            fi
+            ldapmodify -H $ldapiURL -Y EXTERNAL -a -f $input_file 2>/dev/null
+        else
+            if [ $error == "yes" ]; then 
+                echo "Using the next most secure protocol(LDAPI)"
+            fi
+            ldapmodify -x -H $ldapiURL -D $rootdn -w $passwd -a -f $input_file
+        fi
+        rc=$?
+        if [ $rc != 0 ]
+        then
+            echo "Operation failed (error $rc)"
+        fi
+        exit $rc
+    fi
+fi
+
+#
+# LDAP
+#
+if [ "$protocol" == "LDAP" ] || [ "$protocol" == "" ]; then
+    if [ $error == "yes" ]; then 
+        echo "Using the next most secure protocol(LDAP)"
+    fi
+    if [ "$openldap" == "yes" ]; then
+        ldapmodify -x -p $port -h $host -D $rootdn -w $passwd -a -f $input_file
+    else
+        ldapmodify -p $port -h $host -D $rootdn -w $passwd -a -f $input_file
+    fi
+    exit $?
+fi
+
+echo ERROR $protocol
