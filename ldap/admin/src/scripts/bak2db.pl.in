@@ -53,8 +53,8 @@ $dbtype = "ldbm database";
 $i = 0;
 
 sub usage {
-    print(STDERR "Usage: bak2db.pl [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -a dirname [-t dbtype]\n");
-    print(STDERR "                 [-n backendname] [-P protocol] [-h]\n");
+    print(STDERR "Usage: bak2db.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -a dirname [-t dbtype]\n");
+    print(STDERR "                 [-n backendname] [-P protocol] [-v] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn    - Directory Manager\n");
     print(STDERR "        -w password  - Directory Manager's password\n");

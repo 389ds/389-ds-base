@@ -25,7 +25,7 @@ usage()
     echo "        -h             - Display usage"
 }
 
-while getopts "Z:n:hVfd:n:D:" flag
+while getopts "Z:n:hVvfd:n:D:" flag
 do
     case $flag in
         h) usage
@@ -34,7 +34,8 @@ do
         n) args=$args" -n $OPTARG";;
         d) args=$args" -d $OPTARG";;
         V) args=$args" -V";;
-        v) args=$args" -v";;
+        v) args=$args" -v"
+           display_version="yes";;
         f) args=$args" -f";;
         D) args=$args" -D $OPTARG";;
         ?) usage
@@ -54,6 +55,9 @@ fi
 configdir="@instconfigdir@/slapd-$servid"
 
 @sbindir@/ns-slapd dbverify -D $configdir $args
+if [ $display_version == "yes" ]; then
+    exit 0
+fi
 if [ $? -eq 0 ]; then
     echo "DB verify: Passed"
     exit 0

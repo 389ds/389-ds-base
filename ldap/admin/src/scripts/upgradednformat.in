@@ -21,7 +21,7 @@ export SHLIB_PATH
 
 usage ()
 {
-    echo "Usage: $0 -n backendname -a database_directory [-Z serverID] [-N] [-h]"
+    echo "Usage: upgradednformat -n backendname -a database_directory [-Z serverID] [-N] [-h]"
     echo "Options:"
     echo "        -n backendname         - Backend name"
     echo "        -a database_directory  - Path to database directory"

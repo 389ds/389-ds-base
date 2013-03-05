@@ -54,7 +54,7 @@ $attr_count = 0;
 $vlv_count = 0;
 
 sub usage {
-    print(STDERR "Usage: db2index.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-n] [-P protocol]\n");
+    print(STDERR "Usage: db2index.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-P protocol]\n");
     print(STDERR "                   -n backendname [-t attributeName[:indextypes[:matchingrules]]] [-T vlvTag] [-v] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn       - Directory Manager\n");

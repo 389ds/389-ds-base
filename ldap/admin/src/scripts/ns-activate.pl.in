@@ -56,8 +56,8 @@ $role = 0;
 
 sub usage
 {
-    print (STDERR "$cmd [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
-    print (STDERR "     [-p port] [-h host] [-P protocol] -I DN-to-$operation\n\n");
+    print (STDERR "ns-activate.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
+    print (STDERR "               [-p port] [-h host] [-P protocol] -I DN-to-$operation\n\n");
     print (STDERR "May be used to $operation a user or a domain of users\n\n");
     print (STDERR "Arguments:\n");
     print (STDERR "        -?                   - Display usage\n");

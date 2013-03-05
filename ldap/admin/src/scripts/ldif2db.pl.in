@@ -60,8 +60,8 @@ $encrypt_on_import = 0;
 
 sub usage {
     print(STDERR "Usage: ldif2db.pl -n backend [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }\n");
-    print(STDERR "                  [-P protocol] {-s include}* [{-x exclude}*] [-O] [-c] [-v] [-h] [-g [string]]\n");
-    print(STDERR "                  [-G namespace_id] {-i filename}*\n");
+    print(STDERR "                  [-P protocol] {-s include}* [{-x exclude}*] [-O] [-c chunksize] [-v] [-h]\n");
+    print(STDERR "                  [-E] [-g [string] [-G namespace_id]] {-i filename}*\n");
     print(STDERR "Note: either \"-n backend\", \"-s includesuffix\", and \"-i ldiffile\" are required.\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn     - Directory Manager\n");
@@ -74,7 +74,7 @@ sub usage {
     print(STDERR "        -s include    - Included suffix\n");
     print(STDERR "        -x exclude    - Excluded suffix(es)\n");
     print(STDERR "        -O            - Only create core db, no attr indexes\n");
-    print(STDERR "        -c size       - Merge chunk size\n");
+    print(STDERR "        -c chunksize  - Number of entries to process before starting a new pass\n");
     print(STDERR "        -g [string]   - String is \"none\" or \"deterministic\"\n");
     print(STDERR "                        \"none\" - unique id is not generated\n");
     print(STDERR "                        \"deterministic\" - generate name based unique id (-G name)\n");

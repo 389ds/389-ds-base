@@ -14,7 +14,7 @@ export SHLIB_PATH
 usage()
 {
     echo "Usage: ldif2db [-Z serverID] -n backendname {-s includesuffix}* [{-x excludesuffix}*] {-i ldiffile}*"
-    echo "               [-O] [-E] [-q] [-h]"
+    echo "               [-c chunksize] [-g [string]] [-G namespace_id] [-O] [-E] [-q] [-v] [-h]"
     echo "Note: either \"-n backend\", \"-s includesuffix\", and \"-i ldiffile\" are required."
     echo "Options:"
     echo "        -Z serverID       - The server instance identifier"
@@ -22,9 +22,16 @@ usage()
     echo "        -s inclduesuffix  - Suffix to include"
     echo "        -x excludesuffix  - Suffix to exclude"
     echo "        -i ldiffile       - LDIF file name"
+    echo "        -c chunksize      - Number of entries to process before starting a new pass"
+    echo "        -g [string]       - String is \"none\" or \"deterministic\""
+    echo "                           \"none\" - unique id is not generated"
+    echo "                           \"deterministic\" - generate name based unique id (-G name)"
+    echo "                            By default - generate time based unique id"
+    echo "        -G name           - Namespace id for name based uniqueid (-g deterministic)"
     echo "        -O                - Do not index the attributes"
     echo "        -E                - Encrypt attributes"
     echo "        -q                - Quiet mode - suppresses output"
+    echo "        -v                - Verbose output"
     echo "        -h                - Display usage" 
 }
 

@@ -12,7 +12,7 @@ export SHLIB_PATH
       
 usage ()
 {
-    echo "Usage: db2rdn [-Z serverID] [-h] [-f] [-v] [-d debuglevel]"
+    echo "Usage: dn2rdn [-Z serverID] [-h] [-f] [-v] [-d debuglevel]"
     echo "Options:"
     echo "        -Z serverID    - Server instance identifier"
     echo "        -f             - Force upgrade"

@@ -50,7 +50,7 @@ my $i = 0;
 
 sub usage
 {
-  print "Usage: $0 [-Z serverID] [ -a <fullpath_to_db_dir> ] [-h]\n";
+  print "Usage: verify-db.pl [-Z serverID] [ -a <fullpath_to_db_dir> ] [-h]\n";
 }
 
 # getDbDir checks up to 4 levels of db dirs
