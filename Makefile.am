@@ -502,7 +502,23 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/setup-ds.pl.8 \
         man/man8/start-dirsrv.8 \
         man/man8/stop-dirsrv.8 \
-	man/man8/remove-ds.pl.8
+        man/man8/bak2db.8 man/man8/bak2db.pl.8 \
+        man/man8/db2bak.8 man/man8/db2bak.pl.8 \
+        man/man8/db2ldif.8 man/man8/db2ldif.pl.8 \
+        man/man8/db2index.8 man/man8/db2index.pl.8 \
+        man/man8/ldif2db.8 man/man8/ldif2db.pl.8 \
+        man/man8/dbverify.8 man/man8/verify-db.pl.8 \
+        man/man8/dn2rdn.8 man/man8/ldif2ldap.8 \
+        man/man8/restoreconfig.8 man/man8/saveconfig.8 \
+        man/man8/start-slapd.8 man/man8/stop-slapd.8 man/man8/restart-slapd.8 \
+        man/man8/suffix2instance.8 man/man8/monitor.8 \
+        man/man8/upgradednformat.8 man/man8/vlvindex.8 \
+        man/man8/cleanallruv.pl.8 man/man8/schema-reload.pl.8 \
+        man/man8/fixup-linkedattrs.pl.8 man/man8/fixup-memberof.pl.8 \
+        man/man8/syntax-validate.pl.8 man/man8/usn-tombstone-cleanup.pl.8 \
+        man/man8/ns-accountstatus.pl.8 man/man8/ns-newpwpolicy.pl.8 \
+        man/man8/ns-activate.pl.8 man/man8/ns-inactivate.pl.8 \
+        man/man8/upgradedb.8 man/man8/remove-ds.pl.8
 
 #------------------------
 # updates

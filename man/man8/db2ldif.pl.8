@@ -1,0 +1,124 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH DB2LDIF.PL 8 "Mar 5, 2013"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+db2ldif.pl - Directory Server perl script for exporting a database to a LDIF file
+.SH SYNOPSIS
+db2ldif.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j pwfilename } [-P protocol]
+{-n backendname}* | {-s includeSuffix}* [{-x excludeSuffix}*] [-m] [-M] [-r] [-u] [-C] [-N] [-E] [-1] [-U] [-a filename] [-v] [-h]
+.SH DESCRIPTION
+Exports the contents of the database to LDIF. This script creates an entry in the directory that launches this dynamic task.
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fB\-Z\fR \fIServer Identifier\fR
+The server ID of the Directory Server instance.  If there is only 
+one instance on the system, this option can be skipped.
+.TP
+.B \fB\-D\fR \fIRoot DN\fR
+The Directory Manager DN, or root DN.  If not specified, the script will 
+search the server instance configuration for the value.
+.TP
+.B \fB\-w\fR \fIpassword\fR
+The rootdn password.
+.TP
+.B \fB\-w -\fR 
+.br
+Prompt for the rootdn password.
+.TP
+.B \fB\-j\fR \fIpassword filename\fR
+The name of the file that contains the root DN password.
+.TP
+.B \fB\-n\fR \fIBackend Name\fR
+The name of the LDBM database to restore.  Example: userRoot
+.TP
+.B \fB\-s\fR \fIincludeSuffix\fR
+The suffix DN to be included in the exported LDIF file.
+.TP
+.B \fB\-x\fR \fIexcludeSuffix\fR
+The suffix DN to be excluded from the exported LDIF file.
+.TP
+.B \fB\-a\fR \fIfilename\fR
+Name for the exported LDIF file.
+.TP
+.B \fB\-P\fR \fIProtocol\fR
+The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
+If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
+available for the root user.
+.TP
+.B \fB\-m\fR 
+.br
+Minimize the base64 encodings in the exported LDIF file.
+.TP
+.B \fB\-M\fR 
+.br
+Exported ldif is stored in multiple files. These files are named : <instance>_<filename>
+.br
+By default, all instances are stored in the filename specified by the -a option.
+.TP
+.B \fB\-r\fR 
+.br
+Export replication data(information required to initialize a replica when the LDIF is imported).
+.TP
+.B \fB\-u\fR 
+.br
+Do not export the unique-id attribute.
+.TP
+.B \fB\-U\fR 
+.br
+Requests that the output LDIF is not folded. 
+.TP
+.B \fB\-C\fR 
+.br
+Uses only the main database file.
+.TP
+.B \fB\-N\fR 
+.br
+Suppress printing sequential number
+.TP
+.B \fB\-E\fR 
+.br
+Decrypts any encrypted data during export.
+.TP
+.B \fB\-1\fR 
+.br
+Deletes, for reasons of backward compatibility, the first line of the LDIF file that gives the version of the LDIF standard. 
+.TP
+.B \fB\-v\fR 
+.br
+Display verbose ouput
+.TP
+.B \fB\-h\fR 
+.br
+Display usage
+.SH EXAMPLE
+.TP
+db2ldif.pl -Z instance3 -n userRoot -a /LDAP/ldif/export.ldif -P STARTTLS
+
+Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
+.TP
+db2ldif.pl -s 'dc=example,dc=com' -a /LDAP/ldif/export.ldif -m -E -q
+.SH DIAGNOSTICS
+Exit status is zero if no errors occur.  Errors result in a 
+non-zero exit status and a diagnostic message being written 
+to standard error.
+.SH AUTHOR
+db2ldif.pl was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2013 Red Hat, Inc.

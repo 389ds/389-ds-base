@@ -1,0 +1,58 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH BAK2DB 8 "Mar 5, 2013"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+bak2db - Directory Server script for restoring a backup
+.SH SYNOPSIS
+bak2db archivedir [-Z serverID] [-n backendname] [-q] | [-h]
+.SH DESCRIPTION
+Restores the database from a archived backup.  The Directory Server must be stopped prior to running this script.
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fBarchivedir\fR
+The directory of the archived database.
+.TP
+.B \fB\-Z\fR \fIServer Identifier\fR
+The server ID of the Directory Server instance.  If there is only 
+one instance on the system, this option can be skipped.
+.TP
+.B \fB\-n\fR \fIBackend Name\fR
+The name of the LDBM database to restore.  Example: userRoot
+.TP
+.B \fB\-q\fR
+.br
+Quiet mode.  Reduces output of task.
+.TP
+.B \fB\-h\fR
+.br
+Display the usage.
+.SH EXAMPLE
+bak2db /LDAP/backups/20130305/ -Z instance1 -n userRoot
+
+bak2db /LDAP/backups/20130305/ -n example
+
+.SH DIAGNOSTICS
+Exit status is zero if no errors occur.  Errors result in a 
+non-zero exit status and a diagnostic message being written 
+to standard error.
+.SH AUTHOR
+bak2db was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2013 Red Hat, Inc.

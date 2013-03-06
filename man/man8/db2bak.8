@@ -1,0 +1,59 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH DB2BAK 8 "Mar 5, 2013"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+db2bak - Directory Server script for making a backup of the database
+.SH SYNOPSIS
+db2bak [archivedir] [-Z serverID] [-q] [-h]
+.SH DESCRIPTION
+Creates a backup of the database.  This script can be executed while the server is running or stopped.
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fBarchivedir\fR
+The full path to the directory to store the backup.
+.TP
+.B \fB\-Z\fR \fIServer Identifier\fR
+The server ID of the Directory Server instance.  If there is only 
+one instance on the system, this option can be skipped.
+.TP
+.B \fB\-q\fR
+.br
+Quiet mode.  Reduces output of task.
+.TP
+.B \fB\-h\fR
+.br
+Display the usage.
+.SH EXAMPLE
+.TP
+db2bak -Z instance2
+
+Makes a backup of the entire database for 'instance2', and stores it in the default server instance backup directory.
+.TP
+db2bak /LDAP/backups/20130305
+
+Creates a backup of the database and stores it in specified location.
+.SH DIAGNOSTICS
+Exit status is zero if no errors occur.  Errors result in a 
+non-zero exit status and a diagnostic message being written 
+to standard error.
+.SH AUTHOR
+db2bak was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2013 Red Hat, Inc.

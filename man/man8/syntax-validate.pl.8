@@ -1,0 +1,77 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH SYNTAX-VALIDATE.PL 8 "Mar 5, 2013"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+syntax-validate.pl - Directory Server perl script for validating attribute syntax.
+.SH SYNOPSIS
+syntax-validate.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -b baseDN [-f filter] [-P protocol] [-v] [-h]
+.SH DESCRIPTION
+Syntax validation checks every modification to attributes to make sure that the new value has the required syntax for that attribute type. All attribute syntaxes are validated against the definitions in RFC 4514. 
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fB\-Z\fR \fIServer Identifier\fR
+The server ID of the Directory Server instance.  If there is only 
+one instance on the system, this option can be skipped.
+.TP
+.B \fB\-D\fR \fIRoot DN\fR
+The Directory Manager DN, or root DN.  If not specified, the script will 
+search the server instance configuration for the value.
+.TP
+.B \fB\-w\fR \fIpassword\fR
+The rootdn password.
+.TP
+.B \fB\-w -\fR 
+.br
+Prompt for the rootdn password.
+.TP
+.B \fB\-j\fR \fIpassword filename\fR
+The name of the file that contains the root DN password.
+.TP
+.B \fB\-b\fR \fIbaseDN\fR
+Gives the base DN for the entries to validate. 
+.TP
+.B \fB\-f\fR \fIfilter\fR
+Contains a search filter to use to select a subset of entries to validate. If this is not given, then all entries under the base DN are checked.
+.TP
+.B \fB\-P\fR \fIprotocol\fR
+The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
+If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
+available for the root user.
+.TP
+.B \fB\-v\fR 
+.br
+Display verbose ouput
+.TP
+.B \fB\-h\fR 
+.br
+Display usage
+.SH EXAMPLE
+.TP
+syntax-validate.pl -Z instance2 -D 'cn=directory manager' -w password -b 'dc=example,dc=com' -f 'cn=*' -P STARTTLS 
+
+Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
+.SH DIAGNOSTICS
+Exit status is zero if no errors occur.  Errors result in a 
+non-zero exit status and a diagnostic message being written 
+to standard error.
+.SH AUTHOR
+syntax-validate.pl was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2013 Red Hat, Inc.

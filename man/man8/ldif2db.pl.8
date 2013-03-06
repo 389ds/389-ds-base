@@ -1,0 +1,102 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH LDIF2DB.PL 8 "Mar 5, 2013"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+ldif2db.pl - Directory Server perl script for importing a LDIF file
+.SH SYNOPSIS
+ldif2db.pl -n backend [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-P protocol] {-s includeSuffix}* [{-x excludeSuffix}*] [-O] [-c chunksize] [-v] [-h] [-g [string]] [-G namespace_id] {-i filename}*
+.SH DESCRIPTION
+Imports LDIF file(s) into the server. Either the option '-n' or '-s' must be used.  This script creates an entry in the directory that launches this dynamic task.
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fB\-Z\fR \fIServer Identifier\fR
+The server ID of the Directory Server instance.  If there is only 
+one instance on the system, this option can be skipped.
+.TP
+.B \fB\-D\fR \fIRoot DN\fR
+The Directory Manager DN, or root DN.  If not specified, the script will 
+search the server instance configuration for the value.
+.TP
+.B \fB\-w\fR \fIpassword\fR
+The rootdn password.
+.TP
+.B \fB\-w -\fR 
+.br
+Prompt for the rootdn password.
+.TP
+.B \fB\-j\fR \fIpassword filename\fR
+The name of the file that contains the root DN password.
+.TP
+.B \fB\-n\fR \fIBackend Name\fR
+The name of the LDBM database to restore.  Example: userRoot
+.TP
+.B \fB\-s\fR \fIincludeSuffix\fR
+Specifies the suffixes to be included or specifies the subtrees to be included. 
+.TP
+.B \fB\-x\fR \fIexcludeSuffix\fR
+Specifies the suffixes to be excluded or specifies the subtrees to be excluded. 
+.TP
+.B \fB\-i\fR \fIfilename\fR
+Name for the LDIF file to import.
+.TP
+.B \fB\-g\fR \fI[string]\fR
+Generates a unique ID. Type none for no unique ID to be generated and deterministic for the generated unique ID to be name-based. By default, a time-based unique ID is generated.  When using the deterministic generation to have a name-based unique ID, it is also possible to specify the namespace for the server to use, as follows:
+
+-g deterministic namespaceId
+
+namespaceId is a string of characters in the format 00-xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx. 
+.TP
+.B \fB\-G\fR \fInamespace_id\fR
+Generates a namespace ID as a name-based unique ID. This is the same as specifying the -g deterministic option. 
+.TP
+.B \fB\-P\fR \fIProtocol\fR
+The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
+If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
+available for the root user.
+.TP
+.B \fB\-O\fR 
+.br
+Requests that only the core database is created without attribute indexes.
+.TP
+.B \fB\-c\fR \fIChunk size\fR
+The number of entries to process before starting a fresh pass during the import.  By default this is handled internally by the server.
+.TP
+.B \fB\-v\fR 
+.br
+Display verbose ouput
+.TP
+.B \fB\-h\fR 
+.br
+Display usage
+.SH EXAMPLE
+.TP
+ldif2db.pl -Z instance1 -n userRoot -i /LDAP/ldif/data.ldif
+.TP
+ldif2db.pl -s "dc=example,dc=com" -i /LDAP/ldif/data.ldif -D 'cn=directory manager' -w password  -P STARTTLS
+
+Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
+.SH DIAGNOSTICS
+Exit status is zero if no errors occur.  Errors result in a 
+non-zero exit status and a diagnostic message being written 
+to standard error.
+.SH AUTHOR
+ldif2db.pl was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2013 Red Hat, Inc.

@@ -1,0 +1,67 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH MONITOR 8 "Mar 5, 2013"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+monitor - Directory Server script for monitoring database performance
+.SH SYNOPSIS
+monitor [ -Z serverID ] [ -D rootdn ] [ -w password ] [ -b basedn ] [-P protocol] [-h]
+.SH DESCRIPTION
+Retrieves performance monitoring information. To run this script, the server must be running. 
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fB\-Z\fR \fIServer Identifier\fR
+The server ID of the Directory Server instance.  If there is only 
+one instance on the system, this option can be skipped.
+.TP
+.B \fB\-D\fR \fIRoot DN\fR
+The Directory Manager DN, or root DN.  If not specified, the script will 
+search the server instance configuration for the value.
+.TP
+.B \fB\-w\fR \fIpassword\fR
+The rootdn password.
+.TP
+.B \fB\-b\fR \fIbasedn\fR
+The DN of a backend from cn=config.
+.TP
+.B \fB\-P\fR \fIProtocol\fR
+The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
+If this option is skipped, the most secure protocol that is available is used.  For LDAPI, AUTOBIND is also
+available for the root user.
+.TP
+.B \fB\-h\fR
+.br
+Display the usage.
+.SH EXAMPLE
+.TP
+monitor -P STARTTLS
+
+Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
+.TP
+monitor -Z instance2 -D 'cn=directory manager' -w password -b 'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
+
+Note: You only need to bind as the root DN if you want to look at a backend monitor.
+.SH DIAGNOSTICS
+Exit status is zero if no errors occur.  Errors result in a 
+non-zero exit status and a diagnostic message being written 
+to standard error.
+.SH AUTHOR
+monitor was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2013 Red Hat, Inc.

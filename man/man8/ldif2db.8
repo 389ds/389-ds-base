@@ -1,0 +1,85 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH LDIF2DB 8 "Mar 5, 2013"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME 
+ldif2db - Directory Server script for importing a LDIF file
+.SH SYNOPSIS
+ldif2db [-Z serverID] -n backendname {-s includesuffix}* [{-x excludesuffix}*] [-g [string] [-G namespace_id]] {-i ldiffile}* [-c chunksize] [-O] [-E] [-q] [-h]
+.SH DESCRIPTION
+Imports a LDIF file.  Either the option '-n' or '-s' must be used.  The server instance must be stopped prior to running this command.
+.SH OPTIONS
+A summary of options is included below:
+.TP
+.B \fB\-Z\fR \fIServer Identifier\fR
+The server ID of the Directory Server instance.  If there is only 
+one instance on the system, this option can be skipped.
+.TP
+.B \fB\-n\fR \fIBackend Name\fR
+The name of the LDBM database to restore.  Example: userRoot
+.TP
+.B \fB\-s\fR \fIincludeSuffix\fR
+Specifies the suffixes to be included or specifies the subtrees to be included. 
+.TP
+.B \fB\-x\fR \fIexcludeSuffix\fR
+Specifies the suffixes to be excluded or specifies the subtrees to be excluded. 
+.TP
+.B \fB\-i\fR \fIfilename\fR
+Name for the LDIF file to import.
+.TP
+.B \fB\-c\fR \fIChunk size\fR
+The number of entries to process before starting a fresh pass during the import.  By default this is handled internally by the server.
+.TP
+.B \fB\-O\fR 
+.br
+Requests that only the core database is created without attribute indexes.
+.TP
+.B \fB\-g\fR \fI[string]\fR
+Generates a unique ID. Type none for no unique ID to be generated and deterministic for the generated unique ID to be name-based. By default, a time-based unique ID is generated.  When using the deterministic generation to have a name-based unique ID, it is also possible to specify the namespace for the server to use, as follows:
+
+-g deterministic namespaceId
+
+namespaceId is a string of characters in the format 00-xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx. 
+.TP
+.B \fB\-G\fR \fInamespace_id\fR
+Generates a namespace ID as a name-based unique ID. This is the same as specifying the -g deterministic option. 
+.TP
+.B \fB\-E\fR 
+.br
+Encrypts data during import. This option is used only if database encryption is enabled. 
+.TP
+.B \fB\-v\fR 
+.br
+Display verbose ouput
+.TP
+.B \fB\-h\fR 
+.br
+Display usage
+.SH EXAMPLE
+.TP
+ldif2db -Z instance1 -n userRoot -i /LDAP/ldif/data.ldif
+.TP
+ldif2db -s "dc=example,dc=com" -i /LDAP/ldif/data.ldif 
+.SH DIAGNOSTICS
+Exit status is zero if no errors occur.  Errors result in a 
+non-zero exit status and a diagnostic message being written 
+to standard error.
+.SH AUTHOR
+ldif2db was written by the 389 Project.
+.SH "REPORTING BUGS"
+Report bugs to http://bugzilla.redhat.com.
+.SH COPYRIGHT
+Copyright \(co 2013 Red Hat, Inc.
