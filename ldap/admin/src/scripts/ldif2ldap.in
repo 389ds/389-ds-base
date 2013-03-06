@@ -99,7 +99,7 @@ protocol=$revised_protocol
 #
 if [ "$security" == "on" ]; then
     if [ "$protocol" == "STARTTLS" ] || [ "$protocol" == "" ]; then
-        if [ $error == "yes" ]; then 
+        if [ "$error" == "yes" ]; then 
             echo "Using the next most secure protocol(STARTTLS)"
         fi
         if [ "$openldap" == "yes" ]; then
@@ -116,7 +116,7 @@ fi
 #
 if [ "$security" == "on" ]; then
     if [ "$protocol" == "LDAPS" ] || [ "$protocol" == "" ]; then
-        if [ $error == "yes" ]; then 
+        if [ "$error" == "yes" ]; then 
             echo "Using the next most secure protocol(LDAPS)"
         fi
         if [ "$openldap" == "yes" ]; then
@@ -134,12 +134,12 @@ fi
 if [ "$ldapi" == "on" ] && [ "$openldap" == "yes" ]; then
     if [ "$protocol" == "LDAPI" ] || [ "$protocol" == "" ]; then
         if [ "$(id -u)" == "0" ] && [ "$autobind" == "on" ]; then
-            if [ $error == "yes" ]; then 
+            if [ "$error" == "yes" ]; then 
                 echo "Using the next most secure protocol(LDAPI/AUTOBIND)"
             fi
             ldapmodify -H $ldapiURL -Y EXTERNAL -a -f $input_file 2>/dev/null
         else
-            if [ $error == "yes" ]; then 
+            if [ "$error" == "yes" ]; then 
                 echo "Using the next most secure protocol(LDAPI)"
             fi
             ldapmodify -x -H $ldapiURL -D $rootdn -w $passwd -a -f $input_file
@@ -157,7 +157,7 @@ fi
 # LDAP
 #
 if [ "$protocol" == "LDAP" ] || [ "$protocol" == "" ]; then
-    if [ $error == "yes" ]; then 
+    if [ "$error" == "yes" ]; then 
         echo "Using the next most secure protocol(LDAP)"
     fi
     if [ "$openldap" == "yes" ]; then
