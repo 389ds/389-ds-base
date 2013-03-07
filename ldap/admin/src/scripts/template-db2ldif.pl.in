@@ -39,6 +39,8 @@
 # END COPYRIGHT BLOCK
 #
 
+use Cwd;
+
 # We lose args that are quoted when passing ARGV to a wrapper
 while ($i <= $#ARGV) {
         if($ARGV[$i] =~ /^-/){
@@ -49,6 +51,8 @@ while ($i <= $#ARGV) {
         $i++;
 }
 
-exec "{{SERVERBIN-DIR}}/db2ldif.pl @wrapperArgs -Z {{SERV-ID}}";
+$cwd = cwd();
+
+exec "{{SERVERBIN-DIR}}/db2ldif.pl -c $cwd @wrapperArgs -Z {{SERV-ID}}";
 
 exit ($?);

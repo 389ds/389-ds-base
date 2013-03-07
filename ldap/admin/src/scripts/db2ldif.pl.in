@@ -41,6 +41,7 @@
 
 use lib qw(@perlpath@);
 use DSUtil;
+use Cwd;
 
 DSUtil::libpath_add("@nss_libdir@");
 DSUtil::libpath_add("/usr/lib");
@@ -63,6 +64,7 @@ $insti = 0;
 $incli = 0;
 $excli = 0;
 $decrypt_on_export = 0;
+$cwd = cwd();
 
 sub usage {
     print(STDERR "Usage: db2ldif.pl [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j pwfilename }\n");
@@ -177,6 +179,8 @@ while ($i <= $#ARGV) {
         $i++; $protocol = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-v") {    # verbose
         $verbose = 1;
+    } elsif ("$ARGV[$i]" eq "-c") {    # cwd
+        $i++; $cwd = $ARGV[$i];
     } else {
         &usage; exit(1);
     }
@@ -247,7 +251,11 @@ if ($ldiffile eq "") {
     } else {
         $ldiffile = "${ldifdir}/${servid}-${be}-${yr}_${mn}_${dy}_${h}_${m}_${s}.ldif";
     }
-}
+} elsif ($ldiffile =~ "^/") { 
+    ; # full path 
+} else { 
+    $ldiffile = $cwd . "/" . $ldiffile; 
+} 
 $nsreplica = "";
 if ($doreplica != 0) { $nsreplica = "nsExportReplica: true\n"; }
 $nsnobase64 = "";

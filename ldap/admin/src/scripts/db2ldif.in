@@ -11,6 +11,8 @@ export LD_LIBRARY_PATH
 SHLIB_PATH=$LD_LIBRARY_PATH
 export SHLIB_PATH
 
+cwd=`pwd`
+
 usage()
 {
     echo "Usage: db2ldif [-Z serverID] {-n backend_instance}* | {-s includesuffix}* [{-x excludesuffix}*] [-a outputfile]"
@@ -39,8 +41,21 @@ make_ldiffile()
     do
         if [ "$1" = "-a" ]; then
             shift
-            echo $1
-            return 1
+            if [ `expr "$1" : "/.*"` -gt 0 ]; then 
+	            if [ `expr "$1" : "/.*"` -gt 0 ]; then 
+	                # full path 
+	                echo $1 
+	                return 1 
+	            else 
+	                echo $cwd/$1 
+	                shift 
+	                return 0 
+	            fi 
+            else 
+                echo $cwd/$1 
+                shift 
+                return 0 
+            fi
         elif [ "$1" = "-n" ]; then
             shift
             if [ "$be" = "" ]; then
@@ -83,7 +98,7 @@ then
     exit 1
 fi
     
-while getopts "hZ:n:s:x:a:NrCuUmM1qvd:D:ESt:o" flag
+while getopts "hZ:n:s:x:a:NrCuUmM1qvd:D:ESt:oc:" flag
 do
     case $flag in
         h) usage
@@ -110,6 +125,7 @@ do
         M) args=$args" -M";;
         1) args=$args" -1";;
         q) args=$args" -q";;        
+        c) cwd=$OPTARG;;
         ?) usage
            exit 1;;
     esac
@@ -140,5 +156,5 @@ if [ $rn -eq 1 ]
 then
     @sbindir@/ns-slapd db2ldif -D $configdir $benameopt $includeSuffix $excludeSuffix $outputFile $args
 else
-    @sbindir@/ns-slapd db2ldif -D $configdir $benameopt $includeSuffix $excludeSuffix -a $ldif_file $args
+    @sbindir@/ns-slapd db2ldif -D $configdir $benameopt $includeSuffix $excludeSuffix $args -a $ldif_file
 fi
