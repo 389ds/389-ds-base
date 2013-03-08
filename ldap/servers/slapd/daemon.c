@@ -1784,7 +1784,7 @@ daemon_register_reslimits( void )
 static int
 compute_idletimeout( slapdFrontendConfig_t *fecfg, Connection *conn )
 {
-	int		idletimeout;
+	int		idletimeout = 0;
 
 	if ( slapi_reslimit_get_integer_limit( conn, idletimeout_reslimit_handle,
             &idletimeout ) != SLAPI_RESLIMIT_STATUS_SUCCESS ) {

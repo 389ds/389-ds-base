@@ -1719,6 +1719,7 @@ typedef struct slapi_pblock {
 	void		*pb_syntax_filter_data; /* extra data to pass to a syntax plugin function */
 	int	pb_paged_results_index;    /* stash SLAPI_PAGED_RESULTS_INDEX */
 	passwdPolicy *pwdpolicy;
+	void *op_stack_elem;
 } slapi_pblock;
 
 /* index if substrlens */
