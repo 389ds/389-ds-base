@@ -111,6 +111,7 @@ int connection_activity( Connection *conn );
 void init_op_threads();
 int connection_new_private(Connection *conn);
 void connection_remove_operation( Connection *conn, Operation *op );
+void connection_remove_operation_ext( Slapi_PBlock *pb, Connection *conn, Operation *op );
 int connection_operations_pending( Connection *conn, Operation *op2ignore,
 		int test_resultsent );
 void connection_done(Connection *conn);

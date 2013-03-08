@@ -811,7 +811,9 @@ char *slapd_get_version_value( void );
 /*
  * operation.c
  */
+void operation_init(Slapi_Operation *op, int flags);
 Slapi_Operation *operation_new(int flags);
+void operation_done( Slapi_Operation **op, Connection *conn );
 void operation_free( Slapi_Operation **op, Connection *conn );
 int slapi_op_abandoned( Slapi_PBlock *pb );
 void operation_out_of_disk_space();

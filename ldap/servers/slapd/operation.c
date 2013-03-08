@@ -161,32 +161,12 @@ ber_special_free(void* buf, BerElement *ber)
 }
 #endif
 
-/*
- * Allocate a new Slapi_Operation.
- * The flag parameter indicates whether the the operation is
- * external (from an LDAP Client), or internal (from a plugin).
- */
-Slapi_Operation *
-operation_new(int flags)
+void
+operation_init(Slapi_Operation *o, int flags)
 {
-	/* To improve performance, we allocate the Operation, BerElement and
-	 * ber buffer in one block, instead of a separate malloc() for each.
-	 * Subsequently, ber_special_free() frees them all; we're careful
-	 * not to free the Operation separately, and the ber software knows
-	 * not to free the buffer separately.
-	 */
-	BerElement *ber = NULL;
-	Slapi_Operation *o;
-	if(flags & OP_FLAG_INTERNAL)
-	{
-	   	o = (Slapi_Operation *) slapi_ch_malloc(sizeof(Slapi_Operation));
-	}
-	else
-	{
-		o= (Slapi_Operation *) ber_special_alloc( sizeof(Slapi_Operation), &ber );
-	}
 	if (NULL != o)
 	{
+		BerElement *ber = o->o_ber; /* may have already been set */
 		memset(o,0,sizeof(Slapi_Operation));
 		o->o_ber = ber;
 		o->o_msgid = -1;
@@ -206,16 +186,49 @@ operation_new(int flags)
                     o->o_interval = (PRIntervalTime)0;
                 }
 	}
+
+}
+
+/*
+ * Allocate a new Slapi_Operation.
+ * The flag parameter indicates whether the the operation is
+ * external (from an LDAP Client), or internal (from a plugin).
+ */
+Slapi_Operation *
+operation_new(int flags)
+{
+	/* To improve performance, we allocate the Operation, BerElement and
+	 * ber buffer in one block, instead of a separate malloc() for each.
+	 * Subsequently, ber_special_free() frees them all; we're careful
+	 * not to free the Operation separately, and the ber software knows
+	 * not to free the buffer separately.
+	 */
+	Slapi_Operation *o;
+	BerElement *ber = NULL;
+	if(flags & OP_FLAG_INTERNAL)
+	{
+	   	o = (Slapi_Operation *) slapi_ch_malloc(sizeof(Slapi_Operation));
+	}
+	else
+	{
+		o= (Slapi_Operation *) ber_special_alloc( sizeof(Slapi_Operation), &ber );
+	}
+	if (NULL != o)
+	{
+	   	o->o_ber = ber;
+		operation_init(o, flags);
+	}
 	return o;
 }
 
 void
-operation_free( Slapi_Operation **op, Connection *conn )
+operation_done( Slapi_Operation **op, Connection *conn )
 {
 	if(op!=NULL && *op!=NULL)
 	{
+		int options = 0;
 		/* Call the plugin extension destructors */
-	    factory_destroy_extension(get_operation_object_type(),*op,conn,&((*op)->o_extension));
+		factory_destroy_extension(get_operation_object_type(),*op,conn,&((*op)->o_extension));
 		slapi_sdn_done(&(*op)->o_sdn);
 		slapi_sdn_free(&(*op)->o_target_spec);
 		slapi_ch_free_string( &(*op)->o_authtype );
@@ -229,6 +242,28 @@ operation_free( Slapi_Operation **op, Connection *conn )
 			ldap_controls_free( (*op)->o_results.result_controls );
 		}
 		slapi_ch_free_string(&(*op)->o_results.result_matched);
+#if defined(USE_OPENLDAP)
+		/* save the old options */
+		if ((*op)->o_ber) {
+			ber_get_option((*op)->o_ber, LBER_OPT_BER_OPTIONS, &options);
+			/* we don't have a way to reuse the BerElement buffer so just free it */
+			ber_free_buf((*op)->o_ber);
+			/* clear out the ber for the next operation */
+			ber_init2((*op)->o_ber, NULL, options);
+		}
+#else
+		ber_special_free(*op, (*op)->o_ber); /* have to free everything here */
+		*op = NULL;
+#endif
+	}
+}
+
+void
+operation_free( Slapi_Operation **op, Connection *conn )
+{
+	operation_done(op, conn);
+	if(op!=NULL && *op!=NULL)
+	{
 		if(operation_is_flag_set(*op, OP_FLAG_INTERNAL))
 		{
 			slapi_ch_free((void**)op);

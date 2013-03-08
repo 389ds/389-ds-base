@@ -171,8 +171,13 @@ ps_stop_psearch_system()
 	}
 }
 
-
-
+static Slapi_PBlock *
+pblock_copy(Slapi_PBlock *src)
+{
+	Slapi_PBlock *dest = slapi_pblock_new();
+	*dest = *src;
+	return dest;
+}
 
 /*
  * Add the given pblock to the list of outstanding persistent searches.
@@ -187,7 +192,7 @@ ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls )
     if ( PS_IS_INITIALIZED() && NULL != pb ) {
 	/* Create the new node */
 	ps = psearch_alloc();
-	ps->ps_pblock = pb;
+	ps->ps_pblock = pblock_copy(pb);
 	ps->ps_changetypes = changetypes;
 	ps->ps_send_entchg_controls = send_entchg_controls;
 
@@ -295,6 +300,7 @@ ps_send_results( void *arg )
 	char *fstr = NULL;
 	char **pbattrs = NULL;
 	int conn_acq_flag = 0;
+	Slapi_Connection *conn = NULL;
     
     g_incr_active_threadcnt();
 
@@ -418,22 +424,22 @@ ps_send_results( void *arg )
 	slapi_pblock_set(ps->ps_pblock, SLAPI_SEARCH_FILTER, NULL );
 	slapi_filter_free(filter, 1);
 
+    conn = ps->ps_pblock->pb_conn; /* save to release later - connection_remove_operation_ext will NULL the pb_conn */
     /* Clean up the connection structure */
-    PR_Lock( ps->ps_pblock->pb_conn->c_mutex );
+    PR_Lock( conn->c_mutex );
 
 	slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
 					"conn=%" NSPRIu64 " op=%d Releasing the connection and operation\n",
-					ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
+					conn->c_connid, ps->ps_pblock->pb_op->o_opid);
     /* Delete this op from the connection's list */
-    connection_remove_operation( ps->ps_pblock->pb_conn, ps->ps_pblock->pb_op );
-    operation_free(&(ps->ps_pblock->pb_op),ps->ps_pblock->pb_conn);
-    ps->ps_pblock->pb_op=NULL;
+    connection_remove_operation_ext( ps->ps_pblock, conn, ps->ps_pblock->pb_op );
 
     /* Decrement the connection refcnt */
     if (conn_acq_flag == 0) { /* we acquired it, so release it */
-	connection_release_nolock (ps->ps_pblock->pb_conn);
+	connection_release_nolock (conn);
     }
-    PR_Unlock( ps->ps_pblock->pb_conn->c_mutex );
+    PR_Unlock( conn->c_mutex );
+    conn = NULL;
 
     PR_DestroyLock ( ps->ps_lock );
     ps->ps_lock = NULL;
