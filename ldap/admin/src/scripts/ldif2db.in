@@ -92,7 +92,7 @@ fi
 
 configdir="@instconfigdir@/slapd-$servid"
 
-if [ $# -lt 5 ]
+if [ $# -lt 4 ]
 then
     usage
     exit 1
