@@ -132,6 +132,7 @@ void attr_syntax_delete_all_not_flagged( unsigned long flag );
 struct asyntaxinfo *attr_syntax_get_by_oid ( const char *oid );
 struct asyntaxinfo *attr_syntax_get_by_name ( const char *name );
 struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name, PRBool use_lock );
+struct asyntaxinfo *attr_syntax_get_by_name_with_default ( const char *name );
 /*
  * Call attr_syntax_return() when you are done using a value returned
  * by attr_syntax_get_by_oid() or attr_syntax_get_by_name().

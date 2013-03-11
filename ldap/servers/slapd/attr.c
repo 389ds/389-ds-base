@@ -229,6 +229,34 @@ slapi_attr_init(Slapi_Attr *a, const char *type)
 	return slapi_attr_init_locking_optional(a, type, PR_TRUE);
 }
 
+int
+slapi_attr_init_syntax(Slapi_Attr    *a)
+{
+	int rc = 1;
+	struct asyntaxinfo *asi = NULL;
+	char *tmp = 0;
+	const char *basetype= NULL;
+	char buf[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
+
+	basetype = buf;
+	tmp = slapi_attr_basetype(a->a_type, buf, sizeof(buf));
+	if (tmp) {
+		basetype = buf;
+	}
+	asi = attr_syntax_get_by_name_with_default (basetype);
+	if (asi) {
+		rc = 0;
+		a->a_plugin = asi->asi_plugin;
+		a->a_flags = asi->asi_flags;
+		a->a_mr_eq_plugin = asi->asi_mr_eq_plugin;
+		a->a_mr_ord_plugin = asi->asi_mr_ord_plugin;
+		a->a_mr_sub_plugin = asi->asi_mr_sub_plugin;
+	}
+	if (tmp)
+		slapi_ch_free_string(&tmp);
+	return rc;
+}
+
 Slapi_Attr *
 slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock)
 {
