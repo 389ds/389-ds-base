@@ -148,7 +148,7 @@ int cb_forward_operation(Slapi_PBlock * pb ) {
 		int iscritical=0;
 
 		if (slapi_control_present(ctrls,CB_LDAP_CONTROL_CHAIN_SERVER,&ctl_value,&iscritical) &&
-			ctl_value && ctl_value->bv_val) {
+			BV_HAS_DATA(ctl_value)) {
 
 			/* Decode control data 			*/
 			/* hop           INTEGER (0 .. maxInt) 	*/

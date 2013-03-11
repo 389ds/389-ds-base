@@ -107,6 +107,10 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define BERLEN_T "u"
 #endif
 
+/* Common check on berval before accessing the contents. */
+/* bv is a struct berval *bv */
+#define BV_HAS_DATA(bv) ((bv != NULL) && (bv->bv_len > 0) && (bv->bv_val != NULL))
+
 /*
  * The slapi_attr_get_flags() routine returns a bitmap that contains one or
  * more of these values.

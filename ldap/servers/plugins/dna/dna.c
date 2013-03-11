@@ -1668,7 +1668,7 @@ static int dna_request_range(struct configEntry *config_entry,
     }
 
     /* Parse response */
-    if (responsedata && responsedata->bv_val) {
+    if (BV_HAS_DATA(responsedata)) {
         respber = ber_init(responsedata);
         if (ber_scanf(respber, "{aa}", &lower_str, &upper_str) == LBER_ERROR) {
             ret = LDAP_PROTOCOL_ERROR;
@@ -3745,14 +3745,15 @@ static int dna_extend_exop(Slapi_PBlock *pb)
 
     /* Fetch the request data */
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &reqdata);
-    if (!reqdata || !reqdata->bv_val) {
+    if (!BV_HAS_DATA(reqdata)) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_extend_exop: No request data received.\n");
         goto free_and_return;
     }
 
     /* decode the exop */
-    if ((reqdata->bv_val == NULL) || (tmp_bere = ber_init(reqdata)) == NULL) {
+    tmp_bere = ber_init(reqdata);
+    if (tmp_bere == NULL) {
         goto free_and_return;
     }
 
