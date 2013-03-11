@@ -323,6 +323,15 @@ attr_syntax_get_by_name(const char *name)
 	return attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
 }
 
+struct asyntaxinfo *
+attr_syntax_get_by_name_with_default(const char *name)
+{
+	struct asyntaxinfo *asi = NULL;
+	asi = attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
+	if (asi == NULL)
+		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
+	return asi;
+}
 
 /*
  * A version of attr_syntax_get_by_name() that allows you to bypass using
