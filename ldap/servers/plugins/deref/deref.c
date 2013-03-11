@@ -380,7 +380,7 @@ deref_parse_ctrl_value(DerefSpecList *speclist, const struct berval *ctrlbv, int
 
     PR_ASSERT(ctrlbv && ctrlbv->bv_val && ctrlbv->bv_len && ldapcode && ldaperrtext);
 
-    if (!ctrlbv || !ctrlbv->bv_val) {
+    if (!BV_HAS_DATA(ctrlbv)) {
         *ldapcode = LDAP_PROTOCOL_ERROR;
         *ldaperrtext = "Empty deref control value";
         return;

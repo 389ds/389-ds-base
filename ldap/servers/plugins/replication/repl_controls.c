@@ -216,7 +216,7 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
 	if (slapi_control_present(controlsp, REPL_NSDS50_UPDATE_INFO_CONTROL_OID,
 	    &ctl_value, &iscritical))
 	{
-		if ((ctl_value->bv_val == NULL) || (tmp_bere = ber_init(ctl_value)) == NULL)
+		if (!BV_HAS_DATA(ctl_value) || (tmp_bere = ber_init(ctl_value)) == NULL)
 		{
 			rc = -1;
 			goto loser;

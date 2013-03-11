@@ -793,6 +793,13 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 			dirsync = slapi_dup_control( controls[i-1]);
 		}
 
+		if (!dirsync || !BV_HAS_DATA((&(dirsync->ldctl_value)))) {
+#ifdef FOR_DEBUGGING
+			return_value = LDAP_CONTROL_NOT_FOUND;
+#endif
+			goto choke;
+		}
+                
 		ber = ber_init( &dirsync->ldctl_value ) ;
 
 		if (ber_scanf( ber, "{iiO}", &hasMoreData, &maxAttributeCount, &serverCookie) == LBER_ERROR)

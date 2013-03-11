@@ -1861,11 +1861,11 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
    	*/
     BerElement *ber = NULL;
     int return_value = LDAP_SUCCESS;
-	
+
     vlvp->value.bv_len = 0;
     vlvp->value.bv_val = NULL;
 
-    if (NULL == vlv_spec_ber->bv_val)
+    if (!BV_HAS_DATA(vlv_spec_ber))
     {
         return_value= LDAP_OPERATIONS_ERROR;
         return return_value;
