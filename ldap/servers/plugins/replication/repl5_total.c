@@ -726,10 +726,10 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_value);
 
-	if (NULL == extop_oid ||
+	if ((NULL == extop_oid) || 
 		((strcmp(extop_oid, REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID) != 0) && 
-		(strcmp(extop_oid, REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID) != 0)) ||
-		NULL == extop_value || NULL == extop_value->bv_val)
+		 (strcmp(extop_oid, REPL_NSDS71_REPLICATION_ENTRY_REQUEST_OID) != 0)) ||
+		!BV_HAS_DATA(extop_value))
 	{
 		/* Bogus */
 		goto loser;

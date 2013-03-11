@@ -299,15 +299,14 @@ int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps)
 	char *matchrule = NULL;
 	int rc = LDAP_SUCCESS;
 
-	if (NULL == sort_spec_ber->bv_val) {
+	if (!BV_HAS_DATA(sort_spec_ber)) {
 		return LDAP_PROTOCOL_ERROR;
 	}
 
 	ber = ber_init(sort_spec_ber);
-    if(ber==NULL)
-    {
-        return -1;
-    }
+	if (ber == NULL) {
+		return -1;
+	}
 
 	/* Work our way along the BER, one sort spec at a time */
 	for ( tag = ber_first_element( ber, &len, &last ); !term_tag(tag); tag = ber_next_element( ber, &len, last )) {
