@@ -52,7 +52,8 @@
 static void compute_limits (Slapi_PBlock *pb);
 
 /* attributes that no clients are allowed to add or modify */
-static char *protected_attrs_all [] = { PSEUDO_ATTR_UNHASHEDUSERPASSWORD };
+static char *protected_attrs_all [] = { PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
+					NULL };
 static char *pwpolicy_lock_attrs_all [] = { "passwordRetryCount",
                                             "retryCountResetTime",
                                             "accountUnlockTime",
