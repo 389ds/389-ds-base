@@ -40,6 +40,8 @@
 #endif
 
 
+#include <ldap.h>
+
 #include "acl.h"
 
 /* safer than doing strcat unprotected */
@@ -218,7 +220,10 @@ _ger_parse_control (
 	{
 		aclutil_str_append ( errbuf, "get-effective-rights: missing subject" );
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
-		return LDAP_INVALID_SYNTAX;
+                if (iscritical)
+                    return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
+                else
+                    return LDAP_INVALID_SYNTAX;
 	}
 
 	if ( strncasecmp ( "dn:", subjectber->bv_val, 3 ) == 0 )
@@ -239,7 +244,10 @@ _ger_parse_control (
 		{
 			aclutil_str_append ( errbuf, "get-effective-rights: ber_init failed for the subject" );
 			slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
-			return LDAP_OPERATIONS_ERROR;
+                        if (iscritical)
+                            return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
+                        else
+                            return LDAP_OPERATIONS_ERROR;
 		}
 		/* "a" means to allocate storage as needed for octet string */
 		if ( ber_scanf (ber, "a", &orig) == LBER_ERROR )
@@ -247,7 +255,10 @@ _ger_parse_control (
 			aclutil_str_append ( errbuf, "get-effective-rights: invalid ber tag in the subject" );
 			slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
 			ber_free ( ber, 1 );
-			return LDAP_INVALID_SYNTAX;
+                        if (iscritical)
+                            return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
+                        else
+                            return LDAP_INVALID_SYNTAX;
 		}
 		ber_free ( ber, 1 );
 	}
@@ -263,7 +274,10 @@ _ger_parse_control (
 		aclutil_str_append ( errbuf, "get-effective-rights: subject is not dnAuthzId" );
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf );
 		slapi_ch_free_string(&orig);
-		return LDAP_INVALID_SYNTAX;
+                if (iscritical)
+                    return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
+                else
+                    return LDAP_INVALID_SYNTAX;
 	}
 
 	/* memmove is safe for overlapping copy */
@@ -273,7 +287,10 @@ _ger_parse_control (
 		aclutil_str_append (errbuf, orig);
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "%s\n", *errbuf);
 		slapi_ch_free_string(&orig);
-		return LDAP_INVALID_SYNTAX;
+                if (iscritical)
+                    return LDAP_UNAVAILABLE_CRITICAL_EXTENSION;  /* RFC 4511 4.1.11 */
+                else
+                    return LDAP_INVALID_SYNTAX;
 	}
 	slapi_ch_free_string(&orig);
 	*subjectndn = normed;
@@ -1023,7 +1040,7 @@ acl_get_effective_rights (
 	char *gerstr = NULL;
 	size_t gerstrsize = 0;
 	size_t gerstrcap = 0;
-	int iscritical = 1;
+	int iscritical = 0; /* critical may be missing or false http://tools.ietf.org/html/draft-ietf-ldapext-acl-model-08 */
 	int rc = LDAP_SUCCESS;
 
 	*errbuf = '\0';

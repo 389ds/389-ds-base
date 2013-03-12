@@ -43,6 +43,8 @@
 /* search.c - ldbm backend search function */
 /* view with ts=4 */
 
+#include <ldap.h>
+
 #include "back-ldbm.h"
 #include "vlv_srch.h"
 
@@ -391,18 +393,36 @@ ldbm_back_search( Slapi_PBlock *pb )
     if ( NULL != controls )
     {
         /* Are we being asked to sort the results ? */
-        sort = slapi_control_present( controls, LDAP_CONTROL_SORTREQUEST, &sort_spec, &is_sorting_critical_orig );
+        sort = slapi_control_present(controls, LDAP_CONTROL_SORTREQUEST, &sort_spec, &is_sorting_critical_orig);        
         if(sort)
         {
             rc = parse_sort_spec(sort_spec, &sort_control);
             if (rc) {
                 /* Badly formed SORT control */
-                return ldbm_back_search_cleanup(pb, li, sort_control, 
-                                LDAP_PROTOCOL_ERROR, "Sort Control", 
+                if (is_sorting_critical_orig) {
+                    /* RFC 4511 4.1.11 the server must not process the operation
+                     * and return LDAP_UNAVAILABLE_CRITICAL_EXTENSION
+                     */
+                    return ldbm_back_search_cleanup(pb, li, sort_control, 
+                                LDAP_UNAVAILABLE_CRITICAL_EXTENSION, "Sort Control", 
                                 SLAPI_FAIL_GENERAL, NULL, NULL);
+                } else {
+                    PRUint64 conn_id;
+                    int op_id;
+
+                    /* Just ignore the control */
+                    sort = 0;
+                    slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id);
+                    slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
+
+                    LDAPDebug(LDAP_DEBUG_ANY,
+                            "Warning: Sort control ignored for conn=%d op=%d\n",
+                            conn_id, op_id, 0);                    
+                }
+            } else {
+                /* set this operation includes the server side sorting */
+                operation->o_flags |= OP_FLAG_SERVER_SIDE_SORTING;
             }
-            /* set this operation includes the server side sorting */
-            operation->o_flags |= OP_FLAG_SERVER_SIDE_SORTING;
         }
         is_sorting_critical = is_sorting_critical_orig;
 
@@ -414,36 +434,55 @@ ldbm_back_search( Slapi_PBlock *pb )
                 rc = vlv_parse_request_control( be, vlv_spec, &vlv_request_control );
                 if (rc != LDAP_SUCCESS) {
                     /* Badly formed VLV control */
-                    return ldbm_back_search_cleanup(pb, li, sort_control,
-                                rc, "VLV Control", SLAPI_FAIL_GENERAL, 
+                    if (is_vlv_critical) {
+                        /* RFC 4511 4.1.11 the server must not process the operation
+                         * and return LDAP_UNAVAILABLE_CRITICAL_EXTENSION
+                         */
+                        return ldbm_back_search_cleanup(pb, li, sort_control,
+                                LDAP_UNAVAILABLE_CRITICAL_EXTENSION, "VLV Control", SLAPI_FAIL_GENERAL,
                                 &vlv_request_control, NULL);
-                }
-                {
-                    /* Access Control Check to see if the client is allowed to use the VLV Control. */
-                    Slapi_Entry *feature;
-                    char dn[128];
-                    char *dummyAttr = "dummy#attr";
-                    char *dummyAttrs[2] = { NULL, NULL };
+                    } else {
+                        PRUint64 conn_id;
+                        int op_id;
 
-                    dummyAttrs[0] = dummyAttr;
+                        /* Just ignore the control */
+                        virtual_list_view = 0;
+                        slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id);
+                        slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
-                    /* This dn is normalized. */
-                    PR_snprintf(dn,sizeof(dn),"dn: oid=%s,cn=features,cn=config",LDAP_CONTROL_VLVREQUEST);
-                    feature= slapi_str2entry(dn,0);
-                    rc = plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
-                    slapi_entry_free(feature);
-                    if (rc != LDAP_SUCCESS) {
-                        /* Client isn't allowed to do this. */
-                        return ldbm_back_search_cleanup(pb, li, sort_control, 
-                                    rc, "VLV Control", SLAPI_FAIL_GENERAL, 
-                                    &vlv_request_control, NULL);
+                        LDAPDebug(LDAP_DEBUG_ANY,
+                                "Warning: VLV control ignored for conn=%d op=%d\n",
+                                conn_id, op_id, 0);             
                     }
+
+                } else {
+                    {
+                        /* Access Control Check to see if the client is allowed to use the VLV Control. */
+                        Slapi_Entry *feature;
+                        char dn[128];
+                        char *dummyAttr = "dummy#attr";
+                        char *dummyAttrs[2] = {NULL, NULL};
+
+                        dummyAttrs[0] = dummyAttr;
+
+                        /* This dn is normalized. */
+                        PR_snprintf(dn, sizeof (dn), "dn: oid=%s,cn=features,cn=config", LDAP_CONTROL_VLVREQUEST);
+                        feature = slapi_str2entry(dn, 0);
+                        rc = plugin_call_acl_plugin(pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
+                        slapi_entry_free(feature);
+                        if (rc != LDAP_SUCCESS) {
+                            /* Client isn't allowed to do this. */
+                            return ldbm_back_search_cleanup(pb, li, sort_control,
+                                    rc, "VLV Control", SLAPI_FAIL_GENERAL,
+                                    &vlv_request_control, NULL);
+                        }
+                    }
+                    /*
+                     * Sorting must always be critical for VLV; Force it be so.
+                     */
+                    is_sorting_critical = 1;
+                    virtual_list_view = 1;
                 }
-                /*
-                 * Sorting must always be critical for VLV; Force it be so.
-                 */
-                is_sorting_critical= 1;
-                virtual_list_view= 1;
             }
             else
             {

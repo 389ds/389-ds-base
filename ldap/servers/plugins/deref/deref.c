@@ -395,6 +395,9 @@ deref_parse_ctrl_value(DerefSpecList *speclist, const struct berval *ctrlbv, int
 		len = -1; /* reset */
         if ((LBER_ERROR == ber_scanf(ber, "{a{v}}", &derefattr, &attrs)) ||
             !derefattr || !attrs || !attrs[0]){
+            if (critical)
+                *ldapcode = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+            else
             *ldapcode = LDAP_PROTOCOL_ERROR;
             if (!derefattr) {
                 *ldaperrtext = "Missing dereference attribute name";
@@ -442,6 +445,7 @@ deref_pre_search(Slapi_PBlock *pb)
     const char *incompatible = NULL;
     DerefSpecList *speclist = NULL;
     int ii;
+    int iscritical = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "--> deref_pre_search\n");
@@ -463,18 +467,22 @@ deref_pre_search(Slapi_PBlock *pb)
                                 "No control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a value";
+                iscritical = ctrl->ldctl_iscritical;
             } else if (!ctrl->ldctl_value.bv_val) {
                 slapi_log_error(SLAPI_LOG_FATAL, DEREF_PLUGIN_SUBSYSTEM,
                                 "No control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a value";
+                iscritical = ctrl->ldctl_iscritical;
             } else if (!ctrl->ldctl_value.bv_val[0] || !ctrl->ldctl_value.bv_len) {
                 slapi_log_error(SLAPI_LOG_FATAL, DEREF_PLUGIN_SUBSYSTEM,
                                 "Empty control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a non-empty value";
+                iscritical = ctrl->ldctl_iscritical;
             } else {
                 derefctrl = ctrl;
+                iscritical = ctrl->ldctl_iscritical;
             }
         } else if (deref_incompatible_ctrl(ctrl->ldctl_oid)) {
             incompatible = ctrl->ldctl_oid;
@@ -509,6 +517,9 @@ deref_pre_search(Slapi_PBlock *pb)
     }
 
     if (ldapcode != LDAP_SUCCESS) {
+        if (iscritical) {
+            ldapcode = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+        }
         slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &ldapcode);
         slapi_send_ldap_result(pb, ldapcode, NULL, (char *)ldaperrtext, 0, NULL);
         delete_DerefSpecList(&speclist);

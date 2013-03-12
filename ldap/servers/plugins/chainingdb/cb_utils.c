@@ -160,21 +160,30 @@ int cb_forward_operation(Slapi_PBlock * pb ) {
 			if ((ber = ber_init(ctl_value)) == NULL) {
 			        slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 					"cb_forward_operation: ber_init: Memory allocation failed");
-			        return LDAP_NO_MEMORY;
+                                if (iscritical)
+                                    return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
+                                else
+                                    return LDAP_NO_MEMORY;
 			}
 			rc = ber_scanf(ber,"i",&hops);
 			if (LBER_ERROR == rc) {
        				slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 					"Loop detection control badly encoded.");
         			ber_free(ber,1);
-				return LDAP_LOOP_DETECT;
+				if (iscritical)
+                                    return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
+                                else
+                                    return LDAP_LOOP_DETECT;
 			}
 				
 			if (hops <= 0) {
        				slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 					"Max hop count exceeded. Loop detected.\n");
         			ber_free(ber,1);
-				return LDAP_LOOP_DETECT;
+				if (iscritical)
+                                    return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
+                                else
+                                    return LDAP_LOOP_DETECT;
 			}
 			ber_free(ber,1);
 		}

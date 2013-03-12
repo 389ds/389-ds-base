@@ -40,6 +40,8 @@
 #  include <config.h>
 #endif
 
+#include <ldap.h>
+
 #include "slap.h"
 
 #define BEGIN do {
@@ -219,14 +221,19 @@ proxyauth_get_dn( Slapi_PBlock *pb, char **proxydnp, char **errtextp )
 		rv = parse_LDAPProxyAuth(spec_ber, version, errtextp, &spec);
 		if (LDAP_SUCCESS != rv) {
 			if ( critical ) {
-				lderr = rv;
-			}
+				lderr = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+			} else {
+                            lderr = rv;
+                        }                         
 			break;
 		}
 
 		dn = slapi_ch_strdup(spec->auth_dn);
 		if (slapi_dn_isroot(dn) ) {
-			lderr = LDAP_UNWILLING_TO_PERFORM;
+                        if (critical)
+                            lderr = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+                        else
+                            lderr = LDAP_UNWILLING_TO_PERFORM;
 			*errtextp = "Proxy dn should not be rootdn";
 			break;
 			

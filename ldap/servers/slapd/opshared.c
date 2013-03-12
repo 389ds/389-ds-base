@@ -431,7 +431,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               if ((ctl_value->bv_len == 0) || (ctl_value->bv_val == NULL))
               {
                   rc = -1;
-                  send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
+                  if (iscritical)
+                      send_ldap_result(pb, LDAP_UNAVAILABLE_CRITICAL_EXTENSION, NULL, NULL, 0, NULL);
+                  else
+                      send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
                   goto free_and_return_nolock;
               }
               else
@@ -440,7 +443,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                   if (be_name == NULL)
                   {
                       rc = -1;
-                      send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
+                      if (iscritical)
+                          send_ldap_result(pb, LDAP_UNAVAILABLE_CRITICAL_EXTENSION, NULL, NULL, 0, NULL);
+                      else
+                          send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
                       goto free_and_return_nolock;
                   }
               }
@@ -496,7 +502,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           } else {
               /* parse paged-results-control failed */
               if (iscritical) { /* return an error since it's critical */
-                  send_ldap_result(pb, rc, NULL,
+                  send_ldap_result(pb, LDAP_UNAVAILABLE_CRITICAL_EXTENSION, NULL,
                                    "Simple Paged Results Search failed",
                                    0, NULL);
                   goto free_and_return;
