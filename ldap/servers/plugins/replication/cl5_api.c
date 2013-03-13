@@ -2538,11 +2538,15 @@ _cl5WriteMod (LDAPMod *mod, char **buff)
 	memcpy (pos, &count, sizeof (count));
 	pos += sizeof (PRInt32);
 
+	/* if the mod has no values, eg delete attr or replace attr without values 
+	 * do not reset buffer
+	 */
+	rc = 0; 
+
 	bv = slapi_mod_get_first_value (&smod);
 	while (bv)
 	{
 		encbv = NULL;
-		rc = 0;
 		rc = clcrypt_encrypt_value(s_cl5Desc.clcrypt_handle, 
 		                           bv, &encbv);
 		if (rc > 0) {
