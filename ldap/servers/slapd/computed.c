@@ -44,6 +44,7 @@
 /* Handles computed attributes for entries as they're returned to the client */
 
 #include "slap.h"
+#include "proto-slap.h"
 
 
 /* Structure used to pass the context needed for completing a computed attribute operation */
@@ -61,8 +62,11 @@ struct _compute_evaluator {
 };
 typedef struct _compute_evaluator compute_evaluator;
 
+static PRBool startup_completed = PR_FALSE;
+
 static compute_evaluator *compute_evaluators = NULL;
 static Slapi_RWLock *compute_evaluators_lock = NULL;
+static PRBool require_compute_evaluator_lock = PR_FALSE;
 
 static int
 compute_stock_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_compute_output_t outputfn);
@@ -75,6 +79,7 @@ typedef struct _compute_rewriter compute_rewriter;
 
 static compute_rewriter *compute_rewriters = NULL;
 static Slapi_RWLock *compute_rewriters_lock = NULL;
+static PRBool require_compute_rewriters_lock = PR_FALSE;
 
 /* Function called by evaluators to have the value output */
 static int
@@ -83,17 +88,36 @@ compute_output_callback(computed_attr_context *c,Slapi_Attr *a , Slapi_Entry *e)
 	return encode_attr (c->pb, c->ber, e, a, c->attrsonly, c->requested_type);
 }
 
+static
+int compute_call_evaluators_nolock(computed_attr_context *c,slapi_compute_output_t outfn,char *type,Slapi_Entry *e)
+{
+        int rc = -1;
+        compute_evaluator *current = NULL;
+        
+        for (current = compute_evaluators; (current != NULL) && (-1 == rc); current = current->next) {
+                rc = (*(current->function))(c,type,e,outfn);
+        }
+        return rc;
+}
+
 static int
 compute_call_evaluators(computed_attr_context *c,slapi_compute_output_t outfn,char *type,Slapi_Entry *e)
 {
 	int rc = -1;
-	compute_evaluator *current = NULL;
+        int need_lock = require_compute_evaluator_lock;
+        
 	/* Walk along the list (locked) calling the evaluator functions util one says yes, an error happens, or we finish */
-	slapi_rwlock_rdlock(compute_evaluators_lock);
-	for (current = compute_evaluators; (current != NULL) && (-1 == rc); current = current->next) {
-		rc = (*(current->function))(c,type,e,outfn);
-	}
-	slapi_rwlock_unlock(compute_evaluators_lock);
+
+        if (need_lock) {
+                slapi_rwlock_rdlock(compute_evaluators_lock);
+        }
+       
+        rc = compute_call_evaluators_nolock(c, outfn, type, e);
+        
+        if (need_lock) {
+                slapi_rwlock_unlock(compute_evaluators_lock);
+        }   
+
 	return rc;
 }
 
@@ -132,23 +156,52 @@ compute_stock_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi
 	return rc; /* I see no ships */
 }
 
+static void
+compute_add_evaluator_nolock(slapi_compute_callback_t function, compute_evaluator *new_eval)
+{
+    new_eval->next = compute_evaluators;
+    new_eval->function = function;
+    compute_evaluators = new_eval;
+}
 int slapi_compute_add_evaluator(slapi_compute_callback_t function)
 {
 	int rc = 0;
 	compute_evaluator *new_eval = NULL;
 	PR_ASSERT(NULL != function);
 	PR_ASSERT(NULL != compute_evaluators_lock);
-	slapi_rwlock_wrlock(compute_evaluators_lock);
+        if (startup_completed) {
+            /* We are now in multi-threaded and we still add
+             * a attribute evaluator.
+             * switch to use locking mechanimsm
+             */
+            require_compute_evaluator_lock = PR_TRUE;
+        }
+
 	new_eval = (compute_evaluator *)slapi_ch_calloc(1,sizeof (compute_evaluator));
 	if (NULL == new_eval) {
 		rc = ENOMEM;
 	} else {
-		new_eval->next = compute_evaluators;
-		new_eval->function = function;
-		compute_evaluators = new_eval;
+                int need_lock = require_compute_evaluator_lock;
+                
+                if (need_lock) {
+                    slapi_rwlock_wrlock(compute_evaluators_lock);
+                }
+                
+                compute_add_evaluator_nolock(function, new_eval);
+                
+                if (need_lock) {
+                    slapi_rwlock_unlock(compute_evaluators_lock);
+                }
 	}
-	slapi_rwlock_unlock(compute_evaluators_lock);
+
 	return rc;
+}
+
+/* Called when */
+void
+compute_plugins_started()
+{
+    startup_completed = PR_TRUE;
 }
 
 /* Call this on server startup, before the first LDAP operation is serviced */
@@ -200,6 +253,14 @@ int compute_terminate()
 	return 0;
 }
 
+static void
+compute_add_search_rewrite_nolock(slapi_search_rewrite_callback_t function, compute_rewriter *new_rewriter)
+{
+    new_rewriter->next = compute_rewriters;
+    new_rewriter->function = function;
+    compute_rewriters = new_rewriter;
+}
+
 /* Functions dealing with re-writing of search filters */
 
 int slapi_compute_add_search_rewriter(slapi_search_rewrite_callback_t function)
@@ -208,36 +269,66 @@ int slapi_compute_add_search_rewriter(slapi_search_rewrite_callback_t function)
 	compute_rewriter *new_rewriter = NULL;
 	PR_ASSERT(NULL != function);
 	PR_ASSERT(NULL != compute_rewriters_lock);
+        if (startup_completed) {
+            /* We are now in multi-threaded and we still add
+             * a filter rewriter.
+             * switch to use locking mechanimsm
+             */
+            require_compute_rewriters_lock = PR_TRUE;
+        }
 	new_rewriter = (compute_rewriter *)slapi_ch_calloc(1,sizeof (compute_rewriter));
 	if (NULL == new_rewriter) {
 		rc = ENOMEM;
 	} else {
-		slapi_rwlock_wrlock(compute_rewriters_lock);
-		new_rewriter->next = compute_rewriters;
-		new_rewriter->function = function;
-		compute_rewriters = new_rewriter;
-		slapi_rwlock_unlock(compute_rewriters_lock);
+                int need_lock = require_compute_rewriters_lock;
+                
+		if (need_lock) {
+                    slapi_rwlock_wrlock(compute_rewriters_lock);
+                }
+                
+                compute_add_search_rewrite_nolock(function, new_rewriter);
+                
+                if (need_lock) {
+                    slapi_rwlock_unlock(compute_rewriters_lock);
+                }
 	}
 	return rc;
 }
 
-int	compute_rewrite_search_filter(Slapi_PBlock *pb)
+static
+int compute_rewrite_search_filter_nolock(Slapi_PBlock *pb)
+{
+        int rc = -1;
+        compute_rewriter *current = NULL;
+        
+        for (current = compute_rewriters; (current != NULL) && (-1 == rc); current = current->next) {
+                rc = (*(current->function))(pb);
+                /* Meaning of the return code :
+                   -1 : keep looking
+                    0 : rewrote OK
+                    1 : refuse to do this search
+                    2 : operations error
+                */
+        }
+        return(rc);
+}
+
+int compute_rewrite_search_filter(Slapi_PBlock *pb)
 {
 	/* Iterate through the listed rewriters until one says it matched */
 	int rc = -1;
-	compute_rewriter *current = NULL;
+        int need_lock = require_compute_rewriters_lock;
+
 	/* Walk along the list (locked) calling the evaluator functions util one says yes, an error happens, or we finish */
-	slapi_rwlock_rdlock(compute_rewriters_lock);
-	for (current = compute_rewriters; (current != NULL) && (-1 == rc); current = current->next) {
-		rc = (*(current->function))(pb);
-		/* Meaning of the return code :
-		 -1 : keep looking
-		  0 : rewrote OK
-		  1 : refuse to do this search
-		  2 : operations error
-		 */
-	}
-	slapi_rwlock_unlock(compute_rewriters_lock);
+        if (need_lock) {
+                slapi_rwlock_rdlock(compute_rewriters_lock);
+        }
+        
+        rc = compute_rewrite_search_filter_nolock(pb);
+        
+        if (need_lock) {
+                slapi_rwlock_unlock(compute_rewriters_lock);
+        }
 	return rc;
 
 }
