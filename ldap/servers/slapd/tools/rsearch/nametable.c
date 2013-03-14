@@ -152,8 +152,8 @@ int nt_load(NameTable *nt, const char *filename)
     if (!fd) return 0;
 
     while (PR_Available(fd) > 0) {
-	char temp[256], *s;
-	if (PR_GetLine(fd, temp, 256)) break;
+	char temp[4096], *s;
+	if (PR_GetLine(fd, temp, sizeof(temp))) break;
 	s = strdup(temp);
 	if (!s) break;
 	if (!nt_push(nt, s)) break;

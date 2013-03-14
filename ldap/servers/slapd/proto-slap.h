@@ -254,6 +254,7 @@ void do_compare( Slapi_PBlock *pb );
 int compute_attribute(char *type, Slapi_PBlock *pb,BerElement *ber,Slapi_Entry *e,int attrsonly,char *requested_type);
 int compute_init();
 int compute_terminate();
+void compute_plugins_started();
 
 
 /*

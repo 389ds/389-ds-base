@@ -1165,7 +1165,8 @@ main( int argc, char **argv)
 		slapi_td_dn_init();
 
 		plugin_print_lists();
-		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */); 
+		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */);
+                compute_plugins_started();
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
 			return_value = 1;
 			goto cleanup;
