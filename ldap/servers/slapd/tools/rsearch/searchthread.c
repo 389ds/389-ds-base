@@ -285,7 +285,7 @@ static int st_bind(SearchThread *st)
                     return 0;
                 }
             } else if (uid) {
-                char filterBuffer[100];
+                char filterBuffer[4096];
                 char *pFilter;
 				char *filterTemplate = (uidFilter) ? uidFilter : "(uid=%s)";
                 struct timeval timeout;
