@@ -1040,48 +1040,50 @@ sub updateTmpfilesDotD {
     # if tmpfiles.d is not available, do nothing
     if ($dir and -d $dir) {
         my $filename = "$dir/@package_name@-$inf->{slapd}->{ServerIdentifier}.conf";
-        if (! -f $filename) {
-            debug(3, "Creating $filename\n");
-            my $username = "";
-            my $groupname = "";
-            my $conffile = "$inf->{slapd}->{config_dir}/dse.ldif";
-            # use the owner:group from the dse.ldif for the instance
-            if (-f $conffile) {
-                my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
-                    $atime,$mtime,$ctime,$blksize,$blocks)
-                    = stat(_);
-                $username = getpwuid($uid);
-                if (!$username) {
-                    debug(1, "Error: could not get username from uid $uid\n");
-                }
-                $groupname = getgrgid($gid);
+        if (-f $filename) {
+            debug(3, "Removing the old tmpfile: $filename\n");
+            if (!unlink($filename)){
+                debug(1, "Can not delete old tmpfile $filename ($!)\n");
+                return();
             }
-            # else, see if we were passed in values to use
-            if (!$username) {
-                $username = $inf->{General}->{SuiteSpotUserID};
-            }
-            if (!$groupname) {
-                if (defined($inf->{General}->{SuiteSpotGroup})) {
-                    $groupname = $inf->{General}->{SuiteSpotGroup};
-                } else { # $groupname
-                    $groupname = "-"; # use default
-                }
-            }
-
-            my $parent = dirname($inf->{slapd}->{lock_dir});
-            if (!open(DOTDFILE, ">$filename")) {
-                return ( [ 'error_creating_file', $filename, $! ] );
-            }
-            # Type Path          Mode UID  GID  Age
-            # d    /var/run/user 0755 root root 10d
-            # we don't use age
-            print DOTDFILE "d $inf->{slapd}->{run_dir} 0770 $username $groupname\n";
-            print DOTDFILE "d $parent 0770 $username $groupname\n";
-            print DOTDFILE "d $inf->{slapd}->{lock_dir} 0770 $username $groupname\n";
-            close DOTDFILE;
-        } else {
-            debug(3, "$filename exists - skipping\n");
         }
+        debug(3, "Creating $filename\n");
+        my $username = "";
+        my $groupname = "";
+        my $conffile = "$inf->{slapd}->{config_dir}/dse.ldif";
+        # use the owner:group from the dse.ldif for the instance
+        if (-f $conffile) {
+            my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+                $atime,$mtime,$ctime,$blksize,$blocks)
+                = stat(_);
+            $username = getpwuid($uid);
+            if (!$username) {
+                debug(1, "Error: could not get username from uid $uid\n");
+            }
+            $groupname = getgrgid($gid);
+        }
+        # else, see if we were passed in values to use
+        if (!$username) {
+            $username = $inf->{General}->{SuiteSpotUserID};
+        }
+        if (!$groupname) {
+            if (defined($inf->{General}->{SuiteSpotGroup})) {
+                $groupname = $inf->{General}->{SuiteSpotGroup};
+            } else { # $groupname
+                $groupname = "-"; # use default
+            }
+        }
+        my $parent = dirname($inf->{slapd}->{lock_dir});
+        if (!open(DOTDFILE, ">$filename")) {
+            return ( [ 'error_creating_file', $filename, $! ] );
+        }
+        # Type Path          Mode UID  GID  Age
+        # d    /var/run/user 0755 root root 10d
+        # we don't use age
+        print DOTDFILE "d $inf->{slapd}->{run_dir} 0770 $username $groupname\n";
+        print DOTDFILE "d $parent 0770 $username $groupname\n";
+        print DOTDFILE "d $inf->{slapd}->{lock_dir} 0770 $username $groupname\n";
+        close DOTDFILE;
     } else {
         debug(3, "no tmpfiles.d - skipping\n");
     }
@@ -1381,8 +1383,8 @@ sub removeDSInstance {
     }
 
     my $tmpfilesdir = "@with_tmpfiles_d@";
-    my $tmpfilesname = "$tmpfilesdir/@package_name@-$inst";
-    if ($tmpfilesdir and -d $tmpfilesdir and -f $tmpfilesname) {
+    my $tmpfilesname = "$tmpfilesdir/@package_name@-$inst.conf";
+    if ($tmpfilesdir && -d $tmpfilesdir && -f $tmpfilesname) {
         my $rc = unlink($tmpfilesname);
         if ( 0 == $rc )
         {
