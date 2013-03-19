@@ -1396,8 +1396,8 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
 {
     struct statvfs dbhome_buf;
     struct statvfs db_buf;
-    int using_shared_mem = (dbenv_flags & ( DB_PRIVATE | DB_SYSTEM_MEM));
-    PRUint64 expected_siz = li->li_dbcachesize * 1.5; /* dbcache + region files */
+    int using_region_files = !(dbenv_flags & ( DB_PRIVATE | DB_SYSTEM_MEM));
+    PRUint64 expected_siz = li->li_dbcachesize + li->li_dbcachesize/2; /* dbcache + region files */
     PRUint64 fsiz;
     char *region_dir;
 
@@ -1416,7 +1416,7 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
            strcmp(li->li_directory, li->li_dblayer_private->dblayer_dbhome_directory))
         {
             /* Calculate the available space as long as we are not using shared memory */
-            if(!using_shared_mem){
+            if(using_region_files){
                 if(statvfs(li->li_dblayer_private->dblayer_dbhome_directory, &dbhome_buf) < 0){
                     LDAPDebug(LDAP_DEBUG_ANY,
                         "Cannot get file system info for (%s); file system corrupted?\n",
@@ -1426,7 +1426,7 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
                 fsiz = ((PRUint64)dbhome_buf.f_bavail) * ((PRUint64)dbhome_buf.f_bsize);
                 region_dir = li->li_dblayer_private->dblayer_dbhome_directory;
             } else {
-                /* Shared memory.  No need to check disk space, return success */
+                /* Shared/private memory.  No need to check disk space, return success */
                 return 0;
             }
         } else {
