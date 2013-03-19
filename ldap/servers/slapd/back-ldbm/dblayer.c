@@ -36,11 +36,6 @@
  * All rights reserved.
  * END COPYRIGHT BLOCK **/
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
-
 /*
     Abstraction layer which sits between db2.0 and 
     higher layers in the directory server---typically
@@ -93,8 +88,18 @@
 
 */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 #include "back-ldbm.h"
 #include "dblayer.h"
+#include <prthread.h>
+#include <prclist.h>
+#ifndef XP_WIN32
+#include <sys/types.h>
+#include <sys/statvfs.h>
+#include <sys/resource.h>
+#endif
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
@@ -194,7 +199,7 @@
     PR_Unlock(priv->thread_count_lock)
 
 #define NEWDIR_MODE 0755
-
+#define DB_REGION_PREFIX "__db."
 
 static int perf_threadmain(void *param);
 static int checkpoint_threadmain(void *param);
@@ -208,7 +213,6 @@ static int dblayer_force_checkpoint(struct ldbminfo *li);
 static int log_flush_threadmain(void *param);
 static int dblayer_delete_transaction_logs(const char * log_dir);
 static int dblayer_is_logfilename(const char* path);
-
 static int dblayer_start_log_flush_thread(dblayer_private *priv);
 static int dblayer_start_deadlock_thread(struct ldbminfo *li);
 static int dblayer_start_checkpoint_thread(struct ldbminfo *li);
@@ -829,16 +833,13 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
  */
 #ifdef OS_solaris
 #include <sys/procfs.h>
-#include <sys/resource.h>
 #endif
 #ifdef LINUX
 #include <linux/kernel.h>
 #include <sys/sysinfo.h>    /* undocumented (?) */
-#include <sys/resource.h>
 #endif
 #if defined ( hpux )
 #include <sys/pstat.h>
-#include <sys/resource.h>
 #endif
 
 #if !defined(_WIN32)
@@ -1353,75 +1354,100 @@ dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst,
     return buf;
 }
 
-#if defined( OS_solaris )
-#include <sys/types.h>
-#include <sys/statvfs.h>
-#endif
-
-#if defined( hpux )
-#undef f_type
-#include <sys/types.h>
-#include <sys/statvfs.h>
-#define f_type        f_un.f_un_type
-#endif
-
-#if defined( linux )
-#undef f_type
-#include <sys/vfs.h>
-#define f_type        f_un.f_un_type
-#endif
-
-static int
-no_diskspace(struct ldbminfo *li)
+/*
+ *  Get the total size of all the __db files
+ */
+static PRUint64
+dblayer_get_region_size(const char *dir)
 {
-    int rval = 0;
-#if defined( OS_solaris ) || defined( hpux )
-    struct statvfs fsbuf;
-    if (statvfs(li->li_directory, &fsbuf) < 0)
-    {
-        LDAPDebug(LDAP_DEBUG_ANY,
-            "Cannot get file system info; file system corrupted?\n", 0, 0, 0);
-        rval = 1;
+    PRFileInfo info;
+    PRDir *dirhandle = NULL;
+    PRDirEntry *direntry = NULL;
+    PRUint64 region_size = 0;
+
+    dirhandle = PR_OpenDir(dir);
+    if (NULL == dirhandle){
+        return region_size;
     }
-    else
-    {
-        double fsiz = ((double)fsbuf.f_bavail) * fsbuf.f_frsize;
-        double expected_siz = ((double)li->li_dbcachesize) * 1.5; /* dbcache +
-                                                                region files */
-        if (fsiz < expected_siz)
-        {
-            LDAPDebug(LDAP_DEBUG_ANY,
-                "No enough space left on device (%lu bytes); "
-                "at least %lu bytes space is needed for db region files\n",
-                fsiz, expected_siz, 0);
-            rval = 1;
+    while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))){
+        if (NULL == direntry->name){
+            continue;
+        }
+        if (0 == strncmp(direntry->name, DB_REGION_PREFIX, 5)){
+            char filename[MAXPATHLEN];
+
+            PR_snprintf(filename, MAXPATHLEN, "%s/%s", dir, direntry->name);
+            if (PR_GetFileInfo(filename, &info) != PR_FAILURE){
+                region_size += info.size;
+    	    }
         }
     }
-#endif
-#if defined( linux )
-    struct statfs fsbuf;
-    if (statfs(li->li_directory, &fsbuf) < 0)
-    {
+    PR_CloseDir(dirhandle);
+
+    return region_size;
+}
+
+/*
+ *  Check that there is enough room for the dbcache and region files.
+ *  We can ignore this check if using db_home_dir and shared/private memory.
+ */
+static int
+no_diskspace(struct ldbminfo *li, int dbenv_flags)
+{
+    struct statvfs dbhome_buf;
+    struct statvfs db_buf;
+    int using_shared_mem = (dbenv_flags & ( DB_PRIVATE | DB_SYSTEM_MEM));
+    PRUint64 expected_siz = li->li_dbcachesize * 1.5; /* dbcache + region files */
+    PRUint64 fsiz;
+    char *region_dir;
+
+    if (statvfs(li->li_directory, &db_buf) < 0){
         LDAPDebug(LDAP_DEBUG_ANY,
-            "Cannot get file system info; file system corrupted?\n", 0, 0, 0);
-        rval = 1;
-    }
-    else
-    {
-        double fsiz = ((double)fsbuf.f_bavail) * fsbuf.f_bsize;
-        double expected_siz = ((double)li->li_dbcachesize) * 1.5; /* dbcache +
-                                                                region files */
-        if (fsiz < expected_siz)
+            "Cannot get file system info for (%s); file system corrupted?\n",
+            li->li_directory, 0, 0);
+        return 1;
+    } else {
+        /*
+         *  If db_home_directory is set, and it's not the same as the db_directory,
+         *  then check the disk space.
+         */
+        if(li->li_dblayer_private->dblayer_dbhome_directory &&
+           strcmp(li->li_dblayer_private->dblayer_dbhome_directory,"") &&
+           strcmp(li->li_directory, li->li_dblayer_private->dblayer_dbhome_directory))
         {
-            LDAPDebug(LDAP_DEBUG_ANY,
-                "No enough space left on device (%lu bytes); "
-                "at least %lu bytes space is needed for db region files\n",
-                fsiz, expected_siz, 0);
-            rval = 1;
+            /* Calculate the available space as long as we are not using shared memory */
+            if(!using_shared_mem){
+                if(statvfs(li->li_dblayer_private->dblayer_dbhome_directory, &dbhome_buf) < 0){
+                    LDAPDebug(LDAP_DEBUG_ANY,
+                        "Cannot get file system info for (%s); file system corrupted?\n",
+                        li->li_dblayer_private->dblayer_dbhome_directory, 0, 0);
+                    return 1;
+                }
+                fsiz = ((PRUint64)dbhome_buf.f_bavail) * ((PRUint64)dbhome_buf.f_bsize);
+                region_dir = li->li_dblayer_private->dblayer_dbhome_directory;
+            } else {
+                /* Shared memory.  No need to check disk space, return success */
+                return 0;
+            }
+        } else {
+        	/* Ok, just check the db directory */
+        	region_dir = li->li_directory;
+        	fsiz = ((PRUint64)db_buf.f_bavail) * ((PRUint64)db_buf.f_bsize);
         }
+        /* Adjust the size for the region files */
+        fsiz += dblayer_get_region_size(region_dir);
+
+        /* Check if we have enough space */
+        if (fsiz < expected_siz){
+            LDAPDebug(LDAP_DEBUG_ANY,
+                "No enough space left on device (%s) (%lu bytes); "
+                "at least %lu bytes space is needed for db region files\n",
+                region_dir, fsiz, expected_siz);
+            return 1;
+        }
+
+        return 0;
     }
-#endif
-    return rval;
 }
 
 /*
@@ -1629,7 +1655,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
     }
 
     /* check if there's enough disk space to start */
-    if (no_diskspace(li))
+    if (no_diskspace(li, open_flags))
     {
         return ENOSPC;
     }
@@ -6946,8 +6972,6 @@ dblayer_strerror(int error)
 }
 
 /* [605974] check a db region file's existence to know whether import is executed by other process or not */
-#define DB_REGION_PREFIX "__db."
-
 int
 dblayer_in_import(ldbm_instance *inst)
 {
@@ -7248,9 +7272,6 @@ ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info)
 
     return rc;
 }
-
-#include <prthread.h>
-#include <prclist.h>
 
 static PRUintn thread_private_txn_stack;
 
