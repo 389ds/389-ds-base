@@ -811,6 +811,7 @@ int pw_rever_decode(char *cipher, char **plain, const char * attr_name);
 /* config routines */
 
 int slapi_config_get_readonly();
+int slapi_config_get_unhashed_pw_switch();
 
 /*
  * charray.c

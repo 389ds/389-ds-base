@@ -2517,7 +2517,7 @@ _cl5WriteMod (LDAPMod *mod, char **buff)
 	if (NULL == mod) {
 		return rc;
 	}
-	if (SLAPD_UNHASHED_PW_NOLOG == config_get_unhashed_pw_switch()) {
+	if (SLAPD_UNHASHED_PW_NOLOG == slapi_config_get_unhashed_pw_switch()) {
 		if (0 == strcasecmp(mod->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)) {
 			/* If nsslapd-unhashed-pw-switch == nolog, skip writing it to cl. */
 			return rc;

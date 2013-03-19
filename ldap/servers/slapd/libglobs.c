@@ -6826,12 +6826,18 @@ config_set_unhashed_pw_switch(const char *attrname, char *value,
 }
 
 int
+slapi_config_get_unhashed_pw_switch()
+{
+    return config_get_unhashed_pw_switch();
+}
+
+int
 config_get_unhashed_pw_switch()
 {
-	int retVal = 0;
+    int retVal = 0;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     CFG_LOCK_READ(slapdFrontendConfig);
-	retVal = slapdFrontendConfig->unhashed_pw_switch;
+    retVal = slapdFrontendConfig->unhashed_pw_switch;
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;
