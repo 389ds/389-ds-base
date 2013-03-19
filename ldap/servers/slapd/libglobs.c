@@ -993,6 +993,12 @@ FrontendConfig_init () {
   cfg->ssl_check_hostname = LDAP_ON;
   cfg->return_exact_case = LDAP_ON;
   cfg->result_tweak = LDAP_OFF;
+#if defined(LINUX)
+  /* On Linux, by default, we use TCP_CORK so we must enable nagle */
+  cfg->nagle = LDAP_ON;
+#else
+  cfg->nagle = LDAP_OFF;
+#endif
   cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
   cfg->useroc = slapi_ch_strdup ( "" );
   cfg->userat = slapi_ch_strdup ( "" );

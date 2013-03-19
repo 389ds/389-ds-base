@@ -499,7 +499,10 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
 	int minssf = config_get_minssf();
 	int minssf_exclude_rootdse = 0;
-
+#ifdef TCP_CORK
+	int enable_nagle = config_get_nagle();
+	int pop_cork = 0;
+#endif
 	/* Get the effective key length now since the first SSL handshake should be complete */
 	connection_set_ssl_ssf( conn );
 
@@ -600,38 +603,33 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 
 	case LDAP_REQ_SEARCH:
 		operation_set_type(op,SLAPI_OPERATION_SEARCH);
-		
 
-	/* On Linux we can use TCP_CORK to get us 5-10% speed benefit when one entry is returned */
-	/* Nagle needs to be turned _off_, the default is off on linux, in daemon.c */
-#if defined(LINUX)
-	{
-		int i = 1;
-		int ret = 0;
-		/* Set TCP_CORK here but only if this is not LDAPI */
-		if(!conn->c_unix_local)
+		/* On Linux we can use TCP_CORK to get us 5-10% speed benefit when one entry is returned */
+		/* Nagle needs to be turned _on_, the default is _on_ on linux, in daemon.c */
+#ifdef TCP_CORK
+		if (enable_nagle && !conn->c_unix_local)
 		{
-			ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
+			int i = 1;
+			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
 				LDAPDebug(LDAP_DEBUG_ANY, "Failed to set TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid, 0, 0);
 			}
+			pop_cork = 1;
 		}
 #endif
-
 		do_search( pb );
 
-#if defined(LINUX)
-		/* Clear TCP_CORK to flush any unsent data but only if not LDAPI*/
-		i = 0;
-		if(!conn->c_unix_local)
-		{
-			ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
+#ifdef TCP_CORK
+		if (pop_cork) {
+			/* Clear TCP_CORK to flush any unsent data but only if not LDAPI*/
+			int i = 0;
+			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
 				LDAPDebug(LDAP_DEBUG_ANY, "Failed to clear TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid, 0, 0);
 			}
 		}
-	}
 #endif
+
 		break;
 
 	/* for some strange reason, the console is using this old obsolete
