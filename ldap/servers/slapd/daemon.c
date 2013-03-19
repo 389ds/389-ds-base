@@ -3478,11 +3478,6 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 
 	PRSocketOptionData pr_socketoption;
   
-#if defined(LINUX)
-	/* On Linux we use TCP_CORK so we must enable nagle */
-	enable_nagle = 1;
-#endif
-
 	ns = PR_FileDesc2NativeHandle( *pr_socket );
 	
 #if !defined(_WIN32)
@@ -3560,7 +3555,6 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 		 }
 
 	} /* else (secure) */
-
 
 	if ( !enable_nagle && !local ) {
 
