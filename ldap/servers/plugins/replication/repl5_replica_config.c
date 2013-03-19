@@ -2351,57 +2351,100 @@ delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, int skip){
 static void
 delete_cleaned_rid_config(cleanruv_data *clean_data)
 {
-    Slapi_PBlock *pb;
+    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_Entry **entries = NULL;
     LDAPMod *mods[2];
     LDAPMod mod;
     struct berval *vals[2];
     struct berval val;
     char data[CSN_STRSIZE + 15];
     char *csnstr = NULL;
+    char *iter = NULL;
     char *dn;
-    int rc;
+    int found = 0, i;
+    int rc, ret, rid;
 
     /*
-     *  Prepare the mods for the config entry
+     *  If there is no maxcsn, set the proper csnstr
      */
     csn_as_string(clean_data->maxcsn, PR_FALSE, csnstr);
-    val.bv_len = PR_snprintf(data, sizeof(data), "%d:%s:%s", (int)clean_data->rid, csnstr, clean_data->force);
+    if(csnstr == NULL || csn_get_replicaid(clean_data->maxcsn) == 0){
+        csnstr = slapi_ch_strdup("00000000000000000000");
+    }
+    /*
+     *  Search the config for the exact attribute value to delete
+     */
     dn = replica_get_dn(clean_data->replica);
-    pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(pb, dn, LDAP_SCOPE_SUBTREE, "nsds5ReplicaCleanRUV=*", NULL, 0, NULL, NULL,
+        (void *)plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+    if (ret != LDAP_SUCCESS){
+        /*
+         * Search failed, manually build the attr value
+         */
+        val.bv_len = PR_snprintf(data, sizeof(data), "%d:%s:%s",
+            (int)clean_data->rid, csnstr, clean_data->force);
+        slapi_pblock_destroy(pb);
+    } else {
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries == NULL || entries[0] == NULL){
+            /*
+             *  Entry not found, manually build the attr value
+             */
+            val.bv_len = PR_snprintf(data, sizeof(data), "%d:%s:%s",
+                (int)clean_data->rid, csnstr, clean_data->force);
+        } else {
+            char **attr_val = slapi_entry_attr_get_charray(entries[0], "nsds5ReplicaCleanRUV");
+
+            for (i = 0; attr_val && attr_val[i] && !found; i++){
+                /* make a copy to retain the full value after toking */
+                char *aval = slapi_ch_strdup(attr_val[i]);
+
+                rid = atoi(ldap_utf8strtok_r(attr_val[i], ":", &iter));
+                if(rid == clean_data->rid){
+                    /* found it */
+                    found = 1;
+                    val.bv_len = PR_snprintf(data, sizeof(data), "%s", aval);
+                }
+                slapi_ch_free_string(&aval);
+            }
+            if(!found){
+                /*
+                 *  No match, manually build the attr value
+                 */
+                val.bv_len = PR_snprintf(data, sizeof(data), "%d:%s:%s",
+                    (int)clean_data->rid, csnstr, clean_data->force);
+            }
+            slapi_ch_array_free(attr_val);
+        }
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
+    }
+
+    /*
+     *  Now delete the attribute
+     */
     mod.mod_op  = LDAP_MOD_DELETE|LDAP_MOD_BVALUES;
-    mod.mod_type = (char *)type_replicaAbortCleanRUV;
     mod.mod_type = (char *)type_replicaCleanRUV;
     mod.mod_bvalues = vals;
     vals [0] = &val;
     vals [1] = NULL;
     val.bv_val = data;
-
     mods[0] = &mod;
     mods[1] = NULL;
+    pb = slapi_pblock_new();
     slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_modify_internal_pb (pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-    if (rc != LDAP_SUCCESS){
-        /*
-         *  When aborting a task, we don't know if the "force" option was used.
-         *  So we assume it is set to "no", but if this op fails, we'll try "yes"
-         */
-        slapi_pblock_destroy (pb);
-        pb = slapi_pblock_new();
-        memset(data,'0',sizeof(data));
-        val.bv_len = PR_snprintf(data, sizeof(data), "%d:%s:yes", (int)clean_data->rid, csnstr);
-        slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
-        slapi_modify_internal_pb (pb);
-        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-        if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT){
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: failed to remove replica config "
-                "(%d), rid (%d)\n", rc, clean_data->rid);
-        }
-     }
-     slapi_pblock_destroy (pb);
-     slapi_ch_free_string(&dn);
-     slapi_ch_free_string(&csnstr);
- }
+    if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT){
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: failed to remove replica config "
+            "(%d), rid (%d)\n", rc, clean_data->rid);
+    }
+    slapi_pblock_destroy(pb);
+    slapi_ch_free_string(&dn);
+    slapi_ch_free_string(&csnstr);
+}
 
 /*
  *  Remove the rid from our list, and the config
@@ -2762,8 +2805,8 @@ replica_cleanallruv_send_extop(Repl_Agmt *ra, cleanruv_data *clean_data, int che
                     /* extop was accepted */
                     rc = 0;
                 } else {
-                    cleanruv_log(clean_data->task, CLEANALLRUV_ID,"Replica %s does not support the CLEANALLRUV task.  Sending replica CLEANRUV task...",
-                        slapi_sdn_get_dn(agmt_get_dn_byref(ra)));
+                    cleanruv_log(clean_data->task, CLEANALLRUV_ID,"Replica %s does not support the CLEANALLRUV task.  "
+                        "Sending replica CLEANRUV task...", slapi_sdn_get_dn(agmt_get_dn_byref(ra)));
                     /*
                      *  Ok, this replica doesn't know about CLEANALLRUV, so just manually
                      *  add the CLEANRUV task to the replica.
@@ -2841,7 +2884,8 @@ replica_cleanallruv_find_maxcsn(Replica *replica, ReplicaId rid, char *basedn)
             /* we could not find any maxcsn's - already cleaned? */
             return NULL;
         }
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: replica_cleanallruv_find_maxcsn: Not all replicas online, retrying in %d seconds\n",interval);
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: replica_cleanallruv_find_maxcsn: "
+            "Not all replicas online, retrying in %d seconds\n", interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
         PR_Unlock( notify_lock );
