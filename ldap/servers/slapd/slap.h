@@ -1562,6 +1562,8 @@ typedef struct passwordpolicyarray {
   slapi_onoff_t pw_is_legacy;
   slapi_onoff_t pw_track_update_time;
   struct pw_scheme *pw_storagescheme;
+  Slapi_DN *pw_admin;
+  Slapi_DN **pw_admin_user;
 } passwdPolicy;
 
 typedef struct slapi_pblock {
@@ -2023,6 +2025,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PW_GRACELIMIT_ATTRIBUTE "passwordGraceLimit"
 #define CONFIG_PW_IS_LEGACY "passwordLegacyPolicy"
 #define CONFIG_PW_TRACK_LAST_UPDATE_TIME "passwordTrackUpdateTime"
+#define CONFIG_PW_ADMIN_DN_ATTRIBUTE "passwordAdminDN"
 #define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
 #define CONFIG_CSNLOGGING_ATTRIBUTE "nsslapd-csnlogging"
 #define CONFIG_RETURN_EXACT_CASE_ATTRIBUTE "nsslapd-return-exact-case"

@@ -387,6 +387,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_gracelimit,
 		CONFIG_INT, NULL, DEFAULT_PW_GRACELIMIT},
+	{CONFIG_PW_ADMIN_DN_ATTRIBUTE, config_set_pw_admin_dn,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_admin,
+		CONFIG_STRING, NULL, ""},
 	{CONFIG_ACCESSLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_rotationsync_enabled,
@@ -1391,6 +1395,8 @@ FrontendConfig_init () {
   cfg->pw_policy.pw_lockduration = 3600;     /* 60 minutes   */
   cfg->pw_policy.pw_resetfailurecount = 600; /* 10 minutes   */ 
   cfg->pw_policy.pw_gracelimit = 0;
+  cfg->pw_policy.pw_admin = NULL;
+  cfg->pw_policy.pw_admin_user = NULL;
   init_pw_is_legacy = cfg->pw_policy.pw_is_legacy = LDAP_ON;
   init_pw_track_update_time = cfg->pw_policy.pw_track_update_time = LDAP_OFF;
   init_pw_is_global_policy = cfg->pw_is_global_policy = LDAP_OFF;
@@ -2906,6 +2912,20 @@ config_set_pw_is_legacy_policy( const char *attrname, char *value, char *errorbu
 							  errorbuf,
 							  apply);
 
+  return retVal;
+}
+
+int
+config_set_pw_admin_dn( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal =  LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( apply ) {
+	CFG_LOCK_WRITE(slapdFrontendConfig);
+	slapi_sdn_free(&slapdFrontendConfig->pw_policy.pw_admin);
+	slapdFrontendConfig->pw_policy.pw_admin = slapi_sdn_new_dn_byval(value);
+	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
   return retVal;
 }
 

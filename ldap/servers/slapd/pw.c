@@ -77,7 +77,7 @@ static int check_trivial_words (Slapi_PBlock *, Slapi_Entry *, Slapi_Value **,
 		char *attrtype, int toklen, Slapi_Mods *smods );
 static int pw_boolean_str2value (const char *str);
 /* static LDAPMod* pw_malloc_mod (char* name, char* value, int mod_op); */
-
+static void pw_get_admin_users(passwdPolicy *pwp);
 
 /*  
  * We want to be able to return errors to internal operations (which
@@ -643,7 +643,8 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	 * for this special case to ensure we reset the expiration date properly.
 	 */
 	if ((internal_op && pwpolicy->pw_must_change && (!pb->pb_conn || strcasecmp(target_dn, pb->pb_conn->c_dn))) ||
-	    (!internal_op && pwpolicy->pw_must_change && (target_dn && bind_dn && strcasecmp(target_dn, bind_dn))))
+	    (!internal_op && pwpolicy->pw_must_change &&
+	     ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy))))
 	{
 		pw_exp_date = NO_TIME;
 	} else if ( pwpolicy->pw_exp == 1 ) {
@@ -828,7 +829,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			 * case for the password modify extended operation. */
 			if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
 				if ((!is_replication && ((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) ||
-					(!internal_op && !pb->pb_requestor_isroot)))) {
+					(!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))) {
 					PR_snprintf( errormsg, BUFSIZ,
 						"invalid password syntax - passwords with storage scheme are not allowed");
 					if ( pwresponse_req == 1 ) {
@@ -1504,6 +1505,94 @@ pw_add_allowchange_aci(Slapi_Entry *e, int pw_prohibit_change) {
 	slapi_ch_free((void **) &aci_pw);
 }
 
+int
+pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp){
+	Slapi_DN *bind_sdn = NULL;
+	int i;
+
+	/* first check if it's root */
+	if(pb->pb_requestor_isroot){
+		return 1;
+	}
+	/* now check if it's a Password Policy Administrator */
+	slapi_pblock_get(pb, SLAPI_REQUESTOR_SDN, &bind_sdn);
+	if(bind_sdn == NULL){
+		return 0;
+	}
+	for(i = 0; pwp->pw_admin_user && pwp->pw_admin_user[i]; i++){
+		if(slapi_sdn_compare(bind_sdn, pwp->pw_admin_user[i]) == 0){
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static void
+pw_get_admin_users(passwdPolicy *pwp)
+{
+	Slapi_PBlock *pb = slapi_pblock_new();
+	const Slapi_DN *sdn = pwp->pw_admin;
+	char **uniquemember_vals = NULL;
+	char **member_vals = NULL;
+	int uniquemember_count = 0;
+	int member_count = 0;
+	int nentries = 0;
+	int count = 0;
+	int res;
+	int i;
+
+	if(sdn == NULL){
+		return;
+	}
+	/*
+	 *  Check if the DN exists and has "group" objectclasses
+	 */
+	slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(sdn), LDAP_SCOPE_BASE,"(|(objectclass=groupofuniquenames)(objectclass=groupofnames))",
+		NULL, 0, NULL, NULL, (void *) plugin_get_default_component_id(), 0);
+	slapi_search_internal_pb(pb);
+	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+	if (res != LDAP_SUCCESS) {
+		slapi_pblock_destroy(pb);
+		LDAPDebug(LDAP_DEBUG_ANY, "pw_get_admin_users: search failed for %s: error %d - Password Policy Administrators can not be set\n",
+			slapi_sdn_get_dn(sdn), res, 0);
+		return;
+	}
+	/*
+	 *  Ok, we know we have a valid DN, and nentries will tell us if its a group or a user
+	 */
+	slapi_pblock_get(pb, SLAPI_NENTRIES, &nentries);
+	if ( nentries > 0 ){
+		/*
+		 *  It's a group DN, gather all the members
+		 */
+		Slapi_Entry **entries = NULL;
+
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+		uniquemember_vals = slapi_entry_attr_get_charray_ext(entries[0], "uniquemember", &uniquemember_count);
+		member_vals = slapi_entry_attr_get_charray_ext(entries[0], "member", &member_count);
+		pwp->pw_admin_user = (Slapi_DN **)slapi_ch_calloc((uniquemember_count + member_count + 1), sizeof(Slapi_DN *));
+		if(uniquemember_count > 0){
+			for(i = 0; i < uniquemember_count; i++){
+				pwp->pw_admin_user[count++] = slapi_sdn_new_dn_passin(uniquemember_vals[i]);
+			}
+		}
+		if(member_count > 0){
+			for(i = 0; i < member_count; i++){
+				pwp->pw_admin_user[count++] = slapi_sdn_new_dn_passin(member_vals[i]);
+			}
+		}
+		slapi_ch_free((void**)&uniquemember_vals);
+		slapi_ch_free((void**)&member_vals);
+	} else {
+		/* It's a single user */
+		pwp->pw_admin_user = (Slapi_DN **)slapi_ch_calloc(2, sizeof(Slapi_DN *));
+		pwp->pw_admin_user[0] = slapi_sdn_dup(sdn);
+	}
+	slapi_free_search_results_internal(pb);
+	slapi_pblock_destroy(pb);
+}
+
 /* This function creates a passwdPolicy structure, loads it from either
  * slapdFrontendconfig or the entry pointed by pwdpolicysubentry and
  * returns the structure.
@@ -1813,6 +1902,13 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 						pw_boolean_str2value(slapi_value_get_string(*sval));
 					}
 				}
+				else
+				if (!strcasecmp(attr_name, "passwordAdminDN")) {
+					if ((sval = attr_get_present_values(attr))) {
+						pwdpolicy->pw_admin = slapi_sdn_new_dn_byval(slapi_value_get_string(*sval));
+						pw_get_admin_users(pwdpolicy);
+					}
+				}
 			} /* end of for() loop */
 			if (pw_entry) {
 				slapi_entry_free(pw_entry);
@@ -1836,6 +1932,8 @@ done:
 	*pwdscheme = *slapdFrontendConfig->pw_storagescheme;
 	pwdscheme->pws_name = strdup( slapdFrontendConfig->pw_storagescheme->pws_name );
 	pwdpolicy->pw_storagescheme = pwdscheme;
+	pwdpolicy->pw_admin = slapi_sdn_dup(slapdFrontendConfig->pw_policy.pw_admin);
+	pw_get_admin_users(pwdpolicy);
 	if(pb){
 		pb->pwdpolicy = pwdpolicy;
 	}
@@ -1849,6 +1947,15 @@ delete_passwdPolicy( passwdPolicy **pwpolicy)
 {
 	if (pwpolicy && *pwpolicy) {
 		free_pw_scheme( (*(*pwpolicy)).pw_storagescheme );
+		slapi_sdn_free(&(*(*pwpolicy)).pw_admin);
+		if((*(*pwpolicy)).pw_admin_user){
+			int i = 0;
+			while((*(*pwpolicy)).pw_admin_user[i]){
+				slapi_sdn_free(&(*(*pwpolicy)).pw_admin_user[i]);
+				i++;
+			}
+			slapi_ch_free((void **)&(*(*pwpolicy)).pw_admin_user);
+		}
 		slapi_ch_free((void **)pwpolicy);
 	}
 }

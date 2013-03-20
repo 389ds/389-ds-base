@@ -347,6 +347,7 @@ int config_set_pw_is_global_policy(const char *attrname,  char *value, char *err
 int config_set_pw_is_legacy_policy(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_track_last_update_time(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_gracelimit(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_pw_admin_dn( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_useroc(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_return_exact_case(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_result_tweak(const char *attrname,  char *value, char *errorbuf, int apply );

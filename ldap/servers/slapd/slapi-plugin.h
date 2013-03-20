@@ -1633,6 +1633,37 @@ int slapi_entry_attr_delete( Slapi_Entry *e, const char *type );
 char **slapi_entry_attr_get_charray(const Slapi_Entry* e, const char *type);
 
 /**
+ * Gets the values of a multi-valued attribute of an entry.
+ *
+ * This function is very similar to slapi_entry_attr_get_charptr(), except that it
+ * returns a <tt>char **</tt> array for multi-valued attributes. The array and all
+ * values are copies. Even if the attribute values are not strings, they will still
+ * be \c NULL terminated so that they can be used safely in a string context. If there
+ * are no values, \c NULL will be returned. Because the array is \c NULL terminated,
+ * the usage should be similar to the sample shown below:
+ *
+ * \code
+ *     char **ary = slapi_entry_attr_get_charray(e, someattr);
+ *     int ii;
+ *     for (ii = 0; ary && ary[ii]; ++ii) {
+ *        char *strval = ary[ii];
+ *        ...
+ *     }
+ *     slapi_ch_array_free(ary);
+ * \endcode
+ *
+ * \param e Entry from which you want to get the values.
+ * \param type Attribute type from which you want to get the values.
+ * \param numVals The number of attribute values will be stored in this variable.
+ * \return A copy of all the values of the attribute.
+ * \return \c NULL if the entry does not contain the attribute or if the attribute
+ *         has no values.
+ * \warning When you are done working with the values, free them from memory by calling
+ *          the slapi_ch_array_free() function.
+ * \see slapi_entry_attr_get_charptr()
+ */
+char **slapi_entry_attr_get_charray_ext( const Slapi_Entry* e, const char *type, int *numVals);
+/**
  * Gets the first value of an attribute of an entry as a string.
  *
  * \param e Entry from which you want to get the string value.

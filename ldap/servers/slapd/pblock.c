@@ -1779,7 +1779,6 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_ACL_MODS_UPDATE:
         (*(IFP *)value) = pblock->pb_plugin->plg_acl_mods_update;
 		break;
-
 	case SLAPI_REQUESTOR_DN:
 		/* NOTE: It's not a copy of the DN */	
 		if (pblock->pb_op != NULL)
@@ -1789,6 +1788,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
     				(*( char **)value ) = "";
 			else
     				(*( char **)value ) = dn;
+		}
+		break;
+
+	case SLAPI_REQUESTOR_SDN:
+		if(pblock->pb_op != NULL){
+			(*(Slapi_DN **)value) = &pblock->pb_op->o_sdn;
 		}
 		break;
 

@@ -1264,27 +1264,21 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		slapi_pblock_set( pb, SLAPI_BACKEND, slapi_be_select( &sdn ) );
 
 		/* Check if ACIs allow password to be changed */
-		if ( (res = slapi_acl_check_mods(pb, e, mods, &errtxt)) != LDAP_SUCCESS) {
-			if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
-			{
-				if (proxydn)
-				{
+		if ( !pw_is_pwp_admin(pb, pwpolicy) && (res = slapi_acl_check_mods(pb, e, mods, &errtxt)) != LDAP_SUCCESS){
+			if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS)){
+				if (proxydn){
 					proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
 				}
-
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s\n",
 						pb->pb_conn->c_connid, pb->pb_op->o_opid,
-						slapi_sdn_get_dn(&sdn),
-						proxystr ? proxystr : "");
+						slapi_sdn_get_dn(&sdn), proxystr ? proxystr : "");
 			}
 
 			/* Write access is denied to userPassword by ACIs */
 			if ( pwresponse_req == 1 ) {
-                               	slapi_pwpolicy_make_response_control ( pb, -1, -1,
-						LDAP_PWPOLICY_PWDMODNOTALLOWED );
-                       	}
-
-                       	send_ldap_result(pb, res, NULL, errtxt, 0, NULL);
+				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
+			}
+			send_ldap_result(pb, res, NULL, errtxt, 0, NULL);
 			slapi_ch_free_string(&errtxt);
 			rc = -1;
 			goto done;
@@ -1292,7 +1286,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 
 		/* Check if password policy allows users to change their passwords.*/
 		if (!pb->pb_op->o_isroot && slapi_sdn_compare(&sdn, &pb->pb_op->o_sdn)==0 &&
-			!pb->pb_conn->c_needpw && !pwpolicy->pw_change)
+			!pb->pb_conn->c_needpw && !pwpolicy->pw_change && !pw_is_pwp_admin(pb, pwpolicy))
 		{
 			if ( pwresponse_req == 1 ) {
 				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
