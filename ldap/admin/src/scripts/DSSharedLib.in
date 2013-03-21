@@ -20,13 +20,38 @@ get_server_id()
     inst_count=0
     instances="<none>"
     rc=0
-    
-    for i in `ls $dir/dirsrv-* 2>/dev/null`
+
+    # convert
+    # uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),.....
+    # to
+    # 0
+    # this is the only portable, secure way to determine the id number
+    userid=`id | awk -F'[=(]+' '{print $2}'`
+    if [ "$userid" -ne 0 ] ; then
+        # magic - see start-dirsrv, DSCreate.pm::get_initconfigdir, etc.
+        dir=$HOME/.@package_name@
+    fi
+    if [ -n "$INITCONFIGDIR" ] ; then
+        dir=$INITCONFIGDIR
+    fi
+
+    # look first in user provided INITCONFIGDIR, then in the system/build location,
+    # then in the users home dir - cases
+    # 1. system install but running as non-root user
+    #    in this case, we want to use the instance from $dir - it will
+    #    fallback to $homedir in that case, and if that is a problem, the user will
+    #    just have to temporarily move $homedir/dirsrv-sysinstancename out of the way
+    #    while working on the system instance
+    # 2. prefix/non-system install
+    #    in this case, we want to use $homedir - if for some reason there is a system
+    #    instance in $dir with the same name, the user can use INITCONFIGDIR to
+    #    override that and force the use of the one from $homedir
+    for i in `ls $dir/@package_name@-* 2>/dev/null`
     do
-        if [ $i != "$dir/dirsrv-admin" ]
+        if [ $i != "$dir/@package_name@-admin" ]
         then
             inst_count=`expr $inst_count + 1`
-            id=$(expr "$i" : ".*dirsrv-\([^)]*\).*")
+            id=$(expr "$i" : ".*@package_name@-\([^)]*\).*")
             if  [ $first == "yes" ]
             then
                 instances=$id
@@ -52,11 +77,11 @@ get_server_id()
     elif [ $servid == slapd-* ]
     then
         servid=`echo "$servid" | sed -e 's/slapd-//'`
-    elif [ $servid == dirsrv-* ]
+    elif [ $servid == @package_name@-* ]
     then
-        servid=`echo "$servid" | sed -e 's/dirsrv-//'`
+        servid=`echo "$servid" | sed -e 's/@package_name@-//'`
     fi
-    if ! [ -a "$dir/dirsrv-$servid" ]
+    if ! [ -a "$dir/@package_name@-$servid" ]
     then
         # invalid instance name, return the "valid" instance names
         servid=$instances

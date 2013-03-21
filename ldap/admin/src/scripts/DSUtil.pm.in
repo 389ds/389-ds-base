@@ -1287,13 +1287,21 @@ sub get_server_id {
     my $instances = "<none>";
     my $name;
     my $file;
+
+    if (getLogin ne 'root') {
+        $dir = "$ENV{HOME}/.@package_name@";
+    }
+
+    if (defined $ENV{INITCONFIGDIR}) {
+        $dir = $ENV{INITCONFIGDIR};
+    }
     
     opendir(DIR, "$dir");
     my @files = readdir(DIR);
     foreach $file (@files){
-        if($file =~ /^dirsrv-/ && $file ne "dirsrv-admin"){
+        if($file =~ /^@package_name@-/ && $file ne "@package_name@-admin"){
             $instance_count++;
-            if($file =~ /dirsrv-(.*)/){
+            if($file =~ /@package_name@-(.*)/){
                 if($first eq "yes"){
                     $instances=$1;
                     $first = "no";
@@ -1312,17 +1320,17 @@ sub get_server_id {
             print "Available instances: $instances\n";
             exit (1);
         }
-    } elsif ($servid =~ /^dirsrv-/){
-        # strip off "dirsrv-"
-        $servid =~ s/^dirsrv-//;
+    } elsif ($servid =~ /^@package_name@-/){
+        # strip off "@package_name@-"
+        $servid =~ s/^@package_name@-//;
     } elsif ($servid =~ /^slapd-/){
         # strip off "slapd-"
         $servid =~ s/^slapd-//;
     }
     
-    unless ( -e "$dir/dirsrv-$servid" ){
+    unless ( -e "$dir/@package_name@-$servid" ){
         print (STDERR "Invalid server identifer: $servid\n");
-        print (STDERR "Available instances: $instances\n");
+        print (STDERR "Available instances in $dir: $instances\n");
         exit (1);
     }
     

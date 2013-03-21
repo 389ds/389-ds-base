@@ -115,7 +115,13 @@ done
 shift $(($OPTIND-1))
 
 if [ "$initconfig_dir" = "" ]; then
-    if [ $USER = root ] ; then
+    # convert
+    # uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),.....
+    # to
+    # 0
+    # this is the only portable, secure way to determine the id number
+    userid=`id | awk -F'[=(]+' '{print $2}'`
+    if [ "$userid" -eq 0 ] ; then
         initconfig_dir=@initconfigdir@
     else
         initconfig_dir=$HOME/.@package_name@
@@ -134,8 +140,9 @@ if [ "$#" -eq 0 ]; then
         fi
         echo Starting instance \"$inst\"
         start_instance $inst
-        if [ "$?" -ne 0 ]; then
-            ret=$?
+        rv=$?
+        if [ "$rv" -ne 0 ]; then
+            ret=$rv
         fi
     done
     exit $ret
