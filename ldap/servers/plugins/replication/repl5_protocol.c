@@ -72,6 +72,7 @@ typedef struct repl_protocol
 	int state;
 	int next_state;
 	PRUint64 protocol_timeout;
+        PRThread *agmt_thread;
 	PRLock *lock;
 } repl_protocol;
 
@@ -366,12 +367,13 @@ prot_start(Repl_Protocol *rp)
 	PR_ASSERT(NULL != rp);
 	if (NULL != rp)
 	{
-		if (PR_CreateThread(PR_USER_THREAD, prot_thread_main, (void *)rp,
+                rp->agmt_thread = PR_CreateThread(PR_USER_THREAD, prot_thread_main, (void *)rp,
 #if defined(__hpux) && defined(__ia64)
-			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, 524288L ) == NULL)
+			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, 524288L );
 #else
-			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL)
+			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 #endif
+		if (rp->agmt_thread == NULL)
         {
             PRErrorCode prerr = PR_GetError();
 
@@ -425,6 +427,11 @@ prot_stop(Repl_Protocol *rp)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Error: prot_stop() "
 			" called on NULL protocol instance.\n");
+	}
+        
+        if (rp->agmt_thread != NULL) {
+		(void) PR_JoinThread(rp->agmt_thread);
+		rp->agmt_thread = NULL;
 	}
 }
 
