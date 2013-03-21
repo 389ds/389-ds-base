@@ -132,6 +132,10 @@ if [ "$#" -eq 0 ]; then
     # We're starting all instances.
     ret=0
     for i in $initconfig_dir/@package_name@-*; do
+        if [ ! -f "$i" ] ; then
+            echo No instances found in $initconfig_dir
+            exit 1
+        fi
         regex=s,$initconfig_dir/@package_name@-,,g
         inst=`echo $i | sed -e $regex`
         # check for admin server ID used by 389-admin pkg, and ignore it
