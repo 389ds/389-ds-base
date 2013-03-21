@@ -93,6 +93,7 @@
 #define DNA_SHARED_CFG_DN   "dnaSharedCfgDN"
 
 /* Shared Config */
+#define DNA_SHAREDCONFIG    "dnaSharedConfig"
 #define DNA_REMAINING       "dnaRemainingValues"
 #define DNA_THRESHOLD       "dnaThreshold"
 #define DNA_HOSTNAME        "dnaHostname"
@@ -219,7 +220,7 @@ static int dna_be_txn_preop_init(Slapi_PBlock *pb);
  * Local operation functions
  *
  */
-static int dna_load_plugin_config();
+static int dna_load_plugin_config(int use_eventq);
 static int dna_parse_config_entry(Slapi_Entry * e, int apply);
 static void dna_delete_config();
 static void dna_free_config_entry(struct configEntry ** entry);
@@ -571,7 +572,7 @@ dna_start(Slapi_PBlock * pb)
         slapi_ch_calloc(1, sizeof(struct configEntry));
     PR_INIT_CLIST(dna_global_config);
 
-    if (dna_load_plugin_config() != DNA_SUCCESS) {
+    if (dna_load_plugin_config(1/* use eventq */) != DNA_SUCCESS) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_start: unable to load plug-in configuration\n");
         return DNA_FAILURE;
@@ -639,7 +640,7 @@ done:
  * ------ cn=etc etc
  */
 static int
-dna_load_plugin_config()
+dna_load_plugin_config(int use_eventq)
 {
     int status = DNA_SUCCESS;
     int result;
@@ -649,7 +650,8 @@ dna_load_plugin_config()
     Slapi_Entry **entries = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
-                    "--> dna_load_plugin_config\n");
+                    "--> dna_load_plugin_config %s\n",
+                    use_eventq?"using event queue":"");
 
     dna_write_lock();
     dna_delete_config();
@@ -664,6 +666,7 @@ dna_load_plugin_config()
 
     if (LDAP_SUCCESS != result) {
         status = DNA_FAILURE;
+        dna_unlock();
         goto cleanup;
     }
 
@@ -671,6 +674,7 @@ dna_load_plugin_config()
                      &entries);
     if (NULL == entries || NULL == entries[0]) {
         status = DNA_SUCCESS;
+        dna_unlock();
         goto cleanup;
     }
 
@@ -680,19 +684,24 @@ dna_load_plugin_config()
          * looking for valid ones. */
         dna_parse_config_entry(entries[i], 1);
     }
+    dna_unlock();
 
-    /* Setup an event to update the shared config 30
-     * seconds from now.  We need to do this since
-     * performing the operation at this point when
-     * starting up  would cause the change to not
-     * get changelogged. */
-    time(&now);
-    slapi_eq_once(dna_update_config_event, NULL, now + 30);
+    if (use_eventq) {
+        /* Setup an event to update the shared config 30
+         * seconds from now.  We need to do this since
+         * performing the operation at this point when
+         * starting up  would cause the change to not
+         * get changelogged. */
+        time(&now);
+        slapi_eq_once(dna_update_config_event, NULL, now + 30);
+    } else {
+        int arg = 1; /* not used. */
+        dna_update_config_event(0, &arg);
+    }
 
 cleanup:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
-    dna_unlock();
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_load_plugin_config\n");
 
@@ -3669,7 +3678,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
     if (!slapi_op_internal(pb)) { /* If internal, no need to check. */
         if ((dn = dna_get_dn(pb))) {
             if (dna_dn_is_config(dn)) {
-                dna_load_plugin_config();
+                dna_load_plugin_config(0);
             }
         }
     }
