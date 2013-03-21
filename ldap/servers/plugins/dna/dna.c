@@ -666,6 +666,7 @@ dna_load_plugin_config(int use_eventq)
 
     if (LDAP_SUCCESS != result) {
         status = DNA_FAILURE;
+        dna_unlock();
         goto cleanup;
     }
 
@@ -673,6 +674,7 @@ dna_load_plugin_config(int use_eventq)
                      &entries);
     if (NULL == entries || NULL == entries[0]) {
         status = DNA_SUCCESS;
+        dna_unlock();
         goto cleanup;
     }
 
@@ -682,6 +684,7 @@ dna_load_plugin_config(int use_eventq)
          * looking for valid ones. */
         dna_parse_config_entry(entries[i], 1);
     }
+    dna_unlock();
 
     if (use_eventq) {
         /* Setup an event to update the shared config 30
@@ -692,14 +695,12 @@ dna_load_plugin_config(int use_eventq)
         time(&now);
         slapi_eq_once(dna_update_config_event, NULL, now + 30);
     } else {
-        int nolock = 1; /* no need to lock since dna write lock is held. */
-        dna_update_config_event(0, &nolock);
+        dna_update_config_event(0, NULL);
     }
 
 cleanup:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
-    dna_unlock();
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_load_plugin_config\n");
 
@@ -1247,15 +1248,9 @@ dna_update_config_event(time_t event_time, void *arg)
     Slapi_PBlock *pb = NULL;
     struct configEntry *config_entry = NULL;
     PRCList *list = NULL;
-    int nolock = 0;
 
-    if (arg) {
-        nolock = *(int *)arg;
-    }
-    if (!nolock) {
-        /* Get read lock to prevent config changes */
-        dna_read_lock();
-    }
+    /* Get read lock to prevent config changes */
+    dna_read_lock();
 
     /* Bail out if the plug-in close function was just called. */
     if (!g_plugin_started) {
@@ -1300,9 +1295,7 @@ dna_update_config_event(time_t event_time, void *arg)
     }
 
 bail:
-    if (!nolock) {
-        dna_unlock();
-    }
+    dna_unlock();
     slapi_pblock_destroy(pb);
 }
 
@@ -2785,7 +2778,6 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
     char **generated_types = NULL;
     PRUint64 setval = 0;
     int i;
-    int issharedconfig = 0;
 
     /* Bail out if the plug-in close function was just called. */
     if (!g_plugin_started) {
@@ -2803,12 +2795,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
      *  We also check if we need to get the next range of values, and grab them.
      *  We do this here so we don't have to do it in the be_txn_preop.
      */
-    /* Has write lock for config entries. */
-    issharedconfig = slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                               DNA_SHAREDCONFIG);
-    if (!issharedconfig) {
-        dna_read_lock();
-    }
+    dna_read_lock();
 
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
@@ -2966,9 +2953,7 @@ next:
         }
     }
 
-    if (!issharedconfig) {
-        dna_unlock();
-    }
+    dna_unlock();
 
     slapi_ch_array_free(generated_types);
 bail:
@@ -3427,7 +3412,6 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
     char *type = NULL;
     int numvals, e_numvals = 0;
     int i, len, ret = 0;
-    int issharedconfig = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_be_txn_pre_op\n");
@@ -3463,12 +3447,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
         slapi_mods_init_passin(smods, mods);
     }
 
-    /* Has write lock for config entries. */
-    issharedconfig = slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS,
-                                               DNA_SHAREDCONFIG);
-    if (!issharedconfig) {
-        dna_read_lock();
-    }
+    dna_read_lock();
 
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
@@ -3659,9 +3638,7 @@ next:
             list = PR_NEXT_LINK(list);
         }
     }
-    if (!issharedconfig) {
-        dna_unlock();
-    }
+    dna_unlock();
 bail:
 
     if (LDAP_CHANGETYPE_MODIFY == modtype) {
