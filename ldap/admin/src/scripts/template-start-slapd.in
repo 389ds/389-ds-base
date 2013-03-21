@@ -1,5 +1,4 @@
 #!/bin/sh
-
-cd {{SERVERBIN-DIR}}
-./start-slapd "$@" -Z {{SERV-ID}}
-exit $?
+# DEPRECATED - use @sbindir@/start-dirsrv instead
+INSTANCE={{SERV-ID}}
+exec @sbindir@/start-dirsrv -d {{INITCONFIG-DIR}} $INSTANCE "$@"

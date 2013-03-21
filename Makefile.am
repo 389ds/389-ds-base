@@ -122,9 +122,8 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/db2index ldap/admin/src/scripts/db2ldif \
 	ldap/admin/src/scripts/dn2rdn ldap/admin/src/scripts/ldif2db \
 	ldap/admin/src/scripts/ldif2ldap ldap/admin/src/scripts/monitor \
-	ldap/admin/src/scripts/restart-slapd ldap/admin/src/scripts/restoreconfig \
-	ldap/admin/src/scripts/saveconfig ldap/admin/src/scripts/start-slapd \
-	ldap/admin/src/scripts/stop-slapd ldap/admin/src/scripts/suffix2instance \
+	ldap/admin/src/scripts/restoreconfig ldap/admin/src/scripts/saveconfig  \
+	ldap/admin/src/scripts/suffix2instance \
 	ldap/admin/src/scripts/upgradednformat ldap/admin/src/scripts/vlvindex \
 	ldap/admin/src/scripts/bak2db.pl ldap/admin/src/scripts/db2bak.pl \
 	ldap/admin/src/scripts/db2index.pl ldap/admin/src/scripts/db2ldif.pl \
@@ -345,11 +344,8 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/ldif2db \
 	ldap/admin/src/scripts/ldif2ldap \
 	ldap/admin/src/scripts/monitor \
-	ldap/admin/src/scripts/restart-slapd \
 	ldap/admin/src/scripts/restoreconfig \
 	ldap/admin/src/scripts/saveconfig \
-	ldap/admin/src/scripts/start-slapd \
-	ldap/admin/src/scripts/stop-slapd \
 	ldap/admin/src/scripts/suffix2instance \
 	ldap/admin/src/scripts/upgradednformat \
 	ldap/admin/src/scripts/vlvindex \
@@ -510,7 +506,6 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/dbverify.8 man/man8/verify-db.pl.8 \
         man/man8/dn2rdn.8 man/man8/ldif2ldap.8 \
         man/man8/restoreconfig.8 man/man8/saveconfig.8 \
-        man/man8/start-slapd.8 man/man8/stop-slapd.8 man/man8/restart-slapd.8 \
         man/man8/suffix2instance.8 man/man8/monitor.8 \
         man/man8/upgradednformat.8 man/man8/vlvindex.8 \
         man/man8/cleanallruv.pl.8 man/man8/schema-reload.pl.8 \

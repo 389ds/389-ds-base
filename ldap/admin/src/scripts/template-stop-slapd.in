@@ -1,5 +1,3 @@
 #!/bin/sh
-
-cd {{SERVERBIN-DIR}}
-./stop-slapd "$@" -Z {{SERV-ID}}
-exit $?
+# DEPRECATED - use @sbindir@/stop-dirsrv instead
+exec @sbindir@/stop-dirsrv -d {{INITCONFIG-DIR}} {{SERV-ID}} "$@"

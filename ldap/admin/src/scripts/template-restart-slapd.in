@@ -1,5 +1,3 @@
 #!/bin/sh
-
-cd {{SERVERBIN-DIR}}
-./restart-slapd "$@" -Z {{SERV-ID}}
-exit $?
+# DEPRECATED - use @sbindir@/restart-dirsrv instead
+exec @sbindir@/restart-dirsrv -d {{INITCONFIG-DIR}} {{SERV-ID}} "$@"
