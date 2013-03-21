@@ -169,6 +169,8 @@ extern const char *type_nsds5ReplicaEnabled;
 extern const char *type_nsds5ReplicaStripAttrs;
 extern const char *type_nsds5ReplicaCleanRUVnotified;
 extern const char *type_replicaProtocolTimeout;
+extern const char *type_replicaBackoffMin;
+extern const char *type_replicaBackoffMax;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -594,6 +596,10 @@ void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
 void replica_update_state (time_t when, void *arg);
 void replica_reset_csn_pl(Replica *r);
 int replica_get_protocol_timeout(Replica *r);
+int replica_get_backoff_min(Replica *r);
+int replica_get_backoff_max(Replica *r);
+void replica_set_backoff_min(Replica *r, int min);
+void replica_set_backoff_max(Replica *r, int max);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */

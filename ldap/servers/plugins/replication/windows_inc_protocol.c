@@ -182,13 +182,13 @@ windows_inc_delete(Private_Repl_Protocol **prpp)
 
 /* helper function */
 void
-w_set_pause_and_busy_time(long *pausetime, long *busywaittime)
+w_set_pause_and_busy_time(Private_Repl_Protocol *prp, long *pausetime, long *busywaittime)
 {
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> w_set_pause_and_busy_time\n" );
   /* If neither are set, set busy time to its default */
   if (!*pausetime && !*busywaittime)
     {
-      *busywaittime = PROTOCOL_BUSY_BACKOFF_MINIMUM;
+      *busywaittime = repl5_get_backoff_min(prp);
     }
   /* pause time must be at least 1 more than the busy backoff time */
   if (*pausetime && !*busywaittime)
@@ -354,7 +354,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				if (pausetime || busywaittime)
 				{
 					/* helper function to make sure they are set correctly */
-					w_set_pause_and_busy_time(&pausetime, &busywaittime);
+					w_set_pause_and_busy_time(prp, &pausetime, &busywaittime);
 				}
 
 				/* Check if the interval changed */
@@ -609,17 +609,15 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					if (use_busy_backoff_timer)
 					{
 					  /* we received a busy signal from the consumer, wait for a while */
-					  if (!busywaittime)
-						{
-					  busywaittime = PROTOCOL_BUSY_BACKOFF_MINIMUM;
-						}
-					  prp_priv->backoff = backoff_new(BACKOFF_FIXED, busywaittime,
-									  busywaittime);
+					  if (!busywaittime){
+						  busywaittime = repl5_get_backoff_min(prp);
+					  }
+					  prp_priv->backoff = backoff_new(BACKOFF_FIXED, busywaittime, busywaittime);
 					}
 					else
 					{
-					  prp_priv->backoff = backoff_new(BACKOFF_EXPONENTIAL, PROTOCOL_BACKOFF_MINIMUM,
-									  PROTOCOL_BACKOFF_MAXIMUM);
+					  prp_priv->backoff = backoff_new(BACKOFF_EXPONENTIAL, repl5_get_backoff_min(prp),
+									  repl5_get_backoff_max(prp) );
 					}
 					next_state = STATE_BACKOFF;
 					backoff_reset(prp_priv->backoff, windows_inc_backoff_expired, (void *)prp);

@@ -108,5 +108,9 @@ char* protocol_response2string (int response);
 int repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod **);
 void windows_release_replica(Private_Repl_Protocol *prp);
 int windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv);
+void repl5_set_backoff_min(Private_Repl_Protocol *prp, int min);
+void repl5_set_backoff_max(Private_Repl_Protocol *prp, int max);
+int repl5_get_backoff_min(Private_Repl_Protocol *prp);
+int repl5_get_backoff_max(Private_Repl_Protocol *prp);
 
 #endif /* _REPL5_PROT_PRIVATE_H_ */

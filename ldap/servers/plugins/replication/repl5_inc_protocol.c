@@ -179,7 +179,6 @@ static const char* event2name (int event);
 static const char* op2string (int op);
 static int repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_crc, int connection_error, char *csn_str, char *uniqueid, ReplicaId replica_id, int* finished, PRUint32 *num_changes_sent);
 
-
 /* Push a newly sent operation onto the tail of the list */
 static void repl5_int_push_operation(result_data *rd, repl5_inc_operation *it)
 {
@@ -261,7 +260,8 @@ repl5_inc_log_operation_failure(int operation_code, int ldap_error, char* ldap_e
 #endif
 
 /* Thread that collects results from async operations sent to the consumer */
-static void repl5_inc_result_threadmain(void *param) 
+static void
+repl5_inc_result_threadmain(void *param)
 {
 	result_data *rd = (result_data*) param;
 	ConnResult conres = 0;
@@ -529,12 +529,12 @@ repl5_inc_delete(Private_Repl_Protocol **prpp)
 
 /* helper function */
 void
-set_pause_and_busy_time(long *pausetime, long *busywaittime)
+set_pause_and_busy_time(Private_Repl_Protocol *prp, long *pausetime, long *busywaittime)
 {
   /* If neither are set, set busy time to its default */
   if (!*pausetime && !*busywaittime)
     {
-      *busywaittime = PROTOCOL_BUSY_BACKOFF_MINIMUM;
+      *busywaittime = repl5_get_backoff_min(prp);
     }
   /* pause time must be at least 1 more than the busy backoff time */
   if (*pausetime && !*busywaittime)
@@ -683,7 +683,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               busywaittime = agmt_get_busywaittime(prp->agmt);
               if (pausetime || busywaittime){
                   /* helper function to make sure they are set correctly */
-                  set_pause_and_busy_time(&pausetime, &busywaittime);
+                  set_pause_and_busy_time(prp, &pausetime, &busywaittime);
               }
               break;
 
@@ -842,12 +842,12 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               if (use_busy_backoff_timer){
                   /* we received a busy signal from the consumer, wait for a while */
                   if (!busywaittime){
-                      busywaittime = PROTOCOL_BUSY_BACKOFF_MINIMUM;
+                      busywaittime = repl5_get_backoff_min(prp);
                   }
                   prp_priv->backoff = backoff_new(BACKOFF_FIXED, busywaittime, busywaittime);
               } else {
-                  prp_priv->backoff = backoff_new(BACKOFF_EXPONENTIAL, PROTOCOL_BACKOFF_MINIMUM,
-					                              PROTOCOL_BACKOFF_MAXIMUM);
+                  prp_priv->backoff = backoff_new(BACKOFF_EXPONENTIAL, repl5_get_backoff_min(prp),
+                		  repl5_get_backoff_max(prp));
               }
               next_state = STATE_BACKOFF;
               backoff_reset(prp_priv->backoff, repl5_inc_backoff_expired, (void *)prp);
@@ -2226,4 +2226,50 @@ op2string(int op)
 	}
 
 	return "unknown";
+}
+
+void
+repl5_set_backoff_min(Private_Repl_Protocol *prp, int min)
+{
+	Replica *replica;
+
+	replica = (Replica *)object_get_data(prp->replica_object);
+	if(replica){
+		replica_set_backoff_min(replica, min);
+	}
+}
+
+void
+repl5_set_backoff_max(Private_Repl_Protocol *prp, int max)
+{
+	Replica *replica;
+
+	replica = object_get_data(prp->replica_object);
+	if(replica){
+		replica_set_backoff_max(replica, max);
+	}
+}
+
+int
+repl5_get_backoff_min(Private_Repl_Protocol *prp)
+{
+	Replica *replica;
+
+	replica = object_get_data(prp->replica_object);
+	if(replica){
+		return (int)replica_get_backoff_min(replica);
+	}
+	return PROTOCOL_BACKOFF_MINIMUM;
+}
+
+int
+repl5_get_backoff_max(Private_Repl_Protocol *prp)
+{
+	Replica *replica;
+
+	replica = object_get_data(prp->replica_object);
+	if(replica){
+		return (int)replica_get_backoff_max(replica);
+	}
+	return PROTOCOL_BACKOFF_MAXIMUM;
 }
