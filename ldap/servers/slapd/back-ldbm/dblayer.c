@@ -510,7 +510,7 @@ int dblayer_open_huge_file(const char *path, int oflag, int mode)
 /* Helper function for large seeks, db4.3 */
 static int dblayer_seek43_large(int fd, off64_t offset, int whence)
 {
-    int ret = 0;
+    off64_t ret = 0;
 
     ret = lseek64(fd, offset, whence);
 
