@@ -70,6 +70,7 @@ $endFlag = 0;
 $endTime = 0;
 $reportStats = "";
 $dataLocation = "/tmp";
+$startTLSoid = "1.3.6.1.4.1.1466.20037";
 $s_stats = new_stats_block( );
 $m_stats = new_stats_block( );
 
@@ -208,6 +209,9 @@ $maxsimConnection = 0;
 $firstFile = 1;
 $elapsedDays = 0;
 $logCount = 0;
+$startTLSCount = 0;
+$ldapiCount = 0;
+$autobindCount = 0;
 $limit = 25000; # number of lines processed to trigger output
 
 # hash files
@@ -588,7 +592,9 @@ if($reportBinds eq "yes"){
 
 print "Restarts:                     $serverRestartCount\n";
 print "Total Connections:            $connectionCount\n";
-print "SSL Connections:              $sslCount\n";
+print " - StartTLS Connections:      $startTLSCount\n";
+print " - LDAPS Connections:         $sslCount\n";
+print " - LDAPI Conections:          $ldapiCount\n";
 print "Peak Concurrent Connections:  $maxsimConnection\n";
 print "Total Operations:             $allOps\n";
 print "Total Results:                $allResults\n";
@@ -760,21 +766,22 @@ print "Max BER Size Exceeded:        $maxBerSizeCount\n";
 print "\n";
 print "Binds:                        $bindCount\n";
 print "Unbinds:                      $unbindCount\n";
-print "\n LDAP v2 Binds:               $v2BindCount\n";
-print " LDAP v3 Binds:               $v3BindCount\n";
-print " SSL Client Binds:            $sslClientBindCount\n";
-print " Failed SSL Client Binds:     $sslClientFailedCount\n";
-print " SASL Binds:                  $saslBindCount\n";
+print " - LDAP v2 Binds:             $v2BindCount\n";
+print " - LDAP v3 Binds:             $v3BindCount\n";
+print " - AUTOBINDs:                 $autobindCount\n";
+print " - SSL Client Binds:          $sslClientBindCount\n";
+print " - Failed SSL Client Binds:   $sslClientFailedCount\n";
+print " - SASL Binds:                $saslBindCount\n";
 if ($saslBindCount > 0){
  foreach $saslb ( sort {$saslmech{$b} <=> $saslmech{$a} } (keys %saslmech) ){
-	printf "  %-4s  %-12s\n",$saslmech{$saslb}, $saslb;   
+	printf "    %-4s  %-12s\n",$saslmech{$saslb}, $saslb;   
  }
 }
 
-print "\n Directory Manager Binds:     $rootDNBindCount\n";
-print " Anonymous Binds:             $anonymousBindCount\n";
+print " - Directory Manager Binds:   $rootDNBindCount\n";
+print " - Anonymous Binds:           $anonymousBindCount\n";
 $otherBindCount = $bindCount -($rootDNBindCount + $anonymousBindCount);
-print " Other Binds:                 $otherBindCount\n\n";
+print " - Other Binds:               $otherBindCount\n\n";
 
 ##########################################################################
 #                       Verbose Logging Section                          #
@@ -1674,6 +1681,24 @@ sub parseLineNormal
 	if (m/ version=3/){$v3BindCount++}
 	if (m/ conn=1 fd=/){$serverRestartCount++}
 	if (m/ SSL connection from/){$sslCount++;}
+	if (m/ connection from local to /){$ldapiCount++;}
+	if($_ =~ /AUTOBIND dn=\"(.*)\"/){
+		$autobindCount++;
+		$bindCount++;
+		if($reportStat){ inc_stats('bind',$s_stats,$m_stats); }
+		if ($1 ne ""){ 
+			$tmpp = $1;
+			$tmpp =~ tr/A-Z/a-z/;
+			writeFile($BINDLIST, $tmpp); 
+			if($1 eq $rootDN){ 
+				$rootDNBindCount++;
+			}
+		} else {
+			$anonymousBindCount++;
+			writeFile($BINDLIST, "Anonymous Binds");
+			inc_stats('anonbind',$s_stats,$m_stats);
+		}
+	}
 	if (m/ connection from/){
 		$exc = "no";
 		if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ){ 
@@ -1718,6 +1743,7 @@ sub parseLineNormal
 		if($reportStat){ inc_stats('bind',$s_stats,$m_stats); }
 		$bindCount++;
 		if ($1 ne ""){ 
+			if($1 eq $rootDN){$rootDNBindCount++;}
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
 			writeFile($BINDLIST, $tmpp); 
@@ -1727,9 +1753,6 @@ sub parseLineNormal
 			if($usage =~ /f/ || $verb eq "yes"){
 				# only need this for the failed bind report
 				writeFile($BINDINFO, "$bindVal ,, $bindConn ,, $bindOp");
-			}
-			if($1 eq $rootDN){ 
-				$rootDNBindCount++;
 			}
 		} else {
 			$anonymousBindCount++;
@@ -2026,6 +2049,7 @@ sub parseLineNormal
 	if (m/ EXT oid=/){
 		$extopCount++;
 		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ writeFile($OID,$1); }
+		if ($1 && $1 eq $startTLSoid){$startTLSCount++;}
 		if ($verb eq "yes"){
 		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($EXT_CONN, $1); }
 			if ($_ =~ /op= *([0-9]+)/i){ writeFile($EXT_OP, $1); }
