@@ -83,6 +83,8 @@
 #include "plhash.h"
 
 #define REMOVE_CHANGELOG_CMD "remove"
+#define DEFAULT_SASL_MAXBUFSIZE "65536"
+#define SLAPD_DEFAULT_SASL_MAXBUFSIZE 65536
 
 /* On UNIX, there's only one copy of slapd_ldap_debug */
 /* On NT, each module keeps its own module_ldap_debug, which */
@@ -687,6 +689,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_logging_critical,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical},
+	{CONFIG_SASL_MAXBUFSIZE, config_set_sasl_maxbufsize,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.sasl_max_bufsize,
+		CONFIG_INT, (ConfigGetFunc)config_get_sasl_maxbufsize},
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1087,6 +1093,7 @@ FrontendConfig_init () {
   cfg->disk_threshold = 2097152;  /* 2 mb */
   cfg->disk_grace_period = 60; /* 1 hour */
   cfg->disk_logging_critical = LDAP_OFF;
+  cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
@@ -1289,6 +1296,29 @@ config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf,
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapdFrontendConfig->disk_grace_period = period;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+
+int
+config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+    int default_size = atoi(DEFAULT_SASL_MAXBUFSIZE);
+    int size;
+
+    size = atoi(value);
+    if(size < default_size){
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "nsslapd-sasl-max-buffer-size is too low (%d), "
+            "setting to default value (%d).\n",size, default_size);
+        size = default_size;
+    }
+    if(apply){
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->sasl_max_bufsize = size;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
@@ -3712,6 +3742,19 @@ config_get_port(){
 
   return retVal;
 
+}
+
+int
+config_get_sasl_maxbufsize()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->sasl_max_bufsize;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 int
