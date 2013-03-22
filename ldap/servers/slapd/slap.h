@@ -2052,6 +2052,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_NDN_CACHE "nsslapd-ndn-cache-enabled"
 #define CONFIG_NDN_CACHE_SIZE "nsslapd-ndn-cache-max-size"
 #define CONFIG_ALLOWED_SASL_MECHS "nsslapd-allowed-sasl-mechanisms"
+#define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2263,6 +2264,7 @@ typedef struct _slapdFrontendConfig {
   int pagedsizelimit;
   char *default_naming_context; /* Default naming context (normalized) */
   char *allowed_sasl_mechs;     /* comma/space separated list of allowed sasl mechs */
+  int sasl_max_bufsize;         /* The max receive buffer size for SASL */
 
   /* disk monitoring */
   int disk_monitoring;

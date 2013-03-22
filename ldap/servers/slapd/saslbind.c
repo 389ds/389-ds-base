@@ -661,7 +661,7 @@ void ids_sasl_server_new(Connection *conn)
     }
 
     /* Enable security for this connection */
-    secprops.maxbufsize = 2048; /* DBDB: hack */
+    secprops.maxbufsize = config_get_sasl_maxbufsize();
     secprops.max_ssf = 0xffffffff;
     secprops.min_ssf = config_get_minssf();
     /* If anonymous access is disabled, set the appropriate flag */
