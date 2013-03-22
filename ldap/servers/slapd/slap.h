@@ -2073,6 +2073,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ALLOWED_SASL_MECHS "nsslapd-allowed-sasl-mechanisms"
 #define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
 #define CONFIG_SASL_MAPPING_FALLBACK "nsslapd-sasl-mapping-fallback"
+#define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_SEARCH_RETURN_ORIGINAL_TYPE "nsslapd-search-return-original-type-switch"
 
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -2297,6 +2298,7 @@ typedef struct _slapdFrontendConfig {
   int pagedsizelimit;
   char *default_naming_context; /* Default naming context (normalized) */
   char *allowed_sasl_mechs;     /* comma/space separated list of allowed sasl mechs */
+  int sasl_max_bufsize;         /* The max receive buffer size for SASL */
 
   /* disk monitoring */
   slapi_onoff_t disk_monitoring;

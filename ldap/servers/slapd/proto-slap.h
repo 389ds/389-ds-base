@@ -397,6 +397,7 @@ int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorb
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_unhashed_pw_switch(const char *attrname, char *value, char *errorbuf, int apply); 
 int config_set_return_orig_type_switch(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply );
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -564,6 +565,7 @@ int config_get_ignore_vattrs();
 int config_set_sasl_mapping_fallback(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_sasl_mapping_fallback();
 int config_get_unhashed_pw_switch();
+int config_get_sasl_maxbufsize();
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);

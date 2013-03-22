@@ -176,6 +176,8 @@ static int config_set_schemareplace ( const char *attrname, char *value,
 #define DEFAULT_PW_RESETFAILURECOUNT "600"
 #define DEFAULT_PW_LOCKDURATION "3600"
 #define DEFAULT_NDN_SIZE "20971520"
+#define DEFAULT_SASL_MAXBUFSIZE "65536"
+#define SLAPD_DEFAULT_SASL_MAXBUFSIZE 65536
 #ifdef MEMPOOL_EXPERIMENTAL
 #define DEFAULT_MEMPOOL_MAXFREELIST "1024"
 #endif
@@ -1033,6 +1035,11 @@ static struct config_get_and_set {
 		CONFIG_SPECIAL_UNHASHED_PW_SWITCH,
 		(ConfigGetFunc)config_get_unhashed_pw_switch, 
 		DEFAULT_UNHASHED_PW_SWITCH},
+	{CONFIG_SASL_MAXBUFSIZE, config_set_sasl_maxbufsize,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.sasl_max_bufsize,
+		CONFIG_INT, (ConfigGetFunc)config_get_sasl_maxbufsize,
+		DEFAULT_SASL_MAXBUFSIZE},
 	{CONFIG_SEARCH_RETURN_ORIGINAL_TYPE, config_set_return_orig_type_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.return_orig_type,
@@ -1468,6 +1475,7 @@ FrontendConfig_init () {
   cfg->ignore_vattrs = slapi_counter_new();
   cfg->sasl_mapping_fallback = slapi_counter_new();
   init_sasl_mapping_fallback = LDAP_OFF;
+  cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
   cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
   init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
 
@@ -1731,8 +1739,8 @@ int
 config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply )
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    long size;
     int retVal = LDAP_SUCCESS;
+    long size;
 
     size = atol(value);
     if(size < 0){
@@ -1746,6 +1754,29 @@ config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf,
     if(apply){
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapdFrontendConfig->ndn_cache_max_size = size;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+
+int
+config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+    int default_size = atoi(DEFAULT_SASL_MAXBUFSIZE);
+    int size;
+
+    size = atoi(value);
+    if(size < default_size){
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "nsslapd-sasl-max-buffer-size is too low (%d), "
+            "setting to default value (%d).\n",size, default_size);
+        size = default_size;
+    }
+    if(apply){
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->sasl_max_bufsize = size;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
@@ -4225,6 +4256,19 @@ config_get_port(){
 
   return retVal;
 
+}
+
+int
+config_get_sasl_maxbufsize()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->sasl_max_bufsize;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 int
