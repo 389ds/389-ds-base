@@ -97,12 +97,27 @@ attr_syntax_read_lock(void)
 }
 
 void
-attr_syntax_unlock_read(void)
+attr_syntax_write_lock(void)
 {
-	if(name2asi_lock) AS_UNLOCK_READ(name2asi_lock);
-	if(oid2asi_lock) AS_UNLOCK_READ(oid2asi_lock);
+	if (0 != attr_syntax_init()) return;
+
+	AS_LOCK_WRITE(oid2asi_lock);
+	AS_LOCK_WRITE(name2asi_lock);
 }
 
+void
+attr_syntax_unlock_read(void)
+{
+	AS_UNLOCK_READ(name2asi_lock);
+	AS_UNLOCK_READ(oid2asi_lock);
+}
+
+void
+attr_syntax_unlock_write(void)
+{
+	AS_UNLOCK_WRITE(name2asi_lock);
+	AS_UNLOCK_WRITE(oid2asi_lock);
+}
 
 
 #if 0
@@ -233,13 +248,17 @@ attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock )
 	struct asyntaxinfo *asi = 0;
 	if (oid2asi)
 	{
-		if ( use_lock ) AS_LOCK_READ(oid2asi_lock);
+		if ( use_lock ) {
+			AS_LOCK_READ(oid2asi_lock);
+		}
 		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(oid2asi, oid);
 		if (asi)
 		{
 			PR_AtomicIncrement( &asi->asi_refcnt );
 		}
-		if ( use_lock ) AS_UNLOCK_READ(oid2asi_lock);
+		if ( use_lock ) {
+			AS_UNLOCK_READ(oid2asi_lock);
+		}
 	}
 
 	return asi;
@@ -257,13 +276,15 @@ attr_syntax_add_by_oid(const char *oid, struct asyntaxinfo *a, int lock)
 {
 	if (0 != attr_syntax_init()) return;
 
-	if (lock)
+	if (lock) {
 		AS_LOCK_WRITE(oid2asi_lock);
+	}
 
 	PL_HashTableAdd(oid2asi, oid, a);
 
-	if (lock)
+	if (lock) {
 		AS_UNLOCK_WRITE(oid2asi_lock);
+	}
 }
 
 /*
@@ -304,12 +325,16 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock)
 	struct asyntaxinfo *asi = 0;
 	if (name2asi)
 	{
-		if ( use_lock ) AS_LOCK_READ(name2asi_lock);
+		if ( use_lock ) {
+			AS_LOCK_READ(name2asi_lock);
+		}
 		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(name2asi, name);
 		if ( NULL != asi ) {
 			PR_AtomicIncrement( &asi->asi_refcnt );
 		}
-		if ( use_lock ) AS_UNLOCK_READ(name2asi_lock);
+		if ( use_lock ) {
+			AS_UNLOCK_READ(name2asi_lock);
+		}
 	}
 	if (!asi) /* given name may be an OID */
 		asi = attr_syntax_get_by_oid_locking_optional(name, use_lock);
@@ -331,29 +356,37 @@ attr_syntax_return( struct asyntaxinfo *asi )
 }
 
 void
-attr_syntax_return_locking_optional( struct asyntaxinfo *asi, PRBool use_lock )
+attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
 {
+	int locked = 0;
+	if(use_lock) {
+		AS_LOCK_READ(name2asi_lock);
+		locked = 1;
+	}
 	if ( NULL != asi ) {
-		if ( 0 == PR_AtomicDecrement( &asi->asi_refcnt ))
-		{
-			PRBool		delete_it;
-
-			if(use_lock) AS_LOCK_READ(name2asi_lock);
+		PRBool		delete_it = PR_FALSE;
+		if ( 0 == PR_AtomicDecrement( &asi->asi_refcnt )) {
 			delete_it = asi->asi_marked_for_delete;
-			if(use_lock) AS_UNLOCK_READ(name2asi_lock);
+		}
 
-			if ( delete_it )
-			{
-				AS_LOCK_WRITE(name2asi_lock);		/* get a write lock */
-				if ( asi->asi_marked_for_delete )	/* one final check */
-				{
-					/* ref count is 0 and it's flagged for
-					 * deletion, so it's safe to free now */
-					attr_syntax_free(asi);
+		if (delete_it) {
+			if ( asi->asi_marked_for_delete ) {	/* one final check */
+				if(use_lock) {
+					AS_UNLOCK_READ(name2asi_lock);
+					AS_LOCK_WRITE(name2asi_lock);
 				}
-				AS_UNLOCK_WRITE(name2asi_lock);
+				/* ref count is 0 and it's flagged for
+				 * deletion, so it's safe to free now */
+				attr_syntax_free(asi);
+				if(use_lock) {
+					AS_UNLOCK_WRITE(name2asi_lock);
+					locked = 0;
+				}
 			}
 		}
+	}
+	if(locked) {
+		AS_UNLOCK_READ(name2asi_lock);
 	}
 }
 
@@ -371,8 +404,9 @@ attr_syntax_add_by_name(struct asyntaxinfo *a, int lock)
 {
 	if (0 != attr_syntax_init()) return;
 
-	if (lock)
+	if (lock) {
 		AS_LOCK_WRITE(name2asi_lock);
+	}
 
 	PL_HashTableAdd(name2asi, a->asi_name, a);
 	if ( a->asi_aliases != NULL ) {
@@ -383,8 +417,9 @@ attr_syntax_add_by_name(struct asyntaxinfo *a, int lock)
 		}
 	}
 
-	if (lock)
+	if (lock) {
 		AS_UNLOCK_WRITE(name2asi_lock);
+	}
 }
 
 
@@ -948,11 +983,11 @@ attr_syntax_enumerate_attrs(AttrEnumFunc aef, void *arg, PRBool writelock )
 	attr_syntax_enumerate_attrs_ext(oid2asi, aef, arg);
 
 	if ( writelock ) {
-		AS_UNLOCK_WRITE(oid2asi_lock);
 		AS_UNLOCK_WRITE(name2asi_lock);
+		AS_UNLOCK_WRITE(oid2asi_lock);
 	} else {
-		AS_UNLOCK_READ(oid2asi_lock);
 		AS_UNLOCK_READ(name2asi_lock);
+		AS_UNLOCK_READ(oid2asi_lock);
 	}
 }
 
@@ -1048,6 +1083,21 @@ attr_syntax_delete_all()
 	memset( &fi, 0, sizeof(fi));
 	attr_syntax_enumerate_attrs( attr_syntax_force_to_delete,
 				(void *)&fi, PR_TRUE );
+}
+
+/*
+ * Delete all attribute definitions without attr_syntax lock.
+ * The caller is responsible for the lock.
+ */
+void
+attr_syntax_delete_all_for_schemareload(unsigned long flag)
+{
+	struct attr_syntax_enum_flaginfo fi;
+
+	memset(&fi, 0, sizeof(fi));
+	fi.asef_flag = flag;
+	attr_syntax_enumerate_attrs_ext(oid2asi, attr_syntax_delete_if_not_flagged,
+	                                (void *)&fi);
 }
 
 static int
@@ -1173,13 +1223,19 @@ static int
 attr_syntax_internal_asi_add(struct asyntaxinfo *asip, void *arg)
 {
 	struct asyntaxinfo *asip_copy;
+	int rc = 0;
+
 	if (!asip) {
 		return 1;
 	}
 	/* Copy is needed since when reloading the schema,
 	 * existing syntax info is cleaned up. */
 	asip_copy = attr_syntax_dup(asip);
-	return attr_syntax_add(asip_copy);
+	rc = attr_syntax_add(asip_copy);
+	if (LDAP_SUCCESS != rc) {
+		attr_syntax_free(asip_copy);
+	}
+	return rc;
 }
 
 /* Reload internal attribute syntax stashed in the internalasi hashtable. */
