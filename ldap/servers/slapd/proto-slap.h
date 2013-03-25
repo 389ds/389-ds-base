@@ -114,7 +114,9 @@ int attrlist_replace_with_flags(Slapi_Attr **alist, const char *type, struct ber
  * attrsyntax.c
  */
 void attr_syntax_read_lock(void);
+void attr_syntax_write_lock(void);
 void attr_syntax_unlock_read(void);
+void attr_syntax_unlock_write(void);
 int attr_syntax_exists (const char *attr_name);
 void attr_syntax_delete ( struct asyntaxinfo *asip );
 #define SLAPI_SYNTAXLENGTH_NONE		(-1)	/* for syntaxlength parameter */
@@ -142,6 +144,7 @@ struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name,
 void attr_syntax_return( struct asyntaxinfo *asi );
 void attr_syntax_return_locking_optional( struct asyntaxinfo *asi, PRBool use_lock );
 void attr_syntax_delete_all(void);
+void attr_syntax_delete_all_for_schemareload(unsigned long flag);
 
 /*
  * value.c
