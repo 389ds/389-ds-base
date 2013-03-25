@@ -2312,7 +2312,11 @@ slapi_entry_next_attr( const Slapi_Entry *e, Slapi_Attr *prevattr, Slapi_Attr **
 int
 slapi_entry_attr_find( const Slapi_Entry *e, const char *type, Slapi_Attr **a )
 {
-	int r= -1;
+	int r = -1;
+
+	if(e == NULL){
+		return r;
+	}
 	*a = attrlist_find( e->e_attrs, type );
 	if (*a != NULL)
 	{
@@ -2323,11 +2327,11 @@ slapi_entry_attr_find( const Slapi_Entry *e, const char *type, Slapi_Attr **a )
 			 * Our state information storage scheme can cause this, since
 			 * we have to hang onto the deleted value state information.
 			 */
-			 *a= NULL;
+			 *a = NULL;
 		}
 		else
 		{
-			r= 0;
+			r = 0;
 		}
 	}
 	return r;
@@ -2951,18 +2955,20 @@ slapi_entry_attr_has_syntax_value(const Slapi_Entry *e,
 								const char *type,
 								const Slapi_Value *value)
 {
-    int r= 0;
-	Slapi_Attr *attr;
+    int r = 0;
+    Slapi_Attr *attr;
 
+    if(e == NULL){
+        return r;
+    }
     if(slapi_entry_attr_find(e, type, &attr)==0)
     {
-		const struct berval *bv = slapi_value_get_berval(value);
+        const struct berval *bv = slapi_value_get_berval(value);
 
-		if ( bv != NULL) {	
-        	r = (slapi_attr_value_find(attr, bv) == 0);
-		}
-    
-	}
+        if ( bv != NULL) {
+            r = (slapi_attr_value_find(attr, bv) == 0);
+        }
+    }
 	
     return r;			
 }
