@@ -1406,7 +1406,7 @@ slapi_schema_list_attribute_names(unsigned long flag)
         aew.flag=flag;
 
         attr_syntax_enumerate_attrs(schema_list_attributes_callback, &aew,
-					PR_FALSE);
+                                    PR_FALSE);
         return aew.attrs;
 }
 
@@ -2409,8 +2409,9 @@ static int
 schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		size_t errorbufsize )
 {
-	int									i, rc = LDAP_SUCCESS;
-	struct asyntaxinfo					*newasip, *oldasip;
+	int                i, rc = LDAP_SUCCESS;
+	struct asyntaxinfo *newasip, *oldasip;
+	PRUint32           schema_flags = 0;
 
 	if ( NULL == mod->mod_bvalues ) {
 		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
@@ -2418,8 +2419,11 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 
-	/* clear all of the "keep" flags */
-	attr_syntax_all_clear_flag( SLAPI_ATTR_FLAG_KEEP );
+	slapi_pblock_get(pb, SLAPI_SCHEMA_FLAGS, &schema_flags);
+	if (!(schema_flags & (DSE_SCHEMA_NO_LOAD|DSE_SCHEMA_NO_CHECK))) {
+	    /* clear all of the "keep" flags unless it's from schema-reload */
+		attr_syntax_all_clear_flag( SLAPI_ATTR_FLAG_KEEP );
+	}
 
 	for ( i = 0; mod->mod_bvalues[i] != NULL; ++i ) {
 		if ( LDAP_SUCCESS != ( rc = read_at_ldif( mod->mod_bvalues[i]->bv_val,
@@ -2477,12 +2481,14 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 	 * XXXmcs: we should consider reporting an error if any read only types
 	 * remain....
 	 */
-	attr_syntax_delete_all_not_flagged( SLAPI_ATTR_FLAG_KEEP
-			| SLAPI_ATTR_FLAG_STD_ATTR );
+	attr_syntax_delete_all_not_flagged( SLAPI_ATTR_FLAG_KEEP | 
+	                                    SLAPI_ATTR_FLAG_STD_ATTR );
 
 clean_up_and_return:
-	/* clear all of the "keep" flags */
-	attr_syntax_all_clear_flag( SLAPI_ATTR_FLAG_KEEP );
+	if (!(schema_flags & (DSE_SCHEMA_NO_LOAD|DSE_SCHEMA_NO_CHECK))) {
+	    /* clear all of the "keep" flags unless it's from schema-reload */
+		attr_syntax_all_clear_flag( SLAPI_ATTR_FLAG_KEEP );
+	}
 
 	return rc;
 }
@@ -3898,14 +3904,12 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
     int primary_file = 0;    /* this is the primary (writeable) schema file */
     int schema_ds4x_compat = config_get_ds4_compatible_schema();
     PRUint32 flags = *(PRUint32 *)arg;
-    flags |= DSE_SCHEMA_NO_GLOCK; /* don't lock global resources
-                                     during initialization */
 
     *returncode = 0;
 
     /*
      * Note: there is no need to call schema_lock_write() here because this
-        * function is only called during server startup.
+     * function is only called during server startup.
      */
 
     slapi_pblock_get( pb, SLAPI_DSE_IS_PRIMARY_FILE, &primary_file );
@@ -3947,6 +3951,8 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
     if (*returncode)
         return SLAPI_DSE_CALLBACK_ERROR;
 
+    flags |= DSE_SCHEMA_NO_GLOCK; /* don't lock global resources
+                                     during initialization */
     if (!slapi_entry_attr_find(e, "objectclasses", &attr) && attr)
     {
         /* enumerate the values in attr */
@@ -4017,7 +4023,6 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
  * DSE_SCHEMA_NO_CHECK     -- schema won't be checked
  * DSE_SCHEMA_NO_BACKEND   -- don't add as backend
  * DSE_SCHEMA_LOCKED       -- already locked; no further lock needed
-
  */
 static int
 init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
@@ -4123,7 +4128,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 						  "DESC 'Standard schema for LDAP' SYNTAX "
 						  "1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )",
 						  NULL, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-						  DSE_SCHEMA_NO_GLOCK|schema_flags, 0, 0, 0);
+						  schema_flags, 0, 0, 0);
 		}
 		if (rc)
 		{
@@ -4196,7 +4201,7 @@ init_schema_dse(const char *configdir)
 	{
 		schemadir = slapi_ch_smprintf("%s/%s", configdir, SCHEMA_SUBDIR_NAME);
 	}
-	rc = init_schema_dse_ext(schemadir, NULL, &pschemadse, 0);
+	rc = init_schema_dse_ext(schemadir, NULL, &pschemadse, DSE_SCHEMA_NO_GLOCK);
 	slapi_ch_free_string(&schemadir);
 	return rc;
 }
@@ -4860,14 +4865,14 @@ slapi_validate_schema_files(char *schemadir)
 {
 	struct dse *my_pschemadse = NULL;
 	int rc = init_schema_dse_ext(schemadir, NULL, &my_pschemadse,
-			DSE_SCHEMA_NO_LOAD | DSE_SCHEMA_NO_BACKEND);
+	                             DSE_SCHEMA_NO_LOAD | DSE_SCHEMA_NO_BACKEND);
 	dse_destroy(my_pschemadse); /* my_pschemadse was created just to 
-								   validate the schema */
+	                               validate the schema */
 	if (rc) {
 		return LDAP_SUCCESS;
 	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
-				"schema file validation failed\n" );
+		                 "schema file validation failed\n" );
 		return LDAP_OBJECT_CLASS_VIOLATION;
 	}
 }
@@ -4893,10 +4898,13 @@ slapi_reload_schema_files(char *schemadir)
 	}
 	slapi_be_Wlock(be);	/* be lock must be outer of schemafile lock */
 	reload_schemafile_lock();
-	attr_syntax_delete_all();
+	/* Exclude attr_syntax not to grab from the hash table while cleaning up  */
+	attr_syntax_write_lock();
+	attr_syntax_delete_all_for_schemareload(SLAPI_ATTR_FLAG_KEEP);
 	oc_delete_all_nolock();
+	attr_syntax_unlock_write();
 	rc = init_schema_dse_ext(schemadir, be, &my_pschemadse,
-			   DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_LOCKED);
+	                         DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_LOCKED);
 	if (rc) {
 		dse_destroy(pschemadse);
 		pschemadse = my_pschemadse;
