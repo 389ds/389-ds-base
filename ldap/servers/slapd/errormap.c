@@ -66,8 +66,12 @@ slapd_pr_strerror( const int prerrno )
 {
     char	*s;
 
-    if (( s = (char *)SECU_Strerror( (PRErrorCode)prerrno )) == NULL ) {
-	s = "unknown";
+    if(prerrno == 0){
+        s = "no error";
+    } else {
+        if (( s = (char *)SECU_Strerror( (PRErrorCode)prerrno )) == NULL ) {
+             s = "unknown error";
+        }
     }
 
     return( s );

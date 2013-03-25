@@ -590,8 +590,8 @@ release_replica(Private_Repl_Protocol *prp)
 		int operation, error;
 		conn_get_error(prp->conn, &operation, &error);
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-			"%s: Warning: unable to receive endReplication extended operation response (%s)\n",
-			agmt_get_long_name(prp->agmt),
+			"%s: Warning: Attempting to release replica, but unable to receive endReplication extended "
+			"operation response from the replica. Error %d (%s)\n", agmt_get_long_name(prp->agmt), error,
 			error ? ldap_err2string(error) : "unknown error");
 	}
 	else

@@ -1088,7 +1088,7 @@ slapi_ldap_bind(
 	    char *copy = NULL;
 	    char *ptr = NULL;
 	    int myerrno = errno;
-	    int gaierr;
+	    int gaierr = 0;
 
 	    ldap_get_option(ld, LDAP_OPT_HOST_NAME, &myhostname);
 	    if (myhostname) {
@@ -1110,7 +1110,8 @@ slapi_ldap_bind(
 	    }
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not send bind request for id "
-			    "[%s] mech [%s]: error %d (%s) %d (%s) %d (%s \"%s\")\n",
+			    "[%s] authentication mechanism [%s]: error %d (%s), system error %d (%s), "
+			    "network error %d (%s, host \"%s\")\n",
 			    bindid ? bindid : "(anon)",
 			    mech ? mech : "SIMPLE",
 			    rc, ldap_err2string(rc),
@@ -1130,7 +1131,7 @@ slapi_ldap_bind(
 		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error reading bind response for id "
-				"[%s] mech [%s]: error %d (%s) errno %d (%s)\n",
+				"[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
 				bindid ? bindid : "(anon)",
 				mech ? mech : "SIMPLE",
 				rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
@@ -1139,7 +1140,7 @@ slapi_ldap_bind(
 		rc = LDAP_TIMEOUT;
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error: timeout after [%ld.%ld] seconds reading "
-				"bind response for [%s] mech [%s]\n",
+				"bind response for [%s] authentication mechanism [%s]\n",
 				timeout ? timeout->tv_sec : 0,
 				timeout ? timeout->tv_usec : 0,
 				bindid ? bindid : "(anon)",
@@ -1161,7 +1162,7 @@ slapi_ldap_bind(
             rc = err;
             slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
                             "Error: could not bind id "
-                            "[%s] mech [%s]: error %d (%s) errno %d (%s)\n",
+                            "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
                             bindid ? bindid : "(anon)",
                             mech ? mech : "SIMPLE",
                             rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
@@ -1174,7 +1175,7 @@ slapi_ldap_bind(
 		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error: could not read bind results for id "
-				"[%s] mech [%s]: error %d (%s) errno %d (%s)\n",
+				"[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
 				bindid ? bindid : "(anon)",
 				mech ? mech : "SIMPLE",
 				rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
@@ -1196,7 +1197,7 @@ slapi_ldap_bind(
 	if (LDAP_SUCCESS != rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not perform interactive bind for id "
-			    "[%s] mech [%s]: error %d (%s)\n",
+			    "[%s] authentication mechanism [%s]: error %d (%s)\n",
 			    bindid ? bindid : "(anon)",
 			    mech, /* mech cannot be SIMPLE here */
 			    rc, ldap_err2string(rc));

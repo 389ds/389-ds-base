@@ -1005,8 +1005,9 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   break;
               case EXAMINE_RUV_GENERATION_MISMATCH:
                   slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-                      "%s: Replica has a different generation ID than the local data.\n",
-                      agmt_get_long_name(prp->agmt));
+                      "%s: The remote replica has a different database generation ID than "
+                      "the local database.  You may have to reinitialize the remote replica, "
+                      "or the local replica.\n", agmt_get_long_name(prp->agmt));
                   next_state = STATE_BACKOFF_START;
                   break;
               case EXAMINE_RUV_REPLICA_TOO_OLD:

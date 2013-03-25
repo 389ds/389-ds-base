@@ -801,8 +801,9 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		bvtype = bv_null;
 		bvvalue = bv_null;
 		if ( slapi_ldif_parse_line( s, &bvtype, &bvvalue, &freeval ) < 0 ) {
-		    LDAPDebug1Arg(LDAP_DEBUG_ANY,
-		                  "Warning: ignoring invalid line \"%s\"...\n", s);
+		    LDAPDebug(LDAP_DEBUG_ANY,
+		                  "Warning: Entry (%s), ignoring invalid line \"%s\"...\n",
+		                  rawdn ? rawdn : "", s, 0);
 		    continue;
 		}
 		type = bvtype.bv_val;

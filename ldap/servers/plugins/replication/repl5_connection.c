@@ -1842,7 +1842,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 							agmt_get_long_name(conn->agmt),
 							mech ? mech : "SIMPLE", rc,
-							ldap_err2string(rc), errmsg);
+							ldap_err2string(rc), errmsg ? errmsg : "");
 		} else {
 			char *errmsg = NULL;
 			/* errmsg is a pointer directly into the ld structure - do not free */
@@ -1851,7 +1851,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 							agmt_get_long_name(conn->agmt),
 							mech ? mech : "SIMPLE", rc,
-							ldap_err2string(rc), errmsg);
+							ldap_err2string(rc), errmsg ? errmsg : "");
 		}
 
 		return (CONN_OPERATION_FAILED);

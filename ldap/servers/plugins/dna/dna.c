@@ -1632,7 +1632,7 @@ static int dna_request_range(struct configEntry *config_entry,
                           NULL, NULL, NULL, NULL);
 
     if (ret != LDAP_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                         "dna_request_range: Error binding "
                         " to replica server %s:%u. [error %d]\n",
                         server->host, server->port, ret);
@@ -2934,7 +2934,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                  * really a soft failure. */
                 if ((config_entry->next_range_lower == 0) &&
                     (config_entry->remaining <= config_entry->threshold)) {
-                    slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                                     "dna_pre_op: Passed threshold of %" 
                                     NSPRIu64 " remaining values "
                                     "for range %s. (%" NSPRIu64 " values remain)\n",
