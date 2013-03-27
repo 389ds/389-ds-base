@@ -128,22 +128,22 @@ static struct attr_value_check {
 void
 do_modify( Slapi_PBlock *pb )
 {
-	Slapi_Operation *operation;
-	BerElement			*ber;
-	char				*last, *type = NULL;
-	ber_tag_t			tag;
-	ber_len_t			len;
-	LDAPMod				*mod;
-	LDAPMod				**mods;
-	Slapi_Mods			smods;
-	int				err;
-	int				pw_change = 0; 	/* 0= no password change */
-	int				ignored_some_mods = 0;
-	int				has_password_mod = 0; /* number of password mods */
-	char				*old_pw = NULL;	/* remember the old password */
-	char				*rawdn = NULL;
-	int				minssf_exclude_rootdse = 0;
-	LDAPMod         **normalized_mods = NULL;
+	Slapi_Operation	*operation;
+	Slapi_Mods	smods;
+	BerElement	*ber;
+	ber_tag_t	tag;
+	ber_len_t	len;
+	LDAPMod		**normalized_mods = NULL;
+	LDAPMod		*mod;
+	LDAPMod		**mods;
+	char		*last, *type = NULL;
+	char		*old_pw = NULL;	/* remember the old password */
+	char		*rawdn = NULL;
+	int		minssf_exclude_rootdse = 0;
+	int		ignored_some_mods = 0;
+	int		has_password_mod = 0; /* number of password mods */
+	int		pw_change = 0; 	/* 0 = no password change */
+	int		err;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_modify\n", 0, 0, 0 );
 
@@ -291,8 +291,10 @@ do_modify( Slapi_PBlock *pb )
 		/* check if user is allowed to modify the specified attribute */
 		if (!op_shared_is_allowed_attr (mod->mod_type, pb->pb_conn->c_isreplication_session))
 		{
-            /* for now we just ignore attributes that client is not allowed
-               to modify so not to break existing clients */
+			/*
+			 * For now we just ignore attributes that client is not allowed
+			 * to modify so not to break existing clients
+			 */
 			++ignored_some_mods;
 			ber_bvecfree(mod->mod_bvalues);
 			slapi_ch_free((void **)&(mod->mod_type));
@@ -310,6 +312,14 @@ do_modify( Slapi_PBlock *pb )
 	}
 
 	if (ignored_some_mods && (0 == smods.num_elements)) {
+		if(pb->pb_conn->c_isreplication_session){
+		   int connid, opid;
+		   slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
+		   slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
+		   LDAPDebug( LDAP_DEBUG_ANY,"Rejecting replicated password policy operation(conn=%d op=%d) for "
+				   "entry %s.  To allow these changes to be accepted, set passwordIsGlobalPolicy to 'on' in "
+				   "cn=config.\n", connid, opid, rawdn);
+		}
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
 		goto free_and_return;
 	}
