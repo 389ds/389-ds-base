@@ -1495,30 +1495,24 @@ buildRandomRdnOrFilter (
     {
       if (mctx.mode & COMMON_COUNTER)				/*JLS 14-03-01*/
       {								/*JLS 14-03-01*/
-	int	 val;						/*JLS 14-03-01*/
-	val = incrementCommonCounter (tttctx);			/*JLS 14-03-01*/
+	int val = incrementCommonCounter (tttctx);			/*JLS 14-03-01*/
 	if (val == -1)						/*JLS 14-03-01*/
 	  return (-1);						/*JLS 14-03-01*/
 	sprintf (tttctx->buf2, "%0*d", (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.randomNbDigit, val);/*JLS 14-03-01*/
       }								/*JLS 14-03-01*/
-      else							/*JLS 14-03-01*/
-      {								/*JLS 14-03-01*/
-	tttctx->lastVal += mctx.incr;
-	if (tttctx->lastVal > mctx.randomHigh)
-	{
-	  if (!(mctx.mode & NOLOOP))
-	    tttctx->lastVal = mctx.randomLow;
-	  else
-	  {
-	    /*
-	     * Well, there is no clean way to exit. Let's use the error
-	     * condition and hope all will be ok.
-	     */
-	    printf ("ldclt[%d]: %s: Hit top incremental value\n",
-                     mctx.pid, tttctx->thrdId);
-	    return (-1);
-	  }
-	}
+      else if ((mctx.mode & NOLOOP) && ((tttctx->lastVal + mctx.incr) > mctx.randomHigh))
+      {
+	/*
+	 * Well, there is no clean way to exit. Let's use the error
+	 * condition and hope all will be ok.
+	 */
+	printf ("ldclt[%d]: %s: Hit top incremental value %d > %d\n",
+                 mctx.pid, tttctx->thrdId, (tttctx->lastVal + mctx.incr), mctx.randomHigh);
+	return (-1);
+      }
+      else
+      {
+	tttctx->lastVal = incr_and_wrap(tttctx->lastVal, mctx.randomLow, mctx.randomHigh, mctx.incr);
 	sprintf (tttctx->buf2, "%0*d", (mctx.mod2 & M2_NOZEROPAD) ? 0 : mctx.randomNbDigit, tttctx->lastVal);
       }								/*JLS 14-03-01*/
 

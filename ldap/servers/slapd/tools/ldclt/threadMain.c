@@ -343,19 +343,13 @@ incrementCommonCounter (
   /*
    * Compute next value
    */
-  if ((mctx.mode & NOLOOP) && (mctx.lastVal >= mctx.randomHigh))
-    val = -1;
+  if ((mctx.mode & NOLOOP) && ((mctx.lastVal + mctx.incr) > mctx.randomHigh))
+  {
+    val = -1; /* out of range - cannot continue since not looping */
+  }
   else
   {
-    mctx.lastVal += mctx.incr;
-    if (mctx.lastVal > mctx.randomHigh)
-    {
-      if (mctx.mode & NOLOOP)
-	val = -1;
-      else
-	mctx.lastVal -= (mctx.randomHigh-mctx.incr) + mctx.randomLow;
-    }
-    val = mctx.lastVal;
+    val = mctx.lastVal = incr_and_wrap(mctx.lastVal, mctx.randomLow, mctx.randomHigh, mctx.incr);
   }
 
   /*
@@ -373,7 +367,7 @@ incrementCommonCounter (
    * Maybe a message to print ?
    */
   if (val < 0)
-    printf ("ldclt[%d]: T%03d: Hit top incrementeal value\n", mctx.pid, tttctx->thrdNum);
+    printf ("ldclt[%d]: T%03d: Hit top incremental value\n", mctx.pid, tttctx->thrdNum);
 
   return (val);
 }

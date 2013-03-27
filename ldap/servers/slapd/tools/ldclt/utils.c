@@ -324,9 +324,15 @@ rndstr (
   buf[charNum] = '\0';
 }
 
-
-
-
+/* increment val - if val > max, wrap value around to start over at min */
+/* the range is max - min + 1 = number of possible values */
+/* the new value is (((val + incr) - min) % range) + min */
+int
+incr_and_wrap(int val, int min, int max, int incr)
+{
+  int range = max - min + 1;
+  return (((val + incr) - min) % range) + min;
+}
 
 
 
