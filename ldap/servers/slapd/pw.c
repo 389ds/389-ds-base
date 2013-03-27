@@ -1535,6 +1535,7 @@ pw_get_admin_users(passwdPolicy *pwp)
 	const Slapi_DN *sdn = pwp->pw_admin;
 	char **uniquemember_vals = NULL;
 	char **member_vals = NULL;
+	char *binddn = slapi_sdn_get_dn(sdn);
 	int uniquemember_count = 0;
 	int member_count = 0;
 	int nentries = 0;
@@ -1542,13 +1543,13 @@ pw_get_admin_users(passwdPolicy *pwp)
 	int res;
 	int i;
 
-	if(sdn == NULL){
+	if(binddn == NULL){
 		return;
 	}
 	/*
 	 *  Check if the DN exists and has "group" objectclasses
 	 */
-	slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(sdn), LDAP_SCOPE_BASE,"(|(objectclass=groupofuniquenames)(objectclass=groupofnames))",
+	slapi_search_internal_set_pb(pb, binddn, LDAP_SCOPE_BASE,"(|(objectclass=groupofuniquenames)(objectclass=groupofnames))",
 		NULL, 0, NULL, NULL, (void *) plugin_get_default_component_id(), 0);
 	slapi_search_internal_pb(pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
