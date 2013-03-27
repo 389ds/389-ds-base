@@ -138,14 +138,16 @@ sasl_map_remove_list_entry(sasl_map_private *priv, char *removeme)
 			prev = current->prev;
 			if (prev) {
 				/* Unlink it */
-				if(next){
-				   next->prev = prev;
+				if (next) {
+					next->prev = prev;
 				}
 				prev->next = next;
 			} else {
 				/* That was the first list entry */
-				priv->map_data_list = current->next;
-				priv->map_data_list->prev = NULL;
+				if (next) {
+					next->prev = NULL;
+				}
+				priv->map_data_list = next;
 			}
 			/* Payload free */
 			sasl_map_free_data(&current);
