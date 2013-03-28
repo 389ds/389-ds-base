@@ -401,37 +401,37 @@ prot_stop(Repl_Protocol *rp)
 	{
 		PR_Lock(rp->lock);
 		rp->next_state = STATE_FINISHED;
-        if (NULL != rp->prp_incremental)
-        {
-		    if (rp->prp_incremental->stop(rp->prp_incremental) != 0)
+		if (NULL != rp->prp_incremental)
+		{
+			if (rp->prp_incremental->stop(rp->prp_incremental) != 0)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"Warning: incremental protocol for replica \"%s\" "
 					"did not shut down properly.\n",
 					agmt_get_long_name(rp->agmt));
 			}
-        }
-        if (NULL != rp->prp_total)
-        {
-		    if (rp->prp_total->stop(rp->prp_total) != 0)
+		}
+		if (NULL != rp->prp_total)
+		{
+			if (rp->prp_total->stop(rp->prp_total) != 0)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"Warning: total protocol for replica \"%s\" "
 					"did not shut down properly.\n",
 					agmt_get_long_name(rp->agmt));
 			}
-        }
+		}
 		PR_Unlock(rp->lock);
+
+		if (rp->agmt_thread != NULL) {
+			(void) PR_JoinThread(rp->agmt_thread);
+			rp->agmt_thread = NULL;
+		}
 	}
 	else
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Error: prot_stop() "
 			" called on NULL protocol instance.\n");
-	}
-        
-        if (rp->agmt_thread != NULL) {
-		(void) PR_JoinThread(rp->agmt_thread);
-		rp->agmt_thread = NULL;
 	}
 }
 
