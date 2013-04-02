@@ -11,7 +11,7 @@ Slapi_PBlock * dnHasObjectClass( const char *baseDN, const char *objectClass, Sl
 char * searchUid(const char *udn);
 int dn_in_set(const char* uid, char **uids);
 */
-int modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify);
+int modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify, int newposixgroup);
 int addGroupMembership(Slapi_Entry *entry, Slapi_Entry *ad_entry);
 char * searchUid(const char *udn);
 void memberUidLock();

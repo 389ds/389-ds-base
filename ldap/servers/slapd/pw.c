@@ -1535,7 +1535,7 @@ pw_get_admin_users(passwdPolicy *pwp)
 	const Slapi_DN *sdn = pwp->pw_admin;
 	char **uniquemember_vals = NULL;
 	char **member_vals = NULL;
-	char *binddn = slapi_sdn_get_dn(sdn);
+	const char *binddn = slapi_sdn_get_dn(sdn);
 	int uniquemember_count = 0;
 	int member_count = 0;
 	int nentries = 0;

@@ -628,7 +628,7 @@ propogateDeletionsUpward(Slapi_Entry *entry, const Slapi_DN *base_sdn, Slapi_Val
 }
 
 int
-modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
+modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify, int newposixgroup)
 {
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "modGroupMembership: ==>\n");
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "modGroupMembership: Modding %s\n",
@@ -636,7 +636,7 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify)
 
     int posixGroup = hasObjectClass(entry, "posixGroup");
 
-    if (!(posixGroup || hasObjectClass(entry, "ntGroup"))) {
+    if (!(posixGroup || hasObjectClass(entry, "ntGroup")) && !newposixgroup) {
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "modGroupMembership end: Not a posixGroup or ntGroup\n");
         return 0;

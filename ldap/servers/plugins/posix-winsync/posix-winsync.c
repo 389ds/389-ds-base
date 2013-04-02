@@ -958,11 +958,6 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "_pre_ds_mod_group_cb present %d modify %d before\n", is_present_local,
                     do_modify_local);
-    if (posix_winsync_config_get_mapMemberUid() || posix_winsync_config_get_mapNestedGrouping()) {
-        memberUidLock();
-        modGroupMembership(ds_entry, smods, do_modify);
-        memberUidUnlock();
-    }
 
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "_pre_ds_mod_group_cb present %d modify %d\n", is_present_local,
@@ -985,19 +980,18 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                             "_pre_ds_mod_group_cb add oc:posixGroup\n");
             slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE, "objectClass",
                                       valueset_get_valuearray(oc_vs));
-            slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "_pre_ds_mod_group_cb step\n");
             slapi_value_free(&oc_nv);
-            slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "_pre_ds_mod_group_cb step\n");
             slapi_valueset_free(oc_vs);
-            slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                            "_pre_ds_mod_group_cb step\n");
         }
         slapi_value_free(&voc);
     }
-    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "_pre_ds_mod_group_cb step\n");
+    if (posix_winsync_config_get_mapMemberUid() || posix_winsync_config_get_mapNestedGrouping()) {
+        memberUidLock();
+        modGroupMembership(ds_entry, smods, do_modify, do_modify_local);
+        memberUidUnlock();
+    }
 
+    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "_pre_ds_mod_group_cb step\n");
     if (slapi_is_loglevel_set(SLAPI_LOG_PLUGIN)) {
         for (mod = slapi_mods_get_first_mod(smods); mod; mod = slapi_mods_get_next_mod(smods)) {
             slapi_mod_dump(mod, 0);
