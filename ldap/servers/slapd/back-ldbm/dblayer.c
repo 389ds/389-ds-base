@@ -1397,7 +1397,8 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
     struct statvfs dbhome_buf;
     struct statvfs db_buf;
     int using_region_files = !(dbenv_flags & ( DB_PRIVATE | DB_SYSTEM_MEM));
-    PRUint64 expected_siz = li->li_dbcachesize + li->li_dbcachesize/2; /* dbcache + region files */
+    /* value of 10 == 10% == little more than the average overhead calculated for very large files on 64-bit system for bdb 4.7 */
+    PRUint64 expected_siz = li->li_dbcachesize + li->li_dbcachesize/10; /* dbcache + region files */
     PRUint64 fsiz;
     char *region_dir;
 
