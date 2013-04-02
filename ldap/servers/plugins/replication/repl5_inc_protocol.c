@@ -618,26 +618,24 @@ set_pause_and_busy_time(Private_Repl_Protocol *prp, long *pausetime, long *busyw
 static void
 repl5_inc_run(Private_Repl_Protocol *prp)
 {
-  int current_state = STATE_START;
-  int next_state = STATE_START;
   repl5_inc_private *prp_priv = (repl5_inc_private *)prp->private;
-  int done;
-  int e1;
-  RUV *ruv = NULL;
-  CSN *cons_schema_csn;
   Replica *replica = NULL;
-  int wait_change_timer_set = 0;
-  time_t last_start_time;
+  CSN *cons_schema_csn;
+  RUV *ruv = NULL;
   PRUint32 num_changes_sent;
   /* use a different backoff timer strategy for ACQUIRE_REPLICA_BUSY errors */
   PRBool use_busy_backoff_timer = PR_FALSE;
-  long pausetime = 0;
-  long busywaittime = 0;
-  long loops = 0;
-  int optype, ldaprc;
   time_t next_fire_time;
   time_t now;
-
+  long busywaittime = 0;
+  long pausetime = 0;
+  long loops = 0;
+  int wait_change_timer_set = 0;
+  int current_state = STATE_START;
+  int next_state = STATE_START;
+  int optype, ldaprc;
+  int done;
+  int e1;
 
   prp->stopped = 0;
   prp->terminate = 0;
@@ -807,7 +805,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               int optype, ldaprc;
               conn_get_error(prp->conn, &optype, &ldaprc);
               agmt_set_last_update_status(prp->agmt, ldaprc,
-                  prp->last_acquire_response_code, NULL);
+                  prp->last_acquire_response_code, "Unable to acquire replica");
           }
 
           object_release(prp->replica_object);
@@ -896,7 +894,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               }
               if (rc != ACQUIRE_SUCCESS){
                   conn_get_error(prp->conn, &optype, &ldaprc);
-                  agmt_set_last_update_status(prp->agmt, ldaprc, prp->last_acquire_response_code, NULL);
+                  agmt_set_last_update_status(prp->agmt, ldaprc, prp->last_acquire_response_code, "Unable to acquire replica");
               }
               /*
                * We either need to step the backoff timer, or
@@ -943,10 +941,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 
       case STATE_SENDING_UPDATES:
           dev_debug("repl5_inc_run(STATE_SENDING_UPDATES)");
-          agmt_set_update_in_progress(prp->agmt, PR_TRUE);
           num_changes_sent = 0;
-          last_start_time = current_time();
-          agmt_set_last_update_start(prp->agmt, last_start_time);
           /*
            * We've acquired the replica, and are ready to send any needed updates.
            */
@@ -1001,6 +996,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
                       "%s: Replica has no update vector. It has never been initialized.\n",
                       agmt_get_long_name(prp->agmt));
+                  agmt_set_last_update_status(prp->agmt, 0, rc, "Replica is not initialized");
                   next_state = STATE_BACKOFF_START;
                   break;
               case EXAMINE_RUV_GENERATION_MISMATCH:
@@ -1008,6 +1004,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                       "%s: The remote replica has a different database generation ID than "
                       "the local database.  You may have to reinitialize the remote replica, "
                       "or the local replica.\n", agmt_get_long_name(prp->agmt));
+                  agmt_set_last_update_status(prp->agmt, 0, rc, "Replica has different database "
+                      "generation ID, remote replica may need to be initialized");
                   next_state = STATE_BACKOFF_START;
                   break;
               case EXAMINE_RUV_REPLICA_TOO_OLD:
@@ -1015,6 +1013,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                       "%s: Replica update vector is too out of date to bring "
                       "into sync using the incremental protocol. The replica "
                       "must be reinitialized.\n", agmt_get_long_name(prp->agmt));
+                  agmt_set_last_update_status(prp->agmt, 0, rc, "Replica needs to be reinitialized");
                   next_state = STATE_BACKOFF_START;
                   break;
               case EXAMINE_RUV_OK:
@@ -1036,6 +1035,15 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                           agmt_get_long_name(prp->agmt));
                       next_state = STATE_STOP_FATAL_ERROR;
                   } else {
+                      /*
+                       *  Reset our update times and status
+                       */
+                      agmt_set_last_update_start(prp->agmt, current_time());
+                      agmt_set_last_update_end(prp->agmt, 0);
+                      agmt_set_update_in_progress(prp->agmt, PR_TRUE);
+                      /*
+                       *  Send the updates
+                       */
                       rc = send_updates(prp, ruv, &num_changes_sent);
                       if (rc == UPDATE_NO_MORE_UPDATES){
                           dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_NO_MORE_UPDATES -> STATE_WAIT_CHANGES");
@@ -1047,6 +1055,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                           next_state = STATE_BACKOFF_START;
                       } else if (rc == UPDATE_TRANSIENT_ERROR){
                           dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_TRANSIENT_ERROR -> STATE_BACKOFF_START");
+                          agmt_set_last_update_status(prp->agmt, 0, rc, "Incremental update transient error.  Backing off, will retry update later.");
                           next_state = STATE_BACKOFF_START;
                       } else if (rc == UPDATE_FATAL_ERROR){
                           dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_FATAL_ERROR -> STATE_STOP_FATAL_ERROR");
@@ -1063,21 +1072,29 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                           conn_disconnect (prp->conn);
                       } else if (rc == UPDATE_CONNECTION_LOST){
                           dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_CONNECTION_LOST -> STATE_BACKOFF_START");
+                          agmt_set_last_update_status(prp->agmt, 0, rc, "Incremental update connection error.  Backing off, will retry update later.");
                           next_state = STATE_BACKOFF_START;
                       } else if (rc == UPDATE_TIMEOUT){
                           dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_TIMEOUT -> STATE_BACKOFF_START");
+                          agmt_set_last_update_status(prp->agmt, 0, rc, "Incremental update timeout error.  Backing off, will retry update later.");
                           next_state = STATE_BACKOFF_START;
                       }
+                      /* Set the updates times based off the result of send_updates() */
+                      if(rc == UPDATE_NO_MORE_UPDATES){
+                          /* update successful, set the end time */
+                    	  agmt_set_last_update_end(prp->agmt, current_time());
+                      } else {
+                          /* Failed to send updates, reset the start time to zero */
+                          agmt_set_last_update_start(prp->agmt, 0);
+                      }
+                      agmt_set_update_in_progress(prp->agmt, PR_FALSE);
                   }
-                  last_start_time = 0UL;
                   break;
           }
 
           if (NULL != ruv){
               ruv_destroy(&ruv); ruv = NULL;
           }
-          agmt_set_last_update_end(prp->agmt, current_time());
-          agmt_set_update_in_progress(prp->agmt, PR_FALSE);
           agmt_update_done(prp->agmt, 0);
           /* If timed out, close the connection after released the replica */
           release_replica(prp);
