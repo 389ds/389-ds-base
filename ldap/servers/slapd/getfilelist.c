@@ -93,10 +93,10 @@ free_string(caddr_t data)
 static int
 file_is_type_x(const char *dirname, const char *filename, PRFileType x)
 {
-	struct PRFileInfo inf;
+	struct PRFileInfo64 inf;
 	int status = 0;
 	char *fullpath = slapi_ch_smprintf("%s/%s", dirname, filename);
-	if (PR_SUCCESS == PR_GetFileInfo(fullpath, &inf) &&
+	if (PR_SUCCESS == PR_GetFileInfo64(fullpath, &inf) &&
 		inf.type == x)
 		status = 1;
 

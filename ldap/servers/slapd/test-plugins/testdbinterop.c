@@ -155,7 +155,7 @@ db_put_dn(char *data_dn)
     int ret;
 	char *db_path = DATABASE;
 	char *db_path_bak = DATABASE_BACK;
-	PRFileInfo info;
+	PRFileInfo64 info;
 	PRFileDesc *prfd;
 	PRInt32 data_sz;
 	char *data_dnp = NULL;
@@ -165,10 +165,10 @@ db_put_dn(char *data_dn)
 	}
 	PR_Lock(db_lock);
 	/* if db_path is a directory, rename it */
-	ret =  PR_GetFileInfo(db_path, &info);
+	ret =  PR_GetFileInfo64(db_path, &info);
 	if (PR_SUCCESS == ret) {
 		if (PR_FILE_DIRECTORY == info.type) {    /* directory */
-			ret =  PR_GetFileInfo(db_path_bak, &info);
+			ret =  PR_GetFileInfo64(db_path_bak, &info);
 			if (PR_SUCCESS == ret) {
 				if (PR_FILE_DIRECTORY != info.type) {    /* not a directory */
 					PR_Delete(db_path_bak);

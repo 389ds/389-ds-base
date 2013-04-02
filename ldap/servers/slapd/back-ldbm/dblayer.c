@@ -1086,7 +1086,7 @@ static int dblayer_grok_directory(char *directory, int flags)
     char       filename[MAXPATHLEN];
     PRDir      *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
-    PRFileInfo info;
+    PRFileInfo64 info;
 
     dirhandle = PR_OpenDir(directory);
     if (NULL == dirhandle)
@@ -1109,7 +1109,7 @@ static int dblayer_grok_directory(char *directory, int flags)
          * With multiple instances of the backend the are now other directories
          * in the db home directory.  This function wasn't ment to deal with
          * other directories, so we skip them. */
-        if (PR_GetFileInfo(filename, &info) == PR_SUCCESS &&
+        if (PR_GetFileInfo64(filename, &info) == PR_SUCCESS &&
             info.type == PR_FILE_DIRECTORY) {
             /* go into it (instance dir) */
             int retval = dblayer_grok_directory(filename, flags);
@@ -1360,7 +1360,7 @@ dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst,
 static PRUint64
 dblayer_get_region_size(const char *dir)
 {
-    PRFileInfo info;
+    PRFileInfo64 info;
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
     PRUint64 region_size = 0;
@@ -1377,7 +1377,7 @@ dblayer_get_region_size(const char *dir)
             char filename[MAXPATHLEN];
 
             PR_snprintf(filename, MAXPATHLEN, "%s/%s", dir, direntry->name);
-            if (PR_GetFileInfo(filename, &info) != PR_FAILURE){
+            if (PR_GetFileInfo64(filename, &info) != PR_FAILURE){
                 region_size += info.size;
     	    }
         }
@@ -1923,7 +1923,7 @@ dblayer_get_id2entry_size(ldbm_instance *inst)
 {
     struct ldbminfo *li = NULL;
     char *id2entry_file = NULL;
-    PRFileInfo info;
+    PRFileInfo64 info;
     int rc;
     char inst_dir[MAXPATHLEN], *inst_dirp;
 
@@ -1934,7 +1934,7 @@ dblayer_get_id2entry_size(ldbm_instance *inst)
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
     id2entry_file = slapi_ch_smprintf("%s/%s", inst_dirp,
                                       ID2ENTRY LDBM_FILENAME_SUFFIX);
-    rc = PR_GetFileInfo(id2entry_file, &info);
+    rc = PR_GetFileInfo64(id2entry_file, &info);
     slapi_ch_free_string(&id2entry_file);
     if (rc) {
         return 0;
@@ -2407,7 +2407,7 @@ dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv,
     int envflags = 0;
     int dbflags = 0;
     size_t cachesize;
-    PRFileInfo prfinfo;
+    PRFileInfo64 prfinfo;
     PRStatus prst;
     char *id2entry_file = NULL;
     char inst_dir[MAXPATHLEN];
@@ -2462,7 +2462,7 @@ dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv,
     }
     priv->dblayer_log_directory = slapi_ch_strdup(priv->dblayer_home_directory);
 
-    prst = PR_GetFileInfo(inst_dirp, &prfinfo);
+    prst = PR_GetFileInfo64(inst_dirp, &prfinfo);
     if (PR_FAILURE == prst || PR_FILE_DIRECTORY != prfinfo.type)
     {
         LDAPDebug(LDAP_DEBUG_ANY,
@@ -2470,7 +2470,7 @@ dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv,
         goto done;
     }
 
-    prst = PR_GetFileInfo(priv->dblayer_home_directory, &prfinfo);
+    prst = PR_GetFileInfo64(priv->dblayer_home_directory, &prfinfo);
     if (PR_SUCCESS == prst)
     {
         ldbm_delete_dirs(priv->dblayer_home_directory);
@@ -4913,7 +4913,7 @@ static int read_metadata(struct ldbminfo *li)
     char *nextline;
     char **dirp;
     PRFileDesc *prfd;
-    PRFileInfo prfinfo;
+    PRFileInfo64 prfinfo;
     int return_value = 0;
     PRInt32 byte_count = 0;
     char attribute[512];
@@ -4931,7 +4931,7 @@ static int read_metadata(struct ldbminfo *li)
     PR_snprintf(filename,sizeof(filename),"%s/guardian",priv->dblayer_home_directory);
 
     memset(&prfinfo, '\0', sizeof(PRFileInfo));
-    (void)PR_GetFileInfo(filename, &prfinfo);
+    (void)PR_GetFileInfo64(filename, &prfinfo);
 
     prfd = PR_Open(filename,PR_RDONLY,priv->dblayer_file_mode);
     if (NULL == prfd || 0 == prfinfo.size) {
@@ -5263,7 +5263,7 @@ dblayer_delete_database_ex(struct ldbminfo *li, char *instance, char *cldir)
     Object *inst_obj;
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
-	PRFileInfo fileinfo;
+    PRFileInfo64 fileinfo;
     char filename[MAXPATHLEN];
     char *log_dir;
     int ret;
@@ -5331,7 +5331,7 @@ dblayer_delete_database_ex(struct ldbminfo *li, char *instance, char *cldir)
 
 		/* Do not call PR_Delete on the instance directories if they exist.
 		 * It would not work, but we still should not do it. */
-        rval_tmp = PR_GetFileInfo(filename, &fileinfo);
+        rval_tmp = PR_GetFileInfo64(filename, &fileinfo);
         if (rval_tmp == PR_SUCCESS && fileinfo.type != PR_FILE_DIRECTORY)
 		{
 			/* Skip deleting log files; that should be handled below.
@@ -5381,28 +5381,24 @@ int dblayer_delete_database(struct ldbminfo *li)
 /* 
  * Return the size of the database (in kilobytes).  XXXggood returning
  * the size in units of kb is really a hack, and is done because we
- * don't have NSPR support for 64-bit file offsets.
+ * didn't have NSPR support for 64-bit file offsets originally (now we do)
  * Caveats:
  * - We can still return incorrect results if an individual file is
  *   larger than fit in a PRUint32.
- * - PR_GetFileInfo doesn't do any special processing for symlinks,
+ * - PR_GetFileInfo64 doesn't do any special processing for symlinks,
  *   nor does it inform us if the file is a symlink.  Nice.  So if
  *   a file in the db directory is a symlink, the size we return
  *   will probably be way too small.
  */
 int dblayer_database_size(struct ldbminfo *li, unsigned int *size)
 {
-     dblayer_private *priv = NULL;
+    dblayer_private *priv = NULL;
     int return_value = 0;
     char filename[MAXPATHLEN];
     PRDir    *dirhandle = NULL;
-    /*
-     * XXXggood - NSPR will only give us an unsigned 32-bit quantity for
-     * file sizes.  This is bad.  Files can be bigger than that these days.
-     */
     unsigned int cumulative_size = 0;
     unsigned int remainder = 0;
-    PRFileInfo info;
+    PRFileInfo64 info;
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -5418,7 +5414,7 @@ int dblayer_database_size(struct ldbminfo *li, unsigned int *size)
                 break;
             }
             PR_snprintf(filename,MAXPATHLEN, "%s/%s",priv->dblayer_home_directory,direntry->name);
-            return_value = PR_GetFileInfo(filename, &info);
+            return_value = PR_GetFileInfo64(filename, &info);
             if (PR_SUCCESS == return_value)
             {
                 cumulative_size += (info.size / 1024);
@@ -5459,14 +5455,14 @@ static int count_dbfiles_in_dir(char *directory, int *count, int recurse)
     if (NULL != dirhandle) {
         PRDirEntry *direntry = NULL;
         char *direntry_name;
-        PRFileInfo info;
+        PRFileInfo64 info;
 
         while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
             if (NULL == direntry->name) {
                 break;
             }
             direntry_name = PR_smprintf("%s/%s", directory, direntry->name);
-            if ((PR_GetFileInfo(direntry_name, &info) == PR_SUCCESS) &&
+            if ((PR_GetFileInfo64(direntry_name, &info) == PR_SUCCESS) &&
                 (PR_FILE_DIRECTORY == info.type) && recurse) {
                 /* Recurse into this directory but not any further.  This is
                  * because each instance gets its own directory, but in those
@@ -5736,7 +5732,7 @@ dblayer_copy_directory(struct ldbminfo *li,
             if (NULL == new_dest_dir) {
                 /* Need to create the new directory where the files will be
                  * copied to. */
-                PRFileInfo info;
+                PRFileInfo64 info;
                 char *prefix = "";
                 char mysep = 0;
 
@@ -5757,7 +5753,7 @@ dblayer_copy_directory(struct ldbminfo *li,
                     new_dest_dir = slapi_ch_smprintf("%s/%s",
                         dest_dir, relative_instance_name);
                 /* } */
-                if (PR_SUCCESS == PR_GetFileInfo(new_dest_dir, &info))
+                if (PR_SUCCESS == PR_GetFileInfo64(new_dest_dir, &info))
                 {
                     ldbm_delete_dirs(new_dest_dir);
                 }
@@ -6251,7 +6247,7 @@ int dblayer_delete_transaction_logs(const char * log_dir)
         PRDirEntry *direntry = NULL;
         int is_a_logfile = 0;
         int pre=0; 
-        PRFileInfo info ;
+        PRFileInfo64 info ;
             
         while (NULL != (direntry =
                         PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
@@ -6263,7 +6259,7 @@ int dblayer_delete_transaction_logs(const char * log_dir)
                 break;
             }
             PR_snprintf(filename1, MAXPATHLEN, "%s/%s", log_dir, direntry->name);
-            pre = PR_GetFileInfo(filename1, &info);
+            pre = PR_GetFileInfo64(filename1, &info);
             if (pre == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
                 continue;
             }
@@ -6315,7 +6311,7 @@ static int dblayer_copy_dirand_contents(char* src_dir, char* dst_dir, int mode, 
   char filename2[MAXPATHLEN];
   PRDir *dirhandle = NULL;
   PRDirEntry *direntry = NULL;
-  PRFileInfo info;
+  PRFileInfo64 info;
 
   dirhandle = PR_OpenDir(src_dir);
   if (NULL != dirhandle) 
@@ -6334,7 +6330,7 @@ static int dblayer_copy_dirand_contents(char* src_dir, char* dst_dir, int mode, 
        LDAPDebug(LDAP_DEBUG_ANY, "Moving file %s\n",
                           filename2, 0, 0);
       /* Is this entry a directory? */
-      tmp_rval = PR_GetFileInfo(filename1, &info);
+      tmp_rval = PR_GetFileInfo64(filename1, &info);
       if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) 
 	  {
 		 PR_MkDir(filename2,NEWDIR_MODE);
@@ -6375,7 +6371,7 @@ static int dblayer_fri_trim(char *fri_dir_path, char* bename)
 	char filename[MAXPATHLEN];
 	PRDir *dirhandle = NULL;
 	PRDirEntry *direntry = NULL;
-	PRFileInfo info;
+	PRFileInfo64 info;
 
 	dirhandle = PR_OpenDir(fri_dir_path);
 	if (NULL != dirhandle) 
@@ -6391,7 +6387,7 @@ static int dblayer_fri_trim(char *fri_dir_path, char* bename)
 			PR_snprintf(filename, MAXPATHLEN, "%s/%s", fri_dir_path, direntry->name);
 
 			/* Is this entry a directory? */
-			tmp_rval = PR_GetFileInfo(filename, &info);
+			tmp_rval = PR_GetFileInfo64(filename, &info);
 			if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type)
 			{
 				if(strcmp(direntry->name,bename)!=0)
@@ -6504,7 +6500,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     char filename2[MAXPATHLEN];
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
-    PRFileInfo info;
+    PRFileInfo64 info;
     ldbm_instance *inst = NULL;
     int seen_logfiles = 0;      /* Tells us if we restored any logfiles */
     int is_a_logfile = 0;
@@ -6592,7 +6588,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
                                                       src_dir, direntry->name);
             if(!frirestore || strcmp(direntry->name,bename)==0)
             {
-                tmp_rval = PR_GetFileInfo(filename1, &info);
+                tmp_rval = PR_GetFileInfo64(filename1, &info);
                 if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
                     /* Is it CHANGELOG_BACKUPDIR? */
                     if (0 == strcmp(CHANGELOG_BACKUPDIR, direntry->name)) {
@@ -6687,7 +6683,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         /* Is this entry a directory? */
         PR_snprintf(filename1, sizeof(filename1), "%s/%s",
                                                   real_src_dir, direntry->name);
-        tmp_rval = PR_GetFileInfo(filename1, &info);
+        tmp_rval = PR_GetFileInfo64(filename1, &info);
         if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
             /* This is an instance directory. It contains the *.db#
              * files for the backend instance.
@@ -7045,10 +7041,10 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
          NULL != a;
          a = (struct attrinfo *)avl_getnext())
     {
-        PRFileInfo info;
+        PRFileInfo64 info;
         ofile = slapi_ch_smprintf("%s/%s%s", inst_dirp, a->ai_type, oldext);
 
-        if (PR_GetFileInfo(ofile, &info) != PR_SUCCESS)
+        if (PR_GetFileInfo64(ofile, &info) != PR_SUCCESS)
         {
             slapi_ch_free_string(&ofile);
             continue;

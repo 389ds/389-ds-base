@@ -660,9 +660,9 @@ int
 dse_check_file(char *filename, char *backupname)
 {
     int rc= 0; /* Fail */
-    PRFileInfo prfinfo;
+    PRFileInfo64 prfinfo;
 
-    if (PR_GetFileInfo( filename, &prfinfo ) == PR_SUCCESS) {
+    if (PR_GetFileInfo64( filename, &prfinfo ) == PR_SUCCESS) {
 	if ( prfinfo.size > 0)
 		return (1);
 	else {
@@ -675,7 +675,7 @@ dse_check_file(char *filename, char *backupname)
     else 
 	return (0);
 
-    if ( PR_GetFileInfo( filename, &prfinfo ) == PR_SUCCESS && prfinfo.size > 0 ) {
+    if ( PR_GetFileInfo64( filename, &prfinfo ) == PR_SUCCESS && prfinfo.size > 0 ) {
 	slapi_log_error(SLAPI_LOG_FATAL, "dse",
              "The configuration file %s was restored from backup %s\n", filename, backupname);
 	return (1);
@@ -696,7 +696,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
     char *lastp = NULL;
     int rc= 0; /* Fail */
     PRInt32 nr = 0;
-    PRFileInfo prfinfo;
+    PRFileInfo64 prfinfo;
     PRFileDesc *prfd = 0;
     int schema_flags = 0;
 
@@ -709,7 +709,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
         if (!rc)
             rc = dse_check_file((char *)filename, pdse->dse_fileback);
 
-        if ( (rc = PR_GetFileInfo( filename, &prfinfo )) != PR_SUCCESS )
+        if ( (rc = PR_GetFileInfo64( filename, &prfinfo )) != PR_SUCCESS )
         {
             slapi_log_error(SLAPI_LOG_FATAL, "dse",
                             "The configuration file %s could not be accessed, error %d\n",
@@ -733,7 +733,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
             if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
             {
                 slapi_log_error(SLAPI_LOG_FATAL, "dse",
-                                "Could only read %d of %d bytes from config file %s\n",
+                                "Could only read %d of %ld bytes from config file %s\n",
                                 nr, prfinfo.size, filename);
                 rc = 0; /* Fail */
                 done= 1;

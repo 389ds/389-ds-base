@@ -47,16 +47,17 @@
 
 #include "back-ldbm.h"
 
+/* TODO: make this a 64-bit return value */
 int
 ldbm_db_size( Slapi_PBlock *pb )
 {
 	struct ldbminfo		*li;
-	unsigned int		size;
+	unsigned int		size; /* TODO: make this a 64-bit return value */
 	int			rc;
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
-	rc = dblayer_database_size(li, &size);
-	slapi_pblock_set( pb, SLAPI_DBSIZE, &size );
+	rc = dblayer_database_size(li, &size); /* TODO: make this a 64-bit return value */
+	slapi_pblock_set( pb, SLAPI_DBSIZE, &size ); /* TODO: make this a 64-bit return value */
 
 	return rc;
 }

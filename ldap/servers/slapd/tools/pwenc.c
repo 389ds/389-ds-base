@@ -304,10 +304,10 @@ static int
 slapd_config(const char *configdir, const char *givenconfigfile)
 {
 	char configfile[MAXPATHLEN+1];
-    PRFileInfo prfinfo;
-    int rc = 0; /* Fail */
+	PRFileInfo64 prfinfo;
+	int rc = 0; /* Fail */
 	int done = 0;
-    PRInt32 nr = 0;
+	PRInt32 nr = 0;
 	PRFileDesc *prfd = 0;
 	char *buf = 0;
 	char *lastp = 0;
@@ -318,7 +318,7 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 	}
 
 	PR_snprintf(configfile, sizeof(configfile), "%s/%s", configdir, givenconfigfile);
-	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
+	if ( (rc = PR_GetFileInfo64( configfile, &prfinfo )) != PR_SUCCESS )
 	{
 		fprintf(stderr,
 				"The given config file %s could not be accessed, error %d\n",
@@ -340,7 +340,7 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 		if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
 		{
 			fprintf(stderr,
-					"Could only read %d of %d bytes from config file %s\n",
+					"Could only read %d of %ld bytes from config file %s\n",
 					nr, prfinfo.size, configfile);
 			exit( 1 );
 		}

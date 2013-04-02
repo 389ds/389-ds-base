@@ -296,7 +296,7 @@ ldbm_delete_dirs(char *path)
     PRDirEntry *direntry = NULL;
     char fullpath[MAXPATHLEN];
     int rval = 0;
-    PRFileInfo info;
+    PRFileInfo64 info;
 
     dirhandle = PR_OpenDir(path);
     if (! dirhandle)
@@ -312,7 +312,7 @@ ldbm_delete_dirs(char *path)
             break;
 
         PR_snprintf(fullpath, MAXPATHLEN, "%s/%s", path, direntry->name);
-        rval = PR_GetFileInfo(fullpath, &info);
+        rval = PR_GetFileInfo64(fullpath, &info);
         if (PR_SUCCESS == rval)
         {
             if (PR_FILE_DIRECTORY == info.type)
@@ -343,11 +343,11 @@ get_sep(char *path)
 int
 mkdir_p(char *dir, unsigned int mode)
 {
-    PRFileInfo info;
+    PRFileInfo64 info;
     int rval;
     char sep = get_sep(dir);
 
-    rval = PR_GetFileInfo(dir, &info);
+    rval = PR_GetFileInfo64(dir, &info);
     if (PR_SUCCESS == rval)
     {
         if (PR_FILE_DIRECTORY != info.type)    /* not a directory */

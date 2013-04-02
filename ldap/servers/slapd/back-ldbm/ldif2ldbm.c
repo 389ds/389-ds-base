@@ -2620,7 +2620,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     char inst_dir[MAXPATHLEN];
     char *inst_dirp = NULL;
     int cnt = 0;
-    PRFileInfo info = {0};
+    PRFileInfo64 info = {0};
     PRUint32 dbversion_flags = DBVERSION_ALL;
                                                                          
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &up_flags);
@@ -2750,7 +2750,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     orig_dest_dir = dest_dir;
     normalize_dir(dest_dir);
     /* clean up the backup dir first, then create it */
-    rval = PR_GetFileInfo(dest_dir, &info);
+    rval = PR_GetFileInfo64(dest_dir, &info);
     if (PR_SUCCESS == rval)
     {
         if (PR_FILE_DIRECTORY == info.type)    /* directory exists */
@@ -3071,7 +3071,7 @@ int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags)
     while (NULL != (direntry =
                     PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
     {
-        PRFileInfo info;
+        PRFileInfo64 info;
         int len;
 
         if (! direntry->name)
@@ -3086,7 +3086,7 @@ int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags)
             fullpathp = (char *)slapi_ch_malloc(len);
         }
         sprintf(fullpathp, "%s/%s", inst_dirp, direntry->name);
-        rval = PR_GetFileInfo(fullpathp, &info);
+        rval = PR_GetFileInfo64(fullpathp, &info);
         if (PR_SUCCESS == rval && PR_FILE_DIRECTORY != info.type)
         {
             PR_Delete(fullpathp);
@@ -3530,7 +3530,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     char *instance_name = NULL;
     backend *be = NULL;
     PRStatus prst = 0;
-    PRFileInfo prfinfo = {0};
+    PRFileInfo64 prfinfo = {0};
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
     size_t id2entrylen = 0;
@@ -3579,7 +3579,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawworkdbdir);
     normalize_dir(rawworkdbdir); /* remove trailing spaces and slashes */
 
-    prst = PR_GetFileInfo(rawworkdbdir, &prfinfo);
+    prst = PR_GetFileInfo64(rawworkdbdir, &prfinfo);
     if (PR_FAILURE == prst || PR_FILE_DIRECTORY != prfinfo.type) {
         slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
                         "Working DB instance dir %s is not a directory\n",

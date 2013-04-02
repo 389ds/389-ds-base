@@ -157,10 +157,10 @@ int
 slapd_bootstrap_config(const char *configdir)
 {
 	char configfile[MAXPATHLEN+1];
-    PRFileInfo prfinfo;
-    int rc = 0; /* Fail */
+	PRFileInfo64 prfinfo;
+	int rc = 0; /* Fail */
 	int done = 0;
-    PRInt32 nr = 0;
+	PRInt32 nr = 0;
 	PRFileDesc *prfd = 0;
 	char *buf = 0;
 	char *lastp = 0;
@@ -182,7 +182,7 @@ slapd_bootstrap_config(const char *configdir)
 		rc = dse_check_file(configfile, tmpfile);
 	}
 
-	if ( (rc = PR_GetFileInfo( configfile, &prfinfo )) != PR_SUCCESS )
+	if ( (rc = PR_GetFileInfo64( configfile, &prfinfo )) != PR_SUCCESS )
 	{
 		PRErrorCode prerr = PR_GetError();
 		slapi_log_error(SLAPI_LOG_FATAL, "config", "The given config file %s could not be accessed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
@@ -203,7 +203,7 @@ slapd_bootstrap_config(const char *configdir)
 		buf = slapi_ch_malloc( prfinfo.size + 1 );
 		if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, "config", "Could only read %d of %d bytes from config file %s\n",
+			slapi_log_error(SLAPI_LOG_FATAL, "config", "Could only read %d of %ld bytes from config file %s\n",
 							nr, prfinfo.size, configfile);
 			rc = 0; /* Fail */
 			done= 1;
