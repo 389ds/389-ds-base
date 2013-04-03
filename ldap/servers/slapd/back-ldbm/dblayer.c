@@ -1919,7 +1919,7 @@ check_and_set_import_cache(struct ldbminfo *li)
     return 0;
 }
 
-size_t
+PRUint64
 dblayer_get_id2entry_size(ldbm_instance *inst)
 {
     struct ldbminfo *li = NULL;

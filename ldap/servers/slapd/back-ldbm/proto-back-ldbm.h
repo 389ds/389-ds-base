@@ -180,7 +180,7 @@ int dblayer_db_uses_mpool(DB_ENV *db_env);
 int dblayer_db_uses_logging(DB_ENV *db_env);
 int dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
 int dblayer_remove_env(struct ldbminfo *li);
-size_t dblayer_get_id2entry_size(ldbm_instance *inst);
+PRUint64 dblayer_get_id2entry_size(ldbm_instance *inst);
 
 int ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info);
 int ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info);
