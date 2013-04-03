@@ -657,6 +657,12 @@ check_for_ldif_dump(Slapi_PBlock *pb)
 
 static PRBool is_ldif_dump = PR_FALSE;
 
+PRBool
+ldif_dump_is_running()
+{
+    return is_ldif_dump;
+}
+
 int
 multimaster_start( Slapi_PBlock *pb )
 {

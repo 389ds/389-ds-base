@@ -1832,7 +1832,8 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
 {
     char **clean_vals;
 
-    if(e == NULL){
+    if(e == NULL || ldif_dump_is_running() == PR_TRUE){
+        /* If db2ldif is being run, do not check if there are incomplete tasks */
         return;
     }
     /*
