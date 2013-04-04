@@ -302,10 +302,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 {
                     PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value (%s) value supplied for attr (%s)", 
                              val, mods[i]->mod_type);
-                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: %s\n",
-                                    errortext);	
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: %s\n", errortext);
                 }
-            
                 slapi_ch_free ((void**)&val);
             }
 		}
@@ -529,15 +527,22 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
     }
     else if (start_initialize)
     {
-	if (agmt_initialize_replica(agmt) != 0) {
-		/* The suffix is disabled */
-		agmt_set_last_init_status(agmt, 0, NSDS50_REPL_DISABLED, NULL);
-	}
+        if (agmt_initialize_replica(agmt) != 0) {
+            /* The suffix/repl agmt is disabled */
+            agmt_set_last_init_status(agmt, 0, NSDS50_REPL_DISABLED, NULL);
+            if(agmt_is_enabled(agmt)){
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Suffix is disabled");
+            } else {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Replication agreement is disabled");
+            }
+            *returncode = LDAP_UNWILLING_TO_PERFORM;
+            rc = SLAPI_DSE_CALLBACK_ERROR;
+        }
     }
     else if (cancel_initialize)
     {
-		agmt_replica_init_done(agmt);
-	}
+        agmt_replica_init_done(agmt);
+    }
 
 	if (update_the_schedule) 
     {

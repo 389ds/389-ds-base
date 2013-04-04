@@ -2220,16 +2220,24 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 			}
 			else if (replrc == NSDS50_REPL_DISABLED)
 			{
-				PR_snprintf(ra->last_init_status, STATUS_LEN, "%d Total update aborted: "
-					"Replication agreement for %s\n can not be updated while the replica is disabled.\n"
-					"(If the suffix is disabled you must enable it then restart the server for replication to take place).",
-					replrc, ra->long_name ? ra->long_name : "a replica");
-				/* Log into the errors log, as "ra->long_name" is not accessible from the caller */
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"Total update aborted: Replication agreement for \"%s\" "
-					"can not be updated while the replica is disabled\n", ra->long_name ? ra->long_name : "a replica");
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-					"(If the suffix is disabled you must enable it then restart the server for replication to take place).\n");
+				if(agmt_is_enabled(ra)){
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Total update aborted: "
+							"Replication agreement for \"%s\" can not be updated while the suffix is disabled.\n"
+							"You must enable it then restart the server for replication to take place).\n",
+							ra->long_name ? ra->long_name : "a replica");
+					PR_snprintf(ra->last_init_status, STATUS_LEN, "%d Total update aborted: "
+							"Replication agreement for \"%s\" can not be updated while the suffix is disabled.\n"
+							"You must enable it then restart the server for replication to take place).",
+							replrc, ra->long_name ? ra->long_name : "a replica");
+				} else {
+					/* You do not need to restart the server after enabling the agreement */
+					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Total update aborted: "
+							"Replication agreement for \"%s\" can not be updated while the agreement is disabled\n",
+							ra->long_name ? ra->long_name : "a replica");
+					PR_snprintf(ra->last_init_status, STATUS_LEN, "%d Total update aborted: "
+							"Replication agreement for \"%s\" can not be updated while the agreement is disabled.",
+							replrc, ra->long_name ? ra->long_name : "a replica");
+				}
 			}
 			else
 			{
