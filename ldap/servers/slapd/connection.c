@@ -1813,6 +1813,8 @@ int connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
  * Utility function called by  connection_read_operation(). This is a
  * small wrapper on top of libldap's ber_get_next_buffer_ext().
  *
+ * Caller must hold conn->c_mutex
+ *
  * Return value:
  *   0: Success
  *      case 1) If there was not enough data in the buffer to complete the 
@@ -1870,7 +1872,7 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 		conn->c_private->c_buffer_bytes = conn->c_private->c_buffer_offset = 0;
 
 		/* drop connection */
-		disconnect_server( conn, conn->c_connid, -1, err, syserr );
+		disconnect_server_nomutex( conn, conn->c_connid, -1, err, syserr );
 		return -1;
 	} else if (CONNECTION_BUFFER_OFF == conn->c_private->use_buffer) {
 		*lenp = bytes_scanned;
@@ -1931,7 +1933,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	char *buffer = conn->c_private->c_buffer;
 	PRErrorCode err = 0;
 	PRInt32 syserr = 0;
-	
+
+	PR_Lock(conn->c_mutex);
 	/*
 	 * if the socket is still valid, get the ber element
 	 * waiting for us on this connection. timeout is handled
@@ -1939,7 +1942,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	 */
 	if ( (conn->c_sd == SLAPD_INVALID_SOCKET) ||
 		 (conn->c_flags & CONN_FLAG_CLOSING) ) {
-		return CONN_DONE;
+		ret = CONN_DONE;
+		goto done;
 	}
 	
 	*tag = LBER_DEFAULT;
@@ -1951,7 +1955,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 				conn->c_private->c_buffer_bytes
 				- conn->c_private->c_buffer_offset,
 				&len, tag, op->o_ber, conn )) {
-			return CONN_DONE;
+			ret = CONN_DONE;
+			goto done;
 		}
 		new_operation = 0;
 	}
@@ -1966,7 +1971,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		} else {
 			ret = get_next_from_buffer( NULL, 0, &len, tag, op->o_ber, conn );
 			if (ret == -1) {
-				return CONN_DONE; /* get_next_from_buffer does the disconnect stuff */
+				ret = CONN_DONE;
+				goto done; /* get_next_from_buffer does the disconnect stuff */
 			} else if (ret == 0) {
 				ret = len;
 			}
@@ -1975,12 +1981,11 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		if (ret <= 0) {
 			if (0 == ret) {
 				/* Connection is closed */
-				PR_Lock( conn->c_mutex );
 				disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, 0 );
 				conn->c_gettingber = 0;
-				PR_Unlock( conn->c_mutex );
 				signal_listner();
-				return CONN_DONE;
+				ret = CONN_DONE;
+				goto done;
 			}
 			/* err = PR_GetError(); */
 			/* If we would block, we need to poll for a while */
@@ -1998,19 +2003,22 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 				if (0 == ret) {
 					/* We timed out, should the server shutdown ? */
 					if (op_shutdown) {
-						return CONN_SHUTDOWN;
+						ret = CONN_SHUTDOWN;
+						goto done;
 					}
 					/* We timed out, is this the first read in a PDU ? */
 					if (new_operation) {
 						/* If so, we return */
-						return CONN_TIMEDOUT;
+						ret = CONN_TIMEDOUT;
+						goto done;
 					} else {
 						/* Otherwise we loop, unless we exceeded the ioblock timeout */
 						if (waits_done > ioblocktimeout_waits) {
 							LDAPDebug( LDAP_DEBUG_CONNS,"ioblock timeout expired on connection %" NSPRIu64 "\n", conn->c_connid, 0, 0 );
-							disconnect_server( conn, conn->c_connid, -1,
+							disconnect_server_nomutex( conn, conn->c_connid, -1,
 									SLAPD_DISCONNECT_IO_TIMEOUT, 0 );
-							return CONN_DONE;
+							ret = CONN_DONE;
+							goto done;
 						} else {
 
 							/* The turbo mode may cause threads starvation.
@@ -2029,8 +2037,9 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					LDAPDebug( LDAP_DEBUG_ANY,
 						"PR_Poll for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
-					disconnect_server( conn, conn->c_connid, -1, err, syserr );
-					return CONN_DONE;
+					disconnect_server_nomutex( conn, conn->c_connid, -1, err, syserr );
+					ret = CONN_DONE;
+					goto done;
 				}
 			} else {
 				/* Some other error, typically meaning bad stuff */
@@ -2038,8 +2047,9 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					LDAPDebug( LDAP_DEBUG_CONNS,
 						"PR_Recv for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
-					disconnect_server( conn, conn->c_connid, -1, err, syserr );
-					return CONN_DONE;
+					disconnect_server_nomutex( conn, conn->c_connid, -1, err, syserr );
+					ret = CONN_DONE;
+					goto done;
 			}
 		} else {
 			/* We read some data off the network, do something with it */
@@ -2051,7 +2061,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 				                           conn->c_private->c_buffer_bytes
 				                           - conn->c_private->c_buffer_offset,
 				                           &len, tag, op->o_ber, conn ) != 0 ) {
-					return CONN_DONE;
+					ret = CONN_DONE;
+					goto done;
 				}
 			}
 
@@ -2072,9 +2083,10 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		LDAPDebug( LDAP_DEBUG_ANY,
 			"conn=%" NSPRIu64 " received a non-LDAP message (tag 0x%lx, expected 0x%lx)\n",
 			conn->c_connid, *tag, LDAP_TAG_MESSAGE );
-		disconnect_server( conn, conn->c_connid, -1,
+		disconnect_server_nomutex( conn, conn->c_connid, -1,
 			SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
-		return CONN_DONE;
+		ret = CONN_DONE;
+		goto done;
 	}
 
 	if ( (*tag = ber_get_int( op->o_ber, &msgid ))
@@ -2082,13 +2094,14 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		/* log, close and send error */
 		LDAPDebug( LDAP_DEBUG_ANY,
 			"conn=%" NSPRIu64 " unable to read tag for incoming request\n", conn->c_connid, 0, 0 );
-		disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
-		return CONN_DONE;
+		disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
+		ret = CONN_DONE;
+		goto done;
 	}
-	if(is_ber_too_big(conn,len))
-	{
-		disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_TOO_BIG, 0 );
-		return CONN_DONE;
+	if(is_ber_too_big(conn,len)) {
+		disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_TOO_BIG, 0 );
+		ret = CONN_DONE;
+		goto done;
 	}
 	op->o_msgid = msgid;
 
@@ -2099,12 +2112,15 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		/* log, close and send error */
 		LDAPDebug( LDAP_DEBUG_ANY,
 			"conn=%" NSPRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, *tag, 0 );
-		disconnect_server( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_PEEK, EPROTO );
-		return CONN_DONE;
+		disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_PEEK, EPROTO );
+		ret = CONN_DONE;
+		goto done;
 	  default:
 		break;
 	}
 	op->o_tag = *tag;
+done:
+	PR_Unlock(conn->c_mutex);
 	return ret;
 }
 
@@ -2261,6 +2277,8 @@ connection_threadmain()
 	int more_data = 0;
 	int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
 	int doshutdown = 0;
+	long bypasspollcnt = 0;
+	long maxconnhits = 0;
 
 #if defined( OSF1 ) || defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
@@ -2398,11 +2416,29 @@ connection_threadmain()
 		 * they are received off the wire.
 		 */
 		replication_connection = conn->c_isreplication_session;
-		if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !more_data && !replication_connection) {
-			connection_make_readable_nolock(conn);
-			/* once the connection is readable, another thread may access conn,
-			 * so need locking from here on */
-			signal_listner();
+		if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
+			if (!more_data) {
+				connection_make_readable_nolock(conn);
+				/* once the connection is readable, another thread may access conn,
+				 * so need locking from here on */
+				signal_listner();
+			} else { /* more data in conn - just put back on work_q - bypass poll */
+				bypasspollcnt++;
+				PR_Lock(conn->c_mutex);
+				/* don't do this if it would put us over the max threads per conn */
+				if (conn->c_threadnumber < config_get_maxthreadsperconn()) {
+					/* for turbo, c_idlesince is set above - for !turbo and
+					 * !more_data, we put the conn back in the poll loop and
+					 * c_idlesince is set in handle_pr_read_ready - since we
+					 * are bypassing both of those, we set idlesince here
+					 */
+					conn->c_idlesince = curtime;
+					connection_activity(conn);
+				} else {
+					maxconnhits++;
+				}
+				PR_Unlock(conn->c_mutex);
+			}
 		}
 
 		/* are we in referral-only mode? */
