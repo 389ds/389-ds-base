@@ -46,7 +46,8 @@ The name of the file that contains the root DN password.
 The DN of the subtree containing the entries to update. 
 .TP
 .B \fB\-f\fR \fIfilter\fR
-An LDAP query filter to use to select the entries within the subtree to update. If there is no filter set, then the memberOf attribute is regenerated for every entry in the subtree. 
+An LDAP query filter to use to select the entries within the subtree to update. If there is no filter set, then
+the memberOf attribute is regenerated for every entry in the subtree that has the objectclass inetuser/inetadmin. 
 .TP
 .B \fB\-P\fR \fIprotocol\fR
 The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.

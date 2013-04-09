@@ -61,8 +61,8 @@ sub usage {
     print(STDERR "        -j filename  - Read Directory Manager's password from file\n");
     print(STDERR "        -b baseDN    - Base DN that contains entries to fix up.\n");
     print(STDERR "        -f filter    - Filter for entries to fix up\n");
-    print(STDERR "                       If omitted, all entries under the specified\n");
-    print(STDERR "                       base will have their memberOf attribute regenerated.\n");
+    print(STDERR "                       If omitted, all entries with objectclass inetuser/inetadmin under the\n");
+    print(STDERR "                       specified base will have their memberOf attribute regenerated.\n");
     print(STDERR "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
     print(STDERR "        -v           - Verbose output\n");
     print(STDERR "        -h           - Display usage\n");
