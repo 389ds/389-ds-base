@@ -1223,6 +1223,7 @@ void    DS_Sleep(PRIntervalTime ticks);
                                          generate entryrdn index */
 #define SLAPI_UPGRADEDNFORMAT    0x8  /* specify this op is upgradednformat */
 #define SLAPI_DRYRUN             0x10 /* dryrun mode for upgradednformat */
+#define SLAPI_UPGRADEDNFORMAT_V1 0x20 /* taking care multipe spaces */
 
 
 /*

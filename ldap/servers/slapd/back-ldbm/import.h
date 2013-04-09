@@ -159,8 +159,9 @@ typedef struct {
     PRLock *wire_lock;          /* lock for serializing wire imports */
     PRCondVar *wire_cv;         /* ... and ordering the startup */
     PRThread *main_thread;      /* for FRI: import_main() thread id */
-	int encrypt;
-	Slapi_Value *usn_value;     /* entryusn for import */
+    int encrypt;
+    Slapi_Value *usn_value;     /* entryusn for import */
+    FILE *upgradefd;            /* used for the upgrade */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS	0x01	/* should we index the attributes? */
@@ -173,6 +174,7 @@ typedef struct {
 #define FLAG_DN2RDN             0x40  /* modify backend to the rdn format */
 #define FLAG_UPGRADEDNFORMAT    0x80  /* read from id2entry and do upgrade dn */
 #define FLAG_DRYRUN             0x100 /* dryrun for upgrade dn */
+#define FLAG_UPGRADEDNFORMAT_V1 0x200 /* taking care multiple spaces in dn */
 
 
 /* Structure holding stuff about a worker thread and what it's up to */
@@ -202,12 +204,17 @@ struct _import_worker_info {
 #define ABORT 3
 #define STOP 4
 
-/* Values for state */
-#define WAITING 1
-#define RUNNING 2
-#define FINISHED 3
-#define ABORTED 4
-#define QUIT 5 /* quit intentionally. to distinguish from ABORTED & FINISHED */
+/* Values for job state */
+#define WAITING    0x1
+#define RUNNING    0x2
+#define FINISHED   0x4
+#define ABORTED    0x8
+#define QUIT       0x10  /* quit intentionally.
+                          * introduced to distinguish from ABORTED, FINISHED */
+#define CORESTATE  0xff
+#define DN_NORM    0x100 /* do dn normalization in upgrade */
+#define DN_NORM_SP 0x200 /* do dn normalization for multi spaces in upgrade */
+#define DN_NORM_BT (DN_NORM | DN_NORM_SP)
 
 /* this is just a convenience, because the slapi_ch_* calls are annoying */
 #define CALLOC(name)	(name *)slapi_ch_calloc(1, sizeof(name))

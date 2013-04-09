@@ -177,6 +177,7 @@ typedef unsigned short u_int16_t;
 #define BDB_RDNFORMAT   "rdn-format"   /* Subtree rename enabled */
 #define BDB_RDNFORMAT_VERSION   "2"    /* rdn-format version (by default, 0) */
 #define BDB_DNFORMAT    "dn-4514"      /* DN format RFC 4514 compliant */
+#define BDB_DNFORMAT_VERSION    "1"    /* DN format version */
 
 #define DBVERSION_NEWIDL      0x1
 #define DBVERSION_RDNFORMAT   0x2

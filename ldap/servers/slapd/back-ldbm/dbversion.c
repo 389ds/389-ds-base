@@ -119,7 +119,8 @@ dbversion_write(struct ldbminfo *li, const char *directory,
             ptr = buf + len;
         }
         if (flags & DBVERSION_DNFORMAT) {
-            PR_snprintf(ptr, sizeof(buf) - len, "/%s", BDB_DNFORMAT);
+            PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
+                        BDB_DNFORMAT, BDB_DNFORMAT_VERSION);
             len = strlen(buf);
             ptr = buf + len;
         }
