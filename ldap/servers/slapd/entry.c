@@ -2443,49 +2443,47 @@ slapi_entry_vattrcache_findAndTest( const Slapi_Entry *e, const char *type,
 	int r= SLAPI_ENTRY_VATTR_NOT_RESOLVED; /* assume not resolved yet */
 	*rc = -1;
 
-	if( slapi_vattrcache_iscacheable(type) &&
-	    slapi_entry_vattrcache_watermark_isvalid(e) ) {
+        if ((e->e_virtual_attrs == NULL) || ! slapi_entry_vattrcache_watermark_isvalid(e)) {
+                /* there is not virtual attribute cached or they are all invalid
+                 * just return
+                 */
+                return r;
+        }
 
-		if(e->e_virtual_lock == NULL) {
-			return r;
-		}
+        /* Check if the attribute is already cached */
+        vattrcache_entry_READ_LOCK(e);
+        if (e->e_virtual_attrs) {
+                tmp_attr = attrlist_find(e->e_virtual_attrs, type);
+                if (tmp_attr != NULL) {
+                        if (valueset_isempty(&(tmp_attr->a_present_values))) {
+                                /*
+                                 * this is a vattr that has been
+                                 * cached already but does not exist
+                                 */
+                                /* hard coded for prototype */
+                                r = SLAPI_ENTRY_VATTR_RESOLVED_ABSENT;
+                        } else {
+                                /*
+                                 * this is a cached vattr--test the filter on it.
+                                 */
+                                r = SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
+                                if (filter_type == FILTER_TYPE_AVA) {
+                                        *rc = plugin_call_syntax_filter_ava(tmp_attr,
+                                                f->f_choice,
+                                                &f->f_ava);
+                                } else if (filter_type == FILTER_TYPE_SUBSTRING) {
+                                        *rc = plugin_call_syntax_filter_sub(NULL, tmp_attr,
+                                                &f->f_sub);
+                                } else if (filter_type == FILTER_TYPE_PRES) {
+                                        /* type is there, that's all we need to know. */
+                                        *rc = 0;
+                                }
+                        }
+                } /* tmp_attr != NULL */
+        }
+        vattrcache_entry_READ_UNLOCK(e);
 
-		vattrcache_entry_READ_LOCK(e);
-		if (e->e_virtual_attrs) {
-			tmp_attr = attrlist_find( e->e_virtual_attrs, type );
-			if (tmp_attr != NULL) {
-				if(valueset_isempty(&(tmp_attr->a_present_values))) {
-					/*
-					 * this is a vattr that has been
-					 * cached already but does not exist
-					 */
-					/* hard coded for prototype */
-					r= SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; 
-				} else {
-					/*
-					 * this is a cached vattr--test the filter on it.
-					 */
-					r= SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
-					if ( filter_type == FILTER_TYPE_AVA ) {
-						*rc = plugin_call_syntax_filter_ava(tmp_attr,
-						                                    f->f_choice,
-						                                    &f->f_ava);
-					} else if ( filter_type == FILTER_TYPE_SUBSTRING) {
-						*rc = plugin_call_syntax_filter_sub(NULL, tmp_attr,
-						                                    &f->f_sub);
-					} else if ( filter_type == FILTER_TYPE_PRES ) {
-						/* type is there, that's all we need to know. */
-						*rc = 0;
-					}
-				}
-			}
-		} else {
-			r= SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; 
-		}
-		vattrcache_entry_READ_UNLOCK(e);
-	}
-
-	return r;
+        return r;
 }
 
 /* 
@@ -2512,49 +2510,46 @@ slapi_entry_vattrcache_find_values_and_type_ex( const Slapi_Entry *e,
 {
 	Slapi_Attr *tmp_attr = NULL;
 
-	int r= SLAPI_ENTRY_VATTR_NOT_RESOLVED; /* assume not resolved yet */
+        int r = SLAPI_ENTRY_VATTR_NOT_RESOLVED; /* assume not resolved yet */
 
-	if( slapi_vattrcache_iscacheable(type) &&
-		slapi_entry_vattrcache_watermark_isvalid(e) && e->e_virtual_attrs)
-	{
+        if ((e->e_virtual_attrs == NULL) || ! slapi_entry_vattrcache_watermark_isvalid(e)) {
+                /* there is not virtual attribute cached or they are all invalid
+                 * just return
+                 */
+                return r;
+        }
 
-		if(e->e_virtual_lock == NULL) {
-            return r;
-		}
+        /* check if the attribute is not already cached */
+        vattrcache_entry_READ_LOCK(e);
+        if (e->e_virtual_attrs) {
+                tmp_attr = attrlist_find(e->e_virtual_attrs, type);
+                if (tmp_attr != NULL) {
+                        if (valueset_isempty(&(tmp_attr->a_present_values))) {
+                                /*
+                                 * this is a vattr that has been
+                                 * cached already but does not exist
+                                 */
+                                r = SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; /* hard coded for prototype */
+                        } else {
+                                /*
+                                 * this is a cached vattr
+                                 * return a duped copy of the values and type
+                                 */
+                                char *vattr_type = NULL;
 
-		vattrcache_entry_READ_LOCK(e);
-		tmp_attr = attrlist_find( e->e_virtual_attrs, type );
-		if (tmp_attr != NULL)
-		{
-			if(valueset_isempty(&(tmp_attr->a_present_values)))
-			{
-				/*
-				 * this is a vattr that has been
-				 * cached already but does not exist
-				 */
-				r= SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; /* hard coded for prototype */				
-			}
-			else
-			{
-				/*
-				 * this is a cached vattr
-				 * return a duped copy of the values and type
-				*/
-				char *vattr_type=NULL;
+                                r = SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
+                                *results = (Slapi_ValueSet**) slapi_ch_calloc(1, sizeof (**results));
+                                **results = valueset_dup(&(tmp_attr->a_present_values));
 
-				r= SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
-				*results = (Slapi_ValueSet**)slapi_ch_calloc(1, sizeof(**results));
-				**results = valueset_dup(&(tmp_attr->a_present_values));
+                                *actual_type_name =
+                                        (char**) slapi_ch_malloc(sizeof (**actual_type_name));
+                                slapi_attr_get_type(tmp_attr, &vattr_type);
+                                **actual_type_name = slapi_ch_strdup(vattr_type);
 
-				*actual_type_name =
-							(char**)slapi_ch_malloc(sizeof(**actual_type_name));
-				slapi_attr_get_type( tmp_attr, &vattr_type );
-				**actual_type_name = slapi_ch_strdup(vattr_type);
-							
-			}
-		}
-		vattrcache_entry_READ_UNLOCK(e);
-	}
+                        }
+                } /* tmp_attr != NULL */
+        }
+        vattrcache_entry_READ_UNLOCK(e);
 
 	return r;
 }
@@ -2573,45 +2568,42 @@ slapi_entry_vattrcache_find_values_and_type( const Slapi_Entry *e,
 
 	int r= SLAPI_ENTRY_VATTR_NOT_RESOLVED; /* assume not resolved yet */
 
-	if( slapi_vattrcache_iscacheable(type) &&
-		slapi_entry_vattrcache_watermark_isvalid(e) && e->e_virtual_attrs)
-	{
+        if ((e->e_virtual_attrs == NULL) || ! slapi_entry_vattrcache_watermark_isvalid(e)) {
+                /* there is not virtual attribute cached or they are all invalid
+                 * just return
+                 */
+                return r;
+        }
+        
+        /* Check if the attribute is already cached */
+        vattrcache_entry_READ_LOCK(e);
+        if (e->e_virtual_attrs) {
+                tmp_attr = attrlist_find(e->e_virtual_attrs, type);
+                if (tmp_attr != NULL) {
+                        if (valueset_isempty(&(tmp_attr->a_present_values))) {
+                                /*
+                                 * this is a vattr that has been
+                                 * cached already but does not exist
+                                 */
+                                r = SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; /* hard coded for prototype */
+                        } else {
+                                /*
+                                 * this is a cached vattr
+                                 * return a duped copy of the values and type
+                                 */
+                                char *vattr_type = NULL;
 
-		if(e->e_virtual_lock == NULL) {
-            return r;
-		}
+                                r = SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
+                                *results = valueset_dup(&(tmp_attr->a_present_values));
 
-		vattrcache_entry_READ_LOCK(e);
-		tmp_attr = attrlist_find( e->e_virtual_attrs, type );
-		if (tmp_attr != NULL)
-		{
-			if(valueset_isempty(&(tmp_attr->a_present_values)))
-			{
-				/*
-				 * this is a vattr that has been
-				 * cached already but does not exist
-				 */
-				r= SLAPI_ENTRY_VATTR_RESOLVED_ABSENT; /* hard coded for prototype */				
-			}
-			else
-			{
-				/*
-				 * this is a cached vattr
-				 * return a duped copy of the values and type
-				*/
-				char *vattr_type=NULL;
+                                slapi_attr_get_type(tmp_attr, &vattr_type);
+                                *actual_type_name = slapi_ch_strdup(vattr_type);
 
-				r= SLAPI_ENTRY_VATTR_RESOLVED_EXISTS;
-				*results = valueset_dup(&(tmp_attr->a_present_values));
-
-				slapi_attr_get_type( tmp_attr, &vattr_type );
-				*actual_type_name = slapi_ch_strdup(vattr_type);
-							
-			}
-		}
-		vattrcache_entry_READ_UNLOCK(e);
-	}
-
+                        }
+                }
+        }
+        vattrcache_entry_READ_UNLOCK(e);
+        
 	return r;
 }
 
@@ -2642,16 +2634,12 @@ slapi_entry_attr_merge_sv(Slapi_Entry *e, const char *type, Slapi_Value **vals )
 
 int
 slapi_entry_vattrcache_merge_sv(Slapi_Entry *e, const char *type,
-													Slapi_ValueSet *valset)
+													Slapi_ValueSet *valset, int buffer_flags)
 {
 	Slapi_Value **vals = NULL;
 
 	/* only attempt to merge if it's a cacheable attribute */
-    if ( slapi_vattrcache_iscacheable(type) ) {
-	
-		if(e->e_virtual_lock == NULL) {
-            return 0;
-		}
+    if ( slapi_vattrcache_iscacheable(type) || (buffer_flags & SLAPI_VIRTUALATTRS_VALUES_CACHEABLE)) {
 	
 		vattrcache_entry_WRITE_LOCK(e);
 

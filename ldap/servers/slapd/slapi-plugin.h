@@ -6120,6 +6120,7 @@ int slapi_unregister_backend_state_change(void * handle);
 #define SLAPI_VIRTUALATTRS_RETURNED_POINTERS	1
 #define SLAPI_VIRTUALATTRS_RETURNED_COPIES	2
 #define SLAPI_VIRTUALATTRS_REALATTRS_ONLY       4
+#define SLAPI_VIRTUALATTRS_VALUES_CACHEABLE     8
 
 /* Attribute type name disposition values (type_name_disposition parameter) */
 #define SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS	1

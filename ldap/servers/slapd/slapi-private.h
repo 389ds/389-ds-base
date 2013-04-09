@@ -495,7 +495,7 @@ typedef enum{
 #define SLAPI_ENTRY_VATTR_RESOLVED_ABSENT -2
 #define SLAPI_ENTRY_VATTR_RESOLVED_EXISTS 0
 
-int slapi_entry_vattrcache_merge_sv(Slapi_Entry *e, const char *type, Slapi_ValueSet *vals);
+int slapi_entry_vattrcache_merge_sv(Slapi_Entry *e, const char *type, Slapi_ValueSet *vals, int buffer_flags);
 int slapi_entry_vattrcache_find_values_and_type_ex( const Slapi_Entry *e,
 											const char *type,
 											Slapi_ValueSet ***results,

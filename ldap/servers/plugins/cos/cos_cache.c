@@ -2096,7 +2096,7 @@ static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_
 	ret = cos_cache_query_attr(pCache, c, e, type, results, NULL, NULL, NULL);
 	if(ret == 0)
 	{
-        *free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES;
+        *free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES | SLAPI_VIRTUALATTRS_VALUES_CACHEABLE;
         *actual_type_name = slapi_ch_strdup(type);
 		*type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS;
 	}

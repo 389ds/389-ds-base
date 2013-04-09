@@ -508,7 +508,7 @@ int vattr_test_filter( Slapi_PBlock *pb,
 					 * entry itself.
 					 * but first lets cache the no result
 					*/			
-					slapi_entry_vattrcache_merge_sv(e, type, NULL );
+					slapi_entry_vattrcache_merge_sv(e, type, NULL, buffer_flags);
 				}
 				else
 				{
@@ -548,7 +548,7 @@ int vattr_test_filter( Slapi_PBlock *pb,
 								 * Cache stuff: dups results
 								*/
 								slapi_entry_vattrcache_merge_sv(e, actual_type_name[i],
-																results[i] );
+																results[i], buffer_flags);
 								/*
 								 * Free stuff, just in case we did not
 								 * get pointers.					 
@@ -577,7 +577,7 @@ int vattr_test_filter( Slapi_PBlock *pb,
 						while(results[i])
 						{
 							slapi_entry_vattrcache_merge_sv(e, actual_type_name[i],
-															results[i] );
+															results[i], buffer_flags);
 							/*
 							 * Free stuff, just in case we did not
 							 * get pointers.					 
@@ -730,7 +730,7 @@ slapi_vattr_values_get_sp(vattr_context *c,
              * But first lets cache the no result
              * Creates the type (if necessary).
             */
-            slapi_entry_vattrcache_merge_sv(e, type, NULL );
+            slapi_entry_vattrcache_merge_sv(e, type, NULL, *buffer_flags);
 
           }
           else
@@ -741,7 +741,7 @@ slapi_vattr_values_get_sp(vattr_context *c,
              * results.
             */
             slapi_entry_vattrcache_merge_sv(e, *actual_type_name,
-                            *results );
+                            *results, *buffer_flags);
           }
 
           break;
@@ -953,7 +953,7 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 						 * But first lets cache the no result
 						 * dups the type (if necessary).
 						*/
-						slapi_entry_vattrcache_merge_sv(e, type, NULL );
+						slapi_entry_vattrcache_merge_sv(e, type, NULL, *buffer_flags);
 
 					}
 					else
@@ -967,7 +967,7 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 						 * when we do real batched attributes
 						 */
 						slapi_entry_vattrcache_merge_sv(e, **actual_type_name,
-															**results );
+															**results, *buffer_flags);
 					}
 				}
 			}
