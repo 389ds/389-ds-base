@@ -209,6 +209,7 @@ typedef enum
 #define DS_ATTR_AUTHTYPE	"authtype"
 #define DS_ATTR_CERT		"clientcert"
 #define DS_ATTR_SSF		"ssf"
+#define DS_ATTR_LDAPI		"ldapi"
 
 #define ACL_ANOM_MAX_ACL 40
 struct scoped_entry_anominfo {
@@ -664,6 +665,7 @@ typedef struct {
 	Acl_PBlock	*aclpb;
 	Slapi_Entry	*resourceEntry;
 	int		ssf;
+	char		*ldapi;
 }lasInfo;
 
 

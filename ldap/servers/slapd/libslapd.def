@@ -1199,3 +1199,4 @@ EXPORTS
 	config_get_pw_mincategories @1206
 	config_get_pw_mintokenlength @1207
 	slapi_check_account_lock @1208
+    	slapi_is_ldapi_conn @1209

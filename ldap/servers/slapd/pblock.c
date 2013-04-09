@@ -3535,6 +3535,15 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	return( 0 );
 }
 
+int
+slapi_is_ldapi_conn(Slapi_PBlock *pb)
+{
+    if(pb && pb->pb_conn){
+    	return pb->pb_conn->c_unix_local;
+    } else {
+        return 0;
+    }
+}
 
 /*
  * Clears (and free's as appropriate) the bind DN and related credentials

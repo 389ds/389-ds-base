@@ -1684,7 +1684,9 @@ DS_LASAuthMethodEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 	/* None method means, we don't care -- otherwise we care */
 	if ((strcasecmp(attr, "none") == 0) ||
-		(strcasecmp(attr, lasinfo.authType) == 0)) {
+		(strcasecmp(attr, lasinfo.authType) == 0) ||
+		(lasinfo.ldapi && strcasecmp(attr, DS_ATTR_LDAPI) == 0))
+	{
 		matched = ACL_TRUE;
 	}
 
@@ -3678,6 +3680,7 @@ acllas__handle_client_search ( Slapi_Entry *e, void *callback_data )
 		aclpb->aclpb_client_entry = slapi_entry_dup ( e );
         return 0;
 }
+
 /*
 *
 * Do all the necessary setup for all the
@@ -3694,7 +3697,6 @@ acllas__handle_client_search ( Slapi_Entry *e, void *callback_data )
 * 	#define LAS_EVAL_FAIL       -4
 * 	#define LAS_EVAL_INVALID    -5
 */
-
 static int
 __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		int allow_range, char *attr_pattern, int *cachable, void **LAS_cookie,
@@ -3750,8 +3752,8 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		return LAS_EVAL_FAIL;
 	}
 
-	if ((rc = PListFindValue(subject, DS_ATTR_ENTRY, 
-					(void **)&linfo->resourceEntry, NULL)) < 0)	{
+	if ((rc = PListFindValue(subject, DS_ATTR_ENTRY,
+					(void **)&linfo->resourceEntry, NULL)) < 0){
 		acl_print_acllib_err(errp, NULL);
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
 		          "%s:Unable to get the Slapi_Entry attr(%d)\n",lasName, rc);
@@ -3767,6 +3769,15 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			"%s:Unable to get the ACLPB(%d)\n", lasName, rc);
 		return LAS_EVAL_FAIL;
 	}
+
+	/* LDAPI? */
+	if ((rc = PListFindValue(subject, DS_ATTR_LDAPI, (void **)&linfo->ldapi, NULL)) < 0){
+		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+		          "%s:Unable to get LDAPI value(%d)\n", lasName, rc);
+
+		return LAS_EVAL_FAIL;
+	}
+
 	if (NULL == attr_pattern ) {
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
 		          "%s:No rule value in the ACL\n", lasName);

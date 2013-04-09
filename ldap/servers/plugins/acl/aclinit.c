@@ -547,7 +547,7 @@ __aclinit__RegisterLases(void)
 		return ACL_ERR;
 	}
 	if (ACL_LasRegister(NULL, DS_LAS_AUTHMETHOD, 
-				(LASEvalFunc_t)DS_LASAuthMethodEval, 
+				(LASEvalFunc_t)DS_LASAuthMethodEval,
 				(LASFlushFunc_t)NULL) < 0) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
 			"Unable to register CLIENTAUTHTYPE Las\n");

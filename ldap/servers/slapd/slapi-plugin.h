@@ -6067,6 +6067,15 @@ int slapi_back_transaction_commit(Slapi_PBlock *pb);
  */
 int slapi_back_transaction_abort(Slapi_PBlock *pb);
 
+/**
+ * Checks if the connection type is LDAPI
+ *
+ * \param pb Parameter block.
+ *
+ * \return \c 1 if connection type is LDAPI
+ * \return \c 0 if connection is not LDAPI
+ */
+int slapi_is_ldapi_conn(Slapi_PBlock *pb);
 
 int slapi_be_is_flag_set(Slapi_Backend * be, int flag);
 void slapi_be_set_flag(Slapi_Backend * be, int flag);

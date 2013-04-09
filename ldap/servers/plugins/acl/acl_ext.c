@@ -446,7 +446,6 @@ acl__handle_plugin_config_entry (Slapi_Entry *e,  void *callback_data )
 int
 acl_create_aclpb_pool ()
 {
-
 	Acl_PBlock			*aclpb;
 	Acl_PBlock			*prev_aclpb;
 	Acl_PBlock			*first_aclpb;
@@ -648,6 +647,11 @@ acl__malloc_aclpb ( )
 					"Unable to set the AUTH TYPE in the Plist\n");
 		goto error;
 	}
+	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_LDAPI, aclpb, 0) < 0) {
+		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+					"Unable to set the AUTH TYPE in the Plist\n");
+		goto error;
+	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_ENTRY, aclpb, 0) < 0) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 					"Unable to set the ENTRY TYPE in the Plist\n");
@@ -771,7 +775,7 @@ acl__free_aclpb ( Acl_PBlock **aclpb_ptr)
 
 /* Initializes the aclpb */
 void 
-acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *ndn, int copy_from_aclcb)
+acl_init_aclpb ( Slapi_PBlock *pb, Acl_PBlock *aclpb, const char *ndn, int copy_from_aclcb)
 {
 	struct acl_cblock	*aclcb = NULL;
 	char				*authType;
@@ -817,6 +821,13 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *ndn, int copy
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
 				"Unable to set the AUTH TYPE in the Plist\n");
 		return;
+	}
+	if(slapi_is_ldapi_conn(pb)){
+		if(PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_LDAPI, "yes", 0) < 0){
+			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+					"Unable to set the AUTH TYPE in the Plist\n");
+			return;
+		}
 	}
 	slapi_pblock_get ( pb, SLAPI_OPERATION_SSF, &ssf);
 	if (PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_SSF, (const void *)ssf, 0) < 0) {
@@ -1035,6 +1046,9 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 		
 		PListDeleteProp(aclpb->aclpb_proplist, rc,  NULL);
 	}
+
+	/* reset the LDAPI property */
+	PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_LDAPI, NULL, 0);
 
 	/*
 	 * Remove the DS_ATTR_IP property from the property list.
