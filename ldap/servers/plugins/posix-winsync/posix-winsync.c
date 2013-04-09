@@ -1396,12 +1396,16 @@ posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slap
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "--> posix_winsync_end_update_cb, retrieving return code\n");
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-        if (rc != 0) {
+        if (LDAP_ALREADY_EXISTS == rc) {
+            slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                            "posix_winsync_end_update_cb: "
+                                "task entry %s already exists\n",
+                                posix_winsync_plugin_name);
+        } else if (rc != 0) {
             slapi_log_error(SLAPI_LOG_FATAL, posix_winsync_plugin_name,
                             "posix_winsync_end_update_cb: "
-                                "failed to add task entry\n");
+                                "failed to add task entry (%d)\n", rc);
         } else {
-
             slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                             "posix_winsync_end_update_cb: "
                                 "add task entry\n");
