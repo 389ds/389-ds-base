@@ -204,8 +204,9 @@ int ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude)
  * allowed to specify yourself on entries.
  * Currenty the list of these is: numSubordinates, hasSubordinates
  */
-int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
-                 int *status)
+int
+add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
+             int *status)
 {
     backend *be;
     char *pdn;
@@ -3549,7 +3550,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
-    slapi_pblock_get( pb, SLAPI_SEQ_TYPE, &ud_flags ); 
+    slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &ud_flags); 
 
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -3624,11 +3625,39 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     workdbdir = rel2abspath(rawworkdbdir);
 
     dbversion_read(li, workdbdir, &ldbmversion, &dataversion);
-    if (ldbmversion && PL_strstr(ldbmversion, BDB_DNFORMAT)) {
+    if (ldbmversion) {
+        char *ptr = PL_strstr(ldbmversion, BDB_DNFORMAT);
+        if (ptr) {
+            size_t dnformat_len = strlen(ptr);
+            /* DN format is RFC 4514 compliant */
+            if (strlen(ptr) == strlen(BDB_DNFORMAT)) { /* no version */
+                /* 
+                 * DN format is RFC 4514 compliant.
+                 * But it hasn't taken care of the multiple spaces yet.
+                 */
+                ud_flags &= ~SLAPI_UPGRADEDNFORMAT;
+                ud_flags |= SLAPI_UPGRADEDNFORMAT_V1;
+                slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &ud_flags); 
+                rc = 3; /* 0: need upgrade (dn norm sp, only) */
+            } else {
+                /* DN format already takes care of the multiple spaces */
+                slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                                "Instance %s in %s is up-to-date\n", 
+                                instance_name, workdbdir);
+                rc = 0; /* 0: up-to-date */
+                goto bail;
+            }
+        } else {
+            /* DN format is not RFC 4514 compliant */
+            ud_flags |= SLAPI_UPGRADEDNFORMAT | SLAPI_UPGRADEDNFORMAT_V1;
+            slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &ud_flags); 
+            rc = 1; /* 0: need upgrade (both) */
+        }
+    } else {
         slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
-                        "Instance %s in %s is up-to-date\n", 
+                        "Failed to get DBVERSION (Instance name: %s, dir %s)\n",
                         instance_name, workdbdir);
-        rc = 1; /* 1: up-to-date; 0: need upgrade; otherwise: error */
+        rc = -1; /* error */
         goto bail;
     }
 
@@ -3681,7 +3710,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     }
     *sep = '/';
     if (((0 == rc) && !(ud_flags & SLAPI_DRYRUN)) ||
-        ((rc > 0) && (ud_flags & SLAPI_DRYRUN))) {
+        ((rc == 0) && (ud_flags & SLAPI_DRYRUN))) {
         /* modify the DBVERSION files if the DN upgrade was successful OR
          * if DRYRUN, the backend instance is up-to-date. */
         dbversion_write(li, workdbdir, NULL, DBVERSION_ALL); /* inst db dir */

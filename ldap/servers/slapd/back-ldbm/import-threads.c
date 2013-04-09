@@ -1241,6 +1241,134 @@ upgradedn_add_to_list(struct upgradedn_attr **ud_list,
 }
 
 /* 
+ * Return value: count of max consecutive spaces
+ */
+static int
+has_spaces(const char *str)
+{
+    char *p = (char *)str;
+    char *np;
+    char *endp = p + strlen(str);
+    int wcnt;
+    int maxwcnt = 0;
+next:
+    if ((np = strchr(p, ' ')) || (np = strchr(p, '\t'))) {
+        wcnt = 0;
+        while ((np < endp) && isspace(*np)) {
+            wcnt++;
+            np++;
+        }
+        if (maxwcnt < wcnt) {
+            maxwcnt = wcnt;
+        }
+        p = np;
+        goto next;
+    } else {
+        goto bail;
+    }
+bail:
+    return maxwcnt;
+}
+
+static int
+add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strids)
+{
+    char *p, *next, *start;
+    ID my_id;
+    ID **conflict;
+    ID *idp;
+    ID *endp;
+    size_t len;
+
+    if ((NULL == dn_norm_sp_conflict) || (NULL == max) || (0 == *max)) {
+        return 1;
+    }
+    p = PL_strchr(strids, ':');
+    if (NULL == p) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "Format error: no ':' in %s\n", strids);
+        return 1;
+    }
+    *p = '\0';
+    my_id = (ID)strtol(strids, (char **)NULL, 10);
+    if (!my_id) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "Invalid ID in %s\n", strids);
+        return 1;
+    }
+
+    if (NULL == *dn_norm_sp_conflict) {
+        *dn_norm_sp_conflict = (ID **)slapi_ch_malloc(sizeof(ID *) * *max);
+    } else if (*max == i + 1) {
+        *max *= 2;
+        *dn_norm_sp_conflict = (ID **)slapi_ch_realloc((char *)*dn_norm_sp_conflict,
+                                                       sizeof(ID *) * *max);
+    }
+    conflict = *dn_norm_sp_conflict;
+
+    len = strlen(strids);
+    while (isspace(*(++p)));
+    start = p;
+    /* since the format is "ID ID ID ...", max count is len/2 + 1 and +1 for my_id */
+    conflict[i] = (ID *)slapi_ch_calloc((len/2 + 2), sizeof(ID));
+    idp = conflict[i];
+    endp = idp + len/2 + 2;
+    *idp++ = my_id;
+    for (p = strtok_r(start, " \n", &next); p && (idp < endp);
+         p = strtok_r(NULL, " \n", &next), idp++) {
+        *idp = (ID)strtol(p, (char **)NULL, 10);
+    }
+    if (idp < endp) {
+        *idp = 0;
+    } else if (idp == endp) {
+        conflict[i] = (ID *)slapi_ch_realloc((char *)conflict[i],
+                                             (len/2 + 3) * sizeof(ID));
+        idp = conflict[i];
+        *(idp + len/2 + 2) = 0;
+    }
+    conflict[i+1] = NULL;
+    return 0;
+}
+
+static void
+free_IDarray(ID ***dn_norm_sp_conflict)
+{
+    int i;
+    if ((NULL == dn_norm_sp_conflict) || (NULL == *dn_norm_sp_conflict)) {
+        return;
+    }
+    for (i = 0; (*dn_norm_sp_conflict)[i]; i++) {
+        slapi_ch_free((void **)&(*dn_norm_sp_conflict)[i]);
+    }
+    slapi_ch_free((void **)dn_norm_sp_conflict);
+}
+
+/* 
+ * dn_norm_sp_conflicts is a double array of IDs.
+ * Format:
+ * primary_ID0: conflict_ID ...
+ * primary_ID1: conflict_ID ...
+ * ...
+ *
+ * is_conflict_ID looks for ghe given id in hte conflict_ID lists
+ * If found, its primary_ID is returned.
+ * Otherwise, 0 is returned.
+ */
+static ID
+is_conflict_ID(ID **dn_norm_sp_conflicts, int max, ID id)
+{
+    int i;
+    ID *idp;
+    for (i = 0; i < max; i++) {
+        for (idp = dn_norm_sp_conflicts[i]; idp && *idp; idp++) {
+            if (*idp == id) {
+                return *dn_norm_sp_conflicts[i];
+            }
+        }
+    }
+    return 0;
+}
+
+/* 
  * Producer thread for upgrading dn format 
  * FLAG_UPGRADEDNFORMAT | FLAG_DRYRUN -- check the necessity of dn upgrade
  * FLAG_UPGRADEDNFORMAT -- execute dn upgrade
@@ -1263,6 +1391,41 @@ upgradedn_add_to_list(struct upgradedn_attr **ud_list,
  *       from ABORTED (aborted or error) and FINISHED (scan all the entries
  *       and found no candidate to upgrade)
  */
+/*
+ * FLAG_UPGRADEDNFORMAT: need to take care space reduction
+ * dn: cn=TEST   USER0 --> dn: cn=TEST USER0
+ * If multiple DNs are found having different count of spaces,
+ * remove the second and later with exporting them into ldif file.
+ * In the dry run, it retrieves all the entries having spaces in dn and 
+ * store the DN and OID in a file.  Mark, conflicts if any.
+ * In the real run, store only no conflict entries and first conflicted one.
+ * The rest are stored in an ldif file.
+ *
+ * Cases:
+ *   FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT | FLAG_UPGRADEDNFORMAT_V1
+ *     ==> 1 & 2-1
+ *   FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1
+ *     ==> 2-1
+ *   FLAG_UPGRADEDNFORMAT | FLAG_UPGRADEDNFORMAT_V1
+ *     ==> 1 & 2-2,3
+ *   FLAG_UPGRADEDNFORMAT_V1
+ *     ==> 2-2,3
+ *
+ *       1) dn normalization
+ *       2) space handling
+ *       2-1) upgradedn dry-run: output into a file (in the instance db dir?)
+ *            format: 
+ *            <original dn>:OID
+ *       2-2) upgrade script sorts the file; retrieve duplicated DNs
+ *            <dn>:OID0
+ *            <dupped dn>:OID1
+ *            <dupped dn>:OID2
+ *
+ *            format: 
+ *            OID0:OID1 OID2 ...
+ *       2-3) upgradedn: compare the OID with the OID1,OID2,
+ *            if match, rename the rdn value to "value <entryid>".
+ */
 void 
 upgradedn_producer(void *param)
 {
@@ -1279,8 +1442,6 @@ upgradedn_producer(void *param)
     Slapi_Attr *a = NULL;
     Slapi_DN *sdn = NULL;
     char *workdn = NULL;
-    int doit = 0;
-    int skipit = 0;
     struct upgradedn_attr *ud_list = NULL;
     char **ud_vals = NULL;
     char **ud_valp = NULL;
@@ -1288,6 +1449,18 @@ upgradedn_producer(void *param)
     Slapi_Attr *ud_attr = NULL;
     char *ecopy = NULL;
     const char *normdn = NULL;
+    char *rdn = NULL; /* original rdn */
+    int is_dryrun = 0;      /* FLAG_DRYRUN */
+    int chk_dn_norm = 0;    /* FLAG_UPGRADEDNFORMAT */
+    int chk_dn_norm_sp = 0; /* FLAG_UPGRADEDNFORMAT_V1 */
+    ID **dn_norm_sp_conflicts = NULL;
+    int do_dn_norm = 0;     /* do dn_norm */
+    int do_dn_norm_sp = 0;  /* do dn_norm_sp */
+    int rdn_has_spaces = 0;
+    int info_state = 0;     /* state to add to info->state (for dryrun only) */
+    int skipit = 0;
+    ID pid;
+    struct backdn *bdn = NULL;
 
     /* vars for Berkeley DB */
     DB_ENV *env = NULL;
@@ -1304,9 +1477,21 @@ upgradedn_producer(void *param)
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
     PR_ASSERT(be != NULL);
-    
-    if ( job->flags & FLAG_ABORT )
+
+    if ( job->flags & FLAG_ABORT ) {
         goto error;
+    }
+
+    is_dryrun = job->flags & FLAG_DRYRUN;
+    chk_dn_norm = job->flags & FLAG_UPGRADEDNFORMAT;
+    chk_dn_norm_sp = job->flags & FLAG_UPGRADEDNFORMAT_V1;
+
+    if (!chk_dn_norm && !chk_dn_norm_sp) {
+        /* Nothing to do... */
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "UpgradeDnFormat is not required.\n");
+        info->state = FINISHED;
+        goto done;
+    }
 
     sleeptime = PR_MillisecondsToInterval(import_sleep_time);
 
@@ -1320,15 +1505,14 @@ upgradedn_producer(void *param)
     /* open id2entry with dedicated db env and db handler */
     if ( dblayer_get_aux_id2entry( be, &db, &env, NULL ) != 0  || db == NULL ||
          env == NULL) {
-        LDAPDebug( LDAP_DEBUG_ANY, "Could not open id2entry\n", 0, 0, 0 );
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "Could not open id2entry\n");
         goto error;
     }
 
     /* get a cursor to we can walk over the table */
     db_rval = db->cursor(db, NULL, &dbc, 0);
     if ( db_rval || !dbc ) {
-        LDAPDebug( LDAP_DEBUG_ANY,
-                   "Failed to get cursor for reindexing\n", 0, 0, 0 );
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "Failed to get cursor for reindexing\n");
         dblayer_release_id2entry(be, db);
         goto error;
     }
@@ -1352,18 +1536,22 @@ upgradedn_producer(void *param)
         slapi_ch_free(&(data.data));
         key.flags = DB_DBT_MALLOC;
         data.flags = DB_DBT_MALLOC;
-        if (isfirst)
-        {
+        if (isfirst) {
             db_rval = dbc->c_get(dbc, &key, &data, DB_FIRST);
             isfirst = 0;
-        }
-        else
-        {
+        } else {
             db_rval = dbc->c_get(dbc, &key, &data, DB_NEXT);
         }
         
         if (0 != db_rval) {
-            if (DB_NOTFOUND != db_rval) {
+            if (DB_NOTFOUND == db_rval) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s: Finished to read database\n",
+                    inst->inst_name);
+                if (job->task) {
+                    slapi_task_log_notice(job->task,
+                        "%s: Finished to read database", inst->inst_name);
+                }
+            } else {
                 LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to read database, "
                     "errno=%d (%s)\n", inst->inst_name, db_rval,
                     dblayer_strerror(db_rval));
@@ -1389,19 +1577,19 @@ upgradedn_producer(void *param)
         memcpy(ecopy, data.dptr, data.dsize);
         *(ecopy + data.dsize) = '\0';
         normdn = NULL;
-        doit = 0;
+        do_dn_norm = 0;
+        do_dn_norm_sp = 0;
+        rdn_has_spaces = 0;
         if (entryrdn_get_switch()) {
-            char *rdn = NULL;
     
-            /* rdn is allocated in get_value_from_string */
+            /* original rdn is allocated in get_value_from_string */
             rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
                 e = slapi_str2entry(data.dptr, 
                                     SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
             } else {
-                struct backdn *bdn = 
-                                  dncache_find_id(&inst->inst_dncache, temp_id);
+                bdn = dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
                     /* don't free dn */
                     normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
@@ -1425,7 +1613,7 @@ upgradedn_producer(void *param)
                         if (rc) {
                             rc = 0; /* assume this is a suffix */
                         } else {
-                            ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
+                            pid = (ID)strtol(pid_str, (char **)NULL, 10);
                             slapi_ch_free_string(&pid_str);
                             /* if pid is larger than the current pid temp_id,
                              * the parent entry hasn't */
@@ -1433,7 +1621,7 @@ upgradedn_producer(void *param)
                                                  pid, &id, &psrdn, &curr_entry);
                             if (rc) {
                                 LDAPDebug2Args( LDAP_DEBUG_ANY,
-                                   "ldbm2index: Failed to compose dn for "
+                                   "uptradedn: Failed to compose dn for "
                                    "(rdn: %s, ID: %d)\n", rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
@@ -1444,7 +1632,7 @@ upgradedn_producer(void *param)
                             slapi_rdn_done(&psrdn);
                             if (rc) {
                                 LDAPDebug2Args( LDAP_DEBUG_ANY,
-                                       "ldbm2index: Failed to compose dn for "
+                                       "uptradedn: Failed to compose dn for "
                                        "(rdn: %s, ID: %d) from Slapi_RDN\n",
                                        rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
@@ -1455,23 +1643,34 @@ upgradedn_producer(void *param)
                                                rdn, pdn?",":"", pdn?pdn:"");
                         slapi_ch_free_string(&pdn);
                     }
-                    /* dn is not dup'ed in slapi_sdn_new_dn_byref.
-                     * It's set to bdn and put in the dn cache. */
-                    sdn = slapi_sdn_new_normdn_byref(normdn);
-                    bdn = backdn_init(sdn, temp_id, 0);
-                    CACHE_ADD( &inst->inst_dncache, bdn, NULL );
-                    CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    slapi_log_error(SLAPI_LOG_CACHE, "ldbm2index",
-                                    "entryrdn_lookup_dn returned: %s, "
-                                    "and set to dn cache\n", normdn);
+                    if (is_dryrun) {
+                        /* if not dryrun, we may change the DN, In such case,
+                         * we need to put the new value to cache.*/
+                        /* dn is dup'ed in slapi_sdn_new_dn_byval.
+                         * It's set to bdn and put in the dn cache. */
+                        sdn = slapi_sdn_new_normdn_byref(normdn);
+                        bdn = backdn_init(sdn, temp_id, 0);
+                        CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+                        CACHE_RETURN(&inst->inst_dncache, &bdn);
+                        normdn = slapi_sdn_get_dn(sdn);
+                        slapi_log_error(SLAPI_LOG_CACHE, "uptradedn",
+                                        "entryrdn_lookup_dn returned: %s, "
+                                        "and set to dn cache\n", normdn);
+                    }
                 }
                 e = slapi_str2entry_ext(normdn, NULL, data.dptr, 
                                         SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-                slapi_ch_free_string(&rdn);
             }
         } else {
             e = 
               slapi_str2entry(data.data, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+            rdn = slapi_ch_strdup(slapi_entry_get_rdn_const(e));
+            if (NULL == rdn) {
+                Slapi_RDN srdn;
+                slapi_rdn_init_dn(&srdn, slapi_entry_get_dn_const(e));
+                rdn = (char *)slapi_rdn_get_rdn(&srdn); /* rdn is allocated in
+                                                         * slapi_rdn_init_dn */
+            }
         }
         if ( NULL == e ) {
             if (job->task) {
@@ -1485,6 +1684,7 @@ upgradedn_producer(void *param)
             continue;
         }
 
+        /* From here, e != NULL */
         /*
          * treat dn specially since the entry was generated with the flag
          * SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT
@@ -1499,24 +1699,154 @@ upgradedn_producer(void *param)
             normdn = slapi_sdn_get_dn(&(e->e_sdn));
         }
 
-        /* From here, e != NULL */
+        /* 
+         * If dryrun && check_dn_norm_sp,
+         * check if rdn's containing multi spaces exist or not.
+         * If any, output the DN:ID into a file INST_dn_norm_sp.txt in the
+         * ldifdir. We have to continue checking all the entries.
+         */
+        if (chk_dn_norm_sp) {
+            char *dn_id;
+            char *path; /* <ldifdir>/<inst>_dn_norm_sp.txt is used for
+                           the temp work file */
+            /* open "path" once, and set FILE* to upgradefd */
+            if (NULL == job->upgradefd) {
+                char *ldifdir = config_get_ldifdir();
+                if (ldifdir) {
+                    path = slapi_ch_smprintf("%s/%s_dn_norm_sp.txt",
+                                             ldifdir, inst->inst_name);
+                    slapi_ch_free_string(&ldifdir);
+                } else {
+                    path = slapi_ch_smprintf("/var/tmp/%s_dn_norm_sp.txt",
+                                             inst->inst_name);
+                }
+                if (is_dryrun) {
+                    job->upgradefd = fopen(path, "w");
+                    if (NULL == job->upgradefd) {
+                        if (job->task) {
+                            slapi_task_log_notice(job->task,
+                                      "%s: No DNs to fix.\n", inst->inst_name);
+                        }
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                      "%s: No DNs to fix.\n", inst->inst_name);
+                        slapi_ch_free_string(&path);
+                        goto bail;
+                    }
+                } else {
+                    job->upgradefd = fopen(path, "r");
+                    if (NULL == job->upgradefd) {
+                        if (job->task) {
+                            slapi_task_log_notice(job->task,
+                                            "%s: Error: failed to open a file \"%s\"",
+                                            inst->inst_name, path);
+                        }
+                        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                       "%s: Error: failed to open a file \"%s\"\n",
+                                       inst->inst_name, path);
+                        slapi_ch_free_string(&path);
+                        goto error;
+                    }
+                }
+            }
+            slapi_ch_free_string(&path);
+            if (is_dryrun) {
+                rdn_has_spaces = has_spaces(rdn);
+                if (rdn_has_spaces > 0) {
+                    dn_id = slapi_ch_smprintf("%s:%u\n",
+                                          slapi_entry_get_dn_const(e), temp_id);
+                    if (EOF == fputs(dn_id, job->upgradefd)) {
+                        if (job->task) {
+                            slapi_task_log_notice(job->task,
+                                        "%s: Error: failed to write a line \"%s\"",
+                                        inst->inst_name, dn_id);
+                        }
+                        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                        "%s: Error: failed to write a line \"%s\"",
+                                        inst->inst_name, dn_id);
+                        slapi_ch_free_string(&dn_id);
+                        goto error;
+                    }
+                    slapi_ch_free_string(&dn_id);
+                    if (rdn_has_spaces > 1) {
+                        /* If an rdn containing multi spaces exists,
+                         * let's check the conflict. */
+                        do_dn_norm_sp = 1;
+                    }
+                }
+            } else { /* !is_dryrun */
+                /* check the oid and parentid. */
+                /* Set conflict list once, and refer it laster. */
+                static int my_idx = 0;
+                ID alt_id;
+                if (NULL == dn_norm_sp_conflicts) {
+                    char buf[BUFSIZ];
+                    char *p;
+                    int my_max = 8;
+                    while (fgets(buf, BUFSIZ-1, job->upgradefd)) {
+                        /* search "OID0: OID1 OID2 ... */
+                        if (!isdigit(*buf) || !(p = PL_strchr(buf, ':'))) {
+                            continue;
+                        }
+                        if (add_IDs_to_IDarray(&dn_norm_sp_conflicts, &my_max,
+                                               my_idx, buf)) {
+                            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                          "Failed to set IDs %s to conflict list\n",
+                                          buf);
+                            goto error;
+                        }
+                        my_idx++;
+                    }
+                }
+                alt_id = is_conflict_ID(dn_norm_sp_conflicts, my_idx, temp_id);
+                if (alt_id) {
+                    char *parentdn = NULL;
+                    char *newrdn = NULL;
+                    if (alt_id != temp_id) {
+                        parentdn = slapi_dn_parent(normdn);
+                        newrdn = slapi_create_dn_string("%s %u", rdn, temp_id);
+                        /* This entry is a conflict of alt_id */
+                        LDAPDebug(LDAP_DEBUG_ANY,
+                                  "Entry %s (%lu) is a conflict of (%lu)\n",
+                                  normdn, temp_id, alt_id);
+                        LDAPDebug2Args(LDAP_DEBUG_ANY, "Renaming \"%s\" to \"%s\"\n",
+                                       rdn, newrdn);
+                        normdn = slapi_ch_smprintf("%s,%s", newrdn, parentdn);
+                        /* Reset DN and RDN in the entry */
+                        slapi_sdn_done(&(e->e_sdn));
+                        slapi_sdn_init_normdn_passin(&(e->e_sdn), normdn);
+                        /* normdn = slapi_sdn_get_dn(&(e->e_sdn)); */
+                    }
+                    info_state |= DN_NORM_SP;
+                    upgradedn_add_to_list(&ud_list,
+                                          slapi_ch_strdup(LDBM_ENTRYRDN_STR),
+                                          slapi_ch_strdup(rdn), 0);
+                    rc = slapi_entry_add_rdn_values(e);
+                    if (rc) {
+                        LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to add rdn values"
+                                  " to an entry: %s (id %lu)\n",
+                                  inst->inst_name, normdn, (u_long)temp_id);
+                        goto error;
+                    }
+                }  /* !alt_id */
+            } /* !is_dryrun */
+        } /* if (chk_dn_norm_sp) */
+
+        /* dn is dup'ed in slapi_sdn_new_dn_byval.
+         * It's set to bdn and put in the dn cache. */
+        /* Waited to put normdn into dncache until it could be modified in
+         * chk_dn_norm_sp. */
+        sdn = slapi_sdn_new_normdn_byref(normdn);
+        bdn = backdn_init(sdn, temp_id, 0);
+        CACHE_ADD(&inst->inst_dncache, bdn, NULL);
+        CACHE_RETURN(&inst->inst_dncache, &bdn);
+        slapi_log_error(SLAPI_LOG_CACHE, "uptradedn",
+                        "set dn %s to dn cache\n", normdn);
         /* Check DN syntax attr values if it contains '\\' or not */
         /* Start from the rdn */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            char *rdn = NULL;
-            size_t rdnlen = 0;
+        if (chk_dn_norm) {
             char *endrdn = NULL;
             char *rdnp = NULL;
-            rc = get_value_from_string((const char *)ecopy, "rdn", &rdn);
-            if (rc || (NULL == rdn)) {
-                LDAPDebug2Args(LDAP_DEBUG_ANY,
-                       "%s: WARNING: skipping an entry with no RDN (id %lu)\n",
-                       inst->inst_name, (u_long)temp_id);
-                slapi_entry_free(e); e = NULL;
-                continue;
-            }
-            rdnlen = strlen(rdn);
-            endrdn = rdn + rdnlen - 1;
+            endrdn = rdn + strlen(rdn) - 1;
 
             rdnp = PL_strchr(rdn, '=');
             if (NULL == rdnp) {
@@ -1528,24 +1858,23 @@ upgradedn_producer(void *param)
                 continue;
             }
             /* rdn contains '\\'.  We have to update the value */
-            if (PL_strchr(rdn, '\\')) {
-                doit = 1;
+            if (PL_strchr(rdnp, '\\')) {
+                do_dn_norm = 1;
             } else {
                 while ((++rdnp <= endrdn) && (*rdnp == ' ') && (*rdnp == '\t'))
                     ;
                 /* DN contains an RDN <type>="<value>" ? */
                 if ((rdnp != endrdn) && ('"' == *rdnp) && ('"' == *endrdn)) {
-                    doit = 1;
+                    do_dn_norm = 1;
                 }
             }
-            if (doit) {
+            if (do_dn_norm) {
                 upgradedn_add_to_list(&ud_list,
                                       slapi_ch_strdup(LDBM_ENTRYRDN_STR),
                                       slapi_ch_strdup(rdn), 0);
-                LDAPDebug(LDAP_DEBUG_TRACE,
-                          "%s: Found upgradedn candidate: %s (id %lu)\n", 
-                          inst->inst_name, *ud_valp, (u_long)temp_id);
-                /* entryrdn format */
+                LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                               "%s: Found upgradedn candidate: (id %lu)\n", 
+                               inst->inst_name, (u_long)temp_id);
                 /*
                  * In case rdn is type="<RDN>" or type=<\D\N>,
                  * add the rdn value if it's not there.
@@ -1559,130 +1888,146 @@ upgradedn_producer(void *param)
                     continue;
                 }
             }
-            slapi_ch_free_string(&rdn);
-        }
-        for (a = e->e_attrs; a; a = a->a_next) {
-            if (!slapi_attr_is_dn_syntax_attr(a)) {
-                continue; /* not a syntax dn attr */
-            }
-
-            /* dn syntax attr */
-            rc = get_values_from_string((const char *)ecopy,
-                                        a->a_type, &ud_vals);
-            if (rc || (NULL == ud_vals)) {
-                continue; /* empty; ignore it */
-            }
-
-            for (ud_valp = ud_vals; ud_valp && *ud_valp; ud_valp++) {
-                char **rdns = NULL;
-                char **rdnsp = NULL;
-                char *valueptr = NULL;
-                char *endvalue = NULL;
-                int isentrydn = 0;
-
-                /* Also check RDN contains double quoted values */
-                if (strcasecmp(a->a_type, "entrydn")) {
-                    /* except entrydn */
-                    workdn = slapi_ch_strdup(*ud_valp);
-                    isentrydn = 0;
-                } else {
-                    /* entrydn: Get Slapi DN */
-                    sdn = slapi_entry_get_sdn(e);
-                    workdn = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
-                    isentrydn = 1;
+            /* checking the DN sintax values in the attribute list */
+            for (a = e->e_attrs; a; a = a->a_next) {
+                if (!slapi_attr_is_dn_syntax_attr(a)) {
+                    continue; /* not a syntax dn attr */
                 }
-                rdns = slapi_ldap_explode_dn(workdn, 0);
-                skipit = 0;
-                for (rdnsp = rdns; rdnsp && *rdnsp; rdnsp++) {
-                    valueptr = PL_strchr(*rdnsp, '=');
-                    if (NULL == valueptr) {
-                        skipit = 1;
-                        break;
+    
+                /* dn syntax attr */
+                rc = get_values_from_string((const char *)ecopy,
+                                            a->a_type, &ud_vals);
+                if (rc || (NULL == ud_vals)) {
+                    continue; /* empty; ignore it */
+                }
+    
+                for (ud_valp = ud_vals; ud_valp && *ud_valp; ud_valp++) {
+                    char **rdns = NULL;
+                    char **rdnsp = NULL;
+                    char *valueptr = NULL;
+                    char *endvalue = NULL;
+                    int isentrydn = 0;
+    
+                    /* Also check RDN contains double quoted values */
+                    if (strcasecmp(a->a_type, "entrydn")) {
+                        /* except entrydn */
+                        workdn = slapi_ch_strdup(*ud_valp);
+                        isentrydn = 0;
+                    } else {
+                        /* entrydn: Get Slapi DN */
+                        sdn = slapi_entry_get_sdn(e);
+                        workdn = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+                        isentrydn = 1;
                     }
-                    endvalue = *rdnsp + strlen(*rdnsp) - 1;
-                    while ((++valueptr <= endvalue) &&
-                           ((' ' == *valueptr) || ('\t' == *valueptr))) ;
-                    if (0 == strlen(valueptr)) {
-                        skipit = 1;
-                        break;
-                    }
-                    /* DN syntax value contains an RDN <type>="<value>" or
-                     * '\\' in the value ? 
-                     * If yes, let's upgrade the dn format. */
-                    if ((('"' == *valueptr) && ('"' == *endvalue)) ||
-                        PL_strchr(valueptr, '\\')) {
-                        doit = 1;
-                        upgradedn_add_to_list(&ud_list, 
-                                              slapi_ch_strdup(a->a_type),
-                                              slapi_ch_strdup(*ud_valp),
-                                              isentrydn?0:OLD_DN_NORMALIZE);
-                        LDAPDebug(LDAP_DEBUG_TRACE,
-                                "%s: Found upgradedn candidate: %s (id %lu)\n", 
-                                inst->inst_name, valueptr, (u_long)temp_id);
-                        if (!entryrdn_get_switch() && isentrydn) {
-                            /* entrydn format */
-                            /*
-                             * In case entrydn is type="<DN>",<REST> or
-                             *                    type=<\D\N>,<REST>,
-                             * add the rdn value if it's not there.
-                             */
-                            rc = slapi_entry_add_rdn_values(e);
-                            if (rc) {
-                                LDAPDebug(LDAP_DEBUG_ANY,
-                                          "%s: Failed to add rdn values "
-                                          "to an entry: %s (id %lu)\n",
-                                          inst->inst_name, normdn, (u_long)temp_id);
-                                slapi_entry_free(e); e = NULL;
-                                continue;
-                            }
+                    rdns = slapi_ldap_explode_dn(workdn, 0);
+                    skipit = 0;
+                    for (rdnsp = rdns; rdnsp && *rdnsp; rdnsp++) {
+                        valueptr = PL_strchr(*rdnsp, '=');
+                        if (NULL == valueptr) {
+                            skipit = 1;
+                            break;
                         }
+                        endvalue = *rdnsp + strlen(*rdnsp) - 1;
+                        while ((++valueptr <= endvalue) &&
+                               ((' ' == *valueptr) || ('\t' == *valueptr))) ;
+                        if (0 == strlen(valueptr)) {
+                            skipit = 1;
+                            break;
+                        }
+                        /* DN syntax value contains an RDN <type>="<value>" or
+                         * '\\' in the value ? 
+                         * If yes, let's upgrade the dn format. */
+                        if ((('"' == *valueptr) && ('"' == *endvalue)) ||
+                            PL_strchr(valueptr, '\\')) {
+                            do_dn_norm = 1;
+                            upgradedn_add_to_list(&ud_list, 
+                                                  slapi_ch_strdup(a->a_type),
+                                                  slapi_ch_strdup(*ud_valp),
+                                                  isentrydn?0:OLD_DN_NORMALIZE);
+                            LDAPDebug(LDAP_DEBUG_TRACE,
+                                    "%s: Found upgradedn candidate: %s (id %lu)\n", 
+                                    inst->inst_name, valueptr, (u_long)temp_id);
+                            if (!entryrdn_get_switch() && isentrydn) {
+                                /* entrydn format */
+                                /*
+                                 * In case entrydn is type="<DN>",<REST> or
+                                 *                    type=<\D\N>,<REST>,
+                                 * add the rdn value if it's not there.
+                                 */
+                                rc = slapi_entry_add_rdn_values(e);
+                                if (rc) {
+                                    LDAPDebug(LDAP_DEBUG_ANY,
+                                              "%s: Failed to add rdn values "
+                                              "to an entry: %s (id %lu)\n",
+                                              inst->inst_name, normdn, (u_long)temp_id);
+                                    slapi_entry_free(e); e = NULL;
+                                    continue;
+                                }
+                            }
+                            break;
+                        }
+                        /*
+                         * else if (the rdn contains multiple spaces)?  
+                         * if yes, they are reduced to one.
+                         * SET HAVE_MULTI_SPACES???
+                         */
+                    } /* for (rdnsp = rdns; rdnsp && *rdnsp; rdnsp++) */
+                    if (rdns) {
+                        slapi_ldap_value_free(rdns);
+                    } else {
+                        skipit = 1;
+                    }
+                    if (skipit) {
                         break;
                     }
-                } /* for (rdnsp = rdns; rdnsp && *rdnsp; rdnsp++) */
-                if (rdns) {
-                    slapi_ldap_value_free(rdns);
-                } else {
-                    skipit = 1;
-                }
+                    slapi_ch_free_string(&workdn);
+                } /* for (ud_valp = ud_vals; ud_valp && *ud_valp; ud_valp++) */
+                charray_free(ud_vals);
+                ud_vals = NULL;
                 if (skipit) {
+                    LDAPDebug(LDAP_DEBUG_ANY, "%s: WARNING: skipping an entry "
+                                  "with a corrupted dn (syntax value): %s "
+                                  "(id %lu)\n",
+                                  inst->inst_name, 
+                                  workdn?workdn:"unknown", (u_long)temp_id);
+                    slapi_ch_free_string(&workdn);
+                    upgradedn_free_list(&ud_list);
                     break;
                 }
-                slapi_ch_free_string(&workdn);
-            } /* for (ud_valp = ud_vals; ud_valp && *ud_valp; ud_valp++) */
-            charray_free(ud_vals);
-            ud_vals = NULL;
+            } /* for (a = e->e_attrs; a; a = a->a_next)  */
             if (skipit) {
-                LDAPDebug(LDAP_DEBUG_ANY, "%s: WARNING: skipping an entry "
-                              "with a corrupted dn (syntax value): %s "
-                              "(id %lu)\n",
-                              inst->inst_name, 
-                              workdn?workdn:"unknown", (u_long)temp_id);
-                slapi_ch_free_string(&workdn);
                 upgradedn_free_list(&ud_list);
-                break;
+                slapi_entry_free(e); e = NULL;
+                continue;
             }
-        } /* for (a = e->e_attrs; a; a = a->a_next)  */
-        if (skipit) {
-            upgradedn_free_list(&ud_list);
-            slapi_entry_free(e); e = NULL;
-            continue;
-        }
+        } /* end of if (chk_do_norm) */
+        slapi_ch_free_string(&rdn);
 
-        if (!doit) {
+        if (is_dryrun) {
+            if (do_dn_norm) {
+                info_state |= DN_NORM;
+                /* 
+                 * If dryrun AND (found we need to do dn norm) AND
+                 * (no need to check spaces), 
+                 * then we can quit here to return.
+                 */
+                if (!chk_dn_norm_sp) {
+                    finished = 0; /* make it sure ... */
+                    upgradedn_free_list(&ud_list);
+                    slapi_entry_free(e); e = NULL;
+                    /* found upgrade dn candidates */
+                    goto bail;
+                }
+            }
+            if (do_dn_norm_sp) {
+                info_state |= DN_NORM_SP;
+            }
             /* We don't have to update dn syntax values. */
             upgradedn_free_list(&ud_list);
             slapi_entry_free(e); e = NULL;
             continue;
         }
-        
-        /* doit */
-        if (job->flags & FLAG_DRYRUN) {
-            /* We can return SUCCESS (== found upgrade dn candidates) */
-            finished = 0; /* make it sure ... */
-            upgradedn_free_list(&ud_list);
-            slapi_entry_free(e); e = NULL;
-            goto bail;
-        }
+
         skipit = 0;
         for (ud_ptr = ud_list; ud_ptr; ud_ptr = ud_ptr->ud_next) {
             Slapi_Value *value = NULL;
@@ -1810,23 +2155,14 @@ upgradedn_producer(void *param)
         id++;
         if (job->flags & FLAG_ABORT)
             goto error;
-        if (info->command == STOP)
-        {
+        if (info->command == STOP) {
             finished = 1;
         }
     }
 bail:
     dbc->c_close(dbc);
     dblayer_release_aux_id2entry( be, db, env );
-    if (job->flags & FLAG_DRYRUN) {
-        if (finished) { /* Set if dn upgrade candidates are not found */
-            info->state = FINISHED;
-        } else { /* At least one dn upgrade candidate is found */
-            info->state = QUIT;
-        }
-    } else {
-        info->state = FINISHED;
-    }
+    info->state = FINISHED | info_state;
     goto done;
 
 error:
@@ -1837,8 +2173,12 @@ error:
     info->state = ABORTED;
 
 done:
+    free_IDarray(&dn_norm_sp_conflicts);
     slapi_ch_free_string(&ecopy);
     slapi_ch_free(&(data.data));
+    if (job->upgradefd) {
+        fclose(job->upgradefd);
+    }
 }
 
 static void
@@ -1883,7 +2223,7 @@ foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_ai)
     int ret = 0;
     struct backentry *entry = fi->entry;
 
-    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+    if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         /* Get the parentid attribute value from deleted attr list */
         Slapi_Value *value = NULL;
         Slapi_Attr *pid_to_del =
@@ -1950,7 +2290,7 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     IDList *IDL;
     struct backentry *entry = fi->entry;
 
-    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+    if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         /* Get the entrydn attribute value from deleted attr list */
         Slapi_Value *value = NULL;
         Slapi_Attr *entrydn_to_del =
@@ -1994,7 +2334,7 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     /* So, we do an index read first */
     err = 0;
     IDL = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &bv, NULL, &err);
-    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+    if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         /*
          * In the UPGRADEDNFORMAT case, if entrydn value exists, 
          * that means either 1) entrydn is not upgraded (ID == entry->ep_id)
@@ -2058,7 +2398,7 @@ foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
     int ret = 0;
     struct backentry *entry = fi->entry;
 
-    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+    if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         /* Get the entrydn attribute value from deleted attr list */
         Slapi_Value *value = NULL;
         Slapi_Attr *entryrdn_to_del = NULL;
@@ -2084,6 +2424,10 @@ foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
                 }
             }
             slapi_attr_free(&entryrdn_to_del);
+            /* Waited to update e_srdn to delete the old entryrdn.
+             * Now updated it to adjust to the new s_dn. */
+            slapi_rdn_set_all_dn(&(entry->ep_entry->e_srdn), 
+                                 slapi_entry_get_dn_const(entry->ep_entry));
         }
     }
     ret = entryrdn_index_entry(be, entry, BE_INDEX_ADD, NULL);
@@ -2169,7 +2513,19 @@ import_foreman(void *param)
             import_log_notice(job, "WARNING: entry for id %d is missing", id);
             continue;
         }
-
+        if (job->flags & FLAG_UPGRADEDNFORMAT_V1) {
+            if (entryrdn_get_switch()) { /* subtree-rename: on */
+                /* insert into the entryrdn index */
+                ret = foreman_do_entryrdn(job, fi);
+            } else {
+                /* insert into the entrydn index */
+                ret = foreman_do_entrydn(job, fi);
+                if (ret == -1) {
+                    goto cont;      /* skip entry */
+                }
+            }
+            goto next;
+        }
         /* first, fill in any operational attributes */
         /* add_op_attrs wants a pblock for some reason. */
         if (job->flags & FLAG_UPGRADEDNFORMAT) {
@@ -2312,7 +2668,7 @@ import_foreman(void *param)
         if (job->flags & FLAG_ABORT) {
             goto error;
         }
-
+next:
         if (!(job->flags & FLAG_REINDEXING))/* reindex reads data from id2entry */
         {
             /* insert into the id2entry index
@@ -2348,14 +2704,14 @@ import_foreman(void *param)
             goto error;
         }
 
-        if (entryrdn_get_switch() /* subtree-rename: on */ ||
+        if (entryrdn_get_switch() /* subtree-rename: on */ &&
             !slapi_entry_flag_is_set(fi->entry->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* parentid index
              * (we have to do this here, because the parentID is dependent on
              * looking up by entrydn/entryrdn.)
              * Only add to the parent index if the entry is not a tombstone &&
-             * subtree-rename is off.
+             * subtree-rename is on.
              */
             ret = foreman_do_parentid(job, fi, parentid_ai);
             if (ret != 0)
@@ -2536,7 +2892,7 @@ import_worker(void *param)
                 slapi_pblock_destroy(pb);
             } else {
                 /* No, process regular index */
-                if (job->flags & FLAG_UPGRADEDNFORMAT) {
+                if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
                     /* Get the attribute value from deleted attr list */
                     Slapi_Value *value = NULL;
                     const struct berval *bval = NULL;

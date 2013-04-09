@@ -51,7 +51,9 @@
 #include "import.h"
 
 #define ERR_IMPORT_ABORTED      -23
-#define DRYRUN_QUIT             -24
+#define NEED_DN_NORM            -24
+#define NEED_DN_NORM_SP         -25
+#define NEED_DN_NORM_BT         -26
 
 
 /********** routines to manipulate the entry fifo **********/
@@ -111,7 +113,9 @@ FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker)
             if (fi->bad) {
                 if (fi->bad == FIFOITEM_BAD) {
                     fi->bad = FIFOITEM_BAD_PRINTED;
-                    import_log_notice(job, "WARNING: bad entry: ID %d", id);
+                    if (!(job->flags & FLAG_UPGRADEDNFORMAT_V1)) {
+                        import_log_notice(job, "WARNING: bad entry: ID %d", id);
+                    }
                 }
                 return NULL;
             }
@@ -197,7 +201,7 @@ void import_log_notice(ImportJob *job, char *format, ...)
         slapi_task_log_notice(job->task, "%s", buffer);
     }
     /* also save it in the logs for posterity */
-    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+    if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         LDAPDebug(LDAP_DEBUG_ANY, "upgradedn %s: %s\n", job->inst->inst_name,
                   buffer, 0);
     } else if (job->flags & FLAG_REINDEXING) {
@@ -260,7 +264,7 @@ static int import_attr_callback(void *node, void *param)
     if (job->flags & FLAG_DRYRUN) { /* dryrun; we don't need the workers */
         return 0;
     }
-    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+    if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         /* Bring up import workers just for indexes having DN syntax 
          * attribute type. (except entrydn -- taken care below) */
         int rc = 0;
@@ -707,6 +711,7 @@ static int import_monitor_threads(ImportJob *job, int *status)
     time_t last_time = 0;
     time_t time_interval = 0;
     int rc = 0;
+    int corestate = 0;
 
     for (current_worker = job->worker_list; current_worker != NULL; 
          current_worker = current_worker->next) {
@@ -774,14 +779,31 @@ static int import_monitor_threads(ImportJob *job, int *status)
                 import_calc_rate(current_worker, time_interval);
                 import_print_worker_status(current_worker);
             }
-            if (current_worker->state == QUIT) {
-                rc = DRYRUN_QUIT; /* Set the RC; Don't abort now; 
-                                     We have to stop other threads */
+            corestate = current_worker->state & CORESTATE;
+            if (current_worker->state == ABORTED) {
+LDAPDebug0Args(LDAP_DEBUG_ANY, "import_monitor_threads: current_worker->state is ABORTED\n");
+                goto error_abort;
+            } else if ((corestate == QUIT) || (corestate == FINISHED)) {
+LDAPDebug1Arg(LDAP_DEBUG_ANY, "import_monitor_threads: current_worker->state is %s\n", (corestate==QUIT)?"QUIT":"FINISHED");
+                if (DN_NORM_BT == (DN_NORM_BT & current_worker->state)) {
+                    /* upgrading dn norm (both) is needed */
+                    rc = NEED_DN_NORM_BT; /* Set the RC; Don't abort now;
+                                           * We have to stop other
+                                           * threads */
+                } else if (DN_NORM == (DN_NORM_BT & current_worker->state)) {
+                    /* upgrading dn norm is needed */
+                    rc = NEED_DN_NORM; /* Set the RC; Don't abort now; 
+                                        * We have to stop other threads
+                                        */
+                } else if (DN_NORM_SP == (DN_NORM_BT & current_worker->state)) {
+                    /* upgrading spaces in dn norm is needed */
+                    rc = NEED_DN_NORM_SP; /* Set the RC; Don't abort now;
+                                           * We have to stop other 
+                                           * threads */
+                }
+                current_worker->state = corestate;
             } else if (current_worker->state != FINISHED) {
                 finished = 0;
-            }
-            if (current_worker->state == ABORTED) {
-                goto error_abort;
             }
         }
 
@@ -906,7 +928,9 @@ static int import_run_pass(ImportJob *job, int *status)
 
     /* Monitor the threads until we're done or fail */
     ret = import_monitor_threads(job, status);
-    if ((ret == ERR_IMPORT_ABORTED) || (ret == DRYRUN_QUIT)) {
+    if ((ret == ERR_IMPORT_ABORTED) || (ret == NEED_DN_NORM) ||
+        (ret == NEED_DN_NORM_SP) || (ret == NEED_DN_NORM_BT)) {
+import_log_notice(job, "Thread monitoring returned: %d\n", ret);
         goto error;
     } else if (ret != 0) {
         import_log_notice(job, "Thread monitoring aborted: %d\n", ret);
@@ -1140,11 +1164,16 @@ int import_main_offline(void *arg)
     if (job->task)
         slapi_task_inc_refcount(job->task);
 
-    if (job->flags & FLAG_UPGRADEDNFORMAT) {
+    if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
         if (job->flags & FLAG_DRYRUN) {
             opstr = "Upgrade Dn Dryrun";
+        } else if ((job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1))
+                   == (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
+            opstr = "Upgrade Dn (Full)";
+        } else if (job->flags & FLAG_UPGRADEDNFORMAT_V1) {
+            opstr = "Upgrade Dn (Spaces)";
         } else {
-            opstr = "Upgrade Dn";
+            opstr = "Upgrade Dn (RFC 4514)";
         }
     } else if (job->flags & FLAG_REINDEXING) {
         opstr = "Reindexing";
@@ -1187,7 +1216,7 @@ int import_main_offline(void *arg)
         /* start the producer */
         import_init_worker_info(producer, job);
         producer->work_type = PRODUCER;
-        if (job->flags & FLAG_UPGRADEDNFORMAT)
+        if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1))
         {
             if (! CREATE_THREAD(PR_USER_THREAD, (VFP)upgradedn_producer, 
                 producer, PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
@@ -1278,11 +1307,10 @@ int import_main_offline(void *arg)
             aborted = 1;
             goto error;
         }
-        if (ret == DRYRUN_QUIT) {
-            goto error; /* Found the candidate; close the db files and quit */
-        }
-
-        if (0 != ret) {
+        if ((ret == NEED_DN_NORM) || (ret == NEED_DN_NORM_SP) ||
+            (ret == NEED_DN_NORM_BT)) {
+            goto error;
+        } else if (0 != ret) {
             /* Some horrible fate has befallen the import */
             import_log_notice(job, "Fatal pass error %d", ret);
             goto error;
@@ -1414,7 +1442,8 @@ error:
         }
     }
     if (0 != ret) {
-        if (!(job->flags & FLAG_DRYRUN)) { /* If not dryrun */
+        if (!(job->flags & (FLAG_DRYRUN|FLAG_UPGRADEDNFORMAT_V1))) {
+            /* If not dryrun NOR upgradedn space */
             /* if running in the dry run mode, don't touch the db */
             dblayer_delete_instance_dir(be);
         }
@@ -1475,23 +1504,40 @@ error:
         }
     }
 
-    if (job->flags & FLAG_DRYRUN) {
+    if (job->flags & (FLAG_DRYRUN|FLAG_UPGRADEDNFORMAT_V1)) {
         if (0 == ret) {
             import_log_notice(job, "%s complete.  %s is up-to-date.", 
                               opstr, job->inst->inst_name);
-            ret = 1;
+            ret = 0;
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
-        } else if (DRYRUN_QUIT == ret) {
-            import_log_notice(job, "%s complete.  %s needs upgradednformat.", 
+        } else if (NEED_DN_NORM_BT == ret) {
+            import_log_notice(job, "%s complete. %s needs upgradednformat all.",
                               opstr, job->inst->inst_name);
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
-            ret = 0;
+            ret = 1;
+        } else if (NEED_DN_NORM == ret) {
+            import_log_notice(job, "%s complete. %s needs upgradednformat.", 
+                              opstr, job->inst->inst_name);
+            if (job->task) {
+                slapi_task_dec_refcount(job->task);
+            }
+            import_all_done(job, ret);
+            ret = 2;
+        } else if (NEED_DN_NORM_SP == ret) {
+            import_log_notice(job,
+                              "%s complete. %s needs upgradednformat spaces.", 
+                              opstr, job->inst->inst_name);
+            if (job->task) {
+                slapi_task_dec_refcount(job->task);
+            }
+            import_all_done(job, ret);
+            ret = 3;
         } else {
             ret = -1;
             if (job->task != NULL) {
@@ -1581,8 +1627,13 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
     job->flags = FLAG_USE_FILES;
     if (NULL == name_array) {    /* no ldif file is given -> reindexing or
                                                              upgradedn */
-        if (up_flags & SLAPI_UPGRADEDNFORMAT) {
-            job->flags |= FLAG_UPGRADEDNFORMAT;
+        if (up_flags & (SLAPI_UPGRADEDNFORMAT|SLAPI_UPGRADEDNFORMAT_V1)) {
+            if (up_flags & SLAPI_UPGRADEDNFORMAT) {
+                job->flags |= FLAG_UPGRADEDNFORMAT;
+            }
+            if (up_flags & SLAPI_UPGRADEDNFORMAT_V1) {
+                job->flags |= FLAG_UPGRADEDNFORMAT_V1;
+            }
             if (up_flags & SLAPI_DRYRUN) {
                 job->flags |= FLAG_DRYRUN;
             }
