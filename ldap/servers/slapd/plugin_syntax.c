@@ -968,7 +968,7 @@ slapi_attr_value_normalize_ext(
 		break;
 	}
 
-	if (!norm_fn) {
+	if (!norm_fn && sattr->a_plugin) {
 		/* no matching rule specific normalizer specified - use syntax default */
 		norm_fn = sattr->a_plugin->plg_syntax_normalize;
 	}
