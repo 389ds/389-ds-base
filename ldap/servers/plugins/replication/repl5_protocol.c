@@ -369,9 +369,9 @@ prot_start(Repl_Protocol *rp)
 	{
                 rp->agmt_thread = PR_CreateThread(PR_USER_THREAD, prot_thread_main, (void *)rp,
 #if defined(__hpux) && defined(__ia64)
-			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, 524288L );
+			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD, 524288L );
 #else
-			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+			PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 #endif
 		if (rp->agmt_thread == NULL)
         {

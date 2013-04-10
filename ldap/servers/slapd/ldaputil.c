@@ -1126,7 +1126,19 @@ slapi_ldap_bind(
 	if (msgidp) { /* let caller process result */
 	    *msgidp = mymsgid;
 	} else { /* process results */
-	    rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, timeout, &result);
+            struct timeval default_timeout, *bind_timeout;
+            
+            if ((timeout == NULL) || ((timeout->tv_sec == 0) && (timeout->tv_usec == 0))) {
+                    /* Let's wait 1 min max to bind */
+                    default_timeout.tv_sec  = 60;
+                    default_timeout.tv_usec = 0;
+                    
+                    bind_timeout = &default_timeout;
+            } else {
+                    /* take the one provided by the caller. It should be the one defined in the protocol */
+                    bind_timeout = timeout;
+            }
+	    rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, bind_timeout, &result);
 	    if (-1 == rc) { /* error */
 		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
@@ -1141,8 +1153,8 @@ slapi_ldap_bind(
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error: timeout after [%ld.%ld] seconds reading "
 				"bind response for [%s] authentication mechanism [%s]\n",
-				timeout ? timeout->tv_sec : 0,
-				timeout ? timeout->tv_usec : 0,
+				bind_timeout ? bind_timeout->tv_sec : 0,
+				bind_timeout ? bind_timeout->tv_usec : 0,
 				bindid ? bindid : "(anon)",
 				mech ? mech : "SIMPLE");
 		goto done;
