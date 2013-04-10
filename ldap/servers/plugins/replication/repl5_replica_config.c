@@ -2368,7 +2368,8 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
      *  If there is no maxcsn, set the proper csnstr
      */
     csnstr = csn_as_string(clean_data->maxcsn, PR_FALSE, csnstr);
-    if(csnstr == NULL || csn_get_replicaid(clean_data->maxcsn) == 0){
+    if ((csnstr == NULL) || (csn_get_replicaid(clean_data->maxcsn) == 0)) {
+        slapi_ch_free_string(&csnstr); /* no problem to pass NULL */
         csnstr = slapi_ch_strdup("00000000000000000000");
     }
     /*
