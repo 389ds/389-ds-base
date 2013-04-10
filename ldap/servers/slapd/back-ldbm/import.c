@@ -781,10 +781,8 @@ static int import_monitor_threads(ImportJob *job, int *status)
             }
             corestate = current_worker->state & CORESTATE;
             if (current_worker->state == ABORTED) {
-LDAPDebug0Args(LDAP_DEBUG_ANY, "import_monitor_threads: current_worker->state is ABORTED\n");
                 goto error_abort;
             } else if ((corestate == QUIT) || (corestate == FINISHED)) {
-LDAPDebug1Arg(LDAP_DEBUG_ANY, "import_monitor_threads: current_worker->state is %s\n", (corestate==QUIT)?"QUIT":"FINISHED");
                 if (DN_NORM_BT == (DN_NORM_BT & current_worker->state)) {
                     /* upgrading dn norm (both) is needed */
                     rc = NEED_DN_NORM_BT; /* Set the RC; Don't abort now;
