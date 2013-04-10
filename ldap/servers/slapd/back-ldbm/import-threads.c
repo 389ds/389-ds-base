@@ -1780,11 +1780,10 @@ upgradedn_producer(void *param)
                 ID alt_id;
                 if (NULL == dn_norm_sp_conflicts) {
                     char buf[BUFSIZ];
-                    char *p;
                     int my_max = 8;
                     while (fgets(buf, BUFSIZ-1, job->upgradefd)) {
                         /* search "OID0: OID1 OID2 ... */
-                        if (!isdigit(*buf) || !(p = PL_strchr(buf, ':'))) {
+                        if (!isdigit(*buf) || (NULL == PL_strchr(buf, ':'))) {
                             continue;
                         }
                         if (add_IDs_to_IDarray(&dn_norm_sp_conflicts, &my_max,
@@ -1799,11 +1798,9 @@ upgradedn_producer(void *param)
                 }
                 alt_id = is_conflict_ID(dn_norm_sp_conflicts, my_idx, temp_id);
                 if (alt_id) {
-                    char *parentdn = NULL;
-                    char *newrdn = NULL;
                     if (alt_id != temp_id) {
-                        parentdn = slapi_dn_parent(normdn);
-                        newrdn = slapi_create_dn_string("%s %u", rdn, temp_id);
+                        char *newrdn = slapi_create_dn_string("%s %u", rdn, temp_id);
+                        char *parentdn = slapi_dn_parent(normdn);
                         /* This entry is a conflict of alt_id */
                         LDAPDebug(LDAP_DEBUG_ANY,
                                   "Entry %s (%lu) is a conflict of (%lu)\n",
@@ -1811,6 +1808,8 @@ upgradedn_producer(void *param)
                         LDAPDebug2Args(LDAP_DEBUG_ANY, "Renaming \"%s\" to \"%s\"\n",
                                        rdn, newrdn);
                         normdn = slapi_ch_smprintf("%s,%s", newrdn, parentdn);
+                        slapi_ch_free_string(&newrdn);
+                        slapi_ch_free_string(&parentdn);
                         /* Reset DN and RDN in the entry */
                         slapi_sdn_done(&(e->e_sdn));
                         slapi_sdn_init_normdn_passin(&(e->e_sdn), normdn);
