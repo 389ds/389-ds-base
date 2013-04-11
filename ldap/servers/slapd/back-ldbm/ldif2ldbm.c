@@ -3628,7 +3628,6 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     if (ldbmversion) {
         char *ptr = PL_strstr(ldbmversion, BDB_DNFORMAT);
         if (ptr) {
-            size_t dnformat_len = strlen(ptr);
             /* DN format is RFC 4514 compliant */
             if (strlen(ptr) == strlen(BDB_DNFORMAT)) { /* no version */
                 /* 
