@@ -25,6 +25,7 @@ usage()
     echo "        -h             - Display usage"
 }
 
+display_version="no"
 while getopts "Z:n:hVvfd:n:D:" flag
 do
     case $flag in
