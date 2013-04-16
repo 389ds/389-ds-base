@@ -395,6 +395,7 @@ int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *err
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_listen_backlog_size(const char *attrname, char *value, char *errorbuf, int apply);
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -556,6 +557,7 @@ char *config_get_allowed_sasl_mechs();
 int config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_schemamod();
 int config_get_sasl_maxbufsize();
+int config_get_listen_backlog_size(void);
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);

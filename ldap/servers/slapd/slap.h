@@ -2054,6 +2054,15 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_NDN_CACHE_SIZE "nsslapd-ndn-cache-max-size"
 #define CONFIG_ALLOWED_SASL_MECHS "nsslapd-allowed-sasl-mechanisms"
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
+#define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
+
+/*
+ * Define the backlog number for use in listen() call.
+ * We use the same definition as in ldapserver/include/base/systems.h
+ */
+#ifndef DAEMON_LISTEN_SIZE
+#define DAEMON_LISTEN_SIZE 128
+#endif
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2249,6 +2258,7 @@ typedef struct _slapdFrontendConfig {
   int minssf_exclude_rootdse; /* ON: minssf is ignored when searching rootdse */
   size_t maxsasliosize;         /* limit incoming SASL IO packet size */
   char *anon_limits_dn;		/* template entry for anonymous resource limits */
+  int listen_backlog_size;      /* size of backlog parameter to PR_Listen */
 #ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
 #endif /* _WIN32 */
