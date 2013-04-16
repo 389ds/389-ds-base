@@ -101,14 +101,6 @@
 #include "getsocketpeer.h"
 #endif /* ENABLE_LDAPI */
 
-/*
- * Define the backlog number for use in listen() call.
- * We use the same definition as in ldapserver/include/base/systems.h
- */
-#ifndef DAEMON_LISTEN_SIZE
-#define DAEMON_LISTEN_SIZE 128
-#endif
-
 #if defined (LDAP_IOCP)
 #define	SLAPD_WAKEUP_TIMER	250
 #else
@@ -1085,7 +1077,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	/* We are now ready to accept incoming connections */
 #if defined( XP_WIN32 )
 	if ( n_tcps != SLAPD_INVALID_SOCKET
-				&& listen( n_tcps, DAEMON_LISTEN_SIZE ) == -1 ) {
+				&& listen( n_tcps, config_get_listen_backlog_size() ) == -1 ) {
 		int		oserr = errno;
 		char	addrbuf[ 256 ];
 
@@ -1101,7 +1093,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		PRFileDesc **fdesp;
 		PRNetAddr  **nap = ports->n_listenaddr;
 		for (fdesp = n_tcps; fdesp && *fdesp; fdesp++, nap++) {
-			if ( PR_Listen( *fdesp, DAEMON_LISTEN_SIZE ) == PR_FAILURE ) {
+			if ( PR_Listen( *fdesp, config_get_listen_backlog_size() ) == PR_FAILURE ) {
 				PRErrorCode prerr = PR_GetError();
 				char		addrbuf[ 256 ];
 
@@ -1121,7 +1113,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		PRFileDesc **fdesp;
 		PRNetAddr  **sap = ports->s_listenaddr;
 		for (fdesp = s_tcps; fdesp && *fdesp; fdesp++, sap++) {
-			if ( PR_Listen( *fdesp, DAEMON_LISTEN_SIZE ) == PR_FAILURE ) {
+			if ( PR_Listen( *fdesp, config_get_listen_backlog_size() ) == PR_FAILURE ) {
 				PRErrorCode prerr = PR_GetError();
 				char		addrbuf[ 256 ];
 
@@ -1142,7 +1134,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		PRFileDesc **fdesp;
 		PRNetAddr  **iap = ports->i_listenaddr;
 		for (fdesp = i_unix; fdesp && *fdesp; fdesp++, iap++) {
-			if ( PR_Listen(*fdesp, DAEMON_LISTEN_SIZE) == PR_FAILURE) {
+			if ( PR_Listen(*fdesp, config_get_listen_backlog_size()) == PR_FAILURE) {
 				PRErrorCode prerr = PR_GetError();
 				slapi_log_error(SLAPI_LOG_FATAL, "slapd_daemon",
 					"listen() on %s failed: error %d (%s)\n",
