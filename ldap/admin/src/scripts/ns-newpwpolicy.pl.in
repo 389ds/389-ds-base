@@ -97,8 +97,8 @@ sub usage {
 {
     usage() if (!getopts('vD:w:j:p:P:h:U:S:Z:'));
 
-    $opt_Z = DSUtil::get_server_id($opt_Z, "@initconfigdir@");
-    %info = DSUtil::get_info("@instconfigdir@", $opt_Z, $opt_h, $opt_p, $opt_D);
+    ($opt_Z, $confdir) = DSUtil::get_server_id($opt_Z, "@initconfigdir@");
+    %info = DSUtil::get_info($confdir, $opt_h, $opt_p, $opt_D);
     $info{rootdnpw} = $opt_w;
     $info{protocol} = $opt_P;
     if ($opt_j ne ""){

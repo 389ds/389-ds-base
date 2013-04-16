@@ -1,8 +1,8 @@
 #!/bin/sh
 
-source @datadir@/dirsrv/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
-libpath_add "@libdir@/dirsrv/"
+libpath_add "@libdir@/@package_name@/"
 libpath_add "@ldapsdk_libdir@"
 libpath_add "@libdir@"
 libpath_add "@nss_libdir@"
@@ -40,12 +40,12 @@ do
     esac
 done
 
-servid=$(get_server_id "@initconfigdir@" $servid)
+initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $servid"
+    echo "Available instances: $initfile"
     exit 1
 fi
 
@@ -54,8 +54,9 @@ then
     MDN="cn=monitor"
 fi
 
+. $initfile
 
-process_dse $servid $$
+process_dse $CONFIG_DIR $$
 file="/tmp/DSSharedLib.$$"
 port=$(grep -i 'nsslapd-port' $file | awk '{print $2}' )
 host=$(grep -i 'nsslapd-localhost' $file | awk '{print $2}' )

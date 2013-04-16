@@ -1,8 +1,8 @@
 #!/bin/sh
 
-source @datadir@/dirsrv/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
-libpath_add "@libdir@/dirsrv/"
+libpath_add "@libdir@/@package_name@/"
 libpath_add "@nss_libdir@"
 libpath_add "@libdir@"
 
@@ -38,20 +38,21 @@ do
     esac
 done
 
-servid=$(get_server_id "@initconfigdir@" $servid)
+initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $servid"
+    echo "Available instances: $initfile"
     exit 1
 fi
 
-configdir="@instconfigdir@/slapd-$servid"
+servid=`normalize_server_id $initfile`
+. $initfile
 
 if [ "$archive" != "provided" ]; then
     bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
     args=$args"-a $bak_dir"
 fi
 
-@sbindir@/ns-slapd upgradedb -D $configdir -r $args
+@sbindir@/ns-slapd upgradedb -D $CONFIG_DIR -r $args

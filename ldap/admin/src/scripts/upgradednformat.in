@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source @datadir@/dirsrv/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
 # upgradednformat -- upgrade DN format to the new style (RFC 4514)
 # Usgae: upgradednformat [-N] -n backend_instance -a db_instance_directory
@@ -10,7 +10,7 @@ source @datadir@/dirsrv/data/DSSharedLib
 #        -a db_instance_directory -- full path to the db instance dir
 #                                    e.g., /var/lib/dirsrv/slapd-ID/db/userRoot
 
-libpath_add "@libdir@/dirsrv/"
+libpath_add "@libdir@/@package_name@/"
 libpath_add "@nss_libdir@"
 libpath_add "@libdir@"
 libpath_add "@pcre_libdir@"
@@ -54,18 +54,18 @@ if [ "$be" = "" ] || [ "$dir" = "" ]; then
     exit 1
 fi
 
-servid=$(get_server_id "@initconfigdir@" $servid)
+initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $servid"
+    echo "Available instances: $initfile"
     exit 1
 fi
 
-configdir="@instconfigdir@/slapd-$servid"
+. $initfile
 
-@sbindir@/ns-slapd upgradednformat -D $configdir $args
+@sbindir@/ns-slapd upgradednformat -D $CONFIG_DIR $args
 rc=$?
 
 exit $rc

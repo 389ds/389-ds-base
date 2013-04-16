@@ -6,17 +6,16 @@
 #       1: Server could not be stopped
 #       2: Server was not running
 
-libpath_add() {
-    [ -z "$1" ] && return
-    LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
-}
+source @datadir@/@package_name@/data/DSSharedLib
 
 stop_instance() {
     SERV_ID=$1
 
+    initfile=`get_init_file $initconfig_dir $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
+
     # source env. for this instance
-    if [ -f $initconfig_dir/@package_name@-$SERV_ID ] ; then
-        . $initconfig_dir/@package_name@-$SERV_ID
+    if [ -f $initfile ] ; then
+        . $initfile
     else
         echo Instance $SERV_ID not found.
         return 1
@@ -67,33 +66,19 @@ done
 shift $(($OPTIND-1))
 
 if [ "$initconfig_dir" = "" ]; then
-    # convert
-    # uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),.....
-    # to
-    # 0
-    # this is the only portable, secure way to determine the id number
-    userid=`id | awk -F'[=(]+' '{print $2}'`
-    if [ "$userid" -eq 0 ] ; then
-        initconfig_dir=@initconfigdir@
-    else
-        initconfig_dir=$HOME/.@package_name@
-    fi
+    initconfig_dir=@initconfigdir@
 fi
 
 if [ "$#" -eq 0 ]; then
     # We're stopping all instances.
     ret=0
-    for i in $initconfig_dir/@package_name@-*; do
+    initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
+    for i in $initfiles; do
         if [ ! -f "$i" ] ; then
             echo No instances found in $initconfig_dir
             exit 1
         fi
-        regex=s,$initconfig_dir/@package_name@-,,g
-        inst=`echo $i | sed -e $regex`
-        # check for admin server ID used by 389-admin pkg, and ignore it
-        if [ "$inst" = "admin" ]; then
-            continue
-        fi
+        inst=`normalize_server_id $i`
         echo Stopping instance \"$inst\"
         stop_instance $inst
         rv=$?
