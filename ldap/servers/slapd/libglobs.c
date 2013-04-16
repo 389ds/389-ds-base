@@ -256,6 +256,7 @@ slapi_onoff_t init_ndn_cache_enabled;
 slapi_onoff_t init_sasl_mapping_fallback;
 slapi_onoff_t init_return_orig_type;
 slapi_onoff_t init_enable_turbo_mode;
+slapi_int_t init_listen_backlog_size;
 #ifdef MEMPOOL_EXPERIMENTAL
 slapi_onoff_t init_mempool_switch;
 #endif
@@ -1042,7 +1043,11 @@ static struct config_get_and_set {
 	{CONFIG_ENABLE_TURBO_MODE, config_set_enable_turbo_mode,
 	        NULL, 0,
 	        (void**)&global_slapdFrontendConfig.enable_turbo_mode,
-	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_turbo_mode, &init_enable_turbo_mode}
+	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_turbo_mode, &init_enable_turbo_mode},
+	{CONFIG_LISTEN_BACKLOG_SIZE, config_set_listen_backlog_size,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.listen_backlog_size, CONFIG_INT,
+		(ConfigGetFunc)config_get_listen_backlog_size, &init_listen_backlog_size}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1482,6 +1487,7 @@ FrontendConfig_init () {
   init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
   init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
 
+  init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -6910,6 +6916,32 @@ config_set_enable_turbo_mode( const char *attrname, char *value,
                               &(slapdFrontendConfig->enable_turbo_mode),
                               errorbuf, apply);
     return retVal;
+}
+
+int
+config_set_listen_backlog_size( const char *attrname, char *value,
+		char *errorbuf, int apply )
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	if ( apply ) {
+    		PR_AtomicSet(&slapdFrontendConfig->listen_backlog_size, atoi(value));
+	}
+	return LDAP_SUCCESS;
+}
+
+int
+config_get_listen_backlog_size()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->listen_backlog_size;
+  return retVal; 
 }
 
 /*
