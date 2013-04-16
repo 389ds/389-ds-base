@@ -704,7 +704,11 @@ static struct config_get_and_set {
 	{CONFIG_CONNECTION_BUFFER, config_set_connection_buffer,
 	        NULL, 0,
 	        (void**)&global_slapdFrontendConfig.connection_buffer,
-	        CONFIG_INT, (ConfigGetFunc)config_get_connection_buffer}
+	        CONFIG_INT, (ConfigGetFunc)config_get_connection_buffer},
+	{CONFIG_LISTEN_BACKLOG_SIZE, config_set_listen_backlog_size,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.listen_backlog_size, CONFIG_INT,
+		(ConfigGetFunc)config_get_listen_backlog_size}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1116,6 +1120,7 @@ FrontendConfig_init () {
   cfg->enable_turbo_mode = LDAP_ON;
   cfg->connection_buffer = CONNECTION_BUFFER_ON;
 
+  cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -6313,6 +6318,32 @@ config_set_connection_buffer( const char *attrname, char *value,
 
     PR_AtomicSet(&slapdFrontendConfig->connection_buffer, atoi(value));
     return retVal;
+}
+
+int
+config_set_listen_backlog_size( const char *attrname, char *value,
+		char *errorbuf, int apply )
+{
+	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	
+	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+		return LDAP_OPERATIONS_ERROR;
+	}
+
+	if ( apply ) {
+    		slapdFrontendConfig->listen_backlog_size = atoi(value);
+	}
+	return LDAP_SUCCESS;
+}
+
+int
+config_get_listen_backlog_size()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->listen_backlog_size;
+  return retVal; 
 }
 
 /*
