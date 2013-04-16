@@ -392,6 +392,7 @@ int config_set_disk_grace_period( const char *attrname, char *value, char *error
 int config_set_disk_logging_critical( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_listen_backlog_size(const char *attrname, char *value, char *errorbuf, int apply);
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -547,6 +548,7 @@ long config_get_disk_threshold();
 int config_get_disk_grace_period();
 int config_get_disk_logging_critical();
 int config_get_sasl_maxbufsize();
+int config_get_listen_backlog_size(void);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
