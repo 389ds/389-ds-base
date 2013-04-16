@@ -1205,11 +1205,10 @@ sub libpath_add {
 sub get_info {
     my %info = ();
     my $dir = shift;
-    my $servID = shift;
     $info{host} = shift;
     $info{port} = shift; 
     $info{rootdn} = shift;
-    my $dse_file = "$dir/slapd-$servID/dse.ldif";
+    my $dse_file = "$dir/dse.ldif";
     my $foundcfg = "no";
     my $value;
     my $entry;
@@ -1277,7 +1276,7 @@ sub get_info {
 }
 
 #
-# Grab the server instance ID
+# return the normalized server id and the server config dir (contains dse.ldif)
 #
 sub get_server_id {
     my $servid = shift;
@@ -1287,54 +1286,106 @@ sub get_server_id {
     my $instances = "<none>";
     my $name;
     my $file;
+    my @extra = ();
+    my $extradir = "";
 
     if (getLogin ne 'root') {
-        $dir = "$ENV{HOME}/.@package_name@";
+        $extradir = "$ENV{HOME}/.@package_name@";
+        if (-d $extradir) {
+            opendir(EXTRADIR, $extradir);
+            @extra = map {$_ = "$extradir/$_"} readdir(EXTRADIR);
+            closedir(EXTRADIR);
+        }
     }
 
     if (defined $ENV{INITCONFIGDIR}) {
         $dir = $ENV{INITCONFIGDIR};
+        @extra = (); # only use what was provided
+        $extradir = "";
     }
-    
-    opendir(DIR, "$dir");
-    my @files = readdir(DIR);
-    foreach $file (@files){
-        if($file =~ /^@package_name@-/ && $file ne "@package_name@-admin"){
-            $instance_count++;
-            if($file =~ /@package_name@-(.*)/){
-                if($first eq "yes"){
-                    $instances=$1;
-                    $first = "no";
-                } else {
-                    $instances=$instances . ", $1";
-                }
-                $name = $1;
-            }
-        }
-    }
-    if($servid eq ""){
-        if ($instance_count == 1){
-            $servid = $name;
-        } else {
-            print "You must supply a valid server instance identifier.  Use -Z to specify instance name\n";
-            print "Available instances: $instances\n";
-            exit (1);
-        }
+
+    # normalize the given servid
+    if (!$servid) {
+        # not given
     } elsif ($servid =~ /^@package_name@-/){
         # strip off "@package_name@-"
         $servid =~ s/^@package_name@-//;
     } elsif ($servid =~ /^slapd-/){
         # strip off "slapd-"
         $servid =~ s/^slapd-//;
+    } # else assume already normalized
+
+    opendir(DIR, "$dir");
+    my @files = map {$_ = "$dir/$_"} readdir(DIR);
+    closedir(DIR);
+    push @files, @extra;
+    my $found = 0;
+    foreach $file (@files){
+        next if(! -r $file); # skip unreadable files
+        # skip admin server
+        if($file =~ m,/@package_name@-([^/]+)$, && $file !~ m,/@package_name@-admin$,){
+            $name = $file;
+            my $inst = $1;
+            $instance_count++;
+            if ($servid && ($servid eq $inst)) {
+                $found = 1;
+                last;
+            }
+            if($first eq "yes"){
+                $instances=$inst;
+                $first = "no";
+            } else {
+                $instances=$instances . ", $inst";
+            }
+        }
     }
-    
-    unless ( -e "$dir/@package_name@-$servid" ){
+
+    if ($servid && !$found) { # if we got here, did not find given serverid
         print (STDERR "Invalid server identifer: $servid\n");
-        print (STDERR "Available instances in $dir: $instances\n");
+        print (STDERR "Available instances in $dir $extradir: $instances\n");
+        exit (1);
+    }
+        
+    if ($instance_count == 0){
+        print "No instances found in $dir\n";
         exit (1);
     }
     
-    return $servid;
+    if ($instance_count > 1){
+        print "You must supply a valid server instance identifier.  Use -Z to specify instance name\n";
+        print "Available instances: $instances\n";
+        exit (1);
+    }
+    
+    unless ( -e "$file" ){
+        print (STDERR "Invalid server identifer: $servid\n");
+        print (STDERR "Available instances in $dir $extradir: $instances\n");
+        exit (1);
+    }
+
+    # now grab the CONFIG_DIR from the file $name
+    if (open(INSTFILE, "$name")) {
+        print (STDERR "Error: could not open $name: $!");
+        exit (1);
+    }
+
+    my $confdir;
+    while (<INSTFILE>) {
+        if (/^CONFIG_DIR=/) {
+            s/^CONFIG_DIR=//;
+            s/ ; export CONFIG_DIR//;
+            $confdir = $_;
+            last;
+        }
+    }
+    close INSTFILE;
+
+    if (!$confdir) {
+        print (STDERR "Error: no CONFIG_DIR found in $name\n");
+        exit (1);
+    }
+    
+    return ($servid, $confdir);
 }
 
 #

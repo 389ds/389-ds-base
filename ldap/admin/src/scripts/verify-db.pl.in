@@ -43,7 +43,7 @@ use DSUtil;
 
 DSUtil::libpath_add("@db_libdir@");
 DSUtil::libpath_add("@libdir@");
-$ENV{'PATH'} = "@libdir@/dirsrv/slapd-$servid:@db_bindir@:/usr/bin:/";
+$ENV{'PATH'} = "@libdir@/@package_name@/slapd-$servid:@db_bindir@:/usr/bin:/";
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
 my $i = 0;
@@ -167,7 +167,7 @@ while ($i <= $#ARGV) {
   $i++;
 }
 
-$servid = DSUtil::get_server_id($servid, "@initconfigdir@");
+($servid, $notused_configdir) = DSUtil::get_server_id($servid, "@initconfigdir@");
 
 print("*****************************************************************\n");
 print("verify-db: This tool should only be run if recovery start fails\n" .

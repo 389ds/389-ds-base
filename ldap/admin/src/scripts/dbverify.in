@@ -1,8 +1,8 @@
 #!/bin/sh
 
-source @datadir@/dirsrv/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
-libpath_add "@libdir@/dirsrv/"
+libpath_add "@libdir@/@package_name@/"
 libpath_add "@nss_libdir@"
 libpath_add "@libdir@"
 libpath_add "@pcre_libdir@"
@@ -44,18 +44,18 @@ do
     esac
 done
 
-servid=$(get_server_id "@initconfigdir@" $servid)
+initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $servid"
+    echo "Available instances: $initfile"
     exit 1
 fi
 
-configdir="@instconfigdir@/slapd-$servid"
+. $initfile
 
-@sbindir@/ns-slapd dbverify -D $configdir $args
+@sbindir@/ns-slapd dbverify -D $CONFIG_DIR $args
 if [ $display_version == "yes" ]; then
     exit 0
 fi

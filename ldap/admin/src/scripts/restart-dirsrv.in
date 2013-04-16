@@ -7,6 +7,8 @@
 #       2: Server started successfully (was not running)
 #       3: Server could not be stopped
 
+source @datadir@/@package_name@/data/DSSharedLib
+
 restart_instance() {
     SERV_ID=$1
 
@@ -37,33 +39,15 @@ done
 shift $(($OPTIND-1))
 
 if [ "$initconfig_dir" = "" ]; then
-    # convert
-    # uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),.....
-    # to
-    # 0
-    # this is the only portable, secure way to determine the id number
-    userid=`id | awk -F'[=(]+' '{print $2}'`
-    if [ "$userid" -eq 0 ] ; then
-        initconfig_dir=@initconfigdir@
-    else
-        initconfig_dir=$HOME/.@package_name@
-    fi
+    initconfig_dir=@initconfigdir@
 fi
 
 if [ "$#" -eq 0 ]; then
     # We're restarting all instances.
     ret=0
-    for i in $initconfig_dir/@package_name@-*; do
-        if [ ! -f "$i" ] ; then
-            echo No instances found in $initconfig_dir
-            exit 1
-        fi
-        regex=s,$initconfig_dir/@package_name@-,,g
-        inst=`echo $i | sed -e $regex`
-        # check for admin server ID used by 389-admin pkg, and ignore it
-        if [ "$inst" = "admin" ]; then
-            continue
-        fi
+    initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
+    for i in $initfiles; do
+        inst=`normalize_server_id $i`
         echo Restarting instance \"$inst\"
         restart_instance $inst
         rv=$?

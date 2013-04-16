@@ -1,8 +1,8 @@
 #!/bin/sh
 
-source @datadir@/dirsrv/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
-libpath_add "@libdir@/dirsrv/"
+libpath_add "@libdir@/@package_name@/"
 libpath_add "@libdir@"
 libpath_add "@nss_libdir@"
 libpath_add "@pcre_libdir@"
@@ -30,20 +30,21 @@ do
     esac
 done
 
-servid=$(get_server_id "@initconfigdir@" $servid)
+initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $servid"
+    echo "Available instances: $initfile"
     exit 1
 fi
 
-configdir="@instconfigdir@/slapd-$servid"
+servid=`normalize_server_id $initfile`
+. $initfile
 
 echo saving configuration...
 conf_ldif=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/$servid-`date +%Y_%m_%d_%H%M%S`.ldif
-@sbindir@/ns-slapd db2ldif -N -D $configdir -s "o=NetscapeRoot" -a $conf_ldif -n NetscapeRoot 2>&1
+@sbindir@/ns-slapd db2ldif -N -D $CONFIG_DIR -s "o=NetscapeRoot" -a $conf_ldif -n NetscapeRoot 2>&1
 if [ "$?" -ge 1 ] 
 then
     echo Error occurred while saving configuration

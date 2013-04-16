@@ -1,8 +1,8 @@
 #!/bin/sh
 
-source @datadir@/dirsrv/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
-libpath_add "@libdir@/dirsrv/"
+libpath_add "@libdir@/@package_name@/"
 libpath_add "@nss_libdir@"
 libpath_add "@libdir@"
 libpath_add "@pcre_libdir@"
@@ -30,14 +30,17 @@ do
     esac
 done
 
-servid=$(get_server_id "@initconfigdir@" $servid)
+initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $servid"
+    echo "Available instances: $initfile"
     exit 1
 fi
+
+servid=`normalize_server_id $initfile`
+. $initfile
 
 conf_ldif=`ls -1t @localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/$servid-*.ldif 2>/dev/null | head -1 `
 if [ -z "$conf_ldif" ]
@@ -45,5 +48,5 @@ then
     echo No configuration to restore in @localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/ ; exit 1
 fi
 echo Restoring $conf_ldif...
-@sbindir@/ns-slapd ldif2db -D $configdir -i $conf_ldif -n NetscapeRoot 2>&1
+@sbindir@/ns-slapd ldif2db -D $CONFIG_DIR -i $conf_ldif -n NetscapeRoot 2>&1
 exit $?

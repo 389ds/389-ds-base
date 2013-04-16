@@ -413,8 +413,8 @@ while( $arg = shift)
 #
 # Gather all our config settings
 #
-$servid = DSUtil::get_server_id($servid, "@initconfigdir@");
-%info = DSUtil::get_info("@instconfigdir@", $servid, $host, $port, $rootdn);
+($servid, $confdir) = DSUtil::get_server_id($servid, "@initconfigdir@");
+%info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($rootpw, $pwfile);
 $info{protocol} = $protocol;
 $info{args} = "-c";
