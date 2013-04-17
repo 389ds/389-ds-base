@@ -630,6 +630,27 @@ done:
     return idl;
 }
 
+/*
+ * If the filter type contains subtype, it returns 1; otherwise, returns 0.
+ */
+static int
+filter_is_subtype(Slapi_Filter *f)
+{
+    char *p = NULL;
+    size_t len = 0;
+    int issubtype = 0;
+    if (f) {
+        p = strchr(f->f_type, ';');
+        if (p) {
+            len = p - f->f_type;
+            if (len < strlen(f->f_type)) {
+                issubtype = 1;
+            }
+        }
+    }
+    return issubtype;
+}
+
 static IDList *
 list_candidates(
     Slapi_PBlock  *pb,
@@ -777,7 +798,17 @@ list_candidates(
             /* Fetch the IDL for foo */
             /* Later we'll remember to call idl_notin() */
             LDAPDebug( LDAP_DEBUG_TRACE,"NOT filter\n", 0, 0, 0 );
-            tmp = ava_candidates( pb, be, slapi_filter_list_first(f), LDAP_FILTER_EQUALITY, nextf, range, err, allidslimit );
+            if (filter_is_subtype(slapi_filter_list_first(f))) {
+                /*
+                 * If subtype is included in the filter (e.g., !(cn;fr=<CN>)),
+                 * we have to give up using the index since the subtype info
+                 * is not in the index.
+                 */
+                tmp = idl_allids( be );
+            } else {
+                tmp = ava_candidates(pb, be, slapi_filter_list_first(f),
+                          LDAP_FILTER_EQUALITY, nextf, range, err, allidslimit);
+            }
         } else {
             if (fpairs[0] == f)
             {
@@ -819,9 +850,13 @@ list_candidates(
                 break; /* We can exit the loop now, since the candidate list is small already */
             }
         } else if ( ftype == LDAP_FILTER_AND ) {
-            if (isnot) {
+            if (isnot && !idl_is_allids(tmp)) {
                 IDList *new_idl = NULL;
                 int notin_result = 0;
+                /* 
+                 * If the given tmp is ALLIDs (due to subtype in filter),
+                 * we cannot use idl_notin.
+                 */
                 notin_result = idl_notin( be, idl, tmp, &new_idl );
                 if (notin_result) {
                     idl_free(idl);
