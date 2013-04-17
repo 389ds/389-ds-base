@@ -1967,6 +1967,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PORT_ATTRIBUTE "nsslapd-port"
 #define CONFIG_WORKINGDIR_ATTRIBUTE "nsslapd-workingdir"
 #define CONFIG_LISTENHOST_ATTRIBUTE "nsslapd-listenhost"
+#define CONFIG_SNMP_INDEX_ATTRIBUTE "nsslapd-snmp-index"
 #define CONFIG_LDAPI_FILENAME_ATTRIBUTE "nsslapd-ldapifilepath"
 #define CONFIG_LDAPI_SWITCH_ATTRIBUTE "nsslapd-ldapilisten"
 #define CONFIG_LDAPI_BIND_SWITCH_ATTRIBUTE "nsslapd-ldapiautobind"
@@ -2164,6 +2165,7 @@ typedef struct _slapdFrontendConfig {
   char *encryptionalias;
   char *errorlog;
   char *listenhost;
+  int snmp_index;
 #ifndef _WIN32
   char *localuser;
 #endif /* _WIN32 */

@@ -152,6 +152,7 @@ static int config_set_schemareplace ( const char *attrname, char *value,
 #define DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT "300000"
 #define DEFAULT_MAX_FILTER_NEST_LEVEL "40"
 #define DEFAULT_GROUPEVALNESTLEVEL "0"
+#define DEFAULT_SNMP_INDEX "0"
 #define DEFAULT_MAX_SASLIO_SIZE "2097152"
 #define DEFAULT_DISK_THRESHOLD "2097152"
 #define DEFAULT_DISK_GRACE_PERIOD "60"
@@ -198,7 +199,7 @@ static int config_set_schemareplace ( const char *attrname, char *value,
 #define DEFAULT_LDAPI_SEARCH_BASE "dc=example,dc=com"
 #define DEFAULT_LDAPI_AUTO_DN "cn=peercred,cn=external,cn=auth"
 #define ENTRYUSN_IMPORT_INIT "0"
-#define DEFAULT_ALLOWED_TO_DELETE_ATTRS "nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext"
+#define DEFAULT_ALLOWED_TO_DELETE_ATTRS "nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext nsslapd-snmp-index"
 #define SALTED_SHA1_SCHEME_NAME "SSHA"
 
 /* CONFIG_ON_OFF */
@@ -734,6 +735,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listenhost,
 		CONFIG_STRING, NULL, NULL/* NULL value is allowed */},
+        {CONFIG_SNMP_INDEX_ATTRIBUTE, config_set_snmp_index,
+                NULL, 0,
+                (void**) &global_slapdFrontendConfig.snmp_index,
+                CONFIG_INT, NULL, DEFAULT_SNMP_INDEX},
 	{CONFIG_LDAPI_FILENAME_ATTRIBUTE, config_set_ldapi_filename,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_filename,
@@ -1979,6 +1984,39 @@ config_set_listenhost( const char *attrname, char *value, char *errorbuf, int ap
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
+}
+
+int
+config_set_snmp_index(const char *attrname, char *value, char *errorbuf, int apply) 
+{
+        int retVal = LDAP_SUCCESS;
+        long snmp_index;
+        long snmp_index_disable;
+        char *endp = NULL;
+
+        slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+        snmp_index_disable = atol(DEFAULT_SNMP_INDEX); /* if snmp index is disabled, use the nsslapd-port instead */;
+        
+        if (config_value_is_null(attrname, value, errorbuf, 0)) {
+                snmp_index = snmp_index_disable;
+        } else {
+                errno = 0;
+                snmp_index = strtol(value, &endp, 10);
+
+                if (*endp != '\0' || errno == ERANGE || snmp_index < snmp_index_disable) {
+                        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", %s must be greater or equal to %d (%d means disabled)", 
+                                attrname, value, CONFIG_SNMP_INDEX_ATTRIBUTE, snmp_index_disable, snmp_index_disable);
+                        retVal = LDAP_OPERATIONS_ERROR;
+                }
+        }
+
+        if (apply) {
+                CFG_LOCK_WRITE(slapdFrontendConfig);
+                slapdFrontendConfig->snmp_index = snmp_index;
+                CFG_UNLOCK_WRITE(slapdFrontendConfig);
+        }
+        return retVal;
 }
 
 int

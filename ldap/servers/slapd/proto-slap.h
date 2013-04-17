@@ -273,6 +273,7 @@ int config_set_localhost( const char *attrname, char *value, char *errorbuf, int
 int config_set_listenhost( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_securelistenhost( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_ldapi_filename( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_snmp_index( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_ldapi_switch( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_ldapi_bind_switch( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_ldapi_root_dn( const char *attrname, char *value, char *errorbuf, int apply );

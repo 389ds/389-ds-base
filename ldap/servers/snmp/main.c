@@ -329,6 +329,8 @@ load_config(char *conf_path)
         } else if ((p = strstr(line, "server")) != NULL) {
             int got_port = 0;
             int got_rundir = 0;
+            int got_snmp_index = 0;
+            long snmp_index = 0;
             int lineno = 0;
             char *entry = NULL;
             char *instancename = NULL;
@@ -423,10 +425,15 @@ load_config(char *conf_path)
                 if ((strcmp(attr, "dn") == 0) &&
                     (strcmp(val, "cn=config") == 0)) {
                     char *dse_line = NULL;
+                    
+                    
                     /* Look for port and rundir attributes */
                     while ((dse_line = ldif_getline(&entryp)) != NULL) {
                         ldif_parse_line(dse_line, &attr, &val, &vlen);
-                        if (strcmp(attr, "nsslapd-port") == 0) {
+                        if (strcmp(attr, "nsslapd-snmp-index") == 0) {
+                            snmp_index = atol(val);
+                            got_snmp_index = 1;
+                        } else if (strcmp(attr, "nsslapd-port") == 0) {
                             serv_p->port = atol(val);
                             got_port = 1;
                         } else if (strcmp(attr, "nsslapd-rundir") == 0) {
@@ -448,8 +455,8 @@ load_config(char *conf_path)
                         }
 
                         /* Stop processing this entry if we found the
-                         *  port and rundir settings */
-                        if (got_port && got_rundir) {
+                         *  port and rundir and snmp_index settings */
+                        if (got_port && got_rundir && got_snmp_index) {
                             break;
                         }
                     }
@@ -478,6 +485,15 @@ load_config(char *conf_path)
                        "server config file: %s\n", serv_p->dse_ldif);
                 error = 1;
                 goto close_and_exit;
+            }
+            
+            /* in case a snmp index is specified, it replace the nsslapd-port
+             * This would allow to give an index to a snmp report, rather than using
+             * the TCP interface port number (because the same port may be listen on multiple interfaces).
+             * For snmp_index values <= 0 (disabled), let's keep the port
+             */
+            if (got_snmp_index && (snmp_index > 0)) {
+                    serv_p->port = snmp_index;
             }
 
             /* Insert server instance into linked list */
