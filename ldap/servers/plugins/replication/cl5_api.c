@@ -88,7 +88,12 @@
                                    used to store upper boundary RUV vector */
 
 #define DB_EXTENSION_DB3	"db3"
+#define DB_EXTENSION_DB4	"db4"
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 5000
+#define DB_EXTENSION	"db"
+#else
 #define DB_EXTENSION	"db4"
+#endif
 
 #define HASH_BACKETS_COUNT 16   /* number of buckets in a hash table */
 
@@ -2873,7 +2878,7 @@ static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size
  * 3. Remove any Berkeley DB transaction log files
  * 4. extention .db3 -> .db4 
  */
-static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
+static int _cl5UpgradeMajor(char *fromVersion, char *toVersion)
 {
 	PRDir *dir = NULL;
 	PRDirEntry *entry = NULL;
@@ -2888,7 +2893,7 @@ static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 	if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5Upgrade3_4: failed to open the db env\n");
+						"_cl5UpgradeMajor: failed to open the db env\n");
 		return rc;
 	}
 	s_cl5Desc.dbOpenMode = backup;
@@ -2897,7 +2902,7 @@ static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 	if (dir == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-		  "_cl5Upgrade3_4: failed to open changelog dir %s; NSPR error - %d\n",
+		  "_cl5UpgradeMajor: failed to open changelog dir %s; NSPR error - %d\n",
 		  s_cl5Desc.dbDir, PR_GetError ());
 		goto out;
 	}
@@ -2908,7 +2913,8 @@ static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 		{
 			break;
 		}
-		if (_cl5FileEndsWith(entry->name, DB_EXTENSION_DB3))
+		if (_cl5FileEndsWith(entry->name, DB_EXTENSION_DB3) ||
+		    _cl5FileEndsWith(entry->name, DB_EXTENSION_DB4))
 		{
 			char oName [MAXPATHLEN + 1];
 			char nName [MAXPATHLEN + 1];
@@ -2919,13 +2925,17 @@ static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 			p = strstr(oName, DB_EXTENSION_DB3);
 			if (NULL == p)
 			{
-				continue;
+				p = strstr(oName, DB_EXTENSION_DB4);
+				if (NULL == p) {
+					continue;
+				}
 			}
+
 			/* db->rename closes DB; need to create every time */
 			rc = db_create(&thisdb, s_cl5Desc.dbEnv, 0);
 			if (0 != rc) {
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5Upgrade3_4: failed to get db handle\n");
+						"_cl5UpgradeMajor: failed to get db handle\n");
 				goto out;
 			}
 
@@ -2936,13 +2946,13 @@ static int _cl5Upgrade3_4(char *fromVersion, char *toVersion)
 			PR_snprintf(nName + baselen, MAXPATHLEN+1-baselen, "%s", DB_EXTENSION);
 			*p = c;
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-				"_cl5Upgrade3_4: renaming %s to %s\n", oName, nName);
+				"_cl5UpgradeMajor: renaming %s to %s\n", oName, nName);
 			rc = thisdb->rename(thisdb, (const char *)oName, NULL /* subdb */,
 											  (const char *)nName, 0);
 			if (rc != PR_SUCCESS)
 			{
 				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
-					"_cl5Upgrade3_4: failed to rename file (%s -> %s); "
+					"_cl5UpgradeMajor: failed to rename file (%s -> %s); "
 					"db error - %d %s\n", oName, nName, rc, db_strerror(rc));
 				break;
 			}
@@ -2966,7 +2976,7 @@ out:
  * 2. Remove any Berkeley DB environment using the DB_ENV->remove method 
  * 3. Remove any Berkeley DB transaction log files
  */
-static int _cl5Upgrade4_4(char *fromVersion, char *toVersion)
+static int _cl5UpgradeMinor(char *fromVersion, char *toVersion)
 {
 	CL5OpenMode	backup;
 	int rc = 0;
@@ -2978,7 +2988,7 @@ static int _cl5Upgrade4_4(char *fromVersion, char *toVersion)
 	if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
-						"_cl5Upgrade4_4: failed to open the db env\n");
+						"_cl5UpgradeMinor: failed to open the db env\n");
 		return rc;
 	}
 	s_cl5Desc.dbOpenMode = backup;
@@ -3058,7 +3068,7 @@ static int _cl5CheckDBVersion ()
 		if (dbmajor < DB_VERSION_MAJOR)
 		{
 			/* upgrade */
-			rc = _cl5Upgrade3_4(dbVersion, clVersion);
+			rc = _cl5UpgradeMajor(dbVersion, clVersion);
 			if (rc != CL5_SUCCESS)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -3070,7 +3080,7 @@ static int _cl5CheckDBVersion ()
 		else if (dbminor < DB_VERSION_MINOR)
 		{
 			/* minor upgrade */
-			rc = _cl5Upgrade4_4(dbVersion, clVersion);
+			rc = _cl5UpgradeMajor(dbVersion, clVersion);
 			if (rc != CL5_SUCCESS)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -5532,32 +5542,35 @@ static int _cl5CheckMissingCSN (const CSN *csn, const RUV *supplierRuv, CL5DBFil
 /* Helper functions that work with individual changelog files */
 
 /* file name format : <replica name>_<replica generation>db{2,3,...} */
-static PRBool _cl5FileName2Replica (const char *file_name, Object **replica)
+static PRBool
+_cl5FileName2Replica (const char *file_name, Object **replica)
 {
     Replica *r;
     char *repl_name, *file_gen, *repl_gen;
     int len;
 
-	PR_ASSERT (file_name && replica);
+    PR_ASSERT (file_name && replica);
 
     *replica = NULL;
 
     /* this is database file */
     if (_cl5FileEndsWith (file_name, DB_EXTENSION) ||
+        _cl5FileEndsWith (file_name, DB_EXTENSION_DB4) ||
         _cl5FileEndsWith (file_name, DB_EXTENSION_DB3) )
     {
-        repl_name = slapi_ch_strdup (file_name);	
+        repl_name = slapi_ch_strdup (file_name);
         file_gen = strstr(repl_name, FILE_SEP);
         if (file_gen)
         {
-			int extlen = strlen(DB_EXTENSION);
+            int extlen = strlen(DB_EXTENSION);
             *file_gen = '\0';
             file_gen += strlen (FILE_SEP);
             len = strlen (file_gen);
             if (len <= extlen + 1)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5FileName2Replica "
-				                "invalid file name (%s)\n", file_name);                                        
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                                "_cl5FileName2Replica "
+                                "invalid file name (%s)\n", file_name);                                        
             }
             else
             {
@@ -5572,8 +5585,9 @@ static PRBool _cl5FileName2Replica (const char *file_name, Object **replica)
                     PR_ASSERT (repl_gen);
                     if (strcmp (file_gen, repl_gen) != 0)
                     {
-                        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5FileName2Replica "
-				                "replica generation mismatch for replica at (%s), "
+                        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                                "_cl5FileName2Replica "
+                                "replica generation mismatch for replica at (%s), "
                                 "file generation %s, new replica generation %s\n",
                                 slapi_sdn_get_dn (replica_get_root (r)), file_gen, repl_gen);            
                                     
@@ -5588,7 +5602,7 @@ static PRBool _cl5FileName2Replica (const char *file_name, Object **replica)
         else
         {
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5FileName2Replica "
-				            "malformed file name - %s\n", file_name);
+                            "malformed file name - %s\n", file_name);
         }
 
         return PR_TRUE;
@@ -5604,7 +5618,7 @@ static char* _cl5Replica2FileName (Object *replica)
     char *replGen, *fileName;
     Replica *r;
 
-	PR_ASSERT (replica);
+    PR_ASSERT (replica);
 
     r = (Replica*)object_get_data (replica);
     PR_ASSERT (r);
@@ -5657,7 +5671,7 @@ static int _cl5DBOpenFileByReplicaName (const char *replName, const char *replGe
     int rc = CL5_SUCCESS;
 	Object *tmpObj;
 	CL5DBFile *file;
-    char *file_name;
+	char *file_name;
 
 	PR_ASSERT (replName && replGen);
 
@@ -5751,7 +5765,7 @@ static int _cl5AddDBFile (CL5DBFile *file, Object **obj)
 	int rc;
 	Object *tmpObj;
 
-	PR_ASSERT (file);	
+	PR_ASSERT (file);
 
 	tmpObj = object_new (file, _cl5DBCloseFile);
 	rc = objset_add_obj(s_cl5Desc.dbFiles, tmpObj);
@@ -5797,7 +5811,7 @@ static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile**
 		return CL5_UNKNOWN_ERROR;
 	}
 
-	(*dbFile) = (CL5DBFile *)slapi_ch_calloc (1, sizeof (CL5DBFile));	
+	(*dbFile) = (CL5DBFile *)slapi_ch_calloc (1, sizeof (CL5DBFile));
 	if (*dbFile == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -5805,7 +5819,7 @@ static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile**
 		return CL5_MEMORY_ERROR;
 	}
 
-	name = _cl5MakeFileName (replName, replGen);	 
+	name = _cl5MakeFileName (replName, replGen);
 	{
 	/* The subname argument allows applications to have
 	 * subdatabases, i.e., multiple databases inside of a single
