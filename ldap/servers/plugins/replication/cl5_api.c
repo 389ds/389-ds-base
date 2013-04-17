@@ -3080,7 +3080,7 @@ static int _cl5CheckDBVersion ()
 		else if (dbminor < DB_VERSION_MINOR)
 		{
 			/* minor upgrade */
-			rc = _cl5UpgradeMajor(dbVersion, clVersion);
+			rc = _cl5UpgradeMinor(dbVersion, clVersion);
 			if (rc != CL5_SUCCESS)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
