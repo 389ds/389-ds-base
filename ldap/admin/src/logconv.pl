@@ -1564,7 +1564,7 @@ sub parseLineNormal
 
 	# Additional performance stats
 	($time, $tzone) = split (' ', $_);
-	if ($reportStat && $time ne $last_tm)
+	if ($reportStats && $time ne $last_tm)
 	{
 		$last_tm = $time;
 		$time =~ s/\[//;
@@ -1597,11 +1597,11 @@ sub parseLineNormal
 
 	if (m/ RESULT err/){ 
 		$allResults++; 
-		if($reportStat){ inc_stats('results',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('results',$s_stats,$m_stats); }
 	}
 	if (m/ SRCH/){
 		$srchCount++;
-		if($reportStat){ inc_stats('srch',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('srch',$s_stats,$m_stats); }
 		if ($_ =~ / attrs=\"(.*)\"/i){
 			$anyAttrs++;
 			$attrs = $1 . " ";
@@ -1620,7 +1620,7 @@ sub parseLineNormal
 	}
 	if (m/ DEL/){
 		$delCount++;
-		if($reportStat){ inc_stats('del',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('del',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
 			if ($_ =~ /conn= *([0-9]+)/i){ writeFile($DEL_CONN, $1);}
 			if ($_ =~ /op= *([0-9]+)/i){ writeFile($DEL_OP, $1);}
@@ -1628,7 +1628,7 @@ sub parseLineNormal
 	}
 	if (m/ MOD dn=/){
 		$modCount++;
-		if($reportStat){ inc_stats('mod',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('mod',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
 		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($MOD_CONN, $1);}
 			if ($_ =~ /op= *([0-9]+)/i){ writeFile($MOD_OP, $1); }
@@ -1636,7 +1636,7 @@ sub parseLineNormal
 	}
 	if (m/ ADD/){
 		$addCount++;
-		if($reportStat){ inc_stats('add',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('add',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
 		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($ADD_CONN, $1); }
 			if ($_ =~ /op= *([0-9]+)/i){ writeFile($ADD_OP, $1); }
@@ -1644,7 +1644,7 @@ sub parseLineNormal
 	}
 	if (m/ MODRDN/){
 		$modrdnCount++;
-		if($reportStat){ inc_stats('modrdn',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('modrdn',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
 		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($MODRDN_CONN, $1); }
 			if ($_ =~ /op= *([0-9]+)/i){ writeFile($MODRDN_OP, $1); }
@@ -1652,7 +1652,7 @@ sub parseLineNormal
 	}
 	if (m/ CMP dn=/){
 		$cmpCount++;
-		if($reportStat){ inc_stats('cmp',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('cmp',$s_stats,$m_stats); }
 		if ($verb eq "yes"  || $usage =~ /g/i){
 			if ($_ =~ /conn= *([0-9]+)/i){ writeFile($CMP_CONN, $1);}
 			if ($_ =~ /op= *([0-9]+)/i){ writeFile($CMP_OP, $1);}
@@ -1660,7 +1660,7 @@ sub parseLineNormal
 	}
 	if (m/ ABANDON /){
 		$abandonCount++;
-		if($reportStat){ inc_stats('abandon',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('abandon',$s_stats,$m_stats); }
 		$allResults++;
 		if ($_ =~ /targetop= *([0-9a-zA-Z]+)/i ){
 			writeFile($TARGET_OP, $1);
@@ -1680,12 +1680,12 @@ sub parseLineNormal
 	if (m/ version=2/){$v2BindCount++}
 	if (m/ version=3/){$v3BindCount++}
 	if (m/ conn=1 fd=/){$serverRestartCount++}
-	if (m/ SSL connection from/){$sslCount++;}
+	if (m/ SSL connection from/){$sslCount++; if($reportStats){ inc_stats('sslconns',$s_stats,$m_stats); }}
 	if (m/ connection from local to /){$ldapiCount++;}
 	if($_ =~ /AUTOBIND dn=\"(.*)\"/){
 		$autobindCount++;
 		$bindCount++;
-		if($reportStat){ inc_stats('bind',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
 		if ($1 ne ""){ 
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
@@ -1705,7 +1705,10 @@ sub parseLineNormal
 			for ($xxx =0; $xxx <= $#excludeIP; $xxx++){
 				if ($excludeIP[$xxx] eq $1){$exc = "yes";}
 			}
-			if ($exc ne "yes"){ $connectionCount++;}
+			if ($exc ne "yes"){
+				$connectionCount++;
+				if($reportStats){ inc_stats('conns',$s_stats,$m_stats); }
+			}
 		}
 		$simConnection++;
 		if ($simConnection > $maxsimConnection) {
@@ -1740,7 +1743,7 @@ sub parseLineNormal
 		if ($diff >= 16) { $latency[6] ++;}
 	}
 	if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
-		if($reportStat){ inc_stats('bind',$s_stats,$m_stats); }
+		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
 		$bindCount++;
 		if ($1 ne ""){ 
 			if($1 eq $rootDN){$rootDNBindCount++;}
@@ -1782,7 +1785,7 @@ sub parseLineNormal
 			#  We don't want to record vlv unindexed searches for our regular "bad" 
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
 			$unindexedSrchCount++;
-			if($reportStat){ inc_stats('notesu',$s_stats,$m_stats); }
+			if($reportStats){ inc_stats('notesu',$s_stats,$m_stats); }
 		}
 		if ($usage =~ /u/ || $verb eq "yes"){
 			if ($isVlvNnotes == 0 ){
@@ -2242,7 +2245,7 @@ print_stats_block
 			    		"\n" );
 			} else {
 				$stats->{'fh'}->print(
-			    		"Time,time_t,Results,Search,Add,Mod,Modrdn,Delete,Abandon,".
+			    		"Time,time_t,Results,Search,Add,Mod,Modrdn,Moddn,Compare,Delete,Abandon,".
 			    		"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed\n"
 			    	);
 			}
