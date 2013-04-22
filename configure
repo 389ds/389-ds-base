@@ -616,8 +616,6 @@ ac_default_prefix=/opt/$PACKAGE_NAME
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
-rpm_release
-rpm_version
 vendor
 capbrand
 brand
@@ -3344,10 +3342,6 @@ IFS=$ac_save_IFS
 case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 
 
-
-# Set the version and release for developer RPM builds
-rpm_version=$RPM_VERSION
-rpm_release=$RPM_RELEASE
 
 # Checks for programs.
 ac_ext=cpp
@@ -21123,9 +21117,6 @@ fi
 
 
 # write out paths for binary components
-
-
-
 
 
 

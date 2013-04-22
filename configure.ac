@@ -21,10 +21,6 @@ AC_SUBST([CONSOLE_VERSION])
 AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
 
-# Set the version and release for developer RPM builds
-rpm_version=$RPM_VERSION
-rpm_release=$RPM_RELEASE
-
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
@@ -689,9 +685,6 @@ AC_SUBST(pcre_libdir)
 AC_SUBST(brand)
 AC_SUBST(capbrand)
 AC_SUBST(vendor)
-
-AC_SUBST(rpm_version)
-AC_SUBST(rpm_release)
 
 # AC_DEFINE([USE_OLD_UNHASHED], [], [Use old unhashed code])
 AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
