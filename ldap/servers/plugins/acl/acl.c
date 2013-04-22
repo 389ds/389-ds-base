@@ -2799,6 +2799,11 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 
 		if (access  & ( SLAPI_ACL_SEARCH | SLAPI_ACL_READ)) {
 
+                        /* We can not reused results obtained on a other entry */
+                        if (aci->aci_type & ACI_CACHE_RESULT_PER_ENTRY) {
+                                aclpb->aclpb_state |= ACLPB_CACHE_RESULT_PER_ENTRY_SKIP;
+                        }
+                        
 			/*
 			 * aclpb->aclpb_cache_result[0..aclpb->aclpb_last_cache_result] is
 			 * a cache of info about whether applicable acis
@@ -3010,6 +3015,10 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 
 		if (access  & ( SLAPI_ACL_SEARCH | SLAPI_ACL_READ)) {
 
+                        /* We can not reused results obtained on a other entry */
+                        if (aci->aci_type & ACI_CACHE_RESULT_PER_ENTRY) {
+                                aclpb->aclpb_state |= ACLPB_CACHE_RESULT_PER_ENTRY_SKIP;
+                        }
 			/*
 			 * aclpb->aclpb_cache_result[0..aclpb->aclpb_last_cache_result] is
 			 * a cache of info about whether applicable acis
@@ -3810,8 +3819,23 @@ acl__match_handlesFromCache (  Acl_PBlock *aclpb, char *attr, int access)
 	 } else {
 		context_type =  ACLPB_EVALCONTEXT_PREV;
 		c_evalContext = &aclpb->aclpb_prev_entryEval_context;
-	}
+        }
 
+        /* we can not reused access evaluation done on a previous entry
+         * so just skip that cache
+         */
+        if (aclpb->aclpb_state & ACLPB_CACHE_RESULT_PER_ENTRY_SKIP) {
+                aclpb->aclpb_state &= ~ACLPB_MATCHES_ALL_ACLS;
+                aclpb->aclpb_state |= ACLPB_UPD_ACLCB_CACHE;
+                /* Did not match */
+                if (context_type == ACLPB_EVALCONTEXT_ACLCB) {
+                        aclpb->aclpb_state &= ~ACLPB_HAS_ACLCB_EVALCONTEXT;
+                } else {
+                        aclpb->aclpb_state |= ACLPB_COPY_EVALCONTEXT;
+                        c_evalContext->acle_numof_tmatched_handles = 0;
+                }
+                return -1;
+        }
 
  	if ( aclpb->aclpb_res_type & (ACLPB_NEW_ENTRY | ACLPB_EFFECTIVE_RIGHTS) ) { 
 		aclpb->aclpb_state |= ACLPB_MATCHES_ALL_ACLS;

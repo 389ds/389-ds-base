@@ -800,6 +800,8 @@ normalize_nextACERule:
 				goto error;
 			}
 		} else if ( 0 == strncmp ( s, DS_LAS_USERDN, 6 )) {
+                        char *prefix;
+                        
 			p = PL_strnchr (s, '=', end - s);
 			if (NULL == p) {
 				goto error;
@@ -823,6 +825,23 @@ normalize_nextACERule:
 			if (rc < 0) {
 				goto error;
 			}
+
+                        /* skip the ldap prefix */
+                        prefix = PL_strncasestr(p, LDAP_URL_prefix, end - p);
+                        if (prefix) {
+                                prefix += strlen(LDAP_URL_prefix);
+                        } else {
+                                prefix = PL_strncasestr(p, LDAPS_URL_prefix, end - p);
+                                if (prefix) {
+                                        prefix += strlen(LDAPS_URL_prefix);
+                                }
+                        }
+                        if (prefix == NULL) {
+                                /* userdn value does not starts with LDAP(S)_URL_prefix */
+                                goto error;
+                        }
+                        p = prefix;
+
 
 			/* we have a rule like userdn = "ldap:///blah". s points to blah now.
 			** let's find if we have a SELF rule like userdn = "ldap:///self".
