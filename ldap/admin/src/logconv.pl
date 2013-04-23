@@ -1574,7 +1574,7 @@ sub parseLineNormal
 		{
 		    # tz offset change
 		    $lastzone=$tzone;
-		    ($sign,$hr,$min) = $tzone =~ m/(?)(\d\d)(\d\d)/;
+		    ($sign,$hr,$min) = $tzone =~ m/(.)(\d\d)(\d\d)/;
 		    $tzoff = $hr*3600 + $min*60;
 		    $tzoff *= -1
 		    if $sign eq '-';
@@ -1582,7 +1582,7 @@ sub parseLineNormal
 		}
 		($date, $hr, $min, $sec) = split (':', $time);
 		($day, $mon, $yr) = split ('/', $date);
-		$newmin = timegm(0, $min, $hours, $day, $monthname{$mon}, $yr) - $tzoff;
+		$newmin = timegm(0, $min, $hr, $day, $monthname{$mon}, $yr) - $tzoff;
 		$gmtime = $newmin + $sec;
 		print_stats_block( $s_stats );
 		reset_stats_block( $s_stats, $gmtime, $time.' '.$tzone );
