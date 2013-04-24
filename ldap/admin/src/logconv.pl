@@ -2042,7 +2042,7 @@ sub parseLineNormal
 		if ($1 ne "0"){ $errorCount++;}
 		else { $successCount++;}
 	}
-	if ($_ =~ /etime= *([0-9.]+)/ ) { writeFile($ETIME, $1);}
+	if ($_ =~ /etime= *([0-9.]+)/ ) { writeFile($ETIME, $1); inc_stats_val('etime',$1,$s_stats,$m_stats); }
 	if ($_ =~ / tag=101 / || $_ =~ / tag=111 / || $_ =~ / tag=100 / || $_ =~ / tag=115 /){
 		if ($_ =~ / nentries= *([0-9]+)/i ){ writeFile($NENTRIES, $1); }
 	}
@@ -2197,6 +2197,7 @@ reset_stats_block
     $stats->{'anonbind'}=0;
     $stats->{'unbind'}=0;
     $stats->{'notesu'}=0;
+    $stats->{'etime'}=0;
     return;
 }
 
@@ -2241,12 +2242,13 @@ print_stats_block
 					    $stats->{'bind'},
 					    $stats->{'anonbind'},
 					    $stats->{'unbind'},
-					    $stats->{'notesu'} ),
+					    $stats->{'notesu'},
+					    $stats->{'etime'}),
 			    		"\n" );
 			} else {
 				$stats->{'fh'}->print(
 			    		"Time,time_t,Results,Search,Add,Mod,Modrdn,Moddn,Compare,Delete,Abandon,".
-			    		"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed\n"
+			    		"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed,ElapsedTime\n"
 			    	);
 			}
 		}
@@ -2260,6 +2262,20 @@ inc_stats
 	my $n = shift;
 	foreach(@_){
 		$_->{$n}++
+	    	if exists $_->{$n};
+	}
+	return;
+}
+
+# like inc_stats, but increments the block counter with the given value e.g.
+# 'statname1', val, statblock1, statblock2, ...
+sub
+inc_stats_val
+{
+	my $n = shift;
+	my $val = shift;
+	foreach(@_){
+		$_->{$n} += $val
 	    	if exists $_->{$n};
 	}
 	return;
