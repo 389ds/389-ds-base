@@ -2079,6 +2079,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SEARCH_RETURN_ORIGINAL_TYPE "nsslapd-search-return-original-type-switch"
 #define CONFIG_ENABLE_TURBO_MODE "nsslapd-enable-turbo-mode"
 #define CONFIG_CONNECTION_BUFFER "nsslapd-connection-buffer"
+#define CONFIG_CONNECTION_NOCANON "nsslapd-connection-nocanon"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2324,6 +2325,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t unhashed_pw_switch;	/* switch to on/off/nolog unhashed pw */
   slapi_onoff_t enable_turbo_mode;
   slapi_int_t connection_buffer; /* values are CONNECTION_BUFFER_* below */
+  slapi_onoff_t connection_nocanon; /* if "on" sets LDAP_OPT_X_SASL_NOCANON */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

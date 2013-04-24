@@ -696,42 +696,40 @@ slapi_ldap_init_ext(
     }
     if ('\0' == util_sasl_path[0] || /* first time */
         NULL == (pp = strchr(util_sasl_path, '=')) || /* invalid arg for putenv */
-        (0 != strcmp(++pp, pluginpath)) /* sasl_path has been updated */ ) {
-        PR_snprintf(util_sasl_path, sizeof(util_sasl_path),
-                                        "SASL_PATH=%s", pluginpath);
-	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
-			"putenv(%s)\n", util_sasl_path);
+        (0 != strcmp(++pp, pluginpath)) /* sasl_path has been updated */ )
+    {
+        PR_snprintf(util_sasl_path, sizeof(util_sasl_path), "SASL_PATH=%s", pluginpath);
+	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext", "putenv(%s)\n", util_sasl_path);
         putenv(util_sasl_path);
     }
     slapi_ch_free_string(&configpluginpath);
 
     /* if ldapurl is given, parse it */
-    if (ldapurl && ((rc = slapi_ldap_url_parse(ldapurl, &ludp, 0, &secureurl)) ||
-		    !ludp)) {
-	slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-			"Could not parse given LDAP URL [%s] : error [%s]\n",
-			ldapurl, /* ldapurl cannot be NULL here */
-			slapi_urlparse_err2string(rc));
-	goto done;
+    if (ldapurl && ((rc = slapi_ldap_url_parse(ldapurl, &ludp, 0, &secureurl)) || !ludp)) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+            "Could not parse given LDAP URL [%s] : error [%s]\n",
+            ldapurl, /* ldapurl cannot be NULL here */
+            slapi_urlparse_err2string(rc));
+        goto done;
     }
 
     /* use url host if no host given */
     if (!hostname && ludp && ludp->lud_host) {
-	hostname = ludp->lud_host;
+        hostname = ludp->lud_host;
     }
 
     /* use url port if no port given */
     if (!port && ludp && ludp->lud_port) {
-	port = ludp->lud_port;
+        port = ludp->lud_port;
     }
 
     /* use secure setting from url if none given */
     if (!secure && ludp) {
-	if (secureurl) {
-	    secure = 1;
-	} else if (0/* starttls option - not supported yet in LDAP URLs */) {
-	    secure = 2;
-	}
+        if (secureurl) {
+            secure = 1;
+        } else if (0/* starttls option - not supported yet in LDAP URLs */) {
+            secure = 2;
+        }
     }
 
     /* ldap_url_parse doesn't yet handle ldapi */
@@ -743,14 +741,14 @@ slapi_ldap_init_ext(
 
 #ifdef MEMPOOL_EXPERIMENTAL
     {
-    /* 
-     * slapi_ch_malloc functions need to be set to LDAP C SDK
-     */
-    struct ldap_memalloc_fns memalloc_fns;
-    memalloc_fns.ldapmem_malloc = (LDAP_MALLOC_CALLBACK *)slapi_ch_malloc;
-    memalloc_fns.ldapmem_calloc = (LDAP_CALLOC_CALLBACK *)slapi_ch_calloc;
-    memalloc_fns.ldapmem_realloc = (LDAP_REALLOC_CALLBACK *)slapi_ch_realloc;
-    memalloc_fns.ldapmem_free = (LDAP_FREE_CALLBACK *)_free_wrapper;
+        /*
+         * slapi_ch_malloc functions need to be set to LDAP C SDK
+         */
+        struct ldap_memalloc_fns memalloc_fns;
+        memalloc_fns.ldapmem_malloc = (LDAP_MALLOC_CALLBACK *)slapi_ch_malloc;
+        memalloc_fns.ldapmem_calloc = (LDAP_CALLOC_CALLBACK *)slapi_ch_calloc;
+        memalloc_fns.ldapmem_realloc = (LDAP_REALLOC_CALLBACK *)slapi_ch_realloc;
+        memalloc_fns.ldapmem_free = (LDAP_FREE_CALLBACK *)_free_wrapper;
     }
     /* 
      * MEMPOOL_EXPERIMENTAL: 
@@ -766,198 +764,203 @@ slapi_ldap_init_ext(
 
 #if defined(USE_OPENLDAP)
     if (ldapurl) {
-	if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-			    "Could not perform internal ol_init init\n");
-	    rc = -1;
-	    goto done;
-	}
+        if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+               "Could not perform internal ol_init init\n");
+            rc = -1;
+            goto done;
+        }
 
-	PR_Lock(ol_init_lock);
-	rc = ldap_initialize(&ld, ldapurl);
-	PR_Unlock(ol_init_lock);
-	if (rc) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-			    "Could not initialize LDAP connection to [%s]: %d:%s\n",
-			    ldapurl, rc, ldap_err2string(rc));
-	    goto done;
-	}
+        PR_Lock(ol_init_lock);
+        rc = ldap_initialize(&ld, ldapurl);
+        PR_Unlock(ol_init_lock);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+               "Could not initialize LDAP connection to [%s]: %d:%s\n",
+               ldapurl, rc, ldap_err2string(rc));
+            goto done;
+        }
     } else {
-	char *makeurl = NULL;
-	if (filename) {
-	    makeurl = slapi_ch_smprintf("ldapi://%s/", filename);
-	} else { /* host port */
-	    makeurl = convert_to_openldap_uri(hostname, port, (secure == 1 ? "ldaps" : "ldap"));
-	}
-	if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-			    "Could not perform internal ol_init init\n");
-	    rc = -1;
-	    goto done;
-	}
+        char *makeurl = NULL;
 
-	PR_Lock(ol_init_lock);
-	rc = ldap_initialize(&ld, makeurl);
-	PR_Unlock(ol_init_lock);
-	if (rc) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-			    "Could not initialize LDAP connection to [%s]: %d:%s\n",
-			    makeurl, rc, ldap_err2string(rc));
-	    slapi_ch_free_string(&makeurl);
-	    goto done;
-	}
-	slapi_ch_free_string(&makeurl);
+        if (filename) {
+            makeurl = slapi_ch_smprintf("ldapi://%s/", filename);
+        } else { /* host port */
+            makeurl = convert_to_openldap_uri(hostname, port, (secure == 1 ? "ldaps" : "ldap"));
+        }
+        if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+                "Could not perform internal ol_init init\n");
+            rc = -1;
+            goto done;
+        }
+
+        PR_Lock(ol_init_lock);
+        rc = ldap_initialize(&ld, makeurl);
+        PR_Unlock(ol_init_lock);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+                "Could not initialize LDAP connection to [%s]: %d:%s\n",
+                makeurl, rc, ldap_err2string(rc));
+            slapi_ch_free_string(&makeurl);
+            goto done;
+        }
+        slapi_ch_free_string(&makeurl);
+    }
+
+    if(config_get_connection_nocanon()){
+        /*
+         * The NONCANON flag tells openldap to use the hostname specified in
+         * the ldap_initialize command, rather than looking up the
+         * hostname using gethostname or similar - this allows running
+         * sasl/gssapi tests on machines that don't have a canonical
+         * hostname (such as localhost.localdomain).
+         */
+        if((rc = ldap_set_option(ld, LDAP_OPT_X_SASL_NOCANON, LDAP_OPT_ON))){
+        	slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+                "Could not set ldap option LDAP_OPT_X_SASL_NOCANON for (%s), error %d (%s)\n",
+                ldapurl, rc, ldap_err2string(rc) );
+        }
     }
 #else /* !USE_OPENLDAP */
     if (filename) {
-	/* ldapi in mozldap client is not yet supported */
+        /* ldapi in mozldap client is not yet supported */
     } else if (secure == 1) {
-	ld = ldapssl_init(hostname, port, secure);
+        ld = ldapssl_init(hostname, port, secure);
     } else { /* regular ldap and/or starttls */
-	/*
-	 * Leverage the libprldap layer to take care of all the NSPR
-	 * integration.
-	 * Note that ldapssl_init() uses libprldap implicitly.
-	 */
-	ld = prldap_init(hostname, port, shared);
+        /*
+         * Leverage the libprldap layer to take care of all the NSPR
+         * integration.
+         * Note that ldapssl_init() uses libprldap implicitly.
+         */
+        ld = prldap_init(hostname, port, shared);
     }
 #endif /* !USE_OPENLDAP */
 
     /* must explicitly set version to 3 */
     ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &ldap_version3);
 
-#if defined(USE_OPENLDAP)
-    if (getenv("HACK_SASL_NOCANON")) {
-	/* the NONCANON flag tells openldap to use the hostname specified in
-	   the ldap_initialize command, rather than looking up the 
-	   hostname using gethostname or similar - this allows running
-	   sasl/gssapi tests on machines that don't have a canonical
-	   hostname (such as localhost.localdomain)
-	*/
-	ldap_set_option(ld, LDAP_OPT_X_SASL_NOCANON, LDAP_OPT_ON);
-    }
-#endif /* !USE_OPENLDAP */
     /* Update snmp interaction table */
     if (hostname) {
-	if (ld == NULL) {
-	    set_snmp_interaction_row((char *)hostname, port, -1);
-	} else {
-	    set_snmp_interaction_row((char *)hostname, port, 0);
-	}
+        if (ld == NULL) {
+            set_snmp_interaction_row((char *)hostname, port, -1);
+        } else {
+            set_snmp_interaction_row((char *)hostname, port, 0);
+        }
     }
 
     if ((ld != NULL) && !filename) {
-	/*
-	 * Set the outbound LDAP I/O timeout based on the server config.
-	 */
-	int io_timeout_ms = config_get_outbound_ldap_io_timeout();
-	if (io_timeout_ms > 0) {
+        /*
+         * Set the outbound LDAP I/O timeout based on the server config.
+         */
+        int io_timeout_ms = config_get_outbound_ldap_io_timeout();
+
+        if (io_timeout_ms > 0) {
 #if defined(USE_OPENLDAP)
-	    struct timeval tv;
-	    tv.tv_sec = io_timeout_ms / 1000;
-	    tv.tv_usec = (io_timeout_ms % 1000) * 1000;
-	    if (LDAP_OPT_SUCCESS != ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &tv)) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set outbound I/O "
-				"timeout to %dms\n",
-				io_timeout_ms);
-		slapi_ldap_unbind(ld);
-		ld = NULL;
-		goto done;
-	    }
+            struct timeval tv;
+
+            tv.tv_sec = io_timeout_ms / 1000;
+            tv.tv_usec = (io_timeout_ms % 1000) * 1000;
+            if (LDAP_OPT_SUCCESS != ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &tv)) {
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+                    "failed: unable to set outbound I/O timeout to %dms\n", io_timeout_ms);
+                slapi_ldap_unbind(ld);
+                ld = NULL;
+                goto done;
+            }
 #else /* !USE_OPENLDAP */
-	    if (prldap_set_session_option(ld, NULL, PRLDAP_OPT_IO_MAX_TIMEOUT,
-					  io_timeout_ms) != LDAP_SUCCESS) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set outbound I/O "
-				"timeout to %dms\n",
-				io_timeout_ms);
-		slapi_ldap_unbind(ld);
-		ld = NULL;
-		goto done;
-	    }
+            if (prldap_set_session_option(ld, NULL, PRLDAP_OPT_IO_MAX_TIMEOUT, io_timeout_ms) != LDAP_SUCCESS) {
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+                    "failed: unable to set outbound I/O timeout to %dms\n", io_timeout_ms);
+                slapi_ldap_unbind(ld);
+                ld = NULL;
+                goto done;
+            }
 #endif /* !USE_OPENLDAP */
-	}
+        }
 
-	/*
-	 * Set SSL strength (server certificate validity checking).
-	 */
-	if (secure > 0) {
+        /*
+         * Set SSL strength (server certificate validity checking).
+         */
+        if (secure > 0) {
 #if defined(USE_OPENLDAP)
-	    if (setup_ol_tls_conn(ld, 0)) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set SSL/TLS options\n");
-	    }
+            if (setup_ol_tls_conn(ld, 0)) {
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+                    "failed: unable to set SSL/TLS options\n");
+            }
 #else
-	    int ssl_strength = 0;
-	    LDAP *myld = NULL;
+            int ssl_strength = 0;
+            LDAP *myld = NULL;
 
-	    /* we can only use the set functions below with a real
-	       LDAP* if it has already gone through ldapssl_init -
-	       so, use NULL if using starttls */
-	    if (secure == 1) {
-		myld = ld;
-	    }
+            /*
+             * We can only use the set functions below with a real
+             * LDAP* if it has already gone through ldapssl_init -
+             * so, use NULL if using starttls
+             */
+            if (secure == 1) {
+                myld = ld;
+            }
 
-	    if (config_get_ssl_check_hostname()) {
-		/* check hostname against name in certificate */
-		ssl_strength = LDAPSSL_AUTH_CNCHECK;
-	    } else {
-		/* verify certificate only */
-		ssl_strength = LDAPSSL_AUTH_CERT;
-	    }
+            if (config_get_ssl_check_hostname()) {
+                /* check hostname against name in certificate */
+                ssl_strength = LDAPSSL_AUTH_CNCHECK;
+            } else {
+                /* verify certificate only */
+                ssl_strength = LDAPSSL_AUTH_CERT;
+            }
 
-	    if ((rc = ldapssl_set_strength(myld, ssl_strength)) ||
-		(rc = ldapssl_set_option(myld, SSL_ENABLE_SSL2, PR_FALSE)) ||
-		(rc = ldapssl_set_option(myld, SSL_ENABLE_SSL3, PR_TRUE)) ||
-		(rc = ldapssl_set_option(myld, SSL_ENABLE_TLS, PR_TRUE))) {
-		int prerr = PR_GetError();
+            if ((rc = ldapssl_set_strength(myld, ssl_strength)) ||
+                (rc = ldapssl_set_option(myld, SSL_ENABLE_SSL2, PR_FALSE)) ||
+                (rc = ldapssl_set_option(myld, SSL_ENABLE_SSL3, PR_TRUE)) ||
+                (rc = ldapssl_set_option(myld, SSL_ENABLE_TLS, PR_TRUE)))
+            {
+                int prerr = PR_GetError();
 
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
-				"failed: unable to set SSL options ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
-				prerr, slapd_pr_strerror(prerr));
-
-	    }
-	    if (secure == 1) {
-		/* tell bind code we are using SSL */
-		ldap_set_option(ld, LDAP_OPT_SSL, LDAP_OPT_ON);
-	    }
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+                    "failed: unable to set SSL options ("
+                    SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
+                    prerr, slapd_pr_strerror(prerr));
+            }
+            if (secure == 1) {
+                /* tell bind code we are using SSL */
+                ldap_set_option(ld, LDAP_OPT_SSL, LDAP_OPT_ON);
+            }
 #endif /* !USE_OPENLDAP */
-	}
+        }
     }
 
     if (ld && (secure == 2)) {
-	/* We don't have a way to stash context data with the LDAP*, so we
-	   stash the information in the client controls (currently unused).
-	   We don't want to open the connection in ldap_init, since that's
-	   not the semantic - the connection is not usually opened until
-	   the first operation is sent, which is usually the bind - or
-	   in this case, the start_tls - so we stash the start_tls so
-	   we can do it in slapi_ldap_bind - note that this will get
-	   cleaned up when the LDAP* is disposed of
-	*/
-	LDAPControl start_tls_dummy_ctrl;
-	LDAPControl **clientctrls = NULL;
+        /*
+         * We don't have a way to stash context data with the LDAP*, so we
+         * stash the information in the client controls (currently unused).
+         * We don't want to open the connection in ldap_init, since that's
+         * not the semantic - the connection is not usually opened until
+         * the first operation is sent, which is usually the bind - or
+         * in this case, the start_tls - so we stash the start_tls so
+         * we can do it in slapi_ldap_bind - note that this will get
+         * cleaned up when the LDAP* is disposed of
+         */
+        LDAPControl start_tls_dummy_ctrl;
+        LDAPControl **clientctrls = NULL;
 
-	/* returns copy of controls */
-	ldap_get_option(ld, LDAP_OPT_CLIENT_CONTROLS, &clientctrls);
+        /* returns copy of controls */
+        ldap_get_option(ld, LDAP_OPT_CLIENT_CONTROLS, &clientctrls);
 
-	start_tls_dummy_ctrl.ldctl_oid = START_TLS_OID;
-	start_tls_dummy_ctrl.ldctl_value.bv_val = NULL;
-	start_tls_dummy_ctrl.ldctl_value.bv_len = 0;
-	start_tls_dummy_ctrl.ldctl_iscritical = 0;
-	slapi_add_control_ext(&clientctrls, &start_tls_dummy_ctrl, 1);
-	/* set option frees old list and copies the new list */
-	ldap_set_option(ld, LDAP_OPT_CLIENT_CONTROLS, clientctrls);
-	ldap_controls_free(clientctrls); /* free the copy */
+        start_tls_dummy_ctrl.ldctl_oid = START_TLS_OID;
+        start_tls_dummy_ctrl.ldctl_value.bv_val = NULL;
+        start_tls_dummy_ctrl.ldctl_value.bv_len = 0;
+        start_tls_dummy_ctrl.ldctl_iscritical = 0;
+        slapi_add_control_ext(&clientctrls, &start_tls_dummy_ctrl, 1);
+        /* set option frees old list and copies the new list */
+        ldap_set_option(ld, LDAP_OPT_CLIENT_CONTROLS, clientctrls);
+        ldap_controls_free(clientctrls); /* free the copy */
     }
 
     slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
-		    "Success: set up conn to [%s:%d]%s\n",
-		    hostname, port,
-		    (secure == 2) ? " using startTLS" :
-		    ((secure == 1) ? " using SSL" : ""));
+            "Success: set up conn to [%s:%d]%s\n",
+            hostname, port,
+            (secure == 2) ? " using startTLS" :
+            ((secure == 1) ? " using SSL" : ""));
 done:
     ldap_free_urldesc(ludp);
 

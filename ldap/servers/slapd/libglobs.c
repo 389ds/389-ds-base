@@ -258,6 +258,7 @@ slapi_onoff_t init_ndn_cache_enabled;
 slapi_onoff_t init_sasl_mapping_fallback;
 slapi_onoff_t init_return_orig_type;
 slapi_onoff_t init_enable_turbo_mode;
+slapi_onoff_t init_connection_nocanon;
 slapi_int_t init_connection_buffer;
 #ifdef MEMPOOL_EXPERIMENTAL
 slapi_onoff_t init_mempool_switch;
@@ -1058,7 +1059,11 @@ static struct config_get_and_set {
 	{CONFIG_CONNECTION_BUFFER, config_set_connection_buffer,
 	        NULL, 0,
 	        (void**)&global_slapdFrontendConfig.connection_buffer,
-	        CONFIG_INT, (ConfigGetFunc)config_get_connection_buffer, &init_connection_buffer}
+	        CONFIG_INT, (ConfigGetFunc)config_get_connection_buffer, &init_connection_buffer},
+	{CONFIG_CONNECTION_NOCANON, config_set_connection_nocanon,
+	        NULL, 0,
+	        (void**)&global_slapdFrontendConfig.connection_nocanon,
+	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_connection_nocanon, &init_connection_nocanon}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1500,6 +1505,7 @@ FrontendConfig_init () {
   init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
   init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
   init_connection_buffer = cfg->connection_buffer = CONNECTION_BUFFER_ON;
+  init_connection_nocanon = cfg->connection_nocanon - LDAP_ON;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
@@ -2005,7 +2011,7 @@ config_set_snmp_index(const char *attrname, char *value, char *errorbuf, int app
                 snmp_index = strtol(value, &endp, 10);
 
                 if (*endp != '\0' || errno == ERANGE || snmp_index < snmp_index_disable) {
-                        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", %s must be greater or equal to %d (%d means disabled)", 
+                        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", %s must be greater or equal to %d (%d means disabled)",
                                 attrname, value, CONFIG_SNMP_INDEX_ATTRIBUTE, snmp_index_disable, snmp_index_disable);
                         retVal = LDAP_OPERATIONS_ERROR;
                 }
@@ -6958,6 +6964,18 @@ config_get_enable_turbo_mode(void)
 }
 
 int
+config_get_connection_nocanon(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+    retVal = (int)slapdFrontendConfig->connection_nocanon;
+    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
 slapi_config_get_unhashed_pw_switch()
 {
     return config_get_unhashed_pw_switch();
@@ -6984,6 +7002,19 @@ config_set_enable_turbo_mode( const char *attrname, char *value,
 
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->enable_turbo_mode),
+                              errorbuf, apply);
+    return retVal;
+}
+
+int
+config_set_connection_nocanon( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->connection_nocanon),
                               errorbuf, apply);
     return retVal;
 }

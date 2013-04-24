@@ -575,6 +575,9 @@ int config_get_enable_turbo_mode();
 int config_set_enable_turbo_mode(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_connection_buffer();
 int config_set_connection_buffer(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_connection_nocanon();
+int config_set_connection_nocanon(const char *attrname, char *value, char *errorbuf, int apply);
+
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
