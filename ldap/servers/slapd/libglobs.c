@@ -2011,7 +2011,7 @@ config_set_snmp_index(const char *attrname, char *value, char *errorbuf, int app
                 snmp_index = strtol(value, &endp, 10);
 
                 if (*endp != '\0' || errno == ERANGE || snmp_index < snmp_index_disable) {
-                        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", %s must be greater or equal to %d (%d means disabled)",
+                        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", %s must be greater or equal to %lu (%lu means disabled)",
                                 attrname, value, CONFIG_SNMP_INDEX_ATTRIBUTE, snmp_index_disable, snmp_index_disable);
                         retVal = LDAP_OPERATIONS_ERROR;
                 }
