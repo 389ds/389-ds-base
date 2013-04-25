@@ -2689,16 +2689,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	/* Call the plugin extension constructors */
 	conn->c_extension = factory_create_extension(connection_type,conn,NULL /* Parent */);
 
-
-	/* Add this connection slot to the doubly linked list of active connections.  This
-	 * list is used to find the connections that should be used in the poll call. This 
-	 * connection will be added directly after slot 0 which serves as the head of the list */
-	if ( conn != NULL && conn->c_next == NULL && conn->c_prev == NULL )
-	{
-		/* Now give the new connection to the connection code */
-		connection_table_move_connection_on_to_active_list(the_connection_table,conn);
-	}
-
 #if defined(ENABLE_LDAPI)
 #if !defined( XP_WIN32 )
 	/* ldapi */
@@ -2711,9 +2701,20 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 #endif
 #endif /* ENABLE_LDAPI */
 
-	PR_Unlock( conn->c_mutex );
-
 	connection_new_private(conn);
+
+	/* Add this connection slot to the doubly linked list of active connections.  This
+	 * list is used to find the connections that should be used in the poll call. This
+	 * connection will be added directly after slot 0 which serves as the head of the list.
+	 * This must be done as the very last thing before we unlock the mutex, because once it
+	 * is added to the active list, it is live. */
+	if ( conn != NULL && conn->c_next == NULL && conn->c_prev == NULL )
+	{
+		/* Now give the new connection to the connection code */
+		connection_table_move_connection_on_to_active_list(the_connection_table,conn);
+	}
+
+	PR_Unlock( conn->c_mutex );
 
 	g_increment_current_conn_count();
 
