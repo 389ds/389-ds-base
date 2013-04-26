@@ -1156,7 +1156,7 @@ vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *vlv
 	    slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
 	    slapi_rwlock_unlock(be->vlvSearchList_lock);
 	    slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-	    pagedresults_set_unindexed( pb->pb_conn, pr_idx );
+	    pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
 	    rc = VLV_FIND_SEARCH_FAILED;
 	} else if((*vlv_rc=vlvIndex_accessallowed(pi, pb)) != LDAP_SUCCESS) {
 	    slapi_rwlock_unlock(be->vlvSearchList_lock);

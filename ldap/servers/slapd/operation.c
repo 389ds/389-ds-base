@@ -185,8 +185,8 @@ operation_init(Slapi_Operation *o, int flags)
                 } else {
                     o->o_interval = (PRIntervalTime)0;
                 }
+		o->o_pagedresults_sizelimit = -1;
 	}
-
 }
 
 /*

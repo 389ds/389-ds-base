@@ -1363,13 +1363,18 @@ void slapd_daemon( daemon_ports_t *ports )
 		mapping_tree_free ();
 	}
 
-	be_cleanupall (); 
-    LDAPDebug( LDAP_DEBUG_TRACE, "slapd shutting down - backends closed down\n",
-			0, 0, 0 );
-	referrals_free();
-
+	/* 
+	 * connection_table_free could use callbacks in the backend.
+	 * (e.g., be_search_results_release)
+	 * Thus, it needs to be called before be_cleanupall.
+	 */
 	connection_table_free(the_connection_table);
 	the_connection_table= NULL;
+
+	be_cleanupall (); 
+	LDAPDebug( LDAP_DEBUG_TRACE, "slapd shutting down - backends closed down\n",
+			0, 0, 0 );
+	referrals_free();
 
 	/* tell the time thread to shutdown and then wait for it */
 	time_shutdown = 1;

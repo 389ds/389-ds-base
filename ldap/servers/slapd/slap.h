@@ -1357,6 +1357,7 @@ typedef struct op {
 	unsigned long o_abandoned_op; /* operation abandoned by this operation - used to decide which plugins to invoke */
 	struct slapi_operation_parameters o_params;
 	struct slapi_operation_results o_results;
+	int o_pagedresults_sizelimit;
 } Operation;
 
 /*
@@ -1385,6 +1386,7 @@ typedef struct _paged_results {
     time_t        pr_timelimit;           /* time limit for this request */
     int           pr_flags;
     ber_int_t     pr_msgid;               /* msgid of the request; to abandon */
+    PRLock        *pr_mutex;              /* protect each conn structure    */
 } PagedResults;
 
 /* array of simple paged structure stashed in connection */
