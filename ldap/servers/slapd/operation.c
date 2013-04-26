@@ -201,10 +201,11 @@ operation_new(int flags)
 		o->o_next = NULL;
 		o->o_flags= flags;
 		if ( config_get_accesslog_level() & LDAP_DEBUG_TIMING ) {
-                    o->o_interval = PR_IntervalNow();
-                } else {
-                    o->o_interval = (PRIntervalTime)0;
-                }
+			o->o_interval = PR_IntervalNow();
+		} else {
+			o->o_interval = (PRIntervalTime)0;
+		}
+		o->o_pagedresults_sizelimit = -1;
 	}
 	return o;
 }
