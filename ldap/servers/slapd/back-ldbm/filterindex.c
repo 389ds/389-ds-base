@@ -317,7 +317,7 @@ ava_candidates(
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-            pagedresults_set_unindexed( pb->pb_conn, pr_idx );
+            pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
         }
 
         /* We don't use valuearray_free here since the valueset, berval
@@ -349,7 +349,7 @@ ava_candidates(
         if ( unindexed ) {
             unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
             slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-            pagedresults_set_unindexed( pb->pb_conn, pr_idx );
+            pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
         }
          valuearray_free( &ivals );
          LDAPDebug( LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
@@ -390,7 +390,7 @@ presence_candidates(
         unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
-        pagedresults_set_unindexed( pb->pb_conn, pr_idx );
+        pagedresults_set_unindexed(pb->pb_conn, pb->pb_op, pr_idx);
     }
 
     if (idl != NULL && ALLIDS(idl) && strcasecmp(type, "nscpentrydn") == 0) {
@@ -504,6 +504,7 @@ extensible_candidates(
                                                   SLAPI_PAGED_RESULTS_INDEX,
                                                   &pr_idx );
                                 pagedresults_set_unindexed( glob_pb->pb_conn,
+                                                            glob_pb->pb_op,
                                                             pr_idx );
                             }
                             if (idl2 == NULL)
@@ -916,7 +917,7 @@ substring_candidates(
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
     if ( ivals == NULL || *ivals == NULL ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-        pagedresults_set_unindexed( pb->pb_conn, pr_idx );
+        pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
         LDAPDebug( LDAP_DEBUG_TRACE,
             "<= sub_candidates ALLIDS (no keys)\n", 0, 0, 0 );
         return( idl_allids( be ) );
@@ -930,7 +931,7 @@ substring_candidates(
     idl = keys2idl( be, type, indextype_SUB, ivals, err, &unindexed, &txn, allidslimit );
     if ( unindexed ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
-        pagedresults_set_unindexed( pb->pb_conn, pr_idx );
+        pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
     }
     valuearray_free( &ivals );
 

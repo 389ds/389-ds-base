@@ -1433,34 +1433,48 @@ void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical,
                                        int curr_search_count, int index);
 Slapi_Backend *pagedresults_get_current_be(Connection *conn, int index);
 int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index);
-void *pagedresults_get_search_result(Connection *conn, int index);
-int pagedresults_set_search_result(Connection *conn, void *sr, 
+void *pagedresults_get_search_result(Connection *conn, Operation *op,
+                                     int index);
+int pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, 
                                    int locked, int index);
-int pagedresults_get_search_result_count(Connection *conn, int index);
-int pagedresults_set_search_result_count(Connection *conn, int cnt, int index);
-int pagedresults_get_search_result_set_size_estimate(Connection *conn, 
+int pagedresults_get_search_result_count(Connection *conn, Operation *op,
+                                         int index);
+int pagedresults_set_search_result_count(Connection *conn, Operation *op,                                                int cnt, int index);
+int pagedresults_get_search_result_set_size_estimate(Connection *conn,
+                                                     Operation *op, 
                                                      int index);
-int pagedresults_set_search_result_set_size_estimate(Connection *conn, int cnt, 
+int pagedresults_set_search_result_set_size_estimate(Connection *conn,
+                                                     Operation *op, int cnt, 
                                                      int index);
-int pagedresults_get_with_sort(Connection *conn, int index);
-int pagedresults_set_with_sort(Connection *conn, int flags, int index);
-int pagedresults_get_unindexed(Connection *conn, int index);
-int pagedresults_set_unindexed(Connection *conn, int index);
-int pagedresults_get_sort_result_code(Connection *conn, int index);
-int pagedresults_set_sort_result_code(Connection *conn, int code, int index);
-int pagedresults_set_timelimit(Connection *conn, time_t timelimit, int index);
+int pagedresults_get_with_sort(Connection *conn, Operation *op, int index);
+int pagedresults_set_with_sort(Connection *conn, Operation *op,
+                               int flags, int index);
+int pagedresults_get_unindexed(Connection *conn, Operation *op, int index);
+int pagedresults_set_unindexed(Connection *conn, Operation *op, int index);
+int pagedresults_get_sort_result_code(Connection *conn, Operation *op,
+                                      int index);
+int pagedresults_set_sort_result_code(Connection *conn, Operation *op,
+                                      int code, int index);
+int pagedresults_set_timelimit(Connection *conn, Operation *op,
+                               time_t timelimit, int index);
+int pagedresults_get_sizelimit(Connection *conn, Operation *op, int index);
+int pagedresults_set_sizelimit(Connection *conn, Operation *op,
+                               int sizelimit, int index);
 int pagedresults_cleanup(Connection *conn, int needlock);
+#if 0 /* Stopped using it (#47347) */
 int pagedresults_check_or_set_processing(Connection *conn, int index);
 int pagedresults_reset_processing(Connection *conn, int index);
+#endif
 int pagedresults_is_timedout_nolock(Connection *conn);
 int pagedresults_reset_timedout_nolock(Connection *conn);
 int pagedresults_in_use_nolock(Connection *conn);
-int pagedresults_free_one(Connection *conn, int index);
-int pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid );
+int pagedresults_free_one(Connection *conn, Operation *op, int index);
+int pagedresults_free_one_msgid_nolock(Connection *conn, ber_int_t msgid);
 int op_is_pagedresults(Operation *op);
 int pagedresults_cleanup_all(Connection *conn, int needlock);
 void op_set_pagedresults(Operation *op);
-
+void pagedresults_lock(Connection *conn, int index);
+void pagedresults_unlock(Connection *conn, int index);
 
 /*
  * sort.c
