@@ -53,7 +53,7 @@ static int build_candidate_list( Slapi_PBlock *pb, backend *be,
 static IDList *base_candidates( Slapi_PBlock *pb, struct backentry *e );
 static IDList *onelevel_candidates( Slapi_PBlock *pb, backend *be, const char *base, struct backentry *e, Slapi_Filter *filter, int managedsait, int *lookup_returned_allidsp, int *err );
 static back_search_result_set* new_search_result_set(IDList* idl,int vlv, int lookthroughlimit);
-static void delete_search_result_set( back_search_result_set **sr );
+static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
 static int can_skip_filter_test( Slapi_PBlock *pb, struct slapi_filter *f,
         int scope, IDList *idl );
 
@@ -165,6 +165,7 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     int estimate = 0; /* estimated search result count */
     backend *be;
     ldbm_instance *inst;
+    back_search_result_set *sr = NULL;
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     inst = (ldbm_instance *) be->be_instance_info;
@@ -181,19 +182,14 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     {
         slapi_send_ldap_result( pb, ldap_result, NULL, ldap_result_description, 0, NULL );
     }
-    {
-        /* hack hack --- code to free the result set if we don't need it */
-        /* We get it and check to see if the structure was ever used */
-        back_search_result_set *sr = NULL;
-        slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
-        if ( (NULL != sr) && (function_result != 0) ) {
-            int pr_idx = -1;
-            slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
-            /* in case paged results, clean up the conn */
-            pagedresults_set_search_result( pb->pb_conn, NULL, 0, pr_idx );
-            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
-            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
-            delete_search_result_set(&sr);
+    /* code to free the result set if we don't need it */
+    /* We get it and check to see if the structure was ever used */
+    slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+    if (sr) {
+        if (function_result) {
+            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
+            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
+            delete_search_result_set(pb, &sr);
         }
     }
     if (vlv_request_control)
@@ -859,7 +855,7 @@ ldbm_back_search( Slapi_PBlock *pb )
 
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
-        pagedresults_set_unindexed( pb->pb_conn, pr_idx );
+        pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
     }
 
     sr->sr_candidates = candidates;
@@ -1347,13 +1343,24 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     int                    estimate = 0; /* estimated search result count */
     back_txn               txn = {NULL};
     int                    pr_idx = -1;
+    Slapi_Connection       *conn;
+    Slapi_Operation        *op;
 
+    slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &basesdn );
+    if (NULL == basesdn) {
+        slapi_send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL,
+                               "Null target DN", 0, NULL );
+        return( -1 );
+    }
+    slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
+    if (NULL == sr) {
+        goto bail;
+    }
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
     slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope );
     slapi_pblock_get( pb, SLAPI_MANAGEDSAIT, &managedsait );
     slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter );
-    slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &basesdn );
     slapi_pblock_get( pb, SLAPI_NENTRIES, &nentries );
     slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &slimit );
     slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
@@ -1361,17 +1368,13 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
     slapi_pblock_get( pb, SLAPI_SEARCH_REFERRALS, &urls );
     slapi_pblock_get( pb, SLAPI_TARGET_UNIQUEID, &target_uniqueid );
-    slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
     slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
-    slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
+    slapi_pblock_get( pb, SLAPI_CONNECTION, &conn );
+    slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 
     if ( !txn.back_txn_txn ) {
         dblayer_txn_init( li, &txn );
         slapi_pblock_set( pb, SLAPI_TXN, txn.back_txn_txn );
-    }
-
-    if (NULL == sr) {
-        goto bail;
     }
 
     if (sr->sr_norm_filter) {
@@ -1380,13 +1383,15 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         filter = sr->sr_norm_filter;
     }
 
-    if (NULL == basesdn) {
-        slapi_send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL,
-                               "Null target DN", 0, NULL );
-        return( -1 );
-    }
-
-    if (sr->sr_current_sizelimit >= 0) {
+    if (op_is_pagedresults(op)) {
+        int myslimit;
+        /* On Simple Paged Results search, sizelimit is appied for each page. */
+        slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
+        myslimit = pagedresults_get_sizelimit(conn, op, pr_idx);
+        if (myslimit >= 0) {
+            slimit = myslimit;
+        }
+    } else if (sr->sr_current_sizelimit >= 0) {
         /* 
          * sr_current_sizelimit contains the current sizelimit.
          * In case of paged results, getting one page is one operation,
@@ -1403,8 +1408,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     /* Return to the cache the entry we handed out last time */
     /* If we are using the extension, the front end will tell
      * us when to do this so we don't do it now */
-    if ( !use_extension )
-    {
+    if (sr->sr_entry && !use_extension) {
         CACHE_RETURN( &inst->inst_cache, &(sr->sr_entry) );
         sr->sr_entry = NULL;
     }
@@ -1428,15 +1432,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         /* check for abandon */
         if ( slapi_op_abandoned( pb ) || (NULL == sr) )
         {
-            /* in case paged results, clean up the conn */
-            pagedresults_set_search_result( pb->pb_conn, NULL, 0, pr_idx );
-            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             }
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            delete_search_result_set( &sr );
+            delete_search_result_set(pb, &sr);
             rc = SLAPI_FAIL_GENERAL;
             goto bail;
         }
@@ -1445,15 +1446,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         curtime = current_time();
         if ( tlimit != -1 && curtime > stoptime )
         {
-            /* in case paged results, clean up the conn */
-            pagedresults_set_search_result( pb->pb_conn, NULL, 0, pr_idx );
-            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             } 
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            delete_search_result_set( &sr );
+            delete_search_result_set(pb, &sr);
             rc = SLAPI_FAIL_GENERAL;
             slapi_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             goto bail;
@@ -1462,15 +1460,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         /* check lookthrough limit */
         if ( llimit != -1 && sr->sr_lookthroughcount >= llimit )
         {
-            /* in case paged results, clean up the conn */
-            pagedresults_set_search_result( pb->pb_conn, NULL, 0, pr_idx );
-            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             } 
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            delete_search_result_set( &sr );
+            delete_search_result_set(pb, &sr);
             rc = SLAPI_FAIL_GENERAL;
             slapi_send_ldap_result( pb, LDAP_ADMINLIMIT_EXCEEDED, NULL, NULL, nentries, urls );
             goto bail;
@@ -1482,15 +1477,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         {
             /* No more entries */
             /* destroy back_search_result_set */
-            /* in case paged results, clean up the conn */
-            pagedresults_set_search_result( pb->pb_conn, NULL, 0, pr_idx );
-            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
             if ( use_extension ) {
                 slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
             }
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-            delete_search_result_set( &sr );
+            delete_search_result_set(pb, &sr);
             rc = 0;
             goto bail;
         }
@@ -1623,17 +1615,20 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                  {
                      if ( --slimit < 0 ) {
                          CACHE_RETURN( &inst->inst_cache, &e );
-                         /* in case paged results, clean up the conn */
-                         pagedresults_set_search_result( pb->pb_conn, NULL,
-                                                         0, pr_idx);
-                         slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
                          slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
-                         delete_search_result_set( &sr );
+                         delete_search_result_set(pb, &sr);
                          slapi_send_ldap_result( pb, LDAP_SIZELIMIT_EXCEEDED, NULL, NULL, nentries, urls );
                          rc = SLAPI_FAIL_GENERAL;
                          goto bail;
                      }
                      slapi_pblock_set( pb, SLAPI_SEARCH_SIZELIMIT, &slimit );
+                     if (op_is_pagedresults(op)) {
+                         /* 
+                          * On Simple Paged Results search,
+                          * sizelimit is appied to each page.
+                          */
+                         pagedresults_set_sizelimit(conn, op, slimit, pr_idx);
+                     }
                      sr->sr_current_sizelimit = slimit;
                  }
                  if ( (filter_test != 0) && sr->sr_virtuallistview)
@@ -1740,12 +1735,19 @@ new_search_result_set(IDList *idl, int vlv, int lookthroughlimit)
 }
 
 static void
-delete_search_result_set( back_search_result_set **sr )
+delete_search_result_set( Slapi_PBlock *pb, back_search_result_set **sr )
 {
     int rc = 0, filt_errs = 0;
-    if ( NULL == sr || NULL == *sr)
+    if ( NULL == sr || NULL == *sr )
     {
         return;
+    }
+    if (pb) {
+        if (op_is_pagedresults(pb->pb_op)) {
+            /* If the op is pagedresults, let the module clean up sr. */
+            return;
+        }
+        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
     }
     if ( NULL != (*sr)->sr_candidates )
     {
@@ -1761,12 +1763,17 @@ delete_search_result_set( back_search_result_set **sr )
     slapi_filter_free((*sr)->sr_norm_filter, 1);
     memset( *sr, 0, sizeof( back_search_result_set ) );
     slapi_ch_free( (void**)sr );
+    return;
 }
 
+/*
+ * This function is called from pagedresults free/cleanup functions.
+ */ 
 void
 ldbm_back_search_results_release( void **sr )
 {
-    delete_search_result_set( (back_search_result_set **)sr );
+    /* passing NULL pb forces to delete the search result set */
+    delete_search_result_set( NULL, (back_search_result_set **)sr );
 }
 
 int
