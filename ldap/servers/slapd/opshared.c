@@ -53,7 +53,7 @@ static void compute_limits (Slapi_PBlock *pb);
 
 /* attributes that no clients are allowed to add or modify */
 static char *protected_attrs_all [] = { PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
-					NULL };
+                                        NULL };
 static char *pwpolicy_lock_attrs_all [] = { "passwordRetryCount",
                                             "retryCountResetTime",
                                             "accountUnlockTime",
@@ -239,7 +239,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   int             internal_op;
   Slapi_DN        *basesdn = NULL;
   Slapi_DN        *sdn = NULL;
-  Slapi_Operation *operation;
+  Slapi_Operation *operation = NULL;
   Slapi_Entry     *referral = NULL;
   char            *proxydn = NULL; 
   char            *proxystr = NULL;
@@ -265,7 +265,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   int curr_search_count = 0;
   Slapi_Backend *pr_be = NULL;
   void *pr_search_result = NULL;
-  int pr_reset_processing = 0;
   int pr_idx = -1;
   Slapi_DN *orig_sdn = NULL;
   int free_sdn = 0;
@@ -469,23 +468,16 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           if ((LDAP_SUCCESS == rc) ||
               (LDAP_CANCELLED == rc) || (0 == pagesize)) {
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
-              if (pagedresults_check_or_set_processing(pb->pb_conn, pr_idx)) {
-                  send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM,
-                                   NULL, "Simple Paged Results Search "
-                                   "already in progress on this connection",
-                                   0, NULL);
-                  goto free_and_return_nolock;
-              }
-              /* need to reset after we are done with this op */
-              pr_reset_processing = 1;
               op_set_pagedresults(operation);
               pr_be = pagedresults_get_current_be(pb->pb_conn, pr_idx);
               pr_search_result = pagedresults_get_search_result(pb->pb_conn,
+                                                                operation,
                                                                 pr_idx);
               estimate = 
                  pagedresults_get_search_result_set_size_estimate(pb->pb_conn,
+                                                                  operation,
                                                                   pr_idx);
-              if (pagedresults_get_unindexed(pb->pb_conn, pr_idx)) {
+              if (pagedresults_get_unindexed(pb->pb_conn, operation, pr_idx)) {
                   opnote |= SLAPI_OP_NOTE_UNINDEXED;
               }
               slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
@@ -640,7 +632,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
     slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
     time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
-    pagedresults_set_timelimit(pb->pb_conn, time_up, pr_idx);
+    pagedresults_set_timelimit(pb->pb_conn, pb->pb_op, time_up, pr_idx);
   }
 
   /* PAR: now filters have been rewritten, we can assign plugins to work on them */
@@ -694,12 +686,25 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     if (op_is_pagedresults(operation) && pr_search_result) {
       void *sr = NULL;
       /* PAGED RESULTS and already have the search results from the prev op */
-      slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
-      rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
+      pagedresults_lock(pb->pb_conn, pr_idx);
+      /* 
+       * In async paged result case, the search result might be released
+       * by other theads.  We need to double check it in the locked region.
+       */
+      pr_search_result = pagedresults_get_search_result(pb->pb_conn, 
+                                                        operation,
+                                                        pr_idx);
+      if (pr_search_result) {
+        slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
+        rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
 
-      /* search result could be reset in the backend/dse */
-      slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-      pagedresults_set_search_result(pb->pb_conn, sr, 0, pr_idx);
+        /* search result could be reset in the backend/dse */
+        slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+        pagedresults_set_search_result(pb->pb_conn, operation, sr, 0, pr_idx);
+      } else {
+        pr_stat = PAGEDRESULTS_SEARCH_END;
+      }
+      pagedresults_unlock(pb->pb_conn, pr_idx);
 
       if (PAGEDRESULTS_SEARCH_END == pr_stat) {
         /* no more entries to send in the backend */
@@ -720,14 +725,18 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       }
       pagedresults_set_response_control(pb, 0, estimate,
                                         curr_search_count, pr_idx);
-      if (pagedresults_get_with_sort(pb->pb_conn, pr_idx)) {
+      if (pagedresults_get_with_sort(pb->pb_conn, operation, pr_idx)) {
         sort_make_sort_response_control(pb, CONN_GET_SORT_RESULT_CODE, NULL);
       }
       pagedresults_set_search_result_set_size_estimate(pb->pb_conn, 
+                                                       operation,
                                                        estimate, pr_idx);
       next_be = NULL; /* to break the loop */
       if (curr_search_count == -1) {
-        pagedresults_free_one(pb->pb_conn, pr_idx);
+        pagedresults_lock(pb->pb_conn, pr_idx);
+        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
+        pagedresults_free_one(pb->pb_conn, operation, pr_idx);
+        pagedresults_unlock(pb->pb_conn, pr_idx);
       }
     } else {
       /* be_suffix null means that we are searching the default backend
@@ -849,7 +858,11 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
             int with_sort = operation->o_flags & OP_FLAG_SERVER_SIDE_SORTING;
   
             curr_search_count = pnentries;
+            slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
             if (PAGEDRESULTS_SEARCH_END == pr_stat) {
+              if (sr) { /* in case a left over sr is found, clean it up */
+                be->be_search_results_release(&sr);
+              }
               if (NULL == next_be) {
                 /* no more entries && no more backends */
                 curr_search_count = -1;
@@ -861,24 +874,31 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               }
             } else {
               curr_search_count = pnentries;
-              slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
               slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-              if (pagedresults_set_current_be(pb->pb_conn, be, pr_idx) < 0 ||
-                  pagedresults_set_search_result(pb->pb_conn, sr, 0, pr_idx) < 0 ||
-                  pagedresults_set_search_result_count(pb->pb_conn,
-                                                   curr_search_count, pr_idx) < 0 ||
-                  pagedresults_set_search_result_set_size_estimate(pb->pb_conn,
-                                                   estimate, pr_idx) < 0 ||
-                  pagedresults_set_with_sort(pb->pb_conn, with_sort, pr_idx) < 0) {
+              pagedresults_lock(pb->pb_conn, pr_idx);
+              if ((pagedresults_set_current_be(pb->pb_conn, be, pr_idx) < 0) ||
+                  (pagedresults_set_search_result(pb->pb_conn, operation,
+                                                  sr, 0, pr_idx) < 0) ||
+                  (pagedresults_set_search_result_count(pb->pb_conn, operation,
+                                                        curr_search_count,
+                                                        pr_idx) < 0) ||
+                  (pagedresults_set_search_result_set_size_estimate(pb->pb_conn,
+                                                                 operation,
+                                                                 estimate,
+                                                                 pr_idx) < 0) ||
+                  (pagedresults_set_with_sort(pb->pb_conn, operation,
+                                              with_sort, pr_idx) < 0)) {
+                pagedresults_unlock(pb->pb_conn, pr_idx);
                 goto free_and_return;
               }
+              pagedresults_unlock(pb->pb_conn, pr_idx);
             }
             pagedresults_set_response_control(pb, 0, estimate, 
                                               curr_search_count, pr_idx);
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, NULL );
             next_be = NULL; /* to break the loop */
             if (curr_search_count == -1) {
-                pagedresults_free_one(pb->pb_conn, pr_idx);
+                pagedresults_free_one(pb->pb_conn, operation, pr_idx);
             }
         }
   
@@ -1007,9 +1027,6 @@ free_and_return_nolock:
 
   slapi_ch_free_string(&proxydn);
   slapi_ch_free_string(&proxystr);
-  if (pr_reset_processing) {
-    pagedresults_reset_processing(pb->pb_conn, pr_idx);
-  }
 }
 
 /* Returns 1 if this processing on this entry is finished
@@ -1257,7 +1274,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
 
     *pnentries = 0;
     
-    while (!done) 
+    while (!done)
     {
         Slapi_Entry *gerentry = NULL;
         Slapi_Operation *operation;
@@ -1275,7 +1292,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                 operation_out_of_disk_space();
             }
             pr_stat = PAGEDRESULTS_SEARCH_END;
-            pagedresults_set_timelimit(pb->pb_conn, 0, pr_idx);
+            pagedresults_set_timelimit(pb->pb_conn, pb->pb_op, 0, pr_idx);
             rval = -1;
             done = 1;
             continue;
