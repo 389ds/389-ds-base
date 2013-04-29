@@ -384,6 +384,7 @@ Slapi_DN *slapi_sdn_init_dn_passin(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byref(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_ndn_byval(Slapi_DN *sdn,const char *dn);
 Slapi_DN *slapi_sdn_init_normdn_byref(Slapi_DN *sdn, const char *dn);
+Slapi_DN *slapi_sdn_init_normdn_byval(Slapi_DN *sdn, const char *dn);
 Slapi_DN *slapi_sdn_init_normdn_ndn_passin(Slapi_DN *sdn, const char *dn);
 Slapi_DN *slapi_sdn_init_normdn_passin(Slapi_DN *sdn, const char *dn);
 char *slapi_dn_normalize_original( char *dn );

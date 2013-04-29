@@ -1523,6 +1523,7 @@ upgradedn_producer(void *param)
     finished = 0;
     while (!finished) {
         ID temp_id;
+        int dn_in_cache;
 
         if (job->flags & FLAG_ABORT) {   
             goto error;
@@ -1580,6 +1581,7 @@ upgradedn_producer(void *param)
         do_dn_norm = 0;
         do_dn_norm_sp = 0;
         rdn_has_spaces = 0;
+        dn_in_cache = 0;
         if (entryrdn_get_switch()) {
     
             /* original rdn is allocated in get_value_from_string */
@@ -1591,10 +1593,12 @@ upgradedn_producer(void *param)
             } else {
                 bdn = dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
-                    /* don't free dn */
+                    /* don't free normdn */
                     normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    dn_in_cache = 1;
                 } else {
+                    /* free normdn */
                     rc = entryrdn_lookup_dn(be, rdn, temp_id,
                                             (char **)&normdn, NULL, NULL);
                     if (rc) {
@@ -1639,6 +1643,7 @@ upgradedn_producer(void *param)
                                 continue;
                             }
                         }
+                        /* free normdn */
                         normdn = slapi_ch_smprintf("%s%s%s",
                                                rdn, pdn?",":"", pdn?pdn:"");
                         slapi_ch_free_string(&pdn);
@@ -1648,14 +1653,18 @@ upgradedn_producer(void *param)
                          * we need to put the new value to cache.*/
                         /* dn is dup'ed in slapi_sdn_new_dn_byval.
                          * It's set to bdn and put in the dn cache. */
-                        sdn = slapi_sdn_new_normdn_byref(normdn);
+                        /* normdn is allocated in this scope.
+                         * Thus, we can just passin. */
+                        sdn = slapi_sdn_new_normdn_passin(normdn);
                         bdn = backdn_init(sdn, temp_id, 0);
                         CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
+                        /* don't free this normdn  */
                         normdn = slapi_sdn_get_dn(sdn);
                         slapi_log_error(SLAPI_LOG_CACHE, "uptradedn",
                                         "entryrdn_lookup_dn returned: %s, "
                                         "and set to dn cache\n", normdn);
+                        dn_in_cache = 1;
                     }
                 }
                 e = slapi_str2entry_ext(normdn, NULL, data.dptr, 
@@ -1691,11 +1700,7 @@ upgradedn_producer(void *param)
          * -- normalize it with the new format
          */
         if (!normdn) {
-            get_value_from_string((const char *)ecopy, "dn", (char **)&normdn);
-        }
-        if (normdn) {
-            slapi_sdn_done(&(e->e_sdn));
-            slapi_sdn_init_dn_passin(&(e->e_sdn), normdn);
+            /* No rdn in id2entry or entrydn */
             normdn = slapi_sdn_get_dn(&(e->e_sdn));
         }
 
@@ -1807,13 +1812,16 @@ upgradedn_producer(void *param)
                                   normdn, temp_id, alt_id);
                         LDAPDebug2Args(LDAP_DEBUG_ANY, "Renaming \"%s\" to \"%s\"\n",
                                        rdn, newrdn);
+                        if (!dn_in_cache) {
+                            /* If not in dn cache, normdn needs to be freed. */
+                            slapi_ch_free_string(&normdn);
+                        }
                         normdn = slapi_ch_smprintf("%s,%s", newrdn, parentdn);
                         slapi_ch_free_string(&newrdn);
                         slapi_ch_free_string(&parentdn);
                         /* Reset DN and RDN in the entry */
                         slapi_sdn_done(&(e->e_sdn));
-                        slapi_sdn_init_normdn_passin(&(e->e_sdn), normdn);
-                        /* normdn = slapi_sdn_get_dn(&(e->e_sdn)); */
+                        slapi_sdn_init_normdn_byval(&(e->e_sdn), normdn);
                     }
                     info_state |= DN_NORM_SP;
                     upgradedn_add_to_list(&ud_list,
@@ -1834,12 +1842,14 @@ upgradedn_producer(void *param)
          * It's set to bdn and put in the dn cache. */
         /* Waited to put normdn into dncache until it could be modified in
          * chk_dn_norm_sp. */
-        sdn = slapi_sdn_new_normdn_byref(normdn);
-        bdn = backdn_init(sdn, temp_id, 0);
-        CACHE_ADD(&inst->inst_dncache, bdn, NULL);
-        CACHE_RETURN(&inst->inst_dncache, &bdn);
-        slapi_log_error(SLAPI_LOG_CACHE, "uptradedn",
-                        "set dn %s to dn cache\n", normdn);
+        if (!dn_in_cache) {
+            sdn = slapi_sdn_new_normdn_passin(normdn);
+            bdn = backdn_init(sdn, temp_id, 0);
+            CACHE_ADD(&inst->inst_dncache, bdn, NULL);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
+            slapi_log_error(SLAPI_LOG_CACHE, "uptradedn",
+                            "set dn %s to dn cache\n", normdn);
+        }
         /* Check DN syntax attr values if it contains '\\' or not */
         /* Start from the rdn */
         if (chk_dn_norm) {

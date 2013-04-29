@@ -1915,6 +1915,22 @@ slapi_sdn_init_normdn_byref(Slapi_DN *sdn, const char *dn)
     } else {
         sdn->ndn_len = strlen(dn);
         sdn->dn = dn;
+        sdn->flag = slapi_unsetbit_uchar(sdn->flag, FLAG_DN);
+    }
+    return sdn;
+}
+
+/* use when dn is already normalized (but case is yet touched) */
+Slapi_DN *
+slapi_sdn_init_normdn_byval(Slapi_DN *sdn, const char *dn)
+{
+    slapi_sdn_init(sdn);
+    if(dn == NULL) {
+        sdn->ndn_len = 0;
+    } else {
+        sdn->ndn_len = strlen(dn);
+		sdn->dn= slapi_ch_strdup(dn);
+        sdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_DN);
     }
     return sdn;
 }
