@@ -539,7 +539,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 	 * Associate the new credentials with the connection.  Note that
 	 * clientDN and clientCert may be NULL.
 	 */
-	bind_credentials_set( conn, SLAPD_AUTH_SSL, clientDN,
+	bind_credentials_set_nolock( conn, SLAPD_AUTH_SSL, clientDN,
 			SLAPD_AUTH_SSL, clientDN, clientCert , NULL);
 done:
     slapi_ch_free_string(&subject);
