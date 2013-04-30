@@ -1448,7 +1448,7 @@ upgradedn_producer(void *param)
     struct upgradedn_attr *ud_ptr = NULL;
     Slapi_Attr *ud_attr = NULL;
     char *ecopy = NULL;
-    const char *normdn = NULL;
+    char *normdn = NULL;
     char *rdn = NULL; /* original rdn */
     int is_dryrun = 0;      /* FLAG_DRYRUN */
     int chk_dn_norm = 0;    /* FLAG_UPGRADEDNFORMAT */
@@ -1660,7 +1660,7 @@ upgradedn_producer(void *param)
                         CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
                         /* don't free this normdn  */
-                        normdn = slapi_sdn_get_dn(sdn);
+                        normdn = (char *)slapi_sdn_get_dn(sdn);
                         slapi_log_error(SLAPI_LOG_CACHE, "uptradedn",
                                         "entryrdn_lookup_dn returned: %s, "
                                         "and set to dn cache\n", normdn);
@@ -1701,7 +1701,7 @@ upgradedn_producer(void *param)
          */
         if (!normdn) {
             /* No rdn in id2entry or entrydn */
-            normdn = slapi_sdn_get_dn(&(e->e_sdn));
+            normdn = (char *)slapi_sdn_get_dn(&(e->e_sdn));
         }
 
         /* 
