@@ -1285,6 +1285,7 @@ sub get_server_id {
     my $first = "yes";
     my $instances = "<none>";
     my $name;
+    my $inst;
     my $file;
     my @extra = ();
     my $extradir = "";
@@ -1325,7 +1326,7 @@ sub get_server_id {
         # skip admin server
         if($file =~ m,/@package_name@-([^/]+)$, && $file !~ m,/@package_name@-admin$,){
             $name = $file;
-            my $inst = $1;
+            $inst = $1;
             $instance_count++;
             if ($servid && ($servid eq $inst)) {
                 $found = 1;
@@ -1351,21 +1352,20 @@ sub get_server_id {
         exit (1);
     }
     
-    if ($instance_count > 1){
+    if (!$servid && $instance_count > 1){
         print "You must supply a valid server instance identifier.  Use -Z to specify instance name\n";
         print "Available instances: $instances\n";
         exit (1);
     }
-    
-    unless ( -e "$file" ){
+    unless ( -e "$name" ){
         print (STDERR "Invalid server identifer: $servid\n");
         print (STDERR "Available instances in $dir $extradir: $instances\n");
         exit (1);
     }
 
     # now grab the CONFIG_DIR from the file $name
-    if (open(INSTFILE, "$name")) {
-        print (STDERR "Error: could not open $name: $!");
+    if (!open(INSTFILE, "$name")) {
+        print (STDERR "Error: could not open $name: ");
         exit (1);
     }
 
@@ -1375,6 +1375,7 @@ sub get_server_id {
             s/^CONFIG_DIR=//;
             s/ ; export CONFIG_DIR//;
             $confdir = $_;
+            chomp($confdir);
             last;
         }
     }
@@ -1385,7 +1386,7 @@ sub get_server_id {
         exit (1);
     }
     
-    return ($servid, $confdir);
+    return ($inst, $confdir);
 }
 
 #

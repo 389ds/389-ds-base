@@ -97,8 +97,8 @@ then
     usage
     exit 1
 fi
-    
-while getopts "hZ:n:s:x:a:NrCuUmM1qvd:D:ESt:oc:" flag
+
+while getopts "hZ:vd:D:ENa:rs:x:CSut:n:UmMo1qc:" flag
 do
     case $flag in
         h) usage
@@ -110,8 +110,7 @@ do
            required_param="yes";;
         x) excludeSuffix="-x $OPTARG";;
         a) outputFile="-a $OPTARG";;
-        d) outputFile="-d $OPTARG";;
-        t) outputFile="-t $OPTARG";;
+        d) args=$args" -d $OPTARG";;
         D) args=$args" -D $OPTARG";;
         N) args=$args" -N";;
         E) args=$args" -E";;

@@ -4,30 +4,15 @@ libpath_add()
     LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
 }
 
-# pass in a string that ends in dirsrv-name or slapd-name
+# pass in a string that ends in dirsrv-name or slapd-name,
 # and convert it to just "name"
-# the string could be a path name or not
-# if the string did not match @package_name@-name or slapd-name it
-# will be returned as is
-# want to be able to handle weird cases like /slapd-@package_name@-foo
-# that should normalize to the strange @package_name@-foo e.g.
-# someone named the instance "@package_name@-foo"
 normalize_server_id()
 {
-    echo "$1" | sed '
-# save the current line
-h
-# delete leading path components if any (i.e. basename)
-s/^.*\///;ta
-:a
-# begins with @package_name@- ; remove it and exit
-s/^@package_name@-//;tx
-# begins with slapd- ; remove it and exit
-s/^slapd-//;tx
-# no match - return original string
-g
-:x
-'
+    servid=$1
+    servid=`echo "$servid" | sed 's/^.*\///'`
+    servid=`echo "$servid" | sed 's/^dirsrv-//'`
+    servid=`echo "$servid" | sed 's/^slapd-//'`
+    echo $servid
 }
 
 # look for all initconfig files in the given directory
@@ -40,6 +25,7 @@ g
 # if not running as root, look for non-system instances in
 # $HOME/.dirsrv
 # ignore the dirsrv-admin admin server config file
+#
 get_initconfig_files()
 {
     dir=${1:-@initconfigdir@}
@@ -101,7 +87,6 @@ get_init_file()
     first="yes"
     inst_count=0
     instances="<none>"
-    rc=0
 
     # normalize servid, if given
     if [ -n "$servid" ]
@@ -109,14 +94,14 @@ get_init_file()
         servid=`normalize_server_id $servid`
     fi
 
-    for i in `get_initconfig_files $dir`
+    for configfile in `get_initconfig_files $dir`
     do
         inst_count=`expr $inst_count + 1`
-        id=`normalize_server_id $i`
+        id=`normalize_server_id $configfile`
         if [ -n "$servid" -a "$id" = "$servid" ]
         then
             # found it
-            echo $i
+            echo $configfile
             exit 0
         fi
         if  [ $first == "yes" ]
@@ -126,27 +111,20 @@ get_init_file()
         else
             instances=$instances", $id"
         fi
-        name=$i
     done
 
-    if [ -n $servid ] ; then
-        # if we got here, we did not find a match
-        echo $instances
-        exit 1
-    fi
-
     # server id not provided, check if there is only one instance
-    if [ $inst_count -eq 1 ]
+    if [ -z "$servid" -a $inst_count -eq 1 ]
     then
-        servid=$name
+        # return the file
+        echo $configfile
+        exit 0
     else 
-        # multiple instances, can not set server id.  Return list of instances
-        servid=$instances
-        rc=1
+        # Either we have an invalid name, or more than one instance is available
+        # Return the available instances instead of the config file
+        echo $instances
+        exit 1;
     fi
-
-    echo $servid
-    exit $rc
 }
 
 #
