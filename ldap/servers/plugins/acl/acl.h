@@ -477,7 +477,7 @@ struct acl_pblock {
 			   ACLPB_ACCESS_ALLOWED_ON_ENTRY | ACLPB_ATTR_STAR_MATCHED |  \
 			   ACLPB_FOUND_ATTR_RULE | ACLPB_EVALUATING_FIRST_ATTR |  \
 			   ACLPB_FOUND_A_ENTRY_TEST_RULE )
-#define ACLPB_STATE_ALL				0x3fffff
+#define ACLPB_STATE_ALL				0xffffff
 
 	int						aclpb_res_type;
 
