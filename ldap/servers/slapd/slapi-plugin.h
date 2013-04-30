@@ -5440,6 +5440,21 @@ char ** slapi_ch_array_dup( char **array );
 void slapi_ch_array_add( char ***array, char *string );
 
 /**
+ * Add a string to an array of strings
+ *
+ * \param array The array to add the string to
+ * \param string The string to add to the array
+ * \warning The \c string parameter is not copied.  If you do not
+ *          want to hand the memory used by \c string over to the
+ *          array, you should duplicate it first by calling the
+ *          slapi_ch_strdup() function.
+ * \warning If \c *a is \c NULL, a new array will be allocated.
+ * \see slapi_ch_array_free()
+ * \return the total number of elements in the array.
+ */
+int slapi_ch_array_add_ext(char ***array, char *string);
+
+/**
  * Find a string in an array of strings
  *
  * \param array The array of strings

@@ -491,6 +491,14 @@ typedef struct oid_item {
     struct oid_item	*oi_next;
 } oid_item_t;
 
+/* schema extension item: X-ORIGIN, X-CSN, etc */
+typedef struct schemaext {
+    char *term;
+    char **values;
+    int value_count;
+    struct schemaext *next;
+} schemaext;
+
 /* attribute description (represents an attribute, but not the value) */
 typedef struct asyntaxinfo {
     char    			*asi_oid;			/* OID */
@@ -501,7 +509,7 @@ typedef struct asyntaxinfo {
 	char				*asi_mr_equality;	/* equality matching rule */
 	char				*asi_mr_ordering;	/* ordering matching rule */
 	char				*asi_mr_substring;	/* substring matching rule */
-	char				**asi_origin;		/* X-ORIGIN extension */
+	schemaext			*asi_extensions;	/* schema extensions (X-ORIGIN, X-?????, ...) */
 	struct slapdplugin	*asi_plugin;		/* syntax */
 	unsigned long		asi_flags;			/* SLAPI_ATTR_FLAG_... */
 	int					asi_syntaxlength;	/* length associated w/syntax */
@@ -676,25 +684,25 @@ extern struct attrs_in_extension attrs_in_extension[];
 #define OC_FLAG_OBSOLETE		8
 
 /* values for oc_kind */
-#define OC_KIND_STRUCTURAL		0
-#define OC_KIND_AUXILIARY		1
-#define OC_KIND_ABSTRACT		2
+#define OC_KIND_ABSTRACT		0
+#define OC_KIND_STRUCTURAL		1
+#define OC_KIND_AUXILIARY		2
 
 
 /* XXXmcs: ../plugins/cos/cos_cache.c has its own copy of this definition! */
 struct objclass {
-	char				*oc_name;		/* NAME */
-	char				*oc_desc;		/* DESC */
-    char        		*oc_oid;		/* object identifier */
-    char        		*oc_superior;	/* SUP -- XXXmcs: should be an array */
-	PRUint8				oc_kind;		/* ABSTRACT/STRUCTURAL/AUXILIARY */
-    PRUint8				oc_flags;		/* misc. flags, e.g., OBSOLETE */
-	char				**oc_required;
-	char				**oc_allowed;
-    char        		**oc_orig_required;	/* MUST */
-    char        		**oc_orig_allowed;	/* MAY */
-	char				**oc_origin;	/* X-ORIGIN extension */
-	struct objclass		*oc_next;
+    char                *oc_name;       /* NAME */
+    char                *oc_desc;       /* DESC */
+    char                *oc_oid;        /* object identifier */
+    char                *oc_superior;   /* SUP -- XXXmcs: should be an array */
+    PRUint8             oc_kind;        /* ABSTRACT/STRUCTURAL/AUXILIARY */
+    PRUint8             oc_flags;       /* misc. flags, e.g., OBSOLETE */
+    char                **oc_required;
+    char                **oc_allowed;
+    char                **oc_orig_required; /* MUST */
+    char                **oc_orig_allowed;  /* MAY */
+    schemaext           *oc_extensions; /* schema extensions (X-ORIGIN, X-?????, ...) */
+    struct objclass     *oc_next;
 };
 
 struct matchingRuleList {

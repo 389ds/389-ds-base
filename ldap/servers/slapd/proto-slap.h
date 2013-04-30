@@ -121,11 +121,10 @@ int attr_syntax_exists (const char *attr_name);
 void attr_syntax_delete ( struct asyntaxinfo *asip );
 #define SLAPI_SYNTAXLENGTH_NONE		(-1)	/* for syntaxlength parameter */
 int attr_syntax_create( const char *attr_oid, char *const*attr_names,
-		int num_names, const char *attr_desc, const char *attr_superior,
+		const char *attr_desc, const char *attr_superior,
 		const char *mr_equality, const char *mr_ordering,
-		const char *mr_substring, char *const *attr_origins,
-		const char *attr_syntax, int syntaxlength, unsigned long flags,
-		struct asyntaxinfo **asip );
+		const char *mr_substring, schemaext *extensions, const char *attr_syntax,
+		int syntaxlength, unsigned long flags, struct asyntaxinfo **asip );
 void attr_syntax_free( struct asyntaxinfo *a );
 int attr_syntax_add( struct asyntaxinfo *asip );
 char *attr_syntax_normalize_no_lookup( const char *s );
@@ -1000,7 +999,8 @@ void slapi_schema_expand_objectclasses( Slapi_Entry *e );
 int slapi_validate_schema_files(char *schemadir);
 /* API to reload the schema files */
 int slapi_reload_schema_files(char *schemadir);
-
+void schema_free_extensions(schemaext *extensions);
+schemaext *schema_copy_extensions(schemaext *extensions);
 /*
  * schemaparse.c
  */

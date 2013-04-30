@@ -56,6 +56,13 @@ charray_add(
     char    *s
 )
 {
+    slapi_ch_array_add_ext(a, s);
+}
+
+/* return the total number of elements that are now in the array */
+int
+slapi_ch_array_add_ext(char ***a, char *s)
+{
     int    n;
 
     if ( *a == NULL ) {
@@ -81,10 +88,10 @@ charray_add(
 #endif
 
     /* Putting code back so that thread conflict can be made visible */
-
     (*a)[n++] = s;
     (*a)[n] = NULL;
 
+    return n;
 }
 
 void

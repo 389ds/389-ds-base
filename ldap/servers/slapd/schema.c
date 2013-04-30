@@ -51,16 +51,17 @@
 #include <plhash.h>
 #include "slap.h"
 
+#if defined(USE_OPENLDAP)
+#include <ldap_schema.h> /* openldap schema parser */
+#endif
+
 typedef struct sizedbuffer
 {
     char *buffer;
 	size_t size;
 } sizedbuffer;
 
-
 typedef char *(*schema_strstr_fn_t)( const char *big, const char *little);
-
-
 
 /*
  * The schema_oc_kind_strings array is indexed by oc_kind values, i.e.,
@@ -69,9 +70,9 @@ typedef char *(*schema_strstr_fn_t)( const char *big, const char *little);
  */
 #define SCHEMA_OC_KIND_COUNT		3
 static char *schema_oc_kind_strings_with_spaces[] = {
+	" ABSTRACT ",
 	" STRUCTURAL ",
 	" AUXILIARY ",
-	" ABSTRACT ",
 };
 
 /* constant strings (used in a few places) */
@@ -96,7 +97,6 @@ static int oc_delete_nolock (char *ocname);
 static int oc_replace_nolock(const char *ocname, struct objclass *newoc); 
 static int oc_check_required(Slapi_PBlock *, Slapi_Entry *,struct objclass *);
 static int oc_check_allowed_sv(Slapi_PBlock *, Slapi_Entry *e, const char *type, struct objclass **oclist );
-static char **read_dollar_values ( char *vals);
 static int schema_delete_objectclasses ( Slapi_Entry *entryBefore,
 		LDAPMod *mod, char *errorbuf, size_t errorbufsize,
 		int schema_ds4x_compat );
@@ -110,9 +110,6 @@ static int schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod,
 		char *errorbuf, size_t errorbufsize );
 static int schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod,
 		char *errorbuf, size_t errorbufsize );
-static int read_oc_ldif ( const char *input, struct objclass **oc,
-		char *errorbuf, size_t errorbufsize, PRUint32 flags, int is_user_defined,
-		int schema_ds4x_compat );
 static int schema_check_name(char *name, PRBool isAttribute, char *errorbuf,
 		size_t errorbufsize );
 static int schema_check_oid(const char *name, const char *oid,
@@ -120,27 +117,14 @@ static int schema_check_oid(const char *name, const char *oid,
 static int isExtensibleObjectclass(const char *objectclass);
 static int strip_oc_options ( struct objclass *poc );
 static char *stripOption (char *attr);
-static int read_at_ldif(const char *input, struct asyntaxinfo **asipp,
-		char *errorbuf, size_t errorbufsize, PRUint32 flags,
-		int is_user_defined, int schema_ds4x_compat, int is_remote);
-static char **parse_qdlist(const char *s, int *n, int strip_options);
-static void free_qdlist(char **vals, int n);
-static char **parse_qdescrs(const char *s, int *n);
-static char **parse_qdstrings(const char *s, int *n);
-static int get_flag_keyword( const char *keyword, int flag_value,
-		const char **inputp, schema_strstr_fn_t strstr_fn );
-static char *get_tagged_oid( const char *tag, const char **inputp,
-		schema_strstr_fn_t strstr_fn );
+static int schema_extension_cmp(schemaext *e1, schemaext *e2);
 static int put_tagged_oid( char *outp, const char *tag, const char *oid,
 		const char *suffix, int enquote );
 static void strcat_oids( char *buf, char *prefix, char **oids,
 		int schema_ds4x_compat );
-static size_t strcat_qdlist( char *buf, char *prefix, char **qdlist );
+static size_t strcat_extensions( char *buf, schemaext *extension );
 static size_t strlen_null_ok(const char *s);
 static int strcpy_count( char *dst, const char *src );
-static int element_is_user_defined( char * const * origins );
-static char **parse_origin_list( const char *schema_value, int *num_originsp,
-		char **default_list );
 static int refresh_user_defined_schema(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
 static int schema_check_oc_attrs ( struct objclass *poc, char *errorbuf,
 		size_t errorbufsize, int stripOptions );
@@ -156,19 +140,55 @@ static int schema_strcmp_array( char **sa1, char **sa2,
 static PRBool schema_type_is_interesting( const char *type );
 static void schema_create_errormsg( char *errorbuf, size_t errorbufsize,
 		const char *prefix, const char *name, const char *fmt, ... )
-#ifdef __GNUC__ 
+#ifdef __GNUC__
         __attribute__ ((format (printf, 5, 6)));
 #else
         ;
 #endif
+static int parse_at_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, size_t errorbufsize,
+        PRUint32 schema_flags, int is_user_defined, int schema_ds4x_compat, int is_remote);
+static int extension_is_user_defined( schemaext *extensions );
+static size_t strcat_qdlist( char *buf, char *prefix, char **qdlist );
+#if defined (USE_OPENLDAP)
+/*
+ *  openldap
+ */
+static int parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, size_t errorbufsize,
+        PRUint32 schema_flags, int is_user_defined, int schema_ds4x_compat, int is_remote);
+static int parse_objclass_str(const char *input, struct objclass **oc, char *errorbuf, size_t errorbufsize,
+        PRUint32 schema_flags, int is_user_defined,	int schema_ds4x_compat );
+
+#else
+/*
+ *  mozldap
+ */
+static char **parse_qdescrs(const char *s, int *n);
+static char **parse_qdstrings(const char *s, int *n);
+static char **parse_qdlist(const char *s, int *n, int strip_options);
+static void free_qdlist(char **vals, int n);
+static int read_at_ldif(const char *input, struct asyntaxinfo **asipp,
+		char *errorbuf, size_t errorbufsize, PRUint32 flags,
+		int is_user_defined, int schema_ds4x_compat, int is_remote);
+static int read_oc_ldif ( const char *input, struct objclass **oc,
+		char *errorbuf, size_t errorbufsize, PRUint32 flags, int is_user_defined,
+		int schema_ds4x_compat );
+static int get_flag_keyword( const char *keyword, int flag_value,
+		const char **inputp, schema_strstr_fn_t strstr_fn );
+static char *get_tagged_oid( const char *tag, const char **inputp,
+		schema_strstr_fn_t strstr_fn );
+static char **read_dollar_values ( char *vals);
+static schemaext *parse_extensions( const char *schema_value, char **default_list );
+#endif
 
 
-/* Some utility functions for dealing with a dynamic buffer */
 
+
+/*
+ * Some utility functions for dealing with a dynamic buffer
+ */
 static struct sizedbuffer *sizedbuffer_construct(size_t size);
 static void sizedbuffer_destroy(struct sizedbuffer *p);
 static void sizedbuffer_allocate(struct sizedbuffer *p, size_t sizeneeded);
-
 
 /*
  * Constant strings that we pass to schema_create_errormsg().
@@ -195,6 +215,27 @@ static Slapi_RWLock	*schema_dse_lock = NULL;
  * that schema_dse_mandatory_init() is called at most once.
  */
 static PRCallOnceType schema_dse_mandatory_init_callonce = { 0, 0, 0 };
+
+static int parse_at_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, size_t errorbufsize,
+        PRUint32 schema_flags, int is_user_defined, int schema_ds4x_compat, int is_remote)
+{
+#ifdef USE_OPENLDAP
+    return parse_attr_str(input, asipp, errorbuf, errorbufsize, schema_flags, is_user_defined,schema_ds4x_compat,is_remote);
+#else
+    return read_at_ldif(input, asipp, errorbuf, errorbufsize, schema_flags, is_user_defined,schema_ds4x_compat,is_remote);
+#endif
+}
+
+static int parse_oc_str(const char *input, struct objclass **oc, char *errorbuf,
+		size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
+		int schema_ds4x_compat )
+{
+#ifdef USE_OPENLDAP
+    return parse_objclass_str (input, oc, errorbuf, errorbufsize, schema_flags, is_user_defined, schema_ds4x_compat );
+#else
+    return read_oc_ldif (input, oc, errorbuf, errorbufsize, schema_flags, is_user_defined, schema_ds4x_compat );
+#endif
+}
 
 
 /* Essential initialization.  Returns PRSuccess if successful */
@@ -250,6 +291,7 @@ dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int 
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
+#if !defined(USE_OPENLDAP)
 static const char *
 skipWS(const char *s)
 {
@@ -281,8 +323,6 @@ strchr_skip_quoted_strings( char *s, int c )
 
 	return( NULL );
 }
-
-
 /**
  * parses a string containing a qdescrs or qdstrings (as described by
  * RFC 2252, section 4.1) into an array of strings; the second parameter
@@ -381,17 +421,6 @@ parse_qdlist(const char *s, int *n, int strip_options)
 	return retval;
 }
 
-
-static void
-free_qdlist(char **vals, int n)
-{
-	int ii;
-	for (ii = 0; ii < n; ++ii)
-		slapi_ch_free((void **)&(vals[ii]));
-	slapi_ch_free((void **)&vals);
-}
-
-
 /**
  * parses a string containing a qdescrs (as described by RFC 2252, section 4.1)
  * into an array of strings; the second parameter will hold the actual number
@@ -415,6 +444,16 @@ parse_qdstrings(const char *s, int *n)
 	return parse_qdlist( s, n, 0 /* DO NOT strip attribute options */ );
 }
 
+static void
+free_qdlist(char **vals, int n)
+{
+	int ii;
+	for (ii = 0; ii < n; ++ii)
+		slapi_ch_free((void **)&(vals[ii]));
+	slapi_ch_free((void **)&vals);
+}
+
+#endif /* not openldap */
 
 /*
  * slapi_entry_schema_check - check that entry e conforms to the schema
@@ -960,8 +999,7 @@ oc_equal( struct objclass *oc1, struct objclass *oc2 )
 			NULL ) != 0
 			|| schema_strcmp_array( oc1->oc_orig_allowed, oc2->oc_orig_allowed,
 			NULL ) != 0
-			|| schema_strcmp_array( oc1->oc_origin, oc2->oc_origin,
-			schema_user_defined_origin[0] ) != 0 ) {
+			|| schema_extension_cmp( oc1->oc_extensions, oc2->oc_extensions ) != 0 ) {
 		return PR_FALSE;
 	}
 
@@ -995,6 +1033,114 @@ oc_print( struct objclass *oc )
 }
 #endif
 
+/*
+ *  Compare the X-ORIGIN extension, other extensions can be ignored
+ */
+static int
+schema_extension_cmp(schemaext *e1, schemaext *e2)
+{
+    schemaext *e1_head = e1;
+    schemaext *e2_head = e2;
+    int found = 0;
+    int e1_has_origin = 0;
+    int e2_has_origin = 0;
+    int i, ii;
+
+    if(e1 == NULL && e2 == NULL){
+         return 0; /* match */
+    } else if (e1 == NULL || e2 == NULL){
+         return -1;
+    }
+    while(e1){
+        if(strcmp(e1->term, "X-ORIGIN")){
+            e1 = e1->next;
+            continue;
+        }
+        e1_has_origin = 1;
+        while(e2){
+            if(strcmp(e1->term, e2->term) == 0)
+            {
+                e2_has_origin = 1;
+                if(e1->values == NULL && e2->values == NULL){
+                    return 0;
+                } else if (e1->values == NULL || e2->values == NULL){
+                    return -1;
+                }
+                for (i = 0; e1->values[i]; i++)
+                {
+                    found = 0;
+                    for(ii = 0; e2->values[ii]; ii++)
+                    {
+                         if(strcmp(e1->values[i], e2->values[ii]) == 0){
+                             found = 1;
+                             break;
+                         }
+                    }
+                    if(!found){
+                        return -1;
+                    }
+                }
+                /* So far so good, move on to the next check */
+                goto next;
+            }
+            e2 = e2->next;
+        }
+        e2 = e2_head;
+        e1 = e1->next;
+    }
+
+    if(e1_has_origin != e2_has_origin){
+        return -1;
+    } else if (e1_has_origin == 0 && e2_has_origin == 0){
+        return 0;
+    }
+
+next:
+    /*
+     *  We know that e2 has the same extensions as e1, but does e1 have all the extensions as e2?
+     *  Run the compare in reverse...
+     */
+    found = 0;
+    e1 = e1_head;
+    e2 = e2_head;
+
+    while(e2){
+        if(strcmp(e2->term, "X-ORIGIN")){
+            e2 = e2->next;
+            continue;
+        }
+        while(e1){
+            if(strcmp(e2->term, e1->term) == 0)
+            {
+                if(e2->values == NULL && e1->values == NULL){
+                    return 0;
+                } else if (e1->values == NULL || e2->values == NULL){
+                    return -1;
+                }
+                for (i = 0; e2->values[i]; i++)
+                {
+                    found = 0;
+                    for(ii = 0; e1->values[ii]; ii++)
+                    {
+                         if(strcmp(e2->values[i], e1->values[ii]) == 0){
+                             found = 1;
+                             break;
+                         }
+                    }
+                    if(!found){
+                        return -1;
+                    }
+                }
+                return 0;
+            }
+            e1 = e1->next;
+        }
+        e1 = e1_head;
+        e2 = e2->next;
+    }
+
+    return 0;
+}
 
 /*
  * Compare two attrsyntax definitions for equality.  Return PR_TRUE if
@@ -1028,8 +1174,7 @@ attr_syntax_equal( struct asyntaxinfo *asi1, struct asyntaxinfo *asi2 )
 	}
 
 	if ( schema_strcmp_array( asi1->asi_aliases, asi2->asi_aliases, NULL ) != 0
-				|| schema_strcmp_array( asi1->asi_origin, asi2->asi_origin,
-						schema_user_defined_origin[0] ) != 0
+				|| schema_extension_cmp (asi1->asi_extensions, asi2->asi_extensions) != 0
 				|| asi1->asi_plugin != asi2->asi_plugin
 				|| ( asi1->asi_flags & flagmask ) !=
 						( asi2->asi_flags & flagmask )
@@ -1196,7 +1341,7 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 			strlen_null_ok(asip->asi_mr_equality) +
 			strlen_null_ok(asip->asi_mr_ordering) +
 			strlen_null_ok(asip->asi_mr_substring) +
-			strcat_qdlist( NULL, "X-ORIGIN", asip->asi_origin ));
+			strcat_extensions( NULL, asip->asi_extensions ));
 
 	/*
 	 * Overall strategy is to maintain a pointer to the next location in
@@ -1257,9 +1402,8 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 			outp += strcpy_count(outp, "USAGE directoryOperation ");
 		}
 
-		outp += strcat_qdlist( outp, "X-ORIGIN", asip->asi_origin );
+		outp += strcat_extensions( outp, asip->asi_extensions );
 	}
-
 	outp += strcpy_count(outp, ")");
 
 	val.bv_val = aew->psbAttrTypes->buffer;
@@ -1410,213 +1554,203 @@ read_schema_dse(
 	char *returntext /* not used */,
 	void *arg /* not used */ )
 {
-  struct berval   val;
-  struct berval   *vals[2];
-  int             i;
-  struct objclass *oc;
-  struct matchingRuleList *mrl=NULL;
-  struct sizedbuffer *psbObjectClasses= sizedbuffer_construct(BUFSIZ);
-  struct sizedbuffer *psbAttrTypes= sizedbuffer_construct(BUFSIZ);
-  struct sizedbuffer *psbMatchingRule= sizedbuffer_construct(BUFSIZ);
-  struct sizedbuffer *psbSyntaxDescription = sizedbuffer_construct(BUFSIZ);
-  struct attr_enum_wrapper aew;
-  struct syntax_enum_wrapper sew;
-  int enquote_sup_oc = config_get_enquote_sup_oc();
-  PRUint32 schema_flags = 0;
-  int user_defined_only = 0;
-  char **allowed, **required;
-  char *mr_desc, *mr_name, *oc_description;
-  int schema_ds4x_compat = config_get_ds4_compatible_schema();
-  const CSN *csn;
+    struct berval   val;
+    struct berval   *vals[2];
+    struct objclass *oc;
+    struct matchingRuleList *mrl=NULL;
+    struct sizedbuffer *psbObjectClasses= sizedbuffer_construct(BUFSIZ);
+    struct sizedbuffer *psbAttrTypes= sizedbuffer_construct(BUFSIZ);
+    struct sizedbuffer *psbMatchingRule= sizedbuffer_construct(BUFSIZ);
+    struct sizedbuffer *psbSyntaxDescription = sizedbuffer_construct(BUFSIZ);
+    struct attr_enum_wrapper aew;
+    struct syntax_enum_wrapper sew;
+    const CSN *csn;
+    char *mr_desc, *mr_name, *oc_description;
+    char **allowed, **required;
+    PRUint32 schema_flags = 0;
+    int enquote_sup_oc = config_get_enquote_sup_oc();
+    int schema_ds4x_compat = config_get_ds4_compatible_schema();
+    int user_defined_only = 0;
+    int i;
 
-  vals[0] = &val;
-  vals[1] = NULL;
+    vals[0] = &val;
+    vals[1] = NULL;
 
-  slapi_pblock_get(pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
-  user_defined_only = (schema_flags & DSE_SCHEMA_USER_DEFINED_ONLY) ? 1 : 0;
+    slapi_pblock_get(pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
+    user_defined_only = (schema_flags & DSE_SCHEMA_USER_DEFINED_ONLY) ? 1 : 0;
   
-  attrlist_delete (&pschema_info_e->e_attrs, "objectclasses");
-  attrlist_delete (&pschema_info_e->e_attrs, "attributetypes"); 
-  attrlist_delete (&pschema_info_e->e_attrs, "matchingRules");
-  attrlist_delete (&pschema_info_e->e_attrs, "ldapSyntaxes");
-  /*
-  attrlist_delete (&pschema_info_e->e_attrs, "matchingRuleUse");
-  */
+    attrlist_delete (&pschema_info_e->e_attrs, "objectclasses");
+    attrlist_delete (&pschema_info_e->e_attrs, "attributetypes");
+    attrlist_delete (&pschema_info_e->e_attrs, "matchingRules");
+    attrlist_delete (&pschema_info_e->e_attrs, "ldapSyntaxes");
+    /*
+     * attrlist_delete (&pschema_info_e->e_attrs, "matchingRuleUse");
+     */
 
-  schema_dse_lock_read();
+    schema_dse_lock_read();
+    oc_lock_read();
 
-  /* return the objectclasses */
-  oc_lock_read();
-  for (oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next)
-  {
-	size_t size= 0;
-	int need_extra_space = 1;
+    /* return the objectclasses */
+    for (oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next)
+    {
+	    size_t size= 0;
+        int need_extra_space = 1;
 
-	if (user_defined_only &&
-		!(oc->oc_flags & OC_FLAG_USER_OC ||
-		  oc->oc_flags & OC_FLAG_REDEFINED_OC)) {
-		continue;
-	}
+        if (user_defined_only &&
+            !((oc->oc_flags & OC_FLAG_USER_OC) ||
+              (oc->oc_flags & OC_FLAG_REDEFINED_OC) ))
+        {
+            continue;
+        }
+        /*
+         * XXX: 256 is a magic number... it must be large enough to fit
+         * all of the fixed size items including description (DESC),
+         * kind (STRUCTURAL, AUXILIARY, or ABSTRACT), and the OBSOLETE flag.
+         */
+        if ( schema_ds4x_compat ) {
+            oc_description = (oc->oc_flags & OC_FLAG_STANDARD_OC) ?
+                             OC_STANDARD_STRING : OC_USERDEF_STRING;
+        } else {
+            oc_description = oc->oc_desc;
+        }
+        size = 256+strlen_null_ok(oc->oc_oid) + strlen(oc->oc_name) +
+               strlen_null_ok(oc_description) +	strcat_extensions( NULL, oc->oc_extensions );
+        required = schema_ds4x_compat ? oc->oc_required : oc->oc_orig_required;
+        if (required && required[0]) {
+            for (i = 0 ; required[i]; i++)
+                size+= 16 + strlen(required[i]);
+        }
+        allowed = schema_ds4x_compat ? oc->oc_allowed : oc->oc_orig_allowed;
+        if (allowed && allowed[0]) {
+            for (i = 0 ; allowed[i]; i++)
+                size+= 16 + strlen(allowed[i]);
+        }
+        sizedbuffer_allocate(psbObjectClasses,size);
+        /* put the OID and the NAME */
+        sprintf (psbObjectClasses->buffer, "( %s NAME '%s'", (oc->oc_oid) ? oc->oc_oid : "", oc->oc_name);
+        /* The DESC (description) is OPTIONAL */
+        if (oc_description) {
+            strcat(psbObjectClasses->buffer, " DESC '");
+            /*
+             * We want to list an empty description
+             * element if it was defined that way.
+             */
+            if (*oc_description) {
+                strcat(psbObjectClasses->buffer, oc_description);
+            }
+            strcat(psbObjectClasses->buffer, "'");
+            need_extra_space = 1;
+        }
+        /* put the OBSOLETE keyword */
+        if (!schema_ds4x_compat && (oc->oc_flags & OC_FLAG_OBSOLETE)) {
+            strcat(psbObjectClasses->buffer, schema_obsolete_with_spaces);
+            need_extra_space = 0;
+        }
+        /* put the SUP superior objectclass */
+        if (0 != strcasecmp(oc->oc_name, "top")) { /* top has no SUP */
+            /*
+             * Some AUXILIARY AND ABSTRACT objectclasses may not have a SUP either
+             * for compatability, every objectclass other than top must have a SUP
+             */
+            if (schema_ds4x_compat || (oc->oc_superior && *oc->oc_superior)) {
+                if (need_extra_space) {
+                    strcat(psbObjectClasses->buffer, " ");
+                }
+                strcat(psbObjectClasses->buffer, "SUP ");
+                strcat(psbObjectClasses->buffer, (enquote_sup_oc ? "'" : ""));
+                strcat(psbObjectClasses->buffer, ((oc->oc_superior && *oc->oc_superior) ?
+                    oc->oc_superior : "top"));
+                strcat(psbObjectClasses->buffer, (enquote_sup_oc ? "'" : ""));
+                need_extra_space = 1;
+            }
+        }
+        /* put the kind of objectclass */
+        if (schema_ds4x_compat) {
+            if (need_extra_space) {
+                strcat(psbObjectClasses->buffer, " ");
+            }
+        } else {
 
-	/*
-	 * XXX: 256 is a magic number... it must be large enough to fit
-	 * all of the fixed size items including description (DESC),
-	 * kind (STRUCTURAL, AUXILIARY, or ABSTRACT), and the OBSOLETE flag.
-	 */
-	if ( schema_ds4x_compat ) {
-		oc_description = (oc->oc_flags & OC_FLAG_STANDARD_OC) ?
-				OC_STANDARD_STRING : OC_USERDEF_STRING;
-	} else {
-		oc_description = oc->oc_desc;
-	}
-	
-    size= 256+strlen_null_ok(oc->oc_oid) + strlen(oc->oc_name) +
-			strlen_null_ok(oc_description) +
-			strcat_qdlist( NULL, "X-ORIGIN", oc->oc_origin );
-	required = schema_ds4x_compat ? oc->oc_required : oc->oc_orig_required;
-    if (required && required[0]) {
-      for (i = 0 ; required[i]; i++)
-        size+= 16 + strlen(required[i]);
+            strcat(psbObjectClasses->buffer, schema_oc_kind_strings_with_spaces[oc->oc_kind]);
+        }
+        strcat_oids( psbObjectClasses->buffer, "MUST", required, schema_ds4x_compat );
+        strcat_oids( psbObjectClasses->buffer, "MAY", allowed, schema_ds4x_compat );
+        if ( !schema_ds4x_compat ) {
+            strcat_extensions( psbObjectClasses->buffer, oc->oc_extensions );
+        }
+        strcat( psbObjectClasses->buffer, ")");
+        val.bv_val = psbObjectClasses->buffer;
+        val.bv_len = strlen (psbObjectClasses->buffer);
+        attrlist_merge (&pschema_info_e->e_attrs, "objectclasses", vals);
     }
-	allowed = schema_ds4x_compat ? oc->oc_allowed : oc->oc_orig_allowed;
-    if (allowed && allowed[0]) {
-      for (i = 0 ; allowed[i]; i++)
-        size+= 16 + strlen(allowed[i]);
+
+    oc_unlock();
+
+    /* now return the attrs */
+    aew.attrs = &pschema_info_e->e_attrs;
+    aew.enquote_sup_oc = enquote_sup_oc;
+    aew.psbAttrTypes = psbAttrTypes;
+    aew.user_defined_only = user_defined_only;
+    aew.schema_ds4x_compat = schema_ds4x_compat;
+    attr_syntax_enumerate_attrs(schema_attr_enum_callback, &aew, PR_FALSE);
+
+    /* return the set of matching rules we support */
+    for (mrl = g_get_global_mrl(); !user_defined_only && mrl != NULL; mrl = mrl->mrl_next) {
+        mr_name = mrl->mr_entry->mr_name ? mrl->mr_entry->mr_name : "";
+        mr_desc = mrl->mr_entry->mr_desc ? mrl->mr_entry->mr_desc : "";
+        sizedbuffer_allocate(psbMatchingRule,128 + strlen_null_ok(mrl->mr_entry->mr_oid) +
+		    strlen(mr_name)+ strlen(mr_desc) + strlen_null_ok(mrl->mr_entry->mr_syntax));
+        if ( schema_ds4x_compat ) {
+        sprintf(psbMatchingRule->buffer,
+                "( %s NAME '%s' DESC '%s' SYNTAX %s%s%s )",
+                (mrl->mr_entry->mr_oid ? mrl->mr_entry->mr_oid : ""),
+                mr_name, mr_desc, enquote_sup_oc ? "'" : "",
+                mrl->mr_entry->mr_syntax ? mrl->mr_entry->mr_syntax : "" ,
+                enquote_sup_oc ? "'" : "");
+        } else if ( NULL != mrl->mr_entry->mr_oid &&
+                    NULL != mrl->mr_entry->mr_syntax ){
+            char *p;
+
+            sprintf(psbMatchingRule->buffer, "( %s ", mrl->mr_entry->mr_oid );
+            p = psbMatchingRule->buffer + strlen(psbMatchingRule->buffer);
+            if ( *mr_name != '\0' ) {
+                sprintf(p, "NAME '%s' ", mr_name );
+                p += strlen(p);
+            }
+            if ( *mr_desc != '\0' ) {
+                sprintf(p, "DESC '%s' ", mr_desc );
+                p += strlen(p);
+            }
+            sprintf(p, "SYNTAX %s )", mrl->mr_entry->mr_syntax );
+        }
+        val.bv_val = psbMatchingRule->buffer;
+        val.bv_len = strlen (psbMatchingRule->buffer);
+        attrlist_merge (&pschema_info_e->e_attrs, "matchingRules", vals);
     }
-    sizedbuffer_allocate(psbObjectClasses,size);
-	/* put the OID and the NAME */
-	sprintf (psbObjectClasses->buffer,
-			 "( %s NAME '%s'", 
-			 (oc->oc_oid) ? oc->oc_oid : "",
-			 oc->oc_name);
-	/* The DESC (description) is OPTIONAL */
-	if (oc_description) {
-	  strcat(psbObjectClasses->buffer, " DESC '");
-	    /* We want to list an empty description
-	     * element if it was defined that way. */
-	    if (*oc_description) {
-	      strcat(psbObjectClasses->buffer, oc_description);
-	    }
-	  strcat(psbObjectClasses->buffer, "'");
-	  need_extra_space = 1;
-	}
-	/* put the OBSOLETE keyword */
-	if (!schema_ds4x_compat && (oc->oc_flags & OC_FLAG_OBSOLETE)) {
-	  strcat(psbObjectClasses->buffer, schema_obsolete_with_spaces);
-	  need_extra_space = 0;
-	}
-	/* put the SUP superior objectclass */
-	if (0 != strcasecmp(oc->oc_name, "top")) {		/* top has no SUP */
-	  /* some AUXILIARY AND ABSTRACT objectclasses may not have a SUP either */
-	  /* for compatability, every objectclass other than top must have a SUP */
-	  if (schema_ds4x_compat || (oc->oc_superior && *oc->oc_superior)) {
-		  if (need_extra_space) {
-			  strcat(psbObjectClasses->buffer, " ");
-		  }
-		  strcat(psbObjectClasses->buffer, "SUP ");
-		  strcat(psbObjectClasses->buffer, (enquote_sup_oc ? "'" : ""));
-		  strcat(psbObjectClasses->buffer,
-				 ((oc->oc_superior && *oc->oc_superior) ?
-				  oc->oc_superior : "top"));
-		  strcat(psbObjectClasses->buffer, (enquote_sup_oc ? "'" : ""));
-		  need_extra_space = 1;
-	  }
-	}
-	/* put the kind of objectclass */
-	if (schema_ds4x_compat) {
-	  if (need_extra_space) {
-	    strcat(psbObjectClasses->buffer, " ");
-	  }
-	} else {
-	  strcat(psbObjectClasses->buffer, schema_oc_kind_strings_with_spaces[oc->oc_kind]);
-	}
+    if ( !schema_ds4x_compat && !user_defined_only ) {
+        /* return the set of syntaxes we support */
+        sew.attrs = &pschema_info_e->e_attrs;
+        sew.psbSyntaxDescription = psbSyntaxDescription;
+        plugin_syntax_enumerate(schema_syntax_enum_callback, &sew);
+    }
+    csn = g_get_global_schema_csn();
+    if (NULL != csn) {
+        char csn_str[CSN_STRSIZE + 1];
 
-	strcat_oids( psbObjectClasses->buffer, "MUST", required,
-			schema_ds4x_compat );
-	strcat_oids( psbObjectClasses->buffer, "MAY", allowed,
-			schema_ds4x_compat );
-	if ( !schema_ds4x_compat ) {
-		strcat_qdlist( psbObjectClasses->buffer, "X-ORIGIN", oc->oc_origin );
-	}
-	strcat( psbObjectClasses->buffer, ")");
+        csn_as_string(csn, PR_FALSE, csn_str);
+        slapi_entry_attr_delete(pschema_info_e, "nsschemacsn");
+        slapi_entry_add_string(pschema_info_e, "nsschemacsn", csn_str);
+    }
 
-    val.bv_val = psbObjectClasses->buffer;
-    val.bv_len = strlen (psbObjectClasses->buffer);
-    attrlist_merge (&pschema_info_e->e_attrs, "objectclasses", vals);
-  }
-  oc_unlock();
+    schema_dse_unlock();
 
-  /* now return the attrs */
+    sizedbuffer_destroy(psbObjectClasses);
+    sizedbuffer_destroy(psbAttrTypes);
+    sizedbuffer_destroy(psbMatchingRule);
+    sizedbuffer_destroy(psbSyntaxDescription);
+    *returncode= LDAP_SUCCESS;
 
-  aew.attrs = &pschema_info_e->e_attrs;
-  aew.enquote_sup_oc = enquote_sup_oc;
-  aew.psbAttrTypes = psbAttrTypes;
-  aew.user_defined_only = user_defined_only;
-  aew.schema_ds4x_compat = schema_ds4x_compat;
-  attr_syntax_enumerate_attrs(schema_attr_enum_callback, &aew, PR_FALSE);
-
-  /* return the set of matching rules we support */
-  for (mrl = g_get_global_mrl(); !user_defined_only && mrl != NULL; mrl = mrl->mrl_next) {
-	  mr_name = mrl->mr_entry->mr_name ? mrl->mr_entry->mr_name : "";
-	  mr_desc = mrl->mr_entry->mr_desc ? mrl->mr_entry->mr_desc : "";
-      sizedbuffer_allocate(psbMatchingRule,128+
-		  strlen_null_ok(mrl->mr_entry->mr_oid) +
-		  strlen(mr_name)+ strlen(mr_desc)+
-		  strlen_null_ok(mrl->mr_entry->mr_syntax));
-	  if ( schema_ds4x_compat ) {
-		  sprintf(psbMatchingRule->buffer,
-				  "( %s NAME '%s' DESC '%s' SYNTAX %s%s%s )",
-				  (mrl->mr_entry->mr_oid ? mrl->mr_entry->mr_oid : ""),
-				  mr_name, mr_desc,
-				  enquote_sup_oc ? "'" : "",
-				  mrl->mr_entry->mr_syntax ? mrl->mr_entry->mr_syntax : "" ,
-				  enquote_sup_oc ? "'" : "");
-		} else if ( NULL != mrl->mr_entry->mr_oid &&
-					NULL != mrl->mr_entry->mr_syntax ) {
-		  char	*p;
-
-		  sprintf(psbMatchingRule->buffer, "( %s ", mrl->mr_entry->mr_oid );
-		  p = psbMatchingRule->buffer + strlen(psbMatchingRule->buffer);
-		  if ( *mr_name != '\0' ) {
-			sprintf(p, "NAME '%s' ", mr_name );
-			p += strlen(p);
-		  }
-
-		  if ( *mr_desc != '\0' ) {
-			sprintf(p, "DESC '%s' ", mr_desc );
-			p += strlen(p);
-		  }
-		  sprintf(p, "SYNTAX %s )", mrl->mr_entry->mr_syntax );
-	  }
-
-      val.bv_val = psbMatchingRule->buffer;
-      val.bv_len = strlen (psbMatchingRule->buffer);
-      attrlist_merge (&pschema_info_e->e_attrs, "matchingRules", vals);
-  }
-
-  if ( !schema_ds4x_compat && !user_defined_only ) {
-		/* return the set of syntaxes we support */
-		sew.attrs = &pschema_info_e->e_attrs;
-		sew.psbSyntaxDescription = psbSyntaxDescription;
-		plugin_syntax_enumerate(schema_syntax_enum_callback, &sew);
-  }
-
-  csn = g_get_global_schema_csn();
-  if (NULL != csn) {
-		char csn_str[CSN_STRSIZE + 1];
-		csn_as_string(csn, PR_FALSE, csn_str);
-		slapi_entry_attr_delete(pschema_info_e, "nsschemacsn");
-		slapi_entry_add_string(pschema_info_e, "nsschemacsn", csn_str);
-  }
-
-  schema_dse_unlock();
-
-  sizedbuffer_destroy(psbObjectClasses);
-  sizedbuffer_destroy(psbAttrTypes);
-  sizedbuffer_destroy(psbMatchingRule);
-  sizedbuffer_destroy(psbSyntaxDescription);
-  *returncode= LDAP_SUCCESS;
-  return SLAPI_DSE_CALLBACK_OK;
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 /* helper for deleting mods (we do not want to be applied) from the mods array */
@@ -1985,23 +2119,6 @@ oc_add_nolock(struct objclass *newoc)
 		newoc->oc_next = NULL;
 	}
 }
-	   
-
-static char **read_dollar_values ( char *vals) {
-  int i,k;
-  char **retVal;
-  static const char *charsToRemove = " ()";
-  
-  /* get rid of all the parens and spaces */
-  for ( i = 0, k = 0; vals[i]; i++) {
-	if (!strchr(charsToRemove, vals[i])) {
-	  vals[k++] = vals[i];
-	}
-  }
-  vals[k] = '\0';
-  retVal = slapi_str2charray (vals, "$");
-  return retVal;
-}
 
 /*
  * Delete one or more objectClasses from our internal data structure.
@@ -2027,7 +2144,7 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
   }
 
   for (i = 0; mod->mod_bvalues[i]; i++) {
-	if ( LDAP_SUCCESS != ( rc = read_oc_ldif (
+	if ( LDAP_SUCCESS != ( rc = parse_oc_str (
 				(const char *)mod->mod_bvalues[i]->bv_val, &delete_oc,
 				errorbuf, errorbufsize, 0, 0, schema_ds4x_compat))) {
 	  return rc;
@@ -2212,7 +2329,7 @@ schema_add_attribute ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 {
   int i;
   char *attr_ldif;
-/* LPXXX: Eventually, we should not allocate the buffers in read_at_ldif 
+/* LPXXX: Eventually, we should not allocate the buffers in parse_at_str
  * for each attribute, but use the same buffer for all.
  * This is not done yet, so it's useless to allocate buffers for nothing.
  */
@@ -2226,7 +2343,7 @@ schema_add_attribute ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 	PRUint32 nolock = 0; /* lock global resources during normal operation */
 	attr_ldif = (char *) mod->mod_bvalues[i]->bv_val;
 
-	status = read_at_ldif(attr_ldif, NULL, errorbuf, errorbufsize,
+	status = parse_at_str(attr_ldif, NULL, errorbuf, errorbufsize,
 				nolock, 1 /* user defined */, schema_ds4x_compat, 1);
 	if ( LDAP_SUCCESS != status ) {
 		break;		/* stop on first error */
@@ -2422,7 +2539,7 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 	}
 
 	for ( i = 0; mod->mod_bvalues[i] != NULL; ++i ) {
-		if ( LDAP_SUCCESS != ( rc = read_at_ldif( mod->mod_bvalues[i]->bv_val,
+		if ( LDAP_SUCCESS != ( rc = parse_at_str( mod->mod_bvalues[i]->bv_val,
 					&newasip, errorbuf, errorbufsize, 0, 1, 0, 0 ))) {
 			goto clean_up_and_return;
 		}
@@ -2500,7 +2617,7 @@ schema_add_objectclass ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 
 	for (j = 0; mod->mod_bvalues[j]; j++) {
 		newoc_ldif  = (char *) mod->mod_bvalues[j]->bv_val;
-		if ( LDAP_SUCCESS != (rc = read_oc_ldif ( newoc_ldif, &pnew_oc,
+		if ( LDAP_SUCCESS != (rc = parse_oc_str ( newoc_ldif, &pnew_oc,
 					errorbuf, errorbufsize, 0, 1 /* user defined */,
 					schema_ds4x_compat))) {
 			return rc;
@@ -2577,7 +2694,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 	for ( i = 0; mod->mod_bvalues[i] != NULL; ++i ) {
 		struct objclass *addocp = NULL;
 
-		if ( LDAP_SUCCESS != ( rc = read_oc_ldif( mod->mod_bvalues[i]->bv_val,
+		if ( LDAP_SUCCESS != ( rc = parse_oc_str( mod->mod_bvalues[i]->bv_val,
 					&newocp, errorbuf, errorbufsize, DSE_SCHEMA_NO_GLOCK,
 					1 /* user defined */, 0 /* no DS 4.x compat issues */ ))) {
 			rc = LDAP_INVALID_SYNTAX;
@@ -2590,7 +2707,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 				/* the names match -- remove from the current list */
 				if ( tmpocp == curlisthead ) {
 					curlisthead = tmpocp->oc_next;
-					/* The global oc list is scanned in read_oc_ldif above,
+					/* The global oc list is scanned in parse_oc_str above,
 					   if there are multiple objectclasses to be updated.
 					   Needs to maintain the list dynamically. */
 					g_set_global_oc_nolock( curlisthead );
@@ -2698,6 +2815,66 @@ clean_up_and_return:
 	return rc;
 }
 
+schemaext *
+schema_copy_extensions(schemaext *extensions)
+{
+    schemaext *ext = NULL, *head = NULL;
+    while(extensions){
+        schemaext *newext = (schemaext *)slapi_ch_calloc(1, sizeof(schemaext));
+        newext->term = slapi_ch_strdup(extensions->term);
+        newext->values = charray_dup(extensions->values);
+        newext->value_count = extensions->value_count;
+        if(ext == NULL){
+            ext = newext;
+            head = newext;
+        } else {
+            ext->next = newext;
+            ext = newext;
+        }
+        extensions = extensions->next;
+    }
+
+    return head;
+}
+
+void
+schema_free_extensions(schemaext *extensions)
+{
+    if(extensions){
+        schemaext *prev;
+
+        while(extensions){
+            slapi_ch_free_string(&extensions->term);
+            charray_free(extensions->values);
+            prev = extensions;
+            extensions = extensions->next;
+            slapi_ch_free( (void **)&prev);
+        }
+    }
+}
+
+static void
+oc_free( struct objclass **ocp )
+{
+	struct objclass	*oc;
+
+	if ( NULL != ocp && NULL != *ocp ) {
+		oc = *ocp;
+		slapi_ch_free( (void **)&oc->oc_name );
+		slapi_ch_free( (void **)&oc->oc_desc );
+		slapi_ch_free( (void **)&oc->oc_oid );
+		slapi_ch_free( (void **)&oc->oc_superior );
+		charray_free( oc->oc_required );
+		charray_free( oc->oc_allowed );
+		charray_free( oc->oc_orig_required );
+		charray_free( oc->oc_orig_allowed );
+		schema_free_extensions( oc->oc_extensions );
+		slapi_ch_free( (void **)&oc );
+		*ocp = NULL;
+	}
+}
+
+#if !defined (USE_OPENLDAP)
 
 /*
  * read_oc_ldif_return
@@ -2711,14 +2888,11 @@ read_oc_ldif_return( int retVal,
 					 char *oid,
 					 struct sizedbuffer *name,
 					 char *sup,
-					 char **origins,
-					 int num_origins,
 					 char *desc )
 {
   slapi_ch_free((void **)&oid);
   sizedbuffer_destroy( name );
   slapi_ch_free((void **)&sup);
-  free_qdlist( origins, num_origins );
   slapi_ch_free((void **)&desc);
   return retVal;
 }
@@ -2755,17 +2929,17 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 		size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
 		int schema_ds4x_compat )
 {
-  int i, j, num_origins;
+  int i, j;
   const char *pstart, *nextinput;
   struct objclass *pnew_oc, *psup_oc;
   char **RequiredAttrsArray, **AllowedAttrsArray;
   char **OrigRequiredAttrsArray, **OrigAllowedAttrsArray;
-  char **oc_origins;
   char *pend, *pOcOid, *pOcSup, *pOcDesc;
   struct sizedbuffer *psbOcName= sizedbuffer_construct(BUFSIZ);
   PRUint8 kind, flags;
   int invalid_syntax_error;
   schema_strstr_fn_t keyword_strstr_fn;
+  schemaext *extensions = NULL;
 
   /*
    * From RFC 2252 section 4.4:
@@ -2811,8 +2985,6 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   }
 
   flags = 0;
-  num_origins = 0;
-  oc_origins = NULL;
   pOcOid = pOcSup = pOcDesc = NULL;
 
   if ( NULL == input || '\0' == input[0] ) {
@@ -2821,9 +2993,8 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 			"One or more values are required for the objectClasses attribute" );
 	LDAPDebug ( LDAP_DEBUG_ANY, "NULL args passed to read_oc_ldif\n",0,0,0);
 	return read_oc_ldif_return( LDAP_OPERATIONS_ERROR, pOcOid, psbOcName,
-			pOcSup, oc_origins, num_origins, pOcDesc );
+			pOcSup, pOcDesc );
   }
-
 
   nextinput = input;
 
@@ -2833,7 +3004,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 	schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
 			input, "Value is malformed. It must include a \"(\"");
 	return read_oc_ldif_return( invalid_syntax_error, pOcOid, psbOcName,
-			pOcSup, oc_origins, num_origins, pOcDesc );
+			pOcSup, pOcDesc );
   }
 
   if ( schema_ds4x_compat || ( strcasecmp(pOcOid, "NAME") == 0))
@@ -2853,15 +3024,14 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 			input, "Value is malformed. It must include a single quote around"
 			" the name" );
 		  return read_oc_ldif_return( invalid_syntax_error, pOcOid, psbOcName,
-			pOcSup, oc_origins, num_origins, pOcDesc );
+			pOcSup, pOcDesc );
 		}
 	}
-  }
-  else {
+  } else {
 	  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
 			input, "Value is malformed. It must include a \"NAME '\"");
-	return read_oc_ldif_return( invalid_syntax_error, pOcOid, psbOcName,
-			pOcSup, oc_origins, num_origins, pOcDesc );
+	  return read_oc_ldif_return( invalid_syntax_error, pOcOid, psbOcName,
+			pOcSup, pOcDesc );
   }
 
   /* 
@@ -2996,27 +3166,15 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   /* look for X-ORIGIN list */
   if (is_user_defined) {
       /* add X-ORIGIN 'user defined' */
-      oc_origins = parse_origin_list( nextinput, &num_origins,
-                                      schema_user_defined_origin );
+      extensions = parse_extensions( nextinput, schema_user_defined_origin );
+      flags |= OC_FLAG_USER_OC;
   } else {
       /* add nothing */
-      oc_origins = parse_origin_list( nextinput, &num_origins, NULL );
-  }
-
-  /* set remaining flags */
-  if ( element_is_user_defined( oc_origins )) {
-	flags |= OC_FLAG_USER_OC;
-  } else if ( is_user_defined ) {
-	flags |= OC_FLAG_USER_OC;
-	/* add missing user defined origin string */
-	charray_add( &oc_origins, slapi_ch_strdup( schema_user_defined_origin[0] ));
-	++num_origins;
-  } else {
-	flags |= OC_FLAG_STANDARD_OC;
+	  extensions = parse_extensions( nextinput, NULL );
+	  flags |= OC_FLAG_STANDARD_OC;
   }
 
   /* generate OrigRequiredAttrsArray and OrigAllowedAttrsArray */
-
   if (psup_oc) {
 	int found_it;
 
@@ -3073,36 +3231,29 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   pnew_oc->oc_allowed = AllowedAttrsArray;
   pnew_oc->oc_orig_required = OrigRequiredAttrsArray;
   pnew_oc->oc_orig_allowed =  OrigAllowedAttrsArray;
-  pnew_oc->oc_origin = cool_charray_dup( oc_origins );
+  pnew_oc->oc_extensions = extensions;
   pnew_oc->oc_next = NULL;
   pnew_oc->oc_flags = flags;
   pnew_oc->oc_kind = kind;
 
   *oc = pnew_oc;
-  return read_oc_ldif_return( LDAP_SUCCESS, pOcOid, psbOcName, pOcSup,
-			oc_origins, num_origins, pOcDesc );
+  return read_oc_ldif_return( LDAP_SUCCESS, pOcOid, psbOcName, pOcSup, pOcDesc );
 }
 
+static char **read_dollar_values ( char *vals) {
+  int i,k;
+  char **retVal;
+  static const char *charsToRemove = " ()";
 
-static void
-oc_free( struct objclass **ocp )
-{
-	struct objclass	*oc;
-
-	if ( NULL != ocp && NULL != *ocp ) {
-		oc = *ocp;
-		slapi_ch_free( (void **)&oc->oc_name );
-		slapi_ch_free( (void **)&oc->oc_desc );
-		slapi_ch_free( (void **)&oc->oc_oid );
-		slapi_ch_free( (void **)&oc->oc_superior );
-		charray_free( oc->oc_required );
-		charray_free( oc->oc_allowed );
-		charray_free( oc->oc_orig_required );
-		charray_free( oc->oc_orig_allowed );
-		cool_charray_free( oc->oc_origin );
-		slapi_ch_free( (void **)&oc );
-		*ocp = NULL;
+  /* get rid of all the parens and spaces */
+  for ( i = 0, k = 0; vals[i]; i++) {
+	if (!strchr(charsToRemove, vals[i])) {
+	  vals[k++] = vals[i];
 	}
+  }
+  vals[k] = '\0';
+  retVal = slapi_str2charray (vals, "$");
+  return retVal;
 }
 
 /*
@@ -3137,14 +3288,13 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     int syntaxlength;
     char **attr_names = NULL;
     char *first_attr_name = NULL;
-    char **attr_origins = NULL;
     int num_names = 0;
-    int num_origins = 0;
     unsigned long flags = SLAPI_ATTR_FLAG_OVERRIDE;
     const char *ss = 0;
     struct asyntaxinfo    *tmpasip;
     int invalid_syntax_error;
     schema_strstr_fn_t keyword_strstr_fn;
+    schemaext *extensions = NULL;
 
   /*
    * From RFC 2252 section 4.2:
@@ -3344,11 +3494,11 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     /* X-ORIGIN list */
     if (is_user_defined) {
         /* add X-ORIGIN 'user defined' */
-        attr_origins = parse_origin_list( nextinput, &num_origins,
-                                          schema_user_defined_origin );
+        extensions = parse_extensions( nextinput, schema_user_defined_origin );
     } else {
-        /* add nothing */
-        attr_origins = parse_origin_list( nextinput, &num_origins, NULL );
+        /* add nothing extra*/
+        extensions = parse_extensions( nextinput, NULL );
+        flags |= SLAPI_ATTR_FLAG_STD_ATTR;
     }
 
     /* Do some sanity checking to make sure everything was read correctly */
@@ -3440,17 +3590,6 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
             oc_unlock();
     }
 
-    if (!status && !element_is_user_defined( attr_origins )) {
-        if ( is_user_defined ) {
-            /* add missing user defined origin string */
-            charray_add( &attr_origins,
-                        slapi_ch_strdup( schema_user_defined_origin[0] ));
-            ++num_origins;
-        } else {
-            flags |= SLAPI_ATTR_FLAG_STD_ATTR;
-        }
-    }
-
     if (!(schema_flags & DSE_SCHEMA_NO_CHECK) && !status) {
         int ii;
         /* check to see if the attribute name is valid */
@@ -3492,10 +3631,9 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 
     
     if (!status) {
-        status = attr_syntax_create( pOid, attr_names, num_names,
+        status = attr_syntax_create( pOid, attr_names,
                 *psbAttrDesc->buffer == '\0' ? NULL : psbAttrDesc->buffer,
-                pSuperior,
-                pMREquality, pMROrdering, pMRSubstring, attr_origins,
+                pSuperior, pMREquality, pMROrdering, pMRSubstring, extensions,
                 pSyntax, syntaxlength, flags, &tmpasip );
     }
 
@@ -3529,7 +3667,6 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
  done:
     /* free everything */
     free_qdlist(attr_names, num_names);
-    free_qdlist(attr_origins, num_origins);
     sizedbuffer_destroy(psbAttrName);
     sizedbuffer_destroy(psbAttrDesc);
     slapi_ch_free((void **)&pOid);
@@ -3538,10 +3675,655 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     slapi_ch_free((void **)&pMROrdering);
     slapi_ch_free((void **)&pMRSubstring);
     slapi_ch_free((void **)&pSyntax);
+    schema_free_extensions(extensions);
+    return status;
+}
+
+#else /* (USE_OPENLDAP) */
+
+
+/* openldap attribute parser */
+/*
+ * if asipp is NULL, the attribute type is added to the global set of schema.
+ * if asipp is not NULL, the AT is not added but *asipp is set.  When you are
+ * finished with *asipp, use attr_syntax_free() to dispose of it.
+ *
+ *    schema_flags: Any or none of the following bits could be set
+ *        DSE_SCHEMA_NO_CHECK -- schema won't be checked
+ *        DSE_SCHEMA_NO_GLOCK -- locking of global resources is turned off;
+ *                               this saves time during initialization since
+ *                               the server operates in single threaded mode
+ *                               at that time or in reload_schemafile_lock.
+ *        DSE_SCHEMA_LOCKED   -- already locked with reload_schemafile_lock;
+ *                               no further lock needed
+ *
+ * if is_user_defined is true, force attribute type to be user defined.
+ *
+ * returns an LDAP error code (LDAP_SUCCESS if all goes well)
+*/
+static int
+parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
+        size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
+        int schema_ds4x_compat, int is_remote)
+{
+    struct asyntaxinfo *tmpasip;
+    struct asyntaxinfo *tmpasi;
+    schemaext *extensions = NULL, *head = NULL;
+    struct objclass *poc;
+    LDAPAttributeType *atype = NULL;
+    const char *errp;
+    char *first_attr_name = NULL;
+    char **attr_names = NULL;
+    unsigned long flags = SLAPI_ATTR_FLAG_OVERRIDE;
+    /* If we ever accept openldap schema directly, then make parser_flags configurable */
+    const int parser_flags = LDAP_SCHEMA_ALLOW_NONE | LDAP_SCHEMA_ALLOW_NO_OID;
+    int invalid_syntax_error;
+    int syntaxlength = SLAPI_SYNTAXLENGTH_NONE;
+    int num_names = 0;
+    int status = 0;
+    int rc = 0;
+    int a, aa;
+
+    /*
+     *      OpenLDAP AttributeType struct
+     *
+     *          typedef struct ldap_attributetype {
+     *                 char *at_oid;            OID
+     *                 char **at_names;         Names
+     *                 char *at_desc;           Description
+     *                 int  at_obsolete;        Is obsolete?
+     *                 char *at_sup_oid;        OID of superior type
+     *                 char *at_equality_oid;   OID of equality matching rule
+     *                 char *at_ordering_oid;   OID of ordering matching rule
+     *                 char *at_substr_oid;     OID of substrings matching rule
+     *                 char *at_syntax_oid;     OID of syntax of values
+     *                 int  at_syntax_len;      Suggested minimum maximum length
+     *                 int  at_single_value;    Is single-valued?
+     *                 int  at_collective;      Is collective?
+     *                 int  at_no_user_mod;     Are changes forbidden through LDAP?
+     *                 int  at_usage;           Usage, see below
+     *                 LDAPSchemaExtensionItem **at_extensions; Extensions
+     *         } LDAPAttributeType;
+     */
+
+    /*
+     *  Set the appropriate error code
+     */
+    if ( schema_ds4x_compat ) {
+        invalid_syntax_error = LDAP_OPERATIONS_ERROR;
+    } else {
+        invalid_syntax_error = LDAP_INVALID_SYNTAX;
+    }
+    /*
+     *  Verify we have input
+     */
+    if(input == NULL || '\0' == input[0]){
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, NULL,
+            "One or more values are required for the attributeTypes attribute" );
+        LDAPDebug ( LDAP_DEBUG_ANY, "NULL args passed to parse_attr_str\n",0,0,0);
+        return invalid_syntax_error;
+    }
+    /*
+     *  Parse the line and create of attribute structure
+     */
+    while(isspace(*input)){
+        /* trim any leading spaces */
+        input++;
+    }
+    if((atype = ldap_str2attributetype(input, &rc, &errp, parser_flags )) == NULL){
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, input,
+                               "Failed to parse attribute, error(%d - %s) at (%s)", rc, ldap_scherr2str(rc), errp );
+        return invalid_syntax_error;
+    }
+
+    if (schema_flags & DSE_SCHEMA_NO_GLOCK){
+        flags |= SLAPI_ATTR_FLAG_NOLOCKING;
+    }
+    /*
+     *  Check the NAME and update our name list
+     */
+    if ( NULL != atype->at_names ) {
+        for(; atype->at_names[num_names]; num_names++){
+            charray_add(&attr_names, slapi_ch_strdup(atype->at_names[num_names]));
+        }
+        first_attr_name = atype->at_names[0];
+    } else { /* NAME followed by nothing violates syntax */
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, input,
+            "Missing or invalid attribute name" );
+        status = invalid_syntax_error;
+        goto done;
+    }
+    /*
+     *  If the attribute type doesn't have an OID, we'll make the oid attrname-oid.
+     */
+    if (NULL == atype->at_oid) {
+        atype->at_oid = slapi_ch_smprintf("%s-oid", first_attr_name );
+    }
+    /*
+     *  Set the flags
+     */
+    if(atype->at_obsolete){
+        flags |= SLAPI_ATTR_FLAG_OBSOLETE;
+    }
+    if(atype->at_single_value){
+        flags |= SLAPI_ATTR_FLAG_SINGLE;
+    }
+    if(atype->at_collective){
+        flags |= SLAPI_ATTR_FLAG_COLLECTIVE;
+    }
+    if(atype->at_no_user_mod){
+        flags |= SLAPI_ATTR_FLAG_NOUSERMOD;
+    }
+    if(atype->at_usage == LDAP_SCHEMA_DIRECTORY_OPERATION){
+        flags |= SLAPI_ATTR_FLAG_OPATTR;
+    }
+    /*
+     * Check the superior, and use it fill in any missing oids on this attribute
+     */
+    if (NULL != atype->at_sup_oid) {
+        struct asyntaxinfo *asi_parent;
+
+        asi_parent = attr_syntax_get_by_name(atype->at_sup_oid);
+        /* if we find no match then server won't start or add the attribute type */
+        if (asi_parent == NULL) {
+            LDAPDebug (LDAP_DEBUG_PARSE, "Cannot find parent attribute type \"%s\"\n",
+                atype->at_sup_oid, NULL, NULL);
+            schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, first_attr_name,
+                "Missing parent attribute syntax OID");
+            status = invalid_syntax_error;
+            goto done;
+
+        } else if ((NULL == atype->at_syntax_oid) || (NULL == atype->at_equality_oid) ||
+                   (NULL == atype->at_substr_oid) || (NULL == atype->at_ordering_oid))
+        {
+            /*
+             * We only want to use the parent syntax if a SYNTAX
+             * wasn't explicitly specified for this attribute.
+             */
+            char *pso = asi_parent->asi_plugin->plg_syntax_oid;
+
+            if (pso && (NULL == atype->at_syntax_oid)) {
+                atype->at_syntax_oid = slapi_ch_strdup(pso);
+                LDAPDebug (LDAP_DEBUG_TRACE,
+                    "Inheriting syntax %s from parent type %s\n",
+                    atype->at_syntax_oid, atype->at_sup_oid,NULL);
+            } else if (NULL == atype->at_syntax_oid) {
+                schema_create_errormsg( errorbuf, errorbufsize,
+                    schema_errprefix_at, first_attr_name,
+                    "Missing parent attribute syntax OID");
+                status = invalid_syntax_error;
+                goto done;
+            }
+
+            if (NULL == atype->at_equality_oid) {
+                atype->at_equality_oid = slapi_ch_strdup(asi_parent->asi_mr_equality);
+            }
+            if (NULL == atype->at_substr_oid) {
+                atype->at_substr_oid = slapi_ch_strdup(asi_parent->asi_mr_substring);
+            }
+            if (NULL == atype->at_ordering_oid) {
+                atype->at_ordering_oid = slapi_ch_strdup(asi_parent->asi_mr_ordering);
+            }
+            attr_syntax_return( asi_parent );
+        }
+    }
+    /*
+     *  Make sure we have a syntax oid set
+     */
+    if (NULL == atype->at_syntax_oid) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                first_attr_name, "Missing attribute syntax OID");
+        status = invalid_syntax_error;
+        goto done;
+    }
+    /*
+     *  Make sure the OID is known
+     */
+    if (!status && (plugin_syntax_find ( atype->at_syntax_oid ) == NULL) ) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+                first_attr_name, "Unknown attribute syntax OID \"%s\"",
+                atype->at_syntax_oid );
+        status = invalid_syntax_error;
+        goto done;
+    }
+    /*
+     * Check to make sure that the OID isn't being used by an objectclass
+     */
+    if (!(schema_flags & DSE_SCHEMA_LOCKED)){
+        oc_lock_read();
+    }
+    poc = oc_find_oid_nolock( atype->at_oid );
+    if ( poc != NULL) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, first_attr_name,
+            "The OID \"%s\" is also used by the object class \"%s\"", atype->at_oid, poc->oc_name);
+        status = LDAP_TYPE_OR_VALUE_EXISTS;
+    }
+    if (!(schema_flags & DSE_SCHEMA_LOCKED)){
+        oc_unlock();
+    }
+    if(status){
+        goto done;
+    }
+    /*
+     *  Walk the "at_extensions" and set the schema extensions
+     */
+    for(a = 0; atype->at_extensions && atype->at_extensions[a]; a++){
+        schemaext *newext = (schemaext *)slapi_ch_calloc(1, sizeof (schemaext));
+        newext->term = slapi_ch_strdup(atype->at_extensions[a]->lsei_name);
+        for (aa = 0; atype->at_extensions[a]->lsei_values && atype->at_extensions[a]->lsei_values[aa]; aa++){
+            charray_add(&newext->values, slapi_ch_strdup(atype->at_extensions[a]->lsei_values[aa]));
+            newext->value_count++;
+        }
+        if(extensions == NULL){
+            extensions = newext;
+            head = newext;
+        } else {
+            extensions->next = newext;
+            extensions = newext;
+        }
+    }
+    extensions = head; /* reset to the top of the list */
+    /*
+     *  Make sure if we are user-defined, that the attr_origins represents it
+     */
+    if (!extension_is_user_defined( extensions )) {
+        if ( is_user_defined ) {
+            int added = 0;
+            /* see if we have a X-ORIGIN term already */
+            while(extensions){
+                if(strcmp(extensions->term, "X-ORIGIN") == 0){
+                    charray_add(&extensions->values, slapi_ch_strdup(schema_user_defined_origin[0]));
+                    extensions->value_count++;
+                    added = 1;
+                    break;
+                }
+                extensions = extensions->next;
+            }
+            if(!added){
+                /* X-ORIGIN is completely missing, add it */
+            	extensions = head;
+				schemaext *newext = (schemaext *)slapi_ch_calloc(1, sizeof (schemaext));
+				newext->term = slapi_ch_strdup("X-ORIGIN");
+				charray_add(&newext->values, slapi_ch_strdup(schema_user_defined_origin[0]));
+				newext->value_count++;
+				while(extensions && extensions->next){
+					/* move to the end of the list */
+					extensions = extensions->next;
+				}
+				if(extensions == NULL){
+					extensions = newext;
+					head = extensions;
+				} else {
+					extensions->next = newext;
+				}
+            }
+        } else {
+            flags |= SLAPI_ATTR_FLAG_STD_ATTR;
+        }
+    }
+    extensions = head; /* reset to the top of the list */
+    /*
+     *  Check to see if the attribute name is valid
+     */
+    if (!(schema_flags & DSE_SCHEMA_NO_CHECK)) {
+        for (a = 0; a < num_names; ++a) {
+            if ( schema_check_name(attr_names[a], PR_TRUE, errorbuf, errorbufsize) == 0 ) {
+                status = invalid_syntax_error;
+                goto done;
+            } else if (!(flags & SLAPI_ATTR_FLAG_OVERRIDE) && attr_syntax_exists(attr_names[a])) {
+                schema_create_errormsg( errorbuf, errorbufsize,
+                    schema_errprefix_at, attr_names[a],
+                    "Could not be added because it already exists" );
+                status = LDAP_TYPE_OR_VALUE_EXISTS;
+                goto done;
+            }
+        }
+    }
+    /*
+     *  Check if the OID is valid
+     */
+    if (!(schema_flags & DSE_SCHEMA_NO_CHECK)) {
+        if ( schema_check_oid ( first_attr_name, atype->at_oid, PR_TRUE, errorbuf,
+                errorbufsize ) == 0 ) {
+            status = invalid_syntax_error;
+            goto done;
+        }
+    }
+    /*
+     *  Check if the OID is already being used
+     */
+    if (!(flags & SLAPI_ATTR_FLAG_OVERRIDE) && ( NULL != (tmpasi = attr_syntax_get_by_oid(atype->at_oid)))) {
+        schema_create_errormsg( errorbuf, errorbufsize,
+            schema_errprefix_at, first_attr_name,
+            "Could not be added because the OID \"%s\" is already in use", atype->at_oid);
+        status = LDAP_TYPE_OR_VALUE_EXISTS;
+        attr_syntax_return( tmpasi );
+        goto done;
+    }
+    /*
+     *  Finally create the attribute
+     */
+    status = attr_syntax_create( atype->at_oid, attr_names, atype->at_desc, atype->at_sup_oid,
+                                 atype->at_equality_oid, atype->at_ordering_oid, atype->at_substr_oid,
+                                 extensions, atype->at_syntax_oid, syntaxlength, flags, &tmpasip );
+    if (!status) {
+        if ( NULL != asipp ) {
+            *asipp = tmpasip; /* just return it */
+        } else {
+            /* add the new attribute to the global store */
+            status = attr_syntax_add( tmpasip );
+            if ( LDAP_SUCCESS != status ) {
+                if ( 0 != (flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
+                            LDAP_TYPE_OR_VALUE_EXISTS == status ) {
+                    /*
+                     * This can only occur if the name and OID don't match the
+                     * attribute we are trying to override (all other cases of
+                     * "type or value exists" were trapped above).
+                     */
+                    schema_create_errormsg( errorbuf, errorbufsize,
+                            schema_errprefix_at, first_attr_name,
+                            "Does not match the OID \"%s\". Another attribute "
+                            "type is already using the name or OID.", atype->at_oid);
+                } else {
+                    schema_create_errormsg( errorbuf, errorbufsize,
+                            schema_errprefix_at, first_attr_name,
+                            "Could not be added (OID is \"%s\")", atype->at_oid );
+                }
+                attr_syntax_free( tmpasip );
+            }
+        }
+    }
+
+ done:
+    /* free everything */
+    ldap_attributetype_free(atype);
+    charray_free(attr_names);
+    schema_free_extensions(extensions);
 
     return status;
 }
 
+/*
+ * parse_objclass_str
+ *
+ * Read the value of the objectclasses attribute in cn=schema, convert it
+ * into an objectclass struct.
+ *
+ * Arguments:
+ *
+ *     input             : value of objectclasses attribute to read
+ *     oc                : pointer write the objectclass to
+ *     errorbuf          : buffer to write any errors to
+ *     is_user_defined   : if non-zero, force objectclass to be user defined
+ *     schema_flags      : Any or none of the following bits could be set
+ *                         DSE_SCHEMA_NO_CHECK -- schema won't be checked
+ *                         DSE_SCHEMA_NO_GLOCK -- don't lock global resources
+ *                         DSE_SCHEMA_LOCKED   -- already locked with
+ *                                                reload_schemafile_lock;
+ *                                                no further lock needed
+ *     schema_ds4x_compat: if non-zero, act like Netscape DS 4.x
+ *
+ * Returns: an LDAP error code
+ *
+ *       LDAP_SUCCESS if the objectclass was sucessfully read, the new
+ *         objectclass will be written to oc
+ *
+ *       All others:  there was an error, an error message will
+ *         be written to errorbuf
+ */
+static int
+parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
+		size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
+		int schema_ds4x_compat )
+{
+    LDAPObjectClass *objClass;
+    struct objclass *pnew_oc = NULL, *psup_oc = NULL;
+    schemaext *extensions = NULL, *head = NULL;
+    const char *errp;
+    char **OrigRequiredAttrsArray, **OrigAllowedAttrsArray;
+    char *first_oc_name = NULL;
+    /* If we ever accept openldap schema directly, then make parser_flags configurable */
+    const int parser_flags = LDAP_SCHEMA_ALLOW_NONE | LDAP_SCHEMA_ALLOW_NO_OID;
+    PRUint8 flags = 0;
+    int invalid_syntax_error;
+    int i, j;
+    int rc = 0;
+
+    /*
+     *     openLDAP Objectclass struct
+     *
+     *          typedef struct ldap_objectclass {
+     *                   char *oc_oid;            OID
+     *                   char **oc_names;         Names
+     *                   char *oc_desc;           Description
+     *                   int  oc_obsolete;        Is obsolete?
+     *                   char **oc_sup_oids;      OIDs of superior classes
+     *                   int  oc_kind;            Kind
+     *                   char **oc_at_oids_must;  OIDs of required attribute types
+     *                   char **oc_at_oids_may;   OIDs of optional attribute types
+     *                   LDAPSchemaExtensionItem **oc_extensions;  Extensions
+     *           } LDAPObjectClass;
+     */
+
+    /*
+     *  Set the appropriate error code
+     */
+    if ( schema_ds4x_compat ) {
+        invalid_syntax_error = LDAP_OPERATIONS_ERROR;
+    } else {
+        invalid_syntax_error = LDAP_INVALID_SYNTAX;
+    }
+    /*
+     *  Verify we have input
+     */
+    if ( NULL == input || '\0' == input[0] ) {
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, NULL,
+            "One or more values are required for the objectClasses attribute" );
+        LDAPDebug ( LDAP_DEBUG_ANY, "NULL args passed to read_oc_ldif\n",0,0,0);
+        return LDAP_OPERATIONS_ERROR;
+    }
+    /*
+     *  Parse the input and create the openLdap objectclass structure
+     */
+    while(isspace(*input)){
+    	/* trim any leading spaces */
+        input++;
+    }
+    if((objClass = ldap_str2objectclass(input, &rc, &errp, parser_flags )) == NULL){
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, input,
+                               "Failed to parse objectclass, error(%d) at (%s)", rc, errp );
+        return invalid_syntax_error;
+    }
+    /*
+     *  Check the NAME and update our name list
+     */
+    if ( NULL != objClass->oc_names ) {
+        first_oc_name = objClass->oc_names[0];
+    } else { /* NAME followed by nothing violates syntax */
+        schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, input,
+            "Missing or invalid objectclass name" );
+        rc = invalid_syntax_error;
+        goto done;
+    }
+    /*
+     *  If the objectclass type doesn't have an OID, we'll make the oid objClass-oid.
+     */
+    if (NULL == objClass->oc_oid) {
+        objClass->oc_oid = slapi_ch_smprintf("%s-oid", first_oc_name );
+    }
+    /*
+     *  Check to see if the objectclass name is valid
+     */
+    if (!(schema_flags & DSE_SCHEMA_NO_CHECK)) {
+        for (i = 0; objClass->oc_names[i]; ++i) {
+            if ( schema_check_name(objClass->oc_names[i], PR_TRUE, errorbuf, errorbufsize) == 0 ) {
+                rc = invalid_syntax_error;
+                goto done;
+            }
+        }
+    }
+    /*
+     *  Check if the OID is valid
+     */
+    if (!(schema_flags & DSE_SCHEMA_NO_CHECK)) {
+        if ( schema_check_oid ( first_oc_name, objClass->oc_oid, PR_TRUE, errorbuf,
+                errorbufsize ) == 0 ) {
+            rc = invalid_syntax_error;
+            goto done;
+        }
+    }
+    /*
+     * Look for the superior objectclass.  We first look for a parenthesized
+     * list and if not found we look for a simple OID.
+     *
+     * XXXmcs: Since we do not yet support multiple superior objectclasses, we
+     * just grab the first OID in a parenthesized list.
+     */
+    if (!(schema_flags & DSE_SCHEMA_NO_GLOCK)) {
+        /* needed because we access the superior oc */
+        oc_lock_read();
+    }
+    if(objClass->oc_sup_oids && objClass->oc_sup_oids[0]){
+        psup_oc = oc_find_nolock ( objClass->oc_sup_oids[0] );
+    }
+    /*
+     *  Walk the "oc_extensions" and set the schema extensions
+     */
+    for(i = 0; objClass->oc_extensions && objClass->oc_extensions[i]; i++){
+        schemaext *newext = (schemaext *)slapi_ch_calloc(1, sizeof (schemaext));
+        newext->term = slapi_ch_strdup(objClass->oc_extensions[i]->lsei_name);
+        for (j = 0; objClass->oc_extensions[i]->lsei_values && objClass->oc_extensions[i]->lsei_values[j]; j++){
+             charray_add(&newext->values, slapi_ch_strdup(objClass->oc_extensions[i]->lsei_values[j]));
+             newext->value_count++;
+        }
+        if(extensions == NULL){
+            extensions = newext;
+            head = extensions;
+        } else {
+            extensions->next = newext;
+            extensions = newext;
+        }
+    }
+    extensions = head; /* reset to the top of the list */
+    /*
+     *  Set the remaining flags
+     */
+    if(objClass->oc_obsolete){
+        flags |= OC_FLAG_OBSOLETE;
+    }
+    if ( extension_is_user_defined( extensions )) {
+        flags |= OC_FLAG_USER_OC;
+    } else if ( is_user_defined ) {
+        int added = 0;
+        /* see if we have a X-ORIGIN term already */
+        while(extensions){
+            if(strcmp(extensions->term, "X-ORIGIN") == 0){
+                charray_add(&extensions->values, slapi_ch_strdup(schema_user_defined_origin[0]));
+                extensions->value_count++;
+                added = 1;
+                break;
+            }
+            extensions = extensions->next;
+        }
+        if(!added){
+            /* X-ORIGIN is completely missing, add it */
+            extensions = head;
+            schemaext *newext = (schemaext *)slapi_ch_calloc(1, sizeof (schemaext));
+            newext->term = slapi_ch_strdup("X-ORIGIN");
+            charray_add( &newext->values, slapi_ch_strdup( schema_user_defined_origin[0] ));
+            newext->value_count++;
+            while(extensions && extensions->next){
+                extensions = extensions->next;
+            }
+            if(extensions == NULL){
+                extensions = newext;
+                head = extensions;
+            } else {
+                extensions->next = newext;
+            }
+        }
+        flags |= OC_FLAG_USER_OC;
+    } else {
+        flags |= OC_FLAG_STANDARD_OC;
+    }
+    extensions = head; /* reset to the top of the list */
+    /*
+     *  Generate OrigRequiredAttrsArray and OrigAllowedAttrsArray from the superior oc
+     */
+    if (psup_oc) {
+        int found_it;
+
+        OrigRequiredAttrsArray = (char **) slapi_ch_malloc (1 * sizeof(char *)) ;
+        OrigRequiredAttrsArray[0] = NULL;
+        OrigAllowedAttrsArray = (char **) slapi_ch_malloc (1 * sizeof(char *)) ;
+        OrigAllowedAttrsArray[0] = NULL;
+        if (psup_oc->oc_required && objClass->oc_at_oids_must) {
+            for (i = 0, found_it = 0; objClass->oc_at_oids_must[i]; i++) {
+                for (j = 0; psup_oc->oc_required[j]; j++) {
+                    if (strcasecmp (psup_oc->oc_required[j], objClass->oc_at_oids_must[i]) == 0) {
+                        found_it = 1;
+                        break;
+                    }
+                }
+                if (!found_it) {
+                    charray_add (&OrigRequiredAttrsArray, slapi_ch_strdup ( objClass->oc_at_oids_must[i] ) );
+                }
+            }
+        } else {
+            /* we still need to set the originals */
+            OrigRequiredAttrsArray = charray_dup(objClass->oc_at_oids_must);
+        }
+        if (psup_oc->oc_allowed && objClass->oc_at_oids_may) {
+            for (i = 0, found_it = 0; objClass->oc_at_oids_may[i]; i++) {
+                for (j = 0; psup_oc->oc_allowed[j]; j++) {
+                    if (strcasecmp (psup_oc->oc_allowed[j], objClass->oc_at_oids_may[i]) == 0) {
+                        found_it = 1;
+                        break;
+                    }
+                }
+                if (!found_it) {
+                    charray_add (&OrigAllowedAttrsArray, slapi_ch_strdup (objClass->oc_at_oids_may[i]) );
+                }
+            }
+        } else {
+            /* we still need to set the originals */
+            OrigAllowedAttrsArray = charray_dup(objClass->oc_at_oids_may);
+        }
+    } else {
+        /* if no parent oc */
+        OrigRequiredAttrsArray = charray_dup ( objClass->oc_at_oids_must );
+        OrigAllowedAttrsArray = charray_dup ( objClass->oc_at_oids_may );
+    }
+    if (!(schema_flags & DSE_SCHEMA_NO_GLOCK)) {
+        oc_unlock(); /* we are done accessing superior oc (psup_oc) */
+    }
+    /*
+     *  Finally - create new the objectclass
+     */
+    pnew_oc = (struct objclass *) slapi_ch_calloc (1, sizeof (struct objclass));
+    pnew_oc->oc_name = slapi_ch_strdup ( objClass->oc_names[0] );
+    if(objClass->oc_sup_oids){
+        pnew_oc->oc_superior = slapi_ch_strdup( objClass->oc_sup_oids[0] );
+    }
+    pnew_oc->oc_oid = slapi_ch_strdup( objClass->oc_oid );
+    pnew_oc->oc_desc = slapi_ch_strdup( objClass->oc_desc );
+    pnew_oc->oc_required = charray_dup( objClass->oc_at_oids_must );
+    pnew_oc->oc_allowed = charray_dup( objClass->oc_at_oids_may );
+    pnew_oc->oc_orig_required = OrigRequiredAttrsArray;
+    pnew_oc->oc_orig_allowed = OrigAllowedAttrsArray;
+    pnew_oc->oc_kind = objClass->oc_kind;
+    pnew_oc->oc_extensions = extensions;
+    pnew_oc->oc_next = NULL;
+    pnew_oc->oc_flags = flags;
+
+    *oc = pnew_oc;
+
+done:
+    ldap_objectclass_free(objClass);
+
+    return rc;
+}
+#endif
 
 /* 
  * schema_check_oc_attrs: 
@@ -3925,7 +4707,7 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
             if (flags & DSE_SCHEMA_NO_LOAD)
             {
                 struct asyntaxinfo *tmpasip = NULL;
-                if ((*returncode = read_at_ldif(s, &tmpasip, returntext,
+                if ((*returncode = parse_at_str(s, &tmpasip, returntext,
                         SLAPI_DSE_RETURNTEXT_SIZE, flags,
                         primary_file /* force user defined? */,
                         schema_ds4x_compat, 0)) != 0)
@@ -3934,7 +4716,7 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
             }
             else
             {
-                if ((*returncode = read_at_ldif(s, NULL, returntext,
+                if ((*returncode = parse_at_str(s, NULL, returntext,
                         SLAPI_DSE_RETURNTEXT_SIZE, flags,
                         primary_file /* force user defined? */,
                         schema_ds4x_compat, 0)) != 0)
@@ -3962,7 +4744,7 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
             const char *s = slapi_value_get_string(v);
             if (!s)
                 continue;
-            if ( LDAP_SUCCESS != (*returncode = read_oc_ldif(s, &oc, returntext,
+            if ( LDAP_SUCCESS != (*returncode = parse_oc_str(s, &oc, returntext,
                         SLAPI_DSE_RETURNTEXT_SIZE, flags,
                         primary_file /* force user defined? */,
                         schema_ds4x_compat))) {
@@ -4091,6 +4873,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 	if(rc)
 	{
 		char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
+		char *attr_str;
 		int dont_write = 1;
 		int merge = 1;
 		int dont_dup_check = 1;
@@ -4108,22 +4891,26 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		/* add the objectclass attribute so we can do some basic schema
 		   checking during initialization; this will be overridden when
 		   its "real" definition is read from the schema conf files */
+
+#ifdef USE_OPENLDAP
+		attr_str = "( 2.5.4.0 NAME 'objectClass' "
+				   "DESC 'Standard schema for LDAP' SYNTAX "
+				   "1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )";
+#else
+		attr_str = "attributeTypes: ( 2.5.4.0 NAME 'objectClass' "
+				  "DESC 'Standard schema for LDAP' SYNTAX "
+				  "1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )";
+#endif
 		if (schema_flags & DSE_SCHEMA_NO_LOAD)
 		{
 			struct asyntaxinfo *tmpasip = NULL;
-			rc = read_at_ldif("attributeTypes: ( 2.5.4.0 NAME 'objectClass' "
-						  "DESC 'Standard schema for LDAP' SYNTAX "
-						  "1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )",
-						  &tmpasip, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+			rc = parse_at_str(attr_str, &tmpasip, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 						  DSE_SCHEMA_NO_GLOCK|schema_flags, 0, 0, 0);
 			attr_syntax_free( tmpasip );	/* trash it */
 		}
 		else
 		{
-			rc = read_at_ldif("attributeTypes: ( 2.5.4.0 NAME 'objectClass' "
-						  "DESC 'Standard schema for LDAP' SYNTAX "
-						  "1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC 2252' )",
-						  NULL, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+			rc = parse_at_str(attr_str, NULL, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 						  schema_flags, 0, 0, 0);
 		}
 		if (rc)
@@ -4200,6 +4987,127 @@ init_schema_dse(const char *configdir)
 	rc = init_schema_dse_ext(schemadir, NULL, &pschemadse, DSE_SCHEMA_NO_GLOCK);
 	slapi_ch_free_string(&schemadir);
 	return rc;
+}
+
+#if !defined (USE_OPENLDAP)
+
+static char **
+parse_xstring_list( const char *schema_value, const char *name, size_t namelen, int *num_xvalsp,
+        char **default_list )
+{
+    char    *start, *end, *xval_tmp;
+    char    **xvals = NULL;
+
+    if (( start = PL_strstr ( schema_value, name )) != NULL) {
+        start += namelen+1; /* +1 for space */
+        xval_tmp = slapi_ch_strdup( start );
+        if ( *start == '(' ) {
+            end = strchr( xval_tmp, ')' );
+        } else {
+            end = strchr( xval_tmp + 1, '\'' );
+        }
+        if (end) {
+            *(end+1) = 0;
+        }
+        xvals = parse_qdstrings( xval_tmp, num_xvalsp );
+        slapi_ch_free( (void **)&xval_tmp );
+    } else {
+        xvals = NULL;
+        *num_xvalsp = 0;
+    }
+
+    if ( NULL == xvals && NULL != default_list ) {
+        int        i;
+
+        for ( i = 0; default_list[i] != NULL; ++i ) {
+            ;
+        }
+        *num_xvalsp = i;
+        xvals = (char **)slapi_ch_malloc( (i+1) * sizeof(char *));
+        for ( i = 0; default_list[i] != NULL; ++i ) {
+            xvals[i] = slapi_ch_strdup( default_list[i] );
+        }
+        xvals[i] = NULL;
+    }
+
+/* for debugging
+if ( xvals == NULL || xvals[0] == NULL ) {
+    LDAPDebug( LDAP_DEBUG_ANY, "no xstring values for xstring (%s) in (%s)\n", name, schema_value, 0 );
+}
+*/
+
+    return xvals;
+}
+
+/* used by mozldap read_at_ldif() & read_oc_ldif() */
+static schemaext*
+parse_extensions( const char *schema_value, char **default_list )
+{
+    schemaext *extensions = NULL, *head = NULL;
+    char *input, *token, *iter = NULL;
+    int i;
+
+    /*
+     *  First make a copy of the input, then grab all the "X-" words,
+     *  and extract the values.
+     */
+    input = slapi_ch_strdup(schema_value);
+    token = ldap_utf8strtok_r(input, " ", &iter);
+    while(token){
+        if(strncmp(token,"X-", 2) == 0){
+            /* we have a new extension */
+            schemaext *newext;
+            newext = (schemaext *)slapi_ch_calloc(1, sizeof (schemaext));
+            newext->term = slapi_ch_strdup(token);
+            newext->values = parse_xstring_list(schema_value, token, strlen(token), &newext->value_count, default_list);
+	        if(extensions == NULL){
+                extensions = newext;
+                head = newext;
+            } else {
+                extensions->next = newext;
+                extensions = extensions->next;
+            }
+        }
+        token = ldap_utf8strtok_r(iter, " ", &iter);
+    }
+    extensions = head;
+    /*
+     *  Ok, if X-ORIGIN was not specified, then add it with the default values
+     */
+    if ( !extension_is_user_defined(extensions) && default_list ) {
+        int added = 0;
+        while(extensions){
+            if(strcmp(extensions->term, "X-ORIGIN") == 0){
+                charray_add(&extensions->values, slapi_ch_strdup(default_list[0]) );
+                extensions->value_count++;
+                added = 1;
+                extensions = head;
+                break;
+            }
+            extensions = extensions->next;
+        }
+        if(!added){
+            schemaext *newext = (schemaext *)slapi_ch_calloc(1, sizeof (schemaext));
+            newext->term = slapi_ch_strdup("X-ORIGIN");
+            for ( i = 0; default_list[i]; ++i ){
+                newext->value_count++;
+                charray_add(&newext->values, slapi_ch_strdup(default_list[i]) );
+            }
+            extensions = head;
+            while(extensions && extensions->next){
+                /* move to the end of the list */
+                extensions = extensions->next;
+            }
+            if(extensions == NULL){
+                extensions = newext;
+            } else {
+                extensions->next = newext;
+            }
+        }
+    }
+    slapi_ch_free_string(&input);
+
+    return extensions;
 }
 
 /*
@@ -4318,6 +5226,7 @@ get_tagged_oid( const char *tag, const char **inputp,
 	return( oid );
 }
 
+#endif
 
 /*
  * sprintf to `outp' the contents of `tag' followed by `oid' followed by a
@@ -4387,7 +5296,6 @@ strcat_oids( char *buf, char *prefix, char **oids, int schema_ds4x_compat )
 	}
 }
 
-
 /*
  * Add to `buf' a string of the form:
  *
@@ -4404,49 +5312,62 @@ strcat_oids( char *buf, char *prefix, char **oids, int schema_ds4x_compat )
  * is calculated and returned.  This is useful if you need to allocate
  * space before calling this function will a buffer.
  *
- * If qdlist is NULL or an empty array, `buf' is not touched and zero
- * is returned.
  */
 static size_t
 strcat_qdlist( char *buf, char *prefix, char **qdlist )
 {
-	int			i;
-	char		*start, *p;
-	size_t		len = 0;
+        int                     i;
+        char            *start, *p;
+        size_t          len = 0;
 
-	if ( NULL != qdlist && NULL != qdlist[0] ) {
-		if ( NULL == buf ) {	/* calculate length only */
-			len += strlen( prefix );
-			if ( NULL != qdlist[1] ) {
-				len += 4;	/* surrounding spaces and '(' and ')' */
-			}
-			for ( i = 0; NULL != qdlist[i]; ++i ) {
-				len += 3;	/* leading space and quote marks */
-				len += strlen(qdlist[i]);
-			}
-			++len;			/* trailing space */
+        if ( NULL != qdlist && NULL != qdlist[0] ) {
+                if ( NULL == buf ) {    /* calculate length only */
+                        len += strlen( prefix );
+                        if ( NULL != qdlist[1] ) {
+                                len += 4;       /* surrounding spaces and '(' and ')' */
+                        }
+                        for ( i = 0; NULL != qdlist[i]; ++i ) {
+                                len += 3;       /* leading space and quote marks */
+                                len += strlen(qdlist[i]);
+                        }
+                        ++len;                  /* trailing space */
 
-		} else {
-			p = start = buf + strlen(buf);	/* skip past existing content */
-			if ( NULL == qdlist[1] ) {		/* just one string */
-				p += sprintf( p, "%s '%s' ", prefix, qdlist[0] );
-			} else {						/* a list of strings */
-				p += sprintf( p, "%s (", prefix );
-				for ( i = 0; qdlist[i] != NULL; ++i ) {
-					p += sprintf( p, " '%s'", qdlist[i] );
-				}
-				*p++ = ' ';
-				*p++ = ')';
-				*p++ = ' ';
-				*p = '\0';
-			}
-			len = p - start;
-		}
-	}
+                } else {
+                        p = start = buf + strlen(buf);  /* skip past existing content */
+                        if ( NULL == qdlist[1] ) {              /* just one string */
+                                p += sprintf( p, "%s '%s' ", prefix, qdlist[0] );
+                        } else {                                                /* a list of strings */
+                                p += sprintf( p, "%s (", prefix );
+                                for ( i = 0; qdlist[i] != NULL; ++i ) {
+                                        p += sprintf( p, " '%s'", qdlist[i] );
+                                }
+                                *p++ = ' ';
+                                *p++ = ')';
+                                *p++ = ' ';
+                                *p = '\0';
+                        }
+                        len = p - start;
+                }
+        }
 
-	return( len );
+        return( len );
 }
 
+/*
+ *  Loop over the extensions calling strcat_qdlist for each one.
+ */
+static size_t
+strcat_extensions( char *buf, schemaext *extension )
+{
+    size_t len = 0;
+
+    while(extension){
+        len += strcat_qdlist(buf, extension->term, extension->values);
+        extension = extension->next;
+    }
+
+    return( len );
+}
 
 /*
  * Just like strlen() except that 0 is returned if `s' is NULL.
@@ -4480,83 +5401,23 @@ strcpy_count( char *dst, const char *src )
 	return( p - dst );
 }
 
-
-/*
- * Look for an X-ORIGIN list in `schema_value' and return a
- * qdstrings array (or NULL if no list is present).  *num_originsp is
- * set to a count of the number of origin strings returned.
- *
- * If no X-ORIGIN list is found and `default_list' is non-NULL, a copy
- * of default list is returned.
- */
-static char **
-parse_origin_list( const char *schema_value, int *num_originsp,
-		char **default_list )
-{
-	char	*start, *end, *origin_tmp;
-    char	**origins = NULL;
-
-	if (( start = PL_strstr ( schema_value, "X-ORIGIN ")) != NULL ) {
-		start += 9;
-		origin_tmp = slapi_ch_strdup( start );
-		if ( *start == '(' ) {
-			end = strchr( origin_tmp, ')' );
-		} else {
-			end = strchr( origin_tmp + 1, '\'' );
-		}
-		if (end) {
-			*(end+1) = 0;
-		}
-		origins = parse_qdstrings( origin_tmp, num_originsp );
-		slapi_ch_free( (void **)&origin_tmp );
-	} else {
-		origins = NULL;
-		*num_originsp = 0;
-	}
-
-	if ( NULL == origins && NULL != default_list ) {
-		int		i;
-
-		for ( i = 0; default_list[i] != NULL; ++i ) {
-			;
-		}
-		*num_originsp = i;
-		origins = (char **)slapi_ch_malloc( (i+1) * sizeof(char *));
-		for ( i = 0; default_list[i] != NULL; ++i ) {
-			origins[i] = slapi_ch_strdup( default_list[i] );
-		}
-		origins[i] = NULL;
-	}
-
-/* for debugging
-if ( origins == NULL || origins[0] == NULL ) {
-	LDAPDebug( LDAP_DEBUG_ANY, "no origin (%s)\n", schema_value, 0, 0 );
-}
-*/
-
-	return origins;
-}
-
-
-/*
- * Determine based on origin whether a schema element is standard or
- * user-defined.  Algorithm: perform a case insensitive search for
- * "user defined".  If found, return 1 (user defined); if not, return 0.
- */
 static int
-element_is_user_defined( char * const *origins )
+extension_is_user_defined( schemaext *extensions )
 {
-	int		i;
+    while(extensions){
+        if(strcasecmp(extensions->term, "X-ORIGIN") == 0 ){
+            int i = 0;
+            while(extensions->values && extensions->values[i]){
+                if(strcasecmp(schema_user_defined_origin[0], extensions->values[i]) == 0) {
+                    return 1;
+                }
+                i++;
+            }
+        }
+        extensions = extensions->next;
+    }
 
-	if ( origins != NULL ) {
-		for ( i = 0; origins[i] != NULL; ++i ) {
-			if ( 0 == strcasecmp( schema_user_defined_origin[0], origins[i] )) {
-				return 1;
-			}
-		}
-	}
-
-	return 0;
+    return 0;
 }
 
 
@@ -4981,3 +5842,4 @@ slapi_schema_get_superior_name(const char *ocname_or_oid)
 	oc_unlock();
 	return superior;
 }
+

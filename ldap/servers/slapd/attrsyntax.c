@@ -208,7 +208,7 @@ attr_syntax_free( struct asyntaxinfo *a )
 	slapi_ch_free( (void **)&a->asi_mr_equality );
 	slapi_ch_free( (void **)&a->asi_mr_ordering );
 	slapi_ch_free( (void **)&a->asi_mr_substring );
-	cool_charray_free( a->asi_origin );
+	schema_free_extensions(a->asi_extensions);
 	slapi_ch_free( (void **) &a );
 }
 
@@ -584,7 +584,7 @@ attr_syntax_dup( struct asyntaxinfo *a )
 	newas->asi_mr_equality = slapi_ch_strdup( a->asi_mr_equality );
 	newas->asi_mr_ordering = slapi_ch_strdup( a->asi_mr_ordering );
 	newas->asi_mr_substring = slapi_ch_strdup( a->asi_mr_substring );
-	newas->asi_origin = cool_charray_dup( a->asi_origin );
+	newas->asi_extensions = schema_copy_extensions( a->asi_extensions );
 	newas->asi_plugin = a->asi_plugin;
 	newas->asi_flags = a->asi_flags;
 	newas->asi_oid = slapi_ch_strdup( a->asi_oid);
@@ -622,9 +622,9 @@ attr_syntax_add( struct asyntaxinfo *asip )
 			goto cleanup_and_return;
 		}
 	}
-
-	/* make sure the primary name is unique OR, if override is allowed, that
-     * the primary name and OID point to the same schema definition.
+	/*
+	 * Make sure the primary name is unique OR, if override is allowed, that
+	 * the primary name and OID point to the same schema definition.
 	 */
 	if ( NULL != ( oldas_from_name = attr_syntax_get_by_name_locking_optional(
 					asip->asi_name, !nolock))) {
@@ -687,23 +687,22 @@ cleanup_and_return:
  */
 int
 attr_syntax_create(
-	const char			*attr_oid,
-	char *const			*attr_names,
-	int					num_names,
-	const char			*attr_desc,
-	const char			*attr_superior,
-	const char			*mr_equality,
-	const char			*mr_ordering,
-	const char			*mr_substring,
-	char *const			*attr_origins,
-	const char			*attr_syntax,
-	int					syntaxlength,
+	const char		*attr_oid,
+	char *const		*attr_names,
+	const char		*attr_desc,
+	const char		*attr_superior,
+	const char		*mr_equality,
+	const char		*mr_ordering,
+	const char		*mr_substring,
+	schemaext		*extensions,
+	const char		*attr_syntax,
+	int			syntaxlength,
 	unsigned long		flags,
 	struct asyntaxinfo	**asip
 )
 {
-	char					*s;
-	struct asyntaxinfo		a;
+	char			*s;
+	struct asyntaxinfo	a;
 	int rc = LDAP_SUCCESS;
 
 	/* XXXmcs: had to cast away const in many places below */
@@ -719,7 +718,7 @@ attr_syntax_create(
 	a.asi_mr_equality = (char*)mr_equality;
 	a.asi_mr_ordering = (char*)mr_ordering;
 	a.asi_mr_substring = (char*)mr_substring;
-	a.asi_origin = (char **)attr_origins;
+	a.asi_extensions = extensions;
 	a.asi_plugin = plugin_syntax_find( attr_syntax );
 	a.asi_syntaxlength = syntaxlength;
 	/* ideally, we would report an error and fail to start if there was some problem
@@ -905,6 +904,8 @@ attr_syntax_printnode(PLHashEntry *he, PRIntn i, void *arg)
 {
 	char *alias = (char *)he->key;
 	struct asyntaxinfo *a = (struct asyntaxinfo *)he->value;
+	schemaext *ext = a->asi_extensions;
+
 	printf( "  name: %s\n", a->asi_name );
 	printf( "\t flags       : 0x%x\n", a->asi_flags );
 	printf( "\t alias       : %s\n", alias );
@@ -914,10 +915,11 @@ attr_syntax_printnode(PLHashEntry *he, PRIntn i, void *arg)
 	printf( "\t mr_equality : %s\n", a->asi_mr_equality );
 	printf( "\t mr_ordering : %s\n", a->asi_mr_ordering );
 	printf( "\t mr_substring: %s\n", a->asi_mr_substring );
-	if ( NULL != a->asi_origin ) {
-		for ( i = 0; NULL != a->asi_origin[i]; ++i ) {
-			printf( "\t origin      : %s\n", a->asi_origin[i] );
+	while( ext ) {
+		for ( i = 0; ext->values && ext->values[i]; i++ ) {
+			printf( "\t %s      : %s\n", ext->term, ext->values[i]);
 		}
+		ext = ext->next;
 	}
 	printf( "\tplugin: %p\n", a->asi_plugin );
 	printf( "--------------\n" );
@@ -1236,11 +1238,11 @@ slapi_add_internal_attr_syntax( const char *name, const char *oid,
 	origins[0] = SLAPD_VERSION_STR;
 	origins[1] = NULL;
 
-	rc = attr_syntax_create( oid, names, 1,
+	rc = attr_syntax_create( oid, names,
 			"internal server defined attribute type",
 			 NULL,						/* superior */
 			 mr_equality, NULL, NULL,	/* matching rules */
-			 origins, syntax,
+			 NULL, syntax,
 			 SLAPI_SYNTAXLENGTH_NONE,
 			 std_flags | extraflags,
 			 &asip );
