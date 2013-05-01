@@ -1156,8 +1156,7 @@ slapi_ldap_bind(
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 				"Error: timeout after [%ld.%ld] seconds reading "
 				"bind response for [%s] authentication mechanism [%s]\n",
-				bind_timeout ? bind_timeout->tv_sec : 0,
-				bind_timeout ? bind_timeout->tv_usec : 0,
+				bind_timeout->tv_sec, bind_timeout->tv_usec,
 				bindid ? bindid : "(anon)",
 				mech ? mech : "SIMPLE");
 		goto done;
