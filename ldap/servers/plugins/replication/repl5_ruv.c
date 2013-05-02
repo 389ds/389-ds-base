@@ -1178,6 +1178,82 @@ ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids)
     }
 }
 
+/* 
+ * This routine dump the ruv (last modified time) into a value array
+ * the call must free the returned value array
+ */
+Slapi_Value **
+ruv_last_modified_to_valuearray(RUV *ruv)
+{
+        RUVElement *ruv_e;
+        int cookie;
+        Slapi_Value *value;
+        Slapi_Value **values = NULL;
+        char *buffer;
+
+
+        /* Acquire the ruv lock */
+        slapi_rwlock_rdlock(ruv->lock);
+
+        /* Now loop for each RUVElement and store its string value into the valueset*/
+        for (ruv_e = dl_get_first(ruv->elements, &cookie);
+                NULL != ruv_e;
+                ruv_e = dl_get_next(ruv->elements, &cookie)) {
+                			
+                buffer = slapi_ch_smprintf("%s%d%s%s} %08lx", prefix_ruvcsn, ruv_e->rid,
+			    ruv_e->replica_purl == NULL ? "" : " ",
+			    ruv_e->replica_purl == NULL ? "" : ruv_e->replica_purl,
+			    ruv_e->last_modified);
+                value = slapi_value_new_string_passin(buffer);
+                valuearray_add_value(&values, value);
+                slapi_value_free(&value);
+        }
+        
+        slapi_rwlock_unlock(ruv->lock);
+
+        return (values);
+}
+
+/* 
+ * This routine dump the ruv (replicageneration and ruvElements) into a value array
+ * the call must free the returned value array
+ */
+Slapi_Value **
+ruv_to_valuearray(RUV *ruv)
+{
+        RUVElement *ruv_e;
+        int cookie;
+        Slapi_Value *value;
+        Slapi_Value **values = NULL;
+        struct berval bv;
+        char *buffer; 
+
+        /* Acquire the ruv lock */
+        slapi_rwlock_rdlock(ruv->lock);
+        
+        /* dump the replicageneration */
+        buffer = slapi_ch_smprintf("%s %s", prefix_replicageneration, ruv->replGen);
+        value = slapi_value_new_string_passin(buffer);
+        valuearray_add_value(&values, value);
+        slapi_value_free(&value);
+
+        /* Now loop for each RUVElement and store its string value into the valueset*/
+        for (ruv_e = dl_get_first(ruv->elements, &cookie);
+                NULL != ruv_e;
+                ruv_e = dl_get_next(ruv->elements, &cookie)) {
+
+                ruv_element_to_string(ruv_e, &bv, NULL, 0);
+                value = slapi_value_new_berval(&bv);
+                slapi_ber_bvdone(&bv);
+                valuearray_add_value(&values, value);
+                slapi_value_free(&value);
+        }
+        
+        slapi_rwlock_unlock(ruv->lock);
+
+        return (values);
+}
+
 int
 ruv_to_smod(const RUV *ruv, Slapi_Mod *smod)
 {

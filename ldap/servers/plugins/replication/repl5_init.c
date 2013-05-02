@@ -259,7 +259,8 @@ multimaster_preop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_MODIFY_FN, (void *) multimaster_preop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_MODRDN_FN, (void *) multimaster_preop_modrdn ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_SEARCH_FN, (void *) multimaster_preop_search ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_COMPARE_FN, (void *) multimaster_preop_compare ) != 0)
+	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_COMPARE_FN, (void *) multimaster_preop_compare ) != 0 ||
+            slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_ENTRY_FN, (void *) multimaster_ruv_search ) != 0)
 	{
 		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_preop_init failed\n" );
 		rc= -1;

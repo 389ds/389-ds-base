@@ -640,6 +640,37 @@ multimaster_preop_compare (Slapi_PBlock *pb)
     return 0;
 }
 
+int
+multimaster_ruv_search(Slapi_PBlock *pb)
+{
+        Slapi_Entry *e, *e_alt;
+        Slapi_DN *suffix_sdn;
+
+        slapi_pblock_get(pb, SLAPI_SEARCH_ENTRY_ORIG, &e);
+
+        if (e == NULL)
+                return 0;
+
+        if (is_ruv_tombstone_entry(e)) {
+                /* We are about to send back the database RUV, we need to return
+                 * in memory RUV instead
+                 */
+
+                /* Retrieve the suffix DN from the RUV entry */
+                suffix_sdn = slapi_sdn_new();
+                slapi_sdn_get_parent(slapi_entry_get_sdn(e), suffix_sdn);
+
+                /* Now set the in memory RUV into the pblock */
+                if ((e_alt = get_in_memory_ruv(suffix_sdn)) != NULL) {
+                        slapi_pblock_set(pb, SLAPI_SEARCH_ENTRY_COPY, e_alt);
+                }
+
+                slapi_sdn_free(&suffix_sdn);
+        }
+        
+        return 0;
+}
+
 static void
 purge_entry_state_information (Slapi_PBlock *pb)
 {

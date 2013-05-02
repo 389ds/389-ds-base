@@ -704,6 +704,70 @@ replica_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 	return SLAPI_DSE_CALLBACK_OK;
 }
 
+static void
+replica_config_search_last_modified(Slapi_PBlock *pb, Slapi_Entry* e, Replica *replica) 
+{
+        Object *ruv_obj = NULL;
+        RUV *ruv = NULL;
+        Slapi_Value **values;
+
+        if (replica == NULL)
+                return;
+        ruv_obj = replica_get_ruv(replica);
+        ruv = object_get_data(ruv_obj);
+
+        if ((values = ruv_last_modified_to_valuearray(ruv)) != NULL) {
+                slapi_entry_add_values_sv(e, type_ruvElementUpdatetime, values);
+                valuearray_free(&values);
+        }
+
+        object_release(ruv_obj);
+
+}
+
+static void
+replica_config_search_ruv(Slapi_PBlock *pb, Slapi_Entry* e, Replica *replica) 
+{
+        Object *ruv_obj = NULL;
+        RUV *ruv = NULL;
+        Slapi_Value **values;
+
+        if (replica == NULL)
+                return;
+        ruv_obj = replica_get_ruv(replica);
+        ruv = object_get_data(ruv_obj);
+
+        if ((values = ruv_to_valuearray(ruv)) != NULL) {
+                slapi_entry_add_values_sv(e, type_ruvElement, values);
+                valuearray_free(&values);
+        }
+
+        object_release(ruv_obj);
+
+}
+
+/* Returns PR_TRUE if 'attr' is present in the search requested attributes
+ * else it returns PR_FALSE
+ */
+static PRBool
+search_requested_attr(Slapi_PBlock *pb, char *attr) 
+{
+        char **attrs = NULL;
+        int i;
+
+        slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
+        if ((attr == NULL) || (attrs == NULL))
+                return PR_FALSE;
+
+        for (i = 0; attrs[i] != NULL; i++) {
+                if (strcasecmp(attrs[i], attr) == 0) {
+                        return PR_TRUE;
+                }
+        }
+        
+        return PR_FALSE;
+}
+
 static int
 replica_config_search (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode,
                        char *returntext, void *arg)
@@ -730,6 +794,18 @@ replica_config_search (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 		if (replica) {
 			reapActive = replica_get_tombstone_reap_active(replica);
 		}
+                
+                /* Check if the in memory ruv is requested */
+                if (search_requested_attr(pb, type_ruvElement)) {
+                        replica_config_search_ruv(pb, e, replica);
+                }
+                
+                /* Check if the last update time is requested */
+                if (search_requested_attr(pb, type_ruvElementUpdatetime)) {
+                        replica_config_search_last_modified(pb, e, replica);
+                }
+                
+                
 		object_release (mtnode_ext->replica);
 	}
 
