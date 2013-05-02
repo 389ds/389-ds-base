@@ -419,25 +419,129 @@ entry_add_present_attribute_wsi(Slapi_Entry *e, Slapi_Attr *a)
  * Preserves LDAP Information Model constraints,
  * returning an LDAP result code.
  */
+static void resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribute_state);
+static void resolve_attribute_state_deleted_to_present(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate);
+static void resolve_attribute_state_present_to_deleted(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate);
+static void resolve_attribute_state_to_present_or_deleted(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate, int attribute_state);
+static int entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags);
+static int entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags);
 static int
 entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
 {
+	int retVal = LDAP_SUCCESS;
+	Slapi_Attr *a= NULL;
+	int attr_state= entry_attr_find_wsi(e, type, &a);
+	if (ATTRIBUTE_NOTFOUND == attr_state)
+	{
+		/* Create a new attribute */
+		a = slapi_attr_new();
+		slapi_attr_init(a, type);
+		attrlist_add(&e->e_attrs, a);
+	}
+
+	if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
+	{
+		retVal = entry_add_present_values_wsi_single_valued( e, type, bervals, csn, urp, 0 );
+	}
+	else
+	{
+		retVal = entry_add_present_values_wsi_multi_valued( e, type, bervals, csn, urp, 0 );
+	}
+	return retVal;
+}
+static int
+entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
+{
 	int retVal= LDAP_SUCCESS;
-    Slapi_Value **valuestoadd = NULL;
-    valuearray_init_bervalarray(bervals,&valuestoadd); /* JCM SLOW FUNCTION */
+	Slapi_Value **valuestoadd = NULL;
+	valuearray_init_bervalarray(bervals,&valuestoadd); /* JCM SLOW FUNCTION */
 	if(!valuearray_isempty(valuestoadd))
 	{
 		Slapi_Attr *a= NULL;
 		long a_flags_orig;
 		int attr_state= entry_attr_find_wsi(e, type, &a);
-		if (ATTRIBUTE_NOTFOUND == attr_state)
-		{
-			/* Create a new attribute */
-			a = slapi_attr_new();
-			slapi_attr_init(a, type);
-			attrlist_add(&e->e_attrs, a);
+        	a_flags_orig = a->a_flags;
+		a->a_flags |= flags;
+		/* Check if the type of the to-be-added values has DN syntax or not. */
+		if (slapi_attr_is_dn_syntax_attr(a)) {
+			valuearray_dn_normalize_value(valuestoadd);
+			a->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
 		}
-        a_flags_orig = a->a_flags;
+		if(urp)
+		{
+			valueset_remove_valuearray (&a->a_present_values, a, valuestoadd,
+						SLAPI_VALUE_FLAG_IGNOREERROR |
+						SLAPI_VALUE_FLAG_PRESERVECSNSET, NULL);
+			valueset_remove_valuearray (&a->a_deleted_values, a, valuestoadd,
+						SLAPI_VALUE_FLAG_IGNOREERROR |
+						SLAPI_VALUE_FLAG_PRESERVECSNSET, NULL);
+			valuearray_update_csn (valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
+			valueset_add_valuearray_ext(&a->a_present_values, valuestoadd, SLAPI_VALUE_FLAG_PASSIN);
+			slapi_ch_free ( (void **)&valuestoadd );
+
+			/*
+			 * Now delete non-RDN values from a->a_present_values; and
+			 * restore possible RDN values from a->a_deleted_values
+			 */
+			resolve_attribute_state_single_valued(e, a, attr_state);
+			retVal= LDAP_SUCCESS;
+		}
+		else
+		{
+			Slapi_Value **deletedvalues= NULL;
+			switch(attr_state)
+			{
+			case ATTRIBUTE_PRESENT:
+				/* The attribute is already on the present list */
+				break;
+			case ATTRIBUTE_DELETED:
+				/* Move the deleted attribute onto the present list */
+				entry_deleted_attribute_to_present_attribute(e, a);
+				break;
+			case ATTRIBUTE_NOTFOUND:
+				/* No-op - attribute was initialized & added to entry above */
+				break;
+			}
+			/* Check if any of the values to be added are on the deleted list */
+			valueset_remove_valuearray(&a->a_deleted_values,
+					a, valuestoadd,
+					SLAPI_VALUE_FLAG_IGNOREERROR|SLAPI_VALUE_FLAG_USENEWVALUE,
+					&deletedvalues); /* JCM Check return code */
+			if(deletedvalues!=NULL && deletedvalues[0]!=NULL)
+			{
+				/* Some of the values to be added were on the deleted list */
+				Slapi_Value **v= NULL;
+				Slapi_ValueSet vs;
+				/* Add each deleted value to the present list */
+				valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_UPDATED,csn);
+				valueset_add_valuearray_ext(&a->a_present_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
+				/* Remove the deleted values from the values to add */
+				valueset_set_valuearray_passin(&vs,valuestoadd); 
+				valueset_remove_valuearray(&vs, a, deletedvalues, SLAPI_VALUE_FLAG_IGNOREERROR, &v);
+				valuestoadd= valueset_get_valuearray(&vs);
+				valuearray_free(&v);
+				slapi_ch_free((void **)&deletedvalues);
+			}
+			valuearray_update_csn(valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
+			retVal= attr_add_valuearray(a, valuestoadd, slapi_entry_get_dn_const(e));
+			valuearray_free(&valuestoadd);
+		}
+		a->a_flags = a_flags_orig;
+	}
+	return(retVal);
+}
+static int
+entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
+{
+	int retVal= LDAP_SUCCESS;
+	Slapi_Value **valuestoadd = NULL;
+	valuearray_init_bervalarray(bervals,&valuestoadd); /* JCM SLOW FUNCTION */
+	if(!valuearray_isempty(valuestoadd))
+	{
+		Slapi_Attr *a= NULL;
+		long a_flags_orig;
+		int attr_state= entry_attr_find_wsi(e, type, &a);
+	        a_flags_orig = a->a_flags;
 		a->a_flags |= flags;
 		/* Check if the type of the to-be-added values has DN syntax or not. */
 		if (slapi_attr_is_dn_syntax_attr(a)) {
@@ -462,16 +566,14 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 						SLAPI_VALUE_FLAG_IGNOREERROR |
 						SLAPI_VALUE_FLAG_PRESERVECSNSET, NULL);
 
-			/* Append the pending values to a->a_present_values */
+			/* Now add the values in values to add to present or deleted 
+			 * values, depending on their csnset */
 			valuearray_update_csn (valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
-			valueset_add_valuearray_ext(&a->a_present_values, valuestoadd, SLAPI_VALUE_FLAG_PASSIN);
+
+			resolve_attribute_state_to_present_or_deleted(e, a, valuestoadd, attr_state);
+
 			slapi_ch_free ( (void **)&valuestoadd );
 
-			/*
-			 * Now delete non-RDN values from a->a_present_values; and
-			 * restore possible RDN values from a->a_deleted_values
-			 */
-			resolve_attribute_state(e, a, attr_state, 0);
 			retVal= LDAP_SUCCESS;
 		}
 		else
@@ -526,13 +628,147 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
  * returning an LDAP result code.
  */
 static int
+entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals);
+static int
+entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals);
+static int
 entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals)
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
 	int attr_state= entry_attr_find_wsi(e, type, &a);
+	
 	if(attr_state==ATTRIBUTE_PRESENT || (attr_state==ATTRIBUTE_DELETED && urp))
 	{
+		if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
+			retVal = entry_delete_present_values_wsi_single_valued(e, type, vals, csn, urp, mod_op, replacevals);
+		else
+			retVal = entry_delete_present_values_wsi_multi_valued(e, type, vals, csn, urp, mod_op, replacevals);
+	}
+	else if (attr_state==ATTRIBUTE_DELETED)
+	{
+		if (is_type_forbidden(type)) {
+			retVal = LDAP_SUCCESS;
+		} else {
+			retVal= LDAP_NO_SUCH_ATTRIBUTE;
+		}
+	}
+	else if (attr_state==ATTRIBUTE_NOTFOUND)
+	{
+		if (is_type_protected(type) || is_type_forbidden(type))
+		{
+			retVal = LDAP_SUCCESS;
+		} else {
+			if (!urp) {
+				LDAPDebug1Arg(LDAP_DEBUG_ARGS, "could not find attribute %s\n",
+				              type);
+			}
+			retVal = LDAP_NO_SUCH_ATTRIBUTE;
+		}
+		if ((LDAP_MOD_REPLACE == mod_op) && replacevals && replacevals[0])
+		{
+			/* Create a new attribute and set the adcsn */
+			Slapi_Attr *a = slapi_attr_new();
+			slapi_attr_init(a, type);
+			attr_set_deletion_csn(a,csn); 
+			entry_add_deleted_attribute_wsi(e, a);
+		}
+	}
+	return retVal;
+}
+static int
+entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals)
+{
+	int retVal= LDAP_SUCCESS;
+	Slapi_Attr *a= NULL;
+	int attr_state= entry_attr_find_wsi(e, type, &a);
+	/* The attribute is on the present list, or the deleted list and we're doing URP */
+	if ( vals == NULL || vals[0] == NULL )
+	{
+		/* delete the entire attribute */
+		LDAPDebug( LDAP_DEBUG_ARGS, "removing entire attribute %s\n", type, 0, 0 );
+		attr_set_deletion_csn(a,csn);
+		if(urp)
+		{
+			resolve_attribute_state_single_valued(e, a, attr_state);
+			/* resolve attr state single valued */
+			/* keep_present = check_attr_single_value_is_distingiuished(&a->a_present_values);
+			if ( !keep_present) {
+				slapi_valueset_done(&a->a_present_values);
+				entry_present_attribute_to_deleted_attribute(e, a);
+				}
+			 */
+		}
+		else
+		{
+			slapi_valueset_done(&a->a_present_values);
+			entry_present_attribute_to_deleted_attribute(e, a);
+		}
+		retVal= LDAP_SUCCESS; /* This Operation always succeeds when the attribute is Present */
+	}
+	else
+	{
+		/* delete some specific values */
+	    Slapi_Value **valuestodelete= NULL;
+	    valuearray_init_bervalarray(vals,&valuestodelete); /* JCM SLOW FUNCTION */
+		/* Check if the type of the to-be-deleted values has DN syntax 
+		 * or not. */
+		if (slapi_attr_is_dn_syntax_attr(a)) {
+			valuearray_dn_normalize_value(valuestodelete);
+			a->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
+		}
+		if(urp)
+		{
+			Slapi_Value **valuesupdated= NULL;
+			valueset_update_csn_for_valuearray(&a->a_present_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated);
+			if( valuesupdated && *valuesupdated)
+			{
+				attr_set_deletion_csn(a,csn);			
+			}
+			/* resolve attr state single valued */
+			valuearray_free(&valuesupdated);
+			valueset_update_csn_for_valuearray(&a->a_deleted_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated);
+			valuearray_free(&valuesupdated);
+			valuearray_update_csn(valuestodelete,CSN_TYPE_VALUE_DELETED,csn);
+			valueset_add_valuearray_ext(&a->a_deleted_values, valuestodelete, SLAPI_VALUE_FLAG_PASSIN);
+			slapi_ch_free((void **)&valuestodelete);
+			resolve_attribute_state_single_valued(e, a, attr_state);
+			retVal= LDAP_SUCCESS;
+		}
+		else
+		{
+			Slapi_Value **deletedvalues= NULL;
+			retVal= valueset_remove_valuearray(&a->a_present_values, a, valuestodelete, 0 /* Do Not Ignore Errors */,&deletedvalues);
+			if(retVal==LDAP_SUCCESS && deletedvalues != NULL)
+			{
+				valuearray_free(&deletedvalues);
+				/* The attribute is single valued and the value was successful deleted */
+				entry_present_attribute_to_deleted_attribute(e, a);
+			}
+			else if (retVal != LDAP_SUCCESS)
+			{
+				/* Failed 
+				 * - Value not found
+				 * - Operations error
+				 */
+				if ( retVal==LDAP_OPERATIONS_ERROR )
+				{
+					LDAPDebug( LDAP_DEBUG_ANY, "Possible existing duplicate "
+						"value for attribute type %s found in "
+						"entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
+				}
+			}
+			valuearray_free(&valuestodelete);
+		}
+	}
+	return( retVal );
+}
+static int
+entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **vals, const CSN *csn, int urp, int mod_op, struct berval **replacevals)
+{
+	int retVal= LDAP_SUCCESS;
+	Slapi_Attr *a= NULL;
+	int attr_state= entry_attr_find_wsi(e, type, &a);
 		/* The attribute is on the present list, or the deleted list and we're doing URP */
 		if ( vals == NULL || vals[0] == NULL )
 		{
@@ -541,16 +777,19 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			attr_set_deletion_csn(a,csn);
 			if(urp)
 			{
-				resolve_attribute_state(e, a, attr_state, 1 /* set delete priority */); /* ABSOLVED */
+				/* there might be values added or specifically deleted later than 
+				 * the current attr delete operation. These values need to be 
+				 * preserved, all others can be removed, purging should o the job.
+				 */
+				valueset_purge(&a->a_present_values, csn);
+				valueset_purge(&a->a_deleted_values, csn);
+				if(valueset_isempty(&a->a_present_values))
+					entry_present_attribute_to_deleted_attribute(e, a);
 			}
 			else
 			{
-				if(!slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
-				{
-					/* We don't maintain a deleted value list for single valued attributes */
-					valueset_add_valueset(&a->a_deleted_values, &a->a_present_values); /* JCM Would be better to passin the valuestodelete */
-				}
 				slapi_valueset_done(&a->a_present_values);
+				slapi_valueset_done(&a->a_deleted_values);
 				entry_present_attribute_to_deleted_attribute(e, a);
 			}
 			retVal= LDAP_SUCCESS; /* This Operation always succeeds when the attribute is Present */
@@ -558,8 +797,8 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 		else
 		{
 			/* delete some specific values */
-		    Slapi_Value **valuestodelete= NULL;
-		    valuearray_init_bervalarray(vals,&valuestodelete); /* JCM SLOW FUNCTION */
+			Slapi_Value **valuestodelete= NULL;
+			valuearray_init_bervalarray(vals,&valuestodelete); /* JCM SLOW FUNCTION */
 			/* Check if the type of the to-be-deleted values has DN syntax 
 			 * or not. */
 			if (slapi_attr_is_dn_syntax_attr(a)) {
@@ -568,47 +807,43 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			}
 			if(urp)
 			{
+				/* check if values to delete are in present values
+				 * if v in present values and VU-csn<csn and v not distinguished move to deleted values
+				 * if v not in present values, check deleted values and update csn, if distinguisehed at csn
+				 * 	move back to present values
+				 */ 
+
+
 				Slapi_Value **valuesupdated= NULL;
-				valueset_update_csn_for_valuearray(&a->a_present_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated);
-				/* if we removed the last value, we need to mark the attribute as deleted
-				   the resolve_attribute_state() code will "resurrect" the attribute if
-				   there are present values with a later CSN - otherwise, even though
-				   the value will be updated with a VDCSN which is later than the VUCSN,
-				   the attribute will not be deleted */
-				if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE) && valuesupdated &&
-				   *valuesupdated)
-				{
-					attr_set_deletion_csn(a,csn);			
-				}
+				valueset_update_csn_for_valuearray_ext(&a->a_present_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated, 1);
+				resolve_attribute_state_present_to_deleted(e, a, valuesupdated); 
 				valuearray_free(&valuesupdated);
-				valueset_update_csn_for_valuearray(&a->a_deleted_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated);
+
+				valueset_update_csn_for_valuearray_ext(&a->a_deleted_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated, 1);
+				resolve_attribute_state_deleted_to_present(e, a, valuesupdated);
 				valuearray_free(&valuesupdated);
+
 				valuearray_update_csn(valuestodelete,CSN_TYPE_VALUE_DELETED,csn);
 				valueset_add_valuearray_ext(&a->a_deleted_values, valuestodelete, SLAPI_VALUE_FLAG_PASSIN);
 				/* all the elements in valuestodelete are passed;
 				 * should free valuestodelete only (don't call valuearray_free)
 				 * [622023] */
 				slapi_ch_free((void **)&valuestodelete);
-				resolve_attribute_state(e, a, attr_state, 0);
 				retVal= LDAP_SUCCESS;
 			}
 			else
 			{
+				/* find the values to delete in present values, 
+				 * update the csns and add to the deleted values
+				 */  
 				Slapi_Value **deletedvalues= NULL;
 				retVal= valueset_remove_valuearray(&a->a_present_values, a, valuestodelete, 0 /* Do Not Ignore Errors */,&deletedvalues);
 				if(retVal==LDAP_SUCCESS && deletedvalues != NULL)
 				{
-					if(!slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
-					{
-						/* We don't maintain a deleted value list for single valued attributes */
-						/* Add each deleted value to the deleted set */
-						valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_DELETED,csn);
-						valueset_add_valuearray_ext(&a->a_deleted_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
-						slapi_ch_free((void **)&deletedvalues);
-					}
-					else {
-						valuearray_free(&deletedvalues);
-					}
+					/* Add each deleted value to the deleted set */
+					valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_DELETED,csn);
+					valueset_add_valuearray_ext(&a->a_deleted_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
+					slapi_ch_free((void **)&deletedvalues);
 					if(valueset_isempty(&a->a_present_values))
 					{
 						/* There are no present values, so move the
@@ -619,7 +854,6 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 				else if (retVal != LDAP_SUCCESS)
 				{
 					/* Failed 
-					 * - Duplicate value
 					 * - Value not found
 					 * - Operations error
 					 */
@@ -633,60 +867,6 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 				valuearray_free(&valuestodelete);
 			}
 		}
-	}
-	else if (attr_state==ATTRIBUTE_DELETED)
-	{
-		/* If the type is in the forbidden attr list (e.g., unhashed password),
-		 * we don't return the reason of the failure to the clients. */
-		if (is_type_forbidden(type)) {
-			retVal = LDAP_SUCCESS;
-		} else {
-			retVal= LDAP_NO_SUCH_ATTRIBUTE;
-		}
-	}
-	else if (attr_state==ATTRIBUTE_NOTFOUND)
-	{
-		/*
-		 * If type is in the protected_attrs_all list, we could ignore the
-		 * failure, as the attribute could only exist in the entry in the 
-		 * memory when the add/mod operation is done, while the retried entry 
-		 * from the db does not contain the attribute.
-		 * So is in the forbidden_attrs list.  We don't return the reason
-		 * of the failure.
-		 */
-		if (is_type_protected(type) || is_type_forbidden(type)) {
-			retVal = LDAP_SUCCESS;
-		} else {
-			if (!urp) {
-				/* Only warn if not urping */
-				LDAPDebug1Arg(LDAP_DEBUG_ARGS, "could not find attribute %s\n",
-				              type);
-			}
-			retVal = LDAP_NO_SUCH_ATTRIBUTE;
-		}
-		/* NOTE: LDAP says that a MOD REPLACE with no vals of a non-existent
-		   attribute is a no-op - MOD REPLACE with some vals will add the attribute */
-		/* if we are doing a replace with actual values, meaning the result
-		   of the mod is that the attribute will have some values, we need to create
-		   a dummy attribute for entry_add_present_values_wsi to use, and set
-		   the deletion csn to the csn of the current operation */
-		/* note that if LDAP_MOD_REPLACE == mod_op then vals is NULL - 
-		   see entry_replace_present_values_wsi */
-		if ((LDAP_MOD_REPLACE == mod_op) && replacevals && replacevals[0])
-		{
-			/* Create a new attribute and set the adcsn */
-			Slapi_Attr *a = slapi_attr_new();
-			slapi_attr_init(a, type);
-			attr_set_deletion_csn(a,csn); 
-			/* mark the attribute as deleted - it does not really
-			   exist yet - the code in entry_add_present_values_wsi
-			   will add it back to the present list in the non urp case,
-			   or determine if the attribute needs to be added
-			   or not in the urp case
-			*/
-			entry_add_deleted_attribute_wsi(e, a);
-		}
-	}
 	return( retVal );
 }
 
@@ -780,7 +960,7 @@ entry_apply_mods_wsi(Slapi_Entry *e, Slapi_Mods *smods, const CSN *csn, int urp)
 			   and the csn doesn't already have a subsequence
 			   if the csn already has a subsequence, assume it was generated
 			   on another replica in the correct order */
-			if (urp && (csn_get_subseqnum(csn) == 0)) {
+			if (csn_get_subseqnum(csn) == 0) {
 				csn_increment_subsequence(&localcsn);
 			}
 		}
@@ -998,87 +1178,54 @@ value_distinguished_at_csn(const Slapi_Entry *e, const Slapi_Attr *original_attr
 	return r;
 }
 
+/* This call ensures that the value does not contain a deletion_csn which is before the presence_csn or distinguished_csn of the value. */ 
 static void
-resolve_attribute_state_multi_valued(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, int delete_priority)
+resolve_attribute_state_deleted_to_present(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate)
 {
-	int i;
+	const CSN *vdcsn;
+	const CSN *vucsn;
+	const CSN *deletedcsn;
 	const CSN *adcsn= attr_get_deletion_csn(a);
-	Slapi_ValueSet *vs= valueset_dup(&a->a_present_values); /* JCM This is slow... but otherwise we end up iterating through a changing array */
-	Slapi_Value *v;
-
-	/* Loop over the present attribute values */
-	i= slapi_valueset_first_value( vs, &v );
-	while(v!=NULL)
-	{
-		const CSN *vdcsn;
-		const CSN *vucsn;
-		const CSN *deletedcsn;
-	    /* This call ensures that the value does not contain a deletion_csn
-		 * which is before the presence_csn or distinguished_csn of the value.
-		 */ 
-	    purge_attribute_state_multi_valued(a, v);
-		vdcsn= value_get_csn(v, CSN_TYPE_VALUE_DELETED);
-		vucsn= value_get_csn(v, CSN_TYPE_VALUE_UPDATED);
-		deletedcsn= csn_max(vdcsn, adcsn);
-
-		/* Check if the attribute or value was deleted after the value was
-		 * last updated.  If the value update CSN and the deleted CSN are
-		 * the same (meaning they are separate mods from the same exact
-		 * operation), we should only delete the value if delete priority
-		 * is set.  Delete priority should only be set when we are deleting
-		 * all value of an attribute.  This prevents us from leaving a value
-		 * that was added as a previous mod in the same exact modify
-		 * operation as the subsequent delete.*/
-		if((csn_compare(vucsn,deletedcsn)<0) ||
-			(delete_priority && (csn_compare(vucsn,deletedcsn) == 0)))
-		{
-	        if(!value_distinguished_at_csn(e, a, v, deletedcsn))
+	int i;
+	if ( valuestoupdate != NULL && valuestoupdate[0] != NULL ) {
+		for (i=0;valuestoupdate[i]!=NULL;++i) {
+			purge_attribute_state_multi_valued(a, valuestoupdate[i]);
+			vdcsn= value_get_csn(valuestoupdate[i], CSN_TYPE_VALUE_DELETED);
+			vucsn= value_get_csn(valuestoupdate[i], CSN_TYPE_VALUE_UPDATED);
+			deletedcsn= csn_max(vdcsn, adcsn);
+			if((csn_compare(vucsn,deletedcsn)>=0) ||
+	        		value_distinguished_at_csn(e, a, valuestoupdate[i], deletedcsn))
 			{
-				entry_present_value_to_deleted_value(a,v);
+				entry_deleted_value_to_present_value(a,valuestoupdate[i]);
+			}
+			valuestoupdate[i]->v_csnset = NULL;
+		}
+	}
+}
+
+static void
+resolve_attribute_state_to_present_or_deleted(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate, int attribute_state)
+{
+	const CSN *vdcsn;
+	const CSN *vucsn;
+	const CSN *deletedcsn;
+	const CSN *adcsn= attr_get_deletion_csn(a);
+	int i;
+	if ( valuestoupdate != NULL && valuestoupdate[0] != NULL ) {
+		for (i=0;valuestoupdate[i]!=NULL;++i) {
+	    		purge_attribute_state_multi_valued(a, valuestoupdate[i]);
+			vdcsn= value_get_csn(valuestoupdate[i], CSN_TYPE_VALUE_DELETED);
+			vucsn= value_get_csn(valuestoupdate[i], CSN_TYPE_VALUE_UPDATED);
+			deletedcsn= csn_max(vdcsn, adcsn);
+			if((csn_compare(vucsn,deletedcsn)>=0) ||
+	        		value_distinguished_at_csn(e, a, valuestoupdate[i], deletedcsn))
+			{
+				slapi_valueset_add_value_ext(&a->a_present_values, valuestoupdate[i], SLAPI_VALUE_FLAG_PASSIN);
+			} else {
+				slapi_valueset_add_value_ext(&a->a_deleted_values, valuestoupdate[i], SLAPI_VALUE_FLAG_PASSIN);
 			}
 		}
-		i= slapi_valueset_next_value( vs, i, &v );
 	}
-	slapi_valueset_free(vs);
-
-	/* Loop over the deleted attribute values */
-	vs= valueset_dup(&a->a_deleted_values); /* JCM This is slow... but otherwise we end up iterating through a changing array */
-	i= slapi_valueset_first_value( vs, &v );
-	while(v!=NULL)
-	{
-		const CSN *vdcsn;
-		const CSN *vucsn;
-		const CSN *deletedcsn;
-	    /* This call ensures that the value does not contain a deletion_csn which is before the presence_csn or distinguished_csn of the value. */ 
-	    purge_attribute_state_multi_valued(a, v);
-		vdcsn= value_get_csn(v, CSN_TYPE_VALUE_DELETED);
-		vucsn= value_get_csn(v, CSN_TYPE_VALUE_UPDATED);
-		deletedcsn= csn_max(vdcsn, adcsn);
-
-		/* check if the attribute or value was deleted after the value was last updated */
-		/* When a replace operation happens, the entry_replace_present_values_wsi() function
-		 * first calls entry_delete_present_values_wsi with vals == NULL to essentially delete
-		 * the attribute and set the deletion csn.  If the urp flag is set (urp in this case
-		 * meaning the operation is a replicated op), entry_delete_present_values_wsi will
-		 * call this function which will move the present values to the deleted values
-		 * (see above - delete_priority will be 1) then the below code will move the
-		 * attribute to the deleted list.
-		 * next, entry_replace_present_values_wsi will call entry_add_present_values_wsi
-		 * to add the values provided in the replace operation.  We need to be able to
-		 * "resurrect" these deleted values and resurrect the deleted attribute.  In the
-		 * replace case, the deletedcsn will be the same as the vucsn of the values that
-		 * should be present values.
-		 */
-		if((csn_compare(vucsn,deletedcsn)>0) ||
-		   ((delete_priority == 0) && (csn_compare(vucsn,deletedcsn)==0)) ||
-	        value_distinguished_at_csn(e, a, v, deletedcsn))
-		{
-			entry_deleted_value_to_present_value(a,v);
-		}
-		i= slapi_valueset_next_value( vs, i, &v );
-	}
-	slapi_valueset_free(vs);
-
 	if(valueset_isempty(&a->a_present_values))
 	{
 		if(attribute_state==ATTRIBUTE_PRESENT)
@@ -1092,6 +1239,35 @@ resolve_attribute_state_multi_valued(Slapi_Entry *e, Slapi_Attr *a, int attribut
 		{
 			entry_deleted_attribute_to_present_attribute(e, a);
 		}
+	}
+}
+
+static void
+resolve_attribute_state_present_to_deleted(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate)
+{
+	const CSN *vdcsn;
+	const CSN *vucsn;
+	const CSN *deletedcsn;
+	const CSN *adcsn= attr_get_deletion_csn(a);
+	int i;
+	if ( valuestoupdate != NULL && valuestoupdate[0] != NULL ) {
+	for (i=0;valuestoupdate[i]!=NULL;++i) {
+	/* This call ensures that the value does not contain a deletion_csn
+	 * which is before the presence_csn or distinguished_csn of the value.
+	 */ 
+	    purge_attribute_state_multi_valued(a, valuestoupdate[i]);
+		vdcsn= value_get_csn(valuestoupdate[i], CSN_TYPE_VALUE_DELETED);
+		vucsn= value_get_csn(valuestoupdate[i], CSN_TYPE_VALUE_UPDATED);
+		deletedcsn= csn_max(vdcsn, adcsn);
+			if(csn_compare(vucsn,deletedcsn)<0) 
+			{
+	        		if(!value_distinguished_at_csn(e, a, valuestoupdate[i], deletedcsn))
+				{
+					entry_present_value_to_deleted_value(a,valuestoupdate[i]);
+				}
+			}
+		valuestoupdate[i]->v_csnset = NULL;
+	}
 	}
 }
 
@@ -1247,15 +1423,3 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
     }
 }
 
-static void
-resolve_attribute_state(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, int delete_priority)
-{
-	if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
-	{
-		resolve_attribute_state_single_valued(e,a,attribute_state);
-	}
-	else
-	{
-		resolve_attribute_state_multi_valued(e,a,attribute_state, delete_priority);
-	}
-}

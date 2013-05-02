@@ -1396,6 +1396,11 @@ valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **valstoreplace)
 void
 valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated)
 {
+	valueset_update_csn_for_valuearray_ext(vs, a, valuestoupdate, t, csn, valuesupdated, 0);
+}
+void
+valueset_update_csn_for_valuearray_ext(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated, int csnref_updated)
+{
 	if(!valuearray_isempty(valuestoupdate) &&
 		!valuearray_isempty(vs->va))
 	{
@@ -1418,6 +1423,8 @@ valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 				if(rc==LDAP_SUCCESS)
 				{
 					value_update_csn(vs->va[index],t,csn);
+					if (csnref_updated)
+						valuestoupdate[i]->v_csnset = value_get_csnset(vs->va[index]);
 					valuearrayfast_add_value_passin(&vaf_valuesupdated,valuestoupdate[i]);
 					valuestoupdate[i] = NULL;
 				}
@@ -1433,6 +1440,8 @@ valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 				if(index!=-1)
 				{
 					value_update_csn(vs->va[index],t,csn);
+					if (csnref_updated)
+						valuestoupdate[i]->v_csnset = value_get_csnset(vs->va[index]);
 					valuearrayfast_add_value_passin(&vaf_valuesupdated,valuestoupdate[i]);
 					valuestoupdate[i]= NULL;
 				}

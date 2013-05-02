@@ -195,6 +195,7 @@ Slapi_ValueSet *valueset_dup(const Slapi_ValueSet *dupee);
 void valueset_remove_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s);
 int valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **vals);
 void valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated);
+void valueset_update_csn_for_valuearray_ext(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated, int csnref_updated);
 void valueset_set_valuearray_byval(Slapi_ValueSet *vs, Slapi_Value **addvals);
 void valueset_set_valuearray_passin(Slapi_ValueSet *vs, Slapi_Value **addvals);
 
