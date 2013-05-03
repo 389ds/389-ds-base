@@ -403,10 +403,12 @@ do_bind( Slapi_PBlock *pb )
         supported = slapi_get_supported_saslmechanisms_copy();
         if ( (pmech = supported) != NULL ) while (1) {
             if (*pmech == NULL) {
-		/* As we call the safe function, we receive a strdup'd saslmechanisms
-		   charray. Therefore, we need to remove it instead of NULLing it */
-		charray_free(supported); 
-		pmech = supported = NULL;
+                /*
+                 * As we call the safe function, we receive a strdup'd saslmechanisms
+                 * charray. Therefore, we need to remove it instead of NULLing it
+                 */
+                charray_free(supported);
+                pmech = supported = NULL;
                 break;
             }
             if (!strcasecmp (saslmech, *pmech)) break;
@@ -450,11 +452,21 @@ do_bind( Slapi_PBlock *pb )
             }
 
             /*
+             * Check for the client certificate.
+             */
+            if( NULL == pb->pb_conn->c_client_cert){
+                send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+                                  "missing client certificate", 0, NULL );
+                /* call postop plugins */
+                plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
+                goto free_and_return;
+            }
+
+            /*
              * if the client sent us a certificate but we could not map it
              * to an LDAP DN, fail and return an invalidCredentials error.
              */
-            if ( NULL != pb->pb_conn->c_client_cert &&
-                 NULL == pb->pb_conn->c_external_dn ) {
+            if ( NULL == pb->pb_conn->c_external_dn ) {
                 send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
                                   "client certificate mapping failed", 0, NULL );
                 /* call postop plugins */
@@ -463,7 +475,7 @@ do_bind( Slapi_PBlock *pb )
             }
 
             if (!isroot ) {
-            /* check if the account is locked */
+                /* check if the account is locked */
                 bind_target_entry = get_entry(pb, pb->pb_conn->c_external_dn);
                 if ( bind_target_entry != NULL && slapi_check_account_lock(pb, bind_target_entry,
                      pw_response_requested, 1 /*check password policy*/, 1 /*send ldap result*/) == 1) {
