@@ -2611,7 +2611,7 @@ static int
 schema_add_objectclass ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		size_t errorbufsize, int schema_ds4x_compat )
 {
-	struct objclass *pnew_oc;
+	struct objclass *pnew_oc = NULL;
 	char *newoc_ldif;
 	int j, rc=0;
 
@@ -2620,6 +2620,7 @@ schema_add_objectclass ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		if ( LDAP_SUCCESS != (rc = parse_oc_str ( newoc_ldif, &pnew_oc,
 					errorbuf, errorbufsize, 0, 1 /* user defined */,
 					schema_ds4x_compat))) {
+			oc_free( &pnew_oc );
 			return rc;
 		}
 
@@ -4271,6 +4272,7 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
             }
         } else {
             /* we still need to set the originals */
+            charray_free(OrigRequiredAttrsArray);
             OrigRequiredAttrsArray = charray_dup(objClass->oc_at_oids_must);
         }
         if (psup_oc->oc_allowed && objClass->oc_at_oids_may) {
@@ -4287,6 +4289,7 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
             }
         } else {
             /* we still need to set the originals */
+            charray_free(OrigAllowedAttrsArray);
             OrigAllowedAttrsArray = charray_dup(objClass->oc_at_oids_may);
         }
     } else {
