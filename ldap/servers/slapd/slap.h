@@ -2315,10 +2315,8 @@ typedef struct _slapdFrontendConfig {
   size_t ndn_cache_max_size;
 
   slapi_onoff_t return_orig_type; /* if on, search returns original type set in attr list */
-
-  /* atomic settings */
-  Slapi_Counter *ignore_vattrs;
   slapi_onoff_t sasl_mapping_fallback;
+  slapi_onoff_t ignore_vattrs;
   slapi_onoff_t unhashed_pw_switch;	/* switch to on/off/nolog unhashed pw */
   slapi_onoff_t enable_turbo_mode;
 } slapdFrontendConfig_t;
