@@ -1505,7 +1505,7 @@ FrontendConfig_init () {
   init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
   init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
   init_connection_buffer = cfg->connection_buffer = CONNECTION_BUFFER_ON;
-  init_connection_nocanon = cfg->connection_nocanon - LDAP_ON;
+  init_connection_nocanon = cfg->connection_nocanon = LDAP_ON;
 
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
