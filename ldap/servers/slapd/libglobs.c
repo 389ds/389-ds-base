@@ -1443,6 +1443,7 @@ FrontendConfig_init () {
   init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
   init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
+  init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
 
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -1567,6 +1568,31 @@ config_value_is_null( const char *attrname, const char *value, char *errorbuf,
 	}
 
 	return 0;
+}
+
+int
+config_set_ignore_vattrs (const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+    int val;
+
+    retVal = config_set_onoff ( attrname, value, &val, errorbuf, apply);
+    if(retVal == LDAP_SUCCESS){
+        slapi_counter_set_value(slapdFrontendConfig->ignore_vattrs, val);
+    }
+    return retVal;
+}
+
+int
+config_set_sasl_mapping_fallback (const char *attrname, char *value, char *errorbuf, int apply )
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->sasl_mapping_fallback), errorbuf, apply);
+
+    return retVal;
 }
 
 int
@@ -4172,6 +4198,30 @@ config_get_sasl_maxbufsize()
 }
 
 int
+<<<<<<< HEAD
+=======
+config_get_ignore_vattrs()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    return slapi_counter_get_value(slapdFrontendConfig->ignore_vattrs);
+}
+
+int
+config_get_sasl_mapping_fallback()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+    retVal = (int)slapdFrontendConfig->sasl_mapping_fallback;
+    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+>>>>>>> 655bd4d... Ticket 47355 - dse.ldif doesn't replicate update to nsslapd-sasl-mapping-fallback
 config_get_disk_monitoring(){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal;
