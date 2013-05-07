@@ -1036,7 +1036,7 @@ static struct config_get_and_set {
 	{CONFIG_IGNORE_VATTRS, config_set_ignore_vattrs,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ignore_vattrs,
-		CONFIG_STRING, (ConfigGetFunc)config_get_ignore_vattrs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_vattrs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
 	{CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE, config_set_unhashed_pw_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.unhashed_pw_switch,
@@ -1497,8 +1497,8 @@ FrontendConfig_init () {
   init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
   init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
-  cfg->ignore_vattrs = slapi_counter_new();
   init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
+  cfg->ignore_vattrs = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
   cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
   init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
@@ -1635,12 +1635,9 @@ config_set_ignore_vattrs (const char *attrname, char *value, char *errorbuf, int
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
-    int val;
 
-    retVal = config_set_onoff ( attrname, value, &val, errorbuf, apply);
-    if(retVal == LDAP_SUCCESS){
-        slapi_counter_set_value(slapdFrontendConfig->ignore_vattrs, val);
-    }
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->ignore_vattrs), errorbuf, apply);
+
     return retVal;
 }
 
@@ -4333,7 +4330,7 @@ config_get_ignore_vattrs()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    return slapi_counter_get_value(slapdFrontendConfig->ignore_vattrs);
+    return (int)slapdFrontendConfig->ignore_vattrs;
 }
 
 int
