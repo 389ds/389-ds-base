@@ -1012,6 +1012,16 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allowed_sasl_mechs,
 		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_sasl_mechs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
+	{CONFIG_IGNORE_VATTRS, config_set_ignore_vattrs,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ignore_vattrs,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_vattrs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
+	{CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE, config_set_unhashed_pw_switch,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.unhashed_pw_switch,
+		CONFIG_SPECIAL_UNHASHED_PW_SWITCH,
+		(ConfigGetFunc)config_get_unhashed_pw_switch, 
+		DEFAULT_UNHASHED_PW_SWITCH},
 	{CONFIG_SASL_MAXBUFSIZE, config_set_sasl_maxbufsize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.sasl_max_bufsize,
@@ -1444,6 +1454,7 @@ FrontendConfig_init () {
   init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
   init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
+  cfg->ignore_vattrs = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
 
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -1575,12 +1586,9 @@ config_set_ignore_vattrs (const char *attrname, char *value, char *errorbuf, int
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
-    int val;
 
-    retVal = config_set_onoff ( attrname, value, &val, errorbuf, apply);
-    if(retVal == LDAP_SUCCESS){
-        slapi_counter_set_value(slapdFrontendConfig->ignore_vattrs, val);
-    }
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->ignore_vattrs), errorbuf, apply);
+
     return retVal;
 }
 
@@ -4198,13 +4206,11 @@ config_get_sasl_maxbufsize()
 }
 
 int
-<<<<<<< HEAD
-=======
 config_get_ignore_vattrs()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    return slapi_counter_get_value(slapdFrontendConfig->ignore_vattrs);
+    return (int)slapdFrontendConfig->ignore_vattrs;
 }
 
 int
@@ -4221,7 +4227,6 @@ config_get_sasl_mapping_fallback()
 }
 
 int
->>>>>>> 655bd4d... Ticket 47355 - dse.ldif doesn't replicate update to nsslapd-sasl-mapping-fallback
 config_get_disk_monitoring(){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal;
