@@ -2331,7 +2331,7 @@ typedef struct _slapdFrontendConfig {
 
   /* atomic settings */
   Slapi_Counter *ignore_vattrs;
-  Slapi_Counter *sasl_mapping_fallback;
+  slapi_onoff_t sasl_mapping_fallback;
   slapi_onoff_t unhashed_pw_switch;	/* switch to on/off/nolog unhashed pw */
   slapi_onoff_t enable_turbo_mode;
   slapi_int_t connection_buffer; /* values are CONNECTION_BUFFER_* below */

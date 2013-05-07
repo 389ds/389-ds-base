@@ -1498,8 +1498,7 @@ FrontendConfig_init () {
   init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
   cfg->ignore_vattrs = slapi_counter_new();
-  cfg->sasl_mapping_fallback = slapi_counter_new();
-  init_sasl_mapping_fallback = LDAP_OFF;
+  init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
   cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
   init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
@@ -1650,12 +1649,9 @@ config_set_sasl_mapping_fallback (const char *attrname, char *value, char *error
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
-    int val;
 
-    retVal = config_set_onoff ( attrname, value, &val, errorbuf, apply);
-    if(retVal == LDAP_SUCCESS){
-        slapi_counter_set_value(slapdFrontendConfig->sasl_mapping_fallback, val);
-    }
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->sasl_mapping_fallback), errorbuf, apply);
+
     return retVal;
 }
 
@@ -4344,8 +4340,13 @@ int
 config_get_sasl_mapping_fallback()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
 
-    return slapi_counter_get_value(slapdFrontendConfig->sasl_mapping_fallback);
+    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+    retVal = (int)slapdFrontendConfig->sasl_mapping_fallback;
+    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 int
