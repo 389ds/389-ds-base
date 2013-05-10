@@ -1438,9 +1438,8 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 		{
 			LDAPMod **entryattrs;
 			/* Convert entry to mods */
-			(void)slapi_entry2mods (op->p.p_add.target_entry, 
-									NULL /* &entrydn : We don't need it */, 
-									&entryattrs);
+			(void)slapi_entry2mods_ext (op->p.p_add.target_entry, NULL /* &entrydn : We don't need it */, 
+						    &entryattrs, SKIP_NORMALIZATION);
 			if (NULL == entryattrs)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,

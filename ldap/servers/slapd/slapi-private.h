@@ -1126,7 +1126,15 @@ const char* escape_string_with_punctuation(const char* str, char buf[BUFSIZ]);
 const char* escape_filter_value(const char* str, int len, char buf[BUFSIZ]);
 void strcpy_unescape_value( char *d, const char *s );
 
+int slapi_entry2mods_ext (const Slapi_Entry *e, char **dn, LDAPMod ***attrs, int normalize);
+int slapi_mods2entry_ext (Slapi_Entry **e, const char *idn, LDAPMod **iattrs, int ignore_errors);
 char *slapi_berval_get_string_copy(const struct berval *bval);
+ 
+#define IGNORE_ERRORS 1
+#define PROCESS_ERRORS 0
+#define SKIP_NORMALIZATION 0
+#define DO_NORMALIZATION 1
+
 
 /* lenstr stuff */
 
@@ -1217,6 +1225,10 @@ int plugin_enabled(const char *plugin_name, void *identity);
 
 /* attrsyntax.c */
 int slapi_add_internal_attr_syntax( const char *name, const char *oid, const char *syntax, const char *mr_equality, unsigned long extraflags );
+
+/* modutil.c */
+void slapi_mods_insert_at_ext(Slapi_Mods *smods, LDAPMod *mod, int pos, int normalize);
+void slapi_mods_add_mod_values_ext( Slapi_Mods *smods, int modtype, const char *type, Slapi_Value **va, int normalize );
 
 #ifdef __cplusplus
 }

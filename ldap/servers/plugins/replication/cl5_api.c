@@ -2572,7 +2572,8 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 											size += strlen (op->p.p_add.parentuniqueid) + 1;
 										else
 											size ++; /* we just store NULL char */
-										slapi_entry2mods (op->p.p_add.target_entry, &rawDN/* dn */, &add_mods);										
+										slapi_entry2mods_etc (op->p.p_add.target_entry, &rawDN/* dn */, &add_mods,
+                                                                                                      SKIP_NORMALIZATION);					
 										size += strlen (rawDN) + 1;
 										size += _cl5GetModsSize (add_mods);
 										break;
@@ -2731,7 +2732,8 @@ cl5DBData2Entry (const char *data, PRUint32 len, CL5Entry *entry)
 										op->target_address.dn = rawDN;
 										/* convert mods to entry */
 										rc = _cl5ReadMods (&add_mods, &pos);
-										slapi_mods2entry (&(op->p.p_add.target_entry), rawDN, add_mods);
+										slapi_mods2entry_ext (&(op->p.p_add.target_entry), rawDN, add_mods,
+                                                                                                      IGNORE_ERRORS);
 										ldap_mods_free (add_mods, 1);
 										break;
 
@@ -5021,7 +5023,8 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 		case SLAPI_OPERATION_ADD:	if (op->p.p_add.parentuniqueid)
 										len += LDIF_SIZE_NEEDED(strlen (T_PARENTIDSTR), 
 																strlen (op->p.p_add.parentuniqueid));
-									slapi_entry2mods (op->p.p_add.target_entry, &rawDN, &add_mods);				
+									slapi_entry2mods_ext (op->p.p_add.target_entry, &rawDN, &add_mods,
+                                                                                              SKIP_NORMALIZATION);				
 									len += LDIF_SIZE_NEEDED(strlen (T_DNSTR), strlen (rawDN));
 									l = make_changes_string(add_mods, NULL);
 									len += LDIF_SIZE_NEEDED(strlen (T_CHANGESTR), l->ls_len);
@@ -5215,8 +5218,8 @@ _cl5LDIF2Operation (char *ldifEntry, slapi_operation_parameters *op, char **repl
 			switch (op->operation_type)
 			{
 				case SLAPI_OPERATION_ADD:		mods = parse_changes_string(value);
-												slapi_mods2entry (&(op->p.p_add.target_entry), rawDN, 
-																  slapi_mods_get_ldapmods_byref(mods));
+												slapi_mods2entry_ext (&(op->p.p_add.target_entry), rawDN, 
+													slapi_mods_get_ldapmods_byref(mods), IGNORE_ERRORS);
 												slapi_ch_free ((void**)&rawDN);
 												slapi_mods_free (&mods);
 												break;

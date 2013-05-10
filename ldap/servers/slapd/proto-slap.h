@@ -354,6 +354,7 @@ int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_normalize_nested_dn( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_skip_pre_norm( const char *attrname, char *value, char *errorbuf, int apply );
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -493,6 +494,7 @@ int config_get_system_page_bits();
 #endif
 int config_get_force_sasl_external();
 int config_get_normalize_nested_dn(void);
+int config_get_skip_pre_norm(void);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );

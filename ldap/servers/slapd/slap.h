@@ -1858,6 +1858,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_OUTBOUND_LDAP_IO_TIMEOUT_ATTRIBUTE "nsslapd-outbound-ldap-io-timeout"
 #define CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE "nsslapd-force-sasl-external"
 #define CONFIG_NORMALIZE_NESTED_DN	"nsslapd-normalize-nested-dn"
+#define CONFIG_SKIP_PRE_NORMALIZATION	"nsslapd-skip-pre-normalization"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2076,6 +2077,7 @@ typedef struct _slapdFrontendConfig {
 #endif /* MEMPOOL_EXPERIMENTAL */
   int force_sasl_external;      /* force SIMPLE bind to be SASL/EXTERNAL if client cert credentials were supplied */
   int normalize_nested_dn;      /* if true, attempt to normalize DNs nested within a DN */
+  int skip_pre_norm;		/* Skip the normalization when inserting mods */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

@@ -628,6 +628,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.force_sasl_external, CONFIG_ON_OFF,
 		(ConfigGetFunc)config_get_force_sasl_external},
+	{CONFIG_SKIP_PRE_NORMALIZATION, config_set_skip_pre_norm,
+                NULL, 0,
+                (void**)&global_slapdFrontendConfig.skip_pre_norm, CONFIG_ON_OFF,
+                (ConfigGetFunc)config_get_skip_pre_norm},
 	{CONFIG_NORMALIZE_NESTED_DN, config_set_normalize_nested_dn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.normalize_nested_dn, CONFIG_ON_OFF,
@@ -1011,6 +1015,7 @@ FrontendConfig_init () {
   cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
 
   cfg->normalize_nested_dn = LDAP_ON; /* normalize_nested_dn is on by default */
+  cfg->skip_pre_norm = LDAP_OFF;
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -5549,6 +5554,31 @@ config_set_force_sasl_external( const char *attrname, char *value,
 	return retVal;
 }
 
+int
+config_get_skip_pre_norm(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    /* disable locking for this value for performance */
+    /*CFG_LOCK_READ(slapdFrontendConfig);*/
+    retVal = slapdFrontendConfig->skip_pre_norm;
+    /*CFG_UNLOCK_READ(slapdFrontendConfig);*/
+
+    return retVal;
+}
+
+int
+config_set_skip_pre_norm( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->skip_pre_norm),
+                              errorbuf, apply);
+    return retVal;
+}
 
 int
 config_get_normalize_nested_dn(void)

@@ -254,6 +254,11 @@ strcpy_unescape_value( char *d, const char *s )
 /* functions to convert between an entry and a set of mods */
 int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
 {
+    return slapi_mods2entry_ext(e, idn, iattrs, PROCESS_ERRORS);
+}
+
+int slapi_mods2entry_ext (Slapi_Entry **e, const char *idn, LDAPMod **iattrs, int ignore_errors)
+{
     int             i, rc = LDAP_SUCCESS;
     LDAPMod         **attrs= NULL;
 
@@ -290,9 +295,11 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
         valuearray_free(&vals);
         if (rc != LDAP_SUCCESS)
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "slapi_add_internal: add_values for type %s failed\n", normtype, 0, 0 );
-            slapi_entry_free (*e);
-            *e = NULL;
+            LDAPDebug(LDAP_DEBUG_ANY, "slapi_add_internal: add_values for type (%s) failed for (%s)\n", normtype, idn, 0 );
+            if(!ignore_errors){
+                slapi_entry_free (*e);
+                *e = NULL;
+            }
         }
         slapi_ch_free((void **) &normtype);
     }
@@ -302,6 +309,11 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
 }
 
 int slapi_entry2mods (const Slapi_Entry *e, char **dn, LDAPMod ***attrs)
+{
+	return slapi_entry2mods_ext(e, dn, attrs, DO_NORMALIZATION);
+}
+
+int slapi_entry2mods_ext (const Slapi_Entry *e, char **dn, LDAPMod ***attrs, int normalize)
 {
 	Slapi_Mods smods;
 	Slapi_Attr *attr;
@@ -320,7 +332,7 @@ int slapi_entry2mods (const Slapi_Entry *e, char **dn, LDAPMod ***attrs)
 	{
 		if ( NULL != ( va = attr_get_present_values( attr ))) {
 			slapi_attr_get_type(attr, &type);		
-			slapi_mods_add_mod_values(&smods, LDAP_MOD_ADD, type, va );
+			slapi_mods_add_mod_values_ext(&smods, LDAP_MOD_ADD, type, va, normalize );
 		}
 		rc = slapi_entry_next_attr(e, attr, &attr);
 	}
