@@ -774,6 +774,7 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
+	entry_attr_find_wsi(e, type, &a);
 		/* The attribute is on the present list, or the deleted list and we're doing URP */
 		if ( vals == NULL || vals[0] == NULL )
 		{
