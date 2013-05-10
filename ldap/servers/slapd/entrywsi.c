@@ -46,8 +46,6 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 
-static void resolve_attribute_state(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, int delete_priority);
-
 static int
 entry_present_value_to_deleted_value(Slapi_Attr *a, Slapi_Value *v)
 {
@@ -776,7 +774,6 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
-	int attr_state= entry_attr_find_wsi(e, type, &a);
 		/* The attribute is on the present list, or the deleted list and we're doing URP */
 		if ( vals == NULL || vals[0] == NULL )
 		{

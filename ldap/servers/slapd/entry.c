@@ -1725,7 +1725,7 @@ entry2str_internal_put_attrlist( const Slapi_Attr *attrlist, int attr_state, int
 						 * never be seen by any client. It will never be moved to the 
 						 * present values and is only used to preserve the AD-csn
 						 */
-						valueset_add_string (&a->a_deleted_values, "", CSN_TYPE_VALUE_DELETED, a->a_deletioncsn);
+						valueset_add_string ((Slapi_ValueSet *)&a->a_deleted_values, "", CSN_TYPE_VALUE_DELETED, a->a_deletioncsn);
 					}				
 
 					entry2str_internal_put_valueset(a->a_type, a->a_deletioncsn, CSN_TYPE_ATTRIBUTE_DELETED, attr_state, &a->a_deleted_values, VALUE_DELETED, ecur, typebuf, typebuf_len, entry2str_ctrl);
