@@ -138,6 +138,15 @@ void disk_monitoring_stop();
 
 #define FDS_SIGNAL_PIPE 0
 
+typedef struct listener_info {
+	int idx; /* index of this listener in the ct->fd array */
+	PRFileDesc *listenpr; /* the listener fd */
+	int secure;
+	int local;
+} listener_info;
+
+#define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
+
 static int get_configured_connection_table_size();
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
 static void get_loopback_by_addr( void );
@@ -151,7 +160,7 @@ static PRFileDesc **createprlistensockets(unsigned short port,
 static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf,
 	size_t addrbuflen);
 static void	set_shutdown (int);
-static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read);
+static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read, listener_info *listener_idxs, int max_listeners);
 
 #ifdef HPUX10
 static void* catch_signals();
@@ -917,6 +926,30 @@ disk_monitoring_thread(void *nothing)
     }
 }
 
+static void
+handle_listeners(Connection_Table *ct, listener_info *listener_idxs, int n_listeners)
+{
+	int idx;
+	for (idx = 0; idx < n_listeners; ++idx) {
+		int fdidx = listener_idxs[idx].idx;
+		PRFileDesc *listenfd = listener_idxs[idx].listenfd;
+		int secure = listener_idxs[idx].secure;
+		int local = listener_idxs[idx].local;
+		if (fdidx && listenfd) {
+			if (SLAPD_POLL_LISTEN_READY(ct->fd[fdidx].out_flags)) {
+				/* accept() the new connection, put it on the active list for handle_pr_read_ready */
+				int rc = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local);
+				if (rc) {
+					LDAPDebug1Arg(LDAP_DEBUG_CONNS, "Error accepting new connection listenfd=%d\n",
+					              PR_FileDesc2NativeHandle(listenc->c_prfd));
+					continue;
+				}
+			}
+		}
+	}
+	return;
+}
+
 void slapd_daemon( daemon_ports_t *ports )
 {
 	/* We are passed some ports---one for regular connections, one
@@ -944,6 +977,8 @@ void slapd_daemon( daemon_ports_t *ports )
 	PRThread *time_thread_p;
 	int threads;
 	int in_referral_mode = config_check_referral_mode();
+	int n_listeners = 0; /* number of listener sockets */
+	listener_info *listener_idxs = NULL; /* array of indexes of listener sockets in the ct->fd array */
 
 	int connection_table_size = get_configured_connection_table_size();
 	the_connection_table= connection_table_new(connection_table_size);
@@ -1058,6 +1093,7 @@ void slapd_daemon( daemon_ports_t *ports )
 			netaddr2string(&ports->n_listenaddr, addrbuf, sizeof(addrbuf)),
 			ports->n_port, oserr, slapd_system_strerror( oserr ) );
 		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+		n_listeners++;
 	}
 #else
 	if ( n_tcps != NULL ) {
@@ -1075,6 +1111,7 @@ void slapd_daemon( daemon_ports_t *ports )
 					slapd_pr_strerror( prerr ));
 				g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 			}
+			n_listeners++;
 		}
 	}
 #endif
@@ -1094,6 +1131,7 @@ void slapd_daemon( daemon_ports_t *ports )
 					slapd_pr_strerror( prerr ));
 				g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 			}
+			n_listeners++;
 		}
 	}
 
@@ -1112,11 +1150,13 @@ void slapd_daemon( daemon_ports_t *ports )
 					slapd_pr_strerror( prerr ));
 				g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 			}
+			n_listeners++;
 		}
 	}
 #endif /* ENABLE_LDAPI */
 #endif
 
+	listener_idxs = (listener_info *)slapi_ch_calloc(n_listeners, sizeof(*listener_idxs));
 	/* Now we write the pid file, indicating that the server is finally and listening for connections */
 	write_pid_file();
 
@@ -1143,7 +1183,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		/* This select needs to timeout to give the server a chance to test for shutdown */
 		select_return = select(connection_table_size, &readfds, NULL, 0, &wakeup_timer);
 #else
-		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
+		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll,listener_idxs,n_listeners);
 		select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
 #endif
 		switch (select_return) {
@@ -1179,52 +1219,8 @@ void slapd_daemon( daemon_ports_t *ports )
 			handle_read_ready(the_connection_table,&readfds);
 			clear_signal(&readfds);
 #else
-			tcps = NULL;
-            /* info for n_tcps is always in fd[n_tcps ~ n_tcpe] */
-			if( NULL != n_tcps ) {
-				for (i = the_connection_table->n_tcps;
-					 i < the_connection_table->n_tcpe; i++) {
-					if (the_connection_table->fd[i].out_flags &
-													SLAPD_POLL_FLAGS ) {
-						/* tcps = n_tcps[i - the_connection_table->n_tcps]; */
-						tcps = the_connection_table->fd[i].fd;
-						break;
-					}
-				}
-			}
-            /* info for s_tcps is always in fd[s_tcps ~ s_tcpe] */
-			if ( NULL == tcps && NULL != s_tcps ) {
-				for (i = the_connection_table->s_tcps;
-					 i < the_connection_table->s_tcpe; i++) {
-					if (the_connection_table->fd[i].out_flags &
-													SLAPD_POLL_FLAGS ) {
-						/* tcps = s_tcps[i - the_connection_table->s_tcps]; */
-						tcps = the_connection_table->fd[i].fd;
-						secure = 1;
-						break;
-					}
-				}
-			}
-#if defined(ENABLE_LDAPI)
-            /* info for i_unix is always in fd[i_unixs ~ i_unixe] */
-			if ( NULL == tcps && NULL != i_unix ) {
-				for (i = the_connection_table->i_unixs;
-					 i < the_connection_table->i_unixe; i++) {
-					if (the_connection_table->fd[i].out_flags &
-													SLAPD_POLL_FLAGS ) {
-						/* tcps = i_unix[i - the_connection_table->i_unixs]; */
-						tcps = the_connection_table->fd[i].fd;
-						local = 1;
-						break;
-					}
-				}
-			}
-#endif /* ENABLE_LDAPI */
-
-			/* If so, then handle a new connection */
-			if ( tcps != NULL ) {
-				handle_new_connection(the_connection_table,SLAPD_INVALID_SOCKET,tcps,secure,local);
-			}
+			/* handle new connections from the listeners */
+			handle_listeners(the_connection_table, listener_idxs, n_listeners);
 			/* handle new data ready */
 			handle_pr_read_ready(the_connection_table, connection_table_size);
 			clear_signal(the_connection_table->fd);
@@ -1545,7 +1541,7 @@ static void setup_read_fds(Connection_Table *ct, fd_set *readfds, int n_tcps, in
 static int first_time_setup_pr_read_pds = 1;
 static int listen_addr_count = 0;
 static void
-setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read)
+setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read, listener_info *listener_idxs, int max_listeners)
 {
 	Connection *c= NULL;
 	Connection *next= NULL;
@@ -1555,6 +1551,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 	PRIntn count = 0;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	int max_threads_per_conn = config_get_maxthreadsperconn();
+	int n_listeners = 0;
 
 	accept_new_connections = ((ct->size - g_get_current_conn_count())
 		> slapdFrontendConfig->reservedescriptors);
@@ -1606,6 +1603,9 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				ct->fd[count].fd = *fdesc;
 				ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
 				ct->fd[count].out_flags = 0;
+				listener_idxs[n_listeners].listenfd = *fdesc;
+				listener_idxs[n_listeners].idx = count;
+				n_listeners++;
 				LDAPDebug( LDAP_DEBUG_HOUSE, 
 					"listening for connections on %d\n", socketdesc, 0, 0 );
 			}
@@ -1624,6 +1624,10 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				ct->fd[count].fd = *fdesc;
 				ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
 				ct->fd[count].out_flags = 0;
+				listener_idxs[n_listeners].listenfd = *fdesc;
+				listener_idxs[n_listeners].idx = count;
+				listener_idxs[n_listeners].secure = 1;
+				n_listeners++;
 				LDAPDebug( LDAP_DEBUG_HOUSE, 
 					"listening for SSL connections on %d\n", socketdesc, 0, 0 );
 			}
@@ -1645,6 +1649,10 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				ct->fd[count].fd = *fdesc;
 				ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
 				ct->fd[count].out_flags = 0;
+				listener_idxs[n_listeners].listenfd = *fdesc;
+				listener_idxs[n_listeners].idx = count;
+				listener_idxs[n_listeners].local = 1;
+				n_listeners++;
 				LDAPDebug( LDAP_DEBUG_HOUSE,
 					"listening for LDAPI connections on %d\n", socketdesc, 0, 0 );
 			}
@@ -1658,6 +1666,11 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
  
 		first_time_setup_pr_read_pds = 0;
 		listen_addr_count = count;
+
+		if (n_listeners < max_listeners) {
+			listener_idxs[n_listeners].idx = 0;
+			listener_idxs[n_listeners].listenfd = NULL;
+		}
 	}
 
 	/* count is the number of entries we've place in the fds array.
