@@ -287,13 +287,7 @@ slapi_mods_add_ldapmod(Slapi_Mods *smods, LDAPMod *mod)
 void 
 slapi_mods_add_smod(Slapi_Mods *smods, Slapi_Mod *smod)
 {
-    if(config_get_skip_pre_norm()){
-        /* do not pre-normalize the mod values */
-        slapi_mods_insert_at_ext(smods, mod, smods->num_mods, SKIP_NORMALIZATION);
-    } else {
-        /* pre-normalize the mod values */
-        slapi_mods_insert_at_ext(smods, mod, smods->num_mods, DO_NORMALIZATION);
-    }
+	slapi_mods_add_ldapmod(smods, smod->mod);
 }
 
 /*
