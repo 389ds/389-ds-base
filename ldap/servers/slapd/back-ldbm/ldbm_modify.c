@@ -410,6 +410,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		dblock_acquired= 1;
 	}
 	 */
+	if ( MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
+		/* find and lock the entry we are about to modify */
+		if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+			ldap_result_code= -1;
+			goto error_return;	  /* error result sent by find_entry2modify() */
+		}
+	}
+
 	txn.back_txn_txn = NULL; /* ready to create the child transaction */
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
 		int cache_rc = 0;
@@ -467,10 +475,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 
 		if (0 == retry_count) { /* just once */
-			/* find and lock the entry we are about to modify */
-			if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
-				ldap_result_code= -1;
-				goto error_return;	  /* error result sent by find_entry2modify() */
+			if ( !MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
+				/* find and lock the entry we are about to modify */
+				if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+					ldap_result_code= -1;
+					goto error_return;	  /* error result sent by find_entry2modify() */
+				}
 			}
 		
 			if ( !is_fixup_operation )
@@ -543,7 +553,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				goto error_return;
 			}
 		
-			if (!is_ruv && !is_fixup_operation) {
+			if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
 				ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
 				if (-1 == ruv_c_init) {
 					LDAPDebug( LDAP_DEBUG_ANY,

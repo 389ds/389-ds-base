@@ -839,7 +839,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 /* JCM - A subtree move could break ACIs, static groups, and dynamic groups. */
             }
         
-            if (!is_ruv && !is_fixup_operation) {
+	    if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
                 ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
                 if (-1 == ruv_c_init) {
                     LDAPDebug( LDAP_DEBUG_ANY,

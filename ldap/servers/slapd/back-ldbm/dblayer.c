@@ -3610,12 +3610,19 @@ dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int rc = 0;
-    if (SERIALLOCK(li)) {
-        dblayer_lock_backend(be);
-    }
-    rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
-    if (rc && SERIALLOCK(li)) {
-        dblayer_unlock_backend(be);
+    if (DBLOCK_INSIDE_TXN(li)) {
+    	rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
+	if (!rc && SERIALLOCK(li)) {
+            dblayer_lock_backend(be);
+    	}
+    } else {
+    	if (SERIALLOCK(li)) {
+            dblayer_lock_backend(be);
+    	}
+    	rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
+    	if (rc && SERIALLOCK(li)) {
+            dblayer_unlock_backend(be);
+        }
     }
     return rc;
 }
@@ -3721,9 +3728,17 @@ int
 dblayer_txn_commit(backend *be, back_txn *txn)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    int rc = dblayer_txn_commit_ext(li,txn,PR_TRUE);
-    if (SERIALLOCK(li)) {
-        dblayer_unlock_backend(be);
+    int rc;
+    if (DBLOCK_INSIDE_TXN(li)) {
+    	if (SERIALLOCK(li)) {
+    	    dblayer_unlock_backend(be);
+        }
+	rc  = dblayer_txn_commit_ext(li,txn,PR_TRUE);
+    } else {
+	rc  = dblayer_txn_commit_ext(li,txn,PR_TRUE);
+    	if (SERIALLOCK(li)) {
+            dblayer_unlock_backend(be);
+	}
     }
     return rc;
 }
@@ -3803,9 +3818,17 @@ int
 dblayer_txn_abort(backend *be, back_txn *txn)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    int rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
-    if (SERIALLOCK(li)) {
-        dblayer_unlock_backend(be);
+    int rc;
+    if (DBLOCK_INSIDE_TXN(li)) {
+        if (SERIALLOCK(li)) {
+    	    dblayer_unlock_backend(be);
+	}
+	rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
+    } else {
+	rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
+        if (SERIALLOCK(li)) {
+    	    dblayer_unlock_backend(be);
+	}
     }
     return rc;
 }

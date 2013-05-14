@@ -551,7 +551,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				}
 			}
 
-			if (!is_ruv && !is_fixup_operation && !delete_tombstone_entry) {
+			if (!is_ruv && !is_fixup_operation && !delete_tombstone_entry && !NO_RUV_UPDATE(li)) {
 				ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
 				if (-1 == ruv_c_init) {
 					LDAPDebug( LDAP_DEBUG_ANY,
