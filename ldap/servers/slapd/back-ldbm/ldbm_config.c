@@ -1326,6 +1326,8 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_TRANSACTION_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_transaction_logging_get, &ldbm_config_db_transaction_logging_set, 0},
     {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &ldbm_config_db_checkpoint_interval_get, &ldbm_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &dblayer_get_batch_transactions, &dblayer_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_min_sleep, &dblayer_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_max_sleep, &dblayer_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_LOGBUF_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_logbuf_size_get, &ldbm_config_db_logbuf_size_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_PAGE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_page_size_get, &ldbm_config_db_page_size_set, 0},
     {CONFIG_DB_INDEX_PAGE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_index_page_size_get, &ldbm_config_db_index_page_size_set, 0},

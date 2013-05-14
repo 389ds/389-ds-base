@@ -163,7 +163,11 @@ PRInt64 db_atol(char *str, int *err);
 PRInt64 db_atoi(char *str, int *err);
 unsigned long db_strtoul(const char *str, int *err);
 int dblayer_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply); 
+int dblayer_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phase, int apply); 
+int dblayer_set_batch_txn_max_sleep(void *arg, void *value, char *errorbuf, int phase, int apply); 
 void *dblayer_get_batch_transactions(void *arg); 
+void *dblayer_get_batch_txn_min_sleep(void *arg); 
+void *dblayer_get_batch_txn_max_sleep(void *arg); 
 int dblayer_in_import(ldbm_instance *inst);
 
 int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
