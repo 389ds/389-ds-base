@@ -2227,9 +2227,18 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                         slapi_entry_free(origin_e);
                         mep_config_unlock();
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                        Slapi_Operation *op;
+
+                        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+                        if(operation_is_flag_set(op, OP_FLAG_INTERNAL)){
+                            slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                                    "mep_pre_op: (internal operation) Unable to fetch "
+                                    "origin entry \"%s\".\n", origin_dn);
+                        } else {
+                            slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
                                     "mep_pre_op: Unable to fetch origin entry "
                                     "\"%s\".\n", origin_dn);
+                        }
                     }
 
                     slapi_ch_free_string(&origin_dn);
