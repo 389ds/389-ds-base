@@ -208,6 +208,9 @@ ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *
 			Slapi_Value *value;
 			const struct berval *bval;
 			const char *purl = NULL;
+			char *localhost = get_localhost_DNS();
+			size_t localhostlen = localhost ? strlen(localhost) : 0;
+			int port = config_get_port();
 
 			return_value = RUV_SUCCESS;
 
@@ -236,9 +239,22 @@ ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *
 						RUVElement *ruve = get_ruvelement_from_berval(bval);
 						if (NULL != ruve)
 						{
+							char *ptr;
 							/* Is the local purl already in the ruv ? */
 							if ( (*contain_purl==0) && ruve->replica_purl && purl && (strncmp(ruve->replica_purl, purl, strlen(purl))==0) )
 							{
+								*contain_purl = ruve->rid;
+							}
+							/* ticket 47362 - nsslapd-port: 0 causes replication to break */
+							else if ((*contain_purl==0) && ruve->replica_purl && (port == 0) && localhost &&
+								 (ptr = strstr(ruve->replica_purl, localhost)) && (ptr != ruve->replica_purl) &&
+								 (*(ptr - 1) == '/') && (*(ptr+localhostlen) == ':'))
+							{
+								/* same hostname, but port number may have been temporarily set to 0
+								 * just allow it with whatever port number is already in the replica_purl
+								 * do not reset the port number, do not tell the configure_ruv code that there
+								 * is anything wrong
+								 */
 								*contain_purl = ruve->rid;
 							}
 							dl_add ((*ruv)->elements, ruve);
@@ -246,6 +262,7 @@ ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *
 					}
 				}
 			}
+			slapi_ch_free_string(&localhost);
 		}
 	}
 	return return_value;
@@ -1279,6 +1296,11 @@ ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const ch
     const char *ruvbnames[] = {ruv2name, ruv1name};
     const int nitems = 2;
 
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+	ruv_dump(ruv1, (char *)ruv1name, NULL);
+	ruv_dump(ruv2, (char *)ruv2name, NULL);
+    }
+
     /* compare replica generations first */
     if (ruv1->replGen == NULL || ruv2->replGen == NULL) {
         slapi_log_error(loglevel, repl_plugin_name,
@@ -1335,7 +1357,17 @@ ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const ch
                                     "than the max CSN [%s] from RUV [%s] for element [%s]\n",
                                     csnstrb, ruvbname, csnstra, ruvaname, ruvelem);
                     rc = RUV_COMP_CSN_DIFFERS;
+                } else {
+                    csn_as_string(replicaa->csn, PR_FALSE, csnstra);
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                    "ruv_compare_ruv: the max CSN [%s] from RUV [%s] is less than "
+                                    "or equal to the max CSN [%s] from RUV [%s] for element [%s]\n",
+                                    csnstrb, ruvbname, csnstra, ruvaname, ruvelem);
                 }
+            } else {
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                "ruv_compare_ruv: RUV [%s] has an empty CSN\n",
+                                ruvbname);
             }
         }
     }
