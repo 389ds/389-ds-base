@@ -205,6 +205,19 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
      * the dblock. Acquire the dblock again for them
      * if OP_FLAG_ACTION_INVOKE_FOR_REPLOP is set.
      */
+    /* if the dblock should be taken inside the txn
+     * the txn has to be started here (without major rewrite)
+     */
+    if ( DBLOCK_INSIDE_TXN(li) ) {
+		retval = dblayer_txn_begin(li,parent_txn,&txn);
+		if (0 != retval) {
+			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			goto error_return;
+		}
+		/* stash the transaction */
+		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
+    }
     if(SERIALLOCK(li) &&
        (!operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP) ||
         operation_is_flag_set(operation,OP_FLAG_ACTION_INVOKE_FOR_REPLOP)))
@@ -712,7 +725,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         /* JCM - A subtree move could break ACIs, static groups, and dynamic groups. */
     }
 
-    if (!is_ruv && !is_fixup_operation) {
+    if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
         ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
         if (-1 == ruv_c_init) {
             LDAPDebug( LDAP_DEBUG_ANY,
@@ -837,15 +850,19 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             }
 #endif
         }
-        retval = dblayer_txn_begin(li,parent_txn,&txn);
-        if (0 != retval) {
-            ldap_result_code= LDAP_OPERATIONS_ERROR;
-            if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-            goto error_return;
+	/* if this is not the first iteration, or if not DBLOCK_INSIDE_TXN
+	 * start with a new txn. 
+	 */
+	if (retry_count > 0 || ! DBLOCK_INSIDE_TXN(li) ) {
+       		retval = dblayer_txn_begin(li,parent_txn,&txn);
+        	if (0 != retval) {
+            		ldap_result_code= LDAP_OPERATIONS_ERROR;
+            		if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+            		goto error_return;
+		}
+        	/* stash the transaction */
+        	slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
         }
-
-        /* stash the transaction */
-        slapi_pblock_set(pb, SLAPI_TXN, (void *)txn.back_txn_txn);
 
         /* call the transaction pre modrdn plugins just after creating the transaction */
         if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN))) {
@@ -1090,6 +1107,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         goto error_return;
     }
 
+    if(DBLOCK_INSIDE_TXN(li) && dblock_acquired)
+    {
+	dblayer_unlock_backend(be);
+	dblock_acquired = 0; /* prevent regular unlock */
+    }
     retval = dblayer_txn_commit(li,&txn);
     /* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
     slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
@@ -1240,6 +1262,11 @@ error_return:
                 }
             }
 
+	    if(DBLOCK_INSIDE_TXN(li) && dblock_acquired)
+	    {
+		dblayer_unlock_backend(be);
+		dblock_acquired = 0; /* prevent regular unlock */
+	    }
             dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
             /* txn is no longer valid - reset the txn pointer to the parent */
             slapi_pblock_set(pb, SLAPI_TXN, parent_txn);

@@ -651,7 +651,17 @@ struct ldbminfo {
     int             li_reslimit_pagedallids_handle; /* allids aka idlistscan */
     int             li_rangelookthroughlimit;
     int             li_reslimit_rangelookthrough_handle;
-};
+#define BACKEND_OPT_NO_RUV_UPDATE      0x01
+#define BACKEND_OPT_DBLOCK_INSIDE_TXN  0x02
+#define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04
+    int                    li_backend_opt_level;
+ };
+
+
+#define NO_RUV_UPDATE(li)              (li->li_backend_opt_level & BACKEND_OPT_NO_RUV_UPDATE)
+#define DBLOCK_INSIDE_TXN(li)          (li->li_backend_opt_level & BACKEND_OPT_DBLOCK_INSIDE_TXN)
+#define MANAGE_ENTRY_BEFORE_DBLOCK(li) (li->li_backend_opt_level & BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK)
+
 
 /* li_flags could store these bits defined in ../slapi-plugin.h
  * task flag (pb_task_flags) *

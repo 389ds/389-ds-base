@@ -394,15 +394,38 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 * operations that the URP code in the Replication
 	 * plugin generates.
 	 */
+	if ( MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
+		/* find and lock the entry we are about to modify */
+		if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+			ldap_result_code= -1;
+			goto error_return;	  /* error result sent by find_entry2modify() */
+		}
+	}
+
+	/* if the dblock should be taken inside the txn
+	 * the txn has to be started here (without major rewrite)
+	 */
+	if ( DBLOCK_INSIDE_TXN(li) ) {
+		retval = dblayer_txn_begin(li,parent_txn,&txn);
+		if (0 != retval) {
+			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+			ldap_result_code= LDAP_OPERATIONS_ERROR;
+			goto error_return;
+		}
+		/* stash the transaction */
+		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
+	}
 	if(SERIALLOCK(li) && !operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP)) {
 		dblayer_lock_backend(be);
 		dblock_acquired= 1;
 	}
 
-	/* find and lock the entry we are about to modify */
-	if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
-		ldap_result_code= -1;
-		goto error_return;	  /* error result sent by find_entry2modify() */
+	if ( !MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
+		/* find and lock the entry we are about to modify */
+		if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+			ldap_result_code= -1;
+			goto error_return;	  /* error result sent by find_entry2modify() */
+		}
 	}
 
 	if ( !is_fixup_operation )
@@ -470,7 +493,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	if (!is_ruv && !is_fixup_operation) {
+	if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
 		ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
 		if (-1 == ruv_c_init) {
 			LDAPDebug( LDAP_DEBUG_ANY,
@@ -532,16 +555,19 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 
 		/* Nothing above here modifies persistent store, everything after here is subject to the transaction */
-		retval = dblayer_txn_begin(li,parent_txn,&txn);
-
-		if (0 != retval) {
-			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			goto error_return;
+		/* if this is not the first iteration, or if not DBLOCK_INSIDE_TXN
+		 * start with a new txn. 
+		 */
+		if (retry_count > 0 || ! DBLOCK_INSIDE_TXN(li) ) {
+			retval = dblayer_txn_begin(li,parent_txn,&txn);
+			if (0 != retval) {
+				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+			/* stash the transaction */
+			slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 		}
-
-		/* stash the transaction for plugins */
-		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 
 		/* call the transaction pre modify plugins just after creating the transaction */
 		if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN))) {
@@ -712,6 +738,11 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
+	if(DBLOCK_INSIDE_TXN(li) && dblock_acquired)
+	{
+		dblayer_unlock_backend(be);
+		dblock_acquired = 0; /* prevent regular unlock */
+	}
 	retval = dblayer_txn_commit(li,&txn);
 	/* after commit - txn is no longer valid - replace SLAPI_TXN with parent */
 	slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
@@ -770,6 +801,11 @@ error_return:
 				}
 			}
 
+			if(DBLOCK_INSIDE_TXN(li) && dblock_acquired)
+			{
+				dblayer_unlock_backend(be);
+				dblock_acquired = 0; /* prevent regular unlock */
+			}
 			/* It is safer not to abort when the transaction is not started. */
 			dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 			/* txn is no longer valid - reset the txn pointer to the parent */
