@@ -354,17 +354,27 @@ get_ldapmessage_controls_ext(
 		len = -1; /* reset for next loop iter */
 	}
 
-	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) ) {
-		goto free_and_return;
-	}
+        if (curcontrols == 0) {
+                int ctrl_not_found = 0; /* means that a given control is not present in the request */
+                
+                slapi_pblock_set(pb, SLAPI_REQCONTROLS, NULL);
+                slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &ctrl_not_found);
+                slapi_pblock_set(pb, SLAPI_PWPOLICY, &ctrl_not_found);
+                slapi_log_error(SLAPI_LOG_CONNS, "connection", "Warning: conn=%d op=%d contains an empty list of controls\n",
+                        pb->pb_conn->c_connid, pb->pb_op->o_opid);
+        } else {
+                if ((tag != LBER_END_OF_SEQORSET) && (len != -1)) {
+                        goto free_and_return;
+                }
 
-	slapi_pblock_set( pb, SLAPI_REQCONTROLS, ctrls );
-	managedsait = slapi_control_present( ctrls,
-	    LDAP_CONTROL_MANAGEDSAIT, NULL, NULL );
-	slapi_pblock_set( pb, SLAPI_MANAGEDSAIT, &managedsait );
-	pwpolicy_ctrl = slapi_control_present( ctrls,
-	    LDAP_X_CONTROL_PWPOLICY_REQUEST, NULL, NULL );
-	slapi_pblock_set( pb, SLAPI_PWPOLICY, &pwpolicy_ctrl );
+                slapi_pblock_set(pb, SLAPI_REQCONTROLS, ctrls);
+                managedsait = slapi_control_present(ctrls,
+                        LDAP_CONTROL_MANAGEDSAIT, NULL, NULL);
+                slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &managedsait);
+                pwpolicy_ctrl = slapi_control_present(ctrls,
+                        LDAP_X_CONTROL_PWPOLICY_REQUEST, NULL, NULL);
+                slapi_pblock_set(pb, SLAPI_PWPOLICY, &pwpolicy_ctrl);
+        }
 
 	if ( controlsp != NULL ) {
 		*controlsp = ctrls;
