@@ -3744,7 +3744,7 @@ int dblayer_txn_abort_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         priv->dblayer_enable_transactions)
     {
 	int txn_id = db_txn->id(db_txn);
-	if (log_flush_thread) {
+	if ( use_lock && log_flush_thread) {
 		PR_Lock(sync_txn_log_flush);
 		txn_in_progress_count--;
 		PR_Unlock(sync_txn_log_flush);
@@ -4488,7 +4488,7 @@ static int log_flush_threadmain(void *param)
 		 * - no more active transaction, no need to wait
 		 * - do_flush indicate that the max waiting interval is exceeded
 		 */
-		if(trans_batch_count >= trans_batch_limit || trans_batch_count == txn_in_progress_count || do_flush) { 
+		if(trans_batch_count >= trans_batch_limit || trans_batch_count >= txn_in_progress_count || do_flush) { 
 	    		LDAPDebug(LDAP_DEBUG_BACKLDBM, "log_flush_threadmain (working): batchcount: %d, txn_in_progress: %d\n", trans_batch_count, txn_in_progress_count, 0);
 			LOG_FLUSH(priv->dblayer_env->dblayer_DB_ENV,0);
 			for (i=0;i<trans_batch_count;i++)
