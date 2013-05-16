@@ -1931,6 +1931,44 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 				agmt_get_long_name(prp->agmt),
 				PR_IntervalToSeconds(now-start));
 	}
+	if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+		if (NULL == prp->replica_object) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: repl5_inc_stop: protocol replica_object is NULL\n",
+					agmt_get_long_name(prp->agmt));
+		} else {
+			Replica *replica;
+			object_acquire(prp->replica_object);
+			replica = object_get_data(prp->replica_object);
+			if (NULL == replica) {
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"%s: repl5_inc_stop: replica is NULL\n",
+						agmt_get_long_name(prp->agmt));
+			} else {
+				Object *ruv_obj = replica_get_ruv(replica);
+				if (NULL == ruv_obj) {
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"%s: repl5_inc_stop: ruv_obj is NULL\n",
+							agmt_get_long_name(prp->agmt));
+				} else {
+					RUV *ruv;
+					object_acquire(ruv_obj);
+					ruv = (RUV*)object_get_data (ruv_obj);
+					if (NULL == ruv) {
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"%s: repl5_inc_stop: ruv is NULL\n",
+								agmt_get_long_name(prp->agmt));
+
+					} else {
+						ruv_dump(ruv, "Database RUV", NULL);
+					}
+					object_release(ruv_obj);
+				}
+			}
+			object_release(prp->replica_object);
+		}
+
+	}
 	return return_value;
 }
 
