@@ -6751,6 +6751,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_OPERATION_NOTES			57
 #define SLAPI_OP_NOTE_UNINDEXED		0x01
 #define SLAPI_OP_NOTE_SIMPLEPAGED	0x02
+#define SLAPI_OP_NOTE_FULL_UNINDEXED    0x04
 
 /* Allows controls to be passed before operation object is created */
 #define SLAPI_CONTROLS_ARG			58
