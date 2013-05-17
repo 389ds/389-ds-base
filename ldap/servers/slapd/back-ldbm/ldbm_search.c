@@ -824,7 +824,7 @@ ldbm_back_search( Slapi_PBlock *pb )
      * to record that fact.
      */
     if ( NULL != candidates && ALLIDS( candidates )) {
-        unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+        unsigned int opnote;
         int ri = 0;
         int pr_idx = -1;
 
@@ -847,6 +847,10 @@ ldbm_back_search( Slapi_PBlock *pb )
             }
         }
 
+        slapi_pblock_get( pb, SLAPI_OPERATION_NOTES, &opnote );
+        opnote |= SLAPI_OP_NOTE_FULL_UNINDEXED; /* the full filter leads to an unindexed search */
+        opnote &= ~SLAPI_OP_NOTE_UNINDEXED;     /* this note is useless because FULL_UNINDEXED includes UNINDEXED */
+        slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, NULL );
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         slapi_pblock_get( pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx );
         pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
