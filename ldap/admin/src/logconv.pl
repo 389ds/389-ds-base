@@ -157,8 +157,10 @@ print "\nCommand: logconv.pl @ARGV\n\n";
 
 $rootDNBindCount = 0;
 $anonymousBindCount = 0;
-$unindexedSrchCount = 0;
-$vlvNotesCount= 0;
+$unindexedSrchCountNotesA = 0;
+$unindexedSrchCountNotesU = 0;
+$vlvNotesACount= 0;
+$vlvNotesUCount= 0;
 $srchCount = 0;
 $fdTaken = 0;
 $fdReturned = 0;
@@ -254,11 +256,16 @@ $UNBIND_CONN = "$dataLocation/unbindconn.logconv";
 $UNBIND_OP = "$dataLocation/unbindop.logconv";
 $EXT_CONN = "$dataLocation/extconn.logconv";
 $EXT_OP = "$dataLocation/extop.logconv";
-$NOTES_ETIME = "$dataLocation/notesetime.logconv";
-$NOTES_CONN = "$dataLocation/notesconn.logconv";
-$NOTES_OP = "$dataLocation/notesop.logconv";
-$NOTES_TIME = "$dataLocation/notestime.logconv";
-$NOTES_NENTRIES = "$dataLocation/notesnentries.logconv";
+$NOTES_A_ETIME = "$dataLocation/notesAetime.logconv";
+$NOTES_A_CONN = "$dataLocation/notesAconn.logconv";
+$NOTES_A_OP = "$dataLocation/notesAop.logconv";
+$NOTES_A_TIME = "$dataLocation/notesAtime.logconv";
+$NOTES_A_NENTRIES = "$dataLocation/notesAnentries.logconv";
+$NOTES_U_ETIME = "$dataLocation/notesUetime.logconv";
+$NOTES_U_CONN = "$dataLocation/notesUconn.logconv";
+$NOTES_U_OP = "$dataLocation/notesUop.logconv";
+$NOTES_U_TIME = "$dataLocation/notesUtime.logconv";
+$NOTES_U_NENTRIES = "$dataLocation/notesUnentries.logconv";
 $BADPWDCONN = "$dataLocation/badpwdconn.logconv";
 $BADPWDOP = "$dataLocation/badpwdop.logconv";
 $BADPWDIP = "$dataLocation/badpwdip.logconv";
@@ -641,20 +648,22 @@ print "Abandoned Requests:           $abandonCount\n";
 print "Smart Referrals Received:     $referralCount\n";
 print "\n";
 print "VLV Operations:               $vlvCount\n";
-print "VLV Unindexed Searches:       $vlvNotesCount\n";
+print "VLV Unindexed Searches:       $vlvNotesACount\n";
+print "VLV Unindexed Components:     $vlvNotesUCount\n";
 print "SORT Operations:              $vlvSortCount\n";
 print "\n";
 print "Entire Search Base Queries:   $objectclassTopCount\n";
 print "Paged Searches:               $pagedSearchCount\n";
-print "Unindexed Searches:           $unindexedSrchCount\n";
+print "Unindexed Searches:           $unindexedSrchCountNotesA\n";
+print "Unindexed Components:         $unindexedSrchCountNotesU\n";
 if ($verb eq "yes" || $usage =~ /u/){
-	if ($unindexedSrchCount > 0){
+	if ($unindexedSrchCountNotesA > 0){
 		%conn_hash = getHashFromFile($CONN_HASH);
-		@notesConn = getArrayFromFile($NOTES_CONN);
-		@notesOp = getArrayFromFile($NOTES_OP);
-		@notesEtime = getArrayFromFile($NOTES_ETIME);
-		@notesTime = getArrayFromFile($NOTES_TIME);
-		@notesNentries = getArrayFromFile($NOTES_NENTRIES);
+		@notesConn = getArrayFromFile($NOTES_A_CONN);
+		@notesOp = getArrayFromFile($NOTES_A_OP);
+		@notesEtime = getArrayFromFile($NOTES_A_ETIME);
+		@notesTime = getArrayFromFile($NOTES_A_TIME);
+		@notesNentries = getArrayFromFile($NOTES_A_NENTRIES);
 		getInfoArraysFromFile($BASEINFO);
 		@base_val = @fileArray1;
 		@base_conn = @fileArray2;
@@ -677,6 +686,78 @@ if ($verb eq "yes" || $usage =~ /u/){
 				$unindexedIp = $conn_hash{$notesConn[$n]};
 			}
 			print "\n  Unindexed Search #".$notesCount."\n"; $notesCount++;
+			print "  -  Date/Time:             $notesTime[$n]\n";
+			print "  -  Connection Number:     $notesConn[$n]\n";
+			print "  -  Operation Number:      $notesOp[$n]\n";
+			print "  -  Etime:                 $notesEtime[$n]\n";
+			print "  -  Nentries:              $notesNentries[$n]\n";
+			print "  -  IP Address:            $unindexedIp\n";
+
+			for ($nnn = 0; $nnn < $baseCount; $nnn++){
+				if ($notesConn[$n] eq $base_conn[$nnn] && $notesOp[$n] eq $base_op[$nnn]){
+					print "  -  Search Base:           $base_val[$nnn]\n";
+					last;
+				}
+			}
+			for ($nnn = 0; $nnn < $scopeCount; $nnn++){
+				if ($notesConn[$n] eq $scope_conn[$nnn] && $notesOp[$n] eq $scope_op[$nnn]){
+					print "  -  Search Scope:          $scope_val[$nnn]\n";
+					last;
+				}
+			}
+			for ($nnn = 0; $nnn < $filterCount; $nnn++){	
+				if ($notesConn[$n] eq $filter_conn[$nnn] && $notesOp[$n] eq $filter_op[$nnn]){
+					print "  -  Search Filter:         $filter_val[$nnn]\n";
+					last;
+				}	
+			}
+		}
+		undef %conn_hash;
+		undef @notesConn;
+		undef @notesOp;
+		undef @notesEtime;
+		undef @notesTime;
+		undef @notesNentries;
+		undef @notesIp;
+		undef @filter_val;
+		undef @filter_conn;
+		undef @filter_op;
+		undef @base_val;
+		undef @base_conn;
+		undef @base_op;
+		undef @scope_val;
+		undef @scope_conn;
+		undef @scope_op;	
+	}
+	if ($unindexedSrchCountNotesU > 0){
+		%conn_hash = getHashFromFile($CONN_HASH);
+		@notesConn = getArrayFromFile($NOTES_U_CONN);
+		@notesOp = getArrayFromFile($NOTES_U_OP);
+		@notesEtime = getArrayFromFile($NOTES_U_ETIME);
+		@notesTime = getArrayFromFile($NOTES_U_TIME);
+		@notesNentries = getArrayFromFile($NOTES_U_NENTRIES);
+		getInfoArraysFromFile($BASEINFO);
+		@base_val = @fileArray1;
+		@base_conn = @fileArray2;
+		@base_op = @fileArray3;
+		getInfoArraysFromFile($SCOPEINFO);
+		@scope_val = @fileArray1;
+		@scope_conn = @fileArray2;
+		@scope_op = @fileArray3;
+		getInfoArraysFromFile($FILTERINFO);
+		@filter_val = @fileArray1;
+		@filter_conn = @fileArray2;
+		@filter_op = @fileArray3;
+
+		$notesCount = "1";
+		for ($n = 0; $n <= $#notesEtime; $n++){
+			@alreadyseenDN = ();
+			if($conn_hash{$notesConn[$n]} eq ""){
+				$unindexedIp = "?";
+			} else {
+				$unindexedIp = $conn_hash{$notesConn[$n]};
+			}
+			print "\n  Unindexed Components #".$notesCount."\n"; $notesCount++;
 			print "  -  Date/Time:             $notesTime[$n]\n";
 			print "  -  Connection Number:     $notesConn[$n]\n";
 			print "  -  Operation Number:      $notesOp[$n]\n";
@@ -1276,8 +1357,12 @@ if ($usage =~ /j/i || $verb eq "yes"){
 	%conncount = getCounterHashFromFile($CONNCOUNT);
 	print "\n----- Recommendations -----\n";
 	$recCount = "1";
-	if ($unindexedSrchCount > 0){
+	if ($unindexedSrchCountNotesA > 0){
 		print "\n $recCount.  You have unindexed searches, this can be caused from a search on an unindexed attribute, or your returned results exceeded the allidsthreshold.  Unindexed searches are not recommended. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
+		$recCount++;
+	}
+	if ($unindexedSrchCountNotesU > 0){
+		print "\n $recCount.  You have unindexed components, this can be caused from a search on an unindexed attribute, or your returned results exceeded the allidsthreshold.  Unindexed components are not recommended. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
 		$recCount++;
 	}
 	if ($conncount{"T1"} > 0){
@@ -1773,36 +1858,71 @@ sub parseLineNormal
 	if (m/ RESULT err=/ && m/ notes=P/){
 		$pagedSearchCount++;
 	}
+	if (m/ notes=A/){
+		if ($_ =~ /conn= *([0-9]+)/i){
+		        $con = $1;
+		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
+		}
+		for ($i=0; $i <= $vlvCount;$i++){
+		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesACount++; $isVlvNotes="1";}
+		}
+		if($isVlvNotes == 0){
+			#  We don't want to record vlv unindexed searches for our regular "bad" 
+			#  unindexed search stat, as VLV unindexed searches aren't that bad
+			$unindexedSrchCountNotesA++;
+			if($reportStats){ inc_stats('notesA',$s_stats,$m_stats); }
+		}
+		if ($usage =~ /u/ || $verb eq "yes"){
+			if ($isVlvNnotes == 0 ){
+		        	if ($_ =~ /etime= *([0-9.]+)/i ){
+		                	writeFile($NOTES_A_ETIME, $1);
+		        	}
+		        	if ($_ =~ /conn= *([0-9]+)/i){
+		                	writeFile($NOTES_A_CONN, $1);
+		        	}
+		        	if ($_ =~ /op= *([0-9]+)/i){
+		                	writeFile($NOTES_A_OP, $1);
+		        	}
+		        	if ($_ =~ / *([0-9a-z:\/]+)/i){
+		                	writeFile($NOTES_A_TIME, $1);
+		        	}
+				if ($_ =~ /nentries= *([0-9]+)/i ){
+					writeFile($NOTES_A_NENTRIES, $1);
+				}
+			}
+		}
+		$isVlvNotes = 0;
+	}
 	if (m/ notes=U/){
 		if ($_ =~ /conn= *([0-9]+)/i){
 		        $con = $1;
 		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
 		}
 		for ($i=0; $i <= $vlvCount;$i++){
-		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesCount++; $isVlvNotes="1";}
+		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesUCount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
 			#  We don't want to record vlv unindexed searches for our regular "bad" 
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
-			$unindexedSrchCount++;
-			if($reportStats){ inc_stats('notesu',$s_stats,$m_stats); }
+			$unindexedSrchCountNotesU++;
+			if($reportStats){ inc_stats('notesU',$s_stats,$m_stats); }
 		}
 		if ($usage =~ /u/ || $verb eq "yes"){
 			if ($isVlvNnotes == 0 ){
 		        	if ($_ =~ /etime= *([0-9.]+)/i ){
-		                	writeFile($NOTES_ETIME, $1);
+		                	writeFile($NOTES_U_ETIME, $1);
 		        	}
 		        	if ($_ =~ /conn= *([0-9]+)/i){
-		                	writeFile($NOTES_CONN, $1);
+		                	writeFile($NOTES_U_CONN, $1);
 		        	}
 		        	if ($_ =~ /op= *([0-9]+)/i){
-		                	writeFile($NOTES_OP, $1);
+		                	writeFile($NOTES_U_OP, $1);
 		        	}
 		        	if ($_ =~ / *([0-9a-z:\/]+)/i){
-		                	writeFile($NOTES_TIME, $1);
+		                	writeFile($NOTES_U_TIME, $1);
 		        	}
 				if ($_ =~ /nentries= *([0-9]+)/i ){
-					writeFile($NOTES_NENTRIES, $1);
+					writeFile($NOTES_U_NENTRIES, $1);
 				}
 			}
 		}
@@ -2196,7 +2316,8 @@ reset_stats_block
     $stats->{'bind'}=0;
     $stats->{'anonbind'}=0;
     $stats->{'unbind'}=0;
-    $stats->{'notesu'}=0;
+    $stats->{'notesA'}=0;
+    $stats->{'notesU'}=0;
     $stats->{'etime'}=0;
     return;
 }
@@ -2242,13 +2363,14 @@ print_stats_block
 					    $stats->{'bind'},
 					    $stats->{'anonbind'},
 					    $stats->{'unbind'},
-					    $stats->{'notesu'},
+					    $stats->{'notesA'},
+					    $stats->{'notesU'},
 					    $stats->{'etime'}),
 			    		"\n" );
 			} else {
 				$stats->{'fh'}->print(
 			    		"Time,time_t,Results,Search,Add,Mod,Modrdn,Moddn,Compare,Delete,Abandon,".
-			    		"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed,ElapsedTime\n"
+			    		"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed search,Unindexed component,ElapsedTime\n"
 			    	);
 			}
 		}
@@ -2415,11 +2537,16 @@ openDataFiles
 	open($UNBIND_OP, ">$UNBIND_OP") or do { openFailed($!, $UNBIND_OP) };
 	open($EXT_CONN, ">$EXT_CONN") or do { openFailed($!, $EXT_CONN) };
 	open($EXT_OP, ">$EXT_OP") or do { openFailed($!, $EXT_OP) };
-	open($NOTES_ETIME, ">$NOTES_ETIME") or do { openFailed($!, $NOTES_ETIME) };
-	open($NOTES_CONN, ">$NOTES_CONN") or do { openFailed($!, $NOTES_CONN) };
-	open($NOTES_OP, ">$NOTES_OP") or do { openFailed($!, $NOTES_OP) };
-	open($NOTES_TIME, ">$NOTES_TIME") or do { openFailed($!, $NOTES_TIME) };
-	open($NOTES_NENTRIES, ">$NOTES_NENTRIES") or do { openFailed($!, $NOTES_NENTRIES) };
+	open($NOTES_A_ETIME, ">$NOTES_A_ETIME") or do { openFailed($!, $NOTES_A_ETIME) };
+	open($NOTES_A_CONN, ">$NOTES_A_CONN") or do { openFailed($!, $NOTES_A_CONN) };
+	open($NOTES_A_OP, ">$NOTES_A_OP") or do { openFailed($!, $NOTES_A_OP) };
+	open($NOTES_A_TIME, ">$NOTES_A_TIME") or do { openFailed($!, $NOTES_A_TIME) };
+	open($NOTES_A_NENTRIES, ">$NOTES_A_NENTRIES") or do { openFailed($!, $NOTES_A_NENTRIES) };
+	open($NOTES_U_ETIME, ">$NOTES_U_ETIME") or do { openFailed($!, $NOTES_U_ETIME) };
+	open($NOTES_U_CONN, ">$NOTES_U_CONN") or do { openFailed($!, $NOTES_U_CONN) };
+	open($NOTES_U_OP, ">$NOTES_U_OP") or do { openFailed($!, $NOTES_U_OP) };
+	open($NOTES_U_TIME, ">$NOTES_U_TIME") or do { openFailed($!, $NOTES_U_TIME) };
+	open($NOTES_U_NENTRIES, ">$NOTES_U_NENTRIES") or do { openFailed($!, $NOTES_U_NENTRIES) };
 	open($BADPWDCONN, ">$BADPWDCONN")  or do { openFailed($!, $BADPWDCONN) };
 	open($BADPWDOP, ">$BADPWDOP")  or do { openFailed($!, $BADPWDOP) };
 	open($BADPWDIP, ">$BADPWDIP")  or do { openFailed($!, $NADPWDIP) };
@@ -2473,11 +2600,16 @@ closeDataFiles
 	close $UNBIND_OP;
 	close $EXT_CONN;
 	close $EXT_OP;
-	close $NOTES_ETIME;
-	close $NOTES_CONN;
-	close $NOTES_OP;
-	close $NOTES_TIME;
-	close $NOTES_NENTRIES;
+	close $NOTES_A_ETIME;
+	close $NOTES_A_CONN;
+	close $NOTES_A_OP;
+	close $NOTES_A_TIME;
+	close $NOTES_A_NENTRIES;
+	close $NOTES_U_ETIME;
+	close $NOTES_U_CONN;
+	close $NOTES_U_OP;
+	close $NOTES_U_TIME;
+	close $NOTES_U_NENTRIES;
 	close $BADPWDCONN;
 	close $BADPWDOP;
 	close $BADPWDIP;
@@ -2531,11 +2663,16 @@ removeDataFiles
 	unlink $UNBIND_OP;
 	unlink $EXT_CONN;
 	unlink $EXT_OP;
-	unlink $NOTES_ETIME;
-	unlink $NOTES_CONN;
-	unlink $NOTES_OP;
-	unlink $NOTES_TIME;
-	unlink $NOTES_NENTRIES;
+	unlink $NOTES_A_ETIME;
+	unlink $NOTES_A_CONN;
+	unlink $NOTES_A_OP;
+	unlink $NOTES_A_TIME;
+	unlink $NOTES_A_NENTRIES;
+	unlink $NOTES_U_ETIME;
+	unlink $NOTES_U_CONN;
+	unlink $NOTES_U_OP;
+	unlink $NOTES_U_TIME;
+	unlink $NOTES_U_NENTRIES;
 	unlink $BADPWDCONN;
 	unlink $BADPWDOP;
 	unlink $BADPWDIP;
