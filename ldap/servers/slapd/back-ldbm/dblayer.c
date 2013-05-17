@@ -3567,6 +3567,8 @@ int dblayer_txn_commit_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
     dblayer_private *priv = NULL;
     DB_TXN *db_txn = NULL;
     back_txn *cur_txn = NULL;
+	int txn_id = 0;
+	int txn_batch_slot = 0;
 
     PR_ASSERT(NULL != li);
 
@@ -3662,8 +3664,6 @@ int dblayer_txn_abort_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
     dblayer_private *priv = NULL;
     DB_TXN *db_txn = NULL;
     back_txn *cur_txn = NULL;
-	int txn_id = 0;
-	int txn_batch_slot = 0;
 
     PR_ASSERT(NULL != li);
 
