@@ -699,6 +699,7 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
   int premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
 
   BEGIN
+    int attr_count = 0;
     int argc;
     char **argv;
 
@@ -731,12 +732,12 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
      * Arguments before "," are the 7-bit attribute names. Arguments after
      * "," are the subtree DN's. 
      */
-    if (argc < 1) { err = -1; break; }
-    for(;strcmp(*argv, ",") != 0 && argc > 0; argc--, argv++)
-      {};
-    if (argc == 0) { err = -1; break; }
+    if (argc < 1) { err = -2; break; } /* missing arguments */
+    for(;*argv && strcmp(*argv, ",") != 0 && argc > 0; attr_count++, argc--, argv++);
+    if (argc == 0) { err = -3; break; } /* no comma separator */
+    if(attr_count == 0){ err = -4; break; } /* no attributes */
     argv++; argc--;
-
+    if(argc == 0){ err = -5; break; } /* no suffix */
     for(;argc > 0;argc--, argv++) {
         char *normdn = slapi_create_dn_string_case("%s", *argv);
         slapi_ch_free_string(argv);
@@ -761,9 +762,22 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
   END
 
   if (err) {
-    slapi_log_error(SLAPI_LOG_PLUGIN, "NS7bitAttr_Init",
-             "Error: %d\n", err);
-    err = -1;
+      if(err == -1){
+          slapi_log_error(SLAPI_LOG_PLUGIN, "NS7bitAttr_Init","Error: %d\n", err);
+      } else if(err == -2){
+          slapi_log_error(SLAPI_LOG_FATAL, "NS7bitAttr_Init",
+                      "Invalid plugin arguments - missing arguments\n");
+      } else if(err == -3){
+          slapi_log_error(SLAPI_LOG_FATAL, "NS7bitAttr_Init",
+                      "Invalid plugin arguments - missing \",\" separator argument\n");
+      } else if(err == -4){
+          slapi_log_error(SLAPI_LOG_FATAL, "NS7bitAttr_Init",
+                      "Invalid plugin arguments - missing attributes\n");
+      } else if(err == -5){
+          slapi_log_error(SLAPI_LOG_FATAL, "NS7bitAttr_Init",
+                      "Invalid plugin arguments - missing suffix\n");
+      }
+      err = -1;
   }
   else
     slapi_log_error(SLAPI_LOG_PLUGIN, "NS7bitAttr_Init",
