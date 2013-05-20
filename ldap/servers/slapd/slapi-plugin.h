@@ -7419,6 +7419,61 @@ char *slapi_pr_strerror( const PRErrorCode prerrno );
  */
 const char *slapi_system_strerror( const int syserrno );
 
+/* event queue routines and data types */
+
+/**
+ * Represents a scheduled event object.
+ */
+typedef void* Slapi_Eq_Context;
+
+/**
+ * Represents the function that will be performed when an event is triggered.
+ */
+typedef void (*slapi_eq_fn_t)(time_t when, void *arg);
+
+/**
+ * Cause an event to happen exactly once.
+ *
+ * \param fn The function to call when the event is triggered.
+ * \param arg An argument to pass to the called function.
+ * \param when The time that the function should be called.
+ *
+ * \return slapi_eq_context
+ */
+Slapi_Eq_Context slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when);
+
+/**
+ * Cause an event to happen repeatedly.
+ *
+ * \param fn The function to call when the vent is triggered.
+ * \param arg An argument to pass to the called function.
+ * \param when The time that the function should be called.
+ * \param interval The amount of time (in milliseconds) between
+ *                 successive calls to the function.
+ *
+ * \return slapi_eq_context
+ */
+Slapi_Eq_Context slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval);
+
+/**
+ * Cause a scheduled event to be canceled.
+ *
+ * \param ctx The event object to cancel
+ *
+ * \return 1 If event was found and canceled.
+ * \return 0 If event was not found in the queue.
+ */
+int slapi_eq_cancel(Slapi_Eq_Context ctx);
+
+/**
+ * Return the event's argument.
+ *
+ * \param ctx The event object
+ *
+ * \return A pointer to the event argument.
+ */
+void *slapi_eq_get_arg (Slapi_Eq_Context ctx);
+
 #ifdef __cplusplus
 }
 #endif

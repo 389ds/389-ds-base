@@ -1168,14 +1168,6 @@ void addlenstr( lenstr *l, const char *str );
 void lenstr_free( lenstr ** );
 lenstr *lenstr_new(void);
 
-/* event queue routines and data types */
-typedef void* Slapi_Eq_Context;
-typedef void (*slapi_eq_fn_t)(time_t when, void *arg);
-Slapi_Eq_Context slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when);
-Slapi_Eq_Context slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval);
-int slapi_eq_cancel(Slapi_Eq_Context ctx);
-void *slapi_eq_get_arg (Slapi_Eq_Context ctx);
-
 /* config DN */
 char *get_config_DN(void);
 
