@@ -941,7 +941,7 @@ handle_listeners(Connection_Table *ct, listener_info *listener_idxs, int n_liste
 				int rc = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local);
 				if (rc) {
 					LDAPDebug1Arg(LDAP_DEBUG_CONNS, "Error accepting new connection listenfd=%d\n",
-					              PR_FileDesc2NativeHandle(listenc->c_prfd));
+					              PR_FileDesc2NativeHandle(listenfd));
 					continue;
 				}
 			}
