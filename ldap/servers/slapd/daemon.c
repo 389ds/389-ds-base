@@ -140,7 +140,7 @@ void disk_monitoring_stop();
 
 typedef struct listener_info {
 	int idx; /* index of this listener in the ct->fd array */
-	PRFileDesc *listenpr; /* the listener fd */
+	PRFileDesc *listenfd; /* the listener fd */
 	int secure;
 	int local;
 } listener_info;
@@ -966,7 +966,6 @@ void slapd_daemon( daemon_ports_t *ports )
 	int s_tcps_native = 0;
 	PRFileDesc *s_tcps = NULL; 
 #else
-	PRFileDesc *tcps = 0;
 	PRFileDesc **n_tcps = NULL; 
 	PRFileDesc **s_tcps = NULL; 
 	PRFileDesc **i_unix = NULL;
@@ -1169,9 +1168,6 @@ void slapd_daemon( daemon_ports_t *ports )
 		int			oserr;
 #endif
 		int select_return = 0;
-		int secure = 0; /* is a new connection an SSL one ? */
-		int local = 0; /* is new connection an ldapi one? */
-		int i;
 
 #ifndef _WIN32
 		PRErrorCode prerr;
