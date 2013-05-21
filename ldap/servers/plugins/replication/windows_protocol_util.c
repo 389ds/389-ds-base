@@ -3858,8 +3858,11 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 															   windows_private_get_windows_subtree(ra));
 				}
 			}
-			new_dn = slapi_sdn_new_dn_byval(new_dn_string);
-			PR_smprintf_free(new_dn_string);
+			/* 
+			 * new_dn_string is created by slapi_create_dn_string,
+			 * which is normalized. Thus, we can use _normdn_.
+			 */
+			new_dn = slapi_sdn_new_normdn_passin(new_dn_string);
 			slapi_ch_free_string(&container_str);
 			/* Clear any earlier error */
 			retval = 0;
@@ -3954,6 +3957,7 @@ is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
 	int retval = 0;
 	int is_in_subtree = 0;
 	const Slapi_DN *agreement_subtree = NULL;
+	const Slapi_DN *sdn;
 	
 	/* First test for the sync'ed subtree */
 	agreement_subtree = windows_private_get_windows_subtree(ra);
@@ -3961,10 +3965,33 @@ is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
 	{
 		goto error;
 	}
-	is_in_subtree = slapi_sdn_scope_test(slapi_entry_get_sdn_const(e), agreement_subtree, LDAP_SCOPE_SUBTREE);
+	sdn = slapi_entry_get_sdn_const(e);
+	is_in_subtree = slapi_sdn_scope_test(sdn, agreement_subtree, LDAP_SCOPE_SUBTREE);
 	if (is_in_subtree) 
 	{
-		retval = 1;
+		Slapi_DN psdn = {0};
+		Slapi_Entry *pentry = NULL;
+		/*
+		 * Check whether the parent of the entry exists or not.
+		 * If it does not, treat the entry e is out of scope.
+		 * For instance, agreement_subtree is cn=USER,<SUFFIX>
+		 * cn=container,cn=USER,<SUFFIX> is not synchronized.
+		 * If 'e' is uid=test,cn=container,cn=USER,<SUFFIX>,
+		 * the entry is not synchronized, either.  We treat
+		 * 'e' as out of scope.
+		 */
+		slapi_sdn_get_parent(sdn, &psdn);
+		if (0 == slapi_sdn_compare(&psdn, agreement_subtree)) {
+			retval = 1;
+		} else {
+			/* If parent entry is not local, the entry is out of scope */
+			int rc = windows_get_local_entry(&psdn, &pentry);
+			if ((0 == rc) && pentry) {
+				retval = 1;
+				slapi_entry_free(pentry);
+			}
+		}
+		slapi_sdn_done(&psdn);
 	}
 error:
 	return retval;
