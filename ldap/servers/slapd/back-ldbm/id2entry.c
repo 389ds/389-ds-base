@@ -367,7 +367,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
             ee = slapi_str2entry( data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN );
         } else {
             char *normdn = NULL;
-	    Slapi_RDN * srdn = NULL;
+            Slapi_RDN * srdn = NULL;
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
             if (bdn) {
                 normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
@@ -407,7 +407,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
                                       SLAPI_STR2ENTRY_NO_ENTRYDN );
             slapi_ch_free_string(&rdn);
             slapi_ch_free_string(&normdn);
-	    slapi_rdn_free(&srdn);
+            slapi_rdn_free(&srdn);
         }
     } else {
         ee = slapi_str2entry( data.dptr, 0 );

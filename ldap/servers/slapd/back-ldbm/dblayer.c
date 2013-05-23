@@ -2091,6 +2091,7 @@ int dblayer_instance_start(backend *be, int mode)
                     LDAPDebug(LDAP_DEBUG_ANY, "Instance %s does not have the "
                               "expected version\n", inst->inst_name, 0, 0);
                     PR_ASSERT(0);
+                    slapi_ch_free_string(&dataversion);
                     return_value = -1;
                     goto errout;
                 }
@@ -2100,6 +2101,7 @@ int dblayer_instance_start(backend *be, int mode)
                         "%s is on, while the instance %s is in the DN format. "
                         "Please run dn2rdn to convert the database format.\n",
                         CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                    slapi_ch_free_string(&dataversion);
                     return_value = -1;
                     goto errout;
                 }
@@ -2109,6 +2111,7 @@ int dblayer_instance_start(backend *be, int mode)
                         "%s is off, while the instance %s is in the RDN "
                         "format. Please change the value to on in dse.ldif.\n",
                         CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                    slapi_ch_free_string(&dataversion);
                     return_value = -1;
                     goto errout;
                 }
@@ -2976,6 +2979,7 @@ dblayer_remove_env(struct ldbminfo *li)
 static int
 _dblayer_set_db_callbacks(dblayer_private *priv, DB *dbp, struct attrinfo *ai)
 {
+    int idl_use_new = 0;
     int rc = 0;
 
     /* With the new idl design, the large 8Kbyte pages we use are not
@@ -3005,16 +3009,24 @@ _dblayer_set_db_callbacks(dblayer_private *priv, DB *dbp, struct attrinfo *ai)
     if (rc)
         return rc;
 #endif
-
-    if (idl_get_idl_new() && !(ai->ai_indexmask & INDEX_VLV)) {
+    /*
+     * If using the "new" idl, set the flags and the compare function.
+     * If using the "old" idl, we still need to set the index DB flags
+     * for the attribute "entryRDN".
+     */
+    if ( ((idl_use_new = idl_get_idl_new()) ||
+          0 == strcasecmp(ai->ai_type, LDBM_ENTRYRDN_STR)) &&
+        !(ai->ai_indexmask & INDEX_VLV))
+    {
+        /* set the flags */
         rc = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
         if (rc)
             return rc;
-
+        /* set the compare function */
         if (ai->ai_dup_cmp_fn) {
             /* If set, use the special dup compare callback */
             rc = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
-        } else {
+        } else if(idl_use_new) {
             rc = dbp->set_dup_compare(dbp, idl_new_compare_dups);
         }
         if (rc)
@@ -6950,7 +6962,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         {
             adjust_idl_switch(ldbmversion, li);
             slapi_ch_free_string(&ldbmversion);
-            slapi_ch_free_string(&ldbmversion);
+            slapi_ch_free_string(&dataversion);
         }
     }
 
