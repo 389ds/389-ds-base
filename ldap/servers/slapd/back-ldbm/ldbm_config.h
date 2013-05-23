@@ -140,6 +140,7 @@ struct config_info {
 #define CONFIG_DB_TX_MAX "nsslapd-db-tx-max"
 
 #define CONFIG_IDL_SWITCH               "nsslapd-idl-switch"
+#define CONFIG_IDL_UPDATE               "nsslapd-idl-update"
 #define CONFIG_BYPASS_FILTER_TEST       "nsslapd-search-bypass-filter-test"
 #define CONFIG_USE_VLV_INDEX            "nsslapd-search-use-vlv-index"
 #define CONFIG_SERIAL_LOCK              "nsslapd-serial-lock"

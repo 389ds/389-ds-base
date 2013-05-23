@@ -321,6 +321,11 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
 {
     int rval = 0;
 
+    if( !li->li_idl_update ){
+        /* we are not overriding the idl type */
+        return rval;
+    }
+
     li->li_flags |= LI_FORCE_MOD_CONFIG;
     if ((0 == PL_strncasecmp(ldbmversion, BDB_IMPL, strlen(BDB_IMPL))) ||
         (0 == PL_strcmp(ldbmversion, LDBM_VERSION)))    /* db: new idl */
@@ -328,11 +333,9 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         if (!idl_get_idl_new())   /* config: old idl */
         {
             replace_ldbm_config_value(CONFIG_IDL_SWITCH, "new", li);
-            LDAPDebug(LDAP_DEBUG_ANY, 
+            LDAPDebug(LDAP_DEBUG_ANY,
                 "Warning: Dbversion %s does not meet nsslapd-idl-switch: \"old\"; "
-                "nsslapd-idl-switch is updated to \"new\"\n",
-
-                ldbmversion, 0, 0);
+                "nsslapd-idl-switch is updated to \"new\"\n", ldbmversion, 0, 0);
         }
     }
     else if ((0 == strcmp(ldbmversion, LDBM_VERSION_OLD)) ||
@@ -354,7 +357,7 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
          LDAPDebug(LDAP_DEBUG_ANY, 
                    "Warning: Dbversion %s is not supported\n", 
                    ldbmversion, 0, 0);
-         rval = 1;
+         rval = -1;
     }
 
     /* ldbminfo is a common resource; should clean up when the job is done */

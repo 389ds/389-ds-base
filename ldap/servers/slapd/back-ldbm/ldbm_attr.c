@@ -202,7 +202,7 @@ attr_index_config(
 	slapi_attr_init(&a->ai_sattr, attrValue->bv_val);
 	/*
 	 *  we can't just set a->ai_type to the type from a->ai_sattr
-	 *  if the type has attroptions or subtypes, ai_sattr.a_type will
+	 *  if the type has attr options or subtypes, ai_sattr.a_type will
 	 *  contain them - but for the purposes of indexing, we don't want them
 	 */
 	a->ai_type = slapi_attr_basetype( attrValue->bv_val, NULL, 0 );
