@@ -2572,7 +2572,7 @@ static int _cl5Entry2DBData (const CL5Entry *entry, char **data, PRUint32 *len)
 											size += strlen (op->p.p_add.parentuniqueid) + 1;
 										else
 											size ++; /* we just store NULL char */
-										slapi_entry2mods_etc (op->p.p_add.target_entry, &rawDN/* dn */, &add_mods,
+										slapi_entry2mods_ext (op->p.p_add.target_entry, &rawDN/* dn */, &add_mods,
                                                                                                       SKIP_NORMALIZATION);					
 										size += strlen (rawDN) + 1;
 										size += _cl5GetModsSize (add_mods);
