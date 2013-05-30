@@ -72,7 +72,85 @@
 Slapi_PluginDesc exopdesc = { "start_tls_plugin", VENDOR, DS_PACKAGE_VERSION,
 	"Start TLS extended operation plugin" };
 
+static int
+start_tls_io_enable(Connection *c, void *data /* UNUSED */)
+{
+	int secure = 1;
+	PRFileDesc *newsocket;
+	int rv = -1;
+	int ns;
 
+	/* So far we have set up the environment for deploying SSL. It's now time to import the socket
+	 * into SSL and to configure it consequently. */
+
+	if ( slapd_ssl_listener_is_initialized() != 0 ) {
+	       PRFileDesc * ssl_listensocket;
+
+	       ssl_listensocket = get_ssl_listener_fd();
+	       if ( ssl_listensocket == (PRFileDesc *) NULL ) {
+		       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+					"SSL listener socket not found.\n" );
+		       goto done;
+	       }
+	       newsocket = slapd_ssl_importFD( ssl_listensocket, c->c_prfd );
+	       if ( newsocket == (PRFileDesc *) NULL ) {
+		       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+					"SSL socket import failed.\n" );
+		       goto done;
+	       }
+	} else {
+	       if ( slapd_ssl_init2( &c->c_prfd, 1 ) != 0 ) {
+		       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+					"SSL socket import or configuration failed.\n" );
+		       goto done;
+	       }
+	       newsocket = c->c_prfd;
+	}
+
+
+	rv = slapd_ssl_resetHandshake( newsocket, 1 );
+	if ( rv != SECSuccess ) {
+	       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+				"Unable to set socket ready for SSL handshake.\n" );
+	       goto done;
+	}
+
+
+	/* From here on, messages will be sent through the SSL layer, so we need to get our
+	 * connection ready. */
+
+	ns = configure_pr_socket( &newsocket, secure, 0 /*never local*/ );
+
+	c->c_flags |= CONN_FLAG_SSL;
+	c->c_flags |= CONN_FLAG_START_TLS;
+	c->c_sd = ns;
+	c->c_prfd = newsocket;
+
+        /* Get the effective key length */
+	SSL_SecurityStatus(c->c_prfd, NULL, NULL, NULL, &(c->c_ssl_ssf), NULL, NULL);
+
+	rv = slapd_ssl_handshakeCallback (c->c_prfd, (void *)handle_handshake_done, c);
+
+	if ( rv < 0 ) {
+	       PRErrorCode prerr = PR_GetError();
+	       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+			  "SSL_HandshakeCallback() %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+			  rv, prerr, slapd_pr_strerror( prerr ) );
+	}
+
+	if ( config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF ) {
+	       rv = slapd_ssl_badCertHook (c->c_prfd, (void *)handle_bad_certificate, c);
+	       if ( rv < 0 ) {
+		        PRErrorCode prerr = PR_GetError();
+			slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+					 "SSL_BadCertHook(%i) %i " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+					 c->c_sd, rv, prerr, slapd_pr_strerror( prerr ) );
+	       }
+	}
+
+done:
+	return rv;
+}
 
 
 /* Start TLS Extended operation plugin function */
@@ -82,13 +160,12 @@ start_tls( Slapi_PBlock *pb )
 
 	char		*oid;
 	Connection      *conn;
-	PRFileDesc      *oldsocket, *newsocket;
-	int             secure;
-	int             ns;
 #ifdef _WIN32
+	PRFileDesc      *oldsocket;
 	int				oldnativesocket;
 #endif
-	int             rv;
+	int             ldaprc = LDAP_SUCCESS;
+	char            *ldapmsg = NULL;
 
 	/* Get the pb ready for sending Start TLS Extended Responses back to the client. 
 	 * The only requirement is to set the LDAP OID of the extended response to the START_TLS_OID. */
@@ -133,23 +210,23 @@ start_tls( Slapi_PBlock *pb )
 
 	conn = pb->pb_conn;
 	PR_Lock( conn->c_mutex );
+	/* cannot call slapi_send_ldap_result with mutex locked - will deadlock if ber_flush returns error */
 #ifndef _WIN32
-	oldsocket = conn->c_prfd;
-	if ( oldsocket == (PRFileDesc *) NULL ) {
-                slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-				 "Connection socket not available.\n" );
-	        slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-					"Connection socket not available.", 0, NULL ); 
+	if ( conn->c_prfd == (PRFileDesc *) NULL ) {
+		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
+		                 "Connection socket not available.\n" );
+		ldaprc = LDAP_UNAVAILABLE;
+		ldapmsg = "Connection socket not available.";
 		goto unlock_and_return;
 	}
 #else
 	oldnativesocket = conn->c_sd;
 	oldsocket = PR_ImportTCPSocket(oldnativesocket);
 	if ( oldsocket == (PRFileDesc *) NULL ) {
-                slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-				 "Failed to import NT native socket into NSPR.\n" );
-	        slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-					"Failed to import NT native socket into NSPR.", 0, NULL ); 
+		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
+		                 "Failed to import NT native socket into NSPR.\n" );
+		ldaprc = LDAP_UNAVAILABLE;
+		ldapmsg = "Failed to import NT native socket into NSPR.";
 		goto unlock_and_return;
 	}
 #endif
@@ -160,8 +237,8 @@ start_tls( Slapi_PBlock *pb )
 				1 /* check for ops where result not yet sent */ )) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
 				 "Other operations are still pending on the connection.\n" );
-		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
-					"Other operations are still pending on the connection.", 0, NULL );
+		ldaprc = LDAP_OPERATIONS_ERROR;
+		ldapmsg = "Other operations are still pending on the connection.";
 		goto unlock_and_return;
 	}
 
@@ -171,8 +248,8 @@ start_tls( Slapi_PBlock *pb )
 	        /* slapi_send_ldap_result( pb, LDAP_REFERRAL, NULL, msg, 0, url ); */
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
 				 "SSL not supported by this server.\n" );
-		slapi_send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, 
-					"SSL not supported by this server.", 0, NULL );
+		ldaprc = LDAP_PROTOCOL_ERROR;
+		ldapmsg = "SSL not supported by this server.";
 		goto unlock_and_return;
 	}
 
@@ -180,16 +257,16 @@ start_tls( Slapi_PBlock *pb )
 	if ( conn->c_flags & CONN_FLAG_SSL ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
 				 "SSL connection already established.\n" );
-		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
-					"SSL connection already established.", 0, NULL );
+		ldaprc = LDAP_OPERATIONS_ERROR;
+		ldapmsg = "SSL connection already established.";
 		goto unlock_and_return;
 	}
 
 	if ( conn->c_flags & CONN_FLAG_SASL_CONTINUE ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
 				 "SASL multi-stage bind in progress.\n" );
-		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
-					"SASL multi-stage bind in progress.", 0, NULL );
+		ldaprc = LDAP_OPERATIONS_ERROR;
+		ldapmsg = "SASL multi-stage bind in progress.";
 		goto unlock_and_return;
 	}
 
@@ -197,8 +274,8 @@ start_tls( Slapi_PBlock *pb )
 	if ( conn->c_flags & CONN_FLAG_CLOSING ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
 				 "Connection being closed at this moment.\n" );
-		slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-					"Connection being closed at this moment.", 0, NULL );
+		ldaprc = LDAP_UNAVAILABLE;
+		ldapmsg = "Connection being closed at this moment.";
 		goto unlock_and_return;
 	}	
 
@@ -208,110 +285,23 @@ start_tls( Slapi_PBlock *pb )
 	 * So, we may as well try initialising SSL. */
 
 	if ( slapd_security_library_is_initialized() == 0 ) {	  
-               slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-				"NSS libraries not initialised.\n" );
-	       slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-				       "NSS libraries not initialised.", 0, NULL );
-	       goto unlock_and_return;
+		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
+		                 "NSS libraries not initialised.\n" );
+		ldaprc = LDAP_UNAVAILABLE;
+		ldapmsg = "NSS libraries not initialised.";
+		goto unlock_and_return;
 	}	
 
 
+        /* Enable TLS I/O on the connection */
+        connection_set_io_layer_cb(conn, start_tls_io_enable, NULL, NULL);
 
 	/* Since no specific argument for denying the Start TLS request has been found, 
 	 * we send a success response back to the client. */
-	
-	slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-			 "Start TLS request accepted.Server willing to negotiate SSL.\n" );
-	slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, 
-				"Start TLS request accepted.Server willing to negotiate SSL.", 0, NULL );	
-	
-
-	/* So far we have set up the environment for deploying SSL. It's now time to import the socket
-	 * into SSL and to configure it consequently. */
-  
-	if ( slapd_ssl_listener_is_initialized() != 0 ) {
-	       PRFileDesc * ssl_listensocket;
-
-	       ssl_listensocket = get_ssl_listener_fd(); 
-	       if ( ssl_listensocket == (PRFileDesc *) NULL ) {
-		       slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-					"SSL listener socket not found.\n" );
-		       slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-					       "SSL listener socket not found.", 0, NULL );
-		       goto unlock_and_return;
-	       }
-	       newsocket = slapd_ssl_importFD( ssl_listensocket, oldsocket );
-	       if ( newsocket == (PRFileDesc *) NULL ) {
-		       slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-					"SSL socket import failed.\n" );
-		       slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-					       "SSL socket import failed.", 0, NULL );
-		       goto unlock_and_return;
-	       }
-	} else {
-	       if ( slapd_ssl_init2( &oldsocket, 1 ) != 0 ) {
-		       slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-					"SSL socket import or configuration failed.\n" );
-		       slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-					       "SSL socket import or configuration failed.", 0, NULL );
-		       goto unlock_and_return;
-	       }
-	       newsocket = oldsocket; 
-	}
-
-
-	rv = slapd_ssl_resetHandshake( newsocket, 1 );
-	if ( rv != SECSuccess ) {
-	       slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-				"Unable to set socket ready for SSL handshake.\n" );
-	       slapi_send_ldap_result( pb, LDAP_UNAVAILABLE, NULL, 
-				       "Unable to set socket ready for SSL handshake.", 0, NULL );
-	       goto unlock_and_return;
-	}
-	
-
-
-	/* From here on, messages will be sent through the SSL layer, so we need to get our 
-	 * connection ready. */
-
-	secure = 1;
-	ns = configure_pr_socket( &newsocket, secure, 0 /*never local*/ );
-
-	conn->c_flags |= CONN_FLAG_SSL;
-	conn->c_flags |= CONN_FLAG_START_TLS;
-	conn->c_sd = ns;
-	conn->c_prfd = newsocket;
-
-        /* Get the effective key length */
-	SSL_SecurityStatus(conn->c_prfd, NULL, NULL, NULL, &(conn->c_ssl_ssf), NULL, NULL);
-	
-	rv = slapd_ssl_handshakeCallback (conn->c_prfd, (void *)handle_handshake_done, conn);
-
-	if ( rv < 0 ) {
-	       PRErrorCode prerr = PR_GetError();
-	       slapi_log_error( SLAPI_LOG_FATAL, "start_tls", 
-			  "SSL_HandshakeCallback() %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-			  rv, prerr, slapd_pr_strerror( prerr ) );
-	}
-	
-	if ( config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF ) {
-	       rv = slapd_ssl_badCertHook (conn->c_prfd, (void *)handle_bad_certificate, conn);
-	       if ( rv < 0 ) {
-		        PRErrorCode prerr = PR_GetError();
-			slapi_log_error( SLAPI_LOG_FATAL, "start_tls", 
-					 "SSL_BadCertHook(%i) %i " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-					 conn->c_sd, rv, prerr, slapd_pr_strerror( prerr ) );
-	       }
-	}
-	
-	
-	/* Once agreed in starting TLS, the handshake must be carried out. */
-	
-	slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
-			 "Starting SSL Handshake.\n" );
-
+        ldapmsg = "Start TLS request accepted.Server willing to negotiate SSL.";
  unlock_and_return:
 	PR_Unlock( conn->c_mutex );
+	slapi_send_ldap_result( pb, ldaprc, NULL, ldapmsg, 0, NULL );
 
 	return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );	
 
