@@ -73,6 +73,11 @@ static void log_result( Slapi_PBlock *pb, Operation *op, int err,
 						ber_tag_t tag, int nentries );
 static void log_entry( Operation *op, Slapi_Entry *e );
 static void log_referral( Operation *op );
+static int process_read_entry_controls(Slapi_PBlock *pb, char *oid);
+static struct berval * encode_read_entry(Slapi_PBlock *pb, Slapi_Entry *e,
+                                         char **attrs, int alluserattrs,
+                                         int some_named_attrs);
+static char * op_to_string(int tag);
 
 #define _LDAP_SEND_RESULT	0
 #define _LDAP_SEND_REFERRAL	1
@@ -484,7 +489,7 @@ send_ldap_result_ext(
 		/*
 		 * there are v3 referrals to add to the result
 		 */
-	        /* count the referral */
+		/* count the referral */
 		if (! config_check_referral_mode())
 		    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
 		rc = ber_printf( ber, "{it{esst{s", operation->o_msgid, tag, err,
@@ -519,6 +524,19 @@ send_ldap_result_ext(
 
 		if ( rc != LBER_ERROR ) {
 			rc = ber_printf( ber, "}" ); /* one more } to come */
+		}
+	}
+	if(err == LDAP_SUCCESS){
+		/*
+		 * Process the Read Entry Controls (if any)
+		 */
+		if(process_read_entry_controls(pb, LDAP_CONTROL_PRE_READ_ENTRY)){
+			err = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+			goto log_and_return;
+		}
+		if(process_read_entry_controls(pb, LDAP_CONTROL_POST_READ_ENTRY)){
+			err = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+			goto log_and_return;
 		}
 	}
 	if ( operation->o_results.result_controls != NULL 
@@ -558,6 +576,168 @@ log_and_return:
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_ldap_result\n", 0, 0, 0 );
 }
 
+/*
+ * For RFC 4527 - Read Entry Controls
+ *
+ * If this is the correct operation for the control, then retrieve the
+ * requested attributes.  Then start building the ber-encoded string
+ * value of the entry.  We also need to check access control for the
+ * requested attributes.  Then an octet string containing a BER-encoded
+ * SearchResultEntry is added to the response control.
+ */
+static int
+process_read_entry_controls(Slapi_PBlock *pb, char *oid)
+{
+    struct berval *req_value = NULL;
+    struct berval *res_value = NULL;
+    LDAPControl **req_ctls = NULL;
+    Slapi_Entry *e = NULL;
+    char **attrs = NULL;
+    int attr_count = 0;
+    int iscritical = 0;
+    int all_attrs = 0;
+    int no_attrs = 0;
+    int rc = 0;
+
+    slapi_pblock_get(pb, SLAPI_REQCONTROLS, &req_ctls);
+
+    /*
+     * Check for the PRE Read Entry Control, and return the pre-modified entry
+     */
+    if (slapi_control_present(req_ctls, oid, &req_value, &iscritical))
+    {
+        BerElement *req_ber = NULL;
+        Operation *op = pb->pb_op;
+
+        if(strcmp(oid,LDAP_CONTROL_PRE_READ_ENTRY) == 0){
+            /* first verify this is the correct operation for a pre-read entry control */
+            if(op->o_tag == LDAP_REQ_MODIFY || op->o_tag == LDAP_REQ_DELETE ||
+               op->o_tag == LDAP_REQ_MODDN){
+                slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
+            } else {
+                /* Ok, read control not used for this type of operation */
+            	LDAPDebug( LDAP_DEBUG_ANY, "process_read_entry_controls: Read Entry Controls "
+            	        "can not be used for a %s operation.\n", op_to_string(op->o_tag), 0, 0);
+                rc = -1;
+                goto done;
+            }
+        } else {
+            /* first verify this is the correct operation for a post-read entry control */
+            if(op->o_tag == LDAP_REQ_MODIFY || op->o_tag == LDAP_REQ_ADD ||
+               op->o_tag == LDAP_REQ_MODDN){
+                slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
+            } else {
+                /* Ok, read control not used for this type of operation */
+            	LDAPDebug( LDAP_DEBUG_ANY, "process_read_entry_controls: Read Entry Controls "
+                        "can not be used for a %s operation.\n", op_to_string(op->o_tag), 0, 0);
+                rc = -1;
+                goto done;
+            }
+        }
+        if(e == NULL){
+            LDAPDebug( LDAP_DEBUG_ANY, "process_read_entry_controls: unable to retrieve entry\n",0,0,0);
+            rc = -1;
+            goto done;
+        }
+
+#if !defined(DISABLE_ACL_CHECK)
+        /* even though we can modify the entry, that doesn't mean we can read it */
+        if ( plugin_call_acl_plugin (pb, e, attrs, NULL, SLAPI_ACL_READ,
+            ACLPLUGIN_ACCESS_READ_ON_ENTRY, NULL ) != LDAP_SUCCESS )
+        {
+            LDAPDebug( LDAP_DEBUG_ACL, "process_read_entry_controls: access to entry not allowed (%s)\n",
+                slapi_entry_get_dn_const(e), 0, 0 );
+            rc = -1;
+            goto done;
+        }
+#endif
+        /*
+         *  Check the ctl_value for any requested attributes
+         */
+        if( req_value && req_value->bv_len != 0 && req_value->bv_val){
+            if ((req_ber = ber_init(req_value)) == NULL){
+                rc = -1;
+                goto free;
+            }
+            if (ber_scanf(req_ber, "{") == LBER_ERROR){
+                rc = -1;
+                goto free;
+            }
+            /* process the attributes */
+            while(1){
+                char *payload = NULL;
+
+                if (ber_get_stringa(req_ber, &payload) != LBER_ERROR){
+                    if(strcmp(payload, LDAP_ALL_USER_ATTRS) == 0){
+                        all_attrs = 1;
+                        slapi_ch_free_string(&payload);
+                    } else if(strcmp(payload, LDAP_NO_ATTRS) == 0){
+                        no_attrs = 1;
+                        slapi_ch_free_string(&payload);
+                    } else {
+                        charray_add(&attrs, payload);
+                        attr_count++;
+                    }
+                } else {
+                    /* we're done */
+                    break;
+                }
+            }
+            if(no_attrs && (all_attrs || attr_count)){
+                /* Can't have both no attrs and some attributes */
+                LDAPDebug( LDAP_DEBUG_ANY, "process_read_entry_controls: Error, both no attributes \"1.1\" and "
+                    "specific attributes were requeseted.\n", 0, 0, 0 );
+                rc = -1;
+                goto free;
+            }
+
+            if (ber_scanf(req_ber, "}") == LBER_ERROR){
+                rc = -1;
+                goto free;
+            }
+        } else {
+            /* this is a problem, malformed request control value */
+            LDAPDebug( LDAP_DEBUG_ANY, "process_read_entry_controls: invalid control value.\n",0,0,0);
+            rc = -1;
+            goto free;
+        }
+
+        /*
+         * Get the ber encoded string, and add it to the response control
+         */
+        res_value = encode_read_entry(pb, e, attrs, all_attrs, attr_count);
+        if(res_value && res_value->bv_len > 0){
+            LDAPControl	new_ctrl = {0};
+
+            new_ctrl.ldctl_oid = oid;
+            new_ctrl.ldctl_value = *res_value;
+            new_ctrl.ldctl_iscritical = iscritical;
+            slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, &new_ctrl );
+            ber_bvfree(res_value);
+        } else {
+            /* failed to encode the result entry */
+            LDAPDebug( LDAP_DEBUG_ANY, "Failed to process READ ENTRY Control (%s), error encoding result entry\n",
+                        oid, 0, 0 );
+            rc = -1;
+        }
+
+free:
+        if (NULL != req_ber){
+            ber_free(req_ber, 1);
+        }
+        if(rc != 0){
+            /* log an error */
+            LDAPDebug( LDAP_DEBUG_ANY, "Failed to process READ ENTRY Control (%s) ber decoding error\n",
+                        oid, 0, 0 );
+        }
+    }
+done:
+    if(iscritical){
+        return rc;
+    } else {
+        return 0;
+    }
+}
 
 void
 send_nobackend_ldap_result( Slapi_PBlock *pb )
@@ -1239,7 +1419,7 @@ send_ldap_search_entry_ext(
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_ldap_search_entry (%s)\n",
-	    e?slapi_entry_get_dn_const(e):"null", 0, 0 );
+	    e ? slapi_entry_get_dn_const(e) : "null", 0, 0 );
 
 	/* set current entry */
 	slapi_pblock_set(pb, SLAPI_SEARCH_ENTRY_ORIG, e);
@@ -1345,7 +1525,7 @@ send_ldap_search_entry_ext(
          * We maintain a flag array so that we can remove requests
          * for duplicate attributes.
          */
-    	dontsendattr= (int*) slapi_ch_calloc( i+1, sizeof(int) );
+    	dontsendattr = (int*) slapi_ch_calloc( i+1, sizeof(int) );
 	}
 
 
@@ -1852,3 +2032,121 @@ log_referral( Operation *op )
 		}
 	}
 }
+
+/*
+ * Generate a octet string ber-encoded searchResultEntry for
+ * pre & post Read Entry Controls
+ */
+static struct berval *
+encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserattrs, int attr_count)
+{
+    Slapi_Operation *op = pb->pb_op;
+    Connection*conn = pb->pb_conn;
+    LDAPControl **ctrlp = NULL;
+    struct berval *bv = NULL;
+    BerElement *ber = NULL;
+    int *dontsendattr = NULL;
+    int real_attrs_only = 0;
+    int rc = 0;
+
+    if ( (ber = der_alloc()) == NULL ) {
+        rc = -1;
+        goto cleanup;
+    }
+
+    /* Start the ber encoding with the DN */
+    rc = ber_printf( ber, "{s{", slapi_entry_get_dn_const(e) );
+    if ( rc == -1 ) {
+        rc = -1;
+        goto cleanup;
+    }
+
+    /* determine whether we are to return virtual attributes */
+    slapi_pblock_get(pb, SLAPI_REQCONTROLS, &ctrlp);
+    if(slapi_control_present(ctrlp, LDAP_CONTROL_REAL_ATTRS_ONLY, NULL, NULL)){
+        real_attrs_only = SLAPI_SEND_VATTR_FLAG_REALONLY;
+    }
+    if(slapi_control_present(ctrlp, LDAP_CONTROL_VIRT_ATTRS_ONLY, NULL, NULL)){
+        if(real_attrs_only != SLAPI_SEND_VATTR_FLAG_REALONLY){
+            real_attrs_only = SLAPI_SEND_VATTR_FLAG_VIRTUALONLY;
+        } else {
+            /* we cannot service a request for virtual only and real only */
+            LDAPDebug( LDAP_DEBUG_ANY,"encode_read_entry: Error, both real and virtual attributes "
+                                      "only controls requested.\n", 0, 0, 0 );
+            rc = -1;
+            goto cleanup;
+        }
+    }
+
+    /*
+     * We maintain a flag array so that we can remove requests
+     * for duplicate attributes.  We also need to set o_searchattrs
+     * for the attribute processing, as modify op's don't have search attrs.
+     */
+    dontsendattr = (int*) slapi_ch_calloc( attr_count+1, sizeof(int) );
+    op->o_searchattrs = attrs;
+
+    /* Send all the attributes */
+    if ( alluserattrs ) {
+        rc = send_all_attrs(e, attrs, op, pb, ber, 0, conn->c_ldapversion,
+                            dontsendattr, real_attrs_only, attr_count);
+        if(rc){
+            goto cleanup;
+        }
+    }
+
+    /* Send a specified list of attributes */
+    if( attrs != NULL) {
+        rc = send_specific_attrs(e, attrs, op, pb, ber, 0, conn->c_ldapversion,
+                                 dontsendattr, real_attrs_only);
+        if(rc){
+            goto cleanup;
+        }
+    }
+
+    /* wrap up the ber encoding */
+    rc = ber_printf( ber, "}}" );
+    if(rc != -1){
+        /* generate our string encoded value */
+        rc = ber_flatten(ber, &bv);
+    }
+
+cleanup:
+
+    ber_free( ber, 1 );
+    slapi_ch_free( (void **) &dontsendattr );
+    if(rc != 0){
+        return NULL;
+    } else {
+        return bv;
+    }
+}
+
+static char *
+op_to_string(int tag)
+{
+    char *op = NULL;
+
+    if(tag == LDAP_REQ_BIND){
+        op = "BIND";
+    } else if (tag == LDAP_REQ_UNBIND){
+        op = "UNBIND";
+    } else if (tag == LDAP_REQ_SEARCH){
+        op = "SEARCH";
+    } else if (tag == LDAP_REQ_ADD){
+        op = "ADD";
+    } else if (tag == LDAP_REQ_DELETE){
+        op = "DELETE";
+    } else if (tag == LDAP_REQ_RENAME){
+        op = "RENAME";
+    } else if (tag == LDAP_REQ_COMPARE){
+        op = "COMPARE";
+    } else if (tag == LDAP_REQ_ABANDON){
+        op = "ABANDON";
+    } else if (tag == LDAP_REQ_EXTENDED){
+        op = "EXTENDED";
+    }
+
+    return op;
+}
+

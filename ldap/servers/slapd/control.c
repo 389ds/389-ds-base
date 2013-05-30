@@ -95,6 +95,12 @@ init_controls( void )
 	    SLAPI_OPERATION_SEARCH );
 	slapi_register_supported_control( LDAP_CONTROL_VIRT_ATTRS_ONLY,
 	    SLAPI_OPERATION_SEARCH );
+	slapi_register_supported_control( LDAP_CONTROL_PRE_READ_ENTRY,
+	    SLAPI_OPERATION_DELETE | SLAPI_OPERATION_MODIFY |
+	    SLAPI_OPERATION_MODDN );
+	slapi_register_supported_control( LDAP_CONTROL_POST_READ_ENTRY,
+	    SLAPI_OPERATION_ADD | SLAPI_OPERATION_MODIFY |
+	    SLAPI_OPERATION_MODDN );
 	slapi_register_supported_control( LDAP_X_CONTROL_PWPOLICY_REQUEST,
 	    SLAPI_OPERATION_SEARCH | SLAPI_OPERATION_COMPARE
 	    | SLAPI_OPERATION_ADD | SLAPI_OPERATION_DELETE
@@ -361,7 +367,7 @@ get_ldapmessage_controls_ext(
                 slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &ctrl_not_found);
                 slapi_pblock_set(pb, SLAPI_PWPOLICY, &ctrl_not_found);
                 slapi_log_error(SLAPI_LOG_CONNS, "connection", "Warning: conn=%d op=%d contains an empty list of controls\n",
-                        pb->pb_conn->c_connid, pb->pb_op->o_opid);
+                        (int)pb->pb_conn->c_connid, pb->pb_op->o_opid);
         } else {
                 if ((tag != LBER_END_OF_SEQORSET) && (len != -1)) {
                         goto free_and_return;

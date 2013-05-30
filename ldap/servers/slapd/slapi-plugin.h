@@ -350,6 +350,14 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define LDAP_CONTROL_AUTH_REQUEST	"2.16.840.1.113730.3.4.16"
 #endif
 
+/* Read Entry Controls - PRE & POST */
+#ifndef LDAP_CONTROL_PRE_READ_ENTRY
+#define LDAP_CONTROL_PRE_READ_ENTRY	"1.3.6.1.1.13.1"
+#endif
+#ifndef LDAP_CONTROL_POST_READ_ENTRY
+#define LDAP_CONTROL_POST_READ_ENTRY	"1.3.6.1.1.13.2"
+#endif
+
 #ifndef LDAP_SORT_CONTROL_MISSING
 #define LDAP_SORT_CONTROL_MISSING       0x3C    /* 60 (server side sort extn) */
 #endif
