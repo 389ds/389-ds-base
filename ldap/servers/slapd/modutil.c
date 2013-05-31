@@ -187,7 +187,7 @@ slapi_mods_add_one_element(Slapi_Mods *smods)
 void
 slapi_mods_insert_at(Slapi_Mods *smods, LDAPMod *mod, int pos)
 {
-	return slapi_mods_insert_at_ext(smods, mod, pos, DO_NORMALIZATION);
+	slapi_mods_insert_at_ext(smods, mod, pos, DO_NORMALIZATION);
 }
 
 void
