@@ -165,7 +165,7 @@ static int ldbm_config_lookthroughlimit_set(void *arg, void *value, char *errorb
     return retval;
 }
 
-static void *ldbm_config_pagedlookthroughlimit_get(void *arg) 
+static void *ldbm_config_pagedlookthroughlimit_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
 
@@ -715,6 +715,33 @@ static int ldbm_config_db_idl_divisor_set(void *arg, void *value, char *errorbuf
         li->li_dblayer_private->dblayer_idl_divisor = val;
     }
     
+    return retval;
+}
+
+static void *ldbm_config_db_old_idl_maxids_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    return (void *) ((uintptr_t)li->li_old_idl_maxids);
+}
+
+static int ldbm_config_db_old_idl_maxids_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+
+    if (apply) {
+        if(val >= 0){
+            li->li_old_idl_maxids = val;
+        } else {
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+        	            "Error: Invalid value for %s (%d). Value must be equal or greater than zero.",
+        	            CONFIG_DB_OLD_IDL_MAXIDS, val);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+
     return retval;
 }
 
@@ -1352,6 +1379,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_PAGE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_page_size_get, &ldbm_config_db_page_size_set, 0},
     {CONFIG_DB_INDEX_PAGE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_index_page_size_get, &ldbm_config_db_index_page_size_set, 0},
     {CONFIG_DB_IDL_DIVISOR, CONFIG_TYPE_INT, "0", &ldbm_config_db_idl_divisor_get, &ldbm_config_db_idl_divisor_set, 0},
+    {CONFIG_DB_OLD_IDL_MAXIDS, CONFIG_TYPE_INT, "0", &ldbm_config_db_old_idl_maxids_get, &ldbm_config_db_old_idl_maxids_set, 0},
     {CONFIG_DB_LOGFILE_SIZE, CONFIG_TYPE_SIZE_T, "0", &ldbm_config_db_logfile_size_get, &ldbm_config_db_logfile_size_set, 0},
     {CONFIG_DB_TRICKLE_PERCENTAGE, CONFIG_TYPE_INT, "5", &ldbm_config_db_trickle_percentage_get, &ldbm_config_db_trickle_percentage_set, 0},
     {CONFIG_DB_SPIN_COUNT, CONFIG_TYPE_INT, "0", &ldbm_config_db_spin_count_get, &ldbm_config_db_spin_count_set, 0},

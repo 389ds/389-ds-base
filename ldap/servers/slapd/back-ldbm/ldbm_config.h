@@ -123,6 +123,7 @@ struct config_info {
    But 8K is still a good page size for id2entry. So we now allow different
    page sizes for the primary and secondary indices. */
 #define CONFIG_DB_IDL_DIVISOR "nsslapd-db-idl-divisor"
+#define CONFIG_DB_OLD_IDL_MAXIDS "nsslapd-db-old-idl-maxids"
 #define CONFIG_DB_LOGFILE_SIZE "nsslapd-db-logfile-size"
 #define CONFIG_DB_TRICKLE_PERCENTAGE "nsslapd-db-trickle-percentage"
 #define CONFIG_DB_SPIN_COUNT "nsslapd-db-spin-count"

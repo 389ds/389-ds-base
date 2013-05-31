@@ -653,6 +653,7 @@ struct ldbminfo {
     int li_rangelookthroughlimit;
     int li_reslimit_rangelookthrough_handle;
     int li_idl_update;
+    int li_old_idl_maxids;
 };
 
 /* li_flags could store these bits defined in ../slapi-plugin.h

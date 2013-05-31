@@ -89,17 +89,21 @@ size_t idl_old_get_allidslimit(struct attrinfo *a)
 
 static void idl_init_maxids(struct ldbminfo *li,idl_private *priv)
 {
-	    const size_t blksize = dblayer_get_optimal_block_size(li);
+    const size_t blksize = dblayer_get_optimal_block_size(li);
 
-		if (0 == li->li_allidsthreshold) {
-			li->li_allidsthreshold = DEFAULT_ALLIDSTHRESHOLD;
-		}
-	    priv->idl_maxids = (blksize / sizeof(ID)) - 2;
-	    priv->idl_maxindirect = (li->li_allidsthreshold / priv->idl_maxids) + 1;
-		priv->idl_allidslimit = (priv->idl_maxids * priv->idl_maxindirect);
-	    LDAPDebug (LDAP_DEBUG_ARGS,
-		       "idl_init_private: blksize %lu, maxids %i, maxindirect %i\n",
-		       (unsigned long)blksize, priv->idl_maxids, priv->idl_maxindirect);
+    if (0 == li->li_allidsthreshold) {
+        li->li_allidsthreshold = DEFAULT_ALLIDSTHRESHOLD;
+    }
+    if(li->li_old_idl_maxids){
+        priv->idl_maxids = li->li_old_idl_maxids;
+    } else {
+        priv->idl_maxids = (blksize / sizeof(ID)) - 2;
+    }
+    priv->idl_maxindirect = (li->li_allidsthreshold / priv->idl_maxids) + 1;
+    priv->idl_allidslimit = (priv->idl_maxids * priv->idl_maxindirect);
+    LDAPDebug (LDAP_DEBUG_ARGS,
+        "idl_init_private: blksize %lu, maxids %i, maxindirect %i\n",
+        (unsigned long)blksize, priv->idl_maxids, priv->idl_maxindirect);
 }
 
 /* routine to initialize the private data used by the IDL code per-attribute */
