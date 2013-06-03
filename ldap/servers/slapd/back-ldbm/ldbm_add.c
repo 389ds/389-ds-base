@@ -163,6 +163,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	 * the txn has to be started here (without major rewrite)
 	 */
 	if ( DBLOCK_INSIDE_TXN(li) ) {
+		txn.back_txn_txn = NULL; /* ready to create the child transaction */
 		retval = dblayer_txn_begin(li,parent_txn,&txn);
 		if (0 != retval) {
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -702,9 +703,11 @@ ldbm_back_add( Slapi_PBlock *pb )
  	 * So, we believe that no code up till here actually added anything
 	 * to persistent store. From now on, we're transacted
 	 */
-	txn.back_txn_txn = NULL; /* ready to create the child transaction */
+	if ( ! DBLOCK_INSIDE_TXN(li) ) {
+		txn.back_txn_txn = NULL; /* ready to create the child transaction */
+	}
 	for (retry_count = 0; retry_count < RETRY_TIMES; retry_count++) {
-		if (txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
+		if (retry_count > 0 && txn.back_txn_txn && (txn.back_txn_txn != parent_txn)) {
 			dblayer_txn_abort(li,&txn);
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
