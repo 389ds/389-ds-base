@@ -187,46 +187,49 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 
 	           if ( fd < 0 )
 	           {
-			err = errno;
+                   err = errno;
 #if (0)
-			fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
+                   fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
 #endif
-	                rc = err;
-			goto bail;
-                   }
+                   rc = err;
+                   goto bail;
+               }
 		
-		   fstat (fd, &fileinfo);
+               if(fstat (fd, &fileinfo) != 0){
+                   rc = errno;
+                   goto bail;
+		       }
 
-		   sz = sizeof (struct agt_stats_t);
+               sz = sizeof (struct agt_stats_t);
 
-		   if (fileinfo.st_size < sz)
-		   {
-			   /* Without this we will get segv when we try to read/write later */
-			   buf = calloc (1, sz);
-			   (void)write (fd, buf, sz);
-			   free (buf);
-		   }
+               if (fileinfo.st_size < sz)
+               {
+                   /* Without this we will get segv when we try to read/write later */
+                   buf = calloc (1, sz);
+                   (void)write (fd, buf, sz);
+                   free (buf);
+               }
 
-		   fp = mmap (NULL, sz, (PROT_READ | PROT_WRITE), MAP_SHARED, fd, 0);
+               fp = mmap (NULL, sz, (PROT_READ | PROT_WRITE), MAP_SHARED, fd, 0);
 
-		   if (fp == (caddr_t) -1)
-		   {
-			err = errno;
-			close (fd);
+               if (fp == (caddr_t) -1)
+               {
+                   err = errno;
+                   close (fd);
 #if (0)
-			fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
+                   fprintf (stderr, "returning errno =%d from %s(line: %d)\n", err, __FILE__, __LINE__);
 #endif
-			rc = err;
-			goto bail;
-		   }
+                   rc = err;
+                   goto bail;
+               }
 
-		   mmap_tbl [1].maptype = AGT_MAP_RDWR;
-		   mmap_tbl [1].fd 	= fd;
-		   mmap_tbl [1].fp 	= fp;
-		   *hdl = 1;
+               mmap_tbl [1].maptype = AGT_MAP_RDWR;
+               mmap_tbl [1].fd = fd;
+               mmap_tbl [1].fp = fp;
+               *hdl = 1;
 
-		   rc = 0;
-                   break;
+               rc = 0;
+           break;
 	} /* end switch */
 #else
 	/* _WIN32 */
