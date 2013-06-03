@@ -603,7 +603,7 @@ release_replica(Private_Repl_Protocol *prp)
 		struct berval *data = NULL;
 
 		/* Check the message id's match */
-		if (sent_message_id != sent_message_id)
+		if (sent_message_id != ret_message_id)
 		{
 			int operation, error;
 			conn_get_error(prp->conn, &operation, &error);

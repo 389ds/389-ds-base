@@ -4556,7 +4556,12 @@ static int checkpoint_threadmain(void *param)
                                 "%s.old", *listp);
                     checkpoint_debug_message(debug_checkpointing,
                                 "Renaming %s -> %s\n",*listp, new_filename, 0);
-                    rename(*listp, new_filename);    
+                    if(rename(*listp, new_filename) != 0){
+                    	LDAPDebug(LDAP_DEBUG_ANY, "checkpoint_threadmain: failed to rename log (%s) to (%s)\n",
+                    	        *listp, new_filename, 0);
+                    	rval = -1;
+                    	goto error_return;
+                    }
                 }
             }
             slapi_ch_free((void**)&list);

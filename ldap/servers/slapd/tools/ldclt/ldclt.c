@@ -1509,7 +1509,7 @@ basicInit (void)
     /*
      * Parse the deference attribute value
      */
-    mctx.attRefDef= (char *)malloc(strlen(mctx.attrpl+i+1) + 1);
+    mctx.attRefDef= (char *)malloc(strlen(mctx.attrpl + i) + 2);
     if (mctx.attRefDef== NULL) {
       printf ("Error: unable to allocate memory for attRefDef\n");
       return (-1);
@@ -1537,7 +1537,7 @@ basicInit (void)
     /*
      * Parse the attribute value
      */
-    mctx.attrplFile = (char *)malloc(strlen(mctx.attrpl+i+1) + 1);
+    mctx.attrplFile = (char *)malloc(strlen(mctx.attrpl+i) + 2);
     if (mctx.attrplFile == NULL) {
       printf ("Error: unable to allocate memory for attreplfile\n");
       return (-1);
