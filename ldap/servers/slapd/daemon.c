@@ -3385,8 +3385,14 @@ createsignalpipe( void )
 	}
 	writesignalpipe = PR_FileDesc2NativeHandle(signalpipe[1]);
 	readsignalpipe = PR_FileDesc2NativeHandle(signalpipe[0]);
-	fcntl(writesignalpipe, F_SETFD, O_NONBLOCK);
-	fcntl(readsignalpipe, F_SETFD, O_NONBLOCK);
+	if(fcntl(writesignalpipe, F_SETFD, O_NONBLOCK) == -1){
+		LDAPDebug( LDAP_DEBUG_ANY,"createsignalpipe: failed to set FD for write pipe (%d).\n",
+				errno, 0, 0 );
+	}
+	if(fcntl(readsignalpipe, F_SETFD, O_NONBLOCK) == -1){
+		LDAPDebug( LDAP_DEBUG_ANY,"createsignalpipe: failed to set FD for read pipe (%d).\n",
+				errno, 0, 0);
+	}
 #endif
 
 	return( 0 );
@@ -3606,7 +3612,7 @@ void configure_ns_socket( int * ns )
 {
 
 	int enable_nagle = config_get_nagle();
-        int on;
+	int on, rc;
 
 #if defined(LINUX)
 	/* On Linux we use TCP_CORK so we must enable nagle */
@@ -3616,19 +3622,18 @@ void configure_ns_socket( int * ns )
 	if ( have_send_timeouts ) {
 		daemon_configure_send_timeout( *ns, config_get_ioblocktimeout() );
 	}
-
-
+	/* set the nagle */
 	if ( !enable_nagle ) {
-	        on = 1;
-	        setsockopt( *ns, IPPROTO_TCP, TCP_NODELAY, (char * ) &on, sizeof(on) );
+		on = 1;
 	} else {
-	        on = 0;
-		setsockopt( *ns, IPPROTO_TCP, TCP_NODELAY, (char * ) &on, sizeof(on) );
-	} /* else (!enable_nagle) */
-
+		on = 0;
+	}
+	/* check for errors */
+	if((rc = setsockopt( *ns, IPPROTO_TCP, TCP_NODELAY, (char * ) &on, sizeof(on) ) != 0)){
+		LDAPDebug( LDAP_DEBUG_ANY,"configure_ns_socket: Failed to configure socket (%d).\n", rc, 0, 0);
+	}
 
 	return;
-
 }
 
 

@@ -3781,6 +3781,9 @@ log__open_errorlogfile(int logfile_state, int locked)
 	struct logfileinfo	*logp;
 	char			buffer[BUFSIZ];
 	struct passwd	*pw = NULL;
+#ifndef _WIN32
+	int rc = 0;
+#endif
 
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -3878,7 +3881,20 @@ log__open_errorlogfile(int logfile_state, int locked)
 	 * alternate ns-slapd modes, such as db2bak, tries to log an error
 	 * at startup, it will create the logfile as root! 
 	 */
-	slapd_chown_if_not_owner(loginfo.log_error_file, pw->pw_uid, -1);
+	if((rc = slapd_chown_if_not_owner(loginfo.log_error_file, pw->pw_uid, -1)) != 0){
+		PR_snprintf(buffer, sizeof(buffer),
+				"Failed to chown log file %s: error %d (%s); Exiting...",
+				loginfo.log_error_file, errno, slapd_system_strerror(errno));
+		log__error_emergency(buffer, 1, locked);
+		if (!locked) LOG_ERROR_UNLOCK_WRITE();
+		/* failed to write to the errors log.  should not continue. */
+		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+		/*if I have an old log file -- I should log a message
+		** that I can't open the new file. Let the caller worry
+		** about logging message.
+		*/
+		return LOG_UNABLE_TO_OPENFILE;
+	}
 #endif
 
 	loginfo.log_error_fdes = fp;
