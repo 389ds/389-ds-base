@@ -417,7 +417,7 @@ normalize_mods2bvals(const LDAPMod **mods)
                 num_values++;
             }
         } else {
-            for (x = 0; mods[w]->mod_values[x] != NULL &&
+            for (x = 0; mods[w]->mod_values != NULL &&
                     mods[w]->mod_values[x] != NULL; x++) 
             {
                 num_values++;

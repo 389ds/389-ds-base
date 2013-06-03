@@ -183,7 +183,7 @@ int sdt_save(SDatTable *sdt, const char *filename)
 	    PR_Write(fd, sdt->dns[i], strlen(sdt->dns[i]));
 	    PR_Write(fd, "\n", 1);
 	}
-	if (sdt->dns[i]) {
+	if (sdt->uids[i]) {
 	    PR_Write(fd, "uid: ", 5);
 	    PR_Write(fd, sdt->uids[i], strlen(sdt->uids[i]));
 	    PR_Write(fd, "\n", 1);
