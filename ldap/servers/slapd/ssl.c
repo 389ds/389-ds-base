@@ -360,7 +360,7 @@ _conf_setciphers(char *ciphers)
         if(t)
             ciphers = t;
     }
-    if (unsuplist && unsuplist) {
+    if (unsuplist && *unsuplist) {
         char *strsup = charray2str(suplist, ",");
         char *strunsup = charray2str(unsuplist, ",");
         slapd_SSL_warn("Security Initialization: FIPS mode is enabled - only the following "
@@ -614,9 +614,18 @@ slapd_nss_init(int init_ssl, int config_available)
 		certdb_file_name = slapi_ch_smprintf("%s/cert8.db", certdir);
 		keydb_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
 		secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
-		chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
-		chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
-		chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP );
+		if(chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+			LDAPDebug(LDAP_DEBUG_ANY, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+					certdb_file_name, errno, slapd_system_strerror(errno));
+		}
+		if(chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+			LDAPDebug(LDAP_DEBUG_ANY, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+					keydb_file_name, errno, slapd_system_strerror(errno));
+		}
+		if(chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+			LDAPDebug(LDAP_DEBUG_ANY, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+					secmoddb_file_name, errno, slapd_system_strerror(errno));
+		}
 	}
 
     /****** end of NSS Initialization ******/

@@ -247,7 +247,10 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
     while( (entry = PR_ReadDir(dir , PR_SKIP_BOTH )) !=NULL ) 
     {
       PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
-      slapd_chown_if_not_owner( file, pw->pw_uid, both?pw->pw_gid:-1 ); 
+      if((rc = slapd_chown_if_not_owner( file, pw->pw_uid, both?pw->pw_gid:-1 )) != 0){
+    	  LDAPDebug(LDAP_DEBUG_ANY, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
+    			  file, errno, slapd_system_strerror(errno));
+      }
     }
     PR_CloseDir( dir );
   }
