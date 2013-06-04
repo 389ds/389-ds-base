@@ -178,7 +178,7 @@ do_bind( Slapi_PBlock *pb )
         /* check that the dn is formatted correctly */
         rc = slapi_dn_syntax_check(pb, rawdn, 1);
         if (rc) { /* syntax check failed */
-            op_shared_log_error_access(pb, "BIND", rawdn?rawdn:"",
+            op_shared_log_error_access(pb, "BIND", rawdn,
                                        "strict: invalid bind dn");
             send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, 
                              NULL, "invalid bind dn", 0, NULL);

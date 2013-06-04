@@ -4190,7 +4190,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
 	}
 
-        for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
+    for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
              rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
 	{
 		int is_present_local = 0;
@@ -4200,7 +4200,6 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		Slapi_Attr *local_attr = NULL;
 		int is_guid = 0;
 		int mapdn = 0;
-
 
 		slapi_attr_get_type( attr, &type );
 		slapi_attr_get_valueset(attr,&vs);
@@ -4360,7 +4359,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 											"windows_generate_update_mods: no restricted local values found for "
 											"local attribute %s in local entry %s for remote attribute "
 											"%s in remote entry %s\n",
-											local_type ? local_type : "NULL",
+											local_type,
 											slapi_entry_get_dn(local_entry),
 											type ? type : "NULL",
 											slapi_entry_get_dn(remote_entry));
@@ -4372,7 +4371,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 										"windows_generate_update_mods: no local values found for "
 										"local attribute %s in local entry %s for remote attribute "
 										"%s in remote entry %s\n",
-										local_type ? local_type : "NULL",
+										local_type,
 										slapi_entry_get_dn(local_entry),
 										type ? type : "NULL",
 										slapi_entry_get_dn(remote_entry));
@@ -4384,7 +4383,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 									"windows_generate_update_mods: could not map the values in "
 									"local attribute %s in local entry %s for remote attribute "
 									"%s in remote entry %s\n",
-									local_type ? local_type : "NULL",
+									local_type,
 									slapi_entry_get_dn(local_entry),
 									type ? type : "NULL",
 									slapi_entry_get_dn(remote_entry));
