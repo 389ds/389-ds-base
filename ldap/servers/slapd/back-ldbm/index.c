@@ -649,17 +649,16 @@ index_add_mods(
                             mods[i]->mod_op |= LDAP_MOD_IGNORE;
                         }
                     }
-                    if (mods_valueArray) {
-                        rc = index_addordel_values_sv( be,
-                                                   mods[i]->mod_type, 
-                                                   mods_valueArray, NULL,
-                                                   id, BE_INDEX_ADD, txn );
-                        if (rc) {
-                            ldbm_nasty(errmsg, 1042, rc);
-                            goto error;
-                        }
+                    if(mods_valueArray[0]){
+                        rc = index_addordel_values_sv( be, mods[i]->mod_type,
+                                                       mods_valueArray, NULL,
+                                                       id, BE_INDEX_ADD, txn );
                     } else {
                         rc = 0;
+                    }
+                    if (rc) {
+                        ldbm_nasty(errmsg, 1042, rc);
+                        goto error;
                     }
                 }
             }

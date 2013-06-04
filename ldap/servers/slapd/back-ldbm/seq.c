@@ -221,8 +221,6 @@ ldbm_back_seq( Slapi_PBlock *pb )
 				}
 			}
 			break;
-		default:
-			PR_ASSERT(0);
 		}
 
 		dbc->c_close(dbc);
