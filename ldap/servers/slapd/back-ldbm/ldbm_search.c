@@ -573,7 +573,7 @@ ldbm_back_search( Slapi_PBlock *pb )
             /* This candidate list is for vlv, no need for sort only. */
             switch (vlv_search_build_candidate_list(pb, basesdn, &vlv_rc,
                                                     sort_control,
-                                                    (vlv ? &vlv_request_control : NULL),
+                                                    &vlv_request_control,
                                                     &candidates, &vlv_response_control)) {
             case VLV_ACCESS_DENIED:
                 return ldbm_back_search_cleanup(pb, li, sort_control,
