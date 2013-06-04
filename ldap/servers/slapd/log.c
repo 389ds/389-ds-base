@@ -1002,8 +1002,6 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
 			fe_cfg->auditlog_rotationsynchour = rhour;
 			LOG_AUDIT_UNLOCK_WRITE();
 			break;
-		default:
-			rv = 1;
 	}
 
 	return rv;
@@ -1056,8 +1054,6 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
 		loginfo.log_audit_rotationsyncclock = log_get_rotationsyncclock( loginfo.log_audit_rotationsynchour, rmin );
 		LOG_AUDIT_UNLOCK_WRITE();
 		break;
-	   default:
-		rv = 1;
 	}
 
 	return rv;
@@ -1113,8 +1109,6 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 		loginfo.log_audit_rotationtime = rtime;
 		runit = loginfo.log_audit_rotationunit;
 		break;
-	   default:
-		rv = 1;
 	}
 
 	/* find out the rotation unit we have se right now */
@@ -1142,19 +1136,17 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 		 fe_cfg->accesslog_rotationtime = rtime;
 		 loginfo.log_access_rotationtime_secs = value;
 		 LOG_ACCESS_UNLOCK_WRITE();
-		break;
+		 break;
 	   case SLAPD_ERROR_LOG:
 		 fe_cfg->errorlog_rotationtime = rtime;
-		loginfo.log_error_rotationtime_secs = value;
-		LOG_ERROR_UNLOCK_WRITE();
-		break;
+		 loginfo.log_error_rotationtime_secs = value;
+		 LOG_ERROR_UNLOCK_WRITE();
+		 break;
 	   case SLAPD_AUDIT_LOG:
 		 fe_cfg->auditlog_rotationtime = rtime;
-		loginfo.log_audit_rotationtime_secs = value;
-		LOG_AUDIT_UNLOCK_WRITE();
-		break;
-	   default:
-		rv = 1;
+		 loginfo.log_audit_rotationtime_secs = value;
+		 LOG_AUDIT_UNLOCK_WRITE();
+		 break;
 	}
 	return rv;
 }
@@ -1210,8 +1202,6 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
 	LOG_AUDIT_LOCK_WRITE( );
 	origvalue = loginfo.log_audit_rotationtime;
 	break;
-  default:
-	rv = 1;
   }
   
   if (strcasecmp(runit, "month") == 0) {
@@ -1261,8 +1251,6 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
 	fe_cfg->auditlog_rotationunit = slapi_ch_strdup ( runit );
 	LOG_AUDIT_UNLOCK_WRITE();
 	break;
-  default:
-	rv = 1;
   }
   return rv;
 }
@@ -1312,9 +1300,6 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
 		LOG_AUDIT_LOCK_WRITE( );
 		mlogsize = loginfo.log_audit_maxlogsize;
 		break;
-	   default:
-		rv = 1;
-		mlogsize = -1;
 	}
 	maxdiskspace = (PRInt64)s_maxdiskspace * LOG_MB_IN_BYTES;
 	if (maxdiskspace < 0) {
@@ -1348,11 +1333,6 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
 		}
 		LOG_AUDIT_UNLOCK_WRITE();
 		break;
-	   default:
-		 PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			"%s: invalid log type (%d) for setting maximum disk space: %d MB\n",
-			attrname, logtype, s_maxdiskspace);
-		 rv = LDAP_OPERATIONS_ERROR;
 	}
 	return rv;
 
@@ -1572,10 +1552,6 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 		rsecs = loginfo.log_audit_rotationtime_secs;
 		exptimeunitp = &(loginfo.log_audit_exptimeunit);
 		break;
-	   default:
-		rv = 1;
-		exptime = -1;
-		rsecs = -1;
 	}
 
 	value = -1;
@@ -1625,8 +1601,6 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 		fe_cfg->auditlog_exptimeunit = slapi_ch_strdup ( expunit );
 		LOG_AUDIT_UNLOCK_WRITE();
 		break;
-	   default:
-		rv = 1;
 	}
 
 	return rv;
@@ -1748,8 +1722,8 @@ slapd_log_audit_proc (
 	char	*buffer,
 	int	buf_len)
 {
-	int err;
 	if ( (loginfo.log_audit_state & LOGGING_ENABLED) && (loginfo.log_audit_file != NULL) ){
+		int err;
 		LOG_AUDIT_LOCK_WRITE( );
 		if (log__needrotation(loginfo.log_audit_fdes,
 					SLAPD_AUDIT_LOG) == LOG_ROTATE) {
@@ -4168,9 +4142,9 @@ static void log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_
 static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	int err = 0;
-	
+
     if (type == SLAPD_ACCESS_LOG) {
+        int err = 0;
 
 		/* It is only safe to flush once any other threads which are copying are finished */
 		while (lbi->refcount > 0) {
