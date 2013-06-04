@@ -437,11 +437,7 @@ collation_indexer_create (const char* oid)
 					 profile->variant  == NULL);
 	    UErrorCode err = U_ZERO_ERROR;
 	    if ( ! is_default) {
-		if (locale) {
-		    PR_smprintf_free(locale);
-		    locale = NULL;
-		}
-		err = s_newNamedLocaleFromComponents(&locale,
+			err = s_newNamedLocaleFromComponents(&locale,
 						     profile->language,
 						     profile->country,
 						     profile->variant);
@@ -460,27 +456,27 @@ collation_indexer_create (const char* oid)
 		    ucol_setAttribute (coll, UCOL_STRENGTH, profile->strength, &err);
 		    if (err != U_ZERO_ERROR && err != U_USING_FALLBACK_WARNING
 			&& (err != U_USING_DEFAULT_WARNING || !is_default)) {
-			LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: could not "
+		    	LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: could not "
 				   "set the collator strength for oid %s to %d: err %d\n",
 				   oid, profile->strength, err);
 		    }
 		    ucol_setAttribute (coll, UCOL_DECOMPOSITION_MODE, profile->decomposition, &err);
 		    if (err != U_ZERO_ERROR && err != U_USING_FALLBACK_WARNING
 			&& (err != U_USING_DEFAULT_WARNING || !is_default)) {
-			LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: could not "
+		    	LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: could not "
 				   "set the collator decomposition mode for oid %s to %d: err %d\n",
 				   oid, profile->decomposition, err);
 		    }
 		    etc->collator = coll;
 		    for (id = collation_id; *id; ++id) {
-			if ((*id)->profile == profile) {
-			    break; /* found the 'official' id */
-			}
+		    	if ((*id)->profile == profile) {
+		    		break; /* found the 'official' id */
+		    	}
 		    }
-                    if (!*id) {
-			LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: id not found\n", 0, 0, 0);
-                        goto error;
-                    }
+            if (!*id) {
+                LDAPDebug (LDAP_DEBUG_ANY, "collation_indexer_create: id not found\n", 0, 0, 0);
+                goto error;
+            }
 
 		    ix->ix_etc = etc;
 		    ix->ix_oid = (*id)->oid;

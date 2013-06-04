@@ -810,14 +810,8 @@ entryrdn_rename_subtree(backend *be,
                 renamedata.data = (void *)oldsupelem;
             }
         } else {
-            if (mynewsupsdn) {
-                renamedata.ulen = renamedata.size = newsupelemlen;
-                renamedata.data = (void *)newsupelem;
-            } else {
-                /* never comes here */
-                rc = -1;
-                goto bail;
-            }
+            renamedata.ulen = renamedata.size = newsupelemlen;
+            renamedata.data = (void *)newsupelem;
         }
         rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_PARENT, db_txn);
         if (rc) {
@@ -902,16 +896,10 @@ entryrdn_rename_subtree(backend *be,
                 renamedata.data = (void *)targetelem;
             }
         } else {
-            if (mynewsrdn) {
-                memset(&renamedata, 0, sizeof(renamedata));
-                renamedata.ulen = renamedata.size = newelemlen;
-                renamedata.data = (void *)newelem;
-                renamedata.flags = DB_DBT_USERMEM;
-            } else {
-                /* never comes here */
-                rc = -1;
-                goto bail;
-            }
+            memset(&renamedata, 0, sizeof(renamedata));
+            renamedata.ulen = renamedata.size = newelemlen;
+            renamedata.data = (void *)newelem;
+            renamedata.flags = DB_DBT_USERMEM;
         }
         rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_CHILD, db_txn);
         if (rc) {
