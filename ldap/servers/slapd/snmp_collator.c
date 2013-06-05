@@ -738,8 +738,10 @@ snmp_update_cache_stats()
 
     /* set the cache hits/cache entries info */
     be = slapi_get_first_backend(&cookie);
-    if (!be)
+    if (!be){
+    	slapi_ch_free ((void **) &cookie);
         return;
+    }
 
     be_next = slapi_get_next_backend(cookie);
 

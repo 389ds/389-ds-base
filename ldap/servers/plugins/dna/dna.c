@@ -1516,11 +1516,13 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
                      * to lowest. */
                     struct dnaServer *sitem;
                     PRCList* item = PR_LIST_HEAD(*servers);
+                    int inserted = 0;
 
                     while (item != *servers) {
                         sitem = (struct dnaServer *)item;
                         if (server->remaining > sitem->remaining) {
                             PR_INSERT_BEFORE(&(server->list), item);
+                            inserted = 1;
                             break;
                         }
 
@@ -1529,8 +1531,12 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
                         if (*servers == item) {
                             /* add to tail */
                             PR_INSERT_BEFORE(&(server->list), item);
+                            inserted = 1;
                             break;
                         }
+                    }
+                    if(!inserted){
+                    	dna_free_shared_server(&server);
                     }
                 }
             }
@@ -3341,6 +3347,7 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
 bail:
     if (resulting_e)
         slapi_entry_free(resulting_e);
+    slapi_mods_free(&smods);
 
     if (ret) {
         slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,

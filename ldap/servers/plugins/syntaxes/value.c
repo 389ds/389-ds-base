@@ -282,10 +282,13 @@ value_cmp(
 		value_normalize_ext( v1->bv_val, syntax, 
 							 1 /* trim leading blanks */, &alt );
 		if (alt) {
+			int inserted = 0;
+
 			if (free_v1) {
 				slapi_ch_free_string(&v1->bv_val);
 				v1->bv_val = alt;
 				v1->bv_len = strlen(alt);
+				inserted = 1;
 			} else {
 				if (strlen(alt) < buffer_space) {
 					v1->bv_len = strlen(alt);
@@ -297,7 +300,11 @@ value_cmp(
 					v1 = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
 					v1->bv_val = alt;
 					v1->bv_len = strlen(alt);
+					inserted = 1;
 				}
+			}
+			if(!inserted){
+				slapi_ch_free_string(&alt);
 			}
 		}
 		if (!free_v1) {
@@ -320,10 +327,13 @@ value_cmp(
 		value_normalize_ext( v2->bv_val, syntax, 
 							 1 /* trim leading blanks */, &alt );
 		if (alt) {
+			int inserted = 0;
+
 			if (free_v2) {
 				slapi_ch_free_string(&v2->bv_val);
 				v2->bv_val = alt;
 				v2->bv_len = strlen(alt);
+				inserted = 1;
 			} else {
 				if (strlen(alt) < buffer_space) {
 					v2->bv_len = strlen(alt);
@@ -335,7 +345,11 @@ value_cmp(
 					v2 = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
 					v2->bv_val = alt;
 					v2->bv_len = strlen(alt);
+					inserted = 1;
 				}
+			}
+			if(!inserted){
+				slapi_ch_free_string(&alt);
 			}
 		}
 		if (!free_v2) {
