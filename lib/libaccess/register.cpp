@@ -791,6 +791,7 @@ ACL_AttrGetterRegister(NSErr_t *errp, const char *attr, ACLAttrGetterFn_t fn,
     if (*hep == 0) {	/* New entry */
         PR_INIT_CLIST(&getter->list);
         if (NULL == PR_HashTableAdd(ACLAttrGetterHash, attr, (void *)getter)) {
+            FREE(getter);
             ACL_CritExit();
             return -1;
         }
