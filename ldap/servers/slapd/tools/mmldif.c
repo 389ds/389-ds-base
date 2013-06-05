@@ -735,6 +735,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
     attrib1_t *	newlist = NULL;
     attrib1_t *	a;
     int		ignore_rec = FALSE;
+    int free_it = 0;
 
     *attrib = NULL;
     if (edf1->end) {
@@ -759,6 +760,9 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 /* that's for the case where the file */
                 /* has a trailing blank line */
                 freefreelist(freelist);
+                if(free_it){
+                	freefreelist(att);
+                }
                 return IDDS_MM_EOF;
             }
             break; /* return */
@@ -790,9 +794,11 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
             continue;
         if (!freelist) {
             att = (attrib1_t *)malloc(sizeof(attrib1_t));
+            free_it = 1;
         } else {
             att = freelist;
             freelist = freelist->next;
+            free_it = 0;
         }
         att->namelen = vptr-line;
 		

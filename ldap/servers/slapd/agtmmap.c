@@ -196,6 +196,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
                }
 		
                if(fstat (fd, &fileinfo) != 0){
+                   close(fd);
                    rc = errno;
                    goto bail;
 		       }

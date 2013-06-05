@@ -602,6 +602,7 @@ pam_passthru_apply_config (Slapi_Entry* e)
     PRCList *list;
     Slapi_Attr *a = NULL;
     char *filter_str = NULL;
+    int inserted = 0;
 
     pam_ident_attr = slapi_entry_attr_get_charptr(e, PAMPT_PAM_IDENT_ATTR);
     map_method = slapi_entry_attr_get_charptr(e, PAMPT_MAP_METHOD_ATTR);
@@ -688,6 +689,7 @@ pam_passthru_apply_config (Slapi_Entry* e)
                 PR_INSERT_BEFORE(&(entry->list), list);
                 slapi_log_error(SLAPI_LOG_CONFIG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                                 "store [%s] at tail\n", entry->dn);
+                inserted = 1;
                 break;
             }
         }
@@ -696,9 +698,13 @@ pam_passthru_apply_config (Slapi_Entry* e)
         PR_INSERT_LINK(&(entry->list), pam_passthru_global_config);
         slapi_log_error(SLAPI_LOG_CONFIG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                         "store [%s] at head \n", entry->dn);
+        inserted = 1;
     }
 
   bail:
+    if(!inserted){
+    	pam_passthru_free_config_entry(&entry);
+    }
     slapi_ch_free_string(&new_service);
     slapi_ch_free_string(&map_method);
     slapi_ch_free_string(&pam_ident_attr);

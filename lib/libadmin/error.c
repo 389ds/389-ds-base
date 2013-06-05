@@ -126,10 +126,13 @@ NSAPI_PUBLIC void output_alert(int type, char *info, char *details, int wait)
     fprintf(stdout, "%s:%s\\n%s", error_headers[type], info, wrapped);
     if(type==FILE_ERROR || type==SYSTEM_ERROR)  {
         err = get_error();
-        if(err != 0)
+        if(err != 0){
+            char *err_str = verbose_error();
             fprintf(stdout,
                         "\\n\\nThe system returned error number %d, "
-                        "which is %s.", err, verbose_error());
+                        "which is %s.", err, err_str);
+            FREE(err_str);
+        }
     }
     fprintf(stdout, "\");");
 

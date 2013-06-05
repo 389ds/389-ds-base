@@ -1926,7 +1926,7 @@ dblayer_get_id2entry_size(ldbm_instance *inst)
     char *id2entry_file = NULL;
     PRFileInfo64 info;
     int rc;
-    char inst_dir[MAXPATHLEN], *inst_dirp;
+    char inst_dir[MAXPATHLEN], *inst_dirp = NULL;
 
     if (NULL == inst) {
         return 0;
@@ -1935,6 +1935,9 @@ dblayer_get_id2entry_size(ldbm_instance *inst)
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
     id2entry_file = slapi_ch_smprintf("%s/%s", inst_dirp,
                                       ID2ENTRY LDBM_FILENAME_SUFFIX);
+    if(inst_dirp != inst_dir){
+        slapi_ch_free_string(&inst_dirp);
+    }
     rc = PR_GetFileInfo64(id2entry_file, &info);
     slapi_ch_free_string(&id2entry_file);
     if (rc) {
@@ -3094,6 +3097,9 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
         }
         abs_file_name = slapi_ch_smprintf("%s%c%s",
                 inst_dirp, get_sep(inst_dirp), file_name);
+        if (inst_dirp != inst_dir){
+            slapi_ch_free_string(&inst_dirp);
+        }
         DB_OPEN(pENV->dblayer_openflags,
                 dbp, NULL/* txnid */, abs_file_name, subname, DB_BTREE,
                 open_flags, priv->dblayer_file_mode, return_value);
@@ -3109,8 +3115,6 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
             goto out;
 
         slapi_ch_free_string(&abs_file_name);
-        if (inst_dirp != inst_dir)
-            slapi_ch_free_string(&inst_dirp);
     }
     DB_OPEN(pENV->dblayer_openflags,
             dbp, NULL, /* txnid */ rel_path, subname, DB_BTREE,

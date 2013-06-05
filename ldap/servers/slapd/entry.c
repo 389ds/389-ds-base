@@ -574,6 +574,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 	}
 
 done:
+	csnset_free(&valuecsnset);
 	csn_free(&attributedeletioncsn);
 	csn_free(&maxcsn);
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= str2entry_fast 0x%x\n",
@@ -766,6 +767,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			( 0 != ( flags & SLAPI_STR2ENTRY_REMOVEDUPVALS ));
 	Slapi_Value *value = 0;
 	CSN *attributedeletioncsn= NULL;
+	CSNSet *valuecsnset= NULL;
 	CSN *maxcsn= NULL;
 	char *normdn = NULL;
 	int strict = 0;
@@ -786,7 +788,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 	}
     while ( (s = ldif_getline( &next )) != NULL )
     {
-		CSNSet *valuecsnset= NULL;
 		int value_state= VALUE_NOTFOUND;
 		int attr_state= VALUE_NOTFOUND;
 		int freeval = 0;
@@ -842,6 +843,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						    "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
 						slapi_entry_free( e );
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
+						csnset_free(&valuecsnset);
 						csn_free(&attributedeletioncsn);
 						csn_free(&maxcsn);
 						return NULL;
@@ -864,6 +866,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 							     "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
 							slapi_entry_free( e );
 							if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
+							csnset_free(&valuecsnset);
 							csn_free(&attributedeletioncsn);
 							csn_free(&maxcsn);
 							return NULL;
@@ -977,6 +980,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
 						csn_free(&attributedeletioncsn);
 						csn_free(&maxcsn);
+						csnset_free(&valuecsnset);
 						return NULL;
 					}
 					for ( i = 0; i < nattrs; i++ )
@@ -1319,6 +1323,7 @@ free_and_return:
 	}
 	slapi_ch_free((void **) &dyn_attrs );
 	if (value) slapi_value_free(&value);
+	csnset_free(&valuecsnset);
 	csn_free(&attributedeletioncsn);
 	csn_free(&maxcsn);
 

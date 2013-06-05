@@ -94,7 +94,6 @@ static int		__acllist_add_aci ( aci_t *aci );
 static int		__acllist_aciContainer_node_cmp ( caddr_t d1, caddr_t d2 );
 static int		__acllist_aciContainer_node_dup ( caddr_t d1, caddr_t d2 );
 static void 	__acllist_free_aciContainer (  AciContainer **container);
-static void free_targetattrfilters( Targetattrfilter ***input_attrFilterArray);
 
 void my_print( Avlnode	*root );
 
@@ -565,8 +564,9 @@ acllist_free_aci(aci_t *item)
 	slapi_ch_free ( (void **) &item );
 }
 
-static void free_targetattrfilters( Targetattrfilter ***attrFilterArray) {    
-    
+void
+free_targetattrfilters( Targetattrfilter ***attrFilterArray)
+{
     if (*attrFilterArray) {
 		int			i = 0;
 		Targetattrfilter		*attrfilter;
@@ -592,7 +592,6 @@ static void free_targetattrfilters( Targetattrfilter ***attrFilterArray) {
 		/* Now free the array */
 		slapi_ch_free ( (void **) attrFilterArray );
 	}
-    
 }
 
 /* SEARCH */
