@@ -732,9 +732,14 @@ clcache_skip_change ( CLC_Buffer *buf )
 		 */
 		if ( csn_time_difference(buf->buf_current_csn, cscb->local_maxcsn) == 0 &&
 			 (csn_get_seqnum(buf->buf_current_csn) ==
-				csn_get_seqnum(cscb->local_maxcsn) + 1) ) {
-			csn_init_by_csn ( cscb->local_maxcsn, buf->buf_current_csn );
-			csn_init_by_csn ( cscb->consumer_maxcsn, buf->buf_current_csn );
+				csn_get_seqnum(cscb->local_maxcsn) + 1) )
+		{
+			if(cscb->local_maxcsn){
+				csn_init_by_csn ( cscb->local_maxcsn, buf->buf_current_csn );
+			}
+			if(cscb->consumer_maxcsn){
+				csn_init_by_csn ( cscb->consumer_maxcsn, buf->buf_current_csn );
+			}
 			skip = 0;
 			break;
 		}

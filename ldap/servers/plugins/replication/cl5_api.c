@@ -3507,6 +3507,13 @@ static void _cl5TrimFile (Object *obj, long *numToTrim, ReplicaId cleaned_rid)
 			 * This change can be trimmed if it exceeds purge
 			 * parameters and has been seen by all consumers.
 			 */
+			if(op.csn == NULL){
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5TrimFile: "
+						"Operation missing csn, moving on to next entry.\n");
+				cl5_operation_parameters_done (&op);
+				finished =_cl5GetNextEntry (&entry, it);
+				continue;
+			}
 			csn_rid = csn_get_replicaid (op.csn);
 			if ( (*numToTrim > 0 || _cl5CanTrim (entry.time, numToTrim)) &&
 				 ruv_covers_csn_strict (ruv, op.csn) )
@@ -3836,7 +3843,15 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
     rc = _cl5GetFirstEntry (obj, &entry, &iterator, NULL);
     while (rc == CL5_SUCCESS)
     {
-        rid = csn_get_replicaid (op.csn);
+        if(op.csn){
+            rid = csn_get_replicaid (op.csn);
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, "_cl5ConstructRUV: "
+                "Operation missing csn, moving on to next entry.\n");
+            cl5_operation_parameters_done (&op);
+            rc = _cl5GetNextEntry (&entry, iterator);
+            continue;
+        }
         if(is_cleaned_rid(rid)){
             /* skip this entry as the rid is invalid */
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUV: "

@@ -2364,6 +2364,11 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     int found = 0, i;
     int rc, ret, rid;
 
+    if(clean_data == NULL){
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "delete_cleaned_rid_config: cleanruv data is NULL, "
+                "failed to clean the config.\n");
+        return;
+    }
     /*
      *  If there is no maxcsn, set the proper csnstr
      */

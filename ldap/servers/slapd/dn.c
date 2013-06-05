@@ -2844,7 +2844,8 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
         new_node->next = NULL;
     } else {
         new_node->next = ndn_cache->head;
-        ndn_cache->head->prev = new_node;
+        if(ndn_cache->head)
+            ndn_cache->head->prev = new_node;
     }
     ndn_cache->head = new_node;
     PR_Unlock(lru_lock);
