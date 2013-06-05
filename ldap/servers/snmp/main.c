@@ -322,6 +322,9 @@ load_config(char *conf_path)
             /* load agentx-master setting */
             p = p + 13;
             if ((p = strtok(p, " \t\n")) != NULL) {
+                if (agentx_master){
+                    free(agentx_master);
+                }
                 if ((agentx_master = (char *) malloc(strlen(p) + 1)) != NULL)
                     strcpy(agentx_master, p);
             }

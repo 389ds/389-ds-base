@@ -335,6 +335,8 @@ exit:
 #ifdef _WIN32
   if (findPath) free (findPath);
 #endif
+  close(fd);
+
   return rc;
 }
 
