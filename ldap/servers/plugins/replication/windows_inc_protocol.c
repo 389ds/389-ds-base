@@ -1026,6 +1026,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
   windows_conn_cancel_linger(prp->conn);
   /* ... and disconnect, if currently connected */
   windows_conn_disconnect(prp->conn);
+  ruv_destroy ( &ruv );
   LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_run\n" );
 }
 
