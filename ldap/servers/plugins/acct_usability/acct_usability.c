@@ -312,7 +312,7 @@ auc_pre_search(Slapi_PBlock *pb)
     int ldapcode = LDAP_SUCCESS;
     const LDAPControl **reqctrls = NULL;
     const LDAPControl *aucctrl = NULL;
-    const char *ldaperrtext;
+    const char *ldaperrtext = "Unknown error";
     const char *incompatible = NULL;
     int isroot = 0;
     int ii;

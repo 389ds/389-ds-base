@@ -440,7 +440,7 @@ deref_pre_search(Slapi_PBlock *pb)
     int ldapcode = LDAP_SUCCESS;
     const LDAPControl **reqctrls = NULL;
     const LDAPControl *derefctrl = NULL;
-    const char *ldaperrtext;
+    const char *ldaperrtext = "Unknown error";
     const char *incompatible = NULL;
     DerefSpecList *speclist = NULL;
     int ii;

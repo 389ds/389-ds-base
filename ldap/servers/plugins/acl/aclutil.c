@@ -96,6 +96,7 @@ aclutil_str_append_ext(char **dest, size_t *dlen, const char *src, size_t slen)
     char *ptr = NULL;
     int rc = 0;
 
+    PR_ASSERT(NULL != dlen);
     if ( dest == NULL || src == NULL ) {
         return rc;    
     }
@@ -103,7 +104,7 @@ aclutil_str_append_ext(char **dest, size_t *dlen, const char *src, size_t slen)
     if (0 == slen) {
         slen = strlen(src);
     }
-    if (*dest && dlen > 0) {
+    if (*dest && *dlen > 0) {
         size_t dest_strlen = strlen(*dest);
         size_t new_len = dest_strlen + slen + 1;
         if (new_len > *dlen) {
