@@ -1231,10 +1231,21 @@ linked_attrs_load_array(Slapi_Value **array, Slapi_Attr *attr)
 int
 linked_attrs_compare(const void *a, const void *b)
 {
+        Slapi_Value *val1;
+        Slapi_Value *val2;
+        Slapi_Attr *linkattr;
         int rc = 0;
-        Slapi_Value *val1 = *((Slapi_Value **)a);
-        Slapi_Value *val2 = *((Slapi_Value **)b);
-        Slapi_Attr *linkattr = slapi_attr_new();
+
+        if(a == NULL && b != NULL){
+            return 1;
+        } else if(a != NULL && b == NULL){
+            return -1;
+        } else if(a == NULL && b == NULL){
+            return 0;
+        }
+        val1 = *((Slapi_Value **)a);
+        val2 = *((Slapi_Value **)b);
+        linkattr = slapi_attr_new();
 
         slapi_attr_init(linkattr, "distinguishedName");
 

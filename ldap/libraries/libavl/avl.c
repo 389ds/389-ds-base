@@ -780,8 +780,11 @@ avl_getfirst( Avlnode *root )
 		return( 0 );
 
 	(void) avl_apply( root, avl_buildlist, (caddr_t) 0, -1, AVL_INORDER );
-
-	return( avl_list[ avl_nextlist++ ] );
+	if(avl_list && avl_list[avl_nextlist++]){
+		return avl_list[avl_nextlist];
+	} else {
+		return( NULL );
+	}
 }
 
 caddr_t

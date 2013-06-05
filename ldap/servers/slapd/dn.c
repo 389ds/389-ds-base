@@ -2567,3 +2567,4 @@ slapi_sdn_get_size(const Slapi_DN *sdn)
     sz += strlen(sdn->dn) + 1;
     return sz;
 }
+

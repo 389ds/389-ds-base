@@ -1493,15 +1493,24 @@ int
 slapi_berval_cmp (const struct berval* L, const struct berval* R) /* JCM - This does not belong here. But, where should it go? */
 {
     int result = 0;
-    if (L->bv_len < R->bv_len) {
-	result = memcmp (L->bv_val, R->bv_val, L->bv_len);
-	if (result == 0)
-	  result = -1;
-    } else {
-	result = memcmp (L->bv_val, R->bv_val, R->bv_len);
-	if (result == 0 && (L->bv_len > R->bv_len))
-	  result = 1;
+
+    if(L == NULL && R != NULL){
+        return 1;
+    } else if(L != NULL && R == NULL){
+        return -1;
+    } else if(L == NULL && R == NULL){
+        return 0;
     }
+    if (L->bv_len < R->bv_len) {
+        result = memcmp (L->bv_val, R->bv_val, L->bv_len);
+        if (result == 0)
+            result = -1;
+    } else {
+        result = memcmp (L->bv_val, R->bv_val, R->bv_len);
+        if (result == 0 && (L->bv_len > R->bv_len))
+            result = 1;
+    }
+
     return result;
 }
 
