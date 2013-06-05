@@ -486,7 +486,7 @@ memberof_free_config(MemberOfConfig *config)
 		slapi_ch_array_free(config->groupattrs);
 		slapi_filter_free(config->group_filter, 1);
 
-		for (i = 0; config->group_slapiattrs[i]; i++)
+		for (i = 0; config->group_slapiattrs && config->group_slapiattrs[i]; i++)
 		{
 			slapi_attr_free(&config->group_slapiattrs[i]);
 		}

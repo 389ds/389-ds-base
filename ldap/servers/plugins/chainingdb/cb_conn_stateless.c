@@ -856,7 +856,7 @@ void cb_stale_all_connections( cb_backend_instance * cb)
 	    else {
        	       	if (conn==pools[i]->conn.conn_list) {
        	       		pools[i]->conn.conn_list=next_conn;
-       	       	} else {
+       	       	} else if(prev_conn){
        	       		prev_conn->next=next_conn;
        	       	}
        	       	cb_close_and_dispose_connection(conn);
