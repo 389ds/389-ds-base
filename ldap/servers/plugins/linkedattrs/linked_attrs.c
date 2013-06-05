@@ -755,6 +755,7 @@ linked_attrs_insert_config_index(struct configEntry *entry)
     struct configEntry *config_entry = NULL;
     struct configIndex *index_entry = NULL;
     PRCList *list = PR_LIST_HEAD(g_managed_config_index);
+    int inserted = 0;
 
     index_entry = (struct configIndex *)slapi_ch_calloc(1, sizeof(struct configIndex));
     index_entry->config = entry;
@@ -769,6 +770,7 @@ linked_attrs_insert_config_index(struct configEntry *entry)
                 slapi_log_error(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
                                 "store [%s] before [%s] \n", entry->dn,
                                 config_entry->dn);
+                inserted = 1;
                 break;
             }
     
@@ -779,6 +781,7 @@ linked_attrs_insert_config_index(struct configEntry *entry)
                 PR_INSERT_BEFORE(&(index_entry->list), list);
                 slapi_log_error(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
                                 "store [%s] at tail\n", entry->dn);
+                inserted = 1;
                 break;
             }
         }
@@ -787,6 +790,10 @@ linked_attrs_insert_config_index(struct configEntry *entry)
         slapi_log_error(SLAPI_LOG_CONFIG, LINK_PLUGIN_SUBSYSTEM,
                         "store [%s] at head \n", entry->dn);
         PR_INSERT_LINK(&(index_entry->list), g_managed_config_index);
+        inserted = 1;
+    }
+    if(!inserted){
+    	slapi_ch_free((void **)&index_entry);
     }
 }
 

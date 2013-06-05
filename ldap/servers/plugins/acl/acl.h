@@ -870,6 +870,7 @@ int			acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn );
 void		acllist_print_tree ( Avlnode *root, int *depth, char *start, char *side);
 AciContainer *acllist_get_aciContainer_new ( );
 void 		acllist_done_aciContainer (  AciContainer *);
+void		free_targetattrfilters( Targetattrfilter ***attrFilterArray);
 
 aclUserGroup* aclg_find_userGroup (const char *n_dn);
 void 		aclg_regen_ugroup_signature( aclUserGroup *ugroup);

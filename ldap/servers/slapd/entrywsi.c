@@ -447,18 +447,21 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 	}
 	return retVal;
 }
+
 static int
 entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Value **valuestoadd = NULL;
+
 	valuearray_init_bervalarray(bervals,&valuestoadd); /* JCM SLOW FUNCTION */
 	if(!valuearray_isempty(valuestoadd))
 	{
 		Slapi_Attr *a= NULL;
 		long a_flags_orig;
 		int attr_state= entry_attr_find_wsi(e, type, &a);
-        	a_flags_orig = a->a_flags;
+
+		a_flags_orig = a->a_flags;
 		a->a_flags |= flags;
 		/* Check if the type of the to-be-added values has DN syntax or not. */
 		if (slapi_attr_is_dn_syntax_attr(a)) {
@@ -476,7 +479,6 @@ entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, str
 			valuearray_update_csn (valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
 			valueset_add_valuearray_ext(&a->a_present_values, valuestoadd, SLAPI_VALUE_FLAG_PASSIN);
 			slapi_ch_free ( (void **)&valuestoadd );
-
 			/*
 			 * Now delete non-RDN values from a->a_present_values; and
 			 * restore possible RDN values from a->a_deleted_values
@@ -489,16 +491,16 @@ entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, str
 			Slapi_Value **deletedvalues= NULL;
 			switch(attr_state)
 			{
-			case ATTRIBUTE_PRESENT:
-				/* The attribute is already on the present list */
-				break;
-			case ATTRIBUTE_DELETED:
-				/* Move the deleted attribute onto the present list */
-				entry_deleted_attribute_to_present_attribute(e, a);
-				break;
-			case ATTRIBUTE_NOTFOUND:
-				/* No-op - attribute was initialized & added to entry above */
-				break;
+				case ATTRIBUTE_PRESENT:
+					/* The attribute is already on the present list */
+					break;
+				case ATTRIBUTE_DELETED:
+					/* Move the deleted attribute onto the present list */
+					entry_deleted_attribute_to_present_attribute(e, a);
+					break;
+				case ATTRIBUTE_NOTFOUND:
+					/* No-op - attribute was initialized & added to entry above */
+					break;
 			}
 			/* Check if any of the values to be added are on the deleted list */
 			valueset_remove_valuearray(&a->a_deleted_values,
@@ -522,24 +524,28 @@ entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, str
 			}
 			valuearray_update_csn(valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
 			retVal= attr_add_valuearray(a, valuestoadd, slapi_entry_get_dn_const(e));
-			valuearray_free(&valuestoadd);
 		}
 		a->a_flags = a_flags_orig;
 	}
+	valuearray_free(&valuestoadd);
+
 	return(retVal);
 }
+
 static int
 entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Value **valuestoadd = NULL;
+
 	valuearray_init_bervalarray(bervals,&valuestoadd); /* JCM SLOW FUNCTION */
 	if(!valuearray_isempty(valuestoadd))
 	{
-		Slapi_Attr *a= NULL;
+		Slapi_Attr *a = NULL;
 		long a_flags_orig;
-		int attr_state= entry_attr_find_wsi(e, type, &a);
-	        a_flags_orig = a->a_flags;
+		int attr_state = entry_attr_find_wsi(e, type, &a);
+
+		a_flags_orig = a->a_flags;
 		a->a_flags |= flags;
 		/* Check if the type of the to-be-added values has DN syntax or not. */
 		if (slapi_attr_is_dn_syntax_attr(a)) {
@@ -577,18 +583,19 @@ entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, stru
 		else
 		{
 			Slapi_Value **deletedvalues= NULL;
+
 			switch(attr_state)
 			{
-			case ATTRIBUTE_PRESENT:
-				/* The attribute is already on the present list */
-				break;
-			case ATTRIBUTE_DELETED:
-				/* Move the deleted attribute onto the present list */
-				entry_deleted_attribute_to_present_attribute(e, a);
-				break;
-			case ATTRIBUTE_NOTFOUND:
-				/* No-op - attribute was initialized & added to entry above */
-				break;
+				case ATTRIBUTE_PRESENT:
+					/* The attribute is already on the present list */
+					break;
+				case ATTRIBUTE_DELETED:
+					/* Move the deleted attribute onto the present list */
+					entry_deleted_attribute_to_present_attribute(e, a);
+					break;
+				case ATTRIBUTE_NOTFOUND:
+					/* No-op - attribute was initialized & added to entry above */
+					break;
 			}
 			/* Check if any of the values to be added are on the deleted list */
 			valueset_remove_valuearray(&a->a_deleted_values,
@@ -612,10 +619,11 @@ entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, stru
 			}
 			valuearray_update_csn(valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
 			retVal= attr_add_valuearray(a, valuestoadd, slapi_entry_get_dn_const(e));
-			valuearray_free(&valuestoadd);
 		}
 		a->a_flags = a_flags_orig;
 	}
+	valuearray_free(&valuestoadd);
+
 	return(retVal);
 }
 

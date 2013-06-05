@@ -1847,7 +1847,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
 {
     Object *agmt_obj;
     Repl_Agmt *agmt;
-    char *csnstr = NULL;
+    char csnstr[CSN_STRSIZE];
     char *filter = NULL;
     int not_all_cleaned = 1;
     int interval = 10;
@@ -1890,7 +1890,6 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
             interval = 14400;
         }
     }
-    slapi_ch_free_string(&csnstr);
     slapi_ch_free_string(&filter);
 }
 

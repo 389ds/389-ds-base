@@ -3238,6 +3238,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
   pnew_oc->oc_kind = kind;
 
   *oc = pnew_oc;
+
   return read_oc_ldif_return( LDAP_SUCCESS, pOcOid, psbOcName, pOcSup, pOcDesc );
 }
 
@@ -4750,7 +4751,9 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
             if ( LDAP_SUCCESS != (*returncode = parse_oc_str(s, &oc, returntext,
                         SLAPI_DSE_RETURNTEXT_SIZE, flags,
                         primary_file /* force user defined? */,
-                        schema_ds4x_compat))) {
+                        schema_ds4x_compat)))
+            {
+            	oc_free( &oc );
                 break;
             }
             if (flags & DSE_SCHEMA_NO_LOAD)

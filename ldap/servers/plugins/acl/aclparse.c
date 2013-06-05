@@ -1970,14 +1970,13 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
  * We need to put each component into a targetattrfilter component of
  * the array.
  *
-*/
-
+ */
 static int process_filter_list( Targetattrfilter ***input_attrFilterArray,
 						  char * input_str) {
 
 	char *str, *end_attr;
 	Targetattrfilter *attrfilter = NULL;
-	int		numattr=0;
+	int		numattr=0, rc = 0;
 	Targetattrfilter **attrFilterArray = NULL;
 
 	str = input_str;
@@ -2009,22 +2008,20 @@ static int process_filter_list( Targetattrfilter ***input_attrFilterArray,
 		memset (attrfilter, 0, sizeof(Targetattrfilter));
 
 		if (strstr( str,":") != NULL) {
-			
 			if ( __acl_init_targetattrfilter( attrfilter, str ) != 0 ) {
 				slapi_ch_free((void**)&attrfilter);
-				return(ACL_SYNTAX_ERR);
+				rc = ACL_SYNTAX_ERR;
+				break;
 			}        
 		} else {
 			slapi_ch_free((void**)&attrfilter);
-			return(ACL_SYNTAX_ERR);
+			rc = ACL_SYNTAX_ERR;
+			break;
 		}
 
-
 		/*
-		 * Add the attrfilte to the targetAttrFilter list
-		*/
-
-     	
+		 * Add the attrfilter to the targetAttrFilter list
+		 */
 		attrFilterArray = (Targetattrfilter **) slapi_ch_realloc (
 						    (void *) attrFilterArray,
 						    ((numattr+1)*sizeof(Targetattrfilter *)) ); 
@@ -2033,7 +2030,6 @@ static int process_filter_list( Targetattrfilter ***input_attrFilterArray,
 	
 		/* Move on to the next attribute in the list */
 		str = end_attr;
-
 	}/* while */
 
 	/* NULL terminate the list */
@@ -2042,10 +2038,13 @@ static int process_filter_list( Targetattrfilter ***input_attrFilterArray,
 						    (void *) attrFilterArray,
 						    ((numattr+1)*sizeof(Targetattrfilter *)) ); 
 	attrFilterArray[numattr] = NULL;
+	if(rc){
+		free_targetattrfilters(&attrFilterArray);
+	} else {
+		*input_attrFilterArray = attrFilterArray;
+	}
 
-	*input_attrFilterArray = attrFilterArray;
-	return 0;
-
+	return rc;
 }
 
 /*
