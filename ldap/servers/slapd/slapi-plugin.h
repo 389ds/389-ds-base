@@ -7033,6 +7033,15 @@ int slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s);
 #endif
 void slapi_ldif_put_type_and_value_with_options( char **out, const char *t, const char *val, int vlen, unsigned long options );
 
+/* ldif_read_record lineno argument type depends on openldap version */
+#if defined(USE_OPENLDAP)
+#if LDAP_VENDOR_VERSION >= 20434 /* changed in 2.4.34 */
+typedef unsigned long int ldif_record_lineno_t;
+#else
+typedef int ldif_record_lineno_t;
+#endif
+#endif
+
 #if defined(USE_OPENLDAP)
 /*
  * UTF-8 routines (should these move into libnls?)

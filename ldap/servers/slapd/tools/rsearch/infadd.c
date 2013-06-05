@@ -127,11 +127,10 @@ char *randName(void)
     return x;
 }
 
-int fill_table(NameTable *nt, PRUint32 size)
+void fill_table(NameTable *nt, PRUint32 size)
 {
     PRUint32 i;
     char *x;
-    int ret;
 
     fprintf(stdout, "Generating random names: 0      ");
     for (i = 0; i < size; i++) {
@@ -141,13 +140,13 @@ int fill_table(NameTable *nt, PRUint32 size)
 	    free(x);
 	    x = randName();
 	}
-	ret = nt_push(nt, x);
+	(void)nt_push(nt, x);
 	if ((i % 100) == 0) {
 	    fprintf(stdout, "\b\b\b\b\b\b\b%-7d", i);
 	}
     }
     fprintf(stdout, "\b\b\b\b\b\b\b%d.  Done.\n", size);
-    return ret;
+    return;
 }
 
 int main(int argc, char **argv)

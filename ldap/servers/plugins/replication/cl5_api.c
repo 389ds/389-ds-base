@@ -277,8 +277,8 @@ static CL5Desc s_cl5Desc;
 
 /* changelog initialization and cleanup */
 static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode openMode);
-static int _cl5AppInit (PRBool *didRecovery);
-static int _cl5DBOpen ();
+static int _cl5AppInit (void);
+static int _cl5DBOpen (void);
 static void _cl5SetDefaultDBConfig ();
 static void _cl5SetDBConfig (const CL5DBConfig *config);
 static int _cl5CheckDBVersion ();
@@ -882,12 +882,13 @@ cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas)
 #if defined(USE_OPENLDAP)
 	LDIFFP *file = NULL;
 	int buflen;
+	ldif_record_lineno_t lineno = 0;
 #else
 	FILE *file = NULL;
+	int lineno = 0;
 #endif
 	int rc;
 	char *buff = NULL;
-	int lineno = 0;
 	slapi_operation_parameters op;
 	Object *prim_replica_obj = NULL;
 	Object *replica_obj = NULL;
@@ -1856,7 +1857,6 @@ int cl5GetOperationCount (Object *replica)
 static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode openMode)
 {
 	int rc;
-	PRBool didRecovery;
 
 	PR_ASSERT (dir);
 
@@ -1904,7 +1904,7 @@ static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode ope
 	s_cl5Desc.dbOpenMode = openMode;
 
 	/* initialize db environment */
-	rc = _cl5AppInit (&didRecovery);
+	rc = _cl5AppInit ();
 	if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -1919,7 +1919,7 @@ static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode ope
 	}
 
 	/* open database files */
-	rc = _cl5DBOpen (!didRecovery);
+	rc = _cl5DBOpen ();
 	if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
@@ -1995,7 +1995,7 @@ int cl5CreateDirIfNeeded (const char *dirName)
 	return CL5_SUCCESS;
 }
 
-static int _cl5AppInit (PRBool *didRecovery)
+static int _cl5AppInit (void)
 {
 	int rc = -1; /* initialize to failure */
 	DB_ENV *dbEnv = NULL;
@@ -2889,7 +2889,7 @@ static int _cl5UpgradeMajor(char *fromVersion, char *toVersion)
 	backup = s_cl5Desc.dbOpenMode;
 	s_cl5Desc.dbOpenMode = CL5_OPEN_CLEAN_RECOVER;
 	/* CL5_OPEN_CLEAN_RECOVER does 1 and 2 */
-	rc = _cl5AppInit (NULL);
+	rc = _cl5AppInit ();
 	if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -2984,7 +2984,7 @@ static int _cl5UpgradeMinor(char *fromVersion, char *toVersion)
 	backup = s_cl5Desc.dbOpenMode;
 	s_cl5Desc.dbOpenMode = CL5_OPEN_CLEAN_RECOVER;
 	/* CL5_OPEN_CLEAN_RECOVER does 1 and 2 */
-	rc = _cl5AppInit (NULL);
+	rc = _cl5AppInit ();
 	if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
@@ -4264,7 +4264,7 @@ static int _cl5Operation2LDIF (const slapi_operation_parameters *op, const char 
 	int len = 2;
 	lenstr *l = NULL;
 	const char *strType;
-	char *strDeleteOldRDN;
+	const char *strDeleteOldRDN = "false";
 	char *buff, *start;
 	LDAPMod **add_mods;
 	char *rawDN = NULL;

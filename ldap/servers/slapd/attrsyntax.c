@@ -1229,14 +1229,10 @@ slapi_add_internal_attr_syntax( const char *name, const char *oid,
 	int rc = LDAP_SUCCESS;
 	struct asyntaxinfo	*asip;
 	char *names[2];
-	char *origins[2];
 	unsigned long std_flags = SLAPI_ATTR_FLAG_STD_ATTR | SLAPI_ATTR_FLAG_OPATTR;
 
 	names[0] = (char *)name;
 	names[1] = NULL;
-
-	origins[0] = SLAPD_VERSION_STR;
-	origins[1] = NULL;
 
 	rc = attr_syntax_create( oid, names,
 			"internal server defined attribute type",

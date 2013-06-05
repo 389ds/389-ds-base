@@ -158,7 +158,9 @@ static mapping_tree_node *
 static int _mtn_update_config_param(int op, char *type, char *strvalue);
 
 #ifdef DEBUG
+#ifdef USE_DUMP_MAPPING_TREE
 static void dump_mapping_tree(mapping_tree_node *parent, int depth);
+#endif
 #endif
 
 /* structure and static local variable used to store the
@@ -3721,6 +3723,7 @@ void test_register()
 #endif
 
 #ifdef DEBUG
+#ifdef USE_DUMP_MAPPING_TREE
 static void dump_mapping_tree(mapping_tree_node *parent, int depth)
 {
     mapping_tree_node *current = NULL;
@@ -3751,7 +3754,8 @@ static void dump_mapping_tree(mapping_tree_node *parent, int depth)
     }
     return;
 }
-#endif
+#endif /* USE_DUMP_MAPPING_TREE */
+#endif /* DEBUG */
 
 /* helper function to set/remove the config param in cn=config */
 static int

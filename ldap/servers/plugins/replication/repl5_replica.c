@@ -104,7 +104,7 @@ typedef struct reap_callback_data
 
 
 /* Forward declarations of helper functions*/
-static Slapi_Entry* _replica_get_config_entry (const Slapi_DN *root, char **attrs);
+static Slapi_Entry* _replica_get_config_entry (const Slapi_DN *root, const char **attrs);
 static int _replica_check_validity (const Replica *r);
 static int _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext);
 static int _replica_update_entry (Replica *r, Slapi_Entry *e, char *errortext);
@@ -1556,7 +1556,7 @@ int replica_check_for_data_reload (Replica *r, void *arg)
    mapping tree node for the replica's backend */
 
 static Slapi_Entry* 
-_replica_get_config_entry (const Slapi_DN *root, char **attrs)
+_replica_get_config_entry (const Slapi_DN *root, const char **attrs)
 {
 	int rc = 0;
 	char *dn = NULL;
@@ -1573,7 +1573,7 @@ _replica_get_config_entry (const Slapi_DN *root, char **attrs)
 	}
 	pb = slapi_pblock_new ();
 
-	slapi_search_internal_set_pb (pb, dn, LDAP_SCOPE_BASE, "objectclass=*", attrs, 0, NULL,
+	slapi_search_internal_set_pb (pb, dn, LDAP_SCOPE_BASE, "objectclass=*", (char **)attrs, 0, NULL,
 								  NULL, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
 	slapi_search_internal_pb (pb);	
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -1596,7 +1596,7 @@ _replica_get_config_entry (const Slapi_DN *root, char **attrs)
 Slapi_Entry *
 get_in_memory_ruv(Slapi_DN *suffix_sdn)
 {
-        char *attrs[3];
+        const char *attrs[3];
         
         /* these two attributes needs to be asked when reading the RUV */
         attrs[0] = type_ruvElement;
