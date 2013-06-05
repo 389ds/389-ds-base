@@ -1355,11 +1355,16 @@ windows_plugin_init(Repl_Agmt *ra)
 {
     struct winsync_plugin_cookie *list = NULL;
     void *cookie = NULL;
-    PRStatus rv;
 
     LDAPDebug0Args( LDAP_DEBUG_PLUGIN, "--> windows_plugin_init_start -- begin\n");
 
-    rv = PR_CallOnce(&winsync_callOnce, windows_plugin_callonce);
+    if (PR_CallOnce(&winsync_callOnce, windows_plugin_callonce)) {
+	    PRErrorCode prerr = PR_GetError();
+	    slapi_log_error(SLAPI_LOG_FATAL, "windows_plugin_init",
+		    	    "cannot initialize plugin: %d:%s\n", prerr,
+		    	    slapi_pr_strerror(prerr));
+	    return;
+    }
 
     /* call each plugin init function in turn - store the returned cookie
        indexed by the api */

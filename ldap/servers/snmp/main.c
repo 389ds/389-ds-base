@@ -236,6 +236,15 @@ main (int argc, char *argv[]) {
     return 0;
 }
 
+/* ldif_read_record lineno argument type depends on openldap version */
+#if defined(USE_OPENLDAP)
+#if LDAP_VENDOR_VERSION >= 20434 /* changed in 2.4.34 */
+typedef unsigned long int ldif_record_lineno_t;
+#else
+typedef int ldif_record_lineno_t;
+#endif
+#endif
+
 /************************************************************************
  * load_config
  *
@@ -249,8 +258,10 @@ load_config(char *conf_path)
 #if defined(USE_OPENLDAP)
     LDIFFP *dse_fp = NULL;
     int buflen = 0;
+    ldif_record_lineno_t lineno = 0;
 #else
     FILE *dse_fp = NULL;
+    int lineno = 0;
 #endif
     char line[MAXLINE];
     char *p = NULL;
@@ -332,10 +343,10 @@ load_config(char *conf_path)
         } else if ((p = strstr(line, "server")) != NULL) {
             int got_port = 0;
             int got_rundir = 0;
-            int lineno = 0;
             char *entry = NULL;
             char *instancename = NULL;
 
+            lineno = 0;
             /* Allocate a server_instance */
             if ((serv_p = malloc(sizeof(server_instance))) == NULL) {
                 printf("ldap-agent: malloc error processing config file\n");

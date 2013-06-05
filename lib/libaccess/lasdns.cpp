@@ -140,7 +140,6 @@ LASDnsBuild(NSErr_t *errp, char *attr_pattern, LASDnsContext_t *context, int ali
     size_t delimiter; /* length of valid tokeni */
     char token[256];  /* max length dns name */
     int i;
-    int ipcnt = 0;
     char **p;
     pool_handle_t *pool;
     PRStatus error=PR_SUCCESS;

@@ -732,10 +732,8 @@ LDAP *
 connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPasswd, unsigned int mode, unsigned int mod2)
 {
   LDAP *ld = NULL;
-  const char *mech = LDAP_SASL_SIMPLE;
   struct berval cred = {0, NULL};
   int v2v3 = LDAP_VERSION3;
-  const char *binddn = NULL;
   const char *passwd = NULL;
 #if defined(USE_OPENLDAP)
   char *ldapurl = NULL;
@@ -863,11 +861,8 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
 #endif /* !USE_OPENLDAP */
 
   if (mode & CLTAUTH) {
-    mech = "EXTERNAL";
-    binddn = "";
     passwd = NULL;
   } else {
-    binddn = bufBindDN?bufBindDN:mctx.bindDN;
     passwd = bufPasswd?bufPasswd:mctx.passwd;
     if (passwd) {
       cred.bv_val = (char *)passwd;

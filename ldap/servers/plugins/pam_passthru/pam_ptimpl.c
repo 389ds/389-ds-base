@@ -263,7 +263,7 @@ do_one_pam_auth(
 	MyStrBuf pam_id;
 	const char *binddn = NULL;
 	Slapi_DN *bindsdn = NULL;
-	int rc;
+	int rc = PAM_SUCCESS;
 	int retcode = LDAP_SUCCESS;
 	pam_handle_t *pam_handle;
 	struct my_pam_conv_str my_data;

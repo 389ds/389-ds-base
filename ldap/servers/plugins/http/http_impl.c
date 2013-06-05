@@ -260,7 +260,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 	PRInt32 port;
 	PRInt32 errcode = 0;
 	PRInt32 http_connection_time_out = 0;
-	PRInt32 sslOn;
+	PRInt32 sslOn = 0;
 	
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> doRequest -- BEGIN\n",0,0,0);
 
@@ -1178,7 +1178,7 @@ SECStatus
                     struct SECKEYPrivateKeyStr **pRetKey)
 {
     CERTCertificate *  cert;
-    SECKEYPrivateKey * privKey;
+    SECKEYPrivateKey * privKey = NULL;
     char *             chosenNickName = (char *)arg;
     void *             proto_win      = NULL;
     SECStatus          secStatus      = SECFailure;
