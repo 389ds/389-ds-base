@@ -381,20 +381,19 @@ ACLEvalBuildContext(
     /* 	  Loop through all the ACLs in the list    */
     while (wrapper)        
     {
-	acl = wrapper->acl;
+        acl = wrapper->acl;
         ace = acl->expr_list_head;
 
         while (ace)    /* Loop through all the ACEs in this ACL    */
         {
-
             /* allocate a new ace list entry and link it in    to the ordered
              * list.
              */
             new_ace = (ACLAceEntry_t *)PERM_CALLOC(sizeof(ACLAceEntry_t));
             if (new_ace == (ACLAceEntry_t *)NULL) {
-		nserrGenerate(errp, ACLERRNOMEM, ACLERR4020, ACL_Program, 1,
-		XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAceEntry));
-		goto error;
+                nserrGenerate(errp, ACLERRNOMEM, ACLERR4020, ACL_Program, 1,
+                XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAceEntry));
+                goto error;
             }
             new_ace->acep    = ace;
             ace_cnt++;
@@ -402,7 +401,8 @@ ACLEvalBuildContext(
             if (cache->acelist == NULL)
                 cache->acelist = acelast    = new_ace;
             else {
-                acelast->next  = new_ace;
+                if(acelast)
+                    acelast->next  = new_ace;
                 acelast        = new_ace;
                 new_ace->acep  = ace;
             }

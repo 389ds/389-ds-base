@@ -2614,3 +2614,4 @@ slapi_sdn_get_size(const Slapi_DN *sdn)
     }
     return sz;
 }
+
