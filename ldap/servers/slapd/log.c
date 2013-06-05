@@ -207,6 +207,15 @@ slapd_log_error_proc_internal(
 	/* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */ \
 	PR_Sync(fd); \
 	} while (0)
+#define LOG_WRITE_NOW_NO_ERR(fd, buffer, size, headersize) do {\
+	if ( slapi_write_buffer((fd), (buffer), (size)) != (size) ) \
+	{ \
+		PRErrorCode prerr = PR_GetError(); \
+		syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer)+(headersize) ); \
+	} \
+	/* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */ \
+	PR_Sync(fd); \
+	} while (0)
 #define LOG_CLOSE(fd) \
 	PR_Close((fd))
 #endif
@@ -1267,7 +1276,7 @@ int
 log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, char *errorbuf, int apply)
 {
 	int	rv = 0;
-  	PRInt64	mlogsize;	  /* in bytes */
+  	PRInt64	mlogsize = 0;	  /* in bytes */
 	PRInt64 maxdiskspace; /* in bytes */
 	int	s_maxdiskspace;   /* in megabytes */
   
@@ -1500,7 +1509,7 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 {
 	int	value = 0;
 	int	rv = 0;
-	int	exptime, rsecs;
+	int	exptime = 0, rsecs = 0;
 	int	*exptimeunitp = NULL;
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
@@ -1616,12 +1625,11 @@ log_write_title (LOGFD fp)
 	char *buildnum = config_get_buildnum();
 	char buff[512];
 	int bufflen = sizeof(buff);
-	int err = 0;
 
 	PR_snprintf(buff, bufflen, "\t%s B%s\n",
 				fe_cfg->versionstring ? fe_cfg->versionstring : CAPBRAND "-Directory/" DS_PACKAGE_VERSION,
 				buildnum ? buildnum : "");
-	LOG_WRITE_NOW(fp, buff, strlen(buff), 0, err);
+	LOG_WRITE_NOW_NO_ERR(fp, buff, strlen(buff), 0);
 
 	if (fe_cfg->localhost) {
 		PR_snprintf(buff, bufflen, "\t%s:%d (%s)\n\n",
@@ -1636,7 +1644,7 @@ log_write_title (LOGFD fp)
 		PR_snprintf(buff, bufflen, "\t<host>:<port> (%s)\n\n",
 				fe_cfg->configdir ? fe_cfg->configdir : "");
 	}
-	LOG_WRITE_NOW(fp, buff, strlen(buff), 0, err);
+	LOG_WRITE_NOW_NO_ERR(fp, buff, strlen(buff), 0);
 	slapi_ch_free((void **)&buildnum);
 }
 
@@ -1723,7 +1731,6 @@ slapd_log_audit_proc (
 	int	buf_len)
 {
 	if ( (loginfo.log_audit_state & LOGGING_ENABLED) && (loginfo.log_audit_file != NULL) ){
-		int err;
 		LOG_AUDIT_LOCK_WRITE( );
 		if (log__needrotation(loginfo.log_audit_fdes,
 					SLAPD_AUDIT_LOG) == LOG_ROTATE) {
@@ -1742,7 +1749,7 @@ slapd_log_audit_proc (
 			log_write_title( loginfo.log_audit_fdes);
 			loginfo.log_audit_state &= ~LOGGING_NEED_TITLE;
 		}
-	    LOG_WRITE_NOW(loginfo.log_audit_fdes, buffer, buf_len, 0, err);
+	    LOG_WRITE_NOW_NO_ERR(loginfo.log_audit_fdes, buffer, buf_len, 0);
    		LOG_AUDIT_UNLOCK_WRITE();
 	    return 0;
 	}
@@ -4144,7 +4151,6 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if (type == SLAPD_ACCESS_LOG) {
-        int err = 0;
 
 		/* It is only safe to flush once any other threads which are copying are finished */
 		while (lbi->refcount > 0) {
@@ -4175,8 +4181,8 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
 		if (!sync_now && slapdFrontendConfig->accesslogbuffering) {
 			LOG_WRITE(loginfo.log_access_fdes, lbi->top, lbi->current - lbi->top, 0);
 		} else {
-			LOG_WRITE_NOW(loginfo.log_access_fdes, lbi->top,
-								lbi->current - lbi->top, 0, err);
+			LOG_WRITE_NOW_NO_ERR(loginfo.log_access_fdes, lbi->top,
+								lbi->current - lbi->top, 0);
 		}
 
         lbi->current = lbi->top;

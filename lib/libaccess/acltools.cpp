@@ -1741,7 +1741,7 @@ static PList_t ACLAttr2IndexPList = NULL;
 int
 ACL_InitAttr2Index(void)
 {
-    int i;
+    intptr_t i;
 
     if (ACLAttr2IndexPList) return 0;
 

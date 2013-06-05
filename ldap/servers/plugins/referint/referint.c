@@ -896,7 +896,7 @@ void
 referint_thread_func(void *arg)
 {
     char **plugin_argv = (char **)arg;
-    PRFileDesc *prfd;
+    PRFileDesc *prfd = NULL;
     char *logfilename;
     char thisline[MAX_LINE];
     int delay;

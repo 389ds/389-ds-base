@@ -2522,10 +2522,11 @@ void automember_map_task_thread(void *arg){
 #if defined(USE_OPENLDAP)
     int buflen = 0;
     LDIFFP *ldif_fd_in = NULL;
+    ldif_record_lineno_t lineno = 0;
 #else
     PRFileDesc *ldif_fd_in = NULL;
-#endif
     int lineno = 0;
+#endif
     int rc = 0;
 
     td = (task_data *)slapi_task_get_data(task);

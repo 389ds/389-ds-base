@@ -673,7 +673,7 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
         if (be && be->be_usn_counter) {
             /* get a next USN counter from be_usn_counter; 
              * then minus 1 from it */
-            PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRI64 "d",
+            PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64,
                                 slapi_counter_get_value(be->be_usn_counter)-1);
             usn_berval.bv_len = strlen(usn_berval.bv_val);
             slapi_entry_attr_replace(e, attr, vals);
@@ -692,7 +692,7 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
             }
             /* get a next USN counter from be_usn_counter; 
              * then minus 1 from it */
-            PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRI64 "d",
+            PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64,
                                 slapi_counter_get_value(be->be_usn_counter)-1);
             usn_berval.bv_len = strlen(usn_berval.bv_val);
     
