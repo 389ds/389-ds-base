@@ -1494,41 +1494,56 @@ int replica_check_for_data_reload (Replica *r, void *arg)
 			 * sessions.
 			 */
 
-            rc = ruv_compare_ruv(upper_bound_ruv, "changelog max RUV", r_ruv, "database RUV", 0, SLAPI_LOG_FATAL);
-            if (RUV_COMP_IS_FATAL(rc))
-            {
-                /* create a temporary replica object to conform to the interface */
-                r_obj = object_new (r, NULL);
-
-                /* We can't use existing changelog - remove existing file */
+            if (slapi_disordely_shutdown(PR_FALSE)) {
                 slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
-                    "Warning: data for replica %s does not match the data in the changelog. "
-                    "Recreating the changelog file. "
-                    "This could affect replication with replica's consumers in which case the "
-                    "consumers should be reinitialized.\n",
+                    "Warning: disordely shutdown for replica %s. Check if DB RUV needs to be updated\n",
                     slapi_sdn_get_dn(r->repl_root));
+                
+                if (ruv_covers_ruv(upper_bound_ruv, r_ruv) && !ruv_covers_ruv(r_ruv, upper_bound_ruv)) {
+                    /*
+                     * The Changelog RUV is ahead of the RUV in the DB.
+                     * RUV DB was likely not flushed on disk.
+                     */
 
-                rc = cl5DeleteDBSync (r_obj);
-
-                object_release (r_obj);
-
-                if (rc == CL5_SUCCESS)
-                {
-                    /* log changes to mark starting point for replication */
-                    rc = replica_log_ruv_elements (r);
+                    ruv_force_csn_update_from_ruv(upper_bound_ruv, r_ruv, 
+                            "Force update of database RUV (from CL RUV) -> ", SLAPI_LOG_FATAL);
+                    replica_set_ruv_dirty(r);
                 }
-            }
-            else if (rc)
-            {
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
-                    "Warning: for replica %s there were some differences between the changelog max RUV and the "
-                    "database RUV.  If there are obsolete elements in the database RUV, you "
-                    "should remove them using the CLEANALLRUV task.  If they are not obsolete, "
-                    "you should check their status to see why there are no changes from those "
-                    "servers in the changelog.\n",
-                    slapi_sdn_get_dn(r->repl_root));
-                rc = 0;
-            }
+                
+            } else {
+
+                rc = ruv_compare_ruv(upper_bound_ruv, "changelog max RUV", r_ruv, "database RUV", 0, SLAPI_LOG_FATAL);
+                if (RUV_COMP_IS_FATAL(rc)) {
+                    /* create a temporary replica object to conform to the interface */
+                    r_obj = object_new(r, NULL);
+
+                    /* We can't use existing changelog - remove existing file */
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
+                            "Warning: data for replica %s does not match the data in the changelog. "
+                            "Recreating the changelog file. "
+                            "This could affect replication with replica's consumers in which case the "
+                            "consumers should be reinitialized.\n",
+                            slapi_sdn_get_dn(r->repl_root));
+
+                    rc = cl5DeleteDBSync(r_obj);
+
+                    object_release(r_obj);
+
+                    if (rc == CL5_SUCCESS) {
+                        /* log changes to mark starting point for replication */
+                        rc = replica_log_ruv_elements(r);
+                    }
+                } else if (rc) {
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_check_for_data_reload: "
+                            "Warning: for replica %s there were some differences between the changelog max RUV and the "
+                            "database RUV.  If there are obsolete elements in the database RUV, you "
+                            "should remove them using the CLEANALLRUV task.  If they are not obsolete, "
+                            "you should check their status to see why there are no changes from those "
+                            "servers in the changelog.\n",
+                            slapi_sdn_get_dn(r->repl_root));
+                    rc = 0;
+                }
+            } // slapi_disordely_shutdown
 
             object_release (ruv_obj);
         }

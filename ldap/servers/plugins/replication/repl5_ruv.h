@@ -144,6 +144,7 @@ int ruv_local_contains_supplier(RUV *ruv, ReplicaId rid);
 PRBool ruv_has_csns(const RUV *ruv);
 PRBool ruv_has_both_csns(const RUV *ruv);
 PRBool ruv_is_newer (Object *sruv, Object *cruv);
+void ruv_force_csn_update_from_ruv(RUV *src_ruv, RUV *tgt_ruv, char *msg, int logLevel);
 void ruv_force_csn_update (RUV *ruv, CSN *csn);
 void ruv_insert_dummy_min_csn (RUV *ruv);
 int ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const char *ruv2name, int strict, int loglevel);

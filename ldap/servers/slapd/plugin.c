@@ -3223,3 +3223,14 @@ slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb){
 
 	ptd_set_special_data(&(config->plgc_bind_subtrees), PLGC_DATA_BIND_ROOT);
 }
+
+PRBool
+slapi_disordely_shutdown(PRBool set)
+{
+    static PRBool is_disordely_shutdown = PR_FALSE;
+    
+    if (set) {
+        is_disordely_shutdown = PR_TRUE;
+    }
+    return (is_disordely_shutdown);
+}

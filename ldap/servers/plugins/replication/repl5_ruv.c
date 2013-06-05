@@ -2255,6 +2255,37 @@ ruv_is_newer (Object *sruvobj, Object *cruvobj)
 	return is_newer;
 }
 
+/*
+ * This routine is called after a disordely shutdown
+ * The Database RUV was found late compare to the changelog RUV
+ */
+void
+ruv_force_csn_update_from_ruv(RUV *src_ruv, RUV *tgt_ruv, char *msg, int logLevel) {
+    RUVElement *replica = NULL;
+    char csnStr [CSN_STRSIZE];
+    int cookie;
+
+    slapi_rwlock_rdlock(src_ruv->lock);
+    
+    for (replica = dl_get_first(src_ruv->elements, &cookie);
+            NULL != replica;
+            replica = dl_get_next(src_ruv->elements, &cookie)) {
+        /* 
+         * In case the DB RUV (tgt_ruv) is behind the CL RUV (src_ruv)
+         * updates the DB RUV.
+         */
+        if (!ruv_covers_csn(tgt_ruv, replica->csn)) {
+            ruv_force_csn_update(tgt_ruv, replica->csn);
+            csn_as_string(replica->csn, PR_FALSE, csnStr);
+            slapi_log_error(logLevel, repl_plugin_name, "%s %s\n",
+                    msg, csnStr);
+        }
+    }
+
+    slapi_rwlock_unlock(src_ruv->lock);
+    
+}
+
 void
 ruv_force_csn_update (RUV *ruv, CSN *csn)
 {

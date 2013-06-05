@@ -1643,6 +1643,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
                 LDAPDebug(LDAP_DEBUG_ANY, "Detected Disorderly Shutdown last "
                           "time Directory Server was running, recovering "
                           "database.\n", 0, 0, 0);
+                slapi_disordely_shutdown(PR_TRUE);
             }
         }
         switch  (dbmode&DBLAYER_RESTORE_MASK) {
