@@ -47,6 +47,7 @@
 #include "repl5.h"
 #include "cl5_api.h"
 #include "cl5.h"
+#include "slap.h"
 
 /* CONFIG_BASE: no need to optimize */
 #define CONFIG_BASE		    "cn=mapping tree,cn=config"
@@ -540,7 +541,6 @@ replica_config_post_modify(Slapi_PBlock *pb,
     LDAPMod **mods;
     int i, apply_mods;
     multimaster_mtnode_extension *mtnode_ext;
-    Replica *r = NULL;
     char *replica_root = NULL;
     char buf [SLAPI_DSE_RETURNTEXT_SIZE];
     char *errortext = returntext ? returntext : buf;
@@ -587,8 +587,7 @@ replica_config_post_modify(Slapi_PBlock *pb,
         goto done;
     }
 
-    r = object_get_data (mtnode_ext->replica);
-    PR_ASSERT (r);
+    PR_ASSERT (object_get_data (mtnode_ext->replica) != NULL);
 
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     for (apply_mods = 0; apply_mods <= 1; apply_mods++)
@@ -750,7 +749,7 @@ replica_config_search_ruv(Slapi_PBlock *pb, Slapi_Entry* e, Replica *replica)
  * else it returns PR_FALSE
  */
 static PRBool
-search_requested_attr(Slapi_PBlock *pb, char *attr) 
+search_requested_attr(Slapi_PBlock *pb, const char *attr) 
 {
         char **attrs = NULL;
         int i;
