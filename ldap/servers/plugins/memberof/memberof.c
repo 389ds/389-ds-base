@@ -460,7 +460,7 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *
 	/* Loop through each grouping attribute to find groups that have
 	 * dn as a member.  For any matches, delete the dn value from the
 	 * same grouping attribute. */
-	for (i = 0; config->groupattrs[i]; i++)
+	for (i = 0; config->groupattrs && config->groupattrs[i]; i++)
 	{
 		memberof_del_dn_data data = {(char *)slapi_sdn_get_dn(sdn),
 		                             config->groupattrs[i]};
@@ -724,7 +724,7 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	/* Loop through each grouping attribute to find groups that have
 	 * pre_dn as a member.  For any matches, replace pre_dn with post_dn
 	 * using the same grouping attribute. */
-	for (i = 0; config->groupattrs[i]; i++)
+	for (i = 0; config->groupattrs && config->groupattrs[i]; i++)
 	{
 		replace_dn_data data = {(char *)slapi_sdn_get_ndn(pre_sdn),
 		                        (char *)slapi_sdn_get_ndn(post_sdn),
@@ -2218,8 +2218,18 @@ void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr)
  */
 int memberof_compare(MemberOfConfig *config, const void *a, const void *b)
 {
-	Slapi_Value *val1 = *((Slapi_Value **)a);
-	Slapi_Value *val2 = *((Slapi_Value **)b);
+	Slapi_Value *val1;
+	Slapi_Value *val2;
+
+	if(a == NULL && b != NULL){
+		return 1;
+	} else if(a != NULL && b == NULL){
+		return -1;
+	} else if(a == NULL && b == NULL){
+		return 0;
+	}
+	val1 = *((Slapi_Value **)a);
+	val2 = *((Slapi_Value **)b);
 
 	/* We only need to provide a Slapi_Attr here for it's syntax.  We
 	 * already validated all grouping attributes to use the Distinguished

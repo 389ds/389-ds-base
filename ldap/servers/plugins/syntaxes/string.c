@@ -84,7 +84,11 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 			bvfilter_norm.bv_val = alt;
 			alt = NULL;
 		}
-		bvfilter_norm.bv_len = strlen(bvfilter_norm.bv_val);
+		if(bvfilter_norm.bv_val){
+			bvfilter_norm.bv_len = strlen(bvfilter_norm.bv_val);
+		} else {
+			bvfilter_norm.bv_len = 0;
+		}
 	}
 
 	for ( i = 0; (bvals != NULL) && (bvals[i] != NULL); i++ ) {
@@ -103,7 +107,7 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 							    if(retVal) {
 									*retVal = bvals[i];
 								}
-								slapi_ch_free ((void**)&bvfilter_norm.bv_val);
+								slapi_ch_free_string(&bvfilter_norm.bv_val);
                                 return( 0 );
                         }
                         break;
@@ -112,7 +116,7 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 							    if(retVal) {
 									*retVal = bvals[i];
 								}
-								slapi_ch_free ((void**)&bvfilter_norm.bv_val);
+								slapi_ch_free_string(&bvfilter_norm.bv_val);
                                 return( 0 );
                         }
                         break;
@@ -121,14 +125,14 @@ string_filter_ava( struct berval *bvfilter, Slapi_Value **bvals, int syntax,
 							    if(retVal) {
 									*retVal = bvals[i];
 								}
-								slapi_ch_free ((void**)&bvfilter_norm.bv_val);
+								slapi_ch_free_string(&bvfilter_norm.bv_val);
                                 return( 0 );
                         }
                         break;
                 }
         }
 
-	slapi_ch_free ((void**)&bvfilter_norm.bv_val);
+	slapi_ch_free_string(&bvfilter_norm.bv_val);
 	return( -1 );
 }
 

@@ -190,20 +190,23 @@ valuearray_add_valuearray(Slapi_Value ***vals, Slapi_Value **addvals, PRUint32 f
 {
     int valslen;
     int addvalslen;
-	int maxvals;
+    int maxvals;
 
-	addvalslen= valuearray_count(addvals);
+    if(vals == NULL){
+        return;
+    }
+    addvalslen= valuearray_count(addvals);
     if(*vals == NULL)
     {
-		valslen= 0;
-		maxvals= 0;
+        valslen= 0;
+        maxvals= 0;
     }
     else
     {
-		valslen= valuearray_count(*vals);
-		maxvals= valslen+1;
+        valslen= valuearray_count(*vals);
+        maxvals= valslen+1;
     }
-	valuearray_add_valuearray_fast(vals,addvals,valslen,addvalslen,&maxvals,1/*Exact*/,flags & SLAPI_VALUE_FLAG_PASSIN);
+    valuearray_add_valuearray_fast(vals,addvals,valslen,addvalslen,&maxvals,1/*Exact*/,flags & SLAPI_VALUE_FLAG_PASSIN);
 }
 
 int
