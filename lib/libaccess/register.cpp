@@ -77,6 +77,8 @@ ACL_LasHashInit()
 {
     int	i;
 
+    (void)(link_ACLGlobal); /* get rid of defined but not used compiler warning */
+    (void)(link_nsacl_table); /* get rid of defined but not used compiler warning */
     ACLLasEvalHash = PR_NewHashTable(0,
 				     PR_HashString,
 				     PR_CompareStrings,
@@ -268,11 +270,11 @@ ACL_MethodRegister(NSErr_t *errp, const char *name, ACLMethod_t *t)
     }
 	
     /*  Put it in the hash table  */
-    if (NULL == PR_HashTableAdd(ACLMethodHash, name, (void *)++cur_method)) {
+    if (NULL == PR_HashTableAdd(ACLMethodHash, name, (void *)(intptr_t)++cur_method)) {
         ACL_CritExit();
         return -1;
     }
-    *t = (ACLMethod_t) cur_method;
+    *t = (ACLMethod_t) (intptr_t)cur_method;
 
     ACL_CritExit();
     return 0;
@@ -412,11 +414,11 @@ ACL_DbTypeRegister(NSErr_t *errp, const char *name, DbParseFn_t func, ACLDbType_
     }
 	
     /*  Put it in the hash table  */
-    if (NULL == PR_HashTableAdd(ACLDbTypeHash, name, (void *)++cur_dbtype)) {
+    if (NULL == PR_HashTableAdd(ACLDbTypeHash, name, (void *)(intptr_t)++cur_dbtype)) {
         ACL_CritExit();
         return -1;
     }
-    *t = (ACLDbType_t) cur_dbtype;
+    *t = (ACLDbType_t) (intptr_t)cur_dbtype;
     ACLDbParseFnTable[cur_dbtype] = func;
 
     ACL_CritExit();

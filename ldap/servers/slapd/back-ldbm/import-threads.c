@@ -3622,7 +3622,7 @@ _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
              * Use the counter which stores the old DB's
              * next entryusn. */
             PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN,
-                        "%" NSPRI64 "d",
+                        "%" NSPRIu64,
                         slapi_counter_get_value(be->be_usn_counter));
         } else {
             /* import_init value is digit.

@@ -161,7 +161,7 @@ slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
     int  pin;
     int  *ovector;
     char *mydst;
-    const char *prev, *next;
+    const char *prev;
     const char *substring_start;
     const char *p;
 
@@ -179,8 +179,7 @@ slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
     for (p = src; *p != '\0'; p++) {
         if ('&' == *p) {
             /* Don't replace '&' if it's a filter AND: "(&(cn=a)(sn=b))"  */
-            next = p;
-            if(!filter || (*prev != '(' && *next++ != '(')){
+            if(!filter || !(*prev == '(' && *(p+1) == '(')){
                 if (re_handle->re_oveccount <= 1) {
                     memset(*dst, '\0', dstlen);
                     return -1;
@@ -188,6 +187,11 @@ slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
                 substring_start = subject + ovector[0];
                 thislen = ovector[1] - ovector[0];
                 len += thislen;
+            } else { /* is a filter AND clause */
+                /* just copy it into the filter */
+                substring_start = p;
+                thislen = 1;
+                len++;
             }
         } else if (('\\' == *p) && ('0' <= *(p+1) && *(p+1) <= '9')) {
             pin = *(++p) - '0';
