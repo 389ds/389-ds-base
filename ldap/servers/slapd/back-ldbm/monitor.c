@@ -238,13 +238,13 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 #endif
         MSETF("dbFilename-%d", i);
         
-        sprintf(buf, "%u", mpfstat[i]->st_cache_hit);
+        sprintf(buf, "%lu", (unsigned long)mpfstat[i]->st_cache_hit);
         MSETF("dbFileCacheHit-%d", i);
-        sprintf(buf, "%u", mpfstat[i]->st_cache_miss);
+        sprintf(buf, "%lu", (unsigned long)mpfstat[i]->st_cache_miss);
         MSETF("dbFileCacheMiss-%d", i);
-        sprintf(buf, "%u", mpfstat[i]->st_page_in);
+        sprintf(buf, "%lu", (unsigned long)mpfstat[i]->st_page_in);
         MSETF("dbFilePageIn-%d", i);
-        sprintf(buf, "%u", mpfstat[i]->st_page_out);
+        sprintf(buf, "%lu", (unsigned long)mpfstat[i]->st_page_out);
         MSETF("dbFilePageOut-%d", i);
 
 	slapi_ch_free_string(&absolute_pathname);
@@ -291,7 +291,7 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     /* cache hits*/
-    sprintf(buf, "%u", mpstat->st_cache_hit);
+    sprintf(buf, "%lu", (unsigned long)mpstat->st_cache_hit);
     MSET("dbCacheHits");
 
     /* cache tries*/
@@ -303,13 +303,13 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
     sprintf(buf, "%lu", (unsigned long)(100.0 * (double)mpstat->st_cache_hit / (double)(cache_tries > 0 ? cache_tries : 1) ));
     MSET("dbCacheHitRatio");
 
-    sprintf(buf, "%u", mpstat->st_page_in);
+    sprintf(buf, "%lu", (unsigned long)mpstat->st_page_in);
     MSET("dbCachePageIn");
-    sprintf(buf, "%u", mpstat->st_page_out);
+    sprintf(buf, "%lu", (unsigned long)mpstat->st_page_out);
     MSET("dbCachePageOut");
-    sprintf(buf, "%u", mpstat->st_ro_evict);
+    sprintf(buf, "%lu", (unsigned long)mpstat->st_ro_evict);
     MSET("dbCacheROEvict");
-    sprintf(buf, "%u", mpstat->st_rw_evict);
+    sprintf(buf, "%lu", (unsigned long)mpstat->st_rw_evict);
     MSET("dbCacheRWEvict");
 
     slapi_ch_free((void **)&mpstat);

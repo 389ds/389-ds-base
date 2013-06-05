@@ -921,7 +921,7 @@ int referint_postop_close( Slapi_PBlock *pb)
 void
 referint_thread_func(void *arg)
 {
-    PRFileDesc *prfd;
+    PRFileDesc *prfd = NULL;
     char **plugin_argv = (char **)arg;
     char *logfilename;
     char thisline[MAX_LINE];

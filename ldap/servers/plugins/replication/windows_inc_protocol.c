@@ -1175,7 +1175,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 {
 	CL5Entry entry;
 	slapi_operation_parameters op;
-	int return_value;
+	int return_value = UPDATE_NO_MORE_UPDATES;
 	int rc;
 	int set_mincsn = 0;
 	CL5ReplayIterator *changelog_iterator = NULL;
