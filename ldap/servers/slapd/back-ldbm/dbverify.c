@@ -119,9 +119,11 @@ dbverify_ext( ldbm_instance *inst, int verbose )
             char *p = NULL;
             p = strstr(filep, LDBM_FILENAME_SUFFIX); /* since already checked,
                                                         it must have it */
-            *p = '\0';
+            if(p)
+                *p = '\0';
             ainfo_get( inst->inst_be, filep+1, &ai );
-            *p = '.';
+            if(p)
+                *p = '.';
             if (ai->ai_key_cmp_fn) {
                 dbp->app_private = (void *)ai->ai_key_cmp_fn;
                 dbp->set_bt_compare(dbp, dblayer_bt_compare);

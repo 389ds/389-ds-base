@@ -2246,15 +2246,23 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
          * Update the Virtual List View indexes
          */
         for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
+            char *ai = "Unknown index";
+
             if ( g_get_shutdown() || c_get_shutdown() ) {
                 goto err_out;
+            }
+            if(indexAttrs){
+                  if(indexAttrs[vlvidx]){
+                      ai = indexAttrs[vlvidx];
+                  }
             }
             if (!run_from_cmdline) {
                 rc = dblayer_txn_begin(li, NULL, &txn);
                 if (0 != rc) {
+
                     LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: ERROR: failed to begin txn for update index '%s'\n",
-                      inst->inst_name, indexAttrs[vlvidx], 0);
+                      inst->inst_name, ai, 0);
                     LDAPDebug(LDAP_DEBUG_ANY,
                         "%s: Error %d: %s\n", inst->inst_name, rc,
                         dblayer_strerror(rc));
@@ -2262,7 +2270,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_task_log_notice(task,
                          "%s: ERROR: failed to begin txn for update index '%s' "
                          "(err %d: %s)", inst->inst_name,
-                         indexAttrs[vlvidx], rc, dblayer_strerror(rc));
+                         ai, rc, dblayer_strerror(rc));
                     }
                     return_value = -2;
                     goto err_out;
@@ -2281,7 +2289,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (0 != rc) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                       "%s: ERROR: failed to commit txn for update index '%s'\n",
-                      inst->inst_name, indexAttrs[vlvidx], 0);
+                      inst->inst_name, ai, 0);
                     LDAPDebug(LDAP_DEBUG_ANY,
                         "%s: Error %d: %s\n", inst->inst_name, rc,
                         dblayer_strerror(rc));
@@ -2289,7 +2297,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_task_log_notice(task,
                         "%s: ERROR: failed to commit txn for update index '%s' "
                         "(err %d: %s)", inst->inst_name,
-                        indexAttrs[vlvidx], rc, dblayer_strerror(rc));
+                        ai, rc, dblayer_strerror(rc));
                     }
                     return_value = -2;
                     goto err_out;
