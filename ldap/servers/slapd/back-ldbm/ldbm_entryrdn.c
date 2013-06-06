@@ -3164,6 +3164,7 @@ _entryrdn_index_read(backend *be,
             /* Node might be a tombstone. */
             rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, 
                                               &key, nrdn, elem);
+            rdnidx--; /* consider nsuniqueid=..,<RDN> one RDN */
         }
         if (rc || NULL == *elem) {
             slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
@@ -3270,6 +3271,7 @@ _entryrdn_index_read(backend *be,
                     }
                     goto bail;
                 }
+                rdnidx--; /* consider nsuniqueid=..,<RDN> one RDN */
             } else {
                 slapi_ch_free((void **)&tmpelem);
                 if (DB_NOTFOUND != rc) {
