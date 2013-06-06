@@ -253,7 +253,6 @@ slapi_onoff_t init_slapi_counters;
 slapi_onoff_t init_entryusn_global;
 slapi_onoff_t init_disk_monitoring;
 slapi_onoff_t init_disk_logging_critical;
-slapi_onoff_t init_disk_preserve_logging;
 slapi_onoff_t init_ndn_cache_enabled;
 slapi_onoff_t init_sasl_mapping_fallback;
 slapi_onoff_t init_return_orig_type;
@@ -1015,11 +1014,6 @@ static struct config_get_and_set {
 		(void**)&global_slapdFrontendConfig.disk_logging_critical,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical,
 		&init_disk_logging_critical},
-	{CONFIG_DISK_PRESERVE_LOGGING, config_set_disk_preserve_logging,
-		NULL, 0,
-		(void**)&global_slapdFrontendConfig.disk_preserve_logging,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_preserve_logging,
-		&init_disk_preserve_logging},
 	{CONFIG_NDN_CACHE, config_set_ndn_cache_enabled,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ndn_cache_enabled,
@@ -1493,7 +1487,6 @@ FrontendConfig_init () {
   init_disk_monitoring = cfg->disk_monitoring = LDAP_OFF;
   cfg->disk_threshold = 2097152;  /* 2 mb */
   cfg->disk_grace_period = 60; /* 1 hour */
-  init_disk_preserve_logging = cfg->disk_preserve_logging = LDAP_OFF;
   init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
   init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
@@ -1690,17 +1683,6 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
-    return retVal;
-}
-
-int
-config_set_disk_preserve_logging( const char *attrname, char *value, char *errorbuf, int apply )
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
-
-    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->disk_preserve_logging),
-                                errorbuf, apply);
     return retVal;
 }
 
@@ -4353,18 +4335,6 @@ config_get_disk_monitoring(){
 
     CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
     retVal = (int)slapdFrontendConfig->disk_monitoring;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
-}
-
-int
-config_get_disk_preserve_logging(){
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->disk_preserve_logging;
     CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;
