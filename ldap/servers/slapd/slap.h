@@ -2049,7 +2049,6 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DISK_MONITORING "nsslapd-disk-monitoring"
 #define CONFIG_DISK_THRESHOLD "nsslapd-disk-monitoring-threshold"
 #define CONFIG_DISK_GRACE_PERIOD "nsslapd-disk-monitoring-grace-period"
-#define CONFIG_DISK_PRESERVE_LOGGING "nsslapd-disk-monitoring-preserve-logging"
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
 #define CONFIG_NDN_CACHE "nsslapd-ndn-cache-enabled"
 #define CONFIG_NDN_CACHE_SIZE "nsslapd-ndn-cache-max-size"
@@ -2272,7 +2271,6 @@ typedef struct _slapdFrontendConfig {
   int disk_monitoring;
   int disk_threshold;
   int disk_grace_period;
-  int disk_preserve_logging;
   int disk_logging_critical;
 
   /* normalized dn cache */
