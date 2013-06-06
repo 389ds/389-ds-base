@@ -689,10 +689,6 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_logging_critical,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical},
-	{CONFIG_DISK_PRESERVE_LOGGING, config_set_disk_preserve_logging,
-		NULL, 0,
-		(void**)&global_slapdFrontendConfig.disk_preserve_logging,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_preserve_logging},
 	{CONFIG_SASL_MAXBUFSIZE, config_set_sasl_maxbufsize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.sasl_max_bufsize,
@@ -1114,7 +1110,6 @@ FrontendConfig_init () {
   cfg->disk_monitoring = LDAP_OFF;
   cfg->disk_threshold = 2097152;  /* 2 mb */
   cfg->disk_grace_period = 60; /* 1 hour */
-  cfg->disk_preserve_logging = LDAP_OFF;
   cfg->disk_logging_critical = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
   cfg->ignore_vattrs = slapi_counter_new();
@@ -1297,17 +1292,6 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
-    return retVal;
-}
-
-int
-config_set_disk_preserve_logging( const char *attrname, char *value, char *errorbuf, int apply )
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
-
-    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->disk_preserve_logging),
-                                errorbuf, apply);
     return retVal;
 }
 
@@ -3835,18 +3819,6 @@ config_get_disk_monitoring(){
 
     CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
     retVal = (int)slapdFrontendConfig->disk_monitoring;
-    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
-}
-
-int
-config_get_disk_preserve_logging(){
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-    retVal = (int)slapdFrontendConfig->disk_preserve_logging;
     CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;

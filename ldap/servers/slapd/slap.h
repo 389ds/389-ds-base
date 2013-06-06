@@ -2051,7 +2051,6 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DISK_MONITORING "nsslapd-disk-monitoring"
 #define CONFIG_DISK_THRESHOLD "nsslapd-disk-monitoring-threshold"
 #define CONFIG_DISK_GRACE_PERIOD "nsslapd-disk-monitoring-grace-period"
-#define CONFIG_DISK_PRESERVE_LOGGING "nsslapd-disk-monitoring-preserve-logging"
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_IGNORE_VATTRS "nsslapd-ignore-virtual-attrs"
@@ -2272,8 +2271,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t disk_monitoring;
   int disk_threshold;
   int disk_grace_period;
-  slapi_onoff_t disk_preserve_logging;
-  slapi_onoff_t disk_logging_critical;
+  int disk_logging_critical;
 
   /* atomic settings */
   Slapi_Counter *ignore_vattrs;
