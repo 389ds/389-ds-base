@@ -4499,7 +4499,7 @@ static int log_flush_threadmain(void *param)
 {
     dblayer_private *priv = NULL;
     PRIntervalTime    interval_wait, interval_flush, interval_def;
-    PRIntervalTime last_flush;
+    PRIntervalTime last_flush = 0;
     int i;
     int do_flush = 0;
 

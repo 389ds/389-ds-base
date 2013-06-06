@@ -509,7 +509,7 @@ findSubtreeAndSearch(Slapi_DN *parentDN, const char *attrName, Slapi_Attr *attr,
   Slapi_DN *newpar = NULL;
 
   slapi_sdn_get_parent(parentDN, curpar);
-  while ((curpar != NULL) && (slapi_sdn_get_dn(curpar) != NULL))
+  while (slapi_sdn_get_dn(curpar) != NULL)
   {
         if ((spb = dnHasObjectClass(curpar, markerObjectClass)))
         {
