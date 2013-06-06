@@ -444,9 +444,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 			val.bv_val = bufptr;
 			val.bv_len = strlen( bufptr );
 			attrlist_merge( &e->e_attrs, "connection", vals );
-			if (newbuf) {
-				slapi_ch_free_string(&newbuf);
-			}
+			slapi_ch_free_string(&newbuf);
 		}
 		PR_Unlock( ct->c[i].c_mutex );
 	}
