@@ -110,8 +110,10 @@ multimaster_mtnode_construct_replicas ()
             ext->replica = object_new(r, replica_destroy);
             if (replica_add_by_name (replica_get_name (r), ext->replica) != 0)
             {
-                object_release (ext->replica);    
-                ext->replica = NULL;
+                if(ext->replica){
+                    object_release (ext->replica);
+                    ext->replica = NULL;
+                }
             }
         }
 	}

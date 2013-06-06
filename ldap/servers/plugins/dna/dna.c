@@ -1865,7 +1865,7 @@ dna_first_free_value(struct configEntry *config_entry,
     } else {
         /* This is a single-type range, so just use the first (only)
          * type from the list. */
-        ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl));
+        ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
         if (NULL == ctrls)
             return LDAP_OPERATIONS_ERROR;
 

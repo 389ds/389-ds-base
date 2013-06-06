@@ -253,7 +253,7 @@ static char *Bfmt[] = {
 
 static void _util_strftime_conv(char *, int, int, char);
 
-#define _util_strftime_add(str) for (;(*pt = *str++); pt++);
+#define _util_strftime_add(str) for (;(*pt = *str++); pt++)
 #define _util_strftime_copy(str, len) memcpy(pt, str, len); pt += len;
 #define _util_strftime_fmt util_strftime
 
