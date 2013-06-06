@@ -2058,7 +2058,7 @@ static int vslapd_log_access(char *fmt, va_list ap)
     int		blen, vlen;
     /* info needed to keep us from calling localtime/strftime so often: */
     static time_t	old_time = 0;
-    static char		old_tbuf[TBUFSIZE];
+    static char		old_tbuf[SLAPI_LOG_BUFSIZ];
 	static int old_blen = 0;
 
     tnl = current_time();
@@ -2066,11 +2066,11 @@ static int vslapd_log_access(char *fmt, va_list ap)
     /* check if we can use the old strftime buffer */
     PR_Lock(ts_time_lock);
     if (tnl == old_time) {
-	strcpy(buffer, old_tbuf);
-	blen = old_blen;
-	PR_Unlock(ts_time_lock);
+        strcpy(buffer, old_tbuf);
+        blen = old_blen;
+        PR_Unlock(ts_time_lock);
     } else {
-	/* nope... painstakingly create the new strftime buffer */
+    /* nope... painstakingly create the new strftime buffer */
 #ifdef _WIN32
         {
             struct tm *pt = localtime( &tnl );
@@ -2078,39 +2078,39 @@ static int vslapd_log_access(char *fmt, va_list ap)
             memcpy(&tms, pt, sizeof(struct tm) );
         }
 #else
-	(void)localtime_r( &tnl, &tms );
-	tmsp = &tms;
+        (void)localtime_r( &tnl, &tms );
+        tmsp = &tms;
 #endif
 
 #ifdef BSD_TIME
-	tz = tmsp->tm_gmtoff;
+        tz = tmsp->tm_gmtoff;
 #else /* BSD_TIME */
-	tz = - timezone;
-	if ( tmsp->tm_isdst ) {
-	    tz += 3600;
-	}
+        tz = - timezone;
+        if ( tmsp->tm_isdst ) {
+            tz += 3600;
+	    }
 #endif /* BSD_TIME */
-	sign = ( tz >= 0 ? '+' : '-' );
-	if ( tz < 0 ) {
-	    tz = -tz;
-	}
-	(void)strftime( tbuf, (size_t)TBUFSIZE, "%d/%b/%Y:%H:%M:%S", tmsp);
-	sprintf( buffer, "[%s %c%02d%02d] ", tbuf, sign, 
-		 (int)( tz / 3600 ), (int)( tz % 3600));
-	old_time = tnl;
-	strcpy(old_tbuf, buffer);
-	blen = strlen(buffer);
-	old_blen = blen;
-	PR_Unlock(ts_time_lock);
+        sign = ( tz >= 0 ? '+' : '-' );
+        if ( tz < 0 ) {
+            tz = -tz;
+        }
+        (void)strftime( tbuf, (size_t)TBUFSIZE, "%d/%b/%Y:%H:%M:%S", tmsp);
+        sprintf( buffer, "[%s %c%02d%02d] ", tbuf, sign,
+                (int)( tz / 3600 ), (int)( tz % 3600));
+        old_time = tnl;
+        strcpy(old_tbuf, buffer);
+        blen = strlen(buffer);
+        old_blen = blen;
+        PR_Unlock(ts_time_lock);
     }
 
-	vlen = PR_vsnprintf(vbuf, SLAPI_LOG_BUFSIZ, fmt, ap);
+    vlen = PR_vsnprintf(vbuf, SLAPI_LOG_BUFSIZ, fmt, ap);
     if (! vlen) {
-		return -1;
+        return -1;
     }
     
     if (SLAPI_LOG_BUFSIZ - blen < vlen) {
-		return -1;
+        return -1;
     }
 
     log_append_buffer2(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);    
