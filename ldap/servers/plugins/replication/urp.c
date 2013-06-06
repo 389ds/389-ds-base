@@ -57,7 +57,7 @@ static int urp_annotate_dn (char *sessionid, Slapi_Entry *entry, CSN *opcsn, con
 static int urp_naming_conflict_removal (Slapi_PBlock *pb, char *sessionid, CSN *opcsn, const char *optype);
 static int mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn, const Slapi_DN *conflictsdn, CSN *opcsn);
 static int del_replconflict_attr (Slapi_Entry *entry, CSN *opcsn, int opflags);
-static char *get_dn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
+static char *get_dn_plus_uniqueid(char *sessionid,const Slapi_DN *oldsdn,const char *uniqueid);
 static char *get_rdn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
 static int is_suffix_entry (Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_DN **parenddn);
 
@@ -180,7 +180,7 @@ urp_add_operation( Slapi_PBlock *pb )
 	if (r<0)
 	{
 		/* Entry to be added is a loser */
-		char *newdn= get_dn_plus_uniqueid (sessionid, basedn, adduniqueid);
+		char *newdn = get_dn_plus_uniqueid (sessionid, (const Slapi_DN *)addentry, adduniqueid);
 		if(newdn==NULL)
 		{
 			op_result= LDAP_OPERATIONS_ERROR;
@@ -1222,16 +1222,15 @@ bailout:
 
 /* The returned value is either null or "uniqueid=<uniqueid>+<basedn>" */
 static char *
-get_dn_plus_uniqueid(char *sessionid, const char *olddn, const char *uniqueid)
+get_dn_plus_uniqueid(char *sessionid, const Slapi_DN *oldsdn, const char *uniqueid)
 {
-	Slapi_DN *sdn= slapi_sdn_new_dn_byval(olddn);
 	Slapi_RDN *rdn= slapi_rdn_new();
 	char *newdn;
 
 	PR_ASSERT(uniqueid!=NULL);
 
 	/* Check if the RDN already contains the Unique ID */
-	slapi_sdn_get_rdn(sdn,rdn);
+	slapi_rdn_set_dn(rdn, slapi_sdn_get_dn(oldsdn));
 	if(slapi_rdn_contains(rdn,SLAPI_ATTR_UNIQUEID,uniqueid,strlen(uniqueid)))
 	{
 		/* The Unique ID is already in the RDN.
@@ -1241,16 +1240,15 @@ get_dn_plus_uniqueid(char *sessionid, const char *olddn, const char *uniqueid)
 		 * require admin intercession
 		 */
 		slapi_log_error(SLAPI_LOG_FATAL, sessionid,
-				"Annotated DN %s has naming conflict\n", olddn );
+				"Annotated DN %s has naming conflict\n", slapi_sdn_get_dn(oldsdn) );
 		newdn= NULL;
 	}
 	else
 	{
-		slapi_rdn_add(rdn,SLAPI_ATTR_UNIQUEID,uniqueid);
-		slapi_sdn_set_rdn(sdn, rdn);
-		newdn= slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+		char *parentdn = slapi_dn_parent(slapi_sdn_get_dn(oldsdn));
+		slapi_rdn_add(rdn, SLAPI_ATTR_UNIQUEID, uniqueid);
+		newdn = slapi_ch_smprintf("%s,%s", slapi_rdn_get_rdn(rdn), parentdn);
 	}
-	slapi_sdn_free(&sdn);
 	slapi_rdn_free(&rdn);
 	return newdn;
 }

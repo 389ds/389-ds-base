@@ -242,14 +242,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	 */
 	is_tombstone_entry = slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
 	if (delete_tombstone_entry) {
-		PR_ASSERT(is_tombstone_entry);
 		if (!is_tombstone_entry) {
 			slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
 					"Attempt to delete a non-tombstone entry %s\n", dn);
 			delete_tombstone_entry = 0;
 		}
 	} else {
-		PR_ASSERT(!is_tombstone_entry);
 		if (is_tombstone_entry) { 
 				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
 					"Attempt to Tombstone again a tombstone entry %s\n", dn);
@@ -328,12 +326,31 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	if ( !slapi_sdn_isempty(&parentsdn) )
 	{
 		struct backentry *parent = NULL;
-		entry_address parent_addr;
+		char *pid_str = slapi_entry_attr_get_charptr(e->ep_entry, LDBM_PARENTID_STR);
+		if (pid_str) {
+			/* First, try to get the direct parent. */
+			/* 
+			 * Although a rare case, multiple parents from repl conflict could exist.
+			 * In such case, if a parent entry is found just by parentsdn
+			 * (find_entry2modify_only_ext), a wrong parent could be found,
+			 * and numsubordinate count could get confused.
+			 */
+			ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
+			parent = id2entry(be, pid ,NULL, &retval);
+			if (parent && cache_lock_entry(&inst->inst_cache, parent)) {
+				/* Failed to obtain parent entry's entry lock */
+				CACHE_RETURN(&(inst->inst_cache), &parent);
+				goto error_return;
+			}
+		}
+		if (NULL == parent) {
+			entry_address parent_addr;
 
-		parent_addr.sdn = &parentsdn;
-		parent_addr.uniqueid = NULL;
-		parent = find_entry2modify_only_ext(pb, be, &parent_addr,
-		                                    TOMBSTONE_INCLUDED, &txn);
+			parent_addr.sdn = &parentsdn;
+			parent_addr.uniqueid = NULL;
+			parent = find_entry2modify_only_ext(pb, be, &parent_addr,
+		                                        TOMBSTONE_INCLUDED, &txn);
+		}
 		if (NULL != parent) {
 			int isglue;
 			size_t haschildren = 0;
@@ -1171,9 +1188,9 @@ common_return:
 	}
 
 diskfull_return:
-    if(ldap_result_code!=-1)
+	if(ldap_result_code!=-1)
 	{
-    	slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
 	modify_term(&parent_modify_c,be);
 	if(dblock_acquired)

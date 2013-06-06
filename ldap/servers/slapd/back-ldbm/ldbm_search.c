@@ -1602,7 +1602,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
              * just forget about it, since we don't want to return anything at all. */
          {
              if ( slapi_uniqueIDCompareString(target_uniqueid, e->ep_entry->e_uniqueid) ||
-                  slapi_sdn_scope_test( backentry_get_sdn(e), basesdn, scope ))
+                  slapi_sdn_scope_test_ext( backentry_get_sdn(e), basesdn, scope, e->ep_entry->e_flags ))
              {
                  /* check size limit */
                  if ( slimit >= 0 )

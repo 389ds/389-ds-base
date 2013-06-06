@@ -2114,10 +2114,7 @@ slapi_sdn_add_rdn(Slapi_DN *sdn, const Slapi_RDN *rdn)
 	{
 		/* NewDN= NewRDN + DN */
 		const char *dn= slapi_sdn_get_dn(sdn);
-		char *newdn= slapi_ch_malloc(strlen(rawrdn)+1+strlen(dn)+1);
-		strcpy( newdn, rawrdn );
-		strcat( newdn, "," );
-		strcat( newdn, dn );
+		char *newdn = slapi_ch_smprintf("%s,%s", rawrdn, dn);
 		slapi_sdn_set_dn_passin(sdn,newdn);
 	}
 	return sdn;
@@ -2345,7 +2342,7 @@ slapi_sdn_get_backend_parent(const Slapi_DN *sdn,Slapi_DN *sdn_parent,const Slap
 void
 slapi_sdn_get_rdn(const Slapi_DN *sdn,Slapi_RDN *rdn)
 {
-	slapi_rdn_set_dn(rdn,sdn->dn);
+	slapi_rdn_set_dn(rdn, slapi_sdn_get_dn(sdn));
 }
 
 Slapi_DN *
@@ -2516,6 +2513,47 @@ slapi_sdn_scope_test( const Slapi_DN *dn, const Slapi_DN *base, int scope )
     return rc;
 }
 
+/* 
+ * Return non-zero if "dn" matches the scoping criteria
+ * given by "base" and "scope".
+ * If SLAPI_ENTRY_FLAG_TOMBSTONE is set to flags,
+ * DN without "nsuniqueid=...," is examined.
+ */
+int
+slapi_sdn_scope_test_ext( const Slapi_DN *dn, const Slapi_DN *base, int scope, int flags )
+{
+    int rc = 0;
+
+    switch ( scope ) {
+    case LDAP_SCOPE_BASE:
+        if (flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+            Slapi_DN parent;
+            slapi_sdn_init(&parent);
+            slapi_sdn_get_parent(dn, &parent);
+            rc = ( slapi_sdn_compare( dn, &parent ) == 0 );
+            slapi_sdn_done(&parent);
+        } else {
+            rc = ( slapi_sdn_compare( dn, base ) == 0 );
+        }
+        break;
+    case LDAP_SCOPE_ONELEVEL:
+        if (flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+            Slapi_DN parent;
+            slapi_sdn_init(&parent);
+            slapi_sdn_get_parent(dn, &parent);
+            rc = ( slapi_sdn_isparent( base, &parent ) != 0 );
+            slapi_sdn_done(&parent);
+        } else {
+            rc = ( slapi_sdn_isparent( base, dn ) != 0 );
+        }
+        break;
+    case LDAP_SCOPE_SUBTREE:
+        rc = ( slapi_sdn_issuffix( dn, base ) != 0 );
+        break;
+    }
+    return rc;
+}
+
 /*
  * build the new dn of an entry for moddn operations
  */
@@ -2563,8 +2601,17 @@ size_t
 slapi_sdn_get_size(const Slapi_DN *sdn)
 {
     size_t sz = sizeof(Slapi_DN);
+    /* slapi_sdn_get_ndn_len returns the normalized dn length
+     * if dn or ndn exists.  If both does not exist, it
+     * normalizes udn and set it to dn and returns the length.
+     */
     sz += slapi_sdn_get_ndn_len(sdn);
-    sz += strlen(sdn->dn) + 1;
+    if (sdn->dn && sdn->ndn) {
+        sz += slapi_sdn_get_ndn_len(sdn);
+    }
+    if (sdn->udn) {
+        sz += strlen(sdn->udn) + 1;
+    }
     return sz;
 }
 
