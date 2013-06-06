@@ -645,13 +645,15 @@ multimaster_ruv_search(Slapi_PBlock *pb)
 {
         Slapi_Entry *e, *e_alt;
         Slapi_DN *suffix_sdn;
+        Slapi_Operation *operation;
 
         slapi_pblock_get(pb, SLAPI_SEARCH_ENTRY_ORIG, &e);
+        slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 
-        if (e == NULL)
+        if ((e == NULL) || (operation == NULL))
                 return 0;
 
-        if (is_ruv_tombstone_entry(e)) {
+        if (!operation_is_flag_set(operation, OP_FLAG_INTERNAL) && is_ruv_tombstone_entry(e)) {
                 /* We are about to send back the database RUV, we need to return
                  * in memory RUV instead
                  */
