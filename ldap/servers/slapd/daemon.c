@@ -720,7 +720,6 @@ disk_monitoring_thread(void *nothing)
     time_t now = 0;
     int deleted_rotated_logs = 0;
     int logging_critical = 0;
-    int preserve_logging = 0;
     int passed_threshold = 0;
     int verbose_logging = 0;
     int using_accesslog = 0;
@@ -750,7 +749,6 @@ disk_monitoring_thread(void *nothing)
          *  Get the config settings, as they could have changed
          */
         logging_critical = config_get_disk_logging_critical();
-        preserve_logging = config_get_disk_preserve_logging();
         grace_period = 60 * config_get_disk_grace_period(); /* convert it to seconds */
         verbose_logging = config_get_errorlog_level();
         threshold = config_get_disk_threshold();
@@ -807,18 +805,21 @@ disk_monitoring_thread(void *nothing)
         }
         /*
          *  If we are low, see if we are using verbose error logging, and turn it off
+         *  if logging is not critical
          */
-        if(verbose_logging){
+        if(verbose_logging != 0 && verbose_logging != LDAP_DEBUG_ANY){
             LDAPDebug(LDAP_DEBUG_ANY, "Disk space is low on disk (%s), remaining space: %d Kb, "
-                "setting error loglevel to zero.\n", dirstr, (disk_space / 1024), 0);
-            config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE, 0, errorbuf, CONFIG_APPLY);
+                "temporarily setting error loglevel to zero.\n", dirstr,
+                (disk_space / 1024), 0);
+            /* Setting the log level back to zero, actually sets the value to LDAP_DEBUG_ANY */
+            config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE, "0", errorbuf, CONFIG_APPLY);
             continue;
         }
         /*
          *  If we are low, there's no verbose logging, logs are not critical, then disable the
          *  access/audit logs, log another error, and continue.
          */
-        if(!logs_disabled && (!preserve_logging || !logging_critical)){
+        if(!logs_disabled && !logging_critical){
             if(disk_space < previous_mark){
                 LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
                     "disabling access and audit logging.\n", dirstr, (disk_space / 1024), 0);
@@ -832,7 +833,7 @@ disk_monitoring_thread(void *nothing)
          *  If we are low, we turned off verbose logging, logs are not critical, and we disabled
          *  access/audit logging, then delete the rotated logs, log another error, and continue.
          */
-        if(!deleted_rotated_logs && (!preserve_logging || !logging_critical)){
+        if(!deleted_rotated_logs && !logging_critical){
             if(disk_space < previous_mark){
                 LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
                     "deleting rotated logs.\n", dirstr, (disk_space / 1024), 0);
@@ -881,10 +882,10 @@ disk_monitoring_thread(void *nothing)
                      */
                     LDAPDebug(LDAP_DEBUG_ANY, "Available disk space is now acceptable (%d bytes).  Aborting"
                                               " shutdown, and restoring the log settings.\n",disk_space,0,0);
-                    if(!preserve_logging && using_accesslog){
+                    if(logs_disabled && using_accesslog){
                         config_set_accesslog_enabled(LOGGING_ON);
                     }
-                    if(!preserve_logging && using_auditlog){
+                    if(logs_disabled && using_auditlog){
                         config_set_auditlog_enabled(LOGGING_ON);
                     }
                     deleted_rotated_logs = 0;
@@ -901,7 +902,7 @@ disk_monitoring_thread(void *nothing)
                      */
                     LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %d Kb."
                         "  Signaling slapd for shutdown...\n", dirstr, (disk_space / 1024), 0);
-                    g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+                    g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
                     return;
                 }
                 time(&now);
@@ -918,7 +919,8 @@ disk_monitoring_thread(void *nothing)
              */
             LDAPDebug(LDAP_DEBUG_ANY, "Disk space is still too low (%d Kb).  Signaling slapd for shutdown...\n",
                 (disk_space / 1024), 0, 0);
-            g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
+            g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
+
             return;
         }
     }
@@ -1376,6 +1378,13 @@ void slapd_daemon( daemon_ports_t *ports )
 
 #ifdef _WIN32
 	WSACleanup();
+#else
+	if ( g_get_shutdown() == SLAPI_SHUTDOWN_DISKFULL ){
+		/* This is a server-induced shutdown, we need to manually remove the pid file */
+		if( unlink(get_pid_file()) ){
+			LDAPDebug( LDAP_DEBUG_ANY, "Failed to remove pid file %s\n", get_pid_file(), 0, 0 );
+		}
+	}
 #endif
 }
 

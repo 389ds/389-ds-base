@@ -389,7 +389,6 @@ int config_set_default_naming_context( const char *attrname, char *value, char *
 int config_set_disk_monitoring( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf, int apply );
-int config_set_disk_preserve_logging( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_disk_logging_critical( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply );
@@ -546,7 +545,6 @@ int config_get_accesslog_logging_enabled();
 int config_get_disk_monitoring();
 long config_get_disk_threshold();
 int config_get_disk_grace_period();
-int config_get_disk_preserve_logging();
 int config_get_disk_logging_critical();
 int config_get_sasl_maxbufsize();
 
