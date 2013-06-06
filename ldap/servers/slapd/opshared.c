@@ -1092,9 +1092,7 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
                 ber_bvecfree(refscopy);
                 refscopy = NULL;
             }
-            if( NULL != tmpUrls) {
-                slapi_ch_free( (void **)&tmpUrls );
-            }
+            slapi_ch_free( (void **)&tmpUrls );
         }
 
         return 1;        /* done with this entry */

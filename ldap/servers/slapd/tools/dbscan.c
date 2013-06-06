@@ -825,10 +825,9 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent)
     display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
                               elem->rdn_elem_nrdn_rdn, indent);
 bail:
-    if (keybuf) {
-        free(keybuf);
-    }
+    free(keybuf);
     cursor->c_close(cursor);
+
     return;
 }
 
@@ -866,10 +865,9 @@ display_entryrdn_parent(DB *db, ID id, const char *nrdn, int indent)
     elem = (rdn_elem *)data.data;
     _entryrdn_dump_rdn_elem(keybuf, elem, indent);
 bail:
-    if (keybuf) {
-        free(keybuf);
-    }
+    free(keybuf);
     cursor->c_close(cursor);
+
     return;
 }
 
@@ -939,10 +937,9 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent)
         }
     }
 bail:
-    if (keybuf) {
-        free(keybuf);
-    }
+    free(keybuf);
     cursor->c_close(cursor);
+
     return;
 }
 
