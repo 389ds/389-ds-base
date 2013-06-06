@@ -1247,7 +1247,7 @@ void idl_insert(IDList **idl, ID id)
         (*idl)->b_nmax *= 2;
 
         (*idl) = (IDList *) slapi_ch_realloc( (char *) (*idl),
-                                            ((*idl)->b_nmax + 2) * sizeof(ID) );
+                                            ((*idl)->b_nmax + 2) * sizeof(ID) + sizeof(IDList) );
     }
 
     /* make a slot for the new id */
@@ -1345,7 +1345,7 @@ idl_insert_maxids( IDList **idl, ID id, int maxids )
 			(*idl)->b_nmax = maxids;
 		}
 		*idl = (IDList *) slapi_ch_realloc( (char *) *idl,
-		    ((*idl)->b_nmax + 2) * sizeof(ID) );
+		    ((*idl)->b_nmax + 2) * sizeof(ID) + sizeof(IDList));
 	}
 
 	/* make a slot for the new id */
