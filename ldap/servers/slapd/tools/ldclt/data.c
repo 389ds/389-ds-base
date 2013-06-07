@@ -143,7 +143,7 @@ int loadImages (
   char		*fileName;	/* As read from the system */
   char		 name [1024];	/* To build the full path */
   struct stat	 stat_buf;	/* To read the image size */
-  int		 fd;		/* To open the image */
+  int		 fd = -1;		/* To open the image */
   int		 ret;		/* Return value */
   int		 rc = 0;
 
@@ -303,11 +303,13 @@ int loadImages (
        */
       if (close (fd) < 0)
       {
-	perror (name);
-	fprintf (stderr, "Cannot close(%s)\n", name);
-	fflush (stderr);
-	rc = -1;
-	goto exit;
+          perror (name);
+          fprintf (stderr, "Cannot close(%s)\n", name);
+          fflush (stderr);
+          rc = -1;
+          goto exit;
+      } else {
+          fd = -1;
       }
     }
 #ifdef _WIN32
@@ -335,7 +337,8 @@ exit:
 #ifdef _WIN32
   if (findPath) free (findPath);
 #endif
-  close(fd);
+  if(fd != -1)
+      close(fd);
 
   return rc;
 }
