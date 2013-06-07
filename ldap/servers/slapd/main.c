@@ -232,7 +232,10 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
     if((ptr=strrchr(log,'/'))==NULL)
     {
       LDAPDebug(LDAP_DEBUG_ANY, "Caution changing ownership of ./%s \n",name,0,0);
-      slapd_chown_if_not_owner(log, pw->pw_uid, -1 ); 
+      if(slapd_chown_if_not_owner(log, pw->pw_uid, -1 )){
+          LDAPDebug(LDAP_DEBUG_ANY, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
+                  log, errno, slapd_system_strerror(errno));
+      }
       rc=1;
     } else if(log==ptr) {
       LDAPDebug(LDAP_DEBUG_ANY, "Caution changing ownership of / directory and its contents to %s\n",pw->pw_name,0,0);
@@ -247,7 +250,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
     while( (entry = PR_ReadDir(dir , PR_SKIP_BOTH )) !=NULL ) 
     {
       PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
-      if((rc = slapd_chown_if_not_owner( file, pw->pw_uid, both?pw->pw_gid:-1 )) != 0){
+      if(slapd_chown_if_not_owner( file, pw->pw_uid, both?pw->pw_gid:-1 )){
     	  LDAPDebug(LDAP_DEBUG_ANY, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
     			  file, errno, slapd_system_strerror(errno));
       }
