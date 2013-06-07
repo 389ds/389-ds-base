@@ -2766,77 +2766,78 @@ void
 disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
 {
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
-	conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) ) { 
+	    conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) )
+	{
+		/*
+		 * PR_Close must be called before anything else is done because
+		 * of NSPR problem on NT which requires that the socket on which
+		 * I/O timed out is closed before any other I/O operation is
+		 * attempted by the thread.
+		 * WARNING :  As of today the current code does not fulfill the
+		 * requirements above.
+		 */
 
-	/*
-	 * PR_Close must be called before anything else is done because
-	 * of NSPR problem on NT which requires that the socket on which
-	 * I/O timed out is closed before any other I/O operation is
-	 * attempted by the thread.
-	 * WARNING :  As of today the current code does not fulfill the
-	 * requirements above.
-	 */
+		/* Mark that the socket should be closed on this connection.
+		 * We don't want to actually close the socket here, because
+		 * the listener thread could be PR_Polling over it right now.
+		 * The last thread to stop using the connection will do the closing.
+		 */
+		conn->c_flags |= CONN_FLAG_CLOSING;
+		g_decrement_current_conn_count();
 
-	/* Mark that the socket should be closed on this connection.
-	 * We don't want to actually close the socket here, because
-	 * the listener thread could be PR_Polling over it right now.
-	 * The last thread to stop using the connection will do the closing.
-	 */
-	conn->c_flags |= CONN_FLAG_CLOSING;
-	g_decrement_current_conn_count();
-
-	/*
-	 * Print the error captured above.
-	 */
-	if (error && (EPIPE != error) ) {
-	    slapi_log_access( LDAP_DEBUG_STATS,
-		  "conn=%" NSPRIu64 " op=%d fd=%d closed error %d (%s) - %s\n",
-		  conn->c_connid, opid, conn->c_sd, error,
-		  slapd_system_strerror(error),
-		  slapd_pr_strerror(reason));
-	} else {
-	    slapi_log_access( LDAP_DEBUG_STATS,
-		  "conn=%" NSPRIu64 " op=%d fd=%d closed - %s\n",
-		  conn->c_connid, opid, conn->c_sd,
-		  slapd_pr_strerror(reason));
-	}
-
-	if (! config_check_referral_mode()) {
-	    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnections);
-	}
-
-	conn->c_gettingber = 0;
-	connection_abandon_operations( conn );
-	/* needed here to ensure simple paged results timeout properly and 
-	 * don't impact subsequent ops */
-	pagedresults_reset_timedout_nolock(conn);
-
-	if (! config_check_referral_mode()) {
-	    /*
-	     * If any of the outstanding operations on this
-	     * connection were persistent searches, then
-	     * ding all the persistent searches to get them
-	     * to notice that their operations have been abandoned.
-	     */
-	    int found_ps = 0;
-	    Operation *o;
-
-	    for ( o = conn->c_ops; !found_ps && o != NULL; o = o->o_next ) {
-		if ( o->o_flags & OP_FLAG_PS ) {
-		    found_ps = 1;
-		}
-	    }
-	    if ( found_ps ) {
-		if ( NULL == ps_wakeup_all_fn ) {
-		    if ( get_entry_point( ENTRY_POINT_PS_WAKEUP_ALL,
-			    (caddr_t *)(&ps_wakeup_all_fn )) == 0 ) {
-			(ps_wakeup_all_fn)();
-		    }
+		/*
+		 * Print the error captured above.
+		 */
+		if (error && (EPIPE != error) ) {
+			slapi_log_access( LDAP_DEBUG_STATS,
+			  "conn=%" NSPRIu64 " op=%d fd=%d closed error %d (%s) - %s\n",
+			  conn->c_connid, opid, conn->c_sd, error,
+			  slapd_system_strerror(error),
+			  slapd_pr_strerror(reason));
 		} else {
-		    (ps_wakeup_all_fn)();
+			slapi_log_access( LDAP_DEBUG_STATS,
+			  "conn=%" NSPRIu64 " op=%d fd=%d closed - %s\n",
+			  conn->c_connid, opid, conn->c_sd,
+			  slapd_pr_strerror(reason));
 		}
-	    }
-	}
+
+		if (! config_check_referral_mode()) {
+			slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+		}
+
+		conn->c_gettingber = 0;
+		connection_abandon_operations( conn );
+		/* needed here to ensure simple paged results timeout properly and
+		 * don't impact subsequent ops */
+		pagedresults_reset_timedout_nolock(conn);
+
+		if (! config_check_referral_mode()) {
+			/*
+			 * If any of the outstanding operations on this
+			 * connection were persistent searches, then
+			 * ding all the persistent searches to get them
+			 * to notice that their operations have been abandoned.
+			 */
+			int found_ps = 0;
+			Operation *o;
+
+			for ( o = conn->c_ops; !found_ps && o != NULL; o = o->o_next ) {
+				if ( o->o_flags & OP_FLAG_PS ) {
+					found_ps = 1;
+				}
+			}
+			if ( found_ps ) {
+				if ( NULL == ps_wakeup_all_fn ) {
+					if ( get_entry_point( ENTRY_POINT_PS_WAKEUP_ALL,
+						(caddr_t *)(&ps_wakeup_all_fn )) == 0 )
+					{
+						(ps_wakeup_all_fn)();
+					}
+				} else {
+					(ps_wakeup_all_fn)();
+				}
+			}
+		}
     }
 }
 
