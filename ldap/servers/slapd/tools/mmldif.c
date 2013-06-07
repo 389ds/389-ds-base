@@ -729,7 +729,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
     int	toolong = FALSE;
     int	rc;
     int cmp;
-    attrib1_t *	att;
+    attrib1_t *	att = NULL;
     attrib1_t **	prev;
     attrib1_t *	freelist = *attrib;
     attrib1_t *	newlist = NULL;
