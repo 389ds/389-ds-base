@@ -2994,6 +2994,8 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
     int return_value = 0;
     DB *dbp = NULL;
     char *subname = NULL;
+    char inst_dir[MAXPATHLEN];
+    char *inst_dirp = NULL;
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -3057,8 +3059,6 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
                            inst->inst_parent_dir_name) > 0) &&
         !dblayer_inst_exists(inst, file_name))
     {
-        char inst_dir[MAXPATHLEN];
-        char *inst_dirp = NULL;
         char *abs_file_name = NULL;
         /* create a file with abs path, then try again */
 
@@ -3070,9 +3070,6 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
         }
         abs_file_name = slapi_ch_smprintf("%s%c%s",
                 inst_dirp, get_sep(inst_dirp), file_name);
-        if (inst_dirp != inst_dir){
-            slapi_ch_free_string(&inst_dirp);
-        }
         DB_OPEN(pENV->dblayer_openflags,
                 dbp, NULL/* txnid */, abs_file_name, subname, DB_BTREE,
                 open_flags, priv->dblayer_file_mode, return_value);
@@ -3105,6 +3102,9 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
 out:
     slapi_ch_free((void**)&file_name);
     slapi_ch_free((void**)&rel_path);
+    if (inst_dirp != inst_dir){
+        slapi_ch_free_string(&inst_dirp);
+    }
     /* close the database handle to avoid handle leak */
     if (dbp && (return_value != 0)) {
         dblayer_close_file(&dbp);
