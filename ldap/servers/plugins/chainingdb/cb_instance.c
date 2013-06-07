@@ -1437,7 +1437,7 @@ static int cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int 
 			    charray_add(&inst->pool->waste_basket,inst->pool->mech);
 			}
 			if (inst->bind_pool->mech) {
-			    charray_add(&inst->pool->waste_basket,inst->bind_pool->mech);
+			    charray_add(&inst->bind_pool->waste_basket,inst->bind_pool->mech);
 			}
 			rc=CB_REOPEN_CONN;
 		}

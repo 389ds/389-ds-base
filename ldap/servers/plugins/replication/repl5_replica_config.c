@@ -2350,7 +2350,7 @@ delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, int skip){
 static void
 delete_cleaned_rid_config(cleanruv_data *clean_data)
 {
-    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *pb;
     Slapi_Entry **entries = NULL;
     LDAPMod *mods[2];
     LDAPMod mod;
@@ -2379,6 +2379,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     /*
      *  Search the config for the exact attribute value to delete
      */
+    pb = slapi_pblock_new();
     dn = replica_get_dn(clean_data->replica);
     slapi_search_internal_set_pb(pb, dn, LDAP_SCOPE_SUBTREE, "nsds5ReplicaCleanRUV=*", NULL, 0, NULL, NULL,
         (void *)plugin_get_default_component_id(), 0);
