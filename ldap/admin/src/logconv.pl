@@ -43,9 +43,14 @@
 #
 # Check for usage
 #
+use strict;
+use warnings;
+use warnings 'untie';
 use Time::Local;
 use IO::File;
 use Getopt::Long;
+use DB_File;
+use sigtrap qw(die normal-signals);
 
 Getopt::Long::Configure ("bundling");
 Getopt::Long::Configure ("permute");
@@ -60,19 +65,43 @@ if ($#ARGV < 0){;
 #                                     #
 #######################################
 
-$file_count = 0;
-$arg_count = 0;
-$logversion = "7.0";
-$sizeCount = "20";
-$startFlag = 0;
-$startTime = 0;
-$endFlag = 0;
-$endTime = 0;
-$reportStats = "";
-$dataLocation = "/tmp";
-$startTLSoid = "1.3.6.1.4.1.1466.20037";
-$s_stats = new_stats_block( );
-$m_stats = new_stats_block( );
+my $file_count = 0;
+my $arg_count = 0;
+my $logversion = "7.0";
+my $sizeCount = "20";
+my $startFlag = 0;
+my $startTime = 0;
+my $endFlag = 0;
+my $endTime = 0;
+my $reportStats = "";
+my $dataLocation = "/tmp";
+my $startTLSoid = "1.3.6.1.4.1.1466.20037";
+my $s_stats = new_stats_block( );
+my $m_stats = new_stats_block( );
+my $verb = "no";
+my @excludeIP;
+my $xi = 0;
+my $bindReportDN;
+my $usage = "";
+my @latency;
+my @openConnection;
+my @errorCode;
+my @errtext;
+my @errornum;
+my @errornum2;
+my $ds6x = "false";
+my $connCodeCount = 0;
+my %connList;
+my %bindReport;
+my @vlvconn;
+my @vlvop;
+my @start_time_of_connection;
+my @end_time_of_connection;
+my @fds;
+my $fdds = 0;
+my $reportBinds = "no";
+my $rootDN = "";
+my $needCleanup = 0;
 
 GetOptions(
 	'd|rootDN=s' => \$rootDN,
@@ -129,6 +158,7 @@ if($rootDN eq ""){
 #
 #  get the logs
 #
+my @files = ();
 while($arg_count <= $#ARGV){
 	$files[$file_count] = $ARGV[$arg_count];
 	$file_count++;
@@ -155,127 +185,93 @@ if ($sizeCount eq "all"){$sizeCount = "100000";}
 print "\nAccess Log Analyzer $logversion\n";
 print "\nCommand: logconv.pl @ARGV\n\n";
 
-$rootDNBindCount = 0;
-$anonymousBindCount = 0;
-$unindexedSrchCountNotesA = 0;
-$unindexedSrchCountNotesU = 0;
-$vlvNotesACount= 0;
-$vlvNotesUCount= 0;
-$srchCount = 0;
-$fdTaken = 0;
-$fdReturned = 0;
-$highestFdTaken = 0;
-$unbindCount = 0;
-$cmpCount = 0;
-$modCount = 0;
-$delCount = 0;
-$addCount = 0;
-$modrdnCount = 0;
-$abandonCount = 0;
-$extopCount = 0;
-$vlvCount = 0;
-$errorCount = 0;
-$proxiedAuthCount = 0;
-$serverRestartCount = 0;
-$resourceUnavailCount = 0;
-$brokenPipeCount = 0;
-$v2BindCount = 0;
-$v3BindCount = 0;
-$vlvSortCount = 0;
-$connResetByPeerCount = 0;
-$isVlvNotes = 0;
-$successCount = 0;
-$sslCount = 0;
-$sslClientBindCount = 0;
-$sslClientFailedCount = 0;
-$objectclassTopCount= 0;
-$pagedSearchCount = 0;
-$bindCount = 0;
-$filterCount = 0;
-$baseCount = 0;
-$scopeCount = 0;
-$allOps = 0;
-$allResults = 0;
-$badPwdCount = 0;
-$saslBindCount = 0;
-$internalOpCount = 0;
-$entryOpCount = 0;
-$referralCount = 0;
-$anyAttrs = 0;
-$persistentSrchCount = 0;
-$maxBerSizeCount = 0;
-$connectionCount = 0;
-$timerange = 0;
-$simConnection = 0;
-$maxsimConnection = 0;
-$firstFile = 1;
-$elapsedDays = 0;
-$logCount = 0;
-$startTLSCount = 0;
-$ldapiCount = 0;
-$autobindCount = 0;
-$limit = 25000; # number of lines processed to trigger output
+my $rootDNBindCount = 0;
+my $anonymousBindCount = 0;
+my $unindexedSrchCountNotesA = 0;
+my $unindexedSrchCountNotesU = 0;
+my $vlvNotesACount= 0;
+my $vlvNotesUCount= 0;
+my $srchCount = 0;
+my $fdTaken = 0;
+my $fdReturned = 0;
+my $highestFdTaken = 0;
+my $unbindCount = 0;
+my $cmpCount = 0;
+my $modCount = 0;
+my $delCount = 0;
+my $addCount = 0;
+my $modrdnCount = 0;
+my $abandonCount = 0;
+my $extopCount = 0;
+my $vlvCount = 0;
+my $errorCount = 0;
+my $proxiedAuthCount = 0;
+my $serverRestartCount = 0;
+my $resourceUnavailCount = 0;
+my $brokenPipeCount = 0;
+my $v2BindCount = 0;
+my $v3BindCount = 0;
+my $vlvSortCount = 0;
+my $connResetByPeerCount = 0;
+my $isVlvNotes = 0;
+my $successCount = 0;
+my $sslCount = 0;
+my $sslClientBindCount = 0;
+my $sslClientFailedCount = 0;
+my $objectclassTopCount= 0;
+my $pagedSearchCount = 0;
+my $bindCount = 0;
+my $filterCount = 0;
+my $baseCount = 0;
+my $scopeCount = 0;
+my $allOps = 0;
+my $allResults = 0;
+my $badPwdCount = 0;
+my $saslBindCount = 0;
+my $internalOpCount = 0;
+my $entryOpCount = 0;
+my $referralCount = 0;
+my $anyAttrs = 0;
+my $persistentSrchCount = 0;
+my $maxBerSizeCount = 0;
+my $connectionCount = 0;
+my $timerange = 0;
+my $simConnection = 0;
+my $maxsimConnection = 0;
+my $firstFile = 1;
+my $elapsedDays = 0;
+my $logCount = 0;
+my $startTLSCount = 0;
+my $ldapiCount = 0;
+my $autobindCount = 0;
+my $limit = 25000; # number of lines processed to trigger output
 
-# hash files
-$ATTR = "$dataLocation/attr.logconv";
-$RC = "$dataLocation/rc.logconv";
-$SRC = "$dataLocation/src.logconv";
-$RSRC = "$dataLocation/rsrc.logconv";
-$EXCOUNT = "$dataLocation/excount.logconv";
-$CONN_HASH = "$dataLocation/conn_hash.logconv";
-$IP_HASH = "$dataLocation/ip_hash.logconv";
-$CONNCOUNT = "$dataLocation/conncount.logconv";
-$NENTRIES = "$dataLocation/nentries.logconv";
-$FILTER = "$dataLocation/filter.logconv";
-$BASE = "$dataLocation/base.logconv";
-$DS6XBADPWD = "$dataLocation/ds6xbadpwd.logconv";
-$SASLMECH = "$dataLocation/saslmech.logconv";
-$BINDLIST = "$dataLocation/bindlist.logconv";
-$ETIME = "$dataLocation/etime.logconv";
-$OID = "$dataLocation/oid.logconv";
+my @removefiles = ();
 
-# array files
-$SRCH_CONN = "$dataLocation/srchconn.logconv";
-$SRCH_OP = "$dataLocation/srchop.logconv";
-$DEL_CONN = "$dataLocation/delconn.logconv";
-$DEL_OP = "$dataLocation/delop.logconv";
-$MOD_CONN = "$dataLocation/modconn.logconv";
-$MOD_OP = "$dataLocation/modop.logconv";
-$ADD_CONN = "$dataLocation/addconn.logconv";
-$ADD_OP = "$dataLocation/addop.logconv";
-$MODRDN_CONN = "$dataLocation/modrdnconn.logconv";
-$MODRDN_OP = "$dataLocation/modrdnop.logconv";
-$CMP_CONN = "$dataLocation/cmpconn.logconv";
-$CMP_OP = "$dataLocation/cmpop.logconv";
-$TARGET_CONN = "$dataLocation/targetconn.logconv";
-$TARGET_OP = "$dataLocation/targetop.logconv";
-$MSGID = "$dataLocation/msgid.logconv";
-$BIND_CONN = "$dataLocation/bindconn.logconv";
-$BIND_OP = "$dataLocation/bindop.logconv";
-$UNBIND_CONN = "$dataLocation/unbindconn.logconv";
-$UNBIND_OP = "$dataLocation/unbindop.logconv";
-$EXT_CONN = "$dataLocation/extconn.logconv";
-$EXT_OP = "$dataLocation/extop.logconv";
-$NOTES_A_ETIME = "$dataLocation/notesAetime.logconv";
-$NOTES_A_CONN = "$dataLocation/notesAconn.logconv";
-$NOTES_A_OP = "$dataLocation/notesAop.logconv";
-$NOTES_A_TIME = "$dataLocation/notesAtime.logconv";
-$NOTES_A_NENTRIES = "$dataLocation/notesAnentries.logconv";
-$NOTES_U_ETIME = "$dataLocation/notesUetime.logconv";
-$NOTES_U_CONN = "$dataLocation/notesUconn.logconv";
-$NOTES_U_OP = "$dataLocation/notesUop.logconv";
-$NOTES_U_TIME = "$dataLocation/notesUtime.logconv";
-$NOTES_U_NENTRIES = "$dataLocation/notesUnentries.logconv";
-$BADPWDCONN = "$dataLocation/badpwdconn.logconv";
-$BADPWDOP = "$dataLocation/badpwdop.logconv";
-$BADPWDIP = "$dataLocation/badpwdip.logconv";
+my @conncodes = qw(A1 B1 B4 T1 T2 B2 B3 R1 P1 P2 U1);
+my %conn = ();
+map {$conn{$_} = $_} @conncodes;
 
-# info files
-$BINDINFO = "$dataLocation/bindinfo.logconv";
-$BASEINFO = "$dataLocation/baseinfo.logconv";
-$FILTERINFO = "$dataLocation/filterinfo.logconv";
-$SCOPEINFO = "$dataLocation/scopeinfo.logconv";
+# hash db-backed hashes
+my @hashnames = qw(attr rc src rsrc excount conn_hash ip_hash conncount nentries
+                   filter base ds6xbadpwd saslmech bindlist etime oid);
+# need per connection code ip address counts - so use a hash table
+# for each connection code - key is ip, val is count
+push @hashnames, @conncodes;
+my $hashes = openHashFiles($dataLocation, @hashnames);
 
+# recno db-backed arrays/lists
+my @arraynames = qw(srchconn srchop delconn delop modconn modop addconn addop modrdnconn modrdnop
+                    cmpconn cmpop targetconn targetop msgid bindconn bindop binddn unbindconn unbindop
+                    extconn extop notesAetime notesAconn notesAop notesAtime notesAnentries
+                    notesUetime notesUconn notesUop notesUtime notesUnentries badpwdconn
+                    badpwdop badpwdip baseval baseconn baseop scopeval scopeconn scopeop
+                    filterval filterconn filterop);
+my $arrays = openArrayFiles($dataLocation, @arraynames);
+
+$needCleanup = 1;
+
+my @err;
 $err[0] = "Successful Operations\n";
 $err[1] = "Operations Error(s)\n";
 $err[2] = "Protocal Errors\n";
@@ -338,19 +334,7 @@ $err[95] = "More Results To Return\n";
 $err[96] = "Client Loop\n";
 $err[97] = "Referral Limit Exceeded\n";
 
-
-$conn{"A1"} = "A1";
-$conn{"B1"} = "B1";
-$conn{"B4"} = "B4";
-$conn{"T1"} = "T1";
-$conn{"T2"} = "T2";
-$conn{"B2"} = "B2";
-$conn{"B3"} = "B3";
-$conn{"R1"} = "R1";
-$conn{"P1"} = "P1";
-$conn{"P2"} = "P2";
-$conn{"U1"} = "U1";
-
+my %connmsg;
 $connmsg{"A1"} = "Client Aborted Connections";
 $connmsg{"B1"} = "Bad Ber Tag Encountered";
 $connmsg{"B4"} = "Server failed to flush data (response) back to Client";
@@ -363,7 +347,7 @@ $connmsg{"P1"} = "Plugin";
 $connmsg{"P2"} = "Poll";
 $connmsg{"U1"} = "Cleanly Closed Connections";
 
-%monthname = (
+my %monthname = (
 	"Jan" => 0,
 	"Feb" => 1,
 	"Mar" => 2,
@@ -379,7 +363,17 @@ $connmsg{"U1"} = "Cleanly Closed Connections";
 
 );
 
-openDataFiles();
+my $linesProcessed;
+my $lineBlockCount;
+my $cursize = 0;
+sub statusreport {
+	if ($lineBlockCount > $limit) {
+		my $curpos = tell(LOG);
+		my $percent = $curpos/$cursize*100.0;
+		print sprintf "%10d Lines Processed     %12d of %12d bytes (%.3f%%)\n",--$linesProcessed,$curpos,$cursize,$percent;
+		$lineBlockCount = 0;
+	}
+}
 
 ##########################################
 #                                        #
@@ -394,6 +388,7 @@ print "Processing $file_count Access Log(s)...\n\n";
 #print "Filename\t\t\t   Total Lines\n";
 #print "--------------------------------------------------\n";
 
+my $skipFirstFile = 0;
 if ($file_count > 1 && $files[0] =~ /\/access$/){
         $files[$file_count] = $files[0];
         $file_count++;
@@ -401,25 +396,30 @@ if ($file_count > 1 && $files[0] =~ /\/access$/){
 }
 $logCount = $file_count;
 
-for ($count=0; $count < $file_count; $count++){
+my $logline;
+my $totalLineCount = 0;
+
+for (my $count=0; $count < $file_count; $count++){
 	# we moved access to the end of the list, so if its the first file skip it
         if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
                 next;
         }
-        $logsize = `wc -l $files[$count]`;
-        $logsize =~ /([0-9]+)/;
         $linesProcessed = 0; $lineBlockCount = 0;
 	$logCount--;
+		my $logCountStr;
 	if($logCount < 10 ){ 
 		# add a zero for formatting purposes
 		$logCountStr = "0" . $logCount;
 	} else {
 		$logCountStr = $logCount;
 	}
-	print sprintf "[%s] %-30s\tlines: %7s\n",$logCountStr, $files[$count], $1;
+		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$atime,$mtime,$ctime,$blksize,$blocks);
+		($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$cursize,
+		 $atime,$mtime,$ctime,$blksize,$blocks) = stat($files[$count]);
+		print sprintf "[%s] %-30s\tsize (bytes): %12s\n",$logCountStr, $files[$count], $cursize;
 	
 	open(LOG,"$files[$count]") or do { openFailed($!, $files[$count]) };
-	$firstline = "yes";
+	my $firstline = "yes";
 	while(<LOG>){
 		unless ($endFlag) {
 			if ($firstline eq "yes"){
@@ -442,7 +442,7 @@ for ($count=0; $count < $file_count; $count++){
 	print_stats_block( $s_stats );
 	print_stats_block( $m_stats );
 	$totalLineCount = $totalLineCount + $linesProcessed;
-	if($linesProcessed => $limit){print sprintf " %10s Lines Processed\n\n",--$linesProcessed;}
+		statusreport();
 }
 
 print "\n\nTotal Log Lines Analysed:  " . ($totalLineCount - 1) . "\n";
@@ -457,9 +457,11 @@ $allOps = $srchCount + $modCount + $addCount + $cmpCount + $delCount + $modrdnCo
 
 # if we are using startTime & endTime then we need to clean it up for our processing
 
+my $start;
 if($startTime){
 	if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
 }
+my $end;
 if($endTime){
 	if ($end =~ / *([0-9a-z:\/]+)/i){$end =$1;}
 }
@@ -468,8 +470,10 @@ if($endTime){
 # Get the start time in seconds
 #  
 
-$logStart = $start;
-
+my $logStart = $start;
+my $logDate;
+my @dateComps;
+my ($timeMonth, $timeDay, $timeYear, $dateTotal);
 if ($logStart =~ / *([0-9A-Z\/]+)/i ){
         $logDate = $1;
         @dateComps = split /\//, $logDate;
@@ -481,6 +485,9 @@ if ($logStart =~ / *([0-9A-Z\/]+)/i ){
         $dateTotal = $timeMonth + $timeDay + $timeYear;
 }
 
+my $logTime;
+my @timeComps;
+my ($timeHour, $timeMinute, $timeSecond, $timeTotal);
 if ($logStart =~ / *(:[0-9:]+)/i ){
         $logTime = $1;
         @timeComps = split /:/, $logTime;
@@ -491,14 +498,14 @@ if ($logStart =~ / *(:[0-9:]+)/i ){
         $timeTotal = $timeHour + $timeMinute + $timeSecond;
 }
 
-$startTotal = $timeTotal + $dateTotal;
+my $startTotal = $timeTotal + $dateTotal;
 
 #
 # Get the end time in seconds
 #
 
-$logEnd = $end;
-
+my $logEnd = $end;
+my ($endDay, $endMonth, $endYear, $endTotal);
 if ($logEnd =~ / *([0-9A-Z\/]+)/i ){
         $logDate = $1;
         @dateComps = split /\//, $logDate;
@@ -506,10 +513,11 @@ if ($logEnd =~ / *([0-9A-Z\/]+)/i ){
         $endDay = $dateComps[0] *3600 * 24;
         $endMonth = 1 + $monthname{$dateComps[1]};
         $endMonth = $endMonth * 3600 * 24 * 30;
-        $endYear = $endTotal + $dateComps[2] *365 * 3600 * 24 ;
+        $endYear = $dateComps[2] *365 * 3600 * 24 ;
         $dateTotal = $endDay + $endMonth + $endYear;
 }
 
+my ($endHour, $endMinute, $endSecond);
 if ($logEnd =~ / *(:[0-9:]+)/i ){
         $logTime = $1;
         @timeComps = split /:/, $logTime;
@@ -525,8 +533,8 @@ $endTotal = $timeTotal +  $dateTotal;
 #
 # Tally the numbers
 #
-$totalTimeInSecs = $endTotal - $startTotal;
-$remainingTimeInSecs = $totalTimeInSecs;
+my $totalTimeInSecs = $endTotal - $startTotal;
+my $remainingTimeInSecs = $totalTimeInSecs;
 
 #
 # Calculate the elapsed time
@@ -540,33 +548,21 @@ while(($remainingTimeInSecs - 86400) > 0){
 }
 
 # hours
+my $elapsedHours = 0;
 while(($remainingTimeInSecs - 3600) > 0){
 	$elapsedHours++;
 	$remainingTimeInSecs = $remainingTimeInSecs - 3600;
 }
 
 # minutes
+my $elapsedMinutes = 0;
 while($remainingTimeInSecs - 60 > 0){
 	$elapsedMinutes++;
 	$remainingTimeInSecs = $remainingTimeInSecs - 60;
 }
 
 # seconds
-$elapsedSeconds = $remainingTimeInSecs;
-
-# Initialize empty values
-if($elapsedHours eq ""){
-	$elapsedHours = "0";
-}
-if($elapsedMinutes eq ""){
-	$elapsedMinutes = "0";
-}
-if($elapsedSeconds eq ""){
-	$elapsedSeconds = "0";
-}
-
-&closeDataFiles();
-
+my $elapsedSeconds = $remainingTimeInSecs;
 
 #####################################
 #                                   #
@@ -605,20 +601,21 @@ print " - LDAPI Connections:         $ldapiCount\n";
 print "Peak Concurrent Connections:  $maxsimConnection\n";
 print "Total Operations:             $allOps\n";
 print "Total Results:                $allResults\n";
+my ($perf, $tmp);
 if ($allOps ne "0"){
- print sprintf "Overall Performance:          %.1f%\n\n" , ($perf = ($tmp = ($allResults / $allOps)*100) > 100 ? 100.0 : $tmp) ;
+ print sprintf "Overall Performance:          %.1f%%\n\n" , ($perf = ($tmp = ($allResults / $allOps)*100) > 100 ? 100.0 : $tmp) ;
  }
 else {
  print "Overall Performance:          No Operations to evaluate\n\n";
 }
 
-$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($srchCount / $totalTimeInSecs), $srchCount / ($totalTimeInSecs/60);
-$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modCount / $totalTimeInSecs, $modCount/($totalTimeInSecs/60);
-$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$addCount/$totalTimeInSecs, $addCount/($totalTimeInSecs/60);
-$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delCount/$totalTimeInSecs, $delCount/($totalTimeInSecs/60);
-$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdnCount/$totalTimeInSecs, $modrdnCount/($totalTimeInSecs/60);
-$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$cmpCount/$totalTimeInSecs, $cmpCount/($totalTimeInSecs/60);
-$bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bindCount/$totalTimeInSecs, $bindCount/($totalTimeInSecs/60);
+my $searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($srchCount / $totalTimeInSecs), $srchCount / ($totalTimeInSecs/60);
+my $modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modCount / $totalTimeInSecs, $modCount/($totalTimeInSecs/60);
+my $addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$addCount/$totalTimeInSecs, $addCount/($totalTimeInSecs/60);
+my $deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delCount/$totalTimeInSecs, $delCount/($totalTimeInSecs/60);
+my $modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdnCount/$totalTimeInSecs, $modrdnCount/($totalTimeInSecs/60);
+my $compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$cmpCount/$totalTimeInSecs, $cmpCount/($totalTimeInSecs/60);
+my $bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bindCount/$totalTimeInSecs, $bindCount/($totalTimeInSecs/60);
 
 format STDOUT =
 Searches:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -658,148 +655,110 @@ print "Unindexed Searches:           $unindexedSrchCountNotesA\n";
 print "Unindexed Components:         $unindexedSrchCountNotesU\n";
 if ($verb eq "yes" || $usage =~ /u/){
 	if ($unindexedSrchCountNotesA > 0){
-		%conn_hash = getHashFromFile($CONN_HASH);
-		@notesConn = getArrayFromFile($NOTES_A_CONN);
-		@notesOp = getArrayFromFile($NOTES_A_OP);
-		@notesEtime = getArrayFromFile($NOTES_A_ETIME);
-		@notesTime = getArrayFromFile($NOTES_A_TIME);
-		@notesNentries = getArrayFromFile($NOTES_A_NENTRIES);
-		getInfoArraysFromFile($BASEINFO);
-		@base_val = @fileArray1;
-		@base_conn = @fileArray2;
-		@base_op = @fileArray3;
-		getInfoArraysFromFile($SCOPEINFO);
-		@scope_val = @fileArray1;
-		@scope_conn = @fileArray2;
-		@scope_op = @fileArray3;
-		getInfoArraysFromFile($FILTERINFO);
-		@filter_val = @fileArray1;
-		@filter_conn = @fileArray2;
-		@filter_op = @fileArray3;
+		my $conn_hash = $hashes->{conn_hash};
+		my $notesConn = $arrays->{notesAconn};
+		my $notesOp = $arrays->{notesAop};
+		my $notesEtime = $arrays->{notesAetime};
+		my $notesTime = $arrays->{notesAtime};
+		my $notesNentries = $arrays->{notesAnentries};
+		my $base_val = $arrays->{baseval};
+		my $base_conn = $arrays->{baseconn};
+		my $base_op = $arrays->{baseop};
+		my $scope_val = $arrays->{scopeval};
+		my $scope_conn = $arrays->{scopeconn};
+		my $scope_op = $arrays->{scopeop};
+		my $filter_val = $arrays->{filterval};
+		my $filter_conn = $arrays->{filterconn};
+		my $filter_op = $arrays->{filterop};
 
-		$notesCount = "1";
-		for ($n = 0; $n <= $#notesEtime; $n++){
-			@alreadyseenDN = ();
-			if($conn_hash{$notesConn[$n]} eq ""){
+		my $notesCount = "1";
+		my $unindexedIp;
+		for (my $n = 0; $n <= scalar(@{$notesEtime}); $n++){
+			if($conn_hash->{$notesConn->[$n]} eq ""){
 				$unindexedIp = "?";
 			} else {
-				$unindexedIp = $conn_hash{$notesConn[$n]};
+				$unindexedIp = $conn_hash->{$notesConn->[$n]};
 			}
 			print "\n  Unindexed Search #".$notesCount."\n"; $notesCount++;
-			print "  -  Date/Time:             $notesTime[$n]\n";
-			print "  -  Connection Number:     $notesConn[$n]\n";
-			print "  -  Operation Number:      $notesOp[$n]\n";
-			print "  -  Etime:                 $notesEtime[$n]\n";
-			print "  -  Nentries:              $notesNentries[$n]\n";
+			print "  -  Date/Time:             $notesTime->[$n]\n";
+			print "  -  Connection Number:     $notesConn->[$n]\n";
+			print "  -  Operation Number:      $notesOp->[$n]\n";
+			print "  -  Etime:                 $notesEtime->[$n]\n";
+			print "  -  Nentries:              $notesNentries->[$n]\n";
 			print "  -  IP Address:            $unindexedIp\n";
 
-			for ($nnn = 0; $nnn < $baseCount; $nnn++){
-				if ($notesConn[$n] eq $base_conn[$nnn] && $notesOp[$n] eq $base_op[$nnn]){
-					print "  -  Search Base:           $base_val[$nnn]\n";
+			for (my $nnn = 0; $nnn < $baseCount; $nnn++){
+				if ($notesConn->[$n] eq $base_conn->[$nnn] && $notesOp->[$n] eq $base_op->[$nnn]){
+					print "  -  Search Base:           $base_val->[$nnn]\n";
 					last;
 				}
 			}
-			for ($nnn = 0; $nnn < $scopeCount; $nnn++){
-				if ($notesConn[$n] eq $scope_conn[$nnn] && $notesOp[$n] eq $scope_op[$nnn]){
-					print "  -  Search Scope:          $scope_val[$nnn]\n";
+			for (my $nnn = 0; $nnn < $scopeCount; $nnn++){
+				if ($notesConn->[$n] eq $scope_conn->[$nnn] && $notesOp->[$n] eq $scope_op->[$nnn]){
+					print "  -  Search Scope:          $scope_val->[$nnn]\n";
 					last;
 				}
 			}
-			for ($nnn = 0; $nnn < $filterCount; $nnn++){	
-				if ($notesConn[$n] eq $filter_conn[$nnn] && $notesOp[$n] eq $filter_op[$nnn]){
-					print "  -  Search Filter:         $filter_val[$nnn]\n";
+			for (my $nnn = 0; $nnn < $filterCount; $nnn++){	
+				if ($notesConn->[$n] eq $filter_conn->[$nnn] && $notesOp->[$n] eq $filter_op->[$nnn]){
+					print "  -  Search Filter:         $filter_val->[$nnn]\n";
 					last;
 				}	
 			}
 		}
-		undef %conn_hash;
-		undef @notesConn;
-		undef @notesOp;
-		undef @notesEtime;
-		undef @notesTime;
-		undef @notesNentries;
-		undef @notesIp;
-		undef @filter_val;
-		undef @filter_conn;
-		undef @filter_op;
-		undef @base_val;
-		undef @base_conn;
-		undef @base_op;
-		undef @scope_val;
-		undef @scope_conn;
-		undef @scope_op;	
 	}
 	if ($unindexedSrchCountNotesU > 0){
-		%conn_hash = getHashFromFile($CONN_HASH);
-		@notesConn = getArrayFromFile($NOTES_U_CONN);
-		@notesOp = getArrayFromFile($NOTES_U_OP);
-		@notesEtime = getArrayFromFile($NOTES_U_ETIME);
-		@notesTime = getArrayFromFile($NOTES_U_TIME);
-		@notesNentries = getArrayFromFile($NOTES_U_NENTRIES);
-		getInfoArraysFromFile($BASEINFO);
-		@base_val = @fileArray1;
-		@base_conn = @fileArray2;
-		@base_op = @fileArray3;
-		getInfoArraysFromFile($SCOPEINFO);
-		@scope_val = @fileArray1;
-		@scope_conn = @fileArray2;
-		@scope_op = @fileArray3;
-		getInfoArraysFromFile($FILTERINFO);
-		@filter_val = @fileArray1;
-		@filter_conn = @fileArray2;
-		@filter_op = @fileArray3;
+		my $conn_hash = $hashes->{conn_hash};
+		my $notesConn = $arrays->{notesUconn};
+		my $notesOp = $arrays->{notesUop};
+		my $notesEtime = $arrays->{notesUetime};
+		my $notesTime = $arrays->{notesUtime};
+		my $notesNentries = $arrays->{notesUnentries};
+		my $base_val = $arrays->{baseval};
+		my $base_conn = $arrays->{baseconn};
+		my $base_op = $arrays->{baseop};
+		my $scope_val = $arrays->{scopeval};
+		my $scope_conn = $arrays->{scopeconn};
+		my $scope_op = $arrays->{scopeop};
+		my $filter_val = $arrays->{filterval};
+		my $filter_conn = $arrays->{filterconn};
+		my $filter_op = $arrays->{filterop};
 
-		$notesCount = "1";
-		for ($n = 0; $n <= $#notesEtime; $n++){
-			@alreadyseenDN = ();
-			if($conn_hash{$notesConn[$n]} eq ""){
+		my $notesCount = "1";
+		my $unindexedIp;
+		for (my $n = 0; $n <= scalar(@{$notesEtime}); $n++){
+			if($conn_hash->{$notesConn->[$n]} eq ""){
 				$unindexedIp = "?";
 			} else {
-				$unindexedIp = $conn_hash{$notesConn[$n]};
+				$unindexedIp = $conn_hash->{$notesConn->[$n]};
 			}
 			print "\n  Unindexed Components #".$notesCount."\n"; $notesCount++;
-			print "  -  Date/Time:             $notesTime[$n]\n";
-			print "  -  Connection Number:     $notesConn[$n]\n";
-			print "  -  Operation Number:      $notesOp[$n]\n";
-			print "  -  Etime:                 $notesEtime[$n]\n";
-			print "  -  Nentries:              $notesNentries[$n]\n";
+			print "  -  Date/Time:             $notesTime->[$n]\n";
+			print "  -  Connection Number:     $notesConn->[$n]\n";
+			print "  -  Operation Number:      $notesOp->[$n]\n";
+			print "  -  Etime:                 $notesEtime->[$n]\n";
+			print "  -  Nentries:              $notesNentries->[$n]\n";
 			print "  -  IP Address:            $unindexedIp\n";
 
-			for ($nnn = 0; $nnn < $baseCount; $nnn++){
-				if ($notesConn[$n] eq $base_conn[$nnn] && $notesOp[$n] eq $base_op[$nnn]){
-					print "  -  Search Base:           $base_val[$nnn]\n";
+			for (my $nnn = 0; $nnn < $baseCount; $nnn++){
+				if ($notesConn->[$n] eq $base_conn->[$nnn] && $notesOp->[$n] eq $base_op->[$nnn]){
+					print "  -  Search Base:           $base_val->[$nnn]\n";
 					last;
 				}
 			}
-			for ($nnn = 0; $nnn < $scopeCount; $nnn++){
-				if ($notesConn[$n] eq $scope_conn[$nnn] && $notesOp[$n] eq $scope_op[$nnn]){
-					print "  -  Search Scope:          $scope_val[$nnn]\n";
+			for (my $nnn = 0; $nnn < $scopeCount; $nnn++){
+				if ($notesConn->[$n] eq $scope_conn->[$nnn] && $notesOp->[$n] eq $scope_op->[$nnn]){
+					print "  -  Search Scope:          $scope_val->[$nnn]\n";
 					last;
 				}
 			}
-			for ($nnn = 0; $nnn < $filterCount; $nnn++){	
-				if ($notesConn[$n] eq $filter_conn[$nnn] && $notesOp[$n] eq $filter_op[$nnn]){
-					print "  -  Search Filter:         $filter_val[$nnn]\n";
+			for (my $nnn = 0; $nnn < $filterCount; $nnn++){	
+				if ($notesConn->[$n] eq $filter_conn->[$nnn] && $notesOp->[$n] eq $filter_op->[$nnn]){
+					print "  -  Search Filter:         $filter_val->[$nnn]\n";
 					last;
 				}	
 			}
 		}
-		undef %conn_hash;
-		undef @notesConn;
-		undef @notesOp;
-		undef @notesEtime;
-		undef @notesTime;
-		undef @notesNentries;
-		undef @notesIp;
-		undef @filter_val;
-		undef @filter_conn;
-		undef @filter_op;
-		undef @base_val;
-		undef @base_conn;
-		undef @base_op;
-		undef @scope_val;
-		undef @scope_conn;
-		undef @scope_op;	
 	}
 } # end of unindexed search report
 
@@ -809,10 +768,12 @@ print "FDs Returned:                 $fdReturned\n";
 print "Highest FD Taken:             $highestFdTaken\n\n";
 print "Broken Pipes:                 $brokenPipeCount\n";
 if ($brokenPipeCount > 0){
-	foreach $key (sort { $rc{$b} <=> $rc{$a} } keys %rc) {
-          if ($rc{$key} > 0){
+	my $rc = $hashes->{rc};
+	my @etext;
+	foreach my $key (sort { $rc->{$b} <=> $rc->{$a} } keys %{$rc}) {
+		if ($rc->{$key} > 0){
            if ($conn{$key} eq ""){$conn{$key} = "**Unknown**";}
-           push @etext, sprintf "     -  %-4s (%2s) %-40s\n",$rc{$key},$conn{$key},$connmsg{$key
+           push @etext, sprintf "     -  %-4s (%2s) %-40s\n",$rc->{$key},$conn{$key},$connmsg{$key
 };
           }
         }
@@ -822,10 +783,12 @@ if ($brokenPipeCount > 0){
 
 print "Connections Reset By Peer:    $connResetByPeerCount\n";
 if ($connResetByPeerCount > 0){
-	foreach $key (sort { $src{$b} <=> $src{$a} } keys %src) {
-          if ($src{$key} > 0){
+	my $src = $hashes->{src};
+	my @retext;
+	foreach my $key (sort { $src->{$b} <=> $src->{$a} } keys %{$src}) {
+		if ($src->{$key} > 0){
            if ($conn{$key} eq ""){$conn{$key} = "**Unknown**";}
-           push @retext, sprintf "     -  %-4s (%2s) %-40s\n",$src{$key},$conn{$key},$connmsg{$key
+           push @retext, sprintf "     -  %-4s (%2s) %-40s\n",$src->{$key},$conn{$key},$connmsg{$key
 };
           }
         }
@@ -835,10 +798,12 @@ if ($connResetByPeerCount > 0){
 
 print "Resource Unavailable:         $resourceUnavailCount\n";
 if ($resourceUnavailCount > 0){
-	foreach $key (sort { $rsrc{$b} <=> $rsrc{$a} } keys %rsrc) {
-          if ($rsrc{$key} > 0){
+	my $rsrc = $hashes->{rsrc};
+	my @rtext;
+	foreach my $key (sort { $rsrc->{$b} <=> $rsrc->{$a} } keys %{$rsrc}) {
+		if ($rsrc->{$key} > 0){
            if ($conn{$key} eq ""){$conn{$key} = "**Resource Issue**";}
-           push @rtext, sprintf "     -  %-4s (%2s) %-40s\n",$rsrc{$key},$conn{$key},$connmsg{$key};
+           push @rtext, sprintf "     -  %-4s (%2s) %-40s\n",$rsrc->{$key},$conn{$key},$connmsg{$key};
           }
   	}
   	print @rtext;
@@ -854,14 +819,15 @@ print " - SSL Client Binds:          $sslClientBindCount\n";
 print " - Failed SSL Client Binds:   $sslClientFailedCount\n";
 print " - SASL Binds:                $saslBindCount\n";
 if ($saslBindCount > 0){
- foreach $saslb ( sort {$saslmech{$b} <=> $saslmech{$a} } (keys %saslmech) ){
-	printf "    %-4s  %-12s\n",$saslmech{$saslb}, $saslb;   
- }
+	my $saslmech = $hashes->{saslmech};
+	foreach my $saslb ( sort {$saslmech->{$b} <=> $saslmech->{$a} } (keys %{$saslmech}) ){
+		printf "    %-4s  %-12s\n",$saslmech->{$saslb}, $saslb;   
+	}
 }
 
 print " - Directory Manager Binds:   $rootDNBindCount\n";
 print " - Anonymous Binds:           $anonymousBindCount\n";
-$otherBindCount = $bindCount -($rootDNBindCount + $anonymousBindCount);
+my $otherBindCount = $bindCount -($rootDNBindCount + $anonymousBindCount);
 print " - Other Binds:               $otherBindCount\n\n";
 
 ##########################################################################
@@ -879,8 +845,10 @@ if ($verb eq "yes" || $usage =~ /y/){
 	print " (in seconds)\t\t<=1\t2\t3\t4-5\t6-10\t11-15\t>15\n";
 	print " --------------------------------------------------------------------------\n";
 	print " (# of connections)\t";
-	for ($i=0; $i <=$#latency; $i++) {
-		print "$latency[$i]\t";
+	for (my $i=0; $i <=$#latency; $i++) {
+		if (defined($latency[$i])) {
+			print "$latency[$i]\t";
+		}
 	}
 }
 
@@ -891,9 +859,9 @@ if ($verb eq "yes" || $usage =~ /y/){
 ###################################
 
 if ($verb eq "yes" || $usage =~ /p/){
-	if ($openConnection[0] ne ""){
+	if (@openConnection > 0){
 		print "\n\n----- Current Open Connection IDs ----- \n\n";
-		for ($i=0; $i <= $#openConnection ; $i++) {
+		for (my $i=0; $i <= $#openConnection ; $i++) {
 			if ($openConnection[$i]) {
 				print "Conn Number:  $i (" . getIPfromConn($i) . ")\n";
 			}
@@ -910,17 +878,16 @@ if ($verb eq "yes" || $usage =~ /p/){
 if ($usage =~ /e/i || $verb eq "yes"){
 	print "\n\n----- Errors -----\n";
 
-	%er = sort( {$b <=> $a} %er);
-	for ($i = 0; $i<98; $i++){
-		if ($err[$i] ne "" && $errorCode[$i] >0) {
+	for (my $i = 0; $i<98; $i++){
+		if (defined($err[$i]) && $err[$i] ne "" && defined($errorCode[$i]) && $errorCode[$i] >0) {
 			push @errtext, sprintf "%-8s       %12s    %-25s","err=$i",$errorCode[$i],$err[$i];
 		}
 	}
 
-	for ($i = 0; $i < $#errtext; $i++){
-		for ($ii = 0; $ii < $#errtext; $ii++){
-			$yy="0";
-			$zz="0";
+	for (my $i = 0; $i < $#errtext; $i++){
+		for (my $ii = 0; $ii < $#errtext; $ii++){
+			my $yy="0";
+			my $zz="0";
 			while ($errtext[$ii] =~ /(\w+)\s/g){
 				$errornum[$yy]="$1";
 				$yy++;
@@ -936,7 +903,7 @@ if ($usage =~ /e/i || $verb eq "yes"){
 			}
 		}
 	}
-	for ($i = 0; $i <= $#errtext; $i++){
+	for (my $i = 0; $i <= $#errtext; $i++){
 		$errtext[$i] =~ s/\n//g;
 		print  "\n" . $errtext[$i];
 	} 
@@ -953,51 +920,44 @@ if ($verb eq "yes" || $usage =~ /f/ ){
 		print "\n\n----- Top $sizeCount Failed Logins ------\n\n";
 
 		if ($ds6x eq "true"){
-			%ds6xbadpwd = getCounterHashFromFile($DS6XBADPWD);
-			$ds6loop = 0;
-			foreach $ds6bp (sort { $ds6xbadpwd{$b} <=> $ds6xbadpwd{$a} } keys %ds6xbadpwd) {
-				if ($eloop > $sizeCount){ last; }
-				printf "%-4s        %-40s\n", $ds6xbadpwd{$ds6bp}, $ds6bp;
+			my $ds6xbadpwd = $hashes->{ds6xbadpwd};
+			my $ds6loop = 0;
+			foreach my $ds6bp (sort { $ds6xbadpwd->{$b} <=> $ds6xbadpwd->{$a} } keys %{$ds6xbadpwd}) {
+				if ($ds6loop > $sizeCount){ last; }
+				printf "%-4s        %-40s\n", $ds6xbadpwd->{$ds6bp}, $ds6bp;
 				$ds6loop++;
 			}
-			undef %ds6xbadpwd;
 		} else {
-			getInfoArraysFromFile($BINDINFO);
-			@bindVal = @fileArray1;
-			@bindConn = @fileArray2;
-			@bindOp = @fileArray3;
-			@badPasswordConn = getArrayFromFile($BADPWDCONN);
-			@badPasswordOp = getArrayFromFile($BADPWDOP);
-			@badPasswordIp = getArrayFromFile($BADPWDIP);
-			for ($ii =0 ; $ii < $badPwdCount; $ii++){
-		 		for ($i = 0; $i < $bindCount; $i++){
-					if ($badPasswordConn[$ii] eq $bindConn[$i] && $badPasswordOp[$ii] eq $bindOp[$i] ){
-						$badPassword{ "$bindVal[$i]" } = $badPassword{ "$bindVal[$i]" } + 1;
+			my $bindVal = $arrays->{binddn};
+			my $bindConn = $arrays->{bindconn};
+			my $bindOp = $arrays->{bindop};
+			my $badPasswordConn = $arrays->{badpwdconn};
+			my $badPasswordOp = $arrays->{badpwdop};
+			my $badPasswordIp = $arrays->{badpwdip};
+			my %badPassword = ();
+			for (my $ii =0 ; $ii < $badPwdCount; $ii++){
+		 		for (my $i = 0; $i < $bindCount; $i++){
+					if ($badPasswordConn->[$ii] eq $bindConn->[$i] && $badPasswordOp->[$ii] eq $bindOp->[$i] ){
+						$badPassword{ $bindVal->[$i] }++;
 					}
 		 		}
 			}
 			# sort the new hash of $badPassword{}
-			$bpTotal = 0;
-			$bpCount = 0;
-			foreach $badpw (sort {$badPassword{$b} <=> $badPassword{$a} } keys %badPassword){
+			my $bpTotal = 0;
+			my $bpCount = 0;
+			foreach my $badpw (sort {$badPassword{$b} <=> $badPassword{$a} } keys %badPassword){
 				if ($bpCount > $sizeCount){ last;}
 				$bpCount++;
 				$bpTotal = $bpTotal + $badPassword{"$badpw"};
 				printf "%-4s        %-40s\n", $badPassword{"$badpw"}, $badpw;
 			}
 			print "\nFrom the IP address(s) :\n\n";
-			for ($i=0; $i<$badPwdCount; $i++) {
-				print "\t\t$badPasswordIp[$i]\n";
+			for (my $i=0; $i<$badPwdCount; $i++) {
+				print "\t\t$badPasswordIp->[$i]\n";
 			}
 			if ($bpTotal > $badPwdCount){
 				print "\n** Warning : Wrongly reported failed login attempts : ". ($bpTotal - $badPwdCount) . "\n";
 			}
-			undef @bindVal;
-			undef @bindConn;
-			undef @bindOp;
-			undef @badPasswordConn;
-			undef @badPasswordOp;
-			undef @badPasswordIp;
 		}  # this ends the if $ds6x = true
 	}
 }
@@ -1012,15 +972,14 @@ if ($verb eq "yes" || $usage =~ /f/ ){
 if ($connCodeCount > 0){
 	if ($usage =~ /c/i || $verb eq "yes"){
 		print "\n\n----- Total Connection Codes -----\n\n";
-		%conncount = &getCounterHashFromFile($CONNCOUNT);
-
-	  	foreach $key (sort { $conncount{$b} <=> $conncount{$a} } keys %conncount) {
-		  	if ($conncount{$key} > 0){
-				push @conntext, sprintf "%-4s %6s   %-40s\n",$key,$conncount{$key},$connmsg{ $key };
+		my $conncount = $hashes->{conncount};
+		my @conntext;
+	  	foreach my $key (sort { $conncount->{$b} <=> $conncount->{$a} } keys %{$conncount}) {
+		  	if ($conncount->{$key} > 0){
+				push @conntext, sprintf "%-4s %6s   %-40s\n",$key,$conncount->{$key},$connmsg{ $key };
 		  	}
 	  	}
 		print @conntext;
-		undef %conncount;
 	}
 }
 
@@ -1031,35 +990,36 @@ if ($connCodeCount > 0){
 ########################################
 
 if ($usage =~ /i/i || $verb eq "yes"){
-	%ip_hash = getTwoDimHashFromFile($IP_HASH);
-	%exCount = getCounterHashFromFile($EXCOUNT);
-	@ipkeys = keys %ip_hash;
-	@exxCount = keys %exCount;
-	$ip_count = ($#ipkeys + 1)-($#exxCount + 1); 
+	my $ip_hash = $hashes->{ip_hash};
+	my $exCount = $hashes->{excount};
+	my @ipkeys = keys %{$ip_hash};
+	my @exxCount = keys %${exCount};
+	my $ip_count = ($#ipkeys + 1)-($#exxCount + 1);
+	my $ccount = 0;
 	if ($ip_count > 0){
 	 	print "\n\n----- Top $sizeCount Clients -----\n\n";
 	 	print "Number of Clients:  $ip_count\n\n";
-		foreach $key (sort { $ip_hash{$b}{"count"} <=> $ip_hash{$a}{"count"} } keys %ip_hash) {
-			$exc = "no";
+		foreach my $key (sort { $ip_hash->{$b} <=> $ip_hash->{$a} } @ipkeys) {
+			my $exc = "no";
 			if ($ccount > $sizeCount){ last;}
 			$ccount++;
-			for ($xxx =0; $xxx <= $#excludeIP; $xxx++){
+			for (my $xxx =0; $xxx < $#excludeIP; $xxx++){
 				if ($excludeIP[$xxx] eq $key){$exc = "yes";}
 			}
 			if ($exc ne "yes"){
-				if ($ip_hash{ $key }{"count"} eq ""){$ip_hash{ $key }{"count"} = "?";}
+				if ($ip_hash->{ $key } eq ""){$ip_hash->{ $key } = "?";}
 				printf "[%s] Client: %s\n",$ccount, $key;
-				printf "%10s - Connections\n", $ip_hash{ $key }{"count"};
-				foreach $code (sort { $ip_hash{ $key }{$b} <=> $ip_hash{ $key }{$a} } keys %{$ip_hash{ $key }}) {
+				printf "%10s - Connections\n", $ip_hash->{ $key };
+				my %counts;
+				map { $counts{$_} = $hashes->{$_}->{$key} if (defined($hashes->{$_}->{$key})) } @conncodes;
+				foreach my $code (sort { $counts{$b} <=> $counts{$a} } keys %counts) {
 		 			if ($code eq 'count' ) { next; }
-					printf "%10s - %s (%s)\n", $ip_hash{ $key }{ $code }, $code, $connmsg{ $code };
+					printf "%10s - %s (%s)\n", $counts{ $code }, $code, $connmsg{ $code };
 				}
 				print "\n";
 			}
 		}
 	}
-	undef %exCount;
-	undef %ip_hash;
 }
 
 ###################################
@@ -1069,21 +1029,22 @@ if ($usage =~ /i/i || $verb eq "yes"){
 ###################################
 
 if ($usage =~ /b/i || $verb eq "yes"){
-	%bindlist = getCounterHashFromFile($BINDLIST);
-	@bindkeys = keys %bindlist;
-	$bind_count = $#bindkeys + 1;
+	my $bindlist = $hashes->{bindlist};
+	my @bindkeys = keys %{$bindlist};
+	my $bind_count = $#bindkeys + 1;
 	if ($bind_count > 0){
 		print "\n\n----- Top $sizeCount Bind DN's -----\n\n";
 		print "Number of Unique Bind DN's: $bind_count\n\n"; 
-		$bindcount = 0;
-		foreach $dn (sort { $bindlist{$b} <=> $bindlist{$a} } keys %bindlist) {
-		        if ($bindcount < $sizeCount){
-				printf "%-8s        %-40s\n", $bindlist{ $dn },$dn;
-			}
+		my $bindcount = 0;
+		foreach my $dn (sort { $bindlist->{$b} <=> $bindlist->{$a} } @bindkeys) {
+            if ($bindcount < $sizeCount){
+				printf "%-8s        %-40s\n", $bindlist->{ $dn },$dn;
+			} else {
+                last;
+            }
 			$bindcount++;
 		}
 	}
-	undef %bindlist;
 }
 
 #########################################
@@ -1093,21 +1054,22 @@ if ($usage =~ /b/i || $verb eq "yes"){
 #########################################
 
 if ($usage =~ /a/i || $verb eq "yes"){
-	%base = getCounterHashFromFile($BASE);
-	@basekeys = keys %base;
-	$base_count = $#basekeys + 1;
+	my $base = $hashes->{base};
+	my @basekeys = keys %{$base};
+	my $base_count = $#basekeys + 1;
 	if ($base_count > 0){
 		print "\n\n----- Top $sizeCount Search Bases -----\n\n";
 		print "Number of Unique Search Bases: $base_count\n\n";
-		$basecount = 0;
-		foreach $bas (sort { $base{$b} <=> $base{$a} } keys %base) {
+		my $basecount = 0;
+		foreach my $bas (sort { $base->{$b} <=> $base->{$a} } @basekeys) {
 		        if ($basecount < $sizeCount){
-		                printf "%-8s        %-40s\n", $base{ $bas },$bas;
-		        }
+                    printf "%-8s        %-40s\n", $base->{ $bas },$bas;
+		        } else {
+                    last;
+                }
 		        $basecount++;
 		}
 	}
-	undef %base;
 }
  
 #########################################
@@ -1117,21 +1079,22 @@ if ($usage =~ /a/i || $verb eq "yes"){
 #########################################
 
 if ($usage =~ /l/ || $verb eq "yes"){
-	%filter = getCounterHashFromFile($FILTER);
-	@filterkeys = keys %filter;
-	$filter_count = $#filterkeys + 1;
+	my $filter = $hashes->{filter};
+	my @filterkeys = keys %{$filter};
+	my $filter_count = $#filterkeys + 1;
 	if ($filter_count > 0){
 		print "\n\n----- Top $sizeCount Search Filters -----\n";  
 		print "\nNumber of Unique Search Filters: $filter_count\n\n";
-		$filtercount = 0;
-		foreach $filt (sort { $filter{$b} <=> $filter{$a} } keys %filter){
+		my $filtercount = 0;
+		foreach my $filt (sort { $filter->{$b} <=> $filter->{$a} } @filterkeys){
 			if ($filtercount < $sizeCount){
-				printf "%-8s        %-40s\n", $filter{$filt}, $filt;
-			}
+				printf "%-8s        %-40s\n", $filter->{$filt}, $filt;
+			} else {
+                last;
+            }
 			$filtercount++;
 		}
 	}
-	undef %filter;
 }
 
 #########################################
@@ -1140,20 +1103,23 @@ if ($usage =~ /l/ || $verb eq "yes"){
 #                                       # 
 #########################################
 
+my $first;
 if ($usage =~ /t/i || $verb eq "yes"){
-	%etime = getCounterHashFromFile($ETIME);
+	my $etime = $hashes->{etime};
+	my @ekeys = keys %{$etime};
 	#
 	# print most often etimes
 	#
 	print "\n\n----- Top $sizeCount Most Frequent etimes -----\n\n";
-	$eloop = 0;
-	foreach $et (sort { $etime{$b} <=> $etime{$a} } keys %etime) {
+	my $eloop = 0;
+	my $retime = 0;
+	foreach my $et (sort { $etime->{$b} <=> $etime->{$a} } @ekeys) {
 		if ($eloop == $sizeCount) { last; }
 		if ($retime ne "2"){
 			$first = $et;
 			$retime = "2";
 		}
-		printf "%-8s        %-12s\n", $etime{ $et }, "etime=$et";
+		printf "%-8s        %-12s\n", $etime->{ $et }, "etime=$et";
 		$eloop++;
 	}
 	#
@@ -1161,12 +1127,11 @@ if ($usage =~ /t/i || $verb eq "yes"){
 	#
 	print "\n\n----- Top $sizeCount Longest etimes -----\n\n";
 	$eloop = 0;
-	foreach $et (sort { $b <=> $a } (keys %etime)) {
+	foreach my $et (sort { $b <=> $a } @ekeys) {
 		if ($eloop == $sizeCount) { last; }
-		printf "%-12s    %-10s\n","etime=$et",$etime{ $et };
+		printf "%-12s    %-10s\n","etime=$et",$etime->{ $et };
 		$eloop++;
 	}   
-	undef %etime;
 }
 
 #######################################
@@ -1177,23 +1142,23 @@ if ($usage =~ /t/i || $verb eq "yes"){
 
 
 if ($usage =~ /n/i || $verb eq "yes"){
-	%nentries = getCounterHashFromFile($NENTRIES);
+	my $nentries = $hashes->{nentries};
+	my @nkeys = keys %{$nentries};
 	print "\n\n----- Top $sizeCount Largest nentries -----\n\n";
-	$eloop = 0;
-	foreach $nentry (sort { $b <=> $a } (keys %nentries)){
+	my $eloop = 0;
+	foreach my $nentry (sort { $b <=> $a } @nkeys){
 		if ($eloop == $sizeCount) { last; }
-	    	printf "%-18s   %12s\n","nentries=$nentry", $nentries{ $nentry };
+	    	printf "%-18s   %12s\n","nentries=$nentry", $nentries->{ $nentry };
 		$eloop++;
 	}
 	print "\n\n----- Top $sizeCount Most returned nentries -----\n\n";
 	$eloop = 0;
-	foreach $nentry (sort { $nentries{$b} <=> $nentries{$a} } (keys %nentries)){
+	foreach my $nentry (sort { $nentries->{$b} <=> $nentries->{$a} } @nkeys){
 		if ($eloop == $sizeCount) { last; }
-		printf "%-12s    %-14s\n", $nentries{ $nentry }, "nentries=$nentry";
+		printf "%-12s    %-14s\n", $nentries->{ $nentry }, "nentries=$nentry";
 		$eloop++;
 	}
 	print "\n";
-	undef %nentries;
 }
 
 ##########################################
@@ -1204,9 +1169,10 @@ if ($usage =~ /n/i || $verb eq "yes"){
 
 if ($usage =~ /x/i || $verb eq "yes"){
 	if ($extopCount > 0){
-		%oid = getCounterHashFromFile($OID);
+		my $oid = $hashes->{oid};
 		print "\n\n----- Extended Operations -----\n\n";
-		foreach $oids (sort { $oid{$b} <=> $oid{$a} } (keys %oid) ){
+		foreach my $oids (sort { $oid->{$b} <=> $oid->{$a} } (keys %{$oid}) ){
+			my $oidmessage;
 			if ($oids eq "2.16.840.1.113730.3.5.1"){ $oidmessage = "Transaction Request"} #depreciated?
 			elsif ($oids eq "2.16.840.1.113730.3.5.2"){ $oidmessage = "Transaction Response"} #depreciated?
 			elsif ($oids eq "2.16.840.1.113730.3.5.3"){ $oidmessage = "Start Replication Request (incremental update)"}
@@ -1236,9 +1202,8 @@ if ($usage =~ /x/i || $verb eq "yes"){
 			elsif ($oids eq "1.3.6.1.4.1.4203.1.11.1"){ $oidmessage = "Password Modify"}
 			elsif ($oids eq "2.16.840.1.113730.3.4.20"){ $oidmessage = "MTN Control Use One Backend"}
 			else {$oidmessage = "Other"}
-			printf "%-6s      %-23s     %-60s\n", $oid{ $oids }, $oids, $oidmessage;
+			printf "%-6s      %-23s     %-60s\n", $oid->{ $oids }, $oids, $oidmessage;
 		}
-		undef %oid;
 	}
 }
 
@@ -1250,15 +1215,14 @@ if ($usage =~ /x/i || $verb eq "yes"){
 
 if ($usage =~ /r/i || $verb eq "yes"){
 	if ($anyAttrs > 0){
-		%attr = getCounterHashFromFile($ATTR);
+		my $attr = $hashes->{attr};
 		print "\n\n----- Top $sizeCount Most Requested Attributes -----\n\n";
-		$eloop = 0;
-		foreach $mostAttr (sort { $attr{$b} <=> $attr{$a} } (keys %attr) ){
+		my $eloop = 0;
+		foreach my $mostAttr (sort { $attr->{$b} <=> $attr->{$a} } (keys %{$attr}) ){
 			if ($eloop eq $sizeCount){ last; }
-			printf "%-10s  %-19s\n", $attr{$mostAttr}, $mostAttr;
+			printf "%-10s  %-19s\n", $attr->{$mostAttr}, $mostAttr;
 			$eloop++;
 		}
-		undef %attr;
 	}
 }
 
@@ -1269,77 +1233,59 @@ if ($usage =~ /r/i || $verb eq "yes"){
 #############################
 
 if ($usage =~ /g/i || $verb eq "yes"){
-	$abandonTotal = $srchCount + $delCount + $modCount + $addCount + $modrdnCount + $bindCount + $extopCount + $cmpCount;
+	my $abandonTotal = $srchCount + $delCount + $modCount + $addCount + $modrdnCount + $bindCount + $extopCount + $cmpCount;
 	if ($verb eq "yes" && $abandonCount > 0 && $abandonTotal > 0){
-		%conn_hash = getHashFromFile($CONN_HASH);
-		@srchConn = getArrayFromFile($SRCH_CONN);
-		@srchOp = getArrayFromFile($SRCH_OP);
-		@delConn = getArrayFromFile($DEL_CONN);
-		@delOp = getArrayFromFile($DEL_OP);
-		@targetConn = getArrayFromFile($TARGET_CONN);
-		@targetOp = getArrayFromFile($TARGET_OP);
-		@msgid = getArrayFromFile($MSGID);
-		@addConn = getArrayFromFile($ADD_CONN);
-		@addOp = getArrayFromFile($ADD_OP);
-		@modConn = getArrayFromFile($MOD_CONN);
-		@modOp = getArrayFromFile($MOD_OP);
-		@cmpConn = getArrayFromFile($CMP_CONN);
-		@cmpOp = getArrayFromFile($CMP_OP);
-		@modrdnConn = getArrayFromFile($MODRDN_CONN);
-		@modrdnOp = getArrayFromFile($MODRDN_OP);
-		@bindConn = getArrayFromFile($BIND_CONN);
-		@bindOp = getArrayFromFile($BIND_OP);
-		@unbindConn = getArrayFromFile($UNBIND_CONN);
-		@unbindOp = getArrayFromFile($UNBIND_OP);
-		@extConn = getArrayFromFile($EXT_CONN);
-		@extOp = getArrayFromFile($EXT_OP);
+		my $conn_hash = $hashes->{conn_hash};
 
 		print "\n\n----- Abandon Request Stats -----\n\n";
 
-		for ($g = 0; $g < $abandonCount; $g++){
-			for ($sc = 0; $sc < $srchCount; $sc++){
-				if ($srchConn[$sc] eq $targetConn[$g] && $srchOp[$sc] eq $targetOp[$g] ){
-					print " - SRCH conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";	
+		for (my $g = 0; $g < $abandonCount; $g++){
+			my $conn = $arrays->{targetconn}->[$g];
+			my $op = $arrays->{targetop}->[$g];
+			my $msgid = $arrays->{msgid}->[$g];
+			for (my $sc = 0; $sc < $srchCount; $sc++){
+				if ($arrays->{srchconn}->[$sc] eq $conn && $arrays->{srchop}->[$sc] eq $op ){
+					print " - SRCH conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";	
 				}
 			}
-			for ($dc = 0; $dc < $delCount; $dc++){
-				if ($delConn[$dc] eq $targetConn[$g] && $delOp[$dc] eq $targetOp[$g]){
-					print " - DEL conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $dc = 0; $dc < $delCount; $dc++){
+				if ($arrays->{delconn}->[$dc] eq $conn && $arrays->{delop}->[$dc] eq $op){
+					print " - DEL conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
-			for ($adc = 0; $adc < $addCount; $adc++){
-				if ($addConn[$adc] eq $targetConn[$g] && $addOp[$adc] eq $targetOp[$g]){
-					print " - ADD conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $adc = 0; $adc < $addCount; $adc++){
+				if ($arrays->{addconn}->[$adc] eq $conn && $arrays->{addop}->[$adc] eq $op){
+					print " - ADD conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
-			for ($mc = 0; $mc < $modCount; $mc++){
-				if ($modConn[$mc] eq $targetConn[$g] && $modOp[$mc] eq $targetOp[$g]){
-					print " - MOD conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $mc = 0; $mc < $modCount; $mc++){
+				if ($arrays->{modconn}->[$mc] eq $conn && $arrays->{modop}->[$mc] eq $op){
+					print " - MOD conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
-			for ($cc = 0; $cc < $cmpCount; $cc++){
-				if ($cmpConn[$mdc] eq $targetConn[$g] && $cmpOp[$mdc] eq $targetOp[$g]){
-					print " - CMP conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $cc = 0; $cc < $cmpCount; $cc++){
+				if ($arrays->{cmpconn}->[$cc] eq $conn && $arrays->{cmpop}->[$cc] eq $op){
+					print " - CMP conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
-			for ($mdc = 0; $mdc < $modrdnCount; $mdc++){
-				if ($modrdnConn[$mdc] eq $targetConn[$g] && $modrdnOp[$mdc] eq $targetOp[$g]){
-					print " - MODRDN conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $mdc = 0; $mdc < $modrdnCount; $mdc++){
+				if ($arrays->{modrdnconn}->[$mdc] eq $conn && $arrays->{modrdnop}->[$mdc] eq $op){
+					print " - MODRDN conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
-			for ($bcb = 0; $bcb < $bindCount; $bcb++){
-				if ($bindConn[$bcb] eq $targetConn[$g] && $bindOp[$bcb] eq $targetOp[$g]){
-					print " - BIND conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $bcb = 0; $bcb < $bindCount; $bcb++){
+				if ($arrays->{bindconn}->[$bcb] eq $conn && $arrays->{bindop}->[$bcb] eq $op){
+					print " - BIND conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
-			for ($ubc = 0; $ubc < $unbindCount; $ubc++){
-				if ($unbindConn[$ubc] eq $targetConn[$g] && $unbindOp[$ubc] eq $targetOp[$g]){
-					print " - UNBIND conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $ubc = 0; $ubc < $unbindCount; $ubc++){
+				if ($arrays->{unbindconn}->[$ubc] eq $conn && $arrays->{unbindop}->[$ubc] eq $op){
+					print " - UNBIND conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
-			for ($ec = 0; $ec < $extopCount; $ec++){
-				if ($extConn[$ec] eq $targetConn[$g] && $extOp[$ec] eq $targetOp[$g]){
-					print " - EXT conn=$targetConn[$g] op=$targetOp[$g] msgid=$msgid[$g] client=$conn_hash{$targetConn[$g]}\n";
+			for (my $ec = 0; $ec < $extopCount; $ec++){
+				if ($arrays->{extconn}->[$ec] eq $conn && $arrays->{extop}->[$ec] eq $op){
+					print " - EXT conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 		}
@@ -1354,9 +1300,9 @@ print "\n";
 #######################################
 
 if ($usage =~ /j/i || $verb eq "yes"){
-	%conncount = getCounterHashFromFile($CONNCOUNT);
+	my $conncount = $hashes->{conncount};
 	print "\n----- Recommendations -----\n";
-	$recCount = "1";
+	my $recCount = "1";
 	if ($unindexedSrchCountNotesA > 0){
 		print "\n $recCount.  You have unindexed searches, this can be caused from a search on an unindexed attribute, or your returned results exceeded the allidsthreshold.  Unindexed searches are not recommended. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
 		$recCount++;
@@ -1365,11 +1311,11 @@ if ($usage =~ /j/i || $verb eq "yes"){
 		print "\n $recCount.  You have unindexed components, this can be caused from a search on an unindexed attribute, or your returned results exceeded the allidsthreshold.  Unindexed components are not recommended. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
 		$recCount++;
 	}
-	if ($conncount{"T1"} > 0){
+	if (defined($conncount->{"T1"}) and $conncount->{"T1"} > 0){
 		print "\n $recCount.  You have some connections that are are being closed by the idletimeout setting. You may want to increase the idletimeout if it is set low.\n";
 		$recCount++;
 	}
-	if ($conncount{"T2"} > 0){
+	if (defined($conncount->{"T2"}) and $conncount->{"T2"} > 0){
 		print "\n $recCount.  You have some coonections that are being closed by the ioblocktimeout setting. You may want to increase the ioblocktimeout.\n";
 		$recCount++;
 	}
@@ -1391,7 +1337,7 @@ if ($usage =~ /j/i || $verb eq "yes"){
 		print "\n $recCount.  You have more unsuccessful operations than successful operations.  You should investigate this difference.\n";
 		$recCount++;
 	}
-	if ($conncount{"U1"} < ($connCodeCount - $conncount{"U1"})){
+	if (defined($conncount->{"U1"}) and $conncount->{"U1"} < ($connCodeCount - $conncount->{"U1"})){
 		print "\n $recCount.  You have more abnormal connection codes than cleanly closed connections.  You may want to investigate this difference.\n";
 		$recCount++;
 	}
@@ -1407,7 +1353,6 @@ if ($usage =~ /j/i || $verb eq "yes"){
 		print "\nNone.\n";
 	}
 	print "\n";
-	undef %conncount;
 }
 
 #
@@ -1499,11 +1444,9 @@ parseLineBind {
 	$linesProcessed++;
 	$lineBlockCount++;
 	local $_ = $logline;
+	my $ip;
 
-	if ($lineBlockCount >= $limit){
-		print STDERR sprintf" %10s Lines Processed\n",$linesProcessed;
-		$lineBlockCount="0";
-	}
+	statusreport();
 
 	# skip blank lines
 	return if $_ =~ /^\s/;
@@ -1531,7 +1474,8 @@ parseLineBind {
         	}
 	}
 	if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ) {
-		for ($excl =0; $excl <= $#excludeIP; $excl++){
+		my $skip = "yes";
+		for (my $excl =0; $excl < $#excludeIP; $excl++){
 			if ($excludeIP[$excl] eq $1){
 				$skip = "yes";
 				last;
@@ -1547,6 +1491,7 @@ parseLineBind {
 		return;
 	}
  	if (/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
+		my $dn;
         	if ($1 eq ""){
 			$dn = "Anonymous";
 		} else {
@@ -1599,30 +1544,36 @@ parseLineBind {
 sub
 processOpForBindReport
 {
-	$op = @_[0];
-	$data = @_[1];
+	my $op = shift;
+	my $data = shift;
 
 	if ($data =~ /conn= *([0-9]+)/i) {
-		foreach $dn (keys %bindReport){
+		foreach my $dn (keys %bindReport){
 			if ($bindReport{$dn}{"conn"} =~ / $1 /){
-				$bindDN = $dn;
-				$bindReport{$bindDN}{$op}++;
+				$bindReport{$dn}{$op}++;
 				return;
 			}
 		}
 	}
 }
 
+my ($last_tm, $lastzone, $last_min, $gmtime, $tzoff);
 sub parseLineNormal
 {
 	local $_ = $logline;
+	my $ip;
+	my $tmpp;
+	my $exc = "no";
+	my $connID;
+	my $con;
+	my $op;
+	$linesProcessed++;
+	$lineBlockCount++;
 
 	# lines starting blank are restart
 	return if $_ =~ /^\s/;
 
-	$linesProcessed++;
-	$lineBlockCount++;
-	if ($lineBlockCount >= $limit){ print STDERR sprintf" %10s Lines Processed\n",$linesProcessed; $lineBlockCount="0";}
+	statusreport();
 
 	# gather/process the timestamp
 	if($firstFile == 1 && $_ =~ /^\[/){
@@ -1648,30 +1599,30 @@ sub parseLineNormal
 	}
 
 	# Additional performance stats
-	($time, $tzone) = split (' ', $_);
-	if ($reportStats && $time ne $last_tm)
+	my ($time, $tzone) = split (' ', $_);
+	if (($reportStats or ($verb eq "yes") || ($usage =~ /y/)) && (!defined($last_tm) or ($time ne $last_tm)))
 	{
 		$last_tm = $time;
 		$time =~ s/\[//;
 		$tzone =~ s/\].*//;
 
-		if($tzone ne $lastzone)
+		if(!defined($lastzone) or $tzone ne $lastzone)
 		{
 		    # tz offset change
 		    $lastzone=$tzone;
-		    ($sign,$hr,$min) = $tzone =~ m/(.)(\d\d)(\d\d)/;
+		    my ($sign,$hr,$min) = $tzone =~ m/(.)(\d\d)(\d\d)/;
 		    $tzoff = $hr*3600 + $min*60;
 		    $tzoff *= -1
 		    if $sign eq '-';
 		    # to be subtracted from converted values.
 		}
-		($date, $hr, $min, $sec) = split (':', $time);
-		($day, $mon, $yr) = split ('/', $date);
-		$newmin = timegm(0, $min, $hr, $day, $monthname{$mon}, $yr) - $tzoff;
+		my ($date, $hr, $min, $sec) = split (':', $time);
+		my ($day, $mon, $yr) = split ('/', $date);
+		my $newmin = timegm(0, $min, $hr, $day, $monthname{$mon}, $yr) - $tzoff;
 		$gmtime = $newmin + $sec;
 		print_stats_block( $s_stats );
 		reset_stats_block( $s_stats, $gmtime, $time.' '.$tzone );
-		if ($newmin != $last_min)
+		if (!defined($last_min) or $newmin != $last_min)
 		{
 		    print_stats_block( $m_stats );
 		    $time =~ s/\d\d$/00/;
@@ -1689,58 +1640,57 @@ sub parseLineNormal
 		if($reportStats){ inc_stats('srch',$s_stats,$m_stats); }
 		if ($_ =~ / attrs=\"(.*)\"/i){
 			$anyAttrs++;
-			$attrs = $1 . " ";
-			while ($attrs =~ /(\S+)\s/g){
-				writeFile($ATTR, $1);
-			}
-		} 
+			my $attr = $hashes->{attr};
+			map { $attr->{$_}++ } split /\s/, $1;
+		}
 		if (/ attrs=ALL/){
-			writeFile($ATTR, "All Attributes");
+			my $attr = $hashes->{attr};
+			$attr->{"All Attributes"}++;
 			$anyAttrs++;
 		}
-		if ($verb eq "yes"){ 
-			if ($_ =~ /conn= *([0-9]+)/i){ writeFile($SRCH_CONN, $1);}
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($SRCH_OP, $1);}
+		if ($verb eq "yes"){
+			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{srchconn}}, $1;}
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{srchop}}, $1;}
 		}
 	}
 	if (m/ DEL/){
 		$delCount++;
 		if($reportStats){ inc_stats('del',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9]+)/i){ writeFile($DEL_CONN, $1);}
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($DEL_OP, $1);}
+			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{delconn}}, $1;}
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{delop}}, $1;}
 		}
 	}
 	if (m/ MOD dn=/){
 		$modCount++;
 		if($reportStats){ inc_stats('mod',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($MOD_CONN, $1);}
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($MOD_OP, $1); }
+		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{modconn}}, $1;}
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{modop}}, $1; }
 		}
 	}
 	if (m/ ADD/){
 		$addCount++;
 		if($reportStats){ inc_stats('add',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($ADD_CONN, $1); }
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($ADD_OP, $1); }
+		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{addconn}}, $1; }
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{addop}}, $1; }
 		}
 	}
 	if (m/ MODRDN/){
 		$modrdnCount++;
 		if($reportStats){ inc_stats('modrdn',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($MODRDN_CONN, $1); }
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($MODRDN_OP, $1); }
+		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{modrdnconn}}, $1; }
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{modrdnop}}, $1; }
 		}
 	}
 	if (m/ CMP dn=/){
 		$cmpCount++;
 		if($reportStats){ inc_stats('cmp',$s_stats,$m_stats); }
 		if ($verb eq "yes"  || $usage =~ /g/i){
-			if ($_ =~ /conn= *([0-9]+)/i){ writeFile($CMP_CONN, $1);}
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($CMP_OP, $1);}
+			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{cmpconn}}, $1;}
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{cmpop}}, $1;}
 		}
 	}
 	if (m/ ABANDON /){
@@ -1748,9 +1698,9 @@ sub parseLineNormal
 		if($reportStats){ inc_stats('abandon',$s_stats,$m_stats); }
 		$allResults++;
 		if ($_ =~ /targetop= *([0-9a-zA-Z]+)/i ){
-			writeFile($TARGET_OP, $1);
-			if ($_ =~ /conn= *([0-9]+)/i){ writeFile($TARGET_CONN, $1); }
-			if ($_ =~ /msgid= *([0-9]+)/i){ writeFile($MSGID, $1);}
+			push @{$arrays->{targetop}}, $1;
+			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{targetconn}}, $1; }
+			if ($_ =~ /msgid= *([0-9]+)/i){ push @{$arrays->{msgid}}, $1; }
 		}
 	}
 	if (m/ VLV /){
@@ -1774,20 +1724,19 @@ sub parseLineNormal
 		if ($1 ne ""){ 
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
-			writeFile($BINDLIST, $tmpp); 
+			$hashes->{bindlist}->{$tmpp}++;
 			if($1 eq $rootDN){ 
 				$rootDNBindCount++;
 			}
 		} else {
 			$anonymousBindCount++;
-			writeFile($BINDLIST, "Anonymous Binds");
+			$hashes->{bindlist}->{"Anonymous Binds"}++;
 			inc_stats('anonbind',$s_stats,$m_stats);
 		}
 	}
 	if (m/ connection from/){
-		$exc = "no";
 		if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ){ 
-			for ($xxx =0; $xxx <= $#excludeIP; $xxx++){
+			for (my $xxx =0; $xxx < $#excludeIP; $xxx++){
 				if ($excludeIP[$xxx] eq $1){$exc = "yes";}
 			}
 			if ($exc ne "yes"){
@@ -1801,11 +1750,13 @@ sub parseLineNormal
 		}
 		($connID) = $_ =~ /conn=(\d*)\s/;
 		$openConnection[$connID]++;
-		($time, $tzone) = split (' ', $_);
-		($date, $hr, $min, $sec) = split (':', $time);
-		($day, $mon, $yr) = split ('/', $date);
-		$day =~ s/\[//;
-		$start_time_of_connection[$connID] = timegm($sec, $min, $hours, $day, $monthname{$mon}, $yr);
+		if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
+			my ($time, $tzone) = split (' ', $_);
+			my ($date, $hr, $min, $sec) = split (':', $time);
+			my ($day, $mon, $yr) = split ('/', $date);
+			$day =~ s/\[//;
+			$start_time_of_connection[$connID] = timegm($sec, $min, $hr, $day, $monthname{$mon}, $yr);
+		}
 	}
 	if (m/ SSL client bound as /){$sslClientBindCount++;}
 	if (m/ SSL failed to map client certificate to LDAP DN/){$sslClientFailedCount++;}
@@ -1816,16 +1767,22 @@ sub parseLineNormal
 
 		($connID) = $_ =~ /conn=(\d*)\s/;
 		$openConnection[$connID]--;
-		$end_time_of_connection[$connID] = $gmtime;
-		$diff = $end_time_of_connection[$connID] - $start_time_of_connection[$connID];
-		$start_time_of_connection[$connID] =  $end_time_of_connection[$connID] = 0;
-		if ($diff <= 1) { $latency[0]++;}
-		if ($diff == 2) { $latency[1]++;}
-		if ($diff == 3) { $latency[2]++;}
-		if ($diff >= 4 && $diff <=5 ) { $latency[3]++;}
-		if ($diff >= 6 && $diff <=10 ) { $latency[4]++;}
-		if ($diff >= 11 && $diff <=15 ) { $latency[5]++;}
-		if ($diff >= 16) { $latency[6] ++;}
+		if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
+			# if we didn't see the start time of this connection
+			# i.e. due to truncation or log rotation
+			# then just set to 0
+			my $stoc = $start_time_of_connection[$connID] || 0;
+			$end_time_of_connection[$connID] = $gmtime || 0;
+			my $diff = $end_time_of_connection[$connID] - $stoc;
+			$start_time_of_connection[$connID] =  $end_time_of_connection[$connID] = 0;
+			if ($diff <= 1) { $latency[0]++;}
+			if ($diff == 2) { $latency[1]++;}
+			if ($diff == 3) { $latency[2]++;}
+			if ($diff >= 4 && $diff <=5 ) { $latency[3]++;}
+			if ($diff >= 6 && $diff <=10 ) { $latency[4]++;}
+			if ($diff >= 11 && $diff <=15 ) { $latency[5]++;}
+			if ($diff >= 16) { $latency[6] ++;}
+		}
 	}
 	if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
 		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
@@ -1834,25 +1791,26 @@ sub parseLineNormal
 			if($1 eq $rootDN){$rootDNBindCount++;}
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
-			writeFile($BINDLIST, $tmpp); 
-			$bindVal = $tmpp;
-			if ($_ =~ /conn= *([0-9]+)/i) { $bindConn = $1; writeFile($BIND_CONN, $1);}
-			if ($_ =~ /op= *([0-9]+)/i) { $bindOp = $1; writeFile($BIND_OP, $1);}
+			$hashes->{bindlist}->{$tmpp}++;
+			if ($_ =~ /conn= *([0-9]+)/i) { push @{$arrays->{bindconn}}, $1;}
+			if ($_ =~ /op= *([0-9]+)/i) { push @{$arrays->{bindop}}, $1;}
 			if($usage =~ /f/ || $verb eq "yes"){
-				# only need this for the failed bind report
-				writeFile($BINDINFO, "$bindVal ,, $bindConn ,, $bindOp");
+				push @{$arrays->{binddn}}, $tmpp;
 			}
 		} else {
 			$anonymousBindCount++;
-			writeFile($BINDLIST, "Anonymous Binds");
+			$hashes->{bindlist}->{"Anonymous Binds"}++;
+			if ($_ =~ /conn= *([0-9]+)/i) { push @{$arrays->{bindconn}}, $1;}
+			if ($_ =~ /op= *([0-9]+)/i) { push @{$arrays->{bindop}}, $1;}
+			push @{$arrays->{binddn}}, "";
 			inc_stats('anonbind',$s_stats,$m_stats);
 		}
 	}
 	if (m/ UNBIND/){
 		$unbindCount++;
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($UNBIND_CONN, $1); }
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($UNBIND_OP, $1); }
+		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{unbindconn}}, $1; }
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{unbindop}}, $1; }
 		}
 	}
 	if (m/ RESULT err=/ && m/ notes=P/){
@@ -1863,7 +1821,7 @@ sub parseLineNormal
 		        $con = $1;
 		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
 		}
-		for ($i=0; $i <= $vlvCount;$i++){
+		for (my $i=0; $i <= $vlvCount;$i++){
 		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesACount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
@@ -1873,22 +1831,12 @@ sub parseLineNormal
 			if($reportStats){ inc_stats('notesA',$s_stats,$m_stats); }
 		}
 		if ($usage =~ /u/ || $verb eq "yes"){
-			if ($isVlvNnotes == 0 ){
-		        	if ($_ =~ /etime= *([0-9.]+)/i ){
-		                	writeFile($NOTES_A_ETIME, $1);
-		        	}
-		        	if ($_ =~ /conn= *([0-9]+)/i){
-		                	writeFile($NOTES_A_CONN, $1);
-		        	}
-		        	if ($_ =~ /op= *([0-9]+)/i){
-		                	writeFile($NOTES_A_OP, $1);
-		        	}
-		        	if ($_ =~ / *([0-9a-z:\/]+)/i){
-		                	writeFile($NOTES_A_TIME, $1);
-		        	}
-				if ($_ =~ /nentries= *([0-9]+)/i ){
-					writeFile($NOTES_A_NENTRIES, $1);
-				}
+			if ($isVlvNotes == 0 ){
+		        	if ($_ =~ /etime= *([0-9.]+)/i ){ push @{$arrays->{notesAetime}}, $1; }
+		        	if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{notesAconn}}, $1; }
+		        	if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{notesAop}}, $1; }
+		        	if ($_ =~ / *([0-9a-z:\/]+)/i){ push @{$arrays->{notesAtime}}, $1; }
+				if ($_ =~ /nentries= *([0-9]+)/i ){ push @{$arrays->{notesAnentries}}, $1; }
 			}
 		}
 		$isVlvNotes = 0;
@@ -1898,7 +1846,7 @@ sub parseLineNormal
 		        $con = $1;
 		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
 		}
-		for ($i=0; $i <= $vlvCount;$i++){
+		for (my $i=0; $i <= $vlvCount;$i++){
 		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesUCount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
@@ -1908,85 +1856,75 @@ sub parseLineNormal
 			if($reportStats){ inc_stats('notesU',$s_stats,$m_stats); }
 		}
 		if ($usage =~ /u/ || $verb eq "yes"){
-			if ($isVlvNnotes == 0 ){
-		        	if ($_ =~ /etime= *([0-9.]+)/i ){
-		                	writeFile($NOTES_U_ETIME, $1);
-		        	}
-		        	if ($_ =~ /conn= *([0-9]+)/i){
-		                	writeFile($NOTES_U_CONN, $1);
-		        	}
-		        	if ($_ =~ /op= *([0-9]+)/i){
-		                	writeFile($NOTES_U_OP, $1);
-		        	}
-		        	if ($_ =~ / *([0-9a-z:\/]+)/i){
-		                	writeFile($NOTES_U_TIME, $1);
-		        	}
-				if ($_ =~ /nentries= *([0-9]+)/i ){
-					writeFile($NOTES_U_NENTRIES, $1);
-				}
+			if ($isVlvNotes == 0 ){
+		        	if ($_ =~ /etime= *([0-9.]+)/i ){ push @{$arrays->{notesUetime}}, $1; }
+		        	if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{notesUconn}}, $1; }
+		        	if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{notesUop}}, $1; }
+		        	if ($_ =~ / *([0-9a-z:\/]+)/i){ push @{$arrays->{notesUtime}}, $1; }
+				if ($_ =~ /nentries= *([0-9]+)/i ){ push @{$arrays->{notesUnentries}}, $1; }
 			}
 		}
 		$isVlvNotes = 0;
 	}
 	if (m/ closed error 32/){
 		$brokenPipeCount++;
-		if (m/- T1/){ writeFile($RC,"T1"); }
-		elsif (m/- T2/){ writeFile($RC,"T2"); }
-		elsif (m/- A1/){ writeFile($RC,"A1"); }
-		elsif (m/- B1/){ writeFile($RC,"B1"); }
-		elsif (m/- B4/){ writeFile($RC,"B4"); }
-		elsif (m/- B2/){ writeFile($RC,"B2"); }
-		elsif (m/- B3/){ writeFile($RC,"B3"); }
-		elsif (m/- R1/){ writeFile($RC,"R1"); }
-		elsif (m/- P1/){ writeFile($RC,"P1"); }
-		elsif (m/- P1/){ writeFile($RC,"P2"); }
-		elsif (m/- U1/){ writeFile($RC,"U1"); }
-		else { writeFile($RC,"other"); }
+		if (m/- T1/){ $hashes->{rc}->{"T1"}++; }
+		elsif (m/- T2/){ $hashes->{rc}->{"T2"}++; }
+		elsif (m/- A1/){ $hashes->{rc}->{"A1"}++; }
+		elsif (m/- B1/){ $hashes->{rc}->{"B1"}++; }
+		elsif (m/- B4/){ $hashes->{rc}->{"B4"}++; }
+		elsif (m/- B2/){ $hashes->{rc}->{"B2"}++; }
+		elsif (m/- B3/){ $hashes->{rc}->{"B3"}++; }
+		elsif (m/- R1/){ $hashes->{rc}->{"R1"}++; }
+		elsif (m/- P1/){ $hashes->{rc}->{"P1"}++; }
+		elsif (m/- P1/){ $hashes->{rc}->{"P2"}++; }
+		elsif (m/- U1/){ $hashes->{rc}->{"U1"}++; }
+		else { $hashes->{rc}->{"other"}++; }
 	}
 	if (m/ closed error 131/ || m/ closed error -5961/){
 		$connResetByPeerCount++;
-		if (m/- T1/){ writeFile($SRC,"T1"); }
-		elsif (m/- T2/){ writeFile($SRC,"T2"); }
-		elsif (m/- A1/){ writeFile($SRC,"A1"); }
-		elsif (m/- B1/){ writeFile($SRC,"B1"); }
-		elsif (m/- B4/){ writeFile($SRC,"B4"); }
-		elsif (m/- B2/){ writeFile($SRC,"B2"); }
-		elsif (m/- B3/){ writeFile($SRC,"B3"); }
-		elsif (m/- R1/){ writeFile($SRC,"R1"); }
-		elsif (m/- P1/){ writeFile($SRC,"P1"); }
-		elsif (m/- P1/){ writeFile($SRC,"P2"); }
-		elsif (m/- U1/){ writeFile($SRC,"U1"); }
-		else { writeFile($SRC,"other"); }
+		if (m/- T1/){ $hashes->{src}->{"T1"}++; }
+		elsif (m/- T2/){ $hashes->{src}->{"T2"}++; }
+		elsif (m/- A1/){ $hashes->{src}->{"A1"}++; }
+		elsif (m/- B1/){ $hashes->{src}->{"B1"}++; }
+		elsif (m/- B4/){ $hashes->{src}->{"B4"}++; }
+		elsif (m/- B2/){ $hashes->{src}->{"B2"}++; }
+		elsif (m/- B3/){ $hashes->{src}->{"B3"}++; }
+		elsif (m/- R1/){ $hashes->{src}->{"R1"}++; }
+		elsif (m/- P1/){ $hashes->{src}->{"P1"}++; }
+		elsif (m/- P1/){ $hashes->{src}->{"P2"}++; }
+		elsif (m/- U1/){ $hashes->{src}->{"U1"}++; }
+		else { $hashes->{src}->{"other"}++; }
 	}
 	if (m/ closed error 11/){
 		$resourceUnavailCount++;
-		if (m/- T1/){ writeFile($RSRC,"T1"); }
-		elsif (m/- T2/){ writeFile($RSRC,"T2"); }
-		elsif (m/- A1/){ writeFile($RSRC,"A1"); }
-		elsif (m/- B1/){ writeFile($RSRC,"B1"); }
-		elsif (m/- B4/){ writeFile($RSRC,"B4"); }
-		elsif (m/- B2/){ writeFile($RSRC,"B2"); }
-		elsif (m/- B3/){ writeFile($RSRC,"B3"); }
-		elsif (m/- R1/){ writeFile($RSRC,"R1"); }
-		elsif (m/- P1/){ writeFile($RSRC,"P1"); }
-		elsif (m/- P1/){ writeFile($RSRC,"P2"); }
-		elsif (m/- U1/){ writeFile($RSRC,"U1"); }
-		else { writeFile($RSRC,"other"); }
+		if (m/- T1/){ $hashes->{rsrc}->{"T1"}++; }
+		elsif (m/- T2/){ $hashes->{rsrc}->{"T2"}++; }
+		elsif (m/- A1/){ $hashes->{rsrc}->{"A1"}++; }
+		elsif (m/- B1/){ $hashes->{rsrc}->{"B1"}++; }
+		elsif (m/- B4/){ $hashes->{rsrc}->{"B4"}++; }
+		elsif (m/- B2/){ $hashes->{rsrc}->{"B2"}++; }
+		elsif (m/- B3/){ $hashes->{rsrc}->{"B3"}++; }
+		elsif (m/- R1/){ $hashes->{rsrc}->{"R1"}++; }
+		elsif (m/- P1/){ $hashes->{rsrc}->{"P1"}++; }
+		elsif (m/- P1/){ $hashes->{rsrc}->{"P2"}++; }
+		elsif (m/- U1/){ $hashes->{rsrc}->{"U1"}++; }
+		else { $hashes->{rsrc}->{"other"}++; }
 	}
 	if ($usage =~ /g/ || $usage =~ /c/ || $usage =~ /i/ || $verb eq "yes"){
 		$exc = "no";
 		if ($_ =~ /connection from *([0-9A-fa-f\.\:]+)/i ) {
-			for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+			for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				if ($1 eq $excludeIP[$xxx]){
 					$exc = "yes";
-					writeFile($EXCOUNT,$1);
+					$hashes->{excount}->{$1}++;
 				}
 			}
 			$ip = $1;
-			writeFile($IP_HASH, "$ip count");
+			$hashes->{ip_hash}->{$ip}++;
 			if ($_ =~ /conn= *([0-9]+)/i ){ 
 				if ($exc ne "yes"){	
-					writeFile($CONN_HASH, "$1 $ip");
+					$hashes->{conn_hash}->{$1} = $ip;
 				}
 			}
 		}
@@ -1995,12 +1933,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip A1");
-					writeFile($CONNCOUNT, "A1");
+					$hashes->{A1}->{$ip}++;
+					$hashes->{conncount}->{"A1"}++;
 					$connCodeCount++;
 				}
 			}
@@ -2010,12 +1948,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip B1");
-					writeFile($CONNCOUNT, "B1");
+					$hashes->{B1}->{$ip}++;
+					$hashes->{conncount}->{"B1"}++;
 					$connCodeCount++;	
 				}
 			}
@@ -2025,12 +1963,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip B4");
-					writeFile($CONNCOUNT, "B4");
+					$hashes->{B4}->{$ip}++;
+					$hashes->{conncount}->{"B4"}++;
 					$connCodeCount++;
 				}
 		    	}
@@ -2040,12 +1978,12 @@ sub parseLineNormal
 				$exc = "no";
 			       	$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip T1");
-					writeFile($CONNCOUNT, "T1");
+					$hashes->{T1}->{$ip}++;
+					$hashes->{conncount}->{"T1"}++;
 					$connCodeCount++;	
 				}
 			}
@@ -2055,12 +1993,12 @@ sub parseLineNormal
 				$exc = "no"; 
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip T2");
-					writeFile($CONNCOUNT, "T2");
+					$hashes->{T2}->{$ip}++;
+					$hashes->{conncount}->{"T2"}++;
 					$connCodeCount++;	
 				}
 			}
@@ -2071,12 +2009,12 @@ sub parseLineNormal
 				$ip = getIPfromConn($1);
 				$maxBerSizeCount++;
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip B2");
-					writeFile($CONNCOUNT, "B2");
+					$hashes->{B2}->{$ip}++;
+					$hashes->{conncount}->{"B2"}++;
 					$connCodeCount++;	
 				}
 			}
@@ -2086,12 +2024,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip B3");
-					writeFile($CONNCOUNT, "B3");
+					$hashes->{B3}->{$ip}++;
+					$hashes->{conncount}->{"B3"}++;
 					$connCodeCount++;	
 				}
 			}
@@ -2101,12 +2039,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip R1");
-					writeFile($CONNCOUNT, "R1");
+					$hashes->{R1}->{$ip}++;
+					$hashes->{conncount}->{"R1"}++;
 					$connCodeCount++;
 				}
 			}
@@ -2116,12 +2054,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip P1");
-					writeFile($CONNCOUNT, "P1");
+					$hashes->{P1}->{$ip}++;
+					$hashes->{conncount}->{"P1"}++;
 					$connCodeCount++;	
 				}
 			}
@@ -2131,12 +2069,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip P2");
-					writeFile($CONNCOUNT, "P2");
+					$hashes->{P2}->{$ip}++;
+					$hashes->{conncount}->{"P2"}++;
 					$connCodeCount++;
 				}
 			}
@@ -2146,12 +2084,12 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
-				for ($xxx = 0; $xxx <= $#excludeIP; $xxx++){
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
-					writeFile($IP_HASH, "$ip U1");
-					writeFile($CONNCOUNT, "U1");
+					$hashes->{U1}->{$ip}++;
+					$hashes->{conncount}->{"U1"}++;
 					$connCodeCount++;
 				}
 			}
@@ -2162,59 +2100,60 @@ sub parseLineNormal
 		if ($1 ne "0"){ $errorCount++;}
 		else { $successCount++;}
 	}
-	if ($_ =~ /etime= *([0-9.]+)/ ) { writeFile($ETIME, $1); inc_stats_val('etime',$1,$s_stats,$m_stats); }
+	if ($_ =~ /etime= *([0-9.]+)/ ) { $hashes->{etime}->{$1}++; inc_stats_val('etime',$1,$s_stats,$m_stats); }
 	if ($_ =~ / tag=101 / || $_ =~ / tag=111 / || $_ =~ / tag=100 / || $_ =~ / tag=115 /){
-		if ($_ =~ / nentries= *([0-9]+)/i ){ writeFile($NENTRIES, $1); }
+		if ($_ =~ / nentries= *([0-9]+)/i ){ $hashes->{nentries}->{$1}++; }
 	}
 	if (m/objectclass=\*/i || m/objectclass=top/i ){
 		if (m/ scope=2 /){ $objectclassTopCount++;}
 	}
 	if (m/ EXT oid=/){
 		$extopCount++;
-		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ writeFile($OID,$1); }
+		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ $hashes->{oid}->{$1}++; }
 		if ($1 && $1 eq $startTLSoid){$startTLSCount++;}
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ writeFile($EXT_CONN, $1); }
-			if ($_ =~ /op= *([0-9]+)/i){ writeFile($EXT_OP, $1); }
+		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{extconn}}, $1; }
+			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{extop}}, $1; }
 		}
 	}
-	if ($usage =~ /l/ || $verb eq "yes"){
+	if (($usage =~ /l/ || $verb eq "yes") and / SRCH /){
+		my ($filterConn, $filterOp);
 		if (/ SRCH / && / attrs=/ && $_ =~ /filter=\"(.*)\" /i ){
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
 			$tmpp =~ s/\\22/\"/g;
-			writeFile($FILTER, $tmpp); 
-			$filterVal = $tmpp;
+			$hashes->{filter}->{$tmpp}++;
 			if ($_ =~ /conn= *([0-9]+)/i) { $filterConn = $1; }
 			if ($_ =~ /op= *([0-9]+)/i) { $filterOp = $1; }
 		} elsif (/ SRCH / && $_ =~ /filter=\"(.*)\"/i){
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
 			$tmpp =~ s/\\22/\"/g;
-			writeFile($FILTER, $tmpp);
-			$filterVal = $tmpp;
+			$hashes->{filter}->{$tmpp}++;
 			if ($_ =~ /conn= *([0-9]+)/i) { $filterConn = $1; }
 			if ($_ =~ /op= *([0-9]+)/i) { $filterOp = $1; }
 		}
 		$filterCount++;
 		if($usage =~ /u/ || $verb eq "yes"){
-			# we noly need this for the unindexed search report
-			writeFile($FILTERINFO, "$filterVal ,, $filterConn ,, $filterOp");
+			# we only need this for the unindexed search report
+			push @{$arrays->{filterval}}, $tmpp;
+			push @{$arrays->{filterconn}}, $filterConn;
+			push @{$arrays->{filterop}}, $filterOp;
 		}
 	}
 	if ($usage =~ /a/ || $verb eq "yes"){
 		if (/ SRCH /   && $_ =~ /base=\"(.*)\" scope/i ){
+			my ($baseConn, $baseOp, $scopeVal, $scopeConn, $scopeOp);
 			if ($1 eq ""){
 				$tmpp = "Root DSE";
 			} else {
 				$tmpp = $1;
 			}
 			$tmpp =~ tr/A-Z/a-z/;
-			writeFile($BASE, $tmpp);
+			$hashes->{base}->{$tmpp}++;
 			#
 			# grab the search bases & scope for potential unindexed searches
 			#
-			$baseVal = $tmpp;
 			if ($_ =~ /scope= *([0-9]+)/i) { 
 				$scopeVal = $1; 
 			}
@@ -2227,9 +2166,13 @@ sub parseLineNormal
 				$scopeOp = $1;
 			}
 			if($usage =~ /u/ || $verb eq "yes"){
-				# we noly need this for the unindexed search report
-				writeFile($BASEINFO, "$baseVal ,, $baseConn ,, $baseOp");
-				writeFile($SCOPEINFO, "$scopeVal ,, $scopeConn ,, $scopeOp");
+				# we only need this for the unindexed search report
+				push @{$arrays->{baseval}}, $tmpp;
+				push @{$arrays->{baseconn}}, $baseConn;
+				push @{$arrays->{baseop}}, $baseOp;
+				push @{$arrays->{scopeval}}, $scopeVal;
+				push @{$arrays->{scopeconn}}, $scopeConn;
+				push @{$arrays->{scopeop}}, $scopeOp;
 			}
 			$baseCount++;
 			$scopeCount++;
@@ -2243,26 +2186,26 @@ sub parseLineNormal
 	if ($usage =~ /f/ || $verb eq "yes"){
 		if (/ err=49 tag=/ && / dn=\"/){
 			if ($_ =~ /dn=\"(.*)\"/i ){
-				writeFile($DS6XBADPWD, $1);
+				$hashes->{ds6xbadpwd}->{$1}++;
 			}
 			$ds6x = "true";
 			$badPwdCount++;
 		} elsif (/ err=49 tag=/ ){
 			if ($_ =~ /conn= *([0-9]+)/i ){
-				writeFile($BADPWDCONN, $1);
+				push @{$arrays->{badpwdconn}}, $1;
 				$ip = getIPfromConn($1);
 				$badPwdCount++;
 			}
 			if ($_ =~ /op= *([0-9]+)/i ){
-				writeFile($BADPWDOP, $1);
+				push @{$arrays->{badpwdop}}, $1;
 			}
-			writeFile($BADPWDIP, $ip);
+			push @{$arrays->{badpwdip}}, $ip;
 		}
 	}
 	if (/ BIND / && /method=sasl/i){
 		$saslBindCount++;
-		if ($_ =~ /mech=(.*)/i ){     
-			writeFile($SASLMECH, $1);
+		if ($_ =~ /mech=(.*)/i ){
+			$hashes->{saslmech}->{$1}++;
 		}
 	}
 	if (/ conn=Internal op=-1 / && !/ RESULT err=/){ $internalOpCount++; }
@@ -2414,7 +2357,7 @@ displayBindReport
 
 	print "\nBind Report\n";
 	print "====================================================================\n\n";
-	foreach $bindDN (sort { $bindReport{$a} <=> $bindReport{$b} } keys %bindReport) {
+	foreach my $bindDN (sort { $bindReport{$a} <=> $bindReport{$b} } keys %bindReport) {
 		print("Bind DN: $bindDN\n");
 		print("--------------------------------------------------------------------\n");
 		print("   Client Addresses:\n\n");
@@ -2430,11 +2373,11 @@ displayBindReport
 sub
 printClients
 { 
-	@bindConns = &cleanConns(split(' ', @_[0]));
-	$IPcount = "1";
+	my @bindConns = &cleanConns(split(' ', $_[0]));
+	my $IPcount = "1";
 
-	foreach $ip ( keys %connList ){   # Loop over all the IP addresses
-		foreach $bc (@bindConns){ # Loop over each bind conn number and compare it 
+	foreach my $ip ( keys %connList ){   # Loop over all the IP addresses
+		foreach my $bc (@bindConns){ # Loop over each bind conn number and compare it 
 			if($connList{$ip} =~ / $bc /){ 
 				print("        [$IPcount]  $ip\n");
 				$IPcount++;
@@ -2447,22 +2390,22 @@ printClients
 sub
 cleanConns
 {
-	@dirtyConns = @_;
-	$#cleanConns = -1;
-	$c = 0;
+	my @dirtyConns = @_;
+	my @retConns = ();
+	my $c = 0;
 
-	for ($i = 0; $i <=$#dirtyConns; $i++){
+	for (my $i = 0; $i <=$#dirtyConns; $i++){
 		if($dirtyConns[$i] ne ""){
-			$cleanConns[$c++] = $dirtyConns[$i];
+			$retConns[$c++] = $dirtyConns[$i];
 		}
 	}	
-	return @cleanConns;
+	return @retConns;
 }
 
 sub
 printOpStats
 {
-	$dn = @_[0];
+	my $dn = $_[0];
 
 	if( $bindReport{$dn}{"failedBind"} == 0 ){
 		print("        Binds:        " . $bindReport{$dn}{"binds"} . "\n");
@@ -2487,333 +2430,70 @@ printOpStats
 sub
 openFailed
 {
-	$open_error = @_[0];
-	$file_name = @_[1];
-	closeDataFiles();
+	my $open_error = $_[0];
+	my $file_name = $_[1];
 	removeDataFiles();
 	die ("Can not open $file_name error ($open_error)");
 }
 
 sub
-openDataFiles
+openHashFiles
 {
-	# hash files
-	open ($ATTR, ">$ATTR") or do { openFailed($!, $ATTR) };
-	open ($RC, ">$RC") or do { openFailed($!, $RC) };
-	open ($SRC, ">$SRC") or do { openFailed($!, $SRC) };
-	open ($RSRC, ">$RSRC") or do { openFailed($!, $RSRC) };
-	open ($EXCOUNT, ">$EXCOUNT") or do { openFailed($!, $EXCOUNT) };
-	open ($CONN_HASH, ">$CONN_HASH") or do { openFailed($!, $CONN_HASH) };
-	open ($IP_HASH, ">$IP_HASH") or do { openFailed($!, $IP_HASH) };
-	open ($CONNCOUNT, ">$CONNCOUNT") or do { openFailed($!, $CONNCOUNT) };
-	open ($NENTRIES, ">$NENTRIES") or do { openFailed($!, $NENTRIES) };
-	open ($FILTER, ">$FILTER") or do { openFailed($!, $FILTER) };
-	open ($BASE, ">$BASE") or do { openFailed($!, $BASE) };
-	open ($DS6XBADPWD, ">$DS6XBADPWD") or do { openFailed($!, $DS6XBADPWD) };
-	open ($SASLMECH, ">$SASLMECH") or do { openFailed($!, $SASLMECH) };
-	open ($BINDLIST, ">$BINDLIST") or do { openFailed($!, $BINDLIST) };
-	open ($ETIME, ">$ETIME") or do { openFailed($!, $ETIME) };
-	open ($OID, ">$OID") or do { openFailed($!, $OID) };
-
-	# array files
-	open($SRCH_CONN,">$SRCH_CONN") or do { openFailed($!, $SRCH_CONN) };
-	open($SRCH_OP, ">$SRCH_OP") or do { openFailed($!, $SRCH_OP) };
-	open($DEL_CONN, ">$DEL_CONN") or do { openFailed($!, $DEL_CONN) };
-	open($DEL_OP, ">$DEL_OP") or do { openFailed($!, $DEL_OP) };
-	open($MOD_CONN, ">$MOD_CONN") or do { openFailed($!, $MOD_CONN) };
-	open($MOD_OP, ">$MOD_OP") or do { openFailed($!, $MOD_OP) };
-	open($ADD_CONN, ">$ADD_CONN") or do { openFailed($!, $ADD_CONN) };
-	open($ADD_OP, ">$ADD_OP") or do { openFailed($!, $ADD_OP) };
-	open($MODRDN_CONN, ">$MODRDN_CONN") or do { openFailed($!, $MODRDN_CONN) };
-	open($MODRDN_OP, ">$MODRDN_OP") or do { openFailed($!, $MODRDN_OP) };
-	open($CMP_CONN, ">$CMP_CONN") or do { openFailed($!, $CMP_CONN) };
-	open($CMP_OP,">$CMP_OP") or do { openFailed($!, $CMP_OP) };
-	open($TARGET_CONN, ">$TARGET_CONN") or do { openFailed($!, $TARGET_CONN) };
-	open($TARGET_OP, ">$TARGET_OP") or do { openFailed($!, $TARGET_OP) };
-	open($MSGID, ">$MSGID") or do { openFailed($!, $MSGID) };
-	open($BIND_CONN, ">$BIND_CONN") or do { openFailed($!, $BIND_CONN) };
-	open($BIND_OP, ">$BIND_OP") or do { openFailed($!, $BIND_OP) };
-	open($UNBIND_CONN, ">$UNBIND_CONN") or do { openFailed($!, $UNBIND_CONN) };
-	open($UNBIND_OP, ">$UNBIND_OP") or do { openFailed($!, $UNBIND_OP) };
-	open($EXT_CONN, ">$EXT_CONN") or do { openFailed($!, $EXT_CONN) };
-	open($EXT_OP, ">$EXT_OP") or do { openFailed($!, $EXT_OP) };
-	open($NOTES_A_ETIME, ">$NOTES_A_ETIME") or do { openFailed($!, $NOTES_A_ETIME) };
-	open($NOTES_A_CONN, ">$NOTES_A_CONN") or do { openFailed($!, $NOTES_A_CONN) };
-	open($NOTES_A_OP, ">$NOTES_A_OP") or do { openFailed($!, $NOTES_A_OP) };
-	open($NOTES_A_TIME, ">$NOTES_A_TIME") or do { openFailed($!, $NOTES_A_TIME) };
-	open($NOTES_A_NENTRIES, ">$NOTES_A_NENTRIES") or do { openFailed($!, $NOTES_A_NENTRIES) };
-	open($NOTES_U_ETIME, ">$NOTES_U_ETIME") or do { openFailed($!, $NOTES_U_ETIME) };
-	open($NOTES_U_CONN, ">$NOTES_U_CONN") or do { openFailed($!, $NOTES_U_CONN) };
-	open($NOTES_U_OP, ">$NOTES_U_OP") or do { openFailed($!, $NOTES_U_OP) };
-	open($NOTES_U_TIME, ">$NOTES_U_TIME") or do { openFailed($!, $NOTES_U_TIME) };
-	open($NOTES_U_NENTRIES, ">$NOTES_U_NENTRIES") or do { openFailed($!, $NOTES_U_NENTRIES) };
-	open($BADPWDCONN, ">$BADPWDCONN")  or do { openFailed($!, $BADPWDCONN) };
-	open($BADPWDOP, ">$BADPWDOP")  or do { openFailed($!, $BADPWDOP) };
-	open($BADPWDIP, ">$BADPWDIP")  or do { openFailed($!, $NADPWDIP) };
-
-	# info files
-	open($BINDINFO, ">$BINDINFO")  or do { openFailed($!, $BINDINFO) };
-	open($BASEINFO, ">$BASEINFO")  or do { openFailed($!, $BASEINFO) };
-	open($SCOPEINFO, ">$SCOPEINFO")  or do { openFailed($!, $SCOPEINFO) };
-	open($FILTERINFO, ">$FILTERINFO")  or do { openFailed($!, $FILTERINFO) };
+	my $dir = shift;
+	my %hashes = ();
+	for my $hn (@_) {
+		my %h = (); # using my in inner loop will create brand new hash every time through for tie
+		my $fn = "$dir/$hn.logconv.db";
+		push @removefiles, $fn;
+		tie %h, "DB_File", $fn, O_CREAT|O_RDWR, 0600, $DB_HASH or do { openFailed($!, $fn) };
+		$hashes{$hn} = \%h;
+	}
+	return \%hashes;
 }
 
 sub
-closeDataFiles
+openArrayFiles
 {
-	close $ATTR;
-	close $RC;
-	close $SRC;
-	close $RSRC;
-	close $EXCOUNT;
-	close $CONN_HASH;
-	close $IP_HASH;
-	close $CONNCOUNT;
-	close $NENTRIES;
-	close $FILTER;
-	close $BASE;
-	close $DS6XBADPWD;
-	close $SASLMECH;
-	close $BINDLIST;
-	close $ETIME;
-	close $OID;
-
-	# array files
-	close $SRCH_CONN;
-	close $SRCH_OP;
-	close $DEL_CONN;
-	close $DEL_OP;
-	close $MOD_CONN;
-	close $MOD_OP;
-	close $ADD_CONN;
-	close $ADD_OP;
-	close $MODRDN_CONN;
-	close $MODRDN_OP;
-	close $CMP_CONN;
-	close $CMP_OP;
-	close $TARGET_CONN;
-	close $TARGET_OP;
-	close $MSGID;
-	close $BIND_CONN;
-	close $BIND_OP;
-	close $UNBIND_CONN;
-	close $UNBIND_OP;
-	close $EXT_CONN;
-	close $EXT_OP;
-	close $NOTES_A_ETIME;
-	close $NOTES_A_CONN;
-	close $NOTES_A_OP;
-	close $NOTES_A_TIME;
-	close $NOTES_A_NENTRIES;
-	close $NOTES_U_ETIME;
-	close $NOTES_U_CONN;
-	close $NOTES_U_OP;
-	close $NOTES_U_TIME;
-	close $NOTES_U_NENTRIES;
-	close $BADPWDCONN;
-	close $BADPWDOP;
-	close $BADPWDIP;
-
-	# info files
-	close $BINDINFO;
-	close $BASEINFO;
-	close $SCOPEINFO;
-	close $FILTERINFO;
+	my $dir = shift;
+	my %arrays = ();
+	for my $an (@_) {
+		my @ary = (); # using my in inner loop will create brand new array every time through for tie
+		my $fn = "$dir/$an.logconv.db";
+		push @removefiles, $fn;
+		tie @ary, "DB_File", $fn, O_CREAT|O_RDWR, 0600, $DB_RECNO or do { openFailed($!, $fn) };
+		$arrays{$an} = \@ary;
+	}
+	return \%arrays;
 }
 
 sub
 removeDataFiles
 {
-	unlink $ATTR;
-	unlink $RC;
-	unlink $SRC;
-	unlink $RSRC;
-	unlink $EXCOUNT;
-	unlink $CONN_HASH;
-	unlink $IP_HASH;
-	unlink $CONNCOUNT;
-	unlink $NENTRIES;
-	unlink $FILTER;
-	unlink $BASE;
-	unlink $DS6XBADPWD;
-	unlink $SASLMECH;
-	unlink $BINDLIST;
-	unlink $ETIME;
-	unlink $OID;
+    if (!$needCleanup) { return ; }
 
-	# array files
-	unlink $SRCH_CONN;
-	unlink $SRCH_OP;
-	unlink $DEL_CONN;
-	unlink $DEL_OP;
-	unlink $MOD_CONN;
-	unlink $MOD_OP;
-	unlink $ADD_CONN;
-	unlink $ADD_OP;
-	unlink $MODRDN_CONN;
-	unlink $MODRDN_OP;
-	unlink $CMP_CONN;
-	unlink $CMP_OP;
-	unlink $TARGET_CONN;
-	unlink $TARGET_OP;
-	unlink $MSGID;
-	unlink $BIND_CONN;
-	unlink $BIND_OP;
-	unlink $UNBIND_CONN;
-	unlink $UNBIND_OP;
-	unlink $EXT_CONN;
-	unlink $EXT_OP;
-	unlink $NOTES_A_ETIME;
-	unlink $NOTES_A_CONN;
-	unlink $NOTES_A_OP;
-	unlink $NOTES_A_TIME;
-	unlink $NOTES_A_NENTRIES;
-	unlink $NOTES_U_ETIME;
-	unlink $NOTES_U_CONN;
-	unlink $NOTES_U_OP;
-	unlink $NOTES_U_TIME;
-	unlink $NOTES_U_NENTRIES;
-	unlink $BADPWDCONN;
-	unlink $BADPWDOP;
-	unlink $BADPWDIP;
-
-	# info files
-	unlink $BINDINFO;
-	unlink $BASEINFO;
-	unlink $SCOPEINFO;
-	unlink $FILTERINFO;
+	for my $h (keys %{$hashes}) {
+		untie %{$hashes->{$h}};
+	}
+	for my $a (keys %{$arrays}) {
+		untie @{$arrays->{$a}};
+	}
+	for my $file (@removefiles) {
+		unlink $file;
+	}
+    $needCleanup = 0;
 }
+
+END { print "Cleaning up temp files . . .\n"; removeDataFiles(); print "Done\n"; }
 
 sub
 getIPfromConn
 {
-	$connip = @_[0];
-	$retval = "";
-
-	close $CONN_HASH; # we can not read the file is its already open
-	open(CONN,"$CONN_HASH") or do { openFailed($!, $CONN_HASH) };
-	while (<CONN>){
-		if($_ =~ /$connip (.*)/){
-			$retval = $1;
-			last;
-		}
-	}
-	close CONN;
-	#reopen file for writing(append)
-	open($CONN_HASH,">>$CONN_HASH") or do { openFailed($!, $CONN_HASH) };
-
-	return $retval;
+	my $connid = shift;
+	return $hashes->{conn_hash}->{$connid};
 }
-
-sub
-writeFile
-{
-	$file = @_[0];
-	$text = @_[1] . "\n";
-
-	print $file $text;
-}
-
-# This hash file stores one value per line
-sub
-getCounterHashFromFile
-{
-	$file = @_[0];
-	my %hash = ();
-
-	open(FILE,"$file") or do { openFailed($!, $file) };
-	while(<FILE>){
-		chomp;
-		$hash{$_}++;
-	}
-	close FILE;
-
-	return %hash;
-}
-
-# this hash file stores two values per line (2 dimension hash)
-sub
-getTwoDimHashFromFile
-{
-	$file = @_[0];
-	my %hash = ();
-
-	open(FILE,"$file") or do { openFailed($!, $file) };
-	while(<FILE>){
-		@parts = split (' ', $_);
-		chomp(@parts);
-		$hash{$parts[0]}{$parts[1]}++;
-	}
-	close FILE;
-
-	return %hash;
-}
-
-# this hash file stores two values per line (1 dimension hash)
-sub
-getHashFromFile
-{
-	$file = @_[0];
-	my %hash = ();
-	@parts = ();
-
-	open(FILE,"$file") or do { openFailed($!, $file ) };
-	while(<FILE>){
-		@parts = split (' ',$_);
-		chomp(@parts);
-		$hash{$parts[0]} = $parts[1];
-	}
-	close FILE;
-
-	return %hash;
-}
-
-# Return array of values from the file
-sub
-getArrayFromFile
-{
-	my @arry;
-	$file = @_[0];
-	$array_count = 0;
-
-	open(FILE,"$file") or do { openFailed($!, $file) };
-	while(<FILE>){
-		chomp;
-		$arry[$array_count] = $_;
-		$array_count++;
-	}
-	close FILE;
-
-	return @arry;
-}
-
-# build the three array
-sub
-getInfoArraysFromFile
-{
-	$file = @_[0];
-	$array_count = 0;
-	@parts = ();
-
-	open(FILE,"<$file") or do { openFailed($!, $file) };
-	while(<FILE>){
-		@parts = split (' ,, ',$_);
-		chomp(@parts);
-		if($#parts > 0){
-			$fileArray1[$array_count] = $parts[0];
-			$fileArray2[$array_count] = $parts[1];
-			$fileArray3[$array_count] = $parts[2];
-			$array_count++;
-		}
-	}
-	close FILE;
-}
-
-
 
 #######################################
 #                                     #
 #             The  End                #
 #                                     #
 #######################################
-
