@@ -952,27 +952,24 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 	for (aiep = attrs_in_extension; aiep && aiep->ext_type; aiep++) {
 		if (0 == strcasecmp(mod->mod_type, aiep->ext_type)) {
 			Slapi_Attr *a;
-			int rc;
-			Slapi_Value **ext_vals = NULL;
-			rc = slapi_pw_get_entry_ext(e, &ext_vals);
-			if (rc) {
-				continue; /* skip it. */
-			}
 
+			/* remove the attribute from the attr list */
 			a = attrlist_remove(&e->e_attrs, mod->mod_type);
 			if (a && a->a_present_values.va) {
 				/* a->a_present_values.va is consumed if successful. */
-				rc = slapi_pw_set_entry_ext(e, a->a_present_values.va,
-				                            SLAPI_EXT_SET_REPLACE);
+				int rc = slapi_pw_set_entry_ext(e, a->a_present_values.va,
+				                                SLAPI_EXT_SET_REPLACE);
 				if (LDAP_SUCCESS == rc) {
 					/* va is set to entry extension; just release the rest */
 					a->a_present_values.va = NULL;
 				}
 				slapi_attr_free(&a);
 			} else {
+				Slapi_Value **ext_vals = NULL;
+				slapi_pw_get_entry_ext(e, &ext_vals);
 				if (ext_vals) {
 					/* slapi_pw_set_entry_ext frees the stored extension */
-					rc = slapi_pw_set_entry_ext(e, NULL, SLAPI_EXT_SET_REPLACE);
+					slapi_pw_set_entry_ext(e, NULL, SLAPI_EXT_SET_REPLACE);
 					ext_vals = NULL;
 				}
 			}
