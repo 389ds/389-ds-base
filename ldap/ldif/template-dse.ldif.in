@@ -738,6 +738,17 @@ nsslapd-pluginenabled: off
 nsslapd-pluginbetxn: on
 nsslapd-plugin-depends-on-type: database
 
+dn: cn=whoami,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: whoami
+nsslapd-pluginpath: libwhoami-plugin
+nsslapd-plugininitfunc: whoami_init
+nsslapd-plugintype: extendedop
+nsslapd-pluginenabled: on
+nsslapd-plugin-depends-on-type: database
+
 dn: cn=RootDN Access Control,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

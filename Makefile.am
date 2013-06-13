@@ -228,7 +228,8 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
-	libacctusability-plugin.la librootdn-access-plugin.la $(LIBACCTPOLICY_PLUGIN) \
+	libacctusability-plugin.la librootdn-access-plugin.la \
+	libwhoami-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
 
@@ -1297,7 +1298,16 @@ libviews_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libviews_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libviews_plugin_la_LDFLAGS = -avoid-version
 
+#------------------------
+# libwhoami-plugin
+#------------------------
+libwhoami_plugin_la_SOURCES = ldap/servers/plugins/whoami/whoami.c
 
+libwhoami_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libwhoami_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libwhoami_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
 #////////////////////////////////////////////////////////////////
 #
 #   Programs
