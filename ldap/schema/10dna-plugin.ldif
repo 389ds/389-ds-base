@@ -170,6 +170,38 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2130 NAME 'dnaRangeRequestTimeout'
 #
 ################################################################################
 #
+attributeTypes: ( 2.16.840.1.113730.3.1.2157 NAME 'dnaRemoteBindCred'
+  DESC 'Remote bind credentials'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2158 NAME 'dnaRemoteBindDN'
+  DESC 'Remote bind DN'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2159 NAME 'dnaRemoteConnProtocol'
+  DESC 'Connection protocol: LDAP, TLS, or SSL'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
+attributeTypes: ( 2.16.840.1.113730.3.1.2160 NAME 'dnaRemoteBindMethod'
+  DESC 'Remote bind method: SIMPLE, SSL, SASL/DIGEST-MD5, or SASL/GSSAPI'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
+#
+################################################################################
+#
 objectClasses: ( 2.16.840.1.113730.3.2.324 NAME 'dnaPluginConfig'
   DESC 'DNA plugin configuration'
   SUP top
@@ -185,7 +217,9 @@ objectClasses: ( 2.16.840.1.113730.3.2.324 NAME 'dnaPluginConfig'
         dnaSharedCfgDN $
         dnaThreshold $
         dnaNextRange $
-        dnaRangeRequestTimeout $
+        dnaRangeRequestTimeout $        
+	dnaRemoteBindDN $
+        dnaRemoteBindCred $
         cn
  )
   X-ORIGIN '389 Directory Server' )
@@ -199,6 +233,8 @@ objectClasses: ( 2.16.840.1.113730.3.2.325 NAME 'dnaSharedConfig'
   MAY ( dnaHostname $
         dnaPortNum $
         dnaSecurePortNum $
+        dnaRemoteBindMethod $
+        dnaRemoteConnProtocol $
         dnaRemainingValues
  )
   X-ORIGIN '389 Directory Server' )
