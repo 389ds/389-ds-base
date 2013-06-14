@@ -2408,7 +2408,6 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
         goto bail;
     }
 
-    dn = replica_get_dn(clean_data->replica);
     slapi_search_internal_set_pb(pb, dn, LDAP_SCOPE_SUBTREE, "nsds5ReplicaCleanRUV=*", NULL, 0, NULL, NULL,
         (void *)plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(pb);
