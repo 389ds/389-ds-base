@@ -2484,7 +2484,13 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
      *  Search the config for the exact attribute value to delete
      */
     pb = slapi_pblock_new();
-    dn = replica_get_dn(clean_data->replica);
+    if(clean_data->replica){
+        dn = replica_get_dn(clean_data->replica);
+    } else {
+        rc = -1;
+        goto bail;
+    }
+
     slapi_search_internal_set_pb(pb, dn, LDAP_SCOPE_SUBTREE, "nsds5ReplicaCleanRUV=*", NULL, 0, NULL, NULL,
         (void *)plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(pb);
@@ -2547,6 +2553,8 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
     slapi_modify_internal_pb (pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+bail:
     if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT){
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Task: failed to remove replica config "
             "(%d), rid (%d)\n", rc, clean_data->rid);

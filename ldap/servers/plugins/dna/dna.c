@@ -1592,7 +1592,7 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
                 }
                 /* see if we defined a server manually */
                 if(server->remote_bind_method){
-                    char *reason;
+                    char *reason = NULL;
                     int err = 0;
 
                     if(strcasecmp(server->remote_bind_method, DNA_METHOD_DIGESTMD5) == 0 ||
