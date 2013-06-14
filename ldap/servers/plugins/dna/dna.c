@@ -87,18 +87,31 @@
 #define DNA_GENERATE        "dnaMagicRegen"
 #define DNA_FILTER          "dnaFilter"
 #define DNA_SCOPE           "dnaScope"
+#define DNA_REMOTE_BIND_DN  "dnaRemoteBindDN"
+#define DNA_REMOTE_BIND_PW  "dnaRemoteBindCred"
 
 /* since v2 */
 #define DNA_MAXVAL          "dnaMaxValue"
 #define DNA_SHARED_CFG_DN   "dnaSharedCfgDN"
 
 /* Shared Config */
-#define DNA_SHAREDCONFIG    "dnaSharedConfig"
-#define DNA_REMAINING       "dnaRemainingValues"
-#define DNA_THRESHOLD       "dnaThreshold"
-#define DNA_HOSTNAME        "dnaHostname"
-#define DNA_PORTNUM         "dnaPortNum"
-#define DNA_SECURE_PORTNUM  "dnaSecurePortNum"
+#define DNA_SHAREDCONFIG       "dnaSharedConfig"
+#define DNA_REMAINING          "dnaRemainingValues"
+#define DNA_THRESHOLD          "dnaThreshold"
+#define DNA_HOSTNAME           "dnaHostname"
+#define DNA_PORTNUM            "dnaPortNum"
+#define DNA_SECURE_PORTNUM     "dnaSecurePortNum"
+#define DNA_REMOTE_BIND_METHOD "dnaRemoteBindMethod"
+#define DNA_REMOTE_CONN_PROT   "dnaRemoteConnProtocol"
+
+/* Bind Methods & Protocols */
+#define DNA_METHOD_SIMPLE    "SIMPLE"
+#define DNA_METHOD_SSL       "SSL"
+#define DNA_METHOD_GSSAPI    "SASL/GSSAPI"
+#define DNA_METHOD_DIGESTMD5 "SASL/DIGEST-MD5"
+#define DNA_PROT_LDAP "LDAP"
+#define DNA_PROT_TLS  "TLS"
+#define DNA_PROT_SSL  "SSL"
 
 /* For transferred ranges */
 #define DNA_NEXT_RANGE            "dnaNextRange"
@@ -154,6 +167,8 @@ struct configEntry {
     PRUint64 threshold;
     char *shared_cfg_base;
     char *shared_cfg_dn;
+    char *remote_binddn;
+    char *remote_bindpw;
     PRUint64 timeout;
     /* This lock protects the 5 members below.  All
      * of the above members are safe to read as long
@@ -195,6 +210,12 @@ struct dnaServer {
     unsigned int port;
     unsigned int secureport;
     PRUint64 remaining;
+    /* Remote replica settings from config */
+    PRUint64 remote_defined;
+    char *remote_bind_method;
+    char *remote_conn_prot;
+    char *remote_binddn; /* contains pointer to main config binddn */
+    char *remote_bindpw; /* contains pointer to main config bindpw */
 };
 
 static char *dna_extend_exop_oid_list[] = {
@@ -220,8 +241,8 @@ static int dna_be_txn_preop_init(Slapi_PBlock *pb);
  * Local operation functions
  *
  */
-static int dna_load_plugin_config(int use_eventq);
-static int dna_parse_config_entry(Slapi_Entry * e, int apply);
+static int dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq);
+static int dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply);
 static void dna_delete_config();
 static void dna_free_config_entry(struct configEntry ** entry);
 static int dna_load_host_port();
@@ -264,6 +285,8 @@ static void dna_list_remove_type(char **list, char *type);
 static int dna_is_multitype_range(struct configEntry *config_entry);
 static void dna_create_valcheck_filter(struct configEntry *config_entry, PRUint64 value, char **filter);
 static int dna_isrepl(Slapi_PBlock *pb);
+static int dna_get_remote_config_info( struct dnaServer *server, char **bind_dn, char **bind_passwd,
+                                       char **bind_method, int *is_ssl, int *port);
 
 /**
  *
@@ -572,7 +595,7 @@ dna_start(Slapi_PBlock * pb)
         slapi_ch_calloc(1, sizeof(struct configEntry));
     PR_INIT_CLIST(dna_global_config);
 
-    if (dna_load_plugin_config(1/* use eventq */) != DNA_SUCCESS) {
+    if (dna_load_plugin_config(pb, 1/* use eventq */) != DNA_SUCCESS) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_start: unable to load plug-in configuration\n");
         return DNA_FAILURE;
@@ -640,7 +663,7 @@ done:
  * ------ cn=etc etc
  */
 static int
-dna_load_plugin_config(int use_eventq)
+dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
 {
     int status = DNA_SUCCESS;
     int result;
@@ -682,7 +705,7 @@ dna_load_plugin_config(int use_eventq)
         /* We don't care about the status here because we may have
          * some invalid config entries, but we just want to continue
          * looking for valid ones. */
-        dna_parse_config_entry(entries[i], 1);
+        dna_parse_config_entry(pb, entries[i], 1);
     }
     dna_unlock();
 
@@ -719,7 +742,7 @@ cleanup:
  * if it is invalid.
  */
 static int
-dna_parse_config_entry(Slapi_Entry * e, int apply)
+dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
 {
     char *value;
     struct configEntry *entry = NULL;
@@ -882,6 +905,45 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> %s [%" NSPRIu64 "]\n", DNA_MAXVAL, entry->maxval);
+
+    /* get the global bind dn and password(if any) */
+    value = slapi_entry_attr_get_charptr(e, DNA_REMOTE_BIND_DN);
+    if (value) {
+        Slapi_DN *sdn = NULL;
+        char *normdn = NULL;
+
+        sdn = slapi_sdn_new_dn_passin(value);
+        if (!sdn) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry: Unable to create "
+                    "slapi_dn from dnaRemoteBindDN (%s)\n", value);
+            ret = DNA_FAILURE;
+            slapi_ch_free_string(&value);
+            goto bail;
+        }
+        normdn = (char *)slapi_sdn_get_dn(sdn);
+        if (NULL == normdn) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                "dna_parse_config_entry: failed to normalize dn: "
+                "%s\n", value);
+            ret = DNA_FAILURE;
+            slapi_sdn_free(&sdn);
+            goto bail;
+        }
+        entry->remote_binddn = slapi_ch_strdup(normdn);
+        slapi_sdn_free(&sdn);
+    }
+    /* now grab the password */
+    entry->remote_bindpw = slapi_entry_attr_get_charptr(e, DNA_REMOTE_BIND_PW);
+
+    /* validate that we have both a bind dn or password, or we have none */
+    if((entry->remote_bindpw != NULL && entry->remote_binddn == NULL) ||
+       (entry->remote_binddn != NULL && entry->remote_bindpw == NULL)){
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                "dna_parse_config_entry: Invalid remote bind DN and password settings.\n");
+        ret = DNA_FAILURE;
+        goto bail;
+    }
 
     value = slapi_entry_attr_get_charptr(e, DNA_SHARED_CFG_DN);
     if (value) {
@@ -1057,6 +1119,21 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
         goto bail;
     }
 
+    /* Check if the shared config base matches the config scope and filter */
+    if (entry->scope && slapi_dn_issuffix(entry->shared_cfg_base, entry->scope)){
+        if (entry->slapi_filter) {
+            ret = slapi_vattr_filter_test(pb, e, entry->slapi_filter, 0);
+            if (LDAP_SUCCESS == ret) {
+                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM, "dna_parse_config_entry: "
+                        "Error: shared config entry (%s) matches scope \"%s\", and filter \"%s\" "
+                        "of the DNA config entry (%s).\n", entry->shared_cfg_base,
+                        entry->scope, entry->filter, entry->dn);
+                ret = DNA_FAILURE;
+                goto bail;
+            }
+        }
+    }
+
     /**
      * Finally add the entry to the list.
      * We sort by scope dn length with longer
@@ -1140,6 +1217,8 @@ dna_free_config_entry(struct configEntry ** entry)
     slapi_ch_free_string(&e->scope);
     slapi_ch_free_string(&e->shared_cfg_base);
     slapi_ch_free_string(&e->shared_cfg_dn);
+    slapi_ch_free_string(&e->remote_binddn);
+    slapi_ch_free_string(&e->remote_bindpw);
 
     slapi_destroy_mutex(e->lock);
 
@@ -1170,13 +1249,14 @@ static void
 dna_free_shared_server(struct dnaServer **server)
 {
     struct dnaServer *s;
+
     if ((NULL == server) || (NULL == *server)) {
         return;
     }
-
     s = *server;
     slapi_ch_free_string(&s->host);
-
+    slapi_ch_free_string(&s->remote_bind_method);
+    slapi_ch_free_string(&s->remote_conn_prot);
     slapi_ch_free((void **)server);
 }
 
@@ -1358,6 +1438,7 @@ static int dna_fix_maxval(struct configEntry *config_entry,
                     if ((ret = dna_update_next_range(config_entry, lower, upper)) == 0) {
                         break;
                     }
+                    server = PR_NEXT_LINK(server);
                 }
             }
 
@@ -1434,7 +1515,7 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
     int ret = LDAP_SUCCESS;
     Slapi_PBlock *pb = NULL;
     Slapi_Entry **entries = NULL;
-    char *attrs[5];
+    char *attrs[7];
 
     /* First do a search in the shared config area for this
      * range to find other servers who are managing this range. */
@@ -1442,7 +1523,9 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
     attrs[1] = DNA_PORTNUM;
     attrs[2] = DNA_SECURE_PORTNUM;
     attrs[3] = DNA_REMAINING;
-    attrs[4] = NULL;
+    attrs[4] = DNA_REMOTE_BIND_METHOD;
+    attrs[5] = DNA_REMOTE_CONN_PROT;
+    attrs[6] = NULL;
 
     pb = slapi_pblock_new();
     if (NULL == pb) {
@@ -1490,15 +1573,56 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
                 server->secureport = slapi_entry_attr_get_uint(entries[i], DNA_SECURE_PORTNUM);
                 server->remaining = slapi_entry_attr_get_ulonglong(entries[i],
                                                                    DNA_REMAINING);
+                server->remote_binddn = config_entry->remote_binddn;
+                server->remote_bindpw = config_entry->remote_bindpw;
+                server->remote_bind_method = slapi_entry_attr_get_charptr(entries[i],
+                                                                          DNA_REMOTE_BIND_METHOD);
+                server->remote_conn_prot = slapi_entry_attr_get_charptr(entries[i],
+                                                                        DNA_REMOTE_CONN_PROT);
 
                 /* validate the entry */
-                if (!server->host || server->port == 0 || server->remaining == 0) {
+                if (!server->host || (server->port == 0 && server->secureport == 0) || server->remaining == 0)
+                {
                     /* free and skip this one */
                     slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                                     "dna_get_shared_servers: skipping invalid "
                                     "shared config entry (%s)\n", slapi_entry_get_dn(entries[i]));
                     dna_free_shared_server(&server);
                     continue;
+                }
+                /* see if we defined a server manually */
+                if(server->remote_bind_method){
+                    char *reason;
+                    int err = 0;
+
+                    if(strcasecmp(server->remote_bind_method, DNA_METHOD_DIGESTMD5) == 0 ||
+                       strcasecmp(server->remote_bind_method, DNA_METHOD_SIMPLE) == 0){
+                        /* requires a DN and password */
+                        if(!server->remote_binddn || !server->remote_bindpw){
+                            reason = "missing bind DN and/or password.";
+                            err = 1;
+                        }
+                    }
+                    if(strcasecmp(server->remote_bind_method, DNA_METHOD_SSL) == 0){
+                        /* requires a bind DN */
+                        if(strcasecmp(server->remote_conn_prot, DNA_PROT_SSL) != 0 &&
+                           strcasecmp(server->remote_conn_prot, DNA_PROT_TLS) != 0 )
+                        {
+                            reason = "bind method (SSL) requires either SSL or TLS connection "
+                                     "protocol.";
+                            err = 1;
+                        }
+                    }
+                    if(err){
+                        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                                        "dna_get_shared_servers: skipping invalid "
+                                        "shared config entry (%s). Reason: %s\n",
+                                        slapi_entry_get_dn(entries[i]), reason);
+                        dna_free_shared_server(&server);
+                        continue;
+                    }
+                    /* everything is ok */
+                    server->remote_defined = 1;
                 }
 
                 /* add a server entry to the list */
@@ -2487,7 +2611,8 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                             "dna_get_replica_bind_creds: Failed to fetch replica "
                             "bind credentials for range %s, server %s, port %u [error %d]\n",
-                            range_dn, server->host, server->port, ret);
+                            range_dn, server->host,
+                            server->port ? server->port : server->secureport, ret);
             goto bail;
         }
 
@@ -2495,10 +2620,18 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
                          &entries);
 
         if (NULL == entries || NULL == entries[0]) {
-            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+            if(server->remote_defined){
+                /*
+                 * Ok there are no replication agreements for this shared server, but we
+                 * do have custom defined authentication settings we can use.
+                 */
+                ret = dna_get_remote_config_info(server, bind_dn, bind_passwd, bind_method, is_ssl, port);
+                goto bail;
+            }
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                             "dna_get_replica_bind_creds: Failed to fetch replication "
                             "agreement for range %s, server %s, port %u\n", range_dn,
-                            server->host, server->port);
+                            server->host, server->port ? server->port : server->secureport);
             ret = LDAP_OPERATIONS_ERROR;
             goto bail;
         }
@@ -2576,6 +2709,92 @@ bail:
 
     return ret;
 }
+
+static int
+dna_get_remote_config_info( struct dnaServer *server, char **bind_dn, char **bind_passwd,
+                            char **bind_method, int *is_ssl, int *port)
+{
+    int rc = 0;
+
+    /* populate the bind info */
+    slapi_ch_free_string(bind_dn);
+    slapi_ch_free_string(bind_method);
+    *bind_dn = slapi_ch_strdup(server->remote_binddn);
+    *bind_method = slapi_ch_strdup(server->remote_bind_method);
+    /* fix up the bind method */
+    if ((NULL == *bind_method) || (strcasecmp(*bind_method, DNA_METHOD_SIMPLE) == 0)) {
+        slapi_ch_free_string(bind_method);
+        *bind_method = slapi_ch_strdup(LDAP_SASL_SIMPLE);
+    } else if (strcasecmp(*bind_method, "SSLCLIENTAUTH") == 0) {
+        slapi_ch_free_string(bind_method);
+        *bind_method = slapi_ch_strdup(LDAP_SASL_EXTERNAL);
+    } else if (strcasecmp(*bind_method, DNA_METHOD_GSSAPI) == 0) {
+        slapi_ch_free_string(bind_method);
+        *bind_method = slapi_ch_strdup("GSSAPI");
+    } else if (strcasecmp(*bind_method, DNA_METHOD_DIGESTMD5) == 0) {
+        slapi_ch_free_string(bind_method);
+        *bind_method = slapi_ch_strdup("DIGEST-MD5");
+    } else { /* some other weird value */
+        ; /* just use it directly */
+    }
+
+    if(server->remote_conn_prot && strcasecmp(server->remote_conn_prot, DNA_PROT_SSL) == 0){
+        *is_ssl = 1;
+    } else if(server->remote_conn_prot && strcasecmp(server->remote_conn_prot, DNA_PROT_TLS) == 0){
+        *is_ssl = 2;
+    } else {
+        *is_ssl = 0;
+    }
+    if(*is_ssl == 1){ /* SSL(covers TLS over ssl) */
+        if (server->secureport){
+            *port = server->secureport;
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_get_remote_config_info: Using SSL protocol, but the secure "
+                    "port is not defined.\n");
+            return -1;
+        }
+    } else { /* LDAP/TLS(non secure port) */
+        if(server->port){
+            *port = server->port;
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_get_remote_config_info: Using %s protocol, but the non-secure "
+                    "port is not defined.\n", server->remote_conn_prot);
+            return -1;
+        }
+    }
+
+    /* Decode the password */
+    if (server->remote_bindpw) {
+        char *bind_cred = slapi_ch_strdup(server->remote_bindpw);
+        int pw_ret = 0;
+
+        slapi_ch_free_string(bind_passwd);
+        pw_ret = pw_rever_decode(bind_cred, bind_passwd, DNA_REPL_CREDS);
+
+        if (pw_ret == -1) {
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_get_remote_config_info: Failed to decode "
+                    "replica bind credentials for server %s, "
+                    "port %u\n", server->host,
+                    server->port ? server->port : server->secureport);
+            rc = -1;
+        } else if (pw_ret != 0) {
+            /*
+             * The password was already in clear text, so pw_rever_decode
+             * simply set bind_passwd to bind_cred.  Set bind_cred to NULL
+             * to prevent a double free.  The memory is now owned by
+             * bind_passwd, which is the callers responsibility to free.
+             */
+            bind_cred = NULL;
+        }
+        slapi_ch_free_string(&bind_cred);
+    }
+
+    return rc;
+}
+
 
 /*
  * dna_list_contains_type()
@@ -3313,7 +3532,7 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
          * here at the pre-op stage.  Applying the config
          * needs to be done at the post-op stage. */
 
-        if (dna_parse_config_entry(test_e, 0) != DNA_SUCCESS) {
+        if (dna_parse_config_entry(pb, test_e, 0) != DNA_SUCCESS) {
             /* Refuse the operation if config parsing failed. */
             ret = LDAP_UNWILLING_TO_PERFORM;
             if (LDAP_CHANGETYPE_ADD == modtype) {
@@ -3683,7 +3902,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
     if (!slapi_op_internal(pb)) { /* If internal, no need to check. */
         if ((dn = dna_get_dn(pb))) {
             if (dna_dn_is_config(dn)) {
-                dna_load_plugin_config(0);
+                dna_load_plugin_config(pb, 0);
             }
         }
     }
