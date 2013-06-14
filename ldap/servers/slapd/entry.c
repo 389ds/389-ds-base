@@ -1476,7 +1476,17 @@ entry2str_internal_size_attrlist( const Slapi_Attr *attrlist, int entry2str_ctrl
 			/* ";adcsn-" + a->a_deletioncsn */
 			if ( a->a_deletioncsn )
 			{
-				elen+= 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
+				elen += 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
+			}
+			if ( valueset_isempty(&a->a_deleted_values)) {
+				/* this means the entry is deleted and has no more attributes,
+				 * when writing the attr to disk we would loose the AD-csn.
+				 * Add an empty value to the set of deleted values. This will 
+				 * never be seen by any client. It will never be moved to the 
+				 * present values and is only used to preserve the AD-csn
+				 * We need to add the size for that.
+				 */
+				elen += 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
 			}
 		}
 	}
