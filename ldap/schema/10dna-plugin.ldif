@@ -218,7 +218,7 @@ objectClasses: ( 2.16.840.1.113730.3.2.324 NAME 'dnaPluginConfig'
         dnaThreshold $
         dnaNextRange $
         dnaRangeRequestTimeout $        
-	dnaRemoteBindDN $
+        dnaRemoteBindDN $
         dnaRemoteBindCred $
         cn
  )
