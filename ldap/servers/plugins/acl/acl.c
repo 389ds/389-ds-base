@@ -1358,6 +1358,9 @@ acl_check_mods(
 	for (mod = slapi_mods_get_first_mod(&smods);
 		 mod != NULL;
 		 mod = slapi_mods_get_next_mod(&smods)) {
+		if (0 == strcmp(mod->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)) {
+			continue; 
+		}
 		switch (mod->mod_op & ~LDAP_MOD_BVALUES ) {
 
 		   case LDAP_MOD_DELETE:
@@ -1386,9 +1389,7 @@ acl_check_mods(
 			}
 			if (lastmod &&
 			    (strcmp (mod->mod_type, "modifiersname")== 0 ||
-			     strcmp (mod->mod_type, "modifytimestamp")== 0 ||
-			     strcmp (mod->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)== 0)
-				) {
+			     strcmp (mod->mod_type, "modifytimestamp")== 0)) {
 				/* skip pseudo attr(s)  */
 				continue; 
 			}
@@ -1401,9 +1402,9 @@ acl_check_mods(
 				while(k != -1) {
 					attrVal = slapi_value_get_berval(sval);
 					rv = slapi_access_allowed (pb, e,
-						    	     mod->mod_type, 
-						    	     (struct berval *)attrVal, /* XXXggood had to cast away const - BAD */
-							  		ACLPB_SLAPI_ACL_WRITE_DEL); /* was SLAPI_ACL_WRITE */
+						         mod->mod_type, 
+						         (struct berval *)attrVal, /* XXXggood had to cast away const - BAD */
+						         ACLPB_SLAPI_ACL_WRITE_DEL); /* was SLAPI_ACL_WRITE */
 					if ( rv != LDAP_SUCCESS) {
 						acl_gen_err_msg (
 							SLAPI_ACL_WRITE,
@@ -1435,7 +1436,7 @@ acl_check_mods(
 			}
 			break;
 
-		   default:
+		   default: /* including LDAP_MOD_ADD */
 			break;
 		} /* switch */
 
