@@ -655,6 +655,7 @@ struct ldbminfo {
 #define BACKEND_OPT_DBLOCK_INSIDE_TXN  0x02
 #define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04
     int                    li_backend_opt_level;
+    int             li_online_import_encrypt; /* toggle attribute encryption during ldbm_back_wire_import */
  };
 
 
