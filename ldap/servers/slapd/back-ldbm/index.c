@@ -694,7 +694,7 @@ index_add_mods(
                             /* Check if the any values being deleted
                              * also exist in a subtype.
                              */
-                            for ( j=0; deleted_valueArray[j] != NULL; j++) {
+                            for (j = 0; deleted_valueArray && deleted_valueArray[j]; j++) {
                                 if ( valuearray_find(curr_attr, evals, deleted_valueArray[j]) == -1 ) {
                                     /* If the equality flag isn't already set, set it */
                                     if (!(flags & BE_INDEX_EQUALITY)) {
