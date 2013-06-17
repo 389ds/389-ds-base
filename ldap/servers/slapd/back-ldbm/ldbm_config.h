@@ -139,6 +139,7 @@ struct config_info {
 #define CONFIG_DB_HOME_DIRECTORY "nsslapd-db-home-directory"
 #define CONFIG_DB_LOCKDOWN "nsslapd-db-lockdown"
 #define CONFIG_DB_TX_MAX "nsslapd-db-tx-max"
+#define CONDIF_DB_ONLINE_IMPORT_ENCRYPT "nsslapd-online-import-encrypt"
 
 #define CONFIG_IDL_SWITCH               "nsslapd-idl-switch"
 #define CONFIG_IDL_UPDATE               "nsslapd-idl-update"

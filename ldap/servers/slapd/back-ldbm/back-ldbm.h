@@ -654,6 +654,7 @@ struct ldbminfo {
     int li_reslimit_rangelookthrough_handle;
     int li_idl_update;
     int li_old_idl_maxids;
+    int li_online_import_encrypt; /* toggle attribute encryption during ldbm_back_wire_import */
 #define BACKEND_OPT_NO_RUV_UPDATE	0x01
 #define BACKEND_OPT_DBLOCK_INSIDE_TXN	0x02
 #define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04

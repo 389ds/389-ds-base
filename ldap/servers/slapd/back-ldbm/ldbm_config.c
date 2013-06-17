@@ -913,6 +913,26 @@ static int ldbm_config_db_private_mem_set(void *arg, void *value, char *errorbuf
     return retval;
 }
 
+static void *ldbm_config_db_online_import_encrypt_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    
+    return (void *) ((uintptr_t)li->li_online_import_encrypt);
+}
+
+static int ldbm_config_db_online_import_encrypt_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+    
+    if (apply) {
+        li->li_online_import_encrypt = val;
+    }
+    
+    return retval;
+}
+
 static void *ldbm_config_db_private_import_mem_get(void *arg) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
@@ -1410,6 +1430,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_LOCK, CONFIG_TYPE_INT, "10000", &ldbm_config_db_lock_get, &ldbm_config_db_lock_set, 0},
     {CONFIG_DB_PRIVATE_MEM, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_private_mem_get, &ldbm_config_db_private_mem_set, 0},
     {CONFIG_DB_PRIVATE_IMPORT_MEM, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_private_import_mem_get, &ldbm_config_db_private_import_mem_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONDIF_DB_ONLINE_IMPORT_ENCRYPT, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_online_import_encrypt_get, &ldbm_config_db_online_import_encrypt_set, 0},
     {CONFIG_DB_SHM_KEY, CONFIG_TYPE_LONG, "389389", &ldbm_config_db_shm_key_get, &ldbm_config_db_shm_key_set, 0},
     {CONFIG_DB_CACHE, CONFIG_TYPE_INT, "0", &ldbm_config_db_cache_get, &ldbm_config_db_cache_set, 0},
     {CONFIG_DB_DEBUG_CHECKPOINTING, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_debug_checkpointing_get, &ldbm_config_db_debug_checkpointing_set, 0},
