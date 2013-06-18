@@ -809,6 +809,32 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
+	/*
+	 * Check if password is already hashed and reject if so.  We need to
+	 * allow the root DN, password admins, and replicated ops to send
+	 * pre-hashed passwords. We also check for a connection object
+	 * when processing an internal operation to handle a special
+	 * case for the password modify extended operation.
+	 */
+	for ( i = 0; vals[ i ] != NULL; ++i ){
+		if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
+			if ((!is_replication && ((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) ||
+				(!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))) {
+				PR_snprintf( errormsg, BUFSIZ,
+					"invalid password syntax - passwords with storage scheme are not allowed");
+				if ( pwresponse_req == 1 ) {
+					slapi_pwpolicy_make_response_control ( pb, -1, -1,
+							LDAP_PWPOLICY_INVALIDPWDSYNTAX );
+				}
+				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
+				return( 1 );
+			} else {
+				/* We want to skip syntax checking since this is a pre-hashed password */
+				return( 0 );
+			}
+		}
+	}
+
 	if ( pwpolicy->pw_syntax == 1 ) {
 		for ( i = 0; vals[ i ] != NULL; ++i ) {
 			int syntax_violation = 0;
@@ -821,29 +847,6 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			int num_repeated = 0;
 			int max_repeated = 0;
 			int num_categories = 0;
-
-			/* Check if password is already hashed and reject if so.  We
-			 * We need to allow the root DN and replicated ops to send
-			 * pre-hashed passwords. We also check for a connection object
-			 * when processing an internal operation to handle a special
-			 * case for the password modify extended operation. */
-			if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
-				if ((!is_replication && ((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) ||
-					(!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))) {
-					PR_snprintf( errormsg, BUFSIZ,
-						"invalid password syntax - passwords with storage scheme are not allowed");
-					if ( pwresponse_req == 1 ) {
-						slapi_pwpolicy_make_response_control ( pb, -1, -1,
-								LDAP_PWPOLICY_INVALIDPWDSYNTAX );
-					}
-					pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
-					return( 1 );
-				} else {
-					/* We want to skip syntax checking since this is a pre-hashed
-					 * password from replication or the root DN. */
-					return( 0 );
-				}
-			}
 
 			/* check for the minimum password length */
 			if ( pwpolicy->pw_minlength >
@@ -1061,8 +1064,9 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 	if ( mod_op ) {
 		/* free e only when called by modify operation */
-		slapi_entry_free( e ); 
+		slapi_entry_free( e );
 	}
+
 	return 0; 	/* success */
 
 }
