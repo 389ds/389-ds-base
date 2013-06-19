@@ -1272,6 +1272,22 @@ dna_update_config_event(time_t event_time, void *arg)
 
             /* If a shared config dn is set, update the shared config. */
             if (config_entry->shared_cfg_dn != NULL) {
+                int rc = 0;
+                Slapi_PBlock *dna_pb = NULL;
+                Slapi_DN *sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
+                Slapi_Backend *be = slapi_be_select(sdn);
+                slapi_sdn_free(&sdn);
+                if (be) {
+                    dna_pb = slapi_pblock_new();
+                    slapi_pblock_set(dna_pb, SLAPI_BACKEND, be);
+                    /* We need to start transaction to avoid the deadlock */
+                    rc = slapi_back_transaction_begin(dna_pb);
+                    if (rc) {
+                        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                  "dna_update_config_event: failed to start transaction\n");
+                    }
+                }
+
                 slapi_lock_mutex(config_entry->lock);
 
                 /* First delete the existing shared config entry.  This
@@ -1287,6 +1303,12 @@ dna_update_config_event(time_t event_time, void *arg)
                 dna_update_shared_config(config_entry);
 
                 slapi_unlock_mutex(config_entry->lock);
+                if (dna_pb) {
+                    if (0 == rc) {
+                        slapi_back_transaction_commit(dna_pb);
+                    }
+                    slapi_pblock_destroy(dna_pb);
+                }
                 slapi_pblock_init(pb);
             }
 
@@ -1535,7 +1557,7 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
                         }
                     }
                     if(!inserted){
-                    	dna_free_shared_server(&server);
+                        dna_free_shared_server(&server);
                     }
                 }
             }
