@@ -35,6 +35,10 @@ Hewlett-Packard Development Company, L.P.
 #define DEFAULT_INACT_LIMIT_ATTR "accountInactivityLimit"
 #define DEFAULT_RECORD_LOGIN 1
 
+/* attributes that no clients are allowed to add or modify */
+static char *protected_attrs_login_recording [] = { "createTimestamp",
+                                        NULL };
+
 #define PLUGIN_VENDOR "Hewlett-Packard Company"
 #define PLUGIN_VERSION "1.0"
 #define PLUGIN_CONFIG_DN "cn=config,cn=Account Policy Plugin,cn=plugins,cn=config"
@@ -74,6 +78,7 @@ void* get_identity();
 void set_identity(void*);
 time_t gentimeToEpochtime( char *gentimestr );
 char* epochtimeToGentime( time_t epochtime ); 
+int update_is_allowed_attr (const char *attr);
 
 /* acct_config.c */
 int acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id );
