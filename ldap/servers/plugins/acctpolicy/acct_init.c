@@ -132,7 +132,7 @@ acct_policy_start( Slapi_PBlock *pb ) {
 	slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME, "acct_policy_start config: "
 		"stateAttrName=%s altStateAttrName=%s specAttrName=%s limitAttrName=%s "
 		"alwaysRecordLogin=%d\n",
-		cfg->state_attr_name, cfg->alt_state_attr_name, cfg->spec_attr_name,
+		cfg->state_attr_name, cfg->alt_state_attr_name?cfg->alt_state_attr_name:"not configured", cfg->spec_attr_name,
 		cfg->limit_attr_name, cfg->always_record_login);
 	return( CALLBACK_OK );
 }
