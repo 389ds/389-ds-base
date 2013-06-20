@@ -302,6 +302,8 @@ do_search( Slapi_PBlock *pb )
 			gerattrs[gerattridx] = NULL;
 		}
 
+		/* Set attrs to SLAPI_SEARCH_ATTRS once to get rid of the forbidden attrs */
+		slapi_pblock_set( pb, SLAPI_SEARCH_ATTRS, attrs );
 		operation->o_searchattrs = cool_charray_dup( attrs );
 		for ( i = 0; attrs[i] != NULL; i++ ) {
 			char	*type;
@@ -311,7 +313,7 @@ do_search( Slapi_PBlock *pb )
 			attrs[i] = type;
 		}
 	}
-   if ( slapd_ldap_debug & LDAP_DEBUG_ARGS ) {
+	if ( slapd_ldap_debug & LDAP_DEBUG_ARGS ) {
 		char abuf[ 1024 ], *astr;
 
 		if ( NULL == attrs ) {
