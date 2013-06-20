@@ -44,14 +44,16 @@ acct_inact_limit( Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, a
 		cfg->state_attr_name ) ) != NULL ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
 			"\"%s\" login timestamp is %s\n", dn, lasttimestr );
-	} else if( ( lasttimestr = get_attr_string_val( target_entry,
-		cfg->alt_state_attr_name ) ) != NULL ) {
+	} else if( cfg->alt_state_attr_name && (( lasttimestr = get_attr_string_val( target_entry,
+		cfg->alt_state_attr_name ) ) != NULL) ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
 			"\"%s\" alternate timestamp is %s\n", dn, lasttimestr );
 	} else {
+		/* the primary or alternate attribute might not yet exist eg. 
+		 * if only lastlogintime is specified and it id the first login
+		 */
 		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-			"\"%s\" has no login or creation timestamp\n", dn );
-		rc = -1;
+			"\"%s\" has no value for stateattr or altstateattr \n", dn );
 		goto done;
 	}
 
@@ -105,6 +107,13 @@ acct_record_login( const char *dn )
 	int skip_mod_attrs = 1; /* value doesn't matter as long as not NULL */
 
 	cfg = get_config();
+
+	/* if we are not allowed to modify the state attr we're done
+         * this could be intentional, so just return
+         */
+	if (! update_is_allowed_attr(cfg->state_attr_name) )
+		return rc;
+ 
 	plugin_id = get_identity();
 
 	timestr = epochtimeToGentime( time( (time_t*)0 ) );
@@ -283,7 +292,6 @@ acct_bind_postop( Slapi_PBlock *pb )
 		} else {
 			if( target_entry && has_attr( target_entry,
 				cfg->spec_attr_name, NULL ) ) {
-				/* This account has a policy specifier */
 				tracklogin = 1;
 			}
 		}
