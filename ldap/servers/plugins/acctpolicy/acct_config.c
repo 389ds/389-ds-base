@@ -82,12 +82,23 @@ acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
 	newcfg->state_attr_name = get_attr_string_val( e, CFG_LASTLOGIN_STATE_ATTR );
 	if( newcfg->state_attr_name == NULL ) {
 		newcfg->state_attr_name = slapi_ch_strdup( DEFAULT_LASTLOGIN_STATE_ATTR );
+	} else if (!update_is_allowed_attr(newcfg->state_attr_name)) {
+		/* log a warning that this attribute cannot be updated */
+		slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
+							 "The configured state attribute [%s] cannot be updated, accounts will always become inactive.\n",
+							 newcfg->state_attr_name );
 	}
 
 	newcfg->alt_state_attr_name = get_attr_string_val( e, CFG_ALT_LASTLOGIN_STATE_ATTR );
+	/* alt_state_attr_name should be optional, but for backward compatibility, 
+	 * if not specified use a default. If the attribute is "1.1", no fallback 
+	 * will be used
+	 */ 
 	if( newcfg->alt_state_attr_name == NULL ) {
 		newcfg->alt_state_attr_name = slapi_ch_strdup( DEFAULT_ALT_LASTLOGIN_STATE_ATTR );
-	}
+	} else if ( !strcmp( newcfg->alt_state_attr_name, "1.1" ) ) {
+                 slapi_ch_free_string( &newcfg->alt_state_attr_name ); /*none - NULL */
+	} /* else use configured value */
 
 	newcfg->spec_attr_name = get_attr_string_val( e, CFG_SPEC_ATTR );
 	if( newcfg->spec_attr_name == NULL ) {
