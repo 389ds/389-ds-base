@@ -255,3 +255,16 @@ epochtimeToGentime( time_t epochtime ) {
 	return( gentimestr );
 }
 
+int update_is_allowed_attr (const char *attr)
+{
+	int i;
+
+        /* check list of attributes that cannot be used for login recording */
+        for (i = 0; protected_attrs_login_recording[i]; i ++) {
+            if (strcasecmp (attr, protected_attrs_login_recording[i]) == 0) {
+                /* this attribute is not allowed */
+                return 0;
+            }
+        }
+	return 1;
+}
