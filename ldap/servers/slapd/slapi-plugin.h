@@ -6123,6 +6123,7 @@ const char * slapi_be_gettype(Slapi_Backend *be);
  *
  * \param pb Pblock which is supposed to set (Slapi_Backend *) to SLAPI_BACKEND
  * \return 0 if successful
+ * \return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED if transaction support is not available for this backend
  * \return Non-zero if an error occurred
  *
  * \see slapi_back_transaction_commit
@@ -6960,6 +6961,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PARENT_TXN			190
 #define SLAPI_TXN				191
 #define SLAPI_TXN_RUV_MODS_FN			1901
+#define SLAPI_BACK_TRANSACTION_NOT_SUPPORTED	1902
 
 /*
  * The following are used to pass information back and forth
