@@ -651,6 +651,7 @@ struct slapi_rdn
  */
 #define ENTRY_MAX_ATTRIBUTE_VALUE_COUNT 1073741824 
 
+typedef struct _entry_vattr Slapi_Vattr;
 /*
  * represents an entry in core
  * WARNING, if you change this stucture you MUST update slapi_entry_size()
@@ -664,7 +665,7 @@ struct slapi_entry {
     CSN *e_maxcsn;               /* maximum CSN of the entry */
     Slapi_Attr *e_attrs;         /* list of attributes and values   */
     Slapi_Attr *e_deleted_attrs; /* deleted list of attributes and values */
-    Slapi_Attr *e_virtual_attrs; /* list of virtual attributes */
+    Slapi_Vattr *e_virtual_attrs;       /* cache of virtual attributes */
     time_t e_virtual_watermark;  /* indicates cache consistency when compared
                                     to global watermark */ 
     Slapi_RWLock *e_virtual_lock;    /* for access to cached vattrs */

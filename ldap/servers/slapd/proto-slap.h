@@ -1353,10 +1353,6 @@ void subentry_create_filter(Slapi_Filter** filter);
  */
 void vattr_init();
 void vattr_cleanup();
-void vattrcache_entry_READ_LOCK(const Slapi_Entry *e);
-void vattrcache_entry_READ_UNLOCK(const Slapi_Entry *e);
-void vattrcache_entry_WRITE_LOCK(const Slapi_Entry *e);
-void vattrcache_entry_WRITE_UNLOCK(const Slapi_Entry *e);
 
 /*
  * slapd_plhash.c - supplement to NSPR plhash

@@ -2348,22 +2348,6 @@ void slapi_vattrcache_cache_none()
 	cache_all = 0;
 }
 
-void vattrcache_entry_READ_LOCK(const Slapi_Entry *e){
-	slapi_rwlock_rdlock(e->e_virtual_lock);
-}
-
-void vattrcache_entry_READ_UNLOCK(const Slapi_Entry *e) {
-	slapi_rwlock_unlock(e->e_virtual_lock);
-
-}
-void vattrcache_entry_WRITE_LOCK(const Slapi_Entry *e){
-	slapi_rwlock_wrlock(e->e_virtual_lock);
-
-}
-void vattrcache_entry_WRITE_UNLOCK(const Slapi_Entry *e){
-	slapi_rwlock_unlock(e->e_virtual_lock);
-}
-
 Slapi_PBlock *
 slapi_vattr_get_pblock_from_context(vattr_context *c)
 {
