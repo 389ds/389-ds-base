@@ -648,8 +648,13 @@ int
 slapi_back_transaction_begin(Slapi_PBlock *pb)
 {
     IFP txn_begin;
-    slapi_pblock_get(pb, SLAPI_PLUGIN_DB_BEGIN_FN, (void*)&txn_begin);
-    return txn_begin(pb);
+    if(slapi_pblock_get(pb, SLAPI_PLUGIN_DB_BEGIN_FN, (void*)&txn_begin) ||
+       !txn_begin)
+    {
+        return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
+    } else {
+        return txn_begin(pb);
+    }
 }
 
 /* API to expose DB transaction commit */
@@ -657,7 +662,13 @@ int
 slapi_back_transaction_commit(Slapi_PBlock *pb)
 {
     IFP txn_commit;
-    slapi_pblock_get(pb, SLAPI_PLUGIN_DB_COMMIT_FN, (void*)&txn_commit);
+    if(slapi_pblock_get(pb, SLAPI_PLUGIN_DB_COMMIT_FN, (void*)&txn_commit) ||
+        !txn_commit)
+    {
+        return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
+    } else {
+        return txn_commit(pb);
+    }
     return txn_commit(pb);
 }
 
@@ -666,6 +677,11 @@ int
 slapi_back_transaction_abort(Slapi_PBlock *pb)
 {
     IFP txn_abort;
-    slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ABORT_FN, (void*)&txn_abort);
-    return txn_abort(pb);
+    if(slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ABORT_FN, (void*)&txn_abort) ||
+        !txn_abort)
+    {
+        return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
+    } else {
+        return txn_abort(pb);
+    }
 }
