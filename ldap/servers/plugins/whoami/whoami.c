@@ -65,7 +65,6 @@ int whoami_exop( Slapi_PBlock *pb )
 	struct berval *bval;
 	struct berval retbval;
 
-	Slapi_DN *dn = NULL;
 	char *client_dn = NULL;
 	char *fdn = NULL;
 	char *oid = NULL;
