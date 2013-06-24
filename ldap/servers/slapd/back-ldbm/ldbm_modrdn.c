@@ -366,6 +366,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         goto error_return; /* error result sent by find_entry2modify() */
     }
     e_in_cache = 1; /* e is in the cache and locked */
+    if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) ) {
+        ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
+        ldap_result_message = "Operation not allowed on tombstone entry.";
+        slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modrdn",
+               "Attempt to rename a tombstone entry %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
+        goto error_return;
+    }
     /* Check that an entry with the same DN doesn't already exist. */
     {
         Slapi_Entry *entry;
