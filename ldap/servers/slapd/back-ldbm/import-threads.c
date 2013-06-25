@@ -2244,6 +2244,7 @@ static int bulk_import_start(Slapi_PBlock *pb)
     }
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_ENCRYPT, &job->encrypt);
     PR_ASSERT(be != NULL);
     li = (struct ldbminfo *)(be->be_database->plg_private);
     job->inst = (ldbm_instance *)be->be_instance_info;
@@ -2513,6 +2514,7 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
     PR_ASSERT(be != NULL);
     li = (struct ldbminfo *)(be->be_database->plg_private);
     slapi_pblock_get(pb, SLAPI_BULK_IMPORT_STATE, &state);
+    slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &li->li_online_import_encrypt);
     if (state == SLAPI_BI_STATE_START) {
         /* starting a new import */
         return bulk_import_start(pb);

@@ -3695,6 +3695,11 @@ schema_check_name(char *name, PRBool isAttribute, char *errorbuf,
 	return 0;
   }
 
+  if (!strcasecmp(name, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)) {
+      /* explicitly allow this badly named attribute */
+      return 1;
+  }
+
   /* attribute names must begin with a letter */
   if ( (isascii (name[0]) == 0) || (isalpha (name[0]) == 0)) {
 	if ( (strlen(name) + 80) < BUFSIZ ) {

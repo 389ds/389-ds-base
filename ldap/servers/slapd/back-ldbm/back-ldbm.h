@@ -578,13 +578,14 @@ struct ldbminfo {
     int li_fat_lock;         /* 608146 -- make this configurable, first */
     int li_legacy_errcode;   /* 615428 -- in case legacy err code is expected */
     Slapi_Counter *li_global_usn_counter; /* global USN counter */
-    int             li_reslimit_allids_handle; /* allids aka idlistscan */
-    int             li_pagedlookthroughlimit;
-    int             li_pagedallidsthreshold;
-    int             li_reslimit_pagedlookthrough_handle;
-    int             li_reslimit_pagedallids_handle; /* allids aka idlistscan */
-    int             li_rangelookthroughlimit;
-    int             li_reslimit_rangelookthrough_handle;
+    int li_reslimit_allids_handle; /* allids aka idlistscan */
+    int li_pagedlookthroughlimit;
+    int li_pagedallidsthreshold;
+    int li_reslimit_pagedlookthrough_handle;
+    int li_reslimit_pagedallids_handle; /* allids aka idlistscan */
+    int li_rangelookthroughlimit;
+    int li_reslimit_rangelookthrough_handle;
+    int li_online_import_encrypt; /* toggle attribute encryption during ldbm_back_wire_import */
 };
 
 /* li_flags could store these bits defined in ../slapi-plugin.h
