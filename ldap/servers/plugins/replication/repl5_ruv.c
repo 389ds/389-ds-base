@@ -2262,7 +2262,6 @@ ruv_is_newer (Object *sruvobj, Object *cruvobj)
 void
 ruv_force_csn_update_from_ruv(RUV *src_ruv, RUV *tgt_ruv, char *msg, int logLevel) {
     RUVElement *replica = NULL;
-    char csnStr [CSN_STRSIZE];
     int cookie;
 
     slapi_rwlock_rdlock(src_ruv->lock);
@@ -2275,6 +2274,8 @@ ruv_force_csn_update_from_ruv(RUV *src_ruv, RUV *tgt_ruv, char *msg, int logLeve
          * updates the DB RUV.
          */
         if (!ruv_covers_csn(tgt_ruv, replica->csn)) {
+            char csnStr[CSN_STRSIZE];
+
             ruv_force_csn_update(tgt_ruv, replica->csn);
             csn_as_string(replica->csn, PR_FALSE, csnStr);
             slapi_log_error(logLevel, repl_plugin_name, "%s %s\n",

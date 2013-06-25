@@ -669,7 +669,6 @@ slapi_back_transaction_commit(Slapi_PBlock *pb)
     } else {
         return txn_commit(pb);
     }
-    return txn_commit(pb);
 }
 
 /* API to expose DB transaction abort */

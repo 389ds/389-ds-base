@@ -358,8 +358,8 @@ ACLEvalBuildContext(
     /*     Allocate the cache context and link it into the ACLListHandle    */
     cache = (ACLListCache_t *)PERM_CALLOC(sizeof(ACLListCache_t));
     if (cache == NULL) {
-	nserrGenerate(errp, ACLERRNOMEM, ACLERR4010, ACL_Program, 0);
-	goto error;
+        nserrGenerate(errp, ACLERRNOMEM, ACLERR4010, ACL_Program, 0);
+        goto error;
     }
 
     /*    Allocate the access rights hash table    */
@@ -371,9 +371,9 @@ ACLEvalBuildContext(
 				       NULL);
 
     if (cache->Table == NULL) {
-	nserrGenerate(errp, ACLERRNOMEM, ACLERR4000, ACL_Program, 1,
-	              XP_GetAdminStr(DBT_EvalBuildContextUnableToCreateHash));
-	goto error;
+        nserrGenerate(errp, ACLERRNOMEM, ACLERR4000, ACL_Program, 1,
+                  XP_GetAdminStr(DBT_EvalBuildContextUnableToCreateHash));
+        goto error;
     }
 
     wrapper = acleval->acllist->acl_list_head;
@@ -395,162 +395,159 @@ ACLEvalBuildContext(
                 XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAceEntry));
                 goto error;
             }
-            new_ace->acep    = ace;
+            new_ace->acep = ace;
             ace_cnt++;
 
             if (cache->acelist == NULL)
-                cache->acelist = acelast    = new_ace;
+                cache->acelist = acelast = new_ace;
             else {
                 if(acelast)
-                    acelast->next  = new_ace;
-                acelast        = new_ace;
-                new_ace->acep  = ace;
+                    acelast->next = new_ace;
+                acelast = new_ace;
+                new_ace->acep = ace;
             }
-            new_ace->next      = NULL;
+            new_ace->next = NULL;
 
-            argp    = ace->expr_argv;
+            argp = ace->expr_argv;
 
-	    switch (ace->expr_type) 
-	    {
-	    case ACL_EXPR_TYPE_ALLOW:
-	    case ACL_EXPR_TYPE_DENY:
+            switch (ace->expr_type)
+            {
+                case ACL_EXPR_TYPE_ALLOW:
+                case ACL_EXPR_TYPE_DENY:
 
-                /* Add this ACE to the appropriate entries in the access rights
-                 * hash table
-                 */
-                while (*argp)
-                {
-                    entry = 
-		      (ACLAceNumEntry_t *)PERM_CALLOC(sizeof(ACLAceNumEntry_t));
-                    if (entry == (ACLAceNumEntry_t *)NULL) {
-		         nserrGenerate(errp, ACLERRNOMEM, ACLERR4030, ACL_Program, 1,
-    	                               XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAceEntry));
-			goto error;
+                    /* Add this ACE to the appropriate entries in the access rights
+                     * hash table
+                     */
+                    while (*argp)
+                    {
+                        entry = (ACLAceNumEntry_t *)PERM_CALLOC(sizeof(ACLAceNumEntry_t));
+                        if (entry == (ACLAceNumEntry_t *)NULL) {
+                            nserrGenerate(errp, ACLERRNOMEM, ACLERR4030, ACL_Program, 1,
+                                          XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAceEntry));
+                            goto error;
+                        }
+                        if (cache->chain_head == NULL)
+                            cache->chain_head = cache->chain_tail = entry;
+                        else {
+                            cache->chain_tail->chain    = entry;
+                            cache->chain_tail    = entry;
+                        }
+                        entry->acenum = ace_cnt;
+
+                        /*
+                         * OK to call PL_HasTableLookup() even though it mods
+                         * the Table as this routine is called in critical section.
+                         */
+                        temp_entry = (ACLAceNumEntry_t *)PL_HashTableLookup(cache->Table, *argp);
+                        /*  the first ACE for this right?  */
+                        if (temp_entry) {
+                            /* Link it in at the end */
+                            while (temp_entry->next) {
+                                temp_entry = temp_entry->next;
+                            }
+                            temp_entry->next = entry;
+                        } else /* just link it in */
+                            PR_HashTableAdd(cache->Table, *argp, entry);
+                        argp++;
                     }
-                    if (cache->chain_head == NULL) 
-                        cache->chain_head = cache->chain_tail = entry;
-                    else {
-                        cache->chain_tail->chain    = entry;
-                        cache->chain_tail    = entry;
-                    }
-                    entry->acenum = ace_cnt;
-   
-			/*
-			 * OK to call PL_HasTableLookup() even though it mods
-			 * the Table as this routine is called in critical section.
-			*/ 
-		    temp_entry = (ACLAceNumEntry_t *)PL_HashTableLookup(cache->Table, *argp); 
-		    /*  the first ACE for this right?  */
-                    if (temp_entry) {
-			/* Link it in at the end */
-			while (temp_entry->next) {
-			    temp_entry = temp_entry->next;
-			}
-			temp_entry->next = entry;
-                    } else                    /* just link it in */
-		        PR_HashTableAdd(cache->Table, *argp, entry);
 
-                    argp++;
-
-                }
-
-		/*  See if any of the clauses require authentication.  */
-		if (curauthplist) {
-                    for (i = 0; i < ace->expr_term_index; i++) {
-                        expr = &ace->expr_arry[i];
-                        rv = PListFindValue(curauthplist, expr->attr_name, 
-					    NULL, &authplist);
-                    	if (rv > 0) {
-                            /*  First one for this ACE?  */
-                            if (!new_ace->autharray) {
-                                new_ace->autharray = (PList_t *)PERM_CALLOC(sizeof(PList_t) * ace->expr_term_index);
+                    /*  See if any of the clauses require authentication.  */
+                    if (curauthplist) {
+                        for (i = 0; i < ace->expr_term_index; i++) {
+                            expr = &ace->expr_arry[i];
+                            rv = PListFindValue(curauthplist, expr->attr_name,
+                                                NULL, &authplist);
+                            if (rv > 0) {
+                                /*  First one for this ACE?  */
                                 if (!new_ace->autharray) {
-				    nserrGenerate(errp, ACLERRNOMEM, ACLERR4040, ACL_Program, 1, XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPointerArray));
-                                    goto error;
-			        }
-		            }
-			new_ace->autharray[i] = authplist;
-		        }
-		    }
-		}
-		break;
+                                    new_ace->autharray = (PList_t *)PERM_CALLOC(sizeof(PList_t) * ace->expr_term_index);
+                                    if (!new_ace->autharray) {
+                                        nserrGenerate(errp, ACLERRNOMEM, ACLERR4040, ACL_Program, 1,
+                                            XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPointerArray));
+                                        goto error;
+                                    }
+                                }
+                                new_ace->autharray[i] = authplist;
+                            }
+                        }
+                    }
+                    break;
 
-	    case ACL_EXPR_TYPE_AUTH:
+                case ACL_EXPR_TYPE_AUTH:
 
-		/*  Allocate the running auth tables if none yet  */
-		if (!curauthplist) {
-		    curauthplist = PListNew(NULL);
-		    if (!curauthplist) {
-			nserrGenerate(errp, ACLERRNOMEM, ACLERR4050, ACL_Program, 1, XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPlist));
-			goto error;
-		    }
-		    absauthplist = PListNew(NULL);
-		    if (!absauthplist) {
-			nserrGenerate(errp, ACLERRNOMEM, ACLERR4050, ACL_Program, 1, XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPlist));
-			goto error;
-		    }
-		} else {  /* duplicate the existing auth table */
-		    curauthplist = PListDuplicate(curauthplist, NULL, 0);
-		    if (!curauthplist) {
-			nserrGenerate(errp, ACLERRNOMEM, ACLERR4050, ACL_Program, 1, XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPlist));
-			goto error;
-		    }
-		}
+                    /* Allocate the running auth tables if none yet  */
+                    if (!curauthplist) {
+                        curauthplist = PListNew(NULL);
+                        if (!curauthplist) {
+                            nserrGenerate(errp, ACLERRNOMEM, ACLERR4050, ACL_Program, 1,
+                                XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPlist));
+                            goto error;
+                        }
+                        absauthplist = PListNew(NULL);
+                        if (!absauthplist) {
+                            nserrGenerate(errp, ACLERRNOMEM, ACLERR4050, ACL_Program, 1,
+                                XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPlist));
+                            goto error;
+                        }
+                    } else {  /* duplicate the existing auth table */
+                        curauthplist = PListDuplicate(curauthplist, NULL, 0);
+                        if (!curauthplist) {
+                            nserrGenerate(errp, ACLERRNOMEM, ACLERR4050, ACL_Program, 1,
+                                XP_GetAdminStr(DBT_EvalBuildContextUnableToAllocAuthPlist));
+                            goto error;
+                        }
+                    }
 
-		/*  For each listed attribute  */
-                while (*argp)
-                {
-		    /*  skip any attributes that were absoluted  */
-		    if (PListFindValue(absauthplist, *argp, NULL, NULL) < 0)
-		    {
-			/*  Save pointer to the property list  */
-			PListInitProp(curauthplist, 0, *argp, ace->expr_auth,
-				      ace->expr_auth);
-                        if (IS_ABSOLUTE(ace->expr_flags))
-			    PListInitProp(absauthplist, 0, *argp, NULL,
-			    NULL);
-		    }
+                    /*  For each listed attribute  */
+                    while (*argp) {
+                        /*  skip any attributes that were absoluted  */
+                        if (PListFindValue(absauthplist, *argp, NULL, NULL) < 0){
+                            /*  Save pointer to the property list  */
+                            PListInitProp(curauthplist, 0, *argp, ace->expr_auth, ace->expr_auth);
+                            if (IS_ABSOLUTE(ace->expr_flags))
+                                PListInitProp(absauthplist, 0, *argp, NULL, NULL);
+                        }
+                        argp++;
+                    }
 
-                    argp++;
-		}
+                    break;
 
-		break;
+                case ACL_EXPR_TYPE_RESPONSE:
+                    (void) ACL_ExprGetDenyWith(NULL, ace, &cache->deny_type,
+                                    &cache->deny_response);
+                    break;
 
-	    case ACL_EXPR_TYPE_RESPONSE:
-		(void) ACL_ExprGetDenyWith(NULL, ace, &cache->deny_type,
-                                    &cache->deny_response); 
-		break;
+                default:
+                    PR_ASSERT(0);
 
-	    default:
-		PR_ASSERT(0);
-	    
-	    }	/*  switch expr_type  */
+            } /*  switch expr_type  */
 
-          new_ace->global_auth = curauthplist;
-          ace = ace->expr_next;        
-        }
+            new_ace->global_auth = curauthplist;
+            ace = ace->expr_next;
+        } /* while (ace) */
 
-	/*  Next ACL please    */
+        /*  Next ACL please  */
         wrapper = wrapper->wrap_next;        
     }
 
     if (absauthplist)
-	PListDestroy(absauthplist);
+        PListDestroy(absauthplist);
 
     /* This must be done last to avoid a race in initialization */
-    acleval->acllist->cache    = (void *)cache;
+    acleval->acllist->cache = (void *)cache;
 
     return 0;
 
 error:
     if (curauthplist)
-	PListDestroy(curauthplist);
+        PListDestroy(curauthplist);
     if (absauthplist)
-	PListDestroy(absauthplist);
+        PListDestroy(absauthplist);
     if (cache) {
         ACL_EvalDestroyContext(cache);
     }
     acleval->acllist->cache = NULL;
+
     return ACL_RES_ERROR;
 }
 
