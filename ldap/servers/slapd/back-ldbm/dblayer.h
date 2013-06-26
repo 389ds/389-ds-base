@@ -178,6 +178,7 @@ struct dblayer_private
     PRCondVar *thread_count_cv;     /* condition variable for housekeeping thread shutdown */
     int dblayer_lockdown;           /* use DB_LOCKDOWN */
     int dblayer_lock_config;
+    u_int32_t dblayer_deadlock_policy;    /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
 };
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300

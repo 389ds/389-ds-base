@@ -107,6 +107,9 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define BERLEN_T "u"
 #endif
 
+#define DEFINETOSTR(xxx) #xxx
+#define STRINGIFYDEFINE(xxx) DEFINETOSTR(xxx)
+
 /* Common check on berval before accessing the contents. */
 /* bv is a struct berval *bv */
 #define BV_HAS_DATA(bv) ((bv != NULL) && (bv->bv_len > 0) && (bv->bv_val != NULL))
