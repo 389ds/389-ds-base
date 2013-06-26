@@ -4295,6 +4295,7 @@ static int deadlock_threadmain(void *param)
     dblayer_private *priv = NULL;
     struct ldbminfo *li = NULL;
     PRIntervalTime    interval;   /*NSPR timeout stuffy*/
+    u_int32_t flags = 0;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo*)param;
@@ -4309,13 +4310,19 @@ static int deadlock_threadmain(void *param)
     {
         if (priv->dblayer_enable_transactions) 
         {
-            if (dblayer_db_uses_locking(priv->dblayer_env->dblayer_DB_ENV)) {
-                int aborted;
-                if ((rval = LOCK_DETECT(priv->dblayer_env->dblayer_DB_ENV,
-                                        0, DB_LOCK_YOUNGEST, &aborted)) != 0) {
+            DB_ENV *db_env = priv->dblayer_env->dblayer_DB_ENV;
+            u_int32_t deadlock_policy = priv->dblayer_deadlock_policy;
+
+            if (dblayer_db_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
+                int rejected = 0;
+
+                if ((rval = LOCK_DETECT(db_env, 0, deadlock_policy, &rejected)) != 0) {
                     LDAPDebug(LDAP_DEBUG_ANY,
-                      "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
-                      aborted, rval, dblayer_strerror(rval));
+                              "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
+                              rejected, rval, dblayer_strerror(rval));
+                } else if (rejected) {
+                    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "deadlock_threadmain: found and rejected %d lock requests\n", rejected);
+
                 }
             }
         }
