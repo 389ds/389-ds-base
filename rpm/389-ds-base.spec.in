@@ -19,6 +19,9 @@
 # systemd support
 %global groupname %{pkgname}.target
 
+# set PIE flag
+%global _hardened_build 1
+
 Summary:          389 Directory Server (base)
 Name:             389-ds-base
 Version:          __VERSION__
@@ -312,6 +315,101 @@ fi
 %{_libdir}/%{pkgname}/libslapd.so.*
 
 %changelog
+* Sat Jun 15 2013 Noriko Hosoi <nhosoi@redhat.com> - 1.3.1.2-1
+- bump version to 1.3.1.2
+- Ticket 47391 - deleting and adding userpassword fails to update the password
+- Coverity Fixes (Part 7)
+
+* Fri Jun 14 2013 Noriko Hosoi <nhosoi@redhat.com> - 1.3.1.1-1
+- bump version to 1.3.1.1
+- Ticket 402 - nhashed#user#password in entry extension
+- Ticket 511 - Revision - allow turning off vattr lookup in search entry return
+- Ticket 580 - Wrong error code return when using EXTERNAL SASL and no client certificate
+- Ticket 47327 - error syncing group if group member user is not synced
+- Ticket 47355 - dse.ldif doesn't replicate update to nsslapd-sasl-mapping-fallback
+- Ticket 47359 - new ldap connections can block ldaps and ldapi connections
+- Ticket 47362 - ipa upgrade selinuxusermap data not replicating
+- Ticket 47375 - flush_ber error sending back start_tls response will deadlock
+- Ticket 47376 - DESC should not be empty as per RFC 2252 (ldapv3)
+- Ticket 47377 - make listen backlog size configurable
+- Ticket 47378 - fix recent compiler warnings
+- Ticket 47383 - connections attribute in cn=snmp,cn=monitor is counted twice
+- Ticket 47385 - DS not shutting down when disk monitoring threshold is reached
+- Coverity Fixes (part 1)
+- Coverity Fixes (Part 2)
+- Coverity Fixes (Part 3)
+- Coverity Fixes (Part 4)
+- Coverity Fixes (Part 5)
+
+* Thu May 02 2013 Noriko Hosoi <nhosoi@redhat.com> - 1.3.1.0-1
+- bump version to 1.3.1.0
+- Ticket 332 - Command line perl scripts should attempt most secure connection type first
+- Ticket 342 - better error message when cache overflows
+- Ticket 417 - RFE - forcing passwordmustchange attribute by non-cn=directory manager
+- Ticket 419 - logconv.pl - improve memory management
+- Ticket 422 - 389-ds-base - Can't call method "getText"
+- Ticket 433 - multiple bugs in start-dirsrv, stop-dirsrv, restart-dirsrv scripts
+- Ticket 458 - RFE - Make it possible for privileges to be provided to an admin user to import an LDIF file containing hashed passwords
+- Ticket 471 - logconv.pl tool removes the access logs contents if "-M" is not correctly used
+- Ticket 487 - Possible to add invalid attribute values to PAM PTA plugin configuration
+- Ticket 502 - setup-ds.pl script should wait if "semanage.trans.LOCK" presen
+- Ticket 505 - use lock-free access name2asi and oid2asi tables (additional)
+- Ticket 508 - lock-free access to FrontendConfig structure
+- Ticket 511 - allow turning off vattr lookup in search entry return
+- Ticket 525 - Introducing a user visible configuration variable for controlling replication retry time
+- Ticket 528 - RFE - get rid of instance specific scripts
+- Ticket 529 - dn normalization must handle multiple space characters in attributes
+- Ticket 532 - RUV is not getting updated for both Master and consumer
+- Ticket 533 - only scan for attributes to decrypt if there are encrypted attrs configured
+- Ticket 534 - RFE: Add SASL mappings fallback
+- Ticket 537 - Improvement of range search
+- Ticket 539 - logconv.pl should handle microsecond timing
+- Ticket 543 - Sorting with attributes in ldapsearch gives incorrect result
+- Ticket 545 - Segfault during initial LDIF import: str2entry_dupcheck()
+- Ticket 547 - Incorrect assumption in ndn cache
+- Ticket 550 - posix winsync will not create memberuid values if group entry become posix group in the same sync interval
+- Ticket 551 - Multivalued rootdn-days-allowed in RootDN Access Control plugin always results in access control violation
+- Ticket 552 - Adding rootdn-open-time without rootdn-close-time to RootDN Acess Control results in inconsistent configuration
+- Ticket 558 - Replication - make timeout for protocol shutdown configurable
+- Ticket 561 - disable writing unhashed#user#password to changelog
+- Ticket 563 - DSCreate.pm: Error messages cannot be used in the if expression since they could be localized.
+- Ticket 565 - turbo mode and replication - allow disable of turbo mode
+- Ticket 571 - server does not accept 0 length LDAP Control sequence
+- Ticket 574 - problems with dbcachesize disk space calculation
+- Ticket 583 - dirsrv fails to start on reboot due to /var/run/dirsrv permissions
+- Ticket 585 - Behaviours of "db2ldif -a <filename>" and "db2ldif.pl -a <filename>" are inconsistent
+- Ticket 587 - Replication error messages in the DS error logs
+- Ticket 588 - Create MAN pages for command line scripts
+- Ticket 600 - Server should return unavailableCriticalExtension when processing a badly formed critical control
+- Ticket 603 - A logic error in str2simple
+- Ticket 604 - Required attribute not checked during search operation
+- Ticket 608 - Posix Winsync plugin throws "posix_winsync_end_update_cb: failed to add task entry" error message
+- Ticket 611 - logconv.pl missing stats for StartTLS, LDAPI, and AUTOBIND
+- Ticket 612 - improve dbgen rdn generation, output
+- Ticket 613 - ldclt: add timestamp, interval, nozeropad, other improvements
+- Ticket 616 - High contention on computed attribute lock
+- Ticket 618 - Crash at shutdown while stopping replica agreements
+- Ticket 620 - Better logging of error messages for 389-ds-base
+- Ticket 621 - modify operations without values need to be written to the changelog
+- Ticket 622 - DS logging errors "libdb: BDB0171 seek: 2147483648: (262144 * 8192) + 0: No such file or directory
+- Ticket 631 - Replication: "Incremental update started" status message without consumer initialized
+- Ticket 633 - allow nsslapd-nagle to be disabled, and also tcp cork
+- Ticket 47299 - allow cmdline scripts to work with non-root user
+- Ticket 47302 - get rid of sbindir start/stop/restart slapd scripts
+- Ticket 47303 - start/stop/restart dirsrv scripts should report and error if no instances
+- Ticket 47304 - reinitialization of a master with a disabled agreement hangs
+- Ticket 47311 - segfault in db2ldif(trigger by a cleanallruv task)
+- Ticket 47312 - replace PR_GetFileInfo with PR_GetFileInfo64
+- Ticket 47315 - filter option in fixup-memberof requires more clarification
+- Ticket 47325 - Crash at shutdown on a replica aggrement
+- Ticket 47330 - changelog db extension / upgrade is obsolete
+- Ticket 47336 - logconv.pl -m not working for all stats
+- Ticket 47341 - logconv.pl -m time calculation is wrong
+- Ticket 47343 - 389-ds-base: Does not support aarch64 in f19 and rawhide
+- Ticket 47347 - Simple paged results should support async search
+- Ticket 47348 - add etimes to per second/minute stats
+- Ticket 47349 - DS instance crashes under a high load
+
 * Thu Mar 28 2013 Noriko Hosoi <nhosoi@redhat.com> - 1.3.0.5-1
 - bump version to 1.3.0.5
 - Ticket 47308 - unintended information exposure when anonymous access is set to rootdse
@@ -493,7 +591,7 @@ Ticket 429 - added nsslapd-readonly to DS schema
 Ticket 403 - fix CLEANALLRUV regression from last commit
 Trac Ticket #346 - Slow ldapmodify operation time for large quantities of multi-valued attribute values
 
-* Tue Aug 15 2012 Mark Reynolds <mareynol@redhat.com> - 1.2.11.10-1
+* Wed Aug 15 2012 Mark Reynolds <mareynol@redhat.com> - 1.2.11.10-1
 db6b354 bumped version to 1.2.11.10
 Ticket 403 - CLEANALLRUV revisions
 
@@ -1175,7 +1273,7 @@ ions
 * Wed May 26 2010 Rich Megginson <rmeggins@redhat.com> - 1.2.6-0.4.a4
 - 1.2.6.a4 release
 
-* Tue Apr  7 2010 Nathan Kinder <nkinder@redhat.com> - 1.2.6-0.4.a3
+* Wed Apr  7 2010 Nathan Kinder <nkinder@redhat.com> - 1.2.6-0.4.a3
 - 1.2.6.a3 release
 - add managed entries plug-in
 - many bug fixes
@@ -1184,7 +1282,7 @@ ions
 * Fri Apr  2 2010 Caolán McNamara <caolanm@redhat.com> - 1.2.6-0.3.a2
 - rebuild for icu 4.4
 
-* Mon Mar  2 2010 Rich Megginson <rmeggins@redhat.com> - 1.2.6-0.2.a2
+* Tue Mar  2 2010 Rich Megginson <rmeggins@redhat.com> - 1.2.6-0.2.a2
 - 1.2.6.a2 release
 - add support for matching rules
 - many bug fixes
@@ -1199,7 +1297,7 @@ ions
 * Mon Jan  4 2010 Rich Megginson <rmeggins@redhat.com> - 1.2.5-0.5.rc4
 - 1.2.5.rc4 release
 
-* Mon Dec 17 2009 Rich Megginson <rmeggins@redhat.com> - 1.2.5-0.4.rc3
+* Thu Dec 17 2009 Rich Megginson <rmeggins@redhat.com> - 1.2.5-0.4.rc3
 - 1.2.5.rc3 release
 
 * Mon Dec  7 2009 Rich Megginson <rmeggins@redhat.com> - 1.2.5-0.3.rc2
@@ -1271,7 +1369,7 @@ ions
 - only create run dir if it does not exist
 - CVS tag: FedoraDirSvr_1_2_0_RC1 FedoraDirSvr_1_2_0_RC1_20090330
 
-* Mon Oct 30 2008 Noriko Hosoi <nhosoi@redhat.com> - 1.1.3-7
+* Thu Oct 30 2008 Noriko Hosoi <nhosoi@redhat.com> - 1.1.3-7
 - added db4-utils to Requires for verify-db.pl
 
 * Mon Oct 13 2008 Noriko Hosoi <nhosoi@redhat.com> - 1.1.3-6
