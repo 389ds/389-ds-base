@@ -380,6 +380,7 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 	DB_TXN *txn = NULL;
 	DBC *cursor = NULL;
 	int rc = 0;
+	int tries = 0;
 
 #if 0 /* txn control seems not improving anything so turn it off */
 	if ( *(_pool->pl_dbenv) ) {
@@ -401,6 +402,7 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 	}
 
 	PR_Lock ( buf->buf_busy_list->bl_lock );
+retry:
 	if ( 0 == ( rc = clcache_open_cursor ( txn, buf, &cursor )) ) {
 
 		if ( flag == DB_NEXT ) {
@@ -422,10 +424,26 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 
 	/*
 	 * Don't keep a cursor open across the whole replication session.
-	 * That had caused noticable DB resource contention.
+	 * That had caused noticeable DB resource contention.
 	 */
 	if ( cursor ) {
 		cursor->c_close ( cursor );
+		cursor = NULL;
+	}
+	if ((rc == DB_LOCK_DEADLOCK) && (tries < MAX_TRIALS)) {
+		PRIntervalTime interval;
+
+		tries++;
+		slapi_log_error ( SLAPI_LOG_TRACE, "clcache_load_buffer_bulk",
+		                  "deadlock number [%d] - retrying\n", tries );
+		/* back off */
+		interval = PR_MillisecondsToInterval(slapi_rand() % 100);
+		DS_Sleep(interval);
+		goto retry;
+	}
+	if ((rc == DB_LOCK_DEADLOCK) && (tries >= MAX_TRIALS)) {
+		slapi_log_error ( SLAPI_LOG_REPL, "clcache_load_buffer_bulk",
+		                  "could not load buffer from changelog after %d tries\n", tries );
 	}
 
 #if 0 /* txn control seems not improving anything so turn it off */
