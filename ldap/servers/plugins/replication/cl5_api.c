@@ -67,7 +67,6 @@
 
 #define GUARDIAN_FILE		"guardian"		/* name of the guardian file */
 #define VERSION_FILE		"DBVERSION"		/* name of the version file  */
-#define MAX_TRIALS			50				/* number of retries on db operations */
 #define V_5					5				/* changelog entry version */
 #define CHUNK_SIZE			64*1024
 #define DBID_SIZE			64
