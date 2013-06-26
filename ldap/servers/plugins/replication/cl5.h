@@ -73,4 +73,6 @@ void changelog5_config_done (changelog5Config *config);
 /* frees the content and the config structure */
 void changelog5_config_free (changelog5Config **config);
 
+#define MAX_TRIALS			50				/* number of retries on db operations */
+
 #endif
