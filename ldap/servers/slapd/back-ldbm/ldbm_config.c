@@ -1348,6 +1348,40 @@ static int ldbm_config_db_tx_max_set(
     return retval;
 }
 
+static void *ldbm_config_db_deadlock_policy_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+
+    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_deadlock_policy);
+}
+
+static int ldbm_config_db_deadlock_policy_set(void *arg, void *value, char *errorbuf, int phase, int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    u_int32_t val = (u_int32_t) ((uintptr_t)value);
+
+    if ((val < DB_LOCK_NORUN) || (val > DB_LOCK_YOUNGEST)) {
+	    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+	                "Error: Invalid value for %s (%d). Must be between %d and %d inclusive",
+	                CONFIG_DB_DEADLOCK_POLICY, val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
+	    LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", errorbuf);
+	    return LDAP_UNWILLING_TO_PERFORM;
+    }
+    if (val == DB_LOCK_NORUN) {
+	    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+	                "Warning: Setting value for %s to (%d) will disable deadlock detection",
+	                CONFIG_DB_DEADLOCK_POLICY, val);
+	    LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", errorbuf);
+    }
+
+    if (apply) {
+        li->li_dblayer_private->dblayer_deadlock_policy = val;
+    }
+
+    return retval;
+}
+
 
 /*------------------------------------------------------------------------
  * Configuration array for ldbm and dblayer variables
@@ -1410,6 +1444,7 @@ static config_info ldbm_config[] = {
     {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BACKEND_OPT_LEVEL, CONFIG_TYPE_INT, "0", &ldbm_config_backend_opt_level_get, &ldbm_config_backend_opt_level_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_DB_DEADLOCK_POLICY, CONFIG_TYPE_INT, STRINGIFYDEFINE(DB_LOCK_YOUNGEST), &ldbm_config_db_deadlock_policy_get, &ldbm_config_db_deadlock_policy_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 

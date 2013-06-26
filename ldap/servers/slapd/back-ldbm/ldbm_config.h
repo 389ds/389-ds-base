@@ -162,6 +162,8 @@ struct config_info {
 
 #define CONFIG_USE_LEGACY_ERRORCODE     "nsslapd-do-not-use-vlv-error"
 
+#define CONFIG_DB_DEADLOCK_POLICY	"nsslapd-db-deadlock-policy"
+
 #define CONFIG_LDBM_DN "cn=config,cn=ldbm database,cn=plugins,cn=config"
 
 #define LDBM_INSTANCE_CONFIG_DONT_WRITE 1
