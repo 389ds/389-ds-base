@@ -933,6 +933,7 @@ int aclutil_str_append_ext(char **dest, size_t *dlen, const char *src, size_t sl
 
 /* acl hash table functions */
 void acl_ht_add_and_freeOld(acl_ht_t * acl_ht, PLHashNumber key,char *value);
+void acl_ht_remove_and_free(acl_ht_t * acl_ht, PLHashNumber key);
 acl_ht_t *acl_ht_new(void);
 void acl_ht_free_all_entries_and_values( acl_ht_t *acl_ht);
 void acl_ht_remove( acl_ht_t *acl_ht, PLHashNumber key);
