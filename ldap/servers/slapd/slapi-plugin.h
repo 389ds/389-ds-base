@@ -7495,6 +7495,16 @@ int slapi_eq_cancel(Slapi_Eq_Context ctx);
  */
 void *slapi_eq_get_arg (Slapi_Eq_Context ctx);
 
+/**
+ * Construct a full path and name of a plugin.
+ *
+ * \param dir The Directory where the plugin is located.
+ * \param name The name of the plugin.
+ *
+ * \return absolute path of the plugin.  Caller is responsible to free it.
+ */
+char *slapi_get_plugin_name(const char *dir, const char *name);
+
 #ifdef __cplusplus
 }
 #endif

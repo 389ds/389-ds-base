@@ -1395,3 +1395,42 @@ slapi_str_to_u64(const char *s)
 		(v6 << 36) | (v7 << 32) | (v8 << 28) | (v9 << 24) | (v10 << 20) | (v11 << 16) |
 		(v12 << 12) | (v13 << 8) | (v14 << 4) | v15;
 }
+
+/* PR_GetLibraryName does almost everything we need, and unfortunately
+   a little bit more - it adds "lib" to be beginning of the library
+   name if the library name does not end with the current platform
+   DLL suffix - so
+   foo.so -> /path/foo.so
+   libfoo.so -> /path/libfoo.so
+   BUT
+   foo -> /path/libfoo.so
+   libfoo -> /path/liblibfoo.so
+   /path/libfoo -> lib/path/libfoo.so
+*/
+char *
+slapi_get_plugin_name(const char *path, const char *lib)
+{
+    const char *libstr = "/lib";
+    size_t libstrlen = 4;
+    char *fullname = PR_GetLibraryName(path, lib);
+    char *ptr = PL_strrstr(fullname, lib);
+
+    /* see if /lib was added */
+    if (ptr && ((ptr - fullname) >= libstrlen)) {
+        /* ptr is at the libname in fullname, and there is something before it */
+        ptr -= libstrlen; /* ptr now points at the "/" in "/lib" if it is there */
+        if (0 == PL_strncmp(ptr, libstr, libstrlen)) {
+            /* just copy the remainder of the string on top of here */
+            ptr++; /* ptr now points at the "l" in "/lib" - keep the "/" */
+            memmove(ptr, ptr+3, strlen(ptr+3)+1);
+        }
+    } else if ((NULL == path) && (0 == strncmp(fullname, "lib", 3))) {
+        /* 
+         * case: /path/libfoo -> lib/path/libfoo.so
+         * remove "lib".
+         */
+        memmove(fullname, fullname+3, strlen(fullname)-2);
+    }
+
+    return fullname;
+}

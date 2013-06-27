@@ -1551,6 +1551,8 @@ static const char *easter_egg_photos[NUM_EASTER_EGG_PHOTOS + 1];
 
 static struct dse *pfedse= NULL;
 
+static int check_plugin_path(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
+
 static void
 internal_add_helper(Slapi_Entry *e, int dont_write_file)
 {
@@ -1786,6 +1788,7 @@ setup_internal_backends(char *configdir)
 		Slapi_Backend *be;
 		Slapi_DN encryption;
 		Slapi_DN saslmapping;
+		Slapi_DN plugins;
 
 		slapi_sdn_init_ndn_byref(&monitor,"cn=monitor");
 		slapi_sdn_init_ndn_byref(&counters,"cn=counters,cn=monitor");
@@ -1794,6 +1797,7 @@ setup_internal_backends(char *configdir)
 
 		slapi_sdn_init_ndn_byref(&encryption,"cn=encryption,cn=config");
 		slapi_sdn_init_ndn_byref(&saslmapping,"cn=mapping,cn=sasl,cn=config");
+		slapi_sdn_init_ndn_byref(&plugins,"cn=plugins,cn=config");
 
 		/* Search */
 		dse_register_callback(pfedse,SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",read_config_dse,NULL);
@@ -1809,6 +1813,7 @@ setup_internal_backends(char *configdir)
 		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_POSTOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",postop_modify_config_dse,NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",modify_root_dse,NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&saslmapping,LDAP_SCOPE_SUBTREE,"(objectclass=nsSaslMapping)",sasl_map_config_modify,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&plugins,LDAP_SCOPE_SUBTREE,"(objectclass=nsSlapdPlugin)",check_plugin_path,NULL);
 		
 		/* Delete */
 		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
@@ -1839,6 +1844,7 @@ setup_internal_backends(char *configdir)
 		slapi_sdn_done(&snmp);
 		slapi_sdn_done(&root);
 		slapi_sdn_done(&saslmapping);
+		slapi_sdn_done(&plugins);
 	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "dse",
 				"Please edit the file to correct the reported problems"
@@ -1900,6 +1906,50 @@ int fedse_create_startOK(char *filename,  char *startokfilename, const char *con
         slapi_ch_free_string(&dse_filestartOK);
         slapi_ch_free_string(&realconfigdir);
     }
+
+    return rc;
+}
+
+static int
+check_plugin_path(Slapi_PBlock *pb,
+                  Slapi_Entry* entryBefore,
+                  Slapi_Entry* e,
+                  int *returncode,
+                  char *returntext,
+                  void *arg)
+{
+    /* check for invalid nsslapd-pluginPath */
+    char **vals = slapi_entry_attr_get_charray (e, ATTR_PLUGIN_PATH);
+    int plugindir_len = sizeof(PLUGINDIR)-1;
+    int j = 0;
+    int rc = SLAPI_DSE_CALLBACK_OK;
+    for (j = 0; vals && vals[j]; j++) {
+        char *full_path = NULL;
+        char *resolved_path = NULL;
+        char *res = NULL;
+ 
+        if ( *vals[j] == '/' ) { /* absolute path */
+            full_path = slapi_get_plugin_name(NULL, vals[j]);
+        } else {                 /* relative path */
+            full_path = slapi_get_plugin_name(PLUGINDIR, vals[j]);
+        }
+        resolved_path = slapi_ch_malloc(strlen(full_path) + 1);
+        res = realpath( full_path, resolved_path );
+        if (res) {
+            if (strncmp(PLUGINDIR, resolved_path, plugindir_len) != 0) {
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                returntext = "Invalid plugin path";
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else {
+            *returncode = LDAP_UNWILLING_TO_PERFORM;
+            returntext = "Invalid plugin path";
+            rc = SLAPI_DSE_CALLBACK_ERROR;
+        }
+        slapi_ch_free_string(&full_path);
+        slapi_ch_free_string(&resolved_path);
+    }
+    slapi_ch_array_free(vals);
 
     return rc;
 }
