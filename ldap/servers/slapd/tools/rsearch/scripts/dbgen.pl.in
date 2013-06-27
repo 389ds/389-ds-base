@@ -55,6 +55,7 @@
 ##	Now, dc style namingcontext can be used.	
 #------------------------------------------------------------------------
 
+use Getopt::Long;
 
 sub PrintUsage {
     print STDERR 
@@ -68,8 +69,7 @@ sub PrintUsage {
 	"\t -m naming attribute for RDN\n",
 	"\t -n number of entries to generate\n",
 	"\t -b beginning number for RDN (default 1 - ending number is -n value)\n",
-	"\t -O for organizationalPersons, default is inetOrgPerson\n",
-	"\t -p for piranha style aci's, default is barracuda\n",
+	"\t -p for organizationalPersons, default is inetOrgPerson\n",
 	"\t -r seed---seed number for random number generator\n",
 	"\t -g print extra entries for orgchart\n",
 	"\t -x suppress printing pre amble\n",
@@ -533,30 +533,61 @@ my $mycert =
 );
 @managers = (\%m0, \%m1, \%m2, \%m3, \%m4, \%m5, \%m6, \%m7, \%m8, \%m9, \%m10, \%m11, \%m12, \%m13, \%m14, \%m15, \%m16, \%m17);
 
-require "flush.pl";
-require "getopts.pl";
-&Getopts('n:o:s:r:cOvpqgxyl:z:m:b:j:');
+sub flush {
+    local($old) = select(shift);
+    $| = 1;
+    print "";
+    $| = 0;
+    select($old);
+}
 
-$Number_To_Generate = $opt_n;
-$Verbose = $opt_v;
-$Quiet = $opt_q;
-$Output_File_Name = $opt_o;
-$Random_Seed = $opt_r || 0xdbdbdbdb;
-$TargetServer = $opt_t;
-$debug = $opt_d;
-$Suffix = $opt_s || 'dc=example,dc=com';
+my $Number_To_Generate = 1;
+$Output_File_Name = "output.ldif";
+$Random_Seed = 1;
+$Suffix = 'dc=example,dc=com';
+$NamingType = "uid";
+$inetOrgPerson = "objectClass: inetOrgPerson\n";
+$PrintOrgChartDat = 0;
+$DataDir = "/usr/share/dirsrv/data";
+$BeginNum = 0;
+
+$Verbose = 0;
+$debug = 0;
+$Quiet = 0;
+
+$opt_x = 0;
+$opt_y = 0;
+$opt_z = "";
+
+GetOptions('number=i' => \$Number_To_Generate,
+           'output=s' => \$Output_File_Name,
+           'random=i' => \$Random_Seed,
+           'suffix=s' => \$Suffix,
+           'cnInDn' => \$opt_c,
+           'moreChoices=s' => \$opt_m,
+           'person' => \$opt_p,
+           'graph' => \$PrintOrgChartDat,
+           'location=s' => \$DataDir,
+           'beginNum=i' => \$BeginNum,
+           'x' => \$opt_x,
+           'y' => \$opt_y,
+           'z' => \$opt_z,
+           'j' => \$opt_j,
+           'verbose' => \$Verbose,
+           'debug' => \$debug,
+           'quiet' => \$Quiet,
+           );
+
+$Random_Seed = $Random_Seed || 0xdbdbdbdb; 
 $NamingType = "cn" if ($opt_c);
-$NamingType = "uid" if (!$opt_c);
 $NamingType = $opt_m if ($opt_m);
-$inetOrgPerson = "objectClass: inetOrgPerson\n" if (!$opt_O);
-$PrintOrgChartDat = $opt_g;
-$DataDir = $opt_l || "@templatedir@";
+$inetOrgPerson = "" if ($opt_p);
+
 $ExtraObjClasses = "";
 if ($opt_z) {
     $ExtraObjClasses = join "\n", map { "objectClass: $_" } split(/ /, $opt_z);
     $ExtraObjClasses .= "\n";
 }
-$BeginNum = $opt_b || 0;
 $printpreamble = 1;
 if ("" != $opt_x)
 {
