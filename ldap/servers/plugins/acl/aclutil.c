@@ -1397,6 +1397,17 @@ void acl_ht_add_and_freeOld(acl_ht_t * acl_ht,
 	PL_HashTableAdd( acl_ht, (const void *)pkey, value);
 }
 
+void acl_ht_remove_and_free(acl_ht_t * acl_ht,
+					PLHashNumber key){
+	char *old_value = NULL;	
+	uintptr_t pkey = (uintptr_t)key;
+
+	if ( (old_value = (char *)acl_ht_lookup( acl_ht, key)) != NULL ) {
+		acl_ht_remove( acl_ht, key);
+		slapi_ch_free_string(&old_value);
+	}
+}
+
 /*
  * Return a new acl_ht_t *
 */
