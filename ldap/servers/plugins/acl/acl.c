@@ -2137,7 +2137,11 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			 * calculated from the targetdn and stored judiciously there
 			 */
 			matched_val = (char *)acl_ht_lookup( aclpb->aclpb_macro_ht,
-										(PLHashNumber)aci->aci_index);
+								(PLHashNumber)aci->aci_index);
+		} else {
+			/* new entry, remove macro evaluation from hash table */
+			acl_ht_remove_and_free( aclpb->aclpb_macro_ht,
+							(PLHashNumber)aci->aci_index);
 		}
 		if ( matched_val == NULL &&
 			(aclpb->aclpb_res_type & (ACLPB_NEW_ENTRY | ACLPB_EFFECTIVE_RIGHTS))) {
