@@ -1037,8 +1037,11 @@ vattr_test_filter_list(
 	for ( f = flist; f != NULL; f = f->f_next ) {
 		if ( slapi_vattr_filter_test_ext_internal( pb, e, f, verify_access, only_check_access, access_check_done ) != 0 ) {
 			/* optimize AND evaluation */
-			if ( ftype == LDAP_FILTER_AND ) {
-				/* one false is failure */
+			if ( ftype == LDAP_FILTER_AND || verify_access) {
+				/* one false is failure
+				 * for AND all components need to match 
+				 * and for AND and OR access to ALL filter attributes is required
+				 */
 				nomatch = 1;
 				break;
 			}
@@ -1046,8 +1049,11 @@ vattr_test_filter_list(
 			nomatch = 0;
 
 			/* optimize OR evaluation too */
-			if ( ftype == LDAP_FILTER_OR ) {
-				/* only one needs to be true */
+			if ( ftype == LDAP_FILTER_OR && !verify_access) {
+				/* access to all atributes needs to be evaluated
+				 * for filter matching
+				 * only one needs to be true 
+				 */
 				break;
 			}
 		}
