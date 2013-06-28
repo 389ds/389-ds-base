@@ -159,7 +159,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	 * operations that the URP code in the Replication
 	 * plugin generates.
 	 */
-	if(SERIALLOCK(li) && !is_fixup_operation)
+	if(SERIALLOCK(li) && (!is_fixup_operation || is_ruv))
 	{
 		dblayer_lock_backend(be);
 		dblock_acquired= 1;
