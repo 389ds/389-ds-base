@@ -416,7 +416,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		/* stash the transaction */
 		slapi_pblock_set(pb, SLAPI_TXN, txn.back_txn_txn);
 	}
-	if(SERIALLOCK(li) && !operation_is_flag_set(operation,OP_FLAG_REPL_FIXUP)) {
+	if(SERIALLOCK(li) && (!is_fixup_operation || is_ruv)) {
 		dblayer_lock_backend(be);
 		dblock_acquired= 1;
 	}
@@ -429,8 +429,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 	}
 
-	if ( !is_fixup_operation )
-	{
+	if (!is_fixup_operation) {
+		if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+			ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
+			ldap_result_message = "Operation not allowed on tombstone entry.";
+			slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modify",
+			    "Attempt to modify a tombstone entry %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
+			goto error_return;
+		}
 		opcsn = operation_get_csn (operation);
 		if (NULL == opcsn && operation->o_csngen_handler)
 		{
