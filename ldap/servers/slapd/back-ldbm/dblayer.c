@@ -4289,7 +4289,7 @@ static int deadlock_threadmain(void *param)
             if (dblayer_db_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
                 int rejected = 0;
 
-                if ((rval = LOCK_DETECT(db_env, 0, deadlock_policy, &rejected)) != 0) {
+                if ((rval = LOCK_DETECT(db_env, flags, deadlock_policy, &rejected)) != 0) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                               "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
                               rejected, rval, dblayer_strerror(rval));
