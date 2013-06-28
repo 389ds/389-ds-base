@@ -88,6 +88,7 @@ typedef struct _role_object_nested {
 /* Role object structure */
 typedef struct _role_object {
     Slapi_DN *dn;	/* dn of a role entry */
+    Slapi_DN *rolescopedn; /* if set, this role will apply to any entry in the scope of this dn */
     int type;		/* ROLE_TYPE_MANAGED|ROLE_TYPE_FILTERED|ROLE_TYPE_NESTED */
     Slapi_Filter *filter; /* if ROLE_TYPE_FILTERED */
     Avlnode *avl_tree; /* if ROLE_TYPE_NESTED: tree of nested DNs (avl_data is a role_object_nested struct) */
@@ -181,7 +182,7 @@ static int roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, c
 static int roles_check_managed(Slapi_Entry *entry_to_check, role_object *role, int *present);
 static int roles_check_filtered(vattr_context *c, Slapi_Entry *entry_to_check, role_object *role, int *present);
 static int roles_check_nested(caddr_t data, caddr_t arg);
-static int roles_is_inscope(Slapi_Entry *entry_to_check, Slapi_DN *role_dn);
+static int roles_is_inscope(Slapi_Entry *entry_to_check,  role_object *this_role);
 static void berval_set_string(struct berval *bv, const char* string);
 static void roles_cache_role_def_delete(roles_cache_def *role_def);
 static void roles_cache_role_def_free(roles_cache_def *role_def);
@@ -1110,6 +1111,7 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 	int rc = 0;
 	int type = 0;
 	role_object *this_role = NULL;
+        char *rolescopeDN = NULL;
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, 
 					"--> roles_cache_create_object_from_entry\n");
@@ -1164,6 +1166,41 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 
 	this_role->dn = slapi_sdn_new();
 	slapi_sdn_copy(slapi_entry_get_sdn(role_entry),this_role->dn);
+        
+        rolescopeDN = slapi_entry_attr_get_charptr(role_entry, ROLE_SCOPE_DN);
+        if (rolescopeDN) {
+                Slapi_DN *rolescopeSDN;
+                Slapi_DN *top_rolescopeSDN, *top_this_roleSDN;
+
+                /* Before accepting to use this scope, first check if it belongs to the same suffix */
+                rolescopeSDN = slapi_sdn_new_dn_byref(rolescopeDN);
+                if ((strlen((char *) slapi_sdn_get_ndn(rolescopeSDN)) > 0) && 
+                        (slapi_dn_syntax_check(NULL, (char *) slapi_sdn_get_ndn(rolescopeSDN), 1) == 0)) {
+                        top_rolescopeSDN = roles_cache_get_top_suffix(rolescopeSDN);
+                        top_this_roleSDN = roles_cache_get_top_suffix(this_role->dn);
+                        if (slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
+                                /* rolescopeDN belongs to the same suffix as the role, we can use this scope */
+                                this_role->rolescopedn = rolescopeSDN;
+                        } else {
+                                slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+                                        "%s: invalid %s - %s not in the same suffix. Scope skipped.\n",
+                                        (char*) slapi_sdn_get_dn(this_role->dn),
+                                        ROLE_SCOPE_DN,
+                                        rolescopeDN);
+                                slapi_sdn_free(&rolescopeSDN);
+                        }
+                        slapi_sdn_free(&top_rolescopeSDN);
+                        slapi_sdn_free(&top_this_roleSDN);
+                } else {
+                        /* this is an invalid DN, just ignore this parameter*/
+                        slapi_log_error(SLAPI_LOG_FATAL, ROLES_PLUGIN_SUBSYSTEM,
+                                "%s: invalid %s - %s not a valid DN. Scope skipped.\n",
+                                (char*) slapi_sdn_get_dn(this_role->dn),
+                                ROLE_SCOPE_DN,
+                                rolescopeDN);
+                        slapi_sdn_free(&rolescopeSDN);
+                }
+        }
 
     /* Depending upon role type, pull out the remaining information we need */
 	switch (this_role->type)
@@ -1776,7 +1813,7 @@ static int roles_is_entry_member_of_object_ext(vattr_context *c, caddr_t data, c
 		goto done;
 	}
 
-    if (!roles_is_inscope(entry_to_check, this_role->dn)) 
+    if (!roles_is_inscope(entry_to_check, this_role)) 
 	{
 		slapi_log_error(SLAPI_LOG_PLUGIN, 
 						ROLES_PLUGIN_SUBSYSTEM, "roles_is_entry_member_of_object-> entry not in scope of role\n");
@@ -1955,7 +1992,7 @@ static int roles_check_nested(caddr_t data, caddr_t arg)
 			return rc;
 		}
 		/* get the role_object data associated to that dn */
-        if ( roles_is_inscope(get_nsrole->is_entry_member_of, this_role->dn) ) 
+        if ( roles_is_inscope(get_nsrole->is_entry_member_of, this_role) ) 
 		{
 			/* The list of nested roles is contained in the role definition */
 			roles_is_entry_member_of_object((caddr_t)this_role, (caddr_t)get_nsrole);
@@ -1974,17 +2011,23 @@ static int roles_check_nested(caddr_t data, caddr_t arg)
    ----------------------
    Tells us if a presented role is in scope with respect to the presented entry
  */
-static int roles_is_inscope(Slapi_Entry *entry_to_check, Slapi_DN *role_dn)
+static int roles_is_inscope(Slapi_Entry *entry_to_check, role_object *this_role)
 {
 	int rc;
 
-	Slapi_DN role_parent;
+        Slapi_DN role_parent;
+        Slapi_DN *scope_dn = NULL;
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "--> roles_is_inscope\n");
 
+        if (this_role->rolescopedn) {
+                scope_dn = this_role->rolescopedn;
+        } else {
+                scope_dn = this_role->dn;
+        }
 	slapi_sdn_init(&role_parent);
-	slapi_sdn_get_parent(role_dn,&role_parent);
+	slapi_sdn_get_parent(scope_dn,&role_parent);
 
 	rc = slapi_sdn_scope_test(slapi_entry_get_sdn( entry_to_check ), 
 								&role_parent, 
@@ -2000,7 +2043,7 @@ static int roles_is_inscope(Slapi_Entry *entry_to_check, Slapi_DN *role_dn)
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "<-- roles_is_inscope: entry %s role %s result %d\n",
-					slapi_entry_get_dn_const(entry_to_check),(char*)slapi_sdn_get_ndn(role_dn), rc);
+					slapi_entry_get_dn_const(entry_to_check),(char*)slapi_sdn_get_ndn(scope_dn), rc);
 
     return (rc);
 }
@@ -2127,6 +2170,7 @@ static void roles_cache_role_object_free(role_object *this_role)
 	}
 
 	slapi_sdn_free(&this_role->dn);
+        slapi_sdn_free(&this_role->rolescopedn);
 
 	/* Free the object */
 	slapi_ch_free((void**)&this_role);
