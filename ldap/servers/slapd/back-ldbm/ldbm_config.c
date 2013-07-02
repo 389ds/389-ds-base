@@ -1407,7 +1407,7 @@ static int ldbm_config_db_deadlock_policy_set(void *arg, void *value, char *erro
     int retval = LDAP_SUCCESS;
     u_int32_t val = (u_int32_t) ((uintptr_t)value);
 
-    if ((val < DB_LOCK_NORUN) || (val > DB_LOCK_YOUNGEST)) {
+    if (val > DB_LOCK_YOUNGEST) {
 	    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	                "Error: Invalid value for %s (%d). Must be between %d and %d inclusive",
 	                CONFIG_DB_DEADLOCK_POLICY, val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
