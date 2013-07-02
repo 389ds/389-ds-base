@@ -86,7 +86,7 @@ sub runinst {
 
     my $ldifdir = $config_entry->{"nsslapd-ldifdir"}[0];
     my $instancedir = $config_entry->{"nsslapd-instancedir"}[0];
-    my ($slapd, $serverID) = split(/-/, $instancedir);
+    my ($slapd, $serverID) = split(/-/, $instancedir, 2);
     my $upgradednformat = "@sbindir@/upgradednformat -Z $serverID";
     my $reindex = "@sbindir@/db2index -Z $serverID";
 
