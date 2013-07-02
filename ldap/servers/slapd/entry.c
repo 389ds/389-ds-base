@@ -3450,7 +3450,6 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                 rc = 0;
                 break;
             }
-            ((LDAPMod *)mod)->mod_op = LDAP_MOD_IGNORE; /* we don't need it any more */
         }
     }
 bail:
