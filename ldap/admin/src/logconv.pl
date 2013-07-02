@@ -673,7 +673,7 @@ if ($verb eq "yes" || $usage =~ /u/){
 
 		my $notesCount = "1";
 		my $unindexedIp;
-		for (my $n = 0; $n <= scalar(@{$notesEtime}); $n++){
+		for (my $n = 0; $n < scalar(@{$notesEtime}); $n++){
 			if($conn_hash->{$notesConn->[$n]} eq ""){
 				$unindexedIp = "?";
 			} else {
@@ -726,7 +726,7 @@ if ($verb eq "yes" || $usage =~ /u/){
 
 		my $notesCount = "1";
 		my $unindexedIp;
-		for (my $n = 0; $n <= scalar(@{$notesEtime}); $n++){
+		for (my $n = 0; $n < scalar(@{$notesEtime}); $n++){
 			if($conn_hash->{$notesConn->[$n]} eq ""){
 				$unindexedIp = "?";
 			} else {
@@ -1821,7 +1821,7 @@ sub parseLineNormal
 		        $con = $1;
 		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
 		}
-		for (my $i=0; $i <= $vlvCount;$i++){
+		for (my $i=0; $i < $vlvCount;$i++){
 		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesACount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
@@ -1846,7 +1846,7 @@ sub parseLineNormal
 		        $con = $1;
 		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
 		}
-		for (my $i=0; $i <= $vlvCount;$i++){
+		for (my $i=0; $i < $vlvCount;$i++){
 		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesUCount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
