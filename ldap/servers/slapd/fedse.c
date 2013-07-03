@@ -1814,7 +1814,7 @@ setup_internal_backends(char *configdir)
 		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&root,LDAP_SCOPE_BASE,"(objectclass=*)",modify_root_dse,NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&saslmapping,LDAP_SCOPE_SUBTREE,"(objectclass=nsSaslMapping)",sasl_map_config_modify,NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,&plugins,LDAP_SCOPE_SUBTREE,"(objectclass=nsSlapdPlugin)",check_plugin_path,NULL);
-		
+
 		/* Delete */
 		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&config,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
 		dse_register_callback(pfedse,SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,&monitor,LDAP_SCOPE_BASE,"(objectclass=*)",dont_allow_that,NULL);
@@ -1829,6 +1829,7 @@ setup_internal_backends(char *configdir)
 
 		/* Add */
 		dse_register_callback(pfedse,SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,&saslmapping,LDAP_SCOPE_SUBTREE,"(objectclass=nsSaslMapping)",sasl_map_config_add,NULL);
+		dse_register_callback(pfedse,SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,&plugins,LDAP_SCOPE_SUBTREE,"(objectclass=nsSlapdPlugin)",check_plugin_path,NULL);
 
 		be = be_new_internal(pfedse, "DSE", DSE_BACKEND);
 		be_addsuffix(be,&root);
@@ -1923,6 +1924,11 @@ check_plugin_path(Slapi_PBlock *pb,
     int plugindir_len = sizeof(PLUGINDIR)-1;
     int j = 0;
     int rc = SLAPI_DSE_CALLBACK_OK;
+
+    if (NULL == vals) {
+        /* ADD case, entryBefore is used for the new entry */
+        vals = slapi_entry_attr_get_charray (entryBefore, ATTR_PLUGIN_PATH);
+    }
     for (j = 0; vals && vals[j]; j++) {
         char *full_path = NULL;
         char *resolved_path = NULL;
