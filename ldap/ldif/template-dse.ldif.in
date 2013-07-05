@@ -630,9 +630,8 @@ nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-pluginarg0: uid
 nsslapd-pluginarg1: mail
-nsslapd-pluginarg2: userpassword
-nsslapd-pluginarg3: ,
-nsslapd-pluginarg4: %ds_suffix%
+nsslapd-pluginarg2: ,
+nsslapd-pluginarg3: %ds_suffix%
 nsslapd-plugin-depends-on-type: database
 
 dn: cn=Account Usability Plugin,cn=plugins,cn=config
