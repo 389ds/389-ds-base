@@ -309,6 +309,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 goto error_return;
             }
 
+	    if (ruv_c_init) {
+		/* reset the ruv txn stuff */
+		modify_term(&ruv_c, be);
+		ruv_c_init = 0;
+	    }
             /* We're re-trying */
             LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
                            "Modrdn Retrying Transaction\n");
@@ -846,19 +851,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 /* JCM - A subtree move could break ACIs, static groups, and dynamic groups. */
             }
         
-	    if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
-                ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
-                if (-1 == ruv_c_init) {
-                    LDAPDebug( LDAP_DEBUG_ANY,
-                        "ldbm_back_modrdn: ldbm_txn_ruv_modify_context "
-                        "failed to construct RUV modify context\n",
-                        0, 0, 0);
-                    ldap_result_code = LDAP_OPERATIONS_ERROR;
-                    retval = 0;
-                    goto error_return;
-                }
-            }
-        
             /*
              * make copies of the originals, no need to copy the mods because
              * we have already copied them
@@ -1063,6 +1055,19 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 disk_full = 1;
             MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
             goto error_return;
+        }
+
+	if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
+            ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+            if (-1 == ruv_c_init) {
+                LDAPDebug( LDAP_DEBUG_ANY,
+                    "ldbm_back_modrdn: ldbm_txn_ruv_modify_context "
+                    "failed to construct RUV modify context\n",
+                    0, 0, 0);
+                ldap_result_code = LDAP_OPERATIONS_ERROR;
+                retval = 0;
+                goto error_return;
+            }
         }
 
         if (ruv_c_init) {

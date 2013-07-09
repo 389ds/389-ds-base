@@ -113,6 +113,7 @@ int ruv_get_smallest_csn_for_replica(const RUV *ruv, ReplicaId rid, CSN **csn);
 int ruv_set_csns(RUV *ruv, const CSN *csn, const char *replica_purl);  
 int ruv_set_csns_keep_smallest(RUV *ruv, const CSN *csn);  
 int ruv_set_max_csn(RUV *ruv, const CSN *max_csn, const char *replica_purl);
+int ruv_set_max_csn_ext(RUV *ruv, const CSN *max_csn, const char *replica_purl, PRBool must_be_greater);
 int ruv_set_min_csn(RUV *ruv, const CSN *min_csn, const char *replica_purl);
 const char *ruv_get_purl_for_replica(const RUV *ruv, ReplicaId rid);
 char *ruv_get_replica_generation (const RUV *ruv);
