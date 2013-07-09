@@ -235,6 +235,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				e_in_cache = 1;
 			}
 
+			if (ruv_c_init) {
+				/* reset the ruv txn stuff */
+				modify_term(&ruv_c, be);
+				ruv_c_init = 0;
+			}
+
 			/* We're re-trying */
 			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
 			               "Delete Retrying Transaction\n");
@@ -547,19 +553,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				if ( (original_tombstone = backentry_dup( tombstone )) == NULL ) {
 					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					retval = -1;
-					goto error_return;
-				}
-			}
-
-			if (!is_ruv && !is_fixup_operation && !delete_tombstone_entry) {
-				ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
-				if (-1 == ruv_c_init) {
-					LDAPDebug( LDAP_DEBUG_ANY,
-						"ldbm_back_delete: ldbm_txn_ruv_modify_context "
-						"failed to construct RUV modify context\n",
-						0, 0, 0);
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
-					retval = 0;
 					goto error_return;
 				}
 			}
@@ -1024,6 +1017,19 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 				DEL_SET_ERROR(ldap_result_code, 
 							  LDAP_OPERATIONS_ERROR, retry_count);
+				goto error_return;
+			}
+		}
+
+		if (!is_ruv && !is_fixup_operation && !delete_tombstone_entry) {
+			ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+			if (-1 == ruv_c_init) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"ldbm_back_delete: ldbm_txn_ruv_modify_context "
+					"failed to construct RUV modify context\n",
+					0, 0, 0);
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retval = 0;
 				goto error_return;
 			}
 		}

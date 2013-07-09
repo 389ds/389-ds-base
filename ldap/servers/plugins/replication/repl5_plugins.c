@@ -1081,14 +1081,15 @@ copy_operation_parameters(Slapi_PBlock *pb)
  * locally-processed update. This is called for both replicated
  * and non-replicated operations.
  */
-static void
+static int
 update_ruv_component(Replica *replica, CSN *opcsn, Slapi_PBlock *pb)
 {
     PRBool legacy;
     char *purl;
+    int rc = RUV_NOTFOUND;
 
 	if (!replica || !opcsn)
-		return;
+		return rc;
 
 	/* Replica configured, so update its ruv */
 	legacy = replica_is_legacy_consumer (replica);
@@ -1097,12 +1098,13 @@ update_ruv_component(Replica *replica, CSN *opcsn, Slapi_PBlock *pb)
 	else
 		purl = (char*)replica_get_purl_for_op (replica, pb, opcsn);
 
-	replica_update_ruv(replica, opcsn, purl);
+	rc = replica_update_ruv(replica, opcsn, purl);
 
 	if (legacy)
 	{
 		slapi_ch_free ((void**)&purl);
 	}
+	return rc;
 }
 
 /*
@@ -1264,11 +1266,30 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	  just read from the changelog in either the supplier or consumer ruv
 	*/
 	if (0 == return_value) {
+		char csn_str[CSN_STRSIZE];
 		CSN *opcsn;
+		int rc;
 
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 		opcsn = operation_get_csn(op);
-		update_ruv_component(r, opcsn, pb);
+		rc = update_ruv_component(r, opcsn, pb);
+		if (RUV_COVERS_CSN == rc) {
+        		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"write_changelog_and_ruv: RUV already covers csn for "
+					"%s (uniqid: %s, optype: %lu) csn %s\n",
+					REPL_GET_DN(&op_params->target_address),
+					op_params->target_address.uniqueid,
+					op_params->operation_type,
+					csn_as_string(op_params->csn, PR_FALSE, csn_str));
+		} else if (rc != RUV_SUCCESS) {
+        		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					"write_changelog_and_ruv: failed to update RUV for "
+					"%s (uniqid: %s, optype: %lu) to changelog csn %s\n",
+					REPL_GET_DN(&op_params->target_address),
+					op_params->target_address.uniqueid,
+					op_params->operation_type,
+					csn_as_string(op_params->csn, PR_FALSE, csn_str));
+		}
 	}
 
 	object_release (repl_obj);

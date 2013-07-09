@@ -1229,7 +1229,9 @@ replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext /* not
 	}
 	rc = ruv_delete_replica(local_ruv, rid);
 	replica_set_ruv_dirty(replica);
-	replica_write_ruv(replica);
+	if (replica_write_ruv(replica)) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "cleanruv_task: could not write RUV\n");
+	}
 	object_release(RUVObj);
 
 	/* Update Mapping Tree to reflect RUV changes */
