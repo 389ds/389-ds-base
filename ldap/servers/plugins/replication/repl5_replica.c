@@ -657,10 +657,11 @@ replica_set_ruv (Replica *r, RUV *ruv)
  * inbound replication session operation, and needs to update its
  * local RUV.
  */
-void
+int
 replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 {
 	char csn_str[CSN_STRSIZE];
+	int rc = RUV_SUCCESS;
 	
 	PR_ASSERT(NULL != r);
 	PR_ASSERT(NULL != updated_csn);
@@ -673,11 +674,13 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_update_ruv: replica "
 			"is NULL\n");
+		rc = RUV_BAD_DATA;
 	}
 	else if (NULL == updated_csn)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_update_ruv: csn "
 			"is NULL when updating replica %s\n", slapi_sdn_get_dn(r->repl_root));
+		rc = RUV_BAD_DATA;
 	}
 	else
 	{
@@ -710,8 +713,17 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 					}
 				}
 				/* Update max csn for local and remote replicas */
-				if (ruv_update_ruv (ruv, updated_csn, replica_purl, rid == r->repl_rid) 
-                    != RUV_SUCCESS)
+				rc = ruv_update_ruv (ruv, updated_csn, replica_purl, rid == r->repl_rid);
+				if (RUV_COVERS_CSN == rc)
+				{
+					slapi_log_error(SLAPI_LOG_REPL,
+						repl_plugin_name, "replica_update_ruv: RUV "
+						"for replica %s already covers max_csn = %s\n",
+						slapi_sdn_get_dn(r->repl_root),
+						csn_as_string(updated_csn, PR_FALSE, csn_str));
+					/* RUV is not dirty - no write needed */
+				}
+				else if (RUV_SUCCESS != rc)
 				{
 					slapi_log_error(SLAPI_LOG_FATAL,
 						repl_plugin_name, "replica_update_ruv: unable "
@@ -719,14 +731,18 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 						slapi_sdn_get_dn(r->repl_root),
 						csn_as_string(updated_csn, PR_FALSE, csn_str));
 				}
-			
-				r->repl_ruv_dirty = PR_TRUE;
+				else
+				{
+					/* RUV updated - mark as dirty */
+					r->repl_ruv_dirty = PR_TRUE;
+				}
 			}
 			else
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"replica_update_ruv: unable to get RUV object for replica "
 					"%s\n", slapi_sdn_get_dn(r->repl_root));
+				rc = RUV_NOTFOUND;
 			}
 		}
 		else
@@ -734,9 +750,11 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_update_ruv: "
 				"unable to initialize RUV for replica %s\n",
 				slapi_sdn_get_dn(r->repl_root));
+			rc = RUV_NOTFOUND;
 		}
 		PR_Unlock(r->repl_lock);
 	}
+	return rc;
 }
 
 /* 
@@ -2400,7 +2418,11 @@ _replica_update_state (time_t when, void *arg)
 	{
 		/* EY: the consumer needs to flush ruv to disk. */
 		PR_Unlock(r->repl_lock);
-		replica_write_ruv(r);
+		if (replica_write_ruv(r)) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"_replica_update_state: failed write RUV for %s\n",
+				slapi_sdn_get_dn (r->repl_root));
+		}
 		goto done;
 	}
 	
@@ -2471,7 +2493,11 @@ _replica_update_state (time_t when, void *arg)
 	}
 
 	/* update RUV - performs its own locking */
-	replica_write_ruv (r);
+	if (replica_write_ruv(r)) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"_replica_update_state: failed write RUV for %s\n",
+			slapi_sdn_get_dn (r->repl_root));
+	}
 
 	/* since this is the only place this value is changed and we are 
 	   guaranteed that only one thread enters the function, its ok
@@ -2487,10 +2513,10 @@ done:
 		object_release (replica_object);
 }
 
-void
+int
 replica_write_ruv (Replica *r)
 {	
-	int rc;
+	int rc = LDAP_SUCCESS;
 	Slapi_Mod smod;
 	Slapi_Mod smod_last_modified;
 	LDAPMod *mods [3];	 
@@ -2503,7 +2529,7 @@ replica_write_ruv (Replica *r)
     if (!r->repl_ruv_dirty)
     {
         PR_Unlock(r->repl_lock);
-        return;
+        return rc;
     }
 
 	PR_ASSERT (r->repl_ruv);
@@ -2560,6 +2586,8 @@ replica_write_ruv (Replica *r)
 	slapi_mod_done (&smod);
 	slapi_mod_done (&smod_last_modified);
 	slapi_pblock_destroy (pb);
+
+	return rc;
 }
 
 
@@ -2580,6 +2608,7 @@ replica_ruv_smods_for_op( Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods 
     Slapi_Mod smod_last_modified;
     Slapi_Operation *op;
     Slapi_Entry *target_entry = NULL;
+    int rc = 0;
 
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &target_entry);
     if (target_entry && is_ruv_tombstone_entry(target_entry)) {
@@ -2618,19 +2647,32 @@ replica_ruv_smods_for_op( Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods 
     object_release (ruv_obj);
     object_release (replica_obj);
 
-    ruv_set_max_csn( ruv_copy, opcsn, NULL );
+    rc = ruv_set_max_csn_ext( ruv_copy, opcsn, NULL, PR_TRUE );
+    if (rc == RUV_COVERS_CSN) { /* change would "revert" RUV - ignored */
+        rc = 0; /* tell caller to ignore */
+    } else if (rc == RUV_SUCCESS) {
+        rc = 1; /* tell caller success */
+    } else { /* error */
+        rc = -1; /* tell caller error */
+    }
 
-    ruv_to_smod( ruv_copy, &smod );
-    ruv_last_modified_to_smod( ruv_copy, &smod_last_modified );
-
+    if (rc == 1) {
+        ruv_to_smod( ruv_copy, &smod );
+        ruv_last_modified_to_smod( ruv_copy, &smod_last_modified );
+    }
     ruv_destroy( &ruv_copy );
 
-    *smods = slapi_mods_new();
-    slapi_mods_add_smod(*smods, &smod);
-    slapi_mods_add_smod(*smods, &smod_last_modified);
-    *uniqueid = slapi_ch_strdup( RUV_STORAGE_ENTRY_UNIQUEID );
+    if (rc == 1) {
+        *smods = slapi_mods_new();
+        slapi_mods_add_smod(*smods, &smod);
+        slapi_mods_add_smod(*smods, &smod_last_modified);
+        *uniqueid = slapi_ch_strdup( RUV_STORAGE_ENTRY_UNIQUEID );
+    } else {
+        *smods = NULL;
+        *uniqueid = NULL;
+    }
 
-    return (1);
+    return rc;
 }
 
 
@@ -3375,7 +3417,9 @@ replica_strip_cleaned_rids(Replica *r)
     while(rid[i] != 0){
         ruv_delete_replica(ruv, rid[i]);
         replica_set_ruv_dirty(r);
-        replica_write_ruv(r);
+        if (replica_write_ruv(r)) {
+		slapi_log_error (SLAPI_LOG_REPL, "replica_strip_cleaned_rids", "failed to write RUV\n");
+        }
         i++;
     }
     object_release(RUVObj);

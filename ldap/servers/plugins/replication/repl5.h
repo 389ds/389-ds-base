@@ -549,7 +549,7 @@ void   replica_replace_flags (Replica *r, PRUint32 flags);
 void replica_dump(Replica *r);
 void replica_set_enabled (Replica *r, PRBool enable);
 Object *replica_get_replica_from_dn (const Slapi_DN *dn);
-void replica_update_ruv(Replica *replica, const CSN *csn, const char *replica_purl);
+int replica_update_ruv(Replica *replica, const CSN *csn, const char *replica_purl);
 Object *replica_get_replica_for_op (Slapi_PBlock *pb);
 /* the functions below manipulate replica hash */
 int replica_init_name_hash ();
@@ -581,7 +581,7 @@ void replica_set_purge_delay (Replica *r, PRUint32 purge_delay);
 void replica_set_tombstone_reap_interval (Replica *r, long interval);
 void replica_update_ruv_consumer (Replica *r, RUV *supplier_ruv);
 void replica_set_ruv_dirty (Replica *r);
-void replica_write_ruv (Replica *r);
+int replica_write_ruv (Replica *r);
 char *replica_get_dn(Replica *r);
 void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
 

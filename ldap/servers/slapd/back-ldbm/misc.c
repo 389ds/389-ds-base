@@ -426,6 +426,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
     /* Either something went wrong when the RUV callback tried to assemble
      * the updates for us, or there were no updates because the op doesn't
      * target a replica. */
+    /* or, the CSN is already covered by the RUV */
     if (1 != rc || NULL == smods || NULL == uniqueid) {
         return (rc);
     }

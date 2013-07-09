@@ -344,6 +344,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto error_return;
 				}
 			}
+			if (ruv_c_init) {
+				/* reset the ruv txn stuff */
+				modify_term(&ruv_c, be);
+				ruv_c_init = 0;
+			}
 
 			/* We're re-trying */
 			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, "Add Retrying Transaction\n");
@@ -759,19 +764,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 				parententry = NULL;
 			}
 		
-			if (!is_ruv && !is_fixup_operation) {
-				ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
-				if (-1 == ruv_c_init) {
-					LDAPDebug( LDAP_DEBUG_ANY,
-						"ldbm_back_add: ldbm_txn_ruv_modify_context "
-						"failed to construct RUV modify context\n",
-						0, 0, 0);
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
-					retval = 0;
-					goto error_return;
-				}
-			}
-		
 			if ( (originalentry = backentry_dup(addingentry )) == NULL ) {
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
@@ -949,6 +941,19 @@ ldbm_back_add( Slapi_PBlock *pb )
 					goto diskfull_return;
 				}
 				goto error_return; 
+			}
+		}
+
+		if (!is_ruv && !is_fixup_operation) {
+			ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+			if (-1 == ruv_c_init) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"ldbm_back_add: ldbm_txn_ruv_modify_context "
+					"failed to construct RUV modify context\n",
+					0, 0, 0);
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retval = 0;
+				goto error_return;
 			}
 		}
 
