@@ -476,19 +476,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
-	if (!is_ruv && !is_fixup_operation) {
-		ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
-		if (-1 == ruv_c_init) {
-			LDAPDebug( LDAP_DEBUG_ANY,
-				"ldbm_back_modify: ldbm_txn_ruv_modify_context "
-				"failed to construct RUV modify context\n",
-				0, 0, 0);
-			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			retval = 0;
-			goto error_return;
-		}
-	}
-
 	/*
 	 * Grab a copy of the mods and the entry in case the be_txn_preop changes
 	 * the them.  If we have a failure, then we need to reset the mods to their
@@ -524,6 +511,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			if ( (original_entry = backentry_dup( ec )) == NULL ) {
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
+			}
+
+			if (ruv_c_init) {
+				/* reset the ruv txn stuff */
+				modify_term(&ruv_c, be);
+				ruv_c_init = 0;
 			}
 
 			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
@@ -636,6 +629,19 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				goto error_return;
 			}
 
+		}
+
+		if (!is_ruv && !is_fixup_operation) {
+			ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
+			if (-1 == ruv_c_init) {
+				LDAPDebug( LDAP_DEBUG_ANY,
+					"ldbm_back_modify: ldbm_txn_ruv_modify_context "
+					"failed to construct RUV modify context\n",
+					0, 0, 0);
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				retval = 0;
+				goto error_return;
+			}
 		}
 
 		if (ruv_c_init) {
