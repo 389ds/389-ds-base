@@ -2640,12 +2640,15 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			;
 		} else if (aci_right & SLAPI_ACL_WRITE && 
 			  (aci->aci_type & ACI_TARGET_ATTR) &&
-			  !(c_attrEval)) {
+			  !(c_attrEval) &&
+			  (aci->aci_type & ACI_HAS_ALLOW_RULE)) {
 			/* We need to handle modrdn operation.  Modrdn doesn't 
 			** change any attrs but changes the RDN and so (attr=NULL).
 			** Here we found an acl which has a targetattr but
 			** the resource doesn't need one. In that case, we should
 			** consider this acl.
+			** the opposite is true if it is a deny rule, only a deny without 
+			** any targetattr should deny modrdn
 			** default: matches = ACL_TRUE;
 			*/
 			;
