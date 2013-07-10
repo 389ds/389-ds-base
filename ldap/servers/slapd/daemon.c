@@ -2593,6 +2593,13 @@ bail:
 #endif /* ENABLE_AUTOBIND */
 #endif /* ENABLE_LDAPI */
 
+void
+handle_closed_connection(Connection *conn)
+{
+	ber_sockbuf_remove_io(conn->c_sb, &openldap_sockbuf_io,
+		LBER_SBIOD_LEVEL_PROVIDER);
+}
+
 /* NOTE: this routine is not reentrant */
 static int
 handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local)
