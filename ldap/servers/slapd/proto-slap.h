@@ -1379,6 +1379,7 @@ int sasl_io_setup(Connection *c);
 /*
  * daemon.c
  */
+void handle_closed_connection(Connection *);
 #ifndef LINUX
 void slapd_do_nothing(int);
 #endif
