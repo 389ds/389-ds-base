@@ -708,6 +708,7 @@ disk_monitoring_thread(void *nothing)
     PRInt64 previous_mark = 0;
     PRInt64 disk_space = 0;
     PRInt64 threshold = 0;
+    PRInt64 halfway = 0;
     time_t start = 0;
     time_t now = 0;
     int deleted_rotated_logs = 0;
@@ -719,7 +720,6 @@ disk_monitoring_thread(void *nothing)
     int logs_disabled = 0;
     int grace_period = 0;
     int first_pass = 1;
-    int halfway = 0;
     int ok_now = 0;
 
     while(!g_get_shutdown()) {
@@ -812,13 +812,11 @@ disk_monitoring_thread(void *nothing)
          *  access/audit logs, log another error, and continue.
          */
         if(!logs_disabled && !logging_critical){
-            if(disk_space < previous_mark){
                 LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
                     "disabling access and audit logging.\n", dirstr, (disk_space / 1024), 0);
                 config_set_accesslog_enabled(LOGGING_OFF);
                 config_set_auditlog_enabled(LOGGING_OFF);
                 logs_disabled = 1;
-            }
             continue;
         }
         /*
@@ -826,12 +824,10 @@ disk_monitoring_thread(void *nothing)
          *  access/audit logging, then delete the rotated logs, log another error, and continue.
          */
         if(!deleted_rotated_logs && !logging_critical){
-            if(disk_space < previous_mark){
                 LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
                     "deleting rotated logs.\n", dirstr, (disk_space / 1024), 0);
                 log__delete_rotated_logs();
                 deleted_rotated_logs = 1;
-            }
             continue;
         }
         /*
