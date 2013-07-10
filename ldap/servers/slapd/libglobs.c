@@ -1650,17 +1650,19 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
-    long threshold = 0;
+    PRUint64 threshold = 0;
     char *endp = NULL;
 
     if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
         return LDAP_OPERATIONS_ERROR;
     }
 
-    threshold = strtol(value, &endp, 10);
+    errno = 0;
+    threshold = strtoll(value, &endp, 10);
 
-    if ( *endp != '\0' || threshold < 2048 ) {
-        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, threshold must be greater than 2048 and less then %ld",
+    if ( *endp != '\0' || threshold <= 4096 || errno == ERANGE ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+            "%s: \"%s\" is invalid, threshold must be greater than 4096 and less then %llu",
             attrname, value, LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
@@ -4320,7 +4322,7 @@ config_get_disk_grace_period(){
     return retVal;
 }
 
-long
+PRUint64
 config_get_disk_threshold(){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     long retVal;

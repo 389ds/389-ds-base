@@ -2314,7 +2314,7 @@ typedef struct _slapdFrontendConfig {
 
   /* disk monitoring */
   slapi_onoff_t disk_monitoring;
-  int disk_threshold;
+  PRUint64 disk_threshold;
   int disk_grace_period;
   slapi_onoff_t disk_logging_critical;
 
