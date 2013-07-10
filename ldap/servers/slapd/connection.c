@@ -263,6 +263,7 @@ connection_cleanup(Connection *conn)
 	/* destroy any sasl context */
 	sasl_dispose((sasl_conn_t**)&conn->c_sasl_conn);
 	/* PAGED_RESULTS */
+	handle_closed_connection(conn);  /* Clean up sockbufs */
 	pagedresults_cleanup(conn, 0 /* do not need to lock inside */);
 
 	/* free the connection socket buffer */
