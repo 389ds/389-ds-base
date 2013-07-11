@@ -218,7 +218,8 @@ preop_add(Slapi_PBlock *pb)
 {
   int result;
   char *violated = NULL;
-
+  char *pwd = NULL;
+  char *origpwd = NULL;
 #ifdef DEBUG
   slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD begin\n");
 #endif
@@ -236,12 +237,14 @@ preop_add(Slapi_PBlock *pb)
     const char *dn;
     Slapi_DN *sdn = NULL;
     Slapi_Entry *e;
-    Slapi_Attr *attr;
     char **firstSubtree;
     char **subtreeDN;
     int subtreeCnt;
     int is_replicated_operation;
-
+    struct berval *vals[2];
+    struct berval val;
+    vals[0] = &val;
+    vals[1] = NULL;
     /*
      * Get the arguments
      */
@@ -288,19 +291,26 @@ preop_add(Slapi_PBlock *pb)
     for (attrName = argv; strcmp(*attrName, ",") != 0; attrName++ )
     {
       /* 
-       * if the attribute is userpassword, check unhashed#user#password 
+       * if the attribute is userpassword, check unhashed user password 
        * instead.  "userpassword" is encoded; it will always pass the 7bit 
        * check.
        */
-      char *attr_name; 
+      char *attr_name = NULL;
+      Slapi_Attr *attr = NULL; 
       if ( strcasecmp(*attrName, "userpassword") == 0 )
       {
-         attr_name = "unhashed#user#password";
+         origpwd = pwd = slapi_get_first_clear_text_pw(e);
+         if (pwd == NULL)
+	 {
+            continue;
+         }
+         val.bv_val = pwd;
+         val.bv_len = strlen(val.bv_val);
       } else {
          attr_name = *attrName;
+	 err = slapi_entry_attr_find(e, attr_name, &attr);
+         if (err) continue; /* break;*/  /* no 7-bit attribute */
       }
-      err = slapi_entry_attr_find(e, attr_name, &attr);
-      if (err) continue; /* break;*/  /* no 7-bit attribute */
 
       /*
        * For each DN in the managed list, do 7-bit checking if
@@ -323,7 +333,14 @@ preop_add(Slapi_PBlock *pb)
           /*
            * Check if the value is 7-bit clean
            */
-          result = bit_check(attr, NULL, &violated);
+	  if(pwd)
+	  {
+            result = bit_check(attr, vals, &violated);
+	    if(!result)
+	      pwd = NULL;
+	  }
+          else
+            result = bit_check(attr, NULL, &violated);
           if (result) break;
         }
       }
@@ -335,7 +352,7 @@ preop_add(Slapi_PBlock *pb)
   if (result) {
     issue_error(pb, result, "ADD", violated);
   }
-
+  slapi_ch_free_string(&origpwd);
   return (result==LDAP_SUCCESS)?0:-1;
 }
 
