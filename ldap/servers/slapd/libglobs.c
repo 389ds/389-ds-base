@@ -1252,7 +1252,7 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
 
     if ( *endp != '\0' || threshold <= 4096 || errno == ERANGE ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-            "%s: \"%s\" is invalid, threshold must be greater than 4096 and less then %llu",
+            "%s: \"%s\" is invalid, threshold must be greater than 4096 and less then %lu",
             attrname, value, LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
