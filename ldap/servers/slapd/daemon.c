@@ -630,16 +630,16 @@ disk_mon_get_dirs(char ***list, int logs_critical){
  *  directory.
  */
 char *
-disk_mon_check_diskspace(char **dirs, PRInt64 threshold, PRInt64 *disk_space)
+disk_mon_check_diskspace(char **dirs, PRUint64 threshold, PRUint64 *disk_space)
 {
 #ifdef LINUX
     struct statfs buf;
 #else
     struct statvfs buf;
 #endif
-    PRInt64 worst_disk_space = threshold;
-    PRInt64 freeBytes = 0;
-    PRInt64 blockSize = 0;
+    PRUint64 worst_disk_space = threshold;
+    PRUint64 freeBytes = 0;
+    PRUint64 blockSize = 0;
     char *worst_dir = NULL;
     int hit_threshold = 0;
     int i = 0;
@@ -696,9 +696,10 @@ disk_monitoring_thread(void *nothing)
     char errorbuf[BUFSIZ];
     char **dirs = NULL;
     char *dirstr = NULL;
-    PRInt64 previous_mark = 0;
-    PRInt64 disk_space = 0;
-    PRInt64 threshold = 0;
+    PRUint64 previous_mark = 0;
+    PRUint64 disk_space = 0;
+    PRUint64 threshold = 0;
+    PRUint64 halfway = 0;
     time_t start = 0;
     time_t now = 0;
     int deleted_rotated_logs = 0;
@@ -710,7 +711,6 @@ disk_monitoring_thread(void *nothing)
     int logs_disabled = 0;
     int grace_period = 0;
     int first_pass = 1;
-    int halfway = 0;
     int ok_now = 0;
 
     while(!g_get_shutdown()) {
@@ -781,7 +781,7 @@ disk_monitoring_thread(void *nothing)
          *  Check if we are already critical
          */
         if(disk_space < 4096){ /* 4 k */
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %d Kb.  "
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %" NSPRIu64 " Kb.  "
                 "Signaling slapd for shutdown...\n", dirstr , (disk_space / 1024), 0);
             g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
             return;
@@ -791,7 +791,7 @@ disk_monitoring_thread(void *nothing)
          *  if logging is not critical
          */
         if(verbose_logging != 0 && verbose_logging != LDAP_DEBUG_ANY){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is low on disk (%s), remaining space: %d Kb, "
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
                 "temporarily setting error loglevel to zero.\n", dirstr,
                 (disk_space / 1024), 0);
             /* Setting the log level back to zero, actually sets the value to LDAP_DEBUG_ANY */
@@ -803,13 +803,11 @@ disk_monitoring_thread(void *nothing)
          *  access/audit logs, log another error, and continue.
          */
         if(!logs_disabled && !logging_critical){
-            if(disk_space < previous_mark){
-                LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
-                    "disabling access and audit logging.\n", dirstr, (disk_space / 1024), 0);
-                config_set_accesslog_enabled(LOGGING_OFF);
-                config_set_auditlog_enabled(LOGGING_OFF);
-                logs_disabled = 1;
-            }
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
+                "disabling access and audit logging.\n", dirstr, (disk_space / 1024), 0);
+            config_set_accesslog_enabled(LOGGING_OFF);
+            config_set_auditlog_enabled(LOGGING_OFF);
+            logs_disabled = 1;
             continue;
         }
         /*
@@ -817,19 +815,17 @@ disk_monitoring_thread(void *nothing)
          *  access/audit logging, then delete the rotated logs, log another error, and continue.
          */
         if(!deleted_rotated_logs && !logging_critical){
-            if(disk_space < previous_mark){
-                LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb, "
-                    "deleting rotated logs.\n", dirstr, (disk_space / 1024), 0);
-                log__delete_rotated_logs();
-                deleted_rotated_logs = 1;
-            }
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
+                "deleting rotated logs.\n", dirstr, (disk_space / 1024), 0);
+            log__delete_rotated_logs();
+            deleted_rotated_logs = 1;
             continue;
         }
         /*
          *  Ok, we've done what we can, log a message if we continue to lose available disk space
          */
         if(disk_space < previous_mark){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %d Kb\n",
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb\n",
                 dirstr, (disk_space / 1024), 0);
         }
         /*
@@ -841,7 +837,7 @@ disk_monitoring_thread(void *nothing)
          *
          */
         if(disk_space < halfway){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space on (%s) is too far below the threshold(%d bytes).  "
+            LDAPDebug(LDAP_DEBUG_ANY, "Disk space on (%s) is too far below the threshold(%" NSPRIu64 " bytes).  "
                 "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
                 dirstr, threshold, (grace_period / 60));
             time(&start);
@@ -863,7 +859,7 @@ disk_monitoring_thread(void *nothing)
                     /*
                      *  Excellent, we are back to acceptable levels, reset everything...
                      */
-                    LDAPDebug(LDAP_DEBUG_ANY, "Available disk space is now acceptable (%d bytes).  Aborting"
+                    LDAPDebug(LDAP_DEBUG_ANY, "Available disk space is now acceptable (%" NSPRIu64 " bytes).  Aborting"
                                               " shutdown, and restoring the log settings.\n",disk_space,0,0);
                     if(logs_disabled && using_accesslog){
                         config_set_accesslog_enabled(LOGGING_ON);
@@ -883,7 +879,7 @@ disk_monitoring_thread(void *nothing)
                     /*
                      *  Disk space is critical, log an error, and shut it down now!
                      */
-                    LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %d Kb."
+                    LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %" NSPRIu64 " Kb."
                         "  Signaling slapd for shutdown...\n", dirstr, (disk_space / 1024), 0);
                     g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
                     return;
