@@ -75,6 +75,7 @@ static int asi_locking = 1;
 #define AS_UNLOCK_WRITE(l)	if (asi_locking) { slapi_rwlock_unlock(l); }
 
 
+static struct asyntaxinfo *default_asi = NULL;
 
 static void *attr_syntax_get_plugin_by_name_with_default( const char *type );
 static void attr_syntax_delete_no_lock( struct asyntaxinfo *asip,
@@ -308,6 +309,8 @@ struct asyntaxinfo *asi = NULL;
 	asi = attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
 	if (asi == NULL)
 		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
+	if ( asi == NULL ) 
+		asi = default_asi;
 	return asi;
 }
 
@@ -545,6 +548,154 @@ attr_syntax_exists(const char *attr_name)
 	return 0;
 }
 
+static void default_dirstring_normalize_int(char *s, int trim_spaces);
+
+static
+int default_dirstring_filter_ava( struct berval *bvfilter, Slapi_Value **bvals,int ftype, Slapi_Value **retVal )
+{
+	return(0);
+}
+
+static
+int default_dirstring_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,Slapi_Value ***ivals, int ftype )
+{
+	int		numbvals = 0;
+	Slapi_Value	**nbvals, **nbvlp;
+	Slapi_Value 	**bvlp;
+	char		*c;
+
+	if (NULL == ivals) {
+		return 1;
+	}
+	*ivals = NULL;
+	if (NULL == bvals) {
+		return 1;
+	}
+	switch ( ftype ) {
+	case LDAP_FILTER_EQUALITY:
+		/* allocate a new array for the normalized values */
+		for ( bvlp = bvals; bvlp && *bvlp; bvlp++ ) {
+			numbvals++;
+		}
+		nbvals = (Slapi_Value **) slapi_ch_calloc( (numbvals + 1), sizeof(Slapi_Value *));
+
+		for ( bvlp = bvals, nbvlp = nbvals; bvlp && *bvlp; bvlp++, nbvlp++ ) {
+			c = slapi_ch_strdup(slapi_value_get_string(*bvlp));
+			default_dirstring_normalize_int( c, 1 );
+			*nbvlp = slapi_value_new_string_passin(c);
+			c = NULL;
+		}
+		*ivals = nbvals;
+		break;
+
+	case LDAP_FILTER_APPROX:
+	case LDAP_FILTER_SUBSTRINGS:
+	default:
+		/* default plugin only handles equality so far */
+		LDAPDebug( LDAP_DEBUG_ANY,
+		    "default_dirstring_values2keys: unsupported ftype 0x%x\n",
+		    ftype, 0, 0 );
+		break;
+	}
+	return(0);
+}
+
+static
+int default_dirstring_assertion2keys_ava(Slapi_PBlock *pb,Slapi_Value *val,Slapi_Value ***ivals,int ftype  )
+{
+	return(0);
+}
+
+static
+int default_dirstring_cmp(struct berval	*v1,struct berval *v2, int normalize)
+{
+	return(0);
+}
+
+static
+void default_dirstring_normalize(Slapi_PBlock *pb, char *s, int trim_spaces, char **alt)
+{
+	default_dirstring_normalize_int(s, trim_spaces);
+}
+
+static
+void default_dirstring_normalize_int(char *s, int trim_spaces)
+{
+	char *head = s;
+	char *d;
+	int  prevspace, curspace;
+
+	if (NULL == s) {
+		return;
+	}
+	d = s;
+	if (trim_spaces) {
+		/* strip leading blanks */
+		while (ldap_utf8isspace(s)) {
+			LDAP_UTF8INC(s);
+		}
+	}
+
+	/* handle value of all spaces - turn into single space */
+	if ( *s == '\0' && s != d ) {
+		*d++ = ' ';
+		*d = '\0';
+		return;
+	}
+	prevspace = 0;
+	while ( *s ) {
+		int ssz, dsz;
+		curspace = ldap_utf8isspace(s);
+
+		/* compress multiple blanks */
+		if ( prevspace && curspace ) {
+			LDAP_UTF8INC(s);
+			continue;
+		}
+		prevspace = curspace;
+			slapi_utf8ToLower((unsigned char*)s, (unsigned char *)d, &ssz, &dsz);
+			s += ssz;
+			d += dsz;
+	}
+	*d = '\0';
+	/* strip trailing blanks */
+	if (prevspace && trim_spaces) {
+		char *nd;
+
+		nd = ldap_utf8prev(d);
+		while (nd && nd >= head && ldap_utf8isspace(nd)) {
+			d = nd;
+			nd = ldap_utf8prev(d);
+			*d = '\0';
+		}
+	}
+}
+
+static struct slapdplugin *
+attr_syntax_default_plugin ( const char *nameoroid )
+{
+
+	struct slapdplugin *pi = NULL;
+	/*
+	 * create a new plugin structure and
+	 * set the plugin function pointers.
+	 */
+	pi = (struct slapdplugin *)slapi_ch_calloc(1, sizeof(struct slapdplugin));
+
+	pi->plg_dn = slapi_ch_strdup("default plugin for directory string syntax");
+	pi->plg_closed = 0;
+	pi->plg_syntax_oid = slapi_ch_strdup(nameoroid);
+
+
+	pi->plg_syntax_filter_ava = (IFP) default_dirstring_filter_ava;
+	pi->plg_syntax_values2keys = (IFP) default_dirstring_values2keys;
+	pi->plg_syntax_assertion2keys_ava = (IFP) default_dirstring_assertion2keys_ava;
+	pi->plg_syntax_compare = (IFP) default_dirstring_cmp;
+	pi->plg_syntax_normalize = (VFPV) default_dirstring_normalize;
+
+	return (pi);
+
+}
 /* check syntax */
 
 static void *
@@ -563,11 +714,14 @@ attr_syntax_get_plugin_by_name_with_default( const char *type )
 		 * attribute type that has that syntax.
 		 */
 		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
+		if (asi == NULL) 
+			asi = default_asi;
 	}
 	if ( NULL != asi ) {
 		plugin = asi->asi_plugin;
 		attr_syntax_return( asi );
 	}
+
 	return( plugin );
 }
 
@@ -681,6 +835,31 @@ cleanup_and_return:
 	return rc;
 }
 
+static int
+attr_syntax_create_default( const char *name, const char *oid,
+		const char *syntax, unsigned long extraflags )
+{
+	int rc = 0;
+	char *names[2];
+	unsigned long std_flags = SLAPI_ATTR_FLAG_STD_ATTR | SLAPI_ATTR_FLAG_OPATTR;
+
+	names[0] = (char *)name;
+	names[1] = NULL;
+
+	if (default_asi) 
+		return (rc);
+
+	rc = attr_syntax_create( oid, names,
+			"internal server defined attribute type",
+			 NULL,			/* superior */
+			 NULL, NULL, NULL,	/* matching rules */
+			 NULL, syntax,
+			 SLAPI_SYNTAXLENGTH_NONE,
+			 std_flags | extraflags,
+			 &default_asi );
+	if ( rc == 0 && default_asi->asi_plugin == 0)
+		default_asi->asi_plugin = attr_syntax_default_plugin (syntax );
+}
 
 /*
  * Returns an LDAP result code.
@@ -1144,6 +1323,8 @@ attr_syntax_delete_all_for_schemareload(unsigned long flag)
 	                                (void *)&fi);
 }
 
+#define ATTR_DEFAULT_SYNTAX_OID	"1.1"
+#define ATTR_DEFAULT_SYNTAX	"defaultdirstringsyntax"
 static int
 attr_syntax_init(void)
 {
@@ -1178,6 +1359,12 @@ attr_syntax_init(void)
 					"slapi_new_rwlock() for oid2asi lock failed\n" );
 			return 1;
 		}
+		/* add a default syntax plugin as fallback, required during startup
+		*/
+		attr_syntax_create_default( ATTR_DEFAULT_SYNTAX,
+	                                ATTR_DEFAULT_SYNTAX_OID,
+	                                DIRSTRING_SYNTAX_OID, 
+	                                SLAPI_ATTR_FLAG_NOUSERMOD| SLAPI_ATTR_FLAG_NOEXPOSE);
 	}
 	return 0;
 }
