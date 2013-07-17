@@ -298,7 +298,7 @@ csn_as_attr_option_string(CSNType t,const CSN *csn,char *ss)
 }
 
 int 
-csn_compare(const CSN *csn1, const CSN *csn2)
+csn_compare_ext(const CSN *csn1, const CSN *csn2, unsigned int flags)
 {
     PRInt32 retVal;
 	if(csn1!=NULL && csn2!=NULL)
@@ -321,7 +321,7 @@ csn_compare(const CSN *csn1, const CSN *csn2)
                     retVal = -1;
                 else if (csn1->rid > csn2->rid)
                     retVal = 1;
-                else
+                else if (!(flags & CSN_COMPARE_SKIP_SUBSEQ))
                 {
                     if (csn1->subseqnum < csn2->subseqnum)
                         retVal = -1;
@@ -330,6 +330,8 @@ csn_compare(const CSN *csn1, const CSN *csn2)
                     else
                         retVal = 0;
                 }
+                else
+                    retVal = 0;
             }
         }
 		
@@ -348,6 +350,12 @@ csn_compare(const CSN *csn1, const CSN *csn2)
 	}
 
     return(retVal);
+}
+
+int
+csn_compare(const CSN *csn1, const CSN *csn2)
+{
+	return csn_compare_ext(csn1, csn2, 0);
 }
 
 time_t csn_time_difference(const CSN *csn1, const CSN *csn2)
