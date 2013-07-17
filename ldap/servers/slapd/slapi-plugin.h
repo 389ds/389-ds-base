@@ -4658,6 +4658,7 @@ void slapi_ber_bvcpy(struct berval *bvd, const struct berval *bvs);
 #define SLAPI_VALUE_FLAG_IGNOREERROR	0x2
 #define SLAPI_VALUE_FLAG_PRESERVECSNSET	0x4
 #define SLAPI_VALUE_FLAG_USENEWVALUE	0x8	/* see valueset_remove_valuearray */
+#define SLAPI_VALUE_FLAG_DUPCHECK	0x10	/* used in valueset_add... */
 
 /**
  * Creates an empty \c Slapi_ValueSet structure.
@@ -4752,6 +4753,7 @@ void slapi_valueset_add_value(Slapi_ValueSet *vs, const Slapi_Value *addval);
  * \see slapi_valueset_next_value()
  */
 void slapi_valueset_add_value_ext(Slapi_ValueSet *vs, Slapi_Value *addval, unsigned long flags);
+int slapi_valueset_add_attr_value_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *addval, unsigned long flags);
 
 /**
  * Gets the first value in a \c Slapi_ValueSet structure.
@@ -4807,6 +4809,16 @@ int slapi_valueset_next_value( Slapi_ValueSet *vs, int index, Slapi_Value **v);
 int slapi_valueset_count( const Slapi_ValueSet *vs);
 
 /**
+ * Checks if  a \c Slapi_ValueSet structure has values
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure of which
+ *        you wish to get the count.
+ * \return 1 if there are no values contained in the \c Slapi_ValueSet structure.
+ * \return 0 if there are values contained in the \c Slapi_ValueSet structure.
+ */
+int slapi_valueset_isempty( const Slapi_ValueSet *vs);
+
+/**
  * Initializes a \c Slapi_ValueSet with copies of the values of a \c Slapi_Mod structure.
  *
  * \param vs Pointer to the \c Slapi_ValueSet structure into which
@@ -4837,6 +4849,7 @@ void slapi_valueset_set_from_smod(Slapi_ValueSet *vs, Slapi_Mod *smod);
  * \see slapi_valueset_done()
  */
 void slapi_valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
+void slapi_valueset_join_attr_valueset(const Slapi_Attr *a, Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
 
 /**
  * Finds a requested value in a valueset.

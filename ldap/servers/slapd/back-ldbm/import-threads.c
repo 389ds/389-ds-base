@@ -2639,7 +2639,7 @@ import_foreman(void *param)
 
                 /* Setting new entrydn attribute value */
                 slapi_attr_init(new_entrydn, "entrydn");
-                valueset_add_string(&new_entrydn->a_present_values,
+                valueset_add_string(new_entrydn, &new_entrydn->a_present_values,
                                     /* new_dn: duped in valueset_add_string */
                                     (const char *)new_dn,
                                     CSN_TYPE_UNKNOWN, NULL);

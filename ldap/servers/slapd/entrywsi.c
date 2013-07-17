@@ -477,7 +477,7 @@ entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, str
 						SLAPI_VALUE_FLAG_IGNOREERROR |
 						SLAPI_VALUE_FLAG_PRESERVECSNSET, NULL);
 			valuearray_update_csn (valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
-			valueset_add_valuearray_ext(&a->a_present_values, valuestoadd, SLAPI_VALUE_FLAG_PASSIN);
+            		slapi_valueset_add_attr_valuearray_ext (a, &a->a_present_values, valuestoadd, valuearray_count(valuestoadd), SLAPI_VALUE_FLAG_PASSIN, NULL);
 			slapi_ch_free ( (void **)&valuestoadd );
 			/*
 			 * Now delete non-RDN values from a->a_present_values; and
@@ -514,7 +514,7 @@ entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, str
 				Slapi_ValueSet vs;
 				/* Add each deleted value to the present list */
 				valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_UPDATED,csn);
-				valueset_add_valuearray_ext(&a->a_present_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
+            			slapi_valueset_add_attr_valuearray_ext (a, &a->a_present_values, deletedvalues, valuearray_count(deletedvalues), SLAPI_VALUE_FLAG_PASSIN, NULL);
 				/* Remove the deleted values from the values to add */
 				valueset_set_valuearray_passin(&vs,valuestoadd); 
 				valueset_remove_valuearray(&vs, a, deletedvalues, SLAPI_VALUE_FLAG_IGNOREERROR, &v);
@@ -609,7 +609,7 @@ entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, stru
 				Slapi_ValueSet vs;
 				/* Add each deleted value to the present list */
 				valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_UPDATED,csn);
-				valueset_add_valuearray_ext(&a->a_present_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
+            			slapi_valueset_add_attr_valuearray_ext (a, &a->a_present_values, deletedvalues, valuearray_count(deletedvalues), SLAPI_VALUE_FLAG_PASSIN, NULL);
 				/* Remove the deleted values from the values to add */
 				valueset_set_valuearray_passin(&vs,valuestoadd); 
 				valueset_remove_valuearray(&vs, a, deletedvalues, SLAPI_VALUE_FLAG_IGNOREERROR, &v);
@@ -744,7 +744,7 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
 			valueset_update_csn_for_valuearray(&a->a_deleted_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated);
 			valuearray_free(&valuesupdated);
 			valuearray_update_csn(valuestodelete,CSN_TYPE_VALUE_DELETED,csn);
-			valueset_add_valuearray_ext(&a->a_deleted_values, valuestodelete, SLAPI_VALUE_FLAG_PASSIN);
+      			slapi_valueset_add_attr_valuearray_ext (a, &a->a_deleted_values, valuestodelete, valuearray_count(valuestodelete), SLAPI_VALUE_FLAG_PASSIN, NULL);
 			slapi_ch_free((void **)&valuestodelete);
 			resolve_attribute_state_single_valued(e, a, attr_state);
 			retVal= LDAP_SUCCESS;
@@ -838,7 +838,7 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 				valuearray_free(&valuesupdated);
 
 				valuearray_update_csn(valuestodelete,CSN_TYPE_VALUE_DELETED,csn);
-				valueset_add_valuearray_ext(&a->a_deleted_values, valuestodelete, SLAPI_VALUE_FLAG_PASSIN);
+            			slapi_valueset_add_attr_valuearray_ext (a, &a->a_deleted_values, valuestodelete, valuearray_count(valuestodelete), SLAPI_VALUE_FLAG_PASSIN, NULL);
 				/* all the elements in valuestodelete are passed;
 				 * should free valuestodelete only (don't call valuearray_free)
 				 * [622023] */
@@ -856,7 +856,8 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 				{
 					/* Add each deleted value to the deleted set */
 					valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_DELETED,csn);
-					valueset_add_valuearray_ext(&a->a_deleted_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
+       					slapi_valueset_add_attr_valuearray_ext (a,
+						 &a->a_deleted_values, deletedvalues, valuearray_count(deletedvalues), SLAPI_VALUE_FLAG_PASSIN, NULL);
 					slapi_ch_free((void **)&deletedvalues);
 					if(valueset_isempty(&a->a_present_values))
 					{

@@ -5568,11 +5568,12 @@ va_locate_oc_val( Slapi_Value **va, const char *oc_name, const char *oc_oid )
  *		oc_unlock();
  */
 static void
-va_expand_one_oc( const char *dn, Slapi_Value ***vap, const char *ocs )
+va_expand_one_oc( const char *dn, const Slapi_Attr *a, Slapi_ValueSet *vs, const char *ocs )
 {
 	struct objclass	*this_oc, *sup_oc;
-	int				p,i;
-	Slapi_Value		**newva;
+	int p;
+	Slapi_Value **va = vs->va;
+
 
 	this_oc = oc_find_nolock( ocs );
   
@@ -5589,29 +5590,18 @@ va_expand_one_oc( const char *dn, Slapi_Value ***vap, const char *ocs )
 		return;			/* superior is unknown -- ignore */
 	}
 
-	p = va_locate_oc_val( *vap, sup_oc->oc_name, sup_oc->oc_oid );
+	p = va_locate_oc_val( va, sup_oc->oc_name, sup_oc->oc_oid );
 
 	if ( p != -1 ) {
 		return;			/* value already present -- done! */
 	}
   
-	/* parent was not found.  add to the end */
-	for ( i = 0; (*vap)[i] != NULL; i++ ) {
-		;
-	}
-  
-	/* prevent loops: stop if more than 1000 OC values are present */
-	if ( i > 1000 ) {
+	if ( slapi_valueset_count(vs) > 1000 ) {
 		return;
 	}
   
-	newva = (Slapi_Value **)slapi_ch_realloc( (char *)*vap,
-			( i + 2 )*sizeof(Slapi_Value *));
-  
-	newva[i] = slapi_value_new_string(sup_oc->oc_name);
-	newva[i+1] = NULL;
-  
-	*vap = newva;
+  	slapi_valueset_add_attr_value_ext(a, vs, slapi_value_new_string(sup_oc->oc_name), SLAPI_VALUE_FLAG_PASSIN);
+
 	LDAPDebug( LDAP_DEBUG_TRACE,
 			"Entry \"%s\": added missing objectClass value %s\n",
 			dn, sup_oc->oc_name, 0 );
@@ -5623,11 +5613,12 @@ va_expand_one_oc( const char *dn, Slapi_Value ***vap, const char *ocs )
  * All missing superior classes are added to the objectClass attribute, as
  * is 'top' if it is missing.
  */
-void
-slapi_schema_expand_objectclasses( Slapi_Entry *e )
+static void
+schema_expand_objectclasses_ext( Slapi_Entry *e, int lock)
 {
 	Slapi_Attr		*sa;
-	Slapi_Value		**va;
+	Slapi_Value		*v;
+	Slapi_ValueSet		*vs;
 	const char		*dn = slapi_entry_get_dn_const( e );
 	int				i;
 
@@ -5635,76 +5626,41 @@ slapi_schema_expand_objectclasses( Slapi_Entry *e )
 		return;		/* no OC values -- nothing to do */
 	}
 
-	va = attr_get_present_values( sa );
-
-	if ( va == NULL || va[0] == NULL ) {
+	vs = &sa->a_present_values;
+	if ( slapi_valueset_isempty(vs) ) {
 		return;		/* no OC values -- nothing to do */
 	}
 
-	oc_lock_read();
+	if (lock)
+		oc_lock_read();
 
 	/*
 	 * This loop relies on the fact that bv_expand_one_oc()
 	 * always adds to the end
 	 */
-	for ( i = 0; va[i] != NULL; ++i ) {
-		if ( NULL != slapi_value_get_string(va[i]) ) {
-			va_expand_one_oc( dn, &va, slapi_value_get_string(va[i]) );
-		}
+	i = slapi_valueset_first_value(vs,&v);
+	while ( v != NULL) {
+		if ( NULL != slapi_value_get_string(v) ) {
+			va_expand_one_oc( dn, sa, &sa->a_present_values, slapi_value_get_string(v) );
+ 		}
+		i = slapi_valueset_next_value(vs, i, &v);
 	}
   
 	/* top must always be present */
-	va_expand_one_oc( dn, &va, "top" );
-
-	/*
-	 * Reset the present values in the set because we may have realloc'd it.
-	 * Note that this is the counterpart to the attr_get_present_values()
-	 * call we made above... nothing new has been allocated, but sa holds
-	 * a pointer to the original (pre realloc) va.
-	 */
-	sa->a_present_values.va = va;
-
-	oc_unlock();
+	va_expand_one_oc( dn, sa, &sa->a_present_values, "top" );
+	if (lock)
+		oc_unlock();
+}
+void
+slapi_schema_expand_objectclasses( Slapi_Entry *e )
+{
+	schema_expand_objectclasses_ext( e, 1);
 }
 
 void
 schema_expand_objectclasses_nolock( Slapi_Entry *e )
 {
-	Slapi_Attr		*sa;
-	Slapi_Value		**va;
-	const char		*dn = slapi_entry_get_dn_const( e );
-	int				i;
-
-	if ( 0 != slapi_entry_attr_find( e, SLAPI_ATTR_OBJECTCLASS, &sa )) {
-		return;		/* no OC values -- nothing to do */
-	}
-
-	va = attr_get_present_values( sa );
-
-	if ( va == NULL || va[0] == NULL ) {
-		return;		/* no OC values -- nothing to do */
-	}
-
-	/*
-	 * This loop relies on the fact that bv_expand_one_oc()
-	 * always adds to the end
-	 */
-	for ( i = 0; va[i] != NULL; ++i ) {
-		if ( NULL != slapi_value_get_string(va[i]) ) {
-			va_expand_one_oc( dn, &va, slapi_value_get_string(va[i]) );
-		}
-	}
-  
-	/* top must always be present */
-	va_expand_one_oc( dn, &va, "top" );
-
-	/*
-	 * Reset the present values in the set because we may have realloc'd it.
-	 * Note that this is the counterpart to the attr_get_present_values()
-	 * call we made above... nothing new has been allocated, but sa holds
-	 * a pointer to the original (pre realloc) va.
-	 */
-	sa->a_present_values.va = va;
+	schema_expand_objectclasses_ext( e, 0);
 }
 
 /* lock to protect both objectclass and schema_dse */

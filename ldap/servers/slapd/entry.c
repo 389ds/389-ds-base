@@ -237,8 +237,6 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 		int freeval = 0;
 		int value_state= VALUE_NOTFOUND;
 		int attr_state= ATTRIBUTE_NOTFOUND;
-		int maxvals;
-		int del_maxvals;
 
 		if ( *s == '\n' || *s == '\0' ) {
 			break;
@@ -280,9 +278,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			slapi_ch_free_string(&ptype);
 			ptype=PL_strndup(type.bv_val, type.bv_len);
 			nvals = 0;
-			maxvals = 0;
 			del_nvals = 0;
-			del_maxvals = 0;
 			a = NULL;
 		}
 
@@ -503,25 +499,21 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			if(value_state==VALUE_DELETED)
 			{
 				/* consumes the value */
-				valuearray_add_value_fast(
-					&(*a)->a_deleted_values.va, /* JCM .va is private */
-					svalue,
-					del_nvals,
-					&del_maxvals,
-					0/*!Exact*/,
-					1/*Passin*/ );
+				slapi_valueset_add_attr_value_ext(
+					*a,
+					&(*a)->a_deleted_values,
+ 					svalue,
+					SLAPI_VALUE_FLAG_PASSIN );
 				del_nvals++;
 			}
 			else
 			{
 				/* consumes the value */
-				valuearray_add_value_fast(
-					&(*a)->a_present_values.va, /* JCM .va is private */
-					svalue, 
-					nvals,
-					&maxvals, 
-					0 /*!Exact*/, 
-					1 /*Passin*/ );
+				slapi_valueset_add_attr_value_ext(
+					*a,
+					&(*a)->a_present_values,
+ 					svalue, 
+					SLAPI_VALUE_FLAG_PASSIN);
 				nvals++;
 			}
 			if(attributedeletioncsn!=NULL)
@@ -603,8 +595,8 @@ typedef struct _entry_attrs {
 typedef struct _str2entry_attr {
 	char *sa_type;
 	int sa_state;
- 	struct valuearrayfast sa_present_values;
- 	struct valuearrayfast sa_deleted_values;
+ 	struct slapi_value_set sa_present_values;
+ 	struct slapi_value_set sa_deleted_values;
 	int sa_numdups;
 	value_compare_fn_type sa_comparefn;
 	Avlnode *sa_vtree;
@@ -617,8 +609,8 @@ entry_attr_init(str2entry_attr *sa, const char *type, int state)
 {
     sa->sa_type= slapi_ch_strdup(type);
 	sa->sa_state= state;
-	valuearrayfast_init(&sa->sa_present_values,NULL);
-	valuearrayfast_init(&sa->sa_deleted_values,NULL);
+	slapi_valueset_init(&sa->sa_present_values);
+	slapi_valueset_init(&sa->sa_deleted_values);
     sa->sa_numdups= 0;
 	sa->sa_comparefn = NULL;
     sa->sa_vtree= NULL;
@@ -1106,66 +1098,20 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		{
 			/* 
 			 * for deleted values, we do not want to perform a dupcheck against
-			 * existing values. Also, we do not want to add it to the
-			 * avl tree (if one is being maintained)
-			 *
+			 * existing values.
 			 */
-			rc = 0; /* Presume no duplicate */
+			rc = slapi_valueset_add_attr_value_ext(&sa->sa_attr, &sa->sa_deleted_values,value, SLAPI_VALUE_FLAG_PASSIN);
 		}
-		else if ( !check_for_duplicate_values )
+		else
 		{
-			rc = LDAP_SUCCESS;	/* presume no duplicate */
-		} else {
-			/* For value dup checking, we either use brute-force, if there's a small number */
-			/* Or a tree-based approach if there's a large number. */
-			/* The tree code is expensive, which is why we don't use it unless there's many attributes */
-			rc = 0; /* Presume no duplicate */
-			if (fast_dup_check)
-			{
-				/* Fast dup-checking */
-				/* Do we now have so many values that we should switch to tree-based checking ? */
-				if (sa->sa_present_values.num > STR2ENTRY_VALUE_DUPCHECK_THRESHOLD)
-				{
-					/* Make the tree from the existing attr values */
-					rc= valuetree_add_valuearray( &sa->sa_attr, sa->sa_present_values.va, &sa->sa_vtree, NULL);
-					/* Check if the value already exists, in the tree. */
-					rc= valuetree_add_value( &sa->sa_attr, value, &sa->sa_vtree);
-					fast_dup_check = 0;
-				}
-				else
-				{
-					/* JCM - need an efficient valuearray function to do this */
-					/* Brute-force check */
-					for ( j = 0; j < sa->sa_present_values.num; j++ )/* JCM innards */
-					{
-						if (0 == sa->sa_comparefn(slapi_value_get_berval(value),slapi_value_get_berval(sa->sa_present_values.va[j])))/* JCM innards */
-						{
-							/* Oops---this value matches one already present */
-							rc = LDAP_TYPE_OR_VALUE_EXISTS;
-							break;
-						}
-					}
-				}
-			}
-			else
-			{
-				/* Check if the value already exists, in the tree. */
-				rc = valuetree_add_value( &sa->sa_attr, value, &sa->sa_vtree);
-			}
+			int flags = SLAPI_VALUE_FLAG_PASSIN;
+			if (check_for_duplicate_values) flags |= SLAPI_VALUE_FLAG_DUPCHECK;
+			rc = slapi_valueset_add_attr_value_ext(&sa->sa_attr, &sa->sa_present_values,value, flags);
 		}
 
 		if ( rc==LDAP_SUCCESS )
 		{
-			if(value_state==VALUE_DELETED)
-			{
-				valuearrayfast_add_value_passin(&sa->sa_deleted_values,value);
-				value= NULL; /* value was consumed */
-			}
-			else
-			{
-				valuearrayfast_add_value_passin(&sa->sa_present_values,value);
-				value= NULL; /* value was consumed */
-			}
+			value= NULL; /* value was consumed */
 			if(attributedeletioncsn!=NULL)
 			{
 				sa->sa_attributedeletioncsn= attributedeletioncsn;
@@ -1180,7 +1126,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		else
 		{
 		    /* Failure adding to value tree */
-		    LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: unexpected failure %d constructing value tree\n", rc, 0, 0 );
+		    LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: unexpected failure %d adding value\n", rc, 0, 0 );
 		    slapi_entry_free( e ); e = NULL;
 		    goto free_and_return;
 		}
@@ -1245,27 +1191,21 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			}
 			if(alist!=NULL)
 			{
-				int maxvals = 0;
 				Slapi_Attr **a= NULL;
 				attrlist_find_or_create_locking_optional(alist, sa->sa_type, &a, PR_FALSE);
-				valuearray_add_valuearray_fast( /* JCM should be calling a valueset function */
-					&(*a)->a_present_values.va, /* JCM .va is private */
-					sa->sa_present_values.va,
-					0, /* Currently there are no present values on the attribute */
-					sa->sa_present_values.num,
-					&maxvals,
-					1/*Exact*/,
-					1/*Passin*/);
+				slapi_valueset_add_attr_valuearray_ext(
+					*a,
+					&(*a)->a_present_values,
+ 					sa->sa_present_values.va,
+ 					sa->sa_present_values.num,
+					SLAPI_VALUE_FLAG_PASSIN, NULL);
 				sa->sa_present_values.num= 0; /* The values have been consumed */
-				maxvals = 0;
-				valuearray_add_valuearray_fast( /* JCM should be calling a valueset function */
-					&(*a)->a_deleted_values.va, /* JCM .va is private */
-					sa->sa_deleted_values.va,
-					0, /* Currently there are no deleted values on the attribute */
-					sa->sa_deleted_values.num,
-					&maxvals,
-					1/*Exact*/,
-					1/*Passin*/);
+				slapi_valueset_add_attr_valuearray_ext(
+					*a,
+					&(*a)->a_deleted_values,
+ 					sa->sa_deleted_values.va,
+ 					sa->sa_deleted_values.num,
+					SLAPI_VALUE_FLAG_PASSIN, NULL);
 				sa->sa_deleted_values.num= 0; /* The values have been consumed */
 				if(sa->sa_attributedeletioncsn!=NULL)
 				{
@@ -1312,9 +1252,8 @@ free_and_return:
     for ( i = 0; i < nattrs; i++ )
     {
 		slapi_ch_free((void **) &(attrs[ i ].sa_type));
-		valuearrayfast_done(&attrs[ i ].sa_present_values);
-		valuearrayfast_done(&attrs[ i ].sa_deleted_values);
-		valuetree_free( &attrs[ i ].sa_vtree );
+		slapi_ch_free((void **) &(attrs[ i ].sa_present_values.va));
+		slapi_ch_free((void **) &(attrs[ i ].sa_deleted_values.va));
 		attr_done( &attrs[ i ].sa_attr );
     }
 	if (tree_attr_checking)
@@ -1740,7 +1679,7 @@ entry2str_internal_put_attrlist( const Slapi_Attr *attrlist, int attr_state, int
 						 * never be seen by any client. It will never be moved to the 
 						 * present values and is only used to preserve the AD-csn
 						 */
-						valueset_add_string ((Slapi_ValueSet *)&a->a_deleted_values, "", CSN_TYPE_VALUE_DELETED, a->a_deletioncsn);
+						valueset_add_string (a, (Slapi_ValueSet *)&a->a_deleted_values, "", CSN_TYPE_VALUE_DELETED, a->a_deletioncsn);
 					}
 
 					entry2str_internal_put_valueset(a->a_type, a->a_deletioncsn, CSN_TYPE_ATTRIBUTE_DELETED, attr_state, &a->a_deleted_values, VALUE_DELETED, ecur, typebuf, typebuf_len, entry2str_ctrl);
@@ -2727,7 +2666,7 @@ slapi_entry_add_string(Slapi_Entry *e, const char *type, const char *value)
 {
 	Slapi_Attr **a= NULL;
 	attrlist_find_or_create(&e->e_attrs, type, &a);
-	valueset_add_string ( &(*a)->a_present_values, value, CSN_TYPE_UNKNOWN, NULL);
+	valueset_add_string ( *a, &(*a)->a_present_values, value, CSN_TYPE_UNKNOWN, NULL);
 	return 0;
 }
 

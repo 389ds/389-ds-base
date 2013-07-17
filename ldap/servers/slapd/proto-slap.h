@@ -167,13 +167,6 @@ int valuearray_first_value( Slapi_Value **va, Slapi_Value **v );
 
 void valuearrayfast_init(struct valuearrayfast *vaf,Slapi_Value **va);
 void valuearrayfast_done(struct valuearrayfast *vaf);
-void valuearrayfast_add_value(struct valuearrayfast *vaf,const Slapi_Value *v);
-void valuearrayfast_add_value_passin(struct valuearrayfast *vaf,Slapi_Value *v);
-void valuearrayfast_add_valuearrayfast(struct valuearrayfast *vaf,const struct valuearrayfast *vaf_add);
-
-int valuetree_add_value( const Slapi_Attr *sattr, const Slapi_Value *va, Avlnode **valuetreep);
-int valuetree_add_valuearray( const Slapi_Attr *sattr, Slapi_Value **va, Avlnode **valuetreep, int *duplicate_index);
-void valuetree_free( Avlnode **valuetreep );
 
 /* Valueset functions */
 
@@ -184,15 +177,17 @@ int valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Va
 int valueset_purge(Slapi_ValueSet *vs, const CSN *csn);
 Slapi_Value **valueset_get_valuearray(const Slapi_ValueSet *vs);
 size_t valueset_size(const Slapi_ValueSet *vs);
+void slapi_valueset_add_valuearray(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **addvals);
 void valueset_add_valuearray(Slapi_ValueSet *vs, Slapi_Value **addvals);
 void valueset_add_valuearray_ext(Slapi_ValueSet *vs, Slapi_Value **addvals, PRUint32 flags);
-void valueset_add_string(Slapi_ValueSet *vs, const char *s, CSNType t, const CSN *csn);
+void valueset_add_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s, CSNType t, const CSN *csn);
 void valueset_update_csn(Slapi_ValueSet *vs, CSNType t, const CSN *csn);
 void valueset_add_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2);
 int valueset_intersectswith_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **values, int *duplicate_index);
 Slapi_ValueSet *valueset_dup(const Slapi_ValueSet *dupee);
 void valueset_remove_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s);
-int valueset_replace(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **vals);
+int valueset_replace_valuearray(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **vals);
+int valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **vals, int dupcheck);
 void valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated);
 void valueset_update_csn_for_valuearray_ext(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestoupdate, CSNType t, const CSN *csn, Slapi_Value ***valuesupdated, int csnref_updated);
 void valueset_set_valuearray_byval(Slapi_ValueSet *vs, Slapi_Value **addvals);
