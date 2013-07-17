@@ -719,7 +719,7 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
     int attr_count = 0;
     int argc;
     char **argv;
-
+    int valid_suffix = 0;
 
     /* Declare plugin version */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
@@ -756,11 +756,20 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
     argv++; argc--;
     if(argc == 0){ err = -5; break; } /* no suffix */
     for(;argc > 0;argc--, argv++) {
+	err = slapi_dn_syntax_check(pb, *argv, 1);
+	if (err) {
+	    slapi_log_error(SLAPI_LOG_FATAL, "NS7bitAttr_Init",
+                      "Invalid suffix: %s\n", *argv);
+	    continue;
+	}
+	if (!valid_suffix)
+	    valid_suffix = 1;
         char *normdn = slapi_create_dn_string_case("%s", *argv);
         slapi_ch_free_string(argv);
         *argv = normdn;
     }
 
+    if (!valid_suffix) { err = -6; break; } /* Invalid suffix list */
     /* Provide descriptive information */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
             (void*)&pluginDesc);
@@ -793,7 +802,11 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
       } else if(err == -5){
           slapi_log_error(SLAPI_LOG_FATAL, "NS7bitAttr_Init",
                       "Invalid plugin arguments - missing suffix\n");
+      } else if(err == -6){
+          slapi_log_error(SLAPI_LOG_FATAL, "NS7bitAttr_Init",
+                      "Invalid plugin arguments - Invalid suffix list\n");
       }
+
       err = -1;
   }
   else
