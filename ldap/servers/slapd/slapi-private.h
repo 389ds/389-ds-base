@@ -196,6 +196,8 @@ PRUint16 csn_get_seqnum(const CSN *csn);
 PRUint16 csn_get_subseqnum(const CSN *csn);
 char *csn_as_string(const CSN *csn, PRBool replicaIdOrder, char *ss); /* WARNING: ss must be CSN_STRSIZE bytes, or NULL. */
 int csn_compare(const CSN *csn1, const CSN *csn2);
+int csn_compare_ext(const CSN *csn1, const CSN *csn2, unsigned int flags);
+#define CSN_COMPARE_SKIP_SUBSEQ 0x1
 time_t csn_time_difference(const CSN *csn1, const CSN *csn2);
 size_t csn_string_size();
 char *csn_as_attr_option_string(CSNType t,const CSN *csn,char *ss);
