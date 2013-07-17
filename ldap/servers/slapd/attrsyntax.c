@@ -859,6 +859,7 @@ attr_syntax_create_default( const char *name, const char *oid,
 			 &default_asi );
 	if ( rc == 0 && default_asi->asi_plugin == 0)
 		default_asi->asi_plugin = attr_syntax_default_plugin (syntax );
+	return (rc);
 }
 
 /*
