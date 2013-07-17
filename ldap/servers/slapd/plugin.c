@@ -54,6 +54,11 @@
 #define ROOT_BIND			"directory manager"
 #define ANONYMOUS_BIND		"anonymous"
 
+/* This defines the maximum number that an nsslapd-pluginArg attribute can have.
+ * A plugin can have 16 arguments nsslapd-pluginArg0 to nsslapd-pluginArg15 
+ */
+#define MAX_PLUGINARG_NUM 15
+
 /* Forward Declarations */
 static int plugin_call_list (struct slapdplugin *list, int operation, Slapi_PBlock *pb);
 static int plugin_call_one (struct slapdplugin *list, int operation, Slapi_PBlock *pb);
@@ -2097,8 +2102,19 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	int status = 0;
 	int enabled = 1;
 	char *configdir = 0;
+	int diff = 0;
+	int index_prev = 0;
+	char attr_prev[BUFSIZ];
+ 	int rc = 0;
+        int num_args = 0;
+        Slapi_Attr *newattr = 0;
+        int arg_length = 0;
+	char *attrnamenum = NULL;
+	char *attr_prevnum = NULL;
+	int numsize = 0;
 
 	attrname[0] = '\0';
+	attr_prev[0] = '\0';
 
 	if (!slapi_entry_get_sdn_const(plugin_entry))
 	{
@@ -2278,15 +2294,78 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	}
 
 	/* add the plugin arguments */
+	rc = 0;
+	arg_length = strlen(ATTR_PLUGIN_ARG);
+
+        for (rc = slapi_entry_first_attr(plugin_entry, &newattr); !rc && newattr; rc = slapi_entry_next_attr(plugin_entry, newattr, &newattr))
+	{
+                char *type = NULL;
+                slapi_attr_get_type(newattr, &type);
+                if (strncasecmp(type, ATTR_PLUGIN_ARG, arg_length) == 0)
+		{
+			char *ptr = type;
+			ptr += arg_length;
+			int numdigits = 0;
+			char *ptr_num = ptr;
+			if ((*ptr == '\0') || ((*ptr == '0') && (*(ptr+1) != '\0')))
+			{
+				slapi_log_error( SLAPI_LOG_FATAL, plugin->plg_dn, "Invalid Plugin argument: %s. Argument ignored\n", type);
+				continue;
+			}
+			while(*ptr != '\0')
+			{
+				if (!isdigit(*ptr))
+				{
+					slapi_log_error( SLAPI_LOG_FATAL, plugin->plg_dn, "Invalid Plugin argument: %s. Argument ignored\n", type);
+					break;
+				}
+				numdigits++;
+				ptr++;
+			}
+ 			if (*ptr == '\0') 
+			{
+				if ((numdigits < 3) && (atoi(ptr_num) <= MAX_PLUGINARG_NUM))
+					num_args++;
+				else
+				{
+					slapi_log_error( SLAPI_LOG_FATAL, plugin->plg_dn, "Plugin argument value nsslapd-pluginArg%s exceeded maximum allowed value nsslapd-pluginArg%d\n", ptr_num, MAX_PLUGINARG_NUM);
+					status = -1;
+                			goto PLUGIN_CLEANUP;
+				}
+			}
+		}
+        }
+
+	PR_snprintf(attrname, sizeof(attrname), "%s", ATTR_PLUGIN_ARG);
+	PR_snprintf(attr_prev, sizeof(attr_prev), "%s", ATTR_PLUGIN_ARG);
+	attrnamenum = attrname + sizeof(ATTR_PLUGIN_ARG) -1;
+	attr_prevnum = attr_prev + sizeof(ATTR_PLUGIN_ARG) -1;
+	numsize = sizeof(attrname) - sizeof(ATTR_PLUGIN_ARG);
 	value = 0;
 	ii = 0;
-	PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ii);
-	while ((value = slapi_entry_attr_get_charptr(plugin_entry, attrname)) != NULL)
+	while (plugin->plg_argc < num_args)
 	{
+		PR_snprintf(attrnamenum, numsize, "%d", ii);
+		if (diff == 0)
+		{
+			strcpy(attr_prev, attrname);
+			index_prev = ii;
+		}
+		while ((value = slapi_entry_attr_get_charptr(plugin_entry, attrname)) == NULL)
+                {
+                        PR_snprintf(attrnamenum, numsize, "%d", ++ii);
+                }
+
+		if(strcmp(attrname, attr_prev) != 0)
+		{
+			slapi_entry_add_string(plugin_entry, attr_prev, value);
+			slapi_entry_attr_delete(plugin_entry, attrname);
+			diff = 1;
+			PR_snprintf(attr_prevnum, numsize, "%d", ++index_prev);
+		}
 		charray_add(&plugin->plg_argv, value);
 		plugin->plg_argc++;
 		++ii;
-		PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ii);
 	}
 
 	memset((char *)&pb, '\0', sizeof(pb));
