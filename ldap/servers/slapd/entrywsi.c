@@ -757,7 +757,10 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
 			{
 				valuearray_free(&deletedvalues);
 				/* The attribute is single valued and the value was successful deleted */
-				entry_present_attribute_to_deleted_attribute(e, a);
+				/* but there could have been an add in the same operation, so double check */
+				if (valueset_isempty(&a->a_present_values)) {
+					entry_present_attribute_to_deleted_attribute(e, a);
+				}
 			}
 			else if (retVal != LDAP_SUCCESS)
 			{
@@ -875,8 +878,8 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 					if ( retVal==LDAP_OPERATIONS_ERROR )
 					{
 						LDAPDebug( LDAP_DEBUG_ANY, "Possible existing duplicate "
-							"value for attribute type %s found in "
-							"entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
+						           "value for attribute type %s found in "
+						           "entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
 					}
 				}
 				valuearray_free(&valuestodelete);
@@ -1327,6 +1330,7 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 	Slapi_Value *new_value= NULL;
 	const CSN *current_value_vucsn;
 	const CSN *pending_value_vucsn;
+	const CSN *pending_value_vdcsn;
 	const CSN *adcsn;
 	int i;
 
@@ -1340,27 +1344,47 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 		slapi_attr_next_value(a,i,&new_value);
 	}
 	attr_first_deleted_value(a,&pending_value);
-
 	/* purge_attribute_state_single_valued */
 	adcsn= attr_get_deletion_csn(a);
 	current_value_vucsn= value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
 	pending_value_vucsn= value_get_csn(pending_value, CSN_TYPE_VALUE_UPDATED);
-    if((pending_value!=NULL && (csn_compare(adcsn, pending_value_vucsn)<0)) || 
-        (pending_value==NULL && (csn_compare(adcsn, current_value_vucsn)<0)))
+	pending_value_vdcsn= value_get_csn(pending_value, CSN_TYPE_VALUE_DELETED);
+	if((pending_value!=NULL && (csn_compare(adcsn, pending_value_vucsn)<0)) ||
+	   (pending_value==NULL && (csn_compare(adcsn, current_value_vucsn)<0)))
 	{
 		attr_set_deletion_csn(a,NULL);
 		adcsn= NULL;
-    }
+	}
 
-	if(new_value==NULL)
+	/* in the case of the following:
+	 * add: value2
+	 * delete: value1
+	 * we will have current_value with VUCSN CSN1
+	 * and pending_value with VDCSN CSN2
+	 * and new_value == NULL
+	 * current_value != pending_value
+	 * and
+	 * VUCSN == VDCSN (ignoring subseq)
+	 * even though value1.VDCSN > value2.VUCSN
+	 * value2 should still win because the value is _different_
+	 */
+	if (current_value && pending_value && !new_value && !adcsn &&
+	    (0 != slapi_value_compare(a, current_value, pending_value)) &&
+	    (0 == csn_compare_ext(current_value_vucsn, pending_value_vdcsn, CSN_COMPARE_SKIP_SUBSEQ)))
 	{
-        /* check if the pending value should become the current value */ 
-        if(pending_value!=NULL)
+		/* just remove the deleted value */
+		entry_deleted_value_to_zapped_value(a,pending_value);
+		pending_value = NULL;
+	}
+	else if(new_value==NULL)
+	{
+		/* check if the pending value should become the current value */
+		if(pending_value!=NULL)
 		{
 			if(!value_distinguished_at_csn(e,a,current_value,pending_value_vucsn))
 			{
-	            /* attribute.current_value = attribute.pending_value; */
-	            /* attribute.pending_value = NULL; */
+				/* attribute.current_value = attribute.pending_value; */
+				/* attribute.pending_value = NULL; */
 				entry_present_value_to_zapped_value(a,current_value);
 				entry_deleted_value_to_present_value(a,pending_value);
 				current_value= pending_value;
@@ -1369,12 +1393,12 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 				pending_value_vucsn= NULL;
 			}
 		}
-        /* check if the current value should be deleted */ 
-        if(current_value!=NULL)
+		/* check if the current value should be deleted */
+		if(current_value!=NULL)
 		{
 			if(csn_compare(adcsn,current_value_vucsn)>0) /* check if the attribute was deleted after the value was last updated */
 			{
-	            if(!value_distinguished_at_csn(e,a,current_value,current_value_vucsn))
+				if(!value_distinguished_at_csn(e,a,current_value,current_value_vucsn))
 				{
 					entry_present_value_to_zapped_value(a,current_value);
 					current_value= NULL;
@@ -1386,17 +1410,17 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 	else /* addition of a new value */ 
 	{
 		const CSN *new_value_vucsn= value_get_csn(new_value,CSN_TYPE_VALUE_UPDATED);
-        if(csn_compare(new_value_vucsn,current_value_vucsn)<0)
+		if(csn_compare(new_value_vucsn,current_value_vucsn)<0)
 		{
-            /*
-             * if the new value was distinguished at the time the current value was added 
-             * then the new value should become current
-             */ 
-            if(value_distinguished_at_csn(e,a,new_value,current_value_vucsn))
+			/*
+			 * if the new value was distinguished at the time the current value was added
+			 * then the new value should become current
+			 */
+			if(value_distinguished_at_csn(e,a,new_value,current_value_vucsn))
 			{
-                /* attribute.pending_value = attribute.current_value  */
-                /* attribute.current_value = new_value  */
-                if(pending_value==NULL)
+				/* attribute.pending_value = attribute.current_value  */
+				/* attribute.current_value = new_value  */
+				if(pending_value==NULL)
 				{
 					entry_present_value_to_deleted_value(a,current_value);
 				}
@@ -1412,62 +1436,62 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 			}
 			else
 			{
-                /* new_value= NULL */
+				/* new_value= NULL */
 				entry_present_value_to_zapped_value(a, new_value);
 				new_value= NULL;
 			}
 		}
-        else    /* new value is after the current value */ 
+		else    /* new value is after the current value */
 		{
-            if(!value_distinguished_at_csn(e, a, current_value, new_value_vucsn))
+			if(!value_distinguished_at_csn(e, a, current_value, new_value_vucsn))
 			{
-                /* attribute.current_value = new_value */
+				/* attribute.current_value = new_value */
 				entry_present_value_to_zapped_value(a, current_value);
 				current_value= new_value;
 				new_value= NULL;
 				current_value_vucsn= new_value_vucsn;
 			}
-            else /* value is distinguished - check if we should replace the current pending value */ 
+			else /* value is distinguished - check if we should replace the current pending value */
 			{
-                if(csn_compare(new_value_vucsn, pending_value_vucsn)>0)
+				if(csn_compare(new_value_vucsn, pending_value_vucsn)>0)
 				{
-                    /* attribute.pending_value = new_value */
+					/* attribute.pending_value = new_value */
 					entry_deleted_value_to_zapped_value(a,pending_value);
 					entry_present_value_to_deleted_value(a,new_value);
 					pending_value= new_value;
 					new_value= NULL;
 					pending_value_vucsn= new_value_vucsn;
-                } 
-            } 
-        } 
-    } 
+				}
+			}
+		}
+	}
 
-    /*
-     * This call ensures that the attribute does not have a pending_value
+	/*
+	 * This call ensures that the attribute does not have a pending_value
 	 * or a deletion_csn that is earlier than the current_value.
 	 */ 
 	/* purge_attribute_state_single_valued */
-    if((pending_value!=NULL && (csn_compare(adcsn, pending_value_vucsn)<0)) || 
-        (pending_value==NULL && (csn_compare(adcsn, current_value_vucsn)<0)))
+	if((pending_value!=NULL && (csn_compare(adcsn, pending_value_vucsn)<0)) ||
+	   (pending_value==NULL && (csn_compare(adcsn, current_value_vucsn)<0)))
 	{
 		attr_set_deletion_csn(a,NULL);
 		adcsn= NULL;
-    } 
+	}
 
-    /* set attribute state */ 
-    if(current_value==NULL)
+	/* set attribute state */
+	if(current_value==NULL)
 	{
 		if(attribute_state==ATTRIBUTE_PRESENT)
 		{
 			entry_present_attribute_to_deleted_attribute(e, a);
 		}
 	}
-    else 
+	else
 	{
 		if(attribute_state==ATTRIBUTE_DELETED)
 		{
 			entry_deleted_attribute_to_present_attribute(e, a);
 		}
-    }
+	}
 }
 
