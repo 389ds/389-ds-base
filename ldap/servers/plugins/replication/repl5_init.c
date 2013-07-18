@@ -359,17 +359,6 @@ multimaster_betxnpreop_init( Slapi_PBlock *pb )
 {
     int rc= 0; /* OK */
 	
-	if( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,	SLAPI_PLUGIN_VERSION_01 ) != 0 || 
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbepreopdesc ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN, (void *) multimaster_betxnpreop_add ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN, (void *) multimaster_betxnpreop_delete ) != 0 ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN, (void *) multimaster_betxnpreop_modify ) != 0 ||
-	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN, (void *) multimaster_betxnpreop_modrdn ) != 0 )
-	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_betxnpreop_init failed\n" );
-		rc= -1;
-	}
-
 	return rc;
 }
 

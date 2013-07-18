@@ -479,25 +479,17 @@ slapi_rdn_add(Slapi_RDN *rdn, const char *type, const char *value)
 	PR_ASSERT(NULL != value);
 	if(rdn->rdn==NULL)
 	{
-	    /* type=value '\0' */
-		rdn->rdn= slapi_ch_malloc(strlen(type)+1+strlen(value)+1);
-		strcpy( rdn->rdn, type );
-		strcat( rdn->rdn, "=" );
-		strcat( rdn->rdn, value );
+		/* type=value '\0' */
+		rdn->rdn = slapi_create_dn_string("%s=%s", type, value);
 	}
 	else
 	{
-	    /* type=value+rdn '\0' */
-		char *newrdn= slapi_ch_malloc(strlen(type)+1+strlen(value)+1+strlen(rdn->rdn)+1);
-		strcpy( newrdn, type );
-		strcat( newrdn, "=" );
-		strcat( newrdn, value );
-		strcat( newrdn, "+" );
-		strcat( newrdn, rdn->rdn );
-		slapi_ch_free((void**)&rdn->rdn);
-		rdn->rdn= newrdn;
+		/* type=value+rdn '\0' */
+		char *newrdn = slapi_create_dn_string("%s=%s+%s", type, value, rdn->rdn);
+		slapi_ch_free_string(&rdn->rdn);
+		rdn->rdn = newrdn;
 	}
-    slapi_unsetbit_uchar(rdn->flag,FLAG_RDNS);
+	slapi_unsetbit_uchar(rdn->flag,FLAG_RDNS);
 	return 1;
 }
 

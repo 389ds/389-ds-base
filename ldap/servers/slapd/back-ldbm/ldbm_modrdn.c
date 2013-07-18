@@ -447,7 +447,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 /* Call the Backend Pre ModRDN plugins */
                 slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
                 rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODRDN_FN);
-                if (rc) {
+                if (rc < 0) {
                     if (SLAPI_PLUGIN_NOOP == rc) {
                         not_an_error = 1;
                         rc = LDAP_SUCCESS;

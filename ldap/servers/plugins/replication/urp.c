@@ -55,9 +55,9 @@ extern int slapi_log_urp;
 static int urp_add_resolve_parententry (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, Slapi_Entry *parententry, CSN *opcsn);
 static int urp_annotate_dn (char *sessionid, const Slapi_Entry *entry, CSN *opcsn, const char *optype);
 static int urp_naming_conflict_removal (Slapi_PBlock *pb, char *sessionid, CSN *opcsn, const char *optype);
-static int mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn, const Slapi_DN *conflictsdn, CSN *opcsn);
+static int mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn, const Slapi_DN *conflictsdn, CSN *opcsn, const char *optype);
 static int del_replconflict_attr (const Slapi_Entry *entry, CSN *opcsn, int opflags);
-static char *get_dn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
+static char *get_dn_plus_uniqueid(char *sessionid,const Slapi_DN *oldsdn,const char *uniqueid);
 static char *get_rdn_plus_uniqueid(char *sessionid,const char *olddn,const char *uniqueid);
 static int is_suffix_entry (Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_DN **parenddn);
 
@@ -184,7 +184,7 @@ urp_add_operation( Slapi_PBlock *pb )
 	if (r<0)
 	{
 		/* Entry to be added is a loser */
-		char *newdn= get_dn_plus_uniqueid (sessionid, basedn, adduniqueid);
+		char *newdn= get_dn_plus_uniqueid (sessionid, (const Slapi_DN *)addentry, adduniqueid);
 		if(newdn==NULL)
 		{
 			op_result= LDAP_OPERATIONS_ERROR;
@@ -203,7 +203,11 @@ urp_add_operation( Slapi_PBlock *pb )
 			Slapi_RDN *rdn;
 			char buf[BUFSIZ];
 
+#ifdef DEBUG
+			PR_snprintf(buf, BUFSIZ, "%s (add) %s", REASON_ANNOTATE_DN, basedn);
+#else
 			PR_snprintf(buf, BUFSIZ, "%s %s", REASON_ANNOTATE_DN, basedn);
+#endif
 			if (slapi_entry_attr_find (addentry, ATTR_NSDS5_REPLCONFLICT, &attr) == 0)
 			{
 				/* ATTR_NSDS5_REPLCONFLICT exists */
@@ -466,7 +470,7 @@ urp_modrdn_operation( Slapi_PBlock *pb )
 								  Unique ID already in RDN - Change to Lost and Found entry */
 				goto bailout;
 			}
-			mod_namingconflict_attr (op_uniqueid, target_sdn, existing_sdn, opcsn);
+			mod_namingconflict_attr (op_uniqueid, target_sdn, existing_sdn, opcsn, "MODRDN");
 			slapi_pblock_set(pb, SLAPI_MODRDN_NEWRDN, newrdn_with_uniqueid); 
 			slapi_log_error(slapi_log_urp, sessionid,
 			  "urp_modrdn: Naming conflict MODRDN. Rename target entry to %s\n",
@@ -1033,7 +1037,7 @@ urp_annotate_dn (char *sessionid, const Slapi_Entry *entry, CSN *opcsn, const ch
 	newrdn = get_rdn_plus_uniqueid ( sessionid, basedn, uniqueid );
 	if(newrdn!=NULL)
 	{
-		mod_namingconflict_attr (uniqueid, basesdn, basesdn, opcsn);
+		mod_namingconflict_attr (uniqueid, basesdn, basesdn, opcsn, optype);
 		op_result = urp_fixup_rename_entry ( entry, newrdn, 0 );
 		switch(op_result)
 		{
@@ -1245,16 +1249,15 @@ bailout:
 
 /* The returned value is either null or "uniqueid=<uniqueid>+<basedn>" */
 static char *
-get_dn_plus_uniqueid(char *sessionid, const char *olddn, const char *uniqueid)
+get_dn_plus_uniqueid(char *sessionid, const Slapi_DN *oldsdn, const char *uniqueid)
 {
-	Slapi_DN *sdn= slapi_sdn_new_dn_byval(olddn);
 	Slapi_RDN *rdn= slapi_rdn_new();
 	char *newdn;
 
 	PR_ASSERT(uniqueid!=NULL);
 
 	/* Check if the RDN already contains the Unique ID */
-	slapi_sdn_get_rdn(sdn,rdn);
+	slapi_rdn_set_dn(rdn, slapi_sdn_get_dn(oldsdn));
 	if(slapi_rdn_contains(rdn,SLAPI_ATTR_UNIQUEID,uniqueid,strlen(uniqueid)))
 	{
 		/* The Unique ID is already in the RDN.
@@ -1264,16 +1267,20 @@ get_dn_plus_uniqueid(char *sessionid, const char *olddn, const char *uniqueid)
 		 * require admin intercession
 		 */
 		slapi_log_error(SLAPI_LOG_FATAL, sessionid,
-				"Annotated DN %s has naming conflict\n", olddn );
+				"Annotated DN %s has naming conflict\n", slapi_sdn_get_dn(oldsdn) );
 		newdn= NULL;
 	}
 	else
 	{
-		slapi_rdn_add(rdn,SLAPI_ATTR_UNIQUEID,uniqueid);
-		slapi_sdn_set_rdn(sdn, rdn);
-		newdn= slapi_ch_strdup(slapi_sdn_get_dn(sdn));
+		char *parentdn = slapi_dn_parent(slapi_sdn_get_dn(oldsdn));
+		slapi_rdn_add(rdn, SLAPI_ATTR_UNIQUEID, uniqueid);
+		/* 
+		 * using slapi_ch_smprintf is okay since ...
+		 * uniqueid in rdn is normalized and
+		 * parentdn is normalized by slapi_sdn_get_dn.
+		 */
+		newdn = slapi_ch_smprintf("%s,%s", slapi_rdn_get_rdn(rdn), parentdn);
 	}
-	slapi_sdn_free(&sdn);
 	slapi_rdn_free(&rdn);
 	return newdn;
 }
@@ -1340,14 +1347,20 @@ is_suffix_dn ( Slapi_PBlock *pb, const Slapi_DN *dn, Slapi_DN **parentdn )
 
 static int
 mod_namingconflict_attr (const char *uniqueid, const Slapi_DN *entrysdn,
-                         const Slapi_DN *conflictsdn, CSN *opcsn)
+                         const Slapi_DN *conflictsdn, CSN *opcsn,
+                         const char *optype)
 {
 	Slapi_Mods smods;
 	char buf[BUFSIZ];
 	int op_result;
 
+#ifdef DEBUG
+	PR_snprintf (buf, sizeof(buf), "%s (%s) %s",
+	             REASON_ANNOTATE_DN, optype, slapi_sdn_get_dn(conflictsdn));
+#else
 	PR_snprintf (buf, sizeof(buf), "%s %s",
 	             REASON_ANNOTATE_DN, slapi_sdn_get_dn(conflictsdn));
+#endif
 	slapi_mods_init (&smods, 2);
 	if ( strncmp (slapi_sdn_get_dn(entrysdn), SLAPI_ATTR_UNIQUEID,
 	     strlen(SLAPI_ATTR_UNIQUEID)) != 0 )
