@@ -1901,6 +1901,7 @@ set_krb5_creds(
         }
     }
 
+    slapi_ch_free_string(&princ_name);
     if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
         slapi_log_error(SLAPI_LOG_FATAL, logname,
                         "Unable to get name of principal: "
