@@ -581,24 +581,24 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     
     if (slapi_be_logchanges(be) == 0) {
         LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change if not logging\n");
-	return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
     
     if (retrocl_be_changelog == NULL || be == retrocl_be_changelog) {
         LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change if no/cl be\n");
-	return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
 
     if (rc != LDAP_SUCCESS) {
         LDAPDebug1Arg(LDAP_DEBUG_TRACE,"not applying change if op failed %d\n",rc);
-	return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if (slapi_op_abandoned(pb)) {
         LDAPDebug0Args(LDAP_DEBUG_PLUGIN,"not applying change if op abandoned\n");
-	return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     curtime = current_time();
@@ -613,12 +613,12 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
 
     if (op == NULL) {
         LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change if no op\n");
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
 	if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)){
         LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change for nsTombstone entries\n");
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 	}
 	
     switch ( optype ) {

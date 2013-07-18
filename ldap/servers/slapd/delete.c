@@ -353,7 +353,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 	 * post-delete plugins.
 	 */
 	if (plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_PRE_DELETE_FN : 
-							SLAPI_PLUGIN_PRE_DELETE_FN) == 0)
+							SLAPI_PLUGIN_PRE_DELETE_FN) == SLAPI_PLUGIN_SUCCESS)
 	{
 		int	rc;
 

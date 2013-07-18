@@ -194,7 +194,7 @@ referint_postop_del( Slapi_PBlock *pb )
 
     if (0 == refint_started) {
         /* not initialized yet */
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
@@ -203,33 +203,33 @@ referint_postop_del( Slapi_PBlock *pb )
     {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop_del: could not get parameters\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
     /*
      *  This plugin should only execute if the delete was successful
      *  and this is not a replicated op(unless its allowed)
      */
     if(oprc != 0 || (isrepop && !allow_repl)){
-        return( 0 );
+        return SLAPI_PLUGIN_SUCCESS;
     }
     /* get the args */
     if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0) {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop failed to get argc\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
     if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0) {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop failed to get argv\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
-	
+
     if(argv == NULL){
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop_del, args are NULL\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
-	
+
     if (argc >= 3) {
         /* argv[0] will be the delay */
         delay = atoi(argv[0]);
@@ -239,19 +239,19 @@ referint_postop_del( Slapi_PBlock *pb )
 
         if(delay == -1){
             /* integrity updating is off */
-            rc = 0;
+            rc = SLAPI_PLUGIN_SUCCESS;
         } else if(delay == 0){ /* no delay */
             /* call function to update references to entry */
             rc = update_integrity(argv, sdn, NULL, NULL, logChanges);
         } else {
             /* write the entry to integrity log */
             writeintegritylog(pb, argv[1], sdn, NULL, NULL, NULL /* slapi_get_requestor_sdn(pb) */);
-            rc = 0;
+            rc = SLAPI_PLUGIN_SUCCESS;
         }
     } else {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop insufficient arguments supplied\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
 
     return( rc );
@@ -279,30 +279,30 @@ referint_postop_modrdn( Slapi_PBlock *pb )
     {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop_modrdn: could not get parameters\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
     /*
      *  This plugin should only execute if the delete was successful
      *  and this is not a replicated op (unless its allowed)
      */
     if(oprc != 0 || (isrepop && !allow_repl)){
-        return( 0 );
+        return SLAPI_PLUGIN_SUCCESS;
     }
     /* get the args */
     if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0) {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop failed to get argv\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
     if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0) {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop failed to get argv\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
     if(argv == NULL){
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop_modrdn, args are NULL\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
 
     if (argc >= 3) {
@@ -314,19 +314,19 @@ referint_postop_modrdn( Slapi_PBlock *pb )
     } else {
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop_modrdn insufficient arguments supplied\n" );
-        return( -1 );
+        return SLAPI_PLUGIN_FAILURE;
     }
 
     if(delay == -1){
         /* integrity updating is off */
-        rc = 0;
+        rc = SLAPI_PLUGIN_SUCCESS;
     } else if(delay == 0){ /* no delay */
         /* call function to update references to entry */
         rc = update_integrity(argv, sdn, newrdn, newsuperior, logChanges);
     } else {
         /* write the entry to integrity log */
         writeintegritylog(pb, argv[1], sdn, newrdn, newsuperior, NULL /* slapi_get_requestor_sdn(pb) */);
-        rc = 0;
+        rc = SLAPI_PLUGIN_SUCCESS;
     }
 
     return( rc );
@@ -720,12 +720,12 @@ update_integrity(char **argv, Slapi_DN *origSDN,
     int search_result;
     int nval = 0;
     int i, j;
-    int rc;
+    int rc = SLAPI_PLUGIN_SUCCESS;
 
     if ( argv == NULL ){
         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop required config file arguments missing\n" );
-        rc = -1;
+        rc = SLAPI_PLUGIN_FAILURE;
         goto free_and_return;
     } 
     /*
@@ -818,7 +818,7 @@ update_integrity(char **argv, Slapi_DN *origSDN,
                         slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                             "update_integrity search (base=%s filter=%s) returned "
                             "error %d\n", search_base, filter, search_result);
-                        rc = -1;
+                        rc = SLAPI_PLUGIN_FAILURE;
                         goto free_and_return;
                     }
                 }
@@ -828,7 +828,7 @@ update_integrity(char **argv, Slapi_DN *origSDN,
         }
     }
     /* if got here, then everything good rc = 0 */
-    rc = 0;
+    rc = SLAPI_PLUGIN_SUCCESS;
 
 free_and_return:
     /* free filter and search_results_pb */
@@ -878,7 +878,7 @@ int referint_postop_start( Slapi_PBlock *pb)
             keeprunning_mutex = PR_NewLock();
             keeprunning_cv = PR_NewCondVar(keeprunning_mutex);
             keeprunning =1;
-			
+
             referint_tid = PR_CreateThread (PR_USER_THREAD,
                                referint_thread_func,
                                (void *)argv,
@@ -1075,7 +1075,7 @@ int my_fgetc(PRFileDesc *stream)
     }
 
     return retval;
-}	
+}
 
 int
 GetNextLine(char *dest, int size_dest, PRFileDesc *stream) {
@@ -1083,7 +1083,7 @@ GetNextLine(char *dest, int size_dest, PRFileDesc *stream) {
     char nextchar ='\0';
     int  done     = 0;
     int  i        = 0;
-	
+
     while(!done){
         if( ( nextchar = my_fgetc(stream) ) != 0){
             if( i < (size_dest - 1) ){

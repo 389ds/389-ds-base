@@ -229,7 +229,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
     slapi_log_error( SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "<= pam_passthruauth_init\n" );
 
-  bail:
+bail:
     return status;
 }
 
@@ -574,7 +574,7 @@ pam_passthru_preop(Slapi_PBlock *pb, int modtype)
     Slapi_Entry *e = NULL;
     LDAPMod **mods;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
-    int ret = 0;
+    int ret = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "=> pam_passthru_preop\n");
@@ -640,11 +640,11 @@ pam_passthru_preop(Slapi_PBlock *pb, int modtype)
 
     }
 
-  bail:
+bail:
     /* If we are refusing the operation, return the result to the client. */
     if (ret) {
         slapi_send_ldap_result(pb, ret, NULL, returntext, 0, NULL);
-        ret = -1;
+        ret = SLAPI_PLUGIN_FAILURE;
     }
 
     slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
@@ -683,7 +683,7 @@ pam_passthru_modrdn_preop(Slapi_PBlock *pb)
 static int
 pam_passthru_postop(Slapi_PBlock *pb)
 {
-    int ret = 0;
+    int ret = SLAPI_PLUGIN_SUCCESS;
     Slapi_DN *sdn = NULL;
     Slapi_DN *new_sdn = NULL;
     Slapi_Entry *e = NULL;
@@ -737,7 +737,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "<= pam_passthru_postop\n");
 
-  bail:
+bail:
     return ret;
 }
 

@@ -1984,7 +1984,7 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
     char *errstr = NULL;
     struct configEntry *config = NULL;
     void *caller_id = NULL;
-    int ret = 0;
+    int ret = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_pre_op\n");
@@ -2259,7 +2259,8 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                         "mep_pre_op: operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
-        ret = -1;
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+        ret = SLAPI_PLUGIN_FAILURE;
     }
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
@@ -2313,7 +2314,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started)
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 
     if (mep_oktodo(pb) && (sdn = mep_get_sdn(pb))) {
         /* First check if the config or a template is being modified. */
@@ -2430,7 +2431,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_mod_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int
@@ -2445,7 +2446,7 @@ mep_add_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !mep_oktodo(pb))
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 
     /* Reload config if a config entry was added. */
     if ((sdn = mep_get_sdn(pb))) {
@@ -2460,7 +2461,7 @@ mep_add_post_op(Slapi_PBlock *pb)
 
     /* If replication, just bail. */
     if (mep_isrepl(pb)) {
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     /* Get the newly added entry. */
@@ -2469,7 +2470,7 @@ mep_add_post_op(Slapi_PBlock *pb)
     if (e) {
         /* If the entry is a tombstone, just bail. */
         if (mep_has_tombstone_value(e)) {
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         /* Check if a config entry applies
@@ -2479,7 +2480,7 @@ mep_add_post_op(Slapi_PBlock *pb)
         /* Bail out if the plug-in close function was just called. */
         if (!g_plugin_started) {
             mep_config_unlock();
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         mep_find_config(e, &config);
@@ -2497,7 +2498,7 @@ mep_add_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_add_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int
@@ -2511,7 +2512,7 @@ mep_del_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !mep_oktodo(pb)) {
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     /* Reload config if a config entry was deleted. */
@@ -2526,7 +2527,7 @@ mep_del_post_op(Slapi_PBlock *pb)
 
     /* If replication, just bail. */
     if (mep_isrepl(pb)) {
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     /* Get deleted entry, then go through types to find config. */
@@ -2537,7 +2538,7 @@ mep_del_post_op(Slapi_PBlock *pb)
 
         /* If the entry is a tombstone, just bail. */
         if (mep_has_tombstone_value(e)) {
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         /* See if we're an origin entry . */
@@ -2566,7 +2567,7 @@ mep_del_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_del_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int
@@ -2584,7 +2585,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !mep_oktodo(pb))
-        return 0;;
+        return SLAPI_PLUGIN_SUCCESS;;
 
     /* Reload config if an existing config entry was renamed,
      * or if the new dn brings an entry into the scope of the
@@ -2597,7 +2598,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
                         "mep_modrdn_post_op: Error "
                         "retrieving post-op entry\n");
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if ((old_sdn = mep_get_sdn(pb))) {
@@ -2611,12 +2612,12 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
 
     /* If replication, just bail. */
     if (mep_isrepl(pb)) {
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     /* If the entry is a tombstone, just bail. */
     if (mep_has_tombstone_value(post_e)) {
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     /* See if we're an origin entry . */
@@ -2638,7 +2639,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         if (!g_plugin_started) {
             mep_config_unlock();
             slapi_pblock_destroy(mep_pb);
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         mep_find_config(post_e, &config);
@@ -2809,7 +2810,7 @@ bailmod:
         /* Bail out if the plug-in close function was just called. */
         if (!g_plugin_started) {
             mep_config_unlock();
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         mep_find_config(post_e, &config);
@@ -2823,7 +2824,7 @@ bailmod:
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_modrdn_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int

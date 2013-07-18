@@ -190,13 +190,13 @@ multimaster_preop_add (Slapi_PBlock *pb)
         copy_operation_parameters(pb);
         slapi_operation_set_csngen_handler(op,
                                            (void*)replica_generate_next_csn);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if (!is_mmr_replica (pb))
     {
         copy_operation_parameters(pb);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
@@ -241,7 +241,7 @@ multimaster_preop_add (Slapi_PBlock *pb)
                         slapi_ch_free ((void**)&target_uuid);
                         slapi_ch_free ((void**)&superior_uuid);
 
-                        return -1;
+                        return SLAPI_PLUGIN_FAILURE;
                     }
 
                     operation_set_csn(op, csn);                    
@@ -296,7 +296,7 @@ multimaster_preop_add (Slapi_PBlock *pb)
 
     copy_operation_parameters(pb);
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
@@ -320,13 +320,13 @@ multimaster_preop_delete (Slapi_PBlock *pb)
     	slapi_operation_set_replica_attr_handler ( op, (void*)replica_get_attr );
         slapi_operation_set_csngen_handler(op,
                                            (void*)replica_generate_next_csn);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if (!is_mmr_replica (pb))
     {
         copy_operation_parameters(pb);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
@@ -366,7 +366,7 @@ multimaster_preop_delete (Slapi_PBlock *pb)
                         csn_free (&csn);
                         slapi_ch_free ((void**)&target_uuid);
 
-                        return -1;
+                        return SLAPI_PLUGIN_FAILURE;
                     }
 
                     /*
@@ -396,7 +396,7 @@ multimaster_preop_delete (Slapi_PBlock *pb)
     copy_operation_parameters(pb);
     slapi_operation_set_replica_attr_handler ( op, (void*)replica_get_attr );
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
@@ -419,13 +419,13 @@ multimaster_preop_modify (Slapi_PBlock *pb)
         copy_operation_parameters(pb);
         slapi_operation_set_csngen_handler(op,
                                            (void*)replica_generate_next_csn);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if (!is_mmr_replica (pb))
     {
         copy_operation_parameters(pb);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
@@ -465,7 +465,7 @@ multimaster_preop_modify (Slapi_PBlock *pb)
                         csn_free (&csn);
                         slapi_ch_free ((void**)&target_uuid);
 
-                        return -1;
+                        return SLAPI_PLUGIN_FAILURE;
                     }
 
                     /*
@@ -498,7 +498,7 @@ multimaster_preop_modify (Slapi_PBlock *pb)
     }
 
     copy_operation_parameters(pb);
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
@@ -521,13 +521,13 @@ multimaster_preop_modrdn (Slapi_PBlock *pb)
         copy_operation_parameters(pb);
         slapi_operation_set_csngen_handler(op,
                                            (void*)replica_generate_next_csn);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if (!is_mmr_replica (pb))
     {
         copy_operation_parameters(pb);
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
@@ -577,7 +577,7 @@ multimaster_preop_modrdn (Slapi_PBlock *pb)
                         slapi_ch_free ((void**)&newsuperior_uuid);
                         ldap_mods_free (modrdn_mods, 1);
 
-                        return -1;
+                        return SLAPI_PLUGIN_FAILURE;
                     }
 
                     operation_set_csn(op, csn);
@@ -625,19 +625,19 @@ multimaster_preop_modrdn (Slapi_PBlock *pb)
 
     copy_operation_parameters(pb);
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
 multimaster_preop_search (Slapi_PBlock *pb)
 {
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
 multimaster_preop_compare (Slapi_PBlock *pb)
 {
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static void
@@ -704,7 +704,7 @@ purge_entry_state_information (Slapi_PBlock *pb)
 int 
 multimaster_bepreop_add (Slapi_PBlock *pb)
 {
-	int rc= 0;
+	int rc= SLAPI_PLUGIN_SUCCESS;
 	Slapi_Operation *op;
 	int is_replicated_operation;
 	int is_fixup_operation;
@@ -729,7 +729,7 @@ multimaster_bepreop_add (Slapi_PBlock *pb)
 int 
 multimaster_bepreop_delete (Slapi_PBlock *pb)
 {
-	int rc= 0;
+	int rc= SLAPI_PLUGIN_SUCCESS;
 	Slapi_Operation *op;
 	int is_replicated_operation;
 	int is_fixup_operation;
@@ -754,7 +754,7 @@ multimaster_bepreop_delete (Slapi_PBlock *pb)
 int 
 multimaster_bepreop_modify (Slapi_PBlock *pb)
 {
-	int rc= 0;
+	int rc= SLAPI_PLUGIN_SUCCESS;
 	Slapi_Operation *op;
 	int is_replicated_operation;
 	int is_fixup_operation;
@@ -782,7 +782,7 @@ multimaster_bepreop_modify (Slapi_PBlock *pb)
 int 
 multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 {
-	int rc= 0;
+	int rc= SLAPI_PLUGIN_SUCCESS;
 	Slapi_Operation *op;
 	int is_replicated_operation;
 	int is_fixup_operation;
@@ -807,99 +807,6 @@ multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 	return rc;
 }
 
-/* betxn preop's */
-int 
-multimaster_betxnpreop_add (Slapi_PBlock *pb)
-{
-	int rc= 0;
-	Slapi_Operation *op;
-	int is_replicated_operation;
-	int is_fixup_operation;
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
-	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-
-	/* For replicated operations, apply URP algorithm */
-	if (!is_fixup_operation)
-	{
-		if (is_replicated_operation) { 
-			rc = urp_add_operation(pb);
-		}
-	}
-
-	return rc;
-}
-
-int 
-multimaster_betxnpreop_delete (Slapi_PBlock *pb)
-{
-	int rc= 0;
-	Slapi_Operation *op;
-	int is_replicated_operation;
-	int is_fixup_operation;
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
-	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-
-	/* For replicated operations, apply URP algorithm */
-	if(!is_fixup_operation)
-	{
-		if (is_replicated_operation) {
-			rc = urp_delete_operation(pb);
-		}
-	}
-
-	return rc;
-}
-
-int 
-multimaster_betxnpreop_modify (Slapi_PBlock *pb)
-{
-	int rc= 0;
-	Slapi_Operation *op;
-	int is_replicated_operation;
-	int is_fixup_operation;
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
-	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-
-	/* For replicated operations, apply URP algorithm */
-	if(!is_fixup_operation)
-	{
-		if (is_replicated_operation) {
-			rc = urp_modify_operation(pb);
-		}
-	}
-
-	return rc;
-}
-
-int 
-multimaster_betxnpreop_modrdn (Slapi_PBlock *pb)
-{
-	int rc= 0;
-	Slapi_Operation *op;
-	int is_replicated_operation;
-	int is_fixup_operation;
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-	is_replicated_operation= operation_is_flag_set(op,OP_FLAG_REPLICATED);
-	is_fixup_operation= operation_is_flag_set(op,OP_FLAG_REPL_FIXUP);
-
-	/* For replicated operations, apply URP algorithm */
-	if(!is_fixup_operation)
-	{
-		if (is_replicated_operation) {
-			rc = urp_modrdn_operation(pb);
-		}
-	}
-
-	return rc;
-}
-
 int 
 multimaster_bepostop_modrdn (Slapi_PBlock *pb)
 {
@@ -910,7 +817,7 @@ multimaster_bepostop_modrdn (Slapi_PBlock *pb)
 	{
 		urp_post_modrdn_operation (pb);
 	}
-	return 0;
+	return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
@@ -923,14 +830,14 @@ multimaster_bepostop_delete (Slapi_PBlock *pb)
 	{
 		urp_post_delete_operation (pb);
 	}
-	return 0;
+	return SLAPI_PLUGIN_SUCCESS;
 }
 
 /* postop - write to changelog */
 int 
 multimaster_postop_bind (Slapi_PBlock *pb)
 {
-	return 0;
+	return SLAPI_PLUGIN_SUCCESS;
 }
 
 int 
@@ -985,7 +892,7 @@ multimaster_betxnpostop_modify (Slapi_PBlock *pb)
 int
 multimaster_be_betxnpostop_delete (Slapi_PBlock *pb)
 {
-    int rc = 0;
+    int rc = SLAPI_PLUGIN_SUCCESS;
     /* original betxnpost */
     rc = write_changelog_and_ruv(pb);
     /* original bepost */
@@ -1119,7 +1026,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	int rc;
 	slapi_operation_parameters *op_params = NULL;
 	Object *repl_obj;
-	int return_value = 0;
+	int return_value = SLAPI_PLUGIN_SUCCESS;
 	Replica *r;
 	Slapi_Backend *be;
 	int is_replicated_operation = 0;
@@ -1129,7 +1036,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	if ((operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) ||
 		(operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)))
 	{
-		return 0;
+		return return_value;
 	}
 
 	/* ignore operations intended for chaining backends - they will be
@@ -1141,18 +1048,18 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	if (!is_replicated_operation &&
 		slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA))
 	{
-		return 0;
+		return return_value;
 	}
 
 	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
 	if (rc) { /* op failed - just return */
-		return 0;
+		return return_value;
 	}
 
 	/* we only log changes for operations applied to a replica */
 	repl_obj = replica_get_replica_for_op (pb);
 	if (repl_obj == NULL)
-		return 0;
+		return return_value;
  
 	r = (Replica*)object_get_data (repl_obj);
 	PR_ASSERT (r);
@@ -1214,7 +1121,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		if( op_params->csn && is_cleaned_rid(csn_get_replicaid(op_params->csn))){
 			/* this RID has been cleaned */
 			object_release (repl_obj);
-			return 0;
+			return return_value;
 		}
 
 		/* we might have stripped all the mods - in that case we do not
@@ -1227,7 +1134,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			{
 				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 								"write_changelog_and_ruv: Skipped due to DISKFULL\n");
-				return 0;
+				return return_value;
 			}
 			slapi_pblock_get(pb, SLAPI_TXN, &txn);
 			rc = cl5WriteOperationTxn(repl_name, repl_gen, op_params, 
@@ -1243,7 +1150,7 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 					op_params->target_address.uniqueid,
 					op_params->operation_type,
 					csn_as_string(op_params->csn, PR_FALSE, csn_str));
-				return_value = 1;
+				return_value = SLAPI_PLUGIN_FAILURE;
 			}
 		}
 
@@ -1313,7 +1220,7 @@ process_postop (Slapi_PBlock *pb)
     if ((operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) ||
 		(operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)))
 	{
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 	}
 
 	/* ignore operations intended for chaining backends - they will be
@@ -1325,24 +1232,27 @@ process_postop (Slapi_PBlock *pb)
 	if (!is_replicated_operation &&
 		slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA))
 	{
-		return 0;
+		return SLAPI_PLUGIN_SUCCESS;
 	}
 
 	get_repl_session_id (pb, sessionid, &opcsn);
 
-    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
 	if (rc == LDAP_SUCCESS)
 	{
-        agmtlist_notify_all(pb);
+		agmtlist_notify_all(pb);
+		rc = SLAPI_PLUGIN_SUCCESS;
 	}
-    else if (opcsn)
+	else if (opcsn)
 	{
-        rc = cancel_opcsn (pb); 
+		rc = cancel_opcsn (pb); 
 
 		/* Don't try to get session id since conn is always null */
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 			"%s process postop: canceling operation csn\n", sessionid);
-    }
+	} else {
+		rc = SLAPI_PLUGIN_FAILURE;
+	}
 
 	/* the target unique id is set in the modify_preop above, so 
 	   we need to free it */
@@ -1436,7 +1346,7 @@ cancel_opcsn (Slapi_PBlock *pb)
         object_release (repl_obj);
     }
     
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 

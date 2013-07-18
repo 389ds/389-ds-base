@@ -1536,7 +1536,7 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
     LDAPMod **mods = NULL;
     int free_entry = 0;
     char *errstr = NULL;
-    int ret = 0;
+    int ret = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_pre_op\n");
@@ -1603,7 +1603,8 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
                         "linked_attrs_pre_op: operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
-        ret = -1;
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+        ret = SLAPI_PLUGIN_FAILURE;
     }
 
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
@@ -1640,7 +1641,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started)
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 
     /* We don't want to process internal modify
      * operations that originate from this plugin.
@@ -1649,7 +1650,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
 
     if (caller_id == linked_attrs_get_plugin_id()) {
         /* Just return without processing */
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if (linked_attrs_oktodo(pb) &&
@@ -1675,7 +1676,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
             /* Bail out if the plug-in close function was just called. */
             if (!g_plugin_started) {
                 linked_attrs_unlock();
-                return 0;
+                return SLAPI_PLUGIN_SUCCESS;
             }
 
             linked_attrs_find_config(dn, type, &config);
@@ -1729,7 +1730,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_mod_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int
@@ -1743,7 +1744,7 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !linked_attrs_oktodo(pb))
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 
     /* Reload config if a config entry was added. */
     if ((dn = linked_attrs_get_dn(pb))) {
@@ -1773,7 +1774,7 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
             /* Bail out if the plug-in close function was just called. */
             if (!g_plugin_started) {
                 linked_attrs_unlock();
-                return 0;
+                return SLAPI_PLUGIN_SUCCESS;
             }
 
             linked_attrs_find_config(dn, type, &config);
@@ -1808,7 +1809,7 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_add_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int
@@ -1822,7 +1823,7 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !linked_attrs_oktodo(pb))
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 
     /* Reload config if a config entry was deleted. */
     if ((dn = linked_attrs_get_dn(pb))) {
@@ -1852,7 +1853,7 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
             /* Bail out if the plug-in close function was just called. */
             if (!g_plugin_started) {
                 linked_attrs_unlock();
-                return 0;
+                return SLAPI_PLUGIN_SUCCESS;
             }
 
             linked_attrs_find_config(dn, type, &config);
@@ -1920,7 +1921,7 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_del_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int
@@ -1932,7 +1933,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
     Slapi_Attr *attr = NULL;
     char *type = NULL;
     struct configEntry *config = NULL;
-    int rc = 0;
+    int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_modrdn_post_op\n");
@@ -1978,7 +1979,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
         /* Bail out if the plug-in close function was just called. */
         if (!g_plugin_started) {
             linked_attrs_unlock();
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         linked_attrs_find_config(old_dn, type, &config);
@@ -2069,7 +2070,10 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
 done:
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_modrdn_post_op\n");
-
+    if (rc) {
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+        rc = SLAPI_PLUGIN_FAILURE;
+    }
     return rc;
 }
 
