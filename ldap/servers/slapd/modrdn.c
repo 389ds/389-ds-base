@@ -654,7 +654,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	 * post-modrdn plugins.
 	 */
 	if (plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_PRE_MODRDN_FN :
-							SLAPI_PLUGIN_PRE_MODRDN_FN) == 0)
+							SLAPI_PLUGIN_PRE_MODRDN_FN) == SLAPI_PLUGIN_SUCCESS)
 	{
 		int	rc= LDAP_OPERATIONS_ERROR;
 		slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);

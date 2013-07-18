@@ -1686,7 +1686,7 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
     LDAPMod **mods;
     int free_entry = 0;
     char *errstr = NULL;
-    int ret = 0;
+    int ret = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_pre_op\n");
@@ -1771,7 +1771,8 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
                         "automember_pre_op: operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
-        ret = -1;
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+        ret = SLAPI_PLUGIN_FAILURE;
     }
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -1822,7 +1823,7 @@ automember_mod_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_mod_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 static int
@@ -1838,7 +1839,7 @@ automember_add_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !automember_oktodo(pb))
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 
     /* Reload config if a config entry was added. */
     if ((sdn = automember_get_sdn(pb))) {
@@ -1854,7 +1855,7 @@ automember_add_post_op(Slapi_PBlock *pb)
 
     /* If replication, just bail. */
     if (automember_isrepl(pb)) {
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     /* Get the newly added entry. */
@@ -1868,7 +1869,7 @@ automember_add_post_op(Slapi_PBlock *pb)
                                                    tombstone);
         slapi_value_free(&tombstone);
         if (rc) {
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         /* Check if a config entry applies
@@ -1878,7 +1879,7 @@ automember_add_post_op(Slapi_PBlock *pb)
         /* Bail out if the plug-in close function was just called. */
         if (!g_plugin_started) {
             automember_config_unlock();
-            return 0;
+            return SLAPI_PLUGIN_SUCCESS;
         }
 
         if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
@@ -1907,7 +1908,7 @@ bail:
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_add_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 /*
@@ -1925,7 +1926,7 @@ automember_del_post_op(Slapi_PBlock *pb)
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !automember_oktodo(pb)) {
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     /* Reload config if a config entry was deleted. */
@@ -1941,7 +1942,7 @@ automember_del_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_del_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
 typedef struct _task_data
@@ -2193,7 +2194,7 @@ void automember_rebuild_task_thread(void *arg){
                 /* Does the entry meet scope and filter requirements? */
                 if (slapi_dn_issuffix(slapi_sdn_get_dn(td->base_dn), config->scope) &&
                     (slapi_filter_test_simple(entries[i], config->filter) == 0))
-                {		
+                {
                     automember_update_membership(config, entries[i], NULL);
                 }
                 list = PR_NEXT_LINK(list);

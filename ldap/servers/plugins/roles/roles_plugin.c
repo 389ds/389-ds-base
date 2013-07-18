@@ -355,7 +355,7 @@ static int roles_post_op( Slapi_PBlock *pb )
     roles_cache_change_notify(pb);
 
     slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_post_op\n");
-    return 0; /* always succeed */
+    return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }
 
 static void roles_set_plugin_identity(void * identity)

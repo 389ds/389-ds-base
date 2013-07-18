@@ -210,10 +210,6 @@ int multimaster_bepreop_add (Slapi_PBlock *pb);
 int multimaster_bepreop_delete (Slapi_PBlock *pb);
 int multimaster_bepreop_modify (Slapi_PBlock *pb);
 int multimaster_bepreop_modrdn (Slapi_PBlock *pb);
-int multimaster_betxnpreop_add (Slapi_PBlock *pb);
-int multimaster_betxnpreop_delete (Slapi_PBlock *pb);
-int multimaster_betxnpreop_modify (Slapi_PBlock *pb);
-int multimaster_betxnpreop_modrdn (Slapi_PBlock *pb);
 int replica_ruv_smods_for_op (Slapi_PBlock *pb, char **uniqueid,
 	Slapi_Mods **smods);
 int multimaster_bepostop_modrdn (Slapi_PBlock *pb);

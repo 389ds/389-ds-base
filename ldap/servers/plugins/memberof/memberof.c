@@ -380,7 +380,7 @@ int memberof_postop_close(Slapi_PBlock *pb)
  */
 int memberof_postop_del(Slapi_PBlock *pb)
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	MemberOfConfig configCopy = {0, 0, 0, 0};
 	Slapi_DN *sdn;
 	void *caller_id = NULL;
@@ -393,7 +393,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
 	if (caller_id == memberof_get_plugin_id()) {
 		/* Just return without processing */
-		return 0;
+		return SLAPI_PLUGIN_SUCCESS;
 	}
 
 	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
@@ -626,7 +626,7 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
  */
 int memberof_postop_modrdn(Slapi_PBlock *pb)
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	void *caller_id = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -637,7 +637,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
 	if (caller_id == memberof_get_plugin_id()) {
 		/* Just return without processing */
-		return 0;
+		return SLAPI_PLUGIN_SUCCESS;
 	}
 
 	if(memberof_oktodo(pb))
@@ -801,7 +801,7 @@ int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
  */
 int memberof_postop_modify(Slapi_PBlock *pb)
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	Slapi_DN *sdn = NULL;
 	Slapi_Mods *smods = 0;
 	Slapi_Mod *smod = 0;
@@ -817,7 +817,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
 	if (caller_id == memberof_get_plugin_id()) {
 		/* Just return without processing */
-		return 0;
+		return SLAPI_PLUGIN_SUCCESS;
 	}
 
 	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
@@ -945,7 +945,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
  */
 int memberof_postop_add(Slapi_PBlock *pb)
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	int interested = 0;
 	Slapi_DN *sdn = 0;
 	void *caller_id = NULL;
@@ -958,7 +958,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
 	if (caller_id == memberof_get_plugin_id()) {
 		/* Just return without processing */
-		return 0;
+		return SLAPI_PLUGIN_SUCCESS;
 	}
 
 	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))

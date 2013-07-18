@@ -713,7 +713,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 	sdn = slapi_sdn_dup(slapi_entry_get_sdn_const(e));
 	slapi_pblock_set(pb, SLAPI_ADD_TARGET_SDN, (void *)sdn);
 	if (plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_PRE_ADD_FN :
-	                        SLAPI_PLUGIN_PRE_ADD_FN) == 0)
+	                        SLAPI_PLUGIN_PRE_ADD_FN) == SLAPI_PLUGIN_SUCCESS)
 	{
 		int	rc;
 		Slapi_Entry	*ec;

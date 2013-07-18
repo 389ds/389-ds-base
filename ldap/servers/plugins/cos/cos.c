@@ -306,6 +306,6 @@ int cos_post_op( Slapi_PBlock *pb )
 	cos_cache_change_notify(pb);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_post_op\n",0,0,0);
-	return 0; /* always succeed */
+	return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }
 
