@@ -4752,7 +4752,7 @@ void slapi_valueset_add_value(Slapi_ValueSet *vs, const Slapi_Value *addval);
  * \see slapi_valueset_first_value()
  * \see slapi_valueset_next_value()
  */
-void slapi_valueset_add_value_ext(Slapi_ValueSet *vs, Slapi_Value *addval, unsigned long flags);
+void slapi_valueset_add_value_ext(Slapi_ValueSet *vs, const Slapi_Value *addval, unsigned long flags);
 int slapi_valueset_add_attr_value_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *addval, unsigned long flags);
 
 /**

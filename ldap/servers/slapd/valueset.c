@@ -870,7 +870,7 @@ slapi_valueset_add_value(Slapi_ValueSet *vs, const Slapi_Value *addval)
 }
 
 void
-slapi_valueset_add_value_ext(Slapi_ValueSet *vs, Slapi_Value *addval, unsigned long flags)
+slapi_valueset_add_value_ext(Slapi_ValueSet *vs, const Slapi_Value *addval, unsigned long flags)
 {
 	Slapi_Value *oneval[2];
 	oneval[0]= (Slapi_Value*)addval;
@@ -928,13 +928,13 @@ static int
 valueset_value_cmp( const Slapi_Attr *a, const Slapi_Value *v1, const Slapi_Value *v2 )
 {
 
-	if ( a == NULL || slapi_attr_is_dn_syntax_attr(a)) {
+	if ( a == NULL || slapi_attr_is_dn_syntax_attr((Slapi_Attr *)a)) {
 		/* if no attr is provided just do a utf8compare */
 		/* for all the values the first step of normalization is done, 
 		 * case folding still needs to be done
 		 */
 		/* would this be enough ?: return (strcasecmp(v1->bv.bv_val, v2->bv.bv_val)); */
-		return (slapi_utf8casecmp(v1->bv.bv_val, v2->bv.bv_val));
+		return (slapi_utf8casecmp((unsigned char*)v1->bv.bv_val, (unsigned char*)v2->bv.bv_val));
 	} else {
 		/* slapi_value_compare doesn't work, it only returns 0 or -1
 		return (slapi_value_compare(a, v1, v2));
