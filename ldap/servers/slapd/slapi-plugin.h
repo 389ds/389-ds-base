@@ -2998,6 +2998,16 @@ void slapi_rdn_free(Slapi_RDN **rdn);
 int slapi_is_ipv6_addr( const char *ipAddress);
 
 /**
+ * Returns the length of a ber-encoded ldap operation
+ *
+ * \param bv is the berval of the encoded ldap operation
+ * \param strict set to 0 if "bv" does not contain the entire LDAP encoding
+ * \return -1 if the length can not be determined
+ * \return length
+ */
+ber_len_t slapi_berval_get_msg_len(struct berval *bv, int strict);
+
+/**
  * Frees and clears the contents of a \c Slapi_RDN structure from memory.
  *
  * Both the RDN value and the array of split RDNs are freed. Those pointers

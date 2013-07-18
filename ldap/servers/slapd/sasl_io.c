@@ -52,7 +52,9 @@
  */
 
 #define SASL_IO_BUFFER_SIZE 1024 
- 
+#define SASL_IO_BUFFER_NOT_ENCRYPTED -99
+#define SASL_IO_BUFFER_START_SIZE 7
+
 /*
  * SASL sends its encrypted PDU's with an embedded 4-byte length
  * at the beginning (in network byte order). We peek inside the
@@ -204,56 +206,184 @@ sasl_get_io_private(PRFileDesc *fd)
 static PRInt32
 sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt32 *err)
 {
-    PRInt32 ret = 0;
-    unsigned char buffer[sizeof(PRInt32)];
-    size_t packet_length = 0;
-    size_t saslio_limit;
+    unsigned char buffer[SASL_IO_BUFFER_START_SIZE];
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
     PRInt32 amount = sizeof(buffer);
+    PRInt32 ret = 0;
+    size_t packet_length = 0;
+    size_t saslio_limit;
 
     *err = 0;
     debug_print_layers(fd);
-    amount -= sp->encrypted_buffer_offset;
     /* first we need the length bytes */
     ret = PR_Recv(fd->lower, buffer, amount, flags, timeout);
     LDAPDebug( LDAP_DEBUG_CONNS,
-               "read sasl packet length returned %d on connection %" NSPRIu64 "\n", ret, c->c_connid, 0 );
+           "sasl_io_start_packet: read sasl packet length returned %d on connection %" NSPRIu64 "\n",
+           ret, c->c_connid, 0 );
     if (ret <= 0) {
         *err = PR_GetError();
         if (ret == 0) {
             LDAPDebug1Arg( LDAP_DEBUG_CONNS,
-                       "sasl_io_start_packet: connection closed while reading sasl packet length on connection %" NSPRIu64 "\n", c->c_connid );
+                   "sasl_io_start_packet: connection closed while reading sasl packet length on connection %" NSPRIu64 "\n",
+                   c->c_connid );
         } else {
             LDAPDebug( LDAP_DEBUG_CONNS,
-                       "sasl_io_start_packet: error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
+                   "sasl_io_start_packet: error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n",
+                   c->c_connid, *err, slapd_pr_strerror(*err) );
         }
         return ret;
     }
     /*
      * Read the bytes and add them to sp->encrypted_buffer 
-     * - if offset < 4, tell caller we didn't read enough bytes yet 
-     * - if offset >= 4, decode the length and proceed.
+     * - if offset < 7, tell caller we didn't read enough bytes yet
+     * - if offset >= 7, decode the length and proceed.
      */
-    if (ret < sizeof(buffer)) {
-        memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, buffer, ret);
-        sp->encrypted_buffer_offset += ret;
-        if (sp->encrypted_buffer_offset < sizeof(buffer)) {
-            LDAPDebug2Args( LDAP_DEBUG_CONNS,
-                   "sasl_io_start_packet: read only %d bytes of sasl packet "
-                   "length on connection %" NSPRIu64 "\n", ret, c->c_connid );
+    if((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size){
+    	sasl_io_resize_encrypted_buffer(sp, ret + sp->encrypted_buffer_offset);
+    }
+    memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, buffer, ret);
+    sp->encrypted_buffer_offset += ret;
+    if (sp->encrypted_buffer_offset < sizeof(buffer)) {
+        LDAPDebug2Args( LDAP_DEBUG_CONNS,
+               "sasl_io_start_packet: read only %d bytes of sasl packet "
+               "length on connection %" NSPRIu64 "\n", ret, c->c_connid );
 #if defined(EWOULDBLOCK)
-            errno = EWOULDBLOCK;
+        errno = EWOULDBLOCK;
 #elif defined(EAGAIN)
-            errno = EAGAIN;
+        errno = EAGAIN;
 #endif
-            PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
+        PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
+        return PR_FAILURE;
+    }
+
+    /*
+     * Check if an LDAP operation was sent unencrypted
+     */
+    if(!sp->send_encrypted && *sp->encrypted_buffer == LDAP_TAG_MESSAGE){
+        struct berval bv, tmp_bv;
+        BerElement *ber = NULL;
+        ber_len_t maxbersize = config_get_maxbersize();
+        ber_len_t ber_len = 0;
+        ber_tag_t tag;
+
+        slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                "Sent an LDAP message that was not encrypted.\n", c->c_connid, c->c_sd);
+
+        /* Build a berval so we can get the length before reading in the entire packet */
+        bv.bv_val = sp->encrypted_buffer;
+        bv.bv_len = sp->encrypted_buffer_offset;
+        if((ber_len = slapi_berval_get_msg_len(&bv, 0)) == -1){
+            goto done;
+        }
+
+        /* Is the ldap operation too large? */
+        if(ber_len > maxbersize){
+            slapi_log_error( SLAPI_LOG_FATAL, "connection",
+                    "conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable "
+                    "is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in "
+                    "cn=config to increase.\n",
+                    c->c_connid, c->c_sd, maxbersize );
+            PR_SetError(PR_IO_ERROR, 0);
             return PR_FAILURE;
         }
-    } else {
-        memcpy(sp->encrypted_buffer, buffer, sizeof(buffer));
-        sp->encrypted_buffer_offset = sizeof(buffer);
+        /*
+         * Bump the ber length by 2 for the tag/length we skipped over when calculating the berval length.
+         * We now have the total "packet" size, so we know exactly what is left to read in.
+         */
+        ber_len += 2;
+
+        /*
+         * Read in the rest of the packet.
+         *
+         * sp->encrypted_buffer_offset is the total number of bytes that have been written
+         * to the buffer.  Once we have the complete LDAP packet we'll set it back to zero,
+         * and adjust the sp->encrypted_buffer_count.
+         */
+        while(sp->encrypted_buffer_offset < ber_len){
+            unsigned char mybuf[SASL_IO_BUFFER_SIZE];
+
+            ret = PR_Recv(fd->lower, mybuf, SASL_IO_BUFFER_SIZE, flags, timeout);
+            if (ret == PR_WOULD_BLOCK_ERROR || (ret == 0 && sp->encrypted_buffer_offset < ber_len)){
+                /*
+                 * Need more data, go back and try to get more data from connection_read_operation()
+                 * We can return and continue to update sp->encrypted_buffer because we have
+                 * maintained the current size in encrypted_buffer_offset.
+                 */
+#if defined(EWOULDBLOCK)
+                errno = EWOULDBLOCK;
+#elif defined(EAGAIN)
+                errno = EAGAIN;
+#endif
+                PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
+                return PR_FAILURE;
+            } else if (ret > 0) {
+                LDAPDebug( LDAP_DEBUG_CONNS,
+                        "Continued: read sasl packet length returned %d on connection %" NSPRIu64 "\n",
+                        ret, c->c_connid, 0 );
+                if((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size){
+                	sasl_io_resize_encrypted_buffer(sp, ret + sp->encrypted_buffer_offset);
+                }
+                memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, mybuf, ret );
+                sp->encrypted_buffer_offset += ret;
+            } else if (ret < 0){
+                *err = PR_GetError();
+                LDAPDebug( LDAP_DEBUG_CONNS, "sasl_io_start_packet: error reading sasl packet length on connection "
+                        "%" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
+                return ret;
+            }
+        }
+
+        /*
+         * Reset the berval with the updated buffer, and create the berElement
+         */
+        bv.bv_val = sp->encrypted_buffer;
+        bv.bv_len = sp->encrypted_buffer_offset;
+        if ( (ber = ber_init(&bv)) == NULL){
+            goto done;
+        }
+
+        /*
+         * Start parsing the berElement.  First skip this tag, and move on to the
+         * tag msgid
+         */
+        ber_skip_tag(ber, &ber_len);
+        if( ber_peek_tag( ber, &ber_len ) == LDAP_TAG_MSGID) {
+            /*
+             * Skip the entire msgid element, so we can get to the LDAP op tag
+             */
+            if(ber_skip_element(ber, &tmp_bv) == LDAP_TAG_MSGID) {
+                /*
+                 * We only allow unbind operations to be processed for unencrypted operations
+                 */
+                if (( tag = ber_peek_tag( ber, &ber_len )) == LDAP_REQ_UNBIND ) {
+                    slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                            "Received unencrypted UNBIND operation.\n", c->c_connid, c->c_sd);
+                    sp->encrypted_buffer_count = sp->encrypted_buffer_offset;
+                    sp->encrypted_buffer_offset = 0;
+                    ber_free(ber, 1);
+                    return SASL_IO_BUFFER_NOT_ENCRYPTED;
+                }
+                slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                        "Error: received an LDAP message (tag 0x%lx) that was not encrypted.\n",
+                        c->c_connid, c->c_sd, tag);
+            }
+        }
+
+done:
+        /* If we got here we have garbage, or a denied LDAP operation */
+        slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                "Error: received an invalid message that was not encrypted.\n",
+                c->c_connid, c->c_sd);
+
+        if (NULL != ber){
+            ber_free(ber, 1);
+        }
+        PR_SetError(PR_IO_ERROR, 0);
+
+        return PR_FAILURE;
     }
+
     /* At this point, sp->encrypted_buffer_offset == sizeof(buffer) */
     /* Decode the length */
     packet_length = ntohl(*(uint32_t *)sp->encrypted_buffer);
@@ -334,6 +464,14 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
         if (!sasl_io_reading_packet(sp)) {
             /* First read the packet length and so on */
             ret = sasl_io_start_packet(fd, flags, timeout, &err);
+            if (SASL_IO_BUFFER_NOT_ENCRYPTED == ret) {
+                /*
+                 * Special case: we received unencrypted data that was actually
+                 * an unbind.  Copy it to the buffer and return its length.
+                 */
+                memcpy(buf, sp->encrypted_buffer, sp->encrypted_buffer_count);
+                return sp->encrypted_buffer_count;
+            }
             if (0 >= ret) {
                 /* timeout, connection closed, or error */
                 return ret;

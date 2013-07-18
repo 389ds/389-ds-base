@@ -2331,3 +2331,42 @@ slapi_is_ipv6_addr( const char *hostname ){
     }
     return 0;
 }
+
+/*
+ * Get the length of the ber-encoded ldap message.  Note, only the length of
+ * the LDAP operation is returned, not the length of the entire berval.
+ * Add 2 to the length for the entire PDU size.  If "strict" is set then
+ * the entire LDAP PDU must be in the berval.
+ */
+ber_len_t
+slapi_berval_get_msg_len(struct berval *bv, int strict)
+{
+    ber_len_t len, rest;
+    unsigned char *ptr;
+    int i;
+
+    /* Get the ldap operation length */
+    rest = bv->bv_len - 1;
+    ptr =  (unsigned char *)bv->bv_val ;
+    ptr++;  /* skip the tag and get right to the length */
+    len = *ptr++;
+    rest--;
+
+    if ( len & 0x80U ) {
+        len &= 0x7fU;
+        if ( len - 1U > sizeof(ber_len_t) - 1U || rest < len ) {
+            /* Indefinite-length/too long length/not enough data */
+            return -1;
+        }
+        rest -= len;
+        i = len;
+        for( len = *ptr++ & 0xffU; --i; len |= *ptr++ & 0xffU ) {
+            len <<= 8;
+        }
+    }
+    if( strict && len > rest ) {
+        return -1;
+    }
+
+    return len;
+}
