@@ -148,7 +148,7 @@ compute_stock_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi
 		Slapi_Attr our_attr;
 		slapi_attr_init(&our_attr, subschemasubentry);
 		our_attr.a_flags = SLAPI_ATTR_FLAG_OPATTR;
-		valueset_add_string(&our_attr.a_present_values,SLAPD_SCHEMA_DN,CSN_TYPE_UNKNOWN,NULL);
+		valueset_add_string(&our_attr, &our_attr.a_present_values,SLAPD_SCHEMA_DN,CSN_TYPE_UNKNOWN,NULL);
 		rc = (*outputfn) (c, &our_attr, e);
 		attr_done(&our_attr);
 		return (rc);

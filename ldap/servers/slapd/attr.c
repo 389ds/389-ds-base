@@ -365,11 +365,9 @@ Slapi_Attr *
 slapi_attr_dup(const Slapi_Attr *attr)
 {
 	Slapi_Attr *newattr= slapi_attr_new();
-	Slapi_Value **present_va= valueset_get_valuearray(&attr->a_present_values); /* JCM Mucking about inside the value set */
-	Slapi_Value **deleted_va= valueset_get_valuearray(&attr->a_deleted_values); /* JCM Mucking about inside the value set */
 	slapi_attr_init(newattr, attr->a_type);
-	valueset_add_valuearray( &newattr->a_present_values, present_va );
-	valueset_add_valuearray( &newattr->a_deleted_values, deleted_va );
+	slapi_valueset_set_valueset( &newattr->a_deleted_values,  &attr->a_deleted_values );
+	slapi_valueset_set_valueset( &newattr->a_present_values,  &attr->a_present_values );
 	newattr->a_deletioncsn= csn_dup(attr->a_deletioncsn);
 	return newattr;
 }
@@ -835,43 +833,11 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
     }
 
     /*
-     * determine whether we should use an AVL tree of values or not
+     * add values and check for duplicate values
      */
-    for ( i = 0; vals[i] != NULL; i++ ) ;
-    numofvals = i;
-
-    /*
-     * detect duplicate values
-     */
-    if ( numofvals > 1 ) {
-        /*
-         * Several values to add: use an AVL tree to detect duplicates.
-         */
-        LDAPDebug( LDAP_DEBUG_TRACE,
-                   "slapi_entry_add_values: using an AVL tree to "
-                   "detect duplicate values\n", 0, 0, 0 );
-
-        if (valueset_isempty(&a->a_present_values)) {
-            /* if the attribute contains no values yet, just check the
-             * input vals array for duplicates
-             */
-            Avlnode *vtree = NULL;
-            rc= valuetree_add_valuearray(a, vals, &vtree, &duplicate_index);
-            valuetree_free(&vtree);
-            was_present_null = 1;
-        } else {
-            /* the attr and vals both contain values, check intersection */
-            rc= valueset_intersectswith_valuearray(&a->a_present_values, a, vals, &duplicate_index);
-        }
-
-    } else if ( !valueset_isempty(&a->a_present_values) ) {
-        /*
-         * One or no value to add: don't bother constructing
-         * an AVL tree, etc. since it probably isn't worth the time.
-         */
-        for ( i = 0; vals[i] != NULL; ++i ) {
-            if ( slapi_attr_value_find( a, slapi_value_get_berval(vals[i]) ) == 0 ) {
-                duplicate_index = i;
+	numofvals = valuearray_count(vals);
+            rc = slapi_valueset_add_attr_valuearray_ext (a, &a->a_present_values, vals, numofvals, SLAPI_VALUE_FLAG_DUPCHECK, &duplicate_index);
+            if ( rc != LDAP_SUCCESS) {
 #if defined(USE_OLD_UNHASHED)
                 if (is_type_forbidden(a->a_type)) {
                     /* If the attr is in the forbidden list
@@ -884,22 +850,12 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
 #else
                 rc = LDAP_TYPE_OR_VALUE_EXISTS;
 #endif
-                break;
             }
-        }
-    }
-
-    /*
-     * add values if no duplicates detected
-     */
-    if(rc==LDAP_SUCCESS) {
-        valueset_add_valuearray( &a->a_present_values, vals );
-    }
 
     /* In the case of duplicate value, rc == LDAP_TYPE_OR_VALUE_EXISTS or
      * LDAP_OPERATIONS_ERROR
      */
-    else if ( duplicate_index >= 0 ) {
+    if ( duplicate_index >= 0 ) {
         char bvvalcopy[BUFSIZ];
         char *duplicate_string = "null or non-ASCII";
 
@@ -940,7 +896,7 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
  */
 int attr_replace(Slapi_Attr *a, Slapi_Value **vals)
 {
-    return valueset_replace(a, &a->a_present_values, vals);
+    return valueset_replace_valuearray(a, &a->a_present_values, vals);
 }
 
 int 

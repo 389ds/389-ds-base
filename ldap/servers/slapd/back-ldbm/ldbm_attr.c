@@ -437,7 +437,7 @@ ldbm_compute_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_
 			Slapi_Attr our_attr;
 			slapi_attr_init(&our_attr, numsubordinates);
 			our_attr.a_flags = SLAPI_ATTR_FLAG_OPATTR;
-			valueset_add_string(&our_attr.a_present_values,"0",CSN_TYPE_UNKNOWN,NULL);
+			valueset_add_string(&our_attr, &our_attr.a_present_values,"0",CSN_TYPE_UNKNOWN,NULL);
 			rc = (*outputfn) (c, &our_attr, e);
 			attr_done(&our_attr);
 			return (rc);
@@ -454,9 +454,9 @@ ldbm_compute_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_
 		rc = slapi_entry_attr_find( e, numsubordinates, &read_attr );
 		if ( (0 != rc) || slapi_entry_attr_hasvalue(e,numsubordinates,"0") ) {
 			/* If not, or present and zero, we return FALSE, otherwise TRUE */
-			valueset_add_string(&our_attr.a_present_values,"FALSE",CSN_TYPE_UNKNOWN,NULL);
+			valueset_add_string(&our_attr, &our_attr.a_present_values,"FALSE",CSN_TYPE_UNKNOWN,NULL);
 		} else {
-			valueset_add_string(&our_attr.a_present_values,"TRUE",CSN_TYPE_UNKNOWN,NULL);
+			valueset_add_string(&our_attr, &our_attr.a_present_values,"TRUE",CSN_TYPE_UNKNOWN,NULL);
 		}
 		rc = (*outputfn) (c, &our_attr, e);
 		attr_done(&our_attr);

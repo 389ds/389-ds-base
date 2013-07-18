@@ -464,7 +464,7 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 
 			/* Append the pending values to a->a_present_values */
 			valuearray_update_csn (valuestoadd,CSN_TYPE_VALUE_UPDATED,csn);
-			valueset_add_valuearray_ext(&a->a_present_values, valuestoadd, SLAPI_VALUE_FLAG_PASSIN);
+            		slapi_valueset_add_attr_valuearray_ext (a, &a->a_present_values, valuestoadd, valuearray_count(valuestoadd), SLAPI_VALUE_FLAG_PASSIN, NULL);
 			slapi_ch_free ( (void **)&valuestoadd );
 
 			/*
@@ -502,7 +502,7 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 				Slapi_ValueSet vs;
 				/* Add each deleted value to the present list */
 				valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_UPDATED,csn);
-				valueset_add_valuearray_ext(&a->a_present_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
+            			slapi_valueset_add_attr_valuearray_ext (a, &a->a_present_values, deletedvalues, valuearray_count(deletedvalues), SLAPI_VALUE_FLAG_PASSIN, NULL);
 				/* Remove the deleted values from the values to add */
 				valueset_set_valuearray_passin(&vs,valuestoadd); 
 				valueset_remove_valuearray(&vs, a, deletedvalues, SLAPI_VALUE_FLAG_IGNOREERROR, &v);
@@ -584,7 +584,7 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 				valueset_update_csn_for_valuearray(&a->a_deleted_values, a, valuestodelete, CSN_TYPE_VALUE_DELETED, csn, &valuesupdated);
 				valuearray_free(&valuesupdated);
 				valuearray_update_csn(valuestodelete,CSN_TYPE_VALUE_DELETED,csn);
-				valueset_add_valuearray_ext(&a->a_deleted_values, valuestodelete, SLAPI_VALUE_FLAG_PASSIN);
+            			slapi_valueset_add_attr_valuearray_ext (a, &a->a_deleted_values, valuestodelete, valuearray_count(valuestodelete), SLAPI_VALUE_FLAG_PASSIN, NULL);
 				/* all the elements in valuestodelete are passed;
 				 * should free valuestodelete only (don't call valuearray_free)
 				 * [622023] */
@@ -603,7 +603,8 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 						/* We don't maintain a deleted value list for single valued attributes */
 						/* Add each deleted value to the deleted set */
 						valuearray_update_csn(deletedvalues,CSN_TYPE_VALUE_DELETED,csn);
-						valueset_add_valuearray_ext(&a->a_deleted_values, deletedvalues, SLAPI_VALUE_FLAG_PASSIN);
+            					slapi_valueset_add_attr_valuearray_ext (a,
+							 &a->a_deleted_values, deletedvalues, valuearray_count(deletedvalues), SLAPI_VALUE_FLAG_PASSIN, NULL);
 						slapi_ch_free((void **)&deletedvalues);
 					}
 					else {

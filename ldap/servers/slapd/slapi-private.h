@@ -839,9 +839,12 @@ int charray_normdn_add(char ***chararray, char *dn, char *errstr);
  * the very least before we make them public.
  */
 void valuearray_add_value(Slapi_Value ***vals, const Slapi_Value *addval);
-void valuearray_add_value_fast(Slapi_Value ***vals, Slapi_Value *addval, int nvals, int *maxvals, int exact, int passin);
 void valuearray_add_valuearray( Slapi_Value ***vals, Slapi_Value **addvals, PRUint32 flags );
 void valuearray_add_valuearray_fast( Slapi_Value ***vals, Slapi_Value **addvals, int nvals, int naddvals, int *maxvals, int exact, int passin );
+Slapi_Value * valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v, int *index);
+int valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *vi, int dupcheck);
+void valueset_array_to_sorted (const Slapi_Attr *a, Slapi_ValueSet *vs);
+int slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **addval, int nvals, unsigned long flags, int *dup_index);
 int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v);
 int valuearray_dn_normalize_value(Slapi_Value **vals);
 

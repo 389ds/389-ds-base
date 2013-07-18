@@ -129,7 +129,7 @@ attrlist_merge_valuearray(Slapi_Attr **alist, const char *type, Slapi_Value **va
 	Slapi_Attr	**a= NULL;
 	if (!vals) return;
 	attrlist_find_or_create(alist, type, &a);
-	valueset_add_valuearray( &(*a)->a_present_values, vals );
+	slapi_valueset_add_valuearray( *a, &(*a)->a_present_values, vals );
 }    
 
 

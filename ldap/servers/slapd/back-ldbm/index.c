@@ -545,7 +545,7 @@ index_add_mods(
 
         for (curr_attr = newe->ep_entry->e_attrs; curr_attr != NULL; curr_attr = curr_attr->a_next) {
             if (slapi_attr_type_cmp( basetype, curr_attr->a_type, SLAPI_TYPE_CMP_BASE ) == 0) {
-                valueset_add_valuearray(all_vals, attr_get_present_values(curr_attr));
+                slapi_valueset_join_attr_valueset(curr_attr, all_vals, &curr_attr->a_present_values);
             }
         }
  
@@ -566,7 +566,7 @@ index_add_mods(
 
             for (curr_attr = olde->ep_entry->e_attrs; curr_attr != NULL; curr_attr = curr_attr->a_next) {
                 if (slapi_attr_type_cmp( mods[i]->mod_type, curr_attr->a_type, SLAPI_TYPE_CMP_EXACT ) == 0) {
-                    valueset_add_valuearray(mod_vals, attr_get_present_values(curr_attr));
+                	slapi_valueset_join_attr_valueset(curr_attr, mod_vals, &curr_attr->a_present_values);
                 }
             }
                                                                                                                             
@@ -584,7 +584,7 @@ index_add_mods(
                 slapi_entry_attr_find( olde->ep_entry, mods[i]->mod_type, &curr_attr );
                 if ( mods_valueArray != NULL ) {
                     for ( j = 0; mods_valueArray[j] != NULL; j++ ) {
-                        Slapi_Value *rval = valuearray_remove_value(curr_attr, evals, mods_valueArray[j]);
+                        Slapi_Value *rval = valueset_remove_value(curr_attr, all_vals, mods_valueArray[j]);
                         slapi_value_free( &rval );
                     }
                 }
@@ -593,12 +593,12 @@ index_add_mods(
                  * they don't exist, delete the equality index.
                  */
                 for ( j = 0; deleted_valueArray[j] != NULL; j++ ) {
-                    if (valuearray_find(curr_attr, evals, deleted_valueArray[j]) == -1) {
+                    if ( !slapi_valueset_find(curr_attr, all_vals, deleted_valueArray[j])) {
                         if (!(flags & BE_INDEX_EQUALITY)) {
                             flags |= BE_INDEX_EQUALITY;
                         }
                     } else {
-                        Slapi_Value *rval = valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                        Slapi_Value *rval = valueset_remove_value(curr_attr, mod_vals, deleted_valueArray[j]);
                         slapi_value_free( &rval );
                         j--;
                         /* indicates there was some conflict */
@@ -637,8 +637,8 @@ index_add_mods(
                 if (curr_attr) { /* found the type */
                     for (j = 0; mods_valueArray[j] != NULL; j++) {
                         /* mods_valueArray[j] is in curr_attr ==> return 0 */
-                        if (slapi_attr_value_find(curr_attr,
-                                slapi_value_get_berval(mods_valueArray[j]))) {
+                        if ( !slapi_valueset_find(curr_attr, &curr_attr->a_present_values,
+                                mods_valueArray[j])) {
                             /* The value is NOT in newe, remove it. */
                             Slapi_Value *rval;
                             rval = valuearray_remove_value(curr_attr,
@@ -677,7 +677,7 @@ index_add_mods(
 
                 for (curr_attr = olde->ep_entry->e_attrs; curr_attr != NULL; curr_attr = curr_attr->a_next) {
                         if (slapi_attr_type_cmp( mods[i]->mod_type, curr_attr->a_type, SLAPI_TYPE_CMP_EXACT ) == 0) {
-                            valueset_add_valuearray(mod_vals, attr_get_present_values(curr_attr));
+                	    slapi_valueset_join_attr_valueset(curr_attr, mod_vals, &curr_attr->a_present_values);
                         }
                 }
 
@@ -693,15 +693,15 @@ index_add_mods(
                             /* Check if the any values being deleted
                              * also exist in a subtype.
                              */
-                            for (j = 0; deleted_valueArray && deleted_valueArray[j]; j++) {
-                                if ( valuearray_find(curr_attr, evals, deleted_valueArray[j]) == -1 ) {
+                            for ( j=0; deleted_valueArray[j] != NULL; j++) {
+                    		if ( !slapi_valueset_find(curr_attr, all_vals, deleted_valueArray[j])) {
                                     /* If the equality flag isn't already set, set it */
                                     if (!(flags & BE_INDEX_EQUALITY)) {
                                         flags |= BE_INDEX_EQUALITY;
                                     }
                                 } else {
                                     /* Remove duplicate value from the mod list */
-                                    Slapi_Value *rval = valuearray_remove_value(curr_attr, deleted_valueArray, deleted_valueArray[j]);
+                                    Slapi_Value *rval = valueset_remove_value(curr_attr, mod_vals, deleted_valueArray[j]);
                                     slapi_value_free( &rval );
                                     j--;
                                 }
@@ -750,7 +750,7 @@ index_add_mods(
                     if (curr_attr) {
                         int found = 0;
                         for (j = 0; mods_valueArray[j] != NULL; j++ ) {
-                            if ( valuearray_find(curr_attr, evals, mods_valueArray[j]) > -1 ) {
+                    	    if ( slapi_valueset_find(curr_attr, all_vals, mods_valueArray[j])) {
                                 /* The same value found in evals. 
                                  * We don't touch the equality index. */
                                 found = 1;

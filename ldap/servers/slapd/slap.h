@@ -450,8 +450,14 @@ struct slapi_value
  *		struct slapi_value_tree *vt;
  *	};
  */
+
+/* It is a useless layer, always use the valuarray fast version */
+#define VALUE_SORT_THRESHOLD 10
 struct slapi_value_set
 {
+	int num; /* The number of values in the array */
+	int max; /* The number of slots in the array */
+	int *sorted; /* sorted array of indices, if NULL va is not sorted */
 	struct slapi_value **va;
 };
 
@@ -522,6 +528,8 @@ typedef struct asyntaxinfo {
 #define SLAPI_ATTR_FLAG_NOLOCKING	0x0020	/* the init code doesn't lock the
 											   tables */
 #define SLAPI_ATTR_FLAG_KEEP		0x8000 /* keep when replacing all */
+#define SLAPI_ATTR_FLAG_SYNTAX_LOOKUP_DONE		0x010000 /* syntax lookup done, flag set */
+#define SLAPI_ATTR_FLAG_SYNTAX_IS_DN		0x020000 /* syntax lookup done, flag set */
 
 /* This is the type of the function passed into attr_syntax_enumerate_attrs */
 typedef int (*AttrEnumFunc)(struct asyntaxinfo *asi, void *arg);
