@@ -194,112 +194,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 	}
 
 
-	if (!is_tombstone_operation) {
-		rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
-	}
-	rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY);
-	rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY);
-	while(rc!=0)
-	{
-		/* JCM - copying entries can be expensive... should optimize */
-		/* 
-		 * Some present state information is passed through the PBlock to the
-		 * backend pre-op plugin. To ensure a consistent snapshot of this state
-		 * we wrap the reading of the entry with the dblock.
-		 */
-		if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY))
-		{
-			/* Check if an entry with the intended uniqueid already exists. */
-			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY); /* Could be through this multiple times */
-			addr.udn = NULL;
-			addr.sdn = NULL;
-			addr.uniqueid = (char*)slapi_entry_get_uniqueid(e); /* jcm -  cast away const */
-			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_UNIQUEID_ENTRY, !is_replicated_operation);
-		}
-		if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
-		{
-			slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn );
-			if (NULL == sdn)
-			{
-				LDAPDebug0Args(LDAP_DEBUG_ANY,
-				               "ldbm_back_add: Null target dn\n");
-				goto error_return;
-			}
-
-			/* not need to check the dn syntax as this is a replicated op */
-			if(!is_replicated_operation){
-				dn = slapi_sdn_get_dn(sdn);
-				ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
-				if (ldap_result_code)
-				{
-					ldap_result_code = LDAP_INVALID_DN_SYNTAX;
-					slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-					goto error_return;
-				}
-			}
-
-			slapi_sdn_get_backend_parent(sdn, &parentsdn, pb->pb_backend);
-			/* Check if an entry with the intended DN already exists. */
-			done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY); /* Could be through this multiple times */
-			addr.sdn = sdn;
-			addr.udn = NULL;
-			addr.uniqueid = NULL;
-			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_DN_ENTRY, !is_replicated_operation);
-			if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
-			   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
-			{
-			    goto error_return;
-			}
-		}
-		/* if we can find the parent by dn or uniqueid, and the operation has requested the parent
-		   then get it */
-		if(have_parent_address(&parentsdn, operation->o_params.p.p_add.parentuniqueid) &&
-		   slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY))
-		{
-			done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY); /* Could be through this multiple times */
-			addr.sdn = &parentsdn;
-			addr.udn = NULL;
-			addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
-			ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_PARENT_ENTRY, !is_replicated_operation);
-			/* need to set parentsdn or parentuniqueid if either is not set? */
-		}
-
-		/* Call the Backend Pre Add plugins */
-		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-		rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN);
-		if (rc) {
-			int opreturn = 0;
-			if (SLAPI_PLUGIN_NOOP == rc) {
-				not_an_error = 1;
-				rc = LDAP_SUCCESS;
-			}
-			/* 
-			 * Plugin indicated some kind of failure,
-			 * or that this Operation became a No-Op.
-			 */
-			if (!ldap_result_code) {
-				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
-			}
-			if (!ldap_result_code) {
-				LDAPDebug0Args(LDAP_DEBUG_ANY,
-					       "ldbm_back_add: SLAPI_PLUGIN_BE_PRE_ADD_FN returned error but did not set SLAPI_RESULT_CODE\n");
-				ldap_result_code = LDAP_OPERATIONS_ERROR;
-			}
-			slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
-			if (!opreturn) {
-				/* make sure opreturn is set for the postop plugins */
-				slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc);
-			}
-
-			goto error_return;
-		}
-		/*
-		 * (rc!=-1 && rc!= 0) means that the plugin changed things, so we go around
-		 * the loop once again to get the new present state.
-		 */
-		/* JCMREPL - Warning: A Plugin could cause an infinite loop by always returning a result code that requires some action. */
-	}	
-
 	/*
 	 * Originally (in the U-M LDAP 3.3 code), there was a comment near this
 	 * code about a race condition.  The race was that a 2nd entry could be
@@ -365,6 +259,113 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (0 == retry_count) {
 			/* First time, hold SERIAL LOCK */
 			retval = dblayer_txn_begin(be, parent_txn, &txn);
+
+			if (!is_tombstone_operation) {
+				rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY);
+			}
+
+			rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY);
+			rc= slapi_setbit_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY);
+			while(rc!=0)
+			{
+				/* JCM - copying entries can be expensive... should optimize */
+				/* 
+				 * Some present state information is passed through the PBlock to the
+				 * backend pre-op plugin. To ensure a consistent snapshot of this state
+				 * we wrap the reading of the entry with the dblock.
+				 */
+				if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_UNIQUEID_ENTRY))
+				{
+					/* Check if an entry with the intended uniqueid already exists. */
+					done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY); /* Could be through this multiple times */
+					addr.udn = NULL;
+					addr.sdn = NULL;
+					addr.uniqueid = (char*)slapi_entry_get_uniqueid(e); /* jcm -  cast away const */
+					ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_UNIQUEID_ENTRY, !is_replicated_operation);
+				}
+				if(slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY))
+				{
+					slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn );
+					if (NULL == sdn)
+					{
+						LDAPDebug0Args(LDAP_DEBUG_ANY,
+						               "ldbm_back_add: Null target dn\n");
+						goto error_return;
+					}
+
+					/* not need to check the dn syntax as this is a replicated op */
+					if(!is_replicated_operation){
+						dn = slapi_sdn_get_dn(sdn);
+						ldap_result_code = slapi_dn_syntax_check(pb, dn, 1);
+						if (ldap_result_code)
+						{
+							ldap_result_code = LDAP_INVALID_DN_SYNTAX;
+							slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+							goto error_return;
+						}
+					}
+
+					slapi_sdn_get_backend_parent(sdn, &parentsdn, pb->pb_backend);
+					/* Check if an entry with the intended DN already exists. */
+					done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY); /* Could be through this multiple times */
+					addr.sdn = sdn;
+					addr.udn = NULL;
+					addr.uniqueid = NULL;
+					ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_EXISTING_DN_ENTRY, !is_replicated_operation);
+					if(ldap_result_code==LDAP_OPERATIONS_ERROR ||
+					   ldap_result_code==LDAP_INVALID_DN_SYNTAX)
+					{
+					    goto error_return;
+					}
+				}
+				/* if we can find the parent by dn or uniqueid, and the operation has requested the parent
+				   then get it */
+				if(have_parent_address(&parentsdn, operation->o_params.p.p_add.parentuniqueid) &&
+				   slapi_isbitset_int(rc,SLAPI_RTN_BIT_FETCH_PARENT_ENTRY))
+				{
+					done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY); /* Could be through this multiple times */
+					addr.sdn = &parentsdn;
+					addr.udn = NULL;
+					addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
+					ldap_result_code= get_copy_of_entry(pb, &addr, &txn, SLAPI_ADD_PARENT_ENTRY, !is_replicated_operation);
+					/* need to set parentsdn or parentuniqueid if either is not set? */
+				}
+
+				/* Call the Backend Pre Add plugins */
+				slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				rc= plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_ADD_FN);
+				if (rc < 0) {
+					int opreturn = 0;
+					if (SLAPI_PLUGIN_NOOP == rc) {
+						not_an_error = 1;
+						rc = LDAP_SUCCESS;
+					}
+					/* 
+					 * Plugin indicated some kind of failure,
+					 * or that this Operation became a No-Op.
+					 */
+					if (!ldap_result_code) {
+						slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+					}
+					if (!ldap_result_code) {
+						LDAPDebug0Args(LDAP_DEBUG_ANY,
+							       "ldbm_back_add: SLAPI_PLUGIN_BE_PRE_ADD_FN returned error but did not set SLAPI_RESULT_CODE\n");
+						ldap_result_code = LDAP_OPERATIONS_ERROR;
+					}
+					slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
+					if (!opreturn) {
+						/* make sure opreturn is set for the postop plugins */
+						slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &rc);
+					}
+
+					goto error_return;
+				}
+				/*
+				 * (rc!=-1 && rc!= 0) means that the plugin changed things, so we go around
+				 * the loop once again to get the new present state.
+				 */
+				/* JCMREPL - Warning: A Plugin could cause an infinite loop by always returning a result code that requires some action. */
+			}
 		} else {
 			/* Otherwise, no SERIAL LOCK */
 			retval = dblayer_txn_begin_ext(li, parent_txn, &txn, PR_FALSE);

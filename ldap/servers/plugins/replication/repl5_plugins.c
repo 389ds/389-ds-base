@@ -751,8 +751,7 @@ multimaster_bepreop_add (Slapi_PBlock *pb)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
 		                 (void *)replica_ruv_smods_for_op);
-		if (!repl5_is_betxn && is_replicated_operation) { 
-			/* if is_betxn is on, urp is called at betxn preop */
+		if (is_replicated_operation) { 
 			rc = urp_add_operation(pb);
 		}
 	}
@@ -777,8 +776,7 @@ multimaster_bepreop_delete (Slapi_PBlock *pb)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
 		                 (void *)replica_ruv_smods_for_op);
-		if (!repl5_is_betxn && is_replicated_operation) { 
-			/* if is_betxn is on, urp is called at betxn preop */
+		if (is_replicated_operation) { 
 			rc = urp_delete_operation(pb);
 		}
 	}
@@ -803,8 +801,7 @@ multimaster_bepreop_modify (Slapi_PBlock *pb)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
 		                 (void *)replica_ruv_smods_for_op);
-		if (!repl5_is_betxn && is_replicated_operation) { 
-			/* if is_betxn is on, urp is called at betxn preop */
+		if (is_replicated_operation) { 
 			rc = urp_modify_operation(pb);
 		}
 	}
@@ -832,8 +829,7 @@ multimaster_bepreop_modrdn (Slapi_PBlock *pb)
 	{
 		slapi_pblock_set(pb, SLAPI_TXN_RUV_MODS_FN,
 		                 (void *)replica_ruv_smods_for_op);
-		if (!repl5_is_betxn && is_replicated_operation) { 
-			/* if is_betxn is on, urp is called at betxn preop */
+		if (is_replicated_operation) { 
 			rc = urp_modrdn_operation(pb);
 		}
 	}

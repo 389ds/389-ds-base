@@ -2761,6 +2761,24 @@ int slapi_sdn_get_ndn_len(const Slapi_DN *sdn);
 int slapi_sdn_scope_test( const Slapi_DN *dn, const Slapi_DN *base, int scope );
 
 /**
+ * Checks if a DN is within a specified scope under a specified base DN.
+ * This api adjusts tombstoned DN when comparing with the base dn.
+ *
+ * \param dn A pointer to the \c Slapi_DN structure to test.
+ * \param base The base DN against which \c dn is going to be tested.
+ * \param scope The scope tested.  Valid scopes are:
+ *        \arg \c LDAP_SCOPE_BASE
+ *        \arg \c LDAP_SCOPE_ONELEVEL
+ *        \arg \c LDAP_SCOPE_SUBTREE
+ * \param flags 0 or SLAPI_ENTRY_FLAG_TOMBSTONE
+ * \return non-zero if \c dn matches the scoping criteria given by \c base and \c scope.
+ * \see slapi_sdn_compare()
+ * \see slapi_sdn_isparent()
+ * \see slapi_sdn_issuffix()
+ */
+int slapi_sdn_scope_test_ext( const Slapi_DN *dn, const Slapi_DN *base, int scope, int flags );
+
+/**
  * Retreives the RDN from a given DN.
  *
  * This function takes the DN stored in the \c Slapi_DN structure pointed to
