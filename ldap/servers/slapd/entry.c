@@ -746,12 +746,11 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     char *type;
     struct berval bvtype;
     str2entry_attr *sa;
-    int i, j;
+    int i;
     char *next=NULL;
     char *valuecharptr=NULL;
     struct berval bvvalue;
     int rc;
-	int fast_dup_check = 0;
 	entry_attrs *ea = NULL;
 	int tree_attr_checking = 0;
 	int big_entry_attr_presence_check = 0;
@@ -991,7 +990,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		if ( prev_attr==NULL )
 		{
 		    /* Haven't seen this type yet */
-			fast_dup_check = 1;
 		    if ( nattrs == maxattrs )
 		    {
 				/* Out of space - reallocate */
@@ -1023,15 +1021,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				/* Get the comparison function for later use */
 				attr_get_value_cmp_fn( &attrs[nattrs].sa_attr, &(attrs[nattrs].sa_comparefn));
 				/*
-				 * If the compare function wasn't available,
-				 * we have to revert to AVL-tree-based dup checking,
-				 * which uses index keys for comparisons
-				 */
-				if (NULL == attrs[nattrs].sa_comparefn)
-				{
-					fast_dup_check = 0;
-				}
-				/*
 				 * If we are maintaining the attribute tree,
 				 * then add the new attribute to the tree.
 				 */
@@ -1043,16 +1032,6 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			prev_attr = &attrs[nattrs];
 			nattrs++;
 		} else { /* prev_attr != NULL */
-			if ( check_for_duplicate_values ) {
-				/*
-				 * If the compare function wasn't available,
-				 * we have to revert to AVL-tree-based dup checking,
-				 * which uses index keys for comparisons
-				 */
-				if (NULL == prev_attr->sa_comparefn) {
-					fast_dup_check = 0;
-				}
-			}
 		}
 
 		sa = prev_attr;	/* For readability */
