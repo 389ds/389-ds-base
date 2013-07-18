@@ -1050,7 +1050,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	 */
 	slapi_pblock_set (pb, SLAPI_MODIFY_MODS, (void*)slapi_mods_get_ldapmods_passout (&smods));
 	if (plugin_call_plugins(pb, internal_op ? SLAPI_PLUGIN_INTERNAL_PRE_MODIFY_FN : 
-							SLAPI_PLUGIN_PRE_MODIFY_FN) == 0)
+							SLAPI_PLUGIN_PRE_MODIFY_FN) == SLAPI_PLUGIN_SUCCESS)
 	{
 		int	rc;
 

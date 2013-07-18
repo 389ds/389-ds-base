@@ -185,7 +185,7 @@ void * view_get_plugin_identity()
 */
 int views_init( Slapi_PBlock *pb )
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	void * plugin_identity=NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_init\n");
@@ -209,7 +209,7 @@ int views_init( Slapi_PBlock *pb )
     {
         slapi_log_error( SLAPI_LOG_FATAL, VIEWS_PLUGIN_SUBSYSTEM,
                          "views_init: failed to register plugin\n" );
-		ret = -1;
+		ret = SLAPI_PLUGIN_FAILURE;
     }
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_init\n");
@@ -238,7 +238,7 @@ void views_unlock()
 */
 static int views_start( Slapi_PBlock *pb )
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	void **statechange_api;
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_start\n");
@@ -270,7 +270,7 @@ static int views_start( Slapi_PBlock *pb )
 	if( slapi_apib_register(Views_v1_0_GUID, api) )
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, VIEWS_PLUGIN_SUBSYSTEM, "views: failed to publish views interface\n");
-		ret = -1;
+		ret = SLAPI_PLUGIN_FAILURE;
 	}
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_start\n");
@@ -296,7 +296,7 @@ static int _internal_api_views_entry_dn_exists(char *view_dn, char *e_dn)
 
 static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *e, char *e_dn)
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	viewEntry *view;
 	char *dn;
 
@@ -326,7 +326,7 @@ static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *
 	if(slapi_dn_issuffix(dn, view_dn))
 	{
 		/* this entry is physically contained in the view hiearchy */
-		ret = -1;
+		ret = SLAPI_PLUGIN_FAILURE;
 		goto bail;
 	}
 
@@ -346,7 +346,7 @@ static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *
 		if(0==slapi_filter_test_simple(e,view->includeAncestorFiltersFilter))
 		{
 			/* this entry would appear in the view */
-			ret = -1;
+			ret = SLAPI_PLUGIN_FAILURE;
 		}
 	}
 
@@ -408,7 +408,7 @@ static int views_close( Slapi_PBlock *pb )
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_close\n");
 
-	return 0;
+	return SLAPI_PLUGIN_SUCCESS;
 }
 
 
@@ -419,7 +419,7 @@ static int views_close( Slapi_PBlock *pb )
 */
 static int views_cache_create()
 {
-	int ret = -1;
+	int ret = SLAPI_PLUGIN_FAILURE;
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_create\n");
 
@@ -474,7 +474,7 @@ static int views_cache_create()
 	{
 		/* its ok to not have views to cache */
 		theCache.cache_built = 0;
-		ret = 0;
+		ret = SLAPI_PLUGIN_SUCCESS;
 	}
 
 	theCache.currentUpdaterThread = 0;
@@ -530,7 +530,7 @@ int views_cache_dn_compare(const void *e1, const void *e2)
  */
 static int views_cache_index()
 {
-	int ret = -1;
+	int ret = SLAPI_PLUGIN_FAILURE;
 	int i;
 	viewEntry *theView = theCache.pCacheViews;
 	viewEntry *current = 0;
@@ -558,7 +558,7 @@ static int views_cache_index()
 		/* sort the views */
 		qsort(theCache.ppViewIndex, theCache.view_count, sizeof(viewEntry*), views_cache_view_compare);
 
-		ret = 0;
+		ret = SLAPI_PLUGIN_SUCCESS;
 	}
 
 	return ret;
@@ -569,7 +569,7 @@ static int views_cache_index()
 	views_cache_view_index_bsearch - RECURSIVE
 	----------------------------------------
 	performs a binary search on the cache view index
-	return -1 if key is not found
+	return SLAPI_PLUGIN_FAILURE if key is not found
 */
 viewEntry *views_cache_view_index_bsearch( const char *key, int lower, int upper )
 {
@@ -617,7 +617,7 @@ viewEntry *views_cache_view_index_bsearch( const char *key, int lower, int upper
 */
 static viewEntry *views_cache_find_view(char *view)
 {
-	viewEntry *ret = 0;  /* assume failure */
+	viewEntry *ret = SLAPI_PLUGIN_SUCCESS;  /* assume failure */
 
 	if(theCache.view_count != 1)
 		ret = views_cache_view_index_bsearch(view, 0, theCache.view_count-1);
@@ -1119,7 +1119,7 @@ static void views_cache_create_inclusion_filter(viewEntry *pView)
 */
 static int views_cache_build_view_list(viewEntry **pViews)
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	Slapi_PBlock *pSuffixSearch = 0;
 	Slapi_Entry **pSuffixList = 0;
 	Slapi_Attr *suffixAttr;
@@ -1192,7 +1192,7 @@ static int views_cache_build_view_list(viewEntry **pViews)
 	else
 	{
 		slapi_log_error(SLAPI_LOG_PLUGIN, VIEWS_PLUGIN_SUBSYSTEM, "views_cache_build_view_list: failed to find suffixes\n");
-		ret = -1;
+		ret = SLAPI_PLUGIN_FAILURE;
 	}
 
 	/* clean up */
@@ -1215,7 +1215,8 @@ struct dn_views_info {
 
 /* does same funcationality as views_add_dn_views except it is invoked via a callback */
 
-static int	views_dn_views_cb (Slapi_Entry* e, void *callback_data) {
+static int	views_dn_views_cb (Slapi_Entry* e, void *callback_data)
+{
 	struct dn_views_info *info;
 	char *pDn = 0;
 	struct berval **dnVals;

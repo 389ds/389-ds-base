@@ -110,7 +110,7 @@ void plugin_init_debug_level(int *level_ptr)
 */
 int statechange_init( Slapi_PBlock *pb )
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 	Slapi_Entry *plugin_entry = NULL;
 	char *plugin_type = NULL;
 	int postadd = SLAPI_PLUGIN_POST_ADD_FN;
@@ -148,7 +148,7 @@ int statechange_init( Slapi_PBlock *pb )
     {
         slapi_log_error( SLAPI_LOG_FATAL, SCN_PLUGIN_SUBSYSTEM,
                          "statechange_init: failed to register plugin\n" );
-		ret = -1;
+		ret = SLAPI_PLUGIN_FAILURE;
     }
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_init\n");
@@ -163,7 +163,7 @@ int statechange_init( Slapi_PBlock *pb )
 */
 static int statechange_start( Slapi_PBlock *pb )
 {
-	int ret = 0;
+	int ret = SLAPI_PLUGIN_SUCCESS;
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_start\n");
 
@@ -177,14 +177,14 @@ static int statechange_start( Slapi_PBlock *pb )
 	{
 		/* badness */
 		slapi_log_error( SLAPI_LOG_FATAL, SCN_PLUGIN_SUBSYSTEM, "statechange: failed to create lock\n");
-		ret = -1;
+		ret = SLAPI_PLUGIN_FAILURE;
 	}
 	else
 	{
 		if( slapi_apib_register(StateChange_v1_0_GUID, api) )
 		{
 			slapi_log_error( SLAPI_LOG_FATAL, SCN_PLUGIN_SUBSYSTEM, "statechange: failed to publish state change interface\n");
-			ret = -1;
+			ret = SLAPI_PLUGIN_FAILURE;
 		}
 	}
 
@@ -207,7 +207,7 @@ static int statechange_close( Slapi_PBlock *pb )
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_close\n");
 
-	return 0;
+	return SLAPI_PLUGIN_SUCCESS;
 }
 
 
@@ -251,7 +251,7 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 	struct slapi_entry *e_after = NULL;
 
 	if(head == 0)
-		return 0;
+		return SLAPI_PLUGIN_SUCCESS;
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_post_op\n");
 
@@ -317,13 +317,13 @@ bail:
 	slapi_unlock_mutex(buffer_lock);
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_post_op\n");
-	return 0; /* always succeed */
+	return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }
 
 
 static int _statechange_register(char *caller_id, char *dn, char *filter, void *caller_data, notify_callback func)
 {
-	int ret = -1;
+	int ret = SLAPI_PLUGIN_FAILURE;
 	SCNotify *item;
 
 	/* simple - we don't check for duplicates */
@@ -352,7 +352,7 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 			slapi_ch_free_string(&item->filter);
 			slapi_ch_free_string(&writable_filter);
 			slapi_ch_free((void **)&item);
-			return -1;
+			return ret;
 		} else if (!writable_filter) {
 			item->realfilter = NULL;
 		}
@@ -375,7 +375,7 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 		slapi_unlock_mutex(buffer_lock);
 		slapi_ch_free_string(&writable_filter);
 
-		ret = 0;
+		ret = SLAPI_PLUGIN_SUCCESS;
 	}
 
 	return ret;

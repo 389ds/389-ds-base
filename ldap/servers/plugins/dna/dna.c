@@ -70,8 +70,8 @@
 
 #define DNA_DN "cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config" /* temporary */
 
-#define DNA_SUCCESS 0
-#define DNA_FAILURE -1
+#define DNA_SUCCESS SLAPI_PLUGIN_SUCCESS
+#define DNA_FAILURE SLAPI_PLUGIN_FAILURE
 
 /* Default range request timeout */
 /* use the default replication timeout */
@@ -3016,7 +3016,7 @@ dna_create_valcheck_filter(struct configEntry *config_entry, PRUint64 value, cha
 static int
 _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
 {
-    int ret = 0;
+    int ret = DNA_SUCCESS;
     PRCList *list = NULL;
     struct configEntry *config_entry = NULL;
     char *dn = NULL;
@@ -3195,7 +3195,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                 slapi_ch_free((void **)&types_to_generate);
             }
 next:
-            ret = 0;
+            ret = DNA_SUCCESS;
             list = PR_NEXT_LINK(list);
         }
     }
@@ -3212,7 +3212,7 @@ bail:
 static int
 _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **errstr)
 {
-    int ret = 0;
+    int ret = DNA_SUCCESS;
     PRCList *list = NULL;
     struct configEntry *config_entry = NULL;
     char *dn = NULL;
@@ -3594,6 +3594,7 @@ bail:
                         "dna_pre_op: operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = DNA_FAILURE;
     }
 
@@ -3659,7 +3660,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
     char *dn = NULL;
     char *type = NULL;
     int numvals, e_numvals = 0;
-    int i, len, ret = 0;
+    int i, len, ret = DNA_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_be_txn_pre_op\n");
@@ -3905,13 +3906,14 @@ bail:
                           "dna_be_txn_pre_op: operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = DNA_FAILURE;
     }
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_be_txn_pre_op\n");
 
-        return ret;
+    return ret;
 }
 
 static int dna_config_check_post_op(Slapi_PBlock * pb)
@@ -3932,7 +3934,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_config_check_post_op\n");
 
-    return 0;
+    return DNA_SUCCESS;
 }
 
 
