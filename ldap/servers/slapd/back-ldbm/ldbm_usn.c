@@ -124,6 +124,7 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     DBC *dbc = NULL;
     DBT key;              /* For the last usn */
     DBT value;
+    PRInt64 signed_last_usn;
 
     if (NULL == last_usn) {
         return rc;
@@ -167,7 +168,10 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
             p = (char *)key.data;
         }
         if (0 == rc) {
-            *last_usn = strtoll(++p, (char **)NULL, 0); /* key.data: =num */
+            signed_last_usn = strtoll(++p, (char **)NULL, 0); /* key.data: =num */
+            if (signed_last_usn > SIGNEDINITIALUSN) {
+                *last_usn = signed_last_usn;
+            }
         }
     } else if (DB_NOTFOUND == rc) {
         /* if empty, it's okay.  This is just a beginning. */
