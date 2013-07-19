@@ -866,6 +866,7 @@ typedef struct _back_search_result_set
 #define LDBM_ERROR_FOUND_DUPDN 9999
 
 /* Initial entryusn value */
+#define SIGNEDINITIALUSN (-1)
 #define INITIALUSN (PRUint64)(-1)
 
 /* changelog backup dir name 
