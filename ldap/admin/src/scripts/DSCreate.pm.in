@@ -444,12 +444,16 @@ sub makeOtherConfigFiles {
     my $src = "$inf->{General}->{prefix}@configdir@/certmap.conf";
     my $dest = "$inf->{slapd}->{config_dir}/certmap.conf";
     $! = 0; # clear errno
-    copy($src, $dest);
-    if ($!) {
-        return ('error_copying_file', $src, $dest, $!);
-    }
-    if (@errs = changeOwnerMode($inf, 4, $dest)) {
-        return @errs;
+
+    #in skip mode, skip files that already exist
+    unless ($skip and -f $dest) {
+        copy($src, $dest);
+        if ($!) {
+            return ('error_copying_file', $src, $dest, $!);
+        }
+        if (@errs = changeOwnerMode($inf, 4, $dest)) {
+            return @errs;
+        }
     }
 
     $src = "$inf->{General}->{prefix}@configdir@/slapd-collations.conf";
