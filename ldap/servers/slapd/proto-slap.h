@@ -547,7 +547,7 @@ void config_set_accesslog_enabled(int value);
 void config_set_auditlog_enabled(int value);
 int config_get_accesslog_logging_enabled();
 int config_get_disk_monitoring();
-long config_get_disk_threshold();
+PRUint64 config_get_disk_threshold();
 int config_get_disk_grace_period();
 int config_get_disk_logging_critical();
 int config_get_sasl_maxbufsize();

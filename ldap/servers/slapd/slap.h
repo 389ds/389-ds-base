@@ -2268,8 +2268,8 @@ typedef struct _slapdFrontendConfig {
   int sasl_max_bufsize;         /* The max receive buffer size for SASL */
 
   /* disk monitoring */
-  slapi_onoff_t disk_monitoring;
-  int disk_threshold;
+  int disk_monitoring;
+  PRUint64 disk_threshold;
   int disk_grace_period;
   int disk_logging_critical;
 
