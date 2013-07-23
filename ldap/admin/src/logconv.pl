@@ -67,7 +67,7 @@ if ($#ARGV < 0){;
 
 my $file_count = 0;
 my $arg_count = 0;
-my $logversion = "7.0";
+my $logversion = "8.0";
 my $sizeCount = "20";
 my $startFlag = 0;
 my $startTime = 0;
@@ -76,6 +76,8 @@ my $endTime = 0;
 my $reportStats = "";
 my $dataLocation = "/tmp";
 my $startTLSoid = "1.3.6.1.4.1.1466.20037";
+my @statnames=qw(last last_str results srch add mod modrdn moddn cmp del abandon
+                 conns sslconns bind anonbind unbind notesA notesU etime);
 my $s_stats = new_stats_block( );
 my $m_stats = new_stats_block( );
 my $verb = "no";
@@ -95,8 +97,6 @@ my %connList;
 my %bindReport;
 my @vlvconn;
 my @vlvop;
-my @start_time_of_connection;
-my @end_time_of_connection;
 my @fds;
 my $fdds = 0;
 my $reportBinds = "no";
@@ -179,7 +179,7 @@ if ($sizeCount eq "all"){$sizeCount = "100000";}
 
 #######################################
 #                                     #
-# Initialize Arrays and variables     #
+# Initialize Hashes and variables     #
 #                                     #
 #######################################
 
@@ -255,20 +255,16 @@ map {$conn{$_} = $_} @conncodes;
 
 # hash db-backed hashes
 my @hashnames = qw(attr rc src rsrc excount conn_hash ip_hash conncount nentries
-                   filter base ds6xbadpwd saslmech bindlist etime oid);
+                   filter base ds6xbadpwd saslmech bindlist etime oid
+                   start_time_of_connection end_time_of_connection
+                   notesa_conn_op notesu_conn_op etime_conn_op nentries_conn_op
+                   optype_conn_op time_conn_op srch_conn_op del_conn_op mod_conn_op
+                   mdn_conn_op cmp_conn_op bind_conn_op unbind_conn_op ext_conn_op
+                   abandon_conn_op badpwd_conn_op);
 # need per connection code ip address counts - so use a hash table
 # for each connection code - key is ip, val is count
 push @hashnames, @conncodes;
 my $hashes = openHashFiles($dataLocation, @hashnames);
-
-# recno db-backed arrays/lists
-my @arraynames = qw(srchconn srchop delconn delop modconn modop addconn addop modrdnconn modrdnop
-                    cmpconn cmpop targetconn targetop msgid bindconn bindop binddn unbindconn unbindop
-                    extconn extop notesAetime notesAconn notesAop notesAtime notesAnentries
-                    notesUetime notesUconn notesUop notesUtime notesUnentries badpwdconn
-                    badpwdop badpwdip baseval baseconn baseop scopeval scopeconn scopeop
-                    filterval filterconn filterop);
-my $arrays = openArrayFiles($dataLocation, @arraynames);
 
 $needCleanup = 1;
 
@@ -636,6 +632,12 @@ Binds:                        @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 .
 write STDOUT;
 
+# format/write messes up emacs autoformatting - inserting this dummy function
+# fixes that
+sub dummy {
+	my $bar = shift;
+}
+
 print "\n";
 print "Proxied Auth Operations:      $proxiedAuthCount\n";
 print "Persistent Searches:          $persistentSrchCount\n";
@@ -658,115 +660,75 @@ print "Unindexed Components:         $unindexedSrchCountNotesU\n";
 if ($verb eq "yes" || $usage =~ /u/){
 	if ($unindexedSrchCountNotesA > 0){
 		my $conn_hash = $hashes->{conn_hash};
-		my $notesConn = $arrays->{notesAconn};
-		my $notesOp = $arrays->{notesAop};
-		my $notesEtime = $arrays->{notesAetime};
-		my $notesTime = $arrays->{notesAtime};
-		my $notesNentries = $arrays->{notesAnentries};
-		my $base_val = $arrays->{baseval};
-		my $base_conn = $arrays->{baseconn};
-		my $base_op = $arrays->{baseop};
-		my $scope_val = $arrays->{scopeval};
-		my $scope_conn = $arrays->{scopeconn};
-		my $scope_op = $arrays->{scopeop};
-		my $filter_val = $arrays->{filterval};
-		my $filter_conn = $arrays->{filterconn};
-		my $filter_op = $arrays->{filterop};
-		my $notesCount = "1";
+		my $notesa_conn_op = $hashes->{notesa_conn_op};
+		my $time_conn_op = $hashes->{time_conn_op};
+		my $etime_conn_op = $hashes->{etime_conn_op};
+		my $nentries_conn_op = $hashes->{nentries_conn_op};
+		my $base_conn_op = $hashes->{base_conn_op};
+		my $scope_conn_op = $hashes->{scope_conn_op};
+		my $filter_conn_op = $hashes->{filter_conn_op};
+
+		my $notesCount = 1;
 		my $unindexedIp;
-
-		for (my $n = 0; $n < scalar(@{$notesEtime}); $n++){
-			if(!$notesConn->[$n] || $notesConn->[$n] eq "" || 
-			   !$conn_hash->{$notesConn->[$n]} || $conn_hash->{$notesConn->[$n]} eq ""){
-				$unindexedIp = "?";
+		while (my ($conn_op, $count) = each %{$notesa_conn_op}) {
+			my ($conn, $op) = split(",", $conn_op);
+			if (exists($conn_hash->{$conn}) && defined($conn_hash->{$conn})) {
+				$unindexedIp = $conn_hash->{$conn};
 			} else {
-				$unindexedIp = $conn_hash->{$notesConn->[$n]};
+				$unindexedIp = "?";
 			}
-			print "\n  Unindexed Search #".$notesCount."\n"; $notesCount++;
-			print "  -  Date/Time:             $notesTime->[$n]\n";
-			print "  -  Connection Number:     $notesConn->[$n]\n";
-			print "  -  Operation Number:      $notesOp->[$n]\n";
-			print "  -  Etime:                 $notesEtime->[$n]\n";
-			print "  -  Nentries:              $notesNentries->[$n]\n";
+			print "\n  Unindexed Components #".$notesCount."\n"; $notesCount++;
+			print "  -  Date/Time:             $time_conn_op->{$conn_op}\n";
+			print "  -  Connection Number:     $conn\n";
+			print "  -  Operation Number:      $op\n";
+			print "  -  Etime:                 $etime_conn_op->{$conn_op}\n";
+			print "  -  Nentries:              $nentries_conn_op->{$conn_op}\n";
 			print "  -  IP Address:            $unindexedIp\n";
-
-			for (my $nnn = 0; $nnn < $baseCount; $nnn++){
-				if(!$base_conn->[$nnn] || !$base_op->[$nnn]){ next; }
-				if ($notesConn->[$n] eq $base_conn->[$nnn] && $notesOp->[$n] eq $base_op->[$nnn]){
-					print "  -  Search Base:           $base_val->[$nnn]\n";
-					last;
-				}
+			if (exists($base_conn_op->{$conn_op}) && defined($base_conn_op->{$conn_op})) {
+				print "  -  Search Base:           $base_conn_op->{$conn_op}\n";
 			}
-			for (my $nnn = 0; $nnn < $scopeCount; $nnn++){
-				if(!$scope_conn->[$nnn] || !$scope_op->[$nnn]){ next; }
-				if ($notesConn->[$n] eq $scope_conn->[$nnn] && $notesOp->[$n] eq $scope_op->[$nnn]){
-					print "  -  Search Scope:          $scope_val->[$nnn]\n";
-					last;
-				}
+			if (exists($scope_conn_op->{$conn_op}) && defined($scope_conn_op->{$conn_op})) {
+				print "  -  Search Scope:          $scope_conn_op->{$conn_op}\n";
 			}
-			for (my $nnn = 0; $nnn < $filterCount; $nnn++){	
-				if(!$filter_conn->[$nnn] || !$filter_op->[$nnn]){ next; }
-				if ($notesConn->[$n] eq $filter_conn->[$nnn] && $notesOp->[$n] eq $filter_op->[$nnn]){
-					print "  -  Search Filter:         $filter_val->[$nnn]\n";
-					last;
-				}	
+			if (exists($filter_conn_op->{$conn_op}) && defined($filter_conn_op->{$conn_op})) {
+				print "  -  Search Filter:         $filter_conn_op->{$conn_op}\n";
 			}
 		}
 	}
 	if ($unindexedSrchCountNotesU > 0){
 		my $conn_hash = $hashes->{conn_hash};
-		my $notesConn = $arrays->{notesUconn};
-		my $notesOp = $arrays->{notesUop};
-		my $notesEtime = $arrays->{notesUetime};
-		my $notesTime = $arrays->{notesUtime};
-		my $notesNentries = $arrays->{notesUnentries};
-		my $base_val = $arrays->{baseval};
-		my $base_conn = $arrays->{baseconn};
-		my $base_op = $arrays->{baseop};
-		my $scope_val = $arrays->{scopeval};
-		my $scope_conn = $arrays->{scopeconn};
-		my $scope_op = $arrays->{scopeop};
-		my $filter_val = $arrays->{filterval};
-		my $filter_conn = $arrays->{filterconn};
-		my $filter_op = $arrays->{filterop};
+		my $notesu_conn_op = $hashes->{notesu_conn_op};
+		my $time_conn_op = $hashes->{time_conn_op};
+		my $etime_conn_op = $hashes->{etime_conn_op};
+		my $nentries_conn_op = $hashes->{nentries_conn_op};
+		my $base_conn_op = $hashes->{base_conn_op};
+		my $scope_conn_op = $hashes->{scope_conn_op};
+		my $filter_conn_op = $hashes->{filter_conn_op};
 
-		my $notesCount = "1";
+		my $notesCount = 1;
 		my $unindexedIp;
-		for (my $n = 0; $n < scalar(@{$notesEtime}); $n++){
-			if(!$notesConn->[$n] || $notesConn->[$n] eq "" || 
-			   !$conn_hash->{$notesConn->[$n]} || $conn_hash->{$notesConn->[$n]} eq ""){
-				$unindexedIp = "?";
+		while (my ($conn_op, $count) = each %{$notesu_conn_op}) {
+			my ($conn, $op) = split(",", $conn_op);
+			if (exists($conn_hash->{$conn}) && defined($conn_hash->{$conn})) {
+				$unindexedIp = $conn_hash->{$conn};
 			} else {
-				$unindexedIp = $conn_hash->{$notesConn->[$n]};
+				$unindexedIp = "?";
 			}
 			print "\n  Unindexed Components #".$notesCount."\n"; $notesCount++;
-			print "  -  Date/Time:             $notesTime->[$n]\n";
-			print "  -  Connection Number:     $notesConn->[$n]\n";
-			print "  -  Operation Number:      $notesOp->[$n]\n";
-			print "  -  Etime:                 $notesEtime->[$n]\n";
-			print "  -  Nentries:              $notesNentries->[$n]\n";
+			print "  -  Date/Time:             $time_conn_op->{$conn_op}\n";
+			print "  -  Connection Number:     $conn\n";
+			print "  -  Operation Number:      $op\n";
+			print "  -  Etime:                 $etime_conn_op->{$conn_op}\n";
+			print "  -  Nentries:              $nentries_conn_op->{$conn_op}\n";
 			print "  -  IP Address:            $unindexedIp\n";
-
-			for (my $nnn = 0; $nnn < $baseCount; $nnn++){
-				if(!$base_conn->[$nnn] || !$base_op->[$nnn]){ next; }
-				if ($notesConn->[$n] eq $base_conn->[$nnn] && $notesOp->[$n] eq $base_op->[$nnn]){
-					print "  -  Search Base:           $base_val->[$nnn]\n";
-					last;
-				}
+			if (exists($base_conn_op->{$conn_op}) && defined($base_conn_op->{$conn_op})) {
+				print "  -  Search Base:           $base_conn_op->{$conn_op}\n";
 			}
-			for (my $nnn = 0; $nnn < $scopeCount; $nnn++){
-				if(!$scope_conn->[$nnn] || !$scope_op->[$nnn]){ next; }
-				if ($notesConn->[$n] eq $scope_conn->[$nnn] && $notesOp->[$n] eq $scope_op->[$nnn]){
-					print "  -  Search Scope:          $scope_val->[$nnn]\n";
-					last;
-				}
+			if (exists($scope_conn_op->{$conn_op}) && defined($scope_conn_op->{$conn_op})) {
+				print "  -  Search Scope:          $scope_conn_op->{$conn_op}\n";
 			}
-			for (my $nnn = 0; $nnn < $filterCount; $nnn++){	
-				if(!$filter_conn->[$nnn] || !$filter_op->[$nnn]){ next; }
-				if ($notesConn->[$n] eq $filter_conn->[$nnn] && $notesOp->[$n] eq $filter_op->[$nnn]){
-					print "  -  Search Filter:         $filter_val->[$nnn]\n";
-					last;
-				}	
+			if (exists($filter_conn_op->{$conn_op}) && defined($filter_conn_op->{$conn_op})) {
+				print "  -  Search Filter:         $filter_conn_op->{$conn_op}\n";
 			}
 		}
 	}
@@ -800,7 +762,7 @@ if ($connResetByPeerCount > 0){
 			push @retext, sprintf "     -  %-4s (%2s) %-40s\n",$src->{$key},$conn{$key},$connmsg{$key};
 		}
 	}
- 	print @retext;
+	print @retext;
 	print "\n";
 }
 
@@ -813,8 +775,8 @@ if ($resourceUnavailCount > 0){
 			if ($conn{$key} eq ""){$conn{$key} = "**Resource Issue**";}
 			push @rtext, sprintf "     -  %-4s (%2s) %-40s\n",$rsrc->{$key},$conn{$key},$connmsg{$key};
 		}
-  	}
-  	print @rtext;
+	}
+	print @rtext;
 }
 print "Max BER Size Exceeded:        $maxBerSizeCount\n";
 print "\n";
@@ -829,7 +791,7 @@ print " - SASL Binds:                $saslBindCount\n";
 if ($saslBindCount > 0){
 	my $saslmech = $hashes->{saslmech};
 	foreach my $saslb ( sort {$saslmech->{$b} <=> $saslmech->{$a} } (keys %{$saslmech}) ){
-		printf "    %-4s  %-12s\n",$saslmech->{$saslb}, $saslb;   
+		printf "    %-4s  %-12s\n",$saslmech->{$saslb}, $saslb;
 	}
 }
 
@@ -914,13 +876,13 @@ if ($usage =~ /e/i || $verb eq "yes"){
 	for (my $i = 0; $i <= $#errtext; $i++){
 		$errtext[$i] =~ s/\n//g;
 		print  "\n" . $errtext[$i];
-	} 
+	}
 }
 
 ####################################
-#            			   #
+#			   #
 #     Print Failed Logins          #
-# 				   #
+#				   #
 ####################################
 
 if ($verb eq "yes" || $usage =~ /f/ ){
@@ -936,19 +898,20 @@ if ($verb eq "yes" || $usage =~ /f/ ){
 				$ds6loop++;
 			}
 		} else {
-			my $bindVal = $arrays->{binddn};
-			my $bindConn = $arrays->{bindconn};
-			my $bindOp = $arrays->{bindop};
-			my $badPasswordConn = $arrays->{badpwdconn};
-			my $badPasswordOp = $arrays->{badpwdop};
-			my $badPasswordIp = $arrays->{badpwdip};
+			# key is conn,op - val is binddn
+			my $bind_conn_op = $hashes->{bind_conn_op};
+			# key is conn,op - val is count
+			my $badpwd_conn_op = $hashes->{badpwd_conn_op};
+			# key is binddn - val is count
 			my %badPassword = ();
-			for (my $ii =0 ; $ii < $badPwdCount; $ii++){
-		 		for (my $i = 0; $i < $bindCount; $i++){
-					if ($badPasswordConn->[$ii] eq $bindConn->[$i] && $badPasswordOp->[$ii] eq $bindOp->[$i] ){
-						$badPassword{ $bindVal->[$i] }++;
-					}
-		 		}
+			my @badPasswordIp = ();
+			while (my ($conn_op, $count) = each %{$badpwd_conn_op}) {
+				my ($conn, $op) = split(",", $conn_op);
+				if (exists($bind_conn_op->{$conn_op}) && defined($bind_conn_op->{$conn_op})) {
+					my $binddn = $bind_conn_op->{$conn_op};
+					$badPassword{$binddn}++;
+					push @badPasswordIp, getIPfromConn($conn);
+				}
 			}
 			# sort the new hash of $badPassword{}
 			my $bpTotal = 0;
@@ -961,7 +924,7 @@ if ($verb eq "yes" || $usage =~ /f/ ){
 			}
 			print "\nFrom the IP address(s) :\n\n";
 			for (my $i=0; $i<$badPwdCount; $i++) {
-				print "\t\t$badPasswordIp->[$i]\n";
+				print "\t\t$badPasswordIp[$i]\n";
 			}
 			if ($bpTotal > $badPwdCount){
 				print "\n** Warning : Wrongly reported failed login attempts : ". ($bpTotal - $badPwdCount) . "\n";
@@ -982,11 +945,11 @@ if ($connCodeCount > 0){
 		print "\n\n----- Total Connection Codes -----\n\n";
 		my $conncount = $hashes->{conncount};
 		my @conntext;
-	  	foreach my $key (sort { $conncount->{$b} <=> $conncount->{$a} } keys %{$conncount}) {
-		  	if ($conncount->{$key} > 0){
+		foreach my $key (sort { $conncount->{$b} <=> $conncount->{$a} } keys %{$conncount}) {
+			if ($conncount->{$key} > 0){
 				push @conntext, sprintf "%-4s %6s   %-40s\n",$key,$conncount->{$key},$connmsg{ $key };
-		  	}
-	  	}
+			}
+		}
 		print @conntext;
 	}
 }
@@ -1005,8 +968,8 @@ if ($usage =~ /i/i || $verb eq "yes"){
 	my $ip_count = ($#ipkeys + 1)-($#exxCount + 1);
 	my $ccount = 0;
 	if ($ip_count > 0){
-	 	print "\n\n----- Top $sizeCount Clients -----\n\n";
-	 	print "Number of Clients:  $ip_count\n\n";
+		print "\n\n----- Top $sizeCount Clients -----\n\n";
+		print "Number of Clients:  $ip_count\n\n";
 		foreach my $key (sort { $ip_hash->{$b} <=> $ip_hash->{$a} } @ipkeys) {
 			my $exc = "no";
 			if ($ccount > $sizeCount){ last;}
@@ -1021,7 +984,7 @@ if ($usage =~ /i/i || $verb eq "yes"){
 				my %counts;
 				map { $counts{$_} = $hashes->{$_}->{$key} if (defined($hashes->{$_}->{$key})) } @conncodes;
 				foreach my $code (sort { $counts{$b} <=> $counts{$a} } keys %counts) {
-		 			if ($code eq 'count' ) { next; }
+					if ($code eq 'count' ) { next; }
 					printf "%10s - %s (%s)\n", $counts{ $code }, $code, $connmsg{ $code };
 				}
 				print "\n";
@@ -1042,14 +1005,14 @@ if ($usage =~ /b/i || $verb eq "yes"){
 	my $bind_count = $#bindkeys + 1;
 	if ($bind_count > 0){
 		print "\n\n----- Top $sizeCount Bind DN's -----\n\n";
-		print "Number of Unique Bind DN's: $bind_count\n\n"; 
+		print "Number of Unique Bind DN's: $bind_count\n\n";
 		my $bindcount = 0;
 		foreach my $dn (sort { $bindlist->{$b} <=> $bindlist->{$a} } @bindkeys) {
-            if ($bindcount < $sizeCount){
+			if ($bindcount < $sizeCount){
 				printf "%-8s        %-40s\n", $bindlist->{ $dn },$dn;
 			} else {
-                last;
-            }
+				last;
+			}
 			$bindcount++;
 		}
 	}
@@ -1070,16 +1033,16 @@ if ($usage =~ /a/i || $verb eq "yes"){
 		print "Number of Unique Search Bases: $base_count\n\n";
 		my $basecount = 0;
 		foreach my $bas (sort { $base->{$b} <=> $base->{$a} } @basekeys) {
-		        if ($basecount < $sizeCount){
-                    printf "%-8s        %-40s\n", $base->{ $bas },$bas;
-		        } else {
-                    last;
-                }
-		        $basecount++;
+			if ($basecount < $sizeCount){
+				printf "%-8s        %-40s\n", $base->{ $bas },$bas;
+			} else {
+				last;
+			}
+			$basecount++;
 		}
 	}
 }
- 
+
 #########################################
 #                                       #
 #   Gather and process search filters   #
@@ -1091,15 +1054,15 @@ if ($usage =~ /l/ || $verb eq "yes"){
 	my @filterkeys = keys %{$filter};
 	my $filter_count = $#filterkeys + 1;
 	if ($filter_count > 0){
-		print "\n\n----- Top $sizeCount Search Filters -----\n";  
+		print "\n\n----- Top $sizeCount Search Filters -----\n";
 		print "\nNumber of Unique Search Filters: $filter_count\n\n";
 		my $filtercount = 0;
 		foreach my $filt (sort { $filter->{$b} <=> $filter->{$a} } @filterkeys){
 			if ($filtercount < $sizeCount){
 				printf "%-8s        %-40s\n", $filter->{$filt}, $filt;
 			} else {
-                last;
-            }
+				last;
+			}
 			$filtercount++;
 		}
 	}
@@ -1108,7 +1071,7 @@ if ($usage =~ /l/ || $verb eq "yes"){
 #########################################
 #                                       #
 # Gather and Process the unique etimes  #
-#                                       # 
+#                                       #
 #########################################
 
 my $first;
@@ -1139,7 +1102,7 @@ if ($usage =~ /t/i || $verb eq "yes"){
 		if ($eloop == $sizeCount) { last; }
 		printf "%-12s    %-10s\n","etime=$et",$etime->{ $et };
 		$eloop++;
-	}   
+	}
 }
 
 #######################################
@@ -1156,7 +1119,7 @@ if ($usage =~ /n/i || $verb eq "yes"){
 	my $eloop = 0;
 	foreach my $nentry (sort { $b <=> $a } @nkeys){
 		if ($eloop == $sizeCount) { last; }
-	    	printf "%-18s   %12s\n","nentries=$nentry", $nentries->{ $nentry };
+		printf "%-18s   %12s\n","nentries=$nentry", $nentries->{ $nentry };
 		$eloop++;
 	}
 	print "\n\n----- Top $sizeCount Most returned nentries -----\n\n";
@@ -1216,7 +1179,7 @@ if ($usage =~ /x/i || $verb eq "yes"){
 }
 
 ############################################
-#                                          #	
+#                                          #
 # Print most commonly requested attributes #
 #                                          #
 ############################################
@@ -1235,7 +1198,7 @@ if ($usage =~ /r/i || $verb eq "yes"){
 }
 
 #############################
-#                           # 
+#                           #
 # abandoned operation stats #
 #                           #
 #############################
@@ -1244,66 +1207,49 @@ if ($usage =~ /g/i || $verb eq "yes"){
 	my $abandonTotal = $srchCount + $delCount + $modCount + $addCount + $modrdnCount + $bindCount + $extopCount + $cmpCount;
 	if ($verb eq "yes" && $abandonCount > 0 && $abandonTotal > 0){
 		my $conn_hash = $hashes->{conn_hash};
+		my $abandon_conn_op = $hashes->{abandon_conn_op};
+		my $srch_conn_op = $hashes->{srch_conn_op};
+		my $del_conn_op = $hashes->{del_conn_op};
+		my $add_conn_op = $hashes->{add_conn_op};
+		my $mod_conn_op = $hashes->{mod_conn_op};
+		my $cmp_conn_op = $hashes->{cmp_conn_op};
+		my $mdn_conn_op = $hashes->{mdn_conn_op};
+		my $bind_conn_op = $hashes->{bind_conn_op};
+		my $unbind_conn_op = $hashes->{unbind_conn_op};
+		my $ext_conn_op = $hashes->{ext_conn_op};
 
 		print "\n\n----- Abandon Request Stats -----\n\n";
 
-		for (my $g = 0; $g < $abandonCount; $g++){
-			my $conn = $arrays->{targetconn}->[$g];
-			my $op = $arrays->{targetop}->[$g];
-			my $msgid = $arrays->{msgid}->[$g];
-			for (my $sc = 0; $sc < $srchCount; $sc++){
-				if (($arrays->{srchconn}->[$sc] && $arrays->{srchop}->[$sc]) && 
-				    ($arrays->{srchconn}->[$sc] eq $conn && $arrays->{srchop}->[$sc] eq $op )){
-					print " - SRCH conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";	
-				}
+		while (my ($conn_op, $targ_msgid) = each %{$abandon_conn_op}) {
+			my ($conn, $op) = split(",", $conn_op);
+			my ($targetop, $msgid) = split(",", $targ_msgid);
+			my $conn_targ = "$conn,$targetop";
+			my $clientIP;
+			if (exists($conn_hash->{$conn}) && defined($conn_hash->{$conn})) {
+				$clientIP = $conn_hash->{$conn};
+			} else {
+				$clientIP = "Unknown";
 			}
-			for (my $dc = 0; $dc < $delCount; $dc++){
-				if (($arrays->{delconn}->[$dc] && $arrays->{delop}->[$dc]) &&
-				    ($arrays->{delconn}->[$dc] eq $conn && $arrays->{delop}->[$dc] eq $op)){
-					print " - DEL  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
-			}
-			for (my $adc = 0; $adc < $addCount; $adc++){
-				if (($arrays->{addconn}->[$adc] && $arrays->{addop}->[$adc]) &&
-				    ($arrays->{addconn}->[$adc] eq $conn && $arrays->{addop}->[$adc] eq $op)){
-					print " - ADD  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
-			}
-			for (my $mc = 0; $mc < $modCount; $mc++){
-				if (($arrays->{modconn}->[$mc] && $arrays->{modop}->[$mc]) &&
-				    ($arrays->{modconn}->[$mc] eq $conn && $arrays->{modop}->[$mc] eq $op)){
-					print " - MOD  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
-			}
-			for (my $cc = 0; $cc < $cmpCount; $cc++){
-				if (($arrays->{cmpconn}->[$cc] && $arrays->{cmpop}->[$cc]) &&
-				    ($arrays->{cmpconn}->[$cc] eq $conn && $arrays->{cmpop}->[$cc] eq $op)){
-					print " - CMP  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
-			}
-			for (my $mdc = 0; $mdc < $modrdnCount; $mdc++){
-				if (($arrays->{modrdnconn}->[$mdc] && $arrays->{modrdnop}->[$mdc]) &&
-				    ($arrays->{modrdnconn}->[$mdc] eq $conn && $arrays->{modrdnop}->[$mdc] eq $op)){
-					print " - MODRDN conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
-			}
-			for (my $bcb = 0; $bcb < $bindCount; $bcb++){
-				if (($arrays->{bindconn}->[$bcb] && $arrays->{bindop}->[$bcb]) &&
-				    ($arrays->{bindconn}->[$bcb] eq $conn && $arrays->{bindop}->[$bcb] eq $op)){
-					print " - BIND conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
-			}
-			for (my $ubc = 0; $ubc < $unbindCount; $ubc++){
-				if (($arrays->{unbindconn}->[$ubc] && $arrays->{unbindop}->[$ubc]) &&
-				    ($arrays->{unbindconn}->[$ubc] eq $conn && $arrays->{unbindop}->[$ubc] eq $op)){
-					print " - UNBIND conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
-			}
-			for (my $ec = 0; $ec < $extopCount; $ec++){
-				if (($arrays->{extconn}->[$ec] && $arrays->{extop}->[$ec]) &&
-				    ($arrays->{extconn}->[$ec] eq $conn && $arrays->{extop}->[$ec] eq $op)){
-					print " - EXT  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
-				}
+			if (exists($srch_conn_op->{$conn_targ}) && defined($srch_conn_op->{$conn_targ})) {
+				print " - SRCH conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($del_conn_op->{$conn_targ}) && defined($del_conn_op->{$conn_targ})) {
+				print " - DEL  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($add_conn_op->{$conn_targ}) && defined($add_conn_op->{$conn_targ})) {
+				print " - ADD  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($mod_conn_op->{$conn_targ}) && defined($mod_conn_op->{$conn_targ})) {
+				print " - MOD  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($cmp_conn_op->{$conn_targ}) && defined($cmp_conn_op->{$conn_targ})) {
+				print " - CMP  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($mdn_conn_op->{$conn_targ}) && defined($mdn_conn_op->{$conn_targ})) {
+				print " - MODRDN conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($bind_conn_op->{$conn_targ}) && defined($bind_conn_op->{$conn_targ})) {
+				print " - BIND conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($unbind_conn_op->{$conn_targ}) && defined($unbind_conn_op->{$conn_targ})) {
+				print " - UNBIND conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} elsif (exists($ext_conn_op->{$conn_targ}) && defined($ext_conn_op->{$conn_targ})) {
+				print " - EXT  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
+			} else {
+				print " - UNKNOWN conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
 			}
 		}
 	}
@@ -1390,8 +1336,8 @@ sub displayUsage {
 	print "Usage:\n\n";
 
 	print " ./logconv.pl [-h] [-d|--rootdn <rootDN>] [-s|--sizeLimit <size limit>] [-v|verison] [-Vi|verbose]\n";
-	print " [-S|--startTime <start time>] [-E|--endTime <end time>] \n"; 
-	print " [-efcibaltnxrgjuyp] [ access log ... ... ]\n\n"; 
+	print " [-S|--startTime <start time>] [-E|--endTime <end time>] \n";
+	print " [-efcibaltnxrgjuyp] [ access log ... ... ]\n\n";
 
 	print "- Commandline Switches:\n\n";
 
@@ -1400,7 +1346,7 @@ sub displayUsage {
 	print "         -D, --data         <Location for temporary data files>  default is \"/tmp\"\n";    
 	print "         -s, --sizeLimit    <Number of results to return per catagory>  default is 20\n";
 	print "         -X, --excludeIP    <IP address to exclude from connection stats>  E.g. Load balancers\n";
-	print "         -v, --version      show version of tool\n"; 
+	print "         -v, --version      show version of tool\n";
 	print "         -S, --startTime    <time to begin analyzing logfile from>\n";
 	print "             E.g. \"[28/Mar/2002:13:14:22 -0800]\"\n";
 	print "         -E, --endTime      <time to stop analyzing logfile>\n";
@@ -1450,7 +1396,7 @@ sub displayUsage {
 sub
 parseLine {
 	if($reportBinds eq "yes"){
-		&parseLineBind();		
+		&parseLineBind();
 	} else {
 		&parseLineNormal();
 	}
@@ -1469,26 +1415,26 @@ parseLineBind {
 	return if $_ =~ /^\s/;
 
 	if($firstFile == 1 && $_ =~ /^\[/){
-        	$start = $_;
-        	if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
-        	$firstFile = 0;
+		$start = $_;
+		if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
+		$firstFile = 0;
 	}
 	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/]+)/i){
 		$end =$1;
 	}
 	if ($startTime && !$startFlag) {
-        	if (index($_, $startTime) == 0) {
-                	$startFlag = 1;
-                	($start) = $startTime =~ /\D*(\S*)/;
-        	} else {
-                	return;
-        	}
+		if (index($_, $startTime) == 0) {
+			$startFlag = 1;
+			($start) = $startTime =~ /\D*(\S*)/;
+		} else {
+			return;
+		}
 	}
 	if ($endTime && !$endFlag) {
-        	if (index($_, $endTime) == 0) {
-                	$endFlag = 1;
-                	($end) = $endTime =~ /\D*(\S*)/;
-        	}
+		if (index($_, $endTime) == 0) {
+			$endFlag = 1;
+			($end) = $endTime =~ /\D*(\S*)/;
+		}
 	}
 	if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ) {
 		my $skip = "yes";
@@ -1497,8 +1443,8 @@ parseLineBind {
 				$skip = "yes";
 				last;
 			}
-                }
-                if ($skip eq "yes"){
+		}
+		if ($skip eq "yes"){
 			return ;
 		}
 		$ip = $1;
@@ -1507,9 +1453,9 @@ parseLineBind {
 		}
 		return;
 	}
- 	if (/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
+	if (/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
 		my $dn;
-        	if ($1 eq ""){
+		if ($1 eq ""){
 			$dn = "Anonymous";
 		} else {
 			$dn = $1;
@@ -1522,7 +1468,7 @@ parseLineBind {
 			}
 		}
 		$bindReport{$dn}{"binds"}++;
-        	if ($bindReport{$dn}{"binds"} == 1){
+		if ($bindReport{$dn}{"binds"} == 1){
 			# For hashes we need to init the counters
 			$bindReport{$dn}{"srch"} = 0;
 			$bindReport{$dn}{"add"} = 0;
@@ -1537,7 +1483,7 @@ parseLineBind {
 			$bindReport{$dn}{"conn"} = $bindReport{$dn}{"conn"} . " $1 ";
 		}
 		return;
- 	}
+	}
 	if (/ RESULT err=49 /){
 		processOpForBindReport("failedBind",$logline);
 	}
@@ -1547,7 +1493,7 @@ parseLineBind {
 		processOpForBindReport("add",$logline);
 	} elsif (/ MOD dn=/){
 		processOpForBindReport("mod",$logline);
-	} elsif (/ DEL dn=/){                
+	} elsif (/ DEL dn=/){
 		processOpForBindReport("del",$logline);
 	} elsif (/ MODRDN dn=/){
 		processOpForBindReport("modrdn",$logline);
@@ -1555,7 +1501,7 @@ parseLineBind {
 		processOpForBindReport("cmp",$logline);
 	} elsif (/ EXT oid=/){
 		processOpForBindReport("ext",$logline);
-	} 
+	}
 }
 
 sub
@@ -1625,13 +1571,13 @@ sub parseLineNormal
 
 		if(!defined($lastzone) or $tzone ne $lastzone)
 		{
-		    # tz offset change
-		    $lastzone=$tzone;
-		    my ($sign,$hr,$min) = $tzone =~ m/(.)(\d\d)(\d\d)/;
-		    $tzoff = $hr*3600 + $min*60;
-		    $tzoff *= -1
-		    if $sign eq '-';
-		    # to be subtracted from converted values.
+			# tz offset change
+			$lastzone=$tzone;
+			my ($sign,$hr,$min) = $tzone =~ m/(.)(\d\d)(\d\d)/;
+			$tzoff = $hr*3600 + $min*60;
+			$tzoff *= -1
+				if $sign eq '-';
+			# to be subtracted from converted values.
 		}
 		my ($date, $hr, $min, $sec) = split (':', $time);
 		my ($day, $mon, $yr) = split ('/', $date);
@@ -1641,15 +1587,15 @@ sub parseLineNormal
 		reset_stats_block( $s_stats, $gmtime, $time.' '.$tzone );
 		if (!defined($last_min) or $newmin != $last_min)
 		{
-		    print_stats_block( $m_stats );
-		    $time =~ s/\d\d$/00/;
-		    reset_stats_block( $m_stats, $newmin, $time.' '.$tzone );
-		    $last_min = $newmin;
+			print_stats_block( $m_stats );
+			$time =~ s/\d\d$/00/;
+			reset_stats_block( $m_stats, $newmin, $time.' '.$tzone );
+			$last_min = $newmin;
 		}
 	}
 
-	if (m/ RESULT err/){ 
-		$allResults++; 
+	if (m/ RESULT err/){
+		$allResults++;
 		if($reportStats){ inc_stats('results',$s_stats,$m_stats); }
 	}
 	if (m/ SRCH/){
@@ -1666,58 +1612,57 @@ sub parseLineNormal
 			$anyAttrs++;
 		}
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{srchconn}}, $1;}
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{srchop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{srch_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (m/ DEL/){
 		$delCount++;
 		if($reportStats){ inc_stats('del',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{delconn}}, $1;}
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{delop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{del_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (m/ MOD dn=/){
 		$modCount++;
 		if($reportStats){ inc_stats('mod',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{modconn}}, $1;}
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{modop}}, $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{mod_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (m/ ADD/){
 		$addCount++;
 		if($reportStats){ inc_stats('add',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{addconn}}, $1; }
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{addop}}, $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{add_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (m/ MODRDN/){
 		$modrdnCount++;
 		if($reportStats){ inc_stats('modrdn',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{modrdnconn}}, $1; }
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{modrdnop}}, $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{mdn_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (m/ CMP dn=/){
 		$cmpCount++;
 		if($reportStats){ inc_stats('cmp',$s_stats,$m_stats); }
 		if ($verb eq "yes"  || $usage =~ /g/i){
-			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{cmpconn}}, $1;}
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{cmpop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{cmp_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (m/ ABANDON /){
+		# there are two cases for abandon
+		# [17/Sep/2013:01:52:11 -0400] conn=1482074 op=4 ABANDON targetop=3 msgid=4
+		# [17/Sep/2013:01:52:11 -0400] conn=1482074 op=4 ABANDON targetop=NOTFOUND msgid=4
+		# if the op to be abandoned completes before the abandon request can be processed
+		# the server will use NOTFOUND as the op number
 		$abandonCount++;
 		if($reportStats){ inc_stats('abandon',$s_stats,$m_stats); }
 		$allResults++;
-		if ($_ =~ /targetop= *([0-9a-zA-Z]+)/i ){
-			push @{$arrays->{targetop}}, $1;
-			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{targetconn}}, $1; }
-			if ($_ =~ /msgid= *([0-9\-]+)/i){ push @{$arrays->{msgid}}, $1; }
+		if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+) +ABANDON +targetop= *([0-9a-zA-Z]+) +msgid= *([0-9\-]+)/i ){
+			# abandon_conn_op - key is the conn,op of the ABANDON request
+			# the value is the targetop,msgid of the ABANDON request
+			$hashes->{abandon_conn_op}->{"$1,$2"} = "$3,$4"; # targetop,msgid
 		}
 	}
 	if (m/ VLV /){
@@ -1738,11 +1683,11 @@ sub parseLineNormal
 		$autobindCount++;
 		$bindCount++;
 		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
-		if ($1 ne ""){ 
+		if ($1 ne ""){
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
 			$hashes->{bindlist}->{$tmpp}++;
-			if($1 eq $rootDN){ 
+			if($1 eq $rootDN){
 				$rootDNBindCount++;
 			}
 		} else {
@@ -1752,7 +1697,7 @@ sub parseLineNormal
 		}
 	}
 	if (m/ connection from/){
-		if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ){ 
+		if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ){
 			for (my $xxx =0; $xxx < $#excludeIP; $xxx++){
 				if ($excludeIP[$xxx] eq $1){$exc = "yes";}
 			}
@@ -1763,7 +1708,7 @@ sub parseLineNormal
 		}
 		$simConnection++;
 		if ($simConnection > $maxsimConnection) {
-		 	$maxsimConnection = $simConnection;
+			$maxsimConnection = $simConnection;
 		}
 		($connID) = $_ =~ /conn=(\d*)\s/;
 		$openConnection[$connID]++;
@@ -1772,7 +1717,7 @@ sub parseLineNormal
 			my ($date, $hr, $min, $sec) = split (':', $time);
 			my ($day, $mon, $yr) = split ('/', $date);
 			$day =~ s/\[//;
-			$start_time_of_connection[$connID] = timegm($sec, $min, $hr, $day, $monthname{$mon}, $yr);
+			$hashes->{start_time_of_connection}->{$connID} = timegm($sec, $min, $hr, $day, $monthname{$mon}, $yr);
 		}
 	}
 	if (m/ SSL client bound as /){$sslClientBindCount++;}
@@ -1788,10 +1733,10 @@ sub parseLineNormal
 			# if we didn't see the start time of this connection
 			# i.e. due to truncation or log rotation
 			# then just set to 0
-			my $stoc = $start_time_of_connection[$connID] || 0;
-			$end_time_of_connection[$connID] = $gmtime || 0;
-			my $diff = $end_time_of_connection[$connID] - $stoc;
-			$start_time_of_connection[$connID] =  $end_time_of_connection[$connID] = 0;
+			my $stoc = $hashes->{start_time_of_connection}->{$connID} || 0;
+			$hashes->{end_time_of_connection}->{$connID} = $gmtime || 0;
+			my $diff = $hashes->{end_time_of_connection}->{$connID} - $stoc;
+			$hashes->{start_time_of_connection}->{$connID} = $hashes->{end_time_of_connection}->{$connID} = 0;
 			if ($diff <= 1) { $latency[0]++;}
 			if ($diff == 2) { $latency[1]++;}
 			if ($diff == 3) { $latency[2]++;}
@@ -1802,85 +1747,82 @@ sub parseLineNormal
 		}
 	}
 	if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
+		my $binddn = $1;
 		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
 		$bindCount++;
-		if ($1 ne ""){ 
-			if($1 eq $rootDN){$rootDNBindCount++;}
-			$tmpp = $1;
+		my ($conn, $op);
+		if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
+			$conn = $1;
+			$op = $2;
+		}
+		if ($binddn ne ""){
+			if($binddn eq $rootDN){$rootDNBindCount++;}
+			$tmpp = $binddn;
 			$tmpp =~ tr/A-Z/a-z/;
 			$hashes->{bindlist}->{$tmpp}++;
-			if ($_ =~ /conn= *([0-9A-Z]+)/i) { push @{$arrays->{bindconn}}, $1;}
-			if ($_ =~ /op= *([0-9\-]+)/i) { push @{$arrays->{bindop}}, $1;}
 			if($usage =~ /f/ || $verb eq "yes"){
-				push @{$arrays->{binddn}}, $tmpp;
+				$hashes->{bind_conn_op}->{"$conn,$op"} = $tmpp;
 			}
 		} else {
 			$anonymousBindCount++;
 			$hashes->{bindlist}->{"Anonymous Binds"}++;
-			if ($_ =~ /conn= *([0-9A-Z]+)/i) { push @{$arrays->{bindconn}}, $1;}
-			if ($_ =~ /op= *([0-9\-]+)/i) { push @{$arrays->{bindop}}, $1;}
-			push @{$arrays->{binddn}}, "";
+			if($usage =~ /f/ || $verb eq "yes"){
+				$hashes->{bind_conn_op}->{"$conn,$op"} = "";
+			}
 			inc_stats('anonbind',$s_stats,$m_stats);
 		}
 	}
 	if (m/ UNBIND/){
 		$unbindCount++;
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{unbindconn}}, $1; }
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{unbindop}}, $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{unbind_conn_op}->{"$1,$2"}++;}
 		}
 	}
-	if (m/ RESULT err=/ && m/ notes=P/){
+	if (m/ RESULT err=/ && m/ notes=[A-Z,]*P/){
 		$pagedSearchCount++;
 	}
-	if (m/ notes=A/){
+	if (m/ notes=[A-Z,]*A/){
 		$con = "";
 		if ($_ =~ /conn= *([0-9A-Z]+)/i){
-		        $con = $1;
-		        if ($_ =~ /op= *([0-9\-]+)/i){ $op = $1;}
+			$con = $1;
+			if ($_ =~ /op= *([0-9\-]+)/i){ $op = $1;}
 		}
 		for (my $i=0; $i < $vlvCount;$i++){
-		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesACount++; $isVlvNotes="1";}
+			if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesACount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
 			#  We don't want to record vlv unindexed searches for our regular "bad" 
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
 			$unindexedSrchCountNotesA++;
 			if($reportStats){ inc_stats('notesA',$s_stats,$m_stats); }
-		}
-		if ($usage =~ /u/ || $verb eq "yes"){
-			if ($isVlvNotes == 0 ){
-		        	if ($_ =~ /etime= *([0-9.]+)/i ){ push @{$arrays->{notesAetime}}, $1; }
-		        	if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{notesAconn}}, $1; }
-		        	if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{notesAop}}, $1; }
-		        	if ($_ =~ / *([0-9a-z:\/]+)/i){ push @{$arrays->{notesAtime}}, $1; }
-				if ($_ =~ /nentries= *([0-9]+)/i ){ push @{$arrays->{notesAnentries}}, $1; }
+			if ($usage =~ /u/ || $verb eq "yes"){
+				$hashes->{notesa_conn_op}->{"$con,$op"}++;
+				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$con,$op"} = $1; }
+				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$con,$op"} = $1; }
+				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$con,$op"} = $1; }
 			}
 		}
 		$isVlvNotes = 0;
 	}
-	if (m/ notes=U/){
+	if (m/ notes=[A-Z,]*U/){
 		$con = "";
 		if ($_ =~ /conn= *([0-9A-Z]+)/i){
-		        $con = $1;
-		        if ($_ =~ /op= *([0-9\-]+)/i){ $op = $1;}
+			$con = $1;
+			if ($_ =~ /op= *([0-9\-]+)/i){ $op = $1;}
 		}
 		for (my $i=0; $i < $vlvCount;$i++){
-		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesUCount++; $isVlvNotes="1";}
+			if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesUCount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
 			#  We don't want to record vlv unindexed searches for our regular "bad" 
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
 			$unindexedSrchCountNotesU++;
 			if($reportStats){ inc_stats('notesU',$s_stats,$m_stats); }
-		}
-		if ($usage =~ /u/ || $verb eq "yes"){
-			if ($isVlvNotes == 0 ){
-		        	if ($_ =~ /etime= *([0-9.]+)/i ){ push @{$arrays->{notesUetime}}, $1; }
-		        	if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{notesUconn}}, $1; }
-		        	if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{notesUop}}, $1; }
-		        	if ($_ =~ / *([0-9a-z:\/]+)/i){ push @{$arrays->{notesUtime}}, $1; }
-				if ($_ =~ /nentries= *([0-9]+)/i ){ push @{$arrays->{notesUnentries}}, $1; }
+			if ($usage =~ /u/ || $verb eq "yes"){
+				$hashes->{notesu_conn_op}->{"$con,$op"}++;
+				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$con,$op"} = $1; }
+				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$con,$op"} = $1; }
+				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$con,$op"} = $1; }
 			}
 		}
 		$isVlvNotes = 0;
@@ -1941,8 +1883,8 @@ sub parseLineNormal
 			}
 			$ip = $1;
 			$hashes->{ip_hash}->{$ip}++;
-			if ($_ =~ /conn= *([0-9A-Z]+)/i ){ 
-				if ($exc ne "yes"){	
+			if ($_ =~ /conn= *([0-9A-Z]+)/i ){
+				if ($exc ne "yes"){
 					$hashes->{conn_hash}->{$1} = $ip;
 				}
 			}
@@ -1951,7 +1893,6 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -1966,14 +1907,13 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{B1}->{$ip}++;
 					$hashes->{conncount}->{"B1"}++;
-					$connCodeCount++;	
+					$connCodeCount++;
 				}
 			}
 		}
@@ -1981,44 +1921,41 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{B4}->{$ip}++;
 					$hashes->{conncount}->{"B4"}++;
 					$connCodeCount++;
 				}
-		    	}
+			}
 		}
 		if (m/- T1/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-			       	$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
+				$ip = getIPfromConn($1);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{T1}->{$ip}++;
 					$hashes->{conncount}->{"T1"}++;
-					$connCodeCount++;	
+					$connCodeCount++;
 				}
 			}
 		}
 		if (m/- T2/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
-				$exc = "no"; 
+				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{T2}->{$ip}++;
 					$hashes->{conncount}->{"T2"}++;
-					$connCodeCount++;	
+					$connCodeCount++;
 				}
 			}
 		}
@@ -2027,14 +1964,13 @@ sub parseLineNormal
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				$maxBerSizeCount++;
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{B2}->{$ip}++;
 					$hashes->{conncount}->{"B2"}++;
-					$connCodeCount++;	
+					$connCodeCount++;
 				}
 			}
 		}
@@ -2042,14 +1978,13 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{B3}->{$ip}++;
 					$hashes->{conncount}->{"B3"}++;
-					$connCodeCount++;	
+					$connCodeCount++;
 				}
 			}
 		}
@@ -2057,9 +1992,8 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{R1}->{$ip}++;
@@ -2072,14 +2006,13 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{P1}->{$ip}++;
 					$hashes->{conncount}->{"P1"}++;
-					$connCodeCount++;	
+					$connCodeCount++;
 				}
 			}
 		}
@@ -2087,9 +2020,8 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{P2}->{$ip}++;
@@ -2102,9 +2034,8 @@ sub parseLineNormal
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
-				if ($ip eq ""){$ip = "Unknown_Host";}
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
-				        if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
 				if ($exc ne "yes"){
 					$hashes->{U1}->{$ip}++;
@@ -2131,8 +2062,7 @@ sub parseLineNormal
 		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ $hashes->{oid}->{$1}++; }
 		if ($1 && $1 eq $startTLSoid){$startTLSCount++;}
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{extconn}}, $1; }
-			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{extop}}, $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{ext_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (($usage =~ /l/ || $verb eq "yes") and / SRCH /){
@@ -2155,14 +2085,12 @@ sub parseLineNormal
 		$filterCount++;
 		if($usage =~ /u/ || $verb eq "yes"){
 			# we only need this for the unindexed search report
-			push @{$arrays->{filterval}}, $tmpp;
-			push @{$arrays->{filterconn}}, $filterConn;
-			push @{$arrays->{filterop}}, $filterOp;
+			$hashes->{filter_conn_op}->{"$filterConn,$filterOp"} = $tmpp;
 		}
 	}
 	if ($usage =~ /a/ || $verb eq "yes"){
 		if (/ SRCH /   && $_ =~ /base=\"(.*)\" scope/i ){
-			my ($baseConn, $baseOp, $scopeVal, $scopeConn, $scopeOp);
+			my ($conn, $op, $scopeVal);
 			if ($1 eq ""){
 				$tmpp = "Root DSE";
 			} else {
@@ -2173,25 +2101,19 @@ sub parseLineNormal
 			#
 			# grab the search bases & scope for potential unindexed searches
 			#
-			if ($_ =~ /scope= *([0-9]+)/i) { 
-				$scopeVal = $1; 
+			if ($_ =~ /scope= *([0-9]+)/i) {
+				$scopeVal = $1;
 			}
-			if ($_ =~ /conn= *([0-9A-Z]+)/i) { 
-				$baseConn = $1; 
-				$scopeConn = $1;	
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
+				$conn = $1;
 			}
-			if ($_ =~ /op= *([0-9\-]+)/i) { 
-				$baseOp = $1;
-				$scopeOp = $1;
+			if ($_ =~ /op= *([0-9\-]+)/i) {
+				$op = $1;
 			}
 			if($usage =~ /u/ || $verb eq "yes"){
 				# we only need this for the unindexed search report
-				push @{$arrays->{baseval}}, $tmpp;
-				push @{$arrays->{baseconn}}, $baseConn;
-				push @{$arrays->{baseop}}, $baseOp;
-				push @{$arrays->{scopeval}}, $scopeTxt[$scopeVal]; 
-				push @{$arrays->{scopeconn}}, $scopeConn; 
-				push @{$arrays->{scopeop}}, $scopeOp; 
+				$hashes->{base_conn_op}->{"$conn,$op"} = $tmpp;
+				$hashes->{scope_conn_op}->{"$conn,$op"} = $scopeTxt[$scopeVal];
 			}
 			$baseCount++;
 			$scopeCount++;
@@ -2210,15 +2132,8 @@ sub parseLineNormal
 			$ds6x = "true";
 			$badPwdCount++;
 		} elsif (/ err=49 tag=/ ){
-			if ($_ =~ /conn= *([0-9A-Z]+)/i ){
-				push @{$arrays->{badpwdconn}}, $1;
-				$ip = getIPfromConn($1);
-				$badPwdCount++;
-			}
-			if ($_ =~ /op= *([0-9\-]+)/i ){
-				push @{$arrays->{badpwdop}}, $1;
-			}
-			push @{$arrays->{badpwdip}}, $ip;
+			$badPwdCount++;
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{badpwd_conn_op}->{"$1,$2"}++;}
 		}
 	}
 	if (/ BIND / && /method=sasl/i){
@@ -2259,29 +2174,17 @@ sub parseLineNormal
 sub
 reset_stats_block
 {
-    my $stats = shift;
+	my $stats = shift;
 
-    $stats->{'last'} = shift || 0;
-    $stats->{'last_str'} = shift || '';
+	$stats->{'last'} = shift || 0;
+	$stats->{'last_str'} = shift || '';
 
-    $stats->{'results'}=0;
-    $stats->{'srch'}=0;
-    $stats->{'add'}=0;
-    $stats->{'mod'}=0;
-    $stats->{'modrdn'}=0;
-    $stats->{'moddn'}=0;
-    $stats->{'cmp'}=0;
-    $stats->{'del'}=0;
-    $stats->{'abandon'}=0;
-    $stats->{'conns'}=0;
-    $stats->{'sslconns'}=0;
-    $stats->{'bind'}=0;
-    $stats->{'anonbind'}=0;
-    $stats->{'unbind'}=0;
-    $stats->{'notesA'}=0;
-    $stats->{'notesU'}=0;
-    $stats->{'etime'}=0;
-    return;
+	for my $sn (@statnames) {
+		next if ($sn eq 'last' or $sn eq 'last_str');
+		$stats->{$sn}=0;
+	}
+
+	return;
 }
 
 sub
@@ -2292,6 +2195,7 @@ new_stats_block
 		'active' => 0,
 	};
 	if ($name){
+		$stats = openHashFiles($dataLocation, @statnames);
 		$stats->{'filename'} = $name;
 		$stats->{'fh'} = new IO::File;
 		$stats->{'active'} = open($stats->{'fh'},">$name");
@@ -2308,32 +2212,32 @@ print_stats_block
 		if ($stats->{'active'}){
 			if ($stats->{'last'}){
 				$stats->{'fh'}->print(
-			    		join(',',
-					    $stats->{'last_str'},
-					    $stats->{'last'},
-					    $stats->{'results'},
-					    $stats->{'srch'},
-					    $stats->{'add'},
-					    $stats->{'mod'},
-					    $stats->{'modrdn'},
-					    $stats->{'moddn'},
-					    $stats->{'cmp'},
-					    $stats->{'del'},
-					    $stats->{'abandon'},
-					    $stats->{'conns'},
-					    $stats->{'sslconns'},
-					    $stats->{'bind'},
-					    $stats->{'anonbind'},
-					    $stats->{'unbind'},
-					    $stats->{'notesA'},
-					    $stats->{'notesU'},
-					    $stats->{'etime'}),
-			    		"\n" );
+					join(',',
+						 $stats->{'last_str'},
+						 $stats->{'last'},
+						 $stats->{'results'},
+						 $stats->{'srch'},
+						 $stats->{'add'},
+						 $stats->{'mod'},
+						 $stats->{'modrdn'},
+						 $stats->{'moddn'},
+						 $stats->{'cmp'},
+						 $stats->{'del'},
+						 $stats->{'abandon'},
+						 $stats->{'conns'},
+						 $stats->{'sslconns'},
+						 $stats->{'bind'},
+						 $stats->{'anonbind'},
+						 $stats->{'unbind'},
+						 $stats->{'notesA'},
+						 $stats->{'notesU'},
+						 $stats->{'etime'}),
+					"\n" );
 			} else {
 				$stats->{'fh'}->print(
-			    		"Time,time_t,Results,Search,Add,Mod,Modrdn,Moddn,Compare,Delete,Abandon,".
-			    		"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed search,Unindexed component,ElapsedTime\n"
-			    	);
+					"Time,time_t,Results,Search,Add,Mod,Modrdn,Moddn,Compare,Delete,Abandon,".
+					"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed search,Unindexed component,ElapsedTime\n"
+					);
 			}
 		}
 	}
@@ -2346,7 +2250,7 @@ inc_stats
 	my $n = shift;
 	foreach(@_){
 		$_->{$n}++
-	    	if exists $_->{$n};
+			if exists $_->{$n};
 	}
 	return;
 }
@@ -2360,7 +2264,7 @@ inc_stats_val
 	my $val = shift;
 	foreach(@_){
 		$_->{$n} += $val
-	    	if exists $_->{$n};
+			if exists $_->{$n};
 	}
 	return;
 }
@@ -2383,7 +2287,7 @@ displayBindReport
 		&printClients($bindReport{$bindDN}{"conn"});
 		print("\n   Operations Performed:\n\n");
 		&printOpStats($bindDN);
-		print("\n");	
+		print("\n");
 	}
 	print "Done.\n";
 	exit (0);
@@ -2391,13 +2295,13 @@ displayBindReport
 
 sub
 printClients
-{ 
+{
 	my @bindConns = &cleanConns(split(' ', $_[0]));
 	my $IPcount = "1";
 
 	foreach my $ip ( keys %connList ){   # Loop over all the IP addresses
 		foreach my $bc (@bindConns){ # Loop over each bind conn number and compare it 
-			if($connList{$ip} =~ / $bc /){ 
+			if($connList{$ip} =~ / $bc /){
 				print("        [$IPcount]  $ip\n");
 				$IPcount++;
 				last;
@@ -2417,7 +2321,7 @@ cleanConns
 		if($dirtyConns[$i] ne ""){
 			$retConns[$c++] = $dirtyConns[$i];
 		}
-	}	
+	}
 	return @retConns;
 }
 
@@ -2443,7 +2347,7 @@ printOpStats
 #######################
 #                     #
 # Hash File Functions #
-#                     #  
+#                     #
 #######################
 
 sub
@@ -2471,35 +2375,17 @@ openHashFiles
 }
 
 sub
-openArrayFiles
-{
-	my $dir = shift;
-	my %arrays = ();
-	for my $an (@_) {
-		my @ary = (); # using my in inner loop will create brand new array every time through for tie
-		my $fn = "$dir/$an.logconv.db";
-		push @removefiles, $fn;
-		tie @ary, "DB_File", $fn, O_CREAT|O_RDWR, 0600, $DB_RECNO or do { openFailed($!, $fn) };
-		$arrays{$an} = \@ary;
-	}
-	return \%arrays;
-}
-
-sub
 removeDataFiles
 {
-    if (!$needCleanup) { return ; }
+	if (!$needCleanup) { return ; }
 
 	for my $h (keys %{$hashes}) {
 		untie %{$hashes->{$h}};
 	}
-	for my $a (keys %{$arrays}) {
-		untie @{$arrays->{$a}};
-	}
 	for my $file (@removefiles) {
 		unlink $file;
 	}
-    $needCleanup = 0;
+	$needCleanup = 0;
 }
 
 END { print "Cleaning up temp files . . .\n"; removeDataFiles(); print "Done\n"; }
@@ -2508,7 +2394,12 @@ sub
 getIPfromConn
 {
 	my $connid = shift;
-	return $hashes->{conn_hash}->{$connid};
+	if (exists($hashes->{conn_hash}->{$connid}) &&
+		defined($hashes->{conn_hash}->{$connid})) {
+		return $hashes->{conn_hash}->{$connid};
+	}
+
+	return "Unknown_Host";
 }
 
 #######################################
