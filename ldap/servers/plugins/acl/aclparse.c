@@ -97,8 +97,8 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 {
 
 	int  		rv=0;
-	char 		*next;
-	char 		*save;
+	char 		*next=NULL;
+	char 		*save=NULL;
 
 	while(*str) {
 		__acl_strip_leading_space( &str );
@@ -108,9 +108,12 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 			if ((next = slapi_find_matching_paren(str)) == NULL) {
 				return(ACL_SYNTAX_ERR);
 			}
-		} else {
+		} else if (!next) {
+			/* the statement does not start with a parenthesis */
+                  	return(ACL_SYNTAX_ERR);
+                } else {
 			/* then we have done all the processing */
-			return  0;
+		  	return  0;
 		}
 		LDAP_UTF8INC(str);	/* skip the "(" */
 		save = next;
