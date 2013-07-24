@@ -591,14 +591,6 @@ disk_mon_get_dirs(char ***list, int logs_critical){
     char *cookie = NULL;
     char *dir = NULL;
 
-    if(logs_critical){
-        slapi_rwlock_rdlock(config->cfg_rwlock);
-        disk_mon_add_dir(list, config->accesslog);
-        disk_mon_add_dir(list, config->errorlog);
-        disk_mon_add_dir(list, config->auditlog);
-        slapi_rwlock_unlock(config->cfg_rwlock);
-    }
-
     /* Add /var just to be safe */
 #ifdef LOCALSTATEDIR
     disk_mon_add_dir(list, LOCALSTATEDIR);
@@ -609,6 +601,9 @@ disk_mon_get_dirs(char ***list, int logs_critical){
     /* config and backend directories */
     slapi_rwlock_rdlock(config->cfg_rwlock);
     disk_mon_add_dir(list, config->configdir);
+    disk_mon_add_dir(list, config->accesslog);
+    disk_mon_add_dir(list, config->errorlog);
+    disk_mon_add_dir(list, config->auditlog);
     slapi_rwlock_unlock(config->cfg_rwlock);
 
     be = slapi_get_first_backend (&cookie);
