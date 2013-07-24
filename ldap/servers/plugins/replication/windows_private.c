@@ -126,7 +126,7 @@ check_update_allowed(Repl_Agmt *ra, const char *type, Slapi_Entry *e, int *retva
 		while (get_next_disallow_attr_type(&ii, &distype)) {
 			if (slapi_attr_types_equivalent(type, distype)) {
 				char *tmpstr = slapi_entry_attr_get_charptr(e, type);
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 								"windows_parse_config_entry: setting %s to %s will be "
 								"deferred until current update is completed\n",
 								type, tmpstr);
@@ -231,7 +231,7 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			} else if (strcasecmp(tmpstr, "toWindows") == 0) {
 				windows_private_set_one_way(ra, ONE_WAY_SYNC_TO_AD);
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 					"Ignoring illegal setting for %s attribute in replication "
 					"agreement \"%s\".  Valid values are \"toWindows\" or "
 					"\"fromWindows\".\n", type_oneWaySync, slapi_entry_get_dn(e));
@@ -258,7 +258,7 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			} else if (strcasecmp(tmpstr, "none") == 0) {
 				windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 					"Ignoring illegal setting for %s attribute in replication "
 					"agreement \"%s\".  Valid values are \"delete\" or "
 					"\"unsync\".\n", type_winsyncMoveAction, slapi_entry_get_dn(e));

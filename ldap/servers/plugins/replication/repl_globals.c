@@ -45,7 +45,7 @@
 #include "repl.h"
 
 char *repl_plugin_name = REPL_PLUGIN_NAME;
-char *windows_repl_plugin_name = REPL_PLUGIN_NAME;
+char *windows_repl_plugin_name = REPL_PLUGIN_NAME " - windows sync";
 char *repl_plugin_name_cl = REPL_PLUGIN_NAME " - changelog program";
 
 /* String constants (no need to change these for I18N) */
