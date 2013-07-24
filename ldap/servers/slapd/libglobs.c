@@ -677,7 +677,7 @@ static struct config_get_and_set {
 		(ConfigGetFunc)config_get_disk_monitoring},
 	{CONFIG_DISK_THRESHOLD, config_set_disk_threshold,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.disk_threshold, CONFIG_INT,
+		(void**)&global_slapdFrontendConfig.disk_threshold, CONFIG_LONG,
 		(ConfigGetFunc)config_get_disk_threshold},
 	{CONFIG_DISK_GRACE_PERIOD, config_set_disk_grace_period,
 		NULL, 0,
