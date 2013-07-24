@@ -186,8 +186,11 @@ typedef struct stats_table_context_s {
 #define COLUMN_DSCHAININGS 18
 #define COLUMN_DSSECURITYERRORS 19
 #define COLUMN_DSERRORS 20
+#define COLUMN_DSCONNECTIONS 21
+#define COLUMN_DSCONNECTIONSINMAXTHREADS 22
+#define COLUMN_DSMAXTHREADSHIT 23
 #define dsOpsTable_COL_MIN 1
-#define dsOpsTable_COL_MAX 20
+#define dsOpsTable_COL_MAX 23
 
 /*************************************************************
  * dsEntriesTable column defines

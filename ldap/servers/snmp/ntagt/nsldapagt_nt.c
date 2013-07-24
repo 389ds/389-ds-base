@@ -1069,6 +1069,8 @@ int MagtReadStats(MagtHdrInfo_t *hdrInfo,
     OpsTblInfo->Chainings             = pfile_stats->ops_stats.dsChainings;
     OpsTblInfo->SecurityErrors        = pfile_stats->ops_stats.dsSecurityErrors;
     OpsTblInfo->Errors                = pfile_stats->ops_stats.dsErrors;
+    OpsTblInfo->ConnectionsInMaxThreads = pfile_stats->ops_stats.dsConnectionsInMaxThreads;
+    OpsTblInfo->ConnectionsMaxThreadsHit = pfile_stats->ops_stats.dsMaxThreadsHit;
    }
   if(EntriesTblInfo != NULL){
     EntriesTblInfo->MasterEntries = pfile_stats->entries_stats.dsMasterEntries;

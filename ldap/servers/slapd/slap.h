@@ -1448,7 +1448,9 @@ typedef struct conn {
 	int				c_gettingber;	/* in the middle of ber_get_next  */
 	BerElement		*c_currentber;	/* ber we're getting              */
 	time_t			c_starttime;	/* when the connection was opened */
-	PRUint64	c_connid;	/* id of this connection for stats*/
+	PRUint64		c_connid;	/* id of this connection for stats*/
+	PRUint64		c_maxthreadscount; /* # of times a conn hit max threads */
+	PRUint64		c_maxthreadsblocked; /* # of operations blocked by maxthreads */
 	int				c_opsinitiated;	/* # ops initiated/next op id	  */
 	PRInt32			c_opscompleted;	/* # ops completed		  */
 	PRInt32			c_threadnumber; /* # threads used in this conn    */
@@ -1517,6 +1519,9 @@ typedef struct conn {
                                               * processing a pagedresults search
                                               */
 #define CONN_FLAG_PAGEDRESULTS_ABANDONED  512/* pagedresults abandoned */
+
+#define CONN_FLAG_MAX_THREADS 1024 /* Flag set when connection is at the maximum number of threads */
+
 #define CONN_GET_SORT_RESULT_CODE (-1)
 
 #define START_TLS_OID    "1.3.6.1.4.1.1466.20037"
@@ -1831,6 +1836,8 @@ struct snmp_ops_tbl_t{
     Slapi_Counter *dsBytesSent;	/* Count of bytes sent to clients */
     Slapi_Counter *dsEntriesReturned;
     Slapi_Counter *dsReferralsReturned;
+    Slapi_Counter *dsMaxThreadsHit;
+    Slapi_Counter *dsConnectionsInMaxThreads;
 };
 
 struct snmp_entries_tbl_t{

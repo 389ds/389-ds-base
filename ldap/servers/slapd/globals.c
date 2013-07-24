@@ -90,7 +90,8 @@ Slapi_PBlock	*repl_pb = NULL;
 Slapi_Counter	*ops_initiated;
 Slapi_Counter	*ops_completed;
 Slapi_Counter	*num_conns;
-
+Slapi_Counter	*max_threads_count;
+Slapi_Counter	*conns_in_maxthreads;
 
 /*
   DEC/COMPAQ has released a patch for 4.0d (e?) which will speed up
@@ -173,11 +174,15 @@ set_entry_points()
 	if (config_get_slapi_counters()) {
 		ops_initiated = slapi_counter_new();
 		ops_completed = slapi_counter_new();
+		max_threads_count = slapi_counter_new();
+		conns_in_maxthreads = slapi_counter_new();
 		g_set_num_entries_sent( slapi_counter_new() );
 		g_set_num_bytes_sent( slapi_counter_new() );
 	} else {
 		ops_initiated = NULL;
 		ops_completed = NULL;
+		max_threads_count = NULL;
+		conns_in_maxthreads = NULL;
 		g_set_num_entries_sent( NULL );
 		g_set_num_bytes_sent( NULL );
 	}

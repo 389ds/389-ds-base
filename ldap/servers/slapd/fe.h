@@ -58,6 +58,8 @@ extern __declspec(dllimport) int slapd_ldap_debug;
 #endif
 extern Slapi_Counter *ops_initiated;
 extern Slapi_Counter *ops_completed;
+extern Slapi_Counter *max_threads_count;
+extern Slapi_Counter *conns_in_maxthreads;
 extern PRThread *listener_tid;
 extern PRThread *listener_tid;
 extern Slapi_Counter *num_conns;
@@ -107,7 +109,7 @@ void SVRCORE_DestroyNTUserPinObj(SVRCORENTUserPinObj *obj);
  * connection.c
  */
 void connection_abandon_operations( Connection *conn );
-int connection_activity( Connection *conn );
+int connection_activity( Connection *conn, int maxthreads );
 void init_op_threads();
 int connection_new_private(Connection *conn);
 void connection_remove_operation( Connection *conn, Operation *op );

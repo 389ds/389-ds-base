@@ -2285,8 +2285,8 @@ connection_threadmain()
 	int more_data = 0;
 	int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
 	int doshutdown = 0;
+	int maxthreads = 0;
 	long bypasspollcnt = 0;
-	long maxconnhits = 0;
 
 #if defined( OSF1 ) || defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
@@ -2354,7 +2354,7 @@ connection_threadmain()
 		/* Once we're here we have a pb */ 
 		conn = pb->pb_conn;
 		op = pb->pb_op;
-		
+		maxthreads = config_get_maxthreadsperconn();
 		more_data = 0;
 		ret = connection_read_operation(conn,op,&tag,&more_data);
 
@@ -2426,6 +2426,7 @@ connection_threadmain()
 		replication_connection = conn->c_isreplication_session;
 		if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
 			if (!more_data) {
+				conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
 				connection_make_readable_nolock(conn);
 				/* once the connection is readable, another thread may access conn,
 				 * so need locking from here on */
@@ -2434,16 +2435,17 @@ connection_threadmain()
 				bypasspollcnt++;
 				PR_Lock(conn->c_mutex);
 				/* don't do this if it would put us over the max threads per conn */
-				if (conn->c_threadnumber < config_get_maxthreadsperconn()) {
+				if (conn->c_threadnumber < maxthreads) {
 					/* for turbo, c_idlesince is set above - for !turbo and
 					 * !more_data, we put the conn back in the poll loop and
 					 * c_idlesince is set in handle_pr_read_ready - since we
 					 * are bypassing both of those, we set idlesince here
 					 */
 					conn->c_idlesince = curtime;
-					connection_activity(conn);
+					connection_activity(conn, maxthreads);
 				} else {
-					maxconnhits++;
+					/* keep count of how many times maxthreads has blocked an operation */
+					conn->c_maxthreadsblocked++;
 				}
 				PR_Unlock(conn->c_mutex);
 			}
@@ -2485,6 +2487,8 @@ done:
 			connection_remove_operation_ext(pb, conn, op);
 			connection_make_readable_nolock(conn);
 			conn->c_threadnumber--;
+			slapi_counter_decrement(conns_in_maxthreads);
+			slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
 			connection_release_nolock(conn);
 			PR_Unlock(conn->c_mutex);
 			signal_listner();
@@ -2528,10 +2532,16 @@ done:
 						need_wakeup = 1;
 					}
 					if (!need_wakeup) {
-						if (conn->c_threadnumber == config_get_maxthreadsperconn())
+						if (conn->c_threadnumber == maxthreads)
 							need_wakeup = 1;
 						else
 							need_wakeup = 0;
+					}
+
+					if(conn->c_threadnumber == maxthreads){
+					    conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
+					    slapi_counter_decrement(conns_in_maxthreads);
+					    slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
 					}
 					conn->c_threadnumber--;
 					connection_release_nolock(conn);
@@ -2552,7 +2562,7 @@ done:
 
 /* thread need to hold conn->c_mutex before calling this function */
 int
-connection_activity(Connection *conn)
+connection_activity(Connection *conn, int maxthreads)
 {
 	struct Slapi_op_stack *op_stack_obj;
 
@@ -2568,6 +2578,14 @@ connection_activity(Connection *conn)
 	/* set these here so setup_pr_read_pds will not add this conn back to the poll array */
 	conn->c_gettingber = 1;
 	conn->c_threadnumber++;
+	if(conn->c_threadnumber == maxthreads){
+		conn->c_flags |= CONN_FLAG_MAX_THREADS;
+		conn->c_maxthreadscount++;
+		slapi_counter_increment(max_threads_count);
+		slapi_counter_increment(conns_in_maxthreads);
+		slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+		slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHit);
+	}
 	op_stack_obj = connection_get_operation();
 	connection_add_operation(conn, op_stack_obj->op);
 	/* Add conn to the end of the work queue.  */

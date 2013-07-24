@@ -456,6 +456,9 @@ agt_mread_stats (int hdl, struct hdr_stats_t *pHdrInfo, struct ops_stats_t *pDsO
         pDsOpsTbl->dsChainings             = pfile_stats->ops_stats.dsChainings;
         pDsOpsTbl->dsSecurityErrors        = pfile_stats->ops_stats.dsSecurityErrors;
         pDsOpsTbl->dsErrors                = pfile_stats->ops_stats.dsErrors;
+        pDsOpsTbl->dsConnections           = pfile_stats->ops_stats.dsConnections;
+        pDsOpsTbl->dsConnectionsInMaxThreads = pfile_stats->ops_stats.dsConnectionsInMaxThreads;
+        pDsOpsTbl->dsMaxThreadsHit         = pfile_stats->ops_stats.dsMaxThreadsHit;
     }
 
     if (pDsEntTbl != NULL) {

@@ -145,6 +145,8 @@ struct ops_stats_t{
     PRUint64 dsErrors;
     PRUint64 dsConnections;	 /* Number of currently connected clients */
     PRUint64 dsConnectionSeq; /* Monotonically increasing number bumped on each new conn est */
+    PRUint64 dsMaxThreadsHit; /* Number of times a connection hit max threads */
+    PRUint64 dsConnectionsInMaxThreads; /* current number of connections that are in max threads */
     PRUint64 dsBytesRecv;	/* Count of bytes read from clients */
     PRUint64 dsBytesSent;	/* Count of bytes sent to clients */
     PRUint64 dsEntriesReturned; /* Number of entries returned by the server */

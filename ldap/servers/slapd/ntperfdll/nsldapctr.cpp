@@ -260,6 +260,30 @@ NS_DATA_DEFINITION NSDataDefinition = {
 		CONNECTIONS_OFFSET
     },
     {   
+		sizeof(PERF_COUNTER_DEFINITION),
+		CONNECTIONSMAXTHREADS,
+		0,
+		CONNECTIONSMAXTHREADS,
+		0,
+		0,
+		PERF_DETAIL_NOVICE,
+		PERF_COUNTER_RAWCOUNT,
+		sizeof(DWORD),
+		CONNECTIONSMAXTHREADS_OFFSET
+    },
+    {
+		sizeof(PERF_COUNTER_DEFINITION),
+		CONNECTIONSHITMAXTHREADS,
+		0,
+		CONNECTIONSHITMAXTHREADS,
+		0,
+		0,
+		PERF_DETAIL_NOVICE,
+		PERF_COUNTER_RAWCOUNT,
+		sizeof(DWORD),
+		CONNECTIONSHITMAXTHREADS_OFFSET
+    },
+    {
     	sizeof(PERF_COUNTER_DEFINITION),
 		BIND_RATE,
 	    0,
@@ -755,6 +779,10 @@ OpenNSPerformanceData(LPWSTR lpDeviceNames)
         NSDataDefinition.moddn_rate.CounterHelpTitleIndex += dwFirstHelp;
         NSDataDefinition.connections.CounterNameTitleIndex += dwFirstCounter;
         NSDataDefinition.connections.CounterHelpTitleIndex += dwFirstHelp;
+        NSDataDefinition.connectionsmaxthreads.CounterNameTitleIndex += dwFirstCounter;
+        NSDataDefinition.connectionsmaxthreads.CounterHelpTitleIndex += dwFirstHelp;
+        NSDataDefinition.connectionshitmaxthreads.CounterNameTitleIndex += dwFirstCounter;
+        NSDataDefinition.connectionshitmaxthreads.CounterHelpTitleIndex += dwFirstHelp;
         NSDataDefinition.bind_rate.CounterNameTitleIndex += dwFirstCounter;
         NSDataDefinition.bind_rate.CounterHelpTitleIndex += dwFirstHelp;
         NSDataDefinition.entries_returned.CounterNameTitleIndex += dwFirstCounter;
@@ -829,6 +857,8 @@ struct _status_struct_s {
 	DWORD	compare_rate;
 	DWORD	moddn_rate;
 	DWORD	connections;
+	DWORD	connectionsmaxthreads;
+	DWORD	connectionshitmaxthreads;
 	DWORD	bind_rate;
 	DWORD	entries_returned;
 	DWORD	entries_returned_rate;
@@ -857,6 +887,8 @@ Get_Actual_Data(agt_stats_t *smem,
 	results->connections = 0;
 	results->tot_errs = pOpsStats->dsErrors ;
 	results->connections = pOpsStats->dsConnections ;
+	results->connectionsmaxthreads = pOpsStats->dsConnectionsInMaxThreads ;
+	results->connectionshitmaxthreads = pOpsStats->dsMaxThreadsHit ;
 	results->tot_bytes_written = pOpsStats->dsBytesSent ;
 	results->tot_bytes_read = pOpsStats->dsBytesRecv ;
 	results->throughput = pOpsStats->dsBytesSent +  pOpsStats->dsBytesRecv;

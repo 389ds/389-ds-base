@@ -1723,6 +1723,9 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				}
 				else
 				{
+					if(c->c_threadnumber >= max_threads_per_conn){
+						c->c_maxthreadsblocked++;
+					}
 					c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
 				}
 			}
@@ -1840,6 +1843,7 @@ handle_read_ready(Connection_Table *ct, fd_set *readfds)
 	time_t curtime = current_time();
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	int idletimeout;
+	int maxthreads = config_get_maxthreadsperconn();
 
 #ifdef LDAP_DEBUG
 	if ( slapd_ldap_debug & LDAP_DEBUG_CONNS )
@@ -1870,7 +1874,7 @@ handle_read_ready(Connection_Table *ct, fd_set *readfds)
 					c->c_idlesince = curtime;
 
 					/* This is where the work happens ! */
-					connection_activity( c );
+					connection_activity( c, maxthreads);
 
 					/* idle timeout */
 				}
@@ -1898,6 +1902,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 	time_t curtime = current_time();
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	int idletimeout;
+	int maxthreads = config_get_maxthreadsperconn();
 #if defined( XP_WIN32 )
 	int i;
 #endif
@@ -2021,7 +2026,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 
 					/* This is where the work happens ! */
 					/* MAB: 25 jan 01, error handling added */
-					if ((connection_activity( c )) == -1) {
+					if ((connection_activity( c, maxthreads )) == -1) {
 						/* This might happen as a result of
 						 * trying to acquire a closing connection
 						 */

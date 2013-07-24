@@ -142,9 +142,18 @@ IMPORTS
 
         dsReferrals
             Counter64,
-	dsChainings
+        dsChainings
             Counter64,
 
+    -- Connection Stats
+    
+        dsConnections
+            Counter64,
+        dsMaxThreadsHit
+            Counter64,
+        dsConnectionsInMaxThreads
+            Counter64,
+             
     -- Errors
 
         dsSecurityErrors
@@ -413,6 +422,36 @@ IMPORTS
             Sections 12.4, 12.5, 12.8 & 12.9. and, RFC1777 Section 4."
         ::= {dsOpsEntry 20}
 
+    dsConnections OBJECT-TYPE
+        SYNTAX Counter64
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of total connections opened."
+        REFERENCE
+          " Redhat-defined 1.1"
+        ::= {dsOpsEntry 21}
+         
+    dsConnectionsInMaxThreads   OBJECT-TYPE
+        SYNTAX Counter64
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of connections that are currently in a max thread state."
+        REFERENCE
+          " Redhat defined 1.2."
+        ::= {dsOpsEntry 22}
+        
+    dsMaxThreadsHit OBJECT-TYPE
+        SYNTAX Counter64
+        MAX-ACCESS read-only
+        STATUS current
+        DESCRIPTION
+          " Number of times any connection has hit max threads."
+        REFERENCE
+          " Redhat defined 1.3."
+        ::= {dsOpsEntry 23} 
+        
     -- Entry statistics/Cache performance
     dsEntriesTable OBJECT-TYPE
         SYNTAX SEQUENCE OF DsEntriesEntry

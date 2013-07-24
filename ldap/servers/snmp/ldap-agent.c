@@ -513,6 +513,18 @@ dsOpsTable_get_value(netsnmp_request_info *request,
         the_stat = &context->ops_tbl.dsErrors;
         break;
 
+    case COLUMN_DSCONNECTIONS:
+        the_stat = &context->ops_tbl.dsConnections;
+        break;
+
+    case COLUMN_DSCONNECTIONSINMAXTHREADS:
+        the_stat = &context->ops_tbl.dsConnectionsInMaxThreads;
+        break;
+
+    case COLUMN_DSMAXTHREADSHIT:
+        the_stat = &context->ops_tbl.dsMaxThreadsHit;
+        break;
+
     default:/* We shouldn't get here */
         snmp_log(LOG_ERR, "Unknown column in dsOpsTable_get_value\n");
         return SNMP_ERR_GENERR;

@@ -376,6 +376,7 @@ void
 connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 {
 	char buf[BUFSIZ];
+	char maxthreadbuf[BUFSIZ];
 	struct berval val;
 	struct berval	*vals[2];
 	int	i, nconns, nreadwaiters;
@@ -405,6 +406,11 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 			int lendn = ct->c[i].c_dn ? strlen(ct->c[i].c_dn) : 6; /* "NULLDN" */
 			char *bufptr = &buf[0];
 			char *newbuf = NULL;
+			int maxthreadstate = 0;
+
+			if(ct->c[i].c_flags & CONN_FLAG_MAX_THREADS){
+				maxthreadstate = 1;
+			}
 
 			nconns++;
 			if ( ct->c[i].c_gettingber )
@@ -423,23 +429,38 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 #endif
 			strftime( buf2, sizeof(buf2), "%Y%m%d%H%M%SZ", &utm );
 
-			if (lendn > (BUFSIZ - 46)) { 
+			/*
+			 * Max threads per connection stats
+			 *
+			 * Appended output "1:2:3"
+			 *
+			 * 1 = Connection max threads state:  1 is in max threads, 0 is not
+			 * 2 = The number of times this thread has hit max threads
+			 * 3 = The number of operations attempted that were blocked
+			 *     by max threads.
+			 */
+			PR_snprintf(maxthreadbuf, sizeof(maxthreadbuf), "%d:%"NSPRIu64":%"NSPRIu64"",
+				maxthreadstate, ct->c[i].c_maxthreadscount, ct->c[i].c_maxthreadsblocked);
+
+			if ((lendn + strlen(maxthreadbuf)) > (BUFSIZ - 46)) {
 				/*
 				 * 46 = 4 for the "i" couter + 20 for buf2 +
 				 *     10 for c_opsinitiated + 10 for c_opscompleted +
 				 *      1 for c_gettingber + 1
 				 */
-				newbuf = (char *) slapi_ch_malloc(lendn + 46);
+				newbuf = (char *) slapi_ch_malloc(lendn + strlen(maxthreadbuf) + 46);
 				bufptr = newbuf;
 			}
 
-			sprintf( bufptr, "%d:%s:%d:%d:%s%s:%s", i,
+			sprintf( bufptr, "%d:%s:%d:%d:%s%s:%s:%s", i,
 			    buf2, 
 			    ct->c[i].c_opsinitiated, 
 			    ct->c[i].c_opscompleted,
-			    ct->c[i].c_gettingber ? "r" : "",
+			    ct->c[i].c_gettingber ? "r" : "-",
 			    "",
-			    ct->c[i].c_dn ? ct->c[i].c_dn : "NULLDN" );
+			    ct->c[i].c_dn ? ct->c[i].c_dn : "NULLDN",
+			    maxthreadbuf
+			    );
 			val.bv_val = bufptr;
 			val.bv_len = strlen( bufptr );
 			attrlist_merge( &e->e_attrs, "connection", vals );
@@ -457,6 +478,16 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "totalconnections", vals );
+
+	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(conns_in_maxthreads));
+	val.bv_val = buf;
+	val.bv_len = strlen( buf );
+	attrlist_replace( &e->e_attrs, "currentconnectionsatmaxthreads", vals );
+
+	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(max_threads_count));
+	val.bv_val = buf;
+	val.bv_len = strlen( buf );
+	attrlist_replace( &e->e_attrs, "maxthreadsperconnhits", vals );
 
 	PR_snprintf( buf, sizeof(buf), "%d", (ct!=NULL?ct->size:0) );
 	val.bv_val = buf;

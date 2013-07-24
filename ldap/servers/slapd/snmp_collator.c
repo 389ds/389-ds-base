@@ -161,6 +161,8 @@ static int snmp_collator_init(){
 	g_get_global_snmp_vars()->ops_tbl.dsBytesSent			= slapi_counter_new();
 	g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned		= slapi_counter_new();
 	g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned		= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads	= slapi_counter_new();
+	g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHit		= slapi_counter_new();
 	g_get_global_snmp_vars()->entries_tbl.dsMasterEntries		= slapi_counter_new();
 	g_get_global_snmp_vars()->entries_tbl.dsCopyEntries		= slapi_counter_new();
 	g_get_global_snmp_vars()->entries_tbl.dsCacheEntries		= slapi_counter_new();
@@ -672,6 +674,8 @@ snmp_update_ops_table()
     stats->ops_stats.dsErrors = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsErrors);
     stats->ops_stats.dsConnections = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnections);
     stats->ops_stats.dsConnectionSeq = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
+    stats->ops_stats.dsConnectionsInMaxThreads = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+    stats->ops_stats.dsMaxThreadsHit = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHit);
     stats->ops_stats.dsBytesRecv = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesRecv);
     stats->ops_stats.dsBytesSent = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesSent);
     stats->ops_stats.dsEntriesReturned = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned);
@@ -818,6 +822,8 @@ snmp_as_entry(Slapi_Entry *e)
 	add_counter_to_value(e,"Errors", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsErrors));
 	add_counter_to_value(e,"Connections", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnections));
 	add_counter_to_value(e,"ConnectionSeq", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq));
+	add_counter_to_value(e,"ConnectionsInMaxThreads", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads));
+	add_counter_to_value(e,"ConnectionsMaxThreadsCount", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHit));
 	add_counter_to_value(e,"BytesRecv", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesRecv));
 	add_counter_to_value(e,"BytesSent", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesSent));
 	add_counter_to_value(e,"EntriesReturned", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned));

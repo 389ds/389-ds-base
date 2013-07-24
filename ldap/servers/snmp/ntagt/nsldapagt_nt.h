@@ -161,6 +161,8 @@ typedef struct MagtOpsTblInfo
   int Chainings;
   int SecurityErrors;
   int Errors;
+  int ConnectionsInMaxThreads;
+  int ConnectionsMaxThreadsHit;
 } MagtOpsTblInfo_t;
 
 typedef struct MagtEntriesTblInfo
