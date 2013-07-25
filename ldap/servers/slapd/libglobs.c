@@ -1667,7 +1667,7 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
-    PRUint64 threshold = 0;
+    PRInt64 threshold = 0;
     char *endp = NULL;
 
     if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
