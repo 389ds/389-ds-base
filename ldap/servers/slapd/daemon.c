@@ -854,8 +854,8 @@ disk_monitoring_thread(void *nothing)
                     /*
                      *  Excellent, we are back to acceptable levels, reset everything...
                      */
-                    LDAPDebug(LDAP_DEBUG_ANY, "Available disk space is now acceptable (%" NSPRIu64 " bytes).  Aborting"
-                                              " shutdown, and restoring the log settings.\n",disk_space,0,0);
+                    LDAPDebug(LDAP_DEBUG_ANY, "Available disk space is now above the threshold.  Aborting"
+                                              " shutdown, and restoring the log settings.\n",0,0,0);
                     if(logs_disabled && using_accesslog){
                         config_set_accesslog_enabled(LOGGING_ON);
                     }
