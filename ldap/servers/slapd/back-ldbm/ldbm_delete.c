@@ -246,9 +246,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			               "Delete Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
-			PRIntervalTime interval;
-			interval = PR_MillisecondsToInterval(slapi_rand() % 100);
-			DS_Sleep(interval);
+				PRIntervalTime interval;
+				interval = PR_MillisecondsToInterval(slapi_rand() % 100);
+				DS_Sleep(interval);
 			}
 #endif
 		}
@@ -460,6 +460,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					if (parent && cache_lock_entry(&inst->inst_cache, parent)) {
 						/* Failed to obtain parent entry's entry lock */
 						CACHE_RETURN(&(inst->inst_cache), &parent);
+						retval = -1;
 						goto error_return;
 					}
 				}
