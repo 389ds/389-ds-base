@@ -302,7 +302,7 @@ acl_access_allowed(
 			slapi_log_error	(loglevel, plugin_name,
 				"conn=%" NSPRIu64 " op=%d (main): Deny %s on entry(%s)"
 				": readonly backend\n",
-				 op->o_connid, op->o_opid,
+				(long long unsigned int)op->o_connid, op->o_opid,
 				acl_access2str(access),
 				n_edn);
 			return LDAP_UNWILLING_TO_PERFORM;
@@ -315,7 +315,7 @@ acl_access_allowed(
 		slapi_log_error	(loglevel,	plugin_name,
 				"conn=%" NSPRIu64 " op=%d (main): Allow %s on entry(%s)"
 				": root user\n",
-				op->o_connid, op->o_opid,
+				(long long unsigned int)op->o_connid, op->o_opid,
 				acl_access2str(access),
 				n_edn);
 		return(LDAP_SUCCESS);
@@ -452,7 +452,7 @@ acl_access_allowed(
 
 		slapi_log_error(loglevel, plugin_name,
 			"#### conn=%" NSPRIu64 " op=%d binddn=\"%s\"\n",
-			op->o_connid, op->o_opid, clientDn);
+			(long long unsigned int)op->o_connid, op->o_opid, clientDn);
 		aclpb->aclpb_stat_total_entries++;
 
 		if (!(access & SLAPI_ACL_PROXY) &&
@@ -776,7 +776,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 				slapi_log_error(loglevel, plugin_name, 
 		"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
 		": %s\n",
-				op->o_connid, op->o_opid,
+				(long long unsigned int)op->o_connid, op->o_opid,
 				source,
 				access_status,
 				right, 
@@ -789,7 +789,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 					slapi_log_error(loglevel, plugin_name, 
 		"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
 		": %s\n",
-				op->o_connid, op->o_opid,
+				(long long unsigned int)op->o_connid, op->o_opid,
 				source,
 				access_status,
 				right, 
@@ -802,7 +802,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 		slapi_log_error(loglevel, plugin_name, 
 			"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
 			": %s\n",
-				op->o_connid, op->o_opid,
+				(long long unsigned int)op->o_connid, op->o_opid,
 				source,
 				access_status,
 				right, 

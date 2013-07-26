@@ -201,7 +201,7 @@ do_add( Slapi_PBlock *pb )
 				!= LDAP_SUCCESS ) {
 				slapi_log_access( LDAP_DEBUG_STATS, 
 					"conn=%" NSPRIu64 " op=%d ADD dn=\"%s\", add values for type %s failed\n",
-					pb->pb_conn->c_connid, operation->o_opid, 
+					(long long unsigned int)pb->pb_conn->c_connid, operation->o_opid,
 					slapi_entry_get_dn_const(e), normtype );
 				send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
 
@@ -485,7 +485,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 		if ( !internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ADD dn=\"%s\"%s\n",
-							 pb->pb_conn->c_connid, 
+							 (long long unsigned int)pb->pb_conn->c_connid,
 							 operation->o_opid,
 							 slapi_entry_get_dn_const(e),
 							 proxystr ? proxystr : "");

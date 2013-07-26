@@ -793,7 +793,7 @@ static void
 add_counter_to_value(Slapi_Entry *e, const char *type, PRUint64 countervalue)
 {
 	char value[40];
-	PR_snprintf(value,sizeof(value),"%" NSPRIu64, countervalue);
+	PR_snprintf(value,sizeof(value),"%" NSPRIu64, (long long unsigned int)countervalue);
 	slapi_entry_attr_set_charptr( e, type, value);
 }
 

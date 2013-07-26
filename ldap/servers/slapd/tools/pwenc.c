@@ -341,7 +341,7 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 		{
 			fprintf(stderr,
 					"Could only read %d of %ld bytes from config file %s\n",
-					nr, prfinfo.size, configfile);
+					nr, (long int)prfinfo.size, configfile);
 			exit( 1 );
 		}
                           

@@ -544,14 +544,14 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 
 			slapi_log_error(loglevel, plugin_name, 
 				"conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
-				op->o_connid, op->o_opid,
+				(long long unsigned int)op->o_connid, op->o_opid,
 				ndn,
 				attr ? attr:"NULL",
 				aci_ndn);
 		} else {
 			slapi_log_error(loglevel, plugin_name,
 				"conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
-				op->o_connid, op->o_opid,
+				(long long unsigned int)op->o_connid, op->o_opid,
 				ndn, attr ? attr:"NULL" );
 		}
 	}

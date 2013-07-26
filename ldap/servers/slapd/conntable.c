@@ -440,7 +440,8 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 			 *     by max threads.
 			 */
 			PR_snprintf(maxthreadbuf, sizeof(maxthreadbuf), "%d:%"NSPRIu64":%"NSPRIu64"",
-				maxthreadstate, ct->c[i].c_maxthreadscount, ct->c[i].c_maxthreadsblocked);
+				maxthreadstate, (long long unsigned int)ct->c[i].c_maxthreadscount,
+				(long long unsigned int)ct->c[i].c_maxthreadsblocked);
 
 			if ((lendn + strlen(maxthreadbuf)) > (BUFSIZ - 46)) {
 				/*
@@ -474,17 +475,17 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "currentconnections", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(num_conns));
+	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, (long long unsigned int)slapi_counter_get_value(num_conns));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "totalconnections", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(conns_in_maxthreads));
+	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, (long long unsigned int)slapi_counter_get_value(conns_in_maxthreads));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "currentconnectionsatmaxthreads", vals );
 
-	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, slapi_counter_get_value(max_threads_count));
+	PR_snprintf( buf, sizeof(buf), "%" NSPRIu64, (long long unsigned int)slapi_counter_get_value(max_threads_count));
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "maxthreadsperconnhits", vals );

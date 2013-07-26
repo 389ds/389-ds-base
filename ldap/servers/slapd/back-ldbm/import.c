@@ -1262,7 +1262,7 @@ int import_main_offline(void *arg)
         else
                 import_log_notice(job,
                                 "Index buffering enabled with bucket size %lu", 
-                                job->job_index_buffer_suggestion);
+                                (long unsigned int)job->job_index_buffer_suggestion);
 
         job->worker_list = producer;
     } else {
@@ -1470,7 +1470,7 @@ error:
                             "%d entries were skipped because they don't "
                             "belong to this database) in %d seconds. "
                             "(%.2f entries/sec)", 
-                            opstr, entries_processed,
+                            opstr, (long unsigned int)entries_processed,
                             job->skipped, job->not_here_skipped,
                             seconds_to_import, entries_per_second);
             } else {
@@ -1479,7 +1479,7 @@ error:
                             "(%d entries were skipped because they don't "
                             "belong to this database) "
                             "in %d seconds. (%.2f entries/sec)",
-                            opstr, entries_processed, 
+                            opstr, (long unsigned int)entries_processed,
                             job->not_here_skipped, seconds_to_import, 
                             entries_per_second);
             }
@@ -1489,14 +1489,14 @@ error:
                             "%s complete.  Processed %lu entries "
                             "(%d were skipped) in %d seconds. "
                             "(%.2f entries/sec)", 
-                            opstr, entries_processed,
+                            opstr, (long unsigned int)entries_processed,
                             job->skipped, seconds_to_import,
                             entries_per_second);
             } else {
                 import_log_notice(job, 
                             "%s complete.  Processed %lu entries "
                             "in %d seconds. (%.2f entries/sec)",
-                            opstr, entries_processed, 
+                            opstr, (long unsigned int)entries_processed,
                             seconds_to_import, entries_per_second);
             }
         }

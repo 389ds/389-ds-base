@@ -668,7 +668,7 @@ int import_mega_merge(ImportJob *job)
 	import_log_notice(job, "Beginning %d-way merge of one file...", passes);
     } else {
 	import_log_notice(job, "Beginning %d-way merge of up to %lu files...",
-			  passes, job->number_indexers);
+			  passes, (long unsigned int)job->number_indexers);
     }
 
     time(&beginning);

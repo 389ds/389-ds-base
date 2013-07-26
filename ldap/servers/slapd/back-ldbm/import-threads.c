@@ -723,7 +723,7 @@ import_producer(void *param)
                     slapi_entry_get_dn(e),
                     curr_lineno, curr_filename);
             import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+                    "the buffer size (%lu bytes)", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -853,7 +853,7 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     slapi_entry_get_dn(e));
         import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+                    "the buffer size (%lu bytes)", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
         backentry_free(&ep);
         job->skipped++;
         rc = 0; /* go to the next loop */
@@ -2131,7 +2131,7 @@ upgradedn_producer(void *param)
             import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     slapi_entry_get_dn(e));
             import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", newesize, job->fifo.bsize);
+                    "the buffer size (%lu bytes)", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -3333,7 +3333,8 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     slapi_entry_get_dn(ep->ep_entry));
         import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the import buffer size (%lu bytes).   Try increasing nsslapd-cachememsize.", newesize, job->fifo.bsize);
+                    "the import buffer size (%lu bytes).   Try increasing nsslapd-cachememsize.",
+                    (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
         backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
         backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);
@@ -3987,8 +3988,8 @@ _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
              * Use the counter which stores the old DB's
              * next entryusn. */
             PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN,
-                        "%" NSPRIu64,
-                        slapi_counter_get_value(be->be_usn_counter));
+                    "%" NSPRIu64,
+                    (long long unsigned int)slapi_counter_get_value(be->be_usn_counter));
         } else {
             /* import_init value is digit.
              * Initialize the entryusn values with the digit */

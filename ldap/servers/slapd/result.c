@@ -1908,7 +1908,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
 								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
 								  ", SASL bind in progress\n",
-								  op->o_connid, 
+								  (long long unsigned int)op->o_connid,
 								  op->o_opid,
 								  err, tag, nentries, 
 								  etime, 
@@ -1940,7 +1940,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
 								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
 								  " dn=\"%s\"\n",
-								  op->o_connid, 
+								  (long long unsigned int)op->o_connid,
 								  op->o_opid,
 								  err, tag, nentries, 
 								  etime, 
@@ -1965,7 +1965,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
 								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
-								  op->o_connid, 
+								  (long long unsigned int)op->o_connid,
 								  op->o_opid,
 								  err, tag, nentries, 
 								  etime, 
@@ -1996,7 +1996,7 @@ log_entry( Operation *op, Slapi_Entry *e )
 	if ( !internal_op )
 	{
 		slapi_log_access( LDAP_DEBUG_STATS2, "conn=%" NSPRIu64 " op=%d ENTRY dn=\"%s\"\n",
-			op->o_connid, op->o_opid,
+			(long long unsigned int)op->o_connid, op->o_opid,
 			slapi_entry_get_dn_const(e));
 	}
 	else
@@ -2021,7 +2021,7 @@ log_referral( Operation *op )
 	if ( !internal_op )
 	{
 		slapi_log_access( LDAP_DEBUG_STATS2, "conn=%" NSPRIu64 " op=%d REFERRAL\n",
-			op->o_connid, op->o_opid );
+			(long long unsigned int)op->o_connid, op->o_opid );
 	}
 	else
 	{

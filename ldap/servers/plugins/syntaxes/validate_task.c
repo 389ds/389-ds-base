@@ -221,12 +221,12 @@ syntax_validate_task_thread(void *arg)
 
 	/* Log finished message. */
 	slapi_task_log_notice(task, "Syntax validate task complete.  Found %" NSPRIu64
-	                      " invalid entries.\n", slapi_counter_get_value(td->invalid_entries));
+	                " invalid entries.\n", (long long unsigned int)slapi_counter_get_value(td->invalid_entries));
 	slapi_task_log_status(task, "Syntax validate task complete.  Found %" NSPRIu64
-	                      " invalid entries.\n", slapi_counter_get_value(td->invalid_entries));
+	                " invalid entries.\n", (long long unsigned int)slapi_counter_get_value(td->invalid_entries));
 	slapi_log_error(SLAPI_LOG_FATAL, SYNTAX_PLUGIN_SUBSYSTEM, "Syntax validate task complete."
 	                "  Found %" NSPRIu64 " invalid entries.\n",
-	                slapi_counter_get_value(td->invalid_entries));
+	                (long long unsigned int)slapi_counter_get_value(td->invalid_entries));
 	slapi_task_inc_progress(task);
 
 	/* this will queue the destruction of the task */

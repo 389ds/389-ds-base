@@ -399,7 +399,7 @@ static int import_update_entry_subcount(backend *be, ID parentid,
     cache_lock_entry( &inst->inst_cache, e );
     modify_init(&mc,e);
     mc.attr_encrypt = isencrypted;
-    sprintf(value_buffer,"%lu",sub_count);
+    sprintf(value_buffer,"%lu",(long unsigned int)sub_count);
     /* If it is a tombstone entry, add tombstonesubordinates instead of
      * numsubordinates. */
     if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {

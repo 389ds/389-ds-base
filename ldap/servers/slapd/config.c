@@ -127,7 +127,7 @@ entry_has_attr_and_value(Slapi_Entry *e, const char *attrname,
 								"Ignoring extremely large value for"
 								" configuration attribute %s"
 								" (length=%ld, value=%40.40s...)\n",
-								attrname, len, s );
+								attrname, (long int)len, s );
 						retval = 0;	/* value is too large: ignore it */
 					}
 					break;
@@ -204,7 +204,7 @@ slapd_bootstrap_config(const char *configdir)
 		if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, "config", "Could only read %d of %ld bytes from config file %s\n",
-							nr, prfinfo.size, configfile);
+							nr, (long int)prfinfo.size, configfile);
 			rc = 0; /* Fail */
 			done= 1;
 		}

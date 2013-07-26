@@ -282,14 +282,14 @@ do_extended( Slapi_PBlock *pb )
 		LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s)\n", extoid, 0, 0 );
 
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\"\n",
-				pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
+				(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
 	} else {
 		LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s-%s)\n",
 				extoid, name, 0 );
 
 		slapi_log_access( LDAP_DEBUG_STATS,
 			"conn=%" NSPRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid, name );
+			(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid, name );
 	}
 
 	/* during a bulk import, only BULK_IMPORT_DONE is allowed! 

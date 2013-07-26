@@ -712,7 +712,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 		if ( !internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s\n",
-							 pb->pb_conn->c_connid, 
+							 (long long unsigned int)pb->pb_conn->c_connid,
 							 pb->pb_op->o_opid,
 							 slapi_sdn_get_dn(sdn),
 							 proxystr ? proxystr : "");
@@ -1240,7 +1240,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_ACCESS))
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"\n",
-					pb->pb_conn->c_connid, pb->pb_op->o_opid,
+					(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid,
 					slapi_sdn_get_dn(&sdn));
 		}
 
@@ -1280,7 +1280,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 					proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
 				}
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s\n",
-						pb->pb_conn->c_connid, pb->pb_op->o_opid,
+						(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid,
 						slapi_sdn_get_dn(&sdn), proxystr ? proxystr : "");
 			}
 
@@ -1312,10 +1312,10 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 				}
 
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-							 pb->pb_conn->c_connid, pb->pb_op->o_opid,
-							 slapi_sdn_get_dn(&sdn),
-							 proxystr ? proxystr : "",
-							 "user is not allowed to change password");
+						(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid,
+						slapi_sdn_get_dn(&sdn),
+						proxystr ? proxystr : "",
+						"user is not allowed to change password");
 			}
 	
 			rc = -1;
@@ -1338,7 +1338,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 			if ( !internal_op )
 			{
 				slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-								 pb->pb_conn->c_connid, 
+								 (long long unsigned int)pb->pb_conn->c_connid,
 								 pb->pb_op->o_opid,
 								 slapi_sdn_get_dn(&sdn),
 								 proxystr ? proxystr : "",
@@ -1381,7 +1381,7 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 					if ( !internal_op )
 					{
 						slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-										 pb->pb_conn->c_connid, 
+										 (long long unsigned int)pb->pb_conn->c_connid,
 										 pb->pb_op->o_opid,
 										 slapi_sdn_get_dn(&sdn),
 										 proxystr ? proxystr : "",

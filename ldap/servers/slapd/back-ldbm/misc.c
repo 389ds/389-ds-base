@@ -83,7 +83,8 @@ void ldbm_log_access_message(Slapi_PBlock *pblock,char *string)
         return;
     }
     operation_id = operation->o_opid;
-    slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",connection_id, operation_id,string);
+    slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",
+            (long long unsigned int)connection_id, operation_id, string);
 }
 
 int return_on_disk_full(struct ldbminfo  *li)

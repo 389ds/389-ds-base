@@ -344,7 +344,7 @@ _usn_add_next_usn(Slapi_Entry *e, Slapi_Backend *be)
 
     /* add next USN to the entry; "be" contains the usn counter */
     usn_berval.bv_val = slapi_ch_smprintf("%" NSPRIu64, 
-                                   slapi_counter_get_value(be->be_usn_counter));
+    		(long long unsigned int)slapi_counter_get_value(be->be_usn_counter));
     usn_berval.bv_len = strlen(usn_berval.bv_val);
     slapi_entry_attr_find(e, SLAPI_ATTR_ENTRYUSN, &attr);
     if (NULL == attr) { /* ENTRYUSN does not exist; add it */
@@ -384,7 +384,7 @@ _usn_mod_next_usn(LDAPMod ***mods, Slapi_Backend *be)
     /* add next USN to the mods; "be" contains the usn counter */
     usn_berval.bv_val = counter_buf;
     PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64, 
-                                   slapi_counter_get_value(be->be_usn_counter));
+    		(long long unsigned int)slapi_counter_get_value(be->be_usn_counter));
     usn_berval.bv_len = strlen(usn_berval.bv_val);
     bvals[0] = &usn_berval;
     bvals[1] = NULL;
@@ -698,7 +698,7 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
              * then minus 1 from it (except if be_usn_counter has value 0) */
             if (slapi_counter_get_value(be->be_usn_counter)) {
                 PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64,
-                            slapi_counter_get_value(be->be_usn_counter)-1);
+                		(long long unsigned int)slapi_counter_get_value(be->be_usn_counter)-1);
             } else {
                 PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "-1");
             }
@@ -721,7 +721,7 @@ usn_rootdse_search(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
              * then minus 1 from it (except if be_usn_counter has value 0) */
             if (slapi_counter_get_value(be->be_usn_counter)) {
                 PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "%" NSPRIu64,
-                            slapi_counter_get_value(be->be_usn_counter)-1);
+                		(long long unsigned int)slapi_counter_get_value(be->be_usn_counter)-1);
             } else {
                 PR_snprintf(usn_berval.bv_val, USN_COUNTER_BUF_LEN, "-1");
             }
