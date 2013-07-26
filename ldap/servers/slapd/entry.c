@@ -1713,7 +1713,7 @@ entry2str_internal( Slapi_Entry *e, int *len, int entry2str_ctrl )
     {
         slapi_log_error (SLAPI_LOG_FATAL, NULL,
             "entry2str_internal: array boundary wrote: bufsize=%ld wrote=%ld\n",
-            elen, (ecur - ebuf + 1));
+            (long int)elen, (long int)(ecur - ebuf + 1));
     }
 
     if ( NULL != len ) {
@@ -1808,7 +1808,7 @@ entry2str_internal_ext( Slapi_Entry *e, int *len, int entry2str_ctrl)
             slapi_log_error (SLAPI_LOG_FATAL, NULL,
                 "entry2str_internal_ext: array boundary wrote: "
                 "bufsize=%ld wrote=%ld\n",
-                elen, (ecur - ebuf + 1));
+                (long int)elen, (long int)(ecur - ebuf + 1));
         }
     
         if ( NULL != len ) {

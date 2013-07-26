@@ -442,7 +442,7 @@ static void log_search_access (Slapi_PBlock *pb, const char *base, int scope, co
 {
 	slapi_log_access(LDAP_DEBUG_STATS,
 					 "conn=%" NSPRIu64 " op=%d SRCH base=\"%s\" scope=%d filter=\"%s\", %s\n",
-					 pb->pb_conn->c_connid, pb->pb_op->o_opid, 
+					 (long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid,
 					 base, scope, fstr, msg ? msg : "");
 
 }

@@ -111,15 +111,15 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     /* fetch cache statistics */
     cache_get_stats(&(inst->inst_cache), &hits, &tries, 
 		    &nentries, &maxentries, &size, &maxsize);
-    sprintf(buf, "%lu", hits);
+    sprintf(buf, "%lu", (long unsigned int)hits);
     MSET("entryCacheHits");
-    sprintf(buf, "%lu", tries);
+    sprintf(buf, "%lu", (long unsigned int)tries);
     MSET("entryCacheTries");
     sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
     MSET("entryCacheHitRatio");
-    sprintf(buf, "%lu", size);
+    sprintf(buf, "%lu", (long unsigned int)size);
     MSET("currentEntryCacheSize");
-    sprintf(buf, "%lu", maxsize);
+    sprintf(buf, "%lu", (long unsigned int)maxsize);
     MSET("maxEntryCacheSize");
     sprintf(buf, "%ld", nentries);
     MSET("currentEntryCacheCount");
@@ -130,15 +130,15 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         /* fetch cache statistics */
         cache_get_stats(&(inst->inst_dncache), &hits, &tries, 
                         &nentries, &maxentries, &size, &maxsize);
-        sprintf(buf, "%" NSPRIu64, hits);
+        sprintf(buf, "%" NSPRIu64, (long long unsigned int)hits);
         MSET("dnCacheHits");
-        sprintf(buf, "%" NSPRIu64, tries);
+        sprintf(buf, "%" NSPRIu64, (long long unsigned int)tries);
         MSET("dnCacheTries");
         sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("dnCacheHitRatio");
-        sprintf(buf, "%lu", size);
+        sprintf(buf, "%lu", (long unsigned int)size);
         MSET("currentDnCacheSize");
-        sprintf(buf, "%lu", maxsize);
+        sprintf(buf, "%lu", (long unsigned int)maxsize);
         MSET("maxDnCacheSize");
         sprintf(buf, "%ld", nentries);
         MSET("currentDnCacheCount");
@@ -148,20 +148,20 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     /* normalized dn cache stats */
     if(config_get_ndn_cache_enabled()){
         ndn_cache_get_stats(&hits, &tries, &size, &maxsize, &count);
-        sprintf(buf, "%" NSPRIu64, tries);
+        sprintf(buf, "%" NSPRIu64, (long long unsigned int)tries);
         MSET("normalizedDnCacheTries");
-        sprintf(buf, "%" NSPRIu64, hits);
+        sprintf(buf, "%" NSPRIu64, (long long unsigned int)hits);
         MSET("normalizedDnCacheHits");
-        sprintf(buf, "%" NSPRIu64, tries - hits);
+        sprintf(buf, "%" NSPRIu64, (long long unsigned int)(tries - hits));
         MSET("normalizedDnCacheMisses");
         sprintf(buf, "%lu", (unsigned long)(100.0*(double)hits / (double)(tries > 0 ? tries : 1)));
         MSET("normalizedDnCacheHitRatio");
-        sprintf(buf, "%lu", size);
+        sprintf(buf, "%lu", (long unsigned int)size);
         MSET("currentNormalizedDnCacheSize");
         if(maxsize == 0){
         	sprintf(buf, "%d", -1);
         } else {
-        	sprintf(buf, "%lu", maxsize);
+        	sprintf(buf, "%lu", (long unsigned int)maxsize);
         }
         MSET("maxNormalizedDnCacheSize");
         sprintf(buf, "%ld", count);

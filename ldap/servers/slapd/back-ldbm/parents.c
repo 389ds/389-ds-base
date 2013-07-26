@@ -148,7 +148,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 			slapi_mods_add(smods, mod_op | LDAP_MOD_BVALUES,
 			               numsubordinates, 0, NULL);
 		} else {
-			sprintf(value_buffer,"%lu", current_sub_count);
+			sprintf(value_buffer,"%lu", (long unsigned int)current_sub_count);
 			slapi_mods_add(smods, mod_op | LDAP_MOD_BVALUES, 
 			               numsubordinates, strlen(value_buffer), value_buffer);
 		}
@@ -182,7 +182,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 			    (current_sub_count > 0)) {
 				current_sub_count--;
 				mod_op = LDAP_MOD_REPLACE;
-				sprintf(value_buffer,"%lu", current_sub_count);
+				sprintf(value_buffer,"%lu", (long unsigned int)current_sub_count);
 				slapi_mods_add(smods, mod_op | LDAP_MOD_BVALUES, 
 				               tombstone_numsubordinates,
 				               strlen(value_buffer), value_buffer);
@@ -197,7 +197,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 				current_sub_count = 1;
 			}
 			mod_op = LDAP_MOD_REPLACE;
-			sprintf(value_buffer,"%lu", current_sub_count);
+			sprintf(value_buffer,"%lu", (long unsigned int)current_sub_count);
 			slapi_mods_add(smods, mod_op | LDAP_MOD_BVALUES,
 			               tombstone_numsubordinates, 
 			               strlen(value_buffer), value_buffer);

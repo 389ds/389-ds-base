@@ -1663,7 +1663,7 @@ void ldbm_config_get(void *arg, config_info *config, char *buf)
         break;
     case CONFIG_TYPE_SIZE_T:
         val = (size_t) config->config_get_fn(arg);
-        sprintf(buf, "%lu", val);
+        sprintf(buf, "%lu", (long unsigned int)val);
         break;
     case CONFIG_TYPE_STRING:
         /* Remember the get function for strings returns memory

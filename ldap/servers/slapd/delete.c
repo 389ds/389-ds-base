@@ -294,7 +294,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 		if (!internal_op )
 		{
 			slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d DEL dn=\"%s\"%s\n",
-							pb->pb_conn->c_connid, 
+							(long long unsigned int)pb->pb_conn->c_connid,
 							pb->pb_op->o_opid,
 							slapi_sdn_get_dn(sdn),
 							proxystr ? proxystr: "");

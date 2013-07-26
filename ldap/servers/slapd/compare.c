@@ -144,7 +144,7 @@ do_compare( Slapi_PBlock *pb )
 
 	slapi_log_access( LDAP_DEBUG_STATS,
 	    "conn=%" NSPRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
-	    pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, ava.ava_type );
+	    (long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, dn, ava.ava_type );
 
 	/*
 	 * We could be serving multiple database backends.  Select the

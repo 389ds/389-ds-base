@@ -611,7 +611,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
         struct berval val;
         vals[0] = &val;
         vals[1] = NULL;
-        sprintf(value_buffer,"%lu",current_sub_count);
+        sprintf(value_buffer,"%lu",(long unsigned int)current_sub_count);
         val.bv_val = value_buffer;
         val.bv_len = strlen (val.bv_val);
         switch(mod_op)
@@ -734,7 +734,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
             {
                 slapi_log_error(SLAPI_LOG_FATAL, "dse",
                                 "Could only read %d of %ld bytes from config file %s\n",
-                                nr, prfinfo.size, filename);
+                                nr, (long int)prfinfo.size, filename);
                 rc = 0; /* Fail */
                 done= 1;
             }

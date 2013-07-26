@@ -154,22 +154,21 @@ do_abandon( Slapi_PBlock *pb )
 
 	if ( 0 == pagedresults_free_one_msgid_nolock(pb->pb_conn, id) ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 
-		                  " op=%d ABANDON targetop=Simple Paged Results\n",
-		                  pb->pb_conn->c_connid, pb->pb_op->o_opid );
+		    " op=%d ABANDON targetop=Simple Paged Results\n",
+		    (long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid );
 	} else if ( NULL == o ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
 			" targetop=NOTFOUND msgid=%d\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
+			(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
 	} else if ( suppressed_by_plugin ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
 			" targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
+			(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
 	} else {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
 			" targetop=%d msgid=%d nentries=%d etime=%ld\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, o->o_opid, id,
+			(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, o->o_opid, id,
 			o->o_results.r.r_search.nentries, current_time() - o->o_time );
-
 	}
 
 	PR_Unlock( pb->pb_conn->c_mutex );

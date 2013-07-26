@@ -1709,7 +1709,7 @@ void op_shared_log_error_access (Slapi_PBlock *pb, const char *type, const char 
     }
 
     slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s dn=\"%s\"%s, %s\n",
-                      ( pb->pb_conn ? pb->pb_conn->c_connid : 0), 
+                      ( pb->pb_conn ? (long long unsigned int)pb->pb_conn->c_connid : 0),
                       ( pb->pb_op ? pb->pb_op->o_opid : 0), 
                       type, 
                       dn, 

@@ -1663,7 +1663,7 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
     if ( *endp != '\0' || threshold <= 4096 || errno == ERANGE ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
             "%s: \"%s\" is invalid, threshold must be greater than 4096 and less then %lld",
-            attrname, value, LONG_MAX );
+            attrname, value, (long long int)LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
     }
@@ -2208,7 +2208,7 @@ config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int app
 
   if ( *endp != '\0' || errno == ERANGE || sizelimit < -1 ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, sizelimit must range from -1 to %lld",
-			attrname, value, LONG_MAX );
+			attrname, value, (long long int)LONG_MAX );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -2252,7 +2252,7 @@ config_set_pagedsizelimit( const char *attrname, char *value, char *errorbuf, in
 
   if ( *endp != '\0' || errno == ERANGE || pagedsizelimit < -1 ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, pagedsizelimit must range from -1 to %lld",
-			attrname, value, LONG_MAX );
+			attrname, value, (long long int)LONG_MAX );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -3029,7 +3029,7 @@ config_set_pw_gracelimit( const char *attrname, char *value, char *errorbuf, int
   if ( *endp != '\0' || errno == ERANGE || gracelimit < 0 ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
 			  "password grace limit \"%s\" is invalid, password grace limit must range from 0 to %lld",
-			  value , LONG_MAX );
+			  value , (long long int)LONG_MAX );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -3771,7 +3771,7 @@ config_set_ioblocktimeout( const char *attrname, char *value, char *errorbuf, in
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 0 ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", I/O block timeout must range from 0 to %lld",
-                      attrname, value, LONG_MAX );
+                      attrname, value, (long long int)LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
   }
@@ -3816,7 +3816,7 @@ config_set_idletimeout( const char *attrname, char *value, char *errorbuf, int a
 
   if (*endp != '\0' || errno == ERANGE || nValue < 0 ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", idle timeout must range from 0 to %lld",
-                      attrname, value, LONG_MAX );
+                      attrname, value, (long long int)LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
   }
@@ -3919,7 +3919,7 @@ config_set_timelimit( const char *attrname, char *value, char *errorbuf, int app
   if ( *endp != '\0' || errno == ERANGE || nVal < -1 ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 			"%s: invalid value \"%s\", time limit must range from -1 to %lld",
-                         attrname, value, LONG_MAX );
+                         attrname, value, (long long int)LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
   }
@@ -4115,7 +4115,7 @@ config_set_pw_warning( const char *attrname, char *value, char *errorbuf, int ap
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
 			   "%s: password warning age \"%s\" is invalid, password warning "
 			   "age must range from 0 to %lld seconds", 
-			   attrname, value, LONG_MAX );
+			   attrname, value, (long long int)LONG_MAX );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -4145,7 +4145,8 @@ config_set_errorlog_level( const char *attrname, char *value, char *errorbuf, in
 
   if ( *endp != '\0' || errno == ERANGE || level < 0 ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: error log level \"%s\" is invalid,"
-                      " error log level must range from 0 to %lld", attrname, value, LONG_MAX );
+                      " error log level must range from 0 to %lld",
+                      attrname, value, (long long int)LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
   }
@@ -4184,7 +4185,8 @@ config_set_accesslog_level( const char *attrname, char *value, char *errorbuf, i
 
   if ( *endp != '\0' || errno == ERANGE || level < 0 ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: access log level \"%s\" is invalid,"
-                      " access log level must range from 0 to %lld", attrname, value, LONG_MAX );
+                      " access log level must range from 0 to %lld",
+                      attrname, value, (long long int)LONG_MAX );
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
   }
@@ -5588,7 +5590,7 @@ config_set_maxsasliosize( const char *attrname, char *value, char *errorbuf, int
   if (retVal != LDAP_SUCCESS) {
     PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                  "%s: \"%s\" is invalid. Value must range from -1 to %lld",
-                 attrname, value, LONG_MAX );
+                 attrname, value, (long long int)LONG_MAX );
   } else if (apply) {
     CFG_LOCK_WRITE(slapdFrontendConfig);
     slapdFrontendConfig->maxsasliosize = maxsasliosize;

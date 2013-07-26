@@ -778,7 +778,8 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_NEXTVAL, entry->nextval);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_NEXTVAL,
+                    (long long unsigned int)entry->nextval);
 
     value = slapi_entry_attr_get_charptr(e, DNA_PREFIX);
     if (value && value[0]) {
@@ -881,7 +882,8 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_MAXVAL, entry->maxval);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_MAXVAL,
+                    (long long unsigned int)entry->maxval);
 
     value = slapi_entry_attr_get_charptr(e, DNA_SHARED_CFG_DN);
     if (value) {
@@ -965,7 +967,8 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
     }
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_THRESHOLD, entry->threshold);
+                    "----------> %s [%" NSPRIu64 "]\n", DNA_THRESHOLD,
+                    (long long unsigned int)entry->threshold);
 
     value = slapi_entry_attr_get_charptr(e, DNA_RANGE_REQUEST_TIMEOUT);
     if (value) {
@@ -977,7 +980,7 @@ dna_parse_config_entry(Slapi_Entry * e, int apply)
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> %s [%" NSPRIu64 "]\n", DNA_RANGE_REQUEST_TIMEOUT,
-                    entry->timeout);
+                    (long long unsigned int)entry->timeout);
 
     value = slapi_entry_attr_get_charptr(e, DNA_NEXT_RANGE);
     if (value) {
@@ -1899,8 +1902,8 @@ dna_first_free_value(struct configEntry *config_entry,
 
         filter = slapi_ch_smprintf("(&%s(&(%s>=%" NSPRIu64 ")(%s<=%" NSPRIu64 ")))",
                                    config_entry->filter,
-                                   config_entry->types[0], tmpval,
-                                   config_entry->types[0], config_entry->maxval);
+                                   config_entry->types[0], (long long unsigned int)tmpval,
+                                   config_entry->types[0], (long long unsigned int)config_entry->maxval);
     }
 
     if (NULL == filter) {
@@ -2087,7 +2090,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
     if ((config_entry->maxval == -1) ||
         (nextval <= (config_entry->maxval + config_entry->interval))) {
         /* try to set the new next value in the config entry */
-        PR_snprintf(next_value, sizeof(next_value),"%" NSPRIu64, nextval);
+        PR_snprintf(next_value, sizeof(next_value),"%" NSPRIu64, (long long unsigned int)nextval);
 
         /* set up our replace modify operation */
         replace_val[0] = next_value;
@@ -2114,7 +2117,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
 
     if (LDAP_SUCCESS == ret) {
         slapi_ch_free_string(next_value_ret);
-        *next_value_ret = slapi_ch_smprintf("%" NSPRIu64, setval);
+        *next_value_ret = slapi_ch_smprintf("%" NSPRIu64, (long long unsigned int)setval);
         if (NULL == *next_value_ret) {
             ret = LDAP_OPERATIONS_ERROR;
             goto done;
@@ -2162,7 +2165,8 @@ dna_update_shared_config(struct configEntry * config_entry)
 
         /* We store the number of remaining assigned values
          * in the shared config entry. */
-        PR_snprintf(remaining_vals, sizeof(remaining_vals),"%" NSPRIu64, config_entry->remaining);
+        PR_snprintf(remaining_vals, sizeof(remaining_vals),"%" NSPRIu64,
+                (long long unsigned int)config_entry->remaining);
 
         /* set up our replace modify operation */
         replace_val[0] = remaining_vals;
@@ -2251,7 +2255,7 @@ dna_update_next_range(struct configEntry *config_entry,
 
     /* Try to set the new next range in the config entry. */
     PR_snprintf(nextrange_value, sizeof(nextrange_value), "%" NSPRIu64 "-%" NSPRIu64,
-             lower, upper);
+    		(long long unsigned int)lower, (long long unsigned int)upper);
 
     /* set up our replace modify operation */
     replace_val[0] = nextrange_value;
@@ -2319,8 +2323,8 @@ dna_activate_next_range(struct configEntry *config_entry)
     int ret = 0;
 
     /* Setup the modify operation for the config entry */
-    PR_snprintf(maxval_val, sizeof(maxval_val),"%" NSPRIu64, config_entry->next_range_upper);
-    PR_snprintf(nextval_val, sizeof(nextval_val),"%" NSPRIu64, config_entry->next_range_lower);
+    PR_snprintf(maxval_val, sizeof(maxval_val),"%" NSPRIu64, (long long unsigned int)config_entry->next_range_upper);
+    PR_snprintf(nextval_val, sizeof(nextval_val),"%" NSPRIu64, (long long unsigned int)config_entry->next_range_lower);
 
     maxval_vals[0] = maxval_val;
     maxval_vals[1] = 0;
@@ -2966,8 +2970,8 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                                     "dna_pre_op: Passed threshold of %" 
                                     NSPRIu64 " remaining values "
                                     "for range %s. (%" NSPRIu64 " values remain)\n",
-                                    config_entry->threshold, config_entry->dn,
-                                    config_entry->remaining);
+                                    (long long unsigned int)config_entry->threshold, config_entry->dn,
+                                    (long long unsigned int)config_entry->remaining);
                     dna_fix_maxval(config_entry, 0);
                 }
 
@@ -3236,8 +3240,8 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                                     "dna_pre_op: Passed threshold of %" 
                                     NSPRIu64 " remaining values "
                                     "for range %s. (%" NSPRIu64 " values remain)\n",
-                                    config_entry->threshold, config_entry->dn,
-                                    config_entry->remaining);
+                                    (long long unsigned int)config_entry->threshold, config_entry->dn,
+                                    (long long unsigned int)config_entry->remaining);
                     dna_fix_maxval(config_entry, 0);
                 }
 
@@ -3796,8 +3800,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         char highstr[16];
 
         /* Create the exop response */
-        PR_snprintf(lowstr, sizeof(lowstr), "%" NSPRIu64, lower);
-        PR_snprintf(highstr, sizeof(highstr), "%" NSPRIu64, upper);
+        PR_snprintf(lowstr, sizeof(lowstr), "%" NSPRIu64, (long long unsigned int)lower);
+        PR_snprintf(highstr, sizeof(highstr), "%" NSPRIu64, (long long unsigned int)upper);
         range_low.bv_val = lowstr;
         range_low.bv_len = strlen(range_low.bv_val);
         range_high.bv_val = highstr;
@@ -3831,7 +3835,7 @@ static int dna_extend_exop(Slapi_PBlock *pb)
 
         slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                         "dna_extend_exop: Released range %" NSPRIu64 "-%" NSPRIu64 ".\n",
-                        lower, upper);
+                        (long long unsigned int)lower, (long long unsigned int)upper);
     }
 
   free_and_return:
@@ -3977,7 +3981,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                 *lower = *upper - release + 1;
 
                 /* try to set the new maxval in the config entry */
-                PR_snprintf(max_value, sizeof(max_value),"%" NSPRIu64, (*lower - 1));
+                PR_snprintf(max_value, sizeof(max_value),"%" NSPRIu64, (long long unsigned int)(*lower - 1));
 
                 /* set up our replace modify operation */
                 replace_val[0] = max_value;

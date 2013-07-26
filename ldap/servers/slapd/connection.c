@@ -381,7 +381,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     /* log useful stuff to our access log */
     slapi_log_access( LDAP_DEBUG_STATS,
 	    "conn=%" NSPRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
-	    conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip );
+	    (long long unsigned int)conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip );
 
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
@@ -485,7 +485,7 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 	{
 		slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);	
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",
-           	pb->pb_conn->c_connid, pb->pb_op->o_opid, 
+			(long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid,
 			"UNPROCESSED OPERATION - need new password" );
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, 
 			NULL, NULL, 0, NULL );
@@ -529,7 +529,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 		slapi_log_access( LDAP_DEBUG_STATS,
 			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
 			" - Insufficient SSF (local_ssf=%d sasl_ssf=%d ssl_ssf=%d)\n",
-			conn->c_connid, op->o_opid, conn->c_local_ssf,
+			(long long unsigned int)conn->c_connid, op->o_opid, conn->c_local_ssf,
 			conn->c_sasl_ssf, conn->c_ssl_ssf );
 		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 			"Minimum SSF not met.", 0, NULL );
@@ -557,7 +557,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 		slapi_log_access( LDAP_DEBUG_STATS,
 			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
 			" - Anonymous access not allowed\n",
-            		conn->c_connid, op->o_opid );
+			(long long unsigned int)conn->c_connid, op->o_opid );
 
 		send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                   "Anonymous access is not allowed.",
@@ -613,7 +613,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 			int i = 1;
 			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
-				LDAPDebug(LDAP_DEBUG_ANY, "Failed to set TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid, 0, 0);
+				LDAPDebug(LDAP_DEBUG_ANY, "Failed to set TCP_CORK on connection %" NSPRIu64 "\n",(long long unsigned int)conn->c_connid, 0, 0);
 			}
 			pop_cork = 1;
 		}
@@ -626,7 +626,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 			int i = 0;
 			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
-				LDAPDebug(LDAP_DEBUG_ANY, "Failed to clear TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid, 0, 0);
+				LDAPDebug(LDAP_DEBUG_ANY, "Failed to clear TCP_CORK on connection %" NSPRIu64 "\n",(long long unsigned int)conn->c_connid, 0, 0);
 			}
 		}
 #endif
@@ -665,7 +665,7 @@ int connection_release_nolock (Connection *conn)
     {
         slapi_log_error(SLAPI_LOG_FATAL, "connection",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
-			            conn->c_connid, conn->c_sd);
+		                (long long unsigned int)conn->c_connid, conn->c_sd);
         PR_ASSERT (PR_FALSE);
         return -1;
     }
@@ -686,7 +686,7 @@ int connection_acquire_nolock (Connection *conn)
 	/* This may happen while other threads are still working on this connection */
         slapi_log_error(SLAPI_LOG_FATAL, "connection",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
-			            conn->c_connid, conn->c_sd);
+		                (long long unsigned int)conn->c_connid, conn->c_sd);
         return -1;
     }
     else
@@ -2737,13 +2737,13 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
-			conn->c_connid, conn->c_sd, maxbersize );
+			(long long unsigned int)conn->c_connid, conn->c_sd, maxbersize );
 	} else {
 		slapi_log_error( SLAPI_LOG_FATAL, "connection",
 			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was %" BERLEN_T " bytes, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
-			conn->c_connid, conn->c_sd, ber_len, maxbersize );
+			(long long unsigned int)conn->c_connid, conn->c_sd, ber_len, maxbersize );
 	}
 }
 
@@ -2794,13 +2794,13 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 		if (error && (EPIPE != error) ) {
 			slapi_log_access( LDAP_DEBUG_STATS,
 			  "conn=%" NSPRIu64 " op=%d fd=%d closed error %d (%s) - %s\n",
-			  conn->c_connid, opid, conn->c_sd, error,
+			  (long long unsigned int)conn->c_connid, opid, conn->c_sd, error,
 			  slapd_system_strerror(error),
 			  slapd_pr_strerror(reason));
 		} else {
 			slapi_log_access( LDAP_DEBUG_STATS,
 			  "conn=%" NSPRIu64 " op=%d fd=%d closed - %s\n",
-			  conn->c_connid, opid, conn->c_sd,
+			  (long long unsigned int)conn->c_connid, opid, conn->c_sd,
 			  slapd_pr_strerror(reason));
 		}
 

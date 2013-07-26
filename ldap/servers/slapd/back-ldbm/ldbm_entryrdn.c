@@ -3511,7 +3511,7 @@ _entryrdn_cursor_print_error(char *fn, void *key,
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "%s: Entryrdn index is corrupt; data item for key %s "
                         "is too large for the buffer need=%lu actual=%lu)\n",
-                        fn, (char *)key, need, actual);
+                        fn, (char *)key, (long unsigned int)need, (long unsigned int)actual);
     } else {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "%s: Failed to position cursor at "
