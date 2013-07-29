@@ -1046,6 +1046,15 @@ valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_V
 		
 }
 
+/*
+ * If this function returns an error, it is safe to do both
+ * slapi_valueset_done(vs);
+ * and
+ * valuearray_free(&addvals);
+ * if there is an error and the PASSIN flag is used, the addvals array will own all of the values
+ * vs will own none of the values - so you should do both slapi_valueset_done(vs) and valuearray_free(&addvals)
+ * to clean up
+ */
 int
 slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, 
 					Slapi_Value **addvals, int naddvals, unsigned long flags, int *dup_index)
@@ -1118,8 +1127,12 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 				if (dup < 0 ) {
 					rc = LDAP_TYPE_OR_VALUE_EXISTS;
 					if (dup_index) *dup_index = i;
-					if ( !passin) 
+					if (passin) {
+						/* we have to NULL out the first value so valuearray_free won't delete values in addvals */
+						(vs->va)[0] = NULL;
+					} else {
 						slapi_value_free(&(vs->va)[vs->num]);
+					}
 					break;
 				}
 			} else {
@@ -1348,11 +1361,17 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
 	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
     } else {
 	/* verify the given values are not duplicated.  */
+	unsigned long flags = SLAPI_VALUE_FLAG_PASSIN|SLAPI_VALUE_FLAG_DUPCHECK;
 	Slapi_ValueSet *vs_new = slapi_valueset_new();
-	rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, 0, NULL);
+	rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, flags, NULL);
 
 	if ( rc == LDAP_SUCCESS )
 	{
+		/* used passin, so vs_new owns all of the Slapi_Value* in valstoreplace
+		 * so tell valuearray_free_ext to start at index vals_count, which is
+		 * NULL, then just free valstoreplace
+		 */
+        	valuearray_free_ext(&valstoreplace, vals_count);
 		/* values look good - replace the values in the attribute */
         	if(!valuearray_isempty(vs->va))
         	{

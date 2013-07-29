@@ -91,7 +91,7 @@ Repl_Protocol *
 prot_new(Repl_Agmt *agmt, int protocol_state)
 {
 	Slapi_DN *replarea_sdn = NULL;
-	Repl_Protocol *rp = (Repl_Protocol *)slapi_ch_malloc(sizeof(Repl_Protocol));
+	Repl_Protocol *rp = (Repl_Protocol *)slapi_ch_calloc(1, sizeof(Repl_Protocol));
 
 	rp->prp_incremental = rp->prp_total = rp->prp_active_protocol = NULL;
 	if (protocol_state == STATE_PERFORMING_TOTAL_UPDATE)

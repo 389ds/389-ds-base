@@ -1210,6 +1210,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		}
 
 	}
+	slapi_ch_free((void **)&listener_idxs);
 	/* We get here when the server is shutting down */
 	/* Do what we have to do before death */
 
@@ -1819,6 +1820,8 @@ compute_idletimeout( slapdFrontendConfig_t *fecfg, Connection *conn )
 				}
 
 				slapi_sdn_free(&anon_sdn);
+			} else {
+				idletimeout = fecfg->idletimeout;
 			}
 			slapi_ch_free_string(&anon_dn);
 		} else if ( conn->c_isroot ) {
