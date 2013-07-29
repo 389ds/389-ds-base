@@ -335,7 +335,7 @@ static int _cl5GetModSize (LDAPMod *mod);
 static void _cl5ReadBerval (struct berval *bv, char** buff);
 static void _cl5WriteBerval (struct berval *bv, char** buff);
 static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size);
-static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size);
+static int _cl5WriteBervals (struct berval **bv, char** buff, u_int32_t *size);
 
 /* replay iteration */
 #ifdef FOR_DEBUGGING
@@ -2731,7 +2731,7 @@ static int _cl5GetModSize (LDAPMod *mod)
 	{
 		while (mod->mod_bvalues != NULL && mod->mod_bvalues[i] != NULL)
 		{
-			size += mod->mod_bvalues[i]->bv_len + sizeof (mod->mod_bvalues[i]->bv_len); 			
+			size += (PRInt32)mod->mod_bvalues[i]->bv_len + sizeof (PRInt32);
 			i++;
 		}
 	}
@@ -2785,7 +2785,7 @@ static void _cl5WriteBerval (struct berval *bv, char** buff)
 	PRUint32 net_length = 0;
 
 	length = (PRUint32) bv->bv_len;
-    net_length = PR_htonl(length);
+	net_length = PR_htonl(length);
 
 	memcpy(*buff, &net_length, sizeof (net_length));
 	*buff += sizeof (net_length);
@@ -2835,7 +2835,7 @@ static int _cl5ReadBervals (struct berval ***bv, char** buff, unsigned int size)
 }
 
 /* data format: <value count> <value size> <value> <value size> <value> ..... */
-static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size)
+static int _cl5WriteBervals (struct berval **bv, char** buff, u_int32_t *size)
 {
     PRInt32 count, net_count;
     char *pos;
@@ -2847,7 +2847,7 @@ static int _cl5WriteBervals (struct berval **bv, char** buff, unsigned int *size
     *size = sizeof (count); 
     for (count = 0; bv[count]; count ++)
     {
-        *size += sizeof (bv[count]->bv_len) + bv[count]->bv_len;
+        *size += (u_int32_t)(sizeof (PRInt32) + (PRInt32)bv[count]->bv_len);
     }
 
     /* allocate buffer */

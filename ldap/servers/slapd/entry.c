@@ -1106,11 +1106,12 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		{
 		    /* Failure adding to value tree */
 		    LDAPDebug( LDAP_DEBUG_ANY, "str2entry_dupcheck: unexpected failure %d adding value\n", rc, 0, 0 );
+		    slapi_value_free(&value); /* value not consumed - free it */
 		    slapi_entry_free( e ); e = NULL;
 		    goto free_and_return;
 		}
 
-		slapi_value_free(&value);
+		slapi_value_free(&value); /* if rc is error, value was not consumed - free it */
 	}
 
     /* All done with parsing.  Now create the entry. */
@@ -1179,6 +1180,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
  					sa->sa_present_values.num,
 					SLAPI_VALUE_FLAG_PASSIN, NULL);
 				sa->sa_present_values.num= 0; /* The values have been consumed */
+				slapi_ch_free((void **)&sa->sa_present_values.va);
 				slapi_valueset_add_attr_valuearray_ext(
 					*a,
 					&(*a)->a_deleted_values,
@@ -1186,6 +1188,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
  					sa->sa_deleted_values.num,
 					SLAPI_VALUE_FLAG_PASSIN, NULL);
 				sa->sa_deleted_values.num= 0; /* The values have been consumed */
+				slapi_ch_free((void **)&sa->sa_deleted_values.va);
 				if(sa->sa_attributedeletioncsn!=NULL)
 				{
 					attr_set_deletion_csn(*a,sa->sa_attributedeletioncsn);
@@ -1231,8 +1234,8 @@ free_and_return:
     for ( i = 0; i < nattrs; i++ )
     {
 		slapi_ch_free((void **) &(attrs[ i ].sa_type));
-		slapi_ch_free((void **) &(attrs[ i ].sa_present_values.va));
-		slapi_ch_free((void **) &(attrs[ i ].sa_deleted_values.va));
+		slapi_valueset_done(&attrs[ i ].sa_present_values);
+		slapi_valueset_done(&attrs[ i ].sa_deleted_values);
 		attr_done( &attrs[ i ].sa_attr );
     }
 	if (tree_attr_checking)
