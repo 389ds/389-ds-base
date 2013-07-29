@@ -469,141 +469,6 @@ int sort_attr_compare(struct berval ** value_a, struct berval ** value_b, value_
 
 }
 
-
-#if 0
-/* USE THE _SV VERSION NOW */
-
-/* Comparison routine, called by qsort.
- * The job here is to return the correct value
- * for the operation a < b
- * Returns:
- * <0 when  a < b
- * 0  when a == b
- * >0 when a > b
- */
-static int compare_entries(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *bc, int *error)
-{
-	/* We get passed the IDs, but need to fetch the entries in order to
-	 * perform the comparison .
-	 */
-	struct backentry *a = NULL;
-	struct backentry *b = NULL;
-	int result = 0;
-	sort_spec_thing *this_one = NULL;
-	int return_value = -1;
-	backend *be = bc->be;
-	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
-	int err;
-
-	*error = 1;
-	a = id2entry(be,*id_a,NULL,&err);
-	if (NULL == a) {
-		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_ANY,"compare_entries db err %d\n",err,0,0);
-		}
-		/* Were up a creek without paddle here */
-		/* Best to log error and set some flag */
-		return 0;
-	}
-	b = id2entry(be,*id_b,NULL,&err);
-	if (NULL == b) {
-		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_ANY,"compare_entries db err %d\n",err,0,0);
-		}
-		return 0;
-	}
-	/* OK, now we have the entries, so we work our way down the attribute list comparing as we go */
-	for (this_one = (sort_spec_thing*)s; this_one ; this_one = this_one->next) {
-
-		char *type = this_one->type;
-		int order = this_one->order;
-		Slapi_Attr *attr_a = NULL;
-		Slapi_Attr *attr_b = NULL;
-		struct berval **value_a = NULL;
-		struct berval **value_b = NULL;
-
-		/* Get the two attribute values from the entries */
-		return_value = slapi_entry_attr_find(a->ep_entry,type,&attr_a);
-		return_value = slapi_entry_attr_find(b->ep_entry,type,&attr_b);
-		/* What do we do if one or more of the entries lacks this attribute ? */
-		/* if one lacks the attribute */
-		if (NULL == attr_a) {
-			/* then if the other does too, they're equal */
-			if (NULL == attr_b) {
-				result = 0;
-				continue;
-			} else
-			{
-				/* If one has the attribute, and the other
-				 * doesn't, the missing attribute is the
-				 * LARGER one.  (bug #108154)  -robey
-				 */
-				result = 1;
-				break;
-			}
-		}
-		if (NULL == attr_b) {
-			result = -1;
-			break;
-		}
-		/* Somewhere in here, we need to go sideways for match rule case 
-		 * we need to call the match rule plugin to get the attribute values
-		 * converted into ordering keys. Then we proceed as usual to use those,
-		 * but ensuring that we don't leak memory anywhere. This works as follows:
-		 * the code assumes that the attrs are references into the entry, so 
-		 * doesn't try to free them. We need to note at the right place that
-		 * we're on the matchrule path, and accordingly free the keys---this turns out
-		 * to be when we free the indexer */ 
-		if (NULL == s->matchrule) {
-			/* Non-match rule case */
-		    /* xxxPINAKI
-		       needs modification
-		       
-			value_a = attr_a->a_vals;
-			value_b = attr_b->a_vals;
-			*/
-		} else {
-			/* Match rule case */
-			struct berval **actual_value_b = NULL;
-			struct berval **temp_value = NULL;
-
-			/* xxxPINAKI
-			   needs modification
-			struct berval **actual_value_a = NULL;
-			   
-			actual_value_a = attr_a->a_vals;
-			actual_value_b = attr_b->a_vals;
-			matchrule_values_to_keys(s->mr_pb,actual_value_a,&temp_value);
-			*/
-			/* Now copy it, so the second call doesn't crap on it */
-			value_a = slapi_ch_bvecdup(temp_value); /* Really, we'd prefer to not call the chXXX variant...*/
-			matchrule_values_to_keys(s->mr_pb,actual_value_b,&value_b);
-		}
-		/* Compare them */
-		if (!order) {
-			result = sort_attr_compare(value_a, value_b, s->compare_fn);
-		} else {
-			/* If reverse, invert the sense of the comparison */
-			result = sort_attr_compare(value_b, value_a, s->compare_fn);
-		}
-		/* Time to free up the attribute allocated above */
-		if (NULL != s->matchrule) {
-			ber_bvecfree(value_a);
-		}
-		/* Are they equal ? */
-		if (0 != result) {
-			/* If not, we're done */
-			break;
-		} 
-		/* If so, proceed to the next attribute for comparison */
-	}
-	CACHE_RETURN(&inst->inst_cache,&a);
-	CACHE_RETURN(&inst->inst_cache,&b);
-	*error = 0;
-	return result;
-}
-#endif
-
 /* Comparison routine, called by qsort.
  * The job here is to return the correct value
  * for the operation a < b
@@ -631,7 +496,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	a = id2entry(be,*id_a,&txn,&err);
 	if (NULL == a) {
 		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries db err %d\n",err,0,0);
+			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries_sv db err %d\n",err,0,0);
 		}
 		/* Were up a creek without paddle here */
 		/* Best to log error and set some flag */
@@ -640,7 +505,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	b = id2entry(be,*id_b,&txn,&err);
 	if (NULL == b) {
 		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries db err %d\n",err,0,0);
+			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries_sv db err %d\n",err,0,0);
 		}
 		CACHE_RETURN(&inst->inst_cache,&a);
 		return 0;
