@@ -605,6 +605,7 @@ slapi_valueset_done(Slapi_ValueSet *vs)
 {
 	if(vs!=NULL)
 	{
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 		if(vs->va!=NULL)
 		{
 			valuearray_free(&vs->va);
@@ -636,6 +637,7 @@ slapi_valueset_set_from_smod(Slapi_ValueSet *vs, Slapi_Mod *smod)
 	Slapi_Value **va= NULL;
 	valuearray_init_bervalarray(slapi_mod_get_ldapmod_byref(smod)->mod_bvalues, &va);
 	valueset_set_valuearray_passin(vs, va);
+	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 }
 
 void
@@ -656,7 +658,7 @@ valueset_set_valuearray_byval(Slapi_ValueSet *vs, Slapi_Value **addvals)
 		}
 	}
 	vs->va[j] = NULL;
-
+	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 }
 
 void
@@ -666,6 +668,7 @@ valueset_set_valuearray_passin(Slapi_ValueSet *vs, Slapi_Value **addvals)
 	vs->va= addvals;
 	vs->num = valuearray_count(addvals);
 	vs->max = vs->num + 1;
+	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 }
 
 void
@@ -766,6 +769,7 @@ valueset_remove_value_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slap
 		for (i=0; i < vs->num; i++) {
 			if (vs->sorted[i] > index) vs->sorted[i]--;
 		}
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 	}
 	return r;
 }
@@ -782,6 +786,7 @@ valueset_remove_value(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slapi_Value
 		if (r)
 			vs->num--;
 	}
+	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 	return r;
 	}
 }
@@ -811,6 +816,7 @@ valueset_purge(Slapi_ValueSet *vs, const CSN *csn)
 			slapi_ch_free ((void **)&vs->sorted);
 			vs->sorted = NULL;
 		}
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 		
 	}
 	return 0;
@@ -1002,6 +1008,7 @@ valueset_array_to_sorted (const Slapi_Attr *a, Slapi_ValueSet *vs)
 		}
 		vs->sorted[j+1] = swap;
 	}
+	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 }
 /* insert a value into a sorted array, if dupcheck is set no duplicate values will be accepted 
  * (is there a reason to allow duplicates ? LK
@@ -1017,10 +1024,12 @@ valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_V
 	if (vs->num == 0) {
 		vs->sorted[0] = 0;
 		vs->num++;
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 		return(0);
 	} else if (valueset_value_cmp (a, vi, vs->va[vs->sorted[vs->num-1]]) > 0 )  {
 		vs->sorted[vs->num] = vs->num;
 		vs->num++; 
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 		return (vs->num);
 	}
 	v = valueset_find_sorted (a, vs, vi, &index);
@@ -1031,6 +1040,7 @@ valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_V
 		memmove(&vs->sorted[index+1],&vs->sorted[index],(vs->num - index)* sizeof(int));
 		vs->sorted[index] = vs->num;
 		vs->num++; 
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 		return(index);
 	}
 		
@@ -1119,6 +1129,7 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 	}
 	(vs->va)[vs->num] = NULL;
 
+	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 	return (rc); 
 }
 
@@ -1157,6 +1168,8 @@ valueset_add_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 	int i;
 
 	if (vs1 && vs2) {
+		valuearray_free(&vs1->va);
+		slapi_ch_free((void **)&vs1->sorted);
 		if (vs2->va) {
 			/* need to copy valuearray */
 			if (vs2->max == 0) {
@@ -1177,6 +1190,7 @@ valueset_add_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 			vs1->sorted = (int *) slapi_ch_malloc( vs1->max* sizeof(int));
 			memcpy(&vs1->sorted[0],&vs2->sorted[0],vs1->num* sizeof(int));
 		}
+		PR_ASSERT((vs1->sorted == NULL) || (vs1->num == 0) || ((vs1->sorted[0] >= 0) && (vs1->sorted[0] < vs1->num)));
 	}
 }
 
@@ -1331,6 +1345,7 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
 	vs->va = valstoreplace;
 	vs->num = vals_count;
 	vs->max = vals_count + 1;
+	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
     } else {
 	/* verify the given values are not duplicated.  */
 	Slapi_ValueSet *vs_new = slapi_valueset_new();
@@ -1351,6 +1366,7 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
         	vs->num = vs_new->num;
         	vs->max = vs_new->max;
 		slapi_valueset_free (vs_new);
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 	}
 	else
 	{
@@ -1358,6 +1374,7 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
 	           use them, just delete them */
         	slapi_valueset_free(vs_new);
         	valuearray_free(&valstoreplace);
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 	}
     }
     return rc;
