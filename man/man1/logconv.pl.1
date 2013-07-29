@@ -29,30 +29,46 @@ line
 .SH OPTIONS
 A summary of options is included below:
 .TP
-.B \fB\-h\fR 
+.B \fB\-h, \-\-help\fR 
 help/usage
 .TP
-.B \fB\-d\fR <Directory Managers DN>
+.B \fB\-d, \-\-rootDN\fR <Directory Managers DN>
 DEFAULT \-> cn=directory manager
 .TP
-.B \fB\-s\fR <Number of results to return per category>
+.B \fB\-D, \-\-data\fR <Location for temporary data files>
+DEFAULT \-> /tmp
+.br
+TIP \-> If there is not enough RAM, a RAM disk can be used instead:
+
+       mkdir /dev/shm/logconv, and use this directory for the "-D" value.
+.TP
+.B \fB\-s, \-\-sizeLimit\fR <Number of results to return per category>
 DEFAULT \-> 20
 .TP
-.B \fB\-X\fR <IP address to exclude from connection stats>
+.B \fB\-X, \-\-excludeIP\fR <IP address to exclude from connection stats>
 E.g. Load balancers
 .TP
-.B \fB\-v\fR show version of tool
+.B \fB\-v, \-\-version\fR show version of tool
 Print version of the tool
 .TP
-.B \fB\-S\fR <time to begin analyzing logfile from>
+.B \fB\-S, \-\-startTime\fR <time to begin analyzing logfile from>
 Time to begin analyzing logfile from
-E.g. [28/Mar/2002:13:14:22 \fB\-0800]\fR
+E.g. [28/Mar/2002:13:14:22 \f \-0800]\fR
 .TP
-.B \fB\-E\fR <time to stop analyzing logfile>
+.B \fB\-E, \-\-endTime\fR <time to stop analyzing logfile>
 Time to stop analyzing logfile from
-E.g. [28/Mar/2002:13:24:62 \fB\-0800]\fR
+E.g. [28/Mar/2002:13:24:62 \f \-0800]\fR
 .TP
-\fB\-V\fR <enable verbose output \- includes all stats listed below>
+.B \fB\-M, \-\-reportFileMins\fR <CSV output file>
+This option creates a CSV report for spreadsheets.
+.TP
+.B \fB\-m, \-\-reportFileSecs\fR <CSV output file>
+This option creates a CSV report for spreadsheets.
+.TP
+.B \fB\-B, \-\-bind\fR <ALL | ANONYMOUS | "Bind DN">
+This generates a report based on either ALL bind dn's, anonymous binds, or a specific DN.
+.TP
+\fB\-V, \-\-verbose\fR <enable verbose output \- includes all stats listed below>
 Verbose output
 .TP
 .B \fB\-[efcibaltnxgju]\fR
