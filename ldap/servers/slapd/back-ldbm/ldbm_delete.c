@@ -889,7 +889,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 			retval = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS,
 							SLAPI_ATTR_VALUE_TOMBSTONE, e->ep_id,
-							BE_INDEX_DEL, &txn);
+							BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS,
 							"delete (deleting %s) DB_LOCK_DEADLOCK\n",
@@ -909,7 +909,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
 							slapi_entry_get_uniqueid(e->ep_entry),
-							e->ep_id, BE_INDEX_DEL, &txn);
+							e->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS,
 							"delete (deleting %s) DB_LOCK_DEADLOCK\n",
@@ -932,7 +932,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 												SLAPI_ATTR_NSCP_ENTRYDN);
 			if (nscpedn) {
 				retval = index_addordel_string(be, SLAPI_ATTR_NSCP_ENTRYDN,
-								nscpedn, e->ep_id, BE_INDEX_DEL, &txn);
+								nscpedn, e->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 				slapi_ch_free((void **)&nscpedn);
 				if (DB_LOCK_DEADLOCK == retval) {
 					LDAPDebug( LDAP_DEBUG_ARGS,

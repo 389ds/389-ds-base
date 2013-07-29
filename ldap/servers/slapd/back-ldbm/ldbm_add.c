@@ -817,7 +817,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		}
 		if(is_resurect_operation)
 		{
-			retval = index_addordel_string(be,SLAPI_ATTR_OBJECTCLASS,SLAPI_ATTR_VALUE_TOMBSTONE,addingentry->ep_id,BE_INDEX_DEL,&txn);
+			retval = index_addordel_string(be,SLAPI_ATTR_OBJECTCLASS,SLAPI_ATTR_VALUE_TOMBSTONE,addingentry->ep_id,BE_INDEX_DEL|BE_INDEX_EQUALITY,&txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS, "add 2 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
@@ -834,7 +834,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				}
 				goto error_return; 
 			}
-			retval = index_addordel_string(be,SLAPI_ATTR_UNIQUEID,slapi_entry_get_uniqueid(addingentry->ep_entry),addingentry->ep_id,BE_INDEX_DEL,&txn);
+			retval = index_addordel_string(be,SLAPI_ATTR_UNIQUEID,slapi_entry_get_uniqueid(addingentry->ep_entry),addingentry->ep_id,BE_INDEX_DEL|BE_INDEX_EQUALITY,&txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS, "add 3 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
@@ -855,7 +855,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			                               SLAPI_ATTR_NSCP_ENTRYDN,
 			                               slapi_sdn_get_ndn(sdn),
 			                               addingentry->ep_id,
-			                               BE_INDEX_DEL, &txn);
+			                               BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS, "add 4 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
