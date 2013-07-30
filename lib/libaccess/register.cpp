@@ -164,7 +164,7 @@ ACL_LasHashDestroy()
  *	0 on success, non-zero on failure
  */
 NSAPI_PUBLIC int
-ACL_LasRegister(NSErr_t *errp, char *attr_name, LASEvalFunc_t eval_func,
+ACL_LasRegister(NSErr_t *errp, const char *attr_name, LASEvalFunc_t eval_func,
 LASFlushFunc_t flush_func)
 {
     if ((!attr_name) || (!eval_func)) return -1;

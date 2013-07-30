@@ -95,7 +95,7 @@ struct NSEFrame_s {
     NSEFrame_t * ef_next;	/* next error frame on NSErr_t list */
     long ef_retcode;		/* error return code */
     long ef_errorid;		/* error unique identifier */
-    char * ef_program;		/* context for ef_errorid */
+    const char * ef_program;	/* context for ef_errorid */
     int ef_errc;		/* number of strings in ef_errv[] */
     char * ef_errv[NSERRMAXARG];/* arguments for formatting error message */
 };

@@ -197,7 +197,7 @@ void nserrFFree(NSErr_t * errp, NSEFrame_t * efp)
  */
 
 NSEFrame_t * nserrGenerate(NSErr_t * errp, long retcode, long errorid,
-			   char * program, int errc, ...)
+			   const char * program, int errc, ...)
 {
     NSEFrame_t * efp;			/* error frame pointer */
     char * esp;				/* error string pointer */

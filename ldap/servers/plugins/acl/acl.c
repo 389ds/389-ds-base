@@ -65,15 +65,15 @@ static	short	acl_signature =	0;
 /****************************************************************************/
 /* Defines, Constants, ande Declarations				    */
 /****************************************************************************/
-static char *ds_map_generic[2] = { NULL, NULL };
+static const char *ds_map_generic[2] = { NULL, NULL };
 
 /****************************************************************************/
 /* prototypes								    */
 /****************************************************************************/
 static	int	acl__resource_match_aci(struct acl_pblock *aclpb, aci_t	*aci ,
 								int skip_attrEval, int *a_matched);
-static	int acl__TestRights(Acl_PBlock *aclpb,int access, char **right,
-						char ** map_generic, aclResultReason_t *result_reason);
+static	int acl__TestRights(Acl_PBlock *aclpb,int access, const char **right,
+						const char ** map_generic, aclResultReason_t *result_reason);
 static int 	acl__scan_for_acis(struct acl_pblock *aclpb, int *err);
 static void	acl__reset_cached_result (struct acl_pblock *aclpb );
 static int 	acl__scan_match_handles ( struct acl_pblock *aclpb, int type);
@@ -91,7 +91,7 @@ static int	acl__test_filter ( Slapi_Entry *entry, struct slapi_filter *f,
 static void print_access_control_summary( char * source,
 									int ret_val, char *clientDn,
 									struct	acl_pblock	*aclpb,
-									char *right,
+									const char *right,
 									char *attr,
 									const char *edn,
 									aclResultReason_t *acl_reason);
@@ -247,7 +247,7 @@ acl_access_allowed(
 	int					rv;
 	int					err;
 	int					ret_val;
-	char				*right;
+	const char				*right;
 	struct	acl_pblock	*aclpb = NULL;
 	AclAttrEval			*c_attrEval = NULL;
 	int					got_reader_locked = 0;
@@ -658,7 +658,7 @@ cleanup_and_ret:
 static void
 print_access_control_summary( char *source, int ret_val, char *clientDn,
 									struct	acl_pblock	*aclpb,
-									char *right,
+									const char *right,
 									char *attr,
 									const char *edn,
 									aclResultReason_t *acl_reason)
@@ -2733,7 +2733,7 @@ acl__resource_match_aci_EXIT:
 *
 **************************************************************************/
 static int
-acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
+acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** map_generic,
 				aclResultReason_t *result_reason)
 {
 	ACLEvalHandle_t		*acleval;
@@ -2744,7 +2744,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 	char			*deny_generic = NULL;
 	char			*acl_tag;
 	int			expr_num;
-	char			*testRights[2];
+	const char		*testRights[2];
 	aci_t			*aci = NULL;
 	int			numHandles = 0;
 	
@@ -4015,7 +4015,8 @@ acl__recompute_acl (  	Acl_PBlock 		*aclpb,
 
 
 	char		*unused_str1, *unused_str2;
-	char		*acl_tag, *testRight[2];
+	char		*acl_tag;
+	const char	*testRight[2];
 	int			j, expr_num;
 	int			result_status = ACL_RES_INVALID, cache_result;
 	PRUint32	cookie;

@@ -849,7 +849,7 @@ void		aclutil_print_err (int rv , const Slapi_DN *sdn,
 			const struct berval* val, char **errbuf);
 void		aclutil_print_aci (aci_t *aci_item, char *type);
 short		aclutil_gen_signature ( short c_signature );
-void		aclutil_print_resource( struct acl_pblock *aclpb, char *right , char *attr, char *clientdn );
+void		aclutil_print_resource( struct acl_pblock *aclpb, const char *right , char *attr, char *clientdn );
 char *		aclutil_expand_paramString ( char *str, Slapi_Entry *e );
 
 
