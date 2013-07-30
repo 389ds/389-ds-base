@@ -548,7 +548,10 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 				if(!slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
 				{
 					/* We don't maintain a deleted value list for single valued attributes */
-					valueset_add_valueset(&a->a_deleted_values, &a->a_present_values); /* JCM Would be better to passin the valuestodelete */
+					/* Add each deleted value to the deleted set */
+    					slapi_valueset_add_attr_valuearray_ext (a,
+						 &a->a_deleted_values, a->a_present_values.va, a->a_present_values.num, SLAPI_VALUE_FLAG_PASSIN, NULL);
+    					slapi_ch_free((void **)&a->a_present_values.va);
 				}
 				slapi_valueset_done(&a->a_present_values);
 				entry_present_attribute_to_deleted_attribute(e, a);

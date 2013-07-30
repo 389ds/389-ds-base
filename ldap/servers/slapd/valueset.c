@@ -661,6 +661,9 @@ valueset_set_valuearray_byval(Slapi_ValueSet *vs, Slapi_Value **addvals)
 	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 }
 
+/* WARNING: you must call this function with a new vs - if it points to existing data, it
+ * will leak - call slapi_valueset_done to free it first if necessary
+ */
 void
 valueset_set_valuearray_passin(Slapi_ValueSet *vs, Slapi_Value **addvals)
 {
@@ -671,18 +674,21 @@ valueset_set_valuearray_passin(Slapi_ValueSet *vs, Slapi_Value **addvals)
 	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 }
 
+/* WARNING: you must call this function with a new vs1 - if it points to existing data, it
+ * will leak - call slapi_valueset_done(vs1) to free it first if necessary
+ */
 void
 slapi_valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 {
 	slapi_valueset_init(vs1);
-	valueset_add_valueset(vs1,vs2);
+	valueset_set_valueset(vs1,vs2);
 }
 
 void
 slapi_valueset_join_attr_valueset(const Slapi_Attr *a, Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 {
 	if (slapi_valueset_isempty(vs1))
-		valueset_add_valueset(vs1,vs2);
+		valueset_set_valueset(vs1,vs2);
 	else
 		slapi_valueset_add_attr_valuearray_ext (a, vs1, vs2->va, vs2->num, 0, NULL);
 }
@@ -763,7 +769,7 @@ valueset_remove_value_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slap
 		memmove(&vs->sorted[position],&vs->sorted[position+1],(vs->num - position)*sizeof(int));
 		memmove(&vs->va[index],&vs->va[index+1],(vs->num - index)*sizeof(Slapi_Value *));
 		vs->num--;
-		/* unfortunately the references in the sorted array 
+		/* unfortunately the references in the sorted array
 		 * to values past the removed one are no longer correct
 		 * need to adjust */
 		for (i=0; i < vs->num; i++) {
@@ -1176,13 +1182,14 @@ valueset_add_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s, CSNT
  * The value set is passed in by value.
  */
 void
-valueset_add_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
+valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 {
 	int i;
 
 	if (vs1 && vs2) {
-		valuearray_free(&vs1->va);
-		slapi_ch_free((void **)&vs1->sorted);
+		int oldmax = vs1->max;
+		/* pre-condition - vs1 empty - otherwise, existing data is overwritten */
+		PR_ASSERT(vs1->num == 0);
 		if (vs2->va) {
 			/* need to copy valuearray */
 			if (vs2->max == 0) {
@@ -1193,16 +1200,26 @@ valueset_add_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 				vs1->num = vs2->num;
 				vs1->max = vs2->max;
 			}
-			vs1->va = (Slapi_Value **) slapi_ch_malloc( vs1->max * sizeof(Slapi_Value *));
+			/* do we need more room? */
+			if ((NULL == vs1->va) || (oldmax < vs1->max)) {
+				vs1->va = (Slapi_Value **)slapi_ch_realloc((char *)vs1->va, vs1->max * sizeof(Slapi_Value *));
+			}
 			for (i=0; i< vs1->num;i++) {
 				vs1->va[i] = slapi_value_dup(vs2->va[i]);
 			}
 			vs1->va[vs1->num] = NULL;
+		} else {
+			valuearray_free(&vs1->va);
 		}
 		if (vs2->sorted) {
-			vs1->sorted = (int *) slapi_ch_malloc( vs1->max* sizeof(int));
-			memcpy(&vs1->sorted[0],&vs2->sorted[0],vs1->num* sizeof(int));
+			if ((NULL == vs1->sorted) || (oldmax < vs1->max)) {
+				vs1->sorted = (int *)slapi_ch_realloc((char *)vs1->sorted, vs1->max * sizeof(int));
+			}
+			memcpy(&vs1->sorted[0], &vs2->sorted[0], vs1->num * sizeof(int));
+		} else {
+			slapi_ch_free((void **)&vs1->sorted);
 		}
+		/* post-condition */
 		PR_ASSERT((vs1->sorted == NULL) || (vs1->num == 0) || ((vs1->sorted[0] >= 0) && (vs1->sorted[0] < vs1->num)));
 	}
 }
