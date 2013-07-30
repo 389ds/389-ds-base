@@ -229,7 +229,7 @@ ACL_AddPermInfo( NSErr_t *errp, ACLHandle_t *acl,
 NSAPI_PUBLIC int
 ACL_ExprAddArg( NSErr_t *errp, 
     ACLExprHandle_t *expr, 
-    char *arg )
+    const char *arg )
 {
 
     if ( expr == NULL ) 
@@ -406,7 +406,7 @@ acl_index_string ( int value, char *buffer )
  * displays ASCII equivalent of CmpOp_t
  */
 
-static char *
+static const char *
 acl_comp_string( CmpOp_t cmp )
 {
     switch (cmp) {
@@ -445,7 +445,7 @@ acl_comp_string( CmpOp_t cmp )
 
 NSAPI_PUBLIC int 
 ACL_ExprTerm( NSErr_t *errp, ACLExprHandle_t *acl_expr,
-        char *attr_name, 
+        const char *attr_name,
         CmpOp_t cmp, 
         char *attr_pattern )
 {
@@ -1381,7 +1381,7 @@ ACL_ParseString( NSErr_t *errp, char *buffer )
 ACLListHandle_t 	*handle = NULL;
 int			eid = 0;
 int			rv = 0;
-char			*errmsg;
+const char			*errmsg;
 
     ACL_InitAttr2Index();
 
@@ -1555,7 +1555,7 @@ ACL_ListGetNameList(NSErr_t *errp, ACLListHandle_t *acl_list, char ***name_list)
     int			list_size;
     char		**tmp_list;
     char		**local_list;
-    char		*name;
+    const char		*name;
     
 
     if ( acl_list == NULL )

@@ -119,7 +119,12 @@ static Slapi_ComponentId *sasl_get_component_id()
  * entry from the internal database, at the same time we get any other
  * properties we need - it's more efficient that way.
  */
-static void ids_auxprop_lookup(void *glob_context,
+#if SASL_AUXPROP_PLUG_VERSION > 4
+static int ids_auxprop_lookup(
+#else
+static void ids_auxprop_lookup(
+#endif
+				  void *glob_context,
 				  sasl_server_params_t *sparams,
 				  unsigned flags,
 				  const char *user,
@@ -127,6 +132,9 @@ static void ids_auxprop_lookup(void *glob_context,
 {
     /* do nothing - we don't need auxprops - we just do this to avoid
        sasldb_auxprop_lookup */
+#if SASL_AUXPROP_PLUG_VERSION > 4
+    return 0;
+#endif
 }
 
 static sasl_auxprop_plug_t ids_auxprop_plugin = {

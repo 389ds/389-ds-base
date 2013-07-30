@@ -37,10 +37,6 @@
 #ifndef WINSYNC_PLUGIN_PUBLIC_API
 #define WINSYNC_PLUGIN_PUBLIC_API
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
 /* windows_private.c */
 
 #include "slapi-plugin.h"

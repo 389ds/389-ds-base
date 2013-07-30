@@ -613,7 +613,7 @@ with lmsg =strerror(errno);*/
     return msglen;
 }
 
-NSAPI_PUBLIC char *
+NSAPI_PUBLIC const char *
 system_errmsg(void)
 {
     char *buff = 0;
@@ -632,7 +632,7 @@ system_errmsg(void)
     }
     system_errmsg_fn(&buff, errbuf_size);
     if (buff == 0)
-        buff = "Could not retrieve system error message";
+        return "Could not retrieve system error message";
     return buff;
 }
 

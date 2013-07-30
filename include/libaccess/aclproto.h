@@ -67,12 +67,12 @@ NSAPI_PUBLIC ACLExprHandle_t *ACL_ExprNew(const ACLExprType_t expr_type);
 NSAPI_PUBLIC void ACL_ExprDestroy(ACLExprHandle_t *expr);
 NSAPI_PUBLIC int ACL_ExprSetPFlags(NSErr_t *errp, ACLExprHandle_t *expr, PFlags_t flags);
 NSAPI_PUBLIC int ACL_ExprClearPFlags(NSErr_t *errp, ACLExprHandle_t *expr);
-NSAPI_PUBLIC int ACL_ExprTerm(NSErr_t *errp, ACLExprHandle_t *acl_expr, char *attr_name, CmpOp_t cmp, char *attr_pattern);
+NSAPI_PUBLIC int ACL_ExprTerm(NSErr_t *errp, ACLExprHandle_t *acl_expr, const char *attr_name, CmpOp_t cmp, char *attr_pattern);
 NSAPI_PUBLIC int ACL_ExprNot(NSErr_t *errp, ACLExprHandle_t *acl_expr);
 NSAPI_PUBLIC int ACL_ExprAnd(NSErr_t *errp, ACLExprHandle_t *acl_expr);
 NSAPI_PUBLIC int ACL_ExprOr(NSErr_t *errp, ACLExprHandle_t *acl_expr);
 NSAPI_PUBLIC int ACL_ExprAddAuthInfo(ACLExprHandle_t *expr, PList_t auth_info);
-NSAPI_PUBLIC int ACL_ExprAddArg(NSErr_t *errp, ACLExprHandle_t *expr, char *arg);
+NSAPI_PUBLIC int ACL_ExprAddArg(NSErr_t *errp, ACLExprHandle_t *expr, const char *arg);
 NSAPI_PUBLIC int ACL_ExprSetDenyWith(NSErr_t *errp, ACLExprHandle_t *expr, char *deny_type, char *deny_response);
 NSAPI_PUBLIC int ACL_ExprGetDenyWith(NSErr_t *errp, ACLExprHandle_t *expr, char **deny_type, char **deny_response);
 

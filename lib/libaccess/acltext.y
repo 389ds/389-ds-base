@@ -179,7 +179,7 @@ acl_set_ip_dns(ACLExprHandle_t *expr, char **ip_dns)
 	int ii;
 	int jj;
 	int len;
-	char *attr;
+	const char *attr;
 	char *val;
 
         if (expr == NULL)

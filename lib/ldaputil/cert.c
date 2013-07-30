@@ -48,8 +48,9 @@
 #include <sec.h>
 */
 #include "prmem.h"
-#include "key.h"
-#include "cert.h"
+#include <key.h>
+#include <cert.h>
+#include <nss.h>
 #include <ldaputil/certmap.h>
 #include <ldaputil/errors.h>
 #include <ldaputil/cert.h>
@@ -285,7 +286,12 @@ _replaceAVA (char* attr, char** avas)
 }
 
 struct _attr_getter_pair {
-    char* (*getter) (CERTName* dn);
+#if NSS_VMAJOR < 3 || (NSS_VMAJOR == 3 && NSS_VMINOR < 15)
+    char* (*getter) ( CERTName* dn);
+#else
+    /* in 3.15.x "const" was added to the declarations */
+    char* (*getter) (const CERTName* dn);
+#endif
     const char* name1;
     const char* name2;
 } _attr_getter_table[] =

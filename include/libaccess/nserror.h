@@ -71,7 +71,7 @@ extern void nserrDispose(NSErr_t * errp);
 extern NSEFrame_t * nserrFAlloc(NSErr_t * errp);
 extern void nserrFFree(NSErr_t * errp, NSEFrame_t * efp);
 extern NSEFrame_t * nserrGenerate(NSErr_t * errp, long retcode, long errorid,
-				  char * program, int errc, ...);
+				  const char * program, int errc, ...);
 
 /* Functions in nserrmsg.c */
 extern char * nserrMessage(NSEFrame_t * efp, int flags);

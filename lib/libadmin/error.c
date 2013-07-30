@@ -127,7 +127,7 @@ NSAPI_PUBLIC void output_alert(int type, char *info, char *details, int wait)
     if(type==FILE_ERROR || type==SYSTEM_ERROR)  {
         err = get_error();
         if(err != 0){
-            char *err_str = verbose_error();
+            const char *err_str = verbose_error();
             fprintf(stdout,
                         "\\n\\nThe system returned error number %d, "
                         "which is %s.", err, err_str);

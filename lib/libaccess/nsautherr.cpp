@@ -55,12 +55,12 @@
 #include "libaccess/nsautherr.h"
 
 /* Error message formats XXX internationalize XXX */
-static char * nsaerrnomem = "insufficient dynamic memory";
-static char * nsaerrinval = "invalid argument";
-static char * nsaerropen = "error opening %s";
-static char * nsaerrmkdir = "error creating %s";
-static char * nsaerrname = "%s not found in database %s";
-static char * unknownerr = "error code %d";
+static const char * nsaerrnomem = "insufficient dynamic memory";
+static const char * nsaerrinval = "invalid argument";
+static const char * nsaerropen = "error opening %s";
+static const char * nsaerrmkdir = "error creating %s";
+static const char * nsaerrname = "%s not found in database %s";
+static const char * unknownerr = "error code %d";
 
 /*
  * Description (nsadbErrorFmt)

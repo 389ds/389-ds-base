@@ -45,7 +45,7 @@
 
 /* ACL facility name string (in aclbuild.c) */
 NSPR_BEGIN_EXTERN_C
-extern char * ACL_Program;
+extern const char * ACL_Program;
 NSPR_END_EXTERN_C
 
 /* Define error identifiers */
