@@ -112,7 +112,7 @@ NSAPI_PUBLIC int ACL_ListPostParseForAuth(NSErr_t *errp, ACLListHandle_t *acl_li
  * ACL evaluation 
  *********************************************************************/
 
-NSAPI_PUBLIC int ACL_EvalTestRights(NSErr_t *errp, ACLEvalHandle_t *acleval, char **rights, char **map_generic, char **deny_type, char **deny_response, char **acl_tag, int *expr_num);
+NSAPI_PUBLIC int ACL_EvalTestRights(NSErr_t *errp, ACLEvalHandle_t *acleval, const char **rights, const char **map_generic, char **deny_type, char **deny_response, char **acl_tag, int *expr_num);
 NSAPI_PUBLIC int ACL_CachableAclList(ACLListHandle_t *acllist);
 NSAPI_PUBLIC ACLEvalHandle_t * ACL_EvalNew(NSErr_t *errp, pool_handle_t *pool);
 NSAPI_PUBLIC void ACL_EvalDestroy(NSErr_t *errp, pool_handle_t *pool, ACLEvalHandle_t *acleval);

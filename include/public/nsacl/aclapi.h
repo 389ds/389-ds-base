@@ -240,7 +240,7 @@ struct ACLDispatchVector {
     /* ACL evaluation */
 
     int (*f_ACL_EvalTestRights)(NSErr_t *errp, ACLEvalHandle_t *acleval,
-                                char **rights, char **map_generic,
+                                const char **rights, const char **map_generic,
                                 char **deny_type, char **deny_response,
                                 char **acl_tag, int *expr_num);
     ACLEvalHandle_t * (*f_ACL_EvalNew)(NSErr_t *errp, pool_handle_t *pool);

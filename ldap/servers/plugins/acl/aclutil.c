@@ -498,7 +498,7 @@ aclutil_gen_signature ( short c_signature )
 }
 
 void 
-aclutil_print_resource( struct acl_pblock *aclpb, char *right , char *attr, char *clientdn )
+aclutil_print_resource( struct acl_pblock *aclpb, const char *right , char *attr, char *clientdn )
 {
 
 	char		str[BUFSIZ];
