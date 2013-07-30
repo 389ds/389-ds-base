@@ -76,8 +76,8 @@
 #define aclerrfail	XP_GetAdminStr(DBT_AclerrfmtAclerrfail)
 #define aclerrio	XP_GetAdminStr(DBT_AclerrfmtAclerrio)
 
-char * NSAuth_Program = "NSAUTH";
-char * ACL_Program = "NSACL";               /* ACL facility name */
+const char * NSAuth_Program = "NSAUTH";
+const char * ACL_Program = "NSACL";               /* ACL facility name */
 
 /*
  * Description (aclErrorFmt)

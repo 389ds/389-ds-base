@@ -50,7 +50,7 @@
 #include "getstrmem.h"
 
 static char*
-XP_GetStringFromMemory(char* strLibraryName,int iToken)
+XP_GetStringFromMemory(const char* strLibraryName,int iToken)
 {
   /*
    * In memory model called by XP_GetStringFromDatabase
@@ -66,7 +66,7 @@ XP_GetStringFromMemory(char* strLibraryName,int iToken)
   unsigned hashKey;
   int      found = 0;
   unsigned uToken = iToken;
-  char*    cPtr;
+  const char*    cPtr;
   DATABIN* pBucket;
 
   /* calculate hash key */
@@ -102,12 +102,12 @@ XP_GetStringFromMemory(char* strLibraryName,int iToken)
 
 }
 
-char*
-XP_GetStringFromDatabase(char* strLibraryName,
-                         char* strLanguage,
+const char*
+XP_GetStringFromDatabase(const char* strLibraryName,
+                         const char* strLanguage,
                          int key)
 {
-    char *result = NULL;
+    const char *result = NULL;
 
     /* we use memory strings only in ds. */
     if (result == NULL)

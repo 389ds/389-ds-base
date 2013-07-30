@@ -42,11 +42,6 @@
  *
  * END COPYRIGHT BLOCK */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
-
 /*! \file slapi-plugin.h
  *  \brief Public Directory Server plugin interface.
  *         
@@ -2216,7 +2211,7 @@ int slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modc
 /**
  * Invalidate all entries in the virtual attribute cache.
  */
-void slapi_entrycache_vattrcache_watermark_invalidate();
+void slapi_entrycache_vattrcache_watermark_invalidate(void);
 
 
 /*
@@ -3666,7 +3661,7 @@ void slapi_rand_array(void *randx, size_t len);
  * \see slapi_rand_r()
  * \see slapi_rand_array()
  */
-int slapi_rand();
+int slapi_rand(void);
 
 /**
  * Escape special characters in a search filter value
@@ -5035,7 +5030,7 @@ int slapi_attr_syntax_exists(const char *type);
  * \return \c 0 if the reload was successful.
  * \return non-0 if the reload failed.
  */
-int slapi_reload_internal_attr_syntax();
+int slapi_reload_internal_attr_syntax(void);
 
 /*
  * slapi_filter_apply() is used to apply a function to each simple filter
@@ -5309,7 +5304,7 @@ int slapi_apib_release(void **api);
 int slapi_td_init(int indexType);
 int slapi_td_set_val(int indexType, void *value);
 void slapi_td_get_val(int indexType, void **value);
-int slapi_td_dn_init();
+int slapi_td_dn_init(void);
 int slapi_td_set_dn(char *dn);
 void slapi_td_get_dn(char **dn);
 
@@ -5530,7 +5525,7 @@ char *slapi_err2string(int result);
  *
  * \return 1 if the server is shutting down
  */
-int slapi_is_shutting_down();
+int slapi_is_shutting_down(void);
 
 /*
  * checking routines for allocating and freeing memory
@@ -6360,7 +6355,7 @@ void slapi_destroy_task(void *arg);
 /* End of interface to support online tasks **********************************/
 
 /* Slapi_Counter Interface */
-Slapi_Counter *slapi_counter_new();
+Slapi_Counter *slapi_counter_new(void);
 void slapi_counter_init(Slapi_Counter *counter);
 void slapi_counter_destroy(Slapi_Counter **counter);
 PRUint64 slapi_counter_increment(Slapi_Counter *counter);

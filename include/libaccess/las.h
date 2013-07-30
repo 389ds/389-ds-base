@@ -74,7 +74,7 @@ struct ACLAttrGetter {
 NSPR_BEGIN_EXTERN_C
 
 NSAPI_PUBLIC extern int
-	ACL_LasRegister(NSErr_t *errp, char *attr_name, LASEvalFunc_t
+	ACL_LasRegister(NSErr_t *errp, const char *attr_name, LASEvalFunc_t
 	eval_func, LASFlushFunc_t flush_func);
 NSAPI_PUBLIC extern int
 	ACL_LasFindEval(NSErr_t *errp, char *attr_name, LASEvalFunc_t

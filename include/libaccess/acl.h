@@ -67,8 +67,8 @@
 
 NSPR_BEGIN_EXTERN_C
 
-extern	char	*generic_rights[];
-extern	char	*http_generic[];
+extern	const char	*generic_rights[];
+extern	const char	*http_generic[];
 
 NSPR_END_EXTERN_C
 

@@ -72,9 +72,9 @@
 				!strcmp((rlm1)->rlm_dbname, \
 					(rlm2)->rlm_dbname))))
 
-int aclDNSLookup(DNSFilter_t * dnf, char * dnsspec, int fqdn, char **match)
+int aclDNSLookup(DNSFilter_t * dnf, const char * dnsspec, int fqdn, const char **match)
 {
-    char * subdns;		/* suffix of client DNS name */
+    const char * subdns;	/* suffix of client DNS name */
     void * table;		/* hash table pointer */
     Symbol_t * sym;		/* DNS spec symbol pointer */
     int rv;			/* result value */

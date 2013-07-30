@@ -97,7 +97,7 @@ static void symFreeTable(void * pool, void * item);
 
 typedef struct Symbol_s Symbol_t;
 struct Symbol_s {
-    char * sym_name;			/* pointer to symbol name string */
+    const char * sym_name;			/* pointer to symbol name string */
     int sym_type;			/* symbol type */
     void *sym_data;			/* symbol data storage */
 };
@@ -127,7 +127,7 @@ extern void symTableEnumerate(void * table, void * argp,
                               int (*func)(Symbol_t * sym, void * parg));
 #endif /* UnixWare */
 
-extern int symTableFindSym(void * table, char * symname,
+extern int symTableFindSym(void * table, const char * symname,
 			   int symtype, void **psymref);
 extern int symTableNew(void **ptable);
 

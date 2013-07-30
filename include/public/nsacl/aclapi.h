@@ -78,7 +78,7 @@ struct ACLDispatchVector {
     NSEFrame_t *(*f_nserrFAlloc)(NSErr_t * errp);
     void (*f_nserrFFree)(NSErr_t * errp, NSEFrame_t * efp);
     NSEFrame_t *(*f_nserrGenerate)(NSErr_t * errp, long retcode,
-                                   long errorid, char * program,
+                                   long errorid, const char * program,
                                    int errc, ...);
 
     /* Property list support 
@@ -117,7 +117,7 @@ struct ACLDispatchVector {
 
     /* ACL attribute handling */
 
-    int (*f_ACL_LasRegister)(NSErr_t *errp, char *attr_name,
+    int (*f_ACL_LasRegister)(NSErr_t *errp, const char *attr_name,
                              LASEvalFunc_t eval_func,
                              LASFlushFunc_t flush_func);
 
@@ -202,12 +202,13 @@ struct ACLDispatchVector {
                                ACLExprHandle_t *expr, PFlags_t flags);
     int (*f_ACL_ExprClearPFlags)(NSErr_t *errp, ACLExprHandle_t *expr);
     int (*f_ACL_ExprTerm)(NSErr_t *errp, ACLExprHandle_t *acl_expr,
-                          char *attr_name, CmpOp_t cmp, char *attr_pattern);
+                          const char *attr_name, CmpOp_t cmp,
+                          char *attr_pattern);
     int (*f_ACL_ExprNot)(NSErr_t *errp, ACLExprHandle_t *acl_expr);
     int (*f_ACL_ExprAnd)(NSErr_t *errp, ACLExprHandle_t *acl_expr);
     int (*f_ACL_ExprOr)(NSErr_t *errp, ACLExprHandle_t *acl_expr);
     int (*f_ACL_ExprAddAuthInfo)(ACLExprHandle_t *expr, PList_t auth_info);
-    int (*f_ACL_ExprAddArg)(NSErr_t *errp, ACLExprHandle_t *expr, char *arg);
+    int (*f_ACL_ExprAddArg)(NSErr_t *errp, ACLExprHandle_t *expr, const char *arg);
     int (*f_ACL_ExprSetDenyWith)(NSErr_t *errp, ACLExprHandle_t *expr,
                                  char *deny_type, char *deny_response);
     int (*f_ACL_ExprGetDenyWith)(NSErr_t *errp, ACLExprHandle_t *expr,

@@ -429,7 +429,7 @@ typedef struct ldap LDAP;
 
 #ifdef	ALLOCATE_ATTR_TABLE
 /* Must be in the same order as the index numbers */
-char	*ACLAttrTable[] = {
+const char	*ACLAttrTable[] = {
 		 NULL,				/*  0 */
 /* Don't have one numbered 0 */
 		 ACL_ATTR_GROUP,		/*  1 */

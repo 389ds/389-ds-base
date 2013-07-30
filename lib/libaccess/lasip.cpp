@@ -69,7 +69,7 @@
 extern int LASIpGetIp();
 #endif
 
-static int colonhex_ipv6(char *ipstr, char *netmaskstr, PRIPv6Addr *ipv6, int *netmask);
+static int colonhex_ipv6(char *ipstr, const char *netmaskstr, PRIPv6Addr *ipv6, int *netmask);
 static int LASIpAddPattern(NSErr_t *errp, int netmask, int pattern, LASIpTree_t **treetop);
 static int LASIpAddPatternIPv6(NSErr_t *errp, int netmask, PRIPv6Addr *ipv6, LASIpTree_t **treetop);
 
@@ -86,7 +86,7 @@ static int LASIpAddPatternIPv6(NSErr_t *errp, int netmask, PRIPv6Addr *ipv6, LAS
  *    result        NULL on success or else one of the LAS_EVAL_* codes.
  */
 int
-dotdecimal(char *ipstr, char *netmaskstr, int *ip, int *netmask)
+dotdecimal(char *ipstr, const char *netmaskstr, int *ip, int *netmask)
 {
     int     i;
     char    token[64];
@@ -114,7 +114,7 @@ dotdecimal(char *ipstr, char *netmaskstr, int *ip, int *netmask)
     *netmask = *ip = 0;    /* Start with "don't care"    */
 
     for (i=0; i<4; i++) {
-        dotptr    = strchr(netmaskstr, '.');
+        dotptr    = strchr((char*)netmaskstr, '.');
 
         /* copy out the token, then point beyond it */
         if (dotptr == NULL)
@@ -725,7 +725,7 @@ LASIpAddPatternIPv6(NSErr_t *errp, int netmask, PRIPv6Addr *ipv6, LASIpTree_t **
  *  This is very similar to dotdecimal(), but for ipv6 addresses
  */
 static int
-colonhex_ipv6(char *ipstr, char *netmaskstr, PRIPv6Addr *ipv6, int *netmask)
+colonhex_ipv6(char *ipstr, const char *netmaskstr, PRIPv6Addr *ipv6, int *netmask)
 {
     PRNetAddr addr;
     /*

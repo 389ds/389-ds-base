@@ -121,7 +121,7 @@ static int symCmpValue(const void * value1, const void * value2)
 static PLHashNumber symHash(const void * symkey)
 {
     Symbol_t * sym = (Symbol_t *)symkey;
-    char * cp;
+    const char * cp;
     PLHashNumber h;
 
     h = sym->sym_type;
@@ -289,7 +289,7 @@ void symTableEnumerate(void * table, void * argp,
  *	negative return code (SYMERRxxxx - see symbols.h).
  */
 
-int symTableFindSym(void * table, char * symname,
+int symTableFindSym(void * table, const char * symname,
 		      int symtype, void **psymref)
 {
     SymTable_t * st = (SymTable_t *)table;

@@ -609,8 +609,8 @@ static int
 ACL_INTEvalTestRights(
     NSErr_t          *errp,
     ACLEvalHandle_t  *acleval,
-    char    **rights,
-    char    **map_generic,
+    const char    **rights,
+    const char    **map_generic,
     char    **deny_type,
     char    **deny_response,
     char    **acl_tag,
@@ -638,7 +638,7 @@ ACL_INTEvalTestRights(
     int absolute = 0;
     int skipflag;
     int g_num;    /* index into the generic rights array.  */
-    char **g_rights;
+    const char **g_rights;
     PList_t global_auth=NULL;
     int allow_error = 0;
     int allow_absolute = 0;
@@ -953,7 +953,7 @@ ACL_CachableAclList(ACLListHandle_t *acllist)
     char *acl_tag;
     int  expr_num;
     int  rv;
-    static char *rights[] = { "http_get", NULL };
+    static const char *rights[] = { "http_get", NULL };
     ACLCachable_t cachable=ACL_INDEF_CACHABLE;
 
     if (!acllist  ||  acllist == ACL_LIST_NO_ACLS) {
@@ -978,8 +978,8 @@ NSAPI_PUBLIC int
 ACL_EvalTestRights(
     NSErr_t          *errp,
     ACLEvalHandle_t  *acleval,
-    char    **rights,
-    char    **map_generic,
+    const char    **rights,
+    const char    **map_generic,
     char    **deny_type,
     char    **deny_response,
     char    **acl_tag,

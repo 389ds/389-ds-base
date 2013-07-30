@@ -65,13 +65,13 @@ NSPR_BEGIN_EXTERN_C
  * the current date.
  */
 
-NSAPI_PUBLIC int INTereport(int degree, char *fmt, ...)
+NSAPI_PUBLIC int INTereport(int degree, const char *fmt, ...)
 #ifdef __GNUC__ 
         __attribute__ ((format (printf, 2, 3)));
 #else
         ;
 #endif
-NSAPI_PUBLIC int INTereport_v(int degree, char *fmt, va_list args);
+NSAPI_PUBLIC int INTereport_v(int degree, const char *fmt, va_list args);
 
 NSPR_END_EXTERN_C
 

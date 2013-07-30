@@ -37,10 +37,6 @@
 #ifndef REPL_SESSION_PLUGIN_PUBLIC_API
 #define REPL_SESSION_PLUGIN_PUBLIC_API
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
 #include "slapi-plugin.h"
 
 /*

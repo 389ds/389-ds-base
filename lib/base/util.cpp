@@ -232,19 +232,19 @@ static char sccsid[] = "@(#)strftime.c	5.11 (Berkeley) 2/24/91";
 #include <stdio.h>
 #endif
 
-static char *afmt[] = {
+static const char *afmt[] = {
 	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
 };
-static char *Afmt[] = {
+static const char *Afmt[] = {
 	"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
 	"Saturday",
 };
 
-static char *bfmt[] = {
+static const char *bfmt[] = {
 	"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
 	"Oct", "Nov", "Dec",
 };
-static char *Bfmt[] = {
+static const char *Bfmt[] = {
 	"January", "February", "March", "April", "May", "June", "July",
 	"August", "September", "October", "November", "December",
 };
@@ -265,7 +265,7 @@ int
 util_strftime(char *pt, const char *format, const struct tm *t)
 {
     char *start = pt;
-	char *scrap;
+	const char *scrap;
 
 	for (; *format; ++format) {
 		if (*format == '%')

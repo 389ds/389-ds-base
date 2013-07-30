@@ -172,9 +172,9 @@ extern "C"
 /******************************/
 
 NSAPI_PUBLIC
-extern char*
-XP_GetStringFromDatabase(char* strLibraryName,
-                         char* strLanguage,
+extern const char*
+XP_GetStringFromDatabase(const char* strLibraryName,
+                         const char* strLanguage,
                          int iToken);
 
 #ifdef __cplusplus

@@ -103,7 +103,7 @@ NSAPI_PUBLIC void INTfile_unix2local(char *path, char *p2);
 NSAPI_PUBLIC int INTsystem_nocoredumps(void);
 NSAPI_PUBLIC int INTfile_setinherit(SYS_FILE fd, int value);
 NSAPI_PUBLIC int INTfile_notfound(void);
-NSAPI_PUBLIC char *INTsystem_errmsg(void);
+NSAPI_PUBLIC const char *INTsystem_errmsg(void);
 NSAPI_PUBLIC int INTsystem_errmsg_fn(char **buff, size_t maxlen);
 
 NSPR_END_EXTERN_C

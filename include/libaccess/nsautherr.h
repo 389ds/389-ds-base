@@ -120,7 +120,7 @@
 NSPR_BEGIN_EXTERN_C
 
 /* Authentication facility name in nsuser.c */
-extern char * NSAuth_Program;
+extern const char * NSAuth_Program;
 
     /* Functions in nsautherr.c */
 extern NSAPI_PUBLIC void nsadbErrorFmt(NSErr_t * errp,
