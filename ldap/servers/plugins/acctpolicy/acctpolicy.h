@@ -35,10 +35,6 @@ Hewlett-Packard Development Company, L.P.
 #define DEFAULT_INACT_LIMIT_ATTR "accountInactivityLimit"
 #define DEFAULT_RECORD_LOGIN 1
 
-/* attributes that no clients are allowed to add or modify */
-static char *protected_attrs_login_recording [] = { "createTimestamp",
-                                        NULL };
-
 #define PLUGIN_VENDOR "Hewlett-Packard Company"
 #define PLUGIN_VERSION "1.0"
 #define PLUGIN_CONFIG_DN "cn=config,cn=Account Policy Plugin,cn=plugins,cn=config"

@@ -29,6 +29,10 @@ Hewlett-Packard Development Company, L.P.
 /* Globals */
 static void* plugin_id = NULL;
 
+/* attributes that no clients are allowed to add or modify */
+static char *protected_attrs_login_recording [] = { "createTimestamp",
+                                        NULL };
+
 /*
    Checks whether an entry has a particular attribute type, and optionally
    returns the value.  Only for use with single-valued attributes - it returns
