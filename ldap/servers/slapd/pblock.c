@@ -3659,6 +3659,9 @@ void
 bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
                 char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry * bind_target_entry )
 {
+	slapdFrontendConfig_t *fecfg = getFrontendConfig();
+	int idletimeout = 0;
+
 	/* clear credentials */
 	bind_credentials_clear( conn, PR_FALSE /* conn is already locked */,
 		( extauthtype != NULL ) /* clear external creds. if requested */ );
@@ -3702,8 +3705,17 @@ bind_credentials_set_nolock( Connection *conn, char *authtype, char *normdn,
 
 			slapi_ch_free_string( &anon_dn );
 		}
+		if (slapi_reslimit_get_integer_limit(conn, conn->c_idletimeout_handle,
+											 &idletimeout)
+				!= SLAPI_RESLIMIT_STATUS_SUCCESS)
+		{
+			conn->c_idletimeout = fecfg->idletimeout;
+		} else {
+			conn->c_idletimeout = idletimeout;
+		}
 	} else {
 		/* For root dn clear about the resource limits */
 		reslimit_update_from_entry( conn, NULL );
+		conn->c_idletimeout = 0;
 	}
 }

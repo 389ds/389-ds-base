@@ -1441,7 +1441,7 @@ typedef struct conn {
 	char		*c_authtype;	/* auth method used to bind c_dn  */
 	char		*c_external_dn;	/* client DN of this SSL session  */
 	char		*c_external_authtype; /* used for c_external_dn   */
-        PRNetAddr	*cin_addr;	/* address of client on this conn */
+	PRNetAddr	*cin_addr;	/* address of client on this conn */
 	PRNetAddr	*cin_destaddr;	/* address client connected to    */
 	struct berval	**c_domain;	/* DNS names of client            */
 	Operation		*c_ops;		/* list of pending operations	  */
@@ -1458,6 +1458,8 @@ typedef struct conn {
 	PRLock			*c_mutex;	/* protect each conn structure    */
 	PRLock			*c_pdumutex;	/* only write one pdu at a time   */
 	time_t			c_idlesince;	/* last time of activity on conn  */
+	int			c_idletimeout;	/* local copy of idletimeout */
+	int			c_idletimeout_handle;	/* the resource limits handle */
 	Conn_private	*c_private;	/* data which is not shared outside*/
 								/* connection.c 		  */
 	int				c_flags;	/* Misc flags used only for SSL   */

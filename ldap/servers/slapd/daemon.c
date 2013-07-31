@@ -1785,59 +1785,6 @@ daemon_register_reslimits( void )
 			&idletimeout_reslimit_handle ));
 }
 
-
-/*
- * Compute the idle timeout for the connection.
- *
- * Note: this function must always be called with conn->c_mutex locked.
- */
-static int
-compute_idletimeout( slapdFrontendConfig_t *fecfg, Connection *conn )
-{
-	int		idletimeout = 0;
-
-	if ( slapi_reslimit_get_integer_limit( conn, idletimeout_reslimit_handle,
-            &idletimeout ) != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-		/*
-		 * No limit associated with binder/connection or some other error
-		 * occurred.  If the user is anonymous and anonymous limits are
-		 * set, attempt to set the bind based resource limits.  We do this
-		 * here since a BIND operation is not required prior to other
-		 * operations.  We want to set the anonymous limits early on so
-		 * that they are put into effect if a BIND is never sent.  If
-		 * this is not an anonymous user and no bind-based limits are set,
-		 * use the default idle timeout.
-	 	 */
-
-		if (conn->c_dn == NULL) {
-			char *anon_dn = config_get_anon_limits_dn();
-			if (anon_dn && (strlen(anon_dn) > 0)) {
-				Slapi_DN *anon_sdn = slapi_sdn_new_dn_byref(anon_dn);
-
-				reslimit_update_from_dn(conn, anon_sdn);
-
-				if (slapi_reslimit_get_integer_limit(conn, idletimeout_reslimit_handle,
-													 &idletimeout)
-					!= SLAPI_RESLIMIT_STATUS_SUCCESS) {
-					idletimeout = fecfg->idletimeout;
-				}
-
-				slapi_sdn_free(&anon_sdn);
-			} else {
-				idletimeout = fecfg->idletimeout;
-			}
-			slapi_ch_free_string(&anon_dn);
-		} else if ( conn->c_isroot ) {
-			idletimeout = 0;	/* no limit for Directory Manager */
-		} else {
-			idletimeout = fecfg->idletimeout;
-		}
-	}
-
-	return( idletimeout );
-}
-
-
 #ifdef _WIN32
 static void
 handle_read_ready(Connection_Table *ct, fd_set *readfds)
@@ -1881,9 +1828,8 @@ handle_read_ready(Connection_Table *ct, fd_set *readfds)
 
 					/* idle timeout */
 				}
-				else if (( idletimeout = compute_idletimeout(
-						slapdFrontendConfig, c )) > 0 &&
-						(curtime - c->c_idlesince) >= idletimeout &&
+				else if (( c->c_idletimeout > 0 &&
+						(curtime - c->c_idlesince) >= c->c_idletimeout &&
 						NULL == c->c_ops )
 				{
 					disconnect_server_nomutex( c, c->c_connid, -1,
@@ -1903,8 +1849,6 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 {
 	Connection *c;
 	time_t curtime = current_time();
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	int idletimeout;
 	int maxthreads = config_get_maxthreadsperconn();
 #if defined( XP_WIN32 )
 	int i;
@@ -1968,10 +1912,9 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 				/* This is where the work happens ! */
 				connection_activity( c );
 			}
-			else if (( idletimeout = compute_idletimeout( slapdFrontendConfig,
-					c )) > 0 &&
+			else if (( c->c_ideltimeout > 0 &&
 					c->c_prfd == ct->fd[i].fd &&
-					(curtime - c->c_idlesince) >= idletimeout &&
+					(curtime - c->c_idlesince) >= c->c_ideltimeout &&
 					NULL == c->c_ops )
 			{
 				/* idle timeout */
@@ -2042,9 +1985,8 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 									   SLAPD_DISCONNECT_POLL, EPIPE );
 					}
 				}
-				else if (( idletimeout = compute_idletimeout(
-						slapdFrontendConfig, c )) > 0 &&
-						(curtime - c->c_idlesince) >= idletimeout &&
+				else if (c->c_idletimeout > 0 &&
+						(curtime - c->c_idlesince) >= c->c_idletimeout &&
 						NULL == c->c_ops )
 				{
 					/* idle timeout */
@@ -2613,6 +2555,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	PRNetAddr from;
 	PRFileDesc *pr_clonefd = NULL;
 	ber_len_t maxbersize;
+	slapdFrontendConfig_t *fecfg = getFrontendConfig();
 
 	memset(&from, 0, sizeof(from)); /* reset to nulls so we can see what was set */
 	if ( (ns = accept_and_configure( tcps, pr_acceptfd, &from,
@@ -2628,6 +2571,13 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		return -1;
 	}
 	PR_Lock( conn->c_mutex );
+
+	/*
+	 * Set the default idletimeout and the handle.  We'll update c_idletimeout
+	 * after each bind so we can correctly set the resource limit.
+	 */
+	conn->c_idletimeout = fecfg->idletimeout;
+	conn->c_idletimeout_handle = idletimeout_reslimit_handle;
 
 #if defined( XP_WIN32 )
 	if( !secure )

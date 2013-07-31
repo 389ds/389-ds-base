@@ -2326,6 +2326,27 @@ connection_threadmain()
 					   in connection_activity when the conn is added to the
 					   work queue, setup_pr_read_pds won't add the connection prfd
 					   to the poll list */
+					if(pb->pb_conn && pb->pb_conn->c_opscompleted == 0){
+						/*
+						 * We have a new connection, set the anonymous reslimit idletimeout
+						 * if applicable.
+						 */
+						char *anon_dn = config_get_anon_limits_dn();
+						int idletimeout;
+						/* If an anonymous limits dn is set, use it to set the limits. */
+						if (anon_dn && (strlen(anon_dn) > 0)) {
+							Slapi_DN *anon_sdn = slapi_sdn_new_normdn_byref( anon_dn );
+							reslimit_update_from_dn( pb->pb_conn, anon_sdn );
+							slapi_sdn_free( &anon_sdn );
+							if (slapi_reslimit_get_integer_limit(pb->pb_conn, pb->pb_conn->c_idletimeout_handle,
+									&idletimeout)
+								== SLAPI_RESLIMIT_STATUS_SUCCESS)
+							{
+								pb->pb_conn->c_idletimeout = idletimeout;
+							}
+						}
+						slapi_ch_free_string( &anon_dn );
+					}
 					if (connection_call_io_layer_callbacks(pb->pb_conn)) {
 						LDAPDebug0Args( LDAP_DEBUG_ANY, "Error: could not add/remove IO layers from connection\n" );
 					}
