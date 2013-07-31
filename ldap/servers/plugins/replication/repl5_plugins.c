@@ -1117,9 +1117,13 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	  just read from the changelog in either the supplier or consumer ruv
 	*/
 	if (0 == return_value) {
-		char csn_str[CSN_STRSIZE];
+		char csn_str[CSN_STRSIZE] = {'\0'};
 		CSN *opcsn;
 		int rc;
+		const char *dn = op_params ? REPL_GET_DN(&op_params->target_address) : "unknown";
+		char *uniqueid = op_params ? op_params->target_address.uniqueid : "unknown";
+		unsigned long optype = op_params ? op_params->operation_type : 0;
+		CSN *oppcsn = op_params ? op_params->csn : NULL;
 
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 		opcsn = operation_get_csn(op);
@@ -1128,18 +1132,14 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
         		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"write_changelog_and_ruv: RUV already covers csn for "
 					"%s (uniqid: %s, optype: %lu) csn %s\n",
-					REPL_GET_DN(&op_params->target_address),
-					op_params->target_address.uniqueid,
-					op_params->operation_type,
-					csn_as_string(op_params->csn, PR_FALSE, csn_str));
+					dn, uniqueid, optype,
+					csn_as_string(oppcsn, PR_FALSE, csn_str));
 		} else if (rc != RUV_SUCCESS) {
         		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"write_changelog_and_ruv: failed to update RUV for "
 					"%s (uniqid: %s, optype: %lu) to changelog csn %s\n",
-					REPL_GET_DN(&op_params->target_address),
-					op_params->target_address.uniqueid,
-					op_params->operation_type,
-					csn_as_string(op_params->csn, PR_FALSE, csn_str));
+					dn, uniqueid, optype,
+					csn_as_string(oppcsn, PR_FALSE, csn_str));
 		}
 	}
 
