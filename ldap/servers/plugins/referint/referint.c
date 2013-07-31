@@ -742,7 +742,12 @@ update_integrity(char **argv, Slapi_DN *origSDN,
         search_base = slapi_sdn_get_dn( sdn );
 
         for(i = 3; argv[i] != NULL; i++){
-            filter = slapi_filter_sprintf("(%s=*%s%s)", argv[i], ESC_NEXT_VAL, origDN);
+            if(newrDN){
+                /* we need to check the children of the old dn, so use a wildcard */
+                filter = slapi_filter_sprintf("(%s=*%s%s)", argv[i], ESC_NEXT_VAL, origDN);
+            } else {
+                filter = slapi_filter_sprintf("(%s=%s%s)", argv[i], ESC_NEXT_VAL, origDN);
+            }
             if ( filter ) {
                 /* Need only the current attribute and its subtypes */
                 attrs[0] = argv[i];
