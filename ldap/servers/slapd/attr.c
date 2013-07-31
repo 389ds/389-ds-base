@@ -810,7 +810,6 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
     int i = 0;
     int numofvals = 0;
     int duplicate_index = -1;
-    int was_present_null = 0;
     int rc = LDAP_SUCCESS;
 
     if (valuearray_isempty(vals)) {
@@ -913,7 +912,7 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
                 duplicate_string,
                 a->a_type,
                 dn ? dn : "<null>", 
-                (was_present_null ? "duplicate new value" : "value exists"));
+                "value exists");
     }
     return( rc );
 }
