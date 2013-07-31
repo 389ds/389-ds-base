@@ -2650,7 +2650,9 @@ agmt_update_done(Repl_Agmt *agmt, int is_total)
        during the update into the proper structures so they are in place for the
        next run
     */
-    windows_update_done(agmt, is_total);
+    if(get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
+        windows_update_done(agmt, is_total);
+    }
 }
 
 int
