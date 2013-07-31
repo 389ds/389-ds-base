@@ -174,6 +174,7 @@ posix_group_task_destructor(Slapi_Task *task)
     }
 }
 
+#ifdef USE_POSIX_GROUP_DEL_MEMBERUID
 static int
 posix_group_del_memberuid_callback(Slapi_Entry *e, void *callback_data)
 {
@@ -208,6 +209,7 @@ posix_group_del_memberuid_callback(Slapi_Entry *e, void *callback_data)
 
     return rc;
 }
+#endif
 
 static int
 posix_group_fix_memberuid(char *dn, char *filter_str, void *txn)
