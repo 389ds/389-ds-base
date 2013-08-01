@@ -217,7 +217,7 @@ plugin_call_acl_verify_syntax ( Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf 
 		if (plugin_invoke_plugin_sdn (p, SLAPI_PLUGIN_ACL_SYNTAX_CHECK, pb, 
 									  (Slapi_DN*)slapi_entry_get_sdn_const (e))){
 			plugin_called = 1;
-			rc = (*p->plg_acl_syntax_check)( e, errbuf );
+			rc = (*p->plg_acl_syntax_check)( pb, e, errbuf );
 			if ( rc != LDAP_SUCCESS ) break;
 		}
 	}

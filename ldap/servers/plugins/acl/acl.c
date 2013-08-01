@@ -1494,16 +1494,16 @@ acl_check_mods(
 				** syntax
 				*/
 				if (strcmp(mod->mod_type, 
-					   aci_attr_type) == 0) {
-					if ( 0 != (rv = acl_verify_syntax( e_sdn,
-						                        mod->mod_bvalues[i], errbuf))) {
+					aci_attr_type) == 0) {
+					if ( 0 != (rv = acl_verify_syntax(pb, e_sdn,
+						mod->mod_bvalues[i], errbuf))) {
 						aclutil_print_err(rv, e_sdn, 
 							mod->mod_bvalues[i],
-							errbuf);
+								errbuf);
 						/* Cleanup */
 						slapi_mods_done(&smods);
 						return LDAP_INVALID_SYNTAX;
-				   	}
+					}
 				}
 			} /* for */
 		}
@@ -1680,8 +1680,8 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 			acllist_acicache_WRITE_LOCK();
 			i= slapi_attr_first_value ( attr,&sval );
 			while ( i != -1 ) {
-			        attrVal = slapi_value_get_berval(sval);
-				rv= acllist_insert_aci_needsLock(e_sdn, attrVal );
+				attrVal = slapi_value_get_berval(sval);
+				rv= acllist_insert_aci_needsLock_ext(pb, e_sdn, attrVal );
 				if (rv <= ACL_ERR) 
 					aclutil_print_err(rv, e_sdn, attrVal, NULL);
 				/* Print the aci list */
@@ -1722,10 +1722,10 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 					if (bvalue == NULL)
 						break;
 					for (; *bvalue != NULL; ++bvalue) {
-						rv=acllist_insert_aci_needsLock( e_sdn, *bvalue);
+						rv=acllist_insert_aci_needsLock_ext(pb, e_sdn, *bvalue);
 						if (rv <= ACL_ERR) { 
-						    aclutil_print_err(rv, e_sdn,
-								   *bvalue, NULL);
+							aclutil_print_err(rv, e_sdn,
+								*bvalue, NULL);
 						}
 					}
 				} else {
@@ -1735,10 +1735,10 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 					for (; *value != NULL; ++value) {
 						b.bv_len = strlen (*value);
 						b.bv_val = *value;
-						rv=acllist_insert_aci_needsLock( e_sdn, &b);
+						rv=acllist_insert_aci_needsLock_ext(pb, e_sdn, &b);
 						if (rv <= ACL_ERR) {
-						    aclutil_print_err(rv, e_sdn,
-								   &b, NULL);
+							aclutil_print_err(rv, e_sdn,
+								&b, NULL);
 						}
 					}
 				}

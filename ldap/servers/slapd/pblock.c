@@ -1953,6 +1953,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			(*(int *)value) = -1;
 		}
 		break;
+
+	/* ACI Target Check */	
+	case SLAPI_ACI_TARGET_CHECK:
+		(*(int *)value) = pblock->pb_aci_target_check;
+		break;
+
 	default:
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "Unknown parameter block argument %d\n", arg, 0, 0 );
@@ -3524,6 +3530,11 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	case SLAPI_PAGED_RESULTS_INDEX:
 		pblock->pb_paged_results_index = *(int *)value;
+		break;
+
+	/* ACI Target Check */
+	case SLAPI_ACI_TARGET_CHECK:
+		pblock->pb_aci_target_check = *((int *) value);
 		break;
 
 	default:

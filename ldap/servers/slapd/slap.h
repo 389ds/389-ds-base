@@ -1745,6 +1745,10 @@ typedef struct slapi_pblock {
 	int	pb_paged_results_index;    /* stash SLAPI_PAGED_RESULTS_INDEX */
 	passwdPolicy *pwdpolicy;
 	void *op_stack_elem;
+
+	/* For ACI Target Check */
+	int pb_aci_target_check; /* this flag prevents duplicate checking of ACI's target existence */
+
 } slapi_pblock;
 
 /* index if substrlens */

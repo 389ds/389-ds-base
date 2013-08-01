@@ -97,7 +97,6 @@ static void 	__acllist_free_aciContainer (  AciContainer **container);
 
 void my_print( Avlnode	*root );
 
-
 int
 acllist_init ()
 {
@@ -196,6 +195,12 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 int
 acllist_insert_aci_needsLock( const Slapi_DN *e_sdn, const struct berval* aci_attr)
 {
+	return(acllist_insert_aci_needsLock_ext(NULL, e_sdn, aci_attr));
+}
+
+int
+acllist_insert_aci_needsLock_ext( Slapi_PBlock *pb, const Slapi_DN *e_sdn, const struct berval* aci_attr)
+{
 
 	aci_t			*aci;
 	char			*acl_str;
@@ -209,7 +214,7 @@ acllist_insert_aci_needsLock( const Slapi_DN *e_sdn, const struct berval* aci_at
 
 	acl_str = slapi_ch_strdup(aci_attr->bv_val);
 	/* Parse the ACL TEXT */
-	if (  0 != (rv = acl_parse ( acl_str, aci, NULL )) ) {
+	if (  0 != (rv = acl_parse ( pb, acl_str, aci, NULL )) ) {
 		slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
 				"ACL PARSE ERR(rv=%d): %s\n", rv, acl_str );
 		slapi_ch_free ( (void **) &acl_str );

@@ -6989,6 +6989,9 @@ typedef struct slapi_plugindesc {
 /* Simple paged results index */
 #define SLAPI_PAGED_RESULTS_INDEX   1945
 
+/* ACI Target Check */
+#define SLAPI_ACI_TARGET_CHECK      1946
+
 /* convenience macros for checking modify operation types */
 #define SLAPI_IS_MOD_ADD(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
 #define SLAPI_IS_MOD_DELETE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)

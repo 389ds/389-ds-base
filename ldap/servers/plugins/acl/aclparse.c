@@ -65,7 +65,6 @@ static int acl_verify_exactly_one_attribute( char *attr_name, Slapi_Filter *f);
 static int type_compare( Slapi_Filter *f, void *arg);
 static int acl_check_for_target_macro( aci_t *aci_item, char *value);
 static int get_acl_rights_as_int( char * strValue);
-
 /***************************************************************************
 *
 * acl_parse
@@ -75,6 +74,7 @@ static int get_acl_rights_as_int( char * strValue);
 *
 *
 * Input:
+* 	Slapi_PBlock	*pb	- Parameter block
 *	char	*str		- Input string which has the ACL
 *				  This is a duped copy, so here we have
 *				  the right to stich '\0' characters into str for
@@ -93,7 +93,7 @@ static int get_acl_rights_as_int( char * strValue);
 *
 **************************************************************************/
 int
-acl_parse(char * str, aci_t *aci_item, char **errbuf)
+acl_parse(Slapi_PBlock *pb, char * str, aci_t *aci_item, char **errbuf)
 {
 
 	int  		rv=0;
@@ -110,10 +110,10 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 			}
 		} else if (!next) {
 			/* the statement does not start with a parenthesis */
-                  	return(ACL_SYNTAX_ERR);
-                } else {
+			return(ACL_SYNTAX_ERR);
+		} else {
 			/* then we have done all the processing */
-		  	return  0;
+			return  0;
 		}
 		LDAP_UTF8INC(str);	/* skip the "(" */
 		save = next;
@@ -146,14 +146,50 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 		if (aci_item->aci_type & ACI_TARGET_DN) {
 			char           *avaType;
 			struct berval   *avaValue;
-			const char      *dn;
 
-			dn = slapi_sdn_get_ndn(aci_item->aci_sdn);
-			slapi_filter_get_ava(f, &avaType, &avaValue);
+			Slapi_DN *targdn = slapi_sdn_new();
+			slapi_filter_get_ava ( f, &avaType, &avaValue );
+			slapi_sdn_init_dn_byref(targdn, avaValue->bv_val);
 
-			if (!slapi_dn_issuffix(avaValue->bv_val, dn)) {
+			if (!slapi_sdn_get_dn(targdn)) {
+				/* not a valid DN */
+				slapi_sdn_free(&targdn);
 				return ACL_INVALID_TARGET;
 			}
+
+			if (!slapi_sdn_issuffix(targdn, aci_item->aci_sdn)) {
+				slapi_sdn_free(&targdn);
+				return ACL_INVALID_TARGET;
+			}
+
+			if (slapi_sdn_compare(targdn, aci_item->aci_sdn)) {
+				int target_check = 0;
+				if (pb) {
+					slapi_pblock_get(pb, SLAPI_ACI_TARGET_CHECK, &target_check);
+				}
+				if (target_check != 1) {
+					/* Make sure that the target exists */
+					int rc = 0;
+					Slapi_PBlock *temppb = slapi_pblock_new();
+					slapi_search_internal_set_pb_ext(temppb, targdn,
+						LDAP_SCOPE_BASE, "(objectclass=*)", NULL, 1, NULL, NULL,
+							(void *)plugin_get_default_component_id(), 0);
+					slapi_search_internal_pb(temppb);
+					slapi_pblock_get(temppb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+					if (rc != LDAP_SUCCESS) {
+						slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+							"The ACL target %s does not exist\n", slapi_sdn_get_dn(targdn));
+					}
+	
+					slapi_free_search_results_internal(temppb);
+					slapi_pblock_destroy(temppb);
+					if (pb) {
+						target_check = 1;
+						slapi_pblock_set(pb, SLAPI_ACI_TARGET_CHECK, &target_check);
+					}
+				}
+			}
+			slapi_sdn_free(&targdn);
 		}
 	}
 
@@ -164,8 +200,8 @@ acl_parse(char * str, aci_t *aci_item, char **errbuf)
 	** 
 	*/
 	if ((aci_item->aci_elevel != ACI_ELEVEL_USERDN_ANYONE) &&
-	    !(aci_item->aci_type & ACI_TARGET_MACRO_DN)) {
-		slapi_ch_free((void **)&aci_item->targetFilterStr);
+		!(aci_item->aci_type & ACI_TARGET_MACRO_DN)) {
+			slapi_ch_free((void **)&aci_item->targetFilterStr);
 	}
 
 	/*
@@ -1550,6 +1586,7 @@ acl_strcpy_special (char *d, char *s)
 *    verify if the aci's being added for the entry has a valid syntax or not.
 *
 * Input:
+*	Slapi_PBlock	*pb	- Parameter block
 *	Slapi_Entry	*e		- The Slapi_Entry itself
 *	char	**errbuf;	-- error message
 *
@@ -1562,7 +1599,7 @@ acl_strcpy_special (char *d, char *s)
 *
 **************************************************************************/
 int
-acl_verify_aci_syntax (Slapi_Entry *e, char **errbuf)
+acl_verify_aci_syntax (Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf)
 {
 
 	if (e != NULL) {
@@ -1580,8 +1617,8 @@ acl_verify_aci_syntax (Slapi_Entry *e, char **errbuf)
 
 		i= slapi_attr_first_value ( attr,&sval );
 		while ( i != -1 ) {
-		        attrVal = slapi_value_get_berval ( sval );
-		        rv = acl_verify_syntax( e_sdn, attrVal, errbuf );
+			attrVal = slapi_value_get_berval ( sval );
+			rv = acl_verify_syntax( pb, e_sdn, attrVal, errbuf );
 			if ( 0 != rv ) {
 				aclutil_print_err(rv, e_sdn, attrVal, errbuf);
 				return ACL_ERR;
@@ -1598,6 +1635,7 @@ acl_verify_aci_syntax (Slapi_Entry *e, char **errbuf)
 *	added/replaced has the right syntax or not.
 *
 * Input:
+*	Slapi_PBlock	*pb	- Parameter block
 *	Slapi_DN	*e_sdn	- sdn of the entry
 *	berval	 *bval		- The berval containg the aci value
 *
@@ -1608,19 +1646,20 @@ acl_verify_aci_syntax (Slapi_Entry *e, char **errbuf)
 *	None.
 *
 **************************************************************************/
+
 int
-acl_verify_syntax(const Slapi_DN *e_sdn, 
-                  const struct berval *bval, char **errbuf)
+acl_verify_syntax(Slapi_PBlock *pb, const Slapi_DN *e_sdn,
+	const struct berval *bval, char **errbuf)
 {
 	aci_t			*aci_item;
-	int				rv = 0;
+	int			rv = 0;
 	char			*str;
 	aci_item = acllist_get_aci_new ();
 	slapi_sdn_set_ndn_byval ( aci_item->aci_sdn, slapi_sdn_get_ndn ( e_sdn ) );
 
 	/* make a copy the the string */
-	str =  slapi_ch_strdup(bval->bv_val);
-	rv = acl_parse(str, aci_item, errbuf);
+	str = slapi_ch_strdup(bval->bv_val);
+	rv = acl_parse(pb, str, aci_item, errbuf);
 
 	/* cleanup before you leave ... */
 	acllist_free_aci (aci_item);
