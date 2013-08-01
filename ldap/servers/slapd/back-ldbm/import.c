@@ -1558,7 +1558,9 @@ error:
     instance_set_not_busy(job->inst);
     
     import_free_job(job);
-    FREE(job);
+    if (!job->task) {
+	FREE(job);
+    }
     if (producer)
         FREE(producer);
     
