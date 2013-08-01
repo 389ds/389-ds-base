@@ -2326,7 +2326,7 @@ connection_threadmain()
 					   in connection_activity when the conn is added to the
 					   work queue, setup_pr_read_pds won't add the connection prfd
 					   to the poll list */
-					if(pb->pb_conn && pb->pb_conn->c_opscompleted == 0){
+					if(pb->pb_conn->c_opscompleted == 0){
 						/*
 						 * We have a new connection, set the anonymous reslimit idletimeout
 						 * if applicable.
