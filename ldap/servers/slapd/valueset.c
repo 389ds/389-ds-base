@@ -696,12 +696,24 @@ slapi_valueset_join_attr_valueset(const Slapi_Attr *a, Slapi_ValueSet *vs1, cons
 int
 slapi_valueset_first_value( Slapi_ValueSet *vs, Slapi_Value **v )
 {
+	if (NULL == vs) {
+		if (v) {
+			*v = NULL;
+		}
+		return 0;
+	}
 	return valuearray_first_value(vs->va,v);
 }
 
 int
 slapi_valueset_next_value( Slapi_ValueSet *vs, int index, Slapi_Value **v)
 {
+	if (NULL == vs) {
+		if (v) {
+			*v = NULL;
+		}
+		return index;
+	}
 	return valuearray_next_value(vs->va,index,v);
 }
 
@@ -728,6 +740,9 @@ slapi_valueset_isempty( const Slapi_ValueSet *vs)
 int
 valueset_isempty( const Slapi_ValueSet *vs)
 {
+	if (NULL == vs) {
+		return 1; /* true */
+	}
 	return valuearray_isempty(vs->va);
 }
 
@@ -736,7 +751,7 @@ Slapi_Value *
 slapi_valueset_find(const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v)
 {
 	Slapi_Value *r= NULL;
-	if(vs->num > 0 )
+	if(vs && (vs->num > 0))
 	{
 		if (vs->sorted) {
 			r = valueset_find_sorted(a,vs,v,NULL);
