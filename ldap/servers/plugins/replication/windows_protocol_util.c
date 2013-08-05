@@ -409,12 +409,19 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 	int retval = 0;
 	int i = 0;
 
+	if (NULL == mapped_values) {
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		                "%s: map_dn_values: arg mapped_values is NULL.\n",
+		                agmt_get_long_name(prp->agmt));
+		return;
+	}
+
 	/* Set the keep raw entry flag to avoid overwriting the existing raw entry. */
 	windows_private_set_keep_raw_entry(prp->agmt, 1);
 
 	/* For each value: */
-    i= slapi_valueset_first_value(original_values,&original_value);
-    while ( i != -1 ) {
+	i= slapi_valueset_first_value(original_values,&original_value);
+	while ( i != -1 ) {
 
 		int is_ours = 0;
 		char *new_dn_string = NULL;
@@ -480,7 +487,7 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 				local_entry = NULL;
 			}
 		} else
-		{
+		{   /* from windows */
 			Slapi_Entry *remote_entry = NULL;
 			Slapi_DN *local_dn = NULL;
 			/* Try to get the remote entry */
@@ -1534,115 +1541,115 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			return_value = process_replay_add(prp,op->p.p_add.target_entry,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
 			break;
 		case SLAPI_OPERATION_MODIFY:
+		{
+			LDAPMod **mapped_mods = NULL;
+			char *newrdn = NULL;
+
+			/*
+			 * If the magic objectclass and attributes have been added to the entry
+			 * to make the entry sync-able, add the entry first, then apply the other
+			 * mods
+			 */
+			if (sync_attrs_added(op->p.p_modify.modify_mods, local_entry)) {
+				Slapi_Entry *ad_entry = NULL;
+
+				return_value = process_replay_add(prp,local_entry,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+				                "%s: windows_replay_update: "
+				                "The modify operation added the sync objectclass and attribute, so "
+				                "the entry was added to windows - result [%d]\n",
+				                agmt_get_long_name(prp->agmt), return_value);
+				if (return_value) {
+					break; /* error adding entry - cannot continue */
+				}
+				/* the modify op needs the new remote entry, so retrieve it */
+				windows_get_remote_entry(prp, remote_dn, &ad_entry);
+				slapi_entry_free(ad_entry); /* getting sets windows_private_get_raw_entry */
+			}
+
+			windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password);
+			if (is_user) {
+				winsync_plugin_call_pre_ad_mod_user_mods_cb(prp->agmt,
+				                                            windows_private_get_raw_entry(prp->agmt),
+				                                            local_dn,
+				                                            local_entry,
+				                                            op->p.p_modify.modify_mods,
+				                                            remote_dn,
+				                                            &mapped_mods);
+			} else if (is_group) {
+				winsync_plugin_call_pre_ad_mod_group_mods_cb(prp->agmt,
+				                                            windows_private_get_raw_entry(prp->agmt),
+				                                            local_dn,
+				                                            local_entry,
+				                                            op->p.p_modify.modify_mods,
+				                                            remote_dn,
+				                                            &mapped_mods);
+			}
+
+			/* Check if a naming attribute is being modified. */
+			if (windows_check_mods_for_rdn_change(prp, op->p.p_modify.modify_mods, local_entry, remote_dn, &newrdn)) {
+				/* Issue MODRDN */
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: renaming remote entry \"%s\" with new RDN of \"%s\"\n",
+				                agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(remote_dn), newrdn);
+				return_value = windows_conn_send_rename(prp->conn, slapi_sdn_get_dn(remote_dn),
+				                                        newrdn, NULL, 1 /* delete old RDN */,
+				                                        NULL, NULL /* returned controls */);
+				slapi_ch_free_string(&newrdn);
+			}
+
+			/* It's possible that the mapping process results in an empty mod list, in which case we don't bother with the replay */
+			if ((mapped_mods == NULL) || (*mapped_mods == NULL))
 			{
-				LDAPMod **mapped_mods = NULL;
-				char *newrdn = NULL;
-
-				/*
-				 * If the magic objectclass and attributes have been added to the entry
-				 * to make the entry sync-able, add the entry first, then apply the other
-				 * mods
-				 */
-				if (sync_attrs_added(op->p.p_modify.modify_mods, local_entry)) {
-					Slapi_Entry *ad_entry = NULL;
-
-					return_value = process_replay_add(prp,local_entry,local_entry,local_dn,remote_dn,is_user,missing_entry,&password);
+				return_value = CONN_OPERATION_SUCCESS;
+			} else 
+			{
+				int ldap_op = 0;
+				int ldap_result_code = 0;
+				if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
+				{
+					int i = 0;
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-									"%s: windows_replay_update: "
-									"The modify operation added the sync objectclass and attribute, so "
-									"the entry was added to windows - result [%d]\n",
-									agmt_get_long_name(prp->agmt), return_value);
-					if (return_value) {
-						break; /* error adding entry - cannot continue */
-					}
-					/* the modify op needs the new remote entry, so retrieve it */
-					windows_get_remote_entry(prp, remote_dn, &ad_entry);
-					slapi_entry_free(ad_entry); /* getting sets windows_private_get_raw_entry */
-				}
-
-
-				windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password);
-				if (is_user) {
-					winsync_plugin_call_pre_ad_mod_user_mods_cb(prp->agmt,
-																windows_private_get_raw_entry(prp->agmt),
-																local_dn,
-																local_entry,
-																op->p.p_modify.modify_mods,
-																remote_dn,
-																&mapped_mods);
-				} else if (is_group) {
-					winsync_plugin_call_pre_ad_mod_group_mods_cb(prp->agmt,
-																 windows_private_get_raw_entry(prp->agmt),
-																 local_dn,
-																 local_entry,
-																 op->p.p_modify.modify_mods,
-																 remote_dn,
-																 &mapped_mods);
-				}
-
-				/* Check if a naming attribute is being modified. */
-				if (windows_check_mods_for_rdn_change(prp, op->p.p_modify.modify_mods, local_entry, remote_dn, &newrdn)) {
-					/* Issue MODRDN */
-					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: renaming remote entry \"%s\" with new RDN of \"%s\"\n",
-							agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(remote_dn), newrdn);
-					return_value = windows_conn_send_rename(prp->conn, slapi_sdn_get_dn(remote_dn),
-						newrdn, NULL, 1 /* delete old RDN */,
-						NULL, NULL /* returned controls */);
-					slapi_ch_free_string(&newrdn);
-				}
-
-				/* It's possible that the mapping process results in an empty mod list, in which case we don't bother with the replay */
-				if ( mapped_mods == NULL || *(mapped_mods)== NULL )
-				{
-					return_value = CONN_OPERATION_SUCCESS;
-				} else 
-				{
-					int ldap_op = 0;
-					int ldap_result_code = 0;
-					if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
+					                "dump mods for replay update:\n");
+					for(i=0;mapped_mods[i];i++)
 					{
-						int i = 0;
-						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"dump mods for replay update:");
-						for(i=0;mapped_mods[i];i++)
-						{
-							slapi_mod_dump(mapped_mods[i],i);
-						}
-					}
-					return_value = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(remote_dn), mapped_mods, NULL, NULL /* returned controls */);
-					windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
-					if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
-						/* op failed but no ldap error code ??? */
-						ldap_result_code = LDAP_OPERATIONS_ERROR;
-					}
-					if (is_user) {
-						winsync_plugin_call_post_ad_mod_user_mods_cb(prp->agmt,
-																windows_private_get_raw_entry(prp->agmt),
-																local_dn, local_entry,
-																op->p.p_modify.modify_mods,
-																remote_dn, mapped_mods, &ldap_result_code);
-					} else if (is_group) {
-						winsync_plugin_call_post_ad_mod_group_mods_cb(prp->agmt,
-																 windows_private_get_raw_entry(prp->agmt),
-																 local_dn, local_entry,
-																 op->p.p_modify.modify_mods,
-																 remote_dn, mapped_mods, &ldap_result_code);
-					}
-					/* see if plugin reset success/error condition */
-					if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
-						return_value = CONN_OPERATION_SUCCESS;
-						windows_conn_set_error(prp->conn, ldap_result_code);
-					} else if ((return_value == CONN_OPERATION_SUCCESS) && ldap_result_code) {
-						return_value = CONN_OPERATION_FAILED;
-						windows_conn_set_error(prp->conn, ldap_result_code);
+						slapi_mod_dump(mapped_mods[i],i);
 					}
 				}
-				if (mapped_mods)
-				{
-					ldap_mods_free(mapped_mods,1);
-					mapped_mods = NULL;
+				return_value = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(remote_dn), mapped_mods, NULL, NULL /* returned controls */);
+				windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
+				if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+					/* op failed but no ldap error code ??? */
+					ldap_result_code = LDAP_OPERATIONS_ERROR;
+				}
+				if (is_user) {
+					winsync_plugin_call_post_ad_mod_user_mods_cb(prp->agmt,
+					                                             windows_private_get_raw_entry(prp->agmt),
+					                                             local_dn, local_entry,
+					                                             op->p.p_modify.modify_mods,
+					                                             remote_dn, mapped_mods, &ldap_result_code);
+				} else if (is_group) {
+					winsync_plugin_call_post_ad_mod_group_mods_cb(prp->agmt,
+					                                             windows_private_get_raw_entry(prp->agmt),
+					                                             local_dn, local_entry,
+					                                             op->p.p_modify.modify_mods,
+					                                             remote_dn, mapped_mods, &ldap_result_code);
+				}
+				/* see if plugin reset success/error condition */
+				if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
+					return_value = CONN_OPERATION_SUCCESS;
+					windows_conn_set_error(prp->conn, ldap_result_code);
+				} else if ((return_value == CONN_OPERATION_SUCCESS) && ldap_result_code) {
+					return_value = CONN_OPERATION_FAILED;
+					windows_conn_set_error(prp->conn, ldap_result_code);
 				}
 			}
+			if (mapped_mods)
+			{
+				ldap_mods_free(mapped_mods,1);
+				mapped_mods = NULL;
+			}
 			break;
+		}
 		case SLAPI_OPERATION_DELETE:
 			if (delete_remote_entry_allowed(local_entry))
 			{
@@ -2618,17 +2625,34 @@ done:
 
 
 static void 
-windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, LDAPMod ***returned_mods, int is_user, char** password) 
+windows_map_mods_for_replay(Private_Repl_Protocol *prp,
+                            LDAPMod **original_mods,
+                            LDAPMod ***returned_mods,
+                            int is_user,
+                            char** password) 
 {
 	Slapi_Mods smods = {0};
 	Slapi_Mods mapped_smods = {0};
 	LDAPMod *mod = NULL;
-	int is_nt4 = windows_private_get_isnt4(prp->agmt);
+	int is_nt4 = 0;
 	Slapi_Mod *mysmod = NULL;
 	const Slapi_Entry *ad_entry = NULL;
 	Slapi_Entry *ad_entry_copy = NULL;
+	const Slapi_DN *windows_subtree = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
+	if (NULL == prp) {
+		LDAPDebug(LDAP_DEBUG_TRACE,
+		          "<= windows_map_mods_for_replay; NULL protocol; NOOP\n", 0, 0, 0);
+		return;
+	}
+	windows_subtree = windows_private_get_windows_subtree(prp->agmt);
+	if (NULL == windows_subtree) {
+		LDAPDebug(LDAP_DEBUG_TRACE,
+		          "<= windows_map_mods_for_replay; NULL agreement subtree; NOOP\n", 0, 0, 0);
+		return;
+	}
+	is_nt4 = windows_private_get_isnt4(prp->agmt);
 
 	/* Iterate through the original mods, looking each attribute type up in the maps for either user or group */
 
@@ -2716,13 +2740,66 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,LDAPMod **original_mods, 
 						mapped_values = NULL;
 					} else 
 					{
-						/* this might be a del: mod, in which case there are no values */
-						if (mod->mod_op & LDAP_MOD_DELETE)
+						if (slapi_valueset_isempty(vs) && (mod->mod_op & LDAP_MOD_DELETE))
 						{
-							mysmod = slapi_mod_new();
-							slapi_mod_init(mysmod, 0);
-							slapi_mod_set_operation(mysmod, LDAP_MOD_DELETE|LDAP_MOD_BVALUES);
-							slapi_mod_set_type(mysmod, mapped_type);
+							/* modify - del all, in which case there are no values */
+							Slapi_Attr *attr = NULL;
+
+							/* 
+							 * ad_entry:
+							 * get mapped_type values
+							 * get in-scope values from the values
+							 */
+							slapi_entry_attr_find(ad_entry, mapped_type, &attr);
+							if (attr) {
+								Slapi_ValueSet *thisvs = NULL;
+								Slapi_Value *valp = NULL;
+								Slapi_DN *sdn = slapi_sdn_new();
+								int i;
+								int is_in_subtree = 0;
+								Slapi_Value **myva = NULL;
+
+								slapi_attr_get_valueset(attr, &thisvs); /* thisvs is dup'ed */
+								for (i = slapi_valueset_first_value(thisvs, &valp);
+									(i != -1) && (valp != NULL);
+									i = slapi_valueset_next_value(thisvs, i, &valp)) {
+									/* valp is a pointer to va in thisvs */
+									const char *strval = slapi_value_get_string(valp); /* no dup */
+									if (strval) {
+										slapi_sdn_set_dn_byref(sdn, strval);
+										is_in_subtree = slapi_sdn_scope_test(sdn, windows_subtree,
+										                                     LDAP_SCOPE_SUBTREE);
+										if (is_in_subtree) {
+											/* 
+											 * If delete all on DS, 
+											 * we could delete the values on AD in the scope.
+											 */
+											/* myva is (re)allocated and valp is copied */
+											valuearray_add_value(&myva, valp);
+										}
+									}
+								}
+								if (myva) {
+									Slapi_ValueSet *myvs = NULL;
+									
+									myvs = slapi_valueset_new();
+									valueset_set_valuearray_passin(myvs, myva);
+									mysmod = slapi_mod_new();
+									slapi_mod_init_valueset_byval(mysmod,
+									                LDAP_MOD_DELETE|LDAP_MOD_BVALUES,
+									                mapped_type,
+									                myvs);
+									slapi_valueset_free(myvs);
+								}
+								slapi_sdn_free(&sdn);
+								slapi_valueset_free(thisvs);
+							} else {
+								/* 
+								 * No corresponsing attribute in AD.  
+								 * There's no need to do anything on AD.
+								 * slapi_mod_set_type(mysmod, mapped_type);
+								 */
+							}
 						}
 					}
 					slapi_mod_done(&smod);
@@ -4288,19 +4365,20 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	int is_group = 0;
 	int rc = 0;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
+	const Slapi_DN *local_subtree = NULL;
 	/* Iterate over the attributes on the remote entry, updating the local entry where appropriate */
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_generate_update_mods\n", 0, 0, 0 );
 
 	*do_modify = 0;
 
-        if (!remote_entry || !local_entry) {
-            slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-                            "%s: windows_generate_update_mods: remote_entry is [%s] local_entry is [%s] "
-                            "cannot generate update mods\n", agmt_get_long_name(prp->agmt),
-                            remote_entry ? slapi_entry_get_dn_const(remote_entry) : "NULL",
-                            local_entry ? slapi_entry_get_dn_const(local_entry) : "NULL");
-            goto bail;
-        }
+	if (!remote_entry || !local_entry) {
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		                "%s: windows_generate_update_mods: remote_entry is [%s] local_entry is [%s] "
+		                "cannot generate update mods\n", agmt_get_long_name(prp->agmt),
+		                remote_entry ? slapi_entry_get_dn_const(remote_entry) : "NULL",
+		                local_entry ? slapi_entry_get_dn_const(local_entry) : "NULL");
+		goto bail;
+	}
 
 	if (to_windows)
 	{
@@ -4310,8 +4388,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
 	}
 
-    for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
-             rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
+	for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
+	     rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
 	{
 		int is_present_local = 0;
 		char *type = NULL;
@@ -4455,15 +4533,17 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 			} else {
 				/* A dn-valued attribute : need to take special steps */
 				Slapi_ValueSet *mapped_remote_values = NULL;
+				Slapi_ValueSet *local_values = NULL;
+
+				/* We ignore any DNs that are outside the scope of the agreement (on both sides) */
+				slapi_attr_get_valueset(local_attr,&local_values);
+
 				/* First map all the DNs to that they're in a consistent domain */
 				map_dn_values(prp,vs,&mapped_remote_values, to_windows,0);
 				if (mapped_remote_values) 
 				{
-					Slapi_ValueSet *local_values = NULL;
 					Slapi_ValueSet *restricted_local_values = NULL;
 					/* Now do a compare on the values, generating mods to bring them into consistency (if any) */
-					/* We ignore any DNs that are outside the scope of the agreement (on both sides) */
-					slapi_attr_get_valueset(local_attr,&local_values);
 					if (local_values) 
 					{
 						map_dn_values(prp,local_values,&restricted_local_values,!to_windows,1);
@@ -4475,6 +4555,9 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 						}
 						else
 						{
+							windows_generate_dn_value_mods(local_type, local_attr, smods,
+							                               mapped_remote_values,
+							                               local_values,do_modify);
 							slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 											"windows_generate_update_mods: no restricted local values found for "
 											"local attribute %s in local entry %s for remote attribute "
@@ -4484,9 +4567,9 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 											type ? type : "NULL",
 											slapi_entry_get_dn(remote_entry));
 						}
-						slapi_valueset_free(local_values);
-						local_values = NULL;
 					} else {
+						windows_generate_dn_value_mods(local_type, local_attr, smods,
+						                               mapped_remote_values, NULL, do_modify);
 						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 										"windows_generate_update_mods: no local values found for "
 										"local attribute %s in local entry %s for remote attribute "
@@ -4499,18 +4582,25 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 					slapi_valueset_free(mapped_remote_values);
 					mapped_remote_values = NULL;
 				} else {
-					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-									"windows_generate_update_mods: could not map the values in "
-									"local attribute %s in local entry %s for remote attribute "
-									"%s in remote entry %s\n",
-									local_type,
-									slapi_entry_get_dn(local_entry),
-									type ? type : "NULL",
-									slapi_entry_get_dn(remote_entry));
+					if (local_values) {
+						windows_generate_dn_value_mods(local_type, local_attr, smods,
+						                               NULL, local_values, do_modify);
+					} else {
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+						                "windows_generate_update_mods: could not map the values in "
+						                "local attribute %s in local entry %s for remote attribute "
+						                "%s in remote entry %s\n",
+						                local_type,
+						                slapi_entry_get_dn(local_entry),
+						                type ? type : "NULL",
+						                slapi_entry_get_dn(remote_entry));
+					}
 				}
+				slapi_valueset_free(local_values);
+				local_values = NULL;
 			}
 		} else
-		{
+		{    /* !is_present_local || is_guid */
 			if (!is_present_local)
 			{
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -4607,37 +4697,91 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		slapi_ch_free_string(&local_type);
 	}
 
-        /* Check if any attributes were deleted from the remote entry */
-        entry_first_deleted_attribute(remote_entry, &del_attr);
-        while (del_attr != NULL) {
-                Slapi_Attr *local_attr = NULL;
-                char *type = NULL;
-                char *local_type = NULL;
-                int mapdn = 0;
+	/* Check if any attributes were deleted from the remote entry */
+	entry_first_deleted_attribute(remote_entry, &del_attr);
+	local_subtree = windows_private_get_directory_subtree(prp->agmt);
+	while (del_attr != NULL) {
+		Slapi_Attr *local_attr = NULL;
+		char *type = NULL;
+		char *local_type = NULL;
+		int mapdn = 0;
 
-                /* Map remote type to local type */
+		/* Map remote type to local type */
 		slapi_attr_get_type(del_attr, &type);
-                if ( is_straight_mapped_attr(type,is_user,is_nt4) ) {
-                        local_type = slapi_ch_strdup(type);
-                } else {
-                        windows_map_attr_name(type , to_windows, is_user, 0 /* not create */, &local_type, &mapdn);
-                }
+		if ( is_straight_mapped_attr(type,is_user,is_nt4) ) {
+			local_type = slapi_ch_strdup(type);
+		} else {
+			windows_map_attr_name(type , to_windows, is_user, 0 /* not create */, &local_type, &mapdn);
+		}
 
-                /* Check if this attr exists in the local entry */
-                if (local_type) {
-                        slapi_entry_attr_find(local_entry, local_type, &local_attr);
-                        if (local_attr) {
-                                slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-                                        "windows_generate_update_mods: deleting %s attribute from local entry\n", local_type);
-                                /* Delete this attr from the local entry */
-                                slapi_mods_add_mod_values(smods, LDAP_MOD_DELETE, local_type, NULL);
+		/* Check if this attr exists in the local entry */
+		if (local_type) {
+			slapi_entry_attr_find(local_entry, local_type, &local_attr);
+			if (local_attr) {
+				Slapi_Mod *mysmod = NULL;
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"windows_generate_update_mods: deleting %s attribute from local entry\n", local_type);
+				/* Delete this attr from the local entry */
+				/* if type is dn and the dn is out of winsync scope, keep them.
+				 * othewise delete all attr. */
+				if (mapdn) {
+					Slapi_ValueSet *vs = NULL;
+					Slapi_Value *valp = NULL;
+					Slapi_DN *sdn = slapi_sdn_new();
+					int i = 0;
+					int is_in_subtree = 0;
+					Slapi_Value **myva = NULL;
+
+					slapi_attr_get_valueset(local_attr, &vs); /* thisvs is dup'ed */
+					for (i = slapi_valueset_first_value(vs, &valp);
+					     (i != -1) && (valp != NULL);
+					     i = slapi_valueset_next_value(vs, i, &valp)) {
+						/* valp is a pointer to va in vs */
+						const char *strval = slapi_value_get_string(valp); /* no dup */
+						if (strval) {
+							slapi_sdn_set_dn_byref(sdn, strval);
+							is_in_subtree = slapi_sdn_scope_test(sdn, local_subtree,
+							                                     LDAP_SCOPE_SUBTREE);
+							if (is_in_subtree) {
+								/* 
+								 * If delete all on AD, 
+								 * we could delete the values on DS in the scope.
+								 */
+								/* myva is (re)allocated and valp is copied */
+								valuearray_add_value(&myva, valp);
+							}
+						}
+					}
+					if (myva) {
+						Slapi_ValueSet *myvs = NULL;
+
+						myvs = slapi_valueset_new();
+						valueset_set_valuearray_passin(myvs, myva);
+						mysmod = slapi_mod_new();
+						slapi_mod_init_valueset_byval(mysmod,
+						                              LDAP_MOD_DELETE|LDAP_MOD_BVALUES,
+						                              local_type,
+						                              myvs);
+						slapi_valueset_free(myvs);
+					}
+					slapi_sdn_free(&sdn);
+					slapi_valueset_free(vs);
+					if (mysmod) {
+						slapi_mods_add_ldapmod(smods, slapi_mod_get_ldapmod_passout(mysmod));
+					}
+					if (mysmod) {
+						slapi_mod_free(&mysmod);
+					}
+				} else {
+					slapi_mods_add_mod_values(smods, LDAP_MOD_DELETE, local_type, NULL);
+				}
 				*do_modify = 1;
-                        }
-                }
+			}
+		}
 
-                entry_next_deleted_attribute(remote_entry, &del_attr);
+		entry_next_deleted_attribute(remote_entry, &del_attr);
 		slapi_ch_free_string(&local_type);
-        }
+	}
 
 	if (to_windows) {
 	    if (is_user) {
@@ -4742,7 +4886,7 @@ windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry
 static int
 windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry)
 {
-    Slapi_Mods smods = {0};
+	Slapi_Mods smods = {0};
 	int retval = 0;
 	Slapi_PBlock *pb = NULL;
 	int do_modify = 0;
@@ -4778,9 +4922,9 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 
 	/* compare the parents */
 	retval = windows_get_superior_change(prp,
-										 slapi_entry_get_sdn(local_entry),
-										 mapped_sdn,
-										 &newsuperior, 0 /* to_windows */);
+	                                     slapi_entry_get_sdn(local_entry),
+	                                     mapped_sdn,
+	                                     &newsuperior, 0 /* to_windows */);
 
 	if (newsuperior || newrdn) {
 		/* remote parent is different from the local parent */
@@ -4832,7 +4976,6 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			goto bail;
 		}
 	}
-
 
 	slapi_mods_init (&smods, 0);
 
@@ -5387,7 +5530,7 @@ retry:
 
 void 
 windows_dirsync_inc_run(Private_Repl_Protocol *prp)
-	{ 
+{ 
 	
 	int rc = 0;
 	int done = 0;
