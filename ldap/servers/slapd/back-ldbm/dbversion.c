@@ -160,30 +160,34 @@ dbversion_read(struct ldbminfo *li, const char *directory,
 {
     char filename[ MAXPATHLEN*2 ];
     PRFileDesc *prfd;
-    int rc = -1;
     char * iter = NULL;
+    PRFileInfo64 fileinfo;
+    int rc;
 
     if (!is_fullpath((char *)directory)) {
-        return rc;
+        return ENOENT;
     }
 
     if (NULL == ldbmversion) {
-        return rc;
+        return EINVAL;
+    }
+
+    rc = PR_GetFileInfo64(directory, &fileinfo);
+    if ((rc != PR_SUCCESS) || (fileinfo.type != PR_FILE_DIRECTORY)) {
+        /* Directory does not exist or not a directory. */
+        return ENOENT;
     }
 
     mk_dbversion_fullpath(li, directory, filename);
     
     /* Open the file */
-    if (( prfd = PR_Open( filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE  )) ==
-          NULL )
-    {
+    prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
+    if (prfd == NULL) {
         /* File missing... we are probably creating a new database. */
-    }
-    else
-    {
+        return EACCES;
+    } else {
         char buf[LDBM_VERSION_MAXBUF];
-        PRInt32 nr = slapi_read_buffer( prfd, buf,
-                    (PRInt32)LDBM_VERSION_MAXBUF-1 );
+        PRInt32 nr = slapi_read_buffer(prfd, buf, (PRInt32)LDBM_VERSION_MAXBUF-1);
         if ( nr > 0 && nr != (PRInt32)LDBM_VERSION_MAXBUF-1 )
         {
             char *t;
@@ -200,9 +204,8 @@ dbversion_read(struct ldbminfo *li, const char *directory,
             }
         }
         (void)PR_Close( prfd );
-        rc= 0;
+        return 0;
     }
-    return rc;
 }
 
 

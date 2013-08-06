@@ -2634,7 +2634,7 @@ slapd_exemode_db2archive()
 	memset( &pb, '\0', sizeof(pb) );
 	pb.pb_backend = NULL;
 	pb.pb_plugin = backend_plugin;
-	pb.pb_instance_name = cmd_line_instance_name;
+	pb.pb_instance_name = NULL;
 	pb.pb_seq_val = archive_name;
 	pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 #ifndef _WIN32
@@ -2647,7 +2647,7 @@ slapd_exemode_db2archive()
 static int
 slapd_exemode_archive2db()
 {
-    int return_value= 0;
+	int return_value= 0;
 	Slapi_PBlock pb;
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -2664,7 +2664,7 @@ slapd_exemode_archive2db()
 		    0, 0, 0 );
 		return 1;
 	}
-	
+
 	/* Make sure we aren't going to run slapd in 
 	 * a mode that is going to conflict with other
 	 * slapd processes that are currently running

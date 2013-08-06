@@ -3709,7 +3709,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
         if (entry_filter != NULL) /* Single instance restoration */
         {
-            if (NULL == strstr(estr, entry_filter)) {
+            if (NULL == PL_strcasestr(estr, entry_filter)) {
                 slapi_ch_free_string(&estr);
                 continue;
             }

@@ -5526,7 +5526,7 @@ dblayer_delete_database_ex(struct ldbminfo *li, char *instance, char *cldir)
         ldbm_instance *inst = (ldbm_instance *)object_get_data(inst_obj);
 
         if (inst->inst_be->be_instance_info != NULL) {
-			if ((NULL != instance) && (strcmp(inst->inst_name,instance) != 0)) 
+			if ((NULL != instance) && (strcasecmp(inst->inst_name,instance) != 0)) 
 			{
 				LDAPDebug(LDAP_DEBUG_ANY,
 					"dblayer_delete_database: skipping instance %s\n",inst->inst_name , 0, 0);	
@@ -6638,7 +6638,7 @@ static int dblayer_fri_trim(char *fri_dir_path, char* bename)
 			tmp_rval = PR_GetFileInfo64(filename, &info);
 			if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type)
 			{
-				if(strcmp(direntry->name,bename)!=0)
+				if(strcasecmp(direntry->name,bename)!=0)
 				{
 					LDAPDebug(LDAP_DEBUG_ANY, "Removing file %s from staging area\n",
                          filename, 0, 0);
@@ -6834,7 +6834,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         {
             PR_snprintf(filename1, sizeof(filename1), "%s/%s",
                                                       src_dir, direntry->name);
-            if(!frirestore || strcmp(direntry->name,bename)==0)
+            if(!frirestore || strcasecmp(direntry->name,bename)==0)
             {
                 tmp_rval = PR_GetFileInfo64(filename1, &info);
                 if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {

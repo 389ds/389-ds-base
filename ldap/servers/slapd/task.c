@@ -1567,7 +1567,7 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
     slapi_ch_free((void **)&cookie);
     if (NULL == be || NULL == be->be_database->plg_archive2db) {
         LDAPDebug(LDAP_DEBUG_ANY,
-                  "ERROR: no db2archive function defined.\n", 0, 0, 0);
+                  "ERROR: no archive2db function defined.\n", 0, 0, 0);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;

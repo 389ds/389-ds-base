@@ -55,6 +55,10 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     int run_from_cmdline = 0;
     Slapi_Task *task;
     int is_old_to_new = 0;
+    ldbm_instance *inst = NULL;
+    char *dbversion = NULL;
+    char *dataversion = NULL;
+    int value = 0;
 
     slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
     slapi_pblock_get( pb, SLAPI_SEQ_VAL, &rawdirectory );
@@ -64,40 +68,46 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     li->li_flags = run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     if ( !rawdirectory || !*rawdirectory ) {
-        LDAPDebug( LDAP_DEBUG_ANY, "archive2db: no archive name\n",
-                   0, 0, 0 );
-        return( -1 );
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "archive2db: no archive name\n");
+        return -1;
     }
 
     directory = rel2abspath(rawdirectory);
+    return_value = dbversion_read(li, directory, &dbversion, &dataversion);
+    if (return_value) {
+        if (ENOENT == return_value) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "archive2db: no back up \"%s\" exists.\n",
+                          directory);
+            return -1;
+        }
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion file in %s\n",
+                      directory);
+    }
 
     /* check the current idl format vs backup DB version */
-    if (idl_get_idl_new())
-    {
-        char *dbversion = NULL;
-        char *dataversion = NULL;
-        int value = 0;
-
-        if (dbversion_read(li, directory, &dbversion, &dataversion) != 0)
-        {
-            LDAPDebug(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion "
-                      "file in %s\n", directory, 0, 0);
-        }
+    if (idl_get_idl_new()) {
         value = lookup_dbversion(dbversion, DBVERSION_TYPE);
-        if (value & DBVERSION_OLD_IDL)
-        {
+        if (value & DBVERSION_OLD_IDL) {
             is_old_to_new = 1;
         }
-        slapi_ch_free_string(&dbversion);
-        slapi_ch_free_string(&dataversion);
     }
+    slapi_ch_free_string(&dbversion);
+    slapi_ch_free_string(&dataversion);
 
     /* No ldbm be's exist until we process the config information. */
     if (run_from_cmdline) {
         mapping_tree_init();
         ldbm_config_load_dse_info(li);
-    } else {
-        ldbm_instance *inst;
+    } 
+    if (backendname) {
+        inst = ldbm_instance_find_by_name(li, backendname);
+        if (NULL == inst) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "archive2db: backend \"%s\" does not exist.\n",
+                          backendname);
+            return -1;
+        }
+    }
+    if (!run_from_cmdline) {
         Object *inst_obj, *inst_obj2;
 
         /* task does not support restore old idl onto new idl server */
