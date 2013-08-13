@@ -160,8 +160,13 @@ sub getLogin {
 # Look up the primary group name for the supplied user
 sub getGroup {
     my $user = shift;
-    my $gid = (getpwnam($user))[3] || confess "Error: could not determine the current group ID: $!"; 
-    return (getgrgid($gid))[0] || confess "Error: could not determine the current group name: $!";
+    my @userinfo = getpwnam($user);
+    
+    if(!@userinfo){
+        confess "Error: could not find user ID ($user): $!";
+    }
+   
+    return (getgrgid($userinfo[3]))[0] || confess "Error: could not determine the current group name from gid ($userinfo[3]): $!";
 }
 
 sub isValidUser {
