@@ -597,7 +597,7 @@ print "Restarts:                     $serverRestartCount\n";
 print "Total Connections:            $connectionCount\n";
 print " - StartTLS Connections:      $startTLSCount\n";
 print " - LDAPS Connections:         $sslCount\n";
-print " - LDAPI Conections:          $ldapiCount\n";
+print " - LDAPI Connections:         $ldapiCount\n";
 print "Peak Concurrent Connections:  $maxsimConnection\n";
 print "Total Operations:             $allOps\n";
 print "Total Results:                $allResults\n";
@@ -618,20 +618,20 @@ my $compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$cmpCount/$totalTimeInSecs,
 my $bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bindCount/$totalTimeInSecs, $bindCount/($totalTimeInSecs/60);
 
 format STDOUT =
-Searches:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $srchCount,        $searchStat
-Modifications:                @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $modCount,           $modStat
-Adds:                         @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $addCount,           $addStat
-Deletes:                      @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $delCount,        $deleteStat
-Mod RDNs:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $modrdnCount,        $modrdnStat
-Compares:                     @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $cmpCount,       $compareStat
-Binds:                        @<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<
-                              $bindCount,           $bindCountStat
+Searches:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $srchCount,   $searchStat,
+Modifications:                @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $modCount,    $modStat,
+Adds:                         @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $addCount,    $addStat,
+Deletes:                      @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $delCount,    $deleteStat,
+Mod RDNs:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $modrdnCount, $modrdnStat,
+Compares:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $cmpCount,    $compareStat,
+Binds:                        @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $bindCount,   $bindCountStat,
 .
 write STDOUT;
 
