@@ -1944,12 +1944,12 @@ check_plugin_path(Slapi_PBlock *pb,
         if (res) {
             if (strncmp(PLUGINDIR, resolved_path, plugindir_len) != 0) {
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
-                returntext = "Invalid plugin path";
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Invalid plugin path");
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
         } else {
             *returncode = LDAP_UNWILLING_TO_PERFORM;
-            returntext = "Invalid plugin path";
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Invalid plugin path");
             rc = SLAPI_DSE_CALLBACK_ERROR;
         }
         slapi_ch_free_string(&full_path);
