@@ -694,7 +694,8 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                             int j;
                             for (j = slapi_attr_first_value(attr, &v); j != -1;
                                  j = slapi_attr_next_value(attr, i, &v)) {
-                                if (!slapi_valueset_find(dsmuid_attr, dsmuid_vs, v)) {
+                                /* If dsOnlyMemberUid matches memberUid, add it to AD */
+                                if (slapi_valueset_find(dsmuid_attr, dsmuid_vs, v)) {
                                     slapi_valueset_add_value(vs, v);
                                 }
                             }
@@ -726,8 +727,7 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                                                   valueset_get_valuearray(vs));
                         *do_modify = 1;
                     }
-                } else {
-
+                } else if (!slapi_valueset_isempty(vs)) {
                     slapi_mods_add_mod_values(smods, LDAP_MOD_ADD, ad_type,
                                               valueset_get_valuearray(vs));
                     if (0 == slapi_attr_type_cmp(type, "gidNumber", SLAPI_TYPE_CMP_SUBTYPE)) {

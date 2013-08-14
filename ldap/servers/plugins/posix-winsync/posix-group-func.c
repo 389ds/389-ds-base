@@ -59,18 +59,8 @@ addDynamicGroupIfNecessary(Slapi_Entry *entry, Slapi_Mods *smods) {
     if (slapi_attr_value_find(oc_attr, slapi_value_get_berval(voc)) != 0) {
         if (smods) {
             slapi_mods_add_string(smods, LDAP_MOD_ADD, "objectClass", "dynamicGroup");
-        }
-        else {
-            smods = slapi_mods_new();
-            slapi_mods_add_string(smods, LDAP_MOD_ADD, "objectClass", "dynamicGroup");
-
-            Slapi_PBlock *mod_pb = slapi_pblock_new();
-            slapi_modify_internal_set_pb_ext(mod_pb, slapi_entry_get_sdn(entry), slapi_mods_get_ldapmods_passout(smods), 0, 0,
-                                             posix_winsync_get_plugin_identity(), 0);
-            slapi_modify_internal_pb(mod_pb);
-            slapi_pblock_destroy(mod_pb);
-
-            slapi_mods_free(&smods);
+        } else {
+            slapi_entry_add_string(entry, "objectClass", "dynamicGroup");
         }
     }
 
@@ -392,7 +382,7 @@ getMembershipFromDownward(Slapi_Entry *entry, Slapi_ValueSet *muid_vs, Slapi_Val
         }
         else {
             /* PosixGroups except for the top one are already fully mapped out */
-            if ((!hasObjectClass(entry, "posixGroup") || depth == 0) &&
+            if ((!hasObjectClass(entry, "posixGroup") || (depth == 0)) &&
                 (hasObjectClass(child, "ntGroup") || hasObjectClass(child, "posixGroup"))) {
 
                 /* Recurse downward */
@@ -403,6 +393,20 @@ getMembershipFromDownward(Slapi_Entry *entry, Slapi_ValueSet *muid_vs, Slapi_Val
                 Slapi_Attr *uid_attr = NULL;
                 Slapi_Value *v = NULL;
                 if (slapi_entry_attr_find(child, "uid", &uid_attr) == 0) {
+                    slapi_attr_first_value(uid_attr, &v);
+
+                    if (v && !slapi_valueset_find(uid_attr, muid_vs, v)) {                        
+                        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+                                        "getMembershipFromDownward: adding member: %s\n",
+                                        slapi_value_get_string(v));
+                        slapi_valueset_add_value(muid_vs, v);
+                        slapi_valueset_add_value(muid_nested_vs, v);
+                    }
+                }
+            } else if (hasObjectClass(child, "posixGroup")) {
+                Slapi_Attr *uid_attr = NULL;
+                Slapi_Value *v = NULL;
+                if (slapi_entry_attr_find(child, "memberuid", &uid_attr) == 0) {
                     slapi_attr_first_value(uid_attr, &v);
 
                     if (v && !slapi_valueset_find(uid_attr, muid_vs, v)) {                        
