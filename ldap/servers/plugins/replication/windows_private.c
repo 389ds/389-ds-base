@@ -183,7 +183,11 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			windows_private_set_create_users(ra, PR_FALSE);
 		}
 		slapi_ch_free((void**)&tmpstr);
-		prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		/* If protocol is NULL; the agreement is not started yet.
+		 * So, no need to notify. */
+		if (agmt_get_protocol(ra)) {
+			prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		}
 		retval = 1;
 	}
 	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7CreateNewGroups))
@@ -198,7 +202,11 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			windows_private_set_create_groups(ra, PR_FALSE);
 		}
 		slapi_ch_free((void**)&tmpstr);
-		prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		/* If protocol is NULL; the agreement is not started yet.
+		 * So, no need to notify. */
+		if (agmt_get_protocol(ra)) {
+			prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		}
 		retval = 1;
 	}
 	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7WindowsDomain))
@@ -218,7 +226,11 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 		if (NULL != tmpstr)
 		{
 			windows_private_set_sync_interval(ra,tmpstr);
-			prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+			/* If protocol is NULL; the agreement is not started yet.
+			 * So, no need to notify. */
+			if (agmt_get_protocol(ra)) {
+				prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+			}
 		}
 		slapi_ch_free_string(&tmpstr);
 		retval = 1;
@@ -245,7 +257,11 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			windows_private_set_one_way(ra, ONE_WAY_SYNC_DISABLED);
 		}
 		slapi_ch_free((void**)&tmpstr);
-		prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		/* If protocol is NULL; the agreement is not started yet.
+		 * So, no need to notify. */
+		if (agmt_get_protocol(ra)) {
+			prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		}
 		retval = 1;
 	}
 	if (type == NULL || slapi_attr_types_equivalent(type,type_winsyncMoveAction))
@@ -272,7 +288,11 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
 		}
 		slapi_ch_free((void**)&tmpstr);
-		prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		/* If protocol is NULL; the agreement is not started yet.
+		 * So, no need to notify. */
+		if (agmt_get_protocol(ra)) {
+			prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
+		}
 		retval = 1;
 	}
 

@@ -1220,6 +1220,10 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 					windows_log_add_entry_remote(local_dn, remote_dn);
 					return_value = windows_conn_send_add(prp->conn, slapi_sdn_get_dn(remote_dn),
 						entryattrs, NULL, NULL);
+					if (LDAP_ALREADY_EXISTS == ldap_result_code) {
+						/* Igoring ALREADY EXIST case. */
+						ldap_result_code = LDAP_SUCCESS;
+					}
 					windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
 					if ((return_value != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
 						/* op failed but no ldap error code ??? */
@@ -5080,9 +5084,15 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 		{
 			int ldap_op = 0;
 			int ldap_result_code = 0;
+			int alreadyexists = 0;
 			windows_log_add_entry_remote(local_dn, remote_dn);
 			retval = windows_conn_send_add(prp->conn, slapi_sdn_get_dn(remote_dn), entryattrs, NULL, NULL /* returned controls */);
 			windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
+			/* special treatment for ALREADY EXISTS */
+			if (LDAP_ALREADY_EXISTS == ldap_result_code) {
+				alreadyexists = 1;
+				ldap_result_code = LDAP_SUCCESS;
+			}
 			if ((retval != CONN_OPERATION_SUCCESS) && !ldap_result_code) {
 				/* op failed but no ldap error code ??? */
 				ldap_result_code = LDAP_OPERATIONS_ERROR;
@@ -5111,6 +5121,15 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			if ((retval == 0) && is_user) {
 			    /* set the account control bits only for users */
 			    retval = send_accountcontrol_modify(remote_dn, prp, missing_entry);
+			    if (alreadyexists) {
+			        slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			                        "%s: windows_process_total_add: "
+			                        "Creating AD entry \"%s\" from DS entry \"%s\" failed. "
+			                        "AD reserves the account name. Ignoring the error...\n",
+			                        agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(remote_dn),
+			                        slapi_sdn_get_dn(local_dn));
+			        retval = 0;
+			    }
 			}
 		}
 	} else

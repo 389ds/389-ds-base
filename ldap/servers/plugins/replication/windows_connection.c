@@ -425,7 +425,8 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 				} 
 				else if (err == LDAP_ALREADY_EXISTS && optype == CONN_ADD)
 				{
-					conn->last_ldap_error = LDAP_SUCCESS;
+					/* Caller (windows_process_total_add) needs the ALREADY EXISTS info */
+					conn->last_ldap_error = err;
 					return_value = CONN_OPERATION_SUCCESS;
 				}
 				else if (err == LDAP_NO_SUCH_OBJECT && optype == CONN_DELETE)
