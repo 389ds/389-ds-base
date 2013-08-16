@@ -2678,8 +2678,8 @@ slapi_entry_attr_get_charray_ext( const Slapi_Entry* e, const char *type, int *n
 {
     char **parray = NULL;
     Slapi_Attr* attr = NULL;
-    slapi_entry_attr_find(e, type, &attr);
     int count = 0;
+    slapi_entry_attr_find(e, type, &attr);
 
     if(numVals == NULL){
         return NULL;
@@ -2711,29 +2711,28 @@ char *
 slapi_entry_attr_get_charptr( const Slapi_Entry* e, const char *type)
 {
     char *p= NULL;
-    Slapi_Attr* attr;
-	slapi_entry_attr_find(e, type, &attr);
-	if(attr!=NULL)
-	{
-		Slapi_Value *v;
+    Slapi_Attr* attr = NULL;
+    slapi_entry_attr_find(e, type, &attr);
+    if(attr!=NULL)
+    {
+        Slapi_Value *v;
                 const struct berval *bvp;
-		slapi_valueset_first_value( &attr->a_present_values, &v);
+        slapi_valueset_first_value( &attr->a_present_values, &v);
                 bvp = slapi_value_get_berval(v);
         p= slapi_ch_malloc(bvp->bv_len + 1);
         memcpy(p, bvp->bv_val, bvp->bv_len);
         p[bvp->bv_len]= '\0';
-	}
+    }
     return p;
 }
 
+/* returned value: attribute value as an integer type */
 int
 slapi_entry_attr_get_int( const Slapi_Entry* e, const char *type)
 {
-    int r= 0;
-    Slapi_Attr* attr;
-	slapi_entry_attr_find(e, type, &attr);
-    if (attr!=NULL)
-    {
+    int r = 0;
+    Slapi_Attr* attr = NULL;
+    if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
 		Slapi_Value *v;
 		slapi_valueset_first_value( &attr->a_present_values, &v);
 		r= slapi_value_get_int(v);
@@ -2741,14 +2740,13 @@ slapi_entry_attr_get_int( const Slapi_Entry* e, const char *type)
     return r;
 }
 
+/* returned value: attribute value as an unsigned integer type */
 unsigned int
 slapi_entry_attr_get_uint( const Slapi_Entry* e, const char *type)
 {
-    unsigned int r= 0;
-    Slapi_Attr* attr;
-	slapi_entry_attr_find(e, type, &attr);
-    if (attr!=NULL)
-    {
+    unsigned int r = 0;
+    Slapi_Attr* attr = NULL;
+    if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
 		Slapi_Value *v;
 		slapi_valueset_first_value( &attr->a_present_values, &v);
 		r= slapi_value_get_uint(v);
@@ -2756,14 +2754,13 @@ slapi_entry_attr_get_uint( const Slapi_Entry* e, const char *type)
     return r;
 }
 
+/* returned value: attribute value as a long integer type */
 long
 slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type)
 {
     long r = 0;
-    Slapi_Attr* attr;
-	slapi_entry_attr_find(e, type, &attr);
-    if (attr!=NULL)
-    {
+    Slapi_Attr* attr = NULL;
+    if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
 		Slapi_Value *v;
 		slapi_valueset_first_value( &attr->a_present_values, &v);
 		r = slapi_value_get_long(v);
@@ -2771,14 +2768,13 @@ slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type)
     return r;
 }
 
+/* returned value: attribute value as an unsigned long integer type */
 unsigned long
 slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type)
 {
     unsigned long r = 0;
-    Slapi_Attr* attr;
-	slapi_entry_attr_find(e, type, &attr);
-    if (attr!=NULL)
-    {
+    Slapi_Attr* attr = NULL;
+    if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
 		Slapi_Value *v;
 		slapi_valueset_first_value( &attr->a_present_values, &v);
 		r = slapi_value_get_ulong(v);
@@ -2786,14 +2782,13 @@ slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type)
     return r;
 }
 
+/* returned value: attribute value as a long long integer type */
 long long
 slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type)
 {
     long long r = 0;
-    Slapi_Attr* attr;
-    slapi_entry_attr_find(e, type, &attr);
-    if (attr!=NULL)
-    {
+    Slapi_Attr* attr = NULL;
+    if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
         Slapi_Value *v;
         slapi_valueset_first_value( &attr->a_present_values, &v);
         r = slapi_value_get_longlong(v);
@@ -2801,14 +2796,13 @@ slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type)
     return r;
 }
 
+/* returned value: attribute value as an unsigned long long integer type */
 unsigned long long
 slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type)
 {
     unsigned long long r = 0;
-    Slapi_Attr* attr;
-    slapi_entry_attr_find(e, type, &attr);
-    if (attr!=NULL)
-    {
+    Slapi_Attr* attr = NULL;
+    if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
         Slapi_Value *v;
         slapi_valueset_first_value( &attr->a_present_values, &v);
         r = slapi_value_get_ulonglong(v);
@@ -2816,14 +2810,13 @@ slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type)
     return r;
 }
 
+/* returned value: attribute value as a boolean type */
 PRBool
 slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type)
 {
     PRBool r = PR_FALSE; /* default if no attr */
-    Slapi_Attr* attr;
-    slapi_entry_attr_find(e, type, &attr);
-    if (attr!=NULL)
-    {
+    Slapi_Attr* attr = NULL;
+    if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
         Slapi_Value *v;
         const struct berval *bvp;
 

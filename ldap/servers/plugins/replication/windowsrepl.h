@@ -89,6 +89,11 @@ void windows_private_set_one_way(const Repl_Agmt *ra, PRBool value);
 int windows_private_get_move_action(const Repl_Agmt *ra);
 void windows_private_set_move_action(const Repl_Agmt *ra, int value);
 
+Slapi_Entry *windows_private_get_curr_entry(const Repl_Agmt *ra);
+void windows_private_set_curr_entry(const Repl_Agmt *ra, Slapi_Entry *e);
+char **windows_private_get_range_attrs(const Repl_Agmt *ra);
+void windows_private_set_range_attrs(const Repl_Agmt *ra, char **attrs);
+
 /* in windows_connection.c */
 ConnResult windows_conn_connect(Repl_Connection *conn);
 void windows_conn_disconnect(Repl_Connection *conn);

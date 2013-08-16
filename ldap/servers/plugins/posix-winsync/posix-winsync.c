@@ -773,11 +773,18 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     windows_attribute_map *attr_map = user_attribute_map;
     PRBool posixval = PR_TRUE;
 
-    if (posix_winsync_config_get_msSFUSchema())
-        attr_map = user_mssfu_attribute_map;
-
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> _pre_ds_mod_user_cb -- begin\n");
+
+    if ((NULL == rawentry) || (NULL == ad_entry) || (NULL == ds_entry)) {
+        slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                        "<-- _pre_ds_mod_user_cb -- Empty %s entry.\n",
+                        (NULL==rawentry)?"rawentry":(NULL==ad_entry)?"ad entry":"ds entry");
+        return;
+    }
+
+    if (posix_winsync_config_get_msSFUSchema())
+        attr_map = user_mssfu_attribute_map;
 
     /* check all of the required attributes are in the ad_entry:
      * MUST (cn $ uid $ uidNumber $ gidNumber $ homeDirectory).

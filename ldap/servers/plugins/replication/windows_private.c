@@ -77,6 +77,8 @@ struct windowsprivate {
   time_t sync_interval; /* how often to run the dirsync search, in seconds */
   int one_way; /* Indicates if this is a one-way agreement and which direction it is */
   int move_action; /* Indicates what to do with DS entry if AD entry is moved out of scope */
+  Slapi_Entry *curr_entry; /* entry being retrieved; used for the range retrieval */
+  char **range_attrs; /* next attributes for the range retrieval */
 };
 
 static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
@@ -1166,6 +1168,76 @@ windows_private_set_move_action(const Repl_Agmt *ra, int value)
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 	dp->move_action = value;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_move_action\n" );
+}
+
+/* Get entry being retrieved; used for the range retrieval */
+Slapi_Entry *
+windows_private_get_curr_entry(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_curr_entry\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_curr_entry\n" );
+
+	return dp->curr_entry;	
+}
+
+/* Set entry being retrieved; used for the range retrieval */
+void
+windows_private_set_curr_entry(const Repl_Agmt *ra, Slapi_Entry *e)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_curr_entry\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+	dp->curr_entry = e;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_curr_entry\n" );
+}
+
+/* Get next range retrieval attributes */
+char **
+windows_private_get_range_attrs(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_range_attrs\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_range_attrs\n" );
+
+	return dp->range_attrs;	
+}
+
+/* Set next range retrieval attributes */
+void
+windows_private_set_range_attrs(const Repl_Agmt *ra, char **attrs)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_move_action\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+	dp->range_attrs = attrs;
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_move_action\n" );
 }

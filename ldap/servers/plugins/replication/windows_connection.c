@@ -523,14 +523,27 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 }
 
 /* Copied from the chaining backend*/
+/* 
+ * exattrs: exceeded attribute list
+ * If attr value pair exceeds MaxValRange, AD returns, e.g.,
+ *   <attr>;range=0-<maxValRange-1>: <value>
+ * We need to repeat the search with "<attr>;range=1500-*"
+ * until it returns 
+ *   <attr>;range=<num>-*
+ */
 static Slapi_Entry * 
-windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonly) {
+windows_LDAPMessage2Entry(Slapi_Entry *e, Repl_Connection *conn,
+                          LDAPMessage * msg, int attrsonly, char ***exattrs)
+{
 
 	Slapi_Entry *rawentry = NULL;
-	Slapi_Entry *e = NULL;
 	char *a = NULL;
 	BerElement * ber = NULL;
 	LDAP *ld = conn->ld;
+	int exattrlen = 0;
+	int exattridx = 0;
+	char **deletedattrs = NULL;
+	char **dap;
 
 	windows_private_set_raw_entry(conn->agmt, NULL); /* clear it first */
 
@@ -543,9 +556,10 @@ windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonl
 	 * attribute type and values ARE allocated
 	 */
 
-	e = slapi_entry_alloc();
-	if ( e == NULL ) return NULL;
-	slapi_entry_set_dn( e, ldap_get_dn( ld, msg ) );
+	if (NULL == e) {
+		e = slapi_entry_alloc();
+		slapi_entry_set_dn( e, ldap_get_dn( ld, msg ) );
+	}
 	rawentry = slapi_entry_alloc();
 	if ( rawentry == NULL ) {
 		slapi_entry_free(e);
@@ -575,13 +589,59 @@ windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonl
 				slapi_entry_add_value(e, a, (Slapi_Value *)NULL);
 			} else 
 			{
+#define SUBTYPERANGE "range="
 				char *type_to_use = NULL;
+				char *dupa = slapi_ch_strdup(a);
+				char *newa = NULL; /* dup of 'a' with next range */
+				char *p, *wp, *pp; /* work pointers */
+				char *iter;
+				int high = 0;
+				int sizea = strlen(a) + 2;
+				/* handling subtype(s) */
+				ldap_utf8strtok_r(dupa, ";", &iter); /* primry type */
+				p = ldap_utf8strtok_r(NULL, ";", &iter); /* subtype, if any */
+				while (p) {
+					if (0 == strncasecmp(p, SUBTYPERANGE, sizeof(SUBTYPERANGE) - 1)) {
+						/* get rid of range */
+						if (!newa) { /* first time for range= */
+							/* Cannot use strdup,
+							 * since 'a' could be "<attr>;range=0-9";
+							 * then newa is <attr>;10-*; newa is 1 char longer than a. */
+							newa = (char *)slapi_ch_malloc(sizea);
+							PR_snprintf(newa, sizea, "%s", a);
+							*(newa + (p - dupa) - 1) = '\0';
+						}
+						/* get the last count (high + 1) */
+						/* range=low-high */
+						pp = strchr(p, '-');
+						if (*++pp == '*') {
+							high = 0; /* high is *; done! */
+						} else {
+							high = strtol(pp, &p, 10);
+							if (high > 0) {
+								/* next low == high + 1 */
+								high++;
+							}
+						}
+					} else { /* subtype except "range=low-high" */
+						if (newa) {
+							int sizenewa = strlen(newa);
+							/* range= appeared before, copy this subtype */
+							wp = newa + sizenewa;
+							/* append ;<subtype> */
+							PR_snprintf(wp, sizea - sizenewa, ";%s", p);
+						}
+					}
+					p = ldap_utf8strtok_r(NULL, ";", &iter);
+				}
+				slapi_ch_free_string(&dupa);
+
 				/* Work around the fact that we alias street and streetaddress, while Microsoft do not */
-				if (0 == strcasecmp(a,"streetaddress")) 
-				{
+				if (0 == strcasecmp(a, "streetaddress")) {
 					type_to_use = FAKE_STREET_ATTR_NAME;
-				} else
-				{
+				} else if (newa) {
+					type_to_use = newa;
+				} else {
 					type_to_use = a;
 				}
 
@@ -591,13 +651,38 @@ windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonl
 				if (aVal == NULL) {
 					/* Windows will send us an attribute with no values if it was deleted
 					 * on the AD side.  Add this attribute to the deleted attributes list */
-					Slapi_Attr *attr = slapi_attr_new();
-					slapi_attr_init(attr, type_to_use);
-					entry_add_deleted_attribute_wsi(e, attr);
+					/* Set it to the deleted attribute list only if the attribute does
+					 * not exist in the entry.  For the multi-valued attribute (e.g.,
+					 * member), if there are multiple member attributes in an entry, 
+					 * and one of them is deleted, this no value member is sent.  But
+					 * if there are more member attributes in the entry, we should not
+					 * set member to the deleted attribute. */
+					if (!charray_inlist(deletedattrs, type_to_use)) {
+						charray_add(&deletedattrs, slapi_ch_strdup(type_to_use));
+					}
 				} else { 
-					slapi_entry_add_values( e, type_to_use, aVal);
+					slapi_entry_add_values(e, type_to_use, aVal);
 				} 
-                
+
+				/* if the addr for exattrs is given and next range retrieval is needed */
+				if (exattrs && (high > 0)) {
+					if (exattrlen == exattridx) {
+						if (!*exattrs) {
+							exattrlen = 4;
+							exattridx = 0;
+							*exattrs = (char **)slapi_ch_calloc(exattrlen, sizeof(char *));
+						} else {
+							*exattrs = (char **)slapi_ch_realloc((char *)*exattrs, exattrlen * 2 * sizeof(char *));
+							memset(*exattrs + exattrlen, '\0', exattrlen * sizeof(char *));
+							exattrlen *= 2;
+						}
+						PR_snprintf(newa + strlen(newa), strlen(a) + 2 - strlen(newa),
+						                          ";%s%d-*", SUBTYPERANGE, high);
+						(*exattrs)[exattridx++] = newa;
+					}
+				} else if (newa) {
+					slapi_ch_free_string(&newa);
+				}
 			}
 		}
 		ldap_memfree(a);
@@ -607,6 +692,18 @@ windows_LDAPMessage2Entry(Repl_Connection *conn, LDAPMessage * msg, int attrsonl
 	{
         ber_free( ber, 0 );
 	}
+	/* Windows will send us an attribute with no values if it was deleted
+	 * on the AD side.  Add this attribute to the deleted attributes list */
+	/* Set to e_deleted_attrs only if there is no attribute of the type. */
+	for (dap = deletedattrs; dap && *dap; dap++) {
+		Slapi_Attr *attr = NULL;
+		if (slapi_entry_attr_find(e, *dap, &attr)) { /* not found */
+			attr = slapi_attr_new();
+			slapi_attr_init(attr, *dap);
+			entry_add_deleted_attribute_wsi(e, attr);
+		}
+	}
+	charray_free(deletedattrs);
 
 	windows_private_set_raw_entry(conn->agmt, rawentry); /* windows private now owns rawentry */
 
@@ -643,6 +740,7 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 		char *searchbase_copy = slapi_ch_strdup(searchbase);
 		char *filter_copy = slapi_ch_strdup(filter);
 		char **attrs = NULL;
+		char **exattrs = NULL;
 		LDAPControl **serverctrls_copy = NULL;
 
 		slapi_add_controls(&serverctrls_copy, serverctrls, 1 /* make a copy we can free */);
@@ -651,7 +749,7 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 
 		winsync_plugin_call_pre_ad_search_cb(conn->agmt, NULL, &searchbase_copy, &scope, &filter_copy,
 											 &attrs, &serverctrls_copy);
-		
+next:
 		ldap_rc = ldap_search_ext_s(conn->ld, searchbase_copy, scope,
 			filter_copy, attrs, 0 /* attrsonly */,
 			serverctrls_copy , NULL /* client controls */,
@@ -665,16 +763,8 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 							ldap_err2string(ldap_rc));
 		}
 
-		slapi_ch_free_string(&searchbase_copy);
-		slapi_ch_free_string(&filter_copy);
 		slapi_ch_array_free(attrs);
 		attrs = NULL;
-		ldap_controls_free(serverctrls_copy);
-		serverctrls_copy = NULL;
-
-		/* clear it here in case the search fails and
-		   we are left with a bogus old entry */
-		windows_private_set_raw_entry(conn->agmt, NULL);
 		if (LDAP_SUCCESS == ldap_rc)
 		{
 			LDAPMessage *message = ldap_first_entry(conn->ld, res);
@@ -690,9 +780,18 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
                                    nummessages, numentries, numreferences );
 			}
 
-			if (NULL != entry)
-			{
-				*entry = windows_LDAPMessage2Entry(conn,message,0);
+			if (entry) {
+				exattrs = NULL;
+				*entry = windows_LDAPMessage2Entry(*entry, conn, message, 0, &exattrs);
+				if (exattrs) {
+					/* some attribute returned "<attr>;range=low-high" */
+					attrs = exattrs;
+					if (res) {
+						ldap_msgfree(res);
+						res = NULL;
+					}
+					goto next;
+				}
 			}
 			/* See if there are any more entries : if so then that's an error
 			 * but we still need to get them to avoid gumming up the connection
@@ -710,6 +809,14 @@ windows_search_entry_ext(Repl_Connection *conn, char* searchbase, char *filter, 
 		{
 			return_value = CONN_OPERATION_FAILED;
 		}
+		slapi_ch_free_string(&searchbase_copy);
+		slapi_ch_free_string(&filter_copy);
+		ldap_controls_free(serverctrls_copy);
+		serverctrls_copy = NULL;
+
+		/* clear it here in case the search fails and
+		   we are left with a bogus old entry */
+		windows_private_set_raw_entry(conn->agmt, NULL);
 		conn->last_ldap_error = ldap_rc;
 		if (NULL != res)
 		{
@@ -745,6 +852,7 @@ send_dirsync_search(Repl_Connection *conn)
 		/* need to strip the dn down to dc= */
 		const char *old_dn = slapi_sdn_get_ndn( windows_private_get_windows_subtree(conn->agmt) );
 		char *dn = slapi_ch_strdup(strstr(old_dn, "dc="));
+		char **exattrs = NULL;
 
 		if (conn->supports_dirsync == 0)
 		{
@@ -764,6 +872,9 @@ send_dirsync_search(Repl_Connection *conn)
 
 		winsync_plugin_call_dirsync_search_params_cb(conn->agmt, old_dn, &dn, &scope, &filter,
 													 &attrs, &server_controls);
+		exattrs = windows_private_get_range_attrs(conn->agmt);
+		charray_merge(&attrs, exattrs, 0 /* pass in */);
+		slapi_ch_free((void **)&exattrs); /* strings are passed in */
 
 		LDAPDebug( LDAP_DEBUG_REPL, "Sending dirsync search request\n", 0, 0, 0 );
 
@@ -924,10 +1035,20 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 			{
 				if (( dn = ldap_get_dn( conn->ld, res )) != NULL ) 
 				{
+					char **exattrs = NULL;
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received entry from dirsync: %s\n", dn);
 					lm = ldap_first_entry( conn->ld, res );			
-					e = windows_LDAPMessage2Entry(conn,lm,0);
+					e = windows_private_get_curr_entry(conn->agmt); /* if range search, e != NULL */
+					e = windows_LDAPMessage2Entry(e, conn, lm, 0, &exattrs);
 					ldap_memfree(dn);
+					if (exattrs) {
+						/* some attribute returned "<attr>;range=low-high" */
+						windows_private_set_curr_entry(conn->agmt, e);
+						windows_private_set_range_attrs(conn->agmt, exattrs);
+					} else {
+						windows_private_set_curr_entry(conn->agmt, NULL);
+						windows_private_set_range_attrs(conn->agmt, NULL);
+					}
 				}
 			}
 			break;
