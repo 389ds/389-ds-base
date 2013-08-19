@@ -153,22 +153,6 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2152 NAME 'nsds5ReplicaProtocolTimeout' 
 attributeTypes: ( 2.16.840.1.113730.3.1.2154 NAME 'nsds5ReplicaBackoffMin' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2155 NAME 'nsds5ReplicaBackoffMax' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2156 NAME 'nsslapd-sasl-max-buffer-size' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2161 NAME 'nsslapd-pluginArg0' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2162 NAME 'nsslapd-pluginArg1' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2163 NAME 'nsslapd-pluginArg2' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2164 NAME 'nsslapd-pluginArg3' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2165 NAME 'nsslapd-pluginArg4' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2166 NAME 'nsslapd-pluginArg5' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2167 NAME 'nsslapd-pluginArg6' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2168 NAME 'nsslapd-pluginArg7' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2169 NAME 'nsslapd-pluginArg8' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2170 NAME 'nsslapd-pluginArg9' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2171 NAME 'nsslapd-pluginArg10' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2172 NAME 'nsslapd-pluginArg11' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2173 NAME 'nsslapd-pluginArg12' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2174 NAME 'nsslapd-pluginArg13' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2175 NAME 'nsslapd-pluginArg14' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2176 NAME 'nsslapd-pluginArg15' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 #
 # objectclasses
 #
