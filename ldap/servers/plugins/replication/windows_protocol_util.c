@@ -3950,7 +3950,12 @@ error:
 	return retval;
 }
 
-/* Tests if the entry is subject to our agreement (i.e. is it in the sync'ed subtree in AD and either a user or a group ?) */
+/* 
+ * Tests if the entry is subject to our agreement
+ * (i.e. is it in the sync'ed subtree in AD and either a user or a group ?)
+ * return value: 1 -- it is subject to the agreement
+ *               0 -- out of scope
+ */
 static int 
 is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
 {
@@ -3981,7 +3986,8 @@ is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
 		 * 'e' as out of scope.
 		 */
 		slapi_sdn_get_parent(sdn, &psdn);
-		if (0 == slapi_sdn_compare(&psdn, agreement_subtree)) {
+		if (slapi_sdn_issuffix(&psdn, agreement_subtree)) {
+			/* parent is in agreement_subtree. */
 			retval = 1;
 		} else {
 			/* If parent entry is not local, the entry is out of scope */
