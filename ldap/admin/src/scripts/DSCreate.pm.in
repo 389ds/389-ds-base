@@ -1007,9 +1007,19 @@ sub updateSelinuxPolicy {
             $portline =~ s/ldap_port_t\s+tcp\s+//g;
             my @labeledports = split(/,\s+/, $portline);
             foreach my $labeledport (@labeledports) {
-                if ($inf->{slapd}->{ServerPort} == $labeledport) {
-                    $need_label = 0;
-                    last;
+                if (index($labeledport, "-") == -1) {
+                        # this is not a range of ports
+                        if ($inf->{slapd}->{ServerPort} == $labeledport) {
+                                $need_label = 0;
+                                last;
+                        }
+                } else {
+                        # this is a range of ports like '<portMin>-<portMax>'
+                        my @range = split(/-/, $labeledport);
+                        if ((@range[0] <= $inf->{slapd}->{ServerPort}) && ($inf->{slapd}->{ServerPort} <= @range[1])) {
+                                $need_label = 0;
+                                last;
+                        }
                 }
             }
 
