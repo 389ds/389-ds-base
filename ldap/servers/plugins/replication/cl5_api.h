@@ -269,10 +269,11 @@ int cl5GetState ();
    Description:	sets changelog trimming parameters
    Parameters:  maxEntries - maximum number of entries in the log;
 				maxAge - maximum entry age;
+				compactInterval - interval to compact changelog db
    Return:		CL5_SUCCESS if successful;
 				CL5_BAD_STATE if changelog has not been open
  */
-int cl5ConfigTrimming (int maxEntries, const char *maxAge);
+int cl5ConfigTrimming (int maxEntries, const char *maxAge, int compactInterval);
 
 /* Name:		cl5GetOperation
    Description:	retireves operation specified by its csn and databaseid

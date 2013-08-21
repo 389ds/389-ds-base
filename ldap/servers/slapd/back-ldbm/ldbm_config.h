@@ -110,6 +110,7 @@ struct config_info {
 #define CONFIG_DB_CIRCULAR_LOGGING "nsslapd-db-circular-logging"
 #define CONFIG_DB_TRANSACTION_LOGGING "nsslapd-db-transaction-logging"
 #define CONFIG_DB_CHECKPOINT_INTERVAL "nsslapd-db-checkpoint-interval"
+#define CONFIG_DB_COMPACTDB_INTERVAL "nsslapd-db-compactdb-interval"
 #define CONFIG_DB_TRANSACTION_BATCH  "nsslapd-db-transaction-batch-val"
 #define CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP  "nsslapd-db-transaction-batch-min-wait"
 #define CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP  "nsslapd-db-transaction-batch-max-wait"

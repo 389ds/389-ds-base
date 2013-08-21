@@ -244,7 +244,7 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 	}
 
 	/* set trimming parameters */
-	rc = cl5ConfigTrimming (config.maxEntries, config.maxAge);
+	rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval);
 	if (rc != CL5_SUCCESS)
 	{
 		*returncode = 1;
@@ -336,6 +336,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	slapi_ch_free_string(&config.dir);
 	config.dir = NULL;
 	config.maxEntries = CL5_NUM_IGNORE;
+	config.compactInterval = CL5_NUM_IGNORE;
 	slapi_ch_free_string(&config.maxAge);
 	config.maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
 
@@ -399,6 +400,17 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					slapi_ch_free_string(&config.maxAge);
                     config.maxAge = slapi_ch_strdup(config_attr_value);
                 }
+                else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE ) == 0 )
+				{
+					if (config_attr_value && config_attr_value[0] != '\0')
+					{
+						config.compactInterval = atoi (config_attr_value);
+					}
+					else
+					{
+						config.compactInterval = 0;
+					}
+                }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_SYMMETRIC_KEY ) == 0 )
                 {
                     slapi_ch_free_string(&config.symmetricKey);
@@ -424,6 +436,8 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	 * except config.dir */
 	if (config.maxEntries == CL5_NUM_IGNORE)
 		config.maxEntries = originalConfig->maxEntries;
+	if (config.compactInterval == CL5_NUM_IGNORE)
+		config.compactInterval = originalConfig->compactInterval;
 	if (strcmp (config.maxAge, CL5_STR_IGNORE) == 0) {
 		slapi_ch_free_string(&config.maxAge);
 		if (originalConfig->maxAge)
@@ -548,7 +562,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	if (config.maxEntries != CL5_NUM_IGNORE || 
 		strcmp (config.maxAge, CL5_STR_IGNORE) != 0)
 	{
-		rc = cl5ConfigTrimming (config.maxEntries, config.maxAge);
+		rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval);
 		if (rc != CL5_SUCCESS)
 		{
 			*returncode = 1;
@@ -706,6 +720,7 @@ static changelog5Config * changelog5_dup_config(changelog5Config *config)
 	  dup->maxAge = slapi_ch_strdup(config->maxAge);
 
 	dup->maxEntries = config->maxEntries;
+	dup->compactInterval = config->compactInterval;
 
 	dup->dbconfig.pageSize = config->dbconfig.pageSize;
 	dup->dbconfig.fileMode = config->dbconfig.fileMode;
@@ -731,6 +746,16 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	{
 		config->maxEntries = atoi (arg);
 		slapi_ch_free_string(&arg);
+	}
+	arg= slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
+	if (arg)
+	{
+		config->compactInterval = atoi (arg);
+		slapi_ch_free_string(&arg);
+	}
+	else
+	{
+		config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
 	}
 	
 	config->maxAge = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);

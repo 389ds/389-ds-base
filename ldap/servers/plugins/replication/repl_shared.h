@@ -58,10 +58,12 @@
 #endif
 
 #define	CHANGELOGDB_TRIM_INTERVAL	300 /* 5 minutes */
+#define	CHANGELOGDB_COMPACT_INTERVAL	2592000 /* 30 days */
 
 #define CONFIG_CHANGELOG_DIR_ATTRIBUTE		"nsslapd-changelogdir"
 #define CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE	"nsslapd-changelogmaxentries"
 #define CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE	"nsslapd-changelogmaxage"
+#define CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE	"nsslapd-changelogcompactdb-interval"
 /* Changelog Internal Configuration Parameters -> Changelog Cache related */
 #define CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES	"nsslapd-changelogmaxconcurrentwrites"
 #define CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM	"nsslapd-encryptionalgorithm"

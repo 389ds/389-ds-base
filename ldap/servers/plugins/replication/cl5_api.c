@@ -240,6 +240,7 @@ typedef struct cl5trim
 {
 	time_t		maxAge;		/* maximum entry age in seconds							*/
 	int			maxEntries;	/* maximum number of entries across all changelog files	*/
+	int			compactInterval;	/* interval to compact changelog db */
 	PRLock*		lock;		/* controls access to trimming configuration			*/
 } CL5Trim;
 
@@ -350,6 +351,7 @@ static int _cl5TrimInit ();
 static void _cl5TrimCleanup ();
 static int _cl5TrimMain (void *param);
 static void _cl5DoTrimming (ReplicaId rid);
+static void _cl5CompactDBs();
 static void _cl5TrimFile (Object *obj, long *numToTrim, ReplicaId cleaned_rid);
 static PRBool _cl5CanTrim (time_t time, long *numToTrim);
 static int  _cl5ReadRUV (const char *replGen, Object *obj, PRBool purge);
@@ -1175,10 +1177,12 @@ int cl5GetState ()
    Description:	sets changelog trimming parameters; changelog must be open.
    Parameters:  maxEntries - maximum number of entries in the chnagelog (in all files);
 				maxAge - maximum entry age;
+				compactInterval - interval to compact changelog db
    Return:		CL5_SUCCESS if successful;
 				CL5_BAD_STATE if changelog is not open
  */
-int cl5ConfigTrimming (int maxEntries, const char *maxAge)
+int
+cl5ConfigTrimming (int maxEntries, const char *maxAge, int compactInterval)
 {
 	if (s_cl5Desc.dbState == CL5_STATE_NONE)
 	{
@@ -1214,6 +1218,11 @@ int cl5ConfigTrimming (int maxEntries, const char *maxAge)
 	if (maxEntries != CL5_NUM_IGNORE)
 	{
 		s_cl5Desc.dbTrim.maxEntries = maxEntries;	
+	}
+
+	if (compactInterval != CL5_NUM_IGNORE)
+	{
+		s_cl5Desc.dbTrim.compactInterval = compactInterval;	
 	}
 
 	PR_Unlock (s_cl5Desc.dbTrim.lock);
@@ -3420,6 +3429,7 @@ static int _cl5TrimMain (void *param)
 {
 	PRIntervalTime    interval; 
 	time_t timePrev = current_time ();
+	time_t timeCompactPrev = current_time ();
 	time_t timeNow;
 
 	PR_AtomicIncrement (&s_cl5Desc.threadCount);
@@ -3433,6 +3443,13 @@ static int _cl5TrimMain (void *param)
 			/* time to trim */
 			timePrev = timeNow; 
 			_cl5DoTrimming (0 /* there's no cleaned rid */);
+		}
+		if ((s_cl5Desc.dbTrim.compactInterval > 0) &&
+		    (timeNow - timeCompactPrev >= s_cl5Desc.dbTrim.compactInterval))
+		{
+			/* time to trim */
+			timeCompactPrev = timeNow; 
+			_cl5CompactDBs();
 		}
 		if (NULL == s_cl5Desc.clLock)
 		{
@@ -3478,14 +3495,77 @@ static void _cl5DoTrimming (ReplicaId rid)
 	   example, randomizing starting point */
 	obj = objset_first_obj (s_cl5Desc.dbFiles);
 	while (obj && _cl5CanTrim ((time_t)0, &numToTrim))
-	{	
+	{
 		_cl5TrimFile (obj, &numToTrim, rid);
-		obj = objset_next_obj (s_cl5Desc.dbFiles, obj);	
+		obj = objset_next_obj (s_cl5Desc.dbFiles, obj);
 	}
 
-    if (obj)
-        object_release (obj);
+	if (obj)
+		object_release (obj);
 
+	PR_Unlock (s_cl5Desc.dbTrim.lock);
+
+	return;
+}
+
+/* clear free page files to reduce changelog */
+static void
+_cl5CompactDBs()
+{
+	int rc;
+	Object *fileObj = NULL;
+	CL5DBFile *dbFile = NULL;
+	DB *db = NULL;
+	DB_TXN *txnid = NULL;
+	DB_COMPACT c_data = {0};
+
+	PR_Lock (s_cl5Desc.dbTrim.lock);
+	rc = TXN_BEGIN(s_cl5Desc.dbEnv, NULL, &txnid, 0);
+	if (rc) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+		    "_cl5CompactDBs: failed to begin transaction; db error - %d %s\n", 
+		    rc, db_strerror(rc));
+		goto bail;
+	}
+	for (fileObj = objset_first_obj(s_cl5Desc.dbFiles);
+	     fileObj;
+	     fileObj = objset_next_obj(s_cl5Desc.dbFiles, fileObj)) {
+		dbFile = (CL5DBFile*)object_get_data(fileObj);
+		if (!dbFile) {
+			continue;
+		}
+		db = dbFile->db;
+		rc = db->compact(db, txnid, NULL/*start*/, NULL/*stop*/, 
+		                 &c_data, DB_FREE_SPACE, NULL/*end*/); 
+		if (rc) {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+			    "_cl5CompactDBs: failed to compact %s; db error - %d %s\n", 
+			    dbFile->replName, rc, db_strerror(rc));
+			goto bail;
+		}
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name_cl, 
+		        "_cl5CompactDBs: %s - %d pages freed\n", 
+		        dbFile->replName, c_data.compact_pages_free);
+	}
+bail:
+	if (fileObj) {
+		object_release(fileObj);
+	}
+	if (rc) {
+		rc = TXN_ABORT (txnid);
+		if (rc) {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+			    "_cl5CompactDBs: failed to abort transaction; db error - %d %s\n",
+			    rc, db_strerror(rc));
+		}
+	} else {
+		rc = TXN_COMMIT (txnid, 0);
+		if (rc) {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
+			    "_cl5CompactDBs: failed to commit transaction; db error - %d %s\n",
+			    rc, db_strerror(rc));
+		}
+	}
 	PR_Unlock (s_cl5Desc.dbTrim.lock);
 
 	return;

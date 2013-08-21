@@ -179,6 +179,7 @@ struct dblayer_private
     int dblayer_lockdown;           /* use DB_LOCKDOWN */
     int dblayer_lock_config;
     u_int32_t dblayer_deadlock_policy;    /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
+    int dblayer_compactdb_interval; /* interval to execute compact id2entry dbs */
 };
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300

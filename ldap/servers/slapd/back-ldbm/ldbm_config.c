@@ -679,6 +679,26 @@ static int ldbm_config_db_checkpoint_interval_set(void *arg, void *value, char *
     return retval;
 }
 
+static void *ldbm_config_db_compactdb_interval_get(void *arg) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    
+    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_compactdb_interval);
+}
+
+static int ldbm_config_db_compactdb_interval_set(void *arg, void *value, char *errorbuf, int phase, int apply) 
+{
+    struct ldbminfo *li = (struct ldbminfo *) arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int) ((uintptr_t)value);
+    
+    if (apply) {
+        li->li_dblayer_private->dblayer_compactdb_interval = val;
+    }
+    
+    return retval;
+}
+
 static void *ldbm_config_db_page_size_get(void *arg) 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
@@ -1447,6 +1467,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_CIRCULAR_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_circular_logging_get, &ldbm_config_db_circular_logging_set, 0},
     {CONFIG_DB_TRANSACTION_LOGGING, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_transaction_logging_get, &ldbm_config_db_transaction_logging_set, 0},
     {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &ldbm_config_db_checkpoint_interval_get, &ldbm_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_COMPACTDB_INTERVAL, CONFIG_TYPE_INT, "2592000"/*30days*/, &ldbm_config_db_compactdb_interval_get, &ldbm_config_db_compactdb_interval_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &dblayer_get_batch_transactions, &dblayer_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_min_sleep, &dblayer_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &dblayer_get_batch_txn_max_sleep, &dblayer_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},

@@ -4603,10 +4603,8 @@ static int log_flush_threadmain(void *param)
                     PR_NotifyAllCondVar(sync_txn_log_flush_done);
                 }
                 /* wait until flushing conditions are met */
-                while ( trans_batch_count == 0 ||
-                       ( trans_batch_count < trans_batch_limit &&
-                       trans_batch_count < txn_in_progress_count))
-                {
+                while ((trans_batch_count == 0) ||
+                       (trans_batch_count < trans_batch_limit && trans_batch_count < txn_in_progress_count)) {
                     if (priv->dblayer_stop_threads)
                         break;
                     if (PR_IntervalNow() - last_flush > interval_flush) {
@@ -4617,7 +4615,7 @@ static int log_flush_threadmain(void *param)
                 }
                 PR_Unlock(sync_txn_log_flush);
                 LDAPDebug(LDAP_DEBUG_BACKLDBM, "log_flush_threadmain (wakeup): batchcount: %d, "
-                		"txn_in_progress: %d\n", trans_batch_count, txn_in_progress_count, 0);
+                          "txn_in_progress: %d\n", trans_batch_count, txn_in_progress_count, 0);
             } else {
                 DS_Sleep(interval_def);
             }
@@ -4654,6 +4652,9 @@ dblayer_start_checkpoint_thread(struct ldbminfo *li)
     return return_value;
 }
 
+/*
+ * checkpoint thread -- borrow the timing for compacting id2entry, as well.
+ */
 static int checkpoint_threadmain(void *param)
 {
     time_t time_of_last_checkpoint_completion = 0;    /* seconds since epoch */
@@ -4667,6 +4668,9 @@ static int checkpoint_threadmain(void *param)
     char **list = NULL;
     char **listp = NULL;
     struct dblayer_private_env *penv = NULL;
+    time_t time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
+    int compactdb_interval = 0;
+    back_txn txn;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo*)param;
@@ -4676,6 +4680,7 @@ static int checkpoint_threadmain(void *param)
 
     INCR_THREAD_COUNT(priv);
 
+    compactdb_interval = priv->dblayer_compactdb_interval;
     interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
     home_dir = dblayer_get_home_dir(li, NULL);
     if (NULL == home_dir || '\0' == *home_dir)
@@ -4774,6 +4779,49 @@ static int checkpoint_threadmain(void *param)
         }
         /* find out which log files don't contain active txns */
         DB_CHECKPOINT_LOCK(PR_TRUE, penv->dblayer_env_lock);
+        /* Compacting DB borrowing the timing of the log flush */
+        if ((compactdb_interval > 0) &&
+            (current_time() - time_of_last_comapctdb_completion > compactdb_interval)) {
+            int rc = 0;
+            Object *inst_obj;
+            ldbm_instance *inst;
+            DB *db = NULL;
+            DB_COMPACT c_data = {0};
+
+            for (inst_obj = objset_first_obj(li->li_instance_set);
+                 inst_obj;
+                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+                inst = (ldbm_instance *)object_get_data(inst_obj);
+                rc = dblayer_get_id2entry(inst->inst_be, &db);
+                if (!db) {
+                    continue;
+                }
+                LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, "compactdb: Compacting DB start: %s\n",
+                              inst->inst_name);
+                rc = dblayer_txn_begin(inst->inst_be, NULL, &txn);
+                if (rc) {
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                  "compactdb: transaction begin failed: %d\n",
+                                  rc);
+                    break;
+                }
+                rc = db->compact(db, txn.back_txn_txn, NULL/*start*/, NULL/*stop*/, 
+                                 &c_data, DB_FREE_SPACE, NULL/*end*/);
+                if (rc) {
+                    LDAPDebug(LDAP_DEBUG_ANY,
+                              "compactdb: failed to compact %s; db error - %d %s\n",
+                              inst->inst_name, rc, db_strerror(rc));
+                    rc = dblayer_txn_abort(inst->inst_be, &txn);
+                } else {
+                    LDAPDebug2Args(LDAP_DEBUG_BACKLDBM,
+                                   "compactdb: compact %s - %d pages freed\n",
+                                   inst->inst_name, c_data.compact_pages_free);
+                    rc = dblayer_txn_commit(inst->inst_be, &txn);
+                }
+            }
+            time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
+            compactdb_interval = priv->dblayer_compactdb_interval;
+        }
         rval = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
                            DB_ARCH_ABS, (void *)slapi_ch_malloc);
         DB_CHECKPOINT_UNLOCK(PR_TRUE, penv->dblayer_env_lock);
@@ -4794,10 +4842,10 @@ static int checkpoint_threadmain(void *param)
                     checkpoint_debug_message(debug_checkpointing,
                                 "Renaming %s -> %s\n",*listp, new_filename, 0);
                     if(rename(*listp, new_filename) != 0){
-                    	LDAPDebug(LDAP_DEBUG_ANY, "checkpoint_threadmain: failed to rename log (%s) to (%s)\n",
-                    	        *listp, new_filename, 0);
-                    	rval = -1;
-                    	goto error_return;
+                        LDAPDebug(LDAP_DEBUG_ANY, "checkpoint_threadmain: failed to rename log (%s) to (%s)\n",
+                                *listp, new_filename, 0);
+                        rval = -1;
+                        goto error_return;
                     }
                 }
             }
