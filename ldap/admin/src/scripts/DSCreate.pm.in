@@ -1274,7 +1274,10 @@ sub removeDSInstance {
     my @errs;
 
     my $initconfig = "$initconfig_dir/@package_name@-$inst";
-
+    my $pkglockdir = "@localstatedir@/lock/@package_name@";
+    my $pkgrundir = "@localstatedir@/run/@package_name@";
+    my $pkglibdir = "@localstatedir@/lib/@package_name@";
+    
     # Get the configdir, rundir and product_name from the instance initconfig script.
     unless(open(INFILE, $initconfig)) {
         return ( [ 'error_no_such_instance', $instname, $! ] );
@@ -1454,7 +1457,14 @@ sub removeDSInstance {
 
     # update systemd files
     push @errs, updateSystemD();
-
+    
+    # remove /var/lock/dirsrv & /var/run/dirsrv if this was the last instance
+    if(!<$pkglockdir/*>){
+        rmdir $pkglockdir;
+        rmdir $pkgrundir;
+        rmdir $pkglibdir;
+    }
+    
     # if we got here, report success
     if (@errs) {
         debug(1, "Could not successfully remove $instname\n");
