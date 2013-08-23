@@ -653,7 +653,6 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	int passin_sdn = 0;
 	LDAPMod	**mods, *pw_mod, **tmpmods = NULL;
 	Slapi_Mods smods;
-	Slapi_Mods unhashed_pw_smod;	
 	int repl_op, internal_op, lastmod, skip_modified_attrs;
 	char *unhashed_pw_attr = NULL;
 	Slapi_Operation *operation;
@@ -691,8 +690,6 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	}
 
 	slapi_mods_init_passin (&smods, mods);
-
-	slapi_mods_init(&unhashed_pw_smod, 0);
 
 	/* target spec is used to decide which plugins are applicable for the operation */
 	operation_set_target_spec (pb->pb_op, sdn);
@@ -1138,7 +1135,6 @@ free_and_return:
 	if (be)
 		slapi_be_Unlock(be);
 
-	slapi_mods_done(&unhashed_pw_smod); /* can finalize now */
 	if (unhashed_pw_attr)
 		slapi_ch_free ((void**)&unhashed_pw_attr);
 
