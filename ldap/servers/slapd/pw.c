@@ -585,6 +585,7 @@ int
 update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 {
 	Slapi_Operation *operation = NULL;
+	Slapi_Entry *e = NULL;
 	Slapi_DN *sdn = NULL;
 	Slapi_Mods	smods;
 	passwdPolicy *pwpolicy = NULL;
@@ -594,9 +595,10 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	char *timestr;
 	int internal_op = 0;
 
-	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &bind_dn);
+	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e);
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 	target_dn = slapi_sdn_get_ndn(sdn);
 	pwpolicy = new_passwdPolicy(pb, target_dn);
@@ -633,8 +635,10 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 		set_retry_cnt_mods (pb, &smods, 0 );
 	}
 
-	/* Clear the passwordgraceusertime from the user entry */
-	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordgraceusertime", "0");
+	if(!slapi_entry_attr_hasvalue(e,"passwordgraceusertime", "0")){
+		/* Clear the passwordgraceusertime from the user entry */
+		slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordgraceusertime", "0");
+	}
 
 	/*
 	 * If the password is reset by a different user, mark it the first time logon.  If this is an internal
