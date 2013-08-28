@@ -518,6 +518,7 @@ index_add_mods(
     char *basetype = NULL;
     char *tmp = NULL;
     Slapi_Attr *curr_attr = NULL;
+    struct attrinfo *ai = NULL;
     Slapi_ValueSet *all_vals = NULL;
     Slapi_ValueSet *mod_vals = NULL;
     Slapi_Value **evals = NULL;               /* values that still exist after a
@@ -536,6 +537,11 @@ index_add_mods(
         tmp = slapi_attr_basetype(mods[i]->mod_type, buf, sizeof(buf));
         if(tmp != NULL) {
             basetype = tmp; /* basetype was malloc'd */
+        }
+        ainfo_get( be, basetype, &ai );
+        if ( ai == NULL || ai->ai_indexmask == 0 || ai->ai_indexmask == INDEX_OFFLINE ) {
+            /* this attribute is not being indexed, skip it. */
+            goto error;
         }
 
         /* Get a list of all remaining values for the base type
