@@ -35,10 +35,33 @@ stop_instance() {
         fi
         return 2
     }
-    # server is running - kill it
-    kill $PID
-    loop_counter=1
+    
+    #
+    # use systemctl if running as root
+    #
+    if [ -d "@systemdsystemunitdir@" ] && [ "$(id -u)" == "0" ];then
+        # 
+        # Now, check if systemctl is aware of this running instance
+        #
+        @bindir@/systemctl is-active @package_name@@$SERV_ID.service > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            # 
+            # systemctl sees the running process, so stop it correctly
+            #
+            @bindir@/systemctl stop @package_name@@$SERV_ID.service
+        else
+            # 
+            # Have to kill it since systemctl doesn't think it's running
+            #
+            kill $PID
+        fi
+    else
+        # server is running - kill it
+        kill $PID
+    fi
+    
     # wait for 10 minutes (600 times 1 second)
+    loop_counter=1
     max_count=600
     while test $loop_counter -le $max_count; do
         loop_counter=`expr $loop_counter + 1`
