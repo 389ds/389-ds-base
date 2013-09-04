@@ -60,11 +60,21 @@ start_instance() {
             rm -f $PIDFILE
         fi
     fi
-    cd $SERVERBIN_DIR; ./ns-slapd -D $CONFIG_DIR -i $PIDFILE -w $STARTPIDFILE "$@"
-    if [ $? -ne 0 ]; then
-        return 1
+    #
+    # Use systemctl if available and running as root, 
+    # otherwise start the instance the old way.
+    #
+    if [ -d "@systemdsystemunitdir@" ] && [ "$(id -u)" == "0" ];then
+        @bindir@/systemctl start @package_name@@$SERV_ID.service
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
+    else
+        cd $SERVERBIN_DIR; ./ns-slapd -D $CONFIG_DIR -i $PIDFILE -w $STARTPIDFILE "$@"
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
     fi
-
     loop_counter=1
     # wait for 10 seconds for the start pid file to appear
     max_count=${STARTPID_TIME:-10}
