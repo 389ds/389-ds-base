@@ -1147,8 +1147,9 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 					rc = LDAP_TYPE_OR_VALUE_EXISTS;
 					if (dup_index) *dup_index = i;
 					if (passin) {
-						/* we have to NULL out the first value so valuearray_free won't delete values in addvals */
-						(vs->va)[0] = NULL;
+						PR_ASSERT((i == 0) || dup_index);
+						/* caller must provide dup_index to know how far we got in addvals */
+						(vs->va)[vs->num] = NULL;
 					} else {
 						slapi_value_free(&(vs->va)[vs->num]);
 					}
@@ -1391,8 +1392,9 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
     } else {
 	/* verify the given values are not duplicated.  */
 	unsigned long flags = SLAPI_VALUE_FLAG_PASSIN|SLAPI_VALUE_FLAG_DUPCHECK;
+	int dupindex = 0;
 	Slapi_ValueSet *vs_new = slapi_valueset_new();
-	rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, flags, NULL);
+	rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, flags, &dupindex);
 
 	if ( rc == LDAP_SUCCESS )
 	{
@@ -1420,8 +1422,11 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
 	{
 	        /* caller expects us to own valstoreplace - since we cannot
 	           use them, just delete them */
+		/* using PASSIN, some of the Slapi_Value* are in vs_new, and the rest
+		 * after dupindex are in valstoreplace
+		 */
         	slapi_valueset_free(vs_new);
-        	valuearray_free(&valstoreplace);
+        	valuearray_free_ext(&valstoreplace, dupindex);
 		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 	}
     }
