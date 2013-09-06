@@ -846,6 +846,11 @@ void valuearray_add_valuearray_fast( Slapi_Value ***vals, Slapi_Value **addvals,
 Slapi_Value * valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v, int *index);
 int valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *vi, int dupcheck);
 void valueset_array_to_sorted (const Slapi_Attr *a, Slapi_ValueSet *vs);
+/* NOTE: if the flags include SLAPI_VALUE_FLAG_PASSIN and SLAPI_VALUE_FLAG_DUPCHECK
+ * THE CALLER MUST PROVIDE THE dup_index PARAMETER in order to know where in addval
+ * the un-copied values start e.g. to free them for cleanup
+ * see valueset_replace_valuearray_ext() for an example
+ */
 int slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **addval, int nvals, unsigned long flags, int *dup_index);
 int valuearray_find(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v);
 int valuearray_dn_normalize_value(Slapi_Value **vals);
