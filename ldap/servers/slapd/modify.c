@@ -81,6 +81,7 @@ static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_un
 static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods);
 static int hash_rootpw (LDAPMod **mods);
 static int valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***cvals);
+static void optimize_mods(Slapi_Mods *smods);
 
 #ifdef LDAP_DEBUG
 static const char*
@@ -1041,6 +1042,11 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	}
 
 	/*
+	 * Optimize the mods - this combines sequential identical attribute modifications.
+	 */
+	optimize_mods(&smods);
+
+	/*
 	 * call the pre-mod plugins. if they succeed, call
 	 * the backend mod function. then call the post-mod
 	 * plugins.
@@ -1456,3 +1462,73 @@ hash_rootpw (LDAPMod **mods)
 	return 0;
 }
 
+/*
+ *  optimize_mods()
+ *
+ *  If the client send a string identical modifications we might
+ *  be able to optimize it for add and delete operations:
+ *
+ *  mods[0].mod_op: LDAP_MOD_ADD
+ *  mods[0].mod_type: uniqueMember
+ *  mods[0].mod_values: <value_0>
+ *  mods[1].mod_op: LDAP_MOD_ADD
+ *  mods[1].mod_type: uniqueMember
+ *  mods[1].mod_values: <value_1>
+ *         ...
+ *  mods[N].mod_op: LDAP_MOD_ADD
+ *  mods[N].mod_type: uniqueMember
+ *  mods[N]mod_values: <value_N>
+ *
+ *  Optimized to:
+ *
+ *  mods[0].mod_op: LDAP_MOD_ADD
+ *  mods[0].mod_type: uniqueMember
+ *  mods[0].mod_values: <value_0>
+ *                      <value_1>
+ *                      ...
+ *                      <value_N>
+ *
+ *  We only optimize operations (ADDs and DELETEs) that are sequential.  We
+ *  can not look at the all mods(non-sequentially) because we need to keep
+ *  the order preserved, and keep processing to a minimum.
+ */
+static void
+optimize_mods(Slapi_Mods *smods){
+    LDAPMod *mod, *prev_mod;
+    int i, mod_count = 0, max_vals = 0;
+
+    prev_mod = slapi_mods_get_first_mod(smods);
+    while((mod = slapi_mods_get_next_mod(smods))){
+        if((SLAPI_IS_MOD_ADD(prev_mod->mod_op) || SLAPI_IS_MOD_DELETE(prev_mod->mod_op)) &&
+           (prev_mod->mod_op == mod->mod_op) &&
+           (!strcasecmp(prev_mod->mod_type, mod->mod_type)))
+        {
+            /* Get the current number of mod values from the previous mod.  Do it once per attr */
+            if(mod_count == 0){
+                for(;prev_mod->mod_bvalues != NULL && prev_mod->mod_bvalues[mod_count] != NULL; mod_count++);
+                if(mod_count == 0){
+                    /* The previous mod did not contain any values, so lets move to the next mod */
+                    prev_mod = mod;
+                    continue;
+                }
+            }
+            /* Add the values from the current mod to the prev mod */
+            for ( i = 0; mod->mod_bvalues != NULL && mod->mod_bvalues[i] != NULL; i++ ) {
+                bervalarray_add_berval_fast(&(prev_mod->mod_bvalues),mod->mod_bvalues[i],mod_count, &max_vals);
+                mod_count++;
+            }
+            if(i > 0){
+                /* Ok, we did optimize the "mod" values, so set the current mod to be ignored */
+                mod->mod_op = LDAP_MOD_IGNORE;
+            } else {
+                /* No mod values, probably a full delete of the attribute... reset counters and move on */
+                mod_count = max_vals = 0;
+                prev_mod = mod;
+            }
+        } else {
+            /* no match, reset counters and move on */
+            mod_count = max_vals = 0;
+            prev_mod = mod;
+        }
+    }
+}
