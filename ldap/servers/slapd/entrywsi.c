@@ -743,7 +743,10 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
 			{
 				valuearray_free(&deletedvalues);
 				/* The attribute is single valued and the value was successful deleted */
-				entry_present_attribute_to_deleted_attribute(e, a);
+				 /* but there could have been an add in the same operation, so double check */
+                                if (valueset_isempty(&a->a_present_values)) {
+					entry_present_attribute_to_deleted_attribute(e, a);
+				}
 			}
 			else if (retVal != LDAP_SUCCESS)
 			{
@@ -825,6 +828,8 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 
 				valuearray_update_csn(valuestodelete,CSN_TYPE_VALUE_DELETED,csn);
 				valueset_add_valuearray_ext(&a->a_deleted_values, valuestodelete, SLAPI_VALUE_FLAG_PASSIN);
+				if(valueset_isempty(&a->a_present_values))
+					entry_present_attribute_to_deleted_attribute(e, a);
 				/* all the elements in valuestodelete are passed;
 				 * should free valuestodelete only (don't call valuearray_free)
 				 * [622023] */
