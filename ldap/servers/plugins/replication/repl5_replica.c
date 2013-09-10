@@ -3532,7 +3532,7 @@ replica_replace_ruv_tombstone(Replica *r)
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,
         repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
-        OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_REPL_RUV);
+        OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_REPL_RUV | OP_FLAG_TOMBSTONE_ENTRY);
 
     slapi_modify_internal_pb (pb);
 
