@@ -2192,7 +2192,7 @@ void automember_rebuild_task_thread(void *arg){
             while (list != g_automember_config) {
                 config = (struct configEntry *)list;
                 /* Does the entry meet scope and filter requirements? */
-                if (slapi_dn_issuffix(slapi_sdn_get_dn(td->base_dn), config->scope) &&
+                if (slapi_dn_issuffix(slapi_entry_get_dn(entries[i]), config->scope) &&
                     (slapi_filter_test_simple(entries[i], config->filter) == 0))
                 {
                     automember_update_membership(config, entries[i], NULL);
