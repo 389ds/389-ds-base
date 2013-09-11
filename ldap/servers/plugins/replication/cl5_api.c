@@ -6117,7 +6117,7 @@ static int _cl5FileEndsWith(const char *filename, const char *ext)
 	{
 		return 0;
 	}
-	p = strstr(filename, ext);
+	p = PL_strrstr(filename, ext);
 	if (NULL == p)
 	{
 		return 0;
