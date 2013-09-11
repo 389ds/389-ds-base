@@ -814,7 +814,8 @@ repl_set_mtn_state_and_referrals(
 int
 repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 					 char **mtn_be_names, int be_count,
-					 Slapi_DN * node_dn, int *mtn_be_states)
+					 Slapi_DN * node_dn, int *mtn_be_states,
+					 int root_mode)
 {
 	char * requestor_dn;
 	unsigned long op_type;
@@ -943,7 +944,12 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 						"is root: using local backend\n", connid, opid);
 		}
 #endif
-		return local_backend;
+		if (root_mode == CHAIN_ROOT_UPDATE_LOCAL)
+			return local_backend;
+		else if (root_mode == CHAIN_ROOT_UPDATE_REJECT)
+			return (-2);
+		else if (root_mode == CHAIN_ROOT_UPDATE_REFERRAL)
+			return (-3);
 	}
 
 	/* if the operation is a replicated operation
@@ -981,7 +987,7 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
         }
     }
 
-	/* all other case (update while not directory manager) :
+	/* all other cases :
 	 * or any normal non replicated client operation while local is disabled (import) :
 	 * use the chaining backend 
 	 */

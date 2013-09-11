@@ -762,6 +762,9 @@ char * slapi_schema_get_superior_name(const char *ocname_or_oid);
 CSN *dup_global_schema_csn();
 
 /* misc function for the chaining backend */
+#define CHAIN_ROOT_UPDATE_REJECT	0
+#define CHAIN_ROOT_UPDATE_LOCAL		1
+#define CHAIN_ROOT_UPDATE_REFERRAL	2
 char * slapi_get_rootdn();	/* return the directory manager dn in use */
 
 /* plugin interface to bulk import */

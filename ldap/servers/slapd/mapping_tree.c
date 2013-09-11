@@ -47,7 +47,7 @@
 
 /* distribution plugin prototype */
 typedef int (* mtn_distrib_fct) (Slapi_PBlock *pb, Slapi_DN * target_dn,
-         char **mtn_be_names, int be_count, Slapi_DN * mtn_node_dn, int *mtn_be_states);
+         char **mtn_be_names, int be_count, Slapi_DN * mtn_node_dn, int *mtn_be_states, int rootmode);
 
 struct mt_node
 {
@@ -70,6 +70,7 @@ struct mt_node
                                    * cn=config, cn=schema and root node */
     char * mtn_dstr_plg_lib;      /* distribution plugin library name */
     char * mtn_dstr_plg_name;      /* distribution plugin function name */
+    int mtn_dstr_plg_rootmode;      /* determines how to process root updates in distribution */
     mtn_distrib_fct mtn_dstr_plg;          /* pointer to the actual ditribution function */
     void *mtn_extension;          /* plugins can extend a mapping tree node */
 };
@@ -302,7 +303,7 @@ mapping_tree_node_new(Slapi_DN *dn, Slapi_Backend **be, char **backend_names, in
              int count, int size,
              char **referral, mapping_tree_node *parent,
              int state, int private, char *plg_lib, char *plg_fct,
-             mtn_distrib_fct plg)
+             mtn_distrib_fct plg, int plg_rootmode)
 {
     Slapi_RDN rdn;
     mapping_tree_node *node;
@@ -326,6 +327,7 @@ mapping_tree_node_new(Slapi_DN *dn, Slapi_Backend **be, char **backend_names, in
     slapi_rdn_done(&rdn);
     node->mtn_dstr_plg_lib = plg_lib;
     node->mtn_dstr_plg_name = plg_fct;
+    node->mtn_dstr_plg_rootmode = plg_rootmode;
     node->mtn_dstr_plg = plg;
 
     slapi_log_error(SLAPI_LOG_TRACE, "mapping_tree",
@@ -621,6 +623,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     int * be_states = NULL;
     char * plugin_funct = NULL;
     char * plugin_lib = NULL;
+    int plugin_rootmode = CHAIN_ROOT_UPDATE_REJECT;
     mtn_distrib_fct plugin = NULL;
     
     char **referral = NULL;
@@ -729,6 +732,24 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
                 continue;
             }
             plugin_funct = slapi_ch_strdup(slapi_value_get_string(val));
+        } else if (!strcasecmp(type, "nsslapd-distribution-root-update")) {
+	    const char *sval;
+            slapi_attr_first_value(attr, &val);
+            if (NULL == val) {
+                LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
+                    slapi_entry_get_dn(entry), 0, 0);
+                continue;
+            }
+            sval = slapi_value_get_string(val);
+	    if (strcmp(sval,"reject") == 0)
+		plugin_rootmode = CHAIN_ROOT_UPDATE_REJECT;
+	    else if (strcmp(sval,"local") == 0)
+		plugin_rootmode = CHAIN_ROOT_UPDATE_LOCAL;
+	    else if (strcmp(sval,"referral") == 0)
+		plugin_rootmode = CHAIN_ROOT_UPDATE_REFERRAL;
+	    else 
+                LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-distribution-root-update attribute has undefined value (%s) for the mapping tree node %s\n",
+                    sval, slapi_entry_get_dn(entry), 0);
         } else if (!strcasecmp(type, MAPPING_TREE_PARENT_ATTRIBUTE)) {
             Slapi_DN *parent_node_dn = get_parent_from_entry(entry);
             parent_node = mtn_get_mapping_tree_node_by_entry(
@@ -845,7 +866,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     node= mapping_tree_node_new(subtree, be_list, be_names, be_states, be_list_count,
              be_list_size, referral, parent_node, state,
              0 /* Normal node. People can see and change it. */,
-             plugin_lib, plugin_funct, plugin);
+             plugin_lib, plugin_funct, plugin, plugin_rootmode);
 
     tmp_ndn = slapi_sdn_get_ndn( subtree );
     if ( NULL != node && NULL == parent_node && tmp_ndn 
@@ -1061,6 +1082,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
     int * be_states = NULL;
     char * plugin_fct = NULL;
     char * plugin_lib = NULL;
+    int plugin_rootmode = CHAIN_ROOT_UPDATE_REJECT;
     int plugin_flag = 0;
     mtn_distrib_fct plugin = NULL;
 
@@ -1325,6 +1347,38 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             plugin_flag = 1;
 
         }
+        else if (strcasecmp(mods[i]->mod_type,
+                         "nsslapd-distribution-root-update" ) == 0)
+        {
+            if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)
+                || SLAPI_IS_MOD_ADD(mods[i]->mod_op))
+            {
+		const char *sval;
+                slapi_entry_attr_find(entryAfter,
+                             "nsslapd-distribution-root-update", &attr);
+                slapi_attr_first_value(attr, &val);
+                if (NULL == val) {
+                    LDAPDebug(LDAP_DEBUG_ANY,
+                    "Warning: The nsslapd-distribution-root-update attribute"
+                    " has no value for the mapping tree node %s\n",
+                    slapi_entry_get_dn(entryAfter), 0, 0);
+                    plugin_rootmode = CHAIN_ROOT_UPDATE_REJECT;
+                } else {
+                    sval = slapi_value_get_string(val);
+	    	    if (strcmp(sval,"reject") == 0)
+			plugin_rootmode = CHAIN_ROOT_UPDATE_REJECT;
+	    	    else if (strcmp(sval,"local") == 0)
+			plugin_rootmode = CHAIN_ROOT_UPDATE_LOCAL;
+	    	    else if (strcmp(sval,"referral") == 0)
+			plugin_rootmode = CHAIN_ROOT_UPDATE_REFERRAL;
+		}
+            }
+            else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
+            {
+                plugin_rootmode = CHAIN_ROOT_UPDATE_REJECT; /* default */
+            }
+            plugin_flag = 1;
+        }
     }
 
     /* if distribution plugin has been configured or modified
@@ -1371,6 +1425,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
         if (node->mtn_dstr_plg_name)
             slapi_ch_free((void **) &node->mtn_dstr_plg_name);
         node->mtn_dstr_plg_name = plugin_fct;
+        node->mtn_dstr_plg_rootmode = plugin_rootmode;
         node->mtn_dstr_plg = plugin;
         mtn_unlock();
     }
@@ -1626,7 +1681,7 @@ add_internal_mapping_tree_node(const char *subtree, Slapi_Backend *be, mapping_t
             MTN_BACKEND,
             1, /* The config  node is a private node.
                 *  People can't see or change it. */
-            NULL, NULL, NULL);
+            NULL, NULL, NULL, 0); /* no distribution */
     return node;
 }
 
@@ -1994,6 +2049,8 @@ Slapi_Backend *slapi_mapping_tree_find_backend_for_sdn(Slapi_DN *sdn)
     }
     operation_set_target_spec(op, sdn);
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
+    /* requestor dn is not set in pblock, so the distribution plugin 
+     * will return index >= 0 */
     index = mtn_get_be_distributed(pb, target_node, sdn, &flag_stop);
     slapi_pblock_destroy(pb);   /* also frees the operation */
 
@@ -2504,7 +2561,7 @@ mtn_get_be_distributed(Slapi_PBlock *pb, mapping_tree_node * target_node,
     {
         index = (*target_node->mtn_dstr_plg)(pb, target_sdn,
                  target_node->mtn_backend_names, target_node->mtn_be_count,
-                 target_node->mtn_subtree, target_node->mtn_be_states);
+                 target_node->mtn_subtree, target_node->mtn_be_states, target_node->mtn_dstr_plg_rootmode);
 
         if (index == SLAPI_BE_ALL_BACKENDS)
         {
@@ -2513,6 +2570,12 @@ mtn_get_be_distributed(Slapi_PBlock *pb, mapping_tree_node * target_node,
              */
             index = 0;
         }
+	/* check if distribution plugi returned a special mode for 
+	 * updates as root */
+	else if (index == -2 || index == -3) 
+	{
+		/* nothing special to do */
+	}
         /* paranoid check, never trust another programmer */
         else if ((index >= target_node->mtn_be_count) || (index < 0))
         {
@@ -2521,7 +2584,7 @@ mtn_get_be_distributed(Slapi_PBlock *pb, mapping_tree_node * target_node,
                     " : %d for entry %s at node %s\n",
                      index, slapi_sdn_get_ndn(target_sdn),
                      slapi_sdn_get_ndn(target_node->mtn_subtree));
-            index = 0;
+            	index = 0;
         }
         else 
         {
@@ -2600,6 +2663,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
          ((SLAPI_OPERATION_SEARCH == op_type)||(SLAPI_OPERATION_BIND == op_type) || 
          (SLAPI_OPERATION_UNBIND == op_type) || (SLAPI_OPERATION_COMPARE == op_type))) ||
         override_referral) {
+        *referral = NULL;
         if ((target_node == mapping_tree_root) ){
             /* If we got here, then we couldn't find a matching node 
              * for the target. We'll use the default backend.  Once
@@ -2622,11 +2686,18 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                 } else {
                     *index = mtn_get_be_distributed(pb, target_node,
                          target_sdn, &flag_stop);
-                }
-            }
-
-            if ((*index == -2) || (*index >= target_node->mtn_be_count)) {
-        /* we have already returned all backends -> return NULL */
+			if (*index == -2) 
+				result = LDAP_UNWILLING_TO_PERFORM;
+            	}
+           }
+	   if (*index == -3) {
+           	*be = NULL;
+               	*referral = (target_node->mtn_referral_entry ?
+                       		slapi_entry_dup(target_node->mtn_referral_entry) :
+                       		NULL);
+                (*index)++;
+            }else if ((*index == -2) || (*index >= target_node->mtn_be_count)) {
+        	/* we have already returned all backends -> return NULL */
                 *be = NULL;
                 *referral = NULL;
             } else {
@@ -2673,7 +2744,6 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                     (*index)++;
             }
         }        
-        *referral = NULL;
     } else {
         /* otherwise we must return the referral
          * if ((target_node->mtn_state == MTN_REFERRAL) ||
