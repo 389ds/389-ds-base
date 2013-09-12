@@ -584,9 +584,9 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		} else {
 			/* URL format */
 			
-			if ((strstr (user, ACL_RULE_MACRO_DN_KEY) != NULL) ||
-				(strstr (user, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
-				(strstr (user, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
+			if ((strcasestr (user, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+				(strcasestr (user, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+				(strcasestr (user, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				
 				matched = aclutil_evaluate_macro( s_user, &lasinfo,
 													ACL_EVAL_USER);
@@ -856,9 +856,9 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					"Group not evaluated(%s)\n", groupName);
 			break;
 		} else {			
-			if ((strstr (groupName, ACL_RULE_MACRO_DN_KEY) != NULL) ||
-				(strstr (groupName, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
-				(strstr (groupName, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
+			if ((strcasestr (groupName, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+				(strcasestr (groupName, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+				(strcasestr (groupName, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				matched = aclutil_evaluate_macro( groupName, &lasinfo,
 													ACL_EVAL_GROUP);
 				slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
@@ -1075,9 +1075,9 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		} else {
 
 			/* Take care of param strings */
-			if ((strstr (role, ACL_RULE_MACRO_DN_KEY) != NULL) ||
-				(strstr (role, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
-				(strstr (role, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
+			if ((strcasestr (role, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+				(strcasestr (role, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+				(strcasestr (role, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				
 				matched = aclutil_evaluate_macro( role, &lasinfo,
 													ACL_EVAL_ROLE);
@@ -2598,9 +2598,9 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 		/* In this case "grppupdnattr="ldap:///base??attr" */
 
-		if ((strstr (attrName, ACL_RULE_MACRO_DN_KEY) != NULL) ||
-			(strstr (attrName, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
-			(strstr (attrName, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
+		if ((strcasestr (attrName, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+			(strcasestr (attrName, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) ||
+			(strcasestr (attrName, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {			
 				
 				matched = aclutil_evaluate_macro( attrName, &lasinfo,
 													ACL_EVAL_GROUPDNATTR);
@@ -4157,12 +4157,12 @@ acllas_replace_dn_macro( char *rule, char *matched_val, lasInfo *lasinfo) {
 	int has_macro_levels = 0;
 	
 	/* Determine what the rule's got once */
-	if ( strstr(rule, ACL_RULE_MACRO_DN_KEY) != NULL) {
+	if ( strcasestr(rule, ACL_RULE_MACRO_DN_KEY) != NULL) {
 		/* ($dn) exists */
 		has_macro_dn = 1;
 	}
 
-	if ( strstr(rule, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) {
+	if ( strcasestr(rule, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL) {
 		/* [$dn] exists */
 		has_macro_levels = 1;
 	}
@@ -4266,7 +4266,7 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo)
 	int l;
 	Slapi_Attr *attr = NULL;
 	
-	str = strstr(rule, ACL_RULE_MACRO_ATTR_KEY);
+	str = strcasestr(rule, ACL_RULE_MACRO_ATTR_KEY);
 	if ( str == NULL ) {
 
 		charray_add(&a, slapi_ch_strdup(rule));
@@ -4275,7 +4275,7 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo)
 	} else {
 	
 		working_rule = slapi_ch_strdup(rule);
-		str = strstr(working_rule, ACL_RULE_MACRO_ATTR_KEY);
+		str = strcasestr(working_rule, ACL_RULE_MACRO_ATTR_KEY);
 		charray_add(&working_list, working_rule );
 		
 		while( str != NULL) {
@@ -4373,7 +4373,7 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo)
 			slapi_ch_free_string(&macro_str);
 			slapi_ch_free_string(&macro_attr_name);
 			
-			str = strstr(working_rule, ACL_RULE_MACRO_ATTR_KEY);
+			str = strcasestr(working_rule, ACL_RULE_MACRO_ATTR_KEY);
 		
         }/* while */
 		
