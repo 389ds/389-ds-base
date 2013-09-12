@@ -276,8 +276,8 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			 * have a target and it must have a macro.
 			*/
 		
-			if ((strstr(str, ACL_RULE_MACRO_DN_KEY) != NULL) ||
-			    (strstr(str, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL)) {
+			if ((strcasestr(str, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+			    (strcasestr(str, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL)) {
 			
 				/* Must have a targetmacro */
 				if ( !(aci_item->aci_type & ACI_TARGET_MACRO_DN)) {
@@ -497,14 +497,40 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 				return ACL_INCORRECT_ACI_VERSION;
 			}
 		} else if ((s = strstr(word, "($")) || (s = strstr(word, "[$"))) {
+			int attr_macro = -1;
+
+			/* See if this is a valid macro keyword. */
 			if ((0 != strncasecmp(s, ACL_RULE_MACRO_DN_KEY,
 			                      sizeof(ACL_RULE_MACRO_DN_KEY) - 1)) &&
 			    (0 != strncasecmp(s, ACL_RULE_MACRO_DN_LEVELS_KEY,
 			                      sizeof(ACL_RULE_MACRO_DN_LEVELS_KEY) - 1)) &&
-			    (0 != strncasecmp(s, ACL_RULE_MACRO_ATTR_KEY,
-			                      sizeof(ACL_RULE_MACRO_ATTR_KEY) - 1))) {
+			    (0 != (attr_macro = strncasecmp(s, ACL_RULE_MACRO_ATTR_KEY,
+			                      sizeof(ACL_RULE_MACRO_ATTR_KEY) - 1)))) {
 				slapi_ch_free ( (void **) &newstr );
 				return ACL_SYNTAX_ERR;
+			}
+
+			/* For the $attr macro, validate that the attribute name is
+			 * legal per RFC 4512. */
+			if (attr_macro == 0) {
+				int start = 1;
+				char *p = NULL;
+
+				for (p = s + sizeof(ACL_RULE_MACRO_ATTR_KEY) - 1;
+					p && *p && *p != ')'; p++) {
+					if (start) {
+						if (!isalpha(*p)) {
+							slapi_ch_free ( (void **) &newstr );
+							return ACL_SYNTAX_ERR;
+						}
+						start = 0;
+					} else {
+						if (!(isalnum(*p) || (*p == '-'))) {
+							slapi_ch_free ( (void **) &newstr );
+							return ACL_SYNTAX_ERR;
+						}
+					}
+				}
 			}
 		}
 	}
