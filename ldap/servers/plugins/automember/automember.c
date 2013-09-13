@@ -2135,7 +2135,7 @@ out:
 void automember_rebuild_task_thread(void *arg){
     Slapi_Task *task = (Slapi_Task *)arg;
     struct configEntry *config = NULL;
-    Slapi_PBlock *search_pb = NULL;
+    Slapi_PBlock *search_pb = NULL, *fixup_pb = NULL;
     Slapi_Entry **entries = NULL;
     task_data *td = NULL;
     PRCList *list = NULL;
@@ -2176,6 +2176,27 @@ void automember_rebuild_task_thread(void *arg){
         goto out;
     }
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+
+    /*
+     * If this is a backend txn plugin, start the transaction
+     */
+    if (plugin_is_betxn) {
+        Slapi_Backend *be = slapi_be_select(td->base_dn);
+
+        if (be) {
+            fixup_pb = slapi_pblock_new();
+            slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
+            if(slapi_back_transaction_begin(fixup_pb) != LDAP_SUCCESS){
+                slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                        "automember_rebuild_task_thread: failed to start transaction\n");
+            }
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                    "automember_rebuild_task_thread: failed to get be backend from %s\n",
+                    slapi_sdn_get_dn(td->base_dn));
+        }
+    }
+
     /*
      *  Grab the config read lock, and loop over the entries
      */
@@ -2205,6 +2226,15 @@ void automember_rebuild_task_thread(void *arg){
     slapi_free_search_results_internal(search_pb);
 
 out:
+    if (plugin_is_betxn && fixup_pb) {
+        if (i == 0 || result != 0) { /* no updates performed */
+            slapi_back_transaction_abort(fixup_pb);
+        } else {
+            slapi_back_transaction_commit(fixup_pb);
+        }
+        slapi_pblock_destroy(fixup_pb);
+    }
+
     if(result){
         /* error */
         slapi_task_log_notice(task, "Automember rebuild task aborted.  Error (%d)", result);
