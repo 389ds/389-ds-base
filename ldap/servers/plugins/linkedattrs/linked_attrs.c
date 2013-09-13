@@ -55,6 +55,7 @@ static Slapi_RWLock *g_config_lock;
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
 static int g_plugin_started = 0;
+int plugin_is_betxn = 0;
 
 static Slapi_PluginDesc pdesc = { LINK_FEATURE_DESC,
                                   VENDOR,
@@ -163,8 +164,6 @@ linked_attrs_get_plugin_dn()
 {
     return _PluginDN;
 }
-
-static int plugin_is_betxn = 0;
 
 /*
  * Plug-in initialization functions

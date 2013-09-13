@@ -139,11 +139,11 @@ linked_attrs_fixup_task_destructor(Slapi_Task *task)
 static void
 linked_attrs_fixup_task_thread(void *arg)
 {
-	int rc = 0;
 	Slapi_Task *task = (Slapi_Task *)arg;
 	task_data *td = NULL;
 	PRCList *main_config = NULL;
 	int found_config = 0;
+	int rc = 0;
 
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
@@ -218,8 +218,10 @@ static void
 linked_attrs_fixup_links(struct configEntry *config)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *fixup_pb = NULL;
     char *del_filter = NULL;
     char *add_filter = NULL;
+    int rc = 0;
 
     del_filter = slapi_ch_smprintf("%s=*", config->managedtype);
     add_filter = slapi_ch_smprintf("%s=*", config->linktype);
@@ -228,12 +230,33 @@ linked_attrs_fixup_links(struct configEntry *config)
     slapi_lock_mutex(config->lock);
 
     if (config->scope) {
+        /*
+         * If this is a backend txn plugin, start the transaction
+         */
+        if (plugin_is_betxn) {
+            Slapi_DN *fixup_dn = slapi_sdn_new_dn_byref(config->scope);
+            Slapi_Backend *be = slapi_be_select(fixup_dn);
+
+            if (be) {
+                fixup_pb = slapi_pblock_new();
+                slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
+                if(slapi_back_transaction_begin(fixup_pb) != LDAP_SUCCESS){
+                    slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
+                            "linked_attrs_fixup_links: failed to start transaction\n");
+                }
+            } else {
+                slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
+                        "linked_attrs_fixup_links: failed to get be backend from %s\n",
+                        config->scope);
+            }
+        }
+
         /* Find all entries with the managed type present
          * within the scope and remove the managed type. */
         slapi_search_internal_set_pb(pb, config->scope, LDAP_SCOPE_SUBTREE,
                 del_filter, 0, 0, 0, 0, linked_attrs_get_plugin_id(), 0);
 
-        slapi_search_internal_callback_pb(pb, config->managedtype, 0,
+        rc = slapi_search_internal_callback_pb(pb, config->managedtype, 0,
                 linked_attrs_remove_backlinks_callback, 0);
 
         /* Clean out pblock for reuse. */
@@ -246,16 +269,46 @@ linked_attrs_fixup_links(struct configEntry *config)
 
         slapi_search_internal_callback_pb(pb, config, 0,
                 linked_attrs_add_backlinks_callback, 0);
+        /*
+         *  Finish the transaction.
+         */
+        if (plugin_is_betxn && fixup_pb){
+            if(rc == 0){
+                slapi_back_transaction_commit(fixup_pb);
+            } else {
+            	slapi_back_transaction_abort(fixup_pb);
+            }
+            slapi_pblock_destroy(fixup_pb);
+        }
     } else {
         /* Loop through all non-private backend suffixes and
          * remove the managed type from any entry that has it.
          * We then find any entry with the linktype present and
          * generate the proper backlinks. */
         void *node = NULL;
-        Slapi_DN * suffix = slapi_get_first_suffix (&node, 0);
+        config->suffix = slapi_get_first_suffix (&node, 0);
 
-        while (suffix) {
-            slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(suffix),
+        while (config->suffix) {
+            /*
+             * If this is a backend txn plugin, start the transaction
+             */
+            if (plugin_is_betxn) {
+                Slapi_Backend *be = slapi_be_select(config->suffix);
+                if (be) {
+                    fixup_pb = slapi_pblock_new();
+                    slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
+                    if(slapi_back_transaction_begin(fixup_pb) != LDAP_SUCCESS){
+                        slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
+                                "linked_attrs_fixup_links: failed to start transaction\n");
+                    }
+                } else {
+                    slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
+                            "linked_attrs_fixup_links: failed to get be backend from %s\n",
+                            slapi_sdn_get_dn(config->suffix));
+                }
+            }
+
+            slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(config->suffix),
                                          LDAP_SCOPE_SUBTREE, del_filter,
                                          0, 0, 0, 0,
                                          linked_attrs_get_plugin_id(), 0);
@@ -266,18 +319,29 @@ linked_attrs_fixup_links(struct configEntry *config)
             /* Clean out pblock for reuse. */
             slapi_pblock_init(pb);
 
-            slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(suffix),
+            slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(config->suffix),
                                          LDAP_SCOPE_SUBTREE, add_filter,
                                          0, 0, 0, 0,
                                          linked_attrs_get_plugin_id(), 0);
 
-            slapi_search_internal_callback_pb(pb, config, 0,
+            rc = slapi_search_internal_callback_pb(pb, config, 0,
                     linked_attrs_add_backlinks_callback, 0);
 
             /* Clean out pblock for reuse. */
             slapi_pblock_init(pb);
 
-            suffix = slapi_get_next_suffix (&node, 0);
+            config->suffix = slapi_get_next_suffix (&node, 0);
+            /*
+             *  Finish the transaction.
+             */
+            if (plugin_is_betxn && fixup_pb){
+                if(rc == 0){
+                    slapi_back_transaction_commit(fixup_pb);
+                } else {
+                	slapi_back_transaction_abort(fixup_pb);
+                }
+                slapi_pblock_destroy(fixup_pb);
+            }
         }
     }
 
