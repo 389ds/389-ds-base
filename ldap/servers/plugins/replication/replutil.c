@@ -947,9 +947,9 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 		if (root_mode == CHAIN_ROOT_UPDATE_LOCAL)
 			return local_backend;
 		else if (root_mode == CHAIN_ROOT_UPDATE_REJECT)
-			return (-2);
+			return (SLAPI_BE_NO_BACKEND);
 		else if (root_mode == CHAIN_ROOT_UPDATE_REFERRAL)
-			return (-3);
+			return (SLAPI_BE_REMOTE_BACKEND);
 	}
 
 	/* if the operation is a replicated operation

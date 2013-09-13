@@ -2572,7 +2572,7 @@ mtn_get_be_distributed(Slapi_PBlock *pb, mapping_tree_node * target_node,
         }
 	/* check if distribution plugi returned a special mode for 
 	 * updates as root */
-	else if (index == -2 || index == -3) 
+	else if (index == SLAPI_BE_NO_BACKEND || index == SLAPI_BE_REMOTE_BACKEND) 
 	{
 		/* nothing special to do */
 	}
@@ -2686,17 +2686,17 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                 } else {
                     *index = mtn_get_be_distributed(pb, target_node,
                          target_sdn, &flag_stop);
-			if (*index == -2) 
+			if (*index == SLAPI_BE_NO_BACKEND) 
 				result = LDAP_UNWILLING_TO_PERFORM;
             	}
            }
-	   if (*index == -3) {
+	   if (*index == SLAPI_BE_REMOTE_BACKEND) {
            	*be = NULL;
                	*referral = (target_node->mtn_referral_entry ?
                        		slapi_entry_dup(target_node->mtn_referral_entry) :
                        		NULL);
                 (*index)++;
-            }else if ((*index == -2) || (*index >= target_node->mtn_be_count)) {
+            }else if ((*index == SLAPI_BE_NO_BACKEND) || (*index >= target_node->mtn_be_count)) {
         	/* we have already returned all backends -> return NULL */
                 *be = NULL;
                 *referral = NULL;
@@ -2739,7 +2739,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                     *be = defbackend_get_backend();
                 }
                 if (flag_stop)
-                    *index = -2;
+                    *index = SLAPI_BE_NO_BACKEND;
                 else
                     (*index)++;
             }

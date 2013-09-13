@@ -6163,8 +6163,13 @@ int slapi_unregister_backend_state_change(void * handle);
 /* SLAPI_BE_ALL_BACKENDS is a special value that is returned by
  * a distribution plugin function to indicate that all backends
  * should be searched (it is only used for search operations).
+ *
+ * SLAPI_BE_NO_BACKEND indicates no more backend is available or allowed
+ * SLAPI_BE_REMOTE_BACKEND indicates that the are not locally available
  */
 #define SLAPI_BE_ALL_BACKENDS			-1
+#define SLAPI_BE_NO_BACKEND			-2
+#define SLAPI_BE_REMOTE_BACKEND			-3
 
 
 
