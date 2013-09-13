@@ -82,6 +82,7 @@ struct configEntry {
     char *linktype;
     char *managedtype;
     char *scope;
+    Slapi_DN *suffix;
     Slapi_Mutex *lock;
 };
 
@@ -142,3 +143,4 @@ int linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
  * misc
  */
 int linked_attrs_is_started();
+extern int plugin_is_betxn;
