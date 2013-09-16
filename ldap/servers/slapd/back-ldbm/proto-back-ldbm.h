@@ -290,7 +290,7 @@ int id_array_init(Id_Array *new_guy, int size);
 
 IDList* index_read( backend *be, char *type, const char* indextype, const struct berval* val, back_txn *txn, int *err );
 IDList* index_read_ext( backend *be, char *type, const char* indextype, const struct berval* val, back_txn *txn, int *err, int *unindexed );
-IDList* index_read_ext_allids( backend *be, char *type, const char* indextype, const struct berval* val, back_txn *txn, int *err, int *unindexed, int allidslimit );
+IDList* index_read_ext_allids( Slapi_PBlock *pb, backend *be, char *type, const char* indextype, const struct berval* val, back_txn *txn, int *err, int *unindexed, int allidslimit );
 IDList* index_range_read( Slapi_PBlock *pb, backend *be, char *type, const char* indextype, int ftype, struct berval* val, struct berval* nextval, int range, back_txn *txn, int *err );
 IDList* index_range_read_ext( Slapi_PBlock *pb, backend *be, char *type, const char* indextype, int ftype, struct berval* val, struct berval* nextval, int range, back_txn *txn, int *err, int allidslimit );
 const char *encode( const struct berval* data, char buf[BUFSIZ] );

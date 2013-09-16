@@ -44,11 +44,36 @@
 
 #include "back-ldbm.h"
 
+static void
+attr_index_idlistsize_done(struct index_idlistsizeinfo *idlinfo)
+{
+    if (idlinfo) {
+        slapi_valueset_free(idlinfo->ai_values);
+        idlinfo->ai_values = NULL;
+    }
+}
+
+static void
+attr_index_idlistsize_free(struct index_idlistsizeinfo **idlinfo)
+{
+    attr_index_idlistsize_done(*idlinfo);
+    slapi_ch_free((void **)idlinfo);
+}
+
 struct attrinfo *
 attrinfo_new()
 {
     struct attrinfo *p= (struct attrinfo *)slapi_ch_calloc(1, sizeof(struct attrinfo));
     return p;
+}
+
+void
+attrinfo_delete_idlistinfo(DataList **idlinfo_dl)
+{
+    if (idlinfo_dl && *idlinfo_dl) {
+        dl_cleanup(*idlinfo_dl, (FREEFN)attr_index_idlistsize_free);
+        dl_free(idlinfo_dl);
+    }
 }
 
 void
@@ -62,6 +87,7 @@ attrinfo_delete(struct attrinfo **pp)
         slapi_ch_free((void**)(*pp)->ai_index_rules);
         slapi_ch_free((void**)&((*pp)->ai_attrcrypt));
         attr_done(&((*pp)->ai_sattr));
+        attrinfo_delete_idlistinfo(&(*pp)->ai_idlistinfo);
         slapi_ch_free((void**)pp);
         *pp= NULL;
     }
@@ -126,6 +152,10 @@ ainfo_dup(
   if ( b->ai_indexmask & INDEX_RULES ) {
     charray_merge( &a->ai_index_rules, b->ai_index_rules, 1 );
   }
+  /* free the old idlistinfo from a - transfer the list from b to a */
+  attrinfo_delete_idlistinfo(&a->ai_idlistinfo);
+  a->ai_idlistinfo = b->ai_idlistinfo;
+  b->ai_idlistinfo = NULL;
   
   return( 1 );
 }
@@ -166,6 +196,464 @@ _set_attr_substrlen(int index, char *str, int **substrlens)
 	}
 }
 
+#define NS_INDEX_IDLISTSCANLIMIT "nsIndexIDListScanLimit"
+#define LIMIT_KW "limit="
+#define LIMIT_LEN sizeof(LIMIT_KW)-1
+#define TYPE_KW "type="
+#define TYPE_LEN sizeof(TYPE_KW)-1
+#define FLAGS_KW "flags="
+#define FLAGS_LEN sizeof(FLAGS_KW)-1
+#define VALUES_KW "values="
+#define VALUES_LEN sizeof(VALUES_KW)-1
+#define FLAGS_AND_KW "AND"
+#define FLAGS_AND_LEN sizeof(FLAGS_AND_KW)-1
+
+static int
+attr_index_parse_idlistsize_values(Slapi_Attr *attr, struct index_idlistsizeinfo *idlinfo, char *values, const char *strval, char *returntext)
+{
+	int rc = 0;
+	/* if we are here, values is non-NULL and not an empty string - parse it */
+	char *ptr = NULL;
+	char *lasts = NULL;
+	char *val;
+	int syntaxcheck = config_get_syntaxcheck();
+	IFP syntax_validate_fn = syntaxcheck ? attr->a_plugin->plg_syntax_validate : NULL;
+	char staticfiltstrbuf[1024]; /* for small filter strings */
+	char *filtstrbuf = staticfiltstrbuf; /* default if not malloc'd */
+	size_t filtstrbuflen = sizeof(staticfiltstrbuf); /* default if not malloc'd */
+	Slapi_Filter *filt = NULL; /* for filter converting/unescaping config values */
+
+	/* caller should have already checked that values is valid and contains a "=" */
+	PR_ASSERT(values);
+	ptr = PL_strchr(values, '=');
+	PR_ASSERT(ptr);
+	++ptr;
+	for (val = ldap_utf8strtok_r(ptr, ",", &lasts); val;
+	     val = ldap_utf8strtok_r(NULL, ",", &lasts)) {
+		Slapi_Value **ivals= NULL; /* for config values converted to keys */
+		int ii;
+#define FILT_TEMPL_BEGIN "(a="
+#define FILT_TEMPL_END ")"
+		size_t filttemplen = sizeof(FILT_TEMPL_BEGIN) - 1 + sizeof(FILT_TEMPL_END) - 1;
+		size_t vallen = strlen(val);
+
+		if ((vallen + filttemplen + 1) > filtstrbuflen) {
+			filtstrbuflen = vallen + filttemplen + 1;
+			if (filtstrbuf == staticfiltstrbuf) {
+				filtstrbuf = (char *)slapi_ch_malloc(sizeof(char) * filtstrbuflen);
+			} else {
+				filtstrbuf = (char *)slapi_ch_realloc(filtstrbuf, sizeof(char) * filtstrbuflen);
+			}
+		}
+		/* each value is a value from a filter which should be escaped like a filter value
+		 * for each value, create a dummy filter string, then parse and unescape it just
+		 * like a filter
+		 */
+		PR_snprintf(filtstrbuf, filtstrbuflen, FILT_TEMPL_BEGIN "%s" FILT_TEMPL_END, val);
+		filt = slapi_str2filter(filtstrbuf);
+		if (!filt) {
+			rc = LDAP_UNWILLING_TO_PERFORM;
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+				    "attr_index_parse_idlistsize: invalid value %s in %s",
+				    val, strval);
+			break;
+		}
+
+		if (idlinfo->ai_indextype == INDEX_SUB) {
+			if (syntax_validate_fn) {
+				/* see if the values match the syntax, but only if checking is enabled */
+				char **subany = filt->f_sub_any;
+				struct berval bv;
+
+				if (filt->f_sub_initial && *filt->f_sub_initial) {
+					bv.bv_val = filt->f_sub_initial;
+					bv.bv_len = strlen(bv.bv_val);
+					if ((rc = syntax_validate_fn(&bv))) {
+						rc = LDAP_UNWILLING_TO_PERFORM;
+						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+						            "attr_index_parse_idlistsize: initial substring value %s "
+						            "in value %s violates syntax for attribute %s",
+						            filt->f_sub_initial, val, attr->a_type);
+						break;
+					}
+				}
+				for (; !rc && subany && *subany; ++subany) {
+					char *subval = *subany;
+					if (*subval) {
+						bv.bv_val = subval;
+						bv.bv_len = strlen(bv.bv_val);
+						if ((rc = syntax_validate_fn(&bv))) {
+							rc = LDAP_UNWILLING_TO_PERFORM;
+							PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+								    "attr_index_parse_idlistsize: initial substring value %s in "
+								    "value %s violates syntax for attribute %s",
+								    filt->f_sub_any[ii], val, attr->a_type);
+							break;
+						}
+					}
+				}
+				if (rc) {
+					break;
+				}
+				if (filt->f_sub_final) {
+					bv.bv_val = filt->f_sub_final;
+					bv.bv_len = strlen(bv.bv_val);
+					if ((rc = syntax_validate_fn(&bv))) {
+						rc = LDAP_UNWILLING_TO_PERFORM;
+						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+							    "attr_index_parse_idlistsize: final substring value %s in value "
+							    "%s violates syntax for attribute %s",
+							    filt->f_sub_final, val, attr->a_type);
+						break;
+					}
+				}
+			}
+			/* if we are here, values passed syntax or no checking */
+			/* generate index keys */
+			(void)slapi_attr_assertion2keys_sub_sv(attr, filt->f_sub_initial, filt->f_sub_any, filt->f_sub_final, &ivals);
+
+		} else if (idlinfo->ai_indextype == INDEX_EQUALITY) {
+			Slapi_Value sval;
+			/* see if the value matches the syntax, but only if checking is enabled */
+			if (syntax_validate_fn && ((rc = syntax_validate_fn(&filt->f_avvalue)))) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: value %s violates syntax for attribute %s",
+					    val, attr->a_type);
+				break;
+			}
+
+			sval.bv.bv_val = filt->f_avvalue.bv_val;
+			sval.bv.bv_len = filt->f_avvalue.bv_len;
+			sval.v_flags = 0;
+			sval.v_csnset = NULL;
+			(void)slapi_attr_assertion2keys_ava_sv(attr, &sval, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY);
+		}
+		/* don't need filter any more */
+		slapi_filter_free(filt, 1);
+		filt = NULL;
+
+		/* add value(s) in ivals to our value set - disallow duplicates with error */
+		for (ii = 0; !rc && ivals && ivals[ii]; ++ii) {
+			if (idlinfo->ai_values &&
+			    slapi_valueset_find(attr, idlinfo->ai_values, ivals[ii])) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: duplicate value %s in %s",
+					    slapi_value_get_string(ivals[ii]), val);
+				slapi_value_free(&ivals[ii]);
+			} else {
+				if (!idlinfo->ai_values) {
+					idlinfo->ai_values = slapi_valueset_new();
+				}
+				slapi_valueset_add_value_ext(idlinfo->ai_values, ivals[ii], SLAPI_VALUE_FLAG_PASSIN);
+			}
+		}
+		/* only free members of ivals that were not moved to ai_values */
+		valuearray_free_ext(&ivals, ii);
+		ivals = NULL;
+	}
+
+	slapi_filter_free(filt, 1);
+
+	if (filtstrbuf != staticfiltstrbuf) {
+		slapi_ch_free_string(&filtstrbuf);
+	}
+
+	return rc;
+}
+
+static int
+attr_index_parse_idlistsize_limit(char *ptr, struct index_idlistsizeinfo *idlinfo, char *returntext)
+{
+	int rc = 0;
+	char *endptr;
+
+	PR_ASSERT(ptr && (*ptr == '='));
+	ptr++;
+	idlinfo->ai_idlistsizelimit = strtol(ptr, &endptr, 10);
+	if (*endptr) { /* error in parsing */
+		rc = LDAP_UNWILLING_TO_PERFORM;
+		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+		            "attr_index_parse_idlistsize: value %s for %s is not valid - "
+		            "must be an integer >= -1",
+		            ptr, LIMIT_KW);
+	} else if (idlinfo->ai_idlistsizelimit < -1) {
+		rc = LDAP_UNWILLING_TO_PERFORM;
+		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			    "attr_index_parse_idlistsize: value %s for %s "
+			    "must be an integer >= -1",
+			    ptr, LIMIT_KW);
+	}
+	return rc;
+}
+
+static int
+attr_index_parse_idlistsize_type(char *ptr, struct attrinfo *ai, struct index_idlistsizeinfo *idlinfo, const char *val, const char *strval, char *returntext)
+{
+	int rc = 0;
+	char *ptr_next;
+	size_t len;
+	size_t preslen = strlen(indextype_PRESENCE);
+	size_t eqlen = strlen(indextype_EQUALITY);
+	size_t sublen = strlen(indextype_SUB);
+
+	PR_ASSERT(ptr && (*ptr == '='));
+	do {
+		++ptr;
+		ptr_next = PL_strchr(ptr, ','); /* find next comma */
+		if (!ptr_next) {
+			ptr_next = PL_strchr(ptr, '\0'); /* find end of string */
+		}
+		len = ptr_next-ptr;
+		if ((len == preslen) && !PL_strncmp(ptr, indextype_PRESENCE, len)) {
+			if (idlinfo->ai_indextype & INDEX_PRESENCE) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: duplicate %s in value %s for %s",
+					    indextype_PRESENCE, val, strval);
+				break;
+			}
+			if (!(ai->ai_indexmask & INDEX_PRESENCE)) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: attribute %s does not have index type %s",
+					    ai->ai_type, indextype_PRESENCE);
+				break;
+			}
+			idlinfo->ai_indextype |= INDEX_PRESENCE;
+		} else if ((len == eqlen) && !PL_strncmp(ptr, indextype_EQUALITY, len)) {
+			if (idlinfo->ai_indextype & INDEX_EQUALITY) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: duplicate %s in value %s for %s",
+					    indextype_EQUALITY, val, strval);
+				break;
+			}
+			if (!(ai->ai_indexmask & INDEX_EQUALITY)) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: attribute %s does not have index type %s",
+					    ai->ai_type, indextype_EQUALITY);
+				break;
+			}
+			idlinfo->ai_indextype |= INDEX_EQUALITY;
+		} else if ((len == sublen) && !PL_strncmp(ptr, indextype_SUB, len)) {
+			if (idlinfo->ai_indextype & INDEX_SUB) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: duplicate %s in value %s for %s",
+					    indextype_SUB, val, strval);
+				break;
+			}
+			if (!(ai->ai_indexmask & INDEX_SUB)) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					    "attr_index_parse_idlistsize: attribute %s does not have index type %s",
+					    ai->ai_type, indextype_SUB);
+				break;
+			}
+			idlinfo->ai_indextype |= INDEX_SUB;
+		} else {
+			rc = LDAP_UNWILLING_TO_PERFORM;
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+				    "attr_index_parse_idlistsize: unknown or unsupported index type "
+				    "%s in value %s for %s",
+				    ptr, val, strval);
+			break;
+		}
+	} while ((ptr = PL_strchr(ptr, ',')));
+
+	return rc;
+}
+
+static int
+attr_index_parse_idlistsize_flags(char *ptr, struct index_idlistsizeinfo *idlinfo, const char *val, const char *strval, char *returntext)
+{
+	int rc = 0;
+	char *ptr_next;
+	size_t len;
+
+	PR_ASSERT(ptr && (*ptr == '='));
+	do {
+		++ptr;
+		ptr_next = PL_strchr(ptr, ','); /* find next comma */
+		if (!ptr_next) {
+			ptr_next = PL_strchr(ptr, '\0'); /* find end of string */
+		}
+		len = ptr_next-ptr;
+		if ((len == FLAGS_AND_LEN) && !PL_strncmp(ptr, FLAGS_AND_KW, len)) {
+			if (idlinfo->ai_flags & INDEX_ALLIDS_FLAG_AND) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+			        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			        	    "attr_index_parse_idlistsize: duplicate %s in value %s for %s",
+			        	    FLAGS_AND_KW, val, strval);
+				break;
+			}
+			idlinfo->ai_flags |= INDEX_ALLIDS_FLAG_AND;
+		} else {
+			rc = LDAP_UNWILLING_TO_PERFORM;
+		        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+		        	    "attr_index_parse_idlistsize: unknown or unsupported flags %s in value %s for %s",
+	        	            ptr, val, strval);
+			break;
+		}
+
+	} while ((ptr = PL_strchr(ptr, ',')));
+	return rc;
+}
+
+static int
+attr_index_parse_idlistsize(struct attrinfo *ai, const char *strval, struct index_idlistsizeinfo *idlinfo, char *returntext)
+{
+	int rc = 0; /* assume success */
+	char *mystr = slapi_ch_strdup(strval); /* copy for strtok */
+	char *values = NULL;
+	char *lasts, *val, *ptr;
+	int seen_limit = 0, seen_type = 0, seen_flags = 0, seen_values = 0;
+	Slapi_Attr *attr = &ai->ai_sattr;
+
+	if (!mystr) {
+		rc = LDAP_UNWILLING_TO_PERFORM;
+	        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+	        	    "attr_index_parse_idlistsize: value is empty");
+		goto done;
+	}
+
+	for (val = ldap_utf8strtok_r(mystr, " ", &lasts); val;
+	     val = ldap_utf8strtok_r(NULL, " ", &lasts)) {
+		ptr = PL_strchr(val, '=');
+		if (!ptr || !(*(ptr+1))) {
+			rc = LDAP_UNWILLING_TO_PERFORM;
+		        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+		        	    "attr_index_parse_idlistsize: invalid value %s - should be keyword=value - in %s",
+		                    val, strval);
+			goto done;
+		}
+		/* ptr points at first '=' in val */
+		if (!PL_strncmp(val, LIMIT_KW, LIMIT_LEN)) {
+			if (seen_limit) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+			        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			        	    "attr_index_parse_idlistsize: can have only 1 %s in value %s",
+			                    LIMIT_KW, strval);
+				goto done;
+			}
+			if ((rc = attr_index_parse_idlistsize_limit(ptr, idlinfo, returntext))) {
+				goto done;
+			}
+			seen_limit = 1;
+		} else if (!PL_strncmp(val, TYPE_KW, TYPE_LEN)) {
+			if (seen_type) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+			        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			        	    "attr_index_parse_idlistsize: can have only 1 %s in value %s",
+			                    TYPE_KW, strval);
+				goto done;
+			}
+			if ((rc = attr_index_parse_idlistsize_type(ptr, ai, idlinfo, val, strval, returntext))) {
+				goto done;
+			}
+
+			seen_type = 1;
+		} else if (!PL_strncmp(val, FLAGS_KW, FLAGS_LEN)) {
+			if (seen_flags) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+			        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			        	    "attr_index_parse_idlistsize: can have only 1 %s in value %s",
+			                    FLAGS_KW, strval);
+				goto done;
+			}
+			if ((rc = attr_index_parse_idlistsize_flags(ptr, idlinfo, val, strval, returntext))) {
+				goto done;
+			}
+			seen_flags = 1;
+		} else if (!PL_strncmp(val, VALUES_KW, VALUES_LEN)) {
+			if (seen_values) {
+				rc = LDAP_UNWILLING_TO_PERFORM;
+			        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			        	    "attr_index_parse_idlistsize: can have only 1 %s in value %s",
+			                    VALUES_KW, strval);
+				goto done;
+			}
+			values = val;
+			seen_values = 1;
+		} else {
+			rc = LDAP_UNWILLING_TO_PERFORM;
+		        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+		        	    "attr_index_parse_idlistsize: unknown keyword %s in %s",
+		                    val, strval);
+			goto done;
+		}
+	}
+
+	if (!seen_limit) {
+		rc = LDAP_UNWILLING_TO_PERFORM;
+	        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+	        	    "attr_index_parse_idlistsize: no limit specified in %s",
+	                    strval);
+		goto done;
+	}
+
+	/* parse values last
+	 * can only have values if type is eq or sub, and only eq by itself or sub by itself
+	 * eq and sub type values cannot be mixed, so error in that case
+	 * cannot have type pres,eq and values - pres must be by itself with no values
+	 */
+	if (values) {
+		if (idlinfo->ai_indextype == INDEX_EQUALITY) {
+			; /* ok */
+		} else if (idlinfo->ai_indextype == INDEX_SUB) {
+			; /* ok */
+		} else {
+			rc = LDAP_UNWILLING_TO_PERFORM;
+		        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+		        	    "attr_index_parse_idlistsize: if %s is specified, the %s "
+		                    "must be %s or %s - not both, and not any other types",
+		                    VALUES_KW, TYPE_KW, indextype_PRESENCE, indextype_SUB);
+			goto done;
+		}
+	} else {
+		goto done;
+	}
+
+	/* if we are here, values contains something - parse it */
+	rc = attr_index_parse_idlistsize_values(attr, idlinfo, values, strval, returntext);
+
+done:
+	slapi_ch_free_string(&mystr);
+	return rc;
+}
+
+static int
+attr_index_idlistsize_config(Slapi_Entry *e, struct attrinfo *ai, char *returntext)
+{
+	int rc = 0;
+	int ii;
+	Slapi_Attr *idlattr;
+	Slapi_Value *sval;
+	struct index_idlistsizeinfo *idlinfo;
+
+	slapi_entry_attr_find(e, NS_INDEX_IDLISTSCANLIMIT, &idlattr);
+	if (!idlattr) {
+		return rc;
+	}
+	for (ii = slapi_attr_first_value(idlattr, &sval); !rc && (ii != -1); ii = slapi_attr_next_value(idlattr, ii, &sval)) {
+		idlinfo = (struct index_idlistsizeinfo *)slapi_ch_calloc(1, sizeof(struct index_idlistsizeinfo));
+		if ((rc = attr_index_parse_idlistsize(ai, slapi_value_get_string(sval), idlinfo, returntext))) {
+			attr_index_idlistsize_free(&idlinfo);
+			attrinfo_delete_idlistinfo(&ai->ai_idlistinfo);
+		} else {
+			if (!ai->ai_idlistinfo) {
+				ai->ai_idlistinfo = dl_new();
+				dl_init(ai->ai_idlistinfo, 1);
+			}
+			dl_add(ai->ai_idlistinfo, idlinfo);
+		}
+	}
+	return rc;
+}
+
 void
 attr_index_config(
     backend *be,
@@ -188,6 +676,7 @@ attr_index_config(
 	Slapi_Value *sval;
 	Slapi_Attr *attr;
 	int mr_count = 0;
+	char myreturntext[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	/* Get the cn */
 	if (0 == slapi_entry_attr_find(e, "cn", &attr)) {
@@ -362,6 +851,11 @@ attr_index_config(
 		} else {
 			slapi_ch_free((void**)&official_rules);
 		}
+	}
+
+	if ((return_value = attr_index_idlistsize_config(e, a, myreturntext))) {
+		LDAPDebug(LDAP_DEBUG_ANY,"attr_index_config: %s: Failed to parse idscanlimit info: %d:%s\n",
+		          fname, return_value, myreturntext);
 	}
 
 	/* initialize the IDL code's private data */
