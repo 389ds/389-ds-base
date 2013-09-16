@@ -236,6 +236,7 @@ linked_attrs_fixup_links(struct configEntry *config)
         if (plugin_is_betxn) {
             Slapi_DN *fixup_dn = slapi_sdn_new_dn_byref(config->scope);
             Slapi_Backend *be = slapi_be_select(fixup_dn);
+            slapi_sdn_free(&fixup_dn);
 
             if (be) {
                 fixup_pb = slapi_pblock_new();
