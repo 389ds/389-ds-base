@@ -462,6 +462,14 @@ typedef int (*dup_compare_fn_type)(
 #endif
 				const DBT *,const DBT *);
 
+struct index_idlistsizeinfo {
+	int ai_idlistsizelimit; /* max id list size */
+	int ai_indextype; /* index type */
+	unsigned int ai_flags;
+#define INDEX_ALLIDS_FLAG_AND 0x01
+	Slapi_ValueSet *ai_values; /* index keys to apply the max id list size to */
+};
+
 /* for the cache of attribute information (which are indexed, etc.) */
 struct attrinfo {
 	char	*ai_type;	  /* type name (cn, sn, ...)	*/
@@ -510,6 +518,7 @@ struct attrinfo {
 							 * the default length triplet is 2, 3, 2.
                              */
 	Slapi_Attr ai_sattr;	/* interface to syntax and matching rule plugins */
+	DataList *ai_idlistinfo; /* fine grained id list */
 };
 
 #define MAXDBCACHE	20

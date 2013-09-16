@@ -158,6 +158,7 @@ int valuearray_init_bervalarray(struct berval **bvals, Slapi_Value ***cvals);
 int valuearray_init_bervalarray_with_flags(struct berval **bvals, Slapi_Value ***cvals, unsigned long flags);
 int valuearray_get_bervalarray(Slapi_Value **cvals, struct berval ***bvals); /* JCM SLOW FUNCTION */
 void valuearray_free(Slapi_Value ***va);
+void valuearray_free_ext(Slapi_Value ***va, int ii);
 Slapi_Value *valuearray_remove_value(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value *v);
 void valuearray_remove_value_atindex(Slapi_Value **va, int index);
 int valuearray_isempty( Slapi_Value **va);
