@@ -273,7 +273,7 @@ IDList * idl_new_fetch(
             }
             memcpy(&id, dataret.data, sizeof(ID));
             if (id == lastid) { /* dup */
-                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "Detedted duplicate id "
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "Detected duplicate id "
                               "%d due to DB_MULTIPLE error - skipping\n",
                               id);
                 continue; /* get next one */
@@ -295,11 +295,14 @@ IDList * idl_new_fetch(
 #if defined(DB_ALLIDS_ON_READ)	
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
-             (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
-            idl->b_nids = 1;
-            idl->b_ids[0] = ALLID;
-            ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-            break;
+            (idl != NULL) && idl_new_exceeds_allidslimit(count, a, allidslimit)) {
+        	idl->b_nids = 1;
+        	idl->b_ids[0] = ALLID;
+        	ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
+        	LDAPDebug(LDAP_DEBUG_BACKLDBM, "search for key for attribute index %s "
+        		  "exceeded allidslimit %d - count is %d\n",
+        		  a->ai_type, allidslimit, count);
+        	break;
         }
 #endif
         ret = cursor->c_get(cursor,&key,&data,DB_NEXT_DUP|DB_MULTIPLE);

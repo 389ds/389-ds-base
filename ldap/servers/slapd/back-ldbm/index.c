@@ -52,6 +52,8 @@
 static const char *errmsg = "database index operation failed";
 
 static int   is_indexed (const char* indextype, int indexmask, char** index_rules);
+static int index_get_allids( int default_allids, const char *indextype, struct attrinfo *ai, const struct berval *val, unsigned int flags );
+
 static Slapi_Value **
 valuearray_minus_valuearray(
     const Slapi_Attr *sattr, 
@@ -888,6 +890,7 @@ index_read(
  */
 IDList *
 index_read_ext_allids(
+    Slapi_PBlock *pb,
     backend *be,
     char		*type,
     const char		*indextype,
@@ -910,6 +913,8 @@ index_read_ext_allids(
 	char		*basetmp, *basetype;
 	int retry_count  = 0;
 	struct berval	*encrypted_val = NULL;
+	int is_and = 0;
+	unsigned int ai_flags = 0;
 
 	*err = 0;
 
@@ -972,6 +977,23 @@ index_read_ext_allids(
                 if (unindexed != NULL) *unindexed = 1;
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= index_read %lu candidates "
 		    "(allids - not indexed)\n", (u_long)IDL_NIDS(idl), 0, 0 );
+		index_free_prefix( prefix );
+		slapi_ch_free_string( &basetmp );
+		return( idl );
+	}
+	if (pb) {
+		slapi_pblock_get(pb, SLAPI_SEARCH_IS_AND, &is_and);
+	}
+	ai_flags = is_and ? INDEX_ALLIDS_FLAG_AND : 0;
+	allidslimit = index_get_allids( allidslimit, indextype, ai, val, ai_flags );
+	if (allidslimit == 0) {
+		idl = idl_allids( be );
+		if (unindexed != NULL) *unindexed = 1;
+		LDAPDebug1Arg( LDAP_DEBUG_BACKLDBM, "<= index_read %lu candidates "
+		    "(do not use index)\n", (u_long)IDL_NIDS(idl) );
+		LDAPDebug( LDAP_DEBUG_BACKLDBM, "<= index_read index attr %s type %s "
+		    "for value %s does not use index\n", basetype, indextype,
+		    (val && val->bv_val) ? val->bv_val : "ALL" );
 		index_free_prefix( prefix );
 		slapi_ch_free_string( &basetmp );
 		return( idl );
@@ -1063,7 +1085,7 @@ index_read_ext(
     int			*unindexed
 )
 {
-    return index_read_ext_allids(be, type, indextype, val, txn, err, unindexed, 0);
+    return index_read_ext_allids(NULL, be, type, indextype, val, txn, err, unindexed, 0);
 }
 
 /* This function compares two index keys.  It is assumed
@@ -2351,3 +2373,100 @@ valuearray_minus_valuearray(
 
     return c;
 }
+
+/*
+ * Find the most specific match for the given index type, flags, and value, and return the allids value
+ * for that match.  The priority is as follows, from highest to lowest:
+ * * match type, flags, value
+ * * match type, value
+ * * match type, flags
+ * * match type
+ * * match flags
+ * Note that for value to match, the type must be one that supports values e.g. eq or sub, so that
+ * in order for value to match, there must be a type
+ * For example, if you have
+ * dn: cn=objectclass,...
+ * objectclass: nsIndex
+ * nsIndexType: eq
+ * nsIndexIDListScanLimit: limit=0 type=eq flags=AND value=inetOrgPerson
+ * nsIndexIDListScanLimit: limit=1 type=eq value=inetOrgPerson
+ * nsIndexIDListScanLimit: limit=2 type=eq flags=AND
+ * nsIndexIDListScanLimit: limit=3 type=eq
+ * nsIndexIDListScanLimit: limit=4 flags=AND
+ * nsIndexIDListScanLimit: limit=5
+ * If the search filter is (&(objectclass=inetOrgPerson)(uid=foo)) then the limit=0 because all
+ *  3 of type, flags, and value match
+ * If the search filter is (objectclass=inetOrgPerson) then the limit=1 because type and value match
+ *  but flag does not
+ * If the search filter is (&(objectclass=posixAccount)(uid=foo)) the the limit=2 because type and
+ *  flags match
+ * If the search filter is (objectclass=posixAccount) then the limit=3 because only the type matches
+ * If the search filter is (&(objectclass=*account*)(objectclass=*)) then the limit=4 because only
+ *  flags match but not the types (sub and pres)
+ * If the search filter is (objectclass=*account*) then the limit=5 because only the attribute matches
+ *  but none of flags, type, or value matches
+ */
+#define AI_HAS_VAL 0x04
+#define AI_HAS_TYPE 0x02
+#define AI_HAS_FLAG 0x01
+static int
+index_get_allids( int default_allids, const char *indextype, struct attrinfo *ai, const struct berval *val, unsigned int flags )
+{
+    int allids = default_allids;
+    Slapi_Value sval;
+    struct index_idlistsizeinfo *iter; /* iterator */
+    int cookie = 0;
+    int best_score = 0;
+    struct index_idlistsizeinfo *best_match = NULL;
+
+    if (!ai->ai_idlistinfo) {
+        return allids;
+    }
+
+    if (val) { /* val should already be a Slapi_Value, but some paths do not use Slapi_Value */
+        sval.bv.bv_val = val->bv_val;
+        sval.bv.bv_len = val->bv_len;
+        sval.v_csnset = NULL;
+        sval.v_flags = SLAPI_ATTR_FLAG_NORMALIZED; /* the value must be a normalized key */
+    }
+
+    /* loop through all of the idlistinfo objects to find the best match */
+    for (iter = (struct index_idlistsizeinfo *)dl_get_first(ai->ai_idlistinfo, &cookie); iter;
+         iter = (struct index_idlistsizeinfo *)dl_get_next(ai->ai_idlistinfo, &cookie)) {
+        int iter_score = 0;
+
+        if (iter->ai_indextype != 0) { /* info defines a type which must match */
+            if (is_indexed(indextype, iter->ai_indextype, ai->ai_index_rules)) {
+                iter_score |= AI_HAS_TYPE;
+            } else {
+                continue; /* does not match, go to next one */
+            }
+        }
+        if (iter->ai_flags != 0) {
+            if (flags & iter->ai_flags) {
+                iter_score |= AI_HAS_FLAG;
+            } else {
+                continue; /* does not match, go to next one */
+            }
+        }
+        if (iter->ai_values != NULL) {
+            if ((val != NULL) && slapi_valueset_find(&ai->ai_sattr, iter->ai_values, &sval)) {
+                iter_score |= AI_HAS_VAL;
+            } else {
+                continue; /* does not match, go to next one */
+            }
+        }
+
+        if (iter_score >= best_score) {
+            best_score = iter_score;
+            best_match = iter;
+        }
+    }
+
+    if (best_match) {
+        allids = best_match->ai_idlistsizelimit;
+    }
+
+    return allids;
+}
+
