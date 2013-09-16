@@ -1008,7 +1008,7 @@ int ldbm_ancestorid_read_ext(
     bv.bv_val = keybuf;
     bv.bv_len = PR_snprintf(keybuf, sizeof(keybuf), "%lu", (u_long)id);
 
-    *idl = index_read_ext_allids(be, LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret, NULL, allidslimit);
+    *idl = index_read_ext_allids(NULL, be, LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret, NULL, allidslimit);
 
     return ret;
 }
