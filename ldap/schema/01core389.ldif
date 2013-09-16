@@ -66,6 +66,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.593 NAME 'nsSNMPName' DESC 'Netscape def
 attributeTypes: ( 2.16.840.1.113730.3.1.242 NAME 'nsSystemIndex' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.327 NAME 'nsIndexType' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.328 NAME 'nsMatchingRule' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2161 NAME 'nsIndexIDListScanLimit' DESC 'fine grained idlistscanlimit - per index/type/value' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.542 NAME 'nsUniqueId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.543 NAME 'nsState' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.544 NAME 'nsParentUniqueId' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
@@ -158,7 +159,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2156 NAME 'nsslapd-sasl-max-buffer-size'
 #
 objectClasses: ( 2.16.840.1.113730.3.2.40 NAME 'directoryServerFeature' DESC 'Netscape defined objectclass' SUP top MAY ( oid $ cn $ multiLineDescription ) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.41 NAME 'nsslapdPlugin' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsslapd-pluginPath $ nsslapd-pluginInitFunc $ nsslapd-pluginType $ nsslapd-pluginId $ nsslapd-pluginVersion $ nsslapd-pluginVendor $ nsslapd-pluginDescription $ nsslapd-pluginEnabled ) MAY ( nsslapd-pluginConfigArea $ nsslapd-plugin-depends-on-type ) X-ORIGIN 'Netscape Directory Server' )
-objectClasses: ( 2.16.840.1.113730.3.2.44 NAME 'nsIndex' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsSystemIndex ) MAY ( description $ nsIndexType $ nsMatchingRule ) X-ORIGIN 'Netscape Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.44 NAME 'nsIndex' DESC 'Netscape defined objectclass' SUP top MUST ( cn $ nsSystemIndex ) MAY ( description $ nsIndexType $ nsMatchingRule $ nsIndexIDListScanLimit ) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.109 NAME 'nsBackendInstance' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.110 NAME 'nsMappingTree' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.104 NAME 'nsContainer' DESC 'Netscape defined objectclass' SUP top  MUST ( CN ) X-ORIGIN 'Netscape Directory Server' )
