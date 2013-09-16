@@ -179,7 +179,6 @@ Slapi_Value **valueset_get_valuearray(const Slapi_ValueSet *vs);
 size_t valueset_size(const Slapi_ValueSet *vs);
 void slapi_valueset_add_valuearray(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **addvals);
 void valueset_add_valuearray(Slapi_ValueSet *vs, Slapi_Value **addvals);
-void valueset_add_valuearray_ext(Slapi_ValueSet *vs, Slapi_Value **addvals, PRUint32 flags);
 void valueset_add_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s, CSNType t, const CSN *csn);
 void valueset_update_csn(Slapi_ValueSet *vs, CSNType t, const CSN *csn);
 int valueset_intersectswith_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **values, int *duplicate_index);

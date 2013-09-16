@@ -879,15 +879,6 @@ valueset_add_valuearray(Slapi_ValueSet *vs, Slapi_Value **addvals)
 	}
 }
 
-void
-valueset_add_valuearray_ext(Slapi_ValueSet *vs, Slapi_Value **addvals, PRUint32 flags)
-{
-	if(!valuearray_isempty(addvals))
-	{
-		slapi_valueset_add_attr_valuearray_ext (NULL, vs, addvals, valuearray_count(addvals), flags, NULL);
-	}
-}
-
 /*
  * The value is passed in by value.
  */
