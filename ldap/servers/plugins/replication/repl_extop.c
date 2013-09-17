@@ -1782,26 +1782,16 @@ free_and_return:
 int
 multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
 {
-	Slapi_PBlock *search_pb = NULL;
-	Slapi_Entry **entries = NULL;
 	struct berval *resp_bval = NULL;
 	struct berval *extop_payload;
 	BerElement *resp_bere = NULL;
-	char **ruv_elements = NULL;
 	char *extop_oid = NULL;
-	char *ruv_part = NULL;
 	char *base_dn = NULL;
 	char *payload = NULL;
 	char *maxcsn = NULL;
-	char *filter = NULL;
-	char *ridstr = NULL;
 	char *iter = NULL;
-	char *attrs[2];
-	int part_count = 0;
 	int rid = 0;
-	int res = 0;
 	int rc = LDAP_OPERATIONS_ERROR;
-	int i = 0;
 
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &extop_payload);
@@ -1820,45 +1810,7 @@ multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
 	}
 	rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
 	base_dn = ldap_utf8strtok_r(iter, ":", &iter);
-	/*
-	 *  Get the maxruv from the database tombstone entry
-	 */
-	filter = "(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))";
-	attrs[0] = "nsds50ruv";
-	attrs[1] = NULL;
-	ridstr = slapi_ch_smprintf("{replica %d ldap", rid);
-
-	search_pb = slapi_pblock_new();
-	slapi_search_internal_set_pb(search_pb, base_dn, LDAP_SCOPE_SUBTREE, filter, attrs, 0, NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
-	slapi_search_internal_pb (search_pb);
-	slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
-
-	if ( LDAP_SUCCESS == res ) {
-		slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-		if (NULL == entries || entries[0] == NULL) {
-			/* Hmmm, no tombstpne!  Error out */
-		} else {
-			/* find the right ruv element, and find the maxcsn */
-			ruv_elements = slapi_entry_attr_get_charray(entries[0],attrs[0]);
-			for(i = 0; ruv_elements && ruv_elements[i] ; i++){
-				if(strstr(ruv_elements[i], ridstr)){
-					/* get the max csn */
-					ruv_part = ldap_utf8strtok_r(ruv_elements[i], " ", &iter);
-					for(part_count = 1; ruv_part && part_count < 5; part_count++){
-						ruv_part = ldap_utf8strtok_r(iter, " ", &iter);
-					}
-					if(part_count == 5 && ruv_part){/* we have the maxcsn */
-						maxcsn = slapi_ch_strdup(ruv_part);
-						break;
-					}
-				}
-			}
-			slapi_ch_array_free(ruv_elements);
-		}
-	} else {
-		/* internal search failed */
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "CleanAllRUV Get MaxCSN Task: internal search failed (%d)\n", res);
-	}
+	maxcsn = replica_cleanallruv_get_local_maxcsn(rid, base_dn);
 	if(maxcsn == NULL){
 		maxcsn = slapi_ch_strdup(CLEANRUV_NO_MAXCSN);
 	}
@@ -1887,11 +1839,8 @@ multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
 	}
 
 free_and_return:
-	slapi_free_search_results_internal(search_pb);
-	slapi_pblock_destroy(search_pb);
 	slapi_ch_free_string(&payload);
 	slapi_ch_free_string(&maxcsn);
-	slapi_ch_free_string(&ridstr);
 
 	return rc;
 }
