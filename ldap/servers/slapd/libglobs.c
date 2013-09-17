@@ -258,6 +258,7 @@ slapi_onoff_t init_sasl_mapping_fallback;
 slapi_onoff_t init_return_orig_type;
 slapi_onoff_t init_enable_turbo_mode;
 slapi_onoff_t init_connection_nocanon;
+slapi_onoff_t init_plugin_logging;
 slapi_int_t init_connection_buffer;
 slapi_int_t init_listen_backlog_size;
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -1059,6 +1060,10 @@ static struct config_get_and_set {
 	        NULL, 0,
 	        (void**)&global_slapdFrontendConfig.connection_nocanon,
 	        CONFIG_ON_OFF, (ConfigGetFunc)config_get_connection_nocanon, &init_connection_nocanon},
+	{CONFIG_PLUGIN_LOGGING, config_set_plugin_logging,
+	    	NULL, 0,
+	    	(void**)&global_slapdFrontendConfig.plugin_logging,
+	    	CONFIG_ON_OFF, (ConfigGetFunc)config_get_plugin_logging, &init_plugin_logging},
 	{CONFIG_LISTEN_BACKLOG_SIZE, config_set_listen_backlog_size,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listen_backlog_size, CONFIG_INT,
@@ -1503,7 +1508,7 @@ FrontendConfig_init () {
   init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
   init_connection_buffer = cfg->connection_buffer = CONNECTION_BUFFER_ON;
   init_connection_nocanon = cfg->connection_nocanon = LDAP_ON;
-
+  init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
   init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
@@ -6954,6 +6959,18 @@ config_get_connection_nocanon(void)
 }
 
 int
+config_get_plugin_logging(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+    retVal = (int)slapdFrontendConfig->plugin_logging;
+    CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
 slapi_config_get_unhashed_pw_switch()
 {
     return config_get_unhashed_pw_switch();
@@ -6993,6 +7010,19 @@ config_set_connection_nocanon( const char *attrname, char *value,
 
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->connection_nocanon),
+                              errorbuf, apply);
+    return retVal;
+}
+
+int
+config_set_plugin_logging( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->plugin_logging),
                               errorbuf, apply);
     return retVal;
 }

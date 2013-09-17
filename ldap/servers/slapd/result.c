@@ -568,8 +568,9 @@ send_ldap_result_ext(
 log_and_return:
 	operation->o_status = SLAPI_OP_STATUS_RESULT_SENT;	/* in case this has not yet been set */
 
-	if ( logit && operation_is_flag_set( operation,
-	    OP_FLAG_ACTION_LOG_ACCESS )) {
+	if ( logit && (operation_is_flag_set( operation, OP_FLAG_ACTION_LOG_ACCESS ) ||
+	               (internal_op && config_get_plugin_logging() )))
+	{
 		log_result( pb, operation, err, tag, nentries );
 	}
 
@@ -1857,33 +1858,30 @@ notes2str( unsigned int notes, char *buf, size_t buflen )
 #define ETIME_BUFSIZ 16         /* room for 99999999.999999 */
 
 static void
-log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
-	int nentries )
+log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries )
 {
 	char	*notes_str, notes_buf[ 256 ];
 	int	internal_op;
 	CSN *operationcsn = NULL;
 	char csn_str[CSN_STRSIZE + 5];
-        char etime[ETIME_BUFSIZ];
+	char etime[ETIME_BUFSIZ];
 
 	internal_op = operation_is_flag_set( op, OP_FLAG_INTERNAL );
 
-        if ( (config_get_accesslog_level() & LDAP_DEBUG_TIMING) &&
-             (op->o_interval != (PRIntervalTime) 0) ) {
-            PRIntervalTime delta = PR_IntervalNow() - op->o_interval;
-            PR_snprintf(etime, ETIME_BUFSIZ, "%f", 
-                        (PRFloat64)delta/PR_TicksPerSecond());
-        } else {
-            PR_snprintf(etime, ETIME_BUFSIZ, "%ld", current_time() - op->o_time);
-        }
+	if ( (config_get_accesslog_level() & LDAP_DEBUG_TIMING) &&
+			(op->o_interval != (PRIntervalTime) 0) ) {
+		PRIntervalTime delta = PR_IntervalNow() - op->o_interval;
+		PR_snprintf(etime, ETIME_BUFSIZ, "%f", (PRFloat64)delta/PR_TicksPerSecond());
+	} else {
+		PR_snprintf(etime, ETIME_BUFSIZ, "%ld", current_time() - op->o_time);
+	}
 
 	if ( 0 == pb->pb_operation_notes ) {
 		notes_str = "";
 	} else {
 		notes_str = notes_buf;
 		*notes_buf = ' ';
-		notes2str( pb->pb_operation_notes, notes_buf + 1,
-		    sizeof( notes_buf ) - 1 );
+		notes2str( pb->pb_operation_notes, notes_buf + 1, sizeof( notes_buf ) - 1 );
 	} 
 
 	csn_str[0] = '\0';
@@ -1897,92 +1895,124 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 		}
 	}
 
-        if (op->o_tag == LDAP_REQ_BIND && err == LDAP_SASL_BIND_IN_PROGRESS) {
-            /* 
-             * Not actually an error. 
-             * Make that clear in the log.
-             */
-			if ( !internal_op )
-			{
-				slapi_log_access( LDAP_DEBUG_STATS,
-								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
-								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
-								  ", SASL bind in progress\n",
-								  (long long unsigned int)op->o_connid,
-								  op->o_opid,
-								  err, tag, nentries, 
-								  etime, 
-								  notes_str, csn_str );
-			}
-			else
-			{
-				slapi_log_access( LDAP_DEBUG_ARGS,
-								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
-								  ", SASL bind in progress\n",
-									LOG_INTERNAL_OP_CON_ID,
-									LOG_INTERNAL_OP_OP_ID,
-								  err, tag, nentries, 
-								  etime, 
-								  notes_str, csn_str );
-			}
-        } else if (op->o_tag == LDAP_REQ_BIND && err == LDAP_SUCCESS) {
-            char *dn = NULL;
+	if (op->o_tag == LDAP_REQ_BIND && err == LDAP_SASL_BIND_IN_PROGRESS) {
+		/*
+		 * Not actually an error.
+		 * Make that clear in the log.
+		 */
+		if ( !internal_op )
+		{
+			slapi_log_access( LDAP_DEBUG_STATS,
+							  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
+							  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
+							  ", SASL bind in progress\n",
+							  (long long unsigned int)op->o_connid,
+							  op->o_opid,
+							  err, tag, nentries,
+							  etime,
+							  notes_str, csn_str );
+		}
+		else
+		{
+			slapi_log_access( LDAP_DEBUG_ARGS,
+							  "conn=%s op=%d RESULT err=%d"
+							  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
+							  ", SASL bind in progress\n",
+								LOG_INTERNAL_OP_CON_ID,
+								LOG_INTERNAL_OP_OP_ID,
+							  err, tag, nentries,
+							  etime,
+							  notes_str, csn_str );
+		}
+	} else if (op->o_tag == LDAP_REQ_BIND && err == LDAP_SUCCESS) {
+		char *dn = NULL;
 
-            /* 
-             * For methods other than simple, the dn in the bind request
-             * may be irrelevant. Log the actual authenticated dn.
-             */
-            slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
-			if ( !internal_op )
+		/*
+		 * For methods other than simple, the dn in the bind request
+		 * may be irrelevant. Log the actual authenticated dn.
+		 */
+		slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
+		if ( !internal_op )
+		{
+			slapi_log_access( LDAP_DEBUG_STATS,
+							  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
+							  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
+							  " dn=\"%s\"\n",
+							  (long long unsigned int)op->o_connid,
+							  op->o_opid,
+							  err, tag, nentries,
+							  etime,
+							  notes_str, csn_str, dn ? dn : "");
+		}
+		else
+		{
+			slapi_log_access( LDAP_DEBUG_ARGS,
+							  "conn=%s op=%d RESULT err=%d"
+							  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
+							  " dn=\"%s\"\n",
+								LOG_INTERNAL_OP_CON_ID,
+								LOG_INTERNAL_OP_OP_ID,
+							  err, tag, nentries,
+							  etime,
+							  notes_str, csn_str, dn ? dn : "");
+		}
+		slapi_ch_free((void**)&dn);
+	} else {
+		if ( !internal_op )
+		{
+			slapi_log_access( LDAP_DEBUG_STATS,
+							  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
+							  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
+							  (long long unsigned int)op->o_connid,
+							  op->o_opid,
+							  err, tag, nentries,
+							  etime,
+							  notes_str, csn_str );
+		}
+		else
+		{
+			int optype;
+			slapi_log_access( LDAP_DEBUG_ARGS,
+							  "conn=%s op=%d RESULT err=%d"
+							  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
+							  LOG_INTERNAL_OP_CON_ID,
+							  LOG_INTERNAL_OP_OP_ID,
+							  err, tag, nentries,
+							  etime,
+							  notes_str, csn_str );
+			/*
+			 *  If this is an unindexed search we should log it in the error log if
+			 *  we didn't log it in the access log.
+			 */
+			slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
+			if(optype == SLAPI_OPERATION_SEARCH && /* search, */
+			   strcmp(notes_str,"") &&  /* that's unindexed, */
+			   !(config_get_accesslog_level() & LDAP_DEBUG_ARGS)) /* and not logged in access log */
 			{
-				slapi_log_access( LDAP_DEBUG_STATS,
-								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
-								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
-								  " dn=\"%s\"\n",
-								  (long long unsigned int)op->o_connid,
-								  op->o_opid,
-								  err, tag, nentries, 
-								  etime, 
-								  notes_str, csn_str, dn ? dn : "");
-			}
-			else
-			{
-				slapi_log_access( LDAP_DEBUG_ARGS,
-								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
-								  " dn=\"%s\"\n",
-									LOG_INTERNAL_OP_CON_ID,
-									LOG_INTERNAL_OP_OP_ID,	
-								  err, tag, nentries, 
-								  etime, 
-								  notes_str, csn_str, dn ? dn : "");
-			}
-            slapi_ch_free((void**)&dn);
-        } else {
-			if ( !internal_op )
-			{
-				slapi_log_access( LDAP_DEBUG_STATS,
-								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
-								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
-								  (long long unsigned int)op->o_connid,
-								  op->o_opid,
-								  err, tag, nentries, 
-								  etime, 
-								  notes_str, csn_str );
-			}
-			else
-			{
-				slapi_log_access( LDAP_DEBUG_ARGS,
-								  "conn=%s op=%d RESULT err=%d"
-								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
-									LOG_INTERNAL_OP_CON_ID,
-									LOG_INTERNAL_OP_OP_ID,
-								  err, tag, nentries, 
-								  etime, 
-								  notes_str, csn_str );
+				struct slapdplugin *plugin = NULL;
+				struct slapi_componentid *cid = NULL;
+				char *filter_str;
+				char *plugin_dn;
+				char *base_dn;
+
+				slapi_pblock_get(pb, SLAPI_SEARCH_STRFILTER, &filter_str);
+				slapi_pblock_get(pb, SLAPI_TARGET_DN, &base_dn);
+				slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
+				if (cid){
+					plugin=(struct slapdplugin *) cid->sci_plugin;
+				} else {
+					slapi_pblock_get (pb, SLAPI_PLUGIN, &plugin);
+				}
+				plugin_dn = plugin_get_dn(plugin);
+
+				slapi_log_error (SLAPI_LOG_FATAL, "Internal search" , "Unindexed search: source (%s) "
+						"search base=\"%s\" filter=\"%s\" etime=%s nentries=%d %s\n",
+						plugin_dn, base_dn, filter_str, etime, nentries, notes_str);
+
+				slapi_ch_free_string(&plugin_dn);
 			}
 		}
+	}
 }
 
 

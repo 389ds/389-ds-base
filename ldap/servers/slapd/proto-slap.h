@@ -569,7 +569,9 @@ int config_set_enable_turbo_mode(const char *attrname, char *value, char *errorb
 int config_get_connection_buffer();
 int config_set_connection_buffer(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_connection_nocanon();
+int config_get_plugin_logging();
 int config_set_connection_nocanon(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_plugin_logging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_listen_backlog_size(void);
 
 PLHashNumber hashNocaseString(const void *key);
