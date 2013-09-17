@@ -44,7 +44,7 @@
 #include "retrocl.h"
 
 static int
-entry2reple( Slapi_Entry *e, Slapi_Entry *oe );
+entry2reple( Slapi_Entry *e, Slapi_Entry *oe, int optype );
 
 static int
 mods2reple( Slapi_Entry *e, LDAPMod **ldm );
@@ -324,7 +324,7 @@ write_replog_db(
     err = 0;
     switch ( optype ) {
     case OP_ADD:
-	if ( entry2reple( e, log_e ) != 0 ) {
+	if ( entry2reple( e, log_e, OP_ADD ) != 0 ) {
 	    err = 1;
 	}
 	break;
@@ -342,10 +342,17 @@ write_replog_db(
 	break;
 
     case OP_DELETE:
-	/* Set the changetype attribute */
-	val.bv_val = "delete";
-	val.bv_len = 6;
-	slapi_entry_add_values( e, attr_changetype, vals );
+	if (log_e) {
+		/* we have to log the full entry */
+		if ( entry2reple( e, log_e, OP_DELETE ) != 0 ) {
+	    		err = 1;
+		}
+	} else {
+		/* Set the changetype attribute */
+		val.bv_val = "delete";
+		val.bv_len = 6;
+		slapi_entry_add_values( e, attr_changetype, vals );
+	}
 	break;
     default:
 	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "replog: Unknown LDAP operation type "
@@ -398,7 +405,7 @@ write_replog_db(
  *              to an entry obtained from slapi_entry_alloc().
  */
 static int
-entry2reple( Slapi_Entry *e, Slapi_Entry *oe )
+entry2reple( Slapi_Entry *e, Slapi_Entry *oe, int optype )
 {
     char		*p, *estr;
     struct berval	*vals[ 2 ];
@@ -409,8 +416,15 @@ entry2reple( Slapi_Entry *e, Slapi_Entry *oe )
     vals[ 1 ] = NULL;
 
     /* Set the changetype attribute */
-    val.bv_val = "add";
-    val.bv_len = 3;
+    if ( optype == OP_ADD ) {
+    	val.bv_val = "add";
+    	val.bv_len = 3;
+    } else if ( optype == OP_DELETE) {
+    	val.bv_val = "delete";
+    	val.bv_len = 6;
+    } else {
+	return (1);
+    }
     slapi_entry_add_values( e, attr_changetype, vals );
 
     estr = slapi_entry2str( oe, &len );
@@ -636,6 +650,8 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     	}
     	break;
     case OP_DELETE:
+	if (retrocl_log_deleted)
+		(void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &te);
     	break;
     case OP_MODRDN:
     	/* newrdn is used just for logging; no need to be normalized */

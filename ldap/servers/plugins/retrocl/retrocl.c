@@ -80,6 +80,7 @@ PRLock *retrocl_internal_lock = NULL;
 int retrocl_nattributes = 0;
 char **retrocl_attributes = NULL;
 char **retrocl_aliases = NULL;
+int retrocl_log_deleted = 0;
 
 /* ----------------------------- Retrocl Plugin */
 
@@ -386,6 +387,21 @@ static int retrocl_start (Slapi_PBlock *pb)
             }
         }
 
+        slapi_ch_array_free(values);
+    }
+
+    retrocl_log_deleted = 0;
+    values = slapi_entry_attr_get_charray(e, "nsslapd-log-deleted");
+    if (values != NULL) {
+	if (values[1] != NULL) {
+		slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+			"Multiple values specified for attribute: nsslapd-log-deleted\n");
+	} else if ( 0 == strcasecmp(values[0], "on")) {
+		retrocl_log_deleted = 1;
+	} else if (strcasecmp(values[0], "off")) {
+		slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+			"Invalid value (%s) specified for attribute: nsslapd-log-deleted\n", values[0]);
+	}
         slapi_ch_array_free(values);
     }
 

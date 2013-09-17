@@ -113,6 +113,7 @@ enum {
 
 extern void* g_plg_identity [PLUGIN_MAX];
 extern Slapi_Backend *retrocl_be_changelog;
+extern int retrocl_log_deleted;
 extern int retrocl_nattributes;
 extern char** retrocl_attributes;
 extern char** retrocl_aliases;
