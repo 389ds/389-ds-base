@@ -128,7 +128,7 @@ static int strcpy_count( char *dst, const char *src );
 static int refresh_user_defined_schema(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
 static int schema_check_oc_attrs ( struct objclass *poc, char *errorbuf,
 		size_t errorbufsize, int stripOptions );
-static struct objclass *oc_find_nolock( const char *ocname_or_oid );
+static struct objclass *oc_find_nolock( const char *ocname_or_oid, struct objclass *oc_private, PRBool use_private );
 static struct objclass *oc_find_oid_nolock( const char *ocoid );
 static void oc_free( struct objclass **ocp );
 static PRBool oc_equal( struct objclass *oc1, struct objclass *oc2 );
@@ -156,7 +156,7 @@ static size_t strcat_qdlist( char *buf, char *prefix, char **qdlist );
 static int parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, size_t errorbufsize,
         PRUint32 schema_flags, int is_user_defined, int schema_ds4x_compat, int is_remote);
 static int parse_objclass_str(const char *input, struct objclass **oc, char *errorbuf, size_t errorbufsize,
-        PRUint32 schema_flags, int is_user_defined,	int schema_ds4x_compat );
+        PRUint32 schema_flags, int is_user_defined,	int schema_ds4x_compat, struct objclass* private_schema );
 
 #else
 /*
@@ -228,10 +228,10 @@ static int parse_at_str(const char *input, struct asyntaxinfo **asipp, char *err
 
 static int parse_oc_str(const char *input, struct objclass **oc, char *errorbuf,
 		size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
-		int schema_ds4x_compat )
+		int schema_ds4x_compat, struct objclass* private_schema )
 {
 #ifdef USE_OPENLDAP
-    return parse_objclass_str (input, oc, errorbuf, errorbufsize, schema_flags, is_user_defined, schema_ds4x_compat );
+    return parse_objclass_str (input, oc, errorbuf, errorbufsize, schema_flags, is_user_defined, schema_ds4x_compat, private_schema );
 #else
     return read_oc_ldif (input, oc, errorbuf, errorbufsize, schema_flags, is_user_defined, schema_ds4x_compat );
 #endif
@@ -560,7 +560,7 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
       continue;
     }
 
-    if ((oc = oc_find_nolock( ocname )) != NULL ) {
+    if ((oc = oc_find_nolock( ocname, NULL, PR_FALSE )) != NULL ) {
       oclist[oc_count++] = oc;
     } else {
       /* we don't know about the oc; return an appropriate error message */
@@ -795,7 +795,7 @@ oc_find_name( const char *name_or_oid )
 	char			*ocname = NULL;
 
 	oc_lock_read();
-	if ( NULL != ( oc = oc_find_nolock( name_or_oid ))) {
+	if ( NULL != ( oc = oc_find_nolock( name_or_oid, NULL, PR_FALSE ))) {
 		ocname = slapi_ch_strdup( oc->oc_name );
 	}
 	oc_unlock();
@@ -810,13 +810,18 @@ oc_find_name( const char *name_or_oid )
  * NULL is returned if no match is found or `name_or_oid' is NULL.
  */
 static struct objclass *
-oc_find_nolock( const char *ocname_or_oid )
+oc_find_nolock( const char *ocname_or_oid, struct objclass *oc_private, PRBool use_private)
 {
 	struct objclass	*oc;
 
 	if ( NULL != ocname_or_oid ) {
 		if ( !schema_ignore_trailing_spaces ) {
-            for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
+                        if (use_private) {
+                                oc = oc_private;
+                        } else {
+                                oc = g_get_global_oc_nolock(); 
+                        }
+            for ( ; oc != NULL; oc = oc->oc_next ) {
                 if ( ( strcasecmp( oc->oc_name, ocname_or_oid ) == 0 )
 						|| ( oc->oc_oid &&
 						strcasecmp( oc->oc_oid, ocname_or_oid ) == 0 )) {
@@ -834,8 +839,13 @@ oc_find_nolock( const char *ocname_or_oid )
 						p++, len++ ) {
 				;	/* NULL */
             }
-
-            for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
+            
+            if (use_private) {
+                    oc = oc_private;
+            } else {
+                    oc = g_get_global_oc_nolock();
+            }
+            for ( ; oc != NULL; oc = oc->oc_next ) {
                 if ( ( (strncasecmp( oc->oc_name, ocname_or_oid, len ) == 0) 
                        && (len == strlen(oc->oc_name)) )
                      || 
@@ -1885,11 +1895,34 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 			*returncode = schema_replace_attributes( pb, mods[i], returntext,
 					SLAPI_DSE_RETURNTEXT_SIZE );
 		  } else if (strcasecmp (mods[i]->mod_type, "objectclasses") == 0) {
-			/*
-			 * Replace all objectclasses
-			 */
-			*returncode = schema_replace_objectclasses( pb, mods[i],
-					returntext, SLAPI_DSE_RETURNTEXT_SIZE );
+                          
+                          if (is_replicated_operation) {
+                                  /* before accepting the schema checks if the local consumer schema is not
+                                   * a superset of the supplier schema
+                                   */
+                                  if (schema_objectclasses_superset_check(mods[i]->mod_bvalues, OC_CONSUMER)) {
+                                          
+                                          schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                                  schema_errprefix_generic, mods[i]->mod_type,
+                                                  "Replace is not possible, local consumer schema is a superset of the supplier" );
+                                          slapi_log_error(SLAPI_LOG_FATAL, "schema",
+                                                  "Local %s must not be overwritten (set replication log for additional info)\n",
+                                                  mods[i]->mod_type);
+                                          *returncode = LDAP_UNWILLING_TO_PERFORM;
+                                  } else {
+                                          /*
+                                           * Replace all objectclasses
+                                           */
+                                          *returncode = schema_replace_objectclasses(pb, mods[i],
+                                                  returntext, SLAPI_DSE_RETURNTEXT_SIZE);
+                                  }                                
+                         } else {
+                                  /*
+                                   * Replace all objectclasses
+                                   */
+                                  *returncode = schema_replace_objectclasses(pb, mods[i],
+                                                  returntext, SLAPI_DSE_RETURNTEXT_SIZE);                                 
+                         }
 		  } else if (strcasecmp (mods[i]->mod_type, "nsschemacsn") == 0) {
 			if (is_replicated_operation) {
 				/* Update the schema CSN */
@@ -2155,13 +2188,13 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
   for (i = 0; mod->mod_bvalues[i]; i++) {
 	if ( LDAP_SUCCESS != ( rc = parse_oc_str (
 				(const char *)mod->mod_bvalues[i]->bv_val, &delete_oc,
-				errorbuf, errorbufsize, 0, 0, schema_ds4x_compat))) {
+				errorbuf, errorbufsize, 0, 0, schema_ds4x_compat, NULL))) {
 	  return rc;
 	}
 
 	oc_lock_write();
 
-	if ((poc = oc_find_nolock(delete_oc->oc_name)) != NULL) {
+	if ((poc = oc_find_nolock(delete_oc->oc_name, NULL, PR_FALSE)) != NULL) {
 
 	  /* check to see if any objectclasses inherit from this oc */
 	  for (poc2 = g_get_global_oc_nolock(); poc2 != NULL; poc2 = poc2->oc_next) {
@@ -2382,8 +2415,8 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 	if (!(flags & DSE_SCHEMA_LOCKED))
 		oc_lock_write();
 
-	oldoc_by_name = oc_find_nolock (pnew_oc->oc_name);
-	oldoc_by_oid = oc_find_nolock (pnew_oc->oc_oid);
+	oldoc_by_name = oc_find_nolock (pnew_oc->oc_name, NULL, PR_FALSE);
+	oldoc_by_oid = oc_find_nolock (pnew_oc->oc_oid, NULL, PR_FALSE);
 
 	/* Check to see if the objectclass name and the objectclass oid are already
 	 * in use by an existing objectclass. If an existing objectclass is already 
@@ -2421,7 +2454,7 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 
 	/* check to see if the superior oc exists */
 	if (!rc && pnew_oc->oc_superior &&
-				((psup_oc = oc_find_nolock (pnew_oc->oc_superior)) == NULL)) {
+				((psup_oc = oc_find_nolock (pnew_oc->oc_superior, NULL, PR_FALSE)) == NULL)) {
 		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
 				pnew_oc->oc_name, "Superior object class \"%s\" does not exist",
 				pnew_oc->oc_superior);
@@ -2628,7 +2661,7 @@ schema_add_objectclass ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		newoc_ldif  = (char *) mod->mod_bvalues[j]->bv_val;
 		if ( LDAP_SUCCESS != (rc = parse_oc_str ( newoc_ldif, &pnew_oc,
 					errorbuf, errorbufsize, 0, 1 /* user defined */,
-					schema_ds4x_compat))) {
+					schema_ds4x_compat, NULL))) {
 			oc_free( &pnew_oc );
 			return rc;
 		}
@@ -2706,7 +2739,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 
 		if ( LDAP_SUCCESS != ( rc = parse_oc_str( mod->mod_bvalues[i]->bv_val,
 					&newocp, errorbuf, errorbufsize, DSE_SCHEMA_NO_GLOCK,
-					1 /* user defined */, 0 /* no DS 4.x compat issues */ ))) {
+					1 /* user defined */, 0 /* no DS 4.x compat issues */ , NULL))) {
 			rc = LDAP_INVALID_SYNTAX;
 			goto clean_up_and_return;
 		}
@@ -3090,7 +3123,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 				keyword_strstr_fn ))) {
       pOcSup = get_tagged_oid( " SUP ", &nextinput, keyword_strstr_fn );
   }
-  psup_oc = oc_find_nolock ( pOcSup );
+  psup_oc = oc_find_nolock ( pOcSup, NULL, PR_FALSE);
 
   if ( schema_ds4x_compat ) nextinput = input;
 
@@ -4085,7 +4118,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 static int
 parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
 		size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
-		int schema_ds4x_compat )
+		int schema_ds4x_compat, struct objclass *private_schema )
 {
     LDAPObjectClass *objClass;
     struct objclass *pnew_oc = NULL, *psup_oc = NULL;
@@ -4194,8 +4227,15 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
         /* needed because we access the superior oc */
         oc_lock_read();
     }
-    if(objClass->oc_sup_oids && objClass->oc_sup_oids[0]){
-        psup_oc = oc_find_nolock ( objClass->oc_sup_oids[0] );
+    if(objClass->oc_sup_oids && objClass->oc_sup_oids[0]) {
+                if (schema_flags & DSE_SCHEMA_USE_PRIV_SCHEMA) {
+                        /* We have built an objectclass list on a private variable
+                         * This is used to check the schema of a remote consumer
+                         */
+                        psup_oc = oc_find_nolock(objClass->oc_sup_oids[0], private_schema, PR_TRUE);
+                } else {
+                        psup_oc = oc_find_nolock(objClass->oc_sup_oids[0], NULL, PR_FALSE);
+                }   
     }
     /*
      *  Walk the "oc_extensions" and set the schema extensions
@@ -4760,7 +4800,7 @@ load_schema_dse(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *ignored,
             if ( LDAP_SUCCESS != (*returncode = parse_oc_str(s, &oc, returntext,
                         SLAPI_DSE_RETURNTEXT_SIZE, flags,
                         primary_file /* force user defined? */,
-                        schema_ds4x_compat)))
+                        schema_ds4x_compat, NULL)))
             {
             	oc_free( &oc );
                 break;
@@ -5584,7 +5624,7 @@ va_expand_one_oc( const char *dn, const Slapi_Attr *a, Slapi_ValueSet *vs, const
 	Slapi_Value **va = vs->va;
 
 
-	this_oc = oc_find_nolock( ocs );
+	this_oc = oc_find_nolock( ocs, NULL, PR_FALSE );
   
 	if ( this_oc == NULL ) {
 		return;			/* skip unknown object classes */
@@ -5594,7 +5634,7 @@ va_expand_one_oc( const char *dn, const Slapi_Attr *a, Slapi_ValueSet *vs, const
 		return;			/* no superior */
 	}
 
-	sup_oc = oc_find_nolock( this_oc->oc_superior );
+	sup_oc = oc_find_nolock( this_oc->oc_superior, NULL, PR_FALSE );
 	if ( sup_oc == NULL ) {
 		return;			/* superior is unknown -- ignore */
 	}
@@ -5770,7 +5810,7 @@ slapi_schema_list_objectclass_attributes(const char *ocname_or_oid,
 	}
 		
 	oc_lock_read();
-	oc = oc_find_nolock(ocname_or_oid);
+	oc = oc_find_nolock(ocname_or_oid, NULL, PR_FALSE);
 	if (oc) {
 		switch (flags & mask) {
 		case SLAPI_OC_FLAG_REQUIRED:
@@ -5806,7 +5846,7 @@ slapi_schema_get_superior_name(const char *ocname_or_oid)
 	char *superior = NULL;
 
 	oc_lock_read();
-	oc = oc_find_nolock(ocname_or_oid);
+	oc = oc_find_nolock(ocname_or_oid, NULL, PR_FALSE);
 	if (oc) {
 		superior = slapi_ch_strdup(oc->oc_superior);
 	}
@@ -5814,3 +5854,221 @@ slapi_schema_get_superior_name(const char *ocname_or_oid)
 	return superior;
 }
 
+
+
+/* Check if the oc_list1 is a superset of oc_list2.
+ * oc_list1 is a superset if it exists objectclass in oc_list1 that
+ * do not exist in oc_list2. Or if a OC in oc_list1 required more attributes
+ * that the OC in oc_list2. Or if a OC in oc_list1 allowed more attributes
+ * that the OC in oc_list2.
+ * 
+ * It returns 1 if oc_list1 is a superset of oc_list2, else it returns 0
+ * 
+ * If oc_list1 or oc_list2 is global_oc, the caller must hold the oc_lock 
+ */
+static int
+schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, char *message) {
+        struct objclass *oc_1, *oc_2;
+        char *description;
+        int rc, i, j;
+        int found;
+
+        if (message == NULL) {
+                description = "";
+        } else {
+                description = message;
+        }
+        
+        /* by default assum oc_list1 == oc_list2 */
+        rc = 0;
+
+        /* Check if all objectclass in oc_list1
+         *   - exists in oc_list2
+         *   - required attributes are also required in oc_2
+         *   - allowed attributes are also allowed in oc_2
+         */
+        for (oc_1 = oc_list1; oc_1 != NULL; oc_1 = oc_1->oc_next) {
+
+                /* Retrieve the remote objectclass in our local schema */
+                oc_2 = oc_find_nolock(oc_1->oc_oid, oc_list2, PR_TRUE);
+                if (oc_2 == NULL) {
+                        /* try to retrieve it with the name*/
+                        oc_2 = oc_find_nolock(oc_1->oc_name, oc_list2, PR_TRUE);
+                }
+                if (oc_2 == NULL) {
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Fail to retrieve in the %s schema [%s or %s]\n", 
+                                description,
+                                oc_1->oc_name, 
+                                oc_1->oc_oid);
+
+                        /* The oc_1 objectclasses is supperset */
+                        rc = 1;
+
+                        continue; /* we continue to check all the objectclass */
+                }
+
+                /* First check the MUST */
+                if (oc_1->oc_orig_required) {
+                        for (i = 0; oc_1->oc_orig_required[i] != NULL; i++) {
+                                /* For each required attribute from the remote schema check that 
+                                 * it is also required in the local schema
+                                 */
+                                found = 0;
+                                if (oc_2->oc_orig_required) {
+                                        for (j = 0; oc_2->oc_orig_required[j] != NULL; j++) {
+                                                if (strcasecmp(oc_2->oc_orig_required[j], oc_1->oc_orig_required[i]) == 0) {
+                                                        found = 1;
+                                                        break;
+                                                }
+                                        }
+                                }
+                                if (!found) {
+                                        /* The required attribute in the remote protocol (remote_oc->oc_orig_required[i])
+                                         * is not required in the local protocol
+                                         */
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not required in '%s' of the %s schema\n",
+                                                oc_1->oc_orig_required[i],
+                                                oc_1->oc_name,
+                                                description);
+
+                                        /* The oc_1 objectclasses is supperset */
+                                        rc = 1;
+                                                
+                                        continue; /* we continue to check all attributes */
+                                }
+                        }
+                }
+
+                /* Second check the MAY */
+                if (oc_1->oc_orig_allowed) {
+                        for (i = 0; oc_1->oc_orig_allowed[i] != NULL; i++) {
+                                /* For each required attribute from the remote schema check that 
+                                 * it is also required in the local schema
+                                 */
+                                found = 0;
+                                if (oc_2->oc_orig_allowed) {
+                                        for (j = 0; oc_2->oc_orig_allowed[j] != NULL; j++) {
+                                                if (strcasecmp(oc_2->oc_orig_allowed[j], oc_1->oc_orig_allowed[i]) == 0) {
+                                                        found = 1;
+                                                        break;
+                                                }
+                                        }
+                                }
+                                if (!found) {
+                                        /* The required attribute in the remote protocol (remote_oc->oc_orig_allowed[i])
+                                         * is not required in the local protocol
+                                         */
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not allowed in '%s' of the %s schema\n",
+                                                oc_1->oc_orig_allowed[i],
+                                                oc_1->oc_name,
+                                                description);
+
+                                        /* The oc_1 objectclasses is supperset */
+                                        rc = 1;
+                                        
+                                        continue; /* we continue to check all attributes */
+                                }
+                        }
+                }
+        }
+        
+        return rc;
+}
+
+static void
+schema_oclist_free(struct objclass *oc_list)
+{
+        struct objclass *oc, *oc_next;
+        
+        for (oc = oc_list; oc != NULL; oc = oc_next) {
+                oc_next = oc->oc_next;
+                oc_free(&oc);
+        }
+}
+
+static
+struct objclass *schema_berval_to_oclist(struct berval **oc_berval) {
+        struct objclass *oc, *oc_list, *oc_tail;
+        char errorbuf[BUFSIZ];
+        int schema_ds4x_compat, rc;
+        int i;
+        
+        schema_ds4x_compat = config_get_ds4_compatible_schema();
+        rc = 0;
+        
+        oc_list = NULL;
+        oc_tail = NULL;
+        if (oc_berval != NULL) {
+                for (i = 0; oc_berval[i] != NULL; i++) {
+                        /* parse the objectclass value */
+                        if (LDAP_SUCCESS != (rc = parse_oc_str(oc_berval[i]->bv_val, &oc,
+                                errorbuf, sizeof (errorbuf), DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0,
+                                schema_ds4x_compat, oc_list))) {
+                                oc_free(&oc);
+                                rc = 1;
+                                break;
+                        }
+                        
+                        /* Add oc at the end of the oc_list */
+                        oc->oc_next = NULL;
+                        if (oc_list == NULL) {
+                                oc_list = oc;
+                                oc_tail = oc;
+                        } else {
+                                oc_tail->oc_next = oc;
+                                oc_tail = oc;
+                        }
+                }
+        }
+        if (rc) {
+                schema_oclist_free(oc_list);
+                oc_list = NULL;
+        }
+        return oc_list;
+}
+
+int
+schema_objectclasses_superset_check(struct berval **remote_schema, char *type) {
+        int  rc;
+        struct objclass *remote_oc_list;
+
+        rc = 0;
+        
+        /* head is the future list of the objectclass of the remote schema */
+        remote_oc_list = NULL;
+        
+        if (remote_schema != NULL) {
+                /* First build an objectclass list from the remote schema */
+                if ((remote_oc_list = schema_berval_to_oclist(remote_schema)) == NULL) {
+                        rc = 1;
+                        return rc;
+                }
+                
+                
+                /* Check that for each object from the remote schema
+                 *         - MUST attributes are also MUST in local schema
+                 *         - ALLOWED attributes are also ALLOWED in local schema
+                 */
+
+                if (remote_oc_list) {
+                        oc_lock_read();
+                        if (strcmp(type, OC_SUPPLIER) == 0) {
+                                /* Check if the remote_oc_list from a consumer are or not 
+                                 * a superset of the objectclasses of the local supplier schema
+                                 */
+                                rc = schema_oc_superset_check(remote_oc_list, g_get_global_oc_nolock(), "local supplier" );
+                        } else {
+                                /* Check if the objectclasses of the local consumer schema are or not
+                                 * a superset of the remote_oc_list from a supplier
+                                 */
+                                rc = schema_oc_superset_check(g_get_global_oc_nolock(), remote_oc_list, "remote supplier");
+                        }
+                        
+                        oc_unlock();
+                }
+                
+                /* Free the remote schema list*/
+                schema_oclist_free(remote_oc_list);
+        }
+        return rc;
+}
