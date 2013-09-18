@@ -696,7 +696,11 @@ static struct config_get_and_set {
 	{CONFIG_LISTEN_BACKLOG_SIZE, config_set_listen_backlog_size,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listen_backlog_size, CONFIG_INT,
-		(ConfigGetFunc)config_get_listen_backlog_size}
+		(ConfigGetFunc)config_get_listen_backlog_size},
+	{CONFIG_IGNORE_TIME_SKEW, config_set_ignore_time_skew,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ignore_time_skew,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_time_skew}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1100,6 +1104,7 @@ FrontendConfig_init () {
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
 
   cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
+  cfg->ignore_time_skew = LDAP_OFF;
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -6214,6 +6219,31 @@ config_get_listen_backlog_size()
 
   retVal = slapdFrontendConfig->listen_backlog_size;
   return retVal; 
+}
+
+int
+config_get_ignore_time_skew(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->ignore_time_skew;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_ignore_time_skew( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->ignore_time_skew),
+                              errorbuf, apply);
+    return retVal;
 }
 
 /*
