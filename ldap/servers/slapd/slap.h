@@ -2121,6 +2121,7 @@ typedef struct _slapdEntryPoints {
 #ifndef DAEMON_LISTEN_SIZE
 #define DAEMON_LISTEN_SIZE 128
 #endif
+#define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2366,6 +2367,7 @@ typedef struct _slapdFrontendConfig {
   slapi_int_t connection_buffer; /* values are CONNECTION_BUFFER_* below */
   slapi_onoff_t connection_nocanon; /* if "on" sets LDAP_OPT_X_SASL_NOCANON */
   slapi_onoff_t plugin_logging; /* log all internal plugin operations */
+  slapi_onoff_t ignore_time_skew;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
