@@ -1129,6 +1129,11 @@ void schema_expand_objectclasses_nolock( Slapi_Entry *e );
                                               * reload_schemafile_lock;
                                               * no further lock needed */
 #define DSE_SCHEMA_USER_DEFINED_ONLY 0x0100  /* refresh user defined schema */
+#define DSE_SCHEMA_USE_PRIV_SCHEMA   0x0200  /* Use a provided private schema */
+
+/* */
+#define OC_CONSUMER "consumer"
+#define OC_SUPPLIER "supplier"
 
 #define SLAPI_RTN_BIT_FETCH_EXISTING_DN_ENTRY 0
 #define SLAPI_RTN_BIT_FETCH_PARENT_ENTRY 1
