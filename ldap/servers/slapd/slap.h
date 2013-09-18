@@ -2006,6 +2006,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
+#define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
 
 /*
  * Define the backlog number for use in listen() call.
@@ -2250,6 +2251,7 @@ typedef struct _slapdFrontendConfig {
   PRUint64 disk_threshold;
   int disk_grace_period;
   int disk_logging_critical;
+  int ignore_time_skew;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
