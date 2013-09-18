@@ -2014,6 +2014,7 @@ typedef struct _slapdEntryPoints {
 #ifndef DAEMON_LISTEN_SIZE
 #define DAEMON_LISTEN_SIZE 128
 #endif
+#define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2250,6 +2251,7 @@ typedef struct _slapdFrontendConfig {
   PRUint64 disk_threshold;
   int disk_grace_period;
   int disk_logging_critical;
+  int ignore_time_skew;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
