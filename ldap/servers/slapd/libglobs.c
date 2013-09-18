@@ -687,6 +687,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_logging_critical,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_logging_critical},
+	{CONFIG_IGNORE_TIME_SKEW, config_set_ignore_time_skew,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.ignore_time_skew,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_time_skew}
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1088,6 +1092,7 @@ FrontendConfig_init () {
   cfg->disk_grace_period = 60; /* 1 hour */
   cfg->disk_logging_critical = LDAP_OFF;
 
+  cfg->ignore_time_skew = LDAP_OFF;
 #ifdef MEMPOOL_EXPERIMENTAL
   cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -6139,6 +6144,31 @@ config_set_default_naming_context(const char *attrname,
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return LDAP_SUCCESS;
+}
+
+int
+config_get_ignore_time_skew(void)
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->ignore_time_skew;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_ignore_time_skew( const char *attrname, char *value,
+                            char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->ignore_time_skew),
+                              errorbuf, apply);
+    return retVal;
 }
 
 /*

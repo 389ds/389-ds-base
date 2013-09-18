@@ -2002,6 +2002,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_DISK_THRESHOLD "nsslapd-disk-monitoring-threshold"
 #define CONFIG_DISK_GRACE_PERIOD "nsslapd-disk-monitoring-grace-period"
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
+#define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
 
 #ifdef MEMPOOL_EXPERIMENTAL
 #define CONFIG_MEMPOOL_SWITCH_ATTRIBUTE "nsslapd-mempool"
@@ -2236,6 +2237,7 @@ typedef struct _slapdFrontendConfig {
   PRUint64 disk_threshold;
   int disk_grace_period;
   int disk_logging_critical;
+  int ignore_time_skew;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
