@@ -396,6 +396,7 @@ int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorb
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_listen_backlog_size(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_ignore_time_skew(const char *attrname, char *value, char *errorbuf, int apply);
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -561,6 +562,7 @@ int config_get_listen_backlog_size(void);
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
+int config_get_ignore_time_skew();
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
