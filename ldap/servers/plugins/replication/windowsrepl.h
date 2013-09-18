@@ -43,6 +43,11 @@
 
 /* windows_private.c */
 typedef struct windowsprivate Dirsync_Private;
+typedef struct subtreepair {
+	Slapi_DN *ADsubtree;
+	Slapi_DN *DSsubtree;
+} subtreePair;
+
 Dirsync_Private* windows_private_new();
 void windows_private_set_windows_subtree (const Repl_Agmt *ra,Slapi_DN* sdn );
 const Slapi_DN* windows_private_get_windows_subtree (const Repl_Agmt *ra);
@@ -68,6 +73,7 @@ void windows_private_set_isnt4(const Repl_Agmt *ra, int isit);
 int windows_private_get_iswin2k3(const Repl_Agmt *ra);
 void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit);
 Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra);
+Slapi_Filter* windows_private_get_windows_filter(const Repl_Agmt *ra);
 Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra);
 const char* windows_private_get_purl(const Repl_Agmt *ra);
 /*
@@ -93,6 +99,18 @@ Slapi_Entry *windows_private_get_curr_entry(const Repl_Agmt *ra);
 void windows_private_set_curr_entry(const Repl_Agmt *ra, Slapi_Entry *e);
 char **windows_private_get_range_attrs(const Repl_Agmt *ra);
 void windows_private_set_range_attrs(const Repl_Agmt *ra, char **attrs);
+
+void windows_private_set_directory_userfilter(const Repl_Agmt *ra, char *filter);
+void windows_private_set_windows_userfilter(const Repl_Agmt *ra, char *filter);
+const char* windows_private_get_directory_userfilter(const Repl_Agmt *ra);
+const char* windows_private_get_windows_userfilter(const Repl_Agmt *ra);
+
+const subtreePair* windows_private_get_subtreepairs(const Repl_Agmt *ra);
+void windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray);
+const Slapi_DN* windows_private_get_windows_treetop(const Repl_Agmt *ra);
+void windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop);
+const Slapi_DN* windows_private_get_directory_treetop(const Repl_Agmt *ra);
+void windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop);
 
 /* in windows_connection.c */
 ConnResult windows_conn_connect(Repl_Connection *conn);

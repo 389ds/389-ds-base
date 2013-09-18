@@ -1136,10 +1136,33 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
 
 			if (cn_string) {
 				char *container_str = NULL;
-				const char *suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
+				const char *suffix = NULL;
+				const Slapi_DN *local_sdn = NULL;
+				const subtreePair* subtree_pairs = NULL;
+				const subtreePair* sp = NULL;
 
-				container_str = extract_container(slapi_entry_get_sdn_const(local_entry),
-					windows_private_get_directory_subtree(prp->agmt));
+				/* Figure out the Windows subtree from the local subtree... */
+				local_sdn = slapi_entry_get_sdn_const(local_entry);
+				subtree_pairs = windows_private_get_subtreepairs(prp->agmt);
+				if (subtree_pairs) {
+					for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+						if (slapi_sdn_scope_test(local_sdn, sp->DSsubtree, LDAP_SCOPE_SUBTREE)) {
+							suffix = slapi_sdn_get_dn(sp->ADsubtree);
+							break;
+						}
+					}
+				}
+				if (NULL == suffix) {
+					suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
+				}
+
+				if (sp && sp->DSsubtree) {
+					container_str = extract_container(slapi_entry_get_sdn_const(local_entry),
+					                                  sp->DSsubtree);
+				} else {
+					container_str = extract_container(slapi_entry_get_sdn_const(local_entry),
+					                                  windows_private_get_directory_subtree(prp->agmt));
+				}
 				new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", cn_string, container_str, suffix);
 
 				if (new_dn_string) {
@@ -1311,7 +1334,9 @@ process_replay_rename(Private_Repl_Protocol *prp,
 	char *remote_rdn = NULL;
 	char *remote_dn = NULL;
 	char *local_pndn = NULL;
-	
+	const subtreePair* subtree_pairs = NULL;
+	const subtreePair* sp = NULL;
+
 	if (NULL == local_origsdn || NULL == local_newentry) {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 		                "process_replay_rename: %s is empty\n",
@@ -1324,29 +1349,40 @@ process_replay_rename(Private_Repl_Protocol *prp,
 
 	/* Generate newsuperior for AD */
 	winrepl_agmt = prp->agmt;
-	remote_subtree =
-		slapi_sdn_get_ndn(windows_private_get_windows_subtree(winrepl_agmt));
-	local_subtree =
-		slapi_sdn_get_ndn(windows_private_get_directory_subtree(winrepl_agmt));
-	if (NULL == remote_subtree || NULL == local_subtree ||
-		'\0' == *remote_subtree || '\0' == *local_subtree) {
+	remote_subtree = slapi_sdn_get_ndn(windows_private_get_windows_subtree(winrepl_agmt));
+	local_subtree = slapi_sdn_get_ndn(windows_private_get_directory_subtree(winrepl_agmt));
+	subtree_pairs = windows_private_get_subtreepairs(winrepl_agmt);
+	if ((NULL == remote_subtree || NULL == local_subtree ||
+		 '\0' == *remote_subtree || '\0' == *local_subtree) &&
+		(NULL == subtree_pairs)) {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 					"process_replay_rename: local subtree \"%s\" or "
-					"remote subtree \"%s\" is empty\n",
+					"remote subtree \"%s\" and "
+					"subtree_pairs are empty\n",
 					local_subtree?local_subtree:"empty",
 					remote_subtree?remote_subtree:"empty");
 		goto bail;
 	}
-	/* if given, newparent is already normzlized; just ignore the case */
+	/* if given, newparent is already normalized; just ignore the case */
 	if (newparent) {
 		norm_newparent = slapi_ch_strdup(newparent);
+		slapi_dn_ignore_case(norm_newparent);
 	} else {
 		/* newparent is NULL; set the original parent */
 		/* slapi_dn_parent returns the dup'ed dn */
 		norm_newparent = slapi_dn_parent(slapi_sdn_get_ndn(local_origsdn));
 	}
-	slapi_dn_ignore_case(norm_newparent);
-	p = strstr(norm_newparent, local_subtree);
+	p = NULL;
+	if (subtree_pairs && subtree_pairs->DSsubtree) {
+		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+			p = strstr(norm_newparent, slapi_sdn_get_ndn(sp->DSsubtree));
+			if (p) {
+				break;
+			}
+		}
+	} else {
+		p = strstr(norm_newparent, local_subtree);
+	}
 	if (NULL == p) {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 					"process_replay_rename: new superior \"%s\" is not "
@@ -1354,11 +1390,20 @@ process_replay_rename(Private_Repl_Protocol *prp,
 					norm_newparent, local_subtree);
 		goto bail; /* not in the subtree */
 	}
-	*p = '\0';
-	if (p == norm_newparent) {
-		newsuperior = PR_smprintf("%s", remote_subtree);
+	if (sp && sp->DSsubtree) {
+		if (p == norm_newparent) {
+			newsuperior = PR_smprintf("%s", slapi_sdn_get_ndn(sp->ADsubtree));
+		} else {
+			*p = '\0';
+			newsuperior = PR_smprintf("%s%s", norm_newparent, slapi_sdn_get_ndn(sp->ADsubtree));
+		}
 	} else {
-		newsuperior = PR_smprintf("%s%s", norm_newparent, remote_subtree);
+		if (p == norm_newparent) {
+			newsuperior = PR_smprintf("%s", remote_subtree);
+		} else {
+			*p = '\0';
+			newsuperior = PR_smprintf("%s%s", norm_newparent, remote_subtree);
+		}
 	}
 
 	if (is_user) {
@@ -1385,7 +1430,16 @@ process_replay_rename(Private_Repl_Protocol *prp,
 	/* local parent normalized dn */
 	local_pndn = /* strdup'ed */
 			slapi_dn_parent((const char *)slapi_sdn_get_ndn(local_origsdn));
-	p = strstr(local_pndn, local_subtree);
+	if (subtree_pairs && subtree_pairs->DSsubtree) {
+		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+			p = strstr(local_pndn, slapi_sdn_get_ndn(sp->DSsubtree));
+			if (p) {
+				break;
+			}
+		}
+	} else {
+		p = strstr(local_pndn, local_subtree);
+	}
 	if (NULL == p) {
 		/* Original entry is not in the subtree.
 		 * To add the entry after returning from this function,
@@ -1393,10 +1447,23 @@ process_replay_rename(Private_Repl_Protocol *prp,
 		windows_conn_set_error(prp->conn, LDAP_NO_SUCH_OBJECT);
 		goto bail;
 	}
-	*p = '\0';
 
 	/* generate a remote dn */
-	remote_dn = PR_smprintf("%s,%s%s", remote_rdn, local_pndn, remote_subtree);
+	if (sp && sp->DSsubtree) {
+		if (p == local_pndn) {
+			remote_dn = PR_smprintf("%s,%s", remote_rdn, slapi_sdn_get_ndn(sp->ADsubtree));
+		} else {
+			*p = '\0';
+			remote_dn = PR_smprintf("%s,%s%s", remote_rdn, local_pndn, slapi_sdn_get_ndn(sp->ADsubtree));
+		}
+	} else {
+		if (p == local_pndn) {
+			remote_dn = PR_smprintf("%s,%s", remote_rdn, remote_subtree);
+		} else {
+			*p = '\0';
+			remote_dn = PR_smprintf("%s,%s%s", remote_rdn, local_pndn, remote_subtree);
+		}
+	}
 	if (!deleteoldrdn) {
 		/* AD does not accept deleteoldrdn == 0 */
 		/*
@@ -1677,7 +1744,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		case SLAPI_OPERATION_MODRDN:
 		/* only move case (newsuperior: ...) comse here since local leaf RDN is
 		 * not identical to the remote leaf RDN. */
-			{
+		{
 			return_value = process_replay_rename(prp, local_entry, local_dn,
 								op->p.p_modrdn.modrdn_newrdn,
 								REPL_GET_DN(&op->p.p_modrdn.modrdn_newsuperior_address),
@@ -1696,7 +1763,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				}
 			}
 			break;
-			}
+		}
 		default:
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "%s: replay_update: Unknown "
 				"operation type %lu found in changelog - skipping change.\n",
@@ -2372,8 +2439,12 @@ windows_get_superior_change(Private_Repl_Protocol *prp,
 	char *local_pndn = NULL;     /* Normalized parent dn of the local entry */
 	const char *remote_subtree = NULL; /* Normalized subtree of the remote entry */
 	const char *local_subtree = NULL;  /* Normalized subtree of the local entry */
-	char *ptr = NULL;
+	char *mptr = NULL;
+	char *lptr = NULL;
 	int rc = -1;
+	const subtreePair* subtree_pairs = NULL;
+	const subtreePair* msp = NULL;
+	const subtreePair* lsp = NULL;
 
 	if (NULL == newsuperior) {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
@@ -2389,15 +2460,16 @@ windows_get_superior_change(Private_Repl_Protocol *prp,
 
 	/* Check if modrdn with superior has happened on AD */
 	winrepl_agmt = prp->agmt;
-	remote_subtree =
-		slapi_sdn_get_ndn(windows_private_get_windows_subtree(winrepl_agmt));
-	local_subtree =
-		slapi_sdn_get_ndn(windows_private_get_directory_subtree(winrepl_agmt));
-	if (NULL == remote_subtree || NULL == local_subtree ||
-		'\0' == *remote_subtree || '\0' == *local_subtree) {
+	remote_subtree = slapi_sdn_get_ndn(windows_private_get_windows_subtree(winrepl_agmt));
+	local_subtree = slapi_sdn_get_ndn(windows_private_get_directory_subtree(winrepl_agmt));
+	subtree_pairs = windows_private_get_subtreepairs(winrepl_agmt);
+	if ((NULL == remote_subtree || NULL == local_subtree ||
+		 '\0' == *remote_subtree || '\0' == *local_subtree) &&
+		(NULL == subtree_pairs)) {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 					"windows_get_superior_change: local subtree \"%s\" or "
-					"remote subtree \"%s\" is empty\n",
+					"remote subtree \"%s\" and "
+					"subtree_pairs are empty\n",
 					local_subtree?local_subtree:"empty",
 					remote_subtree?remote_subtree:"empty");
 		goto bail;
@@ -2423,18 +2495,69 @@ windows_get_superior_change(Private_Repl_Protocol *prp,
 					mapped_pndn?mapped_pndn:"empty");
 		goto bail;
 	}
-	ptr = strstr(mapped_pndn, local_subtree);
-	if (ptr) {
-		*ptr = '\0'; /* if ptr != mapped_pndn, mapped_pndn ends with ',' */
-		ptr = strstr(local_pndn, local_subtree);
-		if (ptr) {
-			*ptr = '\0'; /* if ptr != local_pndn, local_pndn ends with ',' */
+	if (subtree_pairs && subtree_pairs->DSsubtree) {
+		for (msp = subtree_pairs; msp && msp->DSsubtree; msp++) {
+			mptr = strstr(mapped_pndn, slapi_sdn_get_ndn(msp->DSsubtree));
+			if (mptr) {
+				break;
+			}
+		}
+	} else {
+		mptr = strstr(mapped_pndn, local_subtree);
+	}
+	if (mptr) {
+		/* mapped DN (originally from AD) is in the DS subtree(s) defined in the agreement */
+		if (subtree_pairs && subtree_pairs->DSsubtree) {
+			for (lsp = subtree_pairs; lsp && lsp->DSsubtree; lsp++) {
+				lptr = strstr(local_pndn, slapi_sdn_get_ndn(lsp->DSsubtree));
+				if (lptr) {
+					break;
+				}
+			}
+		} else {
+			lptr = strstr(local_pndn, local_subtree);
+		}
+		if (lptr) {
+			/* local DN is in the DS subtree(s) defined in the agreement*/
 			if (0 != strcmp(mapped_pndn, local_pndn)) {
-				/* the remote parent is different from the local parent */
-				if (to_windows) {
-					*newsuperior = slapi_create_dn_string("%s%s", local_pndn, remote_subtree);
-				} else {
-					*newsuperior = slapi_create_dn_string("%s%s", mapped_pndn, local_subtree);
+				/* 
+				 * The mapped remote parent is different from the local parent.
+				 * we need to move the entry to the new superior.
+				 */
+				if (to_windows) { /* from DS to AD */
+					if (lsp && lsp->ADsubtree) {
+						if (lptr == local_pndn) {
+							*newsuperior = slapi_ch_strdup(slapi_sdn_get_ndn(lsp->ADsubtree));
+						} else {
+							*lptr = '\0';
+							*newsuperior = slapi_ch_smprintf("%s%s", local_pndn,
+							                                 slapi_sdn_get_ndn(lsp->ADsubtree));
+						}
+					} else {
+						if (lptr == local_pndn) {
+							*newsuperior = slapi_ch_smprintf("%s", remote_subtree);
+						} else {
+							*lptr = '\0';
+							*newsuperior = slapi_ch_smprintf("%s%s", local_pndn, remote_subtree);
+						}
+					}
+				} else { /* from AD to DS */
+					if (msp && msp->DSsubtree) {
+						if (mptr == mapped_pndn) {
+							*newsuperior = slapi_ch_strdup(slapi_sdn_get_ndn(msp->DSsubtree));
+						} else {
+							*mptr = '\0';
+							*newsuperior = slapi_ch_smprintf("%s%s", mapped_pndn, 
+							                                 slapi_sdn_get_ndn(msp->DSsubtree));
+						}
+					} else {
+						if (mptr == mapped_pndn) {
+							*newsuperior = slapi_ch_strdup(local_subtree);
+						} else {
+							*mptr = '\0';
+							*newsuperior = slapi_ch_smprintf("%s%s", mapped_pndn, local_subtree);
+						}
+					}
 				}
 				rc = 0;
 			}
@@ -2642,6 +2765,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,
 	const Slapi_Entry *ad_entry = NULL;
 	Slapi_Entry *ad_entry_copy = NULL;
 	const Slapi_DN *windows_subtree = NULL;
+	const subtreePair* subtree_pairs = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
 	if (NULL == prp) {
@@ -2650,7 +2774,8 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,
 		return;
 	}
 	windows_subtree = windows_private_get_windows_subtree(prp->agmt);
-	if (NULL == windows_subtree) {
+	subtree_pairs = windows_private_get_subtreepairs(prp->agmt);
+	if ((NULL == windows_subtree) && (NULL == subtree_pairs)) {
 		LDAPDebug(LDAP_DEBUG_TRACE,
 		          "<= windows_map_mods_for_replay; NULL agreement subtree; NOOP\n", 0, 0, 0);
 		return;
@@ -2770,8 +2895,17 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,
 									const char *strval = slapi_value_get_string(valp); /* no dup */
 									if (strval) {
 										slapi_sdn_set_dn_byref(sdn, strval);
-										is_in_subtree = slapi_sdn_scope_test(sdn, windows_subtree,
-										                                     LDAP_SCOPE_SUBTREE);
+										if (subtree_pairs) {
+											const subtreePair* sp;
+											for (sp = subtree_pairs; sp && sp->ADsubtree; sp++) {
+												is_in_subtree = slapi_sdn_scope_test(sdn, sp->ADsubtree, LDAP_SCOPE_SUBTREE);
+												if (is_in_subtree) {
+													break;
+												}
+											}
+										} else {
+											is_in_subtree = slapi_sdn_scope_test(sdn, windows_subtree, LDAP_SCOPE_SUBTREE);
+										}
 										if (is_in_subtree) {
 											/* 
 											 * If delete all on DS, 
@@ -3015,18 +3149,18 @@ find_entry_by_attr_value_remote(const char *attribute, const char *value, Slapi_
 	int retval = 0;
 	ConnResult cres = 0;
 	char *filter = NULL;
-	const char *searchbase = NULL;
+	const Slapi_DN *searchbase = NULL;
 	Slapi_Entry *found_entry = NULL;
 
 	/* should not have to escape attribute names */
 	filter = slapi_filter_sprintf("(%s=%s%s)",attribute, ESC_NEXT_VAL, value);
-	searchbase = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
-	cres = windows_search_entry(prp->conn, (char*)searchbase, filter, &found_entry);
+	searchbase = windows_private_get_windows_treetop(prp->agmt);
+	cres = windows_search_entry(prp->conn, (char*)slapi_sdn_get_dn(searchbase), filter, &found_entry);
 	if (cres)
 	{
 		retval = -1;
 	} else
-		{
+	{
 		if (found_entry)
 		{
 			*e = found_entry;
@@ -3136,7 +3270,7 @@ find_entry_by_attr_value(const char *attribute, const char *value, Slapi_Entry *
     Slapi_Entry **entries = NULL, **ep = NULL;
     Slapi_Entry *entry_found = NULL;
     LDAPControl **server_controls = NULL;
-    const char *subtree_dn = NULL;
+    const Slapi_DN *subtree_sdn = NULL;
     char *subtree_dn_copy = NULL;
     char **attrs = NULL;
     char *query = NULL;
@@ -3152,10 +3286,10 @@ find_entry_by_attr_value(const char *attribute, const char *value, Slapi_Entry *
     query = slapi_filter_sprintf("(%s=%s%s)", attribute, ESC_NEXT_VAL, value);
 
     if (query == NULL)
-	    goto done;
+        goto done;
 
-    subtree_dn = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
-    subtree_dn_copy = slapi_ch_strdup(subtree_dn);
+    subtree_sdn = windows_private_get_directory_treetop(ra);
+    subtree_dn_copy = slapi_ch_strdup(slapi_sdn_get_ndn(subtree_sdn));
 
     winsync_plugin_call_pre_ds_search_entry_cb(ra, NULL, &subtree_dn_copy, &scope, &query,
                                                &attrs, &server_controls);
@@ -3391,9 +3525,10 @@ map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *p
 
 	/* The tombstone suffix discards any containers, so we need
 	 * to trim the DN to only dc components. */
-	if ((suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt)))) {
+	suffix = slapi_sdn_get_ndn(windows_private_get_windows_treetop(prp->agmt));
+	if (suffix) {
 		/* If this isn't found, it is treated as an error below. */
-		suffix = (const char *) PL_strcasestr(suffix,"dc=");
+		suffix = (const char *)PL_strstr(suffix, "dc=");
 	}
 
 	if (cn && guid && suffix) {
@@ -3566,7 +3701,18 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 	char *guid = NULL;
 	Slapi_DN *new_dn = NULL;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
-	const char *suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
+	const char *suffix = NULL;
+	const Slapi_DN *local_sdn = NULL;
+	const subtreePair* subtree_pairs = NULL;
+	const subtreePair* sp = NULL;
+
+	if (NULL == e) {
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		                "%s: map_entry_dn_outbound: NULL entry.\n",
+		                agmt_get_long_name(prp->agmt));
+		return -1;
+	}
+
 	/* To find the DN of the peer entry we first look for an ntUniqueId attribute
 	 * on the local entry. If that's present, we generate a GUID-form DN.
 	 * If there's no GUID, then we look for an ntUserDomainId attribute
@@ -3584,6 +3730,25 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 	}
 	*dn = NULL;
 	*missing_entry = 0;
+
+	local_sdn = slapi_entry_get_sdn_const(e);
+	subtree_pairs = windows_private_get_subtreepairs(prp->agmt);
+	if (subtree_pairs) {
+		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+			if (slapi_sdn_scope_test(local_sdn, sp->DSsubtree, LDAP_SCOPE_SUBTREE)) {
+				suffix = slapi_sdn_get_dn(sp->ADsubtree);
+				break;
+			}
+		}
+	} else {
+		suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
+	}
+	if (NULL == suffix) {
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		                "%s: map_entry_dn_outbound: Failed to get the AD suffix of %s.\n",
+		                agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(local_sdn));
+		return -1;
+	}
 
 	guid = slapi_entry_attr_get_charptr(e,"ntUniqueId");
 	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -3646,8 +3811,12 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 				if (cn_string) {
 					char *container_str = NULL;
 
-					container_str = extract_container(slapi_entry_get_sdn_const(e),
-						windows_private_get_directory_subtree(prp->agmt));
+					if (sp) {
+						container_str = extract_container(slapi_entry_get_sdn_const(e), sp->DSsubtree);
+					} else {
+						container_str = extract_container(slapi_entry_get_sdn_const(e),
+						                                  windows_private_get_directory_subtree(prp->agmt));
+					}
 					new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", cn_string, container_str, suffix);
 
 					if (new_dn_string) {
@@ -3714,7 +3883,12 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 						char *rdnstr = NULL;
 						char *container_str = NULL;
 					
-						container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_directory_subtree(prp->agmt));
+						if (sp) {
+							container_str = extract_container(slapi_entry_get_sdn_const(e), sp->DSsubtree);
+						} else {
+							container_str = extract_container(slapi_entry_get_sdn_const(e),
+							                                  windows_private_get_directory_subtree(prp->agmt));
+						}
 						
 						rdnstr = is_nt4 ? "samaccountname=\"%s\",%s%s" : "cn=\"%s\",%s%s";
 
@@ -3843,6 +4017,14 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 	int is_user = 0;
 	int is_group = 0;
 	int is_nt4 = windows_private_get_isnt4(ra);
+	char *container_str = NULL;
+
+	if (NULL == e) {
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		                "%s: map_entry_dn_inbound: entry is NULL.\n",
+					    agmt_get_long_name(ra));
+		return -1;
+	}
 
 	/* To map a non-tombstone's DN we need to first try to look it up by GUID.
 	 * If we do not find it, then we need to generate the DN that it would have if added as a new entry.
@@ -3967,10 +4149,34 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 		char *new_dn_string = NULL;
 		if (username) 
 		{
-			const char *suffix = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
-			char *container_str = NULL;
+			const char *suffix = NULL;
+			const subtreePair* subtree_pairs = windows_private_get_subtreepairs(ra);
+			const subtreePair* sp = NULL;
+			const Slapi_DN *remote_sdn = slapi_entry_get_sdn_const(e);
 
-			container_str = extract_container(slapi_entry_get_sdn_const(e), windows_private_get_windows_subtree(ra));
+			if (subtree_pairs) {
+				for (sp = subtree_pairs; sp && sp->ADsubtree; sp++) {
+					if (slapi_sdn_scope_test(remote_sdn, sp->ADsubtree, LDAP_SCOPE_SUBTREE)) {
+						suffix = slapi_sdn_get_dn(sp->DSsubtree);
+						break;
+					}
+				}
+			} else {
+				suffix = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
+			}
+
+			if (sp) {
+				container_str = extract_container(slapi_entry_get_sdn_const(e), sp->ADsubtree);
+			} else {
+				container_str = extract_container(slapi_entry_get_sdn_const(e), 
+				                                  windows_private_get_windows_subtree(ra));
+			}
+			if (NULL == suffix) {
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+								"%s: map_entry_dn_inbound: Failed to retrieve local suiffx from %s\n",
+								agmt_get_long_name(ra), slapi_sdn_get_dn(remote_sdn));
+				goto error;
+			}
 			/* Local DNs for users and groups are different */
 			if (is_user)
 			{
@@ -3979,8 +4185,10 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 														  windows_private_get_raw_entry(ra),
 														  e,
 														  &new_dn_string,
-														  windows_private_get_directory_subtree(ra),
-														  windows_private_get_windows_subtree(ra));
+														  sp?sp->DSsubtree:
+														     windows_private_get_directory_subtree(ra),
+														  sp?sp->ADsubtree:
+														     windows_private_get_windows_subtree(ra));
 			} else
 			{
 				new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s",username,container_str,suffix);
@@ -3989,8 +4197,10 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 															   windows_private_get_raw_entry(ra),
 															   e,
 															   &new_dn_string,
-															   windows_private_get_directory_subtree(ra),
-															   windows_private_get_windows_subtree(ra));
+															   sp?sp->DSsubtree:
+															      windows_private_get_directory_subtree(ra),
+															   sp?sp->ADsubtree:
+															      windows_private_get_windows_subtree(ra));
 				}
 			}
 			/* 
@@ -3998,7 +4208,6 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 			 * which is normalized. Thus, we can use _normdn_.
 			 */
 			new_dn = slapi_sdn_new_normdn_passin(new_dn_string);
-			slapi_ch_free_string(&container_str);
 		} else 
 		{
 			/* Error, no username */
@@ -4015,14 +4224,9 @@ error:
 	{
 		PR_smprintf_free(guid);
 	}
-	if (matching_entry)
-	{
-		slapi_entry_free(matching_entry);
-	}
-	if (username)
-	{
-		slapi_ch_free_string(&username);
-	}
+	slapi_entry_free(matching_entry);
+	slapi_ch_free_string(&username);
+	slapi_ch_free_string(&container_str);
 	return retval;
 }
 
@@ -4034,30 +4238,41 @@ is_subject_of_agreement_local(const Slapi_Entry *local_entry, const Repl_Agmt *r
 {
 	int retval = 0;
 	int is_in_subtree = 0;
-	const Slapi_DN *agreement_subtree = NULL;
+	const Slapi_DN *local_sdn = NULL;
+	const subtreePair* subtree_pairs = NULL;
 	
-	/* First test for the sync'ed subtree */
-	agreement_subtree = windows_private_get_directory_subtree(ra);
-	if (NULL == agreement_subtree)
-	{
+	if (!local_entry) {
+		/* Error: couldn't find the entry */
+		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+		                "failed to find entry in is_subject_of_agreement_local\n");
 		goto error;
 	}
-	is_in_subtree = slapi_sdn_scope_test(slapi_entry_get_sdn_const(local_entry), agreement_subtree, LDAP_SCOPE_SUBTREE);
-	if (is_in_subtree) 
-	{
-		/* Next test for the correct kind of entry */
-		if (local_entry) {
-			if (slapi_filter_test_simple( (Slapi_Entry*)local_entry,
-					(Slapi_Filter*)windows_private_get_directory_filter(ra)) == 0)
-			{
-				retval = 1;
+
+	/* First test for the sync'ed subtree */
+	local_sdn = slapi_entry_get_sdn_const(local_entry);
+	subtree_pairs = windows_private_get_subtreepairs(ra);
+	if (subtree_pairs) {
+		const subtreePair* sp;
+		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+			is_in_subtree = slapi_sdn_scope_test(local_sdn,
+			                                     sp->DSsubtree, LDAP_SCOPE_SUBTREE);
+			if (is_in_subtree) {
+				break;
 			}
-		} else 
-		{
-			/* Error: couldn't find the entry */
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-				"failed to find entry in is_subject_of_agreement_local: %d\n", retval);
-			retval = 0;
+		}
+	} else {
+		const Slapi_DN *agreement_subtree = NULL;
+		agreement_subtree = windows_private_get_directory_subtree(ra);
+		if (agreement_subtree) {
+			is_in_subtree = slapi_sdn_scope_test(local_sdn,
+			                                     agreement_subtree, LDAP_SCOPE_SUBTREE);
+		}
+	}
+	if (is_in_subtree) {
+		/* Next test for the correct kind of entry */
+		if (slapi_filter_test_simple((Slapi_Entry*)local_entry,
+		                             windows_private_get_directory_filter(ra)) == 0) {
+			retval = 1;
 		}
 	}
 error:
@@ -4069,19 +4284,26 @@ static int
 is_dn_subject_of_agreement_local(const Slapi_DN *sdn, const Repl_Agmt *ra)
 {
 	int retval = 0;
-	const Slapi_DN *agreement_subtree = NULL;
+	const subtreePair* subtree_pairs = NULL;
 
 	/* Get the subtree from the agreement */
-	agreement_subtree = windows_private_get_directory_subtree(ra);
-	if (NULL == agreement_subtree)
-	{
-		goto error;
+	subtree_pairs = windows_private_get_subtreepairs(ra);
+	if (subtree_pairs) {
+		const subtreePair* sp;
+		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+			retval = slapi_sdn_scope_test(sdn, sp->DSsubtree, LDAP_SCOPE_SUBTREE);
+			if (retval) {
+				break;
+			}
+		}
+	} else {
+		const Slapi_DN *agreement_subtree = NULL;
+		agreement_subtree = windows_private_get_directory_subtree(ra);
+		if (agreement_subtree) {
+			/* Check if the DN is within the subtree */
+			retval = slapi_sdn_scope_test(sdn, agreement_subtree, LDAP_SCOPE_SUBTREE);
+		}
 	}
-
-	/* Check if the DN is within the subtree */
-	retval = slapi_sdn_scope_test(sdn, agreement_subtree, LDAP_SCOPE_SUBTREE);
-
-error:
 	return retval;
 }
 
@@ -4097,20 +4319,41 @@ is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
 	int retval = 0;
 	int is_in_subtree = 0;
 	const Slapi_DN *agreement_subtree = NULL;
-	const Slapi_DN *sdn;
-	
-	/* First test for the sync'ed subtree */
-	agreement_subtree = windows_private_get_windows_subtree(ra);
-	if (NULL == agreement_subtree) 
-	{
+	const Slapi_DN *sdn = NULL;
+	const subtreePair* subtree_pairs = NULL;
+
+	if (!e) {
 		goto error;
 	}
 	sdn = slapi_entry_get_sdn_const(e);
-	is_in_subtree = slapi_sdn_scope_test(sdn, agreement_subtree, LDAP_SCOPE_SUBTREE);
+	/* First test for the sync'ed subtree */
+	/* check the subtree pairs; if not set, check windows_subtree */
+	subtree_pairs = windows_private_get_subtreepairs(ra);
+	if (subtree_pairs) {
+		const subtreePair* sp;
+		for (sp = subtree_pairs; sp && sp->ADsubtree; sp++) {
+			is_in_subtree = slapi_sdn_scope_test(sdn, sp->ADsubtree, LDAP_SCOPE_SUBTREE);
+			if (is_in_subtree) {
+				agreement_subtree = sp->ADsubtree;
+				break;
+			}
+		}
+	} else {
+		agreement_subtree = windows_private_get_windows_subtree(ra);
+		if (agreement_subtree) {
+			is_in_subtree = slapi_sdn_scope_test(sdn, agreement_subtree, LDAP_SCOPE_SUBTREE);
+		}
+	}
 	if (is_in_subtree) 
 	{
 		Slapi_DN psdn = {0};
 		Slapi_Entry *pentry = NULL;
+
+		if (windows_private_get_windows_filter(ra) &&
+		    slapi_filter_test_simple(e, windows_private_get_windows_filter(ra))) {
+			/* type_winSyncWindowsFilter is set and the remote entry does not match the filter */
+			goto error;
+		}
 		/*
 		 * Check whether the parent of the entry exists or not.
 		 * If it does not, treat the entry e is out of scope.
@@ -4357,9 +4600,16 @@ windows_generate_dn_value_mods(char *local_type, const Slapi_Attr *attr, Slapi_M
 	return ret;
 }
 
-/* Generate the mods for an update in either direction.  Be careful... the "remote" entry is the DS entry in the to_windows case, but the AD entry in the other case. */
+/* 
+ * Generate the mods for an update in either direction.  
+ */
 static int
-windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry, int to_windows, Slapi_Mods *smods, int *do_modify)
+windows_generate_update_mods(Private_Repl_Protocol *prp,
+                             Slapi_Entry *remote_entry,
+                             Slapi_Entry *local_entry,
+                             int to_windows,
+                             Slapi_Mods *smods,
+                             int *do_modify)
 {
 	int retval = 0;
 	Slapi_Attr *attr = NULL;
@@ -4369,6 +4619,10 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	int rc = 0;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 	const Slapi_DN *local_subtree = NULL;
+	const Slapi_DN *local_sdn = NULL;
+	const subtreePair* subtree_pairs = NULL;
+	Slapi_Entry *target_entry = NULL;
+
 	/* Iterate over the attributes on the remote entry, updating the local entry where appropriate */
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_generate_update_mods\n", 0, 0, 0 );
 
@@ -4385,14 +4639,16 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 
 	if (to_windows)
 	{
-		windows_is_local_entry_user_or_group(remote_entry,&is_user,&is_group);
+		windows_is_local_entry_user_or_group(local_entry,&is_user,&is_group);
+		target_entry = local_entry;
 	} else
 	{
 		windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
+		target_entry = remote_entry;
 	}
 
-	for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
-	     rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
+	for (rc = slapi_entry_first_attr(target_entry, &attr); rc == 0;
+	     rc = slapi_entry_next_attr(target_entry, attr, &attr)) 
 	{
 		int is_present_local = 0;
 		char *type = NULL;
@@ -4432,7 +4688,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		}
 
 		if (to_windows && (0 == slapi_attr_type_cmp(local_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE))) {
-			slapi_entry_attr_find(local_entry,FAKE_STREET_ATTR_NAME,&local_attr);
+			slapi_entry_attr_find(remote_entry,FAKE_STREET_ATTR_NAME,&local_attr);
 		} else {
 			slapi_entry_attr_find(local_entry,local_type,&local_attr);
 		}
@@ -4474,8 +4730,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				if (!values_equal)
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values are different\n",
-					slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+					                "windows_generate_update_mods: %s, %s : values are different\n",
+					                slapi_entry_get_dn_const(local_entry), local_type);
 
 					if (to_windows && ((0 == slapi_attr_type_cmp(local_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) ||
 						(0 == slapi_attr_type_cmp(local_type, "telephoneNumber", SLAPI_TYPE_CMP_SUBTYPE)) ||
@@ -4531,7 +4787,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				} else
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+					                "windows_generate_update_mods: %s, %s : values are equal\n",
+					                slapi_entry_get_dn_const(local_entry), local_type);
 				}
 			} else {
 				/* A dn-valued attribute : need to take special steps */
@@ -4702,7 +4959,22 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 
 	/* Check if any attributes were deleted from the remote entry */
 	entry_first_deleted_attribute(remote_entry, &del_attr);
-	local_subtree = windows_private_get_directory_subtree(prp->agmt);
+	local_sdn = slapi_entry_get_sdn_const(local_entry);
+	subtree_pairs = windows_private_get_subtreepairs(prp->agmt);
+	if (subtree_pairs) {
+		const subtreePair* sp;
+		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+			if (slapi_sdn_scope_test(local_sdn, sp->DSsubtree, LDAP_SCOPE_SUBTREE)) {
+				local_subtree = sp->DSsubtree;
+				break;
+			}
+		}
+	} else {
+		local_subtree = windows_private_get_directory_subtree(prp->agmt);
+	}
+	if (NULL == local_subtree) {
+		goto bail;
+	}
 	while (del_attr != NULL) {
 		Slapi_Attr *local_attr = NULL;
 		char *type = NULL;
@@ -4832,14 +5104,14 @@ bail:
 static int
 windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry, int is_user)
 {
-    Slapi_Mods smods = {0};
+	Slapi_Mods smods = {0};
 	int retval = 0;
 	int do_modify = 0;
 	int ldap_op = 0;
 	int ldap_result_code = 0;
 
-    slapi_mods_init (&smods, 0);
-	retval = windows_generate_update_mods(prp,local_entry,remote_entry,1,&smods,&do_modify);
+	slapi_mods_init (&smods, 0);
+	retval = windows_generate_update_mods(prp, remote_entry, local_entry, 1, &smods, &do_modify);
 	/* Now perform the modify if we need to */
 	if (0 == retval && do_modify)
 	{
@@ -4943,7 +5215,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "renaming entry \"%s\" - "
 				"(newrdn: \"%s\", newsuperior: \"%s\"\n", newdn,
 				newrdn ? newrdn:"NULL", newsuperior ? newsuperior:"NULL");
-		slapi_sdn_init_dn_byref(&newsuperior_sdn, newsuperior);
+		slapi_sdn_init_ndn_byref(&newsuperior_sdn, newsuperior);
 		slapi_rename_internal_set_pb_ext (pb,
 				   slapi_entry_get_sdn(local_entry),
 				   newrdn, &newsuperior_sdn, 1 /* delete old RDNS */,
@@ -5076,7 +5348,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 		(void)slapi_entry2mods (mapped_entry , NULL /* &entrydn : We don't need it */, &entryattrs);
 		if (NULL == entryattrs)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_replay_update: Cannot convert entry to LDAPMods.\n",agmt_get_long_name(prp->agmt));
+			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_process_total_add: Cannot convert entry to LDAPMods.\n",agmt_get_long_name(prp->agmt));
 			retval = CONN_LOCAL_ERROR;
 		}
 		else
@@ -5112,7 +5384,7 @@ windows_process_total_add(Private_Repl_Protocol *prp,Slapi_Entry *e, Slapi_DN* r
 			/* It's possible that the entry already exists in AD, in which case we fall back to modify it */
 			if (retval)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_replay_update: Cannot replay add operation.\n",agmt_get_long_name(prp->agmt));
+				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_process_total_add: Cannot replay add operation.\n",agmt_get_long_name(prp->agmt));
 			}
 			ldap_mods_free(entryattrs, 1);
 			entryattrs = NULL;
@@ -5183,7 +5455,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 		if (retval || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
-				"%s: windows_replay_update: failed map dn for total update dn=\"%s\"\n",
+				"%s: windows_process_total_entry: failed map dn for total update dn=\"%s\"\n",
 				agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(local_dn));
 			goto error;
 		}
@@ -5198,19 +5470,27 @@ error:
 }
 
 static int
-windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity, int is_global)
+windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp,
+                                       const char *uniqueid,
+                                       char ** attrs,
+                                       Slapi_Entry **ret_entry,
+                                       int tombstone,
+                                       void * component_identity,
+                                       int is_global)
 {
-    Slapi_Entry **entries = NULL;
-    Slapi_PBlock *int_search_pb = NULL;
-    int rc = 0;
+	Slapi_Entry **entries = NULL;
+	Slapi_PBlock *int_search_pb = NULL;
+	int rc = 0;
 	char *filter_string = NULL;
 	const Slapi_DN *local_subtree = NULL;
+	const Slapi_DN *local_subtree_sdn = NULL;
     
-    *ret_entry = NULL;
+	*ret_entry = NULL;
 	if (is_global) { /* Search from the suffix (rename case) */
 		local_subtree = agmt_get_replarea(prp->agmt); 
+		local_subtree_sdn = local_subtree;
 	} else {
-		local_subtree = windows_private_get_directory_subtree(prp->agmt);
+		local_subtree_sdn = windows_private_get_directory_treetop(prp->agmt);
 	}
 
 	/* Searching for tombstones can be expensive, so the caller needs to specify if
@@ -5222,7 +5502,7 @@ windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *u
 	}
 
     int_search_pb = slapi_pblock_new ();
-	slapi_search_internal_set_pb ( int_search_pb,  slapi_sdn_get_dn(local_subtree), LDAP_SCOPE_SUBTREE, filter_string,
+	slapi_search_internal_set_pb ( int_search_pb,  slapi_sdn_get_dn(local_subtree_sdn), LDAP_SCOPE_SUBTREE, filter_string,
 								   attrs ,
 								   0 /* attrsonly */, NULL /* controls */,
 								   NULL /* uniqueid */,

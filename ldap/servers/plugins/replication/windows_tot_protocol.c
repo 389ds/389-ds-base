@@ -85,6 +85,57 @@ static void get_result (int rc, void *cb_data);
 static int send_entry (Slapi_Entry *e, void *callback_data);
 static void windows_tot_delete(Private_Repl_Protocol **prp);
 
+static void
+_windows_tot_send_entry(const Repl_Agmt *ra, callback_data *cbp, const Slapi_DN *local_sdn)
+{
+	Slapi_PBlock *pb = NULL;
+	char* dn = NULL;
+	int scope = LDAP_SCOPE_SUBTREE;
+	char *filter = NULL;
+	const char *userfilter = NULL;
+	char **attrs = NULL;
+	LDAPControl **server_controls = NULL;
+
+	if ((NULL == ra) || (NULL == cbp) || (NULL == local_sdn)) {
+		return;
+	}
+	dn = slapi_ch_strdup(slapi_sdn_get_dn(local_sdn));
+	userfilter = windows_private_get_directory_userfilter(ra);
+	if (userfilter) {
+		if ('(' == *userfilter) {
+			filter = slapi_ch_smprintf("(&(|(objectclass=ntuser)(objectclass=ntgroup))%s)",
+			                           userfilter);
+		} else {
+			filter = slapi_ch_smprintf("(&(|(objectclass=ntuser)(objectclass=ntgroup))(%s))",
+			                           userfilter);
+		}
+	} else {
+		filter = slapi_ch_strdup("(|(objectclass=ntuser)(objectclass=ntgroup))");
+	}
+
+	winsync_plugin_call_pre_ds_search_all_cb(ra, NULL, &dn, &scope, &filter,
+	                                         &attrs, &server_controls);
+
+	pb = slapi_pblock_new ();
+	/* Perform a subtree search for any ntuser or ntgroup entries underneath the
+	* suffix defined in the sync agreement. */
+	slapi_search_internal_set_pb(pb, dn, scope, filter, attrs, 0, server_controls, NULL, 
+	                             repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+
+	slapi_search_internal_callback_pb(pb, cbp /* callback data */,
+	                                  get_result /* result callback */,
+	                                  send_entry /* entry callback */,
+	                                  NULL /* referral callback */);
+
+	slapi_ch_free_string(&dn);
+	slapi_ch_free_string(&filter);
+	slapi_ch_array_free(attrs);
+	attrs = NULL;
+	ldap_controls_free(server_controls);
+	server_controls = NULL;
+	slapi_pblock_destroy (pb);
+}
+
 /*
  * Completely refresh a replica. The basic protocol interaction goes
  * like this:
@@ -98,16 +149,10 @@ windows_tot_run(Private_Repl_Protocol *prp)
 {
 	int rc;
 	callback_data cb_data;
-	Slapi_PBlock *pb = NULL;
-	char* dn = NULL;
 	RUV *ruv = NULL;
 	RUV *starting_ruv = NULL;
 	Replica *replica = NULL;
 	Object *local_ruv_obj = NULL;
-	int scope = LDAP_SCOPE_SUBTREE;
-	char *filter = slapi_ch_strdup("(|(objectclass=ntuser)(objectclass=ntgroup))");
-	char **attrs = NULL;
-	LDAPControl **server_controls = NULL;
 	int one_way;
 	
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_tot_run\n" );
@@ -160,9 +205,9 @@ windows_tot_run(Private_Repl_Protocol *prp)
 
 	/* call begin total update callback */
 	winsync_plugin_call_begin_update_cb(prp->agmt,
-										windows_private_get_directory_subtree(prp->agmt),
-										windows_private_get_windows_subtree(prp->agmt),
-										1 /* is_total == TRUE */);
+	                                    windows_private_get_directory_treetop(prp->agmt),
+	                                    windows_private_get_windows_treetop(prp->agmt),
+	                                    1 /* is_total == TRUE */);
 
 	if ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_FROM_AD)) {
 		/* get everything */
@@ -178,10 +223,10 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	 * the incremental sync protocol ( send_updates() ).  We will
 	 * use this value for setting the consumer RUV if the total
 	 * update succeeds. */
-        replica = object_get_data(prp->replica_object);
-        local_ruv_obj = replica_get_ruv (replica);
-        starting_ruv = ruv_dup((RUV*)  object_get_data ( local_ruv_obj ));
-        object_release (local_ruv_obj);
+	replica = object_get_data(prp->replica_object);
+	local_ruv_obj = replica_get_ruv (replica);
+	starting_ruv = ruv_dup((RUV*)object_get_data ( local_ruv_obj ));
+	object_release (local_ruv_obj);
 	
 	/* Set up the callback data. */
 	cb_data.prp = prp;
@@ -190,44 +235,30 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	cb_data.sleep_on_busy = 0UL;
 	cb_data.last_busy = current_time ();
 
-	/* Don't send anything if one-way is set. */
+	/* Don't send anything if one-way (ONE_WAY_SYNC_FROM_AD) is set. */
 	if ((one_way == ONE_WAY_SYNC_DISABLED) || (one_way == ONE_WAY_SYNC_TO_AD)) {
 		/* send everything */
-		dn = slapi_ch_strdup(slapi_sdn_get_dn( windows_private_get_directory_subtree(prp->agmt)));
+		const subtreePair* subtree_pairs = NULL;
+		const subtreePair* sp = NULL;
 
-		winsync_plugin_call_pre_ds_search_all_cb(prp->agmt, NULL, &dn, &scope, &filter,
-											 &attrs, &server_controls);
-
-		pb = slapi_pblock_new ();
-		/* Perform a subtree search for any ntuser or ntgroup entries underneath the
-		 * suffix defined in the sync agreement. */
-		slapi_search_internal_set_pb (pb, dn, scope, filter, attrs, 0, server_controls, NULL, 
-				repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
-
-		slapi_search_internal_callback_pb (pb, &cb_data /* callback data */,
-				get_result /* result callback */,
-				send_entry /* entry callback */,
-				NULL /* referral callback*/);
+		subtree_pairs = windows_private_get_subtreepairs(prp->agmt);
+		if (subtree_pairs) {
+			for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+				_windows_tot_send_entry(prp->agmt, &cb_data, sp->DSsubtree);
+			}
+		} else {
+			_windows_tot_send_entry(prp->agmt, &cb_data, windows_private_get_directory_subtree(prp->agmt));
+		}
 	}
-
-    slapi_ch_free_string(&dn);
-    slapi_ch_free_string(&filter);
-    slapi_ch_array_free(attrs);
-    attrs = NULL;
-    ldap_controls_free(server_controls);
-    server_controls = NULL;
-
-    slapi_pblock_destroy (pb);
 	rc = cb_data.rc;
 	windows_release_replica(prp);
 		
-    if (rc != LDAP_SUCCESS)
-    {
-        slapi_log_error (SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: windows_tot_run: "
-                         "failed to obtain data to send to the consumer; LDAP error - %d\n", 
-                         agmt_get_long_name(prp->agmt), rc);
+	if (rc != LDAP_SUCCESS) {
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: windows_tot_run: "
+		                "failed to obtain data to send to the consumer; LDAP error - %d\n", 
+		                agmt_get_long_name(prp->agmt), rc);
 		agmt_set_last_init_status(prp->agmt, rc, 0, "Total update aborted");
-    } else {
+	} else {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "Finished total update of replica "
 						"\"%s\". Sent %lu entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
 		agmt_set_last_init_status(prp->agmt, 0, 0, "Total update succeeded");
@@ -256,9 +287,9 @@ windows_tot_run(Private_Repl_Protocol *prp)
 
 	/* call end total update callback */
 	winsync_plugin_call_end_update_cb(prp->agmt,
-									  windows_private_get_directory_subtree(prp->agmt),
-									  windows_private_get_windows_subtree(prp->agmt),
-									  1 /* is_total == TRUE */);
+	                                  windows_private_get_directory_treetop(prp->agmt),
+	                                  windows_private_get_windows_treetop(prp->agmt),
+	                                  1 /* is_total == TRUE */);
 
 done:
 	if (starting_ruv)

@@ -182,6 +182,9 @@ extern const char *type_nsds7WindowsDomain;
 extern const char *type_winSyncInterval;
 extern const char *type_oneWaySync;
 extern const char *type_winsyncMoveAction;
+extern const char *type_winSyncWindowsFilter;
+extern const char *type_winSyncDirectoryFilter;
+extern const char *type_winSyncSubtreePair;
 
 /* To Allow Consumer Initialisation when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;

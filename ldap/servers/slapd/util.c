@@ -604,7 +604,7 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
         if (rc != LDAP_SUCCESS)
         {
             LDAPDebug2Args(LDAP_DEBUG_ANY,
-                "slapi_add_internal: add_values for type %s failed (rc: %d)\n",
+                "slapi_mods2entry: add_values for type %s failed (rc: %d)\n",
                 normtype, rc );
             slapi_entry_free (*e);
             *e = NULL;

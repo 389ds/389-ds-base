@@ -2011,6 +2011,17 @@ slapi_sdn_new_ndn_byref(const char *ndn)
     return sdn;
 }
 
+/* use when dn is already fully normalized */
+Slapi_DN *
+slapi_sdn_new_ndn_passin(const char *ndn)
+{
+    Slapi_DN *sdn = slapi_sdn_new();
+    slapi_sdn_set_ndn_passin(sdn, ndn);
+    SDN_DUMP( sdn, "slapi_sdn_new_ndn_passin");
+    return sdn;
+}
+
+
 /* use when dn is already normalized */
 Slapi_DN *
 slapi_sdn_new_normdn_byref(const char *normdn)
@@ -2151,6 +2162,20 @@ slapi_sdn_set_ndn_byref(Slapi_DN *sdn, const char *ndn)
 	} else {
 		sdn->ndn_len=strlen(ndn);
 	}
+    return sdn;
+}
+
+Slapi_DN *
+slapi_sdn_set_ndn_passin(Slapi_DN *sdn, const char *ndn)
+{
+    slapi_sdn_done(sdn);
+    sdn->flag = slapi_setbit_uchar(sdn->flag, FLAG_NDN);
+    sdn->ndn = ndn;
+    if (ndn == NULL) {
+        sdn->ndn_len = 0;
+    } else {
+        sdn->ndn_len = strlen(ndn);
+    }
     return sdn;
 }
 
@@ -3017,3 +3042,71 @@ ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_s
     slapi_rwlock_unlock(ndn_cache_lock);
 }
 
+/* Common ancestor sdn is allocated.
+ * caller is responsible to free it */
+Slapi_DN *
+slapi_sdn_common_ancestor(Slapi_DN *dn1, Slapi_DN *dn2)
+{
+    const char *dn1str = NULL;
+    const char *dn2str = NULL;
+    char **dns1 = NULL;
+    char **dns2 = NULL;
+    char **dn1p, **dn2p;
+    char **dn1end;
+    int dn1len = 0;
+    int dn2len = 0;
+    char *common = NULL;
+    char *cp = 0;
+    if ((NULL == dn1) || (NULL == dn2)) {
+        return NULL;
+    }
+    dn1str = slapi_sdn_get_ndn(dn1);
+    dn2str = slapi_sdn_get_ndn(dn2);
+    if (0 == strcmp(dn1str, dn2str)) {
+        /* identical */
+        return slapi_sdn_dup(dn1);
+    }
+    dn1len = strlen(dn1str);
+    dn2len = strlen(dn2str);
+    if (dn1len > dn2len) {
+        if (slapi_sdn_isparent(dn2, dn1)) {
+            /* dn2 is dn1's parent */
+            return slapi_sdn_dup(dn2);
+        }
+    } else if (dn1len < dn2len) {
+        if (slapi_sdn_isparent(dn1, dn2)) {
+            /* dn1 is dn2's parent */
+            return slapi_sdn_dup(dn1);
+        }
+    }
+    dns1 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(dn1), 0);
+    dns2 = slapi_ldap_explode_dn(slapi_sdn_get_ndn(dn2), 0);
+    for (dn1p = dns1; dn1p && *dn1p; dn1p++) ;
+    for (dn2p = dns2; dn2p && *dn2p; dn2p++) ;
+    dn1end = dn1p;
+    while (--dn1p && --dn2p && (dn1p >= dns1) && (dn2p >= dns2)) {
+        if (strcmp(*dn1p, *dn2p)) {
+            break;
+        }
+    }
+    if (dn1end == ++dn1p) {
+        /* No common ancestor */
+        charray_free(dns1);
+        charray_free(dns2);
+        return NULL;
+    }
+    dn1len += 1;
+    cp = common = slapi_ch_malloc(dn1len);
+    *common = '\0';
+    do {
+        PR_snprintf(cp, dn1len, "%s,", *dn1p);
+        cp += strlen(*dn1p) + 1/*,*/;
+    } while (++dn1p < dn1end);
+    dn1len = strlen(common);
+    if (',' == *(common + dn1len - 1)) {
+        *(common + dn1len - 1) = '\0';
+    }
+    charray_free(dns1);
+    charray_free(dns2);
+    return slapi_sdn_new_ndn_passin(common);
+}

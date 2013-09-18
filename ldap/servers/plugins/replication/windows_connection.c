@@ -846,12 +846,13 @@ send_dirsync_search(Repl_Connection *conn)
 		const char *op_string = NULL;
 		int rc;
 		int scope = LDAP_SCOPE_SUBTREE;
-		char *filter = slapi_ch_strdup("(objectclass=*)");
+		const char *userfilter = NULL;
+		char *filter = NULL;
 		char **attrs = NULL;
 		LDAPControl **server_controls = NULL;
 		int msgid;
-		/* need to strip the dn down to dc= */
 		const char *old_dn = slapi_sdn_get_ndn( windows_private_get_windows_subtree(conn->agmt) );
+		/* LDAP_SERVER_DIRSYNC_OID requires the search base Naming Context */
 		char *dn = slapi_ch_strdup(strstr(old_dn, "dc="));
 		char **exattrs = NULL;
 
@@ -861,8 +862,8 @@ send_dirsync_search(Repl_Connection *conn)
 		} else 
 		{
 			slapi_add_control_ext(&server_controls,
-								  windows_private_dirsync_control(conn->agmt),
-								  0 /* no copy - passin */);
+			                      windows_private_dirsync_control(conn->agmt),
+			                      0 /* no copy - passin */);
 		}
 
 		conn->last_operation = CONN_SEARCH;
@@ -870,9 +871,15 @@ send_dirsync_search(Repl_Connection *conn)
 		op_string = "search";
 
 		LDAPDebug( LDAP_DEBUG_REPL, "Calling dirsync search request plugin\n", 0, 0, 0 );
+		userfilter = windows_private_get_windows_userfilter(conn->agmt);
+		if (userfilter) {
+			filter = slapi_ch_strdup(userfilter);
+		} else {
+			filter = slapi_ch_strdup("(objectclass=*)");
+		}
 
 		winsync_plugin_call_dirsync_search_params_cb(conn->agmt, old_dn, &dn, &scope, &filter,
-													 &attrs, &server_controls);
+		                                             &attrs, &server_controls);
 		exattrs = windows_private_get_range_attrs(conn->agmt);
 		charray_merge(&attrs, exattrs, 0 /* pass in */);
 		slapi_ch_free((void **)&exattrs); /* strings are passed in */
@@ -1038,7 +1045,7 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 				{
 					char **exattrs = NULL;
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received entry from dirsync: %s\n", dn);
-					lm = ldap_first_entry( conn->ld, res );			
+					lm = ldap_first_entry( conn->ld, res );
 					e = windows_private_get_curr_entry(conn->agmt); /* if range search, e != NULL */
 					e = windows_LDAPMessage2Entry(e, conn, lm, 0, &exattrs);
 					ldap_memfree(dn);

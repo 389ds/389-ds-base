@@ -2262,6 +2262,7 @@ Slapi_DN *slapi_sdn_new_dn_byval(const char *dn);
  * \warning The \c ndn value is copied by the function itself.  The caller
  *          is still responsible for the memory used by \c ndn.
  * \see slapi_sdn_new_ndn_byref()
+ * \see slapi_sdn_new_ndn_passin()
  * \see slapi_sdn_free()
  * \see slapi_sdn_copy()
  * \see slapi_sdn_done()
@@ -2301,11 +2302,29 @@ Slapi_DN *slapi_sdn_new_dn_byref(const char *dn);
  *          memory should not be freed until the returned \c Slapi_DN has been
  *          disposed of or reinitialized.
  * \see slapi_sdn_new_ndn_byval()
+ * \see slapi_sdn_new_ndn_passin()
  * \see slapi_sdn_free()
  * \see slapi_sdn_copy()
  * \see slapi_sdn_done()
  */
 Slapi_DN *slapi_sdn_new_ndn_byref(const char *ndn);
+
+/**
+ * Creates a new \c Slapi_DN structure and intializes it's normalized and case ignored DN to a requested value.
+ *
+ * The normalized and case ignored DN of the new structure will point to the same string pointed to by \c ndn.
+ * Ownership of the memory pointed to by \c ndn is tranferred to the Slapi_DN.
+ *
+ * \param ndn The normalized and case ignored DN value to be set in the new \c Slapi_DN structure.
+ * \return A pointer to the newly allocated \c Slapi_DN structure with
+ *         the normalized and case ignored DN value set to the content of \c ndn.
+ * \see slapi_sdn_new_ndn_byval()
+ * \see slapi_sdn_new_ndn_byref()
+ * \see slapi_sdn_free()
+ * \see slapi_sdn_copy()
+ * \see slapi_sdn_done()
+ */
+Slapi_DN *slapi_sdn_new_ndn_passin(const char *ndn);
 
 /**
  * Creates a new \c Slapi_DN structure and intializes it's DN to a requested value.
@@ -2494,6 +2513,7 @@ Slapi_DN *slapi_sdn_set_normdn_byval(Slapi_DN *sdn, const char *dn);
  * \warning The \c ndn value is copied by the function itself.  The caller
  *          is still responsible for the memory used by \c ndn.
  * \see slapi_sdn_set_ndn_byref()
+ * \see slapi_sdn_set_ndn_passin()
  */
 Slapi_DN *slapi_sdn_set_ndn_byval(Slapi_DN *sdn, const char *ndn);
 
@@ -2510,8 +2530,24 @@ Slapi_DN *slapi_sdn_set_ndn_byval(Slapi_DN *sdn, const char *ndn);
  *          memory should not be freed until the returned \c Slapi_DN has been
  *          disposed of or reinitialized.
  * \see slapi_sdn_set_ndn_byval()
+ * \see slapi_sdn_set_ndn_passin()
  */
 Slapi_DN *slapi_sdn_set_ndn_byref(Slapi_DN *sdn, const char *ndn);
+
+/**
+ * Sets a normalized DN value in a \c Slapi_DN structure.
+ *
+ * The normalized DN of the structure will point to the same string pointed to
+ * by \c ndn.  
+ * Ownership of the memory pointed to by \c ndn is tranferred to the Slapi_DN.
+ *
+ * \param sdn The target \c Slapi_DN structure.
+ * \param ndn The normalized DN value to be set in \c sdn.
+ * \return A pointer to the \c Slapi_DN structure containing the new normalized DN value.
+ * \see slapi_sdn_set_ndn_byval()
+ * \see slapi_sdn_set_ndn_byref()
+ */
+Slapi_DN *slapi_sdn_set_ndn_passin(Slapi_DN *sdn, const char *ndn);
 
 /**
  * Clears the contents of a Slapi_DN structure.
@@ -3631,6 +3667,15 @@ int slapi_rdn2typeval( char *rdn, char **type, struct berval *bv );
  */
 char *slapi_dn_plus_rdn(const char *dn, const char *rdn);
 
+/**
+ * Create an Slapi_DN that is a common ancestor of given 2 Slapi_DN's
+ *
+ * \param dn1 The first DN
+ * \param dn2 the second DN
+ * \return A pointer to the new Slapi_DN that is a common ancestor of dn1 and dn2
+ * \warning The caller must free the returnd Slapi_DN
+ */
+Slapi_DN *slapi_sdn_common_ancestor(Slapi_DN *dn1, Slapi_DN *dn2);
 
 /*
  * thread safe random functions

@@ -145,6 +145,9 @@ const char *type_nsds7DirsyncCookie = "nsds7DirsyncCookie";
 const char *type_winSyncInterval = "winSyncInterval";
 const char *type_oneWaySync = "oneWaySync";
 const char *type_winsyncMoveAction = "winSyncMoveAction";
+const char *type_winSyncWindowsFilter = "winSyncWindowsFilter";
+const char *type_winSyncDirectoryFilter = "winSyncDirectoryFilter";
+const char *type_winSyncSubtreePair = "winSyncSubtreePair";
 
 /* To Allow Consumer Initialization when adding an agreement - */
 const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";

@@ -52,12 +52,12 @@
 
 struct windowsprivate {
   
-  Slapi_DN *windows_subtree; /* DN of synchronized subtree  (on the windows side) */
+  Slapi_DN *windows_subtree;   /* DN of synchronized subtree  (on the windows side) */
   Slapi_DN *directory_subtree; /* DN of synchronized subtree on directory side */
-                                /* this simplifies the mapping as it's simply
-								   from the former to the latter container, or
-								   vice versa */
-  ber_int_t dirsync_flags;		
+                               /* this simplifies the mapping as it's simply
+                                  from the former to the latter container, or
+                                  vice versa */
+  ber_int_t dirsync_flags;
   ber_int_t dirsync_maxattributecount;
   char *dirsync_cookie; 
   int dirsync_cookie_len;
@@ -70,6 +70,7 @@ struct windowsprivate {
   /* This filter is used to determine if an entry belongs to this agreement.  We put it here
    * so we only have to allocate each filter once instead of doing it every time we receive a change. */
   Slapi_Filter *directory_filter; /* Used for checking if local entries need to be sync'd to AD */
+  Slapi_Filter *windows_filter; /* Used for checking if remote entries need to be sync'd to DS */
   Slapi_Filter *deleted_filter; /* Used for checking if an entry is an AD tombstone */
   Slapi_Entry *raw_entry; /* "raw" un-schema processed last entry read from AD */
   int keep_raw_entry; /* flag to control when the raw entry is set */
@@ -79,9 +80,20 @@ struct windowsprivate {
   int move_action; /* Indicates what to do with DS entry if AD entry is moved out of scope */
   Slapi_Entry *curr_entry; /* entry being retrieved; used for the range retrieval */
   char **range_attrs; /* next attributes for the range retrieval */
+  char *windows_userfilter;
+  char *directory_userfilter;
+  struct subtreepair *subtree_pairs; /* Array of subtree pairs (winSyncSubtreePair) */
+  Slapi_DN *windows_treetop;   /* Common subtree top to sync on AD */
+                               /* If winSyncSubtreePair is not set, identical to windows_subtree.
+                                * If set, ancestor node of all AD subtrees. */
+  Slapi_DN *directory_treetop; /* Common subtree top to sync on DS */
+                               /* If winSyncSubtreePair is not set, identical to directory_subtree.
+                                * If set, ancestor node of all DS subtrees. */
 };
 
 static void windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain);
+static subtreePair *create_subtree_pairs(char **pairs);
+static void free_subtree_pairs(subtreePair **pairs);
 
 static int
 true_value_from_string(char *val)
@@ -153,6 +165,10 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 		return retval;
 	}
 	
+	/* 
+	 * if winSyncSubtreePair is set, WindowsReplicaArea and DirectoryReplicaArea
+	 * are ignored.
+	 */
 	if (type == NULL || slapi_attr_types_equivalent(type,type_nsds7WindowsReplicaArea))
 	{
 		tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7WindowsReplicaArea);
@@ -295,6 +311,29 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 		}
 		retval = 1;
 	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_winSyncWindowsFilter))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_winSyncWindowsFilter);
+		windows_private_set_windows_userfilter(ra, tmpstr); /* if NULL, set it */
+		retval = 1;
+	}
+	if (type == NULL || slapi_attr_types_equivalent(type,type_winSyncDirectoryFilter))
+	{
+		tmpstr = slapi_entry_attr_get_charptr(e, type_winSyncDirectoryFilter);
+		windows_private_set_directory_userfilter(ra, tmpstr); /* if NULL, set it */
+		retval = 1;
+	}
+	if (type == NULL || slapi_attr_types_equivalent(type, type_winSyncSubtreePair))
+	{
+		char **parray = slapi_entry_attr_get_charray(e, type_winSyncSubtreePair);
+
+		/* If winSyncSubtreePair is not set, subtree_pairs is NULL */
+		windows_private_set_subtreepairs(ra, parray);
+		slapi_ch_array_free(parray);
+		retval = 1;
+	}
+	windows_private_set_windows_treetop(ra, NULL);
+	windows_private_set_directory_treetop(ra, NULL);
 
 	return retval;
 }
@@ -370,8 +409,14 @@ Dirsync_Private* windows_private_new()
 
 	dp->dirsync_maxattributecount = -1;
 	dp->directory_filter = NULL;
+	dp->windows_filter = NULL;
 	dp->deleted_filter = NULL;
 	dp->sync_interval = PERIODIC_DIRSYNC_INTERVAL;
+	dp->windows_userfilter = NULL;
+	dp->directory_userfilter = NULL;
+	dp->subtree_pairs = NULL;
+	dp->windows_treetop = NULL;
+	dp->directory_treetop = NULL;
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_new\n" );
 	return dp;
@@ -380,6 +425,7 @@ Dirsync_Private* windows_private_new()
 
 void windows_agreement_delete(Repl_Agmt *ra)
 {
+	const subtreePair *sp;
 
 	Dirsync_Private *dp = (Dirsync_Private *) agmt_get_priv(ra);
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_delete\n" );
@@ -394,12 +440,25 @@ void windows_agreement_delete(Repl_Agmt *ra)
 	slapi_sdn_free(&dp->directory_subtree);
 	slapi_sdn_free(&dp->windows_subtree);
 	slapi_filter_free(dp->directory_filter, 1);
+	slapi_filter_free(dp->windows_filter, 1);
 	slapi_filter_free(dp->deleted_filter, 1);
 	slapi_entry_free(dp->raw_entry);
 	slapi_ch_free_string(&dp->windows_domain);
 	dp->raw_entry = NULL;
 	dp->api_cookie = NULL;
-	slapi_ch_free((void **)dp);
+	slapi_ch_free_string(&dp->dirsync_cookie);
+	dp->dirsync_cookie_len = 0;
+
+	slapi_ch_free_string(&dp->windows_userfilter);
+	slapi_ch_free_string(&dp->directory_userfilter);
+	slapi_sdn_free((Slapi_DN **)&dp->windows_treetop);
+	slapi_sdn_free((Slapi_DN **)&dp->directory_treetop);
+	for (sp = dp->subtree_pairs; sp && sp->ADsubtree && sp->DSsubtree; sp++) {
+		slapi_sdn_free((Slapi_DN **)&sp->ADsubtree);
+		slapi_sdn_free((Slapi_DN **)&sp->DSsubtree);
+	}
+	slapi_ch_free((void **)&dp->subtree_pairs);
+	slapi_ch_free((void **)&dp);
 
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_delete\n" );
 
@@ -407,183 +466,228 @@ void windows_agreement_delete(Repl_Agmt *ra)
 
 int windows_private_get_isnt4(const Repl_Agmt *ra)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_isnt4\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_isnt4\n" );
 
-        PR_ASSERT(ra);
+	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 		
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_isnt4\n" );
-	
-		return dp->isnt4;	
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_isnt4\n" );
+
+	return dp->isnt4;
 }
 
 void windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_isnt4\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_isnt4\n" );
 
-        PR_ASSERT(ra);
+	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 
-		dp->isnt4 = isit;
-		
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_isnt4\n" );
+	dp->isnt4 = isit;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_isnt4\n" );
 }
 
 int windows_private_get_iswin2k3(const Repl_Agmt *ra)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_iswin2k3\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_iswin2k3\n" );
 
 	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_iswin2k3\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_iswin2k3\n" );
 
-		return dp->iswin2k3;
+	return dp->iswin2k3;
 }
 
 void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_iswin2k3\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_iswin2k3\n" );
 
 	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 
-		dp->iswin2k3 = isit;
+	dp->iswin2k3 = isit;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_iswin2k3\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_iswin2k3\n" );
 }
 
 /* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
 Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_filter\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_filter\n" );
 
 	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 
-		if (dp->directory_filter == NULL) {
-			char *string_filter = slapi_ch_strdup("(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*))");
+	if (dp->directory_filter == NULL) {
+		char *string_filter = NULL;
+		const char *userfilter = windows_private_get_directory_userfilter(ra);
+		if (userfilter) {
+			if ('(' == *userfilter) {
+				string_filter = slapi_ch_smprintf("(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*)%s)",
+				                                  userfilter);
+			} else {
+				string_filter = slapi_ch_smprintf("(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*)(%s))",
+				                                  userfilter);
+			}
+		} else {
+			string_filter = slapi_ch_strdup("(&(|(objectclass=ntuser)(objectclass=ntgroup))(ntUserDomainId=*))");
+		}
+		/* The filter gets freed in windows_agreement_delete() */
+		dp->directory_filter = slapi_str2filter( string_filter );
+		slapi_ch_free_string(&string_filter);
+	}
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_filter\n" );
+
+	return dp->directory_filter;
+}
+
+/* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
+Slapi_Filter*
+windows_private_get_windows_filter(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_filter\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	if (dp->windows_filter == NULL) {
+		const char *userfilter = windows_private_get_windows_userfilter(ra);
+		if (userfilter) {
+			char *string_filter = NULL;
+			if ('(' == *userfilter) {
+				string_filter = slapi_ch_strdup(userfilter);
+			} else {
+				string_filter = slapi_ch_smprintf("(%s)", userfilter);
+			}
 			/* The filter gets freed in windows_agreement_delete() */
-                        dp->directory_filter = slapi_str2filter( string_filter );
+			dp->windows_filter = slapi_str2filter( string_filter );
 			slapi_ch_free_string(&string_filter);
 		}
+	}
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_filter\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_filter\n" );
 
-		return dp->directory_filter;
+	return dp->windows_filter;
 }
 
 /* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
 Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_deleted_filter\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_deleted_filter\n" );
 
 	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 
-		if (dp->deleted_filter == NULL) {
-			char *string_filter = slapi_ch_strdup("(isdeleted=*)");
-			/* The filter gets freed in windows_agreement_delete() */
-			dp->deleted_filter = slapi_str2filter( string_filter );
-			slapi_ch_free_string(&string_filter);
-		}
+	if (dp->deleted_filter == NULL) {
+		char *string_filter = slapi_ch_strdup("(isdeleted=*)");
+		/* The filter gets freed in windows_agreement_delete() */
+		dp->deleted_filter = slapi_str2filter( string_filter );
+		slapi_ch_free_string(&string_filter);
+	}
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_deleted_filter\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_deleted_filter\n" );
 
-		return dp->deleted_filter;
+	return dp->deleted_filter;
 }
 
 /* Returns a copy of the Slapi_DN pointer, no need to free it */
 const Slapi_DN* windows_private_get_windows_subtree (const Repl_Agmt *ra)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_subtree\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_subtree\n" );
 
-        PR_ASSERT(ra);
+	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
-		
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_subtree\n" );
-	
-		return dp->windows_subtree;	
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_subtree\n" );
+
+	return dp->windows_subtree;
 }
 
 const char *
 windows_private_get_windows_domain(const Repl_Agmt *ra)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_domain\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_domain\n" );
 
-        PR_ASSERT(ra);
+	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
-		
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_domain\n" );
-	
-		return dp->windows_domain;	
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_domain\n" );
+
+	return dp->windows_domain;	
 }
 
 static void
 windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_domain\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_domain\n" );
 
-        PR_ASSERT(ra);
+	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 
-		slapi_ch_free_string(&dp->windows_domain);
-		dp->windows_domain = domain;
-		
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_domain\n" );
-	}
+	slapi_ch_free_string(&dp->windows_domain);
+	dp->windows_domain = domain;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_domain\n" );
+}
 
 /* Returns a copy of the Slapi_DN pointer, no need to free it */
 const Slapi_DN* windows_private_get_directory_subtree (const Repl_Agmt *ra)
 {
-		Dirsync_Private *dp;
+	Dirsync_Private *dp;
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_replarea\n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_replarea\n" );
 
-        PR_ASSERT(ra);
+	PR_ASSERT(ra);
 
-		dp = (Dirsync_Private *) agmt_get_priv(ra);
-		PR_ASSERT (dp);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_replarea\n" );
-	
-		return dp->directory_subtree; 
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_replarea\n" );
+
+	return dp->directory_subtree; 
 }
 
 /* Takes a copy of the sdn passed in */
@@ -724,6 +828,299 @@ void windows_private_set_one_way(const Repl_Agmt *ra, int value)
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_one_way\n" );
 }
 
+const char* 
+windows_private_get_windows_userfilter(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_userfilter\n" );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_userfilter\n" );
+
+	return dp->windows_userfilter;
+}
+
+/* filter is passed in */
+void
+windows_private_set_windows_userfilter(const Repl_Agmt *ra, char *filter)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_userfilter\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	slapi_ch_free_string(&dp->windows_userfilter);
+	dp->windows_userfilter = filter;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_userfilter\n" );
+}
+
+const char* 
+windows_private_get_directory_userfilter(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_userfilter\n" );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_userfilter\n" );
+
+	return dp->directory_userfilter;
+}
+
+/* filter is passed in */
+void
+windows_private_set_directory_userfilter(const Repl_Agmt *ra, char *filter)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_directory_userfilter\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	slapi_ch_free_string(&dp->directory_userfilter);
+	dp->directory_userfilter = filter;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_directory_userfilter\n" );
+}
+
+const subtreePair* 
+windows_private_get_subtreepairs(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_subtreepairs\n" );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_subtreepairs\n" );
+
+	return dp->subtree_pairs;
+}
+
+/* parray is NOT passed in */
+void
+windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_subtreepairs\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	free_subtree_pairs(&(dp->subtree_pairs));
+	dp->subtree_pairs = create_subtree_pairs(parray);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_subtreepairs\n" );
+}
+
+/* 
+ * winSyncSubtreePair: <DS_SUBTREE>:<WINDOWS_SUBTREE>
+ * E.g.,
+ * winSyncSubtreePair: ou=people,dc=example,dc=com:CN=users,DC=example,DC=com
+ * winSyncSubtreePair: ou=adminpeople,dc=example,dc=com:CN=adminusers,DC=example,DC=com
+ */
+static subtreePair *
+create_subtree_pairs(char **pairs)
+{
+	subtreePair *subtree_pairs = NULL;
+	subtreePair *spp;
+	char **ptr;
+	char *p0, *p1;
+	char *saveptr;
+	int cnt;
+
+	for (cnt = 0, ptr = pairs; ptr && *ptr; cnt++, ptr++) ;
+	if (0 == cnt) {
+		return NULL;
+	}
+	subtree_pairs = (subtreePair *)slapi_ch_calloc(cnt + 1, sizeof(subtreePair));
+	spp = subtree_pairs;
+
+	for (ptr = pairs; ptr && *ptr; ptr++) {
+		p0 = ldap_utf8strtok_r(*ptr, ":", &saveptr);
+		p1 = ldap_utf8strtok_r(NULL, ":", &saveptr);
+		spp->DSsubtree = slapi_sdn_new_dn_byval(p0);
+		if (NULL == spp->DSsubtree) {
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+			              "create_subtree_pairs: "
+			              "Ignoring invalid DS subtree \"%s\".\n",
+			              p0);
+			continue;
+		}
+		spp->ADsubtree = slapi_sdn_new_dn_byval(p1);
+		if (NULL == spp->ADsubtree) {
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+			              "create_subtree_pairs: "
+			              "Ignoring invalid AD subtree \"%s\".\n",
+			              p1);
+			slapi_sdn_free(&(spp->DSsubtree));
+			continue;
+		}
+		spp++;
+	}
+	return subtree_pairs;
+}
+
+static void
+free_subtree_pairs(subtreePair **pairs)
+{
+	subtreePair *p;
+
+	if (NULL == pairs) {
+		return;
+	}
+	for (p = *pairs; p; p++) {
+		slapi_sdn_free(&(p->ADsubtree));
+		slapi_sdn_free(&(p->DSsubtree));
+	}
+	slapi_ch_free((void **)pairs);
+}
+
+const Slapi_DN* 
+windows_private_get_windows_treetop(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_windows_treetop\n" );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_windows_treetop\n" );
+
+	return dp->windows_treetop;
+}
+
+/* treetop is NOT passed in */
+void
+windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_windows_treetop\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	slapi_sdn_free(&(dp->windows_treetop));
+	if (treetop) {
+		dp->windows_treetop = slapi_sdn_new_dn_byval(treetop);
+	} else {
+		const subtreePair *subtree_pairs = windows_private_get_subtreepairs(ra);
+		const subtreePair *sp;
+		if (subtree_pairs) {
+			Slapi_DN *treetop_sdn = NULL;
+			for (sp = subtree_pairs; sp && sp->ADsubtree; sp++) {
+				if (NULL == treetop_sdn) {
+					treetop_sdn = slapi_sdn_dup(sp->ADsubtree);
+				} else {
+					Slapi_DN *prev = treetop_sdn;
+					treetop_sdn = slapi_sdn_common_ancestor(prev, sp->ADsubtree);
+					slapi_sdn_free(&prev);
+				}
+			}
+			if (treetop_sdn) {
+				dp->windows_treetop = treetop_sdn;
+			} else {
+				LDAPDebug0Args(LDAP_DEBUG_ANY, 
+				               "windows_private_set_windows_treetop: "
+				               "winSyncSubtreePair contains inconsistent Windows subtrees.\n");
+				dp->windows_treetop = NULL;
+			}
+		} else {
+			const Slapi_DN *windows_subtree = windows_private_get_windows_subtree(ra);
+			dp->windows_treetop = slapi_sdn_dup(windows_subtree);
+		}
+	}
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_windows_treetop\n" );
+}
+
+const Slapi_DN* 
+windows_private_get_directory_treetop(const Repl_Agmt *ra)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_get_directory_treetop\n" );
+
+	PR_ASSERT(ra);
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_get_directory_treetop\n" );
+
+	return dp->directory_treetop;
+}
+
+/* treetop is NOT passed in */
+void
+windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop)
+{
+	Dirsync_Private *dp;
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_private_set_directory_treetop\n" );
+
+	PR_ASSERT(ra);
+
+	dp = (Dirsync_Private *) agmt_get_priv(ra);
+	PR_ASSERT (dp);
+
+	slapi_sdn_free(&(dp->directory_treetop));
+	if (treetop) {
+		dp->directory_treetop = slapi_sdn_new_dn_byval(treetop);
+	} else {
+		const subtreePair *subtree_pairs = windows_private_get_subtreepairs(ra);
+		if (subtree_pairs) {
+			const subtreePair *sp;
+			Slapi_DN *treetop_sdn = NULL;
+			for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
+				if (NULL == treetop_sdn) {
+					treetop_sdn = slapi_sdn_dup(sp->DSsubtree);
+				} else {
+					Slapi_DN *prev = treetop_sdn;
+					treetop_sdn = slapi_sdn_common_ancestor(prev, sp->DSsubtree);
+					slapi_sdn_free(&prev);
+				}
+			}
+			if (treetop_sdn) {
+				dp->directory_treetop = treetop_sdn;
+			} else {
+				LDAPDebug0Args(LDAP_DEBUG_ANY, 
+				               "windows_private_set_directory_treetop: "
+				               "winSyncSubtreePair contains inconsistent Windows subtrees.\n");
+				dp->directory_treetop = NULL;
+			}
+		} else {
+			const Slapi_DN *directory_subtree = windows_private_get_directory_subtree(ra);
+			dp->directory_treetop = slapi_sdn_dup(directory_subtree);
+		}
+	}
+
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_directory_treetop\n" );
+}
 
 /* 
 	This function returns the current Dirsync_Private that's inside 
@@ -744,7 +1141,7 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 	
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
-	ber = 	ber_alloc();
+	ber = ber_alloc();
 
 	ber_printf( ber, "{iio}", dp->dirsync_flags, dp->dirsync_maxattributecount, dp->dirsync_cookie ? dp->dirsync_cookie : "", dp->dirsync_cookie_len );
 
