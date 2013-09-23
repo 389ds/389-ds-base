@@ -2453,7 +2453,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
                 /*
                  *  Now delete the attribute
                  */
-                vals[5] = NULL;
+                vals[4] = NULL;
                 mod.mod_op  = LDAP_MOD_DELETE|LDAP_MOD_BVALUES;
                 mod.mod_type = (char *)type_replicaCleanRUV;
                 mod.mod_bvalues = vals;
