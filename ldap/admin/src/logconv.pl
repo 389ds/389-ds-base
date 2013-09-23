@@ -102,6 +102,7 @@ my $fdds = 0;
 my $reportBinds = "no";
 my $rootDN = "";
 my $needCleanup = 0;
+my @scopeTxt = ("0 (base)", "1 (one)", "2 (subtree)");
 
 GetOptions(
 	'd|rootDN=s' => \$rootDN,
@@ -653,6 +654,7 @@ print "Entire Search Base Queries:   $objectclassTopCount\n";
 print "Paged Searches:               $pagedSearchCount\n";
 print "Unindexed Searches:           $unindexedSrchCountNotesA\n";
 print "Unindexed Components:         $unindexedSrchCountNotesU\n";
+
 if ($verb eq "yes" || $usage =~ /u/){
 	if ($unindexedSrchCountNotesA > 0){
 		my $conn_hash = $hashes->{conn_hash};
@@ -670,11 +672,12 @@ if ($verb eq "yes" || $usage =~ /u/){
 		my $filter_val = $arrays->{filterval};
 		my $filter_conn = $arrays->{filterconn};
 		my $filter_op = $arrays->{filterop};
-
 		my $notesCount = "1";
 		my $unindexedIp;
+
 		for (my $n = 0; $n < scalar(@{$notesEtime}); $n++){
-			if($conn_hash->{$notesConn->[$n]} eq ""){
+			if(!$notesConn->[$n] || $notesConn->[$n] eq "" || 
+			   !$conn_hash->{$notesConn->[$n]} || $conn_hash->{$notesConn->[$n]} eq ""){
 				$unindexedIp = "?";
 			} else {
 				$unindexedIp = $conn_hash->{$notesConn->[$n]};
@@ -688,18 +691,21 @@ if ($verb eq "yes" || $usage =~ /u/){
 			print "  -  IP Address:            $unindexedIp\n";
 
 			for (my $nnn = 0; $nnn < $baseCount; $nnn++){
+				if(!$base_conn->[$nnn] || !$base_op->[$nnn]){ next; }
 				if ($notesConn->[$n] eq $base_conn->[$nnn] && $notesOp->[$n] eq $base_op->[$nnn]){
 					print "  -  Search Base:           $base_val->[$nnn]\n";
 					last;
 				}
 			}
 			for (my $nnn = 0; $nnn < $scopeCount; $nnn++){
+				if(!$scope_conn->[$nnn] || !$scope_op->[$nnn]){ next; }
 				if ($notesConn->[$n] eq $scope_conn->[$nnn] && $notesOp->[$n] eq $scope_op->[$nnn]){
 					print "  -  Search Scope:          $scope_val->[$nnn]\n";
 					last;
 				}
 			}
 			for (my $nnn = 0; $nnn < $filterCount; $nnn++){	
+				if(!$filter_conn->[$nnn] || !$filter_op->[$nnn]){ next; }
 				if ($notesConn->[$n] eq $filter_conn->[$nnn] && $notesOp->[$n] eq $filter_op->[$nnn]){
 					print "  -  Search Filter:         $filter_val->[$nnn]\n";
 					last;
@@ -727,7 +733,8 @@ if ($verb eq "yes" || $usage =~ /u/){
 		my $notesCount = "1";
 		my $unindexedIp;
 		for (my $n = 0; $n < scalar(@{$notesEtime}); $n++){
-			if($conn_hash->{$notesConn->[$n]} eq ""){
+			if(!$notesConn->[$n] || $notesConn->[$n] eq "" || 
+			   !$conn_hash->{$notesConn->[$n]} || $conn_hash->{$notesConn->[$n]} eq ""){
 				$unindexedIp = "?";
 			} else {
 				$unindexedIp = $conn_hash->{$notesConn->[$n]};
@@ -741,18 +748,21 @@ if ($verb eq "yes" || $usage =~ /u/){
 			print "  -  IP Address:            $unindexedIp\n";
 
 			for (my $nnn = 0; $nnn < $baseCount; $nnn++){
+				if(!$base_conn->[$nnn] || !$base_op->[$nnn]){ next; }
 				if ($notesConn->[$n] eq $base_conn->[$nnn] && $notesOp->[$n] eq $base_op->[$nnn]){
 					print "  -  Search Base:           $base_val->[$nnn]\n";
 					last;
 				}
 			}
 			for (my $nnn = 0; $nnn < $scopeCount; $nnn++){
+				if(!$scope_conn->[$nnn] || !$scope_op->[$nnn]){ next; }
 				if ($notesConn->[$n] eq $scope_conn->[$nnn] && $notesOp->[$n] eq $scope_op->[$nnn]){
 					print "  -  Search Scope:          $scope_val->[$nnn]\n";
 					last;
 				}
 			}
 			for (my $nnn = 0; $nnn < $filterCount; $nnn++){	
+				if(!$filter_conn->[$nnn] || !$filter_op->[$nnn]){ next; }
 				if ($notesConn->[$n] eq $filter_conn->[$nnn] && $notesOp->[$n] eq $filter_op->[$nnn]){
 					print "  -  Search Filter:         $filter_val->[$nnn]\n";
 					last;
@@ -772,13 +782,12 @@ if ($brokenPipeCount > 0){
 	my @etext;
 	foreach my $key (sort { $rc->{$b} <=> $rc->{$a} } keys %{$rc}) {
 		if ($rc->{$key} > 0){
-           if ($conn{$key} eq ""){$conn{$key} = "**Unknown**";}
-           push @etext, sprintf "     -  %-4s (%2s) %-40s\n",$rc->{$key},$conn{$key},$connmsg{$key
-};
-          }
-        }
-        print @etext;
-        print "\n";
+			if ($conn{$key} eq ""){$conn{$key} = "**Unknown**";}
+			push @etext, sprintf "     -  %-4s (%2s) %-40s\n",$rc->{$key},$conn{$key},$connmsg{$key};
+		}
+	}
+	print @etext;
+	print "\n";
 }
 
 print "Connections Reset By Peer:    $connResetByPeerCount\n";
@@ -787,12 +796,11 @@ if ($connResetByPeerCount > 0){
 	my @retext;
 	foreach my $key (sort { $src->{$b} <=> $src->{$a} } keys %{$src}) {
 		if ($src->{$key} > 0){
-           if ($conn{$key} eq ""){$conn{$key} = "**Unknown**";}
-           push @retext, sprintf "     -  %-4s (%2s) %-40s\n",$src->{$key},$conn{$key},$connmsg{$key
-};
-          }
-        }
-        print @retext;
+			if ($conn{$key} eq ""){$conn{$key} = "**Unknown**";}
+			push @retext, sprintf "     -  %-4s (%2s) %-40s\n",$src->{$key},$conn{$key},$connmsg{$key};
+		}
+	}
+ 	print @retext;
 	print "\n";
 }
 
@@ -802,9 +810,9 @@ if ($resourceUnavailCount > 0){
 	my @rtext;
 	foreach my $key (sort { $rsrc->{$b} <=> $rsrc->{$a} } keys %{$rsrc}) {
 		if ($rsrc->{$key} > 0){
-           if ($conn{$key} eq ""){$conn{$key} = "**Resource Issue**";}
-           push @rtext, sprintf "     -  %-4s (%2s) %-40s\n",$rsrc->{$key},$conn{$key},$connmsg{$key};
-          }
+			if ($conn{$key} eq ""){$conn{$key} = "**Resource Issue**";}
+			push @rtext, sprintf "     -  %-4s (%2s) %-40s\n",$rsrc->{$key},$conn{$key},$connmsg{$key};
+		}
   	}
   	print @rtext;
 }
@@ -1244,48 +1252,57 @@ if ($usage =~ /g/i || $verb eq "yes"){
 			my $op = $arrays->{targetop}->[$g];
 			my $msgid = $arrays->{msgid}->[$g];
 			for (my $sc = 0; $sc < $srchCount; $sc++){
-				if ($arrays->{srchconn}->[$sc] eq $conn && $arrays->{srchop}->[$sc] eq $op ){
+				if (($arrays->{srchconn}->[$sc] && $arrays->{srchop}->[$sc]) && 
+				    ($arrays->{srchconn}->[$sc] eq $conn && $arrays->{srchop}->[$sc] eq $op )){
 					print " - SRCH conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";	
 				}
 			}
 			for (my $dc = 0; $dc < $delCount; $dc++){
-				if ($arrays->{delconn}->[$dc] eq $conn && $arrays->{delop}->[$dc] eq $op){
-					print " - DEL conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
+				if (($arrays->{delconn}->[$dc] && $arrays->{delop}->[$dc]) &&
+				    ($arrays->{delconn}->[$dc] eq $conn && $arrays->{delop}->[$dc] eq $op)){
+					print " - DEL  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 			for (my $adc = 0; $adc < $addCount; $adc++){
-				if ($arrays->{addconn}->[$adc] eq $conn && $arrays->{addop}->[$adc] eq $op){
-					print " - ADD conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
+				if (($arrays->{addconn}->[$adc] && $arrays->{addop}->[$adc]) &&
+				    ($arrays->{addconn}->[$adc] eq $conn && $arrays->{addop}->[$adc] eq $op)){
+					print " - ADD  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 			for (my $mc = 0; $mc < $modCount; $mc++){
-				if ($arrays->{modconn}->[$mc] eq $conn && $arrays->{modop}->[$mc] eq $op){
-					print " - MOD conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
+				if (($arrays->{modconn}->[$mc] && $arrays->{modop}->[$mc]) &&
+				    ($arrays->{modconn}->[$mc] eq $conn && $arrays->{modop}->[$mc] eq $op)){
+					print " - MOD  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 			for (my $cc = 0; $cc < $cmpCount; $cc++){
-				if ($arrays->{cmpconn}->[$cc] eq $conn && $arrays->{cmpop}->[$cc] eq $op){
-					print " - CMP conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
+				if (($arrays->{cmpconn}->[$cc] && $arrays->{cmpop}->[$cc]) &&
+				    ($arrays->{cmpconn}->[$cc] eq $conn && $arrays->{cmpop}->[$cc] eq $op)){
+					print " - CMP  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 			for (my $mdc = 0; $mdc < $modrdnCount; $mdc++){
-				if ($arrays->{modrdnconn}->[$mdc] eq $conn && $arrays->{modrdnop}->[$mdc] eq $op){
+				if (($arrays->{modrdnconn}->[$mdc] && $arrays->{modrdnop}->[$mdc]) &&
+				    ($arrays->{modrdnconn}->[$mdc] eq $conn && $arrays->{modrdnop}->[$mdc] eq $op)){
 					print " - MODRDN conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 			for (my $bcb = 0; $bcb < $bindCount; $bcb++){
-				if ($arrays->{bindconn}->[$bcb] eq $conn && $arrays->{bindop}->[$bcb] eq $op){
+				if (($arrays->{bindconn}->[$bcb] && $arrays->{bindop}->[$bcb]) &&
+				    ($arrays->{bindconn}->[$bcb] eq $conn && $arrays->{bindop}->[$bcb] eq $op)){
 					print " - BIND conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 			for (my $ubc = 0; $ubc < $unbindCount; $ubc++){
-				if ($arrays->{unbindconn}->[$ubc] eq $conn && $arrays->{unbindop}->[$ubc] eq $op){
+				if (($arrays->{unbindconn}->[$ubc] && $arrays->{unbindop}->[$ubc]) &&
+				    ($arrays->{unbindconn}->[$ubc] eq $conn && $arrays->{unbindop}->[$ubc] eq $op)){
 					print " - UNBIND conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 			for (my $ec = 0; $ec < $extopCount; $ec++){
-				if ($arrays->{extconn}->[$ec] eq $conn && $arrays->{extop}->[$ec] eq $op){
-					print " - EXT conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
+				if (($arrays->{extconn}->[$ec] && $arrays->{extop}->[$ec]) &&
+				    ($arrays->{extconn}->[$ec] eq $conn && $arrays->{extop}->[$ec] eq $op)){
+					print " - EXT  conn=$conn op=$op msgid=$msgid client=$conn_hash->{$conn}\n";
 				}
 			}
 		}
@@ -1485,7 +1502,7 @@ parseLineBind {
 			return ;
 		}
 		$ip = $1;
-		if ($_ =~ /conn= *([0-9]+)/i ){
+		if ($_ =~ /conn= *([0-9A-Z]+)/i ){
 			$connList{$ip} = $connList{$ip} . " $1 ";
 		}
 		return;
@@ -1516,7 +1533,7 @@ parseLineBind {
 			$bindReport{$dn}{"modrdn"} = 0;
 			$bindReport{$dn}{"failedBind"} = 0;
 		}
-		if ($_ =~ /conn= *([0-9]+)/i) {
+		if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 			$bindReport{$dn}{"conn"} = $bindReport{$dn}{"conn"} . " $1 ";
 		}
 		return;
@@ -1547,7 +1564,7 @@ processOpForBindReport
 	my $op = shift;
 	my $data = shift;
 
-	if ($data =~ /conn= *([0-9]+)/i) {
+	if ($data =~ /conn= *([0-9A-Z]+)/i) {
 		foreach my $dn (keys %bindReport){
 			if ($bindReport{$dn}{"conn"} =~ / $1 /){
 				$bindReport{$dn}{$op}++;
@@ -1649,48 +1666,48 @@ sub parseLineNormal
 			$anyAttrs++;
 		}
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{srchconn}}, $1;}
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{srchop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{srchconn}}, $1;}
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{srchop}}, $1;}
 		}
 	}
 	if (m/ DEL/){
 		$delCount++;
 		if($reportStats){ inc_stats('del',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{delconn}}, $1;}
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{delop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{delconn}}, $1;}
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{delop}}, $1;}
 		}
 	}
 	if (m/ MOD dn=/){
 		$modCount++;
 		if($reportStats){ inc_stats('mod',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{modconn}}, $1;}
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{modop}}, $1; }
+		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{modconn}}, $1;}
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{modop}}, $1; }
 		}
 	}
 	if (m/ ADD/){
 		$addCount++;
 		if($reportStats){ inc_stats('add',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{addconn}}, $1; }
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{addop}}, $1; }
+		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{addconn}}, $1; }
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{addop}}, $1; }
 		}
 	}
 	if (m/ MODRDN/){
 		$modrdnCount++;
 		if($reportStats){ inc_stats('modrdn',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{modrdnconn}}, $1; }
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{modrdnop}}, $1; }
+		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{modrdnconn}}, $1; }
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{modrdnop}}, $1; }
 		}
 	}
 	if (m/ CMP dn=/){
 		$cmpCount++;
 		if($reportStats){ inc_stats('cmp',$s_stats,$m_stats); }
 		if ($verb eq "yes"  || $usage =~ /g/i){
-			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{cmpconn}}, $1;}
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{cmpop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{cmpconn}}, $1;}
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{cmpop}}, $1;}
 		}
 	}
 	if (m/ ABANDON /){
@@ -1699,13 +1716,13 @@ sub parseLineNormal
 		$allResults++;
 		if ($_ =~ /targetop= *([0-9a-zA-Z]+)/i ){
 			push @{$arrays->{targetop}}, $1;
-			if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{targetconn}}, $1; }
-			if ($_ =~ /msgid= *([0-9]+)/i){ push @{$arrays->{msgid}}, $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{targetconn}}, $1; }
+			if ($_ =~ /msgid= *([0-9\-]+)/i){ push @{$arrays->{msgid}}, $1; }
 		}
 	}
 	if (m/ VLV /){
-		if ($_ =~ /conn= *([0-9]+)/i){ $vlvconn[$vlvCount] = $1;}
-		if ($_ =~ /op= *([0-9]+)/i){  $vlvop[$vlvCount] = $1;}
+		if ($_ =~ /conn= *([0-9A-Z]+)/i){ $vlvconn[$vlvCount] = $1;}
+		if ($_ =~ /op= *([0-9\-]+)/i){  $vlvop[$vlvCount] = $1;}
 		$vlvCount++;
 	}
 	if (m/ authzid=/){
@@ -1792,16 +1809,16 @@ sub parseLineNormal
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
 			$hashes->{bindlist}->{$tmpp}++;
-			if ($_ =~ /conn= *([0-9]+)/i) { push @{$arrays->{bindconn}}, $1;}
-			if ($_ =~ /op= *([0-9]+)/i) { push @{$arrays->{bindop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) { push @{$arrays->{bindconn}}, $1;}
+			if ($_ =~ /op= *([0-9\-]+)/i) { push @{$arrays->{bindop}}, $1;}
 			if($usage =~ /f/ || $verb eq "yes"){
 				push @{$arrays->{binddn}}, $tmpp;
 			}
 		} else {
 			$anonymousBindCount++;
 			$hashes->{bindlist}->{"Anonymous Binds"}++;
-			if ($_ =~ /conn= *([0-9]+)/i) { push @{$arrays->{bindconn}}, $1;}
-			if ($_ =~ /op= *([0-9]+)/i) { push @{$arrays->{bindop}}, $1;}
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) { push @{$arrays->{bindconn}}, $1;}
+			if ($_ =~ /op= *([0-9\-]+)/i) { push @{$arrays->{bindop}}, $1;}
 			push @{$arrays->{binddn}}, "";
 			inc_stats('anonbind',$s_stats,$m_stats);
 		}
@@ -1809,17 +1826,18 @@ sub parseLineNormal
 	if (m/ UNBIND/){
 		$unbindCount++;
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{unbindconn}}, $1; }
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{unbindop}}, $1; }
+		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{unbindconn}}, $1; }
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{unbindop}}, $1; }
 		}
 	}
 	if (m/ RESULT err=/ && m/ notes=P/){
 		$pagedSearchCount++;
 	}
 	if (m/ notes=A/){
-		if ($_ =~ /conn= *([0-9]+)/i){
+		$con = "";
+		if ($_ =~ /conn= *([0-9A-Z]+)/i){
 		        $con = $1;
-		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
+		        if ($_ =~ /op= *([0-9\-]+)/i){ $op = $1;}
 		}
 		for (my $i=0; $i < $vlvCount;$i++){
 		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesACount++; $isVlvNotes="1";}
@@ -1833,8 +1851,8 @@ sub parseLineNormal
 		if ($usage =~ /u/ || $verb eq "yes"){
 			if ($isVlvNotes == 0 ){
 		        	if ($_ =~ /etime= *([0-9.]+)/i ){ push @{$arrays->{notesAetime}}, $1; }
-		        	if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{notesAconn}}, $1; }
-		        	if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{notesAop}}, $1; }
+		        	if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{notesAconn}}, $1; }
+		        	if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{notesAop}}, $1; }
 		        	if ($_ =~ / *([0-9a-z:\/]+)/i){ push @{$arrays->{notesAtime}}, $1; }
 				if ($_ =~ /nentries= *([0-9]+)/i ){ push @{$arrays->{notesAnentries}}, $1; }
 			}
@@ -1842,9 +1860,10 @@ sub parseLineNormal
 		$isVlvNotes = 0;
 	}
 	if (m/ notes=U/){
-		if ($_ =~ /conn= *([0-9]+)/i){
+		$con = "";
+		if ($_ =~ /conn= *([0-9A-Z]+)/i){
 		        $con = $1;
-		        if ($_ =~ /op= *([0-9]+)/i){ $op = $1;}
+		        if ($_ =~ /op= *([0-9\-]+)/i){ $op = $1;}
 		}
 		for (my $i=0; $i < $vlvCount;$i++){
 		        if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesUCount++; $isVlvNotes="1";}
@@ -1858,8 +1877,8 @@ sub parseLineNormal
 		if ($usage =~ /u/ || $verb eq "yes"){
 			if ($isVlvNotes == 0 ){
 		        	if ($_ =~ /etime= *([0-9.]+)/i ){ push @{$arrays->{notesUetime}}, $1; }
-		        	if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{notesUconn}}, $1; }
-		        	if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{notesUop}}, $1; }
+		        	if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{notesUconn}}, $1; }
+		        	if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{notesUop}}, $1; }
 		        	if ($_ =~ / *([0-9a-z:\/]+)/i){ push @{$arrays->{notesUtime}}, $1; }
 				if ($_ =~ /nentries= *([0-9]+)/i ){ push @{$arrays->{notesUnentries}}, $1; }
 			}
@@ -1922,14 +1941,14 @@ sub parseLineNormal
 			}
 			$ip = $1;
 			$hashes->{ip_hash}->{$ip}++;
-			if ($_ =~ /conn= *([0-9]+)/i ){ 
+			if ($_ =~ /conn= *([0-9A-Z]+)/i ){ 
 				if ($exc ne "yes"){	
 					$hashes->{conn_hash}->{$1} = $ip;
 				}
 			}
 		}
 		if (m/- A1/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -1944,7 +1963,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- B1/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -1959,7 +1978,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- B4/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -1974,7 +1993,7 @@ sub parseLineNormal
 		    	}
 		}
 		if (m/- T1/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 			       	$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -1989,7 +2008,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- T2/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no"; 
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -2004,7 +2023,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- B2/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				$maxBerSizeCount++;
@@ -2020,7 +2039,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- B3/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -2035,7 +2054,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- R1/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -2050,7 +2069,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- P1/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -2065,7 +2084,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- P2/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -2080,7 +2099,7 @@ sub parseLineNormal
 			}
 		}
 		if (m/- U1/){
-			if ($_ =~ /conn= *([0-9]+)/i) {
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
 				$ip = getIPfromConn($1);
 				if ($ip eq ""){$ip = "Unknown_Host";}
@@ -2112,8 +2131,8 @@ sub parseLineNormal
 		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ $hashes->{oid}->{$1}++; }
 		if ($1 && $1 eq $startTLSoid){$startTLSCount++;}
 		if ($verb eq "yes"){
-		        if ($_ =~ /conn= *([0-9]+)/i){ push @{$arrays->{extconn}}, $1; }
-			if ($_ =~ /op= *([0-9]+)/i){ push @{$arrays->{extop}}, $1; }
+		        if ($_ =~ /conn= *([0-9A-Z]+)/i){ push @{$arrays->{extconn}}, $1; }
+			if ($_ =~ /op= *([0-9\-]+)/i){ push @{$arrays->{extop}}, $1; }
 		}
 	}
 	if (($usage =~ /l/ || $verb eq "yes") and / SRCH /){
@@ -2123,15 +2142,15 @@ sub parseLineNormal
 			$tmpp =~ tr/A-Z/a-z/;
 			$tmpp =~ s/\\22/\"/g;
 			$hashes->{filter}->{$tmpp}++;
-			if ($_ =~ /conn= *([0-9]+)/i) { $filterConn = $1; }
-			if ($_ =~ /op= *([0-9]+)/i) { $filterOp = $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) { $filterConn = $1; }
+			if ($_ =~ /op= *([0-9\-]+)/i) { $filterOp = $1; }
 		} elsif (/ SRCH / && $_ =~ /filter=\"(.*)\"/i){
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
 			$tmpp =~ s/\\22/\"/g;
 			$hashes->{filter}->{$tmpp}++;
-			if ($_ =~ /conn= *([0-9]+)/i) { $filterConn = $1; }
-			if ($_ =~ /op= *([0-9]+)/i) { $filterOp = $1; }
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) { $filterConn = $1; }
+			if ($_ =~ /op= *([0-9\-]+)/i) { $filterOp = $1; }
 		}
 		$filterCount++;
 		if($usage =~ /u/ || $verb eq "yes"){
@@ -2157,11 +2176,11 @@ sub parseLineNormal
 			if ($_ =~ /scope= *([0-9]+)/i) { 
 				$scopeVal = $1; 
 			}
-			if ($_ =~ /conn= *([0-9]+)/i) { 
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) { 
 				$baseConn = $1; 
 				$scopeConn = $1;	
 			}
-			if ($_ =~ /op= *([0-9]+)/i) { 
+			if ($_ =~ /op= *([0-9\-]+)/i) { 
 				$baseOp = $1;
 				$scopeOp = $1;
 			}
@@ -2170,9 +2189,9 @@ sub parseLineNormal
 				push @{$arrays->{baseval}}, $tmpp;
 				push @{$arrays->{baseconn}}, $baseConn;
 				push @{$arrays->{baseop}}, $baseOp;
-				push @{$arrays->{scopeval}}, $scopeVal;
-				push @{$arrays->{scopeconn}}, $scopeConn;
-				push @{$arrays->{scopeop}}, $scopeOp;
+				push @{$arrays->{scopeval}}, $scopeTxt[$scopeVal]; 
+				push @{$arrays->{scopeconn}}, $scopeConn; 
+				push @{$arrays->{scopeop}}, $scopeOp; 
 			}
 			$baseCount++;
 			$scopeCount++;
@@ -2191,12 +2210,12 @@ sub parseLineNormal
 			$ds6x = "true";
 			$badPwdCount++;
 		} elsif (/ err=49 tag=/ ){
-			if ($_ =~ /conn= *([0-9]+)/i ){
+			if ($_ =~ /conn= *([0-9A-Z]+)/i ){
 				push @{$arrays->{badpwdconn}}, $1;
 				$ip = getIPfromConn($1);
 				$badPwdCount++;
 			}
-			if ($_ =~ /op= *([0-9]+)/i ){
+			if ($_ =~ /op= *([0-9\-]+)/i ){
 				push @{$arrays->{badpwdop}}, $1;
 			}
 			push @{$arrays->{badpwdip}}, $ip;
