@@ -1373,7 +1373,7 @@ process_replay_rename(Private_Repl_Protocol *prp,
 		norm_newparent = slapi_dn_parent(slapi_sdn_get_ndn(local_origsdn));
 	}
 	p = NULL;
-	if (subtree_pairs && subtree_pairs->DSsubtree) {
+	if (subtree_pairs) {
 		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
 			p = strstr(norm_newparent, slapi_sdn_get_ndn(sp->DSsubtree));
 			if (p) {
@@ -1430,7 +1430,7 @@ process_replay_rename(Private_Repl_Protocol *prp,
 	/* local parent normalized dn */
 	local_pndn = /* strdup'ed */
 			slapi_dn_parent((const char *)slapi_sdn_get_ndn(local_origsdn));
-	if (subtree_pairs && subtree_pairs->DSsubtree) {
+	if (subtree_pairs) {
 		for (sp = subtree_pairs; sp && sp->DSsubtree; sp++) {
 			p = strstr(local_pndn, slapi_sdn_get_ndn(sp->DSsubtree));
 			if (p) {
@@ -2495,7 +2495,7 @@ windows_get_superior_change(Private_Repl_Protocol *prp,
 					mapped_pndn?mapped_pndn:"empty");
 		goto bail;
 	}
-	if (subtree_pairs && subtree_pairs->DSsubtree) {
+	if (subtree_pairs) {
 		for (msp = subtree_pairs; msp && msp->DSsubtree; msp++) {
 			mptr = strstr(mapped_pndn, slapi_sdn_get_ndn(msp->DSsubtree));
 			if (mptr) {
@@ -2507,7 +2507,7 @@ windows_get_superior_change(Private_Repl_Protocol *prp,
 	}
 	if (mptr) {
 		/* mapped DN (originally from AD) is in the DS subtree(s) defined in the agreement */
-		if (subtree_pairs && subtree_pairs->DSsubtree) {
+		if (subtree_pairs) {
 			for (lsp = subtree_pairs; lsp && lsp->DSsubtree; lsp++) {
 				lptr = strstr(local_pndn, slapi_sdn_get_ndn(lsp->DSsubtree));
 				if (lptr) {
@@ -4164,18 +4164,18 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 			} else {
 				suffix = slapi_sdn_get_dn(windows_private_get_directory_subtree(ra));
 			}
+			if (NULL == suffix) {
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+								"%s: map_entry_dn_inbound: Failed to retrieve local suffix from %s\n",
+								agmt_get_long_name(ra), slapi_sdn_get_dn(remote_sdn));
+				goto error;
+			}
 
 			if (sp) {
 				container_str = extract_container(slapi_entry_get_sdn_const(e), sp->ADsubtree);
 			} else {
 				container_str = extract_container(slapi_entry_get_sdn_const(e), 
 				                                  windows_private_get_windows_subtree(ra));
-			}
-			if (NULL == suffix) {
-				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-								"%s: map_entry_dn_inbound: Failed to retrieve local suiffx from %s\n",
-								agmt_get_long_name(ra), slapi_sdn_get_dn(remote_sdn));
-				goto error;
 			}
 			/* Local DNs for users and groups are different */
 			if (is_user)
