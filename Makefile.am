@@ -1502,6 +1502,7 @@ fixupcmd = sed \
 	-e 's,@configdir\@,$(configdir),g' \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
+	-e 's,@localrundir\@,$(localrundir),g' \
 	-e 's,@infdir\@,$(infdir),g' \
 	-e 's,@mibdir\@,$(mibdir),g' \
 	-e 's,@templatedir\@,$(sampledatadir),g' \
@@ -1568,6 +1569,7 @@ fixupcmd = sed \
 	-e 's,@configdir\@,$(configdir),g' \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
+        -e 's,@localrundir\@,$(localrundir),g' \
 	-e 's,@infdir\@,$(infdir),g' \
 	-e 's,@mibdir\@,$(mibdir),g' \
 	-e 's,@templatedir\@,$(sampledatadir),g' \
