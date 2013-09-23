@@ -1036,6 +1036,9 @@ sub updateSelinuxPolicy {
 sub updateTmpfilesDotD {
     my $inf = shift;
     my $dir = "@with_tmpfiles_d@";
+    my $rundir;
+    my $lockdir;
+    my $parentdir;
 
     # if tmpfiles.d is not available, do nothing
     if ($dir and -d $dir) {
@@ -1073,16 +1076,25 @@ sub updateTmpfilesDotD {
                 $groupname = "-"; # use default
             }
         }
-        my $parent = dirname($inf->{slapd}->{lock_dir});
         if (!open(DOTDFILE, ">$filename")) {
             return ( [ 'error_creating_file', $filename, $! ] );
         }
         # Type Path          Mode UID  GID  Age
         # d    /var/run/user 0755 root root 10d
         # we don't use age
-        print DOTDFILE "d $inf->{slapd}->{run_dir} 0770 $username $groupname\n";
-        print DOTDFILE "d $parent 0770 $username $groupname\n";
-        print DOTDFILE "d $inf->{slapd}->{lock_dir} 0770 $username $groupname\n";
+        my $localrundir = set_path_attribute("@localrundir@", $inf->{slapd}->{localstatedir}, $inf->{General}->{prefix});
+        if( -d "$localrundir"){
+            $rundir = "$localrundir/@PACKAGE_NAME@";
+            $lockdir = "$localrundir/lock/@PACKAGE_NAME@/slapd-$inf->{slapd}->{ServerIdentifier}";
+            $parentdir = "$localrundir/lock/@PACKAGE_NAME@";
+        } else {
+            $rundir = $inf->{slapd}->{run_dir};
+            $lockdir = $inf->{slapd}->{lock_dir};
+            $parentdir = dirname($inf->{slapd}->{lock_dir});
+        }
+        print DOTDFILE "d $rundir 0770 $username $groupname\n";
+        print DOTDFILE "d $parentdir 0770 $username $groupname\n";
+        print DOTDFILE "d $lockdir 0770 $username $groupname\n";
         close DOTDFILE;
     } else {
         debug(3, "no tmpfiles.d - skipping\n");

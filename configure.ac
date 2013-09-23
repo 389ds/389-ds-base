@@ -241,6 +241,7 @@ if test "$with_fhs_opt" = "yes"; then
   # package was requested.
   sysconfdir='/etc/opt'
   localstatedir='/var/opt'
+  localrundir='/var/opt/run'
   # relative to datadir
   sampledatadir=/data
   # relative to datadir
@@ -270,6 +271,7 @@ else
     sysconfdir='/etc'
     dnl as opposed to the default /usr/var
     localstatedir='/var'
+    localrundir='/run'
   fi
   # relative to datadir
   sampledatadir=/$PACKAGE_NAME/data
@@ -681,6 +683,7 @@ AC_SUBST(netsnmp_link)
 AC_SUBST(pcre_inc)
 AC_SUBST(pcre_lib)
 AC_SUBST(pcre_libdir)
+AC_SUBST(localrundir)
 
 AC_SUBST(brand)
 AC_SUBST(capbrand)
