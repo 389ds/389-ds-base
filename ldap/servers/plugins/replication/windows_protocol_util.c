@@ -70,7 +70,7 @@ static int windows_get_local_entry(const Slapi_DN* local_dn,Slapi_Entry **local_
 static int windows_get_local_entry_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry, int is_global);
 static int windows_get_local_tombstone_by_uniqueid(Private_Repl_Protocol *prp,const char* uniqueid,Slapi_Entry **local_entry);
 static int windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp, const char *uniqueid, char ** attrs, Slapi_Entry **ret_entry, int tombstone, void * component_identity, int is_global);
-static int map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid);
+static int map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int want_guid, Slapi_Entry **remote_entry);
 static char* extract_ntuserdomainid_from_entry(Slapi_Entry *e);
 static char* extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn);
 static int windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,Slapi_Entry **remote_entry);
@@ -455,7 +455,7 @@ map_dn_values(Private_Repl_Protocol *prp,Slapi_ValueSet *original_values, Slapi_
 				is_ours = is_subject_of_agreement_local(local_entry,prp->agmt);
 				if (is_ours)
 				{
-					map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry, 0 /* don't want GUID form here */);
+					map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry, 0 /* don't want GUID form here */, NULL);
 					if (remote_dn)
 					{
 						if (!missing_entry)
@@ -775,7 +775,10 @@ to_little_endian_double_bytes(UChar *unicode_password, int32_t unicode_password_
 /* this entry had a password, handle it seperately */
 /* http://support.microsoft.com/?kbid=269190 */
 static int
-send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
+send_password_modify(Slapi_DN *sdn,
+                     char *password,
+                     Private_Repl_Protocol *prp,
+                     Slapi_Entry *remote_entry)
 {
 		ConnResult pw_return = 0;
 
@@ -798,6 +801,35 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 
 		} else
 		{
+			Slapi_Attr *attr = NULL;
+			int force_reset_pw = 0;
+			/* 
+			 * If AD entry has password must change flag is set,
+			 * we keep the flag (pwdLastSet == 0).
+			 * msdn.microsoft.com: Windows Dev Centor - Desktop
+			 * To force a user to change their password at next logon,
+			 * set the pwdLastSet attribute to zero (0).
+			 */
+			if (remote_entry &&
+				(0 == slapi_entry_attr_find(remote_entry, "pwdLastSet", &attr)) &&
+				attr) {
+				Slapi_Value *v = NULL;
+				int i = 0;
+				for (i = slapi_attr_first_value(attr, &v);
+					 v && (i != -1);
+					 i = slapi_attr_next_value(attr, i, &v)) {
+					const char *s = slapi_value_get_string(v);
+					if (NULL == s) {
+						continue;
+					}
+					if (0 == strcmp(s, "0")) {
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+						                "%s: AD entry %s set \"user must change password at next logon\". ",
+						                agmt_get_long_name(prp->agmt), slapi_entry_get_dn(remote_entry));
+						force_reset_pw = 1;
+					}
+				}
+			}
 			/* We will attempt to bind to AD with the new password first. We do
 			 * this to avoid playing a password change that originated from AD
 			 * back to AD.  If we just played the password change back, then
@@ -810,38 +842,53 @@ send_password_modify(Slapi_DN *sdn, char *password, Private_Repl_Protocol *prp)
 				quoted_password = PR_smprintf("\"%s\"",password);
 				if (quoted_password)
 				{
-					LDAPMod *pw_mods[2];
-					LDAPMod pw_mod;
-					struct berval bv = {0};
 					UChar *unicode_password = NULL;
 					int32_t unicode_password_length = 0; /* Length in _characters_ */
 					int32_t buffer_size = 0; /* Size in _characters_ */
 					UErrorCode error = U_ZERO_ERROR;
-					struct berval *bvals[2];
 					/* Need to UNICODE encode the password here */
 					/* It's one of those 'ask me first and I will tell you the buffer size' functions */
 					u_strFromUTF8(NULL, 0, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
 					buffer_size = unicode_password_length;
 					unicode_password = (UChar *)slapi_ch_malloc(unicode_password_length * sizeof(UChar));
 					if (unicode_password) {
+						LDAPMod *pw_mods[3];
+						LDAPMod pw_mod;
+						LDAPMod reset_pw_mod;
+						struct berval bv = {0};
+						struct berval *bvals[2];
+						struct berval reset_bv = {0};
+						struct berval *reset_bvals[2];
 						error = U_ZERO_ERROR;
 						u_strFromUTF8(unicode_password, buffer_size, &unicode_password_length, quoted_password, strlen(quoted_password), &error);
-	
+
 						/* As an extra special twist, we need to send the unicode in little-endian order for AD to be happy */
 						to_little_endian_double_bytes(unicode_password, unicode_password_length);
-	
+
 						bv.bv_len = unicode_password_length * sizeof(UChar);
 						bv.bv_val = (char*)unicode_password;
-				
+
 						bvals[0] = &bv; 
 						bvals[1] = NULL;
 						
 						pw_mod.mod_type = "UnicodePwd";
 						pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
 						pw_mod.mod_bvalues = bvals;
-					
+
 						pw_mods[0] = &pw_mod;
-						pw_mods[1] = NULL;
+						if (force_reset_pw) {
+							reset_bv.bv_len = 1;
+							reset_bv.bv_val = "0";
+							reset_bvals[0] = &reset_bv; 
+							reset_bvals[1] = NULL;
+							reset_pw_mod.mod_type = "pwdLastSet";
+							reset_pw_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
+							reset_pw_mod.mod_bvalues = reset_bvals;
+							pw_mods[1] = &reset_pw_mod;
+							pw_mods[2] = NULL;
+						} else {
+							pw_mods[1] = NULL;
+						}
 
 						pw_return = windows_conn_send_modify(prp->conn, slapi_sdn_get_dn(sdn), pw_mods, NULL, NULL );
 
@@ -1515,6 +1562,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	Slapi_DN *remote_dn = NULL;
 	Slapi_DN *local_dn = NULL;
 	Slapi_Entry *local_entry = NULL;
+	Slapi_Entry *remote_entry = NULL;
 		
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_replay_update\n", 0, 0, 0 );
 
@@ -1589,7 +1637,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	if (is_ours && (is_user || is_group) ) {
 		int missing_entry = 0;
 		/* Make the entry's DN */
-		rc = map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry, 1);
+		rc = map_entry_dn_outbound(local_entry,&remote_dn,prp,&missing_entry, 1, &remote_entry);
 		if (rc || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
@@ -1777,13 +1825,17 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			 * seem to work over plain LDAP. */
 			if (is_guid_dn(remote_dn)) {
 				Slapi_DN *remote_dn_norm = NULL;
-				int norm_missing = 0;
 
-				map_entry_dn_outbound(local_entry,&remote_dn_norm,prp,&norm_missing, 0);
-				return_value = send_password_modify(remote_dn_norm, password, prp);
+				if (remote_entry) {
+					remote_dn_norm = slapi_sdn_dup(slapi_entry_get_sdn_const(remote_entry));
+				} else {
+					int norm_missing = 0;
+					map_entry_dn_outbound(local_entry,&remote_dn_norm,prp,&norm_missing, 0, &remote_entry);
+				}
+				return_value = send_password_modify(remote_dn_norm, password, prp, remote_entry);
 				slapi_sdn_free(&remote_dn_norm);
 			} else {
-				return_value = send_password_modify(remote_dn, password, prp);
+				return_value = send_password_modify(remote_dn, password, prp, remote_entry);
 			}
 
 			if (return_value)
@@ -1811,18 +1863,10 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		/* We ignore operations that target entries outside of our sync'ed subtree, or which are not Windows users or groups */
 	}
 error:
-	if (local_entry)
-	{
-		slapi_entry_free(local_entry);
-	}
-	if (local_dn)
-	{
-		slapi_sdn_free (&local_dn);
-	}
-	if (remote_dn)
-	{
-		slapi_sdn_free(&remote_dn);
-	}
+	slapi_entry_free(remote_entry);
+	slapi_entry_free(local_entry);
+	slapi_sdn_free (&local_dn);
+	slapi_sdn_free(&remote_dn);
 	slapi_ch_free_string(&password);
 	return return_value;
 }
@@ -3695,7 +3739,12 @@ extract_container(const Slapi_DN *entry_dn, const Slapi_DN *suffix_dn)
 
 /* Given a non-tombstone entry, return the DN of its peer in AD (whether present or not) */
 static int 
-map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *missing_entry, int guid_form)
+map_entry_dn_outbound(Slapi_Entry *e,
+                      Slapi_DN **dn,
+                      Private_Repl_Protocol *prp,
+                      int *missing_entry,
+                      int guid_form,
+                      Slapi_Entry **remote_entry_to_return)
 {
 	int retval = 0;
 	char *guid = NULL;
@@ -3705,6 +3754,7 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 	const Slapi_DN *local_sdn = NULL;
 	const subtreePair* subtree_pairs = NULL;
 	const subtreePair* sp = NULL;
+	Slapi_Entry *remote_entry = NULL;
 
 	if (NULL == e) {
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -3760,7 +3810,6 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 	if (guid && guid_form) 
 	{
 		int rc = 0;
-		Slapi_Entry *remote_entry = NULL;
 		new_dn = make_dn_from_guid(guid, is_nt4, suffix);
 		if (!new_dn) {
 			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -3788,7 +3837,6 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 				slapi_sdn_free(&new_dn);
 				retval = -1;
 			}
-			slapi_entry_free(remote_entry);
 		} else {
 			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 					"%s: map_entry_dn_outbound: entry not found - rc %d\n",
@@ -3832,7 +3880,6 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 		}
 	} else {
 		/* No GUID found, try ntUserDomainId */
-		Slapi_Entry *remote_entry = NULL;
 		char *username = slapi_entry_attr_get_charptr(e,"ntUserDomainId");
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 				"%s: map_entry_dn_outbound: looking for AD entry for DS "
@@ -3913,10 +3960,6 @@ map_entry_dn_outbound(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp,
 			}
 			slapi_ch_free_string(&username);
 		}
-		if (remote_entry)
-		{
-			slapi_entry_free(remote_entry);
-		}
 	}
 done:
 	if (new_dn) 
@@ -3924,6 +3967,16 @@ done:
 		*dn = new_dn;
 		/* Clear any earlier error */
 		retval = 0;
+	}
+	if (remote_entry_to_return) {
+		if (retval) { /* failed */
+			slapi_entry_free(remote_entry);
+			*remote_entry_to_return = NULL;
+		} else {
+			*remote_entry_to_return = remote_entry;
+		}
+	} else {
+		slapi_entry_free(remote_entry);
 	}
 	slapi_ch_free_string(&guid);
 	return retval;
@@ -5451,7 +5504,7 @@ int windows_process_total_entry(Private_Repl_Protocol *prp,Slapi_Entry *e)
 		agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)), is_ours ? "ours" : "not ours");
 	if (is_ours) 
 	{
-		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry,0 /* we don't want the GUID */);
+		retval = map_entry_dn_outbound(e,&remote_dn,prp,&missing_entry,0 /* we don't want the GUID */, NULL);
 		if (retval || NULL == remote_dn) 
 		{
 			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
