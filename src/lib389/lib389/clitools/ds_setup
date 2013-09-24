@@ -1,0 +1,78 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+## William Brown <wibrown@redhat.com> 2016
+
+from lib389.tools import SetupDs
+from argparse import ArgumentParser
+from getpass import getpass
+import os
+import time
+import sys
+
+def ds_setup_main():
+    """
+    Get and extract the information. Pass it to the setupds tool.
+    """
+    # Check the CLI arguments.
+    parser = ArgumentParser()
+    parser.add_argument('-v', '--verbose',
+                        help="Display extra debugging information during setup", action='store_true')
+    parser.add_argument('-n', '--dryrun',
+                        help="Dryrun: Validate system and configurations only", action='store_true')
+    parser.add_argument('-f', '--file',
+                        help="Inf file to use with out user interaction",required=True)
+    parser.add_argument('--IsolemnlyswearthatIamuptonogood', dest="ack",
+                        help="""You are here likely here by mistake! You want setup-ds.pl!
+By setting this value you acknowledge and take responsibility for the fact this command is UNTESTED and NOT READY. You are ON YOUR OWN!
+""",
+                        action='store_true')
+
+    args = parser.parse_args()
+    # Create the setupDs object
+    if not args.ack:
+        sys.exit(0)
+    else:
+        print("""
+ _________________________________________
+/ This is not what you want! Press ctrl-c \\
+\ now ...                                 /
+ -----------------------------------------
+      \\                   / \\  //\\
+       \\    |\\___/|      /   \\//  \\\\
+            /0  0  \\__  /    //  | \\ \\
+           /     /  \\/_/    //   |  \\  \\
+           @_^_@'/   \\/_   //    |   \\   \\
+           //_^_/     \\/_ //     |    \\    \\
+        ( //) |        \\///      |     \\     \\
+      ( / /) _|_ /   )  //       |      \\     _\\
+    ( // /) '/,_ _ _/  ( ; -.    |    _ _\\.-~        .-~~~^-.
+  (( / / )) ,-{        _      `-.|.-~-.           .~         `.
+ (( // / ))  '/\\      /                 ~-. _ .-~      .-~^-.  \\
+ (( /// ))      `.   {            }                   /      \\  \\
+  (( / ))     .----~-.\\        \\-'                 .~         \\  `. \\^-.
+             ///.----..>        \\             _ -~             `.  ^-`  ^-_
+               ///-._ _ _ _ _ _ _}^ - - - - ~                     ~-- ,.-~
+                                                                  /.-~
+        """)
+    for i in range(1,11):
+        print('%s ...' % (10 - int(i)))
+        time.sleep(1)
+    print('Launching ...')
+    sd = SetupDs(args.verbose, args.dryrun)
+    if sd.create_from_inf(args.file):
+        print("Sucessfully created instance")
+    else:
+        print("Failed to create instance")
+        sys.exit(1)
+    # call create on it.
+    # wait ....
+
+if __name__ == '__main__':
+    ds_setup_main()
+

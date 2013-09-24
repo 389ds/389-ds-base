@@ -1,0 +1,10 @@
+# Log directory   #
+###################
+logs/
+build/
+
+*.pyc
+*.patch
+.cache
+.tox
+*.egg-info

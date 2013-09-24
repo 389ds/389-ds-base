@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+if [ ! "$NETSITE_ROOT" ] ; then
+    NETSITE_ROOT=`pwd | sed -e s@/bin/slapd/server@@g`
+fi
+
+# Assumes you have renamed the original ns-slapd binary
+# to ns-slapd.original
+SLAPD=$0.original
+
+# Make sure /var/tmp exists
+VG_LOGDIR=${VG_LOGDIR:-/var/tmp}
+if [ ! -d $VG_LOGDIR ] ; then
+    mkdir -p $VG_LOGDIR || { echo error: could not mkdir -p $VG_LOGDIR ; exit 1; }
+fi
+
+# Run ns-slapd in valgrind
+outputfile=${VG_LOGDIR}/slapd.vg.$$
+CHECKCMD="valgrind -q --tool=memcheck --leak-check=yes --leak-resolution=high --num-callers=50 --log-file=$outputfile"
+$CHECKCMD $SLAPD "$@"
+

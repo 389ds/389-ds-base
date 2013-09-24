@@ -1,0 +1,124 @@
+#!/usr/bin/python3
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+import argparse
+import logging
+import ldap
+import sys
+
+# This has to happen before we import  DirSrv else it tramples our config ... :(
+logging.basicConfig(format='%(message)s')
+
+from lib389 import DirSrv
+from lib389._constants import DN_CONFIG, DN_DM
+from lib389.cli_conf import backend as cli_backend
+from lib389.cli_conf import plugin as cli_plugin
+from lib389.cli_conf import schema as cli_schema
+from lib389.cli_conf import health as cli_health
+from lib389.cli_conf.plugins import memberof as cli_memberof
+from lib389.cli_conf.plugins import usn as cli_usn
+from lib389.cli_conf.plugins import rootdn_ac as cli_rootdn_ac
+from lib389.cli_conf.plugins import whoami as cli_whoami
+from lib389.cli_conf.plugins import referint as cli_referint
+from lib389.cli_base import disconnect_instance, connect_instance
+
+from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
+
+log = logging.getLogger("dsconf")
+
+if __name__ == '__main__':
+
+    defbase = ldap.get_option(ldap.OPT_DEFBASE)
+
+    parser = argparse.ArgumentParser(allow_abbrev=True)
+    # Build the base ldap options, this keeps in unified.
+
+    # Can we get default options for these from .rc file?
+
+    parser.add_argument('instance',
+            help="The instance name OR the LDAP url to connect to, IE localhost, ldap://mai.example.com:389",
+        )
+    parser.add_argument('-v', '--verbose',
+            help="Display verbose operation tracing during command execution",
+            action='store_true', default=False
+        )
+    parser.add_argument('-D', '--binddn',
+            help="The account to bind as for executing operations",
+            default=None,
+        )
+    parser.add_argument('-b', '--basedn',
+            help="Basedn (root naming context) of the instance to manage",
+            default=None
+        )
+    parser.add_argument('-Z', '--starttls',
+            help="Connect with StartTLS",
+            default=False, action='store_true'
+        )
+
+    subparsers = parser.add_subparsers(help="resources to act upon")
+
+    cli_backend.create_parser(subparsers)
+    cli_schema.create_parser(subparsers)
+    cli_health.create_parser(subparsers)
+    cli_plugin.create_parser(subparsers)
+    cli_memberof.create_parser(subparsers)
+    cli_usn.create_parser(subparsers)
+    cli_rootdn_ac.create_parser(subparsers)
+    cli_whoami.create_parser(subparsers)
+    cli_referint.create_parser(subparsers)
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        log.setLevel(logging.DEBUG)
+    else:
+        # We aren't verbose, so fix our formatter up to be more minimal ...
+        log.setLevel(logging.INFO)
+
+    log.debug("The 389 Directory Server Configuration Tool")
+    # Leave this comment here: UofA let me take this code with me provided
+    # I gave attribution. -- wibrown
+    log.debug("Inspired by works of: ITS, The University of Adelaide")
+
+    # Now that we have our args, see how they relate with our instance.
+    dsrc_inst = dsrc_to_ldap("~/.dsrc", args.instance, log.getChild('dsrc'))
+
+    # Now combine this with our arguments
+
+    dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
+
+    log.debug("Called with: %s" % args)
+    log.debug("Instance details: %s" % dsrc_inst)
+
+    # Assert we have a resources to work on.
+    if not hasattr(args, 'func'):
+        log.error("No resource provided to act upon")
+        log.error("USAGE: dsconf [options] <resource> <action> [action options]")
+        sys.exit(1)
+
+    # Connect
+    # We don't need a basedn, because the config objects derive it properly
+    inst = None
+    if args.verbose:
+        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
+        args.func(inst, None, log, args)
+    else:
+        try:
+            inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
+            args.func(inst, None, log, args)
+        except Exception as e:
+            log.debug(e, exc_info=True)
+            log.error("Error: %s" % e)
+    disconnect_instance(inst)
+
+    # Done!
+    log.debug("dsconf is brought to you by the letter H and the number 25.")
+
+

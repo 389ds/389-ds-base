@@ -1,0 +1,116 @@
+#!/usr/bin/python3
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+import ldap
+import argparse
+# import argcomplete
+import logging
+
+# This has to happen before we import  DirSrv else it tramples our config ... :(
+logging.basicConfig(format='%(message)s')
+
+from lib389._constants import DN_DM
+from lib389.cli_idm import account as cli_account
+from lib389.cli_idm import initialise as cli_init
+from lib389.cli_idm import organisationalunit as cli_ou
+from lib389.cli_idm import group as cli_group
+from lib389.cli_idm import posixgroup as cli_posixgroup
+from lib389.cli_idm import user as cli_user
+
+from lib389.cli_base import connect_instance, disconnect_instance
+
+from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
+
+log = logging.getLogger("dsidm")
+
+if __name__ == '__main__':
+
+    defbase = ldap.get_option(ldap.OPT_DEFBASE)
+
+    parser = argparse.ArgumentParser(allow_abbrev=True)
+    # First, add the LDAP options
+
+    parser.add_argument('instance',
+            help="The instance name OR the LDAP url to connect to, IE localhost, ldap://mai.example.com:389",
+        )
+    parser.add_argument('-b', '--basedn',
+            help="Basedn (root naming context) of the instance to manage",
+            default=None
+        )
+    parser.add_argument('-v', '--verbose',
+            help="Display verbose operation tracing during command execution",
+            action='store_true', default=False
+        )
+    parser.add_argument('-D', '--binddn',
+            help="The account to bind as for executing operations",
+            default=None,
+        )
+    parser.add_argument('-Z', '--starttls',
+            help="Connect with StartTLS",
+            default=False, action='store_true'
+        )
+
+    subparsers = parser.add_subparsers(help="resources to act upon")
+
+    # Call all the other cli modules to register their bits
+
+    cli_account.create_parser(subparsers)
+    cli_group.create_parser(subparsers)
+    cli_init.create_parser(subparsers)
+    cli_ou.create_parser(subparsers)
+    cli_posixgroup.create_parser(subparsers)
+    cli_user.create_parser(subparsers)
+
+    # argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+
+    if args.verbose:
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
+
+    log.debug("The 389 Directory Server Identity Manager")
+    # Leave this comment here: UofA let me take this code with me provided
+    # I gave attribution. -- wibrown
+    log.debug("Inspired by works of: ITS, The University of Adelaide")
+
+    # Now that we have our args, see how they relate with our instance.
+    dsrc_inst = dsrc_to_ldap("~/.dsrc", args.instance, log.getChild('dsrc'))
+
+    # Now combine this with our arguments
+
+    dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
+
+    log.debug("Called with: %s", args)
+    log.debug("Instance details: %s" % dsrc_inst)
+
+    if dsrc_inst['basedn'] is None:
+        log.error("Must provide a basedn!")
+
+    ldapurl = args.instance
+
+    # Connect
+    inst = None
+    if args.verbose:
+        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
+        args.func(inst, dsrc_inst['basedn'], log, args)
+    else:
+        try:
+            inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
+            args.func(inst, dsrc_inst['basedn'], log, args)
+        except Exception as e:
+            log.debug(e, exc_info=True)
+            log.error("Error: %s" % str(e))
+    disconnect_instance(inst)
+
+
+    log.debug("dsidm is brought to you by the letter E and the number 26.")
+
+

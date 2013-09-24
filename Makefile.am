@@ -12,6 +12,7 @@ QUOTE := $(NULLSTRING)"# a double quote"
 # First, we setup the definitions from configure.ac
 #
 
+PYTHON := python3
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
@@ -582,7 +583,9 @@ dist_noinst_DATA = \
 	$(srcdir)/setup.py.in \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/wrappers/systemd.template.sysconfig \
-	$(srcdir)/dirsrvtests
+	$(srcdir)/dirsrvtests \
+	$(srcdir)/src/lib389/setup.py \
+	$(srcdir)/src/lib389
 
 if ENABLE_PERL
 dist_noinst_DATA += \
@@ -2219,11 +2222,17 @@ git-archive:
 # Python test tests
 # How will we update this to python 3?
 
-tests: setup.py.in
-	python setup.py build
+lib389: src/lib389/setup.py
+	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build
+
+lib389-install: lib389
+	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build
+
+tests: setup.py.in lib389
+	$(PYTHON) setup.py build
 
 tests-install: tests
-	python setup.py install
+	$(PYTHON) setup.py install
 
 # RPM-related tasks
 
