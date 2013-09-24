@@ -272,17 +272,46 @@ modify_apply_check_expand(
 		goto done;
 	}
 
-	/* if this is a replicated op, we don't need to perform these checks */
-	if(!repl_op){
-		/* check that the entry still obeys the schema */
-		if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) &&
-			slapi_entry_schema_check( pb, ec->ep_entry ) != 0 ) {
+	/* multimaster replication can result in a schema violation,
+	 * although the individual operations on each master were valid
+	 * It is too late to resolve this. But we can check schema and
+	 * add a replication conflict attribute.
+	 */
+	/* check that the entry still obeys the schema */
+	if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK)) &&
+			slapi_entry_schema_check_ext( pb, ec->ep_entry, 1 ) != 0 ) {
+		if(repl_op){
+			Slapi_Attr *attr;
+			Slapi_Mods smods;
+			LDAPMod **lmods;
+			if (slapi_entry_attr_find (ec->ep_entry, ATTR_NSDS5_REPLCONFLICT, &attr) == 0)
+			{
+				/* add value */ 
+				Slapi_Value *val = slapi_value_new_string("Schema violation");
+				slapi_attr_add_value(attr,val);
+				slapi_value_free(&val);
+			} else {
+				/* Add new attribute */
+				slapi_entry_add_string (ec->ep_entry, ATTR_NSDS5_REPLCONFLICT, "Schema violation");
+			}
+			/* the replconflict attribute is indexed and the index is built from the mods,
+			 * so we need to extend the mods */
+			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &lmods);
+			slapi_mods_init_passin(&smods, lmods);
+			slapi_mods_add_string (&smods, LDAP_MOD_ADD, ATTR_NSDS5_REPLCONFLICT, "Schema violation");
+			lmods = slapi_mods_get_ldapmods_passout(&smods);
+			slapi_pblock_set(pb, SLAPI_MODIFY_MODS, lmods);
+			slapi_mods_done(&smods);
+			
+		} else {
 			*ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
 			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, ldap_result_message);
 			rc = -1;
 			goto done;
 		}
+	}
 
+	if(!repl_op){
 		/* check attribute syntax for the new values */
 		if (slapi_mods_syntax_check(pb, mods, 0) != 0) {
 			*ldap_result_code = LDAP_INVALID_SYNTAX;
@@ -557,15 +586,17 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			}
 			/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
 			slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-			slapi_mods_init_byref(&smods,mods);
-			mod_count = slapi_mods_get_num_mods(&smods);
 		
 			/* apply the mods, check for syntax, schema problems, etc. */
 			if (modify_apply_check_expand(pb, operation, mods, e, ec, &postentry,
 										  &ldap_result_code, &ldap_result_message)) {
 				goto error_return;
 			}
-		
+			/* the schema check could have added a repl conflict mod
+			 * get the mods again */
+			slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+			slapi_mods_init_byref(&smods,mods);
+			mod_count = slapi_mods_get_num_mods(&smods);
 			/*
 			 * Grab a copy of the mods and the entry in case the be_txn_preop changes
 			 * the them.  If we have a failure, then we need to reset the mods to their

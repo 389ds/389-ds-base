@@ -1505,6 +1505,16 @@ void slapi_entry_set_uniqueid( Slapi_Entry *e, char *uniqueid );
 int slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e );
 
 /**
+ * Determines whether the specified entry complies with the schema for its object
+ * class.
+ *
+ * Like slapi_entry_schema_check() with one additional parameter to enforce schema 
+ * checking for replicated operations.
+ * \param check_repl Set to 1 if replicted operations should be checked
+ */
+int slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int check_repl );
+
+/**
  * Determines whether the specified entry complies with the syntax rules imposed
  * by it's attribute types.
  *

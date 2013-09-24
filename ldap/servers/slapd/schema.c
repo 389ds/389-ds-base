@@ -458,11 +458,20 @@ free_qdlist(char **vals, int n)
 /*
  * slapi_entry_schema_check - check that entry e conforms to the schema
  * required by its object class(es). returns 0 if so, non-zero otherwise.
- * [ the pblock is only used to check if this is a replicated operation.
+ * [ the pblock is used to check if this is a replicated operation.
  *   you may pass in NULL if this isn't part of an operation. ]
+ * the pblock is also used to return a reason why schema checking failed.
+ * it is also used to get schema flags
+ * if replicated operations should be checked use slapi_entry_schema_check_ext
  */
 int
 slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
+{
+	return (slapi_entry_schema_check_ext(pb, e, 0));
+}
+
+int
+slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
 {
   struct objclass **oclist;
   struct objclass *oc;
@@ -486,7 +495,7 @@ slapi_entry_schema_check( Slapi_PBlock *pb, Slapi_Entry *e )
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
 	slapi_pblock_get(pb, SLAPI_SCHEMA_FLAGS, &schema_flags);
   }
-  if ( schemacheck == 0 || is_replicated_operation ) {
+  if ( schemacheck == 0 || (is_replicated_operation && !repl_check)) {
     return( 0 );
   }
 
