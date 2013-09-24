@@ -273,7 +273,7 @@ attr_index_parse_idlistsize_values(Slapi_Attr *attr, struct index_idlistsizeinfo
 						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 						            "attr_index_parse_idlistsize: initial substring value %s "
 						            "in value %s violates syntax for attribute %s",
-						            filt->f_sub_initial, val, attr->a_type);
+						            bv.bv_val, val, attr->a_type);
 						break;
 					}
 				}
@@ -287,7 +287,7 @@ attr_index_parse_idlistsize_values(Slapi_Attr *attr, struct index_idlistsizeinfo
 							PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 								    "attr_index_parse_idlistsize: initial substring value %s in "
 								    "value %s violates syntax for attribute %s",
-								    filt->f_sub_any[ii], val, attr->a_type);
+								    bv.bv_val, val, attr->a_type);
 							break;
 						}
 					}
@@ -303,7 +303,7 @@ attr_index_parse_idlistsize_values(Slapi_Attr *attr, struct index_idlistsizeinfo
 						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 							    "attr_index_parse_idlistsize: final substring value %s in value "
 							    "%s violates syntax for attribute %s",
-							    filt->f_sub_final, val, attr->a_type);
+							    bv.bv_val, val, attr->a_type);
 						break;
 					}
 				}
