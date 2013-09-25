@@ -52,7 +52,7 @@
 static const char *errmsg = "database index operation failed";
 
 static int   is_indexed (const char* indextype, int indexmask, char** index_rules);
-static int index_get_allids( int default_allids, const char *indextype, struct attrinfo *ai, const struct berval *val, unsigned int flags );
+static int index_get_allids( int *allids, const char *indextype, struct attrinfo *ai, const struct berval *val, unsigned int flags );
 
 static Slapi_Value **
 valuearray_minus_valuearray(
@@ -985,8 +985,11 @@ index_read_ext_allids(
 		slapi_pblock_get(pb, SLAPI_SEARCH_IS_AND, &is_and);
 	}
 	ai_flags = is_and ? INDEX_ALLIDS_FLAG_AND : 0;
-	allidslimit = index_get_allids( allidslimit, indextype, ai, val, ai_flags );
-	if (allidslimit == 0) {
+	/* the caller can pass in a value of 0 - just ignore those - but if the index
+	 * config sets the allidslimit to 0, this means to skip the index
+	 */
+	if (index_get_allids( &allidslimit, indextype, ai, val, ai_flags ) &&
+	    (allidslimit == 0)) {
 		idl = idl_allids( be );
 		if (unindexed != NULL) *unindexed = 1;
 		LDAPDebug1Arg( LDAP_DEBUG_BACKLDBM, "<= index_read %lu candidates "
@@ -2410,9 +2413,9 @@ valuearray_minus_valuearray(
 #define AI_HAS_TYPE 0x02
 #define AI_HAS_FLAG 0x01
 static int
-index_get_allids( int default_allids, const char *indextype, struct attrinfo *ai, const struct berval *val, unsigned int flags )
+index_get_allids( int *allids, const char *indextype, struct attrinfo *ai, const struct berval *val, unsigned int flags )
 {
-    int allids = default_allids;
+    int found = 0;
     Slapi_Value sval;
     struct index_idlistsizeinfo *iter; /* iterator */
     int cookie = 0;
@@ -2420,7 +2423,7 @@ index_get_allids( int default_allids, const char *indextype, struct attrinfo *ai
     struct index_idlistsizeinfo *best_match = NULL;
 
     if (!ai->ai_idlistinfo) {
-        return allids;
+        return found;
     }
 
     if (val) { /* val should already be a Slapi_Value, but some paths do not use Slapi_Value */
@@ -2464,9 +2467,10 @@ index_get_allids( int default_allids, const char *indextype, struct attrinfo *ai
     }
 
     if (best_match) {
-        allids = best_match->ai_idlistsizelimit;
+        *allids = best_match->ai_idlistsizelimit;
+        found = 1; /* found a match */
     }
 
-    return allids;
+    return found;
 }
 
