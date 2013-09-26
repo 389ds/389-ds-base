@@ -477,8 +477,14 @@ slapi_escape_filter_value(char* filter_str, int len)
     }
 #else
     char *buf = slapi_ch_calloc(sizeof(char), filter_len*3+1);
+    char *esc_str = do_escape_string(filter_str, filter_len, buf, special_filter);
 
-    return do_escape_string(filter_str, filter_len, buf, special_filter);
+    if(esc_str != buf){
+        slapi_ch_free_string(&buf);
+        return slapi_ch_strdup(esc_str);
+    } else {
+        return buf;
+    }
 #endif
 }
 
