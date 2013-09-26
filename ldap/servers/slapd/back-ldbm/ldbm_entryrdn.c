@@ -747,7 +747,7 @@ entryrdn_rename_subtree(backend *be,
         renamedata.data = (void *)newelem;
         renamedata.flags = DB_DBT_USERMEM;
         rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_SELF, db_txn);
-        if (rc) {
+        if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                 "entryrdn_rename_subtree: Adding %s failed; "
                                 "%s(%d)\n", keybuf, dblayer_strerror(rc), rc);
@@ -768,7 +768,7 @@ entryrdn_rename_subtree(backend *be,
                 renamedata.flags = DB_DBT_USERMEM;
                 rc = _entryrdn_put_data(cursor, &key,
                                         &renamedata, RDN_INDEX_CHILD, db_txn);
-                if (rc) {
+                if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
                     goto bail;
                 }
             }
@@ -813,7 +813,7 @@ entryrdn_rename_subtree(backend *be,
             renamedata.data = (void *)newsupelem;
         }
         rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_PARENT, db_txn);
-        if (rc) {
+        if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                              "entryrdn_rename_subtree: Adding "
                                              "%s failed; %s(%d)\n",
@@ -848,7 +848,7 @@ entryrdn_rename_subtree(backend *be,
             renamedata.data = (void *)newelem;
             renamedata.flags = DB_DBT_USERMEM;
             rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_SELF, db_txn);
-            if (rc) {
+            if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
                 slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                   "entryrdn_rename_subtree: Adding %s failed; "
                                   "%s(%d)\n", keybuf, dblayer_strerror(rc), rc);
@@ -901,7 +901,7 @@ entryrdn_rename_subtree(backend *be,
             renamedata.flags = DB_DBT_USERMEM;
         }
         rc = _entryrdn_put_data(cursor, &key, &renamedata, RDN_INDEX_CHILD, db_txn);
-        if (rc) {
+        if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
             goto bail;
         }
     }
@@ -1948,12 +1948,11 @@ _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type, DB_TXN *db_txn)
         rc = cursor->c_put(cursor, key, data, DB_NODUPDATA);
         if (rc) {
             if (DB_KEYEXIST == rc) {
-                /* this is okay */
+                /* this is okay, but need to return DB_KEYEXIST to caller */
                 slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                                 "_entryrdn_put_data: The same key (%s) and the "
                                 "data exists in index\n",
                                 (char *)key->data);
-                rc = 0;
                 break;
             } else {
                 char *keyword = NULL;
@@ -2102,7 +2101,7 @@ _entryrdn_insert_key_elems(backend *be,
     /* adding RDN to the child key */
     rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_CHILD, db_txn);
     keybuf = key->data;
-    if (rc) { /* failed */
+    if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
         goto bail;
     }
 
@@ -2118,7 +2117,7 @@ _entryrdn_insert_key_elems(backend *be,
     key->flags = DB_DBT_USERMEM;    
 
     rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_SELF, db_txn);
-    if (rc) { /* failed */
+    if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
         goto bail;
     }
 
@@ -2138,6 +2137,9 @@ _entryrdn_insert_key_elems(backend *be,
     adddata.flags = DB_DBT_USERMEM;
     /* adding RDN to the self key */
     rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_PARENT, db_txn);
+    if (DB_KEYEXIST == rc) { /* failed && ignore already exists */
+        rc = 0;
+    }
     /* Succeeded or failed, it's done. */
 bail:
     slapi_ch_free_string(&keybuf);
@@ -2261,7 +2263,7 @@ _entryrdn_replace_suffix_id(DBC *cursor, DBT *key, DBT *adddata,
             /* Add it back */
             rc = _entryrdn_put_data(cursor, &realkey, &moddata, 
                                                 RDN_INDEX_CHILD, db_txn);
-            if (rc) {
+            if (rc && (DB_KEYEXIST != rc)) { /* failed && ignore already exists */
                 goto bail0;
             }
             if (curr_childnum + 1 == childnum) {
@@ -2524,7 +2526,7 @@ _entryrdn_insert_key(backend *be,
         slapi_ch_free_string(&dn);
         goto bail;
     }
-    elem = _entryrdn_new_rdn_elem(be, 0 /*fake id*/, tmpsrdn, &len);
+    elem = _entryrdn_new_rdn_elem(be, TMPID, tmpsrdn, &len);
     if (NULL == elem) {
         char *dn  = NULL;
         slapi_rdn_get_dn(tmpsrdn, &dn);
@@ -2544,12 +2546,13 @@ _entryrdn_insert_key(backend *be,
     rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, &elem); 
     if (rc) {
         const char *myrdn = slapi_rdn_get_nrdn(srdn);
-        const char *ep = NULL;
+        const char **ep = NULL;
         int isexception = 0;
         /* Check the RDN is in the exception list */
-        for (ep = *rdn_exceptions; ep && *ep; ep++) {
-            if (!strcmp(ep, myrdn)) {
+        for (ep = rdn_exceptions; ep && *ep; ep++) {
+            if (!strcmp(*ep, myrdn)) {
                 isexception = 1;
+                break;
             }
         }
 
@@ -2629,7 +2632,7 @@ _entryrdn_insert_key(backend *be,
                 goto bail;
             }
         }
-        elem = _entryrdn_new_rdn_elem(be, 0 /*fake id*/, tmpsrdn, &len);
+        elem = _entryrdn_new_rdn_elem(be, TMPID, tmpsrdn, &len);
         if (NULL == elem) {
             char *dn  = NULL;
             slapi_rdn_get_dn(tmpsrdn, &dn);
@@ -2884,7 +2887,7 @@ _entryrdn_delete_key(backend *be,
                 slapi_ch_free_string(&dn);
                 goto bail;
             }
-            elem = _entryrdn_new_rdn_elem(be, 0 /*fake id*/, tmpsrdn, &len);
+            elem = _entryrdn_new_rdn_elem(be, TMPID, tmpsrdn, &len);
             if (NULL == elem) {
                 char *dn  = NULL;
                 slapi_rdn_get_dn(tmpsrdn, &dn);
@@ -3127,7 +3130,7 @@ _entryrdn_index_read(backend *be,
         slapi_ch_free_string(&dn);
         goto bail;
     }
-    *elem = _entryrdn_new_rdn_elem(be, 0 /*fake id*/, tmpsrdn, &len);
+    *elem = _entryrdn_new_rdn_elem(be, TMPID, tmpsrdn, &len);
     if (NULL == *elem) {
         char *dn  = NULL;
         slapi_rdn_get_dn(tmpsrdn, &dn);
@@ -3205,7 +3208,7 @@ _entryrdn_index_read(backend *be,
                 goto bail;
             }
         }
-        tmpelem = _entryrdn_new_rdn_elem(be, 0 /*fake id*/, tmpsrdn, &len);
+        tmpelem = _entryrdn_new_rdn_elem(be, TMPID, tmpsrdn, &len);
         if (NULL == tmpelem) {
             char *dn  = NULL;
             slapi_rdn_get_dn(tmpsrdn, &dn);
