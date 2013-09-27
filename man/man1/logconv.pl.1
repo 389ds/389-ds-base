@@ -21,7 +21,7 @@ logconv.pl \- analyzes Directory Server access log files
 .B logconv.pl 
 [\fI\-h\fR] [\fI\-d <rootDN>\fR] [\fI\-s <size limit>\fR] [\fI\-v\fR] [\fI\-V\fR]
 [\fI\-S <start time>\fR] [\fI\-E <end time>\fR]
-[\fI\-efcibaltnxgju\fR] [\fI access log ... ... \fR]
+[\fI\-efcibaltnxgjuU\fR] [\fI access log ... ... \fR]
 .PP
 .SH DESCRIPTION
 Analyzes Directory Server access log files for specific information defined on the command
@@ -68,10 +68,10 @@ This option creates a CSV report for spreadsheets.
 .B \fB\-B, \-\-bind\fR <ALL | ANONYMOUS | "Bind DN">
 This generates a report based on either ALL bind dn's, anonymous binds, or a specific DN.
 .TP
-\fB\-V, \-\-verbose\fR <enable verbose output \- includes all stats listed below>
+\fB\-V, \-\-verbose\fR <enable verbose output \- includes all stats listed below except U>
 Verbose output
 .TP
-.B \fB\-[efcibaltnxgju]\fR
+.B \fB\-[efcibaltnxgjuU]\fR
 .br
 \fBe\fR Error Code stats
 .br
@@ -99,11 +99,13 @@ Verbose output
 .br
 \fBj\fR Recommendations
 .br
-\fBu\fR Unindexed Search Stats
+\fBu\fR Unindexed Search Stats (very detailed)
 .br
 \fBy\fR Connection Latency Stats
 .br
 \fBp\fR Open Connection ID Stats
+.br
+\fBU\fR Unindexed Search Summary
 .PP
 .SH USAGE
 Examples:
