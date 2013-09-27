@@ -254,8 +254,10 @@ operation_done( Slapi_Operation **op, Connection *conn )
 			ber_init2((*op)->o_ber, NULL, options);
 		}
 #else
-		ber_special_free(*op, (*op)->o_ber); /* have to free everything here */
-		*op = NULL;
+		if((*op)->o_ber){
+			ber_special_free(*op, (*op)->o_ber); /* have to free everything here */
+			*op = NULL;
+		}
 #endif
 	}
 }

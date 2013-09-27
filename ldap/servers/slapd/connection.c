@@ -138,8 +138,13 @@ connection_get_operation(void)
 				plugin_get_server_plg() ));
 	} else {
 		PR_AtomicDecrement(&op_stack_size);
-		operation_init(stack_obj->op,
-			       plugin_build_operation_action_bitmap( 0, plugin_get_server_plg() ));
+		if(!stack_obj->op){
+			stack_obj->op = operation_new( plugin_build_operation_action_bitmap( 0,
+				plugin_get_server_plg() ));
+		} else {
+			operation_init(stack_obj->op,
+				plugin_build_operation_action_bitmap( 0, plugin_get_server_plg() ));
+		}
 	}
 	return stack_obj;
 }
