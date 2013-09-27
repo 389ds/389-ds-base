@@ -371,6 +371,78 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define LDAP_CANCELLED 0x76
 #endif
 
+#ifndef LDAP_RES_INTERMEDIATE
+#define LDAP_RES_INTERMEDIATE ((ber_tag_t) 0x79U)
+#endif
+
+#ifndef LDAP_TAG_IM_RES_OID
+#define LDAP_TAG_IM_RES_OID   ((ber_tag_t) 0x80U)
+#endif
+
+#ifndef LDAP_TAG_IM_RES_VALUE
+#define LDAP_TAG_IM_RES_VALUE ((ber_tag_t) 0x81U)
+#endif
+
+#ifndef LDAP_SCOPE_ONE
+#define LDAP_SCOPE_ONE                  LDAP_SCOPE_ONELEVEL
+#endif
+
+#ifndef LDAP_SYNC_OID
+#define LDAP_SYNC_OID                   "1.3.6.1.4.1.4203.1.9.1"
+#define LDAP_CONTROL_SYNC               LDAP_SYNC_OID ".1"
+#define LDAP_CONTROL_SYNC_STATE         LDAP_SYNC_OID ".2"
+#define LDAP_CONTROL_SYNC_DONE          LDAP_SYNC_OID ".3"
+#define LDAP_SYNC_INFO                  LDAP_SYNC_OID ".4"
+#define LDAP_TAG_SYNC_NEW_COOKIE        ((ber_tag_t) 0x80U)
+#define LDAP_TAG_SYNC_REFRESH_DELETE    ((ber_tag_t) 0xa1U)
+#define LDAP_TAG_SYNC_REFRESH_PRESENT   ((ber_tag_t) 0xa2U)
+#define LDAP_TAG_SYNC_ID_SET            ((ber_tag_t) 0xa3U)
+#endif
+
+#ifndef LDAP_REQ_BIND
+#define LDAP_REQ_BIND           ((ber_tag_t) 0x60U)     /* application + constructed */
+#define LDAP_REQ_UNBIND         ((ber_tag_t) 0x42U)     /* application + primitive   */
+#define LDAP_REQ_SEARCH         ((ber_tag_t) 0x63U)     /* application + constructed */
+#define LDAP_REQ_MODIFY         ((ber_tag_t) 0x66U)     /* application + constructed */
+#define LDAP_REQ_ADD            ((ber_tag_t) 0x68U)     /* application + constructed */
+#define LDAP_REQ_DELETE         ((ber_tag_t) 0x4aU)     /* application + primitive   */
+#define LDAP_REQ_MODDN          ((ber_tag_t) 0x6cU)     /* application + constructed */
+#define LDAP_REQ_MODRDN         LDAP_REQ_MODDN
+#define LDAP_REQ_RENAME         LDAP_REQ_MODDN
+#define LDAP_REQ_COMPARE        ((ber_tag_t) 0x6eU)     /* application + constructed */
+#define LDAP_REQ_ABANDON        ((ber_tag_t) 0x50U)     /* application + primitive   */
+#define LDAP_REQ_EXTENDED       ((ber_tag_t) 0x77U)     /* application + constructed */
+#endif
+
+#ifndef LDAP_SYNC_PRESENT
+#define LDAP_SYNC_PRESENT        0
+#define LDAP_SYNC_ADD            1
+#define LDAP_SYNC_MODIFY         2
+#define LDAP_SYNC_DELETE         3
+#define LDAP_SYNC_NEW_COOKIE     4
+#endif
+
+#ifndef LDAP_SYNC_CAPI_NONE
+typedef enum {
+    /* these are private - the client should never see them */
+    LDAP_SYNC_CAPI_NONE             = -1,
+    LDAP_SYNC_CAPI_PHASE_FLAG       = 0x10U,
+    LDAP_SYNC_CAPI_IDSET_FLAG       = 0x20U,
+    LDAP_SYNC_CAPI_DONE_FLAG        = 0x40U,
+    /* these are passed to ls_search_entry() */
+    LDAP_SYNC_CAPI_PRESENT          = LDAP_SYNC_PRESENT,
+    LDAP_SYNC_CAPI_ADD              = LDAP_SYNC_ADD,
+    LDAP_SYNC_CAPI_MODIFY           = LDAP_SYNC_MODIFY,
+    LDAP_SYNC_CAPI_DELETE           = LDAP_SYNC_DELETE,
+    /* these are passed to ls_intermediate() */
+    LDAP_SYNC_CAPI_PRESENTS         = ( LDAP_SYNC_CAPI_PHASE_FLAG | LDAP_SYNC_CAPI_PRESENT ),
+    LDAP_SYNC_CAPI_DELETES          = ( LDAP_SYNC_CAPI_PHASE_FLAG | LDAP_SYNC_CAPI_DELETE ),
+    LDAP_SYNC_CAPI_PRESENTS_IDSET   = ( LDAP_SYNC_CAPI_PRESENTS | LDAP_SYNC_CAPI_IDSET_FLAG ),
+    LDAP_SYNC_CAPI_DELETES_IDSET    = ( LDAP_SYNC_CAPI_DELETES | LDAP_SYNC_CAPI_IDSET_FLAG ),
+    LDAP_SYNC_CAPI_DONE             = ( LDAP_SYNC_CAPI_DONE_FLAG | LDAP_SYNC_CAPI_PRESENTS )
+} ldap_sync_refresh_t;
+#endif
+
 /*
  * Sequential access types
  */

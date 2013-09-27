@@ -342,7 +342,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
 #else
             char *val2 = NULL;
             buf = slapi_ch_calloc(sizeof(char), filter_len*3 + 1);
-            val2 = do_escape_string(val, filter_len, buf, special_filter);
+            val2 = (char *)do_escape_string(val, filter_len, buf, special_filter);
             if(val2 == NULL){
                 LDAPDebug(LDAP_DEBUG_TRACE, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
                 ctx->next_arg_needs_esc_norm = 0;
@@ -477,7 +477,7 @@ slapi_escape_filter_value(char* filter_str, int len)
     }
 #else
     char *buf = slapi_ch_calloc(sizeof(char), filter_len*3+1);
-    char *esc_str = do_escape_string(filter_str, filter_len, buf, special_filter);
+    char *esc_str = (char *)do_escape_string(filter_str, filter_len, buf, special_filter);
 
     if(esc_str != buf){
         slapi_ch_free_string(&buf);

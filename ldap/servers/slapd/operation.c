@@ -216,7 +216,7 @@ operation_free( Slapi_Operation **op, Connection *conn )
 	if(op!=NULL && *op!=NULL)
 	{
 		/* Call the plugin extension destructors */
-	    factory_destroy_extension(get_operation_object_type(),*op,conn,&((*op)->o_extension));
+		factory_destroy_extension(get_operation_object_type(),*op,conn,&((*op)->o_extension));
 		slapi_sdn_done(&(*op)->o_sdn);
 		slapi_sdn_free(&(*op)->o_target_spec);
 		slapi_ch_free_string( &(*op)->o_authtype );
