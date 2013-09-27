@@ -2537,7 +2537,10 @@ slapi_sdn_scope_test_ext( const Slapi_DN *dn, const Slapi_DN *base, int scope, i
         }
         break;
     case LDAP_SCOPE_ONELEVEL:
-        if (flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+#define RUVRDN SLAPI_ATTR_UNIQUEID "=" RUV_STORAGE_ENTRY_UNIQUEID ","
+        if ((flags & SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+            (strncmp(slapi_sdn_get_ndn(dn), RUVRDN, sizeof(RUVRDN) - 1))) {
+            /* tombstones except RUV tombstone */
             Slapi_DN parent;
             slapi_sdn_init(&parent);
             slapi_sdn_get_parent(dn, &parent);
