@@ -586,6 +586,15 @@ plugin_get_pwd_storage_scheme_list(int index)
 	return( names_list );
 }
 
+int slapi_send_ldap_intermediate( Slapi_PBlock *pb, LDAPControl **ectrls,
+	char *responseName, struct berval *responseValue)
+{
+	/* no SLAPI_PLUGIN_DB_INTERMEDIATE_FN defined
+	 * always directly call slapd_ function
+	 */
+	return send_ldap_intermediate(pb, ectrls, responseName, responseValue);
+}
+
 int
 slapi_send_ldap_search_entry( Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls,
 	char **attrs, int attrsonly )

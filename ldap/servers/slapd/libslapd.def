@@ -1200,3 +1200,7 @@ EXPORTS
 	config_get_pw_mintokenlength @1207
 	slapi_check_account_lock @1208
     	slapi_is_ldapi_conn @1209
+; slapi connection functions
+    	slapi_connection_acquire @1211
+    	slapi_connection_remove_operation @1212
+

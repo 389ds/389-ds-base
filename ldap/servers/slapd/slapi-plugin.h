@@ -4966,6 +4966,13 @@ char *slapi_op_type_to_string(unsigned long type);
 int slapi_op_internal( Slapi_PBlock *pb );
 
 /*
+ * connection routines
+ */
+
+int slapi_connection_acquire(Slapi_Connection *conn);
+int slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operation *op, int release);
+
+/*
  * LDAPMod manipulation routines
  */
 Slapi_Mods* slapi_mods_new( void );
@@ -5127,6 +5134,8 @@ void slapi_send_ldap_result( Slapi_PBlock *pb, int err, char *matched,
 	char *text, int nentries, struct berval **urls );
 int slapi_send_ldap_referral( Slapi_PBlock *pb, Slapi_Entry *e,
 	struct berval **refs, struct berval ***urls );
+int slapi_send_ldap_intermediate( Slapi_PBlock *pb, LDAPControl **ectrls,
+	char *responseName, struct berval *responseValue);
 typedef int (*send_ldap_search_entry_fn_ptr_t)( Slapi_PBlock *pb,
 	Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly );
 typedef void (*send_ldap_result_fn_ptr_t)( Slapi_PBlock *pb, int err,

@@ -49,6 +49,7 @@
 #include <sys/socket.h>
 #endif
 #include "slap.h"
+#include "fe.h"
 
 int
 slapi_op_abandoned( Slapi_PBlock *pb )
@@ -549,4 +550,61 @@ void operation_parameters_free(struct slapi_operation_parameters **sop)
 		operation_parameters_done (*sop);	
 		slapi_ch_free ((void**)sop);
 	}
+}
+
+int slapi_connection_acquire(Slapi_Connection *conn)
+{
+    int rc;
+
+    PR_Lock(conn->c_mutex);
+    /* rc = connection_acquire_nolock(conn); */
+    /* connection in the closing state can't be acquired */
+    if (conn->c_flags & CONN_FLAG_CLOSING)
+    {
+	/* This may happen while other threads are still working on this connection */
+        slapi_log_error(SLAPI_LOG_FATAL, "connection",
+		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
+		                (long long unsigned int)conn->c_connid, conn->c_sd);
+        rc = -1;
+    }
+    else
+    {
+        conn->c_refcnt++;
+        rc = 0;
+    }
+    PR_Unlock(conn->c_mutex);
+    return(rc);
+}
+
+int
+slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Slapi_Operation *op, int release)
+{
+	int rc = 0;
+	Slapi_Operation **olist= &conn->c_ops;
+	Slapi_Operation **tmp;
+	PR_Lock( conn->c_mutex );
+	/* connection_remove_operation_ext(pb, conn,op); */
+	for ( tmp = olist; *tmp != NULL && *tmp != op; tmp = &(*tmp)->o_next )
+		;	/* NULL */
+	if ( *tmp == NULL ) {
+		LDAPDebug( LDAP_DEBUG_ANY, "connection_remove_operation: can't find op %d for conn %" NSPRIu64 "\n",
+		    (int)op->o_msgid, conn->c_connid, 0 );
+	} else {
+		*tmp = (*tmp)->o_next;
+	}
+
+	if (release) {
+		/* connection_release_nolock(conn); */
+		if (conn->c_refcnt <= 0) {
+        		slapi_log_error(SLAPI_LOG_FATAL, "connection",
+		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
+		                (long long unsigned int)conn->c_connid, conn->c_sd);
+        		rc = -1;
+		} else {
+        		conn->c_refcnt--;
+			rc = 0;
+		}
+	}
+	PR_Unlock( conn->c_mutex );
+	return (rc);
 }

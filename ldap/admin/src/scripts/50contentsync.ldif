@@ -1,0 +1,22 @@
+dn: cn=Content Synchronization,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: Content Synchronization
+nsslapd-pluginpath: libcontentsync-plugin
+nsslapd-plugininitfunc: sync_init
+nsslapd-plugintype: object
+nsslapd-pluginenabled: off
+nsslapd-plugin-depends-on-named: Retro Changelog Plugin
+# these will be replaced when the server loads the plugin
+nsslapd-pluginId: ID
+nsslapd-pluginVersion: PACKAGE_VERSION
+nsslapd-pluginVendor: VENDOR
+nsslapd-pluginDescription: DESC
+
+dn: oid=1.3.6.1.4.1.4203.1.9.1.1,cn=features,cn=config
+objectClass: top
+objectClass: directoryServerFeature
+oid: 1.3.6.1.4.1.4203.1.9.1.1
+cn: Sync Request Control
+aci: (targetattr != "aci")(version 3.0; acl "Sync Request Control"; allow( read
+ , search ) userdn = "ldap:///all";)

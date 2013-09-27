@@ -82,6 +82,7 @@ static char * op_to_string(int tag);
 #define _LDAP_SEND_RESULT	0
 #define _LDAP_SEND_REFERRAL	1
 #define _LDAP_SEND_ENTRY	2
+#define _LDAP_SEND_INTERMED	4
 
 #define SLAPI_SEND_VATTR_FLAG_REALONLY          0x01
 #define SLAPI_SEND_VATTR_FLAG_VIRTUALONLY       0x02
@@ -223,6 +224,79 @@ send_ldap_result(
        send_ldap_result_ext(pb, err, matched, text, nentries, urls, NULL);
 }
 
+int send_ldap_intermediate( Slapi_PBlock *pb,  LDAPControl **ectrls,
+	char *responseName, struct berval *responseValue)
+{
+	ber_tag_t	tag;
+	BerElement	*ber;
+	Slapi_Connection *connection;
+	Slapi_Operation	*operation;
+	int 		rc = 0;
+	int		logit = 0;
+			
+	LDAPDebug( LDAP_DEBUG_TRACE, "=> send_ldap_intermediate\n", 0, 0, 0 );
+	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+	slapi_pblock_get (pb, SLAPI_CONNECTION, &connection);
+
+	if (operation->o_status == SLAPI_OP_STATUS_RESULT_SENT) {
+		return(rc); /* result already sent */
+	}
+	tag = LDAP_RES_INTERMEDIATE;
+	if ( (ber = der_alloc()) == NULL ) {
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
+		goto log_and_return;
+	}
+	/* add the intermediate message */
+	rc = ber_printf( ber, "{it{", operation->o_msgid, tag);
+	/* print responsename */
+	rc = ber_printf ( ber, "ts", LDAP_TAG_IM_RES_OID, responseName);
+	/* print responsevalue */
+	rc = ber_printf ( ber, "tO", LDAP_TAG_IM_RES_VALUE, responseValue);
+
+
+
+	if ( rc != LBER_ERROR ) {
+		rc = ber_printf( ber, "}" ); /* one more } to come */
+	}
+
+	if ( ectrls != NULL 
+	    && connection->c_ldapversion >= LDAP_VERSION3
+	    && write_controls( ber, ectrls ) != 0 ) {
+		rc = (int)LBER_ERROR;
+	}
+
+	if ( rc != LBER_ERROR ) {	/* end the LDAPMessage sequence */
+		rc = ber_put_seq( ber );
+	}
+	if ( rc == LBER_ERROR ) {
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		ber_free( ber, 1 /* freebuf */ );
+		goto log_and_return;
+	}
+
+	/* write only one pdu at a time - wait til it's our turn */
+	if ( flush_ber( pb, connection, operation, ber, _LDAP_SEND_INTERMED ) == 0 ) {
+		logit = 1;
+	}
+log_and_return:
+	/* operation->o_status = SLAPI_OP_STATUS_RESULT_SENT;
+	 * there could be multiple intermediate messages on
+	 * the same connection, unlike in send_result do not
+	 * set o_status
+	 */
+
+	if ( logit && operation_is_flag_set( operation,
+	    OP_FLAG_ACTION_LOG_ACCESS )) {
+		log_result( pb, operation, rc, tag, 0 );
+	}
+
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_ldap_intermediate\n", 0, 0, 0 );
+	if (rc == LBER_ERROR) {
+		return(1);
+	} else {
+		return(0);
+	}
+}
 
 static int
 check_and_send_extended_result(Slapi_PBlock *pb, ber_tag_t tag, BerElement *ber)
@@ -1555,7 +1629,7 @@ send_ldap_search_entry_ext(
 	}
 	
 	/* if the client explicitly specified a list of attributes look through each attribute requested */
-	if( (rc == 0) && (attrs!=NULL)) {
+	if( (rc == 0) && (attrs!=NULL) && !noattrs) {
 		rc = send_specific_attrs(e,attrs,op,pb,ber,attrsonly,conn->c_ldapversion,dontsendattr,real_attrs_only);
 	}
 
@@ -1695,6 +1769,8 @@ flush_ber(
 	case _LDAP_SEND_REFERRAL:
 		rc = plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_REFERRAL_FN );
 		break;
+	case _LDAP_SEND_INTERMED:
+		break; /* not a plugin entry point */
 	}
 
 	if ( rc != 0 ) {
@@ -1764,6 +1840,8 @@ flush_ber(
 		slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned);
 		plugin_call_plugins( pb, SLAPI_PLUGIN_POST_ENTRY_FN );
 		break;
+	case _LDAP_SEND_INTERMED:
+		break; /* not a plugin entry point */
 	}
 
 	return( rc );

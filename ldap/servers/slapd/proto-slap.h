@@ -958,6 +958,8 @@ int send_ldap_search_entry_ext( Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **
 	char **attrs, int attrsonly, int send_result, int nentries, struct berval **urls );
 void send_ldap_result_ext( Slapi_PBlock *pb, int err, char *matched, char *text,
 	int nentries, struct berval **urls, BerElement	*ber );
+int send_ldap_intermediate( Slapi_PBlock *pb, LDAPControl **ectrls,
+	char *responseName, struct berval *responseValue);
 void send_nobackend_ldap_result( Slapi_PBlock *pb );
 int send_ldap_referral( Slapi_PBlock *pb, Slapi_Entry *e, struct berval **refs,
 	struct berval ***urls );

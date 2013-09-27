@@ -70,6 +70,14 @@ objectClass: directoryServerFeature
 oid: 1.3.6.1.4.1.42.2.27.9.5.8
 cn: Account Usable Request Control
 
+dn: oid=1.3.6.1.4.1.4203.1.9.1.1,cn=features,cn=config
+objectClass: top
+objectClass: directoryServerFeature
+oid: 1.3.6.1.4.1.4203.1.9.1.1
+cn: Sync Request Control
+aci: (targetattr != "aci")(version 3.0; acl "Sync Request Control"; allow( read
+ , search ) userdn = "ldap:///all";)
+
 dn: cn=plugins,cn=config
 objectclass: top
 objectclass: nsContainer
@@ -655,6 +663,19 @@ nsslapd-plugininitfunc: automember_init
 nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-type: database
+
+dn: cn=Content Synchronization,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Content Synchronization
+nsslapd-pluginpath: libcontentsync-plugin
+nsslapd-plugininitfunc: sync_init
+nsslapd-plugintype: object
+nsslapd-pluginenabled: off
+nsslapd-pluginbetxn: on
+nsslapd-plugin-depends-on-type: database
+nsslapd-plugin-depends-on-named: Retro Changelog Plugin
 
 dn: cn=deref,cn=plugins,cn=config
 objectclass: top

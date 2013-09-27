@@ -3015,7 +3015,12 @@ connection_abandon_operations( Connection *c )
 		/* abandon the operation only if it is not yet
 		   completed (i.e., no result has been sent yet to 
 		   the client */
-		if ( op->o_status != SLAPI_OP_STATUS_RESULT_SENT ) {
+		/* sync repl uses the persist mode, and it cannot prevent
+		 * setting o_status, but has to be abandonned
+		 * handle it here until a better solution is found
+		 */	
+		if ( op->o_status != SLAPI_OP_STATUS_RESULT_SENT ||
+			op->o_flags & OP_FLAG_PS ) {
 			op->o_status = SLAPI_OP_STATUS_ABANDONED;
 		}
 	}

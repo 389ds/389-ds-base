@@ -225,6 +225,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libdes-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
 	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
+	libcontentsync-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
@@ -564,6 +565,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50refintprecedence.ldif \
 	ldap/admin/src/scripts/50retroclprecedence.ldif \
 	ldap/admin/src/scripts/50rootdnaccesscontrolplugin.ldif \
+	ldap/admin/src/scripts/50contentsync.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
 	ldap/admin/src/scripts/70upgradefromldif.pl \
 	ldap/admin/src/scripts/80upgradednformat.pl \
@@ -1133,6 +1135,18 @@ libpwdstorage_plugin_la_SOURCES = ldap/servers/plugins/pwdstorage/clear_pwd.c \
 libpwdstorage_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libpwdstorage_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK) $(LIBCRYPT)
 libpwdstorage_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libcontentsync-plugin
+#------------------------
+libcontentsync_plugin_la_SOURCES = ldap/servers/plugins/sync/sync_init.c \
+	ldap/servers/plugins/sync/sync_util.c \
+	ldap/servers/plugins/sync/sync_refresh.c \
+	ldap/servers/plugins/sync/sync_persist.c
+
+libcontentsync_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libcontentsync_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK) $(LIBCRYPT)
+libcontentsync_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libreferint-plugin
