@@ -2594,8 +2594,9 @@ bail:
 void
 handle_closed_connection(Connection *conn)
 {
-	ber_sockbuf_remove_io(conn->c_sb, &openldap_sockbuf_io,
-		LBER_SBIOD_LEVEL_PROVIDER);
+#ifdef USE_OPENLDAP
+	ber_sockbuf_remove_io(conn->c_sb, &openldap_sockbuf_io,	LBER_SBIOD_LEVEL_PROVIDER);
+#endif
 }
 
 /* NOTE: this routine is not reentrant */
@@ -2673,8 +2674,9 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	}
 #endif /* !USE_OPENLDAP */
 	maxbersize = config_get_maxbersize();
+#if defined(USE_OPENLDAP)
 	ber_sockbuf_ctrl( conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize );
-
+#endif
 	if( secure && config_get_SSLclientAuth() != SLAPD_SSLCLIENTAUTH_OFF ) { 
 	    /* Prepare to handle the client's certificate (if any): */
 		int rv;
