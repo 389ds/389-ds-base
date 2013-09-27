@@ -86,7 +86,8 @@ my $xi = 0;
 my $bindReportDN;
 my $usage = "";
 my @latency;
-my @openConnection;
+# key is conn number - val is IP address
+my %openConnection;
 my @errorCode;
 my @errtext;
 my @errornum;
@@ -133,7 +134,8 @@ GetOptions(
 	'u' => sub { $usage = $usage . "u"; },
 	'r' => sub { $usage = $usage . "r"; },
 	'y' => sub { $usage = $usage . "y"; },
-	'p' => sub { $usage = $usage . "p"; }
+	'p' => sub { $usage = $usage . "p"; },
+	'U' => sub { $usage = $usage . "U"; }
 );
 
 #
@@ -657,7 +659,7 @@ print "Paged Searches:               $pagedSearchCount\n";
 print "Unindexed Searches:           $unindexedSrchCountNotesA\n";
 print "Unindexed Components:         $unindexedSrchCountNotesU\n";
 
-if ($verb eq "yes" || $usage =~ /u/){
+if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 	if ($unindexedSrchCountNotesA > 0){
 		my $conn_hash = $hashes->{conn_hash};
 		my $notesa_conn_op = $hashes->{notesa_conn_op};
@@ -670,28 +672,39 @@ if ($verb eq "yes" || $usage =~ /u/){
 
 		my $notesCount = 1;
 		my $unindexedIp;
-		while (my ($conn_op, $count) = each %{$notesa_conn_op}) {
-			my ($conn, $op) = split(",", $conn_op);
-			if (exists($conn_hash->{$conn}) && defined($conn_hash->{$conn})) {
-				$unindexedIp = $conn_hash->{$conn};
-			} else {
-				$unindexedIp = "?";
+		my %uniqFilt = (); # hash of unique filters
+		while (my ($srcnt_conn_op, $count) = each %{$notesa_conn_op}) {
+			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
+			$unindexedIp = getIPfromConn($conn, $srvRstCnt);
+			if ($usage =~ /u/) {
+				print "\n  Unindexed Search #".$notesCount."\n";
+				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
+				print "  -  Connection Number:     $conn\n";
+				print "  -  Operation Number:      $op\n";
+				print "  -  Etime:                 $etime_conn_op->{$srcnt_conn_op}\n";
+				print "  -  Nentries:              $nentries_conn_op->{$srcnt_conn_op}\n";
+				print "  -  IP Address:            $unindexedIp\n";
+				if (exists($base_conn_op->{$srcnt_conn_op}) && defined($base_conn_op->{$srcnt_conn_op})) {
+					print "  -  Search Base:           $base_conn_op->{$srcnt_conn_op}\n";
+				}
+				if (exists($scope_conn_op->{$srcnt_conn_op}) && defined($scope_conn_op->{$srcnt_conn_op})) {
+					print "  -  Search Scope:          $scope_conn_op->{$srcnt_conn_op}\n";
+				}
 			}
-			print "\n  Unindexed Components #".$notesCount."\n"; $notesCount++;
-			print "  -  Date/Time:             $time_conn_op->{$conn_op}\n";
-			print "  -  Connection Number:     $conn\n";
-			print "  -  Operation Number:      $op\n";
-			print "  -  Etime:                 $etime_conn_op->{$conn_op}\n";
-			print "  -  Nentries:              $nentries_conn_op->{$conn_op}\n";
-			print "  -  IP Address:            $unindexedIp\n";
-			if (exists($base_conn_op->{$conn_op}) && defined($base_conn_op->{$conn_op})) {
-				print "  -  Search Base:           $base_conn_op->{$conn_op}\n";
+			if (exists($filter_conn_op->{$srcnt_conn_op}) && defined($filter_conn_op->{$srcnt_conn_op})) {
+				if ($usage =~ /u/) {
+					print "  -  Search Filter:         $filter_conn_op->{$srcnt_conn_op}\n";
+				}
+				$uniqFilt{$filter_conn_op->{$srcnt_conn_op}}++;
 			}
-			if (exists($scope_conn_op->{$conn_op}) && defined($scope_conn_op->{$conn_op})) {
-				print "  -  Search Scope:          $scope_conn_op->{$conn_op}\n";
-			}
-			if (exists($filter_conn_op->{$conn_op}) && defined($filter_conn_op->{$conn_op})) {
-				print "  -  Search Filter:         $filter_conn_op->{$conn_op}\n";
+			$notesCount++;
+		}
+		if ($usage =~ /U/) {
+			print "\n  Unindexed Search Summary - $notesCount total unindexed searches\n";
+			foreach my $key (sort { $uniqFilt{$b} <=> $uniqFilt{$a} } keys %uniqFilt) {
+				if ($uniqFilt{$key} > 0) {
+					printf "  -  Number of times used unindexed: %10d Filter: $key\n", $uniqFilt{$key};
+				}
 			}
 		}
 	}
@@ -707,28 +720,39 @@ if ($verb eq "yes" || $usage =~ /u/){
 
 		my $notesCount = 1;
 		my $unindexedIp;
-		while (my ($conn_op, $count) = each %{$notesu_conn_op}) {
-			my ($conn, $op) = split(",", $conn_op);
-			if (exists($conn_hash->{$conn}) && defined($conn_hash->{$conn})) {
-				$unindexedIp = $conn_hash->{$conn};
-			} else {
-				$unindexedIp = "?";
+		my %uniqFilt = (); # hash of unique filters
+		while (my ($srcnt_conn_op, $count) = each %{$notesu_conn_op}) {
+			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
+			$unindexedIp = getIPfromConn($conn, $srvRstCnt);
+			if ($usage =~ /u/) {
+				print "\n  Unindexed Component #".$notesCount."\n";
+				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
+				print "  -  Connection Number:     $conn\n";
+				print "  -  Operation Number:      $op\n";
+				print "  -  Etime:                 $etime_conn_op->{$srcnt_conn_op}\n";
+				print "  -  Nentries:              $nentries_conn_op->{$srcnt_conn_op}\n";
+				print "  -  IP Address:            $unindexedIp\n";
+				if (exists($base_conn_op->{$srcnt_conn_op}) && defined($base_conn_op->{$srcnt_conn_op})) {
+					print "  -  Search Base:           $base_conn_op->{$srcnt_conn_op}\n";
+				}
+				if (exists($scope_conn_op->{$srcnt_conn_op}) && defined($scope_conn_op->{$srcnt_conn_op})) {
+					print "  -  Search Scope:          $scope_conn_op->{$srcnt_conn_op}\n";
+				}
 			}
-			print "\n  Unindexed Components #".$notesCount."\n"; $notesCount++;
-			print "  -  Date/Time:             $time_conn_op->{$conn_op}\n";
-			print "  -  Connection Number:     $conn\n";
-			print "  -  Operation Number:      $op\n";
-			print "  -  Etime:                 $etime_conn_op->{$conn_op}\n";
-			print "  -  Nentries:              $nentries_conn_op->{$conn_op}\n";
-			print "  -  IP Address:            $unindexedIp\n";
-			if (exists($base_conn_op->{$conn_op}) && defined($base_conn_op->{$conn_op})) {
-				print "  -  Search Base:           $base_conn_op->{$conn_op}\n";
+			if (exists($filter_conn_op->{$srcnt_conn_op}) && defined($filter_conn_op->{$srcnt_conn_op})) {
+				if ($usage =~ /u/) {
+					print "  -  Search Filter:         $filter_conn_op->{$srcnt_conn_op}\n";
+				}
+				$uniqFilt{$filter_conn_op->{$srcnt_conn_op}}++;
 			}
-			if (exists($scope_conn_op->{$conn_op}) && defined($scope_conn_op->{$conn_op})) {
-				print "  -  Search Scope:          $scope_conn_op->{$conn_op}\n";
-			}
-			if (exists($filter_conn_op->{$conn_op}) && defined($filter_conn_op->{$conn_op})) {
-				print "  -  Search Filter:         $filter_conn_op->{$conn_op}\n";
+			$notesCount++;
+		}
+		if ($usage =~ /U/) {
+			print "\n  Unindexed Component Summary - $notesCount total unindexed components\n";
+			foreach my $key (sort { $uniqFilt{$b} <=> $uniqFilt{$a} } keys %uniqFilt) {
+				if ($uniqFilt{$key} > 0) {
+					printf "  -  Number of times used unindexed: %10d Filter: $key\n", $uniqFilt{$key};
+				}
 			}
 		}
 	}
@@ -829,12 +853,10 @@ if ($verb eq "yes" || $usage =~ /y/){
 ###################################
 
 if ($verb eq "yes" || $usage =~ /p/){
-	if (@openConnection > 0){
+	if (%openConnection){
 		print "\n\n----- Current Open Connection IDs ----- \n\n";
-		for (my $i=0; $i <= $#openConnection ; $i++) {
-			if ($openConnection[$i]) {
-				print "Conn Number:  $i (" . getIPfromConn($i) . ")\n";
-			}
+		while (my ($connid, $ip) = each %openConnection) {
+			print "Conn Number:  $connid ($ip)\n";
 		}
 	}
 }
@@ -904,13 +926,13 @@ if ($verb eq "yes" || $usage =~ /f/ ){
 			my $badpwd_conn_op = $hashes->{badpwd_conn_op};
 			# key is binddn - val is count
 			my %badPassword = ();
-			my @badPasswordIp = ();
-			while (my ($conn_op, $count) = each %{$badpwd_conn_op}) {
-				my ($conn, $op) = split(",", $conn_op);
-				if (exists($bind_conn_op->{$conn_op}) && defined($bind_conn_op->{$conn_op})) {
-					my $binddn = $bind_conn_op->{$conn_op};
+			my %badPasswordIp = ();
+			while (my ($srcnt_conn_op, $ip) = each %{$badpwd_conn_op}) {
+				my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
+				if (exists($bind_conn_op->{$srcnt_conn_op}) && defined($bind_conn_op->{$srcnt_conn_op})) {
+					my $binddn = $bind_conn_op->{$srcnt_conn_op};
 					$badPassword{$binddn}++;
-					push @badPasswordIp, getIPfromConn($conn);
+					$badPasswordIp{$ip}++;
 				}
 			}
 			# sort the new hash of $badPassword{}
@@ -923,8 +945,11 @@ if ($verb eq "yes" || $usage =~ /f/ ){
 				printf "%-4s        %-40s\n", $badPassword{"$badpw"}, $badpw;
 			}
 			print "\nFrom the IP address(s) :\n\n";
-			for (my $i=0; $i<$badPwdCount; $i++) {
-				print "\t\t$badPasswordIp[$i]\n";
+			$bpCount = 0;
+			foreach my $ip (sort {$badPassword{$b} <=> $badPassword{$a} } keys %badPasswordIp){
+				if ($bpCount > $sizeCount){ last;}
+				$bpCount++;
+				printf "%-4s        %-16s\n", $badPasswordIp{$ip}, $ip;
 			}
 			if ($bpTotal > $badPwdCount){
 				print "\n** Warning : Wrongly reported failed login attempts : ". ($bpTotal - $badPwdCount) . "\n";
@@ -1220,33 +1245,28 @@ if ($usage =~ /g/i || $verb eq "yes"){
 
 		print "\n\n----- Abandon Request Stats -----\n\n";
 
-		while (my ($conn_op, $targ_msgid) = each %{$abandon_conn_op}) {
-			my ($conn, $op) = split(",", $conn_op);
+		while (my ($srcnt_conn_op, $targ_msgid) = each %{$abandon_conn_op}) {
+			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
 			my ($targetop, $msgid) = split(",", $targ_msgid);
-			my $conn_targ = "$conn,$targetop";
-			my $clientIP;
-			if (exists($conn_hash->{$conn}) && defined($conn_hash->{$conn})) {
-				$clientIP = $conn_hash->{$conn};
-			} else {
-				$clientIP = "Unknown";
-			}
-			if (exists($srch_conn_op->{$conn_targ}) && defined($srch_conn_op->{$conn_targ})) {
+			my $srcnt_conn_targ = "$srvRstCnt,$conn,$targetop";
+			my $clientIP = getIPfromConn($conn, $srvRstCnt);
+			if (exists($srch_conn_op->{$srcnt_conn_targ}) && defined($srch_conn_op->{$srcnt_conn_targ})) {
 				print " - SRCH conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($del_conn_op->{$conn_targ}) && defined($del_conn_op->{$conn_targ})) {
+			} elsif (exists($del_conn_op->{$srcnt_conn_targ}) && defined($del_conn_op->{$srcnt_conn_targ})) {
 				print " - DEL  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($add_conn_op->{$conn_targ}) && defined($add_conn_op->{$conn_targ})) {
+			} elsif (exists($add_conn_op->{$srcnt_conn_targ}) && defined($add_conn_op->{$srcnt_conn_targ})) {
 				print " - ADD  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($mod_conn_op->{$conn_targ}) && defined($mod_conn_op->{$conn_targ})) {
+			} elsif (exists($mod_conn_op->{$srcnt_conn_targ}) && defined($mod_conn_op->{$srcnt_conn_targ})) {
 				print " - MOD  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($cmp_conn_op->{$conn_targ}) && defined($cmp_conn_op->{$conn_targ})) {
+			} elsif (exists($cmp_conn_op->{$srcnt_conn_targ}) && defined($cmp_conn_op->{$srcnt_conn_targ})) {
 				print " - CMP  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($mdn_conn_op->{$conn_targ}) && defined($mdn_conn_op->{$conn_targ})) {
+			} elsif (exists($mdn_conn_op->{$srcnt_conn_targ}) && defined($mdn_conn_op->{$srcnt_conn_targ})) {
 				print " - MODRDN conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($bind_conn_op->{$conn_targ}) && defined($bind_conn_op->{$conn_targ})) {
+			} elsif (exists($bind_conn_op->{$srcnt_conn_targ}) && defined($bind_conn_op->{$srcnt_conn_targ})) {
 				print " - BIND conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($unbind_conn_op->{$conn_targ}) && defined($unbind_conn_op->{$conn_targ})) {
+			} elsif (exists($unbind_conn_op->{$srcnt_conn_targ}) && defined($unbind_conn_op->{$srcnt_conn_targ})) {
 				print " - UNBIND conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
-			} elsif (exists($ext_conn_op->{$conn_targ}) && defined($ext_conn_op->{$conn_targ})) {
+			} elsif (exists($ext_conn_op->{$srcnt_conn_targ}) && defined($ext_conn_op->{$srcnt_conn_targ})) {
 				print " - EXT  conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
 			} else {
 				print " - UNKNOWN conn=$conn op=$targetop msgid=$msgid client=$clientIP\n";
@@ -1521,6 +1541,44 @@ processOpForBindReport
 }
 
 my ($last_tm, $lastzone, $last_min, $gmtime, $tzoff);
+sub handleConnClose
+{
+	my $connID = shift;
+	$fdReturned++;
+	$simConnection--;
+
+	delete $openConnection{$connID};
+	if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
+		# if we didn't see the start time of this connection
+		# i.e. due to truncation or log rotation
+		# then just set to 0
+		my $stoc = $hashes->{start_time_of_connection}->{$connID} || 0;
+		$hashes->{end_time_of_connection}->{$connID} = $gmtime || 0;
+		my $diff = $hashes->{end_time_of_connection}->{$connID} - $stoc;
+		$hashes->{start_time_of_connection}->{$connID} = $hashes->{end_time_of_connection}->{$connID} = 0;
+		if ($diff <= 1) { $latency[0]++;}
+		if ($diff == 2) { $latency[1]++;}
+		if ($diff == 3) { $latency[2]++;}
+		if ($diff >= 4 && $diff <=5 ) { $latency[3]++;}
+		if ($diff >= 6 && $diff <=10 ) { $latency[4]++;}
+		if ($diff >= 11 && $diff <=15 ) { $latency[5]++;}
+		if ($diff >= 16) { $latency[6] ++;}
+	}
+}
+
+sub handleRestart
+{
+	# there are some stats which depend on restarts
+	if ($verb eq "yes") {
+		print "Found a restart - resetting stats that depend on restarts";
+	}
+	for my $connID (keys %openConnection) {
+		handleConnClose($connID);
+	}
+	%openConnection = (); # reset open connections
+	$serverRestartCount++;
+}
+
 sub parseLineNormal
 {
 	local $_ = $logline;
@@ -1612,42 +1670,42 @@ sub parseLineNormal
 			$anyAttrs++;
 		}
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{srch_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{srch_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
 	if (m/ DEL/){
 		$delCount++;
 		if($reportStats){ inc_stats('del',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{del_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{del_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
 	if (m/ MOD dn=/){
 		$modCount++;
 		if($reportStats){ inc_stats('mod',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{mod_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{mod_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
 	if (m/ ADD/){
 		$addCount++;
 		if($reportStats){ inc_stats('add',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{add_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{add_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
 	if (m/ MODRDN/){
 		$modrdnCount++;
 		if($reportStats){ inc_stats('modrdn',$s_stats,$m_stats); }
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{mdn_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{mdn_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
 	if (m/ CMP dn=/){
 		$cmpCount++;
 		if($reportStats){ inc_stats('cmp',$s_stats,$m_stats); }
 		if ($verb eq "yes"  || $usage =~ /g/i){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{cmp_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{cmp_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
 	if (m/ ABANDON /){
@@ -1662,7 +1720,7 @@ sub parseLineNormal
 		if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+) +ABANDON +targetop= *([0-9a-zA-Z]+) +msgid= *([0-9\-]+)/i ){
 			# abandon_conn_op - key is the conn,op of the ABANDON request
 			# the value is the targetop,msgid of the ABANDON request
-			$hashes->{abandon_conn_op}->{"$1,$2"} = "$3,$4"; # targetop,msgid
+			$hashes->{abandon_conn_op}->{"$serverRestartCount,$1,$2"} = "$3,$4"; # targetop,msgid
 		}
 	}
 	if (m/ VLV /){
@@ -1676,7 +1734,9 @@ sub parseLineNormal
 	if (m/ SORT /){$vlvSortCount++}
 	if (m/ version=2/){$v2BindCount++}
 	if (m/ version=3/){$v3BindCount++}
-	if (m/ conn=1 fd=/){$serverRestartCount++}
+	if (m/ conn=1 fd=/){
+		handleRestart();
+	}
 	if (m/ SSL connection from/){$sslCount++; if($reportStats){ inc_stats('sslconns',$s_stats,$m_stats); }}
 	if (m/ connection from local to /){$ldapiCount++;}
 	if($_ =~ /AUTOBIND dn=\"(.*)\"/){
@@ -1697,9 +1757,11 @@ sub parseLineNormal
 		}
 	}
 	if (m/ connection from/){
+		my $ip;
 		if ($_ =~ /connection from *([0-9A-Fa-f\.\:]+)/i ){
+			$ip = $1;
 			for (my $xxx =0; $xxx < $#excludeIP; $xxx++){
-				if ($excludeIP[$xxx] eq $1){$exc = "yes";}
+				if ($excludeIP[$xxx] eq $ip){$exc = "yes";}
 			}
 			if ($exc ne "yes"){
 				$connectionCount++;
@@ -1711,40 +1773,17 @@ sub parseLineNormal
 			$maxsimConnection = $simConnection;
 		}
 		($connID) = $_ =~ /conn=(\d*)\s/;
-		$openConnection[$connID]++;
+		$openConnection{$connID} = $ip;
 		if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
-			my ($time, $tzone) = split (' ', $_);
-			my ($date, $hr, $min, $sec) = split (':', $time);
-			my ($day, $mon, $yr) = split ('/', $date);
-			$day =~ s/\[//;
-			$hashes->{start_time_of_connection}->{$connID} = timegm($sec, $min, $hr, $day, $monthname{$mon}, $yr);
+			$hashes->{start_time_of_connection}->{$connID} = $gmtime;
 		}
 	}
 	if (m/ SSL client bound as /){$sslClientBindCount++;}
 	if (m/ SSL failed to map client certificate to LDAP DN/){$sslClientFailedCount++;}
 	if (m/ fd=/ && m/slot=/){$fdTaken++}
 	if (m/ fd=/ && m/closed/){
-		$fdReturned++;
-		$simConnection--;
-
 		($connID) = $_ =~ /conn=(\d*)\s/;
-		$openConnection[$connID]--;
-		if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
-			# if we didn't see the start time of this connection
-			# i.e. due to truncation or log rotation
-			# then just set to 0
-			my $stoc = $hashes->{start_time_of_connection}->{$connID} || 0;
-			$hashes->{end_time_of_connection}->{$connID} = $gmtime || 0;
-			my $diff = $hashes->{end_time_of_connection}->{$connID} - $stoc;
-			$hashes->{start_time_of_connection}->{$connID} = $hashes->{end_time_of_connection}->{$connID} = 0;
-			if ($diff <= 1) { $latency[0]++;}
-			if ($diff == 2) { $latency[1]++;}
-			if ($diff == 3) { $latency[2]++;}
-			if ($diff >= 4 && $diff <=5 ) { $latency[3]++;}
-			if ($diff >= 6 && $diff <=10 ) { $latency[4]++;}
-			if ($diff >= 11 && $diff <=15 ) { $latency[5]++;}
-			if ($diff >= 16) { $latency[6] ++;}
-		}
+		handleConnClose($connID);
 	}
 	if (m/ BIND/ && $_ =~ /dn=\"(.*)\" method/i ){
 		my $binddn = $1;
@@ -1761,13 +1800,13 @@ sub parseLineNormal
 			$tmpp =~ tr/A-Z/a-z/;
 			$hashes->{bindlist}->{$tmpp}++;
 			if($usage =~ /f/ || $verb eq "yes"){
-				$hashes->{bind_conn_op}->{"$conn,$op"} = $tmpp;
+				$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = $tmpp;
 			}
 		} else {
 			$anonymousBindCount++;
 			$hashes->{bindlist}->{"Anonymous Binds"}++;
 			if($usage =~ /f/ || $verb eq "yes"){
-				$hashes->{bind_conn_op}->{"$conn,$op"} = "";
+				$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = "";
 			}
 			inc_stats('anonbind',$s_stats,$m_stats);
 		}
@@ -1775,7 +1814,7 @@ sub parseLineNormal
 	if (m/ UNBIND/){
 		$unbindCount++;
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{unbind_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{unbind_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
 	if (m/ RESULT err=/ && m/ notes=[A-Z,]*P/){
@@ -1795,11 +1834,11 @@ sub parseLineNormal
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
 			$unindexedSrchCountNotesA++;
 			if($reportStats){ inc_stats('notesA',$s_stats,$m_stats); }
-			if ($usage =~ /u/ || $verb eq "yes"){
-				$hashes->{notesa_conn_op}->{"$con,$op"}++;
-				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$con,$op"} = $1; }
-				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$con,$op"} = $1; }
-				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$con,$op"} = $1; }
+			if ($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
+				$hashes->{notesa_conn_op}->{"$serverRestartCount,$con,$op"}++;
+				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
 			}
 		}
 		$isVlvNotes = 0;
@@ -1818,11 +1857,11 @@ sub parseLineNormal
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
 			$unindexedSrchCountNotesU++;
 			if($reportStats){ inc_stats('notesU',$s_stats,$m_stats); }
-			if ($usage =~ /u/ || $verb eq "yes"){
-				$hashes->{notesu_conn_op}->{"$con,$op"}++;
-				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$con,$op"} = $1; }
-				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$con,$op"} = $1; }
-				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$con,$op"} = $1; }
+			if ($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
+				$hashes->{notesu_conn_op}->{"$serverRestartCount,$con,$op"}++;
+				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
 			}
 		}
 		$isVlvNotes = 0;
@@ -1885,14 +1924,14 @@ sub parseLineNormal
 			$hashes->{ip_hash}->{$ip}++;
 			if ($_ =~ /conn= *([0-9A-Z]+)/i ){
 				if ($exc ne "yes"){
-					$hashes->{conn_hash}->{$1} = $ip;
+					$hashes->{conn_hash}->{"$serverRestartCount,$1"} = $ip;
 				}
 			}
 		}
 		if (m/- A1/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -1906,7 +1945,7 @@ sub parseLineNormal
 		if (m/- B1/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -1920,7 +1959,7 @@ sub parseLineNormal
 		if (m/- B4/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -1934,7 +1973,7 @@ sub parseLineNormal
 		if (m/- T1/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -1948,7 +1987,7 @@ sub parseLineNormal
 		if (m/- T2/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -1962,7 +2001,7 @@ sub parseLineNormal
 		if (m/- B2/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				$maxBerSizeCount++;
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
@@ -1977,7 +2016,7 @@ sub parseLineNormal
 		if (m/- B3/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -1991,7 +2030,7 @@ sub parseLineNormal
 		if (m/- R1/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -2005,7 +2044,7 @@ sub parseLineNormal
 		if (m/- P1/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -2019,7 +2058,7 @@ sub parseLineNormal
 		if (m/- P2/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -2033,7 +2072,7 @@ sub parseLineNormal
 		if (m/- U1/){
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
 				$exc = "no";
-				$ip = getIPfromConn($1);
+				$ip = getIPfromConn($1, $serverRestartCount);
 				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
 					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
 				}
@@ -2062,10 +2101,10 @@ sub parseLineNormal
 		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ $hashes->{oid}->{$1}++; }
 		if ($1 && $1 eq $startTLSoid){$startTLSCount++;}
 		if ($verb eq "yes"){
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{ext_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{ext_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
 	}
-	if (($usage =~ /l/ || $verb eq "yes") and / SRCH /){
+	if (($usage =~ /l/ || $verb eq "yes" || $usage =~ /u/ || $usage =~ /U/) and / SRCH /){
 		my ($filterConn, $filterOp);
 		if (/ SRCH / && / attrs=/ && $_ =~ /filter=\"(.*)\" /i ){
 			$tmpp = $1;
@@ -2083,13 +2122,13 @@ sub parseLineNormal
 			if ($_ =~ /op= *([0-9\-]+)/i) { $filterOp = $1; }
 		}
 		$filterCount++;
-		if($usage =~ /u/ || $verb eq "yes"){
+		if($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
 			# we only need this for the unindexed search report
-			$hashes->{filter_conn_op}->{"$filterConn,$filterOp"} = $tmpp;
+			$hashes->{filter_conn_op}->{"$serverRestartCount,$filterConn,$filterOp"} = $tmpp;
 		}
 	}
-	if ($usage =~ /a/ || $verb eq "yes"){
-		if (/ SRCH /   && $_ =~ /base=\"(.*)\" scope/i ){
+	if (($usage =~ /a/ || $verb eq "yes" || $usage =~ /u/ || $usage =~ /U/) and / SRCH /){
+		if ($_ =~ /base=\"(.*)\" scope/i ){
 			my ($conn, $op, $scopeVal);
 			if ($1 eq ""){
 				$tmpp = "Root DSE";
@@ -2110,10 +2149,10 @@ sub parseLineNormal
 			if ($_ =~ /op= *([0-9\-]+)/i) {
 				$op = $1;
 			}
-			if($usage =~ /u/ || $verb eq "yes"){
+			if($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
 				# we only need this for the unindexed search report
-				$hashes->{base_conn_op}->{"$conn,$op"} = $tmpp;
-				$hashes->{scope_conn_op}->{"$conn,$op"} = $scopeTxt[$scopeVal];
+				$hashes->{base_conn_op}->{"$serverRestartCount,$conn,$op"} = $tmpp;
+				$hashes->{scope_conn_op}->{"$serverRestartCount,$conn,$op"} = $scopeTxt[$scopeVal];
 			}
 			$baseCount++;
 			$scopeCount++;
@@ -2133,7 +2172,9 @@ sub parseLineNormal
 			$badPwdCount++;
 		} elsif (/ err=49 tag=/ ){
 			$badPwdCount++;
-			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{badpwd_conn_op}->{"$1,$2"}++;}
+			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){
+				$hashes->{badpwd_conn_op}->{"$serverRestartCount,$1,$2"} = getIPfromConn($1, $serverRestartCount);
+			}
 		}
 	}
 	if (/ BIND / && /method=sasl/i){
@@ -2394,9 +2435,11 @@ sub
 getIPfromConn
 {
 	my $connid = shift;
-	if (exists($hashes->{conn_hash}->{$connid}) &&
-		defined($hashes->{conn_hash}->{$connid})) {
-		return $hashes->{conn_hash}->{$connid};
+	my $serverRestartCount = shift;
+	my $key = "$serverRestartCount,$connid";
+	if (exists($hashes->{conn_hash}->{$key}) &&
+		defined($hashes->{conn_hash}->{$key})) {
+		return $hashes->{conn_hash}->{$key};
 	}
 
 	return "Unknown_Host";
