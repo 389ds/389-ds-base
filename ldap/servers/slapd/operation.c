@@ -228,7 +228,7 @@ operation_done( Slapi_Operation **op, Connection *conn )
 {
 	if(op!=NULL && *op!=NULL)
 	{
-		int options = 0;
+
 		/* Call the plugin extension destructors */
 		factory_destroy_extension(get_operation_object_type(),*op,conn,&((*op)->o_extension));
 		slapi_sdn_done(&(*op)->o_sdn);
@@ -245,6 +245,7 @@ operation_done( Slapi_Operation **op, Connection *conn )
 		}
 		slapi_ch_free_string(&(*op)->o_results.result_matched);
 #if defined(USE_OPENLDAP)
+		int options = 0;
 		/* save the old options */
 		if ((*op)->o_ber) {
 			ber_get_option((*op)->o_ber, LBER_OPT_BER_OPTIONS, &options);
