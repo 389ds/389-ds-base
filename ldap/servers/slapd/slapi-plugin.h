@@ -430,27 +430,6 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define LDAP_SYNC_NEW_COOKIE     4
 #endif
 
-#ifndef LDAP_SYNC_CAPI_NONE
-typedef enum {
-    /* these are private - the client should never see them */
-    LDAP_SYNC_CAPI_NONE             = -1,
-    LDAP_SYNC_CAPI_PHASE_FLAG       = 0x10U,
-    LDAP_SYNC_CAPI_IDSET_FLAG       = 0x20U,
-    LDAP_SYNC_CAPI_DONE_FLAG        = 0x40U,
-    /* these are passed to ls_search_entry() */
-    LDAP_SYNC_CAPI_PRESENT          = LDAP_SYNC_PRESENT,
-    LDAP_SYNC_CAPI_ADD              = LDAP_SYNC_ADD,
-    LDAP_SYNC_CAPI_MODIFY           = LDAP_SYNC_MODIFY,
-    LDAP_SYNC_CAPI_DELETE           = LDAP_SYNC_DELETE,
-    /* these are passed to ls_intermediate() */
-    LDAP_SYNC_CAPI_PRESENTS         = ( LDAP_SYNC_CAPI_PHASE_FLAG | LDAP_SYNC_CAPI_PRESENT ),
-    LDAP_SYNC_CAPI_DELETES          = ( LDAP_SYNC_CAPI_PHASE_FLAG | LDAP_SYNC_CAPI_DELETE ),
-    LDAP_SYNC_CAPI_PRESENTS_IDSET   = ( LDAP_SYNC_CAPI_PRESENTS | LDAP_SYNC_CAPI_IDSET_FLAG ),
-    LDAP_SYNC_CAPI_DELETES_IDSET    = ( LDAP_SYNC_CAPI_DELETES | LDAP_SYNC_CAPI_IDSET_FLAG ),
-    LDAP_SYNC_CAPI_DONE             = ( LDAP_SYNC_CAPI_DONE_FLAG | LDAP_SYNC_CAPI_PRESENTS )
-} ldap_sync_refresh_t;
-#endif
-
 /*
  * Sequential access types
  */
