@@ -3617,17 +3617,17 @@ dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn,
         {
             /* this txn is now our current transaction for current operations
                and new parent for any nested transactions created */
-		if (use_lock && log_flush_thread) {
-			int txn_id = new_txn.back_txn_txn->id(new_txn.back_txn_txn);
-			PR_Lock(sync_txn_log_flush);
-			txn_in_progress_count++;
-    			LDAPDebug(LDAP_DEBUG_BACKLDBM, "txn_begin: batchcount: %d, txn_in_progress: %d, curr_txn: %x\n", trans_batch_count, txn_in_progress_count, txn_id);
-			PR_Unlock(sync_txn_log_flush);
-		}
-        	dblayer_push_pvt_txn(&new_txn);
-        	if (txn) {
-	        	txn->back_txn_txn = new_txn.back_txn_txn;
-            	}
+            if (use_lock && log_flush_thread) {
+                int txn_id = new_txn.back_txn_txn->id(new_txn.back_txn_txn);
+                PR_Lock(sync_txn_log_flush);
+                txn_in_progress_count++;
+                LDAPDebug(LDAP_DEBUG_BACKLDBM, "txn_begin: batchcount: %d, txn_in_progress: %d, curr_txn: %x\n", trans_batch_count, txn_in_progress_count, txn_id);
+                PR_Unlock(sync_txn_log_flush);
+            }
+            dblayer_push_pvt_txn(&new_txn);
+            if (txn) {
+                txn->back_txn_txn = new_txn.back_txn_txn;
+            }
         }
     } else
     {
@@ -3655,16 +3655,16 @@ dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn)
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int rc = 0;
     if (DBLOCK_INSIDE_TXN(li)) {
-    	rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
-	if (!rc && SERIALLOCK(li)) {
+        rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
+        if (!rc && SERIALLOCK(li)) {
             dblayer_lock_backend(be);
-    	}
+        }
     } else {
-    	if (SERIALLOCK(li)) {
+        if (SERIALLOCK(li)) {
             dblayer_lock_backend(be);
-    	}
-    	rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
-    	if (rc && SERIALLOCK(li)) {
+        }
+        rc = dblayer_txn_begin_ext(li,parent_txn,txn,PR_TRUE);
+        if (rc && SERIALLOCK(li)) {
             dblayer_unlock_backend(be);
         }
     }
@@ -3678,8 +3678,8 @@ int dblayer_txn_commit_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
     dblayer_private *priv = NULL;
     DB_TXN *db_txn = NULL;
     back_txn *cur_txn = NULL;
-	int txn_id = 0;
-	int txn_batch_slot = 0;
+    int txn_id = 0;
+    int txn_batch_slot = 0;
 
     PR_ASSERT(NULL != li);
 
@@ -3783,15 +3783,15 @@ dblayer_txn_commit(backend *be, back_txn *txn)
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int rc;
     if (DBLOCK_INSIDE_TXN(li)) {
-    	if (SERIALLOCK(li)) {
-    	    dblayer_unlock_backend(be);
-        }
-	rc  = dblayer_txn_commit_ext(li,txn,PR_TRUE);
-    } else {
-	rc  = dblayer_txn_commit_ext(li,txn,PR_TRUE);
-    	if (SERIALLOCK(li)) {
+        if (SERIALLOCK(li)) {
             dblayer_unlock_backend(be);
-	}
+        }
+        rc  = dblayer_txn_commit_ext(li,txn,PR_TRUE);
+    } else {
+        rc  = dblayer_txn_commit_ext(li,txn,PR_TRUE);
+        if (SERIALLOCK(li)) {
+            dblayer_unlock_backend(be);
+        }
     }
     return rc;
 }
@@ -3823,13 +3823,13 @@ int dblayer_txn_abort_ext(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         priv->dblayer_env &&
         priv->dblayer_enable_transactions)
     {
-	int txn_id = db_txn->id(db_txn);
-	if ( use_lock && log_flush_thread) {
-		PR_Lock(sync_txn_log_flush);
-		txn_in_progress_count--;
-		PR_Unlock(sync_txn_log_flush);
-    		LDAPDebug(LDAP_DEBUG_BACKLDBM, "txn_abort : batchcount: %d, txn_in_progress: %d, curr_txn: %x\n", trans_batch_count, txn_in_progress_count, txn_id);
-	}
+        int txn_id = db_txn->id(db_txn);
+        if ( use_lock && log_flush_thread) {
+            PR_Lock(sync_txn_log_flush);
+            txn_in_progress_count--;
+            PR_Unlock(sync_txn_log_flush);
+            LDAPDebug(LDAP_DEBUG_BACKLDBM, "txn_abort : batchcount: %d, txn_in_progress: %d, curr_txn: %x\n", trans_batch_count, txn_in_progress_count, txn_id);
+        }
         return_value = TXN_ABORT(db_txn);
         /* if we were given a transaction, and it is the same as the
            current transaction in progress, pop it off the stack
@@ -3874,14 +3874,14 @@ dblayer_txn_abort(backend *be, back_txn *txn)
     int rc;
     if (DBLOCK_INSIDE_TXN(li)) {
         if (SERIALLOCK(li)) {
-    	    dblayer_unlock_backend(be);
-	}
-	rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
+            dblayer_unlock_backend(be);
+        }
+        rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
     } else {
-	rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
+        rc = dblayer_txn_abort_ext(li, txn, PR_TRUE);
         if (SERIALLOCK(li)) {
-    	    dblayer_unlock_backend(be);
-	}
+            dblayer_unlock_backend(be);
+        }
     }
     return rc;
 }
@@ -4567,9 +4567,9 @@ static int log_flush_threadmain(void *param)
     interval_flush = PR_MillisecondsToInterval(trans_batch_txn_min_sleep);
     interval_wait = PR_MillisecondsToInterval(trans_batch_txn_max_sleep);
     interval_def = PR_MillisecondsToInterval(300); /*used while no txn or txn batching */
-						   /* LK this is only needed if online change of
-						    * of txn config is supported ??? 
-						    */	
+    /* LK this is only needed if online change of
+     * of txn config is supported ??? 
+     */
     while ((!priv->dblayer_stop_threads) && (log_flush_thread)){
         if (priv->dblayer_enable_transactions){
             if (trans_batch_limit > 0) {
@@ -5932,6 +5932,7 @@ dblayer_copy_directory(struct ldbminfo *li,
     char            inst_dir[MAXPATHLEN];
     char            sep;
     int             suffix_len = 0;
+    ldbm_instance *inst = NULL;
 
     if (!src_dir || '\0' == *src_dir)
     {
@@ -5955,6 +5956,14 @@ dblayer_copy_directory(struct ldbminfo *li,
     else
         relative_instance_name++;
 
+    inst = ldbm_instance_find_by_name(li, relative_instance_name);
+    if (NULL == inst) {
+        LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
+                  "Instance path %s could be invalid.\n",
+                  relative_instance_name, src_dir, 0);
+        return return_value;
+    }
+
     if (is_fullpath(src_dir))
     {
         new_src_dir = src_dir;
@@ -5962,15 +5971,6 @@ dblayer_copy_directory(struct ldbminfo *li,
     else
     {
         int len;
-        ldbm_instance *inst =
-                       ldbm_instance_find_by_name(li, relative_instance_name);
-        if (NULL == inst)
-        {
-            LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
-                  "Instance path %s could be invalid.\n",
-                  relative_instance_name, src_dir, 0);
-            return return_value;
-        }
 
         inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                               inst_dir, MAXPATHLEN);
@@ -6090,13 +6090,12 @@ dblayer_copy_directory(struct ldbminfo *li,
             /* If the file is a database file, and resetlsns is set, then we need to do a key by key copy */
             /* PL_strcmp takes NULL arg */
             if (resetlsns &&
-                (PL_strcmp(LDBM_FILENAME_SUFFIX, strrchr(filename1, '.'))
-                 == 0)) {
+                (PL_strcmp(LDBM_FILENAME_SUFFIX, strrchr(filename1, '.')) == 0)) {
                 return_value = dblayer_copy_file_resetlsns(src_dir, filename1, filename2,
-                                            0, priv);
+                                                           0, priv, inst);
             } else {
                 return_value = dblayer_copyfile(filename1, filename2,
-                                            0, priv->dblayer_file_mode);
+                                                0, priv->dblayer_file_mode);
             }
             slapi_ch_free((void**)&filename1);
             slapi_ch_free((void**)&filename2);
@@ -6819,6 +6818,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     PR_Lock(li->li_config_mutex);
     /* dblayer_home_directory is freed in dblayer_post_close.
      * li_directory needs to live beyond dblayer. */
+    slapi_ch_free_string(&priv->dblayer_home_directory);
     priv->dblayer_home_directory = slapi_ch_strdup(li->li_directory);
     priv->dblayer_cachesize = li->li_dbcachesize;
     priv->dblayer_ncache = li->li_dbncache;

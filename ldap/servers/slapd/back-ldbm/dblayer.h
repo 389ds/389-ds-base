@@ -202,7 +202,7 @@ int dblayer_make_private_simple_env(char *db_home_dir, DB_ENV **env);
 /* Copy a database file, preserving all its contents (used to reset the LSNs in the file in order to move 
  * it from one transacted environment to another.
  */
-int dblayer_copy_file_resetlsns(char *home_dir, char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv);
+int dblayer_copy_file_resetlsns(char *home_dir, char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv, ldbm_instance *inst);
 /* Turn on the various logging and debug options for DB */
 void dblayer_set_env_debugging(DB_ENV *pEnv, dblayer_private *priv);
 
