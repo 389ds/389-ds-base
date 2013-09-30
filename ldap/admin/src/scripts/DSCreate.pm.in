@@ -799,6 +799,17 @@ sub set_path_attribute {
     }
 }
 
+sub set_localrundir {
+    my $val = shift;
+    my $prefix = shift;
+
+    if ($val) {
+        return "$prefix" . "$val";
+    } else {
+        return "";
+    }
+}
+
 sub setDefaults {
     my $inf = shift;
     # set default values
@@ -1082,8 +1093,8 @@ sub updateTmpfilesDotD {
         # Type Path          Mode UID  GID  Age
         # d    /var/run/user 0755 root root 10d
         # we don't use age
-        my $localrundir = set_path_attribute("@localrundir@", $inf->{slapd}->{localstatedir}, $inf->{General}->{prefix});
-        if( -d "$localrundir"){
+        my $localrundir = set_localrundir("@localrundir@", $inf->{General}->{prefix});
+        if( $localrundir != "" && -d "$localrundir"){
             $rundir = "$localrundir/@PACKAGE_NAME@";
             $lockdir = "$localrundir/lock/@PACKAGE_NAME@/slapd-$inf->{slapd}->{ServerIdentifier}";
             $parentdir = "$localrundir/lock/@PACKAGE_NAME@";
