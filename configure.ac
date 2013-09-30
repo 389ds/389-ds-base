@@ -231,6 +231,8 @@ AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
 m4_include(m4/fhs.m4)
 
+localrundir='/run'
+
 # installation paths - by default, we store everything
 # under the prefix.  The with-fhs option will use /usr,
 # /etc, and /var.  The with-fhs-opt option will use the
