@@ -1224,6 +1224,7 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 					    (char*)slapi_sdn_get_ndn(this_role->dn),
 					    ROLE_FILTER_ATTR_NAME, filter_attr_value,
 					    ROLE_FILTER_ATTR_NAME);
+					slapi_ch_free_string(&filter_attr_value);
 					slapi_ch_free((void**)&this_role);
 					return SLAPI_ROLE_ERROR_FILTER_BAD;
 				}
@@ -1233,7 +1234,7 @@ static int roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_ob
 
 			/* Turn it into a slapi filter object */
 			filter = slapi_str2filter(filter_attr_value);
-			slapi_ch_free((void**)&filter_attr_value);
+			slapi_ch_free_string(&filter_attr_value);
 
 			if ( filter == NULL ) 
 			{
