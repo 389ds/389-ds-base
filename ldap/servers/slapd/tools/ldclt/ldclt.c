@@ -1584,20 +1584,24 @@ basicInit (void)
     /* start to read file content */
     mctx.attrplFileContent = (char *)malloc(mctx.attrplFileSize + 1);    
     i=0;
-    while ( fread(buffer, BUFFERSIZE , 1, attrF) )
+    while ( (ret = fread(buffer, BUFFERSIZE , 1, attrF)) )
     {
-      memcpy(mctx.attrplFileContent+i, buffer , BUFFERSIZE );
-      memset(buffer ,'\0', BUFFERSIZE );
-      i = i + BUFFERSIZE;
+      memcpy(mctx.attrplFileContent+i, buffer , ret);
+      memset(buffer ,'\0', BUFFERSIZE);
+      i += ret;
     } 
     /* copy remainding content into mctx.attrplFileContent */
+    /* ??? 
+     * Why you need to copy buffer twice to fill the gap?
+     * Could there any chance (mctx.attrplFileSize - 1 - i) > BUFFERSIZE ?
+     */
     if (i<mctx.attrplFileSize)
     {
       memcpy(mctx.attrplFileContent+i, buffer , (mctx.attrplFileSize - 1 - i));
       memset(buffer ,'\0', BUFFERSIZE );  /* clear the buffer */
     }
 
-    mctx.attrplFileContent[mctx.attrplFileSize]='\0'; // append the close bit
+    mctx.attrplFileContent[mctx.attrplFileSize]='\0'; /* append the close bit */
 
     if ((fclose(attrF)) == EOF )
     {
