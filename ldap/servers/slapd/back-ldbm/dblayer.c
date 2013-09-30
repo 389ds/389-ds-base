@@ -5226,7 +5226,7 @@ static int read_metadata(struct ldbminfo *li)
     /* Open the guard file and read stuff, then delete it */
     PR_snprintf(filename,sizeof(filename),"%s/guardian",priv->dblayer_home_directory);
 
-    memset(&prfinfo, '\0', sizeof(PRFileInfo));
+    memset(&prfinfo, '\0', sizeof(PRFileInfo64));
     (void)PR_GetFileInfo64(filename, &prfinfo);
 
     prfd = PR_Open(filename,PR_RDONLY,priv->dblayer_file_mode);
