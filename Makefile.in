@@ -373,9 +373,10 @@ am_libcontentsync_plugin_la_OBJECTS = ldap/servers/plugins/sync/libcontentsync_p
 	ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo
 libcontentsync_plugin_la_OBJECTS =  \
 	$(am_libcontentsync_plugin_la_OBJECTS)
-libcontentsync_plugin_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(libcontentsync_plugin_la_LDFLAGS) $(LDFLAGS) -o $@
+libcontentsync_plugin_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(AM_CFLAGS) $(CFLAGS) $(libcontentsync_plugin_la_LDFLAGS) \
+	$(LDFLAGS) -o $@
 libcos_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 am_libcos_plugin_la_OBJECTS =  \
@@ -2482,9 +2483,9 @@ libpwdstorage_plugin_la_LDFLAGS = -avoid-version
 # libcontentsync-plugin
 #------------------------
 libcontentsync_plugin_la_SOURCES = ldap/servers/plugins/sync/sync_init.c \
-        ldap/servers/plugins/sync/sync_util.c \
-        ldap/servers/plugins/sync/sync_refresh.c \
-        ldap/servers/plugins/sync/sync_persist.c
+	ldap/servers/plugins/sync/sync_util.c \
+	ldap/servers/plugins/sync/sync_refresh.c \
+	ldap/servers/plugins/sync/sync_persist.c
 
 libcontentsync_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
 libcontentsync_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK) $(LIBCRYPT)
@@ -3552,8 +3553,9 @@ ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo:  \
 ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo:  \
 	ldap/servers/plugins/sync/$(am__dirstamp) \
 	ldap/servers/plugins/sync/$(DEPDIR)/$(am__dirstamp)
+
 libcontentsync-plugin.la: $(libcontentsync_plugin_la_OBJECTS) $(libcontentsync_plugin_la_DEPENDENCIES) $(EXTRA_libcontentsync_plugin_la_DEPENDENCIES) 
-	$(libcontentsync_plugin_la_LINK) -rpath $(serverplugindir) $(libcontentsync_plugin_la_OBJECTS) $(libcontentsync_plugin_la_LIBADD) $(LIBS)
+	$(AM_V_CCLD)$(libcontentsync_plugin_la_LINK) -rpath $(serverplugindir) $(libcontentsync_plugin_la_OBJECTS) $(libcontentsync_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/cos/$(am__dirstamp):
 	@$(MKDIR_P) ldap/servers/plugins/cos
 	@: > ldap/servers/plugins/cos/$(am__dirstamp)
@@ -6676,32 +6678,32 @@ ldap/servers/plugins/collation/libcollation_plugin_la-orfilter.lo: ldap/servers/
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcollation_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/collation/libcollation_plugin_la-orfilter.lo `test -f 'ldap/servers/plugins/collation/orfilter.c' || echo '$(srcdir)/'`ldap/servers/plugins/collation/orfilter.c
 
 ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo: ldap/servers/plugins/sync/sync_init.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_init.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo `test -f 'ldap/servers/plugins/sync/sync_init.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_init.c
-@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_init.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_init.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/sync/sync_init.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_init.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo `test -f 'ldap/servers/plugins/sync/sync_init.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_init.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_init.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_init.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/sync/sync_init.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo `test -f 'ldap/servers/plugins/sync/sync_init.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_init.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_init.lo `test -f 'ldap/servers/plugins/sync/sync_init.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_init.c
 
 ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo: ldap/servers/plugins/sync/sync_util.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_util.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo `test -f 'ldap/servers/plugins/sync/sync_util.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_util.c
-@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_util.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_util.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/sync/sync_util.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_util.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo `test -f 'ldap/servers/plugins/sync/sync_util.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_util.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_util.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_util.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/sync/sync_util.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo `test -f 'ldap/servers/plugins/sync/sync_util.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_util.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_util.lo `test -f 'ldap/servers/plugins/sync/sync_util.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_util.c
 
 ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo: ldap/servers/plugins/sync/sync_refresh.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_refresh.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo `test -f 'ldap/servers/plugins/sync/sync_refresh.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_refresh.c
-@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_refresh.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_refresh.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/sync/sync_refresh.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_refresh.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo `test -f 'ldap/servers/plugins/sync/sync_refresh.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_refresh.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_refresh.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_refresh.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/sync/sync_refresh.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo `test -f 'ldap/servers/plugins/sync/sync_refresh.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_refresh.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_refresh.lo `test -f 'ldap/servers/plugins/sync/sync_refresh.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_refresh.c
 
 ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo: ldap/servers/plugins/sync/sync_persist.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_persist.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo `test -f 'ldap/servers/plugins/sync/sync_persist.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_persist.c
-@am__fastdepCC_TRUE@	$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_persist.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_persist.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ldap/servers/plugins/sync/sync_persist.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo -MD -MP -MF ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_persist.Tpo -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo `test -f 'ldap/servers/plugins/sync/sync_persist.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_persist.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_persist.Tpo ldap/servers/plugins/sync/$(DEPDIR)/libcontentsync_plugin_la-sync_persist.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/sync/sync_persist.c' object='ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo `test -f 'ldap/servers/plugins/sync/sync_persist.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_persist.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcontentsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/sync/libcontentsync_plugin_la-sync_persist.lo `test -f 'ldap/servers/plugins/sync/sync_persist.c' || echo '$(srcdir)/'`ldap/servers/plugins/sync/sync_persist.c
 
 ldap/servers/plugins/cos/libcos_plugin_la-cos.lo: ldap/servers/plugins/cos/cos.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcos_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/cos/libcos_plugin_la-cos.lo -MD -MP -MF ldap/servers/plugins/cos/$(DEPDIR)/libcos_plugin_la-cos.Tpo -c -o ldap/servers/plugins/cos/libcos_plugin_la-cos.lo `test -f 'ldap/servers/plugins/cos/cos.c' || echo '$(srcdir)/'`ldap/servers/plugins/cos/cos.c
