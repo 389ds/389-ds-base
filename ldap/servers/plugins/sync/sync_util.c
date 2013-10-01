@@ -80,8 +80,25 @@ sync_parse_control_value( struct berval *psbvp, ber_int_t *mode, int *reload, ch
             if ( ber_scanf( ber, "{e", mode ) == LBER_ERROR )
             {
             	rc= LDAP_PROTOCOL_ERROR;
-            } else if ( ber_scanf( ber, "a", cookie ) != LBER_ERROR )
-            	ber_scanf( ber, "b}", reload );
+            } else {
+		ber_tag_t tag;
+		ber_len_t len;
+		tag = ber_peek_tag( ber, &len );
+		if ( tag == LDAP_TAG_SYNC_COOKIE ) {
+			rc = ber_scanf( ber, "a", cookie );
+			tag = ber_peek_tag( ber, &len );
+		}
+		if (rc != LBER_ERROR && tag == LDAP_TAG_RELOAD_HINT ) {
+            		rc = ber_scanf( ber, "b", reload );
+		}
+		if (rc != LBER_ERROR) {
+			rc = ber_scanf( ber, "}");
+		}
+		if (rc == LBER_ERROR) {
+ 
+            		rc= LDAP_PROTOCOL_ERROR;
+		};
+	    }
 
        	    /* the ber encoding is no longer needed */
        	    ber_free(ber,1);
@@ -147,7 +164,7 @@ sync_create_state_control( Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_C
 	Slapi_Attr *attr;
 	Slapi_Value *val;
 
-	if ( ctrlp == NULL || ( ber = der_alloc()) == NULL ) {
+	if ( type == LDAP_SYNC_NONE || ctrlp == NULL || ( ber = der_alloc()) == NULL ) {
 		return( LDAP_OPERATIONS_ERROR );
 	}
 

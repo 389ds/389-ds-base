@@ -582,7 +582,7 @@ sync_send_results( void *arg )
 			char	**noattrs = NULL;
 			LDAPControl	**ectrls = NULL;
 			Slapi_Entry	*ec;
-			int chg_type;
+			int chg_type = LDAP_SYNC_NONE;
 		
 			/* deque one element */
 			PR_Lock( req->req_lock );

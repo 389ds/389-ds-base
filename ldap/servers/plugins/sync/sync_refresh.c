@@ -457,6 +457,10 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 	int index = 0;
 	Sync_CallBackData *cb = (Sync_CallBackData *) cb_data;
 
+	if (cb == NULL) {
+		return(1);
+	}
+
 	uniqueid = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_UNIQUEID);
 	chgtype = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHGTYPE);
 	chgnr = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHANGENUMBER);
@@ -465,6 +469,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
 			"Retro Changelog does not provied nsuniquedid."
 			"Check RCL plugin configuration." );
+		return(1);
 	}
 		
 
