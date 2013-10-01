@@ -758,7 +758,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     /* If this is the main DNA plug-in
      * config entry, just bail. */
     if (strcasecmp(getPluginDN(), slapi_entry_get_ndn(e)) == 0) {
-        ret = DNA_FAILURE;
+        ret = DNA_SUCCESS;
         goto bail;
     }
 
