@@ -45,6 +45,14 @@
 #include "fe.h"
 #include <sasl.h>
 #include <arpa/inet.h>
+#ifndef USE_OPENLDAP
+#include "mozldap.h"
+#if LDAP_VENDOR_VERSION > 604
+/* garbage to cause build to fail */
+MOZLDAP is newer than expected, if the ber structure has not changed
+(see ldap/server/slapd/mozldap.h), please bump the version number(604 -> new version)
+#endif
+#endif
 
 /*
  * I/O Shim Layer for SASL Encryption
@@ -261,11 +269,16 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
      * Check if an LDAP operation was sent unencrypted
      */
     if(!sp->send_encrypted && *sp->encrypted_buffer == LDAP_TAG_MESSAGE){
-        struct berval bv, tmp_bv;
+        struct berval bv;
+#ifdef USE_OPENLDAP
         BerElement *ber = NULL;
+        struct berval tmp_bv;
+#else
+        MozElement *ber = NULL;
+#endif
         ber_len_t maxbersize = config_get_maxbersize();
         ber_len_t ber_len = 0;
-        ber_tag_t tag;
+        ber_tag_t tag = 0;
 
         slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                 "Sent an LDAP message that was not encrypted.\n", (long long unsigned int)c->c_connid,
@@ -340,7 +353,12 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
          */
         bv.bv_val = sp->encrypted_buffer;
         bv.bv_len = sp->encrypted_buffer_offset;
+
+#ifdef USE_OPENLDAP
         if ( (ber = ber_init(&bv)) == NULL){
+#else
+        if ( (ber = (MozElement *)ber_init(&bv)) == NULL){
+#endif
             goto done;
         }
 
@@ -348,16 +366,27 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
          * Start parsing the berElement.  First skip this tag, and move on to the
          * tag msgid
          */
+#ifdef USE_OPENLDAP
         ber_skip_tag(ber, &ber_len);
         if( ber_peek_tag( ber, &ber_len ) == LDAP_TAG_MSGID) {
+#else
+        ber_skip_tag((BerElement*)ber, &ber_len);
+        if( ber_peek_tag( (BerElement*)ber, &ber_len ) == LDAP_TAG_MSGID) {
+#endif
             /*
              * Skip the entire msgid element, so we can get to the LDAP op tag
              */
+#ifdef USE_OPENLDAP
             if(ber_skip_element(ber, &tmp_bv) == LDAP_TAG_MSGID) {
                 /*
                  * We only allow unbind operations to be processed for unencrypted operations
                  */
                 if (( tag = ber_peek_tag( ber, &ber_len )) == LDAP_REQ_UNBIND ) {
+#else
+            {
+                tag = *ber->ber_ptr++;
+                if (*ber->ber_ptr == LDAP_REQ_UNBIND){
+#endif
                     slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                             "Received unencrypted UNBIND operation.\n", (long long unsigned int)c->c_connid,
                             c->c_sd);
@@ -368,7 +397,11 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 }
                 slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                         "Error: received an LDAP message (tag 0x%lx) that was not encrypted.\n",
-                        (long long unsigned int)c->c_connid, c->c_sd, tag);
+#ifdef USE_OPENLDAP
+                        (long long unsigned int)c->c_connid, c->c_sd, (long unsigned int)tag);
+#else
+                        (long long unsigned int)c->c_connid, c->c_sd, (long unsigned int)*ber->ber_ptr);
+#endif
             }
         }
 
