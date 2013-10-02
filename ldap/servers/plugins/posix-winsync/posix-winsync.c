@@ -63,6 +63,7 @@
 #include <dirsrv/winsync-plugin.h>
 #endif
 #include <plstr.h>
+#include <string.h>
 #include <strings.h>
 #include <stdlib.h>
 #include "posix-wsp-ident.h"

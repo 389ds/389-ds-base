@@ -253,8 +253,10 @@ static PRIntn
 filter_stuff_func(void *arg, const char *val, PRUint32 slen)
 {
     struct filter_ctx *ctx = (struct filter_ctx *)arg;
+#if defined (USE_OPENLDAP)
     struct berval escaped_filter;
     struct berval raw_filter;
+#endif
     char *buf = (char *)val;
     int extra_space;
     int filter_len = slen;
@@ -446,8 +448,10 @@ slapi_filter_sprintf(const char *fmt, ...)
 char*
 slapi_escape_filter_value(char* filter_str, int len)
 {
+#if defined (USE_OPENLDAP)
     struct berval escaped_filter;
     struct berval raw_filter;
+#endif
     int filter_len;
 
     /*
