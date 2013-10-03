@@ -2588,8 +2588,9 @@ bail:
 void
 handle_closed_connection(Connection *conn)
 {
-	ber_sockbuf_remove_io(conn->c_sb, &openldap_sockbuf_io,
-		LBER_SBIOD_LEVEL_PROVIDER);
+#ifdef USE_OPENLDAP
+	ber_sockbuf_remove_io(conn->c_sb, &openldap_sockbuf_io, LBER_SBIOD_LEVEL_PROVIDER);
+#endif
 }
 
 /* NOTE: this routine is not reentrant */

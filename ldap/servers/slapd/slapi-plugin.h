@@ -363,6 +363,10 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define LDAP_MAXINT (2147483647)
 #endif
 
+#ifndef LDAP_CANCELLED
+#define LDAP_CANCELLED 0x76
+#endif
+
 /*
  * Sequential access types
  */

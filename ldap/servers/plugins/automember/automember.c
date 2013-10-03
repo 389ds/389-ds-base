@@ -2524,7 +2524,7 @@ void automember_map_task_thread(void *arg){
     LDIFFP *ldif_fd_in = NULL;
     ldif_record_lineno_t lineno = 0;
 #else
-    PRFileDesc *ldif_fd_in = NULL;
+    FILE *ldif_fd_in = NULL;
     int lineno = 0;
 #endif
     int rc = 0;
@@ -2555,9 +2555,9 @@ void automember_map_task_thread(void *arg){
         rc = errno;
         errstr = strerror(rc);
 #else
-    if(( ldif_fd_in = PR_Open( td->ldif_in, PR_RDONLY, DEFAULT_FILE_MODE  )) == NULL ){
+    if(( ldif_fd_in = fopen( td->ldif_in, "r")) == NULL ){
         rc = PR_GetOSError();
-        errstr = slapi_system_strerror(rc);
+        errstr = (char *)slapi_system_strerror(rc);
 #endif
         slapi_task_log_notice(task, "The ldif file %s could not be accessed, error %d (%s).  Aborting task.\n",
                               td->ldif_in, rc, errstr);
@@ -2616,7 +2616,7 @@ out:
 #if defined(USE_OPENLDAP)
         ldif_close(ldif_fd_in);
 #else
-        PR_Close(ldif_fd_in);
+        fclose(ldif_fd_in);
 #endif
     }
     slapi_task_inc_progress(task);

@@ -64,9 +64,9 @@
 
 #include "slap.h"
 
-
 #define DENY_PW_CHANGE_ACI "(targetattr = \"userPassword\") ( version 3.0; acl \"disallow_pw_change_aci\"; deny (write ) userdn = \"ldap:///self\";)"
 #define GENERALIZED_TIME_LENGTH 15
+#define LDAP_MOD_OP (0x0007)
 
 static int pw_in_history(Slapi_Value **history_vals, const Slapi_Value *pw_val);
 static int update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw );

@@ -1,7 +1,7 @@
 #include "slapi-plugin.h"
 #include "slapi-private.h"
 #include "nspr.h"
-
+#include <string.h>
 #include "posix-wsp-ident.h"
 #include "posix-group-func.h"
 

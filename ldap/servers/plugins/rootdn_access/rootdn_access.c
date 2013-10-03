@@ -43,9 +43,6 @@
  *  Root DN Access Control plug-in
  */
 #include "rootdn_access.h"
-#include <nspr.h>
-#include <time.h>
-#include <ctype.h>
 
 /*
  * Add an entry like the following to dse.ldif to enable this plugin:

@@ -47,6 +47,8 @@
 #include <nspr.h>
 #include <time.h>
 #include <ctype.h>
+#include <string.h>
+#include <strings.h>
 
 #define ROOTDN_PLUGIN_SUBSYSTEM  "rootdn-access-control-plugin"
 #define ROOTDN_FEATURE_DESC      "Root DN Access Control"
