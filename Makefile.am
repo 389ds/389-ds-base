@@ -567,6 +567,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50rootdnaccesscontrolplugin.ldif \
 	ldap/admin/src/scripts/50contentsync.ldif \
 	ldap/admin/src/scripts/60upgradeschemafiles.pl \
+	ldap/admin/src/scripts/60upgradeconfigfiles.pl \
 	ldap/admin/src/scripts/70upgradefromldif.pl \
 	ldap/admin/src/scripts/80upgradednformat.pl \
 	ldap/admin/src/scripts/81changelog.pl \
