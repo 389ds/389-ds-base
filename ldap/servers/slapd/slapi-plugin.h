@@ -396,6 +396,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #endif
 
 #ifndef LDAP_SYNC_OID
+/* LDAP Content Synchronization Operation -- RFC 4533 */
 #define LDAP_SYNC_OID                   "1.3.6.1.4.1.4203.1.9.1"
 #define LDAP_CONTROL_SYNC               LDAP_SYNC_OID ".1"
 #define LDAP_CONTROL_SYNC_STATE         LDAP_SYNC_OID ".2"
@@ -405,6 +406,21 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define LDAP_TAG_SYNC_REFRESH_DELETE    ((ber_tag_t) 0xa1U)
 #define LDAP_TAG_SYNC_REFRESH_PRESENT   ((ber_tag_t) 0xa2U)
 #define LDAP_TAG_SYNC_ID_SET            ((ber_tag_t) 0xa3U)
+#define LDAP_SYNC_NONE                  0x00
+#define LDAP_SYNC_REFRESH_ONLY          0x01
+#define LDAP_SYNC_RESERVED              0x02
+#define LDAP_SYNC_REFRESH_AND_PERSIST   0x03
+#define LDAP_SYNC_REFRESH_PRESENTS      0
+#define LDAP_SYNC_REFRESH_DELETES       1
+#define LDAP_TAG_SYNC_COOKIE            ((ber_tag_t) 0x04U)
+#define LDAP_TAG_REFRESHDELETES         ((ber_tag_t) 0x01U)
+#define LDAP_TAG_REFRESHDONE            ((ber_tag_t) 0x01U)
+#define LDAP_TAG_RELOAD_HINT            ((ber_tag_t) 0x01U)
+#define LDAP_SYNC_PRESENT               0
+#define LDAP_SYNC_ADD                   1
+#define LDAP_SYNC_MODIFY                2
+#define LDAP_SYNC_DELETE                3
+#define LDAP_SYNC_NEW_COOKIE            4
 #endif
 
 #ifndef LDAP_REQ_BIND
