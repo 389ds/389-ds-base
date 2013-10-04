@@ -14,8 +14,7 @@
 # systemctl (re)start @systemdgroupname@
 [Unit]
 Description=@capbrand@ Directory Server %i.
-BindTo=@systemdgroupname@
-After=@systemdgroupname@
+PartOf=@systemdgroupname@
 
 [Service]
 Type=forking
