@@ -1251,9 +1251,9 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		goto done;
 	}
 
-	/* internal operation has root permisions for subtrees it is allowed to access */
+	/* internal operation has root permissions for subtrees it is allowed to access */
 	if (!internal_op) 
-	{	                        
+	{
 		/* slapi_acl_check_mods needs an array of LDAPMods, but
 		 * we're really only interested in the one password mod. */
 		LDAPMod *mods[2];
@@ -1296,9 +1296,18 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 			goto done;
 		}
 
+		/*
+		 * If this mod is being performed by a password administrator/rootDN,
+		 * just return success.
+		 */
+		if(pw_is_pwp_admin(pb, pwpolicy)){
+			rc = 1;
+			goto done;
+		}
+
 		/* Check if password policy allows users to change their passwords.*/
 		if (!pb->pb_op->o_isroot && slapi_sdn_compare(&sdn, &pb->pb_op->o_sdn)==0 &&
-			!pb->pb_conn->c_needpw && !pwpolicy->pw_change && !pw_is_pwp_admin(pb, pwpolicy))
+			!pb->pb_conn->c_needpw && !pwpolicy->pw_change)
 		{
 			if ( pwresponse_req == 1 ) {
 				slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED );
