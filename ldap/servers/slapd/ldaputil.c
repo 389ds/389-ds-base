@@ -1099,6 +1099,7 @@ slapi_ldap_bind(
 	        if (ptr) {
 	            copy = slapi_ch_strdup(myhostname);
 	            *(copy + (ptr - myhostname)) = '\0';
+	            slapi_ch_free_string(&myhostname);
 	            myhostname = copy;
 	        }
 	    }
@@ -1122,7 +1123,7 @@ slapi_ldap_bind(
 			    myerrno ? myerrno : gaierr,
 			    myerrno ? slapd_system_strerror(myerrno) : gai_strerror(gaierr),
 			    myhostname ? myhostname : "unknown host");
-	    slapi_ch_free_string(&copy);
+	    slapi_ch_free_string(&myhostname);
 	    goto done;
 	}
 
