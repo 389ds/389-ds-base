@@ -1401,8 +1401,6 @@ index_range_read_ext(
                         type, prefix, *err );
                 }
             } else if (DBTcmp (&upperkey, &cur_key, ai->ai_key_cmp_fn) > 0) {
-                tmpbuf = slapi_ch_realloc (tmpbuf, cur_key.dsize);
-                memcpy (tmpbuf, cur_key.dptr, cur_key.dsize);
                 DBT_FREE_PAYLOAD(upperkey);
                 upperkey.dptr = NULL; /* x >= a :no need to check upper bound */
                 upperkey.dsize = 0;
