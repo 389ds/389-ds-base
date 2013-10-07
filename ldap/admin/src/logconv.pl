@@ -73,6 +73,7 @@ my $startFlag = 0;
 my $startTime = 0;
 my $endFlag = 0;
 my $endTime = 0;
+my $minEtime = 0;
 my $reportStats = "";
 my $dataLocation = "/tmp";
 my $startTLSoid = "1.3.6.1.4.1.1466.20037";
@@ -114,6 +115,7 @@ GetOptions(
 	's|sizeLimit=s' => \$sizeCount,
 	'S|startTime=s' => \$startTime,
 	'E|endTime=s' => \$endTime,
+	'T|minEtime=s' => \$minEtime,
 	'B|bind=s' => sub { $reportBinds = "yes"; $bindReportDN=($_[1]) },
 	'm|reportFileSecs=s' => sub { my ($opt,$value) = @_; $s_stats = new_stats_block($value); $reportStats = "-m";},
 	'M|reportFileMins=s' =>  sub { my ($opt,$value) = @_; $m_stats = new_stats_block($value); $reportStats = "-M";},
@@ -677,7 +679,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
 			$unindexedIp = getIPfromConn($conn, $srvRstCnt);
 			if ($usage =~ /u/) {
-				print "\n  Unindexed Search #".$notesCount."\n";
+				print "\n  Unindexed Search #".$notesCount." (notes=A)\n";
 				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
 				print "  -  Connection Number:     $conn\n";
 				print "  -  Operation Number:      $op\n";
@@ -725,7 +727,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
 			$unindexedIp = getIPfromConn($conn, $srvRstCnt);
 			if ($usage =~ /u/) {
-				print "\n  Unindexed Component #".$notesCount."\n";
+				print "\n  Unindexed Component #".$notesCount." (notes=U)\n";
 				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
 				print "  -  Connection Number:     $conn\n";
 				print "  -  Operation Number:      $op\n";
@@ -1374,6 +1376,7 @@ sub displayUsage {
 	print "         -m, --reportFileSecs  <CSV output file - per second stats>\n"; 
 	print "         -M, --reportFileMins  <CSV output file - per minute stats>\n";	
 	print "         -B, --bind         <ALL | ANONYMOUS | \"Actual Bind DN\">\n";
+	print "	        -T, --minEtime     <minimum etime to report unindexed searches>\n";
 	print "         -V, --verbose      <enable verbose output - includes all stats listed below>\n";
 	print "         -[efcibaltnxrgjuyp]\n\n";
 
@@ -1396,13 +1399,14 @@ sub displayUsage {
 
 	print "  Examples:\n\n";
 
-	print "         ./logconv.pl -s 10 -V /logs/access*\n\n";
-	print "         ./logconv.pl --rootDN cn=dm /logs/access*\n\n";
-	print "         ./logconv.pl --sizeLimit 50 -ibgju /logs/access*\n\n";
-	print "         ./logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" --endTime \"\[28/Mar/2002:13:50:05 -0800\]\" -e /logs/access*\n\n";
-	print "         ./logconv.pl -m log-minute-stats-csv.out /logs/access*\n\n";
-	print "         ./logconv.pl -B ANONYMOUS /logs/access*\n\n";
-	print "         ./logconv.pl -B \"uid=mreynolds,dc=example,dc=com\" /logs/access*\n\n";
+	print "         logconv.pl -s 10 -V /logs/access*\n\n";
+	print "         logconv.pl --rootDN cn=dm /logs/access*\n\n";
+	print "         logconv.pl --sizeLimit 50 -ibgju /logs/access*\n\n";
+	print "         logconv.pl -S \"\[28/Mar/2002:13:14:22 -0800\]\" --endTime \"\[28/Mar/2002:13:50:05 -0800\]\" -e /logs/access*\n\n";
+	print "         logconv.pl -m log-minute-stats-csv.out /logs/access*\n\n";
+	print "         logconv.pl -B ANONYMOUS /logs/access*\n\n";
+	print "         logconv.pl -B \"uid=mreynolds,dc=example,dc=com\" /logs/access*\n";
+	print "         logconv.pl -u -T 1 /logs/access*\n\n";
 
 	exit 1;
 }
@@ -1835,10 +1839,14 @@ sub parseLineNormal
 			$unindexedSrchCountNotesA++;
 			if($reportStats){ inc_stats('notesA',$s_stats,$m_stats); }
 			if ($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
-				$hashes->{notesa_conn_op}->{"$serverRestartCount,$con,$op"}++;
-				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
-				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
-				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+				if($_ =~ /etime= *([0-9.]+)/i ){
+					if($1 >= $minEtime){
+						$hashes->{etime_conn_op}->{"$serverRestartCount,$con,$op"} = $1;
+						$hashes->{notesa_conn_op}->{"$serverRestartCount,$con,$op"}++;
+						if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+						if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+					}
+				}
 			}
 		}
 		$isVlvNotes = 0;
@@ -1858,10 +1866,14 @@ sub parseLineNormal
 			$unindexedSrchCountNotesU++;
 			if($reportStats){ inc_stats('notesU',$s_stats,$m_stats); }
 			if ($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
-				$hashes->{notesu_conn_op}->{"$serverRestartCount,$con,$op"}++;
-				if ($_ =~ /etime= *([0-9.]+)/i ){ $hashes->{etime_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
-				if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
-				if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+				if($_ =~ /etime= *([0-9.]+)/i ){
+					if($1 >= $minEtime){
+						$hashes->{etime_conn_op}->{"$serverRestartCount,$con,$op"} = $1;
+						$hashes->{notesu_conn_op}->{"$serverRestartCount,$con,$op"}++;
+						if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+						if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+					}
+				}
 			}
 		}
 		$isVlvNotes = 0;
