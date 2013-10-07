@@ -576,6 +576,11 @@ idl_new_range_fetch(
         }
 #endif
         ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_DUP|DB_MULTIPLE);
+        if (saved_key != cur_key.data) {
+            /* key was allocated in c_get */
+            slapi_ch_free(&saved_key);
+            saved_key = cur_key.data;
+        }
         if (ret) {
             if (upperkey && upperkey->data && DBT_EQ(&cur_key, upperkey)) {
                 /* this is the last key */
@@ -583,6 +588,11 @@ idl_new_range_fetch(
             }
             /* First set the cursor (DB_NEXT_NODUP does not take DB_MULTIPLE) */
             ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_NODUP);
+            if (saved_key != cur_key.data) {
+                /* key was allocated in c_get */
+                slapi_ch_free(&saved_key);
+                saved_key = cur_key.data;
+            }
             if (ret) {
                 break;
             }
@@ -633,13 +643,17 @@ idl_new_range_fetch(
             }
         }
         ret = cursor->c_get(cursor,&cur_key,&data,DB_NEXT_DUP);
+        if (saved_key != cur_key.data) {
+            /* key was allocated in c_get */
+            slapi_ch_free(&saved_key);
+            saved_key = cur_key.data;
+        }
         count++;
         if (ret) {
             if (upperkey && upperkey->data && DBT_EQ(&cur_key, upperkey)) {
                 /* this is the last key */
                 break;
             }
-            DBT_FREE_PAYLOAD(cur_key);
             ret = cursor->c_get(cursor, &cur_key, &data, DB_NEXT_NODUP);
             if (saved_key != cur_key.data) {
                 /* key was allocated in c_get */
