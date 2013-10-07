@@ -457,6 +457,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					 * and numsubordinate count could get confused.
 					 */
 					ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
+					slapi_ch_free_string(&pid_str);
 					parent = id2entry(be, pid ,NULL, &retval);
 					if (parent && cache_lock_entry(&inst->inst_cache, parent)) {
 						/* Failed to obtain parent entry's entry lock */
