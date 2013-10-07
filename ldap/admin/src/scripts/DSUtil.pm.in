@@ -861,18 +861,15 @@ sub process_maptbl
                     }
                 }
             }
-            if (!defined($infsection->{$value}))
+            if ($default_value ne "")
             {
-                if ($default_value ne "")
-                {
-                    $default_value =~ tr/\"//d; # default_value is a regular double quoted string - remove quotes
-                    $mapper->{$key} = $default_value;
-                }
-                else
-                {
-                    push @{$errs}, ['no_mapvalue_for_key', $value, $key];
-                    return {};
-                }
+                $default_value =~ tr/\"//d; # default_value is a regular double quoted string - remove quotes
+                $mapper->{$key} = $default_value;
+            }
+            else
+            {
+                push @{$errs}, ['no_mapvalue_for_key', $value, $key];
+                return {};
             }
         }
     }
