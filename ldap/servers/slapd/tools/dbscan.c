@@ -802,7 +802,7 @@ display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent)
         printf("Can't create db cursor: %s\n", db_strerror(rc));
         exit(1);
     }
-    snprintf(buffer, sizeof(buffer), "%u:", id);
+    snprintf(buffer, sizeof(buffer), "%u", id);
     keybuf = strdup(buffer);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;
@@ -846,7 +846,7 @@ display_entryrdn_parent(DB *db, ID id, const char *nrdn, int indent)
         printf("Can't create db cursor: %s\n", db_strerror(rc));
         exit(1);
     }
-    snprintf(buffer, sizeof(buffer), "P%d:", id);
+    snprintf(buffer, sizeof(buffer), "P%d", id);
     keybuf = strdup(buffer);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;
@@ -887,7 +887,7 @@ display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent)
         exit(1);
     }
     indent += 2;
-    snprintf(buffer, sizeof(buffer), "C%d:", id);
+    snprintf(buffer, sizeof(buffer), "C%d", id);
     keybuf = strdup(buffer);
     key.data = keybuf;
     key.size = key.ulen = strlen(keybuf) + 1;
@@ -950,32 +950,24 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
     int indent = 2;
     DBT data;
     int rc;
+    PRUint32 flags = 0;
+    char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
+    DBT dataret;
 
     /* Setting the bulk fetch buffer */
     memset(&data, 0, sizeof(data));
+    data.ulen = sizeof(buffer);
+    data.size = sizeof(buffer);
+    data.data = buffer;
+    data.flags = DB_DBT_USERMEM;
+
     if (key->data) { /* suffix, if not, dbscan fails. */
         /* Position cursor at the matching key */
-        rc = cursor->c_get(cursor, key, &data, DB_SET);
-        if (rc) {
-            fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                                "(%d)\n", (char *)key->data, db_strerror(rc), rc);
-            return;
-        }
-    
-        elem = (rdn_elem *)data.data;
-        _entryrdn_dump_rdn_elem((char *)key->data, elem, indent);
-        display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
-                                  elem->rdn_elem_nrdn_rdn, indent);
-    } else { /* otherwise, display all from the HEAD to TAIL */
-        char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
-        DBT dataret;
-        PRUint32 flags = DB_FIRST|DB_MULTIPLE;
-
-        data.ulen = sizeof(buffer);
-        data.size = sizeof(buffer);
-        data.data = buffer;
-        data.flags = DB_DBT_USERMEM;
-next:
+        flags = DB_SET|DB_MULTIPLE;
+    } else {
+        flags = DB_FIRST|DB_MULTIPLE;
+    }
+    do {
         /* Position cursor at the matching key */
         rc = cursor->c_get(cursor, key, &data, flags);
         if (rc) {
@@ -1008,26 +1000,28 @@ next:
     
                 elem = (rdn_elem *)dataret.data;
                 _entryrdn_dump_rdn_elem((char *)key->data, elem, indent);
+                display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
+                                          elem->rdn_elem_nrdn_rdn, indent);
             }
             rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
             if (0 != rc) {
                 break;
             }
         }
-        if (DB_BUFFER_SMALL == rc) {
-            fprintf(stderr, "Entryrdn index is corrupt; "
+        if (rc) {
+            if (DB_BUFFER_SMALL == rc) {
+                fprintf(stderr, "Entryrdn index is corrupt; "
                                 "data item for key %s is too large for our "
                                 "buffer (need=%d actual=%d)\n",
                                 (char *)key->data, data.size, data.ulen);
-            goto bail;
-        } else if (rc != DB_NOTFOUND) {
-            fprintf(stderr, "Failed to position cursor at the key: %s: %s "
+            } else if (rc != DB_NOTFOUND) {
+                fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                                 "(%d)\n", (char *)key->data, db_strerror(rc), rc);
+            }
             goto bail;
         }
         flags = DB_NEXT|DB_MULTIPLE;
-        goto next;
-    }
+    } while (0 == rc);
 bail:
     return;
 }
