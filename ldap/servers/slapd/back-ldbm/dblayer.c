@@ -1112,7 +1112,7 @@ int dblayer_is_cachesize_sane(size_t *cachesize)
      * after the current working set size for this process has been subtracted,
      * then we say that's insane and try to correct.
      */
-    issane = (int)(*cachesize / pagesize) <= (pages - procpages);
+    issane = (int)((*cachesize / pagesize) <= (pages - procpages));
     if (!issane) {
         *cachesize = (size_t)((pages - procpages) * pagesize);
     }

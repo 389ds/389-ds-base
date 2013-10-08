@@ -125,6 +125,13 @@ ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, in
     /* Do whatever we can to make sure the data is ok. */
 
     if (apply) {
+        if (!dblayer_is_cachesize_sane(&val)){
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: cachememsize value is too large.");
+            LDAPDebug( LDAP_DEBUG_ANY,"Error: cachememsize value is too large.\n",
+                    0, 0, 0);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
         cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
     }
 
@@ -144,11 +151,18 @@ ldbm_instance_config_dncachememsize_set(void *arg, void *value, char *errorbuf, 
 {
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) value;
+    size_t val = (size_t)value;
 
     /* Do whatever we can to make sure the data is ok. */
 
     if (apply) {
+        if (!dblayer_is_cachesize_sane(&val)){
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: dncachememsize value is too large.");
+            LDAPDebug( LDAP_DEBUG_ANY,"Error: dncachememsize value is too large.\n",
+                    0, 0, 0);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
         cache_set_max_size(&(inst->inst_dncache), val, CACHE_TYPE_DN);
     }
 

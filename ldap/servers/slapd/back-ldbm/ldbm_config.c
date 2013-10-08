@@ -430,25 +430,31 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) value;
+    size_t val = (size_t)value;
 
     if (apply) {
         /* Stop the user configuring a stupidly small cache */
         /* min: 8KB (page size) * def thrd cnts (threadnumber==20). */
 #define DBDEFMINSIZ     500000
         if (val < DBDEFMINSIZ) {
-            LDAPDebug( LDAP_DEBUG_ANY,"WARNING: cache too small, increasing to %dK bytes\n", DBDEFMINSIZ/1000, 0, 0);
+            LDAPDebug( LDAP_DEBUG_ANY,"WARNING: cache too small, increasing to %dK bytes\n",
+                    DBDEFMINSIZ/1000, 0, 0);
             val = DBDEFMINSIZ;
-        } 
-        
+        } else if (!dblayer_is_cachesize_sane(&val)){
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: dbcachememsize value is too large.");
+            LDAPDebug( LDAP_DEBUG_ANY,"Error: dbcachememsize value is too large.\n",
+                    0, 0, 0);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbcachesize = val;
-            LDAPDebug(LDAP_DEBUG_ANY, "New db cache size will not take affect until the server is restarted\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_ANY, "New db cache size will not take affect until the server is restarted\n",
+                    0, 0, 0);
         } else {
             li->li_new_dbcachesize = val;
             li->li_dbcachesize = val;
         }
-        
     }
     
     return retval;
@@ -491,13 +497,20 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    size_t val = (size_t) ((uintptr_t)value);
     
     if (apply) {
         if (val < 0) {
             LDAPDebug( LDAP_DEBUG_ANY,"WARNING: ncache will not take negative value\n", 0, 0, 0);
             val = 0;
         } 
+        if (!dblayer_is_cachesize_sane(&val)){
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: dbncache size value is too large.");
+            LDAPDebug( LDAP_DEBUG_ANY,"Error: dbncache size value is too large.\n",
+                    val, 0, 0);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
         
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbncache = val;
@@ -1056,9 +1069,16 @@ static int ldbm_config_db_cache_set(void *arg, void *value, char *errorbuf, int 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
-    int val = (int) ((uintptr_t)value);
+    size_t val = (size_t) ((uintptr_t)value);
     
     if (apply) {
+        if (!dblayer_is_cachesize_sane(&val)){
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: db cachesize value is too large");
+            LDAPDebug( LDAP_DEBUG_ANY,"Error: db cachesize value is too large.\n",
+                    val, 0, 0);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
         li->li_dblayer_private->dblayer_cache_config = val;
     }
     
@@ -1170,9 +1190,17 @@ static int ldbm_config_import_cachesize_set(void *arg, void *value, char *errorb
                                      int phase, int apply)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
-
-    if (apply)
-        li->li_import_cachesize = (size_t)value;
+    size_t val = (size_t)value;
+    if (apply){
+        if (!dblayer_is_cachesize_sane(&val)){
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: import cachesize value is too large.");
+            LDAPDebug( LDAP_DEBUG_ANY,"Error: import cachesize value is too large.\n",
+                    0, 0, 0);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        li->li_import_cachesize = val;
+    }
     return LDAP_SUCCESS;
 }
 
