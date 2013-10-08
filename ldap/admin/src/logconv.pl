@@ -674,10 +674,10 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 		my $unindexedIp;
 		my %uniqFilt = (); # hash of unique filters
 		while (my ($srcnt_conn_op, $count) = each %{$notesa_conn_op}) {
-			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
-			$unindexedIp = getIPfromConn($conn, $srvRstCnt);
-			if ($usage =~ /u/) {
-				print "\n  Unindexed Search #".$notesCount."\n";
+			if ($verb eq "yes" || $usage =~ /u/) {
+				my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
+				my $unindexedIp = getIPfromConn($conn, $srvRstCnt);
+				print "\n  Unindexed Search #".$notesCount." (notes=A)\n";
 				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
 				print "  -  Connection Number:     $conn\n";
 				print "  -  Operation Number:      $op\n";
@@ -692,7 +692,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 				}
 			}
 			if (exists($filter_conn_op->{$srcnt_conn_op}) && defined($filter_conn_op->{$srcnt_conn_op})) {
-				if ($usage =~ /u/) {
+				if ($verb eq "yes" || $usage =~ /u/) {
 					print "  -  Search Filter:         $filter_conn_op->{$srcnt_conn_op}\n";
 				}
 				$uniqFilt{$filter_conn_op->{$srcnt_conn_op}}++;
@@ -722,10 +722,10 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 		my $unindexedIp;
 		my %uniqFilt = (); # hash of unique filters
 		while (my ($srcnt_conn_op, $count) = each %{$notesu_conn_op}) {
-			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
-			$unindexedIp = getIPfromConn($conn, $srvRstCnt);
-			if ($usage =~ /u/) {
-				print "\n  Unindexed Component #".$notesCount."\n";
+			if ($verb eq "yes" || $usage =~ /u/) {
+				my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
+				$unindexedIp = getIPfromConn($conn, $srvRstCnt);
+				print "\n  Unindexed Component #".$notesCount." (notes=U)\n";
 				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
 				print "  -  Connection Number:     $conn\n";
 				print "  -  Operation Number:      $op\n";
@@ -740,7 +740,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 				}
 			}
 			if (exists($filter_conn_op->{$srcnt_conn_op}) && defined($filter_conn_op->{$srcnt_conn_op})) {
-				if ($usage =~ /u/) {
+				if ($verb eq "yes" || $usage =~ /u/) {
 					print "  -  Search Filter:         $filter_conn_op->{$srcnt_conn_op}\n";
 				}
 				$uniqFilt{$filter_conn_op->{$srcnt_conn_op}}++;
