@@ -91,6 +91,7 @@ typedef struct _memberof_get_groups_data
         MemberOfConfig *config;
         Slapi_Value *memberdn_val;
         Slapi_ValueSet **groupvals;
+        Slapi_ValueSet **group_norm_vals;
 } memberof_get_groups_data;
 
 /*** function prototypes ***/
@@ -726,8 +727,8 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	 * using the same grouping attribute. */
 	for (i = 0; config->groupattrs && config->groupattrs[i]; i++)
 	{
-		replace_dn_data data = {(char *)slapi_sdn_get_ndn(pre_sdn),
-		                        (char *)slapi_sdn_get_ndn(post_sdn),
+		replace_dn_data data = {(char *)slapi_sdn_get_dn(pre_sdn),
+		                        (char *)slapi_sdn_get_dn(post_sdn),
 		                        config->groupattrs[i]};
 
 		groupattrs[0] = config->groupattrs[i];
@@ -1361,7 +1362,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 
 			if(LDAP_MOD_REPLACE == mod_op)
 			{
-				replace_val[0] = (char *)slapi_sdn_get_ndn(replace_with_sdn);
+				replace_val[0] = (char *)slapi_sdn_get_dn(replace_with_sdn);
 				replace_val[1] = 0;
 
 				replace_mod.mod_op = LDAP_MOD_ADD;
@@ -1688,15 +1689,17 @@ Slapi_ValueSet *
 memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn)
 {
 	Slapi_ValueSet *groupvals = slapi_valueset_new();
+        Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
 	Slapi_Value *memberdn_val = 
 	                      slapi_value_new_string(slapi_sdn_get_ndn(member_sdn));
 	slapi_value_set_flags(memberdn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
-	memberof_get_groups_data data = {config, memberdn_val, &groupvals};
+	memberof_get_groups_data data = {config, memberdn_val, &groupvals, &group_norm_vals};
 
 	memberof_get_groups_r(config, member_sdn, &data);
 
 	slapi_value_free(&memberdn_val);
+        slapi_valueset_free(group_norm_vals);
 
 	return groupvals;
 }
@@ -1718,9 +1721,12 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn,
 int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 {
 	Slapi_DN *group_sdn = slapi_entry_get_sdn(e);
-	char *group_dn = slapi_entry_get_ndn(e);
-	Slapi_Value *group_dn_val = 0;
+	char *group_ndn = slapi_entry_get_ndn(e);
+        char *group_dn = slapi_entry_get_dn(e);
+	Slapi_Value *group_ndn_val = 0;
+        Slapi_Value *group_dn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
+        Slapi_ValueSet *group_norm_vals = *((memberof_get_groups_data*)callback_data)->group_norm_vals;
 	int rc = 0;
 
 	if(slapi_is_shutting_down()){
@@ -1737,21 +1743,21 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 
 	}
 	/* get the DN of the group */
-	group_dn_val = slapi_value_new_string(group_dn);
+	group_ndn_val = slapi_value_new_string(group_ndn);
 	/* group_dn is case-normalized */
-	slapi_value_set_flags(group_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
+	slapi_value_set_flags(group_ndn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	/* check if e is the same as our original member entry */
 	if (0 == memberof_compare(((memberof_get_groups_data*)callback_data)->config,
-		&((memberof_get_groups_data*)callback_data)->memberdn_val, &group_dn_val))
+		&((memberof_get_groups_data*)callback_data)->memberdn_val, &group_ndn_val))
 	{
 		/* A recursive group caused us to find our original
 		 * entry we passed to memberof_get_groups().  We just
 		 * skip processing this entry. */
 		slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_get_groups_callback: group recursion"
-			" detected in %s\n" ,group_dn);
-		slapi_value_free(&group_dn_val);
+			" detected in %s\n" ,group_ndn);
+		slapi_value_free(&group_ndn_val);
 		goto bail;
 
 	}
@@ -1760,8 +1766,8 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	 * in config.  We only need this attribute for it's syntax so the comparison can be
 	 * performed.  Since all of the grouping attributes are validated to use the Dinstinguished
 	 * Name syntax, we can safely just use the first group_slapiattr. */
-	if (groupvals && slapi_valueset_find(
-		((memberof_get_groups_data*)callback_data)->config->group_slapiattrs[0], groupvals, group_dn_val))
+	if (group_norm_vals && slapi_valueset_find(
+		((memberof_get_groups_data*)callback_data)->config->group_slapiattrs[0], group_norm_vals, group_ndn_val))
 	{
 		/* we either hit a recursive grouping, or an entry is
 		 * a member of a group through multiple paths.  Either
@@ -1769,15 +1775,17 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 		 * already gone through this part of the grouping hierarchy. */
 		slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_get_groups_callback: possible group recursion"
-			" detected in %s\n" ,group_dn);
-		slapi_value_free(&group_dn_val);
+			" detected in %s\n" ,group_ndn);
+		slapi_value_free(&group_ndn_val);
 		goto bail;
 	}
 
 	/* Push group_dn_val into the valueset.  This memory is now owned
 	 * by the valueset. */ 
+        group_dn_val = slapi_value_new_string(group_dn);
 	slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
-
+        slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+        
 	/* now recurse to find parent groups of e */
 	memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
 		group_sdn, callback_data);
