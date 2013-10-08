@@ -1911,7 +1911,7 @@ sub parseLineNormal
 		elsif (m/- U1/){ $hashes->{rsrc}->{"U1"}++; }
 		else { $hashes->{rsrc}->{"other"}++; }
 	}
-	if ($usage =~ /g/ || $usage =~ /c/ || $usage =~ /i/ || $verb eq "yes"){
+	if ($usage =~ /g/ || $usage =~ /c/ || $usage =~ /i/ || $usage =~ /f/ || $verb eq "yes"){
 		$exc = "no";
 		if ($_ =~ /connection from *([0-9A-fa-f\.\:]+)/i ) {
 			for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
