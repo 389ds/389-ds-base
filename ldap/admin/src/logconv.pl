@@ -946,7 +946,7 @@ if ($verb eq "yes" || $usage =~ /f/ ){
 			}
 			print "\nFrom the IP address(s) :\n\n";
 			$bpCount = 0;
-			foreach my $ip (sort {$badPassword{$b} <=> $badPassword{$a} } keys %badPasswordIp){
+			foreach my $ip (sort {$badPasswordIp{$b} <=> $badPasswordIp{$a} } keys %badPasswordIp){
 				if ($bpCount > $sizeCount){ last;}
 				$bpCount++;
 				printf "%-4s        %-16s\n", $badPasswordIp{$ip}, $ip;
