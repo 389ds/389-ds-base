@@ -953,6 +953,7 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
     PRUint32 flags = 0;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
     DBT dataret;
+    int find_key_flag = 0;
 
     /* Setting the bulk fetch buffer */
     memset(&data, 0, sizeof(data));
@@ -961,10 +962,11 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
     data.data = buffer;
     data.flags = DB_DBT_USERMEM;
 
-    if (key->data) { /* suffix, if not, dbscan fails. */
+    if (key->data) { /* key is given */
         /* Position cursor at the matching key */
         flags = DB_SET|DB_MULTIPLE;
-    } else {
+        find_key_flag = 1;
+    } else { /* key is not given; scan all */
         flags = DB_FIRST|DB_MULTIPLE;
     }
     do {
@@ -1004,20 +1006,26 @@ display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
                                           elem->rdn_elem_nrdn_rdn, indent);
             }
             rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
-            if (0 != rc) {
+            if (rc) {
                 break;
             }
         }
-        if (rc) {
-            if (DB_BUFFER_SMALL == rc) {
-                fprintf(stderr, "Entryrdn index is corrupt; "
-                                "data item for key %s is too large for our "
-                                "buffer (need=%d actual=%d)\n",
-                                (char *)key->data, data.size, data.ulen);
-            } else if (rc != DB_NOTFOUND) {
-                fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                                "(%d)\n", (char *)key->data, db_strerror(rc), rc);
+        /* When it comes here, rc is not 0. */
+        if (DB_BUFFER_SMALL == rc) {
+            fprintf(stderr, "Entryrdn index is corrupt; "
+                            "data item for key %s is too large for our "
+                            "buffer (need=%d actual=%d)\n",
+                            (char *)key->data, data.size, data.ulen);
+            goto bail;
+        } else if (rc == DB_NOTFOUND) {
+            if (find_key_flag) { /* key is given */
+                goto bail; /* done */
+            } else { /* otherwise, continue scanning. */
+                rc = 0;
             }
+        } else {
+            fprintf(stderr, "Failed to position cursor at the key: %s: %s "
+                            "(%d)\n", (char *)key->data, db_strerror(rc), rc);
             goto bail;
         }
         flags = DB_NEXT|DB_MULTIPLE;
