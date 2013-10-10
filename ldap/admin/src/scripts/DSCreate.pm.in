@@ -1094,7 +1094,7 @@ sub updateTmpfilesDotD {
         # d    /var/run/user 0755 root root 10d
         # we don't use age
         my $localrundir = set_localrundir("@localrundir@", $inf->{General}->{prefix});
-        if( $localrundir != "" && -d "$localrundir"){
+        if( $localrundir ne "" && -d "$localrundir"){
             $rundir = "$localrundir/@PACKAGE_NAME@";
             $lockdir = "$localrundir/lock/@PACKAGE_NAME@/slapd-$inf->{slapd}->{ServerIdentifier}";
             $parentdir = "$localrundir/lock/@PACKAGE_NAME@";
