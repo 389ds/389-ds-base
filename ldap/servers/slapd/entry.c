@@ -76,9 +76,27 @@ static void entry_vattr_free_nolock(Slapi_Entry *e);
 
 /* protected attributes which are not included in the flattened entry,
  * which will be stored in the db. */
-static char *protected_attrs_all [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
-                                       SLAPI_ATTR_ENTRYDN,
-                                       NULL};
+static char **protected_attrs_all = NULL;
+
+/* 
+ * add or delete attr to or from protected_attr_all list depending on the flag.
+ * flag: 0 -- add
+ *       1 -- delete
+ */
+void
+set_attr_to_protected_list(char *attr, int flag)
+{
+    if (charray_inlist(protected_attrs_all, attr)) { /* attr is in the list */
+        if (flag) { /* delete */
+			charray_remove(protected_attrs_all, attr, 1);
+        }
+    } else { /* attr is not in the list */
+        if (!flag) { /* add */
+            charray_add(&protected_attrs_all, slapi_ch_strdup(attr));
+        }
+    }
+}
+
 #if defined(USE_OLD_UNHASHED)
 static char *forbidden_attrs [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
                                    NULL};

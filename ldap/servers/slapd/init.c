@@ -83,6 +83,8 @@ slapd_init()
 		exit( -1 );
 	}
 
+	/* Add PSEUDO_ATTR_UNHASHEDUSERPASSWORD to the protected attribute list */
+	set_attr_to_protected_list(PSEUDO_ATTR_UNHASHEDUSERPASSWORD, 0);
 #ifndef HAVE_TIME_R
 	if ((time_func_mutex = PR_NewLock()) == NULL ) {
                 LDAPDebug( LDAP_DEBUG_ANY,

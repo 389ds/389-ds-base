@@ -337,6 +337,7 @@ int entry_apply_mods( Slapi_Entry *e, LDAPMod **mods );
 int is_type_protected(const char *type);
 int entry_apply_mods_ignore_error( Slapi_Entry *e, LDAPMod **mods, int ignore_error );
 int slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **new_entries, int testall, const char *logging_prestr, const int force_update, void *plg_id);
+void set_attr_to_protected_list(char *attr, int flag);
 
 /* entrywsi.c */
 CSN* entry_assign_operation_csn ( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *parententry );

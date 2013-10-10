@@ -136,6 +136,15 @@ void
 entryrdn_set_switch(int val)
 {
     entryrdn_switch = val;
+
+    if (entryrdn_switch) { /* entryrdn on */
+        /* Don't store entrydn in the db */
+        set_attr_to_protected_list(SLAPI_ATTR_ENTRYDN, 0);
+    } else {               /* entryrdn off */
+        /* Store entrydn in the db */
+        set_attr_to_protected_list(SLAPI_ATTR_ENTRYDN, 1);
+    }
+
     return;
 }
 
