@@ -822,6 +822,10 @@ MAINT
 MAINTAINER_MODE_FALSE
 MAINTAINER_MODE_TRUE
 CONSOLE_VERSION
+AM_BACKSLASH
+AM_DEFAULT_VERBOSITY
+AM_DEFAULT_V
+AM_V
 am__untar
 am__tar
 AMTAR
@@ -886,6 +890,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_silent_rules
 enable_maintainer_mode
 enable_dependency_tracking
 enable_static
@@ -908,6 +913,7 @@ enable_posix_winsync
 with_fhs
 with_fhs_opt
 with_tmpfiles_d
+with_perldir
 with_systemdsystemunitdir
 with_systemdsystemconfdir
 with_systemdgroupname
@@ -1585,6 +1591,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-silent-rules   less verbose build output (undo: "make V=1")
+  --disable-silent-rules  verbose build output (undo: "make V=0")
   --enable-maintainer-mode
                           enable make rules and dependencies not useful (and
                           sometimes confusing) to the casual installer
@@ -1628,6 +1636,8 @@ Optional Packages:
   --with-fhs-opt          Use FHS optional layout
   --with-tmpfiles-d=PATH  system uses tmpfiles.d to handle temp files/dirs
                           (default: $with_tmpfiles_d)
+
+  --with-perldir=PATH     Directory for perl)
 
   --with-systemdsystemunitdir=PATH
                           Directory for systemd service files (default:
@@ -2758,7 +2768,7 @@ cat >>confdefs.h <<_ACEOF
 #define DS_PACKAGE_STRING "$PACKAGE_STRING"
 _ACEOF
 
-am__api_version='1.12'
+am__api_version='1.13'
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -2971,8 +2981,8 @@ if test x"${MISSING+set}" != xset; then
   esac
 fi
 # Use eval to expand $SHELL
-if eval "$MISSING --run true"; then
-  am_missing_run="$MISSING --run "
+if eval "$MISSING --is-lightweight"; then
+  am_missing_run="$MISSING "
 else
   am_missing_run=
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: 'missing' script is too old or missing" >&5
@@ -3212,6 +3222,45 @@ else
 fi
 rmdir .tst 2>/dev/null
 
+# Check whether --enable-silent-rules was given.
+if test "${enable_silent_rules+set}" = set; then :
+  enableval=$enable_silent_rules;
+fi
+
+case $enable_silent_rules in # (((
+  yes) AM_DEFAULT_VERBOSITY=0;;
+   no) AM_DEFAULT_VERBOSITY=1;;
+    *) AM_DEFAULT_VERBOSITY=1;;
+esac
+am_make=${MAKE-make}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $am_make supports nested variables" >&5
+$as_echo_n "checking whether $am_make supports nested variables... " >&6; }
+if ${am_cv_make_support_nested_variables+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if $as_echo 'TRUE=$(BAR$(V))
+BAR0=false
+BAR1=true
+V=1
+am__doit:
+	@$(TRUE)
+.PHONY: am__doit' | $am_make -f - >/dev/null 2>&1; then
+  am_cv_make_support_nested_variables=yes
+else
+  am_cv_make_support_nested_variables=no
+fi
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_make_support_nested_variables" >&5
+$as_echo "$am_cv_make_support_nested_variables" >&6; }
+if test $am_cv_make_support_nested_variables = yes; then
+    AM_V='$(V)'
+  AM_DEFAULT_V='$(AM_DEFAULT_VERBOSITY)'
+else
+  AM_V=$AM_DEFAULT_VERBOSITY
+  AM_DEFAULT_V=$AM_DEFAULT_VERBOSITY
+fi
+AM_BACKSLASH='\'
+
 if test "`cd $srcdir && pwd`" != "`pwd`"; then
   # Use -I$(srcdir) only when $(srcdir) != ., so that make's output
   # is not polluted with repeated "-I."
@@ -3265,7 +3314,12 @@ mkdir_p='$(MKDIR_P)'
 # in the wild :-(  We should find a proper way to deprecate it ...
 AMTAR='$${TAR-tar}'
 
+
+# We'll loop over all known methods to create a tar archive until one works.
+_am_tools='gnutar  pax cpio none'
+
 am__tar='$${TAR-tar} chof - "$$tardir"' am__untar='$${TAR-tar} xf -'
+
 
 
 
@@ -18128,6 +18182,28 @@ if test -n "$PKG_CONFIG" ; then
    default_systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
    default_systemdsystemconfdir=`$PKG_CONFIG --variable=systemdsystemconfdir systemd`
 fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-perldir" >&5
+$as_echo_n "checking for --with-perldir... " >&6; }
+
+# Check whether --with-perldir was given.
+if test "${with_perldir+set}" = set; then :
+  withval=$with_perldir;
+fi
+
+if test -n "$with_perldir"; then
+  if test  "$with_perldir" = yes ; then
+    as_fn_error $? "You must specify --with-perldir=/full/path/to/perl" "$LINENO" 5
+  elif test  "$with_perldir" = no ; then
+    with_perldir=
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_perldir" >&5
+$as_echo "$with_perldir" >&6; }
+  fi
+else
+  with_perldir=
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-systemdsystemunitdir" >&5
 $as_echo_n "checking for --with-systemdsystemunitdir... " >&6; }
 
@@ -18282,7 +18358,11 @@ fi
 # perl binary compiled with the same bitsize.  On Solaris
 # and HP-UX, /usr/bin/perl is 32 bit, so we cannot use
 # those with our 64 bit compiled product.
-perlexec='/usr/bin/env perl'
+if test -n "$with_perldir"; then
+  perlexec="$with_perldir/perl"
+else
+  perlexec='/usr/bin/env perl'
+fi
 # we use stty in perl scripts to disable password echo
 # this doesn't work unless the full absolute path of the
 # stty command is used e.g. system("stty -echo") does not
@@ -23023,7 +23103,7 @@ $as_echo "$as_me: executing $ac_file commands" >&6;}
 
   case $ac_file$ac_mode in
     "depfiles":C) test x"$AMDEP_TRUE" != x"" || {
-  # Autoconf 2.62 quotes --file arguments for eval, but not when files
+  # Older Autoconf quotes --file arguments for eval, but not when files
   # are listed without --file.  Let's play safe and only enable the eval
   # if we detect the quoting.
   case $CONFIG_FILES in
@@ -23074,7 +23154,7 @@ $as_echo X"$mf" |
     DEPDIR=`sed -n 's/^DEPDIR = //p' < "$mf"`
     test -z "$DEPDIR" && continue
     am__include=`sed -n 's/^am__include = //p' < "$mf"`
-    test -z "am__include" && continue
+    test -z "$am__include" && continue
     am__quote=`sed -n 's/^am__quote = //p' < "$mf"`
     # Find all dependency output files, they are included files with
     # $(DEPDIR) in their names.  We invoke sed twice because it is the

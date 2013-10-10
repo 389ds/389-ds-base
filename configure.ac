@@ -337,6 +337,24 @@ if test -n "$PKG_CONFIG" ; then
    default_systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
    default_systemdsystemconfdir=`$PKG_CONFIG --variable=systemdsystemconfdir systemd`
 fi
+
+AC_MSG_CHECKING(for --with-perldir)
+AC_ARG_WITH([perldir],
+   AS_HELP_STRING([--with-perldir=PATH],
+                  [Directory for perl)])
+)
+if test -n "$with_perldir"; then
+  if test  "$with_perldir" = yes ; then
+    AC_MSG_ERROR([You must specify --with-perldir=/full/path/to/perl])
+  elif test  "$with_perldir" = no ; then
+    with_perldir=
+  else
+    AC_MSG_RESULT([$with_perldir])
+  fi
+else
+  with_perldir=
+fi
+
 AC_MSG_CHECKING(for --with-systemdsystemunitdir)
 AC_ARG_WITH([systemdsystemunitdir],
    AS_HELP_STRING([--with-systemdsystemunitdir=PATH],
@@ -459,7 +477,11 @@ AC_ARG_WITH(initddir,
 # perl binary compiled with the same bitsize.  On Solaris
 # and HP-UX, /usr/bin/perl is 32 bit, so we cannot use
 # those with our 64 bit compiled product.
-perlexec='/usr/bin/env perl'
+if test -n "$with_perldir"; then
+  perlexec="$with_perldir/perl"
+else
+  perlexec='/usr/bin/env perl'
+fi
 # we use stty in perl scripts to disable password echo
 # this doesn't work unless the full absolute path of the
 # stty command is used e.g. system("stty -echo") does not
