@@ -19,8 +19,9 @@
 repl-monitor \- Directory Server replication monitor
 .SH SYNOPSIS
 .B repl\(hymonitor
-\-f configuration\(hyfile [\fI\(hyh host\fR] [\fI\-p port\fR] [\fI\-r\fR] 
-[\fI\-u refresh\(hyurl\fR] [\fI\-t refresh\(hyinterval\fR] [\fI\-v\fR]
+\ [-f configuration\(hyfile] [\fI\(hyh host\fR] [\fI\-p port\fR] [\fI\-r\fR]
+[\fI\-c connection\fR] [\fI\-a alias\fR] [\fI\-k color\fR] [\fI\-u refresh\(hyurl\fR]
+[\fI\-s\fR] [\fI\-t refresh\(hyinterval\fR] [\fI\-v\fR]
 
 .SH DESCRIPTION
 Outputs the status of all of the configured Directory Servers
@@ -33,23 +34,39 @@ are specified in the configuration file.
 .SH OPTIONS
 A summary of options is included below:
 .TP
-.B \-h host
+.B \-h, \-\-host\fR host
 Hostname of DS server
 .TP
-.B \-p port
+.B \-p, \-\-port\fR port
 TCP port
 .TP
-.B \-f configuration\(hyfile
+.B \-f, \-\-configfile\fR configuration-file
 Configuration file 
 .TP
-.B \-r
+.B \-c, \-\-conn\fR connection
+Uses the same format as the configfile directive
+.TP
+.B \-a, \-\-alias\fR alias
+Uses the same format as the configfile directive
+.TP
+.B \-k, --color\fR color
+Uses the same format as the configfile directive
+.TP
+.B \-r, --skip-header\fR
 Removes extra HTML tags
 .TP
-.B \-u refresh\(hyurl
+.B \-u, \-\-refreshurl\fR refresh url
 Refresh url
 .TP
-.B \-t refresh\(hyinterval
+.B \-t, \-\-interval\fR refresh interval
 Refresh interval
+.TP
+.B \-W, \-\-prompt
+Prompt for passwords
+.TP
+.B \-s, \-\-text
+Print plain text report
+
 .br
 .SH AUTHOR
 repl-monitor was written by the 389 Project.
@@ -62,6 +79,8 @@ Copyright \(co 2008 Red Hat, Inc.
 .br
 This manual page was written by Michele Baldessari <michele@pupazzo.org>,
 for the Debian project (but may be used by others).
+.br
+Manual page updated by Mark Reynolds <mreynolds@redhat.com> 10/11/13
 .br
 This is free software.  You may redistribute copies of it under the terms of
 the Directory Server license found in the LICENSE file of this
