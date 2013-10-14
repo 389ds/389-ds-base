@@ -99,10 +99,16 @@
 #if !defined(USE_OPENLDAP)
 #include <ldap_ssl.h>
 #include <ldappr.h>
+#define BIND_LOCK (void)0
+#define BIND_UNLOCK (void)0
 #else
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
 static PRCallOnceType ol_init_callOnce = {0,0};
 static PRLock *ol_init_lock = NULL;
+/* need mutex around ldap_sasl_bind - see https://fedorahosted.org/389/ticket/47599 */
+static PRLock *ol_bind_lock = NULL;
+#define BIND_LOCK PR_Lock(ol_bind_lock)
+#define BIND_UNLOCK PR_Unlock(ol_bind_lock)
 
 static PRStatus
 internal_ol_init_init(void)
@@ -110,12 +116,20 @@ internal_ol_init_init(void)
     PR_ASSERT(NULL == ol_init_lock);
     if ((ol_init_lock = PR_NewLock()) == NULL) {
         PRErrorCode errorCode = PR_GetError();
-        slapi_log_error(SLAPI_LOG_FATAL, "internal_ol_init_init", "PR_NewLock failed %d:%s\n",
+        slapi_log_error(SLAPI_LOG_FATAL, "internal_ol_init_init", "PR_NewLock init_lock failed %d:%s\n",
                         errorCode, slapd_pr_strerror(errorCode));
         return PR_FAILURE;
     }
 
-    return PR_SUCCESS;
+    PR_ASSERT(NULL == ol_bind_lock);
+    if ((ol_bind_lock = PR_NewLock()) == NULL) {
+        PRErrorCode errorCode = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, "internal_ol_init_init", "PR_NewLock bind_lock failed %d:%s\n",
+                        errorCode, slapd_pr_strerror(errorCode));
+        return PR_FAILURE;
+    }
+
+   return PR_SUCCESS;
 }
 #endif
 
@@ -145,7 +159,16 @@ void
 slapi_ldap_unbind( LDAP *ld )
 {
     if ( ld != NULL ) {
+#if defined(USE_OPENLDAP)
+	if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_unbind",
+		                "Could not perform internal ol_init init\n");
+		return;
+	}
+#endif
+	BIND_LOCK;
 	ldap_unbind_ext( ld, NULL, NULL );
+	BIND_UNLOCK;
     }
 }
 
@@ -1024,11 +1047,22 @@ slapi_ldap_bind(
     ldap_controls_free(clientctrls);
     ldap_set_option(ld, LDAP_OPT_CLIENT_CONTROLS, NULL);
 
+#if defined(USE_OPENLDAP)
+    if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+           "Could not perform internal ol_init init\n");
+        rc = -1;
+        goto done;
+    }
+#endif
+
     if ((secure > 0) && mech && !strcmp(mech, LDAP_SASL_EXTERNAL)) {
 #if defined(USE_OPENLDAP)
 	/* we already set up a tls context in slapi_ldap_init_ext() - this will
 	   free those old settings and context and create a new one */
+	PR_Lock(ol_bind_lock);
 	rc = setup_ol_tls_conn(ld, 1);
+	PR_Unlock(ol_bind_lock);
 #else
 	/* SSL connections will use the server's security context
 	   and cert for client auth */
@@ -1053,7 +1087,9 @@ slapi_ldap_bind(
     }
 
     if (secure == 2) { /* send start tls */
+	BIND_LOCK;
 	rc = ldap_start_tls_s(ld, NULL /* serverctrls?? */, NULL);
+	BIND_UNLOCK;
 	if (LDAP_SUCCESS != rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not send startTLS request: "
@@ -1075,8 +1111,11 @@ slapi_ldap_bind(
 			"attempting %s bind with id [%s] creds [%s]\n",
 			mech ? mech : "SIMPLE",
 			bindid, creds);
-	if ((rc = ldap_sasl_bind(ld, bindid, mech, &bvcreds, serverctrls,
-				 NULL /* clientctrls */, &mymsgid))) {
+	BIND_LOCK;
+	rc = ldap_sasl_bind(ld, bindid, mech, &bvcreds, serverctrls,
+	                    NULL /* clientctrls */, &mymsgid);
+	BIND_UNLOCK;
+	if (rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not send bind request for id "
 			    "[%s] mech [%s]: error %d (%s) %d (%s) %d (%s)\n",
@@ -1091,7 +1130,9 @@ slapi_ldap_bind(
 	if (msgidp) { /* let caller process result */
 	    *msgidp = mymsgid;
 	} else { /* process results */
+	    BIND_LOCK;
 	    rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, timeout, &result);
+	    BIND_UNLOCK;
 	    if (-1 == rc) { /* error */
 		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
 		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
@@ -1156,9 +1197,11 @@ slapi_ldap_bind(
 	    ldap_set_option(ld, LDAP_OPT_X_SASL_SSF_MAX, &max_ssf);
 	}
 #endif
+	BIND_LOCK;
 	rc = slapd_ldap_sasl_interactive_bind(ld, bindid, creds, mech,
 					      serverctrls, returnedctrls,
 					      msgidp);
+	BIND_UNLOCK;
 	if (LDAP_SUCCESS != rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not perform interactive bind for id "
