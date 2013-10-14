@@ -500,10 +500,6 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
     size_t val = (size_t) ((uintptr_t)value);
     
     if (apply) {
-        if (val < 0) {
-            LDAPDebug( LDAP_DEBUG_ANY,"WARNING: ncache will not take negative value\n", 0, 0, 0);
-            val = 0;
-        } 
         if (!dblayer_is_cachesize_sane(&val)){
             PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                     "Error: dbncache size value is too large.");
@@ -521,7 +517,7 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
         }
         
     }
-    
+
     return retval;
 }
 
