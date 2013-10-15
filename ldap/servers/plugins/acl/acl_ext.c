@@ -991,8 +991,7 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 	slapi_sdn_done ( aclpb->aclpb_authorization_sdn );
 	aclpb->aclpb_pblock = NULL;
 
-	if ( aclpb->aclpb_search_base )
-		slapi_ch_free ( (void **) &aclpb->aclpb_search_base );
+	slapi_ch_free_string(&aclpb->aclpb_search_base );
 	for ( i=0; i < aclpb->aclpb_num_deny_handles; i++ )
 		aclpb->aclpb_deny_handles[i] = NULL;
 	aclpb->aclpb_num_deny_handles = 0;

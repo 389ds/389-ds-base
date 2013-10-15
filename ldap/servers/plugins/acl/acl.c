@@ -3710,8 +3710,7 @@ acl_copyEval_context ( struct acl_pblock *aclpb, aclEvalContext *src,
 
 			if ( aclpb) aclpb->aclpb_stat_num_copy_attrs++;
 
-			if ( dest->acle_attrEval[dd_slot].attrEval_name )
-				slapi_ch_free ( (void **) &dest->acle_attrEval[dd_slot].attrEval_name );
+			slapi_ch_free_string( &dest->acle_attrEval[dd_slot].attrEval_name);
 
 			dest->acle_attrEval[dd_slot].attrEval_name  = 
 				slapi_ch_strdup ( src->acle_attrEval[i].attrEval_name );
@@ -3730,7 +3729,7 @@ acl_copyEval_context ( struct acl_pblock *aclpb, aclEvalContext *src,
 	}
 
 	dest->acle_numof_attrs = d_slot;
-	dest->acle_attrEval[d_slot].attrEval_name  =  NULL;
+	slapi_ch_free_string( &dest->acle_attrEval[d_slot].attrEval_name);
 
 	if ( copy_attr_only )
 		return;
@@ -3927,6 +3926,7 @@ acl__get_attrEval ( struct acl_pblock *aclpb, char *attr )
 			c_attrEval->attrEval_s_aciIndex = 0;
 		}
 		/* clean it before use */
+		slapi_ch_free_string(&c_attrEval->attrEval_name);
 		c_attrEval->attrEval_name = slapi_ch_strdup ( attr );
 		aclpb->aclpb_curr_attrEval = c_attrEval;
 	}

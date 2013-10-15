@@ -639,6 +639,7 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 	
 	basedn = slapi_ch_strdup (base);
 	index = 0;
+	slapi_ch_free_string(&aclpb->aclpb_search_base);
 	aclpb->aclpb_search_base = slapi_ch_strdup ( base );
 
 	while (basedn) {
@@ -651,7 +652,7 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 		                                 (IFP) __acllist_aciContainer_node_cmp);
 		if ( index >= aclpb_max_selected_acls -2 ) {
 			aclpb->aclpb_handles_index[0] = -1;
-			slapi_ch_free ( (void **) &basedn);
+			slapi_ch_free_string(&basedn);
 			break;
 		} else if ( NULL != root ) {
 			aclpb->aclpb_base_handles_index[index++] = root->acic_index;
@@ -664,7 +665,7 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 			                  "Failed to find root for base: %s \n", basedn );
 		}
 		tmp = slapi_dn_parent ( basedn );
-		slapi_ch_free ( (void **) &basedn);
+		slapi_ch_free_string(&basedn);
 		basedn = tmp;
 	}
 
