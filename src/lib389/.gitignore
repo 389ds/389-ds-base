@@ -1,0 +1,6 @@
+# Log directory   #
+###################
+logs/
+
+*.pyc
+
