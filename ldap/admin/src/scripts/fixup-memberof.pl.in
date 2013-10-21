@@ -135,6 +135,7 @@ if ( $filter_arg ne "" )
     $filter = "filter: $filter_arg\n";
 }
 
+$entry = "${dn}${misc}${cn}${basedn}${filter}";
 $rc = DSUtil::ldapmod($entry, %info);
 
 $dn =~ s/^dn: //;
