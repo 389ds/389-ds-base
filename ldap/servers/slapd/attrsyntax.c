@@ -537,9 +537,27 @@ int
 attr_syntax_exists(const char *attr_name)
 {
 	struct asyntaxinfo	*asi;
+	char *check_attr_name = NULL;
+	char *p = NULL;
+	int free_attr = 0;
 
-	asi = attr_syntax_get_by_name(attr_name);
+	/* Ignore any attribute subtypes. */
+	if (p = strchr(attr_name, ';')) {
+		int check_attr_len = p - attr_name + 1;
+
+		check_attr_name = (char *)slapi_ch_malloc(check_attr_len);
+		PR_snprintf(check_attr_name, check_attr_len, "%s", attr_name);
+		free_attr = 1;
+ 	} else {
+		check_attr_name = attr_name;
+	}
+
+	asi = attr_syntax_get_by_name(check_attr_name);
 	attr_syntax_return( asi );
+
+	if (free_attr) {
+		slapi_ch_free_string(&check_attr_name);
+	}
 
 	if ( asi != NULL )
 	{
