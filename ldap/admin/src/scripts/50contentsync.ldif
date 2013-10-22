@@ -1,6 +1,7 @@
 dn: cn=Content Synchronization,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
+objectclass: extensibleObject
 cn: Content Synchronization
 nsslapd-pluginpath: libcontentsync-plugin
 nsslapd-plugininitfunc: sync_init
