@@ -542,14 +542,14 @@ attr_syntax_exists(const char *attr_name)
 	int free_attr = 0;
 
 	/* Ignore any attribute subtypes. */
-	if (p = strchr(attr_name, ';')) {
+	if ((p = strchr(attr_name, ';'))) {
 		int check_attr_len = p - attr_name + 1;
 
 		check_attr_name = (char *)slapi_ch_malloc(check_attr_len);
 		PR_snprintf(check_attr_name, check_attr_len, "%s", attr_name);
 		free_attr = 1;
  	} else {
-		check_attr_name = attr_name;
+		check_attr_name = (char *)attr_name;
 	}
 
 	asi = attr_syntax_get_by_name(check_attr_name);
