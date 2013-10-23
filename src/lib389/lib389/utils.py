@@ -1,4 +1,4 @@
-"""Utilities for DSAdmin.
+"""Utilities for DirSrv.
 
     TODO put them in a module!
 """
@@ -9,7 +9,7 @@ except ImportError:
 
     def my_popen(cmd_l, stdout=None):
         class MockPopenResult(object):
-            def wait():
+            def wait(self):
                 pass
         p = MockPopenResult()
         p.stdout, p.stdin = popen2(cmd_l)
@@ -203,7 +203,7 @@ def update_newhost_with_fqdn(args):
 
 
 def getcfgdsuserdn(cfgdn, args):
-    """Return a DSAdmin object bound anonymously or to the admin user.
+    """Return a DirSrv object bound anonymously or to the admin user.
 
     If the config ds user ID was given, not the full DN, we need to figure
     out the full DN.  
@@ -216,7 +216,7 @@ def getcfgdsuserdn(cfgdn, args):
     This may raise a file or LDAP exception.
     """
     # create a connection to the cfg ds
-    conn = lib389.DSAdmin(args['cfgdshost'], args['cfgdsport'], "", "", None)
+    conn = lib389.DirSrv(args['cfgdshost'], args['cfgdsport'], "", "", None)
     # if the caller gave a password, but not the cfguser DN, look it up
     if 'cfgdspwd' in args and \
             ('cfgdsuser' not in args or not is_a_dn(args['cfgdsuser'])):
@@ -239,7 +239,7 @@ def getcfgdsuserdn(cfgdn, args):
             args['cfgdsuser'] = "uid=%s,ou=Administrators,ou=TopologyManagement,%s" % \
                 (args['cfgdsuser'], cfgdn)
         conn.unbind()
-        conn = lib389.DSAdmin(
+        conn = lib389.DirSrv(
             args['cfgdshost'], args['cfgdsport'], args['cfgdsuser'],
             args['cfgdspwd'], None)
     return conn

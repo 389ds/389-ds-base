@@ -5,7 +5,7 @@
    * Suffix
 
    You will access this from:
-   DSAdmin.backend.methodName()
+   DirSrv.backend.methodName()
 """
 
 
@@ -13,8 +13,10 @@ import config
 from config import log
 from config import *
 
-import dsadmin
-from dsadmin import DSAdmin, Entry
+import lib389
+from lib389 import DirSrv, Entry
+import time
+
 # Test harnesses
 from dsadmin_test import drop_backend, addbackend_harn
 from dsadmin_test import drop_added_entries
@@ -30,10 +32,10 @@ def setup():
     # uses an existing 389 instance
     # add a suffix
     # add an agreement
-    # This setup is quite verbose but to test dsadmin method we should
+    # This setup is quite verbose but to test DirSrv method we should
     # do things manually. A better solution would be to use an LDIF.
     global conn
-    conn = DSAdmin(**config.auth)
+    conn = DirSrv(**config.auth)
     conn.verbose = True
     conn.added_entries = []
     conn.added_backends = set(['o=mockbe1'])
@@ -48,8 +50,8 @@ def setup():
 
 def teardown():
     global conn
-    conn.config.loglevel([dsadmin.LOG_CACHE])
-    conn.config.loglevel([dsadmin.LOG_CACHE], level='access')
+    conn.config.loglevel([lib389.LOG_CACHE])
+    conn.config.loglevel([256], level='access')
     
     """
     drop_added_entries(conn)
@@ -59,7 +61,7 @@ def teardown():
     """
     
 def loglevel_test():
-    vals = [dsadmin.LOG_CACHE, dsadmin.LOG_REPLICA, dsadmin.LOG_CONNECT]
+    vals = [lib389.LOG_CACHE, lib389.LOG_REPLICA, lib389.LOG_CONNECT]
     expected = sum(vals)
     assert conn.config.loglevel(vals) == expected
     ret = conn.config.get('nsslapd-errorlog-level') 
@@ -67,15 +69,15 @@ def loglevel_test():
     
 
 def loglevel_update_test():
-    vals = [dsadmin.LOG_CACHE, dsadmin.LOG_CONNECT]
+    vals = [lib389.LOG_CACHE, lib389.LOG_CONNECT]
     e = sum(vals)
     assert conn.config.loglevel(vals) == e
-    vals = [dsadmin.LOG_REPLICA]
+    vals = [lib389.LOG_REPLICA]
     ret = conn.config.loglevel(vals, update=True) 
     assert ret == (e + sum(vals)), "expected %s got %s" % (e + sum(vals), ret)
 
 
 def access_loglevel_test():
-    vals = [dsadmin.LOG_CACHE, dsadmin.LOG_REPLICA, dsadmin.LOG_CONNECT]
+    vals = [lib389.LOG_CACHE, lib389.LOG_REPLICA, lib389.LOG_CONNECT]
     assert conn.config.loglevel(vals, level='access') == sum(vals)
 

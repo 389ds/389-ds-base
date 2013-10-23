@@ -8,11 +8,11 @@ from config import *
 import ldap
 import time
 import sys
-import dsadmin
-from dsadmin import DSAdmin, Entry
-from dsadmin import NoSuchEntryError
-from dsadmin import utils
-from dsadmin.tools import DSAdminTools
+import lib389
+from lib389 import DirSrv, Entry
+from lib389 import NoSuchEntryError
+from lib389 import utils
+from lib389.tools import DirSrvTools
 from subprocess import Popen
 
 
@@ -21,13 +21,13 @@ added_entries = None
 added_backends = None
 
 def harn_nolog():
-    conn.config.loglevel([dsadmin.LOG_DEFAULT])
-    conn.config.loglevel([dsadmin.LOG_DEFAULT], level='access')
+    conn.config.loglevel([lib389.LOG_DEFAULT])
+    conn.config.loglevel([lib389.LOG_DEFAULT], level='access')
 
 
 def setup():
     global conn
-    conn = DSAdmin(**config.auth)
+    conn = DirSrv(**config.auth)
     conn.verbose = True
     conn.added_entries = []
     conn.added_backends = set(['o=mockbe2'])
@@ -36,7 +36,13 @@ def setup():
     
 def setup_backend():
     global conn
-    addbackend_harn(conn, 'addressbook6')
+    suffix = 'o=addressbook6'
+    backend = 'addressbook6db'
+
+    #create backend and suffix
+    backendEntry, dummy = conn.backend.add(suffix, benamebase=backend)
+    suffixEntry = conn.backend.setup_mt(suffix, backend)
+
 
 def teardown():
     global conn
@@ -76,7 +82,7 @@ def drop_backend(conn, suffix, bename=None, maxnum=50):
         
     assert bename, "Missing bename for %r" % suffix
     if not hasattr(bename, '__iter__'):
-        bename = [','.join(['cn=%s' % bename, dsadmin.DN_LDBM])]
+        bename = [','.join(['cn=%s' % bename, lib389.DN_LDBM])]
     for be in bename:
         log.debug("removing entry from %r" % be)
         leaves = [x.dn for x in conn.search_s(
@@ -127,42 +133,48 @@ def addbackend_harn(conn, name, beattrs=None):
 def setupBackend_ok_test():
     "setupBackend_ok calls brooker.Backend.add"
     try:
-        be = conn.setupBackend('o=mockbe5', benamebase='mockbe5')
-        assert be
+        backendEntry, dummy = conn.backend.add('o=mockbe5', benamebase='mockbe5')
+        assert backendEntry
     except ldap.ALREADY_EXISTS:
         raise
     finally:
-        conn.added_backends.add('o=mockbe5')
+        conn.backend.delete(benamebase='mockbe5')
 
 
 @raises(ldap.ALREADY_EXISTS)
 def setupBackend_double_test():
     "setupBackend_double calls brooker.Backend.add"
-    be1 = conn.setupBackend('o=mockbe3', benamebase='mockbe3')
-    conn.added_backends.add('o=mockbe3')
-    be11 = conn.setupBackend('o=mockbe3', benamebase='mockbe3')
+    backendEntry, dummy = conn.backend.add('o=mockbe3', benamebase='mockbe3')
+    backendEntry, dummy = conn.backend.add('o=mockbe3', benamebase='mockbe3')
 
 
 def addsuffix_test():
-    addbackend_harn(conn, 'addressbook16')
-    conn.added_backends.add('o=addressbook16')
+    # identical to getMTEntry_present_test in dsadmin_basic_test
+    #addbackend_harn(conn, 'addressbook16')
+    #conn.added_backends.add('o=addressbook16')
+    pass
 
 
 def addreplica_write_test():
-    name = 'ab3'
+    suffix = 'o=ab3'
+    backend = 'ab3'
     user = {
         'binddn': 'uid=rmanager,cn=config',
         'bindpw': 'password'
     }
     replica = {
-        'suffix': 'o=%s' % name,
-        'type': dsadmin.MASTER_TYPE,
+        'suffix': suffix,
+        'type': lib389.MASTER_TYPE,
         'id': 124
     }
     replica.update(user)
-    addbackend_harn(conn, name)
+    
+    #create backend and suffix
+    backendEntry, dummy = conn.backend.add(suffix, benamebase=backend)
+    suffixEntry = conn.backend.setup_mt(suffix, backend)
+
     ret = conn.replicaSetupAll(replica)
-    conn.added_replicas.append(ret['dn'])
+    
     assert ret != -1, "Error in setup replica: %s" % ret
 
 
@@ -183,29 +195,28 @@ def prepare_master_replica_test():
 
 @with_setup(setup_backend)
 def setupAgreement_test():
-    consumer = MockDSAdmin()
+    consumer = MockDirSrv()
     args = {
         'suffix': "o=addressbook6",
         #'bename': "userRoot",
         'binddn': "uid=rmanager,cn=config",
         'bindpw': "password",
-        'rtype': dsadmin.MASTER_TYPE,
+        'rtype': lib389.MASTER_TYPE,
         'rid': '1234'
     }
     conn.replica.add(**args)
     conn.added_entries.append(args['binddn'])
 
     dn_replica = conn.setupAgreement(consumer, args)
-    print dn_replica
 
 
 def stop_start_test():
-    # dunno why DSAdmin.start|stop writes to dirsrv error-log
-    conn.errlog = "/tmp/dsadmin-errlog"
+    # dunno why DirSrv.start|stop writes to dirsrv error-log
+    conn.errlog = "/tmp/dirsrv-errlog"
     open(conn.errlog, "w").close()
-    DSAdminTools.stop(conn)
+    DirSrvTools.stop(conn)
     log.info("server stopped")
-    DSAdminTools.start(conn)
+    DirSrvTools.start(conn)
     log.info("server start")
     time.sleep(5)
     # save and restore conn settings after restart
@@ -218,7 +229,8 @@ def stop_start_test():
 
 def setupSSL_test():
     ssl_args = {
-        'secport': 636,
+        'dirsrv': conn,
+        'secport': 22636,
         'sourcedir': None,
         'secargs': {'nsSSLPersonalitySSL': 'localhost'},
     }
@@ -236,5 +248,5 @@ def setupSSL_test():
     Popen(cmd_mkcert.split(), stdin=open("/dev/urandom"), stderr=fd_null)
 
     log.info("Testing ssl configuration")
-    ssl_args.update({'dsadmin': conn})
-    DSAdminTools.setupSSL(**ssl_args)
+    ssl_args.update({'dirsrv': conn})
+    DirSrvTools.setupSSL(**ssl_args)

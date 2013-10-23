@@ -5,7 +5,7 @@
    * Suffix
 
    You will access this from:
-   DSAdmin.backend.methodName()
+   DirSrv.backend.methodName()
 """
 
 from nose import *
@@ -18,15 +18,15 @@ from config import *
 import ldap
 import time
 import sys
-import dsadmin
-from dsadmin import DSAdmin, Entry
-from dsadmin import NoSuchEntryError
-from dsadmin import utils
-from dsadmin.tools import DSAdminTools
+import lib389
+from lib389 import DirSrv, Entry
+from lib389 import NoSuchEntryError
+from lib389 import utils
+from lib389.tools import DirSrvTools
 from subprocess import Popen
 from random import randint
-from dsadmin.brooker import Replica
-from dsadmin import MASTER_TYPE, DN_MAPPING_TREE, DN_CHANGELOG
+from lib389.brooker import Replica
+from lib389 import MASTER_TYPE, DN_MAPPING_TREE, DN_CHANGELOG
 # Test harnesses
 from dsadmin_test import drop_backend, addbackend_harn
 from dsadmin_test import drop_added_entries
@@ -42,20 +42,26 @@ def setup():
     # uses an existing 389 instance
     # add a suffix
     # add an agreement
-    # This setup is quite verbose but to test dsadmin method we should
+    # This setup is quite verbose but to test DirSrv method we should
     # do things manually. A better solution would be to use an LDIF.
     global conn
-    conn = DSAdmin(**config.auth)
+    conn = DirSrv(**config.auth)
     conn.verbose = True
     conn.added_entries = []
     conn.added_backends = set(['o=mockbe1'])
     conn.added_replicas = []
 
     # add a backend for testing ruv and agreements
-    addbackend_harn(conn, 'testReplica')
+    suffix = 'o=testReplica'
+    backend = 'testReplicadb'
+    backendEntry, dummy = conn.backend.add(suffix, benamebase=backend)
+    suffixEntry = conn.backend.setup_mt(suffix, backend)
 
     # add another backend for testing replica.add()
-    addbackend_harn(conn, 'testReplicaCreation')
+    suffix = 'o=testReplicaCreation'
+    backend = 'testReplicaCreationdb'
+    backendEntry, dummy = conn.backend.add(suffix, benamebase=backend)
+    suffixEntry = conn.backend.setup_mt(suffix, backend)
 
     # replication needs changelog
     conn.replica.changelog()
@@ -119,8 +125,10 @@ def teardown():
     global conn
     drop_added_entries(conn)
     conn.delete_s(','.join(['cn="o=testreplica"', DN_MAPPING_TREE]))
-    drop_backend(conn, 'o=testreplica')
-    conn.delete_s('o=testreplica')
+    conn.backend.delete('testReplicadb')
+    
+    conn.delete_s(','.join(['cn="o=testReplicaCreation"', DN_MAPPING_TREE]))
+    conn.backend.delete('testReplicaCreationdb')
 
 
 def changelog():
@@ -217,7 +225,7 @@ def setup_agreement_default_test():
         'binddn': DN_RMANAGER,
         'bindpw': "password"
     }
-    params = {'consumer': MockDSAdmin(), 'suffix': "o=testReplica"}
+    params = {'consumer': MockDirSrv(), 'suffix': "o=testReplica"}
     params.update(user)
 
     agreement_dn = conn.replica.agreement_add(**params)
@@ -230,7 +238,7 @@ def setup_agreement_duplicate_test():
         'bindpw': "password"
     }
     params = {
-        'consumer': MockDSAdmin(),
+        'consumer': MockDirSrv(),
         'suffix': "o=testReplica",
         'cn_format': 'testAgreement',
         'description_format': 'testAgreement'
@@ -244,7 +252,7 @@ def setup_agreement_test():
         'binddn': DN_RMANAGER,
         'bindpw': "password"
     }
-    params = {'consumer': MockDSAdmin(), 'suffix': "o=testReplica"}
+    params = {'consumer': MockDirSrv(), 'suffix': "o=testReplica"}
     params.update(user)
 
     conn.replica.agreement_add(**params)
@@ -258,7 +266,7 @@ def setup_agreement_fractional_test():
         'binddn': DN_RMANAGER,
         'bindpw': "password"
     }
-    params = {'consumer': MockDSAdmin(), 'suffix': "o=testReplica"}
+    params = {'consumer': MockDirSrv(), 'suffix': "o=testReplica"}
     params.update(user)
 
     #conn.replica.agreement_add(**params)
@@ -283,7 +291,7 @@ def setup_replica_test():
         'suffix': "o=testReplicaCreation",
         'binddn': DN_RMANAGER,
         'bindpw': "password",
-        'rtype': dsadmin.MASTER_TYPE,
+        'rtype': lib389.MASTER_TYPE,
         'rid': MOCK_REPLICA_ID
     }
     # create a replica entry
@@ -297,7 +305,7 @@ def setup_replica_hub_test():
         'suffix': "o=testReplicaCreation",
         'binddn': DN_RMANAGER,
         'bindpw': "password",
-        'rtype': dsadmin.HUB_TYPE,
+        'rtype': lib389.HUB_TYPE,
         'rid': MOCK_REPLICA_ID
     }
     # create a replica entry

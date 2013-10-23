@@ -2,9 +2,11 @@
 """
 import ldap
 import os
-from dsadmin import DSAdmin, DN_CONFIG
-from dsadmin.tools import DSAdminTools
+import socket
+from lib389 import DirSrv, DN_CONFIG
+from lib389.tools import DirSrvTools
 from nose import *
+import logging
 
 added_instances = []
 
@@ -16,7 +18,7 @@ def setup():
 def teardown():
     global added_instances
     for instance in added_instances:
-        cmd = "remove-ds.pl -i slapd-%s" % instance
+        cmd = "/usr/bin/sudo remove-ds.pl -i slapd-%s" % instance
         try:
             os.system(cmd)
         except:
@@ -24,7 +26,7 @@ def teardown():
 
 
 def default_test():
-    host = 'localhost'
+    host = socket.gethostname()
     port = 10200
     binddn = "cn=directory manager"
     bindpw = "password"
@@ -47,9 +49,9 @@ def default_test():
         'setup_admin': True,
     }
     try:
-        m1 = DSAdmin(host, port, binddn, bindpw)
+        m1 = DirSrv(host, port, binddn, bindpw)
     except:
-        m1 = DSAdminTools.createInstance(instance_config, verbose=1)
+        m1 = DirSrvTools.createInstance(instance_config, verbose=0)
         added_instances.append(instance_config['newinstance'])
 
 #        filename = "%s/slapd-%s/ldif/Example.ldif" % (m1.sroot, m1.inst)
@@ -64,12 +66,16 @@ def default_test():
                            'newport': port + 10,
 
                            })
-    m1 = DSAdminTools.createInstance(instance_config, verbose=1)
+    m1 = DirSrvTools.createInstance(instance_config, verbose=0)
     added_instances.append(instance_config['newinstance'])
-#     m1.stop(True)
-#     m1.start(True)
-    cn = m1.setupBackend("dc=example2,dc=com")
-    rc = m1.setupSuffix("dc=example2,dc=com", cn)
+    #     m1.stop(True)
+    #     m1.start(True)
+    suffix = "dc=example2,dc=com"
+    bename = "example2db"
+    backendEntry, dummy = m1.backend.add(suffix, bename)
+    suffixEntry = m1.backend.setup_mt(suffix, bename)
+    cn = backendEntry.getValue('cn')
+    print cn
     entry = m1.getEntry(DN_CONFIG, ldap.SCOPE_SUBTREE, "(cn=" + cn + ")")
     print "new backend entry is:"
     print entry

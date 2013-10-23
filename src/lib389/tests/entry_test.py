@@ -1,5 +1,5 @@
-from dsadmin import Entry
-import dsadmin
+from lib389 import Entry
+import lib389
 from nose import SkipTest
 from nose.tools import raises
 
@@ -52,7 +52,7 @@ class TestEntry(object):
     #@SkipTest
     def test_update_complex(self):
         # compare two entries created with different methods
-        nsuffix, replid, replicatype = "dc=example,dc=com", 5, dsadmin.REPLICA_RDWR_TYPE
+        nsuffix, replid, replicatype = "dc=example,dc=com", 5, lib389.REPLICA_RDWR_TYPE
         binddnlist, legacy = ['uid=pippo, cn=config'], 'off'
         dn = "dc=example,dc=com"
         entry = Entry(dn)

@@ -1,8 +1,8 @@
 """Tools for creating and managing servers
     
-    uses DSAdmin
+    uses DirSrv
 """
-__all__ = ['DSAdminTools']
+__all__ = ['DirSrvTools']
 try:
     from subprocess import Popen, PIPE, STDOUT
     HASPOPEN = True
@@ -48,8 +48,8 @@ PATH_SETUP_DS_ADMIN = "/setup-ds-admin.pl"
 PATH_SETUP_DS = "/setup-ds.pl"
 PATH_ADM_CONF = "/etc/dirsrv/admin-serv/adm.conf"
 
-class DSAdminTools(object):
-    """DSAdmin mix-in."""
+class DirSrvTools(object):
+    """DirSrv mix-in."""
 
     @staticmethod
     def cgiFake(sroot, verbose, prog, args):
@@ -228,21 +228,21 @@ class DSAdminTools(object):
             self.unbind()
             log.info("closed remote server ", self)
             cgiargs = {}
-            rc = DSAdminTools.cgiPost(self.host, self.asport, self.cfgdsuser,
+            rc = DirSrvTools.cgiPost(self.host, self.asport, self.cfgdsuser,
                                       self.cfgdspwd,
                                       "/slapd-%s/Tasks/Operation/stop" % self.inst,
                                       verbose, cgiargs)
             log.info("stopped remote server %s rc = %d" % (self, rc))
             return rc
         else:
-            return DSAdminTools.serverCmd(self, 'stop', verbose, timeout)
+            return DirSrvTools.serverCmd(self, 'stop', verbose, timeout)
 
     @staticmethod
     def start(self, verbose=False, timeout=0):
         if not self.isLocal and hasattr(self, 'asport'):
             log.debug("starting remote server %s " % self)
             cgiargs = {}
-            rc = DSAdminTools.cgiPost(self.host, self.asport, self.cfgdsuser,
+            rc = DirSrvTools.cgiPost(self.host, self.asport, self.cfgdsuser,
                                       self.cfgdspwd,
                                       "/slapd-%s/Tasks/Operation/start" % self.inst,
                                       verbose, cgiargs)
@@ -253,27 +253,27 @@ class DSAdminTools(object):
             return rc
         else:
             log.debug("Starting server %r" % self)
-            return DSAdminTools.serverCmd(self, 'start', verbose, timeout)
+            return DirSrvTools.serverCmd(self, 'start', verbose, timeout)
 
     @staticmethod
-    def setupSSL(dsadmin, secport=636, sourcedir=None, secargs=None):
+    def setupSSL(dirsrv, secport=636, sourcedir=None, secargs=None):
         """configure and setup SSL with a given certificate and restart the server.
         
-            See DSAdmin.configSSL for the secargs values
+            See DirSrv.configSSL for the secargs values
         """
-        e = lib389.configSSL(secport, secargs)
+        e = dirsrv.configSSL(secport, secargs)
         log.info("entry is %r" % [e])
         dn_config = e.dn
         # get our cert dir
-        e_config = lib389.getEntry(
+        e_config = dirsrv.getEntry(
             dn_config, ldap.SCOPE_BASE, '(objectclass=*)')
         certdir = e_config.getValue('nsslapd-certdir')
         # have to stop the server before replacing any security files
-        DSAdminTools.stop(dsadmin)
+        DirSrvTools.stop(dirsrv)
         # allow secport for selinux
         if secport != 636:
             log.debug("Configuring SELinux on port:", secport)
-            cmd = 'semanage port -a -t ldap_port_t -p tcp %s' % secport
+            cmd = '/usr/bin/sudo semanage port -a -t ldap_port_t -p tcp %s' % secport
             os.system(cmd)
 
         # eventually copy security files from source dir to our cert dir
@@ -294,7 +294,7 @@ class DSAdminTools(object):
                 shutil.copy2(srcf, destf)
 
         # now, restart the ds
-        DSAdminTools.start(dsadmin, True)
+        DirSrvTools.start(dirsrv, True)
 
     @staticmethod
     def runInfProg(prog, content, verbose):
@@ -449,7 +449,7 @@ class DSAdminTools(object):
 
         # try to connect with the given parameters
         try:
-            newconn = lib389.DSAdmin(args['newhost'], args['newport'],
+            newconn = lib389.DirSrv(args['newhost'], args['newport'],
                               args['newrootdn'], args['newrootpw'], args['newinstance'])
             newconn.isLocal = isLocal
             if args['have_admin'] and not args['setup_admin']:
@@ -493,14 +493,14 @@ class DSAdminTools(object):
             cgiargs['admin_domain'] = args['admin_domain']
 
         if not isLocal:
-            DSAdminTools.cgiPost(args['newhost'], asport, args['cfgdsuser'],
+            DirSrvTools.cgiPost(args['newhost'], asport, args['cfgdsuser'],
                                  args['cfgdspwd'], "/slapd/Tasks/Operation/Create", verbose,
                                  secure, cgiargs)
         elif not args['new_style']:
             prog = sroot + "/bin/slapd/admin/bin/ds_create"
             if not os.access(prog, os.X_OK):
                 prog = sroot + "/bin/slapd/admin/bin/ds_newinstance"
-            DSAdminTools.cgiFake(sroot, verbose, prog, cgiargs)
+            DirSrvTools.cgiFake(sroot, verbose, prog, cgiargs)
         else:
             prog = ''
             if args['have_admin']:
@@ -513,9 +513,9 @@ class DSAdminTools(object):
                 prog = prog[:-3]
 
             content = formatInfData(args)
-            DSAdminTools.runInfProg(prog, content, verbose)
+            DirSrvTools.runInfProg(prog, content, verbose)
 
-        newconn = lib389.DSAdmin(args['newhost'], args['newport'],
+        newconn = lib389.DirSrv(args['newhost'], args['newport'],
                           args['newrootdn'], args['newrootpw'], args['newinstance'])
         newconn.isLocal = isLocal
         # Now the admin should have been created
@@ -532,7 +532,7 @@ class DSAdminTools(object):
         # pass this sub two dicts - the first one is a dict suitable to create
         # a new instance - see createInstance for more details
         # the second is a dict suitable for replicaSetupAll - see replicaSetupAll
-        conn = DSAdminTools.createInstance(createArgs)
+        conn = DirSrvTools.createInstance(createArgs)
         if not conn:
             print "Error: could not create server", createArgs
             return 0
@@ -541,7 +541,7 @@ class DSAdminTools(object):
         return conn
 
 
-class MockDSAdmin(object):
+class MockDirSrv(object):
     host = 'localhost'
     port = 22389
     sslport = 0

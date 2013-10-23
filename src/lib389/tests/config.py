@@ -10,7 +10,7 @@ auth = {'host': 'localhost',
         'bindpw': 'password'}
 
 
-class MockDSAdmin(object):
+class MockDirSrv(object):
     host = 'localhost'
     port = 22389
     sslport = 0

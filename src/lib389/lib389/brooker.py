@@ -5,7 +5,7 @@
    * Suffix
 
    You will access this from:
-   DSAdmin.backend.methodName()
+   DirSrv.backend.methodName()
 """
 import ldap
 import os
@@ -14,7 +14,7 @@ import time
 
 
 from lib389._constants import *
-from lib389 import Entry, DSAdmin
+from lib389 import Entry, DirSrv
 from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
 from lib389 import (
     NoSuchEntryError
@@ -42,13 +42,13 @@ class Replica(object):
     ALWAYS = None
 
     def __init__(self, conn):
-        """@param conn - a DSAdmin instance"""
+        """@param conn - a DirSrv instance"""
         self.conn = conn
         self.log = conn.log
 
     def __getattr__(self, name):
         if name in Replica.proxied_methods:
-            return DSAdmin.__getattr__(self.conn, name)
+            return DirSrv.__getattr__(self.conn, name)
 
     def _get_mt_entry(self, suffix):
         """Return the replica dn of the given suffix."""
@@ -356,7 +356,7 @@ class Replica(object):
             - self is the supplier,
 
             @param consumer: one of the following (consumer can be a master)
-                    * a DSAdmin object if chaining
+                    * a DirSrv object if chaining
                     * an object with attributes: host, port, sslport, __str__
             @param suffix    - eg. 'dc=babel,dc=it'
             @param binddn    - 
@@ -521,7 +521,7 @@ class Config(object):
         - get and set "cn=config" attributes
     """
     def __init__(self, conn):
-        """@param conn - a DSAdmin instance """
+        """@param conn - a DirSrv instance """
         self.conn = conn
         self.log = conn.log
         
@@ -533,7 +533,7 @@ class Config(object):
             eg. set('passwordExp', 'on')
         """
         self.log.debug("set(%r, %r)" % (key, value))
-        return self.conn.modify(DN_CONFIG,
+        return self.conn.modify_s(DN_CONFIG,
             [(ldap.MOD_REPLACE, key, value)])
             
     def get(self, key):
@@ -619,13 +619,13 @@ class Backend(object):
     proxied_methods = 'search_s getEntry'.split()
 
     def __init__(self, conn):
-        """@param conn - a DSAdmin instance"""
+        """@param conn - a DirSrv instance"""
         self.conn = conn
         self.log = conn.log
 
     def __getattr__(self, name):
         if name in Replica.proxied_methods:
-            return DSAdmin.__getattr__(self.conn, name)
+            return DirSrv.__getattr__(self.conn, name)
 
     def list(self, name=None, suffix=None, attrs=None):
         """Get backends by name or suffix
@@ -683,7 +683,30 @@ class Backend(object):
         self.conn.modify_s(','.join(('cn=' + bename, DN_LDBM)), [
             (ldap.MOD_REPLACE, 'nsslapd-readonly', readonly)
         ])
-
+        
+        
+    def delete(self, benamebase='localdb'):
+        """Delete a backend.
+        @param benamebase - the backend common name
+        
+        It firsts delete all the indexes under the backend, then delete the backend entry
+        Then deletes
+            - encrypted attribute keys
+            - encrypted attribute
+            - monitor
+        Then deletes the backend entry
+        """
+        self.conn.index.delete_all(benamebase)
+        
+        dn = "cn=encrypted attribute keys," + "cn=" + benamebase + "," + DN_LDBM
+        self.conn.delete_s(dn)
+        dn = "cn=encrypted attributes," + "cn=" + benamebase + "," + DN_LDBM
+        self.conn.delete_s(dn)
+        dn = "cn=monitor," + "cn=" + benamebase + "," + DN_LDBM
+        self.conn.delete_s(dn)
+        dn = "cn=" + benamebase + "," + DN_LDBM
+        self.conn.delete_s(dn)
+        return
 
     def add(self, suffix, binddn=None, bindpw=None, urls=None, attrvals=None, benamebase='localdb', setupmt=False, parent=None):
         """Setup a backend and return its dn. Blank on error XXX should RAISE!
@@ -720,6 +743,8 @@ class Backend(object):
         """
         attrvals = attrvals or {}
         dnbase = ""
+        backend_entry = None
+        suffix_entry = None
 
         # figure out what type of be based on args
         if binddn and bindpw and urls:  # its a chaining be
@@ -760,16 +785,16 @@ class Backend(object):
             self.log.error("Could not add backend entry: %r" % dn)
             raise
 
-        self.conn._test_entry(dn, ldap.SCOPE_BASE)
+        backend_entry = self.conn._test_entry(dn, ldap.SCOPE_BASE)
         
         #
         # if setupmt creates the suffix entry
         #
         if setupmt:
             self.log.debug("Setup Mapping Tree entry")
-            mtentry = self.setup_mt(suffix=suffix, bename=cn, parent=parent) 
-            self.log.info("Created Mapping Tree entry %r" % mtentry)
-        return cn
+            suffix_entry = self.setup_mt(suffix=suffix, bename=cn, parent=parent) 
+            self.log.info("Created Mapping Tree entry %s" % suffix_entry.dn)
+        return backend_entry, suffix_entry
 
 
     def setup_mt(self, suffix, bename, parent=None):
@@ -823,7 +848,8 @@ class Backend(object):
         if parent:
             entry.setValues('nsslapd-parent-suffix', nparent)
         try:
-            self.log.debug("Creating entry: %r" % entry)
+            self.log.debug("Creating entry: %s" % entry.dn)
+            self.log.info("Entry %r" % entry)
             self.conn.add_s(entry)
         except ldap.LDAPError, e:
             raise ldap.LDAPError("Error adding suffix entry " + dn, e)
@@ -840,3 +866,24 @@ class Backend(object):
             raise NotImplementedError()
             return [x.dn.replace("\3D","=").replace("\2C",",") for x in suffixes]
         return [x.dn for x in suffixes]
+
+
+class Index(object):
+    
+    def __init__(self, conn):
+        """@param conn - a DirSrv instance"""
+        self.conn = conn
+        self.log = conn.log
+    
+    def delete_all(self, benamebase):
+        dn = "cn=index, cn=" + benamebase + "," + DN_LDBM
+        
+        # delete each defined index
+        ents = self.conn.search_s(dn, ldap.SCOPE_ONELEVEL)
+        for ent in ents:
+            self.log.debug("Delete index entry %s" % (ent.dn))
+            self.conn.delete_s(ent.dn)
+            
+        # Then delete the top index entry
+        self.log.debug("Delete head index entry %s" % (dn))
+        self.conn.delete_s(dn)

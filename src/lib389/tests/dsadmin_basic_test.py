@@ -1,10 +1,10 @@
-""" Testing basic functionalities of DSAdmin
+""" Testing basic functionalities of DirSrv
 
 
 """
-import dsadmin
-from dsadmin import DSAdmin, Entry
-from dsadmin import NoSuchEntryError
+import lib389
+from lib389 import DirSrv, Entry
+from lib389 import NoSuchEntryError
 import ldap
 from ldap import *
 
@@ -21,7 +21,7 @@ added_entries = None
 def setup():
     global conn
     try:
-        conn = DSAdmin(**config.auth)
+        conn = DirSrv(**config.auth)
         conn.verbose = True
         conn.added_entries = []
     except SERVER_DOWN, e:
@@ -33,8 +33,8 @@ def tearDown():
     global conn
 
     # reduce log level
-    conn.config.loglevel(0)
-    conn.config.loglevel(0, level='access')
+    conn.config.loglevel([lib389.LOG_CACHE])
+    conn.config.loglevel([256], level='access')
 
     for e in conn.added_entries:
         try:
@@ -106,6 +106,13 @@ def getMTEntry_missing_test():
 
 def getMTEntry_present_test():
     suffix = 'o=addressbook16'
+    bename = 'addressbookd16db'
+    backendEntry, dummy = conn.backend.add(suffix, benamebase=bename)
+    suffixEntry = conn.backend.setup_mt(suffix, bename)
+    
     e = conn.getMTEntry(suffix)
+    
+    conn.backend.delete(bename)
+    conn.delete_s(suffixEntry.dn)
     assert e, "Entry should be present %s" % suffix
 

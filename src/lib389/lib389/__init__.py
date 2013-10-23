@@ -1,10 +1,10 @@
-"""The dsadmin module.
+"""The lib389 module.
 
 
     IMPORTANT: Ternary operator syntax is unsupported on RHEL5
         x if cond else y #don't!
 
-    The DSAdmin functionalities are split in various classes
+    The lib389 functionalities are split in various classes
         defined in brookers.py
 
     TODO: reorganize method parameters according to SimpleLDAPObject
@@ -32,7 +32,6 @@ import time
 import operator
 import shutil
 import datetime
-import select
 import logging
 
 from ldap.ldapobject import SimpleLDAPObject
@@ -54,7 +53,7 @@ from lib389.utils import (
     )
 
 # mixin
-#from lib389.tools import DSAdminTools
+#from lib389.tools import DirSrvTools
 
 RE_DBMONATTR = re.compile(r'^([a-zA-Z]+)-([1-9][0-9]*)$')
 RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
@@ -93,15 +92,15 @@ class  DsError(Error):
 
 def wrapper(f, name):
     """Wrapper of all superclass methods using lib389.Entry.
-        @param f - DSAdmin method inherited from SimpleLDAPObject
+        @param f - DirSrv method inherited from SimpleLDAPObject
         @param name - method to call
         
-    This seems to need to be an unbound method, that's why it's outside of DSAdmin.  Perhaps there
+    This seems to need to be an unbound method, that's why it's outside of DirSrv.  Perhaps there
     is some way to do this with the new classmethod or staticmethod of 2.4.
     
     We replace every call to a method in SimpleLDAPObject (the superclass
-    of DSAdmin) with a call to inner.  The f argument to wrapper is the bound method
-    of DSAdmin (which is inherited from the superclass).  Bound means that it will implicitly
+    of DirSrv) with a call to inner.  The f argument to wrapper is the bound method
+    of DirSrv (which is inherited from the superclass).  Bound means that it will implicitly
     be called with the self argument, it is not in the args list.  name is the name of
     the method to call.  If name is a method that returns entry objects (e.g. result),
     we wrap the data returned by an Entry class.  If name is a method that takes an entry
@@ -145,7 +144,7 @@ def wrapper(f, name):
 
 
 
-class DSAdmin(SimpleLDAPObject):
+class DirSrv(SimpleLDAPObject):
 
     def getDseAttr(self, attrname):
         """Return a given attribute from dse.ldif.
@@ -163,7 +162,7 @@ class DSAdmin(SimpleLDAPObject):
             raise err
 
     def __initPart2(self):
-        """Initialize the DSAdmin structure filling various fields, like:
+        """Initialize the DirSrv structure filling various fields, like:
             - dbdir
             - errlog
             - confdir
@@ -264,10 +263,12 @@ class DSAdmin(SimpleLDAPObject):
         from lib389.brooker import (
             Replica,
             Backend,
-            Config)
+            Config,
+            Index)
         self.replica = Replica(self)
         self.backend = Backend(self)
         self.config = Config(self)
+        self.index = Index(self)
     
     def __init__(self, host='localhost', port=389, binddn='', bindpw='', serverId=None, nobind=False, sslport=0, verbose=False):  # default to anon bind
         """We just set our instance variables and wrap the methods.
@@ -490,11 +491,11 @@ class DSAdmin(SimpleLDAPObject):
         rc = self.startTaskAndWait(entry, verbose)
 
         if rc:
-            log.error("Error: index task %s for file %s exited with %d" % (
-                    cn, ldiffile, rc))
+            log.error("Error: index task %s exited with %d" % (
+                    cn, rc))
         else:
-            log.info("Index task %s for file %s completed successfully" % (
-                    cn, ldiffile))
+            log.info("Index task %s completed successfully" % (
+                    cn))
         return rc
 
     def fixupMemberOf(self, suffix, filt=None, verbose=False):
@@ -1041,16 +1042,16 @@ class DSAdmin(SimpleLDAPObject):
             else:
                 raise Exception("Error: invalid value %s for oneWaySync: must be fromWindows or toWindows" % args['onewaysync'])
 
-    # args - DSAdmin consumer (repoth), suffix, binddn, bindpw, timeout
+    # args - DirSrv consumer (repoth), suffix, binddn, bindpw, timeout
     # also need an auto_init argument
     def setupAgreement(self, consumer, args, cn_format=r'meTo_%s:%s', description_format=r'me to %s:%s'):
         """Create (and return) a replication agreement from self to consumer.
             - self is the supplier,
-            - consumer is a DSAdmin object (consumer can be a master)
+            - consumer is a DirSrv object (consumer can be a master)
             - cn_format - use this string to format the agreement name
 
         consumer:
-            * a DSAdmin object if chaining
+            * a DirSrv object if chaining
             * an object with attributes: host, port, sslport, __str__
 
         args =  {

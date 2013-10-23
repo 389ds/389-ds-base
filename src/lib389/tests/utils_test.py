@@ -1,7 +1,7 @@
 
 from nose import *
-import dsadmin
-from dsadmin.utils import *
+import lib389
+from lib389.utils import *
 
 
 def normalizeDN_test():
