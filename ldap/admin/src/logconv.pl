@@ -51,6 +51,8 @@ use IO::File;
 use Getopt::Long;
 use DB_File;
 use sigtrap qw(die normal-signals);
+use Archive::Tar;
+use IO::Uncompress::AnyUncompress qw($AnyUncompressError);
 
 Getopt::Long::Configure ("bundling");
 Getopt::Long::Configure ("permute");
@@ -367,9 +369,10 @@ my %monthname = (
 my $linesProcessed;
 my $lineBlockCount;
 my $cursize = 0;
+my $LOGFH;
 sub statusreport {
 	if ($lineBlockCount > $limit) {
-		my $curpos = tell(LOG);
+		my $curpos = tell($LOGFH);
 		my $percent = $curpos/$cursize*100.0;
 		print sprintf "%10d Lines Processed     %12d of %12d bytes (%.3f%%)\n",--$linesProcessed,$curpos,$cursize,$percent;
 		$lineBlockCount = 0;
@@ -400,50 +403,100 @@ $logCount = $file_count;
 my $logline;
 my $totalLineCount = 0;
 
+sub isTarArchive {
+	my $_ = shift;
+	return /\.tar$/ || /\.tar\.bz2$/ || /\.tar.gz$/ || /\.tar.xz$/ || /\.tgz$/ || /\.tbz$/ || /\.txz$/;
+}
+
+sub isCompressed {
+	my $_ = shift;
+	return /\.gz$/ || /\.bz2$/ || /\.xz$/;
+}
+
+$Archive::Tar::WARN = 0; # so new will shut up when reading a regular file
 for (my $count=0; $count < $file_count; $count++){
+	my $logname = $files[$count];
 	# we moved access to the end of the list, so if its the first file skip it
-        if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
-                next;
-        }
-        $linesProcessed = 0; $lineBlockCount = 0;
+	if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
+		next;
+	}
+	$linesProcessed = 0; $lineBlockCount = 0;
 	$logCount--;
-		my $logCountStr;
-	if($logCount < 10 ){ 
-		# add a zero for formatting purposes
-		$logCountStr = "0" . $logCount;
-	} else {
-		$logCountStr = $logCount;
-	}
-		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$atime,$mtime,$ctime,$blksize,$blocks);
-		($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$cursize,
-		 $atime,$mtime,$ctime,$blksize,$blocks) = stat($files[$count]);
-		print sprintf "[%s] %-30s\tsize (bytes): %12s\n",$logCountStr, $files[$count], $cursize;
-	
-	open(LOG,"$files[$count]") or do { openFailed($!, $files[$count]) };
-	my $firstline = "yes";
-	while(<LOG>){
-		unless ($endFlag) {
-			if ($firstline eq "yes"){
-				if (/^\[/) {
-                        		$logline = $_;
-                        		$firstline = "no";
-				}
-				$linesProcessed++;$lineBlockCount++;
-                	} elsif (/^\[/ && $firstline eq "no"){
-                         	&parseLine();
-                         	$logline = $_;
-                	} else {
-                        	$logline = $logline . $_;
-                        	$logline =~ s/\n//;
-                	}
+	my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$atime,$mtime,$ctime,$blksize,$blocks);
+	($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$cursize,
+	 $atime,$mtime,$ctime,$blksize,$blocks) = stat($logname);
+	print sprintf "[%03d] %-30s\tsize (bytes): %12s\n",$logCount, $logname, $cursize;
+
+	my $tar = 0;
+	my $tariter = 0;
+	my $tarfile = 0;
+	my $comp = 0;
+	if (isTarArchive($logname)) {
+		$tar = Archive::Tar->new();
+		$tariter = Archive::Tar->iter($logname);
+		if (!$tariter) {
+			print "$logname is not a valid tar archive, or compression is unrecognized: $!\n";
+			next;
 		}
+	} elsif (isCompressed($logname)) {
+		$comp = 1;
 	}
-	&parseLine();
-	close (LOG);
-	print_stats_block( $s_stats );
-	print_stats_block( $m_stats );
-	$totalLineCount = $totalLineCount + $linesProcessed;
+
+	while (!$tariter or ($tarfile = $tariter->())) {
+		if ($tarfile) {
+			if ($tarfile->is_file) {
+				print sprintf "\t%-30s\tsize (bytes): %12s\n",$tarfile->name, $tarfile->size;
+				$cursize = $tarfile->size;
+			} else {
+				print "\tskipping non-file $tarfile->name\n";
+				next;
+			}
+			if (isCompressed($tarfile->name)) {
+				$LOGFH = new IO::Uncompress::AnyUncompress \$tarfile->name or
+					do { openFailed($AnyUncompressError, $logname); next };
+				# no way in general to know how big the uncompressed file is - so
+				# assume a factor of 10 inflation - only used for progress reporting
+				$cursize *= 10;
+			} else {
+				open(LOG,"<",\$tarfile->data) or do { openFailed($!, $tarfile->name) ; next };
+				$LOGFH = \*LOG;
+			}
+		} elsif ($comp) {
+			$LOGFH = new IO::Uncompress::AnyUncompress $logname or
+				do { openFailed($AnyUncompressError, $logname); next };
+			# no way in general to know how big the uncompressed file is - so
+			# assume a factor of 10 inflation - only used for progress reporting
+			$cursize *= 10;
+		} else {
+			open(LOG,$logname) or do { openFailed($!, $logname); next };
+			$LOGFH = \*LOG;
+		}
+		my $firstline = "yes";
+		while(<$LOGFH>){
+			unless ($endFlag) {
+				if ($firstline eq "yes"){
+					if (/^\[/) {
+						$logline = $_;
+						$firstline = "no";
+					}
+					$linesProcessed++;$lineBlockCount++;
+				} elsif (/^\[/ && $firstline eq "no"){
+					&parseLine();
+					$logline = $_;
+				} else {
+					$logline = $logline . $_;
+					$logline =~ s/\n//;
+				}
+			}
+		}
+		&parseLine();
+		close ($LOGFH);
+		print_stats_block( $s_stats );
+		print_stats_block( $m_stats );
+		$totalLineCount = $totalLineCount + $linesProcessed;
 		statusreport();
+		last if (!$tariter);
+	}
 }
 
 print "\n\nTotal Log Lines Analysed:  " . ($totalLineCount - 1) . "\n";
