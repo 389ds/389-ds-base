@@ -246,8 +246,6 @@ do_search( Slapi_PBlock *pb )
 	}
 
 	if ( attrs != NULL ) {
-		int gerattrsiz = 1;
-		int gerattridx = 0;
 		int aciin = 0;
 		/* 
 		 * . store gerattrs if any
@@ -257,76 +255,31 @@ do_search( Slapi_PBlock *pb )
 		{
 			char *p = NULL;
 			/* check if @<objectclass> is included */
-			p =  strchr(attrs[i], '@');
-			if ( p && '\0' != *(p+1) )	/* don't store "*@", e.g. */
+			p = strchr(attrs[i], '@');
+			if ( p )
 			{
-				int j = 0;
-				if (gerattridx + 1 >= gerattrsiz)
+				char *dummyary[2]; /* need a char ** for charray_merge_nodup */
+				if ((*(p + 1) == '\0') || (p == attrs[i]) || (strchr(p+1, '@'))) /* e.g. "foo@" or "@objectclassname" or "foo@bar@baz" */
 				{
-					char **tmpgerattrs;
-					gerattrsiz *= 2;
-					tmpgerattrs = 
-						(char **)slapi_ch_calloc(1, gerattrsiz*sizeof(char *));
-					if (NULL != gerattrs)
-					{
-						memcpy(tmpgerattrs, gerattrs, gerattrsiz*sizeof(char *));
-						slapi_ch_free((void **)&gerattrs);
-					}
-					gerattrs = tmpgerattrs;
+					slapi_log_error( SLAPI_LOG_ARGS, "do_search",
+					                 "invalid attribute [%s] in list - must be of the form "
+					                 "attributename@objectclassname where attributename is the "
+					                 "name of an attribute or \"*\" or \"+\" and objectclassname "
+					                 "is the name of an objectclass\n", attrs[i] );
+					continue;
 				}
-				for ( j = 0; gerattrs; j++ )
-				{
-					char *attri = NULL;
-					if ( NULL == gerattrs[j] )
-					{
-						if (0 == j)
-						{
-							/* first time */
-							gerattrs[gerattridx++] = attrs[i];
-							/* get rid of "@<objectclass>" part from the attr
-							   list, which is needed only in gerattr list */
-							*p = '\0';
-							attri = slapi_ch_strdup(attrs[i]);
-							attrs[i] = attri;
-							*p = '@';
-						}
-						else
-						{
-							break; /* done */
-						}
-					}
-					else if ( 0 == strcasecmp( attrs[i], gerattrs[j] ))
-					{
-						/* skip if attrs[i] is already in gerattrs */
-						continue;
-					}
-					else
-					{
-						char *q = strchr(gerattrs[j], '@'); /* q never be 0 */
-						if ( 0 != strcasecmp( p+1, q+1 ))
-						{
-							/* you don't want to display the same template
-							   entry multiple times */
-							gerattrs[gerattridx++] = attrs[i];
-						}
-						/* get rid of "@<objectclass>" part from the attr 
-						   list, which is needed only in gerattr list */
-						*p = '\0';
-						attri = slapi_ch_strdup(attrs[i]);
-						attrs[i] = attri;
-						*p = '@';
-					}
-				}
+				dummyary[0] = p; /* p = @objectclassname */
+				dummyary[1] = NULL;
+				/* copy string to gerattrs with leading @ - disallow dups */
+				charray_merge_nodup(&gerattrs, dummyary, 1);
+				/* null terminate the attribute name at the @ after it has been copied */
+				*p = '\0';
 			}
 			else if ( !aciin && strcasecmp(attrs[i], LDAP_ALL_USER_ATTRS) == 0 )
 			{
 				charray_add(&attrs, slapi_attr_syntax_normalize("aci"));
 				aciin = 1;
 			}
-		}
-		if (NULL != gerattrs)
-		{
-			gerattrs[gerattridx] = NULL;
 		}
 
 		/* Set attrs to SLAPI_SEARCH_ATTRS once to get rid of the forbidden attrs */
