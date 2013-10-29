@@ -550,13 +550,7 @@ static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
      */
     char *pluginpath = config_get_saslpath();
     if ((!pluginpath) || (*pluginpath == '\0')) {
-        if (!(pluginpath = getenv("SASL_PATH"))) {
-#if defined(LINUX) && defined(__LP64__)
-            pluginpath = "/usr/lib64/sasl2";
-#else
-            pluginpath = "/usr/lib/sasl2";
-#endif
-        }
+        pluginpath = ldaputil_get_saslpath();
     }
     *path = pluginpath;
     return SASL_OK;

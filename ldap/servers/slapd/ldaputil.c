@@ -707,22 +707,16 @@ slapi_ldap_init_ext(
     char *pp = NULL;
 
     if (NULL == pluginpath || (*pluginpath == '\0')) {
-	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
-			"configpluginpath == NULL\n");
-        if (!(pluginpath = getenv("SASL_PATH"))) {
-#if defined(LINUX) && defined(__LP64__)
-            pluginpath = "/usr/lib64/sasl2";
-#else
-            pluginpath = "/usr/lib/sasl2";
-#endif
-        }
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
+                        "config_get_saslpath returns NULL\n");
+        pluginpath = ldaputil_get_saslpath();
     }
     if ('\0' == util_sasl_path[0] || /* first time */
         NULL == (pp = strchr(util_sasl_path, '=')) || /* invalid arg for putenv */
         (0 != strcmp(++pp, pluginpath)) /* sasl_path has been updated */ )
     {
         PR_snprintf(util_sasl_path, sizeof(util_sasl_path), "SASL_PATH=%s", pluginpath);
-	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext", "putenv(%s)\n", util_sasl_path);
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext", "putenv(%s)\n", util_sasl_path);
         putenv(util_sasl_path);
     }
     slapi_ch_free_string(&configpluginpath);
@@ -988,6 +982,42 @@ done:
     ldap_free_urldesc(ludp);
 
     return( ld );
+}
+
+char *
+ldaputil_get_saslpath()
+{
+    char *saslpath = getenv("SASL_PATH");
+    if (NULL == saslpath) {
+#if defined(LINUX) && defined(__LP64__)
+        saslpath = "/usr/lib64/sasl2";
+        if (PR_SUCCESS != PR_Access(saslpath, PR_ACCESS_EXISTS)) {
+#ifdef CPU_arm
+            /* the 64-bit ARMv8 architecture. */
+            saslpath = "/usr/lib/aarch64-linux-gnu";
+#else
+            /* Try x86_64 gnu triplet */
+            saslpath = "/usr/lib/x86_64-linux-gnu";
+#endif
+        }
+#else
+        saslpath = "/usr/lib/sasl2";
+        if (PR_SUCCESS != PR_Access(saslpath, PR_ACCESS_EXISTS)) {
+#ifdef CPU_arm
+            /* the latest 32 bit ARM architecture using the hard-float version of EABI. */
+            saslpath = "/usr/lib/arm-linux-gnueabihf";
+            if (PR_SUCCESS != PR_Access(saslpath, PR_ACCESS_EXISTS)) {
+                /* the 32 bit ARM architecture of EABI. */
+                saslpath = "/usr/lib/arm-linux-gnueabi";
+            }
+#else
+            /* Try i386 gnu triplet */
+            saslpath = "/usr/lib/i386-linux-gnu";
+#endif
+        }
+#endif
+    }
+    return saslpath;
 }
 
 /*

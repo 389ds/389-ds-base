@@ -1276,6 +1276,9 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods);
 /* add.c */
 void add_internal_modifiersname(Slapi_PBlock *pb, Slapi_Entry *e);
 
+/* ldaputil.c */
+char *ldaputil_get_saslpath();
+
 #ifdef __cplusplus
 }
 #endif

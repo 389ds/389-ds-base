@@ -6,6 +6,9 @@
 /* Define to 1 if the `closedir' function returns void instead of `int'. */
 #undef CLOSEDIR_VOID
 
+/* cpu type arm */
+#undef CPU_arm
+
 /* cpu type pa-risc */
 #undef CPU_hppa
 

@@ -512,6 +512,12 @@ case $host in
         AC_DEFINE([CPU_x86_64], [], [cpu type x86_64])
         AC_DEFINE([ATOMIC_64BIT_OPERATIONS], [1], [enabling atomic counter])
         ;;
+      aarch64-*-linux*)
+        AC_DEFINE([CPU_arm], [], [cpu type arm])
+        ;;
+      arm*-linux*)
+        AC_DEFINE([CPU_arm], [], [cpu type arm])
+        ;;
     esac
     AC_MSG_CHECKING([for GCC provided 64-bit atomic bool cas function ...])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
