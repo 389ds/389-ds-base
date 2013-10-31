@@ -199,6 +199,7 @@ extern const char *attr_flags;
 extern const char *attr_replicaName;
 extern const char *attr_replicaReferral;
 extern const char *type_ruvElement;
+extern const char *type_agmtMaxCSN;
 extern const char *type_replicaPurgeDelay;
 extern const char *type_replicaChangeCount;
 extern const char *type_replicaTombstonePurgeInterval;
@@ -310,6 +311,8 @@ typedef struct repl_bos Repl_Bos;
 
 /* In repl5_agmt.c */
 typedef struct repl5agmt Repl_Agmt;
+typedef struct replica Replica;
+
 #define TRANSPORT_FLAG_SSL 1
 #define TRANSPORT_FLAG_TLS 2
 #define BINDMETHOD_SIMPLE_AUTH 1
@@ -391,8 +394,11 @@ int agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e);
 int agmt_set_timeout(Repl_Agmt *ra, long timeout);
 void agmt_update_done(Repl_Agmt *ra, int is_total);
 int agmt_get_protocol_timeout(Repl_Agmt *agmt);
-
-typedef struct replica Replica;
+void agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn);
+void add_agmt_maxcsns(Slapi_Entry *e, Replica *r);
+void agmt_set_maxcsn(Repl_Agmt *ra);
+void agmt_remove_maxcsn(Repl_Agmt *ra);
+int agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod);
 
 /* In repl5_agmtlist.c */
 int agmtlist_config_init();
@@ -601,6 +607,9 @@ int replica_get_backoff_min(Replica *r);
 int replica_get_backoff_max(Replica *r);
 void replica_set_backoff_min(Replica *r, int min);
 void replica_set_backoff_max(Replica *r, int max);
+int replica_get_agmt_count(Replica *r);
+void replica_incr_agmt_count(Replica *r);
+void replica_decr_agmt_count(Replica *r);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */

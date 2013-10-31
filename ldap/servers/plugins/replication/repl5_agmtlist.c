@@ -171,6 +171,7 @@ add_new_agreement(Slapi_Entry *e)
     }
 
     rc = replica_start_agreement(replica, ra);
+    replica_incr_agmt_count(replica);
 
     if (repl_obj) object_release(repl_obj);
 
@@ -396,6 +397,12 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 				                agmt_get_long_name(agmt));	
 				*returncode = LDAP_OPERATIONS_ERROR;
 				rc = SLAPI_DSE_CALLBACK_ERROR;
+			} else {
+				/*
+				 * Changing the port invalidates the agmt maxcsn, so remove it.
+				 * The next update will add the correct maxcsn back to the agmt/local ruv.
+				 */
+				agmt_remove_maxcsn(agmt);
 			}
 		}
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
@@ -586,6 +593,7 @@ agmtlist_delete_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAft
 	}
 	else
 	{
+		agmt_remove_maxcsn(ra); /* remove the agmt maxcsn from the localruv */
 		agmt_stop(ra);
 		object_release(ro); /* Release ref acquired in objset_find */
 		objset_remove_obj(agmt_set, ro); /* Releases a reference (should be final reference */

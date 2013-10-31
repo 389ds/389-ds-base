@@ -1096,3 +1096,13 @@ slapi_rdn_get_value(const char *rdn)
     return p;
 }
 
+char *
+slapi_rdn_get_value_by_ref(const char *rdn)
+{
+    char *p = PL_strchr(rdn, '=');
+    if (p) {
+        p++;
+        while (isspace(*p)) p++;
+    }
+    return p;
+}

@@ -153,6 +153,9 @@
 #
 #    -W Prompt for connection passwords.
 #
+#    -?, --help
+#       Print usage.
+#
 #    -v Print out the version of this script
 # 
 # DIAGNOSTICS:
@@ -185,7 +188,7 @@ my $usage = "\nusage: $0 [-f configuration-file | --configfile configuration-fil
          "[-c connection, --conn connection] [-a alias, --alias alias] [-k color, --color color] " . 
          "[-h host, --host host] [-p port, --port port] [-r, --skip-header] [-s, --text] " .
          "[-u refresh-url, --url refresh-url] [-t refresh-interval, --interval refresh-interval ] " .
-         "[-W, --prompt]\n\nor   : $0 -v | --version\n"; 
+         "[-W, --prompt] [-?, --help] [-v | --version]\n"; 
 
 use Getopt::Long;		# parse command line arguments
 use Mozilla::LDAP::Conn;	# LDAP module for Perl
@@ -198,38 +201,43 @@ use Time::Local; # to convert GMT Z strings to localtime
 #
 my $product = "Directory Server Replication Monitor";
 my $version = "Version 1.1";
-#
+
 # ldap servers given or discovered from the replication agreements:
 my @servers; # = (host:port=shadowport:binddn:password:cert_db)
 my $serveridx;
-#
+
 # entries read from the connection section of the configuration file:
 my @allconnections; # = (host:port=shadowport:binddn:password:cert_db)
-#
+
 # aliases of ldap servers read from the configuration file:
 my %allaliases; # = {$host:$port} = (alias)
+
 # colors
 my %allcolors;
 my @colorkeys;
 
-#
 # replicas discovered on all ldap servers
 my @allreplicas; # = (server#:replicaroot:replicatype:serverid:replicadn)
-#
+
 # ruvs retrieved from all replicas
 my %allruvs; # = {replica#:masterid} = (rawcsn:decimalcsn;mon/day/year hh:mi:ss)
-#
+
 # agreements discovered on all ldap supplier servers:
 my @allagreements; # = (supplier_replica#:consumer#:conntype:schedule:status)
 # the array may take another format after the consumer replicas are located:
 # @allagreements; # = (supplier_replica#:consumer_replica#:conntype:schedule:status)
-#
-my %ld; # ldap connection hash
-#
+
+# agmt maxcsns hash
+my %agmtmaxcsn = ();
+
+# ldap connection hash
+my %ld; 
+
 my ($opt_f, $opt_h, $opt_p, $opt_u, $opt_t, $opt_r, $opt_s);
 my (@conns, @alias, @color);
 my ($section, $interval, $nowraw, $now, $mm, $dd, $tt, $yy, $wday);
 my ($fn, $rc, $prompt, $last_sidx);
+my $supplierUrl = "";
 my %passwords = ();
 my $passwd = "";
 $prompt = "";
@@ -252,7 +260,8 @@ $prompt = "";
 		'W|prompt' => sub { $prompt = "yes"; },
 		'r|skip-header' => sub { $opt_r = "1"; },
 		's|text' => sub {$opt_s = "1"; },
-		'v|version' => sub { print "$product - $version\n"; exit ;}
+		'help|?' => sub { print $usage; exit 0;},
+		'v|version' => sub { print "$product - $version\n"; exit 0;}
 	) or die "Usage error: $usage\n";
 
 	exit -1 if &validateArgs < 0;
@@ -281,6 +290,7 @@ $prompt = "";
 
 	# Start with the given host and port
 	# The index names in %ld are defined in Mozilla::LDAP::Utils::ldapArgs()
+	&set_server_params();
 	&add_server ("$ld{host}:$ld{port}:$ld{bind}:$ld{pswd}:$ld{cert}");
 
 	$serveridx = 0;
@@ -332,6 +342,7 @@ sub read_cfg_file
 	
 	# process the command line config params
 	@allconnections = @conns;
+
 	if($#alias >= 0){
 		foreach $tmp (@alias){
 			$tmp =~ m/^\s*(\S.*)\s*=\s*(\S+)/;
@@ -442,14 +453,15 @@ sub get_replicas
 	# Get ruv for each replica
 	#
 	for ($ridx = $myridx; $ridx <= $#allreplicas; $ridx++) {
-
+		my @agmtParts;
+        
 		$replicaroot = $1 if ($allreplicas[$ridx] =~ /^\d+:([^:]*)/);
 		# do a one level search with nsuniqueid in the filter - this will force the use of the
 		# nsuniqueid index instead of the entry dn index, which seems to be unreliable in
 		# heavily loaded servers
 		$ruv = $conn->search($replicaroot, "one",
 							 "(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectClass=nsTombstone))",
-							 0, qw(nsds50ruv nsruvReplicaLastModified));
+							 0, qw(nsds50ruv nsruvReplicaLastModified nsds5AgmtMaxCSN));
 		next if !$ruv; # this should be an error case . . .
 
 		for ($ruv->getValues('nsds50ruv')) {
@@ -457,6 +469,18 @@ sub get_replicas
 				$masterid = $1;
 				$maxcsn = &to_decimal_csn ($2);
 				$allruvs {"$ridx:$masterid"} = "$2:$maxcsn";
+			}
+		}
+		
+		for ($ruv->getValues('nsds5AgmtMaxCSN')) {
+			# nsds5AgmtMaxCSN = "replica index(ridx);suffix;agmtname;host;port;rid;maxcsn"
+			@agmtParts = split ( ";", $_);
+			$agmtParts[0] =~ s/ //; # remove spaces
+			$agmtParts[0] =~ lc $agmtParts[0];
+			if($agmtParts[4] eq "unavailable"){
+				$agmtmaxcsn{"$ridx;$agmtParts[0];$agmtParts[1];$agmtParts[2];$agmtParts[3]"} = "Unavailable";
+			} else {
+				$agmtmaxcsn{"$ridx;$agmtParts[0];$agmtParts[1];$agmtParts[2];$agmtParts[3]"} = $agmtParts[5];
 			}
 		}
 
@@ -491,7 +515,7 @@ sub get_replicas
 						  nsds5ReplicaLastInitEnd nsds5replicaReapActive
 						  nsds5replicaLastUpdateStart nsds5replicaLastUpdateEnd
 						  nsds5replicaChangesSentSinceStartup nsds5replicaLastUpdateStatus
-						  nsds5ReplicaHost
+						  nsds5ReplicaHost nsDS5ReplicaRoot
 						  nsds5ReplicaPort nsDS5ReplicaBindMethod nsds5ReplicaUpdateSchedule);
 		$agreement = $conn->search("$replicadn", "sub", "(objectClass=nsDS5ReplicationAgreement)",
 								   0, @attrlist);
@@ -502,7 +526,6 @@ sub get_replicas
 			$host = ($agreement->getValues('nsDS5ReplicaHost'))[0];
 			$port = ($agreement->getValues('nsDS5ReplicaPort'))[0];
 			$cidx = &add_server ("$host:$port");
-
 			for (@attrlist) {
 			  $agmt{$_} = ($agreement->getValues($_))[0];
 			}
@@ -512,10 +535,10 @@ sub get_replicas
 			if (!$agmt{nsds5ReplicaUpdateSchedule} ||
 			    ($agmt{nsds5ReplicaUpdateSchedule} eq '0000-2359 0123456') ||
 			    ($agmt{nsds5ReplicaUpdateSchedule} eq '*') ||
-			    ($agmt{nsds5ReplicaUpdateSchedule} eq '* *')) {
-			  $agmt{nsds5ReplicaUpdateSchedule} = 'always in sync';
+			    ($agmt{nsds5ReplicaUpdateSchedule} eq '* *')) 
+			{
+				$agmt{nsds5ReplicaUpdateSchedule} = 'always in sync';
 			}
-
 			$agmt{ridx} = $ridx;
 			$agmt{cidx} = $cidx;
 			push @allagreements, \%agmt;
@@ -565,7 +588,7 @@ sub find_consumer_replicas
 		for ($j = 0; $j <= $#allreplicas; $j++) {
 
 			# Get a replica on consumer
-	    	# I'm not sure what's going on here, but possibly could be made
+	    		# I'm not sure what's going on here, but possibly could be made
 			# much simpler with normalizeDN and/or ldap_explode_dn
 			if ($allreplicas[$j] =~ /^$c_sidx:([^:]*)/) {
 				$val = $1;
@@ -600,7 +623,6 @@ sub process_suppliers
 		# Handle masters and hubs
 		if ($allreplicas[$ridx] =~ /:master:(\d+):/i) {
 			$mid = $1;
-
 			# Skip replicas without agreements defined yet
 			next if (! grep {$_->{ridx} == $ridx} @allagreements);
 			$maxcsn = &print_master_header ($ridx, $mid);
@@ -615,7 +637,7 @@ sub process_suppliers
 			# Skip replicas without agreements defined yet
 			next if (! grep {$_->{ridx} == $ridx} @allagreements);
 
-		    foreach my $key (keys %allruvs) {
+			foreach my $key (keys %allruvs) {
 				if ( $key =~ /$ridx:/) {
 					my ($myridx, $mymid) = split ( /:/, "$key" );
 					$maxcsn = &print_hub_header($myridx, $mymid);
@@ -634,6 +656,9 @@ sub process_suppliers
 			print "<p>The server is not a master or a hub or it has no replication agreement\n";
 		}
 	}
+	if($opt_s){
+		print "\n";
+	}
 }
 
 sub print_master_header
@@ -643,6 +668,7 @@ sub print_master_header
 	my ($maxcsnval) = split ( /;/, "$myruv" );
 	my ($maxcsn) = &to_string_csn ($maxcsnval);
 	my ($sidx, $replicaroot, $replicatype, $serverid) = split (/:/, $allreplicas[$ridx]);
+	my ($sline, $slen, $ii);
     
 	if ( $maxcsn eq "" ) {
 		return $maxcsn;
@@ -650,22 +676,30 @@ sub print_master_header
 
 	# Print the master name
 	if ( $last_sidx ne $sidx ) {
-		my ($ldapurl) = &get_ldap_url ($sidx, $sidx);
+		my ($ldapurl) = $supplierUrl = &get_ldap_url ($sidx, "n/a");
 		&print_legend if ( $last_sidx < 0);
 		if($opt_s){
-			print "Master: $ldapurl\n"
+			$sline = "Supplier: $ldapurl";
+			$slen = length $sline;
+			print "\n$sline\n";
+			for ($ii = 0; $ii < $slen; $ii++){
+				print "-";
+			}
+			print "\n";
 		} else {
 			print "<p><p><hr><p>\n";
 			print "\n<p><center class=page-subtitle><font color=#0099cc>\n";
-			print "Master:&nbsp $ldapurl</center>\n";
+			print "Supplier:&nbsp $ldapurl</center>\n";
 		}
 		$last_sidx = $sidx;
+	} else {
+		print "\n";
 	}
 
-	# Print the current replica info onthe master
+	# Print the current replica info on the master
 	if($opt_s){
-		print "Replica ID: $serverid\n";
 		print "Replica Root: $replicaroot\n";
+		print "Replica ID: $serverid\n";
 		print "Max CSN: $maxcsn\n";
 	} else {
 		print "\n<p><table border=0 cellspacing=1 cellpadding=6 cols=10 width=100% class=bgColor9>\n";
@@ -702,11 +736,11 @@ sub print_hub_header
 		$last_sidx = $sidx;
 	}
 
-	# Print the current replica info onthe master
+	# Print the current replica info on the master
 	if($opt_s){
+		print "\nReplica Root: $replicaroot\n";
 		print "Replica ID: $serverid\n";
-		print "Replica Root: $replicaroot\n";
-		print "Max CSN: $maxcsn\n";
+		print "Max CSN: $maxcsn\n-\n";
 	} else {
 		print "\n<p><table border=0 cellspacing=1 cellpadding=6 cols=10 width=100% class=bgColor9>\n";
 		print "\n<tr><td colspan=10><center>\n";
@@ -726,9 +760,10 @@ sub print_consumer_header
 	
 	#Print the header of consumer
 	print "\n<tr class=bgColor16>\n";
-	print "<th nowrap>Receiver</th>\n";
+	print "<th nowrap>Consumer</th>\n";
 	print "<th nowrap>Time Lag</th>\n";
-	print "<th nowrap>Max CSN</th>\n";
+	print "<th nowrap>Supplier Max CSN</th>\n";
+	print "<th nowrap>Consumer Max CSN</th>\n";
 	print "<th nowrap>Last Modify Time</th>\n";
 	print "<th nowrap>Supplier</th>\n";
 	print "<th nowrap>Sent/Skipped</th>\n";
@@ -749,6 +784,7 @@ sub print_consumers
 	my ($c_maxcsn, $c_maxcsn_str, $c_lastmodified, $c_sidx, $lag, $markcolor);
 	my ($c_replicaroot, $c_replicatype);
 	my ($first_entry, $s_ldapurl, $c_ldapurl);
+	my $supplier_maxcsn = "_";
 	my ($nrows);
 	my ($found);
 
@@ -781,12 +817,10 @@ sub print_consumers
 	foreach (@consumers) {
 		$c_ridx = $_;
 		next if $c_ridx == $m_ridx;
-
+        
 		if ($c_ridx >= 0) {
 			$myruv = $allruvs {"$c_ridx:$mid"};
 			($c_maxcsn, $c_lastmodified) = split ( /;/, "$myruv" );
-			($c_maxcsn_str, $lag, $markcolor) = &cacl_time_lag ($m_maxcsn, $c_maxcsn);
-			if(!$opt_s){ $c_maxcsn_str =~ s/ /\<br\>/; }
 			($c_sidx, $c_replicaroot, $c_replicatype) = split (/:/, $allreplicas[$c_ridx]);
 			$c_replicaroot = "same as master" if $m_replicaroot eq $c_replicaroot;
 		}
@@ -802,33 +836,49 @@ sub print_consumers
 
 		$nrows = 0;
 		foreach (@ouragreements) {
-			next if ($_->{cidx} != $c_ridx);
+		$s_ridx = $_->{ridx};
+		$s_sidx = $1 if $allreplicas [$s_ridx] =~ /^(\d+):/;
+		$s_ldapurl = &get_ldap_url ($s_sidx, "n/a");
+		next if ($_->{cidx} != $c_ridx || $supplierUrl ne $s_ldapurl);
 			$nrows++;
 		}
 
 		$first_entry = 1;
 		foreach (@ouragreements) {
-			next if ($_->{cidx} != $c_ridx);
 			$s_ridx = $_->{ridx};
+			$s_sidx = $1 if $allreplicas [$s_ridx] =~ /^(\d+):/;
+			$s_ldapurl = &get_ldap_url ($s_sidx, "n/a");
+			next if ($_->{cidx} != $c_ridx || $supplierUrl ne $s_ldapurl);
 			$conntype = $_->{nsDS5ReplicaBindMethod};
 			$status = $_->{nsds5replicaLastUpdateStatus};
 			$schedule = $_->{nsds5ReplicaUpdateSchedule};
-			$s_sidx = $1 if $allreplicas [$s_ridx] =~ /^(\d+):/;
-			$s_ldapurl = &get_ldap_url ($s_sidx, "n/a");
 
 			# Print out the consumer's replica and ruvs
 			if(!$opt_s){ print "\n<tr class=bgColor13>\n"; }
 			if ($first_entry) {
 				$first_entry = 0;
 				$c_ldapurl = &get_ldap_url ($c_sidx, $conntype);
+				if ($c_ridx >= 0) {
+					($c_maxcsn_str, $lag, $markcolor, $supplier_maxcsn) = 
+					&cacl_time_lag ($_->{nsDS5ReplicaRoot},
+							$_->{cn},
+							$_->{nsds5ReplicaHost},
+							$_->{nsds5ReplicaPort},
+							$s_ridx,
+							$m_maxcsn,
+							$c_maxcsn);
+					if(!$opt_s){ $c_maxcsn_str =~ s/ /\<br\>/; }
+				}
 				if($opt_s){
-					print "Receiver: $c_ldapurl\nType: $c_replicatype\n";
+					print "-\nConsumer: $c_ldapurl\nType: $c_replicatype\n";
 					print "Time Lag: $lag\n";
-					print "Max CSN: $c_maxcsn_str\n";
+					print "Supplier Max CSN: $supplier_maxcsn\n";
+					print "Consumer Max CSN: $c_maxcsn_str\n";
 					print "Last Modify Time: $c_lastmodified\n";
 				} else {
 					print "<td rowspan=$nrows width=5% class=bgColor5>$c_ldapurl<BR>Type: $c_replicatype</td>\n";
 					print "<td rowspan=$nrows width=5% nowrap bgcolor=$markcolor><center>$lag</center></td>\n";
+					print "<td rowspan=$nrows width=15% nowrap>$supplier_maxcsn</td>\n";
 					print "<td rowspan=$nrows width=15% nowrap>$c_maxcsn_str</td>\n";
 					print "<td rowspan=$nrows width=15% nowrap>$c_lastmodified</td>\n";
 				}
@@ -908,15 +958,44 @@ sub print_consumers
 	}
 }
 
+sub get_supplier_maxcsn
+{
+	my ($ridx, $s, $cn, $h, $p) = @_;
+	my $decimalcsn;
+	my $csn = "";
+	# normalize suffix
+	$s =~ s/ //;
+	$s =~ lc $s;
+	my $agmt = "$ridx;$s;$cn;$h;$p";
+    
+	foreach my $key (keys %agmtmaxcsn){
+		if ($key eq $agmt){
+			$csn = $agmtmaxcsn{$key};
+			last;
+		}
+	}
+	if($csn ne ""){
+		$decimalcsn = &to_decimal_csn ($csn);
+		return "$csn:$decimalcsn";
+	}
+	
+	return $csn;
+}
+
 sub cacl_time_lag
 {
-	my ($s_maxcsn, $c_maxcsn) = @_;
+	my ($s, $cn, $h, $p, $ridx, $s_maxcsn, $c_maxcsn) = @_;
 	my ($markcolor);
-	my ($csn_str);
+	my ($m_maxcsn, $csn_str, $supplier_csn_str);
 	my ($s_tm, $c_tm, $lag_tm, $lag_str, $hours, $minutes);
 
+	$m_maxcsn = get_supplier_maxcsn($ridx,$s, $cn, $h, $p);
+	if($m_maxcsn ne ""){
+		$s_maxcsn = $m_maxcsn;
+	}
+	$supplier_csn_str = &to_string_csn ($s_maxcsn);
 	$csn_str = &to_string_csn ($c_maxcsn);
-
+	
 	if ($s_maxcsn && !$c_maxcsn) {
 		$lag_str = "- ?:??:??";
 		$markcolor = &get_color (36000); # assume consumer has big latency
@@ -957,7 +1036,33 @@ sub cacl_time_lag
 		$lag_tm = "0".$lag_tm if ($lag_tm < 10);
 		$lag_str .= "$lag_tm";
 	}
-	return ($csn_str, $lag_str, $markcolor);
+	return ($csn_str, $lag_str, $markcolor, $supplier_csn_str);
+}
+
+sub set_server_params
+{
+    my ($host, $port, $binddn, $bindpwd, $bindcert);
+    
+    ($host, $port, $binddn, $bindpwd, $bindcert) = split (/:/, $allconnections[0]);
+    if($opt_p && $opt_p ne ""){
+        $ld{port} = $opt_p
+    } elsif(!$port || $port eq ""){
+        $ld{port} = "389";
+    } else {
+        $ld{port} = $port;
+    }
+    if($host && $host ne ""){
+        $ld{host} = $host;
+    }
+    if($binddn){
+        $ld{bind} = $binddn;
+    }
+    if($bindpwd){
+        $ld{pswd} = $bindpwd;
+    }
+    if($bindcert){
+        $ld{cert} = $bindcert;
+    }
 }
 
 #
@@ -1005,24 +1110,23 @@ sub add_server
 				$c = "";
 			}
 			if(!$w || $w eq "*"){
-                $w = "";
-            }
+				$w = "";
+			}
 		}
 		if (!$binddn || $binddn eq "" || $binddn eq "*") {
 			if ($d eq "" || $d eq "*") {
 				$binddn = "cn=Directory Manager";
-			}
-			else {
+			} else {
 				$binddn = $d;
 			}
 		}
 		if($prompt eq "yes" && ($w eq "" || (!$bindpwd || $bindpwd eq ""))){
-            $bindpwd = passwdPrompt($h, $p);
+			$bindpwd = passwdPrompt($h, $p);
 		} elsif ($passwd ne ""){
-            $bindpwd = $passwd;
+			$bindpwd = $passwd;
 		} else {
-            $bindpwd = $w if (!$bindpwd || $bindpwd eq "" || $bindpwd eq "*");
-        }
+			$bindpwd = $w if (!$bindpwd || $bindpwd eq "" || $bindpwd eq "*");
+		}
 		$bindcert = $c if (!$bindcert || $bindcert eq "" || $bindcert eq "*");
 	}
 
@@ -1037,38 +1141,38 @@ sub add_server
 sub
 passwdPrompt
 {
-    my ($h, $p) = @_;
-    my $key = "$h:$p";
-    my $pw = "";
+	my ($h, $p) = @_;
+	my $key = "$h:$p";
+	my $pw = "";
     
-    if ($passwords{$key}){
-        # we already have a password for this replica     
-        return $passwords{$key};
-    }
-    # Disable console echo
-    system("@sttyexec@ -echo") if -t STDIN;
+	if ($passwords{$key}){
+		# we already have a password for this replica     
+		return $passwords{$key};
+	}
+	# Disable console echo
+	system("@sttyexec@ -echo") if -t STDIN;
 
-    while ($pw eq ""){
-        if($passwd ne ""){
-            print "Enter password for ($h:$p) <hit Enter to use previous password>: ";
-            chomp($pw = <>);
-            if ($pw eq ""){
-                $pw = $passwd;
-            } else {
-                $passwords{$key} = $pw;
-                $passwd = $pw;         
-            }
-        } else {
-            print "Enter password for ($h:$p): ";
-            chomp($pw = <>);
-            $passwords{$key} = $pw;
-            $passwd = $pw;
-        }
-    }
-    # Enable console echo
-    system("@sttyexec@ echo") if -t STDIN;
+	while ($pw eq ""){
+		if($passwd ne ""){
+			print "Enter password for ($h:$p) <hit Enter to use previous password>: ";
+			chomp($pw = <>);
+			if ($pw eq ""){
+				$pw = $passwd;
+			} else {
+				$passwords{$key} = $pw;
+				$passwd = $pw;         
+			}
+		} else {
+			print "Enter password for ($h:$p): ";
+			chomp($pw = <>);
+			$passwords{$key} = $pw;
+			$passwd = $pw;
+		}
+	}
+	# Enable console echo
+	system("@sttyexec@ echo") if -t STDIN;
 
-    return $pw;
+	return $pw;
 }
 
 sub get_ldap_url
@@ -1131,6 +1235,7 @@ sub to_string_csn
 	}
 	my ($csnstr) = "$mon/$mday/$year $hour:$min:$sec";
 	$csnstr .= " $seq $subseq" if ( $seq != 0 || $subseq != 0 );
+	
 	return "$rawcsn ($csnstr)";
 }
 
@@ -1207,7 +1312,7 @@ sub print_html_header
         if ($opt_u) {
 		print " - This report updates every $interval seconds\n\n";
         } else {
-		print "\n\n";
+		print "\n";
         }
     }
 }

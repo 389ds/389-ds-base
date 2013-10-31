@@ -2871,13 +2871,15 @@ slapi_entry_attr_get_charptr( const Slapi_Entry* e, const char *type)
 {
     char *p= NULL;
     Slapi_Attr* attr = NULL;
+
     slapi_entry_attr_find(e, type, &attr);
     if(attr!=NULL)
     {
         Slapi_Value *v;
-                const struct berval *bvp;
+        const struct berval *bvp;
+
         slapi_valueset_first_value( &attr->a_present_values, &v);
-                bvp = slapi_value_get_berval(v);
+        bvp = slapi_value_get_berval(v);
         p= slapi_ch_malloc(bvp->bv_len + 1);
         memcpy(p, bvp->bv_val, bvp->bv_len);
         p[bvp->bv_len]= '\0';

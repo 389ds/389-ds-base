@@ -3510,12 +3510,20 @@ int slapi_rdn_partial_dup(Slapi_RDN *from, Slapi_RDN **to, int idx);
 size_t slapi_rdn_get_size(Slapi_RDN *srdn);
 
 /**
- * Return the value of the RDN
+ * Return a copy of the value of the RDN
  *
  * \param rdn A pointer to rdn to get the value.
  * \return The value of the given RDN.
  */
 char * slapi_rdn_get_value(const char *rdn);
+
+/**
+ * Return a pointer to the value of the RDN
+ *
+ * \param rdn A pointer to rdn to get the value.
+ * \return The value of the given RDN.
+ */
+char * slapi_rdn_get_value_by_ref(const char *rdn);
 
 /*
  * utility routines for dealing with DNs

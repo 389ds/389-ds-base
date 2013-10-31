@@ -105,6 +105,7 @@ const char *attr_flags = "nsds5Flags";
 const char *attr_replicaName = "nsds5ReplicaName";
 const char *attr_replicaReferral = "nsds5ReplicaReferral";
 const char *type_ruvElement = "nsds50ruv";
+const char *type_agmtMaxCSN = "nsds5AgmtMaxCSN";
 const char *type_replicaPurgeDelay = "nsds5ReplicaPurgeDelay";
 const char *type_replicaChangeCount = "nsds5ReplicaChangeCount";
 const char *type_replicaTombstonePurgeInterval = "nsds5ReplicaTombstonePurgeInterval";

@@ -1285,6 +1285,7 @@ ruv_to_smod(const RUV *ruv, Slapi_Mod *smod)
 		int cookie;
 #define B_SIZ 1024
 		char buf[B_SIZ];
+
 		slapi_rwlock_rdlock (ruv->lock);
 		slapi_mod_init (smod, dl_get_count (ruv->elements) + 1);
 		slapi_mod_set_type (smod, type_ruvElement);

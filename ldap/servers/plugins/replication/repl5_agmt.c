@@ -125,6 +125,7 @@ typedef struct repl5agmt {
     Object *consumerRUV;   /* last RUV received from the consumer - used for changelog purging */
 	CSN *consumerSchemaCSN; /* last schema CSN received from the consumer */
 	ReplicaId consumerRID; /* indicates if the consumer is the originator of a CSN */
+	int tmpConsumerRID; /* Indicates the consumer rid was set from the agmt maxcsn - it should be refreshed */
 	long timeout; /* timeout (in seconds) for outbound LDAP connections to remote server */
 	PRBool stop_in_progress; /* set by agmt_stop when shutting down */
 	long busywaittime; /* time in seconds to wait after getting a REPLICA BUSY from the consumer -
@@ -142,6 +143,8 @@ typedef struct repl5agmt {
 	                        * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
 	int agreement_type;
 	PRUint64 protocol_timeout;
+	char *maxcsn; /* agmt max csn */
+	Slapi_RWLock *attr_lock; /* RW lock for all the stripped attrs */
 } repl5agmt;
 
 /* Forward declarations */
@@ -151,7 +154,7 @@ static int get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e,
 	Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 static int agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
 static int agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
-
+static ReplicaId agmt_maxcsn_get_rid(char *maxcsn);
 
 /*
 Schema for replication agreement:
@@ -260,6 +263,13 @@ agmt_new_from_entry(Slapi_Entry *e)
 	if ((ra->lock = PR_NewLock()) == NULL)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to create new lock "
+			"for replication agreement \"%s\" - agreement ignored.\n",
+			slapi_entry_get_dn_const(e));
+		goto loser;
+	}
+	if ((ra->attr_lock = slapi_new_rwlock()) == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to create new attr lock "
 			"for replication agreement \"%s\" - agreement ignored.\n",
 			slapi_entry_get_dn_const(e));
 		goto loser;
@@ -545,6 +555,8 @@ void
 agmt_delete(void **rap)
 {
 	Repl_Agmt *ra;
+	Replica *replica = NULL;
+	Object *repl_obj = NULL;
 	PR_ASSERT(NULL != rap);
 	PR_ASSERT(NULL != *rap);
 
@@ -565,7 +577,7 @@ agmt_delete(void **rap)
 								 LDAP_SCOPE_BASE, "(objectclass=*)",
 								 get_agmt_status);
 
-        /*
+	/*
 	 * Call the replication session cleanup callback.  We
 	 * need to do this before we free replarea.
 	 */
@@ -573,23 +585,31 @@ agmt_delete(void **rap)
 		repl_session_plugin_call_destroy_agmt_cb(ra);
 	}
 
-	/* slapi_ch_free accepts NULL pointer */
-	slapi_ch_free((void **)&(ra->hostname));
-	slapi_ch_free((void **)&(ra->binddn));
-
+	slapi_ch_free_string(&ra->hostname);
+	slapi_ch_free_string(&ra->binddn);
 	slapi_ch_array_free(ra->frac_attrs);
 	slapi_ch_array_free(ra->frac_attrs_total);
 
 	if (NULL != ra->creds)
 	{
-		/* XXX free berval */
+		ber_bvfree(ra->creds);
 	}
 	if (NULL != ra->replarea)
 	{
+		/*
+		 * Get the replica for this agreement from the repl area
+		 * so we can decrement the agmt count
+		 */
+		repl_obj = replica_get_replica_from_dn(ra->replarea);
+		if (repl_obj) {
+			replica = (Replica*)object_get_data (repl_obj);
+			replica_decr_agmt_count(replica);
+			object_release(repl_obj);
+		}
 		slapi_sdn_free(&ra->replarea);
 	}
 
-    if (NULL != ra->consumerRUV)
+	if (NULL != ra->consumerRUV)
 	{
 		object_release (ra->consumerRUV);
 	}
@@ -597,20 +617,26 @@ agmt_delete(void **rap)
 	csn_free (&ra->consumerSchemaCSN);
 	while ( --(ra->num_changecounters) >= 0 )
 	{
-	    slapi_ch_free((void **)&ra->changecounters[ra->num_changecounters]);
+		slapi_ch_free((void **)&ra->changecounters[ra->num_changecounters]);
 	}
 
 	if (ra->agreement_type == REPLICA_TYPE_WINDOWS)
 	{
 		windows_agreement_delete(ra);
 	}
-
 	if(ra->attrs_to_strip){
 		slapi_ch_array_free(ra->attrs_to_strip);
 	}
-
+	if(ra->maxcsn){
+		slapi_ch_free_string(&ra->maxcsn);
+	}
 	schedule_destroy(ra->schedule);
-	slapi_ch_free((void **)&ra->long_name);
+	slapi_ch_free_string(&ra->long_name);
+
+	/* free the locks */
+	PR_DestroyLock(ra->lock);
+	slapi_destroy_rwlock(ra->attr_lock);
+
 	slapi_ch_free((void **)rap);
 }
 
@@ -657,6 +683,8 @@ agmt_start(Repl_Agmt *ra)
 
     /* Start the protocol thread */
     prot_start(ra->protocol);
+
+    agmt_set_maxcsn(ra);
 
     PR_Unlock(ra->lock);
     return 0;
@@ -876,9 +904,9 @@ agmt_get_fractional_attrs(const Repl_Agmt *ra)
 	{
 		return NULL;
 	}
-	PR_Lock(ra->lock);
+	slapi_rwlock_rdlock(ra->attr_lock);
 	return_value = charray_dup(ra->frac_attrs);
-	PR_Unlock(ra->lock);
+	slapi_rwlock_unlock(ra->attr_lock);
 	return return_value;
 }
 
@@ -907,10 +935,10 @@ agmt_is_fractional_attr(const Repl_Agmt *ra, const char *attrname)
 	{
 		return 0;
 	}
-	PR_Lock(ra->lock);
+	slapi_rwlock_rdlock(ra->attr_lock);
 	/* Scan the list looking for a match */
 	return_value = charray_inlist(ra->frac_attrs,(char*)attrname);
-	PR_Unlock(ra->lock);
+	slapi_rwlock_unlock(ra->attr_lock);
 	return return_value;
 }
 
@@ -1355,7 +1383,7 @@ agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 
 	PR_ASSERT(NULL != ra);
 	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr);
-	PR_Lock(ra->lock);
+	slapi_rwlock_wrlock(ra->attr_lock);
 	if (ra->frac_attrs) 
 	{
 		slapi_ch_array_free(ra->frac_attrs);
@@ -1372,7 +1400,7 @@ agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs));
 		}
 	}
-	PR_Unlock(ra->lock);
+	slapi_rwlock_unlock(ra->attr_lock);
 	prot_notify_agmt_changed(ra->protocol, ra->long_name);
 	return return_value;
 }
@@ -1422,7 +1450,7 @@ agmt_set_replicated_attributes_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
 	int return_value = 0;
 
 	PR_ASSERT(NULL != ra);
-	PR_Lock(ra->lock);
+	slapi_rwlock_wrlock(ra->attr_lock);
 	if (ra->frac_attrs) 
 	{
 		slapi_ch_array_free(ra->frac_attrs);
@@ -1439,7 +1467,7 @@ agmt_set_replicated_attributes_from_attr(Repl_Agmt *ra, Slapi_Attr *sattr)
 			return_value = agmt_parse_excluded_attrs_config_attr(val,&(ra->frac_attrs));
 		}
 	}
-	PR_Unlock(ra->lock);
+	slapi_rwlock_unlock(ra->attr_lock);
 	return return_value;
 }
 
@@ -1847,6 +1875,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 					int i, j;
 
 					slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+					slapi_rwlock_rdlock(agmt->attr_lock);
 					for (i = 0; !affects_non_fractional_attribute && NULL != agmt->frac_attrs[i]; i++)
 					{
 						for (j = 0; !affects_non_fractional_attribute && NULL != mods[j]; j++)
@@ -1858,6 +1887,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 							}
 						}
 					}
+					slapi_rwlock_unlock(agmt->attr_lock);
 				}
 				else
 				{
@@ -2454,11 +2484,10 @@ update_window_state_change_callback (void *arg, PRBool opened)
 ReplicaId
 agmt_get_consumer_rid ( Repl_Agmt *agmt, void *conn )
 {
-	if ( agmt->consumerRID <= 0 ) {
+	if ( agmt->consumerRID <= 0 || agmt->tmpConsumerRID) {
 
 		char *mapping_tree_node = NULL;
 		struct berval **bvals = NULL;
-
 
 		/* This function converts the old style DN to the new one. */
 		mapping_tree_node = 
@@ -2482,6 +2511,7 @@ agmt_get_consumer_rid ( Repl_Agmt *agmt, void *conn )
 		}
 		slapi_ch_free_string(&mapping_tree_node);
 	}
+	agmt->tmpConsumerRID = 0;
 
 	return agmt->consumerRID;
 }
@@ -2660,4 +2690,402 @@ agmt_get_protocol_timeout(Repl_Agmt *agmt)
 {
     return (int)agmt->protocol_timeout;
 }
+
+/*
+ *  Check if all the mods are being removed by fractional/stripped attributes
+ */
+void
+agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn)
+{
+    Object *agmt_obj;
+    Repl_Agmt *agmt;
+    ReplicaId rid = replica_get_rid(r);
+    int mod_count = 0, excluded_count = 0;
+
+    agmt_obj = agmtlist_get_first_agreement_for_replica (r);
+    if(agmt_obj == NULL){ /* no agreements */
+        return;
+    }
+    while (agmt_obj){
+        agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+        if(!agmt_is_enabled(agmt) ||
+           !slapi_sdn_issuffix(sdn, agmt->replarea) ||
+           get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS)
+        {
+            agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+            continue;
+        }
+
+        if(op == SLAPI_OPERATION_MODIFY)
+        {
+            slapi_rwlock_rdlock(agmt->attr_lock);
+            for ( excluded_count = 0, mod_count = 0; NULL != mods[ mod_count ]; mod_count++){
+                if(charray_inlist(agmt->frac_attrs, mods[mod_count]->mod_type)){
+                    excluded_count++;
+                } else if(charray_inlist(agmt->attrs_to_strip, mods[mod_count]->mod_type)){
+                    excluded_count++;
+                }
+            }
+            slapi_rwlock_unlock(agmt->attr_lock);
+        }
+
+        if(excluded_count == 0 || excluded_count != mod_count){
+            /*
+             *  This update has not been completely stripped down, update
+             *  the agmt maxcsn - if the update did not originate from the consumer.
+             */
+            char maxcsn[CSN_STRSIZE];
+            ReplicaId oprid = csn_get_replicaid(csn);
+
+            csn_as_string(csn, PR_FALSE, maxcsn);
+            PR_Lock(agmt->lock);
+            if(!agmt->consumerRID){
+                /*
+                 * If the RID is 0, that means this is the first update since the
+                 * agmt was created.  Since we have not contacted the consumer yet,
+                 * we don't know what its rid is.  The consumerRID will be set once
+                 * this update is sent, but until then we don't know it. So for now
+                 * temporarily mark it as "unavailable".
+                 */
+                slapi_ch_free_string(&agmt->maxcsn);
+                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%d;unavailable", slapi_sdn_get_dn(agmt->replarea),
+                		slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname, agmt->port);
+            } else if(rid == oprid){
+                slapi_ch_free_string(&agmt->maxcsn);
+                agmt->maxcsn = slapi_ch_smprintf("%s;%s;%s;%d;%d;%s", slapi_sdn_get_dn(agmt->replarea),
+                		slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(agmt->rdn)), agmt->hostname,
+                		agmt->port, agmt->consumerRID, maxcsn);
+            }
+            PR_Unlock(agmt->lock);
+        }
+        agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+    }
+}
+
+/*
+ * Returns the in-memory agmt maxcsn's
+ */
+void
+add_agmt_maxcsns(Slapi_Entry *e, Replica *r)
+{
+    Object *agmt_obj;
+    Repl_Agmt *agmt;
+
+    agmt_obj = agmtlist_get_first_agreement_for_replica (r);
+    if(agmt_obj == NULL){ /* no agreements */
+        return;
+    }
+    while (agmt_obj){
+        agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+        if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
+            agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+            continue;
+        }
+        PR_Lock(agmt->lock);
+        if(agmt->maxcsn){
+            slapi_entry_add_string(e, type_agmtMaxCSN, agmt->maxcsn);
+        }
+        PR_Unlock(agmt->lock);
+
+        agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+    }
+}
+
+/*
+ * Create a smod of all the agmt maxcsns to add to the tombstone entry
+ */
+int
+agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod)
+{
+    Object *agmt_obj;
+    Repl_Agmt *agmt;
+    int rc = 1;
+
+    agmt_obj = agmtlist_get_first_agreement_for_replica (r);
+    if(agmt_obj == NULL){ /* no agreements */
+        return rc;
+    }
+    slapi_mod_init (smod, replica_get_agmt_count(r) + 1);
+    slapi_mod_set_type (smod, type_agmtMaxCSN);
+    slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
+    while (agmt_obj){
+        struct berval val;
+
+        agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+        if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
+            agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+            continue;
+        }
+        PR_Lock(agmt->lock);
+        if(agmt->maxcsn == NULL){
+            PR_Unlock(agmt->lock);
+            agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+            continue;
+        }
+        val.bv_val = agmt->maxcsn;
+        val.bv_len = strlen(val.bv_val);
+        slapi_mod_add_value(smod, &val);
+        PR_Unlock(agmt->lock);
+        rc = 0;
+
+        agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
+    }
+    return rc;
+}
+
+/*
+ *  Called when we start a repl agmt
+ */
+void
+agmt_set_maxcsn(Repl_Agmt *ra)
+{
+    Slapi_PBlock *pb = NULL;
+    Slapi_Entry **entries = NULL;
+    Replica *r = NULL;
+    Object *repl_obj;
+    const Slapi_DN *tombstone_sdn = NULL;
+    char *attrs[2];
+    int rc;
+
+    /* read ruv state from the ruv tombstone entry */
+    pb = slapi_pblock_new();
+    if (!pb) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Out of memory\n");
+        goto done;
+    }
+    repl_obj = prot_get_replica_object(ra->protocol);
+    if(repl_obj){
+        r = (Replica *)object_get_data(repl_obj);
+        tombstone_sdn = replica_get_root(r);
+    }
+    ra->maxcsn = NULL;
+    attrs[0] = (char*)type_agmtMaxCSN;
+    attrs[1] = NULL;
+    slapi_search_internal_set_pb_ext(
+        pb,
+        (Slapi_DN *)tombstone_sdn,
+        LDAP_SCOPE_BASE,
+        "objectclass=*",
+        attrs,
+        0, /* attrsonly */
+        NULL, /* controls */
+        RUV_STORAGE_ENTRY_UNIQUEID,
+        repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
+        OP_FLAG_REPLICATED);  /* flags */
+    slapi_search_internal_pb (pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_SUCCESS){
+        ReplicaId rid;
+        Replica *r;
+        Object *repl_obj;
+        char **maxcsns;
+        int i;
+
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (NULL == entries || NULL == entries[0]){
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                "agmt_set_maxcsn: replica ruv tombstone entry for "
+                "replica %s not found\n",
+            slapi_sdn_get_dn(ra->replarea));
+            goto done;
+        }
+        maxcsns = slapi_entry_attr_get_charray(entries[0], type_agmtMaxCSN);
+        repl_obj = prot_get_replica_object(ra->protocol);
+        if(repl_obj && maxcsns){
+            r = (Replica *)object_get_data(repl_obj);
+            if(r){
+                rid = replica_get_rid(r);
+                /*
+                 * Loop over all the agmt maxcsns and find ours
+                 */
+                for(i = 0; maxcsns[i]; i++){
+                    char buf[BUFSIZ];
+                    char unavail_buf[BUFSIZ];
+
+                    PR_snprintf(buf,BUFSIZ,"%s;%s;%s;%d;",slapi_sdn_get_dn(ra->replarea),
+                    		slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
+                    		ra->hostname, ra->port);
+                    PR_snprintf(unavail_buf, BUFSIZ,"%s;%s;%s;%d;unavailable", slapi_sdn_get_dn(ra->replarea),
+                    		slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
+                    		ra->hostname, ra->port);
+                    if(strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)){
+                        ra->maxcsn = slapi_ch_strdup(maxcsns[i]);
+                        ra->consumerRID = agmt_maxcsn_get_rid(maxcsns[i]);
+                        ra->tmpConsumerRID = 1;
+                        break;
+                    }
+                }
+            }
+        }
+        slapi_ch_array_free(maxcsns);
+    }
+done:
+    if (NULL != pb){
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy (pb);
+    }
+}
+
+/*
+ * Parse out the consumer replicaID from the agmt maxcsn
+ *
+ *  "repl area;agmt rdn;hostname;port;consumer rid;maxcsn"
+ */
+static ReplicaId
+agmt_maxcsn_get_rid(char *maxcsn)
+{
+    ReplicaId rid = 0;
+    char *token = NULL;
+    char *iter;
+    char *value = slapi_ch_strdup(maxcsn);
+
+    token = ldap_utf8strtok_r(value, ";", &iter); /* repl area */
+    token = ldap_utf8strtok_r(iter, ";", &iter);  /* agmt rdn */
+    token = ldap_utf8strtok_r(iter, ";", &iter);  /* host */
+    token = ldap_utf8strtok_r(iter, ";", &iter);  /* port */
+    token = ldap_utf8strtok_r(iter, ";", &iter);  /* rid */
+
+    if(strcmp(token, "Unavailable")){
+        rid = atoi(token);
+    }
+    slapi_ch_free_string(&value);
+
+    return rid;
+}
+
+/*
+ * Agmt being deleted, remove the agmt maxcsn from the local ruv.
+ */
+void
+agmt_remove_maxcsn(Repl_Agmt *ra)
+{
+    Slapi_PBlock *pb = NULL;
+    Slapi_PBlock *modpb = NULL;
+    Slapi_Entry **entries = NULL;
+    Replica *r = NULL;
+    Object *repl_obj;
+    const Slapi_DN *tombstone_sdn = NULL;
+    char *attrs[2];
+    int rc;
+
+    pb = slapi_pblock_new();
+    if (!pb) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Out of memory\n");
+        goto done;
+    }
+    ra->maxcsn = NULL;
+
+    repl_obj = prot_get_replica_object(ra->protocol);
+    if(repl_obj){
+        r = (Replica *)object_get_data(repl_obj);
+        tombstone_sdn = replica_get_root(r);
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Failed to get repl object.\n");
+        goto done;
+    }
+    attrs[0] = (char*)type_agmtMaxCSN;
+    attrs[1] = NULL;
+
+    slapi_search_internal_set_pb_ext(
+        pb,
+        (Slapi_DN *)tombstone_sdn,
+        LDAP_SCOPE_BASE,
+        "objectclass=*",
+        attrs,
+        0, /* attrsonly */
+        NULL, /* controls */
+        RUV_STORAGE_ENTRY_UNIQUEID,
+        repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
+        OP_FLAG_REPLICATED);  /* flags */
+    slapi_search_internal_pb (pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+    if (rc == LDAP_SUCCESS){
+        /*
+         *  Ok we have the db tombstone entry, start looking through the agmt maxcsns
+         *  for a match to this replica agmt.
+         */
+        ReplicaId rid;
+        Slapi_Mod smod;
+        LDAPMod *mods[2];
+        char **maxcsns = NULL;
+        int i;
+
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (NULL == entries || NULL == entries[0]){
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                "agmt_set_maxcsn: replica ruv tombstone entry for "
+                "replica %s not found\n", slapi_sdn_get_dn(ra->replarea));
+            goto done;
+        }
+        maxcsns = slapi_entry_attr_get_charray(entries[0], type_agmtMaxCSN);
+        repl_obj = prot_get_replica_object(ra->protocol);
+        if(repl_obj && maxcsns){
+            r = (Replica *)object_get_data(repl_obj);
+            if(r){
+                rid = replica_get_rid(r);
+                /*
+                 * Loop over all the agmt maxcsns and find ours...
+                 */
+                for(i = 0; maxcsns[i]; i++){
+                    char buf[BUFSIZ];
+                    char unavail_buf[BUFSIZ];
+                    char *val;
+
+                    PR_snprintf(buf, BUFSIZ,"%s;%s;%s;%d;",slapi_sdn_get_dn(ra->replarea),
+                            slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
+                            ra->hostname, ra->port);
+                    PR_snprintf(unavail_buf, BUFSIZ, "%s;%s;%s;%d;unavailable",
+                            slapi_sdn_get_dn(ra->replarea),
+                            slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
+                            ra->hostname, ra->port);
+                    if(strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)){
+                        /*
+                         * We found the matching agmt maxcsn, now remove agmt maxcsn
+                         * from the tombstone entry.
+                         */
+                        val = maxcsns[i];
+                        modpb = slapi_pblock_new();
+                        slapi_mod_init (&smod, 2);
+                        slapi_mod_set_type (&smod, type_agmtMaxCSN);
+                        slapi_mod_set_operation (&smod, LDAP_MOD_DELETE | LDAP_MOD_BVALUES);
+                        mods [0] = smod.mod;
+                        mods [1] = NULL;
+                        modpb = slapi_pblock_new();
+
+                        slapi_modify_internal_set_pb_ext(
+                    	    modpb,
+                    	    tombstone_sdn,
+                    	    mods,
+                    	    NULL, /* controls */
+                    	    RUV_STORAGE_ENTRY_UNIQUEID,
+                    	    repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
+                    	    /* Add OP_FLAG_TOMBSTONE_ENTRY so that this doesn't get logged in the Retro ChangeLog */
+                            OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_TOMBSTONE_ENTRY |
+                    	    OP_FLAG_REPL_RUV );
+                        slapi_modify_internal_pb(modpb);
+                        slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+                        if (rc != LDAP_SUCCESS){
+                            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                    "agmt_set_maxcsn: failed to remove agmt maxcsn (%s), error(%d)\n",maxcsns[i], rc);
+                        }
+                        slapi_mod_done(&smod);
+                        slapi_pblock_destroy(modpb);
+                        break;
+                    }
+                }
+            }
+        }
+        slapi_ch_array_free(maxcsns);
+    }
+
+done:
+    if (NULL != pb){
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy (pb);
+    }
+}
+
 

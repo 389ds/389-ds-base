@@ -90,6 +90,7 @@ struct replica {
 	PRUint64 protocol_timeout;		/* protocol shutdown timeout */
 	PRUint64 backoff_min;			/* backoff retry minimum */
 	PRUint64 backoff_max;			/* backoff retry maximum */
+	PRUint64 agmt_count;			/* Number of agmts */
 };
 
 
@@ -609,7 +610,7 @@ replica_get_ruv (const Replica *r)
 	return ruv;
 }
 
-/* 
+/*
  * Sets RUV vector. This function should be called during replica
  * (re)initialization. During normal operation, the RUV is read from
  * the root of the replicated in the replica_new call 
@@ -1629,12 +1630,13 @@ _replica_get_config_entry (const Slapi_DN *root, const char **attrs)
 Slapi_Entry *
 get_in_memory_ruv(Slapi_DN *suffix_sdn)
 {
-        const char *attrs[3];
+        const char *attrs[4];
         
         /* these two attributes needs to be asked when reading the RUV */
         attrs[0] = type_ruvElement;
         attrs[1] = type_ruvElementUpdatetime;
-        attrs[2] = NULL;
+        attrs[2] = type_agmtMaxCSN;
+        attrs[3] = NULL;
         return(_replica_get_config_entry(suffix_sdn, attrs));
 }
 
@@ -2224,7 +2226,6 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 		    if (NULL != generation)
 		    {
                 r->repl_ruv = object_new((void*)ruv, (FNFree)ruv_destroy);
-
 				/* Is the local purl in the ruv? (the port or the host could have
 				   changed)
 				 */
@@ -2579,10 +2580,11 @@ int
 replica_write_ruv (Replica *r)
 {	
 	int rc = LDAP_SUCCESS;
-	Slapi_Mod smod;
+	Slapi_Mod smod, rmod;
 	Slapi_Mod smod_last_modified;
-	LDAPMod *mods [3];	 
+	LDAPMod *mods [4];
 	Slapi_PBlock *pb;
+	int free_rmod = 0;
 
 	PR_ASSERT(r);
 
@@ -2603,7 +2605,13 @@ replica_write_ruv (Replica *r)
 
 	mods [0] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod);
 	mods [1] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_last_modified);
-	mods [2] = NULL;
+	if(agmt_maxcsn_to_smod(r,&rmod) == LDAP_SUCCESS){
+		mods [2] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&rmod);
+		free_rmod = 1;
+	} else {
+		mods [2] = NULL;
+	}
+	mods [3] = NULL;
 	pb = slapi_pblock_new();
 
     /* replica name never changes so it is ok to reference it outside the lock */
@@ -2625,7 +2633,7 @@ replica_write_ruv (Replica *r)
 
     if (rc == LDAP_SUCCESS)
     {
-        r->repl_ruv_dirty = PR_FALSE;   
+        r->repl_ruv_dirty = PR_FALSE;
     }
     else if (rc == LDAP_NO_SUCH_OBJECT)
     {
@@ -2646,6 +2654,7 @@ replica_write_ruv (Replica *r)
     PR_Unlock(r->repl_lock);	
 	
 	slapi_mod_done (&smod);
+	if(free_rmod) slapi_mod_done (&rmod);
 	slapi_mod_done (&smod_last_modified);
 	slapi_pblock_destroy (pb);
 
@@ -3927,4 +3936,22 @@ void
 replica_set_backoff_max(Replica *r, int max)
 {
 	r->backoff_max = max;
+}
+
+int
+replica_get_agmt_count(Replica *r)
+{
+	return r->agmt_count;
+}
+
+void
+replica_incr_agmt_count(Replica *r)
+{
+	r->agmt_count++;
+}
+
+void
+replica_decr_agmt_count(Replica *r)
+{
+	r->agmt_count--;
 }

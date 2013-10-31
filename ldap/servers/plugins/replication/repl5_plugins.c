@@ -1206,12 +1206,19 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		CSN *opcsn;
 		int rc;
 		const char *dn = op_params ? REPL_GET_DN(&op_params->target_address) : "unknown";
+		Slapi_DN *sdn = op_params ? (&op_params->target_address)->sdn : NULL;
 		char *uniqueid = op_params ? op_params->target_address.uniqueid : "unknown";
 		unsigned long optype = op_params ? op_params->operation_type : 0;
 		CSN *oppcsn = op_params ? op_params->csn : NULL;
+		LDAPMod **mods = op_params ? op_params->p.p_modify.modify_mods : NULL;
 
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 		opcsn = operation_get_csn(op);
+
+		/* Update each agmt's maxcsn */
+		if(op_params && sdn){
+			agmt_update_maxcsn(r, sdn, op_params->operation_type, mods, opcsn);
+		}
 		rc = update_ruv_component(r, opcsn, pb);
 		if (RUV_COVERS_CSN == rc) {
         		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,

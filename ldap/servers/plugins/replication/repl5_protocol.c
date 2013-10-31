@@ -72,7 +72,7 @@ typedef struct repl_protocol
 	int state;
 	int next_state;
 	PRUint64 protocol_timeout;
-        PRThread *agmt_thread;
+	PRThread *agmt_thread;
 	PRLock *lock;
 } repl_protocol;
 
