@@ -2877,7 +2877,6 @@ agmt_set_maxcsn(Repl_Agmt *ra)
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc == LDAP_SUCCESS){
-        ReplicaId rid;
         Replica *r;
         Object *repl_obj;
         char **maxcsns;
@@ -2896,7 +2895,6 @@ agmt_set_maxcsn(Repl_Agmt *ra)
         if(repl_obj && maxcsns){
             r = (Replica *)object_get_data(repl_obj);
             if(r){
-                rid = replica_get_rid(r);
                 /*
                  * Loop over all the agmt maxcsns and find ours
                  */
@@ -3007,7 +3005,6 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
          *  Ok we have the db tombstone entry, start looking through the agmt maxcsns
          *  for a match to this replica agmt.
          */
-        ReplicaId rid;
         Slapi_Mod smod;
         LDAPMod *mods[2];
         char **maxcsns = NULL;
@@ -3025,14 +3022,13 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
         if(repl_obj && maxcsns){
             r = (Replica *)object_get_data(repl_obj);
             if(r){
-                rid = replica_get_rid(r);
                 /*
                  * Loop over all the agmt maxcsns and find ours...
                  */
                 for(i = 0; maxcsns[i]; i++){
                     char buf[BUFSIZ];
                     char unavail_buf[BUFSIZ];
-                    char *val;
+                    struct berval val;
 
                     PR_snprintf(buf, BUFSIZ,"%s;%s;%s;%d;",slapi_sdn_get_dn(ra->replarea),
                             slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
@@ -3046,15 +3042,16 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
                          * We found the matching agmt maxcsn, now remove agmt maxcsn
                          * from the tombstone entry.
                          */
-                        val = maxcsns[i];
-                        modpb = slapi_pblock_new();
+                        val.bv_val = maxcsns[i];
+                        val.bv_len = strlen(maxcsns[i]);
                         slapi_mod_init (&smod, 2);
                         slapi_mod_set_type (&smod, type_agmtMaxCSN);
                         slapi_mod_set_operation (&smod, LDAP_MOD_DELETE | LDAP_MOD_BVALUES);
+                        slapi_mod_add_value(&smod, &val);
                         mods [0] = smod.mod;
                         mods [1] = NULL;
-                        modpb = slapi_pblock_new();
 
+                        modpb = slapi_pblock_new();
                         slapi_modify_internal_set_pb_ext(
                     	    modpb,
                     	    tombstone_sdn,
