@@ -112,6 +112,9 @@ if ($archivedir eq ""){
     &usage;
     exit(1);
 }
+if ((-e $archivedir) && (-l $archivedir)) { # symlink
+    $archivedir = readlink($archivedir);
+}
 
 #
 # Contruct the task entry

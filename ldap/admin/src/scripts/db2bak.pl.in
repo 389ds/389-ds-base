@@ -40,6 +40,7 @@
 #
 
 use lib qw(@perlpath@);
+use File::Basename;
 use DSUtil;
 
 DSUtil::libpath_add("@nss_libdir@");
@@ -61,6 +62,7 @@ sub usage {
     print(STDERR "        -w -          - Prompt for Directory Manager's password\n");
     print(STDERR "        -Z serverID   - Server instance identifier\n");
     print(STDERR "        -j filename   - Read Directory Manager's password from file\n");
+    print(STDERR "        -A backupdir  - Backup directory (backupdir/ID-<date_time>)\n");
     print(STDERR "        -a backupdir  - Backup directory\n");
     print(STDERR "        -t dbtype     - Database type (default: ldbm database)\n");
     print(STDERR "        -P protocol   - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
@@ -68,8 +70,12 @@ sub usage {
     print(STDERR "        -h            - Display usage\n");
 }
 
+$nestit = 0;
 while ($i <= $#ARGV) {
     if ("$ARGV[$i]" eq "-a") {    # backup directory
+        $i++; $archivedir = $ARGV[$i];
+    } elsif ("$ARGV[$i]" eq "-A") {    # backup directory
+        $nestit = 1;
         $i++; $archivedir = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-D") {    # Directory Manager
         $i++; $rootdn = $ARGV[$i];
@@ -114,9 +120,32 @@ $mybakdir = "@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak";
 ($s, $m, $h, $dy, $mn, $yr, $wdy, $ydy, $r) = localtime(time);
 $mn++; $yr += 1900;
 $taskname = "backup_${yr}_${mn}_${dy}_${h}_${m}_${s}";
+$symname = "";
+$dirname = "";
 if ($archivedir eq "") {
     $archivedir = "${mybakdir}/$servid-${yr}_${mn}_${dy}_${h}_${m}_${s}";
+    print("Back up directory: $archivedir\n");
+} else {
+    if ($nestit == 1) {
+        $archivebase = "${servid}-${yr}_${mn}_${dy}_${h}_${m}_${s}";
+        $dirname = "${archivedir}";
+        $archivedir = "${dirname}/${archivebase}";
+    } else {
+        my @archivedirs = split(/\//, $archivedir);
+        $archivebase = $archivedirs[-1];
+        $dirname = dirname(${archivedir});
+    }
+    if ($mybakdir =~ /^$dirname/) { # $mybakdir is parent; no symlink needed
+        $symname = "";
+    } else {
+        $symname = $archivedir;
+    }
+    print("Back up directory: $archivedir\n");
+    # If an archive dir is specified, create it as a symlink pointing
+    # to the default backup dir not to violate the selinux policy.
+    $archivedir = "${mybakdir}/${archivebase}";
 }
+
 $dn = "dn: cn=$taskname, cn=backup, cn=tasks, cn=config\n";
 $misc = "objectclass: top\nobjectclass: extensibleObject\n";
 $cn = "cn: $taskname\n";
@@ -124,14 +153,24 @@ $nsarchivedir = "nsArchiveDir: $archivedir\n";
 $nsdbtype = "nsDatabaseType: $dbtype\n";
 $entry = "${dn}${misc}${cn}${nsarchivedir}${nsdbtype}";
 
-print("Back up directory: $archivedir\n");
-
 $rc = DSUtil::ldapmod($entry, %info);
 
 $dn =~ s/^dn: //;
 $dn =~ s/\n//;
 if($rc == 0){
     print "Successfully added task entry \"$dn\"\n";
+    if (($symname ne "") && ($dirname ne "")) {
+        if (!(-d $dirname)) {
+            mkdir ($dirname);
+        }
+        if (-e $symname) {
+            unlink ($symname);
+        }
+        if (!symlink($archivedir, $symname)) {
+            print "Failed to create a symlink from $archivedir to $symname\n";
+            exit(1);
+        }
+    }
 } else {
     print "Failed to add task entry \"$dn\" error ($rc)\n";
 }
