@@ -157,27 +157,34 @@ static Slapi_Eq_Context dirsync = NULL;
 static void
 windows_inc_delete(Private_Repl_Protocol **prpp)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_delete\n" );
-	/* First, stop the protocol if it isn't already stopped */
-	/* Then, delete all resources used by the protocol */
-	slapi_eq_cancel(dirsync); 
+    int rc;
+    windows_inc_private *prp_priv = (windows_inc_private *)(*prpp)->private;
+    LDAPDebug0Args( LDAP_DEBUG_TRACE, "=> windows_inc_delete\n" );
+    /* First, stop the protocol if it isn't already stopped */
+    /* Then, delete all resources used by the protocol */
+    rc = slapi_eq_cancel(dirsync); 
+    slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+                    "windows_inc_delete: dirsync: %p, rval: %d\n", dirsync, rc);
+    /* if backoff is set, delete it (from EQ, as well) */
+    if (prp_priv->backoff) {
+        backoff_delete(&prp_priv->backoff);
+    }
+    if (!(*prpp)->stopped) {
+        (*prpp)->stopped = 1;
+        (*prpp)->stop(*prpp);
+    }
+    if ((*prpp)->lock) {
+        PR_DestroyLock((*prpp)->lock);
+        (*prpp)->lock = NULL;
+    }
+    if ((*prpp)->cvar) {
+        PR_DestroyCondVar((*prpp)->cvar);
+        (*prpp)->cvar = NULL;
+    }
+    slapi_ch_free((void **)&(*prpp)->private);
+    slapi_ch_free((void **)prpp);
 
-        if (!(*prpp)->stopped) {
-                (*prpp)->stopped = 1;
-                (*prpp)->stop(*prpp);
-        }
-        if ((*prpp)->lock) {
-                PR_DestroyLock((*prpp)->lock);
-                (*prpp)->lock = NULL;
-        }
-        if ((*prpp)->cvar) {
-                PR_DestroyCondVar((*prpp)->cvar);
-                (*prpp)->cvar = NULL;
-        }
-        slapi_ch_free((void **)&(*prpp)->private);
-        slapi_ch_free((void **)prpp);
-
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_delete\n" );
+    LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_inc_delete\n" );
 }
 
 /* helper function */
@@ -362,9 +369,14 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				if(interval != current_interval){
 					current_interval = interval;
 					if(dirsync){
-						slapi_eq_cancel(dirsync);
+						int rc = slapi_eq_cancel(dirsync);
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+						                "windows_inc_runs: cancelled dirsync: %p, rval: %d\n",
+						                dirsync, rc);
 					}
 					dirsync = slapi_eq_repeat(periodic_dirsync, (void*) prp, (time_t)0 , interval);
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					                "windows_inc_runs: new dirsync: %p\n", dirsync);
 				}
 
 				break;
@@ -605,7 +617,11 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				  }
 				else
 				  {
-							/* Set up the backoff timer to wake us up at the appropriate time */
+					/* Set up the backoff timer to wake us up at the appropriate time */
+					/* if previous backoff set up, delete it. */
+					if (prp_priv->backoff) {
+						backoff_delete(&prp_priv->backoff);
+					}
 					if (use_busy_backoff_timer)
 					{
 					  /* we received a busy signal from the consumer, wait for a while */
@@ -648,14 +664,14 @@ windows_inc_run(Private_Repl_Protocol *prp)
 						run_dirsync = PR_TRUE;
 
 						windows_conn_set_agmt_changed(prp->conn);
-								/* Destroy the backoff timer, since we won't need it anymore */ 
+						/* Destroy the backoff timer, since we won't need it anymore */ 
 						if (prp_priv->backoff)   
 						  backoff_delete(&prp_priv->backoff);
 					  }
 					else if (event_occurred(prp, EVENT_WINDOW_CLOSED))
 					  {
 						next_state = STATE_WAIT_WINDOW_OPEN;
-								/* Destroy the backoff timer, since we won't need it anymore */
+						/* Destroy the backoff timer, since we won't need it anymore */
 						if (prp_priv->backoff)
 						  backoff_delete(&prp_priv->backoff);
 					  }
