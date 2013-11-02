@@ -509,6 +509,11 @@ repl5_inc_waitfor_async_results(result_data *rd)
 static void
 repl5_inc_delete(Private_Repl_Protocol **prpp)
 {
+	repl5_inc_private *prp_priv = (repl5_inc_private *)(*prpp)->private;
+	/* if backoff is set, delete it (from EQ, as well) */ 
+	if (prp_priv->backoff) { 
+		backoff_delete(&prp_priv->backoff); 
+	} 
 	/* First, stop the protocol if it isn't already stopped */
 	if (!(*prpp)->stopped) {
 		(*prpp)->stopped = 1;
@@ -839,6 +844,10 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   state2name(current_state));
           } else {
               /* Set up the backoff timer to wake us up at the appropriate time */
+              /* if previous backoff set up, delete it. */
+              if (prp_priv->backoff) {
+                  backoff_delete(&prp_priv->backoff);
+              }
               if (use_busy_backoff_timer){
                   /* we received a busy signal from the consumer, wait for a while */
                   if (!busywaittime){
