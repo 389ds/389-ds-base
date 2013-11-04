@@ -2929,14 +2929,14 @@ done:
 /*
  * Parse out the consumer replicaID from the agmt maxcsn
  *
- *  "repl area;agmt rdn;hostname;port;consumer rid;maxcsn"
+ *  "repl area;agmt_rdn;hostname;port;consumer_rid;maxcsn"
  */
 static ReplicaId
 agmt_maxcsn_get_rid(char *maxcsn)
 {
     ReplicaId rid = 0;
     char *token = NULL;
-    char *iter;
+    char *iter = NULL;
     char *value = slapi_ch_strdup(maxcsn);
 
     token = ldap_utf8strtok_r(value, ";", &iter); /* repl area */
@@ -2945,7 +2945,7 @@ agmt_maxcsn_get_rid(char *maxcsn)
     token = ldap_utf8strtok_r(iter, ";", &iter);  /* port */
     token = ldap_utf8strtok_r(iter, ";", &iter);  /* rid */
 
-    if(strcmp(token, "Unavailable")){
+    if(token && strcmp(token, "Unavailable")){
         rid = atoi(token);
     }
     slapi_ch_free_string(&value);

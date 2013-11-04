@@ -3947,11 +3947,15 @@ replica_get_agmt_count(Replica *r)
 void
 replica_incr_agmt_count(Replica *r)
 {
-	r->agmt_count++;
+	if(r){
+		r->agmt_count++;
+	}
 }
 
 void
 replica_decr_agmt_count(Replica *r)
 {
-	r->agmt_count--;
+	if(r){
+		r->agmt_count--;
+	}
 }
