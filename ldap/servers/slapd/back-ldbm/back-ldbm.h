@@ -409,6 +409,8 @@ struct cache {
 #define CACHE_ADD(cache, p, a) cache_add((cache), (void *)(p), (void **)(a))
 #define CACHE_RETURN(cache, p) cache_return((cache), (void **)(p))
 #define CACHE_REMOVE(cache, p) cache_remove((cache),  (void *)(p))
+#define CACHE_LOCK(cache) cache_lock((cache))
+#define CACHE_UNLOCK(cache) cache_unlock((cache))
 
 /* various modules keep private data inside the attrinfo structure */
 typedef struct dblayer_private dblayer_private;
