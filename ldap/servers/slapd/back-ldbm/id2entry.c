@@ -167,10 +167,12 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
                         if (myparentdn && PL_strcmp(parentdn, myparentdn)) {
                             Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
                             char *newdn = NULL;
+                            CACHE_LOCK(&inst->inst_cache);
                             slapi_sdn_done(sdn);
                             newdn = slapi_ch_smprintf("%s,%s", myrdn, parentdn);
                             slapi_sdn_init_dn_passin(sdn, newdn);
                             slapi_sdn_get_ndn(sdn); /* to set ndn */
+                            CACHE_UNLOCK(&inst->inst_cache);
                         }
                         slapi_ch_free_string(&myparentdn);
                     }

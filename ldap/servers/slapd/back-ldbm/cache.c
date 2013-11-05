@@ -1460,6 +1460,14 @@ int cache_add_tentative(struct cache *cache, struct backentry *e,
 {
     return entrycache_add_int(cache, e, ENTRY_STATE_CREATING, alt);
 }
+void cache_lock(struct cache *cache)
+{
+    PR_Lock(cache->c_mutex);
+}
+void cache_unlock(struct cache *cache)
+{
+    PR_Unlock(cache->c_mutex);
+}
 
 /* locks an entry so that it can be modified (you should have gotten the
  * entry via cache_find_*).

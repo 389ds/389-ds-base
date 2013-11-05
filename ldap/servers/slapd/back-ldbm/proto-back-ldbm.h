@@ -76,6 +76,8 @@ void cache_get_stats(struct cache *cache, PRUint64 *hits, PRUint64 *tries,
 void cache_debug_hash(struct cache *cache, char **out);
 int cache_remove(struct cache *cache,  void *e);
 void cache_return(struct cache *cache, void **bep);
+void cache_lock(struct cache *cache);
+void cache_unlock(struct cache *cache);
 struct backentry *cache_find_dn(struct cache *cache, const char *dn, unsigned long ndnlen);
 struct backentry *cache_find_id(struct cache *cache, ID id);
 struct backentry *cache_find_uuid(struct cache *cache, const char *uuid);
