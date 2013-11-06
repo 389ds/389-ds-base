@@ -21,6 +21,7 @@ import operator
 import select
 import time
 import shutil
+import subprocess
 
 import lib389
 from lib389 import InvalidArgumentError
@@ -46,6 +47,7 @@ log = logging.getLogger(__name__)
 # Private constants
 PATH_SETUP_DS_ADMIN = "/setup-ds-admin.pl"
 PATH_SETUP_DS = "/setup-ds.pl"
+PATH_REMOVE_DS = "/remove-ds.pl"
 PATH_ADM_CONF = "/etc/dirsrv/admin-serv/adm.conf"
 
 class DirSrvTools(object):
@@ -272,9 +274,16 @@ class DirSrvTools(object):
         DirSrvTools.stop(dirsrv)
         # allow secport for selinux
         if secport != 636:
-            log.debug("Configuring SELinux on port:", secport)
-            cmd = '/usr/bin/sudo semanage port -a -t ldap_port_t -p tcp %s' % secport
-            os.system(cmd)
+            try:
+                log.debug("Configuring SELinux on port: %s", str(secport))
+                
+                subprocess.check_call([ "semanage", "port", "-a", "-t", "ldap_port_t", "-p", "tcp", str(secport) ])
+            except OSError:
+                log.debug("Likely SELinux not supported")
+                pass
+            except subprocess.CalledProcessError:
+                log.debug("SELinux fails to configure")
+                pass
 
         # eventually copy security files from source dir to our cert dir
         if sourcedir:            
@@ -299,16 +308,13 @@ class DirSrvTools(object):
     @staticmethod
     def runInfProg(prog, content, verbose):
         """run a program that takes an .inf style file on stdin"""
-        cmd = [ '/usr/bin/sudo' ]
-        cmd.append('/usr/bin/perl')
-        cmd.append( prog )
-        #cmd = [prog]
+        cmd = [prog]
         if verbose:
             cmd.append('-ddd')
         else:
             cmd.extend(['-l', '/dev/null'])
         cmd.extend(['-s', '-f', '-'])
-        print "running: %s " % cmd
+        log.debug("running: %s " % cmd)
         if HASPOPEN:
             pipe = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
             child_stdin = pipe.stdin
@@ -336,10 +342,16 @@ class DirSrvTools(object):
         return exitCode
 
     @staticmethod
-    def removeInstance(instance):
+    def removeInstance(dirsrv):
         """run the remove instance command"""
-        cmd = "/usr/bin/sudo /usr/bin/perl /usr/sbin/remove-ds.pl -i slapd-%s" % instance
-        #print "running: %s " % cmd
+        if hasattr(dirsrv, 'prefix'):
+            prefix = dirsrv.prefix
+        else:
+            prefix = None
+        
+        prog = get_sbin_dir(None, prefix) + PATH_REMOVE_DS
+        cmd = "%s -i slapd-%s" % (prog, dirsrv.serverId)
+        log.debug("running: %s " % cmd)
         try:
             os.system(cmd)
         except:
@@ -451,6 +463,7 @@ class DirSrvTools(object):
         try:
             newconn = lib389.DirSrv(args['newhost'], args['newport'],
                               args['newrootdn'], args['newrootpw'], args['newinstance'])
+            newconn.prefix = prefix
             newconn.isLocal = isLocal
             if args['have_admin'] and not args['setup_admin']:
                 newconn.asport = asport
@@ -517,6 +530,7 @@ class DirSrvTools(object):
 
         newconn = lib389.DirSrv(args['newhost'], args['newport'],
                           args['newrootdn'], args['newrootpw'], args['newinstance'])
+        newconn.prefix = prefix
         newconn.isLocal = isLocal
         # Now the admin should have been created
         # but still I should have taken all the required infos
