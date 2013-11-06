@@ -22,6 +22,9 @@ import select
 import time
 import shutil
 import subprocess
+import tarfile
+import re
+import glob
 
 import lib389
 from lib389 import InvalidArgumentError
@@ -256,6 +259,153 @@ class DirSrvTools(object):
         else:
             log.debug("Starting server %r" % self)
             return DirSrvTools.serverCmd(self, 'start', verbose, timeout)
+        
+    @staticmethod
+    def _infoInstanceBackupFS(dirsrv):
+        """
+            Return the information to retrieve the backup file of a given instance
+            It returns:
+                - Directory name containing the backup (e.g. /tmp/slapd-standalone.bck)
+                - The pattern of the backup files (e.g. /tmp/slapd-standalone.bck/backup*.tar.gz)
+        """
+        backup_dir = "%s/slapd-%s.bck" % (dirsrv.backupdir, dirsrv.inst)     
+        backup_pattern = os.path.join(backup_dir, "backup*.tar.gz") 
+        return backup_dir, backup_pattern
+    
+    @staticmethod
+    def clearInstanceBackupFS(dirsrv, backup_file=None):
+        """
+            Remove a backup_file or all backup up of a given instance
+        """
+        if backup_file:
+            if os.path.isfile(backup_file):
+                try:
+                    os.remove(backup_file)
+                except:
+                    log.info("clearInstanceBackupFS: fail to remove %s" % backup_file)
+                    pass
+        else:
+            backup_dir, backup_pattern = DirSrvTools._infoInstanceBackupFS(dirsrv)
+            list_backup_files = glob.glob(backup_pattern)
+            for f in list_backup_files:
+                try:
+                    os.remove(f)
+                except:
+                    log.info("clearInstanceBackupFS: fail to remove %s" % backup_file)
+                    pass
+
+            
+    @staticmethod
+    def checkInstanceBackupFS(dirsrv):
+        """
+            If it exits a backup file, it returns it
+            else it returns None
+        """
+
+        backup_dir, backup_pattern = DirSrvTools._infoInstanceBackupFS(dirsrv)
+        list_backup_files = glob.glob(backup_pattern)
+        if not list_backup_files:
+            return None
+        else:
+            # returns the first found backup
+            return list_backup_files[0]
+
+        
+    @staticmethod
+    def instanceBackupFS(dirsrv):
+        """
+            Saves the files of an instance under /tmp/slapd-<instance_name>.bck/backup_HHMMSS.tar.gz
+            and return the archive file name.
+            If it already exists a such file, it assums it is a valid backup and 
+            returns its name
+            
+            dirsrv.sroot : root of the instance  (e.g. /usr/lib64/dirsrv)
+            dirsrv.inst  : instance name (e.g. standalone for /etc/dirsrv/slapd-standalone)
+            dirsrv.confdir : root of the instance config (e.g. /etc/dirsrv)
+            dirsrv.dbdir: directory where is stored the database (e.g. /var/lib/dirsrv/slapd-standalon/db
+        """
+        
+        # First check it if already exists a backup file
+        backup_dir, backup_pattern = DirSrvTools._infoInstanceBackupFS(dirsrv)
+        backup_file = DirSrvTools.checkInstanceBackupFS(dirsrv)
+        if backup_file is None:
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+        else:
+            return backup_file
+                
+        # goes under the directory where the DS is deployed
+        listFilesToBackup = []
+        here = os.getcwd()
+        os.chdir(dirsrv.prefix)
+        prefix_pattern = "%s/" % dirsrv.prefix
+        
+        instroot = "%s/slapd-%s" % (dirsrv.sroot, dirsrv.inst)
+        for dirToBackup in [ instroot, dirsrv.confdir, dirsrv.dbdir]:
+            for root, dirs, files in os.walk(dirToBackup):
+                for file in files:
+                    name = os.path.join(root, file)
+                    name = re.sub(prefix_pattern, '', name)
+
+                    if os.path.isfile(name):
+                        listFilesToBackup.append(name)
+                        log.debug("instanceBackupFS add = %s (%s)" % (name, dirsrv.prefix))
+                
+        
+        # create the archive
+        name = "backup_%s.tar.gz" % (time.strftime("%m%d%Y_%H%M%S"))
+        backup_file = os.path.join(backup_dir, name)
+        tar = tarfile.open(backup_file, "w:gz")
+
+        
+        for name in listFilesToBackup:
+            if os.path.isfile(name):
+                tar.add(name)
+        tar.close()
+        log.info("instanceBackupFS: archive done : %s" % backup_file)
+        
+        # return to the directory where we were
+        os.chdir(here)
+        
+        return backup_file
+
+    @staticmethod
+    def instanceRestoreFS(dirsrv, backup_file):
+        """
+        """
+        
+        # First check the archive exists
+        if backup_file is None:
+            log.warning("Unable to restore the instance (missing backup)")
+            return 1
+        if not os.path.isfile(backup_file):
+            log.warning("Unable to restore the instance (%s is not a file)" % backup_file)
+            return 1
+        
+        # Then restore from the directory where DS was deployed
+        here = os.getcwd()
+        os.chdir(dirsrv.prefix)
+        
+        tar = tarfile.open(backup_file)
+        for member in tar.getmembers():
+            if os.path.isfile(member.name):
+                #
+                # restore only writable files
+                # It could be a bad idea and preferably restore all.
+                # Now it will be easy to enhance that function.
+                if os.access(member.name, os.W_OK):
+                    log.debug("instanceRestoreFS: restored %s" % member.name)
+                    tar.extract(member.name)
+                else:
+                    log.debug("instanceRestoreFS: not restored %s (no write access)" % member.name)
+            else:
+                log.debug("instanceRestoreFS: restored %s" % member.name)
+                tar.extract(member.name)
+            
+        tar.close()
+        
+        os.chdir(here)
+        
 
     @staticmethod
     def setupSSL(dirsrv, secport=636, sourcedir=None, secargs=None):
@@ -378,6 +528,9 @@ class DirSrvTools(object):
             # optionally register instance on an admin tree
             'have_admin': True,
             
+            # optionally directory where to store instance backup
+            'backupdir': [ /tmp ]
+            
             # you can configure a new dirsrv-admin
             'setup_admin': True,
             
@@ -395,6 +548,9 @@ class DirSrvTools(object):
         # use prefix if binaries are relocated
         sroot = args.get('sroot', '')
         prefix = args.setdefault('prefix', '')
+        
+        # get the backup directory to store instance backup
+        backupdir = args.get('backupdir', '/tmp')
 
         # new style - prefix or FHS?
         args['new_style'] = not args.get('sroot')
@@ -464,6 +620,7 @@ class DirSrvTools(object):
             newconn = lib389.DirSrv(args['newhost'], args['newport'],
                               args['newrootdn'], args['newrootpw'], args['newinstance'])
             newconn.prefix = prefix
+            newconn.backupdir = backupdir
             newconn.isLocal = isLocal
             if args['have_admin'] and not args['setup_admin']:
                 newconn.asport = asport
@@ -531,6 +688,7 @@ class DirSrvTools(object):
         newconn = lib389.DirSrv(args['newhost'], args['newport'],
                           args['newrootdn'], args['newrootpw'], args['newinstance'])
         newconn.prefix = prefix
+        newconn.backupdir = backupdir
         newconn.isLocal = isLocal
         # Now the admin should have been created
         # but still I should have taken all the required infos
