@@ -120,6 +120,11 @@ struct clc_buffer {
 	int		 	 buf_load_cnt;		/* number of loads for session */
 	int		 	 buf_record_cnt;	/* number of changes for session */
 	int		 	 buf_record_skipped;	/* number of changes skipped */
+	int		 	 buf_skipped_new_rid;	/* number of changes skipped due to new_rid */
+	int		 	 buf_skipped_csn_gt_cons_maxcsn;	/* number of changes skipped due to csn greater than consumer maxcsn */
+	int		 	 buf_skipped_up_to_date;	/* number of changes skipped due to consumer being up-to-date for the given rid */
+	int		 	 buf_skipped_csn_gt_ruv;	/* number of changes skipped due to preceedents are not covered by local RUV snapshot */
+	int		 	 buf_skipped_csn_covered;	/* number of changes skipped due to CSNs already covered by consumer RUV */
 
 	/*
 	 * fields that should be accessed via bl_lock or pl_lock
@@ -252,6 +257,11 @@ clcache_get_buffer ( CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV
 		(*buf)->buf_record_skipped = 0;
 		(*buf)->buf_cursor = NULL;
 		(*buf)->buf_num_cscbs = 0;
+		(*buf)->buf_skipped_new_rid = 0;
+		(*buf)->buf_skipped_csn_gt_cons_maxcsn = 0;
+		(*buf)->buf_skipped_up_to_date = 0;
+		(*buf)->buf_skipped_csn_gt_ruv = 0;
+		(*buf)->buf_skipped_csn_covered = 0;
 	}
 	else {
 		*buf = clcache_new_buffer ( consumer_rid );
@@ -287,11 +297,16 @@ clcache_return_buffer ( CLC_Buffer **buf )
 	int i;
 
 	slapi_log_error ( SLAPI_LOG_REPL, (*buf)->buf_agmt_name,
-			"session end: state=%d load=%d sent=%d skipped=%d\n",
-			 (*buf)->buf_state,
-			 (*buf)->buf_load_cnt,
-			 (*buf)->buf_record_cnt - (*buf)->buf_record_skipped,
-			 (*buf)->buf_record_skipped );
+			  "session end: state=%d load=%d sent=%d skipped=%d skipped_new_rid=%d "
+			  "skipped_csn_gt_cons_maxcsn=%d skipped_up_to_date=%d "
+			  "skipped_csn_gt_ruv=%d skipped_csn_covered=%d\n",
+			  (*buf)->buf_state,
+			  (*buf)->buf_load_cnt,
+			  (*buf)->buf_record_cnt - (*buf)->buf_record_skipped,
+			  (*buf)->buf_record_skipped, (*buf)->buf_skipped_new_rid,
+			  (*buf)->buf_skipped_csn_gt_cons_maxcsn,
+			  (*buf)->buf_skipped_up_to_date, (*buf)->buf_skipped_csn_gt_ruv,
+			  (*buf)->buf_skipped_csn_covered);
 
 	for ( i = 0; i < (*buf)->buf_num_cscbs; i++ ) {
 		clcache_free_cscb ( &(*buf)->buf_cscbs[i] );
@@ -676,6 +691,8 @@ clcache_skip_change ( CLC_Buffer *buf )
 	ReplicaId rid;
 	int skip = 1;
 	int i;
+	char buf_cur_csn_str[CSN_STRSIZE];
+	char oth_csn_str[CSN_STRSIZE];
 
 	do {
 
@@ -697,6 +714,14 @@ clcache_skip_change ( CLC_Buffer *buf )
 				 *  The consumer must have been "restored" and needs this newer update.
 				 */
 				skip = 0;
+			} else if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+				csn_as_string(buf->buf_current_csn, 0, buf_cur_csn_str);
+				csn_as_string(cons_maxcsn, 0, oth_csn_str);
+				slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+					"Skipping update because the changelog buffer current csn [%s] is "
+				        "less than or equal to the consumer max csn [%s]\n",
+				        buf_cur_csn_str, oth_csn_str);
+				buf->buf_skipped_csn_gt_cons_maxcsn++;
 			}
 			csn_free(&cons_maxcsn);
 			break;
@@ -714,7 +739,14 @@ clcache_skip_change ( CLC_Buffer *buf )
 
 		/* Skip CSN whose RID is unknown to the local RUV snapshot */
 		if ( i >= buf->buf_num_cscbs ) {
-			buf->buf_state = CLC_STATE_NEW_RID;
+			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+				csn_as_string(buf->buf_current_csn, 0, buf_cur_csn_str);
+				slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+					"Skipping update because the changelog buffer current csn [%s] rid "
+				        "[%d] is not in the list of changelog csn buffers (length %d)\n",
+				        buf_cur_csn_str, rid, buf->buf_num_cscbs);
+			}
+			buf->buf_skipped_new_rid++;
 			break;
 		}
 
@@ -722,17 +754,20 @@ clcache_skip_change ( CLC_Buffer *buf )
 
 		/* Skip if the consumer is already up-to-date for the RID */
 		if ( cscb->state == CLC_STATE_UP_TO_DATE ) {
+			buf->buf_skipped_up_to_date++;
 			break;
 		}
 
 		/* Skip CSN whose preceedents are not covered by local RUV snapshot */
 		if ( cscb->state == CLC_STATE_CSN_GT_RUV ) {
+			buf->buf_skipped_csn_gt_ruv++;
 			break;
 		}
 
 		/* Skip CSNs already covered by consumer RUV */
 		if ( cscb->consumer_maxcsn &&
 			 csn_compare ( buf->buf_current_csn, cscb->consumer_maxcsn ) <= 0 ) {
+			buf->buf_skipped_csn_covered++;
 				break;
 		}
 
@@ -762,6 +797,7 @@ clcache_skip_change ( CLC_Buffer *buf )
 
 		/* Skip CSNs not covered by local RUV snapshot */
 		cscb->state = CLC_STATE_CSN_GT_RUV;
+		buf->buf_skipped_csn_gt_ruv++;
 
 	} while (0);
 
