@@ -136,6 +136,8 @@ struct asyntaxinfo *attr_syntax_get_by_oid ( const char *oid );
 struct asyntaxinfo *attr_syntax_get_by_name ( const char *name );
 struct asyntaxinfo *attr_syntax_get_by_name_with_default ( const char *name );
 struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name, PRBool use_lock );
+struct asyntaxinfo *attr_syntax_get_global_at();
+struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2);
 /*
  * Call attr_syntax_return() when you are done using a value returned
  * by attr_syntax_get_by_oid() or attr_syntax_get_by_name().
@@ -1002,6 +1004,7 @@ int slapi_reload_schema_files(char *schemadir);
 void schema_free_extensions(schemaext *extensions);
 schemaext *schema_copy_extensions(schemaext *extensions);
 int schema_objectclasses_superset_check(struct berval **remote_schema, char *type);
+int schema_attributypes_superset_check(struct berval **remote_schema, char *type);
 
 /*
  * schemaparse.c

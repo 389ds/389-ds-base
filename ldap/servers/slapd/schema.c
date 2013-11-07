@@ -145,6 +145,9 @@ static void schema_create_errormsg( char *errorbuf, size_t errorbufsize,
 #else
         ;
 #endif
+static int schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message);
+static int schema_at_superset_check_syntax_oids(char *oid1, char *oid2);
+static int schema_at_superset_check_mr(struct asyntaxinfo *a1, struct asyntaxinfo *a2, char *info);
 static int parse_at_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, size_t errorbufsize,
         PRUint32 schema_flags, int is_user_defined, int schema_ds4x_compat, int is_remote);
 static int extension_is_user_defined( schemaext *extensions );
@@ -1889,13 +1892,34 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		  rc = SLAPI_DSE_CALLBACK_ERROR;
 	  } else {
 		  if (strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {
-			/* 
-			 * Replace all attribute types
-			 */
-			*returncode = schema_replace_attributes( pb, mods[i], returntext,
-					SLAPI_DSE_RETURNTEXT_SIZE );
+			  if (is_replicated_operation) {
+			      /*
+			       * before accepting the schema checks if the local consumer schema is not
+			       * a superset of the supplier schema
+			       */
+			      if (schema_attributetypes_superset_check(mods[i]->mod_bvalues, OC_CONSUMER)) {
+			    	  schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			                  schema_errprefix_generic, mods[i]->mod_type,
+			                  "Replace is not possible, local consumer schema is a superset of the supplier" );
+			          slapi_log_error(SLAPI_LOG_FATAL, "schema",
+			                  "Local %s must not be overwritten (set replication log for additional info)\n",
+			                  mods[i]->mod_type);
+			          *returncode = LDAP_UNWILLING_TO_PERFORM;
+			      } else {
+			          /*
+			           * Replace all attributes
+			           */
+			    	  *returncode = schema_replace_attributes( pb, mods[i], returntext,
+			    			  SLAPI_DSE_RETURNTEXT_SIZE );
+			      }
+			  } else {
+			      /*
+			       * Replace all objectclasses
+			       */
+			      *returncode = schema_replace_attributes( pb, mods[i], returntext,
+				          SLAPI_DSE_RETURNTEXT_SIZE );
+			  }
 		  } else if (strcasecmp (mods[i]->mod_type, "objectclasses") == 0) {
-                          
                           if (is_replicated_operation) {
                                   /* before accepting the schema checks if the local consumer schema is not
                                    * a superset of the supplier schema
@@ -5870,6 +5894,7 @@ static int
 schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, char *message) {
         struct objclass *oc_1, *oc_2;
         char *description;
+        int debug_logging = 0;
         int rc, i, j;
         int found;
 
@@ -5881,6 +5906,11 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
         
         /* by default assum oc_list1 == oc_list2 */
         rc = 0;
+
+        /* Are we doing replication logging */
+        if(slapi_is_loglevel_set(SLAPI_LOG_REPL)){
+        	debug_logging = 1;
+        }
 
         /* Check if all objectclass in oc_list1
          *   - exists in oc_list2
@@ -5903,8 +5933,12 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
 
                         /* The oc_1 objectclasses is supperset */
                         rc = 1;
-
-                        continue; /* we continue to check all the objectclass */
+                        if(debug_logging){
+                            /* we continue to check all the objectclasses so we log what is wrong */
+                            continue;
+                        } else {
+                            break;
+                        }
                 }
 
                 /* First check the MUST */
@@ -5933,8 +5967,12 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
 
                                         /* The oc_1 objectclasses is supperset */
                                         rc = 1;
-                                                
-                                        continue; /* we continue to check all attributes */
+                                        if(debug_logging){
+                                            /* we continue to check all attributes so we log what is wrong */
+                                            continue;
+                                        } else {
+                                            break;
+                                        }
                                 }
                         }
                 }
@@ -5963,16 +6001,399 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                                                 oc_1->oc_name,
                                                 description);
 
-                                        /* The oc_1 objectclasses is supperset */
+                                        /* The oc_1 objectclasses is superset */
                                         rc = 1;
-                                        
-                                        continue; /* we continue to check all attributes */
+                                        if(debug_logging){
+                                            /* we continue to check all attributes so we log what is wrong */
+                                            continue;
+                                        } else {
+                                            break;
+                                        }
                                 }
                         }
                 }
         }
         
         return rc;
+}
+
+static int
+schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message)
+{
+    struct asyntaxinfo *at_1, *at_2;
+    char *info = NULL;
+    int debug_logging = 0;
+    int found = 0;
+    int rc = 0;
+
+    if(at_list1 == NULL || at_list2 == NULL){
+        return 0;
+    }
+
+    /* Are we doing replication logging */
+    if(slapi_is_loglevel_set(SLAPI_LOG_REPL)){
+       	debug_logging = 1;
+    }
+
+    for (at_1 = at_list1; at_1 != NULL; at_1 = at_1->asi_next){
+
+        /* check if at_1 exists in at_list2 */
+        if((at_2 = attr_syntax_find(at_1, at_list2))){
+            /*
+             *  Check for single vs. multi value
+             */
+            if(!(at_1->asi_flags & SLAPI_ATTR_FLAG_SINGLE) && (at_2->asi_flags & SLAPI_ATTR_FLAG_SINGLE)){
+                /* at_list 1 is a superset */
+                rc = 1;
+                if(debug_logging){
+                	slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] is not "
+                	        "\"single-valued\" \n",message, at_1->asi_name);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+
+            /*
+             *  Check the syntaxes
+             */
+            if(schema_at_superset_check_syntax_oids(at_1->asi_syntax_oid, at_2->asi_syntax_oid)){
+                 /* at_list 1 is a superset */
+                 rc = 1;
+                 if(debug_logging){
+                     slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] syntax "
+                             "can not be overwritten\n",message, at_1->asi_name);
+                     continue;
+                 } else {
+                     break;
+                 }
+             }
+             /*
+              *  Check some matching rules - not finished yet...
+              *
+             if(schema_at_superset_check_mr(at_1, at_2, info)){
+                 rc = 1;
+                 if(debug_logging){
+                     slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] matching "
+                             "rule can not be overwritten\n",message, at_1->asi_name);
+                     continue;
+                 } else {
+                     break;
+                 }
+             }
+             */
+        } else {
+            rc = 1;
+            if(debug_logging){
+                /* we continue to check all attributes so we log what is wrong */
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "Fail to retrieve in the %s schema [%s or %s]\n",
+        	            message, at_1->asi_name, at_1->asi_oid);
+                continue;
+            } else {
+                break;
+            }
+        }
+    }
+
+
+    return rc;
+}
+
+/*
+ * Return 1 if a1's matching rules are superset(not to be overwritten).  If just one of
+ * the matching rules should not be overwritten, even if one should, we can not allow it.
+ */
+static int
+schema_at_superset_check_mr(struct asyntaxinfo *a1, struct asyntaxinfo *a2, char *info)
+{
+    char *a1_mrtype[3] = { a1->asi_mr_equality, a1->asi_mr_substring, a1->asi_mr_ordering };
+    char *a2_mrtype[3] = { a2->asi_mr_equality, a2->asi_mr_substring, a2->asi_mr_ordering };
+    int rc = 0, i;
+
+    /*
+     * Loop over the three matching rule types
+     */
+    for(i = 0; i < 3; i++){
+        if(a1_mrtype[i]){
+            if(a2_mrtype[i]){
+                /*
+                 *  Future action item - determine matching rule precedence:
+                 *
+                    ces
+                    "caseExactIA5Match", "1.3.6.1.4.1.1466.109.114.1"
+                    "caseExactMatch", "2.5.13.5"
+                    "caseExactOrderingMatch", "2.5.13.6"
+                    "caseExactSubstringsMatch", "2.5.13.7"
+                    "caseExactIA5SubstringsMatch", "2.16.840.1.113730.3.3.1"
+
+                    cis
+                    "generalizedTimeMatch", "2.5.13.27"
+                    "generalizedTimeOrderingMatch", "2.5.13.28"
+                    "booleanMatch", "2.5.13.13"
+                    "caseIgnoreIA5Match", "1.3.6.1.4.1.1466.109.114.2"
+                    "caseIgnoreIA5SubstringsMatch", "1.3.6.1.4.1.1466.109.114.3"
+                    "caseIgnoreListMatch", "2.5.13.11"
+                    "caseIgnoreListSubstringsMatch", "2.5.13.12"
+                    "caseIgnoreMatch", "2.5.13.2" -------------------------------
+                    "caseIgnoreOrderingMatch", "2.5.13.3" ----------------------->  can have lang options
+                    "caseIgnoreSubstringsMatch", "2.5.13.4" ---------------------   (as seen in the console)!
+                    "directoryStringFirstComponentMatch", "2.5.13.31"
+                    "objectIdentifierMatch", "2.5.13.0"
+                    "objectIdentifierFirstComponentMatch", "2.5.13.30"
+
+                    bitstring
+                    "bitStringMatch", "2.5.13.16","2.16.840.1.113730.3.3.1"
+
+                    bin
+                    "octetStringMatch", "2.5.13.17"
+                    "octetStringOrderingMatch", "2.5.13.18"
+
+                    DN
+                    "distinguishedNameMatch", "2.5.13.1"
+
+                    Int
+                    "integerMatch", "2.5.13.14"
+                    "integerOrderingMatch", "2.5.13.15"
+                    "integerFirstComponentMatch", "2.5.13.29"
+
+                    NameAndOptUID
+                    "uniqueMemberMatch", "2.5.13.23"
+
+                    NumericString
+                    "numericStringMatch", "2.5.13.8"
+                    "numericStringOrderingMatch", "2.5.13.9"
+                    "numericStringSubstringsMatch", "2.5.13.10"
+
+                    Telephone
+                    "telephoneNumberMatch", "2.5.13.20"
+                    "telephoneNumberSubstringsMatch", "2.5.13.21"
+                 */
+            }
+        }
+    }
+
+    return rc;
+}
+
+/*
+ * Return 1 if oid1 is a superset(oid1 is not to be overwritten)
+ */
+static int
+schema_at_superset_check_syntax_oids(char *oid1, char *oid2)
+{
+    if(oid1 == NULL && oid2 == NULL){
+        return 0;
+    } else if (oid2 == NULL){
+        return 0;
+    } else if (oid1 == NULL){
+        return 1;
+    }
+
+    if(strcmp(oid1, BINARY_SYNTAX_OID) == 0){
+        if(strcmp(oid2, BINARY_SYNTAX_OID) &&
+           strcmp(oid2, INTEGER_SYNTAX_OID) &&
+           strcmp(oid2, NUMERICSTRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, FACSIMILE_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, TELEPHONE_SYNTAX_OID) &&
+           strcmp(oid2, TELETEXTERMID_SYNTAX_OID) &&
+           strcmp(oid2, TELEXNUMBER_SYNTAX_OID))
+
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, BITSTRING_SYNTAX_OID) == 0){
+        if(strcmp(oid2, BINARY_SYNTAX_OID) &&
+           strcmp(oid2, BITSTRING_SYNTAX_OID) &&
+           strcmp(oid2, INTEGER_SYNTAX_OID) &&
+           strcmp(oid2, NUMERICSTRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID) &&
+           strcmp(oid2, FACSIMILE_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, TELEPHONE_SYNTAX_OID) &&
+           strcmp(oid2, TELETEXTERMID_SYNTAX_OID) &&
+           strcmp(oid2, TELEXNUMBER_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, BOOLEAN_SYNTAX_OID) == 0){
+        if(strcmp(oid2, BOOLEAN_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, COUNTRYSTRING_SYNTAX_OID) ==0){
+        if(strcmp(oid2, COUNTRYSTRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, DN_SYNTAX_OID) == 0){
+        if(strcmp(oid2, DN_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) )
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, DELIVERYMETHOD_SYNTAX_OID) ==0){
+        if(strcmp(oid2, DELIVERYMETHOD_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, DIRSTRING_SYNTAX_OID) == 0){
+        if(strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID)){
+            return 1;
+        }
+    } else if(strcmp(oid1, ENHANCEDGUIDE_SYNTAX_OID) == 0){
+        if(strcmp(oid2, ENHANCEDGUIDE_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, IA5STRING_SYNTAX_OID) == 0){
+        if(strcmp(oid2, IA5STRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID))
+        {
+           return 1;
+        }
+    } else if(strcmp(oid1, INTEGER_SYNTAX_OID) == 0){
+        if(strcmp(oid2, INTEGER_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, NUMERICSTRING_SYNTAX_OID) &&
+           strcmp(oid2, TELEPHONE_SYNTAX_OID) &&
+           strcmp(oid2, TELETEXTERMID_SYNTAX_OID) &&
+           strcmp(oid2, TELEXNUMBER_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID) )
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, JPEG_SYNTAX_OID) == 0){
+        if(strcmp(oid2, JPEG_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, NAMEANDOPTIONALUID_SYNTAX_OID) == 0){
+    	if(strcmp(oid2, NAMEANDOPTIONALUID_SYNTAX_OID) &&
+    	   strcmp(oid2, NAMEANDOPTIONALUID_SYNTAX_OID) &&
+    	   strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, NUMERICSTRING_SYNTAX_OID) == 0){
+    	if(strcmp(oid2, NUMERICSTRING_SYNTAX_OID) &&
+    	   strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, OID_SYNTAX_OID) == 0){
+        if(strcmp(oid2, OID_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if (strcmp(oid1, OCTETSTRING_SYNTAX_OID) == 0){
+        if(strcmp(oid2, OCTETSTRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, POSTALADDRESS_SYNTAX_OID) ==0){
+        if(strcmp(oid2, POSTALADDRESS_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, PRINTABLESTRING_SYNTAX_OID) == 0){
+        if(strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, TELEPHONE_SYNTAX_OID) == 0){
+        if(strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, TELEPHONE_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, TELETEXTERMID_SYNTAX_OID) == 0){
+    	if(strcmp(oid2, TELETEXTERMID_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if(strcmp(oid1, TELEXNUMBER_SYNTAX_OID) == 0){
+        if(strcmp(oid2, TELEXNUMBER_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    } else if (strcmp(oid1, SPACE_INSENSITIVE_STRING_SYNTAX_OID) == 0){
+    	if(strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, PRINTABLESTRING_SYNTAX_OID) &&
+           strcmp(oid2, DIRSTRING_SYNTAX_OID) &&
+           strcmp(oid2, SPACE_INSENSITIVE_STRING_SYNTAX_OID) &&
+           strcmp(oid2, IA5STRING_SYNTAX_OID))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 static void
@@ -5986,8 +6407,20 @@ schema_oclist_free(struct objclass *oc_list)
         }
 }
 
-static
-struct objclass *schema_berval_to_oclist(struct berval **oc_berval) {
+static void
+schema_atlist_free(struct asyntaxinfo *at_list)
+{
+    struct asyntaxinfo *at, *at_next;
+
+    for (at = at_list; at != NULL; at = at_next) {
+        at_next = at->asi_next;
+        attr_syntax_free(at);
+    }
+}
+
+static struct objclass *
+schema_berval_to_oclist(struct berval **oc_berval)
+{
         struct objclass *oc, *oc_list, *oc_tail;
         char errorbuf[BUFSIZ];
         int schema_ds4x_compat, rc;
@@ -6027,8 +6460,43 @@ struct objclass *schema_berval_to_oclist(struct berval **oc_berval) {
         return oc_list;
 }
 
+static struct asyntaxinfo *
+schema_berval_to_atlist(struct berval **at_berval)
+{
+    struct asyntaxinfo *at, *head = NULL, *prev, *at_list = NULL;
+    char errorbuf[BUFSIZ];
+    int schema_ds4x_compat, rc = 0, i;
+
+    schema_ds4x_compat = config_get_ds4_compatible_schema();
+
+    if (at_berval != NULL) {
+        for (i = 0; at_berval[i] != NULL; i++) {
+            /* parse the objectclass value */
+            rc = parse_at_str(at_berval[i]->bv_val, &at, errorbuf, sizeof (errorbuf),
+                    DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0, schema_ds4x_compat, 0);
+            if(rc){
+                attr_syntax_free(at);
+                break;
+            }
+            if(!head){
+                head = at_list = at;
+            } else {
+                at_list->asi_next = at;
+                at->asi_prev = at_list;
+                at_list = at;
+            }
+        }
+    }
+    if (rc) {
+        schema_atlist_free(head);
+    }
+
+    return head;
+}
+
 int
-schema_objectclasses_superset_check(struct berval **remote_schema, char *type) {
+schema_objectclasses_superset_check(struct berval **remote_schema, char *type)
+{
         int  rc;
         struct objclass *remote_oc_list;
 
@@ -6071,4 +6539,46 @@ schema_objectclasses_superset_check(struct berval **remote_schema, char *type) {
                 schema_oclist_free(remote_oc_list);
         }
         return rc;
+}
+
+int
+schema_attributetypes_superset_check(struct berval **remote_schema, char *type)
+{
+    struct asyntaxinfo *remote_at_list = NULL;
+    int rc = 0;
+
+    if (remote_schema != NULL) {
+        /* First build an attribute list from the remote schema */
+        if ((remote_at_list = schema_berval_to_atlist(remote_schema)) == NULL) {
+            rc = 1;
+            return rc;
+        }
+
+        /*
+         * Check that for each object from the remote schema
+         *         - MUST attributes are also MUST in local schema
+         *         - ALLOWED attributes are also ALLOWED in local schema
+         */
+        if (remote_at_list) {
+            attr_syntax_read_lock();
+            if (strcmp(type, OC_SUPPLIER) == 0) {
+                /*
+                 * Check if the remote_at_list from a consumer are or not
+                 * a superset of the attributetypes of the local supplier schema
+                 */
+                rc = schema_at_superset_check(remote_at_list, attr_syntax_get_global_at(), "local supplier" );
+            } else {
+                /*
+                 * Check if the attributeypes of the local consumer schema are or not
+                 * a superset of the remote_at_list from a supplier
+                 */
+                rc = schema_at_superset_check(attr_syntax_get_global_at(), remote_at_list, "remote supplier");
+            }
+            attr_syntax_unlock_read();
+        }
+
+        /* Free the remote schema list */
+        schema_atlist_free(remote_at_list);
+    }
+    return rc;
 }

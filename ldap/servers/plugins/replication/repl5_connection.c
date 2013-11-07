@@ -98,7 +98,7 @@ typedef struct repl_connection
 
 /*** from proto-slap.h ***/
 int schema_objectclasses_superset_check(struct berval **remote_schema, char *type);
-
+int schema_attributetypes_superset_check(struct berval **remote_schema, char *type);
 /* Controls we add on every outbound operation */
 
 static LDAPControl manageDSAITControl = {LDAP_CONTROL_MANAGEDSAIT, {0, ""}, '\0'};
@@ -1579,33 +1579,57 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 					/* Need to free the remote_schema_csn_bervals */
 					ber_bvecfree(remote_schema_csn_bervals);
 				}
-                                if (return_value != CONN_SCHEMA_NO_UPDATE_NEEDED) {
-                                        struct berval **remote_schema_objectclasses_bervals;
-                                        /* before pushing the schema do some checking */
+				if (return_value != CONN_SCHEMA_NO_UPDATE_NEEDED) {
+					struct berval **remote_schema_objectclasses_bervals = NULL;
+					struct berval **remote_schema_attributetypes_bervals = NULL;
+					/* before pushing the schema do some checking */
 
-                                        /* First objectclasses */
-                                        return_value = conn_read_entry_attribute(conn, "cn=schema", "objectclasses", &remote_schema_objectclasses_bervals);
-                                        if (return_value == CONN_OPERATION_SUCCESS) {
-                                                /* Check if the consumer objectclasses are a superset of the local supplier schema */
-                                                if (schema_objectclasses_superset_check(remote_schema_objectclasses_bervals, OC_SUPPLIER)) {
-                                                        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-                                                                "Schema %s must not be overwritten (set replication log for additional info)\n",
-                                                                agmt_get_long_name(conn->agmt));
-                                                        return_value = CONN_OPERATION_FAILED;
-                                                }
-                                        } else {
-                                                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-                                                        "%s: Fail to retrieve the remote schema objectclasses\n",
-                                                        agmt_get_long_name(conn->agmt));
-                                        }
-                                        
-                                        /* In case of success, possibly log a message */
-                                        if (return_value == CONN_OPERATION_SUCCESS) {
-                                                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
-                                                        "Schema checking successful: ok to push the schema (%s)\n", agmt_get_long_name(conn->agmt));
-                                        }
-                                }
-
+					/* First objectclasses */
+					return_value = conn_read_entry_attribute(conn, "cn=schema", "objectclasses",
+															&remote_schema_objectclasses_bervals);
+					if (return_value == CONN_OPERATION_SUCCESS) {
+						/* Check if the consumer objectclasses are a superset of the local supplier schema */
+						if (schema_objectclasses_superset_check(remote_schema_objectclasses_bervals, OC_SUPPLIER)) {
+							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+									"Schema %s must not be overwritten (set replication log for additional info)\n",
+									agmt_get_long_name(conn->agmt));
+							return_value = CONN_OPERATION_FAILED;
+						}
+						if(remote_schema_objectclasses_bervals){
+							ber_bvecfree(remote_schema_objectclasses_bervals);
+						}
+					} else {
+						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+								"%s: Fail to retrieve the remote schema objectclasses\n",
+								agmt_get_long_name(conn->agmt));
+					}
+					if (return_value == CONN_OPERATION_SUCCESS) {
+						/* Next attribute types */
+						return_value = conn_read_entry_attribute(conn, "cn=schema", "attributetypes",
+																&remote_schema_attributetypes_bervals);
+						if (return_value == CONN_OPERATION_SUCCESS) {
+							/* Check if the consumer attributes are a superset of the local supplier schema */
+							if (schema_attributetypes_superset_check(remote_schema_attributetypes_bervals, OC_SUPPLIER)) {
+								slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+										"Schema %s must not be overwritten (set replication log for additional info)\n",
+										agmt_get_long_name(conn->agmt));
+								return_value = CONN_OPERATION_FAILED;
+							}
+							if(remote_schema_attributetypes_bervals){
+								ber_bvecfree(remote_schema_attributetypes_bervals);
+							}
+						} else {
+							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+									"%s: Fail to retrieve the remote schema attribute types\n",
+									agmt_get_long_name(conn->agmt));
+						}
+					}
+					/* In case of success, possibly log a message */
+					if (return_value == CONN_OPERATION_SUCCESS) {
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"Schema checking successful: ok to push the schema (%s)\n", agmt_get_long_name(conn->agmt));
+					}
+				}
 			}
 		}
 	}

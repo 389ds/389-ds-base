@@ -517,6 +517,7 @@ typedef struct asyntaxinfo {
 	char				*asi_mr_substring;	/* substring matching rule */
 	schemaext			*asi_extensions;	/* schema extensions (X-ORIGIN, X-?????, ...) */
 	struct slapdplugin	*asi_plugin;		/* syntax */
+	char				*asi_syntax_oid;	/* syntax oid */
 	unsigned long		asi_flags;			/* SLAPI_ATTR_FLAG_... */
 	int					asi_syntaxlength;	/* length associated w/syntax */
 	int					asi_refcnt;			/* outstanding references */
@@ -524,6 +525,8 @@ typedef struct asyntaxinfo {
 	struct slapdplugin	*asi_mr_eq_plugin;	/* EQUALITY matching rule plugin */
 	struct slapdplugin	*asi_mr_sub_plugin;	/* SUBSTR matching rule plugin */
 	struct slapdplugin	*asi_mr_ord_plugin;	/* ORDERING matching rule plugin */
+	struct asyntaxinfo	*asi_next;
+	struct asyntaxinfo	*asi_prev;
 } asyntaxinfo;
 
 /*
