@@ -447,6 +447,11 @@ static void index_subsys_flatten_filter(Slapi_Filter *flist)
 			}
 			else
 			{
+				/* don't loose a simple filter */
+				if (flast) {
+					flast->f_next = f;
+					flast = f;
+				}
 				fprev = f;
 				f = f->f_next;
 			}
