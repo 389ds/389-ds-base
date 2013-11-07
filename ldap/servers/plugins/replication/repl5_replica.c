@@ -3956,6 +3956,8 @@ void
 replica_decr_agmt_count(Replica *r)
 {
 	if(r){
-		r->agmt_count--;
+		if(r->agmt_count > 0){
+		    r->agmt_count--;
+		}
 	}
 }

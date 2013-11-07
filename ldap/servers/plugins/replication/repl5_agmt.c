@@ -347,7 +347,17 @@ agmt_new_from_entry(Slapi_Entry *e)
 	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
 	if (NULL != tmpstr)
 	{
+		Object *repl_obj;
+		Replica *replica;
+
 		ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
+
+		/* now that we set the repl area, when can bump our agmt count */
+		if((repl_obj = replica_get_replica_from_dn(ra->replarea))){
+		    if((replica = (Replica*)object_get_data (repl_obj))){
+		    	replica_incr_agmt_count(replica);
+		    }
+		}
 
 		/* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
 		ra->protocol_timeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);

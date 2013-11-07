@@ -171,7 +171,6 @@ add_new_agreement(Slapi_Entry *e)
     }
 
     rc = replica_start_agreement(replica, ra);
-    replica_incr_agmt_count(replica);
 
     if (repl_obj) object_release(repl_obj);
 
