@@ -3502,7 +3502,7 @@ map_entry_dn_outbound(Slapi_Entry *e,
 	char *guid = NULL;
 	Slapi_DN *new_dn = NULL;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
-	const char *suffix = NULL;
+	const char *suffix = slapi_sdn_get_dn(windows_private_get_windows_subtree(prp->agmt));
 	Slapi_Entry *remote_entry = NULL;
 
 	if (NULL == e) {
