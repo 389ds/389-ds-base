@@ -209,7 +209,7 @@ _free_block(block_t *block)
 
 		PERM_FREE(block->data);
 #ifdef POOL_ZERO_DEBUG
-		memset(block, 0xa, sizeof(block));
+		memset(block, 0xa, sizeof(block_t));
 #endif /* POOL_ZERO_DEBUG */
 
 		PERM_FREE(block);
@@ -340,7 +340,7 @@ pool_destroy(pool_handle_t *pool_handle)
 	crit_exit(known_pools_lock);
 
 #ifdef POOL_ZERO_DEBUG
-	memset(pool, 0xa, sizeof(pool));
+	memset(pool, 0xa, sizeof(pool_t));
 #endif /* POOL_ZERO_DEBUG */
 
 	PERM_FREE(pool);

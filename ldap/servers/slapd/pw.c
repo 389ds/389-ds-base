@@ -447,7 +447,6 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 		{
 			if (slapi_attr_types_equivalent(L_attr, attr_name))
 			{
-				typedef int (*CMPFP)(char *, char *);
 				typedef char * (*ENCFP)(char *);
 
 				pwsp =  (struct pw_scheme *) slapi_ch_calloc (1, sizeof(struct pw_scheme));
@@ -523,7 +522,6 @@ pw_rever_encode(Slapi_Value **vals, char * attr_name)
 		{
 			if (slapi_attr_types_equivalent(L_attr, attr_name))
 			{
-				typedef int (*CMPFP)(char *, char *);
 				typedef char * (*ENCFP)(char *);
 
 				pwsp =  (struct pw_scheme *) slapi_ch_calloc (1, sizeof(struct pw_scheme));
