@@ -6023,7 +6023,6 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
     struct asyntaxinfo *at_1, *at_2;
     char *info = NULL;
     int debug_logging = 0;
-    int found = 0;
     int rc = 0;
 
     if(at_list1 == NULL || at_list2 == NULL){
@@ -6071,7 +6070,9 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
              /*
               *  Check some matching rules - not finished yet...
               *
-             if(schema_at_superset_check_mr(at_1, at_2, info)){
+              *  For now, skip the matching rule check (rc is never equal to -1)
+              */
+             if(rc == -1 && schema_at_superset_check_mr(at_1, at_2, info)){
                  rc = 1;
                  if(debug_logging){
                      slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] matching "
@@ -6081,7 +6082,6 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
                      break;
                  }
              }
-             */
         } else {
             rc = 1;
             if(debug_logging){
@@ -6463,7 +6463,7 @@ schema_berval_to_oclist(struct berval **oc_berval)
 static struct asyntaxinfo *
 schema_berval_to_atlist(struct berval **at_berval)
 {
-    struct asyntaxinfo *at, *head = NULL, *prev, *at_list = NULL;
+    struct asyntaxinfo *at, *head = NULL, *at_list = NULL;
     char errorbuf[BUFSIZ];
     int schema_ds4x_compat, rc = 0, i;
 

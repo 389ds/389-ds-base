@@ -1004,7 +1004,7 @@ int slapi_reload_schema_files(char *schemadir);
 void schema_free_extensions(schemaext *extensions);
 schemaext *schema_copy_extensions(schemaext *extensions);
 int schema_objectclasses_superset_check(struct berval **remote_schema, char *type);
-int schema_attributypes_superset_check(struct berval **remote_schema, char *type);
+int schema_attributetypes_superset_check(struct berval **remote_schema, char *type);
 
 /*
  * schemaparse.c
