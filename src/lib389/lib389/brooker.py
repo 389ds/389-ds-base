@@ -14,32 +14,412 @@ import time
 
 
 from lib389._constants import *
-from lib389 import Entry, DirSrv
+from lib389 import Entry, DirSrv, InvalidArgumentError
 from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
 from lib389 import (
     NoSuchEntryError
 )
 
-from lib389._constants import (
-    DN_CHANGELOG,
-    DN_MAPPING_TREE,
-    DN_CHAIN, DN_LDBM,
-    MASTER_TYPE,
-    HUB_TYPE,
-    LEAF_TYPE,
-    REPLICA_RDONLY_TYPE,
-    REPLICA_RDWR_TYPE
-)
 
-from lib389._replication import RUV, CSN
+from lib389._replication import RUV
 from lib389._entry import FormatDict
 
+class Agreement(object):
+    ALWAYS = None
+    
+    proxied_methods = 'search_s getEntry'.split()
+    
+    def __init__(self, conn):
+        """@param conn - a DirSrv instance"""
+        self.conn = conn
+        self.log = conn.log
 
+    def __getattr__(self, name):
+        if name in Agreement.proxied_methods:
+            return DirSrv.__getattr__(self.conn, name)
+        
+
+    
+    def status(self, agreement_dn):
+        """Return a formatted string with the replica status.
+            @param agreement_dn - 
+        """
+
+        attrlist = ['cn', 'nsds5BeginReplicaRefresh', 'nsds5replicaUpdateInProgress',
+                    'nsds5ReplicaLastInitStatus', 'nsds5ReplicaLastInitStart',
+                    'nsds5ReplicaLastInitEnd', 'nsds5replicaReapActive',
+                    'nsds5replicaLastUpdateStart', 'nsds5replicaLastUpdateEnd',
+                    'nsds5replicaChangesSentSinceStartup', 'nsds5replicaLastUpdateStatus',
+                    'nsds5replicaChangesSkippedSinceStartup', 'nsds5ReplicaHost',
+                    'nsds5ReplicaPort']
+        try:
+            ent = self.conn.getEntry(
+                agreement_dn, ldap.SCOPE_BASE, "(objectclass=*)", attrlist)
+        except NoSuchEntryError:
+            raise NoSuchEntryError(
+                "Error reading status from agreement", agreement_dn)
+        else:
+            retstr = (
+                "Status for %(cn)s agmt %(nsDS5ReplicaHost)s:%(nsDS5ReplicaPort)s" "\n"
+                "Update in progress: %(nsds5replicaUpdateInProgress)s" "\n"
+                "Last Update Start: %(nsds5replicaLastUpdateStart)s" "\n"
+                "Last Update End: %(nsds5replicaLastUpdateEnd)s" "\n"
+                "Num. Changes Sent: %(nsds5replicaChangesSentSinceStartup)s" "\n"
+                "Num. changes Skipped: %(nsds5replicaChangesSkippedSinceStartup)s" "\n"
+                "Last update Status: %(nsds5replicaLastUpdateStatus)s" "\n"
+                "Init in progress: %(nsds5BeginReplicaRefresh)s" "\n"
+                "Last Init Start: %(nsds5ReplicaLastInitStart)s" "\n"
+                "Last Init End: %(nsds5ReplicaLastInitEnd)s" "\n"
+                "Last Init Status: %(nsds5ReplicaLastInitStatus)s" "\n"
+                "Reap Active: %(nsds5ReplicaReapActive)s" "\n"
+            )
+            # FormatDict manages missing fields in string formatting
+            return retstr % FormatDict(ent.data)
+
+    def _check_interval(self, interval):
+        '''
+            Check the interval for schedule replication is valid:
+            HH [0..23]
+            MM [0..59]
+            DAYS [0-6]{1,7}
+            
+            @param interval - interval in the format 'HHMM-HHMM D+' (D is day number [0-6])
+            
+            @raise ValueError - if the inteval is illegal
+        '''
+        c = re.compile(re.compile('^([0-9][0-9])([0-9][0-9])-([0-9][0-9])([0-9][0-9]) ([0-6]{1,7})$'))
+        if not c.match(interval):
+            raise ValueError("Bad schedule format %r" % interval)
+        
+        # check the hours
+        hour = int(c.group(1))
+        if ((hour < 0) or (hour > 23)):
+            raise ValueError("Bad schedule format %r: illegal hour %d" % (interval, hour))
+        hour = int(c.group(3))
+        if ((hour < 0) or (hour > 23)):
+            raise ValueError("Bad schedule format %r: illegal hour %d" % (interval, hour))
+        
+        # check the minutes
+        minute = int(c.group(2))
+        if ((hour < 0) or (hour > 59)):
+            raise ValueError("Bad schedule format %r: illegal minute %d" % (interval, minute))
+        minute = int(c.group(4))
+        if ((hour < 0) or (hour > 59)):
+            raise ValueError("Bad schedule format %r: illegal minute %d" % (interval, minute))
+
+
+
+        
+    def schedule(self, agmtdn, interval='start'):
+        """Schedule the replication agreement
+            @param agmtdn - DN of the replica agreement
+            @param interval - in the form 
+                    - 'ALWAYS'
+                    - 'NEVER'
+                    - or 'HHMM-HHMM D+' With D=[0123456]+
+            @raise ValueError - if interval is not valid
+        """
+        
+        # check the validity of the interval
+        if str(interval).lower() == 'start':
+            interval = '0000-2359 0123456'
+        elif str(interval).lower == 'never':
+            interval = '2358-2359 0'
+        else:
+            self._check_interval(interval)
+        
+        # Check if the replica agreement exists
+        try:
+            self.conn.getEntry(agmtdn, ldap.SCOPE_BASE)
+        except ldap.NO_SUCH_OBJECT:
+            raise
+            
+        # update it
+        self.log.info("Schedule replication agreement %s" % agmtdn)
+        mod = [(
+            ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [interval])]
+        self.conn.modify_s(agmtdn, mod)
+        
+    def checkProperties(self, entry, properties):
+        '''
+            Checks that properties defined in prop are valid and set the 
+            replica agreement entry with the corresponding RHDS attribute name
+            @param entry - is the replica agreement LDAP entry
+            @param properties - is the dict of <prop_name>:<value>
+                'schedule'                       -> 'nsds5replicaupdateschedule'
+                'transport-info'                 -> 'nsds5replicatransportinfo'
+                'fractional-exclude-attrs-inc'   -> 'nsDS5ReplicatedAttributeList'
+                'fractional-exclude-attrs-total' -> 'nsDS5ReplicatedAttributeListTotal'
+                'fractional-strip-attrs'         -> 'nsds5ReplicaStripAttrs'
+                'transport-prot'                 -> 'nsds5replicatransportinfo' [ 'LDAP' ]
+                'consumer-port'                  -> 'nsds5replicaport' [ 389 ]
+                'consumer-total-init'            -> 'nsds5BeginReplicaRefresh'
+            
+            @raise ValueError - if some properties are not valid
+            
+            
+        ''' 
+        
+        #
+        # Schedule replication
+        #
+        if 'schedule' in properties:
+            self._check_interval(properties['schedule'])
+            entry.update({'nsds5replicaupdateschedule': properties['schedule']})
+        if 'consumer-total-init' in properties:
+            entry.setValues('nsds5BeginReplicaRefresh', properties['consumer-total-init'])
+            
+        # 
+        # Fractional replication properties
+        #
+        if 'fractional-exclude-attrs-inc' in properties:
+            entry.setValues('nsDS5ReplicatedAttributeList', properties['fractional-exclude-attrs-inc'])
+        if 'fractional-exclude-attrs-total' in properties:
+            entry.setValues('nsDS5ReplicatedAttributeListTotal', properties['fractional-exclude-attrs-total'])
+        if 'fractional-strip-attrs' in properties:
+            entry.setValues('nsds5ReplicaStripAttrs', properties['fractional-strip-attrs'])
+            
+        #
+        # Network parameter
+        if 'transport-prot' in properties:
+            entry.setValues('nsds5replicatransportinfo', properties['transport-prot'])
+        else:
+            entry.setValues('nsds5replicatransportinfo', 'LDAP')
+            
+        if 'consumer-port' in properties:
+            entry.setValues('nsds5replicaport', properties['consumer-port'])
+        else:
+            entry.setValues('nsds5replicaport', 389)
+        
+        
+        
+    def create(self, consumer, suffix=None, binddn=None, bindpw=None, cn_format=r'meTo_$host:$port', description_format=r'me to $host:$port', timeout=120, auto_init=False, bindmethod='simple', starttls=False, args=None):
+        """Create (and return) a replication agreement from self to consumer.
+            - self is the supplier,
+
+            @param consumer: one of the following (consumer can be a master)
+                    * a DirSrv object if chaining
+                    * an object with attributes: host, port, sslport, __str__
+            @param suffix    - eg. 'dc=babel,dc=it'
+            @param binddn    - 
+            @param bindpw    -
+            @param cn_format - string.Template to format the agreement name
+            @param timeout   - replica timeout in seconds
+            @param auto_init - start replication immediately
+            @param bindmethod-  'simple'
+            @param starttls  - True or False
+            @param args      - further args dict. Allowed keys:
+                    'schedule',
+                    'fractional-exclude-attrs-inc',
+                    'fractional-exclude-attrs-total',
+                    'fractional-strip-attrs'
+                    'winsync'
+                    
+            @return dn_agreement - DN of the created agreement
+                    
+            @raise InvalidArgumentError - If the suffix is missing
+            @raise NosuchEntryError     - if a replica doesn't exist for that suffix
+            @raise ALREADY_EXISTS       - If the replica agreement already exists
+            @raise UNWILLING_TO_PERFORM if the database was previously
+                    in read-only state. To create new agreements you
+                    need to *restart* the directory server
+            
+            NOTE: this method doesn't cache connection entries
+            
+            TODO: test winsync 
+            TODO: test chain
+            
+        """
+        import string
+        
+        # Check we have a suffix [ mandatory ]
+        if not suffix:
+            self.log.warning("create: suffix is missing")
+            raise InvalidArgumentError('suffix is mandatory')
+        
+        # Check we have a bindDN [optional] can be set later
+        try:
+            binddn = binddn or defaultProperties[REPLICATION_BIND_DN]
+            if not binddn:
+                raise KeyError
+        except KeyError:
+            self.log.warning("create: bind DN not specified")
+            pass
+
+        # Check we have a bindDN [optional] can be set later
+        try:
+            bindpw = bindpw or defaultProperties[REPLICATION_BIND_PW]
+            if not bindpw:
+                raise KeyError
+        except KeyError:
+            self.log.warning("create: %s password not specified" % (binddn))
+            pass
+        
+        # Set the connection info HOST:PORT
+        othhost, othport, othsslport = (
+            consumer.host, consumer.port, consumer.sslport)
+        othport = othsslport or othport
+        othport = othport or 389
+        
+        # Compute the normalized suffix to be set in RA entry
+        nsuffix = normalizeDN(suffix)
+
+        # adding agreement under the replica entry
+        replica_entries = self.conn.replica.list(suffix)
+        if not replica_entries:
+            raise NoSuchEntryError(
+                "Error: no replica set up for suffix " + suffix)
+        replica = replica_entries[0]
+
+        # define agreement entry
+        cn = string.Template(cn_format).substitute({'host': othhost, 'port': othport})
+        dn_agreement = ','.join(["cn=%s" % cn, replica.dn])
+
+        # This is probably unnecessary because
+        # we can just raise ALREADY_EXISTS
+        try:
+            
+            entry = self.conn.getEntry(dn_agreement, ldap.SCOPE_BASE)
+            self.log.warn("Agreement exists: %r" % dn_agreement)
+            raise ldap.ALREADY_EXISTS
+        except ldap.NO_SUCH_OBJECT:
+            entry = None
+
+        # In a separate function in this scope?
+        entry = Entry(dn_agreement)
+        entry.update({
+            'objectclass': ["top", "nsds5replicationagreement"],
+            'cn': cn,
+            'nsds5replicahost': consumer.host,
+            'nsds5replicatimeout': str(timeout),
+            'nsds5replicabinddn': binddn,
+            'nsds5replicacredentials': bindpw,
+            'nsds5replicabindmethod': bindmethod,
+            'nsds5replicaroot': nsuffix,
+            'description': string.Template(description_format).substitute({'host': othhost, 'port': othport})
+        })
+        
+        # prepare the properties to set in the agreement
+        args = args or {}
+        if 'transport-info' not in args :
+            if starttls:
+                args['transport-info'] = 'TLS'
+            elif othsslport:
+                args['transport-info'] = 'SSL'
+            else:
+                args['transport-info'] = 'LDAP'
+        if 'consumer-port' not in args:
+            if starttls:
+                args['consumer-port'] = str(othport)
+            elif othsslport:
+                args['consumer-port'] = str(othsslport)
+            elif othport:
+                args['consumer-port'] = str(othport)
+            else:
+                args['consumer-port'] = '389'
+        if 'consumer-total-init' not in args:
+            if auto_init:
+                args['consumer-total-init'] = 'start'
+                
+        # now check and set the properties in the entry
+        self.checkProperties(entry, args)
+
+            
+        # further arguments
+        if 'winsync' in args:  # state it clearly!
+            self.conn.setupWinSyncAgmt(args, entry)
+
+        try:
+            self.log.debug("Adding replica agreement: [%s]" % entry)
+            self.conn.add_s(entry)
+        except:
+            #  FIXME check please!
+            raise
+
+        entry = self.conn.waitForEntry(dn_agreement)
+        if entry:
+            # More verbose but shows what's going on
+            if 'chain' in args:
+                chain_args = {
+                    'suffix': suffix,
+                    'binddn': binddn,
+                    'bindpw': bindpw
+                }
+                # Work on `self` aka producer
+                if replica.nsds5replicatype == MASTER_TYPE:
+                    self.setupChainingFarm(**chain_args)
+                # Work on `consumer`
+                # TODO - is it really required?
+                if replica.nsds5replicatype == LEAF_TYPE:
+                    chain_args.update({
+                        'isIntermediate': 0,
+                        'urls': self.conn.toLDAPURL(),
+                        'args': args['chainargs']
+                    })
+                    consumer.setupConsumerChainOnUpdate(**chain_args)
+                elif replica.nsds5replicatype == HUB_TYPE:
+                    chain_args.update({
+                        'isIntermediate': 1,
+                        'urls': self.conn.toLDAPURL(),
+                        'args': args['chainargs']
+                    })
+                    consumer.setupConsumerChainOnUpdate(**chain_args)
+
+        return dn_agreement
+
+    def init(self, suffix=None, consumer_host=None, consumer_port=None):
+        """Trigger a total update of the consumer replica
+            - self is the supplier,
+            - consumer is a DirSrv object (consumer can be a master)
+            - cn_format - use this string to format the agreement name
+            @param - suffix is the suffix targeted by the total update [mandatory]
+            @param - consumer_host hostname of the consumer [mandatory]
+            @param - consumer_port port of the consumer [mandatory]
+
+            @raise InvalidArgument: if missing mandatory argurment (suffix/host/port)
+        """
+        # 
+        # check the required parameters are set
+        #
+        if not suffix:
+            self.log.fatal("initAgreement: suffix is missing")
+            raise InvalidArgumentError('suffix is mandatory argument')
+        
+        nsuffix = normalizeDN(suffix)
+            
+        if not consumer_host:
+            self.log.fatal("initAgreement: host is missing")
+            raise InvalidArgumentError('host is mandatory argument')
+            
+        if not consumer_port:
+            self.log.fatal("initAgreement: port is missing")
+            raise InvalidArgumentError('port is mandatory argument')
+                #
+        # check the replica agreement already exist
+        #
+        replica_entries = self.conn.replica.list(suffix)
+        if not replica_entries:
+            raise NoSuchEntryError(
+                    "Error: no replica set up for suffix " + suffix)
+        replica_entry = replica_entries[0]
+        self.log.debug("initAgreement: looking for replica agreements under %s" % replica_entry.dn)
+        try:
+            filt = "(&(objectclass=nsds5replicationagreement)(nsds5replicahost=%s)(nsds5replicaport=%d)(nsds5replicaroot=%s))" % (consumer_host, consumer_port, nsuffix)
+            entry = self.conn.getEntry(replica_entry.dn, ldap.SCOPE_ONELEVEL, filt)
+        except ldap.NO_SUCH_OBJECT:
+            self.log.fatal("initAgreement: No replica agreement to %s:%d for suffix %s" % (consumer_host, consumer_port, nsuffix))
+            raise
+            
+        #
+        # trigger the total init
+        #
+        self.log.info("Starting total init %s" % entry.dn)
+        mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', 'start')]
+        self.conn.modify_s(entry.dn, mod)
+            
+    
 class Replica(object):
     proxied_methods = 'search_s getEntry'.split()
-    STOP = '2358-2359 0'
-    START = '0000-2359 0123456'
-    ALWAYS = None
 
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""
@@ -54,6 +434,49 @@ class Replica(object):
         """Return the replica dn of the given suffix."""
         mtent = self.conn.getMTEntry(suffix)
         return ','.join(("cn=replica", mtent.dn))
+    
+    def create_repl_manager(self, repl_manager_dn=None, repl_manager_pw=None):
+        '''
+            Create an entry that will be used to bind as replica manager.
+            
+            @param repl_manager_dn - DN of the bind entry. If not provided use the default one
+            @param repl_manager_pw - Password of the entry. If not provide use the default one
+            
+            @raise - KeyError if can not find valid values of Bind DN and Pwd
+        '''
+        
+        # check the DN and PW
+        try:
+            repl_manager_dn = repl_manager_dn or defaultProperties[REPLICATION_BIND_DN]
+            repl_manager_pw = repl_manager_pw or defaultProperties[REPLICATION_BIND_PW]
+            if not repl_manager_dn or not repl_manager_pw:
+                raise KeyError
+        except KeyError:
+            if not repl_manager_pw:
+                self.log.warning("replica_createReplMgr: bind DN password not specified")
+            if not repl_manager_dn:
+                self.log.warning("replica_createReplMgr: bind DN not specified")
+            raise
+        
+        # if the replication manager entry already exists, ust return
+        try:
+            entries = self.search_s(repl_manager_dn, ldap.SCOPE_BASE, "objectclass=*")
+            if entries:
+                #it already exist, fine
+                return
+        except ldap.NO_SUCH_OBJECT:
+            pass
+        
+        # ok it does not exist, create it
+        try:            
+            attrs = {
+                    'nsIdleTimeout': '0',
+                    'passwordExpirationTime': '20381010000000Z'
+                    }
+            self.conn.setupBindDN(repl_manager_dn, repl_manager_pw, attrs)
+        except ldap.ALREADY_EXISTS:
+            self.log.warn("User already exists (weird we just checked: %s " % repl_manager_dn)
+            
 
     def changelog(self, dbname='changelogdb'):
         """Add and return the replication changelog entry.
@@ -155,26 +578,6 @@ class Replica(object):
         mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', 'start')]
         self.conn.modify_s(agmtdn, mod)
 
-    def stop(self, agmtdn):
-        """Stop replication.
-            @param agmtdn - agreement dn
-        """
-        self.log.info("Stopping replication %s" % agmtdn)
-        mod = [(
-            ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [Replica.STOP])]
-        self.conn.modify_s(agmtdn, mod)
-
-    def restart(self, agmtdn, schedule=START):
-        """Schedules a new replication.
-            @param agmtdn  -
-            @param schedule - default START
-            `schedule` allows to customize the replication instant.
-                        see 389 documentation for further info
-        """
-        self.log.info("Restarting replication %s" % agmtdn)
-        mod = [(ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [
-                schedule])]
-        self.modify_s(agmtdn, mod)
 
     def keep_in_sync(self, agmtdn):
         """
@@ -183,50 +586,16 @@ class Replica(object):
         self.log.info("Setting agreement for continuous replication")
         raise NotImplementedError("Check nsds5replicaupdateschedule before writing!")
 
-    def status(self, agreement_dn):
-        """Return a formatted string with the replica status.
-            @param agreement_dn - 
-        """
 
-        attrlist = ['cn', 'nsds5BeginReplicaRefresh', 'nsds5replicaUpdateInProgress',
-                    'nsds5ReplicaLastInitStatus', 'nsds5ReplicaLastInitStart',
-                    'nsds5ReplicaLastInitEnd', 'nsds5replicaReapActive',
-                    'nsds5replicaLastUpdateStart', 'nsds5replicaLastUpdateEnd',
-                    'nsds5replicaChangesSentSinceStartup', 'nsds5replicaLastUpdateStatus',
-                    'nsds5replicaChangesSkippedSinceStartup', 'nsds5ReplicaHost',
-                    'nsds5ReplicaPort']
-        try:
-            ent = self.conn.getEntry(
-                agreement_dn, ldap.SCOPE_BASE, "(objectclass=*)", attrlist)
-        except NoSuchEntryError:
-            raise NoSuchEntryError(
-                "Error reading status from agreement", agreement_dn)
-        else:
-            retstr = (
-                "Status for %(cn)s agmt %(nsDS5ReplicaHost)s:%(nsDS5ReplicaPort)s" "\n"
-                "Update in progress: %(nsds5replicaUpdateInProgress)s" "\n"
-                "Last Update Start: %(nsds5replicaLastUpdateStart)s" "\n"
-                "Last Update End: %(nsds5replicaLastUpdateEnd)s" "\n"
-                "Num. Changes Sent: %(nsds5replicaChangesSentSinceStartup)s" "\n"
-                "Num. changes Skipped: %(nsds5replicaChangesSkippedSinceStartup)s" "\n"
-                "Last update Status: %(nsds5replicaLastUpdateStatus)s" "\n"
-                "Init in progress: %(nsds5BeginReplicaRefresh)s" "\n"
-                "Last Init Start: %(nsds5ReplicaLastInitStart)s" "\n"
-                "Last Init End: %(nsds5ReplicaLastInitEnd)s" "\n"
-                "Last Init Status: %(nsds5ReplicaLastInitStatus)s" "\n"
-                "Reap Active: %(nsds5ReplicaReapActive)s" "\n"
-            )
-            # FormatDict manages missing fields in string formatting
-            return retstr % FormatDict(ent.data)
 
-    def add(self, suffix, binddn, bindpw, rtype=MASTER_TYPE, rid=None, tombstone_purgedelay=None, purgedelay=None, referrals=None, legacy=False):
+    def add(self, suffix, binddn, bindpw=None, rtype=REPLICA_RDONLY_TYPE, rid=None, tombstone_purgedelay=None, purgedelay=None, referrals=None, legacy=False):
         """Setup a replica entry on an existing suffix.
             @param suffix - dn of suffix
             @param binddn - the replication bind dn for this replica
                             can also be a list ["cn=r1,cn=config","cn=r2,cn=config"]
             @param bindpw - used to eventually provision the replication entry
 
-            @param rtype - master, hub, leaf (see above for values) - default is master
+            @param rtype - REPLICA_RDWR_TYPE (master) or REPLICA_RDONLY_TYPE (hub/consumer)
             @param rid - replica id or - if not given - an internal sequence number will be assigned
 
             # further args
@@ -244,10 +613,6 @@ class Replica(object):
             TODO: this method does not update replica type
         """
         # set default values
-        if rtype == MASTER_TYPE:
-            rtype = REPLICA_RDWR_TYPE
-        else:
-            rtype = REPLICA_RDONLY_TYPE
 
         if legacy:
             legacy = 'on'
@@ -351,143 +716,10 @@ class Replica(object):
             return [ent.dn for ent in ents]
         return ents
 
-    def agreement_add(self, consumer, suffix=None, binddn=None, bindpw=None, cn_format=r'meTo_$host:$port', description_format=r'me to $host:$port', timeout=120, auto_init=False, bindmethod='simple', starttls=False, schedule=ALWAYS, args=None):
-        """Create (and return) a replication agreement from self to consumer.
-            - self is the supplier,
 
-            @param consumer: one of the following (consumer can be a master)
-                    * a DirSrv object if chaining
-                    * an object with attributes: host, port, sslport, __str__
-            @param suffix    - eg. 'dc=babel,dc=it'
-            @param binddn    - 
-            @param bindpw    -
-            @param cn_format - string.Template to format the agreement name
-            @param timeout   - replica timeout in seconds
-            @param auto_init - start replication immediately
-            @param bindmethod-  'simple'
-            @param starttls  - True or False
-            @param schedule  - when to schedule the replication. default: ALWAYS 
-            @param args      - further args dict. Allowed keys:
-                    'fractional',
-                    'stripattrs',
-                    'winsync'
-                    
-            @raise NosuchEntryError    - if a replica doesn't exist for that suffix
-            @raise ALREADY_EXISTS
-            @raise UNWILLING_TO_PERFORM if the database was previously
-                    in read-only state. To create new agreements you
-                    need to *restart* the directory server
-            
-            NOTE: this method doesn't cache connection entries
-            
-            TODO: test winsync 
-            TODO: test chain
-            
-        """
-        import string
-        assert binddn and bindpw and suffix
-        args = args or {}
+    
+    
 
-        othhost, othport, othsslport = (
-            consumer.host, consumer.port, consumer.sslport)
-        othport = othsslport or othport
-        nsuffix = normalizeDN(suffix)
-
-        # adding agreement to previously created replica
-        replica_entries = self.list(suffix)
-        if not replica_entries:
-            raise NoSuchEntryError(
-                "Error: no replica set up for suffix " + suffix)
-        replica = replica_entries[0]
-
-        # define agreement entry
-        cn = string.Template(cn_format).substitute({'host': othhost, 'port': othport})
-        dn_agreement = ','.join(["cn=%s" % cn, replica.dn])
-
-        # This is probably unnecessary because
-        # we can just raise ALREADY_EXISTS
-        try:
-            entry = self.conn.getEntry(dn_agreement, ldap.SCOPE_BASE)
-            self.log.warn("Agreement exists: %r" % dn_agreement)
-            raise ldap.ALREADY_EXISTS
-        except ldap.NO_SUCH_OBJECT:
-            entry = None
-
-        # In a separate function in this scope?
-        entry = Entry(dn_agreement)
-        entry.update({
-            'objectclass': ["top", "nsds5replicationagreement"],
-            'cn': cn,
-            'nsds5replicahost': consumer.host,
-            'nsds5replicatimeout': str(timeout),
-            'nsds5replicabinddn': binddn,
-            'nsds5replicacredentials': bindpw,
-            'nsds5replicabindmethod': bindmethod,
-            'nsds5replicaroot': nsuffix,
-            'description': string.Template(description_format).substitute({'host': othhost, 'port': othport})
-        })
-        if schedule:
-            if not re.match(r'\d{4}-\d{4} [0-6]{1,7}', schedule): # TODO put the regexp in a separate variable
-                raise ValueError("Bad schedule format %r" % schedule)
-            entry.update({'nsds5replicaupdateschedule': schedule})
-        if starttls:
-            entry.setValues('nsds5replicatransportinfo', 'TLS')
-            entry.setValues('nsds5replicaport', str(othport))
-        elif othsslport:
-            entry.setValues('nsds5replicatransportinfo', 'SSL')
-            entry.setValues('nsds5replicaport', str(othsslport))
-        else:
-            entry.setValues('nsds5replicatransportinfo', 'LDAP')
-            entry.setValues('nsds5replicaport', str(othport))
-            
-        if auto_init:
-            entry.setValues('nsds5BeginReplicaRefresh', 'start')
-            
-        # further arguments
-        if 'fractional' in args:
-            entry.setValues('nsDS5ReplicatedAttributeList', args['fractional'])
-        if 'stripattrs' in args:
-            entry.setValues('nsds5ReplicaStripAttrs', args['stripattrs'])
-        if 'winsync' in args:  # state it clearly!
-            self.conn.setupWinSyncAgmt(args, entry)
-
-        try:
-            self.log.debug("Adding replica agreement: [%s]" % entry)
-            self.conn.add_s(entry)
-        except:
-            #  FIXME check please!
-            raise
-
-        entry = self.conn.waitForEntry(dn_agreement)
-        if entry:
-            # More verbose but shows what's going on
-            if 'chain' in args:
-                chain_args = {
-                    'suffix': suffix,
-                    'binddn': binddn,
-                    'bindpw': bindpw
-                }
-                # Work on `self` aka producer
-                if replica.nsds5replicatype == MASTER_TYPE:
-                    self.setupChainingFarm(**chain_args)
-                # Work on `consumer`
-                # TODO - is it really required?
-                if replica.nsds5replicatype == LEAF_TYPE:
-                    chain_args.update({
-                        'isIntermediate': 0,
-                        'urls': self.conn.toLDAPURL(),
-                        'args': args['chainargs']
-                    })
-                    consumer.setupConsumerChainOnUpdate(**chain_args)
-                elif replica.nsds5replicatype == HUB_TYPE:
-                    chain_args.update({
-                        'isIntermediate': 1,
-                        'urls': self.conn.toLDAPURL(),
-                        'args': args['chainargs']
-                    })
-                    consumer.setupConsumerChainOnUpdate(**chain_args)
-
-        return dn_agreement
     
     def agreement_changes(self, agmtdn):
         """Return a list of changes sent by this agreement."""

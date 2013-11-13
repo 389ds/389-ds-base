@@ -174,7 +174,7 @@ def enable_logging_test():
 
 
 def status_test():
-    status = conn.replica.status(conn.agreement_dn)
+    status = conn.agreement.status(conn.agreement_dn)
     log.info(status)
     assert status
 

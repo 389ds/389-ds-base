@@ -322,7 +322,8 @@ class DirSrvTools(object):
             dirsrv.sroot : root of the instance  (e.g. /usr/lib64/dirsrv)
             dirsrv.inst  : instance name (e.g. standalone for /etc/dirsrv/slapd-standalone)
             dirsrv.confdir : root of the instance config (e.g. /etc/dirsrv)
-            dirsrv.dbdir: directory where is stored the database (e.g. /var/lib/dirsrv/slapd-standalon/db
+            dirsrv.dbdir: directory where is stored the database (e.g. /var/lib/dirsrv/slapd-standalone/db)
+            dirsrv.changelogdir: directory where is stored the changelog (e.g. /var/lib/dirsrv/slapd-master/changelogdb)
         """
         
         # First check it if already exists a backup file
@@ -340,8 +341,18 @@ class DirSrvTools(object):
         os.chdir(dirsrv.prefix)
         prefix_pattern = "%s/" % dirsrv.prefix
         
+        # build the list of directories to scan
         instroot = "%s/slapd-%s" % (dirsrv.sroot, dirsrv.inst)
-        for dirToBackup in [ instroot, dirsrv.confdir, dirsrv.dbdir]:
+        ldir = [ instroot ]
+        if hasattr(dirsrv, 'confir'):
+            ldir.append(dirsrv.confdir)
+        if hasattr(dirsrv, 'dbdir'):
+            ldir.append(dirsrv.dbdir)
+        if hasattr(dirsrv, 'changelogdb'):
+            ldir.append(dirsrv.changelogdb)
+
+        # now scan the directory list to find the files to backup
+        for dirToBackup in ldir:
             for root, dirs, files in os.walk(dirToBackup):
                 for file in files:
                     name = os.path.join(root, file)

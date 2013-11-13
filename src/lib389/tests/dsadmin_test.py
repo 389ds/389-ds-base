@@ -207,7 +207,7 @@ def setupAgreement_test():
     conn.replica.add(**args)
     conn.added_entries.append(args['binddn'])
 
-    dn_replica = conn.setupAgreement(consumer, args)
+    dn_replica = conn.createAgreement(consumer, args)
 
 
 def stop_start_test():

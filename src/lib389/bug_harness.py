@@ -39,7 +39,7 @@ class DSAdminHarness(DSAdmin, DSAdminTools):
         args.setdefault('binddn', REPLBINDDN)
         args.setdefault('bindpw', REPLBINDPW)
 
-        return DSAdmin.setupAgreement(self, repoth, args)
+        return DSAdmin.createAgreement(self, repoth, args)
 
     def setupReplica(self, args):
         """Set default replia credentials """

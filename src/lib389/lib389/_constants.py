@@ -5,10 +5,26 @@
 (MASTER_TYPE,
  HUB_TYPE,
  LEAF_TYPE) = range(3)
+ 
+REPLICAROLE_MASTER    = "master"
+REPLICAROLE_HUB       = "hub"
+REPLICAROLE_CONSUMER  = "consumer"
+
+CONSUMER_REPLICAID = 65535
 
 REPLICA_RDONLY_TYPE = 2  # CONSUMER and HUB
 REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI MASTER
 REPLICA_RDWR_TYPE = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
+
+REPLICATION_BIND_DN = 'replication_bind_dn'
+REPLICATION_BIND_PW = 'replication_bind_pw'
+REPLICATION_BIND_METHOD = 'replication_bind_method'
+
+defaultProperties = {
+    REPLICATION_BIND_DN: "cn=replrepl,cn=config",
+    REPLICATION_BIND_PW: "password",
+    REPLICATION_BIND_METHOD: "simple"
+}
 
 
 CFGSUFFIX = "o=NetscapeRoot"

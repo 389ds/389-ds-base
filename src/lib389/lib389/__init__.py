@@ -33,6 +33,7 @@ import operator
 import shutil
 import datetime
 import logging
+import decimal
 
 from ldap.ldapobject import SimpleLDAPObject
 from ldapurl import LDAPUrl
@@ -261,10 +262,12 @@ class DirSrv(SimpleLDAPObject):
 
     def __add_brookers__(self):
         from lib389.brooker import (
+            Agreement,
             Replica,
             Backend,
             Config,
             Index)
+        self.agreement = Agreement(self)
         self.replica = Replica(self)
         self.backend = Backend(self)
         self.config = Config(self)
@@ -886,16 +889,21 @@ class DirSrv(SimpleLDAPObject):
     def addSchema(self, attr, val):
         dn = "cn=schema"
         self.modify_s(dn, [(ldap.MOD_ADD, attr, val)])
+        
+    def delSchema(self, attr, val):
+        dn = "cn=schema"
+        self.modify_s(dn, [(ldap.MOD_DELETE, attr, val)])
 
     def addAttr(self, *attributes):
         return self.addSchema('attributeTypes', attributes)
 
     def addObjClass(self, *objectclasses):
         return self.addSchema('objectClasses', objectclasses)
-
-
-
-
+    
+    def getSchemaCSN(self):
+        ents = self.search_s("cn=schema", ldap.SCOPE_BASE, "objectclass=*", ['nsSchemaCSN'])
+        ent = ents[0]
+        return ent.getValue('nsSchemaCSN')
 
     def setupChainingIntermediate(self):
         confdn = ','.join(("cn=config", DN_CHAIN))
@@ -1044,7 +1052,7 @@ class DirSrv(SimpleLDAPObject):
 
     # args - DirSrv consumer (repoth), suffix, binddn, bindpw, timeout
     # also need an auto_init argument
-    def setupAgreement(self, consumer, args, cn_format=r'meTo_%s:%s', description_format=r'me to %s:%s'):
+    def createAgreement(self, consumer, args, cn_format=r'meTo_%s:%s', description_format=r'me to %s:%s'):
         """Create (and return) a replication agreement from self to consumer.
             - self is the supplier,
             - consumer is a DirSrv object (consumer can be a master)
@@ -1056,9 +1064,7 @@ class DirSrv(SimpleLDAPObject):
 
         args =  {
         'suffix': "dc=example,dc=com",
-        'bename': "userRoot",
         'binddn': "cn=replrepl,cn=config",
-        'bindcn': "replrepl", # so I need it?
         'bindpw': "replrepl",
         'bindmethod': 'simple',
         'log'   : True.
@@ -1070,11 +1076,46 @@ class DirSrv(SimpleLDAPObject):
                 'o=suffix2': 'ldap://consumer.example.net:3890'
             }
         """
-        assert args.get('binddn') and args.get('bindpw')
         suffix = args['suffix']
+        if not suffix:
+            # This is a mandatory parameter of the command... it fails
+            log.warning("createAgreement: suffix is missing")
+            return None
+        
+        # get the RA binddn
         binddn = args.get('binddn')
+        if not binddn:
+            binddn = defaultProperties.get(REPLICATION_BIND_DN, None)
+            if not binddn:
+                # weird, internal error we do not retrieve the default replication bind DN
+                # this replica agreement will fail to update the consumer until the
+                # property will be set
+                log.warning("createAgreement: binddn not provided and default value unavailable")
+                pass
+        
+        
+        # get the RA binddn password
         bindpw = args.get('bindpw')
+        if not bindpw:
+            bindpw = defaultProperties.get(REPLICATION_BIND_PW, None)
+            if not bindpw:
+                # weird, internal error we do not retrieve the default replication bind DN password
+                # this replica agreement will fail to update the consumer until the
+                # property will be set
+                log.warning("createAgreement: bindpw not provided and default value unavailable")
+                pass
 
+        # get the RA bind method
+        bindmethod = args.get('bindmethod')
+        if not bindmethod:
+            bindmethod = defaultProperties.get(REPLICATION_BIND_METHOD, None)
+            if not bindmethod:
+                # weird, internal error we do not retrieve the default replication bind method
+                # this replica agreement will fail to update the consumer until the
+                # property will be set
+                log.warning("createAgreement: bindmethod not provided and default value unavailable")
+                pass
+            
         nsuffix = normalizeDN(suffix)
         othhost, othport, othsslport = (
             consumer.host, consumer.port, consumer.sslport)
@@ -1092,6 +1133,7 @@ class DirSrv(SimpleLDAPObject):
                 'dn': replent.dn,
                 'type': int(replent.nsds5replicatype)
             }
+            
         # define agreement entry
         cn = cn_format % (othhost, othport)
         dn_agreement = "cn=%s,%s" % (cn, self.suffixes[nsuffix]['dn'])
@@ -1116,7 +1158,7 @@ class DirSrv(SimpleLDAPObject):
             'nsds5replicatimeout': str(args.get('timeout', 120)),
             'nsds5replicabinddn': binddn,
             'nsds5replicacredentials': bindpw,
-            'nsds5replicabindmethod': args.get('bindmethod', 'simple'),
+            'nsds5replicabindmethod': bindmethod,
             'nsds5replicaroot': nsuffix,
             'nsds5replicaupdateschedule': '0000-2359 0123456',
             'description': description_format % (othhost, othport)
@@ -1201,6 +1243,71 @@ class DirSrv(SimpleLDAPObject):
     def startReplication(self, agmtdn):
         return self.replica.start_and_wait(agmtdn)
 
+    def enableReplication(self, suffix=None, role=None, replicaId=CONSUMER_REPLICAID, binddn=None):
+        if not suffix:
+            log.fatal("enableReplication: suffix not specified")
+            return 1
+        
+        if not role:
+            log.fatal("enableReplication: replica role not specify (REPLICAROLE_*)")
+            return 1
+        
+        # 
+        # Check the validity of the parameters
+        #
+        
+        # First role and replicaID
+        if role == REPLICAROLE_MASTER:
+            # master
+            replica_type = REPLICA_RDWR_TYPE
+        else:
+            # hub or consumer
+            replica_type = REPLICA_RDONLY_TYPE
+        
+        if replica_type == REPLICA_RDWR_TYPE:
+            # check the replicaId [1..CONSUMER_REPLICAID[
+            if not decimal.Decimal(replicaId) or (replicaId <= 0) or (replicaId >=CONSUMER_REPLICAID):
+                log.fatal("enableReplication: invalid replicaId (%s) for a RW replica" % replicaId)
+                return 1
+        elif replicaId != CONSUMER_REPLICAID:
+            # check the replicaId is CONSUMER_REPLICAID
+            log.fatal("enableReplication: invalid replicaId (%s) for a Read replica (expected %d)" % (replicaId, CONSUMER_REPLICAID))
+            return 1
+            
+        # Now check we have a suffix
+        entries_backend = self.getBackendsForSuffix(suffix, ['nsslapd-suffix'])
+        if not entries_backend:
+            log.fatal("enableReplication: enable to retrieve the backend for %s" % suffix)
+            return 1
+        
+        ent = entries_backend[0]
+        if normalizeDN(suffix) != normalizeDN(ent.getValue('nsslapd-suffix')):
+            log.warning("enableReplication: suffix (%s) and backend suffix (%s) differs" % (suffix, entries_backend[0].nsslapd-suffix))
+            pass
+        
+        # Now prepare the bindDN property
+        if not binddn:
+            binddn = defaultProperties.get(REPLICATION_BIND_DN, None)
+            if not binddn:
+                # weird, internal error we do not retrieve the default replication bind DN
+                # this replica will not be updatable through replication until the binddn
+                # property will be set
+                log.warning("enableReplication: binddn not provided and default value unavailable")
+                pass
+            
+        # Now do the effectif job
+        # First add the changelog if master/hub
+        if (role == REPLICAROLE_MASTER) or (role == REPLICAROLE_HUB):
+            self.replica.changelog()
+            
+        # Second create the default replica manager entry if it does not exist
+        # it should not be called from here but for the moment I am unsure when to create it elsewhere
+        self.replica.create_repl_manager()
+        
+        # then enable replication
+        ret = self.replica.add(suffix=suffix, binddn=binddn, rtype=replica_type, rid=replicaId)
+        
+        return ret
 
     def replicaSetupAll(self, repArgs):
         """setup everything needed to enable replication for a given suffix.
