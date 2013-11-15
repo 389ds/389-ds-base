@@ -1577,3 +1577,61 @@ char* slapd_get_tmp_dir()
 #endif
 	return ( tmpdir );
 }
+
+SECKEYPrivateKey *
+slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
+{
+	SECKEYPrivateKey *key = NULL;
+	PK11SlotListElement *sle;
+	PK11SlotList *slotlist = PK11_GetAllSlotsForCert(cert, NULL);
+	const char *certsubject = cert->subjectName ? cert->subjectName : "unknown cert";
+
+	if (!slotlist) {
+		PRErrorCode errcode = PR_GetError();
+		slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+				"Error: cannot get slot list for certificate [%s] (%d: %s)\n",
+				certsubject, errcode, slapd_pr_strerror(errcode));
+		return key;
+	}
+
+	for (sle = slotlist->head; sle; sle = sle->next) {
+		PK11SlotInfo *slot = sle->slot;
+		const char *slotname = (slot && PK11_GetSlotName(slot)) ? PK11_GetSlotName(slot) : "unknown slot";
+		const char *tokenname = (slot && PK11_GetTokenName(slot)) ? PK11_GetTokenName(slot) : "unknown token";
+		if (!slot) {
+			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
+					"Missing slot for slot list element for certificate [%s]\n",
+					certsubject);
+		} else if (PK11_IsLoggedIn(slot, pin_arg)) {
+			key = PK11_FindKeyByDERCert(slot, cert, pin_arg);
+			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
+					"Found unlocked slot [%s] token [%s] for certificate [%s]\n",
+					slotname, tokenname, certsubject);
+			break;
+		} else {
+			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
+					"Skipping locked slot [%s] token [%s] for certificate [%s]\n",
+					slotname, tokenname, certsubject);
+		}
+	}
+
+	if (!key) {
+		slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+				"Error: could not find any unlocked slots for certificate [%s].  "
+		                "Please review your TLS/SSL configuration.  The following slots were found:\n",
+		                certsubject);
+		for (sle = slotlist->head; sle; sle = sle->next) {
+			PK11SlotInfo *slot = sle->slot;
+			const char *slotname = (slot && PK11_GetSlotName(slot)) ? PK11_GetSlotName(slot) : "unknown slot";
+			const char *tokenname = (slot && PK11_GetTokenName(slot)) ? PK11_GetTokenName(slot) : "unknown token";
+			slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+					"Slot [%s] token [%s] was locked.\n",
+					slotname, tokenname);
+		}
+
+	}
+
+	PK11_FreeSlotList(slotlist);
+	return key;
+}
+

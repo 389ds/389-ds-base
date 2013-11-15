@@ -1026,6 +1026,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
 int slapd_security_library_is_initialized();
 int slapd_ssl_listener_is_initialized();
 int slapd_SSL_client_auth (LDAP* ld);
+SECKEYPrivateKey *slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg);
 
 /*
  * security_wrappers.c
