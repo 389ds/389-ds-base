@@ -425,7 +425,7 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
         LDAPDebug(LDAP_DEBUG_ANY,"Can't find certificate %s in attrcrypt_fetch_private_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
 	}
 	if( cert != NULL ) {
-		key = slapd_pk11_findKeyByAnyCert(cert, NULL);
+		key = slapd_get_unlocked_key_for_cert(cert, NULL);
 	}
 	if (key == NULL) {
                 errorCode = PR_GetError();
