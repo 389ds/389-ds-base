@@ -12,10 +12,12 @@ sub runinst {
     #     cn=Multimaster Replication Plugin
     #     cn=Roles Plugin,cn=plugins,cn=config
     #     cn=USN,cn=plugins,cn=config
+    #     cn=Retro Changelog Plugin,cn=plugins,cn=config
     my @objplugins = (
         "cn=Multimaster Replication Plugin,cn=plugins,cn=config",
         "cn=Roles Plugin,cn=plugins,cn=config",
-        "cn=USN,cn=plugins,cn=config"
+        "cn=USN,cn=plugins,cn=config",
+        "cn=Retro Changelog Plugin,cn=plugins,cn=config"
     );
     foreach my $plugin (@objplugins) {
         my $ent = $conn->search($plugin, "base", "(cn=*)");
