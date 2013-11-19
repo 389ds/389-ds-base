@@ -57,7 +57,7 @@
 
 /* max len of a long (2^64), represented as a string, including null byte */
 #define	CNUMSTR_LEN		21
-typedef unsigned long changeNumber;
+typedef PRUint64 changeNumber;
 
 typedef struct _cnum_result_t {
     int		crt_nentries;	/* number of entries returned from search */
@@ -130,6 +130,8 @@ extern const char *attr_nsuniqueid;
 extern const char *attr_isreplicated;
 
 extern PRLock *retrocl_internal_lock;
+extern Slapi_Counter *retrocl_internal_cn;
+extern Slapi_Counter *retrocl_first_cn;
 
 /* Functions */
 

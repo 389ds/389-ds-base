@@ -466,6 +466,8 @@ retrocl_plugin_init(Slapi_PBlock *pb)
 	    rc= slapi_register_plugin_ext("internalpostoperation", 1 /* Enabled */, "retrocl_internalpostop_init", retrocl_internalpostop_init, "Retrocl internal postoperation plugin", NULL, identity, precedence);
 	  }
 
+	  retrocl_internal_cn = slapi_counter_new();
+	  retrocl_first_cn = slapi_counter_new();
 	  retrocl_internal_lock = PR_NewLock();
 	  if (retrocl_internal_lock == NULL) return -1;
 	}
