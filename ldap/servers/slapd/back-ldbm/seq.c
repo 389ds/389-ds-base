@@ -68,20 +68,21 @@
 int
 ldbm_back_seq( Slapi_PBlock *pb )
 {
-	backend *be;
-	ldbm_instance *inst;
-	struct ldbminfo		*li;
-	IDList			*idl = NULL;
-	int			err = LDAP_SUCCESS;
-	DB		*db;
-	DBC		*dbc = NULL;
-	int			type;
-	char			*attrname, *val;
-	int			isroot;
+	backend         *be;
+	ldbm_instance   *inst;
+	struct ldbminfo *li;
+	IDList          *idl = NULL;
+	back_txn        txn = {NULL};
 	struct attrinfo	*ai = NULL;
+	DB              *db;
+	DBC             *dbc = NULL;
+	char *attrname, *val;
+	int err = LDAP_SUCCESS;
 	int return_value = -1;
-	int	nentries = 0;
-	int retry_count=0;
+	int nentries = 0;
+	int retry_count = 0;
+	int isroot;
+	int type;
 
 	/* Decode arguments */
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
@@ -90,8 +91,14 @@ ldbm_back_seq( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_SEQ_ATTRNAME, &attrname );
 	slapi_pblock_get( pb, SLAPI_SEQ_VAL, &val );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
+	slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
 
 	inst = (ldbm_instance *) be->be_instance_info;
+
+	if ( !txn.back_txn_txn ) {
+		dblayer_txn_init( li, &txn );
+		slapi_pblock_set( pb, SLAPI_TXN, txn.back_txn_txn );
+	}
 
 	/* Validate arguments */
 	if ( type != SLAPI_SEQ_FIRST &&
@@ -114,7 +121,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 		LDAPDebug( LDAP_DEBUG_TRACE,
 		    "seq: caller specified un-indexed attribute %s\n",
 			   attrname ? attrname : "", 0, 0 );
-	    slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+		slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 		    "Unindexed seq access type", 0, NULL );
 		return -1;
 	}
@@ -123,13 +130,13 @@ ldbm_back_seq( Slapi_PBlock *pb )
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "<= ldbm_back_seq NULL (could not open index file for attribute %s)\n",
 		    attrname, 0, 0 );
-	    slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
+		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
 		return -1;
 	}
 
 	/* First, get a database cursor */
 
-	return_value = db->cursor(db,NULL,&dbc,0);
+	return_value = db->cursor(db, txn.back_txn_txn, &dbc, 0);
 
 	if (0 == return_value)
 	{
@@ -160,7 +167,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 				big_buffer = slapi_ch_malloc(key_length);
 				if (NULL == big_buffer) {
 					/* memory allocation failure */
-                                        dblayer_release_index_file( be, ai, db );
+					dblayer_release_index_file( be, ai, db );
 					return -1;
 				}
 				key.data = big_buffer;
@@ -234,24 +241,24 @@ ldbm_back_seq( Slapi_PBlock *pb )
 				/* Retrieve the idlist for this key */
 				key.flags = 0;
 				for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
-				  err = NEW_IDL_DEFAULT;
-				  idl = idl_fetch( be, db, &key, NULL, ai, &err );
-				  if(err == DB_LOCK_DEADLOCK) {
-				    ldbm_nasty("ldbm_back_seq deadlock retry", 1600, err);
+					err = NEW_IDL_DEFAULT;
+					idl = idl_fetch( be, db, &key, txn.back_txn_txn, ai, &err );
+					if(err == DB_LOCK_DEADLOCK) {
+						ldbm_nasty("ldbm_back_seq deadlock retry", 1600, err);
 #ifdef FIX_TXN_DEADLOCKS
 #error if txn != NULL, have to retry the entire transaction
 #endif
-				    continue;
-				  } else {
-				    break;
-				  }
+						continue;
+					} else {
+						break;
+					}
 				}
 			}
 		}
 		if(retry_count == IDL_FETCH_RETRY_COUNT) {
-		  ldbm_nasty("ldbm_back_seq retry count exceeded",1645,err);
+			ldbm_nasty("ldbm_back_seq retry count exceeded",1645,err);
 		} else if ( err != 0 && err != DB_NOTFOUND ) {
-		  ldbm_nasty("ldbm_back_seq database error", 1650, err);
+			ldbm_nasty("ldbm_back_seq database error", 1650, err);
 		}
 		slapi_ch_free( &(data.data) );
 		if ( key.data != little_buffer && key.data != &keystring ) {
@@ -272,7 +279,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 		for ( id = idl_firstid( idl ); id != NOID;
 			id = idl_nextid( idl, id ))
 		{
-		    if (( e = id2entry( be, id, NULL, &err )) == NULL )
+		    if (( e = id2entry( be, id, &txn, &err )) == NULL )
 		    {
 				if ( err != LDAP_SUCCESS )
 				{
