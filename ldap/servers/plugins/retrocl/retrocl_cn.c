@@ -43,8 +43,8 @@
 
 #include "retrocl.h"
 
-Slapi_Counter *retrocl_internal_cn;
-Slapi_Counter *retrocl_first_cn;
+static changeNumber retrocl_internal_cn = 0;
+static changeNumber retrocl_first_cn = 0;
 
 /*
  * Function: a2changeNumber
@@ -86,31 +86,36 @@ handle_cnum_entry( Slapi_Entry *e, void *callback_data )
     cr->cr_time = NULL;
 
     if ( NULL != e ) {
-        Slapi_Attr *chattr = NULL;
-        sval = NULL;
-        value = NULL;
-        if ( slapi_entry_attr_find( e, attr_changenumber, &chattr ) == 0 ) {
-            slapi_attr_first_value( chattr,&sval );
-            if ( NULL != sval ) {
-                value = slapi_value_get_berval ( sval );
-                if( NULL != value && NULL != value->bv_val && '\0' != value->bv_val[0]) {
-                    cr->cr_cnum = a2changeNumber( value->bv_val );
-                }
-            }
-        }
-        chattr = NULL;
-        sval = NULL;
-        value = NULL;
+	Slapi_Attr *chattr = NULL;
+	sval = NULL;
+	value = NULL;
+	if ( slapi_entry_attr_find( e, attr_changenumber, &chattr ) == 0 ) {
+	    slapi_attr_first_value( chattr,&sval );
+	    if ( NULL != sval ) {
+		value = slapi_value_get_berval ( sval );
+		if( NULL != value && NULL != value->bv_val &&
+		    '\0' != value->bv_val[0]) {
+		cr->cr_cnum = a2changeNumber( value->bv_val );
+		}
+	    }
+	}
+	chattr = NULL;
+	sval = NULL;
+	value = NULL;
 
-        if ( slapi_entry_attr_find( e, attr_changetime, &chattr ) == 0 ) {
-            slapi_attr_first_value( chattr,&sval );
-            if ( NULL != sval) {
-                value = slapi_value_get_berval ( sval );
-                if (NULL != value && NULL != value->bv_val && '\0' != value->bv_val[0]) {
-                    cr->cr_time = slapi_ch_strdup( value->bv_val );
-                }
-            }
-        }
+	chattr = NULL;
+	sval = NULL;
+	value = NULL;
+	if ( slapi_entry_attr_find( e, attr_changetime, &chattr ) == 0 ) {
+	    slapi_attr_first_value( chattr,&sval );
+	    if ( NULL != sval) {
+		value = slapi_value_get_berval ( sval );
+		if (NULL != value && NULL != value->bv_val &&
+		    '\0' != value->bv_val[0]) {
+		cr->cr_time = slapi_ch_strdup( value->bv_val );
+		}
+	    }
+	}
     }
     return 0;
 }
@@ -158,7 +163,7 @@ int retrocl_get_changenumbers(void)
 		       NULL,NULL,0,&cr,NULL,handle_cnum_result,
 		       handle_cnum_entry, NULL);
 
-    slapi_counter_set_value(retrocl_first_cn, cr.cr_cnum);
+    retrocl_first_cn = cr.cr_cnum;
 
     slapi_ch_free(( void **) &cr.cr_time );
 
@@ -167,11 +172,11 @@ int retrocl_get_changenumbers(void)
 		       NULL,NULL,0,&cr,NULL,handle_cnum_result,
 		       handle_cnum_entry, NULL);
 
-    slapi_counter_set_value(retrocl_internal_cn,cr.cr_cnum);
+    retrocl_internal_cn = cr.cr_cnum;
     
     slapi_log_error(SLAPI_LOG_PLUGIN,"retrocl","Got changenumbers %lu and %lu\n",
-            slapi_counter_get_value(retrocl_first_cn),
-            slapi_counter_get_value(retrocl_internal_cn));
+		    retrocl_first_cn,
+		    retrocl_internal_cn);
 
     slapi_ch_free(( void **) &cr.cr_time );
 
@@ -195,10 +200,10 @@ time_t retrocl_getchangetime( int type, int *err )
     time_t ret;
 
     if ( type != SLAPI_SEQ_FIRST && type != SLAPI_SEQ_LAST ) {
-        if ( err != NULL ) {
-            *err = -1;
-        }
-        return NO_TIME;
+	if ( err != NULL ) {
+	    *err = -1;
+	}
+	return NO_TIME;
     }
     memset( &cr, '\0', sizeof( cnumRet ));
     slapi_seq_callback( RETROCL_CHANGELOG_DN, type, 
@@ -208,13 +213,13 @@ time_t retrocl_getchangetime( int type, int *err )
 			handle_cnum_result, handle_cnum_entry, NULL ); 
     
     if ( err != NULL ) {
-        *err = cr.cr_lderr;
+	*err = cr.cr_lderr;
     }
     
     if ( NULL == cr.cr_time ) {
-        ret = NO_TIME;
+	ret = NO_TIME;
     } else {
-        ret = parse_localTime( cr.cr_time );
+	ret = parse_localTime( cr.cr_time );
     }
     slapi_ch_free(( void **) &cr.cr_time );
     return ret;
@@ -233,8 +238,10 @@ time_t retrocl_getchangetime( int type, int *err )
 
 void retrocl_forget_changenumbers(void) 
 { 
-    slapi_counter_set_value(retrocl_first_cn, 0);
-    slapi_counter_set_value(retrocl_internal_cn, 0);
+    PR_Lock(retrocl_internal_lock);
+    retrocl_first_cn = 0;
+    retrocl_internal_cn = 0;
+    PR_Unlock(retrocl_internal_lock);
 }
 
 /*
@@ -250,7 +257,11 @@ void retrocl_forget_changenumbers(void)
 
 changeNumber retrocl_get_first_changenumber(void) 
 { 
-    return (changeNumber)slapi_counter_get_value(retrocl_first_cn);
+    changeNumber cn;
+    PR_Lock(retrocl_internal_lock);
+    cn = retrocl_first_cn;
+    PR_Unlock(retrocl_internal_lock);
+    return cn;
 }
 
 /*
@@ -266,7 +277,9 @@ changeNumber retrocl_get_first_changenumber(void)
 
 void retrocl_set_first_changenumber(changeNumber cn) 
 { 
-    slapi_counter_set_value(retrocl_first_cn, cn);
+    PR_Lock(retrocl_internal_lock);
+    retrocl_first_cn = cn;
+    PR_Unlock(retrocl_internal_lock);
 }
 
 
@@ -282,8 +295,12 @@ void retrocl_set_first_changenumber(changeNumber cn)
  */
 
 changeNumber retrocl_get_last_changenumber(void) 
-{
-    return (changeNumber)slapi_counter_get_value(retrocl_internal_cn);
+{ 
+    changeNumber cn;
+    PR_Lock(retrocl_internal_lock);
+    cn = retrocl_internal_cn;
+    PR_Unlock(retrocl_internal_lock);
+    return cn;
 }
 
 /*
@@ -291,7 +308,7 @@ changeNumber retrocl_get_last_changenumber(void)
  *
  * Returns: none
  * 
- * Arguments: none
+ * Arguments: none, lock must be held
  *
  * Description: NOTE! MUST BE PRECEEDED BY retrocl_assign_changenumber
  *
@@ -299,8 +316,8 @@ changeNumber retrocl_get_last_changenumber(void)
 
 void retrocl_commit_changenumber(void) 
 { 
-    if ( slapi_counter_get_value(retrocl_first_cn) == 0) {
-        slapi_counter_set_value(retrocl_first_cn, slapi_counter_get_value(retrocl_internal_cn));
+    if ( retrocl_first_cn == 0) {
+        retrocl_first_cn = retrocl_internal_cn;
     }
 }
 
@@ -309,7 +326,7 @@ void retrocl_commit_changenumber(void)
  *
  * Returns: none
  * 
- * Arguments: none
+ * Arguments: none, lock must be held
  *
  * Description: NOTE! MUST BE PRECEEDED BY retrocl_assign_changenumber
  *
@@ -317,7 +334,7 @@ void retrocl_commit_changenumber(void)
 
 void retrocl_release_changenumber(void) 
 { 
-    slapi_counter_decrement(retrocl_internal_cn);
+    retrocl_internal_cn--;
 }
 
 /*
@@ -345,8 +362,10 @@ int retrocl_update_lastchangenumber(void)
                NULL,NULL,0,&cr,NULL,handle_cnum_result,
                handle_cnum_entry, NULL);
 
-    slapi_counter_set_value(retrocl_internal_cn, cr.cr_cnum);
-    slapi_log_error(SLAPI_LOG_PLUGIN,"retrocl","Refetched last changenumber =  %lu \n", cr.cr_cnum);
+
+    retrocl_internal_cn = cr.cr_cnum;
+    slapi_log_error(SLAPI_LOG_PLUGIN,"retrocl","Refetched last changenumber =  %lu \n",
+            retrocl_internal_cn);
 
     slapi_ch_free(( void **) &cr.cr_time );
 
@@ -375,7 +394,7 @@ changeNumber retrocl_assign_changenumber(void)
      * validity of the internal assignment of retrocl_internal_cn 
      * we had from the startup */  
 
-    if(slapi_counter_get_value(retrocl_internal_cn) <= slapi_counter_get_value(retrocl_first_cn)){
+    if(retrocl_internal_cn <= retrocl_first_cn){ 
         /* the numbers have become out of sync - retrocl_get_changenumbers
          * gets called only once during startup and it may have had a problem 
          * getting the last changenumber.         
@@ -386,8 +405,7 @@ changeNumber retrocl_assign_changenumber(void)
         retrocl_update_lastchangenumber();                                   
     }                             
 
-    slapi_counter_increment(retrocl_internal_cn);
-    cn = slapi_counter_get_value(retrocl_internal_cn);
-
+    retrocl_internal_cn++;
+    cn = retrocl_internal_cn;
     return cn;
 }
