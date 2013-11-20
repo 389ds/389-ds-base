@@ -10,7 +10,7 @@ vendor="389 Project"
 # PACKAGE_VERSION is constructed from these
 VERSION_MAJOR=1
 VERSION_MINOR=3
-VERSION_MAINT=2.3
+VERSION_MAINT=2.4
 # if this is a PRERELEASE, set VERSION_PREREL
 # otherwise, comment it out
 # be sure to include the dot prefix in the prerel
