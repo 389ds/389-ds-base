@@ -379,7 +379,7 @@ write_replog_db(
 	    retrocl_release_changenumber();
 	} else {
 	/* Tell the change numbering system this one's committed to disk  */
-	    retrocl_commit_changenumber( );
+	    retrocl_commit_changenumber();
 	}
     } else {
 	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, 

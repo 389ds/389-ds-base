@@ -131,6 +131,7 @@ extern const char *attr_nsuniqueid;
 extern const char *attr_isreplicated;
 
 extern PRLock *retrocl_internal_lock;
+extern Slapi_RWLock *retrocl_cn_lock;
 
 /* Functions */
 
