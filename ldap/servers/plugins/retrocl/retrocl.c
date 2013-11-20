@@ -481,7 +481,8 @@ retrocl_plugin_init(Slapi_PBlock *pb)
 	  if (!is_betxn) {
 	    rc= slapi_register_plugin_ext("internalpostoperation", 1 /* Enabled */, "retrocl_internalpostop_init", retrocl_internalpostop_init, "Retrocl internal postoperation plugin", NULL, identity, precedence);
 	  }
-
+	  retrocl_cn_lock = slapi_new_rwlock();
+	  if(retrocl_cn_lock == NULL) return -1;
 	  retrocl_internal_lock = PR_NewLock();
 	  if (retrocl_internal_lock == NULL) return -1;
 	}
