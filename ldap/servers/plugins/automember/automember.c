@@ -2663,20 +2663,24 @@ out:
 static int
 automember_modrdn_post_op(Slapi_PBlock *pb)
 {
+    Slapi_Entry *post_e = NULL;
     Slapi_DN *old_sdn = NULL;
     Slapi_DN *new_sdn = NULL;
-    Slapi_Entry *post_e = NULL;
+    struct configEntry *config = NULL;
+    PRCList *list = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_modrdn_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
     if (!g_plugin_started || !automember_oktodo(pb))
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
 
-    /* Reload config if an existing config entry was renamed,
+    /*
+     * Reload config if an existing config entry was renamed,
      * or if the new dn brings an entry into the scope of the
-     * config entries. */
+     * config entries.
+     */
     slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_e);
     if (post_e) {
         new_sdn = slapi_entry_get_sdn(post_e);
@@ -2684,21 +2688,57 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_modrdn_post_op: Error "
                         "retrieving post-op entry\n");
-        return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
 
     if ((old_sdn = automember_get_sdn(pb))) {
-        if (automember_dn_is_config(old_sdn) || automember_dn_is_config(new_sdn))
+        if (automember_dn_is_config(old_sdn) || automember_dn_is_config(new_sdn)){
             automember_load_config();
+        }
     } else {
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_modrdn_post_op: Error "
                         "retrieving dn\n");
+        return SLAPI_PLUGIN_SUCCESS;
     }
+
+    /* If replication, just bail. */
+    if (automember_isrepl(pb)) {
+        return SLAPI_PLUGIN_SUCCESS;
+    }
+
+    /*
+     * Check if a config entry applies to the entry(post modrdn)
+     */
+    automember_config_read_lock();
+
+    /* Bail out if the plug-in close function was just called. */
+    if (!g_plugin_started) {
+        automember_config_unlock();
+        return SLAPI_PLUGIN_SUCCESS;
+    }
+
+    if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
+        list = PR_LIST_HEAD(g_automember_config);
+        while (list != g_automember_config) {
+            config = (struct configEntry *)list;
+
+            /* Does the entry meet scope and filter requirements? */
+            if (slapi_dn_issuffix(slapi_sdn_get_dn(new_sdn), config->scope) &&
+                (slapi_filter_test_simple(post_e, config->filter) == 0)) {
+                /* Find out what membership changes are needed and make them. */
+                automember_update_membership(config, post_e, NULL);
+            }
+
+            list = PR_NEXT_LINK(list);
+        }
+    }
+
+    automember_config_unlock();
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_modrdn_post_op\n");
 
-    return 0;
+    return SLAPI_PLUGIN_SUCCESS;
 }
 
