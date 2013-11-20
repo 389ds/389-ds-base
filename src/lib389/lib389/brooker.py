@@ -216,7 +216,6 @@ class Agreement(object):
                     
             @raise InvalidArgumentError - If the suffix is missing
             @raise NosuchEntryError     - if a replica doesn't exist for that suffix
-            @raise ALREADY_EXISTS       - If the replica agreement already exists
             @raise UNWILLING_TO_PERFORM if the database was previously
                     in read-only state. To create new agreements you
                     need to *restart* the directory server
@@ -277,8 +276,8 @@ class Agreement(object):
         try:
             
             entry = self.conn.getEntry(dn_agreement, ldap.SCOPE_BASE)
-            self.log.warn("Agreement exists: %r" % dn_agreement)
-            raise ldap.ALREADY_EXISTS
+            self.log.warn("Agreement already exists: %r" % dn_agreement)
+            return dn_agreement
         except ldap.NO_SUCH_OBJECT:
             entry = None
 
@@ -527,6 +526,7 @@ class Replica(object):
             'nsslapd-changelogdir': dirpath
         })
         self.log.debug("adding changelog entry: %r" % entry)
+        self.changelogdir = dirpath
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:

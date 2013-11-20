@@ -176,10 +176,12 @@ class DirSrv(SimpleLDAPObject):
                 ent = self.getEntry(DN_CONFIG, attrlist=[
                     'nsslapd-instancedir', 
                     'nsslapd-errorlog',
+                    'nsslapd-accesslog',
                     'nsslapd-certdir', 
                     'nsslapd-schemadir'])
-                self.errlog = ent.getValue('nsslapd-errorlog')
-                self.confdir = ent.getValue('nsslapd-certdir')
+                self.errlog    = ent.getValue('nsslapd-errorlog')
+                self.accesslog = ent.getValue('nsslapd-accesslog')
+                self.confdir   = ent.getValue('nsslapd-certdir')
                 
                 if self.isLocal:
                     if not self.confdir or not os.access(self.confdir + '/dse.ldif', os.R_OK):
@@ -273,7 +275,7 @@ class DirSrv(SimpleLDAPObject):
         self.config = Config(self)
         self.index = Index(self)
     
-    def __init__(self, host='localhost', port=389, binddn='', bindpw='', serverId=None, nobind=False, sslport=0, verbose=False):  # default to anon bind
+    def __init__(self, host='localhost', port=389, binddn='', bindpw='', serverId=None, nobind=False, sslport=0, verbose=False, offline=False):  # default to anon bind
         """We just set our instance variables and wrap the methods.
             The real work is done in the following methods, reused during
             instance creation & co.
@@ -295,13 +297,15 @@ class DirSrv(SimpleLDAPObject):
         self.isLocal = isLocalHost(host)
         self.serverId = serverId
         
+        
         #
         # dict caching DS structure
         #
         self.suffixes = {}
         self.agmt = {}
-        # the real init
-        self.__localinit__()
+        if not offline:
+            # the real init
+            self.__localinit__()
         self.log = log
         # add brookers
         self.__add_brookers__()

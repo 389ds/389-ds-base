@@ -172,7 +172,11 @@ class DirSrvTools(object):
         timeout += int(time.time())
         if cmd == 'stop':
             log.warn("unbinding before stop")
-            self.unbind()
+            try:
+                self.unbind()
+            except:
+                log.warn("Unbinding fails: Instance already down (stopped or killed) ?")
+                pass
 
         log.info("Setup error log")
         logfp = open(errLog, 'r')
@@ -273,7 +277,7 @@ class DirSrvTools(object):
         return backup_dir, backup_pattern
     
     @staticmethod
-    def clearInstanceBackupFS(dirsrv, backup_file=None):
+    def clearInstanceBackupFS(dirsrv=None, backup_file=None):
         """
             Remove a backup_file or all backup up of a given instance
         """
@@ -284,7 +288,7 @@ class DirSrvTools(object):
                 except:
                     log.info("clearInstanceBackupFS: fail to remove %s" % backup_file)
                     pass
-        else:
+        elif dirsrv:
             backup_dir, backup_pattern = DirSrvTools._infoInstanceBackupFS(dirsrv)
             list_backup_files = glob.glob(backup_pattern)
             for f in list_backup_files:
@@ -344,12 +348,16 @@ class DirSrvTools(object):
         # build the list of directories to scan
         instroot = "%s/slapd-%s" % (dirsrv.sroot, dirsrv.inst)
         ldir = [ instroot ]
-        if hasattr(dirsrv, 'confir'):
+        if hasattr(dirsrv, 'confdir'):
             ldir.append(dirsrv.confdir)
         if hasattr(dirsrv, 'dbdir'):
             ldir.append(dirsrv.dbdir)
-        if hasattr(dirsrv, 'changelogdb'):
-            ldir.append(dirsrv.changelogdb)
+        if hasattr(dirsrv, 'changelogdir'):
+            ldir.append(dirsrv.changelogdir)
+        if hasattr(dirsrv, 'errlog'):
+            ldir.append(os.path.dirname(dirsrv.errlog))
+        if hasattr(dirsrv, 'accesslog') and  os.path.dirname(dirsrv.accesslog) not in ldir:
+            ldir.append(os.path.dirname(dirsrv.accesslog))        
 
         # now scan the directory list to find the files to backup
         for dirToBackup in ldir:
@@ -393,6 +401,29 @@ class DirSrvTools(object):
             log.warning("Unable to restore the instance (%s is not a file)" % backup_file)
             return 1
         
+        #
+        # Second do some clean up 
+        #
+        
+        # previous db (it may exists new db files not in the backup)
+        log.debug("instanceRestoreFS: remove subtree %s/*" % dirsrv.dbdir)
+        for root, dirs, files in os.walk(dirsrv.dbdir):
+            for d in dirs:
+                if d not in ("bak", "ldif"):
+                    log.debug("instanceRestoreFS: before restore remove directory %s/%s" % (root, d))
+                    shutil.rmtree("%s/%s" % (root, d))
+        
+        # previous error/access logs
+        log.debug("instanceRestoreFS: remove error logs %s" % dirsrv.errlog)
+        for f in glob.glob("%s*" % dirsrv.errlog):
+                log.debug("instanceRestoreFS: before restore remove file %s" % (f))
+                os.remove(f)
+        log.debug("instanceRestoreFS: remove access logs %s" % dirsrv.accesslog)
+        for f in glob.glob("%s*" % dirsrv.accesslog):
+                log.debug("instanceRestoreFS: before restore remove file %s" % (f))
+                os.remove(f)
+        
+        
         # Then restore from the directory where DS was deployed
         here = os.getcwd()
         os.chdir(dirsrv.prefix)
@@ -415,9 +446,21 @@ class DirSrvTools(object):
             
         tar.close()
         
+        #
+        # Now be safe, triggers a recovery at restart
+        #
+        guardian_file = os.path.join(dirsrv.dbdir, "db/guardian")
+        if os.path.isfile(guardian_file):
+            try:
+                log.debug("instanceRestoreFS: remove %s" % guardian_file)
+                os.remove(guardian_file)
+            except:
+                log.warning("instanceRestoreFS: fail to remove %s" % guardian_file)
+                pass
+        
+        
         os.chdir(here)
         
-
     @staticmethod
     def setupSSL(dirsrv, secport=636, sourcedir=None, secargs=None):
         """configure and setup SSL with a given certificate and restart the server.
@@ -517,8 +560,60 @@ class DirSrvTools(object):
             os.system(cmd)
         except:
             log.exception("error executing %r" % cmd)
+            
+    @staticmethod
+    def _offlineDirsrv(args):
+        '''
+            Function to allocate an offline DirSrv instance.
+            This instance is not initialized with the Directory instance
+            (__localinit__() and __add_brookers__() are not called)
+            The properties set are:
+                instance.host
+                instance.port
+                instance.serverId
+                instance.inst
+                instance.prefix
+                instance.backup
+        '''
+        instance = lib389.DirSrv(host=args['newhost'], port=args['newport'], 
+                                 serverId=args['newinstance'], offline=True)
+        instance.prefix    = args.get('prefix', '/')
+        instance.backupdir = args.get('backupdir', '/tmp')
+        instance.inst      = instance.serverId
+        return instance
+            
+    @staticmethod
+    def existsBackup(args):
+        '''
+            If the backup of the instance exists, it returns it.
+            Else None
+        '''
+        instance = DirSrvTools._offlineDirsrv(args)
+        return DirSrvTools.checkInstanceBackupFS(instance)
+        
   
-    
+    @staticmethod
+    def existsInstance(args):
+        '''
+            Check if an instance exists.
+            It checks if the following directories/files exist:
+                <confdir>/slapd-<name>
+                <errlog>         
+            If it exists it returns a DirSrv instance NOT initialized, else None
+        '''
+        instance = DirSrvTools._offlineDirsrv(args)
+        dirname  = os.path.join(instance.prefix, "etc/dirsrv/slapd-%s" % instance.serverId)
+        errorlog = os.path.join(instance.prefix, "var/log/dirsrv/slapd-%s/errors" % instance.serverId)
+        sroot    = os.path.join(instance.prefix, "lib/dirsrv")
+        if  os.path.isdir(dirname) and \
+            os.path.isfile(errorlog) and \
+            os.path.isdir(sroot):
+            instance.sroot = sroot
+            instance.errlog = errorlog
+            return instance
+        
+        return None
+
     @staticmethod
     def createInstance(args, verbose=0):
         """Create a new instance of directory server and return a connection to it.
@@ -642,7 +737,8 @@ class DirSrvTools(object):
             return newconn
         except ldap.SERVER_DOWN:
             pass  # not running - create new one
-
+        
+                
         if not isLocal or 'cfgdshost' in args:
             for param in ('cfgdshost', 'cfgdsport', 'cfgdsuser', 'cfgdspwd', 'admin_domain'):
                 if param not in args:
