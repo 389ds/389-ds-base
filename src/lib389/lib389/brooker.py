@@ -656,6 +656,10 @@ class Replica(object):
             TODO: this method does not update replica type
         """
         # set default values
+        if rtype == MASTER_TYPE:
+            rtype = REPLICA_RDWR_TYPE
+        else:
+            rtype = REPLICA_RDONLY_TYPE
 
         if legacy:
             legacy = 'on'
