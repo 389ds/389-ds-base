@@ -763,6 +763,23 @@ class Replica(object):
             return [ent.dn for ent in ents]
         return ents
 
+    def agreement_dn(self, basedn, oth):
+        '''get the replication agreement to the dirsrv object
+        specified by oth for the suffix basedn
+        this returns the replication agreement handle in a form suitable
+        for passing to agreement_changes, start_async, etc.'''
+        filt = '(nsds5replicahost=%s)(nsds5replicaport=%d)(nsds5replicaroot=%s)' % \
+            (oth.host, oth.port, normalizeDN(basedn))
+        dns = self.agreements(filt, None, True)
+        if not dns:
+            self.log.error('no agreement found for host %s port %d suffix %s', oth.host, oth.port, basedn)
+            return None
+        elif len(dns) > 1:
+            self.log.error('%d agreements found for host %s port %d suffix %s', len(dns), oth.host, oth.port, basedn)
+            return None
+        else:
+            return dns[0]
+
 
     
     
