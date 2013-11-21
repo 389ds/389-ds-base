@@ -25,7 +25,8 @@ from lib389._replication import RUV
 from lib389._entry import FormatDict
 
 class Agreement(object):
-    ALWAYS = None
+    ALWAYS = '0000-2359 0123456'
+    NEVER = '2358-2359 0'
     
     proxied_methods = 'search_s getEntry'.split()
     
@@ -110,22 +111,18 @@ class Agreement(object):
 
 
         
-    def schedule(self, agmtdn, interval='start'):
+    def schedule(self, agmtdn, interval=ALWAYS):
         """Schedule the replication agreement
             @param agmtdn - DN of the replica agreement
             @param interval - in the form 
-                    - 'ALWAYS'
-                    - 'NEVER'
+                    - Agreement.ALWAYS
+                    - Agreement.NEVER
                     - or 'HHMM-HHMM D+' With D=[0123456]+
             @raise ValueError - if interval is not valid
         """
         
         # check the validity of the interval
-        if str(interval).lower() == 'start':
-            interval = '0000-2359 0123456'
-        elif str(interval).lower == 'never':
-            interval = '2358-2359 0'
-        else:
+        if interval != Agreement.ALWAYS and interval != Agreement.NEVER:
             self._check_interval(interval)
         
         # Check if the replica agreement exists
@@ -421,12 +418,42 @@ class Agreement(object):
         self.log.info("Starting total init %s" % entry.dn)
         mod = [(ldap.MOD_ADD, 'nsds5BeginReplicaRefresh', 'start')]
         self.conn.modify_s(entry.dn, mod)
+
+    def pause(self, agmtdn, interval=NEVER):
+        """Pause this replication agreement.  This replication agreement
+        will send no more changes.  Use the resume() method to "unpause"
+            @param agmtdn - agreement dn
+            @param interval - (default NEVER) replication schedule to use
+        """
+        self.log.info("Pausing replication %s" % agmtdn)
+        mod = [(
+            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['off'])]
+        try:
+            self.conn.modify_s(agmtdn, mod)
+        except LDAPError, e:
+            # before 1.2.11, no support for nsds5ReplicaEnabled
+            # use schedule hack
+            self.schedule(interval)
+
+    def resume(self, agmtdn, interval=ALWAYS):
+        """Resume a paused replication agreement, paused with the "pause" method.
+            @param agmtdn  - agreement dn
+            @param interval - (default ALWAYS) replication schedule to use
+        """
+        self.log.info("Resuming replication %s" % agmtdn)
+        mod = [(
+            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['on'])]
+        try:
+            self.conn.modify_s(agmtdn, mod)
+        except LDAPError, e:
+            # before 1.2.11, no support for nsds5ReplicaEnabled
+            # use schedule hack
+            self.schedule(interval)
+
             
     
 class Replica(object):
     proxied_methods = 'search_s getEntry'.split()
-    STOP = '2358-2359 0'
-    START = '0000-2359 0123456'
 
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""
@@ -592,42 +619,6 @@ class Replica(object):
         """
         self.log.info("Setting agreement for continuous replication")
         raise NotImplementedError("Check nsds5replicaupdateschedule before writing!")
-
-    def stop(self, agmtdn):
-        """Stop replication.
-            @param agmtdn - agreement dn
-        """
-        self.log.info("Stopping replication %s" % agmtdn)
-        mod = [(
-            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['off'])]
-	try:
-            self.conn.modify_s(agmtdn, mod)
-	except LDAPError, e:
-            # before 1.2.11, no support for nsds5ReplicaEnabled
-            # use schedule hack
-            mod = [(
-                    ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [
-                        Replica.STOP])]
-            self.conn.modify_s(agmtdn, mod)
-
-    def restart(self, agmtdn, schedule=START):
-        """Schedules a new replication.
-            @param agmtdn  -
-            @param schedule - default START
-            `schedule` allows to customize the replication instant.
-                        see 389 documentation for further info
-        """
-        self.log.info("Restarting replication %s" % agmtdn)
-        mod = [(
-            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['on'])]
-	try:
-            self.conn.modify_s(agmtdn, mod)
-	except LDAPError, e:
-            # before 1.2.11, no support for nsds5ReplicaEnabled
-            # use schedule hack
-            mod = [(ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [
-                    schedule])]
-            self.conn.modify_s(agmtdn, mod)
 
 
 
