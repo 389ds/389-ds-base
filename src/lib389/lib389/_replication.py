@@ -1,3 +1,5 @@
+import time
+import datetime
 
 class CSN(object):
     """CSN is Change Sequence Number
@@ -143,6 +145,13 @@ class RUV(object):
 
     def __eq__(self, oth):
         return cmp(self, oth) == 0
+
+    def __str__(self):
+        ret = 'generation: %s\n' % self.gen
+        for rid in self.rid.keys():
+            ret = ret + 'rid: %s url: %s min: [%s] max: [%s]\n' % \
+                (rid, self.rid[rid]['url'], self.rid[rid].get('min', ''), self. rid[rid].get('max', ''))
+        return ret
 
     def getdiffs(self, oth):
         """Compare two ruvs and return the differences
