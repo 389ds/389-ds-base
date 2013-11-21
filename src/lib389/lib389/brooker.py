@@ -425,6 +425,8 @@ class Agreement(object):
     
 class Replica(object):
     proxied_methods = 'search_s getEntry'.split()
+    STOP = '2358-2359 0'
+    START = '0000-2359 0123456'
 
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""
@@ -590,6 +592,42 @@ class Replica(object):
         """
         self.log.info("Setting agreement for continuous replication")
         raise NotImplementedError("Check nsds5replicaupdateschedule before writing!")
+
+    def stop(self, agmtdn):
+        """Stop replication.
+            @param agmtdn - agreement dn
+        """
+        self.log.info("Stopping replication %s" % agmtdn)
+        mod = [(
+            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['off'])]
+	try:
+            self.conn.modify_s(agmtdn, mod)
+	except LDAPError, e:
+            # before 1.2.11, no support for nsds5ReplicaEnabled
+            # use schedule hack
+            mod = [(
+                    ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [
+                        Replica.STOP])]
+            self.conn.modify_s(agmtdn, mod)
+
+    def restart(self, agmtdn, schedule=START):
+        """Schedules a new replication.
+            @param agmtdn  -
+            @param schedule - default START
+            `schedule` allows to customize the replication instant.
+                        see 389 documentation for further info
+        """
+        self.log.info("Restarting replication %s" % agmtdn)
+        mod = [(
+            ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['on'])]
+	try:
+            self.conn.modify_s(agmtdn, mod)
+	except LDAPError, e:
+            # before 1.2.11, no support for nsds5ReplicaEnabled
+            # use schedule hack
+            mod = [(ldap.MOD_REPLACE, 'nsds5replicaupdateschedule', [
+                    schedule])]
+            self.conn.modify_s(agmtdn, mod)
 
 
 
