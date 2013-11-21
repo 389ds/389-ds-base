@@ -244,7 +244,7 @@ class DirSrv(SimpleLDAPObject):
                         self.simple_bind_s(self.binddn, self.bindpw)
                     except ldap.SERVER_DOWN, e:
                         # TODO add server info in exception
-                        log.error("Cannot connect to %r" % uri)
+                        log.debug("Cannot connect to %r" % uri)
                         raise e
                     break
                 except ldap.CONFIDENTIALITY_REQUIRED:
