@@ -300,34 +300,39 @@ class Agreement(object):
         })
         
         # prepare the properties to set in the agreement
-        args = args or {}
-        if 'transport-info' not in args :
+        # we make a copy here because we cannot change
+        # the passed in args dict
+        argscopy = {}
+        if args:
+            import copy
+            argscopy = copy.deepcopy(args)
+        if 'transport-info' not in argscopy :
             if starttls:
-                args['transport-info'] = 'TLS'
+                argscopy['transport-info'] = 'TLS'
             elif othsslport:
-                args['transport-info'] = 'SSL'
+                argscopy['transport-info'] = 'SSL'
             else:
-                args['transport-info'] = 'LDAP'
-        if 'consumer-port' not in args:
+                argscopy['transport-info'] = 'LDAP'
+        if 'consumer-port' not in argscopy:
             if starttls:
-                args['consumer-port'] = str(othport)
+                argscopy['consumer-port'] = str(othport)
             elif othsslport:
-                args['consumer-port'] = str(othsslport)
+                argscopy['consumer-port'] = str(othsslport)
             elif othport:
-                args['consumer-port'] = str(othport)
+                argscopy['consumer-port'] = str(othport)
             else:
-                args['consumer-port'] = '389'
-        if 'consumer-total-init' not in args:
+                argscopy['consumer-port'] = '389'
+        if 'consumer-total-init' not in argscopy:
             if auto_init:
-                args['consumer-total-init'] = 'start'
+                argscopy['consumer-total-init'] = 'start'
                 
         # now check and set the properties in the entry
-        self.checkProperties(entry, args)
+        self.checkProperties(entry, argscopy)
 
             
         # further arguments
-        if 'winsync' in args:  # state it clearly!
-            self.conn.setupWinSyncAgmt(args, entry)
+        if 'winsync' in argscopy:  # state it clearly!
+            self.conn.setupWinSyncAgmt(argscopy, entry)
 
         try:
             self.log.debug("Adding replica agreement: [%s]" % entry)
@@ -339,7 +344,7 @@ class Agreement(object):
         entry = self.conn.waitForEntry(dn_agreement)
         if entry:
             # More verbose but shows what's going on
-            if 'chain' in args:
+            if 'chain' in argscopy:
                 chain_args = {
                     'suffix': suffix,
                     'binddn': binddn,
@@ -354,14 +359,14 @@ class Agreement(object):
                     chain_args.update({
                         'isIntermediate': 0,
                         'urls': self.conn.toLDAPURL(),
-                        'args': args['chainargs']
+                        'args': argscopy['chainargs']
                     })
                     consumer.setupConsumerChainOnUpdate(**chain_args)
                 elif replica.nsds5replicatype == HUB_TYPE:
                     chain_args.update({
                         'isIntermediate': 1,
                         'urls': self.conn.toLDAPURL(),
-                        'args': args['chainargs']
+                        'args': argscopy['chainargs']
                     })
                     consumer.setupConsumerChainOnUpdate(**chain_args)
 
