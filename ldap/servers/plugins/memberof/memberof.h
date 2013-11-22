@@ -63,6 +63,7 @@
  */
 #define MEMBEROF_PLUGIN_SUBSYSTEM   "memberof-plugin"   /* used for logging */
 #define MEMBEROF_INT_PREOP_DESC "memberOf internal postop plugin"
+#define MEMBEROF_PREOP_DESC "memberof preop plugin"
 #define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"
 #define MEMBEROF_ATTR "memberOfAttr"
 #define MEMBEROF_BACKEND_ATTR "memberOfAllBackends"
@@ -95,5 +96,13 @@ void memberof_rlock_config();
 void memberof_wlock_config();
 void memberof_unlock_config();
 int memberof_config_get_all_backends();
+void memberof_set_config_area(Slapi_DN *sdn);
+Slapi_DN * memberof_get_config_area();
+void memberof_set_plugin_area(Slapi_DN *sdn);
+Slapi_DN * memberof_get_plugin_area();
+int memberof_shared_config_validate(Slapi_PBlock *pb);
+int memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
+	int *returncode, char *returntext, void *arg);
+void *memberof_get_plugin_id();
 
 #endif	/* _MEMBEROF_H_ */

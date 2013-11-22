@@ -75,10 +75,13 @@ static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
 	DS_PACKAGE_VERSION, "memberof plugin" };
 
 static void* _PluginID = NULL;
+static Slapi_DN* _ConfigAreaDN = NULL;
+static Slapi_DN* _pluginDN = NULL;
 static PRMonitor *memberof_operation_lock = 0;
 MemberOfConfig *qsortConfig = 0;
 static int g_plugin_started = 0;
 static int usetxn = 0;
+static int premodfn = 0;
 
 typedef struct _memberofstringll
 {
@@ -99,6 +102,7 @@ typedef struct _memberof_get_groups_data
 /* exported functions */
 int memberof_postop_init(Slapi_PBlock *pb );
 static int memberof_internal_postop_init(Slapi_PBlock *pb);
+static int memberof_preop_init(Slapi_PBlock *pb);
 
 /* plugin callbacks */ 
 static int memberof_postop_del(Slapi_PBlock *pb ); 
@@ -140,7 +144,6 @@ static int memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config,
 static int memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 	Slapi_DN *group_sdn);
 static void memberof_set_plugin_id(void * plugin_id);
-static void *memberof_get_plugin_id();
 static int memberof_compare(MemberOfConfig *config, const void *a, const void *b);
 static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
@@ -193,6 +196,7 @@ memberof_postop_init(Slapi_PBlock *pb)
 	char *memberof_plugin_identity = 0;
 	Slapi_Entry *plugin_entry = NULL;
 	char *plugin_type = NULL;
+	char *preop_plugin_type = NULL;
 	int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
 	int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
 	int modfn = SLAPI_PLUGIN_POST_MODIFY_FN;
@@ -214,6 +218,18 @@ memberof_postop_init(Slapi_PBlock *pb)
 	}
 	slapi_ch_free_string(&plugin_type);
 
+	if(usetxn){
+		preop_plugin_type = "betxnpreoperation";
+		premodfn = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
+	} else {
+		preop_plugin_type = "preoperation";
+		premodfn = SLAPI_PLUGIN_PRE_MODIFY_FN;
+	}
+
+	if(plugin_entry){
+		memberof_set_plugin_area(slapi_entry_get_sdn(plugin_entry));
+	}
+
 	/*
 	 * Get plugin identity and stored it for later use
 	 * Used for internal operations
@@ -223,21 +239,17 @@ memberof_postop_init(Slapi_PBlock *pb)
 	PR_ASSERT (memberof_plugin_identity);
 	memberof_set_plugin_id(memberof_plugin_identity);
 
-	ret = ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-				SLAPI_PLUGIN_VERSION_01 ) != 0 ||
-		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-	                     (void *)&pdesc ) != 0 ||
-		slapi_pblock_set( pb, delfn, (void *) memberof_postop_del ) != 0 ||
-		slapi_pblock_set( pb, mdnfn, (void *) memberof_postop_modrdn ) != 0 ||
-		slapi_pblock_set( pb, modfn, (void *) memberof_postop_modify ) != 0 ||
-		slapi_pblock_set( pb, addfn, (void *) memberof_postop_add ) != 0 ||
-		slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
-			(void *) memberof_postop_start ) != 0 ||
-		slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
-			(void *) memberof_postop_close ) != 0 );
+	ret = ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
+			slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc ) != 0 ||
+			slapi_pblock_set( pb, delfn, (void *) memberof_postop_del ) != 0 ||
+			slapi_pblock_set( pb, mdnfn, (void *) memberof_postop_modrdn ) != 0 ||
+			slapi_pblock_set( pb, modfn, (void *) memberof_postop_modify ) != 0 ||
+			slapi_pblock_set( pb, addfn, (void *) memberof_postop_add ) != 0 ||
+			slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void *) memberof_postop_start ) != 0 ||
+			slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) memberof_postop_close ) != 0 );
 
 	if (!ret && !usetxn &&
-		slapi_register_plugin("internalpostoperation",  /* op type */
+			slapi_register_plugin("internalpostoperation",  /* op type */
 			1,        /* Enabled */
 			"memberof_postop_init",   /* this function desc */
 			memberof_internal_postop_init,  /* init func */
@@ -255,10 +267,50 @@ memberof_postop_init(Slapi_PBlock *pb)
 			"memberof_postop_init failed\n" );
 		ret = -1;
 	}
+	/*
+	 * Setup the preop plugin for shared config updates
+	 */
+	if (!ret && !usetxn &&
+		slapi_register_plugin(preop_plugin_type,  /* op type */
+			1,        /* Enabled */
+			"memberof_preop_init",   /* this function desc */
+			memberof_preop_init,  /* init func */
+			MEMBEROF_PREOP_DESC,      /* plugin desc */
+			NULL,     /* ? */
+			memberof_plugin_identity   /* access control */))
+	{
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_preop_init failed\n" );
+		ret = -1;
+	}
+	else if (ret)
+	{
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_preop_init failed\n");
+		ret = -1;
+	}
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"<-- memberof_postop_init\n" );
+
 	return ret;
+}
+
+static int
+memberof_preop_init(Slapi_PBlock *pb)
+{
+	int status = 0;
+
+	if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 ||
+		slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,	(void *) &pdesc) != 0 ||
+		slapi_pblock_set(pb, premodfn, (void *)memberof_shared_config_validate) != 0)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_internal_postop_init: failed to register plugin\n");
+		status = -1;
+	}
+
+	return status;
 }
 
 static int
@@ -294,8 +346,12 @@ memberof_internal_postop_init(Slapi_PBlock *pb)
  */
 int memberof_postop_start(Slapi_PBlock *pb)
 {
-	int rc = 0;
+	Slapi_PBlock *search_pb = NULL;
+	Slapi_Entry **entries = NULL;
 	Slapi_Entry *config_e = NULL; /* entry containing plugin config */
+	char *config_area = NULL;
+	int result = 0;
+	int rc = 0;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"--> memberof_postop_start\n" );
@@ -311,18 +367,53 @@ int memberof_postop_start(Slapi_PBlock *pb)
 		rc = -1;
 		goto bail;
 	}
-
-	if ( slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &config_e ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-				"missing config entry\n" );
-		rc = -1;
-		goto bail;
+	/* Set the alternate config area if one is defined. */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
+	if (config_area)
+	{
+		search_pb = slapi_pblock_new();
+		slapi_search_internal_set_pb(search_pb, config_area, LDAP_SCOPE_BASE, "objectclass=*",
+									 NULL, 0, NULL, NULL, memberof_get_plugin_id(), 0);
+		slapi_search_internal_pb(search_pb);
+		slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+		if (LDAP_SUCCESS != result) {
+			if (result == LDAP_NO_SUCH_OBJECT) {
+				/* log an error and use the plugin entry for the config */
+				slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+								"memberof_postop_start: Config entry \"%s\" does "
+								"not exist.\n", config_area);
+				rc = -1;
+				goto bail;
+			}
+		} else {
+			slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+			if(entries && entries[0]){
+				config_e = entries[0];
+			} else {
+				slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+								"memberof_postop_start: Config entry \"%s\" was "
+								"not located.\n", config_area);
+				rc = -1;
+				goto bail;
+			}
+		}
+	} else {
+		/* The plugin entry itself contains the config */
+		if ( slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &config_e ) != 0 ) {
+			slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+							"missing config entry\n" );
+			rc = -1;
+			goto bail;
+		}
 	}
 
+	memberof_set_plugin_area(slapi_entry_get_sdn(config_e));
+	memberof_set_config_area(slapi_entry_get_sdn(config_e));
 	if (( rc = memberof_config( config_e )) != LDAP_SUCCESS ) {
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
 				"configuration failed (%s)\n", ldap_err2string( rc ));
-		return( -1 );
+		rc = -1;
+		goto bail;
 	}
 
 	rc = slapi_task_register_handler("memberof task", memberof_task_add);
@@ -344,6 +435,9 @@ int memberof_postop_start(Slapi_PBlock *pb)
 	 */
 
 bail:
+	slapi_free_search_results_internal(search_pb);
+	slapi_pblock_destroy(search_pb);
+
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"<-- memberof_postop_start\n" );
 
@@ -366,6 +460,32 @@ int memberof_postop_close(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_close\n" );
 	return 0;
+}
+
+void
+memberof_set_config_area(Slapi_DN *dn)
+{
+	slapi_sdn_free(&_ConfigAreaDN);
+	_ConfigAreaDN = slapi_sdn_dup(dn);
+}
+
+Slapi_DN *
+memberof_get_config_area()
+{
+	return _ConfigAreaDN;
+}
+
+void
+memberof_set_plugin_area(Slapi_DN *sdn)
+{
+	slapi_sdn_free(&_pluginDN);
+	_pluginDN = slapi_sdn_dup(sdn);
+}
+
+Slapi_DN *
+memberof_get_plugin_area()
+{
+	return _pluginDN;
 }
 
 /*
@@ -821,6 +941,32 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 		return SLAPI_PLUGIN_SUCCESS;
 	}
 
+	/* check if we are updating the shared config entry */
+	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+	if (slapi_sdn_issuffix(sdn, memberof_get_config_area()) &&
+		slapi_sdn_compare(sdn, memberof_get_config_area()) == 0)
+	{
+		Slapi_Entry *entry = NULL;
+		char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
+		int result = 0;
+
+		slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
+		if(entry){
+			if( SLAPI_DSE_CALLBACK_ERROR == memberof_apply_config (pb, NULL, entry, &result, returntext, NULL)){
+				slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "%s", returntext);
+				ret = SLAPI_PLUGIN_FAILURE;
+				goto done;
+			}
+		} else {
+			/* this should not happen since this was validated in preop */
+			ret = SLAPI_PLUGIN_FAILURE;
+			goto done;
+		}
+		/* we're done, no need to do the other processing */
+		goto done;
+	}
+
+
 	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
 	{
 		int config_copied = 0;
@@ -932,6 +1078,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 		slapi_mods_free(&smods);
 	}
 
+done:
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_modify\n" );
 	return ret;

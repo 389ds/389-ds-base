@@ -479,6 +479,9 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_ENTRYUSN 			"entryusn"
 #define SLAPI_ATTR_ENTRYDN 				"entrydn"
 
+/* plugin shared config area */
+#define SLAPI_PLUGIN_SHARED_CONFIG_AREA "nsslapd-pluginConfigArea"
+
 
 /* opaque structures */
 /**
