@@ -77,6 +77,7 @@ void* g_plg_identity [PLUGIN_MAX];
 
 Slapi_Backend *retrocl_be_changelog = NULL;
 PRLock *retrocl_internal_lock = NULL;
+Slapi_RWLock *retrocl_cn_lock;
 int retrocl_nattributes = 0;
 char **retrocl_attributes = NULL;
 char **retrocl_aliases = NULL;
