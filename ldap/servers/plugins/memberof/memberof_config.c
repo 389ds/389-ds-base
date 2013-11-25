@@ -698,6 +698,7 @@ memberof_shared_config_validate(Slapi_PBlock *pb)
    	}
 
 bail:
+	slapi_mods_free(&smods);
 	slapi_entry_free(e);
 
 	return ret;
