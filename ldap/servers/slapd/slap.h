@@ -1562,6 +1562,27 @@ struct slapi_task {
 } slapi_task;
 /* End of interface to support online tasks **********************************/
 
+/*
+ * structure for holding password scheme info.
+ */
+struct pw_scheme {
+    /* case-insensitive name used in prefix of passwords that use scheme */
+   char    *pws_name;
+
+   /* length of pws_name */
+   int     pws_len;
+
+   /* thread-safe comparison function; returns 0 for positive matches */
+   /* userpwd is value sent over LDAP bind; dbpwd is from the database */
+   int     (*pws_cmp)( char *userpwd, char *dbpwd );
+
+   /* thread-safe encoding function (returns pointer to malloc'd string) */
+   char    *(*pws_enc)( char *pwd );
+
+   /* thread-safe decoding function (returns pointer to malloc'd string) */
+   char    *(*pws_dec)( char *pwd );
+};
+
 typedef struct passwordpolicyarray {
   slapi_onoff_t pw_change;        /* 1 - indicates that users are allowed to change the pwd */
   slapi_onoff_t pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
