@@ -2690,3 +2690,27 @@ slapi_get_first_clear_text_pw(Slapi_Entry *entry)
 	slapi_rwlock_unlock(extp->pw_entry_lock);
 	return slapi_ch_strdup(password_str); /* slapi_ch_strdup(NULL) is okay */
 }
+
+void
+slapi_free_pw_scheme(struct pw_scheme *pwsp)
+{
+    free_pw_scheme(pwsp);
+}
+
+struct pw_scheme *
+slapi_pw_val2scheme( char *val, char **valpwdp, int first_is_default )
+{
+    return pw_val2scheme( val, valpwdp, first_is_default );
+}
+
+int
+slapi_pw_cmp(struct pw_scheme *pass_scheme, char *clear_pw, char *encoded_pw)
+{
+    return ((*(pass_scheme->pws_cmp))( clear_pw, encoded_pw ));
+}
+
+char *
+slapi_pw_get_scheme_name(struct pw_scheme *pass_scheme)
+{
+    return pass_scheme->pws_name;
+}

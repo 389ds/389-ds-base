@@ -564,6 +564,11 @@ typedef struct slapi_filter		Slapi_Filter;
 typedef struct backend			Slapi_Backend;
 
 /**
+ * Represents password scheme information
+ */
+typedef struct pw_scheme PWScheme;
+
+/**
  * Represents the unique identifier of a directory entry.
  *
  * #Slapi_UniqueID is the data type for an opaque structure that represents the
@@ -7687,6 +7692,56 @@ void *slapi_eq_get_arg (Slapi_Eq_Context ctx);
  * \return absolute path of the plugin.  Caller is responsible to free it.
  */
 char *slapi_get_plugin_name(const char *dir, const char *name);
+
+/**
+ * Takes a encoded password and return the storage scheme.
+ * Return the password scheme for value "passwd_val".
+ *
+ * If "valpwdp" is not NULL, it is set to point to the value with any
+ * prefix removed.
+ *
+ * If no matching scheme is found and first_is_default is non-zero, the
+ * first scheme is returned.  If no matching scheme is found and
+ * first_is_default is zero, NULL is returned.
+ *
+ * \param passwd_val The password value.
+ * \param valpwdp If the char pointer passed is is not NULL, this gets set to the password value
+ * without the password storage scheme prefix.
+ * \param first_is_default  Return the first scheme, if there are no other matches.
+ *
+ * \return password storage scheme
+ */
+PWScheme *slapi_pw_val2scheme( char *passwd_val, char **valpwdp, int first_is_default );
+
+/**
+ * Compare a clear text password to an encoded password value.
+ *
+ * \param pass_scheme The password scheme.
+ * \param clear_pw The clear text password.
+ * \param encoded_pw The encoded password value, minus the storage scheme prefix.
+ *
+ * \return 0 If the passwords match.
+ * \return 1 if passwords do not match.
+ */
+int slapi_pw_cmp(PWScheme *pass_scheme, char *clear_pw, char *encoded_pw);
+
+/**
+ * Get the password storage scheme name
+ *
+ * \param pass_scheme The password storage scheme object.
+ *
+ * \return The storage scheme name.
+ */
+char *slapi_pw_get_scheme_name(PWScheme *pass_scheme);
+
+/**
+ * Free a PWScheme object.
+ *
+ * \param pass_scheme PWScheme object.
+ *
+ * \return Nothing.
+ */
+void slapi_free_pw_scheme(PWScheme *pass_scheme);
 
 #ifdef __cplusplus
 }
