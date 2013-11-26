@@ -76,6 +76,7 @@ static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
 
 static void* _PluginID = NULL;
 static Slapi_DN* _ConfigAreaDN = NULL;
+static Slapi_RWLock *config_rwlock = NULL;
 static Slapi_DN* _pluginDN = NULL;
 static PRMonitor *memberof_operation_lock = 0;
 MemberOfConfig *qsortConfig = 0;
@@ -270,8 +271,7 @@ memberof_postop_init(Slapi_PBlock *pb)
 	/*
 	 * Setup the preop plugin for shared config updates
 	 */
-	if (!ret && !usetxn &&
-		slapi_register_plugin(preop_plugin_type,  /* op type */
+	if (!ret && slapi_register_plugin(preop_plugin_type,  /* op type */
 			1,        /* Enabled */
 			"memberof_preop_init",   /* this function desc */
 			memberof_preop_init,  /* init func */
@@ -367,6 +367,13 @@ int memberof_postop_start(Slapi_PBlock *pb)
 		rc = -1;
 		goto bail;
 	}
+	if(config_rwlock == NULL){
+		if((config_rwlock = slapi_new_rwlock()) == NULL){
+			rc = -1;
+			goto bail;
+		}
+	}
+
 	/* Set the alternate config area if one is defined. */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
 	if (config_area)
@@ -465,14 +472,28 @@ int memberof_postop_close(Slapi_PBlock *pb)
 void
 memberof_set_config_area(Slapi_DN *dn)
 {
+	slapi_rwlock_wrlock(config_rwlock);
 	slapi_sdn_free(&_ConfigAreaDN);
 	_ConfigAreaDN = slapi_sdn_dup(dn);
+	slapi_rwlock_unlock(config_rwlock);
 }
 
 Slapi_DN *
 memberof_get_config_area()
 {
 	return _ConfigAreaDN;
+}
+
+int
+memberof_sdn_config_cmp(Slapi_DN *sdn)
+{
+	int rc = 0;
+
+	slapi_rwlock_rdlock(config_rwlock);
+	rc = slapi_sdn_compare(sdn, memberof_get_config_area());
+	slapi_rwlock_unlock(config_rwlock);
+
+	return rc;
 }
 
 void
@@ -943,8 +964,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 
 	/* check if we are updating the shared config entry */
 	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-	if (slapi_sdn_issuffix(sdn, memberof_get_config_area()) &&
-		slapi_sdn_compare(sdn, memberof_get_config_area()) == 0)
+	if (memberof_sdn_config_cmp(sdn) == 0)
 	{
 		Slapi_Entry *entry = NULL;
 		char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
