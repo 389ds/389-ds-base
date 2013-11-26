@@ -340,7 +340,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			rawdn = NULL; /* Set once in the loop. 
 							 This won't affect the caller's passed address. */
 		}
-		if ( PL_strncasecmp( type.bv_val, "dn", type.bv_len ) == 0 ) {
+		if ( type.bv_len == SLAPI_ATTR_DN_LENGTH && PL_strncasecmp( type.bv_val, SLAPI_ATTR_DN, type.bv_len ) == 0 ) {
 			if ( slapi_entry_get_dn_const(e)!=NULL ) {
 				char ebuf[ BUFSIZ ];
 				LDAPDebug( LDAP_DEBUG_TRACE,
@@ -376,7 +376,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			continue;
 		}
 
-		if ( PL_strncasecmp( type.bv_val, "rdn", type.bv_len ) == 0 ) {
+		if ( type.bv_len == SLAPI_ATTR_RDN_LENGTH && PL_strncasecmp( type.bv_val, SLAPI_ATTR_RDN, type.bv_len ) == 0 ) {
 			if ( NULL == slapi_entry_get_rdn_const( e )) {
 				slapi_entry_set_rdn( e, value.bv_val );
 			}
@@ -387,13 +387,13 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 
 		/* If SLAPI_STR2ENTRY_NO_ENTRYDN is set, skip entrydn */
 		if ( (flags & SLAPI_STR2ENTRY_NO_ENTRYDN) &&
-		     PL_strncasecmp( type.bv_val, "entrydn", type.bv_len ) == 0 ) {
+		     type.bv_len == SLAPI_ATTR_ENTRYDN_LENGTH && PL_strncasecmp( type.bv_val, SLAPI_ATTR_ENTRYDN, type.bv_len ) == 0 ) {
 			if (freeval) slapi_ch_free_string(&value.bv_val);
 			continue;
 		}
 
 		/* retrieve uniqueid */
-		if ( PL_strncasecmp (type.bv_val, SLAPI_ATTR_UNIQUEID, type.bv_len) == 0 ){
+		if ( type.bv_len == SLAPI_ATTR_UNIQUEID_LENGTH && PL_strncasecmp (type.bv_val, SLAPI_ATTR_UNIQUEID, type.bv_len) == 0 ){
 
 			if (e->e_uniqueid != NULL){
 				LDAPDebug (LDAP_DEBUG_TRACE, 
@@ -411,10 +411,11 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			continue;
 		}
 		
-		if (PL_strncasecmp(type.bv_val,"objectclass",type.bv_len) == 0) {
-			if (PL_strncasecmp(value.bv_val,"ldapsubentry",value.bv_len) == 0)
+		if (value_state == VALUE_PRESENT && type.bv_len >= SLAPI_ATTR_OBJECTCLASS_LENGTH
+				&& PL_strncasecmp(type.bv_val, SLAPI_ATTR_OBJECTCLASS, type.bv_len) == 0) {
+			if (value.bv_len >= SLAPI_ATTR_VALUE_SUBENTRY_LENGTH && PL_strncasecmp(value.bv_val,SLAPI_ATTR_VALUE_SUBENTRY,value.bv_len) == 0)
 				e->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
-			if (PL_strncasecmp(value.bv_val, SLAPI_ATTR_VALUE_TOMBSTONE,value.bv_len) == 0)
+			if (value.bv_len >= SLAPI_ATTR_VALUE_TOMBSTONE_LENGTH && PL_strncasecmp(value.bv_val, SLAPI_ATTR_VALUE_TOMBSTONE,value.bv_len) == 0)
 				e->e_flags |= SLAPI_ENTRY_FLAG_TOMBSTONE;
 		}
 		
