@@ -1602,7 +1602,7 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
 					"Missing slot for slot list element for certificate [%s]\n",
 					certsubject);
-		} else if (PK11_IsLoggedIn(slot, pin_arg)) {
+		} else if (!PK11_NeedLogin(slot) || PK11_IsLoggedIn(slot, pin_arg)) {
 			key = PK11_FindKeyByDERCert(slot, cert, pin_arg);
 			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
 					"Found unlocked slot [%s] token [%s] for certificate [%s]\n",
