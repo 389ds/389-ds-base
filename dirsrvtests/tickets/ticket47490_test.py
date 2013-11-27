@@ -125,7 +125,7 @@ def trigger_schema_push(topology):
             time.sleep(1)
             loop += 1
 
-#@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")
 def topology(request):
     '''
         This fixture is used to create a replicated topology for the 'module'.
