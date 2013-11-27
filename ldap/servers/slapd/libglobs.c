@@ -177,8 +177,9 @@ static int config_set_schemareplace ( const char *attrname, char *value,
 #define DEFAULT_PW_RESETFAILURECOUNT "600"
 #define DEFAULT_PW_LOCKDURATION "3600"
 #define DEFAULT_NDN_SIZE "20971520"
-#define DEFAULT_SASL_MAXBUFSIZE "65536"
-#define SLAPD_DEFAULT_SASL_MAXBUFSIZE 65536
+#define DEFAULT_MAXBERSIZE 2097152
+#define DEFAULT_SASL_MAXBUFSIZE "2097152"
+#define SLAPD_DEFAULT_SASL_MAXBUFSIZE 2097152
 #ifdef MEMPOOL_EXPERIMENTAL
 #define DEFAULT_MEMPOOL_MAXFREELIST "1024"
 #endif
@@ -5614,9 +5615,9 @@ config_get_maxbersize()
 
     maxbersize = slapdFrontendConfig->maxbersize;
     if(maxbersize==0)
-        maxbersize= 2 * 1024 * 1024; /* Default: 2Mb */
-    return maxbersize;
+        maxbersize = DEFAULT_MAXBERSIZE;
 
+    return maxbersize;
 }
 
 int
