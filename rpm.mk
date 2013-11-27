@@ -43,7 +43,23 @@ srpms: rpmroot srpmdistdir tarballs rpmbuildprep
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)-*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
 
+patch_srpms: rpmroot srpmdistdir tarballs rpmbuildprep
+	cp rpm/*.patch $(RPMBUILD)/SOURCES/
+	rpm/add_patches.sh rpm $(RPMBUILD)/SPECS/$(PACKAGE).spec
+	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
+	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)-*.src.rpm dist/srpms/
+	rm -rf $(RPMBUILD)
+
 rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
+	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec
+	cp $(RPMBUILD)/RPMS/*/$(RPM_NAME_VERSION)-*.rpm dist/rpms/
+	cp $(RPMBUILD)/RPMS/*/$(PACKAGE)-*-$(RPM_VERSION)-*.rpm dist/rpms/
+	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)-*.src.rpm dist/srpms/
+	rm -rf $(RPMBUILD)
+
+patch_rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
+	cp rpm/*.patch $(RPMBUILD)/SOURCES/
+	rpm/add_patches.sh rpm $(RPMBUILD)/SPECS/$(PACKAGE).spec
 	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec
 	cp $(RPMBUILD)/RPMS/*/$(RPM_NAME_VERSION)-*.rpm dist/rpms/
 	cp $(RPMBUILD)/RPMS/*/$(PACKAGE)-*-$(RPM_VERSION)-*.rpm dist/rpms/
