@@ -2256,7 +2256,6 @@ void automember_rebuild_task_thread(void *arg){
         }
     }
     automember_config_unlock();
-    slapi_free_search_results_internal(search_pb);
 
 out:
     if (plugin_is_betxn && fixup_pb) {
@@ -2267,6 +2266,8 @@ out:
         }
         slapi_pblock_destroy(fixup_pb);
     }
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
 
     if(result){
         /* error */
@@ -2470,9 +2471,11 @@ void automember_export_task_thread(void *arg){
         }
     }
     automember_config_unlock();
-    slapi_free_search_results_internal(search_pb);
 
 out:
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
+
     if(ldif_fd){
         PR_Close(ldif_fd);
     }
