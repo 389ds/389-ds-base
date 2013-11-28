@@ -1250,39 +1250,42 @@ class DirSrv(SimpleLDAPObject):
     def enableReplication(self, suffix=None, role=None, replicaId=CONSUMER_REPLICAID, binddn=None):
         if not suffix:
             log.fatal("enableReplication: suffix not specified")
-            return 1
+            raise ValueError("suffix missing")
         
         if not role:
             log.fatal("enableReplication: replica role not specify (REPLICAROLE_*)")
-            return 1
+            raise ValueError("role missing")
         
         # 
         # Check the validity of the parameters
         #
         
         # First role and replicaID
-        if role == REPLICAROLE_MASTER:
+        if role != REPLICAROLE_MASTER and role != REPLICAROLE_HUB and role != REPLICAROLE_CONSUMER:
+            log.fatal("enableReplication: replica role invalid (%s) " % role)
+            raise ValueError("invalid role: %s" % role)
+        
             # master
             replica_type = REPLICA_RDWR_TYPE
         else:
             # hub or consumer
             replica_type = REPLICA_RDONLY_TYPE
         
-        if replica_type == REPLICA_RDWR_TYPE:
+        if role == REPLICAROLE_MASTER:
             # check the replicaId [1..CONSUMER_REPLICAID[
             if not decimal.Decimal(replicaId) or (replicaId <= 0) or (replicaId >=CONSUMER_REPLICAID):
                 log.fatal("enableReplication: invalid replicaId (%s) for a RW replica" % replicaId)
-                return 1
+                raise ValueError("invalid replicaId %d (expected [1..CONSUMER_REPLICAID[" % replicaId)
         elif replicaId != CONSUMER_REPLICAID:
             # check the replicaId is CONSUMER_REPLICAID
             log.fatal("enableReplication: invalid replicaId (%s) for a Read replica (expected %d)" % (replicaId, CONSUMER_REPLICAID))
-            return 1
+            raise ValueError("invalid replicaId: %d for HUB/CONSUMER replicaId is CONSUMER_REPLICAID" % replicaId)
             
         # Now check we have a suffix
         entries_backend = self.getBackendsForSuffix(suffix, ['nsslapd-suffix'])
         if not entries_backend:
             log.fatal("enableReplication: enable to retrieve the backend for %s" % suffix)
-            return 1
+            raise ValueError("no backend for suffix %s" % suffix)
         
         ent = entries_backend[0]
         if normalizeDN(suffix) != normalizeDN(ent.getValue('nsslapd-suffix')):
@@ -1309,7 +1312,7 @@ class DirSrv(SimpleLDAPObject):
         self.replica.create_repl_manager()
         
         # then enable replication
-        ret = self.replica.add(suffix=suffix, binddn=binddn, rtype=replica_type, rid=replicaId)
+        ret = self.replica.add(suffix=suffix, binddn=binddn, role=role, rid=replicaId)
         
         return ret
 
