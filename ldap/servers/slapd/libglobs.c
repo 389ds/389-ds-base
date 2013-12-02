@@ -125,6 +125,7 @@ static int config_set_onoff( const char *attrname, char *value,
 		int *configvalue, char *errorbuf, int apply );
 static int config_set_schemareplace ( const char *attrname, char *value,
 		char *errorbuf, int apply );
+static void remove_commas(char *str);
 
 /* Keeping the initial values */
 /* CONFIG_INT/CONFIG_LONG */
@@ -6764,6 +6765,9 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf,
         return LDAP_SUCCESS;
     }
 
+    /* cyrus sasl doesn't like comma separated lists */
+    remove_commas(value);
+
     CFG_LOCK_WRITE(slapdFrontendConfig);
     slapdFrontendConfig->allowed_sasl_mechs = slapi_ch_strdup(value);
     CFG_UNLOCK_WRITE(slapdFrontendConfig);
@@ -7434,3 +7438,17 @@ slapi_err2string(int result)
 #endif
 }
 
+/* replace commas with spaces */
+static void
+remove_commas(char *str)
+{
+    int i;
+
+    for (i = 0; str && str[i]; i++)
+    {
+        if (str[i] == ',')
+        {
+            str[i] = ' ';
+        }
+    }
+}
