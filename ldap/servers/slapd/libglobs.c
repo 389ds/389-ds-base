@@ -126,6 +126,7 @@ static int config_set_onoff( const char *attrname, char *value,
 static int config_set_schemareplace ( const char *attrname, char *value,
 		char *errorbuf, int apply );
 static void remove_commas(char *str);
+static int invalid_sasl_mech(char *str);
 
 /* Keeping the initial values */
 /* CONFIG_INT/CONFIG_LONG */
@@ -6823,6 +6824,13 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf,
     /* cyrus sasl doesn't like comma separated lists */
     remove_commas(value);
 
+    if(invalid_sasl_mech(value)){
+        LDAPDebug(LDAP_DEBUG_ANY,"Invalid value/character for sasl mechanism (%s).  Use ASCII "
+                                 "characters, upto 20 characters, that are upper-case letters, "
+                                 "digits, hyphens, or underscores\n", value, 0, 0);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
     CFG_LOCK_WRITE(slapdFrontendConfig);
     slapdFrontendConfig->allowed_sasl_mechs = slapi_ch_strdup(value);
     CFG_UNLOCK_WRITE(slapdFrontendConfig);
@@ -7593,4 +7601,56 @@ remove_commas(char *str)
             str[i] = ' ';
         }
     }
+}
+
+/*
+ * Check the SASL mechanism values
+ *
+ * As per RFC 4422:
+ * SASL mechanisms are named by character strings, from 1 to 20
+ * characters in length, consisting of ASCII [ASCII] uppercase letters,
+ * digits, hyphens, and/or underscores.
+ */
+static int
+invalid_sasl_mech(char *str)
+{
+    char *mech = NULL, *token = NULL, *next = NULL;
+    int i;
+
+    if(str == NULL){
+        return 0;
+    }
+
+    /*
+     * Check the length for each mechanism
+     */
+    token = slapi_ch_strdup(str);
+    for (mech = ldap_utf8strtok_r(token, " ", &next); mech;
+         mech = ldap_utf8strtok_r(NULL, " ", &next))
+    {
+        if(strlen(mech) == 0 || strlen(mech) > 20){
+            /* invalid length */
+            slapi_ch_free_string(&token);
+            return 1;
+        }
+    }
+    slapi_ch_free_string(&token);
+
+    /*
+     * Check the individual characters
+     */
+    for (i = 0; str[i]; i++){
+        if ( ((int)str[i] < 48 || (int)str[i] > 57) && /* not a digit */
+             ((int)str[i] < 65 || (int)str[i] > 90) && /* not upper case */
+             (int)str[i] != 32 && /* not a space (between mechanisms) */
+             (int)str[i] != 45 && /* not a hyphen */
+             (int)str[i] != 95 ) /* not an underscore */
+        {
+            /* invalid character */
+            return 1;
+        }
+    }
+
+    /* Mechanism value is valid */
+    return 0;
 }
