@@ -606,13 +606,13 @@ nsslapd-plugininitfunc: referint_postop_init
 nsslapd-plugintype: betxnpostoperation
 nsslapd-pluginenabled: off
 nsslapd-pluginprecedence: 40
-nsslapd-pluginArg0: 0
-nsslapd-pluginArg1: %log_dir%/referint
-nsslapd-pluginArg2: 0
-nsslapd-pluginArg3: member
-nsslapd-pluginArg4: uniquemember
-nsslapd-pluginArg5: owner
-nsslapd-pluginArg6: seeAlso
+referint-update-delay: 0
+referint-logfile: %log_dir%/referint
+referint-logchanges: 0
+referint-membership-attr: member
+referint-membership-attr: uniquemember
+referint-membership-attr: owner
+referint-membership-attr: seeAlso
 nsslapd-plugin-depends-on-type: database
 
 dn: cn=attribute uniqueness,cn=plugins,cn=config
