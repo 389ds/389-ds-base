@@ -49,8 +49,8 @@ def _ds_rebind_instance(dirsrv):
 
 class TopologyMasterConsumer(object):
     def __init__(self, master, consumer):
-        self.master = master
-        self.consumer = consumer
+        self.master = _ds_rebind_instance(master)
+        self.consumer = _ds_rebind_instance(consumer)
 
 def pattern_errorlog(file, log_pattern):
     try:
