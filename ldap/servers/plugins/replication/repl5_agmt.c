@@ -111,8 +111,9 @@ typedef struct repl5agmt {
 	const Slapi_RDN *rdn; /* RDN of replication agreement entry */
 	char *long_name; /* Long name (rdn + host, port) of entry, for logging */
 	Repl_Protocol *protocol; /* Protocol object - manages protocol */
-	struct changecounter *changecounters[MAX_NUM_OF_MASTERS]; /* changes sent/skipped since server start up */
+	struct changecounter **changecounters; /* changes sent/skipped since server start up */
 	int num_changecounters;
+	int max_changecounters;
 	time_t last_update_start_time; /* Local start time of last update session */
 	time_t last_update_end_time; /* Local end time of last update session */
 	char last_update_status[STATUS_LEN]; /* Status of last update. Format = numeric code <space> textual description */
@@ -435,14 +436,17 @@ agmt_new_from_entry(Slapi_Entry *e)
 	/* Initialize status information */
 	ra->last_update_start_time = 0UL;
 	ra->last_update_end_time = 0UL;
-	ra->num_changecounters = 0;
 	ra->last_update_status[0] = '\0';
 	ra->update_in_progress = PR_FALSE;
 	ra->stop_in_progress = PR_FALSE;
 	ra->last_init_end_time = 0UL;
 	ra->last_init_start_time = 0UL;
 	ra->last_init_status[0] = '\0';
-	
+	ra->changecounters = (struct changecounter**) slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
+	                     sizeof(struct changecounter *));
+	ra->num_changecounters = 0;
+	ra->max_changecounters = MAX_NUM_OF_MASTERS;
+
 	/* Fractional attributes */
 	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr);
 
@@ -599,6 +603,7 @@ agmt_delete(void **rap)
 	{
 	    slapi_ch_free((void **)&ra->changecounters[ra->num_changecounters]);
 	}
+	slapi_ch_free((void **)&ra->changecounters);
 
 	if (ra->agreement_type == REPLICA_TYPE_WINDOWS)
 	{
@@ -2305,7 +2310,12 @@ agmt_inc_last_update_changecount (Repl_Agmt *ra, ReplicaId rid, int skipped)
 		}
 		else
 		{
-			ra->num_changecounters ++;
+			ra->num_changecounters++;
+			if(ra->num_changecounters > ra->max_changecounters){
+				ra->changecounters = (struct changecounter**) slapi_ch_realloc((char *)ra->changecounters,
+				                     (ra->num_changecounters + 1) * sizeof(struct changecounter*));
+				ra->max_changecounters = ra->num_changecounters;
+			}
 			ra->changecounters[i] = (struct changecounter*) slapi_ch_calloc(1, sizeof(struct changecounter));
 			ra->changecounters[i]->rid = rid;
 			if ( skipped )
