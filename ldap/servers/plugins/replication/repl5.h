@@ -140,11 +140,11 @@
 
 #define DEFAULT_PROTOCOL_TIMEOUT 120
 
-/* To Allow Consumer Initialisation when adding an agreement - */
+/* To Allow Consumer Initialization when adding an agreement - */
 #define STATE_PERFORMING_TOTAL_UPDATE 501
 #define STATE_PERFORMING_INCREMENTAL_UPDATE 502
 
-#define MAX_NUM_OF_MASTERS		64
+#define MAX_NUM_OF_MASTERS		256
 #define REPL_SESSION_ID_SIZE	64
 
 #define REPL_GET_DN(addrp) slapi_sdn_get_dn((addrp)->sdn)
