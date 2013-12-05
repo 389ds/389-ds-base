@@ -113,8 +113,9 @@ struct clc_buffer {
 	CSN			*buf_missing_csn;	/* used to detect persistent missing of CSN */
 
 	/* fields for control the CSN sequence sent to the consumer */
-	struct csn_seq_ctrl_block *buf_cscbs [MAX_NUM_OF_MASTERS];
+	struct csn_seq_ctrl_block **buf_cscbs;
 	int			 buf_num_cscbs;		/* number of csn sequence ctrl blocks */
+	int			 buf_max_cscbs;
 
 	/* fields for debugging stat */
 	int		 	 buf_load_cnt;		/* number of loads for session */
@@ -256,12 +257,15 @@ clcache_get_buffer ( CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV
 		(*buf)->buf_record_cnt = 0;
 		(*buf)->buf_record_skipped = 0;
 		(*buf)->buf_cursor = NULL;
-		(*buf)->buf_num_cscbs = 0;
 		(*buf)->buf_skipped_new_rid = 0;
 		(*buf)->buf_skipped_csn_gt_cons_maxcsn = 0;
 		(*buf)->buf_skipped_up_to_date = 0;
 		(*buf)->buf_skipped_csn_gt_ruv = 0;
 		(*buf)->buf_skipped_csn_covered = 0;
+		(*buf)->buf_cscbs  = (struct csn_seq_ctrl_block **) slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
+			                 sizeof(struct csn_seq_ctrl_block *));
+		(*buf)->buf_num_cscbs = 0;
+		(*buf)->buf_max_cscbs = MAX_NUM_OF_MASTERS;
 	}
 	else {
 		*buf = clcache_new_buffer ( consumer_rid );
@@ -311,7 +315,7 @@ clcache_return_buffer ( CLC_Buffer **buf )
 	for ( i = 0; i < (*buf)->buf_num_cscbs; i++ ) {
 		clcache_free_cscb ( &(*buf)->buf_cscbs[i] );
 	}
-	(*buf)->buf_num_cscbs = 0;
+	slapi_ch_free((void **)&(*buf)->buf_cscbs);
 
 	if ( (*buf)->buf_cursor ) {
 
@@ -554,7 +558,7 @@ clcache_refresh_consumer_maxcsns ( CLC_Buffer *buf )
 static int
 clcache_refresh_local_maxcsn ( const ruv_enum_data *rid_data, void *data )
 {
-	CLC_Buffer *buf = (CLC_Buffer*) data;
+	struct clc_buffer *buf = (struct clc_buffer*) data;
 	ReplicaId rid;
 	int rc = 0;
 	int i;
@@ -575,7 +579,12 @@ clcache_refresh_local_maxcsn ( const ruv_enum_data *rid_data, void *data )
 			break;
 	}
 	if ( i >= buf->buf_num_cscbs ) {
-		buf->buf_cscbs[i] = clcache_new_cscb ();
+		if( i + 1 > buf->buf_max_cscbs){
+			buf->buf_cscbs = (struct csn_seq_ctrl_block **) slapi_ch_realloc((char *)buf->buf_cscbs,
+							 (i + 2) * sizeof(struct csn_seq_ctrl_block *));
+			buf->buf_max_cscbs = i + 1;
+		}
+		buf->buf_cscbs[i] = clcache_new_cscb();
 		if ( buf->buf_cscbs[i] == NULL ) {
 			return -1;
 		}
@@ -878,6 +887,9 @@ clcache_new_buffer ( ReplicaId consumer_rid )
 		buf->buf_agmt_name = get_thread_private_agmtname();
 		buf->buf_consumer_rid = consumer_rid;
 		buf->buf_num_cscbs = 0;
+		buf->buf_max_cscbs = MAX_NUM_OF_MASTERS;
+		buf->buf_cscbs  = (struct csn_seq_ctrl_block **) slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
+					sizeof(struct csn_seq_ctrl_block *));
 
 		welldone = 1;
 
