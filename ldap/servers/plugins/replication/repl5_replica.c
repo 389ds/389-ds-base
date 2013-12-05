@@ -2584,7 +2584,6 @@ replica_write_ruv (Replica *r)
 	Slapi_Mod smod_last_modified;
 	LDAPMod *mods [4];
 	Slapi_PBlock *pb;
-	int free_rmod = 0;
 
 	PR_ASSERT(r);
 
@@ -2607,7 +2606,6 @@ replica_write_ruv (Replica *r)
 	mods [1] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_last_modified);
 	if(agmt_maxcsn_to_smod(r,&rmod) == LDAP_SUCCESS){
 		mods [2] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&rmod);
-		free_rmod = 1;
 	} else {
 		mods [2] = NULL;
 	}
@@ -2654,7 +2652,7 @@ replica_write_ruv (Replica *r)
     PR_Unlock(r->repl_lock);	
 	
 	slapi_mod_done (&smod);
-	if(free_rmod) slapi_mod_done (&rmod);
+	slapi_mod_done (&rmod);
 	slapi_mod_done (&smod_last_modified);
 	slapi_pblock_destroy (pb);
 

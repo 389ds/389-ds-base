@@ -599,6 +599,8 @@ agmt_delete(void **rap)
 		repl_session_plugin_call_destroy_agmt_cb(ra);
 	}
 
+	slapi_sdn_free((Slapi_DN **)&ra->dn);
+	slapi_rdn_free((Slapi_RDN **)&ra->rdn);
 	slapi_ch_free_string(&ra->hostname);
 	slapi_ch_free_string(&ra->binddn);
 	slapi_ch_array_free(ra->frac_attrs);
@@ -2812,7 +2814,8 @@ add_agmt_maxcsns(Slapi_Entry *e, Replica *r)
 }
 
 /*
- * Create a smod of all the agmt maxcsns to add to the tombstone entry
+ * Create a smod of all the agmt maxcsns to add to the tombstone entry.
+ * Regardless if there is an error, smod always needs to be freed by the caller.
  */
 int
 agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod)
@@ -2821,13 +2824,14 @@ agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod)
     Repl_Agmt *agmt;
     int rc = 1;
 
+    slapi_mod_init (smod, replica_get_agmt_count(r) + 1);
+    slapi_mod_set_type (smod, type_agmtMaxCSN);
+    slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
     agmt_obj = agmtlist_get_first_agreement_for_replica (r);
     if(agmt_obj == NULL){ /* no agreements */
         return rc;
     }
-    slapi_mod_init (smod, replica_get_agmt_count(r) + 1);
-    slapi_mod_set_type (smod, type_agmtMaxCSN);
-    slapi_mod_set_operation (smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
 
     while (agmt_obj){
         struct berval val;
@@ -2929,6 +2933,7 @@ agmt_set_maxcsn(Repl_Agmt *ra)
                     		slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                     		ra->hostname, ra->port);
                     if(strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)){
+                        slapi_ch_free_string(&ra->maxcsn);
                         ra->maxcsn = slapi_ch_strdup(maxcsns[i]);
                         ra->consumerRID = agmt_maxcsn_get_rid(maxcsns[i]);
                         ra->tmpConsumerRID = 1;
@@ -2993,7 +2998,6 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Out of memory\n");
         goto done;
     }
-    ra->maxcsn = NULL;
 
     repl_obj = prot_get_replica_object(ra->protocol);
     if(repl_obj){
@@ -3003,6 +3007,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Failed to get repl object.\n");
         goto done;
     }
+    slapi_ch_free_string(&ra->maxcsn);
     attrs[0] = (char*)type_agmtMaxCSN;
     attrs[1] = NULL;
 
