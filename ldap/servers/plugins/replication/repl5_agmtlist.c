@@ -209,6 +209,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 	LDAPMod **mods;
     char buff [SLAPI_DSE_RETURNTEXT_SIZE];
     char *errortext = returntext ? returntext : buff;
+    char *val = NULL;
     int rc = SLAPI_DSE_CALLBACK_OK;
     Slapi_Operation *op;
     void *identity;
@@ -243,14 +244,19 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 	slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 	for (i = 0; NULL != mods && NULL != mods[i]; i++)
 	{
+		slapi_ch_free_string(&val);
 		if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaInitialize))
 		{
             /* we don't allow delete attribute operations unless it was issued by
                the replication plugin - handled above */
             if (mods[i]->mod_op & LDAP_MOD_DELETE)
             {
-                if(strcasecmp (mods[i]->mod_type, type_nsds5ReplicaCleanRUVnotified) == 0){
+                if(strcasecmp (mods[i]->mod_type, type_nsds5ReplicaCleanRUVnotified) == 0 ){
                     /* allow the deletion of cleanallruv agmt attr */
+                    continue;
+                }
+                if(strcasecmp (mods[i]->mod_type, type_replicaProtocolTimeout) == 0){
+                    agmt_set_protocol_timeout(agmt, 0);
                     continue;
                 }
 
@@ -262,8 +268,6 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             }
             else
             {
-                char *val;
-
                 if (mods[i]->mod_bvalues && mods[i]->mod_bvalues[0])
                     val = slapi_berval_get_string_copy (mods[i]->mod_bvalues[0]);
                 else
@@ -304,7 +308,6 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                              val, mods[i]->mod_type);
                     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: %s\n", errortext);
                 }
-                slapi_ch_free ((void**)&val);
             }
 		}
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
@@ -511,6 +514,21 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
         }
+        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_replicaProtocolTimeout)){
+            if (val){
+                long ptimeout = atol(val);
+
+                if(ptimeout <= 0){
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "attribute %s value (%s) is invalid, "
+                                    "must be a number greater than zero.\n",
+                                    type_replicaProtocolTimeout, val);
+                    rc = SLAPI_DSE_CALLBACK_ERROR;
+                    break;
+                }
+                agmt_set_protocol_timeout(agmt, ptimeout);
+            }
+        }
         else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
         {
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
@@ -561,6 +579,7 @@ done:
 	{
 		agmtlist_release_agmt(agmt);
 	}
+	slapi_ch_free_string(&val);
 
 	return rc;
 }

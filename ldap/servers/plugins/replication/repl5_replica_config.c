@@ -396,8 +396,15 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 else if (strcasecmp (config_attr, type_replicaCleanRUV) == 0 ||
                          strcasecmp (config_attr, type_replicaAbortCleanRUV) == 0)
                 {
-                    /* only allow the deletion of the cleanAllRUV config attributes */
+                    /*
+                     * Only allow the deletion of the cleanAllRUV config attributes, and the
+                     * protocol timeout.
+                     */
                     continue;
+                }
+                else if (strcasecmp (config_attr, type_replicaProtocolTimeout) == 0 )
+                {
+                	replica_set_protocol_timeout(r, DEFAULT_PROTOCOL_TIMEOUT);
                 }
                 else
                 {
@@ -486,6 +493,22 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                          strcasecmp (config_attr, "modifiersname") == 0)
                 {
                     *returncode = LDAP_SUCCESS;
+                }
+                else if (strcasecmp (config_attr, type_replicaProtocolTimeout) == 0 ){
+                    if (apply_mods && config_attr_value && config_attr_value[0])
+                    {
+                        long ptimeout = atol(config_attr_value);
+
+                        if(ptimeout <= 0){
+                            *returncode = LDAP_UNWILLING_TO_PERFORM;
+                            PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                         "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
+                                         config_attr, config_attr_value);
+                            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", errortext);
+                        } else {
+                            replica_set_protocol_timeout(r, ptimeout);
+                        }
+                    }
                 }
                 else
                 {
