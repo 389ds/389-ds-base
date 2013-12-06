@@ -66,6 +66,7 @@
 #define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"
 #define MEMBEROF_ATTR "memberOfAttr"
 #define MEMBEROF_BACKEND_ATTR "memberOfAllBackends"
+#define MEMBEROF_ENTRY_SCOPE_ATTR "memberOfEntryScope"
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 #define NAME_OPT_UID_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.34"
 
@@ -77,6 +78,7 @@ typedef struct memberofconfig {
 	char **groupattrs;
 	char *memberof_attr;
 	int allBackends;
+	Slapi_DN *entryScope;
 	Slapi_Filter *group_filter;
 	Slapi_Attr **group_slapiattrs;
 } MemberOfConfig;
@@ -95,5 +97,6 @@ void memberof_rlock_config();
 void memberof_wlock_config();
 void memberof_unlock_config();
 int memberof_config_get_all_backends();
+Slapi_DN * memberof_config_get_entry_scope();
 
 #endif	/* _MEMBEROF_H_ */

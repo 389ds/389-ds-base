@@ -524,12 +524,17 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	char *filter_str = NULL;
 	char *cookie = NULL;
 	int all_backends = memberof_config_get_all_backends();
+	Slapi_DN *entry_scope = memberof_config_get_entry_scope();
 	int types_name_len = 0;
 	int num_types = 0;
 	int dn_len = slapi_sdn_get_ndn_len(sdn);
 	int free_it = 0;
 	int rc = 0;
 	int i = 0;
+
+	if (entry_scope && !slapi_sdn_issuffix(sdn, entry_scope)) {
+		return (rc);
+	}
 
 	/* Count the number of types. */
 	for (num_types = 0; types && types[num_types]; num_types++)
@@ -599,6 +604,21 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 				continue;
 			}
 		}
+		if (entry_scope) {
+			if (slapi_sdn_issuffix(base_sdn, entry_scope)) {
+				/* do nothing, entry scope is spanning 
+				 * multiple suffixes, start at suffix */
+			} else if (slapi_sdn_issuffix(entry_scope, base_sdn)) {
+				/* scope is below suffix, set search base */
+				base_sdn = entry_scope;
+			} else if(!all_backends){
+				break;
+			} else {
+				/* its ok, goto the next backend */
+				be = slapi_get_next_backend(cookie);
+				continue;
+			}
+		}
 
 		slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
 			LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0, memberof_get_plugin_id(), 0);
@@ -628,6 +648,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 {
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	void *caller_id = NULL;
+	Slapi_DN *entry_scope = memberof_config_get_entry_scope();
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_modrdn\n" );
@@ -691,7 +712,13 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		 * of other group entries.  We need to update any member
 		 * attributes to refer to the new name. */
 		if (pre_sdn && post_sdn) {
-			memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn);
+			if (entry_scope && !slapi_sdn_issuffix(post_sdn, entry_scope)) {
+				memberof_del_dn_data del_data = {0, configCopy.memberof_attr};
+				memberof_del_dn_from_groups(pb, &configCopy, pre_sdn);
+				memberof_del_dn_type_callback(post_e, &del_data);
+			} else {
+				memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn);
+			}
 		}
 
 		memberof_unlock();

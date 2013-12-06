@@ -79,7 +79,7 @@ static int memberof_search (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_En
 /* This is the main configuration which is updated from dse.ldif.  The
  * config will be copied when it is used by the plug-in to prevent it
  * being changed out from under a running memberOf operation. */
-static MemberOfConfig theConfig;
+static MemberOfConfig theConfig = {NULL, NULL,0, NULL, NULL, NULL};
 static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 
@@ -271,12 +271,14 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	int num_groupattrs = 0;
 	int groupattr_name_len = 0;
 	char *allBackends = NULL;
+	char *entryScope = NULL;
 
 	*returncode = LDAP_SUCCESS;
 
 	groupattrs = slapi_entry_attr_get_charray(e, MEMBEROF_GROUP_ATTR);
 	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
 	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
+	entryScope = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_ATTR);
 
 	/* We want to be sure we don't change the config in the middle of
 	 * a memberOf operation, so we obtain an exclusive lock here */
@@ -384,6 +386,22 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		}
 	} else {
 		theConfig.allBackends = 0;
+	}
+
+	slapi_sdn_free(&theConfig.entryScope);
+	if (entryScope)
+	{
+        	if (slapi_dn_syntax_check(NULL, entryScope, 1) == 1) {
+            		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+                		"Error: Ignoring invalid DN used as plugin entry scope: [%s]\n",
+                		entryScope);
+			theConfig.entryScope = NULL;
+			slapi_ch_free_string(&entryScope);
+		} else {
+			theConfig.entryScope = slapi_sdn_new_dn_passin(entryScope);
+		}
+	} else {
+		theConfig.entryScope = NULL;
 	}
 
 	/* release the lock */
@@ -556,4 +574,16 @@ memberof_config_get_all_backends()
 	slapi_rwlock_unlock(memberof_config_lock);
 
 	return all_backends;
+}
+
+Slapi_DN *
+memberof_config_get_entry_scope()
+{
+	Slapi_DN *entry_scope;
+
+	slapi_rwlock_rdlock(memberof_config_lock);
+	entry_scope = theConfig.entryScope;
+	slapi_rwlock_unlock(memberof_config_lock);
+
+	return entry_scope;
 }
