@@ -785,7 +785,7 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 {
 	int retVal= LDAP_SUCCESS;
 	Slapi_Attr *a= NULL;
-	entry_attr_find_wsi(e, type, &a);
+	int attr_state = entry_attr_find_wsi(e, type, &a);
 		/* The attribute is on the present list, or the deleted list and we're doing URP */
 		if ( vals == NULL || vals[0] == NULL )
 		{
@@ -800,7 +800,7 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 				 */
 				valueset_purge(&a->a_present_values, csn);
 				valueset_purge(&a->a_deleted_values, csn);
-				if(valueset_isempty(&a->a_present_values))
+				if(attr_state==ATTRIBUTE_PRESENT && valueset_isempty(&a->a_present_values))
 					entry_present_attribute_to_deleted_attribute(e, a);
 			}
 			else
@@ -842,7 +842,7 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 
 				valuearray_update_csn(valuestodelete,CSN_TYPE_VALUE_DELETED,csn);
             			slapi_valueset_add_attr_valuearray_ext (a, &a->a_deleted_values, valuestodelete, valuearray_count(valuestodelete), SLAPI_VALUE_FLAG_PASSIN, NULL);
-				if(valueset_isempty(&a->a_present_values))
+				if(attr_state==ATTRIBUTE_PRESENT && valueset_isempty(&a->a_present_values))
 					entry_present_attribute_to_deleted_attribute(e, a);
 				/* all the elements in valuestodelete are passed;
 				 * should free valuestodelete only (don't call valuearray_free)
