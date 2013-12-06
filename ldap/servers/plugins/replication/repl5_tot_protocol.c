@@ -505,11 +505,22 @@ static int
 repl5_tot_stop(Private_Repl_Protocol *prp)
 {
 	int return_value;
-	int seconds = 600;
 	PRIntervalTime start, maxwait, now;
+	PRUint64 timeout = DEFAULT_PROTOCOL_TIMEOUT;
+	Replica *replica = NULL;
+
+	if((timeout = agmt_get_protocol_timeout(prp->agmt)) == 0){
+		timeout = DEFAULT_PROTOCOL_TIMEOUT;
+		if(prp->replica_object){
+			replica = object_get_data(prp->replica_object);
+			if((timeout = replica_get_protocol_timeout(replica)) == 0){
+				timeout = DEFAULT_PROTOCOL_TIMEOUT;
+			}
+		}
+	}
 
 	prp->terminate = 1;
-	maxwait = PR_SecondsToInterval(seconds);
+	maxwait = PR_SecondsToInterval(timeout);
 	start = PR_IntervalNow();
 	now = start;
 	while (!prp->stopped && ((now - start) < maxwait))
@@ -567,7 +578,6 @@ Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
 	prp->notify_window_opened = repl5_tot_noop;
 	prp->notify_window_closed = repl5_tot_noop;
 	prp->update_now = repl5_tot_noop;
-	prp->timeout = DEFAULT_PROTOCOL_TIMEOUT;
 	if ((prp->lock = PR_NewLock()) == NULL)
 	{
 		goto loser;
@@ -588,6 +598,7 @@ Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
 	prp->repl50consumer = 0;
 	prp->repl71consumer = 0;
 	prp->repl90consumer = 0;
+	prp->replica_object = prot_get_replica_object(rp);
 	return prp;
 loser:
 	repl5_tot_delete(&prp);

@@ -1921,10 +1921,24 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 static int
 repl5_inc_stop(Private_Repl_Protocol *prp)
 {
-	int return_value;
 	PRIntervalTime start, maxwait, now;
+	Replica *replica = NULL;
+	PRUint64 timeout;
+	int return_value;
 
-	maxwait = PR_SecondsToInterval(prp->timeout);
+	if((timeout = agmt_get_protocol_timeout(prp->agmt)) == 0){
+		timeout = DEFAULT_PROTOCOL_TIMEOUT;
+		if(prp->replica_object){
+			object_acquire(prp->replica_object);
+			replica = object_get_data(prp->replica_object);
+			if((timeout = replica_get_protocol_timeout(replica)) == 0){
+				timeout = DEFAULT_PROTOCOL_TIMEOUT;
+			}
+			object_release(prp->replica_object);
+		}
+	}
+
+	maxwait = PR_SecondsToInterval(timeout);
 	prp->terminate = 1;
 	event_notify(prp, EVENT_PROTOCOL_SHUTDOWN);
 	start = PR_IntervalNow();
@@ -1939,8 +1953,8 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 		/* Isn't listening. Do something drastic. */
 		return_value = -1;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"%s: repl5_inc_stop: protocol does not stop after %d seconds\n",
-				agmt_get_long_name(prp->agmt), (int)prp->timeout);
+				"%s: repl5_inc_stop: protocol does not stop after %llu seconds\n",
+				agmt_get_long_name(prp->agmt), (long long unsigned int)timeout);
 	}
 	else
 	{
@@ -2044,7 +2058,6 @@ Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_closed = repl5_inc_notify_window_closed;
 	prp->update_now = repl5_inc_update_now;
 	prp->replica_object = prot_get_replica_object(rp);
-	prp->timeout = prot_get_timeout(rp);
 	if ((prp->lock = PR_NewLock()) == NULL)
 	{
 		goto loser;
