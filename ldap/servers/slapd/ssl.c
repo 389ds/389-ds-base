@@ -681,7 +681,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	/* Get the range of the supported SSL version */
 	SSL_VersionRangeGetSupported(ssl_variant_stream, &enabledNSSVersions);
 	
-	slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+	slapi_log_error(SLAPI_LOG_CONFIG, "SSL Initialization",
 	                "supported range: min: %s, max: %s\n",
 	                getNSSVersion_str(enabledNSSVersions.min),
 	                getNSSVersion_str(enabledNSSVersions.max));
