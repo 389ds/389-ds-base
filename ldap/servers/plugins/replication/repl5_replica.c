@@ -87,7 +87,7 @@ struct replica {
 	PRBool state_update_inprogress; /* replica state is being updated */
 	PRLock *agmt_lock;          	/* protects agreement creation, start and stop */
 	char *locking_purl;				/* supplier who has exclusive access */
-	PRUint64 protocol_timeout;		/* protocol shutdown timeout */
+	Slapi_Counter *protocol_timeout;	/* protocol shutdown timeout */
 	PRUint64 backoff_min;			/* backoff retry minimum */
 	PRUint64 backoff_max;			/* backoff retry maximum */
 };
@@ -164,26 +164,26 @@ replica_new(const Slapi_DN *root)
 Replica *
 replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation)
 {
-    int rc = 0;
-    Replica *r;
+	int rc = 0;
+	Replica *r;
 	char *repl_name = NULL;
 
-    if (e == NULL)
-    {
-        if (NULL != errortext)
-		{
-            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "NULL entry");
-		}
-        return NULL;        
-    }
-
-   	r = (Replica *)slapi_ch_calloc(1, sizeof(Replica));
-
-        if (!r)
+	if (e == NULL)
 	{
-        	if (NULL != errortext)
+		if (NULL != errortext)
 		{
-            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Out of memory");
+			PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "NULL entry");
+		}
+		return NULL;
+	}
+
+	r = (Replica *)slapi_ch_calloc(1, sizeof(Replica));
+
+	if (!r)
+	{
+		if (NULL != errortext)
+		{
+			PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Out of memory");
 		}
 		rc = -1;
 		goto done;
@@ -208,6 +208,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 		rc = -1;
 		goto done;
 	}
+	r->protocol_timeout = slapi_counter_new();
 
     /* read parameters from the replica config entry */
     rc = _replica_init_from_config (r, e, errortext);
@@ -402,6 +403,8 @@ replica_destroy(void **arg)
 	{
 		csnplFree(&r->min_csn_pl);;
 	}
+
+	slapi_counter_destroy(&r->protocol_timeout);
 
 	slapi_ch_free((void **)arg);
 }
@@ -796,10 +799,22 @@ replica_get_type (const Replica *r)
 	return r->repl_type;
 }
 
-int
+PRUint64
 replica_get_protocol_timeout(Replica *r)
 {
-	return (int)r->protocol_timeout;
+	if(r){
+		return slapi_counter_get_value(r->protocol_timeout);
+	} else {
+		return 0;
+	}
+}
+
+void
+replica_set_protocol_timeout(Replica *r, PRUint64 timeout)
+{
+	if(r){
+		slapi_counter_set_value(r->protocol_timeout, timeout);
+	}
 }
 
 /* 
@@ -1689,6 +1704,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     char *val;
     int backoff_min;
     int backoff_max;
+    int ptimeout = 0;
     int rc;
 
     PR_ASSERT (r && e);
@@ -1761,9 +1777,11 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     }
 
     /* get the protocol timeout */
-    r->protocol_timeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
-    if(r->protocol_timeout == 0){
-        r->protocol_timeout = DEFAULT_PROTOCOL_TIMEOUT;
+    ptimeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
+    if(ptimeout <= 0){
+        slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
+    } else {
+        slapi_counter_set_value(r->protocol_timeout, ptimeout);
     }
 
     /* get replica flags */

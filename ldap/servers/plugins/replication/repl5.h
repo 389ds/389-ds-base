@@ -390,9 +390,15 @@ char **agmt_get_attrs_to_strip(Repl_Agmt *ra);
 int agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e);
 int agmt_set_timeout(Repl_Agmt *ra, long timeout);
 void agmt_update_done(Repl_Agmt *ra, int is_total);
-int agmt_get_protocol_timeout(Repl_Agmt *agmt);
 
 typedef struct replica Replica;
+PRUint64 agmt_get_protocol_timeout(Repl_Agmt *agmt);
+void agmt_set_protocol_timeout(Repl_Agmt *agmt, PRUint64 timeout);
+void agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn);
+void add_agmt_maxcsns(Slapi_Entry *e, Replica *r);
+void agmt_set_maxcsn(Repl_Agmt *ra);
+void agmt_remove_maxcsn(Repl_Agmt *ra);
+int agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod);
 
 /* In repl5_agmtlist.c */
 int agmtlist_config_init();
@@ -498,7 +504,6 @@ void prot_notify_window_opened (Repl_Protocol *rp);
 void prot_notify_window_closed (Repl_Protocol *rp);
 Object *prot_get_replica_object(Repl_Protocol *rp);
 void prot_replicate_now(Repl_Protocol *rp);
-int prot_get_timeout(Repl_Protocol *rp);
 
 Repl_Protocol *agmt_get_protocol(Repl_Agmt *ra);
 
@@ -596,7 +601,8 @@ char *replica_get_dn(Replica *r);
 void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
 void replica_update_state (time_t when, void *arg);
 void replica_reset_csn_pl(Replica *r);
-int replica_get_protocol_timeout(Replica *r);
+PRUint64 replica_get_protocol_timeout(Replica *r);
+void replica_set_protocol_timeout(Replica *r, PRUint64 timeout);
 int replica_get_backoff_min(Replica *r);
 int replica_get_backoff_max(Replica *r);
 void replica_set_backoff_min(Replica *r, int min);

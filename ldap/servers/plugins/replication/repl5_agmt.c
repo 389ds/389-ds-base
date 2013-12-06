@@ -142,7 +142,9 @@ typedef struct repl5agmt {
 	char **attrs_to_strip; /* for fractional replication, if a "mod" is empty, strip out these attributes:
 	                        * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
 	int agreement_type;
-	PRUint64 protocol_timeout;
+	Slapi_Counter *protocol_timeout;
+	char *maxcsn; /* agmt max csn */
+	Slapi_RWLock *attr_lock; /* RW lock for all the stripped attrs */
 } repl5agmt;
 
 /* Forward declarations */
@@ -265,6 +267,14 @@ agmt_new_from_entry(Slapi_Entry *e)
 			slapi_entry_get_dn_const(e));
 		goto loser;
 	}
+	if ((ra->attr_lock = slapi_new_rwlock()) == NULL)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to create new attr lock "
+			"for replication agreement \"%s\" - agreement ignored.\n",
+			slapi_entry_get_dn_const(e));
+		goto loser;
+	}
+	ra->protocol_timeout = slapi_counter_new();
 
 	/* Find all the stuff we need for the agreement */
 
@@ -338,19 +348,14 @@ agmt_new_from_entry(Slapi_Entry *e)
 	tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
 	if (NULL != tmpstr)
 	{
+		PRUint64 ptimeout = 0;
+
 		ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
 
 		/* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
-		ra->protocol_timeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
-		if(ra->protocol_timeout == 0){
-			/* grab the replica protocol timeout */
-			Object *replobj = replica_get_replica_from_dn(ra->replarea);
-			if(replobj){
-				Replica *replica =(Replica*)object_get_data (replobj);
-				ra->protocol_timeout = replica_get_protocol_timeout(replica);
-			} else {
-				ra->protocol_timeout = DEFAULT_PROTOCOL_TIMEOUT;
-			}
+		ptimeout = slapi_entry_attr_get_int(e, type_replicaProtocolTimeout);
+		if(ptimeout){
+			slapi_counter_set_value(ra->protocol_timeout, ptimeout);
 		}
 	}
 
@@ -613,6 +618,17 @@ agmt_delete(void **rap)
 	if(ra->attrs_to_strip){
 		slapi_ch_array_free(ra->attrs_to_strip);
 	}
+	if(ra->maxcsn){
+		slapi_ch_free_string(&ra->maxcsn);
+	}
+	schedule_destroy(ra->schedule);
+	slapi_ch_free_string(&ra->long_name);
+
+	slapi_counter_destroy(&ra->protocol_timeout);
+
+	/* free the locks */
+	PR_DestroyLock(ra->lock);
+	slapi_destroy_rwlock(ra->attr_lock);
 
 	schedule_destroy(ra->schedule);
 	slapi_ch_free((void **)&ra->long_name);
@@ -2665,9 +2681,21 @@ agmt_update_done(Repl_Agmt *agmt, int is_total)
     }
 }
 
-int
+PRUint64
 agmt_get_protocol_timeout(Repl_Agmt *agmt)
 {
-    return (int)agmt->protocol_timeout;
+	if(agmt){
+		return slapi_counter_get_value(agmt->protocol_timeout);
+	} else {
+		return 0;
+	}
+}
+
+void
+agmt_set_protocol_timeout(Repl_Agmt *agmt, PRUint64 timeout)
+{
+	if(agmt){
+		slapi_counter_set_value(agmt->protocol_timeout, timeout);
+	}
 }
 
