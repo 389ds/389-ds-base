@@ -71,7 +71,6 @@ typedef struct repl_protocol
 	Object *replica_object; /* Local replica. If non-NULL, replica object is acquired */
 	int state;
 	int next_state;
-	PRUint64 protocol_timeout;
 	PRThread *agmt_thread;
 	PRLock *lock;
 } repl_protocol;
@@ -134,16 +133,17 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 		rp->prp_total = private_protocol_factory(rp, PROTOCOL_WINDOWS_TOTAL);
 		rp->delete_conn = windows_conn_delete;
 	}
-	rp->protocol_timeout = agmt_get_protocol_timeout(agmt);
-
 	/* XXXggood register callback handlers for entries updated, and
 		schedule window enter/leave. */
 	
 	goto done;
+
 loser:
 	prot_delete(&rp);
+
 done:
 	slapi_sdn_free(&replarea_sdn);
+
 	return rp;
 }
 
@@ -593,8 +593,3 @@ private_protocol_factory(Repl_Protocol *rp, int type)
 	return prp;
 }
 
-int
-prot_get_timeout(Repl_Protocol *rp)
-{
-	return (int)rp->protocol_timeout;
-}
