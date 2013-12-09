@@ -1467,7 +1467,8 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 				}
 				else if (SLAPI_PLUGIN_BEPREOPERATION == list->plg_type ||
 				         SLAPI_PLUGIN_BETXNPREOPERATION == list->plg_type ||
-				         SLAPI_PLUGIN_BEPOSTOPERATION == list->plg_type)
+				         SLAPI_PLUGIN_BEPOSTOPERATION == list->plg_type ||
+				         SLAPI_PLUGIN_BETXNPOSTOPERATION == list->plg_type )
 				{
 					/* 
 					 * respect fatal error SLAPI_PLUGIN_FAILURE (-1);
