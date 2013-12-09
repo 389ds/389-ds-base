@@ -103,8 +103,8 @@ static struct automemberRegexRule *automember_parse_regex_rule(char *rule_string
 static void automember_free_regex_rule(struct automemberRegexRule *rule);
 static int automember_parse_grouping_attr(char *value, char **grouping_attr,
     char **grouping_value);
-static void automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileDesc *ldif_fd);
-static void automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
+static int automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileDesc *ldif_fd);
+static int automember_add_member_value(Slapi_Entry *member_e, const char *group_dn,
     char *grouping_attr, char *grouping_value, PRFileDesc *ldif_fd);
 const char *fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val);
 
@@ -1401,7 +1401,7 @@ automember_parse_grouping_attr(char *value, char **grouping_attr, char **groupin
  * Determines which target groups need to be updated according to
  * the rules in config, then performs the updates.
  */
-static void
+static int
 automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileDesc *ldif_fd)
 {
     PRCList *rule = NULL;
@@ -1412,10 +1412,11 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileD
     Slapi_DN *last = NULL;
     PRCList *curr_exclusion = NULL;
     char **vals = NULL;
+    int rc = 0;
     int i = 0;
 
     if (!config || !e) {
-        return;
+        return -1;
     }
 
     slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -1555,15 +1556,23 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileD
     if (PR_CLIST_IS_EMPTY(&targets)) {
         /* Add to each default group. */
         for (i = 0; config->default_groups && config->default_groups[i]; i++) {
-            automember_add_member_value(e, config->default_groups[i],
-                                        config->grouping_attr, config->grouping_value, ldif_fd);
+            if(automember_add_member_value(e, config->default_groups[i], config->grouping_attr,
+                                           config->grouping_value, ldif_fd))
+            {
+                rc = SLAPI_PLUGIN_FAILURE;
+                goto out;
+            }
         }
     } else {
         /* Update the target groups. */
         dnitem = (struct automemberDNListItem *)PR_LIST_HEAD(&targets);
         while ((PRCList *)dnitem != &targets) {
-            automember_add_member_value(e, slapi_sdn_get_dn(dnitem->dn),
-                                        config->grouping_attr, config->grouping_value, ldif_fd);
+            if(automember_add_member_value(e, slapi_sdn_get_dn(dnitem->dn),config->grouping_attr,
+                                           config->grouping_value, ldif_fd))
+            {
+                rc = SLAPI_PLUGIN_FAILURE;
+                goto out;
+            }
             dnitem = (struct automemberDNListItem *)PR_NEXT_LINK((PRCList *)dnitem);
         }
     }
@@ -1582,6 +1591,9 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileD
             slapi_ch_free((void**)&dnitem);
     }
 
+out:
+
+    return rc;
 }
 
 /*
@@ -1589,7 +1601,7 @@ automember_update_membership(struct configEntry *config, Slapi_Entry *e, PRFileD
  *
  * Adds a member entry to a group.
  */
-static void
+static int
 automember_add_member_value(Slapi_Entry *member_e, const char *group_dn, char *grouping_attr,
                             char *grouping_value, PRFileDesc *ldif_fd)
 {
@@ -1600,6 +1612,7 @@ automember_add_member_value(Slapi_Entry *member_e, const char *group_dn, char *g
     char *vals[2];
     char *member_value = NULL;
     int freeit = 0;
+    int rc = 0;
 
     /* If grouping_value is dn, we need to fetch the dn instead. */
     if (slapi_attr_type_cmp(grouping_value, "dn", SLAPI_TYPE_CMP_EXACT) == 0) {
@@ -1649,6 +1662,7 @@ automember_add_member_value(Slapi_Entry *member_e, const char *group_dn, char *g
                             "a \"%s\" value to group \"%s\" (%s).\n", 
                             member_value, grouping_attr, group_dn,
                             ldap_err2string(result));
+            rc = result;
         }
     } else {
         slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -1662,8 +1676,9 @@ out:
     if (freeit) {
         slapi_ch_free_string(&member_value);
     }
-
     slapi_pblock_destroy(mod_pb);
+
+    return rc;
 }
 
 
@@ -1833,6 +1848,7 @@ automember_add_post_op(Slapi_PBlock *pb)
     Slapi_DN *sdn = NULL;
     struct configEntry *config = NULL;
     PRCList *list = NULL;
+    int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_add_post_op\n");
@@ -1848,8 +1864,9 @@ automember_add_post_op(Slapi_PBlock *pb)
         }
     } else {
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                        "automember_add_post_op: Error "
-                        "retrieving dn\n");
+                        "automember_add_post_op: Error retrieving dn\n");
+
+        rc = SLAPI_PLUGIN_FAILURE;
         goto bail;
     }
 
@@ -1863,12 +1880,11 @@ automember_add_post_op(Slapi_PBlock *pb)
 
     if (e) {
         /* If the entry is a tombstone, just bail. */
-        Slapi_Value *tombstone =
-                        slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
-        int rc = slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS,
-                                                   tombstone);
+        Slapi_Value *tombstone = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+        int is_tombstone = slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS,
+                                                             tombstone);
         slapi_value_free(&tombstone);
-        if (rc) {
+        if (is_tombstone) {
             return SLAPI_PLUGIN_SUCCESS;
         }
 
@@ -1891,7 +1907,10 @@ automember_add_post_op(Slapi_PBlock *pb)
                 if (slapi_dn_issuffix(slapi_sdn_get_dn(sdn), config->scope) &&
                     (slapi_filter_test_simple(e, config->filter) == 0)) {
                     /* Find out what membership changes are needed and make them. */
-                    automember_update_membership(config, e, NULL);
+                    if(automember_update_membership(config, e, NULL)){
+                        rc = SLAPI_PLUGIN_FAILURE;
+                        break;
+                    }
                 }
 
                 list = PR_NEXT_LINK(list);
@@ -1904,11 +1923,21 @@ automember_add_post_op(Slapi_PBlock *pb)
                         "automember_add_post_op: Error "
                         "retrieving post-op entry %s\n", slapi_sdn_get_dn(sdn));
     }
+
 bail:
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                    "<-- automember_add_post_op\n");
+                    "<-- automember_add_post_op (%d)\n", rc);
 
-    return SLAPI_PLUGIN_SUCCESS;
+    if(rc){
+        char errtxt[SLAPI_DSE_RETURNTEXT_SIZE];
+        int result = LDAP_UNWILLING_TO_PERFORM;
+
+        PR_snprintf(errtxt, SLAPI_DSE_RETURNTEXT_SIZE, "Automember Plugin update unexpectedly failed.\n");
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
+        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, &errtxt);
+    }
+
+    return rc;
 }
 
 /*
@@ -2216,7 +2245,11 @@ void automember_rebuild_task_thread(void *arg){
                 if (slapi_dn_issuffix(slapi_entry_get_dn(entries[i]), config->scope) &&
                     (slapi_filter_test_simple(entries[i], config->filter) == 0))
                 {
-                    automember_update_membership(config, entries[i], NULL);
+                    if(automember_update_membership(config, entries[i], NULL)){
+                        result = SLAPI_PLUGIN_FAILURE;
+                        automember_config_unlock();
+                        goto out;
+                    }
                 }
                 list = PR_NEXT_LINK(list);
             }
@@ -2416,7 +2449,7 @@ void automember_export_task_thread(void *arg){
         /* make sure the plugin is still up, as this loop could run for awhile */
         if (!g_plugin_started) {
             automember_config_unlock();
-            result = -1;
+            result = SLAPI_DSE_CALLBACK_ERROR;
             goto out;
         }
         if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
@@ -2426,7 +2459,11 @@ void automember_export_task_thread(void *arg){
                 if (slapi_dn_issuffix(slapi_sdn_get_dn(td->base_dn), config->scope) &&
                     (slapi_filter_test_simple(entries[i], config->filter) == 0))
                 { 
-                    automember_update_membership(config, entries[i], ldif_fd);
+                    if(automember_update_membership(config, entries[i], ldif_fd)){
+                        result = SLAPI_DSE_CALLBACK_ERROR;
+                        automember_config_unlock();
+                        goto out;
+                    }
                 }
                 list = PR_NEXT_LINK(list);
             }
@@ -2624,7 +2661,13 @@ void automember_map_task_thread(void *arg){
                     if (slapi_dn_issuffix(slapi_entry_get_dn_const(e), config->scope) &&
                         (slapi_filter_test_simple(e, config->filter) == 0))
                     {
-                        automember_update_membership(config, e, ldif_fd_out);
+                        if(automember_update_membership(config, e, ldif_fd_out)){
+                            result = SLAPI_DSE_CALLBACK_ERROR;
+                            slapi_entry_free(e);
+                            slapi_ch_free_string(&entrystr);
+                            automember_config_unlock();
+                            goto out;
+                        }
                     }
                     list = PR_NEXT_LINK(list);
                 }
@@ -2635,7 +2678,7 @@ void automember_map_task_thread(void *arg){
             slapi_task_log_notice(task, "Automember map task, skipping invalid entry.");
             slapi_task_log_status(task, "Automember map task, skipping invalid entry.");
         }
-        slapi_ch_free((void **)&entrystr);
+        slapi_ch_free_string(&entrystr);
     }
     automember_config_unlock();
 
@@ -2666,6 +2709,9 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
     Slapi_DN *old_sdn = NULL;
     Slapi_DN *new_sdn = NULL;
     Slapi_Entry *post_e = NULL;
+    struct configEntry *config = NULL;
+    PRCList *list = NULL;
+    int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_modrdn_post_op\n");
@@ -2684,7 +2730,7 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_modrdn_post_op: Error "
                         "retrieving post-op entry\n");
-        return 0;
+        return SLAPI_PLUGIN_FAILURE;
     }
 
     if ((old_sdn = automember_get_sdn(pb))) {
@@ -2694,11 +2740,58 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
         slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_modrdn_post_op: Error "
                         "retrieving dn\n");
+        return SLAPI_PLUGIN_FAILURE;
+    }
+
+    /* If replication, just bail. */
+    if (automember_isrepl(pb)) {
+        return SLAPI_PLUGIN_SUCCESS;
+    }
+
+    /*
+     * Check if a config entry applies to the entry(post modrdn)
+     */
+    automember_config_read_lock();
+
+    /* Bail out if the plug-in close function was just called. */
+    if (!g_plugin_started) {
+        automember_config_unlock();
+        return SLAPI_PLUGIN_SUCCESS;
+    }
+
+    if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
+        list = PR_LIST_HEAD(g_automember_config);
+        while (list != g_automember_config) {
+            config = (struct configEntry *)list;
+
+            /* Does the entry meet scope and filter requirements? */
+            if (slapi_dn_issuffix(slapi_sdn_get_dn(new_sdn), config->scope) &&
+                (slapi_filter_test_simple(post_e, config->filter) == 0)) {
+                /* Find out what membership changes are needed and make them. */
+                if(automember_update_membership(config, post_e, NULL)){
+                    rc = SLAPI_PLUGIN_FAILURE;
+                    break;
+                }
+            }
+
+            list = PR_NEXT_LINK(list);
+        }
+    }
+
+    automember_config_unlock();
+
+    if(rc){
+        char errtxt[SLAPI_DSE_RETURNTEXT_SIZE];
+        int result = LDAP_UNWILLING_TO_PERFORM;
+
+        PR_snprintf(errtxt, SLAPI_DSE_RETURNTEXT_SIZE, "Automember Plugin update unexpectedly failed.  "
+                    "Please see the server errors log for more information.\n");
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
+        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, &errtxt);
     }
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                    "<-- automember_modrdn_post_op\n");
-
-    return 0;
+                    "<-- automember_modrdn_post_op (%d)\n", rc);
+    return rc;
 }
 
