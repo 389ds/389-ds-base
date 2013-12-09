@@ -1590,7 +1590,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         myNSSVersions.min = NSSVersionMin;
         myNSSVersions.max = NSSVersionMax;
         restrict_SSLVersionRange(&myNSSVersions, enableSSL3, enableTLS1);
-        SSL_VersionRangeSet(pr_sock, &myNSSVersions);
+        sslStatus = SSL_VersionRangeSet(pr_sock, &myNSSVersions);
         if (sslStatus == SECSuccess) {
             /* Set the restricted value to the cn=encryption entry */
         } else {
