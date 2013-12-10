@@ -137,6 +137,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	$(POSIX_WINSYNC_PLUGIN_LDIF)
 
 clean-local:
+	-rm -rf dist
 	-rm -rf selinux-built
 
 dberrstrs.h: Makefile
@@ -1676,3 +1677,4 @@ git-archive:
 		gittag=HEAD ; \
 	fi ; \
 	git archive --prefix=$(distdir)/ $$gittag | bzip2 > $$srcdistdir/$(distdir).tar.bz2
+

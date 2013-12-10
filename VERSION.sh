@@ -14,13 +14,20 @@ VERSION_MAINT=1.16
 # if this is a PRERELEASE, set VERSION_PREREL
 # otherwise, comment it out
 # be sure to include the dot prefix in the prerel
-# VERSION_PREREL=.pre.a1
+VERSION_PREREL=.a1
 # NOTES on VERSION_PREREL
 # use aN for an alpha release e.g. a1, a2, etc.
 # use rcN for a release candidate e.g. rc1, rc2, etc.
 # for extra clarification, the date can be appended to the prerel e.g.
 # RC1.`date +%Y%m%d`
 # a git commit may also be used
+
+# Set the version and release numbers for local developer RPM builds. We
+# set these here because we do not want the git commit hash in the RPM
+# version since it can make RPM upgrades difficult.  If we have a git
+# commit hash, we add it into the release number below.
+RPM_RELEASE=`date -u +%Y%m%d%H%M%S`
+RPM_VERSION=$VERSION_MAJOR.$VERSION_MINOR.${VERSION_MAINT}$VERSION_PREREL
 
 if test -n "$VERSION_PREREL"; then
 # if the source is from a git repo, put the last commit
@@ -32,6 +39,7 @@ if test -n "$VERSION_PREREL"; then
     COMMIT=`cd $srcdir ; git log -1 --pretty=format:%h 2> /dev/null`
     if test -n "$COMMIT" ; then
         VERSION_PREREL=$VERSION_PREREL.git$COMMIT
+        RPM_RELEASE=$RPM_RELEASE.git$COMMIT
     fi
 fi
 
