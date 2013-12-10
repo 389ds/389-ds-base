@@ -122,6 +122,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                            sizeof(PagedResults) * maxlen);
             }
             *index = maxlen; /* the first position in the new area */
+            conn->c_pagedresults.prl_list[*index].pr_mutex = PR_NewLock();
         } else {
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (!conn->c_pagedresults.prl_list[i].pr_current_be) {
@@ -131,7 +132,6 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
             }
         }
         conn->c_pagedresults.prl_count++;
-        conn->c_pagedresults.prl_list[*index].pr_mutex = PR_NewLock();
     } else {
         /* Repeated paged results request.
          * PagedResults is already allocated. */
