@@ -122,7 +122,6 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                            sizeof(PagedResults) * maxlen);
             }
             *index = maxlen; /* the first position in the new area */
-            conn->c_pagedresults.prl_list[*index].pr_mutex = PR_NewLock();
         } else {
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (!conn->c_pagedresults.prl_list[i].pr_current_be) {
@@ -130,6 +129,9 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                     break;
                 }
             }
+        }
+        if (!conn->c_pagedresults.prl_list[*index].pr_mutex) {
+            conn->c_pagedresults.prl_list[*index].pr_mutex = PR_NewLock();
         }
         conn->c_pagedresults.prl_count++;
     } else {
