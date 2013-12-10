@@ -34,6 +34,42 @@ DEFAULT_USER = "nobody"
 DN_DM = "cn=Directory Manager"
 DN_CONFIG = "cn=config"
 DN_LDBM = "cn=ldbm database,cn=plugins,cn=config"
+
+CMD_PATH_SETUP_DS = "/setup-ds.pl"
+CMD_PATH_REMOVE_DS = "/remove-ds.pl"
+
+# State of an DirSrv object
+DIRSRV_STATE_INIT='initial'
+DIRSRV_STATE_ALLOCATED='allocated'
+DIRSRV_STATE_OFFLINE='offline'
+DIRSRV_STATE_ONLINE='online'
+
+LOCALHOST = "localhost.localdomain"
+DEFAULT_PORT        = 389
+DEFAULT_SECURE_PORT = 636
+DEFAULT_SUFFIX      = 'dc=example,dc=com'
+DEFAULT_BACKUPDIR   = '/tmp'
+DEFAULT_INST_HEAD   = 'slapd-'
+DEFAULT_ENV_HEAD    = 'dirsrv-'
+
+PW_DM = "password"
+
+CONF_DIR = 'etc/dirsrv'
+ENV_SYSCONFIG_DIR = '/etc/sysconfig'
+ENV_LOCAL_DIR = '.dirsrv'
+
+
+# CONFIG file (<prefix>/etc/sysconfig/dirsrv-* or $HOME/.dirsrv/dirsrv-*) keywords
+CONF_SERVER_DIR    = 'SERVER_DIR'
+CONF_SERVERBIN_DIR = 'SERVERBIN_DIR'
+CONF_CONFIG_DIR    = 'CONFIG_DIR'
+CONF_INST_DIR      = 'INST_DIR'
+CONF_RUN_DIR       = 'RUN_DIR'
+CONF_DS_ROOT       = 'DS_ROOT'
+CONF_PRODUCT_NAME  = 'PRODUCT_NAME'
+
+
+
 DN_MAPPING_TREE = "cn=mapping tree,cn=config"
 DN_CHAIN = "cn=chaining database,cn=plugins,cn=config"
 DN_CHANGELOG = "cn=changelog5,cn=config"

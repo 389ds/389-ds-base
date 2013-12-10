@@ -2,6 +2,8 @@
 
     TODO put them in a module!
 """
+from lib389.properties import SER_PORT, SER_ROOT_PW, SER_SERVERID_PROP,\
+    SER_ROOT_DN
 try:
     from subprocess import Popen as my_popen, PIPE
 except ImportError:
@@ -30,6 +32,7 @@ import ldap
 import lib389
 from lib389 import DN_CONFIG
 from lib389._constants import *
+from lib389.properties import *
 
 #
 # Decorator
@@ -187,18 +190,18 @@ def get_server_user(args):
 
 
 def update_newhost_with_fqdn(args):
-    """Replace args['newhost'] with its fqdn and returns True if local.
+    """Replace args[SER_HOST] with its fqdn and returns True if local.
 
     One of the arguments to createInstance is newhost.  If this is specified, we need
     to convert it to the fqdn.  If not given, we need to figure out what the fqdn of the
     local host is.  This method sets newhost in args to the appropriate value and
     returns True if newhost is the localhost, False otherwise"""
-    if 'newhost' in args:
-        args['newhost'] = getfqdn(args['newhost'])
-        isLocal = isLocalHost(args['newhost'])
+    if SER_HOST in args:
+        args[SER_HOST] = getfqdn(args[SER_HOST])
+        isLocal = isLocalHost(args[SER_HOST])
     else:
         isLocal = True
-        args['newhost'] = getfqdn()
+        args[SER_HOST] = getfqdn()
     return isLocal
 
 
@@ -346,9 +349,9 @@ def getadminport(cfgconn, cfgdn, args):
         dn = cfgdn
         if 'admin_domain' in args:
             dn = "cn=%s,ou=%s, %s" % (
-                args['newhost'], args['admin_domain'], cfgdn)
+                args[SER_HOST], args['admin_domain'], cfgdn)
         filt = "(&(objectclass=nsAdminServer)(serverHostName=%s)" % args[
-            'newhost']
+            SER_HOST]
         if 'sroot' in args:
             filt += "(serverRoot=%s)" % args['sroot']
         filt += ")"
@@ -378,7 +381,7 @@ def formatInfData(args):
 
         args = {
             # new instance values
-            newhost, newuserid, newport, newrootdn, newrootpw, newsuffix,
+            newhost, newuserid, newport, SER_ROOT_DN, newrootpw, newsuffix,
             
             # The following parameters require to register the new instance
             # in the admin server
@@ -422,17 +425,10 @@ def formatInfData(args):
     args = args.copy()
     args['CFGSUFFIX'] = lib389.CFGSUFFIX
 
-    content = (
-    "[General]" "\n"
-    "FullMachineName= %(newhost)s" "\n"
-    "SuiteSpotUserID= %(newuserid)s" "\n"
-    ) % args
-    
-    # by default, use groupname=username
-    if 'SuiteSpotGroup' in args:
-        content += """\nSuiteSpotGroup= %s\n"""  % args['SuiteSpotGroup']
-    else:
-        content += """\nSuiteSpotGroup= %(newuserid)s\n"""  % args
+    content  = ("[General]" "\n")
+    content += ("FullMachineName= %s\n" % args[SER_HOST])
+    content += ("SuiteSpotUserID= %s\n" % args[SER_USER_ID])
+    content += ("nSuiteSpotGroup= %s\n" % args[SER_GROUP_ID])
 
     if args.get('have_admin'):
         content += (
@@ -442,16 +438,12 @@ def formatInfData(args):
         "ConfigDirectoryAdminPwd= %(cfgdspwd)s" "\n"
         ) % args
         
-    content += ("\n" "\n"
-        "[slapd]" "\n"
-        "ServerPort= %(newport)s" "\n"
-        "RootDN= %(newrootdn)s" "\n"
-        "RootDNPwd= %(newrootpw)s" "\n"
-        "ServerIdentifier= %(newinstance)s" "\n"
-        "Suffix= %(newsuffix)s" "\n"
-        ) % args
-    
-   
+    content += ("\n" "\n" "[slapd]" "\n")
+    content += ("ServerPort= %s\n" % args[SER_PORT])
+    content += ("RootDN= %s\n"     % args[SER_ROOT_DN])
+    content += ("RootDNPwd= %s\n"  % args[SER_ROOT_PW])
+    content += ("ServerIdentifier= %s\n" % args[SER_SERVERID_PROP])
+    content += ("Suffix= %s\n"     % args[SER_CREATION_SUFFIX])
     
     # Create admin?
     if args.get('setup_admin'):

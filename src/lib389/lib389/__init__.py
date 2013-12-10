@@ -19,6 +19,7 @@ except ImportError:
 
 import sys
 import os
+import pwd
 import os.path
 import base64
 import urllib
@@ -34,6 +35,8 @@ import shutil
 import datetime
 import logging
 import decimal
+import glob
+import tarfile
 
 from ldap.ldapobject import SimpleLDAPObject
 from ldapurl import LDAPUrl
@@ -50,8 +53,13 @@ from lib389.utils import (
     is_a_dn, 
     normalizeDN, 
     suffixfilt, 
-    escapeDNValue
+    escapeDNValue,
+    update_newhost_with_fqdn,
+    formatInfData,
+    get_sbin_dir
     )
+from lib389.properties import *
+from lib389.tools import DirSrvTools
 
 # mixin
 #from lib389.tools import DirSrvTools
@@ -164,12 +172,21 @@ class DirSrv(SimpleLDAPObject):
 
     def __initPart2(self):
         """Initialize the DirSrv structure filling various fields, like:
-            - dbdir
-            - errlog
-            - confdir
+                self.errlog          -> nsslapd-errorlog
+                self.accesslog       -> nsslapd-accesslog
+                self.confdir         -> nsslapd-certdir
+                self.inst            -> equivalent to self.serverid
+                self.sroot/self.inst -> nsslapd-instancedir 
+                self.dbdir           -> dirname(nsslapd-directory)
+                
+            @param - self
+            
+            @return - None
+            
+            @raise ldap.LDAPError - if failure during initialization
 
         """
-        if self.binddn and len(self.binddn) and not hasattr(self, 'sroot'):
+        if self.binddn and len(self.binddn):
             try:
                 # XXX this fields are stale and not continuously updated
                 # do they have sense?
@@ -221,6 +238,16 @@ class DirSrv(SimpleLDAPObject):
                 raise
 
     def __localinit__(self):
+        '''
+            Establish a connection to the started instance. It binds with the binddn property,
+            then it initializes various fields from DirSrv (via __initPart2)
+                            
+            @param - self
+            
+            @return - None
+            
+            @raise ldap.LDAPError - if failure during initialization
+        '''
         uri = self.toLDAPURL()
 
         SimpleLDAPObject.__init__(self, uri)
@@ -234,24 +261,24 @@ class DirSrv(SimpleLDAPObject):
             if ent:
                 self.binddn = ent.dn
             else:
-                log.error("Error: could not find %s under %s" % (
+                raise ValueError("Error: could not find %s under %s" % (
                     self.binddn, CFGSUFFIX))
-        if not self.nobind:
-            needtls = False
-            while True:
+        
+        needtls = False
+        while True:
+            try:
+                if needtls:
+                    self.start_tls_s()
                 try:
-                    if needtls:
-                        self.start_tls_s()
-                    try:
-                        self.simple_bind_s(self.binddn, self.bindpw)
-                    except ldap.SERVER_DOWN, e:
-                        # TODO add server info in exception
-                        log.debug("Cannot connect to %r" % uri)
-                        raise e
-                    break
-                except ldap.CONFIDENTIALITY_REQUIRED:
-                    needtls = True
-            self.__initPart2()
+                    self.simple_bind_s(self.binddn, self.bindpw)
+                except ldap.SERVER_DOWN, e:
+                    # TODO add server info in exception
+                    log.debug("Cannot connect to %r" % uri)
+                    raise e
+                break
+            except ldap.CONFIDENTIALITY_REQUIRED:
+                needtls = True
+        self.__initPart2()
 
     def rebind(self):
         """Reconnect to the DS
@@ -275,46 +302,729 @@ class DirSrv(SimpleLDAPObject):
         self.config = Config(self)
         self.index = Index(self)
     
-    def __init__(self, host='localhost', port=389, binddn='', bindpw='', serverId=None, nobind=False, sslport=0, verbose=False, offline=False):  # default to anon bind
-        """We just set our instance variables and wrap the methods.
-            The real work is done in the following methods, reused during
-            instance creation & co.
-                * __localinit__
-                * __initPart2
+    def __init__(self, verbose=False):  
+        """
+            This method does various initialization of DirSrv object:
+            parameters:
+                - 'state' to DIRSRV_STATE_INIT
+                - 'verbose' flag for debug purpose
+                - 'log' so that the use the module defined logger
+    
+            wrap the methods.
+            
+                - from SimpleLDAPObject
+                - from agreement, backends, suffix...
+                
+            It just create a DirSrv object. To use it the user will likely do
+            the following additional steps:
+                - allocate
+                - create
+                - open
+        """
 
-            e.g. when using the start command, we just need to reconnect,
-             not create a new instance"""
-        log.info("Initializing %s with %s:%s" % (self.__class__,
-                 host, sslport or port))
-        self.__wrapmethods()
+        self.state = DIRSRV_STATE_INIT
         self.verbose = verbose
-        self.port = port
-        self.sslport = sslport
-        self.host = host
-        self.binddn = binddn
-        self.bindpw = bindpw
-        self.nobind = nobind
-        self.isLocal = isLocalHost(host)
-        self.serverId = serverId
-        
-        
-        #
-        # dict caching DS structure
-        #
-        self.suffixes = {}
-        self.agmt = {}
-        if not offline:
-            # the real init
-            self.__localinit__()
         self.log = log
-        # add brookers
+        
+        self.__wrapmethods()
         self.__add_brookers__()
 
-        
     def __str__(self):
         """XXX and in SSL case?"""
         return self.host + ":" + str(self.port)
 
+    def allocate(self, args):
+        '''
+           Initialize a DirSrv object according to the provided args.
+           The final state  -> DIRSRV_STATE_ALLOCATED
+           @param args - dictionary that contains the DirSrv properties
+               properties are
+                   SER_SERVERID_PROP: mandatory server id of the instance -> slapd-<serverid>
+                   SER_HOST: hostname [LOCALHOST]
+                   SER_PORT: normal ldap port [DEFAULT_PORT]
+                   SER_SECURE_PORT: secure ldap port
+                   SER_ROOT_DN: root DN [DN_DM]
+                   SER_ROOT_PW: password of root DN [PW_DM]
+                   SER_USER_ID: user id of the create instance [DEFAULT_USER]
+                   SER_GROUP_ID: group id of the create instance [SER_USER_ID]
+                   SER_DEPLOYED_DIR: directory where 389-ds is deployed
+                   SER_BACKUP_INST_DIR: directory where instances will be backup
+           
+           @return None
+           
+           @raise ValueError - if missing mandatory properties or invalid state of DirSrv
+        '''
+        if self.state != DIRSRV_STATE_INIT and self.state != DIRSRV_STATE_ALLOCATED:
+            raise ValueError("invalid state for calling allocate: %s" % self.state)
+        
+        if SER_SERVERID_PROP not in args:
+            raise ValueError("%s is a mandatory parameter" % SER_SERVERID_PROP)
+        
+        # Settings from args of server attributes 
+        self.host    = args.get(SER_HOST, LOCALHOST)
+        self.port    = args.get(SER_PORT, DEFAULT_PORT)
+        self.sslport = args.get(SER_SECURE_PORT)
+        self.binddn  = args.get(SER_ROOT_DN, DN_DM)
+        self.bindpw  = args.get(SER_ROOT_PW, PW_DM)
+        self.creation_suffix = args.get(SER_CREATION_SUFFIX, DEFAULT_SUFFIX)
+        self.userid  = args.get(SER_USER_ID)
+        if not self.userid:
+            if os.getuid() == 0:
+                # as root run as default user
+                self.userid = DEFAULT_USER
+            else:
+                self.userid = pwd.getpwuid( os.getuid() )[ 0 ]
+            
+        
+        # Settings from args of server attributes
+        self.serverid  = args.get(SER_SERVERID_PROP)
+        self.groupid   = args.get(SER_GROUP_ID, self.userid)
+        self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
+        self.prefix    = args.get(SER_DEPLOYED_DIR, None)
+        
+        # Those variables needs to be revisited (sroot for 64 bits)
+        #self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
+        #self.errlog    = os.path.join(self.prefix, "var/log/dirsrv/slapd-%s/errors" % self.serverid)
+        
+        # For compatibility keep self.inst but should be removed
+        self.inst = self.serverid
+        
+        # additional settings
+        self.isLocal = isLocalHost(self.host)
+        self.suffixes = {}
+        self.agmt = {}
+        
+        self.state = DIRSRV_STATE_ALLOCATED
+        self.log.info("Allocate %s with %s:%s" % (self.__class__,
+                                                      self.host,
+                                                      self.sslport or self.port))
+
+
+                
+    def list(self, all=False):
+        """
+            Returns a list of files containing the environment of the created instances 
+            that are on the local file system (e.g. <prefix>/etc/dirsrv/slapd-*). 
+            If 'all' is True, it returns all the files else it returns only the 
+            environment file of the current instance. 
+            By default it is False and only returns the current instance file.
+            
+            @param all - True or False . default is [False]
+
+            @return list file(s) name(s)
+
+            @raise None
+        """
+        def test_and_set(prop, propname, variable, value):
+            '''
+                If variable is  'propname' it adds to 
+                'prop' dictionary the propname:value
+            '''
+            if variable == propname:
+                prop[propname] = value
+                return 1
+            return 0
+        
+        def _parse_configfile(filename=None):
+            '''
+                This method read 'filename' and build a dictionary with
+                CONF_* properties
+            '''
+                
+            if not filename:
+                raise IOError('filename is mandatory')
+            if not os.path.isfile(filename) or not os.access(filename, os.R_OK):
+                raise IOError('invalid file name or rights: %s' % filename)
+        
+            prop = {}
+            file = open(filename, 'r')
+            for line in file:
+                # retrieve the value in line:: <PROPNAME>=<string> [';' export <PROPNAME>]
+
+                #skip comment lines
+                if line.startswith('#'):
+                    continue
+                
+                #skip lines without assignment
+                if not '=' in line:
+                    continue
+                value = line.split(';',1)[0]
+                
+                #skip lines without assignment
+                if not '=' in value:
+                    continue
+                
+                variable = value.split('=',1)[0]
+                value    = value.split('=',1)[1]  
+                value    = value.strip(' \t')     # remove heading/ending space/tab
+                for property in (CONF_SERVER_DIR,
+                                 CONF_SERVERBIN_DIR,
+                                 CONF_CONFIG_DIR,
+                                 CONF_INST_DIR,
+                                 CONF_RUN_DIR,
+                                 CONF_DS_ROOT,
+                                 CONF_PRODUCT_NAME):
+                    if test_and_set(prop, property, variable, value):
+                        break
+            
+            return prop
+        
+        def search_dir(instances, pattern, stop_value=None):
+            '''
+                It search all the files matching pattern.
+                It there is not stop_value, it adds the properties found in each file
+                to the 'instances'
+                Else it searches the specific stop_value (instance's serverid) to add only
+                its properties in the 'instances'
+                
+                @param instances - list of dictionary containing the instances properties
+                @param pattern - pattern to find the files containing the properties
+                @param stop_value - serverid value if we are looking only for one specific instance
+                
+                @return True or False - If stop_value is None it returns False.
+                                        If stop_value is specified, it returns True if it added
+                                        the property dictionary in instances. Or False if it did
+                                        not find it.
+            '''
+            added = False
+            for instance in glob.glob(pattern):
+                serverid = os.path.basename(instance)[len(DEFAULT_ENV_HEAD):]
+                
+                # skip removed instance
+                if '.removed' in serverid:
+                    continue
+                
+                # it is found, store its properties in the list
+                if stop_value:
+                    if stop_value == serverid:
+                        instances.append(_parse_configfile(instance))
+                        added = True
+                        break
+                    else:
+                        #this is not the searched value, continue
+                        continue
+                else:
+                    # we are not looking for a specific value, just add it
+                    instances.append(_parse_configfile(instance))
+                    
+            return added
+        
+        # Retrieves all instances under '/etc/sysconfig' and '/etc/dirsrv'
+        
+        # Instances/Environment are
+        #
+        #    file: /etc/sysconfig/dirsrv-<serverid>  (env)
+        #    inst: /etc/dirsrv/slapd-<serverid>      (conf)
+        #
+        #    or
+        #
+        #    file: $HOME/.dirsrv/dirsrv-<serverid>       (env)
+        #    inst: <prefix>/etc/dirsrv/slapd-<serverid>  (conf)
+        #
+        
+        prefix = self.prefix or '/'
+        
+        # first identify the directories we will scan
+        confdir = os.getenv('INITCONFIGDIR')
+        if confdir:
+            self.log.info("$INITCONFIGDIR set to: %s" % confdir)
+            if not os.path.isdir(confdir):
+                raise ValueError("$INITCONFIGDIR incorrect directory (%s)" % confdir)
+            sysconfig_head  = confdir
+            privconfig_head = None
+        else:
+            sysconfig_head = prefix + ENV_SYSCONFIG_DIR
+            privconfig_head = os.path.join(os.getenv('HOME'), ENV_LOCAL_DIR)
+            if not os.path.isdir(sysconfig_head):
+                privconfig_head = None
+            self.log.info("dir (sys) : %s" % sysconfig_head)
+            if privconfig_head:
+                self.log.info("dir (priv): %s" % privconfig_head)
+                
+        # list of the found instances
+        instances = []
+        
+        # now prepare the list of instances properties
+        if not all:
+            # easy case we just look for the current instance
+            
+            # we have two location to retrieve the self.serverid
+            # privconfig_head and sysconfig_head
+            
+            # first check the private repository
+            pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
+            found = search_dir(instances, pattern, self.serverid)
+            if found:
+                assert len(instances) == 1
+            else:
+                assert len(instances) == 0
+                    
+            # second, if not already found, search the system repository
+            if not found:
+                pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
+                search_dir(instances, pattern, self.serverid)
+            
+        else:
+            # all instances must be retrieved
+            pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
+            search_dir(instances, pattern)
+            
+            pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
+            search_dir(instances, pattern)
+                
+        return instances
+            
+
+    def _createDirsrv(self, verbose=0):
+        """Create a new instance of directory server 
+        
+        @param self - containing the set properties
+            
+            SER_HOST            (host)
+            SER_PORT            (port)
+            SER_SECURE_PORT     (sslport)
+            SER_ROOT_DN         (binddn)
+            SER_ROOT_PW         (bindpw)
+            SER_CREATION_SUFFIX (creation_suffix)
+            SER_USER_ID         (userid)
+            SER_SERVERID_PROP   (serverid)
+            SER_GROUP_ID        (groupid)
+            SER_DEPLOYED_DIR    (prefix)
+            SER_BACKUP_INST_DIR (backupdir)
+            
+        @return None
+        
+        @raise None
+
+        }        
+        """
+
+        prog = get_sbin_dir(None, self.prefix) + CMD_PATH_SETUP_DS
+
+        if not os.path.isfile(prog):
+            log.error("Can't find file: %r, removing extension" % prog)
+            prog = prog[:-3]
+
+        args = {SER_HOST:            self.host,
+                SER_PORT:            self.port,
+                SER_SECURE_PORT:     self.sslport,
+                SER_ROOT_DN:         self.binddn,
+                SER_ROOT_PW:         self.bindpw,
+                SER_CREATION_SUFFIX: self.creation_suffix,
+                SER_USER_ID:         self.userid,
+                SER_SERVERID_PROP:   self.serverid,
+                SER_GROUP_ID:        self.groupid,
+                SER_DEPLOYED_DIR:    self.prefix,
+                SER_BACKUP_INST_DIR: self.backupdir}
+        content = formatInfData(args)
+        DirSrvTools.runInfProg(prog, content, verbose)
+
+        
+    def create(self):
+        """
+            Creates an instance with the parameters sets in dirsrv
+            The state change from  DIRSRV_STATE_ALLOCATED -> DIRSRV_STATE_OFFLINE
+            
+            @param - self
+            
+            @return - None
+            
+            @raise ValueError - if it exist an instance with the same 'serverid' 
+        """
+        # check that DirSrv was in DIRSRV_STATE_ALLOCATED state
+        if self.state != DIRSRV_STATE_ALLOCATED:
+            raise ValueError("invalid state for calling create: %s" % self.state)
+        
+        # Check that the instance does not already exist
+        props = self.list()
+        if len(props) != 0:
+            raise ValueError("Error it already exists the instance (%s)" % props[0][CONF_INST_DIR])
+        
+        # Time to create the instance and retrieve the effective sroot
+        self._createDirsrv(verbose=self.verbose)
+        
+        # Retrieve sroot from the sys/priv config file
+        props = self.list()
+        assert len(props) == 1
+        self.sroot = props[0][CONF_SERVER_DIR]
+        
+        # Now the instance is created but DirSrv is not yet connected to it
+        self.state = DIRSRV_STATE_OFFLINE
+            
+    def delete(self):
+        '''
+            Deletes the instance with the parameters sets in dirsrv
+            The state changes from DIRSRV_STATE_OFFLINE -> DIRSRV_STATE_ALLOCATED
+        
+            @param self
+
+            @return None
+
+            @raise None
+        '''
+        if self.state == DIRSRV_STATE_ONLINE:
+            self.close()
+        
+        # Check that the instance does not already exist
+        props = self.list()
+        if len(props) != 1:
+            raise ValueError("Error can not find instance %s[%s:%d]" % 
+                             (self.serverid, self.host, self.port))
+
+        # Now time to remove the instance
+        prog = get_sbin_dir(None, self.prefix) + CMD_PATH_REMOVE_DS
+        cmd = "%s -i %s%s" % (prog, DEFAULT_INST_HEAD, self.serverid)
+        self.log.debug("running: %s " % cmd)
+        try:
+            os.system(cmd)
+        except:
+            log.exception("error executing %r" % cmd)
+
+        self.state = DIRSRV_STATE_ALLOCATED
+        
+    def open(self):
+        '''
+            It opens a ldap bound connection to dirsrv so that online administrative tasks are possible.
+            It binds with the binddn property, then it initializes various fields from DirSrv (via __initPart2)
+            
+            The state changes  -> DIRSRV_STATE_ONLINE
+            
+            @param self
+
+            @return None
+
+            @raise ValueError - if the instance has not the right state or can not find the binddn to bind
+        '''
+        # check that DirSrv was in DIRSRV_STATE_OFFLINE or DIRSRV_STATE_ONLINE state
+        if self.state != DIRSRV_STATE_OFFLINE and self.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("invalid state for calling open: %s" % self.state)
+        
+        uri = self.toLDAPURL()
+
+        SimpleLDAPObject.__init__(self, uri)
+
+        # see if binddn is a dn or a uid that we need to lookup
+        if self.binddn and not is_a_dn(self.binddn):
+            self.simple_bind_s("", "")  # anon
+            ent = self.getEntry(CFGSUFFIX, ldap.SCOPE_SUBTREE,
+                                "(uid=%s)" % self.binddn,
+                                ['uid'])
+            if ent:
+                self.binddn = ent.dn
+            else:
+                raise ValueError("Error: could not find %s under %s" % (
+                    self.binddn, CFGSUFFIX))
+        
+        needtls = False
+        while True:
+            try:
+                if needtls:
+                    self.start_tls_s()
+                try:
+                    self.simple_bind_s(self.binddn, self.bindpw)
+                except ldap.SERVER_DOWN, e:
+                    # TODO add server info in exception
+                    log.debug("Cannot connect to %r" % uri)
+                    raise e
+                break
+            except ldap.CONFIDENTIALITY_REQUIRED:
+                needtls = True
+        self.__initPart2()
+        
+        self.state = DIRSRV_STATE_ONLINE
+        
+    def close(self):
+        '''
+            It closes connection to dirsrv. Online administrative tasks are no longer possible.
+            
+            The state changes from DIRSRV_STATE_ONLINE -> DIRSRV_STATE_OFFLINE
+            
+            @param self
+
+            @return None
+
+            @raise ValueError - if the instance has not the right state
+        '''
+        
+        # check that DirSrv was in DIRSRV_STATE_ONLINE state
+        if self.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("invalid state for calling close: %s" % self.state)
+        
+        SimpleLDAPObject.unbind(self)
+        
+        self.state = DIRSRV_STATE_OFFLINE
+        
+    def start(self, timeout):
+        '''
+            It starts an instance and rebind it. Its final state after rebind (open)
+            is DIRSRV_STATE_ONLINE
+            
+            @param self
+            @param timeout (in sec) to wait for successful start
+
+            @return None
+
+            @raise None
+        '''
+        # Default starting timeout (to find 'slapd started' in error log)
+        if not timeout:
+            timeout = 120
+            
+        # called with the default timeout
+        if DirSrvTools.start(self, verbose=False, timeout=timeout):
+            self.log.error("Probable failure to start the instance")
+            
+        self.open()
+            
+    def stop(self, timeout):
+        '''
+            It stops an instance. 
+            It changes the state  -> DIRSRV_STATE_OFFLINE
+            
+            @param self
+            @param timeout (in sec) to wait for successful stop
+
+            @return None
+
+            @raise None
+        '''
+        
+        # Default starting timeout (to find 'slapd started' in error log)
+        if not timeout:
+            timeout = 120
+            
+        # called with the default timeout
+        if DirSrvTools.stop(self, verbose=False, timeout=timeout):
+            self.log.error("Probable failure to stop the instance")
+        
+        #whatever the initial state, the instance is now Offline
+        self.state = DIRSRV_STATE_OFFLINE
+        
+    def restart(self, timeout):
+        '''
+            It restarts an instance and rebind it. Its final state after rebind (open)
+            is DIRSRV_STATE_ONLINE. 
+            
+            @param self
+            @param timeout (in sec) to wait for successful stop
+
+            @return None
+
+            @raise None
+        '''
+        self.stop(timeout)
+        self.start(timeout)
+        
+    def _infoBackupFS(self):
+        """
+            Return the information to retrieve the backup file of a given instance
+            It returns:
+                - Directory name containing the backup (e.g. /tmp/slapd-standalone.bck)
+                - The pattern of the backup files (e.g. /tmp/slapd-standalone.bck/backup*.tar.gz)
+        """
+        backup_dir = "%s/slapd-%s.bck" % (self.backupdir, self.serverid)     
+        backup_pattern = os.path.join(backup_dir, "backup*.tar.gz") 
+        return backup_dir, backup_pattern
+    
+    def clearBackupFS(self, backup_file=None):
+        """
+            Remove a backup_file or all backup up of a given instance
+        """
+        if backup_file:
+            if os.path.isfile(backup_file):
+                try:
+                    os.remove(backup_file)
+                except:
+                    log.info("clearBackupFS: fail to remove %s" % backup_file)
+                    pass
+        else:
+            backup_dir, backup_pattern = self._infoBackupFS()
+            list_backup_files = glob.glob(backup_pattern)
+            for f in list_backup_files:
+                try:
+                    os.remove(f)
+                except:
+                    log.info("clearBackupFS: fail to remove %s" % backup_file)
+                    pass
+
+            
+    def checkBackupFS(self):
+        """
+            If it exits a backup file, it returns it
+            else it returns None
+        """
+
+        backup_dir, backup_pattern = self._infoBackupFS()
+        list_backup_files = glob.glob(backup_pattern)
+        if not list_backup_files:
+            return None
+        else:
+            # returns the first found backup
+            return list_backup_files[0]
+
+        
+    def backupFS(self):
+        """
+            Saves the files of an instance under /tmp/slapd-<instance_name>.bck/backup_HHMMSS.tar.gz
+            and return the archive file name.
+            If it already exists a such file, it assums it is a valid backup and 
+            returns its name
+            
+            self.sroot : root of the instance  (e.g. /usr/lib64/dirsrv)
+            self.inst  : instance name (e.g. standalone for /etc/dirsrv/slapd-standalone)
+            self.confdir : root of the instance config (e.g. /etc/dirsrv)
+            self.dbdir: directory where is stored the database (e.g. /var/lib/dirsrv/slapd-standalone/db)
+            self.changelogdir: directory where is stored the changelog (e.g. /var/lib/dirsrv/slapd-master/changelogdb)
+        """
+        
+        # First check it if already exists a backup file
+        backup_dir, backup_pattern = self._infoBackupFS()
+        backup_file = self.checkBackupFS()
+        if backup_file is None:
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+        else:
+            return backup_file
+                
+        # goes under the directory where the DS is deployed
+        listFilesToBackup = []
+        here = os.getcwd()
+        os.chdir(self.prefix)
+        prefix_pattern = "%s/" % self.prefix
+        
+        # build the list of directories to scan
+        instroot = "%s/slapd-%s" % (self.sroot, self.serverid)
+        ldir = [ instroot ]
+        if hasattr(self, 'confdir'):
+            ldir.append(self.confdir)
+        if hasattr(self, 'dbdir'):
+            ldir.append(self.dbdir)
+        if hasattr(self, 'changelogdir'):
+            ldir.append(self.changelogdir)
+        if hasattr(self, 'errlog'):
+            ldir.append(os.path.dirname(self.errlog))
+        if hasattr(self, 'accesslog') and  os.path.dirname(self.accesslog) not in ldir:
+            ldir.append(os.path.dirname(self.accesslog))        
+
+        # now scan the directory list to find the files to backup
+        for dirToBackup in ldir:
+            for root, dirs, files in os.walk(dirToBackup):
+                for file in files:
+                    name = os.path.join(root, file)
+                    name = re.sub(prefix_pattern, '', name)
+
+                    if os.path.isfile(name):
+                        listFilesToBackup.append(name)
+                        log.debug("backupFS add = %s (%s)" % (name, self.prefix))
+                
+        
+        # create the archive
+        name = "backup_%s.tar.gz" % (time.strftime("%m%d%Y_%H%M%S"))
+        backup_file = os.path.join(backup_dir, name)
+        tar = tarfile.open(backup_file, "w:gz")
+
+        
+        for name in listFilesToBackup:
+            if os.path.isfile(name):
+                tar.add(name)
+        tar.close()
+        log.info("backupFS: archive done : %s" % backup_file)
+        
+        # return to the directory where we were
+        os.chdir(here)
+        
+        return backup_file
+
+    def restoreFS(self, backup_file):
+        """
+        """
+        
+        # First check the archive exists
+        if backup_file is None:
+            log.warning("Unable to restore the instance (missing backup)")
+            return 1
+        if not os.path.isfile(backup_file):
+            log.warning("Unable to restore the instance (%s is not a file)" % backup_file)
+            return 1
+        
+        #
+        # Second do some clean up 
+        #
+        
+        # previous db (it may exists new db files not in the backup)
+        log.debug("restoreFS: remove subtree %s/*" % self.dbdir)
+        for root, dirs, files in os.walk(self.dbdir):
+            for d in dirs:
+                if d not in ("bak", "ldif"):
+                    log.debug("restoreFS: before restore remove directory %s/%s" % (root, d))
+                    shutil.rmtree("%s/%s" % (root, d))
+        
+        # previous error/access logs
+        log.debug("restoreFS: remove error logs %s" % self.errlog)
+        for f in glob.glob("%s*" % self.errlog):
+                log.debug("restoreFS: before restore remove file %s" % (f))
+                os.remove(f)
+        log.debug("restoreFS: remove access logs %s" % self.accesslog)
+        for f in glob.glob("%s*" % self.accesslog):
+                log.debug("restoreFS: before restore remove file %s" % (f))
+                os.remove(f)
+        
+        
+        # Then restore from the directory where DS was deployed
+        here = os.getcwd()
+        os.chdir(self.prefix)
+        
+        tar = tarfile.open(backup_file)
+        for member in tar.getmembers():
+            if os.path.isfile(member.name):
+                #
+                # restore only writable files
+                # It could be a bad idea and preferably restore all.
+                # Now it will be easy to enhance that function.
+                if os.access(member.name, os.W_OK):
+                    log.debug("restoreFS: restored %s" % member.name)
+                    tar.extract(member.name)
+                else:
+                    log.debug("restoreFS: not restored %s (no write access)" % member.name)
+            else:
+                log.debug("restoreFS: restored %s" % member.name)
+                tar.extract(member.name)
+            
+        tar.close()
+        
+        #
+        # Now be safe, triggers a recovery at restart
+        #
+        guardian_file = os.path.join(self.dbdir, "db/guardian")
+        if os.path.isfile(guardian_file):
+            try:
+                log.debug("restoreFS: remove %s" % guardian_file)
+                os.remove(guardian_file)
+            except:
+                log.warning("restoreFS: fail to remove %s" % guardian_file)
+                pass
+        
+        
+        os.chdir(here)
+    
+    
+    def exists(self):
+        '''
+            Check if an instance exists.
+            It checks that both exists:
+                - configuration directory (<prefix>/etc/dirsrv/slapd-<serverid>)
+                - environment file (/etc/sysconfig/dirsrv-<serverid> or $HOME/.dirsrv/dirsrv-<serverid>) 
+
+            @param None
+            
+            @return True of False if the instance exists or not
+            
+            @raise None
+    
+        '''
+        props = self.list()
+        return len(props)  == 1
+    
     def toLDAPURL(self):
         """Return the uri ldap[s]://host:[ssl]port."""
         if self.sslport:
@@ -323,7 +1033,7 @@ class DirSrv(SimpleLDAPObject):
             return "ldap://%s:%d/" % (self.host, self.port)
         
     def getServerId(self):
-        return self.serverId
+        return self.serverid
 
     #
     # Get entries

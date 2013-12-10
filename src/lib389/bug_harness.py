@@ -1,6 +1,7 @@
 from bug_harness import DSAdminHarness as DSAdmin
 from dsadmin import Entry
 from dsadmin.tools import DSAdminTools
+from lib389.properties import *
 """
     An harness for bug replication.
 
@@ -94,7 +95,7 @@ class DSAdminHarness(DSAdmin, DSAdminTools):
 
     def createInstance(args):
         # eventually set prefix
-        args.setdefault('prefix', os.environ.get('PREFIX', None))
+        args.setdefault(SER_DEPLOYED_DIR, os.environ.get('PREFIX', None))
         args.setdefault('sroot', os.environ.get('SERVER_ROOT', None))
         DSAdminTools.createInstance(args)
 

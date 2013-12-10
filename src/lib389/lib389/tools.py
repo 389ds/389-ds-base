@@ -27,7 +27,8 @@ import re
 import glob
 
 import lib389
-from lib389 import InvalidArgumentError
+from lib389 import *
+from lib389.properties import *
 
 from lib389.utils import (
     getcfgdsuserdn, 
@@ -49,8 +50,8 @@ log = logging.getLogger(__name__)
 
 # Private constants
 PATH_SETUP_DS_ADMIN = "/setup-ds-admin.pl"
-PATH_SETUP_DS = "/setup-ds.pl"
-PATH_REMOVE_DS = "/remove-ds.pl"
+PATH_SETUP_DS = CMD_PATH_SETUP_DS
+PATH_REMOVE_DS = CMD_PATH_REMOVE_DS
 PATH_ADM_CONF = "/etc/dirsrv/admin-serv/adm.conf"
 
 class DirSrvTools(object):
@@ -152,11 +153,23 @@ class DirSrvTools(object):
     def serverCmd(self, cmd, verbose, timeout=120):
         """NOTE: this tries to open the log!
         """
+        if not hasattr(self, 'sroot'):
+            # If the instance was previously create, retrieve 'sroot' from 
+            # sys/priv config file (e.g <prefix>/etc/sysconfig/dirsrv-<serverid or $HOME/.dirsrv/dirsrv-<serverid>
+            props = self.list()
+            if len(props) == 0:
+                # the instance has not yet been created, just return
+                return
+            else:
+                assert len(props) == 1
+                self.sroot = props[0][CONF_SERVER_DIR]
+                
         instanceDir = os.path.join(self.sroot, "slapd-" + self.inst)
 
-        errLog = instanceDir + '/logs/errors'
         if hasattr(self, 'errlog'):
             errLog = self.errlog
+        else:
+            errLog = os.path.join(self.prefix, "var/log/dirsrv/slapd-%s/errors" % self.serverid)
         done = False
         started = True
         lastLine = ""
@@ -554,7 +567,7 @@ class DirSrvTools(object):
             prefix = None
         
         prog = get_sbin_dir(None, prefix) + PATH_REMOVE_DS
-        cmd = "%s -i slapd-%s" % (prog, dirsrv.serverId)
+        cmd = "%s -i slapd-%s" % (prog, dirsrv.serverid)
         log.debug("running: %s " % cmd)
         try:
             os.system(cmd)
@@ -570,16 +583,14 @@ class DirSrvTools(object):
             The properties set are:
                 instance.host
                 instance.port
-                instance.serverId
+                instance.serverid
                 instance.inst
                 instance.prefix
                 instance.backup
         '''
-        instance = lib389.DirSrv(host=args['newhost'], port=args['newport'], 
-                                 serverId=args['newinstance'], offline=True)
-        instance.prefix    = args.get('prefix', '/')
-        instance.backupdir = args.get('backupdir', '/tmp')
-        instance.inst      = instance.serverId
+        instance = lib389.DirSrv(verbose=True)
+        instance.allocate(args)
+        
         return instance
             
     @staticmethod
@@ -602,8 +613,8 @@ class DirSrvTools(object):
             If it exists it returns a DirSrv instance NOT initialized, else None
         '''
         instance = DirSrvTools._offlineDirsrv(args)
-        dirname  = os.path.join(instance.prefix, "etc/dirsrv/slapd-%s" % instance.serverId)
-        errorlog = os.path.join(instance.prefix, "var/log/dirsrv/slapd-%s/errors" % instance.serverId)
+        dirname  = os.path.join(instance.prefix, "etc/dirsrv/slapd-%s" % instance.serverid)
+        errorlog = os.path.join(instance.prefix, "var/log/dirsrv/slapd-%s/errors" % instance.serverid)
         sroot    = os.path.join(instance.prefix, "lib/dirsrv")
         if  os.path.isdir(dirname) and \
             os.path.isfile(errorlog) and \
