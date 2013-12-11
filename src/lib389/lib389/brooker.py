@@ -429,7 +429,7 @@ class Agreement(object):
             ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['off'])]
         try:
             self.conn.modify_s(agmtdn, mod)
-        except LDAPError, e:
+        except ldap.LDAPError:
             # before 1.2.11, no support for nsds5ReplicaEnabled
             # use schedule hack
             self.schedule(interval)
@@ -444,7 +444,7 @@ class Agreement(object):
             ldap.MOD_REPLACE, 'nsds5ReplicaEnabled', ['on'])]
         try:
             self.conn.modify_s(agmtdn, mod)
-        except LDAPError, e:
+        except ldap.LDAPError:
             # before 1.2.11, no support for nsds5ReplicaEnabled
             # use schedule hack
             self.schedule(interval)
