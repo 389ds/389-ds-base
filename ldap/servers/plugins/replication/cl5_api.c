@@ -5252,7 +5252,7 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
         {
             /* use the supplier min csn for the buffer start csn - we know
                this csn is in our changelog */
-            if ((RUV_SUCCESS == ruv_get_min_csn(supplierRuv, &startCSN)) &&
+            if ((RUV_SUCCESS == ruv_get_min_csn_ext(supplierRuv, &startCSN, 1 /* ignore cleaned rids */)) &&
                 startCSN)
             { /* must now free startCSN */
                 if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
