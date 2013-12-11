@@ -314,7 +314,7 @@ static void testTrimming ()
 		rc = populateChangelog (300, NULL);
 
 		if (rc == 0)
-			rc = cl5ConfigTrimming (300, "1d");
+			rc = cl5ConfigTrimming (300, "1d", CHANGELOGDB_COMPACT_INTERVAL, CHANGELOGDB_TRIM_INTERVAL);
 
 		interval = PR_SecondsToInterval(300); /* 5 min is default trimming interval */
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 
