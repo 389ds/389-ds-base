@@ -67,6 +67,7 @@
 #include <errno.h>
 #include <prio.h>
 #include <prcountr.h>
+#include <dlfcn.h>
 #include "slap.h"
 #include "fe.h"
 
@@ -1921,7 +1922,6 @@ check_plugin_path(Slapi_PBlock *pb,
 {
     /* check for invalid nsslapd-pluginPath */
     char **vals = slapi_entry_attr_get_charray (e, ATTR_PLUGIN_PATH);
-    int plugindir_len = sizeof(PLUGINDIR)-1;
     int j = 0;
     int rc = SLAPI_DSE_CALLBACK_OK;
 
@@ -1930,6 +1930,7 @@ check_plugin_path(Slapi_PBlock *pb,
         vals = slapi_entry_attr_get_charray (entryBefore, ATTR_PLUGIN_PATH);
     }
     for (j = 0; vals && vals[j]; j++) {
+        void *handle;
         char *full_path = NULL;
         char *resolved_path = NULL;
         char *res = NULL;
@@ -1942,10 +1943,12 @@ check_plugin_path(Slapi_PBlock *pb,
         resolved_path = slapi_ch_malloc(strlen(full_path) + 1);
         res = realpath( full_path, resolved_path );
         if (res) {
-            if (strncmp(PLUGINDIR, resolved_path, plugindir_len) != 0) {
+            if ((handle = dlopen(res, RTLD_NOW)) == NULL) {
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
-                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Invalid plugin path");
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Invalid plugin path - failed to open library");
                 rc = SLAPI_DSE_CALLBACK_ERROR;
+            } else {
+                dlclose(handle);
             }
         } else {
             *returncode = LDAP_UNWILLING_TO_PERFORM;

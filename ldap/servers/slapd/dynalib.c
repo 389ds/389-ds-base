@@ -107,7 +107,7 @@ sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_error
 	}
 
 	if (PR_SUCCESS != PR_Access(libpath, PR_ACCESS_READ_OK)) {
-		if (strncmp(libpath, PLUGINDIR, strlen(PLUGINDIR))) {
+		if (strncmp(libpath, PLUGINDIR, strlen(PLUGINDIR)) && libpath[0] != '/') {
 			libSpec.value.pathname = slapi_get_plugin_name(PLUGINDIR, libpath);
 		} else {
 			libSpec.value.pathname = slapi_get_plugin_name(NULL, libpath);
