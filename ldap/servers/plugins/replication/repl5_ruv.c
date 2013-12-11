@@ -998,9 +998,9 @@ ruv_covers_csn_cleanallruv(const RUV *ruv, const CSN *csn)
  * or max{maxcsns of all ruv elements} if get_the_max != 0.
  */
 static int
-ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max, ReplicaId rid)
+ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max, ReplicaId rid, int ignore_cleaned_rid)
 {
-	int return_value;
+	int return_value = RUV_SUCCESS;
 
 	if (ruv == NULL || csn == NULL) 
 	{
@@ -1012,6 +1012,7 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max, ReplicaId rid
 		CSN *found = NULL;
 		RUVElement *replica;
 		int cookie;
+
 		slapi_rwlock_rdlock (ruv->lock);
 		for (replica = dl_get_first (ruv->elements, &cookie); replica;
 			 replica = dl_get_next (ruv->elements, &cookie))
@@ -1028,6 +1029,10 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max, ReplicaId rid
 			{
 				continue;
 			}
+			if(ignore_cleaned_rid && is_cleaned_rid(replica->rid)){
+				continue;
+			}
+
 			if(rid){ /* we are only interested in this rid's maxcsn */
 				if(replica->rid == rid){
 					found = replica->csn;
@@ -1041,36 +1046,55 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max, ReplicaId rid
 					found = replica->csn;
 				}
 			}
-		} 
+		}
+
 		if (found == NULL)
 		{
-			*csn = NULL;	
+			*csn = NULL;
 		}
 		else
 		{
 			*csn = csn_dup (found);
 		}
 		slapi_rwlock_unlock (ruv->lock);
-		return_value = RUV_SUCCESS;	
 	}
 	return return_value;
 }
 
 int
-ruv_get_rid_max_csn(const RUV *ruv, CSN **csn, ReplicaId rid){
-	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */, rid);
+ruv_get_rid_max_csn(const RUV *ruv, CSN **csn, ReplicaId rid)
+{
+	return ruv_get_rid_max_csn_ext(ruv, csn, rid, 0);
+}
+
+int
+ruv_get_rid_max_csn_ext(const RUV *ruv, CSN **csn, ReplicaId rid, int ignore_cleaned_rid)
+{
+	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */, rid, ignore_cleaned_rid);
 }
 
 int
 ruv_get_max_csn(const RUV *ruv, CSN **csn)
 {
-	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */, 0 /* rid */);
+	return ruv_get_max_csn_ext(ruv, csn, 0);
+}
+
+int
+ruv_get_max_csn_ext(const RUV *ruv, CSN **csn, int ignore_cleaned_rid)
+{
+	return ruv_get_min_or_max_csn(ruv, csn, 1 /* get the max */, 0 /* rid */, ignore_cleaned_rid);
 }
 
 int
 ruv_get_min_csn(const RUV *ruv, CSN **csn)
 {
-	return ruv_get_min_or_max_csn(ruv, csn, 0 /* get the min */, 0 /* rid */);
+	return ruv_get_min_csn_ext(ruv, csn, 0);
+}
+
+int
+ruv_get_min_csn_ext(const RUV *ruv, CSN **csn, int ignore_cleaned_rid)
+{
+	return ruv_get_min_or_max_csn(ruv, csn, 0 /* get the min */, 0 /* rid */, ignore_cleaned_rid);
 }
 
 int 
