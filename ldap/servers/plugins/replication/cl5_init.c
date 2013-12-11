@@ -88,7 +88,7 @@ int changelog5_init()
 	}	
 
 	/* set trimming parameters */
-	rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval);
+	rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
 	if (rc != CL5_SUCCESS)
 	{
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl, 

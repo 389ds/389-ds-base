@@ -244,7 +244,7 @@ changelog5_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter
 	}
 
 	/* set trimming parameters */
-	rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval);
+	rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
 	if (rc != CL5_SUCCESS)
 	{
 		*returncode = 1;
@@ -339,6 +339,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	config.compactInterval = CL5_NUM_IGNORE;
 	slapi_ch_free_string(&config.maxAge);
 	config.maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
+	config.trimInterval = CL5_NUM_IGNORE;
 
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
     for (i = 0; mods[i] != NULL; i++)
@@ -411,6 +412,17 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 						config.compactInterval = 0;
 					}
                 }
+                else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_TRIM_ATTRIBUTE ) == 0 )
+                {
+                    if (config_attr_value && config_attr_value[0] != '\0')
+                    {
+                        config.trimInterval = atoi (config_attr_value);
+                    }
+                    else
+                    {
+                        config.trimInterval = CHANGELOGDB_TRIM_INTERVAL;
+                    }
+                }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_SYMMETRIC_KEY ) == 0 )
                 {
                     slapi_ch_free_string(&config.symmetricKey);
@@ -438,6 +450,8 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 		config.maxEntries = originalConfig->maxEntries;
 	if (config.compactInterval == CL5_NUM_IGNORE)
 		config.compactInterval = originalConfig->compactInterval;
+	if (config.trimInterval == CL5_NUM_IGNORE)
+		config.trimInterval = originalConfig->trimInterval;
 	if (strcmp (config.maxAge, CL5_STR_IGNORE) == 0) {
 		slapi_ch_free_string(&config.maxAge);
 		if (originalConfig->maxAge)
@@ -560,9 +574,10 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
 	/* one of the changelog parameters is modified */
 	if (config.maxEntries != CL5_NUM_IGNORE || 
+		config.trimInterval != CL5_NUM_IGNORE ||
 		strcmp (config.maxAge, CL5_STR_IGNORE) != 0)
 	{
-		rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval);
+		rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
 		if (rc != CL5_SUCCESS)
 		{
 			*returncode = 1;
@@ -721,6 +736,7 @@ static changelog5Config * changelog5_dup_config(changelog5Config *config)
 
 	dup->maxEntries = config->maxEntries;
 	dup->compactInterval = config->compactInterval;
+	dup->trimInterval = config->trimInterval;
 
 	dup->dbconfig.pageSize = config->dbconfig.pageSize;
 	dup->dbconfig.fileMode = config->dbconfig.fileMode;
@@ -741,13 +757,13 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	config->dir = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_DIR_ATTRIBUTE);
 	replace_bslash (config->dir);
    
-	arg= slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE);
+	arg = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE);
 	if (arg)
 	{
 		config->maxEntries = atoi (arg);
 		slapi_ch_free_string(&arg);
 	}
-	arg= slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
+	arg = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
 	if (arg)
 	{
 		config->compactInterval = atoi (arg);
@@ -757,13 +773,22 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	{
 		config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
 	}
-	
+	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE);
+	if (arg)
+	{
+		config->trimInterval = atoi (arg);
+		slapi_ch_free_string(&arg);
+	}
+	else
+	{
+		config->trimInterval = CHANGELOGDB_TRIM_INTERVAL;
+	}
 	config->maxAge = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
 
 	/* 
 	 * Read the Changelog Internal Configuration Parameters for the Changelog DB
 	 */
-	arg= slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES);
+	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES);
 	if (arg)
 	{
 		config->dbconfig.maxConcurrentWrites = atoi (arg);
@@ -777,8 +802,7 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	/* 
 	 * changelog encryption
 	 */
-	arg = slapi_entry_attr_get_charptr(entry,
-	                                   CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM);
+	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM);
 	if (arg)
 	{
 		config->dbconfig.encryptionAlgorithm = slapi_ch_strdup(arg);

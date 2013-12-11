@@ -241,6 +241,7 @@ typedef struct cl5trim
 	time_t		maxAge;		/* maximum entry age in seconds							*/
 	int			maxEntries;	/* maximum number of entries across all changelog files	*/
 	int			compactInterval;	/* interval to compact changelog db */
+	int			trimInterval;	/* trimming interval */
 	PRLock*		lock;		/* controls access to trimming configuration			*/
 } CL5Trim;
 
@@ -1177,12 +1178,13 @@ int cl5GetState ()
    Description:	sets changelog trimming parameters; changelog must be open.
    Parameters:  maxEntries - maximum number of entries in the chnagelog (in all files);
 				maxAge - maximum entry age;
-				compactInterval - interval to compact changelog db
+				compactInterval - interval to compact changelog db;
+				trimInterval - changelog trimming interval.
    Return:		CL5_SUCCESS if successful;
 				CL5_BAD_STATE if changelog is not open
  */
 int
-cl5ConfigTrimming (int maxEntries, const char *maxAge, int compactInterval)
+cl5ConfigTrimming (int maxEntries, const char *maxAge, int compactInterval, int trimInterval)
 {
 	if (s_cl5Desc.dbState == CL5_STATE_NONE)
 	{
@@ -1223,6 +1225,11 @@ cl5ConfigTrimming (int maxEntries, const char *maxAge, int compactInterval)
 	if (compactInterval != CL5_NUM_IGNORE)
 	{
 		s_cl5Desc.dbTrim.compactInterval = compactInterval;	
+	}
+
+	if (trimInterval != CL5_NUM_IGNORE)
+	{
+		s_cl5Desc.dbTrim.trimInterval = trimInterval;
 	}
 
 	PR_Unlock (s_cl5Desc.dbTrim.lock);
@@ -3427,18 +3434,16 @@ static void _cl5TrimCleanup ()
 
 static int _cl5TrimMain (void *param)
 {
-	PRIntervalTime    interval; 
 	time_t timePrev = current_time ();
 	time_t timeCompactPrev = current_time ();
 	time_t timeNow;
 
 	PR_AtomicIncrement (&s_cl5Desc.threadCount);
-	interval = PR_SecondsToInterval(CHANGELOGDB_TRIM_INTERVAL);
 
 	while (s_cl5Desc.dbState != CL5_STATE_CLOSING)
 	{
 		timeNow = current_time ();
-		if (timeNow - timePrev >= CHANGELOGDB_TRIM_INTERVAL)
+		if (timeNow - timePrev >= s_cl5Desc.dbTrim.trimInterval)
 		{
 			/* time to trim */
 			timePrev = timeNow; 
@@ -3458,7 +3463,7 @@ static int _cl5TrimMain (void *param)
 		}
 		
 		PR_Lock(s_cl5Desc.clLock);
-		PR_WaitCondVar(s_cl5Desc.clCvar, interval);		
+		PR_WaitCondVar(s_cl5Desc.clCvar, PR_SecondsToInterval(s_cl5Desc.dbTrim.trimInterval));
 		PR_Unlock(s_cl5Desc.clLock);
 	}
 

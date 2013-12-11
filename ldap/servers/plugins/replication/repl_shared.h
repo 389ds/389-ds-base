@@ -64,6 +64,7 @@
 #define CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE	"nsslapd-changelogmaxentries"
 #define CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE	"nsslapd-changelogmaxage"
 #define CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE	"nsslapd-changelogcompactdb-interval"
+#define CONFIG_CHANGELOG_TRIM_ATTRIBUTE	"nsslapd-changelogtrim-interval"
 /* Changelog Internal Configuration Parameters -> Changelog Cache related */
 #define CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES	"nsslapd-changelogmaxconcurrentwrites"
 #define CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM	"nsslapd-encryptionalgorithm"
