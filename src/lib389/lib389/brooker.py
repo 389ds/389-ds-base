@@ -534,6 +534,19 @@ class Replica(object):
 
         return self.conn._test_entry(dn, ldap.SCOPE_BASE)
 
+    def changelog_config(self, maxage=0, maxentries=0, trimInterval=0, compactInterval=0):
+        mod = []
+        if maxage:
+            mod.append((ldap.MOD_REPLACE, "nsslapd-changelogmaxage", str(maxage)))
+        if maxentries:
+            mod.append((ldap.MOD_REPLACE, "nsslapd-changelogmaxentries", str(maxentries)))
+        if trimInterval:
+            mod.append((ldap.MOD_REPLACE, "nsslapd-changelogtrim-interval", str(trimInterval)))
+        if compactInterval:
+            mod.append((ldap.MOD_REPLACE, "nsslapd-changelogcompactdb-interval", str(compactInterval)))
+        if mod and len(mod) > 0:
+            self.conn.modify_s(DN_CHANGELOG, mod)
+
     def list(self, suffix=None):
         """Return a list of replica entries under the given suffix.
             @param suffix - if suffix is None, return all replicas
