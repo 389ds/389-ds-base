@@ -630,8 +630,6 @@ agmt_delete(void **rap)
 	PR_DestroyLock(ra->lock);
 	slapi_destroy_rwlock(ra->attr_lock);
 
-	schedule_destroy(ra->schedule);
-	slapi_ch_free((void **)&ra->long_name);
 	slapi_ch_free((void **)rap);
 }
 

@@ -159,6 +159,10 @@ schedule_destroy(Schedule *s)
 {
 	int i;
 
+	if(s == NULL){
+	    return;
+	}
+
     /* unschedule update window event if exists */
     unschedule_window_state_change_event (s);
 
