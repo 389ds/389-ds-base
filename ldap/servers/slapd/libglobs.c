@@ -6817,8 +6817,7 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf,
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    if(!apply || slapdFrontendConfig->allowed_sasl_mechs){
-        /* we only set this at startup, if we try again just return SUCCESS */
+    if(!apply){
         return LDAP_SUCCESS;
     }
 
@@ -6833,6 +6832,7 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf,
     }
 
     CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapi_ch_free_string(&slapdFrontendConfig->allowed_sasl_mechs);
     slapdFrontendConfig->allowed_sasl_mechs = slapi_ch_strdup(value);
     CFG_UNLOCK_WRITE(slapdFrontendConfig);
 
@@ -7619,7 +7619,11 @@ invalid_sasl_mech(char *str)
     int i;
 
     if(str == NULL){
-        return 0;
+        return 1;
+    }
+    if(strlen(str) < 1){
+        /* ignore empty values */
+        return 1;
     }
 
     /*
