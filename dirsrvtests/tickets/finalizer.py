@@ -15,46 +15,27 @@ import pytest
 from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import DN_DM
+from lib389.properties import *
 from constants import *
 
 log = logging.getLogger(__name__)
 
 global installation_prefix
-
-
-def _remove_instance(args):
-    
-    # check the instance parameters
-    args_instance['newhost'] = args.get('host', None)
-    if not args_instance['newhost']:
-        raise ValueError("host not defined")
-    
-    args_instance['newport'] = args.get('port', None)
-    if not args_instance['newport']:
-        raise ValueError("port not defined")
-    
-    args_instance['newinstance'] = args.get('serverid', None)
-    if not args_instance['newinstance']:
-        raise ValueError("serverid not defined")
-
-    args_instance['prefix'] = args.get('prefix', None)
-
-    # Get the status of the instance and remove it if it exists
-    instance   = DirSrvTools.existsInstance(args_instance)
-    if instance:
-        log.debug("_remove_instance %s %s:%d" % (instance.serverId, instance.host, instance.port))
-        DirSrvTools.removeInstance(instance)
-
+installation_prefix=os.getenv('PREFIX')
 
 def test_finalizer():
     global installation_prefix
     
     # for each defined instance, remove it
-    for instance in ALL_INSTANCES:
+    for args_instance in ALL_INSTANCES:
         if installation_prefix:
             # overwrite the environment setting
-            instance['prefix'] = installation_prefix
-        _remove_instance(instance)
+            args_instance[SER_DEPLOYED_DIR] = installation_prefix
+            
+        instance = DirSrv(verbose=True)
+        instance.allocate(args_instance)
+        if instance.exists():
+            instance.delete()
         
 def run_isolated():
     '''

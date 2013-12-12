@@ -16,6 +16,7 @@ import re
 from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
+from lib389.properties import *
 from constants import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -30,27 +31,14 @@ MUST_NEW = "(postalAddress $ preferredLocale $ telexNumber)"
 MAY_OLD  = "(postalCode $ street)"
 MAY_NEW  = "(postalCode $ street $ postOfficeBox)"
 
-def _ds_create_instance(args):
-    # create the standalone instance
-    return tools.DirSrvTools.createInstance(args, verbose=False)
-
-def _ds_rebind_instance(dirsrv):
-    args_instance['prefix']      = dirsrv.prefix
-    args_instance['backupdir']   = dirsrv.backupdir
-    args_instance['newrootdn']   = dirsrv.binddn
-    args_instance['newrootpw']   = dirsrv.bindpw
-    args_instance['newhost']     = dirsrv.host
-    args_instance['newport']     = dirsrv.port
-    args_instance['newinstance'] = dirsrv.serverId
-    args_instance['newsuffix']   = SUFFIX
-    args_instance['no_admin']    = True
-
-    return tools.DirSrvTools.createInstance(args_instance)
 
 class TopologyMasterConsumer(object):
     def __init__(self, master, consumer):
-        self.master = _ds_rebind_instance(master)
-        self.consumer = _ds_rebind_instance(consumer)
+        master.open()
+        self.master = master
+        
+        consumer.open()
+        self.consumer = consumer
 
 def pattern_errorlog(file, log_pattern):
     try:
@@ -155,51 +143,63 @@ def topology(request):
     global installation_prefix
 
     if installation_prefix:
-        args_instance['prefix'] = installation_prefix
+        args_instance[SER_DEPLOYED_DIR] = installation_prefix
+        
+    master   = DirSrv(verbose=False)
+    consumer = DirSrv(verbose=False)
     
     # Args for the master instance
-    args_instance['newhost'] = HOST_MASTER
-    args_instance['newport'] = PORT_MASTER
-    args_instance['newinstance'] = SERVERID_MASTER
+    args_instance[SER_HOST] = HOST_MASTER
+    args_instance[SER_PORT] = PORT_MASTER
+    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER
     args_master = args_instance.copy()
+    master.allocate(args_master)
     
     # Args for the consumer instance
-    args_instance['newhost'] = HOST_CONSUMER
-    args_instance['newport'] = PORT_CONSUMER
-    args_instance['newinstance'] = SERVERID_CONSUMER
+    args_instance[SER_HOST] = HOST_CONSUMER
+    args_instance[SER_PORT] = PORT_CONSUMER
+    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER
     args_consumer = args_instance.copy()
+    consumer.allocate(args_consumer)
 
     
     # Get the status of the backups
-    backup_master   = DirSrvTools.existsBackup(args_master)
-    backup_consumer = DirSrvTools.existsBackup(args_consumer)
+    backup_master   = master.checkBackupFS()
+    backup_consumer = consumer.checkBackupFS()
     
     # Get the status of the instance and restart it if it exists
-    instance_master   = DirSrvTools.existsInstance(args_master)
+    instance_master   = master.exists()
     if instance_master:
-        DirSrvTools.stop(instance_master, timeout=10)
-        DirSrvTools.start(instance_master, timeout=10)
+        master.stop(timeout=10)
+        master.start(timeout=10)
         
-    instance_consumer = DirSrvTools.existsInstance(args_consumer)
+    instance_consumer = consumer.exists()
     if instance_consumer:
-        DirSrvTools.stop(instance_consumer, timeout=10)
-        DirSrvTools.start(instance_consumer, timeout=10)
+        consumer.stop(timeout=10)
+        consumer.start(timeout=10)
     
     if backup_master and backup_consumer:
         # The backups exist, assuming they are correct 
         # we just re-init the instances with them
-        master   = _ds_create_instance(args_master)
-        consumer = _ds_create_instance(args_consumer)
+        if not instance_master:
+            master.create()
+            # Used to retrieve configuration information (dbdir, confdir...)
+            master.open()
+        
+        if not instance_consumer:
+            consumer.create()
+            # Used to retrieve configuration information (dbdir, confdir...)
+            consumer.open()
         
         # restore master from backup
-        DirSrvTools.stop(master, timeout=10)
-        DirSrvTools.instanceRestoreFS(master, backup_master)
-        DirSrvTools.start(master, timeout=10)
+        master.stop(timeout=10)
+        master.restoreFS(backup_master)
+        master.start(timeout=10)
         
         # restore consumer from backup
-        DirSrvTools.stop(consumer, timeout=10)
-        DirSrvTools.instanceRestoreFS(consumer, backup_consumer)
-        DirSrvTools.start(consumer, timeout=10)
+        consumer.stop(timeout=10)
+        consumer.restoreFS(backup_consumer)
+        consumer.start(timeout=10)
     else:
         # We should be here only in two conditions
         #      - This is the first time a test involve master-consumer
@@ -210,19 +210,21 @@ def topology(request):
         # Remove all the backups. So even if we have a specific backup file
         # (e.g backup_master) we clear all backups that an instance my have created
         if backup_master:
-            DirSrvTools.clearInstanceBackupFS(dirsrv=instance_master)
+            master.clearBackupFS()
         if backup_consumer:
-            DirSrvTools.clearInstanceBackupFS(dirsrv=instance_consumer)
+            consumer.clearBackupFS()
         
         # Remove all the instances
         if instance_master:
-            DirSrvTools.removeInstance(instance_master)
+            master.delete()
         if instance_consumer:
-            DirSrvTools.removeInstance(instance_consumer)
-            
-        # Create the instance
-        master   = _ds_create_instance(args_master)
-        consumer = _ds_create_instance(args_consumer)
+            consumer.delete()
+                        
+        # Create the instances
+        master.create()
+        master.open()
+        consumer.create()
+        consumer.open()
     
         # 
         # Now prepare the Master-Consumer topology
@@ -258,13 +260,13 @@ def topology(request):
                 loop += 1
                 
         # Time to create the backups
-        DirSrvTools.stop(master, timeout=10)
-        master.backupfile = DirSrvTools.instanceBackupFS(master)
-        DirSrvTools.start(master, timeout=10)
+        master.stop(timeout=10)
+        master.backupfile = master.backupFS()
+        master.start(timeout=10)
         
-        DirSrvTools.stop(consumer, timeout=10)
-        consumer.backupfile = DirSrvTools.instanceBackupFS(consumer)
-        DirSrvTools.start(consumer, timeout=10)
+        consumer.stop(timeout=10)
+        consumer.backupfile = consumer.backupFS()
+        consumer.start(timeout=10)
     
     # 
     # Here we have two instances master and consumer
@@ -641,6 +643,9 @@ def test_ticket47490_nine(topology):
     res = pattern_errorlog(topology.master.errorlog_file, regex)
     assert res == None
     
+def test_ticket47490_final(topology):
+    topology.master.stop(timeout=10)
+    topology.consumer.stop(timeout=10)
 
 def run_isolated():
     '''
@@ -664,6 +669,8 @@ def run_isolated():
     test_ticket47490_seven(topo)
     test_ticket47490_eight(topo)
     test_ticket47490_nine(topo)
+    
+    test_ticket47490_final(topo)
 
 
 if __name__ == '__main__':

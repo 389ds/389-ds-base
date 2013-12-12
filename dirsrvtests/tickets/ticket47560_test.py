@@ -10,32 +10,17 @@ import pytest
 from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
+from lib389.properties import *
 from constants import *
 
 log = logging.getLogger(__name__)
 
 installation_prefix = None
 
-def _ds_create_instance(args):
-    # create the standalone instance
-    return tools.DirSrvTools.createInstance(args, verbose=False)
-
-def _ds_rebind_instance(dirsrv):
-    args_instance['prefix']      = dirsrv.prefix
-    args_instance['backupdir']   = dirsrv.backupdir
-    args_instance['newrootdn']   = dirsrv.binddn
-    args_instance['newrootpw']   = dirsrv.bindpw
-    args_instance['newhost']     = dirsrv.host
-    args_instance['newport']     = dirsrv.port
-    args_instance['newinstance'] = dirsrv.serverId
-    args_instance['newsuffix']   = SUFFIX
-    args_instance['no_admin']    = True
-
-    return tools.DirSrvTools.createInstance(args_instance)
-
 class TopologyStandalone(object):
     def __init__(self, standalone):
-        self.standalone = _ds_rebind_instance(standalone)
+        standalone.open()
+        self.standalone = standalone
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +34,7 @@ def topology(request):
             If standalone instance exists:
                 restart it
             If backup of standalone exists:
-                create or rebind to standalone
+                create/rebind to standalone
 
                 restore standalone instance from backup
             else:
@@ -62,33 +47,39 @@ def topology(request):
     global installation_prefix
 
     if installation_prefix:
-        args_instance['prefix'] = installation_prefix
+        args_instance[SER_DEPLOYED_DIR] = installation_prefix
+    
+    standalone = DirSrv(verbose=False)
     
     # Args for the standalone instance
-    args_instance['newhost'] = HOST_STANDALONE
-    args_instance['newport'] = PORT_STANDALONE
-    args_instance['newinstance'] = SERVERID_STANDALONE
+    args_instance[SER_HOST] = HOST_STANDALONE
+    args_instance[SER_PORT] = PORT_STANDALONE
+    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
     args_standalone = args_instance.copy()
-    
+    standalone.allocate(args_standalone)
+        
     # Get the status of the backups
-    backup_standalone   = DirSrvTools.existsBackup(args_standalone)
+    backup_standalone = standalone.checkBackupFS()
     
     # Get the status of the instance and restart it if it exists
-    instance_standalone   = DirSrvTools.existsInstance(args_standalone)
+    instance_standalone   = standalone.exists()
     if instance_standalone:
         # assuming the instance is already stopped, just wait 5 sec max
-        DirSrvTools.stop(instance_standalone, timeout=5)
-        DirSrvTools.start(instance_standalone, timeout=10)
+        standalone.stop(timeout=5)
+        standalone.start(timeout=10)
     
     if backup_standalone:
         # The backup exist, assuming it is correct 
         # we just re-init the instance with it
-        standalone   = _ds_create_instance(args_standalone)
+        if not instance_standalone:
+            standalone.create()
+            # Used to retrieve configuration information (dbdir, confdir...)
+            standalone.open()
         
         # restore standalone instance from backup
-        DirSrvTools.stop(standalone, timeout=10)
-        DirSrvTools.instanceRestoreFS(standalone, backup_standalone)
-        DirSrvTools.start(standalone, timeout=10)
+        standalone.stop(timeout=10)
+        standalone.restoreFS(backup_standalone)
+        standalone.start(timeout=10)
         
     else:
         # We should be here only in two conditions
@@ -99,19 +90,22 @@ def topology(request):
         # Remove the backup. So even if we have a specific backup file
         # (e.g backup_standalone) we clear backup that an instance may have created
         if backup_standalone:
-            DirSrvTools.clearInstanceBackupFS(dirsrv=instance_standalone)
+            standalone.clearBackupFS()
         
         # Remove the instance
         if instance_standalone:
-            DirSrvTools.removeInstance(instance_standalone)
+            standalone.delete()
             
         # Create the instance
-        standalone   = _ds_create_instance(args_standalone)
+        standalone.create()
+        
+        # Used to retrieve configuration information (dbdir, confdir...)
+        standalone.open()
                 
         # Time to create the backups
-        DirSrvTools.stop(standalone, timeout=10)
-        standalone.backupfile = DirSrvTools.instanceBackupFS(standalone)
-        DirSrvTools.start(standalone, timeout=10)
+        standalone.stop(timeout=10)
+        standalone.backupfile = standalone.backupFS()
+        standalone.start(timeout=10)
     
     # 
     # Here we have standalone instance up and running
@@ -155,13 +149,13 @@ def test_ticket47560(topology):
         MEMBEROF_PLUGIN_DN = 'cn=MemberOf Plugin,cn=plugins,cn=config'
         replace = [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', value)]
         topology.standalone.modify_s(MEMBEROF_PLUGIN_DN, replace)
-        DirSrvTools.stop(topology.standalone, verbose=False, timeout=120)
+        topology.standalone.stop(timeout=120)
         time.sleep(1)
-        DirSrvTools.start(topology.standalone, verbose=False, timeout=120)
+        topology.standalone.start(timeout=120)
         time.sleep(3)
             
         # need to reopen a connection toward the instance
-        topology.standalone = _ds_rebind_instance(topology.standalone)
+        topology.standalone.open()
         
     def _test_ticket47560_setup():
         """
@@ -285,7 +279,7 @@ def test_ticket47560(topology):
     assert result_successful == True
 
 def test_ticket47560_final(topology):
-    DirSrvTools.stop(topology.standalone, timeout=10)
+    topology.standalone.stop(timeout=10)
     
 
 
