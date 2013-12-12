@@ -685,6 +685,7 @@ int
 memberof_shared_config_validate(Slapi_PBlock *pb)
 {
 	Slapi_Entry *e = 0;
+	Slapi_Entry *resulting_e = 0;
 	Slapi_DN *sdn = 0;
 	Slapi_Mods *smods = 0;
 	LDAPMod **mods = NULL;
@@ -708,13 +709,15 @@ memberof_shared_config_validate(Slapi_PBlock *pb)
 			smods = slapi_mods_new();
 			slapi_mods_init_byref(smods, mods);
 
-			/* Apply the mods to create the resulting entry. */
-			if (mods && (slapi_entry_apply_mods(e, mods) != LDAP_SUCCESS)) {
+			/* Create a copy of the entry and apply the
+			 * mods to create the resulting entry. */
+			resulting_e = slapi_entry_dup(e);
+			if (mods && (slapi_entry_apply_mods(resulting_e, mods) != LDAP_SUCCESS)) {
 				/* we don't care about this, the update is invalid and will be caught later */
 				goto bail;
 			}
 
-			if ( SLAPI_DSE_CALLBACK_ERROR == memberof_validate_config (pb, NULL, e, &ret, returntext,0)) {
+			if ( SLAPI_DSE_CALLBACK_ERROR == memberof_validate_config (pb, NULL, resulting_e, &ret, returntext,0)) {
 				slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
 								"%s", returntext);
 				ret = LDAP_UNWILLING_TO_PERFORM;
@@ -729,7 +732,7 @@ memberof_shared_config_validate(Slapi_PBlock *pb)
 
 bail:
 	slapi_mods_free(&smods);
-	slapi_entry_free(e);
+	slapi_entry_free(resulting_e);
 
 	return ret;
 }
