@@ -245,6 +245,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 	for (i = 0; NULL != mods && NULL != mods[i]; i++)
 	{
 		slapi_ch_free_string(&val);
+		val = slapi_berval_get_string_copy (mods[i]->mod_bvalues[0]);
 		if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaInitialize))
 		{
             /* we don't allow delete attribute operations unless it was issued by
@@ -268,10 +269,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             }
             else
             {
-                if (mods[i]->mod_bvalues && mods[i]->mod_bvalues[0])
-                    val = slapi_berval_get_string_copy (mods[i]->mod_bvalues[0]);
-                else
-                {
+                if(val == NULL){
                     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "no value provided for %s attribute\n", type_nsds5ReplicaInitialize);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -518,19 +516,23 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             }
         }
         else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_replicaProtocolTimeout)){
-            if (val){
-                long ptimeout = atol(val);
+            long ptimeout = 0;
 
-                if(ptimeout <= 0){
-                    *returncode = LDAP_UNWILLING_TO_PERFORM;
-                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "attribute %s value (%s) is invalid, "
-                                    "must be a number greater than zero.\n",
-                                    type_replicaProtocolTimeout, val);
-                    rc = SLAPI_DSE_CALLBACK_ERROR;
-                    break;
-                }
-                agmt_set_protocol_timeout(agmt, ptimeout);
+            if (val){
+                ptimeout = atol(val);
             }
+            if(ptimeout <= 0){
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                             "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
+                             type_replicaProtocolTimeout, val ? val : "");
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "attribute %s value (%s) is invalid, "
+                                "must be a number greater than zero.\n",
+                                type_replicaProtocolTimeout, val ? val : "");
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+                break;
+            }
+            agmt_set_protocol_timeout(agmt, ptimeout);
         }
         else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
         {
