@@ -852,17 +852,19 @@ list_candidates(
                 break; /* We can exit the loop now, since the candidate list is small already */
             }
         } else if ( ftype == LDAP_FILTER_AND ) {
-            if (isnot && !idl_is_allids(tmp)) {
-                IDList *new_idl = NULL;
-                int notin_result = 0;
-                /* 
-                 * If the given tmp is ALLIDs (due to subtype in filter),
-                 * we cannot use idl_notin.
+            if (isnot) {
+                /*
+                 * If tmp is NULL or ALLID, idl_notin just duplicates idl.
+                 * We don't have to do it.
                  */
-                notin_result = idl_notin( be, idl, tmp, &new_idl );
-                if (notin_result) {
-                    idl_free(idl);
-                    idl = new_idl;
+                if (!tmp && !idl_is_allids(tmp)) {
+                    IDList *new_idl = NULL;
+                    int notin_result = 0;
+                    notin_result = idl_notin( be, idl, tmp, &new_idl );
+                    if (notin_result) {
+                        idl_free(idl);
+                        idl = new_idl;
+                    }
                 }
             } else {
                 idl = idl_intersection(be, idl, tmp);
