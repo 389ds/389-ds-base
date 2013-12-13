@@ -46,16 +46,25 @@
 
 size_t idl_sizeof(IDList *idl)
 {
+	if (NULL == idl) {
+		return 0;
+	}
 	return (2 + idl->b_nmax) * sizeof(ID);
 }
 
 NIDS idl_length(IDList *idl)
 {
+	if (NULL == idl) {
+		return 0;
+	}
     return (idl->b_nmax == ALLIDSBLOCK) ? UINT_MAX : idl->b_nids;
 }
 
 int idl_is_allids(IDList *idl)
 {
+	if (NULL == idl) {
+		return 0;
+	}
     return (idl->b_nmax == ALLIDSBLOCK);
 }
 
@@ -110,6 +119,9 @@ idl_free( IDList *idl ) /* JCM - pass in ** */
 int
 idl_append( IDList *idl, ID id)
 {
+	if (NULL == idl) {
+		return 2;
+	}
 	if ( ALLIDS( idl ) || ( (idl->b_nids) && (idl->b_ids[idl->b_nids - 1] == id)) ) {
 		return( 1 );	/* already there */
 	}
@@ -321,7 +333,7 @@ idl_notin(
     backend *be,
     IDList 		*a,
     IDList 		*b,
-	IDList **new_result
+    IDList **new_result
 )
 {
 	NIDS	ni, ai, bi;
@@ -435,6 +447,9 @@ idl_nextid( IDList *idl, ID id )
 {
 	NIDS	i;
 
+	if (NULL == idl) {
+		return NOID;
+	}
 	if ( ALLIDS( idl ) ) {
 		return( ++id < idl->b_nids ? id : NOID );
 	}
