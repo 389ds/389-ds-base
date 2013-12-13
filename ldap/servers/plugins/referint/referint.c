@@ -1669,6 +1669,7 @@ referint_validate_config(Slapi_PBlock *pb)
 {
     Slapi_Entry *config_e = NULL, *e = NULL;
     Slapi_Entry *pre_entry = NULL;
+    Slapi_Entry *resulting_entry = NULL;
     Slapi_DN *config_sdn = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_Mods *smods = NULL;
@@ -1687,14 +1688,17 @@ referint_validate_config(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
         smods = slapi_mods_new();
         slapi_mods_init_byref(smods, mods);
-
-        /* Apply the mods to create the resulting entry. */
-        if (mods && (slapi_entry_apply_mods(pre_entry, mods) != LDAP_SUCCESS)) {
+        /*
+         * Create a copy of the entry and apply the
+         * mods to create the resulting entry.
+         */
+        resulting_entry = slapi_entry_dup(pre_entry);
+        if (mods && (slapi_entry_apply_mods(resulting_entry, mods) != LDAP_SUCCESS)) {
             /* we don't care about this, the update is invalid and will be caught later */
             goto bail;
         }
 
-        if ( SLAPI_PLUGIN_FAILURE == load_config(pb, pre_entry, 0)) {
+        if ( SLAPI_PLUGIN_FAILURE == load_config(pb, resulting_entry, 0)) {
             slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config: "
                     "configuration validation failed.\n");
             rc = LDAP_UNWILLING_TO_PERFORM;
@@ -1709,12 +1713,13 @@ referint_validate_config(Slapi_PBlock *pb)
          slapi_mods_init_byref(smods, mods);
 
          /* Apply the mods to create the resulting entry. */
-         if (mods && (slapi_entry_apply_mods(pre_entry, mods) != LDAP_SUCCESS)) {
+         resulting_entry = slapi_entry_dup(pre_entry);
+         if (mods && (slapi_entry_apply_mods(resulting_entry, mods) != LDAP_SUCCESS)) {
              /* we don't care about this, the update is invalid and will be caught later */
              goto bail;
          }
 
-         if((config_area = slapi_entry_attr_get_charptr(pre_entry, SLAPI_PLUGIN_SHARED_CONFIG_AREA))){
+         if((config_area = slapi_entry_attr_get_charptr(resulting_entry, SLAPI_PLUGIN_SHARED_CONFIG_AREA))){
              rc = slapi_dn_syntax_check(pb, config_area, 1);
              if (rc) { /* syntax check failed */
                  slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config: "
@@ -1743,7 +1748,7 @@ referint_validate_config(Slapi_PBlock *pb)
                  }
              }
          } else {
-             config_e = pre_entry;
+             config_e = resulting_entry;
          }
          if(load_config(pb, config_e, 0) != LDAP_SUCCESS){
              rc = LDAP_UNWILLING_TO_PERFORM;
@@ -1754,6 +1759,7 @@ referint_validate_config(Slapi_PBlock *pb)
 
 bail:
     slapi_entry_free(e);
+    slapi_entry_free(resulting_entry);
     slapi_sdn_free(&config_sdn);
     slapi_ch_free_string(&config_area);
     slapi_mods_free(&smods);
