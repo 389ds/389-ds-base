@@ -203,6 +203,9 @@ static void repl5_tot_result_threadmain(void *param)
 			/* If so then we need to take steps to abort the update process */
 			PR_Lock(cb->lock);
 			cb->abort = 1;
+			if (conres == CONN_NOT_CONNECTED) {
+				cb->rc = LDAP_CONNECT_ERROR;
+			}
 			PR_Unlock(cb->lock);
 		}
 		/* Should we stop ? */
