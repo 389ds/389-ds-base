@@ -496,7 +496,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                     *returncode = LDAP_SUCCESS;
                 }
                 else if (strcasecmp (config_attr, type_replicaProtocolTimeout) == 0 ){
-                    if (apply_mods && config_attr_value && config_attr_value[0])
+                    if (apply_mods)
                     {
                         long ptimeout = 0;
 

@@ -278,16 +278,6 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 }
 
                 /* Start replica initialization */
-                if (val == NULL)
-                {
-                    PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "No value supplied for attr (%s)", mods[i]->mod_type);
-                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: %s\n",
-                                    errortext);	  
-                    *returncode = LDAP_UNWILLING_TO_PERFORM;
-                    rc = SLAPI_DSE_CALLBACK_ERROR;
-                    break;
-                }
-            
                 if (strcasecmp (val, "start") == 0)
                 {                        
                     start_initialize = 1;
