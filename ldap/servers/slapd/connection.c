@@ -1749,6 +1749,32 @@ void connection_make_new_pb(Slapi_PBlock	**ppb, Connection	*conn)
 }
 
 
+#ifdef USE_OPENLDAP
+#include "openldapber.h"
+#else
+#include "mozldap.h"
+#endif
+
+static ber_tag_t
+_ber_get_len(BerElement *ber, ber_len_t *lenp)
+{
+#ifdef USE_OPENLDAP
+    OLBerElement *lber = (OLBerElement *)ber;
+#else
+    MozElement *lber = (MozElement *)ber;
+#endif
+
+    if (NULL == lenp) {
+        return LBER_DEFAULT;
+    }
+    *lenp = 0;
+    if (NULL == lber) {
+        return LBER_DEFAULT;
+    }
+    *lenp = lber->ber_len;
+    return lber->ber_tag;
+}
+
 /*
  * Utility function called by  connection_read_operation(). This is a
  * small wrapper on top of libldap's ber_get_next_buffer_ext().
@@ -1787,18 +1813,16 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 	if ((LBER_OVERFLOW == *tagp || LBER_DEFAULT == *tagp) && 0 == bytes_scanned &&
 		!SLAPD_SYSTEM_WOULD_BLOCK_ERROR(errno))
 	{
-		if (LBER_OVERFLOW == *tagp)
-		{
-			err = SLAPD_DISCONNECT_BER_TOO_BIG;
-		}
-		else if (errno == ERANGE)
+		if ((LBER_OVERFLOW == *tagp) || (errno == ERANGE))
 		{
 			ber_len_t maxbersize = config_get_maxbersize();
+			ber_len_t tmplen = 0;
+			(void)_ber_get_len(ber, &tmplen);
 			/* openldap does not differentiate between length == 0
 			   and length > max - all we know is that there was a
 			   problem with the length - assume too big */
 			err = SLAPD_DISCONNECT_BER_TOO_BIG;
-			log_ber_too_big_error(conn, 0, maxbersize);
+			log_ber_too_big_error(conn, tmplen, maxbersize);
 		}
 		else
 		{
