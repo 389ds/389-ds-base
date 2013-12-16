@@ -3331,11 +3331,11 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
     if (newesize > job->fifo.bsize) {    /* entry too big */
-        import_log_notice(job, "WARNING: skipping entry \"%s\"",
-                    slapi_entry_get_dn(ep->ep_entry));
         import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the import buffer size (%lu bytes).   Try increasing nsslapd-cachememsize.",
-                    (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
+                    "the effective import buffer size (%lu bytes). "
+                    "Try increasing nsslapd-cachememsize for the backend instance \"%s\".",
+                    (long unsigned int)newesize, (long unsigned int)job->fifo.bsize,
+                    job->inst->inst_name);
         backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
         backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);
