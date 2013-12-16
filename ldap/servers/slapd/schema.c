@@ -4333,7 +4333,8 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
         OrigAllowedAttrsArray = (char **) slapi_ch_malloc (1 * sizeof(char *)) ;
         OrigAllowedAttrsArray[0] = NULL;
         if (psup_oc->oc_required && objClass->oc_at_oids_must) {
-            for (i = 0, found_it = 0; objClass->oc_at_oids_must[i]; i++) {
+            for (i = 0; objClass->oc_at_oids_must[i]; i++) {
+                found_it = 0;
                 for (j = 0; psup_oc->oc_required[j]; j++) {
                     if (strcasecmp (psup_oc->oc_required[j], objClass->oc_at_oids_must[i]) == 0) {
                         found_it = 1;
@@ -4350,7 +4351,8 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
             OrigRequiredAttrsArray = charray_dup(objClass->oc_at_oids_must);
         }
         if (psup_oc->oc_allowed && objClass->oc_at_oids_may) {
-            for (i = 0, found_it = 0; objClass->oc_at_oids_may[i]; i++) {
+            for (i = 0; objClass->oc_at_oids_may[i]; i++) {
+                found_it = 0;
                 for (j = 0; psup_oc->oc_allowed[j]; j++) {
                     if (strcasecmp (psup_oc->oc_allowed[j], objClass->oc_at_oids_may[i]) == 0) {
                         found_it = 1;
