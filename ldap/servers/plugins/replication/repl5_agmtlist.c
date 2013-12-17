@@ -245,7 +245,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 	for (i = 0; NULL != mods && NULL != mods[i]; i++)
 	{
 		slapi_ch_free_string(&val);
-		if (mods[i]->mod_bvalues && mods[i]->mod_bvalues[0])
+		if (mods[i]->mod_bvalues && mods[i]->mod_bvalues[0]){
 			val = slapi_berval_get_string_copy (mods[i]->mod_bvalues[0]);
 		}
 		if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaInitialize))
