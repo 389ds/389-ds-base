@@ -4,15 +4,21 @@ Created on Dec 5, 2013
 @author: tbordaz
 '''
 
+####################################
+# 
+# Properties supported by the server
+# 
+####################################
+
 #
-# Properties supported by the server WITH related attribute name
+# Those WITH related attribute name
 #
-SER_HOST='hostname'
-SER_PORT='ldap-port'
+SER_HOST       ='hostname'
+SER_PORT       ='ldap-port'
 SER_SECURE_PORT='ldap-secureport'
-SER_ROOT_DN='root-dn'
-SER_ROOT_PW='root-pw'
-SER_USER_ID='user-id'
+SER_ROOT_DN    ='root-dn'
+SER_ROOT_PW    ='root-pw'
+SER_USER_ID    ='user-id'
 
 SER_PROPNAME_TO_ATTRNAME= {SER_HOST:'nsslapd-localhost',
                            SER_PORT:'nsslapd-port',
@@ -21,17 +27,95 @@ SER_PROPNAME_TO_ATTRNAME= {SER_HOST:'nsslapd-localhost',
                            SER_ROOT_PW:'nsslapd-rootpw',
                            SER_USER_ID:'nsslapd-localuser'}
 #
-# Properties supported by the server WITHOUT related attribute name
+# Those WITHOUT related attribute name
 #
-SER_SERVERID_PROP='server-id'
-SER_GROUP_ID='group-id'
-SER_DEPLOYED_DIR='deployed-dir'
-SER_BACKUP_INST_DIR='inst-backupdir'
-SER_CREATION_SUFFIX='suffix'
+SER_SERVERID_PROP   ='server-id'
+SER_GROUP_ID        ='group-id'
+SER_DEPLOYED_DIR    ='deployed-dir'
+SER_BACKUP_INST_DIR ='inst-backupdir'
+SER_CREATION_SUFFIX ='suffix'
 
+####################################
+# 
+# Properties supported by the Mapping Tree entries
 #
+####################################
+ 
+# Properties name
+MT_STATE        = 'state'
+MT_BACKEND      = 'backend-name'
+MT_SUFFIX       = 'suffix'
+MT_REFERRAL     = 'referral'
+MT_CHAIN_PATH   = 'chain-plugin-path'
+MT_CHAIN_FCT    = 'chain-plugin-fct'
+MT_CHAIN_UPDATE = 'chain-update-policy'
+MT_PARENT_SUFFIX= 'parent-suffix'
+
+# Properties values
+MT_STATE_VAL_DISABLED  = 'disabled'
+MT_STATE_VAL_BACKEND   = 'backend'
+MT_STATE_VAL_REFERRAL  = 'referral'
+MT_STATE_VAL_REFERRAL_ON_UPDATE='referral-on-update'
+MT_STATE_VAL_CONTAINER ='container'
+MT_STATE_TO_VALUES={MT_STATE_VAL_DISABLED:  0,
+                    MT_STATE_VAL_BACKEND:   1,
+                    MT_STATE_VAL_REFERRAL:  2,
+                    MT_STATE_VAL_REFERRAL_ON_UPDATE: 3,
+                    MT_STATE_VAL_CONTAINER: 4}
+
+MT_CHAIN_UPDATE_VAL_ON_UPDATE   = 'repl_chain_on_update'
+MT_OBJECTCLASS_VALUE   = 'nsMappingTree'
+
+MT_PROPNAME_TO_VALUES = {MT_STATE:MT_STATE_TO_VALUES}
+MT_PROPNAME_TO_ATTRNAME = {MT_STATE:        'nsslapd-state',
+                           MT_BACKEND:      'nsslapd-backend',
+                           MT_SUFFIX:       'cn',
+                           MT_PARENT_SUFFIX:'nsslapd-parent-suffix',
+                           MT_REFERRAL:     'nsslapd-referral',
+                           MT_CHAIN_PATH:   'nsslapd-distribution-plugin',
+                           MT_CHAIN_FCT :   'nsslapd-distribution-funct',
+                           MT_CHAIN_UPDATE: 'nsslapd-distribution-root-update'}
+
+####################################
+# 
+# Properties supported by the backend
+#
+####################################
+BACKEND_SUFFIX        = 'suffix'
+BACKEND_NAME          = 'name'
+BACKEND_READONLY      = 'read-only'
+BACKEND_REQ_INDEX     = 'require-index'
+BACKEND_CACHE_ENTRIES = 'entry-cache-number'
+BACKEND_CACHE_SIZE    = 'entry-cache-size'
+BACKEND_DNCACHE_SIZE  = 'dn-cache-size'
+BACKEND_DIRECTORY     = 'directory'
+BACKEND_DB_DEADLOCK   = 'db-deadlock'
+BACKEND_CHAIN_BIND_DN = 'chain-bind-dn'
+BACKEND_CHAIN_BIND_PW = 'chain-bind-pw'
+BACKEND_CHAIN_URLS    = 'chain-urls'
+BACKEND_STATS         = 'stats'
+
+BACKEND_OBJECTCLASS_VALUE = 'nsBackendInstance'
+
+BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX:        'nsslapd-suffix',
+                                BACKEND_NAME:          'cn',
+                                BACKEND_READONLY:      'nsslapd-readonly',
+                                BACKEND_REQ_INDEX:     'nsslapd-require-index',
+                                BACKEND_CACHE_ENTRIES: 'nsslapd-cachesize',
+                                BACKEND_CACHE_SIZE:    'nsslapd-cachememsize',
+                                BACKEND_DNCACHE_SIZE:  'nsslapd-dncachememsize',
+                                BACKEND_DIRECTORY:     'nsslapd-directory',
+                                BACKEND_DB_DEADLOCK:   'nsslapd-db-deadlock-policy',
+                                BACKEND_CHAIN_BIND_DN: 'nsmultiplexorbinddn',
+                                BACKEND_CHAIN_BIND_PW: 'nsmultiplexorcredentials',
+                                BACKEND_CHAIN_URLS:    'nsfarmserverurl'}
+
+####################################
+# 
 # Properties supported by the replica agreement
 #
+####################################
+
 RA_SCHEDULE_PROP='schedule'
 RA_TRANSPORT_PROT_PROP='transport-prot'
 RA_FRAC_EXCLUDE_PROP='fractional-exclude-attrs-inc'

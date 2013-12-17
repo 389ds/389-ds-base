@@ -32,8 +32,7 @@ DEFAULT_USER = "nobody"
 
 # Some DN constants
 DN_DM = "cn=Directory Manager"
-DN_CONFIG = "cn=config"
-DN_LDBM = "cn=ldbm database,cn=plugins,cn=config"
+
 
 CMD_PATH_SETUP_DS = "/setup-ds.pl"
 CMD_PATH_REMOVE_DS = "/remove-ds.pl"
@@ -48,6 +47,7 @@ LOCALHOST = "localhost.localdomain"
 DEFAULT_PORT        = 389
 DEFAULT_SECURE_PORT = 636
 DEFAULT_SUFFIX      = 'dc=example,dc=com'
+DEFAULT_BENAME      = 'userRoot'    # warning it is case sensitive
 DEFAULT_BACKUPDIR   = '/tmp'
 DEFAULT_INST_HEAD   = 'slapd-'
 DEFAULT_ENV_HEAD    = 'dirsrv-'
@@ -69,10 +69,14 @@ CONF_DS_ROOT       = 'DS_ROOT'
 CONF_PRODUCT_NAME  = 'PRODUCT_NAME'
 
 
+DN_CONFIG       = "cn=config"
+DN_PLUGIN       = "cn=plugins,%s"       % DN_CONFIG
+DN_MAPPING_TREE = "cn=mapping tree,%s"  % DN_CONFIG
+DN_CHANGELOG    = "cn=changelog5,%s"    % DN_CONFIG
+DN_LDBM         = "cn=ldbm database,%s" % DN_PLUGIN
+DN_CHAIN        = "cn=chaining database,%s" % DN_PLUGIN
 
-DN_MAPPING_TREE = "cn=mapping tree,cn=config"
-DN_CHAIN = "cn=chaining database,cn=plugins,cn=config"
-DN_CHANGELOG = "cn=changelog5,cn=config"
+
 
 #
 # constants

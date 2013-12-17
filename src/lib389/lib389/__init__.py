@@ -91,6 +91,11 @@ class MissingEntryError(NoSuchEntryError):
     """When just added entries are missing."""
     pass
 
+class UnwillingToPerformError(Error):
+    pass
+
+class NotImplementedError(Error):
+    pass
 
 class  DsError(Error):
     """Generic DS Error."""
@@ -293,16 +298,21 @@ class DirSrv(SimpleLDAPObject):
         from lib389.brooker import (
             Agreement,
             Replica,
-            Backend,
             Config,
             Index)
-        self.agreement = Agreement(self)
-        self.replica = Replica(self)
-        self.backend = Backend(self)
-        self.config = Config(self)
-        self.index = Index(self)
+        from lib389.mappingTree import MappingTree
+        from lib389.backend import Backend
+        from lib389.suffix import Suffix
+        
+        self.agreement   = Agreement(self)
+        self.replica     = Replica(self)
+        self.backend     = Backend(self)
+        self.config      = Config(self)
+        self.index       = Index(self)
+        self.mappingtree = MappingTree(self)
+        self.suffix      = Suffix(self)
     
-    def __init__(self, verbose=False):  
+    def __init__(self, verbose=False, timeout=10):  
         """
             This method does various initialization of DirSrv object:
             parameters:
@@ -322,9 +332,10 @@ class DirSrv(SimpleLDAPObject):
                 - open
         """
 
-        self.state = DIRSRV_STATE_INIT
+        self.state   = DIRSRV_STATE_INIT
         self.verbose = verbose
-        self.log = log
+        self.log     = log
+        self.timeout = timeout
         
         self.__wrapmethods()
         self.__add_brookers__()
@@ -403,17 +414,25 @@ class DirSrv(SimpleLDAPObject):
                 
     def list(self, all=False):
         """
-            Returns a list of files containing the environment of the created instances 
-            that are on the local file system (e.g. <prefix>/etc/dirsrv/slapd-*). 
-            If 'all' is True, it returns all the files else it returns only the 
-            environment file of the current instance. 
-            By default it is False and only returns the current instance file.
+            Returns a list dictionary. For a created instance that is on the local file system 
+            (e.g. <prefix>/etc/dirsrv/slapd-*), it exists a file describing its properties
+            (environment): <prefix>/etc/sysconfig/dirsrv-<serverid> or $HOME/.dirsrv/dirsv-<serverid>
+            A dictionary is created with the following properties:
+                CONF_SERVER_DIR
+                CONF_SERVERBIN_DIR
+                CONF_CONFIG_DIR
+                CONF_INST_DIR
+                CONF_RUN_DIR
+                CONF_DS_ROOT
+                CONF_PRODUCT_NAME
+            If all=True it builds a list of dictionary for all created instances.
+            Else (default), the list will only contain the dictionary of the calling instance
             
             @param all - True or False . default is [False]
 
-            @return list file(s) name(s)
+            @return list of dictionaries, each of them containing instance properities
 
-            @raise None
+            @raise IOError - if the file containing the properties is not foundable or readable
         """
         def test_and_set(prop, propname, variable, value):
             '''
@@ -654,7 +673,7 @@ class DirSrv(SimpleLDAPObject):
     def delete(self):
         '''
             Deletes the instance with the parameters sets in dirsrv
-            The state changes from DIRSRV_STATE_OFFLINE -> DIRSRV_STATE_ALLOCATED
+            The state changes  -> DIRSRV_STATE_ALLOCATED
         
             @param self
 
@@ -829,6 +848,12 @@ class DirSrv(SimpleLDAPObject):
     def clearBackupFS(self, backup_file=None):
         """
             Remove a backup_file or all backup up of a given instance
+            
+            @param backup_file - optional
+            
+            @return None
+            
+            @raise None
         """
         if backup_file:
             if os.path.isfile(backup_file):
@@ -852,6 +877,12 @@ class DirSrv(SimpleLDAPObject):
         """
             If it exits a backup file, it returns it
             else it returns None
+            
+            @param None
+            
+            @return file name of the first backup. None if there is no backup
+            
+            @raise None
         """
 
         backup_dir, backup_pattern = self._infoBackupFS()
@@ -875,6 +906,12 @@ class DirSrv(SimpleLDAPObject):
             self.confdir : root of the instance config (e.g. /etc/dirsrv)
             self.dbdir: directory where is stored the database (e.g. /var/lib/dirsrv/slapd-standalone/db)
             self.changelogdir: directory where is stored the changelog (e.g. /var/lib/dirsrv/slapd-master/changelogdb)
+            
+            @param None
+            
+            @return file name of the backup
+            
+            @raise none
         """
         
         # First check it if already exists a backup file
@@ -937,15 +974,22 @@ class DirSrv(SimpleLDAPObject):
 
     def restoreFS(self, backup_file):
         """
+            Restore a directory from a backup file
+            
+            @param backup_file - file name of the backup
+            
+            @return None
+            
+            @raise ValueError - if backup_file invalid file name
         """
         
         # First check the archive exists
         if backup_file is None:
             log.warning("Unable to restore the instance (missing backup)")
-            return 1
+            raise ValueError("Unable to restore the instance (missing backup)")
         if not os.path.isfile(backup_file):
             log.warning("Unable to restore the instance (%s is not a file)" % backup_file)
-            return 1
+            raise ValueError("Unable to restore the instance (%s is not a file)" % backup_file)
         
         #
         # Second do some clean up 
@@ -1076,23 +1120,6 @@ class DirSrv(SimpleLDAPObject):
             log.exception("Entry %s was added successfully, but I cannot search it" % dn)
             raise MissingEntryError("Entry %s was added successfully, but I cannot search it" % dn)
 
-    def getMTEntry(self, suffix, attrs=None):
-        """Given a suffix, return the mapping tree entry for it.  If attrs is
-        given, only fetch those attributes, otherwise, get all attributes.
-        """
-        attrs = attrs or []
-        filtr = suffixfilt(suffix)
-        try:
-            entry = self.getEntry(
-                DN_MAPPING_TREE, ldap.SCOPE_ONELEVEL, filtr, attrs)
-            return entry
-        except NoSuchEntryError:
-            raise NoSuchEntryError(
-                "Cannot find suffix in mapping tree: %r " % suffix)
-        except ldap.FILTER_ERROR, e:
-            log.error("Error searching for %r" % filtr)
-            raise e
-
     def __wrapmethods(self):
         """This wraps all methods of SimpleLDAPObject, so that we can intercept
         the methods that deal with entries.  Instead of using a raw list of tuples
@@ -1194,7 +1221,7 @@ class DirSrv(SimpleLDAPObject):
         return rc
 
     def createIndex(self, suffix, attr, verbose=False):
-        entries_backend = self.getBackendsForSuffix(suffix, ['cn'])
+        entries_backend = self.backend.list(suffix=suffix)
         cn = "index%d" % time.time()
         dn = "cn=%s,cn=index,cn=tasks,cn=config" % cn
         entry = Entry(dn)
@@ -1263,127 +1290,11 @@ class DirSrv(SimpleLDAPObject):
 
         adder = LDIFAdder(input_file, self, cont)
 
-    def getSuffixes(self):
-        """@return a list of cn suffixes"""
-        ents = self.search_s(DN_MAPPING_TREE, ldap.SCOPE_ONELEVEL)
-        sufs = []
-        for ent in ents:
-            unquoted = None
-            quoted = None
-            for val in ent.getValues('cn'):
-                if val.find('"') < 0:  # prefer the one that is not quoted
-                    unquoted = val
-                else:
-                    quoted = val
-            if unquoted:  # preferred
-                sufs.append(unquoted)
-            elif quoted:  # strip
-                sufs.append(quoted.strip('"'))
-            else:
-                raise Exception(
-                    "Error: mapping tree entry %r has no suffix" % ent.dn)
-        return sufs
-
-    def setupBackend(self, suffix, binddn=None, bindpw=None, urls=None, attrvals=None, benamebase='localdb', verbose=False):
-        """Setup a backend and return its dn. Blank on error
-        
-            NOTE This won't create a suffix nor its related entry in 
-                the tree!!!
-                
-            XXX Deprecated! @see lib389.brooker.Backend.add
-            
-        """
-        return self.backend.add(suffix=suffix, binddn=binddn, bindpw=bindpw,
-            urls=urls, attrvals=attrvals, benamebase=benamebase, 
-            setupmt=False, parent=None)
-            
-
-    def setupSuffix(self, suffix, bename, parent="", verbose=False):
-        """Setup a suffix with the given backend-name.
-
-            XXX Deprecated! @see lib389.brooker.Backend.setup_mt
-
-        """
-        return self.backend.setup_mt(suffix, bename, parent)
-        
-
-    def getBackendsForSuffix(self, suffix, attrs=None):
-        # TESTME removed try..except and raise if NoSuchEntryError
-        attrs = attrs or []
-        nsuffix = normalizeDN(suffix)
-        entries = self.search_s("cn=plugins,cn=config", ldap.SCOPE_SUBTREE,
-                                "(&(objectclass=nsBackendInstance)(|(nsslapd-suffix=%s)(nsslapd-suffix=%s)))" % (suffix, nsuffix),
-                                attrs)
-        return entries
-
-    def getSuffixForBackend(self, bename, attrs=None):
-        """Return the mapping tree entry of `bename` or None if not found"""
-        attrs = attrs or []
-        try:
-            entry = self.getEntry("cn=plugins,cn=config", ldap.SCOPE_SUBTREE,
-                                  "(&(objectclass=nsBackendInstance)(cn=%s))" % bename,
-                                  ['nsslapd-suffix'])
-            suffix = entry.getValue('nsslapd-suffix')
-            return self.getMTEntry(suffix, attrs)
-        except NoSuchEntryError:
-            log.warning("Could not find an entry for backend %r" % bename)
-            return None
-
-    def findParentSuffix(self, suffix):
-        """see if the given suffix has a parent suffix"""
-        rdns = ldap.explode_dn(suffix)
-        del rdns[0]
-
-        while len(rdns) > 0:
-            suffix = ','.join(rdns)
-            try:
-                mapent = self.getMTEntry(suffix)
-                return suffix
-            except NoSuchEntryError:
-                del rdns[0]
-
-        return ""
-
-    def addSuffix(self, suffix, binddn=None, bindpw=None, urls=None, bename=None, beattrs=None):
-        """Create and return a suffix and its backend.
-
-            @param  suffix
-            @param  urls
-            @param  bename  - name of the backed (eventually created)
-            @param  beattrs - parametes to create the backend
-            @param  binddn
-            @param  bindpw
-            Uses: setupBackend and SetupSuffix
-            Requires: adding a matching entry in the tree
-            TODO: test return values and error codes
-            
-            `beattrs`: see setupBacked
-            
-        """
-        benames = []
-        entries_backend = self.getBackendsForSuffix(suffix, ['cn'])
-        # no backends for this suffix yet - create one
-        if not entries_backend:
-            # if not bename, self.setupBackend raises
-            bename = self.setupBackend(
-                suffix, binddn, bindpw, urls, benamebase=bename, attrvals=beattrs)
-        else:  # use existing backend(s)
-            benames = [entry.cn for entry in entries_backend]
-            bename = benames.pop(0)  # do I need to modify benames
-
-        try:
-            parent = self.findParentSuffix(suffix)
-            return self.setupSuffix(suffix, bename, parent)
-        except NoSuchEntryError:
-            log.exception(
-                "Couldn't create suffix for %s %s" % (bename, suffix))
-            raise
-
     def getDBStats(self, suffix, bename=''):
         if bename:
             dn = ','.join(("cn=monitor,cn=%s" % bename, DN_LDBM))
         else:
-            entries_backend = self.getBackendsForSuffix(suffix)
+            entries_backend = self.backend.list(suffix=suffix)
             dn = "cn=monitor," + entries_backend[0].dn
         dbmondn = "cn=monitor," + DN_LDBM
         dbdbdn = "cn=database,cn=monitor," + DN_LDBM
@@ -1569,7 +1480,7 @@ class DirSrv(SimpleLDAPObject):
             the name of the attribute to index, and the types of indexes
             to create e.g. "pres", "eq", "sub"
         """
-        entries_backend = self.getBackendsForSuffix(suffix, ['cn'])
+        entries_backend = self.backend.list(suffix=suffix)
         # assume 1 local backend
         dn = "cn=%s,cn=index,%s" % (attr, entries_backend[0].dn)
         entry = Entry(dn)
@@ -1588,13 +1499,13 @@ class DirSrv(SimpleLDAPObject):
     def modIndex(self, suffix, attr, mod):
         """just a wrapper around a plain old ldap modify, but will
         find the correct index entry based on the suffix and attribute"""
-        entries_backend = self.getBackendsForSuffix(suffix, ['cn'])
+        entries_backend = self.backend.list(suffix=suffix)
         # assume 1 local backend
         dn = "cn=%s,cn=index,%s" % (attr, entries_backend[0].dn)
         self.modify_s(dn, mod)
 
     def requireIndex(self, suffix):
-        entries_backend = self.getBackendsForSuffix(suffix, ['cn'])
+        entries_backend = self.backend.list(suffix=suffix)
         # assume 1 local backend
         dn = entries_backend[0].dn
         replace = [(ldap.MOD_REPLACE, 'nsslapd-require-index', 'on')]
@@ -1660,7 +1571,7 @@ class DirSrv(SimpleLDAPObject):
 
     def enableChainOnUpdate(self, suffix, bename):
         # first, get the mapping tree entry to modify
-        mtent = self.getMTEntry(suffix, ['cn'])
+        mtent = self.mappingtree.list(suffix=suffix)
         dn = mtent.dn
 
         # next, get the path of the replication plugin
@@ -1669,10 +1580,10 @@ class DirSrv(SimpleLDAPObject):
             attrlist=['nsslapd-pluginPath'])
         path = e_plugin.getValue('nsslapd-pluginPath')
 
-        mod = [(ldap.MOD_REPLACE, 'nsslapd-state', 'backend'),
-               (ldap.MOD_ADD, 'nsslapd-backend', bename),
-               (ldap.MOD_ADD, 'nsslapd-distribution-plugin', path),
-               (ldap.MOD_ADD, 'nsslapd-distribution-funct', 'repl_chain_on_update')]
+        mod = [(ldap.MOD_REPLACE, MT_PROPNAME_TO_ATTRNAME[MT_STATE], MT_STATE_VAL_BACKEND),
+               (ldap.MOD_ADD, MT_PROPNAME_TO_ATTRNAME[MT_BACKEND], bename),
+               (ldap.MOD_ADD, MT_PROPNAME_TO_ATTRNAME[MT_CHAIN_PATH], path),
+               (ldap.MOD_ADD, MT_PROPNAME_TO_ATTRNAME[MT_CHAIN_FCT], MT_CHAIN_UPDATE_VAL_ON_UPDATE)]
 
         try:
             self.modify_s(dn, mod)
@@ -1992,7 +1903,7 @@ class DirSrv(SimpleLDAPObject):
             raise ValueError("invalid replicaId: %d for HUB/CONSUMER replicaId is CONSUMER_REPLICAID" % replicaId)
             
         # Now check we have a suffix
-        entries_backend = self.getBackendsForSuffix(suffix, ['nsslapd-suffix'])
+        entries_backend = self.backend.list(suffix=suffix)
         if not entries_backend:
             log.fatal("enableReplication: enable to retrieve the backend for %s" % suffix)
             raise ValueError("no backend for suffix %s" % suffix)
@@ -2062,8 +1973,7 @@ class DirSrv(SimpleLDAPObject):
         # TODO should I check the addSuffix output as it doesn't raise
         self.addSuffix(repArgs['suffix'])
         if 'bename' not in repArgs:
-            entries_backend = self.getBackendsForSuffix(
-                repArgs['suffix'], ['cn'])
+            entries_backend = self.backend.list(suffix=repArgs['suffix'])
             # just use first one
             repArgs['bename'] = entries_backend[0].cn
         if repArgs.get('log', False):

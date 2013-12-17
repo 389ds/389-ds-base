@@ -17,7 +17,7 @@ TEST_REPL_DN = "uid=test,%s" % DEFAULT_SUFFIX
 INSTANCE_PORT     = 54321
 INSTANCE_SERVERID = 'dirsrv'
 #INSTANCE_PREFIX   = os.environ.get('PREFIX', None)
-INSTANCE_PREFIX   = '/home/tbordaz/install'
+INSTANCE_PREFIX   = None
 INSTANCE_BACKUP   = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
 
 class Test_dirsrv():
