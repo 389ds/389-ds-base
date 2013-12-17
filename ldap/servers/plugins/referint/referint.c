@@ -122,7 +122,8 @@ static Slapi_DN* _pluginDN = NULL;
 
 static Slapi_PluginDesc pdesc = { "referint", VENDOR, DS_PACKAGE_VERSION, "referential integrity plugin" };
 static int allow_repl = 0;
-static Slapi_DN *plugin_EntryScope = NULL;
+static Slapi_DN **plugin_EntryScope = NULL;
+static Slapi_DN *plugin_ExcludeEntryScope = NULL;
 static Slapi_DN *plugin_ContainerScope = NULL;
 static void* referint_plugin_identity = NULL;
 static int use_txn = 0;
@@ -235,6 +236,7 @@ referint_postop_init( Slapi_PBlock *pb )
 
     if(plugin_entry){
         char *plugin_attr_value;
+        char **plugin_attr_values;
 
         plugin_attr_value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-pluginAllowReplUpdates");
         if(plugin_attr_value && strcasecmp(plugin_attr_value,"on")==0){
@@ -242,14 +244,32 @@ referint_postop_init( Slapi_PBlock *pb )
         }
         slapi_ch_free_string(&plugin_attr_value);
 
-        plugin_attr_value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-pluginEntryScope");
+        plugin_attr_values = slapi_entry_attr_get_charray(plugin_entry, "nsslapd-pluginEntryScope");
+        if(plugin_attr_values) {
+		int i,j=0;;
+		for (i=0; plugin_attr_values[i];i++);
+		plugin_EntryScope = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),i+1);
+		for (i=0; plugin_attr_values[i];i++) {
+            		if (slapi_dn_syntax_check(NULL, plugin_attr_values[i], 1) == 1) {
+                		slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
+                        		"Error: Ignoring invalid DN used as plugin entry scope: [%s]\n",
+                        		plugin_attr_values[i]);
+        			slapi_ch_free_string(&plugin_attr_values[i]);
+            		} else {
+                		plugin_EntryScope[j++] = slapi_sdn_new_dn_passin(plugin_attr_values[i]);
+            		}
+		}
+		slapi_ch_free((void**)&plugin_attr_values);
+        }
+        plugin_attr_value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-pluginExcludeEntryScope");
         if(plugin_attr_value) {
             if (slapi_dn_syntax_check(NULL, plugin_attr_value, 1) == 1) {
                 slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
-                        "Error: Ignoring invalid DN used as plugin entry scope: [%s]\n",
+                        "Error: Ignoring invalid DN used as plugin exclude entry scope: [%s]\n",
                         plugin_attr_value);
+        	slapi_ch_free_string(&plugin_attr_value);
             } else {
-                plugin_EntryScope = slapi_sdn_new_dn_byref(plugin_attr_value);
+                plugin_ExcludeEntryScope = slapi_sdn_new_dn_passin(plugin_attr_value);
             }
         }
 
@@ -259,8 +279,9 @@ referint_postop_init( Slapi_PBlock *pb )
                 slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM,
                         "Error: Ignoring invalid DN used as plugin container scope: [%s]\n",
                         plugin_attr_value);
+        	slapi_ch_free_string(&plugin_attr_value);
             } else {
-                plugin_ContainerScope = slapi_sdn_new_dn_byref(plugin_attr_value);
+                plugin_ContainerScope = slapi_sdn_new_dn_passin(plugin_attr_value);
             }
         }
 
@@ -590,6 +611,42 @@ referint_sdn_config_cmp(Slapi_DN *sdn)
 }
 
 int
+referint_sdn_in_container_scope(Slapi_DN *sdn)
+{
+	if (plugin_ContainerScope == NULL) {
+		return(1);
+	} else {
+		return(slapi_sdn_issuffix(sdn, plugin_ContainerScope));
+	}
+}
+
+int
+referint_sdn_in_entry_scope(Slapi_DN *sdn)
+{
+    int rc = 0;
+
+    if (plugin_ExcludeEntryScope && slapi_sdn_issuffix(sdn, plugin_ExcludeEntryScope))
+	return (0);
+
+    if (plugin_EntryScope == NULL) {
+	/* no scope defined, all sdns match */
+	return(1);
+    } else {
+	int i = 0;
+	while (plugin_EntryScope[i]) {
+		if (slapi_sdn_issuffix(sdn, plugin_EntryScope[i]) ) {
+			rc = 1;
+			break;
+		} else {
+			i++;
+		}
+	}
+    }
+
+    return (rc);
+}
+
+int
 referint_postop_del( Slapi_PBlock *pb )
 {
     Slapi_DN *sdn = NULL;
@@ -628,7 +685,7 @@ referint_postop_del( Slapi_PBlock *pb )
         rc = SLAPI_PLUGIN_SUCCESS;
     } else if(delay == 0){ /* no delay */
         /* call function to update references to entry */
-        if (plugin_EntryScope && slapi_sdn_issuffix(sdn, plugin_EntryScope)) {
+        if (referint_sdn_in_entry_scope(sdn)) {
             rc = update_integrity(sdn, NULL, NULL, logChanges);
         }
     } else {
@@ -681,20 +738,20 @@ referint_postop_modrdn( Slapi_PBlock *pb )
         rc = SLAPI_PLUGIN_SUCCESS;
     } else if(delay == 0){ /* no delay */
         /* call function to update references to entry */
-        if (!plugin_EntryScope) {
+        if (!plugin_EntryScope && !plugin_ExcludeEntryScope) {
             /* no scope defined, default always process referint */
             rc = update_integrity(sdn, newrdn, newsuperior, logChanges);
         } else {
             const char *newsuperiordn = slapi_sdn_get_dn(newsuperior);
-            if ( (newsuperiordn == NULL && slapi_sdn_issuffix(sdn, plugin_EntryScope)) ||
-                 ( newsuperiordn && slapi_sdn_issuffix(newsuperior, plugin_EntryScope)))
+            if ( (newsuperiordn == NULL && referint_sdn_in_entry_scope(sdn)) ||
+                 ( newsuperiordn && referint_sdn_in_entry_scope(newsuperior)))
             {
                 /*
                  * It is a modrdn inside the scope or into the scope,
                  * process normal modrdn
                  */
                 rc = update_integrity(sdn, newrdn, newsuperior, logChanges);
-            } else if (slapi_sdn_issuffix(sdn, plugin_EntryScope)) {
+            } else if (referint_sdn_in_entry_scope(sdn)) {
                 /* the entry is moved out of scope, treat as delete */
                 rc = update_integrity(sdn, NULL, NULL, logChanges);
 	        }
@@ -1556,9 +1613,8 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     const char *newsuperiordn = NULL;
     size_t reqdn_len = 0;
     
-	if (plugin_EntryScope && 
-		!(slapi_sdn_issuffix(sdn, plugin_EntryScope) ||
-		(newsuperior && slapi_sdn_issuffix(newsuperior, plugin_EntryScope)))) {
+	if (!(referint_sdn_in_entry_scope(sdn) ||
+		(newsuperior && referint_sdn_in_entry_scope(newsuperior)))) {
 		return;
 	}
     /*
@@ -1586,8 +1642,8 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     len_to_write = slapi_sdn_get_ndn_len(sdn) + 5;
 
     newsuperiordn = slapi_sdn_get_dn(newsuperior);
-    if (plugin_EntryScope && newsuperiordn && 
-		!slapi_sdn_issuffix(newsuperior, plugin_EntryScope)) {
+    if (newsuperiordn && 
+		!referint_sdn_in_entry_scope(newsuperior)) {
 	/* this is a modrdn which moves the entry out of scope, handle like a delete */
 	newsuperiordn = NULL;
 	newrdn = NULL;
