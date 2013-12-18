@@ -2084,13 +2084,19 @@ class DirSrv(SimpleLDAPObject):
             log.warn("User already exists: %r " % user)
 
         # setup replica
-        repArgs['rtype'], repArgs['rid'] = repArgs['type'], repArgs['id']
+        # map old style args to new style replica args
+        if repArgs['type'] == MASTER_TYPE:
+            repArgs['role'] = REPLICAROLE_MASTER
+        elif repArgs['type'] == LEAF_TYPE:
+            repArgs['role'] = REPLICAROLE_CONSUMER
+        else:
+            repArgs['role'] = REPLICAROLE_HUB
+        repArgs['rid'] = repArgs['id']
         
         # remove invalid arguments from replica.add
-        for invalid_arg in 'type id bename'.split():
-            del repArgs[invalid_arg]
-        if 'log' in repArgs:
-            del repArgs['log']
+        for invalid_arg in 'type id bename log'.split():
+            if invalid_arg in repArgs:
+                del repArgs[invalid_arg]
         
         ret = self.replica.add(**repArgs)
         if 'legacy' in repArgs:

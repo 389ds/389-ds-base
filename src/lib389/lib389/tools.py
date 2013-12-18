@@ -243,7 +243,7 @@ class DirSrvTools(object):
         return 0
 
     @staticmethod
-    def stop(self, verbose=False, timeout=0):
+    def stop(self, verbose=False, timeout=120):
         """Stop server or raise."""
         if not self.isLocal and hasattr(self, 'asport'):
             log.info("stopping remote server ", self)
@@ -260,7 +260,7 @@ class DirSrvTools(object):
             return DirSrvTools.serverCmd(self, 'stop', verbose, timeout)
 
     @staticmethod
-    def start(self, verbose=False, timeout=0):
+    def start(self, verbose=False, timeout=120):
         if not self.isLocal and hasattr(self, 'asport'):
             log.debug("starting remote server %s " % self)
             cgiargs = {}
