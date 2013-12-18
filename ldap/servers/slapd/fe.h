@@ -95,6 +95,8 @@ int handle_bad_certificate (void* clientData, PRFileDesc *prfd);
  * connection.c
  */
 void op_thread_cleanup();
+/* do this after all worker threads have terminated */
+void connection_post_shutdown_cleanup();
 
 /*
  * ntuserpin.c - Prompts for the key database passphrase.

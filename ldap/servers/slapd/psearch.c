@@ -72,7 +72,6 @@ typedef struct _ps_entry_queue_node {
 typedef struct _psearch {
     Slapi_PBlock	*ps_pblock;
     PRLock		*ps_lock;
-    PRThread		*ps_tid;
     PRInt32		ps_complete;
     PSEQNode		*ps_eq_head;
     PSEQNode		*ps_eq_tail;
@@ -188,6 +187,7 @@ void
 ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls )
 {
     PSearch	*ps;
+    PRThread		*ps_tid;
 
     if ( PS_IS_INITIALIZED() && NULL != pb ) {
 	/* Create the new node */
@@ -200,7 +200,7 @@ ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls )
 	ps_add_ps( ps );
 
 	/* Start a thread to send the results */
-	ps->ps_tid = PR_CreateThread( PR_USER_THREAD, ps_send_results,
+	ps_tid = PR_CreateThread( PR_USER_THREAD, ps_send_results,
 		(void *) ps, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 		PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE );
 
@@ -208,7 +208,7 @@ ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls )
          * if the thread is not created succesfully.... we send 
          * error messages to the Log file 
          */ 
-       if(NULL == (ps->ps_tid)){ 
+       if(NULL == ps_tid){
             int prerr;
             prerr = PR_GetError(); 
             LDAPDebug(LDAP_DEBUG_ANY,"persistent search PR_CreateThread()failed in the " 
@@ -472,7 +472,6 @@ psearch_alloc()
 	slapi_ch_free((void **)&ps);
 	return( NULL );
     }
-    ps->ps_tid = (PRThread *) NULL;
     ps->ps_complete = 0;
     ps->ps_eq_head = ps->ps_eq_tail = (PSEQNode *) NULL;
     ps->ps_lasttime = (time_t) 0L;

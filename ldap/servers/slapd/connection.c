@@ -120,6 +120,8 @@ static void
 destroy_work_q(struct Slapi_work_q **work_q)
 {
 	if (work_q && *work_q) {
+		(*work_q)->op_stack_obj = NULL;
+		(*work_q)->work_item = NULL;
 		PR_StackPush(work_q_stack, (PRStackElem *)*work_q);
 		PR_AtomicIncrement(&work_q_stack_size);
 		if (work_q_stack_size > work_q_stack_size_max) {
@@ -2730,7 +2732,8 @@ op_thread_cleanup()
 	interval = PR_SecondsToInterval(3);
 #endif	
 	LDAPDebug( LDAP_DEBUG_ANY,
-		"slapd shutting down - signaling operation threads\n", 0, 0, 0);
+		   "slapd shutting down - signaling operation threads - op stack size %d max work q size %d max work q stack size %d\n",
+		   op_stack_size, work_q_size_max, work_q_stack_size_max);
 
 	PR_AtomicIncrement(&op_shutdown);
 	PR_Lock( work_q_lock );
@@ -2747,6 +2750,41 @@ op_thread_cleanup()
 	}
 	/* don't sleep: there's no reason to do so here DS_Sleep(interval); */ /* sleep 3 seconds */
 #endif
+}
+
+/* do this after all worker threads have terminated */
+void
+connection_post_shutdown_cleanup()
+{
+	struct Slapi_op_stack *stack_obj;
+	int stack_cnt = 0;
+	struct Slapi_work_q *work_q;
+	int work_cnt = 0;
+
+	while ((work_q = (struct Slapi_work_q *)PR_StackPop(work_q_stack))) {
+		Connection *conn = (Connection *)work_q->work_item;
+		stack_obj = work_q->op_stack_obj;
+		if (stack_obj) {
+			if (conn) {
+				connection_remove_operation(conn, stack_obj->op);
+			}
+			connection_done_operation(conn, stack_obj);
+		}
+		slapi_ch_free((void **)&work_q);
+		work_cnt++;
+	}
+	PR_DestroyStack(work_q_stack);
+	work_q_stack = NULL;
+	while ((stack_obj = (struct Slapi_op_stack *)PR_StackPop(op_stack))) {
+		operation_free(&stack_obj->op, NULL);
+		slapi_ch_free((void **)&stack_obj);
+		stack_cnt++;
+	}
+	PR_DestroyStack(op_stack);
+	op_stack = NULL;
+	LDAPDebug2Args( LDAP_DEBUG_ANY,
+		   	"slapd shutting down - freed %d work q stack objects - freed %d op stack objects\n",
+		   	work_cnt, stack_cnt);
 }
 
 static void

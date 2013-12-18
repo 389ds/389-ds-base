@@ -427,7 +427,9 @@ static int retrocl_stop (Slapi_PBlock *pb)
   int rc = 0;
 
   slapi_ch_array_free(retrocl_attributes);
+  retrocl_attributes = NULL;
   slapi_ch_array_free(retrocl_aliases);
+  retrocl_aliases = NULL;
 
   retrocl_stop_trimming();  
   retrocl_be_changelog = NULL;
