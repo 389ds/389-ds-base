@@ -1353,7 +1353,8 @@ void slapd_daemon( daemon_ports_t *ports )
 	connection_table_free(the_connection_table);
 	the_connection_table= NULL;
 
-	be_cleanupall (); 
+	be_cleanupall ();
+	connection_post_shutdown_cleanup();
 	LDAPDebug( LDAP_DEBUG_TRACE, "slapd shutting down - backends closed down\n",
 			0, 0, 0 );
 	referrals_free();

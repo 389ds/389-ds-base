@@ -1190,11 +1190,6 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 					Slapi_Entry *newe;
 
 					pblock_init(&newpb);
-					/* 
-					 * config[plugin_index].e is freed up by
-					 * below function calls, but we may need
-					 * it later, so create a copy
-					 */
 					newe = slapi_entry_dup( config[plugin_index].e );
 					slapi_add_entry_internal_set_pb(&newpb, newe, NULL,
 									plugin_get_default_component_id(), plugin_actions);
@@ -1256,6 +1251,10 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 							index++;
 						}	
 					}
+				} else {
+					pblock_done(&(config[plugin_index].pb));
+					slapi_entry_free(config[plugin_index].e);
+					config[plugin_index].e = NULL;
 				}
 
 				/* decrement the type counter for this plugin type */
@@ -1375,6 +1374,8 @@ plugin_dependency_closeall()
 		    /* set plg_closed to 1 to prevent any further plugin pre/post op function calls */
 		    global_plugin_shutdown_order[index].plugin->plg_closed = 1;
 			plugins_closed++;
+			slapi_entry_free(global_plugin_shutdown_order[index].e);
+			global_plugin_shutdown_order[index].e = NULL;
 		}
 
 		index++;
@@ -1414,7 +1415,18 @@ plugin_startall(int argc, char** argv, int start_backends, int start_global)
 void 
 plugin_closeall(int close_backends, int close_globals)
 {
+	entry_and_plugin_t *iterp, *nextp;
+
 	plugin_dependency_closeall();
+	/* free the plugin dependency entry list */
+	iterp = dep_plugin_entries;
+	while (iterp) {
+		nextp = iterp->next;
+		slapi_entry_free(iterp->e);
+		slapi_ch_free((void **)&iterp);
+		iterp = nextp;
+	}
+	dep_plugin_entries = NULL;
 }
 
 

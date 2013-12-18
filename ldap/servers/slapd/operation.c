@@ -236,12 +236,15 @@ operation_done( Slapi_Operation **op, Connection *conn )
 		slapi_ch_free_string( &(*op)->o_authtype );
 		if ( (*op)->o_searchattrs != NULL ) {
 			charray_free( (*op)->o_searchattrs );
+			(*op)->o_searchattrs = NULL;
 		}
 		if ( NULL != (*op)->o_params.request_controls ) {
 			ldap_controls_free( (*op)->o_params.request_controls );
+			(*op)->o_params.request_controls = NULL;
 		}
 		if ( NULL != (*op)->o_results.result_controls ) {
 			ldap_controls_free( (*op)->o_results.result_controls );
+			(*op)->o_results.result_controls = NULL;
 		}
 		slapi_ch_free_string(&(*op)->o_results.result_matched);
 #if defined(USE_OPENLDAP)
