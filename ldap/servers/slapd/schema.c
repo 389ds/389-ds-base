@@ -1420,7 +1420,11 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 		if (asip->asi_flags & SLAPI_ATTR_FLAG_NOUSERMOD ) {
 			outp += strcpy_count( outp, 1 + schema_nousermod_with_spaces );
 		}
-		if (asip->asi_flags & SLAPI_ATTR_FLAG_OPATTR) {
+		if (asip->asi_flags & SLAPI_ATTR_FLAG_DISTRIBUTED_OPERATION) {
+			outp += strcpy_count(outp, "USAGE distributedOperation ");
+		} else if (asip->asi_flags & SLAPI_ATTR_FLAG_DSA_OPERATION) {
+			outp += strcpy_count(outp, "USAGE dSAOperation ");
+		} else if (asip->asi_flags & SLAPI_ATTR_FLAG_OPATTR) {
 			outp += strcpy_count(outp, "USAGE directoryOperation ");
 		}
 
@@ -3551,6 +3555,14 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
                     strlen("directoryOperation"))) {
                 flags |= SLAPI_ATTR_FLAG_OPATTR;
             }
+            if ( !PL_strncmp(ss, "distributedOperation",
+                    strlen("distributedOperation"))) {
+                flags |= SLAPI_ATTR_FLAG_OPATTR|SLAPI_ATTR_FLAG_DISTRIBUTED_OPERATION;
+            }
+            if ( !PL_strncmp(ss, "dSAOperation",
+                    strlen("dSAOperation"))) {
+                flags |= SLAPI_ATTR_FLAG_OPATTR|SLAPI_ATTR_FLAG_DSA_OPERATION;
+            }
             if ( NULL == ( nextinput = strchr( ss, ' ' ))) {
                 nextinput = ss + strlen(ss);
             }
@@ -3884,6 +3896,12 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     }
     if(atype->at_usage == LDAP_SCHEMA_DIRECTORY_OPERATION){
         flags |= SLAPI_ATTR_FLAG_OPATTR;
+    }
+    if(atype->at_usage == LDAP_SCHEMA_DISTRIBUTED_OPERATION){
+        flags |= SLAPI_ATTR_FLAG_OPATTR|SLAPI_ATTR_FLAG_DISTRIBUTED_OPERATION;
+    }
+    if(atype->at_usage == LDAP_SCHEMA_DSA_OPERATION){
+        flags |= SLAPI_ATTR_FLAG_OPATTR|SLAPI_ATTR_FLAG_DSA_OPERATION;
     }
     /*
      * Check the superior, and use it fill in any missing oids on this attribute
