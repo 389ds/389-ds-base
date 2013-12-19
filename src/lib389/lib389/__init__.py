@@ -207,12 +207,16 @@ class DirSrv(SimpleLDAPObject):
                 self.errlog    = ent.getValue('nsslapd-errorlog')
                 self.accesslog = ent.getValue('nsslapd-accesslog')
                 self.confdir   = ent.getValue('nsslapd-certdir')
-                
+                self.schemadir = ent.getValue('nsslapd-schemadir')
+
                 if self.isLocal:
                     if not self.confdir or not os.access(self.confdir + '/dse.ldif', os.R_OK):
                         self.confdir = ent.getValue('nsslapd-schemadir')
                         if self.confdir:
                             self.confdir = os.path.dirname(self.confdir)
+                if not self.schemadir:
+                    # assume it is in the "schema" subdir of the confdir
+                    self.schemadir = os.path.join(self.confdir, "schema")
                 instdir = ent.getValue('nsslapd-instancedir')
                 if not instdir and self.isLocal:
                     # get instance name from errorlog
@@ -314,6 +318,7 @@ class DirSrv(SimpleLDAPObject):
         from lib389.replica     import Replica
         from lib389.changelog   import Changelog
         from lib389.agreement   import Agreement
+        from lib389.schema      import Schema
         
         self.agreement   = Agreement(self)
         self.replica     = Replica(self)
@@ -323,6 +328,7 @@ class DirSrv(SimpleLDAPObject):
         self.index       = Index(self)
         self.mappingtree = MappingTree(self)
         self.suffix      = Suffix(self)
+        self.schema      = Schema(self)
     
     def __init__(self, verbose=False, timeout=10):  
         """
@@ -1532,25 +1538,6 @@ class DirSrv(SimpleLDAPObject):
         dn = entries_backend[0].dn
         replace = [(ldap.MOD_REPLACE, 'nsslapd-require-index', 'on')]
         self.modify_s(dn, replace)
-
-    def addSchema(self, attr, val):
-        dn = "cn=schema"
-        self.modify_s(dn, [(ldap.MOD_ADD, attr, val)])
-        
-    def delSchema(self, attr, val):
-        dn = "cn=schema"
-        self.modify_s(dn, [(ldap.MOD_DELETE, attr, val)])
-
-    def addAttr(self, *attributes):
-        return self.addSchema('attributeTypes', attributes)
-
-    def addObjClass(self, *objectclasses):
-        return self.addSchema('objectClasses', objectclasses)
-    
-    def getSchemaCSN(self):
-        ents = self.search_s("cn=schema", ldap.SCOPE_BASE, "objectclass=*", ['nsSchemaCSN'])
-        ent = ents[0]
-        return ent.getValue('nsSchemaCSN')
 
     def setupChainingIntermediate(self):
         confdn = ','.join(("cn=config", DN_CHAIN))

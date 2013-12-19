@@ -11,6 +11,7 @@ import ldap
 import os
 import re
 import time
+import glob
 
 
 from lib389._constants import *
