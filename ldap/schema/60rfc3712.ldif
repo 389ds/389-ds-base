@@ -420,14 +420,7 @@ attributeTypes: (
   )
 #
 ################################################################################
-#
-objectClasses: (
-  
-  NAME 'printer-uri'
-  DESC 'A URI supported by this printer.'
-  X-ORIGIN 'rfc3712'
-  )
-#
+# objectClass slpServicePrinter not currently supported
 ################################################################################
 #
 objectClasses: (
