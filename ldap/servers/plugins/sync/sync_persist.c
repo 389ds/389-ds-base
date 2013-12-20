@@ -351,7 +351,8 @@ sync_persist_terminate (PRThread *tid)
 	  	cur = sync_request_list->sync_req_head;
 	  	while ( NULL != cur ) {
 			if ( cur->req_tid == tid ) {
-				cur->req_active = PR_TRUE;
+				cur->req_active = PR_FALSE;
+				cur->req_complete = PR_TRUE;
 				rc = 0;
 				break;
 			}

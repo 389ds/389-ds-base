@@ -115,7 +115,7 @@ int sync_is_active (Slapi_Entry *e, Slapi_PBlock *pb);
 int sync_is_active_scope (const Slapi_DN *dn, Slapi_PBlock *pb);
 
 int sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_Cookie *session_cookie);
-int sync_refresh_initial_content(Slapi_PBlock *pb, int persist, Sync_Cookie *session_cookie);
+int sync_refresh_initial_content(Slapi_PBlock *pb, int persist, PRThread *tid, Sync_Cookie *session_cookie);
 int sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data);
 int sync_send_entry_from_changelog( Slapi_PBlock *pb, int chg_req, char *uniqueid);
 void sync_send_deleted_entries (Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *session_cookie);
@@ -190,7 +190,8 @@ typedef struct sync_request_list {
 #define SYNC_FLAG_SEND_INTERMEDIATE	0x08
 
 typedef struct sync_op_info {
-	int send_flag; /* hint for preop plugins what to send */
-	Sync_Cookie *cookie; /* cookie to add in control */
+	int send_flag;		/* hint for preop plugins what to send */
+	Sync_Cookie	*cookie;/* cookie to add in control */
+	PRThread	*tid;	/* thread for persistent phase */
 } SyncOpInfo;
 
