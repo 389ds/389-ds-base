@@ -571,12 +571,15 @@ class DirSrv(SimpleLDAPObject):
             # privconfig_head and sysconfig_head
             
             # first check the private repository
-            pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
-            found = search_dir(instances, pattern, self.serverid)
-            if found:
-                assert len(instances) == 1
+            if privconfig_head:
+                pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
+                found = search_dir(instances, pattern, self.serverid)
+                if found:
+                    assert len(instances) == 1
+                else:
+                    assert len(instances) == 0
             else:
-                assert len(instances) == 0
+                found = False
                     
             # second, if not already found, search the system repository
             if not found:
@@ -585,8 +588,9 @@ class DirSrv(SimpleLDAPObject):
             
         else:
             # all instances must be retrieved
-            pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
-            search_dir(instances, pattern)
+            if privconfig_head:
+                pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
+                search_dir(instances, pattern)
             
             pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
             search_dir(instances, pattern)
