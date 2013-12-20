@@ -19,6 +19,7 @@ except ImportError:
 
 import sys
 import os
+import stat
 import pwd
 import os.path
 import base64
@@ -921,11 +922,16 @@ class DirSrv(SimpleLDAPObject):
         # First check it if already exists a backup file
         backup_dir, backup_pattern = self._infoBackupFS()
         backup_file = self.checkBackupFS()
-        if backup_file is None:
-            if not os.path.exists(backup_dir):
+        if not os.path.exists(backup_dir):
                 os.makedirs(backup_dir)
-        else:
+        # make the backup directory accessible for anybody so that any user can run
+        # the tests even if it existed a backup created by somebody else
+        os.chmod(backup_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        
+        if backup_file :
             return backup_file
+        
+        
                 
         # goes under the directory where the DS is deployed
         listFilesToBackup = []
