@@ -36,6 +36,9 @@ def test_finalizer():
         instance.allocate(args_instance)
         if instance.exists():
             instance.delete()
+            
+        # remove any existing backup for this instance
+        instance.clearBackupFS()
         
 def run_isolated():
     '''
