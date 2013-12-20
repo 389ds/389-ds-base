@@ -681,7 +681,8 @@ class Replica(object):
 
         # create replica entry in mapping-tree
         nsuffix = normalizeDN(suffix)
-        mtent = self.conn.mappingtree.list(suffix=suffix)
+        mtents = self.conn.mappingtree.list(suffix=suffix)
+        mtent = mtents[0]
         dn_replica = ','.join(("cn=replica", mtent.dn))
         try:
             entry = self.conn.getEntry(dn_replica, ldap.SCOPE_BASE)
