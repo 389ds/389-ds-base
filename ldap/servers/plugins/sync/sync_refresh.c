@@ -37,7 +37,7 @@
 
 #include "sync.h"
 
-static SyncOpInfo *new_SyncOpInfo(int flag, Sync_Cookie *cookie);
+static SyncOpInfo *new_SyncOpInfo(int flag, PRThread *tid, Sync_Cookie *cookie);
 
 static int sync_extension_type;
 static int sync_extension_handle;
@@ -157,7 +157,7 @@ int sync_srch_refresh_pre_search(Slapi_PBlock *pb)
 					sync_result_err(pb,rc, "Invalid session cookie");
 				}
 			} else {
-				rc = sync_refresh_initial_content (pb, sync_persist, session_cookie);
+				rc = sync_refresh_initial_content (pb, sync_persist,  tid, session_cookie);
 				if (rc == 0 && !sync_persist)
 					/* maintained in postop code */
 					session_cookie = NULL;
@@ -172,8 +172,9 @@ int sync_srch_refresh_pre_search(Slapi_PBlock *pb)
 				Slapi_Operation *operation;
 
 				slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
-				rc = sync_persist_startup(tid, session_cookie);
-				
+				if (client_cookie) {
+					rc = sync_persist_startup(tid, session_cookie);
+				}
 				if (rc == 0) {
 					session_cookie = NULL; /* maintained in persist code */
 					slapi_operation_set_flag(operation, OP_FLAG_SYNC_PERSIST);
@@ -216,6 +217,8 @@ int sync_srch_refresh_post_search(Slapi_PBlock *pb)
 		 * depending on the operation type, reset flag
 		 */
 		info->send_flag &= ~SYNC_FLAG_ADD_STATE_CTRL;
+		/* activate the persistent phase thread*/
+		sync_persist_startup(info->tid, info->cookie);
 	}
 	if (info->send_flag & SYNC_FLAG_ADD_DONE_CTRL) {
 		LDAPControl **ctrl = (LDAPControl **)slapi_ch_calloc(2, sizeof (LDAPControl *));
@@ -320,7 +323,7 @@ sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_C
 }
 
 int
-sync_refresh_initial_content(Slapi_PBlock *pb, int sync_persist, Sync_Cookie *sc)
+sync_refresh_initial_content(Slapi_PBlock *pb, int sync_persist, PRThread *tid, Sync_Cookie *sc)
 {
 	/* the entries will be sent in the normal search process, but
 	 * - a control has to be sent with each entry
@@ -341,11 +344,13 @@ sync_refresh_initial_content(Slapi_PBlock *pb, int sync_persist, Sync_Cookie *sc
 			(SYNC_FLAG_ADD_STATE_CTRL |
 				SYNC_FLAG_SEND_INTERMEDIATE |
 				SYNC_FLAG_NO_RESULT,
+				tid,
 				sc);
 	} else {
 		info = new_SyncOpInfo
 			(SYNC_FLAG_ADD_STATE_CTRL |
 				SYNC_FLAG_ADD_DONE_CTRL,
+				tid,
 				sc);
 	}
 	sync_set_operation_extension(pb, info);
@@ -672,10 +677,11 @@ sync_send_entry_from_changelog(Slapi_PBlock *pb,int chg_req, char *uniqueid)
 }
 
 static SyncOpInfo*
-new_SyncOpInfo(int flag, Sync_Cookie *cookie) {
+new_SyncOpInfo(int flag, PRThread *tid, Sync_Cookie *cookie) {
     SyncOpInfo *spec = (SyncOpInfo *)slapi_ch_calloc(1, sizeof(SyncOpInfo));
     spec->send_flag = flag;
     spec->cookie = cookie;
+    spec->tid = tid;
 
     return spec;
 }
