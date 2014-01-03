@@ -241,8 +241,6 @@ static int retrocl_select_backend(void)
     err = slapi_mapping_tree_select(pb,&be,&referral,errbuf);
 	slapi_entry_free(referral);
 
-    operation_free(&op,NULL);
-
     if (err != LDAP_SUCCESS || be == NULL || be == defbackend_get_backend()) {
         LDAPDebug2Args(LDAP_DEBUG_TRACE,"Mapping tree select failed (%d) %s.\n",
 		  err,errbuf);
@@ -259,6 +257,7 @@ static int retrocl_select_backend(void)
     }
 
     retrocl_create_cle();
+    slapi_pblock_destroy(pb);
 
     return retrocl_get_changenumbers();
 }

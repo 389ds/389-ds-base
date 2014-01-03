@@ -55,6 +55,7 @@ extern int acl_InitScanner(NSErr_t *errp, char *filename, char *buffer);
 extern int acl_EndScanner(void);
 extern void aclerror(const char *s); 
 extern int acllex(void); 
+extern void acl_free_buffer(void);
 
 NSPR_END_EXTERN_C
 

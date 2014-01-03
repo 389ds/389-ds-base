@@ -160,7 +160,7 @@ aclext_alloc_lockarray ( )
 	extLockArray.lockArray = 
 			(PRLock **) slapi_ch_calloc ( ACLEXT_MAX_LOCKS, sizeof ( PRLock *) );
 
-	for ( i =0; i < ACLEXT_MAX_LOCKS; i++) {
+	for ( i = 0; i < ACLEXT_MAX_LOCKS; i++) {
 		if (NULL == (lock = PR_NewLock()) ) {
 			slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
 			   "Unable to allocate locks used for private extension\n");
@@ -171,7 +171,28 @@ aclext_alloc_lockarray ( )
 	extLockArray.numlocks = ACLEXT_MAX_LOCKS;
 	return 0;
 }
+
+/*
+ * Not in use! The connection table still has references to these locks.
+ * We need to free these after freeing the connection table in daemon.c
+ */
+void
+aclext_free_lockarray()
+{
+	int i = 0;
+
+	for ( i = 0; i < ACLEXT_MAX_LOCKS; i++) {
+	    if(extLockArray.lockArray[i]){
+	         PR_DestroyLock(extLockArray.lockArray[i]);
+	         extLockArray.lockArray[i] = NULL;
+	    }
+	}
+
+	slapi_ch_free((void **)&extLockArray.lockArray);
+}
+
 static PRUint32 slot_id =0;
+
 static PRLock *
 aclext_get_lock ()
 {
@@ -188,7 +209,6 @@ void *
 acl_conn_ext_constructor ( void *object, void *parent )
 {
 	struct acl_cblock *ext = NULL;
-
 	ext = (struct acl_cblock * ) slapi_ch_calloc (1, sizeof (struct acl_cblock ) );
 	if (( ext->aclcb_lock = aclext_get_lock () ) == NULL ) {
  		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
@@ -215,14 +235,14 @@ acl_conn_ext_destructor ( void *ext, void *object, void *parent )
 	PRLock				*shared_lock;
 
 	if ( NULL == aclcb )  return;
-	PR_Lock ( aclcb->aclcb_lock );
+
+    PR_Lock ( aclcb->aclcb_lock );
 	shared_lock = aclcb->aclcb_lock;
 	acl_clean_aclEval_context ( &aclcb->aclcb_eval_context, 0 /* clean*/ );
 	slapi_sdn_free ( &aclcb->aclcb_sdn );
 	slapi_ch_free ( (void **)&(aclcb->aclcb_eval_context.acle_handles_matched_target));
 	aclcb->aclcb_lock = NULL;
 	slapi_ch_free ( (void **) &aclcb );
-
 	PR_Unlock ( shared_lock );
 }
 
@@ -528,6 +548,7 @@ acl_destroy_aclpb_pool ()
         acl__free_aclpb(&currentPbBlock);
         currentPbBlock = nextPbBlock;
     }
+    PR_DestroyLock(aclQueue->aclq_lock);
 
     slapi_ch_free((void**)&aclQueue);
 }
@@ -698,7 +719,7 @@ acl__malloc_aclpb ( )
 
 	/* allocate the array for bases */
 	aclpb->aclpb_grpsearchbase = (char **)
-				slapi_ch_malloc (ACLPB_INCR_BASES * sizeof(char *));
+				slapi_ch_calloc (ACLPB_INCR_BASES, sizeof(char *));
 	aclpb->aclpb_grpsearchbase_size = ACLPB_INCR_BASES;
 	aclpb->aclpb_numof_bases = 0;
 
@@ -769,6 +790,19 @@ acl__free_aclpb ( Acl_PBlock **aclpb_ptr)
            &(aclpb->aclpb_prev_entryEval_context.acle_handles_matched_target));
     slapi_ch_free((void**)
            &(aclpb->aclpb_prev_opEval_context.acle_handles_matched_target));
+    slapi_sdn_free(&aclpb->aclpb_authorization_sdn);
+    slapi_sdn_free(&aclpb->aclpb_curr_entry_sdn);
+    if(aclpb->aclpb_macro_ht){
+        acl_ht_free_all_entries_and_values(aclpb->aclpb_macro_ht);
+        PR_HashTableDestroy(aclpb->aclpb_macro_ht);
+        aclpb->aclpb_macro_ht = NULL;
+    }
+    slapi_ch_free((void**)&(aclpb->aclpb_allow_handles));
+    slapi_ch_free((void**)&(aclpb->aclpb_deny_handles));
+    acllist_free_aciContainer(&aclpb->aclpb_aclContainer);
+    slapi_ch_free((void**)&(aclpb->aclpb_aclContainer));
+    slapi_ch_free_string(&aclpb->aclpb_Evalattr);
+    slapi_ch_array_free(aclpb->aclpb_grpsearchbase);
 
     slapi_ch_free((void**)aclpb_ptr);
 }

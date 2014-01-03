@@ -255,6 +255,15 @@ schema_dse_mandatory_init( void )
 	return PR_SUCCESS;
 }
 
+void
+schema_destroy_dse_lock()
+{
+	if(schema_dse_lock){
+	    slapi_destroy_rwlock(schema_dse_lock);
+	    schema_dse_lock = NULL;
+	}
+}
+
 
 static void
 schema_dse_lock_read( void )

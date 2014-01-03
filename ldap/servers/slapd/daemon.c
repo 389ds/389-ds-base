@@ -1358,6 +1358,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	LDAPDebug( LDAP_DEBUG_TRACE, "slapd shutting down - backends closed down\n",
 			0, 0, 0 );
 	referrals_free();
+	schema_destroy_dse_lock();
 
 	/* tell the time thread to shutdown and then wait for it */
 	time_shutdown = 1;

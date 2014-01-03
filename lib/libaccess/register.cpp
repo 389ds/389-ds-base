@@ -117,9 +117,10 @@ ACL_LasHashInit()
     ACLAttrGetterHash = PR_NewHashTable(256,
 				     PR_HashCaseString,
 				     PR_CompareCaseStrings,
-				     PR_CompareValues,
-				     &ACLPermAllocOps,
+				     PL_CompareValues,
+				     NULL,
 				     NULL);
+
     PR_ASSERT(ACLDbTypeHash);
 
     ACLDbNameHash = PR_NewHashTable(0, 
@@ -152,7 +153,46 @@ ACL_LasHashDestroy()
         PR_HashTableDestroy(ACLLasFlushHash);
         ACLLasFlushHash=NULL;
     }
+    if(ACLUserLdbHash){
+        PR_HashTableDestroy(ACLUserLdbHash);
+        ACLUserLdbHash=NULL;
+    }
+    if(ACLDbTypeHash){
+        PR_HashTableDestroy(ACLDbTypeHash);
+   	    ACLDbTypeHash=NULL;
+    }
 }
+
+static PRIntn
+ACL_GetterHashFree(PLHashEntry *he, PRIntn index, void *arg)
+{
+    ACLAttrGetter_t *getter = (ACLAttrGetter_t *)he->value;
+    if(getter){
+        FREE(getter);
+        getter = NULL;
+    }
+    return HT_ENUMERATE_REMOVE;
+}
+
+void
+ACL_AttrGetterHashDestroy()
+{
+    if (ACLAttrGetterHash) {
+        PL_HashTableEnumerateEntries(ACLAttrGetterHash, ACL_GetterHashFree, NULL);
+        PR_HashTableDestroy(ACLAttrGetterHash);
+        ACLAttrGetterHash=NULL;
+    }
+}
+
+void
+ACL_MethodHashDestroy()
+{
+    if (ACLMethodHash) {
+        PR_HashTableDestroy(ACLMethodHash);
+        ACLMethodHash=NULL;
+    }
+}
+
 
 /*  ACL_LasRegister
  *  INPUT
@@ -774,7 +814,6 @@ ACL_AttrGetterRegister(NSErr_t *errp, const char *attr, ACLAttrGetterFn_t fn,
     if (position != ACL_AT_FRONT  &&  position != ACL_AT_END) {
 	return -1;
     }
-
     ACL_CritEnter();
     
     hep = PR_HashTableRawLookup(ACLAttrGetterHash, PR_HashCaseString(attr), attr);
@@ -799,13 +838,11 @@ ACL_AttrGetterRegister(NSErr_t *errp, const char *attr, ACLAttrGetterFn_t fn,
         }
     }
     else {
-
         ACLAttrGetter_t *head = (ACLAttrGetter_t *)((*hep)->value);
 
         PR_INSERT_BEFORE(&getter->list, &head->list);
 
         if (position == ACL_AT_FRONT) {
-
             /* Set new head of list */
             (*hep)->value = (void *)getter;
         }

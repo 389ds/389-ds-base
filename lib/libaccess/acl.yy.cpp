@@ -1571,6 +1571,11 @@ ACL_BUFFER_STATE b;
 	ACL_FLEX_FREE( (void *) b );
 	}
 
+void
+acl_free_buffer(void)
+{
+	acl_delete_buffer(acl_current_buffer);
+}
 
 #ifndef ACL_ALWAYS_INTERACTIVE
 #ifndef ACL_NEVER_INTERACTIVE

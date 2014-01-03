@@ -1767,3 +1767,12 @@ ACL_Attr2Index(const char *attrname)
     }
     return index;
 }
+
+void
+ACL_Attr2IndexListDestroy(void)
+{
+	PListDestroy(ACLAttr2IndexPList);
+	if(acl_parse_crit)
+		crit_terminate(acl_parse_crit);
+	acl_free_buffer();
+}

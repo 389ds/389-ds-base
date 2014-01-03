@@ -2928,6 +2928,10 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         charray_free(priv->dblayer_data_directories);
         priv->dblayer_data_directories = NULL;
     }
+    if(dbmode == DBLAYER_NORMAL_MODE){
+        slapi_ch_free_string(&priv->dblayer_home_directory);
+    }
+
     return return_value;
 }
 
@@ -2954,11 +2958,13 @@ int dblayer_close(struct ldbminfo *li, int dbmode)
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
+        vlv_close(inst);
         be = inst->inst_be;
         if (NULL != be->be_instance_info) {
             return_value |= dblayer_instance_close(be);
         }
     }
+    LDAPDebug1Arg(LDAP_DEBUG_ANY,"MARK dbmode %d\n",dbmode);
 
     if (return_value != 0) {
         /* force recovery next startup if any close failed */

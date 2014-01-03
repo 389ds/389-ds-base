@@ -238,11 +238,11 @@ void
 ACL_UriHashDestroy(void)
 {
     if (acl_uri_hash) {
-	PR_HashTableDestroy(acl_uri_hash);
+        PR_HashTableDestroy(acl_uri_hash);
         acl_uri_hash = NULL;
     }
     if (acl_uri_get_hash) {
-	PR_HashTableDestroy(acl_uri_get_hash);
+        PR_HashTableDestroy(acl_uri_get_hash);
         acl_uri_get_hash = NULL;
     }
     pool_destroy((void **)acl_uri_hash_pool);
@@ -250,12 +250,30 @@ ACL_UriHashDestroy(void)
 
 }
 
-void
+NSAPI_PUBLIC void
 ACL_Destroy(void)
 {
     ACL_ListHashDestroy();
     ACL_UriHashDestroy();
     ACL_LasHashDestroy();
+}
+
+NSAPI_PUBLIC void
+ACL_DestroyPools(void)
+{
+	pool_destroy(ACL_DATABASE_POOL);
+	ACLGlobal->databasepool = NULL;
+	pool_destroy(ACL_METHOD_POOL);
+	ACLGlobal->methodpool = NULL;
+	PERM_FREE(ACLGlobal);
+	ACLGlobal = NULL;
+	PERM_FREE(oldACLGlobal);
+	oldACLGlobal = NULL;
+	ACL_Attr2IndexListDestroy();
+	if(acl_hash_crit)
+		crit_terminate(acl_hash_crit);
+	acl_hash_crit = NULL;
+	pool_terminate();
 }
 
 /* 	Only used in ASSERT statements to verify that we have the lock 	 */

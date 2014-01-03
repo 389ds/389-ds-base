@@ -69,9 +69,6 @@ static Slapi_RWLock *anom_rwlock = NULL;
 #define ANOM_LOCK_WRITE()    slapi_rwlock_wrlock  (anom_rwlock )
 #define ANOM_UNLOCK_WRITE()  slapi_rwlock_unlock (anom_rwlock )
 
-
-static void 	__aclanom__del_profile ();
-
 /*
  * aclanom_init ();
  *	Generate a profile for the anonymous user.  We can use this profile
@@ -142,7 +139,7 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 	}
 
 	/* D0 we have one already. If we do, then clean it up */
-	__aclanom__del_profile();
+	aclanom__del_profile(0);
 
 	/* We have a new signature now */
 	a_profile->anom_signature =  acl_get_aclsignature();
@@ -268,7 +265,7 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 				/* Do'nt want to support these kind now */
 				destattrArray[i] = NULL;
 				/* clean up before leaving */
-				__aclanom__del_profile ();
+				aclanom__del_profile (0);
 				slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
 					"CANCELLING ANOM USER PROFILE 3\n");
 				goto cleanup;
@@ -297,7 +294,7 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 	return;
 
 cleanup:
-	__aclanom__del_profile ();
+	aclanom__del_profile (0);
 	ANOM_UNLOCK_WRITE ();
 	if ( lock_flag == DO_TAKE_ACLCACHE_READLOCK ) {
 		acllist_acicache_READ_UNLOCK();
@@ -324,8 +321,8 @@ aclanom_invalidateProfile ()
  *	ASSUMPTION: A WRITE LOCK HAS BEEN OBTAINED
  *
  */
-static void
-__aclanom__del_profile (void)
+void
+aclanom__del_profile (int closing)
 {
 	int						i;
 	struct	anom_profile	*a_profile;
@@ -359,6 +356,12 @@ __aclanom__del_profile (void)
         a_profile->anom_targetinfo[i].anom_access = 0;
 	}
 	a_profile->anom_numacls = 0;
+
+	if(closing){
+		slapi_destroy_rwlock(anom_rwlock);
+		anom_rwlock = NULL;
+		slapi_ch_free((void **)&acl_anom_profile);
+	}
 
 	/* Don't clean the signatue */
 }

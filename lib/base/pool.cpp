@@ -60,13 +60,13 @@
 #include "netsite.h"
 #include "base/systems.h"
 #include "base/systhr.h"
+#include <plhash.h>
 
 #ifdef MALLOC_POOLS
 #include "base/pool.h"
 #include "base/ereport.h"
 #include "base/util.h"
 #include "base/crit.h"
-
 #include "base/dbtbase.h"
 
 #ifdef DEBUG
@@ -130,7 +130,7 @@ static unsigned long pool_blocks_freed = 0;
 static CRITICAL freelist_lock = NULL;
 static block_t	*freelist = NULL;
 static unsigned long	freelist_size = 0;
-static unsigned long	freelist_max = MAX_FREELIST_SIZE;
+//static unsigned long	freelist_max = MAX_FREELIST_SIZE;
 static int pool_disable = 0;
 
 int 
@@ -195,33 +195,22 @@ _create_block(int size)
 static void 
 _free_block(block_t *block)
 {
-
 #ifdef POOL_ZERO_DEBUG
 	memset(block->data, 0xa, block->end-block->data);
 #endif /* POOL_ZERO_DEBUG */
 
-	if ((unsigned long)(freelist_size + block->end - block->data) > freelist_max) {
-		/* Just have to delete the whole block! */
+	/* Just have to delete the whole block! */
+	crit_enter(freelist_lock);
+			pool_blocks_freed++;
+	crit_exit(freelist_lock);
 
-		crit_enter(freelist_lock);
-                pool_blocks_freed++;
-		crit_exit(freelist_lock);
-
-		PERM_FREE(block->data);
+	PERM_FREE(block->data);
 #ifdef POOL_ZERO_DEBUG
-		memset(block, 0xa, sizeof(block_t));
+	memset(block, 0xa, sizeof(block_t));
 #endif /* POOL_ZERO_DEBUG */
 
-		PERM_FREE(block);
-		return;
-	}
-	crit_enter(freelist_lock);
-	freelist_size += (block->end - block->data);
-	block->start = block->data;
-
-	block->next = freelist;
-	freelist = block;
-	crit_exit(freelist_lock);
+	PERM_FREE(block);
+	return;
 }
 
 /* ptr_in_pool()
@@ -311,8 +300,9 @@ pool_destroy(pool_handle_t *pool_handle)
 	crit_enter(pool->lock);
 #endif
 
-	if (pool->curr_block)
+	if (pool->curr_block){
 		_free_block(pool->curr_block);
+	}
 
 	while(pool->used_blocks) {
 		tmp_blk = pool->used_blocks;
@@ -332,7 +322,6 @@ pool_destroy(pool_handle_t *pool_handle)
 			known_pools = search->next;
 	
 	}
-
 #ifdef POOL_LOCKING
 	crit_exit(pool->lock);
 	crit_terminate(pool->lock);
@@ -348,6 +337,15 @@ pool_destroy(pool_handle_t *pool_handle)
 	return;
 }
 
+
+NSAPI_PUBLIC void
+pool_terminate(void)
+{
+	crit_terminate(known_pools_lock);
+	crit_terminate(freelist_lock);
+	known_pools_lock = NULL;
+	freelist_lock = NULL;
+}
 
 NSAPI_PUBLIC void *
 pool_malloc(pool_handle_t *pool_handle, size_t size)

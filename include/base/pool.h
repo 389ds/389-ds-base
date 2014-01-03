@@ -80,6 +80,7 @@ NSAPI_PUBLIC int INTpool_service_debug(pblock *pb, Session *sn, Request *rq);
 #endif
 
 NSAPI_PUBLIC pool_handle_t *INTpool_create(void);
+NSAPI_PUBLIC void INTpool_terminate(void);
 
 NSAPI_PUBLIC void INTpool_destroy(pool_handle_t *pool_handle);
 
@@ -89,8 +90,7 @@ NSAPI_PUBLIC void *INTpool_malloc(pool_handle_t *pool_handle, size_t size );
 
 NSAPI_PUBLIC void INTpool_free(pool_handle_t *pool_handle, void *ptr );
 
-NSAPI_PUBLIC 
-void *INTpool_calloc(pool_handle_t *pool_handle, size_t nelem, size_t elsize);
+NSAPI_PUBLIC void *INTpool_calloc(pool_handle_t *pool_handle, size_t nelem, size_t elsize);
 
 NSAPI_PUBLIC 
 void *INTpool_realloc(pool_handle_t *pool_handle, void *ptr, size_t size );
@@ -105,6 +105,7 @@ NSPR_END_EXTERN_C
 #endif /* DEBUG_CACHES */
 
 #define pool_create INTpool_create
+#define pool_terminate INTpool_terminate
 #define pool_destroy INTpool_destroy
 #define pool_enabled INTpool_enabled
 #define pool_malloc INTpool_malloc

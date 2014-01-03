@@ -93,7 +93,6 @@ static int				curAciIndex = 1;
 static int		__acllist_add_aci ( aci_t *aci );
 static int		__acllist_aciContainer_node_cmp ( caddr_t d1, caddr_t d2 );
 static int		__acllist_aciContainer_node_dup ( caddr_t d1, caddr_t d2 );
-static void 	__acllist_free_aciContainer (  AciContainer **container);
 
 void my_print( Avlnode	*root );
 
@@ -113,6 +112,16 @@ acllist_init ()
 	currContainerIndex = 0;
 
 	return 0;
+}
+
+void
+acllist_free()
+{
+   if(aci_rwlock){
+       slapi_destroy_rwlock(aci_rwlock);
+       aci_rwlock = NULL;
+   }
+   slapi_ch_free((void **)&aciContainerArray);
 }
 
 /*
@@ -281,7 +290,7 @@ __acllist_add_aci ( aci_t *aci )
 
 		/* now free the tmp container */
 		aciListHead->acic_list = NULL;
-		__acllist_free_aciContainer ( &aciListHead );
+		acllist_free_aciContainer ( &aciListHead );
 
 		break;
 	default:
@@ -344,7 +353,6 @@ __acllist_aciContainer_node_dup ( caddr_t d1, caddr_t d2 )
 
 }
 
-
 /*
  * Remove the ACL
  *
@@ -379,7 +387,7 @@ acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr )
 										(IFP) __acllist_aciContainer_node_cmp ))) {
 		/* In that case we don't have any acl for this entry. cool !!! */
 
-		__acllist_free_aciContainer ( &aciListHead );
+		acllist_free_aciContainer ( &aciListHead );
 		slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
 				"No acis to remove in this entry\n" );
 		return 0;
@@ -410,7 +418,7 @@ acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr )
 					slapi_sdn_get_ndn ( root->acic_sdn) );
 	dContainer = (AciContainer *) avl_delete ( &acllistRoot, aciListHead, 
 										__acllist_aciContainer_node_cmp );
-	__acllist_free_aciContainer ( &dContainer );
+	acllist_free_aciContainer ( &dContainer );
 
 	acl_regen_aclsignature ();
 	if ( removed_anom_acl )
@@ -437,7 +445,7 @@ acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr )
 	}
 
 	/* Now free the tmp container we used */
-	__acllist_free_aciContainer ( &aciListHead );
+	acllist_free_aciContainer ( &aciListHead );
 
 	/*
 	 * regenerate the anonymous profile if we have deleted
@@ -463,8 +471,9 @@ acllist_get_aciContainer_new ( )
 
 	return head;
 }	
-static void
-__acllist_free_aciContainer (  AciContainer **container)
+
+void
+acllist_free_aciContainer (  AciContainer **container)
 {
 
 	PR_ASSERT ( container != NULL );
@@ -490,7 +499,30 @@ acllist_done_aciContainer ( AciContainer *head )
 	head->acic_list = NULL;
 }
 
-	
+static void
+free_aci_avl_container(AciContainer *data)
+{
+	aci_t *head, *next = NULL;
+
+	head = data->acic_list;
+	while ( head ) {
+		/* Free the acl */
+		next = head->aci_next;
+		acllist_free_aci ( head );
+		head = next;
+	}
+	data->acic_list = NULL;
+
+	acllist_free_aciContainer(&data);
+}
+
+void
+free_acl_avl_list()
+{
+	avl_free(acllistRoot,free_aci_avl_container);
+	acllistRoot = NULL;
+}
+
 aci_t *
 acllist_get_aci_new ()
 {
@@ -910,7 +942,7 @@ acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
 		         "Can't find the acl in the tree for moddn operation:olddn%s\n",
 		         slapi_sdn_get_ndn ( oldsdn ));
 		aciListHead->acic_sdn = NULL;
-		__acllist_free_aciContainer ( &aciListHead );
+		acllist_free_aciContainer ( &aciListHead );
 		return 1;
 	}
 
@@ -937,7 +969,7 @@ acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
 	}
     
 	aciListHead->acic_sdn = NULL;
-	__acllist_free_aciContainer ( &aciListHead );
+	acllist_free_aciContainer ( &aciListHead );
 
 	return 0;
 }

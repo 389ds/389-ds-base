@@ -147,22 +147,22 @@ acl_parse(Slapi_PBlock *pb, char * str, aci_t *aci_item, char **errbuf)
 			char           *avaType;
 			struct berval   *avaValue;
 
-			Slapi_DN *targdn = slapi_sdn_new();
+			Slapi_DN targdn;
 			slapi_filter_get_ava ( f, &avaType, &avaValue );
-			slapi_sdn_init_dn_byref(targdn, avaValue->bv_val);
+			slapi_sdn_init_dn_byref(&targdn, avaValue->bv_val);
 
-			if (!slapi_sdn_get_dn(targdn)) {
+			if (!slapi_sdn_get_dn(&targdn)) {
 				/* not a valid DN */
-				slapi_sdn_free(&targdn);
+				slapi_sdn_done(&targdn);
 				return ACL_INVALID_TARGET;
 			}
 
-			if (!slapi_sdn_issuffix(targdn, aci_item->aci_sdn)) {
-				slapi_sdn_free(&targdn);
+			if (!slapi_sdn_issuffix(&targdn, aci_item->aci_sdn)) {
+				slapi_sdn_done(&targdn);
 				return ACL_INVALID_TARGET;
 			}
 
-			if (slapi_sdn_compare(targdn, aci_item->aci_sdn)) {
+			if (slapi_sdn_compare(&targdn, aci_item->aci_sdn)) {
 				int target_check = 0;
 				if (pb) {
 					slapi_pblock_get(pb, SLAPI_ACI_TARGET_CHECK, &target_check);
@@ -171,14 +171,14 @@ acl_parse(Slapi_PBlock *pb, char * str, aci_t *aci_item, char **errbuf)
 					/* Make sure that the target exists */
 					int rc = 0;
 					Slapi_PBlock *temppb = slapi_pblock_new();
-					slapi_search_internal_set_pb_ext(temppb, targdn,
+					slapi_search_internal_set_pb_ext(temppb, &targdn,
 						LDAP_SCOPE_BASE, "(objectclass=*)", NULL, 1, NULL, NULL,
 							(void *)plugin_get_default_component_id(), 0);
 					slapi_search_internal_pb(temppb);
 					slapi_pblock_get(temppb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 					if (rc != LDAP_SUCCESS) {
 						slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
-							"The ACL target %s does not exist\n", slapi_sdn_get_dn(targdn));
+							"The ACL target %s does not exist\n", slapi_sdn_get_dn(&targdn));
 					}
 	
 					slapi_free_search_results_internal(temppb);
@@ -189,7 +189,7 @@ acl_parse(Slapi_PBlock *pb, char * str, aci_t *aci_item, char **errbuf)
 					}
 				}
 			}
-			slapi_sdn_free(&targdn);
+			slapi_sdn_done(&targdn);
 		}
 	}
 

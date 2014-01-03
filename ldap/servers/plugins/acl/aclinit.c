@@ -324,7 +324,7 @@ aclinit_search_and_update_aci ( int thisbeonly, const Slapi_DN *base,
 *
 * __aclinit_handler
 *
-*	For each entry, finds if there is any ACL in thet entry. If there is
+*	For each entry, finds if there is any ACL in that entry. If there is
 *	then the ACL is processed and stored in the ACL LIST.
 *
 *

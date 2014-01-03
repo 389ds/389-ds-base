@@ -544,6 +544,7 @@ struct vlv_response
 };
 
 int vlv_init(ldbm_instance *inst);
+void vlv_close(ldbm_instance *inst);
 int vlv_remove_callbacks(ldbm_instance *inst);
 const Slapi_Entry **vlv_get_search_entries();
 struct vlvIndex* vlv_find_searchname(const char * name, backend *be);

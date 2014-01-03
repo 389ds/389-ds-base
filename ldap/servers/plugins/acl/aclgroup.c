@@ -76,6 +76,13 @@ aclgroup_init ()
 	return 0;
 }
 
+void
+aclgroup_free()
+{
+    slapi_destroy_rwlock(aclUserGroups->aclg_rwlock);
+    slapi_ch_free((void **)&aclUserGroups);
+}
+
 /*
  *  aclg_init_userGroup
  *

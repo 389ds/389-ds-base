@@ -69,8 +69,9 @@ ACL_PermAllocEntry(void *pool, const void *unused)
 static void
 ACL_PermFreeEntry(void *pool, PLHashEntry *he, PRUintn flag)
 {
-    if (flag == HT_FREE_ENTRY)
-	pool_free((pool_handle_t *)pool, he);
+    if (flag == HT_FREE_ENTRY){
+        pool_free((pool_handle_t *)pool, he);
+    }
 }
 
 static PLHashAllocOps ACLPermAllocOps = {

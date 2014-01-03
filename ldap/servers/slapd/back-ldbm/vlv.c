@@ -337,6 +337,16 @@ void vlv_grok_new_import_entry(const struct backentry *e, backend *be)
 	slapi_rwlock_unlock(be->vlvSearchList_lock);
 }
 
+void
+vlv_close(ldbm_instance *inst)
+{
+    backend *be = inst->inst_be;
+
+    if(be->vlvSearchList_lock){
+        slapi_destroy_rwlock(be->vlvSearchList_lock);
+    }
+}
+
 /*
  * Search for the VLV entries which describe the pre-computed indexes we
  * support.  Register administartion DSE callback functions.

@@ -86,6 +86,10 @@ extern void
 	ACL_LasHashInit(void);
 extern void
 	ACL_LasHashDestroy(void);
+extern void
+	ACL_AttrGetterHashDestroy(void);
+extern void
+	ACL_MethodHashDestroy(void);
 
 /*
  *	Revised, normalized method/dbtype registration routines

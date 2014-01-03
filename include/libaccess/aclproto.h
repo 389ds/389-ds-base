@@ -147,6 +147,10 @@ NSAPI_PUBLIC int ACL_DatabaseNamesFree(NSErr_t *errp, char **names, int count);
 
 NSAPI_PUBLIC int ACL_InitAttr2Index(void);
 NSAPI_PUBLIC int ACL_Attr2Index(const char *attrname);
+NSAPI_PUBLIC void ACL_Attr2IndexListDestroy();
+NSAPI_PUBLIC void ACL_AttrGetterHashDestroy(void);
+NSAPI_PUBLIC void ACL_Destroy(void);
+NSAPI_PUBLIC void ACL_DestroyPools(void);
 
 /*********************************************************************
  * ACL cache and flush utility 

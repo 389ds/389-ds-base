@@ -300,7 +300,17 @@ aclplugin_stop ( Slapi_PBlock *pb )
 {
 	int rc = 0; /* OK */
 
-	acl_destroy_aclpb_pool ();
+	ACL_Destroy();
+	acl_destroy_aclpb_pool();
+	ACL_AttrGetterHashDestroy();
+	ACL_MethodHashDestroy();
+	ACL_DestroyPools();
+	free_acl_avl_list();
+	aclanom__del_profile(1);
+	aclgroup_free();
+	//aclext_free_lockarray();
+	acllist_free();
+
 	return  rc;
 }
 

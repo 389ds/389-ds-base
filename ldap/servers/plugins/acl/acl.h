@@ -846,6 +846,7 @@ void        acl_destroy_aclpb_pool ();
 int			acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e );
 
 int			aclext_alloc_lockarray ();
+void		aclext_free_lockarray();
 
 int			aclutil_str_append(char **str1, const char *str2);
 void		aclutil_print_err (int rv , const Slapi_DN *sdn,
@@ -867,11 +868,14 @@ void		acllist_acicache_WRITE_UNLOCK(void);
 void		acllist_acicache_WRITE_LOCK(void);
 void		acllist_aciscan_update_scan ( Acl_PBlock *aclpb, char *edn );
 int 		acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr );
+void		free_acl_avl_list();
 int		acllist_insert_aci_needsLock( const Slapi_DN *e_sdn, const struct berval* aci_attr);
 int 		acllist_init ();
+void		acllist_free();
 int			acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn );
 void		acllist_print_tree ( Avlnode *root, int *depth, char *start, char *side);
 AciContainer *acllist_get_aciContainer_new ( );
+void		acllist_free_aciContainer (  AciContainer **container);
 void 		acllist_done_aciContainer (  AciContainer *);
 void		free_targetattrfilters( Targetattrfilter ***attrFilterArray);
 
@@ -881,6 +885,7 @@ void		aclg_markUgroupForRemoval ( aclUserGroup *u_group );
 void		aclg_reader_incr_ugroup_refcnt(aclUserGroup* u_group);
 int			aclg_numof_usergroups(void);
 int 		aclgroup_init ();
+void		aclgroup_free();
 void		aclg_regen_group_signature ();
 void		aclg_reset_userGroup ( struct acl_pblock *aclpb );
 void     	aclg_init_userGroup ( struct acl_pblock *aclpb, const char *dn , int got_lock);
@@ -894,6 +899,8 @@ int 		aclanom_match_profile (Slapi_PBlock *pb,  struct acl_pblock *aclpb,
 									Slapi_Entry *e, char *attr, int access);
 void		aclanom_get_suffix_info(Slapi_Entry *e, struct acl_pblock *aclpb );
 void		aclanom_invalidateProfile();
+void		aclanom__del_profile (int closing);
+
 typedef enum{
 	DONT_TAKE_ACLCACHE_READLOCK,
 	DO_TAKE_ACLCACHE_READLOCK,
