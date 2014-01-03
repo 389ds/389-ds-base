@@ -2012,6 +2012,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_UNAUTH_BINDS_ATTRIBUTE "nsslapd-allow-unauthenticated-binds"
 #define CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE "nsslapd-require-secure-binds"
 #define CONFIG_ANON_ACCESS_ATTRIBUTE "nsslapd-allow-anonymous-access"
+#define CONFIG_ACCESS_USERATTR_STRICT "nsslapd-access-userattr-strict"
 #define CONFIG_LOCALSSF_ATTRIBUTE "nsslapd-localssf"
 #define CONFIG_MINSSF_ATTRIBUTE "nsslapd-minssf"
 #define CONFIG_MINSSF_EXCLUDE_ROOTDSE "nsslapd-minssf-exclude-rootdse"
@@ -2392,6 +2393,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t connection_nocanon; /* if "on" sets LDAP_OPT_X_SASL_NOCANON */
   slapi_onoff_t plugin_logging; /* log all internal plugin operations */
   slapi_onoff_t ignore_time_skew;
+  slapi_onoff_t access_userattr_strict;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

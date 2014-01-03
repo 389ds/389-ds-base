@@ -33,6 +33,7 @@ nsslapd-validate-cert: warn
 nsslapd-allow-unauthenticated-binds: off
 nsslapd-require-secure-binds: off
 nsslapd-allow-anonymous-access: on
+nsslapd-access-userattr-strict: on
 nsslapd-localssf: 71
 nsslapd-minssf: 0
 nsslapd-port: %ds_port%
