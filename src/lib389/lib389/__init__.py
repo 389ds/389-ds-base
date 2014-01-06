@@ -45,6 +45,8 @@ from ldap.cidict import cidict
 from ldap import LDAPError
 # file in this package
 
+
+
 from lib389._constants import *
 from lib389._entry import Entry
 from lib389._replication import CSN, RUV
@@ -297,16 +299,18 @@ class DirSrv(SimpleLDAPObject):
 
     def __add_brookers__(self):
         from lib389.brooker import (
-            Agreement,
-            Replica,
             Config,
             Index)
         from lib389.mappingTree import MappingTree
-        from lib389.backend import Backend
-        from lib389.suffix import Suffix
+        from lib389.backend     import Backend
+        from lib389.suffix      import Suffix
+        from lib389.replica     import Replica
+        from lib389.changelog   import Changelog
+        from lib389.agreement   import Agreement
         
         self.agreement   = Agreement(self)
         self.replica     = Replica(self)
+        self.changelog   = Changelog(self)
         self.backend     = Backend(self)
         self.config      = Config(self)
         self.index       = Index(self)
@@ -1878,74 +1882,7 @@ class DirSrv(SimpleLDAPObject):
     def startReplication(self, agmtdn):
         return self.replica.start_and_wait(agmtdn)
 
-    def enableReplication(self, suffix=None, role=None, replicaId=CONSUMER_REPLICAID, binddn=None):
-        if not suffix:
-            log.fatal("enableReplication: suffix not specified")
-            raise ValueError("suffix missing")
-        
-        if not role:
-            log.fatal("enableReplication: replica role not specify (REPLICAROLE_*)")
-            raise ValueError("role missing")
-        
-        # 
-        # Check the validity of the parameters
-        #
-        
-        # First role and replicaID
-        if role != REPLICAROLE_MASTER and role != REPLICAROLE_HUB and role != REPLICAROLE_CONSUMER:
-            log.fatal("enableReplication: replica role invalid (%s) " % role)
-            raise ValueError("invalid role: %s" % role)
-        
-            # master
-            replica_type = REPLICA_RDWR_TYPE
-        else:
-            # hub or consumer
-            replica_type = REPLICA_RDONLY_TYPE
-        
-        if role == REPLICAROLE_MASTER:
-            # check the replicaId [1..CONSUMER_REPLICAID[
-            if not decimal.Decimal(replicaId) or (replicaId <= 0) or (replicaId >=CONSUMER_REPLICAID):
-                log.fatal("enableReplication: invalid replicaId (%s) for a RW replica" % replicaId)
-                raise ValueError("invalid replicaId %d (expected [1..CONSUMER_REPLICAID[" % replicaId)
-        elif replicaId != CONSUMER_REPLICAID:
-            # check the replicaId is CONSUMER_REPLICAID
-            log.fatal("enableReplication: invalid replicaId (%s) for a Read replica (expected %d)" % (replicaId, CONSUMER_REPLICAID))
-            raise ValueError("invalid replicaId: %d for HUB/CONSUMER replicaId is CONSUMER_REPLICAID" % replicaId)
-            
-        # Now check we have a suffix
-        entries_backend = self.backend.list(suffix=suffix)
-        if not entries_backend:
-            log.fatal("enableReplication: enable to retrieve the backend for %s" % suffix)
-            raise ValueError("no backend for suffix %s" % suffix)
-        
-        ent = entries_backend[0]
-        if normalizeDN(suffix) != normalizeDN(ent.getValue('nsslapd-suffix')):
-            log.warning("enableReplication: suffix (%s) and backend suffix (%s) differs" % (suffix, entries_backend[0].nsslapd-suffix))
-            pass
-        
-        # Now prepare the bindDN property
-        if not binddn:
-            binddn = defaultProperties.get(REPLICATION_BIND_DN, None)
-            if not binddn:
-                # weird, internal error we do not retrieve the default replication bind DN
-                # this replica will not be updatable through replication until the binddn
-                # property will be set
-                log.warning("enableReplication: binddn not provided and default value unavailable")
-                pass
-            
-        # Now do the effectif job
-        # First add the changelog if master/hub
-        if (role == REPLICAROLE_MASTER) or (role == REPLICAROLE_HUB):
-            self.replica.changelog()
-            
-        # Second create the default replica manager entry if it does not exist
-        # it should not be called from here but for the moment I am unsure when to create it elsewhere
-        self.replica.create_repl_manager()
-        
-        # then enable replication
-        ret = self.replica.add(suffix=suffix, binddn=binddn, role=role, rid=replicaId)
-        
-        return ret
+
 
     def replicaSetupAll(self, repArgs):
         """setup everything needed to enable replication for a given suffix.

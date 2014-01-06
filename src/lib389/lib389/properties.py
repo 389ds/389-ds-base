@@ -4,6 +4,7 @@ Created on Dec 5, 2013
 @author: tbordaz
 '''
 
+
 ####################################
 # 
 # Properties supported by the server
@@ -112,29 +113,140 @@ BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX:        'nsslapd-suffix',
 
 ####################################
 # 
+# Properties of a replica
+#
+####################################
+
+REPLICA_SUFFIX           = 'suffix'
+REPLICA_ID               = 'rid'
+REPLICA_TYPE             = 'type'
+REPLICA_LEGACY_CONS      = 'legacy'
+REPLICA_BINDDN           = 'binddn'
+REPLICA_PURGE_INTERVAL   = 'purge-interval'
+REPLICA_PURGE_DELAY      = 'purge-delay'
+REPLICA_REFERRAL         = 'referral'
+REPLICA_FLAGS            = 'flags'
+
+REPLICA_OBJECTCLASS_VALUE = 'nsds5Replica'
+
+REPLICA_PROPNAME_TO_ATTRNAME = {
+                                REPLICA_SUFFIX:           'nsds5replicaroot',
+                                REPLICA_ID:               'nsds5replicaid',
+                                REPLICA_TYPE:             'nsds5replicatype',
+                                REPLICA_LEGACY_CONS:      'nsds5replicalegacyconsumer',
+                                REPLICA_BINDDN:           'nsds5replicabinddn',
+                                REPLICA_PURGE_INTERVAL:   'nsds5replicatombstonepurgeinterval',
+                                REPLICA_PURGE_DELAY:      'nsds5ReplicaPurgeDelay',
+                                REPLICA_REFERRAL:         'nsds5ReplicaReferral',
+                                REPLICA_FLAGS:            'nsds5flags'}
+
+####################################
+# 
+# Properties of a changelog
+#
+####################################
+CHANGELOG_NAME          = 'cl-name'
+CHANGELOG_DIR           = 'cl-dir'
+CHANGELOG_MAXAGE        = 'cl-maxage'
+CHANGELOG_MAXENTRIES    = 'cl-maxentries'
+CHANGELOG_TRIM_INTERVAL = 'cl-trim-interval'
+CHANGELOG_COMPACT_INTV  = 'cl-compact-interval'
+
+CHANGELOG_PROPNAME_TO_ATTRNAME = {CHANGELOG_NAME:          'cn',
+                                  CHANGELOG_DIR:           'nsslapd-changelogdir',
+                                  CHANGELOG_MAXAGE:        'nsslapd-changelogmaxage',
+                                  CHANGELOG_MAXENTRIES:    'nsslapd-changelogmaxentries',
+                                  CHANGELOG_TRIM_INTERVAL: 'nsslapd-changelogtrim-interval',
+                                  CHANGELOG_COMPACT_INTV:  'nsslapd-changelogcompactdb-interval',}
+
+####################################
+# 
+# Properties of an entry
+#
+####################################
+ENTRY_OBJECTCLASS     = 'objectclass'
+ENTRY_SN              = 'sn'
+ENTRY_CN              = 'cn'
+ENTRY_TYPE_PERSON     = 'person'
+ENTRY_TYPE_INETPERSON = 'inetperson'
+ENTRY_TYPE_GROUP      = 'group'
+ENTRY_USERPASSWORD    = 'userpassword'
+ENTRY_UID             = 'uid'
+
+ENTRY_TYPE_TO_OBJECTCLASS = {ENTRY_TYPE_PERSON:     ["top", "person"],
+                             ENTRY_TYPE_INETPERSON: ["top", "person", "inetOrgPerson"]}
+
+####################################
+# 
 # Properties supported by the replica agreement
 #
 ####################################
 
-RA_SCHEDULE_PROP='schedule'
-RA_TRANSPORT_PROT_PROP='transport-prot'
-RA_FRAC_EXCLUDE_PROP='fractional-exclude-attrs-inc'
-RA_FRAC_EXCLUDE_TOTAL_UPDATE_PROP='fractional-exclude-attrs-total'
-RA_FRAC_STRIP_PROP='fractional-strip-attrs'
-RA_CONSUMER_PORT='consumer-port'
-RA_CONSUMER_HOST='consumer-host'
-RA_CONSUMER_TOTAL_INIT='consumer-total-init'
-RA_TIMEOUT='timeout'
+RA_NAME                 = 'name'
+RA_SUFFIX               = 'suffix'
+RA_BINDDN               = 'binddn'
+RA_BINDPW               = 'bindpw'
+RA_METHOD               = 'method'
+RA_DESCRIPTION          = 'description'
+RA_SCHEDULE             = 'schedule'
+RA_TRANSPORT_PROT       = 'transport-prot'
+RA_FRAC_EXCLUDE         = 'fractional-exclude-attrs-inc'
+RA_FRAC_EXCLUDE_TOTAL_UPDATE ='fractional-exclude-attrs-total'
+RA_FRAC_STRIP           = 'fractional-strip-attrs'
+RA_CONSUMER_PORT        = 'consumer-port'
+RA_CONSUMER_HOST        = 'consumer-host'
+RA_CONSUMER_TOTAL_INIT  = 'consumer-total-init'
+RA_TIMEOUT              = 'timeout'
+RA_CHANGES              = 'changes'
 
-RA_PROPNAME_TO_ATTRNAME = {RA_SCHEDULE_PROP:'nsds5replicaupdateschedule',
-                           RA_TRANSPORT_PROT_PROP:'nsds5replicatransportinfo',
-                           RA_FRAC_EXCLUDE_PROP:'nsDS5ReplicatedAttributeList',
-                           RA_FRAC_EXCLUDE_TOTAL_UPDATE_PROP:'nsDS5ReplicatedAttributeListTotal',
-                           RA_FRAC_STRIP_PROP:'nsds5ReplicaStripAttrs',
-                           RA_CONSUMER_PORT:'nsds5replicaport',
-                           RA_CONSUMER_HOST:'nsds5ReplicaHost',
-                           RA_CONSUMER_TOTAL_INIT:'nsds5BeginReplicaRefresh',
-                           RA_TIMEOUT:'nsds5replicatimeout'}
+RA_OBJECTCLASS_VALUE = "nsds5replicationagreement"
+
+RA_PROPNAME_TO_ATTRNAME = {RA_NAME:                 'cn',
+                           RA_SUFFIX:               'nsds5replicaroot',
+                           RA_BINDDN:               'nsds5replicabinddn',
+                           RA_BINDPW:               'nsds5replicacredentials',
+                           RA_METHOD:               'nsds5replicabindmethod',
+                           RA_DESCRIPTION:          'description',
+                           RA_SCHEDULE:             'nsds5replicaupdateschedule',
+                           RA_TRANSPORT_PROT:       'nsds5replicatransportinfo',
+                           RA_FRAC_EXCLUDE:         'nsDS5ReplicatedAttributeList',
+                           RA_FRAC_EXCLUDE_TOTAL_UPDATE:'nsDS5ReplicatedAttributeListTotal',
+                           RA_FRAC_STRIP:           'nsds5ReplicaStripAttrs',
+                           RA_CONSUMER_PORT:        'nsds5replicaport',
+                           RA_CONSUMER_HOST:        'nsds5ReplicaHost',
+                           RA_CONSUMER_TOTAL_INIT:  'nsds5BeginReplicaRefresh',
+                           RA_TIMEOUT:              'nsds5replicatimeout',
+                           RA_CHANGES:              'nsds5replicaChangesSentSinceStartup'}
 
 
-            
+def rawProperty(prop):
+    '''
+        Return the string 'prop' without the heading '+'/'-'
+        @param prop - string of a property name
+        
+        @return property name without heading '+'/'-'
+        
+        @raise None
+    '''
+    if str(prop).startswith('+') or str(prop).startswith('-'):
+        return prop[1::]
+    else:
+        return prop
+        
+        
+def inProperties(prop, properties):
+    '''
+        Return True if 'prop' is in the 'properties' dictionary
+        Properties in 'properties' does NOT contain a heading '+'/'-', but 'prop'
+        may contain heading '+'/'-'
+        @param prop - string of a property name
+        @param properties - dictionary of properties. 
+        
+        @return True/False
+        
+        @raise None
+    '''
+    if rawProperty(prop) in properties:
+        return True
+    else:
+        return False

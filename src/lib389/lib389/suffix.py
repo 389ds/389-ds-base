@@ -81,4 +81,12 @@ class Suffix(object):
         
         raise NotImplemented
         
+    def setProperties(self, suffix):
+        '''
+            Supported properties:
+            
+        '''
+        
+        if not suffix:
+            raise ValueError("suffix is mandatory")
 

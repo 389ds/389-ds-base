@@ -4,6 +4,9 @@ from ldap.cidict import cidict
 import cStringIO
 
 import logging
+import ldap
+from lib389 import *
+from lib389.properties import *
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -176,3 +179,34 @@ class Entry(object):
         ldif.LDIFWriter(
             sio, Entry.base64_attrs, 1000).unparse(self.dn, newdata)
         return sio.getvalue()
+    
+    def create(self, type=ENTRY_TYPE_PERSON, entry_dn=None, properties=None):
+        """ Return - eventually creating - a person entry with the given dn and pwd.
+
+            binddn can be a lib389.Entry
+        """
+        if not entry_dn:
+            raise ValueError("entry_dn is mandatory")
+        
+        if not type:
+            raise ValueError("type is mandatory")
+
+        ent = Entry(entry_dn)
+        ent.setValues(ENTRY_OBJECTCLASS,  ENTRY_TYPE_TO_OBJECTCLASS[type])
+        ent.setValues(ENTRY_USERPASSWORD, properties.get(ENTRY_USERPASSWORD, ""))
+        ent.setValues(ENTRY_SN,           properties.get(ENTRY_SN, "bind dn pseudo user"))
+        ent.setValues(ENTRY_CN,           properties.get(ENTRY_CN, "bind dn pseudo user"))
+        if type == ENTRY_TYPE_INETPERSON:
+            ent.setValues(ENTRY_UID,      properties.get(ENTRY_UID, "bind dn pseudo user"))
+            
+        try:
+            self.add_s(ent)
+        except ldap.ALREADY_EXISTS:
+            log.warn("Entry %s already exists" % entry_dn)
+
+        try:
+            entry = self._test_entry(entry_dn, ldap.SCOPE_BASE)
+            return entry
+        except MissingEntryError:
+            log.exception("This entry should exist!")
+            raise
