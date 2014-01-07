@@ -230,12 +230,17 @@ def topology(request):
         # Now prepare the Master-Consumer topology
         #
         # First Enable replication
-        master.enableReplication(suffix=SUFFIX, role="master", replicaId=REPLICAID_MASTER)
-        consumer.enableReplication(suffix=SUFFIX, role="consumer")
+        master.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER)
+        consumer.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER)
         
         # Initialize the supplier->consumer
         
-        repl_agreement = master.agreement.create(consumer, SUFFIX, binddn=defaultProperties[REPLICATION_BIND_DN], bindpw=defaultProperties[REPLICATION_BIND_PW])
+        properties = {RA_NAME:      r'meTo_$host:$port',
+                      RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
+                      RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
+                      RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
+                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+        repl_agreement = master.agreement.create(suffix=SUFFIX, host=consumer.host, port=consumer.port, properties=properties)
     
         if not repl_agreement:
             log.fatal("Fail to create a replica agreement")
