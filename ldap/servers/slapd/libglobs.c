@@ -6720,15 +6720,23 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
             /* given value included unknown attribute,
              * we need to re-create a value. */
             /* reuse the duplicated string for the new attr value. */
-            for (s = allowed, d = vcopy; s && *s; s++) {
-                size_t slen = strlen(*s);
-                memmove(d, *s, slen);
-                d += slen;
-                memmove(d, " ", 1);
-                d++;
+            if (allowed && (NULL == *allowed)) {
+                /* all the values to allow to delete are invalid */
+                slapi_log_error(SLAPI_LOG_FATAL, "config",
+                        "%s: Given attributes are all invalid.  No effects.\n",
+                        CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE);
+                return LDAP_NO_SUCH_ATTRIBUTE;
+            } else {
+                for (s = allowed, d = vcopy; s && *s; s++) {
+                    size_t slen = strlen(*s);
+                    memmove(d, *s, slen);
+                    d += slen;
+                    memmove(d, " ", 1);
+                    d++;
+                }
+                *(d-1) = '\0';
+                strcpy(value, vcopy); /* original value needs to be refreshed */
             }
-            *(d-1) = '\0';
-            strcpy(value, vcopy); /* original value needs to be refreshed */
         } else {
             slapi_ch_free_string(&vcopy);
             vcopy = slapi_ch_strdup(value);
