@@ -1170,7 +1170,6 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	char			*attrs[2] = { LDAP_ALL_USER_ATTRS, NULL };
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
-	int				userattr_strict;
 
 	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
@@ -1266,8 +1265,6 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 	slapi_log_error( SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName);
 	matched = ACL_FALSE;
-	userattr_strict = config_get_access_userattr_strict();
-
 	for (i=0; i < numOflevels; i++) {
 		if ( levels[i] == 0 ) {
 			Slapi_Value *sval=NULL;
@@ -1279,10 +1276,10 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			 * must never be allowed to grant access--
 			 * This is because access would be granted based on a value
 		 	 * of an attribute in the new entry--security hole.
-		 	 *
-		 	 * There are valid cases where we want to allow this, or be less strict.
-			 */
-			if ( userattr_strict && lasinfo.aclpb->aclpb_optype == SLAPI_OPERATION_ADD) {
+			 * 
+			*/
+
+			if ( lasinfo.aclpb->aclpb_optype == SLAPI_OPERATION_ADD) {
 				slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 					"ACL info: userdnAttr does not allow ADD permission at level 0.\n");
 				got_undefined = 1;
