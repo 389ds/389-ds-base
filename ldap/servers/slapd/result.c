@@ -1002,17 +1002,17 @@ encode_attr_2(
 	attrs[0] = (char*)attribute_type;
 
 #if !defined(DISABLE_ACL_CHECK)
-	if ( plugin_call_acl_plugin (pb, e, attrs, NULL, SLAPI_ACL_READ, 
-				     ACLPLUGIN_ACCESS_READ_ON_ATTR, NULL ) != LDAP_SUCCESS ) {
+	if (plugin_call_acl_plugin(pb, e, attrs, NULL, SLAPI_ACL_READ, 
+	                           ACLPLUGIN_ACCESS_READ_ON_ATTR, NULL) != LDAP_SUCCESS) {
 		return( 0 );
 	}
 #endif
 
-	if ( ber_printf( ber, "{s[", returned_type ) == -1 ) {
+	if (ber_printf(ber, "{s[", returned_type?returned_type:attribute_type) == -1) {
 		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
 		ber_free( ber, 1 );
-		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
-		    "ber_printf type", 0, NULL );
+		send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
+		                 "ber_printf type", 0, NULL);
 		return( -1 );
 	}
 
@@ -1146,7 +1146,7 @@ static const char *idds_map_attrt_v3(
 
 /* Helper functions */
 
-static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PBlock *pb,BerElement *ber,int attrsonly,int ldapversion,int *dontsendattr, int real_attrs_only, int some_named_attrs)
+static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PBlock *pb,BerElement *ber,int attrsonly,int ldapversion, int real_attrs_only, int some_named_attrs)
 {
 	int i = 0;
 	int rc = 0;
@@ -1259,10 +1259,11 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 					&attr_free_flags, 
 					&item_count
 					);
-			if (0 == rc && item_count > 0) {
+			if ((0 == rc) && (item_count > 0)) {
 
 				for(iter=0; iter<item_count; iter++)
 				{
+					int skipit;
 					if ( rc != 0 ) {
 						/* we hit an error - we need to free all of the stuff allocated by
 						   slapi_vattr_namespace_values_get_sp */
@@ -1274,31 +1275,28 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 						name_to_return = actual_type_name[iter]; 
 					}
 
-					/*
-					* The dontsendattr array is used to track whether attributes
-					* that were explicitly requested by the client have been
-					* returned. Check here to see if the attribute we just
-					* arranged to send back was explicitly requested, and if so,
-					* set its dontsendattr flag so the send_specific_attrs()
-					* function does not return it a second time.
-					*/					
-					for ( i = 0; attrs != NULL && attrs[i] != NULL; i++ ) {
-						if ( !dontsendattr[i] && slapi_attr_type_cmp( current_type_name, attrs[i], SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
-						/* Client is also asking for an attr which is in '*', zap it. */
-							dontsendattr[i]= 1;
+					/* If current_type_name is in attrs, we could rely on send_specific_attrs. */
+					skipit = 0;
+					for (i = 0; attrs && attrs[i]; i++) {
+						if (slapi_attr_type_cmp(current_type_name, attrs[i], SLAPI_TYPE_CMP_SUBTYPE) == 0) {
+							skipit = 1;
+							break;
 						}
 					}
 
-					rc = encode_attr_2( pb, ber, e, values[iter], attrsonly, current_type_name, name_to_return );
+					if (!skipit) {
+						rc = encode_attr_2(pb, ber, e, values[iter], attrsonly, 
+						                   current_type_name, name_to_return );
 
-					if (rewrite_rfc1274 != 0) {
-						v2name = idds_map_attrt_v3(current_type_name);
-						if (v2name != NULL) {
-							/* also return values with RFC1274 attr name */
-							rc = encode_attr_2(pb, ber, e, values[iter], 
-								   attrsonly, 
-								   current_type_name, 
-								   v2name);
+						if (rewrite_rfc1274 != 0) {
+							v2name = idds_map_attrt_v3(current_type_name);
+							if (v2name != NULL) {
+								/* also return values with RFC1274 attr name */
+								rc = encode_attr_2(pb, ber, e, values[iter], 
+								                   attrsonly, 
+								                   current_type_name, 
+								                   v2name);
+							}
 						}
 					}
 
@@ -1329,137 +1327,143 @@ exit:
 	return rc;
 }
 
-int send_specific_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PBlock *pb,BerElement *ber,int attrsonly,int ldapversion,int *dontsendattr, int real_attrs_only)
+/*
+ * attrs need to expand including the subtypes found in the entry
+ * e.g., if "sn" is no the attrs and 'e' has sn, sn;en, and sn;fr,
+ * attrs should have sn, sn;en, and sn;fr, as well.
+ */
+int
+send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op,
+                    Slapi_PBlock *pb, BerElement *ber, int attrsonly,
+                    int ldapversion, int real_attrs_only)
 {
-	int i,j = 0;
+	int i = 0;
 	int rc = 0;
 	int vattr_flags = 0;
 	vattr_context *ctx;
+	char **attrs_ext = NULL;
+	char **my_searchattrs = NULL;
 
-	if(real_attrs_only == SLAPI_SEND_VATTR_FLAG_REALONLY)
+	if (real_attrs_only == SLAPI_SEND_VATTR_FLAG_REALONLY) {
 		vattr_flags = SLAPI_REALATTRS_ONLY;
-	else
-	{
+	} else {
 		vattr_flags = SLAPI_VIRTUALATTRS_REQUEST_POINTERS;
 		if(real_attrs_only == SLAPI_SEND_VATTR_FLAG_VIRTUALONLY)
 			vattr_flags |= SLAPI_VIRTUALATTRS_ONLY;
 	}
+
+	/* Create a copy of attrs with no duplicates */
+	if (attrs) {
+		for (i = 0; attrs[i]; i++) {
+			if (!charray_inlist(attrs_ext, attrs[i])) {
+				slapi_ch_array_add(&attrs_ext, slapi_ch_strdup(attrs[i]));
+				slapi_ch_array_add(&my_searchattrs, slapi_ch_strdup(op->o_searchattrs[i]));
+			}
+		}
+	}
+	if (attrs_ext) {
+		attrs = attrs_ext;
+	}
 	
-	for ( i = 0; attrs != NULL && attrs[i] != NULL; i++ )
-	{
+	for ( i = 0; attrs && attrs[i] != NULL; i++ ) {
 		char *current_type_name = attrs[i];
-        if(!dontsendattr[i]) {
-			Slapi_ValueSet **values = NULL;
-			int attr_free_flags = 0;
-			char *name_to_return = NULL;
-			char **actual_type_name= NULL;
-			int *type_name_disposition = 0;
-			int item_count = 0;
-			int iter = 0;
-			Slapi_DN *namespace_dn;
-			Slapi_Backend *backend=0;
+		Slapi_ValueSet **values = NULL;
+		int attr_free_flags = 0;
+		char *name_to_return = NULL;
+		char **actual_type_name= NULL;
+		int *type_name_disposition = 0;
+		int item_count = 0;
+		int iter = 0;
+		Slapi_DN *namespace_dn;
+		Slapi_Backend *backend=0;
 
-    		/*
-    		 * Here we call the computed attribute code to see whether
-    		 * the requested attribute is to be computed. 
-    		 * The subroutine compute_attribute calls encode_attr on our behalf, in order
-    		 * to avoid the inefficiency of returning a complex structure
-    		 * which we'd have to free
-    		 */
-    		rc = compute_attribute(attrs[i],pb,ber,e,attrsonly,op->o_searchattrs[i]);
-    		if (0 == rc) {
-    			continue; /* Means this was a computed attr and we prcessed it OK. */
-    		}
-    		if (-1 != rc) {
-    			/* Means that some error happened */
-    			return rc;
-    		}
-    		else {
-    			rc = 0; /* Means that we just didn't recognize this as a computed attr */
-    		}
+		/*
+		 * Here we call the computed attribute code to see whether
+		 * the requested attribute is to be computed. 
+		 * The subroutine compute_attribute calls encode_attr on our behalf, in order
+		 * to avoid the inefficiency of returning a complex structure
+		 * which we'd have to free
+		 */
+		rc = compute_attribute(attrs[i], pb, ber, e, attrsonly, my_searchattrs[i]);
+		if (0 == rc) {
+			continue; /* Means this was a computed attr and we prcessed it OK. */
+		}
+		if (-1 != rc) {
+			/* Means that some error happened */
+			return rc;
+		}
+		else {
+			rc = 0; /* Means that we just didn't recognize this as a computed attr */
+		}
 
-			/* get the namespace dn */
-			slapi_pblock_get( pb, SLAPI_BACKEND, (void *)&backend);
-			namespace_dn = (Slapi_DN*)slapi_be_getsuffix(backend, 0);
+		/* get the namespace dn */
+		slapi_pblock_get( pb, SLAPI_BACKEND, (void *)&backend);
+		namespace_dn = (Slapi_DN*)slapi_be_getsuffix(backend, 0);
 
-			/* Get the attribute value from the vattr service */
-			/* ctx will be freed by attr_context_ungrok() */
-			ctx = vattr_context_new ( pb );
-			rc = slapi_vattr_namespace_values_get_sp(
-					ctx,
-					e,
-					namespace_dn,
-					current_type_name,
-					&values,
-					&type_name_disposition,
-					&actual_type_name,
-					vattr_flags,
-					&attr_free_flags, 
-					&item_count
-					);
-			if (0 == rc && item_count > 0) {
-
-				for(iter=0; iter<item_count; iter++)
-				{
-					if ( rc != 0 ) {
-						/* we hit an error - we need to free all of the stuff allocated by
-						   slapi_vattr_namespace_values_get_sp */
-						slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
+		/* Get the attribute value from the vattr service */
+		/* This call handles subtype, as well.
+		 * e.g., current_type_name: cn 
+		 * ==>
+		 * item_count: 5; actual_type_name: cn;sub0, ..., cn;sub4 */
+		/* ctx will be freed by attr_context_ungrok() */
+		ctx = vattr_context_new ( pb );
+		rc = slapi_vattr_namespace_values_get_sp(
+				ctx,
+				e,
+				namespace_dn,
+				current_type_name,
+				&values,
+				&type_name_disposition,
+				&actual_type_name,
+				vattr_flags,
+				&attr_free_flags, 
+				&item_count
+				);
+		if ((0 == rc) && (item_count > 0)) {
+			for (iter = 0; iter < item_count; iter++) {
+				if ( rc != 0 ) {
+					/* we hit an error - we need to free all of the stuff allocated by
+					   slapi_vattr_namespace_values_get_sp */
+					slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
+					continue;
+				}
+				if (SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE == type_name_disposition[iter]) {
+					name_to_return = actual_type_name[iter]; 
+					if ((iter > 0) && charray_inlist(attrs, name_to_return)) {
+						/* subtype retrieved by slapi_vattr_namespace_values_get_sp is
+						 * included in the attr list.  Skip the dup. */
 						continue;
 					}
-					if (SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_SUBTYPE == type_name_disposition[iter]) {
-						name_to_return = actual_type_name[iter]; 
-					} else {
-						name_to_return = op->o_searchattrs[i];
-					}
-
-					/*
-					 * The client may have specified a list of attributes
-					 * with duplicates, 'cn cn cn'.
-					 * We need to determine which of any duplicates take precedence
-					 * For subtypes, the attribute which is most generic should be
-					 * returned (since it will also trigger the return of the less
-					 * generic attribute subtypes.
-					 */
-					for ( j = i+1; attrs[j] != NULL && dontsendattr[i]==0; j++ )
-					{
-						if ( !dontsendattr[j] && slapi_attr_type_cmp( attrs[j], actual_type_name[iter], SLAPI_TYPE_CMP_SUBTYPE ) == 0 )
-						{
-							/* discover which is the more generic attribute and cancel the other*/
-							int attrbase = slapi_attr_type_cmp( attrs[j], current_type_name, SLAPI_TYPE_CMP_EXACT );
-
-							if(attrbase >= 0)
-								dontsendattr[j]= 1;
-							else
-								dontsendattr[i]= 1; /* the current value is superceeded later */
-						}
-					}
-
-					/* we may have just cancelled ourselves so check */
-					if(!dontsendattr[i])
-						rc = encode_attr_2( pb, ber, e, values[iter], attrsonly, current_type_name, name_to_return );
-					
-					slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
+				} else {
+					name_to_return = my_searchattrs[i];
 				}
 
-				slapi_ch_free((void**)&actual_type_name);
-				slapi_ch_free((void**)&type_name_disposition);
-				slapi_ch_free((void**)&values);
-				if ( rc != 0 ) {
-					goto exit;
-				}
-
-			} else {
-				/* if we got here, then either values is NULL or values contains no elements
-				   either way we can free it */
-				slapi_ch_free((void**)&values);
-				slapi_ch_free((void**)&actual_type_name);
-				slapi_ch_free((void**)&type_name_disposition);
-				rc = 0;
+				/* need to pass actual_type_name (e.g., sn;en to evaluate the ACL */
+				rc = encode_attr_2(pb, ber, e, values[iter], attrsonly, 
+				                   actual_type_name[iter], name_to_return);
+				
+				slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
 			}
-        } 	
+
+			slapi_ch_free((void**)&actual_type_name);
+			slapi_ch_free((void**)&type_name_disposition);
+			slapi_ch_free((void**)&values);
+			if ( rc != 0 ) {
+				goto exit;
+			}
+
+		} else {
+			/* if we got here, then either values is NULL or values contains no elements
+			   either way we can free it */
+			slapi_ch_free((void**)&values);
+			slapi_ch_free((void**)&actual_type_name);
+			slapi_ch_free((void**)&type_name_disposition);
+			rc = 0;
+		}
 	}
 exit:
+	slapi_ch_array_free(attrs_ext);
+	slapi_ch_array_free(my_searchattrs);
 	return rc;
 
 }
@@ -1482,7 +1486,6 @@ send_ldap_search_entry_ext(
 	BerElement	*ber = NULL;
 	int		i, rc = 0, logit = 0;
 	int		alluserattrs, noattrs, some_named_attrs;
-	int *dontsendattr= NULL;
 	Slapi_Operation *operation;
 	int real_attrs_only = 0;
 	LDAPControl		**ctrlp = 0;
@@ -1596,11 +1599,6 @@ send_ldap_search_entry_ext(
 			    "Accepting illegal other attributes specified with "
 			    "special \"1.1\" attribute\n", 0, 0, 0 );
 		}
-        /*
-         * We maintain a flag array so that we can remove requests
-         * for duplicate attributes.
-         */
-    	dontsendattr = (int*) slapi_ch_calloc( i+1, sizeof(int) );
 	}
 
 
@@ -1625,12 +1623,13 @@ send_ldap_search_entry_ext(
 
 	/* look through each attribute in the entry */
 	if ( alluserattrs ) {
-		rc = send_all_attrs(e,attrs,op,pb,ber,attrsonly,conn->c_ldapversion,dontsendattr, real_attrs_only, some_named_attrs);
+		rc = send_all_attrs(e, attrs, op, pb, ber, attrsonly, conn->c_ldapversion,
+		                    real_attrs_only, some_named_attrs);
 	}
 	
 	/* if the client explicitly specified a list of attributes look through each attribute requested */
 	if( (rc == 0) && (attrs!=NULL) && !noattrs) {
-		rc = send_specific_attrs(e,attrs,op,pb,ber,attrsonly,conn->c_ldapversion,dontsendattr,real_attrs_only);
+		rc = send_specific_attrs(e,attrs,op,pb,ber,attrsonly,conn->c_ldapversion,real_attrs_only);
 	}
 
 	/* Append effective rights to the stream of attribute list */
@@ -1738,7 +1737,6 @@ cleanup:
 		ldap_controls_free(searchctrlp);
 	}
 	ber_free( ber, 1 );
-	slapi_ch_free( (void **) &dontsendattr );
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_ldap_search_entry\n", 0, 0, 0 );
 
 	return( rc );
@@ -2153,7 +2151,6 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
     LDAPControl **ctrlp = NULL;
     struct berval *bv = NULL;
     BerElement *ber = NULL;
-    int *dontsendattr = NULL;
     int real_attrs_only = 0;
     int rc = 0;
 
@@ -2191,13 +2188,12 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
      * for duplicate attributes.  We also need to set o_searchattrs
      * for the attribute processing, as modify op's don't have search attrs.
      */
-    dontsendattr = (int*) slapi_ch_calloc( attr_count+1, sizeof(int) );
     op->o_searchattrs = attrs;
 
     /* Send all the attributes */
     if ( alluserattrs ) {
         rc = send_all_attrs(e, attrs, op, pb, ber, 0, conn->c_ldapversion,
-                            dontsendattr, real_attrs_only, attr_count);
+                            real_attrs_only, attr_count);
         if(rc){
             goto cleanup;
         }
@@ -2205,8 +2201,7 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
 
     /* Send a specified list of attributes */
     if( attrs != NULL) {
-        rc = send_specific_attrs(e, attrs, op, pb, ber, 0, conn->c_ldapversion,
-                                 dontsendattr, real_attrs_only);
+        rc = send_specific_attrs(e, attrs, op, pb, ber, 0, conn->c_ldapversion, real_attrs_only);
         if(rc){
             goto cleanup;
         }
@@ -2222,7 +2217,6 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
 cleanup:
 
     ber_free( ber, 1 );
-    slapi_ch_free( (void **) &dontsendattr );
     if(rc != 0){
         return NULL;
     } else {

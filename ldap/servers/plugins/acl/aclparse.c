@@ -2224,8 +2224,7 @@ static int type_compare( Slapi_Filter *f, void *arg) {
 	if (slapi_filter_get_attribute_type( f, &filter_type) == 0) {
 		t = slapi_attr_syntax_normalize(t);
 		filter_type = slapi_attr_syntax_normalize(filter_type);
-
-		if (slapi_attr_type_cmp(filter_type, t, 1) == 0) {
+		if (slapi_attr_type_cmp(filter_type, t, SLAPI_TYPE_CMP_BASE) == 0) {
 			rc = SLAPI_FILTER_SCAN_CONTINUE;
 		}
 

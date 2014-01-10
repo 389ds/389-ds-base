@@ -549,15 +549,14 @@ acl_access_allowed(
 	** Check if we can use any cached information to determine 
 	** access to this resource
 	*/
-	if (  (access & SLAPI_ACL_SEARCH) &&
-	 (ret_val =  acl__match_handlesFromCache ( aclpb , attr, access))  != -1) {
+	if ((access & SLAPI_ACL_SEARCH) &&
+	    (ret_val = acl__match_handlesFromCache(aclpb, attr, access)) != -1) {
 		/* means got a result: allowed or not*/
 
 		if (ret_val == LDAP_SUCCESS ) {
-				decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_ALLOW;
+			decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_ALLOW;
 		} else if (ret_val == LDAP_INSUFFICIENT_ACCESS) {
-				decision_reason.reason =
-					ACL_REASON_EVALCONTEXT_CACHED_NOT_ALLOWED;
+			decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_NOT_ALLOWED;
 		}
 		goto cleanup_and_ret;
 	}
@@ -1058,7 +1057,8 @@ acl_read_access_allowed_on_entry (
 				slapi_ch_free ( (void **) &aclpb->aclpb_Evalattr);
 				aclpb->aclpb_Evalattr = slapi_ch_malloc(len+1);
 			}
-			PL_strncpyz (aclpb->aclpb_Evalattr, attr_type, len);
+			/* length needs to have 1 for '\0' */
+			PL_strncpyz (aclpb->aclpb_Evalattr, attr_type, len+1);
 #ifdef DETERMINE_ACCESS_BASED_ON_REQUESTED_ATTRIBUTES
 			if ( attr_index >= 0 ) {
 				/*
@@ -1191,38 +1191,36 @@ acl_read_access_allowed_on_attr (
 	}
 	
 	/*
-	 * Am I	a anonymous dude ? then	we can use our anonympous profile
+	 * Am I anonymous? then we can use our anonympous profile
 	 * We don't require the aclpb to have been initialized for anom stuff
-	 *
-	*/
+	 */
 	slapi_pblock_get (pb, SLAPI_REQUESTOR_DN ,&clientDn );
-	if ( clientDn && *clientDn == '\0' ) {		
-		ret_val =  aclanom_match_profile ( pb, aclpb, e, attr, 
-						SLAPI_ACL_READ );
+	if (clientDn && (*clientDn == '\0')) {
+		ret_val = aclanom_match_profile (pb, aclpb, e, attr, SLAPI_ACL_READ);
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_attr_end ,"ACL","",
-							tnf_string,anon_decision,"");
-		if (ret_val != -1 ) return ret_val;
+		                  tnf_string,anon_decision,"");
+		if (ret_val != -1) {
+			return ret_val;
+		}
 	}
 
 	/* Then I must have a access to the entry. */
 	aclpb->aclpb_state |= ACLPB_ACCESS_ALLOWED_ON_ENTRY;
 
-	if ( aclpb->aclpb_state & ACLPB_MATCHES_ALL_ACLS ) {		
+	if (aclpb->aclpb_state & ACLPB_MATCHES_ALL_ACLS) {
 
 		ret_val = acl__attr_cached_result (aclpb, attr, SLAPI_ACL_READ);
-		if (ret_val != -1 ) {
+		if (ret_val != -1) {
 			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
-				 "MATCHED HANDLE:dn:%s attr: %s val:%d\n", 
-				n_edn, attr, ret_val );
-			if ( ret_val == LDAP_SUCCESS) {
-				decision_reason.reason =
-						ACL_REASON_EVALCONTEXT_CACHED_ALLOW;
+			                "MATCHED HANDLE:dn:%s attr: %s val:%d\n", 
+			                n_edn, attr, ret_val );
+			if (ret_val == LDAP_SUCCESS) {
+				decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_ALLOW;
 			} else {
-				decision_reason.reason =
-							ACL_REASON_EVALCONTEXT_CACHED_NOT_ALLOWED;
-			}		
+				decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_NOT_ALLOWED;
+			}
 			goto acl_access_allowed_on_attr_Exit;
-		 } else  {
+		} else {
 			aclpb->aclpb_state |= ACLPB_COPY_EVALCONTEXT;
 		}
 	}
@@ -1258,50 +1256,54 @@ acl_read_access_allowed_on_attr (
 		**  -- access  is allowed on phone
 		**  -- Don't know about the rest. Need to evaluate.
 		*/
-
-		if ( slapi_attr_type_cmp (attr, aclpb->aclpb_Evalattr, 1) == 0) {
+		if (slapi_attr_type_cmp(aclpb->aclpb_Evalattr, attr, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
 			/* from now on we need to evaluate access on
 			** rest of the attrs.
 			*/
-			aclpb->aclpb_state &= ~ACLPB_ACCESS_ALLOWED_ON_A_ATTR;
 			TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_attr_end ,"ACL","",
-								tnf_string,aclp_Evalattr1,"");
-
+			                  tnf_string,aclp_Evalattr1,"");
 			return LDAP_SUCCESS;
-		} else {
-			/*
-			 * Here, the attr that implied access to the entry (aclpb_Evalattr),
-			 *  is not
-			 * the one we currently want evaluated--so
-			 * we need to evaluate access to attr--so fall through.
-			*/	 					
 		}
 
-	}  else if (aclpb->aclpb_state & ACLPB_ACCESS_ALLOWED_USERATTR) {
+		/*
+		 * Here, the attr that implied access to the entry (aclpb_Evalattr),
+		 *  is not
+		 * the one we currently want evaluated--so
+		 * we need to evaluate access to attr--so fall through.
+		 */
+
+	} else if (aclpb->aclpb_state & ACLPB_ACCESS_ALLOWED_USERATTR) {
 		/* Only skip evaluation on the user attr on which we have
 		** evaluated before.
 		*/
-		if ( slapi_attr_type_cmp (attr, aclpb->aclpb_Evalattr, 1) == 0) {
+		if (slapi_attr_type_cmp(aclpb->aclpb_Evalattr, attr, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
 			aclpb->aclpb_state &= ~ACLPB_ACCESS_ALLOWED_USERATTR;
 			TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_attr_end ,"ACL","",
-								tnf_string,aclp_Evalattr2,"");
+			                  tnf_string,aclp_Evalattr2,"");
 			return LDAP_SUCCESS;
 		}
 	}
 
 	/* we need to evaluate the access on this attr */
+	/*
+	 * targetattr=sn;en
+	 * search attribute list: cn sn
+	 * ==>
+	 * attr: cn sn;en
+	 * aclpb_Evalattr: sn;en
+	 */
 	return ( acl_access_allowed(pb, e, attr, val, access) );
 
 	/* This exit point prints a summary and returns ret_val */
 acl_access_allowed_on_attr_Exit:
 
-	/* print summary if loglevel set */			
+	/* print summary if loglevel set */
 	if ( slapi_is_loglevel_set(loglevel) ) {
 		
 		print_access_control_summary( "on attr",
 										ret_val, clientDn, aclpb,
 										acl_access2str(SLAPI_ACL_READ),
-										attr, n_edn,											&decision_reason);
+										attr, n_edn, &decision_reason);
 	}
 	TNF_PROBE_0_DEBUG(acl_read_access_allowed_on_attr_end ,"ACL","");
 
@@ -1697,8 +1699,9 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 
 		mods = (LDAPMod **) change;
 		
-		for (j=0;  mods[j] != NULL; j++) {
-			if (strcasecmp(mods[j]->mod_type, aci_attr_type) == 0) {
+		for (j=0; mods && mods[j]; j++) {
+			if (slapi_attr_type_cmp(mods[j]->mod_type, aci_attr_type,
+			                        SLAPI_TYPE_CMP_SUBTYPE) == 0) {
 
 				/* Got an aci to mod in this list of mods, so
 				 * take the acicache lock for the whole list of mods,
@@ -2165,7 +2168,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		} else {
 			dn_matched = ACL_TRUE;
 		}
-														
+
 		if (aci->aci_type & ACI_TARGET_NOT) {
 			matches = (dn_matched ? ACL_FALSE : ACL_TRUE);
 		} else {
@@ -2347,7 +2350,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 					 * of the attribute in the entry--otherwise you
 					 * could satisfy the filter and then put loads of other
 					 * values in on the back of it.
-				 	*/
+					 */
 
 					sval=NULL;
 					attrVal=NULL;
@@ -2356,18 +2359,16 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 					while(k != -1 && !done) {
 						attrVal = slapi_value_get_berval(sval);
 
-						if ( acl__make_filter_test_entry(
-                            	&aclpb->aclpb_filter_test_entry,
-								attrFilter->attr_str,
-								(struct berval *)attrVal) == LDAP_SUCCESS ) {                      
-				
-							attr_matched= acl__test_filter( 
-                            	    	aclpb->aclpb_filter_test_entry,
-						   	   			attrFilter->filter,
-						   	   			1 /* Do filter sense evaluation below */
-							 			);
+						if (acl__make_filter_test_entry(&aclpb->aclpb_filter_test_entry,
+						                                attrFilter->attr_str,
+						                                (struct berval *)attrVal) == LDAP_SUCCESS ) {
+
+							attr_matched = acl__test_filter(aclpb->aclpb_filter_test_entry,
+							                                attrFilter->filter,
+							                                1 /* Do filter sense evaluation below */
+							                               );
 							done = !attr_matched;
-							slapi_entry_free( aclpb->aclpb_filter_test_entry );			
+							slapi_entry_free( aclpb->aclpb_filter_test_entry );
 						}                                           
 						
 						k= slapi_attr_next_value(attr_ptr, k, &sval);
@@ -2379,8 +2380,8 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 					 * of the attribute in the entry satisfied the filter.
 					 * Otherwise, attr_matched is ACL_FALSE and not every 
 					 * value satisfied the filter, so we will teminate the
-					 * scan of the filter list.					
-					*/
+					 * scan of the filter list.
+					 */
 
 				}
 
@@ -2391,9 +2392,9 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		 * Here, we've applied all the applicable filters to the entry.
 		 * Each one must have been satisfied by all the values of the attribute.
 		 * The result of this is stored in attr_matched.
-		*/		
+		 */
 
-#if 0		
+#if 0
 		/*
 		 * Don't support a notion of "add != " or "del != "
 		 * at the moment.
@@ -2415,12 +2416,10 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			goto acl__resource_match_aci_EXIT;	
 		}
 
-	} else  if ( ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD) &&
-                  (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) ||
-                 ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL) &&
-                  (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)) ) {
-
-            
+	} else if ( ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD) &&
+                 (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) ||
+                ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL) &&
+                 (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)) ) {
 		/*     
 		 * Here, it's a modify add/del and we have attr filters.  
 		 * So, we need to scan the add/del filter list to find the filter
@@ -2436,15 +2435,11 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		int found = 0;
 
 		if ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD) &&
-			(aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) {
-
+		    (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) {
 			attrFilterArray = aci->targetAttrAddFilters;
-
 		} else if ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_DEL) && 
-				   (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)) {
-				
+		           (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)) {
 			attrFilterArray = aci->targetAttrDelFilters;
-
 		}
 		
 
@@ -2456,12 +2451,12 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		num_attrs = 0;
 
 		while (attrFilterArray[num_attrs] && !found) {
-				attrFilter = attrFilterArray[num_attrs];
+			attrFilter = attrFilterArray[num_attrs];
 
 			/* If this filter applies to the attribute, stop. */
 			if ((aclpb->aclpb_curr_attrEval) &&
-				slapi_attr_type_cmp ( aclpb->aclpb_curr_attrEval->attrEval_name,
-									  attrFilter->attr_str, 1) == 0) {
+				slapi_attr_type_cmp(aclpb->aclpb_curr_attrEval->attrEval_name,
+				                    attrFilter->attr_str, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
 				found = 1;
 			}
 			num_attrs++;
@@ -2475,17 +2470,16 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 
 		if (found) {
 
-			if ( acl__make_filter_test_entry(
-                            	&aclpb->aclpb_filter_test_entry,
-								aclpb->aclpb_curr_attrEval->attrEval_name,
-								aclpb->aclpb_curr_attrVal) == LDAP_SUCCESS ) {                      
+			if (acl__make_filter_test_entry(&aclpb->aclpb_filter_test_entry,
+			                                aclpb->aclpb_curr_attrEval->attrEval_name,
+			                                aclpb->aclpb_curr_attrVal) == LDAP_SUCCESS ) {
 				
 				attr_matched= acl__test_filter(aclpb->aclpb_filter_test_entry,
 										attrFilter->filter,
 										1 /* Do filter sense evaluation below */
-										);                            
-				slapi_entry_free( aclpb->aclpb_filter_test_entry );			
-			}           
+										);
+				slapi_entry_free( aclpb->aclpb_filter_test_entry );
+			}
 
 			/* No need to look further */
 			if (attr_matched == ACL_FALSE) {
@@ -2500,7 +2494,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			*/
 		
 			attr_matched_in_targetattrfilters = 1;
-		}                                
+		}
 	} /* targetvaluefilters */ 
 	
 
@@ -2572,7 +2566,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
      * bother to look at the attrlist.
     */
     
-    if (!attr_matched_in_targetattrfilters) {                
+    if (!attr_matched_in_targetattrfilters) {
             
 	/* match target attr */
 	if ((c_attrEval) && 
@@ -2587,10 +2581,13 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			num_attrs = 0;
 
 			while (attrArray[num_attrs] && !attr_matched) {
-				attr = attrArray[num_attrs];           
-	            if (attr->attr_type & ACL_ATTR_STRING) { 
-					if (slapi_attr_type_cmp ( res_attr, 
-					      		attr->u.attr_str, 1) == 0) {
+				attr = attrArray[num_attrs];
+				if (attr->attr_type & ACL_ATTR_STRING) { 
+					/*
+					 * res_attr: attr type to eval (e.g., filter "(sn;en=*)")
+					 * attr->u.attr_str: targetattr value (e.g., sn;en)
+					 */
+					if (slapi_attr_type_cmp(attr->u.attr_str, res_attr, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
 						attr_matched = ACL_TRUE;
 						*a_matched = ACL_TRUE;
 					} 
@@ -3518,7 +3515,7 @@ acl__attr_cached_result (struct acl_pblock *aclpb, char *attr, int access )
 
 		if ( a_eval == NULL ) continue;
 
-		if (strcasecmp ( attr, a_eval->attrEval_name ) == 0 ) {
+		if (slapi_attr_type_cmp(a_eval->attrEval_name, attr, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
 			if ( access & SLAPI_ACL_SEARCH ) {
 				if (a_eval->attrEval_s_status < ACL_ATTREVAL_DETERMINISTIC ) {
 					if ( a_eval->attrEval_s_status & ACL_ATTREVAL_SUCCESS)
@@ -3708,8 +3705,9 @@ acl_copyEval_context ( struct acl_pblock *aclpb, aclEvalContext *src,
 			continue;
 
 		for ( j = 0; j < dest->acle_numof_attrs; j++ ) {
-			if ( strcasecmp ( src->acle_attrEval[i].attrEval_name,
-					  dest->acle_attrEval[j].attrEval_name ) == 0 ) {
+			if (slapi_attr_type_cmp(src->acle_attrEval[i].attrEval_name,
+			                        dest->acle_attrEval[j].attrEval_name,
+			                        SLAPI_TYPE_CMP_SUBTYPE) == 0) {
 				/* We have it. skip it. */
 				attr_exists = 1;
 				dd_slot = j;
@@ -3751,8 +3749,7 @@ acl_copyEval_context ( struct acl_pblock *aclpb, aclEvalContext *src,
 			(size_t)src->acle_numof_tmatched_handles, sizeof( int ), acl__cmp );
 
 	for (i=0; i < src->acle_numof_tmatched_handles; i++ )  {
-		dest->acle_handles_matched_target[i]  =
-				src->acle_handles_matched_target[i];
+		dest->acle_handles_matched_target[i] = src->acle_handles_matched_target[i];
 	}
 
 	if ( src->acle_numof_tmatched_handles ) {
@@ -3917,9 +3914,12 @@ acl__get_attrEval ( struct acl_pblock *aclpb, char *attr )
 	/* Go thru and see if we have the attr already */
 	for (j=0; j < c_ContextEval->acle_numof_attrs; j++) {
 		c_attrEval = &c_ContextEval->acle_attrEval[j];
-			
-		if ( c_attrEval && 
-			slapi_attr_type_cmp ( c_attrEval->attrEval_name, attr, 1) == 0 ) {
+
+		if (c_attrEval && 
+		    /* attr: e.g., filter "(sn;en=*)" / attr list / attr in entry */
+		    /* This compare must check all subtypes.  "sn" vs. "sn;fr" should return 1 */
+		    slapi_attr_type_cmp(c_attrEval->attrEval_name,
+		                        attr, SLAPI_TYPE_CMP_SUBTYPES) == 0) {
 			aclpb->aclpb_curr_attrEval = c_attrEval;
 			break;
 		}

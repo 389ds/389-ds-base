@@ -246,7 +246,15 @@ do_search( Slapi_PBlock *pb )
 	}
 
 	if ( attrs != NULL ) {
-		int aciin = 0;
+		char *normaci = slapi_attr_syntax_normalize("aci");
+		int replace_aci = 0;
+		if (0 == strcasecmp(normaci, "aci")) {
+			/* normaci is identical to "aci" */
+			slapi_ch_free_string(&normaci);
+			normaci = slapi_ch_strdup("aci");
+		} else {
+			replace_aci = 1;
+		}
 		/* 
 		 * . store gerattrs if any
 		 * . add "aci" once if "*" is given
@@ -274,13 +282,25 @@ do_search( Slapi_PBlock *pb )
 				charray_merge_nodup(&gerattrs, dummyary, 1);
 				/* null terminate the attribute name at the @ after it has been copied */
 				*p = '\0';
-			}
-			else if ( !aciin && strcasecmp(attrs[i], LDAP_ALL_USER_ATTRS) == 0 )
-			{
-				charray_add(&attrs, slapi_attr_syntax_normalize("aci"));
-				aciin = 1;
+			} else if (strcmp(attrs[i], LDAP_ALL_USER_ATTRS /* '*' */) == 0) {
+				if (!charray_inlist(attrs, normaci)) {
+					charray_add(&attrs, normaci); /* consumed */
+					normaci = NULL;
+				}
+			} else if (replace_aci && (strcasecmp(attrs[i], "aci") == 0)) {
+				slapi_ch_free_string(&attrs[i]);
+				if (charray_inlist(attrs, normaci)) { /* attrlist: "*" "aci" */
+					int j = i;
+					for (; attrs[j]; j++) { /* Shift the rest by 1 */
+						attrs[j] = attrs[j+1];
+					}
+				} else { /* attrlist: "aci" "*" */
+					attrs[i] = normaci; /* consumed */
+					normaci = NULL;
+				}
 			}
 		}
+		slapi_ch_free_string(&normaci);
 
 		if (config_get_return_orig_type_switch()) {
 			/* return the original type, e.g., "sn (surname)" */
@@ -376,6 +396,7 @@ free_and_return:;
 	if ( !psearch || rc != 0 ) {
 		slapi_ch_free_string(&fstr);
 		slapi_filter_free( filter, 1 );
+		slapi_pblock_get( pb, SLAPI_SEARCH_ATTRS, &attrs );
 		charray_free( attrs );	/* passing NULL is fine */
 		charray_free( gerattrs );	/* passing NULL is fine */
 		/* 

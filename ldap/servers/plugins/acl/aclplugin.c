@@ -374,11 +374,11 @@ acl_access_allowed_main ( Slapi_PBlock *pb, Slapi_Entry *e, char **attrs,
 
 	if (attrs && *attrs) attr = attrs[0];
 
-	if (ACLPLUGIN_ACCESS_READ_ON_ENTRY == flags)
+	if (ACLPLUGIN_ACCESS_READ_ON_ENTRY == flags) {
 		rc = acl_read_access_allowed_on_entry ( pb, e, attrs, access);
-	else if ( ACLPLUGIN_ACCESS_READ_ON_ATTR == flags) {
+	} else if ( ACLPLUGIN_ACCESS_READ_ON_ATTR == flags) {
 		if (attr == NULL) {
-        		slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "Missing attribute\n" );
+			slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "Missing attribute\n" );
 			rc = LDAP_OPERATIONS_ERROR;
 		} else {
 			rc = acl_read_access_allowed_on_attr ( pb, e, attr, val, access);

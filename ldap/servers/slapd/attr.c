@@ -76,8 +76,12 @@ typedef struct slapi_attr_value_index {
  * find the next component of an attribute type.
  */
 static const char *
-next_comp( const char *s )
+next_comp( const char *sp )
 {
+	char *s = (char *)sp;
+	if (NULL == s) {
+		return( NULL );
+	}
 	while ( *s && *s != ';' ) {
 		s++;
 	}
@@ -93,14 +97,30 @@ next_comp( const char *s )
  * compare two components of an attribute type.
  */
 static int
-comp_cmp( const char *s1, const char *s2 )
+comp_cmp( const char *s1p, const char *s2p )
 {
-	while ( *s1 && *s1 != ';' && tolower( *s1 ) == tolower( *s2 ) ) {
+	char *s1 = (char *)s1p;
+	char *s2 = (char *)s2p;
+	if (NULL == s1) {
+		if (s2) {
+			return 1;
+		}
+		return 0;
+	} 
+	if (NULL == s2) {
+		if (s1) {
+			return 1;
+		}
+		return 0;
+	} 
+	while ( *s1 && (*s1 != ';') &&
+	        *s2 && (*s2 != ';') &&
+	        tolower( *s1 ) == tolower( *s2 ) ) {
 		s1++, s2++;
 	}
 	if ( *s1 != *s2 ) {
-		if ( (*s1 == '\0' || *s1 == ';') &&
-		    (*s2 == '\0' || *s2 == ';') ) {
+		if ((*s1 == '\0' || *s1 == ';') &&
+		    (*s2 == '\0' || *s2 == ';')) {
 			return( 0 );
 		} else {
 			return( 1 );
@@ -115,16 +135,18 @@ slapi_attr_type_cmp( const char *a1, const char *a2, int opt )
 {
 	int	rc= 0;
 
-    switch ( opt ) {
-    case SLAPI_TYPE_CMP_EXACT: /* compare base name + options as given */
-        rc = strcasecmp( a1, a2 );
+	switch ( opt ) {
+	case SLAPI_TYPE_CMP_EXACT: /* compare base name + options as given */
+		rc = strcasecmp( a1, a2 );
 		break;
 
-    case SLAPI_TYPE_CMP_BASE: /* ignore options on both names - compare base names only */
+	case SLAPI_TYPE_CMP_BASE: /* ignore options on both names - compare base names only */
 		rc = comp_cmp( a1, a2 );
-        break;
+		break;
 
-    case SLAPI_TYPE_CMP_SUBTYPE: /* ignore options on second name that are not in first name */
+	case SLAPI_TYPE_CMP_SUBTYPE: /* ignore options on second name that are not in first name */
+	{
+		const char *b2 = a2;
 		/*
 		 * first, check that the base types match
 		 */
@@ -134,24 +156,73 @@ slapi_attr_type_cmp( const char *a1, const char *a2, int opt )
 		}
 		/*
 		 * next, for each component in a1, make sure there is a
-		 * matching component in a2. the order must be the same,
-		 * so we can keep looking where we left off each time in a2
+		 * matching component in a2. 
 		 */
 		rc = 0;
-		for ( a1 = next_comp( a1 ); a1 != NULL; a1 = next_comp( a1 ) ) {
-			for ( a2 = next_comp( a2 ); a2 != NULL;
-			    a2 = next_comp( a2 ) ) {
-				if ( comp_cmp( a1, a2 ) == 0 ) {
+		for ( a1 = next_comp( a1 ); a1; a1 = next_comp( a1 ) ) {
+			for ( b2 = next_comp( b2 ); b2; b2 = next_comp( b2 ) ) {
+				if ( comp_cmp( a1, b2 ) == 0 ) {
 					break;
 				}
 			}
-			if ( a2 == NULL ) {
+			if ( b2 == NULL ) {
 				rc = 1;
 				break;
 			}
+			b2 = a2;
 		}
-        break;
-    }
+		break;
+	}
+	case SLAPI_TYPE_CMP_SUBTYPES: /* Both share the same subtypes */
+	{
+		const char *b1 = a1;
+		const char *b2 = a2;
+		/*
+		 * first, check that the base types match
+		 */
+		if (comp_cmp(a1, a2) != 0) {
+			rc = 1;
+			break;
+		}
+		/*
+		 * next, for each component in a1, make sure there is a
+		 * matching component in a2. 
+		 */
+		rc = 0;
+		for (b1 = next_comp(b1); b1; b1 = next_comp(b1)) {
+			for (b2 = next_comp(b2); b2; b2 = next_comp(b2)) {
+				if (comp_cmp(b1, b2) == 0) {
+					break;
+				}
+			}
+			if (b2 == NULL) {
+				rc = 1;
+				break;
+			}
+			b2 = a2;
+		}
+		if (0 == rc) {
+			b1 = a1;
+			b2 = a2;
+			/*
+			 * next, for each component in a2, make sure there is a
+			 * matching component in a1. 
+			 */
+			for (b2 = next_comp(b2); b2; b2 = next_comp(b2)) {
+				for (b1 = next_comp(b1); b1; b1 = next_comp(b1)) {
+					if (comp_cmp(b1, b2) == 0) {
+						break;
+					}
+				}
+				if (b1 == NULL) {
+					rc = 1;
+					break;
+				}
+				b1 = a1;
+			}
+		}
+	} /* SLAPI_TYPE_CMP_SUBTYPES */
+	} /* switch (opt) */
 
 	return( rc );
 }
