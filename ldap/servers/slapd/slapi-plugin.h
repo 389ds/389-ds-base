@@ -4080,6 +4080,7 @@ int slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v );
  *        \arg #SLAPI_TYPE_CMP_EXACT
  *        \arg #SLAPI_TYPE_CMP_BASE
  *        \arg #SLAPI_TYPE_CMP_SUBTYPE
+ *        \arg #SLAPI_TYPE_CMP_SUBTYPES
  * \return \c 0 if the type names are equal.
  * \return A non-zero value if the type names are not equal.
  * \see slapi_attr_type2plugin()
@@ -4110,6 +4111,13 @@ int slapi_attr_type_cmp( const char *t1, const char *t2, int opt );
  * \see slapi_attr_type_cmp()
  */
 #define SLAPI_TYPE_CMP_SUBTYPE	2
+
+/**
+ * Compare types including subtypes in the both args.
+ *
+ * \see slapi_attr_type_cmp()
+ */
+#define SLAPI_TYPE_CMP_SUBTYPES	3
 
 /**
  * Compare two attribute names to determine if they represent the same value.
