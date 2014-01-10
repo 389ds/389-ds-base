@@ -264,7 +264,6 @@ slapi_onoff_t init_plugin_logging;
 slapi_int_t init_connection_buffer;
 slapi_int_t init_listen_backlog_size;
 slapi_onoff_t init_ignore_time_skew;
-slapi_onoff_t init_access_userattr_strict;
 #ifdef MEMPOOL_EXPERIMENTAL
 slapi_onoff_t init_mempool_switch;
 #endif
@@ -273,7 +272,6 @@ slapi_onoff_t init_mempool_switch;
 #define DEFAULT_ALLOW_ANON_ACCESS "on"
 #define DEFAULT_VALIDATE_CERT "warn"
 #define DEFAULT_UNHASHED_PW_SWITCH "on"
-#define DEFAULT_ACCESS_USERATTR_STRICT "on"
 
 static int
 isInt(ConfigVarType type)
@@ -955,12 +953,6 @@ static struct config_get_and_set {
 		CONFIG_SPECIAL_ANON_ACCESS_SWITCH,
 		(ConfigGetFunc)config_get_anon_access_switch,
 		DEFAULT_ALLOW_ANON_ACCESS},
-	{CONFIG_ACCESS_USERATTR_STRICT, config_set_access_userattr_strict,
-		NULL, 0,
-		(void**)&global_slapdFrontendConfig.access_userattr_strict,
-		CONFIG_ON_OFF,
-		(ConfigGetFunc)config_get_access_userattr_strict,
-		&init_access_userattr_strict},
 	{CONFIG_LOCALSSF_ATTRIBUTE, config_set_localssf,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.localssf,
@@ -1526,7 +1518,6 @@ FrontendConfig_init () {
   init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
   init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
   init_ignore_time_skew = cfg->ignore_time_skew = LDAP_OFF;
-  init_access_userattr_strict = cfg->access_userattr_strict = LDAP_ON;
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -6676,36 +6667,6 @@ config_set_force_sasl_external( const char *attrname, char *value,
 		&(slapdFrontendConfig->force_sasl_external),
 		errorbuf,
 		apply);
-
-	return retVal;
-}
-
-int
-config_set_access_userattr_strict( const char *attrname, char *value,
-		char *errorbuf, int apply )
-{
-	int retVal = LDAP_SUCCESS;
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-	retVal = config_set_onoff(attrname,
-		value,
-		&(slapdFrontendConfig->access_userattr_strict),
-		errorbuf,
-		apply);
-
-	return retVal;
-}
-
-int
-config_get_access_userattr_strict(void)
-{
-	int retVal;
-
-
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
-	retVal = (int)slapdFrontendConfig->access_userattr_strict;
-	CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
 
 	return retVal;
 }
