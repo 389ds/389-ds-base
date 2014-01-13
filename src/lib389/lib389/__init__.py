@@ -234,6 +234,13 @@ class DirSrv(SimpleLDAPObject):
                     self.sroot, self.inst = match.groups()
                 else:
                     self.sroot = self.inst = ''
+                # In case DirSrv was allocated without creating the instance
+                # serverid is not set. Set it now from the config
+                if hasattr(self, 'serverid') and self.serverid:
+                    assert self.serverid == self.inst
+                else:
+                    self.serverid = self.inst
+                    
                 ent = self.getEntry('cn=config,' + DN_LDBM,
                     attrlist=['nsslapd-directory'])
                 self.dbdir = os.path.dirname(ent.getValue('nsslapd-directory'))
@@ -355,7 +362,7 @@ class DirSrv(SimpleLDAPObject):
            The final state  -> DIRSRV_STATE_ALLOCATED
            @param args - dictionary that contains the DirSrv properties
                properties are
-                   SER_SERVERID_PROP: mandatory server id of the instance -> slapd-<serverid>
+                   SER_SERVERID_PROP: used for offline op (create/delete/backup/start/stop..) -> slapd-<serverid>
                    SER_HOST: hostname [LOCALHOST]
                    SER_PORT: normal ldap port [DEFAULT_PORT]
                    SER_SECURE_PORT: secure ldap port
@@ -374,7 +381,7 @@ class DirSrv(SimpleLDAPObject):
             raise ValueError("invalid state for calling allocate: %s" % self.state)
         
         if SER_SERVERID_PROP not in args:
-            raise ValueError("%s is a mandatory parameter" % SER_SERVERID_PROP)
+            self.log.info('SER_SERVERID_PROP not provided')
         
         # Settings from args of server attributes 
         self.host    = args.get(SER_HOST, LOCALHOST)
@@ -393,7 +400,7 @@ class DirSrv(SimpleLDAPObject):
             
         
         # Settings from args of server attributes
-        self.serverid  = args.get(SER_SERVERID_PROP)
+        self.serverid  = args.get(SER_SERVERID_PROP, None)
         self.groupid   = args.get(SER_GROUP_ID, self.userid)
         self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
         self.prefix    = args.get(SER_DEPLOYED_DIR, None)
@@ -657,7 +664,8 @@ class DirSrv(SimpleLDAPObject):
             
             @return - None
             
-            @raise ValueError - if it exist an instance with the same 'serverid' 
+            @raise ValueError - if 'serverid' is missing or if it exist an 
+                                instance with the same 'serverid' 
         """
         # check that DirSrv was in DIRSRV_STATE_ALLOCATED state
         if self.state != DIRSRV_STATE_ALLOCATED:
@@ -667,6 +675,9 @@ class DirSrv(SimpleLDAPObject):
         props = self.list()
         if len(props) != 0:
             raise ValueError("Error it already exists the instance (%s)" % props[0][CONF_INST_DIR])
+        
+        if not self.serverid:
+            raise ValueError("SER_SERVERID_PROP is missing, it is required to create an instance")
         
         # Time to create the instance and retrieve the effective sroot
         self._createDirsrv(verbose=self.verbose)
@@ -721,11 +732,8 @@ class DirSrv(SimpleLDAPObject):
 
             @return None
 
-            @raise ValueError - if the instance has not the right state or can not find the binddn to bind
+            @raise ValueError - if can not find the binddn to bind
         '''
-        # check that DirSrv was in DIRSRV_STATE_OFFLINE or DIRSRV_STATE_ONLINE state
-        if self.state != DIRSRV_STATE_OFFLINE and self.state != DIRSRV_STATE_ONLINE:
-            raise ValueError("invalid state for calling open: %s" % self.state)
         
         uri = self.toLDAPURL()
 

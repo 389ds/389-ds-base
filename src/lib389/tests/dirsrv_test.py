@@ -62,24 +62,12 @@ class Test_dirsrv():
         instance.log.debug("Instance allocated")
         assert instance.state == DIRSRV_STATE_INIT
 
-        # Check that SER_SERVERID_PROP is a mandatory parameter
+        # Allocate the instance
         args = {SER_HOST:         LOCALHOST,
                 SER_PORT:         INSTANCE_PORT,
-                SER_DEPLOYED_DIR: INSTANCE_PREFIX
+                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
+                SER_SERVERID_PROP: INSTANCE_SERVERID
                 }
-        try:
-            instance.allocate(args)
-        except Exception as e:
-            instance.log.info('Allocate fails (normal): %s' % e.args)
-            assert type(e) == ValueError
-            assert e.args[0].find("%s is a mandatory parameter" % SER_SERVERID_PROP) >= 0
-            pass
-        
-        # Check the state
-        assert instance.state == DIRSRV_STATE_INIT
-        
-        # Now do a successful allocate
-        args[SER_SERVERID_PROP] = INSTANCE_SERVERID
         instance.allocate(args)
         
         userid = pwd.getpwuid( os.getuid() )[ 0 ]
@@ -162,8 +150,45 @@ class Test_dirsrv():
         
     def test_offline_to_allocated(self):
         self.instance.delete()
+    
+    def test_allocated_to_online(self, verbose):
+        # Here the instance was already create, check we can connect to it
+        # without creating it (especially without serverid value)
+        # Allocate the instance
+        args = {SER_HOST:         LOCALHOST,
+                SER_PORT:         INSTANCE_PORT,
+                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
+                SER_SERVERID_PROP: INSTANCE_SERVERID
+                }
+        self.instance.log.info("test_allocated_to_online: Create an instance")
+        self.instance = DirSrv(verbose=verbose)
+        assert not hasattr(self, 'serverid')
+        self.instance.allocate(args)
+        self.instance.create()
+        self.instance.open()
+        assert self.instance.serverid != None
         
-
+        # The instance is create, allocate a new DirSrv
+        self.instance.log.info("test_allocated_to_online: instance New")
+        self.instance = DirSrv(verbose=verbose)
+        assert not hasattr(self, 'serverid')
+        assert self.instance.state == DIRSRV_STATE_INIT
+        
+        args = {SER_HOST:         LOCALHOST,
+                SER_PORT:         INSTANCE_PORT,
+                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
+                }
+        self.instance.allocate(args)
+        self.instance.log.info("test_allocated_to_online: instance Allocated")
+        assert self.instance.serverid == None
+        assert self.instance.state == DIRSRV_STATE_ALLOCATED
+        
+        self.instance.open()
+        self.instance.log.info("test_allocated_to_online: instance online")
+        assert self.instance.serverid != None
+        assert self.instance.serverid == self.instance.inst
+        assert self.instance.state == DIRSRV_STATE_ONLINE
+        
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     test = Test_dirsrv()
@@ -200,6 +225,8 @@ if __name__ == "__main__":
     test.test_list_init()
     
     test.test_offline_to_allocated()
+    
+    test.test_allocated_to_online(verbose=False)
     
     test.tearDown()
 
