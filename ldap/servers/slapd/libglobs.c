@@ -6760,7 +6760,7 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
         int needcopy = 0;
         allowed = slapi_str2charray_ext(vcopy, " ", 0);
         for (s = allowed; s && *s; s++) ;
-        for (--s; s && *s && (s >= allowed); s--) {
+        for (--s; s && (s >= allowed) && *s; s--) {
             cgas = (struct config_get_and_set *)PL_HashTableLookup(confighash,
                                                                    *s);
             if (!cgas && PL_strcasecmp(*s, "aci") /* aci is an exception */) {
@@ -6781,6 +6781,7 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
                 slapi_log_error(SLAPI_LOG_FATAL, "config",
                         "%s: Given attributes are all invalid.  No effects.\n",
                         CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE);
+                slapi_ch_array_free(allowed);
                 return LDAP_NO_SUCH_ATTRIBUTE;
             } else {
                 for (s = allowed, d = vcopy; s && *s; s++) {
