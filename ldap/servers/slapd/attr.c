@@ -111,7 +111,6 @@ comp_cmp( const char *s1p, const char *s2p )
 		if (s1) {
 			return 1;
 		}
-		return 0;
 	} 
 	while ( *s1 && (*s1 != ';') &&
 	        *s2 && (*s2 != ';') &&

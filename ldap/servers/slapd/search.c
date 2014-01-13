@@ -248,11 +248,10 @@ do_search( Slapi_PBlock *pb )
 	if ( attrs != NULL ) {
 		char *normaci = slapi_attr_syntax_normalize("aci");
 		int replace_aci = 0;
-		if (0 == strcasecmp(normaci, "aci")) {
-			/* normaci is identical to "aci" */
-			slapi_ch_free_string(&normaci);
+		if (!normaci) {
 			normaci = slapi_ch_strdup("aci");
-		} else {
+		} else if (strcasecmp(normaci, "aci")) {
+			/* normaci is not "aci" */
 			replace_aci = 1;
 		}
 		/* 
@@ -284,20 +283,11 @@ do_search( Slapi_PBlock *pb )
 				*p = '\0';
 			} else if (strcmp(attrs[i], LDAP_ALL_USER_ATTRS /* '*' */) == 0) {
 				if (!charray_inlist(attrs, normaci)) {
-					charray_add(&attrs, normaci); /* consumed */
-					normaci = NULL;
+					charray_add(&attrs, slapi_ch_strdup(normaci));
 				}
 			} else if (replace_aci && (strcasecmp(attrs[i], "aci") == 0)) {
 				slapi_ch_free_string(&attrs[i]);
-				if (charray_inlist(attrs, normaci)) { /* attrlist: "*" "aci" */
-					int j = i;
-					for (; attrs[j]; j++) { /* Shift the rest by 1 */
-						attrs[j] = attrs[j+1];
-					}
-				} else { /* attrlist: "aci" "*" */
-					attrs[i] = normaci; /* consumed */
-					normaci = NULL;
-				}
+				attrs[i] = slapi_ch_strdup(normaci);
 			}
 		}
 		slapi_ch_free_string(&normaci);
