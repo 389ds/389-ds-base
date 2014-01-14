@@ -6168,6 +6168,7 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
         int rc, i, j;
         int repl_schema_policy;
         int found;
+        PRBool moved_must_to_may;
 
         if (message == NULL) {
                 description = "";
@@ -6250,21 +6251,43 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                                         }
                                 }
                                 if (!found) {
-                                        /* The required attribute in the remote protocol (remote_oc->oc_orig_required[i])
-                                         * is not required in the local protocol
+                                        /* Before stating that oc1 is a superset of oc2, we need to verify that the 'required'
+                                         * attribute (from oc1) is missing in 'required' oc2 because it is 
+                                         * now 'allowed' in oc2
                                          */
-                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not required in '%s' of the %s schema\n",
-                                                oc_1->oc_orig_required[i],
-                                                oc_1->oc_name,
-                                                description);
-
-                                        /* The oc_1 objectclasses is supperset */
-                                        rc = 1;
-                                        if(debug_logging){
-                                            /* we continue to check all attributes so we log what is wrong */
-                                            continue;
+                                        moved_must_to_may = PR_FALSE;
+                                        if (oc_2->oc_orig_allowed) {
+                                                for (j = 0; oc_2->oc_orig_allowed[j] != NULL; j++) {
+                                                        if (strcasecmp(oc_2->oc_orig_allowed[j], oc_1->oc_orig_required[i]) == 0) {
+                                                                moved_must_to_may = PR_TRUE;
+                                                                break;
+                                                        }
+                                                }
+                                        }
+                                        if (moved_must_to_may) {
+                                                /* This is a special case where oc1 is actually NOT a superset of oc2 */
+                                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is no longer 'required' in '%s' of the %s schema but is now 'allowed'\n",
+                                                        oc_1->oc_orig_required[i],
+                                                        oc_1->oc_name,
+                                                        description);
                                         } else {
-                                            break;
+
+                                                /* The required attribute in the remote protocol (remote_oc->oc_orig_required[i])
+                                                 * is not required in the local protocol
+                                                 */
+                                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not required in '%s' of the %s schema\n",
+                                                        oc_1->oc_orig_required[i],
+                                                        oc_1->oc_name,
+                                                        description);
+
+                                                /* The oc_1 objectclasses is supperset */
+                                                rc = 1;
+                                                if (debug_logging) {
+                                                        /* we continue to check all attributes so we log what is wrong */
+                                                        continue;
+                                                } else {
+                                                        break;
+                                                }
                                         }
                                 }
                         }
@@ -6286,8 +6309,8 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                                         }
                                 }
                                 if (!found) {
-                                        /* The required attribute in the remote protocol (remote_oc->oc_orig_allowed[i])
-                                         * is not required in the local protocol
+                                        /* The allowed attribute in the remote schema (remote_oc->oc_orig_allowed[i])
+                                         * is not allowed in the local schema
                                          */
                                         slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not allowed in '%s' of the %s schema\n",
                                                 oc_1->oc_orig_allowed[i],
@@ -6296,12 +6319,12 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
 
                                         /* The oc_1 objectclasses is superset */
                                         rc = 1;
-                                        if(debug_logging){
-                                            /* we continue to check all attributes so we log what is wrong */
-                                            continue;
+                                        if (debug_logging) {
+                                                /* we continue to check all attributes so we log what is wrong */
+                                                continue;
                                         } else {
-                                            break;
-                                        }
+                                                break;
+                                        }        
                                 }
                         }
                 }
