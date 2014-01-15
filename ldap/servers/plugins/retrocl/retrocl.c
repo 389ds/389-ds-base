@@ -258,6 +258,9 @@ static int retrocl_select_backend(void)
 
     retrocl_create_cle();
     slapi_pblock_destroy(pb);
+    
+    if (be)
+            slapi_be_Unlock(be);
 
     return retrocl_get_changenumbers();
 }
