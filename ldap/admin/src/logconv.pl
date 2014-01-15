@@ -2171,6 +2171,7 @@ sub parseLineNormal
 	}
 	if (($usage =~ /l/ || $verb eq "yes" || $usage =~ /u/ || $usage =~ /U/) and / SRCH /){
 		my ($filterConn, $filterOp);
+		$tmpp = "";
 		if (/ SRCH / && / attrs=/ && $_ =~ /filter=\"(.*)\" /i ){
 			$tmpp = $1;
 			$tmpp =~ tr/A-Z/a-z/;
@@ -2185,11 +2186,15 @@ sub parseLineNormal
 			$hashes->{filter}->{$tmpp}++;
 			if ($_ =~ /conn= *([0-9A-Z]+)/i) { $filterConn = $1; }
 			if ($_ =~ /op= *([0-9\-]+)/i) { $filterOp = $1; }
+		} elsif (/ SRCH / && /invalid dn/){
+			# this will be caught by the err=34 checking
 		}
-		$filterCount++;
-		if($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
-			# we only need this for the unindexed search report
-			$hashes->{filter_conn_op}->{"$serverRestartCount,$filterConn,$filterOp"} = $tmpp;
+		if ($tmpp) {
+			$filterCount++;
+			if($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
+				# we only need this for the unindexed search report
+				$hashes->{filter_conn_op}->{"$serverRestartCount,$filterConn,$filterOp"} = $tmpp;
+			}
 		}
 	}
 	if (($usage =~ /a/ || $verb eq "yes" || $usage =~ /u/ || $usage =~ /U/) and / SRCH /){
