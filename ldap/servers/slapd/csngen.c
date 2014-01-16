@@ -315,6 +315,8 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
     time_t remote_time, remote_offset, cur_time;
 	PRUint16 remote_seqnum;
     int rc;
+    extern int config_get_ignore_time_skew();
+    int ignore_time_skew = config_get_ignore_time_skew();
 
     if (gen == NULL || csn == NULL)
         return CSN_INVALID_PARAMETER;
@@ -369,7 +371,7 @@ int csngen_adjust_time (CSNGen *gen, const CSN* csn)
         remote_offset = remote_time - cur_time;
 		if (remote_offset > gen->state.remote_offset)
 		{
-			if (remote_offset <= CSN_MAX_TIME_ADJUST)
+			if (ignore_time_skew || (remote_offset <= CSN_MAX_TIME_ADJUST))
 			{
 	        	gen->state.remote_offset = remote_offset;
 			}
@@ -640,6 +642,8 @@ _csngen_cmp_callbacks (const void *el1, const void *el2)
 static int 
 _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
 {
+    extern int config_get_ignore_time_skew();
+    int ignore_time_skew = config_get_ignore_time_skew();
     time_t time_diff = cur_time - gen->state.sampled_time;
 
     if (time_diff == 0) {
@@ -703,7 +707,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
                              gen->state.remote_offset);
         }
 
-        if (abs (time_diff) > CSN_MAX_TIME_ADJUST)
+        if (!ignore_time_skew && (abs (time_diff) > CSN_MAX_TIME_ADJUST))
         {
             slapi_log_error (SLAPI_LOG_FATAL, NULL, "_csngen_adjust_local_time: "
                              "adjustment limit exceeded; value - %d, limit - %d\n",
