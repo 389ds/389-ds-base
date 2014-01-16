@@ -1357,7 +1357,7 @@ dblayer_make_env(struct dblayer_private_env **env, struct ldbminfo *li)
     if (home_dir && *home_dir &&
         !charray_utf8_inlist(priv->dblayer_data_directories, home_dir))
     {
-        charray_add(&(priv->dblayer_data_directories), home_dir);
+        charray_add(&(priv->dblayer_data_directories), slapi_ch_strdup(home_dir));
     }
 
     /* user specified log dir */
@@ -2928,9 +2928,8 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         charray_free(priv->dblayer_data_directories);
         priv->dblayer_data_directories = NULL;
     }
-    if(dbmode == DBLAYER_NORMAL_MODE){
-        slapi_ch_free_string(&priv->dblayer_home_directory);
-    }
+    slapi_ch_free_string(&priv->dblayer_dbhome_directory);
+    slapi_ch_free_string(&priv->dblayer_home_directory);
 
     return return_value;
 }
@@ -2964,7 +2963,6 @@ int dblayer_close(struct ldbminfo *li, int dbmode)
             return_value |= dblayer_instance_close(be);
         }
     }
-    LDAPDebug1Arg(LDAP_DEBUG_ANY,"MARK dbmode %d\n",dbmode);
 
     if (return_value != 0) {
         /* force recovery next startup if any close failed */
