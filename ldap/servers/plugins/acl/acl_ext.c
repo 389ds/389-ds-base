@@ -717,7 +717,8 @@ acl__malloc_aclpb ( )
 
     /* allocate arrays for result cache */
     aclpb->aclpb_cache_result = (r_cache_t *)
-            slapi_ch_calloc (aclpb_max_cache_results, sizeof (r_cache_t));
+                slapi_ch_calloc (aclpb_max_cache_results + 1 /* 1 for cache overflow warning */,
+                sizeof (r_cache_t));
 
     /* allocate arrays for target handles in eval_context */
     aclpb->aclpb_curr_entryEval_context.acle_handles_matched_target = (int *)
