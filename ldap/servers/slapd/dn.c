@@ -103,6 +103,7 @@ static void ndn_cache_update_lru(struct ndn_cache_lru **node);
 static void ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len);
 static void ndn_cache_delete(char *dn);
 static void ndn_cache_flush();
+static void ndn_cache_free();
 static int ndn_started = 0;
 static PRLock *lru_lock = NULL;
 static Slapi_RWLock *ndn_cache_lock = NULL;
@@ -2751,7 +2752,7 @@ ndn_hash_string(const void *key)
 void
 ndn_cache_init()
 {
-    if(!config_get_ndn_cache_enabled()){
+    if(!config_get_ndn_cache_enabled() || ndn_started){
         return;
     }
     ndn_cache_hashtable = PL_NewHashTable( NDN_CACHE_BUCKETS, ndn_hash_string, PL_CompareStrings, PL_CompareValues, 0, 0);
@@ -2764,22 +2765,47 @@ ndn_cache_init()
     ndn_cache->cache_size = sizeof(struct ndn_cache_ctx) + sizeof(PLHashTable) + sizeof(PLHashTable);
     ndn_cache->head = NULL;
     ndn_cache->tail = NULL;
-
+    ndn_started = 1;
     if ( NULL == ( lru_lock = PR_NewLock()) ||  NULL == ( ndn_cache_lock = slapi_new_rwlock())) {
-        char *errorbuf = NULL;
-        if(ndn_cache_hashtable){
-            PL_HashTableDestroy(ndn_cache_hashtable);
-        }
-        ndn_cache_hashtable = NULL;
-        config_set_ndn_cache_enabled(CONFIG_NDN_CACHE, "off", errorbuf, 1 );
-        slapi_counter_destroy(&ndn_cache->cache_hits);
-        slapi_counter_destroy(&ndn_cache->cache_tries);
-        slapi_counter_destroy(&ndn_cache->cache_misses);
-        slapi_ch_free((void **)&ndn_cache);
+        ndn_cache_destroy();
         slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_init", "Failed to create locks.  Disabling cache.\n" );
-    } else {
-        ndn_started = 1;
     }
+}
+
+void
+ndn_cache_destroy()
+{
+    char *errorbuf = NULL;
+
+    if(!ndn_started){
+        return;
+    }
+    if(lru_lock){
+        PR_DestroyLock(lru_lock);
+        lru_lock = NULL;
+    }
+    if(ndn_cache_lock){
+        slapi_destroy_rwlock(ndn_cache_lock);
+        ndn_cache_lock = NULL;
+    }
+    if(ndn_cache_hashtable){
+    	ndn_cache_free();
+        PL_HashTableDestroy(ndn_cache_hashtable);
+        ndn_cache_hashtable = NULL;
+    }
+    config_set_ndn_cache_enabled(CONFIG_NDN_CACHE, "off", errorbuf, 1 );
+    slapi_counter_destroy(&ndn_cache->cache_hits);
+    slapi_counter_destroy(&ndn_cache->cache_tries);
+    slapi_counter_destroy(&ndn_cache->cache_misses);
+    slapi_ch_free((void **)&ndn_cache);
+
+    ndn_started = 0;
+}
+
+int
+ndn_cache_started()
+{
+    return ndn_started;
 }
 
 /*
@@ -2994,19 +3020,48 @@ ndn_cache_flush()
     slapi_log_error( SLAPI_LOG_CACHE, "ndn_cache_flush","Flushed cache.\n");
 }
 
+static void
+ndn_cache_free()
+{
+    struct ndn_cache_lru *node, *next, *flush_node;
+
+    if(!ndn_cache){
+        return;
+    }
+
+    node = ndn_cache->tail;
+    while(ndn_cache->cache_count){
+        flush_node = node;
+        /* update the lru */
+        next = node->prev;
+        if(next){
+            next->next = NULL;
+        }
+        ndn_cache->tail = next;
+        node = next;
+        /* now update the hash */
+        ndn_cache->cache_count--;
+        ndn_cache_delete(flush_node->key);
+        slapi_ch_free_string(&flush_node->key);
+        slapi_ch_free((void **)&flush_node);
+    }
+}
+
 /* this is already "write" locked from ndn_cache_add */
 static void
 ndn_cache_delete(char *dn)
 {
-    struct ndn_hash_val *ht_val;
+    struct ndn_hash_val *ht_entry;
 
-    ht_val = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
-    if(ht_val){
-        ndn_cache->cache_size -= ht_val->size;
-        slapi_ch_free_string(&ht_val->ndn);
+    ht_entry = (struct ndn_hash_val *)PL_HashTableLookupConst(ndn_cache_hashtable, dn);
+    if(ht_entry){
+        ndn_cache->cache_size -= ht_entry->size;
+        slapi_ch_free_string(&ht_entry->ndn);
+        slapi_ch_free((void **)&ht_entry);
         PL_HashTableRemove(ndn_cache_hashtable, dn);
     }
 }
+
 /* stats for monitor */
 void
 ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, long *count)
