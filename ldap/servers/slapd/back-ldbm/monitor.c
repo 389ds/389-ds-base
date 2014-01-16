@@ -146,7 +146,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         MSET("maxDnCacheCount");
     }
     /* normalized dn cache stats */
-    if(config_get_ndn_cache_enabled()){
+    if(ndn_cache_started()){
         ndn_cache_get_stats(&hits, &tries, &size, &maxsize, &count);
         sprintf(buf, "%" NSPRIu64, (long long unsigned int)tries);
         MSET("normalizedDnCacheTries");
