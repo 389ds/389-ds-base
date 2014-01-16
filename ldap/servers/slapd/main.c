@@ -1280,6 +1280,7 @@ main( int argc, char **argv)
 cleanup:
 	SSL_ShutdownServerSessionIDCache();
 	SSL_ClearSessionCache();
+	ndn_cache_destroy();
 	NSS_Shutdown();
 	PR_Cleanup();
 #ifdef _WIN32
