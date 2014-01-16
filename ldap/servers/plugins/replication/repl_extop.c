@@ -835,19 +835,12 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 				rc = replica_update_csngen_state_ext (replica, supplier_ruv, replicacsn); /* too much skew */
 				if (rc == CSN_LIMIT_EXCEEDED)
 				{
-					extern int config_get_ignore_time_skew();
-
 					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 									"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 									"Excessive clock skew from supplier RUV\n",
 									connid, opid, repl_root);
-					if (!config_get_ignore_time_skew()) {
-						response = NSDS50_REPL_EXCESSIVE_CLOCK_SKEW;
-						goto send_response;
-					} else {
-						/* else just continue */
-						rc = 0;
-					}
+					response = NSDS50_REPL_EXCESSIVE_CLOCK_SKEW;
+					goto send_response;
 				}
 				else if (rc != 0)
 				{
