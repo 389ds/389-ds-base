@@ -133,7 +133,6 @@ const char *type_nsds5ReplicaBusyWaitTime = "nsds5ReplicaBusyWaitTime";
 const char *type_nsds5ReplicaSessionPauseTime = "nsds5ReplicaSessionPauseTime";
 const char *type_nsds5ReplicaEnabled = "nsds5ReplicaEnabled";
 const char *type_nsds5ReplicaStripAttrs = "nsds5ReplicaStripAttrs";
-const char *type_nsds5ReplicaCleanRUVnotified = "nsds5ReplicaCleanRUVNotified";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
