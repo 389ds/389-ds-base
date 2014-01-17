@@ -167,7 +167,6 @@ extern const char *type_nsds5ReplicaBusyWaitTime;
 extern const char *type_nsds5ReplicaSessionPauseTime;
 extern const char *type_nsds5ReplicaEnabled;
 extern const char *type_nsds5ReplicaStripAttrs;
-extern const char *type_nsds5ReplicaCleanRUVnotified;
 extern const char *type_replicaProtocolTimeout;
 extern const char *type_replicaBackoffMin;
 extern const char *type_replicaBackoffMax;
