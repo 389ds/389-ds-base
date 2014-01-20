@@ -7231,17 +7231,6 @@ void slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb);
 #define SLAPI_EXT_SET_REPLACE 1
 
 /**
- * Get entry extension
- *
- * \param entry is the entry to retrieve the extension from
- * \param vals is the array of (Slapi_Value *), which directly refers the extension.  Caller must duplicate it to use it for other than referring.
- *
- * \return LDAP_SUCCESS if successful.
- * \return non-zero otherwise.
- */
-int slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals);
-
-/**
  * Set entry extension
  *
  * \param entry is the entry to set the extension to
