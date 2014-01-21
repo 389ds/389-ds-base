@@ -1788,6 +1788,16 @@ void slapi_entry_attr_set_uint( Slapi_Entry* e, const char *type, unsigned int l
 void slapi_entry_attr_set_long(Slapi_Entry* e, const char *type, long l);
 
 /**
+ * Replaces the value or values of an attribute in an entry with a specified long long
+ * data type value.
+ *
+ * \param e Entry in which you want to set the value.
+ * \param type Attribute type in which you want to set the value.
+ * \param l Long Long integer value that you want to assign to the attribute.
+ */
+void slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long l);
+
+/**
  * Replaces the value or values of an attribute in an entry with a specified unsigned
  * long data type value.
  *
