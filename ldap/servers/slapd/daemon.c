@@ -704,7 +704,7 @@ disk_monitoring_thread(void *nothing)
     char *dirstr = NULL;
     PRUint64 previous_mark = 0;
     PRUint64 disk_space = 0;
-    PRUint64 threshold = 0;
+    PRInt64 threshold = 0;
     PRUint64 halfway = 0;
     time_t start = 0;
     time_t now = 0;

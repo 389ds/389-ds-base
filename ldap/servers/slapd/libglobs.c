@@ -105,6 +105,7 @@ typedef int (*LogSetFunc)(const char *attrname, char *value, int whichlog,
 typedef enum {
 	CONFIG_INT, /* maps to int */
 	CONFIG_LONG, /* maps to long */
+	CONFIG_LONG_LONG, /* maps to a long long (PRInt64) */
 	CONFIG_STRING, /* maps to char* */
 	CONFIG_CHARRAY, /* maps to char** */
 	CONFIG_ON_OFF, /* maps 0/1 to "off"/"on" */
@@ -1008,7 +1009,7 @@ static struct config_get_and_set {
 	{CONFIG_DISK_THRESHOLD, config_set_disk_threshold,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_threshold,
-		CONFIG_LONG, (ConfigGetFunc)config_get_disk_threshold,
+		CONFIG_LONG_LONG, (ConfigGetFunc)config_get_disk_threshold,
 		DEFAULT_DISK_THRESHOLD},
 	{CONFIG_DISK_GRACE_PERIOD, config_set_disk_grace_period,
 		NULL, 0,
@@ -4388,10 +4389,10 @@ config_get_disk_grace_period(){
     return retVal;
 }
 
-PRUint64
+PRInt64
 config_get_disk_threshold(){
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    long retVal;
+    PRInt64 retVal;
 
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->disk_threshold;
@@ -7256,7 +7257,12 @@ config_set_value(
         else
             slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
         break;
-
+    case CONFIG_LONG_LONG:
+        if (value)
+            slapi_entry_attr_set_longlong(e, cgas->attr_name, *((long long*)value));
+        else
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
+        break;
     case CONFIG_STRING:
         slapi_entry_attr_set_charptr(e, cgas->attr_name,
                                      (value && *((char **)value)) ?
