@@ -2903,6 +2903,20 @@ slapi_entry_attr_set_long( Slapi_Entry* e, const char *type, long l)
 }
 
 void
+slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long l)
+{
+    char value[20];
+    struct berval bv;
+    struct berval *bvals[2];
+    bvals[0] = &bv;
+    bvals[1] = NULL;
+    sprintf(value,"%lld",l);
+    bv.bv_val = value;
+    bv.bv_len = strlen( value );
+    slapi_entry_attr_replace( e, type, bvals );
+}
+
+void
 slapi_entry_attr_set_ulong( Slapi_Entry* e, const char *type, unsigned long l)
 {
     char value[16];
