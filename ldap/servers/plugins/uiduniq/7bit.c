@@ -544,7 +544,7 @@ preop_modrdn(Slapi_PBlock *pb)
     char **argv;
     char **attrName;
     Slapi_DN *target_sdn = NULL;
-    Slapi_DN *superior;
+    Slapi_DN *superior = NULL;
     char *rdn; 
     Slapi_Attr *attr;
     char **firstSubtree;
@@ -584,7 +584,7 @@ preop_modrdn(Slapi_PBlock *pb)
      * its current level in the tree.  Use the target DN for
      * determining which managed tree this belongs to
      */
-    if (!superior) superior = target_sdn;
+    if (!slapi_sdn_get_dn(superior)) superior = target_sdn;
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
@@ -618,7 +618,7 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /*
-     * arguments before "," are the 7-bit clean attribute names.  Arguemnts
+     * arguments before "," are the 7-bit clean attribute names.  Arguments
      * after "," are subtreeDN's.
      */
     for ( firstSubtree = argv; strcmp(*firstSubtree, ",") != 0;
@@ -633,7 +633,7 @@ preop_modrdn(Slapi_PBlock *pb)
     for (attrName = argv; strcmp(*attrName, ",") != 0; attrName++ )
     {
       /* 
-       * If the attribut type is userpassword, do not replace it by 
+       * If the attribute type is userpassword, do not replace it by
        * unhashed#user#password because unhashed#user#password does not exist  
        * in this case.
        */
