@@ -3177,8 +3177,7 @@ config_set_security( const char *attrname, char *value, char *errorbuf, int appl
 }
 
 static int 
-config_set_onoff ( const char *attrname, char *value, int *configvalue,
-		char *errorbuf, int apply )
+config_set_onoff(const char *attrname, char *value, int *configvalue, char *errorbuf, int apply)
 {
   int retVal = LDAP_SUCCESS;
   slapi_onoff_t newval = -1;
@@ -3186,33 +3185,27 @@ config_set_onoff ( const char *attrname, char *value, int *configvalue,
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 #endif 
   
-  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
-	return LDAP_OPERATIONS_ERROR;
+  if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
+    return LDAP_OPERATIONS_ERROR;
   }
   
   CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
-  if ( strcasecmp ( value, "on" ) != 0 &&
-	   strcasecmp ( value, "off") != 0 && 
-	   /* initializing the value */
-	   (*(int *)value != LDAP_ON) &&
-	   (*(int *)value != LDAP_OFF)) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			"%s: invalid value \"%s\". Valid values are \"on\" or \"off\".",
-			attrname, value );
-	retVal = LDAP_OPERATIONS_ERROR;
+  if (strcasecmp(value, "on") && strcasecmp(value, "off")) {
+    PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+            "%s: invalid value \"%s\". Valid values are \"on\" or \"off\".",
+            attrname, value );
+    retVal = LDAP_OPERATIONS_ERROR;
   }
  
   if ( !apply ) {
-	/* we can return now if we aren't applying the changes */
-	return retVal;
+    /* we can return now if we aren't applying the changes */
+    return retVal;
   }
   
   if ( strcasecmp ( value, "on" ) == 0 ) {
-	newval = LDAP_ON;
+    newval = LDAP_ON;
   } else if ( strcasecmp ( value, "off" ) == 0 ) {
-	newval = LDAP_OFF;
-  } else { /* assume it is an integer */
-	newval = *(slapi_onoff_t *)value;
+    newval = LDAP_OFF;
   }
   
 #ifdef ATOMIC_GETSET_ONOFF
@@ -7001,6 +6994,18 @@ config_get_listen_backlog_size()
   return retVal; 
 }
 
+static char *
+config_initvalue_to_onoff(struct config_get_and_set *cgas, char *initvalbuf, size_t initvalbufsize)
+{
+	char *retval = NULL;
+	if (cgas->config_var_type == CONFIG_ON_OFF) {
+		slapi_onoff_t *ival = (slapi_onoff_t *)(intptr_t)cgas->initvalue;
+		PR_snprintf(initvalbuf, initvalbufsize, "%s", (ival && *ival) ? "on" : "off");
+		retval = initvalbuf;
+	}
+	return retval;
+}
+
 /*
  * This function is intended to be used from the dse code modify callback.  It
  * is "optimized" for that case because it takes a berval** of values, which is
@@ -7049,12 +7054,15 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 	default:
 		if ((NULL == values) &&
 			config_allowed_to_delete_attrs(cgas->attr_name)) {
+			char initvalbuf[64];
+			void *initval = cgas->initvalue;
+			if (cgas->config_var_type == CONFIG_ON_OFF) {
+				initval = (void *)config_initvalue_to_onoff(cgas, initvalbuf, sizeof(initvalbuf));
+			}
 			if (cgas->setfunc) {
-				retval = (cgas->setfunc)(cgas->attr_name, cgas->initvalue,
-				                         errorbuf, apply);
+				retval = (cgas->setfunc)(cgas->attr_name, initval, errorbuf, apply);
 			} else if (cgas->logsetfunc) {
-				retval = (cgas->logsetfunc)(cgas->attr_name, cgas->initvalue,
-				                            cgas->whichlog, errorbuf, apply);
+				retval = (cgas->logsetfunc)(cgas->attr_name, initval, cgas->whichlog, errorbuf, apply);
 			} else {
 				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
 				              "config_set: the attribute %s is read only; "
