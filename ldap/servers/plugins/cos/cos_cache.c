@@ -727,7 +727,8 @@ struct dn_defs_info {
  * if a particular attempt to add a definition fails: info.ret gets set to
  * zero only if we succed to add a def.
 */
-static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
+static int 
+cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 {
 	struct dn_defs_info *info;
 	cosAttrValue **pSneakyVal = 0;
@@ -877,31 +878,10 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 					                      dnVals[valIndex]->bv_val);
 				}
 
-				if(!pCosTargetTree)
-				{
-					/* get the parent of the definition */
-					char *orig = slapi_dn_parent(pDn->val);
-					Slapi_DN *psdn = slapi_sdn_new_dn_byval(orig);
-					char *parent = (char *)slapi_sdn_get_dn(psdn);
-					if (!parent) {
-						parent = (char *)slapi_sdn_get_udn(psdn);
-						LDAPDebug(LDAP_DEBUG_ANY, 
-						  "cos_cache_build_definition_list: "
-						  "failed to normalize parent dn %s. "
-						  "Adding the pre normalized dn.\n", 
-						  parent, 0, 0);
-					}
-					cos_cache_add_attrval(&pCosTargetTree, parent);
-					if (!pCosTemplateDn) {
-						cos_cache_add_attrval(&pCosTemplateDn, parent);
-					}
-					slapi_sdn_free(&psdn);
-				}
-				
 				slapi_vattrspi_regattr((vattr_sp_handle *)vattr_handle,
 				                        dnVals[valIndex]->bv_val, NULL, NULL);
 			} /* if(attrType is cosAttribute) */
-										
+
 			/*
 			 * Add the attributetype to the appropriate
 			 * list.
@@ -913,6 +893,47 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 		ber_bvecfree( dnVals );
 		dnVals = NULL;
 	} while(!slapi_entry_next_attr(e, dnAttr, &dnAttr));
+
+	if (pCosAttribute && (!pCosTargetTree || !pCosTemplateDn)) {
+		/* get the parent of the definition */
+		char *orig = slapi_dn_parent(pDn->val);
+		char *parent = NULL;
+		if (orig) {
+			parent = slapi_create_dn_string("%s", orig);
+			if (!parent) {
+				parent = orig;
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+				              "cos_dn_defs_cb: "
+				              "failed to normalize parent dn %s. "
+				              "Adding the pre normalized dn.\n", 
+				              parent);
+			}
+			if (!pCosTargetTree) {
+				cos_cache_add_attrval(&pCosTargetTree, parent);
+			}
+			if (!pCosTemplateDn) {
+				cos_cache_add_attrval(&pCosTemplateDn, parent);
+			}
+			if (parent != orig) {
+				slapi_ch_free_string(&parent);
+			}
+			slapi_ch_free_string(&orig);
+		} else {
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+			              "cos_dn_defs_cb: "
+			              "failed to get parent dn of cos definition %s.\n",
+			              pDn->val);
+			if (!pCosTemplateDn) {
+				if (!pCosTargetTree) {
+					LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTargetTree and cosTemplateDn are not set.\n");
+				} else {
+					LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTemplateDn is not set.\n");
+				}
+			} else if (!pCosTargetTree) {
+				LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTargetTree is not set.\n");
+			}
+		}
+	}
 	
 	/*
 	determine the type of class of service scheme 
@@ -951,9 +972,7 @@ static int 	cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 	*/
 	
 	/* these must exist */
-	if(		pDn &&
-		pObjectclass && 
-		
+	if(pDn && pObjectclass && 
 		(
 		(cosType == COSTYPE_CLASSIC &&
 		pCosTemplateDn && 
@@ -3582,14 +3601,9 @@ static int cos_cache_entry_is_cos_related( Slapi_Entry *e) {
 			{
 				pObj = (char*)slapi_value_get_string(val);
 
-				/*
-				 * objectclasses are ascii--maybe strcasecmp() is faster than
-				 * slapi_utf8casecmp()
-				*/
-				if(	!strcasecmp(pObj, "cosdefinition") ||
-					!strcasecmp(pObj, "cossuperdefinition") ||
-					!strcasecmp(pObj, "costemplate")
-					)
+				if(!strcasecmp(pObj, "cosdefinition") ||
+				   !strcasecmp(pObj, "cossuperdefinition") ||
+				   !strcasecmp(pObj, "costemplate"))
 				{
 					rc = 1;
 				}
