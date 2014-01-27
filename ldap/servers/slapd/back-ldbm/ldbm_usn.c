@@ -80,10 +80,11 @@ ldbm_usn_init(struct ldbminfo  *li)
     for ( sdn = slapi_get_first_suffix( &node, 0 ); sdn != NULL;
           sdn = slapi_get_next_suffix_ext( &node, 0 )) {
         be = slapi_mapping_tree_find_backend_for_sdn(sdn);
-        slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_usn_init",
-                    "backend: %s%s\n", be->be_name, isglobal?" (global mode)":"");
         rc = usn_get_last_usn(be, &last_usn);
         if (0 == rc) { /* only when the last usn is available */
+            slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_usn_init",
+                            "backend: %s%s\n", be->be_name, 
+                            isglobal?" (global mode)":"");
             if (isglobal) {
                 if (isfirst) {
                     li->li_global_usn_counter = slapi_counter_new();
@@ -126,7 +127,7 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     DBT value;
     PRInt64 signed_last_usn;
 
-    if (NULL == last_usn) {
+    if ((NULL == be) || (NULL == last_usn)) {
         return rc;
     }
 
