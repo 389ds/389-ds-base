@@ -49,7 +49,13 @@
 #include "back-ldbm.h"
 #include "dblayer.h"
 
-static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv)
+static int
+dblayer_copy_file_keybykey(DB_ENV *env,
+                           char *source_file_name,
+                           char *destination_file_name,
+                           int overwrite,
+                           dblayer_private *priv,
+                           ldbm_instance *inst)
 {
 	int retval = 0;
 	int retval_cleanup = 0;
@@ -62,6 +68,7 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 	int cursor_flag = 0;
 	int finished = 0;
 	int mode = 0;
+        char *p = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_copy_file_keybykey\n", 0, 0, 0 );
 
@@ -119,6 +126,40 @@ static int dblayer_copy_file_keybykey(DB_ENV *env, char *source_file_name, char 
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, set_pagesize error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
+
+        /* TEL 20130412: Make sure to set the dup comparison function if needed.  
+         * We key our decision off of the presence of new IDL and dup flags on
+         * the source database.  This is similar dblayer_open_file, except that
+         * we don't have the attribute info index mask for VLV.  That should be OK
+         * since the DB_DUP and DB_DUPSORT flags wouldn't have been toggled on
+         * unless they passed the check on the source.
+         */
+        /* Entryrdn index has its own dup compare function */
+        if ((p = PL_strcasestr(source_file_name, LDBM_ENTRYRDN_STR)) &&
+                (*(p + sizeof(LDBM_ENTRYRDN_STR) - 1) == '.')) {
+                /* entryrdn.db */
+                struct attrinfo *ai = NULL;
+                ainfo_get(inst->inst_be, LDBM_ENTRYRDN_STR, &ai);
+                if (ai->ai_dup_cmp_fn) {
+                        /* If set, use the special dup compare callback */
+                        retval = destination_file->set_dup_compare(destination_file, ai->ai_dup_cmp_fn);
+                        if (retval) {
+                                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                               "dblayer_copy_file_keybykey(entryrdn), set_dup_compare error %d: %s\n",
+                                               retval, db_strerror(retval));
+                                goto error;
+                        }
+                }
+        } else if (idl_get_idl_new() && (dbflags & DB_DUP) && (dbflags & DB_DUPSORT)) {
+                retval = destination_file->set_dup_compare(destination_file, idl_new_compare_dups); 
+                if (retval) {
+                        LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                       "dblayer_copy_file_keybykey, set_dup_compare error %d: %s\n",
+                                       retval, db_strerror(retval));
+                        goto error;
+                }
+        }
+
 	retval = (destination_file->open)(destination_file, NULL, destination_file_name, NULL, dbtype, DB_CREATE | DB_EXCL, mode);
 	if (retval) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Open error %d: %s\n", retval, db_strerror(retval), 0);
@@ -190,7 +231,13 @@ error:
 	return retval;
 }
 
-int dblayer_copy_file_resetlsns(char *home_dir ,char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv)
+int
+dblayer_copy_file_resetlsns(char *home_dir,
+                            char *source_file_name,
+                            char *destination_file_name,
+                            int overwrite,
+                            dblayer_private *priv,
+                            ldbm_instance *inst)
 {
 	int retval = 0;
 	DB_ENV *env = NULL;
@@ -205,7 +252,7 @@ int dblayer_copy_file_resetlsns(char *home_dir ,char *source_file_name, char *de
 		goto out;
 	}
 	/* Do the copy */
-	retval = dblayer_copy_file_keybykey(env, source_file_name, destination_file_name, overwrite, priv);
+	retval = dblayer_copy_file_keybykey(env, source_file_name, destination_file_name, overwrite, priv, inst);
 	if (retval) {
 		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_resetlsns: Copy not completed successfully.", 0, 0, 0);
 	}

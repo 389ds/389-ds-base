@@ -5653,6 +5653,7 @@ dblayer_copy_directory(struct ldbminfo *li,
     char            inst_dir[MAXPATHLEN];
     char            sep;
     int             suffix_len = 0;
+    ldbm_instance *inst = NULL;
 
     if (!src_dir || '\0' == *src_dir)
     {
@@ -5676,6 +5677,14 @@ dblayer_copy_directory(struct ldbminfo *li,
     else
         relative_instance_name++;
 
+    inst = ldbm_instance_find_by_name(li, relative_instance_name);
+    if (NULL == inst) {
+        LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
+                  "Instance path %s could be invalid.\n",
+                  relative_instance_name, src_dir, 0);
+        return return_value;
+    }
+
     if (is_fullpath(src_dir))
     {
         new_src_dir = src_dir;
@@ -5683,15 +5692,6 @@ dblayer_copy_directory(struct ldbminfo *li,
     else
     {
         int len;
-        ldbm_instance *inst =
-                       ldbm_instance_find_by_name(li, relative_instance_name);
-        if (NULL == inst)
-        {
-            LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
-                  "Instance path %s could be invalid.\n",
-                  relative_instance_name, src_dir, 0);
-            return return_value;
-        }
 
         inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                               inst_dir, MAXPATHLEN);
@@ -5811,13 +5811,12 @@ dblayer_copy_directory(struct ldbminfo *li,
             /* If the file is a database file, and resetlsns is set, then we need to do a key by key copy */
             /* PL_strcmp takes NULL arg */
             if (resetlsns &&
-                (PL_strcmp(LDBM_FILENAME_SUFFIX, strrchr(filename1, '.'))
-                 == 0)) {
+                (PL_strcmp(LDBM_FILENAME_SUFFIX, strrchr(filename1, '.')) == 0)) {
                 return_value = dblayer_copy_file_resetlsns(src_dir, filename1, filename2,
-                                            0, priv);
+                                                           0, priv, inst);
             } else {
                 return_value = dblayer_copyfile(filename1, filename2,
-                                            0, priv->dblayer_file_mode);
+                                                0, priv->dblayer_file_mode);
             }
             slapi_ch_free((void**)&filename1);
             slapi_ch_free((void**)&filename2);

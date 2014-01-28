@@ -361,7 +361,7 @@ get_ldapmessage_controls_ext(
                 slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &ctrl_not_found);
                 slapi_pblock_set(pb, SLAPI_PWPOLICY, &ctrl_not_found);
                 slapi_log_error(SLAPI_LOG_CONNS, "connection", "Warning: conn=%d op=%d contains an empty list of controls\n",
-                        pb->pb_conn->c_connid, pb->pb_op->o_opid);
+                        (int)pb->pb_conn->c_connid, pb->pb_op->o_opid);
         } else {
                 if ((tag != LBER_END_OF_SEQORSET) && (len != -1)) {
                         goto free_and_return;
