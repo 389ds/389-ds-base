@@ -145,6 +145,7 @@ static char* const access_str_proxy 	= "proxy";
 #define DS_LAS_GROUP 		"group"
 #define DS_LAS_USERDN		"userdn"
 #define DS_LAS_GROUPDN		"groupdn"
+#define	DS_LAS_SELFDNATTR	"selfdnattr"
 #define	DS_LAS_USERDNATTR	"userdnattr"
 #define	DS_LAS_AUTHMETHOD	"authmethod"
 #define	DS_LAS_GROUPDNATTR	"groupdnattr"

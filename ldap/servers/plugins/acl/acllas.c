@@ -179,7 +179,7 @@
 		DS_LASRoleDnEval		- LAS Evaluation for ROLEDN		-
 			three-valued logic
 			logical combination: || and !=
-		DS_LASUserDnAttrEval	- LAS Evaluation for USERDNATTR -
+		DS_LASUserDnAttrEval	- LAS Evaluation for USERDNATTR and SELFDNATTR-
 			three-valued logic  
 			logical combination || (over specified attribute values and
 			parent keyword levels), !=
@@ -1170,11 +1170,21 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	char			*attrs[2] = { LDAP_ALL_USER_ATTRS, NULL };
 	lasInfo			lasinfo;
 	int				got_undefined = 0;
+        PRBool selfdn;
+        
+        if (attr_name == NULL ||
+                (strcmp(DS_LAS_SELFDNATTR, attr_name) && strcmp(DS_LAS_USERDNATTR, attr_name))) {
+                slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
+                        "DS_LASUserDnattr: invalid attr_name (should be %s or %s)\n",
+                        DS_LAS_SELFDNATTR, DS_LAS_USERDNATTR);
+                return LAS_EVAL_FAIL;
+        }
+        selfdn = (strcmp(DS_LAS_SELFDNATTR, attr_name) == 0) ? PR_TRUE : PR_FALSE;
 
 	if ( 0 !=  (rc = __acllas_setup (errp, attr_name, comparator, 0, /* Don't allow range comparators */
 									attr_pattern,cachable,LAS_cookie,
 									subject, resource, auth_info,global_auth,
-									DS_LAS_USERDNATTR, "DS_LASUserDnAttrEval", 
+									attr_name, "DS_LASUserDnAttrEval", 
 									&lasinfo )) ) {
 		return LAS_EVAL_FAIL;
 	}
@@ -1269,6 +1279,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		if ( levels[i] == 0 ) {
 			Slapi_Value *sval=NULL;
 			const struct berval		*attrVal;
+                        int numValues = 0;
 			int j;
 
 			/*
@@ -1280,13 +1291,32 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			*/
 
 			if ( lasinfo.aclpb->aclpb_optype == SLAPI_OPERATION_ADD) {
-				slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-					"ACL info: userdnAttr does not allow ADD permission at level 0.\n");
-				got_undefined = 1;
-				continue;
+                                if (selfdn) {
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                "ACL info: %s DOES allow ADD permission at level 0.\n", attr_name);
+                                } else {
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                "ACL info: %s does not allow ADD permission at level 0.\n", attr_name);
+                                        got_undefined = 1;
+                                        continue;
+                                }
 			}
 			slapi_entry_attr_find( lasinfo.resourceEntry, attrName, &a);
 			if ( NULL == a ) continue;
+                        
+                        if (selfdn) {
+                                /* Checks that attrName has only one value. This is the only condition enforced
+                                 * when using SELFDN
+                                 */
+                                slapi_attr_get_numvalues((const Slapi_Attr *) a, &numValues);
+                                if (numValues != 1) {
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                "DS_LASSelfDnAttrEval: fail because the retrieved %s in resource has more than one value (%d)\n",
+                                                attrName, numValues);
+                                        got_undefined = 1;
+                                        continue;
+                                }
+                        }
 			j= slapi_attr_first_value ( a,&sval );
 			while ( j != -1 ) {
 				attrVal = slapi_value_get_berval ( sval );
@@ -1304,7 +1334,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					char	ebuf [ BUFSIZ ];
 					/* Wow it matches */
 					slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-						"userdnAttr matches(%s, %s) level (%d)\n",
+						"%s matches(%s, %s) level (%d)\n", attr_name,
 						val,
 				ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo.clientDn, ebuf),
 						0);
@@ -1356,7 +1386,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			if (info.result) {
 				matched = ACL_TRUE;
 				slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-						"userdnAttr matches at level (%d)\n", levels[i]);
+						"%s matches at level (%d)\n", attr_name, levels[i]);
 			}
 		}
 		if (matched == ACL_TRUE) {				
@@ -1380,7 +1410,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	} else {
 		rc = LAS_EVAL_FAIL;
 		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-			"Returning UNDEFINED for userdnattr evaluation.\n");
+			"Returning UNDEFINED for %s evaluation.\n", attr_name);
 	} 
 
 	return rc;
@@ -3385,7 +3415,12 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 							attrName, cachable, LAS_cookie,
 							subject, resource, auth_info, global_auth);
 		goto done_las;
-	}
+	} else if (0 == strncasecmp ( attrValue, "SELFDN", 6)) {
+                matched = DS_LASUserDnAttrEval (errp,DS_LAS_SELFDNATTR, comparator,
+							attrName, cachable, LAS_cookie,
+							subject, resource, auth_info, global_auth);
+                goto done_las;
+        }
 
 	if ( lasinfo.aclpb && ( NULL == lasinfo.aclpb->aclpb_client_entry )) {
 		/* SD 00/16/03 pass NULL in case the req is chained */
