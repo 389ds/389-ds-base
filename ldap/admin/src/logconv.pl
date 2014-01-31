@@ -107,6 +107,8 @@ my $reportBinds = "no";
 my $rootDN = "";
 my $needCleanup = 0;
 my @scopeTxt = ("0 (base)", "1 (one)", "2 (subtree)");
+my $reportStatsSecFile;
+my $reportStatsMinFile;
 
 GetOptions(
 	'd|rootDN=s' => \$rootDN,
@@ -119,8 +121,8 @@ GetOptions(
 	'E|endTime=s' => \$endTime,
 	'T|minEtime=s' => \$minEtime,
 	'B|bind=s' => sub { $reportBinds = "yes"; $bindReportDN=($_[1]) },
-	'm|reportFileSecs=s' => sub { my ($opt,$value) = @_; $s_stats = new_stats_block($value); $reportStats = "-m";},
-	'M|reportFileMins=s' =>  sub { my ($opt,$value) = @_; $m_stats = new_stats_block($value); $reportStats = "-M";},
+	'm|reportFileSecs=s' => \$reportStatsSecFile,
+	'M|reportFileMins=s' =>  \$reportStatsMinFile,
 	'h|help' => sub { displayUsage() },
 	# usage options '-efcibaltnxgjuiryp'
 	'e' => sub { $usage = $usage . "e"; },
@@ -173,12 +175,21 @@ while($arg_count <= $#ARGV){
 }
 
 if($file_count == 0){
-	if($reportStats){
-		print "Usage error for option $reportStats, either the output file or access log is missing!\n\n";
+	if($reportStatsSecFile or $reportStatsMinFile){
+		print "Usage error for option -m or -M, either the output file or access log is missing!\n\n";
 	} else {
 		print "There are no access logs specified!\n\n";
 	}
 	exit 1;
+}
+
+if ($reportStatsSecFile) {
+	$s_stats = new_stats_block($reportStatsSecFile);
+	$reportStats = "-m";
+}
+if ($reportStatsMinFile) {
+	$m_stats = new_stats_block($reportStatsMinFile);
+	$reportStats = "-M";
 }
 
 if ($sizeCount eq "all"){$sizeCount = "100000";}
