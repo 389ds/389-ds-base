@@ -543,13 +543,14 @@ sub flush {
 
 my $Number_To_Generate = 1;
 $Output_File_Name = "output.ldif";
-$Random_Seed = 1;
+$Random_Seed = 0;
 $Suffix = 'dc=example,dc=com';
 $NamingType = "uid";
 $inetOrgPerson = "objectClass: inetOrgPerson\n";
 $PrintOrgChartDat = 0;
-$DataDir = "/usr/share/dirsrv/data";
+$DataDir = "@templatedir@";
 $BeginNum = 0;
+$ZeroPad = 0;
 
 $Verbose = 0;
 $debug = 0;
@@ -572,7 +573,7 @@ GetOptions('number=i' => \$Number_To_Generate,
            'x' => \$opt_x,
            'y' => \$opt_y,
            'z' => \$opt_z,
-           'j' => \$opt_j,
+           'j=i' => \$ZeroPad,
            'verbose' => \$Verbose,
            'debug' => \$debug,
            'quiet' => \$Quiet,
@@ -598,7 +599,6 @@ if ("" != $opt_y)
 {
     $printorgunit = 0;
 }
-$ZeroPad = $opt_j;
 
 if ($Suffix =~ /o=/) {
     ($Organization) = $Suffix =~ /o=([^,]+)/;
@@ -1029,8 +1029,8 @@ sub MakeRandomLocality {
 sub MakeRandomName {
     local($Given_Name, $Surname, $Full_Name, $UID, $uniq, $first, $last, $RDN);
     # Get the unique number depending if a seed was set or not.
-    $uniq = int rand($Random_Seed) if ($opt_r);
-    $uniq = $x if (!$opt_r);
+    $uniq = int rand($Random_Seed) if ($Random_Seed);
+    $uniq = $x if (!$Random_Seed);
 
     $Given_Name   = $given_names[rand @given_names];
     $Surname      = $family_names[rand @family_names];
@@ -1040,7 +1040,7 @@ sub MakeRandomName {
     $UID = $first . $last . "$uniq";
     
     # Create the uid based on the DN naming type defined
-    if ($opt_b) { # use a uniquenumber for the RDN value
+    if ($BeginNum) { # use a uniquenumber for the RDN value
         if ($ZeroPad) {
             $RDN = sprintf "%0.${ZeroPad}d", $x;
         } else {
