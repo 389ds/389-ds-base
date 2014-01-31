@@ -117,8 +117,8 @@ static Slapi_Eq_Context snmp_eq_ctx;
 static int snmp_collator_stopped = 0;
 
 /* synchronization stuff */
-static PRLock 		*interaction_table_mutex;
-static sem_t		*stats_sem;
+static Slapi_Mutex *interaction_table_mutex = NULL;
+static sem_t		*stats_sem = NULL;
 
 
 /***********************************************************************************
@@ -129,7 +129,9 @@ static sem_t		*stats_sem;
 *
 ************************************************************************************/
 
-static int snmp_collator_init(){
+static int 
+snmp_collator_init()
+{
 	int i;
 
 	/*
@@ -207,7 +209,9 @@ static int snmp_collator_init(){
 	sem_post(stats_sem);
 
 	/* create lock for interaction table */
-        interaction_table_mutex = PR_NewLock();
+	if (!interaction_table_mutex) {
+		interaction_table_mutex = slapi_new_mutex();
+	}
 
 	return 0;
 }
@@ -224,7 +228,7 @@ static int snmp_collator_init(){
 void set_snmp_interaction_row(char *host, int port, int error)
 {
   int index;
-  int isnew;
+  int isnew = 0;
   char *dsName;
   char *dsURL;
 
@@ -239,43 +243,42 @@ void set_snmp_interaction_row(char *host, int port, int error)
   dsURL= make_ds_url(host, port);
 
   /* lock around here to avoid race condition of two threads trying to update table at same time */
-  PR_Lock(interaction_table_mutex);     
-      index = search_interaction_table(dsURL, &isnew);
-  
-      if(isnew){
-          /* fillin the new row from scratch*/
-          g_get_global_snmp_vars()->int_tbl[index].dsIntIndex	                  = index;
-          strncpy(g_get_global_snmp_vars()->int_tbl[index].dsName, dsName,
-                  sizeof(g_get_global_snmp_vars()->int_tbl[index].dsName));
-          g_get_global_snmp_vars()->int_tbl[index].dsTimeOfCreation	          = time(0);
-          g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	          = time(0);
-          if(error == 0){
-              g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess	  = time(0);
-              g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
-              g_get_global_snmp_vars()->int_tbl[index].dsFailures	          = 0;
-              g_get_global_snmp_vars()->int_tbl[index].dsSuccesses		  = 1;
-          }else{
-              g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess	  = 0;
-              g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 1;
-              g_get_global_snmp_vars()->int_tbl[index].dsFailures		  = 1;
-              g_get_global_snmp_vars()->int_tbl[index].dsSuccesses		  = 0;
-          }
-          strncpy(g_get_global_snmp_vars()->int_tbl[index].dsURL, dsURL,
-                  sizeof(g_get_global_snmp_vars()->int_tbl[index].dsURL));		         
+  slapi_lock_mutex(interaction_table_mutex);
+  index = search_interaction_table(dsURL, &isnew);
+  if(isnew){
+      /* fillin the new row from scratch*/
+      g_get_global_snmp_vars()->int_tbl[index].dsIntIndex	                  = index;
+      strncpy(g_get_global_snmp_vars()->int_tbl[index].dsName, dsName,
+              sizeof(g_get_global_snmp_vars()->int_tbl[index].dsName));
+      g_get_global_snmp_vars()->int_tbl[index].dsTimeOfCreation	          = time(0);
+      g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	          = time(0);
+      if(error == 0){
+          g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess	  = time(0);
+          g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
+          g_get_global_snmp_vars()->int_tbl[index].dsFailures	          = 0;
+          g_get_global_snmp_vars()->int_tbl[index].dsSuccesses		  = 1;
       }else{
-        /* just update the appropriate fields */
-           g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	         = time(0);
-          if(error == 0){
-             g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess        = time(0);
-             g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
-             g_get_global_snmp_vars()->int_tbl[index].dsSuccesses                += 1;
-          }else{
-             g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess +=1;
-             g_get_global_snmp_vars()->int_tbl[index].dsFailures                 +=1;
-          }
-
+          g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess	  = 0;
+          g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 1;
+          g_get_global_snmp_vars()->int_tbl[index].dsFailures		  = 1;
+          g_get_global_snmp_vars()->int_tbl[index].dsSuccesses		  = 0;
       }
-  PR_Unlock(interaction_table_mutex);     
+      strncpy(g_get_global_snmp_vars()->int_tbl[index].dsURL, dsURL,
+              sizeof(g_get_global_snmp_vars()->int_tbl[index].dsURL));		         
+  }else{
+    /* just update the appropriate fields */
+       g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	         = time(0);
+      if(error == 0){
+         g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess        = time(0);
+         g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
+         g_get_global_snmp_vars()->int_tbl[index].dsSuccesses                += 1;
+      }else{
+         g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess +=1;
+         g_get_global_snmp_vars()->int_tbl[index].dsFailures                 +=1;
+      }
+
+  }
+  slapi_unlock_mutex(interaction_table_mutex);
   /* free the memory allocated for dsURL in call to ds_make_url */
   if(dsURL != NULL){
     slapi_ch_free( (void**)&dsURL );
@@ -298,8 +301,8 @@ static char *make_ds_url(char *host, int port){
    return url;
 }
 
-
 /***********************************************************************************
+ * search_interaction_table is not used.
  * searches the table for the url specified 
  * If there, returns index to update stats
  * if, not there returns index of oldest interaction, and isnew flag is set
@@ -512,9 +515,7 @@ int snmp_collator_stop()
    sem_unlink(stats_sem_name);
 
    /* delete lock */
-   if (interaction_table_mutex) {
-       PR_DestroyLock(interaction_table_mutex);
-   }
+   slapi_destroy_mutex(interaction_table_mutex);
 
 #ifdef _WIN32
    /* send the event so server down trap gets set on NT */

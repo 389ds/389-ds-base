@@ -1556,7 +1556,7 @@ void libldap_init_debug_level(int *val_ptr)
 }
 #endif
 
-struct snmp_vars_t global_snmp_vars;
+static struct snmp_vars_t global_snmp_vars;
 
 struct snmp_vars_t * g_get_global_snmp_vars(){
     return &global_snmp_vars;
