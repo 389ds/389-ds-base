@@ -574,6 +574,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/81changelog.pl \
 	ldap/admin/src/scripts/90subtreerename.pl \
 	ldap/admin/src/scripts/91subtreereindex.pl \
+	ldap/admin/src/scripts/50updateconfig.ldif \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 
 update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh

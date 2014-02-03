@@ -1507,7 +1507,7 @@ FrontendConfig_init () {
   cfg->disk_threshold = 2097152;  /* 2 mb */
   cfg->disk_grace_period = 60; /* 1 hour */
   init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
-  init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_OFF;
+  init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_ON;
   cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
   init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
   cfg->ignore_vattrs = LDAP_OFF;

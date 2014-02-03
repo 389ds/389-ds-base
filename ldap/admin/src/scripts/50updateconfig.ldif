@@ -1,0 +1,10 @@
+#
+# Updates for the cn=config entry
+#
+
+# Enable the Normalized DN cache
+dn: cn=config
+changetype: modify
+replace: nsslapd-ndn-cache-enabled
+nsslapd-ndn-cache-enabled: on
+

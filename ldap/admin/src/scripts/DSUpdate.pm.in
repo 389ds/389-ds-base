@@ -378,6 +378,8 @@ sub updateDSInstance {
                 push @ldiffiles, "$inf->{General}->{prefix}@templatedir@/template-dnaplugin.ldif";
                 push @ldiffiles, $inf->{General}->{prefix} . $DS_UPDATE_PATH . "/dnaplugindepends.ldif";
             }
+            push @ldiffiles, $inf->{General}->{prefix} . $DS_UPDATE_PATH . "/50updateconfig.ldif";
+
             for my $ldiffile (@ldiffiles) {
                 my @localerrs = processUpdate($ldiffile, $inf, $configdir, $stage,
                                               $inst, $dseldif, $conn);
